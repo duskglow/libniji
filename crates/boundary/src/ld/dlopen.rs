@@ -855,10 +855,13 @@ impl View {
 
     /// The first published object, in chain order, for which `pred` holds.
     pub(super) fn find(&self, mut pred: impl FnMut(usize) -> bool) -> Option<usize> {
-        let first = self.node_addr(0);
+        let first = nodes_base();
         let mut i = 0usize;
-        // Every published object once (a chain longer than the indices is no chain of ours).
-        for _ in 0..=u32::MAX {
+        // Generation 0 as before: the index is bounded by CAP where it is decoded, so the node reads
+        // in `pred` and `next` need no test of their own; the first node past it continues in
+        // `find_past`. Every published object once (a chain longer than the indices is no chain
+        // of ours).
+        for _ in 0..CAP {
             if pred(i) {
                 return Some(i);
             }
@@ -866,14 +869,38 @@ impl View {
             if next == 0 {
                 return None;
             }
-            // Generation 0's range first: within CAP objects, the arithmetic as before (the writer
-            // links only node addresses there); a later generation's node by its directory.
+            let k = next.wrapping_sub(first).checked_div(size_of::<Node>())?;
+            if next < first || k >= CAP {
+                return self.find_past(next, &mut pred);
+            }
+            // `k < CAP` already; the mask (CAP is a power of two) is what lets the compiler drop
+            // the node reads' own `i < CAP` tests (it folds the test above into one on the byte
+            // offset and loses the index's bound): one `and` a step instead of a compare and a merge.
+            const { assert!(CAP.is_power_of_two()) };
+            i = k & CAP.wrapping_sub(1);
+        }
+        None
+    }
+
+    /// [`View::find`] from the node at `next` on, once the walk left generation 0.
+    #[cold]
+    #[inline(never)]
+    fn find_past(&self, mut next: usize, pred: &mut impl FnMut(usize) -> bool) -> Option<usize> {
+        let first = nodes_base();
+        for _ in 0..=u32::MAX {
             let off = next.wrapping_sub(first);
-            i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
+            let i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
                 off.checked_div(size_of::<Node>())?
             } else {
                 self.index_past(next)?
             };
+            if pred(i) {
+                return Some(i);
+            }
+            next = self.next(i);
+            if next == 0 {
+                return None;
+            }
         }
         None
     }

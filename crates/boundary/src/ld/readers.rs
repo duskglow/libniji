@@ -190,9 +190,27 @@ impl View {
         PUBLISHED.load(Acquire)
     }
 
-    /// Entry `i`, below [`View::len`], when it is live.
+    /// Entries of generation 0 visible now (the walks' first loop: the index is tested against
+    /// [`CAP`] in the loop condition, so [`View::entry`] needs no test of its own).
+    fn len0(&self) -> usize {
+        self.len().min(CAP)
+    }
+
+    /// Entry `i` of generation 0, below [`View::len0`], when it is live.
+    #[inline(always)]
     fn entry(&self, i: usize) -> Option<Entry> {
-        let e = slot(i)?;
+        Self::read(TABLE.get(i)?)
+    }
+
+    /// Entry `i` past generation 0, below [`View::len`], when it is live.
+    #[inline(never)]
+    fn entry_past(&self, i: usize) -> Option<Entry> {
+        Self::read(slot(i)?)
+    }
+
+    /// The words of a live entry.
+    #[inline(always)]
+    fn read(e: &[AtomicUsize; 5]) -> Option<Entry> {
         if e.get(4)?.load(Acquire) == 0 {
             return None;
         }
@@ -383,31 +401,68 @@ fn call(cb: usize, info: &struct_dl_phdr_info, data: usize) -> i32 {
 extern "C" fn iterate(cb: usize, data: usize) -> i64 {
     read_section(|v| {
         let mut i = 0usize;
-        while i < v.len() {
-            let Some(e) = v.entry(i) else {
-                i = i.wrapping_add(1);
-                continue;
-            };
-            let (adds, subs) = v.counters();
-            let (modid, block) = tls_of(&e);
-            let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(e.bias).unwrap_or(0), dlpi_name: e.name, dlpi_phdr: e.phdr, dlpi_phnum: u16::try_from(e.phnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: modid, dlpi_tls_data: block };
-            let r = call(cb, &info, data);
-            if r != 0 {
-                return i64::from(r);
-            }
-            let vd = vdso();
-            if i == 0 && vd != 0 {
-                let (vphdr, vphnum, bias) = vdso_headers(vd);
-                let (adds, subs) = v.counters();
-                let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
-                let r = call(cb, &info, data);
-                if r != 0 {
-                    return i64::from(r);
+        while i < v.len0() {
+            if let Some(e) = v.entry(i) {
+                if let Some(r) = report(v, i, &e, cb, data) {
+                    return r;
                 }
             }
             i = i.wrapping_add(1);
         }
+        if i < v.len() {
+            return iterate_past(v, cb, data);
+        }
         0
+    })
+}
+
+/// [`iterate`] past generation 0 (entries [`CAP`] on).
+#[cold]
+#[inline(never)]
+fn iterate_past(v: &View, cb: usize, data: usize) -> i64 {
+    let mut i = CAP;
+    while i < v.len() {
+        if let Some(e) = v.entry_past(i) {
+            if let Some(r) = report(v, i, &e, cb, data) {
+                return r;
+            }
+        }
+        i = i.wrapping_add(1);
+    }
+    0
+}
+
+/// Call `cb` for live entry `i` (and the vDSO after entry 0): `Some` with the callback's nonzero
+/// result, which ends the walk.
+#[inline(always)]
+fn report(v: &View, i: usize, e: &Entry, cb: usize, data: usize) -> Option<i64> {
+    let (adds, subs) = v.counters();
+    let (modid, block) = tls_of(e);
+    let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(e.bias).unwrap_or(0), dlpi_name: e.name, dlpi_phdr: e.phdr, dlpi_phnum: u16::try_from(e.phnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: modid, dlpi_tls_data: block };
+    let r = call(cb, &info, data);
+    if r != 0 {
+        return Some(i64::from(r));
+    }
+    let vd = vdso();
+    if i == 0 && vd != 0 {
+        let (vphdr, vphnum, bias) = vdso_headers(vd);
+        let (adds, subs) = v.counters();
+        let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
+        let r = call(cb, &info, data);
+        if r != 0 {
+            return Some(i64::from(r));
+        }
+    }
+    None
+}
+
+/// [`find_object`]'s walk past generation 0 (entries [`CAP`] to `n`).
+#[cold]
+#[inline(never)]
+fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usize)> {
+    (CAP..n).find_map(|i| {
+        let e = v.entry_past(i)?;
+        find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
     })
 }
 
@@ -417,10 +472,13 @@ extern "C" fn iterate(cb: usize, data: usize) -> i64 {
 /// `*result` untouched.
 extern "C" fn find_object(pc: usize, result: usize) -> i64 {
     let found = read_section(|v| {
-        (0..v.len()).find_map(|i| {
-            let e = v.entry(i)?;
-            find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
-        })
+        let n = v.len();
+        (0..n.min(CAP))
+            .find_map(|i| {
+                let e = v.entry(i)?;
+                find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+            })
+            .or_else(|| find_past(v, n, pc))
     });
     let found = found.or_else(|| {
         let vd = vdso();
