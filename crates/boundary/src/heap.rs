@@ -774,22 +774,26 @@ pub(crate) fn c_usable_size(p: usize) -> Result<usize, Misuse> {
     malloc_compat::usable_size(&CTX, p)
 }
 
-/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing.
+/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing. The buffer exists
+/// only then (HEAP-FOREIGN-TB-SPEED): zeroing and moving 256 bytes on every call through the
+/// debugging paths was about 45% of a foreign thread's `malloc`/`free` pair (every operation of
+/// a process the runtime did not start comes here, `FOREIGN`).
 struct Caller {
-    buf: [u8; 256],
+    buf: Option<[u8; 256]>,
     len: usize,
 }
 
 impl Caller {
     fn new(f: u32) -> Caller {
-        let mut c = Caller { buf: [0; 256], len: 0 };
-        if f & malloc_debug::TRACE != 0 {
-            c.len = crate::backtrace::caller_text(&entry_points(), &mut c.buf);
+        if f & malloc_debug::TRACE == 0 {
+            return Caller { buf: None, len: 0 };
         }
-        c
+        let mut buf = [0; 256];
+        let len = crate::backtrace::caller_text(&entry_points(), &mut buf);
+        Caller { buf: Some(buf), len }
     }
     fn text(&self) -> &[u8] {
-        self.buf.get(..self.len).unwrap_or(&[])
+        self.buf.as_ref().and_then(|b| b.get(..self.len)).unwrap_or(&[])
     }
 }
 
@@ -852,6 +856,9 @@ fn pedantic(f: u32) {
 #[inline(never)]
 fn debug_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
     let f = begin(true);
+    if f == malloc_debug::FOREIGN {
+        return foreign_alloc(n, align, zero);
+    }
     let caller = Caller::new(f);
     pedantic(f);
     DEBUG.alloc(&CTX, &BlockMem, Call { flags: f, caller: caller.text() }, n, align, zero)
@@ -864,11 +871,49 @@ fn debug_free(p: usize) -> Result<(), Misuse> {
     if p == 0 {
         return Ok(());
     }
+    if f == malloc_debug::FOREIGN {
+        return foreign_free(p);
+    }
     let caller = Caller::new(f);
     pedantic(f);
     let (r, status) = DEBUG.free(&CTX, &BlockMem, Call { flags: f, caller: caller.text() }, p);
     report(status);
     r
+}
+
+/// [`debug_alloc`] with no debugging on in a process the runtime did not start ([`DEBUG`]'s word
+/// is [`malloc_debug::FOREIGN`] alone, D-X.60): what `Debug::alloc` does with those flags, the
+/// heap's allocation (zeroed for `calloc`), with the calling thread's cache word found once
+/// ([`foreign::ForeignPages`]) instead of at each read the heap makes (each a registry probe
+/// through [`KernelPages`]), and without the steps of the debugging that is off
+/// (HEAP-FOREIGN-PAIR). Out of line and cold: `debug_alloc` runs at start-up (the first
+/// allocation clears `VIRGIN`), and inlined there the route grew it past its start-up layout
+/// window (WINDOW-BIN-BYTES); `debug_alloc` gains only the test and the call.
+#[cold]
+#[inline(never)]
+fn foreign_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
+    let b = match crate::thread::heap_cache_slot() {
+        Some(s) => HEAP.alloc(&CSys, &foreign::ForeignPages(s), n, align),
+        // No cache word (the registry had no room): `Heap::alloc`'s fast path finds no cache.
+        None => HEAP.alloc_slow(&CSys, &KernelPages, n, align),
+    };
+    let b = b.ok_or(Errno::ENOMEM)?;
+    if zero {
+        zero_fresh(b.addr, n);
+    }
+    Ok(b.addr)
+}
+
+/// [`debug_free`] of `p` (not NULL) with the flags [`foreign_alloc`] serves: the heap's release,
+/// with the cache word found once. Out of line and cold, as [`foreign_alloc`].
+#[cold]
+#[inline(never)]
+fn foreign_free(p: usize) -> Result<(), Misuse> {
+    match crate::thread::heap_cache_slot() {
+        Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p),
+        // No cache word: `Heap::free`'s fast path finds no cache.
+        None => HEAP.free_slow(&CSys, &KernelPages, p),
+    }
 }
 
 #[cold]
@@ -1081,5 +1126,78 @@ impl Pages for OwnPages {
     #[inline(always)]
     fn words(&self, addr: usize, n: usize) -> &[AtomicU64] {
         KernelPages.words(addr, n)
+    }
+}
+
+/// The pages of [`foreign_alloc`] and [`foreign_free`]. A module of its own, so that the impls of
+/// this module keep their numbers (the hot-text list keys their functions by them, see above).
+mod foreign {
+    use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::Relaxed};
+
+    use niji_rt::heap::Pages;
+
+    use super::KernelPages;
+
+    /// [`KernelPages`] with the calling thread's heap cache word already found (the slot
+    /// `thread::heap_cache_slot` gives, for one operation): the fast paths read it with one load
+    /// instead of an out-of-line call and a registry probe per read. The same word
+    /// [`KernelPages`] reads; everything else, the slow paths included ([`Pages::General`]), is
+    /// [`KernelPages`]'s.
+    pub(super) struct ForeignPages(pub(super) &'static AtomicUsize);
+
+    impl Pages for ForeignPages {
+        type General = KernelPages;
+        #[inline(always)]
+        fn general(&self) -> &KernelPages {
+            &KernelPages
+        }
+        #[inline(always)]
+        fn map(&self, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+            KernelPages.map(len, align, node)
+        }
+        #[inline(always)]
+        fn unmap(&self, addr: usize, len: usize) {
+            KernelPages.unmap(addr, len);
+        }
+        #[inline(always)]
+        fn discard(&self, addr: usize, len: usize) {
+            KernelPages.discard(addr, len);
+        }
+        #[inline(always)]
+        fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
+            KernelPages.remap(addr, old_len, new_len)
+        }
+        #[inline(always)]
+        fn wipe(&self, addr: usize, len: usize) {
+            KernelPages.wipe(addr, len);
+        }
+        #[inline(always)]
+        fn exclude_from_dumps(&self, addr: usize, len: usize) {
+            KernelPages.exclude_from_dumps(addr, len);
+        }
+        #[inline(always)]
+        fn shard(&self) -> usize {
+            KernelPages.shard()
+        }
+        #[inline(always)]
+        fn allowed_nodes(&self) -> usize {
+            KernelPages.allowed_nodes()
+        }
+        #[inline(always)]
+        fn cache_slot(&self) -> Option<&AtomicUsize> {
+            Some(self.0)
+        }
+        #[inline(always)]
+        fn cache_word(&self) -> usize {
+            self.0.load(Relaxed)
+        }
+        #[inline(always)]
+        fn address_limit(&self) -> Option<usize> {
+            KernelPages.address_limit()
+        }
+        #[inline(always)]
+        fn words(&self, addr: usize, n: usize) -> &[AtomicU64] {
+            KernelPages.words(addr, n)
+        }
     }
 }

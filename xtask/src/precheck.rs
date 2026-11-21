@@ -56,6 +56,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::time::{Instant, SystemTime};
 
+/// `cargo xtask test`'s first argument from an escalated `affected` run whose prechecks ran every [`CHEAP_STEPS`]
+/// entry green on the same tree: `test` then skips them (run once, not twice; TOOLING-PAPERCUTS, audit item 9).
+pub(crate) const CHEAP_DONE: &str = "--cheap-steps-done";
+
 /// The steps of the FULL tier that take seconds, in `test_steps` order (main.rs runs them from this list), with
 /// `stubs` first (the FULL gate's own first step). `affected` runs these as prechecks of an escalated run.
 pub(crate) const CHEAP_STEPS: &[&str] = &[
@@ -1101,6 +1105,21 @@ mod tests {
             let others: Vec<&String> = r.iter().filter(|(n, _, v)| n != check && v.level >= Level::Wait).map(|(n, _, _)| n).collect();
             assert!(others.is_empty(), "{what}: only {check} changes, not {others:?}");
         }
+    }
+
+    #[test]
+    fn a_gate_that_left_full_to_the_train_is_green() {
+        // no spec clause: GATE-DEV-NO-FULL. A per-fix gate never runs FULL; its log carries the train's line (where
+        // the FULL line was) before its verdict, and the hand-back checks take it as an ordinary gate.
+        let fx = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/precheck");
+        let train = "FULL: the train's (xtask/src/main.rs: xtask (its commands are part of the gate))\naffected: ok";
+        // The green fixture's own `jobs` verdict (notes for another host and a prose-only drift) is the yardstick: the
+        // train's line must change nothing in it.
+        let jobs = |r: Vec<(String, _, Verdict)>| r.into_iter().find(|(n, _, _)| n == "jobs").expect("a jobs verdict").2;
+        let plain = jobs(fixture_run_with(&fx, &|_| {}, &[]));
+        let v = jobs(fixture_run_with(&fx, &|root| edit_once(root, "logs/fixture-story-gate.log", "affected: ok", train), &[]));
+        assert!(plain.level < Level::Wait, "the fixture is green: {:?}", plain.lines);
+        assert_eq!((v.level, &v.lines), (plain.level, &plain.lines));
     }
 
     #[test]

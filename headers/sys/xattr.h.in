@@ -1,0 +1,28 @@
+@@generated
+/* sys/xattr.h: extended attributes (xattr(7)). */
+#ifndef __NIJI_H_sys_xattr_h
+#define __NIJI_H_sys_xattr_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns XATTR_CREATE XATTR_REPLACE
+@@emit
+
+/* The flags of setxattr(2) are an enumeration whose members are also macros. When the kernel's <linux/xattr.h> came
+   first it has defined them as macros (it sees this header's _SYS_XATTR_H guard when it comes second, and then
+   defines nothing); either order gives one definition (plan/headers.md 2.5, P8). */
+@@if XATTR_CREATE
+# ifndef XATTR_CREATE
+enum { XATTR_CREATE = @@value(XATTR_CREATE), XATTR_REPLACE = @@value(XATTR_REPLACE) };
+#  define XATTR_CREATE @@value(XATTR_CREATE)
+#  define XATTR_REPLACE @@value(XATTR_REPLACE)
+# endif
+#endif
+
+
+__NIJI_END_C
+
+#endif

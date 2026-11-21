@@ -1,0 +1,8 @@
+id = "D-X.137"
+section = "x"
+status = "active"
+story = "PASS2-NATIVE-POISON"
+date = "2026-11-20"
+body = '''
+**The native second pass poisons C-family blocks, and the interposed suite keeps only the targets that need the `export` build (refines D-X.135).** The native pass's runner (`pass2-exec`) hands the test commands' poison byte (`NIJI_TEST_MALLOC_PERTURB`) to the test process as `MALLOC_PERTURB_`, which the products' heap reads at start (§3.2), so a fresh C-family block holds the complement of the byte and a freed one the byte, as in the interposed suite, where the test binary's own heap serves the family. The process's children inherit it (libniji's and the host's programs alike); cargo and rustc, which run the passes, never see it: the runner is not in their path, and the test builds keep their own variable. With that, a target needs the interposed suite only when it reaches code the `export` feature compiles differently: its source checks `feature = "export"` (`heap_threads`, `s29_rpc_clnt_svc_stubs`), it calls `reallocarray` (by symbol only with `export`) or `mcheck` (the heap's `VIRGIN` bit) (`s03_memory_symbols`, `s03_memory_clauses`, `native_v1`), or its subject is the foreign path (`heap_threads`, `tb_foreign_words`, `tb_foreign_low_words`, `heap_foreign_pair_cost`); `pass2_native_process` checks each pass's process, and niji-boundary's unit tests stay for the library's own `export` code. The suite is that explicit list (`nextest::INTERPOSED`); a new target runs natively only, and a unit test requires every target whose source shows one of those markers to be listed. `pass2_native_process` checks the poisoning itself (a fresh C-family block holds the complement of the byte, natively and interposed).
+'''

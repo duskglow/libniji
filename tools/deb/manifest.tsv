@@ -58,7 +58,6 @@ both	libc6-dev	usr/lib/x86_64-linux-gnu/libc_nonshared.a	file	libc_nonshared.a	0
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libdl.a	file	libdl.a	0644	archive	empty: the functions are in libc.a
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libg.a	file	libg.a	0644	archive	empty (D-27.9)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libm.a	file	libm.a	0644	archive	the static maths library
-both	libc6-dev	usr/lib/x86_64-linux-gnu/libm.so	link	libm.so.6	-	none	a link, not a script adding libmvec.so.1: no simd declarations in the headers (R4, SL-SONAMES)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libmcheck.a	file	libmcheck.a	0644	archive	empty (D-27.9)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libmvec.a	file	libmvec.a	0644	archive	the static vector maths library (D-10.124)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libmvec.so	link	libmvec.so.1	-	none	-lmvec links the shared library
@@ -76,6 +75,7 @@ coexist	niji6	usr/share/doc/niji6/copyright	text	copyright	0644	none	-
 coexist	niji6-dev	usr/bin/niji-g++	link	niji-gcc	-	none	the C++ driver: the wrapper reads its own name
 coexist	niji6-dev	usr/bin/niji-gcc	text	niji-gcc	0755	none	the compiler wrapper (links with --sysroot=/usr/lib/niji)
 coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so	text	coexist/libc-so.ld	0644	none	the linker script; its paths are inside the sysroot
+coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libm.so	text	coexist/libm-so.ld	0644	none	-lm: libm.so.6, and libmvec.so.1 AS_NEEDED (issue #28); its paths are inside the sysroot
 coexist	niji6-dev	usr/share/doc/niji6-dev/changelog.gz	changelog	-	0644	none	-
 coexist	niji6-dev	usr/share/doc/niji6-dev/copyright	text	copyright	0644	none	-
 coexist	niji6-dev	usr/share/man/man1/niji-g++.1.gz	link	niji-gcc.1.gz	-	none	-
@@ -148,6 +148,7 @@ system	libc6	usr/share/lintian/overrides/libc6	text	system/libc6.lintian-overrid
 system	libc6-dbg	usr/share/doc/libc6-dbg/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc6-dbg	usr/share/doc/libc6-dbg/copyright	text	copyright	0644	none	-
 system	libc6-dev	usr/lib/x86_64-linux-gnu/libc.so	text	system/libc-so.ld	0644	none	the linker script
+system	libc6-dev	usr/lib/x86_64-linux-gnu/libm.so	text	system/libm-so.ld	0644	none	-lm: libm.so.6, and libmvec.so.1 AS_NEEDED (issue #28)
 system	libc6-dev	usr/share/doc/libc6-dev/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc6-dev	usr/share/doc/libc6-dev/copyright	text	copyright	0644	none	-
 system	locales	usr/share/doc/locales/changelog.Debian.gz	changelog	-	0644	none	-

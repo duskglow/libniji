@@ -1,0 +1,12 @@
+{"task": "HEADERS-GEN-S07-HOOKS", "model": "sonnet", "tokens": null,
+ "result": "slice 7's shared generator, extractor and smoke edits landed on their own: lfs 64-bit redirections (4 headers regenerated, 44 lines), no packed mark on byte structures, abi_extract utime.h/statx_timestamp/--prototypes-only, smoke --niji-headers and undef-compare.sh",
+ "branch": "task/headers-gen-s07-hooks", "head": "9a1cee1e7",
+ "gate": {"affected": "550 passed / 0 failed", "peak": "1.9G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Brief item 2 (enumeration tag declared by its header, c3c4a479) needs no edit on next: next has no enum_params rewrite and @@enum already declares the tag; its only generator effect on slice 7's branch was deleting code next lacks. The aggregates.rs edit slice 7 carried is a different rule (no __packed__ on byte structures), landed as its own commit.",
+  "libc-include is NOT unchanged: the lfs rule changes stdio.h, stdlib.h, sys/pidfd.h, unistd.h (44 added lines, FOB64 redirection of fseeko, ftello, mkostemp, mkostemps, mkstemp, fallocate, lockf x2, ftruncate, truncate, pwrite): next's headers lacked them. Listed in the commit body.",
+  "abi_extract.py: the whole slice 7 diff landed (utime.h in HEADERS, struct statx_timestamp, --prototypes-only); no table regenerated here, slice 7 regenerates its rows."],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "SL-HEADERS-S07 rebases data-only on these commits", "before": null, "after": null, "unit": "story", "measured": false},
+            {"kind": "coverage", "what": "unit tests and plants for the two generator rules", "before": 0, "after": 3, "unit": "plants", "measured": true}],
+ "improvement": "none", "next_step": "SL-HEADERS-S07 rebases on this branch as data-only", "report_file": "handoff/HEADERS-GEN-S07-HOOKS.md"}

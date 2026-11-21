@@ -9,7 +9,7 @@
 //!
 //! `cargo xtask rust-dylib` builds it with `rustc --extern niji_native=...` (the commands are
 //! in docs/toolchain.md) and checks with `readelf` that it needs `libniji_rust.so.<abi>` and
-//! `libc.so.6`. It is not run yet: that needs libniji's dynamic loader (phase 14).
+//! `libc.so.6`, then runs it under libniji's `ld.so` and checks its output.
 
 #![no_std]
 #![no_main]

@@ -1,0 +1,14 @@
+@@generated
+/* ulimit.h: ulimit(3), XSH <ulimit.h> */
+#ifndef __NIJI_H_ulimit_h
+#define __NIJI_H_ulimit_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

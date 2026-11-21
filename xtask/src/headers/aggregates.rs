@@ -67,6 +67,12 @@ fn quals(core: &str) -> (String, &str) {
     (q, rest)
 }
 
+/// Whether a layouts.tsv head row marks a transparent union (`transparent_union`, then ` restrict` when the name's
+/// macro form is a restrict pointer: spec/tools/abi_extract.py `tu_members`).
+pub(super) fn transparent_union(head: Option<&BTreeMap<String, String>>) -> bool {
+    head.is_some_and(|r| r["bitfield"].split_whitespace().next() == Some("transparent_union"))
+}
+
 /// The number after `word` in an `<anon>` row's `size N rows K`.
 fn anon_number(spec: &str, word: &str) -> Option<u64> {
     let w: Vec<&str> = spec.split_whitespace().collect();
@@ -92,7 +98,10 @@ impl Gen<'_> {
         }
         let kw = if lv.count > 1 && lv.offs.len() == 1 && !lv.bits { "union" } else { "struct" };
         let (mut attrs, mut td_attrs) = (String::new(), String::new());
-        if lv.wide && align == Some(1) {
+        if transparent_union(head) {
+            // A union a parameter takes as any of its members (GCC manual, transparent_union): layouts.tsv's mark.
+            attrs = " __attribute__ ((__transparent_union__))".into();
+        } else if lv.wide && lv.align != Some(1) && align == Some(1) {
             attrs = " __attribute__ ((__packed__))".into();
         } else if let (Some(a), Some(natural)) = (align, lv.align) {
             // Declared stricter than its members (`struct rseq`, 32): the type carries it, or (a size that is not a
@@ -122,12 +131,26 @@ impl Gen<'_> {
                 let off: u64 = r["offset_or_size"].parse().ok()?;
                 let k = anon_number(&r["bitfield"], "rows")? as usize;
                 let kw = r["member_type"].strip_suffix(" <anon>").filter(|k| matches!(*k, "struct" | "union"))?;
-                let inner = self.level(key, rows.get(i + 1..i + 1 + k)?, prefix, off, nested)?;
+                // K counts its member rows at this level (abi-gen reads it so too); the rows below each follow it.
+                let dots = prefix.matches('.').count();
+                let (mut end, mut seen) = (i + 1, 0);
+                while let Some(q) = rows.get(end) {
+                    let d = q["member"].matches('.').count();
+                    if d < dots || (d == dots && seen == k) {
+                        break;
+                    }
+                    seen += usize::from(d == dots);
+                    end += 1;
+                }
+                if seen < k {
+                    return None;
+                }
+                let inner = self.level(key, &rows[i + 1..end], prefix, off, nested)?;
                 lv.lines.push(format!("  {kw} {{"));
                 lv.lines.extend(inner.lines);
                 lv.lines.push("  };".into());
                 lv.add(off, anon_number(&r["bitfield"], "size").or(inner.end.map(|e| e - off)), inner.align);
-                i += 1 + k;
+                i = end;
                 continue;
             }
             // The rows below a named member (`m.x`) follow it.
@@ -205,7 +228,7 @@ impl Gen<'_> {
         // `@@hidden-member`: outside the condition of the member's structure tag, its scalar members by the given names.
         let mut hidden: Option<(String, Vec<String>)> = None;
         let ty = if let Some((kind, tag)) = bare.split_once(' ').filter(|(k, t)| stars.is_empty() && matches!(*k, "struct" | "union") && self.tag_known(k, t)) {
-            if let (Some(names), Some(c)) = (self.hidden_members.get(name).filter(|_| arr.is_empty() && kind == "struct"), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(o, tag))) {
+            if let (Some(names), Some(c)) = (self.hidden_members.get(name).filter(|_| arr.is_empty() && kind == "struct"), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(("struct", o), ("struct", tag)))) {
                 let direct: Vec<_> = kids.iter().filter(|q| !q["member"][r["member"].len() + 1..].contains('.')).collect();
                 if direct.len() != names.len() {
                     return None;
@@ -291,6 +314,14 @@ impl Gen<'_> {
 
     pub(super) fn tag(&mut self, name: &str, kind: &str) {
         let key = format!("{kind} {name}");
+        if kind == "enum" {
+            // An enumeration: its enumerators.tsv rows (none: it cannot be declared complete).
+            match self.enum_body(name) {
+                Some(body) => self.guard(&format!("enum_{name}"), body),
+                None => self.errors.push(format!("{}: {key} has no enumerators.tsv rows", self.header)),
+            }
+            return;
+        }
         // `struct _IO_FILE` is described under its typedef name, FILE (layouts.tsv keys a tag by the name the program uses).
         let lkey = if self.t.layouts.contains_key(&key) {
             key.clone()

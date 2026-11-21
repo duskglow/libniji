@@ -23,7 +23,10 @@
 #    linked). libresolv (issue #5): smoke/resolv.c linked with `-lresolv` needs libresolv.so.2 and
 #    libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's libkrb5.so.3 does);
 #    linked statically with `-lresolv` (the empty libresolv.a, the functions in libc.a: D-16.6) it
-#    runs and prints its line.
+#    runs and prints its line. -lm (issue #28): libc6-dev's libm.so is a linker script (never a
+#    link); smoke/mvec.c (-O3 -ffast-math, a loop vectorised into libmvec calls) linked with plain
+#    `-lm` needs libmvec.so.1; smoke/nomvec.c (one scalar call, --no-as-needed -lm) needs libm.so.6
+#    and not libmvec.so.1 (AS_NEEDED).
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -199,6 +202,25 @@ if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$
     [ "$out" = "$want_resolv" ] || fail "static resolv (-lresolv) printed '$out', not '$want_resolv'"
 else
     fail "static resolv (-lresolv) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+# -lm and libmvec.so.1 (issue #28). The vector calls need headers that declare the simd variants:
+# without them the mvec check is skipped with an INFO line.
+[ -f "$lib/libm.so" ] && [ ! -L "$lib/libm.so" ] || fail "libc6-dev's libm.so is not a regular file (a linker script)"
+begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
+if ! "$cc" -O3 -ffast-math -S -o - "$here/smoke/mvec.c" 2>/dev/null | grep -q _ZGVbN4v_sinf; then
+    echo "check: INFO skip mvec: the compiler's headers declare no simd variant of sinf"
+elif "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/mvec.c" -lm -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/mvec" > "$tmp/log" 2>&1; then
+    needed=" $(readelf -dW "$tmp/mvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $needed in *" libmvec.so.1 "*) ;; *) fail "mvec (-lm) needs '$needed', without libmvec.so.1" ;; esac
+else
+    fail "mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+if "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/nomvec.c" -Wl,--no-as-needed -lm -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/nomvec" > "$tmp/log" 2>&1; then
+    needed=" $(readelf -dW "$tmp/nomvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $needed in *" libm.so.6 "*) ;; *) fail "nomvec (--no-as-needed -lm) needs '$needed', without libm.so.6" ;; esac
+    case $needed in *" libmvec.so.1 "*) fail "nomvec needs libmvec.so.1 ('$needed'): -lm must add it only as needed" ;; esac
+else
+    fail "nomvec (-lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi
 
 if [ "$fails" -ne 0 ]; then

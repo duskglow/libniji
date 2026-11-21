@@ -1,0 +1,12 @@
+# PHASE14-WORKAROUNDS plants: `cargo xtask plants handoff/PHASE14-WORKAROUNDS-plants.txt --dir <new RAM dir> --timeout 600`
+p14w-conf-no-libdir | conformance/run.sh | lit:run_dyn "$exe-niji" "$ldir" niji "$target/niji" ==> run_dyn "$exe-niji" "$ldir" niji | sh conformance/run.sh s27_dladdr | msg:conformance: FAIL s27_dladdr on libniji
+p14w-native-no-libdir | xtask/src/native_examples.rs | lit:Launch { loader: None, library_path: Some(&niji) } ==> Launch { loader: None, library_path: None } | cargo xtask native | msg:native_dynamic: status
+p14w-native-weak-unwinder | xtask/src/native_examples.rs | lit:let (dir, driver, _, personality) = link_helpers(root)?; ==> let (dir, driver, personality, _) = link_helpers(root)?; | cargo xtask native | msg:native_dynamic: _Unwind_Resume defined with bindings
+p14w-dylib-no-dir | xtask/src/rust_dylib.rs | lit:let path = format!("{}:{}", built.dir.display(), root.join("target/niji").display()); ==> let path = root.join("target/niji").display().to_string(); | cargo xtask rust-dylib | msg:native_rust_dylib: status
+p14w-dylib-abi-line | xtask/src/rust_dylib.rs | lit:running with {id}\n" ==> running with {id}x\n" | cargo xtask rust-dylib | msg:native_rust_dylib: unexpected output
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# p14w-conf-no-libdir: CAUGHT, caught by no test the log names
+# p14w-native-no-libdir: CAUGHT, caught by no test the log names
+# p14w-native-weak-unwinder: CAUGHT, caught by no test the log names
+# p14w-dylib-no-dir: CAUGHT, caught by no test the log names
+# p14w-dylib-abi-line: CAUGHT, caught by no test the log names

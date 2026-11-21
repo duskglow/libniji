@@ -1,0 +1,91 @@
+{
+ "task": "MP-ISQRT-FAST",
+ "model": "opus",
+ "tokens": null,
+ "result": "Math oracle: Karatsuba square root on the bits the rounding needs, Karatsuba products; same results, oracle sweep shard instructions -74% (f128) / -69% (x87), five sweeps' pass-1 test-seconds 21761 -> 9549",
+ "branch": "task/mp-isqrt-fast",
+ "head": "57c4154bc",
+ "gate": {
+  "affected": "4357 passed / 0 failed (9 suites)",
+  "peak": "1.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "ln 10 by series (3 ln 2 + 2 atanh(1/9)) changes the cached constant beyond its error bound in the last bits, so part(2p+40) values (not correctly rounded results) can differ",
+   "recommendation": "allow it in a follow-up story; correctly rounded results are unaffected, measure the shard share first"
+  }
+ ],
+ "informational": [
+  "complex_products pass-1 wall time 273 -> 390 s on a shared slot (the profile story saw 479 -> 217 with no oracle change); its double-precision oracle is not covered by the replay harness and was not counted deterministically: count one shard on base and head",
+  "ln 10 (brief item 3) NOT done: the precision a process needs is set per input by Ziv (not known up front) and the cache already grows geometrically; after this change consts::compute_ln10 is still 11.8% (f128) / 8.7% (x87) of shard 0 inclusive. A cheaper ln 10 (3 ln 2 + 2 atanh(1/9) by series; ln 2 is already cached) is unmeasured and can change the cached constant in its last bits (the #6890 history question): separate story"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "complex_f128 sweep shard 0, one thread, whole test process",
+   "before": 641109394302,
+   "after": 164999400733,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "complex_ld_cr sweep shard 0, one thread, whole test process",
+   "before": 765833686503,
+   "after": 235080551356,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "five oracle sweeps' pass-1 test-seconds, keke n2, 24 threads (wall clock, shared host)",
+   "before": 21760.8,
+   "after": 9549.3,
+   "unit": "test-seconds",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "replay of 1/50 of complex_f128 sweep lines through the oracle (same result digest)",
+   "before": 73163556539,
+   "after": 26221005197,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "replay of 1/50 of complex_ld_cr sweep lines through the oracle (same result digest)",
+   "before": 207888871617,
+   "after": 85041582420,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (nat.rs: 4, arith.rs: 1) and plants (4, all CAUGHT)",
+   "before": 0,
+   "after": 9,
+   "unit": "tests+plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "ORACLE-VALUE-CACHE re-measures on this",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "jobs": [
+  "keke:mp-isqrt-fast-lint-2",
+  "keke:mp-isqrt-fast-plants",
+  "keke:mp-isqrt-fast-gate",
+  "keke:mp-isqrt-fast-after"
+ ],
+ "improvement": "A replay harness (saved sweep program outputs through the oracle, result digest plus perf stat) proved equivalence and measured each step in about a minute, instead of 45-minute sweep runs; worth a cargo xtask subcommand for oracle work",
+ "next_step": "func::mulw under cplx::tanh_parts (56% inclusive after) forms exact products of long operands before rounding: a truncated product with a bounded error; then a 128/64 division for __udivti3 (12%)",
+ "report_file": "handoff/MP-ISQRT-FAST.md"
+}

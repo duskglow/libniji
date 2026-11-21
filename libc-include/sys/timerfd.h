@@ -54,19 +54,27 @@ extern int timerfd_settime (int, int, const struct itimerspec *, struct itimersp
 # endif
 # ifndef __NIJI_D_enum_TFD_CLOEXEC
 #  define __NIJI_D_enum_TFD_CLOEXEC 1
+#  ifndef TFD_CLOEXEC
 enum { TFD_CLOEXEC = 524288 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_TFD_NONBLOCK
 #  define __NIJI_D_enum_TFD_NONBLOCK 1
+#  ifndef TFD_NONBLOCK
 enum { TFD_NONBLOCK = 2048 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_TFD_TIMER_ABSTIME
 #  define __NIJI_D_enum_TFD_TIMER_ABSTIME 1
+#  ifndef TFD_TIMER_ABSTIME
 enum { TFD_TIMER_ABSTIME = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_TFD_TIMER_CANCEL_ON_SET
 #  define __NIJI_D_enum_TFD_TIMER_CANCEL_ON_SET 1
+#  ifndef TFD_TIMER_CANCEL_ON_SET
 enum { TFD_TIMER_CANCEL_ON_SET = 2 };
+#  endif
 # endif
 # ifndef TFD_CLOEXEC
 #  define TFD_CLOEXEC 524288

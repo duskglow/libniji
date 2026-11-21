@@ -149,7 +149,7 @@ impl Gen<'_> {
         if kind == "typedef" && self.union_tag(name) {
             return false;
         }
-        let Some(r) = self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == name && r["kind"] == kind) else { return true };
+        let Some(r) = self.t.vis_row(&self.header, name, kind) else { return true };
         let all = (1u64 << self.t.lv.ids.len()) - 1;
         let want = mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & all & !self.dont_care(name, kind);
         want & !have == 0
@@ -162,26 +162,20 @@ impl Gen<'_> {
     }
 
     /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
-    fn union_tag(&self, name: &str) -> bool {
+    pub(super) fn union_tag(&self, name: &str) -> bool {
         self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
             && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
             && self.aggregate(name).is_some_and(|a| a.kw == "union")
     }
 
     pub(super) fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
-        self.t.vis.iter().filter(|r| r["header"] == self.header && r["name"] == name).collect()
+        self.t.vis_rows(&self.header, name).collect()
     }
 
     /// The configurations that do not decide a condition: rejected ones, those where the header
     /// itself does not compile, and those where (name, kind) is visible without any header.
     pub(super) fn dont_care(&self, name: &str, kind: &str) -> u64 {
-        let mut d = self.t.lv.reject;
-        for r in &self.t.vis {
-            if (r["header"] == self.header && r["kind"] == "include-error") || (r["header"] == "-" && r["name"] == name && r["kind"] == kind) {
-                d |= mask_of(&self.t.lv, &r["configs"]).unwrap_or(0);
-            }
-        }
-        d
+        self.t.lv.reject | self.t.vis_dont_care(&self.header, name, kind)
     }
 
     pub(super) fn cond(&mut self, name: &str, kind: Option<&str>) -> String {
@@ -218,13 +212,14 @@ impl Gen<'_> {
         }
     }
 
-    /// The condition of the structure tag `inner` in this header when the header shows it in fewer of the
-    /// configurations that matter than the aggregate `outer` that has a member of that type, else None.
-    pub(super) fn narrower_tag(&self, outer: &str, inner: &str) -> Option<String> {
-        let row = |n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == "struct");
-        let (o, i) = (row(outer)?, row(inner)?);
+    /// The condition of the tag `inner_kind inner` (a structure or union) in this header when the header shows it in
+    /// fewer of the configurations that matter than `outer_kind outer` (an aggregate with a member of that type, or a
+    /// typedef named for linkage through the tag), else None.
+    pub(super) fn narrower_tag(&self, (outer_kind, outer): (&str, &str), (inner_kind, inner): (&str, &str)) -> Option<String> {
+        let row = |k: &str, n: &str| self.t.vis_row(&self.header, n, k);
+        let (o, i) = (row(outer_kind, outer)?, row(inner_kind, inner)?);
         let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let care = all & !self.dont_care(inner, "struct");
+        let care = all & !self.dont_care(inner, inner_kind);
         let (om, im) = (mask_of(&self.t.lv, &o["configs"]).ok()?, mask_of(&self.t.lv, &i["configs"]).ok()?);
         if om & care & !im == 0 {
             return None;

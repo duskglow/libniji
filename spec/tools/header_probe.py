@@ -149,8 +149,7 @@ def standard_names():
                                      "int_grow", "finish", "object_size", "room", "make_room", "blank_fast", "1grow_fast",
                                      "ptr_grow_fast", "int_grow_fast", "base", "next_free", "chunk_size",
                                      "alignment_mask", "chunk_alloc", "chunk_free")]
-    
-    out += ["sig_atomic_t", "sigevent_t", "PTHREAD_MUTEX_NORMAL", "PTHREAD_MUTEX_RECURSIVE",
+    out +=["sig_atomic_t", "sigevent_t", "PTHREAD_MUTEX_NORMAL", "PTHREAD_MUTEX_RECURSIVE",
             "PTHREAD_MUTEX_ERRORCHECK", "PTHREAD_MUTEX_DEFAULT", "PTHREAD_MUTEX_TIMED_NP",
             "PTHREAD_PRIO_NONE", "PTHREAD_PRIO_INHERIT", "PTHREAD_PRIO_PROTECT",
             "PTHREAD_MUTEX_STALLED", "PTHREAD_MUTEX_ROBUST", "PTHREAD_MUTEX_STALLED_NP", "PTHREAD_MUTEX_ROBUST_NP",
