@@ -118,9 +118,9 @@ pub(super) fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usiz
         };
         let at = core::ptr::from_ref(&info).expose_provenance();
         let _ = crate::ffi::niji_machine_call3(usize::try_from(f).unwrap_or(0), args(at), 0, 0);
-    }
-    // COMPAT-19: an accepted object asked for an executable stack (set only on that branch).
-    if EXEC_STACK.load(Relaxed) {
+    } else if EXEC_STACK.load(Relaxed) {
+        // COMPAT-19 without libniji's C library: an accepted object asked for an executable stack
+        // (set only on that branch). With it, `f` above does this itself (D-27.66, ruling #6941).
         exec_stacks_at_start(envp);
     }
     // Only the program's preinit array is non-empty (`init::hooks` drops a shared object's).

@@ -845,11 +845,31 @@ fn exec_stack(base: usize, len: usize, guard: usize) {
     }
 }
 
+/// `PROT_GROWSDOWN` (kernel UAPI `asm-generic/mman-common.h`): the change reaches down to the start
+/// of a mapping that grows down (mprotect(2)).
+const PROT_GROWSDOWN: i32 = 0x0100_0000;
+
+/// Make the initial thread's stack executable (COMPAT-19): `top` is an address in the last page of
+/// its mapping (the end of the `AT_EXECFN` string, which the kernel puts at the top of the initial
+/// stack), `page` the page size. One protection change on that page with `PROT_GROWSDOWN` reaches
+/// the whole mapping, and the stack's later growth keeps it. Used by the loader (no libniji C
+/// library, or `dlopen`) and by the C library's start (D-27.66).
+#[cfg_attr(not(any(feature = "runtime", feature = "ld")), allow(dead_code))]
+#[cold]
+#[inline(never)]
+pub(crate) fn exec_main_stack(top: usize, page: usize) {
+    let page = if page.is_power_of_two() { page } else { 4096 };
+    if top != 0 {
+        let rwx = i32::try_from(PROT_READ | PROT_WRITE | PROT_EXEC).unwrap_or(7);
+        let _ = raw::mprotect(top & !page.wrapping_sub(1), page, rwx | PROT_GROWSDOWN);
+    }
+}
+
 /// `__niji_stack_exec()` (`NIJI_PRIVATE`, COMPAT-19): libniji's `ld.so` accepted an object whose
 /// `PT_GNU_STACK` asks for an executable stack. Every listed thread whose stack the C library
 /// mapped gets an executable stack, and so does every thread made afterwards; a stack the caller
 /// supplied (`pthread_attr_setstack`) is left as it is, and the initial thread's stack is the
-/// loader's to change (black-box probe of the reference, `tools/probe/execstack/es2.c`).
+/// caller's to change (the loader's `dlopen`, or this library's start; black-box probe of the reference, `tools/probe/execstack/es2.c`).
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 #[cold]
 #[inline(never)]
