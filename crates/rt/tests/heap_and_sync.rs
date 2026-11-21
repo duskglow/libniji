@@ -259,6 +259,38 @@ fn classes_cover_every_small_size_with_the_fundamental_alignment() {
     for align in [32, 64, 128, 256, 512, 1024, 2048, 4096] {
         let c = class_for(100, align).unwrap();
         assert_eq!(CLASSES[c] % align, 0, "every block of the class is aligned");
+        // Sizes in the eight-per-doubling range go to the smallest aligned class at least as large.
+        for size in [257, 300, 600, 1000, 1024, 1025] {
+            let c = class_for(size, align).unwrap();
+            assert!(CLASSES[c] >= size && CLASSES[c] % align == 0, "size {size} align {align}");
+            assert!((0..c).all(|d| CLASSES[d] < size || CLASSES[d] % align != 0), "size {size} align {align}: the smallest");
+        }
+    }
+}
+
+#[test]
+fn rounding_loses_at_most_one_step_of_the_class_spacing() {
+    // Clauses: s3_1_c_1 (D-3.23, HEAP-CLASS-SPACING). Past 128 bytes a doubling holds four classes,
+    // eight from 256 bytes to 1 KiB, so a request loses less than 1/5 of its block to rounding,
+    // less than 1/9 in that range; through the allocator too (the fused path's table up to 1 KiB,
+    // the arithmetic past it).
+    let pages = FakePages::new();
+    let heap = Heap::new();
+    let mut live = Vec::new();
+    for size in 129..=MAX_SMALL {
+        let usable = CLASSES[class_for(size, ALIGN).unwrap()];
+        let part = if (257..=1024).contains(&size) { 9 } else { 5 };
+        assert!((usable - size) * part < usable, "size {size}: class {usable} loses 1/{part} or more");
+        if size <= 1100 || size % 997 == 0 {
+            let b = heap.alloc(&CSys, &pages, size, ALIGN).unwrap();
+            assert_eq!(b.usable, usable, "size {size}: the allocator's block is the class");
+            live.push(b.addr);
+        }
+    }
+    // The boundary cases named by the spacing: 257..288 shares one class, 289 starts the next.
+    assert_eq!([257, 288, 289, 1024, 1025].map(|s| CLASSES[class_for(s, ALIGN).unwrap()]), [288, 288, 320, 1024, 1280]);
+    for a in live {
+        heap.free(&CSys, &pages, a).unwrap();
     }
 }
 
