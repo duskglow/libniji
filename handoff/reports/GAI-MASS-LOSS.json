@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "No lost requests: gaimass missed its fixed 65 s wait under load; verdict made load-independent, O(lists waiting) group search fixed (submission CPU 0.17 s -> 0.02 s), dns_products can no longer hang, and its oracle runs (root processes included) can no longer outlive the run or the test (own PID namespace)",
  "branch": "task/gai-mass-loss",
- "head": "25eca3995 (last code commit; the report commit on top touches handoff/ only)",
+ "head": "3295da72e (last non-handoff commit: the D-16.16 record; last code commit 25eca3995)",
  "gate": {
   "affected": "gai-mass-loss-gate4 (25eca3995): see hand-back; gate3 (4b8dfee64) red on the reexec-audit only, fixed in 25eca3995; gai-mass-loss-gate (0faf848): affected ok, 0 SKIPPED; gate2 stopped (superseded)",
   "peak": "4.5G (gate on 0faf848)"
@@ -18,7 +18,9 @@
   "The 29-minute dns_products hang (DL-SLOT-REUSE): scenario not identifiable from here (log not on this host); mechanism: Command::output() waits for pipe EOF before reaping, and a probe DNS server outliving its ended probe holds the pipe. Both causes removed.",
   "Diagnostic run of gaimass by hand under sudo unshare was refused by the permission classifier (see refused); the measurements were taken through the test harness instead, as the coordinator directed.",
   "Other harnesses also start root processes under sudo -n unshare (noproc_products, admin_products, iconv_charmaps_products, time_gaps_probe, no_proc_lane, s12/s13 clauses, s24/s25 symbols): not contained; oracle/contain.sh can wrap them (a follow-up story).",
-  "Gate2 (67ec7b6f6) was stopped mid-run to free the role: gate3 on the final head covers it."
+  "Gate2 (67ec7b6f6) was stopped mid-run to free the role: gate3 on the final head covers it.",
+  "Leg 1 wrote D-16.16 into the generated view plan/07-decisions/s16-name-services.md; leg 2 moved it to records/decisions/D-16/D-16.16.toml (reserved id) and restored the view.",
+  "Leg 1 plants (gai-mass-loss-plants, 3 CAUGHT) SUPERSEDED for the jobs list: they ran on an older sync; gai_async.rs and gai_queue_products are unchanged since, only the dns_products harness changed."
  ],
  "refused": [
   "ssh keke: setsid nohup ~/bin/jobrun gai-mass-loss-diag1 probe -- sh -c \"sh ~/work/gai-mass-loss/diag.sh ~/w/r1 /dev/shm/claude/gai-mass-loss/d1 1 all; sh ~/work/gai-mass-loss/diag.sh ~/w/r1 /dev/shm/claude/gai-mass-loss/d2 2 0-1\" </dev/null >/dev/null 2>&1 & ; sleep 1; ~/bin/jobwait gai-mass-loss-diag1; cat ~/logs/gai-mass-loss-diag1.log | head -80 (diag.sh ran the probe under sudo -n unshare -m -n)"
@@ -66,7 +68,7 @@
   },
   {
    "kind": "coverage",
-   "what": "a_killed_run_leaves_no_process: 1 test, 3 plants on contain.sh (all CAUGHT, gai-mass-loss-plants2)",
+   "what": "a_killed_run_leaves_no_process: 1 test, 3 plants on contain.sh (3 CAUGHT in gai-mass-loss-plants2 on 4b8dfee64; plants3 reruns them on the final head)",
    "before": 0,
    "after": 1,
    "unit": "tests",
@@ -78,7 +80,6 @@
  "report_file": "handoff/GAI-MASS-LOSS.md",
  "jobs": [
   "keke:gai-mass-loss-gate4",
-  "keke:gai-mass-loss-plants",
-  "keke:gai-mass-loss-plants2"
+  "keke:gai-mass-loss-plants3"
  ]
 }

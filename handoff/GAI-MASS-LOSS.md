@@ -73,7 +73,9 @@ signal calls), so the probe's fixed 60 s + 5 s wait ran out, it did not lose req
   `gai-mass-loss-plants2`: 3 CAUGHT, 0 SURVIVED, 0 WARN (surviving-plant processes end by
   themselves in 300 s). Gate3 (4b8dfee64) red on the static reexec-audit only (the killed helper
   never prints its summary): fixed with `--include-ignored` and a reasoned allow, 25eca3995.
-  Final-head gate: `gai-mass-loss-gate4`.
+  Final-head gate: `gai-mass-loss-gate4` (25eca3995), plants rerun on the final sync:
+  `gai-mass-loss-plants3`; both PENDING at hand-back (wall time). D-16.16 moved from the
+  generated view into `records/decisions/D-16/D-16.16.toml` (3295da72e; handback-check).
   gate2 (67ec7b6f6) was stopped to free the role; gate3 supersedes it.
 - Not done: other harnesses that start root processes (noproc_products, admin_products,
   iconv_charmaps_products, time_gaps_probe, no_proc_lane, s12/s13 clauses, s24/s25 symbols) are
