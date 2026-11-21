@@ -8,7 +8,8 @@ reference C library; CHARMAP_DIR its installed charmaps (/usr/share/i18n/charmap
 names the reference's `iconv -l` lists, the charmaps (each file's name, `<code_set_name>` and
 `% alias` names; also spec/encoding/charmaps.tsv's generated charmaps and their aliases) and the
 built-in names (csys/util/iconv-names.h), and fingerprints every one of these names on the
-reference. A charmap is the converter of any of its names the reference opens. A listed name
+reference. A charmap is the converter of its file name and of the names its installed file gives
+(not of the aliases libniji's generated charmaps add), as far as the reference opens them. A listed name
 that is not a built-in name or a charmap file name stands for the charmap whose converter has the
 same fingerprint; of several, one that carries the name itself (a generated charmap first), then
 one with a name of the same letters and digits, then one both charmap sets have, then the
@@ -79,7 +80,11 @@ def main():
             c['names'] |= set(ns)
             if d is niji:
                 c['gen'] |= set(ns)
-            c['fps'] |= {fp[n] for n in ns if fp.get(n, 'NOOPEN') != 'NOOPEN'}
+            # The charmap's conversion on the reference: through the names its installed file gives,
+            # and a generated charmap's file name, never through the aliases libniji's generated
+            # charmaps add (a listed name among those would match through its own fingerprint).
+            given = ns if d is distro else ns[:1]
+            c['fps'] |= {fp[n] for n in given if fp.get(n, 'NOOPEN') != 'NOOPEN'}
             c['sets'] |= 1 if d is distro else 2
     bforms = {form(b) for b in builtins}
     bfps = {fp[b]: b for b in builtins if fp.get(b, 'NOOPEN') != 'NOOPEN'}

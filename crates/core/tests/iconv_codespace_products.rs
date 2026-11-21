@@ -72,6 +72,17 @@ const TRANSLIT_BLOCKS: [(&str, &[u32]); 6] = [
 ];
 
 /// Whether line `w` is a `//TRANSLIT` block hash of `cs` that may differ (D-6.9).
+/// Sequences whose result libniji's own unit test fixes instead of this comparison (charset, the
+/// sequence's hex): CP949's A2E8 is a pair CP949.TXT does not assign, invalid with nothing consumed
+/// (`crates/core/src/iconv/cjk.rs`, `cp949_cells_and_unassigned_pair`).
+const OWN_TEST: [(&str, &str); 1] = [("CP949", "A2E8")];
+
+/// Whether the reference line `w` is an I or G line of an [`OWN_TEST`] sequence.
+fn own_test(cs: &str, w: &str) -> bool {
+    let mut f = w.split(' ');
+    matches!(f.next(), Some("I" | "G")) && f.next().is_some_and(|seq| OWN_TEST.contains(&(cs, seq)))
+}
+
 fn recorded(cs: &str, w: &str) -> bool {
     let Some(block) = w.strip_prefix("BT ").and_then(|r| r.split(' ').next()).and_then(|b| u32::from_str_radix(b, 16).ok()) else { return false };
     TRANSLIT_BLOCKS.iter().any(|(c, blocks)| *c == cs && blocks.contains(&block))
@@ -122,6 +133,9 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
         let got = run(&ours);
         let (mut diffs, mut same) = (0, 0);
         for (k, (w, g)) in want.lines().zip(got.lines()).enumerate() {
+            if own_test(cs, w) {
+                continue;
+            }
             if recorded(cs, w) {
                 same += usize::from(w == g);
                 continue;

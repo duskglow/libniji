@@ -275,4 +275,21 @@ mod tests {
         assert_eq!(enc(Which::Big5, 0xE0001), Some(vec![]));
         assert!(!Which::Cp932.ignore_error() && Which::Big5.ignore_error());
     }
+
+    /// CP949: a Unified Hangul cell outside EUC-KR, the last cells of row A2, and the byte pair
+    /// after them, which CP949.TXT does not assign: an invalid two-byte sequence, nothing
+    /// consumed, skipped whole with //IGNORE (s6_4_f_2_3, s6_4_f_3; no reference comparison for
+    /// this pair, `iconv_codespace_products.rs` OWN_TEST).
+    #[test]
+    fn cp949_cells_and_unassigned_pair() {
+        let u = Which::Cp949;
+        assert_eq!(decode(u, &[0x81, 0x41]), Dec::Char(0xAC02, 2));
+        assert_eq!(decode(Which::EucKr, &[0x81, 0x41]), Dec::Invalid(1));
+        assert_eq!(decode(u, &[0xA2, 0xE6]), Dec::Char(0x20AC, 2));
+        assert_eq!(decode(u, &[0xA2, 0xE7]), Dec::Char(0xAE, 2));
+        assert_eq!(decode(u, &[0xA2, 0xE8]), Dec::Invalid(2));
+        assert_eq!(decode(u, &[0xA2]), Dec::Incomplete);
+        assert_eq!(enc(u, 0xAC02), Some(vec![0x81, 0x41]));
+        assert!(u.ignore_error());
+    }
 }
