@@ -111,6 +111,15 @@ for f in $(awk -F '\t' -v r="$r" '$6 == "debug" { print r "/" $2 }' "$tmp/rows")
         continue
     fi
     ! readelf -SW "$f" | grep -q -E ' \.(symtab|debug_[a-z_]+) ' || fail "$name is not stripped (it has a symbol table or debug sections)"
+    # VALGRIND-DBG-RODATA (D-X.150, GitHub issue #13): valgrind's reader takes the first section named
+    # .rodata* as the object's read-only data and asserts the debug file's .rodata has that size: any
+    # .rodata* section beside .rodata aborts every valgrind tool once libc6-dbg is installed. Shared objects
+    # (every dynamic program loads them); the static programs keep GNU ld's .rodata1 for now.
+    case $name in
+        *.so | *.so.*)
+            ro=$(readelf -SW "$f" | sed -n 's/^ *\[ *[0-9]*\] \(\.rodata[^ ]*\) .*/\1/p' | tr '\n' ' ')
+            case $ro in "" | ".rodata ") ;; *) fail "$name has read-only data sections '$ro', not one .rodata (valgrind aborts reading its libc6-dbg file)" ;; esac ;;
+    esac
     d=.build-id/$(printf '%.2s' "$id")/${id#??}.debug
     echo "$d" >> "$tmp/ids"
     if [ ! -f "$dbgroot/$d" ]; then
