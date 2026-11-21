@@ -1440,12 +1440,12 @@ static int open_outdir(void) {
  * *BASE its last component; -1 after the message, which names PATH (the name joined to the output directory)
  * or, for a directory, the name up to it after the source location FILE, LINE (observed wording). */
 static int out_parent(const char *name, const char *path, const char *file, long line, const char **base) {
-    if (strlen(name) >= PATH_MAX) {
-        fprintf(stderr, "%s: Can't remove %s: %s\n", progname, path, strerror(ENAMETOOLONG));
-        return -1;
-    }
     if (open_outdir() != 0) {
         fprintf(stderr, "%s: Can't create directory %s: %s\n", progname, path, strerror(errno));
+        return -1;
+    }
+    if (strlen(name) >= PATH_MAX) {
+        fprintf(stderr, "%s: Can't remove %s: %s\n", progname, path, strerror(ENAMETOOLONG));
         return -1;
     }
     char comp[NAME_MAX + 1];
@@ -1658,37 +1658,57 @@ static int make_link(const char *target, const char *name, const char *file, lon
     char *to = out_path(name);
     const char *real = resolve_link(target, 0);
     char *from = out_path(real ? real : target);
-    int rc = 0;
+    char tmp[64];
+    int have_tmp = 0;
+    int rc = -1;
+    int e = 0;
     int dfd = AT_FDCWD;
     const char *base = to;
     if (source) {
-        dfd = out_parent(name, to, file, line, &base);
-        if (dfd < 0) {
-            rc = -1;
-            goto out;
+        /* The hard link is made at a private name at the top of the output directory first and renamed into
+         * place, so a target that cannot be hard-linked is refused before any directory is made (observed). */
+        if (open_outdir() == 0) {
+            for (unsigned i = 0; i < 100; i++) {
+                snprintf(tmp, sizeof tmp, ".zic%ld-l%u", (long)getpid(), i);
+                if (linkat(AT_FDCWD, from, outfd, tmp, 0) == 0) {
+                    have_tmp = 1;
+                    break;
+                }
+                e = errno;
+                if (e != EEXIST) break;
+            }
         }
+        if (!have_tmp && e == EPERM) goto refused;
+        dfd = out_parent(name, to, file, line, &base);
+        if (dfd < 0) goto out;
     } else if (make_parents(to) != 0) {
         fprintf(stderr, "%s: Can't create directory %s: %s\n", progname, to, strerror(errno));
-        rc = -1;
         goto out;
     }
     if (unlinkat(dfd, base, 0) != 0 && errno != ENOENT) {
         fprintf(stderr, "%s: Can't remove %s: %s\n", progname, to, strerror(errno));
-        rc = -1;
         goto out;
     }
-    if (linkat(AT_FDCWD, from, dfd, base, 0) != 0) {
-        int e = errno;
-        if (e == EPERM) {
-            /* A target that cannot be hard-linked, such as a directory, is an error, not a symbolic link
-             * (observed). */
-            fprintf(stderr, "%s: link from %s failed: %s\n", progname, from, strerror(e));
-            rc = -1;
+    if (have_tmp) {
+        if (renameat(outfd, tmp, dfd, base) == 0) {
+            have_tmp = 0;
+            rc = 0;
             goto out;
         }
-        /* The relative path from the link's directory to the target. */
+        e = errno;
+    } else if (!source) {
+        if (linkat(AT_FDCWD, from, dfd, base, 0) == 0) {
+            rc = 0;
+            goto out;
+        }
+        e = errno;
+        if (e == EPERM) goto refused;
+    }
+    {
+        /* The path from the link's directory to the target; an absolute target is kept as given (observed). */
         size_t depth = 0;
-        for (const char *p = name; *p; p++) depth += *p == '/';
+        if (*target != '/')
+            for (const char *p = name; *p; p++) depth += *p == '/';
         size_t n = depth * 3 + strlen(target) + 1;
         char *rel = xrealloc(NULL, n);
         rel[0] = 0;
@@ -1696,14 +1716,19 @@ static int make_link(const char *target, const char *name, const char *file, lon
         strcat(rel, target);
         if (symlinkat(rel, dfd, base) != 0) {
             fprintf(stderr, "%s: Can't link %s to %s: %s\n", progname, to, from, strerror(errno));
-            rc = -1;
         } else {
             fprintf(stderr, "warning: \"%s\", line %ld: symbolic link used because hard link failed: %s\n", file,
                     line, strerror(e));
+            rc = 0;
         }
         free(rel);
     }
+    goto out;
+refused:
+    /* A target that cannot be hard-linked, such as a directory, is an error, not a symbolic link (observed). */
+    fprintf(stderr, "%s: link from %s failed: %s\n", progname, from, strerror(e));
 out:
+    if (have_tmp) unlinkat(outfd, tmp, 0);
     if (dfd >= 0 && dfd != outfd) close(dfd);
     free(from);
     free(to);

@@ -362,25 +362,21 @@ fn zic_rejects_malformed_source_as_the_reference_does() {
 }
 
 /// Everything under `dir` but `in.zi`, sorted: `path/` for a directory, `path -> target` for a symbolic link
-/// (never followed), `path` for a file.
+/// (never followed), `path` for a file. find(1) walks from each directory in turn, so a name longer than the
+/// path limit once joined to `dir` is still listed.
 fn tree(dir: &Path) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut todo = vec![dir.to_path_buf()];
-    while let Some(d) = todo.pop() {
-        for e in fs::read_dir(&d).expect("list a scratch directory").flatten() {
-            let p = e.path();
-            let rel = p.strip_prefix(dir).unwrap().to_string_lossy().into_owned();
-            let ty = fs::symlink_metadata(&p).unwrap().file_type();
-            if ty.is_symlink() {
-                out.push(format!("{rel} -> {}", fs::read_link(&p).unwrap().to_string_lossy()));
-            } else if ty.is_dir() {
-                out.push(format!("{rel}/"));
-                todo.push(p);
-            } else if rel != "in.zi" {
-                out.push(rel);
-            }
-        }
-    }
+    let o = run(Command::new("find").args([".", "-mindepth", "1", "-printf", "%y %P\\0%l\\0"]).current_dir(dir));
+    assert!(o.status.success(), "find in {}: {}", dir.display(), String::from_utf8_lossy(&o.stderr));
+    let fields: Vec<String> = o.stdout.split(|&b| b == 0).map(|f| String::from_utf8_lossy(f).into_owned()).collect();
+    let mut out: Vec<String> = fields
+        .chunks_exact(2)
+        .filter(|f| f[0] != "f in.zi")
+        .map(|f| match f[0].split_at(2) {
+            ("l ", p) => format!("{p} -> {}", f[1]),
+            ("d ", p) => format!("{p}/"),
+            (_, p) => p.to_string(),
+        })
+        .collect();
     out.sort();
     out
 }
@@ -409,7 +405,8 @@ fn zic_handles_zone_and_link_names_as_the_reference_does() {
         while s.len() + 10 <= n {
             s.push_str("/abcdefghi");
         }
-        s + &"x".repeat(n - s.len())
+        let pad = n - s.len();
+        s + &"x".repeat(pad)
     };
     // Refused: leaves -d or names no file (the order of the checks shows in the last two).
     let mut names: Vec<Vec<u8>> = ["/x", "../x", "a/../../x", "a/./b", ".", "..", "a//b", "a/", "\"\"", "a//../b", "../a//b"]
@@ -438,8 +435,10 @@ fn zic_handles_zone_and_link_names_as_the_reference_does() {
         let b = zic_tree(&zic, src);
         assert!(b.2.iter().all(|p| p == "box/" || p.starts_with("box/out")), "{what}: wrote outside -d: {:?}", b.2);
         if a != b {
-            let cut = |s: &str| s.chars().take(300).collect::<String>();
-            bad.push(format!("{what}: reference {:?} {:?} {} entries; libniji {:?} {:?} {} entries", a.0, cut(&a.1), a.2.len(), b.0, cut(&b.1), b.2.len()));
+            // Long names: show the ends of the messages and only the entries one side lacks.
+            let cut = |s: &str| if s.len() > 300 { format!("...{}", &s[s.floor_char_boundary(s.len() - 300)..]) } else { s.to_string() };
+            let only = |x: &[String], y: &[String]| x.iter().filter(|p| !y.contains(p)).map(|p| cut(p)).collect::<Vec<_>>();
+            bad.push(format!("{what}: reference {:?} {:?} only {:?}; libniji {:?} {:?} only {:?}", a.0, cut(&a.1), only(&a.2, &b.2), b.0, cut(&b.1), only(&b.2, &a.2)));
         }
     }
     assert!(bad.is_empty(), "names handled differently from the reference:\n{}", bad.join("\n"));
