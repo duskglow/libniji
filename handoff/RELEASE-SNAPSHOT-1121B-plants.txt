@@ -11,3 +11,11 @@ rs1121b-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG
 rs1121b-postrm-not-packaged | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) case $path in DEBIAN/postrm) ;; *) put "$mode" "$here/$src" "$dest" ;; esac ;; | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121B/debs/system-work/src/target/niji --version 2.39+niji20261121.3-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:chmod: cannot access .*DEBIAN/postrm
 rs1121b-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121B/debs/system-work/src/target/niji --version 2.39+niji20261121.3-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
 rs1121b-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121B/debs/system-work/src/target/niji --version 2.39+niji20261121.3-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-1121B/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (job release-snapshot-1121b-plants-1 on mei, rc 0): 6 plants: 6 CAUGHT, 0 SURVIVED,
+# 0 WARN-RC-ONLY, 0 WARN-NO-MSG; the masked log lines equal 1121A's plants-1 apart from the work-dir paths:
+# rs1121b-debug-rows-unstripped: CAUGHT
+# rs1121b-postinst-configure-ldconfig: CAUGHT
+# rs1121b-postrm-purge-cache: CAUGHT
+# rs1121b-postrm-not-packaged: CAUGHT
+# rs1121b-cxx-needs-libstdcxx: CAUGHT
+# rs1121b-swap-not-done: CAUGHT
