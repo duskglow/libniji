@@ -1,0 +1,16 @@
+{"task": "TEST-SCRATCH-CLEANUP", "model": "opus", "tokens": null,
+ "result": "partial: Scratch keeps a failing test's dir (path on stderr) and removes a passing one's; the 8 test files that leaked a dir on every passing run converted; ld failure-only helpers, popen_system_eintr and owed #17 remain",
+ "branch": "task/test-scratch-cleanup", "head": null,
+ "gate": {"affected": "3475 passed / 1 failed (heap_meta_products, untouched file, passes alone on the same head)", "peak": "5.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["heap_meta_products the_heap_keeps_address_space_near_its_use failed in the gate while a plants job ran on the host; 5/5 alone on the same head"],
+ "refused": [],
+ "impact": [
+  {"kind": "size", "what": "target/ growth per run of the converted suites (pid-named entries; du)", "before": null, "after": 0, "unit": "entries per run (31 -> 31 -> 31; 6468 MiB both runs)", "measured": true},
+  {"kind": "size", "what": "crt-products per-process dirs on the Skylake-SP host's trees (15-24 MB each, 718 on the CI tree)", "before": 11000, "after": 0, "unit": "MB accumulated", "measured": false},
+  {"kind": "coverage", "what": "scratch_base tests + plants", "before": 1, "after": 3, "unit": "tests (3 plants CAUGHT)", "measured": true}],
+ "improvement": "the role's static check could reject new `process::id()` path formats in tests outside support/scratch.rs, so the leak cannot come back",
+ "next_step": "convert the ld dir() helpers and popen_system_eintr (parent-owned guard), then owed #17, then two full cargo xtask test runs with du",
+ "report_file": "handoff/TEST-SCRATCH-CLEANUP.md",
+ "jobs": ["test-scratch-cleanup-gate", "test-scratch-cleanup-plants", "test-scratch-cleanup-heapmeta", "test-scratch-cleanup-growth"]}

@@ -1,3 +1,7 @@
 keep-on-pass | crates/core/tests/support/scratch.rs | lit:if std::thread::panicking() { ==> if true { | cargo test -p niji --test scratch_base | msg:passing_scope_removes_its_directory.*(FAILED|panicked)|survived a passing scope
 remove-on-fail | crates/core/tests/support/scratch.rs | lit:if std::thread::panicking() { ==> if false { | cargo test -p niji --test scratch_base | msg:failing_scope_keeps_its_directory.*(FAILED|panicked)|removed by a failing scope
 dir-in-no-mkdir | crates/core/tests/support/scratch.rs | lit:let made = std::fs::create_dir_all(&s.0); ==> let made: std::io::Result<()> = Ok(()); | cargo test -p niji --test scratch_base | msg:passing_scope_removes_its_directory|failing_scope_keeps_its_directory|panicked|FAILED
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# keep-on-pass: CAUGHT, caught by scratch_base passing_scope_removes_its_directory
+# remove-on-fail: CAUGHT, caught by scratch_base failing_scope_keeps_its_directory
+# dir-in-no-mkdir: CAUGHT, caught by scratch_base passing_scope_removes_its_directory
