@@ -1,0 +1,16 @@
+# ICONV-REST plants: CP949, the probed alias table, iconv -l's alias rows
+alias-charmap-span | crates/core/src/iconv/aliases.rs | lit:span(tab.saturating_add(1), end) ==> span(tab, end) | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*FAILED|panicked
+alias-row-dropped | spec/encoding/iconv-aliases.tsv | perl:s/^WINDOWS-1252\tCP1252\n//m | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases && cargo test -p niji --test iconv_cmd_names | msg:FAILED|panicked
+cp949-name-uhc | crates/core/src/iconv/mod.rs | lit:(b"UHC", Codec::Cjk(cjk::Which::Cp949)), ==> (b"UHX", Codec::Cjk(cjk::Which::Cp949)), | cargo test -p niji --test iconv_cmd_names | msg:iconv_listing_names_match_the_builtins.*FAILED|lacks
+cp949-ignore-ends-ok | crates/core/src/iconv/cjk.rs | lit:        self.set().ignore_error ==>         self.set().ignore_error && !matches!(self, Which::Cp949) | cargo test -p niji --lib iconv::cjk | msg:cp949_cells_and_unassigned_pair.*FAILED|panicked
+cp949-codespace | crates/core/src/iconv/cjk.rs | lit:            Which::Cp949 => &CP949, ==>             Which::Cp949 => &EUC_KR, | cargo test -p niji --test iconv_codespace_products | msg:CP949.*differ|FAILED
+listing-no-try | csys/util/iconv.c | lit:            installed = tcd == (iconv_t)-1 ? -1 : 1; ==>             installed = -1; | cargo test -p niji --test iconv_listing_products | msg:listed and accepted differ
+listing-no-target | csys/util/iconv.c | lit:                names[n++] = target; ==> | cargo test -p niji --test iconv_listing_products | msg:listed and accepted differ
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# alias-charmap-span: CAUGHT, caught by s06_multibyte_clauses s6_4_c_1_charmap_aliases
+# alias-row-dropped: CAUGHT, caught by s06_multibyte_clauses s6_4_c_1_charmap_aliases
+# cp949-name-uhc: CAUGHT, caught by iconv_cmd_names iconv_listing_names_match_the_builtins
+# cp949-ignore-ends-ok: CAUGHT, caught by niji iconv::cjk::tests::cp949_cells_and_unassigned_pair
+# cp949-codespace: CAUGHT, caught by iconv_codespace_products builtin_codecs_equal_the_reference_over_their_code_space
+# listing-no-try: CAUGHT, caught by iconv_listing_products iconv_listing_holds_the_alias_rows_it_accepts
+# listing-no-target: CAUGHT, caught by iconv_listing_products iconv_listing_holds_the_alias_rows_it_accepts
