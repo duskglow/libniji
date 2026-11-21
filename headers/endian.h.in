@@ -7,11 +7,11 @@
 
 __NIJI_BEGIN_C
 
-@@owns le64toh
+@@owns be16toh le64toh
 @@emit
 
-/* endian(3): host to and from big- and little-endian order. */
-@@if be16toh
+/* endian(3): host to and from big- and little-endian order (the levels that show the conversion macros). */
+@@when be16toh
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 # define htobe16(x) __builtin_bswap16 (x)
 # define htole16(x) ((__typeof__ (__builtin_bswap16 (x))) (x))

@@ -5,3 +5,8 @@
 # Sources: the GNU C Library manual (Argp Help Filtering).
 type	member	declarator	source
 struct argp	help_filter	char *(*@)(int, const char *, void *)	GNU C Library manual, Argp Help Filtering
+struct sigaction	__sigaction_handler.sa_sigaction	void (*@)(int, siginfo_t *, void *)	POSIX struct sigaction
+struct sigaction	sa_restorer	void (*@)(void)	sigaction(2)
+struct sigevent	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
+sigevent_t	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
+struct _pthread_cleanup_buffer	__routine	void (*@)(void *)	pthread_cleanup_push(3)
