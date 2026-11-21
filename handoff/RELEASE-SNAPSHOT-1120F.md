@@ -1,5 +1,5 @@
-WIP (leg 2 of RELEASE-SNAPSHOT-1120F; refreshed at ~145k context): all checks ran on 15a2d6482 with the serial-1
-packages; waiting only for roots-3, lint-3, plants-2; then cmp2.sh, report json, precheck, handback-check.
+COMPLETE: snapshot-ready at 15a2d6482 (serial 1: 2.39+niji20261121.1-1, staged as snapshot-20261121.1; tag
+snapshot-2026-11-21.1): no regression against 20.5; #28, #6 names, #25 static, #23 fixed end to end; plants 6/6 CAUGHT.
 
 # RELEASE-SNAPSHOT-1120F: snapshot validation of 15a2d6482 (GitHub #28, #6 names, #25 static, #23)
 
@@ -40,7 +40,7 @@ plants-2 with **handoff/RELEASE-SNAPSHOT-1120F-plants.txt** (paths, ids, role, v
 | system debs + check-system + symbols | mei debs-2 | `check: PASS (7 packages, version 2.39+niji20261121.1-1)`; check-symbols PASS 4440 lines, 13 libraries | same (4440) |
 | coexist debs + check | debs-2 | `check: PASS (2 packages)`; version order right by serial (above) | fixed (20.5: by hash) |
 | debs-2 rc 1 | debs-2 | DBG only: 17 of 19 (iconv, locale; ruling #6321) | same |
-| package comparison | keke pkgdiff-1 rc 0 | (read its log for the file-count line) | TODO |
+| package comparison | keke pkgdiff-1 rc 0 | 9 packages, file counts unchanged (libc6 75, libc6-dbg 44, libc6-dev 38, libc-bin 22, niji6 29, niji6-dev 48, others 7); libc6-dbg: 5 build-ids replaced; control fields: versions only; sizes within 21 KB (libc6-dbg +20,824 B) | same |
 | #16 rerun | mei yohane-2 rc 1 | `pass=16 fail=2` (libc6-dev ships no C headers) | same |
 | many objects (#9) | mei many-2 | `pass=9 fail=0` | same |
 | #22 | mei dyn22-2 | `pass=3 fail=0` | same |
@@ -54,11 +54,19 @@ plants-2 with **handoff/RELEASE-SNAPSHOT-1120F-plants.txt** (paths, ids, role, v
 | **#28** | mei y28-1 rc 0; 20.5: y28-ref205-1 | `pass=10 fail=0` | 20.5: 5 / 5 |
 | **#6** | mei y6-1 rc 1; 20.5: y6-ref205-2 | `pass=79 fail=2` | 20.5: 67 / 14 |
 | **#25 static** | mei y25s-1 rc 0; 20.5: y25s-ref205-1 | `fail=0` (16 judged PASS) | 20.5: 4 FAIL |
-| empty root / swapped root / dbg / fresh | mei roots-3 | TODO (cmp2.sh) | |
-| lintian + coexist proofs | mei lint-3 | TODO (cmp2.sh) | |
-| plants | mei plants-2 | TODO (6 plants) | |
-| stage | keke stage-1 rc 0 | staged at snapshot-20261121.1 (list the dir) | - |
-| install instructions | keke install-1 rc 0 | (read `inst: RESULT`) | |
+| empty root | mei roots-3 | `root: RESULT pass=21 fail=0` (two new PASS rows: `-lm` mvec program runs, NEEDED libmvec.so.1 libc.so.6; nomvec NEEDED libm.so.6 libc.so.6) | 20.5: 19 / 0 (rows new with #28) |
+| swapped trixie root | roots-3 | `verdict: commands=65 same=63 known=2 bad=0` | same |
+| libc6-dbg + gdb | roots-3 (its only rc 1) | `dbg: RESULT pass=8 fail=1` trixie and excalibur (`Breakpoint 1.1`, known) | same |
+| fresh install + ldconfig | roots-3 | `fresh: RESULT fail=0`; cmp2.sh: 119 -> 121 masked lines, 8 differ: the two new mvec rows, the pass count, and the work-dir path (4 lines) | same |
+| lintian | mei lint-3 rc 0 | errors=10 warnings=61, trixie and excalibur; the one new warning `libc6: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linux-gnu/libm.so [libm.so.6]` (libm.so is now #28's linker script, not a symlink) | 20.5: 10 / 60 |
+| coexist proofs | lint-3 | `proof: RESULT pass=21 fail=0` trixie and excalibur | same |
+| plants | mei plants-2 rc 0 | 6 plants: 6 CAUGHT, 0 SURVIVED, 0 WARN (handoff/RELEASE-SNAPSHOT-1120F-plants.txt) | same |
+| stage | keke stage-1 rc 0 | 9 assets + SHA256SUMS + MANIFEST (list below); `sha256sum -c` 9 OK | - |
+| install instructions | keke install-1 rc 0 | `inst: RESULT fails=0` | same |
+
+**Staged** (keke `~/release-staging/snapshot-20261121.1/`): libc6, libc6-dbg, libc6-dev, libc-bin, libc-dev-bin
+(`_2.39+niji20261121.1-1_amd64.deb`), libc-l10n, locales (`_2.39+niji20261121.1-1_all.deb`), niji6, niji6-dev
+(`_0.0.snapshot20261121.1+15a2d6482744_amd64.deb`, `~` written as `.` for GitHub), SHA256SUMS, MANIFEST.
 | docs | doccheck.py on the head (leg 1) | 23 problems, same 23 as 20.5, lines identical | same |
 
 **#28 (y28, trixie gcc 14, plain `gcc -O3 -ffast-math ... -lm`):** head: mvec.c links, prints `0.8415`, NEEDED
@@ -111,7 +119,7 @@ User instructions / page faults:
 moves from 0x3fa000 to 0x3fb000; the loader's segments are unchanged. Layout (ruling #4347 jitter class; start-up cost
 non-blocking for snapshots): INFORMATIONAL, routed to a start-up story; not chased per story.
 
-## Findings so far
+## Findings
 
 1. No regression in any check; #28, #6 (names), #25 static and #23 fixed end to end (tables above).
 2. Start-up +1 fault, +115..121 user instructions, +10..14k kernel instructions per start; 3-library start one syscall
@@ -123,21 +131,26 @@ non-blocking for snapshots): INFORMATIONAL, routed to a start-up story; not chas
    1120E's (a)-(d); differences-from-glibc.md "Character sets" intro still gives snapshot-2026-11-17's state (58 of 1180;
    ISO-8859-15 does not open; Debian's iconv program does not start): stale, dated; no differences row yet for the
    -static-libgcc-without-libgcc_s thread exit (ruling #7118 allows one).
-5. The run's own slips (fixed in-run): plants file and tree/ not adapted to the host swap (superseded jobs above).
+5. Lintian: one new warning, `lacks-unversioned-link-to-shared-library` on libc6 for libm.so.6, because #28 made
+   libc6-dev's libm.so a linker script (`GROUP ( libm.so.6 AS_NEEDED ( libmvec.so.1 ) )`) instead of a symlink.
+   Expected and non-blocking; a packaging story may add a lintian override.
+6. The run's own slips (fixed in-run): the plants file and tree/ were not adapted to the host swap (superseded jobs
+   below); the brief's serial 20261120.6 could not match the head's commit date (challenge, ruling #7150: serial 1).
 
-## Exact next step
+## Jobs
 
-1. jobwait mei `release-snapshot-1120f-roots-3 -lint-3 -plants-2`; read plants-2's CAUGHT/SURVIVED/WARN lines.
-2. mei `sh ~/work/RELEASE-SNAPSHOT-1120F/cmp2.sh > ~/work/RELEASE-SNAPSHOT-1120F/cmp2.out`; read it (expect only the
-   version/known lines to differ); fill the TODO rows (roots-3, lint-3, pkgdiff-1 file counts, install-1 RESULT,
-   staged list `ls ~/release-staging/snapshot-20261121.1/` on keke).
-3. Rewrite this note's first line as `COMPLETE: snapshot-ready at 15a2d6482 ...`; write handoff/reports/
-   RELEASE-SNAPSHOT-1120F.json (+ "jobs"); commit, push, sync (sync_role.sh ... mei s3), `cargo xtask precheck --jobs
-   <JOBS> --head <sha>` on mei s3, then `ops handback-check`. JOBS: mei smoke-mei-1, gate-1, startup-mei-1,
-   kstart-mei-1, debs-2, plants-2, roots-3, lint-3, yohane-2, many-2, dyn22-2, y10-2, y19-2, y26-2, y26t-2, y23-2,
-   c19-2, y25-2, y24-2, y28-1, y6-1, y25s-1; keke smoke-keke-1, startup-keke-1, kstart-keke-1, pkgdiff-1, stage-1,
-   install-1. Evidence (20.5 side): y28-ref205-1, y6-ref205-2, y25s-ref205-1. SUPERSEDED: debs-1 (serial 6, #7150),
-   plants-1 (1120E's plants file), roots-2/lint-2 (no tree/ on mei), y6-ref205-1 (root without locales), every -1 deb
-   check on mei (stopped or ran on the serial-6 packages: roots-1, lint-1, yohane-1, many-1, dyn22-1, y10-1, y19-1,
-   y26-1, y26t-1, y23-1, c19-1, y25-1, y24-1).
-4. Leave nothing running (kill-label for any leftover); hand back.
+JOBS (the final head 15a2d6482; this branch adds handoff/ only): mei smoke-mei-1, gate-1, startup-mei-1, kstart-mei-1,
+debs-2, plants-2, roots-3, lint-3, yohane-2, many-2, dyn22-2, y10-2, y19-2, y26-2, y26t-2, y23-2, c19-2, y25-2, y24-2,
+y28-1, y6-1, y25s-1; keke smoke-keke-1, startup-keke-1, kstart-keke-1, pkgdiff-1, stage-1, install-1 (all labels
+prefixed release-snapshot-1120f-). rc 1 on known lines only: roots-3 (dbg Breakpoint 1.1), yohane-2 (libc6-dev ships
+no C headers), y10-2 (DL-RUNPATH, not landed), y6-1 (WINDOWS-1252, windows-1251), debs-2 (DBG 17 of 19, ruling #6321).
+Evidence (20.5 side): y28-ref205-1, y6-ref205-2, y25s-ref205-1. SUPERSEDED: debs-1 (serial 6, ruling #7150), plants-1
+(1120E's plants file, its products absent here), roots-2 and lint-2 (no tree/ on the host), y6-ref205-1 (root without
+locales), every -1 deb check on mei (stopped or ran on the serial-6 packages: roots-1, lint-1, yohane-1, many-1,
+dyn22-1, y10-1, y19-1, y26-1, y26t-1, y23-1, c19-1, y25-1, y24-1).
+
+## Next step
+
+Coordinator: tag snapshot-2026-11-21.1 from keke `~/release-staging/snapshot-20261121.1/` at 15a2d6482 when the owner
+says so and tell Yohane (#28, #6 names, #25 static, #23). Route findings 2-5 (start-up layout, #6 rest / ICONV-CJK,
+release notes and differences rows, lintian override).
