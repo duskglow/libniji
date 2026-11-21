@@ -1418,6 +1418,37 @@ fn static_unwinder_member(root: &Path, archive: &Path, work: &Path) -> Result<()
 /// its alignment (the gap is the one between segments) and `.rodata` follows it without a gap.
 const RODATA1_FIRST: &str = "SECTIONS\n{\n  .rodata1 : { *(.rodata1) }\n}\nINSERT BEFORE .rodata;\n";
 
+/// DYN-START-RING: the linker-script fragment that puts libc.so.6's PLT after its text. GNU ld's default script
+/// puts `.plt` and `.plt.got` ahead of `.text` (64 KiB aligned: the window bins), so the gap between them
+/// followed the size of the read-only headers and tables before them, and where that gap held a whole page the
+/// linker started a second executable PT_LOAD (a few hundred bytes fewer symbols did it: one more program header
+/// and mapping per dynamic start, about +3.2k user instructions). After the text, the PLT follows it without a
+/// gap and `.text` starts the executable segment on its alignment (the gap is the one between segments).
+const PLT_AFTER_TEXT: &str = "SECTIONS\n{\n  .plt : { *(.plt) *(.iplt) }\n  .plt.got : { *(.plt.got) }\n  .plt.sec : { *(.plt.sec) }\n}\nINSERT AFTER .text;\n";
+
+/// DYN-START-RING: `so` has exactly one executable PT_LOAD ([`PLT_AFTER_TEXT`]).
+fn check_executable_segment(so: &Path) -> Result<(), String> {
+    let ph = Command::new("readelf").arg("-lW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    executable_segment_errors(&String::from_utf8_lossy(&ph.stdout)).map_err(|e| format!("{}: {e} (xtask/src/so.rs PLT_AFTER_TEXT)", so.display()))
+}
+
+/// The check of [`check_executable_segment`] on `readelf -lW` text: one PT_LOAD with the `E` flag.
+pub fn executable_segment_errors(phdrs: &str) -> Result<(), String> {
+    let exec: Vec<&str> = phdrs
+        .lines()
+        .filter(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            w.first() == Some(&"LOAD") && w.len() >= 8 && w[6..w.len() - 1].contains(&"E")
+        })
+        .filter_map(|l| l.split_whitespace().nth(2))
+        .collect();
+    match exec.len() {
+        1 => Ok(()),
+        0 => Err("no executable PT_LOAD".into()),
+        n => Err(format!("{n} executable PT_LOADs ({}), not one: the text's segments depend on the size of what precedes it again", exec.join(", "))),
+    }
+}
+
 /// LAYOUT-RO-STABLE (D-X.143): `so`'s read-only data after its text is one PT_LOAD, led by the start-up group.
 fn check_read_only_segment(so: &Path) -> Result<(), String> {
     let ph = Command::new("readelf").arg("-lW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
@@ -1735,10 +1766,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // LAYOUT-RO-STABLE (D-X.143): the group leads the read-only segment in both links.
     let ro_first = product.join("libc-rodata1-first.ld");
     fs::write(&ro_first, RODATA1_FIRST).map_err(|e| format!("{}: {e}", ro_first.display()))?;
+    // DYN-START-RING: one executable segment whatever the size of the tables before the text.
+    let plt_after = product.join("libc-plt-after-text.ld");
+    fs::write(&plt_after, PLT_AFTER_TEXT).map_err(|e| format!("{}: {e}", plt_after.display()))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
             .arg(format!("-Wl,-T,{}", ro_first.display()))
+            .arg(format!("-Wl,-T,{}", plt_after.display()))
             .args(extra)
             .arg(format!("-Wl,--version-script={}", map.display()))
             .arg("-Wl,-soname,libc.so.6")
@@ -1757,6 +1792,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     link_libc(&owner_obj, &so, &[])?;
     check_rodata1_anchor(&so, rodata1_align)?;
     check_read_only_segment(&so)?;
+    check_executable_segment(&so)?;
     check_no_link_edge(&so)?;
     check_no_static_unwinder(&so)?;
     let native =check_native_exports(root, &so)?;
@@ -3475,6 +3511,56 @@ mod tests {
         }
         let _ = fs::remove_dir_all(&dir);
         assert!(split_without > 0, "no text size split the read-only data without the fragment: the test no longer sees the case it guards");
+    }
+
+    /// DYN-START-RING (no spec clause: layout of the products): one executable PT_LOAD passes, the split a
+    /// whole-page gap between `.plt` and the 64 KiB-aligned `.text` gave (0x2e000 and 0x30000) fails, and so
+    /// does a library with no executable segment.
+    #[test]
+    fn libc_so_text_is_one_executable_segment() {
+        let load = |at: u64, flags: &str| format!("  LOAD           0x{at:06x} 0x{at:016x} 0x{at:016x} 0x001000 0x001000 {flags} 0x1000\n");
+        let one = format!("{}{}{}", load(0, "R  "), load(0x30000, "R E"), load(0x330000, "R  "));
+        assert_eq!(executable_segment_errors(&one), Ok(()));
+        let split = format!("{}{}{}{}", load(0, "R  "), load(0x2e000, "R E"), load(0x30000, "R E"), load(0x330000, "R  "));
+        let e = executable_segment_errors(&split);
+        assert!(e.as_ref().is_err_and(|e| e.starts_with("2 executable PT_LOADs (0x000000000002e000, 0x0000000000030000)")), "{e:?}");
+        assert!(executable_segment_errors(&load(0, "R  ")).is_err_and(|e| e.contains("no executable")));
+    }
+
+    /// DYN-START-RING (no spec clause: layout of the products): with [`PLT_AFTER_TEXT`] a shared library shaped
+    /// like libc.so.6 (a PLT entry, 64 KiB-aligned `.text`) keeps one executable PT_LOAD at sizes 0x100 + k * 4 KiB,
+    /// k = 0..16, of a read-only section ahead of the text (every 4 KiB phase of a 64 KiB window); linked
+    /// without it, some of those sizes give two (the split this guards against).
+    #[test]
+    fn plt_after_text_keeps_one_executable_segment_at_every_header_size() {
+        let dir = std::env::temp_dir().join(format!("niji-rx-stable-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let frag = dir.join("plt-after.ld");
+        fs::write(&frag, PLT_AFTER_TEXT).expect("fragment");
+        let readelf = |so: &Path| String::from_utf8_lossy(&Command::new("readelf").arg("-lW").arg(so).output().expect("readelf").stdout).into_owned();
+        let mut split_without = 0;
+        for k in 0..16u64 {
+            let src = dir.join(format!("lib{k}.s"));
+            let head = 0x100 + k * 4096;
+            fs::write(&src, format!("\t.section .note.niji,\"a\",@note\n\t.fill {head},1,0\n\t.text\n\t.balign 65536\n\t.globl niji_test_f\nniji_test_f:\n\tcall niji_test_ext@PLT\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n")).expect("source");
+            for with in [true, false] {
+                let so = dir.join(format!("lib{k}-{with}.so"));
+                let mut cc = Command::new("cc");
+                cc.args(["-shared", "-nostdlib"]);
+                if with {
+                    cc.arg(format!("-Wl,-T,{}", frag.display()));
+                }
+                assert!(cc.arg(&src).arg("-o").arg(&so).status().expect("cc").success(), "head {head:#x}: link failed");
+                let verdict = executable_segment_errors(&readelf(&so));
+                if with {
+                    assert_eq!(verdict, Ok(()), "head {head:#x} with the fragment");
+                } else if verdict.is_err_and(|e| e.starts_with("2 executable PT_LOADs")) {
+                    split_without += 1;
+                }
+            }
+        }
+        let _ = fs::remove_dir_all(&dir);
+        assert!(split_without > 0, "no header size split the text without the fragment: the test no longer sees the case it guards");
     }
 
     /// D-27.10 (no spec clause: start-up internals): the static-PIE start object passes with

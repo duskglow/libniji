@@ -98,6 +98,11 @@ static volatile pid_t waiter_tid;
 static volatile int waiter_stage;
 static volatile int waiter_result;
 
+static void *nothing(void *arg)
+{
+    return arg;
+}
+
 static void *suspender(void *arg)
 {
     (void)arg;
@@ -171,9 +176,16 @@ int main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
+    /* The handler is installed lazily, by the first thread creation (D-20.1, owner ruling
+     * #7075): a start makes no rt_sigaction. The reservation holds from the start (below). */
     struct kact orig = kaction(32);
-    check(orig.handler != SIG_DFL && orig.handler != SIG_IGN, "the library has a handler for 32 at start");
+    check(orig.handler == SIG_DFL, "no handler for 32 before the first thread");
     check(!(kmask() & BIT32), "32 is not blocked at start");
+    pthread_t first;
+    check(pthread_create(&first, NULL, nothing, NULL) == 0 && pthread_join(first, NULL) == 0, "a thread starts");
+    orig = kaction(32);
+    check(orig.handler != SIG_DFL && orig.handler != SIG_IGN, "the first thread creation installs the library's handler for 32");
+    check(!(kmask() & BIT32), "32 is not blocked after it");
 
     /* Never an application signal. */
     check(SIGRTMIN == 33 && __libc_current_sigrtmin() == 33, "SIGRTMIN is 33");

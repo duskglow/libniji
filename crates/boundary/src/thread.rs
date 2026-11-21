@@ -1181,6 +1181,10 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
     // The two words the C layer pops in the new thread: the entry and its argument.
     conv::store_words(sp, [entry_addr(), daddr]);
 
+    // The internal signal's handler (D-20.1, lazy by owner ruling #7075): before the first thread
+    // the library could send it to exists. Only a process the products started owns signal 32.
+    #[cfg(feature = "runtime")]
+    crate::cancel::install();
     me.multiple_threads.store(1, Relaxed);
     SINGLE_THREADED.store(0, Release);
     // Before the clone: from here on every mutex operation uses atomics (the new thread reads

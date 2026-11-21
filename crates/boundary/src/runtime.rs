@@ -493,7 +493,7 @@ fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: 
     // rseq stays with the loader (DL-13): libc registers no area of its own here.
     crate::thread::RSEQ_OWNED.store(false, Release);
     crate::thread::init_initial(false);
-    crate::cancel::install();
+    // The internal signal's handler is installed by the first thread creation (D-20.1, #7075).
     // 5. Termination, then the program's initialisation.
     if let Some(f) = rtld_fini {
         process::register(process::entry(ATEXIT, addr0(f), 0, 0));
@@ -665,8 +665,8 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     // another `ld.so`, that loader registered rseq already.
     crate::thread::RSEQ_OWNED.store(static_program && tunables.rseq != Some(false), Release);
     crate::thread::init_initial(static_program);
-    // The internal signal (D-20.1): cancellation requests and the setxid broadcast.
-    crate::cancel::install();
+    // The internal signal (D-20.1): cancellation requests and the setxid broadcast. Its handler
+    // is installed by the first thread creation (owner ruling #7075), not here.
     // The standard streams are set up at first use; with the heap exhausted then, their slots
     // come from the library's reserve (T22, D-12.17), so an empty program maps no heap.
 
