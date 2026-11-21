@@ -160,14 +160,20 @@ pub(super) fn decode(w: Which, input: &[u8]) -> Dec {
     Dec::Invalid(if one { 1 } else { 2 })
 }
 
-/// Encode `c`; `None` if the set has no character for it.
+/// Encode `c`; `None` if the set has no character for it. A tag character (U+E0000..=U+E007F)
+/// the set cannot write is written as nothing (probed: GB18030 writes them, the others drop them).
 pub(super) fn encode(w: Which, c: u32, out: &mut [u8; 8]) -> Option<usize> {
+    let n = encode_set(w, c, out);
+    if n.is_none() && (0xE0000..=0xE007F).contains(&c) {
+        return Some(0);
+    }
+    n
+}
+
+fn encode_set(w: Which, c: u32, out: &mut [u8; 8]) -> Option<usize> {
     if c < 0x80 {
         out[0] = u8::try_from(c).ok()?;
         return Some(1);
-    }
-    if (0xE0000..=0xE007F).contains(&c) {
-        return Some(0);
     }
     let s = w.set();
     if c <= 0xFFFF {
@@ -247,6 +253,7 @@ mod tests {
         assert_eq!(enc(g, 0x10_FFFF), Some(vec![0xE3, 0x32, 0x9A, 0x35]));
         assert_eq!(enc(g, 0xE81E), Some(vec![0x82, 0x35, 0x90, 0x37]));
         assert_eq!(enc(g, 0x20AC), Some(vec![0xA2, 0xE3]));
+        assert_eq!(enc(g, 0xE0001), Some(vec![0xD3, 0x36, 0x95, 0x39]), "a tag character GB18030 can write");
     }
 
     /// Single bytes, leads and skips that differ between the sets (s6_4_f_2_3, s6_4_f_3).
