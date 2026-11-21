@@ -64,6 +64,15 @@ sits where libc.so.6's dependency would be, before deeper objects); libniji's ld
 - Not probed on the reference: dlopen through an LD_LIBRARY_PATH `$ORIGIN` list (the start's case was probed by
   DL-NAME-PATH-2). The test expects the start's rule.
 
+## Run state (leg 2, 06:25Z: PENDING JOBS)
+
+- Leg 2 results, all on the code head 8526d26e4 (later commits touch handoff/ only): `dl-runpath-aff` direct tier
+  (not FULL); `dl-runpath-plants` 7 plants: 6 CAUGHT, 1 EQUIVALENT (no-start-publish, reason in the plants file), no
+  WARN-RC-ONLY / WARN-NO-MSG (only WARN-DEV-SHM, informational); `dl-runpath-gate2` green: 4 suites, 82 passed, 0
+  failed, peak 1.8G. `dl-runpath-startup`: probe diff matches the reference except install paths and `$PLATFORM`;
+  `cargo xtask test` (6957 tests) and the full-profile hot_text_products were still running at hand-back (PENDING).
+- The role could not take the handoff-only head (sync BUSY with my own jobs); precheck ran with `--head 8526d26e4`.
+
 ## Run state (leg 1 ended 04:20Z at the call budget; refresh)
 
 - Head 8526d26e4 is synced to keke:~/w/n4. The job `dl-runpath-check1` (clippy for niji-boundary and niji-ld, so,
