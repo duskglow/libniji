@@ -47,7 +47,17 @@ at race.c, all equal to stock. The debs predate only the header declaration, the
 fixed afterwards and green in the gate and lint jobs).
 
 ## Gate, plants, start-up checks
-GATE_PLANTS_STARTUP
+* Plants `valgrind-loader-view-plants4` (keke, `cargo xtask plants`, 7 plants): 7 CAUGHT, each by its message, no WARN
+  lines; rc 0. (plants3 killed: its two hidden-view plants ran `--lib` without `--features ld`, 0 tests, SURVIVED;
+  plants, plants2 killed: started on trees later changed by lint fixes.)
+* Gate `valgrind-loader-view-gate` (`cargo xtask affected --run`, Direct tier, 234 targets; affected also prints
+  `FULL: the train's (xtask/src/so.rs)`): at hand-back K5, clippy, products, xtask tests and `test -p niji` ok, the
+  rest still running (PENDING).
+* Start-up checks `valgrind-loader-view-startup` (`cargo xtask test`, full-profile so, hot_text_products): queued
+  behind the gate in the same role (PENDING).
+* `cargo test -p niji-boundary --lib --features ld hidden_view`: 1 passed (by hand on the role, log ldtest.log).
+* precheck not run: the role is BUSY with the gate, so sync_role refuses (rc 4) and the final prose commits are not
+  on the role; handback-check exit 0 (note: static/clippy over the cap, run by the dispatcher).
 
 ## RULING NEEDED
 * The loader module's unit tests (`crates/boundary/src/ld`, feature `ld`) are built by no gate or CI runner (the
