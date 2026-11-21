@@ -146,7 +146,7 @@ fn print_pair(label: &str, p: &Pair) {
 }
 
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
-    let (mut base, mut head, mut runs, mut rows) = (None::<PathBuf>, root.to_path_buf(), 5usize, ROWS.to_string());
+    let (mut base, mut head, mut runs, mut rows, mut head_pad) = (None::<PathBuf>, root.to_path_buf(), 5usize, ROWS.to_string(), 0u64);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -154,7 +154,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             "--head" => head = PathBuf::from(it.next().ok_or("--head needs a libniji tree")?),
             "--runs" => runs = it.next().and_then(|v| v.parse().ok()).filter(|&n| n > 0).ok_or("--runs needs a positive number")?,
             "--rows" => rows = it.next().filter(|v| !v.is_empty()).ok_or("--rows needs a comma list of cbench_startup rows")?.clone(),
-            other => return Err(format!("startup-pair: unknown argument `{other}` (usage: cargo xtask startup-pair --base <tree> [--head <tree>] [--runs N] [--rows a,b])")),
+            // Self-check: a fixed text pad on the head's program only (on top of the matching pad), the shape of a
+            // change that does nothing but grow the text; with `--head` = `--base` the judged pair must be ok.
+            "--head-pad" => head_pad = it.next().and_then(|v| v.parse().ok()).ok_or("--head-pad needs a byte count")?,
+            other => return Err(format!("startup-pair: unknown argument `{other}` (usage: cargo xtask startup-pair --base <tree> [--head <tree>] [--runs N] [--rows a,b] [--head-pad BYTES])")),
         }
     }
     let base = base.ok_or("startup-pair: --base <tree> is required (a libniji tree with its products built)")?;
@@ -170,7 +173,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let mut counts = |pad: u64| -> Result<(usize, usize), String> {
         let (b, h) = (exe("base", pad), exe("head", pad));
         link(&base, pad, &b)?;
-        link(&head, pad, &h)?;
+        link(&head, pad + head_pad, &h)?;
         Ok((ro_count(&b)?, ro_count(&h)?))
     };
     let (b0, h0) = counts(0)?;
@@ -182,6 +185,9 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         println!("startup-pair: LAYOUT-FLIP base {b0} head {h0}: judged at text pad {pad:#x} (both {n})");
         Some(pad)
     };
+    if head_pad > 0 {
+        println!("startup-pair: self-check: the head's program carries {head_pad} more text bytes at every pad (--head-pad)");
+    }
     let unpadded = measure(&exe("base", 0), &exe("head", 0), &rows, runs)?;
     print_pair(&format!("unpadded pair (base {b0}, head {h0} read-only PT_LOADs){}", if pad.is_some() { ", reported" } else { ", judged" }), &unpadded);
     let padded = match pad {
