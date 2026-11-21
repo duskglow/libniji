@@ -1,7 +1,29 @@
 # TEST-SCRATCH-CLEANUP
 
-State: branch task/test-scratch-cleanup (from origin/next 8e34f9c72). Role mei:~/w/s3. Code done (legs 1-2);
-proof below. HEAD: see `git log -1` (handoff/report commit on top of 3d45a86c9).
+State: branch task/test-scratch-cleanup-2 (TEST-SCRATCH-CLEANUP-2, continuing task/test-scratch-cleanup 41304e7f5),
+origin/next 97bf3542f merged in (709f3c1ea). Role mei:~/w/s2. Code done; proof under "Leg 3". HEAD: see
+`git log -1` (handoff/report commit on top of bf745ec74).
+
+## Leg 3 (TEST-SCRATCH-CLEANUP-2): CI merge conflict resolved
+- 709f3c1ea merge of origin/next: nscache.rs keeps next's `Dir::under` (region dir on a chosen base);
+  `Dir::new` and the off-tmpfs candidates take `scratch::base()`; Drop already `scratch::release`.
+  dlopen_process_objects.rs keeps next's `products()`/`named_libc()` split; `corpus()` keeps the Scratch guard;
+  next's new `many_corpus()` (`target/ld-process-objects-many-<pid>`, removed only at the end of a pass) now
+  returns a Scratch guard too.
+- bf745ec74: rendezvous.rs `rendezvous_reference_sized_copy_says_version_1` (new on next,
+  `target/ld-rendezvous-refcopy-<pid>`, removed only on pass/skip) -> Scratch guard.
+- Step-1 grep (pid-named / `CARGO_TARGET_TMPDIR` / `temp_dir()` lines next brought in): only the three above,
+  plus xtask/tests/tz_tools.rs `scratch()` under `/tmp` (not target/), removed at the end of each passing
+  test: left as is (same class as the success-path-removal sites below).
+- Results on bf745ec74 (mei s2): clippy -D warnings + `cargo xtask static` clean (test-scratch-cleanup-2-lint1;
+  inherited head 41304e7f5 also clean, -lint0). Gate test-scratch-cleanup-2-gate (so + affected --run --base
+  origin/next, 197 targets): 8392 passed, 0 failed, 776 ignored, SKIPPED lines 0, peak 5.7G. Plants
+  test-scratch-cleanup-2-plants (handoff/TEST-SCRATCH-CLEANUP-plants.txt): 3 CAUGHT of 3, no WARN.
+  Full `cargo xtask test` test-scratch-cleanup-2-xtest: rc 0 (7017 + 4862 + 128 + 46 passed, conformance 142),
+  pid-named entries in target/, target/tmp, target/crt-products 0 -> 0 (crt-products/ and tmp/ empty after);
+  du target 7032 -> 11263 MiB, of which debug/ is 9402 MiB after (cargo build state for the builds
+  `cargo xtask test` makes and the gate does not, as in leg 2's run 1). NOT VERIFIED: a per-directory du
+  before the run (only the total was taken).
 
 ## The rule (in force)
 `crates/core/tests/support/scratch.rs` is the one way a test makes a per-process file or directory:
@@ -54,5 +76,5 @@ guards' Drop -> `scratch::release` (they removed even on failure; now kept and n
   INFORMATIONAL, not chased.
 
 ## Next step (exact)
-None for the story if the results above are green; follow-up (optional): the success-path-removal sites listed
-under owed #17 to `Scratch`.
+None for the story (leg 3 green); land task/test-scratch-cleanup-2. Follow-up (optional): the
+success-path-removal sites listed under owed #17, and xtask/tests/tz_tools.rs `scratch()`, to `Scratch`.
