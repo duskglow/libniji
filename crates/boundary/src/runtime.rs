@@ -340,7 +340,13 @@ fn publish(argv_addr: usize, n_args: usize, envp: usize, stack_end: usize) {
 #[cold]
 #[inline(never)]
 fn exec_stacks_at_start(aux: &Auxv<'_>, auxv: usize) {
-    if crate::posix::s27_dynlink::dl_iterate_phdr(Some(asks_exec_stack), core::ptr::null_mut()) == 0 {
+    // The loader's walk itself (stored above), not the exported, interposable `dl_iterate_phdr`:
+    // a call to that export binds a GOT slot every dynamic start resolves (one more symbol lookup,
+    // about 1,400 instructions per start on an empty main), the cost this function exists to avoid.
+    let walk = crate::posix::s27_dynlink::LOADER_ITERATE.load(Acquire);
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    let cb = i64::from_ne_bytes(u64::try_from((asks_exec_stack as *const ()).expose_provenance()).unwrap_or(0).to_ne_bytes());
+    if walk == 0 || crate::posix::s27_dynlink::int_result(crate::ffi::niji_machine_call3(walk, cb, 0, 0)) == 0 {
         return;
     }
     let get = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
