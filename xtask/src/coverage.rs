@@ -401,8 +401,11 @@ fn problems(root: &Path) -> Result<Vec<String>, String> {
         }
         let mut names: Vec<String> = r.features.split(',').filter(|f| !f.is_empty()).map(|f| format!("feature = \"{f}\"")).collect();
         names.extend(r.cfgs.iter().map(|c| c.to_string()));
+        // What the run builds: the crate's sources, its tests and its build script (not its examples).
         let mut files = Vec::new();
-        rs_files(&root.join(&dir), &mut files);
+        rs_files(&root.join(&dir).join("src"), &mut files);
+        rs_files(&root.join(&dir).join("tests"), &mut files);
+        files.push(root.join(&dir).join("build.rs"));
         for p in files {
             let rel = p.strip_prefix(root).unwrap_or(&p).display().to_string();
             if rel.contains("/target/") {
