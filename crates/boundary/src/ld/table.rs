@@ -562,7 +562,18 @@ impl<const N: usize, const G: usize> Gens<N, G> {
     /// Entry `i`'s address for the directory at address `dir` (a reader that may run while the
     /// writer holds `&mut` of what holds the directory), entries of `size` bytes, generation 0 at
     /// `zero`; 0 when not mapped.
+    #[inline(always)]
     pub(super) fn at_in(dir: usize, zero: usize, size: usize, i: usize) -> usize {
+        // Generation 0 inline: a reader within `N` entries pays one compare (DL-PROCESS-OBJECTS-2).
+        if i < N {
+            return zero.wrapping_add(i.wrapping_mul(size));
+        }
+        Self::at_past(dir, zero, size, i)
+    }
+
+    /// [`Gens::at_in`] past generation 0.
+    #[inline(never)]
+    fn at_past(dir: usize, zero: usize, size: usize, i: usize) -> usize {
         Self::locate(i, size, zero, |g| Self::base_in(dir, g))
     }
 
@@ -642,6 +653,7 @@ impl<T: ZeroValid, const N: usize, const G: usize> Grown<T, N, G> {
     }
 
     /// Entry `i`'s address in the table at address `at`, read without a reference to it.
+    #[inline(always)]
     pub(super) fn addr_in(at: usize, i: usize) -> usize {
         let () = Self::ALIGNED;
         Gens::<N, G>::at_in(at, at.wrapping_add(Self::INLINE_AT), size_of::<T>(), i)
@@ -662,11 +674,10 @@ impl<T: ZeroValid, const N: usize, const G: usize> Grown<T, N, G> {
         }
         // UNSAFE(slice): one entry of a mapped generation, for its one writer.
         #[allow(unsafe_code)]
-        // SAFETY: `at` is entry `i` of a generation `reserve` mapped (read-write, page aligned, never
-        // unmapped), aligned for `T` (`ALIGNED`); all-zero and every value written are valid `T`s
-        // (`ZeroValid`); `&mut self` excludes every other reference made through the table, and
-        // readers without a lock read only entries published to them, which the writer does not
-        // change until their slot is reused after a grace period.
+        // SAFETY: `at` is entry `i` of a generation `reserve` mapped (read-write, never unmapped),
+        // aligned for `T` (`ALIGNED`); all-zero and every value written are valid (`ZeroValid`);
+        // `&mut self` excludes other references through the table; lock-free readers read only
+        // published entries, unchanged until their slot is reused after a grace period.
         Some(unsafe { &mut *core::ptr::with_exposed_provenance_mut::<T>(at) })
     }
 

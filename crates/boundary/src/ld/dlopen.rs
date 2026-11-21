@@ -242,6 +242,7 @@ impl<T: Copy> Recs<T> {
     }
 
     /// The published record `i`'s address in the table at `at`, read without a lock.
+    #[inline(always)]
     fn addr_in(at: usize, i: usize) -> usize {
         Grown::<MaybeUninit<T>, CAP, OBJ_GENS>::addr_in(at.wrapping_add(core::mem::offset_of!(Recs<T>, published)), i)
     }
@@ -802,8 +803,18 @@ pub(super) fn read_section<R>(f: impl FnOnce(&View) -> R) -> Option<R> {
 impl View {
     /// Node `i`'s address (the handle and link map of object `i`): below [`CAP`] in [`NODES`], else
     /// one directory load (0: not mapped).
+    #[inline(always)]
     pub(super) fn node_addr(&self, i: usize) -> usize {
         Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i)
+    }
+
+    /// Node `i`'s address, `None` when its generation is not mapped (within [`CAP`], no test).
+    #[inline(always)]
+    fn node_of(&self, i: usize) -> Option<usize> {
+        if i < CAP {
+            return Some(nodes_base().wrapping_add(i.wrapping_mul(size_of::<Node>())));
+        }
+        Some(self.node_addr(i)).filter(|&a| a != 0)
     }
 
     /// The address of the nodes' directory of later generations.
@@ -811,12 +822,15 @@ impl View {
         self.at.wrapping_add(core::mem::offset_of!(Loader, nodes))
     }
 
+    /// The index of the node at `addr` outside generation 0, by the directory.
+    #[inline(never)]
+    fn index_past(&self, addr: usize) -> Option<usize> {
+        Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), addr)
+    }
+
     /// A published, final field of node `i` (`off` from [`core::mem::offset_of`]).
     fn field<T: Copy + Default>(&self, i: usize, off: usize) -> T {
-        let node = self.node_addr(i);
-        if node == 0 {
-            return T::default();
-        }
+        let Some(node) = self.node_of(i) else { return T::default() };
         let at = node.wrapping_add(off);
         // UNSAFE(slice): one field of a published node in the loader's own mapping.
         #[allow(unsafe_code)]
@@ -830,10 +844,7 @@ impl View {
     /// The next published node after `i` (0: none); the vDSO's link map, which is no node, is
     /// stepped over.
     fn next(&self, i: usize) -> usize {
-        let node = self.node_addr(i);
-        if node == 0 {
-            return 0;
-        }
+        let Some(node) = self.node_of(i) else { return 0 };
         let at = node.wrapping_add(core::mem::offset_of!(Node, l_next));
         // UNSAFE(slice): the atomic `l_next` word of a published node.
         #[allow(unsafe_code)]
@@ -855,12 +866,13 @@ impl View {
             if next == 0 {
                 return None;
             }
-            // Generation 0's range first: within CAP objects, the arithmetic as before.
+            // Generation 0's range first: within CAP objects, the arithmetic as before (the writer
+            // links only node addresses there); a later generation's node by its directory.
             let off = next.wrapping_sub(first);
             i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
-                (off.checked_rem(size_of::<Node>())? == 0).then_some(off.checked_div(size_of::<Node>())?)?
+                off.checked_div(size_of::<Node>())?
             } else {
-                Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), next)?
+                self.index_past(next)?
             };
         }
         None
