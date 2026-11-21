@@ -64,6 +64,28 @@ sits where libc.so.6's dependency would be, before deeper objects); libniji's ld
 - Not probed on the reference: dlopen through an LD_LIBRARY_PATH `$ORIGIN` list (the start's case was probed by
   DL-NAME-PATH-2). The test expects the start's rule.
 
+## Run state (leg 1 ended 04:20Z at the call budget; refresh)
+
+- Head 8526d26e4 is synced to keke:~/w/n4. The job `dl-runpath-check1` (clippy for niji-boundary and niji-ld, so,
+  runpath_search, object_names) ran on c032a71d5: clippy and so were green, object_names was 4/4, and runpath_search
+  was 3/4. `program_origin_lists_serve_dlopen` failed only because cargo's LD_LIBRARY_PATH came first in the SERINFO
+  list (the `$ORIGIN` entries were present). 8526d26e4 clears it in the test. SUPERSEDED: dl-runpath-check1 (old
+  head, test defect).
+- Running on keke when the leg ended: `dl-runpath-aff` (`cargo xtask affected --list --base origin/next`, to see
+  whether it says FULL) and `dl-runpath-plants` (handoff/DL-RUNPATH-plants.txt, dir
+  /dev/shm/claude/dl-runpath/plants-1).
+- Next leg, exactly:
+  1. `~/bin/jobwait dl-runpath-aff dl-runpath-plants`. List every WARN line of the plants.
+  2. If aff is not FULL: start `dl-runpath-gate2` (gate kind, `~/bin/gate 16G sh -c "cd ~/w/n4 && cargo xtask
+     affected --run --base origin/next"`). If it is FULL: run `cargo xtask precheck` plus `cargo test -p niji-ld`
+     and `-p niji-boundary` as kind `test`, and write `FULL: the train's (<reason>)`.
+  3. Start `dl-runpath-startup` (kind test): `sh ~/work/dl-runpath/startup.sh`. It waits for dl-runpath-gate2,
+     reruns the probe diff (~/work/dl-runpath/diff.out; the remaining expected differences are the libc path
+     line and `$PLATFORM`), then runs `cargo xtask test` and the full-profile hot_text_products.
+  4. Before hand-back: foreground clippy (workspace) and `cargo xtask static` on the role, then `cargo xtask precheck
+     --jobs <labels> --head <sha>`. Write handoff/reports/DL-RUNPATH.json, push, run `ops handback-check`.
+- Background tasks: none local. On keke: only the jobs named above.
+
 ## Next step
 
 Land. Then the secure-mode ruling above; the `$PLATFORM` probe on a v3 Intel and an AMD host.
