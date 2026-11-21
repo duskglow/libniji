@@ -1,0 +1,27 @@
+{"task": "COMPAT19-LDSO-COST", "model": "opus", "tokens": null,
+ "result": "start dependencies mapped by the plan their search check made (D-27.71): -18.8k user instructions per empty main, -22.4k with three libraries, both CPU classes, faults and syscalls unchanged",
+ "branch": "task/compat19-ldso-cost", "head": "HEAD_SHA",
+ "gate": {"affected": "GATE_RESULT", "peak": "GATE_PEAK"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "heap_meta_products the_heap_keeps_address_space_near_its_use failed once in pass 2 of gate compat19-ldso-cost-gate (realloc +45640 KiB > 41288) and passed in pass 1 on the same products; it is a -static program, which runs none of the changed loader code",
+   "DL-PROCESS-OBJECTS landed on next after this branch's base (32261597b) and touches the loader's per-object tables: the train's merge re-measures",
+   "the c19 snapshot check (16 of 16) needs debs built from this head: not run here (the train / RC builds them)"
+ ],
+ "refused": ["three heredoc commands refused by the hook (one in leg 1, two in leg 2), no-ops, not worked around"],
+ "impact": [
+   {"kind": "perf", "what": "dynamic empty main, user instructions per start, Skylake-SP (execcount median of 101)", "before": 740620, "after": 721809, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "three libraries, user instructions per start, Skylake-SP", "before": 995890, "after": 973448, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "clock_gettime program, user instructions per start, Skylake-SP", "before": 774630, "after": 755763, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "dynamic empty main, user instructions per start, Zen 1", "before": 740418, "after": 721601, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "three libraries, user instructions per start, Zen 1", "before": 995696, "after": 973248, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "clock_gettime program, user instructions per start, Zen 1", "before": 774457, "after": 755584, "unit": "instr/start", "measured": true},
+   {"kind": "faults", "what": "user faults per start (empty main / 3 libraries / clock_gettime), both hosts", "before": "52/67/56 (Zen 1 57 for clock_gettime)", "after": "unchanged", "unit": "faults", "measured": true},
+   {"kind": "coverage", "what": "DYN_START_INSTR bounds tightened (fast 871,500/872,600 -> 788,100; release 774,400 -> 758,100)", "before": null, "after": null, "unit": "bound", "measured": true},
+   {"kind": "coverage", "what": "plants on the moved checks", "before": 0, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["mei:compat19-ldso-cost-gate2", "mei:compat19-ldso-cost-plants2", "mei:compat19-ldso-cost-xtest", "mei:compat19-ldso-cost-hot2", "mei:compat19-ldso-cost-m2", "mei:compat19-ldso-cost-snap", "keke:compat19-ldso-cost-zen"],
+ "improvement": "a returned-by-value record deep in the loader's search cost a whole stack page per start: a page-fault list (perf record -e page-faults:u -d) next to the PT split found it in one run; worth a standing loader start-up check of stack depth",
+ "next_step": "land; the c19 snapshot check runs on the train's debs",
+ "report_file": "handoff/compat19-ldso-cost.md"}

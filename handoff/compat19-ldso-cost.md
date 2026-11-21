@@ -48,5 +48,33 @@ c19 snapshot check (~/work/RELEASE-SNAPSHOT-1121A/c19.sh) needs debs built from 
 * Heredoc attempts refused by the hook: one in leg 1, two in leg 2 (no-op commands; nothing worked around).
 * Leg 2: one pointless no-op Bash call.
 
-## Next step
-None on this branch beyond landing. Open: the c19 16/16 snapshot check on debs of this head (train/RC).
+## Leg 2 -> leg 3 (refresh): state and exact next step
+Commits after the fold: `07ed93e73` DYN_START_INSTR tightened (fast 788,100 both hosts from this test's 772,591 +2%;
+release 758,100 from 743,209 +2%), then the report json/handoff WIP commit on top.
+Running on mei at refresh (started by `sh ~/work/compat19-ldso-cost/seq.sh`, sequential: gate2 -> xtest -> hot2) and
+`compat19-ldso-cost-plants2` (plants file, dir /mnt/zram/claude/compat19-ldso-cost/plants-2; the first plants run
+`compat19-ldso-cost-plants` was REFUSED by the tool: the map.rs literal matched 2 sites, now anchored with perl:).
+SUPERSEDED: compat19-ldso-cost-gate (DYN_START_INSTR 10%-under red + the heap test), compat19-ldso-cost-hotr
+(release check before the release bound edit; passed 32/32), compat19-ldso-cost-plants (refused pattern).
+
+**OPEN RED, to explain before hand-back:** `niji::heap_meta_products the_heap_keeps_address_space_near_its_use`
+failed in BOTH my gates and passes in every other recent gate on mei, including CI's gate of my base 32261597b
+(`~/logs/ci-gate-32261597b-1795240623.affected.log`). gate: pass 2, `realloc: +45640 KiB > 41288`; gate2: pass 1
+printed malloc1 +4420 / alloc +28996 / refill +39236 / realloc +41288 (each exactly at or under its bound), then the
+`RLIMIT_AS = start + 41296 KiB` run failed, exit 12 (the realloc step) (line 192). The program is `-static` (libc.a
++ niji-crt1.o) and runs none of the changed loader code, so first suspects: (a) the role's target/niji held
+products of another profile (m1/m2/hotr ran `NIJI_FULL_PROFILE=1 cargo xtask so` in ~/w/s1 before each gate; check
+`target/niji` provenance and whether `affected --run` rebuilt them); (b) libc.a size or layout moving the heap's
+placement (compare `size target/niji/libc.a` members / the test's `start` VmSize against the base's products in
+`/mnt/zram/claude/compat19-ldso-cost/s/32261597b/niji/libc.a`: build the test program against both libc.a files by
+hand (the test's `build()` flags: `cc -std=gnu17 -O1 -static -nostdlib -fno-builtin niji-crt1.o <src> libc.a`,
+src = crates/core/tests/oracle/heap_address_space.c or wherever `build` looks) and run each 5x with the same
+`41296` argument under `setarch -R`). Base passes and branch fails = my cause: find it. Both fail = role/env:
+INFORMATIONAL with that evidence. Do NOT loosen the bound (ALWAYS FORWARD).
+
+Then: jobwait gate2/plants2/xtest/hot2 (read `~/bin/test-summary`, plants CAUGHT x4, `dynamic empty main` lines);
+fill HEAD_SHA/GATE_RESULT/GATE_PEAK in handoff/reports/COMPAT19-LDSO-COST.json; `cargo xtask precheck --jobs <labels>
+--head <sha>` on the synced role; push; `ops handback-check`; hand back. If any code changes, gate/plants/xtest/hot
+rerun on the new head (one product build per role at a time: use a sequencer like seq.sh, started with NOTHING
+chained before `setsid nohup` over ssh: leg 2 chained `test -s &&` and its ssh session hung).
+Open after landing: the c19 16/16 snapshot check on debs of this head (train/RC).
