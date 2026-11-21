@@ -595,8 +595,9 @@ fn s2_6_c_4_sev_level_forms() {
 }
 
 /// §2.6 (D-2.6): `addseverity` copies its string, refuses levels up to 4 and the removal of a
-/// level not added, and holds 256 added severities: one more is `MM_NOTOK`, while a level
-/// already added can still be replaced, and a removal makes room.
+/// level not added, and holds as many added severities as memory allows (LIMITS-RUNTIME-SMALL:
+/// 2000 here, well past the 256 an earlier fixed table held and past its first chunk), each
+/// printed by `fmtmsg`; a level can be replaced, and a removed level's entry is used again.
 #[test]
 fn s2_6_c_3_table() {
     let err = in_child("s2_6_c_3_table", "s2_6_c_3_table", &[], || {
@@ -609,19 +610,22 @@ fn s2_6_c_3_table() {
         for bad in [0, -3, MM_INFO] {
             assert_eq!(x::addseverity(bad, cs("Z").as_ptr()), MM_NOTOK, "{bad}");
         }
-        for level in 6..261 {
-            assert_eq!(x::addseverity(level, cs("S").as_ptr()), MM_OK, "{level}");
+        for level in 6..2006 {
+            assert_eq!(x::addseverity(level, cs(&format!("S{level}")).as_ptr()), MM_OK, "{level}");
         }
-        assert_eq!(x::addseverity(261, cs("FULL").as_ptr()), MM_NOTOK, "256 added: full");
-        assert_eq!(x::addseverity(100, cs("R").as_ptr()), MM_OK, "replaced while full");
+        for level in [6, 300, 2005] {
+            assert_eq!(fmtmsg(MM_PRINT, None, level, Some("t"), None, None), MM_OK, "{level}");
+        }
+        assert_eq!(x::addseverity(100, cs("R").as_ptr()), MM_OK, "replaced");
         assert_eq!(fmtmsg(MM_PRINT, None, 100, Some("t"), None, None), MM_OK);
         assert_eq!(x::addseverity(100, null()), MM_OK);
-        assert_eq!(x::addseverity(261, cs("LAST").as_ptr()), MM_OK, "room again");
-        assert_eq!(fmtmsg(MM_PRINT, None, 261, Some("t"), None, None), MM_OK);
+        assert_eq!(x::addseverity(2006, cs("LAST").as_ptr()), MM_OK, "the removed level's entry again");
+        assert_eq!(fmtmsg(MM_PRINT, None, 2006, Some("t"), None, None), MM_OK);
         assert_eq!(fmtmsg(MM_PRINT, None, 100, Some("t"), None, None), MM_NOTOK);
+        assert_eq!(fmtmsg(MM_PRINT, None, 2005, Some("t"), None, None), MM_OK, "the others stay");
     });
     if probe().is_none() {
-        assert_eq!(err, "MINE: t\nR: t\nLAST: t\n");
+        assert_eq!(err, "MINE: t\nS6: t\nS300: t\nS2005: t\nR: t\nLAST: t\nS2005: t\n");
     }
 }
 
