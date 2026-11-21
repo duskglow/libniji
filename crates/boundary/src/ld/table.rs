@@ -425,6 +425,12 @@ impl<T: Plain, const N: usize, const G: usize> Arena<T, N, G> {
             // anywhere, even in this arena.
             unsafe {
                 core::ptr::copy(s.as_ptr(), dst, s.len());
+            }
+            // UNSAFE(slice): the last entry of that room.
+            #[allow(unsafe_code)]
+            // SAFETY: entry `s.len() < n` of the room above: aligned, inside the mapping, read by no
+            // reader.
+            unsafe {
                 dst.wrapping_add(s.len()).write(end);
             }
         }
