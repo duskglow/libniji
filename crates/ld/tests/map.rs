@@ -584,13 +584,14 @@ fn map_malformed_dependency_refused_at_start() {
     // The positive control: the unedited library is found by the search, mapped and run past.
     let o = run();
     assert_eq!(o.status.code(), Some(0), "the unedited libdep.so: {o:?}");
-    let refusal = ": error while loading shared libraries: libdep.so: ";
+    // The start's refusal names the file by the path the search found it at.
+    let refusal = format!(": error while loading shared libraries: {}: ", lib.display());
     for (name, f, _) in corpus(&lib_bytes) {
         std::fs::write(&lib, &f).unwrap();
         let o = run();
         let err = String::from_utf8_lossy(&o.stderr);
         assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
-        assert!(err.contains(refusal) && err.lines().count() == 1, "{name}: not the start's refusal: {err}");
+        assert!(err.contains(&refusal) && err.lines().count() == 1, "{name}: not the start's refusal: {err}");
     }
     std::fs::remove_dir_all(&d).ok();
 }
