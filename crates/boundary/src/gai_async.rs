@@ -131,6 +131,16 @@ const G_WORDS: usize = 6;
 
 static GROUP: [AtomicU64; G_WORDS * GROUPS_INLINE] = [const { AtomicU64::new(0) }; G_WORDS * GROUPS_INLINE];
 static GROUP_MORE: Chunks = Chunks::new();
+/// Where the search for a free group starts: past the last group taken, lowered to any group
+/// freed. Lists waiting at once then take a group each in constant time, not a scan of every
+/// group in use (D-16.8). Only a hint: the search goes round once before mapping more groups.
+static GROUP_HINT: AtomicUsize = AtomicUsize::new(0);
+
+/// Group `g` is free again.
+fn free_group(g: usize, grp: &[AtomicU64]) {
+    gw(grp, G_USED).store(0, Release);
+    GROUP_HINT.fetch_min(g, Relaxed);
+}
 
 /// Group `g`'s words; `None` past the groups mapped so far.
 fn group_at(g: usize) -> Option<&'static [AtomicU64]> {
@@ -349,15 +359,15 @@ fn notify(g: usize) {
             let mut info = SigInfo::queued(signo, pid, CSys.getuid(), gw(grp, G_VALUE).load(Relaxed));
             info.code = SI_ASYNCNL;
             let _ = CSys.sigqueueinfo(pid, signo, &info);
-            gw(grp, G_USED).store(0, Release);
+            free_group(g, grp);
         }
         SIGEV_THREAD => {
             let a = Attr { detached: true, sigmask: Some(APP_SIGNALS), ..Attr::default() };
             if thread::create(&a, notifier_addr(), g, false).is_err() {
-                gw(grp, G_USED).store(0, Release);
+                free_group(g, grp);
             }
         }
-        _ => gw(grp, G_USED).store(0, Release),
+        _ => free_group(g, grp),
     }
 }
 
@@ -365,19 +375,27 @@ fn notify(g: usize) {
 extern "C" fn notifier(g: usize) -> usize {
     let Some(grp) = group_at(g) else { return 0 };
     let (f, v) = (us(gw(grp, G_FUNCTION).load(Relaxed)), gw(grp, G_VALUE).load(Relaxed));
-    gw(grp, G_USED).store(0, Release);
+    free_group(g, grp);
     // `void f(union sigval)`: the 8-byte union is passed as an integer (psABI).
     let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
     0
 }
 
 /// A free group for a list of `n` requests notifying as `e` says, mapping more groups when all
-/// are in use (`None`: no memory for them).
+/// are in use (`None`: no memory for them). The search starts at [`GROUP_HINT`] and goes round
+/// to group 0 once before it maps more.
 fn group(e: &SigEvent, n: usize) -> Option<usize> {
-    let mut i = 0usize;
+    let start = GROUP_HINT.load(Relaxed);
+    let mut i = start;
+    let mut round = start == 0;
     loop {
         let g = match group_at(i) {
             Some(g) => g,
+            None if !round => {
+                round = true;
+                i = 0;
+                continue;
+            }
             None => {
                 let _g = LOCK.lock(&CSys);
                 if !GROUP_MORE.reserve(&KernelPages, i.checked_sub(GROUPS_INLINE)?, G_WORDS) {
@@ -387,6 +405,8 @@ fn group(e: &SigEvent, n: usize) -> Option<usize> {
             }
         };
         if gw(g, G_USED).compare_exchange(0, 1, AcqRel, Relaxed).is_ok() {
+            // Past this group, unless a group was freed (the hint lowered) meanwhile.
+            let _ = GROUP_HINT.compare_exchange(start, i.saturating_add(1), Relaxed, Relaxed);
             gw(g, G_REMAINING).store(wd(n), Relaxed);
             gw(g, G_NOTIFY).store(word_of(e.notify), Relaxed);
             gw(g, G_SIGNO).store(word_of(e.signo), Relaxed);
@@ -456,8 +476,8 @@ pub fn getaddrinfo_a(mode: i32, list: KList<'_>, sig: Option<&SigEvent>) -> i32 
                         set_status(c, failure, ST_DONE);
                     }
                 }
-                if let Some(grp) = g.and_then(group_at) {
-                    gw(grp, G_USED).store(0, Release);
+                if let Some((g, grp)) = g.and_then(|g| Some((g, group_at(g)?))) {
+                    free_group(g, grp);
                 }
                 return failure;
             }
@@ -598,4 +618,5 @@ pub(crate) fn after_fork_child(used: bool) {
         gw(grp, G_USED).store(0, Relaxed);
         g = g.saturating_add(1);
     }
+    GROUP_HINT.store(0, Relaxed);
 }

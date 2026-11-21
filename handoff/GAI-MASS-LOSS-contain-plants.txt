@@ -1,0 +1,6 @@
+# The oracle runs' containment (oracle/contain.sh): a_killed_run_leaves_no_process must catch each.
+# Run with cargo xtask plants (docs/plants.md); the queue plants are in GAI-MASS-LOSS-plants.txt.
+# A surviving plant leaves its probe's processes behind; they end by themselves within 300 s.
+contain-no-watch | crates/core/tests/oracle/contain.sh | lit:kill -KILL "$ns" 2>/dev/null ==> : "$ns" | cargo test -p niji --test dns_products a_killed_run_leaves_no_process | msg:processes of a killed run remain
+contain-no-pdeathsig | crates/core/tests/oracle/contain.sh | lit:setpriv --pdeathsig KILL -- env ==> setpriv -- env | cargo test -p niji --test dns_products a_killed_run_leaves_no_process | msg:processes of a killed run remain
+contain-no-pidns | crates/core/tests/oracle/contain.sh | lit:unshare --pid --fork --kill-child --mount-proc -- setpriv ==> setpriv | cargo test -p niji --test dns_products a_killed_run_leaves_no_process | msg:processes of a killed run remain
