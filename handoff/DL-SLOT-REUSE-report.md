@@ -58,7 +58,23 @@ Reading it:
 - Layout: `target/product/fast/layout-bins.tsv` and `hot-text.signatures` identical to the merge base apart from
   `.llvm.<hash>` suffixes; libc.so.6 text identical in size; ld.so text +7,656 bytes (the cold `settle`,
   `chain_tail`, `iterate_chain`; ld.so has no traced layout yet).
-- Start-up checks: see the hand-back's JOBS line (`cargo xtask test`, full-profile `hot_text_products`).
+- Start-up checks: `cargo xtask test` first run (`dl-slot-reuse-xtest1`, superseded) failed one test, in this
+  story's area: `niji-ld::dlclose s27_1_c_4_dlopen_waits_for_readers_only_outside_them` check 72 ("never waited
+  for the ever-present reader"), 10 of 10 runs (`dl-slot-reuse-room1`, superseded). Cause: the check required the
+  opens behind a reader that is always inside some walk to wait at three quarters of the table, the backstop for
+  freed slots that were never reused; with reuse the top no longer climbs there. The check now states the promise
+  that replaced it: at most 128 distinct handles in the 600 pairs (before: the top climbed to 384 first); plant
+  `never-reuse-room` proves it. Final-head jobs: see the hand-back's JOBS line (gate2, xtest2, full-profile
+  `hot_text_products` hottext1, plants2, head counts).
+
+## RULING NEEDED
+
+- `dl_iterate_phdr` costs +4 instructions a call within 512 objects (the brief asked for the same counts there).
+  Avoiding it needs the readers' table kept in load order independently of the slots (a redesign of the reader
+  table). Recommend: accept (0.025% of a 100-object walk).
+- The three-quarters wait (`room_short`'s second case) is no longer reached by any test: s27_1_c_4's loop now reuses
+  its holes. It still guards sets that no run of freed slots holds (fragmentation). Recommend: a follow-up test whose
+  sets are larger than the holes it leaves, behind an ever-present reader.
 
 ## Informational
 

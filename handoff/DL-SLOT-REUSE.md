@@ -1,56 +1,31 @@
-# DL-SLOT-REUSE: reuse freed loader slots below the top (leg 1 of the run, then REFRESH)
+# DL-SLOT-REUSE: reuse freed loader slots below the top (run 1, leg 2: final)
 
-**State.** Branch `task/dl-slot-reuse` from next `d5764940d`; role mei:~/w/s4. Code written, clippy
-(`-p niji-boundary`) clean, the five `dlopen_process_objects` tests green on mei (job `dl-slot-reuse-t3`,
-tree of commit "WIP: churn test names outside the corpus are not plugins"). Not yet done: measurements,
-plants, gate, start-up checks, decision record, report.
+**State.** Branch `task/dl-slot-reuse` from next `d5764940d`; role mei:~/w/s4. Code done; decision D-27.74
+(amends D-27.73); full report with the churn table in `handoff/DL-SLOT-REUSE-report.md`; plants in
+`handoff/DL-SLOT-REUSE-plants.txt`.
 
 **What the change does (`crates/boundary/src/ld/`).**
-- `dlopen.rs` `load_set`: the set is found and staged at the top as before; then, when
-  `Loader::holes` (freed slots below `n`, kept by `reclaim`) >= the set's size, cold `settle()` moves it
-  into the first run of freed slots that fits (first fit): nodes, `objs`/`syms` records, reader entries
-  (`readers::restage`), dependency lists renumbered in place (`table.rs` `Arena::rewrite`), top slots
-  left unused (`free_slot`). Validated before anything moves. After it, `end = k.max(l.n)` bounds the
-  whole-table work (versions, scope, local scope, records, `record_binds(.., end, ..)`,
-  `SetTables::new(.., end)` binds width); `l.n = end`.
-- Load order kept (spec/behaviour/dynlink.md P-12, chain in load order): `Loader::reordered` (set by
-  `settle`) makes the chain tail come from `chain_tail` (walk) and `exit_set` number the `dlopen`ed
-  units along the chain (`chain_next`); `readers::REORDERED` (set by `settle`, `readers::reorder`) makes
-  `dl_iterate_phdr` take cold `iterate_chain` (walk via `dlopen::chain_find` = `View::find`). Hot cost:
-  one Acquire load + branch per `dl_iterate_phdr` call; `load_set` one compare when no holes.
-- `reclaim`: names top kept over paths of unloaded objects still in their grace period (`!nd.freed`,
-  was `!nd.gone`): an own-code defect (a lowered top could let the next `dlopen` overwrite the path of a
-  retired node a reader may still read). Describe neutrally; INFORMATIONAL in the report.
-- `unwind` of a set that `settle` moved: its slots become freed slots again, `holes` restored.
-- NOT done, residual: the path and dependency arenas are still bump-allocated, so under FIFO churn their
-  tops still climb by each set's path bytes and list entries (bytes per open, not slots). Measure it in
-  the churn table and report it as the next step (first-fit gap placement of spans) unless cheap.
+- `dlopen.rs` `load_set`: the set is found and staged at the top as before; when `Loader::holes` (freed slots below
+  `n`, kept by `reclaim` and `unwind`) >= the set's size, cold `settle()` moves it into the first run of freed
+  slots that fits (first fit; `freed` = past the readers' grace period). Validated before anything moves; nodes,
+  records, reader entries (`readers::restage`), dependency lists (`table.rs` `Arena::rewrite`) renumbered.
+- Load order kept (P-12): `Loader::reordered` / `readers::REORDERED` make the chain tail, exit order and
+  `dl_iterate_phdr` follow the chain. Hot cost: `dl_iterate_phdr` +4 instructions a call; `load_set` one compare.
+- `reclaim` keeps the name arena's top over paths of unloaded objects in their grace period (`!freed`).
+- `crates/ld/tests/dlclose.rs` s27_1_c_4 check 72: was "the opens wait at three quarters of the table behind an
+  ever-present reader" (the backstop for holes never reused); with reuse the top never gets there (failed 10/10 in
+  `cargo xtask test`). Now: the 600 pairs get <= 128 distinct handles. The three-quarters wait remains for sets no
+  run of holes holds; no test reaches it now (RULING NEEDED in the report).
 
-**Tests** (`crates/ld/tests/dlopen_process_objects.rs`, `CHURN` program): `dlopen_slot_reuse_fifo_churn_stays_bounded`
-(K=8, N=3000 two-object sets, distinct handles <= 10, load order every 97th open, dladdr paths) and
-`dlopen_slot_reuse_churn_with_concurrent_readers` (reader thread: dl_iterate_phdr names/headers, dladdr of
-a stack address; distinct <= 276). Before the change distinct = N.
+**Done (do not redo).** Churn table base/head/ref (K = 8, 100, 600; N to 100k), count rows, layout diff (libc
+layout identical modulo LLVM hash suffixes; ld.so text +7,656 B), plants (6, incl. the room check), direct gate,
+`cargo xtask test` (red on check 72 -> fixed above), D-27.74.
 
-**For the report.** Jobs so far (mei): `dl-slot-reuse-clippy1` (green), `-t1` (red: test bug + exit order),
-`-t2` (red: test bug), `-t3` (green, 5/5); all superseded by the final-head jobs. Process slip in leg 1: one
-import line in `readers.rs` was edited with `sed -i` instead of the Edit tool (not refused; rule
-thread_common.txt "never sed -i"); report it in the hand-back.
+**Open.** RULING NEEDED: (1) `dl_iterate_phdr` +4 instructions a call within 512 objects (brief asked "same
+counts"; avoiding it needs the readers' table kept in load order); recommend accept. (2) the three-quarters wait
+has lost its only test; recommend a follow-up test with sets larger than the holes.
 
-**Next steps (exact).**
-1. Churn table (brief step 1): a scratch probe in `~/work/DL-SLOT-REUSE/` on mei (the CHURN program
-   extended to print, at N = 1k, 10k, 100k: distinct handles, VmSize/VmPeak from /proc/self/status, user
-   instructions per open+close pair over the window via perf_event_open on itself) for K = 8, 100, 600;
-   run on base (next `d5764940d` built in /mnt/zram/claude/DL-SLOT-REUSE/base-src), head, and the
-   reference (system cc, normal link). Note: on base K=8 N=100k will grow the tables to ~200k slots.
-2. Plants file `handoff/DL-SLOT-REUSE-plants.txt`: (a) reuse before the grace period: in `settle` treat
-   `nd.gone` without `nd.freed` as free (expect the readers churn test / `reader` or a crash); (b) never
-   reuse: `if l.holes >= k - base` -> `if false && ...` (expect `freed slots below the top not reused`);
-   (c) chain tail by index when reordered (expect `order`); (d) `iterate` ignores REORDERED (expect
-   `order`); (e) exit_set by index when reordered (expect `exit finalisers`). cmd: `cargo xtask so && cargo
-   test -p niji-ld --test dlopen_process_objects`. Run via `cargo xtask plants` (§4 of the reference).
-3. Gate (direct tier, `cargo xtask affected --run`), `cargo xtask clippy`, `cargo xtask static`, start-up
-   checks (`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji
-   --test hot_text_products`), layout-bins diff vs merge base, counts for the N=100 rows of
-   DL-PROCESS-OBJECTS-2 (`~/work/DL-PROCESS-OBJECTS-2/count.sh`; phdr walk +2 expected).
-4. Decision record: `python3 ~/src/liella-ops/bin/ops reserve --story DL-SLOT-REUSE D-27`
-   (first fit after staging; chain order kept; reorder flag), then precheck, report json, handback-check.
+**Next step.** Path and dependency spans: first-fit gap placement with the same grace-period rule, so the address
+space under churn is bounded too (head still grows ~100 B per open; base ~2 KB). A follow-up story.
+
+Plan rows to read: D-27.73, D-27.74.
