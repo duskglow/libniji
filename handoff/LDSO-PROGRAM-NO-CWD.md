@@ -1,7 +1,8 @@
 # LDSO-PROGRAM-NO-CWD: `ld.so PROGRAM` without a slash never opens PROGRAM from the working directory
 
-State: branch `task/ldso-program-no-cwd` (from origin/next 305065b07). Code head 58bcb3e96 (two commits: the change,
-then dropping a dead check). Role keke `~/w/r1`, synced at that head (tree 924d1fc4).
+State: branch `task/ldso-program-no-cwd` (from origin/next 305065b07). Code head 203aca154 (three commits: the change,
+dropping a dead check, then the test fix for the surviving trace plant, leg 2). Role keke `~/w/r1`, synced at that
+head (tree 96cb0ea5).
 
 ## What changed (D-27.69, reserved this run)
 
@@ -20,7 +21,10 @@ then dropping a dead check). Role keke `~/w/r1`, synced at that head (tree 924d1
   rule 3 (no working-directory open). No differences row or compat flag: the behaviour now matches the reference.
 - Tests: `crates/ld/tests/search_cache.rs` `program_find_cache_only` (pure) and `ldso_program_without_slash`
   (product; every probe case; the cache-hit cases run under `unshare -r -m` with a private cache bound over
-  `<prefix>/etc/ld.so.cache`, and skip with the reason when that is unavailable).
+  `<prefix>/etc/ld.so.cache`, and skip with the reason when that is unavailable). The working directory's
+  `libprogx.so.1` is a non-object file, so a run, `--list` or trace of it instead of the cache's file differs; the
+  traced cache hit exports `LD_TRACE_LOADED_OBJECTS` only for the loader (leg 2; reference probed: run, `--list`
+  and trace all read the cache's file there, `statically linked`, 0).
 - Plants: handoff/LDSO-PROGRAM-NO-CWD-plants.txt (6).
 
 ## Probe table (black box, Zen 1 host; probe scripts in the run's scratch, not in the tree)
@@ -44,20 +48,29 @@ not-found case; only the two cache-hit asserts failed, for the test-cache reason
 
 Not probed: the reference's `$ORIGIN` for a cache-found program (libniji: the directory of the cache's path).
 
-## Jobs on the final head (started detached, chained, `~/work/ldso-program-no-cwd/chain.sh` on keke)
+## Jobs
 
-`ldso-program-no-cwd-check2` (clippy, static, so, search_cache, ldso_run) -> `ldso-program-no-cwd-gate`
-(affected --run --base origin/next; runs only if check2 passed) -> `ldso-program-no-cwd-plants`
-(dir /dev/shm/claude/ldso-program-no-cwd/plants-1) -> `ldso-program-no-cwd-startup` (cargo xtask test, full-profile so,
-hot_text_products).
+On 58bcb3e96 (superseded by the test fix): `ldso-program-no-cwd-check2` green (clippy, static, so, search_cache
+18 passed, ldso_run); `ldso-program-no-cwd-gate` green (direct tier, 5 of 307 targets, 180 passed, peak 1.6G);
+`ldso-program-no-cwd-plants` stopped by me after trace-unresolved SURVIVED (find- and boundary-slash-free-as-given
+CAUGHT). Older: `ldso-program-no-cwd-check` (test-cache bug).
+
+On 203aca154 (keke): `ldso-program-no-cwd-check3` green (clippy, static, so, search_cache 11 passed with
+--nocapture, no SKIP); `ldso-program-no-cwd-gate2` green (direct tier, 5 of 307 targets, 180 passed, 0 failed,
+peak 1.5G); `ldso-program-no-cwd-plants2` 6 of 6 CAUGHT with their msg (WARN-DEV-SHM only). Started after the
+doc-only head's sync: `ldso-program-no-cwd-startup` (cargo xtask test, full-profile so, hot_text_products).
+
+Layout: `target/product/fast/layout-bins.tsv` lists only libc.so.6's hot group; the change is confined to ld.so's
+command path (`Action::Program`/`List`, new code in one `#[cold] #[inline(never)]` function), so no bin moves;
+no primed base product to diff on keke.
 
 ## Exact next step
 
-1. On keke: `~/bin/jobwait ldso-program-no-cwd-check2 ldso-program-no-cwd-gate ldso-program-no-cwd-plants ldso-program-no-cwd-startup`
-   (summaries: `~/bin/test-summary ~/logs/<label>.log`). Fix a red, then run only that suite again.
-2. Plants: every plant CAUGHT with its msg; list any WARN lines.
-3. `cargo xtask precheck --jobs <labels> --head <sha>` on the role, then write handoff/reports/LDSO-PROGRAM-NO-CWD.json
-   (with `jobs`), push, `ops handback-check`, hand back. SUPERSEDED: ldso-program-no-cwd-check (old head, test-cache bug).
+1. On keke: `~/bin/jobwait ldso-program-no-cwd-check3 ldso-program-no-cwd-gate2 ldso-program-no-cwd-startup ldso-program-no-cwd-plants2`
+   (a label not yet started is refused: wait on the started ones). Fix a red, then run only that suite again.
+2. Plants: every plant CAUGHT with its msg; list any WARN lines (WARN-DEV-SHM seen).
+3. `cargo xtask precheck --jobs <labels> --head <sha>` on the role, then handoff/reports/LDSO-PROGRAM-NO-CWD.json
+   (with `jobs`), push, `ops handback-check`, hand back.
 
 ## Hand-back notes
 
