@@ -466,18 +466,38 @@ static int parse_until(struct zline *z, char **f, size_t n) {
     return 0;
 }
 
+/* A zone or link name becomes a file under the output directory: it must be relative and hold no "." or ".."
+ * component and no empty one, so that it names a file below that directory. Components are checked from the
+ * left and the first fault is reported (observed wording and order). 1 if NAME is usable; else 0 after the
+ * error. */
 static int valid_zone_name(const char *name) {
-    if (!*name || *name == '/') return 0;
-    const char *p = name;
-    while (*p) {
+    if (!*name) {
+        ERR("empty file name");
+        return 0;
+    }
+    if (*name == '/') {
+        ERR("file name '%s' begins with '/'", name);
+        return 0;
+    }
+    for (const char *p = name;;) {
         const char *e = strchr(p, '/');
         size_t n = e ? (size_t)(e - p) : strlen(p);
-        if (n == 0 || (n == 1 && p[0] == '.') || (n == 2 && p[0] == '.' && p[1] == '.')) return 0;
-        if (!e) break;
+        if (n == 1 && p[0] == '.') {
+            ERR("file name '%s' contains '.' component", name);
+            return 0;
+        }
+        if (n == 2 && p[0] == '.' && p[1] == '.') {
+            ERR("file name '%s' contains '..' component", name);
+            return 0;
+        }
+        if (n == 0) {
+            if (e) ERR("file name '%s' contains '//'", name);
+            else ERR("file name '%s' ends with '/'", name);
+            return 0;
+        }
+        if (!e) return 1;
         p = e + 1;
-        if (!*p) return 0;
     }
-    return 1;
 }
 
 static int expect_cont;
@@ -605,10 +625,7 @@ static void zone_start(char **f, size_t n) {
         ERR("wrong number of fields on Zone line");
         return;
     }
-    if (!valid_zone_name(f[1])) {
-        ERR("\"%s\" is not a valid zone name", f[1]);
-        return;
-    }
+    if (!valid_zone_name(f[1])) return;
     for (size_t i = 0; i < nzones; i++) {
         if (strcmp(zones[i].name, f[1]) == 0) {
             ERR("duplicate zone name %s (file \"%s\", line %ld)", f[1], zones[i].file, zones[i].line);
@@ -635,10 +652,7 @@ static void link_line(char **f, size_t n) {
         ERR("blank FROM field on Link line");
         return;
     }
-    if (!valid_zone_name(f[2])) {
-        ERR("\"%s\" is not a valid zone name", f[2]);
-        return;
-    }
+    if (!valid_zone_name(f[2])) return;
     links = xrealloc(links, (nlinks + 1) * sizeof *links);
     links[nlinks].target = xstrdup(f[1]);
     links[nlinks].name = xstrdup(f[2]);
@@ -1404,18 +1418,84 @@ static int make_parents(char *path) {
     return 0;
 }
 
-static int write_file(const char *name, const struct buf *b) {
-    char *path = out_path(name);
-    char *tmp = xrealloc(NULL, strlen(path) + 16);
-    sprintf(tmp, "%s.zic-tmp", path);
-    int rc = -1;
-    if (make_parents(path) != 0) {
-        fprintf(stderr, "%s: Can't create directory %s: %s\n", progname, path, strerror(errno));
-        goto out;
+/* Files named by the source are made below the output directory only. The directory itself is the caller's
+ * (its path is followed as given, and made when missing); below it each name is walked one component at a
+ * time from a descriptor of it, making directories as needed, never following a symbolic link and never a
+ * "." or ".." component. A link this run or an earlier one made, or one placed in the tree, therefore never
+ * takes a write elsewhere (D-31.18). As the names are resolved from that descriptor, the path length limit
+ * applies to the name, not to the output directory's path joined to it (observed). */
+static int outfd = -1;
+
+static int open_outdir(void) {
+    if (outfd >= 0) return 0;
+    char *p = out_path("");
+    int rc = make_parents(p);
+    free(p);
+    if (rc != 0) return -1;
+    outfd = open(outdir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    return outfd < 0 ? -1 : 0;
+}
+
+/* The directory to hold NAME, made as needed, as a descriptor (the caller closes it when it is not outfd), with
+ * *BASE its last component; -1 after the message, which names PATH (the name joined to the output directory)
+ * or, for a directory, the name up to it after the source location FILE, LINE (observed wording). */
+static int out_parent(const char *name, const char *path, const char *file, long line, const char **base) {
+    if (strlen(name) >= PATH_MAX) {
+        fprintf(stderr, "%s: Can't remove %s: %s\n", progname, path, strerror(ENAMETOOLONG));
+        return -1;
     }
-    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    if (open_outdir() != 0) {
+        fprintf(stderr, "%s: Can't create directory %s: %s\n", progname, path, strerror(errno));
+        return -1;
+    }
+    char comp[NAME_MAX + 1];
+    int dfd = outfd;
+    const char *p = name;
+    for (const char *e; (e = strchr(p, '/')) != NULL; p = e + 1) {
+        size_t n = (size_t)(e - p);
+        int nfd = -1;
+        if (n > NAME_MAX) errno = ENAMETOOLONG;
+        else if (n == 0 || (n <= 2 && strspn(p, ".") >= n)) errno = EINVAL;
+        else {
+            memcpy(comp, p, n);
+            comp[n] = 0;
+            if (mkdirat(dfd, comp, 0755) == 0 || errno == EEXIST)
+                nfd = openat(dfd, comp, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        }
+        int err = errno;
+        if (dfd != outfd) close(dfd);
+        if (nfd < 0) {
+            fprintf(stderr, "\"%s\", line %ld: %s: Can't create directory %.*s: %s\n", file, line, progname,
+                    (int)(e - name), name, strerror(err));
+            return -1;
+        }
+        dfd = nfd;
+    }
+    if (strlen(p) > NAME_MAX || strcmp(p, ".") == 0 || strcmp(p, "..") == 0 || !*p) {
+        fprintf(stderr, "%s: Can't create %s: %s\n", progname, path, strerror(strlen(p) > NAME_MAX ? ENAMETOOLONG : EINVAL));
+        if (dfd != outfd) close(dfd);
+        return -1;
+    }
+    *base = p;
+    return dfd;
+}
+
+static int write_file(const char *name, const char *file, long line, const struct buf *b) {
+    char *path = out_path(name);
+    char tmp[64];
+    const char *base;
+    int rc = -1;
+    int dfd = out_parent(name, path, file, line, &base);
+    if (dfd < 0) goto out;
+    /* A short private name beside the file, renamed over it once complete: any name fits its directory. */
+    int fd = -1;
+    for (unsigned i = 0; i < 100; i++) {
+        snprintf(tmp, sizeof tmp, ".zic%ld-%u", (long)getpid(), i);
+        fd = openat(dfd, tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0644);
+        if (fd >= 0 || errno != EEXIST) break;
+    }
     if (fd < 0) {
-        fprintf(stderr, "%s: Can't create %s: %s\n", progname, tmp, strerror(errno));
+        fprintf(stderr, "%s: Can't create %s: %s\n", progname, path, strerror(errno));
         goto out;
     }
     size_t off = 0;
@@ -1429,17 +1509,17 @@ static int write_file(const char *name, const struct buf *b) {
     }
     if (off != b->n || close(fd) != 0) {
         fprintf(stderr, "%s: Error writing %s: %s\n", progname, path, strerror(errno));
-        unlink(tmp);
+        unlinkat(dfd, tmp, 0);
         goto out;
     }
-    if (rename(tmp, path) != 0) {
+    if (renameat(dfd, tmp, dfd, base) != 0) {
         fprintf(stderr, "%s: Can't create %s: %s\n", progname, path, strerror(errno));
-        unlink(tmp);
+        unlinkat(dfd, tmp, 0);
         goto out;
     }
     rc = 0;
 out:
-    free(tmp);
+    if (dfd >= 0 && dfd != outfd) close(dfd);
     free(path);
     return rc;
 }
@@ -1557,7 +1637,7 @@ static int write_zone(const struct zone *zn) {
     put(&b, "\n", 1);
     put(&b, tz, strlen(tz));
     put(&b, "\n", 1);
-    int rc = write_file(zn->name, &b);
+    int rc = write_file(zn->name, zn->file, zn->line, &b);
     free(b.p);
     return rc;
 }
@@ -1572,23 +1652,40 @@ static const char *resolve_link(const char *name, int depth) {
     return NULL;
 }
 
-static int make_link(const char *target, const char *name, const char *file, long line) {
+/* SOURCE: a Link line (its name is walked below the output directory as a zone's is); else a link the caller
+ * named by an option (-l, -p, -t), made at the path it gives. */
+static int make_link(const char *target, const char *name, const char *file, long line, int source) {
     char *to = out_path(name);
     const char *real = resolve_link(target, 0);
     char *from = out_path(real ? real : target);
     int rc = 0;
-    if (make_parents(to) != 0) {
+    int dfd = AT_FDCWD;
+    const char *base = to;
+    if (source) {
+        dfd = out_parent(name, to, file, line, &base);
+        if (dfd < 0) {
+            rc = -1;
+            goto out;
+        }
+    } else if (make_parents(to) != 0) {
         fprintf(stderr, "%s: Can't create directory %s: %s\n", progname, to, strerror(errno));
         rc = -1;
         goto out;
     }
-    if (unlink(to) != 0 && errno != ENOENT) {
+    if (unlinkat(dfd, base, 0) != 0 && errno != ENOENT) {
         fprintf(stderr, "%s: Can't remove %s: %s\n", progname, to, strerror(errno));
         rc = -1;
         goto out;
     }
-    if (link(from, to) != 0) {
+    if (linkat(AT_FDCWD, from, dfd, base, 0) != 0) {
         int e = errno;
+        if (e == EPERM) {
+            /* A target that cannot be hard-linked, such as a directory, is an error, not a symbolic link
+             * (observed). */
+            fprintf(stderr, "%s: link from %s failed: %s\n", progname, from, strerror(e));
+            rc = -1;
+            goto out;
+        }
         /* The relative path from the link's directory to the target. */
         size_t depth = 0;
         for (const char *p = name; *p; p++) depth += *p == '/';
@@ -1597,7 +1694,7 @@ static int make_link(const char *target, const char *name, const char *file, lon
         rel[0] = 0;
         for (size_t i = 0; i < depth; i++) strcat(rel, "../");
         strcat(rel, target);
-        if (symlink(rel, to) != 0) {
+        if (symlinkat(rel, dfd, base) != 0) {
             fprintf(stderr, "%s: Can't link %s to %s: %s\n", progname, to, from, strerror(errno));
             rc = -1;
         } else {
@@ -1607,6 +1704,7 @@ static int make_link(const char *target, const char *name, const char *file, lon
         free(rel);
     }
 out:
+    if (dfd >= 0 && dfd != outfd) close(dfd);
     free(from);
     free(to);
     return rc;
@@ -1694,9 +1792,9 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < nzones; i++)
         if (write_zone(&zones[i])) rc = 1;
     for (size_t i = 0; i < nlinks; i++)
-        if (make_link(links[i].target, links[i].name, links[i].file, links[i].line)) rc = 1;
-    if (localtime_zone && make_link(localtime_zone, localtime_link ? localtime_link : "localtime", "-l", 0))
+        if (make_link(links[i].target, links[i].name, links[i].file, links[i].line, 1)) rc = 1;
+    if (localtime_zone && make_link(localtime_zone, localtime_link ? localtime_link : "localtime", "-l", 0, 0))
         rc = 1;
-    if (posixrules && strcmp(posixrules, "-") != 0 && make_link(posixrules, "posixrules", "-p", 0)) rc = 1;
+    if (posixrules && strcmp(posixrules, "-") != 0 && make_link(posixrules, "posixrules", "-p", 0, 0)) rc = 1;
     return rc || errors;
 }

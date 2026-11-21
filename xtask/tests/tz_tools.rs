@@ -5,8 +5,9 @@
 //!   `-b slim`) decodes to the same transitions, indicators, first type, leap records and footer, except the
 //!   zones listed in `KNOWN_*` (reasons there), which must still read the same through `zdump`.
 //! * zdump: libniji's zdump over libniji's localtime prints what the reference zdump prints, for every zone.
-//! * Malformed source: the same exit status and message; hostile source: never a crash, never a file outside
-//!   the output directory.
+//! * Malformed source: the same exit status and message; zone and link names (refused, kept, over the
+//!   kernel's limits): the same status, message and files; hostile source, and links already in the output
+//!   tree: never a crash, never a file outside the output directory (D-31.18).
 //!
 //! Trace: s31_9_c_1, s31_9_i_1, s31_9_i_2, s31_9_g_1, s31_9_g_2, s31_9_g_3, s31_9_f_1, s31_10_c_1,
 //! s31_10_i_1, s31_10_g_1, s31_10_g_2, s31_10_g_3, s31_10_g_4.
@@ -358,6 +359,126 @@ fn zic_rejects_malformed_source_as_the_reference_does() {
     // The message names the program as it was run: each side's path is replaced by its name.
     let msg = |o: &Output, path: &str| String::from_utf8_lossy(&o.stderr).replace(path, "zic");
     assert_eq!((a.status.code(), msg(&a, REF_ZIC)), (b.status.code(), msg(&b, &zic.display().to_string())), "a source that cannot be opened");
+}
+
+/// Everything under `dir` but `in.zi`, sorted: `path/` for a directory, `path -> target` for a symbolic link
+/// (never followed), `path` for a file.
+fn tree(dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut todo = vec![dir.to_path_buf()];
+    while let Some(d) = todo.pop() {
+        for e in fs::read_dir(&d).expect("list a scratch directory").flatten() {
+            let p = e.path();
+            let rel = p.strip_prefix(dir).unwrap().to_string_lossy().into_owned();
+            let ty = fs::symlink_metadata(&p).unwrap().file_type();
+            if ty.is_symlink() {
+                out.push(format!("{rel} -> {}", fs::read_link(&p).unwrap().to_string_lossy()));
+            } else if ty.is_dir() {
+                out.push(format!("{rel}/"));
+                todo.push(p);
+            } else if rel != "in.zi" {
+                out.push(rel);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// zic with `-d box/out` on `src` in a new directory: (status, stderr with the program's path written `zic`,
+/// everything it left there).
+fn zic_tree(zic: &Path, src: &[u8]) -> (Option<i32>, String, Vec<String>) {
+    let dir = scratch("names");
+    fs::write(dir.join("in.zi"), src).unwrap();
+    let o = run(Command::new(zic).args(["-d", "box/out", "in.zi"]).current_dir(&dir));
+    let err = String::from_utf8_lossy(&o.stderr).replace(&*zic.to_string_lossy(), "zic");
+    let t = tree(&dir);
+    let _ = fs::remove_dir_all(&dir);
+    (o.status.code(), err, t)
+}
+
+#[test]
+fn zic_handles_zone_and_link_names_as_the_reference_does() {
+    // Trace: s31_9_i_1, s31_9_f_1 (a name in the source becomes a file under -d: names that would leave it,
+    // or name nothing, are refused with the reference's message; any other byte is kept; the kernel's limits
+    // on a name are met as the reference meets them).
+    let Some(zic) = tools("zic", REF_ZIC) else { return };
+    let long = |n: usize| "a".repeat(n);
+    let deep = |n: usize| {
+        let mut s = String::from("a");
+        while s.len() + 10 <= n {
+            s.push_str("/abcdefghi");
+        }
+        s + &"x".repeat(n - s.len())
+    };
+    // Refused: leaves -d or names no file (the order of the checks shows in the last two).
+    let mut names: Vec<Vec<u8>> = ["/x", "../x", "a/../../x", "a/./b", ".", "..", "a//b", "a/", "\"\"", "a//../b", "../a//b"]
+        .iter()
+        .map(|s| s.as_bytes().to_vec())
+        .collect();
+    // Kept: bytes outside the portable set, a leading '-', dot files, components of 15 and 255 bytes.
+    names.extend([&b"a*b"[..], "a\u{e9}b".as_bytes(), b"a\x01b", b"a\x7fb", b"a\xffb", b"a\\b", b"a:b", b"-a/b", b"a/.b", b"a/...", b"\"a b\""].map(<[u8]>::to_vec));
+    // Over the limits: a component of 256 bytes (last or inside), a name of 4096 bytes (4095 still fits).
+    for n in [format!("a/{}", long(15)), format!("a/{}", long(255)), format!("a/{}", long(256)), format!("a/{}/b", long(256)), deep(4095), deep(4096)] {
+        names.push(n.into_bytes());
+    }
+    let mut cases: Vec<(String, Vec<u8>)> = Vec::new();
+    for n in &names {
+        let shown = String::from_utf8_lossy(&n[..n.len().min(40)]).into_owned();
+        cases.push((format!("zone {shown:?}"), [&b"Zone "[..], n, b" 1:00 - TST\n"].concat()));
+        cases.push((format!("link name {shown:?}"), [&b"Zone A/B 1:00 - TST\nLink A/B "[..], n, b"\n"].concat()));
+    }
+    // Link targets: a directory cannot be hard-linked (refused), a missing file gets a symbolic link.
+    for t in [".", "..", "../x", "/x", "A/B/", "A//B", "A/./B"] {
+        cases.push((format!("link target {t:?}"), format!("Zone A/B 1:00 - TST\nLink {t} C/D\n").into_bytes()));
+    }
+    let mut bad = Vec::new();
+    for (what, src) in &cases {
+        let a = zic_tree(Path::new(REF_ZIC), src);
+        let b = zic_tree(&zic, src);
+        assert!(b.2.iter().all(|p| p == "box/" || p.starts_with("box/out")), "{what}: wrote outside -d: {:?}", b.2);
+        if a != b {
+            let cut = |s: &str| s.chars().take(300).collect::<String>();
+            bad.push(format!("{what}: reference {:?} {:?} {} entries; libniji {:?} {:?} {} entries", a.0, cut(&a.1), a.2.len(), b.0, cut(&b.1), b.2.len()));
+        }
+    }
+    assert!(bad.is_empty(), "names handled differently from the reference:\n{}", bad.join("\n"));
+}
+
+#[test]
+fn zic_never_writes_through_a_symbolic_link_below_the_output_directory() {
+    // Trace: s31_9_c_1 (loaded data is untrusted: whatever links the source or the tree holds, every file zic
+    // makes or removes lies under -d, and nothing outside it changes). libniji only: D-31.18.
+    let Some(zic) = tools("zic", REF_ZIC) else { return };
+    let cases: &[(&str, &str, &[(&str, &str)])] = &[
+        // Links in the source that would turn a name into a way out.
+        ("link to a directory outside", "Zone A/B 1:00 - TST\nLink ../../victim X\nLink A/B X/y\n", &[]),
+        ("link to a directory inside", "Zone S/z 1:00 - TST\nZone A/B 1:00 - TST\nLink S P/Q/R\nLink T P/Q/R/Z\nLink A/B P/Q/R/Z/W\n", &[]),
+        ("link to a missing name", "Zone A/B 1:00 - TST\nLink ../../victim/none X\nLink A/B X/y\n", &[]),
+        // Links already in the tree (an earlier run's, or placed there), in a directory and at the file itself.
+        ("tree link in a zone name", "Zone evil/y 1:00 - TST\n", &[("evil", "../../victim")]),
+        ("tree link in a link name", "Zone A/B 1:00 - TST\nLink A/B evil/y\n", &[("evil", "../../victim")]),
+        ("tree link at a zone", "Zone leaf 1:00 - TST\n", &[("leaf", "../../victim/file")]),
+        ("tree link at a link", "Zone A/B 1:00 - TST\nLink A/B leaf\n", &[("leaf", "../../victim/file")]),
+    ];
+    for (what, src, links) in cases {
+        let dir = scratch("nofollow");
+        fs::write(dir.join("in.zi"), src).unwrap();
+        for d in ["box/out", "victim/d", "T"] {
+            fs::create_dir_all(dir.join(d)).unwrap();
+        }
+        fs::write(dir.join("victim/file"), "keep").unwrap();
+        for (name, to) in *links {
+            std::os::unix::fs::symlink(to, dir.join("box/out").join(name)).unwrap();
+        }
+        let before: Vec<String> = tree(&dir).into_iter().filter(|p| !p.starts_with("box/out/")).collect();
+        let o = run(Command::new(&zic).args(["-d", "box/out", "in.zi"]).current_dir(&dir));
+        assert!(matches!(o.status.code(), Some(0 | 1)), "{what}: zic ended with {:?}", o.status);
+        let after: Vec<String> = tree(&dir).into_iter().filter(|p| !p.starts_with("box/out/")).collect();
+        assert_eq!(before, after, "{what}: wrote outside -d ({})", String::from_utf8_lossy(&o.stderr));
+        assert_eq!(fs::read_to_string(dir.join("victim/file")).unwrap(), "keep", "{what}: wrote through a link");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
 
 #[test]

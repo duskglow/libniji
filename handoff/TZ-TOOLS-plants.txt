@@ -1,13 +1,19 @@
 # TZ-TOOLS plants: zic (csys/util/zic.c) and zdump (csys/util/zdump.c). Each must make a test of
 # xtask/tests/tz_tools.rs fail; cargo xtask plants rebuilds the products (cargo xtask so links the test links under
-# target/niji-test) before each command. Run with cargo xtask plants (docs/plants.md).
+# target/niji-test) before each command. Run with cargo xtask plants (docs/plants.md). A mutant must compile under
+# the products' -Wall -Wextra -Werror (a removed statement that leaves a variable unused is a build failure, not a
+# catch), so a statement is disabled with `if (0 && ...)` rather than deleted.
 start-clock | csys/util/zic.c | lit:if (at > start) break; ==> if (at >= start) break; | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
-keep-noops | csys/util/zic.c | lit:if (same_visible(prev, &ev[i].t)) continue; ==> | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
+keep-noops | csys/util/zic.c | lit:if (same_visible(prev, &ev[i].t)) continue; ==> if (0 && same_visible(prev, &ev[i].t)) continue; | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zic_compiles_every_zone_as_the_reference_does.*FAILED
 no-int32max-mark | csys/util/zic.c | lit:if (fat && nev > 0 && strchr(tz, '<')) { ==> if (0) { | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 no-v3-shift | csys/util/zic.c | lit:if (shift || wall < 0 || wall > 24 * 3600) footer_version = 3; ==> if (wall < 0 || wall > 24 * 3600) footer_version = 3; | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 slim-cut | csys/util/zic.c | lit:while (nev > 0 && ev[nev - 1].at >= cut) nev--; ==> (void)cut; | cargo test -p xtask --test tz_tools zic_slim | msg:zones decoding differently
-expiry-mark | csys/util/zic.c | lit:push_event(expires_at, &t); ==> | cargo test -p xtask --test tz_tools zic_with_leap | msg:zones decoding differently
-zone-name-check | csys/util/zic.c | lit:if (!valid_zone_name(f[1])) { ==> if (0) { | cargo test -p xtask --test tz_tools zic_survives | msg:wrote outside -d
+expiry-mark | csys/util/zic.c | lit:push_event(expires_at, &t); ==> if (0) push_event(expires_at, &t); | cargo test -p xtask --test tz_tools zic_with_leap | msg:zic_with_leap_seconds_matches_the_reference.*FAILED
+zone-name-check | csys/util/zic.c | lit:if (n == 2 && p[0] == '.' && p[1] == '.') { ==> if (0) { | cargo test -p xtask --test tz_tools zic_handles_zone_and_link_names | msg:zic_handles_zone_and_link_names_as_the_reference_does.*FAILED
+link-to-directory | csys/util/zic.c | lit:if (e == EPERM) { ==> if (0) { | cargo test -p xtask --test tz_tools zic_handles_zone_and_link_names | msg:zic_handles_zone_and_link_names_as_the_reference_does.*FAILED
+walk-follows-links | csys/util/zic.c | perl:s/O_DIRECTORY \| O_NOFOLLOW/O_DIRECTORY/ | cargo test -p xtask --test tz_tools zic_never_writes | msg:zic_never_writes_through_a_symbolic_link_below_the_output_directory.*FAILED
+name-length-limit | csys/util/zic.c | lit:if (strlen(name) >= PATH_MAX) { ==> if (strlen(name) > PATH_MAX) { | cargo test -p xtask --test tz_tools zic_handles_zone_and_link_names | msg:zic_handles_zone_and_link_names_as_the_reference_does.*FAILED
+component-length-limit | csys/util/zic.c | lit:if (strlen(p) > NAME_MAX || ==> if (strlen(p) > NAME_MAX + 1 || | cargo test -p xtask --test tz_tools zic_handles_zone_and_link_names | msg:zic_handles_zone_and_link_names_as_the_reference_does.*FAILED
 continuation-line | csys/util/zic.c | lit:ERR("expected continuation line not found"); ==> ERR("expected continuation"); | cargo test -p xtask --test tz_tools zic_rejects | msg:missing continuation
 zdump-short-abbr | csys/util/zdump.c | lit:if (strlen(abbr) < 3) { ==> if (strlen(abbr) < 2) { | cargo test -p xtask --test tz_tools zdump_full_range | msg:zdump_full_range.*(FAILED|panicked)
 zdump-brief-minutes | csys/util/zdump.c | lit:if (s->tm.tm_min || s->tm.tm_sec) { ==> if (s->tm.tm_sec) { | cargo test -p xtask --test tz_tools zdump_brief | msg:zdump \["-i"
