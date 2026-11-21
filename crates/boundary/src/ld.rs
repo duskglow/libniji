@@ -78,6 +78,7 @@ mod exec_stack;
 pub mod debug;
 mod dlopen;
 mod readers;
+mod index;
 mod table;
 
 /// The panic handler of `ld.so` (a panic is a loader bug): a fixed message, status 127. It formats

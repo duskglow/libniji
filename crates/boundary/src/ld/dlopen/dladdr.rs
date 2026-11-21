@@ -25,6 +25,7 @@
 
 use super::dlsym::start_path;
 use super::{dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
+use crate::ld::index::Found;
 use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
 use niji_ld::elf::{dt, pt, Sym, SHN_UNDEF, STT_TLS};
@@ -136,10 +137,17 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         return 0;
     }
     let found = read_section(|v| {
-        let i = v.find(|i| {
+        let holds = |i: usize| {
             let (lo, hi) = v.range(i);
             lo <= addr && addr < hi
-        })?;
+        };
+        // The address index (`crate::ld::index`); the chain walk when it cannot tell, or when its
+        // object's range is not the node's (never expected: both are the `PT_LOAD` span).
+        let i = match crate::ld::index::find(addr, true) {
+            Found::Hit(h) if holds(h.i) => h.i,
+            Found::Miss => return None,
+            _ => v.find(holds)?,
+        };
         let o = v.obj(i)?;
         let at = |x: u64| usize::try_from(x).unwrap_or(0);
         let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
