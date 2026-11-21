@@ -24,7 +24,7 @@
 //!   `dlopen` releases it before its constructors (lock order at `CALL`). Lock-free readers are
 //!   DL-16c's (plan §4, `read_section`).
 
-use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Node, Uniq, CALL, CAP, SHN_ABS, STATE};
+use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Uniq, CALL, CAP, SHN_ABS, STATE};
 use niji_ld::arch::Native;
 use niji_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
 use niji_ld::search::{self, PathBuf};
@@ -73,12 +73,10 @@ extern "C" fn entry(handle: usize, name: usize, version: usize, caller: usize) -
     at
 }
 
-/// The object record `handle` names, by one range test (D-27.32), or `None`.
+/// The object record `handle` names, by one range test per generation (D-27.32; within the first
+/// generation one), or `None`.
 pub(super) fn handle_index(l: &Loader, handle: usize) -> Option<usize> {
-    let first = l.node_addr(0);
-    let off = handle.checked_sub(first)?;
-    let size = size_of::<Node>();
-    (off.checked_rem(size)? == 0).then_some(off.checked_div(size)?).filter(|&i| i < l.n && !l.gone(i))
+    l.index_of(handle).filter(|&i| i < l.n && !l.gone(i))
 }
 
 /// The loaded object containing `caller` (the program when none does), for `dlsym` and `dlopen`.

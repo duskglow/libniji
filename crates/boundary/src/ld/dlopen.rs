@@ -1888,8 +1888,8 @@ const CLOCK_MONOTONIC: i64 = 1;
 /// At the entry of `dlopen` and `dlclose`, holding no loader lock: while [`room_short`], reclaim,
 /// and wait (poll) for the readers to drain when that was not enough. Never waits when the calling thread holds [`CALL`] (a constructor or
 /// destructor: a reader may be blocked on that lock) or is inside a read section (it may be the
-/// reader); the call then goes on and fails as it would have (`cannot load more objects`) only
-/// if the table is full. Each drain lets [`reclaim`] unmap what was flipped before it, so the loop
+/// reader); the call then goes on and grows the tables past their first generation (failing
+/// only when no memory is left for them). Each drain lets [`reclaim`] unmap what was flipped before it, so the loop
 /// ends once the readers present now have left.
 fn room_wait() {
     while room_short() {
