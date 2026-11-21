@@ -1292,6 +1292,8 @@ pub struct Selection {
     /// HEADERS-ABI-REGEN: the generator checks a changed table selects ([`GEN_PRECHECKS`]), run before everything
     /// else in every tier; a red one stops the run.
     pub gen_prechecks: BTreeSet<String>,
+    /// AFFECTED-COVERAGE: the test sets of `coverage::RUNS` a changed file covers (`coverage::Run::id`) -> reason.
+    pub test_sets: BTreeMap<String, String>,
 }
 
 /// HEADERS-ABI-REGEN: a table that feeds more than one generator, and the checks that prove all of their outputs
@@ -1792,6 +1794,8 @@ impl Selection {
 
 enum Class {
     Full(&'static str),
+    /// AFFECTED-COVERAGE: a data file code reads at build or test time ([`DATA_FILES`]).
+    Data(&'static DataFile),
     Docs,
     Nothing(&'static str),
     AllConf,
@@ -2042,8 +2046,29 @@ fn validation_self_tests(path: &str) -> Option<&'static [&'static str]> {
     VALIDATION_COVERED.iter().find(|(s, _)| *s == path).map(|(_, t)| *t)
 }
 
+/// AFFECTED-COVERAGE: a data file outside every crate that code reads, and what its change selects: the code naming
+/// it as a path (`readers_of`), the files whose mapping it takes (a generated source made from it: the generator's
+/// `--check` precheck proves the source still follows, [`GEN_PRECHECKS`]), and whether a C program of the products
+/// compiles it (then `cargo xtask so` builds them).
+pub struct DataFile {
+    /// The file, or a directory ending in `/`.
+    pub path: &'static str,
+    pub as_if: &'static [&'static str],
+    pub products: bool,
+    pub why: &'static str,
+}
+
+/// The data files ([`DataFile`]); before AFFECTED-COVERAGE both escalated to FULL (#7313).
+pub const DATA_FILES: &[DataFile] = &[
+    DataFile { path: "csys/util/iconv-names.h", as_if: &[], products: true, why: "the `iconv` utility's list of names (`iconv -l`): the test that compares it with the library's table, and the products build that compiles the utility" },
+    DataFile { path: "spec/encoding/reference/", as_if: &["crates/core/src/iconv/cjk_tables.rs"], products: false, why: "the reference variants of the CJK sets, the input of `cargo xtask encodings-gen` (its `--check` precheck): the iconv tests of the table made from them" },
+];
+
 fn classify(path: &str) -> Option<Class> {
     let file = path.rsplit('/').next().unwrap_or(path);
+    if let Some(d) = DATA_FILES.iter().find(|d| if d.path.ends_with('/') { path.starts_with(d.path) } else { path == d.path }) {
+        return Some(Class::Data(d));
+    }
     if let Some(tests) = validation_self_tests(path) {
         return Some(Class::ValidationScript(tests));
     }
@@ -2241,6 +2266,11 @@ fn select_files(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Se
             sel.k5 = true;
         }
         sel.gen_prechecks.extend(gen_prechecks_for(f).into_iter().map(String::from));
+        // AFFECTED-COVERAGE: a test set no ordinary pass builds (a crate feature, the fuzz library) runs where it is
+        // affected; the train runs every one (`cargo xtask test`, step `test-sets`).
+        for r in crate::coverage::runs_for(f) {
+            add(&mut sel.test_sets, r.id(), &format!("{f}: {}", r.why));
+        }
         // XTASK-AFFECTED-LAYOUT: whatever else the file selects, a change linked into libc.a can move start-up pages.
         if repo.reaches_image(f) {
             sel.layout_tests(repo, f);
@@ -2274,6 +2304,18 @@ fn select_files(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Se
             }
             Some(Class::Docs) => docs_readers(repo, f, &mut sel),
             Some(Class::Nothing(why)) => sel.notes.push(format!("{f}: {why}")),
+            Some(Class::Data(d)) => {
+                let mut readers = readers_of(repo, f, &format!("{f}: the source names the file"), &mut sel);
+                for s in d.as_if {
+                    ordinary_mapping(repo, s, &mut sel);
+                    readers.push(format!("the mapping of {s}"));
+                }
+                if d.products {
+                    sel.xtask_cmds.insert("so".to_string());
+                    readers.push("`cargo xtask so`".to_string());
+                }
+                sel.notes.push(format!("{f}: {} ({}; not FULL)", d.why, readers.join(", ")));
+            }
             Some(Class::ValidationScript(tests)) => {
                 for t in tests {
                     add(&mut sel.scripts, t.to_string(), &format!("{f} changed"));
@@ -3382,6 +3424,10 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     for ((c, t), why) in &sel.tests {
         println!("test: {c}::{t}  [{why}]");
     }
+    for (id, why) in &sel.test_sets {
+        let args = crate::coverage::by_id(id).map(|r| r.args().join(" ")).unwrap_or_default();
+        println!("test set: {id} (cargo test {args})  [{why}]");
+    }
     for (n, why) in &sel.conf {
         println!("conformance: {n}  [{why}]");
     }
@@ -3904,17 +3950,19 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         for c in sel.libs.keys() {
             per.entry(c).or_default();
         }
-        let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
         let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "niji-mem" | "niji-rt" | "niji-kernel" | "niji-abi" | "niji-boundary")));
         if !interpose {
-            println!("note: the second pass (native and exports-interposed) is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+            println!("note: the second pass (native and exports-interposed) runs for niji-boundary's selected tests and niji's clause tests only (no change in mem, rt, kernel, abi or boundary); --with-exports runs it for all");
         }
         // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...) from the C
         // family, which is a poisoning libniji heap only in the second pass (the products' heap
         // natively, `pass2::products_perturb`; the test heap with the exports interposed): there its
         // poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always get the
         // second pass.
-        let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);
+        // niji-boundary's selected targets and unit tests always get it (AFFECTED-COVERAGE): their code is the
+        // products' code, so a change elsewhere that selects them (a niji module they call) reaches the products too,
+        // and before this a test bug that shows only in a libniji process sat on next unseen by the direct tier.
+        let second = |c: &str, ts: &[&str]| second_pass(interpose, c, ts);
         // The native pass runs on the products.
         let products = needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts));
         let mut products_cmd = Command::new(&cargo);
@@ -4025,6 +4073,21 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                     Outcome::Skipped => skipped.push(label),
                     Outcome::Failed => ok = false,
                 }
+            }
+        }
+        for id in sel.test_sets.keys() {
+            let Some(r) = crate::coverage::by_id(id) else { continue };
+            let label = format!("test set {id}");
+            match r.command(root, &cargo) {
+                Err(e) => {
+                    log_step_failed(&log, &label, &e);
+                    ok = false;
+                }
+                Ok(mut cmd) => match step_out(root, &log, &label, &mut cmd, Some(r.krate), &mut std::io::stdout()) {
+                    Outcome::Ok => {}
+                    Outcome::Skipped => skipped.push(label),
+                    Outcome::Failed => ok = false,
+                },
             }
         }
         if !sel.conf.is_empty() {
@@ -4172,6 +4235,16 @@ fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, 
 
 /// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
 /// an xtask command that reads the products (`symgap`, `layout-check`, an example step).
+/// Whether crate `c`'s selected targets `ts` (and unit tests) run again in the native and interposed passes:
+/// `interpose` (a change in mem, rt, kernel, abi or boundary, or `--with-exports`) for every crate that links the
+/// boundary; niji-boundary's always (AFFECTED-COVERAGE: its code is the products' code, so whatever selects its tests
+/// reaches the products, and a test bug that showed only in a libniji process sat on next unseen by the direct tier);
+/// niji's clause tests always (FREE-POISON-TESTS-2: their caller-owned blocks meet a poisoning heap only there).
+fn second_pass(interpose: bool, c: &str, ts: &[&str]) -> bool {
+    let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
+    (interpose || c == "niji-boundary" || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c)
+}
+
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
     !sel.conf.is_empty() || sel.example_steps || sel.xtask_cmds.contains("symgap") || sel.xtask_cmds.contains(LAYOUT_CHECK) || repo.targets.iter().any(|t| t.products && sel.tests.contains_key(&(t.krate.clone(), t.name.clone())))
 }
@@ -6733,5 +6806,34 @@ fn plain() {}", &aliases);
         assert_eq!(branch_files("# c\n\na/b.rs\n  c.rs \n"), ["a/b.rs", "c.rs"]);
         assert_eq!(json_str("a\"b\\\n\u{1}"), "\"a\\\"b\\\\\\n\\u0001\"");
         assert!(REVERSE_HELP.contains("\"confidence\":\"high|low\"") && USAGE.contains("--reverse"));
+    }
+
+    #[test]
+    fn the_iconv_names_header_and_the_encoding_reference_map_to_their_tests() {
+        // AFFECTED-COVERAGE (#7313): both escalated to FULL before.
+        let h = tier(&["csys/util/iconv-names.h"], Tier::Direct);
+        assert!(h.no_escalation() && h.train.is_empty(), "{:?} {:?}", h.full, h.train);
+        assert!(h.tests.contains_key(&("niji".to_string(), "iconv_cmd_names".to_string())) && h.xtask_cmds.contains("so"));
+        let r = tier(&["spec/encoding/reference/BIG5.tsv"], Tier::Direct);
+        assert!(r.no_escalation() && r.train.is_empty(), "{:?} {:?}", r.full, r.train);
+        assert!(r.gen_prechecks.contains("encodings-gen-check") && r.libs.contains_key("niji"), "{:?}", r.libs);
+        assert!(!tier(&["csys/util/iconv-names.h"], Tier::Full).no_escalation(), "--tier full stays FULL");
+    }
+
+    #[test]
+    fn a_feature_test_set_runs_where_its_files_change() {
+        // AFFECTED-COVERAGE: the loader's unit tests (feature `ld`) no ordinary pass builds.
+        for (f, set) in [("crates/boundary/src/ld/image.rs", "niji-boundary+ld"), ("crates/boundary/tests/machine_scanners.rs", "niji-boundary+portable-scan"), ("crates/math/src/stats.rs", "niji-math+fastpath-stats"), ("fuzz/src/lib.rs", "niji-fuzz")] {
+            assert!(tier(&[f], Tier::Direct).test_sets.contains_key(set), "{f} selects {set}");
+        }
+        assert!(tier(&["crates/core/src/printf.rs"], Tier::Direct).test_sets.is_empty());
+    }
+
+    #[test]
+    fn niji_boundary_tests_get_the_second_pass_whatever_selected_them() {
+        // AFFECTED-COVERAGE: a niji change selecting boundary targets ran them as host processes only.
+        assert!(second_pass(false, "niji-boundary", &["s03_memory_symbols"]) && second_pass(false, "niji-boundary", &[]));
+        assert!(!second_pass(false, "niji", &["printf_rules"]) && second_pass(false, "niji", &["s07_stdio_clauses"]));
+        assert!(second_pass(true, "niji-math", &[]) && !second_pass(true, "niji-legacy", &[]) && !second_pass(false, "niji-math", &[]));
     }
 }
