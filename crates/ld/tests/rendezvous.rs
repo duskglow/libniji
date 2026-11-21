@@ -279,12 +279,8 @@ fn rendezvous_reference_sized_copy_says_version_1() {
         return;
     }
     let lib = std::fs::canonicalize(lib).unwrap();
-    let d = std::fs::canonicalize({
-        let d = target().join(format!("ld-rendezvous-refcopy-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
-        d
-    })
-    .unwrap();
+    // Removed when the test passes (or skips), kept with its path on stderr when it fails.
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-rendezvous-refcopy");
     let c = d.join("refprog.c");
     std::fs::write(&c, REF_PROG).unwrap();
     let prog = d.join("refprog");
@@ -305,14 +301,12 @@ fn rendezvous_reference_sized_copy_says_version_1() {
         let line = o.lines().find(|l| l.contains(" _r_debug")).unwrap_or("");
         if !line.split_whitespace().nth(2).is_some_and(|s| s == "40") {
             eprintln!("SKIP: the host's _r_debug is not 40 bytes in the program ({line:?})");
-            let _ = std::fs::remove_dir_all(&d);
             return;
         }
     }
     let o = Command::new(&prog).env("LD_LIBRARY_PATH", &lib).output().unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert_eq!(o.status.code(), Some(0), "failed check {:?}: {out}", o.status.code());
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 // Spec s27_4_c_0: a debugger that breaks on r_brk sees every object: gdb lists libc by path and stops
