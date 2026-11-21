@@ -21,7 +21,7 @@
  * section through the link's --gc-sections. `cargo xtask so` assembles this file alone, after the
  * interpreter's archive in its link (its text comes last, so no other function moves);
  * crates/boundary/build.rs leaves it out of the C layer's archive, so neither libc.so.6 nor libc.a
- * has it. */
+ * has it. Not under csys/src/machine: the code map reads the labels there as libc's asm exports. */
 	.section .text.niji_ld_strcmp,"axR",@progbits
 	.type strcmp, @function
 	.p2align 4

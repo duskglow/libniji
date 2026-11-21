@@ -1784,7 +1784,7 @@ impl LdLink {
         let phase = dir.join("ld-phase.ld");
         fs::write(&phase, ldso_phase_script()).map_err(|e| e.to_string())?;
         let names = dir.join("ld-names.o");
-        run(Command::new(cc).arg("-c").arg(root.join("csys/src/machine/ld_names.S")).arg("-o").arg(&names))?;
+        run(Command::new(cc).arg("-c").arg(root.join("csys/src/ld/ld_names.S")).arg("-o").arg(&names))?;
         Ok(LdLink { entry, archive, map, span, phase, names })
     }
 
@@ -2375,7 +2375,7 @@ pub(crate) fn check_interp(path: &Path) -> Result<(), String> {
 /// (valgrind on amd64 refuses to start a program without `strcmp` and `strlen` there or in the debug
 /// file libc6-dbg ships). Each is a local function symbol: `strlen` an alias of the interpreter's own
 /// string length routine ([`LD_TOOL_ALIASES`], `--defsym` in the link), `strcmp` defined in
-/// `csys/src/machine/ld_names.S`. None is exported (the version script keeps them local).
+/// `csys/src/ld/ld_names.S`. None is exported (the version script keeps them local).
 pub(crate) const LD_TOOL_NAMES: &[&str] = &["strcmp", "strlen"];
 
 /// The names of [`LD_TOOL_NAMES`] the link defines as aliases: (name, the interpreter's function).
