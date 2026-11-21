@@ -498,6 +498,51 @@ fn any_byte_changed_never_panics() {
     }
 }
 
+/// Covers no spec clause (gABI hash and string tables, GNU symbol-versioning document; design §5): the
+/// lookup's fast paths (LD-LOOKUP-COST) answer as the plain ones. For every symbol of every corpus object
+/// and the installed C library (input data, when present): the name and hash read in one pass are
+/// `string` and `gnu_hash`; the in-place compare agrees with `string` for the name, the name less its last
+/// byte and the name with a byte more; and a relocation's request (the table's name, its version's origin
+/// in its own object, the pass memo) finds in the object itself and in each libv variant what a plain
+/// request finds. libv defines one name at several versions, so an origin that ignored the index would
+/// take another version's definition.
+#[test]
+fn lookup_fast_paths_answer_as_the_plain_ones() {
+    let Some(c) = corpus() else { return };
+    let memo = VersionMemo::default();
+    let host = std::fs::read("/lib/x86_64-linux-gnu/libc.so.6").ok();
+    if host.is_none() {
+        println!("SKIP: no /lib/x86_64-linux-gnu/libc.so.6: only the corpus objects are checked");
+    }
+    let others = libvs(c);
+    let (mut names, mut lookups, mut origins) = (0usize, 0usize, 0usize);
+    for (file, bytes) in c.iter().map(|(f, b)| (*f, b.as_slice())).chain(host.as_deref().map(|b| ("host libc.so.6", b))) {
+        let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
+        let (d, Some(n)) = (o.dynamic(), o.symtab().count()) else { continue };
+        for sym in 1..n {
+            let st = o.symtab().get(sym).unwrap();
+            let Ok(name) = d.string(u64::from(st.name)) else { continue };
+            assert_eq!(d.hashed_string(st.name), Ok((name, gnu_hash(name))), "{file}: symbol {sym}");
+            let longer = [name, b"x"].concat();
+            for probe in [name, &name[..name.len().saturating_sub(1)], &longer] {
+                assert_eq!(d.string_is(st.name, probe), Ok(probe == name), "{file}: symbol {sym} against {:?}", String::from_utf8_lossy(probe));
+            }
+            names += 1;
+            let Ok((want, origin)) = o.reference_want_origin(sym, &memo) else { continue };
+            assert_eq!(Ok(want), o.reference_want(sym), "{file}: symbol {sym}");
+            origins += usize::from(origin.is_some());
+            let fast = Request::of_table(name, gnu_hash(name), want, origin).with_memo(&memo);
+            assert_eq!(o.lookup(&fast), o.lookup(&Request::new(name, want)), "{file}: symbol {sym} in itself");
+            for (style, t) in &others {
+                assert_eq!(t.lookup(&fast), t.lookup(&Request::new(name, want)), "{file}: symbol {sym} in libv ({style})");
+            }
+            lookups += 1 + others.len();
+        }
+    }
+    assert!(origins > 0, "no reference named its own object's definition");
+    eprintln!("fast paths: {names} names, {lookups} lookups, {origins} with an origin");
+}
+
 /// Covers no spec clause (GNU symbol-versioning document; design §5): a relocation pass's version-name
 /// memo (`VersionMemo`, DYN-START-SPEED) answers as the walks do. One memo is shared by every corpus
 /// object (string tables as keys, slots that collide, an index walked as a reference and as a

@@ -1,0 +1,7 @@
+# LD-LOOKUP-COST plants (cargo xtask plants)
+bloom-reject | crates/ld/src/elf.rs | lit:if word & mask != mask { ==> if word & mask == mask { | cargo test -p niji-ld --test symbols | msg:FAILED|panicked
+string-is-nul | crates/ld/src/elf.rs | lit:s.last() == Some(&0) && s.get(..n) == Some(name) ==> s.get(..n) == Some(name) | cargo test -p niji-ld --test symbols | msg:lookup_fast_paths_answer_as_the_plain_ones.*FAILED|panicked
+origin-index | crates/ld/src/symbols.rs | lit:|&(tab, index): &(usize, u16)| index == version && ==> |&(tab, _index): &(usize, u16)| | cargo test -p niji-ld --test symbols | msg:lookup_fast_paths_answer_as_the_plain_ones.*FAILED|panicked
+memo-len | crates/ld/src/symbols.rs | lit:& 0x1fff; ==> & 0x7; | cargo test -p niji-ld --test symbols | msg:(version_memo_answers_as_the_walks|lookup_fast_paths_answer_as_the_plain_ones).*FAILED|panicked
+versions-overflow | crates/ld/src/reloc.rs | lit:None => overflow = true, ==> None => {} | cargo test -p niji-ld --test reloc | msg:reloc_version_check_beyond_the_kept_definitions.*FAILED|panicked
+versions-kept | crates/ld/src/reloc.rs | lit:s.contains(&Some(aux.name)) ==> !s.is_empty() | cargo test -p niji-ld --test reloc | msg:reloc_version_check_beyond_the_kept_definitions.*FAILED|panicked

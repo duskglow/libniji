@@ -969,7 +969,7 @@ impl<'a> Dynamic<'a> {
     /// # Errors
     ///
     /// As [`Dynamic::string`].
-    pub(crate) fn hashed_string(&self, off: u32) -> Result<(&'a [u8], u32), ElfError> {
+    pub fn hashed_string(&self, off: u32) -> Result<(&'a [u8], u32), ElfError> {
         let off = u64::from(off);
         let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
         let rest = usize::try_from(off).ok().and_then(|o| tab.get(o..)).filter(|r| !r.is_empty()).ok_or(ElfError::StringOutOfRange(off))?;
@@ -991,7 +991,7 @@ impl<'a> Dynamic<'a> {
     ///
     /// As [`Dynamic::string`].
     #[inline]
-    pub(crate) fn string_is(&self, off: u32, name: &[u8]) -> Result<bool, ElfError> {
+    pub fn string_is(&self, off: u32, name: &[u8]) -> Result<bool, ElfError> {
         let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
         let start = usize::try_from(off).ok().filter(|&o| o < tab.len()).ok_or(ElfError::StringOutOfRange(u64::from(off)))?;
         if tab.last() != Some(&0) {

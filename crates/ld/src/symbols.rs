@@ -136,7 +136,8 @@ impl<'n> Request<'n> {
     /// A request for `name`, a string of an object's string table (so without a NUL), whose GNU hash
     /// is `gnu` ([`Dynamic::hashed_string`]), accepting `want`, and the `origin` of its version name
     /// ([`Object::reference_want_origin`]).
-    pub(crate) fn of_table(name: &'n [u8], gnu: u32, want: Want<'n>, origin: Option<(usize, u16)>) -> Self {
+    #[must_use]
+    pub fn of_table(name: &'n [u8], gnu: u32, want: Want<'n>, origin: Option<(usize, u16)>) -> Self {
         Request { name, want, gnu, sysv: OnceCell::new(), memo: None, plain: true, origin }
     }
 
@@ -400,7 +401,11 @@ impl<'a> Object<'a> {
     /// [`Object::reference_want_with`], and the request's origin ([`Request::of_table`]): this
     /// object's string table address and the version index, when the name is one of this object's
     /// own definitions (no requirement gives the index), else `None`.
-    pub(crate) fn reference_want_origin(&self, sym: u32, memo: &VersionMemo) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::reference_want`].
+    pub fn reference_want_origin(&self, sym: u32, memo: &VersionMemo) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
         let Some(vs) = self.versym else { return Ok((Want::Oldest, None)) };
         let index = vs.get(sym)?.index;
         if index <= VER_NDX_GLOBAL {
