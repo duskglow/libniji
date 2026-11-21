@@ -1,56 +1,63 @@
 # DL-PROCESS-OBJECTS-2: part 2 of 3, the loader's object tables grow (audit HL-3 without TLS)
 
-**State (leg 1 ended by a context refresh).** Branch `task/dl-process-objects-2` from next `ef7bc6fd3`; role
-mei:~/w/s3. The whole part-2 conversion is written and `cargo clippy -p niji-boundary -p niji-ld --all-targets
---all-features -D warnings` is clean (job `dl-process-objects-2-c4`). Nothing has run yet: job
-`dl-process-objects-2-t1` (`xtask so` + `init_order`, `dlclose`, `dlopen_process_objects` tests) was started
-detached at the end of leg 1: `~/bin/jobwait dl-process-objects-2-t1` first. Design: handoff/DL-PROCESS-OBJECTS.md
-sections 3-7 (not to redo). Part 3 (TLS, `MODULES_MAX`) is NOT started and stays for a later story.
+**State (leg 2 ended by a context refresh).** Branch `task/dl-process-objects-2` from next `ef7bc6fd3`; role
+mei:~/w/s3 (synced at `ee91fc83c`'s tree). Part 2 is written, lint-clean as of leg 2's first lint, and its loader
+tests pass (job `dl-process-objects-2-t3`, before the inline fix). Part 3 (TLS, `MODULES_MAX`) is NOT started
+and stays for a later story. Design: handoff/DL-PROCESS-OBJECTS.md sections 3-7 (not to redo).
 
-**What changed (all WIP commits on the branch; squash nothing, they are pushed).**
-- `ld/table.rs`: `ZeroValid` (all-zero valid entries), `Gens<N, G>` (directory of never-moved generations whose
-  generation 0 lives elsewhere; `at`/`at_in`, `index`/`index_in` (address to index: gen-0 range test, then one per
-  mapped generation), `reserve`, `MOST`; reuses `Arena::gen_of/gen_start/gen_len`), `Grown<T, N, G>` (gen 0 in
-  place + `Gens`; `addr_in` for lock-free readers), `Wide<T>` (contiguous mremap scratch), `Records<T>`
-  (contiguous lock-held copy of non-`ZeroValid` records, written prefix `len`), `Spill<T, N>` (N in place, then the
-  whole list moves to a `Wide`).
-- `ld/dlopen.rs`: `CAP` stays 512 = generation 0 of every table; `OBJ_GENS` = 23 (indices fit u32). `Nodes` is now
-  `{ gens: Gens }` (gen 0 = `NODES` in `.lbss`, unchanged; `const assert size_of::<Node>() == 176`), with
-  `get/get_mut/upto/Index/IndexMut/addr/index_of/reserve`. `Recs<T>` = published `Grown` + `Records` copy past CAP
-  (`upto(k)` gives the slice; `set` writes both). Loader: `log`/`global`/`retired` are `Spill`s, new `readers: Gens`
-  (readers' table directory), `room`, `scratch` (address of a `Scratch` mapping made at the first growth past CAP:
-  `Wide` buffers for live_set/close_end/exit_set/load_set/reopen/dlsym), `fin: Grown<Fin>` + `fin_top` (a
-  `Finis`'s entries past CAP, LIFO across nested dlclose; `Finis::entry` reads them by address, no loader borrow).
-  `Loader::grow_to(len, written)` -> `#[cold] grow_cold` reserves everything for `len` objects; called in
-  `candidate` where `k >= CAP` used to refuse ("cannot load more objects" is gone; failure = `NO_ROOM`). Stack
-  arrays stay for n <= CAP (`room()` picks stack array or scratch). u16 indices -> u32 (`ix32`/`ix`; deps arena
-  `Arena<u32, ..>`, `Node::root: u32`, `Rel` newtype for init edges). `Binds` rows are `width` words
-  (`max(end, CAP)/64`). `View::obj/syms` return `Option` (gen decode); `View::find` decodes `l_next` by gen-0 range
-  then `Gens::index_in`. `node_address` and new `reader_entry(i)` decode via `LOADER`. `room_short` keeps the
-  top-past-3/4 clause only while the top is within CAP; `RETIRED_WAIT` = 128 (a count).
-- `ld/readers.rs`: `slot(i)` (static TABLE below CAP, else `reader_entry`), `ENTRY_BYTES`; `len()` no `min(CAP)`.
-- `crates/ld/src/init.rs`: `exit_order(n, succ, rank, out: &mut [u32], work: &mut [ExitWalk])`; `EXIT_MAX` gone;
-  `ExitWalk` per-unit state. Tests in `crates/ld/tests/init_order.rs` updated (+ a 2000-unit chain).
-- `dladdr.rs`, `dlsym.rs`: the call sites.
+**Done in leg 2 (do not redo).**
+- Fixed `dlsym::handle_index` (a handle in a later node generation was refused: `dlclose` failed at the 510th
+  pair inside a walk); `dlclose.rs` room test check 60 now expects all 600 pairs to succeed (tables grow).
+- New test `dlopen_process_objects_past_the_old_object_tables` (2000 objects: 1500 top/base pairs, each base
+  `libbase<k>.so` patched into the copy's soname and its top's DT_NEEDED, plus a hub with 600 deps). Its expected
+  lines are the **reference's own output** for the same program (probe `~/work/DL-PROCESS-OBJECTS-2/ref_many.py`,
+  job `dl-process-objects-2-ref2`: identical head lines; exit order = load order, each top before its base).
+- OOM sweep stops after two completed runs in a row: 11 limits instead of 48; the whole `dlopen_process_objects`
+  binary (3 tests) took 40.6 s in t3, against 474 s for the OOM test alone in part 1's gate.
+- Pending record `records/pending/DL-PROCESS-OBJECTS-2-1.toml` (D-NEW, series D-27; body one line).
+- Plants file `handoff/DL-PROCESS-OBJECTS-2-plants.txt` (15 plants). The first run (label
+  `dl-process-objects-2-plants`, SUPERSEDED: stopped after the inline fix changed reader code) had CAUGHT
+  nodes-cap, recs-cap, readers-cap, fin-cap (~3 min product rebuild per plant, 2 copies).
+- **Counts** (`~/work/DL-PROCESS-OBJECTS-2/count.sh`: count.c, user instructions/call, min of 5x1000, 100 and 600
+  libraries; next's products built in `/mnt/zram/claude/DL-PROCESS-OBJECTS-2/base-src`, job
+  `dl-process-objects-2-base`). Before the fix (job `-counts2`), N=100 (104 objects): dladdr own 1002 -> 1431,
+  dladdr last 2441 -> 5707, find own 607 -> 607, find last 18464 -> 18872, phdr walk 16021 -> 16020. The fix
+  (commit `ee91fc83c`): `Gens::at_in` inline gen-0 fast path + `#[inline(never)] at_past`; `View::node_of`
+  (no zero test within CAP) for `field`/`next`; `View::find` gen-0 decode without the remainder test, later
+  generations via `#[inline(never)] index_past`. Job `dl-process-objects-2-t4` (clippy workspace, static,
+  records check, `xtask so`, count.sh, the three loader test binaries) was started on that tree: its counts
+  are the after numbers. Reference (glibc) for context: dladdr own 238, last 779 (N=100); find last 207.
 
-**Decisions to record** (pending record `records/pending/DL-PROCESS-OBJECTS-2.toml`, D-NEW in D-27, as part 1's
-`records/pending/DL-PROCESS-OBJECTS-1.toml`): the dual path (stack arrays within CAP, reserved `Scratch` past it,
-so `dlclose`/exit never allocate); the `fin` LIFO store; `room_short` rule; start-time objects still < CAP (the
-start writes `NODES` before any loader).
+**t4 result (GREEN, rc 0, on `ee91fc83c`'s tree):** workspace clippy, static, records check, `xtask so`, the
+three loader test binaries all pass. Counts N=100 (104 objects) next -> branch: dladdr own 1002 -> **922**,
+dladdr last 2441 -> **3356** (+915, ~9 per walk step), find own 607 -> 607, find last 18464 -> **18872**
+(+408, ~4 per object), phdr walk 16021 -> **16121** (+100, ~1 per object). N=600 branch: dladdr own 922, last
+29419, find own 607, last 111631, phdr walk 95896 (next: "cannot load more objects" at libc510).
 
 **Exact next steps.**
-1. `jobwait dl-process-objects-2-t1`; fix failures (cyc helper: `$S/cyc.sh <pairs.py|-> <label> [cmd]`).
-2. Tests in `crates/ld/tests/dlopen_process_objects.rs` (read how part 1 builds its corpus first): 2000 objects
-   held at once; `dladdr`, `dl_iterate_phdr`, `_dl_find_object` and `l_name` over all; `dlclose` and slot reuse;
-   the exit order past 512 (finalisers run, dependents first). Name spec clauses as part 1's tests do.
-3. Gate cost: `dlopen_process_objects_out_of_memory_is_clean` took 474 s (48 limits): stop the sweep after the
-   first few completed runs, keep the refused range; report before/after time.
-4. Plants file `handoff/DL-PROCESS-OBJECTS-2-plants.txt` (`cargo xtask plants`, `msg:` each): each bound restored
-   alone (`Nodes::reserve` -> `len <= CAP`, `Recs::reserve`, readers `Gens::reserve`, `Spill` lists, `Scratch`,
-   `fin`), and the later-generation decode of each lock-free reader (`View::node_addr`, `View::find`'s
-   `index_in`, `Recs::addr_in`, `readers::slot`, `Finis::entry`).
-5. Reference corpus beyond 512 objects vs the reference (part 1's probe: `~/work/DL-PROCESS-OBJECTS/refprobe.sh`).
-6. Counts of `dladdr`, `dl_iterate_phdr`, `_dl_find_object` before/after (no bench row exists; instructions
-   counter on a probe loop, next vs branch).
-7. Gate (direct tier) + `xtask test` + full-profile `so` + `hot_text_products`; layout-bins diff vs merge base;
-   precheck; report json; handback-check.
+1. Close the remaining within-512 per-step costs (the brief: within 512, no change). Candidates: `View::find`'s
+   loop `for _ in 0..=u32::MAX` (was `0..CAP`) and its decode (`next >= first && off < CAP*size` vs the old
+   `checked_sub`/`checked_div` + `i >= CAP`); `View::range` = two `field` calls, each now with `node_of`'s
+   `i < CAP` test (old: none); `_dl_find_object`/`dl_iterate_phdr` read `readers::slot(i)` (`TABLE.get(i)` then
+   `reader_entry`), and `(base..len).filter_map(slot)` replaced a slice iteration: give `readers` a gen-0 slice
+   loop (`TABLE.get(base..len.min(CAP))`, then the later generations in a cold loop). Re-run t4.sh (it reruns
+   counts; job label `dl-process-objects-2-t5`). If a residue of a compare or two per step stays, say so in the
+   report with the numbers (the design's stated cost is one compare past 512; ask RULING if more remains).
+2. Start plants on the final head: `cargo xtask plants handoff/DL-PROCESS-OBJECTS-2-plants.txt --dir
+   /mnt/zram/claude/DL-PROCESS-OBJECTS-2/plants-2 --timeout 600 --copies auto` under jobrun label
+   `dl-process-objects-2-plants2` (the role is BUSY for sync while it runs: sync first).
+3. Gate (direct tier) `dl-process-objects-2-gate`, then `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so &&
+   NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`; layout-bins diff vs the merge base.
+4. precheck, report json, handback-check. Wall deadline 12:48Z: if ~45 min remain with only jobs left, hand back
+   PENDING JOBS.
+
+**For the report.** RULING NEEDED: freed slots are reused only from the top (`load_set` puts a new set at
+`l.n`; `reclaim` lowers the top past freed slots only), so a process that closes objects out of order (FIFO
+plugin churn) leaves holes. Before part 2 such a process failed at 512 slots ("cannot load more objects"); now
+the tables grow by one node and its records per hole and every `dlclose`/`live_set` walks up to the top.
+Recommend a follow-up story: reuse a run of freed slots below the top (first fit for the set's size).
+The 2000-object test asserts only `reused >= 2` (pair 999's top slots). INFORMATIONAL: a program linked with
+`-Wl,-rpath,<products>` naming `libc.so.6` by soname did not find it at start ("cannot open shared object
+file"); the tests (and count.sh) name libc by path with its DT_SONAME made inert, so it was not chased.
+INFORMATIONAL: libniji's `_dl_find_object` is linear in the objects (18464 instructions for the last of 104;
+the reference 207) and `dladdr` 4x the reference; separate performance stories.
