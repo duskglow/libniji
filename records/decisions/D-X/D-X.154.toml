@@ -1,0 +1,9 @@
+id = "D-X.154"
+section = "x"
+status = "active"
+story = "VALGRIND-STRING-REDIRECT"
+date = "2026-11-21"
+tests = ["xtask/src/so.rs::valgrind_string_names_resolve_to_the_bodies"]
+body = '''
+**Every string function memcheck replaces in libc.so.6 carries, at each address its code is entered, a sized function symbol with a name memcheck knows** (VALGRIND-STRING-REDIRECT, GitHub issue #13). Cause: memcheck (valgrind 3.24: `shared/vg_replace_strmem.c` lists the names for a `libc.so*` soname; `coregrind/m_debuginfo/readelf.c` drops function symbols of size 0; `storage.c`'s `canonicaliseSymtab` merges same start and size, and moves the longer of two symbols sharing a start past the shorter) binds its byte-wise replacement to the start of each symbol so named. `strcmp`, `strncmp`, `strchr`, `index` and `strchrnul` were size-0 labels on their kernels (unreplaced: false "Invalid read of size 32" in `ls`); libc's own calls reach the `strlen`, `strnlen`, `memchr` and `rawmemchr` kernels without the exported entry (false reports in `find`). Fix (symbol table only, no code byte): the labels take the kernel's size; each of those four kernels carries a local alias from valgrind's libc list that no export uses (`__GI_strlen`, `__GI_strnlen`, `__GI_memchr`, `__GI___rawmemchr`; a local copy of the exported name would make `.symtab` lookups by name ambiguous for libniji's own tools). Kernels whose result is not a replaced function's (`niji_machine_memcmp`, `strdiff`, the case-fold and pair scanners) take no name: a replacement there would compute the wrong function. Rejected: a suppression file (hides real errors in the same functions), a valgrind-only path. Check: `cargo xtask so` refuses a libc.so.6 where an exported replaced name or a kernel alias is not visible in valgrind's view of `.symtab` (`check_valgrind_string_names`).
+'''

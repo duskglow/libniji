@@ -120,6 +120,13 @@ niji_machine_scan_level_get:
 	.type niji_machine_strlen, @function
 	.p2align 6
 niji_machine_strlen:
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT (D-X.154): a local name memcheck replaces in libc.so.6, so calls inside
+	 * libc that reach this kernel without `strlen`'s entry are replaced too (xtask/src/so.rs
+	 * VALGRIND_KERNEL_NAMES). Symbol table only: no code byte changes. */
+	.type __GI_strlen, @function
+__GI_strlen:
+#endif
 	/* SMALL-STR head (D-4.45): on the AVX2 level with [s, s + 64) inside s's page, two unaligned
 	 * 32-byte blocks [s, s + 32) and [s + 32, s + 64), one branch each, before any other setup
 	 * (SAFETY: both loads lie in s's page, which holds s's first byte). A miss in both continues
@@ -490,6 +497,9 @@ niji_machine_strlen:
 	bsfq %rdx, %rax
 	ret
 	.size niji_machine_strlen, .-niji_machine_strlen
+#ifdef NIJI_EXPORT
+	.size __GI_strlen, .-__GI_strlen
+#endif
 	.section .text.niji_machine_strcpy,"ax",@progbits
 
 /* The direct strcpy entry (STRCPY-SHORT-2, D-4.22): in the products this IS `strcpy` (second
@@ -1457,6 +1467,11 @@ __stpncpy_chk:
 	.type niji_machine_strnlen, @function
 	.p2align 6
 niji_machine_strnlen:
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as __GI_strlen. */
+	.type __GI_strnlen, @function
+__GI_strnlen:
+#endif
 	/* PERF-STRNLEN-MID-2: max <= 64 (max = 0 included) takes .Lstrnlen_small, so the fast path
 	 * below knows max > 64 without a further test. ecx = s's page offset on every path. */
 	movl %edi, %ecx
@@ -2024,6 +2039,9 @@ niji_machine_strnlen:
 	xorl %eax, %eax
 	ret
 	.size niji_machine_strnlen, .-niji_machine_strnlen
+#ifdef NIJI_EXPORT
+	.size __GI_strnlen, .-__GI_strnlen
+#endif
 	.section .text.niji_machine_rawmemchr_entry,"ax",@progbits
 
 /* const void *niji_machine_rawmemchr(const void *s, int c): a POINTER to the first byte equal
@@ -2054,6 +2072,11 @@ __rawmemchr:
 	.globl niji_machine_rawmemchr
 	.type niji_machine_rawmemchr, @function
 niji_machine_rawmemchr:
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as __GI_strlen (`rawmemchr` is the entry above). */
+	.type __GI___rawmemchr, @function
+__GI___rawmemchr:
+#endif
 	/* SMALL-STR head (D-4.45): on the AVX2 level with [s, s + 64) inside s's page, two unaligned
 	 * 32-byte blocks [s, s + 32) and [s + 32, s + 64), one branch each, before any other setup
 	 * (SAFETY: both loads lie in s's page, which holds s's first byte). A miss in both continues
@@ -2528,6 +2551,7 @@ niji_machine_rawmemchr:
 #ifdef NIJI_EXPORT
 	.size rawmemchr, .-rawmemchr
 	.size __rawmemchr, .-__rawmemchr
+	.size __GI___rawmemchr, .-__GI___rawmemchr
 #endif
 
 /* Bounded scanners (OD-C2 revised: memchr and memcmp; D-4.14's treatment). memcmp knows both
@@ -2585,6 +2609,11 @@ memchr:
 	.globl niji_machine_memchr
 	.type niji_machine_memchr, @function
 niji_machine_memchr:
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as __GI_strlen (`memchr` is the entry above). */
+	.type __GI_memchr, @function
+__GI_memchr:
+#endif
 	/* SMALL-STR-2 (D-4.45): the short limit is the level test and the page test ([s, s + 64)
 	 * inside s's page) in one compare; then, for every n, the 64-byte head (WL-GREP, D-4.48;
 	 * MEMCHR-2 splits it in two 32-byte halves): [s, s + 64) unaligned, whose first match is
@@ -3109,6 +3138,7 @@ niji_machine_memchr:
 	.size niji_machine_memchr, .-niji_machine_memchr
 #ifdef NIJI_EXPORT
 	.size memchr, .-memchr
+	.size __GI_memchr, .-__GI_memchr
 #endif
 	.size niji_machine_memchr_entry, .-niji_machine_memchr_entry
 
@@ -4034,6 +4064,12 @@ niji_machine_strcmp:
 	incq %rax
 	jmp .Lstrcmp_v_top
 	.size niji_machine_strcmp, .-niji_machine_strcmp
+	/* VALGRIND-STRING-REDIRECT: the entry names share the kernel's size (memcheck passes over a
+	 * function symbol of size 0, and `strcmp` went unreplaced). */
+	.size niji_machine_strcmp_entry, .-niji_machine_strcmp_entry
+#ifdef NIJI_EXPORT
+	.size strcmp, .-strcmp
+#endif
 	.section .text.niji_machine_strcmp_rescan_count,"ax",@progbits
 
 /* uint64_t niji_machine_strcmp_rescan_count(void): how often niji_machine_strcmp found the
@@ -6210,6 +6246,10 @@ strchrnul:
 	leaq 32(%rdi,%rdx), %rax
 	ret
 	.size niji_machine_strchrnul, .-niji_machine_strchrnul
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as strcmp. */
+	.size strchrnul, .-strchrnul
+#endif
 	.section .text.niji_machine_strchr,"ax",@progbits
 
 	.globl niji_machine_strchr
@@ -6487,6 +6527,11 @@ index:
 .Lschr_ret:
 	ret
 	.size niji_machine_strchr, .-niji_machine_strchr
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as strcmp. */
+	.size strchr, .-strchr
+	.size index, .-index
+#endif
 
 /* const void *niji_machine_memrchr(const void *s, int c, size_t n) (SHORT-1, D-4.35): the
  * address of the last byte of [s, s + n) equal to (unsigned char)c, or NULL. The caller (Rust,
@@ -7157,6 +7202,10 @@ strncmp:
 	jb .Lsnc_head
 	jmp .Lsnc_old
 	.size niji_machine_strncmp, .-niji_machine_strncmp
+#ifdef NIJI_EXPORT
+	/* VALGRIND-STRING-REDIRECT: as strcmp. */
+	.size strncmp, .-strncmp
+#endif
 	.text
 
 
