@@ -65,16 +65,20 @@ vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh, chain6.sh). Code he
 
 ## State at hand-back (leg 2)
 
-Done: the code (head 1eae04250), the plants file fixed for the two-alias table (097b16249), and on 097b16249:
-final5 (debs, listing, probe), probe6, gate6, plants6, startup6 (results in the hand-back and the JSON).
+Final head 30acf80e5 (`xtask/src/affected.rs`: `xtask/src/so.rs` joins STATIC_CHECKERS, D-X.34: it names
+`niji_machine_strlen` only to alias and check it in `cargo xtask so`; without that, every scan.S change escalated
+to the train, caught by gate6's `affected::tests::csys_falls_back_to_full_when_unsure` and
+`layout_manifest_names_select_the_layout_check`). Results on 097b16249 (same product code as 30acf80e5):
+final5 rc 0, probe6 rc 0, plants6 6/6 CAUGHT (no WARN), gate6 rc 1 (8337 passed, the 2 tests above failed).
+On 30acf80e5 (chain7.sh on keke): lint7 (clippy + static), xtask7 (`cargo test -p xtask`, the failing suite),
+startup7 (`cargo xtask test`, then the NIJI_FULL_PROFILE so + hot_text_products, section 9).
 Superseded: lint3/gate3/plants3 (ba8bbb4ec); lint4/gate4/plants4 (8e3640133: static red; gate4 never ran,
-`affected` without `--list`); lint5 (1eae04250, rc 0, before the plants-file commit); gate5 (the same usage
-error); plants5 (refused: the build-no-alias pattern named the one-alias table). Nothing here needs redoing;
-the next stories are listed above.
+`affected` without `--list`); lint5/gate5/plants5 (1eae04250: gate5 the same usage error; plants5 refused, the
+build-no-alias pattern named the one-alias table); startup6 (stopped while queued, head moved).
+Exact next step if a chain7 job is red: fix that suite, rerun it only, precheck, hand back.
 
 ## Plants and gates
 
-Plants file `handoff/VALGRIND-LDSO-SYMBOLS-plants.txt` (six: three on the check's unit test, build-no-alias and
-size-alias through `cargo xtask so`, pkg-debug-drops-strcmp through build.sh --products + check-system.sh).
-Jobs on keke: valgrind-ldso-symbols-final3, -lint3, -gate3, -plants3 (results in the hand-back).
-Superseded: final/final2/lint/lint2/gate/gate2/plants/plants2 (older heads; final2 did not compile).
+Plants file `handoff/VALGRIND-LDSO-SYMBOLS-plants.txt` (six, results appended: three on the check's unit test,
+build-no-alias and size-alias through `cargo xtask so`, pkg-debug-drops-strcmp through build.sh --products +
+check-system.sh); job valgrind-ldso-symbols-plants6, 6 CAUGHT.

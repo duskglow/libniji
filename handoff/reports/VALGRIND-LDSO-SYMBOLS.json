@@ -1,20 +1,21 @@
 {"task": "VALGRIND-LDSO-SYMBOLS", "model": "opus", "tokens": null,
- "result": "ld.so gets local sized strlen (alias of niji_machine_strlen) and strcmp symbols, in libc6-dbg's debug file: valgrind's mandatory-redirect abort is gone and memcheck runs programs with the loader's debug file; with the whole libc6-dbg every tool still aborts in valgrind's debug reader on libc.so.6's .rodata1/.rodata pair (next story)",
- "branch": "task/valgrind-ldso-symbols", "head": "8e3640133",
- "gate": {"affected": "see hand-back (valgrind-ldso-symbols-gate4)", "peak": null}, "accepted_first_attempt": null,
+ "result": "ld.so gets local sized strcmp and strlen symbols (link aliases of niji_machine_ld_strcmp and niji_machine_strlen) in libc6-dbg's debug file: valgrind's mandatory-redirect abort is gone and memcheck runs programs with the loader's debug file; with the whole libc6-dbg every tool still aborts in valgrind's debug reader on libc.so.6's .rodata1/.rodata pair (next story)",
+ "branch": "task/valgrind-ldso-symbols", "head": "30acf80e5",
+ "gate": {"affected": "gate6 (097b16249): 8337 passed / 2 failed (affected::tests csys_falls_back_to_full_when_unsure, layout_manifest_names_select_the_layout_check; fixed in 30acf80e5, rerun as xtask7)", "peak": "11G"}, "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "libc6-dbg + valgrind 3.24: m_debuginfo/readelf.c:3013 find_rodata assertion 'di->rodata_size == sh_size' for every tool; libc.so.6 has .rodata1 (D-X.133 start-up anchor, 64 KiB aligned) and .rodata with a gap; loader-only debug file does not trigger it. Fix is a libc.so.6 layout change (needs start-up measurements): next story",
+   "libc6-dbg + valgrind 3.24: m_debuginfo/readelf.c:3013 find_rodata assertion 'di->rodata_size == sh_size' for every tool; libc.so.6 has .rodata1 (D-X.133 start-up anchor, 64 KiB aligned) and .rodata with a gap; the loader-only debug file does not trigger it. Fix is a libc.so.6 layout change (needs start-up measurements): next story",
    "helgrind: hg_main.c:5421 hg_handle_client_request Assertion 'found' failed under libniji with or without debug files; drd runs (0 errors) without libc6-dbg and with the loader's debug file",
-   "memcheck with the loader's debug file: one start-up report inside the loader beyond stock's counts (details in the hand-back)"
+   "memcheck with the loader's debug file: one start-up report beyond stock's counts, 'Conditional jump or move depends on uninitialised value(s)' at niji_boundary::ld::link::link (link.rs:356, the cache unmap's cache.get().map_or); not diagnosed (--track-origins=yes is the next probe)",
+   "xtask/src/so.rs joins affected's STATIC_CHECKERS (D-X.34): naming niji_machine_strlen there had moved every scan.S change to the train"
  ],
  "refused": [],
  "impact": [
    {"kind": "correctness", "what": "valgrind memcheck under libniji with libc6-dbg's loader debug file: no longer aborts at start-up (mandatory strcmp/strlen redirect); /bin/true and an invalid-read program run, rc 0, invalid read reported at bad.c:11", "before": null, "after": null, "unit": null, "measured": true},
    {"kind": "coverage", "what": "unit test ld_tool_names, build-time interpreter names check, check-system.sh libc6-dbg names check; plants", "before": 0, "after": 6, "unit": "plants", "measured": true},
-   {"kind": "size", "what": "ld.so .text grows by the 23-byte strcmp at its end (no loader function moved)", "before": null, "after": 23, "unit": "bytes", "measured": true}
+   {"kind": "size", "what": "ld.so .text grows by the 23-byte niji_machine_ld_strcmp at its end (no loader function moved)", "before": null, "after": 23, "unit": "bytes", "measured": true}
  ],
- "improvement": "Run clippy/static before the package build in a chained job: a compile error (reserved word) and a codemap failure each cost one full build cycle here",
+ "improvement": "A gate chain that called `cargo xtask affected` without --list failed in seconds with a usage error, twice, unnoticed until the next leg: jobrun could flag a gate job that ends in under a minute with rc 2",
  "next_step": "Story: libc6-dbg readable by valgrind (libc.so.6 .rodata1/.rodata pair, layout measured per section 9); then helgrind's client request and the loader's memcheck start-up report",
  "report_file": "handoff/VALGRIND-LDSO-SYMBOLS.md",
- "jobs": ["keke:valgrind-ldso-symbols-gate4", "keke:valgrind-ldso-symbols-plants4", "keke:valgrind-ldso-symbols-lint4", "keke:valgrind-ldso-symbols-final3", "keke:valgrind-ldso-symbols-probe4"]}
+ "jobs": ["keke:valgrind-ldso-symbols-lint7", "keke:valgrind-ldso-symbols-xtask7", "keke:valgrind-ldso-symbols-startup7", "keke:valgrind-ldso-symbols-plants6", "keke:valgrind-ldso-symbols-final5", "keke:valgrind-ldso-symbols-probe6"]}
