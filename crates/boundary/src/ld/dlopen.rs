@@ -6,7 +6,8 @@
 //!   start: `link` only records a few words per object). It holds every object as the relocator
 //!   sees it (the start-time objects read again from their memory images, as `link` read them),
 //!   their lookup views, the link-map nodes (the public `struct link_map` prefix first), the global
-//!   scope, and two bump arenas (paths, dependency lists). A new set is linked in with one Release
+//!   scope, and two arenas (paths, dependency lists) that grow by generations never moved
+//!   ([`Arena`], DL-PROCESS-OBJECTS). A new set is linked in with one Release
 //!   store; `dlclose` ([`close_entry`], DL-17) unlinks what it unloads.
 //! * **Locks.** The writer lock [`CALL`], re-entrant for its owner (a constructor may call
 //!   `dlopen`), held for the whole call; inside it [`STATE`] while the call changes the loader's
@@ -31,7 +32,7 @@
 //! Not here yet (plan §6): lazy binding (DL-20).
 
 use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
-use super::table::{Table, INLINE};
+use super::table::{Arena, Table, INLINE};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
@@ -58,13 +59,24 @@ pub(super) const CAP: usize = 512;
 /// reserved before anything is published; the only failure left is that mapping's,
 /// `<file>: cannot allocate memory`.
 const NO_MEMORY: &[u8] = b": cannot allocate memory";
+/// [`Found::Full`]'s text when an arena cannot grow (DL-PROCESS-OBJECTS: memory is the only bound).
+const NO_ROOM: &[u8] = b"cannot allocate memory";
 /// Dependency edges between one call's new objects held in place (a set of a few dozen objects
 /// has a few hundred).
 const EDGES_INLINE: usize = 256;
-/// Bytes of the path arena.
+/// The path arena's bytes in place (its generation 0, in the loader's mapping); later generations
+/// double, each mapped at its first use and never moved: the paths of every object the process holds
+/// (DL-PROCESS-OBJECTS, audit HL-5). `l_name`, `dlpi_name` and `dli_fname` point into it.
 const NAMES: usize = 128 * 1024;
-/// Entries of the dependency-list arena.
+/// Generations of the path arena past the one in place (its offsets fit 32 bits: 4 GiB of paths,
+/// past the mappings the kernel lets a process hold for that many objects).
+const NAMES_GENS: usize = 15;
+type Names = Arena<u8, NAMES, NAMES_GENS>;
+/// The dependency-list arena's entries in place (generation 0), then generations as for the paths:
+/// every object's dependencies and recorded bindings, however many.
 const DEPS: usize = 16 * 1024;
+const DEPS_GENS: usize = 18;
+type Deps = Arena<u16, DEPS, DEPS_GENS>;
 /// The unique-symbol table: (name, version) keys and the bytes of their strings, each in its own
 /// mapping that grows as needed (no count of unique names is too many; C++ libraries define
 /// hundreds). Only a failed mapping makes the binding that needed the entry fail, with a text that
@@ -300,8 +312,6 @@ struct Loader {
     /// version) is every later binding's; `unique_mark` is its length when a `dlopen` began.
     unique: Unique,
     unique_mark: usize,
-    names_top: usize,
-    deps_top: usize,
     /// `dlopen`ed objects whose constructors started, in that order (destructors run backwards).
     n_log: AtomicUsize,
     log: [u16; CAP],
@@ -310,8 +320,10 @@ struct Loader {
     nodes: Nodes,
     objs: [MaybeUninit<Obj<'static>>; CAP],
     syms: [MaybeUninit<Object<'static>>; CAP],
-    deps: [u16; DEPS],
-    names: [u8; NAMES],
+    /// The dependency lists (`Node::deps`, `Node::binds`) and the paths (`Node::path`): spans of
+    /// arenas that grow by generations never moved ([`Arena`]); their tops are the attempt marks.
+    deps: Deps,
+    names: Names,
     /// The static surplus's places for `dlopen`ed modules (DL-16d) and their count when the
     /// current `load_set` began ([`unwind`] takes back the later ones).
     surplus: ltls::Surplus<{ ltls::MODULES_MAX }>,
@@ -615,7 +627,11 @@ impl View {
             return (0, 0);
         }
         let names = self.at.wrapping_add(core::mem::offset_of!(Loader, names));
-        (names.wrapping_add(usize::try_from(a).unwrap_or(0)), usize::try_from(b).unwrap_or(0))
+        let at = Names::addr_in(names, usize::try_from(a).unwrap_or(usize::MAX));
+        if at == 0 {
+            return (0, 0);
+        }
+        (at, usize::try_from(b).unwrap_or(0))
     }
 
     /// Object `i` as the relocator saw it.
@@ -725,32 +741,34 @@ impl Loader {
         self.nodes.get(i).map_or(0, |n| core::ptr::from_ref(n).expose_provenance())
     }
 
-    /// Copy `s` and a NUL into the path arena: its span.
+    /// Copy `s` and a NUL into the path arena: its span; `None` only when the arena cannot grow (no
+    /// memory).
     fn keep(&mut self, s: &[u8]) -> Option<(u32, u32)> {
-        let start = self.names_top;
-        let end = start.checked_add(s.len())?;
-        self.names.get_mut(start..end)?.copy_from_slice(s);
-        *self.names.get_mut(end)? = 0;
-        self.names_top = end.checked_add(1)?;
+        let start = self.names.append(s, 0)?;
         Some((u32::try_from(start).ok()?, u32::try_from(s.len()).ok()?))
     }
 
+    /// The bytes of path span `(a, b)`, `None` when it is no written span.
+    fn path_span(&self, (a, b): (u32, u32)) -> Option<&[u8]> {
+        self.names.get(usize::try_from(a).ok()?, usize::try_from(b).ok()?)
+    }
+
     fn path(&self, i: usize) -> &[u8] {
-        let Some(&Node { path: (a, b), .. }) = self.nodes.get(i) else { return b"" };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(b"")
+        let Some(&Node { path, .. }) = self.nodes.get(i) else { return b"" };
+        self.path_span(path).unwrap_or(b"")
+    }
+
+    /// The entries of dependency-arena span `(a, b)`.
+    fn dep_span(&self, (a, b): (u32, u32)) -> &[u16] {
+        usize::try_from(a).ok().zip(usize::try_from(b).ok()).and_then(|(a, b)| self.deps.get(a, b)).unwrap_or(&[])
     }
 
     fn deps_of(&self, i: usize) -> &[u16] {
-        let Some(&Node { deps: (a, b), .. }) = self.nodes.get(i) else { return &[] };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.deps.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(&[])
+        self.nodes.get(i).map_or(&[], |nd| self.dep_span(nd.deps))
     }
 
     fn binds_of(&self, i: usize) -> &[u16] {
-        let Some(&Node { binds: (a, b), .. }) = self.nodes.get(i) else { return &[] };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.deps.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(&[])
+        self.nodes.get(i).map_or(&[], |nd| self.dep_span(nd.binds))
     }
 
     /// Whether object `j` is unloaded (its memory may be gone: never read its `Obj`).
@@ -910,11 +928,13 @@ fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
 /// handle's `dlsym`, `RTLD_GLOBAL` promotion): a name matches a start-time object's `DT_SONAME`, a
 /// name with a `/` the object at that path by (`st_dev`, `st_ino`). A name that matches neither
 /// (a start-time object without `DT_SONAME` found by a bare name) is left out.
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)] // deps_top < DEPS is checked
+/// False only when the dependency arena cannot grow (no memory).
+#[allow(clippy::indexing_slicing)] // q < total < CAP
 fn adopt_deps(l: &mut Loader, total: usize) -> bool {
     for q in 0..total {
         let o = l.objs_upto(total)[q];
-        let start = l.deps_top;
+        // Room for every entry first: one list is one span.
+        let Some(start) = l.deps.open(o.dynm.needed().count()) else { return false };
         for needed in o.dynm.needed().map_while(Result::ok) {
             let j = l.by_soname(needed, total).or_else(|| {
                 if !needed.contains(&b'/') {
@@ -924,13 +944,11 @@ fn adopt_deps(l: &mut Loader, total: usize) -> bool {
                 l.nodes[..total].iter().position(|nd| (nd.dev, nd.ino) == id)
             });
             let Some(j) = j else { continue };
-            if l.deps_top >= DEPS {
+            if !l.deps.push(u16::try_from(j).unwrap_or(0)) {
                 return false;
             }
-            l.deps[l.deps_top] = u16::try_from(j).unwrap_or(0);
-            l.deps_top += 1;
         }
-        l.nodes[q].deps = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps_top - start).unwrap_or(0));
+        l.nodes[q].deps = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps.top().saturating_sub(start)).unwrap_or(0));
     }
     true
 }
@@ -1464,8 +1482,10 @@ fn reclaim(l: &mut Loader) {
         l.n = n;
         let end = |(a, b): (u32, u32)| usize::try_from(a).unwrap_or(0).saturating_add(usize::try_from(b).unwrap_or(0));
         let live = l.nodes.get(..n).unwrap_or(&[]);
-        l.deps_top = live.iter().filter(|nd| !nd.gone).map(|nd| end(nd.deps).max(end(nd.binds))).max().unwrap_or(0);
-        l.names_top = live.iter().filter(|nd| !nd.gone && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
+        let deps_top = live.iter().filter(|nd| !nd.gone).map(|nd| end(nd.deps).max(end(nd.binds))).max().unwrap_or(0);
+        let names_top = live.iter().filter(|nd| !nd.gone && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
+        l.deps.set_top(deps_top);
+        l.names.set_top(names_top);
     }
     RETIRED.store(l.n_retired, Relaxed);
     TOP.store(l.n, Relaxed);
@@ -1523,29 +1543,28 @@ fn room_wait() {
 }
 
 /// Record, for each new object `base..k`, the objects its relocations bound to that its own
-/// dependencies do not list (a start-time object never unloads: left out). A full arena makes the
-/// definer `nodelete` instead (it then stays, never unmapped under its user).
+/// dependencies do not list (a start-time object never unloads: left out). When the arena cannot
+/// grow (no memory) the definer becomes `nodelete` instead (it then stays, never unmapped under its
+/// user), so this never fails the call.
 fn record_binds(l: &mut Loader, base: usize, k: usize, b: &Binds) {
     for i in base..k {
-        let start = l.deps_top;
+        let wanted = |l: &Loader, j: usize| b.has(i, j) && !l.deps_of(i).contains(&u16::try_from(j).unwrap_or(u16::MAX));
+        // Room for the whole list first: one list is one span. Without it the list holds what the
+        // rest of its generation takes.
+        let most = (l.n_start..k).filter(|&j| wanted(l, j)).count();
+        let start = l.deps.open(most).unwrap_or_else(|| l.deps.top());
         for j in l.n_start..k {
-            if !b.has(i, j) || l.deps_of(i).contains(&u16::try_from(j).unwrap_or(u16::MAX)) {
+            if !wanted(l, j) {
                 continue;
             }
-            match l.deps.get_mut(l.deps_top) {
-                Some(slot) => {
-                    *slot = u16::try_from(j).unwrap_or(0);
-                    l.deps_top = l.deps_top.saturating_add(1);
-                }
-                None => {
-                    if let Some(nd) = l.nodes.get_mut(j) {
-                        nd.nodelete = true;
-                    }
+            if !l.deps.push(u16::try_from(j).unwrap_or(0)) {
+                if let Some(nd) = l.nodes.get_mut(j) {
+                    nd.nodelete = true;
                 }
             }
         }
         if let Some(nd) = l.nodes.get_mut(i) {
-            nd.binds = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps_top.saturating_sub(start)).unwrap_or(0));
+            nd.binds = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps.top().saturating_sub(start)).unwrap_or(0));
         }
     }
 }
@@ -1659,7 +1678,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return Some(Found::Missing);
     }
-    let refused = |l: &mut Loader, r: Refusal| Some(l.keep(shown).map_or(Found::Full(b"out of room for object names"), |s| Found::Refused(r, s)));
+    let refused = |l: &mut Loader, r: Refusal| Some(l.keep(shown).map_or(Found::Full(NO_ROOM), |s| Found::Refused(r, s)));
     if st.mode & S_IFMT == S_IFDIR {
         close();
         return refused(l, Refusal::Directory);
@@ -1748,13 +1767,13 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         loaded.unmap(&mut SysMapper { fd: -1 });
         let _ = raw::munmap(at, len);
         super::readers::count_unmapped(1);
-        return Some(Found::Full(b"out of room for object names"));
+        return Some(Found::Full(NO_ROOM));
     };
     let o = Obj { elf, dynm, bias: loaded.bias, name: given, tls: None };
     report_nonshared(&elf, shown);
     l.objs[k] = MaybeUninit::new(o);
     l.syms[k] = MaybeUninit::new(sym);
-    let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));
+    let name = l.names.addr(usize::try_from(span.0).unwrap_or(usize::MAX));
     describe(l, k, &o, name, (st.dev, st.ino), true);
     let node = &mut l.nodes[k];
     node.path = span;
@@ -1896,8 +1915,8 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
             l.ids.put_back(p.module);
         }
     }
-    l.names_top = names_top;
-    l.deps_top = deps_top;
+    l.names.set_top(names_top);
+    l.deps.set_top(deps_top);
     l.unique.truncate(l.unique_mark);
     l.surplus.rollback(l.tls_mark);
 }
@@ -2031,9 +2050,8 @@ fn owner_unload(l: &mut Loader) -> usize {
 fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8]; 3]) -> &'a [&'a [u8]] {
     match f {
         Found::Missing => *out = [name, b": ", dl::FILE_MISSING],
-        Found::Refused(r, (a, b)) => {
-            let a = usize::try_from(a).unwrap_or(0);
-            let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
+        Found::Refused(r, span) => {
+            let p = l.path_span(span).unwrap_or(name);
             *out = [p, b": ", r.text()];
         }
         Found::Full(t) => *out = [name, b": ", t],
@@ -2048,7 +2066,7 @@ fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8
 fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Result<(usize, Ctors), Fail> {
     let page = START_PAGE.load(Relaxed);
     let base = l.n;
-    let (names_top, deps_top) = (l.names_top, l.deps_top);
+    let (names_top, deps_top) = (l.names.top(), l.deps.top());
     l.unique_mark = l.unique.len();
     l.tls_mark = l.surplus.len();
     let who = dlsym::caller_index(l, caller);
@@ -2076,7 +2094,12 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     let mut q = base;
     while q < k {
         let o = l.objs_upto(k)[q];
-        let dep_start = l.deps_top;
+        // Room for every entry first: one list is one span (the arena grows; only memory bounds it).
+        let Some(dep_start) = l.deps.open(o.dynm.needed().count()) else {
+            let t = fail_parts(&[given, NO_MEMORY]);
+            unwind(l, base, k, names_top, deps_top);
+            return Err(t);
+        };
         for needed in o.dynm.needed() {
             let Ok(needed) = needed else {
                 let t = fail_parts(&[l_path_static(l, q), b": ", Refusal::Malformed.text()]);
@@ -2106,20 +2129,15 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
                     return Err(t);
                 }
             };
-            if l.deps_top >= DEPS {
-                let t = fail_parts(&[given, b": cannot load more objects in one call"]);
-                unwind(l, base, k, names_top, deps_top);
-                return Err(t);
-            }
-            if j >= base && edges.push((u16::try_from(q - base).unwrap_or(0), u16::try_from(j - base).unwrap_or(0))).is_err() {
+            let edge_full = j >= base && edges.push((u16::try_from(q - base).unwrap_or(0), u16::try_from(j - base).unwrap_or(0))).is_err();
+            // The push stays in the room `open` found (one entry per `DT_NEEDED` entry at most).
+            if edge_full || !l.deps.push(u16::try_from(j).unwrap_or(0)) {
                 let t = fail_parts(&[given, NO_MEMORY]);
                 unwind(l, base, k, names_top, deps_top);
                 return Err(t);
             }
-            l.deps[l.deps_top] = u16::try_from(j).unwrap_or(0);
-            l.deps_top += 1;
         }
-        l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps_top - dep_start).unwrap_or(0));
+        l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps.top() - dep_start).unwrap_or(0));
         q += 1;
     }
     // The set's per-object tables, sized now, while the attempt can still be unwound: from here on
@@ -2288,10 +2306,9 @@ fn l_path_static(l: &Loader, i: usize) -> &'static [u8] {
 }
 
 fn fail_text(l: &Loader, name: &[u8], f: Found, who: usize) -> Fail {
-    if let Found::Refused(Refusal::ExecutableStack, (a, b)) = f {
+    if let Found::Refused(Refusal::ExecutableStack, span) = f {
         // COMPAT-19 (ruling of 2026-11-20): the object, the `dlopen` caller and the ways in.
-        let a = usize::try_from(a).unwrap_or(0);
-        let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
+        let p = l.path_span(span).unwrap_or(name);
         // The program's own entry has an empty path: name it by `argv[0]`.
         let from = l_path_static(l, who);
         let argv0 = || Some(start_arg(1)).filter(|&v| v != 0).and_then(|v| usize::try_from(super::stack_word(v)).ok()).filter(|&a| a != 0).map_or(&b"the program"[..], c_string);
