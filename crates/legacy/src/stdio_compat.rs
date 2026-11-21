@@ -2408,6 +2408,70 @@ fn set_error(file: &[AtomicUsize], ext: &mut Ext) {
 /// included, unless it began the input read last: then `EILSEQ`, D-12.29). An invalid sequence is `EILSEQ` with the
 /// error indicator set, its bytes (from the first) left unread. On a byte-oriented stream, `None`.
 pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
+    if let Some(c) = getwc_front(env, file, ext) {
+        return Ok(Some(c));
+    }
+    getwc_slow(env, file, ext, enc)
+}
+
+/// The front path of [`getwc`] (WIDE-READ-FAST, D-12.30): a stream already wide-oriented on a
+/// UTF-8, ASCII or ISO-8859-1 locale encoding (`Codec::Text`), reading, with nothing given back
+/// and no partial character, whose read window holds the whole next character: the character
+/// is decoded in place from the window and its bytes are consumed. That is the character the
+/// general path ([`getwc_slow`]) returns byte by byte: the window's bytes are the ones
+/// [`State::getc`] hands out, a byte in the window never refills or flushes the line-buffered
+/// streams and changes no indicator, the conversion state is the initial one whenever no
+/// partial character is held, and the decoder gives the same answer for the bytes at once
+/// ([`text::decode_utf8_initial`]). `None` (nothing touched) for anything else: a character
+/// cut by the window's end, an invalid sequence, an empty window, a charmap or `,ccs=` codec;
+/// the general path then decides. `_IO_read_ptr` and `_IO_read_end` move together (the
+/// published window of a wide stream stays closed at the position, D-12.19).
+/// `ext` is a record [`Env::record`] accepted for this `FILE`; the caller holds the lock or
+/// needs none.
+#[inline(always)]
+pub fn getwc_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> Option<u32> {
+    let words = file.get(..FILE_WORDS)?;
+    let Codec::Text(enc) = ext.wide.codec else { return None };
+    let b = ext.buf;
+    if ext.wide.back_len != 0 || ext.wide.partial != 0 || b == 0 || ext.state.role != Role::Reading || ext.kind == Kind::Closed {
+        return None;
+    }
+    if low_int(get(words, word::MODE)) <= 0 {
+        return None;
+    }
+    // As [`load`]: the position from `_IO_read_ptr`; the window ends at the engine's end of data
+    // inside the buffer (an `_IO_read_ptr` past it leaves the window empty: the general path).
+    let at = get(words, word::READ_PTR).wrapping_sub(b);
+    let win = env.bytes(b, ext.buf_len).get(at..ext.state.rend.min(ext.buf_len))?;
+    let (c, n) = decode_front(win, enc)?;
+    let to = at + n;
+    set(words, word::READ_PTR, b + to);
+    set(words, word::READ_END, b + to);
+    ext.state.rpos = to;
+    ext.wide.last = Some(c);
+    Some(c)
+}
+
+/// One whole character of `enc` from the start of `win`, and its length; `None` when `win`
+/// does not begin with one (empty, cut short, invalid) or `enc` is a charmap.
+#[inline(always)]
+fn decode_front(win: &[u8], enc: Encoding) -> Option<(u32, usize)> {
+    let &b0 = win.first()?;
+    match enc {
+        Encoding::Ascii if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Latin1 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 => match text::decode_utf8_initial(|i| win.get(i).copied()) {
+            (Decoded::Char(c, n), _) => Some((c, n)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// [`getwc`] past its front path ([`getwc_front`]): the general path, unchanged.
+#[inline(never)]
+pub fn getwc_slow<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
     if !wide_oriented(file, ext, enc) {
         return Ok(None);
     }

@@ -1880,9 +1880,14 @@ fn encoding() -> Encoding {
 const WEOF: u32 = u32::MAX;
 
 /// `fgetwc`: the next wide character, `None` at end of input.
+/// WIDE-READ-FAST (D-12.30): the front path first ([`sc::getwc_front`]: a whole character in the
+/// read window, decoded in place); the locale's encoding is looked up only past it (it matters
+/// only to a stream not yet wide-oriented).
 pub fn getwc(fp: usize, how: Locking) -> KResult<Option<u32>> {
-    let enc = encoding();
-    with(fp, how, |g, file, ext| sc::getwc(g, file, ext, enc))?
+    with(fp, how, |g, file, ext| match sc::getwc_front(g, file, ext) {
+        Some(c) => Ok(Some(c)),
+        None => sc::getwc_slow(g, file, ext, encoding()),
+    })?
 }
 
 /// `__wunderflow`: the next wide character without consuming it.
