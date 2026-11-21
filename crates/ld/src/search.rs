@@ -154,8 +154,12 @@ pub enum CacheRef<'a> {
 }
 
 /// The cell behind [`CacheRef::Lazy`]: empty until a search first reaches the cache step, then the
-/// cache read (its bytes, kept so the caller can release them, and its reader) or `None`.
-pub type LazyCache<'a> = core::cell::OnceCell<Option<(&'a [u8], Cache<'a>)>>;
+/// cache read: its bytes, kept so the caller can release them (empty when there is no cache), and its
+/// reader. A pair rather than an `Option` of one: the empty cell is then the bytes' null address, a
+/// word `OnceCell::new` writes, so code reading the bytes of an empty cell never branches on memory
+/// left unwritten (valgrind's memcheck reported the speculated read of a nested `Option`'s payload at
+/// every program start, VALGRIND-DBG-RODATA).
+pub type LazyCache<'a> = core::cell::OnceCell<(&'a [u8], Option<Cache<'a>>)>;
 
 impl<'a> CacheRef<'a> {
     /// The cache, reading it now for [`CacheRef::Lazy`] (at most once per cell).
@@ -163,7 +167,7 @@ impl<'a> CacheRef<'a> {
         match self {
             CacheRef::None => None,
             CacheRef::Read(c) => Some(c),
-            CacheRef::Lazy(cell, read) => cell.get_or_init(read).as_ref().map(|(_, c)| c),
+            CacheRef::Lazy(cell, read) => cell.get_or_init(|| read().map_or((&[], None), |(f, c)| (f, Some(c)))).1.as_ref(),
         }
     }
 }
