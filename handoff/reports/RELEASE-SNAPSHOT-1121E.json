@@ -1,6 +1,6 @@
 {"task": "RELEASE-SNAPSHOT-1121E", "model": "opus", "tokens": null,
  "result": "COMPLETE: snapshot-ready at 97bf3542f (serial 6: 2.39+niji20261121.6-1, staged snapshot-20261121.6): #13 fixed (memcheck with the whole libc6-dbg as stock), #6 CJK fixed (26 names round-trip as glibc 2.39), 600 libraries load; other checks as 21.5; plants 6/6; start-up +1,408 instr / +5 faults (finding 1)",
- "branch": "task/release-snapshot-1121e", "head": null,
+ "branch": "task/release-snapshot-1121e", "head": "f93c0a1c7",
  "gate": {"affected": "GATE bad=0 (handoff-only branch); 37 named jobs rc 0", "peak": "2.5G"},
  "accepted_first_attempt": null,
  "rulings": [],
