@@ -1,0 +1,8 @@
+id = "D-X.129"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S08-4"
+date = "2026-11-18"
+body = '''
+Slice 8 headers: names where libniji's headers differ from the reference's in visibility, with the rulings (#6443, #6467, #6468). Reserved names (C 7.1.3) the reference's signal.h, sys/signal.h and sched.h define for their own use, `_SIGSET_NWORDS` and `_STRUCT_TIMESPEC`, are not defined by libniji's headers: no program may rely on a reserved name, and sigset_t's size comes from the layout table. `bsd_signal` is exported (the symbol stays) and is declared in no header; its differences row and compatibility option belong to slice 7 (ruling #6378). `siginfo_t` and `union sigval` are visible in libniji's signal.h and sys/signal.h under `_POSIX_C_SOURCE` 1 and 2 and `_XOPEN_SOURCE` without the extended set, where the reference hides them: `struct sigaction` is one structure in every configuration and its `sa_sigaction` member needs them. `__sigsetjmp` is declared by pthread.h because the cleanup macros expand to a call of it. No compatibility option for any of these: a header has no run-time switch, the names are reserved or required by a declared member, and no conforming program can depend on their absence.
+'''

@@ -1,0 +1,17 @@
+{"task": "ICONV-NAME-MATCH-2", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: run 1 red fixed (ISO88591 in the iconv -l header; 106 probed alias names restore KOI8R, ISO885915, ...); gate, start-up checks and 14 plants green; iconv_open instructions +28..69% vs base on the same host (run 1 name parsing): must not land until profiled and fixed",
+ "branch": "task/iconv-name-match-2", "head": "b79bfe76a",
+ "gate": {"affected": "32 suites: 12104 passed / 0 failed; conformance 138/0; xtask test 6784+5296 passed; hot_text_products (full profile) ok", "peak": "17G"}, "accepted_first_attempt": null,
+ "rulings": [{"item": "iconv_open name rule costs +28..69% instructions per open+close (UTF-8 1698 -> 2636)", "recommendation": "do not land; continuation profiles and removes the per-name 128-byte matching-form copy, then re-measures"}],
+ "informational": ["12 of the 106 aliases (EUCKR, SHIFT-JIS, EUCTW, MACCYRILLIC, IBM-1132.., T.618BIT, ...) convert differently from the reference with the distro charmaps, exactly as their charmap names already do in libniji: charmap conversion differences predating this story", "493 names the reference lists have no letters-and-digits partner among libniji's names (BIG-FIVE, CP1140, 8859_2, ...); next did not open them either: a follow-up could map them by fingerprint", "iconv -l lists built-ins and charmap stems, not aliases (D-31.16); the reference lists its aliases too", "run 1's counts job stopped at xtask static and measured nothing"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "iconv_open opens the 106 listed names that stand for a charmap (KOI8R, ISO885915, EUCKR, ISO8859-2, ...) with any installed charmap set; run 1 rejected them with EINVAL", "before": 0, "after": 106, "unit": "names", "measured": true},
+  {"kind": "correctness", "what": "iconv command listing header carries ISO88591 as the reference's iconv -l does", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "test s6_4_c_1_charmap_aliases; plants added", "before": 9, "after": 14, "unit": "plants", "measured": true},
+  {"kind": "cost", "what": "iconv_open+close x1000 both ways, UTF-8 (same host, base 06c0b561e); fix-forward: continuation removes the per-name copy", "before": 1697700, "after": 2635672, "unit": "instructions", "measured": true}, {"kind": "cost", "what": "iconv_open+close x1000 both ways, CP1252, generated charmaps", "before": 3208988, "after": 4691329, "unit": "instructions", "measured": true}, {"kind": "cost", "what": "iconv_open+close x1000 both ways, ISO-8859-15", "before": 3013810, "after": 5079917, "unit": "instructions", "measured": true}
+ ],
+ "improvement": "run 1 checkpointed with its after-counts unread; reading counts against a same-host base before the gate would have found the +55% before two gate cycles were spent",
+ "next_step": "profile iconv_open per phase (base vs head), remove the name-parsing cost, re-measure with counts.sh/before.sh on mei; then land. Later: follow-up story for the 493 listed names without a partner (fingerprint mapping) and alias listing in iconv -l",
+ "report_file": "handoff/ICONV-NAME-MATCH.md",
+ "jobs": ["iconv-name-match-2-gate", "iconv-name-match-2-plants", "iconv-name-match-2-counts", "iconv-name-match-2-before"]}

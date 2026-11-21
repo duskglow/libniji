@@ -293,6 +293,16 @@ static SYSINFO_EHDR: AtomicUsize = AtomicUsize::new(usize::MAX);
 static VDSO_STATE: AtomicU8 = AtomicU8::new(0); // 0 unresolved, 1 resolved
 static VDSO_FNS: [AtomicUsize; 5] = [const { AtomicUsize::new(0) }; 5];
 
+/// The thread pointer (`ARCH_GET_FS`), or 0 when the query fails: the kernel then writes nothing
+/// and the word keeps its 0. `runtime::start` reads 0 as "no thread pointer yet" (a static
+/// program) either way, so it tests one word instead of the call's result and then the word.
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+pub(crate) fn thread_pointer_or_zero() -> u64 {
+    let mut v = 0u64;
+    let _ = niji_sys_arch_prctl(u(niji_kernel::ops::ArchGet::Fs.code()), xm(&mut v));
+    v
+}
+
 /// Record the vDSO base from the process's auxiliary vector (the process entry,
 /// `runtime::start`). A process the entry did not start reads `/proc/self/auxv` on first use.
 /// Only the kernel's own value may be passed here: it becomes a slice (`conv::kernel_image`).

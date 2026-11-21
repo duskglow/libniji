@@ -81,6 +81,9 @@ fn main() {
             Some("math_libc.c") => export,
             Some("math_both.c") => export || libm,
             Some("math_libm.c" | "libm_init.c") => libm,
+            // The C library product takes its unwinder entries from `cargo xtask so`: a form that
+            // returns 0 for libc.so.6, weak references for libc.a (D-22.21).
+            Some("unwinder.S") => !runtime,
             _ => true,
         };
         let obj = out.join(format!("csys_{i}.o"));

@@ -1,0 +1,29 @@
+{
+ "task": "SL-HEADERS-S08-5",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "origin/next merged into slice 8; next's split generator taken whole, four small slice-8 generator edits and typed function-pointer members re-applied on it; headers-gen --check ok (94 headers), header_check 0 failed of 6435, clippy and static clean",
+ "branch": "task/sl-headers-s08-5",
+ "head": "see git",
+ "gate": {
+  "affected": "FULL: the train's (merge of next into a headers slice; gated on headers-gen --check, header_check, clippy, static and the plants)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Run 4's monolith member emitter, @@init, packed/aligned and pointer-literal code were dropped in favour of next's modules (same results: header_check 0 failed of 6435, run 4 had 0 of 5382)",
+  "The first plants run on this merge caught a loss: next's emitter declared function-pointer members as void (*m) (void), so sa_sigaction and the cleanup routine lost their types while header_check still passed (it checks layout only). headers/fnmembers.tsv is read again by next's aggregates.rs. Plants run 1 (8 caught, 1 survived) is superseded by plants run 2.",
+  "header_check P1 does not check the type of a function-pointer member, only its offset and size: a plant (s8-fnmember-declarator) is what guards it",
+  "P6 (conformance/run.sh --niji-headers) was not rerun: merge-only run, no header content added"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "slice 8 headers (signal.h, pthread.h, sched.h, threads.h, ucontext.h, ...) landable again after the merge conflict on headers.rs and the differences doc", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "slice 8 plants (9) kept, three paths moved to next's cond.rs and values.rs", "before": 9, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "headers-gen --check takes about 18 minutes on the build host after a generator edit (the whole product rebuild); a generator-only unit test of one header would shorten fix cycles",
+ "next_step": "the train's FULL gate and landing",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": ["keke:sl-headers-s08-5-gen5", "keke:sl-headers-s08-5-plants2"]
+}

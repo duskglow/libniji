@@ -70,7 +70,7 @@ needed** (for Yohane Linux).
 | `crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o` (libc6-dev) | has | `niji-crt1.o`, `niji-rcrt1.o`, `niji-gcrt1.o` |
 | `crti.o`, `crtn.o`, `grcrt1.o`, `Mcrt1.o` (libc6-dev) | missing | SL-CRT (plain `gcc` needs crti/crtn; niji-gcc links `-nostartfiles`) |
 | `libc.so` script, `libc_nonshared.a`, static archives (libc6-dev) | has | D-27.28, build.sh |
-| `libm.so` script (`AS_NEEDED` libmvec), `libm-2.41.a`, `libmvec.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, `libBrokenLocale.a` (libc6-dev) | partly (`libm.so` is a link) | SL-SONAMES (empty archives where glibc's are) |
+| `libm.so` script (`AS_NEEDED` libmvec), `libm-2.41.a`, `libmvec.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, `libBrokenLocale.a` (libc6-dev) | partly (`libm.so` is a script adding `libmvec.so.1` AS_NEEDED since LIBM-SO-MVEC, issue #28) | SL-SONAMES (empty archives where glibc's are) |
 | `libc.so.6-gdb.py` (libc6-dev) | not needed | gdb support is DL-23 |
 | `gencat` (libc-dev-bin) | missing | SL-DEVTOOLS (format D.2.2 exists) |
 | `memusage`, `memusagestat`, `mtrace`, `sotruss`, `sprof` (libc-devtools) | missing | SL-DEVTOOLS (later, not on the boot path) |

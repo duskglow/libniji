@@ -15,6 +15,9 @@
 //!   (`windows-<profile>=mode:n,...`): over is a regression, under is a level to ratchet (ALWAYS FORWARD). A red
 //!   names, for each window of the mode, the bin, its bytes, budget and headroom, its largest members the mode runs,
 //!   and against a base plan (`NIJI_LAYOUT_BASE_BINS`: next's `layout-bins.tsv`) the members new or grown, in bytes.
+//!   D-X.145: the count blocks only in the profiles `windows-block` names (the shipped `release`); in the others (the
+//!   `fast` tool profile, whose codegen-unit partition moves with edits to unrelated code in the same crate) the same
+//!   lines are a non-blocking WINDOW-COUNT REPORT. The bins' bytes and placement and the data bins block everywhere.
 //! * **Data bins.** The start-up read-only cluster (`.rodata1`) within `rodata1-windows` windows from its window's
 //!   start; the written start-up cluster (`.data1`) within `data1-pages-<profile>` pages from its page's start.
 //!   And every output section holding start-up data (D-X.138: the objects STARTUP-DATA-WINDOWS counts, `.got`,
@@ -169,6 +172,10 @@ pub struct Budgets {
     pub head_room: u64,
     pub profile: String,
     pub modes: BTreeMap<String, u64>,
+    /// D-X.145: whether this profile's windows per mode block (`windows-block=<profile>,...`). The shipped profile's
+    /// do; the tool profile's (thin LTO, 16 codegen units) move when an edit re-partitions a crate's codegen units,
+    /// a layout that ships nowhere, so there they are a non-blocking WINDOW-COUNT REPORT.
+    pub counts_block: bool,
     /// `.rodata1` and its budget in windows.
     pub rodata1: Option<(Linked, u64)>,
     /// `.data1` and its budget in pages.
@@ -247,6 +254,8 @@ pub fn verdict(a: &Analysis, b: &Budgets, base: Option<&BTreeMap<String, u64>>) 
         }
     }
     let mut per_mode = Vec::new();
+    // D-X.145: the count lines go to `broken` where this profile's counts block, else to a non-blocking report.
+    let mut counted = Vec::new();
     for (m, ws) in &a.windows {
         let n = ws.len() as u64;
         let Some(&budget) = b.modes.get(m) else {
@@ -255,10 +264,10 @@ pub fn verdict(a: &Analysis, b: &Budgets, base: Option<&BTreeMap<String, u64>>) 
         };
         per_mode.push(format!("{m} {n}/{budget}"));
         if n > budget {
-            broken.push(format!("mode {m}: {n} windows of {w} bytes > windows-{p} {budget}"));
+            counted.push(format!("mode {m}: {n} windows of {w} bytes > windows-{p} {budget}"));
             for x in ws {
                 for (&k, lb) in a.bins.iter().filter(|(_, lb)| lb.start / w <= *x && *x <= (lb.end - 1) / w) {
-                    broken.push(format!(
+                    counted.push(format!(
                         "  mode {m}: window 0x{:x}: {}; largest members {m} runs there: {}; {}",
                         x * w,
                         bin_line(k, lb),
@@ -268,13 +277,21 @@ pub fn verdict(a: &Analysis, b: &Budgets, base: Option<&BTreeMap<String, u64>>) 
                 }
             }
         } else if n < budget {
-            broken.push(format!("mode {m}: {n} windows < windows-{p} {budget}: the level improved; tighten the budget to {n} (ALWAYS FORWARD)"));
+            counted.push(format!("mode {m}: {n} windows < windows-{p} {budget}: the level improved; tighten the budget to {n} (ALWAYS FORWARD)"));
         }
     }
     for m in b.modes.keys().filter(|m| !a.windows.contains_key(*m)) {
         broken.push(format!("mode {m}: budgeted in windows-{p} but no bin member runs it (renamed or dropped mode?)"));
     }
     report.push(format!("windows per mode ({p}, count/budget): {}", per_mode.join(" ")));
+    if b.counts_block {
+        broken.extend(counted);
+    } else if !counted.is_empty() {
+        report.push(format!(
+            "WINDOW-COUNT REPORT (non-blocking, D-X.145: the {p} profile's codegen-unit partition moves with unrelated edits and ships nowhere; the windows per mode block on the products of windows-block, NIJI_FULL_PROFILE=1 cargo xtask so)"
+        ));
+        report.extend(counted.into_iter().map(|l| if l.starts_with("  ") { format!("  {l}") } else { format!("  over or under its budget: {l}") }));
+    }
     for (name, sec, unit, what) in [(".rodata1", &b.rodata1, w, "windows"), (".data1", &b.data1, b.page, "pages")] {
         let Some((s, units)) = sec else {
             broken.push(format!("{name}: not in the probe's link (the start-up cluster is missing)"));
@@ -450,6 +467,7 @@ mod tests {
             head_room: 0x400,
             profile: "fast".into(),
             modes: parse_budgets(modes).unwrap(),
+            counts_block: true,
             rodata1: Some((sec(0x50_0000, 40_000, ".rodata1"), 1)),
             data1: Some((sec(0x60_3000, 11_744, ".data1"), 3)),
         }
@@ -535,6 +553,37 @@ mod tests {
         l[3].start += 0x40;
         let (_, broken) = verdict(&analyse(&l, &sig_rows(), str::to_string, BIN).unwrap(), &budgets("true:1,locale:2,strings:1"), None);
         assert!(broken.iter().any(|x| x.contains("window bin 1 starts at 0x420040, 64 bytes off")), "{broken:?}");
+    }
+
+    #[test]
+    fn a_profile_whose_counts_do_not_block_reports_them_and_keeps_the_byte_checks() {
+        // no spec clause: tooling (D-X.145).
+        let a = analyse(&link(), &sig_rows(), str::to_string, BIN).unwrap();
+        let mut b = budgets("true:2,locale:1,strings:1");
+        b.counts_block = false;
+        let (report, broken) = verdict(&a, &b, None);
+        assert!(broken.is_empty(), "a count over or under its budget blocks only where windows-block names the profile: {broken:?}");
+        let head = report.iter().position(|l| l.starts_with("WINDOW-COUNT REPORT (non-blocking, D-X.145")).expect("the count lines are reported");
+        let rest = &report[head + 1..];
+        assert!(rest.iter().any(|l| l == "  over or under its budget: mode locale: 2 windows of 65536 bytes > windows-fast 1"), "{report:?}");
+        assert!(rest.iter().any(|l| l.starts_with("    mode locale: window 0x420000: window bin 1")), "{report:?}");
+        assert!(rest.iter().any(|l| l.contains("mode true: 1 windows < windows-fast 2")), "{report:?}");
+        // The same link blocks where the counts do.
+        b.counts_block = true;
+        let (report, broken) = verdict(&a, &b, None);
+        assert_eq!(broken[0], "mode locale: 2 windows of 65536 bytes > windows-fast 1", "{broken:?}");
+        assert!(!report.iter().any(|l| l.starts_with("WINDOW-COUNT REPORT")), "{report:?}");
+        // A bin off its boundary, an unbudgeted mode and bytes over a budget stay red in every profile.
+        let mut l = link();
+        l[3].start += 0x40;
+        let mut a = analyse(&l, &sig_rows(), str::to_string, BIN).unwrap();
+        a.bins.get_mut(&0).unwrap().end = 0x42_0041;
+        let mut b = budgets("true:1,locale:2");
+        b.counts_block = false;
+        let (_, broken) = verdict(&a, &b, None);
+        assert!(broken.iter().any(|x| x.contains("window bin 1 starts at 0x420040, 64 bytes off")), "{broken:?}");
+        assert!(broken.iter().any(|x| x == "mode strings: 1 windows and no budget in windows-fast"), "{broken:?}");
+        assert!(broken.iter().any(|x| x.starts_with("window bin 0: ") && x.contains("> budget 64512")), "{broken:?}");
     }
 
     #[test]

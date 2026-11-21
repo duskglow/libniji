@@ -1,0 +1,10 @@
+# HEAP-ADDRESS-SPACE-7 plants (cargo xtask plants; docs/plants.md): the issue #21 RLIMIT_AS check under a fixed
+# layout at the measured need (ruling #6566). as-room-fallback takes away the aligned mapping that a segment needs
+# under an address-space limit (the over-mapping fails only under a limit); seg-first-17 adds one slab (256 KiB) to a
+# new segment, inside the per-step bounds' slack but over the fixed-layout need.
+# Run 1 (heap-address-space-7-plants) also planted `{ map_aligned_exactly(0, len, align, node) } else ==> { None }
+# else` (Pages::map's fallback): SURVIVED. That fallback is origin/next's code (this story only added the `0` head
+# argument), and the issue #21 program's mappings under the limit come from map_room, so its test cannot reach it.
+# No test runs Pages::map to success under a limit (reported INFORMATIONAL); the plant is not repeated here.
+as-room-fallback | crates/boundary/src/heap.rs | lit:return map_aligned_exactly(head, len, align, node); ==> return None; | cargo test -p niji --test heap_meta_products the_heap_keeps | msg:steps failed
+seg-first-17 | crates/rt/src/heap.rs | lit:const SEG_FIRST: usize = 16; ==> const SEG_FIRST: usize = 17; | cargo test -p niji --test heap_meta_products the_heap_keeps | msg:steps failed

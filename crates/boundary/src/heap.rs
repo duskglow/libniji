@@ -49,7 +49,7 @@ impl Pages for KernelPages {
         let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
             // The over-mapping may not fit under an address-space limit (T14): an aligned range
             // without the slack, found from where the kernel would place `len` bytes.
-            return if slack > 0 { map_aligned_exactly(len, align, node) } else { None };
+            return if slack > 0 { map_aligned_exactly(0, len, align, node) } else { None };
         };
         let base = region.addr();
         let addr = base.checked_next_multiple_of(align.max(PAGE))?;
@@ -66,6 +66,45 @@ impl Pages for KernelPages {
             let _ = raw::mbind_preferred(addr, len, n);
         }
         Some(addr)
+    }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        // Over-map by the room and the alignment (address space only, never touched), keep
+        // `head + len` bytes with the aligned address after `head`, and cut the rest off: the
+        // room above the kept part was free a moment ago, and the kernel places later mappings
+        // at the top of that gap first, so the mapping can usually grow in place.
+        let total = head.checked_add(room.max(len))?.checked_add(align)?;
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
+            // Under an address-space limit the over-mapping may not fit (T14).
+            return map_aligned_exactly(head, len, align, node);
+        };
+        let base = region.addr();
+        let addr = base.checked_add(head)?.checked_next_multiple_of(align.max(PAGE))?;
+        let start = addr.saturating_sub(head);
+        if start > base {
+            let _ = raw::munmap(base, start.saturating_sub(base));
+        }
+        let (end, top) = (addr.saturating_add(len), base.saturating_add(total));
+        if top > end {
+            let _ = raw::munmap(end, top.saturating_sub(end));
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(start, head.saturating_add(len), n);
+        }
+        Some(addr)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+        let Ok(region) = CSys.mmap(addr, len, PROT_READ | PROT_WRITE, flags, None, 0) else { return false };
+        if region.addr() != addr {
+            // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+            let _ = raw::munmap(region.addr(), len);
+            return false;
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(addr, len, n);
+        }
+        true
     }
     fn unmap(&self, addr: usize, len: usize) {
         let _ = raw::munmap(addr, len);
@@ -154,30 +193,87 @@ pub struct OwnPages;
 /// `len` bytes at a multiple of `align` without mapping `len + align` first (T14): the kernel
 /// picks where `len` bytes go; if that is not aligned, the aligned addresses just above and just
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
-fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<usize> {
-    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+/// With `head`: `head + len` bytes whose address plus `head` is the multiple (the address
+/// returned), as [`Pages::map_room`] places them.
+/// The gap the kernel picks may hold `head + len` bytes but no aligned range (a gap just above
+/// another segment, issue #21 under `ulimit -v`): both candidates are then taken. That gap is
+/// blocked with one-page `PROT_NONE` mappings (never replacing one) so that no free piece of
+/// it fits, and the kernel is asked again, at most [`EXACT_ROUNDS`] times; the blockers are
+/// removed before returning. Off every hot path: reached only when the over-mapping is refused.
+#[cold]
+#[inline(never)]
+fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+    use niji_kernel::uapi::PROT_NONE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
-    let probe = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
-    let addr = if probe.checked_rem(align) == Some(0) {
-        probe
-    } else {
-        let _ = raw::munmap(probe, len);
-        let up = probe.checked_next_multiple_of(align)?;
-        let down = up.checked_sub(align)?;
-        [up, down].into_iter().find_map(|a| {
-            let got = CSys.mmap(a, len, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
-            if got == a {
-                Some(a)
-            } else {
-                let _ = raw::munmap(got, len);
-                None
+    let total = head.checked_add(len)?;
+    // Blockers a page apart by at most `total` leave every free piece of the gap below `total`.
+    let step = (total & !(PAGE - 1)).max(PAGE);
+    let mut blockers = [0usize; EXACT_ROUNDS * EXACT_BLOCKERS];
+    let mut held = 0usize;
+    let mut found = None;
+    for _ in 0..EXACT_ROUNDS {
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0) else { break };
+        let probe = region.addr();
+        let Some(after_head) = probe.checked_add(head) else { break };
+        if after_head.checked_rem(align) == Some(0) {
+            found = Some(after_head);
+            break;
+        }
+        let _ = raw::munmap(probe, total);
+        let Some(up) = after_head.checked_next_multiple_of(align) else { break };
+        let Some(down) = up.checked_sub(align) else { break };
+        found = [up, down].into_iter().find_map(|a| map_fixed_noreplace(a.checked_sub(head)?, total, PROT_READ | PROT_WRITE).map(|_| a));
+        if found.is_some() {
+            break;
+        }
+        // Something is mapped in [down - head, probe) and in [probe + total, up + len) (the
+        // probe's own range was free), so the probe's gap lies inside (down - head, up + len).
+        let (Some(from), Some(to)) = (down.checked_sub(head), up.checked_add(len)) else { break };
+        let from = from & !(PAGE - 1);
+        if to.saturating_sub(from).div_ceil(step) > EXACT_BLOCKERS {
+            break;
+        }
+        // `from` itself is at or below that lower mapped page, outside the gap: start a step up.
+        let mut at = from.saturating_add(step);
+        while at < to {
+            if let Some(b) = map_fixed_noreplace(at, PAGE, PROT_NONE) {
+                if let Some(slot) = blockers.get_mut(held) {
+                    *slot = b;
+                    held = held.saturating_add(1);
+                }
             }
-        })?
-    };
+            at = at.saturating_add(step);
+        }
+    }
+    for &b in blockers.get(..held).unwrap_or(&[]) {
+        let _ = raw::munmap(b, PAGE);
+    }
+    let addr = found?;
     if let Some(n) = node {
-        let _ = raw::mbind_preferred(addr, len, n);
+        let _ = raw::mbind_preferred(addr.saturating_sub(head), total, n);
     }
     Some(addr)
+}
+
+/// Gaps [`map_aligned_exactly`] asks the kernel for before it gives up.
+const EXACT_ROUNDS: usize = 8;
+/// Bound on a round's blockers: `(align + head + len) / (head + len)` rounded up (one more than
+/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`]; a gap needing
+/// more is not blocked.
+const EXACT_BLOCKERS: usize = 8;
+
+/// `len` bytes mapped with `prot` at exactly `start`, never replacing a mapping.
+fn map_fixed_noreplace(start: usize, len: usize, prot: u32) -> Option<usize> {
+    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+    let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+    let got = CSys.mmap(start, len, prot, flags, None, 0).ok()?.addr();
+    if got == start {
+        Some(got)
+    } else {
+        // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+        let _ = raw::munmap(got, len);
+        None
+    }
 }
 
 /// Whether the kernel fills the rseq area's `node_id` (D-3.21): asked of the auxiliary vector
@@ -289,6 +385,44 @@ pub fn obstack_handler() -> usize {
 pub extern "C" fn default_obstack_failure() {
     let _ = CSys.write(Fd::STDERR, niji_legacy::obstack::EXHAUSTED);
     CSys.exit_group(crate::data::obstack_exit_failure.load(core::sync::atomic::Ordering::Relaxed))
+}
+
+/// Rust's global allocator in the libresolv product (LIBRESOLV-OWN-CODE): the caller allocator
+/// (`malloc` through the symbol), so libresolv.so.2 holds no heap of its own. Blocks are at most
+/// 16-aligned (`malloc`'s alignment); a larger alignment fails (null), which the fallible
+/// containers report as `ENOMEM`.
+#[cfg(feature = "libresolv")]
+pub struct LibresolvAlloc;
+
+#[cfg(feature = "libresolv")]
+// UNSAFE(allocator): implementing `GlobalAlloc` for the libresolv product.
+// SAFETY: blocks come from `malloc`/`calloc`/`realloc`, which never hand out overlapping live
+// blocks and honour sizes up to the 16-byte alignment checked here; null on exhaustion.
+#[allow(unsafe_code)]
+unsafe impl GlobalAlloc for LibresolvAlloc {
+    // UNSAFE(allocator): the trait's required method.
+    #[allow(unsafe_code)]
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_malloc(layout.size().max(1)).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's required method; `ptr` came from `alloc` (the trait's contract).
+    #[allow(unsafe_code)]
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        crate::caller_alloc::caller_free(ptr.cast());
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `calloc`).
+    #[allow(unsafe_code)]
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_calloc(layout.size().max(1), 1).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `realloc`); `ptr` came from `alloc`.
+    #[allow(unsafe_code)]
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_realloc(ptr.cast(), new_size.max(1)).cast() }
+    }
 }
 
 /// Rust's global allocator in the products (`#[global_allocator]` is set by the product
@@ -1093,6 +1227,12 @@ impl Pages for OwnPages {
     fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
         KernelPages.remap(addr, old_len, new_len)
     }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        KernelPages.map_room(head, len, room, align, node)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        KernelPages.grow(addr, len, node)
+    }
     #[inline(always)]
     fn wipe(&self, addr: usize, len: usize) {
         KernelPages.wipe(addr, len);
@@ -1166,6 +1306,12 @@ mod foreign {
         #[inline(always)]
         fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
             KernelPages.remap(addr, old_len, new_len)
+        }
+        fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+            KernelPages.map_room(head, len, room, align, node)
+        }
+        fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+            KernelPages.grow(addr, len, node)
         }
         #[inline(always)]
         fn wipe(&self, addr: usize, len: usize) {

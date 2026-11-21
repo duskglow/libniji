@@ -23,7 +23,10 @@
 #    linked). libresolv (issue #5): smoke/resolv.c linked with `-lresolv` needs libresolv.so.2 and
 #    libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's libkrb5.so.3 does);
 #    linked statically with `-lresolv` (the empty libresolv.a, the functions in libc.a: D-16.6) it
-#    runs and prints its line.
+#    runs and prints its line. -lm (issue #28): libc6-dev's libm.so is a linker script (never a
+#    link); smoke/mvec.c (-O3 -ffast-math, a loop vectorised into libmvec calls) linked with plain
+#    `-lm` needs libmvec.so.1; smoke/nomvec.c (one scalar call, --no-as-needed -lm) needs libm.so.6
+#    and not libmvec.so.1 (AS_NEEDED).
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -87,10 +90,13 @@ for dl in $(awk -F '\t' '$1 == "libc6-dev" && $3 == "link" { print $2 }' "$tmp/r
 done
 
 # 3. libc6-dbg (SYS-DBG-PACKAGE): every strip debug row of the manifest (libc6's shared objects,
-#     libc-bin's programs but iconv) is stripped (no symbol table) and keeps its GNU build-id
+#     libc-bin's programs) is stripped (no symbol table) and keeps its GNU build-id
 #     note; libc6-dbg holds exactly one
 #     file per object, .build-id/<first byte>/<rest>.debug, whose own build-id is the object's and
-#     which has the symbol table; libc.so.6's has line tables (.debug_line). gdb, given only the
+#     which has the symbol table and DWARF: .debug_info and line tables (.debug_line), every one of
+#     them (SYS-DBG-DWARF). Every ELF executable or shared object any of the packages ships (found by
+#     its ELF header, not by the manifest, so a new program without a strip debug row is caught) is
+#     one of those objects. gdb, given only the
 #     debug directory, prints the source line of DBG_FUNC's entry address (`info line *getenv` by
 #     default; the address form, because line tables carry no function entries to look a name up in).
 build_id() { readelf -nW "$1" 2>/dev/null | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
@@ -112,9 +118,11 @@ for f in $(awk -F '\t' -v r="$r" '$6 == "debug" { print r "/" $2 }' "$tmp/rows")
         continue
     fi
     [ "$(build_id "$dbgroot/$d")" = "$id" ] || fail "libc6-dbg's $d has the build-id '$(build_id "$dbgroot/$d")', not $name's $id"
-    readelf -SW "$dbgroot/$d" | grep -q ' \.symtab ' || fail "libc6-dbg's $d (for $name) has no symbol table"
+    readelf -SW "$dbgroot/$d" > "$tmp/dbgsecs"
+    grep -q ' \.symtab ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no symbol table"
+    grep -q ' \.debug_info ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no debug information (.debug_info)"
+    grep -q ' \.debug_line ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no line tables (.debug_line)"
     case $name in
-        */libc.so.6) readelf -SW "$dbgroot/$d" | grep -q ' \.debug_line ' || fail "libc6-dbg's $d (for libc.so.6) has no line tables (.debug_line)" ;;
         # VALGRIND-LDSO-SYMBOLS (GitHub issue #13): valgrind (amd64) starts a program only when it finds
         # functions named strcmp and strlen among the loader's symbols; the stripped loader has none, so
         # they must be local function symbols of its debug file (xtask/src/so.rs LD_TOOL_NAMES).
@@ -125,6 +133,19 @@ for f in $(awk -F '\t' -v r="$r" '$6 == "debug" { print r "/" $2 }' "$tmp/rows")
             done ;;
     esac
 done
+# Every shipped ELF executable or shared object (the debug files aside) is a strip debug row's.
+find "$r" -path "$dbgroot" -prune -o -type f -print | sort > "$tmp/shipped"
+while IFS= read -r f; do
+    case $(readelf -hW "$f" 2>/dev/null | sed -n 's/^ *Type: *\([A-Z]*\).*/\1/p') in
+        EXEC|DYN) ;;
+        *) continue ;;
+    esac
+    name=${f#"$r"}
+    id=$(build_id "$f")
+    if [ -z "$id" ] || ! grep -q -x ".build-id/$(printf '%.2s' "$id")/${id#??}.debug" "$tmp/ids"; then
+        fail "$name is an ELF executable or shared object with no libc6-dbg file (give its manifest row strip debug)"
+    fi
+done < "$tmp/shipped"
 if [ -d "$dbgroot" ]; then
     (cd "$dbgroot" && find . -type f | sed 's|^\./||' | sort) > "$tmp/dbgfiles"
     extra=$(sort "$tmp/ids" | comm -13 - "$tmp/dbgfiles" | tr '\n' ' ')
@@ -207,6 +228,25 @@ if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$
     [ "$out" = "$want_resolv" ] || fail "static resolv (-lresolv) printed '$out', not '$want_resolv'"
 else
     fail "static resolv (-lresolv) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+# -lm and libmvec.so.1 (issue #28). The vector calls need headers that declare the simd variants:
+# without them the mvec check is skipped with an INFO line.
+[ -f "$lib/libm.so" ] && [ ! -L "$lib/libm.so" ] || fail "libc6-dev's libm.so is not a regular file (a linker script)"
+begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
+if ! "$cc" -O3 -ffast-math -S -o - "$here/smoke/mvec.c" 2>/dev/null | grep -q _ZGVbN4v_sinf; then
+    echo "check: INFO skip mvec: the compiler's headers declare no simd variant of sinf"
+elif "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/mvec.c" -lm -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/mvec" > "$tmp/log" 2>&1; then
+    needed=" $(readelf -dW "$tmp/mvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $needed in *" libmvec.so.1 "*) ;; *) fail "mvec (-lm) needs '$needed', without libmvec.so.1" ;; esac
+else
+    fail "mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+if "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/nomvec.c" -Wl,--no-as-needed -lm -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/nomvec" > "$tmp/log" 2>&1; then
+    needed=" $(readelf -dW "$tmp/nomvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $needed in *" libm.so.6 "*) ;; *) fail "nomvec (--no-as-needed -lm) needs '$needed', without libm.so.6" ;; esac
+    case $needed in *" libmvec.so.1 "*) fail "nomvec needs libmvec.so.1 ('$needed'): -lm must add it only as needed" ;; esac
+else
+    fail "nomvec (-lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi
 
 if [ "$fails" -ne 0 ]; then

@@ -452,7 +452,7 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_stack_exec", "__niji_thread_walk"];
+const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
@@ -1003,6 +1003,8 @@ pub(crate) struct ProductBuild {
 pub(crate) const LIBC_BUILD: ProductBuild = ProductBuild { manifest: "crates/libc-so/Cargo.toml", archive: "libc.a", subdir: "", extra: None };
 /// `libm.a` and `libm.so.6` ([`run_libm`]): the libc build's flags and tag, so the two share their dependencies.
 pub(crate) const LIBM_BUILD: ProductBuild = ProductBuild { manifest: "crates/libm-so/Cargo.toml", archive: "libm.a", subdir: "", extra: None };
+/// libresolv.so.2's own code ([`libresolv_object`], LIBRESOLV-OWN-CODE): the libc build's flags and tag.
+pub(crate) const LIBRESOLV_BUILD: ProductBuild = ProductBuild { manifest: "crates/libresolv-so/Cargo.toml", archive: "libresolv.a", subdir: "", extra: None };
 /// The interpreter ([`run_ld`]): its own flags, so its own target directory.
 pub(crate) const LD_BUILD: ProductBuild = ProductBuild { manifest: "crates/ld-so/Cargo.toml", archive: "libld_so.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
 
@@ -1290,6 +1292,9 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
     let weak = weaken_archive(archive, &product.join("weaken"), &staged)?;
     // After the weakening pass, which rebuilds the product crate's objects.
     shared_personality_ref(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &staged, &product.join("personality-work"))?;
+    // D-22.21: the published archive only (libc.so.6 keeps the form that returns 0).
+    static_unwinder_member(root, &staged, &product.join("unwinder-work"))?;
+    println!("so: libc.a refers weakly to the unwinder a static program links (D-22.21)");
     // LAYOUT-GOT-ORDER (D-X.140): the published archive only (libc.so.6 was linked from `archive`, and a
     // position-independent link keeps these GOT slots anyway), so a static program has no `.got`.
     let got = crate::gotrelax::mark_archive(&staged)?;
@@ -1354,6 +1359,56 @@ fn check_no_link_edge(so: &Path) -> Result<(), String> {
     }
 }
 
+/// The unwinder entries libc.a refers to weakly (machine/unwinder.S, D-22.21).
+const STATIC_UNWINDER: [&str; 2] = ["_Unwind_ForcedUnwind", "_Unwind_GetCFA"];
+
+/// The source of the unwinder entries (D-22.21) and the libc.a member made from it.
+const UNWINDER_SRC: &str = "csys/src/machine/unwinder.S";
+const UNWINDER_MEMBER: &str = "niji-unwinder.o";
+/// The entry the library's thread exit calls (machine/unwinder.S).
+const UNWINDER_ENTRY: &str = "niji_machine_unwind_force";
+
+/// D-22.21: adds to the published `archive` the member [`UNWINDER_MEMBER`], machine/unwinder.S
+/// assembled with -DNIJI_STATIC_ARCHIVE (weak references to [`STATIC_UNWINDER`]); the C layer
+/// leaves the file out of the library product, so the archive's thread exit refers to its
+/// entries undefined. Before, no member may define [`UNWINDER_ENTRY`] (under any prefix) and
+/// some member must refer to it; after, the new member must be the archive's only reference to
+/// [`STATIC_UNWINDER`], a weak one each; anything else is an error.
+fn static_unwinder_member(root: &Path, archive: &Path, work: &Path) -> Result<(), String> {
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let _ = fs::remove_dir_all(work);
+    fs::create_dir_all(work).map_err(|e| format!("{}: {e}", work.display()))?;
+    // `nm -A` lines: `<archive>:<member>:<value> <kind> <name>` (the value is blank when undefined).
+    let nm = |args: &[&str]| -> Result<Vec<(String, String, String)>, String> {
+        let out = Command::new("nm").args(["-A"]).args(args).arg(archive).output().map_err(|e| format!("nm: {e}"))?;
+        Ok(String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter_map(|l| {
+                let mut w = l.split_whitespace().rev();
+                let (sym, kind) = (w.next()?, w.next()?);
+                Some((l.split(':').nth(1)?.to_string(), kind.to_string(), sym.to_string()))
+            })
+            .collect())
+    };
+    let defined = nm(&["--defined-only"])?;
+    if let Some((m, _, s)) = defined.iter().find(|(_, _, s)| s.ends_with(UNWINDER_ENTRY)) {
+        return Err(format!("{}: member {m} defines {s}: {UNWINDER_SRC} must reach libc.a only as {UNWINDER_MEMBER} (crates/boundary/build.rs)", archive.display()));
+    }
+    let undefined = nm(&["--undefined-only"])?;
+    if !undefined.iter().any(|(_, _, s)| s == UNWINDER_ENTRY) {
+        return Err(format!("{}: no member refers to {UNWINDER_ENTRY} (crates/boundary/src/cancel.rs)", archive.display()));
+    }
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_ARCHIVE").arg(root.join(UNWINDER_SRC)).arg("-o").arg(work.join(UNWINDER_MEMBER)))?;
+    run(Command::new(&ar).current_dir(work).arg("rs").arg(archive).arg(UNWINDER_MEMBER))?;
+    let refs: Vec<(String, String, String)> = nm(&["--undefined-only"])?.into_iter().filter(|(_, _, s)| STATIC_UNWINDER.contains(&s.as_str())).collect();
+    let want: Vec<(String, String, String)> = STATIC_UNWINDER.iter().map(|s| (UNWINDER_MEMBER.to_string(), "w".to_string(), (*s).to_string())).collect();
+    if refs != want {
+        return Err(format!("{}: references to the unwinder are {refs:?}, expected only {want:?} (D-22.21)", archive.display()));
+    }
+    Ok(())
+}
+
 /// LAYOUT-RO-STABLE (D-X.143): the linker-script fragment both libc links add. GNU ld's default script puts
 /// `.rodata1` (the start-up read-only group, 64 KiB aligned) after `.rodata`, so the gap ahead of the group
 /// followed the text's size, and the linker starts a new segment where a gap holds a whole page: one or two
@@ -1400,6 +1455,16 @@ pub fn read_only_segment_errors(phdrs: &str, sections: &str) -> Result<(), Strin
         return Err(format!("the read-only PT_LOAD starts at {list}, not at {sec} ({at:#x}): the start-up group no longer leads it"));
     }
     Ok(())
+}
+
+/// D-22.21: libc.so.6 neither imports nor refers to [`STATIC_UNWINDER`] (it finds the unwinder
+/// with `dlsym` at a thread's exit, D-22.19): no symbol and no start-up lookup.
+fn check_no_static_unwinder(so: &Path) -> Result<(), String> {
+    let out = Command::new("nm").arg("-D").arg(so).output().map_err(|e| format!("nm: {e}"))?;
+    match String::from_utf8_lossy(&out.stdout).lines().find(|l| l.split_whitespace().last().is_some_and(|s| STATIC_UNWINDER.contains(&s))) {
+        Some(l) => Err(format!("{} refers to the unwinder: {l} (D-22.21)", so.display())),
+        None => Ok(()),
+    }
 }
 
 /// LAYOUT-DYN-PHASE (D-X.133): libc.so.6's start-up read-only group starts on its alignment `align` (the
@@ -1540,6 +1605,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let rodata1_align = crate::startup_ro::cluster_aligns(&archive)?.into_iter().find(|(d, _)| *d == "NIJI_RODATA1_ALIGN").map_or(crate::startup_ro::ALIGN, |(_, a)| a);
     let anchor = product.join("libc-so-anchor.o");
     run(Command::new(&cc).arg("-c").arg("-DNIJI_LIBC_SO").arg(format!("-DNIJI_RODATA1_ALIGN={rodata1_align}")).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&anchor))?;
+    // D-22.21: the unwinder entries' form that returns 0 (the C layer leaves the file out of the product).
+    let unwinder = product.join("libc-so-unwinder.o");
+    run(Command::new(&cc).arg("-c").arg(root.join(UNWINDER_SRC)).arg("-o").arg(&unwinder))?;
     // LAYOUT-RO-STABLE (D-X.143): the group leads the read-only segment in both links.
     let ro_first = product.join("libc-rodata1-first.ld");
     fs::write(&ro_first, RODATA1_FIRST).map_err(|e| format!("{}: {e}", ro_first.display()))?;
@@ -1556,6 +1624,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
             .arg(&so_input)
             .arg("-Wl,--no-whole-archive")
             .arg(&compat_obj)
+            .arg(&unwinder)
             .arg(owner)
             .arg("-lgcc")
             .arg("-o")
@@ -1565,7 +1634,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     check_rodata1_anchor(&so, rodata1_align)?;
     check_read_only_segment(&so)?;
     check_no_link_edge(&so)?;
-    let native = check_native_exports(root, &so)?;
+    check_no_static_unwinder(&so)?;
+    let native =check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
     let objects = crate::compat_objects::check(root, &so)?;
     println!("so: {objects} data objects exported, each at its versions.tsv size (LG-6)");
@@ -1630,12 +1700,17 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     //    libanl.so.1 and libc_malloc_debug.so.0, generated from versions.tsv, linked against
     //    libc.so.6 and each checked against the table; empty static archives for `-l<x>`.
     let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
-    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar)?);
+    let resolv_own = libresolv_object(root, &ar, profile, &release.join("libc.so.6"))?;
+    println!("so: libresolv.so.2's own code: {} names in {}", resolv_own.1.len(), resolv_own.0.display());
+    let cdebug = release_debug_cflags(root, profile);
+    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar, Some(&resolv_own), &cdebug)?);
 
     //    libresolv (D-16.6, SL-SONAMES): the symbols spec Appendix C places in `libresolv.so.2`
     //    (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other symbol, so the
-    //    empty `libresolv.a` lets `-lresolv` resolve statically. `libc.so.6` exports them only as
-    //    `NIJI_PRIVATE` aliases, and `libresolv.so.2` (step 5) forwards its exports to those.
+    //    empty `libresolv.a` lets `-lresolv` resolve statically. libresolv.so.2's own code
+    //    (LIBRESOLV-OWN-CODE, [`libresolv_object`]) is a separate build of those names; `libc.so.6`
+    //    exports only `placeholders::STILL_FORWARDED` as `NIJI_PRIVATE` aliases, which
+    //    `libresolv.so.2` (step 5) forwards to.
 
     let redirected: Vec<String> = copies.redirected.iter().map(|(n, c)| format!("{n} {c}")).collect();
     let kept: usize = copies.kept.values().sum();
@@ -1647,7 +1722,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("libm");
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
-    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar, &cdebug)?);
     phases.mark("libmvec");
     drop(early);
     phases.mark("early-builds-wait");
@@ -1655,10 +1730,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("ld");
     run_ldconfig(root, &cc, profile)?;
     phases.mark("ldconfig");
-    run_getconf(root, &cc, &release)?;
-    run_getent(root, &cc)?;
-    run_iconv(root, &cc)?;
-    run_ldd(root, &cc, &release)?;
+    run_getconf(root, &cc, &release, &cdebug)?;
+    run_getent(root, &cc, &cdebug)?;
+    run_iconv(root, &cc, &cdebug)?;
+    run_ldd(root, &cc, &release, &cdebug)?;
     phases.mark("utilities");
     // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
     // packages install for iconv_open (D-6.8's directory).
@@ -1723,6 +1798,32 @@ const LD_RUSTFLAGS: &str = "-Crelocation-model=pie\x1f-Ccodegen-units=1";
 /// (measured: every allocated section of every product and archive member identical, the build-id
 /// note aside). The `fast` tool profile stays without DWARF.
 const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
+
+/// SYS-DBG-DWARF: the C counterpart of [`RELEASE_DEBUG_RUSTFLAGS`], for the C compiles of the shipped
+/// products (the placeholder libraries, libmvec.so.1, the utilities): line tables and function
+/// entries without variable locations (`-g1`, what `line-tables-only` gives the crates) in the
+/// `release` profile, nothing in `fast`. Debug information leaves the generated code as it is
+/// (measured per product: `.text` identical with and without it). `-fdebug-prefix-map` spells the
+/// workspace root `/niji` in the debug sections, as `--remap-path-prefix` does for the crates
+/// (PRODUCT-PATH-REMAP); `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, a
+/// loaded string.
+pub(crate) fn release_debug_cflags(root: &Path, profile: Profile) -> Vec<String> {
+    if profile != Profile::Release {
+        return Vec::new();
+    }
+    let mut flags = vec!["-g1".to_string(), format!("-fdebug-prefix-map={}={}", root.display(), crate::align::REMAP_ROOT)];
+    if let Ok(real) = root.canonicalize() {
+        if real != root {
+            flags.push(format!("-fdebug-prefix-map={}={}", real.display(), crate::align::REMAP_ROOT));
+        }
+    }
+    flags
+}
+
+/// SYS-DBG-DWARF: `objcopy --strip-unneeded` also removes the debug sections; the one-object
+/// builds of libm.so.6 and libresolv.so.2's own code keep them (the crates' line tables, which
+/// libc6-dbg carries), while unneeded symbols are still removed.
+const KEEP_DEBUG_SECTIONS: &str = "--keep-section=.debug_*";
 
 fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
@@ -2160,7 +2261,7 @@ pub(crate) fn getconf_names(sysconf_tsv: &str, getconf_tsv: &str) -> Result<Stri
 /// The shipped getconf (UTIL-5, D-31 pending record UTIL-GETCONF-1): `csys/util/getconf.c` over the generated name
 /// table, linked as a static PIE against this build's `libc.a` and `niji-rcrt1.o`, so its values are libniji's on
 /// any host and in any root, with no loader involved.
-fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let read = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
     let table = getconf_names(&read("spec/abi/sysconf.tsv")?, &read("spec/abi/getconf.tsv")?)?;
     let gen_dir = root.join("target/getconf-gen");
@@ -2170,6 +2271,7 @@ fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
     let staged = tmp_name(&out);
     run(Command::new(cc)
         .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"])
+        .args(cdebug)
         .arg("-I")
         .arg(&gen_dir)
         .arg(release.join("niji-rcrt1.o"))
@@ -2230,22 +2332,23 @@ pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 /// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
 pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 
-fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
-    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
+fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST, cdebug)
 }
 
-fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
-fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str, cdebug: &[String]) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
     let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
+        .args(cdebug)
         .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
@@ -2281,10 +2384,11 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(),
 ///   transcripts on a host whose system loader is another one. Kept out of `target/niji`: it names a build path.
 pub(crate) const LDD_TEST: &str = "target/niji-test/ldd";
 
-fn run_ldd(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_ldd(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
+        c.args(cdebug);
         if let Some(r) = rtld {
             c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
         }
@@ -2745,6 +2849,103 @@ fn build_owner_dir(release: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// libresolv.so.2's own code (LIBRESOLV-OWN-CODE): `crates/libresolv-so` as a static library, then
+/// one relocatable object of it with unused sections dropped (roots: the libresolv.so.2 exports
+/// not in `placeholders::STILL_FORWARDED`), only those names global. Checked: every root defined
+/// and nothing else global; every undefined symbol one `libc_so` exports (the C library's state is
+/// reached only through its interface); and no writable data except the exported objects (no
+/// second heap, stdio, environment or tuning state in a library loaded beside libc.so.6).
+/// Returns the object and the names it defines.
+pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so: &Path) -> Result<(std::path::PathBuf, BTreeSet<String>), String> {
+    let _ = ar;
+    let product = root.join("target/product");
+    run_timed("cargo-libresolv", &mut LIBRESOLV_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let raw = LIBRESOLV_BUILD.raw_archive(&product, profile);
+    let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
+    let plan = crate::placeholders::plan(&table, "libresolv.so.2")?;
+    let names = crate::placeholders::own_wanted(&plan);
+    // A compat-only export is defined as `niji_own_<name>`, local to the library: the generated
+    // `niji_ph_<name>` exports it under `<name>@<version>` (`placeholders::c_source_own`).
+    let compat = crate::placeholders::own_compat(&plan, &names);
+    let own_name = |s: &str| if compat.contains(s) { format!("{}{s}", crate::placeholders::OWN_PREFIX) } else { s.to_string() };
+    let keep = product.join("libresolv.keep");
+    fs::write(&keep, names.iter().map(|s| format!("{}\n", own_name(s))).collect::<String>()).map_err(|e| e.to_string())?;
+    let all = product.join("libresolv-all.o");
+    let mut ld = Command::new("ld");
+    ld.args(["-r", "--gc-sections"]);
+    for s in &names {
+        ld.arg("-u").arg(s);
+    }
+    run(ld.arg("--whole-archive").arg(&raw).arg("--no-whole-archive").arg("-o").arg(&all))?;
+    let obj = product.join("libresolv-own.o");
+    let renamed = product.join("libresolv-renamed.o");
+    let mut rename = Command::new("objcopy");
+    for s in &compat {
+        rename.arg(format!("--redefine-sym={s}={}", own_name(s)));
+    }
+    run(rename.arg(&all).arg(&renamed))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
+
+    let out = Command::new("nm").args(["-P"]).arg(&obj).output().map_err(|e| format!("nm: {e}"))?;
+    let mut defined = BTreeSet::new();
+    let mut undefined = BTreeSet::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        match line.split_whitespace().collect::<Vec<_>>().as_slice() {
+            [name, "U", ..] | [name, "w", ..] => {
+                undefined.insert((*name).to_string());
+            }
+            [name, kind, ..] if kind.chars().all(|c| c.is_ascii_uppercase()) => {
+                // A compat-only export's definition counts under its export name.
+                let export = name.strip_prefix(crate::placeholders::OWN_PREFIX).filter(|n| compat.contains(*n)).unwrap_or(name);
+                defined.insert(export.to_string());
+            }
+            _ => {}
+        }
+    }
+    let dynsyms = crate::placeholders::readelf(&["--dyn-syms", "-W"], libc_so)?;
+    let libc: BTreeSet<String> = dynsyms
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            (f.len() >= 8 && f.get(6) != Some(&"UND")).then(|| f.get(7).map(|n| n.split('@').next().unwrap_or(n).to_string())).flatten()
+        })
+        .collect();
+    let mut errors = Vec::new();
+    for s in names.difference(&defined) {
+        errors.push(format!("libresolv.so.2's own code does not define {s}"));
+    }
+    for s in defined.difference(&names) {
+        errors.push(format!("libresolv.so.2's own code defines {s}, which is not its export"));
+    }
+    for s in undefined.iter().filter(|s| !libc.contains(*s) && s.as_str() != "_GLOBAL_OFFSET_TABLE_") {
+        errors.push(format!("libresolv.so.2's own code needs {s}, which libc.so.6 does not export"));
+    }
+    // Writable data: only the exported objects (each in its own section, `-fdata-sections`).
+    let objects: Vec<&str> = plan.exports.iter().filter(|e| names.contains(&e.name)).map(|e| e.name.as_str()).filter(|n| defined.contains(*n) && n.chars().next().is_some()).collect();
+    let sections = crate::placeholders::readelf(&["-SW"], &obj)?;
+    for l in sections.lines().filter_map(|l| l.split_once(']').map(|(_, r)| r)) {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        let (Some(name), Some(size), Some(flags)) = (f.first(), f.get(4), f.get(6)) else { continue };
+        // No start-up or exit code of its own: a constructor would run the C library's start-up
+        // pieces a second time in a library loaded beside libc.so.6.
+        if [".init_array", ".fini_array", ".preinit_array", ".ctors", ".dtors", ".init", ".fini"].iter().any(|p| *name == *p || name.starts_with(&format!("{p}."))) {
+            errors.push(format!("libresolv.so.2's own code holds {name}: start-up and exit code belong to libc.so.6"));
+            continue;
+        }
+        let read_only_after_relocation = [".data.rel.ro", ".got"].iter().any(|p| name.starts_with(p));
+        if !flags.contains('W') || !flags.contains('A') || read_only_after_relocation || u64::from_str_radix(size, 16).unwrap_or(1) == 0 {
+            continue;
+        }
+        if !objects.iter().any(|o| name.ends_with(&format!(".{o}"))) {
+            errors.push(format!("libresolv.so.2's own code holds writable data of its own in {name} (size 0x{size}): state belongs to libc.so.6, reached through its exports"));
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors.join("\n"));
+    }
+    Ok((obj, defined))
+}
+
 /// An empty `ar` archive at `dst`, written under a temporary name and renamed into place.
 pub(crate) fn empty_archive(ar: &str, dst: &Path) -> Result<(), String> {
     let staged = tmp_name(dst);
@@ -2843,7 +3044,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     run(ld.arg("--whole-archive").arg(&staged).arg("--no-whole-archive").arg("-o").arg(&all))?;
     fs::write(&weak, both.iter().filter(|s| !s.starts_with("niji_")).map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
     let obj = product.join("libm.o");
-    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
     // The archive's copy: the names glibc exports from both libraries are libc.a's alone in a
     // static link (glibc's libm.a does not define them, LIBC-A-PLACEMENT), so they are local here.
     let obj_a = product.join("libm-archive.o");

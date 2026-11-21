@@ -1,0 +1,20 @@
+{"task": "SL-HEADERS-S08-3", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: P1/P5 0 failed of 2305 (pthread.h C++ fixed), P2 627 -> 21 classified, P3 10 -> 6 (fortify, slice 18); gate rc 1 (0 suites, cause not read), plants not clean, P6 not run",
+ "branch": "task/sl-headers-s08-3", "head": "see git log",
+ "gate": {"affected": "0 passed / failed before any suite ran (affected: FAILED after 23 s)", "peak": "397M"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "17 reference-internal macros _SIGSET_NWORDS and _STRUCT_TIMESPEC are not defined by libniji (P2 missing rows)", "recommendation": "accept: no new glibc-internal names (brief); add an --accept file and one differences row, no compat flag"},
+  {"item": "bsd_signal is exported (versions.tsv) but prototypes.tsv has no row, so no header declares it", "recommendation": "spec gap: add the prototype row (signal.h, sys/signal.h) or rule it obsolete"}],
+ "informational": [
+  "pthread_attr_t is a union tag in C++ (black-box probe); sigevent_t is not declared by our signal.h in C++ though the reference has it: fnprobe.sh niji fails on that one row",
+  "gate job sl-headers-s08-3-gate: affected FAILED after 23 s with 0 suites run; log not read to the end (budget)",
+  "plants job: every mutant of a generator plant fails the products build (xtask so runs headers-gen), so each is caught by the build, 'caught by no test the log names'; a plants file whose cmd is headers-gen --check only needs plants that leave the build green, or the tool's build step must be skipped"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "pthread.h compiles in C++ (49 of 2305 header_check units failed before, 0 now)", "before": 49, "after": 0, "unit": "failed units", "measured": true},
+            {"kind": "coverage", "what": "P2 visibility differences of the 11 slice 8 headers", "before": 627, "after": 21, "unit": "rows", "measured": true},
+            {"kind": "coverage", "what": "plants added (headers-gen --check)", "before": 0, "after": 9, "unit": "plants", "measured": true}],
+ "improvement": "xtask plants builds the products for every mutant, so a generator plant dies in the build before any test can name it; a plant tool mode that runs only the plant's own cmd would make generator plants usable",
+ "next_step": "read the gate log, fix sigevent_t in C++, the P2 rows listed in the handoff, P6, records, then plants and the gate on the final head",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": ["sl-headers-s08-3-proof6", "sl-headers-s08-3-gate", "sl-headers-s08-3-plants"]}

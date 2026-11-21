@@ -9,8 +9,9 @@
 //! newest buffer, that buffer is jumped to; the handler code there runs the routine and calls
 //! `__pthread_unwind_next(buf)`, which unwinds on from there. After the outermost frame, the
 //! old-style records still registered (`_pthread_cleanup_push`) and the thread's exit sequence
-//! (`crate::thread::finish`) run. A process without an unwinder (a C program that loaded none,
-//! a static program) skips the unwind: the buffers are jumped to in turn, newest first. No Rust
+//! (`crate::thread::finish`) run. A static program unwinds with the unwinder it links (D-22.21).
+//! A process without an unwinder (a C program that loaded or linked none) skips the unwind: the
+//! buffers are jumped to in turn, newest first. No Rust
 //! frame is unwound: each jump, landing pad or exit leaves only this module's frames and the
 //! exports', which hold nothing to drop (S11).
 
@@ -163,11 +164,17 @@ fn as_i64(v: usize) -> i64 {
     i64::from_ne_bytes(v.to_ne_bytes())
 }
 
-/// The process's unwinder (D-22.19): `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` as the
-/// program's own references resolve them (`dlsym(RTLD_DEFAULT, ..)`: `libgcc_s.so.1`, or another
-/// unwinder the program loaded), looked up now and never cached (a later `dlopen` or `dlclose`
-/// changes the answer). `None` in a program `ld.so` did not start or one without an unwinder.
+/// The process's unwinder: in a static program, `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` as
+/// it links them (machine/unwinder.S, D-22.21: libc.a's weak references; 0 everywhere else);
+/// otherwise as the program's own references resolve them (D-22.19, `dlsym(RTLD_DEFAULT, ..)`:
+/// `libgcc_s.so.1`, or another unwinder the program loaded), looked up now and never cached (a
+/// later `dlopen` or `dlclose` changes the answer). `None` in a process without an unwinder.
 fn unwinder() -> Option<(usize, usize)> {
+    let force = ffi::niji_machine_unwind_force();
+    if force != 0 {
+        let cfa = ffi::niji_machine_unwind_get_cfa();
+        return (cfa != 0).then_some((force, cfa));
+    }
     // The loader's `dlsym` entry, as `niji_dl_sym` calls it: RTLD_DEFAULT (0), no version, the
     // program as the requester (0).
     let entry = crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire);

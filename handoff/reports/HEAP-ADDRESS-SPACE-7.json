@@ -1,0 +1,13 @@
+{"task": "HEAP-ADDRESS-SPACE-7", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (wall-time checkpoint): ruling #6566 applied, gap-top placement dropped; gate red on +1 dynamic start-up fault (90 > 89), cause not yet found",
+ "branch": "task/heap-address-space-7", "head": null,
+ "gate": {"affected": "6819 passed / 1 failed (heap-address-space-7-gate1)", "peak": "12G"},
+ "accepted_first_attempt": false,
+ "rulings": [], "informational": ["libc.so.6 head vs base: RW segment and .rodata one page higher (text +0x840), .got page offset 0xdf0 -> 0xcd8, .bss +40 bytes"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "issue #21 RLIMIT_AS check deterministic under a fixed layout at 41296 KiB", "before": null, "after": 41296, "unit": "KiB", "measured": true},
+            {"kind": "cost", "what": "dynamic start-up-only program page faults (fast profile), unresolved", "before": 89, "after": 90, "unit": "faults", "measured": true}],
+ "improvement": "the run's wall-time deadline fell 6 minutes into this refresh leg; a refresh should not start that close to the deadline",
+ "next_step": "find the +1 dynamic start-up fault (compare the dynamic test program and faulting pages, head vs base products), fix, then gate, xtask test, fullhot, plants, precheck",
+ "report_file": "handoff/HEAP-ADDRESS-SPACE.md",
+ "jobs": ["heap-address-space-7-gate1", "heap-address-space-7-dynbase"]}

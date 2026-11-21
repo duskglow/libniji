@@ -1,0 +1,21 @@
+{"task": "LIBM-SO-MVEC", "model": "opus", "tokens": null,
+ "result": "libm.so in both package flavours is a GNU ld script adding libmvec.so.1 AS_NEEDED, so -O3 -ffast-math vector loops link with plain -lm (GitHub #28)",
+ "branch": "task/libm-so-mvec", "head": "5509fbd30",
+ "gate": {"affected": "596 passed / 0 failed (6 suites, direct tier)", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "records/pending/LIBM-SO-MVEC-1.toml (D-NEW, series D-10) amends D-10.124 and D-27.51 (libm.so was a link to libm.so.6)", "recommendation": "accept: the premise of those rows (no simd variants declared) does not hold while libniji ships no headers"}],
+ "informational": [
+  "static -O3 -ffast-math ... -lm still cannot resolve _ZGV* from libniji's libm.a; the reference links it statically (black-box probe): follow-up story",
+  "cargo xtask affected classes tools/deb/*/libm-so.ld as linker input of libc.a and pulls in the start-up layout product tests",
+  "clean-room slip: a probe printed the first lines of the build host's distribution libm.a; nothing taken from it",
+  "lint.sh errors=203 warnings=54 on the system debs; the only libm.so line is lacks-unversioned-link-to-shared-library, printed for every library in libc6",
+  "no gfortran case: gfortran is not installed on the build host"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "a program gcc vectorises into _ZGV* libmvec calls (-O3 -ffast-math, gfortran -O3) links with plain -lm against the packages; a program with no vector call gains no libmvec.so.1 dependency", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests added (deb_manifest) and plants caught", "before": 0, "after": 4, "unit": "plants caught (2 tests)", "measured": true},
+  {"kind": "unblock", "what": "duskglow/libniji#28 (Yohane gcc-14 suite packages built at -O3 -ffast-math)", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "xtask affected should class tools/deb/**/*.ld as packaging files, not libc.a link inputs: it pulled three start-up layout product suites into a packaging-only gate",
+ "next_step": "land; follow-up: static -lm with vector calls (libm.a lacks the libmvec symbols)",
+ "report_file": "handoff/LIBM-SO-MVEC.md",
+ "jobs": ["keke:libm-so-mvec-gate3", "keke:libm-so-mvec-plants2", "keke:libm-so-mvec-pkg2"]}

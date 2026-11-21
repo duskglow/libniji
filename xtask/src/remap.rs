@@ -155,7 +155,7 @@ mod tests {
         let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates");
         let ws = std::fs::read_to_string(crates.join("Cargo.toml")).expect("crates/Cargo.toml");
         assert!(ws.lines().any(|l| l.trim() == "[workspace]"), "crates/Cargo.toml is the product workspace");
-        for member in ["libc-so", "libm-so"] {
+        for member in ["libc-so", "libm-so", "libresolv-so"] {
             assert!(ws.contains(&format!("\"{member}\"")), "{member} is a member of the product workspace");
             let m = std::fs::read_to_string(crates.join(member).join("Cargo.toml")).expect("product manifest");
             assert!(!m.lines().any(|l| l.trim() == "[workspace]"), "{member}/Cargo.toml declares its own workspace: its path dependencies then lie outside the workspace root and their absolute paths enter -C metadata (BUILD-PATH-HASH)");
