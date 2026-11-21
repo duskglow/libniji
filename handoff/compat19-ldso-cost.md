@@ -1,58 +1,52 @@
-# COMPAT19-LDSO-COST handoff (leg 1 -> leg 2)
+# COMPAT19-LDSO-COST handoff (final, leg 2)
 
-State: branch `task/compat19-ldso-cost` (cut from origin/next 32261597b). Role mei:~/w/s1 (Skylake-SP; keke = Zen 1).
-Brief: ~/state/briefs/COMPAT19-LDSO-COST.md. Decision id reserved: **D-27.71** (record not yet written).
+State: branch `task/compat19-ldso-cost` (cut from origin/next 32261597b). Role mei:~/w/s1 (Skylake-SP); Zen 1
+counts on keke. Decision **D-27.71** (records/decisions/D-27/D-27.71.toml). Report: handoff/reports/COMPAT19-LDSO-COST.json.
 
-## Step 1-2 so far: the regression is still the per-object phdr re-reading (Intel PT, exact)
-mei, `~/work/compat19-ldso-cost/pt.sh` (perf intel_pt, `--itrace=i1ie`, ASLR off, products of equal path length in
-`/mnt/zram/claude/compat19-ldso-cost/s/<sha9>/niji`; 3f2a84520 = efe95309f's parent per COMPAT19-STARTUP-ZERO's bisect):
-| program | 3f2a84520 | efe95309f | delta |
-|---|---|---|---|
-| empty main | 785,466 | 787,998 | +2,532 |
-| 3 libraries | 1,036,779 | 1,043,202 | +6,423 |
-Per symbol (efe - parent): `Elf::read_phdr` +2,706 / +6,888 (~1,394 per extra library) is the cost; the rest is
-inlining moving between `link`, `reloc::check_versions` (+4,649/+5,587, now outlined), `map::plan` (-2,196/-5,010),
-`map::load` (-1,191/-3,990), `map::segments` closure (+521/+1,826), `map::segment`/`map_segment` (now outlined),
-`dlopen::check` +529, `dlopen::loadable` +299, `Elf::find` -170/-680.
+## What the regression was (steps 1-2; Intel PT, every user instruction, deterministic)
+mei, `~/work/compat19-ldso-cost/pt.sh` (perf intel_pt `--itrace=i1ie`, ASLR off, product sets of equal path length in
+`/mnt/zram/claude/compat19-ldso-cost/s/<set>/niji`). efe95309f vs its parent 3f2a84520: `Elf::read_phdr` +2,706
+(empty main) / +6,888 (three libraries), ~1.4k per extra object; the rest was inlining moving between functions.
+Cause: each start dependency was parsed 5 times (check, map::load, map::segments, dynamic_of, image::parse), planned
+twice, its dynamic section read 3 times. LOADER-FOLDED-VERIFY had not removed it (origin/next still pays it).
 
-## The change (commit "WIP: map start dependencies by the plan their search check made")
-Each start dependency was parsed and planned by `open_candidate`'s `dlopen::check`, then parsed + planned again by
-`map::load`, parsed a third time by `map::segments`, then `dynamic_of` and `image::parse` parsed it twice more
-(5 `Elf::parse` = 5 phdr-table scans, 2 plans, 3 `dynamic()` reads). Now:
-* niji_ld `dlopen::check_planned` -> `Checked { elf, plan, dynm }` (same verdict, same order; `check` wraps it).
-* niji_ld `map::map_planned(m, &elf, &plan, file, page)`: reserve + segments from `elf`'s headers; `load_with` =
-  parse + plan + `map_planned` (no third parse for dlopen / the program / --list either).
-* boundary `open_candidate` returns `Candidate` (5-tuple, last `Option<Checked>`; `None` on the exec-stack branch,
-  which keeps the old `map::load` -> `exec_stack_dependency` path that asks the tunable again).
-* `link`: Some(checked) -> `map_planned`, the Obj from `checked.elf/dynm`, SONAME from `checked.dynm`; a DT_NEEDED
-  path name (`open_file`, unchecked) keeps `map::load` + `parse`. trace.rs (--list) only takes the 5-tuple.
-Security: no check dropped; the plan used is the one checked from the same view (fewer re-reads of the file view).
+## The change (3 commits on top of the base)
+1. `5e6f63f32` WIP fold: `map::map_planned` (reserve + segments from the parsed headers by a given plan; `load_with`
+   uses it), `dlopen::Checked { elf, plan, dynm }`, `link` maps a searched dependency by its check's plan and builds
+   its Obj from the same parse. (This WIP commit has no why-body/trailer; the next one carries both.)
+2. `e022c769a` the check's record goes into a slot in `link`'s frame (`dlopen::check_into(file, page, &mut out)`,
+   `open_candidate(..., &mut checked)`), not returned by value: returned, it grew three frames under search by ~0x390
+   bytes and the parse beneath touched one more stack page (+1 user fault per start, found with
+   `perf record -e page-faults:u -d`: extra fault at the stack page under `Elf::parse`).
+   Slot cleared: on every refusal (open_candidate's first store), on the accepted exec-stack path, on a secure-mode
+   preload rejected by file mode, for a file found by path.
+3. `71170e1aa` D-27.71 record.
+Not checked less: every unsearched path (DT_NEEDED with `/`, exec-stack accepted by the COMPAT-19 tunable, dlopen,
+the program) keeps `map::load`.
 
-## Running at refresh
-mei job `compat19-ldso-cost-m1` (`~/work/compat19-ldso-cost/m1.sh c19fold01`): copies origin/next products
-(built by job compat19-ldso-cost-so0 before the sync) to s/32261597b, builds the fold (shipped profile) into
-s/c19fold01, PT split of 32261597b vs c19fold01 (`PT ...` lines; per-symbol files s/pt-<set>-<prog>.txt), then
-`kc.sh` (user instr/faults, kernel instr, syscalls; median of 101; glibc + 4 sets; `KC ...` lines).
-Per-symbol diff command used in leg 1 (awk join of two pt-*.txt files on everything after the count column).
+## Start-up counts (median of 101, ASLR off; user instr / user faults / syscalls; kernel instr within noise)
+| program | host | glibc 2.39 | 3f2a84520 | efe95309f | snapshot-2026-11-21.1 | origin/next 32261597b | this branch |
+|---|---|---|---|---|---|---|---|
+| empty main | Skylake-SP | 107,083/49/46 | 785,523/57/45 | 788,055/57/45 | 740,554/52/38 | 740,620/52/38 | 721,809/52/38 |
+| 3 libraries | Skylake-SP | 142,334/65/72 | 1,036,852/73/90 | 1,043,275/73/90 | 995,824/67/80 | 995,890/67/80 | 973,448/67/80 |
+| clock_gettime | Skylake-SP | 109,193/50/46 | 819,463/61/45 | 822,058/61/45 | 774,564/56/38 | 774,630/56/38 | 755,763/56/38 |
+| empty main | Zen 1 | 100,928/48/42 | 785,336/57/44 | 787,863/57/44 | 740,352/52/37 | 740,418/52/37 | 721,601/52/37 |
+| 3 libraries | Zen 1 | 136,079/64/68 | 1,036,673/73/89 | 1,043,090/73/89 | 995,630/67/79 | 995,696/67/79 | 973,248/67/79 |
+| clock_gettime | Zen 1 | 103,067/50/42 | 819,305/62/44 | 821,895/62/44 | 774,391/57/37 | 774,457/57/37 | 755,584/57/37 |
+Kernel instructions: Zen 1 min pie0 840,785 -> 840,806, pie3 1,266,925 -> 1,262,770 (medians move +-15k run to run).
+PT totals (mei, exact): pie0 740,568 -> 721,757; pie3 995,823 -> 973,381.
+Logs: mei ~/logs/compat19-ldso-cost-{m2,snap}.log, keke ~/logs/compat19-ldso-cost-zen.log.
 
-## Next steps (leg 2)
-1. `~/bin/jobwait compat19-ldso-cost-m1`; read `grep -E "^(PT|KC|host)" ~/logs/compat19-ldso-cost-m1.log`. If the
-   build failed, fix the compile error, commit, sync, rerun m1.
-2. Zen 1: copy s/{3f2a84520,efe95309f,32261597b,c19fold01}/niji + s/progs to keke (same path
-   /dev/shm/claude/compat19-ldso-cost/s? lengths must match across sets only) and run kc.sh there (jobrun count).
-   kc.sh needs ~/work/RELEASE-SNAPSHOT-1120C/startup/execcount.c on keke (check; else copy it).
-3. snapshot-2026-11-21.1 column: products tarball probably mei ~/work/RELEASE-SNAPSHOT-1121A/products.tgz.
-4. Write D-27.71 record (read developer-flow-reference §10 first), a test? (behaviour unchanged: existing start
-   tests cover it; plants prove them), then `cargo xtask clippy`, `cargo xtask static`, gate
-   (`cargo xtask affected --run`; if FULL escalated, crates' tests instead), plants
-   `handoff/COMPAT19-LDSO-COST-plants.txt` (4 plants) under jobrun in /mnt/zram/claude/compat19-ldso-cost/plants-1,
-   `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test
-   hot_text_products` (DYN_START_INSTR bound: if 10% under, tighten), layout-bins.tsv diff vs base, c19 snapshot
-   check (mei ~/work/RELEASE-SNAPSHOT-1120F/c19.sh needs debs of this head: costly; say so if not run).
-5. Report json + hand-back (JOBS labels).
+## Proof jobs (mei unless noted)
+gate `compat19-ldso-cost-gate` (direct tier), plants `compat19-ldso-cost-plants` (handoff/COMPAT19-LDSO-COST-plants.txt,
+4 plants), start-up checks `compat19-ldso-cost-xtest` (`cargo xtask test`) and `compat19-ldso-cost-hot`
+(`NIJI_FULL_PROFILE=1` so + hot_text_products), counts m2/snap and keke:zen. Results: see the report json.
+c19 snapshot check (~/work/RELEASE-SNAPSHOT-1121A/c19.sh) needs debs built from this head: not run (cost; CI's train).
 
-## Leg-1 slips to report
-* One `sed -i` edit (an import line in crates/ld/src/dlopen.rs): against the Edit-tool rule; it ran.
-* One heredoc attempt, refused by the hook (no-op command); nothing worked around.
-* Commit 5e6f63f32 (the code WIP) has no why-body and no Co-Authored-By trailer (pushed; not rewritten, no
-  force-push): the final code commit on top carries both.
+## Slips (both legs)
+* Leg 1: one `sed -i` edit (an import line, crates/ld/src/dlopen.rs), against the Edit-tool rule; it ran.
+* Heredoc attempts refused by the hook: one in leg 1, two in leg 2 (no-op commands; nothing worked around).
+* Leg 2: one pointless no-op Bash call.
+
+## Next step
+None on this branch beyond landing. Open: the c19 16/16 snapshot check on debs of this head (train/RC).
