@@ -19,4 +19,5 @@
  "improvement": "a count's environment and layout are part of its measurement: record them in the log so two counts can be compared, and let jobrun's slot queue time show in the hand-back (the subset counts waited 10-20 min for slots)",
  "next_step": "fixed environment for measured runs (env -i in wl_run_prefix), then 5 real COUNT_FRESH counts of next and re-record the levels",
  "report_file": "handoff/WL-COUNT-HONEST-CHEAP.md",
- "jobs": ["keke:wl-count-honest-cheap-gate2", "keke:wl-count-honest-cheap-plants2"]}
+ "jobs": ["keke:wl-count-honest-cheap-gate3", "keke:wl-count-honest-cheap-plants3"],
+ "superseded": ["gate2, plants2 (stopped: started on a head whose record failed cargo xtask static)", "gate, plants (head dbe683bb5, same code: rc 0, 11 CAUGHT)"]}
