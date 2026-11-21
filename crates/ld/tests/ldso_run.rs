@@ -13,6 +13,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -89,10 +92,8 @@ fn product() -> Option<PathBuf> {
 
 /// A scratch directory under the target directory (not /tmp: the set-group-ID test needs a file
 /// system that honours the bit).
-fn dir(name: &str) -> PathBuf {
-    let d = target().join(format!("ldso-run-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir(name: &str) -> Scratch {
+    Scratch::dir_in(&target(), &format!("ldso-run-{name}"))
 }
 
 /// Link the test program with `ld` as its interpreter (plus `extra` flags), into `d`.
@@ -263,7 +264,6 @@ fn ldso_run_by_interp_at_random_bases() {
         assert_eq!(args, [format!("arg:{}", prog.display()), "arg:one".into(), "arg:two".into()], "start {i}");
         assert!(l.iter().any(|x| x == "env:NIJI_KEEP=1") && l.iter().any(|x| x == "secure:0"), "start {i}: {l:?}");
     }
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// (no spec clause: ld.so's start, plan/ph14/design.md §1 steps 3-5, D-27.14.)
@@ -289,7 +289,6 @@ fn ldso_run_as_program_at_random_bases() {
         assert_eq!(o.status.code(), Some(127), "{}: {o:?}", arg.display());
         assert!(String::from_utf8_lossy(&o.stderr).contains(msg), "{}: {o:?}", arg.display());
     }
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// A non-secure start reads `LD_PRELOAD` (each name it cannot load gets the reference's "cannot be
@@ -306,7 +305,6 @@ fn ldso_run_reads_ld_settings() {
     for n in ["liba.so", "libb.so"] {
         assert!(err.contains(&format!("ERROR: ld.so: object '{n}' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.\n")), "{err}");
     }
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// R14-18: a set-group-ID program (the kernel sets AT_SECURE; a supplementary group of the user, no
@@ -339,7 +337,6 @@ fn ldso_run_secure_child_sees_unsecure_cleared() {
     let o = run(&mut c);
     let l = assert_ran(&o, "secure");
     if l.iter().any(|x| x == "secure:0") {
-        let _ = std::fs::remove_dir_all(&d);
         return eprintln!("SKIP: the kernel did not set AT_SECURE (the file system ignores set-group-ID here)");
     }
     assert!(l.iter().any(|x| x == "secure:1"), "{l:?}");
@@ -359,5 +356,4 @@ fn ldso_run_secure_child_sees_unsecure_cleared() {
         "ERROR: ld.so: object 'x' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.\n",
         "the loader read an LD_* name other than LD_PRELOAD before clearing"
     );
-    let _ = std::fs::remove_dir_all(&d);
 }

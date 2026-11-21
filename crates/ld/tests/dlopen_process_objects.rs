@@ -12,6 +12,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -109,7 +112,7 @@ int main(int argc, char **argv) {
 
 /// The corpus in a new scratch directory of its own (`tag`: each test builds its own): (the
 /// long-named library directory, the program), or `None` with the reason printed.
-fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
+fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -120,10 +123,9 @@ fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
-    let top = target().join(format!("ld-process-objects-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&top);
+    let top = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-process-objects-{tag}"));
     // Five components of 200 bytes: every library path is over 1000 bytes.
-    let d = ["a", "b", "c", "d", "e"].iter().fold(top.clone(), |p, c| p.join(c.repeat(200)));
+    let d = ["a", "b", "c", "d", "e"].iter().fold(top.to_path_buf(), |p, c| p.join(c.repeat(200)));
     std::fs::create_dir_all(d.join("stub")).unwrap();
     let d = std::fs::canonicalize(d).unwrap();
     let stub = d.join("stub");
@@ -167,7 +169,8 @@ fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
     let crt1 = lib.join("niji-crt1.o").to_str().unwrap().to_string();
     let flags = ["-nostdlib", "-fPIE", "-pie", &format!("-DN={N}"), &interp, &crt1, &libc_s, ld.to_str().unwrap(), "-lgcc"].map(String::from).to_vec();
     build_all(vec![("prog".to_string(), cc(&top, "prog", PROG, &flags))]);
-    Some((d, top.join("prog")))
+    let prog = top.join("prog");
+    Some((top, d, prog))
 }
 
 /// Run `cmd` with an empty environment.
@@ -179,17 +182,13 @@ fn run(cmd: &mut Command) -> Output {
     cmd.output().unwrap()
 }
 
-fn top_of(d: &Path) -> PathBuf {
-    d.ancestors().nth(5).unwrap().to_path_buf()
-}
-
 /// s27_1_c_1 (`dlopen` loads an object and its dependencies): one call adds `N` + 1 objects whose
 /// paths and dependency lists pass the arenas' old room several times over; every object reports
 /// its full path (`dladdr`, `dl_iterate_phdr`, `l_name`), and closing and opening the set again
 /// works the same.
 #[test]
 fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
-    let Some((d, prog)) = corpus("arenas") else { return };
+    let Some((_top, d, prog)) = corpus("arenas") else { return };
     let path_bytes: usize = (1..=N).map(|k| d.join(format!("libp{k}.so")).as_os_str().len() + 1).sum();
     assert!(path_bytes > 2 * 128 * 1024 && N * (N - 1) / 2 > 2 * 16 * 1024, "the corpus passes both old arenas twice");
     let o = run(Command::new(&prog).arg(&d));
@@ -199,7 +198,6 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
     // (`libc-dl.so`, in the same directory).
     let want: String = ["first", "again"].iter().map(|r| format!("{r} sum {SUM}\n{r} dladdr {N}\n{r} phdr {}\n{r} lmap {}\n", N + 2, N + 2)).collect();
     assert_eq!(out, want, "every object's full path, in both loads");
-    std::fs::remove_dir_all(top_of(&d)).ok();
 }
 
 /// no spec clause (the arenas grow, so the only limit is memory): under a sweep of address-space
@@ -208,7 +206,7 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
 /// loader's message (127); never a signal.
 #[test]
 fn dlopen_process_objects_out_of_memory_is_clean() {
-    let Some((d, prog)) = corpus("oom") else { return };
+    let Some((_top, d, prog)) = corpus("oom") else { return };
     let (mut ran, mut refused) = (0, 0);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (2048..=96 * 1024).step_by(2048) {
@@ -235,5 +233,4 @@ fn dlopen_process_objects_out_of_memory_is_clean() {
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
     eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran");
-    std::fs::remove_dir_all(top_of(&d)).ok();
 }

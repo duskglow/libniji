@@ -16,6 +16,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -190,7 +193,7 @@ fn init_order_corpus_matches_reference() {
         eprintln!("SKIP: {} not built (run cargo xtask so)", ld.display());
         return;
     }
-    let d = target().join(format!("ld-init-order-{}", std::process::id()));
+    let d = Scratch::dir_in(&target(), "ld-init-order");
     let ours = corpus(&d, Some(&ld));
     for (name, start, exit) in RECORD {
         let want = format!("{start}main\ncall fini\n{exit}   rc=0\n");
@@ -209,7 +212,6 @@ fn init_order_corpus_matches_reference() {
     } else {
         eprintln!("SKIP (live reference part): no {REFERENCE}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// [`init::exit_order`] over named units: `seq` in sequence order, `before` pairs by name, `inits`
