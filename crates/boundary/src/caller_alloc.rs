@@ -164,7 +164,7 @@ pub(crate) fn release(addr: usize) {
 // two private entries (`NIJI_PRIVATE`) for what has no standard one: the thread's result blocks
 // and `_res.pfcode`. The calls that need `unsafe` are made where the category allows them:
 // `strz::byte_len` (the length scanners), `posix::s16_nameservices` (`fwrite`, `stdout`); the
-// product's global allocator is `heap::Caller`.
+// product's global allocator is `heap::LibresolvAlloc`.
 
 // Soundness: `__niji_resolv_block` and `__niji_resolv_pfcode` are sound for every argument (a
 // block address or 0; a number). `fwrite` reads `n` bytes at `p` and takes a stream the C caller
@@ -198,26 +198,26 @@ pub(crate) fn libc_pfcode() -> u64 {
     __niji_resolv_pfcode()
 }
 
-/// `malloc(n)` for the libresolv product's global allocator (`heap::Caller`): through the symbol.
+/// `malloc(n)` for the libresolv product's global allocator (`heap::LibresolvAlloc`): through the symbol.
 #[cfg(feature = "libresolv")]
 pub(crate) fn caller_malloc(n: usize) -> *mut c_void {
     c_malloc(n)
 }
 
-/// `calloc(n, size)` for `heap::Caller`.
+/// `calloc(n, size)` for `heap::LibresolvAlloc`.
 #[cfg(feature = "libresolv")]
 pub(crate) fn caller_calloc(n: usize, size: usize) -> *mut c_void {
     c_calloc(n, size)
 }
 
-/// `realloc(p, n)` for `heap::Caller`. Obligation: `p` is NULL or came from this allocator and is
+/// `realloc(p, n)` for `heap::LibresolvAlloc`. Obligation: `p` is NULL or came from this allocator and is
 /// not used afterwards.
 #[cfg(feature = "libresolv")]
 pub(crate) fn caller_realloc(p: *mut c_void, n: usize) -> *mut c_void {
     c_realloc(p, n)
 }
 
-/// `free(p)` for `heap::Caller`. Obligation: `p` is NULL or came from this allocator and is not
+/// `free(p)` for `heap::LibresolvAlloc`. Obligation: `p` is NULL or came from this allocator and is not
 /// used afterwards.
 #[cfg(feature = "libresolv")]
 pub(crate) fn caller_free(p: *mut c_void) {

@@ -296,14 +296,14 @@ pub extern "C" fn default_obstack_failure() {
 /// 16-aligned (`malloc`'s alignment); a larger alignment fails (null), which the fallible
 /// containers report as `ENOMEM`.
 #[cfg(feature = "libresolv")]
-pub struct Caller;
+pub struct LibresolvAlloc;
 
 #[cfg(feature = "libresolv")]
 // UNSAFE(allocator): implementing `GlobalAlloc` for the libresolv product.
 // SAFETY: blocks come from `malloc`/`calloc`/`realloc`, which never hand out overlapping live
 // blocks and honour sizes up to the 16-byte alignment checked here; null on exhaustion.
 #[allow(unsafe_code)]
-unsafe impl GlobalAlloc for Caller {
+unsafe impl GlobalAlloc for LibresolvAlloc {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
