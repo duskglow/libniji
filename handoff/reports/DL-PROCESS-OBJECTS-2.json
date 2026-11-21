@@ -2,7 +2,7 @@
  "task": "DL-PROCESS-OBJECTS-2",
  "model": "opus",
  "tokens": null,
- "result": "Part 2 of DL-PROCESS-OBJECTS: the loader's object tables (link-map nodes, object/symbol records, readers' table, Finis, lock-held lists, per-call scratch) grow by never-moved generations past 512 objects; within 512 the reader hot paths count at or below next; part 3 (TLS) left for a later story",
+ "result": "INCOMPLETE: part 2 (loader object tables grow past 512 objects) written, gate 747/0, plants 18/18, fullprof green, within-512 reader counts at or below next; cargo xtask test has one native-pass red (heap gap test) whose cause is not established; part 3 (TLS) not started",
  "branch": "task/dl-process-objects-2",
  "head": "9601fcc70",
  "gate": {
@@ -14,12 +14,15 @@
   {
    "item": "Freed loader slots are reused only from the top, so out-of-order dlclose (FIFO plugin churn) leaves holes; past 512 the tables now grow per hole and dlclose/live_set walk up to the top (before part 2 such a process failed at 512)",
    "recommendation": "a follow-up story: reuse a run of freed slots below the top (first fit for the set's size)"
+  },
+  {
+   "item": "cargo xtask test red: niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range fails in the native pass only (100/100 on this branch through the role runner; 0/100 plain); heap code untouched but the native pass runs under this branch ld.so; one strace run passed and showed only KernelPages calls in the window. A next comparison was attempted but was invalid (no native copies on that tree) and is withdrawn",
+   "recommendation": "run that test in the native pass on a next role N times; same rate there: land this branch and open a heap/test story; branch-only: the next run of this story finds the mapping"
   }
  ],
  "informational": [
   "A program linked with -Wl,-rpath,<products> naming libc.so.6 by soname did not find it at start ('cannot open shared object file'); tests and count.sh name libc by path, not chased",
   "libniji's _dl_find_object is linear in the objects (18462 instructions for the last of 104 objects; the reference 167) and dladdr about 3x the reference: separate performance stories",
-  "cargo xtask test (dl-process-objects-2-xtest): 6980/6980 then 4853/4854; the one failure, niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range (s03_memory_symbols.rs:1008, the pinned gap cannot be mapped again), is on next too: run 100 times under xtask test native-pass runner next fails 100/100, this branch 97/100; both pass 100/100 run plainly. Not this story (heap KernelPages, untouched); needs its own story",
   "Plant view-node-addr was caught by the 600 s timeout, not its message: a wrong decode makes the chain loop and the lock-free walk guard is 2^32 steps; a tighter guard (the published count) would turn such a defect into a clean failure"
  ],
  "refused": [],
@@ -89,13 +92,13 @@
    "measured": false
   }
  ],
- "improvement": "cargo xtask test runs ~11800 tests (46 min here) for a loader change; a failure already on next in it (heap gap test under the native-pass runner) makes every start-up-touching story red until fixed: a next-health check before briefs require it would save each story the bisect",
- "next_step": "part 3 (TLS, MODULES_MAX) as a new story from handoff/DL-PROCESS-OBJECTS.md; follow-up for slot reuse below the top",
+ "improvement": "a tool to run one test binary in the native pass on a given revision (here: next) would have settled an inherited-or-mine question in minutes; the hand-written runner loop silently measured runner refusals as failures on a tree without native copies",
+ "next_step": "settle the xtask test red against next (native pass, same test, N runs); then precheck and land; part 3 (TLS) as a new story",
  "report_file": "handoff/DL-PROCESS-OBJECTS-2.md",
  "jobs": [
   "mei:dl-process-objects-2-gate",
   "mei:dl-process-objects-2-plants2",
-  "mei:dl-process-objects-2-t6",
+  "mei:dl-process-objects-2-counts3",
   "mei:dl-process-objects-2-xtest",
   "mei:dl-process-objects-2-fullprof"
  ]

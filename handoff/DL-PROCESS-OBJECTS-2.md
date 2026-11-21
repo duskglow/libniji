@@ -1,7 +1,9 @@
 # DL-PROCESS-OBJECTS-2: part 2 of 3, the loader's object tables grow (audit HL-3 without TLS)
 
 **State.** Branch `task/dl-process-objects-2` from next `ef7bc6fd3`; role mei:~/w/s3. Code head `9601fcc70`
-(gated and planted tree); later commits change only handoff/ and the pending record's text. Part 2 is done.
+(gated and planted tree); later commits change only handoff/ and the pending record's text. Part 2 is written,
+gated and planted; the hand-back is INCOMPLETE only because `cargo xtask test` has one native-pass red whose cause
+is not established (below).
 Part 3 (TLS, `MODULES_MAX`) is NOT started and stays for a later story. Design: handoff/DL-PROCESS-OBJECTS.md
 sections 3-7 (not to redo). Decision: `records/pending/DL-PROCESS-OBJECTS-2-1.toml` (D-NEW, series D-27).
 
@@ -34,12 +36,19 @@ objects" is gone; a failed reservation is `<name>: cannot allocate memory` befor
   (`NIJI_FULL_PROFILE=1` so + hot_text_products); chained by `~/work/DL-PROCESS-OBJECTS-2/chain.sh`.
   Results: plants 18/18 CAUGHT (view-node-addr by the 600 s timeout: a wrong decode loops the chain, the walk's
   guard is 2^32 steps); gate 747 passed, 0 failed, peak 2.9G; `cargo xtask test` 6980/6980 then 4853/4854, the
-  failure `s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (heap, untouched) is
-  on next too: 100 runs under the native-pass runner, next 100 fail, branch 97; plain runs 0 fail on both
-  (`~/work/DL-PROCESS-OBJECTS-2/rep2.sh`, job `dl-process-objects-2-rep2`); fullprof green (hot_text_products 32 passed).
+  failure is `niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range`
+  in the native pass only (s03_memory_symbols.rs:1008: after `KernelPages::map`, the pinned gap cannot be mapped
+  again: `back` 0). Heap code is untouched, but the native pass runs the test under libniji's ld.so, which this
+  branch changes, so the cause is NOT ESTABLISHED. Branch: run plainly 0 of 100 fail; through the role's
+  native-pass runner 100 of 100 fail (job `dl-process-objects-2-counts3`, `rep.sh`, products stable). One
+  run under `strace -f -e mmap,munmap,prlimit64` PASSED; its trace from the limit to the check shows only
+  `KernelPages::map`'s own calls (aligned tries, PROT_NONE page pins, one inside the pinned gap) and no loader
+  mapping: a hint that the loader is not involved, NOT a proof. A next comparison was attempted (`rep2.sh`) but is INVALID: next's
+  tree had no native copies, so its runner refused every run; withdrawn. fullprof green (hot_text_products 32 passed).
 
 **Superseded.** `dl-process-objects-2-plants` (stopped: reader code changed), `-counts2`, `-t3`, `-t4`, `-t5`
-(earlier trees).
+(earlier trees); `-t6` (final tree, green, but no tested-content record; its counts were rerun as `-counts3`,
+same numbers). Diagnostics, not proof: `-rep`, `-rep2` (rep2's next half invalid), `-rep3next` (did nothing).
 
 **RULING NEEDED.** Freed slots are reused only from the top (`load_set` puts a new set at `l.n`; `reclaim` lowers
 the top past freed slots only), so a process that closes objects out of order (FIFO plugin churn) leaves holes.
@@ -52,5 +61,8 @@ at start ("cannot open shared object file"); the tests and count.sh name libc by
 inert, so it was not chased. (2) libniji's `_dl_find_object` is linear in the objects (18462 instructions for the
 last of 104; the reference 167) and `dladdr` about 3x the reference; separate performance stories.
 
-**Next step.** If the jobs above are all green: precheck on the synced final head, handback-check. Otherwise fix
-what the red job names and rerun only that job. Then part 3 (TLS) as a new story from handoff/DL-PROCESS-OBJECTS.md.
+**Next step.** Settle the `cargo xtask test` red: run that one test in the native pass on next (a tree where
+`cargo xtask test` or a gate made the native copies, e.g. a role synced to next) N times and compare with this
+branch's rate. Same rate on next: not this story (a heap/test defect for its own story), hand back COMPLETE. Only
+on this branch: find what in the loader change maps into the pinned gap (e.g. the loader's state mapping made on a
+first reader or `dlopen` call) and fix it. Then precheck, handback-check. Part 3 (TLS) is a new story.
