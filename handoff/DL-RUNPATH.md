@@ -152,9 +152,8 @@ Then, as root:
   `niji::dns_products resolv_equals_the_reference`, TIMEOUT at nextest's 1800 s, so the native pass did not run.
   Cause (outside this story): after a scenario's timeout the oracle's forked children (run under `sudo -n unshare`
   by `resolv_run.sh`) are left orphaned and keep the test's stdout pipe open, so `Command::output()` never returns
-  and the test's own 900 s guard cannot end it. The stuck ones in this run were the host-linked oracle's (which never
-  load libniji's ld.so); the role still holds such orphans from runs 4 days ago (s3, libniji-linked) and the s4 role
-  from 11 days ago. They are root-owned: `kill <pid>` as claude gives EPERM (reported as refused, not retried).
+  and the test's own 900 s guard cannot end it. The role still holds such orphans from a run 4 days ago (s3) and the
+  s4 role from 11 days ago. They are root-owned: `kill <pid>` as claude gives EPERM (reported as refused, not retried).
   DL-RUNPATH-2's rc-124 start-up job on this host stopped at the same test. Recommend: a harness story (kill the
   scenario's process group inside the namespace, or read with a deadline), and a root clean-up of the orphans.
 
