@@ -154,9 +154,9 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
                 buf[..l.n_global].copy_from_slice(l.global());
                 (l.n_global, 0)
             } else {
-                let llen = super::local_scope(l, i, &mut local);
+                let llen = super::local_scope(l, i, local);
                 for (b, &o) in buf.iter_mut().zip(&local[..llen]) {
-                    *b = usize::from(o);
+                    *b = super::ix(o);
                 }
                 (llen, i)
             }
@@ -166,7 +166,7 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let req = Request::new(sym, want);
     let mark = l.unique.len();
     let syms = syms_of(&l.syms, l.n);
-    let start = &l.global[..l.n_start_global];
+    let start = l.global.slice(l.n_start_global).unwrap_or(&[]);
     let found = symbols::lookup(syms, Scope::global(&buf[..len]), &req, &mut Uniq { table: &mut l.unique, syms, start, binds: None });
     let Ok(Some(f)) = found else {
         let mut path = PathBuf::default();

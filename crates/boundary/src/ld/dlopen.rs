@@ -249,12 +249,12 @@ impl<T: Copy> Recs<T> {
 
 /// `objs[..k]` of the loader's object records (a field borrow, so another field may be borrowed
 /// mutably beside it).
-fn objs_of(objs: &Recs<Obj<'static>>, k: usize) -> &[Obj<'static>] {
+fn objs_of<'l>(objs: &'l Recs<Obj<'static>>, k: usize) -> &'l [Obj<'static>] {
     objs.upto(k)
 }
 
 /// `syms[..k]`, as [`objs_of`].
-fn syms_of(syms: &Recs<Object<'static>>, k: usize) -> &[Object<'static>] {
+fn syms_of<'l>(syms: &'l Recs<Object<'static>>, k: usize) -> &'l [Object<'static>] {
     syms.upto(k)
 }
 

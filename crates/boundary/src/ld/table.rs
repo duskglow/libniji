@@ -499,6 +499,7 @@ impl ZeroValid for usize {}
 impl<A: ZeroValid, B: ZeroValid> ZeroValid for (A, B) {}
 impl<T: ZeroValid, const N: usize> ZeroValid for [T; N] {}
 impl<T: Copy> ZeroValid for MaybeUninit<T> {}
+impl ZeroValid for niji_ld::init::ExitWalk {}
 
 /// A private read-write anonymous mapping of `bytes` (rounded up to pages); 0 when it cannot be made.
 fn map_zeroed(bytes: usize) -> usize {
