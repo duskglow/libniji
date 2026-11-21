@@ -1735,6 +1735,25 @@ pub(crate) fn session_text<'a>(addr: usize) -> &'a [u8] {
     unsafe { crate::strz::strz(core::ptr::with_exposed_provenance(addr)) }.unwrap_or(&[])
 }
 
+/// The `n` program headers at `addr` as whole headers (`Elf64_Phdr`, `PHDR_WORDS` words each),
+/// which live for the rest of the process: the start's one walk over them has a single bound.
+///
+/// # Safety
+/// `addr` is 8-aligned and `n` headers there are readable and never unmapped.
+// UNSAFE(slice): memory the kernel set up at `execve` becomes a slice.
+#[allow(unsafe_code)]
+pub(crate) unsafe fn headers_at(addr: usize, n: usize) -> &'static [[u64; niji_rt::start::PHDR_WORDS]] {
+    if n == 0 || addr == 0 {
+        return &[];
+    }
+    // UNSAFE(slice): see the function's contract.
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract; a header is 8-aligned like its words.
+    unsafe {
+        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<[u64; niji_rt::start::PHDR_WORDS]>(addr), n)
+    }
+}
+
 /// The executable's program headers (`AT_PHDR`, `AT_PHNUM`), mapped by the kernel with it for
 /// the life of the process: `n` words at `addr`.
 pub(crate) fn program_headers(addr: usize, n: usize) -> &'static [u64] {
