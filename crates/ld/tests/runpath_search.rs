@@ -154,9 +154,11 @@ impl Corpus {
     fn run_env(&self, prog: &str, args: &[&str], path: Option<&str>) -> String {
         let mut c = Command::new(format!("./bin/{prog}"));
         c.current_dir(&self.dir).args(args);
-        if let Some(p) = path {
-            c.env("LD_LIBRARY_PATH", p);
-        }
+        // Never the test runner's own LD_LIBRARY_PATH: it would come first in every search.
+        match path {
+            Some(p) => c.env("LD_LIBRARY_PATH", p),
+            None => c.env_remove("LD_LIBRARY_PATH"),
+        };
         let o = c.output().unwrap();
         assert!(o.status.success(), "{prog} {args:?}: {:?}\n{}", o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).replace(self.dir.to_str().unwrap(), "P")
