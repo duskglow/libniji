@@ -9,3 +9,5 @@ chain-tail-by-index | crates/boundary/src/ld/dlopen.rs | lit:let tail = if l.reo
 iterate-by-index | crates/boundary/src/ld/readers.rs | lit:if REORDERED.load(Acquire) { ==> if false { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:order( count)? [0-9]+
 # e: exit finalisers step by index after the first, not along the chain
 exit-by-index | crates/boundary/src/ld/dlopen.rs | lit:cur = if l.reordered { chain_next(l, i) } ==> cur = if false { chain_next(l, i) } | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:exit finalisers
+# f: the room test's ever-present reader (s27_1_c_4 check 72) with freed slots never reused
+never-reuse-room | crates/boundary/src/ld/dlopen.rs | lit:if l.holes >= k - base { ==> if false && l.holes >= k - base { | cargo xtask so && cargo test -p niji-ld --test dlclose s27_1_c_4_dlopen_waits | msg:behind an ever-present reader not reused
