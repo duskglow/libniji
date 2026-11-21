@@ -974,6 +974,7 @@ static zt last_start;
 static const struct rule *firing_rule[MAX_FIRING];
 static zt firing_at[MAX_FIRING];
 static size_t nfiring;
+static zt last_finite_at; /* the last transition of the last line made by a rule that ends */
 
 static void note_firing(const struct rule *r, zt at) {
     if (r->to != INT64_MAX) return;
@@ -990,6 +991,7 @@ static void run_zone(const struct zone *zn) {
     too_many = 0;
     have_last_start = 0;
     nfiring = 0;
+    last_finite_at = INT64_MIN;
     int have_start = 0; /* a line before this one ended */
     zt start = 0;
     char prev_until_kind = 'w';
@@ -1098,6 +1100,7 @@ static void run_zone(const struct zone *zn) {
             push_event(at, &u);
             if (too_many) return;
             if (last) note_firing(r, at);
+            if (last && r->to != INT64_MAX) last_finite_at = at;
         }
         if (!last) {
             start = until_ut(z, save);
@@ -1473,6 +1476,8 @@ static int write_zone(const struct zone *zn) {
         if (nf == nfiring && nf > 0) {
             for (size_t i = 0; i < nfiring; i++)
                 if (firing_at[i] > cut) cut = firing_at[i];
+            /* Never before a transition the footer cannot give: one made by a rule that ends. */
+            if (last_finite_at != INT64_MIN && last_finite_at >= cut) cut = last_finite_at + 1;
             while (nev > 0 && ev[nev - 1].at >= cut) nev--;
         }
     }
