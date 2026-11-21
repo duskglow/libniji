@@ -62,6 +62,12 @@ impl Scratch {
         s
     }
 
+    /// Take charge of `p`, a path the caller chose (for example one a re-executed copy of the test
+    /// shares, so its name cannot be per-process): removed on drop like any other scratch path.
+    pub(crate) fn adopt(p: PathBuf) -> Scratch {
+        Scratch(p)
+    }
+
     /// The path as a C string.
     pub(crate) fn c(&self) -> CString {
         CString::new(self.0.clone().into_os_string().into_encoded_bytes()).unwrap_or_default()
@@ -88,15 +94,30 @@ impl AsRef<Path> for Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        if std::thread::panicking() {
-            // A failing test: keep what it made for inspection, and say where it is.
-            if std::fs::symlink_metadata(&self.0).is_ok() {
-                eprintln!("scratch kept (the test failed): {}", self.0.display());
-            }
-            return;
-        }
-        remove(&self.0);
+        release(&self.0);
     }
+}
+
+/// The target directory's scratch base (`CARGO_TARGET_TMPDIR`), made if it does not exist (a CI
+/// role removes `target/tmp` before the run). The one place a test takes that base from.
+pub(crate) fn base() -> PathBuf {
+    let base = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+    let made = std::fs::create_dir_all(&base);
+    assert!(made.is_ok(), "scratch base {}: {made:?}", base.display());
+    base
+}
+
+/// What a scratch guard does when it goes out of scope, for the test files' own guard types too:
+/// a passing test removes `p` with whatever it holds; a failing test (the thread is unwinding from
+/// a panic) keeps it for inspection and says where it is.
+pub(crate) fn release(p: &Path) {
+    if std::thread::panicking() {
+        if std::fs::symlink_metadata(p).is_ok() {
+            eprintln!("scratch kept (the test failed): {}", p.display());
+        }
+        return;
+    }
+    remove(p);
 }
 
 /// Remove `p`, a file, link or directory tree; a directory a test made unreadable or unwritable

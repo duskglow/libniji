@@ -8,6 +8,8 @@
 #[path = "helpers/exec_stage.rs"]
 mod exec_stage;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,7 +18,7 @@ const ROUNDS: usize = 200;
 const FORKERS: usize = 4;
 
 fn dir(tag: &str) -> PathBuf {
-    let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("exec-stage-{tag}-{}", std::process::id()));
+    let d = crate::scratch::base().join(format!("exec-stage-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     d
 }

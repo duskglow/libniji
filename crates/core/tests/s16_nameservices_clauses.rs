@@ -12,6 +12,8 @@
 #![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use niji::error::Errno;
 use niji::names::nss::{self, Config, Database, LookupError, Service, Spec};
 use niji::names::sort::{self, Candidate, Policy};
@@ -52,7 +54,7 @@ impl Fx {
     fn new(tag: &str) -> Fx {
         static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c16-{}-{tag}-{n}", std::process::id()));
+        let dir = crate::scratch::base().join(format!("c16-{}-{tag}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let files: [(&str, &str); 13] = [
@@ -102,7 +104,7 @@ impl Fx {
 
 impl Drop for Fx {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dir);
+        crate::scratch::release(std::path::Path::new(&self.dir));
     }
 }
 

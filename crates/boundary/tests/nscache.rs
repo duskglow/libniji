@@ -7,6 +7,8 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -40,7 +42,7 @@ struct Dir(PathBuf);
 
 impl Dir {
     fn new(tag: &str) -> Dir {
-        let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("nscache-test-{}-{tag}", std::process::id()));
+        let d = crate::scratch::base().join(format!("nscache-test-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         let mut bytes = d.as_os_str().as_encoded_bytes().to_vec();
@@ -59,7 +61,7 @@ impl Drop for Dir {
     fn drop(&mut self) {
         selftest::nscache_region_dir(None);
         selftest::nscache_reattach();
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 

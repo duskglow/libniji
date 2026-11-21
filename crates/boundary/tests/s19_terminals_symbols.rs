@@ -32,6 +32,8 @@ use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 use products::{conformance, exported};
 
