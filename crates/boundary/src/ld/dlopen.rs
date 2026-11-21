@@ -2000,9 +2000,10 @@ fn call_stack_exec(l: &Loader) {
     }
 }
 
-/// COMPAT-19 at start: the program or a start-up dependency asking for an executable stack was
-/// accepted; after the C library's early initialisation and before any constructor, its later
-/// thread stacks are made executable (the loader made the main stack executable).
+/// COMPAT-19 at start without libniji's C library (`run_init`): the program or a start-up
+/// dependency asking for an executable stack was accepted; before any constructor, the later thread
+/// stacks of a start object defining `__niji_stack_exec` are made executable (the loader made the
+/// main stack executable).
 #[cold]
 #[inline(never)]
 pub(super) fn stacks_executable_at_start() {

@@ -10,7 +10,6 @@ use niji_ld::arch::Native;
 use niji_ld::program;
 use niji_ld::dlopen::Refusal;
 use niji_ld::{map, start};
-use crate::raw;
 use super::dlopen;
 use super::entry::List;
 use super::image::SysMapper;
@@ -18,12 +17,10 @@ use super::io::{c_string, fail_loading, fail_with, stack_word};
 use super::state::START_PAGE;
 
 /// COMPAT-19: set once an object asking for an executable stack is accepted at start (the program
-/// or a start-up dependency); `run_init` then makes the stacks executable.
+/// or a start-up dependency). Read by `run_init` only for a start without libniji's C library,
+/// whose early initialisation otherwise makes the stacks executable itself, reached only when
+/// `GLIBC_TUNABLES` is set (D-27.66, ruling #6941: a normal start reads nothing for COMPAT-19).
 pub(super) static EXEC_STACK: AtomicBool = AtomicBool::new(false);
-
-/// `PROT_GROWSDOWN` (kernel UAPI `asm-generic/mman-common.h`): the change reaches down to the start
-/// of a mapping that grows down (mprotect(2)).
-const PROT_GROWSDOWN: i32 = 0x0100_0000;
 
 /// COMPAT-19: whether the start's `GLIBC_TUNABLES` set `niji.compat.execstack=1` (never in a secure
 /// process: `Tunables::parse` honours nothing there, as for COMPAT-12, ruling #2662). Reached only
@@ -83,15 +80,13 @@ pub(crate) fn exec_main_stack(auxv: usize, page: u64) {
         }
         at = at.wrapping_add(16);
     }
-    let page = usize::try_from(page).ok().filter(|p| p.is_power_of_two()).unwrap_or(4096);
-    if top != 0 {
-        let rwx = map::PROT_READ | map::PROT_WRITE | map::PROT_EXEC;
-        let _ = raw::mprotect(top & !page.wrapping_sub(1), page, rwx | PROT_GROWSDOWN);
-    }
+    crate::thread::exec_main_stack(top, usize::try_from(page).unwrap_or(0));
 }
 
-/// COMPAT-19 at start, before any constructor: the main stack (its auxiliary vector follows the
-/// environment `envp`) and the C library's thread stacks become executable.
+/// COMPAT-19 at start without libniji's C library (`run_init`; with it, the library's early
+/// initialisation does this), before any constructor: the main stack (its auxiliary vector follows
+/// the environment `envp`) and the thread stacks of a start object defining `__niji_stack_exec`
+/// become executable.
 #[cold]
 #[inline(never)]
 pub(super) fn exec_stacks_at_start(envp: usize) {

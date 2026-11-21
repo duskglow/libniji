@@ -281,7 +281,8 @@ pub mod private {
     /// `void __niji_stack_exec(void)`: the loader accepted an object asking for an executable
     /// stack (COMPAT-19): the C library makes the stacks of its listed threads executable and
     /// maps every later thread stack executable (a caller-supplied stack is left as it is).
-    /// Looked up only on that branch, at start or by `dlopen`.
+    /// Looked up only on that branch, by `dlopen` or at a start whose C library did not run
+    /// [`EARLY_INIT`] (with it, the C library does this at start itself; D-27.66).
     pub const STACK_EXEC: &[u8] = b"__niji_stack_exec";
     /// `__niji_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
     pub const BUILD_TAG: &[u8] = b"__niji_build_tag";
