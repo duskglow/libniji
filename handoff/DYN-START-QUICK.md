@@ -1,10 +1,29 @@
 # DYN-START-QUICK: drop the cheap-to-remove system calls of every dynamic start
 
-State: branch `task/dyn-start-quick` (from origin/next bd8fbb61a). Code head 421f140be (`Keep the scratch arena to
-the start's own view of the program`) on top of `Remove start-up system calls the loader does not need`, `Test that
-a dynamic start makes none of the removed system calls`, `Keep the loader's NULL-folding decision`. Decisions in
-force: D-4.22 (NULL folding), D-27.18 (image views), D-27.24 (early start), D-22.9 (thread mappings), D-20.1 / OD-8
-(the internal signal).
+State: branch `task/dyn-start-quick-2` (DYN-START-QUICK-2, continuing `task/dyn-start-quick`; from origin/next
+bd8fbb61a). Code head 8120ed904 (`Keep the static start's thread-pointer test at one word`) on top of 421f140be (`Keep
+the scratch arena to the start's own view of the program`), `Remove start-up system calls the loader does not need`,
+`Test that a dynamic start makes none of the removed system calls`, `Keep the loader's NULL-folding decision`; then
+ade778cc4 (startup_instr_c limit 2161 -> 2155) and handoff commits. Decisions in force: D-4.22 (NULL folding),
+D-27.18 (image views), D-27.24 (early start), D-22.9 (thread mappings), D-20.1 / OD-8 (the internal signal).
+
+## DYN-START-QUICK-2: the CI instruction red (static startup_instr_c 2162 > 2161)
+
+Cause: item 5a's `rtld_fini` test runs on every static start too (`test %r9; je`), before the ARCH_GET_FS query the
+static program still makes; not a layout flip (ruling #7061 does not apply: the delta is in `runtime::start::<false>`'s
+own instructions). Fix (8120ed904): the query writes into a zeroed word (`sys::thread_pointer_or_zero`) and `start`
+tests only that word; a failed query leaves 0, read as static, as the old error-means-static mapping did. That drops
+the result's test and branch from the static path. Measured on the limit's CPU (Zen 1, keke, the staged
+`cbench_startup` binary with `CBENCH_COUNTERS=1 CBENCH_ROWS=startup_instr_c`, 3 rounds b/o/h interleaved, every
+round exact): **merge base code 2157, CI-red head code 2159 (+2), final head 2151 (-6)**. Trees: one role build each
+(`~/work/dyn-start-quick-2/stage1.sh` on mei: head, head minus the fix, head minus the branch's crates/boundary/src
+diff; restored and `cmp`-checked), counted by `~/work/dyn-start-quick-2/count.sh` on keke (jobs
+dyn-start-quick-2-stage1, keke:dyn-start-quick-2-count). CI's 2162 was a merge with a newer next (+3 over this
+base), so the merged head should count about 2154. Limit tightened by the measured gain: 2161 -> 2155 (ALWAYS
+FORWARD). Bytes: `runtime::start::<false>` is 5234 B (base), 5285 (CI-red head), 5355 (final): +121 B over base with
+fewer instructions run (register allocation); the start-up layout and fault checks (xtask test, full-profile
+hot_text_products) are in the proof chain below. Plant `tp-always-set` (handoff/DYN-START-QUICK-2-plants.txt): a
+static program read as having a thread pointer must fail the static fault probes.
 
 ## Items (brief order): removed, or left with the reason
 
@@ -51,6 +70,17 @@ Saving per item (syscalls per start): item 2: 1 per loaded object (1 on n0/nt, 4
 ptrace; the environment goes to the traced program only, as arguments). Plants: handoff/DYN-START-QUICK-plants.txt
 (5: size-by-lseek, arena-off, arena-overlap, arena-after-start (must fail s27_dladdr), get-fs-first).
 
+## DYN-START-QUICK-2 jobs (final code head 8120ed904; mei:~/w/s2, chain ~/work/dyn-start-quick-2/chain2.sh)
+
+dyn-start-quick-2-lint0 rc 0 (inherited head 7a1643f28: all-features clippy, xtask static); dyn-start-quick-2-stage1
+rc 0 (clippy + static on 8120ed904, then the three staged trees); keke:dyn-start-quick-2-count rc 0 (the counts
+above; keke:dyn-start-quick-2-try/-try2 were command trials on the head tree, 2151 too);
+dyn-start-quick-2-gate rc 0 (direct tier: 15 suites ok, 11045 passed, 0 failed, 1503 ignored; conformance 69
+passed; SKIPPED 0; peak 15G page cache included, oom_kill 0); dyn-start-quick-2-plants rc 0 (6 plants: 5 CAUGHT by
+their message; tp-always-set WARN-NO-MSG: caught by the products build itself, `trace-at-build: tracing failed` (the
+build's static probes cannot start), so the named test never ran; the next plants file should add `tracing failed`
+to its msg); dyn-start-quick-2-xtest and dyn-start-quick-2-fullprof: see the hand-back (JOBS line).
+
 ## Jobs on head 421f140be (mei:~/w/s1 chain ~/work/dyn-start-quick/chain3.sh; keke for Zen 1)
 
 dyn-start-quick-lint3 rc 0; dyn-start-quick-after3 rc 0 (13 layout contracts hold; Skylake-SP rows above);
@@ -69,8 +99,8 @@ keke: -zenbase, -zencmp.
 
 ## Next step
 
-Code done (items 2, 3, 5a; do not redo). Open: RULING NEEDED item 6 (recommend: keep the handler eager until a
-ruling; the host C library installs none at start, so lazy would save 1 call per start). INFORMATIONAL: the
+Code done (items 2, 3, 5a, and DYN-START-QUICK-2's static-path fix; do not redo). Item 6 is ruled (#7075, owner
+"Make it lazy is fine"): DYN-START-RING makes the signal-32 handler lazy with a differences row; nothing left here. INFORMATIONAL: the
 arena-after-start dladdr mechanism was not traced. Leftovers for DYN-START-RING: items 1 (fix-forward above), 4, 5b.
 Report: handoff/reports/DYN-START-QUICK.json.
 Process notes for the report: leg 1 used `sed -i` once on a scratch commit-message file and one `pgrep -f` (read-only);
