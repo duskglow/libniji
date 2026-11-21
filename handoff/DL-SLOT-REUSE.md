@@ -21,6 +21,10 @@
 layout identical modulo LLVM hash suffixes; ld.so text +7,656 B), plants (6, incl. the room check), direct gate,
 `cargo xtask test` (red on check 72 -> fixed above), D-27.74.
 
+**Final jobs (mei).** lint4, gate3, plants2, counts2, hottext1 green. `cargo xtask test`: xtest2 red only on
+`niji::dns_products resolv_equals_the_reference` hung in the native pass (ended after 29 min); xtest3 is the rerun
+(pending at hand-back). If xtest3 is red on the same test, check it on origin/next before touching this branch.
+
 **Open.** RULING NEEDED: (1) `dl_iterate_phdr` +4 instructions a call within 512 objects (brief asked "same
 counts"; avoiding it needs the readers' table kept in load order); recommend accept. (2) the three-quarters wait
 has lost its only test; recommend a follow-up test with sets larger than the holes.

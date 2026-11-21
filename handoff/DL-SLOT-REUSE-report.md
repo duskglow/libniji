@@ -69,8 +69,12 @@ Reading it:
   opens behind a reader that is always inside some walk to wait at three quarters of the table, the backstop for
   freed slots that were never reused; with reuse the top no longer climbs there. The check now states the promise
   that replaced it: at most 128 distinct handles in the 600 pairs (before: the top climbed to 384 first); plant
-  `never-reuse-room` proves it. Final-head jobs: see the hand-back's JOBS line (gate2, xtest2, full-profile
-  `hot_text_products` hottext1, plants2, head counts).
+  `never-reuse-room` proves it. Final head: lint `dl-slot-reuse-lint4` (clippy -D warnings, static) green; gate
+  `dl-slot-reuse-gate3` 10 suites, 671 passed; plants `dl-slot-reuse-plants2` 6/6 CAUGHT; counts
+  `dl-slot-reuse-counts2`; full-profile `hot_text_products` `dl-slot-reuse-hottext1` 33 passed. `cargo xtask test`
+  `dl-slot-reuse-xtest2`: phase 1 7017/7017 passed; native pass 4861/4862: `niji::dns_products
+  resolv_equals_the_reference` hung (29 min; its `timeout` child had exited unreaped, one thread in poll, no open
+  socket, no live descendant) and was ended by SIGTERM; rerun as `dl-slot-reuse-xtest3`.
 
 ## RULING NEEDED
 

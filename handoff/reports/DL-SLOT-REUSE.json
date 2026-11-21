@@ -10,6 +10,7 @@
  "informational": [
   "own-code defect fixed: reclaim could lower the name arena's top over the path of an object unloaded but still in its grace period (now kept until freed)",
   "head dlopen per call is 2.4-10x the reference's (73.5k vs 7.4k instructions at K=8), same as base below 512 objects; not this story's",
+  "cargo xtask test (dl-slot-reuse-xtest2): phase 1 7017/7017 passed; in the native pass niji::dns_products resolv_equals_the_reference hung (29 min; its timeout child had exited unreaped, one thread in poll, no open socket, no live descendant) and was ended by the agent (SIGTERM); 4861/4862 otherwise. Rerun as dl-slot-reuse-xtest3. Not diagnosed further; the loader paths this branch changes run only after a dlopen set goes below the top",
   "process slips: one sed -i on readers.rs in leg 1 and one sed -i on a scratch script in leg 2 (not refused; the rule says Edit tool); scripts installed on the build host via ssh 'cat > file'"
  ],
  "refused": [],
@@ -27,4 +28,4 @@
  "improvement": "the direct tier ran only the changed test file of niji-ld, so a dlclose test that encoded the old reuse rule surfaced only in cargo xtask test (32 min); affected could select every test file of the package whose module changed (tests of crates/boundary/src/ld -> all of crates/ld/tests)",
  "next_step": "first-fit gap placement of path and dependency spans with the grace-period rule, so the address space under churn is bounded too",
  "report_file": "handoff/DL-SLOT-REUSE-report.md",
- "jobs": ["mei:dl-slot-reuse-lint4", "mei:dl-slot-reuse-gate3", "mei:dl-slot-reuse-plants2", "mei:dl-slot-reuse-counts2", "mei:dl-slot-reuse-xtest2", "mei:dl-slot-reuse-hottext1"]}
+ "jobs": ["mei:dl-slot-reuse-lint4", "mei:dl-slot-reuse-gate3", "mei:dl-slot-reuse-plants2", "mei:dl-slot-reuse-counts2", "mei:dl-slot-reuse-hottext1", "mei:dl-slot-reuse-xtest3"]}
