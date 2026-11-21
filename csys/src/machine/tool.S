@@ -1,5 +1,5 @@
 /* Class machine: valgrind's RUNNING_ON_VALGRIND client request (request 0x1001, valgrind.h's documented
- * amd64 sequence, VALGRIND-LOADER-VIEW, D-NEW). %rax points at the six-word request block (the request
+ * amd64 sequence, VALGRIND-LOADER-VIEW, D-X.152). %rax points at the six-word request block (the request
  * and five zero arguments), %rdx holds the default answer 0; the four rotations of %rdi (3 + 13 + 61 + 51 =
  * 128 bits, so %rdi is unchanged) followed by `xchgq %rbx,%rbx` are no-ops on the bare machine, and under
  * valgrind they ask the tool, which leaves its nesting depth (1 or more) in %rdx. The result is %rdx. No

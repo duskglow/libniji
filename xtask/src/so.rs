@@ -44,7 +44,7 @@
 use crate::hotlists::Layout;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub(crate) fn run(cmd: &mut Command) -> Result<(), String> {
@@ -1841,6 +1841,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let own_nodes: BTreeSet<String> = native_names.iter().cloned().chain(LIBC_PRIVATE.iter().map(|s| (*s).to_string())).chain(forwards).collect();
     let versioned = check_version_sets(root, &so, "libc.so.6", &have, &own_nodes)?;
     println!("so: version set and default version of {versioned} libc.so.6 names checked against spec/abi/versions.tsv");
+    let named = name_versioned_defaults(&so)?;
+    println!("so: {named} defaults with a compat version beside them also named name@@VERSION in .symtab (VALGRIND-LOADER-VIEW)");
     // The 64-byte entry alignment (D-4.33) is contract FN-ALIGN-EXPORTS, checked with the others at the end.
     publish(&so, &so_final)?;
     // The opt-in's link-time interface (D-27.29): the same link with the three entries at the
@@ -2737,27 +2739,7 @@ pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
 /// `.symtab` (`--defsym` makes a size-0 symbol, which valgrind passes over). Only `st_size` changes:
 /// `.symtab` is not loaded, so no loaded byte of the interpreter moves.
 pub(crate) fn size_tool_aliases(elf: &mut [u8]) -> Result<(), String> {
-    fn get(b: &[u8], at: usize, n: usize) -> Result<u64, String> {
-        let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
-        Ok(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x)))
-    }
-    let us = |v: u64| usize::try_from(v).map_err(|e| e.to_string());
-    if elf.get(..6) != Some(&[0x7f, b'E', b'L', b'F', 2, 1][..]) {
-        return Err("not an ELF64 little-endian object".into());
-    }
-    let (shoff, shentsize, shnum) = (us(get(elf, 0x28, 8)?)?, us(get(elf, 0x3a, 2)?)?, us(get(elf, 0x3c, 2)?)?);
-    let sec = |i: usize| shoff + i * shentsize;
-    let symtab = (0..shnum).find(|&i| get(elf, sec(i) + 4, 4).is_ok_and(|t| t == 2)).ok_or("no .symtab")?;
-    let (off, size) = (us(get(elf, sec(symtab) + 0x18, 8)?)?, us(get(elf, sec(symtab) + 0x20, 8)?)?);
-    let strtab = us(get(elf, sec(symtab) + 0x28, 4)?)?;
-    let stroff = us(get(elf, sec(strtab) + 0x18, 8)?)?;
-    // (entry offset, name, value, size) of every symbol.
-    let mut syms = Vec::new();
-    for e in (off..off + size).step_by(24) {
-        let name_at = stroff + us(get(elf, e, 4)?)?;
-        let name = elf.get(name_at..).and_then(|s| s.split(|&c| c == 0).next()).ok_or("symbol name past the end")?.to_vec();
-        syms.push((e, name, get(elf, e + 8, 8)?, get(elf, e + 16, 8)?));
-    }
+    let syms = symtab_entries(elf)?;
     for (alias, target) in LD_TOOL_ALIASES {
         let t = syms.iter().find(|s| s.1 == target.as_bytes()).ok_or_else(|| format!("no {target} in .symtab"))?;
         let a = syms.iter().find(|s| s.1 == alias.as_bytes()).ok_or_else(|| format!("no {alias} in .symtab"))?;
@@ -2779,6 +2761,183 @@ fn check_interp_tool_names(path: &Path) -> Result<(), String> {
     }
     tool_names_errors(&String::from_utf8_lossy(&out.stdout))
         .map_err(|e| format!("{}: the names valgrind looks up in the interpreter (VALGRIND-LDSO-SYMBOLS): {e}", path.display()))
+}
+
+/// VALGRIND-LOADER-VIEW (GitHub issue #13): the `.symtab` aliases `name@@VERSION` of `readelf --dyn-syms -W`
+/// text: (alias, name, the default's value) for each defined function whose default version has a
+/// non-default (compat) version beside it. The link names such a default plain in `.symtab` (the version
+/// script versions it, not a `.symver`), while its compat stub is `name@VERSION` there; tools that match
+/// `.symtab` names literally and wrap `name@*` (valgrind's helgrind wraps `pthread_create@*`) then wrap the
+/// stub but never the default every current program calls. Functions only: tools redirect functions.
+pub(crate) fn versioned_default_aliases(dynsyms: &str) -> Vec<(String, String, u64)> {
+    let mut defaults = BTreeMap::new();
+    let mut compat = BTreeSet::new();
+    for line in dynsyms.lines() {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        // Num: Value Size Type Bind Vis Ndx Name@Version
+        if f.len() < 8 || !f[0].ends_with(':') || f[6] == "UND" || f[6] == "ABS" || !matches!(f[3], "FUNC" | "IFUNC") {
+            continue;
+        }
+        let Some((name, ver)) = f[7].split_once('@') else { continue };
+        match ver.strip_prefix('@') {
+            Some(v) => {
+                if let Ok(value) = u64::from_str_radix(f[1], 16) {
+                    defaults.insert(name.to_string(), (v.to_string(), value));
+                }
+            }
+            None => {
+                compat.insert(name.to_string());
+            }
+        }
+    }
+    defaults.into_iter().filter(|(n, _)| compat.contains(n)).map(|(n, (v, value))| (format!("{n}@@{v}"), n, value)).collect()
+}
+
+/// The `.symtab` of the ELF64 little-endian image `elf`: (entry offset, name, value, size) of every symbol.
+fn symtab_entries(elf: &[u8]) -> Result<Vec<(usize, Vec<u8>, u64, u64)>, String> {
+    fn get(b: &[u8], at: usize, n: usize) -> Result<u64, String> {
+        let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
+        Ok(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x)))
+    }
+    let us = |v: u64| usize::try_from(v).map_err(|e| e.to_string());
+    if elf.get(..6) != Some(&[0x7f, b'E', b'L', b'F', 2, 1][..]) {
+        return Err("not an ELF64 little-endian object".into());
+    }
+    let (shoff, shentsize, shnum) = (us(get(elf, 0x28, 8)?)?, us(get(elf, 0x3a, 2)?)?, us(get(elf, 0x3c, 2)?)?);
+    let sec = |i: usize| shoff + i * shentsize;
+    let symtab = (0..shnum).find(|&i| get(elf, sec(i) + 4, 4).is_ok_and(|t| t == 2)).ok_or("no .symtab")?;
+    let (off, size) = (us(get(elf, sec(symtab) + 0x18, 8)?)?, us(get(elf, sec(symtab) + 0x20, 8)?)?);
+    let strtab = us(get(elf, sec(symtab) + 0x28, 4)?)?;
+    if strtab >= shnum {
+        return Err(format!(".symtab links section {strtab}, past the {shnum} sections"));
+    }
+    let stroff = us(get(elf, sec(strtab) + 0x18, 8)?)?;
+    let mut syms = Vec::new();
+    for e in (off..off + size).step_by(24) {
+        let name_at = stroff + us(get(elf, e, 4)?)?;
+        let name = elf.get(name_at..).and_then(|s| s.split(|&c| c == 0).next()).ok_or("symbol name past the end")?.to_vec();
+        syms.push((e, name, get(elf, e + 8, 8)?, get(elf, e + 16, 8)?));
+    }
+    Ok(syms)
+}
+
+/// Make each alias of `aliases` (from [`versioned_default_aliases`], already in `.symtab` under its name)
+/// a copy of its function's `.symtab` entry, the name aside: binding, type, visibility, section, value and
+/// size (valgrind passes over a size-0 function symbol, and takes two symbols as one function only at
+/// one address with one size). The function's entry is the non-local one of that name at the default's
+/// value. Only `.symtab` changes, which is not loaded.
+pub(crate) fn copy_alias_entries(elf: &mut [u8], aliases: &[(String, String, u64)]) -> Result<(), String> {
+    let syms = symtab_entries(elf)?;
+    for (alias, name, value) in aliases {
+        let mut at = syms.iter().filter(|s| s.1 == alias.as_bytes());
+        let (Some(a), None) = (at.next(), at.next()) else {
+            return Err(format!("{alias}: not once in .symtab"));
+        };
+        // st_info's binding is its high nibble; 0 is STB_LOCAL.
+        let t = syms
+            .iter()
+            .find(|s| s.1 == name.as_bytes() && s.2 == *value && elf[s.0 + 4] >> 4 != 0)
+            .ok_or_else(|| format!("no non-local {name} at {value:#x} in .symtab (the function of {alias})"))?;
+        let (from, to) = (t.0, a.0);
+        elf.copy_within(from + 4..from + 24, to + 4);
+    }
+    Ok(())
+}
+
+/// The bytes a loader reads of an ELF64 little-endian image: the file header, the program headers and
+/// each segment's file range. `Ok` when `before` and `after` agree on all of them.
+pub(crate) fn loaded_bytes_errors(before: &[u8], after: &[u8]) -> Result<(), String> {
+    fn get(b: &[u8], at: usize, n: usize) -> Result<usize, String> {
+        let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
+        usize::try_from(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x))).map_err(|e| e.to_string())
+    }
+    let ranges = |b: &[u8]| -> Result<Vec<(usize, usize)>, String> {
+        let (phoff, phentsize, phnum) = (get(b, 0x20, 8)?, get(b, 0x36, 2)?, get(b, 0x38, 2)?);
+        let mut r = vec![(0, 0x40), (phoff, phentsize * phnum)];
+        for i in 0..phnum {
+            let p = phoff + i * phentsize;
+            r.push((get(b, p + 8, 8)?, get(b, p + 0x20, 8)?));
+        }
+        Ok(r)
+    };
+    // The section header fields (offset, entry size, count, names) may move: they are not loaded.
+    let header = |b: &[u8]| -> Vec<u8> { b.iter().take(0x40).enumerate().filter(|(i, _)| !(0x28..0x30).contains(i) && !(0x3a..0x40).contains(i)).map(|(_, x)| *x).collect() };
+    if header(before) != header(after) {
+        return Err("the ELF header differs (outside the section header fields)".into());
+    }
+    let (rb, ra) = (ranges(before)?, ranges(after)?);
+    if rb != ra {
+        return Err("the program headers differ".into());
+    }
+    for (off, len) in rb.into_iter().skip(1) {
+        if before.get(off..off + len) != after.get(off..off + len) {
+            return Err(format!("the loaded bytes at file offset {off:#x} ({len} bytes) differ"));
+        }
+    }
+    Ok(())
+}
+
+/// [`versioned_default_aliases`] in `.symtab` of the linked library `so`: added by `objcopy` (name only),
+/// then each made a copy of its function's entry ([`copy_alias_entries`]). Checked: the loaded bytes and
+/// `.dynsym` are unchanged, and each alias sits at its function's value with its size and type.
+/// The number of aliases.
+fn name_versioned_defaults(so: &Path) -> Result<usize, String> {
+    let readelf = |args: &[&str], p: &Path| -> Result<String, String> {
+        let out = Command::new("readelf").args(args).arg(p).output().map_err(|e| format!("readelf: {e}"))?;
+        if !out.status.success() {
+            return Err(format!("readelf {args:?} {} failed", p.display()));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+    let dyn_before = readelf(&["--dyn-syms", "-W"], so)?;
+    let aliases = versioned_default_aliases(&dyn_before);
+    if aliases.is_empty() {
+        return Err(format!("{}: no default version with a compat version beside it", so.display()));
+    }
+    let before = fs::read(so).map_err(|e| format!("{}: {e}", so.display()))?;
+    let mut named = so.as_os_str().to_owned();
+    named.push(".named");
+    let named = PathBuf::from(named);
+    let objcopy = std::env::var("OBJCOPY").unwrap_or_else(|_| "objcopy".into());
+    let mut add = Command::new(&objcopy);
+    for (alias, _, _) in &aliases {
+        add.arg(format!("--add-symbol={alias}=0,global"));
+    }
+    run(add.arg(so).arg(&named))?;
+    let mut after = fs::read(&named).map_err(|e| format!("{}: {e}", named.display()))?;
+    copy_alias_entries(&mut after, &aliases).map_err(|e| format!("{}: {e}", so.display()))?;
+    loaded_bytes_errors(&before, &after).map_err(|e| format!("{}: naming the versioned defaults: {e}", so.display()))?;
+    fs::write(&named, &after).map_err(|e| format!("{}: {e}", named.display()))?;
+    if readelf(&["--dyn-syms", "-W"], &named)? != dyn_before {
+        return Err(format!("{}: naming the versioned defaults changed .dynsym", so.display()));
+    }
+    let rows = symbols_with_sizes(&readelf(&["-sW"], &named)?);
+    for (alias, name, value) in &aliases {
+        let of = |n: &str| rows.iter().find(|r| r.0 == ".symtab" && r.1 == n && u64::from_str_radix(&r.2, 16) == Ok(*value)).map(|r| (&r.3, &r.4));
+        match (of(alias), of(name)) {
+            (Some(a), Some(f)) if a == f && a.0 != "0" => {}
+            (a, f) => return Err(format!("{}: {alias} is {a:?} in .symtab, {name} is {f:?} (size, type)", so.display())),
+        }
+    }
+    fs::rename(&named, so).map_err(|e| format!("{}: {e}", so.display()))?;
+    Ok(aliases.len())
+}
+
+/// `readelf -sW` rows: (table, name, value, size, type).
+fn symbols_with_sizes(readelf: &str) -> Vec<(String, String, String, String, String)> {
+    let mut table = String::new();
+    let mut rows = Vec::new();
+    for line in readelf.lines() {
+        if let Some(rest) = line.strip_prefix("Symbol table '") {
+            table = rest.split('\'').next().unwrap_or("").to_string();
+            continue;
+        }
+        let f: Vec<&str> = line.split_whitespace().collect();
+        if f.len() == 8 && f[0].ends_with(':') {
+            rows.push((table.clone(), f[7].to_string(), f[1].to_string(), f[2].to_string(), f[3].to_string()));
+        }
+    }
+    rows
 }
 
 /// The entry primitive of `ld.so` (`machine/entry.S` with `-DNIJI_LD`).
@@ -3382,6 +3541,111 @@ mod tests {
         assert!(tool_names_errors(&moved).unwrap_err().contains("strlen at 000000000004ff50, not at niji_machine_strlen's"));
         let zero_size = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
         assert!(tool_names_errors(&zero_size).unwrap_err().contains("strlen has size 0"));
+    }
+
+    /// VALGRIND-LOADER-VIEW (no spec clause: the build of libc.so.6; the `.symtab` names tools match):
+    /// `readelf --dyn-syms -W` rows. A function default with a compat version beside it gets its
+    /// `name@@VERSION` alias at the default's value; a default alone, a data object and an undefined
+    /// reference get none.
+    #[test]
+    fn versioned_defaults_of_compat_functions() {
+        let dynsym = "Symbol table '.dynsym' contains 8 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND \n     1: 0000000000090000   300 FUNC    GLOBAL DEFAULT   13 pthread_create@@GLIBC_2.34\n     2: 0000000000090400     5 FUNC    GLOBAL DEFAULT   13 pthread_create@GLIBC_2.2.5\n     3: 0000000000090500   100 FUNC    GLOBAL DEFAULT   13 pthread_join@@GLIBC_2.34\n     4: 0000000000091000    40 OBJECT  GLOBAL DEFAULT   20 sys_thing@@GLIBC_2.4\n     5: 0000000000091100    40 OBJECT  GLOBAL DEFAULT   20 sys_thing@GLIBC_2.2.5\n     6: 0000000000092000    40 IFUNC   GLOBAL DEFAULT   13 memcpy@@GLIBC_2.14\n     7: 0000000000092100    40 FUNC    GLOBAL DEFAULT   13 memcpy@GLIBC_2.2.5\n     8: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND abort@GLIBC_2.2.5\n";
+        let want = vec![
+            ("memcpy@@GLIBC_2.14".to_string(), "memcpy".to_string(), 0x92000),
+            ("pthread_create@@GLIBC_2.34".to_string(), "pthread_create".to_string(), 0x90000),
+        ];
+        assert_eq!(versioned_default_aliases(dynsym), want);
+    }
+
+    /// A little ELF64 image: one loaded segment over the first 0x100 bytes (the headers and a text
+    /// pattern), then `.strtab`, `.symtab` of `syms` (name, st_info, section, value, size) and the
+    /// section headers (null, `.symtab`, `.strtab`).
+    fn tiny_elf(syms: &[(&str, u8, u16, u64, u64)]) -> Vec<u8> {
+        let mut b = vec![0u8; 0x100];
+        b[..6].copy_from_slice(&[0x7f, b'E', b'L', b'F', 2, 1]);
+        b[0x20..0x28].copy_from_slice(&0x40u64.to_le_bytes());
+        b[0x36..0x38].copy_from_slice(&56u16.to_le_bytes());
+        b[0x38..0x3a].copy_from_slice(&1u16.to_le_bytes());
+        b[0x3a..0x3c].copy_from_slice(&64u16.to_le_bytes());
+        b[0x3c..0x3e].copy_from_slice(&3u16.to_le_bytes());
+        b[0x40..0x44].copy_from_slice(&1u32.to_le_bytes());
+        b[0x60..0x68].copy_from_slice(&0x100u64.to_le_bytes());
+        for (i, x) in b.iter_mut().enumerate().skip(0x78) {
+            *x = i as u8;
+        }
+        let mut strtab = vec![0u8];
+        let mut symtab = vec![0u8; 24];
+        for (name, info, shndx, value, size) in syms {
+            let at = strtab.len() as u32;
+            strtab.extend_from_slice(name.as_bytes());
+            strtab.push(0);
+            symtab.extend_from_slice(&at.to_le_bytes());
+            symtab.extend_from_slice(&[*info, 0]);
+            symtab.extend_from_slice(&shndx.to_le_bytes());
+            symtab.extend_from_slice(&value.to_le_bytes());
+            symtab.extend_from_slice(&size.to_le_bytes());
+        }
+        let str_off = b.len();
+        b.extend_from_slice(&strtab);
+        b.resize(b.len().next_multiple_of(8), 0);
+        let sym_off = b.len();
+        b.extend_from_slice(&symtab);
+        let shoff = b.len();
+        b[0x28..0x30].copy_from_slice(&(shoff as u64).to_le_bytes());
+        let mut sh = vec![0u8; 3 * 64];
+        sh[64 + 4..64 + 8].copy_from_slice(&2u32.to_le_bytes());
+        sh[64 + 0x18..64 + 0x20].copy_from_slice(&(sym_off as u64).to_le_bytes());
+        sh[64 + 0x20..64 + 0x28].copy_from_slice(&(symtab.len() as u64).to_le_bytes());
+        sh[64 + 0x28..64 + 0x2c].copy_from_slice(&2u32.to_le_bytes());
+        sh[128 + 4..128 + 8].copy_from_slice(&3u32.to_le_bytes());
+        sh[128 + 0x18..128 + 0x20].copy_from_slice(&(str_off as u64).to_le_bytes());
+        sh[128 + 0x20..128 + 0x28].copy_from_slice(&(strtab.len() as u64).to_le_bytes());
+        b.extend_from_slice(&sh);
+        b
+    }
+
+    /// VALGRIND-LOADER-VIEW (no spec clause: the build of libc.so.6): an alias objcopy added (absolute,
+    /// size 0) becomes a copy of its function's global entry (binding, type, section, value, size), not
+    /// of a local symbol of the same name and value; a missing alias or function is refused.
+    #[test]
+    fn versioned_default_alias_copies_its_function() {
+        let syms = [
+            ("pthread_create", 0x02, 7, 0x9000, 1),
+            ("pthread_create", 0x12, 5, 0x9000, 300),
+            ("pthread_create@GLIBC_2.2.5", 0x12, 5, 0x9400, 5),
+            ("pthread_create@@GLIBC_2.34", 0x10, 0xfff1, 0, 0),
+        ];
+        let mut elf = tiny_elf(&syms);
+        let alias = [("pthread_create@@GLIBC_2.34".to_string(), "pthread_create".to_string(), 0x9000)];
+        assert_eq!(copy_alias_entries(&mut elf, &alias), Ok(()));
+        let e = symtab_entries(&elf).unwrap();
+        let (a, f) = (&e[4], &e[2]);
+        assert_eq!((a.1.as_slice(), a.2, a.3), (&b"pthread_create@@GLIBC_2.34"[..], 0x9000, 300));
+        assert_eq!(elf[a.0 + 4..a.0 + 24], elf[f.0 + 4..f.0 + 24]);
+        let mut elf = tiny_elf(&syms[..3]);
+        assert!(copy_alias_entries(&mut elf, &alias).unwrap_err().contains("not once in .symtab"));
+        let mut elf = tiny_elf(&[syms[0], syms[3]]);
+        assert!(copy_alias_entries(&mut elf, &alias).unwrap_err().contains("no non-local pthread_create at 0x9000"));
+    }
+
+    /// VALGRIND-LOADER-VIEW (no spec clause: the build of libc.so.6): renaming in `.symtab` and moving
+    /// the section headers leave the loaded bytes as they were; a changed byte inside the loaded
+    /// segment, or a changed program header, is reported.
+    #[test]
+    fn loaded_bytes_compare_only_what_is_loaded() {
+        let elf = tiny_elf(&[("f", 0x12, 5, 0x90, 4)]);
+        let mut renamed = elf.clone();
+        let n = renamed.len();
+        renamed[0x100 + 1] = b'g';
+        renamed[0x28] ^= 8;
+        renamed[n - 1] = 1;
+        assert_eq!(loaded_bytes_errors(&elf, &renamed), Ok(()));
+        let mut text = elf.clone();
+        text[0xf0] ^= 1;
+        assert!(loaded_bytes_errors(&elf, &text).unwrap_err().contains("file offset 0x0"));
+        let mut phdr = elf.clone();
+        phdr[0x60] ^= 1;
+        assert_eq!(loaded_bytes_errors(&elf, &phdr), Err("the program headers differ".into()));
     }
 
     /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
