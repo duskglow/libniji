@@ -1456,7 +1456,7 @@ pub fn debug_reader_rodata_errors(readelf: &str) -> Result<(), String> {
 /// gap and `.text` starts the executable segment on its alignment (the gap is the one between segments).
 const PLT_AFTER_TEXT: &str = "SECTIONS\n{\n  .plt : { *(.plt) *(.iplt) }\n  .plt.got : { *(.plt.got) }\n  .plt.sec : { *(.plt.sec) }\n}\nINSERT AFTER .text;\n";
 
-/// LIBC-SELF-BIND (D-27.NEW, ruling #7401): the functions libc.so.6's own references leave preemptible. The
+/// LIBC-SELF-BIND (D-27.76, ruling #7401): the functions libc.so.6's own references leave preemptible. The
 /// link binds every other reference to a function the library defines to that definition (`--dynamic-list`
 /// with `--dynamic-list-data`: `-Bsymbolic-functions` with exceptions), so a start no longer looks up ~230 of
 /// the library's own names through the whole scope. These stay preemptible: the malloc family the GNU C Library
