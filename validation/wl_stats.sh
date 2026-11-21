@@ -42,7 +42,15 @@ wl_stats() {
 #   balancing's hinting faults, which are time driven. They only ever ADD faults, so the lowest run is the program's
 #   own number and the median (the method before, 3 good runs of 5 needed) is not.
 # WLC_ASLR=1 measures as before (ASLR on, the median; rows cached apart as .p.tsv).
-#   wl_run_prefix       stdout: the prefix (empty for WLC_ASLR=1); exit 1 when setarch is missing
+# FIXED ENVIRONMENT (WL-LEVELS-RERECORD, D-X.155): in one address layout the size of the process environment decides
+# where the stack starts, so a row moved by about one fault per process with the caller's environment (an ssh session's
+# addresses and session id, the job label, cargo's variables). Every measured run therefore starts from `env -i` with
+# WL_RUN_ENV: the same variables, values and total size on every run and host, whoever starts the count. LANG and
+# LC_CTYPE keep the values every count before this one ran with (an ssh session's); HOME and PATH are fixed literals.
+# Rows measured so are cached as .r.tsv (wl_count_run.sh).
+#   wl_run_prefix       stdout: the prefix (`env -i WL_RUN_ENV setarch -R`; empty for WLC_ASLR=1, which measures as
+#                       before in the caller's environment); exit 1 when setarch is missing
+WL_RUN_ENV='HOME=/ PATH=/usr/bin:/bin LANG=en_US.UTF-8 LC_CTYPE=C.UTF-8'
 #   wl_fault_field      stdout: the field of wl_stats' output that is the row's page-fault number: 5 (lowest), or 4
 #                       (median) for WLC_ASLR=1
 #   wl_clone_lines FILE stdout: the clone/clone3/fork/vfork CALL lines of an `strace -f` trace (pid first, or no pid),
@@ -51,7 +59,7 @@ wl_stats() {
 wl_run_prefix() {
     [ "${WLC_ASLR:-0}" = 1 ] && return 0
     command -v setarch > /dev/null || { echo "wl_count: setarch is needed for the run setup (WLC_ASLR=1 measures without it)" >&2; return 1; }
-    echo 'setarch -R'
+    echo "env -i $WL_RUN_ENV setarch -R"
 }
 
 wl_fault_field() { if [ "${WLC_ASLR:-0}" = 1 ]; then echo 4; else echo 5; fi; }
