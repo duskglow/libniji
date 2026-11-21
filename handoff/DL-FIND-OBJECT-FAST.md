@@ -2,7 +2,7 @@
 
 **State.** Branch `task/dl-find-object-fast` from next `d5764940d`; role keke:~/w/n4. Code head `f92f73c40`
 (record `b4cba586a`, then handoff/report commits). Decision: `records/pending/DL-FIND-OBJECT-FAST-1.toml` (D-NEW,
-series D-27; CI assigns the id).
+series D-27; id D-27.75 reserved in leg 3 and named in `index.rs`'s module doc, a comment-only commit after the jobs).
 
 **Design (in force).** `crates/boundary/src/ld/index.rs` (module doc): one entry per `PT_LOAD` segment, sorted by
 start, binary search for the last entry at or below the address, kept when its object's whole range holds it.
