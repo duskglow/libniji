@@ -18,4 +18,4 @@
  "improvement": "The alias probe matched names through libniji's own generated alias lists (circular); a reference-only fingerprint source is the rule for any probe that derives tables from the reference",
  "next_step": "Land; ICONV-CJK-STARTUP converts the six descriptors to offsets",
  "report_file": "handoff/ICONV-REST.md",
- "jobs": ["mei:iconv-rest-gate1", "mei:iconv-rest-plants1", "mei:iconv-rest-check3"]}
+ "jobs": ["mei:iconv-rest-gate1", "mei:iconv-rest-plants1"]}
