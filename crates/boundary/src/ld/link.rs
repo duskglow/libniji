@@ -144,7 +144,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                     match open_candidate(c, page, env) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
-                        Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
+                        Ok((fd, at, file, _, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
                             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
                             let _ = raw::munmap(at, file.len());
                             return false;
@@ -186,19 +186,22 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
             } else {
-                let (fd, at, file, id) = found.unwrap_or_else(|| {
-                    // The string table entry is NUL-terminated in the mapped file.
-                    open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING))
+                let (fd, at, file, id, checked) = found.unwrap_or_else(|| {
+                    // The string table entry is NUL-terminated in the mapped file; not checked here
+                    // (`map::load` checks it).
+                    let (fd, at, file, id) = open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING));
+                    (fd, at, file, id, None)
                 });
-                found = Some((fd, at, file, id));
+                found = Some((fd, at, file, id, checked));
                 // `ld.so` by any name it was found by is the start-time `ld.so` (ruling #5126).
-                is_interp = bare && dynamic_of(file).and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
+                let dynm = checked.map(|c| c.dynm).or_else(|| dynamic_of(file));
+                is_interp = bare && dynm.and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
                 id
             };
             // Another path to an object already loaded (L14-4): the same object, loaded once.
             let again = if is_interp { interp } else { ids[..n].iter().position(|x| *x == id) };
             if is_interp || again.is_some() {
-                if let Some((fd, at, file, _)) = found {
+                if let Some((fd, at, file, _, _)) = found {
                     let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
                     let _ = raw::munmap(at, file.len());
                 }
@@ -219,22 +222,30 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 n += 1;
                 continue;
             }
-            let Some((fd, at, file, id)) = found else { continue };
+            let Some((fd, at, file, id, checked)) = found else { continue };
             if !bare && pre.is_none() {
                 // Kept (NUL-terminated) as its link map's name: the DT_NEEDED string is in a mapping
                 // released below.
                 paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
-            let loaded = match map::load::<Native, _>(&mut SysMapper { fd }, file, page) {
-                Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
-                other => other,
+            // A candidate the search checked is mapped by the plan its check made (the same bytes,
+            // planned once); one found by path, or asking for an executable stack, is checked here.
+            let loaded = match checked {
+                Some(c) => map::map_planned(&mut SysMapper { fd }, &c.elf, &c.plan, file, page),
+                None => match map::load::<Native, _>(&mut SysMapper { fd }, file, page) {
+                    Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
+                    other => other,
+                },
             };
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
             let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
             maps[n] = (at, file.len());
             ids[n] = id;
             phdrs[n] = (usize::try_from(loaded.phdr).unwrap_or(0), usize::from(loaded.phnum));
-            objs[n] = parse(file, name, loaded.bias);
+            objs[n] = match checked {
+                Some(c) => niji_ld::reloc::Obj { elf: c.elf, dynm: c.dynm, bias: loaded.bias, name, tls: None },
+                None => parse(file, name, loaded.bias),
+            };
             parent[n] = q;
             if pre.is_none() {
                 edge(q, n, name);

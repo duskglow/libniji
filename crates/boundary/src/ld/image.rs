@@ -8,7 +8,7 @@ use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::program;
 use niji_ld::cache::Cache;
-use niji_ld::dlopen::Refusal;
+use niji_ld::dlopen::{Checked, Refusal};
 use niji_ld::search::{self, PathBuf};
 use niji_ld::{boot, elf, map, start};
 use crate::{conv, raw};
@@ -559,11 +559,17 @@ pub(super) enum Unusable {
     Refused(Refusal),
 }
 
+/// A start candidate [`open_candidate`] accepted: (descriptor, mapping, bytes, identity, what its
+/// check read). The last is `None` for an object asking for an executable stack that the tunable
+/// accepted (COMPAT-19): its plan refused that request, so the caller maps it through the
+/// accepting path, which asks the tunable again.
+pub(super) type Candidate = (i32, usize, &'static [u8], FileId, Option<Checked<'static>>);
+
 /// Open, map read-only and check the NUL-terminated candidate `path` a program-start search (or the
-/// dependency list) found: (descriptor, mapping, bytes, identity), or why it is not used, by the
-/// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes. An object asking for an
-/// executable stack passes only when `env`'s tunable accepts it (COMPAT-19).
-pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+/// dependency list) found ([`Candidate`]), or why it is not used, by the probed rule
+/// [`Refusal::skipped_at_start`]. Pages of `page` bytes. An object asking for an executable stack
+/// passes only when `env`'s tunable accepts it (COMPAT-19).
+pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<Candidate, Unusable> {
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, path.as_ptr().cast(), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0).ok_or(Unusable::Skip)?;
     let refuse = |r: Refusal| {
@@ -587,15 +593,17 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(
     // file is not used, else only after the caller's last use of the slice (the end of `link`; the
     // list mode keeps it until the process exits).
     let file = unsafe { conv::bytes_at(at, len) };
-    let checked = match niji_ld::dlopen::check::<Native>(file, page) {
-        Err(Refusal::ExecutableStack) => exec_stack_candidate(file, page, env),
-        c => c.map(|_| ()),
+    let checked = match niji_ld::dlopen::check_planned::<Native>(file, page) {
+        Err(Refusal::ExecutableStack) => exec_stack_candidate(file, page, env).map(|()| None),
+        c => c.map(Some),
     };
-    if let Err(r) = checked {
-        let _ = raw::munmap(at, len);
-        return Err(refuse(r));
+    match checked {
+        Ok(c) => Ok((fd32, at, file, (st.dev, st.ino), c)),
+        Err(r) => {
+            let _ = raw::munmap(at, len);
+            Err(refuse(r))
+        }
     }
-    Ok((fd32, at, file, (st.dev, st.ino)))
 }
 
 /// The dynamic section of the object file `file`, when it is one of this architecture's.

@@ -140,7 +140,7 @@ pub(super) fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: O
                         refused = Some(r);
                         None
                     }
-                    Ok((fd, _, f, _)) => Some((f, i64::from(fd))),
+                    Ok((fd, _, f, _, _)) => Some((f, i64::from(fd))),
                 };
                 hit_path.clear();
                 hit_path.push(p.as_bytes());
