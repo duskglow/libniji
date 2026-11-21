@@ -67,6 +67,7 @@ shift
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/wl_local.sh"
 profile=$(wl_profile) || exit 2   # the products profile (wl_lock.sh): release, what ships; WL_PROFILE=fast for a comparison
+link=$(wl_link) || exit 2   # WL_LINK=dynamic: the new and base columns run libniji dynamically (wl_lock.sh LINK, WL-DYNAMIC-KIT)
 root=; gitmode=0
 if [ -d "$target" ]; then
     if wl_is_git "$target"; then
@@ -124,7 +125,7 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $new $base; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$(wl_key "$k")/libc.a ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
         [ -d ~/wl/src/$k ] && rm -rf ~/wl/src/$k   # empty or partial tree from an earlier failed unpack: unpack again
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" || return 1
@@ -137,12 +138,24 @@ prep() {
             wl_local_src "$root" "$k" || return 1
         fi
     done
-    cmd="${rec}export WL_PROFILE=$profile && WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
+    cmd="${rec}export WL_PROFILE=$profile WL_LINK=$link && WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
 }
 [ $nowait = 1 ] && echo "wl_count: --nowait ignored (this tool runs where it is started; jobrun detaches)" >&2
 prep || exit 1
 wl_local_run "$label" "$cmd"
 rc=$(cat ~/logs/$label.done)
 grep -v '^wl_prep: done' ~/logs/$label.log | tail -n 200
+# THE INVIOLABLE RULE (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141): validation/wl_verdict.py judges the new column of a
+# dynamic release run (each workload <= 1.10x glibc in instructions:u and page faults, held rows of wl_holds.tsv at
+# their recorded level, geomean <= 1.00 when every workload ran) and its FAIL fails this run. A static, fast-profile
+# or WLC_ENV run prints the same verdict, never gating (the levels are those of the dynamic release kit as shipped).
+if [ "$rc" = 0 ]; then
+    if [ "$link" = dynamic ] && [ "$profile" = release ] && [ -z "$wenv" ]; then
+        python3 "$here/wl_verdict.py" check ~/logs/$label.log --holds "$here/wl_holds.tsv" --all-count "${#WL_DEFS[@]}" || rc=1
+    else
+        python3 "$here/wl_verdict.py" check ~/logs/$label.log --link static --all-count "${#WL_DEFS[@]}"
+        echo "wl_count: the verdict above is advisory (link $link, profile $profile${wenv:+, WLC_ENV}): the gate binds the dynamic release kit"
+    fi
+fi
 echo "wl_count: exit $rc, $(( $(date +%s) - t0 )) s wall (log ~/logs/$label.log; rev $new)"
 exit "$rc"

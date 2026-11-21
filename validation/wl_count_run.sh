@@ -86,7 +86,9 @@ measure() { # workload cmd variant [fresh] [noenv] -> row on stdout; fresh=1 ign
     sys=$(wl_strace_median $mt $mp $files)   # "GATING FUTEX MTMEM PIPERW"
     local fx mx pr
     read -r _ fx mx pr <<< "$sys"
-    mkdir -p "$WL/count/$v"
+    # The row's own directory (its key, <sha>-release): `mkdir $WL/count/$v` made <sha>, so `tee` could not write a
+    # release row and every run re-measured the base column.
+    mkdir -p "${cache%/*}"
     echo "$st" | awk -v sys="${sys%% *}" -v fx="$fx" -v mx="$mx" -v pr="$pr" -v sum="$sum" -v OFS='\t' '{ print $1, $2, $3, $4, sys, sum, $5, $6, fx, mx, pr }' | tee "$cache"
 }
 

@@ -22,79 +22,117 @@ extern int addseverity (int, const char *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_MM_APPL
 #  define __NIJI_D_enum_MM_APPL 1
+#  ifndef MM_APPL
 enum { MM_APPL = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_CONSOLE
 #  define __NIJI_D_enum_MM_CONSOLE 1
+#  ifndef MM_CONSOLE
 enum { MM_CONSOLE = 512 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_ERROR
 #  define __NIJI_D_enum_MM_ERROR 1
+#  ifndef MM_ERROR
 enum { MM_ERROR = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_FIRM
 #  define __NIJI_D_enum_MM_FIRM 1
+#  ifndef MM_FIRM
 enum { MM_FIRM = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_HALT
 #  define __NIJI_D_enum_MM_HALT 1
+#  ifndef MM_HALT
 enum { MM_HALT = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_HARD
 #  define __NIJI_D_enum_MM_HARD 1
+#  ifndef MM_HARD
 enum { MM_HARD = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_INFO
 #  define __NIJI_D_enum_MM_INFO 1
+#  ifndef MM_INFO
 enum { MM_INFO = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_NOCON
 #  define __NIJI_D_enum_MM_NOCON 1
+#  ifndef MM_NOCON
 enum { MM_NOCON = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_NOMSG
 #  define __NIJI_D_enum_MM_NOMSG 1
+#  ifndef MM_NOMSG
 enum { MM_NOMSG = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_NOSEV
 #  define __NIJI_D_enum_MM_NOSEV 1
+#  ifndef MM_NOSEV
 enum { MM_NOSEV = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_NOTOK
 #  define __NIJI_D_enum_MM_NOTOK 1
+#  ifndef MM_NOTOK
 enum { MM_NOTOK = (-1) };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_NRECOV
 #  define __NIJI_D_enum_MM_NRECOV 1
+#  ifndef MM_NRECOV
 enum { MM_NRECOV = 128 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_OK
 #  define __NIJI_D_enum_MM_OK 1
+#  ifndef MM_OK
 enum { MM_OK = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_OPSYS
 #  define __NIJI_D_enum_MM_OPSYS 1
+#  ifndef MM_OPSYS
 enum { MM_OPSYS = 32 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_PRINT
 #  define __NIJI_D_enum_MM_PRINT 1
+#  ifndef MM_PRINT
 enum { MM_PRINT = 256 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_RECOVER
 #  define __NIJI_D_enum_MM_RECOVER 1
+#  ifndef MM_RECOVER
 enum { MM_RECOVER = 64 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_SOFT
 #  define __NIJI_D_enum_MM_SOFT 1
+#  ifndef MM_SOFT
 enum { MM_SOFT = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_UTIL
 #  define __NIJI_D_enum_MM_UTIL 1
+#  ifndef MM_UTIL
 enum { MM_UTIL = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MM_WARNING
 #  define __NIJI_D_enum_MM_WARNING 1
+#  ifndef MM_WARNING
 enum { MM_WARNING = 3 };
+#  endif
 # endif
 # ifndef MM_APPL
 #  define MM_APPL 8
@@ -157,7 +195,7 @@ enum { MM_WARNING = 3 };
 
 /* The "no value" arguments of fmtmsg (XSH fmtmsg). */
 #ifndef MM_NULLLBL
-# define MM_NULLLBL ((char *) 0)
+# define MM_NULLLBL ((char *) 0L)
 #endif
 #ifndef MM_NULLSEV
 # define MM_NULLSEV 0
@@ -166,13 +204,13 @@ enum { MM_WARNING = 3 };
 # define MM_NULLMC 0L
 #endif
 #ifndef MM_NULLTXT
-# define MM_NULLTXT ((char *) 0)
+# define MM_NULLTXT ((char *) 0L)
 #endif
 #ifndef MM_NULLACT
-# define MM_NULLACT ((char *) 0)
+# define MM_NULLACT ((char *) 0L)
 #endif
 #ifndef MM_NULLTAG
-# define MM_NULLTAG ((char *) 0)
+# define MM_NULLTAG ((char *) 0L)
 #endif
 
 __NIJI_END_C

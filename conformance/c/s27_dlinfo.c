@@ -184,13 +184,31 @@ int main(void)
     const void *pt = NULL;
     CHECK(dlinfo(g, RTLD_DI_PHDR, &pt) == (int)getauxval(AT_PHNUM) && pt == (const void *)getauxval(AT_PHDR));
 
-    /* SERINFO: DT_RUNPATH after LD_LIBRARY_PATH (the helper directory); DT_RPATH before it. */
-    char xdir[4096];
+    /* SERINFO: DT_RUNPATH after LD_LIBRARY_PATH (the helper directory first; libniji's run names
+       the directory of libniji's libc.so.6 after it); DT_RPATH before it. */
+    char xdir[4096], lpath[8192];
     snprintf(xdir, sizeof xdir, "%s/x", dir);
-    const char *const want_run[] = {dir, "/r1", xdir, "/r2"};
+    const char *want_run[16];
+    int nrun = 0;
+    const char *lp = getenv("LD_LIBRARY_PATH");
+    snprintf(lpath, sizeof lpath, "%s", lp != NULL ? lp : "");
+    for (char *e = lpath; nrun < 13;) {
+        char *colon = strchr(e, ':');
+        if (colon != NULL)
+            *colon = '\0';
+        if (*e != '\0')
+            want_run[nrun++] = e;
+        if (colon == NULL)
+            break;
+        e = colon + 1;
+    }
+    CHECK(lp != NULL && strlen(lp) < sizeof lpath && nrun >= 1 && strcmp(want_run[0], dir) == 0);
+    want_run[nrun++] = "/r1";
+    want_run[nrun++] = xdir;
+    want_run[nrun++] = "/r2";
     const char *const want_rp[] = {"/rp", dir};
     const char *const want_syms[] = {dir};
-    CHECK(serinfo_ok("dla_run", run, want_run, 4));
+    CHECK(serinfo_ok("dla_run", run, want_run, nrun));
     CHECK(serinfo_ok("dla_rp", rp, want_rp, 2));
     CHECK(serinfo_ok("dla_syms", syms, want_syms, 1));
 

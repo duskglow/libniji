@@ -1,0 +1,32 @@
+{
+  "task": "LAYOUT-DYN-PHASE",
+  "model": "opus",
+  "tokens": null,
+  "result": "The dynamic start-up count no longer moves with the size of libc.so.6 or ld.so (padded by k = 0..16 pages: fast 80, release 76 at every k on Skylake-SP; before 85..87 and 83..85); DYN_TRUE_BOUND 89/86 -> 80/76; D-X.133",
+  "branch": "task/layout-dyn-phase",
+  "head": "9ceeda03e",
+  "gate": {"affected": "FULL: the train's (affected escalated: xtask/); layout-dyn-phase-startup-2 (records check, niji-ld, xtask, fast and release so + hot_text_products, cargo xtask test) passed; plants 4 of 4 CAUGHT", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "Zen 1 host class not measured: DYN_TRUE_BOUND [80, 76] is the Skylake-SP level with no margin (the test's rule is the higher of the two host classes)",
+     "recommendation": "run fast and release hot_text_products on a Zen 1 role on this head before landing (the HEAP-ADDRESS-SPACE-8 rerun's gate does it); a higher Zen 1 level becomes the bound, with its numbers"}
+  ],
+  "informational": [
+    "precheck reds a kind-gate job without an 'affected: ok' verdict, while the brief's FULL-escalation gate (precheck plus the changed crates' tests) runs no affected: the recipe could name the job kind (test)",
+    "~/bin/kill-label --kill ended only the slots and jobrun processes: the job's script, cargo, rustc and hot-text regen subshells kept running, reparented to init, building in the role (ended by PID and kill-mine)",
+    "commit 6034b2ea9 (the code) carries a WIP: subject from the leg-2 push; c43644b03 describes the result"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "faults", "what": "hot_text_products dynamic startup-only program, fast, Skylake-SP, unpadded (k = 0)", "before": 86, "after": 80, "unit": "page faults", "measured": true},
+    {"kind": "faults", "what": "hot_text_products dynamic startup-only program, release, Skylake-SP, unpadded (k = 0)", "before": 85, "after": 76, "unit": "page faults", "measured": true},
+    {"kind": "faults", "what": "spread of the fast dynamic count over libc.so.6 or ld.so padded by k = 0..16 pages (release: 83..85 before, 76 flat after)", "before": 2, "after": 0, "unit": "faults (max - min)", "measured": true},
+    {"kind": "size", "what": "libc.so.6 file size, fast (mapped span +0x8000 likewise; ld.so file -72 bytes, span 0x80000 unchanged; layout-bins.tsv identical)", "before": 6030312, "after": 6063080, "unit": "bytes", "measured": true},
+    {"kind": "coverage", "what": "plants on the loader tail page and the three layout levers, all CAUGHT (plus the xtask unit test of the anchor check)", "before": 0, "after": 4, "unit": "plants", "measured": true},
+    {"kind": "unblock", "what": "ICONV-NAME-MATCH-4, STARTUP-GOT-PAGE-7, HEAP-ADDRESS-SPACE-8 (held on the size-dependent dynamic count)", "before": null, "after": null, "unit": null, "measured": false}
+  ],
+  "improvement": "~/bin/kill-label should end the job's whole scope (it left cargo, rustc and regen processes building in the role, and a killed product build leaves target/product mixed for the next job); the FULL-escalation recipe should name the job kind, since precheck reds a kind-gate job without an affected verdict",
+  "next_step": "coordinator: Zen 1 hot_text_products (fast, release) on this head, then rerun the three held stories on top; follow-up story: the loader reads each library's headers through the mapped image instead of a second whole-file view (about 4 start-up faults per library)",
+  "report_file": "handoff/LAYOUT-DYN-PHASE.md",
+  "jobs": ["mei:layout-dyn-phase-startup-2", "mei:layout-dyn-phase-plants-2"]
+}

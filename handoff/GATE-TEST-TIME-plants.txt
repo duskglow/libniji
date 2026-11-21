@@ -1,0 +1,13 @@
+# GATE-TEST-TIME plants. After the merge with origin/next the header generator's visibility index is
+# PLANTS-BUILD-SLOWDOWN's VisIndex (its plants: handoff/PLANTS-BUILD-SLOWDOWN-plants.txt). The two gtt-vis plants are the
+# cases its test did not decide before GATE-TEST-TIME extended it (a header's include-error rows joined, not replaced;
+# the first row of a kind, not the last). gtt-enumerator-kind: GATE-TEST-TIME's enums.rs lookup (headers-gen output
+# must differ from the committed headers). gtt-dev / build / normal: the dev-dependency rule of the exports-interposed
+# pass's run-once graph.
+gtt-vis-include-error-replaced | xtask/src/headers.rs | lit:*ix.include_error.entry(header.clone()).or_insert(0) |= mask(); ==> ix.include_error.insert(header.clone(), mask()); | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|both of h.h's include-error rows
+gtt-vis-row-kind-last | xtask/src/headers.rs | lit:self.rows(vis, header, name).find(|r| r["kind"] == kind) ==> self.rows(vis, header, name).filter(|r| r["kind"] == kind).last() | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|the first function row
+gtt-enumerator-kind | xtask/src/headers/enums.rs | lit:self.t.vis_row(&self.header, n, "enumerator") ==> self.t.vis_row(&self.header, n, "enum") | cargo test -p xtask --bin xtask -- headers:: affected::tests::generator_prechecks_run_the_checks | msg:test result: FAILED|panicked
+gtt-dev-followed-deep | xtask/src/nextest.rs | lit:filter(|(_, dev_only)| top || !dev_only) ==> filter(|(_, dev_only)| top || !dev_only || !top) | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked
+gtt-root-dev-dropped | xtask/src/nextest.rs | lit:filter(|(_, dev_only)| top || !dev_only) ==> filter(|(_, dev_only)| !dev_only && (top || !top)) | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:(a_dev_dependency_further_down_is_not_linked|a_package_reaching_boundary_through_another_is_not_independent).*FAILED|panicked
+gtt-normal-kind-ignored | xtask/src/nextest.rs | lit: && !kinds.contains("\"kind\":null") ==> | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked
+gtt-build-kind-ignored | xtask/src/nextest.rs | lit: && !kinds.contains("\"kind\":\"build\"") ==> | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked

@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S07-2", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: stubs red fixed (abi-gen), 24 headers; P1 P5 P8 P10 green, P2 32 and P3 32 differences open, P6 P7 not run; gate and plants queued",
+ "branch": "task/sl-headers-s07-2", "head": "42b2c7fdc",
+ "gate": {"affected": "pending", "peak": null}, "accepted_first_attempt": null,
+ "jobs": ["sl-headers-s07-2-gate", "sl-headers-s07-2-plants"],
+ "rulings": [{"item": "_STRUCT_TIMESPEC and _SIGSET_NWORDS (17 P2 rows) are reference-internal names", "recommendation": "accept with one differences row, no compat option"}],
+ "informational": ["P6 and P7 not run (budget)", "cargo xtask test rerun stopped to sync later edits; the gate covers it", "P3 differences are mostly fortify rows of slice 18"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "FULL gate red at stubs fixed (struct statx_timestamp layout regenerated)", "before": null, "after": null, "unit": "", "measured": true},
+            {"kind": "coverage", "what": "header_p10.py (FD_* 0..1023, device macros, P8 xattr) and 3 plants", "before": 0, "after": 4, "unit": "checks", "measured": true}],
+ "improvement": "abi-gen --check in the headers-gen step would catch a layouts.tsv edit without regeneration",
+ "next_step": "classify P2/P3 rows, run P6 and P7, then SL-HEADERS-S07-TAIL", "report_file": "handoff/SL-HEADERS-S07.md"}

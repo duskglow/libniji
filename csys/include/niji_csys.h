@@ -23,6 +23,9 @@ uintptr_t niji_machine_tp(void);
 /* `__errno_location` (machine/tp.S, D-X.60). */
 int *niji_machine_errno_location(void);
 uint64_t niji_machine_rdtsc(void);
+/* The unwinder a static program links (machine/unwinder.S, D-22.21): its entries' addresses, or 0. */
+uintptr_t niji_machine_unwind_force(void);
+uintptr_t niji_machine_unwind_get_cfa(void);
 void niji_machine_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t out[4]);
 uint64_t niji_machine_xgetbv0(void);
 uint32_t niji_machine_mxcsr_get(void);

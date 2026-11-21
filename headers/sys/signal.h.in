@@ -1,0 +1,8 @@
+@@generated
+/* sys/signal.h: another name of <signal.h> (plan/headers.md section 1). */
+#ifndef __NIJI_H_sys_signal_h
+#define __NIJI_H_sys_signal_h 1
+
+#include <signal.h>
+
+#endif

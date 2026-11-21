@@ -43,8 +43,13 @@ impl Objects for Glue {
         tb::charmap_at(addr)
     }
 
+    fn slots_at(&self, addr: usize, len: usize) -> &'static [gl::Slot] {
+        tb::locale_slots_at(addr, len)
+    }
+
     fn words_at(&self, addr: usize, n: usize) -> &'static [AtomicUsize] {
-        // The charmap table: a leaked heap allocation of `n` words (`words64`'s contract).
+        // A lookup index chunk or the charmap table: a leaked heap allocation of `n` words
+        // (`words64`'s contract).
         if n == 0 || addr == 0 { &[] } else { tb::words64(addr, n) }
     }
 }
@@ -66,6 +71,7 @@ fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
 
 impl Mapper for Glue {
     fn map(&self, path: &[u8]) -> KResult<(usize, usize, gl::Identity)> {
+        // A path that does not fit the buffer names no file the kernel would open.
         let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0)))
             .unwrap_or(Err(Errno::ENAMETOOLONG))?;
         let mapped = (|| {
@@ -1002,7 +1008,9 @@ pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> 
 #[inline(never)]
 fn setlocale_failed(category: i32) -> usize {
     let known = category == 6 || Cat::from_number(category).is_some();
-    crate::errno::set(if known { niji::error::Errno::ENOENT } else { niji::error::Errno::EINVAL });
+    // A known category: the locale's data is not available (`ENOENT`) or memory ran out while
+    // loading it (`ENOMEM`; `global_locale` keeps the cause).
+    crate::errno::set(if known { gl::last_failure() } else { niji::error::Errno::EINVAL });
     0
 }
 

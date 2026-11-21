@@ -1,7 +1,8 @@
 //! The verdict cache of the math accuracy sweeps (`crates/core/tests/support/verdict.rs`,
 //! D-10.57): every input of the key changes the key when it changes, the host libraries a
 //! reference program loads are in it, a shard records its verdict only after it passed and only
-//! for the inputs it checked, and `NIJI_NO_VERDICT_CACHE` runs a cached shard.
+//! for the inputs it checked, and `NIJI_NO_VERDICT_CACHE` runs a cached shard. Also the programs'
+//! outputs the shards of one test run share (`verdict_programs::shared_outputs`).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
@@ -153,6 +154,71 @@ fn only_a_shard_that_passed_is_recorded_and_then_cached() {
     assert!(!b.record().exists(), "the record of the old inputs survived the start of a rerun");
     drop(rerun);
     assert!(!b.key().cached());
+}
+
+/// A program (a shell script) that counts its runs in `count` and prints `text`, exiting with `status`.
+fn counting_program(dir: &Path, text: &str, status: u8) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt as _;
+    let prog = dir.join(format!("prog-{text}-{status}"));
+    let script = format!("#!/bin/sh\necho run >> {}\necho {text} line one\necho {text} line two\nexit {status}\n", dir.join(format!("count-{text}")).display());
+    std::fs::write(&prog, script).unwrap();
+    std::fs::set_permissions(&prog, std::fs::Permissions::from_mode(0o755)).unwrap();
+    prog
+}
+
+fn runs(dir: &Path, text: &str) -> usize {
+    std::fs::read_to_string(dir.join(format!("count-{text}"))).map_or(0, |c| c.lines().count())
+}
+
+#[test]
+fn the_shards_of_one_run_share_the_programs_outputs() {
+    // no spec clause: the oracle sweeps run both programs once per test run (MATH-ORACLE-PROFILE).
+    let b = Bench::new("share");
+    let (host, ours) = (counting_program(&b.dir, "host", 0), counting_program(&b.dir, "ours", 0));
+    let out = b.dir.join("outputs");
+    let key = || Key::with_sources("sweep.outputs", &b.src, &b.dir.join("records")).file(&host).file(&ours);
+    let first = verdict_programs::shared_outputs_in("sweep", &key(), &[&host, &ours], &out, "run-1");
+    assert_eq!(first, ["host line one\nhost line two\n", "ours line one\nours line two\n"]);
+    // The other shards of the run read the outputs: no program runs again.
+    for _ in 0..3 {
+        assert_eq!(verdict_programs::shared_outputs_in("sweep", &key(), &[&host, &ours], &out, "run-1"), first);
+    }
+    assert_eq!((runs(&b.dir, "host"), runs(&b.dir, "ours")), (1, 1), "a shard of the run ran a program again");
+    // Another run with the same inputs runs them again and removes the first run's outputs.
+    let stored = |run: &str| std::fs::read_dir(&out).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().contains(run)).count();
+    assert_eq!(stored("run-1"), 2);
+    assert_eq!(verdict_programs::shared_outputs_in("sweep", &key(), &[&host, &ours], &out, "run-2"), first);
+    assert_eq!((runs(&b.dir, "host"), runs(&b.dir, "ours")), (2, 2), "an output served a second test run");
+    assert_eq!((stored("run-1"), stored("run-2")), (0, 2));
+    // A changed program (a plant, a rebuild) changes the key: it runs, and its new output is read.
+    std::fs::write(&ours, std::fs::read_to_string(&ours).unwrap().replace("ours line two", "ours line 2")).unwrap();
+    let changed = verdict_programs::shared_outputs_in("sweep", &key(), &[&host, &ours], &out, "run-2");
+    assert_eq!(changed.get(1).map(String::as_str), Some("ours line one\nours line 2\n"),"a shard read the output of the program before it changed");
+    assert_eq!(runs(&b.dir, "ours"), 3);
+}
+
+#[test]
+fn an_output_of_a_failed_program_or_an_incomplete_key_is_not_shared() {
+    // no spec clause: only a complete output of a program that exited with 0 is shared (MATH-ORACLE-PROFILE).
+    let b = Bench::new("noshare");
+    let (bad, good) = (counting_program(&b.dir, "bad", 3), counting_program(&b.dir, "good", 0));
+    let out = b.dir.join("outputs");
+    let key = Key::with_sources("sweep.outputs", &b.src, &b.dir.join("records")).file(&bad).file(&good);
+    for n in 1..=2 {
+        let o = verdict_programs::shared_outputs_in("sweep", &key, &[&bad, &good], &out, "run-1");
+        assert_eq!(o.first().map(String::as_str), Some("bad line one\nbad line two\n"),"the failed program's output is still the shard's to check");
+        assert_eq!(runs(&b.dir, "bad"), n, "the output of a program that failed was shared");
+    }
+    // An input that cannot be read: every call runs the programs and stores nothing.
+    let incomplete = key.file(&b.dir.join("absent"));
+    assert!(!incomplete.complete());
+    let before = std::fs::read_dir(&out).unwrap().count();
+    for n in 1..=2 {
+        verdict_programs::shared_outputs_in("sweep", &incomplete, &[&good], &out, "run-1");
+        // Twice above: the second call found the failed program's output missing and ran both.
+        assert_eq!(runs(&b.dir, "good"), 2 + n, "an incomplete key shared an output");
+    }
+    assert_eq!(std::fs::read_dir(&out).unwrap().count(), before);
 }
 
 #[test]

@@ -13,4 +13,5 @@ static const char *const BUILTIN_NAMES[] = {
     "US", "IBM367", "CP367", "CSASCII",
     "ISO-8859-1", "ISO_8859-1", "ISO8859-1", "LATIN1", "L1", "CP819",
     "ISO-IR-100", "ISO_8859-1:1987", "IBM819", "CSISOLATIN1", "8859_1", "OSF00010001",
+    "ISO88591",
 };

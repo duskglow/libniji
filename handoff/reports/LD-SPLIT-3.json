@@ -1,0 +1,18 @@
+{"task": "LD-SPLIT-3", "model": "opus", "tokens": null,
+ "result": "merged next into the ld.rs split: COMPAT-19 items regenerated into new ld/exec_stack.rs; 135/135 items byte-identical; gate, plants, hot text, products compare green",
+ "branch": "task/ld-split-3", "head": "240854e10",
+ "gate": {"affected": "9 suites, 633 passed / 0 failed", "peak": "1.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["the direct tier for crates/boundary/src/ld/*.rs does not select niji-ld --test exec_stack; the plants run it"],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "lands the loader split; unholds DL-NAME-PATH-2, DL-PROCESS-OBJECTS, DL-RUNPATH, DL-RDEBUG-VERSION, DL-OBJECT-PATHS", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "plants re-pointed at the moved COMPAT-19 loader code", "before": null, "after": 6, "unit": "plants", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up, ret probe, vs origin/next (mean of 10, within run-to-run spread)", "before": 1069447, "after": 1069448, "unit": "instr", "measured": true},
+  {"kind": "none", "what": "exported symbols of 17 shared products identical to origin/next", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "the split generator should also write ld.rs's module map, so a rerun after a loader landing needs no hand step",
+ "next_step": "land it; then the held loader stories rebase onto the modules",
+ "report_file": "handoff/LD-SPLIT-3-report.md",
+ "jobs": ["ld-split-3-gate", "ld-split-3-plants", "ld-split-3-hottext", "ld-split-3-compare", "ld-split-3-lint-2"]}

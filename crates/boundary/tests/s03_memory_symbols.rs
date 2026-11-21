@@ -388,9 +388,19 @@ fn sym_mallinfo2() {
 #[test]
 fn sym_mallinfo() {
     isolated("sym_mallinfo", || {
-        let m = s::mallinfo();
-        let m2 = s::mallinfo2();
-        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)));
+        // The process is not quiescent (the harness thread and the interposed runtime may allocate a few
+        // bytes between two calls, finding #6881), so `mallinfo` is compared with `mallinfo2` within one
+        // window: two `mallinfo2` reads around it that agree. A budget of tries, no clock.
+        const TRIES: u32 = 1000;
+        let window = (0..TRIES).find_map(|_| {
+            let before = s::mallinfo2();
+            let m = s::mallinfo();
+            let after = s::mallinfo2();
+            (before.uordblks == after.uordblks).then_some((m, before))
+        });
+        assert!(window.is_some(), "mallinfo2's bytes in use changed around every one of {TRIES} mallinfo calls");
+        let (m, m2) = window.unwrap();
+        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)), "mallinfo's bytes in use within a quiescent window");
         assert!(m.hblks >= 0 && m.arena >= 0, "saturated, never negative");
     });
 }
@@ -878,6 +888,129 @@ fn kernel_pages_align_and_prefer_a_node() {
     assert_eq!(bytes(b as *const c_void, 3 * PAGE), vec![0; 3 * PAGE], "fresh mappings read as zero");
     pages.unmap(a, SEG);
     pages.unmap(b, 3 * PAGE);
+}
+
+/// This process's address-space size (`/proc/self/statm` field 1, in pages), in bytes.
+fn vm_size() -> u64 {
+    let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
+    statm.split_whitespace().next().unwrap().parse::<u64>().unwrap() * PAGE as u64
+}
+
+#[test]
+fn kernel_pages_map_aligned_under_an_address_space_limit() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE). Under a limit that leaves room for a segment but not for the
+    // alignment slack, `map` and `map_room` still return aligned, zero-filled, writable memory
+    // (the exact placement path), and `grow` extends the `map_room` mapping in place. In a
+    // re-executed copy: the limit is process-wide.
+    isolated("kernel_pages_map_aligned_under_an_address_space_limit", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let (head, len) = (2 * PAGE, SEG / 4);
+        // Room for one SEG mapping and a quarter more, never for SEG plus its alignment.
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let over = CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0);
+        assert!(over.is_err(), "precondition: the limit refuses the over-mapping, so the exact path is taken");
+        let a = pages.map(SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map: SEG bytes at a SEG boundary fit under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        fill(a as *mut c_void, 7, PAGE);
+        fill((a + SEG - PAGE) as *mut c_void, 7, PAGE);
+        assert_eq!(bytes((a + PAGE) as *const c_void, PAGE), vec![0; PAGE], "map: zero-filled");
+        pages.unmap(a, SEG);
+        let b = pages.map_room(head, len, SEG, SEG, None).unwrap_or(0);
+        assert_ne!(b, 0, "map_room: head + len bytes fit under the limit");
+        assert_eq!(b % SEG, 0, "map_room: the address after the head is aligned");
+        assert_eq!(bytes((b + len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "map_room: zero-filled to its end");
+        fill((b - head) as *mut c_void, 7, head + len);
+        pages.unmap(b - head, head + len);
+        // Under the limit the exact path promises no room above, so `grow` gets a known hole: the
+        // upper half of a mapping of its own, given back.
+        let c = pages.map(2 * len, PAGE, None).unwrap_or(0);
+        assert_ne!(c, 0, "2 * len bytes fit under the limit");
+        pages.unmap(c + len, len);
+        assert!(!pages.grow(c, len, None), "grow: a taken range is never replaced");
+        assert!(pages.grow(c + len, len, None), "grow: a free range that fits the limit is mapped");
+        assert_eq!(bytes((c + 2 * len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "grow: zero-filled");
+        fill((c + len) as *mut c_void, 7, len);
+        pages.unmap(c, 2 * len);
+    });
+}
+
+#[test]
+fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE-10). The kernel's first choice for SEG bytes is made a gap that holds
+    // SEG bytes but no SEG-aligned range (pinned by a page at each end), as a gap just above a
+    // segment is in a process whose heap is libniji's. Under a limit that refuses the
+    // over-mapping, `map` still returns an aligned range (from another gap) and leaves nothing
+    // of its own in the pinned gap. Nothing allocates between the layout and the check: the
+    // heap could otherwise place its own mapping in the gap.
+    isolated("kernel_pages_map_aligned_past_a_gap_without_an_aligned_range", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_NORESERVE, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let pin = |at: usize| -> Option<usize> {
+            let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
+            (got == at).then_some(got)
+        };
+        let mut pins = [0usize; 16];
+        let mut held = 0;
+        let mut keep = |p: Option<usize>| {
+            if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
+                *slot = p;
+                held += 1;
+            }
+        };
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        let probe = |len: usize| -> usize {
+            let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
+            assert_ne!(p, 0, "a mapping before any limit");
+            KernelPages.unmap(p, len);
+            p
+        };
+        // The gap: SEG + PAD bytes (PAD: the huge-page alignment a kernel may give anonymous
+        // mappings, which then only uses a gap of len + PAD), pinned by a page at each end, at
+        // `gap` with no multiple of SEG in [gap, gap + PAD]: room for SEG bytes, none aligned.
+        // Carved from the kernel's first choice for SEG + 3 * PAD bytes.
+        const PAD: usize = 2 << 20;
+        let r = probe(SEG + 3 * PAD);
+        let gap = if r % SEG != 0 && r % SEG < SEG - PAD { r } else { r + PAD + PAGE };
+        keep(pin(gap - PAGE));
+        keep(pin(gap + SEG + PAD));
+        // Higher gaps that fit SEG bytes but not SEG + 3 * PAD are split by a page in their
+        // middle until the kernel's first choice for SEG bytes is the gap.
+        let mut first = false;
+        for _ in 0..8 {
+            let q = probe(SEG);
+            if q >= gap && q < gap + SEG + PAD {
+                first = true;
+                break;
+            }
+            keep(pin(q + SEG / 2));
+        }
+        assert!(first, "precondition: the gap is the kernel's first choice for SEG bytes within 8 splits");
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
+        let a = pages.map(SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map: an aligned SEG range from another gap fits under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        assert!(a + SEG <= gap || a >= gap + SEG + PAD, "map: never inside the pinned gap");
+        fill(a as *mut c_void, 7, PAGE);
+        pages.unmap(a, SEG);
+        let back = CSys.mmap(gap, SEG + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
+        assert_eq!(back, gap, "map: the pinned gap is whole again (no page of the call's left in it)");
+        pages.unmap(gap, SEG + PAD);
+        for &p in pins.get(..held).unwrap_or(&[]) {
+            pages.unmap(p, PAGE);
+        }
+    });
 }
 
 /// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer

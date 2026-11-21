@@ -1,0 +1,24 @@
+{"task": "DYN-START-QUICK-2", "model": "opus", "tokens": null,
+ "result": "static startup_instr_c red fixed: the static start tests one zeroed thread-pointer word (ARCH_GET_FS result test dropped); Zen 1 counts base 2157, CI-red head 2159, final 2151; limit 2161 -> 2155",
+ "branch": "task/dyn-start-quick-2", "head": null,
+ "gate": {"affected": "15 suites ok, 11045 passed / 0 failed (1503 ignored); conformance 69 passed", "peak": "15G (page cache included), oom_kill 0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "plant tp-always-set is WARN-NO-MSG: the mutant breaks every static program, so the products build's own trace-at-build fails ('tracing failed') before the named test runs; caught, but the msg regex should also name 'tracing failed'",
+  "runtime::start::<false> is 121 B larger than on the merge base (5355 vs 5234) while running 6 fewer instructions on a static start (register allocation); the start-up layout and fault checks ran in xtest and fullprof",
+  "the arena-after-start dladdr mechanism (DYN-START-QUICK) is still not traced",
+  "item 6 (lazy SIGRTMIN handler) is ruled #7075 and goes to DYN-START-RING with a differences row"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "cbench_startup/startup_instr_c, static start + exit, user instructions per process, Zen 1 (staged bench binary, 3 rounds each, exact)", "before": 2157, "after": 2151, "unit": "instr/process", "measured": true},
+  {"kind": "perf", "what": "the same row, CI-red head code (7a1643f28) vs final head", "before": 2159, "after": 2151, "unit": "instr/process", "measured": true},
+  {"kind": "perf", "what": "system calls per dynamic start, empty main / 3 libraries (DYN-START-QUICK, unchanged by this run)", "before": "43 / 88", "after": "37 / 79", "unit": "syscalls/start", "measured": true},
+  {"kind": "size", "what": "runtime::start::<false> text bytes (libc.a)", "before": 5234, "after": 5355, "unit": "bytes", "measured": true},
+  {"kind": "coverage", "what": "plants added: tp-always-set (static program read as having a thread pointer)", "before": 5, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "the CI instr log prints no per-row count for passing rows, so a +1 red needs a full stage-and-count cycle to see next's level; printing every limited row's count (and next's last value) would make such reds a one-line diagnosis",
+ "next_step": "land; DYN-START-RING takes items 1, 4, 5b and the lazy signal-32 handler (#7075)",
+ "report_file": "handoff/DYN-START-QUICK.md",
+ "jobs": ["dyn-start-quick-2-stage1", "keke:dyn-start-quick-2-count", "dyn-start-quick-2-gate", "dyn-start-quick-2-plants", "dyn-start-quick-2-xtest", "dyn-start-quick-2-fullprof"]}

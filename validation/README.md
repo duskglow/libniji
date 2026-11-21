@@ -59,11 +59,12 @@ from the project's lab hosts; the host names in them label the machine that prod
   * `glibc`: the host compiler, dynamically linked (as the distribution builds).
   * `niji`: `CC=scripts/niji-cc`, as is.
   * `niji-w` (first runs): the same with the labelled workarounds below, so the suites can
-    run at all.
+    run at all. Retired (PHASE14-WORKAROUNDS): `suite.sh` no longer builds it.
   * `niji-t1` (second runs): only the workarounds the coordinator kept, T1's
-    `--allow-multiple-definition` and the libm stand-in (`modf`, T3).
+    `--allow-multiple-definition` and the libm stand-in (`modf`, T3). Retired with `niji-w`.
   * `niji-t1r` (second runs): `niji-t1` with gnulib's regex for coreutils and findutils, to
-    see their results past T5 (the regex fix is the optimization thread's).
+    see their results past T5 (the regex fix is the optimization thread's). Retired with
+    `niji-w`.
   * `niji-m` (fourth runs, the headline): as is; only findutils gets the `modf` stand-in
     (T3, provisional).
   * `niji-mr` (fourth runs, diagnosis only): `niji-m` with gnulib's regex for coreutils and
@@ -89,7 +90,9 @@ from the project's lab hosts; the host names in them label the machine that prod
   * `validation/shim/missing.c`, not part of libniji (T2, T3): in the first runs thin stand-ins
     for `uname`, `gethostname`, `getdomainname`, their `_chk` forms, `sysinfo`, `getloadavg`
     (over libniji's `syscall`) and `modf`, written from the man pages; since milestone 3 only
-    `modf` (libniji implements the rest, T2).
+    `modf` (libniji implements the rest, T2). Removed with `validation/shim/libm.c` and the
+    modes that linked them (PHASE14-WORKAROUNDS): libniji defines `modf`, and `libm.a` and
+    `libm.so.6` are products.
   * coreutils and findutils with `--with-included-regex` (gnulib's regex instead of libniji's,
     T5): libniji's regex breaks the coreutils test harness itself (`expr` computes test
     directory names), which hid every other result. sed keeps libniji's regex.
@@ -540,6 +543,18 @@ measured and printed in the advisory `time` column and is never a verdict.
 * **Attribution** (`wl_attr.sh`, run by the gate for counter failures): `perf record -e instructions:u -c 1000000`
   on the BASE and NEW kits only (never glibc), top-5 growing and top-5 largest symbols.
 * `results/*.replace` are regenerated from the live kit builds' `config.log` (Zen 1 `~/validation/build`).
+
+### The INVIOLABLE rule binds the dynamic kit (WL-DYNAMIC-GATE, owner ruling #6965, 2026-11-20, D-X.141)
+
+The per-gate workload measurement is `wl_count.sh` with libniji **linked dynamically** (`WL_LINK` defaults to
+`dynamic`, validation/wl_lock.sh), the way users run it. `validation/wl_verdict.py` judges the new column and its
+FAIL fails the count job: each workload at or below 1.10x glibc in instructions:u and in page faults, and the geomean
+of instructions:u at or below 1.00 when every workload ran. Rows over 1.10x for dynamic start-up when the rule moved
+are held at their recorded level in `validation/wl_holds.tsv` (per CPU class; the worst ratio observed on next, so a
+rerun of next stays within it; a ratchet, never loosened; a held row at or below 1.10x drops its hold: HOLD-RELEASE). Self-test: `wl_verdict_test.sh`. One `cargo xtask so` per sha caches both
+product sets. **Static stays measured**: `wl_kits.sh <sha>` (glibc, static, dynamic) is the nightly and release-candidate
+sweep and reports the same rule for both kits; a static regression there opens a story and does not block a gate.
+`wl_gate.sh` (timing hosts) stays on the static kit.
 
 ### wl_count.sh: counters of a branch in one call (WL-COUNT, 2026-10-10)
 

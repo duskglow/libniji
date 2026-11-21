@@ -20,7 +20,7 @@ use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{
     SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
-    CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
+    CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
 };
 use niji_rt::futex::{self, Clock, Scope};
 use niji_rt::sync::RawMutex;
@@ -208,7 +208,18 @@ pub(crate) fn init_initial(static_program: bool) {
         tb::current().thread.store(daddr, Release);
         d
     } else {
-        let Ok(d) = adopt() else { return };
+        // libniji's `ld.so` ran the program's `.preinit_array` and every shared object's
+        // initialisation before this, in a process not yet the runtime's: the words they gave
+        // this thread are in its registry entry. They move to its own block first (D-22.20).
+        carry_initial_words();
+        let b = tb::current();
+        let d = match b.thread.load(Acquire) {
+            0 => {
+                let Ok(d) = adopt_into(b) else { return };
+                d
+            }
+            a => tb::desc_at(a),
+        };
         d.flags.fetch_and(!DESC_ADOPTED, AcqRel);
         if LOADER_RSEQ.load(Acquire) {
             // libniji's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
@@ -442,11 +453,20 @@ pub(crate) fn heap_cache_word() -> usize {
 /// path addresses [`SPARE`]: inlined into the heap's start-up allocation, the test put SPARE's page
 /// among the written start-up pages (STARTUP-DATA-WINDOWS, D-X.62) although only a foreign thread
 /// can be given it.
+///
+/// The same word [`foreign_words`] gives, found by thread pointer alone, with no system call
+/// (HEAP-FOREIGN-TB-SPEED): the heap reads it on every operation of a foreign thread, and the
+/// kernel TID test of [`foreign_words`] (a `gettid` per call) roughly doubled their time. The
+/// test is not needed for this word: what a new TID at the pointer changes ([`clear_words`], the
+/// `own` reset) never touches the cache word, which passes to the block's next thread (one owner
+/// at a time), and `own` is set only between [`claim_own`] and [`release_own`] of a thread
+/// `create` made, which run on that thread at that pointer, so it is clear for any other thread
+/// there. No chunk mappable: `None` (no cache), as [`SPARE`] answers.
 #[cold]
 #[inline(never)]
 fn foreign_heap_cache_slot() -> Option<&'static AtomicUsize> {
-    let w = foreign_words();
-    (!is_spare(w)).then_some(&w.heap_cache)
+    let s = shadow_entry(tb::tp())?;
+    Some(if s.own.load(Acquire) { &tb::current().heap_cache } else { &s.block.heap_cache })
 }
 
 /// [`heap_cache_slot`]'s value (0: none) in a process the runtime did not start: the heap's
@@ -526,6 +546,56 @@ fn shadow_entry(tp: usize) -> Option<&'static Shadow> {
     }
 }
 
+/// The initial thread's words, from its registry entry into its own block, before the runtime
+/// takes the process (`init_initial` under libniji's `ld.so`, D-22.20). A `.preinit_array`
+/// function or a shared object's initialisation ran before then and kept the thread's words in
+/// the registry (`errno`, the descriptor with its keys and values, the `uselocale` choice and its
+/// views, the C++ `thread_local` destructor list, the heap cache, ...): `main` and the thread's
+/// exit see them as they left them, and a sanitizer runtime finds the thread record it stored
+/// with `pthread_setspecific` from `.preinit_array`. Each non-zero word moves (the entry's copy
+/// becomes 0); a word the entry never set keeps the block's value (the loader's `flags`). Words
+/// the library keeps in the block in every process (`dlerror`) were never in the entry. Cold: no
+/// registry exists unless something used it before `main` (no chunk mapped: nothing to look up).
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+#[cold]
+#[inline(never)]
+fn carry_initial_words() {
+    let mut c = SHADOW_HEAD.load(Acquire);
+    let tp = tb::tp();
+    let s = loop {
+        if c == 0 {
+            return;
+        }
+        let chunk = tb::shadow_chunk_at(c);
+        if let Some(s) = chunk.slots.iter().find(|s| s.key.load(Acquire) == tp) {
+            break s;
+        }
+        c = chunk.next.load(Acquire);
+    };
+    let (from, to) = (&s.block, tb::current());
+    let move_word = |f: &AtomicUsize, t: &AtomicUsize| match f.swap(0, AcqRel) {
+        0 => {}
+        v => t.store(v, Release),
+    };
+    let words = |b: &'static niji_rt::tls::ThreadBlock| {
+        [&b.tls_dtors, &b.heap_cache, &b.thread, &b.locale, &b.ctype_b, &b.ctype_toupper, &b.ctype_tolower, &b.res, &b.view, &b.wclass]
+            .into_iter()
+            .chain(&b.lconv)
+            .chain(&b.cache)
+    };
+    words(from).zip(words(to)).for_each(|(f, t)| move_word(f, t));
+    for (f, t) in [(&from.errno, &to.errno), (&from.h_errno, &to.h_errno)] {
+        match f.swap(0, AcqRel) {
+            0 => {}
+            v => t.store(v, Release),
+        }
+    }
+    match from.node.swap(0, AcqRel) {
+        0 => {}
+        v => to.node.store(v, Release),
+    }
+}
+
 /// In a process the runtime did not start: the calling thread, which `create` made, keeps its
 /// words in its own block until [`release_own`] (the start of `entry`).
 fn claim_own() {
@@ -570,6 +640,11 @@ pub(crate) fn desc() -> KResult<&'static Thread> {
 }
 
 fn adopt() -> KResult<&'static Thread> {
+    adopt_into(words())
+}
+
+/// [`adopt`] with the words `b` as the thread's: a descriptor of its own, stored in `b`.
+fn adopt_into(b: &'static niji_rt::tls::ThreadBlock) -> KResult<&'static Thread> {
     let len = (rt::DESC_SIZE + KEY_AREA + SLOT_AREA).next_multiple_of(PAGE);
     let base = map_thread(len, 0)?;
     let d = tb::desc_at(base);
@@ -578,7 +653,7 @@ fn adopt() -> KResult<&'static Thread> {
     d.keys.store(base + rt::DESC_SIZE, Relaxed);
     d.slots.store(base + rt::DESC_SIZE + KEY_AREA, Relaxed);
     d.tp.store(tb::tp(), Relaxed);
-    words().thread.store(base, Release);
+    b.thread.store(base, Release);
     Ok(d)
 }
 
@@ -751,6 +826,45 @@ pub(crate) extern "C" fn walk_threads(cb: usize, ctx: usize) -> usize {
     }
     call(0);
     0
+}
+
+/// COMPAT-19: thread stacks the C library maps are executable (set once by [`stacks_executable`],
+/// under the thread-list lock; never cleared).
+static STACKS_EXEC: AtomicBool = AtomicBool::new(false);
+
+/// Make the memory of a thread mapped at `base` (`len` bytes, the lowest `guard` inaccessible)
+/// readable, writable and executable (COMPAT-19). Its stack and the areas above it are one
+/// mapping, so the whole usable part changes, as one protection call on one mapping. A failure
+/// leaves the stack as it was (not executable): the change cannot split the mapping, so only a
+/// kernel out of memory can refuse it.
+#[cold]
+#[inline(never)]
+fn exec_stack(base: usize, len: usize, guard: usize) {
+    if len > guard {
+        let _ = raw::mprotect(base + guard, len - guard, i32::try_from(PROT_READ | PROT_WRITE | PROT_EXEC).unwrap_or(7));
+    }
+}
+
+/// `__niji_stack_exec()` (`NIJI_PRIVATE`, COMPAT-19): libniji's `ld.so` accepted an object whose
+/// `PT_GNU_STACK` asks for an executable stack. Every listed thread whose stack the C library
+/// mapped gets an executable stack, and so does every thread made afterwards; a stack the caller
+/// supplied (`pthread_attr_setstack`) is left as it is, and the initial thread's stack is the
+/// loader's to change (black-box probe of the reference, `tools/probe/execstack/es2.c`).
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+#[cold]
+#[inline(never)]
+pub(crate) fn stacks_executable() {
+    let _g = LIST.lock(&CSys);
+    STACKS_EXEC.store(true, Relaxed);
+    let mut a = HEAD.load(Acquire);
+    while a != 0 {
+        let d = tb::desc_at(a);
+        a = d.next.load(Relaxed);
+        let base = d.map_base.load(Relaxed);
+        if base != 0 && !d.has(DESC_USER_STACK) {
+            exec_stack(base, d.map_len.load(Relaxed), d.guard.load(Relaxed));
+        }
+    }
 }
 
 /// Visit every listed thread (the thread-list lock held): for the setxid broadcast, `fork`'s
@@ -1066,6 +1180,11 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         if init != 0 {
             let _ = ffi::niji_machine_call3(init, i64::from_ne_bytes(tp.to_ne_bytes()), 0, 0);
         }
+        // COMPAT-19: checked under the list lock that `stacks_executable` sets the flag under, so
+        // this thread is either listed for its walk or sees the flag (a reused mapping included).
+        if STACKS_EXEC.load(Relaxed) && a.stack.is_none() {
+            exec_stack(base, lay.len, lay.guard);
+        }
         link_locked(d);
     }
     LIVE.fetch_add(1, AcqRel);
@@ -1165,6 +1284,7 @@ pub(crate) fn finish(result: usize) -> ! {
     // result table or resolver state again, which only these release.
     crate::users::thread_ending();
     crate::resolv::thread_ending();
+    crate::dlerr::thread_ending();
     // The loader's last word on this thread (its static area goes with the mapping).
     let release = LOADER_RELEASE.load(Acquire);
     if release != 0 {

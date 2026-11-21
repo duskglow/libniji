@@ -1,0 +1,23 @@
+{"task": "LDSO-TLS-STATIC-INFO", "model": "opus", "tokens": null,
+ "result": "ld.so exports _dl_get_tls_static_info (NIJI_PRIVATE) and joins dlsym's global scope; ASan reports the heap overflow and LSan the leak instead of jumping to address 0 (issue #26)",
+ "branch": "task/ldso-tls-static-info", "head": "9fb661da9",
+ "gate": {"affected": "FULL: the train's (xtask/src/so.rs); niji-ld + xtask tests: see jobs", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "TSan with ASLR on: the reference stops with 'unexpected memory mapping' on this host, and libniji gives SIGSEGV instead; with ASLR off both report the race (not chased)",
+   "HWASan cannot run on the build host's kernel (no tagged address ABI) for the reference or libniji",
+   "Verified with gcc 13's runtimes; Yohane uses gcc 14 (coordinator can ask Yohane to verify #26)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "every -fsanitize=address / -fsanitize=leak program crashed before main (PC 0 / SIGSEGV); now reports its finding", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "dlsym(RTLD_DEFAULT/RTLD_NEXT) finds ld.so's exports (_dl_debug_state, __tls_get_addr, _dl_get_tls_static_info) when no object names ld.so", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "tests added (tls_static_info.rs)", "before": 0, "after": 2, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants added", "before": 0, "after": 5, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "GitHub issue #26 (Yohane: ~750 gcc ASan test failures)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "The brief's ssh rule (nothing chained before the detached job) is easy to break with a harmless-looking 'test -s && ...'; a jobstart wrapper that installs and starts a script in one checked call would remove the trap",
+ "next_step": "Coordinator: comment on #26 for Yohane to verify with gcc 14",
+ "report_file": "handoff/LDSO-TLS-STATIC-INFO.md",
+ "jobs": ["mei:ldso-tls-static-info-test2", "mei:ldso-tls-static-info-plants2", "mei:ldso-tls-static-info-startup"]}

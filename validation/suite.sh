@@ -9,16 +9,11 @@
 # LIBC:
 #   glibc     the host's, dynamically linked, as the distribution builds;
 #   niji    static, through scripts/niji-cc, as is;
-#   niji-w  niji with the first runs' labelled workarounds (validation/README.md,
-#             "Workarounds"): --allow-multiple-definition, validation/shim/missing.c, and
-#             gnulib's regex instead of libniji's for coreutils and findutils
-#             (--with-included-regex; sed keeps libniji's);
-#   niji-t1 the second runs (milestone 3): only --allow-multiple-definition (T1, until libc.a
-#             has weak definitions) and the libm stand-in of validation/shim/missing.c (T3);
-#   niji-t1r niji-t1 with gnulib's regex for coreutils and findutils (to see past T5, the
-#             regex fix of the optimization thread).
-#   niji-m  the fourth runs (milestone 4, libc.a overridable since D-X.14): as is, except the
-#             modf stand-in of validation/shim/missing.c for findutils (T3; results provisional);
+#   (the first and second runs' modes niji-w, niji-t1 and niji-t1r, with their stand-ins in
+#   validation/shim/, are gone: libniji defines what they stood in for, libm included;
+#   validation/README.md keeps their results)
+#   niji-m  the fourth runs (milestone 4, libc.a overridable since D-X.14): as is (the
+#             recorded runs linked a modf stand-in for findutils, T3; since removed);
 #   niji-mr niji-m with gnulib's regex for coreutils and findutils (diagnosis of T5/T6 only);
 #             since milestone 6 also for grep, diffutils and tar;
 #   glibc-noload, niji-noload  make only: --disable-load under both libraries (T4, T27);
@@ -72,20 +67,6 @@ case $libc in
     # As is: no workaround, no stand-in; since V-5 (PRE14-VALIDATION-RERUN) -lm links libniji's
     # libm.a (scripts/niji-cc), so gawk and find need no shim.
     niji) cc=$repo/scripts/niji-cc ;;
-    niji-w)
-        cc=$repo/scripts/niji-cc
-        mkdir -p "$V/shim"
-        gcc -O1 -c -o "$V/shim/missing.o" "$repo/validation/shim/missing.c" || exit 1
-        export NIJI_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
-        case $pkg in coreutils | findutils) opts="$opts --with-included-regex" ;; esac ;;
-    niji-t1 | niji-t1r)
-        cc=$repo/scripts/niji-cc
-        mkdir -p "$V/shim"
-        gcc -O1 -c -o "$V/shim/missing.o" "$repo/validation/shim/missing.c" || exit 1
-        export NIJI_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
-        if [ "$libc" = niji-t1r ]; then
-            case $pkg in coreutils | findutils) opts="$opts --with-included-regex" ;; esac
-        fi ;;
     niji-m | niji-mr)
         cc=$repo/scripts/niji-cc
         # The milestone-4..6 builds used maths stand-ins (findutils: modf of shim/missing.c;

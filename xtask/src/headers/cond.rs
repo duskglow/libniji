@@ -3,6 +3,11 @@
 //! shows it (visibility.tsv), ignoring the configurations that do not decide it.
 use super::*;
 
+/// Names whose visibility follows the compiler's language version, which the feature levels do not model: the
+/// condition over the compiler's own language macros (`max_align_t` is the compiler's from C11 and C++11 on).
+/// The generated configurations' probe (P2) is the check of each.
+const LANGUAGE_MODE: &[(&str, &str)] = &[("max_align_t", "(defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)")];
+
 /// The level columns of `headers/levels.tsv`, their C names in `features.h` and the thresholds the
 /// condition search may test (an empty list: a 0/1 flag).
 pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
@@ -140,26 +145,37 @@ impl Gen<'_> {
     /// that matters (the ones `dont_care` leaves): otherwise this header emits it too, under its own condition.
     pub(super) fn is_covered(&self, name: &str, kind: &str) -> bool {
         let Some(&have) = self.covered.get(&(name.to_string(), kind.to_string())) else { return false };
-        let Some(r) = self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == name && r["kind"] == kind) else { return true };
+        // The union tag of C++ has no row of its own in any header: always declared here, behind the shared guard.
+        if kind == "typedef" && self.union_tag(name) {
+            return false;
+        }
+        let Some(r) = self.t.vis_row(&self.header, name, kind) else { return true };
         let all = (1u64 << self.t.lv.ids.len()) - 1;
         let want = mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & all & !self.dont_care(name, kind);
         want & !have == 0
     }
 
+    /// The configurations of the C++ language (every level column `cxx` above 0, none rejected).
+    fn cxx_mask(&self) -> u64 {
+        let col = LEVEL_COLS.iter().position(|c| c.0 == "cxx").unwrap_or(0);
+        self.t.lv.values.iter().enumerate().filter(|(i, v)| v[col] > 0 && self.t.lv.reject >> i & 1 == 0).fold(0u64, |m, (i, _)| m | 1 << i)
+    }
+
+    /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
+    pub(super) fn union_tag(&self, name: &str) -> bool {
+        self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
+            && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
+            && self.aggregate(name).is_some_and(|a| a.kw == "union")
+    }
+
     pub(super) fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
-        self.t.vis.iter().filter(|r| r["header"] == self.header && r["name"] == name).collect()
+        self.t.vis_rows(&self.header, name).collect()
     }
 
     /// The configurations that do not decide a condition: rejected ones, those where the header
     /// itself does not compile, and those where (name, kind) is visible without any header.
     pub(super) fn dont_care(&self, name: &str, kind: &str) -> u64 {
-        let mut d = self.t.lv.reject;
-        for r in &self.t.vis {
-            if (r["header"] == self.header && r["kind"] == "include-error") || (r["header"] == "-" && r["name"] == name && r["kind"] == kind) {
-                d |= mask_of(&self.t.lv, &r["configs"]).unwrap_or(0);
-            }
-        }
-        d
+        self.t.lv.reject | self.t.vis_dont_care(&self.header, name, kind)
     }
 
     pub(super) fn cond(&mut self, name: &str, kind: Option<&str>) -> String {
@@ -177,26 +193,33 @@ impl Gen<'_> {
                 return "0".into();
             }
         };
+        // A union typedef without a C++ spelling is a union tag in C++, which the visibility probe does not classify as
+        // a typedef: it is declared in every C++ configuration where the C typedef is.
+        let target = if r["kind"] == "typedef" && self.union_tag(name) { target | self.cxx_mask() } else { target };
         let configs = r["configs"].clone();
         // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
         // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.
         let fortify = self.fortify_mask();
         match condition(&self.t.lv, target, care).or_else(|| condition(&self.t.lv, target & !fortify, care & !fortify)) {
             Some(c) => c,
-            None => {
-                self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
-                "0".into()
-            }
+            None => match LANGUAGE_MODE.iter().find(|(n, _)| *n == name) {
+                Some((_, c)) => (*c).to_string(),
+                None => {
+                    self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
+                    "0".into()
+                }
+            },
         }
     }
 
-    /// The condition of the structure tag `inner` in this header when the header shows it in fewer of the
-    /// configurations that matter than the aggregate `outer` that has a member of that type, else None.
-    pub(super) fn narrower_tag(&self, outer: &str, inner: &str) -> Option<String> {
-        let row = |n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == "struct");
-        let (o, i) = (row(outer)?, row(inner)?);
+    /// The condition of the tag `inner_kind inner` (a structure or union) in this header when the header shows it in
+    /// fewer of the configurations that matter than `outer_kind outer` (an aggregate with a member of that type, or a
+    /// typedef named for linkage through the tag), else None.
+    pub(super) fn narrower_tag(&self, (outer_kind, outer): (&str, &str), (inner_kind, inner): (&str, &str)) -> Option<String> {
+        let row = |k: &str, n: &str| self.t.vis_row(&self.header, n, k);
+        let (o, i) = (row(outer_kind, outer)?, row(inner_kind, inner)?);
         let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let care = all & !self.dont_care(inner, "struct");
+        let care = all & !self.dont_care(inner, inner_kind);
         let (om, im) = (mask_of(&self.t.lv, &o["configs"]).ok()?, mask_of(&self.t.lv, &i["configs"]).ok()?);
         if om & care & !im == 0 {
             return None;

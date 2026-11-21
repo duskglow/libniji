@@ -26,7 +26,7 @@ struct argp {
   const char * args_doc;
   const char * doc;
   const struct argp_child * children;
-  void (*help_filter) (void);
+  char *(*help_filter)(int, const char *, void *);
   const char * argp_domain;
 };
 # endif

@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S07-3", "model": "sonnet", "tokens": null,
+ "result": "PENDING JOBS: P2/P3 closed (all rows fixed or accepted), P6 22/0, P1/P5/P10 green, ctype masks and 64-bit redirects fixed; P7 zlib green, xz-utils/sqlite3 blocked on slice 8 headers; gate and plants queued",
+ "branch": "task/sl-headers-s07-3", "head": "850774534",
+ "gate": {"affected": "pending", "peak": null}, "accepted_first_attempt": null,
+ "jobs": ["sl-headers-s07-3-gate", "sl-headers-s07-3-plants2", "sl-headers-s07-3-checks3"],
+ "rulings": [],
+ "informational": ["P3 16 rows (open, openat, poll, ppoll fortify _chk) belong to slice 18", "P7 xz-utils needs pthread.h (slice 8); sqlite3 not rebuilt after the ctype fix", "visibility probes see macros only: enumerators without a macro may be missing in other headers (audit)", "plants run 1 refused two plants matching two sites: anchored in run 2"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "isalpha/isspace and the other ctype macros did not compile in C against libniji headers (ten _IS masks undeclared)", "before": 2, "after": 12, "unit": "declared masks", "measured": true},
+            {"kind": "correctness", "what": "GNU-only functions and lstat/lockf/fseeko/ftello/mkstemp/pwrite etc. bound to 32-bit names under _GNU_SOURCE with _FILE_OFFSET_BITS=64", "before": 32, "after": 0, "unit": "P3 rows (non-fortify)", "measured": true},
+            {"kind": "coverage", "what": "header_s07.py checks, smoke --niji-headers, undef-compare.sh, 9 plants", "before": 0, "after": 56, "unit": "header_s07 units", "measured": true}],
+ "improvement": "visibility probes should also record enumerators (compile-time probe), the ctype masks were missed for two slices",
+ "next_step": "rerun smoke.sh --niji-headers sqlite3 after the ctype fix; xz-utils and sqlite3 after slice 8; then SL-HEADERS-S07-TAIL", "report_file": "handoff/SL-HEADERS-S07.md"}

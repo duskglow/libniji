@@ -1,0 +1,24 @@
+{"task": "LAYOUT-BYTE-BUDGETS-2", "model": "opus", "tokens": null,
+ "result": "WINDOW-BIN-BYTES contract: per-story start-up gate from the static probe's link map (bytes and headroom per window bin, windows per mode, .rodata1/.data1); hot_text_products whole-process fault bounds become non-blocking reports (NIJI_FAULT_BOUNDS=enforce for the release ratchet), owner ruling R2",
+ "branch": "task/layout-byte-budgets-2", "head": "daf86cb07",
+ "gate": {"affected": "563 passed / 0 failed (direct tier, 6 suites, mei gate3); xtest3 (cargo xtask test): 6870 + 4830 passed, 0 failed; precheck GREEN on 90aa30b23", "peak": "1.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Brief item 1 (each text bin <= 65,536 bytes) cannot go red: bins::plan re-plans every build and fills a bin only to capacity; the gate checks windows per mode instead (challenge #6857, agreed).",
+   "The 11-14 replays (setlocale-ctype-env-4, regcomp-fallible-alloc-2, tb-foreign-words-low-10 merged onto next) were not run: not verified.",
+   "The train should export NIJI_LAYOUT_BASE_BINS (next's layout-bins.tsv per landed revision) for the member diff, and run NIJI_FAULT_BOUNDS=enforce only at release: tooling outside this repo.",
+   "Fast head bin headroom is 84 bytes: the next growth there moves a group and the gate names the mode that gains a window.",
+   "Leg 1 process slips: one edit via a Python heredoc and one sed -i (both forbidden); content checked and committed normally."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "per-story start-up gate is a byte/window function of the link map (no program run); the zero-margin whole-process fault bounds (systemic CI red, bound + 1) no longer block a story", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "size", "what": "head window bin bytes, fast profile (headroom 84)", "before": null, "after": 64428, "unit": "bytes of 64512", "measured": true},
+   {"kind": "size", "what": "head window bin bytes, release profile (headroom 1272)", "before": null, "after": 63240, "unit": "bytes of 64512", "measured": true},
+   {"kind": "coverage", "what": "plants on xtask/src/binbudget.rs, all CAUGHT", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A plant run should be started as soon as the code commit exists: leg 1's plants ran last and the one survivor cost a full rerun of every final-head job (lint, two product builds, gate) in leg 2.",
+ "next_step": "Train lands it; separately, export NIJI_LAYOUT_BASE_BINS in the train and run the 11-14 replays if still wanted.",
+ "report_file": "handoff/LAYOUT-BYTE-BUDGETS-2.md",
+ "jobs": ["mei:layout-byte-budgets-2-unit3", "mei:layout-byte-budgets-2-lint3", "mei:layout-byte-budgets-2-relhot3", "mei:layout-byte-budgets-2-fastso3", "mei:layout-byte-budgets-2-plants3", "mei:layout-byte-budgets-2-gate3", "mei:layout-byte-budgets-2-xtest3"]}
