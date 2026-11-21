@@ -3,8 +3,6 @@
 # p1 is 0 for every header here: spec/tools/header_checks/s11.py does the P1 itself (floating macros, unions, C-only names).
 header	p1	uapi
 math.h	0	-
-complex.h	0	-
-tgmath.h	0	-
 fenv.h	0	-
 fpu_control.h	0	-
 ieee754.h	0	-

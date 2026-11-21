@@ -13,7 +13,7 @@ import decimal
 import os
 import subprocess
 
-HEADERS = ["math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
+HEADERS = ["math.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
 
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
@@ -109,11 +109,9 @@ def p1(ctx):
 
 
 def units(ctx):
-    out = p1(ctx)
-    # P6: the generic macros of tgmath.h choose the function by argument type (GNU configuration, parser only).
-    with open(os.path.join(ctx.root, "spec", "tools", "tgmath_types.c")) as f:
-        out.append(("gnu", "P6 tgmath", f.read()))
-    return out
+    # complex.h and tgmath.h are not in this slice yet (their C++ rows and type-generic macros need the generator story,
+    # HEADERS-TABLES-COMPLETE): no P6 unit for tgmath.h.
+    return p1(ctx)
 
 
 def problems(ctx):
