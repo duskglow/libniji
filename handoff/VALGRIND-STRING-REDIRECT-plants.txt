@@ -1,0 +1,4 @@
+# VALGRIND-STRING-REDIRECT plants (cargo xtask plants): id | path | pattern | cmd | msg:<regex>
+kernel-name-size0 | csys/src/machine/scan.S | perl:s/(niji_machine_memchr:.*?\.size __GI_memchr, )\.-__GI_memchr/${1}0/s | cargo xtask so | msg:niji_machine_memchr \(at [0-9a-f]+\) does not carry __GI_memchr
+export-size0 | csys/src/machine/scan.S | perl:s/(niji_machine_strcmp:.*?\.size strcmp, )\.-strcmp/${1}0/s | cargo xtask so | msg:strcmp \(exported at [0-9a-f]+\) is not a name valgrind sees
+check-kernel-any | xtask/src/so.rs | lit:Some(k) if names_at(k.0).iter().any(|n| n == name) => {} ==> Some(_) => {} | cargo test -p xtask valgrind_string_names | msg:valgrind_string_names_resolve_to_the_bodies.*(FAILED|panicked)

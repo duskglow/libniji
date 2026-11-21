@@ -121,7 +121,7 @@ niji_machine_scan_level_get:
 	.p2align 6
 niji_machine_strlen:
 #ifdef NIJI_EXPORT
-	/* VALGRIND-STRING-REDIRECT (D-NEW): a local name memcheck replaces in libc.so.6, so calls inside
+	/* VALGRIND-STRING-REDIRECT (D-X.154): a local name memcheck replaces in libc.so.6, so calls inside
 	 * libc that reach this kernel without `strlen`'s entry are replaced too (xtask/src/so.rs
 	 * VALGRIND_KERNEL_NAMES). Symbol table only: no code byte changes. */
 	.type __GI_strlen, @function
