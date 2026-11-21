@@ -56,7 +56,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/dev/shm/` | crates/boundary/src/mqueue.rs:370, crates/boundary/src/nscache.rs:54 |
 | `/dev/shm/sem.` | crates/boundary/src/sync.rs:901 |
 | `/dev/shm/sem.niji-` | crates/boundary/src/sync.rs:953 |
-| `/dev/tty` | crates/boundary/src/stdio.rs:2140, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
+| `/dev/tty` | crates/boundary/src/stdio.rs:2168, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
 | `/dev/ttyS` | crates/core/src/term.rs:504 |
 | `/etc/.pwd.lock` | crates/legacy/src/accounting.rs:42 |
 | `/etc/aliases` | crates/legacy/src/nss.rs:93 |
