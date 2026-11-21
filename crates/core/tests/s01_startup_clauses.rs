@@ -677,18 +677,101 @@ fn s1_2_i_2() {
     conformance(&["s01_startup"]);
 }
 
+/// Pages that count the bytes mapped through them and refuse a mapping past `limit` (the
+/// address space a registry takes; a limit too small for its growth).
+struct CountingPages {
+    mapped: AtomicUsize,
+    limit: usize,
+}
+
+impl Pages for CountingPages {
+    type General = Self;
+    fn general(&self) -> &Self {
+        self
+    }
+    fn map(&self, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        if self.mapped.load(Ordering::Relaxed) + len > self.limit {
+            return None;
+        }
+        self.mapped.fetch_add(len, Ordering::Relaxed);
+        KernelPages.map(len, align, node)
+    }
+    fn unmap(&self, addr: usize, len: usize) {
+        self.mapped.fetch_sub(len, Ordering::Relaxed);
+        KernelPages.unmap(addr, len);
+    }
+    fn discard(&self, _: usize, _: usize) {}
+    fn remap(&self, _: usize, _: usize, _: usize) -> Option<usize> {
+        None
+    }
+    fn map_room(&self, _: usize, _: usize, _: usize, _: usize, _: Option<u32>) -> Option<usize> {
+        None
+    }
+    fn grow(&self, _: usize, _: usize, _: Option<u32>) -> bool {
+        false
+    }
+    fn wipe(&self, _: usize, _: usize) {}
+    fn words(&self, addr: usize, n: usize) -> &[std::sync::atomic::AtomicU64] {
+        KernelPages.words(addr, n)
+    }
+    fn allowed_nodes(&self) -> usize {
+        1
+    }
+    fn cache_slot(&self) -> Option<&std::sync::atomic::AtomicUsize> {
+        static SLOT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        Some(&SLOT)
+    }
+}
+
+/// Checks that exit handlers `fn()` are called as `n - 1`, `n - 2`, ..., 0 (most recent first).
+struct Descending {
+    next: usize,
+    wrong: usize,
+}
+
+impl CCall for Descending {
+    fn call3(&mut self, f: usize, _: usize, _: usize, _: usize) -> usize {
+        self.call0(f);
+        0
+    }
+    fn call0(&mut self, f: usize) {
+        match self.next.checked_sub(1) {
+            Some(want) if want == f => self.next = want,
+            _ => self.wrong += 1,
+        }
+    }
+    fn fatal(&mut self) -> ! {
+        panic!("fatal")
+    }
+}
+
 #[test]
 fn s1_2_i_3() {
-    // The first 32 registrations need no memory at all; many more succeed with it.
+    // The first 32 registrations need no memory at all; many more succeed with it: no fixed
+    // limit (LIMITS-RUNTIME-SMALL: 3 million, well past the 2^20 an earlier fixed extension
+    // held), all run once each, most recent first; and the memory mapped grows with the
+    // handlers registered (100 take one page past the fixed entries, not a worst-case area).
     let r = Registry::new();
     for i in 0..32 {
         assert!(r.register(&CSys, &NoPages, [ATEXIT, i, 0, 0]), "registration {i} without memory");
     }
-    let big = Registry::new();
-    for i in 0..10_000 {
-        assert!(big.register(&CSys, &KernelPages, [ATEXIT, i, 0, 0]));
+    let small = Registry::new();
+    let counted = CountingPages { mapped: AtomicUsize::new(0), limit: usize::MAX };
+    for i in 0..100 {
+        assert!(small.register(&CSys, &counted, [ATEXIT, i, 0, 0]));
     }
-    assert_eq!(big.live(&CSys, &KernelPages), 10_000);
+    assert_eq!(counted.mapped.load(Ordering::Relaxed), 4096, "100 handlers: one page mapped");
+    small.unmap(&counted);
+    const MANY: u64 = 3_000_000;
+    let big = Registry::new();
+    for i in 0..MANY {
+        assert!(big.register(&CSys, &KernelPages, [ATEXIT, i, 0, 0]), "registration {i}");
+    }
+    assert_eq!(big.live(&CSys, &KernelPages), 3_000_000);
+    let mut order = Descending { next: 3_000_000, wrong: 0 };
+    exit_handlers::run_all(&big, &CSys, &KernelPages, 0, &mut order);
+    assert_eq!((order.next, order.wrong), (0, 0), "every handler once, most recent first");
+    big.unmap(&KernelPages);
 }
 
 #[test]
@@ -699,6 +782,21 @@ fn s1_2_f_1() {
     }
     assert!(!r.register(&CSys, &NoPages, [ATEXIT, 99, 0, 0]), "no memory: the registration fails (non-zero from atexit)");
     assert_eq!(r.live(&CSys, &NoPages), 32);
+    // Memory for the first two chunks (one page, then two: 384 entries past the fixed 32) but
+    // not the third: the 417th registration fails cleanly, again when retried, and the 416
+    // registered still run, each once, most recent first.
+    let tight = Registry::new();
+    let pages = CountingPages { mapped: AtomicUsize::new(0), limit: 3 * 4096 };
+    for i in 0..416 {
+        assert!(tight.register(&CSys, &pages, [ATEXIT, i, 0, 0]), "registration {i}");
+    }
+    assert!(!tight.register(&CSys, &pages, [ATEXIT, 416, 0, 0]), "no memory for the next chunk");
+    assert!(!tight.register(&CSys, &pages, [ATEXIT, 417, 0, 0]), "still none");
+    assert_eq!(tight.live(&CSys, &pages), 416);
+    let mut order = Descending { next: 416, wrong: 0 };
+    exit_handlers::run_all(&tight, &CSys, &pages, 0, &mut order);
+    assert_eq!((order.next, order.wrong), (0, 0));
+    tight.unmap(&pages);
 }
 
 #[test]

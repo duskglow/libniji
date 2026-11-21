@@ -17,7 +17,7 @@ rm -rf "$dir"
 mkdir -p "$dir"
 "$prog" "$dir"
 if [ $# -eq 0 ]; then
-    set -- conf conf2 conf3 noconf servers rotate norotate silent1 silent2 refused edns plain single reopen sortlist search notld env envspace envempty aliases reload noreload modify idn gaia
+    set -- conf conf2 conf3 noconf servers rotate norotate silent1 silent2 refused edns plain single reopen sortlist search notld env envspace envempty aliases reload noreload modify idn gaia gaimass
 fi
 for s in "$@"; do
     if [ -f /etc/ld.so.cache ]; then

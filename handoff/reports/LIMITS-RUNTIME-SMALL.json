@@ -1,0 +1,72 @@
+{
+ "task": "LIMITS-RUNTIME-SMALL",
+ "model": "opus",
+ "tokens": null,
+ "result": "No limit but memory on exit handlers (HL-12), addseverity levels (HL-8) and getaddrinfo_a's queue and notification groups (HL-9): chunks that never move, mapped with use",
+ "branch": "task/limits-runtime-small",
+ "head": "e6598c674",
+ "gate": {
+  "affected": "direct tier: affected ok (rc 0); plants 6 CAUGHT of 6; start-up checks pending",
+  "peak": "12G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "A getaddrinfo_a submission that fails (no memory for the queue to grow, or no worker thread) takes its requests off the queue as empty slots that stay counted until a worker skips them; while memory stays short, later submissions also get EAI_MEMORY. On next this happened after any overflow of the 4096 queue (EAI_AGAIN). Follow-up: drop the failed call's requests from the ring's tail (they were pushed last, under the same lock).",
+  "gai_cancel(NULL) cancels at most 64 queued requests per call (a fixed array); not in the audit.",
+  "The probe service (~/bin/probe) takes --liella, not the README's --niji, and reports libniji products missing for this tree even after rebuilding them (20 minutes lost); probes were run by hand."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "atexit/on_exit past 1,048,574 registrations (failed on next; 3,000,000 run in order now, as the reference)",
+   "before": 1048574,
+   "after": 3000000,
+   "unit": "registrations",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "addseverity past 256 levels (MM_NOTOK on next; 2000 printed by fmtmsg now)",
+   "before": 256,
+   "after": 2000,
+   "unit": "levels",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "getaddrinfo_a of 20000 requests in one call (EAI_AGAIN, none answered on next; all answered now) and 5000 notification groups",
+   "before": 0,
+   "after": 20000,
+   "unit": "requests answered",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "address space mapped by the exit registry at 100 handlers (32 MiB on next, one page now)",
+   "before": 33554432,
+   "after": 4096,
+   "unit": "bytes",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: s1_2_i_3, s1_2_f_1, s2_6_c_3_table changed; oracle scenario gaimass added; 6 plants, all caught",
+   "before": null,
+   "after": 6,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "Job drivers must loop on jobwait's exit 3 (still running): one that does not moves on beside the gate; a jobwait --until-done flag would remove the trap.",
+ "next_step": "Land; follow-up: compact the getaddrinfo_a ring when a submission fails.",
+ "report_file": "handoff/LIMITS-RUNTIME-SMALL.md",
+ "jobs": [
+  "keke:limits-runtime-small-gate",
+  "keke:limits-runtime-small-plants",
+  "keke:limits-runtime-small-xtest2",
+  "keke:limits-runtime-small-counts",
+  "keke:limits-runtime-small-hottext"
+ ]
+}

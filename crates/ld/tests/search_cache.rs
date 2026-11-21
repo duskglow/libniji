@@ -282,6 +282,44 @@ fn search_pinned_sonames() {
     assert_eq!(candidates("libc.so.6", &[s], &ctx(false, Some(b"/env"), Some(&c))), ["/env/libc.so.6".to_string(), own]);
 }
 
+/// s27_1_c_1_1 (the cache step; a cache read on first use, DL-START-SEARCH-3): the cell is read at most
+/// once, keeps the bytes for the caller to release (none when there is no cache), and its empty state
+/// takes no tag of its own: it is the bytes' address, a word every state writes, so the start-up loader's
+/// release of an unread cache reads no unwritten stack memory (valgrind's memcheck reported a branch on a
+/// nested `Option`'s unwritten payload at every program start). x86_64 table.
+#[test]
+fn lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address() {
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+    static READS: AtomicUsize = AtomicUsize::new(0);
+    static ABSENT_READS: AtomicUsize = AtomicUsize::new(0);
+    fn read() -> Option<(&'static [u8], Cache<'static>)> {
+        READS.fetch_add(1, Relaxed);
+        let f: &'static [u8] = Box::leak(cache_file(&[(FLAGS, "libv.so.1", "/d/libv.so.1", None)], &[]).into_boxed_slice());
+        Some((f, Cache::parse(f).expect("well-formed cache")))
+    }
+    fn absent() -> Option<(&'static [u8], Cache<'static>)> {
+        ABSENT_READS.fetch_add(1, Relaxed);
+        None
+    }
+    fn untagged<T>(_: &core::cell::OnceCell<T>) -> bool {
+        size_of::<core::cell::OnceCell<T>>() == size_of::<T>()
+    }
+    let cell = search::LazyCache::new();
+    assert!(untagged(&cell), "an empty lazy cache cell is a niche of its contents, not a tag beside unwritten contents");
+    let lazy = search::CacheRef::Lazy(&cell, read);
+    assert!(cell.get().is_none(), "nothing is read before a search asks");
+    for _ in 0..2 {
+        assert_eq!(lazy.get().and_then(|c| c.lookup(b"libv.so.1", FLAGS, &[])), Some(&b"/d/libv.so.1"[..]));
+    }
+    assert_eq!(READS.load(Relaxed), 1, "read once");
+    assert!(cell.get().is_some_and(|(f, c)| !f.is_empty() && c.is_some()), "the bytes are kept for release");
+    let none = search::LazyCache::new();
+    let lazy = search::CacheRef::Lazy(&none, absent);
+    assert!(lazy.get().is_none() && lazy.get().is_none());
+    assert_eq!(ABSENT_READS.load(Relaxed), 1, "an absent cache is looked for once");
+    assert_eq!(none.get().map(|(f, c)| (f.len(), c.is_some())), Some((0, false)), "no cache: no bytes to release");
+}
+
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from)

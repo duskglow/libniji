@@ -1,0 +1,14 @@
+# VALGRIND-DBG-RODATA plants (cargo xtask plants): id | path | pattern | cmd | msg:<regex>
+# ro-first-name (the same mutant, cmd the xtask unit test) dropped after plants-1: the products build refuses the mutant first (check_debug_reader_rodata), so it is ro-first-name-build's catch.
+ro-first-name-build | xtask/src/so.rs | lit:.startup_ro : { *(.rodata1) } ==> .rodata1 : { *(.rodata1) } | cargo xtask so | msg:read-only data sections \.rodata1, \.rodata
+check-prefix | xtask/src/so.rs | lit:.filter(|n| n.starts_with(".rodata")) ==> .filter(|n| *n == ".rodata") | cargo test -p xtask libc_so_has_one_read_only | msg:libc_so_has_one_read_only_data_section_for_valgrind.*(FAILED|panicked)
+pkg-rodata1 | tools/deb/system.sh | lit:objcopy --only-keep-debug --compress-debug-sections=zlib "$f" "$d" ==> objcopy --rename-section .startup_ro=.rodata1 "$f" && objcopy --only-keep-debug --compress-debug-sections=zlib "$f" "$d" | rm -rf target/pd target/pw && NIJI_DEB_COMMIT=valgrinddbgrodata sh tools/deb/build.sh --flavour system --products /mnt/zram/claude/VALGRIND-DBG-RODATA/products-head --version 2.39+niji20261121.1-1 --out target/pd --work target/pw && sh tools/deb/check-system.sh target/pd | msg:libc\.so\.6 has read-only data sections
+lazy-read-twice | crates/ld/src/search.rs | lit:CacheRef::Lazy(cell, read) => cell.get_or_init( ==> CacheRef::Lazy(cell, read) => read().and(None).unwrap_or(cell).get_or_init( | cargo test -p niji-ld --test search_cache lazy_cache | msg:lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address.*(FAILED|panicked)
+lazy-nested-option | crates/ld/src/search.rs | perl:s/OnceCell<\(&'a \[u8\], Option<Cache<'a>>\)>;(.*?)cell\.get_or_init\(\|\| read\(\)\.map_or\(\(&\[\], None\), \|\(f, c\)\| \(f, Some\(c\)\)\)\)\.1\.as_ref\(\)/OnceCell<Option<(&'a [u8], Cache<'a>)>>;$1cell.get_or_init(read).as_ref().map(|(_, c)| c)/s | cargo test -p niji-ld --test search_cache lazy_cache | msg:error\[E0308\]|lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address.*(FAILED|panicked)
+# cargo xtask plants results (6 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# ro-first-name: WARN-NO-MSG, caught by no test the log names
+# ro-first-name-build: CAUGHT, caught by no test the log names
+# check-prefix: CAUGHT, caught by xtask so::tests::libc_so_has_one_read_only_data_section_for_valgrind
+# pkg-rodata1: CAUGHT, caught by no test the log names
+# lazy-read-twice: CAUGHT, caught by search_cache lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address
+# lazy-nested-option: CAUGHT, caught by the build (the mutant does not compile)

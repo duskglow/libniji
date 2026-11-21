@@ -1,0 +1,8 @@
+# LIMITS-RUNTIME-SMALL plants (audit HL-12, HL-8, HL-9): each removed cap restored alone, and the growth
+# code broken. Run with cargo xtask plants (docs/plants.md).
+exit-cap | crates/legacy/src/exit_handlers.rs | lit:if let Some(j) = i.checked_sub(FIXED) { ==> if i >= 1 << 20 { return false; } if let Some(j) = i.checked_sub(FIXED) { | cargo test -p niji --test s01_startup_clauses s1_2_i_3 | msg:s1_2_i_3.*FAILED|panicked
+exit-worst-case-map | crates/legacy/src/exit_handlers.rs | lit:if !self.ext.reserve(pages, j, WORDS) { ==> if !self.ext.reserve(pages, j.max(8191), WORDS) || !self.ext.reserve(pages, j, WORDS) { | cargo test -p niji --test s01_startup_clauses s1_2_i_3 | msg:one page mapped
+chunks-dir-cap | crates/rt/src/chunks.rs | lit:let Some(slot) = self.dir.get(k) else { return false }; ==> let Some(slot) = self.dir.get(k).filter(|_| k < 4) else { return false }; | cargo test -p niji --test s01_startup_clauses s1_2_i_3 | msg:s1_2_i_3.*FAILED|panicked
+sev-cap | crates/boundary/src/fmtmsg.rs | lit:let i = USED.load(Relaxed); ==> let i = USED.load(Relaxed); if i >= 256 { return None; } | cargo test -p niji --test s02_diagnostics_clauses s2_6_c_3_table | msg:s2_6_c_3_table.*FAILED|panicked
+gai-queue-cap | crates/boundary/src/gai_async.rs | lit:let Some(j) = cap.checked_sub(QUEUE_INLINE) else { return false }; ==> if cap >= 4096 { return false; } let Some(j) = cap.checked_sub(QUEUE_INLINE) else { return false }; | cargo test -p niji --test dns_products resolv_equals_the_reference | msg:gaimass
+gai-group-cap | crates/boundary/src/gai_async.rs | lit:i = i.checked_add(1)?; ==> i = i.checked_add(1).filter(|&i| i < 256)?; | cargo test -p niji --test dns_products resolv_equals_the_reference | msg:gaimass

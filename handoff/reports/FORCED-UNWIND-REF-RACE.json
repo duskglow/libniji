@@ -1,0 +1,20 @@
+{"task": "FORCED-UNWIND-REF-RACE", "model": "opus", "tokens": null,
+ "result": "cancel-async moved into a helper without an LSDA: reference aborts under load 4/2400 before, 0/8000 after (libniji 0/2400, 0/8000); gate and plants green",
+ "branch": "task/forced-unwind-ref-race", "head": "66deb5486 (last code/plants commit; the final head adds only this report and the handoff note)",
+ "gate": {"affected": "1 suite: niji::forced_unwind_products 5 passed / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libniji's run has no such window: asynchronous requests act at the next safe point (D-22.11), inside pthread_testcancel, so the frame with handlers is always left at a call site",
+   "THREAD-FORCED-UNWIND-3's skip-unwind plant now stops at the product build (no libc.a member refers to niji_machine_unwind_force), so it never reaches the tests (WARN-NO-MSG); skip-unwind-kept replaces it and is CAUGHT",
+   "static-entry-zeroed was CAUGHT by the plants tool's 600 s timeout: the mutant's static C++ program hangs until the load-scaled per-run watchdog"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "forced_unwind_products reference run: aborts in cancel-async under load (Zen 1 host, 6 busy loops, 8 workers)", "before": 4, "after": 0, "unit": "aborts (before per 2400 runs, after per 8000 runs)", "measured": true},
+   {"kind": "coverage", "what": "plant skip-unwind-kept added (reaches the C++ and C forced-unwind tests)", "before": 0, "after": 1, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["keke:forced-unwind-ref-race-gate", "keke:forced-unwind-ref-race-plants", "keke:forced-unwind-ref-race-plants2", "keke:forced-unwind-ref-race-after"],
+ "improvement": "plant files that copy an older story's plants should be rerun as a whole: a later build-time check (STATIC-2) silently turned skip-unwind from a test catch into a build stop",
+ "next_step": "land; no follow-up",
+ "report_file": "handoff/FORCED-UNWIND-REF-RACE-report.md"}

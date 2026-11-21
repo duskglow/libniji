@@ -1,0 +1,9 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+# p1 is 0 for every header here: spec/tools/header_checks/s11.py does the P1 itself (floating macros, unions, C-only names).
+header	p1	uapi
+math.h	0	-
+fenv.h	0	-
+fpu_control.h	0	-
+ieee754.h	0	-
+values.h	0	-

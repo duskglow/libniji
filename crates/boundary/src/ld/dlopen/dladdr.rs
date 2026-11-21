@@ -140,11 +140,11 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
             let (lo, hi) = v.range(i);
             lo <= addr && addr < hi
         })?;
-        let o = v.obj(i);
+        let o = v.obj(i)?;
         let at = |x: u64| usize::try_from(x).unwrap_or(0);
         let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
         let base = v.range(i).0 & !page.wrapping_sub(1);
-        let sym = containing(v.syms(i), o.bias, u64::try_from(addr).unwrap_or(0));
+        let sym = containing(v.syms(i)?, o.bias, u64::try_from(addr).unwrap_or(0));
         let (sname, saddr, entry) = match (sym, o.dynm.get(dt::STRTAB), o.dynm.get(dt::SYMTAB)) {
             (Some((k, s)), Some(strtab), Some(symtab)) => {
                 let table = at(o.bias.wrapping_add(symtab));
@@ -167,7 +167,7 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
 
 /// Object `i`'s search scope as a reader sees it: its `DT_RPATH`, `DT_RUNPATH` and `$ORIGIN`.
 fn scope_in(v: &View, i: usize) -> Scope<'static> {
-    let o = v.obj(i);
+    let Some(o) = v.obj(i) else { return Scope::default() };
     Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin: origin(v, i) }
 }
 
@@ -232,7 +232,7 @@ fn serinfo(v: &View, i: usize, arg: usize, fill: bool) {
 
 /// The run-time address of object `i`'s program header table and its entry count.
 fn phdr(v: &View, i: usize) -> (usize, usize) {
-    let o = v.obj(i);
+    let Some(o) = v.obj(i) else { return (0, 0) };
     let n = o.elf.program_headers().count();
     let at = |x: u64| usize::try_from(o.bias.wrapping_add(x)).unwrap_or(0);
     if let Some(p) = o.elf.find(pt::PHDR) {
@@ -247,7 +247,7 @@ fn phdr(v: &View, i: usize) -> (usize, usize) {
 /// static area is filled from (DL-15, DL-16d), the source `dl_iterate_phdr` reads too; `None`
 /// without `PT_TLS`.
 fn tls_place(v: &View, i: usize) -> Option<Placed> {
-    let o = v.obj(i);
+    let o = v.obj(i)?;
     let image = o.bias.wrapping_add(o.elf.find(pt::TLS)?.vaddr);
     super::super::initial_place(image)
 }

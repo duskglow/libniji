@@ -48,7 +48,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | Path | Named at (file:line; the first is usually the constant) |
 |---|---|
 | `/dev/` | crates/legacy/src/accounting.rs:470 |
-| `/dev/console` | crates/boundary/src/fmtmsg.rs:268, crates/core/src/log.rs:65, crates/core/src/term.rs:506 |
+| `/dev/console` | crates/boundary/src/fmtmsg.rs:300, crates/core/src/log.rs:65, crates/core/src/term.rs:506 |
 | `/dev/log` | crates/core/src/log.rs:63 |
 | `/dev/null` | crates/boundary/src/selftest.rs:511, crates/boundary/src/spawn.rs:778, crates/boundary/src/spawn.rs:851, crates/rt/src/start.rs:260 |
 | `/dev/ptmx` | crates/core/src/term.rs:335, crates/core/src/term.rs:507 |
@@ -56,7 +56,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/dev/shm/` | crates/boundary/src/mqueue.rs:370, crates/boundary/src/nscache.rs:54 |
 | `/dev/shm/sem.` | crates/boundary/src/sync.rs:901 |
 | `/dev/shm/sem.niji-` | crates/boundary/src/sync.rs:953 |
-| `/dev/tty` | crates/boundary/src/stdio.rs:2140, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
+| `/dev/tty` | crates/boundary/src/stdio.rs:2168, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
 | `/dev/ttyS` | crates/core/src/term.rs:504 |
 | `/etc/.pwd.lock` | crates/legacy/src/accounting.rs:42 |
 | `/etc/aliases` | crates/legacy/src/nss.rs:93 |
@@ -92,14 +92,14 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/proc/self/loginuid` | crates/legacy/src/accounting.rs:48 |
 | `/proc/self/maps` | crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
 | `/proc/self/mountinfo` | crates/core/src/system.rs:592 |
-| `/proc/self/ns/user` | crates/legacy/src/nscache.rs:319 |
+| `/proc/self/ns/user` | crates/legacy/src/nscache.rs:321 |
 | `/proc/self/pagemap` | crates/boundary/src/classed.rs:132 |
 | `/proc/self/status` | crates/legacy/src/cred_compat.rs:55 |
 | `/proc/self/task/` | crates/legacy/src/pthread_compat.rs:345 |
 | `/proc/self/task/4321/comm` | crates/legacy/src/pthread_compat.rs:436 |
 | `/proc/stat` | crates/core/src/system.rs:321 |
 | `/proc/sys/kernel/ngroups_max` | crates/core/src/system.rs:492 |
-| `/proc/sys/kernel/random/boot_id` | crates/legacy/src/nscache.rs:347 |
+| `/proc/sys/kernel/random/boot_id` | crates/legacy/src/nscache.rs:349 |
 | `/proc/sys/vm/mmap_min_addr` | crates/boundary/src/dispatch.rs:350 |
 | `/proc/thread-self/status` | crates/core/src/system.rs:228 |
 | `/sys/devices/system/cpu` | crates/core/src/system.rs:351 |

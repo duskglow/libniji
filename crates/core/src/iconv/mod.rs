@@ -22,6 +22,9 @@ pub use aliases::{charmap_alias, charmap_aliases};
 mod fast;
 mod jis;
 mod jis_tables;
+mod cjk;
+mod cjk_tables;
+pub use cjk::Which as CjkSet;
 
 use crate::locale::{Ctype, Locale};
 use crate::text::{self, CharmapRef};
@@ -56,11 +59,35 @@ pub enum Codec {
     Charmap(CharmapRef),
     /// EUC-JP, built in from the WHATWG JIS X 0208 and JIS X 0212 indexes (`jis`).
     EucJp,
+    /// BIG5, EUC-KR, CP932, CP936 or GB18030, built in from public mapping tables and the
+    /// reference library's probed variant of each (`cjk`).
+    Cjk(cjk::Which),
 }
 
 /// The built-in names (compared without regard to case). The reference library's aliases of
 /// ASCII and ISO-8859-1 are the ones their charmaps list.
-const NAMES: [(&[u8], Codec); 57] = [
+const NAMES: [(&[u8], Codec); 78] = [
+    (b"BIG5", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIG-5", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIG-FIVE", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIGFIVE", Codec::Cjk(cjk::Which::Big5)),
+    (b"CN-BIG5", Codec::Cjk(cjk::Which::Big5)),
+    (b"CP950", Codec::Cjk(cjk::Which::Big5)),
+    (b"EUC-KR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"EUCKR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"CSEUCKR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"OSF0004000A", Codec::Cjk(cjk::Which::EucKr)),
+    (b"GB18030", Codec::Cjk(cjk::Which::Gb18030)),
+    (b"CP932", Codec::Cjk(cjk::Which::Cp932)),
+    (b"MS932", Codec::Cjk(cjk::Which::Cp932)),
+    (b"WINDOWS-31J", Codec::Cjk(cjk::Which::Cp932)),
+    (b"SJIS-OPEN", Codec::Cjk(cjk::Which::Cp932)),
+    (b"SJIS-WIN", Codec::Cjk(cjk::Which::Cp932)),
+    (b"CP936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"GBK", Codec::Cjk(cjk::Which::Cp936)),
+    (b"MS936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"WINDOWS-936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"GB13000", Codec::Cjk(cjk::Which::Cp936)),
     (b"EUC-JP", Codec::EucJp),
     (b"EUCJP", Codec::EucJp),
     (b"UJIS", Codec::EucJp),
@@ -152,13 +179,13 @@ const BY_LEN_SIZE: usize = 20;
 
 /// For each name length, the built-in rows of that length: bit `i` for row `i` of [`NAMES`],
 /// then bit `NAMES.len() + j` for row `j` of [`LATIN1_MORE`].
-const BY_LEN: [u64; BY_LEN_SIZE] = by_len();
+const BY_LEN: [u128; BY_LEN_SIZE] = by_len();
 
-// A const fn (no `get_mut`): a row past bit 63 or a name of `BY_LEN_SIZE` bytes or more fails
+// A const fn (no `get_mut`): a row past bit 127 or a name of `BY_LEN_SIZE` bytes or more fails
 // the build (overflow or index out of range in constant evaluation).
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
-const fn by_len() -> [u64; BY_LEN_SIZE] {
-    let mut t = [0u64; BY_LEN_SIZE];
+const fn by_len() -> [u128; BY_LEN_SIZE] {
+    let mut t = [0u128; BY_LEN_SIZE];
     let mut i = 0;
     while i < NAMES.len() {
         t[NAMES[i].0.len()] |= 1 << i;
@@ -467,7 +494,7 @@ impl Codec {
     fn decode(self, input: &[u8], order: Option<Order>) -> Dec {
         let need = |n: usize| input.len() < n;
         // ASCII is itself in the byte codecs that contain it.
-        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp) = (input.first(), self) {
+        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_)) = (input.first(), self) {
             if b < 0x80 {
                 return Dec::Char(u32::from(b), 1);
             }
@@ -486,6 +513,7 @@ impl Codec {
                 crate::charmap::Step::Invalid => Dec::Invalid(1),
             },
             Codec::EucJp => jis::decode(input),
+            Codec::Cjk(w) => cjk::decode(w, input),
             Codec::Ucs2(o) => match unit(input, 2, o) {
                 None => Dec::Incomplete,
                 Some(c) if is_surrogate(c) => Dec::Invalid(2),
@@ -551,6 +579,7 @@ impl Codec {
             Codec::Charmap(_) if (0xE0000..=0xE007F).contains(&c) => Some(0),
             Codec::Charmap(cm) => cm.0.encode(c, out),
             Codec::EucJp => jis::encode(c, out),
+            Codec::Cjk(w) => cjk::encode(w, c, out),
             Codec::Ucs2(o) => (c < 0x1_0000).then(|| put(out, c, 2, o)),
             Codec::Utf16(fixed) => {
                 let o = fixed.unwrap_or(Order::Le);
@@ -576,7 +605,7 @@ impl Codec {
     /// Whether a byte below 0x80 decodes to itself, one byte per character.
     fn ascii_source(self) -> bool {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => true,
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_) => true,
             Codec::Charmap(c) => c.0.ascii(),
             _ => false,
         }
@@ -585,7 +614,7 @@ impl Codec {
     /// For ASCII code points: the unit this codec writes them as (its size and order).
     fn ascii_unit(self) -> Option<(usize, Order)> {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => Some((1, Order::Le)),
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_) => Some((1, Order::Le)),
             Codec::Charmap(c) => c.0.ascii().then_some((1, Order::Le)),
             Codec::Utf16(o) => Some((2, o.unwrap_or(Order::Le))),
             Codec::Ucs2(o) => Some((2, o)),
@@ -912,7 +941,8 @@ impl Conv {
                 }
                 Dec::Invalid(n) => {
                     if self.ignore {
-                        ignored = true;
+                        // Probed: CP932 reports the input `//IGNORE` skipped as success.
+                        ignored |= !matches!(self.from, Codec::Cjk(w) if !w.ignore_error());
                         read += n.clamp(1, rest.len());
                         continue;
                     }
@@ -1076,6 +1106,7 @@ fn tag(c: Codec) -> (usize, usize) {
         Codec::Latin1 => (13, 0),
         Codec::Charmap(cm) => (14, core::ptr::from_ref(cm.0).expose_provenance()),
         Codec::EucJp => (15, 0),
+        Codec::Cjk(w) => (16 + cjk::Which::ALL.iter().position(|&x| x == w).unwrap_or(0), 0),
     }
 }
 
@@ -1093,6 +1124,7 @@ fn untag(t: usize, addr: usize, charmap_at: &dyn Fn(usize) -> &'static Charmap) 
         13 => Codec::Latin1,
         14 if addr != 0 => Codec::Charmap(CharmapRef(charmap_at(addr))),
         15 => Codec::EucJp,
+        16..=20 => Codec::Cjk(*cjk::Which::ALL.get(t - 16)?),
         _ => return None,
     })
 }
