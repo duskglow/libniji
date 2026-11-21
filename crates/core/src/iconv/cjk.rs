@@ -220,7 +220,7 @@ mod tests {
         for (w, n_want) in want {
             let mut n = 0;
             for v in 0x80..=0xFFFFu32 {
-                let seq: Vec<u8> = if v < 0x100 { vec![v as u8] } else { v.to_be_bytes()[2..].to_vec() };
+                let seq: Vec<u8> = if v < 0x100 { vec![u8::try_from(v).unwrap()] } else { v.to_be_bytes()[2..].to_vec() };
                 if let Dec::Char(c, len) = decode(w, &seq) {
                     if len == seq.len() {
                         n += 1;

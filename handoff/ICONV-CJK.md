@@ -1,55 +1,38 @@
-# ICONV-CJK: BIG5, EUC-KR, CP932, CP936, GB18030 built in (GitHub #6), leg 1 handoff
+# ICONV-CJK: BIG5, EUC-KR, CP932, CP936, GB18030 built in (GitHub #6)
 
-**State.** Branch `task/iconv-cjk` (from origin/next 5e1903cce), role mei `~/w/s2`. Leg 1 wrote the code and
-data; NOTHING IS COMPILED OR TESTED YET (no local cargo: build only on mei). Crate name is `niji`
-(`-p niji`), not `niji-core`.
+**State.** Branch `task/iconv-cjk` (from origin/next 5e1903cce), role mei `~/w/s2`. Leg 2 built, fixed and
+compared the codec; head and job results are in the report json `handoff/reports/ICONV-CJK.json` and below.
+Crate name is `niji` (`-p niji`).
 
-## Done (leg 1)
+## What the branch does
 
-* Probe (mei, host C library Ubuntu GLIBC 2.39-0ubuntu8.9), scratch `~/work/iconv-cjk/` on mei:
-  `crates/core/tests/oracle/iconv_codespace.c` dumps `dump_<SET>.txt` (GB18030's is 3.7 GB, 165M lines: every
-  four-byte sequence). Names: each candidate name's whole dump hashed (`fp.txt`): same converter as
-  * BIG5: BIG5 BIG-5 BIG-FIVE BIGFIVE CN-BIG5 CP950
-  * EUC-KR: EUC-KR EUCKR CSEUCKR OSF0004000A
-  * GB18030: GB18030 only
-  * CP932: CP932 MS932 WINDOWS-31J SJIS-OPEN SJIS-WIN (SJIS/SHIFT_JIS and IBM-943 are other converters)
-  * CP936: CP936 GBK MS936 WINDOWS-936 GB13000 (GB2312/EUC-CN another converter)
-* Sources chosen by fewest differences from the probe: BIG5 = Microsoft CP950.TXT (0 differing cells, +408
-  cells C6A1..C8FE -> U+F6B1.. one run; BIG5.TXT had 267 differing), EUC-KR = KSC5601.TXT's KS X 1001 part
-  (+3 cells A2E6..A2E8), CP932 = CP932.TXT (+ user area F040..F9FC -> U+E000.., 382 encode choices for
-  duplicated NEC/IBM cells), CP936 = CP936.TXT (exact), GB18030 = WHATWG index-gb18030 (1 cell A3A0 differs)
-  + index-gb18030-ranges (19 four-byte pointers differ, incl. 7457). Vendored unchanged under
-  `spec/encoding/unicode/...` and `spec/encoding/whatwg/`.
-* Variant data `spec/encoding/reference/<SET>.tsv`, written by `tools/probe/iconv_variant.py` (records: leads,
-  trails, single, cells runs, four, encode, skip1, ignore-result). Skips settled with a second probe
-  (invalid pair + a byte completing a character with the trail byte).
-* Generator `xtask/src/encodings_cjk.rs` (part of `cargo xtask encodings-gen`; writes
-  `crates/core/src/iconv/cjk_tables.rs`, committed). Codec `crates/core/src/iconv/cjk.rs` (one generic codec;
-  GB18030 four-byte code: invalid 4 if third byte is a lead else 3; L+digit+anything is incomplete until 4
-  bytes). Wired in `mod.rs`: `Codec::Cjk(Which)`, tags 16..=20, 21 names in NAMES (BY_LEN widened to u128),
-  CP932 `//IGNORE` decode reports success (probed: r=0), the others EILSEQ.
-* Table sizes (generator output): BIG5 82,961 B, EUC-KR 89,101, CP932 72,982, CP936 95,030, GB18030 107,594.
+* One generic codec `crates/core/src/iconv/cjk.rs` over generated tables `cjk_tables.rs` (`cargo xtask
+  encodings-gen`, generator `xtask/src/encodings_cjk.rs`) from vendored public tables (Unicode CP950/CP932/CP936
+  2.01, KSC5601.TXT 1.1; WHATWG index-gb18030 and -ranges 2024-09-18) plus the reference's variant as data,
+  `spec/encoding/reference/<SET>.tsv` (format: that directory's README.md; written by
+  `tools/probe/iconv_variant.py` from the code-space probe). 21 names (`mod.rs` NAMES, `csys/util/iconv-names.h`).
+* Table sizes: BIG5 82,961 B, EUC-KR 89,101, CP932 72,982, CP936 95,030, GB18030 107,594 (447,668 total,
+  read-only data in libc.so.6/libc.a; no new package files, the libc6 row already ships libc.so.6).
+* Decision: pending `records/pending/ICONV-CJK-1.toml` (D-NEW, series D-6, amends D-6.15).
 
-## Exact next steps
+## Probe-settled (mei, host C library Ubuntu GLIBC 2.39-0ubuntu8.9)
 
-1. On mei: `cargo test -p niji --lib iconv` (unit tests in cjk.rs: counts 13912/8259/9667/21792/23940 are
-   my arithmetic from the probe, check), `cargo xtask clippy`, `cargo xtask static`. Fix compile errors
-   (other exhaustive `match Codec` sites outside mod.rs may exist).
-2. Conformance: add the five to `CHARSETS` in `crates/core/tests/iconv_codespace_products.rs`. GB18030's dump
-   is 3.7 GB: give the oracle a compact mode for sequences of 3+ bytes (e.g. one hash line per two-byte prefix,
-   like BT/BI) so both sides stay small; then run it (needs `cargo xtask so`). TRANSLIT block lists per
-   set will be needed (D-6.9), as for EUC-JP: take them from the first run's diff, BT lines only.
-   Also add the five names to whatever `iconv -l`/names tests exist (`crates/core/tests/iconv_cmd_names.rs`).
-3. Plants (`docs/plants.md`): one on a table entry (e.g. a `cells` line in spec/encoding/reference/BIG5.tsv or
-   a value in cjk.rs decode), one on the GB18030 four-byte range (e.g. `189_000` in `four_cp`).
-4. Decision record (pending D-NEW amending D-6.8, cite sources + versions: Unicode CP950/CP932/CP936 table
-   version 2.01, KSC5601.TXT table 1.1 2011-10-14, WHATWG index-gb18030 / ranges 2024-09-18 with their
-   identifiers), READMEs (`spec/encoding/unicode/README.md`, `spec/encoding/whatwg/README.md`, new
-   `spec/encoding/reference/README.md` = record format), xtask/main.rs help line, affected.rs map for
-   `cjk_tables.rs` -> encodings-gen-check. Packaging: built into libc (like EUC-JP), check the manifest row.
-5. Gate (direct tier) + plants + precheck; report json `handoff/reports/ICONV-CJK.json`.
+* Names (same converter by whole-dump hash): BIG5 BIG-5 BIG-FIVE BIGFIVE CN-BIG5 CP950 / EUC-KR EUCKR CSEUCKR
+  OSF0004000A / GB18030 / CP932 MS932 WINDOWS-31J SJIS-OPEN SJIS-WIN / CP936 GBK MS936 WINDOWS-936 GB13000.
+* Leg 2 findings: the reference writes each of GB18030's 19 four-byte departure code points as its departure
+  pointer (generator now derives these from the `four` records); GB18030 writes U+E0000..U+E007F as four-byte
+  sequences (the tag characters are dropped only when a set cannot write them).
+* Code-space comparison (`iconv_codespace_products.rs`, 6 sets, GB18030 with the oracle's new `-c`: sequences of
+  3+ bytes hashed per two-byte prefix, 1,160,213 lines): identical except the `//TRANSLIT` block hashes of D-6.9,
+  listed per set in the test. GB18030 takes ~75-80 s per side; the test ~160 s.
 
-## Possible size work (not done)
+## Not done / possible follow-ups
 
-CP936 and GB18030 two-byte cells are nearly identical (could share one table); EUC-KR's encoder pages are
-sparse (Hangul): 32-code-point pages or sorted pairs would shrink it. Measure before choosing.
+* Size: CP936 and GB18030 two-byte cells are nearly identical (could share one table); EUC-KR's encoder pages are
+  sparse (Hangul). Measure before choosing.
+* The test's GB18030 pass dominates its time (two 75 s walks of 82M four-byte sequences); a cheaper oracle (e.g.
+  only the fourth byte's 0x30..0x39 plus one representative of each other class) would need a ruling on coverage.
+
+## Next step
+
+If the report says COMPLETE: nothing; the dispatcher verifies the named jobs. Otherwise follow its `next_step`.
