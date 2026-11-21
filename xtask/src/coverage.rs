@@ -43,9 +43,9 @@ pub struct Run {
     pub why: &'static str,
 }
 
-/// The runs (AFFECTED-COVERAGE, D-X.NEW pending): measured on the Zen 1 host, 60 vCPU, warm dependencies: `ld` 47 s,
-/// `portable-scan` 55 s, `fastpath-stats` 45 s, the fuzz library 29 s (each a build of its own: the features change
-/// the crate's code).
+/// The runs (AFFECTED-COVERAGE): measured on the Skylake-SP host, warm dependencies, each its own build (the
+/// features change the crate's code): `ld` 47 s, `portable-scan` 55 s, `fastpath-stats` 45 s, the fuzz library 29 s,
+/// `dylib` a few seconds.
 pub const RUNS: &[Run] = &[
     Run {
         dir: "",
