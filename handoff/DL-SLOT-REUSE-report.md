@@ -28,6 +28,11 @@ base = next at the merge base `d5764940d`, head = this branch, ref = the host C 
 
 (VmPeak: base/head 72460k/72468k at every row, the start-up reservation; ref 4400k-15564k.)
 
+Final head (job `dl-slot-reuse-counts2`, after the comment-only and test-only changes): the head columns again,
+within 0.04% (K = 8, N = 100k: open 73561, close 7569, distinct 9, VmSize 23088k; K = 600: 414257/185237, 601),
+and the count rows again (`phdr_walk` 16034 at 100, 97068 at 600). Base and ref rows: `dl-slot-reuse-churn1` /
+`-counts1` (programs unchanged since).
+
 Reading it:
 - High-water mark: head K+1 at every N (acceptance met); base one slot per open.
 - Cost per call: head flat in N from 10k on at every K (acceptance met); base grows linearly (11M instructions per
