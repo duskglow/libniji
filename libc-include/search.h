@@ -156,19 +156,27 @@ extern void remque (void *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_endorder
 #  define __NIJI_D_enum_endorder 1
+#  ifndef endorder
 enum { endorder = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_leaf
 #  define __NIJI_D_enum_leaf 1
+#  ifndef leaf
 enum { leaf = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_postorder
 #  define __NIJI_D_enum_postorder 1
+#  ifndef postorder
 enum { postorder = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_preorder
 #  define __NIJI_D_enum_preorder 1
+#  ifndef preorder
 enum { preorder = 0 };
+#  endif
 # endif
 #endif
 

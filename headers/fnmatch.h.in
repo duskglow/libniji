@@ -40,7 +40,7 @@ __NIJI_BEGIN_C
 
 @@if FNM_NOSYS
 /* XSI: the value of the "not supported" return. */
-# define FNM_NOSYS (-1)
+# define FNM_NOSYS (@@value(FNM_NOSYS))
 #endif
 
 __NIJI_END_C

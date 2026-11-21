@@ -70,7 +70,7 @@ extern int fnmatch (const char *, const char *, int);
 
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400
 /* XSI: the value of the "not supported" return. */
-# define FNM_NOSYS (-1)
+# define FNM_NOSYS ((-1))
 #endif
 
 __NIJI_END_C

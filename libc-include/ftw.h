@@ -112,6 +112,16 @@ struct FTW {
 };
 # endif
 #endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_chmod
 #  define __NIJI_D_chmod 1
@@ -233,7 +243,11 @@ struct stat;
 # ifndef __NIJI_D_lstat
 #  define __NIJI_D_lstat 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
+#   else
 extern int lstat (const char *, struct stat *) __NIJI_NOTHROW;
+#   endif
 #  elif __NIJI_FOB64
 extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
 #  endif
@@ -275,73 +289,105 @@ extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NO
 #if 1
 # ifndef __NIJI_D_enum_FTW_D
 #  define __NIJI_D_enum_FTW_D 1
+#  ifndef FTW_D
 enum { FTW_D = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_DNR
 #  define __NIJI_D_enum_FTW_DNR 1
+#  ifndef FTW_DNR
 enum { FTW_DNR = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_F
 #  define __NIJI_D_enum_FTW_F 1
+#  ifndef FTW_F
 enum { FTW_F = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_NS
 #  define __NIJI_D_enum_FTW_NS 1
+#  ifndef FTW_NS
 enum { FTW_NS = 3 };
+#  endif
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_enum_FTW_ACTIONRETVAL
 #  define __NIJI_D_enum_FTW_ACTIONRETVAL 1
+#  ifndef FTW_ACTIONRETVAL
 enum { FTW_ACTIONRETVAL = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_CONTINUE
 #  define __NIJI_D_enum_FTW_CONTINUE 1
+#  ifndef FTW_CONTINUE
 enum { FTW_CONTINUE = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_SKIP_SIBLINGS
 #  define __NIJI_D_enum_FTW_SKIP_SIBLINGS 1
+#  ifndef FTW_SKIP_SIBLINGS
 enum { FTW_SKIP_SIBLINGS = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_SKIP_SUBTREE
 #  define __NIJI_D_enum_FTW_SKIP_SUBTREE 1
+#  ifndef FTW_SKIP_SUBTREE
 enum { FTW_SKIP_SUBTREE = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_STOP
 #  define __NIJI_D_enum_FTW_STOP 1
+#  ifndef FTW_STOP
 enum { FTW_STOP = 1 };
+#  endif
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_enum_FTW_SL
 #  define __NIJI_D_enum_FTW_SL 1
+#  ifndef FTW_SL
 enum { FTW_SL = 4 };
+#  endif
 # endif
 #endif
 #if __NIJI_XSI >= 450
 # ifndef __NIJI_D_enum_FTW_CHDIR
 #  define __NIJI_D_enum_FTW_CHDIR 1
+#  ifndef FTW_CHDIR
 enum { FTW_CHDIR = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_DEPTH
 #  define __NIJI_D_enum_FTW_DEPTH 1
+#  ifndef FTW_DEPTH
 enum { FTW_DEPTH = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_DP
 #  define __NIJI_D_enum_FTW_DP 1
+#  ifndef FTW_DP
 enum { FTW_DP = 5 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_MOUNT
 #  define __NIJI_D_enum_FTW_MOUNT 1
+#  ifndef FTW_MOUNT
 enum { FTW_MOUNT = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_PHYS
 #  define __NIJI_D_enum_FTW_PHYS 1
+#  ifndef FTW_PHYS
 enum { FTW_PHYS = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FTW_SLN
 #  define __NIJI_D_enum_FTW_SLN 1
+#  ifndef FTW_SLN
 enum { FTW_SLN = 6 };
+#  endif
 # endif
 #endif
 #if 1

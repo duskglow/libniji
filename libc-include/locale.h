@@ -168,7 +168,7 @@ extern locale_t uselocale (locale_t) __NIJI_NOTHROW;
 
 #if __NIJI_POSIX >= 200809
 /* The handle of the global locale: (locale_t) -1 (uselocale returns it when no per-thread locale is set). */
-# define LC_GLOBAL_LOCALE ((locale_t) -1L)
+# define LC_GLOBAL_LOCALE ((locale_t) ((struct __locale_struct *) (-1L)))
 #endif
 
 __NIJI_END_C

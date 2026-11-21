@@ -22,7 +22,7 @@ __NIJI_BEGIN_C
 
 @@if LC_GLOBAL_LOCALE
 /* The handle of the global locale: (locale_t) -1 (uselocale returns it when no per-thread locale is set). */
-# define LC_GLOBAL_LOCALE ((locale_t) -1L)
+# define LC_GLOBAL_LOCALE ((locale_t) @@value(LC_GLOBAL_LOCALE))
 #endif
 
 __NIJI_END_C
