@@ -79,6 +79,18 @@ struct __ns_type { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
 #  define __NIJI_D_ns_type 1
 typedef struct __ns_type ns_type;
 # endif
+#endif
+#if __NIJI_POSIX >= 199309
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_ns_datetosecs
 #  define __NIJI_D_ns_datetosecs 1
 extern unsigned int ns_datetosecs (const char *, int *) __NIJI_NOTHROW;

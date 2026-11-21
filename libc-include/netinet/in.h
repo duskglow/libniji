@@ -215,6 +215,18 @@ typedef unsigned long uint64_t;
 #  define __NIJI_D_uint8_t 1
 typedef unsigned char uint8_t;
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 struct in6_addr;
 # ifndef __NIJI_D_in6addr_any
 #  define __NIJI_D_in6addr_any 1
@@ -363,147 +375,219 @@ extern int bindresvport (int, struct sockaddr_in *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_IPPORT_RESERVED
 #  define __NIJI_D_enum_IPPORT_RESERVED 1
+#  ifndef IPPORT_RESERVED
 enum { IPPORT_RESERVED = 1024 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_AH
 #  define __NIJI_D_enum_IPPROTO_AH 1
+#  ifndef IPPROTO_AH
 enum { IPPROTO_AH = 51 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_BEETPH
 #  define __NIJI_D_enum_IPPROTO_BEETPH 1
+#  ifndef IPPROTO_BEETPH
 enum { IPPROTO_BEETPH = 94 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_COMP
 #  define __NIJI_D_enum_IPPROTO_COMP 1
+#  ifndef IPPROTO_COMP
 enum { IPPROTO_COMP = 108 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_DCCP
 #  define __NIJI_D_enum_IPPROTO_DCCP 1
+#  ifndef IPPROTO_DCCP
 enum { IPPROTO_DCCP = 33 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_DSTOPTS
 #  define __NIJI_D_enum_IPPROTO_DSTOPTS 1
+#  ifndef IPPROTO_DSTOPTS
 enum { IPPROTO_DSTOPTS = 60 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_EGP
 #  define __NIJI_D_enum_IPPROTO_EGP 1
+#  ifndef IPPROTO_EGP
 enum { IPPROTO_EGP = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ENCAP
 #  define __NIJI_D_enum_IPPROTO_ENCAP 1
+#  ifndef IPPROTO_ENCAP
 enum { IPPROTO_ENCAP = 98 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ESP
 #  define __NIJI_D_enum_IPPROTO_ESP 1
+#  ifndef IPPROTO_ESP
 enum { IPPROTO_ESP = 50 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ETHERNET
 #  define __NIJI_D_enum_IPPROTO_ETHERNET 1
+#  ifndef IPPROTO_ETHERNET
 enum { IPPROTO_ETHERNET = 143 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_FRAGMENT
 #  define __NIJI_D_enum_IPPROTO_FRAGMENT 1
+#  ifndef IPPROTO_FRAGMENT
 enum { IPPROTO_FRAGMENT = 44 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_GRE
 #  define __NIJI_D_enum_IPPROTO_GRE 1
+#  ifndef IPPROTO_GRE
 enum { IPPROTO_GRE = 47 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_HOPOPTS
 #  define __NIJI_D_enum_IPPROTO_HOPOPTS 1
+#  ifndef IPPROTO_HOPOPTS
 enum { IPPROTO_HOPOPTS = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ICMP
 #  define __NIJI_D_enum_IPPROTO_ICMP 1
+#  ifndef IPPROTO_ICMP
 enum { IPPROTO_ICMP = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ICMPV6
 #  define __NIJI_D_enum_IPPROTO_ICMPV6 1
+#  ifndef IPPROTO_ICMPV6
 enum { IPPROTO_ICMPV6 = 58 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_IDP
 #  define __NIJI_D_enum_IPPROTO_IDP 1
+#  ifndef IPPROTO_IDP
 enum { IPPROTO_IDP = 22 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_IGMP
 #  define __NIJI_D_enum_IPPROTO_IGMP 1
+#  ifndef IPPROTO_IGMP
 enum { IPPROTO_IGMP = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_IP
 #  define __NIJI_D_enum_IPPROTO_IP 1
+#  ifndef IPPROTO_IP
 enum { IPPROTO_IP = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_IPIP
 #  define __NIJI_D_enum_IPPROTO_IPIP 1
+#  ifndef IPPROTO_IPIP
 enum { IPPROTO_IPIP = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_IPV6
 #  define __NIJI_D_enum_IPPROTO_IPV6 1
+#  ifndef IPPROTO_IPV6
 enum { IPPROTO_IPV6 = 41 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_L2TP
 #  define __NIJI_D_enum_IPPROTO_L2TP 1
+#  ifndef IPPROTO_L2TP
 enum { IPPROTO_L2TP = 115 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_MH
 #  define __NIJI_D_enum_IPPROTO_MH 1
+#  ifndef IPPROTO_MH
 enum { IPPROTO_MH = 135 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_MPLS
 #  define __NIJI_D_enum_IPPROTO_MPLS 1
+#  ifndef IPPROTO_MPLS
 enum { IPPROTO_MPLS = 137 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_MPTCP
 #  define __NIJI_D_enum_IPPROTO_MPTCP 1
+#  ifndef IPPROTO_MPTCP
 enum { IPPROTO_MPTCP = 262 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_MTP
 #  define __NIJI_D_enum_IPPROTO_MTP 1
+#  ifndef IPPROTO_MTP
 enum { IPPROTO_MTP = 92 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_NONE
 #  define __NIJI_D_enum_IPPROTO_NONE 1
+#  ifndef IPPROTO_NONE
 enum { IPPROTO_NONE = 59 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_PIM
 #  define __NIJI_D_enum_IPPROTO_PIM 1
+#  ifndef IPPROTO_PIM
 enum { IPPROTO_PIM = 103 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_PUP
 #  define __NIJI_D_enum_IPPROTO_PUP 1
+#  ifndef IPPROTO_PUP
 enum { IPPROTO_PUP = 12 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_RAW
 #  define __NIJI_D_enum_IPPROTO_RAW 1
+#  ifndef IPPROTO_RAW
 enum { IPPROTO_RAW = 255 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_ROUTING
 #  define __NIJI_D_enum_IPPROTO_ROUTING 1
+#  ifndef IPPROTO_ROUTING
 enum { IPPROTO_ROUTING = 43 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_RSVP
 #  define __NIJI_D_enum_IPPROTO_RSVP 1
+#  ifndef IPPROTO_RSVP
 enum { IPPROTO_RSVP = 46 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_SCTP
 #  define __NIJI_D_enum_IPPROTO_SCTP 1
+#  ifndef IPPROTO_SCTP
 enum { IPPROTO_SCTP = 132 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_TCP
 #  define __NIJI_D_enum_IPPROTO_TCP 1
+#  ifndef IPPROTO_TCP
 enum { IPPROTO_TCP = 6 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_TP
 #  define __NIJI_D_enum_IPPROTO_TP 1
+#  ifndef IPPROTO_TP
 enum { IPPROTO_TP = 29 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_UDP
 #  define __NIJI_D_enum_IPPROTO_UDP 1
+#  ifndef IPPROTO_UDP
 enum { IPPROTO_UDP = 17 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IPPROTO_UDPLITE
 #  define __NIJI_D_enum_IPPROTO_UDPLITE 1
+#  ifndef IPPROTO_UDPLITE
 enum { IPPROTO_UDPLITE = 136 };
+#  endif
 # endif
 # ifndef INADDR_ALLHOSTS_GROUP
 #  define INADDR_ALLHOSTS_GROUP 3758096385U

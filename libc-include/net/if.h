@@ -84,6 +84,14 @@ struct ifreq {
   union { struct sockaddr ifru_addr; struct sockaddr ifru_dstaddr; struct sockaddr ifru_broadaddr; struct sockaddr ifru_netmask; struct sockaddr ifru_hwaddr; short ifru_flags; int ifru_ivalue; int ifru_mtu; struct ifmap ifru_map; char ifru_slave[16]; char ifru_newname[16]; char * ifru_data; } ifr_ifru;
 };
 # endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
 #endif
 #if 1
 struct if_nameindex;
@@ -108,67 +116,99 @@ extern unsigned int if_nametoindex (const char *) __NIJI_NOTHROW;
 #if __NIJI_MISC
 # ifndef __NIJI_D_enum_IFF_ALLMULTI
 #  define __NIJI_D_enum_IFF_ALLMULTI 1
+#  ifndef IFF_ALLMULTI
 enum { IFF_ALLMULTI = 512 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_AUTOMEDIA
 #  define __NIJI_D_enum_IFF_AUTOMEDIA 1
+#  ifndef IFF_AUTOMEDIA
 enum { IFF_AUTOMEDIA = 16384 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_BROADCAST
 #  define __NIJI_D_enum_IFF_BROADCAST 1
+#  ifndef IFF_BROADCAST
 enum { IFF_BROADCAST = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_DEBUG
 #  define __NIJI_D_enum_IFF_DEBUG 1
+#  ifndef IFF_DEBUG
 enum { IFF_DEBUG = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_DYNAMIC
 #  define __NIJI_D_enum_IFF_DYNAMIC 1
+#  ifndef IFF_DYNAMIC
 enum { IFF_DYNAMIC = 32768 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_LOOPBACK
 #  define __NIJI_D_enum_IFF_LOOPBACK 1
+#  ifndef IFF_LOOPBACK
 enum { IFF_LOOPBACK = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_MASTER
 #  define __NIJI_D_enum_IFF_MASTER 1
+#  ifndef IFF_MASTER
 enum { IFF_MASTER = 1024 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_MULTICAST
 #  define __NIJI_D_enum_IFF_MULTICAST 1
+#  ifndef IFF_MULTICAST
 enum { IFF_MULTICAST = 4096 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_NOARP
 #  define __NIJI_D_enum_IFF_NOARP 1
+#  ifndef IFF_NOARP
 enum { IFF_NOARP = 128 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_NOTRAILERS
 #  define __NIJI_D_enum_IFF_NOTRAILERS 1
+#  ifndef IFF_NOTRAILERS
 enum { IFF_NOTRAILERS = 32 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_POINTOPOINT
 #  define __NIJI_D_enum_IFF_POINTOPOINT 1
+#  ifndef IFF_POINTOPOINT
 enum { IFF_POINTOPOINT = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_PORTSEL
 #  define __NIJI_D_enum_IFF_PORTSEL 1
+#  ifndef IFF_PORTSEL
 enum { IFF_PORTSEL = 8192 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_PROMISC
 #  define __NIJI_D_enum_IFF_PROMISC 1
+#  ifndef IFF_PROMISC
 enum { IFF_PROMISC = 256 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_RUNNING
 #  define __NIJI_D_enum_IFF_RUNNING 1
+#  ifndef IFF_RUNNING
 enum { IFF_RUNNING = 64 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_SLAVE
 #  define __NIJI_D_enum_IFF_SLAVE 1
+#  ifndef IFF_SLAVE
 enum { IFF_SLAVE = 2048 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_IFF_UP
 #  define __NIJI_D_enum_IFF_UP 1
+#  ifndef IFF_UP
 enum { IFF_UP = 1 };
+#  endif
 # endif
 #endif
 #if 1

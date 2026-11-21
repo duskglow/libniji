@@ -102,6 +102,18 @@ typedef unsigned short sa_family_t;
 #  define __NIJI_D_socklen_t 1
 typedef unsigned int socklen_t;
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 struct cmsghdr;
 struct msghdr;
 struct cmsghdr;
@@ -111,7 +123,7 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -129,7 +141,7 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -147,7 +159,7 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -165,7 +177,7 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -183,7 +195,7 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -213,7 +225,7 @@ extern long recv (int, void *, unsigned long, int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -245,7 +257,7 @@ extern long sendmsg (int, const struct msghdr *, int);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   const struct sockaddr * __tu_sockaddr;
   const struct sockaddr_in * __tu_sockaddr_in;
@@ -281,7 +293,7 @@ extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
 #if __NIJI_GNU
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-#  if __NIJI_GNU && __NIJI_CXX < 1
+#  if __NIJI_GNU
 typedef union __attribute__ ((__transparent_union__)) {
   struct sockaddr * __tu_sockaddr;
   struct sockaddr_in * __tu_sockaddr_in;
@@ -324,157 +336,233 @@ extern int sockatmark (int) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_MSG_BATCH
 #  define __NIJI_D_enum_MSG_BATCH 1
+#  ifndef MSG_BATCH
 enum { MSG_BATCH = 262144 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_CMSG_CLOEXEC
 #  define __NIJI_D_enum_MSG_CMSG_CLOEXEC 1
+#  ifndef MSG_CMSG_CLOEXEC
 enum { MSG_CMSG_CLOEXEC = 1073741824 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_CONFIRM
 #  define __NIJI_D_enum_MSG_CONFIRM 1
+#  ifndef MSG_CONFIRM
 enum { MSG_CONFIRM = 2048 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_CTRUNC
 #  define __NIJI_D_enum_MSG_CTRUNC 1
+#  ifndef MSG_CTRUNC
 enum { MSG_CTRUNC = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_DONTROUTE
 #  define __NIJI_D_enum_MSG_DONTROUTE 1
+#  ifndef MSG_DONTROUTE
 enum { MSG_DONTROUTE = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_DONTWAIT
 #  define __NIJI_D_enum_MSG_DONTWAIT 1
+#  ifndef MSG_DONTWAIT
 enum { MSG_DONTWAIT = 64 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_EOR
 #  define __NIJI_D_enum_MSG_EOR 1
+#  ifndef MSG_EOR
 enum { MSG_EOR = 128 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_ERRQUEUE
 #  define __NIJI_D_enum_MSG_ERRQUEUE 1
+#  ifndef MSG_ERRQUEUE
 enum { MSG_ERRQUEUE = 8192 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_FASTOPEN
 #  define __NIJI_D_enum_MSG_FASTOPEN 1
+#  ifndef MSG_FASTOPEN
 enum { MSG_FASTOPEN = 536870912 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_FIN
 #  define __NIJI_D_enum_MSG_FIN 1
+#  ifndef MSG_FIN
 enum { MSG_FIN = 512 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_MORE
 #  define __NIJI_D_enum_MSG_MORE 1
+#  ifndef MSG_MORE
 enum { MSG_MORE = 32768 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_NOSIGNAL
 #  define __NIJI_D_enum_MSG_NOSIGNAL 1
+#  ifndef MSG_NOSIGNAL
 enum { MSG_NOSIGNAL = 16384 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_OOB
 #  define __NIJI_D_enum_MSG_OOB 1
+#  ifndef MSG_OOB
 enum { MSG_OOB = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_PEEK
 #  define __NIJI_D_enum_MSG_PEEK 1
+#  ifndef MSG_PEEK
 enum { MSG_PEEK = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_PROXY
 #  define __NIJI_D_enum_MSG_PROXY 1
+#  ifndef MSG_PROXY
 enum { MSG_PROXY = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_RST
 #  define __NIJI_D_enum_MSG_RST 1
+#  ifndef MSG_RST
 enum { MSG_RST = 4096 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_SYN
 #  define __NIJI_D_enum_MSG_SYN 1
+#  ifndef MSG_SYN
 enum { MSG_SYN = 1024 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_TRUNC
 #  define __NIJI_D_enum_MSG_TRUNC 1
+#  ifndef MSG_TRUNC
 enum { MSG_TRUNC = 32 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_WAITALL
 #  define __NIJI_D_enum_MSG_WAITALL 1
+#  ifndef MSG_WAITALL
 enum { MSG_WAITALL = 256 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_WAITFORONE
 #  define __NIJI_D_enum_MSG_WAITFORONE 1
+#  ifndef MSG_WAITFORONE
 enum { MSG_WAITFORONE = 65536 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_MSG_ZEROCOPY
 #  define __NIJI_D_enum_MSG_ZEROCOPY 1
+#  ifndef MSG_ZEROCOPY
 enum { MSG_ZEROCOPY = 67108864 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SCM_RIGHTS
 #  define __NIJI_D_enum_SCM_RIGHTS 1
+#  ifndef SCM_RIGHTS
 enum { SCM_RIGHTS = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SHUT_RD
 #  define __NIJI_D_enum_SHUT_RD 1
+#  ifndef SHUT_RD
 enum { SHUT_RD = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SHUT_RDWR
 #  define __NIJI_D_enum_SHUT_RDWR 1
+#  ifndef SHUT_RDWR
 enum { SHUT_RDWR = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SHUT_WR
 #  define __NIJI_D_enum_SHUT_WR 1
+#  ifndef SHUT_WR
 enum { SHUT_WR = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_CLOEXEC
 #  define __NIJI_D_enum_SOCK_CLOEXEC 1
+#  ifndef SOCK_CLOEXEC
 enum { SOCK_CLOEXEC = 524288 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_DCCP
 #  define __NIJI_D_enum_SOCK_DCCP 1
+#  ifndef SOCK_DCCP
 enum { SOCK_DCCP = 6 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_DGRAM
 #  define __NIJI_D_enum_SOCK_DGRAM 1
+#  ifndef SOCK_DGRAM
 enum { SOCK_DGRAM = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_NONBLOCK
 #  define __NIJI_D_enum_SOCK_NONBLOCK 1
+#  ifndef SOCK_NONBLOCK
 enum { SOCK_NONBLOCK = 2048 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_PACKET
 #  define __NIJI_D_enum_SOCK_PACKET 1
+#  ifndef SOCK_PACKET
 enum { SOCK_PACKET = 10 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_RAW
 #  define __NIJI_D_enum_SOCK_RAW 1
+#  ifndef SOCK_RAW
 enum { SOCK_RAW = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_RDM
 #  define __NIJI_D_enum_SOCK_RDM 1
+#  ifndef SOCK_RDM
 enum { SOCK_RDM = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_SEQPACKET
 #  define __NIJI_D_enum_SOCK_SEQPACKET 1
+#  ifndef SOCK_SEQPACKET
 enum { SOCK_SEQPACKET = 5 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SOCK_STREAM
 #  define __NIJI_D_enum_SOCK_STREAM 1
+#  ifndef SOCK_STREAM
 enum { SOCK_STREAM = 1 };
+#  endif
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_enum_MSG_TRYHARD
 #  define __NIJI_D_enum_MSG_TRYHARD 1
+#  ifndef MSG_TRYHARD
 enum { MSG_TRYHARD = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SCM_CREDENTIALS
 #  define __NIJI_D_enum_SCM_CREDENTIALS 1
+#  ifndef SCM_CREDENTIALS
 enum { SCM_CREDENTIALS = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SCM_PIDFD
 #  define __NIJI_D_enum_SCM_PIDFD 1
+#  ifndef SCM_PIDFD
 enum { SCM_PIDFD = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SCM_SECURITY
 #  define __NIJI_D_enum_SCM_SECURITY 1
+#  ifndef SCM_SECURITY
 enum { SCM_SECURITY = 3 };
+#  endif
 # endif
 #endif
 #if 1
