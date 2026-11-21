@@ -1,0 +1,38 @@
+{
+  "task": "RELEASE-SNAPSHOT-1121A",
+  "model": "opus",
+  "tokens": null,
+  "result": "snapshot-ready at 71597d2a4: snapshot-20261121.2 staged (serial 2); #21: malloc under ulimit -v obtains more of the limit (100 B 56,021 KiB vs 21.1's 43,575) and findutils' find over 200000 entries passes the issue's formula 5 of 5 (21.1: 0 of 5); libresolv behaves as stock and 21.1 (36/36); libc6-dbg 19 of 19 (21.1: 17); lintian 15 warnings fewer; start-up -5.5k user instructions, -5 faults, -6 syscalls per start on both classes; plants 6/6 CAUGHT; every other check same as 21.1",
+  "branch": "task/release-snapshot-1121a",
+  "head": null,
+  "gate": {
+    "affected": "gate-1 on 71597d2a4 rc 0 (gate.sh: clippy --all-features, xtask clippy, static, records check, affected --base origin/next); precheck-1 on the handoff-only head",
+    "peak": "2.2G"
+  },
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "#21: the brief expected findutils' find to still fail on this head (HEAP-SPILL-COLD's acceptance); it passes the issue's formula 5 of 5 (need over 3 files 26,784 KiB vs the 35,000 allowance; stock 26,976). Still above stock: the fixed start-up address space (find over 3 files 20,464 vs 4,640 KiB; probe start VmSize 7,816 vs 3,988) and the probe's absolute need (43,120 vs 29,568 KiB; under ulimit -v 35000 the refill step fails). Route to HEAP-SPILL-COLD.",
+    "libresolv start-up: a program needing libresolv.so.2 costs +179,011 user instructions over an empty main on Skylake-SP (+178,754 Zen 1); 21.1 +246,471; glibc 2.39 +61,375",
+    "docs: RELEASE-NOTES.md Unreleased still has only COMPAT-19 (no entry for #21, libresolv's own code, libc6-dbg DWARF, nor 21.1's #28, #6 names, #25 static, #23); differences-from-glibc.md Character sets gives snapshot-2026-11-17's state; no differences row for the -static-libgcc thread exit (ruling #7118); doccheck 23 problems, same as 21.1",
+    "#6 remaining as 21.1: WINDOWS-1252, windows-1251; #10 DL-RUNPATH; libc6-dev ships no C headers (yohane fail=2); gdb Breakpoint/?? known line",
+    "keke's slots were full for most of leg 2: each chained keke job queued 20-30 min behind other stories' long jobs"
+  ],
+  "refused": [
+    "leg 2, local: a Bash call containing a heredoc (python3 - <file> <<'X' ... X, a no-op stub) refused by the no-heredoc hook; my slip, nothing ran; edits done with the Edit tool"
+  ],
+  "impact": [
+    {"kind": "correctness", "what": "#21 findutils find over 200000 entries under the issue's ulimit -v formula (randomised runs succeeding)", "before": 0, "after": 5, "unit": "of 5 runs", "measured": true},
+    {"kind": "correctness", "what": "#21 malloc(100) until NULL under ulimit -v = start + 65536 KiB: KiB obtained", "before": 43575, "after": 56021, "unit": "KiB", "measured": true},
+    {"kind": "correctness", "what": "libc6-dbg: ELF objects whose debug files resolve", "before": 17, "after": 19, "unit": "of 19", "measured": true},
+    {"kind": "perf", "what": "dynamic empty main start-up, user instructions, Skylake-SP", "before": 746622, "after": 741092, "unit": "instr/start", "measured": true},
+    {"kind": "faults", "what": "dynamic empty main start-up page faults, Skylake-SP and Zen 1", "before": 57, "after": 52, "unit": "faults/start", "measured": true},
+    {"kind": "perf", "what": "start-up cost of needing libresolv.so.2 over an empty main, user instructions, Skylake-SP", "before": 246471, "after": 179011, "unit": "instr/start", "measured": true},
+    {"kind": "size", "what": "libc6-dbg .deb", "before": 8824720, "after": 11030512, "unit": "bytes", "measured": true},
+    {"kind": "coverage", "what": "new snapshot checks: y21 (#21 probe, malloc loop, find formula), yres (libresolv), rstart (libresolv start-up)", "before": 0, "after": 3, "unit": "checks", "measured": true}
+  ],
+  "improvement": "chained keke jobs requeue one at a time behind long jobs (20-30 min each here); a snapshot chain that holds its slot between its own short sequential jobs (or one jobrun for the chain) would save most of this run's wall time",
+  "next_step": "coordinator: tag snapshot-2026-11-21.2 from keke ~/release-staging/snapshot-20261121.2/ at 71597d2a4 when the owner says so and tell Yohane (#21 malloc and find formula pass; libc6-dbg complete); route HEAP-SPILL-COLD's acceptance (already met by find) and the docs items",
+  "report_file": "handoff/RELEASE-SNAPSHOT-1121A.md",
+  "jobs": ["mei:release-snapshot-1121a-smoke-mei-1", "mei:release-snapshot-1121a-gate-1", "mei:release-snapshot-1121a-startup-mei-1", "mei:release-snapshot-1121a-kstart-mei-1", "mei:release-snapshot-1121a-rstart-mei-2", "mei:release-snapshot-1121a-debs-1", "mei:release-snapshot-1121a-plants-1", "mei:release-snapshot-1121a-lint-1", "mei:release-snapshot-1121a-many-1", "mei:release-snapshot-1121a-dyn22-1", "mei:release-snapshot-1121a-y19-1", "mei:release-snapshot-1121a-y26-1", "mei:release-snapshot-1121a-y26t-1", "mei:release-snapshot-1121a-y23-1", "mei:release-snapshot-1121a-c19-1", "mei:release-snapshot-1121a-y25-1", "mei:release-snapshot-1121a-y24-1", "mei:release-snapshot-1121a-y28-1", "mei:release-snapshot-1121a-y25s-1", "mei:release-snapshot-1121a-y21-1", "mei:release-snapshot-1121a-yres-1", "mei:release-snapshot-1121a-precheck-1", "keke:release-snapshot-1121a-smoke-keke-1", "keke:release-snapshot-1121a-startup-keke-1", "keke:release-snapshot-1121a-kstart-keke-1", "keke:release-snapshot-1121a-rstart-keke-1", "keke:release-snapshot-1121a-pkgdiff-1", "keke:release-snapshot-1121a-stage-1", "keke:release-snapshot-1121a-install-1"]
+}
