@@ -8,7 +8,7 @@ use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::program;
 use niji_ld::cache::Cache;
-use niji_ld::dlopen::Refusal;
+use niji_ld::dlopen::{Checked, Refusal};
 use niji_ld::search::{self, PathBuf};
 use niji_ld::{boot, elf, map, start};
 use crate::{conv, raw};
@@ -687,7 +687,13 @@ pub(super) enum Unusable {
 /// dependency list) found: (descriptor, mapping, bytes, identity), or why it is not used, by the
 /// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes. An object asking for an
 /// executable stack passes only when `env`'s tunable accepts it (COMPAT-19).
-pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+///
+/// `checked` receives what the check read ([`Checked`], D-27.71) for an accepted candidate; it is
+/// `None` after a refusal and for an object whose executable-stack request the tunable accepted
+/// (its plan refused that request, so the caller maps it through the accepting path, which asks
+/// the tunable again).
+pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>, checked: &mut Option<Checked<'static>>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+    *checked = None;
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, path.as_ptr().cast(), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0).ok_or(Unusable::Skip)?;
     let refuse = |r: Refusal| {
@@ -711,11 +717,11 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(
     // file is not used, else only after the caller's last use of the slice (the end of `link`; the
     // list mode keeps it until the process exits).
     let file = unsafe { conv::bytes_at(at, len) };
-    let checked = match niji_ld::dlopen::check::<Native>(file, page) {
+    let verdict = match niji_ld::dlopen::check_into::<Native>(file, page, checked) {
         Err(Refusal::ExecutableStack) => exec_stack_candidate(file, page, env),
-        c => c.map(|_| ()),
+        v => v,
     };
-    if let Err(r) = checked {
+    if let Err(r) = verdict {
         unmap_view(at, len);
         return Err(refuse(r));
     }

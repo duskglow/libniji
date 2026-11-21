@@ -566,6 +566,34 @@ fn map_malformed_corpus_refused_by_ldso() {
     }
 }
 
+/// no spec clause: a malformed object found by the path search for a program's `DT_NEEDED` is
+/// refused before it is mapped, with the start's one-line refusal and status 127 (threat model
+/// loader rule 4). The search's check plans the candidate and the start maps it by that plan
+/// (D-27.71): a plan the check did not refuse would map (or fail to map) the malformed object.
+#[test]
+fn map_malformed_dependency_refused_at_start() {
+    let (Some(ld), true) = (product(), cc_ok()) else { return eprintln!("SKIP: no product or no cc") };
+    let d = dir("dep-corpus");
+    let lib = build(&d, "libdep.so", SHARED, None);
+    let lib_bytes = std::fs::read(&lib).unwrap();
+    let dir_flag = format!("-L{}", d.display());
+    let prog = build(&d, "needs-dep", &["-fPIE", "-pie", "-Wl,--no-as-needed", &dir_flag, "-l:libdep.so"], Some(&ld));
+    let run = || Command::new("timeout").arg("60").arg(&prog).env("LD_LIBRARY_PATH", &d).output().unwrap();
+    // The positive control: the unedited library is found by the search, mapped and run past.
+    let o = run();
+    assert_eq!(o.status.code(), Some(0), "the unedited libdep.so: {o:?}");
+    // The start's refusal names the file by the path the search found it at.
+    let refusal = format!(": error while loading shared libraries: {}: ", lib.display());
+    for (name, f, _) in corpus(&lib_bytes) {
+        std::fs::write(&lib, &f).unwrap();
+        let o = run();
+        let err = String::from_utf8_lossy(&o.stderr);
+        assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
+        assert!(err.contains(&refusal) && err.lines().count() == 1, "{name}: not the start's refusal: {err}");
+    }
+    std::fs::remove_dir_all(&d).ok();
+}
+
 // ---------------------------------------------------------------- /proc/self/maps
 
 struct Line {

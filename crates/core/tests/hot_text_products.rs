@@ -479,9 +479,16 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// this test on fast products built on the Skylake-SP host, next 790,290, the branch 778,859 (more than 10%
 /// under 871,500); the fast bound is that level plus 2%. Zen 1 host: not re-measured; its fast level was
 /// within 0.02% of the Skylake-SP host's (DYN-START-SPEED-2), so it takes the same bound.
+/// COMPAT19-LDSO-COST (D-27.71, a start dependency mapped by the plan its check made): this test on the
+/// Skylake-SP host, fast products, 772,591 (median of 21; 10% under the old bound, so it went red);
+/// the fast bounds are that level plus 2%. Zen 1 host fast not measured in this test: its release
+/// execcount moved by the same -18,817 (-18,811 on Skylake-SP) and its fast level was within 0.02% of
+/// the Skylake-SP host's (DYN-START-SPEED-2), so it takes the same bound. Release: 743,209 in this test
+/// on the Skylake-SP host (execcount 721,809 and Zen 1 host 721,601, median of 101); both release
+/// bounds are that level plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [794_500, 774_400]),
-    ("AMD EPYC 7551 32-Core Processor", [794_500, 774_400]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [788_100, 758_100]),
+    ("AMD EPYC 7551 32-Core Processor", [788_100, 758_100]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
