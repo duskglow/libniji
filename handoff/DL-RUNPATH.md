@@ -1,7 +1,8 @@
 # DL-RUNPATH: dlopen searches the program's and the caller's DT_RUNPATH/DT_RPATH `$ORIGIN`; RTLD_NOLOAD by loaded names
 
-State: branch `task/dl-runpath-2` (DL-RUNPATH continued, origin/next e4d7011e6 merged). Head and job results:
-handoff/reports/DL-RUNPATH-2.json and the hand-back.
+State: branch `task/dl-runpath-3` (DL-RUNPATH-2's branch continued; origin/next e4d7011e6 merged in DL-RUNPATH-2,
+no merge since). Head and job results: handoff/reports/DL-RUNPATH-3.json and the hand-back. DL-RUNPATH-3's work is in
+"Run state (DL-RUNPATH-3)" at the end.
 
 ## Premise and what the probes found (reference = the build host's glibc 2.39, black box; Zen 1 host)
 
@@ -82,7 +83,8 @@ Then, as root:
 
 ## Open (route)
 
-- RULING NEEDED (coordinator note, DL-PROCESS-OBJECTS-2 #7265; not the `$ORIGIN` defect, no test added). A program
+- RESOLVED by ruling #7280 (done in DL-RUNPATH-3: the differences row and COMPAT-37, registration only; no
+  development-build fallback). The finding (coordinator note, DL-PROCESS-OBJECTS-2 #7265): a program
   with DT_RPATH or DT_RUNPATH `<dir>` whose DT_NEEDED names `libc.so.6` by soname. Probed on the Skylake-SP host
   (scratch ~/work/dl-runpath-2/pin.sh, job dl-runpath-2-pin): the reference maps `<dir>/libc.so.6` for both tags.
   libniji's loader (this head's products, `NIJI_PREFIX` unset) opens only `/lib/libc.so.6` and stops with
@@ -111,6 +113,26 @@ Then, as root:
   `dl-runpath-2-y10` (system-flavour packages of this head, then RELEASE-SNAPSHOT-1121C's y10.sh; the bare-name
   `$ORIGIN` dlopen line was its one FAIL), `dl-runpath-2-startup` (after the gate: `cargo xtask test`, full-profile
   so + hot_text_products). Results: handoff/reports/DL-RUNPATH-2.json and the hand-back.
+
+## Run state (DL-RUNPATH-3, branch `task/dl-runpath-3`, Zen 1 host)
+
+- Step 0 on the inherited head 6c015da40 (clippy + static, `dl-runpath-3-step0`): green.
+- DL-RUNPATH-2's `dl-runpath-2-startup` (rc 124) was its timeout at test 140 of 6993 on a saturated Skylake-SP host,
+  not a failure. Its rerun `dl-runpath-2-startup2` (same head) ran all 6993 tests of the first pass green; the native
+  pass's one failure was `niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range`,
+  the known next-wide defect HEAP-GAP-TEST-KEKE fixes. Both superseded by `dl-runpath-3-startup` on this head.
+- Ruling #7280 done (5a71e6d0b): docs/differences-from-glibc.md row in "Deliberate user-facing incompatibilities"
+  and records/compat/COMPAT-37.toml (reserved; status `registered`, decisions D-27.16, D-X.95). No code change.
+- Harness check for the ruling's "use LD_LIBRARY_PATH or the path, not an rpath": every `-Wl,-rpath` in the tests,
+  conformance helpers, validation and tools names the test's own scratch directory, `$ORIGIN` or a fixed corpus path;
+  none names the products, which tests pass by path (`libc_s`, `ld_s`) or LD_LIBRARY_PATH. Nothing to change.
+- Plants: handoff/DL-RUNPATH-2-plants.txt rerun on this head (`dl-runpath-3-plants`): 13 plants, 12 CAUGHT,
+  1 EQUIVALENT (`no-start-publish`, reason in the file), no WARN lines. No new code, so no new plants.
+- Gate `dl-runpath-3-gate` (direct tier, not FULL): 9 suites, 654 passed, 0 failed, 0 SKIPPED lines, peak 3.1G.
+- Start-up `dl-runpath-3-startup` (`cargo xtask test`): first pass 6993/6993; native pass 4854 passed, 1 failed:
+  the same `kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (HEAP-GAP-TEST-KEKE), nothing else. Its
+  `&&` chain therefore stopped before the full-profile check, which ran on its own as `dl-runpath-3-hottext`.
+- Jobs and results: handoff/reports/DL-RUNPATH-3.json and the hand-back.
 
 ## Next step
 
