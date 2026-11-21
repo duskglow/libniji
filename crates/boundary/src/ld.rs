@@ -38,7 +38,7 @@ use core::alloc::{GlobalAlloc, Layout};
 #[cfg(not(feature = "export"))]
 use core::ffi::{c_int, c_void};
 use niji_ld::program;
-use self::state::{AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, START_PAGE, start_obj};
+use self::state::{AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, START_ORIGIN, START_PAGE, START_RUN_PATH, start_obj};
 use self::tls::{INITIAL_TAIL, NewTls, THREAD_MODS_LEN, initial_place, module_room, publish_tls, release_tls, surplus, thread_mod, tls_generation};
 use self::image::{AT_FDCWD, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, ProcImage, SysMapper, dyn_string, image_view, map_view, own_object, read_cache, read_image};
 use self::initfini::{array_words, fn_addr0};
