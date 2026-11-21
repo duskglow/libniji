@@ -1,0 +1,36 @@
+{
+ "task": "RELEASE-SNAPSHOT-1120E",
+ "model": "opus",
+ "tokens": null,
+ "result": "snapshot-ready at 305065b07: snapshot-20261120.5 staged; #24 part fixed end to end: 9 $ORIGIN start cases (DT_RUNPATH, DT_RPATH, LD_LIBRARY_PATH, link, the issue's ./libA.so shape) name the library by the same full path as stock glibc in dl_iterate_phdr, dladdr, dlinfo and _r_debug in a swapped trixie root (20.4: 28 of 36 differ); start-up -42.1k user instructions and one mmap fewer per start on Skylake-SP and Zen 1; every other check identical to 20.4",
+ "branch": "task/release-snapshot-1120e",
+ "head": null,
+ "gate": {
+  "affected": "gate-1 on 305065b07 rc 0 (gate.sh: clippy --all-features, xtask clippy, static, records check, affected --base origin/next); precheck-1 on the final head (handoff-only)",
+  "peak": "1.5G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "coexist niji6 version still carries no serial (DEB-COEXIST-SERIAL not in 305065b07): 0.0~snapshot20261120+305065b071d6 sorts above 20.4's +0e5a87e92723 only because 305065 > 0; a later same-day head with a lower leading digit run inverts again", "recommendation": "land DEB-COEXIST-SERIAL before the next same-day snapshot; not blocking 20.5"}
+ ],
+ "informational": [
+  "#24 /proc/self/maps: libA.so's mapping has the same file name as stock in all 9 cases on 20.4 and on 305065b07; only placement differs (libniji maps libA above the loader); no maps file-name difference found, ask the reporter which maps case remains",
+  "docs: no user doc changed since 20.4; no release-notes entry or docs sentence for #24 names (DL-NAME-PATH-2), dlerror record unmapped at thread exit (D-27.67), libc.so.6 one read-only PT_LOAD (D-X.143), start-up -42k instructions (D-27.68); doccheck the same 23 problems; route to a docs story",
+  "start-up kernel side: one syscall (mmap) fewer in every row; kernel instruction medians -3k to -26k except Zen 1 clock_gettime +24k, within the within-run spread (~70k) on a loaded host; non-blocking",
+  "unchanged from 20.4: dbg Breakpoint 1.1; bare-name dlopen through $ORIGIN DT_RUNPATH (y10; DL-RUNPATH); libc6-dev ships no C headers (yohane fail=2); DBG 17 of 19 (ruling #6321); #23 cut-short sequences (y23 11/2)",
+  "evidence jobs not named in JOBS: debs-1, roots-1, yohane-1, y10-1, y23-1 (rc 1 on known unchanged failures), y24-ref204-4 (20.4's packages, rc 1 by design); superseded y24-ref204-1/2/3 (probe fixes)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "#24 name checks (9 $ORIGIN start cases x 4 interfaces) under the snapshot's packages in a trixie root: identical to stock glibc", "before": 8, "after": 36, "unit": "checks of 36", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up, empty main, user instructions exec to exit, Skylake-SP (snapshot 20.4 -> 20.5)", "before": 788679, "after": 746501, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up, empty main, user instructions exec to exit, Zen 1 (snapshot 20.4 -> 20.5)", "before": 788448, "after": 746269, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up syscalls (strace -f), empty main, Skylake-SP", "before": 45, "after": 44, "unit": "syscalls/start", "measured": true},
+  {"kind": "unblock", "what": "snapshot-2026-11-20.5 staged for Yohane Linux (#24 part)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "new release check y24 (#24 names in a swapped root, 9 cases)", "before": 0, "after": 46, "unit": "verdict lines", "measured": true}
+ ],
+ "improvement": "a mmdebstrap --variant=apt root needs libc6-dev named explicitly when only gcc is added (g++ pulls it, gcc only recommends it); and over ssh, `cmd && setsid nohup job &` backgrounds the whole list, so a `cat > file` earlier in it reads /dev/null: start detached jobs in their own statement",
+ "next_step": "coordinator tags snapshot-2026-11-20.5 from keke ~/release-staging/snapshot-20261120.5 at 305065b07 when the owner says so; tell Yohane #24 names are fixed and ask which maps case remains",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1120E.md",
+ "jobs": ["keke:release-snapshot-1120e-gate-1", "keke:release-snapshot-1120e-plants-1", "keke:release-snapshot-1120e-smoke-keke-1", "keke:release-snapshot-1120e-startup-keke-1", "keke:release-snapshot-1120e-kstart-keke-1", "keke:release-snapshot-1120e-pkgdiff-1", "keke:release-snapshot-1120e-stage-1", "keke:release-snapshot-1120e-install-1", "keke:release-snapshot-1120e-precheck-1", "mei:release-snapshot-1120e-smoke-mei-1", "mei:release-snapshot-1120e-startup-mei-1", "mei:release-snapshot-1120e-kstart-mei-1", "mei:release-snapshot-1120e-lint-1", "mei:release-snapshot-1120e-many-1", "mei:release-snapshot-1120e-dyn22-1", "mei:release-snapshot-1120e-y19-1", "mei:release-snapshot-1120e-y26-1", "mei:release-snapshot-1120e-y26t-1", "mei:release-snapshot-1120e-c19-1", "mei:release-snapshot-1120e-y25-1", "mei:release-snapshot-1120e-y24-1"]
+}
