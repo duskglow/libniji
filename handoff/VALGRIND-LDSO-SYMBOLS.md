@@ -1,8 +1,9 @@
 # VALGRIND-LDSO-SYMBOLS: valgrind starts programs under libniji (GitHub #13)
 
-Branch `task/valgrind-ldso-symbols` (from origin/next 305065b07). Brief `~/state/briefs/VALGRIND-LDSO-SYMBOLS.md`.
-Build role keke:~/w/n3; job scripts and probe outputs `~/work/VALGRIND-LDSO-SYMBOLS/` on keke (vg-probe.sh,
-vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh, chain6.sh). Code head 1eae04250; final head 097b16249 (plants file only).
+Branch `task/valgrind-ldso-symbols-2` (VALGRIND-LDSO-SYMBOLS-2: `task/valgrind-ldso-symbols` d6f56c344 with origin/next
+71597d2a4 merged, 8188445e6). Briefs `~/state/briefs/VALGRIND-LDSO-SYMBOLS.md` (the change) and `-2.md` (the merge).
+Build role keke:~/w/n2 (leg 1-2: keke:~/w/n3); job scripts and probe outputs `~/work/VALGRIND-LDSO-SYMBOLS-2/` on keke
+(vg-probe.sh, vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, probe4.sh as in legs 1-2; final.sh, chain1.sh this run).
 
 ## What valgrind needs (black-box probes, trixie root, valgrind 3.24.0, Debian package)
 
@@ -29,6 +30,9 @@ vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh, chain6.sh). Code he
   linked last so its text is the end of .text (it landed at .text's end: no loader function moved). Nothing
   calls it. `crates/boundary/build.rs` keeps the file out of the C layer archive (libc.so.6/libc.a unchanged).
 * `tools/deb/check-system.sh`: libc6-dbg's debug file of the loader must have LOCAL FUNC strcmp and strlen.
+  Since the merge of next (8188445e6) that check is a `case` on the loader inside SYS-DBG-DWARF's per-debug-file
+  loop (every debug file: .symtab, .debug_info, .debug_line); the branch's old libc.so.6 line-table case is gone
+  (next's loop covers it).
 * No exported ABI change: .dynsym of the stripped loader has no strlen/strcmp; the stripped loader is unchanged
   in kind (no .symtab).
 
@@ -63,22 +67,37 @@ vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh, chain6.sh). Code he
    pthread wrappers and libniji's threads; probe which client request (`--trace-redir=yes`, `-v`).
 3. memcheck: one start-up report in the loader (hand-back has the detail).
 
-## State at hand-back (leg 2)
+## State at hand-back (leg 3, VALGRIND-LDSO-SYMBOLS-2)
 
-Final head 30acf80e5 (`xtask/src/affected.rs`: `xtask/src/so.rs` joins STATIC_CHECKERS, D-X.34: it names
-`niji_machine_strlen` only to alias and check it in `cargo xtask so`; without that, every scan.S change escalated
-to the train, caught by gate6's `affected::tests::csys_falls_back_to_full_when_unsure` and
-`layout_manifest_names_select_the_layout_check`). Results on 097b16249 (same product code as 30acf80e5):
-final5 rc 0, probe6 rc 0, plants6 6/6 CAUGHT (no WARN), gate6 rc 1 (8337 passed, the 2 tests above failed).
-On 30acf80e5 (chain7.sh on keke): lint7 (clippy + static), xtask7 (`cargo test -p xtask`, the failing suite),
-startup7 (`cargo xtask test`, then the NIJI_FULL_PROFILE so + hot_text_products, section 9).
-Superseded: lint3/gate3/plants3 (ba8bbb4ec); lint4/gate4/plants4 (8e3640133: static red; gate4 never ran,
-`affected` without `--list`); lint5/gate5/plants5 (1eae04250: gate5 the same usage error; plants5 refused, the
-build-no-alias pattern named the one-alias table); startup6 (stopped while queued, head moved).
-Exact next step if a chain7 job is red: fix that suite, rerun it only, precheck, hand back.
+The last leg's CI landing conflicted in `tools/deb/check-system.sh` with SYS-DBG-DWARF (75af35f6). This run merged
+origin/next 71597d2a4 into the branch (8188445e6, the conflict resolved as described under "The change") and pointed
+the packaging plant at the merged head's products (d3fffeda1). No other code changes. Results, all on keke:~/w/n2 at
+d3fffeda1 (code identical to 8188445e6):
+
+* lint0 (inherited head d6f56c344: clippy + static) rc 0; lint1 (merged head: `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings` + `cargo xtask static`) rc 0.
+* final1 rc 0: system debs from the merged head; `check-system.sh` PASS (7 packages, 2.39+niji20261121.1-1);
+  libc6-dbg 19 debug files; loader debug file has .debug_info/.debug_line and `419: ...53b10 23 FUNC LOCAL ...
+  strcmp`, `438: ...52500 966 FUNC LOCAL ... strlen` (at niji_machine_ld_strcmp / niji_machine_strlen); stripped
+  loader: 0 .symtab, 0 dynsym strlen/strcmp; unit `ld_tool_names` ok. Valgrind in the swapped trixie root, same as
+  legs 1-2: stock all rc 0; libniji without libc6-dbg: memcheck stops on the strcmp redirect (expected: the
+  stripped loader has no names); libniji with only the loader's debug file: memcheck /bin/true rc 0, ./bad rc 0 with
+  its Invalid read reported, drd rc 0, helgrind `Assertion 'found'`; with the whole libc6-dbg every tool aborts in
+  `find_rodata` (Not fixed, item 1).
+* plants1 rc 0: 6 CAUGHT, 0 SURVIVED, no WARN-RC-ONLY / WARN-NO-MSG (one WARN-DEV-SHM: the RAM dir is under
+  /dev/shm, as the brief prescribes for this Zen 1 host); results in the plants file.
+* gate1 (direct tier, `affected --run --base origin/next`): rc 0, 14 suites ok, 8363 passed, 0 failed, 1230 ignored, peak 12G.
+* startup1 (`cargo xtask test`, then NIJI_FULL_PROFILE so + hot_text_products, section 9): still running at hand-back (about 700 of 6973 tests
+  at 08:30 UTC, all PASS so far); named in PENDING JOBS for the dispatcher. If it is red: fix that suite, rerun
+  it alone under a new label, precheck, hand back.
+
+Superseded: legs 1-2's jobs (pre-merge heads). Exact next step: none for this story if the CI train lands it; then
+the next story is Not fixed item 1 (libc6-dbg readable by valgrind: libc.so.6's .rodata1/.rodata pair, layout
+measured per section 9), then items 2 and 3.
 
 ## Plants and gates
 
 Plants file `handoff/VALGRIND-LDSO-SYMBOLS-plants.txt` (six, results appended: three on the check's unit test,
 build-no-alias and size-alias through `cargo xtask so`, pkg-debug-drops-strcmp through build.sh --products +
-check-system.sh); job valgrind-ldso-symbols-plants6, 6 CAUGHT.
+check-system.sh, now on the merged head's products in /dev/shm/claude/VALGRIND-LDSO-SYMBOLS-2/products-final);
+job valgrind-ldso-symbols-2-plants1, 6 CAUGHT.
