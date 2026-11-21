@@ -62,8 +62,26 @@ registered by helgrind's `pthread_create` child wrapper (`SET_MY_PTHREAD_T`, whi
 It may share the view cause (redirections are set from the symbol table, which is read with the right text bias,
 so probably not).
 
+## Final jobs (mei, code head 470f25d84; later commits are handoff/ only)
+
+* `valgrind-dbg-rodata-gate`: direct tier (FULL: the train's, xtask/src/so.rs), 11 suites, 760 passed, 0 failed,
+  peak 4.3G. `valgrind-dbg-rodata-plants`: 6 plants, 5 CAUGHT, 1 WARN-NO-MSG (ro-first-name, the products build's
+  check caught it first; dropped from the file as a duplicate of ro-first-name-build).
+* `valgrind-dbg-rodata-build3`: system debs, check-system PASS. `valgrind-dbg-rodata-accfinal`: the acceptance
+  above (rc 1 = the leak-frame case only).
+* `valgrind-dbg-rodata-startup2`: `NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products` green (33 passed).
+* `valgrind-dbg-rodata-startup`: `cargo xtask test` pass 1 6990 passed; pass 2 4854 passed, 1 FAILED:
+  `niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (line 1008,
+  "the pinned gap is whole again": a mapping appeared in the gap the test made the kernel's first choice). The test
+  passes 20 of 20 in pass 1 on the same build; a direct pass-2 rerun was inconclusive (the copy run held 63 tests,
+  not this one). Not shown related or unrelated: this change maps nothing after start-up, and the loader change
+  only replaces the lazy cache cell's layout. Rerun: `valgrind-dbg-rodata-xtest2` (`cargo xtask test`), started
+  at the hand-back.
+
 ## Exact next steps
 
-1. Collect the final jobs if this run did not (gate, plants, startup; labels in the report json).
+1. Read `valgrind-dbg-rodata-xtest2`: green = the s03 failure is intermittent (report it to the heap/s03 owner as a
+   flake to explain); red again = run that test's pass-2 copy (`target/debug/niji-deps/`) with origin/next's
+   products to tell whether the loader change matters.
 2. Ruling on the leak-frame fix (a/b/c); then a follow-up story: the loader change, a start-up count, vgacc leak.
 3. Item 2 diagnosis as above.
