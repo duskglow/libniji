@@ -1,0 +1,25 @@
+{"task": "FCLOSE-COOKIE-SEEK", "model": "opus", "tokens": null,
+ "result": "fclose of a reading fopencookie stream calls no seek hook and returns 0 (GitHub #20); a failing seek hook reports its own errno instead of EINVAL",
+ "branch": "task/fclose-cookie-seek", "head": null,
+ "gate": {"affected": "pending (keke:fclose-cookie-seek-gate)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Regular file: the reference leaves the descriptor at the end of the read-ahead at fclose (offset 100 after reading 10 of 100); libniji gives it back (offset 10, POSIX fclose); the brief assumed both resync; no differences row records it", "recommendation": "keep POSIX; add a differences row without a compat option (correctness; gnulib's input-stream checks)"},
+  {"item": "fflush whose give-back fails with an errno other than ESPIPE: the reference leaves ferror clear, libniji sets it (s12_4_f_0, POSIX fflush)", "recommendation": "keep libniji's; add a differences row"},
+  {"item": "Cookie stream without a seek hook: reference fflush of a reading stream -1 errno unchanged, ftell -1 EIO, fseek -1 errno unchanged; libniji 0, -1 ESPIPE, -1 ESPIPE", "recommendation": "keep libniji's (meaningful errno, same as a pipe); add a differences row"}
+ ],
+ "informational": [
+  "fseek(5, SEEK_SET) on a cookie stream: the reference calls seek(0,SET) and reads a block; libniji calls seek(5,SET); same results",
+  "errno after a successful fflush of a pipe or ESPIPE cookie: the reference leaves ESPIPE, libniji leaves it unchanged (errno is unspecified on success)",
+  "~/bin/probe on the build hosts looks for target/liella/liella-crt1.o; products are target/niji/niji-crt1.o, so every probe rebuilds and never runs (cost two 15-minute waits here)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "fclose of a read-only fopencookie/funopen stream whose seek hook fails (ESPIPE, EINVAL): -1 EINVAL -> 0, no seek hook call; the same for r+ and after reading to the end", "before": -1, "after": 0, "unit": "fclose result", "measured": true},
+  {"kind": "correctness", "what": "fflush of a reading cookie stream whose seek hook fails with ESPIPE: -1 EINVAL, ferror set -> 0, ferror clear; ftell/fseek report the hook's errno", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "regression tests in stdio_short_io, plants", "before": 0, "after": 3, "unit": "tests (4 plants)", "measured": true}
+ ],
+ "improvement": "fix ~/bin/probe's product paths (target/liella -> target/niji): it silently rebuilds forever, so every agent falls back to hand-compiling probes",
+ "next_step": "collect the gate, plants and start-up jobs; land; route the three rulings",
+ "report_file": "handoff/FCLOSE-COOKIE-SEEK.md",
+ "jobs": ["keke:fclose-cookie-seek-gate", "keke:fclose-cookie-seek-plants2", "keke:fclose-cookie-seek-startup"]}

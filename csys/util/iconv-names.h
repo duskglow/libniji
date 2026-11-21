@@ -2,6 +2,10 @@
  * `iconv -l` beside the installed charmaps (UTIL-7). The core test `iconv_listing_names_match_the_builtins`
  * (crates/core/tests/iconv_cmd_names.rs) fails when this list and the library's table differ. */
 static const char *const BUILTIN_NAMES[] = {
+    "BIG5", "BIG-5", "BIG-FIVE", "BIGFIVE", "CN-BIG5", "CP950",
+    "EUC-KR", "EUCKR", "CSEUCKR", "OSF0004000A", "GB18030",
+    "CP932", "MS932", "WINDOWS-31J", "SJIS-OPEN", "SJIS-WIN",
+    "CP936", "GBK", "MS936", "WINDOWS-936", "GB13000",
     "EUC-JP", "EUCJP", "UJIS", "CSEUCPKDFMTJAPANESE", "OSF00030010",
     "UTF-8", "UTF8", "ISO-10646/UTF8", "ISO-10646/UTF-8", "ISO-IR-193",
     "UTF-16", "UTF16", "UTF-16LE", "UTF16LE", "UTF-16BE", "UTF16BE",

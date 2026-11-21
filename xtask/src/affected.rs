@@ -1320,6 +1320,7 @@ pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[
     ("crates/core/src/names/dns/idna_tables.rs", &["unicode-gen-check"]),
     ("spec/encoding/", &["encodings-gen-check"]),
     ("crates/core/src/iconv/jis_tables.rs", &["encodings-gen-check"]),
+    ("crates/core/src/iconv/cjk_tables.rs", &["encodings-gen-check"]),
     ("csys/syscalls.tsv", &["csys-gen-check"]),
     ("csys/src/sys/", &["csys-gen-check"]),
     ("csys/include/niji_sys.h", &["csys-gen-check"]),

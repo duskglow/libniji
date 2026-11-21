@@ -15,14 +15,15 @@
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use core::sync::atomic::{AtomicI32, AtomicUsize};
 
-use niji_ld::debug::{State, BRK, LDBASE, MAP, SIZE, STATE, VERSION};
+use niji_ld::debug::{State, BRK, LDBASE, MAP, NEXT, SIZE, SIZE_EXT, STATE, VERSION, VERSION_COPY};
 
 use super::{_dl_debug_state, _r_debug};
 
-/// `<link.h>`'s `struct r_debug` (version 1), every field an atomic: a program reads it while
-/// another thread's `dlopen` writes it.
+/// `<link.h>`'s `struct r_debug` (the first 40 bytes of the rendezvous), every field an atomic: a
+/// program reads it while another thread's `dlopen` writes it. A program's copy of `_r_debug` made
+/// against the 40-byte symbol is only this.
 #[repr(C)]
-pub struct RDebug {
+pub struct RDebugBase {
     r_version: AtomicI32,
     r_map: AtomicUsize,
     r_brk: AtomicUsize,
@@ -30,17 +31,30 @@ pub struct RDebug {
     r_ldbase: AtomicUsize,
 }
 
+/// `ld.so`'s `_r_debug`: `r_debug_extended` (version 2), the base structure and `r_next`.
+#[repr(C)]
+pub struct RDebug {
+    base: RDebugBase,
+    /// The next namespace's rendezvous; null: this is the only (base) namespace. Never written
+    /// while `dlmopen` (DL-22) is absent.
+    r_next: AtomicUsize,
+}
+
 const _: () = {
     use core::mem::offset_of;
-    assert!(size_of::<RDebug>() == SIZE && core::mem::align_of::<RDebug>() == 8);
-    assert!(offset_of!(RDebug, r_map) == MAP && offset_of!(RDebug, r_brk) == BRK);
-    assert!(offset_of!(RDebug, r_state) == STATE && offset_of!(RDebug, r_ldbase) == LDBASE);
+    assert!(size_of::<RDebugBase>() == SIZE && core::mem::align_of::<RDebugBase>() == 8);
+    assert!(offset_of!(RDebugBase, r_map) == MAP && offset_of!(RDebugBase, r_brk) == BRK);
+    assert!(offset_of!(RDebugBase, r_state) == STATE && offset_of!(RDebugBase, r_ldbase) == LDBASE);
+    assert!(size_of::<RDebug>() == SIZE_EXT && offset_of!(RDebug, r_next) == NEXT && offset_of!(RDebug, base) == 0);
 };
 
 impl RDebug {
     /// The zero structure `ld.so`'s `_r_debug` starts as ([`super::_r_debug`]).
     pub(super) const fn new() -> Self {
-        Self { r_version: AtomicI32::new(0), r_map: AtomicUsize::new(0), r_brk: AtomicUsize::new(0), r_state: AtomicI32::new(0), r_ldbase: AtomicUsize::new(0) }
+        Self {
+            base: RDebugBase { r_version: AtomicI32::new(0), r_map: AtomicUsize::new(0), r_brk: AtomicUsize::new(0), r_state: AtomicI32::new(0), r_ldbase: AtomicUsize::new(0) },
+            r_next: AtomicUsize::new(0),
+        }
     }
 }
 
@@ -95,6 +109,9 @@ pub(super) fn past_vdso(at: usize) -> usize {
 /// The program's copy of `_r_debug` (0: none), from its `COPY` relocation.
 static COPY: AtomicUsize = AtomicUsize::new(0);
 
+/// The size of that copy: [`SIZE`] (made against the reference's symbol: no `r_next`) or [`SIZE_EXT`].
+static COPY_LEN: AtomicUsize = AtomicUsize::new(0);
+
 fn own() -> usize {
     core::ptr::from_ref(&_r_debug).expose_provenance()
 }
@@ -105,13 +122,14 @@ fn own() -> usize {
 #[cold]
 #[inline(never)]
 pub(super) fn note_copy(to: usize, from: usize, len: usize) {
-    if from == own() && len == SIZE {
+    if from == own() && (len == SIZE || len == SIZE_EXT) {
+        COPY_LEN.store(len, Relaxed);
         COPY.store(to, Relaxed);
     }
 }
 
 /// The program's copy, when there is one.
-fn copy() -> Option<&'static RDebug> {
+fn copy() -> Option<&'static RDebugBase> {
     let at = COPY.load(Relaxed);
     if at == 0 {
         return None;
@@ -119,15 +137,15 @@ fn copy() -> Option<&'static RDebug> {
     // UNSAFE(slice): the program's copy of `_r_debug`.
     #[allow(unsafe_code)]
     // SAFETY: `at` is the destination of a COPY relocation of `_r_debug` (`note_copy`): the relocator
-    // checked [at, at + 40) lies in a writable segment of the program, and `consistent` kept it only
+    // checked [at, at + len) lies in a writable segment of the program (len at least 40), and `consistent` kept it only
     // when it is 8-byte aligned and outside the program's RELRO range (never made read-only). The
     // program's memory stays mapped for the process; its fields are written only as atomics.
-    Some(unsafe { &*core::ptr::with_exposed_provenance::<RDebug>(at) })
+    Some(unsafe { &*core::ptr::with_exposed_provenance::<RDebugBase>(at) })
 }
 
 /// Every place the rendezvous lives: `ld.so`'s own, and the program's copy.
-fn each(mut f: impl FnMut(&RDebug)) {
-    f(&_r_debug);
+fn each(mut f: impl FnMut(&RDebugBase)) {
+    f(&_r_debug.base);
     if let Some(c) = copy() {
         f(c);
     }
@@ -147,7 +165,7 @@ pub(super) fn change(state: State) {
 #[cold]
 #[inline(never)]
 pub(super) fn start(map: usize, ldbase: usize, dt_debug: usize) {
-    let r = &_r_debug;
+    let r = &_r_debug.base;
     r.r_version.store(VERSION, Relaxed);
     r.r_map.store(map, Relaxed);
     r.r_brk.store(super::fn_addr0(_dl_debug_state), Relaxed);
@@ -184,14 +202,17 @@ pub(super) fn consistent() {
 #[cold]
 #[inline(never)]
 fn check_copy(at: usize, (lo, hi): (usize, usize)) {
-    let end = at.saturating_add(SIZE);
+    let len = COPY_LEN.load(Relaxed);
+    let end = at.saturating_add(len);
     if at % 8 != 0 || (at < hi && lo < end) {
         COPY.store(0, Relaxed);
         return;
     }
     if let Some(c) = copy() {
-        let r = &_r_debug;
-        c.r_version.store(r.r_version.load(Relaxed), Relaxed);
+        let r = &_r_debug.base;
+        // Without room for `r_next` the copy is the version-1 structure (a reader of version 2
+        // would read the program's next variable as `r_next`).
+        c.r_version.store(if len == SIZE { VERSION_COPY } else { r.r_version.load(Relaxed) }, Relaxed);
         c.r_map.store(r.r_map.load(Relaxed), Relaxed);
         c.r_brk.store(r.r_brk.load(Relaxed), Relaxed);
         c.r_ldbase.store(r.r_ldbase.load(Relaxed), Relaxed);

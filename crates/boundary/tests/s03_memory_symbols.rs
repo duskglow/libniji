@@ -890,10 +890,17 @@ fn kernel_pages_align_and_prefer_a_node() {
     pages.unmap(b, 3 * PAGE);
 }
 
-/// This process's address-space size (`/proc/self/statm` field 1, in pages), in bytes.
+/// This process's address-space size (`/proc/self/statm` field 1, in pages), in bytes. Read
+/// into a stack buffer, never allocating: a limit derived from it must cover everything mapped
+/// when the limit applies, and an allocation here can map heap address space after the read
+/// (`read_to_string` reads a short file before it allocates; in a libniji process the thread's
+/// first allocation maps 2 MiB of the heap's: the gap test then failed in every libniji process).
 fn vm_size() -> u64 {
-    let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
-    statm.split_whitespace().next().unwrap().parse::<u64>().unwrap() * PAGE as u64
+    use std::io::Read;
+    let mut buf = [0u8; 128];
+    let n = std::fs::File::open("/proc/self/statm").and_then(|mut f| f.read(&mut buf)).unwrap();
+    let text = core::str::from_utf8(buf.get(..n).unwrap_or_default()).unwrap();
+    text.split_whitespace().next().unwrap().parse::<u64>().unwrap() * PAGE as u64
 }
 
 #[test]
@@ -968,7 +975,6 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
                 held += 1;
             }
         };
-        let limit = vm_size() + (SEG + SEG / 4) as u64;
         let probe = |len: usize| -> usize {
             let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
             assert_ne!(p, 0, "a mapping before any limit");
@@ -996,6 +1002,10 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
             keep(pin(q + SEG / 2));
         }
         assert!(first, "precondition: the gap is the kernel's first choice for SEG bytes within 8 splits");
+        // Taken after the layout (its pins count), with nothing allocating until the check:
+        // room for SEG bytes (and the call's page blockers) and then exactly for the whole gap
+        // (SEG + PAD), never for the over-mapping; a page mapped after this figure fails the check.
+        let limit = vm_size() + (SEG + PAD) as u64;
         CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
         assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
         let a = pages.map(SEG, SEG, None).unwrap_or(0);
@@ -1004,8 +1014,9 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
         assert!(a + SEG <= gap || a >= gap + SEG + PAD, "map: never inside the pinned gap");
         fill(a as *mut c_void, 7, PAGE);
         pages.unmap(a, SEG);
-        let back = CSys.mmap(gap, SEG + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
-        assert_eq!(back, gap, "map: the pinned gap is whole again (no page of the call's left in it)");
+        let back_r = CSys.mmap(gap, SEG + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr());
+        // EEXIST: a page of the call's left in the gap; ENOMEM: the limit did not cover the layout.
+        assert_eq!(back_r, Ok(gap), "map: the pinned gap is whole again (no page of the call's left in it)");
         pages.unmap(gap, SEG + PAD);
         for &p in pins.get(..held).unwrap_or(&[]) {
             pages.unmap(p, PAGE);

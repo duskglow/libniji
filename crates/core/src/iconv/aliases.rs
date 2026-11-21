@@ -28,7 +28,6 @@
 /// compile time, to build [`TEXT`] and [`ROWS`].
 const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"ARMSCII8", b"ARMSCII-8"),
-    (b"BIG-5", b"BIG5"),
     (b"CSA_Z243.419851", b"CSA_Z243.4-1985-1"),
     (b"CSA_Z243.419852", b"CSA_Z243.4-1985-2"),
     (b"DECMCS", b"DEC-MCS"),
@@ -50,7 +49,6 @@ const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"EBCDICUS", b"EBCDIC-US"),
     (b"ECMACYRILLIC", b"ECMA-CYRILLIC"),
     (b"EUCJP-MS", b"EUC-JP-MS"),
-    (b"EUCKR", b"EUC-KR"),
     (b"EUCTW", b"EUC-TW"),
     (b"GB_198880", b"GB_1988-80"),
     (b"GOST_1976874", b"GOST_19768-74"),
