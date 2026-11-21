@@ -1002,9 +1002,10 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
             keep(pin(q + SEG / 2));
         }
         assert!(first, "precondition: the gap is the kernel's first choice for SEG bytes within 8 splits");
-        // Taken after the layout (its pins count) with nothing allocating until the check: room
-        // for SEG bytes and then for the whole gap (SEG + PAD), never for the over-mapping.
-        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        // Taken after the layout (its pins count), with nothing allocating until the check:
+        // room for SEG bytes (and the call's page blockers) and then exactly for the whole gap
+        // (SEG + PAD), never for the over-mapping; a page mapped after this figure fails the check.
+        let limit = vm_size() + (SEG + PAD) as u64;
         CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
         assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
         let a = pages.map(SEG, SEG, None).unwrap_or(0);
