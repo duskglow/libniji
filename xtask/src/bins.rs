@@ -598,21 +598,23 @@ mod tests {
         // CRT-START-FILES-2 (no spec clause: build tooling, D-X.144): the head bin does not start on a
         // window boundary, so text ahead of the group beyond HEAD_ROOM pushes its tail into a window of its
         // own. Section `p`, which phase `s` and mode `c` count and which the head bin and bin 1 (where
-        // `s.pre` runs `b`) would both take at no cost, goes to bin 1; `v`, which `true` and `s` count and
-        // only the head bin takes at no cost, stays there (no mode's windows change). Read as whole-process
-        // traces (no warm-ups), `s` is no phase mode and `p` takes the first bin, the head bin.
+        // `s.pre` runs `b`) would both take at no cost, goes to bin 1; `v` (`true` and `s`) and `q` (`e` and
+        // `s`), which only the head bin takes at no cost, stay there: the tie-break never outweighs a mode
+        // (no mode's windows change). Read as whole-process traces (no warm-ups), `s` is no phase mode and
+        // `p` takes the first bin, the head bin.
         let items = [
-            item("t", 0x8000, 1, 0, &["true", "c", "s", "s.pre"]),
+            item("t", 0x8000, 1, 0, &["true", "c", "e", "s", "s.pre"]),
             item("b", 0x9000, 1, 1, &["c", "d", "s", "s.pre"]),
             item("p", 0x100, 1, 2, &["c", "s"]),
             item("v", 0x100, 1, 3, &["true", "s"]),
+            item("q", 0x100, 1, 4, &["e", "s"]),
         ];
         let p = plan(&items, &[]);
-        assert_eq!(names(&p, &items), [vec!["t", "v"], vec!["b", "p"]]);
+        assert_eq!(names(&p, &items), [vec!["t", "v", "q"], vec!["b", "p"]]);
         let w = p.windows();
-        assert_eq!((w["s"], w["c"], w["d"], w["true"]), (0, 2, 1, 1), "{w:?}");
+        assert_eq!((w["s"], w["c"], w["d"], w["e"], w["true"]), (0, 2, 1, 1, 1), "{w:?}");
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| !m.ends_with(".pre")).cloned().collect(), ..it.clone() }).collect();
-        assert_eq!(names(&plan(&plain, &[]), &plain), [vec!["t", "p", "v"], vec!["b"]]);
+        assert_eq!(names(&plan(&plain, &[]), &plain), [vec!["t", "p", "v", "q"], vec!["b"]]);
     }
 
     #[test]
