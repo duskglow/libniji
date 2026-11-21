@@ -894,7 +894,7 @@ fn kernel_pages_align_and_prefer_a_node() {
 /// into a stack buffer, never allocating: a limit derived from it must cover everything mapped
 /// when the limit applies, and an allocation here can map heap address space after the read
 /// (`read_to_string` reads a short file before it allocates; in a libniji process the thread's
-/// first allocation maps 2 MiB of the heap's, HEAP-GAP-TEST-KEKE).
+/// first allocation maps 2 MiB of the heap's: the gap test then failed in every libniji process).
 fn vm_size() -> u64 {
     use std::io::Read;
     let mut buf = [0u8; 128];
