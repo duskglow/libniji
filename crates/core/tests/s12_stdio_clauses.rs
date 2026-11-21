@@ -2339,7 +2339,8 @@ fn s12_10_c_0() {
 /// holds only in part are read across the refill, whatever the buffer size; the bytes a shorter
 /// later fill leaves past the window's end are never part of a character.
 #[test]
-fn s12_10_c_0_characters_cut_by_the_window_end() {
+fn wide_read_characters_cut_by_the_window_end() {
+    // Clauses: s12_10_c_0 (D-12.30).
     let _l = utf8();
     let text = "a\u{e9}\u{3042}\u{1F600}z\u{e9}";
     let want: Vec<(wint_t, i64)> = vec![(0x61, 1), (0xE9, 3), (0x3042, 6), (0x1F600, 10), (0x7A, 11), (0xE9, 13)];
@@ -2374,7 +2375,8 @@ fn s12_10_c_0_characters_cut_by_the_window_end() {
 /// then: a byte given back with `ungetc` that cannot continue it makes the sequence invalid,
 /// both bytes coming back (D-12.28); bytes that arrive later complete it.
 #[test]
-fn s12_10_c_0_a_partial_character_is_continued() {
+fn wide_read_partial_character_is_continued() {
+    // Clauses: s12_10_c_0 (D-12.30).
     let _l = utf8();
     let begun = || {
         let [r, wr] = CSys.pipe2(O_CLOEXEC | O_NONBLOCK).unwrap();
