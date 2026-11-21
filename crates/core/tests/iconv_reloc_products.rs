@@ -45,6 +45,21 @@ fn iconv_tables_have_no_load_relocations() {
         assert!(!required || objs.iter().any(|(n, _, _)| n.contains(t)), "no symbol `*{t}*` in {}: the check would see nothing", so.display());
     }
     let inside = |a: u64| objs.iter().find(|(_, s, e)| (*s..*e).contains(&a)).map(|(n, _, _)| n.as_str());
+    // A `.got` slot holds one table's address once, whatever its row count: the non-LTO (dev)
+    // profile keeps the crate's statics preemptible-looking and reads them through
+    // `add sym@GOTPCREL(%rip)`, which the linker cannot rewrite in a shared object (ICONV-CJK-STARTUP:
+    // `builtin` on `NAME_BYTES`, and the same for about 20 other statics of that build, e.g.
+    // `locale::classes::C_TABLE`). The release profile (fat LTO) has no such slot. Not a per-row
+    // cost and not what this check bounds, so `.got` words are left out of "points into".
+    let mut got = 0..0;
+    for line in readelf("-SW", &so).lines() {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        if let Some(i) = f.iter().position(|w| *w == ".got") {
+            if let (Some(Ok(at)), Some(Ok(size))) = (f.get(i + 2).map(|w| u64::from_str_radix(w, 16)), f.get(i + 4).map(|w| u64::from_str_radix(w, 16))) {
+                got = at..at + size;
+            }
+        }
+    }
     let mut bad = Vec::new();
     for line in readelf("-rW", &so).lines() {
         let f: Vec<&str> = line.split_whitespace().collect();
@@ -54,7 +69,7 @@ fn iconv_tables_have_no_load_relocations() {
         let (Ok(at), Ok(to)) = (u64::from_str_radix(f[0], 16), u64::from_str_radix(f[3], 16)) else { continue };
         if let Some(n) = inside(at) {
             bad.push(format!("relocated word at {at:#x} inside {n}"));
-        } else if let Some(n) = inside(to) {
+        } else if let Some(n) = inside(to).filter(|_| !got.contains(&at)) {
             bad.push(format!("relocated word at {at:#x} points into {n}"));
         }
     }
