@@ -6,9 +6,9 @@
 //! Every function takes its operands in a format `F: Float` (binary32, binary64, x87 extended,
 //! binary128), the rounding direction where the result depends on it (an explicit argument,
 //! rule C2), and returns `(value, Status)`. The library never reads or writes the floating-point
-//! environment itself; `fenv` (over `liella-rt::fpu`) is for its callers.
+//! environment itself; `fenv` (over `niji-rt::fpu`) is for its callers.
 //!
-//! `#![forbid(unsafe_code)]`. The FPU control registers are reached through `liella-rt::fpu`.
+//! `#![forbid(unsafe_code)]`. The FPU control registers are reached through `niji-rt::fpu`.
 //! Nothing here allocates: the `libm` product is linked without a heap of its own (D-10.7).
 
 #![cfg_attr(not(test), no_std)]
@@ -31,7 +31,16 @@ pub mod exp_log;
 pub mod fast32;
 pub mod fast64;
 pub mod invtrig;
+pub mod hwop;
 pub mod fast_special;
+pub mod fast_gamma;
+pub mod fast_bessel;
+#[cfg(test)]
+pub(crate) mod oracle32;
+/// The verdict cache of the slow sweeps among the unit tests (D-10.57).
+#[cfg(test)]
+#[path = "../../core/tests/support/verdict.rs"]
+pub(crate) mod verdict;
 pub mod pow;
 pub mod trig;
 pub mod hyper;
@@ -42,8 +51,11 @@ pub mod mpy;
 pub mod special;
 pub mod wide;
 mod wide_dd;
+mod wide_int;
+mod wide_int_el;
 pub mod real;
 pub mod complex;
+pub mod complex_fast;
 pub mod ulp;
 pub mod stats;
 mod coeffs;

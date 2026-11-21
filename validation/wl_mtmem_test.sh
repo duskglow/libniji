@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # End-to-end check of the threaded-workload rule (WLCOUNT-MTMEM-2) with REAL strace runs of a threaded program (sort --parallel=4
 # on this host's sort): the gating syscall count that wl_count_run.sh and wl_run.sh share (wl_syscls.sh) is the same in every run;
 # one more deterministic call changes it. Skips (exit 0, says so) when strace or sort --parallel is unavailable.

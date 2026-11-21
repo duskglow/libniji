@@ -14,7 +14,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -26,13 +26,59 @@ fn s22_n_1() {
     // The products ship libpthread placeholders: -lpthread and DT_NEEDED libpthread.so.0 resolve.
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     conformance(&["s22_lifecycle"]);
-    for p in ["target/liella/libpthread.so.0", "target/liella/libpthread.a"] {
+    for p in ["target/niji/libpthread.so.0", "target/niji/libpthread.a"] {
         assert!(root.join(p).exists(), "{p} is built by `cargo xtask so`");
     }
-    let o = std::process::Command::new("readelf").arg("-d").arg(root.join("target/liella/libpthread.so.0")).output().unwrap();
+    let o = std::process::Command::new("readelf").arg("-d").arg(root.join("target/niji/libpthread.so.0")).output().unwrap();
     let text = String::from_utf8_lossy(&o.stdout);
     assert!(text.contains("[libpthread.so.0]"), "its soname");
-    assert!(!text.contains("NEEDED"), "empty: it needs nothing and defines nothing");
+    // D-27.9: it forwards to libc.so.6; its exports and version nodes are checked against
+    // versions.tsv by `cargo xtask so` (placeholders.rs).
+    assert!(text.contains("Shared library: [libc.so.6]"), "DT_NEEDED libc.so.6");
+}
+
+/// §22 Notes (s22_n_1) and the other placeholders (D-27.9, design §16; no spec clause names
+/// libdl/librt/libutil/libanl): a program linked with `-lpthread -ldl -lrt -lutil -lanl` links and
+/// runs statically; linked dynamically against `libc.so.6` it links and needs each placeholder
+/// (it cannot run before libniji's loader, DL-14).
+#[test]
+fn s22_n_1_placeholders_link() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lib = root.join("target/niji");
+    assert!(lib.join("libc.a").exists() && lib.join("libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = std::env::temp_dir().join(format!("niji-s22-n-1-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("p.c");
+    std::fs::write(&src, "#include <pthread.h>\n#include <stdio.h>\n#include <time.h>\nint main(void) {\n  struct timespec t;\n  if (pthread_self() == 0 || clock_gettime(CLOCK_MONOTONIC, &t) != 0) return 1;\n  puts(\"placeholders ok\");\n  return 0;\n}\n").unwrap();
+    let libs = ["-lpthread", "-ldl", "-lrt", "-lutil", "-lanl"];
+    let cc = |args: &[&std::ffi::OsStr]| {
+        let o = std::process::Command::new("cc").args(args).output().unwrap();
+        assert!(o.status.success(), "cc {args:?}: {}", String::from_utf8_lossy(&o.stderr));
+    };
+    let stat = dir.join("static");
+    let crt1 = lib.join("niji-crt1.o");
+    let libc_a = lib.join("libc.a");
+    let lflag = format!("-L{}", lib.display());
+    let mut a: Vec<&std::ffi::OsStr> = vec!["-static".as_ref(), "-nostdlib".as_ref(), "-fno-builtin".as_ref(), "-o".as_ref(), stat.as_os_str(), crt1.as_os_str(), src.as_os_str(), lflag.as_ref()];
+    a.extend(libs.iter().map(std::ffi::OsStr::new));
+    a.extend([libc_a.as_os_str(), "-lgcc".as_ref()]);
+    cc(&a);
+    let o = std::process::Command::new(&stat).output().unwrap();
+    assert!(o.status.success() && o.stdout == b"placeholders ok\n", "the static program: {o:?}");
+    // Dynamically: by file name (`-l:<soname>`), so the host's libraries are never picked.
+    let dynp = dir.join("dynamic");
+    let named: Vec<String> = ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1"].iter().map(|s| format!("-l:{s}")).collect();
+    let libc_so = lib.join("libc.so.6");
+    let mut a: Vec<&std::ffi::OsStr> = vec!["-nostdlib".as_ref(), "-fno-builtin".as_ref(), "-o".as_ref(), dynp.as_os_str(), crt1.as_os_str(), src.as_os_str(), lflag.as_ref(), "-Wl,--no-as-needed".as_ref()];
+    a.extend(named.iter().map(std::ffi::OsStr::new));
+    a.extend([libc_so.as_os_str(), "-lgcc".as_ref()]);
+    cc(&a);
+    let o = std::process::Command::new("readelf").arg("-d").arg(&dynp).output().unwrap();
+    let text = String::from_utf8_lossy(&o.stdout);
+    for so in ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc.so.6"] {
+        assert!(text.contains(&format!("Shared library: [{so}]")), "the dynamic program needs {so}:\n{text}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
 }
 /// §22 Notes: Pthread functions return **error numbers** and do not set `errno` (C0.1). The exceptions are `sem_*`, which use `errno`.
 #[test]
@@ -150,7 +196,7 @@ fn s22_3_c_1() {
 /// §22.3 Contract: In the **asynchronous** mode, the target acts at any instruction. Only async-cancel-safe code may run with this enabled.
 #[test]
 fn s22_3_c_2() {
-    // Asynchronous requests act at the next safe point outside Liella code (owner ruling, D-22.11).
+    // Asynchronous requests act at the next safe point outside libniji code (owner ruling, D-22.11).
     conformance(&["s22_cancel"]);
 }
 /// §22.3 Contract: **Cancellation state** may be disabled, in which case requests stay pending.
@@ -161,7 +207,8 @@ fn s22_3_c_3() {
 /// §22.3 Contract: **Acting on cancellation** runs the cleanup handlers in LIFO order and TLS destructors. In C++, it unwinds the stack with a forced unwind (`abi::__forced_unwind`). The thread then exits with `PTHREAD_
 #[test]
 fn s22_3_c_4() {
-    // C cleanup handlers and TLS destructors; the C++ forced unwind (libgcc_s through dlopen) is interim until phase 14 (D-22.11).
+    // C cleanup handlers and TLS destructors in a static program; the C++ forced unwind of a
+    // dynamic program is tests/forced_unwind_products.rs (D-22.19).
     conformance(&["s22_cancel"]);
 }
 /// §22.3 Guarantees: If a cancellation point is cancelled *before* the underlying syscall had a side effect, the side effect did not happen. For `close`, the descriptor is still closed (⚑ KERN). For `read`/`write` cancell
@@ -228,7 +275,7 @@ fn s22_5_c_1_1() {
 }
 /// §22.5 Contract: ⚑ COMPAT: `pthread_cond_*@GLIBC_2.2.5` implement the pre-2.3.2 condvar ABI for
 /// old binaries. `conformance/c/s22_compat_condvar.c` drives the translations behind those versions
-/// (`liella_compat_pthread_cond_*`, on the old one-word object) across Liella's threads: signal
+/// (`niji_compat_pthread_cond_*`, on the old one-word object) across libniji's threads: signal
 /// hands each item to one consumer, broadcast releases every waiter, timedwait meets its deadline,
 /// destroy zeroes the word; a lost wakeup hangs the program until its alarm fails it (LG-3, D-22.13).
 #[test]
@@ -236,9 +283,13 @@ fn s22_5_c_1_2() {
     conformance(&["s22_compat_condvar"]);
 }
 /// §22.5 Contract: **Read-write locks.** Many readers or one writer. The preference is set by `kind_np`: `PREFER_READER` (the default; ⚑ HIST: writer starvation is possible), `PREFER_WRITER_NONRECURSIVE`. A recursive re
+///
+/// `conformance/c/s22_rwlock_self.c` pins what each call form returns when the caller already
+/// holds the lock, in every lock configuration: the try forms `EBUSY` for a write-held lock
+/// (issue #15), the blocking and timed forms `EDEADLK`, and a bad deadline `EINVAL` first.
 #[test]
 fn s22_5_c_2() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_rwlock_self"]);
 }
 /// §22.5 Contract: **Spin locks.** Busy-waiting mutual exclusion with no blocking. **Kernel:** none.
 #[test]
@@ -282,6 +333,13 @@ fn s22_6_c_4() {
 fn s22_6_g_0() {
     conformance(&["s22_more"]);
 }
+/// §22.6 Failure: `pthread_setspecific` (and `tss_set`) never fails with `ENOMEM` in libniji.
+#[test]
+fn s22_6_f_0() {
+    // Under an exhausted address space, keys inside and outside the reference's in-thread range,
+    // on the initial thread and on a new thread (D-22.15).
+    conformance(&["s22_key_nomem"]);
+}
 /// §22.7 Contract: A counting semaphore.
 #[test]
 fn s22_7_c_0() {
@@ -310,7 +368,7 @@ fn s22_7_c_4() {
 /// §22.7 Contract: **Named semaphores** (`sem_open(name, O_CREAT|O_EXCL, mode, value)`) are files in `/dev/shm` named `sem.<name>`. Opening the same name twice in one process returns the same address.
 #[test]
 fn s22_7_c_5() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_sem_named_many"]);
 }
 /// §22.7 Failure: Returns -1 with `errno`: `EAGAIN` (trywait), `ETIMEDOUT`, `EINTR`, `EINVAL`, `EOVERFLOW` (`SEM_VALUE_MAX` = `INT_MAX`), `ENOENT`, `EEXIST`, `EACCES`.
 #[test]
@@ -330,7 +388,7 @@ fn s22_8_c_2() {
 /// §22.8 Contract: **`pthread_yield`** is `sched_yield`. ⚑ HIST: it is deprecated.
 #[test]
 fn s22_8_c_3() {
-    assert_eq!(liella_boundary::posix::s22_threads::pthread_yield(), 0, "sched_yield");
+    assert_eq!(niji_boundary::posix::s22_threads::pthread_yield(), 0, "sched_yield");
 }
 /// §22.8 Contract: **Affinity.** A per-thread CPU mask.
 #[test]

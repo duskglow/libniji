@@ -1,5 +1,5 @@
-/* Class machine: the profiling start object, the content of liella-gcrt1.o (spec §28.1,
- * GCRT1-START). A `-pg` program links it instead of liella-crt1.o: the same _start (entry.S),
+/* Class machine: the profiling start object, the content of niji-gcrt1.o (spec §28.1,
+ * GCRT1-START). A `-pg` program links it instead of niji-crt1.o: the same _start (entry.S),
  * plus __gmon_start__, which starts profiling over the executable's text and has gmon.out
  * written at exit, as the compiler driver's gcrt1.o does with glibc.
  *
@@ -17,7 +17,11 @@
  * __gmon_start__ runs its work once: an object that calls it again (a toolchain's crti.o
  * calls __gmon_start__ when defined) does not register _mcleanup twice. The calls go through
  * the GOT, as in entry.S, and the linker relaxes them in a static link. The reserved names
- * __monstartup and _etext keep a program's own monstartup or etext from being taken. */
+ * __monstartup and _etext keep a program's own monstartup or etext from being taken.
+ *
+ * Assembled with -DNIJI_STATIC_PIE it is niji-grcrt1.o (installed as grcrt1.o; SL-CRT), the
+ * start object the compiler driver links for `-pg -static-pie`: rcrt1's relocating _start
+ * (entry.S) and the same hook, which runs from .preinit_array after the relocation. */
 /* Outside csys/src on purpose: crates/boundary/build.rs archives every source under csys/src,
  * and no archive may carry _start or this .preinit_array entry. */
 #include "../src/machine/entry.S"
@@ -28,17 +32,27 @@
 	.p2align 6
 __gmon_start__:
 	.cfi_startproc
-	cmpb $0, liella_gmon_started(%rip)
+	/* IBT (notes.inc): called through .preinit_array (and a crti.o's indirect call). */
+	endbr64
+	cmpb $0, niji_gmon_started(%rip)
 	jne 1f
-	movb $1, liella_gmon_started(%rip)
+	movb $1, niji_gmon_started(%rip)
 	/* Entered with %rsp 8 below a 16-byte boundary: align it for the calls. */
 	subq $8, %rsp
 	.cfi_adjust_cfa_offset 8
 	leaq __executable_start(%rip), %rdi
 	leaq _etext(%rip), %rsi
+#ifdef NIJI_STATIC_PIE
+	/* grcrt1.o: everything is in the one executable, reached PC-relatively like the rest of
+	 * rcrt1's code (no GOT relocation in the object, which `cargo xtask so` checks). */
+	call __monstartup
+	leaq _mcleanup(%rip), %rdi
+	call atexit
+#else
 	call *__monstartup@GOTPCREL(%rip)
 	movq _mcleanup@GOTPCREL(%rip), %rdi
 	call *atexit@GOTPCREL(%rip)
+#endif
 	addq $8, %rsp
 	.cfi_adjust_cfa_offset -8
 1:	ret
@@ -49,6 +63,6 @@ __gmon_start__:
 	.p2align 3
 	.quad __gmon_start__
 
-	.local liella_gmon_started
-	.comm liella_gmon_started, 1, 1
+	.local niji_gmon_started
+	.comm niji_gmon_started, 1, 1
 	.section .note.GNU-stack,"",@progbits

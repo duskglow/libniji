@@ -1,6 +1,6 @@
-//! The collation rules (`liella::locale::collate`) against the reference's `strcoll`, `wcscoll`
+//! The collation rules (`niji::locale::collate`) against the reference's `strcoll`, `wcscoll`
 //! and `strxfrm`, in process (MUTATION-CAMPAIGN-1B). Before this, every in-process test of the
-//! rules path compared Liella with itself, so a mutant that broke the weights (or returned no key
+//! rules path compared libniji with itself, so a mutant that broke the weights (or returned no key
 //! at all) survived. Locales compiled with the host's localedef: en_US.UTF-8 (the common case),
 //! cs_CZ.UTF-8 (the "ch" contraction), da_DK.UTF-8, de_DE.UTF-8 and en_US.ISO-8859-1 (a single-byte
 //! table). Strings: ASCII case and punctuation ties, accents, ligatures, contractions, digits,
@@ -19,8 +19,8 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use liella::locale::collate::{self, Collate, Collation};
-use liella::locale::file::Category;
+use niji::locale::collate::{self, Collate, Collation};
+use niji::locale::file::Category;
 
 const UTF8: &[&str] = &[
     "", "a", "A", "b", "B", "z", "Z", "ab", "aB", "Ab", "a b", "a-b", "ab-", "-ab", "a_b", "a.b", "co-op", "coop", "co op", "1", "10",
@@ -123,23 +123,23 @@ fn collation_agrees_with_the_reference() {
             let mut buf = vec![0u8; want.len() + 1];
             let len = collate::key_bytes(&c, a, &mut buf);
             if len != Some(want.len()) || buf[..want.len()] != want[..] {
-                bad.push(format!("{name}: strxfrm {}: liella {len:?} {}, reference {} {}", show(a), hex(&buf[..want.len().min(buf.len())]), want.len(), lines[i]));
+                bad.push(format!("{name}: strxfrm {}: niji {len:?} {}, reference {} {}", show(a), hex(&buf[..want.len().min(buf.len())]), want.len(), lines[i]));
             }
             for (j, (b, bw)) in strs.iter().enumerate() {
                 let w = narrow[i * n + j];
                 let got = sign(collate::compare(&c, a.as_slice(), b.as_slice()));
                 if got != w {
-                    bad.push(format!("{name}: strcoll {} {}: liella {}, reference {}", show(a), show(b), got as char, w as char));
+                    bad.push(format!("{name}: strcoll {} {}: niji {}, reference {}", show(a), show(b), got as char, w as char));
                 }
                 let key = sign(collate::key(&c, a.as_slice()).cmp(collate::key(&c, b.as_slice())));
                 if key != w {
-                    bad.push(format!("{name}: key order {} {}: liella {}, reference {}", show(a), show(b), key as char, w as char));
+                    bad.push(format!("{name}: key order {} {}: niji {}, reference {}", show(a), show(b), key as char, w as char));
                 }
                 let ww = wide[i * n + j];
                 if let (Some(x), Some(y)) = (aw, bw) {
                     let got = sign(collate::compare(&c, x.as_slice(), y.as_slice()));
                     if ww != b'!' && got != ww {
-                        bad.push(format!("{name}: wcscoll {} {}: liella {}, reference {}", show(a), show(b), got as char, ww as char));
+                        bad.push(format!("{name}: wcscoll {} {}: niji {}, reference {}", show(a), show(b), got as char, ww as char));
                     }
                 }
             }

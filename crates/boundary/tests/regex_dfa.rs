@@ -3,8 +3,8 @@
 //! (each thread has its own store) and with more patterns than store entries (thrash).
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::layout::{regex_t, regmatch_t};
-use liella_boundary::posix::s14_search as rx;
+use niji_abi::layout::{regex_t, regmatch_t};
+use niji_boundary::posix::s14_search as rx;
 
 const REG_EXTENDED: i32 = 1;
 const REG_NOSUB: i32 = 8;

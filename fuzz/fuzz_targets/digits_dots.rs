@@ -9,11 +9,11 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::names::{Family, Ip};
-use liella::net::addr;
-use liella_abi::layout::struct_hostent;
-use liella_boundary::posix::s16_nameservices as ns;
-use liella_legacy::{inet_compat, netdb_compat};
+use niji::names::{Family, Ip};
+use niji::net::addr;
+use niji_abi::layout::struct_hostent;
+use niji_boundary::posix::s16_nameservices as ns;
+use niji_legacy::{inet_compat, netdb_compat};
 
 /// One call of `__nss_hostname_digits_dots` in its caller-buffer form: it answers 0 or 1, and 0
 /// writes nothing.

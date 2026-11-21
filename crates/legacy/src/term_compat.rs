@@ -1,19 +1,19 @@
 //! The `B*` speed codes of the C `struct termios` (spec §19.1 ⚑ HIST; D-19.1): `cfgetispeed`,
 //! `cfgetospeed`, `cfsetispeed`, `cfsetospeed`, `cfsetspeed` and `cfmakeraw`, on the caller's
-//! structure. The terminal itself takes integer rates (`liella::term`); the conversion is
-//! `liella_abi::pack::{termios, termios_in}`.
+//! structure. The terminal itself takes integer rates (`niji::term`); the conversion is
+//! `niji_abi::pack::{termios, termios_in}`.
 //!
 //! The structure holds one speed code, in `c_cflag`'s `CBAUD` bits: the output speed, which is
 //! also the input speed. `cfsetispeed` with a speed other than 0 therefore sets both, and the
 //! getters ignore the `CIBAUD` bits (as the reference does). The one input speed of its own is 0,
 //! "the same as the output speed" when applied (POSIX), which `cfgetispeed` reports as `B0`; it is
 //! recorded in `c_ispeed` ([`ISPEED_ZERO`]). `c_ospeed` and `c_ispeed` otherwise hold the rates,
-//! which count for the code `BOTHER` (`liella::term::Termios`).
+//! which count for the code `BOTHER` (`niji::term::Termios`).
 
-use liella::error::{Errno, Result};
-use liella::term::{self, BOTHER, CBAUD, CIBAUD, CS8, RAW_CFLAG_OFF, RAW_IFLAG_OFF, RAW_LFLAG_OFF, RAW_OFLAG_OFF, VMIN, VTIME};
-use liella_abi::layout::struct_termios;
-use liella_abi::pack::ISPEED_ZERO;
+use niji::error::{Errno, Result};
+use niji::term::{self, BOTHER, CBAUD, CIBAUD, CS8, RAW_CFLAG_OFF, RAW_IFLAG_OFF, RAW_LFLAG_OFF, RAW_OFLAG_OFF, VMIN, VTIME};
+use niji_abi::layout::struct_termios;
+use niji_abi::pack::ISPEED_ZERO;
 
 /// Whether `v` is a speed code the structure can hold: a standard one or `BOTHER`.
 fn is_code(v: u32) -> bool {
@@ -76,7 +76,7 @@ pub fn set_speed(t: &mut struct_termios, v: u32) -> Result<()> {
     both(t, code)
 }
 
-/// `cfmakeraw` (`liella::term::Termios::make_raw`), on the C structure: the speeds and the
+/// `cfmakeraw` (`niji::term::Termios::make_raw`), on the C structure: the speeds and the
 /// other control characters are kept.
 pub fn make_raw(t: &mut struct_termios) {
     t.c_iflag &= !RAW_IFLAG_OFF;

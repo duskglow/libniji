@@ -1,8 +1,8 @@
 //! The C conventions of the DNS stub resolver (spec §16.4; D-16.3, D-16.6): the calling thread's
 //! `_res`, the `res_*` and `__res_*` entries, the message, name and text functions (`dn_*`,
 //! `ns_*`, `__p_*`, `__fp_*`, `__sym_*`, `__b64_*`, `__loc_*`, the old accessors), and the
-//! resolver behind the `dns` source of host lookups. The logic is `liella::names::dns` and
-//! `liella_legacy::resolv_compat`; the exports are `posix::s16_nameservices`.
+//! resolver behind the `dns` source of host lookups. The logic is `niji::names::dns` and
+//! `niji_legacy::resolv_compat`; the exports are `posix::s16_nameservices`.
 //!
 //! **`_res`** (D-16.3): per thread (`__res_state()`): the process's `_res` object for the
 //! initial thread, a block allocated on first use for any other (freed when the thread exits).
@@ -20,30 +20,31 @@
 
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella::error::Errno;
-use liella::mem::TryVec;
-use liella::names::dns::conf::{Config, RES_INIT, RES_NORELOAD};
-use liella::names::dns::name::{self, Check, Compress, MAXCDNAME, MAXDNAME};
-use liella::names::dns::{msg, text};
-use liella_abi::layout::{ns_msg, ns_rr};
-use liella_kernel::errno::KResult;
-use liella_kernel::sys::Sys;
-use liella_legacy::resolv_compat::{self as resolv, Env, Fail, Resolver, State, PATH_RESCONF, RESOLV_CONF, STATE_SIZE};
+use niji::error::Errno;
+use niji::mem::TryVec;
+use niji::names::dns::conf::{Config, RES_INIT, RES_NORELOAD};
+use niji::names::dns::name::{self, Check, Compress, MAXCDNAME, MAXDNAME};
+use niji::names::dns::{msg, text};
+use niji_abi::layout::{ns_msg, ns_rr};
+use niji_kernel::errno::KResult;
+use niji_kernel::sys::Sys;
+use niji_legacy::resolv_compat::{self as resolv, Env, Fail, Resolver, State, PATH_RESCONF, RESOLV_CONF, STATE_SIZE};
 
 use crate::caller_alloc;
 use crate::conv;
 use crate::data;
 use crate::errno;
 use crate::netdb;
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
-use crate::tb;
 
 // ------------------------------------------------------------------------------ the state
 
 /// The thread's state: its address (`__res_state()`).
 pub fn res_state() -> usize {
-    let b = tb::current();
+    // D-X.58: the thread's own words (its block only in a process the runtime started).
+    let b = crate::thread::words();
     let a = b.res.load(Relaxed);
     if a != 0 {
         return a;
@@ -61,7 +62,11 @@ pub fn res_state() -> usize {
 
 /// Free the calling thread's state (at its exit).
 pub(crate) fn thread_ending() {
-    let b = tb::current();
+    let b = crate::thread::words();
+    if crate::thread::is_spare(b) {
+        // Shared by every foreign thread (no registry memory): never freed.
+        return;
+    }
     let a = b.res.swap(0, Relaxed);
     if a != 0 && a != core::ptr::addr_of!(data::_res).expose_provenance() {
         if let Some(st) = own_state(a) {
@@ -91,7 +96,7 @@ fn env() -> Env<'static> {
     Env { localdomain: env_value(b"LOCALDOMAIN"), res_options: env_value(b"RES_OPTIONS") }
 }
 
-/// Free the IPv6 server addresses a state Liella initialized holds.
+/// Free the IPv6 server addresses a state libniji initialized holds.
 fn free_ext(st: &mut State<'_>) {
     if st.generation().is_none() {
         return;
@@ -124,7 +129,7 @@ fn init_state(bytes: &mut [u8; STATE_SIZE], addr: usize) -> KResult<()> {
 
 // ------------------------------------------------------------------------------ the cache's view
 
-/// The configuration fingerprint of the initial thread's `_res` when Liella last read it.
+/// The configuration fingerprint of the initial thread's `_res` when libniji last read it.
 static MAIN_PRINT: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
 
 /// Where the fingerprint of the calling thread's state at `addr` is kept: `Ok` for `_res`
@@ -134,25 +139,25 @@ fn print_slot(addr: usize) -> Option<core::result::Result<(), &'static mut [u8]>
     if addr == core::ptr::addr_of!(data::_res).expose_provenance() {
         return Some(Ok(()));
     }
-    if addr != 0 && tb::current().res.load(Relaxed) == addr {
+    if addr != 0 && crate::thread::words().res.load(Relaxed) == addr {
         return conv::own_bytes(addr.saturating_add(STATE_SIZE), 8).map(Err);
     }
     None
 }
 
-/// After Liella filled the state at `addr` from the file and the environment: remember what it
+/// After libniji filled the state at `addr` from the file and the environment: remember what it
 /// showed, so that a later change by the program is seen (D-16.10: such a thread's host lookups
 /// bypass the name-service cache).
 fn record_pristine(bytes: &mut [u8; STATE_SIZE], addr: usize) {
     let Some(slot) = print_slot(addr) else { return };
-    let print = config_of(bytes, addr).map_or(0, |c| liella_legacy::nscache::config_fingerprint(&c)) | 1;
+    let print = config_of(bytes, addr).map_or(0, |c| niji_legacy::nscache::config_fingerprint(&c)) | 1;
     match slot {
         Ok(()) => MAIN_PRINT.store(print, Relaxed),
         Err(b) => b.copy_from_slice(&print.to_ne_bytes()),
     }
 }
 
-/// Whether the configuration `c` the thread's state at `addr` shows is the one Liella read (the
+/// Whether the configuration `c` the thread's state at `addr` shows is the one libniji read (the
 /// program did not change `_res` since).
 fn pristine(c: &Config, addr: usize) -> bool {
     let recorded = match print_slot(addr) {
@@ -160,7 +165,7 @@ fn pristine(c: &Config, addr: usize) -> bool {
         Some(Err(b)) => <[u8; 8]>::try_from(&*b).map_or(0, u64::from_ne_bytes),
         None => 0,
     };
-    recorded != 0 && recorded == liella_legacy::nscache::config_fingerprint(c) | 1
+    recorded != 0 && recorded == niji_legacy::nscache::config_fingerprint(c) | 1
 }
 
 /// The configuration a state shows (see `resolv_compat`), extended from the file.
@@ -233,7 +238,7 @@ fn ready(bytes: &mut [u8; STATE_SIZE], addr: usize) -> KResult<Config> {
 }
 
 /// The resolver of the `dns` source for the calling thread (`None`: it cannot be set up), and
-/// whether the thread's `_res` is as Liella read it (the name-service cache serves only such a
+/// whether the thread's `_res` is as libniji read it (the name-service cache serves only such a
 /// thread, D-16.10).
 pub(crate) fn host_resolver_pristine() -> Option<(Resolver, bool)> {
     let (bytes, addr) = thread_state().ok()?;
@@ -242,7 +247,7 @@ pub(crate) fn host_resolver_pristine() -> Option<(Resolver, bool)> {
     let aliases = env_value(b"HOSTALIASES").and_then(|p| {
         let mut z: TryVec<u8> = TryVec::from_slice(p).ok()?;
         z.push(0).ok()?;
-        liella::system::read_file(&CSys, &z).ok()
+        niji::system::read_file(&CSys, &z).ok()
     });
     Some((Resolver { conf, aliases }, clean))
 }
@@ -336,7 +341,7 @@ fn with_state(w: Which<'_>, f: impl FnOnce(&Config) -> core::result::Result<usiz
 }
 
 mod resolv_h {
-    pub(super) use liella_legacy::netdb_compat::NETDB_INTERNAL;
+    pub(super) use niji_legacy::netdb_compat::NETDB_INTERNAL;
 }
 
 fn bad_arg(e: Errno) -> Fail {
@@ -353,7 +358,7 @@ pub fn search(w: Which<'_>, name: KResult<&[u8]>, class: i32, rtype: i32, answer
     let aliases = env_value(b"HOSTALIASES").and_then(|p| {
         let mut z: TryVec<u8> = TryVec::from_slice(p).ok()?;
         z.push(0).ok()?;
-        liella::system::read_file(&CSys, &z).ok()
+        niji::system::read_file(&CSys, &z).ok()
     });
     with_state(w, |c| resolv::nsearch(&CSys, c, name.map_err(bad_arg)?, class, rtype, answer.map_err(bad_arg)?, aliases.as_deref()))
 }
@@ -394,48 +399,71 @@ pub fn randomid() -> u32 {
 }
 
 /// `res_isourserver(sin)`: 1 when the IPv4 address and port are a server of `_res`.
-pub fn is_our_server(sa: Option<&liella_abi::layout::struct_sockaddr_in>) -> i32 {
+pub fn is_our_server(sa: Option<&niji_abi::layout::struct_sockaddr_in>) -> i32 {
     let (Some(sa), Ok((bytes, addr))) = (sa, thread_state()) else { return 0 };
     let Ok(c) = config_of(bytes, addr) else { return 0 };
-    let ip = liella::names::Ip::V4(sa.sin_addr.s_addr.to_ne_bytes());
+    let ip = niji::names::Ip::V4(sa.sin_addr.s_addr.to_ne_bytes());
     let port = u16::from_be(sa.sin_port);
     i32::from(c.servers.iter().any(|s| s.ip == ip && s.port == port))
 }
 
 // ------------------------------------------------------------------------------ names
 
-/// `dn_expand(msg, eom, src, dst, dstsiz)`: the bytes the name takes at `src`, or -1.
-pub fn dn_expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    let r = (|| -> Option<usize> {
+/// A name function's byte count, or -1 with `errno` `EMSGSIZE`: every failure of `dn_expand`,
+/// `dn_skipname`, `ns_name_unpack` and `ns_name_uncompress` (a malformed or truncated name, a
+/// pointer out of the message, a name too long for the output) sets it, as the reference does
+/// (settled by tests/ns_parse_products.rs).
+fn count_or_emsgsize(r: Option<usize>) -> i32 {
+    match r.and_then(|n| i32::try_from(n).ok()) {
+        Some(n) => n,
+        None => {
+            errno::set(Errno::EMSGSIZE);
+            -1
+        }
+    }
+}
+
+/// The compressed name at `src` as text into `dst`; the bytes it takes at `src`. The root name is
+/// the empty text for `dn_expand` and "." (as `ns_name_ntop` writes it) for `ns_name_uncompress`.
+fn expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>, root_dot: bool) -> i32 {
+    count_or_emsgsize((|| -> Option<usize> {
         let m = conv::named_bytes(msg, eom.checked_sub(msg)?)?;
         let at = src.checked_sub(msg)?;
         let mut w = [0u8; MAXCDNAME + 1];
         let (n, used) = name::unpack(m, at, &mut w).ok()?;
-        name::expand_text(w.get(..n)?, dst.ok()?).ok()?;
+        let wire = w.get(..n)?;
+        if root_dot && wire == [0] {
+            niji::net::copy_z(b".", dst.ok()?)?;
+        } else {
+            name::expand_text(wire, dst.ok()?).ok()?;
+        }
         Some(used)
-    })();
-    r.and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    })())
 }
 
-/// `ns_name_uncompress`: as `dn_expand`.
+/// `dn_expand(msg, eom, src, dst, dstsiz)`: the bytes the name takes at `src`, or -1.
+pub fn dn_expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
+    expand(msg, eom, src, dst, false)
+}
+
+/// `ns_name_uncompress`: as `dn_expand`, but the root name is ".".
 pub fn name_uncompress(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    dn_expand(msg, eom, src, dst)
+    expand(msg, eom, src, dst, true)
 }
 
 /// `ns_name_unpack(msg, eom, src, dst, dstsiz)`: the wire name into `dst`; the bytes taken at
 /// `src`.
 pub fn name_unpack(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    let r = (|| -> Option<usize> {
+    count_or_emsgsize((|| -> Option<usize> {
         let m = conv::named_bytes(msg, eom.checked_sub(msg)?)?;
         let (_, used) = name::unpack(m, src.checked_sub(msg)?, dst.ok()?).ok()?;
         Some(used)
-    })();
-    r.and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    })())
 }
 
-/// `dn_skipname(ptr, eom)`.
+/// `dn_skipname(ptr, eom)`: the bytes the name takes, or -1 (`EMSGSIZE`).
 pub fn dn_skipname(ptr: usize, eom: usize) -> i32 {
-    eom.checked_sub(ptr).and_then(|n| conv::named_bytes(ptr, n)).and_then(|m| name::skip(m).ok()).and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    count_or_emsgsize(eom.checked_sub(ptr).and_then(|n| conv::named_bytes(ptr, n)).and_then(|m| name::skip(m).ok()))
 }
 
 /// `ns_name_skip(&ptr, eom)`: 0 and `*ptr` past the name, or -1.
@@ -702,15 +730,28 @@ pub fn skiprr(ptr: usize, eom: usize, section: i32, count: i32) -> i32 {
 }
 
 /// `ns_parserr(handle, section, rrnum, rr)`: 0, or -1 (`ENODEV` out of range, `EMSGSIZE`).
+/// `rrnum` -1 names the record after the one this handle last parsed in `section`, or the
+/// section's first record when the handle last parsed another section or none (settled by a
+/// black-box probe of the reference; tests/ns_parse_products.rs covers it); any other negative
+/// `rrnum` is `ENODEV`. A failed call leaves the handle as it was.
 pub fn parserr(h: Option<&mut ns_msg>, section: i32, rrnum: i32, rr: Option<&mut ns_rr>) -> i32 {
     let (Some(h), Some(rr)) = (h, rr) else { return -1 };
     let r = (|| -> core::result::Result<(), Errno> {
         let m = handle_msg(h).ok_or(Errno::EMSGSIZE)?;
         let p = msg::Parsed { header: msg::Header { id: h._id, flags: h._flags, counts: h._counts }, sections: h._sections.map(|s| s.checked_sub(h._msg)) };
-        let (s, i) = (usize::try_from(section).map_err(|_| Errno::ENODEV)?, usize::try_from(rrnum).map_err(|_| Errno::ENODEV)?);
+        let s = usize::try_from(section).map_err(|_| Errno::ENODEV)?;
         if s >= 4 {
             return Err(Errno::ENODEV);
         }
+        if usize::try_from(h._sect).ok() != Some(s) {
+            // Another section: the handle moves to its first record, whether or not this call
+            // then finds the record it names.
+            h._sect = u32::try_from(s).unwrap_or(4);
+            h._rrnum = 0;
+            h._msg_ptr = h._sections.get(s).copied().unwrap_or(0);
+        }
+        let rrnum = if rrnum == -1 { h._rrnum } else { rrnum };
+        let i = usize::try_from(rrnum).map_err(|_| Errno::ENODEV)?;
         let r = msg::rr(m, &p, s, i)?;
         let mut text = [0u8; MAXDNAME];
         let n = name::expand_text(r.owner(), &mut text)?;
@@ -739,7 +780,7 @@ pub fn msg_getflag(h: ns_msg, which: i32) -> i32 {
 }
 
 fn finish_text(t: &[u8], out: KResult<&mut [u8]>) -> i32 {
-    match out.ok().and_then(|o| liella::net::copy_z(t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(t, o)) {
         Some(_) => i32::try_from(t.len()).unwrap_or(-1),
         None => {
             errno::set(Errno::ENOSPC);
@@ -907,7 +948,7 @@ pub fn format_ttl(v: u64, out: KResult<&mut [u8]>) -> i32 {
     if text::format_ttl(v, &mut t).is_err() {
         return -1;
     }
-    match out.ok().and_then(|o| liella::net::copy_z(&t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => i32::try_from(t.len()).unwrap_or(-1),
         None => {
             errno::set(Errno::EMSGSIZE);
@@ -977,7 +1018,7 @@ pub fn loc_ntoa(binary: KResult<&[u8]>, ascii: usize) -> usize {
     if ascii == 0 {
         return static_text::<128>(crate::users::LOC_NTOA, &t);
     }
-    match conv::named_bytes_mut(ascii, t.len().saturating_add(1)).and_then(|o| liella::net::copy_z(&t, o)) {
+    match conv::named_bytes_mut(ascii, t.len().saturating_add(1)).and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => ascii,
         None => 0,
     }
@@ -1028,13 +1069,44 @@ pub fn sym_ntos(table: usize, number: i32, ok: Option<&mut i32>, human: bool) ->
 }
 
 /// Write `t` to the stream `fp`.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 fn put(fp: usize, t: &[u8]) {
     let _ = stdio::fputs(Ok(t), fp, Locking::Locked);
 }
 
+/// [`put`] in the libresolv product (LIBRESOLV-OWN-CODE): through the C library's `fwrite`.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+fn put(fp: usize, t: &[u8]) {
+    crate::posix::s16_nameservices::libc_fwrite(t, fp);
+}
+
+/// The calling thread's `_res.pfcode`, its state read or read again as for every use.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
+pub(crate) fn thread_pfcode() -> u64 {
+    thread_state().map_or(0, |(b, _)| State(b).pfcode())
+}
+
+/// [`thread_pfcode`] in the libresolv product: the C library's, through its private entry.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn thread_pfcode() -> u64 {
+    crate::caller_alloc::libc_pfcode()
+}
+
+/// The standard output stream's address.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
+fn standard_output() -> usize {
+    stdio::stdout()
+}
+
+/// [`standard_output`] in the libresolv product: the C library's `stdout`.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+fn standard_output() -> usize {
+    crate::posix::s16_nameservices::libc_stdout()
+}
+
 /// `fp_nquery(msg, len, file)`.
 pub fn fp_nquery(m: usize, len: i32, fp: usize) {
-    let pfcode = thread_state().map_or(0, |(b, _)| State(b).pfcode());
+    let pfcode = thread_pfcode();
     let mut t = TryVec::new();
     let bytes = usize::try_from(len).ok().and_then(|n| conv::named_bytes(m, n)).unwrap_or(&[]);
     if text::nquery(bytes, pfcode, &mut t).is_ok() {
@@ -1049,7 +1121,7 @@ pub fn fp_query(m: usize, fp: usize) {
 
 /// `p_query(msg)`: to standard output.
 pub fn p_query(m: usize) {
-    fp_query(m, stdio::stdout());
+    fp_query(m, standard_output());
 }
 
 /// `fp_resstat(state, file)`.
@@ -1089,7 +1161,7 @@ pub fn p_fqnname(cp: usize, m: usize, len: i32, out: KResult<&mut [u8]>) -> usiz
     if t.last() != Some(&b'.') && t.push(b'.').is_err() {
         return 0;
     }
-    match out.ok().and_then(|o| liella::net::copy_z(&t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => cp.saturating_add(used),
         None => 0,
     }
@@ -1098,7 +1170,7 @@ pub fn p_fqnname(cp: usize, m: usize, len: i32, out: KResult<&mut [u8]>) -> usiz
 /// `hostalias(name)` (`res_hostalias` with `buf`): the name `HOSTALIASES` gives, or NULL.
 pub fn hostalias(st_options: Option<u64>, name: KResult<&[u8]>, buf: Option<&mut [u8]>) -> usize {
     let options = st_options.unwrap_or_else(|| thread_state().map_or(0, |(b, _)| State(b).options()));
-    if options & liella::names::dns::conf::RES_NOALIASES != 0 {
+    if options & niji::names::dns::conf::RES_NOALIASES != 0 {
         return 0;
     }
     let Ok(name) = name else { return 0 };
@@ -1107,10 +1179,10 @@ pub fn hostalias(st_options: Option<u64>, name: KResult<&[u8]>, buf: Option<&mut
     if z.push(0).is_err() {
         return 0;
     }
-    let Ok(text) = liella::system::read_file(&CSys, &z) else { return 0 };
+    let Ok(text) = niji::system::read_file(&CSys, &z) else { return 0 };
     let Some(real) = resolv::hostalias(name, &text) else { return 0 };
     match buf {
-        Some(b) => match liella::net::copy_z(real, b) {
+        Some(b) => match niji::net::copy_z(real, b) {
             Some(_) => b.as_ptr().expose_provenance(),
             None => 0,
         },

@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Sourced by wl_percall.sh and wl_count.sh for --nowait (TOOLS-24, 2026-10-11): print the label at once and do the uploads
 # and the queueing in a detached local process. Before, --nowait blocked for 5+ minutes on a loaded keke (ssh round trips
 # of 0.3-14 s each, ~43 MB per new sha) before it printed anything, and three agents lost their last step to it.

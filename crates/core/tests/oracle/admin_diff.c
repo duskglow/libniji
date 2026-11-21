@@ -1,5 +1,5 @@
 /* Library identification and the system-administration thin wrappers (spec §24.5-24.6;
- * milestone 5, 2026-10-04): built against the host C library and statically against Liella's
+ * milestone 5, 2026-10-04): built against the host C library and statically against libniji's
  * products, the outputs must match line for line (admin_products.rs), except the recorded
  * differences. Black-box: every line is a result of a public function.
  *
@@ -110,8 +110,8 @@ static void modules_io_log(void)
     R("init_module(NULL, 0, \"\")", init_module(NULL, 0, ""));
     char img[16] = {0};
     R("init_module(16 zero bytes)", init_module(img, sizeof img, ""));
-    R("delete_module(absent)", delete_module("liella_nonesuch", 0));
-    R("delete_module(absent, O_NONBLOCK)", delete_module("liella_nonesuch", 04000));
+    R("delete_module(absent)", delete_module("niji_nonesuch", 0));
+    R("delete_module(absent, O_NONBLOCK)", delete_module("niji_nonesuch", 04000));
     R("ioperm(0x80, 1, 1)", ioperm(0x80, 1, 1));
     R("ioperm(0x10000, 1, 1)", ioperm(0x10000, 1, 1));
     R("ioperm(0x80, 1, 0)", ioperm(0x80, 1, 0));

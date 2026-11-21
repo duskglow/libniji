@@ -6,11 +6,26 @@ script (XTASK-PLANTS, plan/next-batch-1024-2.md).
 
 **The tool is the required way to run plants (owner, 2026-11-05).** Do not write your own plants script: hand-written
 scripts printed CAUGHT next to passing tests, hung for 150 minutes and silently skipped plants. The project's
-per-plant limit is `--timeout 600` (the default); a plant whose command runs into it is CAUGHT ("caught by timeout").
+per-plant limit is `--timeout 600` (the default); a plant whose command runs into it is CAUGHT ("caught by timeout"). The product build (`cargo xtask so`, the baseline and one per plant that uses the products)
+has its own limit, `--prepare-timeout <secs>` (default 3600), because a cold traced build can exceed 600 s. A baseline
+build that runs into it ends `BASELINE FAILED: so timed out after N s (prepare timeout)`; a mutant's build that does
+is reported `BUILD-TIMEOUT` (not CAUGHT: the mutant was not tested) and fails the run.
 
 ```
-cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>]   # default and project limit: 600
+cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]   # test limit 600 (project rule); build limit 3600
 ```
+
+**Copies (PLANTS-COPIES).** `--copies <n>` (1 to 8) runs the plants in `n` copies of the tree at the same time: plant
+`i` of the file goes to copy `i % n`. Each copy does steps 2 to 4 below for its own plants (its own `cargo xtask so`
+and the baselines of its own plants' commands), in `<dir>/src` and `<dir>/logs` (the first copy, the same paths as a
+serial run) or `<dir>/src-<k>` and `<dir>/logs-<k>`. Lines from a copy after the first start `plants[copy <k>]:`. The
+verdicts, the summary and `results.txt` come out in the plants file's order and read as a serial run's, each plant
+judged as a serial run judges it; a copy that stops (refused, baseline failed) stops the run with the exit status a
+serial run gives. The default, `auto`, prints its choice: two copies when the RAM this job may use holds two copies
+at the measured per-copy peak (`COPY_PEAK_BYTES` in `plants.rs`, 14 GiB), else one. "The RAM this job may use" is
+the smallest of `NIJI_PLANTS_RAM_GB` (GiB: a role's RAM budget, set by whoever starts the job), the `memory.max` of
+the job's cgroup and every cgroup above it, and `MemAvailable`; none known means one copy. Measured wall time and peak
+RAM, serial against two copies: `handoff/PLANTS-COPIES.md`.
 
 Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/gate`, which gives the job a private
 `/dev/shm`). Use a directory that is NEW for every run and that is in RAM: `/dev/shm/claude/<story>/plants-<n>` on Zen 1 host,
@@ -26,20 +41,42 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
    If one of them fails, it prints the last lines of its log and exits 2 before any plant is applied.
 4. For each plant: it writes the mutated file (a fresh mtime, so cargo rebuilds), runs the command with `sh -c` in the
    copy (under `timeout`, default 600 s, the project's per-plant limit), then restores the file by writing it again (again a fresh mtime).
+   Every command it runs in the copy (the product build, the baseline commands, each plant's command) has
+   `NIJI_PLANTS_BUILD_TAG=plants-<pid>` in its environment, one value for the whole run. `cargo xtask so` uses it as the
+   products' build tag instead of the hash of the sources, so a mutant outside `niji-boundary` and `niji-ld` does not
+   rebuild them in every product target directory (the hash changes with every mutant). Products built outside a
+   plants run keep the hash tag. `cargo xtask so` also prints a `step: so/<phase> <seconds>s` line per phase.
 5. It prints one verdict per plant and a summary line. It exits 1 if any plant SURVIVED (or a step failed), else 0.
+   With more than one copy it prints the verdicts again in the file's order before the summary (the copies' lines interleave).
 
 **Which commands rebuild the products** (XTASK-PLANTS-PRODUCTS-REBUILD). A test that links `libc.a` or
-`liella-crt1.o` (a `*_products` test, a conformance program) sees a plant only if the products are rebuilt with
+`niji-crt1.o` (a `*_products` test, a conformance program) sees a plant only if the products are rebuilt with
 it, so for each plant whose command may use the products the tool runs `cargo xtask so` in the copy after
 applying the plant and before the command (log `<id>.so.log`; if the mutant does not build, the plant is judged
 on that log and the command is not run). A command is known not to use them only when it is one plain
 `cargo test` whose targets are all named (`--lib`, `--bin <name>`, `--test <name>`) and no named test target
 uses the products by the rule `cargo xtask affected` builds them for (its source or support files name
-`target/liella`, `libc.a`, `liella-crt1` or `conformance`). Such a plant reuses the baseline build; anything
+`target/niji`, `join("niji")` (the ld tests' path to the built `ld.so`), `libc.a`, `niji-crt1` or
+`conformance`; xtask's own test targets, which `affected` does not list, by the same text rule, and unsure
+when the file names a directory of `xtask/tests/`). Such a plant reuses the baseline build; anything
 else (shell syntax, `cargo xtask affected`, all targets of a package, an unknown target or option) rebuilds.
 After a plant that rebuilt the products, the next plant that does not use them first rebuilds them unmutated
 (`<id>.so-restore.log`), so no command sees an earlier plant's mutant. The verdict line names the build
-used (`build: the baseline products, not rebuilt`, or `rebuilt with the mutant in <n>s`).
+used and its layout (`build: the baseline products (layout ungrouped), not rebuilt`, or `rebuilt with the mutant,
+layout ungrouped, in <n>s`).
+
+**The layout of each build** (PLANTS-UNGROUPED-MUTANTS). A mutant's behaviour does not depend on the start-up layout,
+and a traced product build costs minutes per mutant, so the tool builds the products of an ordinary plant (and its
+baseline) **ungrouped**: it sets `NIJI_LAYOUT_TRACE=ungrouped` for the build and for the plant's command (a command
+such as `cargo xtask affected ... --run` that builds the products itself builds them the same way). A plant that
+measures the start-up layout is built **traced** (`NIJI_LAYOUT_TRACE=1`, the build and its command): a plant whose
+command names a start-up layout test (`hot_text_products`, `heap_meta_products`, `cold_bss_products`: `cargo xtask
+affected`'s layout tests) or `layout-check`, or runs `cargo xtask affected ... --run` without `--only` (which selects
+the layout tests for a change that reaches `libc.a`), or that is marked `layout:traced` (below). Such a plant always
+rebuilds the products. The baseline builds once per layout the file uses (`so.log` ungrouped first, then
+`so-traced.log` when the file has both) and runs each command in its plants' layout. The tool sets the variable
+itself, so a value in the caller's environment does not matter. A baseline command that fails on the ungrouped
+build says so: if it measures the layout, mark its plants `layout:traced`.
 
 Logs go to `<dir>/logs/` (`so.log`, `baseline-<n>.log`, `<id>.log`, `<id>.so.log`, `<id>.so-restore.log`). The tool writes nothing outside `--dir`.
 `CARGO_TARGET_DIR` is removed from the commands' environment, so the copy builds into its own `target/`.
@@ -63,16 +100,20 @@ id | path | pattern | cmd
     exactly once. The `/g` and `/r` flags are refused. Use this form for multi-line patterns, or when the text contains
     ` | ` (write `\|` in the regex).
   - On a `.S` file, the pattern must name its function's label, for example
-    `perl:s/(liella_machine_strchr:.*?)<pattern>/$1<replacement>/s`. An unanchored pattern mutates the first match in the
+    `perl:s/(niji_machine_strchr:.*?)<pattern>/$1<replacement>/s`. An unanchored pattern mutates the first match in the
     file, which is often another function.
-- `cmd`: the direct tests of the planted file, for example `cargo test -p liella-core --test stdio_short_io`. For code
-  reached only from C programs: `cargo xtask affected --only conformance:<prog> --with-exports --run`. A `cmd` may contain
-  ` | `, but a job's output should not be piped.
+- `cmd`: the direct tests of the planted file, for example `cargo test -p niji --test stdio_short_io` (crates/core is package `niji`). For code
+  reached only from C programs: `cargo xtask affected --only conformance:<prog> --with-exports --run`; a failed program's
+  status and the last 40 lines of its stdout and stderr are on the console (D-X.27), so `msg:` can name the program's own
+  failure message. A `cmd` may contain ` | `, but a job's output should not be piped.
 - The last field:
   - `msg:<regex>` (a `grep -E` regular expression): the failing test or message the plant must produce. Name the
     failure, not just the test, because a passing run prints the test's name too (for example `msg:my_test.*FAILED|panicked`).
   - `equivalent:<reason>`: the mutant behaves like the original by design. If its command passes, it is EQUIVALENT.
   - none: the plant is judged by exit status alone.
+- An optional field after all of them, `layout:traced`: the plant's products are built with the traced start-up
+  layout (see "The layout of each build"). Use it for a command that measures the layout without naming a layout test,
+  for example `id | path | pattern | cmd | msg:<regex> | layout:traced`. Any other `layout:` value is refused.
 
 ## Verdicts
 
@@ -84,6 +125,18 @@ id | path | pattern | cmd
 | `EQUIVALENT` | the command passed, and the plant is declared `equivalent:` | 0 |
 | `SURVIVED` | the command passed on the mutant | 1 |
 
+Every plant whose command failed (CAUGHT, WARN-NO-MSG, WARN-RC-ONLY) gets a second line,
+`plants: <id>: caught by <test binary> <test name>`: the first failing test of its log (`cargo test`'s
+`test <name> ... FAILED` under the binary of the last `Running` line, or nextest's `FAIL [..] <crate>::<target> <name>`).
+Without a failing test line it names a panic's thread, a panic outside a named test with its binary, the binary cargo
+asks to rerun, `the build (the mutant does not compile)`, or `no test the log names`; a timeout is `caught by timeout`.
+EQUIVALENT and SURVIVED lines are unchanged (XTASK-PLANTS-CATCHER).
+
+At the end the tool writes `<dir>/results.txt`: the plants file with a `# cargo xtask plants results (...)` comment
+block, one line per plant (`# <id>: CAUGHT, caught by <binary> <test>`). Commit that file as
+`handoff/<STORY>-plants.txt`, so which test caught each plant stays on record after the logs are gone; a later run from
+it replaces the block.
+
 List every WARN line in your hand-back. Exit codes: 0 all caught or equivalent; 1 a plant SURVIVED or a step failed;
 2 the products or a baseline command failed; 3 refused input.
 
@@ -91,8 +144,8 @@ List every WARN line in your hand-back. Exit codes: 0 all caught or equivalent; 
 
 ```
 # STDIO-SHORT-IO plants
-retry | crates/core/src/stdio/stream.rs | lit:while done < len { ==> if done < len { | cargo test -p liella-core --test stdio_short_io | msg:short_write.*(FAILED|panicked)
-memchr-tail | csys/src/machine/memchr.S | perl:s/(liella_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p liella-boundary --test small_copy | msg:memchr
+retry | crates/boundary/src/stdio.rs | lit:while done < len { ==> if done < len { | cargo test -p niji --test stdio_short_io | msg:short_write.*(FAILED|panicked)
+memchr-tail | csys/src/machine/scan.S | perl:s/(niji_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p niji-boundary --test small_copy | msg:memchr
 ```
 
 ```

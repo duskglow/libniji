@@ -7,8 +7,8 @@
 
 use alloc::vec::Vec;
 
-use liella::error::Errno;
-use liella::mem::TryVec;
+use niji::error::Errno;
+use niji::mem::TryVec;
 
 /// What a call that delivers text into a caller buffer did. The text is delivered whole or not
 /// at all.

@@ -6,7 +6,7 @@
  *     result that fits in it (D-C0.5: where the amount written depends on the input, a bound
  *     larger than the object alone does not terminate);
  *   - the wide forms with `%n` in a format in read-only memory (a string literal).
- * Liella terminates in each of these cases (the tests that run this program are ignored until
+ * libniji terminates in each of these cases (the tests that run this program are ignored until
  * it does not). Each call runs in a child, which exits with the call's result. Self-checking:
  * each symbol's checks end with `end <symbol>` on standard error, each failed check prints
  * `FAIL <symbol>: line N: <check>`; the exit status is 1 when any check failed. */

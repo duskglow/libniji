@@ -4,11 +4,11 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::*;
-use liella_kernel::Errno;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::*;
+use niji_kernel::Errno;
 
 const K: CSys = CSys;
 

@@ -1,0 +1,10 @@
+name: ldd directory: a directory operand is not a regular file
+clause: s31_3_f_2
+command: ldd
+arg: d
+mask-addresses: yes
+dir: d
+status: exit 1
+stdout:
+stderr:
+| ldd: ./d: not regular file

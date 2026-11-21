@@ -10,17 +10,17 @@
  * setcontext and swapcontext never block the library's internal signal (32, D-20.1, OD-8):
  * they install a copy of the context's mask with its bit cleared.
  *
- * makecontext's argument placement is Rust's (liella_boundary::context); it points the new
- * context's return address at liella_machine_start_context. The glibc names exist only in the
- * products (LIELLA_EXPORT). */
+ * makecontext's argument placement is Rust's (niji_boundary::context); it points the new
+ * context's return address at niji_machine_start_context. The glibc names exist only in the
+ * products (NIJI_EXPORT). */
 	.text
 
-/* int liella_machine_getcontext(ucontext_t *uc): returns 0. */
-	.globl liella_machine_getcontext
-	.hidden liella_machine_getcontext
-	.type liella_machine_getcontext, @function
+/* int niji_machine_getcontext(ucontext_t *uc): returns 0. */
+	.globl niji_machine_getcontext
+	.hidden niji_machine_getcontext
+	.type niji_machine_getcontext, @function
 	.p2align 6
-liella_machine_getcontext:
+niji_machine_getcontext:
 	movq %rbx, 0x80(%rdi)
 	movq %rbp, 0x78(%rdi)
 	movq %r12, 0x48(%rdi)
@@ -50,15 +50,15 @@ liella_machine_getcontext:
 	syscall
 	xorl %eax, %eax
 	ret
-	.size liella_machine_getcontext, .-liella_machine_getcontext
+	.size niji_machine_getcontext, .-niji_machine_getcontext
 
-/* int liella_machine_setcontext(const ucontext_t *uc): resumes uc (its mask, x87 environment,
+/* int niji_machine_setcontext(const ucontext_t *uc): resumes uc (its mask, x87 environment,
  * MXCSR and registers). Does not return. */
-	.globl liella_machine_setcontext
-	.hidden liella_machine_setcontext
-	.type liella_machine_setcontext, @function
+	.globl niji_machine_setcontext
+	.hidden niji_machine_setcontext
+	.type niji_machine_setcontext, @function
 	.p2align 6
-liella_machine_setcontext:
+niji_machine_setcontext:
 	pushq %rdi
 	movq 0x128(%rdi), %rax		/* a copy of the mask without the library's internal */
 	btrq $31, %rax			/* signal 32, which is never blocked (D-20.1, OD-8) */
@@ -93,16 +93,16 @@ liella_machine_setcontext:
 	movq 0x88(%rdx), %rdx
 	xorl %eax, %eax
 	ret
-	.size liella_machine_setcontext, .-liella_machine_setcontext
+	.size niji_machine_setcontext, .-niji_machine_setcontext
 
-/* int liella_machine_swapcontext(ucontext_t *save, const ucontext_t *to): saves the caller's
+/* int niji_machine_swapcontext(ucontext_t *save, const ucontext_t *to): saves the caller's
  * context into save (it resumes as this call returning 0) and resumes to, switching the
  * signal mask in one system call. */
-	.globl liella_machine_swapcontext
-	.hidden liella_machine_swapcontext
-	.type liella_machine_swapcontext, @function
+	.globl niji_machine_swapcontext
+	.hidden niji_machine_swapcontext
+	.type niji_machine_swapcontext, @function
 	.p2align 6
-liella_machine_swapcontext:
+niji_machine_swapcontext:
 	movq %rbx, 0x80(%rdi)
 	movq %rbp, 0x78(%rdi)
 	movq %r12, 0x48(%rdi)
@@ -138,47 +138,47 @@ liella_machine_swapcontext:
 	popq %rax
 	popq %rdx
 	jmp 1b
-	.size liella_machine_swapcontext, .-liella_machine_swapcontext
+	.size niji_machine_swapcontext, .-niji_machine_swapcontext
 
 /* Where a makecontext function returns to. %rbx (callee-saved, so the function preserved it)
  * points at two words makecontext wrote: uc_link, and the runtime's thread-exit function. Resume
  * uc_link, or end the thread (spec §21.2: "exits the thread if that is NULL"). */
-	.globl liella_machine_start_context
-	.hidden liella_machine_start_context
-	.type liella_machine_start_context, @function
+	.globl niji_machine_start_context
+	.hidden niji_machine_start_context
+	.type niji_machine_start_context, @function
 	.p2align 6
-liella_machine_start_context:
+niji_machine_start_context:
 	movq %rbx, %rsp
 	movq (%rsp), %rdi
 	testq %rdi, %rdi
 	jz 2f
-	jmp liella_machine_setcontext
+	jmp niji_machine_setcontext
 2:	movq 8(%rsp), %rax
 	andq $-16, %rsp
 	callq *%rax
 	hlt
-	.size liella_machine_start_context, .-liella_machine_start_context
+	.size niji_machine_start_context, .-niji_machine_start_context
 
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 	.globl getcontext
 	.type getcontext, @function
 	.p2align 6
 getcontext:
-	jmp liella_machine_getcontext
+	jmp niji_machine_getcontext
 	.size getcontext, .-getcontext
 
 	.globl setcontext
 	.type setcontext, @function
 	.p2align 6
 setcontext:
-	jmp liella_machine_setcontext
+	jmp niji_machine_setcontext
 	.size setcontext, .-setcontext
 
 	.globl swapcontext
 	.type swapcontext, @function
 	.p2align 6
 swapcontext:
-	jmp liella_machine_swapcontext
+	jmp niji_machine_swapcontext
 	.size swapcontext, .-swapcontext
 #endif
 	.section .note.GNU-stack,"",@progbits

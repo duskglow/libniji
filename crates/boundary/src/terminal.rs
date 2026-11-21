@@ -1,8 +1,8 @@
 //! The C conventions of spec §19 (phase 11): terminal attributes in the C `struct termios`
-//! (D-19.1, converted by `liella_abi::pack`), the library-owned names of `ttyname` and
+//! (D-19.1, converted by `niji_abi::pack`), the library-owned names of `ttyname` and
 //! `ptsname` and their `_r` forms, the pty pair functions `openpty` and `forkpty`, and the
-//! `/etc/ttys` enumeration with its static entry. The terminal operations are `liella::term`;
-//! the `B*` speed codes `liella_legacy::term_compat`. The exports in `posix::s19_terminals`
+//! `/etc/ttys` enumeration with its static entry. The terminal operations are `niji::term`;
+//! the `B*` speed codes `niji_legacy::term_compat`. The exports in `posix::s19_terminals`
 //! convert the C arguments.
 //!
 //! **Names.** `ttyname` and `ptsname` return one process-wide buffer each, as their contracts
@@ -11,23 +11,23 @@
 //! (ptsname(3)), a zero-sized one `ERANGE` before the descriptor is looked at, and one that
 //! cannot hold the name and its terminator `ERANGE` with the buffer untouched.
 //!
-//! **`/etc/ttys`** (§19.5). One process-wide enumeration (`liella_legacy::cursors::TTY_CURSOR`)
+//! **`/etc/ttys`** (§19.5). One process-wide enumeration (`niji_legacy::cursors::TTY_CURSOR`)
 //! and one static entry, whose strings are in a block the library keeps (grown as needed). Lines
 //! of any length are read, and so is a last line without a newline. `getttynam` searches from
 //! the first entry and closes the file after it, so the next `getttyent` starts again at the
 //! first entry.
 
-use liella::error::Errno;
-use liella::term::{self, Field, TtyLine};
-use liella_abi::layout::{struct_termios, struct_winsize};
-use liella_abi::pack;
-use liella_kernel::errno::KResult;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::PATH_MAX;
-use liella_kernel::sys::Sys;
-use liella_legacy::accounting::TTYS;
-use liella_legacy::cursors::{Step, TTY_CURSOR};
-use liella_rt::sync::RawMutex;
+use niji::error::Errno;
+use niji::term::{self, Field, TtyLine};
+use niji_abi::layout::{struct_termios, struct_winsize};
+use niji_abi::pack;
+use niji_kernel::errno::KResult;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::PATH_MAX;
+use niji_kernel::sys::Sys;
+use niji_legacy::accounting::TTYS;
+use niji_legacy::cursors::{Step, TTY_CURSOR};
+use niji_rt::sync::RawMutex;
 
 use crate::conv;
 use crate::fork;
@@ -82,7 +82,7 @@ pub fn ttyname_r(fd: i32, buf: KResult<Option<&mut [u8]>>) -> KResult<()> {
     }
     with_tty_name(fd, |name| {
         let text = name.split_last().map_or(name, |(_, t)| t);
-        liella::net::copy_z(text, buf).map(|_| ()).ok_or(Errno::ERANGE)
+        niji::net::copy_z(text, buf).map(|_| ()).ok_or(Errno::ERANGE)
     })
 }
 
@@ -110,7 +110,7 @@ pub fn ptsname_r(fd: i32, buf: KResult<Option<&mut [u8]>>) -> KResult<()> {
     let buf = buf?.ok_or(Errno::EINVAL)?;
     let mut name = [0u8; 20];
     let len = slave_name(fd, &mut name)?;
-    liella::net::copy_z(name.get(..len).ok_or(Errno::ERANGE)?, buf).map(|_| ()).ok_or(Errno::ERANGE)
+    niji::net::copy_z(name.get(..len).ok_or(Errno::ERANGE)?, buf).map(|_| ()).ok_or(Errno::ERANGE)
 }
 
 // ------------------------------------------------------------------------------ pty pairs (§19.4)

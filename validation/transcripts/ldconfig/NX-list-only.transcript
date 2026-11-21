@@ -1,0 +1,28 @@
+# -N -X: the directories are listed, nothing is scanned or written.
+name: ldconfig -N -X -v lists the directories only
+clause: s31_2_g_5
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -N
+arg: -X
+arg: -v
+file: etc/ld.so.conf
+| /opt/a
+elf: opt/a/libaa.so.1.0 soname=libaa.so.1
+dir: lib/x86_64-linux-gnu
+dir: usr/lib/x86_64-linux-gnu
+dir: usr/lib
+status: exit 0
+stdout:
+| /opt/a: (from /etc/ld.so.conf:1)
+| \tlibaa.so.1 -> libaa.so.1.0
+| /lib/x86_64-linux-gnu: (from <builtin>:0)
+| /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
+| /lib: (from <builtin>:0)
+| /usr/lib: (from <builtin>:0)
+stderr:

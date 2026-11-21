@@ -10,14 +10,14 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::error::Result;
-use liella::locale::file::Cat;
-use liella::locale::Locale;
-use liella::mem::TryVec;
-use liella::num::float::Rounding;
-use liella::printf::{self as pf, Arg, Class, Count, Len, Out, Piece, Plain, Unit};
-use liella::text::{self, Decoded, Encoding, MbState};
-use liella_fuzz::Input;
+use niji::error::Result;
+use niji::locale::file::Cat;
+use niji::locale::Locale;
+use niji::mem::TryVec;
+use niji::num::float::Rounding;
+use niji::printf::{self as pf, Arg, Class, Count, Len, Out, Piece, Plain, Unit};
+use niji::text::{self, Decoded, Encoding, MbState};
+use niji_fuzz::Input;
 
 /// The largest width or precision rendered: wider fields are valid but only cost time.
 const MAX_FIELD: usize = 1 << 14;
@@ -144,7 +144,7 @@ fuzz_target!(|data: &[u8]| {
     let header = input.byte();
     let fmt = input.part();
     let arg_bytes = input.rest();
-    let loc = liella_fuzz::locale(header & 2 != 0);
+    let loc = niji_fuzz::locale(header & 2 != 0);
     let rounding = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero][usize::from((header >> 2) & 3)];
     let mut env = Env { loc, enc: Encoding::of(&loc), rounding };
     if header & 1 == 0 {

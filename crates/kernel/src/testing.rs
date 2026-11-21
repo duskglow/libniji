@@ -18,7 +18,7 @@ use crate::machine::{Machine, X87Env};
 /// Most faults one plan can hold.
 pub const MAX_FAULTS: usize = 8;
 
-/// System calls that are not `Sys` methods (they are `liella-boundary`'s `raw` calls, D-X.9) but
+/// System calls that are not `Sys` methods (they are `niji-boundary`'s `raw` calls, D-X.9) but
 /// whose callers take a `Faulty` in tests and ask it with [`Faulty::take`] before the call: the
 /// io_uring setup and probe of the AIO engine choice (D-11.11, through `selftest`).
 pub const RAW_FALLIBLE: &[&str] = &["io_uring_setup", "io_uring_register"];

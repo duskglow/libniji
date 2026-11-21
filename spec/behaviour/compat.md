@@ -58,9 +58,9 @@ makes the old x86_64 system-call numbers (134 `uselib`, 156 `_sysctl`, 174 `crea
 with `EXDEV`: a name that answers `EXDEV` there makes its system call; one that answers `ENOSYS`
 fails in the library. Output: [legacy-stubs.glibc.txt](legacy-stubs.glibc.txt) (a separate record from the LG-0b one above). Build: `cc -O1 legacy_probe.c`.
 
-| Names | glibc 2.39 | Liella |
+| Names | glibc 2.39 | libniji |
 |---|---|---|
-| `fattach`, `fdetach`, `getmsg`, `putmsg`, `getpmsg`, `putpmsg` | -1, `ENOSYS`, for every argument (valid, closed or NULL); no system call, not even 181/182 | the same (`liella_legacy::stubs::removed`) |
+| `fattach`, `fdetach`, `getmsg`, `putmsg`, `getpmsg`, `putpmsg` | -1, `ENOSYS`, for every argument (valid, closed or NULL); no system call, not even 181/182 | the same (`niji_legacy::stubs::removed`) |
 | `isastream` | 0 for an open descriptor, `errno` untouched; -1 `EBADF` for a closed one or -1 | the same (an `F_GETFD` check) |
 | `bdflush`, `sysctl`, `__sysctl` | -1, `ENOSYS`; no system call; `sysctl` leaves `*oldlenp` alone | the same |
 | `sstk` | `(void *)-1`, `ENOSYS`; no system call | the same |

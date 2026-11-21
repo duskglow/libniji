@@ -109,7 +109,7 @@ pub fn ln(x: Mp) -> Mp {
 #[allow(clippy::float_cmp, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use liella_mathtools::mp::{self as o, Big, Round};
+    use niji_mathtools::mp::{self as o, Big, Round};
 
     #[test]
     fn wide_kernels_agree_with_the_narrow_ones() {

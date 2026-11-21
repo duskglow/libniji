@@ -5,7 +5,7 @@
 //! [`GLIBC`] is what the reference printed: `sem_timedwait`/`sem_clockwait` and `sigtimedwait` return `EINTR` even
 //! with `SA_RESTART`; `sem_wait` returns it only without; `sigsuspend` and `pause` always; the condition, mutex,
 //! rwlock, barrier, join and `sigwait` waits never do (checked by result: the wait is still pending after the
-//! signal). Liella's output must equal the record. Needs the products (`cargo xtask so`) and a C compiler; without
+//! signal). libniji's output must equal the record. Needs the products (`cargo xtask so`) and a C compiler; without
 //! them the test says so and passes.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -56,12 +56,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/sync_eintr_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1", "-pthread"]).arg(&src);
     }
@@ -86,15 +86,15 @@ fn same(what: &str, got: &str, want: &str) {
 #[test]
 fn sync_eintr_contracts() {
     let r = root();
-    if skip_note::missing("cc") || !r.join("target/liella/libc.a").exists() || !r.join("target/liella/liella-crt1.o").exists() {
+    if skip_note::missing("cc") || !r.join("target/niji/libc.a").exists() || !r.join("target/niji/niji-crt1.o").exists() {
         skip_note::skipped("sync_eintr: needs cc and the products (cargo xtask so)");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let lie = dir.join("sync_eintr_liella");
-    assert!(build(&lie, true), "the Liella build of sync_eintr_diff.c failed");
-    same("Liella", &run(&lie), GLIBC);
+    let lie = dir.join("sync_eintr_niji");
+    assert!(build(&lie, true), "the libniji build of sync_eintr_diff.c failed");
+    same("libniji", &run(&lie), GLIBC);
     let refx = dir.join("sync_eintr_ref");
     if build(&refx, false) {
         let got = run(&refx);

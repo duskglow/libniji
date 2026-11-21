@@ -3,7 +3,7 @@
 //!
 //! Everything here is safe Rust (`#![forbid(unsafe_code)]`). The operations that need the machine
 //! or raw memory are primitives of the C syscall layer (`csys/`), reached through the
-//! `liella_kernel::{Sys, Machine}` traits that `liella-boundary` implements. Raw memory this
+//! `niji_kernel::{Sys, Machine}` traits that `niji-boundary` implements. Raw memory this
 //! runtime must manage (heap metadata, thread blocks) arrives as Rust slices converted once, by the
 //! boundary, under category *slice* of the unsafe policy (implementation-plan.md §2.1).
 

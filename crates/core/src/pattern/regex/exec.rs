@@ -25,7 +25,7 @@ use crate::locale::Locale;
 use crate::mem::TryVec;
 
 use super::policy::Policy;
-use super::program::{ProgRef, NONE, OP_ASSERT, OP_BACKREF, OP_BYTE, OP_CLOSE, OP_ENTER, OP_EXIT, OP_JMP, OP_MATCH, OP_OPEN, OP_SET, OP_SPLIT};
+use super::program::{ProgRef, NONE, OP_ASSERT, OP_BACKREF, OP_BYTE, OP_CLOSE, OP_ENTER, OP_EXIT, OP_JMP, OP_MATCH, OP_OPEN, OP_SET, OP_SPLIT, SCOPE_GROUP};
 use super::scratch::{self, Buf, Grow, Pool};
 use super::text::{self, Mode, Unit};
 use super::ReError;
@@ -61,6 +61,11 @@ const HASH_BASE: u64 = 0x0100_0000_01b3;
 /// Subjects up to this length hash each back-referenced text directly (at most this many
 /// steps) instead of building prefix tables (two heap blocks per search).
 const DIRECT_HASH: usize = 64;
+
+/// Buckets a frontier holds before it builds its bucket table ([`Frontier::build_table`]): below
+/// this a lookup walks the node's chain (at most this long), and a short subject's search does
+/// not clear a table per frontier (a 64-slot table was 256 of the 296 bytes each set up).
+const LAZY_TABLE: usize = 8;
 
 /// The largest starting room per frontier (threads, buckets, best slots).
 const ROOM_CAP: usize = 4096;
@@ -335,8 +340,13 @@ struct Frontier<'s> {
     /// Patterns with back-references: the buckets by node and key hash (open addressing, a
     /// bucket's index plus one per slot, 0 empty; at most half full, since its size is fixed
     /// at twice the buckets' room), so that finding a thread's bucket does not walk every
-    /// bucket of its node (which made `\(a*\)\1...` cubic).
+    /// bucket of its node (which made `\(a*\)\1...` cubic). Built when the frontier reaches
+    /// [`LAZY_TABLE`] buckets ([`Frontier::build_table`]); until then (`len() == 0`) a lookup
+    /// walks its node's bucket chain, so a short subject neither clears nor reads it.
     table: Buf<'s, u32>,
+    /// Every slot of the table's storage is 0 (a table emptied by [`Frontier::clear`]): building
+    /// it again needs no fill. False at the start of a search (the storage is reused).
+    table_zeroed: bool,
     /// Its states, and whether `node_gen`, `active` and `table` are initialised: a frontier is
     /// set up at its first insertion, not per search ([`Frontier::prepare`]; BACKREF-ARCH: a
     /// short subject touches a few of the 16 frontiers of a back-reference search).
@@ -404,7 +414,6 @@ impl<'s> Frontier<'s> {
             f.head = pools.u32s.take(nodes)?;
             f.head.expose(nodes)?;
             f.buckets = pools.buckets.take(room.buckets.saturating_mul(4))?;
-            f.table = pools.u32s.take(table_len(room.buckets))?;
         } else {
             // Read only where `node_gen` marks the node present, so never written here.
             f.start = pools.usizes.take(nodes)?;
@@ -414,8 +423,16 @@ impl<'s> Frontier<'s> {
         Ok(f)
     }
 
+    /// The bucket table's storage (patterns with back-references), taken after every frontier's
+    /// other buffers so that those, which every search touches, share cache lines.
+    fn take_table(&mut self, pools: &mut Pools<'s>, room: &Room) -> Result<(), Fail> {
+        self.table = pools.u32s.take(table_len(room.buckets))?;
+        Ok(())
+    }
+
     /// Initialise the frontier before its first insertion (its buffers were taken in
-    /// [`Frontier::new`] with exactly these lengths, so the fills cannot fail).
+    /// [`Frontier::new`] with exactly these lengths, so the fills cannot fail). The bucket table
+    /// is left unbuilt ([`Frontier::build_table`]).
     fn prepare(&mut self) {
         if self.ready {
             return;
@@ -423,9 +440,29 @@ impl<'s> Frontier<'s> {
         self.ready = true;
         let n = self.nodes;
         let ok = self.node_gen.fill(n, 0).is_ok() && self.active.fill(n.div_ceil(64), 0).is_ok();
-        let len = self.table.capacity();
-        let ok = ok && (!self.indexed || self.table.fill(len, 0).is_ok());
         debug_assert!(ok, "regex frontier buffers shorter than taken");
+    }
+
+    /// Build the bucket table over the frontier's buckets (at [`LAZY_TABLE`] of them): every
+    /// bucket is entered and remembers its slot, as if the table had been used from the start.
+    fn build_table(&mut self) {
+        let cap = self.table.capacity();
+        let ok = if self.table_zeroed { self.table.expose(cap) } else { self.table.fill(cap, 0) };
+        if ok.is_err() || cap == 0 {
+            return;
+        }
+        // [`Frontier::slot`] masks by the length; a slot left set by an earlier use (of this
+        // search or the storage's previous one) is never wrong, only slow, so check both here.
+        debug_assert!(cap.is_power_of_two(), "regex bucket table length not a power of two");
+        debug_assert!(!self.table_zeroed || self.table.as_slice().iter().all(|&t| t == 0), "regex bucket table not zeroed before reuse");
+        self.table_zeroed = false;
+        for b in 0..self.buckets.len() / 4 {
+            let Some(bk) = bucket_at(&self.buckets, b) else { continue };
+            let slot = self.index(u32::try_from(b).unwrap_or(0), Frontier::slot(bk.node, bk.key, cap));
+            if let Some(w) = self.buckets.as_mut_slice().get_mut(b * 4 + 2) {
+                *w = u64::from(bk.node) | u64::from(slot) << 32;
+            }
+        }
     }
 
     fn clear(&mut self) {
@@ -442,8 +479,13 @@ impl<'s> Frontier<'s> {
         self.caps.clear();
         self.threads = 0;
         if self.indexed {
-            // Before the buckets are emptied: the table is reset through them.
-            self.clear_table();
+            // Before the buckets are emptied: the table is reset through them. The emptied table
+            // is unbuilt again (a later position may have few buckets) but stays all zeros.
+            if self.table.len() > 0 {
+                self.clear_table();
+                self.table.clear();
+                self.table_zeroed = true;
+            }
             self.buckets.clear();
             self.bests.clear();
         }
@@ -760,7 +802,22 @@ impl<P: Policy> Matcher<'_, P> {
         let mut cost = u64::try_from(classes.saturating_mul(stride / 2)).unwrap_or(u64::MAX);
         if indexed {
             let len = f.table.len();
-            if len > 0 {
+            if len == 0 {
+                // Fewer than [`LAZY_TABLE`] buckets in the frontier: its node's chain, at most
+                // that long (one unit, as for the table's first probe, plus one per bucket).
+                cost += 1;
+                let mut c = f.first_bucket(node);
+                while c != NONE {
+                    let Some(bk) = bucket_at(&f.buckets, idx(c)) else { break };
+                    let rep = f.bests.get(idx(bk.best)).copied().unwrap_or(NONE);
+                    if bk.key == key && self.same_key(caps, f.thread(rep, stride)) {
+                        b = c;
+                        break;
+                    }
+                    cost += 1;
+                    c = bk.next;
+                }
+            } else {
                 let mut i = Frontier::slot(node, key, len);
                 for _ in 0..len {
                     cost += 1;
@@ -795,13 +852,17 @@ impl<P: Policy> Matcher<'_, P> {
             let i = idx(node);
             let next = f.first_bucket(node);
             let nb = u32::try_from(f.buckets.len() / 4).map_err(|_| Fail::Re(ReError::ESpace))?;
-            let slot = if indexed { f.index(nb, empty) } else { 0 };
+            let built = f.table.len() > 0;
+            let slot = if indexed && built { f.index(nb, empty) } else { 0 };
             if f.buckets.extend_from_slice(&Bucket { next, start, best, node, key, slot }.pack()).is_err() {
                 // Leave no slot naming the bucket that was not stored (the search reruns larger).
-                if let Some(t) = f.table.get_mut(idx(slot)) {
+                if let (true, Some(t)) = (built, f.table.get_mut(idx(slot))) {
                     *t = 0;
                 }
                 return Err(Fail::Grow(Dim::Buckets));
+            }
+            if indexed && !built && f.buckets.len() / 4 >= LAZY_TABLE {
+                f.build_table();
             }
             if let (Some(g), Some(h)) = (f.node_gen.get_mut(i), f.head.get_mut(i)) {
                 *g = f.epoch;
@@ -963,6 +1024,24 @@ impl<P: Policy> Matcher<'_, P> {
         Ok(())
     }
 
+    /// `ENTER` `inst`'s change to a thread's captures at `pos`: its scope's groups reset (when
+    /// the policy resets them per iteration), then its fused group opened (`SCOPE_GROUP`).
+    fn enter_caps(&self, inst: super::program::Inst, caps: &mut [i32], pos: i32) {
+        if self.policy.resets_on_iteration() {
+            let (lo, hi) = self.prog.scopes.get(idx(super::program::scope_of(inst))).unwrap_or((1, 0));
+            for g in lo..=hi {
+                let at = idx(g.saturating_sub(1)) * 2;
+                Self::set_cap(caps, at, -1);
+                Self::set_cap(caps, at + 1, -1);
+            }
+        }
+        if let Some(g) = self.prog.head(inst) {
+            let at = idx(g.saturating_sub(1)) * 2;
+            Self::set_cap(caps, at, pos);
+            Self::set_cap(caps, at + 1, -1);
+        }
+    }
+
     fn set_cap(caps: &mut [i32], at: usize, v: i32) {
         if let Some(c) = caps.get_mut(at) {
             *c = v;
@@ -977,7 +1056,7 @@ impl<P: Policy> Matcher<'_, P> {
             OP_BYTE | OP_SET => [prog.node(i.b, 0), NONE],
             OP_BACKREF => [prog.node(i.b, j), prog.node(i.b, 0)],
             OP_OPEN | OP_CLOSE | OP_ASSERT => [prog.node(i.b, j), NONE],
-            OP_ENTER => [prog.node(i.b, super::program::enter_j(i, j)), NONE],
+            OP_ENTER => [prog.node(i.b, super::program::enter_j(i, j)), if i.c == NONE { NONE } else { prog.node(i.c, j) }],
             OP_MATCH => [NONE, NONE],
             _ => {
                 let mut out = [NONE, NONE];
@@ -1085,15 +1164,12 @@ impl<P: Policy> Matcher<'_, P> {
                     }
                     prog.node(inst.b, j)
                 }
+                // An optional iteration (its split fused in): out of line, see `walk_optional`.
+                OP_ENTER if inst.c != NONE => self.walk_optional(st, pos, inst, j, start, caps, depth)?,
                 OP_ENTER => {
                     st.carry = None;
-                    if st.run.caps && self.policy.resets_on_iteration() {
-                        let (lo, hi) = prog.scopes.get(idx(inst.a)).unwrap_or((1, 0));
-                        for g in lo..=hi {
-                            let at = idx(g.saturating_sub(1)) * 2;
-                            Self::set_cap(caps, at, -1);
-                            Self::set_cap(caps, at + 1, -1);
-                        }
+                    if st.run.caps {
+                        self.enter_caps(inst, caps, at_pos);
                     }
                     prog.node(inst.b, super::program::enter_j(inst, j))
                 }
@@ -1101,18 +1177,24 @@ impl<P: Policy> Matcher<'_, P> {
                 OP_ASSERT => prog.node(inst.b, j),
                 OP_SPLIT => {
                     let a = if inst.a == NONE { NONE } else { prog.node(inst.a, j) };
-                    let mut copy = [0i32; EPS_LOCAL];
-                    match copy.get_mut(..caps.len()) {
-                        Some(c) if depth < EPS_DEPTH && Self::inlined(st, a) => {
-                            copy_caps(c, caps);
-                            let carry = st.carry;
-                            let r = self.reach(st, pos, a, start, c, depth + 1);
-                            st.carry = carry;
-                            r?;
-                        }
-                        _ => self.insert(st, pos, a, start, caps)?,
+                    if depth < EPS_DEPTH && caps.len() <= EPS_LOCAL && Self::inlined(st, a) {
+                        self.reach_copy(st, pos, a, start, caps, depth, None)?;
+                    } else {
+                        self.insert(st, pos, a, start, caps)?;
                     }
                     if inst.b == NONE { NONE } else { prog.node(inst.b, j) }
+                }
+                // A fused group's close (`SCOPE_GROUP`), then the exit's successor as below; a
+                // separate arm keeps the plain jump's path free of the test.
+                OP_EXIT if inst.a & SCOPE_GROUP != 0 => {
+                    if let Some(g) = prog.head(inst) {
+                        st.carry = None;
+                        if st.run.caps {
+                            Self::set_cap(caps, idx(g.saturating_sub(1)) * 2 + 1, at_pos);
+                        }
+                    }
+                    let (t, tj) = eps_of(inst, j).next().unwrap_or((NONE, 0));
+                    if t == NONE { NONE } else { prog.node(t, tj) }
                 }
                 OP_JMP | OP_EXIT => {
                     let (t, tj) = eps_of(inst, j).next().unwrap_or((NONE, 0));
@@ -1129,6 +1211,57 @@ impl<P: Policy> Matcher<'_, P> {
             inst = prog.inst(pc);
             j = nj;
         }
+    }
+
+    /// [`Self::walk`]'s step over an optional iteration's `ENTER` `inst` (its split fused in,
+    /// `inst.c` the skip): the iteration first, on a copy of the captures, as a split's first
+    /// branch; the skip is returned for the walk to go on. Out of line (REGCOMP-SCOPE-COST-3): its
+    /// copy and recursion inside `walk` grew every walk's frame and set-up, back-reference
+    /// patterns without such a scope included.
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)] // one thread's state, as `walk`
+    fn walk_optional(&self, st: &mut State<'_, '_>, pos: usize, inst: super::program::Inst, j: u32, start: usize, caps: &mut [i32], depth: u32) -> Result<u32, Fail> {
+        let prog = self.prog;
+        let at_pos = i32::try_from(pos).map_err(|_| Fail::Re(ReError::ESpace))?;
+        let body = prog.node(inst.b, super::program::enter_j(inst, j));
+        let skip = prog.node(inst.c, j);
+        if depth < EPS_DEPTH && caps.len() <= EPS_LOCAL && Self::inlined(st, body) {
+            self.reach_copy(st, pos, body, start, caps, depth, Some((inst, at_pos)))?;
+            Ok(skip)
+        } else {
+            // No copy (the iteration takes a bucket anyway, or no copy fits): the skip takes its
+            // bucket with the captures as they are, then the iteration changes them in place.
+            self.insert(st, pos, skip, start, caps)?;
+            st.carry = None;
+            if st.run.caps {
+                self.enter_caps(inst, caps, at_pos);
+            }
+            Ok(body)
+        }
+    }
+
+    /// A branch [`Self::walk`] takes first: `node` reached on a copy of the captures (at most
+    /// [`EPS_LOCAL`] elements), the walk's own captures and carry left as they were. `enter`: the
+    /// optional iteration's `ENTER` and position whose changes the copy takes first. Out of line
+    /// (REGCOMP-SCOPE-COST-3): inside `walk`, the copy's set-up was hoisted to every walk's
+    /// entry, taken or not.
+    #[inline(never)]
+    #[allow(clippy::too_many_arguments)] // one thread's state, as `walk`
+    fn reach_copy(&self, st: &mut State<'_, '_>, pos: usize, node: u32, start: usize, caps: &[i32], depth: u32, enter: Option<(super::program::Inst, i32)>) -> Result<(), Fail> {
+        let mut copy = [0i32; EPS_LOCAL];
+        // The callers check `caps.len() <= EPS_LOCAL`; the bucket is only the slice's else.
+        let Some(c) = copy.get_mut(..caps.len()) else { return self.insert(st, pos, node, start, caps) };
+        copy_caps(c, caps);
+        let carry = st.carry;
+        if let Some((inst, at_pos)) = enter {
+            if st.run.caps {
+                self.enter_caps(inst, c, at_pos);
+            }
+            st.carry = None;
+        }
+        let r = self.reach(st, pos, node, start, c, depth + 1);
+        st.carry = carry;
+        r
     }
 
     /// [`Self::advance_plain`] for patterns with back-references (chosen once per search, by
@@ -1204,16 +1337,29 @@ impl<P: Policy> Matcher<'_, P> {
                 self.insert(st, p, prog.node(inst.b, j), start, caps)?;
             }
             OP_ENTER => {
+                // An optional iteration's skip (its split fused in) takes the captures as they
+                // are; the iteration's own changes come after.
+                if inst.c != NONE {
+                    self.insert(st, p, prog.node(inst.c, j), start, caps)?;
+                }
                 st.carry = None;
-                if st.run.caps && self.policy.resets_on_iteration() {
-                    let (lo, hi) = prog.scopes.get(idx(inst.a)).unwrap_or((1, 0));
-                    for g in lo..=hi {
-                        let at = idx(g.saturating_sub(1)) * 2;
-                        Self::set_cap(caps, at, -1);
-                        Self::set_cap(caps, at + 1, -1);
-                    }
+                if st.run.caps {
+                    self.enter_caps(inst, caps, pos);
                 }
                 self.insert(st, p, prog.node(inst.b, super::program::enter_j(inst, j)), start, caps)?;
+            }
+            OP_EXIT => {
+                if let Some(g) = prog.head(inst) {
+                    st.carry = None;
+                    if st.run.caps {
+                        Self::set_cap(caps, idx(g.saturating_sub(1)) * 2 + 1, pos);
+                    }
+                }
+                for (t, tj) in eps_of(inst, j) {
+                    if t != NONE {
+                        self.insert(st, p, prog.node(t, tj), start, caps)?;
+                    }
+                }
             }
             OP_ASSERT => {
                 if self.assert_ok(inst.a, p) {
@@ -1300,6 +1446,11 @@ impl<P: Policy> Matcher<'_, P> {
         let mut ring: [Frontier<'s>; RING] = Default::default();
         for f in ring.iter_mut().take(r) {
             *f = Frontier::new(pools, room, nodes, stride, indexed, classes)?;
+        }
+        if indexed {
+            for f in ring.iter_mut().take(r) {
+                f.take_table(pools, room)?;
+            }
         }
         let mut unset = pools.i32s.take(stride)?;
         unset.fill(stride, -1)?;
@@ -1561,7 +1712,12 @@ impl<P: Policy> Matcher<'_, P> {
             }
             OP_OPEN | OP_CLOSE | OP_ASSERT if inst.op != OP_ASSERT || self.assert_ok(inst.a, p) => self.fast_insert(st, p, prog.node(inst.b, j), start),
             OP_ASSERT => {}
-            OP_ENTER => self.fast_insert(st, p, prog.node(inst.b, super::program::enter_j(inst, j)), start),
+            OP_ENTER => {
+                self.fast_insert(st, p, prog.node(inst.b, super::program::enter_j(inst, j)), start);
+                if inst.c != NONE {
+                    self.fast_insert(st, p, prog.node(inst.c, j), start);
+                }
+            }
             OP_MATCH => {
                 if st.run.end.is_none_or(|e| e == p) {
                     let better = match st.best {
@@ -1851,6 +2007,18 @@ const LOG_CLOSE: u32 = 2 << 30;
 const LOG_ENTER: u32 = 3 << 30;
 const LOG_ARG: u32 = (1 << 30) - 1;
 
+/// Append `tag | arg` to a one-pass step's capture log at `lp`; false when it does not fit.
+fn log_push(log: &mut [u32], lp: &mut usize, tag: u32, arg: u32) -> bool {
+    match log.get_mut(*lp).filter(|_| arg <= LOG_ARG) {
+        Some(slot) => {
+            *slot = tag | arg;
+            *lp += 1;
+            true
+        }
+        None => false,
+    }
+}
+
 impl<P: Policy> Matcher<'_, P> {
     /// The captures of the match `[s, e]` of a one-pass program (D-14.15, regcomp's
     /// `one_pass_check`): at most one path consumes each character and at most one accepts, so
@@ -1864,8 +2032,10 @@ impl<P: Policy> Matcher<'_, P> {
         caps.fill(ng * 2, -1)?;
         let mut stack = pools.u32s.take(3 * nodes)?;
         stack.expose(3 * nodes)?;
-        let mut log = pools.u32s.take(nodes)?;
-        log.expose(nodes)?;
+        // A path takes each node at most once and logs at most two effects per node (a fused
+        // `ENTER`: the reset and the group's open).
+        let mut log = pools.u32s.take(2 * nodes)?;
+        log.expose(2 * nodes)?;
         let resets = self.policy.resets_on_iteration();
         let (mut pc, mut p) = (self.prog.start, s);
         loop {
@@ -1945,20 +2115,28 @@ impl<P: Policy> Matcher<'_, P> {
                         }
                         NONE
                     }
-                    OP_OPEN | OP_CLOSE | OP_ENTER => {
-                        let tag = match inst.op {
-                            OP_OPEN => LOG_OPEN,
-                            OP_CLOSE => LOG_CLOSE,
-                            _ => LOG_ENTER,
-                        };
-                        let Some(slot) = log.get_mut(lp).filter(|_| inst.a <= LOG_ARG) else { return (OneStep::Fail, 0) };
-                        *slot = tag | inst.a;
-                        lp += 1;
-                        if inst.op == OP_ENTER {
-                            j = super::program::enter_j(inst, j);
+                    OP_OPEN | OP_CLOSE => {
+                        let tag = if inst.op == OP_OPEN { LOG_OPEN } else { LOG_CLOSE };
+                        if !log_push(log, &mut lp, tag, inst.a) {
+                            return (OneStep::Fail, 0);
                         }
                         inst.b
                     }
+                    OP_ENTER => {
+                        // An optional iteration: its skip is the split's second branch.
+                        if inst.c != NONE {
+                            let Some(w) = stack.get_mut(sp..sp + 3) else { return (OneStep::Fail, 0) };
+                            w.copy_from_slice(&[inst.c, j, u32::try_from(lp).unwrap_or(0)]);
+                            sp += 3;
+                        }
+                        if !log_push(log, &mut lp, LOG_ENTER, super::program::scope_of(inst)) || prog.head(inst).is_some_and(|g| !log_push(log, &mut lp, LOG_OPEN, g)) {
+                            return (OneStep::Fail, 0);
+                        }
+                        j = super::program::enter_j(inst, j);
+                        inst.b
+                    }
+                    // A fused group's close is logged here (the guard), then the exit goes on below.
+                    OP_EXIT if prog.head(inst).is_some_and(|g| !log_push(log, &mut lp, LOG_CLOSE, g)) => return (OneStep::Fail, 0),
                     OP_ASSERT => {
                         if self.assert_ok(inst.a, p) { inst.b } else { NONE }
                     }

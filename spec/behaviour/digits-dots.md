@@ -55,10 +55,10 @@ written in one form each, `af` selects the family, and `*h_errnop` receives the 
 ## Status
 
 **Ruled 2026-10-05 (owner): accepted.** §16.1 now states this contract (clauses `s16_1_c_3`
-to `s16_1_c_6`); Liella exports the function (D-16.11), and `digits_dots_products.rs` builds the
+to `s16_1_c_6`); libniji exports the function (D-16.11), and `digits_dots_products.rs` builds the
 probe against both libraries and compares the outputs line by line (identical). Not in the
 record: the reference also enlarges `*buffer` in the allocating form for a non-numeric name
-(answered with 0); Liella does the same.
+(answered with 0); libniji does the same.
 
 ## Under the three-way rule (as reported before the ruling)
 
@@ -67,7 +67,7 @@ documentation (no manual page, not in the glibc manual). This is therefore **RUL
 
 **Recommendation:** add the observed contract to §16.1 as a compatibility entry (it is a
 `GLIBC_2.2.5` export that old NSS modules and statically linked resolvers call), with the
-signature above, and implement it as a thin layer over Liella's numeric-address parsing
+signature above, and implement it as a thin layer over libniji's numeric-address parsing
 (`inet_aton` and `inet_pton`, §15.3) and the `struct hostent` packing that `gethostbyname_r`
 already uses, reproducing the two forms, the family rule, `ERANGE` and the return value. One
 deliberate difference is proposed: a NULL `status` or `h_errnop` is not dereferenced (S6: a

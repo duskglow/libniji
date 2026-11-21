@@ -1,10 +1,10 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # wl_count.sh, Zen 1 host side: deterministic counters of named workloads for glibc / BASE / NEW, one table each.
 #
 #   wl_count_run.sh WORKLOAD,WORKLOAD,... BASE_SHA NEW_SHA
 #
-# Kits (~/wl/kit/<variant>/bin, with at least the programs the workloads use) are made by wl_prep.sh
+# Kits (~/wl/kit/$(wl_vkey <variant>)/bin: <sha>-release for a commit, validation/wl_lock.sh; with at least the programs the workloads use) are made by wl_prep.sh
 # first. Per workload and variant: one warm-up, `perf stat -r 3` (instructions:u, instructions:k,
 # page-faults of the shell and its children), one run through md5sum (output check), one
 # `strace -c -f`, three runs, median (syscalls: the gating number EXCLUDES the scheduling-dependent calls, reported apart, see below). Page faults are the MEDIAN of FAULT_RUNS (default 5) single runs, with
@@ -20,8 +20,11 @@
 # mmap/munmap/mremap/brk/mprotect/madvise calls are the separate advisory row "mtmem (advisory)" and not in "syscalls" (a
 # worker sometimes gets its own allocator arena, and arena alignment trims depend on addresses the kernel returns while
 # other threads map). Single-threaded workloads keep those calls in the gating number.
-# Row: instr_u  instr_sd%  instr_k  page-faults(median)  syscalls(gating)  md5  faults_min  faults_max  futex  mtmem
-# (a cached row with fewer than 10 fields predates the mtmem split and is re-measured.)
+# PIPERW (WL-PIPE-READS-ADVISORY, D-X.46): when the run created another process (a pipeline such as pipe-mix or tar-gz:
+# wl_has_child on the clone trace), its read/write calls on pipes depend on scheduling (how much data waits when a reader
+# wakes); they are the advisory row "pipe rw (advisory)" and not in "syscalls". Single-process runs keep them.
+# Row: instr_u  instr_sd%  instr_k  page-faults(median)  syscalls(gating)  md5  faults_min  faults_max  futex  mtmem  piperw
+# (a cached row with other than 11 fields predates the piperw split and is re-measured.)
 # WLC_ENV='NAME=VALUE ...': environment for the measured command in every variant (see wl_count.sh); the
 # cache file name carries a hash of it. Stdout of the measured command always goes into a pipe (| cat), never
 # straight to /dev/null (GNU grep exits at the first match on /dev/null); cache files of this method end .p.tsv.
@@ -31,6 +34,7 @@ list=$1
 base=$2
 new=$3
 . "$(dirname "$0")/wl_workloads.sh"
+. "$(dirname "$0")/wl_lock.sh"   # wl_key: a commit's kit and rows are keyed by sha and products profile (WL-PREP-RELEASE-PROFILE)
 work=$WL/work
 tmp=$WL/tmp.count.$$
 mkdir -p "$tmp"
@@ -50,7 +54,7 @@ etag=
 measure() { # workload cmd variant [fresh] [noenv] -> row on stdout; fresh=1 ignores the cache, noenv=1 drops WLC_ENV
     local name=$1 cmd=$2 v=$3 fresh=${4:-0} c cache e=$wenv t=$etag
     [ "${5:-0}" = 1 ] && { e=; t=; }
-    cache=$WL/count/$v/$name$t.p.tsv
+    cache=$WL/count/$(wl_vkey "$v")/$name$t.p.tsv
     # Time-dependent output (ls -l prints HH:MM for files younger than ~6 months, the year for older ones, so the
     # md5 changes when a file crosses that boundary): a row cached on an earlier day has a stale md5 and would
     # report DIFF against freshly measured rows (LSLR-OUTPUT-DIFF). Such a row is used only on the day it was made.
@@ -58,8 +62,8 @@ measure() { # workload cmd variant [fresh] [noenv] -> row on stdout; fresh=1 ign
         [ -s "$cache" ] && [ "$(date -r "$cache" +%F)" != "$(date +%F)" ] && fresh=1 ;;
     esac
     if [ "${COUNT_FRESH:-0}" != 1 ] && [ "$fresh" != 1 ] && [ -s "$cache" ] \
-        && [ "$(awk -F'\t' 'NR == 1 { print NF }' "$cache")" = 10 ]; then cat "$cache"; return; fi
-    c=${cmd//@/$WL/kit/$v/bin}
+        && [ "$(awk -F'\t' 'NR == 1 { print NF }' "$cache")" = 11 ]; then cat "$cache"; return; fi
+    c=${cmd//@/$WL/kit/$(wl_vkey "$v")/bin}
     [ -n "$e" ] && c="env $e $c"
     (cd "$work" && sh -c "$c" 2>/dev/null | cat > /dev/null)
     local runs="" i out sum sys
@@ -71,17 +75,21 @@ measure() { # workload cmd variant [fresh] [noenv] -> row on stdout; fresh=1 ign
     local st
     st=$(printf '%s' "$runs" | wl_stats)   # iu sd% ik pf_med pf_min pf_max
     sum=$(cd "$work" && sh -c "$c" 2>/dev/null | md5sum | cut -c1-12)
-    local k files= mt=0
-    (cd "$work" && strace -f -e trace=clone,clone3 -o "$tmp/clone.txt" sh -c "$c" 2>/dev/null | cat > /dev/null)
+    local k files= mt=0 mp=0
+    (cd "$work" && strace -f -e trace=clone,clone3,fork,vfork -o "$tmp/clone.txt" sh -c "$c" 2>/dev/null | cat > /dev/null)
     wl_has_thread "$tmp/clone.txt" && mt=1
+    wl_has_child "$tmp/clone.txt" && mp=1
     for k in 1 2 3; do   # three strace runs, the median of each number (a threaded program's mmap/munmap count can move by a few)
-        (cd "$work" && strace -c -f -o "$tmp/strace$k.txt" sh -c "$c" 2>/dev/null | cat > /dev/null)
+        (cd "$work" && strace -C -f -y -o "$tmp/strace$k.txt" sh -c "$c" 2>/dev/null | cat > /dev/null)
         files="$files $tmp/strace$k.txt"
     done
-    sys=$(wl_strace_median $mt $files)   # "GATING FUTEX MTMEM"
-    local fx=${sys#* }
-    mkdir -p "$WL/count/$v"
-    echo "$st" | awk -v sys="${sys%% *}" -v fx="${fx% *}" -v mx="${fx#* }" -v sum="$sum" -v OFS='\t' '{ print $1, $2, $3, $4, sys, sum, $5, $6, fx, mx }' | tee "$cache"
+    sys=$(wl_strace_median $mt $mp $files)   # "GATING FUTEX MTMEM PIPERW"
+    local fx mx pr
+    read -r _ fx mx pr <<< "$sys"
+    # The row's own directory (its key, <sha>-release): `mkdir $WL/count/$v` made <sha>, so `tee` could not write a
+    # release row and every run re-measured the base column.
+    mkdir -p "${cache%/*}"
+    echo "$st" | awk -v sys="${sys%% *}" -v fx="$fx" -v mx="$mx" -v pr="$pr" -v sum="$sum" -v OFS='\t' '{ print $1, $2, $3, $4, sys, sum, $5, $6, fx, mx, pr }' | tee "$cache"
 }
 
 IFS=, read -r -a want <<< "$list"
@@ -113,7 +121,7 @@ for w in "${want[@]}"; do
         fi
         printf '%s\n%s\n%s\n' "$rn" "$rb" "$rg" | awk -F'\t' -v name="$name" -v nsha="${new:0:9}" -v bsha="${base:0:9}" -v note="$note" -v envck="$envck" '
             function ratio(a, b) { return (b + 0 > 0) ? sprintf("%.4f", a / b) : "-" }
-            { for (i = 1; i <= 10; i++) f[NR, i] = $i }
+            { for (i = 1; i <= 11; i++) f[NR, i] = $i }
             END {
                 printf "== %s   (new %s, base %s)\n", name, nsha, bsha
                 printf "%-18s %16s %16s %16s %9s %9s\n", "counter", "new", "base", "glibc", "new/glibc", "new/base"
@@ -125,6 +133,7 @@ for w in "${want[@]}"; do
                 }
                 printf "%-18s %16s %16s %16s %9s %9s\n", "futex (advisory)", f[1, 9], f[2, 9], f[3, 9], ratio(f[1, 9], f[3, 9]), ratio(f[1, 9], f[2, 9])
                 printf "%-18s %16s %16s %16s %9s %9s\n", "mtmem (advisory)", f[1, 10], f[2, 10], f[3, 10], ratio(f[1, 10], f[3, 10]), ratio(f[1, 10], f[2, 10])
+                printf "%-18s %16s %16s %16s %9s %9s\n", "pipe rw (advisory)", f[1, 11], f[2, 11], f[3, 11], ratio(f[1, 11], f[3, 11]), ratio(f[1, 11], f[2, 11])
                 printf "instr:u sd%%        %16s %16s %16s\n", f[1, 2], f[2, 2], f[3, 2]
                 printf "faults min..max     %16s %16s %16s   (table shows the median)\n", f[1, 7] ".." f[1, 8], f[2, 7] ".." f[2, 8], f[3, 7] ".." f[3, 8]
                 if (note != "") printf "note               %s\n", note

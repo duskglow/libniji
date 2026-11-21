@@ -41,6 +41,23 @@ listed with `nm -D` (the public ABI). No source, disassembly or debugger was use
 | `dlsym` missing | `<object>: undefined symbol: <name>`; for `RTLD_DEFAULT`/`RTLD_NEXT` the object is the calling program |
 | `dlvsym` missing version | `<object>: undefined symbol: <name>, version <version>` (also for an object without versions) |
 | `dlinfo` request 9999 | returns -1, `unsupported dlinfo request` (no object prefix) |
+| non-ELF file of 64 bytes or more (64, 4096, 65536 bytes of text; 4096 zero bytes) | `invalid ELF header` |
+| `EI_CLASS` 0, 3 or 255 | `wrong ELF class: ELFCLASS32` (the 32-bit text for every class but 64-bit) |
+| `EI_VERSION` 0 | `ELF file version ident does not match current one` |
+| `e_version` 0 | `ELF file version does not match current one` |
+| `e_phentsize` 32 | `ELF file's phentsize not the expected size` |
+| `e_phnum` 0, or every `PT_LOAD` retyped `PT_NULL` | `object file has no loadable segments` |
+| `PT_DYNAMIC` retyped `PT_NULL` | `object file has no dynamic section` |
+| a `PT_LOAD` whose `p_vaddr` and `p_offset` differ modulo the page | `ELF load command address/offset not page-aligned` |
+| `e_ehsize` 0; a `PT_LOAD` with `p_align` 3 | loads (libniji refuses both as malformed headers: `malformed ELF object`, its reader's rule) |
+
+The rows after `dlinfo` are the gaps probe (`tools/probe/dl/gaps/run.sh SCRATCH`, record `== gaps` and
+`== noload-pending`, ruling #5266, DL-DLOPEN-LOAD-2; same host and settings as above). It also settles
+that an `RTLD_NOLOAD` miss clears a pending dlerror text (`dlerror()` is NULL after a failed open then
+a NOLOAD miss), as a successful open and a NOLOAD hit do. libniji's dlopen uses these texts
+(`niji_ld::dlopen::Refusal`) and checks the header, then the loadable segments, then the dynamic
+section, in that order. libniji uses the misaligned-segment text for every malformed `PT_LOAD` layout
+its planner refuses (`map::MapError::BadSegments`), a choice the probe does not decide.
 
 Other calls: `dlopen("")` and `dlopen(NULL)` return a handle (the program); `RTLD_NOW|RTLD_LAZY`
 is accepted; `RTLD_NOLOAD` of an unloaded object returns NULL with **no** dlerror text; an object
@@ -55,6 +72,45 @@ every object mapped (a second open of the same object does not count), `subs` ev
 unmapped (`dlclose` of A unmaps A and B, +2, while C is still held). A `dlopen` refused at the
 header (`text.so`) changes neither; one that maps the object and then fails on a dependency
 (`libMissingDep.so`) bumps both by one. `RTLD_NODELETE` objects stay in the list after `dlclose`.
+
+**Readers in a dynamic program** (record `== readers (DL-16c)`, probe `tools/probe/dl/readers/run.sh SCRATCH`,
+same reference and conditions as the P-n probes). R-1: `_dl_find_object` of a pc in the program's text or data, in
+libc and in a `dlopen`'d object reports the object's **whole `PT_LOAD` span** (not the segment, unlike a static
+program), `dlfo_flags` 0, `dlfo_eh_frame` set, and `dlfo_link_map` equal to the object's handle (`dlopen(NULL)` for
+the program). R-4: a stack address gives -1. R-3: `dlpi_name` is `""` for the program, `linux-vdso.so.1`, then
+libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened with; libc has TLS module 1. R-2: a
+`dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
+(one more callback), and `dlpi_adds` grows by one within the walk.
+
+**Exit order of `dlopen`ed objects** (record `== exit-order (DL-EXIT-ORDER-PROBE)`, probe
+`tools/probe/dl/exitorder/run.sh SCRATCH`, each scenario its own process; destructors report with
+`write`). At exit the program's destructor runs first; then the start-time objects and the `dlopen`ed
+objects still loaded run as one sequence: the earliest loaded first, each object after every
+object that needs it (`DT_NEEDED`), whether it was opened before or after it. How an object stays
+loaded makes no difference: handle kept open, `RTLD_NODELETE` (closed or not), or pinned by a bound
+`STB_GNU_UNIQUE` definition (E1-E12; DL-17's C-6 object, loaded first, runs before C-7's for this
+reason, not because of the unique binding). A dependency opened before the object that needs it
+runs after it (E14, E17, E18); an object opened later that needs a start-time object runs before
+that object, other start-time objects keep their place ahead of later-opened independent objects
+(E23-E25); a binding through the global scope without `DT_NEEDED` orders like one: GU, which
+binds `g_val` in GD (opened `RTLD_GLOBAL` before it), runs first (E21).
+Cycles: H <-> I opened at H runs I, H (E19, E20, the cycle as a block between A and B); X -> Y -> Z
+-> X runs Z, X, Y opened at X (E26, E28), X, Y, Z opened at Y (E27) and K, X, Y, Z when K (needing Y)
+is loaded after or before the cycle (E29, E30): the order inside a cycle depends on the other objects.
+
+**dlclose** (record `== close (DL-17)`, probe `tools/probe/dl/close/run.sh SCRATCH`, same reference and conditions
+as the P-n probes). C-1: `dlclose` of the only open of an object returns 0, runs its destructor, unmaps it (`RTLD_NOLOAD`
+no longer finds it) and `dlpi_subs` is already +1 when it returns; no dlerror text. C-2: a successful `dlclose` clears
+a pending dlerror text. C-3: an `RTLD_GLOBAL` object G whose definition a later object U's relocation bound to (U has
+no `DT_NEEDED` on G) stays loaded and usable after `dlclose(G)`; `dlclose(U)` then runs U's destructor, then G's, and
+unmaps both. C-3b: an object opened `RTLD_LOCAL` and again (promoted) `RTLD_GLOBAL` needs two closes. C-4: an object
+with a general-dynamic TLS block, accessed or not, is unloaded; the next open gets the same module ID (2) and a fresh
+block (the initial value again). C-5: the same for an initial-exec TLS block (module ID 2 and value 9 again on
+re-open). C-6: an object defining an `STB_GNU_UNIQUE` symbol is unloaded when nothing looked the symbol up, and stays
+loaded after `dlclose` once `dlsym` looked it up. C-7: `RTLD_NODELETE` keeps the object loaded. C-8: a destructor that
+calls `dlclose` of another object succeeds (0); that object's destructor runs inside it and both are unmapped. C-9:
+`dlclose` of the program's handle (`dlopen(NULL)`) returns 0 with no text. At exit the objects still loaded (C-6's
+pinned one, C-7's) run their destructors: C-6's object (loaded first) before C-7's.
 
 **Static-TLS surplus** (record `== tls`): with default tunables, one `dlopen` of an object with an
 initial-exec TLS block of 1664 bytes succeeds and 1728 fails (64-byte steps); thirteen distinct
@@ -83,6 +139,19 @@ constructor registered, then `dtor F`. `exit` with E still open: atexit handlers
 DT_FINI), B, E, C, F. `_exit`: nothing. A dependency cycle H <-> I opened by `dlopen("libH")`:
 `ctor I`, `ctor H`; `dlclose`: `dtor H`, `dtor I`.
 
+**Order without a C library** (tools/probe/dl/order.sh, DL-11, D-27.19). `-nostdlib` objects print what
+runs; each program's `_start` calls the termination function it gets in `%rdx`. The loader runs the
+program's preinit array but not its constructors or `init_array` (its C library's start does), and
+does not run a shared object's `DT_PREINIT_ARRAY` (made by retagging `DT_INIT_ARRAY`). Start order:
+`main -> R, Q, P; P -> R`: R, P, Q. `main -> L, K; L -> N; N -> K; K -> M`: M, K, N, L. A cycle at
+start, `main -> H; H <-> I`: H, I. `main -> X; X -> Y; Y -> Z, W; Z -> X`: W, Y, X, Z. The
+reference's termination function needs its C library, so the exit order comes from the same programs linked with it: the program's
+`fini_array` and destructor, then the objects in the reverse of the start order (H <-> I: I, H;
+cycle of three: Z, X, Y, W). Rule that fits every case here and DL-0b's: a depth-first walk over the
+objects in reverse load order, each after the objects it needs, a cycle member already being walked
+passed over, the root (program, or the object opened) last; at exit the same walk over every loaded
+object, reversed.
+
 **Loader exit status and messages** (record `== loader`). Missing DT_NEEDED: 127, `<prog>: error
 while loading shared libraries: <name>: cannot open shared object file: No such file or
 directory`. Undefined function: 127 `<prog>: symbol lookup error: <object>: undefined symbol:
@@ -94,14 +163,207 @@ library with no entry point run through `ld.so`: SIGSEGV (139). `--verify`: 0 dy
 static program or non-ELF, 2 shared library. `--list` of a program with a missing dependency:
 127. `--version`, `--help`: 0.
 
+**`ld.so PROGRAM` with no `/` in PROGRAM** (LDSO-PROGRAM-NO-CWD probe, Zen 1 host; D-27.69). The
+name is looked up in the loader cache (`/etc/ld.so.cache`) only. A file of that name in the
+working directory, in an `LD_LIBRARY_PATH` directory (absolute, relative, `.`, empty element),
+in a `--library-path` directory, on `PATH` or in a default library directory not listed in the
+cache is not used. Not found: 127, nothing on stdout, stderr `<name>: error while loading shared
+libraries: <name>: cannot open shared object file` (no errno text); an empty name gives
+`: error while loading shared libraries: cannot open shared object file`. The same for `--list
+<name>` and with `LD_TRACE_LOADED_OBJECTS=1`. A name the cache lists runs the cache's file, even
+when the working directory and `LD_LIBRARY_PATH` hold another file of that name, and the program's
+`argv[0]` is the name as given. `--list <name>` and `LD_TRACE_LOADED_OBJECTS=1` for a name the
+cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
+working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
+is opened as given.
+
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are
 `ET_DYN`. Lazy binding is the rare case for system programs (input to R14-13 / DL-10).
+
+**Symbol binding** (DL-SYMBOLS probe, Haswell-EP host, same system; scratch probe of `lib.c`/`prog.c` built
+with gcc 13.3 / binutils, black box: only the values the bound functions return were observed). `libv.so` defines
+`f@VER_1` (hidden) and `f@@VER_2`; `h@VER_1`, `h@VER_2` (both hidden); `b` (base, index 1); `g@@VER_1`, `g@VER_2`
+(hidden, and before `g@@VER_1` in the symbol table); `m@VER_1`, `m@VER_2` (hidden), `m@@VER_3`. The same answers with
+`--hash-style=gnu` and `--hash-style=sysv`:
+
+| Request | Binds |
+|---|---|
+| program linked against an unversioned stub (references without a version) | `f`→VER_1, `h`→VER_1, `b`→base, `g`→VER_1, `m`→VER_1 (lowest version index, hidden or not) |
+| program linked against `libv.so` | `f`→VER_2 (the default at link time), `f@VER_1`→VER_1, `h@VER_2`→VER_2 |
+| `dlsym` | `f`→VER_2, `h`→NULL (`undefined symbol: h`), `b`→base, `g`→VER_1, `m`→VER_3 (base or default only) |
+| `dlvsym` | `f`/VER_1, `f`/VER_2, `h`/VER_1, `h`/VER_2 bind that version; `f`/VER_9, `b`/VER_1, `b`/`libv.so` (the base node's name) → NULL (`undefined symbol: f, version VER_9`) |
+| an unversioned (base, index 1) `f` earlier in the scope, against `libv.so`'s own `f@@VER_1` reference (`JUMP_SLOT`) (DL-LIBC-START-6 probe, Zen 1 host, glibc 2.39) | in the program (exported; the object has `versym`) → the program's; in an `LD_PRELOAD` object with `versym` → the preloaded one; a program's needed `f@VER_1` (`vna_other`) against the same preload → the preloaded one (a versioned reference accepts a base definition; the program's `__fpu_control` reaches libc this way) |
+| program needing VER_1/VER_2 run against the unversioned stub | `no version information available (required by ./ver)` twice, then an internal consistency message from the loader, exit 127 |
+| weak `w` in `libw1.so`, strong `w` in `libw2.so` | link order w1,w2 → the weak one; w2,w1 → the strong one; `LD_DYNAMIC_WEAK=1` → unchanged |
+| undefined weak data and function references | both 0 |
+| `STB_GNU_UNIQUE` `u_obj` in two objects, each `dlopen`ed `RTLD_LOCAL` | one object for both (the first's); a plain global `u_obj` in a third object stays its own |
+| program with a canonical PLT entry for `f` (undefined `STT_FUNC`, non-zero value: non-PIE `&f`, or `.long f - .` in a PIE's data) defined in `libf.so` (DL-CANONICAL-PLT probe, Zen 1 host, glibc 2.39, gcc 13.3 / binutils 2.42; GitHub issue #10) | the program's address of `f`, the library's `GLOB_DAT` (`return f;`), the program's own `f@GOTPCREL` (`GLOB_DAT`), a library `dlopen`ed later (`GLOB_DAT`) and `dlsym(RTLD_DEFAULT, "f")` all give the entry's address; calls through the program's PLT reach `libf.so`'s `f`. The same with `libf.so` marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (`-mno-direct-extern-access`). A program built with `-mno-direct-extern-access` has no entry (`f` undefined, value 0): every reference binds `libf.so`'s `f` |
+| the same program run against a `libf.so` whose `f` is protected (swapped in after linking; binutils 2.42 refuses that link) | a warning on standard error that pointer equality may break, then the run goes on: the library's own references give its own address, the program's the entry's; with that library also marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the start is refused, a message naming `f`, the library and the property, exit 127 |
+
+libniji's lookup (D-27.11) follows every row; `crates/ld/tests/symbols.rs` checks the same corpus. The stub row is the
+loader's version check, not the lookup: libniji's lookup matches any definition of an object without `versym`, and the
+load-time version check (DL-10) refuses the load (exit 127, a message naming the object and the version; D-27.11).
+
+## dlopen and dlsym probes P-1..P-13 (DL-16P)
+
+**Probe:** `tools/probe/dl/dlopen/run.sh SCRATCH` (DL-16P `DL-DLOPEN-PROBES`, 2026-11-12) builds a corpus from
+`tools/probe/dl/dlopen/lib.c` (one source, many shared objects chosen by `-D` options) and
+`tools/probe/dl/dlopen/probe.c` (`probe pN DIR`, one function per probe), and prints the record. **Record:** the
+`== P-n` sections at the end of `dynlink.glibc.txt` (DL-16P record header; SCRATCH shown as `<dir>`). Same reference
+and conditions as above (Haswell-EP host, Ubuntu 24.04, glibc 2.39-0ubuntu8.9, gcc 13.3, `LC_ALL=C`, no `LD_*`).
+Each case runs in its own forked child (`alarm(30)` as a hang guard; none fired). P-8 and P-9 record "blocked" when a
+call has not answered within 5 s, then release the waiting constructor, so nothing is left waiting; "blocked" is a
+probe observation, never a test verdict. Black box only. The probes cover clauses `s27_1_c_1`, `s27_1_c_3`,
+`s27_1_c_5`, `s27_1_c_8`, `s27_1_g_0` and `s27_1_f_0`; the questions come from plan/ph14/dl-16-dlopen.md §6, and the
+last column says how each answer decides the plan's choice.
+
+| Probe | Program case | Observed in the reference | Decides |
+|---|---|---|---|
+| P-1 binding (`s27_1_c_1`) | `probe p1`: `RTLD_NOW\|RTLD_LAZY` on `libU1` (undefined function) | the open succeeds (constructor runs); `RTLD_NOW` alone on the same object fails `undefined symbol: undefined_symbol_xyz` | both bits set = lazy binding. Before DL-20 libniji binds eagerly (plan §1), so this is DL-20's interim gap, like `RTLD_LAZY` |
+| P-1 unknown bits (`s27_1_c_1`, `s27_1_f_0`) | `probe p1` sweep: every bit outside `0x110f` and outside the eight glibc-internal high bits `0x01000000`-`0x80000000` (17 bits; the raw lines for `0x01000000`-`0x20000000` and `0x80000000` in `dynlink.glibc.txt` predate the exclusion and are kept as they are) with `RTLD_NOW` on `libC1` and `RTLD_LAZY` on `libU1` | every swept bit: NULL, dlerror `invalid mode parameter` (no object prefix), checked before the file is looked for (also for a missing file); an unknown bit with no binding mode gives the same text, not mode 0's | libniji refuses every unknown mode bit (every bit outside `RTLD_LAZY\|RTLD_NOW\|RTLD_NOLOAD\|RTLD_DEEPBIND\|RTLD_GLOBAL\|RTLD_NODELETE`) with `invalid mode parameter`, before the search. The eight high bits `0x01000000`, `0x02000000`, `0x04000000`, `0x08000000`, `0x10000000`, `0x20000000`, `0x40000000` and `0x80000000` are internal, undocumented flags of glibc (some used for its profiling; confirmed by glibc's maintainers, 2026-11-13): reserved for libniji (libniji owes glibc's internal meaning of them nothing; refused like any unknown bit with `invalid mode parameter`; kept available for a possible future libniji-defined use, none planned, any use a new public-interface decision), and excluded from the reference comparison (the probe sweep skips all eight). DL-16a's test sweeps every undefined bit, these included. D-27 pending record `DLOPEN-INTERNAL-BITS-1` |
+| P-2 identity (`s27_1_c_1`) | `probe p2`: `id/libId.so.1` (`DT_SONAME libId.so.1`), symlink `id/sym.so`, hard link `id/hard.so`, `id/../id/…`, `./libId.so.1`, a copy `id2/libId.so.1` | symlink, hard link, `..` path, `./` path and the bare `DT_SONAME`: the same handle (constructor once), and `l_name` stays the first name used (the hard link's path when it came first). The bare `DT_SONAME` finds the loaded object although no search path holds the file; before any load it fails with the file-missing text, and `NOLOAD` gives NULL. A copy (another inode, same `DT_SONAME`) opened by path is a second object. When the copy is loaded first, the bare `DT_SONAME` returns the copy. A `DT_NEEDED libId.so.1` whose `DT_RUNPATH` holds only the copy binds to the already-loaded original. `NOLOAD` by the bare file name `hard.so` gives NULL | identity = `(st_dev, st_ino)` of the found file, plus a `DT_SONAME` match of a bare name (no `/`) against loaded objects before any search, for `dlopen` and `DT_NEEDED` alike (plan §1 as written). A bare name is never matched against file names. `l_name` keeps the name of the first open |
+| P-3 `RTLD_GLOBAL` (`s27_1_c_1`, `s27_1_g_0`) | `probe p3`: `libA3` needs `libB3`; `libZ3` references `fn_A3` and `fn_B3` with no `DT_NEEDED` | `RTLD_GLOBAL` puts the root **and its dependency** in the global scope (`RTLD_DEFAULT` finds both; `libZ3` then opens `RTLD_NOW`). After an `RTLD_LOCAL` open neither is found. A `NOLOAD\|GLOBAL` re-open, and a plain `NOW\|GLOBAL` re-open of a lazily opened root, return the same handle and promote both. `NOLOAD\|GLOBAL` of the dependency alone promotes only it (`fn_A3` still NULL) | `RTLD_GLOBAL` (first open or promotion) appends the opened object's whole local scope (itself and its dependencies, in breadth-first order, the ones not yet global) to the global scope. Promoting a dependency promotes only its own local scope |
+| P-4 sibling scope (`s27_1_g_0`) | `probe p4`: `libA4` needs `libB4` then `libC4`; `libB4` calls `fn_C4` (sibling) and `fn_A4` (root), linked with neither | both bind (`C4`, `A4`) under `RTLD_NOW` and `RTLD_LAZY`; constructors C4, B4, A4 | a new object is relocated against [global scope, the root's local scope] (plan §2 as written) |
+| P-5 `RTLD_NEXT`/`RTLD_DEFAULT` (`s27_1_c_3`) | `probe p5`: `who()` in the program, `libL5`, `libM5`, `libG5`; `libL5` needs `libM5`; each object calls `dlsym` itself | from `libL5` (`RTLD_LOCAL`): `RTLD_NEXT` `who` gives `M5`'s and `puts` gives libc's; its own `fn_L5` and the program's `who` are not found. `RTLD_DEFAULT` `who` gives the program's, and `fn_M5`/`fn_L5` (local only) are found. From `libG5` opened `RTLD_GLOBAL`, the last object of the global scope: `RTLD_NEXT` finds `puts` (libc is its dependency) and nothing defined only in earlier objects. `libL5` opened `RTLD_GLOBAL` answers as when local. From the program, `RTLD_NEXT` `who` reaches a `GLOBAL` object (`G5`, `L5`) and nothing local. Every failure text names the **calling object** (`<dir>/libL5.so: undefined symbol: …`) | `RTLD_NEXT` = the objects after the caller in the scope the caller was loaded with (the global scope for start-time objects; the root's local scope for a `dlopen`'d object), never NULL just because the caller is last in the global scope. `RTLD_DEFAULT` from a `dlopen`'d object = the global scope, then the caller's local scope (the plan's "the global scope" is widened by this). The failure text names the caller's object |
+| P-6 dlerror (`s27_1_c_5`) | `probe p6`: a failed `dlopen`, then a successful `dlopen`/`dlsym`/`dlinfo`, then `dlerror()`; threads | any later **successful** `dl*` call clears the pending text (`dlerror()` gives NULL). A failure followed by a failed `dlsym` reports the second; the next call gives NULL. A failure in thread A is invisible to the main thread and to a thread created later, and A still reads its own text afterwards. A thread that failed and exited leaves nothing behind | per-thread text (plan §4); every `dl*` entry point clears the calling thread's pending text when it succeeds, so the text describes the thread's most recent `dl*` call. This replaces the plan's "until the next failure" |
+| P-7 recursive `dlopen` (`s27_1_c_1`) | `probe p7`: `libA7`'s constructor `dlopen`s `libB7` (`DT_NEEDED libA7.so`), or itself (`NOLOAD`, then plain) | order: `ctor A7 begin`, `ctor B7`, B7's constructor calls `fn_A7` (works), A7's constructor continues and ends; A7's constructor runs once (depth 1). The inner `dlopen`s of A7 return the outer handle; the inner handle of B7 is B7's | an inner `dlopen` that reaches an `Initialising` object returns its handle without running its constructors again; the inner set's own new objects initialise before the outer constructor resumes (plan §3 as written) |
+| P-8 readers during a constructor (`s27_1_c_3`, `s27_1_c_8`) | `probe p8`: thread A's `dlopen(libA8)` runs a constructor that waits on a pipe for thread B | `dlsym(RTLD_DEFAULT, puts)`, `dlsym(RTLD_DEFAULT)` of the object being initialised (opened `GLOBAL`), `dlopen(libc.so.6, NOLOAD)` and `dlopen` of a new object: **blocked** until the constructor returns. `dl_iterate_phdr`: returns during the constructor and already lists `libA8` | libniji's readers (`dlsym`, `dl_iterate_phdr`) take no lock and never block (plan §4, D-27.1). `dlopen` in another thread waits for the writer lock, as in the reference. The object being initialised is published before its constructors run (the reference's `dl_iterate_phdr` agrees) |
+| P-9 `fork` during `dlopen` (`s27_1_c_1`) | `probe p9`: `fork` while thread T is inside `libA9`'s constructor; the child calls `dl_iterate_phdr`, `dlsym`, `dlopen(libA9, NOLOAD)`, `dlopen(libC1)` (three orders) | `fork` returns at once. In the child every call returns: 5 objects listed including `libA9`, `dlsym` finds, `NOLOAD` of `libA9` (whose constructor never completes in the child) returns a handle, and a new `dlopen` succeeds and runs its constructor | the child can use the loader after a fork made during another thread's `dlopen` (plan §4's prepare/child step). The child's view of the in-progress set (listed, `NOLOAD` succeeds) is recorded; DL-16c chooses whether the child keeps the half-initialised objects |
+| P-10 IFUNC on a failing `dlopen` (`s27_1_f_0`) | `probe p10`: `libI10` defines IFUNC `ifn` (resolver prints); `libU10` references an undefined function; roots `R10a` (I10 then U10), `R10b` (U10 then I10), `R10c` (own IFUNC, needs U10) | `RTLD_NOW`: all three fail with `<dir>/libU10.so: undefined symbol: undefined_symbol_xyz`, but for `R10b` **the resolver of `libI10` ran first**. For `R10a`/`R10c` it did not, and no constructor ran in any. `RTLD_LAZY`: all open, constructors run, no resolver at load | the reference runs foreign code (an IFUNC resolver of an object processed before the failing one) in a `dlopen` that fails. libniji's two passes (plan §2, pending decision 2) never do. Whether that becomes a differences row is open (maintainer ruling #5125) |
+| P-11 surplus TLS in older threads (`s27_1_c_1`) | `probe p11`: `libT11` with `tv_ie` (initial-exec, 42), `tv_gd` (7), `tv_bss`; a thread created before the `dlopen`, one after | every thread sees 42 / 7 / 0, including the thread created before the `dlopen`. A write in one thread is invisible to the others, and `dlsym(tv_ie)` is the calling thread's own address | DL-16d initialises the surplus block of every live thread from the module's image (plan §5 point 1) |
+| P-12 link maps (`s27_1_c_1`) | `probe p12`: `dlinfo(RTLD_DI_LINKMAP)` | the link map **equals** the handle for `dlopen(NULL)`, `dlopen("")`, a path, a relative `./libC1b.so` and `libc.so.6`. The program's `l_name` is `""` and its `l_prev` is NULL. `l_name` is the name as opened (`./libC1b.so` stays relative). The chain by `l_next`: program, `linux-vdso.so.1`, libc, `ld.so`, then the `dlopen`'d objects in load order | handle = link map (plan §1 as written). `l_name` keeps the caller's spelling of a path |
+| P-13 program, `ld.so`, libc (`s27_1_c_1`, `s27_1_f_0`) | `probe p13` (PIE build and `-no-pie` build) | the program by its own path or as `/proc/self/exe`: NULL, `cannot dynamically load position-independent executable` (PIE) or `cannot dynamically load executable` (non-PIE). `NOLOAD`: NULL, no text. `ld.so` by name and by `/lib64/ld-linux-x86-64.so.2`: the start-time handle; by its real path `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2`: **a different handle** (a second object with that `l_name`). libc by name, `NOLOAD`, real path and a `..` path: the start-time handle | the program is refused by path like any executable (identity does not match it). `libc.so.6` by any name is the start-time object. For `ld.so`, libniji's `(st_dev, st_ino)` identity returns the start-time object for every path. That differs from the reference (one loader per process); whether that becomes a differences row is open (maintainer ruling #5126) |
+| P-14 process capacity (`s27_1_c_1`, `s27_1_f_0`; #5321) | a program `dlopen`s N distinct copies of one tiny object (`RTLD_NOW\|RTLD_LOCAL`, each by its own path), N = 511, 512, 513, 1000, 2000 (DL-DLSYM-2 probe, Zen 1 host, glibc 2.39) | every open succeeds for every N, 2000 included: no fixed limit on the number of loaded objects shows up | libniji's loader holds at most 512 objects, start-time objects included, and refuses the next with `<name>: cannot load more objects` (NULL, dlerror text); a differences row records it (maintainer ruling on the capacity, #5321) |
+
+## The link-time archive libc_nonshared.a (DL-LIBC-NONSHARED, D-27.28)
+
+Clauses `s1_2_c_1`, `s1_2_c_3`, `s1_2_c_5`. Black box only, on the Zen 1 build host (glibc 2.39, gcc 13): `ar t` and
+`readelf -sW` of the installed archive, the installed `libc.so` script, `nm` of linked programs, and program behaviour
+(DL-NONSHARED-OPTOUT's probes P1-P2 and this story's `__cxa_finalize` probe). No source or disassembly.
+
+| member | defines (all hidden) | reaches in libc.so.6 | how settled |
+|---|---|---|---|
+| `atexit` | `atexit` | `__cxa_atexit@@GLIBC_2.2.5` | symbol listing; libc.so.6 exports no `atexit`; a linked program has `atexit` local (`t`) |
+| `at_quick_exit` | `at_quick_exit` | `__cxa_at_quick_exit@@GLIBC_2.10` | symbol listing; libc.so.6 exports no `at_quick_exit` |
+| `pthread_atfork` | `__pthread_atfork`, `pthread_atfork` (weak, same address) | `__register_atfork@@GLIBC_2.3.2` | symbol listing; libc.so.6 has `pthread_atfork` only as the non-default `@GLIBC_2.2.5`, so a new link takes the member |
+| `stack_chk_fail_local` | `__stack_chk_fail_local` | `__stack_chk_fail@@GLIBC_2.4` | symbol listing |
+
+All members reference `__dso_handle` (undefined, hidden: the compiler's start files define it).
+
+* **The tag is the VALUE of `__dso_handle`.** In a `-no-pie` program the value is 0, and its address is not. There,
+  `__cxa_finalize(&__dso_handle)` leaves the `atexit` handler, the `at_quick_exit` handler and the atfork handler
+  registered (the quick handler still runs at `quick_exit`). `__cxa_finalize(0)` runs the handler. In a PIE the value is
+  the address, and `__cxa_finalize(__dso_handle)` runs the module's `atexit` handler, then drops its `at_quick_exit`
+  handler AND its atfork handler (a later `fork` does not call it).
+* **At `dlclose`** (P2): a shared object's own `atexit` handler runs when it is unloaded. Its `at_quick_exit` and
+  `pthread_atfork` handlers are dropped, and a later `quick_exit` or `fork` calls neither.
+* **The installed `libc.so`** is `GROUP ( <libc.so.6> <libc_nonshared.a> AS_NEEDED ( <ld-linux-x86-64.so.2> ) )`.
+  The reference names absolute paths. libniji's names bare files, which ld finds on the library search path.
+
+### libniji's opt-in to register without the archive (D-27.29, owner rulings #4860-#4862)
+
+libniji-only, never the default (docs/differences-from-glibc.md, dynamic loader block). A module linked with
+`-L <products>/niji-owner -L <products> -lc` binds `atexit`, `at_quick_exit` and `pthread_atfork` at the non-default
+version `NIJI_OWNER_1` of `libc.so.6` instead of the archive's members; the registration is attributed to the module
+holding the caller's return address, and when that module is unloaded its handlers registered this way run (exit) or
+are dropped (quick-exit, atfork) before its pages are unmapped, as for the archive's tagged entries. The reference's
+loader refuses such a module (`version 'NIJI_OWNER_1' not found`). Entries registered through the archive keep the
+behaviour above unchanged (#4862).
+
+**The notice (#4861), off by default.** `NIJI_NONSHARED_NOTICE=1 cargo xtask so` builds the archive's three
+registration members with a `.gnu.warning.<name>` section (the link editor prints a warning for each module that takes
+the member) and an allocated `.note.niji.nonshared` note (owner `libniji`, type 1, empty descriptor) that ends up in
+the linked module's `PT_NOTE`. With `NIJI_LD_REPORT_NONSHARED` set to a non-empty value (ignored in secure mode),
+libniji's `ld.so` writes one line `ld.so: <object>: registers exit or fork handlers through libc_nonshared.a ...` to
+standard error for each object carrying the note, at start and at `dlopen`. The default archive carries neither
+section: a default link prints no warning and nothing is deprecated.
+
+## dladdr and dlinfo (DL-18 DL-DLADDR)
+
+**Probe:** `tools/probe/dl/dladdr/run.sh SCRATCH` builds `lib.c` (one assembler block of symbols in a known order:
+gaps, a size-0 symbol, equal starts, a weak and a global at one address, an overlapping symbol, an IFUNC, data and a
+TLS symbol) as `libP.so`, as `sub/libQ.so` (no TLS, `DT_RUNPATH /r1:$ORIGIN/x:/r2`) and `sub/libR.so` (no TLS,
+`DT_RPATH /rp`), and `probe.c` with and without `-rdynamic`, runs it and prints the record. **Record:** the
+`== dladdr-dlinfo` section at the end of `dynlink.glibc.txt` (Skylake-SP build host, Ubuntu 24.04, glibc 2.39, gcc 13,
+`LC_ALL=C`, no `LD_*` but where the record says). Black box only: the reference loader is executed and the objects'
+files are read for their section headers and `.dynsym` order. Clauses `s27_1_c_6`, `s27_1_c_7`; conformance programs
+`s27_dladdr` and `s27_dlinfo` check these answers on the reference and on libniji.
+
+| Case | Observed in the reference |
+|---|---|
+| `dladdr` symbol | only a symbol that holds the address (`st_value <= a < st_value + st_size`; `a == st_value` for size 0); a gap (local code, past a size-0 symbol, past a data object) gives `dli_sname`/`dli_saddr` NULL with ret 1 |
+| overlap, ties | overlapping holders: the highest start wins; equal starts: the lowest `.dynsym` index (`s_b_alias` 12 over `s_b` 21 and weak `s_b_weak` 19; weak `s_w1` 10 over global `s_w2` 15); libc's `printf` is reported as `_IO_printf` |
+| IFUNC, TLS | an IFUNC is reported by its resolver's address under the IFUNC's name; `dlsym` of it gives the implementation; an `STT_TLS` symbol (value 0) never matches |
+| no symbol | the ELF header (base, base+1, base+64), `.plt`, `.plt.sec`, `.dynsym`, `.eh_frame`, `.bss`: the object, no symbol |
+| object | `dli_fname`: the path the object was opened by (a relative `./sub/libQ.so` gives the absolute path); the program: `argv[0]`; libc: its full path; `ld.so`: `/lib64/ld-linux-x86-64.so.2`; the vDSO: `linux-vdso.so.1`, with symbols; `dli_fbase` is the link map's `l_addr` for a shared object |
+| program symbols | without `-rdynamic` `main` has no symbol; with it `main` and other exported functions are found |
+| miss | NULL, 8, -1, the stack, the heap: ret 0, `*info` untouched, no dlerror text |
+| `dladdr1` | `RTLD_DL_SYMENT`: the `Elf64_Sym` (NULL with no holder); `RTLD_DL_LINKMAP`: the link map (the handle; `dlopen(NULL)` for the program); flags 0 and 3: `*extra` untouched; a miss: `*extra` untouched |
+| `dlinfo` requests | 1 (`LMID`) 0; 2 (`LINKMAP`) the handle; 6 (`ORIGIN`) the directory of the path (absolute); 9 (`TLS_MODID`) 2 for the first `dlopen`ed TLS module, 0 without TLS; 11 (`PHDR`) returns the header count, stores base+64; 0, 3, 7, 8, 12: -1 with `unsupported dlinfo request` and the argument untouched |
+| `RTLD_DI_TLS_DATA` | NULL until the calling thread used the block, then `&var` (main thread and a new thread); libniji gives the block whenever it exists (docs/differences-from-glibc.md, ruling #5521) |
+| `SERINFO` | `dls_size` = 16 + 16 per entry + each string and its NUL; flags 0; strings after the array; order: the object's `DT_RPATH` (no `DT_RUNPATH`), `LD_LIBRARY_PATH`, `DT_RUNPATH` with `$ORIGIN` expanded, then `/lib/x86_64-linux-gnu`, `/usr/lib/x86_64-linux-gnu`, `/lib`, `/usr/lib`; the program's `DT_RUNPATH` (`/prog/rp`) is in neither a `dlopen`ed object's list nor the program's own (libniji's answer for the program is not checked yet); a buffer one entry short: ret 0, no text |
+
+libniji gaps (not differences): the vDSO is not in libniji's object chain yet (P-12), so `dladdr` of a vDSO address
+returns 0; libniji's `dl_iterate_phdr` lists the program and the vDSO only until DL-16c walks the chain.
 
 ## Notes for the implementation stories
 
 - DL-16: the texts above are the targets; the `e_machine` case reports a file-missing text for
   an existing file (follow it, or record a difference with its gain).
-- DL-17: `dlclose(NULL)` and an unknown handle: the reference crashes; returning non-zero with a
-  dlerror text costs nothing and gains robustness (a difference row is needed).
+- DL-17: `dlclose(NULL)` and an unknown handle: returning non-zero with a dlerror text costs
+  nothing and gives a defined result (a difference row is needed).
 - DL-30/R14-16: the version-not-found status 1 differs from every other load failure (127).
+
+## Trace lists: the interpreter's line (DL-TRACE-INTERP probe, x86-64, glibc 2.39)
+
+Black-box probes of the reference loader (`/lib64/ld-linux-x86-64.so.2`), the same in all three entry points
+(kernel start with `LD_TRACE_LOADED_OBJECTS=1`, `ld.so PROGRAM` with the variable, `ld.so --list PROGRAM`):
+
+| Case | Reference list (addresses omitted) |
+| --- | --- |
+| needs `libfoo.so.1` only (no C library) | `linux-vdso.so.1`, `libfoo.so.1 => …`: no interpreter line |
+| `DT_NEEDED` `ld-linux-x86-64.so.2`, then `libfoo.so.1` | the interpreter, `linux-vdso.so.1`, `libfoo.so.1 => …` |
+| `libfoo.so.1`, then the interpreter | `linux-vdso.so.1`, `libfoo.so.1 => …`, the interpreter |
+| needs `libni.so.1` (which needs the interpreter) and `libfoo.so.1` | vDSO, `libni`, `libfoo`, the interpreter |
+| `DT_NEEDED` `/lib64/ld-linux-x86-64.so.2` (a path) | the interpreter, `linux-vdso.so.1` |
+| `libfoo2.so.1` (needs `libbar.so.1`), `libc.so.6` | vDSO, `libfoo2`, `libc`, `libbar`, the interpreter |
+| `libm.so.6`, `libfoo2.so.1` | vDSO, `libm`, `libfoo2`, `libc`, the interpreter, `libbar` |
+| no `DT_NEEDED` (static PIE, a library needing nothing) | `\tstatically linked`, status 0 (`ld.so` forms) |
+
+Rule: the list is breadth first in `DT_NEEDED` order, each object once; the interpreter is listed only when an
+object names it (by soname or by path), at that breadth-first place; the vDSO's line comes first, after the
+interpreter's when the interpreter is the first object. The reference's `libc.so.6` names the interpreter, and its
+`libm.so.6` names `libc.so.6` then the interpreter (the `libm` row). The line is `\tNAME (0x…)`, or `\tNAME => PATH
+(0x…)` when they differ: NAME is the program's `PT_INTERP` (else the loader's path as run), PATH the loader's path
+as run (at kernel start, the `PT_INTERP`). Run as `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 --list` on a
+program whose `PT_INTERP` is `/lib64/ld-linux-x86-64.so.2`: `/lib64/ld-linux-x86-64.so.2 =>
+/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`; on a library operand: `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`.
+The reference prints its libraries as `/lib/x86_64-linux-gnu/…` (its cache lists that directory first; `/lib` is a
+link to `usr/lib`).
+
+libniji (D-27.16 as amended by D-27.56): the same rule, with libniji's own libraries
+(`search::PINNED`) naming the interpreter after their own `DT_NEEDED` entries, so lists of libc-linked programs
+keep the line consumers such as initramfs-tools' `copy_exec` read. Test: `list_interpreter_line_matches_reference`
+(crates/ld/tests/search_cache.rs).
+
+## The loaded dynamic array (DL-DYNAMIC-RELOC probe, x86-64, glibc 2.39)
+
+Probe: `tools/probe/dl/dynreloc/run.sh` (Zen 1 build host). For each object `dl_iterate_phdr` lists (from the
+program's constructor, from `main`, after a `dlopen`), each entry of its dynamic array in memory is compared with the
+same entry of its file: **A** = differs by exactly the load base, **=** = unchanged.
+
+| Entries | Program (PIE), start-time library, libc, `ld.so`, `dlopen`ed library |
+| --- | --- |
+| `DT_PLTGOT`, `DT_HASH`, `DT_STRTAB`, `DT_SYMTAB`, `DT_RELA`, `DT_JMPREL`, `DT_RELR`, `DT_GNU_HASH`, `DT_VERSYM` | A |
+| `DT_INIT`, `DT_FINI`, `DT_PREINIT_ARRAY`, `DT_INIT_ARRAY`, `DT_FINI_ARRAY`, `DT_VERDEF`, `DT_VERNEED`, `DT_TLSDESC_PLT`, `DT_TLSDESC_GOT`, sizes, flags, `DT_NEEDED` / `DT_SONAME` / `DT_RUNPATH` offsets | = |
+
+Already A in the program's first constructor; `_DYNAMIC` and `l_ld` are the same array, so
+`DT_STRTAB` + the `DT_RUNPATH` value is the run-path string. The vDSO's array is the kernel's, never written.
+`DT_REL` is not observable on x86-64 (GNU ld emits RELA only). A static-pie program's own array is A as well (not
+yet in libniji: its self-relocation leaves it link-time), and the program's `DT_DEBUG` is set by the loader (not in
+libniji).
+
+libniji (D-27.60): the same entries become run-time addresses for every object whose `PT_DYNAMIC` lies wholly inside
+one writable `PT_LOAD` (an array elsewhere is never written), before any constructor; the loader's own readers keep
+reading link-time values. Test: `s27_1_c_8` (`conformance/c/s27_dynamic_address_entries.c`).

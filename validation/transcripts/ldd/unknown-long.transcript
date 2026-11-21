@@ -1,0 +1,11 @@
+name: ldd unknown-long: an unknown long option
+clause: s31_3_i_1
+command: ldd
+arg: --foo
+arg: f
+mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: unrecognized option `--foo'
+| Try `ldd --help' for more information.

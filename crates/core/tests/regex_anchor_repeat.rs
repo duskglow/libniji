@@ -5,8 +5,8 @@
 //! conformance host; each cell is checked as the reference answers it, cell for cell.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, Options, Window};
 
 const REF: &str = include_str!("data/regex_anchor_repeat.ref");
 const SUBJECTS: [&str; 15] = ["x", "a", "*", "^", "$", "^x", "x$", "ax", "xa", "", "aa", "a^", "a$", "x^", "$x"];
@@ -19,10 +19,10 @@ fn cell(line: &str) -> Option<String> {
     let prog = match regex::compile(pat.as_bytes(), regex::regcomp_syntax(cflags), &Locale::C) {
         Ok(p) => p,
         Err(e) if regex::regcomp_code(e) == want_rc => return None,
-        Err(e) => return Some(format!("{line}: Liella rc={}", regex::regcomp_code(e))),
+        Err(e) => return Some(format!("{line}: libniji rc={}", regex::regcomp_code(e))),
     };
     if want_rc != 0 {
-        return Some(format!("{line}: Liella compiles"));
+        return Some(format!("{line}: libniji compiles"));
     }
     let opts = Options { newline_anchor: nl, ..Options::default() };
     for (i, s) in SUBJECTS.iter().enumerate() {
@@ -32,7 +32,7 @@ fn cell(line: &str) -> Option<String> {
             None => "-".to_string(),
         };
         if f.iter().skip(4).nth(i).copied() != Some(got.as_str()) {
-            return Some(format!("{line}: subject {s:?} Liella {got}"));
+            return Some(format!("{line}: subject {s:?} libniji {got}"));
         }
     }
     None

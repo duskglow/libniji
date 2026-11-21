@@ -4,7 +4,7 @@
 
 use core::sync::atomic::{AtomicU64, Ordering};
 
-use liella::text::MbState;
+use niji::text::MbState;
 
 /// Which hidden state.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

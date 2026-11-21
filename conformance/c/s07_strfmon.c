@@ -2,7 +2,7 @@
  * no grouping, `.` as the decimal point, two fraction digits). Self-checking: each clause ends
  * with `end <clause>` on standard error, each failed check prints `FAIL <clause>: line N:
  * <check>`; the clause tests in crates/core/tests/s07_locale_clauses.rs read these lines (they
- * also check the flags against conventions with a symbol and grouping, through liella::monetary). */
+ * also check the flags against conventions with a symbol and grouping, through niji::monetary). */
 /* LINK-LIBM: yes */
 #define _GNU_SOURCE
 #include <errno.h>

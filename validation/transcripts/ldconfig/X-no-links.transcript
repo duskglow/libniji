@@ -1,0 +1,30 @@
+# -X: the cache is written, no link is made (so none is shown as changed).
+name: ldconfig -X -v writes the cache and makes no links
+clause: s31_2_g_4
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -X
+arg: -v
+as-cache: etc/ld.so.cache
+file: etc/ld.so.conf
+| /opt/a
+elf: opt/a/libaa.so.1.0 soname=libaa.so.1
+dir: lib/x86_64-linux-gnu
+dir: usr/lib/x86_64-linux-gnu
+dir: usr/lib
+status: exit 0
+stdout:
+| /opt/a: (from /etc/ld.so.conf:1)
+| \tlibaa.so.1 -> libaa.so.1.0
+| /lib/x86_64-linux-gnu: (from <builtin>:0)
+| /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
+| /lib: (from <builtin>:0)
+| /usr/lib: (from <builtin>:0)
+stderr:
+written-file: etc/ld.so.cache
+| 0x303 libaa.so.1 /opt/a/libaa.so.1

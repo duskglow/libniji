@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 6: Threads, synchronisation, process-wide semantics
 
@@ -42,7 +42,7 @@
 * **Design first (owner 2026-10-01):** the per-thread cache, NUMA topology and thread
   runtime decisions are written below before their implementation: D-3.11 (per-thread caches),
   D-3.12 (topology), D-3.13 (large-block reuse), D-17.7 (setxid), D-18.6 (`fork`), D-21.3
-  (shadow stacks), D-22.9 (thread runtime), D-22.10 (threads Liella did not create) and
+  (shadow stacks), D-22.9 (thread runtime), D-22.10 (threads libniji did not create) and
   D-22.11 (cancellation mechanics). (Decision numbers follow spec sections; the plan's earlier
   "D-6.x" would have collided with §6's iconv decisions.)
 
@@ -96,7 +96,7 @@
   * **Budgets (rule P6):** `bench/budgets.tsv` gains the owner's four: 64-byte pair
     ≤ 1.5× glibc, 16 threads ≤ 2×, 1 MiB ≤ 2×, `gettid` a load (≤ 5 ns and ≤ 0.1× a system
     call). `cargo xtask bench` now also runs C benchmarks against the products
-    (`bench/c/cbench_*.c`), since the thread block exists only in a process Liella started.
+    (`bench/c/cbench_*.c`), since the thread block exists only in a process libniji started.
     Results: `benchmarks/progress.md` entry 4.
   * **Found and fixed:**
     * Transparent huge pages: before Linux 6.7 a `MAP_STACK` mapping can take a huge page once
@@ -113,7 +113,7 @@
     * `conformance/run.sh` rewrote programs in place, so a concurrent run of the same program
       failed with `ETXTBSY`; it now links under a temporary name and renames.
   * **Deviations from the plan as written:**
-    1. **Asynchronous cancellation** takes effect only at safe points outside Liella code
+    1. **Asynchronous cancellation** takes effect only at safe points outside libniji code
        (owner ruling 2026-10-01, D-22.11). glibc acts at once.
     2. **Dynamically linked programs** cannot create threads until phase 14 (`EAGAIN`; owner
        ruling 2026-10-01, D-22.10). Statically linked programs have full threads.

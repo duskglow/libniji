@@ -2,7 +2,7 @@
 //! by the POSIX translation layer (implementation-plan.md §8.3).
 //!
 //! `#![forbid(unsafe_code)]`. Anything that touches raw C memory (pointer-to-slice conversions,
-//! C strings, exported symbols, calls into C) is in `liella-boundary`; this crate defines the typed
+//! C strings, exported symbols, calls into C) is in `niji-boundary`; this crate defines the typed
 //! values those conversions produce and the return conventions they feed.
 
 #![cfg_attr(not(test), no_std)]

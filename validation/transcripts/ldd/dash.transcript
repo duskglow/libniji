@@ -1,0 +1,10 @@
+name: ldd dash: a lone dash is an unrecognized option
+clause: s31_3_i_1
+command: ldd
+arg: -
+mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: unrecognized option `-'
+| Try `ldd --help' for more information.

@@ -1,21 +1,21 @@
-//! The §22.4–§22.7 exports' calls: the synchronisation objects of `liella_rt::pthread_sync`
+//! The §22.4–§22.7 exports' calls: the synchronisation objects of `niji_rt::pthread_sync`
 //! with the calling thread's context (its TID, its robust list, cancellable waits through the
 //! C layer's window, D-22.11), the attribute objects, `pthread_once` with its reset on
 //! cancellation, priority protection, the C11 forms, and named semaphores.
 
 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering::{Relaxed, Release}};
 
-use liella_abi::ctypes::c_int;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_abi::ctypes::c_int;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     SchedParam, Timespec, FUTEX_BITSET_MATCH_ANY, FUTEX_CLOCK_REALTIME, FUTEX_PRIVATE_FLAG, FUTEX_WAIT, FUTEX_WAIT_BITSET, MAP_SHARED, O_CLOEXEC,
     O_CREAT, O_EXCL, O_NOFOLLOW, O_RDWR, PROT_READ, PROT_WRITE, SCHED_FIFO, SCHED_RR,
 };
-use liella_rt::futex::{Clock, Scope};
-use liella_rt::pthread_sync::{self as ps, mattr, Barrier, Cond, Ctx, LockWait, Mutex, RwLock, Sem};
+use niji_rt::futex::{Clock, Scope};
+use niji_rt::pthread_sync::{self as ps, mattr, Barrier, Cond, Ctx, FastUnlock, LockWait, Mutex, RwLock, Sem};
 
 use crate::sys::CSys;
 use crate::{cancel, ffi, raw, tb, thread};
@@ -62,7 +62,7 @@ impl Ctx for ThreadCtx {
         let r = match d {
             // A cancellation point (D-22.11): the request is checked inside the window.
             Some(d) => {
-                let r = ffi::liella_machine_syscall_cancel(
+                let r = ffi::niji_machine_syscall_cancel(
                     &d.cancel,
                     202,
                     i64::from_ne_bytes(word.as_ptr().expose_provenance().to_ne_bytes()),
@@ -84,7 +84,7 @@ impl Ctx for ThreadCtx {
                 }
                 r
             }
-            None => return liella_rt::futex::wait_until(&CSys, word, expected, scope, deadline),
+            None => return niji_rt::futex::wait_until(&CSys, word, expected, scope, deadline),
         };
         Errno::decode(r).map(drop)
     }
@@ -220,19 +220,28 @@ pub fn mutex_unlock(m: MutexParts<'_>) -> KResult<()> {
     // TINY-HOT: the plain release inlined into the export (a plain mutex has no ceiling to
     // restore); everything else as before.
     // MUTEX-FAST: parts in registers to the slow path (see `mutex_lock_block`).
+    // MUTEX-MT: the waiter's wake goes through the same cold call as the general path, so the
+    // export has one call site and LLVM keeps its frame (a push, one more store for the `xchg`
+    // to drain) off the uncontended release.
     let (w, l, e) = m?;
-    if Mutex::new(w, l, e).unlock_fast(&ThreadCtx) {
+    let r = Mutex::new(w, l, e).unlock_fast_deferred(&ThreadCtx);
+    if r == FastUnlock::Done {
         return Ok(());
     }
-    mutex_unlock_slow(w, l, e)
+    mutex_unlock_slow(w, l, e, r == FastUnlock::Wake)
 }
 
 // MUTEX-5: `cold`: the fast path's tests then stay separate predicted branches (LLVM had
 // folded them into setcc/and chains).
 #[cold]
 #[inline(never)]
-fn mutex_unlock_slow(w: &[AtomicU32], l: &[AtomicUsize], e: usize) -> KResult<()> {
+fn mutex_unlock_slow(w: &[AtomicU32], l: &[AtomicUsize], e: usize, wake: bool) -> KResult<()> {
     let m = Mutex::new(w, l, e);
+    if wake {
+        // Released by `unlock_fast_deferred`, which saw a waiter's mark.
+        m.wake_one(&ThreadCtx);
+        return Ok(());
+    }
     m.unlock(&ThreadCtx)?;
     if m.protected() {
         protect_restore(&m);
@@ -429,15 +438,15 @@ pub fn cond_broadcast(c: KResult<&[AtomicU32]>) -> KResult<()> {
 // compat_condvar.c, spec/behaviour/compat.glibc.txt): the old object is ONE 8-byte word. `init`
 // stores zero in it (also when it then refuses a process-shared or CLOCK_MONOTONIC attribute with
 // EINVAL), and zero is the static initializer; the first signal, broadcast or wait fills it in.
-// Liella's condition variable needs OLD_WORDS words, more than the word holds, so the word holds
-// the address of a heap block: Liella's condition variable (all-zero = default, CLOCK_REALTIME,
+// libniji's condition variable needs OLD_WORDS words, more than the word holds, so the word holds
+// the address of a heap block: libniji's condition variable (all-zero = default, CLOCK_REALTIME,
 // private) plus a reference word. This is the one sync object that holds a pointer (an exception
 // to D-22.1, which the old ABI forces: it is never process-shared). The reference word counts the
 // waiters inside the block, so a destroy right after a broadcast (allowed by POSIX) cannot free the
 // block under a woken waiter that has not yet returned; the last one out frees it.
 
-/// Words of Liella's condition variable in an old block (`pthread_cond_t`'s size).
-const OLD_WORDS: usize = size_of::<liella_abi::layout::pthread_cond_t>() / 4;
+/// Words of libniji's condition variable in an old block (`pthread_cond_t`'s size).
+const OLD_WORDS: usize = size_of::<niji_abi::layout::pthread_cond_t>() / 4;
 /// The reference word (the block's last): waiters inside it, plus this bit once destroyed.
 const OLD_DEAD: u32 = 1 << 31;
 
@@ -725,7 +734,7 @@ fn once_cancelled_addr() -> usize {
 }
 
 /// `pthread_once`/`call_once`: `init` runs once. The routine runs in the frame of
-/// `liella_machine_once` (machine/once.S), so that a C++ exception unwinds through no Rust frame
+/// `niji_machine_once` (machine/once.S), so that a C++ exception unwinds through no Rust frame
 /// (S11): if it is cancelled or an exception leaves it, the object is reset (§22.5) and a later
 /// call runs it again.
 pub fn once(w: KResult<&[AtomicU32]>, init: usize) -> KResult<()> {
@@ -733,13 +742,13 @@ pub fn once(w: KResult<&[AtomicU32]>, init: usize) -> KResult<()> {
     if init == 0 {
         return Err(Errno::EINVAL);
     }
-    match ffi::liella_machine_once(word.as_ptr().expose_provenance(), init) {
+    match ffi::niji_machine_once(word.as_ptr().expose_provenance(), init) {
         0 => Ok(()),
         e => Err(Errno::new(e).unwrap_or(Errno::EINVAL)),
     }
 }
 
-/// machine/once.S (`liella_once_begin`), before the routine: -1 when the calling thread now runs
+/// machine/once.S (`niji_once_begin`), before the routine: -1 when the calling thread now runs
 /// `init` (`record`, the 4-word buffer in that frame, is registered so that cancellation resets
 /// the object), else the result (0 when the routine completed, or an error number).
 pub fn once_begin(w: KResult<&[AtomicU32]>, init: usize, record: KResult<&[AtomicUsize]>) -> c_int {
@@ -757,7 +766,7 @@ pub fn once_begin(w: KResult<&[AtomicU32]>, init: usize, record: KResult<&[Atomi
     -1
 }
 
-/// machine/once.S (`liella_once_end`), after the routine returned: the record is removed, the
+/// machine/once.S (`niji_once_end`), after the routine returned: the record is removed, the
 /// object done.
 pub fn once_end(w: KResult<&[AtomicU32]>, record: KResult<&[AtomicUsize]>) {
     cancel::pop_old(record, 0);
@@ -766,7 +775,7 @@ pub fn once_end(w: KResult<&[AtomicU32]>, record: KResult<&[AtomicUsize]>) {
     }
 }
 
-/// The personality routine of `liella_machine_once`'s frame (`liella_once_personality`; Itanium
+/// The personality routine of `niji_machine_once`'s frame (`niji_once_personality`; Itanium
 /// C++ ABI: version 1; `_UA_CLEANUP_PHASE` = 2; `_URC_CONTINUE_UNWIND` = 8,
 /// `_URC_FATAL_PHASE1_ERROR` = 3, `_URC_FATAL_PHASE2_ERROR` = 2). It never handles an exception
 /// and installs no landing pad: in the cleanup phase (an exception thrown by the routine, or a
@@ -821,12 +830,62 @@ pub fn sem_getvalue(s: KResult<&[AtomicU32]>) -> KResult<c_int> {
 }
 
 // Named semaphores (§22.7): `/dev/shm/sem.<name>`, mapped shared; one mapping per name in the
-// process (opening it twice gives the same address), counted.
+// process (opening it twice gives the same address), counted. The table of open names has no
+// limit of its own (HL-7): only memory running out stops it growing (`ENOMEM`).
 const SEM_SIZE: usize = 32;
-const NAMED_MAX: usize = 256;
-static NAMED_LOCK: liella_rt::sync::RawMutex = liella_rt::sync::RawMutex::new();
-/// Per open name: (device, inode) as one key, the address, the open count.
-static NAMED: [[AtomicUsize; 4]; NAMED_MAX] = [const { [const { AtomicUsize::new(0) }; 4] }; NAMED_MAX];
+/// Words per open name: (device, inode) as one key, the address, the open count (0: a free entry).
+const ENTRY: usize = 3;
+/// The open names the static area holds: the common case (a program opens a few). More spill
+/// into chunks.
+const NAMED_FIRST: usize = 16;
+/// Header words of a chunk: the next (older) chunk's address (0: none), its entry count.
+const CHUNK_HEAD: usize = 2;
+/// Serialises every use of the table (lookups included: nothing reads it without the lock).
+static NAMED_LOCK: niji_rt::sync::RawMutex = niji_rt::sync::RawMutex::new();
+static NAMED: [AtomicUsize; ENTRY * NAMED_FIRST] = [const { AtomicUsize::new(0) }; ENTRY * NAMED_FIRST];
+/// The newest chunk (0: none yet). A chunk is made only when every entry is in use, with twice the
+/// entries of the one before it (the static area counts as the first), from fallible allocation;
+/// it is never moved or freed, so the table stays at the most names ever open at once (24 bytes
+/// each) and later opens reuse its free entries.
+static NAMED_MORE: AtomicUsize = AtomicUsize::new(0);
+
+/// A chunk's words: the header, then its entries. `at` is a chunk address [`named_grow`] listed.
+fn named_chunk(at: usize) -> &'static [AtomicUsize] {
+    let n = tb::words64(at, CHUNK_HEAD).get(1).map_or(0, |w| w.load(Relaxed));
+    tb::words64(at, n.saturating_mul(ENTRY).saturating_add(CHUNK_HEAD))
+}
+
+/// Under [`NAMED_LOCK`]: every entry, the static area's first, then the chunks', newest first.
+fn named_entries() -> impl Iterator<Item = &'static [AtomicUsize]> {
+    let mut at = NAMED_MORE.load(Relaxed);
+    let chunks = core::iter::from_fn(move || {
+        if at == 0 {
+            return None;
+        }
+        let c = named_chunk(at);
+        at = c.first().map_or(0, |w| w.load(Relaxed));
+        Some(c.get(CHUNK_HEAD..).unwrap_or(&[]))
+    });
+    NAMED.chunks_exact(ENTRY).chain(chunks.flat_map(|c| c.chunks_exact(ENTRY)))
+}
+
+/// Under [`NAMED_LOCK`], every entry in use: a new chunk, listed; its first entry. `ENOMEM` when
+/// it cannot be allocated (or its size computed).
+fn named_grow() -> KResult<&'static [AtomicUsize]> {
+    let newest = NAMED_MORE.load(Relaxed);
+    let last = if newest == 0 { NAMED_FIRST } else { named_chunk(newest).get(1).map_or(0, |w| w.load(Relaxed)) };
+    let n = last.checked_mul(2).ok_or(Errno::ENOMEM)?;
+    let words = n.checked_mul(ENTRY).and_then(|w| w.checked_add(CHUNK_HEAD)).ok_or(Errno::ENOMEM)?;
+    let mut v = niji::mem::TryVec::new();
+    v.resize(words, 0usize).map_err(|_| Errno::ENOMEM)?;
+    if let [next, count, ..] = v.as_mut_slice() {
+        *next = newest;
+        *count = n;
+    }
+    let at = v.leak().as_mut_ptr().expose_provenance();
+    NAMED_MORE.store(at, Relaxed);
+    named_chunk(at).get(CHUNK_HEAD..CHUNK_HEAD.saturating_add(ENTRY)).ok_or(Errno::ENOMEM)
+}
 
 /// `/dev/shm/sem.<name>` for `name` (one leading slash dropped): `EINVAL` for an empty name or
 /// one with another slash, `ENAMETOOLONG` beyond `NAME_MAX`.
@@ -891,7 +950,7 @@ fn sem_create(path: &[u8; 300], mode: u32, value: u32) -> KResult<()> {
     let _ = CSys.getrandom(&mut rnd, 0);
     const LETTERS: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz012345";
     let random = rnd.map(|b| LETTERS.get(usize::from(b % 32)).copied().unwrap_or(b'x'));
-    for (o, &b) in tmp.iter_mut().zip(b"/dev/shm/sem.liella-".iter().chain(&random)) {
+    for (o, &b) in tmp.iter_mut().zip(b"/dev/shm/sem.niji-".iter().chain(&random)) {
         *o = b;
     }
     let fd = CSys.openat(Fd::CWD, kstr(&tmp)?, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode & 0o7777)?;
@@ -914,28 +973,48 @@ fn sem_map(fd: Fd) -> KResult<usize> {
     let st = CSys.fstat(fd)?;
     let key = usize::try_from(st.dev).unwrap_or(0).rotate_left(32) ^ usize::try_from(st.ino).unwrap_or(0);
     let _g = NAMED_LOCK.lock(&CSys);
-    if let Some(e) = NAMED.iter().find(|e| e[3].load(Relaxed) != 0 && e[0].load(Relaxed) == key) {
-        e[3].fetch_add(1, Relaxed);
-        return Ok(e[1].load(Relaxed));
+    let mut free = None;
+    for e in named_entries() {
+        if word(e, 2) == 0 {
+            free = free.or(Some(e));
+        } else if word(e, 0) == key {
+            if let Some(n) = e.get(2) {
+                n.fetch_add(1, Relaxed);
+            }
+            return Ok(word(e, 1));
+        }
     }
-    let slot = NAMED.iter().find(|e| e[3].load(Relaxed) == 0).ok_or(Errno::EMFILE)?;
+    let slot = match free {
+        Some(e) => e,
+        None => named_grow()?,
+    };
     let prot = i32::try_from(PROT_READ | PROT_WRITE).unwrap_or(3);
     let flags = i32::try_from(MAP_SHARED).unwrap_or(1);
     let addr = raw::mmap(0, SEM_SIZE, prot, flags, fd.raw(), 0)?;
-    slot[0].store(key, Relaxed);
-    slot[1].store(addr, Relaxed);
-    slot[3].store(1, Relaxed);
+    set_word(slot, 0, key);
+    set_word(slot, 1, addr);
+    set_word(slot, 2, 1);
     Ok(addr)
+}
+
+fn word(e: &[AtomicUsize], i: usize) -> usize {
+    e.get(i).map_or(0, |w| w.load(Relaxed))
+}
+
+fn set_word(e: &[AtomicUsize], i: usize, v: usize) {
+    if let Some(w) = e.get(i) {
+        w.store(v, Relaxed);
+    }
 }
 
 /// `sem_close`: the mapping goes when the last open of the name in this process closes.
 pub fn sem_close(addr: usize) -> KResult<()> {
     let _g = NAMED_LOCK.lock(&CSys);
-    let e = NAMED.iter().find(|e| e[3].load(Relaxed) != 0 && e[1].load(Relaxed) == addr).ok_or(Errno::EINVAL)?;
-    if e[3].fetch_sub(1, Relaxed) == 1 {
+    let e = named_entries().find(|e| word(e, 2) != 0 && word(e, 1) == addr).ok_or(Errno::EINVAL)?;
+    if e.get(2).map_or(0, |n| n.fetch_sub(1, Relaxed)) == 1 {
         let _ = raw::munmap(addr, SEM_SIZE);
-        e[0].store(0, Relaxed);
-        e[1].store(0, Relaxed);
+        set_word(e, 0, 0);
+        set_word(e, 1, 0);
     }
     Ok(())
 }
@@ -957,12 +1036,12 @@ pub fn mtx_init(m: MutexParts<'_>, kind: c_int) -> c_int {
         m.init(if kind & 1 != 0 { ps::MUTEX_RECURSIVE } else { ps::MUTEX_NORMAL }, 0);
         Ok(())
     });
-    liella_legacy::pthread_compat::c11_code(r)
+    niji_legacy::pthread_compat::c11_code(r)
 }
 
 /// A C11 result code for a lock-family call.
 pub fn c11<T>(r: KResult<T>) -> c_int {
-    liella_legacy::pthread_compat::c11_code(r.map(drop))
+    niji_legacy::pthread_compat::c11_code(r.map(drop))
 }
 
 /// `mtx_destroy`.

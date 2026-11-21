@@ -7,8 +7,8 @@
 //! says so and the POSIX value is expected.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::type_complexity, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, cflags, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, cflags, Options, Window};
 
 /// The match and the subexpressions of `pat` (`cflags`) on `subject`, as `(so, eo)`.
 fn groups(pat: &str, cf: i32, subject: &str) -> Option<Vec<(i64, i64)>> {

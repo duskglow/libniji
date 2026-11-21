@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 # Scope review: legacy, obsolete and insecure-by-design interfaces (SCOPE-REVIEW-LEGACY, 2026-11-04)
 
@@ -11,7 +11,7 @@ changes no code. Every recommendation below is RULING NEEDED.**
 
 * **Candidates:** spec §29 (29.1 to 29.4), §30 H12 ("interfaces that embed insecure designs"), the phase 15 plan
   (`plan/06-phases/18-phase-15-legacy-tier-and.md`), `docs/spec-symbol-gaps.md`, and the man pages' deprecation
-  notes. Manifest status (`default` / `compat`) is `spec/abi/versions.tsv`; "in Liella" is
+  notes. Manifest status (`default` / `compat`) is `spec/abi/versions.tsv`; "in libniji" is
   `docs/codemap/symbols.tsv` plus a search of `crates/` and `csys/`.
 * **Users (black box only):** `legacy_users.py` (scratch, job `scope-review-legacy-usage`, 2026-11-04)
   read the undefined dynamic symbols (`readelf -W --dyn-syms`) of all 2,867 x86-64 ELFs under `/usr/bin`,
@@ -26,7 +26,7 @@ changes no code. Every recommendation below is RULING NEEDED.**
   that DROP would need, so no row here recommends DROP for a name glibc 2.39 exports.
 
 Recommendation kinds (brief): **IMPLEMENT** (as now); **COMPAT-ONLY** (export for old binaries, behave as
-specified, not declared in Liella's headers for new links); **STUB** (export, fail cleanly, as
+specified, not declared in libniji's headers for new links); **STUB** (export, fail cleanly, as
 LEGACY-RPC-NIS-STUBS); **DROP** (not exported). The symbol and version stay as they are under COMPAT-ONLY. Only
 the header declaration goes, so binaries see no ABI difference. Whether a missing header declaration is a
 difference from glibc that needs a row in `docs/differences-from-glibc.md` is item R0.
@@ -35,12 +35,12 @@ difference from glibc that needs a row in `docs/differences-from-glibc.md` is it
 
 Risk: **I** insecure by design, **U** unbounded buffer, **R** racy or global state, **O** merely old. Users column: ELFs/packages.
 
-| # | Family | Manifest | Users (Xeon host) | Risk | In Liella | Recommend |
+| # | Family | Manifest | Users (Xeon host) | Risk | In libniji | Recommend |
 |---|---|---|---|---|---|---|
 | 1 | `gets` (removed from C11; man page: never use) | default | 0/0 | I, U | yes, `s12_stdio.rs` | COMPAT-ONLY |
 | 2 | `tmpnam`, `tmpnam_r` (ISO C; man page: use `mkstemp`/`tmpfile`) | default | 0/0 | R (name-then-open) | yes, `s12_stdio.rs` | IMPLEMENT, header deprecation warning |
 | 3 | `tempnam`, `mktemp` | default | tempnam 1/1 (libnewt); mktemp 2/2 (bash, busybox) | R | yes | IMPLEMENT (in use) |
-| 4 | DES `crypt`/`crypt_r`, `encrypt`/`setkey`(`_r`) | **absent from the 2.39 manifest** | crypt 10/7, crypt_r 12/5, all bound to `libcrypt.so.1` (package `libcrypt1`, not glibc); encrypt/setkey 0 | I (DES, 8-char keys) | not exported (`des.rs` serves RPC only) | DROP (already absent): `libcrypt` stays outside Liella |
+| 4 | DES `crypt`/`crypt_r`, `encrypt`/`setkey`(`_r`) | **absent from the 2.39 manifest** | crypt 10/7, crypt_r 12/5, all bound to `libcrypt.so.1` (package `libcrypt1`, not glibc); encrypt/setkey 0 | I (DES, 8-char keys) | not exported (`des.rs` serves RPC only) | DROP (already absent): `libcrypt` stays outside libniji |
 | 5 | RPC DES helpers (`des_setparity`, `ecb_crypt`, `cbc_crypt`, `xencrypt`, `passwd2des`) | compat (§29.1) | 0/0 | I | partly (`des.rs`, 302 lines) | STUB, under LEGACY-RPC-NIS-STUBS |
 | 6 | `utmp`/`wtmp` readers and writers (`getutent`, `pututline`, `updwtmp`, `login`, `logout`, `logwtmp`) | default | setutent 6/6, getutent 4/4, pututline 3/3 (login, screen, libutempter), login/logout/logwtmp 1/1 (openssh-server) | R (unlocked shared file; 32-bit `ut_tv` is a Y2038 limit) | yes, `s17_users.rs`, `accounting.rs` | IMPLEMENT (in use) |
 | 7 | `getpw` (man page: dangerous, overflow; use `getpwuid`) | default | 0/0 | U | yes | COMPAT-ONLY |
@@ -79,10 +79,10 @@ Also checked, old but in use, with no change recommended (IMPLEMENT): `usleep` 6
 
 ## RULING NEEDED (batch for the owner)
 
-* **R0 (policy).** COMPAT-ONLY means the symbol keeps its version and Liella's headers do not declare it. Recommend:
+* **R0 (policy).** COMPAT-ONLY means the symbol keeps its version and libniji's headers do not declare it. Recommend:
   every name in that state gets one shared differences row ("declared only for binary compatibility") and a COMPAT
   flag that restores the declarations. Why: source code that still uses one of them builds against glibc's headers
-  but not against Liella's.
+  but not against libniji's.
 * **R1 `gets`: COMPAT-ONLY.** It is insecure by design and gone from ISO C since C11, and no user was seen.
 * **R2 `tmpnam`/`tmpnam_r`: IMPLEMENT with a deprecation warning in the header.** `tmpnam` is still ISO C, and the
   warning points users at `mkstemp`.
@@ -99,7 +99,7 @@ Also checked, old but in use, with no change recommended (IMPLEMENT): `usleep` 6
 * **R8 malloc hooks: COMPAT-ONLY and inert.** This keeps the current plan. Inert hooks are not an allocation
   redirection surface.
 * **R9 `libc_malloc_debug.so.0`: lowest priority after DL-1; `malloc_get_state` as STUB.** Its two users bind
-  `mtrace` in libc.so.6, which Liella already has.
+  `mtrace` in libc.so.6, which libniji already has.
 * **R10 `rexec`/`rexec_af`: STUB (`ENOSYS`), with a differences row and a COMPAT flag.** It sends a password in
   clear text, and no user was seen.
 * **R11 `rcmd`/`rresvport`: COMPAT-ONLY. Keep the `ruserok` family as it is (pam_rhosts).** Address-based trust is
@@ -115,7 +115,7 @@ Also checked, old but in use, with no change recommended (IMPLEMENT): `usleep` 6
 
 The owner accepted the coordinator's view on every row (source: liella-ops `state/PH14-OWNER-RULINGS.md`). As ruled:
 
-* **R0.** COMPAT-ONLY = symbol and version kept, Liella's headers do not declare it. ONE shared differences row
+* **R0.** COMPAT-ONLY = symbol and version kept, libniji's headers do not declare it. ONE shared differences row
   ("declared only for binary compatibility") and one COMPAT flag that restores the declarations.
 * **R1 `gets`:** COMPAT-ONLY.
 * **R2 `tmpnam`/`tmpnam_r`:** IMPLEMENT, with a header deprecation warning that points to `mkstemp`.
@@ -142,7 +142,7 @@ The owner accepted the coordinator's view on every row (source: liella-ops `stat
 
 For the brief template (Rules section):
 
-> **Should Liella have it at all?** Before implementing an interface, check whether it is obsolete, deprecated,
+> **Should libniji have it at all?** Before implementing an interface, check whether it is obsolete, deprecated,
 > removed upstream (compat-only in `spec/abi/versions.tsv`), or insecure by design (spec §30 H12,
 > `plan/scope-review-legacy.md`). If it is and no ruling covers it, stop and write RULING NEEDED (IMPLEMENT,
 > COMPAT-ONLY, STUB or DROP) with your recommendation and evidence of users. Do not replicate it just because
@@ -150,7 +150,7 @@ For the brief template (Rules section):
 
 For CONTRIBUTING.md (after "Clean-room design"):
 
-> **Check scope first.** Before implementing an interface, check whether Liella should have it at all.
+> **Check scope first.** Before implementing an interface, check whether libniji should have it at all.
 > Deprecated, removed-upstream and insecure-by-design interfaces need a maintainer's ruling first.
 > `plan/scope-review-legacy.md` lists the families already reviewed. Evidence of users comes from black-box
 > binary scans or the binary-compatibility corpus, never from another libc's source.

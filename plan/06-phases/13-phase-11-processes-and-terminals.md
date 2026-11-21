@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 11: Processes and terminals
 
@@ -41,7 +41,7 @@
     decisions, 1 ADDED) and `terminals_products` (21 KNOWN, 4 ADDED, 2 DROPPED), each with its
     reason; conformance programs `s18_exec` and `s19_terminals` (variadic exec, `daemon`, `forkpty`,
     cancellation). `process_products` links an interim shim for §13's `chdir`/`fchdir`/`getcwd`/
-    `__realpath_chk` (phase 12) into the Liella build only; it goes when those exist.
+    `__realpath_chk` (phase 12) into the libniji build only; it goes when those exist.
     `cargo xtask test`: plain, export+selftest, conformance; clippy clean.
   * **Budgets:** `benchmarks/progress.md` entry 9 (`cbench_process`, 15 sanity rows; 61 budgets met
     in three runs). Spawn rows are kernel- and shell-bound (1.1–1.2× glibc); `vfork` is 3× by
@@ -60,7 +60,7 @@
     * Spec over reference and cleaner choices, recorded in `docs/differences-from-glibc.md`
       (D-18.3, D-18.5, D-19.1 to D-19.4).
     * **Erratum candidate:** §18.6's ⚑ note says `waitid` exposes the full 32-bit exit value; the
-      kernel gives 8 bits (`_exit(300)` → 44), and Liella passes on what it gives.
+      kernel gives 8 bits (`_exit(300)` → 44), and libniji passes on what it gives.
     * **For the owner:** `vfork` is 3× glibc because D-18.1 makes its child copy-on-write; the
       spawn family copies page tables per spawn until the `CLONE_VM` child (D-18.3's target).
     * Untested for lack of privilege or hardware: successful `SETCGROUP`, `setns`/`unshare` into

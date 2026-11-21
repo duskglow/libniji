@@ -7,13 +7,17 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
-/// File slugs per top-level spec section (shared with crates/posix/src/sNN_*.rs).
-pub const SLUGS: [&str; 30] = [
+/// File slugs per top-level spec section (shared with crates/posix/src/sNN_*.rs). §30 (the pattern
+/// catalogue) has no clauses; §31 is the utilities (UTIL-SPEC).
+pub const SLUGS: [&str; 32] = [
     "conventions", "startup", "diagnostics", "memory", "strings", "ctype", "multibyte", "locale",
     "numeric", "random", "math", "lowio", "stdio", "filesystem", "search", "sockets",
     "nameservices", "users", "processes", "terminals", "signals", "contexts", "threads", "time",
-    "system", "ipc", "syslog", "dynlink", "profiling", "legacy",
+    "system", "ipc", "syslog", "dynlink", "profiling", "legacy", "catalogue", "utilities",
 ];
+
+/// The top-level sections that hold no clauses: §30 consolidates the annotations of the others into patterns.
+pub const NO_CLAUSES: [u32; 1] = [30];
 
 /// Appendix B entries the generator relocates. Each is a filing error in the spec's generated
 /// index, corrected to the section whose text specifies the symbol (see spec/ERRATA.md).
@@ -110,7 +114,7 @@ pub(crate) fn ident_part(s: &str) -> String {
     s.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '_' }).collect()
 }
 
-/// Parse all testable clauses of the spec body (sections 0-29).
+/// Parse all testable clauses of the spec body (sections 0-29 and 31; not §30, [`NO_CLAUSES`]).
 pub fn clauses(spec: &str) -> Vec<Clause> {
     let mut out: Vec<Clause> = Vec::new();
     let mut top: u32 = 0;
@@ -142,7 +146,7 @@ pub fn clauses(spec: &str) -> Vec<Clause> {
 
     for raw in spec.lines() {
         let line = raw.trim_end();
-        if line.starts_with("## Appendix") || line.starts_with("## 30.") {
+        if line.starts_with("## Appendix") {
             flush(&mut cur, &mut out);
             break;
         }
@@ -153,7 +157,7 @@ pub fn clauses(spec: &str) -> Vec<Clause> {
                 if let Ok(n) = num.parse::<u32>() {
                     top = n;
                     section = n.to_string();
-                    in_body = true;
+                    in_body = !NO_CLAUSES.contains(&n);
                 }
             }
             continue;
@@ -423,6 +427,15 @@ fn emit(path: &Path, content: &str, ids: &[String], force: bool, problems: &mut 
             return Ok(());
         }
     }
+    write_if_changed(path, content)
+}
+
+/// Write `content` to `path` only when its text differs: an unchanged file keeps its modification time, because a
+/// role's times tell `cargo xtask precheck` what changed after a job started (the gate runs `stubs` in the role).
+fn write_if_changed(path: &Path, content: &str) -> Result<(), String> {
+    if fs::read_to_string(path).ok().as_deref() == Some(content) {
+        return Ok(());
+    }
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -461,7 +474,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         }
         emit(&file, &body, &ids, force, &mut problems)?;
     }
-    fs::write(root.join("spec/clauses.tsv"), tsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/clauses.tsv"), &tsv)?;
 
     // --- Commentary items (spec §0.3): the mark's form, and each one present as `commentary!`
     // (not a pending `clause!` stub, not a test).
@@ -515,7 +528,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         }
         emit(&file, &body, &ids, force, &mut problems)?;
     }
-    fs::write(root.join("spec/symbols.tsv"), stsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/symbols.tsv"), &stsv)?;
 
     // --- Kernel primitive stubs (Appendix A).
     let mut body = format!("{HEADER}//! Kernel-boundary tests, one per primitive of spec Appendix A ({} primitives).\n\nuse spectest::primitive;\n\n", prims.len());
@@ -531,7 +544,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         ids.push(id);
     }
     emit(&root.join("crates/boundary/tests/appendix_a_primitives.rs"), &body, &ids, force, &mut problems)?;
-    fs::write(root.join("spec/primitives.tsv"), ptsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/primitives.tsv"), &ptsv)?;
 
     // --- ABI data stubs (spec Appendix C): one per type layout and per static initializer.
     let (layout_ids, layout_n) = abi_stubs(root, force, &mut problems)?;
@@ -564,7 +577,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
 }
 
 /// Layout and initializer stubs from spec/abi/layouts.tsv and initializers.tsv (Appendix C).
-fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Vec<String>, usize), String> {
+pub(crate) fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Vec<String>, usize), String> {
     let lay = fs::read_to_string(root.join("spec/abi/layouts.tsv")).map_err(|e| format!("layouts.tsv: {e}"))?;
     let ini = fs::read_to_string(root.join("spec/abi/initializers.tsv")).map_err(|e| format!("initializers.tsv: {e}"))?;
     let mut body = String::new();
@@ -590,7 +603,7 @@ fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Ve
     }
     let n = ids.len();
     let content = format!("{HEADER}//! ABI data tests, one per type layout and static initializer of spec Appendix C ({n} items).
-//! Each asserts size, alignment and member offsets (or initializer bytes) of the `liella_abi::layout`
+//! Each asserts size, alignment and member offsets (or initializer bytes) of the `niji_abi::layout`
 //! definition against the normative tables in spec/abi/.
 
 use spectest::layout;
@@ -613,6 +626,23 @@ mod tests {
     use super::clauses;
 
     #[test]
+    fn stubs_keeps_the_time_of_an_unchanged_file() {
+        // no spec clause: HANDBACK-INLOOP-CHECKS-2. The gate runs `stubs` in the role after its job started; a
+        // rewrite of identical spec/symbols.tsv made precheck call the job stale. Same text: time kept; other: written.
+        use std::time::{Duration, SystemTime};
+        let p = std::env::temp_dir().join(format!("xtask-spec-wic-{}/spec/symbols.tsv", std::process::id()));
+        super::write_if_changed(&p, "a\n").unwrap();
+        let old = SystemTime::now() - Duration::from_secs(3600);
+        std::fs::File::options().write(true).open(&p).unwrap().set_modified(old).unwrap();
+        super::write_if_changed(&p, "a\n").unwrap();
+        assert_eq!(std::fs::metadata(&p).unwrap().modified().unwrap(), old, "same text rewritten");
+        super::write_if_changed(&p, "b\n").unwrap();
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "b\n");
+        assert!(std::fs::metadata(&p).unwrap().modified().unwrap() > old);
+        let _ = std::fs::remove_dir_all(p.parent().unwrap().parent().unwrap());
+    }
+
+    #[test]
     fn a_flag_line_does_not_end_the_field() {
         let spec = "## 1. A\n\n### 1.1 F\n\n**Contract.**\n\n* **`a`** first.\n  \u{2691} HIST.\n* **`b`** second.\n\n\u{2691} ARB: a note on the field,\nwrapped.\n\n* **`c`** third.\n\n**Failure.** none.\n";
         let c = clauses(spec);
@@ -626,5 +656,17 @@ mod tests {
                 ("s1_1_f_0", "none."),
             ]
         );
+    }
+
+    /// UTIL-SPEC (no spec clause: the generator's rule): §30, the pattern catalogue, gives no clauses, and the
+    /// section after it (§31, the utilities) does; the appendices end the body.
+    #[test]
+    fn the_catalogue_gives_no_clauses_and_the_section_after_it_does() {
+        let spec = "## 29. A\n\n### 29.1 F\n\n**Contract.** the last clause before the catalogue.\n\n## 30. Catalogue\n\n| # | Pattern |\n|---|---|\n| H1 | text |\n\n\
+                    **Contract.** not a clause.\n\n## 31. Utilities\n\n### 31.2 ldconfig\n\n**Contract.**\n\n* first.\n\n\
+                    | Name | Source |\n|---|---|\n| x | probe |\n\n## Appendix A. K\n\n**Contract.** not a clause.\n";
+        let c = clauses(spec);
+        let ids: Vec<(&str, &str, u32)> = c.iter().map(|c| (c.id.as_str(), c.section.as_str(), c.top)).collect();
+        assert_eq!(ids, [("s29_1_c_0", "29.1", 29), ("s31_2_c_1", "31.2", 31), ("s31_2_c_r1", "31.2", 31)]);
     }
 }

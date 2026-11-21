@@ -1,4 +1,4 @@
-//! ALLOC-FAIL-INJECT (#2020): the allocation-failure hook (`liella_boundary::selftest::failinject`) is test-only;
+//! ALLOC-FAIL-INJECT (#2020): the allocation-failure hook (`niji_boundary::selftest::failinject`) is test-only;
 //! no shipped product carries its code, its symbols or its name.
 
 #![allow(clippy::unwrap_used, missing_docs)]
@@ -6,7 +6,7 @@
 #[test]
 fn failinject_absent_from_products() {
     // Trace: no spec clause (test facility, ALLOC-FAIL-INJECT).
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/liella");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/niji");
     assert!(dir.join("libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let needle = b"failinject";
     let mut names: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_file()).collect();

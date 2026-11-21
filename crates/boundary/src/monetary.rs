@@ -1,12 +1,12 @@
 //! `strfmon` glue (spec §7.5; D-7.11): the locale's `LC_MONETARY` conventions, the amounts
-//! from the C `va_list` and the current rounding mode, for `liella::monetary`. Only the C ABI
-//! translation lives here; the format language is `liella::monetary::format`.
+//! from the C `va_list` and the current rounding mode, for `niji::monetary`. Only the C ABI
+//! translation lives here; the format language is `niji::monetary::format`.
 
-use liella::error::KResult;
-use liella::monetary::{self, Amounts, Conventions};
-use liella::num::float::{Float, Format};
-use liella_abi::va::VaSource;
-use liella_kernel::machine::Machine;
+use niji::error::KResult;
+use niji::monetary::{self, Amounts, Conventions};
+use niji::num::float::{Float, Format};
+use niji_abi::va::VaSource;
+use niji_kernel::machine::Machine;
 
 use crate::locale;
 use crate::sys::CSys;
@@ -33,6 +33,6 @@ pub fn vstrfmon(s: KResult<&mut [u8]>, loc: usize, fmt: KResult<&[u8]>, ap: usiz
     let (buf, fmt) = (s?, fmt?);
     let l = if loc == 0 { locale::current() } else { locale::of(loc) };
     // ARCH(x86_64): rounding mode read from MXCSR; FPCR on aarch64 (A-9)
-    let mode = liella_legacy::num_compat::rounding(CSys.mxcsr());
+    let mode = niji_legacy::num_compat::rounding(CSys.mxcsr());
     monetary::format(buf, fmt, &Conventions::of(l), &mut Args(CVa(ap)), mode)
 }

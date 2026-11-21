@@ -1,11 +1,11 @@
 //! The C shapes of spec §17.1 that add something to the kernel call: `getgroups`' count
 //! query and its buffer check, and `group_member`. The ID queries are the `Sys` methods.
 
-use liella::error::{Errno, Result};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY};
+use niji::error::{Errno, Result};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY};
 
 /// `getgroups(size, list)` (§17.1): with `size` 0 the count; otherwise the groups into `list`,
 /// `EINVAL` when it is too small (a negative size too).

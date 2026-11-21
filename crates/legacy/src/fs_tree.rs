@@ -1,5 +1,5 @@
 //! The C shapes of the tree walks and temporary names (spec §13.3, §13.9; D-13.4, D-13.13):
-//! `nftw`/`ftw` over `liella::fs::walk`, the `mktemp` convention, and the stable sort the
+//! `nftw`/`ftw` over `niji::fs::walk`, the `mktemp` convention, and the stable sort the
 //! comparison callbacks of `scandir` and `fts` use. The `fts` family is in [`crate::fts`].
 //!
 //! * `FTW_CHDIR` is the one place a walk changes the working directory (D-13.4: the contract
@@ -14,16 +14,16 @@ use core::ffi::c_void;
 
 use core::cell::Cell;
 
-use liella::error::{Errno, Result};
-use liella::fs::temp;
-use liella::fs::walk::{self, Action, Event, Kind, Options};
-use liella::mem::TryVec;
-use liella_abi::callback::{FtwFn, NftwFn, SlotCompareFn};
-use liella_abi::layout::struct_FTW;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, O_CLOEXEC, O_DIRECTORY, O_PATH};
+use niji::error::{Errno, Result};
+use niji::fs::temp;
+use niji::fs::walk::{self, Action, Event, Kind, Options};
+use niji::mem::TryVec;
+use niji_abi::callback::{FtwFn, NftwFn, SlotCompareFn};
+use niji_abi::layout::struct_FTW;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, O_CLOEXEC, O_DIRECTORY, O_PATH};
 
 /// `FTW_PHYS`.
 pub const FTW_PHYS: i32 = 1;

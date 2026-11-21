@@ -2,7 +2,7 @@
 
 ## How this project was made
 
-Liella was written with [Claude Code](https://claude.com/claude-code), using Anthropic's
+libniji was written with [Claude Code](https://claude.com/claude-code), using Anthropic's
 Claude models (the `Co-Authored-By` trailer on each commit names the model), under the direction of a human maintainer. The maintainer:
 
 * set the goals;
@@ -16,7 +16,7 @@ the AI sessions did wrong, including the clean-room lapses, is part of the publi
 
 ## AI-assisted contributions are welcome
 
-You may use AI tools to write code, tests or documentation for Liella. We care about the
+You may use AI tools to write code, tests or documentation for libniji. We care about the
 quality of a contribution, not about which tools produced it.
 
 ## Your contribution is your responsibility
@@ -26,7 +26,7 @@ quality of a contribution, not about which tools produced it.
   hallucinated API, or a broken test. Low-quality contributions will be treated as
   low-quality contributions, whatever tool produced them.
 * **Test it and review it yourself before you submit it.** Run the tests your change can
-  reach (`cargo xtask affected`). Compare behaviour with a black-box probe where that makes
+  reach (`cargo xtask affected --run`). Compare behaviour with a black-box probe where that makes
   sense. Read every line. If you cannot explain what a change does and why it is correct, it
   is not ready.
 * **Check the facts.** Anything that claims something about glibc behaviour, the ABI, POSIX or

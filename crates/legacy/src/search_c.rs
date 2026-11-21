@@ -1,4 +1,4 @@
-//! The C shapes of spec §14.1–§14.6 over `liella::search`: comparator callbacks, trees, hash
+//! The C shapes of spec §14.1–§14.6 over `niji::search`: comparator callbacks, trees, hash
 //! tables and queues whose nodes live in memory the C caller sees (D-14.2, D-14.3).
 //!
 //! Memory is reached through [`CWords`], which the boundary implements over C addresses
@@ -13,10 +13,10 @@ use core::cmp::Ordering;
 use core::ffi::c_void;
 use core::sync::atomic::Ordering as AtomicOrdering;
 
-use liella::error::{Errno, Result};
-use liella::search::{self, Deleted, HashMem, Links, TreeNodes, Visit};
-use liella_abi::callback::{ActionCtxFn, ActionFn, CompareFn, FreeFn};
-use liella_abi::layout::{struct_hsearch_data, ENTRY};
+use niji::error::{Errno, Result};
+use niji::search::{self, Deleted, HashMem, Links, TreeNodes, Visit};
+use niji_abi::callback::{ActionCtxFn, ActionFn, CompareFn, FreeFn};
+use niji_abi::layout::{struct_hsearch_data, ENTRY};
 
 use crate::search_global::{FILLED, SIZE, TABLE};
 use crate::string_compat::Cursor;
@@ -70,7 +70,7 @@ fn order(v: i32) -> Ordering {
 
 // ------------------------------------------------------------------------------ arrays
 
-pub use liella::search::{SortCompare, SortScratch};
+pub use niji::search::{SortCompare, SortScratch};
 
 /// `qsort` and `qsort_r`: stable, never fails (D-14.1). `cmp` is the C comparator as the
 /// boundary calls it, on elements named by offset ([`SortCompare`]); `scratch` shows where the
@@ -96,7 +96,7 @@ pub fn lsearch(key: &[u8], base: &mut [u8], n: &mut usize, size: usize, cmp: Com
     let found = lfind(key.as_ptr().cast(), base.get(..used).unwrap_or(&[]), size, cmp);
     found.unwrap_or_else(|| {
         if let Some(slot) = base.get_mut(used..used.saturating_add(size)) {
-            liella::bytes::copy(slot, key);
+            niji::bytes::copy(slot, key);
         }
         *n = n.saturating_add(1);
         used

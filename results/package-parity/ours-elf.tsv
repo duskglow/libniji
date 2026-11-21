@@ -1,0 +1,22 @@
+libc-bin	./usr/bin/getconf		
+libc-bin	./usr/bin/getent		libc.so.6
+libc-bin	./usr/bin/ldd		
+libc-bin	./usr/sbin/ldconfig		
+libc6	./usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2	ld-linux-x86-64.so.2	
+libc6	./usr/lib/x86_64-linux-gnu/libanl.so.1	libanl.so.1	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libc.so.6	libc.so.6	
+libc6	./usr/lib/x86_64-linux-gnu/libc_malloc_debug.so.0	libc_malloc_debug.so.0	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libdl.so.2	libdl.so.2	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libm.so.6	libm.so.6	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libnsl.so.1	libnsl.so.1	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libpthread.so.0	libpthread.so.0	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/librt.so.1	librt.so.1	libc.so.6
+libc6	./usr/lib/x86_64-linux-gnu/libutil.so.1	libutil.so.1	libc.so.6
+libc6-dev	./usr/lib/x86_64-linux-gnu/Mcrt1.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/Scrt1.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/crt1.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/crti.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/crtn.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/gcrt1.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/grcrt1.o		
+libc6-dev	./usr/lib/x86_64-linux-gnu/rcrt1.o		

@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Which libc entry points real programs call, and how often (WL-ENTRIES). Exact dynamic call counts, never time.
 #
 #   export S=<scratchpad>; bash validation/wl_entries.sh [--role R] [--fetch DIR] [--nowait] [<workload>...]

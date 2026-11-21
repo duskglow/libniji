@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S11", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: tables extended, generator and 5 templates + Fortran header written, headers-gen ok; P1 red on hex float literals in C89/C++98, tgmath.h and ieee754.h not written, no plants or gate",
+ "branch": "task/sl-headers-s11", "head": "e60afd8fe",
+ "gate": {"affected": "not run", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "iscanonical: x87 non-canonical long double encodings (pseudo-denormals) are reported canonical by the macro", "recommendation": "decide in the pending record; use a builtin test if GCC documents one"}],
+ "informational": ["header_check.py check2 (rc 1): hex float literals in C89/C++98, fenv.h C++11 builtin conflict, P1 on C++ wrapper rows", "other headers were not re-probed with the new candidate names"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "visibility.tsv, macros.tsv, typedefs.tsv rows for the math group's names", "before": 0, "after": 577, "unit": "rows", "measured": true}],
+ "improvement": "a header_probe restricted run takes 76 s: a candidate-name gap is cheap to close once found; tables should have been checked for M_PI before the slice was planned",
+ "next_step": "decimal floating literals in headers-gen literal(), then tgmath.h, ieee754.h, P2/P3/P6, plants, gate",
+ "report_file": "handoff/SL-HEADERS-S11.md",
+ "jobs": ["keke:sl-headers-s11-gen3"]}

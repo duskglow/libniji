@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # One-call deterministic workload counters for a branch (WL-COUNT). Counts, never time: instructions:u,
 # instructions:k, page faults, syscalls and an output check, for glibc / BASE / NEW, measured on Zen 1 host.
 #
@@ -8,10 +8,10 @@
 # RUNS ON THE HOST WHERE IT IS STARTED (VALIDATION-JOBRUN, 2026-10-20; no ssh, no vm_run, no --host: dispatch is the
 # caller's). From a role directory:
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_count.sh --base <full sha> . seq'
-# <dir|rev>: a Liella tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
+# <dir|rev>: a libniji tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
 #   `head=` of its .synced marker, else "unknown" (never an error; not cached across runs); a tree .synced calls dirty is
 #   refused unless --rev names it. WITHOUT git the base is the role's .synced `merge_base=` (written by sync_role --base; `base_sha=` is the base ref's
-#   tip), or --base <full sha> (wins). Its source or products must be cached here (~/wl/src/<sha>, ~/wl/products/<sha>;
+#   tip), or --base <full sha> (wins). Its source or products must be cached here (~/wl/src/<sha>, ~/wl/products/<sha>-release;
 #   prime with validation/wl_prime_base.sh <host> <sha> from a git checkout), else exit 2 (the base column is not optional for counts).
 #   A git worktree directory (its HEAD; dirty refused) or any rev of the repository you run in works as before. BASE defaults to `git merge-base NEW origin/next` (TOOLS-15; a --base
 #   REV the branch is behind becomes merge-base NEW REV, WL_BASE_EXACT=1 keeps it; see wl_base.sh); the base
@@ -20,7 +20,7 @@
 # What runs (all on this host):
 #   1. NEW (role tree copy or git archive) and BASE (git archive) to ~/wl/src/<sha> (skipped when present);
 #   2. wl_prep.sh with WL_PROGS = only the programs the named workloads use: cargo xtask so for each sha
-#      (cached in ~/wl/products/<sha>) and a relink of just those programs (cached in ~/wl/kit/<sha>);
+#      (cached in ~/wl/products/<sha>-release) and a relink of just those programs (cached in ~/wl/kit/<sha>-release);
 #   3. wl_count_run.sh: perf stat -r 3 + strace -c + md5 per workload and variant; rows cached per
 #      variant in ~/wl/count/<sha>/ (BASE results are reused by every later call).
 # Prints one table per workload: new, base, glibc, new/glibc, new/base, SAME/DIFF output.
@@ -38,10 +38,10 @@
 # --nowait: accepted and ignored (jobrun detaches). Env: COUNT_FRESH=1 ignores cached rows; FAULT_PCT (2) = faults difference that triggers a fresh re-measure.
 # WLC_ENV='NAME=VALUE ...' (SSE2-GAP-4, like wl_percall's WLP_ENV): environment for the measured program, applied
 #   to ALL THREE columns (glibc, base, new) - e.g. WLC_ENV='GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2' forces the
-#   SSE2 variants in glibc AND Liella (both read the tunable). Rows measured under an env are cached apart.
+#   SSE2 variants in glibc AND libniji (both read the tunable). Rows measured under an env are cached apart.
 #   Self-check: with WLC_ENV set, the glibc row is also measured without it and the table prints whether the
 #   glibc column changed (a "WARNING: glibc column unchanged" means the env did not reach glibc). Before this
-#   fix the glibc row came from a cache keyed only by "glibc", so an "SSE2-forced" run compared Liella SSE2
+#   fix the glibc row came from a cache keyed only by "glibc", so an "SSE2-forced" run compared libniji SSE2
 #   with glibc AVX2.
 # Output: the measured program's stdout goes into a pipe (| cat), never straight to /dev/null: GNU grep
 #   stops at the first match when its stdout is /dev/null (and other programs may special-case it).
@@ -66,6 +66,8 @@ target=$1
 shift
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/wl_local.sh"
+profile=$(wl_profile) || exit 2   # the products profile (wl_lock.sh): release, what ships; WL_PROFILE=fast for a comparison
+link=$(wl_link) || exit 2   # WL_LINK=dynamic: the new and base columns run libniji dynamically (wl_lock.sh LINK, WL-DYNAMIC-KIT)
 root=; gitmode=0
 if [ -d "$target" ]; then
     if wl_is_git "$target"; then
@@ -123,7 +125,7 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $new $base; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$k/libc.a ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
         [ -d ~/wl/src/$k ] && rm -rf ~/wl/src/$k   # empty or partial tree from an earlier failed unpack: unpack again
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" || return 1
@@ -136,12 +138,24 @@ prep() {
             wl_local_src "$root" "$k" || return 1
         fi
     done
-    cmd="${rec}WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
+    cmd="${rec}export WL_PROFILE=$profile WL_LINK=$link && WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
 }
 [ $nowait = 1 ] && echo "wl_count: --nowait ignored (this tool runs where it is started; jobrun detaches)" >&2
 prep || exit 1
 wl_local_run "$label" "$cmd"
 rc=$(cat ~/logs/$label.done)
 grep -v '^wl_prep: done' ~/logs/$label.log | tail -n 200
+# THE INVIOLABLE RULE (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141): validation/wl_verdict.py judges the new column of a
+# dynamic release run (each workload <= 1.10x glibc in instructions:u and page faults, held rows of wl_holds.tsv at
+# their recorded level, geomean <= 1.00 when every workload ran) and its FAIL fails this run. A static, fast-profile
+# or WLC_ENV run prints the same verdict, never gating (the levels are those of the dynamic release kit as shipped).
+if [ "$rc" = 0 ]; then
+    if [ "$link" = dynamic ] && [ "$profile" = release ] && [ -z "$wenv" ]; then
+        python3 "$here/wl_verdict.py" check ~/logs/$label.log --holds "$here/wl_holds.tsv" --all-count "${#WL_DEFS[@]}" || rc=1
+    else
+        python3 "$here/wl_verdict.py" check ~/logs/$label.log --link static --all-count "${#WL_DEFS[@]}"
+        echo "wl_count: the verdict above is advisory (link $link, profile $profile${wenv:+, WLC_ENV}): the gate binds the dynamic release kit"
+    fi
+fi
 echo "wl_count: exit $rc, $(( $(date +%s) - t0 )) s wall (log ~/logs/$label.log; rev $new)"
 exit "$rc"

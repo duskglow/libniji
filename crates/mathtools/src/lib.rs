@@ -1,9 +1,10 @@
 //! The `libm` test oracle and tooling (decision D-10.3).
 //!
 //! * [`mp`]: arbitrary-precision binary floating-point arithmetic written in this project, the
-//!   reference every accuracy measurement and test of `liella-math` is checked against.
+//!   reference every accuracy measurement and test of `niji-math` is checked against.
 //! * [`remez`] and the `remez` binary: minimax (Remez exchange) fitting of the polynomial
-//!   coefficients that `liella-math` uses, with each derivation recorded in the generated file.
+//!   coefficients that `niji-math` uses, with each derivation recorded in the generated file.
+//! * [`check_cache`]: the verdict cache of `remez --check` (D-10.58).
 //! * [`cmp`] and the `mathcmp` binary: the glibc comparison and accuracy measurement.
 //! * [`cplx`]: the complex functions' oracle (both parts, from the real oracles).
 //!
@@ -31,9 +32,15 @@
 // Big-number limb arithmetic on bounded indices and widths, as in the formats code.
 #![allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::indexing_slicing)]
 
+pub mod check_cache;
 pub mod cmp;
 pub mod cplx;
 pub mod mp;
 pub mod remez;
 pub mod special_tables;
+pub mod gamma_tables;
+/// The Bessel fast-tier tables.
+pub mod bessel_tables;
+/// The x87 `long double` exponentials' and logarithms' integer-tier tables.
+pub mod ld_explog_tables;
 pub mod tables;

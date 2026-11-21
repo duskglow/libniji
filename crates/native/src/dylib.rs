@@ -1,13 +1,13 @@
 //! The Rust dylib (feature `dylib`, D-X.10): what this crate adds when it is built as
-//! `libliella_rust.so.<abi>`, the Rust ABI version `<abi>` defined in `spec/abi/rust-abi.toml`
+//! `libniji_rust.so.<abi>`, the Rust ABI version `<abi>` defined in `spec/abi/rust-abi.toml`
 //! (docs/toolchain.md gives every build parameter and the exact commands).
 //!
 //! * The **Rust ABI version** this build was made as, [`RUST_ABI`], and the hash of its
 //!   definition, [`RUST_ABI_HASH`]. Both are given at compile time by the environment variables
-//!   `LIELLA_RUST_ABI` and `LIELLA_RUST_ABI_HASH` (`cargo xtask rust-dylib` sets them from the
+//!   `NIJI_RUST_ABI` and `NIJI_RUST_ABI_HASH` (`cargo xtask rust-dylib` sets them from the
 //!   definition); a build without them is `unversioned`, with a zero hash, and is not a Rust ABI
-//!   version. `src/ffi.rs` embeds both in the ELF note `.note.liella.rustabi` and exports the
-//!   identifier as the C string `LIELLA_RUST_ABI` (the attributes that do so are unsafe, so they
+//!   version. `src/ffi.rs` embeds both in the ELF note `.note.niji.rustabi` and exports the
+//!   identifier as the C string `NIJI_RUST_ABI` (the attributes that do so are unsafe, so they
 //!   are written there, category *native*); this module builds their contents.
 //! * The **global allocator** and the **panic handler**. A Rust dylib must define both (rustc
 //!   requires them of every crate type that links), so a program linked against the dylib
@@ -22,16 +22,16 @@
 #![forbid(unsafe_code)]
 
 /// The Rust ABI version this build was made as (`lr1`, ...; `unversioned` without
-/// `LIELLA_RUST_ABI` at compile time). A program reads here the version it was compiled
-/// against; the version of the library it runs with is the exported `LIELLA_RUST_ABI`.
-pub const RUST_ABI: &str = match option_env!("LIELLA_RUST_ABI") {
+/// `NIJI_RUST_ABI` at compile time). A program reads here the version it was compiled
+/// against; the version of the library it runs with is the exported `NIJI_RUST_ABI`.
+pub const RUST_ABI: &str = match option_env!("NIJI_RUST_ABI") {
     Some(id) => id,
     None => "unversioned",
 };
 
 /// The hash of the version's definition in `spec/abi/rust-abi.toml` (its field `hash`: 16
-/// lowercase hexadecimal digits), or 16 zeros without `LIELLA_RUST_ABI_HASH` at compile time.
-pub const RUST_ABI_HASH: &str = match option_env!("LIELLA_RUST_ABI_HASH") {
+/// lowercase hexadecimal digits), or 16 zeros without `NIJI_RUST_ABI_HASH` at compile time.
+pub const RUST_ABI_HASH: &str = match option_env!("NIJI_RUST_ABI_HASH") {
     Some(hash) => hash,
     None => "0000000000000000",
 };
@@ -39,7 +39,7 @@ pub const RUST_ABI_HASH: &str = match option_env!("LIELLA_RUST_ABI_HASH") {
 /// The most bytes an identifier may have (`lr` and a number, optionally `-` and a suffix).
 pub const RUST_ABI_MAX: usize = 31;
 
-/// The note's type in the owner namespace `Liella`: `LR` (0x4c52) in the upper 16 bits, the
+/// The note's type in the owner namespace `libniji`: `LR` (0x4c52) in the upper 16 bits, the
 /// descriptor's format (1) in the lower. Not a small number, so that `readelf` does not show it
 /// as one of the generic note types (type 1 would print as `NT_VERSION`).
 pub const NOTE_TYPE: u32 = 0x4c52_0001;
@@ -77,10 +77,10 @@ const fn valid_hash(hash: &str) -> bool {
 }
 
 // A malformed value given at compile time stops the build.
-const _: () = assert!(valid_id(RUST_ABI), "LIELLA_RUST_ABI: 1 to 31 bytes of a-z, 0-9 and -");
-const _: () = assert!(valid_hash(RUST_ABI_HASH), "LIELLA_RUST_ABI_HASH: 16 lowercase hexadecimal digits");
+const _: () = assert!(valid_id(RUST_ABI), "NIJI_RUST_ABI: 1 to 31 bytes of a-z, 0-9 and -");
+const _: () = assert!(valid_hash(RUST_ABI_HASH), "NIJI_RUST_ABI_HASH: 16 lowercase hexadecimal digits");
 
-/// The length of the exported string `LIELLA_RUST_ABI`: the identifier and its NUL.
+/// The length of the exported string `NIJI_RUST_ABI`: the identifier and its NUL.
 pub(crate) const SYMBOL_LEN: usize = RUST_ABI.len() + 1;
 
 /// The note descriptor's length: the identifier, NUL, the hash, NUL.
@@ -101,13 +101,13 @@ const fn padded<const N: usize>(bytes: &[u8], at: usize, mut out: [u8; N]) -> [u
     out
 }
 
-/// The contents of `LIELLA_RUST_ABI`: the identifier, NUL-terminated.
+/// The contents of `NIJI_RUST_ABI`: the identifier, NUL-terminated.
 pub(crate) const fn symbol() -> [u8; SYMBOL_LEN] {
     padded(RUST_ABI.as_bytes(), 0, [0; SYMBOL_LEN])
 }
 
-/// An ELF note (System V gABI, "Note Section") with the owner name `Liella` (7 bytes with its
-/// NUL, padded to 8) and a descriptor of `D` bytes (a multiple of 4).
+/// An ELF note (System V gABI, "Note Section") with the owner name `libniji` (8 bytes with its
+/// NUL, no padding) and a descriptor of `D` bytes (a multiple of 4).
 #[repr(C, align(4))]
 pub(crate) struct Note<const D: usize> {
     namesz: u32,
@@ -124,16 +124,16 @@ const fn size32(n: usize) -> u32 {
     n as u32
 }
 
-/// The note `.note.liella.rustabi`: owner `Liella`, type [`NOTE_TYPE`], descriptor the
+/// The note `.note.niji.rustabi`: owner `libniji`, type [`NOTE_TYPE`], descriptor the
 /// identifier and the hash, each NUL-terminated (`lr1\0` then 16 hexadecimal digits and `\0`),
 /// zero-padded to a multiple of 4 (the padding is not counted in `descsz`).
 pub(crate) const fn note() -> Note<DESC_PADDED> {
     let desc = padded(RUST_ABI.as_bytes(), 0, [0; DESC_PADDED]);
     Note {
-        namesz: size32(b"Liella\0".len()),
+        namesz: size32(b"libniji\0".len()),
         descsz: size32(DESC_LEN),
         kind: NOTE_TYPE,
-        name: *b"Liella\0\0",
+        name: *b"libniji\0",
         desc: padded(RUST_ABI_HASH.as_bytes(), SYMBOL_LEN, desc),
     }
 }
@@ -150,7 +150,7 @@ static HEAP: crate::heap::Allocator = crate::heap::Allocator;
 fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     use core::fmt::Write;
     let mut err = crate::fd::Stdio::ERR;
-    let _ = writeln!(err, "panicked (liella_native {RUST_ABI}): {info}");
+    let _ = writeln!(err, "panicked (niji_native {RUST_ABI}): {info}");
     crate::process::exit(101)
 }
 
@@ -169,8 +169,8 @@ mod tests {
     #[test]
     fn note_follows_the_gabi_format() {
         let n = note();
-        assert_eq!(n.namesz, 7);
-        assert_eq!(&n.name, b"Liella\0\0");
+        assert_eq!(n.namesz, 8);
+        assert_eq!(&n.name, b"libniji\0");
         assert_eq!(n.kind, 0x4c52_0001);
         let len = usize::try_from(n.descsz).unwrap();
         assert_eq!(len, RUST_ABI.len() + 1 + 16 + 1);

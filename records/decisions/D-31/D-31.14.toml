@@ -1,0 +1,11 @@
+id = "D-31.14"
+section = "s31"
+spec = "§31.5"
+ann = "—"
+status = "active"
+story = "UTIL-GETCONF"
+date = "2026-11-15"
+tests = ["validation/transcripts/getconf/a-listing.transcript", "xtask/src/so.rs"]
+body = '''
+**getconf is a static C front end over Liella's `libc.a`, and its name table is generated from `spec/abi/getconf.tsv` joined with `spec/abi/sysconf.tsv` (UTIL-5, `plan/utilities.md` §4).** `csys/util/getconf.c` is linked by `cargo xtask so` as a static PIE (`liella-rcrt1.o`, `libc.a`) into `target/liella/getconf` and shipped as `/usr/bin/getconf` in libc-bin. Static rather than dynamic: the values are Liella's `sysconf`, `confstr` and `pathconf` in every root and on every build host, with no loader in the way, so the transcripts prove the shipped program itself; it is the same program a dynamic build would be, so a later switch to dynamic (one link line) needs only UTIL-SHAPE's counters. `spec/abi/getconf.tsv` holds the 414 names the reference accepts (320 listed by `-a`, in its order, and 94 accepted but unlisted, such as `TRACE` and `VERSION`), each with the constant it answers from and whether its value prints unsigned (`ULONG_MAX`); the kinds and numbers come from `sysconf.tsv`, the table the library's own answers are generated from (D-24.6), so a name cannot name a constant the library does not have and the build stops if it does. The name set and every behaviour were settled by black-box probes of the reference (candidate names formed from every constant in `sysconf.tsv`); `-v` accepts any specification and does not change a value, as the reference does on x86-64. `GNU_LIBC_VERSION` is `confstr`'s text. `--help` prints the usage paragraph without a bug-reporting address and `--version` prints `getconf (Liella) <version>` (identity strings, plan/utilities.md Q3; no transcript compares them).
+'''

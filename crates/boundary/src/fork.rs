@@ -2,7 +2,7 @@
 //! library's locks, `_Fork`, `clone` (`vfork` is csys/src/machine/vfork.S), and the handler registry.
 //!
 //! **`fork`** (D-18.6): the *prepare* handlers run newest first; the library's locks are taken
-//! in one order (the handler registry, `popen`'s list and `system`'s count, the stdio list,
+//! in one order (the loader's state lock in a program `ld.so` started, DL-16c; the handler registry, `popen`'s list and `system`'s count, the stdio list,
 //! the thread list, the stack cache's, the setxid broadcast's, the time zone's, the heap's,
 //! the environment's; none while the caller is the process's only thread, P5); then `clone`.
 //! The parent releases them and runs
@@ -11,33 +11,74 @@
 //! not inherited, §23.4; D-23.3), parks the other threads' heap caches (their slabs stay
 //! usable, M4), registers its robust list again, and runs the *child* handlers.
 
-use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
+use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::uapi::{CLONE_CHILD_CLEARTID, CLONE_CHILD_SETTID, CLONE_VFORK, CLONE_VM, SIGCHLD};
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::uapi::{CLONE_CHILD_CLEARTID, CLONE_CHILD_SETTID, CLONE_VFORK, CLONE_VM, SIGCHLD};
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 use crate::sys::CSys;
 use crate::{ffi, heap, raw, tb, thread};
 
 /// The registry's lock.
 static ATFORK_LOCK: RawMutex = RawMutex::new();
-/// The registered handlers, oldest first: heap nodes of four words (prepare, parent, child,
-/// next).
+/// The registered handlers, oldest first: heap nodes of five words (prepare, parent, child,
+/// next, the registering object's DSO handle; 0 for `pthread_atfork`). A dropped registration
+/// ([`forget_dso`]) keeps its node with the three handler words 0: a `fork` in another thread may be
+/// walking the list without the lock.
 static FIRST: AtomicUsize = AtomicUsize::new(0);
 static LAST: AtomicUsize = AtomicUsize::new(0);
 
 fn node(addr: usize) -> &'static [AtomicUsize] {
-    tb::words64(addr, 4)
+    tb::words64(addr, 5)
 }
 
 /// `__register_atfork(prepare, parent, child, dso)` / `pthread_atfork`: `ENOMEM` without
 /// memory.
 pub fn register(prepare: usize, parent: usize, child: usize) -> KResult<()> {
-    let n = liella_legacy::malloc_compat::malloc(&heap::CTX, 32).map_err(|_| Errno::ENOMEM)?;
+    register_dso(prepare, parent, child, 0)
+}
+
+/// `__cxa_finalize(dso)` for a non-zero `dso` (DL-17, DL-ATFORK-FINALIZE; spec/behaviour/dynlink.md:
+/// the reference drops a module's atfork handlers at its `__cxa_finalize` and its `dlclose`): every
+/// handler `dso` registered is never called again.
+pub fn forget_dso(dso: usize) {
+    if dso == 0 {
+        return;
+    }
+    let _g = ATFORK_LOCK.lock(&CSys);
+    let mut a = FIRST.load(Acquire);
+    while a != 0 {
+        let w = node(a);
+        if w.get(4).is_some_and(|d| d.load(Relaxed) == dso) {
+            w.iter().take(3).for_each(|h| h.store(0, Relaxed));
+        }
+        a = w.get(3).map_or(0, |x| x.load(Acquire));
+    }
+}
+
+/// A module mapped at `[lo, hi)` is being unloaded (D-27.29): every opted-in registration
+/// (`pthread_atfork@NIJI_OWNER_1`: owner word with bit 0 set) whose owner or any of whose three
+/// handlers lies in it is never called again. Other registrations are untouched (ruling #4862).
+pub fn forget_opted(lo: usize, hi: usize) {
+    let inside = |v: usize| lo <= v && v < hi;
+    let _g = ATFORK_LOCK.lock(&CSys);
+    let mut a = FIRST.load(Acquire);
+    while a != 0 {
+        let w = node(a);
+        let owner = w.get(4).map_or(0, |d| d.load(Relaxed));
+        if owner & 1 == 1 && (inside(owner & !1) || w.iter().take(3).any(|h| inside(h.load(Relaxed)))) {
+            w.iter().take(3).for_each(|h| h.store(0, Relaxed));
+        }
+        a = w.get(3).map_or(0, |x| x.load(Acquire));
+    }
+}
+
+fn register_with(prepare: usize, parent: usize, child: usize, dso: usize) -> KResult<()> {
+    let n = niji_legacy::malloc_compat::malloc(&heap::CTX, 40).map_err(|_| Errno::ENOMEM)?;
     let w = node(n);
-    for (slot, v) in w.iter().zip([prepare, parent, child, 0]) {
+    for (slot, v) in w.iter().zip([prepare, parent, child, 0, dso]) {
         slot.store(v, Relaxed);
     }
     let _g = ATFORK_LOCK.lock(&CSys);
@@ -55,7 +96,7 @@ pub fn register(prepare: usize, parent: usize, child: usize) -> KResult<()> {
 
 fn call(f: usize) {
     if f != 0 {
-        let _ = ffi::liella_machine_call0(f);
+        let _ = ffi::niji_machine_call0(f);
     }
 }
 
@@ -86,30 +127,37 @@ fn prepare_handlers() {
     }
 }
 
+/// The loader first (DL-16c, plan/ph14/dl-16-dlopen.md §4's lock order: loader, thread list,
+/// loader arena, the library's own locks): its step waits for a `dlopen` that is changing the
+/// loader's state, never for one that is running constructors.
 fn lock_all() {
+    crate::posix::s27_dynlink::loader_fork(0);
     ATFORK_LOCK.lock_raw(&CSys, Scope::Private);
     crate::spawn::fork_locks(true);
-    liella_legacy::stdio_compat::hold_list(&CSys, true);
+    niji_legacy::stdio_compat::hold_list(&CSys, true);
     thread::list_lock().lock_raw(&CSys, Scope::Private);
     thread::recycle_lock().lock_raw(&CSys, Scope::Private);
     crate::setxid::lock().lock_raw(&CSys, Scope::Private);
-    liella_legacy::time_compat::lock().lock_raw(&CSys, Scope::Private);
+    niji_legacy::time_compat::lock().lock_raw(&CSys, Scope::Private);
     heap::DEBUG.lock().lock_raw(&CSys, Scope::Private);
     heap::HEAP.lock_all(&CSys);
     crate::process::hold_env_lock(true);
 }
 
-fn unlock_all() {
+/// The locks of [`lock_all`] in reverse; `child`: in the new process (the loader's step then also
+/// frees its writer lock when a thread that does not exist there held it).
+fn unlock_all(child: bool) {
     crate::process::hold_env_lock(false);
     heap::HEAP.unlock_all(&CSys);
     heap::DEBUG.lock().unlock(&CSys, Scope::Private);
-    liella_legacy::time_compat::lock().unlock(&CSys, Scope::Private);
+    niji_legacy::time_compat::lock().unlock(&CSys, Scope::Private);
     crate::setxid::lock().unlock(&CSys, Scope::Private);
     thread::recycle_lock().unlock(&CSys, Scope::Private);
     thread::list_lock().unlock(&CSys, Scope::Private);
-    liella_legacy::stdio_compat::hold_list(&CSys, false);
+    niji_legacy::stdio_compat::hold_list(&CSys, false);
     crate::spawn::fork_locks(false);
     ATFORK_LOCK.unlock(&CSys, Scope::Private);
+    crate::posix::s27_dynlink::loader_fork(if child { 2 } else { 1 });
 }
 
 /// `clone(SIGCHLD | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)` naming the thread block's TID
@@ -123,24 +171,63 @@ fn raw_fork() -> KResult<i32> {
     Ok(i32::try_from(r).unwrap_or(0))
 }
 
+/// The subsystems a `fork` child resets only once the process has used them (D-18.8): their
+/// reset writes whole tables, whose pages a process that never used them would otherwise copy
+/// (or fault in) in every child. Each sets its bit on its first-use path, never at start-up.
+static USED: AtomicU32 = AtomicU32::new(0);
+/// `aio_*` took its lock.
+pub(crate) const USED_AIO: u32 = 1;
+/// `getaddrinfo_a` ran.
+pub(crate) const USED_GAI: u32 = 2;
+
+/// Record that the subsystem `bit` names holds state a `fork` child must reset. Written once:
+/// the word stays shared with later children.
+#[inline]
+pub(crate) fn mark_used(bit: u32) {
+    if USED.load(Relaxed) & bit == 0 {
+        mark_used_first(bit);
+    }
+}
+
+#[cold]
+fn mark_used_first(bit: u32) {
+    USED.fetch_or(bit, Release);
+}
+
+/// Store `$v` in the atomic `$a` only when it holds another value, so the child writes (and
+/// copies) no page whose words already hold their reset values (D-18.8).
+macro_rules! set_if_differs {
+    ($a:expr, $v:expr) => {{
+        let a = &$a;
+        let v = $v;
+        if a.load(core::sync::atomic::Ordering::Relaxed) != v {
+            a.store(v, core::sync::atomic::Ordering::Release);
+        }
+    }};
+}
+pub(crate) use set_if_differs;
+
+#[inline(never)]
 fn child_reset() {
+    let used = USED.load(Acquire);
     thread::after_fork_child();
     crate::stacks::after_fork_child();
     crate::timer::after_fork_child();
     crate::mqueue::after_fork_child();
     crate::syslog::after_fork_child();
-    crate::gai_async::after_fork_child();
-    crate::aio::after_fork_child();
+    crate::gai_async::after_fork_child(used & USED_GAI != 0);
+    crate::aio::after_fork_child(used & USED_AIO != 0);
     crate::stdio::after_fork_in_child();
     crate::spawn::after_fork_child();
-    liella_legacy::nscache::NSCACHE.after_fork_child();
-    crate::data::__libc_single_threaded.store(1, Release);
+    niji_legacy::nscache::NSCACHE.after_fork_child();
+    set_if_differs!(crate::data::__libc_single_threaded, 1);
 }
 
 /// `fork`. While the caller is the process's only thread (`thread::alone`, decided after the
 /// *prepare* handlers, which may create one), no other thread can hold a library lock, so the
 /// locks are neither taken nor released (P5): the child's state is the same, and neither side
 /// writes the lock words while their pages are shared copy-on-write.
+#[inline(never)]
 pub fn fork() -> KResult<i32> {
     prepare_handlers();
     let locks = !thread::alone();
@@ -150,14 +237,14 @@ pub fn fork() -> KResult<i32> {
     let r = raw_fork();
     if r == Ok(0) {
         if locks {
-            unlock_all();
+            unlock_all(true);
         }
         child_reset();
         heap::HEAP.park_others(&CSys, &heap::KernelPages);
         handlers(2, call);
     } else {
         if locks {
-            unlock_all();
+            unlock_all(false);
         }
         handlers(1, call);
     }
@@ -182,7 +269,7 @@ pub fn clone(f: usize, stack: usize, flags: i32, arg: usize, ptid: usize, tls: u
     let sp = (stack & !15).wrapping_sub(16);
     // The two words the C layer pops in the child: the function and its argument (written
     // just below the caller's stack top, in its stack).
-    crate::conv::store_words_user(sp, &[f, arg])?;
+    crate::conv::store_words_user(sp, [f, arg])?;
     let flags = u64::from(u32::from_ne_bytes(flags.to_ne_bytes()));
     // A child sharing our memory while we keep running: the mutexes must use atomics from
     // now on (MUTEX-3). With CLONE_VFORK the caller is suspended until the child executes or
@@ -190,11 +277,12 @@ pub fn clone(f: usize, stack: usize, flags: i32, arg: usize, ptid: usize, tls: u
     if flags & CLONE_VM != 0 && flags & CLONE_VFORK == 0 {
         thread::leave_lock_alone();
     }
-    let r = ffi::liella_machine_clone_raw(flags, sp, ptid, ctid, tls);
+    let r = ffi::niji_machine_clone_raw(flags, sp, ptid, ctid, tls);
     Errno::decode(r).map(|v| i32::try_from(v).unwrap_or(0))
 }
 
-/// `__register_atfork` (the DSO handle is for unregistering at `dlclose`, phase 14).
-pub fn register_dso(prepare: usize, parent: usize, child: usize, _dso: usize) -> KResult<()> {
-    register(prepare, parent, child)
+/// `__register_atfork(prepare, parent, child, dso)`: `dso` names the registering object, whose
+/// handlers [`forget_dso`] drops at its `__cxa_finalize` (its `dlclose`, DL-17).
+pub fn register_dso(prepare: usize, parent: usize, child: usize, dso: usize) -> KResult<()> {
+    register_with(prepare, parent, child, dso)
 }

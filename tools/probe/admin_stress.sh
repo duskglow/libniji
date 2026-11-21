@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # admin_stress.sh <bin> <warm-runs> <cold-batches> <jobs> <cpu-burners> <dd-burners> <deadline-secs>
 # Usage: ORACLES=<role>/target/test-oracles tools/probe/admin_stress.sh <admin_products test binary> 3000 150 12 12 3 1500
 # Runs under jobrun on an otherwise idle host; see tools/probe/README.md (admin reference). Namespace modes need unprivileged userns (not on Skylake-SP host).

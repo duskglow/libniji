@@ -25,14 +25,14 @@ use core::ffi::c_char;
 use core::ptr::null_mut;
 use std::fmt::Write as _;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s07_locale as s;
-use liella_boundary::posix::s08_numeric as n;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_boundary::errno;
+use niji_boundary::posix::s07_locale as s;
+use niji_boundary::posix::s08_numeric as n;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 const LC_NUMERIC: i32 = 1;
-const PROBE: &str = "LIELLA_STRTO_GROUP";
+const PROBE: &str = "NIJI_STRTO_GROUP";
 const RECORD: &str = include_str!("data/strto_internal_group.txt");
 /// name, thousands_sep, decimal_point, grouping (localedef syntax).
 const LOCALES: [(&str, char, char, &str); 5] =
@@ -137,13 +137,13 @@ fn line(loc: &str, g: i32, s: &str) -> String {
     write!(o, " d={:016x}/{}/{}", v.to_bits(), off(e), errno::get()).unwrap();
     let v = n::__strtof_internal(p, Some(&mut e), g);
     write!(o, " f={:08x}/{}", v.to_bits(), off(e)).unwrap();
-    let v = n::liella_strtold_internal_bits(p, Some(&mut e), g);
+    let v = n::niji_strtold_internal_bits(p, Some(&mut e), g);
     write!(o, " ld={:016x}:{:04x}/{}", v.mant, v.se, off(e)).unwrap();
     let v = n::__wcstod_internal(wp, Some(&mut we), g);
     write!(o, " wd={:016x}/{}", v.to_bits(), woff(we)).unwrap();
     let v = n::__wcstof_internal(wp, Some(&mut we), g);
     write!(o, " wf={:08x}/{}", v.to_bits(), woff(we)).unwrap();
-    let v = n::liella_wcstold_internal_bits(wp, Some(&mut we), g);
+    let v = n::niji_wcstold_internal_bits(wp, Some(&mut we), g);
     write!(o, " wld={:016x}:{:04x}/{}", v.mant, v.se, woff(we)).unwrap();
     o
 }
@@ -158,7 +158,7 @@ fn strto_internal_group_matches_the_reference_record() {
         for want in RECORD.lines() {
             // The one kept difference (docs/differences-from-glibc.md, STRTO-INTERNAL-GROUP-4):
             // with `3;CHAR_MAX` the reference's floats give 623 for `1,,234` (its integers give
-            // 1234); Liella's floats give 1234, the value of the digits.
+            // 1234); libniji's floats give 1234, the value of the digits.
             let fixed = want.replace(
                 "d=4083780000000000/6/0 f=441bc000/6 ld=9bc0000000000000:4008/6 wd=4083780000000000/6 wf=441bc000/6 wld=9bc0000000000000:4008/6",
                 "d=4093480000000000/6/0 f=449a4000/6 ld=9a40000000000000:4009/6 wd=4093480000000000/6 wf=449a4000/6 wld=9a40000000000000:4009/6",

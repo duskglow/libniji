@@ -1,7 +1,7 @@
 //! The user and group record formats (spec §17.3–17.6, phase 10): `passwd(5)`, `group(5)`,
 //! `shadow(5)` and `gshadow(5)` lines, the `shells(5)` list, the terminal table, and the login
 //! record of `utmp(5)`. Pure: no files and no C layouts (the databases are read by
-//! `liella_legacy::nss` through the Name Service Switch, the records packed by `liella_abi::pack`).
+//! `niji_legacy::nss` through the Name Service Switch, the records packed by `niji_abi::pack`).
 //!
 //! **Lines** (D-17.3, `spec/behaviour/users.md`). A line is one record: leading white space is
 //! skipped, and an empty line or one whose first other character is `#` is no record. Fields

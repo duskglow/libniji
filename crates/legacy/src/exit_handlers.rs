@@ -14,9 +14,9 @@
 
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::sys::Sys;
-use liella_rt::heap::{Pages, PAGE};
-use liella_rt::sync::RawMutex;
+use niji_kernel::sys::Sys;
+use niji_rt::heap::{Pages, PAGE};
+use niji_rt::sync::RawMutex;
 
 use crate::obstack::CCall;
 
@@ -28,6 +28,10 @@ pub const ON_EXIT: u64 = 2;
 pub const CXA: u64 = 3;
 /// `at_quick_exit(fn)` / `__cxa_at_quick_exit(fn, dso)`: `fn()`.
 pub const QUICK: u64 = 4;
+/// `atexit(fn)` at `NIJI_OWNER_1` (D-27.29): `fn()`; owner word as found at registration.
+pub const OPTED_EXIT: u64 = 5;
+/// `at_quick_exit(fn)` at `NIJI_OWNER_1`: `fn()`.
+pub const OPTED_QUICK: u64 = 6;
 
 /// Entries held in the registry itself (the ISO C minimum).
 pub const FIXED: usize = 32;
@@ -58,12 +62,12 @@ fn w(x: usize) -> u64 {
 impl Registry {
     /// Hold the registry's lock until [`Registry::release`] (`fork`, the AS-safety harness).
     pub fn hold<S: Sys>(&self, sys: &S) {
-        self.lock.lock_raw(sys, liella_rt::futex::Scope::Private);
+        self.lock.lock_raw(sys, niji_rt::futex::Scope::Private);
     }
 
     /// Release what [`Registry::hold`] took.
     pub fn release<S: Sys>(&self, sys: &S) {
-        self.lock.unlock(sys, liella_rt::futex::Scope::Private);
+        self.lock.unlock(sys, niji_rt::futex::Scope::Private);
     }
 
     /// An empty registry.
@@ -82,6 +86,8 @@ impl Registry {
     }
 
     /// Add an entry; `false` without memory (spec §1.2 failure clause 1).
+    // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
+    #[inline(never)]
     pub fn register<S: Sys, P: Pages>(&self, sys: &S, pages: &P, e: Entry) -> bool {
         let _g = self.lock.lock(sys);
         let i = self.len.load(Relaxed);
@@ -163,6 +169,8 @@ pub fn invoke(e: &Entry, status: i32, call: &mut impl CCall) {
 }
 
 /// Run every entry, most recent first, including entries registered meanwhile.
+// LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
+#[inline(never)]
 pub fn run_all<S: Sys, P: Pages>(r: &Registry, sys: &S, pages: &P, status: i32, call: &mut impl CCall) {
     while let Some(e) = r.pop(sys, pages) {
         invoke(&e, status, call);
@@ -181,19 +189,35 @@ pub fn finalize<S: Sys, P: Pages>(exit: &Registry, quick: &Registry, sys: &S, pa
     }
 }
 
-/// `__cxa_thread_atexit_impl`: push `(f, obj, dso)` on the list headed at `head`, in the 4-word
-/// node at `node` (fresh memory the caller allocated).
-pub fn thread_atexit<P: Pages>(head: &AtomicUsize, pages: &P, node: usize, f: usize, obj: usize, dso: usize) {
+/// A module mapped at `[lo, hi)` is being unloaded (D-27.29): run the opted-in exit entries
+/// ([`OPTED_EXIT`]) whose owner word or handler lies in it, most recent first, each once; and
+/// forget such opted-in quick-exit entries. Other kinds keep the owner-only rule of [`finalize`]
+/// (ruling #4862).
+#[allow(clippy::too_many_arguments)]
+pub fn finalize_range<S: Sys, P: Pages>(exit: &Registry, quick: &Registry, sys: &S, pages: &P, lo: usize, hi: usize, call: &mut impl CCall) {
+    let (lo, hi) = (w(lo), w(hi));
+    let inside = |v: u64| lo <= v && v < hi;
+    let mine = |e: &Entry| inside(e[3]) || inside(e[1]);
+    while let Some(e) = exit.take(sys, pages, |e| e[0] == OPTED_EXIT && mine(e)) {
+        invoke(&e, 0, call);
+    }
+    while quick.take(sys, pages, |e| e[0] == OPTED_QUICK && mine(e)).is_some() {}
+}
+
+/// `__cxa_thread_atexit_impl`: push `(f, obj, pin)` on the list headed at `head`, in the 4-word
+/// node at `node` (fresh memory the caller allocated); `pin` is the caller's word for the hold the
+/// registration took on the destructor's object (0: none), handed back after the call.
+pub fn thread_atexit<P: Pages>(head: &AtomicUsize, pages: &P, node: usize, f: usize, obj: usize, pin: usize) {
     let n = pages.words(node, 4);
-    for (slot, v) in n.iter().zip([w(f), w(obj), w(dso), w(head.load(Acquire))]) {
+    for (slot, v) in n.iter().zip([w(f), w(obj), w(pin), w(head.load(Acquire))]) {
         slot.store(v, Relaxed);
     }
     head.store(node, Release);
 }
 
 /// Run the destructors on the list headed at `head`, most recent first (including ones they
-/// register), handing each node back through `free`.
-pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl CCall, mut free: impl FnMut(usize)) {
+/// register), handing each node and its pin back through `done` after its destructor returned.
+pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl CCall, mut done: impl FnMut(usize, usize)) {
     loop {
         let node = head.load(Acquire);
         if node == 0 {
@@ -201,9 +225,9 @@ pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl
         }
         let n = pages.words(node, 4);
         let word = |k: usize| n.get(k).map_or(0, |v| usize::try_from(v.load(Acquire)).unwrap_or(0));
-        let (f, obj, next) = (word(0), word(1), word(3));
+        let (f, obj, pin, next) = (word(0), word(1), word(2), word(3));
         head.store(next, Release);
         call.call3(f, obj, 0, 0);
-        free(node);
+        done(node, pin);
     }
 }

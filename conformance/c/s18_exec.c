@@ -1,4 +1,4 @@
-/* Spec §18.3, §18.6, §18.7, §18.8, §18.9 in a process Liella started: the variadic exec forms
+/* Spec §18.3, §18.6, §18.7, §18.8, §18.9 in a process libniji started: the variadic exec forms
  * (execl, execle, execlp, also with more arguments than the forms keep on the stack), daemon,
  * the variadic prctl and ptrace (a PEEK of a word that is -1 leaves errno alone), and
  * cancellation of a thread waiting in waitpid and in system (the shell is killed and reaped,

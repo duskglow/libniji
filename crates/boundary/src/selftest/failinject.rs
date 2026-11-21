@@ -6,12 +6,12 @@
 //! refers to it, so the products are byte-identical with and without this module. A test arms
 //! the calling thread's plan, calls the function under test and disarms it; while the plan is
 //! armed, the allocations it selects fail exactly as exhausted memory does. It reaches every allocation made through Rust's global
-//! allocator (`liella::mem`'s fallible collections, and any other `try_reserve`): the test binary
+//! allocator (`niji::mem`'s fallible collections, and any other `try_reserve`): the test binary
 //! installs [`FailAlloc`] as its global allocator, which returns null for a selected allocation,
 //! so the collection reports `ENOMEM` through its ordinary failure path.
 //!
 //! It does NOT reach allocations that bypass the global allocator: the caller-owned `malloc`
-//! family (`crate::caller_alloc`: `strdup`, `FTSENT` blocks, stdio buffers, ...), Liella's own C
+//! family (`crate::caller_alloc`: `strdup`, `FTSENT` blocks, stdio buffers, ...), libniji's own C
 //! `malloc` (`heap::HEAP`), `KernelPages` mappings and the sync `OLD_HEAP`. Hooking those would
 //! change product-compiled files, which a test-only hook may not do (coordinator #2101).
 //!
@@ -23,7 +23,7 @@
 //!
 //! ```ignore
 //! #[global_allocator]
-//! static ALLOC: liella_boundary::selftest::failinject::FailAlloc = liella_boundary::selftest::failinject::FailAlloc;
+//! static ALLOC: niji_boundary::selftest::failinject::FailAlloc = niji_boundary::selftest::failinject::FailAlloc;
 //!
 //! failinject::fail_nth(2); // the second allocation from now fails, once
 //! assert_eq!(code_under_test(), Err(Errno::ENOMEM));

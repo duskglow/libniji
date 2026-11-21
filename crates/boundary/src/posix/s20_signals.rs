@@ -2,16 +2,16 @@
 //! set-ID uses of the internal signal, which are phase 6).
 //!
 //! The internal signal is 32 alone (D-20.1), so `SIGRTMIN` is 33. Actions and sets are
-//! converted by `liella_legacy::signal_compat`, which never lets a C caller block, catch or see
+//! converted by `niji_legacy::signal_compat`, which never lets a C caller block, catch or see
 //! the internal signal; the handler's address reaches the kernel through `crate::raw`, with
 //! the library's restorer (D-20.2, ⚑ KERN). `signal` has BSD semantics (D-20.4). `psignal` writes through
 //! the `stderr` stream; `psiginfo` writes to descriptor 2 behind the stream's back (as glibc's does).
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::sigset_t;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigInfo, StackT, Timespec};
-use liella_legacy::signal_compat::{self, CSigaction, CSigstack, CSigvec};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::sigset_t;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigInfo, StackT, Timespec};
+use niji_legacy::signal_compat::{self, CSigaction, CSigstack, CSigvec};
 
 use crate::cancel;
 use crate::conv;
@@ -118,13 +118,21 @@ pub extern "C" fn raise(sig: c_int) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn sigprocmask(how: c_int, set: Option<&sigset_t>, oset: Option<&mut sigset_t>) -> c_int {
-    ret::store_if(oset, signal_compat::sigprocmask(&CSys, how, set))
+    ret::zero(signal_compat::sigprocmask(&CSys, how, set).map(|old| report_mask(oset, old)))
 }}
 
 export! { "GLIBC_2.32";
 pub extern "C" fn pthread_sigmask(how: c_int, set: Option<&sigset_t>, oset: Option<&mut sigset_t>) -> c_int {
-    ret::errnum_if(oset, signal_compat::sigprocmask(&CSys, how, set))
+    ret::errnum(signal_compat::sigprocmask(&CSys, how, set).map(|old| report_mask(oset, old)))
 }}
+
+/// The old mask of `sigprocmask`/`pthread_sigmask` into the caller's set: only the first word
+/// (the kernel's 64 signals) is written; the rest of the caller's `sigset_t` keeps its bytes.
+fn report_mask(oset: Option<&mut sigset_t>, old: u64) {
+    if let Some(o) = oset {
+        o.__val[0] = old;
+    }
+}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn sigemptyset(set: Option<&mut sigset_t>) -> c_int {
@@ -283,7 +291,7 @@ pub extern "C" fn sigstack(ss: Option<&CSigstack>, oss: Option<&mut CSigstack>) 
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn strsignal(sig: c_int) -> *mut c_char {
-    ret::ptr(signal_compat::strsignal(sig, crate::thread::result_slot(liella_rt::thread::SLOT_STRSIGNAL)))
+    ret::ptr(signal_compat::strsignal(sig, crate::thread::result_slot(niji_rt::thread::SLOT_STRSIGNAL)))
 }}
 
 export! { "GLIBC_2.32";
@@ -306,7 +314,7 @@ pub extern "C" fn psignal(sig: c_int, s: *const c_char) {
 /// the stream's pending text, even after `fclose(stderr)`, no error flag); a failed write leaves its
 /// error in `errno`, a successful one leaves `errno` alone.
 fn psiginfo_direct(bytes: &[u8]) {
-    if let Err(e) = Sys::write(&CSys, liella_kernel::Fd::new(2), bytes) {
+    if let Err(e) = Sys::write(&CSys, niji_kernel::Fd::new(2), bytes) {
         crate::errno::set(e);
     }
 }
@@ -317,7 +325,7 @@ fn psiginfo_direct(bytes: &[u8]) {
 /// (observed on glibc 2.39). `errno` is kept unless the write failed. One write when memory allows.
 fn psignal_stream(sig: c_int, prefix: Option<&[u8]>) {
     let saved = crate::errno::get();
-    let mut whole = liella::mem::TryVec::new();
+    let mut whole = niji::mem::TryVec::new();
     let mut joined = true;
     signal_compat::psignal(sig, prefix, |b| joined = joined && whole.extend_from_slice(b).is_ok());
     if joined {

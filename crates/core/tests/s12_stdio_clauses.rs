@@ -4,7 +4,7 @@
 
 //! Clause tests for spec §12 (96 clauses).
 //!
-//! Streams are tested through the exports (`liella_boundary::posix::s12_stdio`): the clauses are
+//! Streams are tested through the exports (`niji_boundary::posix::s12_stdio`): the clauses are
 //! about the C interface (`FILE *`, `errno`, the indicators). C memory is read through the
 //! exported `strlen`/`memcpy` (no unsafe in tests); caller-owned memory (`open_memstream`,
 //! `getline`, `tempnam`) comes from the running C library's `malloc` and is left allocated, as
@@ -20,7 +20,7 @@
 //! each clause test here requires its clause's checks to have run and passed. (The `va_list`
 //! entry points cannot be called from Rust tests: the C layer's `va_arg` accessors share an
 //! object with the variadic forwarders, which need the exported names of the products.)
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
 #[path = "support/timeout.rs"]
@@ -32,19 +32,19 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use liella::error::Errno;
-use liella_abi::ctypes::{c_char, c_int, locale_t, wchar_t, wint_t};
-use liella_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
-use liella_boundary::errno;
-use liella_boundary::posix::s01_startup as rt;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{FcntlInt, IoctlIntArg, IoctlIntIn};
-use liella_kernel::sys::Sys;
+use niji::error::Errno;
+use niji_abi::ctypes::{c_char, c_int, locale_t, wchar_t, wint_t};
+use niji_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
+use niji_boundary::errno;
+use niji_boundary::posix::s01_startup as rt;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{FcntlInt, IoctlIntArg, IoctlIntIn};
+use niji_kernel::sys::Sys;
 
 const EOF: c_int = -1;
 const WEOF: wint_t = u32::MAX;
@@ -164,15 +164,15 @@ fn file(a: usize) -> *mut FILE {
 }
 
 fn stdin() -> *mut FILE {
-    file(liella_boundary::stdio::stdin())
+    file(niji_boundary::stdio::stdin())
 }
 
 fn stdout() -> *mut FILE {
-    file(liella_boundary::stdio::stdout())
+    file(niji_boundary::stdio::stdout())
 }
 
 fn stderr() -> *mut FILE {
-    file(liella_boundary::stdio::stderr())
+    file(niji_boundary::stdio::stderr())
 }
 
 /// -1 (or `EOF`) with `errno == e`.
@@ -187,7 +187,7 @@ fn is_open(fd: c_int) -> bool {
 
 /// The private descriptor number `high` (each test uses its own) on `path` opened with `flags`.
 fn high_fd(path: &str, flags: c_int, high: c_int) -> c_int {
-    let fd = io::liella_open3(cs(path).as_ptr(), flags, 0);
+    let fd = io::niji_open3(cs(path).as_ptr(), flags, 0);
     assert!(fd >= 0, "{path}");
     assert_eq!(io::dup2(fd, high), high);
     io::close(fd);
@@ -210,7 +210,7 @@ static REGISTRY: OnceLock<CRun> = OnceLock::new();
 fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
     cell.get_or_init(|| {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let (crt, libc) = (root.join("target/liella/liella-crt1.o"), root.join("target/liella/libc.a"));
+        let (crt, libc) = (root.join("target/niji/niji-crt1.o"), root.join("target/niji/libc.a"));
         assert!(crt.exists() && libc.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
         let dir = root.join("target/test-oracles");
         std::fs::create_dir_all(&dir).unwrap();
@@ -263,9 +263,9 @@ impl MemOut {
 }
 
 /// In a re-executed child: the name of the probe to run.
-const PROBE: &str = "LIELLA_C12_PROBE";
+const PROBE: &str = "NIJI_C12_PROBE";
 /// In a re-executed child: the path of the file its parent named.
-const FILE_ENV: &str = "LIELLA_C12_FILE";
+const FILE_ENV: &str = "NIJI_C12_FILE";
 
 fn probe() -> Option<String> {
     std::env::var(PROBE).ok()
@@ -347,8 +347,14 @@ struct Cookie {
     room: Option<usize>,
     seeks: usize,
     closed: bool,
+    /// Reads fail (`EIO`, -1) once the position reaches this offset; none reach past it.
+    fail_at: Option<usize>,
+    /// How many times the read function was called.
+    reads: usize,
     /// At most this many bytes per read (short reads), when set.
     chunk: Option<usize>,
+    /// The next read fails with `EIO` (`Some(true)`) or reports end of file (`Some(false)`), once.
+    fail_once: Option<bool>,
 }
 
 static COOKIES: Mutex<Vec<Cookie>> = Mutex::new(Vec::new());
@@ -366,7 +372,23 @@ fn with_cookie<T>(id: usize, f: impl FnOnce(&mut Cookie) -> T) -> T {
 
 extern "C" fn ck_read(id: usize, buf: *mut c_char, n: usize) -> isize {
     with_cookie(id, |c| {
-        let src = c.data.get(c.pos..).unwrap_or(&[]);
+        c.reads += 1;
+        // In order: the one-shot result, then the failure offset, then the chunk limit (a short
+        // read never crosses the failure offset).
+        match c.fail_once.take() {
+            Some(true) => {
+                errno::set_raw(Errno::EIO.get());
+                return -1;
+            }
+            Some(false) => return 0,
+            None => {}
+        }
+        if c.fail_at.is_some_and(|f| c.pos >= f) {
+            errno::set(Errno::EIO);
+            return -1;
+        }
+        let end = c.fail_at.map_or(c.data.len(), |f| f.min(c.data.len()));
+        let src = c.data.get(c.pos..end).unwrap_or(&[]);
         let k = n.min(src.len()).min(c.chunk.unwrap_or(usize::MAX));
         st::memcpy(buf.cast(), src.as_ptr().cast(), k);
         c.pos += k;
@@ -604,10 +626,10 @@ fn s12_1_c_6() {
 #[test]
 fn s12_1_c2_0() {
     if probe().is_none() {
-        use liella_boundary::data;
-        assert_eq!(liella_boundary::stdio::stdin(), core::ptr::addr_of!(data::_IO_2_1_stdin_) as usize);
-        assert_eq!(liella_boundary::stdio::stdout(), core::ptr::addr_of!(data::_IO_2_1_stdout_) as usize);
-        assert_eq!(liella_boundary::stdio::stderr(), core::ptr::addr_of!(data::_IO_2_1_stderr_) as usize);
+        use niji_boundary::data;
+        assert_eq!(niji_boundary::stdio::stdin(), core::ptr::addr_of!(data::_IO_2_1_stdin_) as usize);
+        assert_eq!(niji_boundary::stdio::stdout(), core::ptr::addr_of!(data::_IO_2_1_stdout_) as usize);
+        assert_eq!(niji_boundary::stdio::stderr(), core::ptr::addr_of!(data::_IO_2_1_stderr_) as usize);
         assert_eq!([x::fileno(stdin()), x::fileno(stdout()), x::fileno(stderr())], [0, 1, 2]);
     }
     alone("s12_1_c2_0", "pipe", || {
@@ -622,7 +644,7 @@ fn s12_1_c2_0() {
         held && x::__flbf(stdout()) == 0 && unbuffered
     });
     alone("s12_1_c2_0", "tty", || {
-        let m = io::liella_open3(cs("/dev/ptmx").as_ptr(), O_RDWR | O_NOCTTY, 0);
+        let m = io::niji_open3(cs("/dev/ptmx").as_ptr(), O_RDWR | O_NOCTTY, 0);
         assert!(m >= 0, "no pseudo-terminal");
         CSys.ioctl_set_int(Fd::new(m), IoctlIntIn::Tiocsptlck, 0).unwrap();
         let s = CSys.ioctl_int(Fd::new(m), IoctlIntArg::Tiocgptpeer, i64::from(O_RDWR | O_NOCTTY)).unwrap();
@@ -688,13 +710,20 @@ fn s12_1_g_1() {
         let line_buffered = fopen(&i, "r");
         x::setvbuf(line_buffered, null_mut(), IOLBF, 0);
         x::fgetc(line_buffered);
-        let ok = held && flushed && o.read() == b"prompt again";
+        let again = o.read() == b"prompt again";
+        // getline reads input too (TIMING-COV-GETLINE-LONG).
+        puts(" third", out);
+        let by_record = fopen(&i, "r");
+        x::setvbuf(by_record, null_mut(), IOLBF, 0);
+        let (mut p, mut cap): (*mut c_char, usize) = (null_mut(), 0);
+        let got = x::getline(Some(&mut p), Some(&mut cap), by_record);
+        let ok = held && flushed && again && got == 2 && o.read() == b"prompt again third";
         drop((o, i));
         ok
     });
 }
 
-/// §12.1: alternating input and output needs no intervening call in Liella (D-12.1: one buffer
+/// §12.1: alternating input and output needs no intervening call in libniji (D-12.1: one buffer
 /// whose role switches; the restriction is not needed functionally).
 #[test]
 fn s12_1_g_2() {
@@ -829,7 +858,7 @@ fn s12_2_c_1_3() {
 #[test]
 fn s12_2_c_2() {
     let t = tmp_with("c22", b"fd data");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(x::fdopen(fd, cs("w").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EINVAL.get(), "w on a read-only descriptor");
@@ -839,7 +868,7 @@ fn s12_2_c_2() {
     assert_eq!(x::fileno(fp), fd);
     assert_eq!(x::fgetc(fp), c_int::from(b'f'));
     assert_eq!(x::fclose(fp), 0);
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY, 0);
     errno::set_raw(0);
     assert!(x::fdopen(fd, cs("r").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EINVAL.get(), "r on a write-only descriptor");
@@ -852,7 +881,7 @@ fn s12_2_c_2() {
     // position is the descriptor's offset (POSIX fdopen), and the descriptor gets O_APPEND, so
     // every write through the stream (and, the description being shared, through the caller's
     // descriptor) lands at the end atomically.
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY, 0);
     let raw = Fd::new(fd);
     assert_eq!(CSys.lseek(raw, 2, 0), Ok(2));
     let fl = |f: Fd| CSys.fcntl_int(f, FcntlInt::GetFl, 0).unwrap() & 0o2000;
@@ -870,7 +899,7 @@ fn s12_2_c_2() {
     assert_eq!(t.read(), b"fd data!AB", "the caller's descriptor appends too");
     assert_eq!(x::fclose(fp), 0);
     // A descriptor that already has O_APPEND keeps its flags and offset.
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY | 0o2000, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY | 0o2000, 0);
     let before = CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFl, 0).unwrap();
     let fp = x::fdopen(fd, cs("a").as_ptr());
     assert!(!fp.is_null());
@@ -963,7 +992,7 @@ fn s12_2_c_4() {
 #[test]
 fn s12_2_c_5() {
     let t = tmp_with("c25", b"");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     let fp = x::fdopen(fd, cs("r").as_ptr());
     assert_eq!(x::fileno(fp), fd);
     assert_eq!(x::fileno_unlocked(fp), fd);
@@ -1173,7 +1202,7 @@ fn s12_4_c_3_1() {
 #[test]
 fn s12_4_c_3_2() {
     let t = tmp_with("c432", b"0123456789");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     let fp = x::fdopen(fd, cs("r").as_ptr());
     assert_eq!(x::fgetc(fp), c_int::from(b'0'));
     assert_eq!(x::fflush(fp), 0);
@@ -1514,6 +1543,173 @@ fn s12_5_c_5_long_records_cross_the_window() {
             }
         }
     }
+}
+
+/// §12.5 getline/getdelim on a stream with a 64-byte buffer: records of 1, 63, 64, 65 and 192
+/// bytes (one byte, buffer - 1, buffer, buffer + 1, three buffers) after a short record that
+/// shifts the unread window, with and without the delimiter before end of file; a read error in
+/// the middle of a record (the bytes read before it are the record, terminated, `errno` is
+/// `EIO`, the error indicator is set, and the next call reads nothing and returns -1 with
+/// `errno` unchanged, D-12.1); end of
+/// file is sticky (no read until `clearerr`). Probe sticky.c (task TIMING-COV-GETLINE-LONG)
+/// settled the reference's results for the error and end-of-file cases.
+#[test]
+fn s12_5_c_5_records_around_the_buffer_size() {
+    let pattern = |n: usize, seed: u8| -> Vec<u8> { (0..n).map(|i| b'a' + ((i as u8).wrapping_mul(5).wrapping_add(seed) % 26)).collect() };
+    // Locking `mode`: 0 the stream's own locking, 1 held by the caller (flockfile), 2 the caller
+    // does the locking (`__fsetlocking(FSETLOCKING_BYCALLER)`). The test harness runs other
+    // threads, so only mode 2 lets a record start in the window and go on past it (`Partial`).
+    let open = |data: &[u8], fail_at: Option<usize>, mode: u8| {
+        let id = cookie(data, None);
+        with_cookie(id, |c| c.fail_at = fail_at);
+        let fp = fopencookie(id, "r");
+        assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, 64), 0);
+        match mode {
+            1 => x::flockfile(fp),
+            2 => assert_eq!(x::__fsetlocking(fp, FSETLOCKING_BYCALLER), FSETLOCKING_INTERNAL),
+            _ => {}
+        }
+        (id, fp)
+    };
+    let close = |fp: *mut FILE, mode: u8| {
+        if mode == 1 {
+            x::funlockfile(fp);
+        }
+        x::fclose(fp);
+    };
+    for (idx, len) in [1usize, 63, 64, 65, 192].into_iter().enumerate() {
+        for (shift, mode) in [0usize, 1, 7, 31, 40].into_iter().flat_map(|s| [(s, 0u8), (s, 1), (s, 2)]) {
+            for tail in [&b"\n"[..], &b""[..]] {
+                let warm = pattern(300, 3);
+                let rec = pattern(len, idx as u8);
+                let mut data = [&warm[..], b"\n"].concat();
+                data.extend(std::iter::repeat_n(b'q', shift));
+                data.push(b'\n');
+                data.extend_from_slice(&rec);
+                data.extend_from_slice(tail);
+                if !tail.is_empty() {
+                    data.extend_from_slice(b"z\n");
+                }
+                let (_, fp) = open(&data, None, mode);
+                let mut p: *mut c_char = null_mut();
+                let mut cap = 0usize;
+                // The warm-up record grows the caller's buffer past the stream's.
+                assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 301);
+                assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(shift + 1).unwrap());
+                let want = len + tail.len();
+                let what = format!("len {len} shift {shift} tail {} mode {mode}", tail.len());
+                assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(want).unwrap(), "{what}");
+                assert_eq!(bytes(p.cast(), want + 1), [&rec[..], tail, b"\0"].concat(), "{what}");
+                if !tail.is_empty() {
+                    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 2, "the next record, {what}");
+                    assert_eq!(text(p), b"z\n");
+                }
+                assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), -1, "end of file, {what}");
+                assert!(x::feof(fp) != 0 && x::ferror(fp) == 0, "end of file, {what}");
+                close(fp, mode);
+            }
+        }
+    }
+    // The caller's buffer around the unread window: a first record of `s + 1` bytes leaves
+    // `w = 63 - s` unread bytes with no delimiter; the caller's `*n` is then `w - 1` to `w + 2`
+    // (`w + 1` is the record's first piece and its NUL exactly). Records: exactly the window
+    // and then end of file, and 200 bytes ending in the delimiter.
+    let mut p: *mut c_char = null_mut();
+    let mut real = 0usize;
+    {
+        // A buffer of `real` bytes from the library's allocator; the cases claim less of it.
+        let (_, fp) = open(&[&pattern(300, 4)[..], b"\n"].concat(), None, 0);
+        assert_eq!(x::getline(Some(&mut p), Some(&mut real), fp), 301);
+        x::fclose(fp);
+    }
+    for s in [0usize, 3, 30] {
+        let w = 63 - s;
+        for (len, tail) in [(w, &b""[..]), (200, &b"\n"[..])] {
+            for room in [w - 1, w, w + 1, w + 2] {
+                for mode in [0u8, 1, 2] {
+                    let rec = pattern(len, (s + room) as u8);
+                    let mut data = [&b"q".repeat(s)[..], b"\n", &rec, tail].concat();
+                    if !tail.is_empty() {
+                        data.extend_from_slice(b"z\n");
+                    }
+                    let (_, fp) = open(&data, None, mode);
+                    let mut cap = real;
+                    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(s + 1).unwrap());
+                    let mut cap = room;
+                    let want = len + tail.len();
+                    let what = format!("shift {s} len {len} room {room} mode {mode}");
+                    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(want).unwrap(), "{what}");
+                    assert_eq!(bytes(p.cast(), want + 1), [&rec[..], tail, b"\0"].concat(), "{what}");
+                    if cap != room {
+                        real = cap;
+                    }
+                    if !tail.is_empty() {
+                        assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 2, "the next record, {what}");
+                        assert_eq!(text(p), b"z\n");
+                        real = real.max(cap);
+                    }
+                    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), -1, "end of file, {what}");
+                    assert!(x::feof(fp) != 0 && x::ferror(fp) == 0, "end of file, {what}");
+                    close(fp, mode);
+                }
+            }
+        }
+    }
+    // A read error in the middle of a record, after the window was consumed more than once.
+    // The backing then recovers: the error indicator still stops the next record before it
+    // reads (probe errrecover.c, task TIMING-COV-GETLINE-LONG-2), and `clearerr` resumes it.
+    for (fail, mode) in [150usize, 128, 64, 330, 359].into_iter().flat_map(|f| [(f, 0u8), (f, 1), (f, 2)]) {
+        let mut data = pattern(300, 1);
+        data.push(b'\n');
+        data.extend(pattern(200, 2));
+        data.push(b'\n');
+        let (id, fp) = open(&data, Some(fail), mode);
+        let mut p: *mut c_char = null_mut();
+        let mut cap = 0usize;
+        let mut start = 0;
+        if fail > 301 {
+            assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 301);
+            start = 301;
+        }
+        errno::set_raw(0);
+        let want = fail - start;
+        let what = format!("error at {fail} mode {mode}");
+        assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(want).unwrap(), "{what}");
+        assert_eq!(errno::get(), Errno::EIO.get(), "{what}");
+        assert_eq!(bytes(p.cast(), want + 1), [&data[start..fail], b"\0"].concat(), "{what}");
+        assert!(x::ferror(fp) != 0 && x::feof(fp) == 0, "the error indicator, {what}");
+        let reads = with_cookie(id, |c| {
+            c.fail_at = None;
+            c.reads
+        });
+        // The indicator is already set: -1, nothing read, and `errno` as the caller left it
+        // (D-12.1, STDIO-STICKY-ERROR-ERRNO).
+        errno::set_raw(4242);
+        assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), -1, "after the error, {what}");
+        assert_eq!(errno::get(), 4242, "errno untouched with the error indicator set, {what}");
+        assert_eq!(with_cookie(id, |c| c.reads), reads, "no read while the error indicator is set, {what}");
+        x::clearerr(fp);
+        let end = if fail > 301 { data.len() } else { 301 };
+        assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), isize::try_from(end - fail).unwrap(), "after clearerr, {what}");
+        assert_eq!(bytes(p.cast(), end - fail + 1), [&data[fail..end], b"\0"].concat(), "after clearerr, {what}");
+        close(fp, mode);
+    }
+    // End of file is sticky: data that arrives later is not read before `clearerr`.
+    let (id, fp) = open(b"abc", None, 0);
+    let mut p: *mut c_char = null_mut();
+    let mut cap = 0usize;
+    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 3);
+    assert!(x::feof(fp) != 0);
+    let reads = with_cookie(id, |c| {
+        c.data.extend_from_slice(b"def\n");
+        c.reads
+    });
+    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), -1, "sticky end of file");
+    assert_eq!(with_cookie(id, |c| c.reads), reads, "no read while end of file is set");
+    x::clearerr(fp);
+    assert_eq!(x::getline(Some(&mut p), Some(&mut cap), fp), 4);
+    assert_eq!(text(p), b"def\n");
+    x::fclose(fp);
 }
 
 /// §12.5: `fputs` writes a Text without a newline; `puts` writes it to `stdout` with one.
@@ -1887,7 +2083,7 @@ fn s12_7_g_0() {
     c_clause(&SCANF, "s12_scanf", "s12_7_g_0");
 }
 
-/// §12.7: integer overflow in a conversion: Liella stores the clamped value without an error
+/// §12.7: integer overflow in a conversion: libniji stores the clamped value without an error
 /// (D-12.6; the contract permits wrapped or clamped).
 #[test]
 fn s12_7_f_0() {
@@ -2030,7 +2226,8 @@ fn s12_8_c_6() {
     let fp = x::tmpfile();
     assert!(x::fwide(fp, 5) > 0);
     assert!(x::fwide(fp, -1) > 0, "wide stays wide");
-    assert_eq!(x::fputc(c_int::from(b'b'), fp), EOF, "a byte operation on a wide stream fails (D-12.14)");
+    assert_eq!(x::fputc(c_int::from(b'b'), fp), c_int::from(b'b'), "a byte write on a wide stream writes the byte (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "and the stream stays wide-oriented");
     x::fclose(fp);
 }
 
@@ -2138,6 +2335,75 @@ fn s12_10_c_0() {
     x::fclose(fp);
 }
 
+/// §12.10 (D-12.30 WIDE-READ-FAST): characters in the locale's encoding that the read window
+/// holds only in part are read across the refill, whatever the buffer size; the bytes a shorter
+/// later fill leaves past the window's end are never part of a character.
+#[test]
+fn wide_read_characters_cut_by_the_window_end() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let text = "a\u{e9}\u{3042}\u{1F600}z\u{e9}";
+    let want: Vec<(wint_t, i64)> = vec![(0x61, 1), (0xE9, 3), (0x3042, 6), (0x1F600, 10), (0x7A, 11), (0xE9, 13)];
+    let t = tmp_with("c100cut", text.as_bytes());
+    for size in 1..=6 {
+        let fp = fopen(&t, "r");
+        assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, size), 0);
+        for &(c, at) in &want {
+            assert_eq!(x::fgetwc(fp), c, "buffer {size}: the character ending at {at}");
+            assert_eq!(x::ftell(fp), at, "buffer {size}: its bytes consumed");
+        }
+        assert_eq!(x::fgetwc(fp), WEOF);
+        assert!(x::feof(fp) != 0 && x::ferror(fp) == 0, "buffer {size}: end of file");
+        x::fclose(fp);
+    }
+    // A 4-byte buffer: the fills are `e3 81 82 61` and `62 e3`; past the second one's end the
+    // buffer still holds `81 82`. The `e3` cut short at end of input is D-12.28's (its byte
+    // goes back, end of file), not U+3042.
+    let s = tmp_with("c100stale", b"\xe3\x81\x82ab\xe3");
+    let fp = fopen(&s, "r");
+    assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, 4), 0);
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp), x::fgetwc(fp)), (0x3042, 0x61, 0x62));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "a character cut short by end of input");
+    assert!(errno::get() == 0 && x::feof(fp) != 0 && x::ferror(fp) == 0, "end of file, errno {}", errno::get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xE3, EOF), "its byte came back (D-12.28)");
+    x::fclose(fp);
+}
+
+/// §12.10 (D-12.30 WIDE-READ-FAST): a character begun before a read error (`EAGAIN` from an
+/// empty non-blocking pipe) is continued by the next wide read, whatever the read window holds
+/// then: a byte given back with `ungetc` that cannot continue it makes the sequence invalid,
+/// both bytes coming back (D-12.28); bytes that arrive later complete it.
+#[test]
+fn wide_read_partial_character_is_continued() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let begun = || {
+        let [r, wr] = CSys.pipe2(O_CLOEXEC | O_NONBLOCK).unwrap();
+        let fp = x::fdopen(r.raw(), cs("r").as_ptr());
+        assert!(!fp.is_null());
+        assert_eq!(CSys.write(wr, b"\xc3"), Ok(1));
+        errno::set_raw(0);
+        assert_eq!(x::fgetwc(fp), WEOF, "no byte after the lead byte yet");
+        assert_eq!(errno::get(), Errno::EAGAIN.get());
+        x::clearerr(fp);
+        (fp, wr)
+    };
+    let (fp, wr) = begun();
+    assert_eq!(x::ungetc(c_int::from(b'b'), fp), c_int::from(b'b'));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "the lead byte held, then 'b': no character");
+    assert_eq!(errno::get(), Errno::EILSEQ.get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xC3, c_int::from(b'b')), "both bytes come back");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
+    let (fp, wr) = begun();
+    assert_eq!(CSys.write(wr, b"\xa9b"), Ok(2));
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp)), (0xE9, 0x62), "the held lead byte completed");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
+}
+
 // ------------------------------------------------------------------------------ §12.11
 
 /// §12.11: `register_printf_specifier` installs a process-wide handler for a new letter;
@@ -2241,9 +2507,9 @@ fn s12_12_c_3() {
 /// fixture database for the cut, the zero fill and a user without an entry.
 #[test]
 fn s12_12_c_4() {
-    use liella_abi::layout::struct_passwd;
-    use liella_boundary::posix::s17_users as us;
-    const VAR: &str = "LIELLA_S12_CUSERID";
+    use niji_abi::layout::struct_passwd;
+    use niji_boundary::posix::s17_users as us;
+    const VAR: &str = "NIJI_S12_CUSERID";
     if std::env::var(VAR).is_ok() {
         let mut b = [b'x' as core::ffi::c_char; 9];
         let p = x::cuserid(b.as_mut_ptr());
@@ -2329,4 +2595,65 @@ fn child_report(o: &std::process::Output) -> String {
         lines[lines.len().saturating_sub(60)..].join("\n")
     };
     format!("exit {:?}\n--- stdout ---\n{}\n--- stderr ---\n{}", o.status, tail(&o.stdout), tail(&o.stderr))
+}
+
+/// §12.5, §12.8, §12.10: a read that starts with an indicator already set (STDIO-STICKY-ERROR-ERRNO,
+/// D-12.1; black-box probe of the reference). No entry sets `errno` on account of an indicator:
+/// `errno` changes only when this call's own read of the backing fails. With the end-of-file
+/// indicator set, every entry answers end of file without reading. With the error indicator set,
+/// `getline`/`getdelim` answer -1 without reading; the other entries read on, and the indicator
+/// stays set. `ungetc` works with either indicator (and clears end of file). The `scanf` family
+/// takes varargs and is in the oracle (`tests/oracle/stdio_diff.c`, `sticky_indicators`).
+#[test]
+fn s12_5_c_5_sticky_indicators_leave_errno() {
+    // Clauses: s12_5_c_1, s12_5_c_3, s12_5_c_5, s12_8_c_5, s12_10_c_0.
+    const SENTINEL: c_int = 4242;
+    type Entry = fn(*mut FILE) -> i64;
+    // (name, wide, call, the result when it reads on with the error indicator set: None = fails)
+    let table: [(&str, bool, Entry, Option<i64>); 14] = [
+        ("fgetc", false, |f| i64::from(x::fgetc(f)), Some(120)),
+        ("getc", false, |f| i64::from(x::getc(f)), Some(120)),
+        ("fgetc_unlocked", false, |f| i64::from(x::fgetc_unlocked(f)), Some(120)),
+        ("getc_unlocked", false, |f| i64::from(x::getc_unlocked(f)), Some(120)),
+        ("fgets", false, |f| { let mut b = [0 as c_char; 16]; if x::fgets(b.as_mut_ptr(), 16, f).is_null() { -1 } else { st::strlen(b.as_ptr()) as i64 } }, Some(3)),
+        ("fread", false, |f| { let mut b = [0u8; 16]; x::fread(b.as_mut_ptr().cast(), 1, 16, f) as i64 }, Some(3)),
+        ("fread_unlocked", false, |f| { let mut b = [0u8; 16]; x::fread_unlocked(b.as_mut_ptr().cast(), 1, 16, f) as i64 }, Some(3)),
+        ("getline", false, |f| { let (mut p, mut n) = (null_mut::<c_char>(), 0usize); x::getline(Some(&mut p), Some(&mut n), f) as i64 }, None),
+        ("getdelim", false, |f| { let (mut p, mut n) = (null_mut::<c_char>(), 0usize); x::getdelim(Some(&mut p), Some(&mut n), c_int::from(b'\n'), f) as i64 }, None),
+        ("__getdelim", false, |f| { let (mut p, mut n) = (null_mut::<c_char>(), 0usize); x::__getdelim(Some(&mut p), Some(&mut n), c_int::from(b'\n'), f) as i64 }, None),
+        ("ungetc", false, |f| { let r = x::ungetc(c_int::from(b'q'), f); i64::from(r) * 1000 + i64::from(x::fgetc(f)) }, Some(113_113)),
+        ("fgetwc", true, |f| i64::from(x::fgetwc(f)), Some(120)),
+        ("getwc", true, |f| i64::from(x::getwc(f)), Some(120)),
+        ("fgetws", true, |f| { let mut b = [0 as wchar_t; 16]; if x::fgetws(b.as_mut_ptr(), 16, f).is_null() { -1 } else { b.iter().position(|&c| c == 0).unwrap() as i64 } }, Some(3)),
+    ];
+    for (name, wide, call, on_error) in table {
+        for error in [true, false] {
+            let id = cookie(b"xy\n", None);
+            with_cookie(id, |c| c.fail_once = Some(error));
+            let fp = fopencookie(id, "r");
+            let first = if wide { x::fgetwc(fp) == WEOF } else { x::fgetc(fp) == EOF };
+            assert!(first, "{name}: the first read fails");
+            assert_eq!((x::ferror(fp) != 0, x::feof(fp) != 0), (error, !error), "{name}: the indicator is set");
+            let before = with_cookie(id, |c| c.reads);
+            errno::set_raw(SENTINEL);
+            let r = call(fp);
+            let reads = with_cookie(id, |c| c.reads) - before;
+            let which = if error { "error" } else { "end of file" };
+            assert_eq!(errno::get(), SENTINEL, "{name} with the {which} indicator set: errno is left alone");
+            let failed = if name == "fread" || name == "fread_unlocked" { 0 } else { -1 };
+            match (error, on_error, name) {
+                (_, _, "ungetc") => assert_eq!(r, 113_113, "{name}: the pushback is read back"),
+                (true, Some(v), _) => {
+                    assert_eq!(r, v, "{name}: reads on past the error indicator");
+                    assert!(reads >= 1, "{name}: the backing is asked again");
+                }
+                _ => {
+                    assert_eq!(r, if wide && name != "fgetws" { i64::from(WEOF) } else { failed }, "{name} with the {which} indicator set: fails");
+                    assert_eq!(reads, 0, "{name} with the {which} indicator set: nothing is read");
+                }
+            }
+            assert_eq!(x::ferror(fp) != 0, error, "{name}: the error indicator is kept");
+            x::fclose(fp);
+        }
+    }
 }

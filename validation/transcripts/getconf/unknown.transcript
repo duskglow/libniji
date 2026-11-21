@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: an unknown name is reported, status 2
+clause: s31_5_f_1
+command: getconf
+env: LC_ALL=C
+arg: _SC_ARG_MAX
+status: exit 2
+stdout:
+stderr:
+| getconf: Unrecognized variable `_SC_ARG_MAX'

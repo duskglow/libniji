@@ -1,7 +1,7 @@
 /* printf corpus replayer (validation item C; printf_corpus_products.rs). Reads a corpus written
  * by validation/harvest/harvest_reduce.py (printf-family calls the validation packages made
  * against glibc: format, typed arguments, locale, errno) from argv[1] and formats each call
- * again: built against the host C library and against Liella's products, the outputs must
+ * again: built against the host C library and against libniji's products, the outputs must
  * agree. Output: "<n>\t<total length>[ n=<%n value>]\t<escaped output>" or "<n>\tskip\t<why>".
  *
  * Each conversion is formatted on its own: the format is split into literal text and single

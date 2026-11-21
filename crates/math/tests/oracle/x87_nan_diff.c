@@ -3,7 +3,7 @@
  * payloads), invalid x87 encodings (pseudo-NaN, pseudo-infinity, unnormal), a pseudo-denormal
  * and a few numbers, through each function. One line per call: function, operand indices, the
  * result's bits, and whether invalid was raised. Built against the host C library and against
- * Liella's products; the two outputs must be identical. */
+ * libniji's products; the two outputs must be identical. */
 #define _GNU_SOURCE 1
 #include <complex.h>
 #include <fenv.h>

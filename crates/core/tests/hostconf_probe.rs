@@ -3,7 +3,7 @@
 //! `/etc/hosts` and `hosts: files`; D-16.13). No spec clause: §16 is silent on `host.conf`'s
 //! keywords beyond `multi`; the record below is the source.
 
-use liella::names::hostconf::{on_off, parse, reorder_index, trim, Domains, Env, Settings};
+use niji::names::hostconf::{on_off, parse, reorder_index, trim, Domains, Env, Settings};
 
 fn conf(text: &str) -> Settings {
     parse(Some(text.as_bytes()), &Env::default())

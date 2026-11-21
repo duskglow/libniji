@@ -10,12 +10,12 @@
 //!   `[STATUS=ACTION]` rules, the `nsswitch.conf` grammar and its defaults, and the engine that
 //!   runs one lookup through a database's sources ([`nss::run`]). Pure: the process-wide
 //!   configuration (loaded from `/etc/nsswitch.conf`, reloaded when it changes) and the sources
-//!   themselves live in `liella_legacy::nss`.
+//!   themselves live in `niji_legacy::nss`.
 //! * [`db`]: the record formats of the `files` source (one line per record, borrowed views).
 //! * [`sort`]: RFC 6724 destination address selection and the `gai.conf` policy tables.
 //! * [`msg`]: the texts of `gai_strerror` and `hstrerror`.
 //! * [`cache`]: the table of the integrated name-service cache (D-16.10), as untrusted atomic
-//!   words; the cache's process-wide logic is `liella_legacy::nscache`.
+//!   words; the cache's process-wide logic is `niji_legacy::nscache`.
 
 pub mod cache;
 pub mod db;

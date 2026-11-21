@@ -1,5 +1,5 @@
-//! Internal tests: the kernel structures of `liella_kernel::uapi` against the glibc types of
-//! spec Appendix C (`liella_abi::layout`) wherever the two are the same ABI on x86_64 (the C
+//! Internal tests: the kernel structures of `niji_kernel::uapi` against the glibc types of
+//! spec Appendix C (`niji_abi::layout`) wherever the two are the same ABI on x86_64 (the C
 //! library passes them to the kernel unconverted). Where the kernel type is held as words, the
 //! accessors are checked to read the word at the glibc member's offset.
 
@@ -7,8 +7,8 @@
 
 use core::mem::{align_of, offset_of, size_of};
 
-use liella_abi::layout as c;
-use liella_kernel::uapi as k;
+use niji_abi::layout as c;
+use niji_kernel::uapi as k;
 
 macro_rules! same_size {
     ($($kt:ty => $ct:ty),* $(,)?) => {
@@ -124,13 +124,13 @@ fn signalfd_siginfo_accessors() {
     assert_eq!((s.signo(), s.pid()), (17, 4321));
 }
 
-/// The C shapes `liella_legacy` defines for itself (phase 5), because the ABI crate's versions
+/// The C shapes `niji_legacy` defines for itself (phase 5), because the ABI crate's versions
 /// model a member as a union only `unsafe` code may read, or because the type is compat-only:
 /// they must lay out exactly as the C definitions.
 #[test]
 fn legacy_c_shapes_match_the_c_layouts() {
-    // Trace: no spec clause (liella-legacy C shapes against the Appendix C layouts); D-H6, C5.
-    use liella_legacy::signal_compat::{CSigaction, CSigstack};
+    // Trace: no spec clause (niji-legacy C shapes against the Appendix C layouts); D-H6, C5.
+    use niji_legacy::signal_compat::{CSigaction, CSigstack};
     assert_eq!((size_of::<CSigaction>(), align_of::<CSigaction>()), (size_of::<c::struct_sigaction>(), align_of::<c::struct_sigaction>()));
     assert_eq!(offset_of!(CSigaction, mask), offset_of!(c::struct_sigaction, sa_mask));
     assert_eq!(offset_of!(CSigaction, flags), offset_of!(c::struct_sigaction, sa_flags));
@@ -138,11 +138,11 @@ fn legacy_c_shapes_match_the_c_layouts() {
     assert_eq!((size_of::<CSigstack>(), align_of::<CSigstack>()), (size_of::<c::struct_sigstack>(), align_of::<c::struct_sigstack>()));
     assert_eq!(offset_of!(CSigstack, onstack), offset_of!(c::struct_sigstack, ss_onstack));
     // struct sigvec (4.2BSD, compat; no installed header): handler, int mask, int flags.
-    assert_eq!(size_of::<liella_legacy::signal_compat::CSigvec>(), 16);
+    assert_eq!(size_of::<niji_legacy::signal_compat::CSigvec>(), 16);
     // The old struct ntptimeval that ntp_gettime fills: the 2.12 one's first three members.
-    use liella_legacy::clock_compat::NtpTimevalOld;
+    use niji_legacy::clock_compat::NtpTimevalOld;
     assert_eq!(size_of::<NtpTimevalOld>(), offset_of!(c::struct_ntptimeval, tai));
     assert_eq!(offset_of!(NtpTimevalOld, esterror), offset_of!(c::struct_ntptimeval, esterror));
     // struct vtimes (compat): ten 4-byte members.
-    assert_eq!(size_of::<liella_legacy::sys_compat::Vtimes>(), 40);
+    assert_eq!(size_of::<niji_legacy::sys_compat::Vtimes>(), 40);
 }

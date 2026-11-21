@@ -1,0 +1,24 @@
+{"task": "SETLOCALE-CTYPE-ENV-6", "model": "opus", "tokens": null,
+ "result": "merged next (window-bins layout) and re-measured: all start-up bounds pass in both profiles, including run 5's fork-child and data-cluster reds; no code change needed",
+ "branch": "task/setlocale-ctype-env-6", "head": "57c53ad8f",
+ "gate": {"affected": "setlocale-ctype-env-6-gate (direct tier) rc 0, conformance 127/0; setlocale-ctype-env-6-xtest (cargo xtask test) rc 0: 6613 + 5230 passed, STARTUP-DATA-WINDOWS ok; setlocale-ctype-env-6-startup0 hot_text_products fast + full profile 26/26 each", "peak": "15G (gate, oom_kill=0)"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "LAYOUT-CLUSTER-WINDOW-ALIGN, which the brief waited for, was closed and replaced by LAYOUT-WINDOW-BINS (on next); this run measured on that", "recommendation": "none"},
+   {"item": "cargo xtask so warns that hyp_quick (crates/boundary/src/hot/hyperbolic.rs:94) is never used; it comes from next, not from this branch", "recommendation": "the owner of that code removes or uses it"}
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "setlocale_ctype_empty release per call vs next 7288d847a (glibc 2551)", "before": 8347, "after": 568, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_ctype_empty_lang release per call vs next (glibc 6233)", "before": 7147, "after": 880, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_all_empty release per call vs next (glibc 11401)", "before": 8891, "after": 1083, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_all_empty_lcall_empty release per call vs next (glibc 21531)", "before": 9590, "after": 4386, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_all_empty_lang release per call vs next (glibc 21075)", "before": 8539, "after": 3824, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_query release per call vs next (glibc 44)", "before": 78, "after": 71, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "plants re-run on the merged head (2 caught, 1 equivalent)", "before": 3, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "the brief named a layout story that had been closed and superseded; briefs that wait on a story could name the successor, or the dispatcher could resolve a superseded dependency on its own",
+ "next_step": "land; optional: a cost bound in setlocale_env_repeat",
+ "report_file": "handoff/SETLOCALE-CTYPE-ENV.md",
+ "jobs": ["setlocale-ctype-env-6-gate", "setlocale-ctype-env-6-xtest", "setlocale-ctype-env-6-startup0", "setlocale-ctype-env-6-plants", "setlocale-ctype-env-6-percall", "setlocale-ctype-env-6-lint0"]}

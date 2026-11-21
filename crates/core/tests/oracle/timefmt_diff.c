@@ -1,5 +1,5 @@
 /* Formatting and parsing time end to end (spec §23.7; D-23.7): built against the host C library
- * and against Liella's products, the outputs must match line for line (timefmt_products.rs).
+ * and against libniji's products, the outputs must match line for line (timefmt_products.rs).
  * Black-box: every line is a result of a public function. Locales come from LOCPATH; TZ is a
  * fixed rule, so nothing depends on the machine. Takes one argument: a scratch directory. */
 #define _GNU_SOURCE

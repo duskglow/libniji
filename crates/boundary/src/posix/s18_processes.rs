@@ -1,21 +1,21 @@
 //! Translation for spec §18: processes. §18.1 (identity) is phase 5; `fork`, `clone` and
-//! `atfork` (§18.2) phase 6; the rest phase 11 (`crate::spawn`, `liella::process`).
+//! `atfork` (§18.2) phase 6; the rest phase 11 (`crate::spawn`, `niji::process`).
 //!
 //! The identity calls cannot fail. `gettid` is a load from the thread block (0x84, D-22.9) in a
-//! thread Liella runs, and the system call elsewhere (D-22.10).
+//! thread libniji runs, and the system call elsewhere (D-22.10).
 //!
 //! The exec forms return only on failure (-1 and `errno`). The variadic forms (`execl`,
 //! `execle`, `execlp`, `prctl`, `ptrace`) arrive through the C layer's adapters. `popen` and
 //! `pclose` (listed in §12 for `<stdio.h>`) and `unshare`/`setns` (listed in §24) are specified
 //! by §18.7 and §18.9 and live here. The waits are cancellation points (§18.6), as is `system`.
 
-use liella_abi::ctypes::{c_char, c_int, c_long, c_short, c_uint, c_ulong, c_void, mode_t, pid_t};
-use liella_abi::layout::{sigset_t, FILE};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rusage, SchedParam, SigInfo};
-use liella_legacy::spawn_compat::{CFileActions, CSpawnAttr};
-use liella::process::{self as lp, FileAction, Program};
+use niji_abi::ctypes::{c_char, c_int, c_long, c_short, c_uint, c_ulong, c_void, mode_t, pid_t};
+use niji_abi::layout::{sigset_t, FILE};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rusage, SchedParam, SigInfo};
+use niji_legacy::spawn_compat::{CFileActions, CSpawnAttr};
+use niji::process::{self as lp, FileAction, Program};
 
 use crate::cancel;
 use crate::conv;
@@ -67,16 +67,16 @@ pub extern "C" fn _Fork() -> c_int {
     ret::int32(fork::fork_raw())
 }}
 
-export! { local "liella_vfork_fail";
+export! { local "niji_vfork_fail";
 /// `vfork`'s error path: `vfork` and `__vfork` are assembly (csys/src/machine/vfork.S, D-18.1),
 /// which jumps here in the parent with the raw result of a failed `SYS_vfork` (-4095..-1).
 /// Sets errno; returns -1.
 pub extern "C" fn vfork_fail(raw: i64) -> c_int {
-    ret::int32(Err(liella_kernel::Errno::decode(raw).err().unwrap_or(liella_kernel::Errno::EAGAIN)))
+    ret::int32(Err(niji_kernel::Errno::decode(raw).err().unwrap_or(niji_kernel::Errno::EAGAIN)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_clone7(func: usize, stack: usize, flags: c_int, arg: usize, ptid: usize, tls: usize, ctid: usize) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_clone7(func: usize, stack: usize, flags: c_int, arg: usize, ptid: usize, tls: usize, ctid: usize) -> c_int {
     ret::int32(fork::clone(func, stack, flags, arg, ptid, tls, ctid))
 }}
 
@@ -111,8 +111,8 @@ pub extern "C" fn execvpe(file: *const c_char, argv: *const *mut c_char, envp: *
     ret::zero(Err(spawn::execvpe(unsafe { strz::path(file) }, conv::addr(argv), conv::addr(envp))))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_execl4(form: c_int, path: *const c_char, arg0: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_execl4(form: c_int, path: *const c_char, arg0: *const c_char, ap: *mut c_void) -> c_int {
     let form = match form { 1 => ListForm::Env, 2 => ListForm::Search, _ => ListForm::Plain };
     // UNSAFE(slice) SAFETY: path is a NUL-terminated string (§18.3).
     ret::zero(Err(spawn::execl(form, unsafe { strz::path(path) }, conv::addr(arg0), conv::addr(ap))))
@@ -421,8 +421,8 @@ pub extern "C" fn daemon(nochdir: c_int, noclose: c_int) -> c_int {
 
 // ------------------------------------------------------------------------------ attributes, namespaces (§18.9)
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_prctl5(option: c_int, a2: c_ulong, a3: c_ulong, a4: c_ulong, a5: c_ulong) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_prctl5(option: c_int, a2: c_ulong, a3: c_ulong, a4: c_ulong, a5: c_ulong) -> c_int {
     // The result is an `int` (prctl(2)): a wider value is truncated as the C prototype does.
     ret::signed(raw::prctl(option, [a2, a3, a4, a5]).map(|v| i64::from(i32::from_ne_bytes(u32::try_from(v & 0xffff_ffff).unwrap_or(0).to_ne_bytes()))))
 }}
@@ -455,8 +455,8 @@ pub extern "C" fn __arch_prctl(code: c_int, addr: c_ulong) -> c_int {
     ret::int(raw::arch_prctl(code, addr))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_ptrace4(request: c_int, pid: pid_t, addr: c_ulong, data: c_ulong) -> c_long {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_ptrace4(request: c_int, pid: pid_t, addr: c_ulong, data: c_ulong) -> c_long {
     match request {
         // PTRACE_PEEKTEXT, PTRACE_PEEKDATA, PTRACE_PEEKUSER: the word read is the result, and
         // errno is left alone on success (§18.9).

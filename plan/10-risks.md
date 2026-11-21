@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 10. Risks
 

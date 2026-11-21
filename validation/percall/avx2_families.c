@@ -1,5 +1,5 @@
 /* wl_percall spec (PARITY-ROWS-AVX2): instructions per call of the string/memory families whose bench rows are
- * above 1.05 on the AVX2 counter class, at a ladder of sizes, Liella vs glibc. Where the glibc count steps shows
+ * above 1.05 on the AVX2 counter class, at a ladder of sizes, libniji vs glibc. Where the glibc count steps shows
  * which vector width / loop shape it uses at that size. All buffers 64-byte aligned; calls go through volatile
  * function pointers so the compiler cannot fold them.
  *   bash validation/wl_percall.sh --spec validation/percall/avx2_families.c <dir|rev> */

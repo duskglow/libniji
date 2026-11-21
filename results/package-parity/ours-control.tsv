@@ -1,0 +1,95 @@
+libc-bin	Architecture	amd64
+libc-bin	Depends	libc6 (= 2.39+niji20261116.1-1)
+libc-bin	Essential	yes
+libc-bin	Multi-Arch	foreign
+libc-bin	Package	libc-bin
+libc-bin	Priority	required
+libc-bin	Section	libs
+libc-bin	Source	niji
+libc-bin	Version	2.39+niji20261116.1-1
+libc-bin	conffiles	/etc/gai.conf
+libc-bin	conffiles	/etc/ld.so.conf
+libc-bin	conffiles	/etc/ld.so.conf.d/libc.conf
+libc-bin	member:conffiles	58
+libc-bin	member:control	649
+libc-bin	member:md5sums	565
+libc-bin	member:postinst	1541
+libc-bin	member:postrm	489
+libc-bin	member:triggers	24
+libc-bin	triggers	interest-await ldconfig
+libc-dev-bin	Architecture	amd64
+libc-dev-bin	Depends	libc6 (= 2.39+niji20261116.1-1)
+libc-dev-bin	Multi-Arch	foreign
+libc-dev-bin	Package	libc-dev-bin
+libc-dev-bin	Priority	optional
+libc-dev-bin	Section	libdevel
+libc-dev-bin	Source	niji
+libc-dev-bin	Version	2.39+niji20261116.1-1
+libc-dev-bin	member:control	520
+libc-dev-bin	member:md5sums	152
+libc-l10n	Architecture	all
+libc-l10n	Package	libc-l10n
+libc-l10n	Priority	optional
+libc-l10n	Section	localization
+libc-l10n	Source	niji
+libc-l10n	Version	2.39+niji20261116.1-1
+libc-l10n	member:control	461
+libc-l10n	member:md5sums	146
+libc6	Architecture	amd64
+libc6	Breaks	base-files (<< 13.3~)
+libc6	Multi-Arch	same
+libc6	Package	libc6
+libc6	Priority	required
+libc6	Provides	niji-native-abi (= 1), niji-owner-abi (= 1)
+libc6	Section	libs
+libc6	Source	niji
+libc6	Version	2.39+niji20261116.1-1
+libc6	conffiles	/etc/ld.so.conf.d/x86_64-linux-gnu.conf
+libc6	member:conffiles	40
+libc6	member:control	694
+libc6	member:md5sums	940
+libc6	member:shlibs	269
+libc6	member:symbols	126224
+libc6	member:triggers	26
+libc6	shlibs	ld-linux-x86-64 2 libc6 (>= 2.39)
+libc6	shlibs	libanl 1 libc6 (>= 2.39)
+libc6	shlibs	libc 6 libc6 (>= 2.39)
+libc6	shlibs	libc_malloc_debug 0 libc6 (>= 2.39)
+libc6	shlibs	libdl 2 libc6 (>= 2.39)
+libc6	shlibs	libm 6 libc6 (>= 2.39)
+libc6	shlibs	libnsl 1 libc6 (>= 2.39)
+libc6	shlibs	libpthread 0 libc6 (>= 2.39)
+libc6	shlibs	librt 1 libc6 (>= 2.39)
+libc6	shlibs	libutil 1 libc6 (>= 2.39)
+libc6	symbols	(4135 symbol lines)
+libc6	symbols	ld-linux-x86-64.so.2 libc6 #MINVER#
+libc6	symbols	libanl.so.1 libc6 #MINVER#
+libc6	symbols	libc.so.6 libc6 #MINVER#
+libc6	symbols	libc_malloc_debug.so.0 libc6 #MINVER#
+libc6	symbols	libdl.so.2 libc6 #MINVER#
+libc6	symbols	libm.so.6 libc6 #MINVER#
+libc6	symbols	libnsl.so.1 libc6 #MINVER#
+libc6	symbols	libpthread.so.0 libc6 #MINVER#
+libc6	symbols	librt.so.1 libc6 #MINVER#
+libc6	symbols	libutil.so.1 libc6 #MINVER#
+libc6	triggers	activate-noawait ldconfig
+libc6-dev	Architecture	amd64
+libc6-dev	Depends	libc6 (= 2.39+niji20261116.1-1), libc-dev-bin (= 2.39+niji20261116.1-1)
+libc6-dev	Multi-Arch	same
+libc6-dev	Package	libc6-dev
+libc6-dev	Priority	optional
+libc6-dev	Provides	libc-dev
+libc6-dev	Section	libdevel
+libc6-dev	Source	niji
+libc6-dev	Version	2.39+niji20261116.1-1
+libc6-dev	member:control	598
+libc6-dev	member:md5sums	1369
+locales	Architecture	all
+locales	Depends	libc-bin (>= 2.39)
+locales	Package	locales
+locales	Priority	optional
+locales	Section	localization
+locales	Source	niji
+locales	Version	2.39+niji20261116.1-1
+locales	member:control	486
+locales	member:md5sums	142

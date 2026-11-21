@@ -1,4 +1,4 @@
-//! argp's parse engine and help text through the public interface of `liella::argp` (spec §1.7;
+//! argp's parse engine and help text through the public interface of `niji::argp` (spec §1.7;
 //! D-1.7), written before COLD-REWRITE2-W-far-01's rewrite so that both versions answer to them.
 //! The parse edges the spec leaves open (`ARGP_NO_ARGS`, `ARGP_KEY_ARGS` taken, a parser moving
 //! `next`) and the help details the probe record does not show (several `args_doc`
@@ -6,9 +6,9 @@
 //! the reference; where the result differs from the reference by decision, the test says so.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::argp::*;
-use liella::getopt::{Event, Span};
-use liella::mem::TryVec;
+use niji::argp::*;
+use niji::getopt::{Event, Span};
+use niji::mem::TryVec;
 
 fn opt(name: Option<&'static str>, key: i32, arg: Option<&'static str>, flags: i32, doc: Option<&'static str>, group: i32) -> Opt<'static> {
     Opt { name: name.map(str::as_bytes), key, arg: arg.map(str::as_bytes), flags, doc: doc.map(str::as_bytes), group }
@@ -481,7 +481,7 @@ fn help_groups_and_no_usage() {
     let want = format!("Usage: prog [OPTION...]\n\n  -z, --zeta                 zeta option\n\n Section one:\n  -a, --alpha                alpha option\n{tail}");
     assert_eq!(render_one(&implicit, HELP_STD_HELP), want);
     // Not tested: the reference lists an option with neither a long name nor a printable key
-    // (its doc text at the header column, sorted by its empty name); Liella leaves it out
+    // (its doc text at the header column, sorted by its empty name); libniji leaves it out
     // (docs/differences-from-glibc.md, argp nameless options).
     // OPTION_NO_USAGE leaves an option out of the usage line, never out of the option list.
     let no_usage = [

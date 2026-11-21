@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Base selection shared by wl_count.sh and wl_percall.sh (TOOLS-15). Sourced, not run.
 #
 # wl_resolve_base <repo> <new-sha> <requested REV or "">: sets base, base_why, base_mb.

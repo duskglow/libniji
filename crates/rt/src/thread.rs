@@ -1,6 +1,6 @@
 //! Thread bookkeeping (spec §22.1–§22.3, §22.6; D-22.1–D-22.11): the per-thread *descriptor*,
 //! the layout of a thread's mapping, the join and cancellation state machines, and the
-//! process-wide key table. The boundary creates threads (`liella_boundary::thread`); every
+//! process-wide key table. The boundary creates threads (`niji_boundary::thread`); every
 //! decision is here.
 //!
 //! **A thread's mapping** (D-22.9), from low to high addresses: the guard (no access), the
@@ -17,7 +17,7 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::uapi::Rseq;
+use niji_kernel::uapi::Rseq;
 
 use crate::tls::{TlsImage, BLOCK_SIZE};
 
@@ -183,7 +183,32 @@ pub struct Thread {
     pub reclaim: AtomicU32,
     /// The restartable-sequences area (`struct rseq`, 32 bytes, 32-aligned; D-22.7).
     pub rseq: Rseq,
+    /// The forced unwind of an exiting or cancelled thread (D-22.19): the exception object it
+    /// hands the program's unwinder, which must outlive every frame the unwind leaves.
+    pub unwind: UnwindArea,
 }
+
+/// The exception object of a thread's forced unwind (Itanium C++ ABI §1.2, `struct
+/// _Unwind_Exception`: class, cleanup function, two words private to the unwinder; 16-aligned),
+/// then the canonical frame address of the last frame the unwind passed (the stop function's).
+/// Written in full when an unwind starts; nothing reads it before that.
+#[repr(C, align(16))]
+#[derive(Default)]
+pub struct UnwindArea {
+    /// The words: `[UNWIND_CLASS..=UNWIND_PRIVATE2]` the exception, then [`UNWIND_LAST_CFA`].
+    pub words: [AtomicUsize; 6],
+}
+
+/// [`UnwindArea`] word: `exception_class`.
+pub const UNWIND_CLASS: usize = 0;
+/// [`UnwindArea`] word: `exception_cleanup`.
+pub const UNWIND_CLEANUP: usize = 1;
+/// [`UnwindArea`] word: the unwinder's first private word.
+pub const UNWIND_PRIVATE1: usize = 2;
+/// [`UnwindArea`] word: the unwinder's second private word.
+pub const UNWIND_PRIVATE2: usize = 3;
+/// [`UnwindArea`] word: the canonical frame address of the frame the stop function last passed.
+pub const UNWIND_LAST_CFA: usize = 4;
 
 /// Descriptor flag: the runtime created this thread (it can be joined and its stack freed).
 pub const DESC_CREATED: u32 = 1;
@@ -491,6 +516,7 @@ mod tests {
             tp: AtomicUsize::new(0),
             reclaim: AtomicU32::new(0),
             rseq: Rseq::new(),
+            unwind: UnwindArea::default(),
         }
     }
 

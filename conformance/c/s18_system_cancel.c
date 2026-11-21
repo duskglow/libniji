@@ -1,4 +1,4 @@
-/* Spec §18.7 (s18_7_c_1, s18_7_t_0; D-18.5) in a process Liella started: system cancelled at
+/* Spec §18.7 (s18_7_c_1, s18_7_t_0; D-18.5) in a process libniji started: system cancelled at
  * every stage. Each round starts a thread in system("exec sleep 30") and cancels it after a delay
  * swept from 0 to about 3 ms (thread start, the disposition change, the spawn, the wait), then a
  * few rounds wait long enough for the shell to run. After each round: the thread exited

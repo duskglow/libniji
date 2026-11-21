@@ -1,0 +1,81 @@
+{
+ "task": "RELEASE-SNAPSHOT-1115",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 8d38ba7226af22a1078676531f6bcaa9cd88f40a; dynamic programs run under Liella's ld.so in an empty system root (4/4) and a trixie root with Liella swapped in matches stock on 47/47 commands; one non-blocking (a) finding (no ld.so.cache after install) fixed on this branch; assets staged on keke",
+ "branch": "task/release-snapshot-1115",
+ "head": "95a646fc8346",
+ "gate": {
+  "affected": "425 passed / 0 failed",
+  "peak": "1.7G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "F1: snapshot .debs leave no /etc/ld.so.cache after a fresh install (libc-bin ran ldconfig only on the trigger, which dpkg drops while libc-bin is unconfigured); fixed on this branch",
+   "recommendation": "not blocking: tag 8d38ba722 with F1 in the notes, or repack the same products with this branch's packaging after it lands"
+  }
+ ],
+ "informational": [
+  "lintian E unstripped-binary-or-object for libc-bin usr/sbin/ldconfig, plus W no-manual-page, maintscript-calls-ldconfig, command-with-path-in-maintainer-script",
+  "Liella ldconfig -r in a merged-/usr root prints `Path /usr/lib given more than once (from <builtin>:0 and <builtin>:0)`",
+  "swap needs --force-depends: trixie util-linux depends on libc6 (>= 2.41) (plan section 4)",
+  "swapped root's ld.so.cache lists 54 libraries vs stock 64; glibc's /var/cache/ldconfig is left behind on the swap"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "fresh install of the system packages now writes /etc/ld.so.cache (ldconfig -p in an empty root lists libc.so.6); purge removes it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "root-system.sh dynamic programs run in the empty root (hello only, WAIT -> hello, threads, except, iostream)",
+   "before": 0,
+   "after": 4,
+   "unit": "programs",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "swap-system.sh: distribution programs compared, Liella swapped in vs stock trixie",
+   "before": 0,
+   "after": 47,
+   "unit": "commands",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the new checks and the postinst/postrm fix",
+   "before": 0,
+   "after": 5,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "snapshot tag (owner's yes): assets staged in keke ~/release-staging/snapshot-20261115/",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "build.sh --products repack of a finished build is seconds, so a packaging-only fix needs no rebuild; release validation should run root-system/swap-system on every packaging change, not wait for a release run",
+ "next_step": "owner rules F1 and gives the yes for the tag; follow-ups: strip ldconfig in libc-bin, UTIL-LDCONFIG duplicate builtin path message",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1115.md",
+ "jobs": [
+  "release-snapshot-1115-gate-1",
+  "release-snapshot-1115-plants-1",
+  "release-snapshot-1115-final-1",
+  "release-snapshot-1115-lint-1",
+  "release-snapshot-1115-symbols-1",
+  "release-snapshot-1115-stage-1",
+  "release-snapshot-1115-smoke-keke-1",
+  "mei:release-snapshot-1115-smoke-mei-1"
+ ]
+}

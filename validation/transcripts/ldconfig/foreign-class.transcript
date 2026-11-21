@@ -1,0 +1,53 @@
+# The foreign-class probe (ruling #5922): ELF32 objects of the two other classes a multilib x86-64 system holds,
+# i386 (ELF32, EM_386) and x32 (ELF32, EM_X86_64), next to a native x86-64 one, each in a directory of its own (one
+# soname per directory, so -v does not depend on the order the reference lists a directory in); one i386 object
+# has no soname. The outcome is what the reference does with them: links, -v lines and cache entries.
+name: ldconfig -r ROOT -v over i386 and x32 ELF32 objects next to a native one
+clause: s31_2_c_1
+clause: s31_2_g_4
+clause: s31_2_g_5
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -v
+as-cache: etc/ld.so.cache
+file: etc/ld.so.conf
+| /opt/n
+| /opt/i
+| /opt/x
+| /opt/j
+elf: opt/n/libnat.so.1.0 soname=libnat.so.1
+elf: opt/i/libi386.so.2.0 soname=libi386.so.2 class=i386
+elf: opt/x/libx32.so.3.0 soname=libx32.so.3 class=x32
+elf: opt/j/libnos32.so class=i386
+dir: lib/x86_64-linux-gnu
+dir: usr/lib/x86_64-linux-gnu
+dir: lib
+dir: usr/lib
+status: exit 0
+stdout:
+| /opt/n: (from /etc/ld.so.conf:1)
+| \tlibnat.so.1 -> libnat.so.1.0 (changed)
+| /opt/i: (from /etc/ld.so.conf:2)
+| \tlibi386.so.2 -> libi386.so.2.0 (changed)
+| /opt/x: (from /etc/ld.so.conf:3)
+| \tlibx32.so.3 -> libx32.so.3.0 (changed)
+| /opt/j: (from /etc/ld.so.conf:4)
+| \tlibnos32.so -> libnos32.so
+| /lib/x86_64-linux-gnu: (from <builtin>:0)
+| /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
+| /lib: (from <builtin>:0)
+| /usr/lib: (from <builtin>:0)
+stderr:
+written-file: etc/ld.so.cache
+| 0x803 libx32.so.3 /opt/x/libx32.so.3
+| 0x3 libnos32.so /opt/j/libnos32.so
+| 0x303 libnat.so.1 /opt/n/libnat.so.1
+| 0x3 libi386.so.2 /opt/i/libi386.so.2
+written-link: opt/i/libi386.so.2 -> libi386.so.2.0
+written-link: opt/n/libnat.so.1 -> libnat.so.1.0
+written-link: opt/x/libx32.so.3 -> libx32.so.3.0

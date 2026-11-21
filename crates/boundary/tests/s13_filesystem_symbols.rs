@@ -11,7 +11,7 @@
 //! privileges (mounting, swap, device nodes) are checked to reach the kernel: as an
 //! unprivileged user they fail with the kernel's `EPERM`, and a malformed argument is still
 //! rejected first where the C interface defines that.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -22,12 +22,12 @@ use core::ptr::{null, null_mut};
 use std::ffi::{CStr, CString};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella_abi::ctypes::{c_char, c_int};
-use liella_abi::layout::struct_statvfs;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s13_filesystem as s;
-use liella_kernel::uapi::{Stat, Statfs, Statx, Timespec, Timeval};
+use niji_abi::ctypes::{c_char, c_int};
+use niji_abi::layout::struct_statvfs;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s13_filesystem as s;
+use niji_kernel::uapi::{Stat, Statfs, Statx, Timespec, Timeval};
 
 const ENOENT: i32 = 2;
 const EBADF: i32 = 9;
@@ -87,7 +87,7 @@ impl Dir {
         self.at(name)
     }
     fn open(&self) -> c_int {
-        let fd = io::liella_open3(self.c().as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+        let fd = io::niji_open3(self.c().as_ptr(), O_RDONLY | O_DIRECTORY, 0);
         assert!(fd >= 0);
         fd
     }
@@ -122,7 +122,7 @@ fn mode_of(p: &CStr) -> u32 {
 }
 
 fn root() -> bool {
-    liella_kernel::sys::Sys::geteuid(&liella_boundary::sys::CSys) == 0
+    niji_kernel::sys::Sys::geteuid(&niji_boundary::sys::CSys) == 0
 }
 
 fn zero_statvfs() -> struct_statvfs {
@@ -314,17 +314,17 @@ fn sym_endfsent() {
     });
 }
 
-fn endmntent_case(end: extern "C" fn(*mut liella_abi::layout::FILE) -> c_int, tag: &str) {
+fn endmntent_case(end: extern "C" fn(*mut niji_abi::layout::FILE) -> c_int, tag: &str) {
     let d = Dir::new(tag);
     let path = d.at("t");
     let f = mopen(&path, "w");
-    liella_boundary::posix::s12_stdio::fputs(c"pending".as_ptr(), f);
+    niji_boundary::posix::s12_stdio::fputs(c"pending".as_ptr(), f);
     assert_eq!(end(f), 1);
     assert_eq!(std::fs::read(path.to_str().unwrap()).unwrap(), b"pending", "flushed when closed");
     assert_eq!(end(null_mut()), 1, "NULL: nothing to close");
     let f = s::setmntent(c"/dev/full".as_ptr(), c"w".as_ptr());
     if !f.is_null() {
-        liella_boundary::posix::s12_stdio::fputs(c"x".as_ptr(), f);
+        niji_boundary::posix::s12_stdio::fputs(c"x".as_ptr(), f);
         errno::set_raw(0);
         assert_eq!(end(f), 1, "1 even when the flush fails");
         assert_eq!(errno::get(), 28, "ENOSPC");
@@ -375,7 +375,7 @@ fn sym_fchdir() {
     errno::set_raw(0);
     assert!(fails(s::fchdir(-1) as isize, EBADF));
     in_child("sym_fchdir", &t, |dir| {
-        let fd = io::liella_open3(cpath(dir).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+        let fd = io::niji_open3(cpath(dir).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
         assert_eq!(s::fchdir(fd), 0);
         assert_eq!(kernel_cwd(), dir.as_os_str().as_encoded_bytes());
         io::close(fd);
@@ -386,7 +386,7 @@ fn sym_fchdir() {
 fn sym_fchmod() {
     let d = Dir::new("fchmod");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     assert_eq!(s::fchmod(fd, 0o604), 0);
     assert_eq!(mode_of(&f) & 0o777, 0o604);
     io::close(fd);
@@ -414,7 +414,7 @@ fn sym_fchmodat() {
 fn sym_fchown() {
     let d = Dir::new("fchown");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     s::fstat(fd, Some(&mut st));
     assert_eq!(s::fchown(fd, u32::MAX, st.gid), 0);
@@ -440,7 +440,7 @@ fn sym_fchownat() {
 fn sym_fdopendir() {
     let t = Tmp::new("fdopendir");
     t.file("f");
-    let fd = io::liella_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let d = s::fdopendir(fd);
     assert!(!d.is_null());
     assert_eq!(s::dirfd(d), fd);
@@ -448,7 +448,7 @@ fn sym_fdopendir() {
     s::closedir(d);
     errno::set_raw(0);
     assert!(s::fdopendir(-1).is_null() && errno::get() == EBADF);
-    let f = io::liella_open3(cpath(&t.at("f")).as_ptr(), O_RDONLY, 0);
+    let f = io::niji_open3(cpath(&t.at("f")).as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(s::fdopendir(f).is_null() && errno::get() == ENOTDIR);
     io::close(f);
@@ -474,7 +474,7 @@ fn sym_fdopendir_position_and_reused_buffer() {
     let rest = count_entries(d);
     assert_eq!(rest, 43 - 2, "40 files, small, . and .., minus the two read");
     assert_eq!(s::closedir(d), 0);
-    let fd = io::liella_open3(big.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(big.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     assert_eq!(io::lseek(fd, pos, 0), pos);
     let d = s::fdopendir(fd);
     assert!(!d.is_null());
@@ -483,7 +483,7 @@ fn sym_fdopendir_position_and_reused_buffer() {
     assert_eq!(s::closedir(d), 0);
     // The big directory's records are still in the recycled buffer: the small one must not
     // show any of them.
-    let fd = io::liella_open3(cpath(&t.at("small")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.at("small")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let d = s::fdopendir(fd);
     assert!(!d.is_null());
     assert_eq!(s::telldir(d), 0);
@@ -499,7 +499,7 @@ fn sym_fdopendir_position_and_reused_buffer() {
 fn sym_fgetxattr() {
     let d = Dir::new("fgetxattr");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(fails(s::fgetxattr(fd, cs("user.k").as_ptr(), null_mut(), 0), ENODATA));
     io::close(fd);
@@ -511,7 +511,7 @@ fn sym_flistxattr() {
     let d = Dir::new("flistxattr");
     let f = d.file("f", b"");
     s::setxattr(f.as_ptr(), cs("user.q").as_ptr(), b"1".as_ptr().cast(), 1, 0);
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut b = [0u8; 2];
     errno::set_raw(0);
     assert!(fails(s::flistxattr(fd, b.as_mut_ptr().cast(), 2), ERANGE), "too small");
@@ -523,7 +523,7 @@ fn sym_fremovexattr() {
     let d = Dir::new("fremovexattr");
     let f = d.file("f", b"");
     s::setxattr(f.as_ptr(), cs("user.k").as_ptr(), b"1".as_ptr().cast(), 1, 0);
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     assert_eq!(s::fremovexattr(fd, cs("user.k").as_ptr()), 0);
     io::close(fd);
 }
@@ -541,7 +541,7 @@ fn sym_fsconfig() {
 fn sym_fsetxattr() {
     let d = Dir::new("fsetxattr");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     assert_eq!(s::fsetxattr(fd, cs("user.k").as_ptr(), b"vv".as_ptr().cast(), 2, 0), 0);
     let mut b = [0u8; 4];
     assert_eq!(s::fgetxattr(fd, cs("user.k").as_ptr(), b.as_mut_ptr().cast(), 4), 2);
@@ -575,7 +575,7 @@ fn sym_fspick() {
 fn sym_fstat64() {
     let d = Dir::new("fstat64");
     let f = d.file("f", b"abc");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::fstat64(fd, Some(&mut st)), 0);
     assert_eq!((st.mode & S_IFMT, st.size), (S_IFREG, 3));
@@ -588,7 +588,7 @@ fn sym_fstat64() {
 fn sym_fstat() {
     let d = Dir::new("fstat");
     let f = d.file("f", b"abc");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::fstat(fd, Some(&mut st)), 0);
     assert_eq!((st.mode & S_IFMT, st.size), (S_IFREG, 3));
@@ -635,7 +635,7 @@ fn sym_fstatat() {
 
 #[test]
 fn sym_fstatfs() {
-    let fd = io::liella_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = Statfs::default();
     assert_eq!(s::fstatfs(fd, Some(&mut b)), 0);
     assert_eq!(b.ftype, 0x9fa0);
@@ -646,7 +646,7 @@ fn sym_fstatfs() {
 
 #[test]
 fn sym_fstatfs64() {
-    let fd = io::liella_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = Statfs::default();
     assert_eq!(s::fstatfs64(fd, Some(&mut b)), 0);
     assert_eq!(b.ftype, 0x9fa0);
@@ -657,7 +657,7 @@ fn sym_fstatfs64() {
 
 #[test]
 fn sym_fstatvfs() {
-    let fd = io::liella_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut v = zero_statvfs();
     let mut f = Statfs::default();
     assert_eq!(s::fstatvfs(fd, Some(&mut v)), 0);
@@ -673,7 +673,7 @@ fn sym_fstatvfs() {
 
 #[test]
 fn sym_fstatvfs64() {
-    let fd = io::liella_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cs("/proc").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut v = zero_statvfs();
     let mut f = Statfs::default();
     assert_eq!(s::fstatvfs64(fd, Some(&mut v)), 0);
@@ -691,7 +691,7 @@ fn sym_fstatvfs64() {
 fn sym_ftruncate() {
     let d = Dir::new("ftruncate");
     let p = d.file("f", b"0123456789");
-    let fd = io::liella_open3(p.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(p.as_ptr(), O_RDWR, 0);
     assert_eq!(s::ftruncate(fd, 4), 0);
     assert_eq!(std::fs::read(p.to_str().unwrap()).unwrap(), b"0123");
     assert_eq!(s::ftruncate(fd, 8), 0);
@@ -699,7 +699,7 @@ fn sym_ftruncate() {
     errno::set_raw(0);
     assert!(fails(s::ftruncate(fd, -1) as isize, EINVAL));
     io::close(fd);
-    let ro = io::liella_open3(p.as_ptr(), O_RDONLY, 0);
+    let ro = io::niji_open3(p.as_ptr(), O_RDONLY, 0);
     assert!(fails(s::ftruncate(ro, 0) as isize, EINVAL), "not open for writing");
     io::close(ro);
 }
@@ -708,7 +708,7 @@ fn sym_ftruncate() {
 fn sym_ftruncate64() {
     let d = Dir::new("ftruncate64");
     let p = d.file("f", b"0123456789");
-    let fd = io::liella_open3(p.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(p.as_ptr(), O_RDWR, 0);
     assert_eq!(s::ftruncate64(fd, 4), 0);
     assert_eq!(std::fs::read(p.to_str().unwrap()).unwrap(), b"0123");
     assert_eq!(s::ftruncate64(fd, 8), 0);
@@ -716,7 +716,7 @@ fn sym_ftruncate64() {
     errno::set_raw(0);
     assert!(fails(s::ftruncate64(fd, -1) as isize, EINVAL));
     io::close(fd);
-    let ro = io::liella_open3(p.as_ptr(), O_RDONLY, 0);
+    let ro = io::niji_open3(p.as_ptr(), O_RDONLY, 0);
     assert!(fails(s::ftruncate64(ro, 0) as isize, EINVAL), "not open for writing");
     io::close(ro);
 }
@@ -922,7 +922,7 @@ fn sym_ftw64() {
 fn sym_futimens() {
     let d = Dir::new("futimens");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDWR, 0);
     let ts = [Timespec { sec: 9, nsec: 9 }, Timespec { sec: 10, nsec: 10 }];
     // Not a descriptor: EBADF, also for AT_FDCWD (POSIX; the reference; validation T9).
     for bad in [-1, -100] {
@@ -941,7 +941,7 @@ fn sym_futimens() {
 fn sym___fxstat64() {
     let d = Dir::new("__fxstat64");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__fxstat64(1, fd, Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -955,7 +955,7 @@ fn sym___fxstat64() {
 fn sym___fxstat() {
     let d = Dir::new("__fxstat");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__fxstat(1, fd, Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -969,7 +969,7 @@ fn sym___fxstat() {
 fn sym___fxstatat64() {
     let d = Dir::new("__fxstatat64");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__fxstatat64(1, AT_FDCWD, f.as_ptr(), Some(&mut st), 0), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -983,7 +983,7 @@ fn sym___fxstatat64() {
 fn sym___fxstatat() {
     let d = Dir::new("__fxstatat");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__fxstatat(1, AT_FDCWD, f.as_ptr(), Some(&mut st), 0), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -1019,7 +1019,7 @@ fn sym_getcwd() {
 
 #[test]
 fn sym___getcwd_chk() {
-    if std::env::var("LIELLA_S13_CHK").is_ok() {
+    if std::env::var("NIJI_S13_CHK").is_ok() {
         let mut b = [0 as c_char; 2];
         s::__getcwd_chk(b.as_mut_ptr(), 4096, 2);
         return;
@@ -1029,7 +1029,7 @@ fn sym___getcwd_chk() {
     assert_eq!(ctext(s::__getcwd_chk(b.as_mut_ptr(), 4096, 4096)), k);
     errno::set_raw(0);
     assert!(s::__getcwd_chk(b.as_mut_ptr(), 2, 4096).is_null() && errno::get() == ERANGE, "a size too small: ERANGE");
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___getcwd_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("LIELLA_S13_CHK", "1").output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___getcwd_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("NIJI_S13_CHK", "1").output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert_eq!(std::os::unix::process::ExitStatusExt::signal(&o.status), Some(6), "a path written beyond the object: the fortify abort");
     assert!(String::from_utf8_lossy(&o.stderr).contains("buffer overflow detected"));
@@ -1038,7 +1038,7 @@ fn sym___getcwd_chk() {
 #[test]
 fn sym_getdents64() {
     let t = Tmp::new("getdents64");
-    let fd = io::liella_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = vec![0u8; 1024];
     errno::set_raw(0);
     assert!(fails(s::getdents64(fd, b.as_mut_ptr().cast(), 1), EINVAL), "too small for the next record");
@@ -1053,7 +1053,7 @@ fn sym_getdents64() {
 #[test]
 fn sym_getdirentries() {
     let t = Tmp::new("getdirentries");
-    let fd = io::liella_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = vec![0u8; 1024];
     let mut base = 99i64;
     assert!(s::getdirentries(fd, b.as_mut_ptr().cast(), b.len(), Some(&mut base)) > 0);
@@ -1066,7 +1066,7 @@ fn sym_getdirentries() {
 #[test]
 fn sym_getdirentries64() {
     let t = Tmp::new("getdirentries64");
-    let fd = io::liella_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = vec![0u8; 1024];
     let mut base = 99i64;
     assert!(s::getdirentries64(fd, b.as_mut_ptr().cast(), b.len(), Some(&mut base)) > 0);
@@ -1104,14 +1104,14 @@ fn sym_getfsent() {
 
 /// `getfsspec` (`n` 0) or `getfsfile` (`n` 1) on the first entry of `/etc/fstab` with a
 /// non-empty field, a missing key and NULL. Lookups do not touch the enumeration's cursor.
-fn lookup_case(look: extern "C" fn(*const c_char) -> *mut liella_abi::layout::struct_fstab, n: usize) {
+fn lookup_case(look: extern "C" fn(*const c_char) -> *mut niji_abi::layout::struct_fstab, n: usize) {
     let all = fstab_entries();
     if let Some(e) = all.iter().find(|e| !field(e, n).is_empty()) {
         let key = cs(&field(e, n));
         assert_eq!(show_fs(look(key.as_ptr())).map(|v| v.0).as_ref(), Some(e), "the first entry with that field");
     }
     errno::set_raw(0);
-    assert!(look(c"/liella/no/such/entry".as_ptr()).is_null() && errno::get() == 0, "not found: errno unchanged");
+    assert!(look(c"/niji/no/such/entry".as_ptr()).is_null() && errno::get() == 0, "not found: errno unchanged");
     assert!(look(null()).is_null() && errno::get() == EFAULT, "a NULL key");
 }
 
@@ -1141,7 +1141,7 @@ fn sym_getmntent() {
     assert!(s::getmntent(null_mut()).is_null() && errno::get() == EINVAL, "a NULL stream");
 }
 
-type GetR = extern "C" fn(*mut liella_abi::layout::FILE, Option<&mut liella_abi::layout::struct_mntent>, *mut c_char, c_int) -> *mut liella_abi::layout::struct_mntent;
+type GetR = extern "C" fn(*mut niji_abi::layout::FILE, Option<&mut niji_abi::layout::struct_mntent>, *mut c_char, c_int) -> *mut niji_abi::layout::struct_mntent;
 
 fn getmntent_r_case(get: GetR, tag: &str) {
     let d = Dir::new(tag);
@@ -1183,14 +1183,14 @@ fn sym_getwd() {
 
 #[test]
 fn sym___getwd_chk() {
-    if std::env::var("LIELLA_S13_CHK").is_ok() {
+    if std::env::var("NIJI_S13_CHK").is_ok() {
         let mut b = [0 as c_char; 2];
         s::__getwd_chk(b.as_mut_ptr(), 2);
         return;
     }
     let mut b = vec![0 as c_char; 4096];
     assert_eq!(ctext(s::__getwd_chk(b.as_mut_ptr(), 4096)), kernel_cwd());
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___getwd_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("LIELLA_S13_CHK", "1").output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___getwd_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("NIJI_S13_CHK", "1").output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert_eq!(std::os::unix::process::ExitStatusExt::signal(&o.status), Some(6), "the fortify abort");
 }
@@ -1394,7 +1394,7 @@ fn sym_lstat() {
 fn sym___lxstat64() {
     let d = Dir::new("__lxstat64");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__lxstat64(1, f.as_ptr(), Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -1408,7 +1408,7 @@ fn sym___lxstat64() {
 fn sym___lxstat() {
     let d = Dir::new("__lxstat");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__lxstat(1, f.as_ptr(), Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -1750,7 +1750,7 @@ fn sym_open_tree() {
     let fd = s::open_tree(AT_FDCWD, d.c().as_ptr(), 0);
     assert!(fd >= 0, "without OPEN_TREE_CLONE: an O_PATH descriptor, unprivileged");
     let mut st = zstat();
-    assert_eq!(io::liella_fcntl3(fd, 1, 0) & 1, 0);
+    assert_eq!(io::niji_fcntl3(fd, 1, 0) & 1, 0);
     assert_eq!(s::fstat(fd, Some(&mut st)), 0);
     assert_eq!(st.mode & S_IFMT, S_IFDIR);
     io::close(fd);
@@ -1864,7 +1864,7 @@ fn sym_readlink() {
 
 #[test]
 fn sym___readlink_chk() {
-    if std::env::var("LIELLA_S13_CHK").is_ok() {
+    if std::env::var("NIJI_S13_CHK").is_ok() {
         let l = cs("/proc/self/exe");
         let mut b = [0u8; 4];
         s::__readlink_chk(l.as_ptr(), b.as_mut_ptr().cast(), 8, 4);
@@ -1877,7 +1877,7 @@ fn sym___readlink_chk() {
     assert_eq!(s::__readlink_chk(l.as_ptr(), b.as_mut_ptr().cast(), 8, 8), 3);
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym___readlink_chk", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S13_CHK", "1")
+        .env("NIJI_S13_CHK", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1887,7 +1887,7 @@ fn sym___readlink_chk() {
 
 #[test]
 fn sym___readlinkat_chk() {
-    if std::env::var("LIELLA_S13_CHK").is_ok() {
+    if std::env::var("NIJI_S13_CHK").is_ok() {
         let l = cs("/proc/self/exe");
         let mut b = [0u8; 4];
         s::__readlinkat_chk(AT_FDCWD, l.as_ptr(), b.as_mut_ptr().cast(), 8, 4);
@@ -1900,7 +1900,7 @@ fn sym___readlinkat_chk() {
     assert_eq!(s::__readlinkat_chk(AT_FDCWD, l.as_ptr(), b.as_mut_ptr().cast(), 8, 8), 3);
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym___readlinkat_chk", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S13_CHK", "1")
+        .env("NIJI_S13_CHK", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1916,7 +1916,7 @@ fn sym_readlinkat() {
     let mut b = [0u8; 8];
     assert_eq!(s::readlinkat(dir, cs("l").as_ptr(), b.as_mut_ptr().cast(), 8), 3);
     assert_eq!(&b[..3], b"tgt");
-    let fd = io::liella_open3(d.at("l").as_ptr(), 0o10000000 | 0o400000, 0);
+    let fd = io::niji_open3(d.at("l").as_ptr(), 0o10000000 | 0o400000, 0);
     assert_eq!(s::readlinkat(fd, cs("").as_ptr(), b.as_mut_ptr().cast(), 8), 3, "an empty path names the O_PATH descriptor's link");
     io::close(fd);
     io::close(dir);
@@ -1930,16 +1930,16 @@ fn compat_realpath_2_2_5_needs_a_buffer() {
     t.dir("a");
     let want = t.at("a").as_os_str().as_encoded_bytes().to_vec();
     errno::set_raw(0);
-    assert!(s::liella_compat_realpath(cpath(&t.at("a")).as_ptr(), null_mut()).is_null(), "no allocation");
+    assert!(s::niji_compat_realpath(cpath(&t.at("a")).as_ptr(), null_mut()).is_null(), "no allocation");
     assert_eq!(errno::get(), 22, "EINVAL");
     errno::set_raw(0);
-    assert!(s::liella_compat_realpath(null(), null_mut()).is_null());
+    assert!(s::niji_compat_realpath(null(), null_mut()).is_null());
     assert_eq!(errno::get(), 22, "EINVAL before the path is looked at");
     let mut b = vec![0 as c_char; 4096];
-    assert_eq!(s::liella_compat_realpath(cpath(&t.at("a/.")).as_ptr(), b.as_mut_ptr()), b.as_mut_ptr());
+    assert_eq!(s::niji_compat_realpath(cpath(&t.at("a/.")).as_ptr(), b.as_mut_ptr()), b.as_mut_ptr());
     assert_eq!(ctext(b.as_ptr()), want, "with a buffer: realpath");
     errno::set_raw(0);
-    assert!(s::liella_compat_realpath(cpath(&t.at("missing")).as_ptr(), b.as_mut_ptr()).is_null());
+    assert!(s::niji_compat_realpath(cpath(&t.at("missing")).as_ptr(), b.as_mut_ptr()).is_null());
     assert_eq!(errno::get(), 2, "ENOENT as realpath");
     errno::set_raw(0);
 }
@@ -1963,7 +1963,7 @@ fn sym_realpath() {
 
 #[test]
 fn sym___realpath_chk() {
-    if let Ok(p) = std::env::var("LIELLA_S13_CHK") {
+    if let Ok(p) = std::env::var("NIJI_S13_CHK") {
         let mut b = [0 as c_char; 4];
         s::__realpath_chk(cs(&p).as_ptr(), b.as_mut_ptr(), 4);
         return;
@@ -1971,7 +1971,7 @@ fn sym___realpath_chk() {
     let t = Tmp::new("realpath_chk");
     let mut b = vec![0 as c_char; 4096];
     assert_eq!(ctext(s::__realpath_chk(cpath(&t.path).as_ptr(), b.as_mut_ptr(), 4096)), t.path.as_os_str().as_encoded_bytes());
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___realpath_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("LIELLA_S13_CHK", &t.path).output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["sym___realpath_chk", "--exact", "--include-ignored", "--test-threads=1"]).env("NIJI_S13_CHK", &t.path).output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert_eq!(std::os::unix::process::ExitStatusExt::signal(&o.status), Some(6), "a result beyond a 4-byte object: the fortify abort");
 }
@@ -2022,7 +2022,7 @@ fn sym_renameat() {
     d.file("a", b"1");
     std::fs::create_dir(d.0.join("sub")).unwrap();
     let dir = d.open();
-    let sub = io::liella_open3(d.at("sub").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let sub = io::niji_open3(d.at("sub").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     assert_eq!(s::renameat(dir, cs("a").as_ptr(), sub, cs("moved").as_ptr()), 0);
     assert!(exists(&d.at("sub/moved")));
     io::close(sub);
@@ -2034,9 +2034,9 @@ fn sym_revoke() {
     // §19.5 (phase 11): BSD's revoke is not implemented on Linux; ENOSYS for every argument.
     errno::set_raw(0);
     for path in [cs("/dev/null"), cs("/nonexistent/x"), cs("")] {
-        assert!(fails(liella_boundary::posix::s19_terminals::revoke(path.as_ptr()) as isize, ENOSYS));
+        assert!(fails(niji_boundary::posix::s19_terminals::revoke(path.as_ptr()) as isize, ENOSYS));
     }
-    assert!(fails(liella_boundary::posix::s19_terminals::revoke(null()) as isize, ENOSYS), "not even read");
+    assert!(fails(niji_boundary::posix::s19_terminals::revoke(null()) as isize, ENOSYS), "not even read");
 }
 #[test]
 fn sym_rewinddir() {
@@ -2098,7 +2098,7 @@ fn sym_scandirat() {
     let t = Tmp::new("scandirat");
     t.dir("sub");
     t.file("sub/x");
-    let fd = io::liella_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(cpath(&t.path).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut list = null_mut();
     let n = s::scandirat(fd, cs("sub").as_ptr(), Some(&mut list), None, Some(alpha));
     assert_eq!(listed(list, n), [".", "..", "x"], "relative to the descriptor");
@@ -2142,19 +2142,19 @@ fn sym_setfsent() {
     });
 }
 
-type Open = extern "C" fn(*const c_char, *const c_char) -> *mut liella_abi::layout::FILE;
+type Open = extern "C" fn(*const c_char, *const c_char) -> *mut niji_abi::layout::FILE;
 
 fn setmntent_case(open: Open, tag: &str) {
-    use liella_kernel::ops::FcntlInt;
-    use liella_kernel::sys::Sys;
+    use niji_kernel::ops::FcntlInt;
+    use niji_kernel::sys::Sys;
     let d = Dir::new(tag);
     let path = d.file("t", b"a /a t o 0 0\n");
     for (mode, acc) in [("r", 0), ("r+", 2), ("a", 1), ("w", 1)] {
         let f = open(path.as_ptr(), cs(mode).as_ptr());
         assert!(!f.is_null(), "{mode}");
-        let fd = liella_kernel::fd::Fd::new(liella_boundary::posix::s12_stdio::fileno(f));
-        assert_eq!(liella_boundary::sys::CSys.fcntl_int(fd, FcntlInt::GetFd, 0), Ok(1), "close-on-exec ({mode})");
-        assert_eq!(liella_boundary::sys::CSys.fcntl_int(fd, FcntlInt::GetFl, 0).unwrap() & 3, acc, "{mode}");
+        let fd = niji_kernel::fd::Fd::new(niji_boundary::posix::s12_stdio::fileno(f));
+        assert_eq!(niji_boundary::sys::CSys.fcntl_int(fd, FcntlInt::GetFd, 0), Ok(1), "close-on-exec ({mode})");
+        assert_eq!(niji_boundary::sys::CSys.fcntl_int(fd, FcntlInt::GetFl, 0).unwrap() & 3, acc, "{mode}");
         s::endmntent(f);
     }
     errno::set_raw(0);
@@ -2176,7 +2176,7 @@ fn sym_setmntent() {
 fn sym_setxattr() {
     let d = Dir::new("setxattr");
     let f = d.file("f", b"");
-    let (k, v) = (cs("user.liella"), b"value");
+    let (k, v) = (cs("user.niji"), b"value");
     assert_eq!(s::setxattr(f.as_ptr(), k.as_ptr(), v.as_ptr().cast(), 5, 0), 0);
     errno::set_raw(0);
     assert!(fails(s::setxattr(f.as_ptr(), k.as_ptr(), v.as_ptr().cast(), 5, 1) as isize, EEXIST), "XATTR_CREATE");
@@ -2340,13 +2340,13 @@ fn sym_truncate64() {
 #[test]
 fn sym_umask() {
     // The mask is process-wide: changed only in a child, then checked there.
-    if std::env::var("LIELLA_S13_UMASK").is_ok() {
+    if std::env::var("NIJI_S13_UMASK").is_ok() {
         let old = s::umask(0o027);
         let back = s::umask(old);
         let d = Dir::new("umask");
         s::umask(0o077);
         let p = d.at("f");
-        let fd = io::liella_open3(p.as_ptr(), O_RDWR | O_CREAT, 0o666);
+        let fd = io::niji_open3(p.as_ptr(), O_RDWR | O_CREAT, 0o666);
         io::close(fd);
         let ok = back == 0o027 && mode_of(&p) & 0o777 == 0o600 && s::umask(0o1_777_777) == 0o077 && s::umask(0) == 0o777;
         drop(d); // `exit` runs no destructors
@@ -2354,7 +2354,7 @@ fn sym_umask() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_umask", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S13_UMASK", "1")
+        .env("NIJI_S13_UMASK", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -2504,7 +2504,7 @@ fn sym___xmknodat() {
 fn sym___xstat64() {
     let d = Dir::new("__xstat64");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__xstat64(1, f.as_ptr(), Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -2518,7 +2518,7 @@ fn sym___xstat64() {
 fn sym___xstat() {
     let d = Dir::new("__xstat");
     let f = d.file("f", b"xyz");
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let mut st = zstat();
     assert_eq!(s::__xstat(1, f.as_ptr(), Some(&mut st)), 0, "_STAT_VER_LINUX");
     assert_eq!(st.size, 3);
@@ -2570,7 +2570,7 @@ fn sym_stat() {
 fn sym_futimes() {
     let d = Dir::new("futimes");
     let f = d.file("f", b"");
-    let fd = io::liella_open3(f.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDWR, 0);
     let tv = [Timeval { sec: 5, usec: 1 }, Timeval { sec: 6, usec: 2 }];
     errno::set_raw(0);
     assert_eq!((s::futimes(-100, None), errno::get()), (-1, 9), "AT_FDCWD is not a descriptor (validation T9)");
@@ -2642,13 +2642,13 @@ mod p12 {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::Ordering;
 
-    use liella_abi::ctypes::{c_char, c_int};
-    pub(crate) use liella_abi::layout::struct_dirent;
-    use liella_boundary::posix::s04_strings as st;
-    use liella_boundary::posix::s13_filesystem as s;
+    use niji_abi::ctypes::{c_char, c_int};
+    pub(crate) use niji_abi::layout::struct_dirent;
+    use niji_boundary::posix::s04_strings as st;
+    use niji_boundary::posix::s13_filesystem as s;
 
-    const CHILD: &str = "LIELLA_S13_CHILD";
-    const CHILD_DIR: &str = "LIELLA_S13_DIR";
+    const CHILD: &str = "NIJI_S13_CHILD";
+    const CHILD_DIR: &str = "NIJI_S13_DIR";
 
     pub(crate) struct Tmp {
         pub(crate) path: PathBuf,
@@ -2708,9 +2708,9 @@ mod p12 {
     }
 
     pub(crate) fn kernel_cwd() -> Vec<u8> {
-        use liella_kernel::sys::Sys;
+        use niji_kernel::sys::Sys;
         let mut b = vec![0u8; 65536];
-        let n = liella_boundary::sys::CSys.getcwd(&mut b).unwrap();
+        let n = niji_boundary::sys::CSys.getcwd(&mut b).unwrap();
         b.truncate(n - 1);
         b
     }
@@ -2720,7 +2720,7 @@ mod p12 {
         if std::env::var(CHILD).is_ok_and(|v| v == name) {
             body(&t.path);
             println!("child {name}: done");
-            liella_kernel::sys::Sys::exit_group(&liella_boundary::sys::CSys, 0);
+            niji_kernel::sys::Sys::exit_group(&niji_boundary::sys::CSys, 0);
         }
         let o = std::process::Command::new(std::env::current_exe().unwrap())
             .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
@@ -2768,7 +2768,7 @@ mod p12 {
         slot.iter().all(|c| c.is_ascii_alphanumeric()) && slot != b"XXXXXX"
     }
 
-    pub(crate) use liella_abi::layout::struct_dirent64;
+    pub(crate) use niji_abi::layout::struct_dirent64;
     pub(crate) const EIO: i32 = 5;
     pub(crate) const O_CLOEXEC: c_int = 0o2000000;
 
@@ -2820,9 +2820,9 @@ use p13::*;
 mod p13 {
     use std::ffi::CString;
 
-    use liella_abi::ctypes::c_char;
-    use liella_abi::layout::{struct_fstab, struct_mntent, FILE};
-    use liella_boundary::posix::s13_filesystem as s;
+    use niji_abi::ctypes::c_char;
+    use niji_abi::layout::{struct_fstab, struct_mntent, FILE};
+    use niji_boundary::posix::s13_filesystem as s;
 
     use super::p12::{cbytes, ctext};
 

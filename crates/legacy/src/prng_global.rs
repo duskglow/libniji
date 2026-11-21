@@ -16,8 +16,8 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, Result};
-use liella::random::{AdditiveFeedback, ByteWords, Rng48, Words, RNG48_A, RNG48_C, SIZES};
+use niji::error::{Errno, Result};
+use niji::random::{AdditiveFeedback, ByteWords, Rng48, Words, RNG48_A, RNG48_C, SIZES};
 
 use crate::lock::SpinLock;
 use crate::prng_r::caller_words;
@@ -101,7 +101,7 @@ pub fn rand(mem: impl CMem) -> i32 {
 /// `rand_r`, as a C `int`: the caller's variable is the whole state, so this is the core
 /// function.
 pub fn rand_r(seed: &mut u32) -> i32 {
-    i32::try_from(liella::random::rand_r(seed)).unwrap_or(0)
+    i32::try_from(niji::random::rand_r(seed)).unwrap_or(0)
 }
 
 /// `srandom(seed)` / `srand(seed)`: reseed the current state.

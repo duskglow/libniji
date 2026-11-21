@@ -1,0 +1,5 @@
+# DEB-COEXIST-SERIAL plants (cargo xtask plants; docs/plants.md): the coexist version loses its serial, or the serial moves behind the commit.
+no-serial | tools/deb/version.sh | lit:0.0~snapshot$day.$serial+$commit ==> 0.0~snapshot$day+$commit | cargo test -p niji --test deb_version_order | msg:must sort below
+serial-after-commit | tools/deb/version.sh | lit:0.0~snapshot$day.$serial+$commit ==> 0.0~snapshot$day+$commit.$serial | cargo test -p niji --test deb_version_order | msg:must sort below
+dot-to-tilde | tools/deb/version.sh | lit:0.0~snapshot$day.$serial+$commit ==> 0.0~snapshot$day~$serial+$commit | cargo test -p niji --test deb_version_order | msg:must sort below
+string-serial | tools/deb/version.sh | lit:*[!0-9]* ==> *[!0-9a-z]* | cargo test -p niji --test deb_version_order | msg:must be refused

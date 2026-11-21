@@ -1,5 +1,5 @@
 /* Wide-character streams end to end (spec §12.10; D-12.7, D-12.14): built against the host C
- * library and against Liella's products, the outputs must match line for line
+ * library and against libniji's products, the outputs must match line for line
  * (wstream_products.rs). Each line is one operation: what it returned, errno where the contract
  * sets it, the indicators and the position. */
 #define _GNU_SOURCE
@@ -149,6 +149,7 @@ static void orientation(void) {
     FILE *f = tmpfile();
     num(fwide(f, 0)); ch(' '); num(fwide(f, 5)); ch(' '); num(fwide(f, -3)); ch(' '); num(fwide(f, 0)); ch('\n');
     str("fgetc on wide: "); num(fgetc(f)); state(f);
+    clearerr(f); /* the indicators of the line above differ by D-12.27; the lines below compare */
     str("fputs on wide: "); num(fputs("bc", f)); state(f);
     str("fwrite on wide: "); num((long)fwrite("de", 1, 2, f)); state(f);
     str("fprintf on wide: "); num(fprintf(f, "x")); state(f);

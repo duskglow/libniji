@@ -92,8 +92,115 @@ fn words(line: &str) -> impl Iterator<Item = &str> {
 }
 
 /// The files where the `allocator` category (`unsafe impl GlobalAlloc` and its host calls) may appear.
-const ALLOCATOR_FILES: &[&str] = &["src/heap.rs", "src/selftest/failalloc.rs"];
-const CATEGORIES: [&str; 6] = ["extern", "export", "slice", "allocator", "tb-field", "hot-kernel"];
+const ALLOCATOR_FILES: &[&str] = &["src/heap.rs", "src/selftest/failalloc.rs", "src/ld.rs", "src/ldconfig.rs"];
+const CATEGORIES: [&str; 8] = ["extern", "export", "slice", "allocator", "tb-field", "hot-kernel", "machine-register", "process-flag"];
+
+/// Category *process-flag* (owner ruling #4888, 2026-11-12, D-X.58): a non-atomic read of a word
+/// written only before the first thread starts, in this one file of niji-boundary and nowhere
+/// else (crate-relative path).
+const PROCESS_FLAG_FILE: &str = "src/thread.rs";
+/// The only body a *process-flag* block may have (whitespace removed): the read of the ownership
+/// word, so the category cannot grow into other reads or any write.
+const PROCESS_FLAG_READ: &str = "*OWNED_HERE.as_ptr()";
+
+/// The body of the (stripped) `unsafe {` block at `lines[n]`, whitespace removed, up to its first
+/// `}`: the category's one permitted read needs no nested braces.
+fn block_body(lines: &[&str], n: usize) -> String {
+    let mut text: String = lines.iter().skip(n).take(4).copied().collect::<Vec<_>>().join(" ");
+    if let Some(i) = text.find("unsafe {") {
+        text = text[i + 8..].to_string();
+    }
+    let end = text.find('}').unwrap_or(text.len());
+    text[..end].chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+/// Category *machine-register* (owner ruling 2026-11-07, D-X.44): the libm envelope's inline
+/// MXCSR read and empty `xmm` barrier, in this one file of niji-boundary and nowhere else.
+const MACHINE_REGISTER_FILE: &str = "crates/boundary/src/hot/fpregs.rs";
+/// The only instruction template *machine-register* permits besides the barrier's: the MXCSR
+/// store into the entry's local, exactly once in [`MACHINE_REGISTER_FILE`].
+const MXCSR_TEMPLATE: &str = "stmxcsr dword ptr [{p}]";
+/// The barrier's template: an assembler comment naming its one operand, no instruction (rustc
+/// refuses a template that does not use an operand, so a truly empty one cannot name the register).
+const BARRIER_TEMPLATE: &str = "/* {x} */";
+/// The widening's template (coordinator ruling #4434, D-10.79): one `cvtss2sd` whose destination is
+/// its source, so the merge waits only for the operand (D-10.67).
+const WIDEN_TEMPLATE: &str = "cvtss2sd xmm0, xmm0";
+/// The widening's operands: the one register named for input and late output (`inout` needs one
+/// type, and `float` and `double` differ in size).
+const WIDEN_OPERANDS: [&str; 2] = ["in(\u{22}xmm0\u{22})", "lateout(\u{22}xmm0\u{22})"];
+
+/// The *machine-register* file's inline-assembly templates (`src` unstripped): every string
+/// literal of every invocation outside a comment (other than an explicit register's name, the
+/// literal of an `in(`/`out(` operand) must be [`BARRIER_TEMPLATE`], [`WIDEN_TEMPLATE`] or [`MXCSR_TEMPLATE`],
+/// the MXCSR store must occur exactly once, a barrier must be `pure, nomem` (no memory effect) and
+/// a widening `nomem` on [`WIDEN_OPERANDS`]; no other invocation names a register.
+/// One message per violation.
+fn machine_register_templates(rel: &str, src: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut stores = 0usize;
+    let code: Vec<&str> = src.lines().map(|l| l.split_once("//").map_or(l, |(c, _)| c)).collect();
+    let mut n = 0;
+    while n < code.len() {
+        if !code[n].contains("asm!(") {
+            n += 1;
+            continue;
+        }
+        // The invocation: from `asm!(` to its closing parenthesis (templates hold none).
+        let start = n;
+        let mut text = String::new();
+        let mut depth = 0i32;
+        'inv: for (k, l) in code.iter().enumerate().skip(start) {
+            let from = if k == start { l.find("asm!(").map_or(0, |i| i + 4) } else { 0 };
+            for c in l[from..].chars() {
+                text.push(c);
+                depth += match c { '(' => 1, ')' => -1, _ => 0 };
+                if depth == 0 {
+                    n = k + 1;
+                    break 'inv;
+                }
+            }
+            text.push('\n');
+            n = k + 1;
+        }
+        // U+0022 is the quote: a quote character literal would read as a string to `strip`.
+        let parts: Vec<&str> = text.split('\u{22}').collect();
+        // An explicit register is the literal of an `in(`/`out(` operand (also `lateout(`, `inout(`,
+        // `inlateout(`); the template follows `asm!(` and is not one.
+        let named_register = |k: usize| {
+            let before = parts[k - 1].trim_end();
+            before.ends_with("in(") || before.ends_with("out(")
+        };
+        let literals: Vec<&str> = (1..parts.len()).step_by(2).filter(|&k| !named_register(k)).map(|k| parts[k]).collect();
+        let names_register = (1..parts.len()).step_by(2).any(named_register);
+        if names_register && !literals.contains(&WIDEN_TEMPLATE) {
+            errors.push(format!("{rel}:{}: machine-register invocation names a register outside the widening", start + 1));
+        }
+        if text.contains('\\') || literals.is_empty() {
+            errors.push(format!("{rel}:{}: machine-register template not a plain string literal", start + 1));
+        }
+        for t in &literals {
+            if *t == MXCSR_TEMPLATE {
+                stores += 1;
+            } else if *t == BARRIER_TEMPLATE {
+                if !(text.contains("pure") && text.contains("nomem")) {
+                    errors.push(format!("{rel}:{}: machine-register barrier must be `pure, nomem`", start + 1));
+                }
+            } else if *t == WIDEN_TEMPLATE {
+                let named = (1..parts.len()).step_by(2).filter(|&k| named_register(k)).count();
+                if !(text.contains("nomem") && WIDEN_OPERANDS.iter().all(|o| text.contains(o)) && named == 2) {
+                    errors.push(format!("{rel}:{}: machine-register widening must be `nomem` on exactly `{}`, `{}`", start + 1, WIDEN_OPERANDS[0], WIDEN_OPERANDS[1]));
+                }
+            } else {
+                errors.push(format!("{rel}:{}: instruction `{t}` outside the machine-register list (D-X.44: `{MXCSR_TEMPLATE}` once, the barrier `{BARRIER_TEMPLATE}`; D-10.79: `{WIDEN_TEMPLATE}`)", start + 1));
+            }
+        }
+    }
+    if stores != 1 {
+        errors.push(format!("{rel}: {stores} MXCSR stores: category machine-register permits exactly one (D-X.44)"));
+    }
+    errors
+}
 
 /// Whether the (stripped) `unsafe {` block at `lines[n]` is an inline-assembly block: the
 /// invocation on that line or within the next two.
@@ -105,15 +212,15 @@ fn is_asm_block(lines: &[&str], n: usize) -> bool {
 /// the calls, made safe by `safe fn`), its `GlobalAlloc` over the native heap (with the one
 /// copy a move of an over-aligned block needs), the two byte views of the secure heap block
 /// its `SecureBlock` owns (D-X.11), the `entry!` macro's unmangled `main`, and
-/// for the Rust dylib the unmangled `LIELLA_RUST_ABI` and the one named section
+/// for the Rust dylib the unmangled `NIJI_RUST_ABI` and the one named section
 /// [`NATIVE_SECTION`] (its ABI note). It is permitted only in this file of `crates/native`,
 /// which is not part of the C library: the facade is a library for programs.
 /// Coordinator ruling #406 (2026-10-21, PTHREAD-ONCE-UNWIND-2): category `export` is permitted
 /// outside export.rs/data.rs for exactly these unmangled helpers, which csys/src/machine/once.S
-/// calls (`liella_once_begin`, `liella_once_end`) or names in its call-frame information
-/// (`liella_once_personality`). The category is not widened anywhere else.
+/// calls (`niji_once_begin`, `niji_once_end`) or names in its call-frame information
+/// (`niji_once_personality`). The category is not widened anywhere else.
 const ONCE_HELPER_FILE: &str = "src/posix/s22_threads.rs";
-const ONCE_HELPERS: [&str; 3] = ["liella_once_begin", "liella_once_end", "liella_once_personality"];
+const ONCE_HELPERS: [&str; 3] = ["niji_once_begin", "niji_once_end", "niji_once_personality"];
 
 /// The name of the first `fn` declared within six lines after line `n` (attributes and doc
 /// comments may sit between an attribute and its item).
@@ -129,7 +236,7 @@ const NATIVE_CATEGORY: &str = "native";
 const NATIVE_FILE: &str = "src/ffi.rs";
 /// The only `#[unsafe(link_section = ...)]` category *native* permits, exactly as written: the
 /// Rust dylib's ABI note (D-X.10, spec/abi/rust-abi.toml). Any other section is rejected.
-const NATIVE_SECTION: &str = "#[unsafe(link_section = \".note.liella.rustabi\")]";
+const NATIVE_SECTION: &str = "#[unsafe(link_section = \".note.niji.rustabi\")]";
 
 /// The `UNSAFE(<category>)` tag documenting a site, searched in the `window` source lines
 /// above `line` (inclusive).
@@ -198,7 +305,7 @@ pub fn purity(root: &Path) -> Result<(), String> {
             }
             for w in words(l) {
                 if KEYWORDS.contains(&w) {
-                    errors.push(format!("{}:{}: `{w}` is logic; move it into liella/liella-legacy/liella-abi", f.display(), n + 1));
+                    errors.push(format!("{}:{}: `{w}` is logic; move it into niji/niji-legacy/niji-abi", f.display(), n + 1));
                 }
             }
             for op in OPERATORS {
@@ -223,13 +330,13 @@ pub fn purity(root: &Path) -> Result<(), String> {
 }
 
 /// The unsafe policy (implementation-plan.md §2.1):
-/// * every crate except liella-boundary and liella-native (and xtask) declares
+/// * every crate except niji-boundary and niji-native (and xtask) declares
 ///   `#![forbid(unsafe_code)]` and contains no `unsafe`;
-/// * liella-boundary declares `#![deny(unsafe_code)]`; each `unsafe` site belongs to one of the
+/// * niji-boundary declares `#![deny(unsafe_code)]`; each `unsafe` site belongs to one of the
 ///   five categories (*tb-field*: the one inline `%fs` load, owner ruling 2026-10-06), sits in a
 ///   file where that category is permitted, and carries an
 ///   `// UNSAFE(<category>)` comment (plus clippy's `SAFETY:` text for blocks);
-/// * liella-native (D-X.10) declares `#![deny(unsafe_code)]` at its root and
+/// * niji-native (D-X.10) declares `#![deny(unsafe_code)]` at its root and
 ///   `#![forbid(unsafe_code)]` in every other file (modules and examples) except `src/ffi.rs`,
 ///   the only file with `unsafe`, each site documented as `// UNSAFE(native)`.
 /// * no Rust file contains inline assembly except that *tb-field* block in boundary/src/tb.rs.
@@ -267,10 +374,10 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
             if rel == "build.rs" {
                 continue;
             }
-            // liella-native: every file but the root and the declarations forbids unsafe code
+            // niji-native: every file but the root and the declarations forbids unsafe code
             // itself, so a site added anywhere else fails to compile.
             if is_native && rel != "src/lib.rs" && rel != NATIVE_FILE && !code.lines().any(|l| l.trim() == "#![forbid(unsafe_code)]") {
-                errors.push(format!("{}: missing #![forbid(unsafe_code)] (liella-native allows unsafe code only in {NATIVE_FILE})", f.display()));
+                errors.push(format!("{}: missing #![forbid(unsafe_code)] (niji-native allows unsafe code only in {NATIVE_FILE})", f.display()));
             }
             let code_lines: Vec<&str> = code.lines().collect();
             for (n, line) in code.lines().enumerate() {
@@ -287,7 +394,7 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                     let section = l == "#[unsafe(link_section = \"\")]" && src_lines.get(n).is_some_and(|s| s.trim() == NATIVE_SECTION);
                     let form = section || ["unsafe extern \"\"", "unsafe impl GlobalAlloc", "unsafe fn ", "unsafe {", "#[unsafe(no_mangle)]"].iter().any(|f| l.starts_with(f));
                     if rel != NATIVE_FILE {
-                        errors.push(format!("{}:{}: liella-native permits `unsafe` only in {NATIVE_FILE}", f.display(), n + 1));
+                        errors.push(format!("{}:{}: niji-native permits `unsafe` only in {NATIVE_FILE}", f.display(), n + 1));
                     } else if !form {
                         errors.push(format!("{}:{}: `unsafe` form not in category `{NATIVE_CATEGORY}`", f.display(), n + 1));
                     } else {
@@ -300,7 +407,7 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                     continue;
                 }
                 if !is_boundary {
-                    errors.push(format!("{}:{}: `unsafe` outside liella-boundary is forbidden", f.display(), n + 1));
+                    errors.push(format!("{}:{}: `unsafe` outside niji-boundary is forbidden", f.display(), n + 1));
                     continue;
                 }
                 if rel.starts_with("tests/") {
@@ -309,25 +416,39 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                 }
                 let l = line.trim();
                 let (cat, allowed_in): (&str, &[&str]) = if l.contains("unsafe extern") {
-                    ("extern", &["src/ffi.rs", "src/ffi_sys.rs", "src/ffi_sys_aarch64.rs", "src/caller_alloc.rs"])
+                    ("extern", &["src/ffi.rs", "src/ffi_sys.rs", "src/ffi_sys_aarch64.rs", "src/caller_alloc.rs", "src/arch/"])
                 } else if l.contains("unsafe(no_mangle)") || l.contains("unsafe(export_name") {
-                    ("export", &["src/export.rs", "src/data.rs"])
+                    ("export", &["src/export.rs", "src/data.rs", "src/ld.rs", "src/ld/entry.rs", "src/ld/tls.rs", "src/ldconfig.rs"])
                 } else if l.contains("unsafe impl") {
                     // ALLOC-FAIL-INJECT-4 (#2101): the test-only `FailAlloc` (`selftest` feature, never
                     // in a product) lives outside every product-compiled file.
                     ("allocator", ALLOCATOR_FILES)
+                } else if l.contains("unsafe {") && is_asm_block(&code_lines, n) && rel == "src/hot/fpregs.rs" {
+                    // Owner ruling 2026-11-07 (D-X.44): the libm envelope's MXCSR read and xmm barrier.
+                    ("machine-register", &["src/hot/fpregs.rs"])
                 } else if l.contains("unsafe {") && is_asm_block(&code_lines, n) {
                     // Owner ruling 2026-10-06 (plan S2): the one `%fs`-relative field load.
                     ("tb-field", &["src/tb.rs"])
-                } else if (l.contains("unsafe fn") || l.contains("unsafe {")) && rel == "src/hot.rs" {
-                    // Owner ruling 2026-10-08 (plan S2, D-4.22): the small copy and fill kernels.
-                    ("hot-kernel", &["src/hot.rs"])
+                } else if l.contains("unsafe {") && tag_above(&src_lines, n, 6).as_deref() == Some("process-flag") {
+                    // Owner ruling #4888 (D-X.58): the write-once ownership word, read without an
+                    // atomic so the gate folds into a memory operand; only in thread.rs and only that read.
+                    if block_body(&code_lines, n) != PROCESS_FLAG_READ {
+                        errors.push(format!("{}:{}: a `process-flag` block may only read `{PROCESS_FLAG_READ}` (D-X.58)", f.display(), n + 1));
+                    }
+                    ("process-flag", &[PROCESS_FLAG_FILE])
+                } else if (l.contains("unsafe fn") || l.contains("unsafe {")) && rel.starts_with("src/hot/") {
+                    // Owner ruling 2026-10-08 (plan S2, D-4.22): the small copy and fill kernels (the `hot`
+                    // module, one directory since LIBM-HOT-PER-FAMILY).
+                    ("hot-kernel", &["src/hot/"])
                 } else if l.contains("unsafe fn") || l.contains("unsafe {") {
-                    ("slice", &["src/conv.rs", "src/strz.rs", "src/heap.rs", "src/tb.rs", "src/runtime.rs", "src/posix/", "src/native/", "src/selftest/failalloc.rs"])
+                    ("slice", &["src/conv.rs", "src/strz.rs", "src/heap.rs", "src/tb.rs", "src/runtime.rs", "src/bootstrap.rs", "src/ld.rs", "src/ldconfig.rs", "src/ld/", "src/dlerr.rs", "src/posix/", "src/native/", "src/selftest/failalloc.rs"])
                 } else {
                     errors.push(format!("{}:{}: `unsafe` form not in any permitted category", f.display(), n + 1));
                     continue;
                 };
+                if rel == "src/hot/fpregs.rs" && cat != "machine-register" {
+                    errors.push(format!("{}:{}: only category `machine-register` is permitted in {rel} (D-X.44)", f.display(), n + 1));
+                }
                 let once_helper = cat == "export" && rel == ONCE_HELPER_FILE && next_fn_name(&code_lines, n).is_some_and(|f| ONCE_HELPERS.contains(&f));
                 if !once_helper && !allowed_in.iter().any(|a| rel.starts_with(a)) {
                     errors.push(format!("{}:{}: category `{cat}` is not permitted in {rel}", f.display(), n + 1));
@@ -358,7 +479,7 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                     continue;
                 }
                 if !is_boundary {
-                    errors.push(format!("{}:{}: #[allow(unsafe_code)] outside liella-boundary", f.display(), n + 1));
+                    errors.push(format!("{}:{}: #[allow(unsafe_code)] outside niji-boundary", f.display(), n + 1));
                     continue;
                 }
                 match tag_above(&src_lines, n, 4) {
@@ -380,20 +501,27 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
         rust_files(dir, &mut files);
         for f in &files {
             let rel = f.strip_prefix(root).map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            let code = strip(&fs::read_to_string(f).map_err(|e| e.to_string())?);
-            // Inline assembly (plan S2/S3): only the one *tb-field* block in boundary/src/tb.rs;
-            // everything else that needs the machine is in csys/.
+            let raw = fs::read_to_string(f).map_err(|e| e.to_string())?;
+            let code = strip(&raw);
+            // Inline assembly (plan S2/S3): only the one *tb-field* block in boundary/src/tb.rs and
+            // the *machine-register* blocks of boundary/src/hot/fpregs.rs (D-X.44, their templates
+            // checked below); everything else that needs the machine is in csys/.
             let lines: Vec<&str> = code.lines().collect();
             for (n, line) in lines.iter().enumerate() {
                 if !line.contains("asm!") {
                     continue;
                 }
-                let site = rel == "crates/boundary/src/tb.rs" && (n.saturating_sub(2)..=n).any(|k| lines[k].contains("unsafe {"));
-                if site {
+                let in_unsafe = (n.saturating_sub(2)..=n).any(|k| lines[k].contains("unsafe {"));
+                if rel == "crates/boundary/src/tb.rs" && in_unsafe {
                     asm_sites += 1;
+                } else if rel == MACHINE_REGISTER_FILE && in_unsafe {
+                    // Counted by the category audit above; the templates are checked below.
                 } else {
-                    errors.push(format!("{rel}:{}: inline assembly outside the tb-field site (plan S2/S3: machine code belongs in csys/)", n + 1));
+                    errors.push(format!("{rel}:{}: inline assembly outside the tb-field and machine-register sites (plan S2/S3, D-X.44: machine code belongs in csys/)", n + 1));
                 }
+            }
+            if rel == MACHINE_REGISTER_FILE {
+                errors.extend(machine_register_templates(&rel, &raw));
             }
             if SEALED_OK.iter().any(|ok| rel.starts_with(ok)) {
                 continue;
@@ -422,7 +550,7 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
 /// The C syscall layer's rules (csys/README.md, implementation-plan.md §2.5).
 pub fn csys_audit(root: &Path) -> Result<(), String> {
     const FORBIDDEN: &[&str] = &["if", "else", "switch", "for", "while", "do", "goto", "errno", "case", "default"];
-    const INCLUDES: &[&str] = &["\"liella_csys.h\"", "\"liella_sys.h\"", "\"liella_sysnr.h\"", "\"liella_raw.h\"", "<stddef.h>", "<stdint.h>", "<stdarg.h>"];
+    const INCLUDES: &[&str] = &["\"niji_csys.h\"", "\"niji_sys.h\"", "\"niji_sysnr.h\"", "\"niji_raw.h\"", "<stddef.h>", "<stdint.h>", "<stdarg.h>"];
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(rd) = fs::read_dir(dir) else { return };
         for e in rd.flatten() {
@@ -722,7 +850,7 @@ fn crash_counts(src: &str, c: bool) -> (usize, usize) {
 
 /// CORE-STORM (owner: "we shouldn't be trying to dump core on crashes we are [causing]"): every test that expects a
 /// child to die of a core-dumping signal makes that child non-dumpable first, through
-/// `liella_boundary::selftest::expect_crash` / `in_child_quiet` (Rust) or `conformance/c/expect_crash.h` (C). With a
+/// `niji_boundary::selftest::expect_crash` / `in_child_quiet` (Rust) or `conformance/c/expect_crash.h` (C). With a
 /// pipe `core_pattern` the kernel starts the core helper for every such crash, even under `RLIMIT_CORE` 0: a storm of
 /// them made a test VM unreachable. Per file, the helper calls must be at least the expected-crash sites (a removed
 /// call is flagged where the counts were equal; a file whose sites share one helper call, or that probes crashes it
@@ -770,7 +898,7 @@ pub fn crash_audit(root: &Path) -> Result<(), String> {
 /// GATE-SPEED-5: the allocator family (and the `_chk` copies) of the boundary crate carry their C names behind the
 /// `export` feature, and an optimising build treats a direct call to such a name as the standard function (it deletes
 /// an unused `malloc`, folds `calloc(1 << 33, 1 << 33)`, drops a double `free`, assumes `__memcpy_chk` operands valid).
-/// A test file under `crates/*/tests` therefore calls these through `liella_boundary::selftest::opaque::<name>`, or
+/// A test file under `crates/*/tests` therefore calls these through `niji_boundary::selftest::opaque::<name>`, or
 /// carries one `// opaque-ok: <why>` line saying why its direct calls are safe to fold (results used, no UB case).
 /// Not covered (labelled limit): `memcpy`/`memmove`/`memset`/`strdup`, too many benign direct uses to ban.
 pub fn opaque_audit(root: &Path) -> Result<(), String> {
@@ -815,7 +943,7 @@ pub fn opaque_audit(root: &Path) -> Result<(), String> {
 
 /// The C library names LLVM's `TargetLibraryInfo` knows (LLVM `TargetLibraryInfo.def`, plus the math names its constant
 /// folder evaluates). With feature `export` the boundary crate defines these under their C names, so a test calling one
-/// with known arguments may get LLVM's answer instead of Liella's: `labs(-5)` is folded to 5 and a planted bug in `labs`
+/// with known arguments may get LLVM's answer instead of libniji's: `labs(-5)` is folded to 5 and a planted bug in `labs`
 /// survives (TOOLS-10).
 pub const LLVM_BUILTINS: &[&str] = &[
     // integers, bits, ctype
@@ -851,9 +979,9 @@ pub const LLVM_BUILTINS: &[&str] = &[
     "atanhf", "atanhl", "erf", "erff", "erfl", "fdim", "fdimf", "fdiml", "fma", "fmaf", "fmal", "cabs", "cabsf", "cabsl",
 ];
 
-/// TOOLS-10 / OPAQUE-AUDIT: a test file of a crate that links `liella_boundary` and calls an [`LLVM_BUILTINS`] name
+/// TOOLS-10 / OPAQUE-AUDIT: a test file of a crate that links `niji_boundary` and calls an [`LLVM_BUILTINS`] name
 /// directly (`<path>::labs(`) must be compiled `#![no_builtins]` (then LLVM treats every such call as an unknown
-/// function and calls Liella's), call it through `selftest::opaque`, or say `// opaque-ok: <why>`. Calls through
+/// function and calls libniji's), call it through `selftest::opaque`, or say `// opaque-ok: <why>`. Calls through
 /// `libc::` / `glibc::` / `sys::` (the reference) and Rust's own numeric methods (`f64::sqrt(`) are not ours.
 /// Labelled limit: unit tests inside `src/` are not scanned (a library crate cannot be `no_builtins` per test).
 fn builtin_calls(root: &Path, files: &[PathBuf]) -> Vec<String> {
@@ -861,7 +989,7 @@ fn builtin_calls(root: &Path, files: &[PathBuf]) -> Vec<String> {
     let mut errors = Vec::new();
     for f in files {
         let Ok(src) = fs::read_to_string(f) else { continue };
-        if src.contains("// opaque-ok:") || src.contains("#![no_builtins]") || !src.contains("liella_boundary") {
+        if src.contains("// opaque-ok:") || src.contains("#![no_builtins]") || !src.contains("niji_boundary") {
             continue;
         }
         let rel = f.strip_prefix(root).unwrap_or(f).display().to_string();
@@ -976,5 +1104,35 @@ mod reexec_tests {
     fn an_unguarded_reexec_with_an_allow_comment_passes() {
         let src = GOOD.replace("assert!(String::from_utf8_lossy(&o.stdout).contains(\"running 1 test\"));", "").replace("    let o", "    // reexec-guard: allow(reviewed)\n    let o").replace(", \"--include-ignored\"", "");
         assert!(reexec_findings(&src).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod machine_register_tests {
+    //! no spec clause: the machine-register template list (D-X.44, D-10.79) on synthetic sources.
+    use super::machine_register_templates;
+
+    const STORE: &str = "asm!(\"stmxcsr dword ptr [{p}]\", p = in(reg) &raw mut v, options(nostack));\n";
+
+    #[test]
+    fn the_in_place_widening_passes() {
+        let src = format!("{STORE}asm!(\"cvtss2sd xmm0, xmm0\", in(\"xmm0\") x, lateout(\"xmm0\") y, options(nomem, nostack));\n");
+        let f = machine_register_templates("f.rs", &src);
+        assert!(f.is_empty(), "{f:?}");
+    }
+
+    #[test]
+    fn a_widening_into_another_register_is_refused() {
+        let src = format!("{STORE}asm!(\"cvtss2sd xmm1, xmm0\", in(\"xmm0\") x, lateout(\"xmm1\") y, options(nomem, nostack));\n");
+        let f = machine_register_templates("f.rs", &src);
+        assert!(f.iter().any(|e| e.contains("outside the machine-register list")), "{f:?}");
+    }
+
+    #[test]
+    fn a_widening_that_may_touch_memory_is_refused() {
+        let src = format!("{STORE}asm!(\"cvtss2sd xmm0, xmm0\", in(\"xmm0\") x, lateout(\"xmm0\") y, options(nostack));\n");
+        let f = machine_register_templates("f.rs", &src);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].contains("widening must be `nomem`"), "{f:?}");
     }
 }

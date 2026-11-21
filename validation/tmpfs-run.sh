@@ -1,7 +1,7 @@
 #!/bin/bash
 # FS-TMPFS-SCRATCH-RUN: does a test pass or fail depending on the file system under its scratch tree?
 #
-# Runs the tests of `liella` (crates/core) and `liella-boundary` (crates/boundary) twice, each inside an unprivileged
+# Runs the tests of `niji` (crates/core) and `niji-boundary` (crates/boundary) twice, each inside an unprivileged
 # user + mount namespace (`unshare -r -m`: no sudo, nothing on the host changes):
 #   base run : a directory of the reference file system (ext4 on our hosts, --base-dir) is bind-mounted over `target/tmp`
 #              and `/tmp` (a bind mount, because target/ itself may be on a RAM disk, as on Zen 1 host);
@@ -45,7 +45,7 @@ mkdir -p target/tmp
 if [ "$build" = 1 ]; then
   echo "== build (once, shared by both runs)"
   cargo xtask so > "$out/build.log" 2>&1 || { echo "build: cargo xtask so failed, see $out/build.log"; exit 2; }
-  cargo nextest run --no-run -p liella -p liella-boundary >> "$out/build.log" 2>&1 \
+  cargo nextest run --no-run -p niji -p niji-boundary >> "$out/build.log" 2>&1 \
     || { echo "build: test build failed, see $out/build.log"; exit 2; }
 fi
 
@@ -69,7 +69,7 @@ mode=$1; log=$2; shift 2
 export TMPDIR=/tmp
 echo "scratch fs ($mode run): target/tmp=$(stat -f -c %T "$ROOT/target/tmp") /tmp=$(stat -f -c %T /tmp) uid=$(id -u)" > "$log"
 cd "$ROOT" || exit 2
-cargo nextest run -p liella -p liella-boundary --no-fail-fast "$@" >> "$log" 2>&1
+cargo nextest run -p niji -p niji-boundary --no-fail-fast "$@" >> "$log" 2>&1
 echo "nextest exit status: $?" >> "$log"
 '
 

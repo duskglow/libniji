@@ -3,25 +3,27 @@
 //!
 //! `pthread_cleanup_push` (C, glibc's headers) fills a `__pthread_unwind_buf_t` with
 //! `__sigsetjmp(buf, 0)` and registers it (`__pthread_register_cancel`). When the thread exits
-//! (`pthread_exit`) or acts on cancellation, the newest buffer is jumped to; the handler code
-//! there runs the routine and calls `__pthread_unwind_next(buf)`, which jumps to the next
-//! buffer or, after the last, runs the old-style records (`_pthread_cleanup_push`) and the
-//! thread's exit sequence (`crate::thread::finish`). No Rust frame is unwound: each jump
-//! leaves only this module's frames, which hold nothing to drop (S11).
-//!
-//! **Interim until phase 14 (D-22.11):** glibc unwinds with `_Unwind_ForcedUnwind` from
-//! `libgcc_s`, which also runs C++ destructors; until Liella can load it, only the registered
-//! C buffers run.
+//! (`pthread_exit`) or acts on cancellation, its stack is unwound with the program's unwinder
+//! (`_Unwind_ForcedUnwind`, D-22.19): C++ destructors and `catch` handlers (which rethrow) and
+//! `-fexceptions` cleanups run frame by frame, and when the unwind reaches the frame holding the
+//! newest buffer, that buffer is jumped to; the handler code there runs the routine and calls
+//! `__pthread_unwind_next(buf)`, which unwinds on from there. After the outermost frame, the
+//! old-style records still registered (`_pthread_cleanup_push`) and the thread's exit sequence
+//! (`crate::thread::finish`) run. A static program unwinds with the unwinder it links (D-22.21).
+//! A process without an unwinder (a C program that loaded or linked none) skips the unwind: the
+//! buffers are jumped to in turn, newest first. No Rust
+//! frame is unwound: each jump, landing pad or exit leaves only this module's frames and the
+//! exports', which hold nothing to drop (S11).
 
 use core::sync::atomic::{AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::KResult;
-use liella_abi::ctypes::c_int;
-use liella_rt::thread::{CANCEL_ACTING, CANCEL_ASYNC, CANCEL_HIT};
+use niji_kernel::errno::KResult;
+use niji_abi::ctypes::c_int;
+use niji_rt::thread::{CANCEL_ACTING, CANCEL_ASYNC, CANCEL_HIT};
 
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_rt::thread::{CANCEL_DISABLED, CANCEL_REQUESTED};
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_rt::thread::{CANCEL_DISABLED, CANCEL_REQUESTED};
 
 use crate::sys::CSys;
 use crate::{ffi, raw, tb, thread};
@@ -106,9 +108,17 @@ pub fn unwind(result: usize) -> ! {
 }
 
 fn continue_unwind(buf: usize, result: usize) -> ! {
+    // Returns only when the process has no unwinder or the unwind could not start.
+    forced_unwind();
+    fallback(buf, result)
+}
+
+/// The exit without an unwinder: the newest cleanup buffer, or (after the last) the old-style
+/// records and the exit sequence.
+fn fallback(buf: usize, result: usize) -> ! {
     if buf != 0 {
         // The buffer was filled by `__sigsetjmp(buf, 0)` in a live frame of this thread.
-        ffi::liella_machine_siglongjmp(buf, 1);
+        ffi::niji_machine_siglongjmp(buf, 1);
     }
     run_old_records();
     thread::finish(result)
@@ -126,6 +136,118 @@ fn run_old_records() {
         d.cleanup_old.store(word(w, O_PREV), Release);
         call(word(w, O_ROUTINE), word(w, O_ARG));
     }
+}
+
+/// The old-style records registered in frames the forced unwind has left: those below `limit`
+/// (a canonical frame address the stop function passed), newest first.
+fn run_old_records_below(d: &niji_rt::thread::Thread, limit: usize) {
+    loop {
+        let rec = d.cleanup_old.load(Acquire);
+        if rec == 0 || rec >= limit {
+            return;
+        }
+        let w = tb::registered(rec, 4);
+        d.cleanup_old.store(word(w, O_PREV), Release);
+        call(word(w, O_ROUTINE), word(w, O_ARG));
+    }
+}
+
+// ------------------------------------------------------------------------------ forced unwind
+
+/// `_UA_END_OF_STACK` (Itanium C++ ABI §1.3): the stop function's last call.
+const UA_END_OF_STACK: c_int = 16;
+/// The exception class of a thread's exit (vendor `NIJI`, language `EXIT`; ABI §1.2: the high
+/// four bytes name the vendor).
+const EXIT_CLASS: u64 = u64::from_be_bytes(*b"NIJIEXIT");
+
+fn as_i64(v: usize) -> i64 {
+    i64::from_ne_bytes(v.to_ne_bytes())
+}
+
+/// The process's unwinder: in a static program, `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` as
+/// it links them (machine/unwinder.S, D-22.21: libc.a's weak references; 0 everywhere else);
+/// otherwise as the program's own references resolve them (D-22.19, `dlsym(RTLD_DEFAULT, ..)`:
+/// `libgcc_s.so.1`, or another unwinder the program loaded), looked up now and never cached (a
+/// later `dlopen` or `dlclose` changes the answer). `None` in a process without an unwinder.
+fn unwinder() -> Option<(usize, usize)> {
+    let force = ffi::niji_machine_unwind_force();
+    if force != 0 {
+        let cfa = ffi::niji_machine_unwind_get_cfa();
+        return (cfa != 0).then_some((force, cfa));
+    }
+    // The loader's `dlsym` entry, as `niji_dl_sym` calls it: RTLD_DEFAULT (0), no version, the
+    // program as the requester (0).
+    let entry = crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire);
+    if entry == 0 {
+        return None;
+    }
+    let find = |name: &[u8]| usize::from_ne_bytes(ffi::niji_machine_call4(entry, 0, as_i64(name.as_ptr().expose_provenance()), 0, 0).to_ne_bytes());
+    let force = find(b"_Unwind_ForcedUnwind\0");
+    if force == 0 {
+        return None;
+    }
+    let cfa = find(b"_Unwind_GetCFA\0");
+    (cfa != 0).then_some((force, cfa))
+}
+
+/// Unwind the calling thread's stack with the program's unwinder (D-22.19, Itanium C++ ABI §1.3
+/// `_Unwind_ForcedUnwind`): every frame's cleanups run (C++ destructors, `catch` handlers that
+/// rethrow, `-fexceptions` cleanups), the C cleanup buffers in their frames' turn
+/// ([`stop`]), and the exit sequence after the outermost frame. Returns only when there is no
+/// unwinder or the unwind could not start; the caller then exits without it.
+#[cold]
+#[inline(never)]
+fn forced_unwind() {
+    let Ok(d) = thread::desc() else { return };
+    let Some((force, get_cfa)) = unwinder() else { return };
+    let w = &d.unwind.words;
+    set(w, niji_rt::thread::UNWIND_CLASS, usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes()));
+    set(w, niji_rt::thread::UNWIND_CLEANUP, swallowed_addr());
+    set(w, niji_rt::thread::UNWIND_PRIVATE1, 0);
+    set(w, niji_rt::thread::UNWIND_PRIVATE2, 0);
+    set(w, niji_rt::thread::UNWIND_LAST_CFA, 0);
+    let _ = ffi::niji_machine_call3(force, as_i64(addr(w)), as_i64(stop_addr()), as_i64(get_cfa));
+}
+
+/// The stop function (`_Unwind_Stop_Fn`) of [`forced_unwind`], called for each frame before its
+/// cleanups run, with `_Unwind_GetCFA` as its parameter. The old-style records of the frames
+/// already left run first; then, if the newest cleanup buffer lies in this frame (below its
+/// canonical frame address), the unwind continues there (its handler calls
+/// `__pthread_unwind_next`, which starts a new unwind). After the outermost frame the exit goes
+/// on as without an unwinder. Its own frames hold nothing to drop (S11).
+extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ctx: usize, get_cfa: usize) -> c_int {
+    let Ok(d) = thread::desc() else { return 0 };
+    if actions & UA_END_OF_STACK != 0 {
+        fallback(d.cleanup_jmp.load(Acquire), d.result.load(Acquire));
+    }
+    let cfa = usize::from_ne_bytes(ffi::niji_machine_call3(get_cfa, as_i64(ctx), 0, 0).to_ne_bytes());
+    run_old_records_below(d, word(&d.unwind.words, niji_rt::thread::UNWIND_LAST_CFA));
+    let head = d.cleanup_jmp.load(Acquire);
+    if head != 0 && head < cfa {
+        // The buffer was filled by `__sigsetjmp(buf, 0)` in this frame, which is still live.
+        ffi::niji_machine_siglongjmp(head, 1);
+    }
+    set(&d.unwind.words, niji_rt::thread::UNWIND_LAST_CFA, cfa);
+    0
+}
+
+/// The exception's cleanup function: a handler caught the thread's exit and ended without
+/// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither
+/// go on (it was told to exit) nor exit from here (the frames outside the handler would not
+/// unwind), so the process ends: a fatal diagnostic, then `abort` (D-22.19, ruling #6884).
+#[cold]
+extern "C" fn swallowed(_reason: c_int, _exc: usize) {
+    niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap)
+}
+
+#[allow(clippy::as_conversions)] // a function pointer's address: the only spelling Rust has
+fn stop_addr() -> usize {
+    stop as extern "C" fn(c_int, c_int, u64, usize, usize, usize) -> c_int as usize
+}
+
+#[allow(clippy::as_conversions)] // a function pointer's address: the only spelling Rust has
+fn swallowed_addr() -> usize {
+    swallowed as extern "C" fn(c_int, usize) as usize
 }
 
 /// A foreign exception (C++) unwound out of the frame that pushed the newest old-style record
@@ -151,7 +273,7 @@ pub fn unwound_through(routine: usize) {
 /// The type word of a guard record (machine/guard.S): `unwound_guard` stops at the newest one.
 const GUARD_TAG: usize = 0x0047_5541_5244;
 
-/// machine/guard.S (`liella_guard_begin`), before the body: `record` (the 4-word buffer in that
+/// machine/guard.S (`niji_guard_begin`), before the body: `record` (the 4-word buffer in that
 /// frame) is registered, so that an unwind leaving the frame, or a cancellation acting inside
 /// it, runs `undo(ctx)`.
 pub fn guard_begin(record: KResult<&[AtomicUsize]>, undo: usize, ctx: usize) {
@@ -161,12 +283,12 @@ pub fn guard_begin(record: KResult<&[AtomicUsize]>, undo: usize, ctx: usize) {
     }
 }
 
-/// machine/guard.S (`liella_guard_end`), after the body returned: the record is removed.
+/// machine/guard.S (`niji_guard_end`), after the body returned: the record is removed.
 pub fn guard_end(record: KResult<&[AtomicUsize]>) {
     pop_old(record, 0);
 }
 
-/// The personality routine of `liella_machine_guard`'s frame (`liella_guard_personality`; as
+/// The personality routine of `niji_machine_guard`'s frame (`niji_guard_personality`; as
 /// [`crate::sync::once_personality`]): in the cleanup phase it removes the newest guard record
 /// (and the records of the frames the unwind already left) and runs its undo routine; the
 /// unwind goes on. The search phase changes nothing.
@@ -199,7 +321,7 @@ fn unwound_guard() {
 
 fn call(f: usize, arg: usize) {
     if f != 0 {
-        let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(arg.to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(arg.to_ne_bytes()), 0, 0);
     }
 }
 
@@ -256,7 +378,7 @@ pub fn cleanup_routine(frame: KResult<&[AtomicUsize]>) {
 /// calls; filled in with the internal signal's handler).
 pub fn test_cancel() {
     if let Ok(d) = thread::desc() {
-        if liella_rt::thread::cancel_due(d.cancel.load(Acquire)) {
+        if niji_rt::thread::cancel_due(d.cancel.load(Acquire)) {
             unwind(usize::MAX);
         }
     }
@@ -304,11 +426,11 @@ pub const SIG_INTERNAL: i32 = 32;
 extern "C" fn internal(_sig: i32, _info: usize, ctx: usize) {
     let Some(d) = thread::current() else { return };
     crate::setxid::serve(d);
-    if !liella_rt::thread::cancel_due(d.cancel.load(Acquire)) {
+    if !niji_rt::thread::cancel_due(d.cancel.load(Acquire)) {
         return;
     }
     let mut b = [0usize; 3];
-    ffi::liella_machine_cancel_bounds(&mut b);
+    ffi::niji_machine_cancel_bounds(&mut b);
     if let Some(pc) = tb::saved_pc(ctx) {
         let at = pc.load(Relaxed);
         if b[0] <= at && at < b[1] {
@@ -322,11 +444,30 @@ fn internal_addr() -> usize {
     internal as extern "C" fn(i32, usize, usize) as usize
 }
 
-/// Install the internal signal's handler (the products' startup): every signal blocked while
-/// it runs, restarting interrupted calls, on the alternate stack if one is set.
+/// Whether the internal signal's handler is installed ([`install`]). A fork child inherits both
+/// the handler and this word, so it never installs again.
+static INSTALLED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+/// Install the internal signal's handler, once per process: every signal blocked while it runs,
+/// restarting interrupted calls, on the alternate stack if one is set. Lazy (owner ruling #7075,
+/// D-20.1): the library sends the signal only to a thread it created (a cancellation request,
+/// the setxid broadcast), so thread creation installs it before its first clone and a start
+/// makes no `rt_sigaction`. The reservation itself is fixed from the start (OD-8). Racing
+/// creators both install the same action, which is harmless.
+#[inline]
 pub fn install() {
-    use liella_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
-    let _ = raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0));
+    if !INSTALLED.load(Relaxed) {
+        install_now();
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn install_now() {
+    use niji_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
+    if raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0)).is_ok() {
+        INSTALLED.store(true, Relaxed);
+    }
 }
 
 /// `pthread_cancel`: mark the request; a thread that can act is interrupted with the internal
@@ -334,17 +475,17 @@ pub fn install() {
 /// asynchronous cancellation acts at once (`pthread_cancel` is async-cancel-safe).
 pub fn request(tp: usize) -> KResult<()> {
     let d = thread::find(tp).ok_or(Errno::ESRCH)?;
-    if d.has(liella_rt::thread::DESC_EXITED) {
+    if d.has(niji_rt::thread::DESC_EXITED) {
         return Err(Errno::ESRCH);
     }
     let now = d.cancel.fetch_or(CANCEL_REQUESTED, AcqRel) | CANCEL_REQUESTED;
     if tp == tb::tp() {
-        if liella_rt::thread::cancel_due(now) && now & CANCEL_ASYNC != 0 {
+        if niji_rt::thread::cancel_due(now) && now & CANCEL_ASYNC != 0 {
             unwind(usize::MAX);
         }
         return Ok(());
     }
-    if liella_rt::thread::cancel_due(now) {
+    if niji_rt::thread::cancel_due(now) {
         if let Ok(tid) = thread::tid_of(tp) {
             let _ = CSys.tgkill(CSys.getpid(), tid, SIG_INTERNAL);
         }
@@ -387,7 +528,7 @@ pub fn set_type(kind: i32) -> KResult<i32> {
 /// also when it exits between the lookup and `tgkill`.
 pub fn kill(tp: usize, sig: i32) -> KResult<()> {
     if sig != 0 {
-        liella_legacy::signal_compat::check(sig)?;
+        niji_legacy::signal_compat::check(sig)?;
     }
     let exited = |e: Errno| if e == Errno::ESRCH && thread::find(tp).is_some() { Ok(()) } else { Err(e) };
     let tid = match thread::tid_of(tp) {
@@ -403,9 +544,9 @@ pub fn kill(tp: usize, sig: i32) -> KResult<()> {
 /// `pthread_sigqueue`: the signal with a value (`SI_QUEUE`) to one thread.
 pub fn sigqueue(tp: usize, sig: i32, value: u64) -> KResult<()> {
     if sig != 0 {
-        liella_legacy::signal_compat::check(sig)?;
+        niji_legacy::signal_compat::check(sig)?;
     }
     let tid = thread::tid_of(tp)?;
-    let info = liella_kernel::uapi::SigInfo::queued(sig, CSys.getpid(), CSys.getuid(), value);
+    let info = niji_kernel::uapi::SigInfo::queued(sig, CSys.getpid(), CSys.getuid(), value);
     CSys.tgsigqueueinfo(CSys.getpid(), tid, sig, &info)
 }

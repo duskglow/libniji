@@ -3,7 +3,7 @@
 # cdylib cannot link until phase 4 provides the runtime entry point, global allocator and panic
 # handler (implementation-plan.md §6, phase 4). Build it with `cargo xtask so` from phase 4 on.
 [package]
-name = "liella-libc-so"
+name = "niji-libc-so"
 description = "Product crate: links the translation layer into libc.so.6 / libc.a"
 version = "0.0.0"
 edition = "2024"
@@ -17,6 +17,6 @@ test = false
 doctest = false
 
 [dependencies]
-liella-boundary = { path = "../boundary", features = ["runtime"] }
+niji-boundary = { path = "../boundary", features = ["runtime"] }
 
 # Profiles: crates/Cargo.toml (the product workspace, BUILD-PATH-HASH).

@@ -1,0 +1,11 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: after --, -a is a name
+clause: s31_5_f_1
+command: getconf
+env: LC_ALL=C
+arg: --
+arg: -a
+status: exit 2
+stdout:
+stderr:
+| getconf: Unrecognized variable `-a'

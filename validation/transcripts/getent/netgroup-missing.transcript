@@ -1,0 +1,29 @@
+name: getent a missing netgroup: exit 2, no output
+clause: s31_4_f_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/netgroup
+| trusted (box,alice,example.org) (-,bob,)
+| all trusted (,carol,)
+arg: netgroup
+arg: nope
+status: exit 2
+stdout:
+stderr:

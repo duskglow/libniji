@@ -8,10 +8,10 @@
 #[path = "support/timeout.rs"]
 mod timeout;
 
-use liella::error::Result;
-use liella::locale::Locale;
-use liella::mem::TryVec;
-use liella::pattern::wordexp::{self, Shell, ValBuf, Words};
+use niji::error::Result;
+use niji::locale::Locale;
+use niji::mem::TryVec;
+use niji::pattern::wordexp::{self, Shell, ValBuf, Words};
 
 /// The fuzz target's simulated shell (fuzz/fuzz_targets/wordexp.rs), kept in step with it.
 struct Env<'a> {
@@ -85,7 +85,7 @@ struct Fields(usize);
 impl Words for Fields {
     fn push(&mut self, _word: &[u8]) -> Result<()> {
         self.0 += 1;
-        if self.0 > 1 << 16 { Err(liella::error::Errno::ENOMEM) } else { Ok(()) }
+        if self.0 > 1 << 16 { Err(niji::error::Errno::ENOMEM) } else { Ok(()) }
     }
 }
 

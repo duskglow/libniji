@@ -8,12 +8,12 @@
 
 use std::sync::Once;
 
-use liella_boundary::posix::s28_profiling as pr;
+use niji_boundary::posix::s28_profiling as pr;
 use spectest::symbol;
 
 // Two instrumented "functions" as gcc emits them (csys/src/machine/mcount.S fixtures): -pg
 // -mfentry calls __fentry__ before the prologue; -pg calls mcount after `push rbp; mov rbp, rsp`.
-// The glibc names exist only in the products, so the fixtures call the hidden liella_machine_*
+// The glibc names exist only in the products, so the fixtures call the hidden niji_machine_*
 // entry points behind them, from a known caller.
 
 /// One monstartup per process (it is one-shot), over a text range around both sites and the caller.
@@ -69,7 +69,7 @@ symbol!(sym___profile_frequency, "__profile_frequency", "28", "2.2.5", r##"(no i
 symbol!(sym_sprofil, "sprofil", "28", "2.2.5", r##""##);
 
 /// Set in a child this binary re-executes (monstartup is one-shot per process).
-const CHILD: &str = "LIELLA_S28_SYM_CHILD";
+const CHILD: &str = "NIJI_S28_SYM_CHILD";
 
 /// Re-execute this binary running only `test` in a fresh directory; the files it left there.
 fn child_files(test: &str) -> Vec<(String, Vec<u8>)> {
@@ -133,15 +133,15 @@ fn sym__mcleanup() {
 #[test]
 fn sym___cyg_profile_func_enter() {
     // Spec 28.1 (s28_1_c_4): an empty hook; errno is left as it was.
-    liella_boundary::errno::set_raw(4242);
+    niji_boundary::errno::set_raw(4242);
     pr::__cyg_profile_func_enter(core::ptr::null_mut(), core::ptr::null_mut());
-    assert_eq!(liella_boundary::errno::get(), 4242);
+    assert_eq!(niji_boundary::errno::get(), 4242);
 }
 
 #[test]
 fn sym___cyg_profile_func_exit() {
     // Spec 28.1 (s28_1_c_4): an empty hook; errno is left as it was.
-    liella_boundary::errno::set_raw(4242);
+    niji_boundary::errno::set_raw(4242);
     pr::__cyg_profile_func_exit(core::ptr::null_mut(), core::ptr::null_mut());
-    assert_eq!(liella_boundary::errno::get(), 4242);
+    assert_eq!(niji_boundary::errno::get(), 4242);
 }

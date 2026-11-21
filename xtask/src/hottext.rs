@@ -21,10 +21,15 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use crate::hotlists::Layout;
 use crate::so::OWN_PREFIX;
 
+/// The archive exactly as [`group`] received it in a regen build (`target/product/<profile>/`), kept so
+/// that [`recheck_cmd`] can rerun the grouping alone on the rewritten list.
+pub const PRE_GROUP_ARCHIVE: &str = "hot-text.pre-group.a";
+
 /// A function or section name -> its build-stable key (keep in step with tools/hottext/keys.py):
-/// no `__liella_libc_` prefix, no ThinLTO `.llvm.<n>` suffix, no v0 crate disambiguators
+/// no `__niji_libc_` prefix, no ThinLTO `.llvm.<n>` suffix, no v0 crate disambiguators
 /// (`Cs<base62>_` -> `C`), no legacy hash (`17h<16 hex>E` -> `E`).
 /// HOTTEXT-FAULT-ENV: v0 back-references (`B<base62>_`) are byte offsets into the mangled name,
 /// so they move when a crate disambiguator changes length (the disambiguators of the workspace
@@ -363,13 +368,51 @@ fn strip_legacy_hash(s: &str) -> String {
     out
 }
 
-/// The keys of `list` (one per line; `#` comments and blank lines skipped) -> their position (the
-/// first, if a key repeats). A missing list is empty.
-fn read_list(list: &Path) -> BTreeMap<String, usize> {
+/// The tiers of `hot-text.list` (HOTTEXT-STARTUP-COMPLETE), in first-touch order: the probe that
+/// touched a key first (tools/hottext/regen.sh). Keep in step with tools/hottext/merge.py.
+const TIERS: [&str; 7] = ["startup", "fork", "stdio", "strings", "locale", "tool", "extra"];
+
+/// One key of the list: its tier and the profiles whose trace hit it (empty: none recorded).
+#[derive(Debug, PartialEq)]
+pub(crate) struct Entry {
+    pub(crate) key: String,
+    pub(crate) tier: &'static str,
+    profiles: Vec<String>,
+}
+
+/// The lines of `hot-text.list`: `<key>\t<tier>\t<profiles>` (profiles comma-separated, `-` for
+/// none); `#` comments and blank lines skipped. A line with the key alone (the list before tiers)
+/// has tier `extra` and no profile. Errors name the line.
+pub(crate) fn parse_list(text: &str) -> Result<Vec<Entry>, String> {
+    let mut out = Vec::new();
+    for (n, l) in text.lines().enumerate() {
+        if l.trim().is_empty() || l.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = l.split('\t').collect();
+        let bad = || format!("hot-text.list line {}: {l:?}: want <key>\\t<tier>\\t<profiles>", n + 1);
+        let entry = match parts[..] {
+            [k] => Entry { key: k.trim().to_string(), tier: "extra", profiles: Vec::new() },
+            [k, t, p] => {
+                let tier = TIERS.iter().find(|x| **x == t).ok_or_else(bad)?;
+                let profiles: Vec<String> = if p == "-" { Vec::new() } else { p.split(',').map(str::to_string).collect() };
+                if profiles.iter().any(|p| p != "fast" && p != "release") {
+                    return Err(bad());
+                }
+                Entry { key: k.to_string(), tier, profiles }
+            }
+            _ => return Err(bad()),
+        };
+        out.push(entry);
+    }
+    Ok(out)
+}
+
+/// The keys of `entries` -> their position (the first, if a key repeats).
+fn positions(entries: &[Entry]) -> BTreeMap<String, usize> {
     let mut keys = BTreeMap::new();
-    let lines = fs::read_to_string(list).unwrap_or_default();
-    for (i, l) in lines.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).enumerate() {
-        keys.entry(l.to_string()).or_insert(i);
+    for (i, e) in entries.iter().enumerate() {
+        keys.entry(e.key.clone()).or_insert(i);
     }
     keys
 }
@@ -377,10 +420,17 @@ fn read_list(list: &Path) -> BTreeMap<String, usize> {
 /// A function section's name without any hot prefix: `.text.sorted.h<n>.<f>`, the older
 /// `.text.hot.<f>`, rustc's `.text.unlikely.<f>` (a `#[cold]` function) and plain `.text.<f>` all
 /// give `<f>`. `None` for other sections.
-fn function_of(section: &str) -> Option<&str> {
+pub(crate) fn function_of(section: &str) -> Option<&str> {
     let f = section.strip_prefix(".text.")?;
-    if let Some(name) = f.strip_prefix("unlikely.") {
-        return Some(name);
+    // LAYOUT-TEXT-PIN: `.text.startup.<f>` / `.text.exit.<f>` (GCC) and this tool's own
+    // [`COLD_PREFIX`] carry the function name the same way.
+    if let Some(name) = f.strip_prefix(COLD_PREFIX) {
+        return Some(name.strip_suffix(COLD_SUFFIX).unwrap_or(name));
+    }
+    for p in ["unlikely.", "startup.", "exit."] {
+        if let Some(name) = f.strip_prefix(p) {
+            return Some(name);
+        }
     }
     if let Some(rest) = f.strip_prefix("sorted.h") {
         let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
@@ -401,19 +451,193 @@ fn section_for(f: &str, keys: &BTreeMap<String, usize>) -> String {
     }
 }
 
-/// The name function section `name` (of function `f`) should have: [`section_for`], except that
-/// an unlisted section that is not grouped keeps its name. HOTTEXT-COLD-STARTUP: start-up runs
-/// `#[cold]` functions (`cpu::init`, the heap's first refill, `resolve_fold_slow`), which rustc
-/// puts in `.text.unlikely.<f>`; ld gathers those ahead of the hot group, where their windows move
-/// with every other cold function in the library. Listed, they join the hot group in list order;
-/// unlisted, they stay in `.text.unlikely.*`.
-fn rename_for(name: &str, f: &str, keys: &BTreeMap<String, usize>) -> String {
-    let want = section_for(f, keys);
-    let grouped = name.starts_with(".text.sorted.") || name.starts_with(".text.hot.");
-    if want.starts_with(".text.sorted.") || grouped { want } else { name.to_string() }
+/// LAYOUT-TEXT-PIN (D-X.63): the prefix (after `.text.`) and suffix of an unlisted function whose
+/// plain `.text.<f>` would itself match one of GNU ld's pre-group patterns (a function named `exit`
+/// gets `.text.exit`; the suffix breaks `.text.*_unlikely`). [`function_of`] strips both, so a
+/// later listing still finds the key.
+const COLD_PREFIX: &str = "niji_cold.";
+const COLD_SUFFIX: &str = ".niji_cold";
+
+/// Whether GNU ld's default script (2.42) places input section `name` ahead of the hot group:
+/// `*(.text.unlikely .text.*_unlikely .text.unlikely.*)`, `*(.text.exit .text.exit.*)`,
+/// `*(.text.startup .text.startup.*)`, `*(.text.hot .text.hot.*)`.
+fn before_group(name: &str) -> bool {
+    let Some(f) = name.strip_prefix(".text.") else { return false };
+    f.ends_with("_unlikely") || ["unlikely", "exit", "startup", "hot"].iter().any(|p| f == *p || f.strip_prefix(p).is_some_and(|r| r.starts_with('.')))
 }
 
-/// STARTUP-READ-CONSTANTS: the key suffix of `liella_boundary::startup_names::STARTUP_NAMES`, the
+/// The name function section `name` (of function `f`) should have: [`section_for`], and for an
+/// unlisted function a name GNU ld places after the hot group, with the cold rest of `.text`.
+/// HOTTEXT-COLD-STARTUP: start-up runs `#[cold]` functions (`cpu::init`, the heap's first refill,
+/// `resolve_fold_slow`), which rustc puts in `.text.unlikely.<f>`; listed, they join the hot group
+/// in list order. LAYOUT-TEXT-PIN (D-X.63): unlisted, they used to stay in `.text.unlikely.*`
+/// (with `.text.exit` of `exit` and any unlisted `.text.hot.*`), which ld places ahead of the
+/// group, so every cold function added anywhere in the library moved every window boundary inside
+/// the group. Now nothing of the library precedes the group (TEXT-PREFIX).
+fn rename_for(_name: &str, f: &str, keys: &BTreeMap<String, usize>) -> String {
+    let want = section_for(f, keys);
+    if before_group(&want) { format!(".text.{COLD_PREFIX}{f}{COLD_SUFFIX}") } else { want }
+}
+
+/// The list position in a grouped section name: `.text.sorted.h<position, 5 digits>.<f>`, or the
+/// window-bin form [`crate::bins::section`] of a member, `h9<bin, 2><0><position, 5>` (a filler's
+/// place is not a list position: `None`).
+fn position_of(section: &str) -> Option<usize> {
+    let rest = section.strip_prefix(".text.sorted.h")?;
+    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+    let d = rest.get(..digits)?;
+    let d = match digits {
+        9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..],
+        9 => return None,
+        _ => d,
+    };
+    d.parse().ok()
+}
+
+/// (name, size, alignment) of every section of the ELF64 little-endian object `obj`, read from
+/// its section headers. Not `readelf -SW`: it cuts names at 256 bytes, so a long mangled name
+/// would be renamed under a name no section has (LAYOUT-STARTUP-RODATA-3, #4354).
+fn section_table(obj: &Path) -> Result<Vec<(String, u64, u64)>, String> {
+    let b = fs::read(obj).map_err(|e| format!("{}: {e}", obj.display()))?;
+    elf_sections(&b).ok_or_else(|| format!("{}: not a well-formed ELF64 little-endian object", obj.display()))
+}
+
+/// [`section_table`] of the bytes `b`; `None` when they are not a well-formed ELF64 LE file.
+fn elf_sections(b: &[u8]) -> Option<Vec<(String, u64, u64)>> {
+    Some(elf_headers(b)?.into_iter().map(|s| (s.name, s.size, s.align)).collect())
+}
+
+/// One section header of an ELF64 object, as [`elf_headers`] reads it.
+pub(crate) struct Shdr {
+    pub(crate) name: String,
+    /// `sh_type` (`SHT_NOBITS` = 8 for zero-filled sections).
+    pub(crate) kind: u32,
+    pub(crate) size: u64,
+    pub(crate) align: u64,
+}
+pub(crate) const SHT_NOBITS: u32 = 8;
+
+/// The section headers of the ELF64 little-endian object `b`, in index order, with whole names;
+/// `None` when `b` is not a well-formed ELF64 LE file.
+pub(crate) fn elf_headers(b: &[u8]) -> Option<Vec<Shdr>> {
+    let u16_at = |o: usize| Some(u16::from_le_bytes(b.get(o..o.checked_add(2)?)?.try_into().ok()?));
+    let u32_at = |o: usize| Some(u32::from_le_bytes(b.get(o..o.checked_add(4)?)?.try_into().ok()?));
+    let u64_at = |o: usize| Some(u64::from_le_bytes(b.get(o..o.checked_add(8)?)?.try_into().ok()?));
+    if b.get(..6)? != b"\x7fELF\x02\x01" {
+        return None;
+    }
+    let shoff = usize::try_from(u64_at(0x28)?).ok()?;
+    let entsize = usize::from(u16_at(0x3a)?);
+    if entsize < 64 {
+        return None;
+    }
+    let hdr = |i: usize| i.checked_mul(entsize).and_then(|o| o.checked_add(shoff));
+    // Extended numbering: a count of 0 / an index of SHN_XINDEX live in section header 0.
+    let mut count = usize::from(u16_at(0x3c)?);
+    if count == 0 {
+        count = usize::try_from(u64_at(hdr(0)?.checked_add(32)?)?).ok()?;
+    }
+    let mut strndx = usize::from(u16_at(0x3e)?);
+    if strndx == 0xffff {
+        strndx = usize::try_from(u32_at(hdr(0)?.checked_add(40)?)?).ok()?;
+    }
+    let strtab = usize::try_from(u64_at(hdr(strndx)?.checked_add(24)?)?).ok()?;
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let h = hdr(i)?;
+        let name_at = strtab.checked_add(usize::try_from(u32_at(h)?).ok()?)?;
+        let rest = b.get(name_at..)?;
+        let name = rest.get(..rest.iter().position(|c| *c == 0)?)?;
+        out.push(Shdr {
+            name: String::from_utf8_lossy(name).into_owned(),
+            kind: u32_at(h.checked_add(4)?)?,
+            size: u64_at(h.checked_add(32)?)?,
+            align: u64_at(h.checked_add(48)?)?,
+        });
+    }
+    Some(out)
+}
+
+/// The members of the System V / GNU `ar` archive `data` in archive order: (name, bytes). Long
+/// names (`/<offset>` into the `//` member) are resolved; the symbol tables (`/`, `/SYM64/`) and
+/// the long-name table itself are left out.
+pub(crate) fn ar_members(data: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
+    if data.get(..8) != Some(b"!<arch>\n".as_slice()) {
+        return Err("not an ar archive".into());
+    }
+    let mut at = 8;
+    let mut names: &[u8] = &[];
+    let mut out: Vec<(String, &[u8])> = Vec::new();
+    while at < data.len() {
+        let h = data.get(at..at + 60).ok_or_else(|| format!("member header at {at} cut short"))?;
+        let size: usize = std::str::from_utf8(&h[48..58]).ok().and_then(|s| s.trim().parse().ok()).ok_or_else(|| format!("member header at {at}: bad size"))?;
+        let body = data.get(at + 60..(at + 60).checked_add(size).ok_or("member size overflows")?).ok_or_else(|| format!("member at {at} runs past the end"))?;
+        let raw = String::from_utf8_lossy(&h[..16]);
+        let raw = raw.trim_end();
+        if raw == "//" {
+            names = body;
+        } else if raw != "/" && raw != "/SYM64/" {
+            let name = match raw.strip_prefix('/') {
+                Some(off) => {
+                    let off: usize = off.parse().map_err(|_| format!("member name `{raw}`"))?;
+                    let rest = names.get(off..).ok_or_else(|| format!("long name offset {off} past the name table"))?;
+                    let end = rest.windows(2).position(|w| w == b"/\n").ok_or_else(|| format!("long name at {off} not terminated"))?;
+                    String::from_utf8_lossy(&rest[..end]).into_owned()
+                }
+                None => raw.strip_suffix('/').unwrap_or(raw).to_string(),
+            };
+            out.push((name, body));
+        }
+        at += 60 + size + size % 2;
+    }
+    Ok(out)
+}
+
+/// The section headers of every ELF member of the archive at `path`: (member, headers), in
+/// archive order. A member with the ELF magic that does not parse is an error.
+pub(crate) fn archive_headers(path: &Path) -> Result<Vec<(String, Vec<Shdr>)>, String> {
+    let data = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut out = Vec::new();
+    for (m, b) in ar_members(&data).map_err(|e| format!("{}: {e}", path.display()))? {
+        if !b.starts_with(b"\x7fELF") {
+            continue;
+        }
+        let h = elf_headers(b).ok_or_else(|| format!("{}({m}): not a well-formed ELF64 little-endian object", path.display()))?;
+        out.push((m, h));
+    }
+    Ok(out)
+}
+
+/// Check that every `from -> to` rename of `renames` (by member) took effect in `members` (the
+/// headers read back after the rename): `to` is there and `from` is gone (unless another rename
+/// of the member produces it). `objcopy --rename-section` with a name no section has does
+/// nothing and says nothing. Returns the number of renames checked.
+pub(crate) fn check_renames(members: &[(String, Vec<Shdr>)], renames: &BTreeMap<String, Vec<(String, String)>>) -> Result<usize, String> {
+    let mut bad = Vec::new();
+    let mut n = 0;
+    for (m, list) in renames {
+        let Some((_, h)) = members.iter().find(|(name, _)| name == m) else {
+            bad.push(format!("{m}: member missing after the rename"));
+            continue;
+        };
+        let has = |s: &str| h.iter().any(|x| x.name == s);
+        for (from, to) in list {
+            n += 1;
+            if !has(to) {
+                bad.push(format!("{m}: {to} missing (renamed from {from})"));
+            } else if from != to && has(from) && !list.iter().any(|(_, t)| t == from) {
+                bad.push(format!("{m}: {from} still there (wanted {to})"));
+            }
+        }
+    }
+    if bad.is_empty() {
+        Ok(n)
+    } else {
+        Err(format!("{} of {n} section renames did not take effect:\n  {}", bad.len(), bad.join("\n  ")))
+    }
+}
+
+/// STARTUP-READ-CONSTANTS: the key suffix of `niji_boundary::startup_names::STARTUP_NAMES`, the
 /// one static that holds the names start-up reads. Its section (`.rodata.<symbol>`) is renamed
 /// [`STARTUP_SECTION`]: GNU ld's default script places `*(.rodata1)` right after `.rodata`, so
 /// the static no longer sits between constants that move with unrelated code. The static's
@@ -429,10 +653,42 @@ fn is_startup_names(section: &str) -> bool {
 /// Rename the function sections of `archive` whose keys are in `list` to
 /// `.text.sorted.h<position>.<f>`, in place, and any hot section whose key is not listed (or whose
 /// position changed) back to `.text.<f>` (or its new position): cargo may hand back an archive this
-/// already ran on, with another list. `work` is a scratch directory. Returns (hot
-/// sections in the result, keys in the list).
-pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path) -> Result<(usize, usize), String> {
-    let keys = read_list(list);
+/// already ran on, with another list. `work` is a scratch directory. Returns (hot sections in the
+/// result, keys in the list). `layout` (LAYOUT-TRACE-AT-BUILD, LT-5): [`Layout::Traced`]: `list` is a
+/// trace of this archive's own build (`target/product/<profile>/hot-text.list`; no list is committed), so
+/// every key is one this build ran, and the grouped sections are then placed in window bins
+/// (LAYOUT-WINDOW-BINS, D-X.103: [`plan_bins`]); [`Layout::Ungrouped`]: `list` is not read and nothing is
+/// grouped (the start-up names section is still placed).
+pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout) -> Result<(usize, usize), String> {
+    group_as(ar, archive, list, work, layout, Image::Libc)
+}
+
+/// The image [`group_as`] lays out: libc (its list, window bins and start-up names section) or the
+/// interpreter (LAYOUT-LDSO-ORDER: its list only).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Image {
+    Libc,
+    Ldso,
+}
+
+/// LAYOUT-LDSO-ORDER: the interpreter's start-up layout, by the same renames as libc's ([`group`]): every
+/// function of `list` (`ldso-text.list`, a trace of this build's interpreter) becomes
+/// `.text.sorted.h<position>.<f>`, which GNU ld's default script places ahead of the rest of `.text` in
+/// list order, and every other function keeps a name placed after that group (a `#[cold]` function's
+/// `.text.unlikely.<f>` included, [`rename_for`]). No window bins: the kernel maps the interpreter at a
+/// page-aligned base, not a window-aligned one, so a 64 KiB bin start inside its image is not a window start.
+/// Returns (grouped sections, keys in the list).
+pub fn group_ldso(ar: &str, archive: &Path, list: &Path, work: &Path) -> Result<(usize, usize), String> {
+    group_as(ar, archive, list, work, Layout::Traced, Image::Ldso)
+}
+
+fn group_as(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout, image: Image) -> Result<(usize, usize), String> {
+    let text = match layout {
+        Layout::Ungrouped => String::new(),
+        _ => fs::read_to_string(list).map_err(|e| format!("{}: {e}", list.display()))?,
+    };
+    let entries = parse_list(&text)?;
+    let keys = positions(&entries);
     let _ = fs::remove_dir_all(work);
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
     let archive = fs::canonicalize(archive).map_err(|e| e.to_string())?;
@@ -443,57 +699,233 @@ pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path) -> Result<(usiz
     }
     crate::so::run(Command::new(ar).current_dir(work).arg("x").arg(&archive))?;
     let objcopy = std::env::var("OBJCOPY").unwrap_or_else(|_| "objcopy".into());
-    let mut hot = 0;
     let mut startup = 0;
-    let mut changed = Vec::new();
+    // Every section to place, in archive order.
+    let mut secs: Vec<Sec> = Vec::new();
     for m in &members {
-        let obj = work.join(m);
-        let mut args = String::new();
-        for name in crate::so::sections_of(&obj)?.values() {
+        for (name, size, align) in section_table(&work.join(m))? {
             if name == STARTUP_SECTION {
                 startup += 1;
                 continue;
             }
-            if is_startup_names(name) {
+            if is_startup_names(&name) {
                 startup += 1;
-                args.push_str(&format!("--rename-section {name}={STARTUP_SECTION}\n"));
+                secs.push(Sec { member: m.clone(), name, want: STARTUP_SECTION.to_string(), size, align, set_align: 0 });
                 continue;
             }
-            let Some(f) = function_of(name) else { continue };
-            let want = rename_for(name, f, &keys);
-            if want.starts_with(".text.sorted.") {
-                hot += 1;
-            }
-            if want != *name {
+            let Some(f) = function_of(&name) else { continue };
+            let want = rename_for(&name, f, &keys);
+            secs.push(Sec { member: m.clone(), name, want, size, align, set_align: 0 });
+        }
+    }
+    // LAYOUT-WINDOW-BINS slice 2 (D-X.103): the window-bin plan, applied. It replaces the 0-fault
+    // clusters' power-of-two heads (D-X.63) and the first-window keys: every bin after a gap starts on
+    // a 64 KiB boundary, so a mode's text windows are those of the bins it touches.
+    if layout == Layout::Traced && image == Image::Libc {
+        for (i, name, align) in plan_bins(list, &secs)? {
+            secs[i].want = name;
+            secs[i].set_align = align;
+        }
+    }
+    let hot = secs.iter().filter(|s| s.want.starts_with(".text.sorted.")).count();
+    let mut changed = Vec::new();
+    let mut renames: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut realign: BTreeMap<String, Vec<(String, u64)>> = BTreeMap::new();
+    for m in &members {
+        let mut args = String::new();
+        for s in secs.iter().filter(|s| s.member == *m) {
+            let (name, want) = (&s.name, &s.want);
+            if want != name {
                 args.push_str(&format!("--rename-section {name}={want}\n"));
+                renames.entry(m.clone()).or_default().push((name.clone(), want.clone()));
+            }
+            if s.set_align > 0 {
+                realign.entry(m.clone()).or_default().push((want.clone(), s.set_align));
             }
         }
         if !args.is_empty() {
             let rsp = work.join(format!("{m}.rsp"));
             fs::write(&rsp, args).map_err(|e| e.to_string())?;
-            crate::so::run(Command::new(&objcopy).arg(format!("@{}", rsp.display())).arg(&obj))?;
+            crate::so::run(Command::new(&objcopy).arg(format!("@{}", rsp.display())).arg(work.join(m)))?;
+            changed.push(m.clone());
+        }
+    }
+    // The bins' 64 KiB starts, on the final names (after the renames).
+    for (m, list) in &realign {
+        let mut cmd = Command::new(&objcopy);
+        for (n, a) in list {
+            cmd.arg(format!("--set-section-alignment={n}={a}"));
+        }
+        crate::so::run(cmd.arg(work.join(m)))?;
+        if !changed.contains(m) {
             changed.push(m.clone());
         }
     }
     if !changed.is_empty() {
         crate::so::run(Command::new(ar).current_dir(work).arg("r").arg(&archive).args(&changed))?;
     }
+    let checked = check_renames(&archive_headers(&archive)?, &renames).map_err(|e| format!("{}: hot-text grouping: {e}", archive.display()))?;
+    println!("so: hot-text grouping: {checked} section renames, all in effect");
     let _ = fs::remove_dir_all(work);
-    if startup != 1 {
+    if image == Image::Libc && startup != 1 {
         return Err(format!("{}: {startup} start-up names sections (STARTUP_NAMES), want 1", archive.display()));
     }
     Ok((hot, keys.len()))
 }
 
+/// One section [`group`] places: its member, its name in the archive, the name it gets, its size and
+/// alignment, and the alignment it gets (0: its own).
+struct Sec {
+    member: String,
+    name: String,
+    want: String,
+    size: u64,
+    align: u64,
+    set_align: u64,
+}
+
+/// LAYOUT-WINDOW-BINS (D-X.103): the window-bin plan of the grouped sections of `secs` (those whose
+/// wanted name is `.text.sorted.h<position>.<f>`), from this build's signatures next to `list`, written
+/// to [`crate::bins::PLAN`] there, with its summary printed. The filler pool is the other function
+/// sections of the members every program links: those holding a section the start-up mode runs.
+/// Slice 2: returns the plan's (index into `secs`, name, alignment or 0) of every member and filler
+/// ([`crate::bins::section`], [`crate::bins::Plan::placements`]).
+fn plan_bins(list: &Path, secs: &[Sec]) -> Result<Vec<(usize, String, u64)>, String> {
+    use crate::bins::{Cold, Item};
+    let path = list.with_file_name(crate::bins::SIGNATURES);
+    let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let sigs = crate::bins::parse_signatures(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut items = Vec::new();
+    let mut item_of = Vec::new();
+    let mut always = BTreeSet::new();
+    for (i, s) in secs.iter().enumerate().filter(|(_, s)| s.want.starts_with(".text.sorted.")) {
+        let n = &s.want;
+        let k = key(function_of(n).unwrap_or(n));
+        let sig = sigs.get(&k).ok_or_else(|| format!("{}: no signature for grouped key {k} (section {n}): the trace wrote the list and its signatures apart", path.display()))?;
+        if sig.contains(crate::bins::STARTUP_MODE) {
+            always.insert(s.member.clone());
+        }
+        let pos = position_of(n).filter(|p| *p < 100_000).ok_or_else(|| format!("{n}: no five-digit list position"))?;
+        items.push(Item { name: n.clone(), bytes: s.size, align: s.align, pos, sig: sig.clone() });
+        item_of.push(i);
+    }
+    let cold: Vec<usize> = (0..secs.len()).filter(|&i| always.contains(&secs[i].member) && secs[i].size > 0 && secs[i].want.starts_with(".text.") && !secs[i].want.starts_with(".text.sorted.")).collect();
+    if always.is_empty() && !items.is_empty() {
+        return Err(format!(
+            "{}: no grouped key the start-up mode ({}) runs: the trace recorded no page_faults modes (tools/hottext/regen.sh writes the signatures)",
+            path.display(),
+            crate::bins::STARTUP_MODE
+        ));
+    }
+    let pool: Vec<Cold> = cold.iter().map(|&i| Cold { name: secs[i].want.clone(), bytes: secs[i].size, align: secs[i].align }).collect();
+    let plan = crate::bins::plan(&items, &pool);
+    if plan.bins.len() > crate::bins::MAX_BINS {
+        return Err(format!("window bins: {} bins, more than a section name can number ({})", plan.bins.len(), crate::bins::MAX_BINS));
+    }
+    let out = list.with_file_name(crate::bins::PLAN);
+    fs::write(&out, plan.tsv(&items, &pool)).map_err(|e| format!("{}: {e}", out.display()))?;
+    for l in plan.summary(&items, &pool) {
+        println!("{l}");
+    }
+    println!("so: window bins: filler pool {} sections of {} always-linked members; plan in {}", pool.len(), always.len(), out.display());
+    let mut placed = Vec::new();
+    for p in plan.placements(&items, crate::bins::HEAD_ANCHOR) {
+        let i = if p.filler { cold[p.index] } else { item_of[p.index] };
+        let n = &secs[i].want;
+        let f = function_of(n).ok_or_else(|| format!("{n}: not a function section"))?;
+        placed.push((i, crate::bins::section(p.bin, p.filler, p.place, f), p.align));
+    }
+    Ok(placed)
+}
+
+/// LAYOUT-LDSO-ORDER: the interpreter's lists, written next to libc's by `cargo xtask so` (never committed).
+pub const LDSO_LIST: &str = "ldso-text.list";
+pub const LDSO_SIGNATURES: &str = "ldso-text.signatures";
+/// The modes `tools/hottext/ldso_trace.sh` traces, in list order (`ldso.<mode>.names` in the lists directory).
+pub const LDSO_MODES: [&str; 2] = ["true", "libs3"];
+
+/// LAYOUT-LDSO-ORDER: `ldso-text.list` and `ldso-text.signatures` from the interpreter's traces `runs`
+/// ((mode, names in first-touch order), [`LDSO_MODES`] order). The list is the first mode's keys in its
+/// order, then each later mode's new keys in that mode's order: every program's start-up path first, from
+/// the entry, then what programs with libraries add. A key's signature is the modes that ran it. Keys as
+/// [`key`] makes them (the names [`group_ldso`] matches); a key listed twice keeps its first place.
+pub fn ldso_lists(runs: &[(&str, &str)], profile: &str) -> (String, String) {
+    let mut order: Vec<String> = Vec::new();
+    let mut sigs: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    for (mode, names) in runs {
+        for n in names.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            let k = key(n);
+            let s = sigs.entry(k.clone()).or_default();
+            if s.is_empty() {
+                order.push(k);
+            }
+            s.insert(mode);
+        }
+    }
+    let mut list = String::from("# LAYOUT-LDSO-ORDER: the interpreter's start-up functions, first-touch order (cargo xtask so)\n");
+    let mut sig = String::from("# LAYOUT-LDSO-ORDER: <key>\\t<modes of tools/hottext/ldso_trace.sh that ran it>\n");
+    for k in &order {
+        list.push_str(&format!("{k}\tstartup\t{profile}\n"));
+        sig.push_str(&format!("{k}\t{}\n", sigs[k].iter().copied().collect::<Vec<_>>().join(",")));
+    }
+    (list, sig)
+}
+
+/// LAYOUT-DELETE-LISTS (LT-5): the files no tree may track again. The four lists are written by every
+/// product build from a trace of that build ([`crate::hotlists::GENERATED`], under `target/product/<profile>`);
+/// the other two were hand-kept companions of the committed list (its allow-list of absent keys and its
+/// unpinned-key reasons), meaningless for a list traced from the build itself.
+pub const RETIRED: [&str; 6] = ["hot-text.list", "startup-text.keys", "probe-text.keys", "startup-data.keys", "hot-text.absent", "hot-text.unpinned"];
+
+/// The [`RETIRED`] files among the tracked paths `tracked` (workspace-relative), as errors.
+pub fn retired_lists<S: AsRef<str>>(tracked: &[S]) -> Vec<String> {
+    tracked
+        .iter()
+        .map(AsRef::as_ref)
+        .filter(|p| RETIRED.contains(&p.rsplit('/').next().unwrap_or(p)))
+        .map(|p| {
+            format!("{p}: a committed start-up list (LT-5, LAYOUT-DELETE-LISTS): every product build traces its own layout into target/product/<profile>; never commit a generated or hand-kept list again")
+        })
+        .collect()
+}
+
+/// `cargo xtask static` (LAYOUT-DELETE-LISTS, LT-5): no tracked file is a [`RETIRED`] list, so the committed
+/// lists cannot creep back (a list in the tree would again be read by nothing and go stale under every change).
+pub fn static_check(root: &Path) -> Result<(), String> {
+    let errs = retired_lists(&crate::labnames::tracked_with(root, true)?);
+    if errs.is_empty() { Ok(()) } else { Err(errs.join("\n")) }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{function_of, is_startup_names, key, rename_for, section_for};
-    use std::collections::BTreeMap;
+    use super::{ar_members, before_group, check_renames, elf_sections, function_of, Shdr, position_of, is_startup_names, key, ldso_lists, parse_list, positions, rename_for, retired_lists, section_for, RETIRED};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    #[test]
+    fn ldso_list_is_the_first_mode_then_what_later_modes_add() {
+        // LAYOUT-LDSO-ORDER (no spec clause: build tooling): every program's start-up path (mode `true`)
+        // from the entry first, in its order; a later mode's new keys after it, in that mode's order; a
+        // key either ran carries both modes; aliases and repeats keep the first place.
+        let t = "niji_machine_ld_entry\nniji_ld_start\nalias_a\nalias_b\nniji_ld_start\n";
+        let l = "niji_machine_ld_entry\nmap_object\nniji_ld_start\nrelocate_object\n";
+        let (list, sig) = ldso_lists(&[("true", t), ("libs3", l)], "fast");
+        let entries = parse_list(&list).unwrap();
+        let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, ["niji_machine_ld_entry", "niji_ld_start", "alias_a", "alias_b", "map_object", "relocate_object"]);
+        assert!(entries.iter().all(|e| e.tier == "startup"));
+        let sigs = crate::bins::parse_signatures(&sig).unwrap();
+        assert_eq!(sigs["niji_ld_start"], BTreeSet::from(["true".to_string(), "libs3".to_string()]));
+        assert_eq!(sigs["map_object"], BTreeSet::from(["libs3".to_string()]));
+        assert_eq!(sigs["alias_b"], BTreeSet::from(["true".to_string()]));
+        // The keys are the grouping's keys: a mangled name loses its build hash.
+        let (h, _) = ldso_lists(&[("true", "_ZN4core3fmt5write17h0123456789abcdefE\n")], "release");
+        assert_eq!(parse_list(&h).unwrap()[0].key, key("_ZN4core3fmt5write17h0123456789abcdefE"));
+    }
 
     #[test]
     fn keys_drop_build_hashes() {
-        assert_eq!(key("__liella_libc_setlocale"), "setlocale");
-        assert_eq!(key("_RNvNtCsaKmPixRNJHt_15liella_boundary7runtime5start"), "_RNvNtC15liella_boundary7runtime5start");
+        assert_eq!(key("__niji_libc_setlocale"), "setlocale");
+        assert_eq!(key("_RNvNtCsaKmPixRNJHt_13niji_boundary7runtime5start"), "_RNvNtC13niji_boundary7runtime5start");
         assert_eq!(key("_RNvNtNtCsevLNFiNqfJP_4core5slice6memchr14memchr_aligned.llvm.1234567"), "_RNvNtNtC4core5slice6memchr14memchr_aligned");
         assert_eq!(key("_ZN4core3fmt5write17h0123456789abcdefE"), "_ZN4core3fmt5writeE");
         assert_eq!(key("_RNvC5plain3fun"), "_RNvC5plain3fun");
@@ -502,50 +934,487 @@ mod tests {
     #[test]
     fn v0_keys_do_not_depend_on_disambiguator_lengths() {
         // HOTTEXT-FAULT-ENV: the same function from two checkouts (Skylake-SP host diag-/d2-cold-table-idna):
-        // liella_legacy's disambiguator is one character shorter in the second, so its trailing
+        // niji_legacy's disambiguator is one character shorter in the second, so its trailing
         // back-reference reads BU_ instead of BV_. Both expand to the same key.
-        let a = "_RINvNtCs1k36ruIItxX_13liella_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_15liella_boundary5stdio4GlueEBV_";
-        let b = "_RINvNtCsm9oUc6GLXl_13liella_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_15liella_boundary5stdio4GlueEBU_";
-        let k = "_RINvNtC13liella_legacy12stdio_compat5flushNtNtC15liella_boundary5stdio4GlueEC15liella_boundary";
+        let a = "_RINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_13niji_boundary5stdio4GlueEBT_";
+        let b = "_RINvNtCsm9oUc6GLXl_11niji_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_13niji_boundary5stdio4GlueEBS_";
+        let k = "_RINvNtC11niji_legacy12stdio_compat5flushNtNtC13niji_boundary5stdio4GlueEC13niji_boundary";
         assert_eq!(key(a), k);
         assert_eq!(key(b), k);
         // Nested back-references (path and type), an impl disambiguator, a const and a ThinLTO suffix.
-        let c = "_RINvNtCse0ehmhVAZlt_15liella_boundary5stdio4withINtNtCskADBYZwJmSU_4core6result6ResultuNtNtCsluNtJMkxk5h_13liella_kernel5errno5ErrnoEINvNtCs1k36ruIItxX_13liella_legacy12stdio_compat5flushNtB2_4GlueEEB4_.llvm.1699245945913024000";
+        let c = "_RINvNtCse0ehmhVAZlt_13niji_boundary5stdio4withINtNtCskADBYZwJmSU_4core6result6ResultuNtNtCsluNtJMkxk5h_11niji_kernel5errno5ErrnoEINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtB2_4GlueEEB4_.llvm.1699245945913024000";
         assert_eq!(
             key(c),
-            "_RINvNtC15liella_boundary5stdio4withINtNtC4core6result6ResultuNtNtC13liella_kernel5errno5ErrnoEINvNtC13liella_legacy12stdio_compat5flushNtNtC15liella_boundary5stdio4GlueEEC15liella_boundary"
+            "_RINvNtC13niji_boundary5stdio4withINtNtC4core6result6ResultuNtNtC11niji_kernel5errno5ErrnoEINvNtC11niji_legacy12stdio_compat5flushNtNtC13niji_boundary5stdio4GlueEEC13niji_boundary"
         );
-        assert_eq!(key("_RINvMs1_NtCsx_9liella_rt4heapNtB6_4Heap10alloc_slowKb1_EB8_"), "_RINvMs1_NtC9liella_rt4heapNtNtC9liella_rt4heap4Heap10alloc_slowKb1_EC9liella_rt");
+        assert_eq!(key("_RINvMs1_NtCsx_7niji_rt4heapNtB6_4Heap10alloc_slowKb1_EB8_"), "_RINvMs1_NtC7niji_rt4heapNtNtC7niji_rt4heap4Heap10alloc_slowKb1_EC7niji_rt");
         // A name the walker cannot parse keeps the plain strip.
         assert_eq!(key("_RNvCsabc_3foo3barZZ"), "_RNvC3foo3barZZ");
+    }
+
+    #[test]
+    fn list_lines_carry_tier_and_profiles() {
+        // HOTTEXT-STARTUP-COMPLETE: `<key>\t<tier>\t<profiles>`; a bare key (the list before tiers) is
+        // an unguarded `extra` key; comments and blank lines are skipped; positions keep list order.
+        let text = "# c\n__libc_start_main\tstartup\tfast,release\n\nk2\tfork\trelease\nold\nk4\ttool\t-\n";
+        let e = parse_list(text).unwrap();
+        assert_eq!(e.len(), 4);
+        assert_eq!((e[0].key.as_str(), e[0].tier, e[0].profiles.clone()), ("__libc_start_main", "startup", vec!["fast".to_string(), "release".to_string()]));
+        assert_eq!((e[1].tier, e[1].profiles.clone()), ("fork", vec!["release".to_string()]));
+        assert_eq!((e[2].key.as_str(), e[2].tier, e[2].profiles.len()), ("old", "extra", 0));
+        assert_eq!((e[3].tier, e[3].profiles.len()), ("tool", 0));
+        assert_eq!(positions(&e).get("k2"), Some(&1));
+        assert_eq!(positions(&e).get("k4"), Some(&3));
+        // Unknown tiers, unknown profiles and two-field lines are errors naming the line.
+        assert!(parse_list("k\tboot\tfast\n").unwrap_err().contains("line 1"));
+        assert!(parse_list("# c\nk\tstartup\tdebug\n").unwrap_err().contains("line 2"));
+        assert!(parse_list("k\tstartup\n").is_err());
     }
 
     #[test]
     fn sections_are_numbered_by_list_position() {
         // HOT-ORDER: the name carries the list position, so ld's SORT(.text.sorted.*) keeps the order.
         let keys: BTreeMap<String, usize> = [("setlocale".to_string(), 7), ("_start_c".to_string(), 0)].into();
-        assert_eq!(section_for("__liella_libc_setlocale", &keys), ".text.sorted.h00007.__liella_libc_setlocale");
+        assert_eq!(section_for("__niji_libc_setlocale", &keys), ".text.sorted.h00007.__niji_libc_setlocale");
         assert_eq!(section_for("_start_c", &keys), ".text.sorted.h00000._start_c");
         assert_eq!(section_for("cold", &keys), ".text.cold");
-        assert!(section_for("_start_c", &keys) < section_for("__liella_libc_setlocale", &keys));
+        assert!(section_for("_start_c", &keys) < section_for("__niji_libc_setlocale", &keys));
         // Stale names from earlier runs (another position, the older `.text.hot.`) map back to the function.
         assert_eq!(function_of(".text.sorted.h00012.memchr"), Some("memchr"));
         assert_eq!(function_of(".text.hot.memchr"), Some("memchr"));
         // STARTUP-READ-CONSTANTS: found whatever the crate disambiguator and ThinLTO suffix.
-        assert!(is_startup_names(".rodata._RNvNtCs7oKE6280DeX_15liella_boundary13startup_names13STARTUP_NAMES"));
-        assert!(is_startup_names(".rodata._RNvNtCsabc_15liella_boundary13startup_names13STARTUP_NAMES.llvm.123"));
-        assert!(!is_startup_names(".rodata._RNvNtCsabc_15liella_boundary13startup_names3LEN"));
-        assert!(!is_startup_names(".text._RNvNtCsabc_15liella_boundary13startup_names13STARTUP_NAMES"));
+        assert!(is_startup_names(".rodata._RNvNtCs7oKE6280DeX_13niji_boundary13startup_names13STARTUP_NAMES"));
+        assert!(is_startup_names(".rodata._RNvNtCsabc_13niji_boundary13startup_names13STARTUP_NAMES.llvm.123"));
+        assert!(!is_startup_names(".rodata._RNvNtCsabc_13niji_boundary13startup_names3LEN"));
+        assert!(!is_startup_names(".text._RNvNtCsabc_13niji_boundary13startup_names13STARTUP_NAMES"));
         assert_eq!(function_of(".text.memchr"), Some("memchr"));
         assert_eq!(function_of(".text.sorted_vec"), Some("sorted_vec"));
         // HOTTEXT-COLD-STARTUP: a listed #[cold] function joins the group; unlisted ones keep their section.
-        assert_eq!(function_of(".text.unlikely._RNvNtCsabc_15liella_boundary3cpu4init"), Some("_RNvNtCsabc_15liella_boundary3cpu4init"));
-        let cold: BTreeMap<String, usize> = [("_RNvNtC15liella_boundary3cpu4init".to_string(), 3)].into_iter().collect();
-        let init = "_RNvNtCsabc_15liella_boundary3cpu4init";
+        assert_eq!(function_of(".text.unlikely._RNvNtCsabc_13niji_boundary3cpu4init"), Some("_RNvNtCsabc_13niji_boundary3cpu4init"));
+        let cold: BTreeMap<String, usize> = [("_RNvNtC13niji_boundary3cpu4init".to_string(), 3)].into_iter().collect();
+        let init = "_RNvNtCsabc_13niji_boundary3cpu4init";
         assert_eq!(rename_for(&format!(".text.unlikely.{init}"), init, &cold), format!(".text.sorted.h00003.{init}"));
-        assert_eq!(rename_for(".text.unlikely.other", "other", &cold), ".text.unlikely.other");
+        assert_eq!(rename_for(".text.unlikely.other", "other", &cold), ".text.other");
         assert_eq!(rename_for(".text.other", "other", &cold), ".text.other");
         assert_eq!(rename_for(".text.sorted.h00009.other", "other", &cold), ".text.other");
         assert_eq!(function_of(".data.x"), None);
+    }
+
+    #[test]
+    fn unlisted_sections_never_match_a_pre_group_pattern() {
+        // LAYOUT-TEXT-PIN (no spec clause, layout of the products): TEXT-PREFIX. Every name GNU
+        // ld 2.42's default script places ahead of the hot group leaves that place, under a name
+        // that still maps back to the function (a later listing finds its key).
+        let cold = positions(&parse_list("exit\tstartup\tfast\n").unwrap());
+        for (from, want) in [
+            (".text.unlikely.f", ".text.f"),
+            (".text.hot.f", ".text.f"),
+            (".text.startup.main", ".text.main"),
+            (".text.exit.g", ".text.g"),
+            (".text.unlikely", ".text.niji_cold.unlikely.niji_cold"),
+            (".text.startup", ".text.niji_cold.startup.niji_cold"),
+            (".text.hot", ".text.niji_cold.hot.niji_cold"),
+            (".text.read_unlikely", ".text.niji_cold.read_unlikely.niji_cold"),
+            (".text.niji_cold.hot.niji_cold", ".text.niji_cold.hot.niji_cold"),
+            (".text.f", ".text.f"),
+        ] {
+            let f = function_of(from).unwrap();
+            let got = rename_for(from, f, &cold);
+            assert_eq!(got, want, "{from}");
+            assert!(!before_group(&got), "{got}");
+            assert_eq!(rename_for(&got, function_of(&got).unwrap(), &cold), got, "{got} is not stable");
+        }
+        // `exit` (a Rust function named exit gets `.text.exit`) is listed here: it joins the group.
+        assert_eq!(rename_for(".text.exit", "exit", &cold), ".text.sorted.h00000.exit");
+        assert_eq!(rename_for(".text.niji_cold.exit.niji_cold", function_of(".text.niji_cold.exit.niji_cold").unwrap(), &cold), ".text.sorted.h00000.exit");
+        assert!(before_group(".text.exit") && before_group(".text.unlikely.x") && before_group(".text.hot.x") && before_group(".text.a_unlikely"));
+        assert!(!before_group(".text.exitx") && !before_group(".text.sorted.h00001.x") && !before_group(".text"));
+    }
+
+    #[test]
+    fn grouped_names_give_back_their_list_position_and_function() {
+        // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): a list-position name and a
+        // window-bin member name give the list position and the function back, a filler's name gives the
+        // function but no position, and a bin name sorts after every list position below 90000.
+        assert_eq!(position_of(".text.sorted.h00042.f"), Some(42));
+        let (member, filler) = (crate::bins::section(3, false, 42, "f"), crate::bins::section(3, true, 7, "f"));
+        assert_eq!((member.as_str(), filler.as_str()), (".text.sorted.h903000042.f", ".text.sorted.h903100007.f"));
+        assert_eq!((position_of(&member), position_of(&filler)), (Some(42), None));
+        assert_eq!((function_of(&member), function_of(&filler)), (Some("f"), Some("f")));
+        // A place with no leading zero reads back whole: place 42 above would hide a cut digit, and a member
+        // read at the wrong position is placed at the wrong offset of its bin.
+        let wide = crate::bins::section(12, false, 12345, "g");
+        assert_eq!((wide.as_str(), position_of(&wide)), (".text.sorted.h912012345.g", Some(12345)));
+        assert!(crate::bins::section(0, false, 0, "f").as_str() > ".text.sorted.h89999.f");
+        assert_eq!(position_of(".text.f"), None);
+        assert_eq!(elf_sections(b"not elf"), None);
+        // The test binary itself: its section table reads back whole.
+        let me = std::fs::read(std::env::current_exe().unwrap()).unwrap();
+        let secs = elf_sections(&me).unwrap();
+        assert!(secs.iter().any(|s| s.0 == ".text" && s.1 > 0), "{:?}", &secs[..secs.len().min(8)]);
+    }
+
+    #[test]
+    fn archive_members_and_rename_check() {
+        // LAYOUT-TEXT-PIN-2 (no spec clause; layout of the products): the in-memory ar reader
+        // resolves GNU long names, skips the symbol table, pads odd sizes; a rename that left its
+        // source in place or produced no target is reported, a chained one is not.
+        let long = "m".repeat(20) + ".o";
+        let hdr = |name: &str, size: usize| format!("{name:<16}{:<12}{:<6}{:<6}{:<8}{size:<10}`\n", 0, 0, 0, 644);
+        let names = format!("{long}/\n");
+        let mut a = b"!<arch>\n".to_vec();
+        for (n, body) in [("/", b"sym".as_slice()), ("//", names.as_bytes()), ("a.o/", b"x"), ("/0", b"yz")] {
+            a.extend(hdr(n, body.len()).as_bytes());
+            a.extend(body);
+            if body.len() % 2 == 1 {
+                a.push(b'\n');
+            }
+        }
+        let got = ar_members(&a).unwrap();
+        assert_eq!(got.iter().map(|(n, b)| (n.as_str(), *b)).collect::<Vec<_>>(), vec![("a.o", b"x".as_slice()), (long.as_str(), b"yz".as_slice())]);
+        assert!(ar_members(b"not ar").is_err());
+        assert!(ar_members(&a[..a.len() - 1]).is_err(), "a cut member is an error");
+        let sh = |n: &str| Shdr { name: n.into(), kind: 1, size: 1, align: 1 };
+        let members = vec![("a.o".to_string(), vec![sh(".text.b"), sh(".text.c"), sh(".text.x")])];
+        let ren = |l: &[(&str, &str)]| BTreeMap::from([("a.o".to_string(), l.iter().map(|(f, t)| (f.to_string(), t.to_string())).collect::<Vec<_>>())]);
+        assert_eq!(check_renames(&members, &ren(&[(".text.a", ".text.b"), (".text.b", ".text.c")])), Ok(2));
+        assert!(check_renames(&members, &ren(&[(".text.x", ".text.b")])).unwrap_err().contains(".text.x still there"));
+        assert!(check_renames(&members, &ren(&[(".text.y", ".text.z")])).unwrap_err().contains(".text.z missing"));
+    }
+
+    /// The first position after the start-up tier, and the start-up keys of `skeys` listed after it.
+    fn late_startup_keys(list: &str, skeys: &str) -> (usize, Vec<String>) {
+        let entries = parse_list(list).unwrap();
+        let startup: BTreeSet<String> = parse_list(skeys).unwrap().into_iter().map(|e| e.key).collect();
+        let head = entries.iter().take_while(|e| e.tier == "startup").count();
+        let late = entries[head..].iter().filter(|e| e.tier == "startup" || startup.contains(&e.key)).map(|e| e.key.clone()).collect();
+        (head, late)
+    }
+
+    #[test]
+    fn order_moves_startup_text_keys_to_the_head() {
+        // LAYOUT-TEXT-PIN-5, ruling #4417 (no spec clause: build tooling): order.py --startup-head
+        // gives the listed keys tier startup and puts the start-up tier first, each part in its
+        // traced order; without the option the trace order stands (LT-5: one trace, no old list).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-order-head-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("new"), "_start1\tstartup\na\tstdio\nvf\tstrings\nb\tstrings\ngr\textra\n").unwrap();
+        std::fs::write(tmp.join("skeys"), "# c\nvf\tstartup\tfast\ngr\tstartup\tfast,release\nnot_listed\tstartup\tfast\n").unwrap();
+        let run = |head: bool| {
+            let mut c = std::process::Command::new("python3");
+            c.arg("-I").arg(root.join("tools/hottext/order.py")).arg(tmp.join("new")).arg("fast");
+            if head {
+                c.arg("--startup-head").arg(tmp.join("skeys"));
+            }
+            let o = c.output().expect("python3 runs tools/hottext/order.py");
+            assert!(o.status.success(), "order.py: {}", String::from_utf8_lossy(&o.stderr));
+            String::from_utf8(o.stdout).unwrap()
+        };
+        let (plain, headed) = (run(false), run(true));
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert_eq!(plain, "_start1\tstartup\tfast\na\tstdio\tfast\nvf\tstrings\tfast\nb\tstrings\tfast\ngr\textra\tfast\n");
+        assert_eq!(headed, "_start1\tstartup\tfast\nvf\tstartup\tfast\ngr\tstartup\tfast\na\tstdio\tfast\nb\tstrings\tfast\n");
+        let skeys = "vf\tstartup\tfast\n";
+        assert_eq!(late_startup_keys(&headed, skeys), (3, vec![]));
+        assert_eq!(late_startup_keys(&plain, skeys), (1, vec!["vf".to_string()]));
+    }
+
+    #[test]
+    fn trace_writes_the_names_at_one_address_in_byte_order() {
+        // LAYOUT-TRACE-HOST-CANONICAL-3 (no spec clause: build tooling): trace_gdb.py writes every
+        // name at a hit address (aliases such as bcmp / __memcmpeq / niji_machine_equal), and the
+        // list keeps that order. nm sorts by the caller's locale (en_US ignores underscores), so a
+        // Zen 1 host's job under en_US.UTF-8 and a gated job in C gave the same keys in two orders.
+        // The tracer must run nm in the C locale and sort each address's names itself.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let py = std::fs::read_to_string(root.join("tools/hottext/trace_gdb.py")).unwrap();
+        let nm = py.find("subprocess.run([\"nm\", \"--defined-only\", syms_of]").expect("trace_gdb.py: no nm call");
+        let nm_line = py[nm..].lines().next().unwrap();
+        assert!(nm_line.contains("env=nm_env") && py.contains("nm_env = dict(os.environ, LC_ALL=\"C\")"), "trace_gdb.py runs nm in the caller's locale");
+        let sorted = py.find("names = {a: sorted(ns) for a, ns in names.items()}").expect("trace_gdb.py does not sort the names at one address");
+        // The interpreter's mode writes a rebased copy of the names (LAYOUT-LDSO-ORDER): the copy is
+        // taken after the sort, so both modes write the sorted lists.
+        let copied = py.find("OFFSETS = [(d, dict(d)) for d in (names, ").expect("trace_gdb.py: no rebased copy of the names");
+        let chosen = py.find("out_names = OFFSETS[0][1] if ldso else names").expect("trace_gdb.py: no choice of the names written");
+        let written = py.find("for n in out_names.get(addr, []):").expect("trace_gdb.py: no names output");
+        assert!(nm < sorted && sorted < copied && copied < chosen && chosen < written, "trace_gdb.py sorts the names after it copies or writes them");
+    }
+
+    #[test]
+    fn signatures_name_the_modes_that_run_each_listed_key() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): keys.py --signatures gives every
+        // key of the list, in list order, the sorted modes whose names file holds it (`-` for none); a
+        // name traced at a label inside another key's section counts for that section too; a key
+        // only a mode outside the list ran is not added. The names are fictional (see the test below).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-signatures-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("list"), "# c\nfixture_b\tstartup\tfast\nfixture_a\tstdio\tfast\nfixture_none\textra\tfast\n").unwrap();
+        std::fs::write(tmp.join("alias"), "fixture_a_entry\tfixture_a\n").unwrap();
+        std::fs::write(tmp.join("n.true"), "fixture_b\nmain\n").unwrap();
+        std::fs::write(tmp.join("n.locale"), "fixture_b\nfixture_a_entry\nfixture_other\n").unwrap();
+        std::fs::write(tmp.join("n.tool"), "fixture_a\nfixture_b\n").unwrap();
+        let o = std::process::Command::new("python3")
+            .arg("-I")
+            .arg(root.join("tools/hottext/keys.py"))
+            .arg("--signatures")
+            .arg(tmp.join("list"))
+            .arg("--alias")
+            .arg(tmp.join("alias"))
+            .args(["true", "locale", "tool"].map(|m| format!("{m}={}", tmp.join(format!("n.{m}")).display())))
+            .output()
+            .expect("python3 runs tools/hottext/keys.py");
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        let out = String::from_utf8(o.stdout).unwrap();
+        assert_eq!(out, "fixture_b\tlocale,tool,true\nfixture_a\tlocale,tool\nfixture_none\t-\n");
+        let sigs = crate::bins::parse_signatures(&out).unwrap();
+        assert_eq!(sigs.len(), 3);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_startup_label_brings_its_section_to_the_head() {
+        // LAYOUT-TEXT-PIN-6, #4467 (no spec clause: build tooling, D-X.63): keys.py --aliases maps a
+        // label inside a function section (an assembly entry label, an alias) to the section's key,
+        // leaving out the section's own name, data symbols and a name found in two sections; order.py
+        // --alias then brings the section of a start-up key traced at such a label to the head.
+        // The symbol names are fictional on purpose: a csys label named here would be an unknown
+        // consumer to `cargo xtask affected` and send every change of its .S file to the FULL tier.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-order-alias-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let syms = "\nlibc.a(m.o):     file format elf64-x86-64\n\nSYMBOL TABLE:\n\
+            0000000000000000 g     F .text.fixture_set\t0000000000000040 fixture_set\n\
+            0000000000000000 g     F .text.fixture_set\t0000000000000040 .hidden memset\n\
+            0000000000000010 l       .text.fixture_set\t0000000000000000 fixture_set_entry\n\
+            0000000000000000 g     F .text.sorted.h12.strlen\t0000000000000020 strlen\n\
+            0000000000000000 l       .text.a\t0000000000000000 twice\n\
+            0000000000000000 l       .text.b\t0000000000000000 twice\n\
+            0000000000000000 g     O .rodata.t\t0000000000000008 t_alias\n";
+        std::fs::write(tmp.join("syms"), syms).unwrap();
+        let o = std::process::Command::new("python3")
+            .arg("-I")
+            .arg(root.join("tools/hottext/keys.py"))
+            .arg("--aliases")
+            .arg(tmp.join("syms"))
+            .output()
+            .expect("python3 runs tools/hottext/keys.py");
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        let aliases = String::from_utf8(o.stdout).unwrap();
+        assert_eq!(aliases, "fixture_set_entry\tfixture_set\nmemset\tfixture_set\n");
+        std::fs::write(tmp.join("alias"), &aliases).unwrap();
+        std::fs::write(tmp.join("new"), "_start1\tstartup\nstrlen\tstrings\nfixture_set\tstrings\nb\tstrings\n").unwrap();
+        std::fs::write(tmp.join("skeys"), "_start1\tstartup\tfast\nfixture_set_entry\tstartup\tfast\n").unwrap();
+        let run = |alias: bool| {
+            let mut c = std::process::Command::new("python3");
+            c.arg("-I").arg(root.join("tools/hottext/order.py")).arg(tmp.join("new")).arg("fast");
+            c.arg("--startup-head").arg(tmp.join("skeys"));
+            if alias {
+                c.arg("--alias").arg(tmp.join("alias"));
+            }
+            let o = c.output().expect("python3 runs tools/hottext/order.py");
+            assert!(o.status.success(), "order.py: {}", String::from_utf8_lossy(&o.stderr));
+            String::from_utf8(o.stdout).unwrap()
+        };
+        let (plain, aliased) = (run(false), run(true));
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert_eq!(plain, "_start1\tstartup\tfast\nstrlen\tstrings\tfast\nfixture_set\tstrings\tfast\nb\tstrings\tfast\n");
+        assert_eq!(aliased, "_start1\tstartup\tfast\nfixture_set\tstartup\tfast\nstrlen\tstrings\tfast\nb\tstrings\tfast\n");
+    }
+
+    #[test]
+    fn a_cold_renamed_function_reenters_the_list_by_trace() {
+        // LAYOUT-TEXT-PIN-9, #4541 (no spec clause: build tooling, D-X.63): regen.sh lists the names
+        // of libc.a's function sections with keys.py --sections, which must strip every prefix this
+        // module gives a section (function_of), the cold rename `.text.niji_cold.<f>.niji_cold`
+        // included: a name left with the rename never matches a traced key, so a function the
+        // build once renamed cold could not re-enter the list. Fictional names (see above).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-sections-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let names = [
+            ".text.niji_cold.fixture_exit.niji_cold",
+            ".text.sorted.h00012.fixture_len",
+            ".text.unlikely.fixture_cold",
+            ".text.hot.fixture_old",
+            ".text.startup.fixture_gcc",
+            ".text.exit.fixture_fini",
+            ".text.fixture_plain",
+            ".rodata.fixture_tab",
+            ".text",
+        ];
+        let mut readelf = String::from("There are 12 section headers:\n\nSection Headers:\n  [Nr] Name Type Address Off Size ES Flg Lk Inf Al\n");
+        for (i, n) in names.iter().enumerate() {
+            readelf.push_str(&format!("  [{:>2}] {n} PROGBITS 0000000000000000 000040 000010 00  AX  0   0 16\n", i + 1));
+        }
+        std::fs::write(tmp.join("readelf"), readelf).unwrap();
+        let o = std::process::Command::new("python3")
+            .arg("-I")
+            .arg(root.join("tools/hottext/keys.py"))
+            .arg("--sections")
+            .arg(tmp.join("readelf"))
+            .output()
+            .expect("python3 runs tools/hottext/keys.py");
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        let got = String::from_utf8(o.stdout).unwrap();
+        let want: String = names.iter().filter_map(|n| function_of(n)).map(|f| format!("{f}\n")).collect();
+        assert_eq!(got, want, "keys.py --sections and function_of disagree");
+        assert!(got.lines().any(|l| l == "fixture_exit"), "the cold rename is not stripped: {got}");
+    }
+
+    #[test]
+    fn regen_always_traces_the_bounded_tool_and_locale_modes() {
+        // LAYOUT-TEXT-PIN-9, ruling #4539 (no spec clause: build tooling): regen.sh traces
+        // page_faults.c's `locale` and `tool` modes (the programs hot_text_products.rs bounds) on
+        // every run, before the fork and extra modes, so their first touches keep the tiers the
+        // bounds count (LT-5: the trace of every build is the list; nothing else is merged in).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let sh = std::fs::read_to_string(root.join("tools/hottext/regen.sh")).unwrap();
+        let at = |s: &str| sh.lines().position(|l| l == s).unwrap_or_else(|| panic!("regen.sh: no top-level line {s:?}"));
+        let later = at("stdin=/dev/null follow=child trace fork en_US.UTF-8 ./page_faults fork");
+        for mode in ["locale", "tool"] {
+            let l = at(&format!("stdin=/dev/null trace {mode} en_US.UTF-8 ./page_faults {mode}"));
+            assert!(l < later, "regen.sh traces page_faults {mode} after the fork and extra modes");
+        }
+        assert!(later < at("traces_done"), "regen.sh orders the lists before the fork trace ran");
+    }
+
+    #[test]
+    fn retired_lists_refuse_a_committed_list() {
+        // LAYOUT-DELETE-LISTS, LT-5 (no spec clause: build tooling): `cargo xtask static` refuses a
+        // tracked start-up list, whatever its directory, so the committed lists cannot creep back;
+        // a file that only shares a prefix or suffix with one is not refused, and this tree has none.
+        // The six names spelled out: a name dropped from RETIRED must fail here, not shrink the loop.
+        let six = ["hot-text.list", "startup-text.keys", "probe-text.keys", "startup-data.keys", "hot-text.absent", "hot-text.unpinned"];
+        assert_eq!(RETIRED.len(), six.len());
+        for name in six {
+            let path = format!("crates/libc-so/{name}");
+            let errs = retired_lists(&[path.as_str(), "crates/libc-so/startup-state.list", "crates/libc-so/hot-text.clusters"]);
+            assert_eq!(errs.len(), 1, "{name}: {errs:?}");
+            assert!(errs[0].starts_with(&format!("{path}: a committed start-up list")), "{}", errs[0]);
+        }
+        assert!(retired_lists(&["x/hot-text.list.bak", "x/my-hot-text.list", "hot-text.first-window"]).is_empty());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tracked = crate::labnames::tracked_with(root, true).expect("git ls-files");
+        assert!(tracked.iter().any(|p| p.ends_with("startup-state.list")), "the tracked-file list misses known files");
+        assert_eq!(retired_lists(&tracked), Vec::<String>::new());
+    }
+
+    #[test]
+    fn static_refuses_a_readded_committed_list() {
+        // LAYOUT-DELETE-LISTS, LT-5 (no spec clause: build tooling): end to end through git, as
+        // `cargo xtask static` runs it: a scratch repository that tracks a hand-written input passes;
+        // once a `hot-text.list` is added (staged is tracked) the check fails naming it.
+        let root = std::env::temp_dir().join(format!("xtask-retired-static-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("crates/libc-so")).unwrap();
+        let git = |args: &[&str]| assert!(std::process::Command::new("git").current_dir(&root).args(args).output().unwrap().status.success(), "git {args:?}");
+        git(&["init", "-q"]);
+        std::fs::write(root.join("crates/libc-so/hot-text.clusters"), "# hand-written\n").unwrap();
+        git(&["add", "crates/libc-so/hot-text.clusters"]);
+        assert_eq!(super::static_check(&root), Ok(()));
+        std::fs::write(root.join("crates/libc-so/hot-text.list"), "key\tstartup\tfast\n").unwrap();
+        git(&["add", "crates/libc-so/hot-text.list"]);
+        let e = super::static_check(&root).unwrap_err();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(e.contains("crates/libc-so/hot-text.list: a committed start-up list"), "{e}");
+    }
+    #[test]
+    fn regen_runner_runs_traces_together_and_keeps_their_order() {
+        // HOTLIST-REGEN-CHEAP (no spec clause: build tooling): tools/hottext/runner.sh, the trace
+        // runner of regen.sh and probe_text.sh. A fake tracer (HOTTEXT_GDB) waits until all four
+        // traces of the run have started, so a runner that runs them one at a time fails here
+        // (iteration budget, a hang guard only). The tagged file names every trace in start order,
+        // each trace writes its own names file with its own environment, a failed trace fails the
+        // wait, and put_changed leaves a file whose bytes did not change untouched. The fake prints
+        // the program's environment as trace_gdb.py builds it (LAYOUT-TRACE-HOST-CANONICAL: exactly
+        // the HOT_TEXT_ENV_<NAME> variables, sorted), so the caller's own LANG must not reach it.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let runner = root.join("tools/hottext/runner.sh");
+        let tmp = root.join(format!("target/xtask-runner-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let run = |name: &str, progs: &[&str]| {
+            let work = tmp.join(name);
+            let barrier = work.join("barrier");
+            std::fs::create_dir_all(&barrier).unwrap();
+            let fake = r#"#!/bin/bash
+while [ "$1" != --args ]; do shift; done; shift
+touch "BARRIER/started.$1"
+i=0
+while [ "$(ls BARRIER | wc -l)" -lt COUNT ]; do
+    i=$((i + 1))
+    if [ $i -gt 3000 ]; then echo "fake tracer: $1 started alone: the traces did not run together" >&2; exit 7; fi
+    sleep 0.01
+done
+if [ "$1" = fail ]; then exit 3; fi
+printf '%s\n' "$@" > "$HOT_TEXT_OUT"
+env | sed -n 's/^HOT_TEXT_ENV_//p' | LC_ALL=C sort >> "$HOT_TEXT_OUT"
+"#
+            .replace("BARRIER", &barrier.to_string_lossy())
+            .replace("COUNT", &progs.len().to_string());
+            let fake_path = work.join("fake-gdb");
+            std::fs::write(&fake_path, fake).unwrap();
+            let driver = r#"set -eu
+work=$1; here=$2; shift 2
+n=0
+: > "$work/tagged"
+. "$here/runner.sh"
+for p in "$@"; do trace_tagged "tier-$p" LANG="lang-$p" -- "$p" arg; done
+traces_wait
+"#;
+            let o = std::process::Command::new("bash")
+                .arg("-c")
+                .arg(driver)
+                .arg("driver")
+                .arg(&work)
+                .arg(runner.parent().unwrap())
+                .args(progs)
+                .env("HOTTEXT_GDB", format!("bash {}", fake_path.display()))
+                .env("LANG", "caller-lang")
+                .env("TZ", "caller-tz")
+                .env("HOTTEXT_JOBS", progs.len().to_string())
+                .output()
+                .expect("bash runs tools/hottext/runner.sh");
+            (work, o.status.success(), String::from_utf8_lossy(&o.stderr).into_owned())
+        };
+        let progs = ["p1", "p2", "p3", "p4"];
+        let (work, ok, err) = run("ok", &progs);
+        assert!(ok, "runner.sh: the four traces did not all run and pass: {err}");
+        let tagged = std::fs::read_to_string(work.join("tagged")).unwrap();
+        let want: String = (1..=progs.len()).map(|i| format!("tier-p{i}={}\n", work.join(format!("names.{i}")).display())).collect();
+        assert_eq!(tagged, want, "runner.sh: tagged does not name every trace in start order");
+        for (i, p) in progs.iter().enumerate() {
+            let names = std::fs::read_to_string(work.join(format!("names.{}", i + 1))).unwrap();
+            assert_eq!(names, format!("{p}\narg\nLANG=lang-{p}\n"), "runner.sh: names.{} is not trace {p}'s output", i + 1);
+        }
+        let (_, ok, err) = run("fail", &["p1", "fail", "p3", "p4"]);
+        assert!(!ok && err.contains("trace failed (rc 3)"), "runner.sh: a failed trace did not fail the wait: {err}");
+        // put_changed: equal bytes keep the tracked file (and its mtime); new bytes replace it.
+        let dir = tmp.join("put");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("tracked"), "a\n").unwrap();
+        let old = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000);
+        std::fs::File::options().write(true).open(dir.join("tracked")).unwrap().set_modified(old).unwrap();
+        let put = |text: &str| {
+            std::fs::write(dir.join("new"), text).unwrap();
+            let st = std::process::Command::new("bash")
+                .arg("-c")
+                .arg(". \"$1\"; put_changed \"$2/new\" \"$2/tracked\"")
+                .arg("put")
+                .arg(&runner)
+                .arg(&dir)
+                .status()
+                .unwrap();
+            assert!(st.success(), "put_changed failed");
+            assert!(!dir.join("new").exists(), "put_changed left its input behind");
+            (std::fs::read_to_string(dir.join("tracked")).unwrap(), std::fs::metadata(dir.join("tracked")).unwrap().modified().unwrap())
+        };
+        let same = put("a\n");
+        let changed = put("b\n");
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert_eq!(same, ("a\n".to_string(), old), "put_changed rewrote a file whose bytes did not change");
+        assert_eq!(changed.0, "b\n", "put_changed did not write new bytes");
     }
 }

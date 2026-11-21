@@ -1,0 +1,21 @@
+# A cache whose directory does not exist cannot be written.
+name: ldconfig -C in a missing directory fails to create the temporary cache file
+clause: s31_2_f_2
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -C
+arg: /nodir/ld.so.cache
+file: etc/ld.so.conf
+| # empty
+dir: lib/x86_64-linux-gnu
+dir: usr/lib/x86_64-linux-gnu
+dir: usr/lib
+status: exit 1
+stdout:
+stderr:
+| ldconfig: Can't create temporary cache file @ROOT@/nodir/ld.so.cache~: No such file or directory

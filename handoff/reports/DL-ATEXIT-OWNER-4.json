@@ -1,0 +1,52 @@
+{
+ "task": "DL-ATEXIT-OWNER-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "red check fixed: atexit_owner.rs links the opted-in module against the product libc-owner.so (stub.S was deleted in run 3); prototype owner_proto dropped; deadlock plant recorded as not plantable",
+ "branch": "task/dl-atexit-owner-4",
+ "head": "e1b523ce2 (code; later commits change handoff/ only)",
+ "gate": {
+  "affected": "dl-atexit-owner-4-check: clippy, static, so, atexit_owner 2/2, s01_startup_symbols s1_2_c_5 3/3, cargo xtask test (full suite, superset of the direct tier), FULL_PROFILE hot_text_products",
+  "peak": null
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "removed tests: the 8 selftest prototype tests of crates/core/tests/nonshared_optout_proto.rs (with liella_legacy::owner_proto); the product tests replace them",
+  "one python heredoc used for the test edit early in the run; later edits used Write/Edit"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "crates/ld/tests/atexit_owner.rs builds and passes again (2/2) against the product link-time interface",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants verified on this head: run 2 file 7/7 CAUGHT (its baseline failed in run 3), run 3 file 5/5 CAUGHT",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "prototype selftest tests removed",
+   "before": 8,
+   "after": 0,
+   "unit": "tests",
+   "measured": true
+  }
+ ],
+ "improvement": "a check script that runs the story's own tests before the full `cargo xtask test` catches a stale test in minutes; run 3 deleted stub.S without grepping for its users (one grep for the path would have saved a run)",
+ "next_step": "none in the story once the named jobs are green; follow-up: an end-to-end `-L liella-owner -lc` run under Liella's loader when it searches libc.so.6 beyond the pinned prefix",
+ "report_file": "handoff/DL-ATEXIT-OWNER.md",
+ "jobs": [
+  "mei:dl-atexit-owner-4-check",
+  "mei:dl-atexit-owner-4-plants"
+ ]
+}

@@ -1,6 +1,6 @@
 //! Broken-down time and time zones end to end (spec §23.5-23.6; D-23.4 to D-23.6):
 //! `tests/oracle/zones_diff.c` built
-//! against the host C library and statically against Liella's products, run with the same
+//! against the host C library and statically against libniji's products, run with the same
 //! `LOCPATH`; the outputs must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler and `localedef`; without the
 //! latter two the test says so and passes.
@@ -27,26 +27,26 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/zones_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
     oracle::build(cmd, out)
 }
 
-// Why each recorded difference is kept (Liella's choice where glibc's behaviour is an artifact or
+// Why each recorded difference is kept (libniji's choice where glibc's behaviour is an artifact or
 // departs from the spec; D-23.5, D-23.6).
-const FIRST: &str = "mktime, tm_isdst=-1, repeated hour: glibc's choice depends on the previous mktime call of the process (the first call, east of UTC, takes the later occurrence; later calls follow the previous result's offset); Liella always takes the first occurrence";
-const BEFORE_1970: &str = "a POSIX rule is an annual rule without a first year: Liella applies it in every year; glibc keeps the state of 1970 for every earlier time (so New Zealand's July 1950 is daylight time)";
-const DATE: &str = "a rule date outside the POSIX ranges (month 1-12, week 1-5, Jn 1-365, n 0-365) is not valid: Liella uses the default date (M3.2.0); glibc computes odd transitions from it";
-const OFFSET: &str = "a standard offset beyond 24 hours is not valid POSIX (hh 0-24): Liella treats the TZ value as invalid (UTC named AAA); glibc clamps it to 24 hours";
+const FIRST: &str = "mktime, tm_isdst=-1, repeated hour: glibc's choice depends on the previous mktime call of the process (the first call, east of UTC, takes the later occurrence; later calls follow the previous result's offset); libniji always takes the first occurrence";
+const BEFORE_1970: &str = "a POSIX rule is an annual rule without a first year: libniji applies it in every year; glibc keeps the state of 1970 for every earlier time (so New Zealand's July 1950 is daylight time)";
+const DATE: &str = "a rule date outside the POSIX ranges (month 1-12, week 1-5, Jn 1-365, n 0-365) is not valid: libniji uses the default date (M3.2.0); glibc computes odd transitions from it";
+const OFFSET: &str = "a standard offset beyond 24 hours is not valid POSIX (hh 0-24): libniji treats the TZ value as invalid (UTC named AAA); glibc clamps it to 24 hours";
 const ASCTIME: &str = "asctime's text is the fixed 26-byte layout (spec 23.5): wider fields are EOVERFLOW for asctime as for asctime_r; glibc prints them into a larger static buffer";
-const ERRNO: &str = "glibc sets errno to EOVERFLOW on this success (errno is written only on failure, X3) and, for Lord Howe, reads standard time with a historical offset (+10:00); Liella uses the nearest standard offset (+10:30)";
+const ERRNO: &str = "glibc sets errno to EOVERFLOW on this success (errno is written only on failure, X3) and, for Lord Howe, reads standard time with a historical offset (+10:00); libniji uses the nearest standard offset (+10:30)";
 
 /// Lines that differ from the reference by decision: text the line starts with, the section it
 /// is under (`*` any), whether the entry also covers the `  normalized:` line that follows (the
@@ -105,7 +105,7 @@ fn zones_equal_the_reference() {
     // Clauses: s23_5_c_0, s23_5_c_1, s23_5_c_2, s23_5_c_3, s23_5_c_4, s23_5_c_5, s23_5_c_6, s23_5_g_0, s23_5_f_1,
     // s23_5_f_2, s23_5_f_3, s23_6_c_0, s23_6_c_1, s23_6_c_2, s23_6_c_3, s23_6_g_0 (D-23.4 to D-23.6).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     if !["en_US.UTF-8", "de_DE.UTF-8"].iter().all(|n| ensure_locale(&locales, n)) {
@@ -114,7 +114,7 @@ fn zones_equal_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("zones_diff_host"), dir.join("zones_diff_liella"));
+    let (host, ours) = (dir.join("zones_diff_host"), dir.join("zones_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -148,14 +148,14 @@ fn zones_equal_the_reference() {
             }
             if differs {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].3);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].3);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }

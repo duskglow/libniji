@@ -3,8 +3,8 @@
 //! (`%2$d`) may name them in any order: the pointers read so far are kept, and a later index
 //! reads on up to it.
 
-use liella::mem::TryVec;
-use liella_abi::va::VaSource;
+use niji::mem::TryVec;
+use niji_abi::va::VaSource;
 
 /// The most arguments a format may name by position (`NL_ARGMAX`, `_POSIX_ARG_MAX`).
 pub const ARG_MAX: usize = 4096;

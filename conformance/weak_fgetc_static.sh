@@ -1,9 +1,9 @@
 #!/bin/sh
 # WEAK-EXPORTS: a static program that defines its own fgetc (WEAK in glibc's libc) links against
 # libc.a and uses its own definition, and libc.so.6 exports fgetc WEAK.
-# Usage: conformance/weak_fgetc_static.sh <dir with the products: target/liella>
+# Usage: conformance/weak_fgetc_static.sh <dir with the products: target/niji>
 set -e
-d=${1:-target/liella}
+d=${1:-target/niji}
 t=$(mktemp -d)
 trap 'rm -rf "$t"' EXIT
 cat > "$t/p.c" <<'EOF'
@@ -11,7 +11,7 @@ cat > "$t/p.c" <<'EOF'
 int fgetc(FILE *f) { (void)f; return 'Q'; }
 int main(void) { return fgetc(stdin) == 'Q' ? 0 : 1; }
 EOF
-cc -static -nostdlib -nostartfiles "$t/p.c" "$d/liella-crt1.o" "$d/libc.a" -lgcc -o "$t/p" 2>"$t/err" || { cat "$t/err"; exit 1; }
+cc -static -nostdlib -nostartfiles "$t/p.c" "$d/niji-crt1.o" "$d/libc.a" -lgcc -o "$t/p" 2>"$t/err" || { cat "$t/err"; exit 1; }
 set +e
 "$t/p" < /dev/null
 rc=$?

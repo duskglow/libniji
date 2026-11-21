@@ -14,9 +14,9 @@
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 use libfuzzer_sys::fuzz_target;
-use liella::mem::TryVec;
-use liella::names::cache::{self, Category, File, Found, Stamp, Stored, Table, MIN_WORDS};
-use liella_fuzz::Input;
+use niji::mem::TryVec;
+use niji::names::cache::{self, Category, File, Found, Stamp, Stored, Table, MIN_WORDS};
+use niji_fuzz::Input;
 
 const STAMP: Stamp = Stamp { owner: 1000, boot: [0x1234, 0x5678], account: 0x9abc };
 const NOW: u64 = 1_700_000_000;
@@ -24,14 +24,14 @@ const NOW: u64 = 1_700_000_000;
 fn decode_value(v: &[u8]) {
     // As `nscache::lookup` reads a hit: a tag, then the encoded answer.
     if let Some((0, rest)) = v.split_first() {
-        let _ = liella_legacy::nss_files::Host::decode(rest);
+        let _ = niji_legacy::nss_files::Host::decode(rest);
         if let Some(gids) = rest.get(1..) {
             for c in gids.as_chunks::<4>().0 {
                 let _ = u32::from_le_bytes(*c);
             }
         }
-        let _ = liella::users::passwd(rest);
-        let _ = liella::users::group(rest);
+        let _ = niji::users::passwd(rest);
+        let _ = niji::users::group(rest);
     }
 }
 

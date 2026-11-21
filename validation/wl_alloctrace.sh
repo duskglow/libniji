@@ -1,15 +1,15 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Allocation trace of one workload's program under gdb on keke (ALLOC-TRACE). Answers "what does this program ask the
 # allocator for, and how": per-size-class call counts, realloc chains (old size -> new size, moved or in place) and the
 # top call sites. HEAP-REUSE settled in two calls what fault attribution had guessed wrong. Counts, never time.
 #
 #   validation/wl_alloctrace.sh [--top N] [--prog P] [--nowait] <worktree|rev> <workload>
 #
-# <worktree|rev>: a Liella worktree (its HEAD; dirty tree refused) or a rev of the repository you run in.
+# <worktree|rev>: a libniji worktree (its HEAD; dirty tree refused) or a rev of the repository you run in.
 # <workload>: a name of validation/wl_workloads.sh (tar-c, ls-lR, ...). The workload command runs unchanged, but the FIRST
 #   invocation of its main program (--prog P, default the first @/prog in the command) runs the kit binary directly under
-#   gdb (not the sh wrapper, not glibc: Liella only). Later invocations (a loop of 10) run untraced.
+#   gdb (not the sh wrapper, not glibc: libniji only). Later invocations (a loop of 10) run untraced.
 # --top N: rows per table (default 10). Env TRMIN (default 256): smallest malloc whose realloc chain is followed; smaller
 #   blocks show up in a chain only from their first realloc ("?"). TRSECS (default 240): time cap on the trace;
 #   when it hits, the program is stopped and the summary says TRUNCATED (counts are then a prefix of the run). The summary has: calls and MB by size class per entry
@@ -18,7 +18,7 @@
 #   grandparent (gdb frame names, demangled when rustfilt is on keke). Tracing costs ~100 us per allocator call; the
 #   program's own output is discarded. Needs gdb on keke.
 # --nowait: start detached and print the re-attach command. Otherwise queued through $S/tools/vm_run.sh (S set) and waited.
-# The kit is built by wl_prep.sh for just that program (cached per sha in keke:~/wl/kit/<sha>).
+# The kit is built by wl_prep.sh for just that program (cached per sha in keke:~/wl/kit/<sha>-release).
 set -u
 nowait=0 top=10 prog=
 while [ $# -gt 0 ]; do
@@ -50,11 +50,13 @@ else
     new=$(git rev-parse "$target") || exit 2
     repo=.
 fi
-keke="ssh -o BatchMode=yes claude@10.0.100.53"
+. "$here/lab_host.sh"
+. "$here/wl_lock.sh"   # wl_key: products are keyed by sha and products profile (WL-PREP-RELEASE-PROFILE)
+keke="ssh -o BatchMode=yes claude@$(lab_addr keke)"
 t0=$(date +%s)
 $keke "mkdir -p ~/wl/bin ~/wl/src ~/logs" || exit 1
 . "$here/wl_install.sh"; wl_install_scripts || exit 1   # B = ~/wl/bin/v-<hash>, never overwritten
-$keke "test -f ~/wl/products/$new/libc.a || test -d ~/wl/src/$new" || \
+$keke "test -f ~/wl/products/$(wl_key "$new")/libc.a || test -d ~/wl/src/$new" || \
     { git -C "$repo" archive --format=tar "$new" | $keke "t=~/wl/src/.$new.\$\$; rm -rf \$t; mkdir -p \$t && tar -x -C \$t && { mv -T \$t ~/wl/src/$new 2>/dev/null || rm -rf \$t; }"; }
 # UNIQUE LABEL (TOOLS-12): +$$ - two runs of one sha started in the same second got the same label; vm_run refused the
 # second (label busy) and this script then waited on and printed the FIRST run's log as its own.

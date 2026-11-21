@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare two runs of bash's test suite (`make check` output), test by test.
 
-    validation/bash_results.py GLIBC_CHECK_LOG LIELLA_CHECK_LOG [--show NAME]
+    validation/bash_results.py GLIBC_CHECK_LOG NIJI_CHECK_LOG [--show NAME]
 
 Bash's suite has no pass/fail counter: tests/run-all runs each `run-*` script, which prints
 its name and then a diff against the expected output (empty when the output matches) and
@@ -31,7 +31,7 @@ def main():
     if len(sys.argv) > 4 and sys.argv[3] == "--show":
         n = sys.argv[4]
         print("--- glibc\n" + "\n".join(base.get(n, ["(not run)"])))
-        print("--- liella\n" + "\n".join(other.get(n, ["(not run)"])))
+        print("--- niji\n" + "\n".join(other.get(n, ["(not run)"])))
         return
     names = sorted(set(base) | set(other))
     same = changed = 0
@@ -42,10 +42,10 @@ def main():
             continue
         changed += 1
         state = lambda t: "not run" if t is None else ("clean" if not t else f"{len(t)} diff lines")
-        print(f"{n}\tglibc: {state(b)}\tliella: {state(o)}")
+        print(f"{n}\tglibc: {state(b)}\tniji: {state(o)}")
     print(f"tests: {len(names)}; identical output: {same}; different: {changed}")
     clean = lambda t: sum(1 for v in t.values() if not v)
-    print(f"clean (no diff) under glibc: {clean(base)}/{len(base)}; under liella: {clean(other)}/{len(other)}")
+    print(f"clean (no diff) under glibc: {clean(base)}/{len(base)}; under niji: {clean(other)}/{len(other)}")
 
 
 main()

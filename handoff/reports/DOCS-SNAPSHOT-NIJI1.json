@@ -1,0 +1,60 @@
+{
+ "task": "DOCS-SNAPSHOT-NIJI1",
+ "model": "opus",
+ "tokens": null,
+ "result": "User docs current for snapshot-2026-11-17: libc6-dev header sentence fixed, rename table, Yohane fixes #5-#8, D-X.113 named, release-notes section",
+ "branch": "task/docs-snapshot-niji1",
+ "head": null,
+ "gate": {
+  "affected": "473 passed / 0 failed",
+  "peak": "1.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Brief said prose only; the rename table needed a narrow old-name allow-list entry (table rows of 'Names before libniji' in docs/install-packages.md)",
+   "recommendation": "keep the narrow allowance"
+  }
+ ],
+ "informational": [
+  "install-packages.md lists libc6-dbg as a system package while the 11-17 notes list it under What's next (may have landed after the snapshot; not checked)",
+  "First gate red only because the role's target/niji/ldconfig was stale (not built from this tree) and an xtask-only change does not rebuild products; green after cargo xtask so",
+  "I edited xtask/src/oldname.rs once through a python heredoc instead of the Edit tool (the result verified by diff)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "docs/install-packages.md false sentence on system-flavour headers fixed (#6213)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "old-name check unit tests and plants for the rename-table allowance",
+   "before": 0,
+   "after": 3,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "none",
+   "what": "docs: rename table (#6214), Yohane fixes #5-#8 (#6215), D-X.113 named (#6216), snapshot-2026-11-17 release notes",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "affected should rebuild or refuse stale role products (static already detects 'not built from this tree') before running product tests, instead of a red gate",
+ "next_step": "land; nothing further for this story",
+ "report_file": "handoff/docs-snapshot-niji1.md",
+ "jobs": [
+  "docs-snapshot-niji1-gate-2",
+  "docs-snapshot-niji1-plants",
+  "docs-snapshot-niji1-static-2",
+  "docs-snapshot-niji1-transcripts"
+ ]
+}

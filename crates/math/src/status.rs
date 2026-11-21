@@ -1,9 +1,9 @@
 //! What an operation reports besides its value (D-10.2): the IEEE exception flags it raises and
 //! the error the C interface stores in `errno`. Internal functions return `(value, Status)`; the
-//! translation layer raises the flags (`liella_rt::fpu::raise`) and sets `errno`, the only place
+//! translation layer raises the flags (`niji_rt::fpu::raise`) and sets `errno`, the only place
 //! math touches either.
 
-pub use liella_rt::fpu::{Flags, Rounding};
+pub use niji_rt::fpu::{Flags, Rounding};
 
 /// The `errno` side of a result (spec §10.0).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]

@@ -1,0 +1,12 @@
+# Plants for LDSO-TLS-STATIC-INFO (D-27.65): cargo xtask plants handoff/LDSO-TLS-STATIC-INFO-plants.txt
+no-surplus-in-size | crates/boundary/src/ld.rs | lit:let total = if below == 0 { 0 } else { below.saturating_add(INITIAL_TAIL) }; ==> let total = if below == 0 { 0 } else { INITIAL_TAIL }; | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:a static block lies outside
+align-too-small | crates/boundary/src/ld.rs | lit:w.store(usize::try_from(THREAD_TLS_ALIGN.load(Relaxed)).unwrap_or(0), Relaxed); ==> w.store(16, Relaxed); | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:alignment is not the thread pointer's|below a module's
+size-not-written | crates/boundary/src/ld.rs | lit:if let Some(w) = crate::tb::c_word(size) { ==> if let Some(w) = crate::tb::c_word(size).filter(|_| false) { | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:size without TLS|static block lies outside|sanitizer
+ldso-not-global | crates/boundary/src/ld/dlopen.rs | lit:l.global[l.n_global] = k; ==> l.global[l.n_global] = if k < n { k } else { 0 }; | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:RTLD_DEFAULT and RTLD_NEXT disagree or find nothing
+not-exported | xtask/src/so.rs | lit:"_dl_debug_state", "_dl_get_tls_static_info"]; ==> "_dl_debug_state"]; | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:RTLD_DEFAULT and RTLD_NEXT disagree or find nothing
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# no-surplus-in-size: CAUGHT, caught by tls_static_info tls_static_info_reports_every_threads_static_block
+# align-too-small: CAUGHT, caught by tls_static_info tls_static_info_reports_every_threads_static_block
+# size-not-written: CAUGHT, caught by tls_static_info tls_static_info_reports_every_threads_static_block
+# ldso-not-global: CAUGHT, caught by tls_static_info tls_static_info_reports_every_threads_static_block
+# not-exported: CAUGHT, caught by tls_static_info tls_static_info_sanitizer_runtimes_start

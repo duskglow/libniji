@@ -1,12 +1,12 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Re-run one configure test of a validation build against both C libraries (triage).
 #
 #   validation/conftest.sh CONFIG_LOG 'checking whether memchr works' [OUTDIR]
 #
 # Takes the program configure logged for that check ("failed program was:", in config.log,
 # which the clean-room rules allow reading), writes it to OUTDIR/conftest.c, builds it with
-# gcc (the host glibc) and with scripts/liella-cc (static Liella), runs both, and prints their
+# gcc (the host glibc) and with scripts/niji-cc (static libniji), runs both, and prints their
 # exit statuses and output. Only config.log is read.
 set -u
 log=$1
@@ -27,9 +27,9 @@ if [ ! -s "$out/conftest.c" ]; then
     exit 1
 fi
 echo "program: $out/conftest.c ($(wc -l < "$out/conftest.c") lines)"
-for libc in glibc liella; do
+for libc in glibc niji; do
     cc=gcc
-    [ $libc = liella ] && cc=$repo/scripts/liella-cc
+    [ $libc = niji ] && cc=$repo/scripts/niji-cc
     if ! "$cc" -g -O2 -o "$out/conftest-$libc" "$out/conftest.c" > "$out/build-$libc.log" 2>&1; then
         echo "$libc: does not build:"; sed 's/^/    /' "$out/build-$libc.log" | head -20
         continue

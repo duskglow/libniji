@@ -1,11 +1,11 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 5. Internal primitives catalogue
 
 | ID | Primitive | Where | First needed (phase) | Notes |
 |---|---|---|---|---|
 | IP-1 | `Errno`, raw-result decoding, `Error`, `Result` | kernel, core | 1 | Numbering ⚑ KERN. |
-| IP-2 | Syscall wrappers `liella_sys_*` and their `ffi` declarations (generated from the header, K5) | csys, boundary | 1 | The only `syscall` instructions in the tree. |
+| IP-2 | Syscall wrappers `niji_sys_*` and their `ffi` declarations (generated from the header, K5) | csys, boundary | 1 | The only `syscall` instructions in the tree. |
 | IP-3 | `Fd`/`OwnedFd`, `KPath` (NUL-terminated in Rust-owned memory, PATH_MAX, no interior NUL) | kernel | 1 | ⚑ KERN H1 is honoured here. |
 | IP-4 | auxv and vDSO parsing over slices; the vDSO call primitive | kernel, csys | 1 | |
 | IP-5 | `RawMutex`, `RawOnce`, `RawRwLock`, `RawCondvar` on atomics + `Sys::futex`; valid when zero-initialised; pointer-free | rt | 3 | D-22.1. Fits pthread object sizes (Appendix C.6). |

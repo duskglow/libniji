@@ -1,4 +1,4 @@
-//! The Taylor tables of the `double` `erf`/`erfc` fast tier (`liella_math::fast_special`),
+//! The Taylor tables of the `double` `erf`/`erfc` fast tier (`niji_math::fast_special`),
 //! written to `crates/math/src/coeffs/erf.rs` by `cargo xtask tables`.
 //!
 //! **Slots.** An operand `x` in a table's range falls in the slot of its exponent and its four
@@ -39,17 +39,17 @@ use crate::mp::{self, Big, Round};
 use crate::tables::{dd, f64_of};
 
 const P: u32 = 640;
-const U: f64 = 1.0 / 9_007_199_254_740_992.0;
+pub(crate) const U: f64 = 1.0 / 9_007_199_254_740_992.0;
 /// The bound every table is sized for (relative): `2^-71`.
 const TARGET: f64 = 4.235_164_736_271_502e-22;
-const MAX_DEG: usize = 30;
+pub(crate) const MAX_DEG: usize = 30;
 
-struct Slot {
-    h: f64,
-    coef: Vec<Big>,
-    mag: Vec<f64>,
-    rem: Vec<f64>,
-    fmin: f64,
+pub(crate) struct Slot {
+    pub(crate) h: f64,
+    pub(crate) coef: Vec<Big>,
+    pub(crate) mag: Vec<f64>,
+    pub(crate) rem: Vec<f64>,
+    pub(crate) fmin: f64,
 }
 
 fn round(x: &Big) -> Big {
@@ -61,7 +61,7 @@ fn fact(n: usize) -> f64 {
 }
 
 /// The slot `i` of a table starting at `2^e0`: `(a, b, c, h)`.
-fn geometry(e0: i32, i: usize) -> (f64, f64, f64, f64) {
+pub(crate) fn geometry(e0: i32, i: usize) -> (f64, f64, f64, f64) {
     let e = e0 + (i / 16) as i32;
     let j = (i % 16) as f64;
     let s = 2f64.powi(e);
@@ -137,7 +137,7 @@ fn erfcx_slot(e0: i32, i: usize, k2: &Big) -> Slot {
 
 /// The relative bound of the evaluation with `m` double-double and `d + 1 − m` `f64`
 /// coefficients (module doc, items 1-3).
-fn bound(s: &Slot, m: usize, d: usize) -> f64 {
+pub(crate) fn bound(s: &Slot, m: usize, d: usize) -> f64 {
     let h = s.h;
     let mut rb = vec![0.0; d + 2];
     for k in (0..=d).rev() {
@@ -154,14 +154,58 @@ fn bound(s: &Slot, m: usize, d: usize) -> f64 {
     tot * 1.01 / s.fmin
 }
 
-/// The cheapest `(m, d, eps)` meeting [`TARGET`] on every slot (cost: about 12 operations a
+/// One `f64` Horner chain over the coefficients `lo..=hi` of `s` (item 2's step, the stored
+/// coefficients `f64`): `(R, E)`, the magnitude of its value for `|t| <= h` and its error bound.
+#[cfg(test)]
+fn chain(s: &Slot, lo: usize, hi: usize) -> (f64, f64) {
+    let h = s.h;
+    let (mut r, mut e) = (0.0, 0.0);
+    for k in (lo..=hi).rev() {
+        r = s.mag[k] + h * r;
+        e = h * e + U * (2.0 * r + s.mag[k]);
+    }
+    (r, e)
+}
+
+/// The relative bound of the quick phase's evaluation of an `ERF_T` row (degree 12;
+/// `niji_math::fast_special`, "Quick phase"), every operation counted as a rounding (the SSE2
+/// build; the FMA build rounds the same operations, its only difference is the exact product):
+/// `t² = RN(t·t)`, `t⁴ = RN(t²·t²)` (`t⁴` within `3u` relative); `a = p3 + p4·t + p5·t²`,
+/// `b1 = p6 + … + p9·t³`, `b2 = p10 + p11·t + p12·t²` by `f64` Horner (`P3` by its high part);
+/// `b = RN(b1 + RN(t⁴·b2))`; `q = RN(RN(t·a) + RN(t⁴·b))`; `r = RN(P2h + q)`; `P0 + P1·t` with
+/// `P1h·t` exact and one exact Fast2Sum (`None` when its order `|P0h| >= |P1h·t|` is not certain);
+/// the low parts `s.lo`, `P0l`, the product's, `P1l·t`, `P2l·t²` (below `3.1u·(|p0| + h·|p1|)`) in
+/// six roundings; then `RN(RN(t²·r) + low)`.
+#[cfg(test)]
+fn quick_bound(s: &Slot) -> Option<f64> {
+    let (h, u) = (s.h, U);
+    if s.mag[0] * (1.0 - 4.0 * u) < h * s.mag[1] * (1.0 + 4.0 * u) {
+        return None;
+    }
+    let (ra, ea) = chain(s, 3, 5);
+    let (r1, e1) = chain(s, 6, 9);
+    let (r2, e2) = chain(s, 10, 12);
+    let (h2, h4) = (h * h, h.powi(4));
+    let rb = r1 + h4 * r2;
+    let eb = e1 + h4 * (e2 + 4.0 * u * r2) + u * rb;
+    let rq = h * ra + h4 * rb;
+    let eq = h * (ea + u * ra) + h4 * (eb + 4.0 * u * rb) + u * rq;
+    let rr = s.mag[2] + rq;
+    let er = eq + u * rr;
+    let top = s.mag[0] + h * s.mag[1] + h2 * s.mag[2];
+    let low = 3.1 * u * top;
+    let lo = h2 * (er + 2.0 * u * rr) + u * (h2 * rr + low) + 6.0 * u * low + u * u * top;
+    Some((s.rem[12] + lo) * 1.01 / s.fmin)
+}
+
+/// The cheapest `(m, d, eps)` meeting `target` on every slot (cost: about 12 operations a
 /// double-double step, 2 an `f64` step).
-fn choose(slots: &[Slot]) -> (usize, usize, f64) {
+pub(crate) fn choose(slots: &[Slot], target: f64) -> (usize, usize, f64) {
     let mut best: Option<(usize, usize, usize, f64)> = None;
     for m in 1..=8 {
         for d in m..=MAX_DEG {
             let eps = slots.iter().map(|s| bound(s, m, d)).fold(0.0, f64::max);
-            if eps <= TARGET {
+            if eps <= target {
                 let cost = 12 * m + 2 * (d - m);
                 if best.is_none_or(|b| cost < b.0) {
                     best = Some((cost, m, d, eps));
@@ -171,12 +215,12 @@ fn choose(slots: &[Slot]) -> (usize, usize, f64) {
         }
     }
     let (_, m, d, eps) = best.unwrap_or((0, 1, MAX_DEG, f64::INFINITY));
-    assert!(eps <= TARGET, "no layout meets the target");
+    assert!(eps <= target, "no layout meets the target");
     (m, d, eps)
 }
 
-fn emit_table(src: &mut String, name: &str, doc: &str, slots: &[Slot]) {
-    let (m, d, eps) = choose(slots);
+pub(crate) fn emit_table(src: &mut String, name: &str, doc: &str, slots: &[Slot], target: f64) {
+    let (m, d, eps) = choose(slots, target);
     let w = 2 * m + d + 1 - m;
     let _ = writeln!(src, "\n/// `{name}` degree `D` (module `fast_special`).\npub(crate) const {name}_DEG: usize = {d};");
     let _ = writeln!(src, "/// `{name}`: the first `M` coefficients are double-doubles.\npub(crate) const {name}_DD: usize = {m};");
@@ -252,7 +296,37 @@ pub fn emit(src: &mut String) {
     src.push_str("\n// ---- erf/erfc fast tier (crates/mathtools/src/special_tables.rs has the derivation and bounds).\n");
     small(src, &k2);
     let erf: Vec<Slot> = (0..120).map(|i| erf_slot(-5, i, &k2)).collect();
-    emit_table(src, "ERF_T", "`erf` on `[2^-5, 6)`, 16 slots a binade from `2^-5` (module `fast_special`).", &erf);
+    emit_table(src, "ERF_T", "`erf` on `[2^-5, 6)`, 16 slots a binade from `2^-5` (module `fast_special`).", &erf, TARGET);
     let erfcx: Vec<Slot> = (0..76).map(|i| erfcx_slot(0, i, &k2)).collect();
-    emit_table(src, "ERFCX_T", "`e^(x²)·erfc x` on `[1, 28)`, 16 slots a binade from 1 (module `fast_special`).", &erfcx);
+    emit_table(src, "ERFCX_T", "`e^(x²)·erfc x` on `[1, 28)`, 16 slots a binade from 1 (module `fast_special`).", &erfcx, TARGET);
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::print_stdout)]
+mod quick_tests {
+    use super::*;
+
+    /// The quick phase's stated bounds (`niji_math::fast_special`, "Quick phase", the same
+    /// values): every `ERF_T` slot within `RHO_ERF_Q` = 2^-62 relative to `erf`, and on the slots
+    /// below 1 the absolute bound over `erfc`'s least value (`1 − erf x`) within `RHO_ERFC_Q_LOW`
+    /// = 2^-61. no spec clause (the bound behind spec §10.3's correct rounding in the quick phase).
+    #[test]
+    fn quick_phase_bounds() {
+        let k2 = two_over_sqrt_pi();
+        let (mut worst, mut low) = (0.0f64, 0.0f64);
+        for i in 0..120 {
+            let s = erf_slot(-5, i, &k2);
+            let e = quick_bound(&s).unwrap();
+            worst = worst.max(e);
+            let (_, b, _, _) = geometry(-5, i);
+            if b <= 1.0 {
+                let fb = mp::erf(&Big::from_f64(b), P).value.to_f64();
+                // e·fmin bounds the absolute error over the slot; erf <= fb there.
+                low = low.max(e * s.fmin * (1.0 + 1e-9) / (1.0 - fb) + 2.0 * U * U);
+            }
+        }
+        println!("quick erf 2^{:.3} erfc-low 2^{:.3}", worst.log2(), low.log2());
+        assert!(worst <= 2f64.powi(-62), "erf quick bound 2^{}", worst.log2());
+        assert!(low <= 2f64.powi(-61), "erfc quick low bound 2^{}", low.log2());
+    }
 }

@@ -8,9 +8,9 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use liella_abi::layout::sigset_t;
-use liella_boundary::posix::{s11_lowio as io, s13_filesystem as fs, s18_processes as pr, s20_signals as sg, s23_time as tm, s24_system as sy};
-use liella_kernel::uapi::{Stat, Timespec, Timeval};
+use niji_abi::layout::sigset_t;
+use niji_boundary::posix::{s11_lowio as io, s13_filesystem as fs, s18_processes as pr, s20_signals as sg, s23_time as tm, s24_system as sy};
+use niji_kernel::uapi::{Stat, Timespec, Timeval};
 
 fn time(mut f: impl FnMut()) -> f64 {
     for _ in 0..2000 {
@@ -28,7 +28,7 @@ fn time(mut f: impl FnMut()) -> f64 {
 }
 
 fn main() {
-    let zero = io::liella_open3(c"/dev/zero".as_ptr(), 0, 0);
+    let zero = io::niji_open3(c"/dev/zero".as_ptr(), 0, 0);
     let rows: [(&str, &mut dyn FnMut()); 11] = [
         ("getpid", &mut || {
             black_box(pr::getpid());
@@ -66,7 +66,7 @@ fn main() {
             black_box(fs::stat(c"/".as_ptr(), Some(&mut st)));
         }),
         ("open_close_devnull", &mut || {
-            let fd = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+            let fd = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
             black_box(io::close(fd));
         }),
     ];

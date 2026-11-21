@@ -3,7 +3,7 @@
 //!
 //! The reference is the host C library's allocator, reached through Rust's `Vec` (the global
 //! allocator of this non-product build is the system `malloc`). `ref_*` rows allocate without
-//! touching the memory, like the Liella rows. The threaded rows report wall time per
+//! touching the memory, like the libniji rows. The threaded rows report wall time per
 //! operation with every thread allocating and freeing at once: the cost of contention.
 
 #![allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
@@ -12,7 +12,7 @@ use std::hint::black_box;
 use std::sync::Barrier;
 use std::time::Instant;
 
-use liella_boundary::posix::s03_memory as m;
+use niji_boundary::posix::s03_memory as m;
 
 fn time(mut f: impl FnMut()) -> f64 {
     for _ in 0..2000 {
@@ -32,7 +32,7 @@ fn time(mut f: impl FnMut()) -> f64 {
 
 /// Wall time per malloc/free pair with `threads` threads each doing `per` pairs of `n` bytes,
 /// best of five runs.
-fn threaded(threads: usize, per: usize, n: usize, liella: bool) -> f64 {
+fn threaded(threads: usize, per: usize, n: usize, niji: bool) -> f64 {
     let mut best = f64::MAX;
     for _ in 0..5 {
         let start = Barrier::new(threads + 1);
@@ -41,7 +41,7 @@ fn threaded(threads: usize, per: usize, n: usize, liella: bool) -> f64 {
                 s.spawn(|| {
                     start.wait();
                     for _ in 0..per {
-                        if liella {
+                        if niji {
                             m::free(black_box(m::malloc(n)));
                         } else {
                             drop(black_box(Vec::<u8>::with_capacity(n)));

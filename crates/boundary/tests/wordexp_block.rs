@@ -8,18 +8,18 @@
 use core::ffi::c_void;
 use std::ffi::CString;
 
-use liella_abi::layout::wordexp_t;
-use liella_boundary::posix::s04_strings::memcpy;
-use liella_boundary::posix::s14_search as s;
+use niji_abi::layout::wordexp_t;
+use niji_boundary::posix::s04_strings::memcpy;
+use niji_boundary::posix::s14_search as s;
 
 const DOOFFS: i32 = 1;
 const APPEND: i32 = 2;
 
 /// Bytes the C family has in use.
 /// Caller-owned blocks this thread holds (FREE-POISON-TESTS-6 ruling #296): exact, and the
-/// same with the host allocator (default pass) or Liella's with perturbation (interposed pass).
+/// same with the host allocator (default pass) or libniji's with perturbation (interposed pass).
 fn in_use() -> i64 {
-    liella_boundary::selftest::caller_blocks()
+    niji_boundary::selftest::caller_blocks()
 }
 
 fn word(addr: usize, i: usize) -> usize {

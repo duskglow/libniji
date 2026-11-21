@@ -37,17 +37,18 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_abi::layout::struct_addrinfo;
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, SIGEV_SIGNAL, SIGEV_THREAD};
-use liella_rt::futex::{self, Clock, Scope};
-use liella_rt::sync::{RawCondvar, RawMutex};
-use liella_rt::thread::Attr;
+use niji_abi::layout::struct_addrinfo;
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, SIGEV_SIGNAL, SIGEV_THREAD};
+use niji_rt::futex::{self, Clock, Scope};
+use niji_rt::sync::{RawCondvar, RawMutex};
+use niji_rt::thread::Attr;
 
 use crate::conv;
 use crate::errno;
 use crate::ffi;
+use crate::fork;
 use crate::netdb;
 use crate::sys::CSys;
 use crate::thread;
@@ -286,7 +287,7 @@ extern "C" fn notifier(g: usize) -> usize {
     let (f, v) = (grp.function.load(Relaxed), grp.value.load(Relaxed));
     grp.used.store(0, Release);
     // `void f(union sigval)`: the 8-byte union is passed as an integer (psABI).
-    let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
+    let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
     0
 }
 
@@ -305,6 +306,8 @@ fn group(e: &SigEvent, n: usize) -> Option<usize> {
 
 /// `getaddrinfo_a(mode, list, nitems, sevp)` (`list`: the entries' addresses, 0 for NULL).
 pub fn getaddrinfo_a(mode: i32, list: KList<'_>, sig: Option<&SigEvent>) -> i32 {
+    // Before any request exists: a `fork` child from here on resets the queue and the groups.
+    fork::mark_used(fork::USED_GAI);
     if mode != GAI_WAIT && mode != GAI_NOWAIT {
         errno::set(Errno::EINVAL);
         return EAI_SYSTEM;
@@ -383,7 +386,7 @@ pub fn getaddrinfo_a(mode: i32, list: KList<'_>, sig: Option<&SigEvent>) -> i32 
 }
 
 /// A request list: the bytes of its entries (8 each).
-pub type KList<'a> = liella_kernel::errno::KResult<&'a [u8]>;
+pub type KList<'a> = niji_kernel::errno::KResult<&'a [u8]>;
 
 /// The entries of a list, as addresses (0 for NULL).
 fn entries(list: &[u8]) -> impl Iterator<Item = usize> + Clone + '_ {
@@ -481,9 +484,14 @@ pub fn gai_cancel(req: usize) -> i32 {
     r
 }
 
-/// The child of `fork`: no workers, an empty queue, no groups.
-pub(crate) fn after_fork_child() {
+/// The child of `fork`: no workers, an empty queue, no groups. `used`: `getaddrinfo_a` ever ran
+/// ([`fork::USED_GAI`]); before that the queue and the groups hold their initial values and the
+/// child reads and writes none of their pages (D-18.8).
+pub(crate) fn after_fork_child(used: bool) {
     LOCK.reset();
+    if !used {
+        return;
+    }
     for s in QUEUED.iter() {
         s.store(0, Relaxed);
     }

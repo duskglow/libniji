@@ -2,7 +2,7 @@
 //! LG-1 `COMPAT-SYMVER-GEN`, ruling R15-1).
 //!
 //! One generated file, `csys/src/machine/compat_aliases.S`, holds one stub for each compat version
-//! Liella exports: a frame-free `jmp` to the function that carries the contract, given the
+//! libniji exports: a frame-free `jmp` to the function that carries the contract, given the
 //! non-default version with `.symver stub, name@VERSION` (single `@`, D-27.4). A program linked
 //! anew always binds the default version (`name@@...`); only old binaries that ask for the old
 //! version reach a stub, so no current caller pays anything.
@@ -15,7 +15,7 @@
 //!   already defined in the tree. The libdl names wait in [`DEFERRED`] for phase 14;
 //! * a **behaviour**, **subsystem** or **stub** row (its own contract, R15-1; the LG-5 removed
 //!   syscalls and STREAMS names are `stub` rows) gets a stub when the tree defines
-//!   `liella_compat_<name>` (`stime`, the LG-5 names, the `xdr_*` primitives); the stub's target
+//!   `niji_compat_<name>` (`stime`, the LG-5 names, the `xdr_*` primitives); the stub's target
 //!   is that function. Rows whose function has not landed yet are skipped, and appear as soon as it
 //!   does, with no change to this file;
 //! * `object` rows are other stories' (LG-6: data needs a copy with the manifest's size, not a jump).
@@ -36,12 +36,12 @@ pub const FILE: &str = "csys/src/machine/compat_aliases.S";
 /// Aliases held back because `libc.a` does not define their target yet: the libdl merge, whose
 /// functions arrive with dynamic loading (phase 14). `cargo xtask so` fails on any other alias whose
 /// target is missing, so a name leaves this list when its default version lands.
-pub const DEFERRED: &[&str] = &["dladdr", "dladdr1", "dlclose", "dlerror", "dlinfo", "dlmopen", "dlopen", "dlsym", "dlvsym"];
+pub const DEFERRED: &[&str] = &["dlmopen"];
 
 /// Table `behaviour` rows whose own function has not landed, still exported as an alias of the
 /// default version's function because the previous rule exported them and the `so` ratchet
 /// (compat-missing.tsv) forbids losing an export. Each leaves this list when its
-/// `liella_compat_<name>` lands (`__isnanf128`: LG-4, `__libc_start_main`: LG-2).
+/// `niji_compat_<name>` lands (`__isnanf128`: LG-4, `__libc_start_main`: LG-2).
 pub const HELD: &[(&str, &str)] = &[("__isnanf128", "GLIBC_2.26"), ("__libc_start_main", "GLIBC_2.2.5")];
 
 /// One generated stub: `name@version` jumps to `target`; `weak` follows glibc's binding.
@@ -56,7 +56,7 @@ pub struct Entry {
 impl Entry {
     /// The stub's own (local in `libc.so.6`) symbol.
     pub fn stub(&self) -> String {
-        format!("liella_compat_{}_{}", self.name, self.version.replace('.', "_"))
+        format!("niji_compat_{}_{}", self.name, self.version.replace('.', "_"))
     }
 }
 
@@ -96,7 +96,7 @@ fn code_only(text: &str) -> String {
             while j < b.len() && b[j] != '"' {
                 j += if b[j] == '\\' { 2 } else { 1 };
             }
-            // kept verbatim (an `export_name = "liella_compat_.."` names a definition), but a `//`
+            // kept verbatim (an `export_name = "niji_compat_.."` names a definition), but a `//`
             // inside it starts no comment
             out.extend(&b[i..(j + 1).min(b.len())]);
             i = j + 1;
@@ -116,14 +116,14 @@ fn code_only(text: &str) -> String {
     out
 }
 
-/// Adds to `out` the names `text` defines: every `fn <name>` and every `liella_compat_*` token
+/// Adds to `out` the names `text` defines: every `fn <name>` and every `niji_compat_*` token
 /// of its code (the xdr layer defines its entries through a macro, so the name only occurs as a
 /// token); comments and literals do not count (#1794).
 fn scan_defined(text: &str, out: &mut BTreeSet<String>) {
     let code = code_only(text);
     let mut prev = "";
     for tok in code.split(|c: char| !(c.is_alphanumeric() || c == '_')).filter(|t| !t.is_empty()) {
-        if prev == "fn" || tok.starts_with("liella_compat_") {
+        if prev == "fn" || tok.starts_with("niji_compat_") {
             out.insert(tok.to_string());
         }
         prev = tok;
@@ -173,7 +173,7 @@ pub fn entries_from(versions: &str, plan: &str, defined: &dyn Fn(&str) -> bool) 
         if *lib != "libc.so.6" || DEFERRED.contains(sym) {
             continue;
         }
-        let own = format!("liella_compat_{sym}");
+        let own = format!("niji_compat_{sym}");
         let target = match *kind {
             "alias" => {
                 let target = note.strip_prefix("target=").map_or(*sym, |t| t.split_whitespace().next().unwrap_or(sym));
@@ -210,10 +210,12 @@ pub const LIBM_FILE: &str = "crates/libm-so/compat_aliases.S";
 /// The `libm.so.6` entries (LG-4 `COMPAT-LIBM`): every `alias` row of `spec/abi/compat-plan.tsv`
 /// (`plan`) for `libm.so.6` - the `__*_finite` names (D-10.2: the finite-math entry points carry
 /// the contract of the plain function) and `pow10{,f,l}` - jumping to the function named by the
-/// row's `target=<name>` note, or to the default version of the same name. The binding follows
-/// glibc's (`versions.tsv` `scope`); a row that is not a `libm.so.6` compat row of
+/// row's `target=<name>` note, or to the default version of the same name; and, as for libc, every
+/// `behaviour` row whose own function `niji_compat_<name>` the tree defines (`defined`), jumping to
+/// it (`log`, `log2`: the old version's NaN sign, spec/behaviour/libm-compat.md). The binding
+/// follows glibc's (`versions.tsv` `scope`); a row that is not a `libm.so.6` compat row of
 /// `versions.tsv` (`table`) is an error.
-pub fn libm_entries_from(table: &str, plan: &str) -> Result<Vec<Entry>, String> {
+pub fn libm_entries_from(table: &str, plan: &str, defined: &dyn Fn(&str) -> bool) -> Result<Vec<Entry>, String> {
     let mut scope: BTreeMap<(&str, &str), &str> = BTreeMap::new();
     for line in table.lines().skip(1) {
         if let ["libm.so.6", sym, ver, "compat", _, sc, ..] = line.split('\t').collect::<Vec<_>>().as_slice() {
@@ -223,13 +225,20 @@ pub fn libm_entries_from(table: &str, plan: &str) -> Result<Vec<Entry>, String> 
     let mut out = Vec::new();
     for line in plan.lines().skip(1) {
         let f: Vec<&str> = line.split('\t').collect();
-        let ["libm.so.6", sym, ver, "alias", _, _, rest @ ..] = f.as_slice() else { continue };
-        let Some(sc) = scope.get(&(*sym, *ver)) else {
-            return Err(format!("compat-gen: {sym}@{ver} is a libm.so.6 alias of spec/abi/compat-plan.tsv but no libm.so.6 compat row of spec/abi/versions.tsv"));
+        let ["libm.so.6", sym, ver, kind, _, _, rest @ ..] = f.as_slice() else { continue };
+        let own = format!("niji_compat_{sym}");
+        let target = match *kind {
+            "alias" => {
+                let note = rest.first().copied().unwrap_or("");
+                note.split_whitespace().find_map(|w| w.strip_prefix("target=")).unwrap_or(sym).to_string()
+            }
+            "behaviour" if defined(&own) => own,
+            _ => continue,
         };
-        let note = rest.first().copied().unwrap_or("");
-        let target = note.split_whitespace().find_map(|w| w.strip_prefix("target=")).unwrap_or(sym);
-        out.push(Entry { name: sym.to_string(), version: ver.to_string(), target: target.to_string(), weak: *sc == "WEAK" });
+        let Some(sc) = scope.get(&(*sym, *ver)) else {
+            return Err(format!("compat-gen: {sym}@{ver} is a libm.so.6 {kind} row of spec/abi/compat-plan.tsv but no libm.so.6 compat row of spec/abi/versions.tsv"));
+        };
+        out.push(Entry { name: sym.to_string(), version: ver.to_string(), target, weak: *sc == "WEAK" });
     }
     out.sort_by(|a, b| (a.name.as_str(), version_key(&a.version)).cmp(&(b.name.as_str(), version_key(&b.version))));
     Ok(out)
@@ -238,26 +247,28 @@ pub fn libm_entries_from(table: &str, plan: &str) -> Result<Vec<Entry>, String> 
 /// The `libm.so.6` entries for this tree.
 pub fn libm_entries(root: &Path) -> Result<Vec<Entry>, String> {
     let read = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
-    libm_entries_from(&read("spec/abi/versions.tsv")?, &read("spec/abi/compat-plan.tsv")?)
+    let names = defined_names(root)?;
+    libm_entries_from(&read("spec/abi/versions.tsv")?, &read("spec/abi/compat-plan.tsv")?, &|n| names.contains(n))
 }
 
 /// The text of [`LIBM_FILE`] for `entries`.
 pub fn render_libm(entries: &[Entry]) -> String {
     let body = render(entries);
     let stubs = body.split_once("*/\n").map_or(body.as_str(), |(_, b)| b);
+    let own = entries.iter().filter(|e| e.target.starts_with("niji_compat_")).count();
     format!(
-        "/* @generated by `cargo xtask compat-gen` from the libm.so.6 `alias` rows of spec/abi/compat-plan.tsv;\n\
-         * do not edit (xtask/src/compat.rs). The compat versions of libm.so.6 (LG-4, R15-1, D-10.2): {} aliases\n\
-         * of a current function. Each stub jumps, frame-free, to the function with the contract and is given\n\
-         * the non-default version (single `@`), so only old binaries bind it. Linked into libm.so.6 only,\n\
-         * never into libm.a (R15-2). */\n{stubs}",
-        entries.len()
+        "/* @generated by `cargo xtask compat-gen` from the libm.so.6 `alias` and `behaviour` rows of\n\
+         * spec/abi/compat-plan.tsv; do not edit (xtask/src/compat.rs). The compat versions of libm.so.6 (LG-4,\n\
+         * R15-1, D-10.2): {} aliases of a current function and {own} entries with their own contract. Each stub\n\
+         * jumps, frame-free, to the function with the contract and is given the non-default version (single `@`),\n\
+         * so only old binaries bind it. Linked into libm.so.6 only, never into libm.a (R15-2). */\n{stubs}",
+        entries.len() - own
     )
 }
 
 /// The text of [`FILE`] for `entries`.
 pub fn render(entries: &[Entry]) -> String {
-    let aliases = entries.iter().filter(|e| !e.target.starts_with("liella_compat_")).count();
+    let aliases = entries.iter().filter(|e| !e.target.starts_with("niji_compat_")).count();
     let mut s = format!(
         "/* @generated by `cargo xtask compat-gen` from spec/abi/compat-plan.tsv; do not edit (xtask/src/compat.rs).\n\
          * Class machine: the compat versions of libc.so.6 (LG-1, R15-1, D-27.4): {aliases} aliases of the default\n\
@@ -309,7 +320,7 @@ const ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 /// The undefined symbol a [`LOADS`] stub loads the address of compat object `name` through.
 fn object_ref(name: &str) -> String {
-    format!("liella_compat_{name}_ref")
+    format!("niji_compat_{name}_ref")
 }
 
 /// `cargo xtask compat-gen [--check]`.
@@ -401,22 +412,22 @@ mod tests {
             ("__dn_comp", "GLIBC_2.2.5", "dn_comp", false),
             ("clock_gettime", "GLIBC_2.2.5", "clock_gettime", true),
             ("pthread_create", "GLIBC_2.2.5", "pthread_create", false),
-            ("stime", "GLIBC_2.2.5", "liella_compat_stime", false),
-            ("xdr_int", "GLIBC_2.2.5", "liella_compat_xdr_int", false),
+            ("stime", "GLIBC_2.2.5", "niji_compat_stime", false),
+            ("xdr_int", "GLIBC_2.2.5", "niji_compat_xdr_int", false),
         ];
-        let defined = ["dn_comp", "liella_compat_stime", "liella_compat_xdr_int"];
+        let defined = ["dn_comp", "niji_compat_stime", "niji_compat_xdr_int"];
         assert_eq!(got(&v, &p, &defined), want.map(|(a, b, c, d)| (a.into(), b.into(), c.into(), d)));
     }
 
     #[test]
     fn the_nss_switch_internals_are_own_entries() {
-        // LG-7 COMPAT-NSS-RESOLV: five behaviour rows, each with its own `liella_compat_<name>`.
+        // LG-7 COMPAT-NSS-RESOLV: five behaviour rows, each with its own `niji_compat_<name>`.
         let names = ["__nss_database_lookup", "__nss_group_lookup", "__nss_hosts_lookup", "__nss_next", "__nss_passwd_lookup"];
         let v = names.map(|n| row(n, "GLIBC_2.2.5", false));
         let v: Vec<&str> = v.iter().map(String::as_str).collect();
         let p = names.map(|n| format!("libc.so.6\t{n}\tGLIBC_2.2.5\tbehaviour\tLG-7\tD-16.6\t"));
         let p: Vec<&str> = p.iter().map(String::as_str).collect();
-        let own = names.map(|n| format!("liella_compat_{n}"));
+        let own = names.map(|n| format!("niji_compat_{n}"));
         let defined: Vec<&str> = own.iter().map(String::as_str).collect();
         let got: Vec<(String, String)> = got(&v, &p, &defined).into_iter().map(|(n, _, t, _)| (n, t)).collect();
         assert_eq!(got, names.iter().zip(own.iter()).map(|(n, t)| (n.to_string(), t.clone())).collect::<Vec<_>>());
@@ -425,22 +436,22 @@ mod tests {
     #[test]
     fn a_name_only_in_a_comment_is_not_defined() {
         // #1794 (no spec clause: generator input): comments define nothing; code, macro tokens and strings do.
-        let src = "/// see liella_compat_doc\n// liella_compat_line\n/* a /* nested */ liella_compat_block */\nfn liella_compat_real() {}\nm!(liella_compat_macro);\nconst Q: char = '\"';\nconst U: &str = \"http://x\"; #[export_name = \"liella_compat_named\"] fn f<'a>() {}\n";
+        let src = "/// see niji_compat_doc\n// niji_compat_line\n/* a /* nested */ niji_compat_block */\nfn niji_compat_real() {}\nm!(niji_compat_macro);\nconst Q: char = '\"';\nconst U: &str = \"http://x\"; #[export_name = \"niji_compat_named\"] fn f<'a>() {}\n";
         let mut out = BTreeSet::new();
         scan_defined(src, &mut out);
-        let want: BTreeSet<String> = ["f", "liella_compat_macro", "liella_compat_named", "liella_compat_real"].iter().map(|s| s.to_string()).collect();
+        let want: BTreeSet<String> = ["f", "niji_compat_macro", "niji_compat_named", "niji_compat_real"].iter().map(|s| s.to_string()).collect();
         assert_eq!(out, want);
     }
 
     #[test]
     fn the_malloc_compat_stubs_are_own_entries() {
-        // LG-11 MALLOC-COMPAT (D-3.5): `stub` rows, each with its own `liella_compat_<name>`.
+        // LG-11 MALLOC-COMPAT (D-3.5): `stub` rows, each with its own `niji_compat_<name>`.
         let names = ["__default_morecore", "tr_break"];
         let v = names.map(|n| row(n, "GLIBC_2.2.5", false));
         let v: Vec<&str> = v.iter().map(String::as_str).collect();
         let p = names.map(|n| format!("libc.so.6\t{n}\tGLIBC_2.2.5\tstub\tLG-11\tD-3.5\t"));
         let p: Vec<&str> = p.iter().map(String::as_str).collect();
-        let own = names.map(|n| format!("liella_compat_{n}"));
+        let own = names.map(|n| format!("niji_compat_{n}"));
         let defined: Vec<&str> = own.iter().map(String::as_str).collect();
         let got: Vec<(String, String)> = got(&v, &p, &defined).into_iter().map(|(n, _, t, _)| (n, t)).collect();
         assert_eq!(got, names.iter().zip(own.iter()).map(|(n, t)| (n.to_string(), t.clone())).collect::<Vec<_>>());
@@ -460,8 +471,8 @@ mod tests {
         let plan = fs::read_to_string(root.join("spec/abi/compat-plan.tsv")).unwrap();
         let lg1 = plan.lines().filter(|l| l.starts_with("libc.so.6\t") && l.contains("\talias\tLG-1\t")).count();
         let lg1_deferred = DEFERRED.iter().filter(|d| plan.contains(&format!("libc.so.6\t{d}\t"))).count();
-        assert!(e.iter().filter(|e| !e.target.starts_with("liella_compat_")).count() >= lg1 - lg1_deferred);
-        assert!(e.iter().any(|e| e.name == "stime" && e.target == "liella_compat_stime"));
+        assert!(e.iter().filter(|e| !e.target.starts_with("niji_compat_")).count() >= lg1 - lg1_deferred);
+        assert!(e.iter().any(|e| e.name == "stime" && e.target == "niji_compat_stime"));
         assert!(!e.iter().any(|e| e.name == "timer_create" && e.version == "GLIBC_2.2.5"));
     }
 
@@ -478,26 +489,52 @@ mod tests {
                     libm.so.6\texp\tGLIBC_2.2.5\tbehaviour\tLG-4\tD-10.2\tSVID\n\
                     libm.so.6\tpow10\tGLIBC_2.2.5\talias\tLG-4\tD-10.2\ttarget=exp10\n\
                     libc.so.6\tpthread_join\tGLIBC_2.2.5\talias\tLG-1\t-\t\n";
-        let got: Vec<(String, String, String, bool)> = libm_entries_from(&t, plan).unwrap().into_iter().map(|e| (e.name, e.version, e.target, e.weak)).collect();
+        let entries = |defined: &dyn Fn(&str) -> bool| -> Vec<(String, String, String, bool)> {
+            libm_entries_from(&t, plan, defined).unwrap().into_iter().map(|e| (e.name, e.version, e.target, e.weak)).collect()
+        };
         let want = [("__exp_finite", "GLIBC_2.15", "exp", false), ("pow10", "GLIBC_2.2.5", "exp10", true)];
-        assert_eq!(got, want.map(|(a, b, c, d)| (a.into(), b.into(), c.into(), d)));
+        // A behaviour row waits for its own function, then jumps to it (never to the default).
+        assert_eq!(entries(&|_| false), want.map(|(a, b, c, d)| (a.into(), b.into(), c.into(), d)));
+        let with_own = [("__exp_finite", "GLIBC_2.15", "exp", false), ("exp", "GLIBC_2.2.5", "niji_compat_exp", false), ("pow10", "GLIBC_2.2.5", "exp10", true)];
+        assert_eq!(entries(&|n| n == "niji_compat_exp"), with_own.map(|(a, b, c, d)| (a.into(), b.into(), c.into(), d)));
         // An alias row without its versions.tsv compat row is an error, not a silent skip.
-        assert!(libm_entries_from(&join(VHEAD, &[]), plan).is_err());
+        assert!(libm_entries_from(&join(VHEAD, &[]), plan, &|_| false).is_err());
     }
 
     /// s10_0_c2_0: the real tables give every `__*_finite` name and `pow10{,f,l}`, each aimed at a
-    /// different (current) function, and no `behaviour` row (those are not aliases).
+    /// different (current) function; the old `GLIBC_2.2.5` versions the probe found identical to the
+    /// default (spec/behaviour/libm-compat.md) aimed at the same-named default; and the `behaviour`
+    /// rows with their own function (`log`, `log2`: the old version's NaN sign) aimed at it. Every
+    /// entry outside `__*_finite` is named, so a change to the scope names the pairs it adds or drops
+    /// instead of only moving the count.
     #[test]
     fn the_real_tables_give_the_libm_scope() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let e = libm_entries(root).unwrap();
-        assert_eq!(e.len(), 110);
-        assert_eq!(e.iter().filter(|e| e.name.starts_with("__") && e.name.ends_with("_finite")).count(), 107);
-        assert!(e.iter().all(|e| e.name != e.target && !e.target.is_empty()));
+        let finite = |e: &&Entry| e.name.starts_with("__") && e.name.ends_with("_finite");
+        assert_eq!(e.iter().filter(finite).count(), 107);
+        assert!(e.iter().filter(finite).all(|e| e.name != e.target && !e.target.is_empty()));
+        let rest: Vec<(&str, &str, &str)> =
+            e.iter().filter(|e| !finite(e)).map(|e| (e.name.as_str(), e.version.as_str(), e.target.as_str())).collect();
+        let v = "GLIBC_2.2.5";
+        let renamed = [("pow10", v, "exp10"), ("pow10f", v, "exp10f"), ("pow10l", v, "exp10l")];
+        // SYS-COMPAT-VERSIONS (issue #7): the probe-identical old versions, each its own default.
+        let same = ["exp", "exp10", "fmod", "fmodf", "hypot", "hypotf", "pow"].map(|n| (n, v, n));
+        // SYS-COMPAT-VERSIONS-REST: the old logarithms, which differ from the default.
+        let own = [("log", v, "niji_compat_log"), ("log2", v, "niji_compat_log2")];
+        let mut want: Vec<(&str, &str, &str)> = renamed.into_iter().chain(same).chain(own).collect();
+        want.sort_unstable();
+        assert_eq!(rest, want, "libm compat entries outside __*_finite");
+        assert_eq!(e.len(), 107 + 3 + 7 + 2);
         assert!(e.iter().any(|e| e.name == "__exp_finite" && e.version == "GLIBC_2.15" && e.target == "exp"));
-        assert!(!e.iter().any(|e| e.name == "exp" || e.name.starts_with("totalorder") || e.name == "matherr"));
+        assert!(!e.iter().any(|e| e.name.starts_with("totalorder") || e.name == "matherr" || e.name == "logf"));
         let text = render_libm(&e);
-        assert!(text.contains("\t.symver liella_compat___exp_finite_GLIBC_2_15, __exp_finite@GLIBC_2.15\n"));
+        assert!(text.contains("niji_compat_log_GLIBC_2_2_5:\n\tjmp niji_compat_log@PLT\n"));
+        assert!(text.contains("\t.symver niji_compat_log2_GLIBC_2_2_5, log2@GLIBC_2.2.5\n"));
+        assert!(text.contains(": 117 aliases of a current function and 2 entries with their own contract."));
+        assert!(text.contains("\t.symver niji_compat___exp_finite_GLIBC_2_15, __exp_finite@GLIBC_2.15\n"));
+        assert!(text.contains("niji_compat_fmod_GLIBC_2_2_5:\n\tjmp fmod@PLT\n"));
+        assert!(text.contains("\t.symver niji_compat_fmod_GLIBC_2_2_5, fmod@GLIBC_2.2.5\n"));
         assert!(text.contains("\tjmp exp@PLT\n") && !text.contains("@@"));
     }
 
@@ -505,9 +542,9 @@ mod tests {
     fn rendered_stubs_are_aligned_jumps_with_one_version_each() {
         let e = Entry { name: "pthread_join".into(), version: "GLIBC_2.2.5".into(), target: "pthread_join".into(), weak: false };
         let s = render(std::slice::from_ref(&e));
-        assert!(s.contains("\t.globl liella_compat_pthread_join_GLIBC_2_2_5\n"));
-        assert!(s.contains("\t.p2align 6\nliella_compat_pthread_join_GLIBC_2_2_5:\n\tjmp pthread_join@PLT\n"));
-        assert!(s.contains("\t.symver liella_compat_pthread_join_GLIBC_2_2_5, pthread_join@GLIBC_2.2.5\n"));
+        assert!(s.contains("\t.globl niji_compat_pthread_join_GLIBC_2_2_5\n"));
+        assert!(s.contains("\t.p2align 6\nniji_compat_pthread_join_GLIBC_2_2_5:\n\tjmp pthread_join@PLT\n"));
+        assert!(s.contains("\t.symver niji_compat_pthread_join_GLIBC_2_2_5, pthread_join@GLIBC_2.2.5\n"));
         assert!(!s.contains("@@"));
     }
 
@@ -517,12 +554,12 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let s = render(&entries(root).unwrap());
         for f in ["advance", "step"] {
-            let want = format!("liella_compat_{f}_GLIBC_2_2_5:\n\tmovq liella_compat_loc1_ref@GOTPCREL(%rip), %rdx\n\tmovq liella_compat_loc2_ref@GOTPCREL(%rip), %rcx\n\tjmp liella_compat_{f}@PLT\n");
+            let want = format!("niji_compat_{f}_GLIBC_2_2_5:\n\tmovq niji_compat_loc1_ref@GOTPCREL(%rip), %rdx\n\tmovq niji_compat_loc2_ref@GOTPCREL(%rip), %rcx\n\tjmp niji_compat_{f}@PLT\n");
             assert!(s.contains(&want), "{f}");
-            assert!(s.contains(&format!("\t.symver liella_compat_{f}_GLIBC_2_2_5, {f}@GLIBC_2.2.5\n")), "{f}");
+            assert!(s.contains(&format!("\t.symver niji_compat_{f}_GLIBC_2_2_5, {f}@GLIBC_2.2.5\n")), "{f}");
         }
         for o in ["loc1", "loc2"] {
-            assert_eq!(s.matches(&format!("\t.symver liella_compat_{o}_ref, {o}@GLIBC_2.2.5\n")).count(), 1, "{o}");
+            assert_eq!(s.matches(&format!("\t.symver niji_compat_{o}_ref, {o}@GLIBC_2.2.5\n")).count(), 1, "{o}");
         }
         assert!(!s.contains("@@"));
     }

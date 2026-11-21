@@ -1,0 +1,64 @@
+# -r ROOT with the default configuration: a comment, a directory, an include glob (whose file names a directory
+# again), a hwcap line, a missing directory; then the trusted directories, one with a glibc-hwcaps subdirectory.
+# One soname per directory, so -v does not depend on the order the reference lists a directory in.
+name: ldconfig -r ROOT -v reads the configuration and the trusted directories and writes the cache
+clause: s31_2_c_1
+clause: s31_2_i_2
+clause: s31_2_i_3
+clause: s31_2_i_4
+clause: s31_2_g_5
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -v
+as-cache: etc/ld.so.cache
+file: etc/ld.so.conf
+| # a comment
+| /opt/a
+| include /etc/ld.so.conf.d/*.conf
+| hwcap 1 something
+| /opt/missing
+file: etc/ld.so.conf.d/z.conf
+| /opt/b
+| /opt/a
+elf: opt/a/libaa.so.1.0 soname=libaa.so.1
+elf: opt/b/libbb.so.2.1 soname=libbb.so.2
+elf: lib/x86_64-linux-gnu/libcc.so.3 soname=libcc.so.3
+elf: usr/lib/x86_64-linux-gnu/libdd.so.4.0 soname=libdd.so.4
+elf: usr/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3/libdd.so.4.0 soname=libdd.so.4
+elf: lib/libnos.so
+dir: usr/lib
+status: exit 0
+stdout:
+| /opt/a: (from /etc/ld.so.conf:2)
+| \tlibaa.so.1 -> libaa.so.1.0 (changed)
+| /opt/b: (from @ROOT@/etc/ld.so.conf.d/z.conf:1)
+| \tlibbb.so.2 -> libbb.so.2.1 (changed)
+| /lib/x86_64-linux-gnu: (from <builtin>:0)
+| \tlibcc.so.3 -> libcc.so.3
+| /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
+| \tlibdd.so.4 -> libdd.so.4.0 (changed)
+| /usr/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3: (hwcap: "x86-64-v3") (from <builtin>:0)
+| \tlibdd.so.4 -> libdd.so.4.0
+| /lib: (from <builtin>:0)
+| \tlibnos.so -> libnos.so
+| /usr/lib: (from <builtin>:0)
+stderr:
+| ldconfig: Path `/opt/a' given more than once
+| (from @ROOT@/etc/ld.so.conf.d/z.conf:2 and /etc/ld.so.conf:2)
+| ldconfig: /etc/ld.so.conf:4: hwcap directive ignored
+| ldconfig: Can't stat /opt/missing: No such file or directory
+written-file: etc/ld.so.cache
+| 0x303 libnos.so /lib/libnos.so
+| 0x303 libdd.so.4 /usr/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3/libdd.so.4.0 hwcaps=x86-64-v3
+| 0x303 libdd.so.4 /usr/lib/x86_64-linux-gnu/libdd.so.4
+| 0x303 libcc.so.3 /lib/x86_64-linux-gnu/libcc.so.3
+| 0x303 libbb.so.2 /opt/b/libbb.so.2
+| 0x303 libaa.so.1 /opt/a/libaa.so.1
+written-link: opt/a/libaa.so.1 -> libaa.so.1.0
+written-link: opt/b/libbb.so.2 -> libbb.so.2.1
+written-link: usr/lib/x86_64-linux-gnu/libdd.so.4 -> libdd.so.4.0

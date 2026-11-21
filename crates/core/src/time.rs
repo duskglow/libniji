@@ -1,5 +1,5 @@
 //! Calendar conversion and time zones (spec §23.5–23.6; D-23.4 to D-23.6). Clocks, sleeping and
-//! timers (§23.1–23.4) are translations in the POSIX layer and `liella_legacy::clock_compat`.
+//! timers (§23.1–23.4) are translations in the POSIX layer and `niji_legacy::clock_compat`.
 //!
 //! * [`civil`]: the proleptic Gregorian calendar, `struct tm`'s fields as [`CivilTime`] (full
 //!   year, month 1–12), normalisation of out-of-range [`Fields`], UTC (`gmtime`, `timegm`).
@@ -8,7 +8,7 @@
 //! * [`load`]: which zone a `TZ` value names (§23.6), read through the kernel value `S`.
 //! * [`format`] and [`parse`]: `strftime`/`wcsftime` and `strptime` (§23.7; D-23.7), with the
 //!   `LC_TIME` items of [`lctime`]. `getdate` (its template file and completion rules) is
-//!   `liella_legacy::getdate`.
+//!   `niji_legacy::getdate`.
 //!
 //! **Selecting the zone** (§23.6). `TZ` unset: the file `/etc/localtime` (UTC if it cannot be
 //! read). `TZ` empty, or only `:`: UTC, abbreviated `Universal` (as glibc). Otherwise, after one
@@ -30,10 +30,10 @@ pub use zone::{Globals, Local, Name, Period, Zone};
 
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, O_CLOEXEC, O_RDONLY, S_IFMT, S_IFREG};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, O_CLOEXEC, O_RDONLY, S_IFMT, S_IFREG};
 
 /// The system's default zone, used when `TZ` is unset.
 pub const LOCALTIME: &[u8] = b"/etc/localtime\0";
@@ -145,6 +145,9 @@ fn read_all<S: Sys>(sys: &S, fd: Fd, hint: usize) -> Result<Option<TryVec<u8>>> 
 /// [`ZONEINFO`]).
 fn zone_path(value: &[u8], tzdir: Option<&[u8]>) -> Result<TryVec<u8>> {
     let mut path = TryVec::new();
+    // The exact length up front: one allocation, not a growth through two sizes.
+    let dir = if value.starts_with(b"/") { 0 } else { tzdir.unwrap_or(ZONEINFO).len().saturating_add(1) };
+    path.reserve_exact(dir.saturating_add(value.len()).saturating_add(1))?;
     if !value.starts_with(b"/") {
         path.extend_from_slice(tzdir.unwrap_or(ZONEINFO))?;
         path.push(b'/')?;

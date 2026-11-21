@@ -1,6 +1,6 @@
 //! Time-zone glue (spec §23.5–23.6; D-23.4 to D-23.6): the process's zone through
-//! `liella_legacy::time_compat` with `TZ` and `TZDIR` from the environment, `struct tm`
-//! results (packed by `liella_abi::pack`), and the library-owned results of `gmtime`,
+//! `niji_legacy::time_compat` with `TZ` and `TZDIR` from the environment, `struct tm`
+//! results (packed by `niji_abi::pack`), and the library-owned results of `gmtime`,
 //! `localtime`, `asctime` and `ctime` in the calling thread's result slots (D-H3, D-23.5).
 //!
 //! Which functions select the zone again (an implicit `tzset`): `localtime`, `mktime`
@@ -14,13 +14,13 @@
 
 use core::sync::atomic::{compiler_fence, Ordering::{Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::time::{self, Zone};
-use liella_abi::layout::struct_tm;
-use liella_abi::pack;
-use liella_legacy::time_compat::{self as tc, AscFields, Env, Entry, ZoneObjects};
-use liella_rt::thread::{SLOT_ASCTIME, SLOT_TM};
-use liella_rt::tls::CACHE_TZ_PERIOD;
+use niji::error::{Errno, KResult};
+use niji::time::{self, Zone};
+use niji_abi::layout::struct_tm;
+use niji_abi::pack;
+use niji_legacy::time_compat::{self as tc, AscFields, Env, Entry, ZoneObjects};
+use niji_rt::thread::{SLOT_ASCTIME, SLOT_TM};
+use niji_rt::tls::CACHE_TZ_PERIOD;
 
 use crate::sys::CSys;
 use crate::{data, process, strz, tb, thread};
@@ -31,6 +31,9 @@ static GMT: &[u8] = b"GMT\0";
 struct Glue;
 
 impl ZoneObjects for Glue {
+    // Always inlined into `time_compat::select`'s lock-free path (HOTTEXT-TIME-CLUSTER-STABLE): an
+    // out-of-line copy would have no hot-text key and land in cold text.
+    #[inline(always)]
     fn entry_at(&self, addr: usize) -> &'static Entry {
         tb::zone_entry_at(addr)
     }
@@ -61,7 +64,7 @@ pub fn tzset() {
     tc::select(&CSys, &Glue, env(), &data::tz_globals(), true);
 }
 
-/// `liella_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
+/// `niji_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
 /// before its next use (a changed one is read again); then the zone `TZ` names is selected, as
 /// by `tzset`. It cannot fail.
 pub fn invalidate() -> KResult<()> {
@@ -92,12 +95,16 @@ pub fn gmtime(t: i64) -> KResult<struct_tm> {
 
 /// Run `f` with the calling thread's [`time::Period`] (its cache words, TB-SLOTS: three
 /// `%fs`-relative loads, and stores only when `f` changed it).
-fn with_period<R>(f: impl FnOnce(&mut time::Period) -> R) -> R {
+/// The words are read and written only in a process the runtime started (D-5.11, ruling #4281:
+/// elsewhere they are another library's); there every call starts from no period.
+pub(crate) fn with_period<R>(f: impl FnOnce(&mut time::Period) -> R) -> R {
     let w = |v: usize| u64::try_from(v).unwrap_or(0);
-    let before = time::Period::from_words(&[w(tb::read::<tb::TzPeriod0>()), w(tb::read::<tb::TzPeriod1>()), w(tb::read::<tb::TzPeriod2>())]);
+    let own = crate::thread::owned();
+    let words = if own { [w(tb::read::<tb::TzPeriod0>()), w(tb::read::<tb::TzPeriod1>()), w(tb::read::<tb::TzPeriod2>())] } else { [0; 3] };
+    let before = time::Period::from_words(&words);
     let mut p = before;
     let r = f(&mut p);
-    if p != before {
+    if own && p != before {
         let [a, lo, hi] = p.to_words().map(|x| usize::try_from(x).unwrap_or(0));
         if let Some([c0, c1, c2]) = tb::current().cache.get(CACHE_TZ_PERIOD..).and_then(|c| c.first_chunk::<{ time::Period::WORDS }>()) {
             // The zone number last: a `localtime` in a signal handler that interrupts the

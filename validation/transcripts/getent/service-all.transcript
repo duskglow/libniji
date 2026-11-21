@@ -1,0 +1,34 @@
+name: getent -s with a service only configures every database
+clause: s31_4_i_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/passwd
+| root:x:0:0:root:/root:/bin/bash
+| daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+| alice:x:1000:1000:Alice,,,:/home/alice:/bin/sh
+| bob:x:1001:100::/home/bob:
+arg: -s
+arg: files
+arg: passwd
+arg: root
+status: exit 0
+stdout:
+| root:x:0:0:root:/root:/bin/bash
+stderr:

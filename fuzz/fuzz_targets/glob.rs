@@ -9,10 +9,10 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::pattern::{fnmatch, glob};
-use liella_fuzz::Input;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::pattern::{fnmatch, glob};
+use niji_fuzz::Input;
 
 const S_IFDIR: u32 = 0o040_000;
 const S_IFREG: u32 = 0o100_000;
@@ -138,7 +138,7 @@ fuzz_target!(|data: &[u8]| {
     if pattern.iter().filter(|&&c| c == b'{').count() > MAX_BRACES {
         return;
     }
-    let loc = liella_fuzz::locale(opts & 1 != 0);
+    let loc = niji_fuzz::locale(opts & 1 != 0);
     let mut tree = Tree::new(tree_text);
     tree.abort = opts & 2 != 0;
 

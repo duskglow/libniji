@@ -24,7 +24,7 @@ three). The record was made on 4 October, so every timestamp in it had a one-dig
 
 **Isolation.** The probe never reaches the system log. `syslog_run.sh` runs, through `sudo -n`, a
 private mount namespace (`unshare -m --propagation private`) in which a fresh tmpfs is mounted over
-`/dev`; only `/dev/null` (a device node) and the marker `/dev/.liella-syslog-fixture` are created
+`/dev`; only `/dev/null` (a device node) and the marker `/dev/.niji-syslog-fixture` are created
 there, and the program refuses to run without the marker. The program then runs as the calling
 user (`setpriv`, line 1 `running as root: no`) with an empty environment. It binds its own
 `/dev/log` (a datagram socket, later a stream socket) and reads what the library sends; its own

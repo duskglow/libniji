@@ -29,11 +29,11 @@ pub fn imaxdiv(r: (i64, i64)) -> imaxdiv_t {
 // ------------------------------------------------------------------------------ struct tm (D-23.4)
 
 use crate::layout::struct_tm;
-use liella::time::{CivilTime, Fields};
+use niji::time::{CivilTime, Fields};
 
 /// `struct tm` from a civil time, its DST flag, offset (seconds east) and abbreviation address:
 /// `tm_year` is the year − 1900 and `tm_mon` 0-based. The caller has checked that the year fits
-/// (`liella::time::civil::fits_tm`); a year that does not is stored as `INT_MAX`.
+/// (`niji::time::civil::fits_tm`); a year that does not is stored as `INT_MAX`.
 pub fn tm(c: &CivilTime, isdst: bool, gmtoff: i64, zone: usize) -> struct_tm {
     struct_tm {
         tm_sec: i32::from(c.second),
@@ -88,7 +88,7 @@ use crate::layout::{struct_exit_status, struct_group, struct_passwd, struct_sgrp
 use crate::layout::struct_timeval;
 #[cfg(not(target_arch = "aarch64"))]
 use crate::layout::struct_utmp__ut_tv;
-use liella::users::{Group, Gshadow, List, Passwd, Shadow, Utmp};
+use niji::users::{Group, Gshadow, List, Passwd, Shadow, Utmp};
 
 /// Fills a caller's buffer with a record's strings and pointer arrays (the `_r` protocol): every
 /// step returns `None` when the buffer is too small (`ERANGE`). Built without a buffer, it only
@@ -246,13 +246,13 @@ fn bytes<const N: usize>(c: &[c_char; N]) -> [u8; N] {
 /// members cannot hold is no time, `(0, 0)`.
 #[cfg(not(target_arch = "aarch64"))]
 fn tv_out(time: (i64, i64)) -> struct_utmp__ut_tv {
-    let (sec, usec) = liella::users::ut_tv(time);
+    let (sec, usec) = niji::users::ut_tv(time);
     struct_utmp__ut_tv { tv_sec: i32::from_ne_bytes(sec.to_ne_bytes()), tv_usec: usec }
 }
 
 #[cfg(not(target_arch = "aarch64"))]
 fn tv_in(tv: &struct_utmp__ut_tv) -> (i64, i64) {
-    (liella::users::ut_sec(tv.tv_sec), i64::from(tv.tv_usec))
+    (niji::users::ut_sec(tv.tv_sec), i64::from(tv.tv_usec))
 }
 
 /// x86_64 `ut_session`: `int32_t`; a value outside it is stored as 0, never wrapped.
@@ -327,8 +327,8 @@ pub fn utmp_in(c: &struct_utmp) -> Utmp {
 // ------------------------------------------------------------------------------ terminal settings (§19.1, D-19.1)
 
 use crate::layout::{struct_termios, struct_winsize};
-use liella::term::{Termios, CIBAUD, NCC};
-use liella_kernel::uapi::Winsize;
+use niji::term::{Termios, CIBAUD, NCC};
+use niji_kernel::uapi::Winsize;
 
 /// `c_ispeed` of a structure whose input speed was set to 0 (`cfsetispeed(t, 0)`): the input
 /// speed then follows the output speed when applied (POSIX), while `cfgetispeed` reports `B0`.

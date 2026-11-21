@@ -66,7 +66,7 @@ pub fn add_round(bench: &str, outs: [&[u8]; 4], acc: &mut BTreeMap<(String, Stri
 }
 
 fn exe_of(root: &Path, bench: &str) -> PathBuf {
-    if bench.starts_with("cbench_") { root.join(format!("target/liella/bench/{bench}")) } else { root.join(format!("target/release/examples/{bench}")) }
+    if bench.starts_with("cbench_") { root.join(format!("target/niji/bench/{bench}")) } else { root.join(format!("target/release/examples/{bench}")) }
 }
 
 fn run_one(bench: &str, root: &Path, exe: &Path) -> Result<Vec<u8>, String> {

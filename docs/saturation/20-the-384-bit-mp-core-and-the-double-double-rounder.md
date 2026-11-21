@@ -1,7 +1,7 @@
 ## 20. The 384-bit mp core and the double-double rounder (LIBM-MP-CORE-SPEED, 2026-11-05, counted)
 
 Zen 1 host (AMD EPYC 7551), `cargo xtask bench --compare --counters --runs 3 cbench_libm`, instructions per call
-(Liella). Before: base b6353c7b. After: the LIBM-MP-CORE-SPEED code (5d68e879, 6e4aa8cc). Results are bit-identical
+(libniji). Before: base b6353c7b. After: the LIBM-MP-CORE-SPEED code (5d68e879, 6e4aa8cc). Results are bit-identical
 (value and flags) in every mode; see the tests named below.
 
 **What was tried, and what it gave.**
@@ -13,7 +13,7 @@ Zen 1 host (AMD EPYC 7551), `cargo xtask bench --compare --counters --runs 3 cbe
 | `ln10` and lgamma's `ln π` as generated constants (`MP_LN10`, `MP_LN_PI`) in place of the per-call `ln_atanh` series | log10l ran two log series per call | kept; both constants equal the 384-bit truncation (also the nearest value) of an independent 250-digit reference (`ln10_and_ln_pi_constants_are_correctly_rounded`); the digest moved only by the old series' low bits |
 | `elem::direct`: round a normalised double-double to `double`/`float` in each mode, the 256-bit route kept for zero, non-finite, near-limit values and exact ties | 9-20% of every double-double path | kept (`direct_rounding_matches_the_wide_route`, value and Status bit for bit) |
 
-**Counts (instructions per call, Liella before -> after, glibc).** 111 rows on the mp and double-double paths (erf*,
+**Counts (instructions per call, libniji before -> after, glibc).** 111 rows on the mp and double-double paths (erf*,
 lgamma*, tgamma*, j*/y*, `*l`, `*f128`, complex) got 15% to 75% cheaper (median 19%); none of the 169 rows got slower
 than 0.5%.
 

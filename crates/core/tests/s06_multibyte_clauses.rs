@@ -4,21 +4,21 @@
 //! Clause tests for spec §6 (37 clauses).
 //!
 //! The conversions are tested in the built-in encodings: ASCII (the C locale, D-6.7) and UTF-8
-//! (`C.UTF-8`). `iconv` (§6.4) is tested here through `liella::iconv` with the built-in codecs;
+//! (`C.UTF-8`). `iconv` (§6.4) is tested here through `niji::iconv` with the built-in codecs;
 //! the charmap codecs and the exports are compared with the reference library by
 //! `iconv_products.rs` and `charmap_data.rs`.
 
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella::charmap::Charmap;
-use liella::error::Errno;
-use liella::iconv::{self, Conv, Outcome, State as IconvState};
-use liella::locale::Locale;
-use liella::text::{self, Decoded, Encoding, Fed, MbState};
-use liella_abi::ctypes::{c_char, mbstate_t};
-use liella_boundary::posix::s06_multibyte as x;
-use liella_legacy::mb_compat::{self, State, INCOMPLETE};
-use liella_legacy::mb_state::{self, Slot};
+use niji::charmap::Charmap;
+use niji::error::Errno;
+use niji::iconv::{self, Conv, Outcome, State as IconvState};
+use niji::locale::Locale;
+use niji::text::{self, Decoded, Encoding, Fed, MbState};
+use niji_abi::ctypes::{c_char, mbstate_t};
+use niji_boundary::posix::s06_multibyte as x;
+use niji_legacy::mb_compat::{self, State, INCOMPLETE};
+use niji_legacy::mb_state::{self, Slot};
 
 const U: Encoding = Encoding::Utf8;
 const A: Encoding = Encoding::Ascii;
@@ -93,7 +93,7 @@ fn s6_2_c_1_3() {
 fn s6_2_c_1_4() {
     let bad = [i8::from_le_bytes([0x80]), 0 as c_char];
     let r = x::mbrtowc(None, bad.as_ptr(), 1, None);
-    assert_eq!((r, liella_boundary::errno::get()), (usize::MAX, 84));
+    assert_eq!((r, niji_boundary::errno::get()), (usize::MAX, 84));
     assert_eq!(dec(&mut init(), &[0xC3, 0x28], U), Decoded::Invalid);
 }
 
@@ -230,19 +230,134 @@ fn open(to: &str, from: &str) -> Option<Conv> {
     Some(Conv { from: iconv::builtin(f.name)?, to: iconv::builtin(t.name)?, translit: t.translit, ignore: t.ignore, state: IconvState::default() })
 }
 
+/// The matching form of `full`'s name, `None` when it is too long to name anything.
+fn form(full: &[u8]) -> Option<Vec<u8>> {
+    iconv::parse_name(full).name.form(&mut [0; iconv::NAME_MAX]).map(<[u8]>::to_vec)
+}
+
+/// The built-in codec `full` names.
+fn builtin(full: &[u8]) -> Option<iconv::Codec> {
+    iconv::builtin(iconv::parse_name(full).name)
+}
+
 const C_UTF8: Locale = Locale::c_utf8(b"C.UTF-8");
 
 #[test]
 fn s6_4_c_1() {
     for (a, b) in [("UTF-8", "utf-8"), ("UTF-16LE", "utf-16le"), ("ISO-8859-1", "latin1"), ("ISO-8859-1", "L1"), ("ASCII", "ANSI_X3.4-1968"), ("UCS-4", "ISO-10646/UCS4")] {
-        assert_eq!(iconv::builtin(a.as_bytes()), iconv::builtin(b.as_bytes()), "{b} names {a}");
-        assert!(iconv::builtin(b.as_bytes()).is_some());
+        let named = |n: &str| builtin(n.as_bytes());
+        assert_eq!(named(a), named(b), "{b} names {a}");
+        assert!(named(b).is_some());
     }
     let s = iconv::parse_name(b"ascii//translit");
-    assert_eq!((s.name, s.translit, s.ignore), (&b"ascii"[..], true, false), "suffixes on the target, any case");
+    assert_eq!((form(b"ascii//translit"), s.translit, s.ignore), (Some(b"ASCII".to_vec()), true, false), "suffixes on the target, any case");
     let s = iconv::parse_name(b"ASCII//BOGUS");
-    assert_eq!((s.name, s.translit, s.ignore), (&b"ASCII"[..], false, false), "unknown suffixes are ignored");
-    assert!(iconv::builtin(b"NO-SUCH").is_none());
+    assert_eq!((form(b"ASCII//BOGUS"), s.translit, s.ignore), (Some(b"ASCII".to_vec()), false, false), "unknown suffixes are ignored");
+    assert!(builtin(b"NO-SUCH").is_none());
+}
+
+/// The name rule of `iconv_open` (spec/encoding/iconv-names.md): dropped bytes, significant
+/// punctuation, the two-part `/` form and trailing commas, and charmap names compared by it.
+#[test]
+fn s6_4_c_1_name_spellings() {
+    // Clauses: s6_4_c_1.
+    let name = form;
+    for (spelling, want) in [
+        (&b"iso88591"[..], &b"ISO88591"[..]),
+        (b" utf\t-8\xe9+()", b"UTF-8"),
+        (b"UTF-8,,,", b"UTF-8"),
+        (b"UTF-8/", b"UTF-8"),
+        (b"UTF-8,/, ", b"UTF-8"),
+        (b"iso-10646/utf8,", b"ISO-10646/UTF8"),
+        (b"ISO-10646,/UTF8", b"ISO-10646,/UTF8"),
+        (b"ISO-10646//UTF8", b"ISO-10646"),
+        (b"UTF-8,x", b"UTF-8,X"),
+        (b" ,/", b""),
+        (b"iso 10646/ucs4 ", b"ISO10646/UCS4"),
+    ] {
+        assert_eq!(name(spelling), Some(want.to_vec()), "{:?}", String::from_utf8_lossy(spelling));
+        let n = iconv::parse_name(spelling).name;
+        assert_eq!(n.len(), want.len(), "{:?}", String::from_utf8_lossy(spelling));
+        assert!(n.is(want), "{:?} in place is not {:?}", String::from_utf8_lossy(spelling), String::from_utf8_lossy(want));
+    }
+    // Every byte, between two letters: kept (uppercased) when it counts, dropped otherwise; read
+    // both alone and after a dropped byte (the plain-byte shortcut and the full rule).
+    for b in 0..=255u8 {
+        let counts = b.is_ascii_alphanumeric() || b",-./:_".contains(&b);
+        let want: Vec<u8> = if counts { vec![b'A', b.to_ascii_uppercase(), b'B'] } else { b"AB".to_vec() };
+        for spelling in [vec![b'a', b, b'b'], vec![b'a', b' ', b, b'b']] {
+            assert_eq!(name(&spelling), Some(want.clone()), "byte {b:#04x}");
+            assert!(iconv::parse_name(&spelling).name.is(&want), "byte {b:#04x} in place");
+        }
+    }
+    // In place: the plain shortcut (only case may differ) and the byte walk.
+    for (spelling, row, is) in [
+        (&b"utf-8"[..], &b"UTF-8"[..], true),
+        (b"utf_8", b"UTF-8", false),
+        (b"utf8", b"UTF-8", false),
+        (b"UTF-8X", b"UTF-8", false),
+        (b" utf-8+", b"UTF-8", true),
+        (b"utf 8x", b"UTF-8", false),
+        (b"utf-8,", b"UTF-8", true),
+        (b"utf-8, ", b"UTF-8", true),
+        (b"iso-10646/ucs4", b"ISO-10646/UCS4", true),
+        (b"iso-10646/ucs4", b"ISO-10646-UCS4", false),
+        (b"iso-10646/", b"ISO-10646", true),
+    ] {
+        assert_eq!(iconv::parse_name(spelling).name.is(row), is, "{:?} is {:?}", String::from_utf8_lossy(spelling), String::from_utf8_lossy(row));
+    }
+    let s = iconv::parse_name(b"latin1/ /translit");
+    assert_eq!((form(b"latin1/ /translit"), s.translit), (Some(b"LATIN1".to_vec()), true), "suffixes follow the second slash");
+    let s = iconv::parse_name(b"ISO-10646/UCS4/IGNORE");
+    assert_eq!((form(b"ISO-10646/UCS4/IGNORE"), s.ignore), (Some(b"ISO-10646/UCS4".to_vec()), true));
+    assert_eq!(name(&[b'A'; iconv::NAME_MAX + 1]), None, "too long to name anything");
+    assert_eq!(name(&[b'A'; iconv::NAME_MAX]).map(|n| n.len()), Some(iconv::NAME_MAX));
+    let mut spaced = b"UTF-8".to_vec();
+    spaced.resize(400, b' ');
+    assert_eq!(name(&spaced), Some(b"UTF-8".to_vec()), "dropped bytes take no room");
+    assert_eq!(builtin(b"iso88591"), Some(iconv::Codec::Latin1));
+    assert_eq!(builtin(b"utf8,"), Some(iconv::Codec::Utf8));
+    assert_eq!(builtin(b"utf_8"), None, "significant punctuation must match");
+    assert!(iconv::names_charset(b"NF_Z_62-010_(1973)", b"NF_Z_62-010_1973"));
+    assert!(iconv::names_charset(b"cp1252", b"CP1252"));
+    for (listed, asked) in [(&b"CP1252"[..], &b"CP-1252"[..]), (b"CP1252", b"CP1252X"), (b"CP1252", b"CP125"), (b"CP1252", b"CP1251"), (b"KOI8-R", b"KOI8R")] {
+        assert!(!iconv::names_charset(listed, asked), "{:?} is not {:?}", String::from_utf8_lossy(listed), String::from_utf8_lossy(asked));
+    }
+}
+
+#[test]
+fn s6_4_c_1_charmap_aliases() {
+    // Clauses: s6_4_c_1 (spec/encoding/iconv-names.md rule 5: listed names that stand for a charmap).
+    let show = |n: &[u8]| String::from_utf8_lossy(n).into_owned();
+    let rows: Vec<_> = iconv::charmap_aliases().collect();
+    assert!(rows.len() > 100, "the table lost rows: {}", rows.len());
+    for w in rows.windows(2) {
+        assert!(w[0].0 < w[1].0, "not sorted (the lookup is a binary search): {} before {}", show(w[0].0), show(w[1].0));
+    }
+    for &(name, target) in &rows {
+        for n in [name, target] {
+            assert_eq!(form(n), Some(n.to_vec()), "{} is not in matching form", show(n));
+        }
+        assert_ne!(name, target, "{} stands for itself", show(name));
+        assert!(builtin(name).is_none(), "{} is a built-in name", show(name));
+        assert_eq!(iconv::charmap_alias(name), Some(target), "{} is not found", show(name));
+    }
+    assert_eq!(iconv::charmap_alias(b"KOI8R"), Some(&b"KOI8-R"[..]));
+    assert_eq!(iconv::charmap_alias(b"ISO885915"), Some(&b"ISO-8859-15"[..]));
+    assert_eq!(iconv::charmap_alias(b"KOI8-R"), None, "a charmap's own name is no alias");
+    assert_eq!(iconv::charmap_alias(b"koi8r"), None, "looked up in matching form");
+    // A generated charmap (spec/encoding/charmaps.tsv) that carries a row's name must be that
+    // row's charmap: otherwise the name would denote two conversions.
+    let table = include_str!("../../../spec/encoding/charmaps.tsv");
+    for line in table.lines().filter(|l| !l.starts_with('#') && !l.starts_with("name\t")) {
+        let f: Vec<&str> = line.split('\t').collect();
+        let own = f[0].to_ascii_uppercase();
+        for n in f.get(3).copied().unwrap_or("").split_whitespace().chain([f[0]]) {
+            if let Some(t) = iconv::charmap_alias(n.to_ascii_uppercase().as_bytes()) {
+                assert_eq!(show(t), own, "{n} is a name of the generated charmap {own}");
+            }
+        }
+    }
 }
 
 #[test]
@@ -254,6 +369,32 @@ fn s6_4_c_1_1() {
     assert_eq!(out, b"a 1/2 fi", "C.UTF-8: decompositions without marks (D-6.9)");
     let (_, out) = iconv_once("ASCII//TRANSLIT", "UTF-8", "äe\u{301}".as_bytes(), 64, &Locale::C);
     assert_eq!(out, b"?e?", "C: compatibility decompositions only, a mark is '?'");
+}
+
+/// A transliteration met again in one call (D-6.14: kept per call): the same bytes as the first
+/// time, characters that share a table slot (U+00E9 and U+00F1, U+20AC and U+00C4) each keep
+/// their own result, a kept result that does not fit is E2BIG, and every one counts as
+/// irreversible.
+#[test]
+fn iconv_translit_memo_repeats_and_collisions() {
+    // Trace: s6_4_c_1_1 (`//TRANSLIT` approximates them); D-6.14.
+    let one = "é€ñÄ½x\u{2153}";
+    let want: &[u8] = b"eEURnA 1/2 x 1/3 ";
+    let text = one.repeat(3);
+    let (o, out) = iconv_once("ASCII//TRANSLIT", "UTF-8", text.as_bytes(), 256, &C_UTF8);
+    assert_eq!(out, want.repeat(3), "each repeat as the first");
+    assert_eq!((o.result, o.read), (Ok(18), text.len()), "6 irreversible per repeat, all read");
+    // Each character alone: the same bytes as in the mixed text.
+    for (ch, w) in [("é", "e"), ("€", "EUR"), ("ñ", "n"), ("Ä", "A"), ("½", " 1/2 ")] {
+        let (_, out) = iconv_once("ASCII//TRANSLIT", "UTF-8", ch.repeat(2).as_bytes(), 64, &C_UTF8);
+        assert_eq!(out, w.repeat(2).as_bytes(), "{ch} twice");
+    }
+    // A kept result into too little room: E2BIG with what fit, the same as a new derivation.
+    let (o, out) = iconv_once("ASCII//TRANSLIT", "UTF-8", "€€".as_bytes(), 5, &C_UTF8);
+    assert_eq!((o.result, o.read, out.as_slice()), (Err(Errno::E2BIG), 3, &b"EUR"[..]), "the second does not fit");
+    // A character with no transliteration (C: a mark gives '?') repeated, and IGNORE drops nothing.
+    let (o, out) = iconv_once("ASCII//TRANSLIT//IGNORE", "UTF-8", "ä一ä一".as_bytes(), 64, &Locale::C);
+    assert_eq!((o.result, out.as_slice()), (Ok(4), &b"????"[..]), "C: '?' each time");
 }
 
 #[test]
@@ -319,7 +460,7 @@ fn s6_4_c_5() {
 #[test]
 fn s6_4_f_1() {
     assert!(open("UTF-8", "NO-SUCH").is_none());
-    assert!(iconv::builtin(b"").is_none(), "the empty name is the locale's codeset, resolved by the exports");
+    assert!(builtin(b"").is_none(), "the empty name is the locale's codeset, resolved by the exports");
     assert_eq!(iconv::of_locale(&Locale::C), iconv::Codec::Ascii);
     assert_eq!(iconv::of_locale(&C_UTF8), iconv::Codec::Utf8);
 }
@@ -432,7 +573,7 @@ fn s6_2_c_6() {
 
 /// In a child with the C.UTF-8 locale: the result of `f`.
 fn utf8<T: std::fmt::Debug + PartialEq>(f: impl FnOnce() -> T, want: T) {
-    use liella_boundary::posix::s07_locale as lx;
+    use niji_boundary::posix::s07_locale as lx;
     let c = std::ffi::CString::new("C.UTF-8").unwrap();
     let loc = lx::newlocale(0x1fbf, c.as_ptr(), core::ptr::null_mut());
     assert!(!loc.is_null());

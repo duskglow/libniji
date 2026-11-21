@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     scpy_fn(a, s);
     n += cmp_fn(a, b) + ncmp_fn(a, "hello", 5) + mcmp_fn(a, b, (size_t)n);
     /* HOT-ORDER-3: memcmp's head probe covers 8..64 bytes only; under 8 it tail-jumps to
-       liella_hot_compare_rest, which a long compare never reaches (page_faults.c "strings": 1 fault). */
+       niji_hot_compare_rest, which a long compare never reaches (page_faults.c "strings": 1 fault). */
     n += mcmp_fn(a, "hel", 3);
     n += chr_fn(a, ':') != NULL;
     n += rchr_fn(a, 't') != NULL;

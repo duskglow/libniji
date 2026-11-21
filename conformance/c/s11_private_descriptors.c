@@ -38,7 +38,7 @@ int main(void)
 {
     char path[512];
     const char *dir = getenv("TMPDIR");
-    snprintf(path, sizeof path, "%s/liella-privfd-%d", dir && *dir ? dir : "/tmp", (int)getpid());
+    snprintf(path, sizeof path, "%s/niji-privfd-%d", dir && *dir ? dir : "/tmp", (int)getpid());
     int f = open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
     if (f < 0 || write(f, "abcd", 4) != 4)
         return 100;

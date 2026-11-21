@@ -1,0 +1,10 @@
+id = "D-27.55"
+section = "s26-29"
+spec = "§27"
+ann = "—"
+status = "active"
+story = "DL-LIBSTDCXX-2"
+date = "2026-11-15"
+body = '''
+**`STB_GNU_UNIQUE` bindings without a fixed table (DL-LIBSTDCXX, GitHub #4).** One definition per (name, version) for the process (spec/behaviour/dynlink.md "Symbol binding"); no count of unique names may make a load fail. The start (`boundary/src/ld.rs`) binds through `liella_ld::symbols::ScopeOrder`, a registry that records nothing: every start relocation searches the one global scope (a `COPY` without the program), so the first object in that order that defines a unique name already is its definition (Debian's libstdc++.so.6 binds 106 unique names; the former 64-entry start table ran out and the load failed). `dlopen` and `dlsym` (`boundary/src/ld/dlopen.rs`) keep `liella_ld::reloc::GrowTable`: (name, version) keys in a byte stack and entries in another, each a `MapStack`, an anonymous private mapping of its own grown by `mremap` (the loader calls no allocator under its lock); an all-zero stack is empty, so the zeroed loader state needs no set-up. A name missing from it falls back to the start's binding, the first unique definition in the start's global scope. A failed `dlopen` rolls the table back to its mark (keys' bytes included). Only a mapping that cannot be made or grown fails a binding, and the text then says so (`<object>: cannot allocate memory for the unique symbol table`, `liella_ld::symbols::UNIQUE_NO_MEMORY`), never "malformed symbol tables", which stays for tables that are. Proof: `crates/ld/tests/unique_start.rs` (200 unique names in two start libraries, a late library, `dlsym` through its handle before any other lookup of a name no relocation names, and 1500 new unique names with about 100 KiB of keys in two late libraries), `crates/ld/tests/unique_table.rs` (growth, rollback, out-of-memory leaves the table as it was, the text); plants handoff/DL-LIBSTDCXX-plants.txt and handoff/DL-LIBSTDCXX-2-plants.txt.
+'''

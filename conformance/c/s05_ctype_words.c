@@ -131,7 +131,7 @@ static void one_thread(void) {
     freelocale(c);
     expect("global C again", pb, pu, pl, 0);
     /* The active object given to newlocale as its base (D-7.13; in a child, since the thread's
-     * locale is then the consumed base): Liella reuses the block (D-7.3) and the view follows
+     * locale is then the consumed base): libniji reuses the block (D-7.3) and the view follows
      * the changed object; glibc returns a new object (probe 2a4d6d50f8da), the active one is
      * then undefined and nothing is checked. */
     pid_t q = fork();

@@ -1,5 +1,7 @@
-//! `cargo xtask affected [--base <ref>] [--files <path>...] [--only <names>] [--list | --run]`: run only the tests a
-//! change can affect (PR-4; owner item: token cost).
+//! `cargo xtask affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>]`: list (`--list`) or run
+//! (`--run`) only the tests a change can affect (PR-4; owner item: token cost). One of `--list` and `--run` is required:
+//! without either the command prints the one-line usage and exits 2 (XTASK-AFFECTED-EXPLICIT; a gate that forgot `--run`
+//! listed the selection, ran nothing and exited 0).
 //!
 //! Compiling the workspace is cheap; the nine thousand tests and the conformance programs are
 //! the cost. This command maps the changed files to the tests that can reach them, CONSERVATIVELY:
@@ -16,14 +18,22 @@
 //! # Rules, in order of precedence
 //!
 //! 1. ESCALATE TO FULL (everything: the workspace clippy and `cargo xtask test`): `csys/` (but
-//!    the assembly sources, rule 6), `crates/abi`, build scripts, `Cargo.toml`/`Cargo.lock`, the
-//!    toolchain file, `xtask/` (but this module and the audit modules, rule 7), the generated tables and their inputs (`spec/clauses.tsv`, `symbols.tsv`,
+//!    the assembly sources, rule 6), `crates/abi`, build scripts, `Cargo.toml`/`Cargo.lock` (but `fuzz/`'s own
+//!    workspace, which selects only `fuzz-check`), the
+//!    toolchain file, `xtask/` (but this module, the audit and tool modules, rule 7, and xtask test code: `xtask/tests/`
+//!    or a source whose base diff stays inside its trailing `#[cfg(test)]` module, D-X.41), the generated tables and their inputs (`spec/clauses.tsv`, `symbols.tsv`,
 //!    `primitives.tsv`, `spec/abi`, `spec/unicode`, `*_gen.rs`, `tables.rs`, `builtin_items.rs`,
-//!    `include/`, the math fits and coefficients), the product crates, linker and export lists,
+//!    `include/`; but the math wiring, coefficients, fits and tables generator, rule 8), the product crates, linker and export lists,
 //!    any non-Rust file under a crate's `src/`, and any path this table does not know.
-//! 2. DOCS ONLY (`docs/`, `plan/`, `handoff/`, `*.md`, `spec/behaviour`, `spec/schedule.tsv`, and the
-//!    operator tools under the top-level `tools/`, e.g. the probe service, which no test reaches):
-//!    `stubs` (which runs `trace`) and the policy checks, no tests.
+//! 2. DOCS ONLY (`docs/`, `plan/`, `handoff/`, `results/`, top-level `*.md`, `spec/**/*.md`, `spec/behaviour`,
+//!    `spec/schedule.tsv`, and the operator tools under the top-level `tools/`): `stubs` (which runs `trace`), the
+//!    policy checks and `cargo xtask static`, no tests; but a file that code names as a path (a quoted path on a
+//!    non-comment line, e.g. a test's `spec/behaviour/*.glibc.txt` record, `docs/codemap/symbols.tsv`, which this
+//!    command reads, or a tool a test runs, `tools/probe/probe`) selects its readers: that test target, the crate's
+//!    unit tests, or the xtask tests (unit and `xtask/tests/`) (XTASK-AFFECTED-DOCS-PATHS, D-X.35). A tool a test
+//!    reaches without naming it (run by another tool, or found by listing its directory) selects the readers of
+//!    the path the test names, through the `TOOL_REACH` table (XTASK-AFFECTED-TOOL-TESTS). A tool that no test
+//!    reaches selects no tests.
 //! 3. A conformance program (`conformance/c/*.c`): that program, and the tests that name it.
 //!    A header `conformance/c/*.h`: the programs that `#include` it (none: every program) and
 //!    the tests that name it. `conformance/run.sh` and `conformance/tools`: every conformance program.
@@ -41,20 +51,51 @@
 //!    * every other crate (`kernel`, `rt`, `mem`, `ld`, `native`, `thread-db`, ...), a root file:
 //!      WIDE: every test target of every crate that depends on it (dev-dependencies included),
 //!      directly or not, and every conformance program.
+//!    * "Depends" (both bullets, every tier; XTASK-AFFECTED-LOADER): a crate's own dependencies always count; a
+//!      dependency's onward edge counts only when that crate's test build compiles a module naming the next crate
+//!      (`build_closures`: the features each crate gets in that build, `#[cfg(feature)]`/`any(feature)` module
+//!      gates). niji-math takes boundary with `selftest`, and boundary uses niji-ld only in the product-only
+//!      `bootstrap`, `ld` and `arch`: a loader change no longer selects niji-math's suites.
 //! 5. A test file: that target, and the targets of the crate that name the file (`#[path]`,
 //!    `include!`); a file in a support directory of `tests/`: every target that names the
 //!    directory. Examples, benches and other crate files: clippy only.
 //! 6. An assembly source of csys (`csys/src/**/*.S`): its symbols (`.globl`/`.weak` names and
-//!    `liella_` labels) are followed to the Rust files and conformance programs that use them
+//!    `niji_` labels) are followed to the Rust files and conformance programs that use them
 //!    (declarations in `extern` blocks and C prototypes do not count), and each user is selected
 //!    as if it had changed (rules 3 to 5), plus the tests that name the file and clippy of the
 //!    crate whose build script compiles csys. Computed on every run from the tree, so it cannot
 //!    go stale. FULL when unsure: a new, deleted or generated file, a C source, a macro,
-//!    `#include` or `.set` (which can define symbols unseen), a symbol not prefixed `liella_`
+//!    `#include` or `.set` (which can define symbols unseen), a symbol not prefixed `niji_`
 //!    (may be exported C ABI), a symbol named by another csys source, a link list, a script or
 //!    xtask, or no user at all.
 //! 7. An xtask audit/report module (`XTASK_AUDITS`: policy, symgap, status, schedule, plants): the
 //!    xtask unit tests, clippy, the policy checks and the module's own command.
+//!    XTASK-AFFECTED-XTASK (#4684): an xtask tool module off the product path (`XTASK_TOOLS`: the records and view
+//!    tools, the source checks of `cargo xtask static`, the bench and report commands): the xtask unit tests, clippy
+//!    and `cargo xtask static`. The product build, its image tools, the generators, the test runners and `main.rs` stay
+//!    FULL (a `hottext.rs` change also selects the start-up layout tests).
+//! 8. XTASK-AFFECTED-MATH (ruling #3188): the math export wiring (`crates/boundary/src/posix/s10_math.tsv`,
+//!    `s10_math_gen.rs`, `csys/src/adapter/math_*.c`) selects the math export tests (`Selection::math_exports`: the
+//!    `s10_math_gen` module as if changed, every `niji-math` target, every target whose own source names `s10_math`
+//!    or `libm` or carries section 10, the conformance programs of section 10 or calling a math export) plus `cargo
+//!    xtask math-gen --check`; a coefficient file `crates/math/src/coeffs/<family>.rs` selects the `coeffs` module as if
+//!    changed, the same math export tests and `cargo xtask tables --check`. XTASK-AFFECTED-MATH-2 (ruling #3204): a
+//!    fit file `crates/math/fits/<name>.fit` selects what a coefficient file selects plus `cargo xtask remez --check
+//!    <fit>` (a removed fit: FULL); the tables generator `crates/mathtools/src/tables.rs` selects its own mapping as a
+//!    `niji-mathtools` source, what a coefficient file selects, and `cargo xtask tables --check` / `kernel-index
+//!    --check`. In every tier but `--tier full`; the other files under `fits/` (the `.py` table scripts, subdirectories),
+//!    other generated files and anything else of rule 1 still escalate.
+//! 9. XTASK-AFFECTED-LAYOUT, in addition to every rule above and in every tier: a change that can reach `libc.a`
+//!    (`Repo::reaches_image`: a source, data file, manifest or build script of a crate the libc product links through
+//!    normal dependencies, outside modules compiled only for tests or only under a feature the product does not
+//!    enable; csys sources and headers; `crates/libc-so/`; the image tools) selects the start-up layout tests
+//!    (`LAYOUT_TESTS`). Their programs link statically against `libc.a`, so growth anywhere in it can move start-up
+//!    pages. Not selected for `ld.so`-only code (boundary's `ld` feature), other crates, tests and docs.
+//! 10. HEADERS-ABI-REGEN, in addition and in every tier: a generator's input or output (`GEN_PRECHECKS`, e.g.
+//!     `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in
+//!     process; a red one ends the run in seconds, before an escalated FULL run starts. HANDBACK-INLOOP-CHECKS: a run
+//!     that escalates to FULL, for any reason, first runs every seconds-long FULL step (`precheck::CHEAP_STEPS`,
+//!     `stubs` first) the same way (`prechecks`).
 //!
 //! TIERS (GATE-TIER, coordinator ruling 10-11): `--tier direct` (the DEFAULT, per-fix gates) applies rule 4 to EVERY
 //! crate's non-root module through `Selection::narrow_direct`: the changed module, its one-hop users, the targets
@@ -62,7 +103,28 @@
 //! whose bodies name one of them (the products tests reach code only through C entries); no reverse
 //! closure, no section 0, no "carries no section". Rules 1-3 and 5-7 (and every escalation to FULL) are unchanged.
 //! `--tier wide` is the rule 4 above; `--tier full` runs everything, as the landing gate (`cargo xtask test`) does.
+//! GATE-DEV-NO-FULL (owner, 11-19): in `direct` and `wide` no escalation runs FULL; the CI train runs the FULL gate on
+//! the merged tree. Each escalated file selects a bounded set by its class (`TrainClass`: xtask code, the image's
+//! bottom layers, generated tables and inputs, build configuration, unknown paths) plus `cargo xtask static` and every
+//! cheap FULL step, and the plan prints `FULL: the train's (<file>: <reason>)` where the FULL line was. `bench-rows`
+//! (`select_opts`) and `--reverse` attribution still see the escalations as FULL. The classes and why each bounded set
+//! catches what a change of its class most likely breaks are the decision record D-X.142
+//! (`records/decisions/D-X/D-X.142.toml`); this doc holds the rules: `TrainClass::of` classifies (xtask code; csys,
+//! `crates/abi`, the product crates, `crates/native/link`, linker and version lists, `scripts/`; generated tables and
+//! inputs; build scripts, manifests, the toolchain and cargo configuration; anything else), `Selection::bounded`
+//! selects (`XTASK_TRAIN` per xtask module).
+//! GATE-BOUNDED-PARALLEL (same record): a non-FULL run that selects both the xtask tests and the products build runs
+//! the xtask unit tests and every xtask target that runs no products (`names_products`) BESIDE the products build when
+//! the memory limit holds `SIDE_BY_SIDE_BYTES` (else the products first, then those tests), then the xtask targets that
+//! run products, on the fresh products. Each step keeps its own console lines and log; any red step makes the run red.
 //! `--replay <records>` checks that the failures of past gates fall inside a tier (`replay`).
+//!
+//! `--reverse` (XTASK-AFFECTED-REVERSE, attribution for a train gate): given the failed tests (`--failed <id>...` as
+//! the summary's `FAILED: <id>` lines name them, or `--failed-from <log>`) and each merged branch's changed files
+//! (`--branch <name>=<file-list>`), which branches select each failed test, with the file and rule. It runs the forward
+//! selection per branch (`select_tier`) and asks the same membership rule as `replay` (`selects`), so the two
+//! directions cannot disagree. A branch that escalates to FULL selects everything and is reported as such (low
+//! confidence). JSON on stdout, a summary on stderr; the shape is in `REVERSE_HELP` (`affected --help`).
 //!
 //! `--only <names>` (red/green runs): exactly the named test targets, `conformance:<program>`,
 //! `lib:<crate>` or `xtask`, without stubs, policy checks or clippy; labelled NOT A GATE in the
@@ -78,11 +140,39 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::Instant;
+use std::process::{Command, ExitCode, Stdio};
+use std::time::{Duration, Instant};
 
 /// Crates whose changes are narrowed through the module graph.
-const NARROW: &[&str] = &["liella", "liella-boundary", "liella-legacy", "liella-math"];
+const NARROW: &[&str] = &["niji", "niji-boundary", "niji-legacy", "niji-math"];
+/// xtask sources that name csys symbols only to check the csys source or products, from `cargo xtask static` and
+/// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol. `so.rs` names the interpreter's
+/// entry (its pre-relocation check) and the targets of its tool-name aliases (`niji_machine_strlen`,
+/// VALGRIND-LDSO-SYMBOLS), which its own link checks refuse when they go missing.
+const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs", "xtask/src/so.rs"];
+
+/// The layout contracts (D-X.48): the manifest names the csys symbols whose placement it holds, and its checker names
+/// them in its unit tests. A csys symbol named here selects `cargo xtask layout-check` on fresh products, not FULL.
+const LAYOUT_CONSUMERS: &[&str] = &["layout/contracts.tsv", "xtask/src/layout.rs"];
+const LAYOUT_CHECK: &str = "layout-check";
+
+/// XTASK-AFFECTED-LAYOUT: the libc product. The programs of [`LAYOUT_TESTS`] link `-static -nostdlib` against
+/// `niji-crt1.o` and `libc.a` only (never `ld.so` or `libm.a`), so what this manifest links is what they measure.
+const IMAGE_MANIFEST: &str = "crates/libc-so/Cargo.toml";
+
+/// XTASK-AFFECTED-LAYOUT: the test targets that measure the linked image of a static program rather than one
+/// function: the start-up and short-program page-fault bounds, the hot-text range and the start-up `.rodata1` /
+/// `.data1` sections (`hot_text_products`), the first allocation's text and metadata pages (`heap_meta_products`)
+/// and the `.lbss` placement of `libc.a`'s large tables (`cold_bss_products`). Code or data growth anywhere in
+/// `libc.a` can move start-up pages (CI trains 582/583: a libm change pushed two fault bounds over), so every change
+/// that reaches the image selects them. They need the products, so `cargo xtask so` runs first, and its end runs
+/// every layout contract (`layout::check_products`, D-X.48/D-X.49) as well.
+/// `cargo xtask plants` builds a plant whose command names one of them traced (PLANTS-UNGROUPED-MUTANTS).
+pub(crate) const LAYOUT_TESTS: &[(&str, &str)] = &[("niji", "hot_text_products"), ("niji", "heap_meta_products"), ("niji", "cold_bss_products")];
+
+/// XTASK-AFFECTED-LAYOUT: xtask sources that shape the image itself (the hot-text grouping, the start-up state
+/// move, the archive build). They escalate to FULL anyway; named so the rule says what it covers.
+const IMAGE_TOOLS: &[&str] = &["xtask/src/hottext.rs", "xtask/src/coldbss.rs", "xtask/src/so.rs"];
 
 // ---------------------------------------------------------------------------------------------
 // The repository model
@@ -91,6 +181,9 @@ struct Crate {
     name: String,
     dir: String,
     deps: BTreeSet<String>,
+    /// The package has a library target (`src/lib.rs` or a `[lib]` section). A bin-only package (xtask) has no
+    /// `--lib`: its unit tests are those of its bin targets (XTASK-AFFECTED-XTASK-TESTS).
+    lib: bool,
 }
 
 struct Node {
@@ -172,7 +265,7 @@ pub struct Repo {
     /// `csys/src/...` path -> its symbols.
     csys: BTreeMap<String, CsysFile>,
     /// GATE-TIER-2: C symbol -> its Rust definitions (`entries_of`), plus the csys-defined symbols that
-    /// `docs/codemap/symbols.tsv` maps to a Rust entry (`printf` -> `liella_vfprintf4`).
+    /// `docs/codemap/symbols.tsv` maps to a Rust entry (`printf` -> `niji_vfprintf4`).
     entries: BTreeMap<String, Vec<Entry>>,
     /// GATE-TIER-2: modules named by the bodies of at least a sixth of all entries (`stdio`, `conv`, `ret`, ...): like
     /// `hubs`, an entry reaches a change through them only when they changed themselves.
@@ -182,10 +275,26 @@ pub struct Repo {
     /// TOOLS-7 (3): `git diff -U0` of `csys/include/` against the base, which the sync writes to `.changed.hdr` (a VM
     /// tree has no history). `None`: not available, so a changed header is not mapped (FULL).
     hdr_diff: Option<String>,
+    /// XTASK-AFFECTED-MATH-2: the fit files in the tree (`crates/math/fits/<name>.fit`). A changed fit that is not
+    /// here was removed, and `cargo xtask remez --check` cannot check it: FULL.
+    fits: BTreeSet<String>,
+    /// XTASK-AFFECTED-DOCS-PATHS: the xtask sources (path, text) that may read a documentation file; this command's own
+    /// unit tests are left out (they name made-up paths, not files they read). XTASK-AFFECTED-TOOL-TESTS: with the
+    /// integration tests under `xtask/tests/`.
+    xtask_texts: Vec<(String, String)>,
+    /// XTASK-AFFECTED-EXAMPLES: the crates' example programs, `<crate dir>/examples/<name>.rs` (path, text): which
+    /// example a file of a module directory `examples/<d>/` belongs to (`example_steps`).
+    examples: Vec<(String, String)>,
+    /// XTASK-AFFECTED-XTASK-TESTS (D-X.41): `git diff -U0` of `xtask/` against the base (from git, else the file
+    /// `.changed.xtask` a sync may write). `None`: no diff, so a changed xtask source cannot be shown to touch only
+    /// its test module (FULL, as before).
+    xtask_diff: Option<String>,
+    /// XTASK-AFFECTED-LAYOUT: what `libc.a` links (`image_of`, from the manifests and crate roots).
+    image: Image,
 }
 
 /// The symbols an assembly source of csys defines: the `.globl`/`.global`/`.weak` names and every
-/// label at column 0 that starts with `liella_`. `None` when the file can define symbols this
+/// label at column 0 that starts with `niji_`. `None` when the file can define symbols this
 /// reading does not see (a macro, `#define`, `#include`, `.set`/`.equ`): unmappable. A one-line `.symver a, name@VER` alias is mapped (it defines `a` and `name`).
 /// C sources are not read (definitions behind macros and multi-line declarators need the
 /// compiler to be sure): `None`.
@@ -194,9 +303,35 @@ fn csys_symbols(path: &str, text: &str) -> Option<Vec<String>> {
         return None;
     }
     let mut out = Vec::new();
+    let mut in_macro = false;
     for l in text.lines() {
         let t = l.trim_start();
         let first = t.split([' ', '\t']).next().unwrap_or("");
+        // CLASSED-SLOT-INFRA (D-4.53): a `.macro` body that declares nothing global and labels only `.L` locals defines no
+        // symbol where it is written (its expansions are read where they occur); a `#define` of an upper-case name to a
+        // number literal renames nothing. Anything else in either stays unmappable.
+        if in_macro {
+            let label = l.split_once(':').is_some_and(|(x, _)| !x.is_empty() && !x.starts_with(".L") && !x.contains([' ', '\t']));
+            if first == ".endm" {
+                in_macro = false;
+            } else if label || matches!(first, ".macro" | ".globl" | ".global" | ".weak" | ".symver" | ".set" | ".equ" | ".equiv" | "#define" | "#include") {
+                return None;
+            }
+            continue;
+        }
+        if first == ".macro" {
+            in_macro = true;
+            continue;
+        }
+        if first == "#define" {
+            let mut w = t[first.len()..].split_whitespace();
+            let name_ok = w.next().is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_'));
+            let value_ok = w.next().is_some_and(|v| v.bytes().all(|b| b.is_ascii_hexdigit() || b == b'x')) && w.next().is_none();
+            if name_ok && value_ok {
+                continue;
+            }
+            return None;
+        }
         if matches!(first, ".macro" | "#define" | "#include" | ".set" | ".equ" | ".equiv" | ".include" | ".irp" | ".rept") {
             return None;
         }
@@ -216,7 +351,7 @@ fn csys_symbols(path: &str, text: &str) -> Option<Vec<String>> {
         }
         if let Some(rest) = t.strip_prefix(".globl").or_else(|| t.strip_prefix(".global")).or_else(|| t.strip_prefix(".weak")) {
             out.extend(rest.split([' ', '\t', ',']).filter(|w| !w.is_empty()).map(String::from));
-        } else if l.starts_with("liella_") {
+        } else if l.starts_with("niji_") {
             if let Some((label, _)) = l.split_once(':') {
                 out.push(label.trim().to_string());
             }
@@ -436,7 +571,7 @@ fn tokens(text: &str) -> Vec<Tok> {
 /// Module references of a Rust text. A path rooted at a crate's library name names that crate's
 /// module (its second segment); `crate`, `self`, `super` and a bare root name a module of the
 /// crate the text is in; paths into `std`, `core` and `alloc` are not ours. In a `use` tree every
-/// path is resolved the same way (`use liella::{printf, fs::dir}` names `printf` and `fs`). A
+/// path is resolved the same way (`use niji::{printf, fs::dir}` names `printf` and `fs`). A
 /// `mod` declaration is not a reference. `aliases` maps library names to package names.
 fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
     let toks = tokens(text);
@@ -606,7 +741,291 @@ fn test_only_modules(nodes: &[Node]) -> BTreeSet<(String, String)> {
     out
 }
 
+/// XTASK-AFFECTED-LAYOUT: what `libc.a` links.
+#[derive(Default)]
+struct Image {
+    /// The directories of the crates linked into `libc.a`: the normal dependencies of [`IMAGE_MANIFEST`], transitively
+    /// (dev and build dependencies never reach the archive).
+    dirs: BTreeSet<String>,
+    /// `(crate, module)` that a crate root declares only under `#[cfg(feature = "X")]` for a feature the libc
+    /// product does not enable (boundary's `ld` modules: the interpreter's start, built into `ld.so` only).
+    off: BTreeSet<(String, String)>,
+}
+
+/// The normal dependencies of a manifest (`[dependencies]`, `[target.*.dependencies]`; not dev or build) and the
+/// features each edge enables: `Some` for an inline `features = [...]` or none, `None` when the edge can enable
+/// features this reading does not see (`workspace = true`, a `[dependencies.<name>]` table).
+fn link_deps(text: &str) -> BTreeMap<String, Option<BTreeSet<String>>> {
+    dep_edges(text, "dependencies", None)
+}
+
+/// The edges of one dependency table `kind` (`dependencies`, `dev-dependencies`, `workspace.dependencies`; the
+/// `[target.*.<kind>]` tables too) and the features each enables, as [`link_deps`]. XTASK-AFFECTED-LOADER: with `ws`
+/// (the root manifest's `workspace.dependencies`), a `workspace = true` edge enables its own list plus the workspace
+/// entry's, `None` when that entry is unknown.
+fn dep_edges(text: &str, kind: &str, ws: Option<&BTreeMap<String, Option<BTreeSet<String>>>>) -> BTreeMap<String, Option<BTreeSet<String>>> {
+    let mut out: BTreeMap<String, Option<BTreeSet<String>>> = BTreeMap::new();
+    let mut section = String::new();
+    for line in text.lines() {
+        let l = line.trim();
+        if let Some(h) = l.strip_prefix('[') {
+            section = h.trim_end_matches(']').trim_matches('[').to_string();
+            if let Some(d) = section.strip_prefix(&format!("{kind}.")) {
+                out.insert(d.to_string(), None);
+            }
+            continue;
+        }
+        if !(section == kind || (section.starts_with("target.") && section.ends_with(&format!(".{kind}")))) {
+            continue;
+        }
+        let Some((key, value)) = l.split_once('=') else { continue };
+        let key = key.trim();
+        if key.is_empty() || key.starts_with('#') || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+            continue;
+        }
+        let name = match value.split_once("package") {
+            Some((_, p)) if p.trim_start().starts_with('=') => p.split('\u{22}').nth(1).unwrap_or(key).to_string(),
+            _ => key.to_string(),
+        };
+        let list = value.match_indices("features").find_map(|(i, _)| value[i + "features".len()..].trim_start().strip_prefix('=')?.trim_start().strip_prefix('[')?.split_once(']').map(|(l, _)| l));
+        let own: BTreeSet<String> = list.unwrap_or_default().split('\u{22}').skip(1).step_by(2).map(String::from).collect();
+        let feats: Option<BTreeSet<String>> = match (value.contains("workspace"), ws) {
+            (false, _) => Some(own),
+            (true, Some(ws)) => ws.get(&name).cloned().flatten().map(|w| w.into_iter().chain(own).collect()),
+            (true, None) => None,
+        };
+        let slot = out.entry(name).or_insert_with(|| Some(BTreeSet::new()));
+        match (slot.as_mut(), feats) {
+            (Some(s), Some(f)) => s.extend(f),
+            _ => *slot = None,
+        }
+    }
+    out
+}
+
+/// The features a manifest's `[features]` table turns on for `enabled` (plus `default`), followed through the table;
+/// another crate's features (`crate/feature`, `dep:`) are left out.
+fn features_on(manifest: &str, enabled: &BTreeSet<String>) -> BTreeSet<String> {
+    let mut table: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut section = "";
+    for l in manifest.lines().map(str::trim) {
+        if l.starts_with('[') {
+            section = l;
+            continue;
+        }
+        if section == "[features]" {
+            if let Some((k, v)) = l.split_once('=') {
+                table.insert(k.trim().to_string(), v.split('\u{22}').skip(1).step_by(2).map(String::from).collect());
+            }
+        }
+    }
+    let mut on: BTreeSet<String> = enabled.iter().cloned().chain(std::iter::once("default".to_string())).collect();
+    let mut stack: Vec<String> = on.iter().cloned().collect();
+    while let Some(f) = stack.pop() {
+        for g in table.get(&f).into_iter().flatten().filter(|g| !g.contains('/') && !g.starts_with("dep:")) {
+            if on.insert(g.clone()) {
+                stack.push(g.clone());
+            }
+        }
+    }
+    on
+}
+
+/// The modules a crate root declares under exactly `#[cfg(feature = "X")]`, `(X, module)`. Any other cfg (`any(..)`,
+/// stacked attributes) is not read: the module counts as linked.
+fn feature_gated_modules(root_text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut gate: Option<&str> = None;
+    for l in root_text.lines().map(str::trim) {
+        if let Some(rest) = l.strip_prefix("#[cfg(feature = \u{22}") {
+            gate = if gate.is_none() { rest.strip_suffix("\u{22})]") } else { None };
+            continue;
+        }
+        if l.starts_with("#[cfg") {
+            gate = None;
+            continue;
+        }
+        if l.starts_with("#[") || l.starts_with("//") || l.is_empty() {
+            continue;
+        }
+        if let Some(f) = gate {
+            if let Some(m) = l.strip_prefix("pub ").unwrap_or(l).strip_prefix("mod ") {
+                out.push((f.to_string(), m.trim_end_matches([';', '{', ' ']).to_string()));
+            }
+        }
+        gate = None;
+    }
+    out
+}
+
+/// XTASK-AFFECTED-LAYOUT: the crates `libc.a` links and their modules left out by feature (`Image`).
+fn image_of(root: &Path, crates: &[Crate], nodes: &[Node]) -> Image {
+    let mut img = Image::default();
+    let mut feats: BTreeMap<String, Option<BTreeSet<String>>> = BTreeMap::new();
+    let mut stack: Vec<(String, Option<BTreeSet<String>>)> = link_deps(&read(&root.join(IMAGE_MANIFEST))).into_iter().collect();
+    while let Some((name, f)) = stack.pop() {
+        let Some(c) = crates.iter().find(|c| c.name == name) else { continue };
+        let slot = feats.entry(name.clone()).or_insert_with(|| Some(BTreeSet::new()));
+        match (slot.as_mut(), f) {
+            (Some(s), Some(f)) => s.extend(f),
+            _ => *slot = None,
+        }
+        if img.dirs.insert(c.dir.clone()) {
+            stack.extend(link_deps(&read(&root.join(&c.dir).join("Cargo.toml"))));
+        }
+    }
+    for c in crates.iter().filter(|c| img.dirs.contains(&c.dir)) {
+        let Some(Some(enabled)) = feats.get(&c.name) else { continue };
+        let on = features_on(&read(&root.join(&c.dir).join("Cargo.toml")), enabled);
+        for n in nodes.iter().filter(|n| n.root && n.krate == c.name) {
+            img.off.extend(feature_gated_modules(&n.text).into_iter().filter(|(x, _)| !on.contains(x)).map(|(_, m)| (c.name.clone(), m)));
+        }
+    }
+    img
+}
+
+/// XTASK-AFFECTED-LOADER: the features `affected --run` adds to every crate's test build (its second pass).
+const RUN_FEATURES: &[(&str, &[&str])] = &[("niji-boundary", &["export", "selftest"])];
+
+/// XTASK-AFFECTED-LOADER: the modules a crate root declares under `#[cfg(feature = "X")]` or
+/// `#[cfg(any(feature = "X", feature = "Y", ...))]`, with the features any of which compiles them in. Any other cfg
+/// (`all`, `not`, stacked attributes) is not read: the module counts as compiled.
+fn module_gates(root_text: &str) -> Vec<(BTreeSet<String>, String)> {
+    let mut out = Vec::new();
+    // Some(Some(features)): the next item is gated on any of them; Some(None): by a cfg this reading does not follow.
+    let mut gate: Option<Option<BTreeSet<String>>> = None;
+    for l in root_text.lines().map(str::trim) {
+        if let Some(c) = l.strip_prefix("#[cfg(").and_then(|r| r.strip_suffix(")]")) {
+            let inner = c.strip_prefix("any(").and_then(|r| r.strip_suffix(')')).unwrap_or(c);
+            let set: Option<BTreeSet<String>> = inner
+                .split(',')
+                .map(|p| p.trim().strip_prefix("feature").and_then(|r| r.trim_start().strip_prefix('=')).and_then(|r| r.trim().strip_prefix('\u{22}')?.strip_suffix('\u{22}')).map(String::from))
+                .collect();
+            gate = Some(if gate.is_none() { set } else { None });
+            continue;
+        }
+        if l.starts_with("#[cfg") {
+            gate = Some(None);
+            continue;
+        }
+        if l.starts_with("#[") || l.starts_with("//") || l.is_empty() {
+            continue;
+        }
+        if let Some(Some(fs)) = gate.take() {
+            if let Some(m) = l.strip_prefix("pub ").unwrap_or(l).strip_prefix("mod ") {
+                out.push((fs, m.trim_end_matches([';', '{', ' ']).to_string()));
+            }
+        }
+    }
+    out
+}
+
+/// XTASK-AFFECTED-LOADER: per crate, the workspace crates its test build compiles code of (dev-dependencies
+/// included), transitively. The crate's own edges always count. A dependency's edge onward (`B` -> `C`) counts
+/// only when a module of `B` that names `C` is compiled in with the features `B` gets in that build (the union of
+/// every edge into `B` there, plus [`RUN_FEATURES`]): niji-math's tests take boundary with `selftest`, and the
+/// boundary modules that use niji-ld (`bootstrap`, `ld`, `arch`) are built only for the libc and ld.so
+/// products, so a loader change does not reach niji-math's suites (DL-INIT-ORDER-2 ran them for 2203 s). Kept
+/// whenever this cannot tell: features unknown (a `workspace = true` entry with its own features, a crate whose
+/// features another crate's feature table sets), no module of `B` names `C` (a use this reading does not see).
+fn build_closures(root: &Path, crates: &[Crate], nodes: &[Node]) -> BTreeMap<String, BTreeSet<String>> {
+    type Edges = BTreeMap<String, Option<BTreeSet<String>>>;
+    let names: BTreeSet<&str> = crates.iter().map(|c| c.name.as_str()).collect();
+    let top = read(&root.join("Cargo.toml"));
+    let ws = dep_edges(&top, "workspace.dependencies", None);
+    let manifest: BTreeMap<&str, String> = crates.iter().map(|c| (c.name.as_str(), read(&root.join(&c.dir).join("Cargo.toml")))).collect();
+    let edges = |c: &str, kind: &str| -> Edges { dep_edges(&manifest[c], kind, Some(&ws)).into_iter().filter(|(d, _)| d != c && names.contains(d.as_str())).collect() };
+    let normal: BTreeMap<&str, Edges> = names.iter().map(|&c| (c, edges(c, "dependencies"))).collect();
+    let dev: BTreeMap<&str, Edges> = names.iter().map(|&c| (c, edges(c, "dependencies").into_iter().chain(edges(c, "dev-dependencies")).collect())).collect();
+    // `niji/selftest` in boundary's feature table: niji's features are set from outside, not followed.
+    let mut cross: BTreeSet<String> = BTreeSet::new();
+    for m in manifest.values() {
+        let mut in_features = false;
+        for l in m.lines().map(str::trim) {
+            if l.starts_with('[') {
+                in_features = l == "[features]";
+            } else if in_features {
+                cross.extend(l.split('\u{22}').skip(1).step_by(2).filter_map(|v| v.split_once('/')).map(|(d, _)| d.trim_end_matches('?').to_string()));
+            }
+        }
+    }
+    let gates: BTreeMap<&str, Vec<(BTreeSet<String>, String)>> = nodes.iter().filter(|n| n.root).map(|n| (n.krate.as_str(), module_gates(&n.text))).collect();
+    let mut out = BTreeMap::new();
+    for a in crates {
+        let a_name = a.name.as_str();
+        // The features each crate of the build gets: every edge into it, unified (None: unknown).
+        let mut feats: Edges = BTreeMap::new();
+        let mut members: BTreeSet<String> = BTreeSet::new();
+        let mut stack: Vec<(String, Option<BTreeSet<String>>)> = dev[a_name].clone().into_iter().collect();
+        while let Some((b, f)) = stack.pop() {
+            if b == a.name {
+                continue;
+            }
+            let slot = feats.entry(b.clone()).or_insert_with(|| Some(BTreeSet::new()));
+            match (slot.as_mut(), f) {
+                (Some(s), Some(f)) => s.extend(f),
+                _ => *slot = None,
+            }
+            if members.insert(b.clone()) {
+                stack.extend(normal[b.as_str()].clone());
+            }
+        }
+        for (c, fs) in RUN_FEATURES {
+            if let Some(Some(s)) = feats.get_mut(*c) {
+                s.extend(fs.iter().map(|f| f.to_string()));
+            }
+        }
+        let live = |b: &str, c: &str| -> bool {
+            let Some(Some(f)) = feats.get(b).filter(|_| !cross.contains(b)) else { return true };
+            let on = features_on(&manifest[b], f);
+            let off = |m: &str| gates.get(b).is_some_and(|g| g.iter().any(|(fs, x)| x == m && fs.is_disjoint(&on)));
+            let namers: Vec<&Node> = nodes.iter().filter(|n| n.krate == b && n.refs.iter().any(|(k, _)| k.as_deref() == Some(c))).collect();
+            namers.is_empty() || namers.iter().any(|n| n.root || !off(&n.name))
+        };
+        // The crate's own edges (normal, dev and build: `parse_manifest`) always count.
+        let mut seen: BTreeSet<String> = BTreeSet::new();
+        let mut stack: Vec<String> = a.deps.iter().filter(|d| names.contains(d.as_str()) && **d != a.name).cloned().collect();
+        while let Some(b) = stack.pop() {
+            if seen.insert(b.clone()) {
+                stack.extend(normal[b.as_str()].keys().filter(|c| live(&b, c)).cloned());
+            }
+        }
+        out.insert(a.name.clone(), seen);
+    }
+    out
+}
+
+/// Whether a test target's text (its source and the support files it names) uses the products, so they are built
+/// before it runs. `join("niji")`: the products directory under the target dir, as the ld tests that run the built
+/// `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
+pub fn names_products(text: &str) -> bool {
+    text.contains("target/niji")
+        || text.contains("join(\"niji\")")
+        || text.contains("libc.a")
+        || text.contains("niji-crt1")
+        || text.contains("conformance")
+}
+
 impl Repo {
+    /// XTASK-AFFECTED-LAYOUT: can a change to `f` change what a static program links from `libc.a`? A source,
+    /// data file or build script of a crate the libc product links (not a module compiled only for tests or only
+    /// under a feature the product does not enable), a C or assembly source or header of csys (boundary's build
+    /// script compiles it), the libc product crate itself (its hot-text list included) and the image tools.
+    fn reaches_image(&self, f: &str) -> bool {
+        if f.starts_with("csys/src/") || f.starts_with("csys/include/") || f.starts_with("crates/libc-so/") || IMAGE_TOOLS.contains(&f) {
+            return true;
+        }
+        let Some(c) = self.crate_of(f).filter(|c| self.image.dirs.contains(&c.dir)) else { return false };
+        let inner = &f[c.dir.len() + 1..];
+        if inner == "build.rs" || inner == "Cargo.toml" {
+            return true;
+        }
+        let Some(src) = inner.strip_prefix("src/") else { return false };
+        let top = src.split('/').next().unwrap_or(src);
+        let key = (c.name.clone(), top.split('.').next().unwrap_or(top).to_string());
+        !self.test_only.contains(&key) && !self.image.off.contains(&key)
+    }
+
     /// Is `krate::module` declared only under a test cfg?
     #[cfg(test)]
     pub fn test_only_has(&self, krate: &str, module: &str) -> bool {
@@ -636,23 +1055,12 @@ impl Repo {
         }
         let mut crates = Vec::new();
         for dir in &members {
-            let (name, deps) = parse_manifest(&read(&root.join(dir).join("Cargo.toml")));
+            let manifest = read(&root.join(dir).join("Cargo.toml"));
+            let (name, deps) = parse_manifest(&manifest);
             if !name.is_empty() {
-                crates.push(Crate { name, dir: dir.clone(), deps });
+                let lib = root.join(dir).join("src/lib.rs").is_file() || manifest.lines().any(|l| l.trim() == "[lib]");
+                crates.push(Crate { name, dir: dir.clone(), deps, lib });
             }
-        }
-        let names: BTreeSet<String> = crates.iter().map(|c| c.name.clone()).collect();
-        let direct: BTreeMap<String, BTreeSet<String>> = crates.iter().map(|c| (c.name.clone(), c.deps.iter().filter(|d| names.contains(*d)).cloned().collect())).collect();
-        let mut closure = BTreeMap::new();
-        for c in &crates {
-            let mut seen = BTreeSet::new();
-            let mut stack: Vec<String> = direct[&c.name].iter().cloned().collect();
-            while let Some(d) = stack.pop() {
-                if seen.insert(d.clone()) {
-                    stack.extend(direct[&d].iter().cloned());
-                }
-            }
-            closure.insert(c.name.clone(), seen);
         }
         let aliases: BTreeMap<String, String> = crates.iter().map(|c| (c.name.replace('-', "_"), c.name.clone())).collect();
         let mut nodes = Vec::new();
@@ -672,7 +1080,7 @@ impl Repo {
                 } else {
                     continue;
                 }
-                if p.is_dir() && stem == "posix" && c.name == "liella-boundary" {
+                if p.is_dir() && stem == "posix" && c.name == "niji-boundary" {
                     for f in files {
                         let n = f.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
                         let text = read(&f);
@@ -720,7 +1128,7 @@ impl Repo {
                         }
                     }
                 }
-                let products = text.contains("target/liella") || text.contains("libc.a") || text.contains("liella-crt1") || text.contains("conformance");
+                let products = names_products(&text);
                 targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs: refs_of(&text, &aliases), name, support, products, text, own });
             }
         }
@@ -731,7 +1139,7 @@ impl Repo {
                 entries.entry(name).or_default().push(Entry { node: x, refs });
             }
         }
-        // A symbol csys defines and hands to a Rust entry (`printf` -> `liella_vfprintf4`): the codemap's
+        // A symbol csys defines and hands to a Rust entry (`printf` -> `niji_vfprintf4`): the codemap's
         // "first implementation call" column. A stale codemap only loses these extra names.
         for l in read(&root.join("docs/codemap/symbols.tsv")).lines().skip(1) {
             let f: Vec<&str> = l.split('\t').collect();
@@ -782,6 +1190,7 @@ impl Repo {
             ("spec", &["tsv"][..]),
             ("scripts", &["sh", "py", "txt", "map"][..]),
             ("xtask/src", &["rs"][..]),
+            ("layout", &["tsv"][..]),
         ] {
             files_under(&root.join(dir), exts, &mut scan);
         }
@@ -793,7 +1202,30 @@ impl Repo {
         let names = |x: &Node, y: &Node| x.refs.contains(&(Some(y.krate.clone()), y.name.clone())) || (x.krate == y.krate && x.refs.contains(&(None, y.name.clone())));
         let hubs = (0..nodes.len()).filter(|&y| nodes.iter().filter(|x| names(x, &nodes[y])).count() * 6 >= nodes.len()).collect();
         let test_only = test_only_modules(&nodes);
-        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok() }
+        let image = image_of(root, &crates, &nodes);
+        let closure = build_closures(root, &crates, &nodes);
+        let mut xs = Vec::new();
+        files_under(&root.join("xtask/src"), &["rs"], &mut xs);
+        // XTASK-AFFECTED-TOOL-TESTS: the integration tests too, so a docs or tool path one of them names (the probe
+        // client, `tools/probe/probe`) selects the xtask tests (`docs_readers`).
+        files_under(&root.join("xtask/tests"), &["rs"], &mut xs);
+        let xtask_texts = xs
+            .iter()
+            .map(|p| {
+                let text = read(p);
+                let text = if p.ends_with("xtask/src/affected.rs") { text.split("\n#[cfg(test)]\nmod tests {").next().unwrap_or_default().to_string() } else { text };
+                (rel(p), text)
+            })
+            .collect();
+        let mut examples = Vec::new();
+        for c in &crates {
+            let mut xs = Vec::new();
+            files_under(&root.join(&c.dir).join("examples"), &["rs"], &mut xs);
+            let top = format!("{}/examples/", c.dir);
+            examples.extend(xs.iter().map(|p| (rel(p), p)).filter(|(r, _)| r.strip_prefix(&top).is_some_and(|n| !n.contains('/'))).map(|(r, p)| (r, read(p))));
+        }
+        examples.sort();
+        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok() }
     }
 
     /// The module of the graph a source path belongs to, `(crate, module)`, as `classify_path` names it.
@@ -802,7 +1234,7 @@ impl Repo {
         let inner = path[c.dir.len() + 1..].strip_prefix("src/")?;
         let parts: Vec<&str> = inner.split('/').collect();
         let stem = |s: &str| s.split('.').next().unwrap_or(s).to_string();
-        let name = if c.name == "liella-boundary" && parts.len() >= 2 && parts[0] == "posix" { stem(parts[1]) } else { stem(parts[0]) };
+        let name = if c.name == "niji-boundary" && parts.len() >= 2 && parts[0] == "posix" { stem(parts[1]) } else { stem(parts[0]) };
         Some((c.name.clone(), name))
     }
 
@@ -826,6 +1258,9 @@ impl Repo {
 #[derive(Default, Debug)]
 pub struct Selection {
     pub full: Vec<String>,
+    /// GATE-DEV-NO-FULL: the escalations a per-fix tier (`direct`, `wide`) leaves to the CI train's FULL gate, each
+    /// `<file>: <reason>`; the file's bounded set ([`TrainClass`]) is selected in their place. `full` stays empty.
+    pub train: Vec<String>,
     pub clippy: BTreeMap<String, String>,
     pub libs: BTreeMap<String, String>,
     /// (crate, target) -> reason
@@ -836,7 +1271,7 @@ pub struct Selection {
     pub xtask_cmds: BTreeSet<String>,
     /// `--only`: the named binaries and nothing else (no checks, no clippy): NOT a gate.
     pub only: bool,
-    /// TOOLS-7 (3b): the ffi.rs <-> liella_csys.h agreement check (K5) runs: ffi.rs, `csys/include/` or
+    /// TOOLS-7 (3b): the ffi.rs <-> niji_csys.h agreement check (K5) runs: ffi.rs, `csys/include/` or
     /// `csys/src/machine/` changed. Cheap, and the check is otherwise part of the FULL `xtask test` only.
     pub k5: bool,
     pub notes: Vec<String>,
@@ -849,6 +1284,141 @@ pub struct Selection {
     pub products: bool,
     /// GATE-TIER: the DIRECT tier (`Tier::Direct`, see `narrow_direct`); false = the wide rules.
     pub direct: bool,
+    /// GATE-VALIDATION-SH-TESTS: `validation/` self-tests to run (`bash <path>` from the root) -> reason.
+    pub scripts: BTreeMap<String, String>,
+    /// XTASK-AFFECTED-EXAMPLES: an xtask command of an example step is selected (`example_steps`); those steps
+    /// link and run the examples against the built products, so `cargo xtask so` runs first.
+    pub example_steps: bool,
+    /// HEADERS-ABI-REGEN: the generator checks a changed table selects ([`GEN_PRECHECKS`]), run before everything
+    /// else in every tier; a red one stops the run.
+    pub gen_prechecks: BTreeSet<String>,
+}
+
+/// HEADERS-ABI-REGEN: a table that feeds more than one generator, and the checks that prove all of their outputs
+/// agree with it. `spec/abi/layouts.tsv` feeds headers-gen and abi-gen, and `cargo xtask stubs` checks the Appendix C
+/// layout test names abi-gen writes; a row written out by one generator alone showed only in the landing gate, after
+/// hand-back (four header slices on 11-17). The checks take seconds, so a direct-tier gate shows it before hand-back,
+/// and an escalated (FULL) one fails in seconds instead of after the whole suite.
+///
+/// HANDBACK-INLOOP-CHECKS widened it to every generator's inputs AND outputs (a hand edit of a generated file fails its
+/// `--check` as surely as a table edit nobody regenerated): an entry ending in `/` is a directory prefix, any other a
+/// file. The checks are [`crate::precheck::CHEAP_STEPS`] names (the FULL tier's seconds-long steps). Stub outputs
+/// (`crates/*/tests/s<NN>_*_clauses.rs`, `_symbols.rs`) have no fixed path: [`gen_prechecks_for`] adds `stubs` for them.
+pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[
+    // spec/abi/: layouts.tsv feeds abi-gen, headers-gen and stubs (initializers.tsv too); prototypes and versions feed
+    // headers-gen, compat-gen and math-gen; langinfo.tsv locale-gen; native.tsv native-gen; compat-plan.tsv compat-gen.
+    ("spec/abi/", &["abi-gen-check", "headers-gen-check", "compat-gen-check", "math-gen-check", "locale-gen-check", "native-gen-check", "stubs"]),
+    ("headers/", &["headers-gen-check"]),
+    ("libc-include/", &["headers-gen-check"]),
+    ("crates/abi/src/layout.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("crates/abi/src/layout_aarch64.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("crates/abi/tests/appendix_c_layouts.rs", &["abi-gen-check", "headers-gen-check", "stubs"]),
+    ("crates/abi/tests/appendix_c_layouts_aarch64.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("spec/unicode/", &["unicode-gen-check"]),
+    ("crates/core/src/unicode/tables.rs", &["unicode-gen-check"]),
+    ("crates/core/src/unicode/class_words.rs", &["unicode-gen-check"]),
+    ("crates/core/src/names/dns/idna_tables.rs", &["unicode-gen-check"]),
+    ("spec/encoding/", &["encodings-gen-check"]),
+    ("crates/core/src/iconv/jis_tables.rs", &["encodings-gen-check"]),
+    ("csys/syscalls.tsv", &["csys-gen-check"]),
+    ("csys/src/sys/", &["csys-gen-check"]),
+    ("csys/include/niji_sys.h", &["csys-gen-check"]),
+    ("csys/include/niji_sysnr.h", &["csys-gen-check"]),
+    ("csys/include/aarch64/niji_sysnr.h", &["csys-gen-check"]),
+    ("crates/boundary/src/ffi_sys.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/ffi_sys_aarch64.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/nr.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/nr_aarch64.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/posix/s10_math.tsv", &["math-gen-check"]),
+    ("crates/boundary/src/posix/s10_math_gen.rs", &["math-gen-check"]),
+    ("csys/src/adapter/math_both.c", &["math-gen-check"]),
+    ("csys/src/adapter/math_libc.c", &["math-gen-check"]),
+    ("csys/src/adapter/math_libm.c", &["math-gen-check"]),
+    ("crates/core/src/locale/builtin_items.rs", &["locale-gen-check"]),
+    ("crates/boundary/src/native/", &["native-gen-check"]),
+    ("crates/native/src/ffi.rs", &["native-gen-check"]),
+    ("csys/src/machine/compat_aliases.S", &["compat-gen-check"]),
+    ("crates/libm-so/compat_aliases.S", &["compat-gen-check"]),
+    ("glibc-functional-spec.md", &["stubs"]),
+    ("spec/clauses.tsv", &["stubs"]),
+    ("spec/symbols.tsv", &["stubs"]),
+    ("spec/primitives.tsv", &["stubs"]),
+    ("crates/boundary/tests/appendix_a_primitives.rs", &["stubs"]),
+];
+
+/// The [`GEN_PRECHECKS`] checks one changed file selects (a directory entry matches every path under it).
+pub fn gen_prechecks_for(f: &str) -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for (p, checks) in GEN_PRECHECKS {
+        if f == *p || (p.ends_with('/') && f.starts_with(p)) {
+            out.extend(checks.iter().copied());
+        }
+    }
+    // A stub file `cargo xtask stubs` writes: crates/<krate>/tests/s<NN>_<slug>_clauses.rs or _symbols.rs.
+    let stub = f.strip_prefix("crates/").and_then(|r| r.split_once("/tests/")).map(|(_, t)| t).is_some_and(|t| {
+        !t.contains('/') && t.starts_with('s') && t[1..].chars().take(2).all(|c| c.is_ascii_digit()) && (t.ends_with("_clauses.rs") || t.ends_with("_symbols.rs"))
+    });
+    if stub {
+        out.push("stubs");
+    }
+    out
+}
+
+/// The prechecks `sel` runs first, in [`crate::precheck::CHEAP_STEPS`] order (`stubs` first): the ones its files
+/// selected, and EVERY cheap step when the selection escalated to FULL, whatever the reason (HANDBACK-INLOOP-CHECKS:
+/// a FULL-tier `stubs` red used to show after the whole suite, often after the hand-back; now it ends the run in
+/// seconds). The FULL run that follows does not repeat them ([`full_steps`]); `cargo xtask test` run on its own still
+/// runs them all. `--only` runs no prechecks.
+pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
+    if sel.only {
+        return Vec::new();
+    }
+    let every = !sel.full.is_empty() || !sel.train.is_empty();
+    crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| every || sel.gen_prechecks.contains(*c)).collect()
+}
+
+/// The escalated FULL run's steps after the prechecks (TOOLING-PAPERCUTS, audit item 9: the cheap steps ran twice):
+/// whether `cargo xtask stubs` still runs (no: the `stubs` precheck is the same function), and `cargo xtask test`'s
+/// command, with [`crate::precheck::CHEAP_DONE`] when the prechecks were every cheap step. A precheck red ends the
+/// run before this (`run_prechecks_or_stop`), so reaching here means they were green.
+pub fn full_steps(sel: &Selection) -> (bool, Vec<&'static str>) {
+    let pre = prechecks(sel);
+    let all = pre == crate::precheck::CHEAP_STEPS;
+    let mut test = vec!["cargo", "xtask", "test"];
+    if all {
+        test.push(crate::precheck::CHEAP_DONE);
+    }
+    (!pre.contains(&"stubs"), test)
+}
+
+/// The first step of a run: `sel`'s prechecks; any red one ends the run (`Err`) before anything else starts, with the
+/// fix of each.
+fn run_prechecks_or_stop(root: &Path, log: &Path, sel: &Selection) -> Result<(), String> {
+    if prechecks(sel).is_empty() {
+        return Ok(());
+    }
+    println!("prechecks (generator checks of the changed files; every cheap FULL step when escalated):");
+    let red = run_gen_prechecks(root, log, sel);
+    if red.is_empty() {
+        return Ok(());
+    }
+    print!("{}", summary(&read(log)));
+    println!("affected: FAILED (a precheck; nothing else was run)");
+    for c in &red {
+        println!("  {c}: {}", crate::precheck::fix(c));
+    }
+    Err(format!("a generator precheck failed: {}", red.join(", ")))
+}
+
+/// Every precheck of `sel` (`prechecks`), each logged on its own; the names of the red ones.
+fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> Vec<&'static str> {
+    let mut red = Vec::new();
+    for c in prechecks(sel) {
+        if check_logged(log, &format!("precheck {c}"), crate::cheap_step(root, c)).is_err() {
+            red.push(c);
+        }
+    }
+    red
 }
 
 /// GATE-TIER (coordinator ruling 10-11, owner intent "only run the tests that are impacted by a fix for gate runs and
@@ -905,10 +1475,70 @@ impl Selection {
         }
     }
 
+    /// XTASK-AFFECTED-LAYOUT: the start-up layout tests ([`LAYOUT_TESTS`]) for a change that reaches `libc.a`.
+    fn layout_tests(&mut self, repo: &Repo, f: &str) {
+        let why = format!("{f}: linked into libc.a, whose whole static image the start-up layout tests measure");
+        for (k, t) in LAYOUT_TESTS {
+            if repo.targets.iter().any(|x| x.krate == *k && x.name == *t) {
+                add(&mut self.tests, (k.to_string(), t.to_string()), &why);
+            }
+        }
+    }
+
     fn all_conf(&mut self, repo: &Repo, why: &str) {
         for c in &repo.conf {
             add(&mut self.conf, c.name.clone(), why);
         }
+    }
+
+    /// XTASK-AFFECTED-MATH (ruling #3188): the tests that can observe the math exports, for a change of their wiring
+    /// (`s10_math.tsv`, `s10_math_gen.rs`, the `math_*.c` forwarders) or of a generated coefficient file. The export
+    /// module itself as if it had changed (rule 4 of the tier: its users, the targets naming it, the conformance
+    /// programs calling its entries), every test target of `niji-math` (the libm product, clause and kernel suites),
+    /// every target of any crate whose own source names `s10_math` or `libm` or carries section 10, the unit tests of
+    /// both crates, and every conformance program that carries section 10 or calls an entry of the export modules.
+    fn math_exports(&mut self, repo: &Repo, why: &str) {
+        let via = |what: &str| format!("{why}: {what}");
+        if self.direct {
+            self.narrow_direct(repo, "niji-boundary", "s10_math_gen", MATH_GEN);
+        } else {
+            self.narrow(repo, "niji-boundary", "s10_math_gen", MATH_GEN);
+        }
+        for c in [MATH_EXPORTS_CRATE, MATH_CRATE] {
+            add(&mut self.libs, c.to_string(), &via("the unit tests of the export and kernel crates"));
+            add(&mut self.clippy, c.to_string(), &via("the export and kernel crates"));
+        }
+        for t in &repo.targets {
+            let own = &t.text[..t.own.min(t.text.len())];
+            if t.krate == MATH_CRATE {
+                add(&mut self.tests, (t.krate.clone(), t.name.clone()), &via("a niji-math suite (they call the math exports)"));
+            } else if own.contains("s10_math") || own.contains("libm") || t.sections.contains(&10) {
+                add(&mut self.tests, (t.krate.clone(), t.name.clone()), &via("the test names s10_math or libm, or carries section 10"));
+            }
+        }
+        let export_nodes: BTreeSet<usize> = repo.nodes.iter().enumerate().filter(|(_, n)| n.krate == MATH_EXPORTS_CRATE && (n.name == "s10_math_gen" || n.name == "s10_math")).map(|(i, _)| i).collect();
+        for c in &repo.conf {
+            if c.sections.contains(&10) {
+                add(&mut self.conf, c.name.clone(), &via("the program carries section 10"));
+            } else if let Some(sym) = c.calls.iter().find(|s| repo.entries[*s].iter().any(|e| export_nodes.contains(&e.node))) {
+                add(&mut self.conf, c.name.clone(), &via(&format!("the program calls the math export `{sym}`")));
+            }
+        }
+    }
+
+    /// XTASK-AFFECTED-MATH: what a generated coefficient file selects (also for its fit and the tables generator,
+    /// XTASK-AFFECTED-MATH-2). The family's users: the `coeffs` module as if it had changed (its one-hop users in the
+    /// tier), the math export tests and `cargo xtask tables --check`.
+    fn math_coeffs(&mut self, repo: &Repo, f: &str) {
+        if self.direct {
+            self.narrow_direct(repo, MATH_CRATE, "coeffs", f);
+        } else {
+            self.narrow(repo, MATH_CRATE, "coeffs", f);
+        }
+        self.math_exports(repo, &format!("{f}: generated coefficients"));
+        self.xtask_cmds.insert("tables --check".to_string());
+        // XTASK-AFFECTED-LAYOUT: the coefficients are linked into libc.a; a fit or the generator selects what they do.
+        self.layout_tests(repo, f);
     }
 
     /// A change in module `name` of crate `krate`.
@@ -945,7 +1575,7 @@ impl Selection {
                 }
                 if !affected.contains(&x) && names_it && repo.may_use(&nx.krate, &ny.krate) {
                     affected.insert(x);
-                    if nx.krate == "liella-boundary" && nx.section.is_none() {
+                    if nx.krate == "niji-boundary" && nx.section.is_none() {
                         // Depth in helper modules since the entry from another crate.
                         let d = if ny.krate != nx.krate { 1 } else { depth.get(&y).copied().unwrap_or(0) + 1 };
                         depth.insert(x, d);
@@ -1031,7 +1661,7 @@ impl Selection {
         };
         let ns = &repo.nodes[start];
         // GATE-TIER-2: a module re-exported at its crate root (`pub use errno::{Errno, KResult};`) is used through the
-        // re-exported names too: a module naming `liella_kernel::Errno` (or `crate::Errno` inside the crate) is a user.
+        // re-exported names too: a module naming `niji_kernel::Errno` (or `crate::Errno` inside the crate) is a user.
         // Only a glob re-export (`pub use m::*;`) cannot be followed by name: wide, as before.
         let mut items: BTreeSet<String> = BTreeSet::new();
         if !ns.root {
@@ -1168,6 +1798,95 @@ enum Class {
     /// bench/ and benchmarks/: data the xtask unit tests read (limits, rows, sentinels), so `-p xtask` runs.
     XtaskData,
     XtaskAudit(&'static [&'static str]),
+    /// XTASK-AFFECTED-XTASK-TESTS: xtask test code only (`xtask/tests/`, or a source whose diff stays inside its
+    /// trailing `#[cfg(test)]` module): the xtask unit tests, clippy and `cargo xtask static`, not FULL.
+    XtaskTestCode,
+    /// XTASK-AFFECTED-XTASK: a module of [`XTASK_TOOLS`]: the xtask unit tests, clippy and `cargo xtask static`.
+    XtaskTool,
+    /// XTASK-AFFECTED-MATH: the math export wiring (`s10_math.tsv`, `s10_math_gen.rs`, `csys/src/adapter/math_*.c`).
+    MathWiring,
+    /// XTASK-AFFECTED-MATH: a generated coefficient file `crates/math/src/coeffs/<family>.rs`.
+    MathCoeffs,
+    /// XTASK-AFFECTED-MATH-2: a fit file `crates/math/fits/<name>.fit` (the input of `cargo xtask remez`).
+    MathFit,
+    /// XTASK-AFFECTED-MATH-2: the tables generator `crates/mathtools/src/tables.rs` (`cargo xtask tables`).
+    MathTables,
+    /// D-X.39: another `crates/mathtools/src/` source that a generator is built from (`mathtools_feeds`): its own
+    /// mapping plus the check of each generated set it feeds.
+    MathToolFeed(Feeds),
+    /// GATE-VALIDATION-SH-TESTS: a `validation/` script with self-tests (`VALIDATION_COVERED`): those self-tests run.
+    ValidationScript(&'static [&'static str]),
+    /// XTASK-AFFECTED-RECORDS (D-X.57): a file under `records/` (a decision, compat or saturation record, a view's
+    /// head or tail, `views.toml`). Its readers are all xtask: `records check`, `records-gen` (the views), `register`,
+    /// `compat-ids`, `trace` and `layout`'s decision rule, every one a step of `cargo xtask static`, and their unit
+    /// tests in `-p xtask`; plus any target or crate whose code names the path (`path_readers`).
+    Records,
+    /// XTASK-AFFECTED-RECORDS (D-X.57): the layout manifest `layout/contracts.tsv`: `cargo xtask layout-check` on fresh
+    /// products, `layout`'s static rules (`cargo xtask static`) and the xtask unit tests that read it.
+    LayoutManifest,
+}
+
+/// D-X.39: which generated sets a niji-mathtools source feeds. `remez`: the fitted coefficient files
+/// (`cargo xtask remez --check <every fit>`); `tables`: the constant tables and `crates/math/KERNELS.md`
+/// (`cargo xtask tables --check`, `kernel-index --check`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Feeds {
+    pub remez: bool,
+    pub tables: bool,
+}
+
+/// D-X.39: the generator inputs under `crates/mathtools/src/` (the fitting code reached CI without `remez --check`
+/// before this map). The remez binary is built from `remez.rs` and `mp/`; the tables binary from `tables.rs`, the
+/// `*_tables.rs` modules and `mp/`; `lib.rs` declares both. `cmp.rs`, `cplx.rs` and `bin/mathcmp.rs` feed no
+/// generated file (the comparison tool): `None`, the ordinary mapping only. `tables.rs` keeps its own class.
+fn mathtools_feeds(path: &str) -> Option<Feeds> {
+    let f = path.strip_prefix("crates/mathtools/src/")?;
+    let (remez, tables) = match f {
+        "remez.rs" | "bin/remez.rs" => (true, false),
+        "bessel_tables.rs" | "gamma_tables.rs" | "special_tables.rs" | "bin/tables.rs" => (false, true),
+        "lib.rs" => (true, true),
+        _ if f.starts_with("mp/") && f.ends_with(".rs") => (true, true),
+        _ => return None,
+    };
+    Some(Feeds { remez, tables })
+}
+
+const MATH_EXPORTS_CRATE: &str = "niji-boundary";
+const MATH_CRATE: &str = "niji-math";
+const MATH_TSV: &str = "crates/boundary/src/posix/s10_math.tsv";
+const MATH_GEN: &str = "crates/boundary/src/posix/s10_math_gen.rs";
+const MATH_FITS: &str = "crates/math/fits/";
+const MATH_TABLES_GEN: &str = "crates/mathtools/src/tables.rs";
+
+/// XTASK-AFFECTED-MATH-2: the fit files of the tree, `crates/math/fits/<name>.fit` (no subdirectory).
+fn fit_files(root: &Path) -> BTreeSet<String> {
+    let Ok(dir) = fs::read_dir(root.join(MATH_FITS)) else { return BTreeSet::new() };
+    dir.filter_map(Result::ok).filter_map(|e| e.file_name().into_string().ok()).filter(|n| n.ends_with(".fit")).map(|n| format!("{MATH_FITS}{n}")).collect()
+}
+
+/// XTASK-AFFECTED-MATH (ruling #3188): the generated math files that map to the math suites instead of FULL. Only these
+/// exact files: the math fits (`crates/math/fits/`), any other `*_gen.rs` and a file in a subdirectory of `coeffs/` or
+/// `adapter/` keep escalating. `cargo xtask math-gen --check` / `tables --check` prove the generated files match their
+/// inputs; the selected suites prove what the exports do. XTASK-AFFECTED-MATH-2 (ruling #3204): a fit file
+/// `crates/math/fits/<name>.fit` (not a subdirectory, not the `.py` table scripts) and exactly the tables generator
+/// `crates/mathtools/src/tables.rs` map too (`remez --check` / `tables --check` / `kernel-index --check`).
+fn math_class(path: &str) -> Option<Class> {
+    if path == MATH_TSV || path == MATH_GEN {
+        return Some(Class::MathWiring);
+    }
+    if path.strip_prefix("csys/src/adapter/math_").is_some_and(|f| f.ends_with(".c") && !f.contains('/')) {
+        return Some(Class::MathWiring);
+    }
+    if path.strip_prefix("crates/math/src/coeffs/").is_some_and(|f| f.ends_with(".rs") && !f.contains('/')) {
+        return Some(Class::MathCoeffs);
+    }
+    if path.strip_prefix(MATH_FITS).is_some_and(|f| f.ends_with(".fit") && !f.contains('/')) {
+        return Some(Class::MathFit);
+    }
+    if path == MATH_TABLES_GEN {
+        return Some(Class::MathTables);
+    }
+    mathtools_feeds(path).map(Class::MathToolFeed)
 }
 
 /// xtask modules that only implement report or audit commands: (module, the xtask commands to
@@ -1186,14 +1905,174 @@ const XTASK_AUDITS: &[(&str, &[&str])] = &[
     ("xtask/src/schedule.rs", &["status"]),
 ];
 
+/// XTASK-AFFECTED-XTASK: xtask modules (a file `xtask/src/<m>.rs` or a directory `xtask/src/<m>/`) that neither build
+/// the products, nor generate their sources, nor run the test suites: the record and view tools, the source checks of
+/// `cargo xtask static`, and the bench and report commands no gate step runs. A change to one selects the xtask unit
+/// tests, the xtask clippy and `cargo xtask static` (which runs every check that uses it), not FULL. Each must be
+/// named only by `main.rs`, this command, another module of this table or [`XTASK_AUDITS`], or a use listed in
+/// [`XTASK_TOOL_USES`] (the unit test `tool_modules_stay_off_the_product_path` checks it, and that the full gate's
+/// own steps call none of them outside `cargo xtask static`). Every other xtask module still escalates to FULL: the
+/// product build (`so`, `hottext`, `coldbss`, `layout`, ...), the generators, the test runners and `main.rs`.
+const XTASK_TOOLS: &[(&str, &str)] = &[
+    ("records", "the decision, compat and saturation records and their views (static: records, records-gen)"),
+    ("kernel_index", "the generated KERNELS.md view (static: tables-fresh)"),
+    ("register", "the saturation register check (static: register)"),
+    ("compat_ids", "the compat id check (static: compat-ids)"),
+    ("codemap", "the code map view (static: codemap)"),
+    ("compat_plan", "the compat dispatch table check (static: compat-plan)"),
+    ("compatprobe", "the compat probe list check (static: compat-probes)"),
+    ("privpaths", "the private paths check (static: private-paths)"),
+    ("oldname", "the former-name check (static: old-name)"),
+    ("locks", "the lock file freshness check (static: lock-fresh)"),
+    ("fuzz", "the fuzz harness build check (static: fuzz-check)"),
+    ("arch", "the architecture seam audit (static: arch-audit); `arch-check` is not a gate step"),
+    ("bench", "`cargo xtask bench`, not a gate step"),
+    ("benchrows", "`cargo xtask bench-rows`, not a gate step"),
+    ("startpair", "`cargo xtask startup-pair`, not a gate step"),
+    ("benchstage", "`cargo xtask bench --stage`, not a gate step"),
+    ("abbench", "the A/B bench driver of `cargo xtask bench`, not a gate step"),
+    ("sweep", "`cargo xtask sweep`, not a gate step"),
+    ("repro", "`cargo xtask repro`, not a gate step"),
+    ("symcov", "`cargo xtask symcov`, a report, not a gate step"),
+    // XTASK-AFFECTED-LONGSWEEPS (#5145): the registration table of the long sweeps. Its unit tests check the rows
+    // against each other, and `static` (long-sweeps) checks them against the tests of `crates/*/{src,tests}`: every
+    // ignored or environment-scaled test is a row or a NOT_SWEEPS entry, every row names a test that exists and a
+    // package that builds it. The nightly run of the sweeps themselves is not a step of the ordinary gate.
+    ("longsweeps", "the long sweep registration (static: long-sweeps); the sweeps run only in the nightly and release runs"),
+    ("float_casts", "the float cast source check (static: float-casts)"),
+    // UTIL-HARNESS: the utilities' transcript harness; its own tests are the xtask unit tests and xtask/tests/transcripts.rs.
+    ("transcript", "`cargo xtask transcript`, the utilities' transcript harness, not a gate step"),
+];
+
+/// XTASK-AFFECTED-XTASK: the uses of an [`XTASK_TOOLS`] module from a module that escalates to FULL, each a call that
+/// only a check of `cargo xtask static` makes: (user, tool module, why). Read by the unit test only.
+#[cfg(test)]
+const XTASK_TOOL_USES: &[(&str, &str, &str)] = &[
+    ("math", "kernel_index", "`math::run_tables` ends with the kernel index (KERNELS.md, a view), which static runs as tables-fresh"),
+    ("math", "records", "the same call's `records::in_place_env` switch"),
+    ("trace", "records", "`trace::run` reads the decision ids; static runs trace"),
+];
+
+/// The xtask module a source path belongs to: `xtask/src/<m>.rs` or `xtask/src/<m>/...` gives `<m>`.
+fn xtask_module(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix("xtask/src/")?;
+    match rest.split_once('/') {
+        Some((m, _)) => Some(m),
+        None => rest.strip_suffix(".rs"),
+    }
+}
+
+/// GATE-VALIDATION-SH-TESTS (D-X.54): the self-tests of the workload scripts under `validation/`. Each runs as
+/// `bash <path>` from the tree root, needs no build, and ends 0 with a pass line or 1 (`wl_mtmem_test.sh` runs a real
+/// `strace` of a threaded `sort` and exits 0 with SKIP when either is absent). Seconds each (measured on an 8-thread
+/// host: 0.05 s, 0.2 s and 15 s).
+const VALIDATION_RUN_TEST: &str = "validation/wl_run_test.sh";
+const VALIDATION_STATS_TEST: &str = "validation/wl_stats_test.sh";
+const VALIDATION_MTMEM_TEST: &str = "validation/wl_mtmem_test.sh";
+/// WL-PREP-RELEASE-PROFILE: the products profile and cache key of `wl_lock.sh` (a stand-in `cargo`, no build; 0.1 s).
+const VALIDATION_LOCK_TEST: &str = "validation/wl_lock_test.sh";
+/// WL-DYNAMIC-GATE (D-X.141): the INVIOLABLE workload verdict, its held rows' ratchet and wl_count's call of it
+/// (fixture logs, no build; under a second).
+const VALIDATION_VERDICT_TEST: &str = "validation/wl_verdict_test.sh";
+/// WL-NIGHTLY-1121: the kit table's output column against wl_known_diffs.tsv (fixture rows, no build; under a second).
+const VALIDATION_KITS_TEST: &str = "validation/wl_kits_test.sh";
+pub(crate) const VALIDATION_SELF_TESTS: &[&str] =
+    &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST, VALIDATION_KITS_TEST];
+
+/// GATE-VALIDATION-SH-TESTS: a `validation/` script -> the self-tests that exercise it (each self-test also covers
+/// itself). A change to a script here selects those self-tests in every tier. `wl_run.sh` and `wl_count_run.sh` are
+/// covered only where the self-tests read them (that they source the shared classifier and pass the thread flag).
+const VALIDATION_COVERED: &[(&str, &[&str])] = &[
+    // The syscall verdict: sourced by wl_run_test.sh, and by wl_stats.sh (which the other two source).
+    ("validation/wl_syscls.sh", &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST]),
+    ("validation/wl_stats.sh", &[VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST]),
+    ("validation/wl_run.sh", &[VALIDATION_RUN_TEST]),
+    ("validation/wl_count_run.sh", &[VALIDATION_STATS_TEST]),
+    (VALIDATION_RUN_TEST, &[VALIDATION_RUN_TEST]),
+    (VALIDATION_STATS_TEST, &[VALIDATION_STATS_TEST]),
+    (VALIDATION_MTMEM_TEST, &[VALIDATION_MTMEM_TEST]),
+    // The products profile and the cache key every lab script reads the products and kits by.
+    ("validation/wl_lock.sh", &[VALIDATION_LOCK_TEST]),
+    // The dynamic kit's ELF helper (WL-DYNAMIC-KIT): wl_lock_test.sh section 7 links a program and retargets it.
+    ("validation/wl_dynlink.py", &[VALIDATION_LOCK_TEST]),
+    (VALIDATION_LOCK_TEST, &[VALIDATION_LOCK_TEST]),
+    // The INVIOLABLE workload verdict (WL-DYNAMIC-GATE): the verdict, the held rows and wl_count's call of the verdict.
+    ("validation/wl_verdict.py", &[VALIDATION_VERDICT_TEST]),
+    ("validation/wl_holds.tsv", &[VALIDATION_VERDICT_TEST]),
+    ("validation/wl_count.sh", &[VALIDATION_VERDICT_TEST]),
+    (VALIDATION_VERDICT_TEST, &[VALIDATION_VERDICT_TEST]),
+    // The kit table's output column (WL-NIGHTLY-1121): a differing output is checked against the accepted list.
+    ("validation/wl_kits.py", &[VALIDATION_KITS_TEST]),
+    ("validation/wl_known_diffs.tsv", &[VALIDATION_KITS_TEST]),
+    (VALIDATION_KITS_TEST, &[VALIDATION_KITS_TEST]),
+];
+
+/// GATE-VALIDATION-SH-TESTS: the `validation/wl_*.sh` scripts with no self-test the gate can run, each with why. The
+/// unit test `every_validation_wl_script_is_mapped` fails for a `wl_*.sh` script in neither table, so a new script
+/// needs a decision (a self-test, or a row here) before it lands.
+const VALIDATION_UNCOVERED: &[(&str, &str)] = &[
+    ("validation/wl_alloctrace.sh", "lab driver (runs a workload under gdb on a build host); no self-test"),
+    ("validation/wl_alloctrace_run.sh", "host side of wl_alloctrace.sh; no self-test"),
+    ("validation/wl_attr.sh", "workload gate attribution step on a timing host; no self-test"),
+    ("validation/wl_base.sh", "BASE checkout helper of the lab tools; no self-test"),
+    ("validation/wl_dyncc.sh", "link driver of the libniji-dynamic kit (needs built shared products); no self-test"),
+    ("validation/wl_entries.sh", "lab driver of wl_entries_run.sh; no self-test"),
+    ("validation/wl_entries_run.sh", "host side of the entry-point counts (needs the built kits); no self-test"),
+    ("validation/wl_fallback.sh", "lab queueing fallback; no self-test"),
+    ("validation/wl_gate.sh", "the workload gate driver (lab hosts); no self-test"),
+    ("validation/wl_install.sh", "installs the lab tools on a host; no self-test"),
+    ("validation/wl_kits.sh", "static vs dynamic vs glibc kit comparison on a lab host (built kits, perf); no self-test"),
+    ("validation/wl_launch.sh", "detached lab launcher; no self-test"),
+    ("validation/wl_local.sh", "role-directory variant of the lab drivers; no self-test"),
+    ("validation/wl_percall.sh", "its check wl_percall_tunables_test.sh is a lab count job (built products, minutes), not a gate step"),
+    ("validation/wl_percall_run.sh", "host side of wl_percall.sh (built products); no self-test"),
+    ("validation/wl_percall_tunables_test.sh", "a lab count job (built products, minutes), not a gate step"),
+    ("validation/wl_prep.sh", "workload gate step 1 (products, kits) on a lab host; no self-test"),
+    ("validation/wl_prime_base.sh", "puts a BASE source on a lab host; no self-test"),
+    ("validation/wl_shapes.sh", "lab driver of wl_shapes_run.sh; no self-test"),
+    ("validation/wl_shapes_run.sh", "host side of the argument-shape counts (needs the built kits); no self-test"),
+    ("validation/wl_stakes.sh", "lab pipeline over wl_shapes and wl_percall; no self-test"),
+    ("validation/wl_stats_plants.sh", "the plants runner of the covered self-tests (it mutates copies and expects them to fail)"),
+    ("validation/wl_trace.sh", "per-function trace of one call (built products, perf); no self-test"),
+    ("validation/wl_workloads.sh", "the workload definitions (data read by the lab drivers); no self-test"),
+];
+
+fn validation_self_tests(path: &str) -> Option<&'static [&'static str]> {
+    VALIDATION_COVERED.iter().find(|(s, _)| *s == path).map(|(_, t)| *t)
+}
+
 fn classify(path: &str) -> Option<Class> {
     let file = path.rsplit('/').next().unwrap_or(path);
+    if let Some(tests) = validation_self_tests(path) {
+        return Some(Class::ValidationScript(tests));
+    }
+    if let Some((_, why)) = VALIDATION_UNCOVERED.iter().find(|(s, _)| *s == path) {
+        return Some(Class::Nothing(why));
+    }
     let full = |why: &'static str| Some(Class::Full(why));
     if path == "xtask/src/affected.rs" {
         return Some(Class::XtaskOwn);
     }
     if let Some((_, cmds)) = XTASK_AUDITS.iter().find(|(m, _)| *m == path) {
         return Some(Class::XtaskAudit(cmds));
+    }
+    if let Some(c) = math_class(path) {
+        return Some(c);
+    }
+    if path.starts_with("records/") {
+        return Some(Class::Records);
+    }
+    if path == LAYOUT_CONSUMERS[0] {
+        return Some(Class::LayoutManifest);
+    }
+    // XTASK-AFFECTED-XTASK-TESTS (D-X.41): xtask's integration tests run only under `cargo test -p xtask`; no gate
+    // step executes them.
+    if path.starts_with("xtask/tests/") {
+        return Some(Class::XtaskTestCode);
+    }
+    // XTASK-AFFECTED-XTASK: a tool module off the product path (the table's unit test keeps it so).
+    if path.ends_with(".rs") && xtask_module(path).is_some_and(|m| XTASK_TOOLS.iter().any(|(t, _)| *t == m)) {
+        return Some(Class::XtaskTool);
     }
     if path.starts_with("xtask/") {
         return full("xtask (its commands are part of the gate)");
@@ -1207,16 +2086,21 @@ fn classify(path: &str) -> Option<Class> {
     if path.starts_with("crates/abi/") {
         return full("crates/abi (the ABI types every crate shares)");
     }
+    // Before the build configuration: `fuzz/` is a workspace of its own (excluded from the root one), so its
+    // `Cargo.toml`, `Cargo.lock` and toolchain file reach no gated crate; `fuzz-check` covers them (#4338).
+    if path.starts_with("fuzz/") {
+        return Some(Class::Nothing("not part of the test gate (bench, fuzz and validation have their own commands)"));
+    }
     if file == "build.rs" || file == "Cargo.toml" || file == "Cargo.lock" || file.starts_with("rust-toolchain") || file == "clippy.toml" || path.starts_with(".cargo/") {
         return full("build configuration");
     }
-    if matches!(path, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || path.starts_with("spec/abi/") || path.starts_with("spec/unicode/") || path.starts_with("include/") {
+    if matches!(path, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || path.starts_with("spec/abi/") || path.starts_with("spec/unicode/") || path.starts_with("include/") || path.starts_with("libc-include/") || path.starts_with("headers/") {
         return full("generated table or its input");
     }
     if file.ends_with("_gen.rs") || file == "tables.rs" || file == "builtin_items.rs" || path.starts_with("crates/math/fits/") || path.starts_with("crates/math/src/coeffs/") {
         return full("generated source");
     }
-    if path.starts_with("crates/libc-so/") || path.starts_with("crates/libm-so/") || path.starts_with("crates/native/link/") || path.starts_with("crates/native/examples/") {
+    if path.starts_with("crates/libc-so/") || path.starts_with("crates/libm-so/") || path.starts_with("crates/native/link/") {
         return full("a product crate or its linker input");
     }
     if path.ends_with(".map") || path.ends_with(".ld") || path.ends_with(".lds") || path.ends_with(".version") || path.starts_with("scripts/") {
@@ -1228,16 +2112,89 @@ fn classify(path: &str) -> Option<Class> {
     if path == "conformance/run.sh" || path.starts_with("conformance/tools/") {
         return Some(Class::AllConf);
     }
-    if path.starts_with("docs/") || path.starts_with("plan/") || path.starts_with("handoff/") || path.starts_with("spec/behaviour/") || path == "spec/schedule.tsv" || path.starts_with("spec/tools/") || path == "spec/ERRATA.md" || path.starts_with("tools/") || (!path.contains('/') && path.ends_with(".md")) || file.starts_with("LICENSE") || file == ".gitignore" {
+    // XTASK-AFFECTED-DOCS-PATHS: `results/` (timing and sweep tables) and the prose under `spec/` (`*.md`: the errata,
+    // `spec/security/`) join the docs; `docs_readers` then selects whatever names the file in code.
+    if path.starts_with("docs/") || path.starts_with("plan/") || path.starts_with("handoff/") || path.starts_with("results/") || path.starts_with("spec/behaviour/") || path == "spec/schedule.tsv" || path.starts_with("spec/tools/") || (path.starts_with("spec/") && path.ends_with(".md")) || path.starts_with("tools/") || (!path.contains('/') && path.ends_with(".md")) || file.starts_with("LICENSE") || file == ".gitignore" {
         return Some(Class::Docs);
     }
     if path.starts_with("bench/") || path.starts_with("benchmarks/") {
         return Some(Class::XtaskData);
     }
-    if path.starts_with("fuzz/") || path.starts_with("validation/") {
+    if path.starts_with("validation/") {
         return Some(Class::Nothing("not part of the test gate (bench, fuzz and validation have their own commands)"));
     }
     None
+}
+
+/// XTASK-AFFECTED-XTASK-TESTS (D-X.41): does the change to xtask source `f` stay inside its test module? Needs the
+/// base diff (`Repo::xtask_diff`) and the file's current text; anything missing is "no" (FULL).
+fn xtask_test_only(repo: &Repo, f: &str) -> bool {
+    if !(f.starts_with("xtask/src/") && f.ends_with(".rs")) {
+        return false;
+    }
+    let Some(diff) = repo.xtask_diff.as_deref() else { return false };
+    let Some((_, text)) = repo.xtask_texts.iter().find(|(p, _)| p == f) else { return false };
+    test_module_change(diff, f, text)
+}
+
+/// The 1-based line range strictly inside the file's test module: a column-0 `#[cfg(test)]` line, then a column-0
+/// `mod <name> {` line, up to the first column-0 `}` line, after which only blank lines may follow (the module ends
+/// the file, so a lookalike inside a string literal of the code above is never taken for it). `None`: no such module.
+fn test_module_interior(text: &str) -> Option<(usize, usize)> {
+    let lines: Vec<&str> = text.lines().collect();
+    for i in (0..lines.len()).filter(|&i| lines[i] == "#[cfg(test)]") {
+        if !lines.get(i + 1).is_some_and(|m| m.starts_with("mod ") && m.ends_with(" {")) {
+            continue;
+        }
+        let close = (i + 2..lines.len()).find(|&j| lines[j] == "}")?;
+        if lines[close + 1..].iter().all(|l| l.trim().is_empty()) {
+            // 0-based i is the attribute and i+1 the `mod` line: the body is 1-based i+3 ..= close.
+            return Some((i + 3, close));
+        }
+    }
+    None
+}
+
+/// Whether `diff` (`git diff -U0`) changes `file` (current text `text`) only inside its test module: the file has one
+/// plain modification section (no new, deleted, renamed or binary file), every hunk's new lines (for a pure deletion,
+/// the lines on both sides of it) lie strictly inside the module, and no added or removed line starts at column 0
+/// (which could open, close or move the module or an item around it). Anything else is "no": FULL, as before.
+fn test_module_change(diff: &str, file: &str, text: &str) -> bool {
+    let Some((lo, hi)) = test_module_interior(text) else { return false };
+    let inside = |n: usize| (lo..=hi).contains(&n);
+    let header = format!("diff --git a/{file} b/{file}");
+    let mut sections = diff.split("\ndiff --git ").enumerate().map(|(k, s)| if k == 0 { s.to_string() } else { format!("diff --git {s}") });
+    let Some(sec) = sections.find(|s| s.lines().next() == Some(header.as_str())) else { return false };
+    if sections.any(|s| s.lines().next() == Some(header.as_str())) {
+        return false;
+    }
+    let mut hunks = 0;
+    for l in sec.lines().skip(1) {
+        if l.starts_with("new file") || l.starts_with("deleted file") || l.starts_with("rename ") || l.starts_with("copy ") || l.starts_with("Binary ") || l.starts_with("old mode") || l.starts_with("similarity") {
+            return false;
+        }
+        // Header lines come before the first hunk only (after it, `--- x` is a removed line `-- x`).
+        if (hunks == 0 && (l.starts_with("--- ") || l.starts_with("+++ ") || l.starts_with("index "))) || l.starts_with('\\') {
+            continue;
+        }
+        if let Some(h) = l.strip_prefix("@@ ") {
+            let Some(new) = h.split_whitespace().find_map(|w| w.strip_prefix('+')) else { return false };
+            let (start, count) = new.split_once(',').map_or((new, "1"), |(s, c)| (s, c));
+            let (Ok(start), Ok(count)) = (start.parse::<usize>(), count.parse::<usize>()) else { return false };
+            let ok = if count == 0 { inside(start) && inside(start + 1) } else { inside(start) && inside(start + count - 1) };
+            if !ok {
+                return false;
+            }
+            hunks += 1;
+        } else if let Some(body) = l.strip_prefix('+').or_else(|| l.strip_prefix('-')) {
+            if body.chars().next().is_some_and(|c| !c.is_whitespace()) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    hunks > 0
 }
 
 /// The selection for a set of changed files (paths relative to the repository root, `/`).
@@ -1247,16 +2204,27 @@ pub fn select(repo: &Repo, files: &[String]) -> Selection {
 }
 
 /// `products`: follow no edge through a module compiled only under a test cfg (what a product can change).
+/// The escalations stay FULL here (`bench-rows` reads them as "cannot narrow to rows"); only [`select_tier`] hands them
+/// to the train.
 pub fn select_opts(repo: &Repo, files: &[String], products: bool) -> Selection {
-    select_with(repo, files, products, Tier::Wide)
+    select_with(repo, files, products, Tier::Wide, false)
 }
 
 /// The selection of a tier (GATE-TIER): `Direct` for per-fix gates, `Wide` the earlier rules, `Full` everything.
+/// GATE-DEV-NO-FULL: in `Direct` and `Wide` an escalation is the train's ([`Selection::train`]), never FULL.
 pub fn select_tier(repo: &Repo, files: &[String], tier: Tier) -> Selection {
-    select_with(repo, files, false, tier)
+    select_with(repo, files, false, tier, tier != Tier::Full)
 }
 
-fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Selection {
+fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier, train: bool) -> Selection {
+    let mut sel = select_files(repo, files, products, tier);
+    if train && !sel.full.is_empty() {
+        sel.hand_to_train(repo, files);
+    }
+    sel
+}
+
+fn select_files(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Selection {
     let mut sel = Selection { products, direct: tier == Tier::Direct, ..Selection::default() };
     if tier == Tier::Full {
         sel.full.push("--tier full: the landing gate's selection (everything)".to_string());
@@ -1265,25 +2233,65 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
         let f = f.as_str();
         // The fuzz harnesses (a workspace of their own, not in `cargo test`) must still compile when a library
         // crate or they themselves change (HYGIENE-1); seeds and scripts cannot break the build.
-        if (f.starts_with("crates/") && f.ends_with(".rs") && !f.contains("/tests/")) || (f.starts_with("fuzz/") && (f.ends_with(".rs") || f.ends_with("Cargo.toml"))) {
+        if (f.starts_with("crates/") && f.ends_with(".rs") && !f.contains("/tests/")) || (f.starts_with("fuzz/") && (f.ends_with(".rs") || f.ends_with("Cargo.toml") || f.ends_with("Cargo.lock") || f.ends_with("rust-toolchain.toml"))) {
             sel.xtask_cmds.insert("fuzz-check".to_string());
         }
         if f == "crates/boundary/src/ffi.rs" || f.starts_with("csys/include/") || f.starts_with("csys/src/machine/") {
             sel.k5 = true;
         }
+        sel.gen_prechecks.extend(gen_prechecks_for(f).into_iter().map(String::from));
+        // XTASK-AFFECTED-LAYOUT: whatever else the file selects, a change linked into libc.a can move start-up pages.
+        if repo.reaches_image(f) {
+            sel.layout_tests(repo, f);
+        }
         if f.starts_with("csys/include/") && f.ends_with(".h") && header_map(repo, f, &mut sel) {
             continue;
         }
-        match classify(f) {
+        let class = match classify(f) {
+            Some(Class::Full(_)) if xtask_test_only(repo, f) => Some(Class::XtaskTestCode),
+            c => c,
+        };
+        match class {
+            Some(Class::XtaskTestCode) => {
+                sel.xtask_tests = true;
+                add(&mut sel.clippy, "xtask".to_string(), &format!("{f} changed"));
+                sel.xtask_cmds.insert("static".to_string());
+                sel.notes.push(format!("{f}: xtask test code only (xtask unit tests, clippy, `cargo xtask static`; not FULL)"));
+            }
+            Some(Class::XtaskTool) => {
+                sel.xtask_tests = true;
+                add(&mut sel.clippy, "xtask".to_string(), &format!("{f} changed"));
+                sel.xtask_cmds.insert("static".to_string());
+                let why = xtask_module(f).and_then(|m| XTASK_TOOLS.iter().find(|(t, _)| *t == m)).map_or("", |(_, w)| *w);
+                sel.notes.push(format!("{f}: an xtask tool module off the product path, {why} (xtask unit tests, clippy, `cargo xtask static`; not FULL)"));
+            }
             Some(Class::Full(why)) => {
                 if f.starts_with("xtask/") {
                     sel.xtask_tests = true;
                 }
                 sel.full.push(format!("{f}: {why}"));
             }
-            Some(Class::Docs) => sel.notes.push(format!("{f}: docs only (stubs, trace, policy checks)")),
+            Some(Class::Docs) => docs_readers(repo, f, &mut sel),
             Some(Class::Nothing(why)) => sel.notes.push(format!("{f}: {why}")),
+            Some(Class::ValidationScript(tests)) => {
+                for t in tests {
+                    add(&mut sel.scripts, t.to_string(), &format!("{f} changed"));
+                }
+                sel.notes.push(format!("{f}: a validation script with self-tests ({}; not FULL)", tests.join(", ")));
+            }
             Some(Class::AllConf) => sel.all_conf(repo, &format!("{f}: every conformance program")),
+            Some(Class::Records) => {
+                sel.xtask_tests = true;
+                sel.xtask_cmds.insert("static".to_string());
+                let readers = path_readers(repo, f, &mut sel);
+                sel.notes.push(format!("{f}: a record or view input (the xtask unit tests and `cargo xtask static`: records, records-gen, register, compat-ids, trace, layout{}; not FULL)", readers.iter().map(|r| format!(", {r}")).collect::<String>()));
+            }
+            Some(Class::LayoutManifest) => {
+                sel.xtask_tests = true;
+                sel.xtask_cmds.insert("static".to_string());
+                sel.xtask_cmds.insert(LAYOUT_CHECK.to_string());
+                sel.notes.push(format!("{f}: the layout manifest (`cargo xtask {LAYOUT_CHECK}` on fresh products, `cargo xtask static`, the xtask unit tests; not FULL)"));
+            }
             Some(Class::XtaskData) => {
                 sel.xtask_tests = true;
                 sel.notes.push(format!("{f}: bench data (the xtask unit tests read it)"));
@@ -1298,13 +2306,306 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
                 sel.xtask_cmds.extend(cmds.iter().map(|c| c.to_string()));
                 sel.notes.push(format!("{f}: an audit/report module of xtask (xtask unit tests, clippy, the policy checks{})", cmds.iter().map(|c| format!(", `cargo xtask {c}`")).collect::<String>()));
             }
-            None => {
-                classify_path(repo, f, &mut sel);
-                sel.own_suite(repo, f);
+            Some(Class::MathWiring) => {
+                sel.math_exports(repo, &format!("{f}: math export wiring"));
+                sel.xtask_cmds.insert("math-gen --check".to_string());
+                sel.notes.push(format!("{f}: math export wiring (the math export suites and `cargo xtask math-gen --check`, not FULL)"));
             }
+            Some(Class::MathCoeffs) => {
+                sel.math_coeffs(repo, f);
+                sel.notes.push(format!("{f}: generated coefficients (niji-math's suites, the math export suites and `cargo xtask tables --check`, not FULL)"));
+            }
+            Some(Class::MathFit) if !repo.fits.contains(f) => sel.full.push(format!("{f}: a removed fit file (`cargo xtask remez --check` cannot check it)")),
+            Some(Class::MathFit) => {
+                // The fit's family: what its generated coefficient file selects, plus the fit's own check.
+                sel.math_coeffs(repo, f);
+                sel.xtask_cmds.insert(format!("remez --check {f}"));
+                sel.notes.push(format!("{f}: a fit file (the family's math suites, `cargo xtask remez --check {f}` and `cargo xtask tables --check`, not FULL)"));
+            }
+            Some(Class::MathTables) => {
+                // The generator is a niji-mathtools source like any other (its own mapping), and it writes every
+                // coefficient family: the whole math set and both checks.
+                ordinary_mapping(repo, f, &mut sel);
+                sel.math_coeffs(repo, f);
+                sel.xtask_cmds.insert("kernel-index --check".to_string());
+                sel.notes.push(format!("{f}: the tables generator (its own mapping, every math suite, `cargo xtask tables --check` and `kernel-index --check`, not FULL)"));
+            }
+            Some(Class::MathToolFeed(feeds)) => {
+                // A generator input: its own mapping (niji-mathtools' unit tests) and the checks that prove the
+                // generated files still follow from it. The checks pass only when the output is unchanged, so the
+                // math suites are not selected here (a changed output is a changed coefficient file, its own row).
+                ordinary_mapping(repo, f, &mut sel);
+                let mut what = Vec::new();
+                if feeds.remez {
+                    if repo.fits.is_empty() {
+                        sel.full.push(format!("{f}: feeds `cargo xtask remez`, but the tree has no fit file to check"));
+                    } else {
+                        let fits: Vec<&str> = repo.fits.iter().map(String::as_str).collect();
+                        sel.xtask_cmds.insert(format!("remez --check {}", fits.join(" ")));
+                        what.push("`cargo xtask remez --check` (every fit)");
+                    }
+                }
+                if feeds.tables {
+                    sel.xtask_cmds.insert("tables --check".to_string());
+                    sel.xtask_cmds.insert("kernel-index --check".to_string());
+                    what.push("`cargo xtask tables --check` and `kernel-index --check`");
+                }
+                sel.notes.push(format!("{f}: a generator input (its own mapping, {}, not FULL)", what.join(", ")));
+            }
+            None => ordinary_mapping(repo, f, &mut sel),
         }
     }
     sel
+}
+
+/// The mapping of a source file that no rule above claims: its path class and the unit tests of the crate that owns
+/// it (AFF-OWNER). One helper for the unclaimed files and the tables generator (XTASK-AFFECTED-MATH-3), so the
+/// generator's selection cannot drift from what any other niji-mathtools source selects.
+fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
+    classify_path(repo, f, sel);
+    sel.own_suite(repo, f);
+}
+
+/// GATE-DEV-NO-FULL (owner, 11-19: developers gate what their change affects, the CI train runs the FULL gate on the
+/// merged tree): the class of a changed file whose rule escalated, which picks the bounded set a per-fix tier runs in
+/// FULL's place ([`Selection::hand_to_train`]). Every class also gets `cargo xtask static` and every cheap FULL step
+/// ([`prechecks`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrainClass {
+    /// xtask code: the xtask unit tests, the xtask clippy and the command(s) the module implements ([`XTASK_TRAIN`]).
+    Xtask,
+    /// What the products link at the bottom (csys, `crates/abi`, the product crates, linker inputs, `scripts/`): the
+    /// products build with the start-up layout tests on it, `k5`, the owning crate's own mapping and unit tests and the
+    /// unit tests of the crates that depend on it directly (one hop).
+    Image,
+    /// A generated table, generated source or generator input: the generator checks (cheap steps) and the code that
+    /// reads the file (`readers_of`), plus the owning crate's mapping for a Rust source.
+    Generated,
+    /// Build configuration: clippy, and the changed crate's unit and test targets.
+    Config,
+    /// A path no rule knows: as build configuration.
+    Unknown,
+}
+
+impl TrainClass {
+    fn of(f: &str) -> TrainClass {
+        let file = f.rsplit('/').next().unwrap_or(f);
+        if f.starts_with("xtask/") {
+            TrainClass::Xtask
+        } else if f.starts_with("csys/") || f.starts_with("crates/abi/") || f.starts_with("crates/libc-so/") || f.starts_with("crates/libm-so/") || f.starts_with("crates/native/link/") || [".map", ".ld", ".lds", ".version"].iter().any(|e| f.ends_with(e)) || f.starts_with("scripts/") {
+            TrainClass::Image
+        } else if matches!(f, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || ["spec/abi/", "spec/unicode/", "include/", "libc-include/", "headers/", "crates/math/fits/", "crates/math/src/coeffs/"].iter().any(|p| f.starts_with(p)) || file.ends_with("_gen.rs") || file == "tables.rs" || file == "builtin_items.rs" || (f.starts_with("crates/") && f.contains("/src/") && !f.ends_with(".rs")) {
+            TrainClass::Generated
+        } else if file == "build.rs" || file == "Cargo.toml" || file == "Cargo.lock" || file.starts_with("rust-toolchain") || file == "clippy.toml" || f.starts_with(".cargo/") {
+            TrainClass::Config
+        } else {
+            TrainClass::Unknown
+        }
+    }
+}
+
+/// GATE-DEV-NO-FULL: an xtask module's own command(s) (`cargo xtask <c>`), its generator checks (precheck names, run
+/// first) and whether it shapes the start-up image (the start-up layout tests on fresh products). A module not listed
+/// gets the xtask unit tests, clippy and `cargo xtask static` (which runs every source check) only.
+const XTASK_TRAIN: &[(&str, &[&str], &[&str], bool)] = &[
+    ("so", &[LAYOUT_CHECK], &[], true),
+    ("hottext", &[LAYOUT_CHECK], &[], true),
+    ("coldbss", &[LAYOUT_CHECK], &[], true),
+    ("layout", &[LAYOUT_CHECK], &[], true),
+    ("layout_verdict", &[LAYOUT_CHECK], &[], true),
+    ("startup_ro", &[LAYOUT_CHECK], &[], true),
+    ("native_examples", &["native"], &[], false),
+    ("rust_dylib", &["rust-dylib"], &[], false),
+    ("spec", &[], &["stubs", "trace"], false),
+    ("csys", &[], &["csys-gen-check"], false),
+    ("abi", &[], &["abi-gen-check", "headers-gen-check"], false),
+    ("headers", &[], &["headers-gen-check"], false),
+    ("unicode", &[], &["unicode-gen-check"], false),
+    ("encodings", &[], &["encodings-gen-check"], false),
+    ("charmaps", &[], &["encodings-gen-check", "locale-gen-check"], false),
+    ("langinfo", &[], &["locale-gen-check"], false),
+    ("native", &[], &["native-gen-check"], false),
+    ("compat", &[], &["compat-gen-check"], false),
+    ("math", &[], &["math-gen-check", "remez-check", "tables-check"], false),
+    ("fuzz", &[], &["fuzz-check"], false),
+];
+
+impl Selection {
+    /// Tests: no rule escalated (neither FULL nor, in a per-fix tier, the train's).
+    #[cfg(test)]
+    fn no_escalation(&self) -> bool {
+        self.full.is_empty() && self.train.is_empty()
+    }
+
+    /// GATE-DEV-NO-FULL: move every escalation to [`Selection::train`] and select, per changed file it names, the
+    /// bounded set of the file's [`TrainClass`]. A bounded mapping that escalates again (the own mapping of a generated
+    /// source) adds a train line, never FULL.
+    fn hand_to_train(&mut self, repo: &Repo, files: &[String]) {
+        let reasons = std::mem::take(&mut self.full);
+        let mut done = BTreeSet::new();
+        for r in &reasons {
+            // The changed file a reason names: the longest changed path it starts with (`<file>: <why>`).
+            let f = files.iter().filter(|f| r.starts_with(&format!("{f}: "))).max_by_key(|f| f.len()).map_or("", String::as_str);
+            if done.insert(f.to_string()) {
+                self.bounded(repo, f);
+            }
+        }
+        self.train = reasons;
+        self.train.append(&mut self.full);
+        self.train.dedup();
+    }
+
+    /// The bounded set of changed file `f` (`""`: a reason that names no changed file, as an unknown path).
+    fn bounded(&mut self, repo: &Repo, f: &str) {
+        let class = if f.is_empty() { TrainClass::Unknown } else { TrainClass::of(f) };
+        let why = format!("{f}: bounded set ({class:?}); FULL is the train's");
+        self.xtask_cmds.insert("static".to_string());
+        let mut what: Vec<String> = Vec::new();
+        match class {
+            TrainClass::Xtask => {
+                self.xtask_tests = true;
+                add(&mut self.clippy, "xtask".to_string(), &why);
+                what.push("the xtask unit tests, clippy".into());
+                if let Some((_, cmds, checks, startup)) = xtask_module(f).and_then(|m| XTASK_TRAIN.iter().find(|(t, ..)| *t == m)) {
+                    for c in *cmds {
+                        self.xtask_cmds.insert(c.to_string());
+                        self.example_steps |= matches!(*c, "native" | "rust-dylib");
+                        what.push(format!("`cargo xtask {c}`"));
+                    }
+                    for c in *checks {
+                        self.gen_prechecks.insert(c.to_string());
+                    }
+                    if *startup {
+                        self.layout_tests(repo, f);
+                        what.push("the start-up layout tests".into());
+                    }
+                }
+            }
+            TrainClass::Image => {
+                self.k5 = true;
+                self.layout_tests(repo, f);
+                what.push("the products build with the start-up layout tests, k5".into());
+                if f.ends_with(".rs") && repo.crate_of(f).is_some() {
+                    ordinary_mapping(repo, f, self);
+                }
+                let owner = if f.starts_with("csys/") { Some(CSYS_CRATE.to_string()) } else { repo.crate_of(f).map(|c| c.name.clone()) };
+                if let Some(o) = owner {
+                    add(&mut self.clippy, o.clone(), &why);
+                    add(&mut self.libs, o.clone(), &why);
+                    let hop: Vec<String> = repo.crates.iter().filter(|c| c.deps.contains(&o)).map(|c| c.name.clone()).collect();
+                    for d in &hop {
+                        add(&mut self.libs, d.clone(), &format!("{why} (depends on `{o}`)"));
+                    }
+                    what.push(format!("the unit tests of `{o}` and its one-hop dependents ({})", if hop.is_empty() { "none".to_string() } else { hop.join(", ") }));
+                }
+            }
+            TrainClass::Generated => {
+                what.push("the generator checks".into());
+                if f.ends_with(".rs") && repo.crate_of(f).is_some() {
+                    ordinary_mapping(repo, f, self);
+                    what.push("the file's own mapping".into());
+                } else if let Some(c) = repo.crate_of(f) {
+                    add(&mut self.clippy, c.name.clone(), &why);
+                    add(&mut self.libs, c.name.clone(), &why);
+                    what.push(format!("the unit tests of `{}`", c.name));
+                }
+            }
+            TrainClass::Config | TrainClass::Unknown => {
+                let c = repo.crate_of(f).map(|c| c.name.clone());
+                add(&mut self.clippy, c.clone().unwrap_or_else(|| "workspace".to_string()), &why);
+                what.push("clippy".into());
+                if let Some(c) = c {
+                    add(&mut self.libs, c.clone(), &why);
+                    for t in repo.targets.iter().filter(|t| t.krate == c) {
+                        add(&mut self.tests, (t.krate.clone(), t.name.clone()), &why);
+                    }
+                    what.push(format!("the tests of `{c}`"));
+                }
+            }
+        }
+        if !f.is_empty() {
+            let readers = readers_of(repo, f, &format!("{f}: the code names the file"), self);
+            if !readers.is_empty() {
+                what.push(format!("its readers ({})", readers.join(", ")));
+            }
+        }
+        self.notes.push(format!("{}: {class:?} bounded set: {}, `cargo xtask static`, every cheap FULL step (FULL: the train's)", if f.is_empty() { "(no changed file)" } else { f }, what.join(", ")));
+    }
+}
+
+/// XTASK-AFFECTED-DOCS-PATHS (D-X.35): a documentation file (rule 2) selects no tests by itself, only the always-run
+/// checks and `cargo xtask static` (lab names, decision and compat ids, the register, trace). A file that code names
+/// as a path (`names_path`) selects what reads it: the test target, the owning crate's unit tests (a crate source),
+/// or the xtask unit tests (an xtask source). Known limit: a path assembled at run time (`format!("docs/{x}")`) is
+/// not seen; the readers found that way today are static checks, which run anyway.
+fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
+    sel.xtask_cmds.insert("static".to_string());
+    let mut readers = path_readers(repo, f, sel);
+    // XTASK-AFFECTED-TOOL-TESTS: an operator tool that a test reaches without naming it selects the readers of the
+    // path the test does name.
+    for (_, _, via, why) in TOOL_REACH.iter().filter(|(dir, ext, _, _)| tool_reached(f, dir, ext)) {
+        readers.extend(readers_of(repo, &format!("tools/{via}"), &format!("{f}: reached through tools/{via} ({why})"), sel));
+    }
+    readers.sort();
+    readers.dedup();
+    if readers.is_empty() {
+        sel.notes.push(format!("{f}: docs only (stubs, policy checks, `cargo xtask static`; no tests)"));
+    } else {
+        sel.notes.push(format!("{f}: docs read by code (stubs, policy checks, `cargo xtask static`, and its readers: {})", readers.join(", ")));
+    }
+}
+
+/// The code that names `f` as a path (`names_path`), selected: a test target, the owning crate's unit tests (a crate
+/// source), the xtask unit tests (an xtask source). Returns the readers' names for the note.
+fn path_readers(repo: &Repo, f: &str, sel: &mut Selection) -> Vec<String> {
+    readers_of(repo, f, &format!("{f}: the source names the file"), sel)
+}
+
+/// XTASK-AFFECTED-TOOL-TESTS: operator tools under `tools/` (rule 2) that a test reaches at run time without naming
+/// the file, so `names_path` cannot see them: `(directory or file, extension, the path the test names, why)`, the
+/// paths relative to `tools/` (written in full, this module's own text would name them and read as their reader). A
+/// changed file under the directory (direct children only) with that extension (`""`: any), or the file itself,
+/// selects the readers of the named path. The tools a test names directly (`tools/probe/probe` in
+/// `xtask/tests/probe_client.rs`, the `tools/deb` steps, `tools/hottext/runner.sh`, ...) need no row.
+const TOOL_REACH: [(&str, &str, &str, &str); 3] = [
+    ("hottext/", ".sh", "hottext", "a test lists the directory and reads every script; runner.sh's test runs canon_host.sh"),
+    ("deb/copyright", "", "deb/system.sh", "system.sh stages it in the symbols-only run"),
+    ("deb/system/", "", "deb/system.sh", "system.sh stages its configuration files in the symbols-only run"),
+];
+
+/// Whether changed file `f` is reached through a `TOOL_REACH` row `(dir, ext)`: `tools/<dir>` itself, or a direct
+/// child of the directory `tools/<dir>` (`dir` ending in `/`) whose name ends in `ext`.
+fn tool_reached(f: &str, dir: &str, ext: &str) -> bool {
+    let Some(f) = f.strip_prefix("tools/") else { return false };
+    f == dir || (dir.ends_with('/') && f.strip_prefix(dir).is_some_and(|rest| !rest.contains('/') && rest.ends_with(ext)))
+}
+
+/// The code that names `f` as a path, selected with the reason `why` (see `path_readers`). The xtask sources include
+/// the xtask integration tests (`xtask/tests/`), which `cargo test -p xtask` runs with the unit tests.
+fn readers_of(repo: &Repo, f: &str, why: &str, sel: &mut Selection) -> Vec<String> {
+    let mut readers = Vec::new();
+    for t in repo.targets.iter().filter(|t| names_path(&t.text, f)) {
+        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), why);
+        readers.push(format!("{}::{}", t.krate, t.name));
+    }
+    for n in repo.nodes.iter().filter(|n| names_path(&n.text, f)) {
+        add(&mut sel.libs, n.krate.clone(), why);
+        readers.push(format!("lib:{}", n.krate));
+    }
+    if let Some((x, _)) = repo.xtask_texts.iter().find(|(_, t)| names_path(t, f)) {
+        sel.xtask_tests = true;
+        readers.push(format!("xtask ({x})"));
+    }
+    readers
+}
+
+/// Whether `text` names `path` as a path in code: on a line that is not a comment, right after a quote or a `/`
+/// (`"spec/behaviour/x.txt"`, `"/../../spec/behaviour/x.txt"`, `root.join("docs/x.tsv")`). A path cited in a comment
+/// or a doc comment is a reference for the reader, not a read. A top-level file (`README.md`) has no directory to tell
+/// a path from a bare file name (`"README.md"` in a list of names to skip), so it needs a `/` before it or `join("`.
+fn names_path(text: &str, path: &str) -> bool {
+    let at = |pre: &str| pre.ends_with('/') || (pre.ends_with('"') && (path.contains('/') || pre.ends_with("join(\"")));
+    text.lines().filter(|l| !matches!(l.trim_start().get(..2), Some("//" | "/*" | "* "))).any(|l| l.match_indices(path).any(|(i, _)| at(&l[..i])))
 }
 
 /// `--only a,b,...`: the named binaries for a red/green run, NOT a gate. A name is a test
@@ -1339,10 +2640,11 @@ pub fn select_only(repo: &Repo, list: &str) -> Result<Selection, String> {
 }
 
 fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
-    // A LINK-HELPERS helper source: the programs that link it are found by directive, not by name
-    // (every conformance program is the safe selection).
-    if f.starts_with("conformance/c/helpers/") && f.ends_with(".c") {
-        sel.all_conf(repo, &format!("{f}: a dynamic-link helper source (every conformance program)"));
+    // A dynamic-link helper source or a file its HELPER-FLAGS name (a version script): the programs
+    // that use it are found by directive, not by name (every conformance program is the safe
+    // selection).
+    if f.starts_with("conformance/c/helpers/") {
+        sel.all_conf(repo, &format!("{f}: a dynamic-link helper file (every conformance program)"));
         return;
     }
     if let Some(name) = f.strip_prefix("conformance/c/") {
@@ -1383,7 +2685,7 @@ fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
             return;
         }
         let parts: Vec<&str> = inner.split('/').collect();
-        let name = if cname == "liella-boundary" && parts.len() >= 2 && parts[0] == "posix" {
+        let name = if cname == "niji-boundary" && parts.len() >= 2 && parts[0] == "posix" {
             parts[1].trim_end_matches(".rs").to_string()
         } else {
             parts[0].trim_end_matches(".rs").to_string()
@@ -1435,9 +2737,70 @@ fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
     }
     if rest.starts_with("examples/") || rest.starts_with("benches/") || rest.ends_with(".md") {
         add(&mut sel.clippy, cname.clone(), &format!("{f} changed"));
+        if rest.starts_with("examples/") {
+            match example_steps(repo, &c.dir, f) {
+                Err(why) => sel.full.push(format!("{f}: {why}")),
+                Ok(steps) => {
+                    for (cmd, why) in steps {
+                        sel.example_steps = true;
+                        sel.xtask_cmds.insert(cmd.clone());
+                        sel.notes.push(format!("{f}: {why} (`cargo xtask {cmd}` on fresh products)"));
+                    }
+                }
+            }
+        }
         return;
     }
     sel.full.push(format!("{f}: unknown file of crate `{cname}`"));
+}
+
+/// XTASK-AFFECTED-EXAMPLES: the gate steps that build and run the crate example a changed file `f` under
+/// `<dir>/examples/` belongs to, read from what uses the file rather than from a list:
+/// 1. the examples: `examples/<n>.rs` itself; for a file of a module directory `examples/<d>/`, every example that
+///    declares `mod <d>;`; for another top-level file, every example that names it;
+/// 2. the xtask sources (this command's own excepted) that name such an example: `"<n>"` (`cargo rustc --example
+///    <n>`) or its path `examples/<n>.rs`;
+/// 3. for each, the step `cargo xtask test` runs from that module (`t.time("<step>", || <module>::<fn>(...))` in
+///    `xtask/src/main.rs`) and the command arm that runs the same function alone (`"<cmd>" => <module>::<fn>(`).
+///
+/// Returns (command, why) per step. Empty: no gate step uses the file (`cargo xtask bench` builds the bench examples
+/// off the gate), and its crate's clippy covers it. `Err` (FULL): the file belongs to no example, or a gate step uses
+/// it with no command that runs that step alone.
+fn example_steps(repo: &Repo, dir: &str, f: &str) -> Result<BTreeMap<String, String>, String> {
+    let top = format!("{dir}/examples/");
+    let rest = f.strip_prefix(&top).ok_or_else(|| format!("not under `{top}`"))?;
+    let stem = |p: &str| p.rsplit('/').next().unwrap_or(p).trim_end_matches(".rs").to_string();
+    let examples: Vec<String> = match rest.split_once('/') {
+        None if rest.ends_with(".rs") => vec![stem(rest)],
+        found => {
+            let names = |t: &str| match found {
+                Some((d, _)) => t.lines().map(str::trim).any(|l| l == format!("mod {d};") || l == format!("pub mod {d};")),
+                None => t.contains(rest),
+            };
+            let users: Vec<String> = repo.examples.iter().filter(|(p, t)| p.starts_with(&top) && names(t)).map(|(p, _)| stem(p)).collect();
+            if users.is_empty() {
+                return Err(format!("no example of `{dir}` uses the file (cannot place it)"));
+            }
+            users
+        }
+    };
+    let main = repo.xtask_texts.iter().find(|(p, _)| p == "xtask/src/main.rs").map_or("", |(_, t)| t.as_str());
+    let mut steps = BTreeMap::new();
+    for (p, text) in repo.xtask_texts.iter().filter(|(p, _)| p != "xtask/src/affected.rs") {
+        let Some(m) = xtask_module(p) else { continue };
+        let Some(n) = examples.iter().find(|n| text.contains(&format!("\"{n}\"")) || text.contains(&format!("examples/{n}.rs"))) else { continue };
+        for line in main.lines().filter(|l| l.contains("t.time(\"")) {
+            let Some(call) = line.split(&format!("|| {m}::")).nth(1) else { continue };
+            let func = call.split('(').next().unwrap_or_default();
+            let step = line.split('"').nth(1).unwrap_or_default();
+            let arm = format!("=> {m}::{func}(");
+            let Some(cmd) = main.lines().find(|l| l.contains(&arm)).and_then(|l| l.trim().strip_prefix('"')).and_then(|l| l.split('"').next()) else {
+                return Err(format!("the `{step}` step of `cargo xtask test` builds example `{n}` ({p}), but no `cargo xtask` command runs `{m}::{func}` alone"));
+            };
+            steps.insert(cmd.to_string(), format!("example `{n}` is built and run by the `{step}` step ({p})"));
+        }
+    }
+    Ok(steps)
 }
 
 /// GATE-TIER-3: the targets of `krate` whose own source names a non-Rust file `parts` of a `tests/` support directory
@@ -1491,14 +2854,14 @@ fn support_c_call<'a>(repo: &'a Repo, t: &Target, syms: &BTreeSet<&'a str>) -> O
 }
 
 /// The crate whose build script compiles `csys/` and links it (checked by a unit test).
-const CSYS_CRATE: &str = "liella-boundary";
+const CSYS_CRATE: &str = "niji-boundary";
 
 /// An assembly source of csys: its symbols are followed to the Rust files (and conformance
 /// programs) that use them, and each user is selected as if it had changed. FULL whenever the
 /// file cannot be mapped: new or deleted, generated, a macro or include that can define symbols,
-/// a symbol that may be part of the exported C ABI (not `liella_`), a symbol used by another
+/// a symbol that may be part of the exported C ABI (not `niji_`), a symbol used by another
 /// csys source, a link list, xtask, or a C header other than as a prototype, or no user at all.
-/// The `liella_*` function names whose one-line declarations are all that the diff changes in `file`. `None` when
+/// The `niji_*` function names whose one-line declarations are all that the diff changes in `file`. `None` when
 /// any changed line is something else (a struct, a macro, a multi-line declaration, a type) or nothing is found:
 /// a structural header change cannot be mapped to symbols.
 fn header_symbols(diff: &str, file: &str) -> Option<Vec<String>> {
@@ -1514,7 +2877,7 @@ fn header_symbols(diff: &str, file: &str) -> Option<Vec<String>> {
             }
             let (head, _) = t.split_once('(')?;
             let name = head.trim_end().rsplit(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next()?;
-            if !t.ends_with(';') || !name.starts_with("liella_") || t.contains('{') || head.starts_with('#') {
+            if !t.ends_with(';') || !name.starts_with("niji_") || t.contains('{') || head.starts_with('#') {
                 return None;
             }
             out.insert(name.to_string());
@@ -1561,9 +2924,9 @@ fn header_map(repo: &Repo, f: &str, sel: &mut Selection) -> bool {
 }
 
 /// TOOLS-21 (coordinator decision, DIRECT tier only): the exported C-ABI symbols defined in `csys/src/machine/` whose
-/// behaviour the machine tests pin, each with the test targets (crate `liella-boundary`) that call it. In the direct
+/// behaviour the machine tests pin, each with the test targets (crate `niji-boundary`) that call it. In the direct
 /// tier a listed symbol selects these targets plus the conformance programs that name it instead of escalating to FULL
-/// (rule 6); any other non-`liella_` symbol stays FULL, and `--tier full` / the wide tier are unchanged.
+/// (rule 6); any other non-`niji_` symbol stays FULL, and `--tier full` / the wide tier are unchanged.
 const MACHINE_EXPORTS: &[(&str, &str, &[&str])] = &[
     ("once.S", "pthread_once", &["s22_threads_symbols"]),
     ("once.S", "__pthread_once", &["s22_threads_symbols"]),
@@ -1585,6 +2948,7 @@ const MACHINE_EXPORTS: &[(&str, &str, &[&str])] = &[
     ("scan.S", "index", &["machine_scanners", "s04_strings_symbols"]),
     ("scan.S", "strchrnul", &["machine_scanners", "s04_strings_symbols"]),
     ("scan.S", "strncmp", &["machine_scanners", "s04_strings_symbols"]),
+    ("scan.S", "strstr", &["strstr_find", "s04_strings_symbols"]),
     ("scan.S", "__rawmemchr", &["s04_strings_symbols"]),
     ("scan.S", "memrchr", &["machine_scanners", "s04_strings_symbols"]),
     ("scan.S", "strcpy", &["machine_scanners", "s04_strings_symbols"]),
@@ -1599,8 +2963,8 @@ const MACHINE_EXPORTS: &[(&str, &str, &[&str])] = &[
     ("scan.S", "__stpncpy_chk", &["s04_strings_symbols"]),
 ];
 
-/// CSYS-MAP-2 (`cargo xtask static`, check `machine-exports`): every exported (non-`liella_`) symbol that a file named in
-/// `MACHINE_EXPORTS` defines must be listed there, mapped to existing `liella-boundary` targets that name it. One-sided on
+/// CSYS-MAP-2 (`cargo xtask static`, check `machine-exports`): every exported (non-`niji_`) symbol that a file named in
+/// `MACHINE_EXPORTS` defines must be listed there, mapped to existing `niji-boundary` targets that name it. One-sided on
 /// purpose: an entry whose symbol the file does not define (yet) is allowed, so the map can land before or after the
 /// branch that adds the export; the developer adding an export to a listed file gets this message in the same commit.
 /// Files not in the list (setjmp.S, context.S, entry.S, ...) are not checked: their exports stay FULL by design.
@@ -1618,9 +2982,9 @@ fn machine_exports_problems(repo: &Repo) -> Option<Vec<String>> {
             out.push(format!("{path}: its symbols cannot be read (see csys_symbols); MACHINE_EXPORTS cannot map it"));
             continue;
         };
-        for s in symbols.iter().filter(|s| !s.starts_with("liella_")) {
+        for s in symbols.iter().filter(|s| !s.starts_with("niji_")) {
             match MACHINE_EXPORTS.iter().find(|(f, x, _)| *f == file && x == s) {
-                None => out.push(format!("{path} defines exported `{s}`, which MACHINE_EXPORTS (xtask/src/affected.rs) lacks: add (\"{file}\", \"{s}\", &[<liella-boundary test targets that call it>]) in the same commit")),
+                None => out.push(format!("{path} defines exported `{s}`, which MACHINE_EXPORTS (xtask/src/affected.rs) lacks: add (\"{file}\", \"{s}\", &[<niji-boundary test targets that call it>]) in the same commit")),
                 Some((_, _, [])) => out.push(format!("{path}: MACHINE_EXPORTS maps `{s}` to no test target")),
                 Some((_, _, targets)) => {
                     for t in targets.iter() {
@@ -1636,7 +3000,7 @@ fn machine_exports_problems(repo: &Repo) -> Option<Vec<String>> {
     if out.is_empty() { None } else { Some(out) }
 }
 
-/// CSYS-MAP-4 (`cargo xtask machine-exports --list [<tree>]`): every exported (non-`liella_`) symbol any `csys/src/machine/*.S`
+/// CSYS-MAP-4 (`cargo xtask machine-exports --list [<tree>]`): every exported (non-`niji_`) symbol any `csys/src/machine/*.S`
 /// of the tree defines that `MACHINE_EXPORTS` does not map, one line each, `file symbol (listed file|unlisted file: FULL by design)`.
 /// Same symbol reading and same map lookup as the `machine-exports` static check; informational (exit 0), runnable on any tree.
 pub fn machine_exports_list(root: &Path) -> Result<(), String> {
@@ -1649,7 +3013,7 @@ pub fn machine_exports_list(root: &Path) -> Result<(), String> {
             continue;
         };
         let listed = MACHINE_EXPORTS.iter().any(|(f, _, _)| *f == file);
-        for s in symbols.iter().filter(|s| !s.starts_with("liella_") && !MACHINE_EXPORTS.iter().any(|(f, x, _)| *f == file && x == s)) {
+        for s in symbols.iter().filter(|s| !s.starts_with("niji_") && !MACHINE_EXPORTS.iter().any(|(f, x, _)| *f == file && x == s)) {
             n += 1;
             println!("{file} {s} ({} file)", if listed { "listed" } else { "unlisted" });
         }
@@ -1686,8 +3050,9 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
     };
     let mut users: BTreeSet<&str> = BTreeSet::new();
     let mut exported: Vec<(&str, &[&str])> = Vec::new();
+    let mut layout: BTreeSet<&str> = BTreeSet::new();
     for s in symbols {
-        if !s.starts_with("liella_") {
+        if !s.starts_with("niji_") {
             match machine_export(f, s).filter(|_| sel.direct) {
                 Some(t) => {
                     exported.push((s, t));
@@ -1704,6 +3069,15 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
             let rust = r.file.starts_with("crates/") && r.file.ends_with(".rs");
             let program = r.file.starts_with("conformance/c/") && r.file.ends_with(".c");
             let sibling = r.file.starts_with("csys/src/machine/") && r.file.ends_with(".S");
+            // A static checker of the csys source names its symbols to find them; it runs in `cargo xtask static`
+            // and `so`, which every gate runs, so it selects nothing more (D-X.34).
+            if STATIC_CHECKERS.contains(&r.file.as_str()) {
+                continue;
+            }
+            if LAYOUT_CONSUMERS.contains(&r.file.as_str()) {
+                layout.insert(&r.file);
+                continue;
+            }
             if sibling && direct && f.starts_with("csys/src/machine/") {
                 siblings.insert(&r.file);
                 continue;
@@ -1728,6 +3102,10 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
     }
     if !exported.is_empty() {
         sel.notes.push(format!("{f}: listed machine exports ({}) select their fixed machine tests and calling conformance programs", exported.iter().map(|(s, _)| *s).collect::<Vec<_>>().join(", ")));
+    }
+    if !layout.is_empty() {
+        sel.xtask_cmds.insert(LAYOUT_CHECK.to_string());
+        sel.notes.push(format!("{f}: its symbols are named by the layout contracts ({}): `cargo xtask {LAYOUT_CHECK}` on the products (D-X.48)", layout.into_iter().collect::<Vec<_>>().join(", ")));
     }
     sel.notes.push(format!("{f}: its symbols ({}) are used by {}; each is selected as if it changed", symbols.join(", "), users.iter().copied().collect::<Vec<_>>().join(", ")));
     add(&mut sel.clippy, CSYS_CRATE.to_string(), &format!("{f} changed (compiled by its build script)"));
@@ -1860,7 +3238,7 @@ fn csys_user(repo: &Repo, f: &str, u: &str, symbols: &[String], sel: &mut Select
     let Some(c) = repo.crate_of(u) else { return fallback(sel, "not in a crate") };
     let Some(inner) = u[c.dir.len() + 1..].strip_prefix("src/") else { return fallback(sel, "not under src") };
     let name = inner.split('/').next().unwrap_or(inner).trim_end_matches(".rs");
-    if !NARROW.contains(&c.name.as_str()) || (c.name == "liella-boundary" && name == "posix") {
+    if !NARROW.contains(&c.name.as_str()) || (c.name == "niji-boundary" && name == "posix") {
         return fallback(sel, "not a helper module of a narrowed crate");
     }
     let Some(node) = repo.nodes.iter().find(|n| n.krate == c.name && n.name == name && !n.root && n.section.is_none()) else {
@@ -1916,6 +3294,16 @@ fn git(root: &Path, args: &[&str]) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+/// D-X.41: `git diff -U0` of `xtask/` (the working tree against the merge base with `base`, as `changed_files`).
+/// `None` without git history or base (a VM tree: the caller keeps the sync's `.changed.xtask`, if any). An untracked
+/// file is not in it, so it is never shown to be test-only.
+fn git_xtask_diff(root: &Path, base: &str) -> Option<String> {
+    git(root, &["rev-parse", "--verify", "--quiet", "HEAD"]).ok()?;
+    let base = if git(root, &["rev-parse", "--verify", "--quiet", base]).is_ok() { base } else if base == "origin/main" { "main" } else { return None };
+    let mb = git(root, &["merge-base", "HEAD", base]).ok()?;
+    git(root, &["diff", "-U0", "--no-color", "--no-ext-diff", mb.trim(), "--", "xtask/"]).ok()
+}
+
 /// Changed file names: the working tree against the merge base with `base`, plus untracked.
 /// Without git history (a VM role tree has an empty repository), the `.changed` list the sync wrote.
 pub(crate) fn changed_files(root: &Path, base: &str) -> Result<Vec<String>, String> {
@@ -1946,10 +3334,19 @@ pub(crate) fn changed_files(root: &Path, base: &str) -> Result<Vec<String>, Stri
     Ok(set.into_iter().collect())
 }
 
+/// GATE-DEV-NO-FULL: the plan's lines for the escalations left to the train, where the FULL line was; the hand-back
+/// quotes them (`precheck` and `handback-check` accept a gate log that carries them).
+pub fn train_lines(sel: &Selection) -> Vec<String> {
+    sel.train.iter().map(|r| format!("FULL: the train's ({r})")).collect()
+}
+
 fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     println!("changed files: {}", files.len());
     for f in files {
         println!("  {f}");
+    }
+    if !prechecks(sel).is_empty() {
+        println!("prechecks (first, in seconds; a red one stops the run): {}", prechecks(sel).join(", "));
     }
     if !sel.full.is_empty() {
         println!("FULL (escalated; run the whole gate):");
@@ -1957,6 +3354,9 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
             println!("  {r}");
         }
         return;
+    }
+    for l in train_lines(sel) {
+        println!("{l}");
     }
     for n in &sel.notes {
         println!("note: {n}");
@@ -1984,7 +3384,10 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     for (n, why) in &sel.conf {
         println!("conformance: {n}  [{why}]");
     }
-    println!("selected: {} of {} test targets, {} of {} conformance programs, {} unit-test libs", sel.tests.len(), repo.targets.len(), sel.conf.len(), repo.conf.len(), sel.libs.len());
+    for (s, why) in &sel.scripts {
+        println!("script: bash {s}  [{why}]");
+    }
+    println!("selected: {} of {} test targets, {} of {} conformance programs, {} unit-test libs, {} of {} validation self-tests", sel.tests.len(), repo.targets.len(), sel.conf.len(), repo.conf.len(), sel.libs.len(), sel.scripts.len(), VALIDATION_SELF_TESTS.len());
 }
 
 /// How one step ended. `Skipped` is only for a test step that failed solely because no test matched.
@@ -2046,14 +3449,18 @@ fn count_skips(log: &str) -> u64 {
         .sum()
 }
 
-fn step_out(root: &Path, log: &Path, label: &str, cmd: &mut Command, allow_skip: bool) -> Outcome {
+/// A step's line, and for a failed test step the report of `failed_tests_report`, go to `out` (the console; a buffer in
+/// the unit tests). `test_crate` is `Some(crate)` for a test step: it may be a skip (`no_tests_only`), and when it fails
+/// its failing tests are named right under its FAIL line, before the next step starts (XTASK-AFFECTED-FAIL-EARLY).
+fn step_out(root: &Path, log: &Path, label: &str, cmd: &mut Command, test_crate: Option<&str>, out: &mut dyn std::io::Write) -> Outcome {
+    use std::io::Write;
+    let allow_skip = test_crate.is_some();
     let started = Instant::now();
     // This step's own output starts where the log ends now (the classification never reads earlier steps).
     let from = fs::metadata(log).map_or(0, |m| m.len());
     let file = fs::OpenOptions::new().create(true).append(true).open(log);
     let (success, failed_to_start) = match file.and_then(|f| f.try_clone().map(|g| (f, g))) {
         Ok((out, err)) => {
-            use std::io::Write;
             let _ = writeln!(&out, "== {label}");
             (cmd.current_dir(root).stdout(Stdio::from(out)).stderr(Stdio::from(err)).status().is_ok_and(|s| s.success()), false)
         }
@@ -2084,8 +3491,115 @@ fn step_out(root: &Path, log: &Path, label: &str, cmd: &mut Command, allow_skip:
     if outcome == Outcome::Failed {
         log_step_failed(log, label, "");
     }
-    println!("{:>6.1}s  {shown}  {label}{}", started.elapsed().as_secs_f64(), if outcome == Outcome::Skipped { "  (no test matched the selection: skipped, not failed)" } else { "" });
+    let _ = writeln!(out, "{:>6.1}s  {shown}  {label}{}", started.elapsed().as_secs_f64(), if outcome == Outcome::Skipped { "  (no test matched the selection: skipped, not failed)" } else { "" });
+    if let (Outcome::Failed, Some(c)) = (outcome, test_crate) {
+        let bytes = fs::read(log).unwrap_or_default();
+        let first_line = bytes[..(from as usize).min(bytes.len())].iter().filter(|&&b| b == b'\n').count() + 1;
+        let _ = write!(out, "{}", failed_tests_report(&own, c, log, first_line));
+    }
+    let _ = out.flush();
     outcome
+}
+
+/// How many failing tests a failed test step names under its FAIL line, and how many lines of each one's panic it
+/// shows (XTASK-AFFECTED-FAIL-EARLY); a longer line is cut to `EARLY_WIDTH` characters.
+const EARLY_TESTS: usize = 10;
+const EARLY_PANIC_LINES: usize = 5;
+const EARLY_WIDTH: usize = 300;
+
+/// The failing tests of a test step's own output, in order, each `<crate>[::<binary>] <test>` with the first lines of
+/// its panic (empty when the output holds none). Two runners write it:
+/// - nextest (through `xtask nextest`): a `<STATUS> [ 0.1s] (n/m) <binary id> <test>` line per test, a failing test's
+///   captured output under header lines naming it, and at the end one `---- <binary id> <test> stdout ----` line per
+///   failure (`nextest.rs`);
+/// - `cargo test`: `Running <file> (<deps path>)` per binary, then `---- <test> stdout ----` followed by that test's
+///   output for each failure; the name gets the binary of the `Running` line before it.
+fn failed_tests(own: &str, krate: &str) -> Vec<(String, Vec<String>)> {
+    let lines: Vec<&str> = own.lines().collect();
+    let mut binary = krate.to_string();
+    // (full name, the name as its `---- ` line has it)
+    let mut names: Vec<(String, String)> = Vec::new();
+    for l in &lines {
+        let t = l.trim();
+        if let Some(r) = t.strip_prefix("Running ") {
+            // "Running unittests src/lib.rs (target/debug/deps/niji_mem-0123)", "Running tests/x.rs (.../x-0123)"
+            let deps = r.rsplit_once('(').map_or("", |(_, p)| p.trim_end_matches(')'));
+            let stem = deps.rsplit('/').next().unwrap_or("");
+            let stem = stem.rsplit_once('-').map_or(stem, |(s, _)| s);
+            binary = if r.starts_with("unittests src/lib.rs") || stem.is_empty() { krate.to_string() } else if r.starts_with("unittests ") { format!("{krate}::bin/{stem}") } else { format!("{krate}::{stem}") };
+        } else if let Some(n) = t.strip_prefix("---- ").and_then(|x| x.strip_suffix(" stdout ----")) {
+            let full = if n.contains(' ') { n.to_string() } else { format!("{binary} {n}") };
+            if !names.iter().any(|(f, _)| *f == full) {
+                names.push((full, n.to_string()));
+            }
+        }
+    }
+    let mut panics: Vec<Vec<String>> = vec![Vec::new(); names.len()];
+    // The failure whose output the scan is in: set by a line naming it (a nextest status or output header, a
+    // `---- ` line), cleared by a line naming another test or ending a `cargo test` section.
+    let mut current: Option<usize> = None;
+    let mut i = 0;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        let section = t.strip_prefix("---- ").and_then(|x| x.strip_suffix(" stdout ----"));
+        let named = names.iter().position(|(full, short)| section == Some(short.as_str()) || t.ends_with(full.as_str()) || t.contains(&format!("{full} ")));
+        let status = t.split_once(" [").is_some_and(|(s, _)| !s.is_empty() && s.bytes().all(|b| b.is_ascii_uppercase() || b == b'-'));
+        if named.is_some() {
+            current = named;
+        } else if status || t.starts_with("---- ") || lines[i] == "failures:" || lines[i].starts_with("test result: ") || t.starts_with("Running ") {
+            // nextest indents a test's captured output (its own `failures:` and `test result:` lines too), under
+            // `stdout ───` / `stderr ───` headers that do not name the test: only column-0 lines end a section.
+            current = None;
+        } else if let Some(k) = current.filter(|&k| panics[k].is_empty() && t.contains("panicked at")) {
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+            let mut j = i;
+            while j < lines.len() && panics[k].len() < EARLY_PANIC_LINES {
+                let p = lines[j].trim_end();
+                let p = p.strip_prefix(indent).unwrap_or(p);
+                let q = p.trim_start();
+                if j > i && (q.is_empty() || q.starts_with("note: run with") || q.starts_with("stack backtrace:") || q.starts_with("---- ")) {
+                    break;
+                }
+                let cut: String = p.chars().take(EARLY_WIDTH).collect();
+                panics[k].push(if cut.len() < p.len() { format!("{cut} [line cut]") } else { cut });
+                j += 1;
+            }
+            i = j;
+            continue;
+        }
+        i += 1;
+    }
+    names.into_iter().map(|(f, _)| f).zip(panics).collect()
+}
+
+/// What a failed test step prints under its FAIL line: its failing tests (at most `EARLY_TESTS`, with the count of the
+/// rest), the first `EARLY_PANIC_LINES` lines of each one's panic, and the log holding the step's whole output with
+/// the line the step starts at. The end-of-run summary still lists every failure.
+fn failed_tests_report(own: &str, krate: &str, log: &Path, first_line: usize) -> String {
+    let fails = failed_tests(own, krate);
+    let mut out = String::new();
+    if fails.is_empty() {
+        out.push_str("        no failing test named in the step's output (a build error, or a runner that did not finish)\n");
+        for e in own.lines().filter(|l| l.starts_with("error")).take(EARLY_PANIC_LINES) {
+            out.push_str(&format!("          {}\n", e.chars().take(EARLY_WIDTH).collect::<String>()));
+        }
+    } else {
+        out.push_str(&format!("        failing tests ({}):\n", fails.len()));
+        for (name, panic) in fails.iter().take(EARLY_TESTS) {
+            out.push_str(&format!("          {name}\n"));
+            if panic.is_empty() {
+                out.push_str("            (no panic message in the output; see the log)\n");
+            }
+            for p in panic {
+                out.push_str(&format!("            | {p}\n"));
+            }
+        }
+        if fails.len() > EARLY_TESTS {
+            out.push_str(&format!("          ... and {} more failing tests (all are in the summary at the end)\n", fails.len() - EARLY_TESTS));
+        }
+    }
+    out.push_str(&format!("        full output: {} (this step from line {first_line})\n", log.display()));
+    out
 }
 
 /// TOOLS-9: a line `STEP FAILED: <label>: <why>` in the affected log, which `~/bin/test-summary` lists next to the
@@ -2113,7 +3627,7 @@ fn check_logged(log: &Path, label: &str, r: Result<(), String>) -> Result<(), ()
 }
 
 fn step(root: &Path, log: &Path, label: &str, cmd: &mut Command) -> bool {
-    step_out(root, log, label, cmd, false) == Outcome::Ok
+    step_out(root, log, label, cmd, None, &mut std::io::stdout()) == Outcome::Ok
 }
 
 /// TOOLS-7 (1): like `step`, and the step's own output (everything it appended to `log`) is also written to
@@ -2130,6 +3644,128 @@ fn step_saving(root: &Path, log: &Path, label: &str, cmd: &mut Command, name: &s
         println!("        full output of the failed step: {}", dest.display());
     }
     ok
+}
+
+/// How many trailing lines of a failed conformance program's stdout, and of its stderr, `affected` prints (D-X.27).
+const CONF_TAIL_LINES: usize = 40;
+/// A longer line of that output is cut to this many characters (one runaway line does not flood the console).
+const CONF_TAIL_WIDTH: usize = 300;
+
+/// D-X.27: the selected conformance programs as one step (`conformance/run.sh <name>...`): whether it passed, and when
+/// it failed the report of `conformance_failures` (empty when it passed), which the caller prints to the console, where `cargo xtask plants` matches a plant's `msg:` (before, the console
+/// named the step only, and a plant caught for the right reason by a program's own check was WARN-NO-MSG).
+fn run_conformance(root: &Path, log: &Path, names: &[&str]) -> (bool, String) {
+    let from = fs::metadata(log).map_or(0, |m| m.len());
+    let mut cmd = Command::new("sh");
+    cmd.arg("conformance/run.sh").args(names);
+    let ok = step(root, log, &format!("conformance ({} programs)", names.len()), &mut cmd);
+    if ok {
+        return (true, String::new());
+    }
+    let bytes = fs::read(log).unwrap_or_default();
+    let own = String::from_utf8_lossy(&bytes[(from as usize).min(bytes.len())..]).into_owned();
+    (false, conformance_failures(&root.join("conformance").join("build"), &own))
+}
+
+/// Linux x86-64 signal numbers (kernel UAPI `asm/signal.h`), for a status of 128 + n.
+fn signal_name(n: u32) -> Option<&'static str> {
+    const NAMES: [&str; 31] = [
+        "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGKILL", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO", "SIGPWR", "SIGSYS",
+    ];
+    NAMES.get((n as usize).wrapping_sub(1)).copied()
+}
+
+/// `status N, expected ...` of `run.sh`, with a status above 128 read as the shell does: death by signal N - 128.
+fn describe_status(detail: &str) -> String {
+    let Some(rest) = detail.strip_prefix("status ") else { return detail.to_string() };
+    let (n, tail) = rest.split_at(rest.find(',').unwrap_or(rest.len()));
+    match n.trim().parse::<u32>() {
+        Ok(rc) if rc > 128 && rc <= 128 + 64 => {
+            let sig = rc - 128;
+            format!("killed by signal {sig}{} (status {rc}){tail}", signal_name(sig).map(|s| format!(" {s}")).unwrap_or_default())
+        }
+        Ok(rc) => format!("exit status {rc}{tail}"),
+        Err(_) => detail.to_string(),
+    }
+}
+
+/// The last `CONF_TAIL_LINES` lines of `path` under a heading, each line prefixed `    | `, with a note when the file
+/// had more lines (or a line was cut); `(empty)` or `(absent)` otherwise.
+fn conf_tail(what: &str, path: &Path) -> String {
+    let Ok(bytes) = fs::read(path) else { return format!("  {what}: (absent: {})\n", path.display()) };
+    let text = String::from_utf8_lossy(&bytes);
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return format!("  {what}: (empty)\n");
+    }
+    let skip = lines.len().saturating_sub(CONF_TAIL_LINES);
+    let mut out = if skip > 0 {
+        format!("  {what}: last {CONF_TAIL_LINES} of {} lines ({skip} cut; whole file {}):\n", lines.len(), path.display())
+    } else {
+        format!("  {what} ({} lines):\n", lines.len())
+    };
+    for l in &lines[skip..] {
+        let n = l.chars().count();
+        if n > CONF_TAIL_WIDTH {
+            out.push_str(&format!("    | {} ... ({} more characters cut)\n", l.chars().take(CONF_TAIL_WIDTH).collect::<String>(), n - CONF_TAIL_WIDTH));
+        } else {
+            out.push_str(&format!("    | {l}\n"));
+        }
+    }
+    out
+}
+
+/// D-X.27: for each program the step's own output (`own`, what `run.sh` printed) names as failed - a line
+/// `conformance: FAIL <name> (<why>)` - its name, how it ended (the `conformance: <name>: ...` lines: exit status or
+/// signal, missing stderr text) and the tails of its stdout and stderr in `build`. A program that did not build (or
+/// whose helper did not) shows its build log instead: its stdout and stderr files there are an earlier run's. Programs
+/// that passed print nothing; a failed step that names no program shows the end of its own output.
+/// A dynamic-link program (CONF-DYN-HELPERS) runs twice: its lines name the run, `<name> (reference): ...` or
+/// `<name> (libniji): ...`, and its FAIL line `FAIL <name> on libniji (stderr: conformance/build/<file>)` names the
+/// run's own stderr file; the report prefixes each end with its run and tails that run's files.
+fn conformance_failures(build: &Path, own: &str) -> String {
+    let mut failed: Vec<(&str, &str)> = Vec::new();
+    let mut details: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for l in own.lines() {
+        let Some(r) = l.strip_prefix("conformance: ") else { continue };
+        if let Some(f) = r.strip_prefix("FAIL ") {
+            let (name, why) = f.split_once(' ').unwrap_or((f, ""));
+            let why = why.trim();
+            let why = why.strip_prefix('(').map_or(why, |w| w.strip_suffix(')').unwrap_or(w));
+            failed.push((name, why));
+        } else if let Some((name, d)) = r.split_once(": ") {
+            let (name, d) = match name.split_once(" (").and_then(|(n, run)| Some((n, run.strip_suffix(')')?))) {
+                Some((n, run @ ("reference" | "libniji"))) => (n, format!("{run}: {}", describe_status(d))),
+                _ => (name, describe_status(d)),
+            };
+            if !name.is_empty() && !name.contains(' ') {
+                details.entry(name).or_default().push(d);
+            }
+        }
+    }
+    let mut out = String::new();
+    if failed.is_empty() {
+        let lines: Vec<&str> = own.lines().collect();
+        out.push_str("conformance: the step failed but named no failed program; the end of its output:\n");
+        for l in &lines[lines.len().saturating_sub(CONF_TAIL_LINES)..] {
+            out.push_str(&format!("    | {l}\n"));
+        }
+        return out;
+    }
+    for (name, why) in failed {
+        let how: Vec<String> = details.get(name).into_iter().flatten().cloned().collect();
+        out.push_str(&format!("conformance FAILED: {name}: {}\n", if how.is_empty() { why.to_string() } else { how.join("; ") }));
+        // The run's stderr file, as run.sh names it (`<name>.log.stderr`, or `<name>.log.<run>.stderr` for one run of a
+        // dynamic-link program); its stdout sits beside it.
+        let stderr = why.split_once("stderr: conformance/build/").map(|(_, f)| f.split(')').next().unwrap_or(f));
+        if let Some(file) = stderr.and_then(|f| f.strip_suffix(".stderr")).filter(|f| !f.is_empty() && !f.contains('/')) {
+            out.push_str(&conf_tail("stdout", &build.join(format!("{file}.stdout"))));
+            out.push_str(&conf_tail("stderr", &build.join(format!("{file}.stderr"))));
+        } else if build.join(format!("{name}.log")).exists() && (why.contains("does not build") || why.contains("helper")) {
+            out.push_str(&conf_tail("build log", &build.join(format!("{name}.log"))));
+        }
+    }
+    out
 }
 
 /// A few lines from a cargo/xtask log, in the format of `~/bin/test-summary`.
@@ -2208,11 +3844,33 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     let _ = fs::remove_file(&log);
     let mut ok = true;
     let mut skipped: Vec<String> = Vec::new();
+    run_prechecks_or_stop(root, &log, sel)?;
     if !sel.full.is_empty() {
         println!("escalated to FULL: running the workspace clippy and `cargo xtask test`");
-        ok &= step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"]));
-        ok &= step_saving(root, &log, "clippy --workspace", Command::new(&cargo).args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]), "clippy.log");
-        ok &= step(root, &log, "cargo xtask test", Command::new(&cargo).args(["xtask", "test"]));
+        // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
+        // to the log among them, and the summary of all of them, slowest first.
+        let mut times = crate::steptime::Steps::default();
+        let (stubs_again, test_args) = full_steps(sel);
+        if stubs_again {
+            ok &= times.time("stubs", || step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"])));
+        }
+        ok &= times.time("clippy-workspace", || step_saving(root, &log, "clippy --workspace", Command::new(&cargo).args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]), "clippy.log"));
+        let from = fs::metadata(&log).map_or(0, |m| m.len());
+        ok &= step(root, &log, &test_args.join(" "), Command::new(&cargo).args(&test_args[1..]));
+        // GATE-VALIDATION-SH-TESTS: everything includes the validation self-tests (`cargo xtask test` does not run them).
+        for s in VALIDATION_SELF_TESTS {
+            ok &= times.time(s, || step(root, &log, &format!("validation self-test {s}"), Command::new("bash").arg(s)));
+        }
+        let bytes = fs::read(&log).unwrap_or_default();
+        for (name, secs) in String::from_utf8_lossy(&bytes[(from as usize).min(bytes.len())..]).lines().filter_map(crate::steptime::parse) {
+            // The remez binary's per-fit lines are parts of the `remez-check` step: shown, not summed again.
+            if name.contains('/') {
+                println!("{}", crate::steptime::line(name, Duration::from_secs_f64(secs)));
+            } else {
+                times.add(&format!("test/{name}"), Duration::from_secs_f64(secs));
+            }
+        }
+        times.print_summary();
     } else {
         if sel.only {
             println!("ONLY mode: the named binaries, no stubs, policy checks or clippy. NOT A GATE.");
@@ -2224,7 +3882,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             ok &= check_logged(&log, "unsafe-audit", crate::policy::unsafe_audit(root)).is_ok();
             ok &= check_logged(&log, "csys-audit", crate::policy::csys_audit(root)).is_ok();
             if sel.k5 {
-                ok &= check_logged(&log, "K5 (ffi.rs and liella_csys.h agree)", crate::csys::machine_decls_match(root)).is_ok();
+                ok &= check_logged(&log, "K5 (ffi.rs and niji_csys.h agree)", crate::csys::machine_decls_match(root)).is_ok();
             }
         }
         if !sel.clippy.is_empty() {
@@ -2234,17 +3892,10 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             cmd.args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]);
             ok &= step_saving(root, &log, &format!("clippy --workspace (changed: {})", sel.clippy.keys().cloned().collect::<Vec<_>>().join(", ")), &mut cmd, "clippy.log");
         }
-        if sel.xtask_tests {
-            ok &= step(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]));
-        }
-        let needs_products = !sel.conf.is_empty() || sel.xtask_cmds.contains("symgap") || repo.targets.iter().any(|t| t.products && sel.tests.contains_key(&(t.krate.clone(), t.name.clone())));
-        if needs_products {
-            let mut cmd = Command::new(&cargo);
-            cmd.args(["xtask", "so"]);
-            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
-        }
-        // Per crate: its unit tests and its selected targets, then again with the exports
-        // interposed (as the gate does) for the crates that can link the boundary.
+        // Per crate: its unit tests and its selected targets, then (as the gate does, for the crates
+        // that can link the boundary) again as libniji processes (PASS2-NATIVE-RUNNER) and, for the
+        // targets of the interposed suite among them (`nextest::interposed`, ruling #6820), with
+        // the exports interposed.
         let mut per: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for (c, t) in sel.tests.keys() {
             per.entry(c).or_default().push(t);
@@ -2252,48 +3903,123 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         for c in sel.libs.keys() {
             per.entry(c).or_default();
         }
-        let selftest = ["liella", "liella-boundary", "liella-rt", "liella-math"];
-        let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "liella-mem" | "liella-rt" | "liella-kernel" | "liella-abi" | "liella-boundary")));
+        let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
+        let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "niji-mem" | "niji-rt" | "niji-kernel" | "niji-abi" | "niji-boundary")));
         if !interpose {
-            println!("note: the exports-interposed pass is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+            println!("note: the second pass (native and exports-interposed) is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+        }
+        // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...) from the C
+        // family, which is a poisoning libniji heap only in the second pass (the products' heap
+        // natively, `pass2::products_perturb`; the test heap with the exports interposed): there its
+        // poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always get the
+        // second pass.
+        let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);
+        // The native pass runs on the products.
+        let products = needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts));
+        let mut products_cmd = Command::new(&cargo);
+        products_cmd.args(["xtask", "so"]);
+        if sel.xtask_tests && products {
+            // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
+            // products go beside the products build when the memory allows; the targets that run products go after it.
+            let (beside, after) = xtask_test_split(root);
+            let mut beside_cmd = Command::new(&cargo);
+            beside_cmd.args(&beside);
+            match side_by_side_room(memory_room()) {
+                Ok(why) => {
+                    println!("note: the xtask tests that run no products go beside the products build ({why})");
+                    // `cargo xtask so` is `cargo run -p xtask -- so`: it would wait for the `target/debug` build lock
+                    // that `cargo test -p xtask` holds while it compiles the tests. This process is that fresh xtask
+                    // binary, so the products build runs it directly (`/proc/self/exe`: the image this process runs,
+                    // even while cargo replaces `target/debug/xtask`).
+                    let mut products_cmd = Command::new("/proc/self/exe");
+                    products_cmd.arg("so");
+                    ok &= products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
+                }
+                Err(why) => {
+                    println!("note: the products build and the xtask tests run one after the other ({why})");
+                    ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
+                    ok &= step_out(root, &log, XTASK_BESIDE_LABEL, &mut beside_cmd, Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+                }
+            }
+            if !after.is_empty() {
+                ok &= step_out(root, &log, "xtask tests on the fresh products", Command::new(&cargo).args(&after), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+            }
+        } else {
+            if sel.xtask_tests {
+                ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+            }
+            if products {
+                ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
+            }
         }
         let nextest = crate::nextest::available(&cargo);
+        // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
+        let mut runner: Option<Result<String, ()>> = None;
+        // The native pass's lock of this tree (`pass2::lock`), taken with the runner and held to the end of the run.
+        let mut _native_lock = None;
         for (c, ts) in &per {
-            for pass in 0..2 {
-                // `liella`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...)
-                // from the C family, which is Liella's heap only with the exports interposed: there
-                // its poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always
-                // get the second pass.
-                let c_family = *c == "liella" && ts.iter().any(|t| t.ends_with("_clauses"));
-                if pass == 1 && !((interpose || c_family) && selftest.contains(c)) {
+            for pass in 0..3 {
+                if pass > 0 && !second(c, ts) {
                     continue;
                 }
-                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889);
-                // a pass left with no target and no unit tests is not run (no `--test` would run all).
-                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).collect();
-                if pass == 1 && ts.is_empty() && !sel.libs.contains_key(*c) {
+                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889); the
+                // interposed pass runs the suite's targets only. A pass left with no target and no
+                // unit tests is not run (no `--test` would run all).
+                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect();
+                let lib = sel.libs.contains_key(*c) && (pass < 2 || crate::nextest::interposed(c, ""));
+                if pass > 0 && ts.is_empty() && !lib {
                     continue;
+                }
+                let mut selection = vec!["-p".to_string(), c.to_string()];
+                if lib {
+                    selection.push(unit_tests_flag(repo, c).to_string());
+                }
+                for t in &ts {
+                    selection.extend(["--test".to_string(), t.to_string()]);
                 }
                 // Through nextest when the gate's `xtask test` uses it (`nextest.rs`): the same
                 // runner and serial groups, and the summary lines of a `cargo test` log.
                 let mut cmd = Command::new(&cargo);
                 crate::nextest::poison(&mut cmd);
                 if nextest {
-                    cmd.args(["xtask", "nextest", "-p", c]);
+                    cmd.args(["xtask", "nextest"]);
                 } else {
-                    cmd.args(["test", "-p", c]);
+                    cmd.arg("test");
                 }
+                cmd.args(&selection);
                 if pass == 1 {
-                    cmd.args(["--features", "liella-boundary/export,liella-boundary/selftest"]);
+                    let r = runner.get_or_insert_with(|| {
+                        let made = crate::pass2::lock(root).and_then(|held| {
+                            _native_lock = Some(held);
+                            crate::pass2::prepare(root)
+                        });
+                        let value = made.as_ref().ok().cloned();
+                        check_logged(&log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ())).ok().and(value).ok_or(())
+                    });
+                    let Ok(r) = r.clone() else {
+                        ok = false;
+                        continue;
+                    };
+                    if check_logged(&log, &format!("native copies of -p {c}"), crate::pass2::patch_listed(&cargo, root, &selection).map(|_| ())).is_err() {
+                        ok = false;
+                        continue;
+                    }
+                    cmd.env(if nextest { crate::pass2::RUNNER_VIA } else { crate::pass2::RUNNER_VAR }, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
                 }
-                if sel.libs.contains_key(*c) {
-                    cmd.arg("--lib");
+                if pass == 2 {
+                    cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
                 }
-                for t in ts {
-                    cmd.args(["--test", t]);
+                // The heavy products sweeps run shard 0 only in the second pass
+                // (`nextest::PASS1_SHARD0`, D-X.36); `cargo test` has no filter for it and runs all.
+                if pass > 0 && nextest {
+                    cmd.args(crate::nextest::pass1_shard_filter(c, &ts).unwrap_or_default());
                 }
-                let label = format!("test -p {c}{}", if pass == 1 { " (exports interposed)" } else { "" });
-                match step_out(root, &log, &label, &mut cmd, true) {
+                let label = format!("test -p {c}{}", match pass {
+                    0 => "",
+                    1 => " (native)",
+                    _ => " (exports interposed)",
+                });
+                match step_out(root, &log, &label, &mut cmd, Some(c), &mut std::io::stdout()) {
                     Outcome::Ok => {}
                     Outcome::Skipped => skipped.push(label),
                     Outcome::Failed => ok = false,
@@ -2301,15 +4027,16 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             }
         }
         if !sel.conf.is_empty() {
-            let mut cmd = Command::new("sh");
-            cmd.arg("conformance/run.sh");
-            for n in sel.conf.keys() {
-                cmd.arg(n);
-            }
-            ok &= step(root, &log, &format!("conformance ({} programs)", sel.conf.len()), &mut cmd);
+            let (passed, report) = run_conformance(root, &log, &sel.conf.keys().map(String::as_str).collect::<Vec<_>>());
+            print!("{report}");
+            ok &= passed;
         }
         for c in &sel.xtask_cmds {
-            ok &= step(root, &log, &format!("cargo xtask {c}"), Command::new(&cargo).args(["xtask", c]));
+            // A command may carry its flags (`math-gen --check`).
+            ok &= step(root, &log, &format!("cargo xtask {c}"), Command::new(&cargo).arg("xtask").args(c.split_whitespace()));
+        }
+        for s in sel.scripts.keys() {
+            ok &= step(root, &log, &format!("validation self-test {s}"), Command::new("bash").arg(s));
         }
     }
     println!("--- summary ({}), log {}", format_args!("{:.0}s", started.elapsed().as_secs_f64()), log.display());
@@ -2322,25 +4049,348 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     println!("affected: {}{}", if ok { "ok" } else { "FAILED" }, if sel.only { " (ONLY mode: named binaries, NOT A GATE)" } else { "" });
     if !ok {
         // D-X.23: test builds carry no DWARF; panics still name file:line (core::panic::Location).
-        println!("hint: for a debugger or source-level backtrace, rerun the red test with debuginfo: CARGO_PROFILE_DEV_DEBUG=full cargo xtask affected --only <target>");
+        println!("hint: for a debugger or source-level backtrace, rerun the red test with debuginfo: CARGO_PROFILE_DEV_DEBUG=full cargo xtask affected --only <target> --run");
     }
     let _ = repo;
     if ok { Ok(()) } else { Err("a selected test or check failed".into()) }
 }
 
-/// Is a failed test (`crate::target name`, `crate name` for unit tests, `xtask::bin/xtask name`) in the selection?
-fn covers(sel: &Selection, failed: &str) -> bool {
+/// GATE-BOUNDED-PARALLEL: the label of the xtask tests that run no products, and the log they write when they run
+/// beside the products build (appended to the run's log when both have ended, and kept).
+const XTASK_BESIDE_LABEL: &str = "xtask tests that run no products";
+const XTASK_BESIDE_LOG: &str = "affected-xtask.log";
+
+/// GATE-BOUNDED-PARALLEL: the memory the products build and the xtask tests take side by side, with headroom. Measured
+/// on a Zen 1 host, 60 vCPU, from cold products (`anon` of the gate's cgroup, page cache left out): the xtask tests
+/// 0.47 GiB and the products build 1.85 GiB one after the other, 2.32 GiB together; 6 GiB leaves 2.5x headroom and
+/// fits the gate's 16 GiB limit. The side-by-side peak is in the record.
+const SIDE_BY_SIDE_BYTES: u64 = 6 << 30;
+
+/// The two `cargo test -p xtask` commands of a run that builds the products (GATE-BOUNDED-PARALLEL): the unit tests
+/// (`--bins`) with every integration target that runs no products, and the integration targets that do
+/// ([`names_products`], the rule that decides whether a selection builds the products at all), which must see the
+/// fresh ones. The second is empty when no target runs products. `Repo::load` keeps no xtask targets (the xtask tests
+/// run whole), so the targets are listed here by cargo's own rule (`tests/*.rs`, `tests/*/main.rs`; xtask's manifest
+/// declares none): a target missed here would not run at all.
+fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>) {
+    let mut beside: Vec<String> = ["test", "-p", "xtask", "--bins"].map(String::from).to_vec();
+    let mut after: Vec<String> = Vec::new();
+    for p in sorted_dir(&root.join("xtask").join("tests")) {
+        let (name, text) = if p.is_dir() {
+            if !p.join("main.rs").exists() {
+                continue;
+            }
+            let mut all = Vec::new();
+            files_under(&p, &["rs"], &mut all);
+            (p.file_name(), all.iter().map(|f| read(f)).collect::<Vec<_>>().join("\n"))
+        } else if p.extension().is_some_and(|e| e == "rs") {
+            (p.file_stem(), read(&p))
+        } else {
+            continue;
+        };
+        let runs_products = names_products(&text);
+        let into = if runs_products { &mut after } else { &mut beside };
+        into.extend(["--test".to_string(), name.and_then(|s| s.to_str()).unwrap_or_default().to_string()]);
+    }
+    if !after.is_empty() {
+        after.splice(0..0, ["test", "-p", "xtask"].map(String::from));
+    }
+    (beside, after)
+}
+
+/// The memory this process may use (bytes): the smallest `memory.max` of its cgroup (v2) and the cgroups above it, and
+/// the host's `MemTotal`; `None` when neither can be read.
+fn memory_room() -> Option<u64> {
+    let read = |p: &str| fs::read_to_string(p).ok();
+    let limit = read("/proc/self/cgroup").and_then(|c| cgroup_limit(&c, &read));
+    let total = read("/proc/meminfo").and_then(|m| m.lines().find_map(|l| l.strip_prefix("MemTotal:")).and_then(|v| v.trim().strip_suffix("kB")).and_then(|v| v.trim().parse::<u64>().ok())).map(|k| k * 1024);
+    match (limit, total) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+/// The smallest `memory.max` on the path of the cgroup v2 line `0::<path>` of `/proc/self/cgroup`, read through `read`
+/// (`max`, a missing file or another hierarchy: no limit there).
+fn cgroup_limit(proc_self_cgroup: &str, read: &dyn Fn(&str) -> Option<String>) -> Option<u64> {
+    const ROOT: &str = "/sys/fs/cgroup";
+    let path = proc_self_cgroup.lines().find_map(|l| l.strip_prefix("0::"))?.trim().trim_end_matches('/');
+    if !path.is_empty() && !path.starts_with('/') {
+        return None;
+    }
+    let mut dir = format!("{ROOT}{path}");
+    let mut min: Option<u64> = None;
+    loop {
+        if let Some(v) = read(&format!("{dir}/memory.max")).and_then(|s| s.trim().parse::<u64>().ok()) {
+            min = Some(min.map_or(v, |m| m.min(v)));
+        }
+        if dir.len() <= ROOT.len() {
+            return min;
+        }
+        dir.truncate(dir.rfind('/').unwrap_or(0));
+    }
+}
+
+/// Whether the products build and the xtask tests fit side by side in `room` bytes ([`SIDE_BY_SIDE_BYTES`]); the text
+/// says why, for the run's note.
+fn side_by_side_room(room: Option<u64>) -> Result<String, String> {
+    let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
+    match room {
+        Some(r) if r >= SIDE_BY_SIDE_BYTES => Ok(format!("{} of memory, {} needed", gib(r), gib(SIDE_BY_SIDE_BYTES))),
+        Some(r) => Err(format!("{} of memory, side by side needs {}", gib(r), gib(SIDE_BY_SIDE_BYTES))),
+        None => Err("the memory limit cannot be read".into()),
+    }
+}
+
+/// GATE-BOUNDED-PARALLEL: the products build (`products`, into the run's `log`) and the xtask tests that run no
+/// products (`tests`, into `target/affected-xtask.log`) side by side. They share no cargo build directory (the products
+/// build in `target/product`; the tests in `target/debug`, whose lock cargo takes while it builds). The tests' console
+/// lines are printed once both have ended and their log is then appended to the run's log, so each step's output stays
+/// in one piece. The verdict is that of the two steps run one after the other: true only when both are green.
+fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, tests: &mut Command) -> bool {
+    let side = root.join("target").join(XTASK_BESIDE_LOG);
+    let _ = fs::remove_file(&side);
+    let mut console: Vec<u8> = Vec::new();
+    let (built, tested) = std::thread::scope(|s| {
+        let t = s.spawn(|| step_out(root, &side, XTASK_BESIDE_LABEL, tests, Some("xtask"), &mut console));
+        let built = step(root, log, "products (cargo xtask so)", products);
+        (built, t.join().unwrap_or(Outcome::Failed))
+    });
+    print!("{}", String::from_utf8_lossy(&console));
+    let appended = fs::read(&side).and_then(|b| {
+        use std::io::Write;
+        fs::OpenOptions::new().create(true).append(true).open(log)?.write_all(&b)
+    });
+    if let Err(e) = appended {
+        println!("        cannot append {} to {}: {e}", side.display(), log.display());
+        log_step_failed(log, XTASK_BESIDE_LABEL, &format!("its log {} was not appended: {e}", side.display()));
+        return false;
+    }
+    built && tested == Outcome::Ok
+}
+
+/// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
+/// an xtask command that reads the products (`symgap`, `layout-check`, an example step).
+fn needs_products(repo: &Repo, sel: &Selection) -> bool {
+    !sel.conf.is_empty() || sel.example_steps || sel.xtask_cmds.contains("symgap") || sel.xtask_cmds.contains(LAYOUT_CHECK) || repo.targets.iter().any(|t| t.products && sel.tests.contains_key(&(t.krate.clone(), t.name.clone())))
+}
+
+/// The cargo target flag that runs a package's unit tests: `--lib`, or `--bins` for a bin-only package (xtask, which
+/// a change to a crate it depends on reaches through `wide`), where `--lib` stops the build at once ("no library
+/// targets found in package") and the gate went red without running a test (XTASK-AFFECTED-XTASK-TESTS, D-X.41).
+/// An unknown package keeps `--lib`.
+fn unit_tests_flag(repo: &Repo, krate: &str) -> &'static str {
+    if repo.crates.iter().any(|c| c.name == krate && !c.lib) { "--bins" } else { "--lib" }
+}
+
+/// A failed test as the gate names it (XTASK-AFFECTED-REVERSE): the text of a `FAILED: <id>` line of the summary
+/// (`summary`, `failed_tests`: `crate::target name` for a test target, `crate name` for unit tests, `xtask::bin/xtask
+/// name` or `xtask::<target> name` for xtask), or a conformance program (`conformance:<program>`, the `--only` form, or
+/// a whole `conformance FAILED: <program>: <why>` line of `conformance_failures`). A leading `FAILED: ` is ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum FailedId {
+    Xtask,
+    Target(String, String),
+    Lib(String),
+    Conf(String),
+}
+
+impl FailedId {
+    fn parse(id: &str) -> FailedId {
+        let id = id.trim();
+        let id = id.strip_prefix("FAILED: ").unwrap_or(id);
+        if let Some(rest) = id.strip_prefix("conformance FAILED: ").or_else(|| id.strip_prefix("conformance:")) {
+            return FailedId::Conf(rest.split(':').next().unwrap_or_default().trim().to_string());
+        }
+        let bin = id.split_whitespace().next().unwrap_or_default();
+        if bin.starts_with("xtask") {
+            return FailedId::Xtask;
+        }
+        match bin.split_once("::") {
+            Some((c, t)) => FailedId::Target(c.to_string(), t.to_string()),
+            None => FailedId::Lib(bin.to_string()),
+        }
+    }
+
+    /// The `kind` field of the `--reverse` JSON.
+    fn kind(&self) -> &'static str {
+        match self {
+            FailedId::Xtask => "xtask",
+            FailedId::Target(..) => "target",
+            FailedId::Lib(_) => "lib",
+            FailedId::Conf(_) => "conformance",
+        }
+    }
+}
+
+/// Why a selection holds a failed test.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Why {
+    /// The selection escalated to FULL (it runs everything): the escalation reasons. Low confidence for attribution.
+    Full(Vec<String>),
+    /// The selection names the test's binary: the reason recorded with it (the rule that selected it).
+    Rule(String),
+}
+
+/// THE membership rule of a failed test in a selection, for both directions (XTASK-AFFECTED-REVERSE): `replay` and
+/// `--reverse` ask it, and `run_selection` runs exactly these items (`tests` by target, `libs` by `--lib`/`--bins`,
+/// `xtask_tests`, `conf`), so a reverse attribution can never disagree with what the forward gate ran.
+fn selects(sel: &Selection, failed: &str) -> Option<Why> {
     if !sel.full.is_empty() {
-        return true;
+        return Some(Why::Full(sel.full.clone()));
     }
-    let bin = failed.split_whitespace().next().unwrap_or_default();
-    if bin.starts_with("xtask") {
-        return sel.xtask_tests;
+    match FailedId::parse(failed) {
+        FailedId::Xtask => sel.xtask_tests.then(|| Why::Rule(sel.notes.first().cloned().unwrap_or_else(|| "the xtask unit tests".to_string()))),
+        FailedId::Target(c, t) => sel.tests.get(&(c, t)).map(|w| Why::Rule(w.clone())),
+        FailedId::Lib(c) => sel.libs.get(&c).map(|w| Why::Rule(w.clone())),
+        FailedId::Conf(n) => sel.conf.get(&n).map(|w| Why::Rule(w.clone())),
     }
-    match bin.split_once("::") {
-        Some((c, t)) => sel.tests.contains_key(&(c.to_string(), t.to_string())),
-        None => sel.libs.contains_key(bin),
+}
+
+/// Is a failed test (see [`FailedId`]) in the selection?
+fn covers(sel: &Selection, failed: &str) -> bool {
+    selects(sel, failed).is_some()
+}
+
+/// One branch's claim on a failed test (`--reverse`).
+#[derive(Debug)]
+struct Hit {
+    branch: String,
+    /// Every reason is an escalation to FULL: the branch selects everything, so the claim is low confidence.
+    full: bool,
+    /// (file, rule, the rule is an escalation to FULL)
+    reasons: Vec<(String, String, bool)>,
+}
+
+/// The attribution of one failed test (`--reverse`).
+#[derive(Debug)]
+struct Attribution {
+    test: String,
+    kind: &'static str,
+    hits: Vec<Hit>,
+}
+
+/// XTASK-AFFECTED-REVERSE: for each failed test, the branches whose changed files select it in `tier`, through the
+/// forward selection itself (`select_tier`, then [`selects`]). A branch that selects the test is explained file by
+/// file (each file's own selection; the rules are per file, so the union is the branch's selection); should no single
+/// file select it, the reason is the branch's combined selection, under the file name `(the branch's files together)`.
+fn reverse(repo: &Repo, failed: &[String], branches: &[(String, Vec<String>)], tier: Tier) -> (Vec<Attribution>, Vec<bool>) {
+    // GATE-DEV-NO-FULL: attribution keeps the escalations FULL (a branch the train's FULL gate covers may break any
+    // test), whatever a per-fix gate of the tier ran.
+    let select_tier = |repo: &Repo, files: &[String], tier: Tier| select_with(repo, files, false, tier, false);
+    let combined: Vec<Selection> = branches.iter().map(|(_, files)| select_tier(repo, files, tier)).collect();
+    // Per-file selections, computed only for a branch that selects some failed test.
+    let mut per_file: Vec<Option<Vec<Selection>>> = branches.iter().map(|_| None).collect();
+    let mut out = Vec::new();
+    for id in failed {
+        let mut hits = Vec::new();
+        for (b, (name, files)) in branches.iter().enumerate() {
+            let Some(why) = selects(&combined[b], id) else { continue };
+            let sels = per_file[b].get_or_insert_with(|| files.iter().map(|f| select_tier(repo, std::slice::from_ref(f), tier)).collect());
+            let mut reasons: Vec<(String, String, bool)> = files.iter().zip(sels.iter()).filter_map(|(f, s)| selects(s, id).map(|w| (f.clone(), w))).map(|(f, w)| why_row(f, w)).collect();
+            if reasons.is_empty() {
+                reasons.push(why_row("(the branch's files together)".to_string(), why));
+            }
+            let full = reasons.iter().all(|r| r.2);
+            hits.push(Hit { branch: name.clone(), full, reasons });
+        }
+        out.push(Attribution { test: id.clone(), kind: FailedId::parse(id).kind(), hits });
     }
+    (out, combined.iter().map(|s| !s.full.is_empty()).collect())
+}
+
+fn why_row(file: String, why: Why) -> (String, String, bool) {
+    match why {
+        Why::Full(r) => (file, format!("FULL: {}", r.join("; ")), true),
+        Why::Rule(r) => (file, r, false),
+    }
+}
+
+/// A JSON string literal.
+fn json_str(s: &str) -> String {
+    let mut o = String::with_capacity(s.len() + 2);
+    o.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => o.push_str("\\\""),
+            '\\' => o.push_str("\\\\"),
+            '\n' => o.push_str("\\n"),
+            '\r' => o.push_str("\\r"),
+            '\t' => o.push_str("\\t"),
+            c if (c as u32) < 0x20 => o.push_str(&format!("\\u{:04x}", c as u32)),
+            c => o.push(c),
+        }
+    }
+    o.push('"');
+    o
+}
+
+/// The `--reverse` JSON (shape in [`REVERSE_HELP`]), one object, keys in a fixed order.
+fn reverse_json(tier: Tier, branches: &[(String, Vec<String>)], branch_full: &[bool], atts: &[Attribution]) -> String {
+    let tier = format!("{tier:?}").to_lowercase();
+    let bs: Vec<String> = branches.iter().zip(branch_full).map(|((n, f), full)| format!("{{\"name\":{},\"files\":{},\"full\":{full}}}", json_str(n), f.len())).collect();
+    let mut fs = Vec::new();
+    for a in atts {
+        let hs: Vec<String> = a
+            .hits
+            .iter()
+            .map(|h| {
+                let rs: Vec<String> = h.reasons.iter().map(|(f, r, full)| format!("{{\"file\":{},\"rule\":{},\"full\":{full}}}", json_str(f), json_str(r))).collect();
+                format!("{{\"branch\":{},\"confidence\":\"{}\",\"full\":{},\"reasons\":[{}]}}", json_str(&h.branch), if h.full { "low" } else { "high" }, h.full, rs.join(","))
+            })
+            .collect();
+        fs.push(format!("{{\"test\":{},\"kind\":\"{}\",\"branches\":[{}]}}", json_str(&a.test), a.kind, hs.join(",")));
+    }
+    let un: Vec<String> = atts.iter().filter(|a| a.hits.is_empty()).map(|a| json_str(&a.test)).collect();
+    format!("{{\"version\":1,\"tier\":\"{tier}\",\"branches\":[{}],\"failed\":[{}],\"unattributed\":[{}]}}\n", bs.join(","), fs.join(","), un.join(","))
+}
+
+/// The `--reverse` human summary (stderr): one line per failed test.
+fn reverse_summary(tier: Tier, branches: &[(String, Vec<String>)], branch_full: &[bool], atts: &[Attribution]) -> String {
+    let fulls: Vec<&str> = branches.iter().zip(branch_full).filter(|(_, f)| **f).map(|((n, _), _)| n.as_str()).collect();
+    let mut out = format!("affected --reverse ({tier:?}): {} failed tests, {} branches", atts.len(), branches.len());
+    if !fulls.is_empty() {
+        out.push_str(&format!("; escalating to FULL (select everything, low confidence): {}", fulls.join(", ")));
+    }
+    out.push('\n');
+    for a in atts {
+        if a.hits.is_empty() {
+            out.push_str(&format!("  {}: no branch selects it\n", a.test));
+            continue;
+        }
+        let hs: Vec<String> = a
+            .hits
+            .iter()
+            .map(|h| if h.full { format!("{} (low: FULL)", h.branch) } else { format!("{} (high: {})", h.branch, h.reasons.iter().filter(|r| !r.2).map(|r| r.0.as_str()).collect::<Vec<_>>().join(", ")) })
+            .collect();
+        out.push_str(&format!("  {}: {}\n", a.test, hs.join("; ")));
+    }
+    out
+}
+
+/// The failed test ids in a gate log or summary (`--failed-from`): the text after `FAILED: ` at the start of a line,
+/// and whole `conformance FAILED: ...` lines; every other line (`STEP FAILED:`, counts, panics) is skipped.
+fn failed_ids_of(log: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for l in log.lines().map(str::trim_end) {
+        let id = if let Some(t) = l.strip_prefix("FAILED: ") {
+            t.trim().to_string()
+        } else if let Some(c) = l.strip_prefix("conformance FAILED: ") {
+            format!("conformance:{}", c.split(':').next().unwrap_or_default().trim())
+        } else {
+            continue;
+        };
+        if !id.is_empty() && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
+
+/// A branch's changed-file list (`--branch <name>=<path>`): one repository path per line; blank lines and `#` lines
+/// are skipped.
+fn branch_files(text: &str) -> Vec<String> {
+    text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(String::from).collect()
 }
 
 fn counts(sel: &Selection) -> String {
@@ -2369,7 +4419,8 @@ pub fn replay(repo: &Repo, records: &str, tier: Tier) -> (String, usize) {
                 continue;
             }
             gates += 1;
-            let sel = select_tier(repo, &files, tier);
+            // GATE-DEV-NO-FULL: an escalation still covers everything here (the train's FULL gate runs it).
+            let sel = select_with(repo, &files, false, tier, false);
             let wide = select_tier(repo, &files, Tier::Wide);
             if sel.full.is_empty() {
                 tests_tier += sel.tests.len();
@@ -2407,58 +4458,199 @@ fn default_base(env: Option<String>) -> String {
     env.map(|b| b.trim().to_string()).filter(|b| !b.is_empty()).unwrap_or_else(|| "origin/main".to_string())
 }
 
-pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
-    // AFFECTED_BASE: the ref a stacked branch (one cut from an unmerged parent) selects against; `--base` wins.
-    let mut base = default_base(std::env::var("AFFECTED_BASE").ok());
-    let mut run = false;
-    let mut with_exports = false;
-    let mut files: Option<Vec<String>> = None;
-    let mut only: Option<String> = None;
-    let mut tier = Tier::Direct;
-    let mut replay_file: Option<String> = None;
+/// XTASK-AFFECTED-EXPLICIT: the one line printed (exit 2) when `affected` is given neither `--list` nor `--run`. There is
+/// no default mode: a gate that ran `cargo xtask affected` without `--run` used to list the selection, run nothing and
+/// exit 0, a green gate that tested nothing.
+pub const USAGE: &str = "usage: cargo xtask affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports]  or  affected --replay <records> [--tier direct|wide|full]  or  affected --reverse (--failed <test-id>... | --failed-from <log>) --branch <name>=<file-list>... [--tier direct|wide|full]; --list prints the selection, --run runs it, one of them is required (but with --replay or --reverse); --help explains --reverse";
+
+/// `affected --help`: the `--reverse` interface (XTASK-AFFECTED-REVERSE), printed after [`USAGE`].
+pub const REVERSE_HELP: &str = "\
+--reverse: which merged branches' changes select each failed test (attribution for a train gate).
+  --failed <test-id>...    failed tests as the gate's summary names them, one argument each (quote them):
+                           the text after `FAILED: ` (`crate::target name`, `crate name` for unit tests,
+                           `xtask::bin/xtask name`), or `conformance:<program>`; may repeat
+  --failed-from <log>      read the ids from a gate log or summary: every `FAILED: <id>` line and every
+                           `conformance FAILED: <program>: ...` line (others, e.g. `STEP FAILED:`, are skipped)
+  --branch <name>=<path>   a branch and the file listing its changed paths (one per line, `#` and blank lines
+                           skipped); may repeat; names must be unique
+  --tier direct|wide|full  the tier the gate ran (default direct, as forward mode)
+The selection rules are forward mode's own (`select_tier`, then the membership rule `selects`). The changed files
+come only from the lists: no header or xtask diff is read, so a changed `csys/include` header or xtask source
+escalates to FULL, as forward `--files` does.
+stdout: one JSON object, stable shape (version 1):
+  {\"version\":1,\"tier\":\"direct\",
+   \"branches\":[{\"name\":\"b\",\"files\":3,\"full\":false}],
+   \"failed\":[{\"test\":\"niji::x y\",\"kind\":\"target|lib|xtask|conformance\",
+               \"branches\":[{\"branch\":\"b\",\"confidence\":\"high|low\",\"full\":false,
+                             \"reasons\":[{\"file\":\"crates/core/src/x.rs\",\"rule\":\"<why>\",\"full\":false}]}]}],
+   \"unattributed\":[\"<test ids no branch selects>\"]}
+  A branch whose change escalates to FULL selects every test: its reasons have \"full\":true and a rule
+  \"FULL: <why>\"; when every reason of a claim is FULL the claim has \"confidence\":\"low\" (else \"high\", and
+  the summary names the specific files). branches[].full: the branch's whole selection is FULL.
+stderr: a short human summary (one line per failed test). Exit 0 when the attribution ran (also with
+unattributed tests), 1 on an error (unreadable list, malformed --branch, duplicate name).";
+
+/// `--list` prints the selection; `--run` runs it. Exactly one is required (except with `--replay`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mode {
+    List,
+    Run,
+}
+
+/// The parsed arguments of `cargo xtask affected`.
+#[derive(Debug)]
+struct Opts {
+    base: String,
+    mode: Option<Mode>,
+    with_exports: bool,
+    files: Option<Vec<String>>,
+    only: Option<String>,
+    tier: Tier,
+    replay_file: Option<String>,
+    /// `--reverse` (XTASK-AFFECTED-REVERSE) and its inputs: failed test ids, a log to read more from, (branch, list path).
+    reverse: bool,
+    failed: Vec<String>,
+    failed_from: Option<String>,
+    branches: Vec<(String, String)>,
+    help: bool,
+}
+
+impl Opts {
+    /// The mode to act in, or `None` when the command must be refused with [`USAGE`] (exit 2). `--replay` and
+    /// `--reverse` are modes of their own (they read records or lists, run nothing) and need neither flag.
+    fn mode(&self) -> Option<Mode> {
+        if self.replay_file.is_some() || self.reverse { Some(self.mode.unwrap_or(Mode::List)) } else { self.mode }
+    }
+}
+
+/// The values after a list flag (`--files`, `--failed`): every following argument up to the next `--` flag.
+fn list_values<'a>(it: &mut std::slice::Iter<'a, String>) -> Vec<String> {
+    let mut v = Vec::new();
+    while let Some(f) = it.clone().next().filter(|f| !f.starts_with("--")) {
+        v.push(f.clone());
+        it.next();
+    }
+    v
+}
+
+fn parse_args(args: &[String], default_base: String) -> Result<Opts, String> {
+    let mut o = Opts { base: default_base, mode: None, with_exports: false, files: None, only: None, tier: Tier::Direct, replay_file: None, reverse: false, failed: Vec::new(), failed_from: None, branches: Vec::new(), help: false };
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--base" => base = it.next().ok_or("--base needs a ref")?.clone(),
-            "--tier" => tier = Tier::parse(it.next().ok_or("--tier needs direct, wide or full")?)?,
-            "--replay" => replay_file = Some(it.next().ok_or("--replay needs a records file")?.clone()),
-            "--run" => run = true,
-            "--list" => run = false,
-            "--with-exports" => with_exports = true,
-            "--only" => only = Some(it.next().ok_or("--only needs a list: <target>[,crate::target][,conformance:<program>][,lib:<crate>][,xtask]")?.clone()),
-            "--files" => {
-                let mut v = Vec::new();
-                while let Some(f) = it.clone().next().filter(|f| !f.starts_with("--")) {
-                    v.push(f.clone());
-                    it.next();
+            "--help" | "-h" => o.help = true,
+            "--reverse" => o.reverse = true,
+            "--failed" => o.failed.extend(list_values(&mut it)),
+            "--failed-from" => o.failed_from = Some(it.next().ok_or("--failed-from needs a log file")?.clone()),
+            "--branch" => {
+                let b = it.next().ok_or("--branch needs <name>=<file-list>")?;
+                let (n, p) = b.split_once('=').filter(|(n, p)| !n.is_empty() && !p.is_empty()).ok_or(format!("--branch `{b}`: want <name>=<file-list>"))?;
+                if o.branches.iter().any(|(m, _)| m == n) {
+                    return Err(format!("--branch: `{n}` given twice"));
                 }
-                files = Some(v);
+                o.branches.push((n.to_string(), p.to_string()));
             }
-            other => return Err(format!("unknown argument `{other}` (usage: affected [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--replay <records>] [--list | --run] [--with-exports])")),
+            "--base" => o.base = it.next().ok_or("--base needs a ref")?.clone(),
+            "--tier" => o.tier = Tier::parse(it.next().ok_or("--tier needs direct, wide or full")?)?,
+            "--replay" => o.replay_file = Some(it.next().ok_or("--replay needs a records file")?.clone()),
+            "--run" | "--list" => {
+                let m = if a == "--run" { Mode::Run } else { Mode::List };
+                if o.mode.is_some_and(|prev| prev != m) {
+                    return Err(format!("--list and --run together: give one ({USAGE})"));
+                }
+                o.mode = Some(m);
+            }
+            "--with-exports" => o.with_exports = true,
+            "--only" => o.only = Some(it.next().ok_or("--only needs a list: <target>[,crate::target][,conformance:<program>][,lib:<crate>][,xtask]")?.clone()),
+            "--files" => o.files = Some(list_values(&mut it)),
+            other => return Err(format!("unknown argument `{other}` ({USAGE})")),
         }
     }
-    if let Some(path) = replay_file {
+    if o.reverse {
+        if o.mode == Some(Mode::Run) {
+            return Err("--reverse runs nothing: drop --run".into());
+        }
+        if o.files.is_some() || o.only.is_some() || o.replay_file.is_some() {
+            return Err("--reverse takes its files from --branch lists, not --files, --only or --replay".into());
+        }
+    } else if !o.failed.is_empty() || o.failed_from.is_some() || !o.branches.is_empty() {
+        return Err("--failed, --failed-from and --branch need --reverse".into());
+    }
+    Ok(o)
+}
+
+/// `cargo xtask affected`: exit 2 with [`USAGE`] when neither `--list` nor `--run` is given, 1 on any other error.
+pub fn main(root: &Path, args: &[String]) -> ExitCode {
+    // AFFECTED_BASE: the ref a stacked branch (one cut from an unmerged parent) selects against; `--base` wins.
+    let result = parse_args(args, default_base(std::env::var("AFFECTED_BASE").ok())).and_then(|o| match o.mode() {
+        _ if o.help => {
+            println!("{USAGE}\n{REVERSE_HELP}");
+            Ok(Some(()))
+        }
+        None => Ok(None),
+        Some(mode) => execute(root, &o, mode, &mut run_selection).map(Some),
+    });
+    match result {
+        Ok(Some(())) => ExitCode::SUCCESS,
+        Ok(None) => {
+            eprintln!("{USAGE}");
+            ExitCode::from(2)
+        }
+        Err(e) => {
+            eprintln!("xtask affected: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Runs a selection: `run_selection`, or a recorder in the unit tests.
+type Runner<'a> = dyn FnMut(&Path, &Repo, &Selection, bool) -> Result<(), String> + 'a;
+
+/// The work of one `affected` command; `runner` runs a selection when the mode is `--run`.
+fn execute(root: &Path, o: &Opts, mode: Mode, runner: &mut Runner<'_>) -> Result<(), String> {
+    let tier = o.tier;
+    if o.reverse {
+        let mut failed = o.failed.clone();
+        if let Some(path) = &o.failed_from {
+            let text = fs::read_to_string(path).map_err(|e| format!("--failed-from {path}: {e}"))?;
+            failed.extend(failed_ids_of(&text).into_iter().filter(|id| !o.failed.contains(id)));
+        }
+        let mut branches = Vec::new();
+        for (name, path) in &o.branches {
+            let text = fs::read_to_string(path).map_err(|e| format!("--branch {name}={path}: {e}"))?;
+            branches.push((name.clone(), branch_files(&text)));
+        }
+        // The lists are the branches' changes, not this tree's: no header or xtask diff of the local tree applies.
+        let repo = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(root) };
+        let (atts, full) = reverse(&repo, &failed, &branches, tier);
+        print!("{}", reverse_json(tier, &branches, &full, &atts));
+        eprint!("{}", reverse_summary(tier, &branches, &full, &atts));
+        return Ok(());
+    }
+    if let Some(path) = &o.replay_file {
         let repo = Repo::load(root);
-        let text = fs::read_to_string(&path).map_err(|e| format!("--replay {path}: {e}"))?;
+        let text = fs::read_to_string(path).map_err(|e| format!("--replay {path}: {e}"))?;
         let (report, misses) = replay(&repo, &text, tier);
         print!("{report}");
         return if misses == 0 { Ok(()) } else { Err(format!("replay: {misses} failures outside the {tier:?} tier")) };
     }
-    if let Some(list) = only {
+    if let Some(list) = &o.only {
         let repo = Repo::load(root);
-        let sel = select_only(&repo, &list)?;
+        let sel = select_only(&repo, list)?;
         print_selection(&repo, &[], &sel);
-        return if run { run_selection(root, &repo, &sel, with_exports) } else { Ok(()) };
+        return if mode == Mode::Run { runner(root, &repo, &sel, o.with_exports) } else { Ok(()) };
     }
-    let files = match files {
-        Some(f) => f,
-        None => changed_files(root, &base)?,
+    let files = match &o.files {
+        Some(f) => f.clone(),
+        None => changed_files(root, &o.base)?,
     };
-    let repo = Repo::load(root);
+    let mut repo = Repo::load(root);
+    // D-X.41: the xtask diff describes the base comparison only; a `--files` list is not one (no diff: FULL as before).
+    repo.xtask_diff = if o.files.is_some() { None } else { git_xtask_diff(root, &o.base).or(repo.xtask_diff) };
     let sel = select_tier(&repo, &files, tier);
     println!("tier: {tier:?} (per-fix gates: direct; the landing gate runs everything)");
     print_selection(&repo, &files, &sel);
-    if run { run_selection(root, &repo, &sel, with_exports) } else { Ok(()) }
+    if mode == Mode::Run { runner(root, &repo, &sel, o.with_exports) } else { Ok(()) }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2473,6 +4665,47 @@ mod tests {
         assert_eq!(default_base(Some(String::new())), "origin/main");
         assert_eq!(default_base(Some("  ".into())), "origin/main");
         assert_eq!(default_base(Some("origin/opt/lv3".into())), "origin/opt/lv3");
+    }
+
+    fn opts(args: &[&str]) -> Result<Opts, String> {
+        parse_args(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>(), "origin/main".into())
+    }
+
+    // XTASK-AFFECTED-EXPLICIT: no default mode. Without --list or --run there is no mode (main exits 2 with USAGE; the
+    // binary's exit status is checked in xtask/tests/affected_mode.rs); --replay needs neither; both together are refused.
+    #[test]
+    fn affected_requires_list_or_run() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-EXPLICIT).
+        assert_eq!(opts(&[]).unwrap().mode(), None);
+        assert_eq!(opts(&["--base", "origin/next", "--tier", "direct", "--files", "docs/plants.md"]).unwrap().mode(), None);
+        assert_eq!(opts(&["--list"]).unwrap().mode(), Some(Mode::List));
+        assert_eq!(opts(&["--files", "a.rs", "--run", "--base", "x"]).unwrap().mode(), Some(Mode::Run));
+        assert_eq!(opts(&["--replay", "records.txt"]).unwrap().mode(), Some(Mode::List));
+        let both = opts(&["--list", "--run"]).unwrap_err();
+        assert!(both.contains("--list and --run together"), "{both}");
+        assert!(USAGE.contains("--list") && USAGE.contains("--run") && !USAGE.contains('\n'), "{USAGE}");
+    }
+
+    // XTASK-AFFECTED-EXPLICIT: --run hands the selection to the runner, --list does not.
+    #[test]
+    fn affected_run_runs_the_selection_and_list_does_not() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-EXPLICIT).
+        for (flag, want_runs) in [("--run", 1), ("--list", 0)] {
+            let o = opts(&["--files", "docs/plants.md", flag]).unwrap();
+            let mut runs = 0;
+            let mut seen_docs_note = false;
+            let mut rec = |_: &Path, _: &Repo, sel: &Selection, exports: bool| -> Result<(), String> {
+                runs += 1;
+                seen_docs_note = sel.notes.iter().any(|n| n.starts_with("docs/plants.md: docs only")) && sel.no_escalation() && !exports;
+                Ok(())
+            };
+            execute(&root(), &o, o.mode().unwrap(), &mut rec).unwrap();
+            assert_eq!(runs, want_runs, "{flag}");
+            assert_eq!(seen_docs_note, want_runs == 1, "{flag}: the runner got the docs-only selection");
+        }
+        let mut fail = |_: &Path, _: &Repo, _: &Selection, _: bool| -> Result<(), String> { Err("a selected test failed".into()) };
+        let o = opts(&["--files", "docs/plants.md", "--run"]).unwrap();
+        assert_eq!(execute(&root(), &o, Mode::Run, &mut fail).unwrap_err(), "a selected test failed");
     }
 
     // TOOLS-7 (1): a failed step's FULL output lands in target/<name> (only that step's, not earlier steps'), and a
@@ -2503,6 +4736,289 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
+    /// GATE-BOUNDED-PARALLEL: a step that marks `own` and waits for `other`, within an iteration budget (a hang guard,
+    /// not a time bound); it fails unless the other step ran at the same time, then exits `rc`.
+    fn rendezvous(own: &str, other: &str, rc: u8) -> Command {
+        let mut c = Command::new("sh");
+        c.args(["-c", &format!("echo out-{own}; touch {own}; i=0; while [ ! -f {other} ] && [ $i -lt 3000 ]; do sleep 0.01; i=$((i+1)); done; [ -f {other} ] || exit 9; exit {rc}")]);
+        c
+    }
+
+    // The products build and the xtask tests run side by side (each waits for the other), the verdict is that of the
+    // two steps run one after the other, and each step's output stays in one piece in the run's log, the tests' log kept.
+    #[test]
+    fn the_products_and_the_xtask_tests_run_side_by_side_with_their_own_verdicts_and_logs() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        for (prc, trc) in [(0u8, 0u8), (1, 0), (0, 1)] {
+            let root = std::env::temp_dir().join(format!("xtask-beside-{}-{prc}{trc}", std::process::id()));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(root.join("target")).unwrap();
+            let log = root.join("target").join("affected.log");
+            let got = products_beside_xtask_tests(&root, &log, &mut rendezvous("p", "t", prc), &mut rendezvous("t", "p", trc));
+            assert_eq!(got, prc == 0 && trc == 0, "products rc {prc}, tests rc {trc}");
+            let text = fs::read_to_string(&log).unwrap();
+            let side = fs::read_to_string(root.join("target").join(XTASK_BESIDE_LOG)).unwrap();
+            assert!(side.starts_with(&format!("== {XTASK_BESIDE_LABEL}\nout-t\n")) && !side.contains("out-p"), "{side:?}");
+            assert!(text.starts_with("== products (cargo xtask so)\nout-p\n") && text.contains(&side) && text.ends_with(&side), "{text:?}");
+            assert_eq!(text.contains("STEP FAILED: products"), prc != 0, "{text:?}");
+            assert_eq!(side.contains(&format!("STEP FAILED: {XTASK_BESIDE_LABEL}")), trc != 0, "{side:?}");
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    // The xtask tests that run products (`transcripts` runs `target/niji/ldconfig`) come after the products build;
+    // the unit tests and every other xtask target go beside it; every target is in exactly one of the two commands
+    // (cargo's rule: `tests/*.rs` and `tests/*/main.rs`, nothing else), so none is dropped.
+    #[test]
+    fn the_xtask_targets_that_run_products_wait_for_the_products() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        let named = |v: &[String]| v.windows(2).filter(|w| w[0] == "--test").map(|w| w[1].clone()).collect::<Vec<_>>();
+        let fx = std::env::temp_dir().join(format!("xtask-split-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&fx);
+        let t = fx.join("xtask").join("tests");
+        for d in ["dir_plain", "dir_products", "fixtures/sub"] {
+            fs::create_dir_all(t.join(d)).unwrap();
+        }
+        for (f, text) in [("plain.rs", "fn main() {}"), ("runs.rs", "let p = root.join(\"target/niji/ldconfig\");"), ("notes.txt", "target/niji"), ("dir_plain/main.rs", "mod helper;"), ("dir_plain/helper.rs", ""), ("dir_products/main.rs", "mod helper;"), ("dir_products/helper.rs", "target/niji-test/iconv"), ("fixtures/sub/x.rs", "")] {
+            fs::write(t.join(f), text).unwrap();
+        }
+        let (beside, after) = xtask_test_split(&fx);
+        let _ = fs::remove_dir_all(&fx);
+        assert_eq!(beside[..4], ["test", "-p", "xtask", "--bins"], "{beside:?}");
+        assert_eq!(after[..3], ["test", "-p", "xtask"], "{after:?}");
+        assert_eq!((named(&beside), named(&after)), (vec!["dir_plain".to_string(), "plain".into()], vec!["dir_products".to_string(), "runs".into()]));
+        // The live tree: `transcripts` (it runs `target/niji/ldconfig`) waits, the other targets go beside.
+        let (beside, after) = xtask_test_split(&root());
+        let (b, a) = (named(&beside), named(&after));
+        assert!(a.contains(&"transcripts".to_string()) && !b.contains(&"transcripts".to_string()), "{beside:?} {after:?}");
+        assert!(["affected_mode", "header_p2_fixed_rows", "probe_client"].iter().all(|n| b.contains(&n.to_string())), "{beside:?} {after:?}");
+    }
+
+    // The memory room is the smallest `memory.max` on the cgroup's path (`max` is no limit); side by side needs
+    // `SIDE_BY_SIDE_BYTES`, and an unreadable limit runs the steps one after the other.
+    #[test]
+    fn side_by_side_needs_the_measured_memory_under_the_smallest_cgroup_limit() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        let fs_of = |m: &'static [(&'static str, &'static str)]| move |p: &str| m.iter().find(|(k, _)| *k == p).map(|(_, v)| (*v).to_string());
+        let nested = fs_of(&[("/sys/fs/cgroup/a/memory.max", "17179869184\n"), ("/sys/fs/cgroup/a/b/memory.max", "8589934592\n"), ("/sys/fs/cgroup/a/b/c/memory.max", "max\n")]);
+        assert_eq!(cgroup_limit("1:name=x:/q\n0::/a/b/c\n", &nested), Some(8 << 30));
+        assert_eq!(cgroup_limit("0::/a/b/\n", &nested), Some(8 << 30));
+        assert_eq!(cgroup_limit("0::/\n", &nested), None);
+        assert_eq!(cgroup_limit("0::a/b\n", &nested), None);
+        assert_eq!(cgroup_limit("1:memory:/a\n", &nested), None);
+        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES)).is_ok());
+        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES - 1)).is_err());
+        assert!(side_by_side_room(None).is_err());
+    }
+
+    /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `NIJI_AFFECTED_FAIL_FIXTURE` is set; with it
+    /// set, `NIJI_AFFECTED_FAIL_FIXTURE=1 cargo xtask affected --only xtask --run` shows a real failed test step's
+    /// report (the end-to-end plant in handoff/XTASK-AFFECTED-FAIL-EARLY-plants.txt).
+    #[test]
+    fn affected_fail_early_fixture() {
+        // Trace: no spec clause (test-harness reporting fixture; XTASK-AFFECTED-FAIL-EARLY).
+        if std::env::var_os("NIJI_AFFECTED_FAIL_FIXTURE").is_some() {
+            panic!("FIXTURE-PANIC-MARKER: this test fails on purpose because NIJI_AFFECTED_FAIL_FIXTURE is set");
+        }
+    }
+
+    /// The output of `cargo test -p niji-x` with one failure in the unit tests and one in `tests/sweep.rs`.
+    const CARGO_TEST_FAILS: &str = "   Compiling niji-x v0.1.0\n    Finished `test` profile [unoptimized] target(s) in 1.00s\n     Running unittests src/lib.rs (target/debug/deps/niji_x-0123abcd)\n\nrunning 2 tests\ntest a::passes ... ok\ntest a::breaks ... FAILED\n\nfailures:\n\n---- a::breaks stdout ----\n\nthread 'a::breaks' panicked at src/a.rs:9:5:\nassertion `left == right` failed\n  left: 1\n right: 2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    a::breaks\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n     Running tests/sweep.rs (target/debug/deps/sweep-89abcdef)\n\nrunning 1 test\ntest edge ... FAILED\n\nfailures:\n\n---- edge stdout ----\nthread 'edge' panicked at tests/sweep.rs:3:5:\nL1\nL2\nL3\nL4\nL5\n\nfailures:\n    edge\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n";
+
+    // A failed test step names its failing tests and their panics right under its FAIL line, before the next step's
+    // line; a passing test step prints its line only; an earlier step's output is not read.
+    #[test]
+    fn a_failed_test_step_names_its_failures_under_its_fail_line() {
+        // Trace: no spec clause (test-harness reporting; XTASK-AFFECTED-FAIL-EARLY).
+        let root = std::env::temp_dir().join(format!("xtask-failearly-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("target")).unwrap();
+        let log = root.join("target").join("affected.log");
+        fs::write(root.join("fails.txt"), CARGO_TEST_FAILS).unwrap();
+        let mut out: Vec<u8> = Vec::new();
+        let sh = |script: &str| {
+            let mut c = Command::new("sh");
+            c.args(["-c", script]);
+            c
+        };
+        assert_eq!(step_out(&root, &log, "test -p niji-w", &mut sh("echo '---- old stdout ----'; echo \"thread 'old' panicked at x\"; exit 0"), Some("niji-w"), &mut out), Outcome::Ok);
+        let passing = String::from_utf8(out.clone()).unwrap();
+        assert_eq!(passing.lines().count(), 1, "a passing step printed more than its line: {passing:?}");
+        assert_eq!(step_out(&root, &log, "test -p niji-x", &mut sh("cat fails.txt; exit 101"), Some("niji-x"), &mut out), Outcome::Failed);
+        assert_eq!(step_out(&root, &log, "test -p niji-z", &mut sh("exit 0"), Some("niji-z"), &mut out), Outcome::Ok);
+        let got = String::from_utf8(out).unwrap();
+        let lines: Vec<&str> = got.lines().map(|l| l.split_once("s  ").map_or(l, |(_, r)| r)).collect();
+        let want = [
+            "ok    test -p niji-w".to_string(),
+            "FAIL  test -p niji-x".to_string(),
+            "        failing tests (2):".to_string(),
+            "          niji-x a::breaks".to_string(),
+            "            | thread 'a::breaks' panicked at src/a.rs:9:5:".to_string(),
+            "            | assertion `left == right` failed".to_string(),
+            "            |   left: 1".to_string(),
+            "            |  right: 2".to_string(),
+            "          niji-x::sweep edge".to_string(),
+            "            | thread 'edge' panicked at tests/sweep.rs:3:5:".to_string(),
+            "            | L1".to_string(),
+            "            | L2".to_string(),
+            "            | L3".to_string(),
+            "            | L4".to_string(),
+            format!("        full output: {} (this step from line 4)", log.display()),
+            "ok    test -p niji-z".to_string(),
+        ];
+        assert_eq!(lines, want, "the console was {got:?}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // nextest's format: status and output header lines name the binary id and test, `xtask nextest` adds a `---- `
+    // line per failure. At most 10 tests are shown (with the count of the rest), long lines are cut, a failure
+    // without a panic says so, a panic under another test's line is not attributed, and a step naming no failing
+    // test shows its first error lines.
+    #[test]
+    fn the_failed_test_report_reads_nextest_output_and_stays_bounded() {
+        // Trace: no spec clause (test-harness reporting; XTASK-AFFECTED-FAIL-EARLY).
+        let mut own = String::from("== test -p niji-y\n    Starting 14 tests across 1 binary\n        SIGSEGV [   0.010s] (  1/14) niji-y::t crash\n");
+        own.push_str("        PASS [   0.001s] (  2/14) niji-y::t fine\nthread 'fine' panicked at tests/t.rs:1:1:\nnot this one\n");
+        // nextest 0.9.1xx (as on the build hosts, 11-06): indented output under `stdout ───` / `stderr ───`; case_1
+        // has the older `──── STDERR: <binary id> <test>` header, which names the test.
+        for i in 0..12 {
+            let (out_h, err_h, ind) = if i == 1 { (format!("──── STDOUT:             niji-y::t case_{i}"), format!("──── STDERR:             niji-y::t case_{i}"), "") } else { ("  stdout ───".to_string(), "  stderr ───".to_string(), "    ") };
+            own.push_str(&format!("        FAIL [   0.010s] ({:>3}/14) niji-y::t case_{i}\n{out_h}\n\n{ind}running 1 test\n{ind}test case_{i} ... FAILED\n\n{ind}failures:\n\n{ind}failures:\n{ind}    case_{i}\n\n{ind}test result: FAILED. 0 passed; 1 failed\n\n", i + 3));
+            own.push_str(&format!("{err_h}\n\n{ind}thread 'case_{i}' (12{i}) panicked at tests/t.rs:{i}:1:\n{ind}boom {i}{}\n{ind}note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n", if i == 0 { "x".repeat(400) } else { String::new() }));
+        }
+        own.push_str("     Summary [   0.200s] 14 tests run: 1 passed, 13 failed\n---- niji-y::t crash stdout ----\n");
+        for i in 0..12 {
+            own.push_str(&format!("---- niji-y::t case_{i} stdout ----\n"));
+        }
+        let r = failed_tests_report(&own, "niji-y", Path::new("/x/affected.log"), 7);
+        for want in [
+            "        failing tests (13):\n          niji-y::t crash\n            (no panic message in the output; see the log)\n          niji-y::t case_0\n            | thread 'case_0' (120) panicked at tests/t.rs:0:1:\n            | boom 0xxx",
+            "xxx [line cut]\n          niji-y::t case_1\n            | thread 'case_1' (121) panicked at tests/t.rs:1:1:\n            | boom 1\n          niji-y::t case_2\n",
+            "          niji-y::t case_8\n            | thread 'case_8' (128) panicked at tests/t.rs:8:1:\n            | boom 8\n          ... and 3 more failing tests",
+            "        full output: /x/affected.log (this step from line 7)\n",
+        ] {
+            assert!(r.contains(want), "missing {want:?} in {r}");
+        }
+        assert!(!r.contains("case_9\n") && !r.contains("'fine'") && !r.contains("not this one"), "{r}");
+        assert!(r.lines().all(|l| l.chars().count() <= EARLY_WIDTH + 30), "a line was not cut: {r}");
+        let build = failed_tests_report("== test -p niji-y\nerror[E0425]: cannot find value `x` in this scope\n  --> tests/t.rs:1:1\n", "niji-y", Path::new("/x/affected.log"), 1);
+        assert_eq!(build, "        no failing test named in the step's output (a build error, or a runner that did not finish)\n          error[E0425]: cannot find value `x` in this scope\n        full output: /x/affected.log (this step from line 1)\n");
+    }
+
+    /// A temporary root whose `conformance/run.sh` stands in for the real runner, printing its message formats:
+    /// `good` passes; `bad` exits with status 134 (SIGABRT) and a missing stderr text, 5 stdout and 50 stderr lines
+    /// (the last one far wider than the cut); `nobuild` does not build and has an earlier run's stdout and stderr.
+    fn fake_conformance_root(tag: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("xtask-conf-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("conformance").join("build")).unwrap();
+        fs::create_dir_all(root.join("target")).unwrap();
+        let script = r#"b=conformance/build; fail=0; pass=0
+for n in "$@"; do
+  case $n in
+  good) pass=$((pass + 1)) ;;
+  bad) i=1; while [ $i -le 5 ]; do echo "out-$i"; i=$((i + 1)); done > $b/bad.log.stdout
+       i=1; while [ $i -le 49 ]; do echo "err-$i"; i=$((i + 1)); done > $b/bad.log.stderr
+       printf 'FAIL: strlen returned 3 %0500d\n' 7 >> $b/bad.log.stderr
+       echo "conformance: bad: status 134, expected 0"; echo "conformance: bad: stderr lacks: wanted text"
+       echo "conformance: FAIL bad (stderr: conformance/build/bad.log.stderr)"; fail=$((fail + 1)) ;;
+  nobuild) echo STALE-STDOUT > $b/nobuild.log.stdout; echo STALE-STDERR > $b/nobuild.log.stderr
+       echo "x.c:1: error: boom" > $b/nobuild.log
+       echo "conformance: FAIL nobuild (does not build; see conformance/build/nobuild.log)"; fail=$((fail + 1)) ;;
+  dyn) echo STALE-DYN-OUT > $b/dyn.log.stdout; echo STALE-DYN-ERR > $b/dyn.log.stderr
+       echo "dyn-ref-out" > $b/dyn.log.ref.stdout; echo "dyn-niji-out" > $b/dyn.log.niji.stdout
+       echo "dyn-niji-err" > $b/dyn.log.niji.stderr
+       echo "conformance: dyn (libniji): status 139, expected 0"; echo "conformance: dyn (libniji): stderr lacks: dyn text"
+       echo "conformance: FAIL dyn on libniji (stderr: conformance/build/dyn.log.niji.stderr)"; fail=$((fail + 1)) ;;
+  esac
+done
+echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
+"#;
+        fs::write(root.join("conformance").join("run.sh"), script).unwrap();
+        root
+    }
+
+    // Trace: no spec clause (test-harness reporting, D-X.27): a failed conformance program's name, its end (signal by
+    // name, the missing stderr text) and the bounded tails of its stdout and stderr reach the report `affected` prints;
+    // a program that did not build shows its build log, not an earlier run's output; a passing program adds nothing.
+    #[test]
+    fn a_failed_conformance_program_reports_its_end_and_output_tails() {
+        let root = fake_conformance_root("fail");
+        let log = root.join("target").join("affected.log");
+        assert!(step(&root, &log, "earlier step", Command::new("sh").args(["-c", "echo 'conformance: FAIL earlier (stderr: x)'"])));
+        let (ok, report) = run_conformance(&root, &log, &["good", "bad", "nobuild"]);
+        assert!(!ok, "{report}");
+        for want in [
+            "conformance FAILED: bad: killed by signal 6 SIGABRT (status 134), expected 0; stderr lacks: wanted text\n",
+            "  stdout (5 lines):\n    | out-1\n",
+            "    | out-5\n",
+            "  stderr: last 40 of 50 lines (10 cut; whole file ",
+            "    | err-11\n",
+            "    | FAIL: strlen returned 3 000",
+            " ... (224 more characters cut)\n",
+            "conformance FAILED: nobuild: does not build; see conformance/build/nobuild.log\n  build log (1 lines):\n    | x.c:1: error: boom\n",
+        ] {
+            assert!(report.contains(want), "missing {want:?} in:\n{report}");
+        }
+        for not in ["| err-10\n", "STALE-", "good", "earlier"] {
+            assert!(!report.contains(not), "unexpected {not:?} in:\n{report}");
+        }
+        let (ok, report) = run_conformance(&root, &log, &["good"]);
+        assert!(ok && report.is_empty(), "a passing program printed: {report:?}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // Trace: no spec clause (test-harness reporting, D-X.27, CONF-DYN-HELPERS): a dynamic-link program failing on libniji
+    // reports libniji's end with the run named and the tails of libniji's own stdout and stderr, not the reference's run
+    // or the static-mode files of an earlier build.
+    #[test]
+    fn a_failed_dynamic_link_conformance_program_reports_the_failing_run() {
+        let root = fake_conformance_root("dyn");
+        let log = root.join("target").join("affected.log");
+        let (ok, report) = run_conformance(&root, &log, &["good", "dyn"]);
+        assert!(!ok, "{report}");
+        let want = "conformance FAILED: dyn: libniji: killed by signal 11 SIGSEGV (status 139), expected 0; libniji: stderr lacks: dyn text\n  stdout (1 lines):\n    | dyn-niji-out\n  stderr (1 lines):\n    | dyn-niji-err\n";
+        assert!(report.contains(want), "missing {want:?} in:\n{report}");
+        for not in ["STALE-", "dyn-ref-out", "good"] {
+            assert!(!report.contains(not), "unexpected {not:?} in:\n{report}");
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    // Trace: no spec clause (test-harness reporting, D-X.27): a failed step naming no program still shows how it ended.
+    #[test]
+    fn a_conformance_step_failing_without_a_program_shows_its_end() {
+        let report = conformance_failures(Path::new("/nonexistent"), "== conformance (1 programs)\nrun.sh: 3: cc: not found\n");
+        assert!(report.contains("named no failed program") && report.contains("    | run.sh: 3: cc: not found\n"), "{report}");
+        assert_eq!(describe_status("status 3, expected 0"), "exit status 3, expected 0");
+        assert_eq!(describe_status("status 139, expected signal 6"), "killed by signal 11 SIGSEGV (status 139), expected signal 6");
+        assert_eq!(describe_status("stderr lacks: x"), "stderr lacks: x");
+    }
+
+    // Trace: no spec clause (D-X.27): the report reads `run.sh`'s own lines and files; this fails when their format moves.
+    #[test]
+    fn the_conformance_report_matches_the_runner_formats() {
+        let run = fs::read_to_string(root().join("conformance").join("run.sh")).unwrap();
+        for want in [
+            r#"log="$here/build/$name.log""#,
+            r#"2>"$log.stderr" >"$log.stdout""#,
+            r#"echo "conformance: $1: status $rc, expected $want_exit""#,
+            r#"echo "conformance: $1: stderr lacks: $text""#,
+            r#"verdict "$name" "$log.stderr""#,
+            r#"echo "conformance: FAIL $name (stderr: conformance/build/$name.log.stderr)""#,
+            r#"echo "conformance: FAIL $name (does not build; see conformance/build/$name.log)""#,
+            r#"run_dyn "$exe" "$hdir" ref"#,
+            r#"verdict "$name (reference)" "$log.ref.stderr""#,
+            r#"echo "conformance: FAIL $name on the reference (stderr: conformance/build/$name.log.ref.stderr)""#,
+            r#"run_dyn "$exe-niji" "$ldir" niji"#,
+            r#"verdict "$name (libniji)" "$log.niji.stderr""#,
+            r#"echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.log.niji.stderr)""#,
+            r#"2>"$log.$3.stderr" >"$log.$3.stdout""#,
+        ] {
+            assert!(run.contains(want), "conformance/run.sh no longer has {want:?}: update conformance_failures");
+        }
+    }
+
     fn root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(Path::to_path_buf).unwrap_or_default()
     }
@@ -2510,25 +5026,130 @@ mod tests {
     fn repo() -> &'static Repo {
         static REPO: std::sync::OnceLock<Repo> = std::sync::OnceLock::new();
         // The sync's `.changed.hdr` (present in a VM tree) must not decide the unit tests: no header diff here.
-        REPO.get_or_init(|| Repo { hdr_diff: None, ..Repo::load(&root()) })
+        REPO.get_or_init(|| Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) })
     }
 
-    // TOOLS-7 (3): only one-line `liella_*` declarations are mappable; anything structural is not.
+    // TOOLS-7 (3): only one-line `niji_*` declarations are mappable; anything structural is not.
     #[test]
     fn header_symbols_reads_one_line_declarations_only() {
         let head = "diff --git a/csys/include/h.h b/csys/include/h.h\n--- a/csys/include/h.h\n+++ b/csys/include/h.h\n@@ -1,0 +2,3 @@\n";
         let d = |body: &str| format!("diff --git a/other.h b/other.h\n+struct s {{\n{head}{body}");
-        assert_eq!(header_symbols(&d("+/* c */\n+void *liella_a(void *d, const void *s, unsigned long n);\n-int liella_b(void);\n"), "csys/include/h.h"), Some(vec!["liella_a".to_string(), "liella_b".to_string()]));
-        for bad in ["+struct liella_s {\n", "+#define LIELLA_X(a) (a)\n", "+int liella_a(int a,\n", "+typedef int liella_t;\n", "+int not_ours(void);\n", "+static inline int liella_i(void) { return 0; }\n", "+/* only a comment */\n"] {
+        assert_eq!(header_symbols(&d("+/* c */\n+void *niji_a(void *d, const void *s, unsigned long n);\n-int niji_b(void);\n"), "csys/include/h.h"), Some(vec!["niji_a".to_string(), "niji_b".to_string()]));
+        for bad in ["+struct niji_s {\n", "+#define NIJI_X(a) (a)\n", "+int niji_a(int a,\n", "+typedef int niji_t;\n", "+int not_ours(void);\n", "+static inline int niji_i(void) { return 0; }\n", "+/* only a comment */\n"] {
             assert_eq!(header_symbols(&d(bad), "csys/include/h.h"), None, "{bad:?}");
         }
-        assert_eq!(header_symbols(&d("+int liella_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
+        assert_eq!(header_symbols(&d("+int niji_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. A layouts.tsv change runs the abi-gen, headers-gen and stubs checks first,
+    // in every tier (it still escalates); a table that feeds one generator only selects none.
+    #[test]
+    fn layouts_table_selects_the_generator_prechecks() {
+        for tier in [Tier::Direct, Tier::Wide, Tier::Full] {
+            let s = select_tier(repo(), &["spec/abi/layouts.tsv".to_string()], tier);
+            for c in ["abi-gen-check", "headers-gen-check", "stubs"] {
+                assert!(s.gen_prechecks.contains(c), "{tier:?}: {c}: {:?}", s.gen_prechecks);
+            }
+            assert!(!s.no_escalation(), "{tier:?}: still FULL");
+        }
+        for f in ["docs/plants.md", "crates/core/src/string/strlen.rs", "xtask/src/abi.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.gen_prechecks.is_empty(), "{f}: {:?}", s.gen_prechecks);
+        }
+    }
+
+    // no spec clause: HANDBACK-INLOOP-CHECKS. Every generator's inputs and outputs select its own check (directory
+    // entries by prefix, the stub files by their name pattern), so the direct tier shows a stale generated file before
+    // the hand-back; a path that is neither selects none.
+    #[test]
+    fn generator_inputs_and_outputs_select_their_checks() {
+        let cases: &[(&str, &[&str])] = &[
+            ("spec/abi/langinfo.tsv", &["locale-gen-check"]),
+            ("spec/abi/prototypes.tsv", &["headers-gen-check", "compat-gen-check", "math-gen-check"]),
+            ("spec/abi/native.tsv", &["native-gen-check"]),
+            ("headers/stdio.h.in", &["headers-gen-check"]),
+            ("libc-include/stdio.h", &["headers-gen-check"]),
+            ("crates/abi/src/layout.rs", &["abi-gen-check"]),
+            ("spec/unicode/15.1.0/UnicodeData.txt", &["unicode-gen-check"]),
+            ("crates/core/src/unicode/tables.rs", &["unicode-gen-check"]),
+            ("spec/encoding/whatwg/index-jis0208.txt", &["encodings-gen-check"]),
+            ("csys/syscalls.tsv", &["csys-gen-check"]),
+            ("csys/src/sys/file.c", &["csys-gen-check"]),
+            ("crates/boundary/src/posix/s10_math.tsv", &["math-gen-check"]),
+            ("crates/boundary/src/native/mod.rs", &["native-gen-check"]),
+            ("csys/src/machine/compat_aliases.S", &["compat-gen-check"]),
+            ("glibc-functional-spec.md", &["stubs"]),
+            ("crates/core/tests/s07_string_clauses.rs", &["stubs"]),
+            ("crates/boundary/tests/s10_math_symbols.rs", &["stubs"]),
+        ];
+        for (f, want) in cases {
+            let got = gen_prechecks_for(f);
+            for w in *want {
+                assert!(got.contains(w), "{f}: {w} not in {got:?}");
+            }
+        }
+        for f in ["spec/abi.md", "headers.md", "csys/src/sysdeps.c", "crates/core/tests/strlen.rs", "crates/core/tests/sx7_clauses.rs", "crates/core/tests/sub/s07_x_clauses.rs", "crates/boundary/src/nr.rs.bak"] {
+            assert!(gen_prechecks_for(f).is_empty(), "{f}: {:?}", gen_prechecks_for(f));
+        }
+        // Every name is a step main.rs's `cheap_step` knows.
+        for (p, checks) in GEN_PRECHECKS {
+            for c in *checks {
+                assert!(crate::precheck::CHEAP_STEPS.contains(c), "{p}: {c}");
+            }
+        }
+    }
+
+    // no spec clause: HANDBACK-INLOOP-CHECKS. A selection that escalates to FULL runs every cheap FULL step first,
+    // `stubs` first; one that does not runs only what its files selected; `--only` runs none.
+    #[test]
+    fn escalated_selection_runs_every_cheap_step_first() {
+        let mut s = Selection { full: vec!["test".into()], ..Selection::default() };
+        assert_eq!(prechecks(&s), crate::precheck::CHEAP_STEPS, "escalated: all, in order");
+        s.full.clear();
+        assert!(prechecks(&s).is_empty(), "nothing selected");
+        s.gen_prechecks = ["stubs".to_string(), "headers-gen-check".to_string()].into();
+        assert_eq!(prechecks(&s), ["stubs", "headers-gen-check"], "selected only, in CHEAP_STEPS order");
+        s.only = true;
+        s.full.push("x".into());
+        assert!(prechecks(&s).is_empty(), "--only runs no precheck");
+    }
+
+    // no spec clause (TOOLING-PAPERCUTS, audit item 9): an escalated FULL run runs each cheap step once, as a
+    // precheck: no second `stubs`, and `cargo xtask test` is told to skip them; a run without those prechecks
+    // (--only) keeps both, so nothing goes unchecked
+    #[test]
+    fn escalated_full_run_does_not_repeat_the_cheap_steps() {
+        let mut s = Selection { full: vec!["test".into()], ..Selection::default() };
+        assert_eq!(full_steps(&s), (false, vec!["cargo", "xtask", "test", crate::precheck::CHEAP_DONE]));
+        s.only = true;
+        assert_eq!(full_steps(&s), (true, vec!["cargo", "xtask", "test"]));
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)
+    // tree, red on a tree whose tables are missing; the red ones are named.
+    #[test]
+    fn generator_prechecks_run_the_checks() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let empty = std::env::temp_dir().join(format!("xtask-gen-precheck-{}", std::process::id()));
+        fs::create_dir_all(&empty).unwrap();
+        let log = empty.join("affected.log");
+        let mut s = Selection::default();
+        assert!(run_gen_prechecks(&empty, &log, &s).is_empty(), "no precheck selected: nothing to fail");
+        for c in ["abi-gen-check", "headers-gen-check"] {
+            s.gen_prechecks = [c.to_string()].into();
+            assert!(run_gen_prechecks(root, &log, &s).is_empty(), "{c} on the consistent tree");
+            assert_eq!(run_gen_prechecks(&empty, &log, &s), [c], "{c} on a tree without spec/abi");
+            assert_eq!(run_prechecks_or_stop(root, &log, &s), Ok(()), "{c}: green, the run goes on");
+            assert_eq!(run_prechecks_or_stop(&empty, &log, &s), Err(format!("a generator precheck failed: {c}")), "{c}: red stops the run");
+        }
+        assert_eq!(run_prechecks_or_stop(&empty, &log, &Selection::default()), Ok(()), "nothing selected");
+        let _ = fs::remove_dir_all(&empty);
     }
 
     #[test]
     fn header_change_maps_to_users_or_escalates_and_k5_always_runs() {
-        let (_, s) = sel(&["csys/include/liella_csys.h"]);
-        assert!(!s.full.is_empty() && s.k5, "no diff available: FULL, K5 flagged");
+        let (_, s) = sel(&["csys/include/niji_csys.h"]);
+        assert!(!s.no_escalation() && s.k5, "no diff available: FULL, K5 flagged");
         let (_, s) = sel(&["crates/boundary/src/ffi.rs"]);
         assert!(s.k5, "ffi.rs changed: K5");
         let (_, s) = sel(&["csys/src/machine/new_file.S"]);
@@ -2537,22 +5158,22 @@ mod tests {
         assert!(!s.k5, "unrelated change: no K5");
         // With a diff: some symbol defined by an assembly source and used by Rust maps; a struct line does not.
         let mut probe = Repo::load(&root());
-        let syms: Vec<String> = probe.csys_refs.keys().filter(|k| k.starts_with("liella_")).cloned().collect();
+        let syms: Vec<String> = probe.csys_refs.keys().filter(|k| k.starts_with("niji_")).cloned().collect();
         let mut mapped = false;
         for sym in &syms {
-            probe.hdr_diff = Some(format!("diff --git a/csys/include/liella_csys.h b/csys/include/liella_csys.h\n+void {sym}(void);\n"));
+            probe.hdr_diff = Some(format!("diff --git a/csys/include/niji_csys.h b/csys/include/niji_csys.h\n+void {sym}(void);\n"));
             let mut sel = Selection::default();
-            if header_map(&probe, "csys/include/liella_csys.h", &mut sel) {
+            if header_map(&probe, "csys/include/niji_csys.h", &mut sel) {
                 // A user of the symbol may itself escalate (csys_user follows it as a changed file): try the next one.
-                if sel.full.is_empty() && !sel.clippy.is_empty() {
+                if sel.no_escalation() && !sel.clippy.is_empty() {
                     mapped = true;
                     break;
                 }
             }
         }
         assert!(mapped, "no csys symbol maps (the rule never fires)");
-        probe.hdr_diff = Some("diff --git a/csys/include/liella_csys.h b/csys/include/liella_csys.h\n+struct liella_s {\n".into());
-        assert!(!header_map(&probe, "csys/include/liella_csys.h", &mut Selection::default()));
+        probe.hdr_diff = Some("diff --git a/csys/include/niji_csys.h b/csys/include/niji_csys.h\n+struct niji_s {\n".into());
+        assert!(!header_map(&probe, "csys/include/niji_csys.h", &mut Selection::default()));
     }
 
     fn sel(files: &[&str]) -> (&'static Repo, Selection) {
@@ -2565,13 +5186,98 @@ mod tests {
         s.tests.keys().any(|(_, t)| t == name)
     }
 
+    // XTASK-AFFECTED-LAYOUT, no spec clause: the start-up layout tests measure the whole static image, so every change
+    // linked into libc.a selects them in the direct and wide tiers (a libm change moved start-up pages and its own
+    // gate never ran them, CI trains 582/583); code built only into ld.so, a docs change and another crate's test do not.
+    #[test]
+    fn image_changes_select_the_start_up_layout_tests() {
+        let state = |s: &Selection| LAYOUT_TESTS.iter().map(|(k, t)| s.tests.contains_key(&(k.to_string(), t.to_string()))).collect::<Vec<_>>();
+        for tier in [Tier::Direct, Tier::Wide] {
+            for f in ["crates/math/src/classify.rs", "crates/math/src/coeffs/trig.rs", "crates/ld/src/map.rs", "crates/kernel/src/fd.rs", "csys/src/machine/barrier.S", "crates/boundary/src/posix/s10_math.tsv"] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(state(&s).iter().all(|&b| b), "{f} ({tier:?}) is linked into libc.a: the start-up layout tests must run: {:?}", s.tests.keys().collect::<Vec<_>>());
+            }
+        }
+        // The direct tier (the default gate, and CI's attribution): the wide tier's own rule 4 still selects every
+        // target that carries no section, the layout tests among them, for any boundary change.
+        {
+            let tier = Tier::Direct;
+            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/ld/link.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(state(&s).iter().all(|&b| !b), "{f} ({tier:?}) cannot reach libc.a: no start-up layout test: {:?}", state(&s));
+            }
+        }
+    }
+
+    // XTASK-AFFECTED-LAYOUT, no spec clause: the image model follows the manifests (normal dependencies only, the
+    // libc product's features), and the list of layout tests names real targets and every products test that counts
+    // a static program's page faults (a new fault bound left out of the list would go unselected again).
+    #[test]
+    fn image_model_and_layout_test_list_follow_the_tree() {
+        let r = repo();
+        for d in ["crates/boundary", "crates/math", "crates/ld", "crates/core", "crates/kernel", "crates/mem"] {
+            assert!(r.image.dirs.contains(d), "{d} is linked into libc.a: {:?}", r.image.dirs);
+        }
+        for d in ["crates/native", "crates/thread-db", "crates/mathtools", "crates/spectest", "xtask"] {
+            assert!(!r.image.dirs.contains(d), "{d} is not linked into libc.a");
+        }
+        assert!(r.image.off.contains(&("niji-boundary".into(), "ld".into())) && !r.image.off.contains(&("niji-boundary".into(), "runtime".into())), "{:?}", r.image.off);
+        for (k, t) in LAYOUT_TESTS {
+            assert!(r.targets.iter().any(|x| x.krate == *k && x.name == *t && x.products), "{k}::{t} is no products test target");
+        }
+        // The ld tests that run the built `ld.so` from the products directory use the products
+        // (TB-FOREIGN-SAFETY-6: a plant in ld.rs was tested against an unmutated `ld.so`).
+        for t in ["tls", "ldso_run", "ldso_link", "init_order", "map", "search_cache"] {
+            assert_eq!(r.test_uses_products(Some("niji-ld"), t), Some(true), "niji-ld::{t} runs the built ld.so");
+        }
+        for t in r.targets.iter().filter(|t| t.products && t.text[..t.own].contains("minflt") && t.text[..t.own].contains("-static")) {
+            assert!(LAYOUT_TESTS.contains(&(t.krate.as_str(), t.name.as_str())), "{}::{} counts a static program's faults: add it to LAYOUT_TESTS", t.krate, t.name);
+        }
+        let deps = link_deps("[dependencies]\na = { path = \"../a\", default-features = false, features = [\"x\", \"y\"] }\nb = { workspace = true }\n[dev-dependencies]\nc = \"1\"\n[target.'cfg(unix)'.dependencies]\nd = \"1\"\n");
+        assert_eq!(deps.get("a"), Some(&Some(["x".to_string(), "y".to_string()].into())));
+        assert_eq!((deps.get("b"), deps.contains_key("c"), deps.contains_key("d")), (Some(&None), false, true));
+        assert_eq!(features_on("[features]\nruntime = [\"export\"]\nselftest = [\"niji/selftest\"]\n", &["runtime".to_string()].into()), ["default", "export", "runtime"].iter().map(|s| s.to_string()).collect());
+        assert_eq!(feature_gated_modules("#[cfg(feature = \"ld\")]\npub mod ld;\n#[cfg(any(feature = \"ld\"))]\nmod a;\nmod b;\n"), vec![("ld".to_string(), "ld".to_string())]);
+    }
+
+    // XTASK-AFFECTED-LOADER, no spec clause: niji-math's tests take boundary with `selftest` only, and boundary uses
+    // niji-ld only in modules the libc and ld.so products build (`bootstrap`, `ld`, `arch`), so a loader change does
+    // not select niji-math's suites (DL-INIT-ORDER-2's gate ran them for 2203 s); the loader's own tests, boundary's,
+    // the conformance programs and the start-up layout tests still run. A math change, and a change to niji-rt
+    // (which both the loader and niji-math link), still select niji-math.
+    #[test]
+    fn a_loader_change_does_not_select_the_math_suites() {
+        let math = |s: &Selection| s.tests.keys().any(|(k, _)| k == "niji-math") || s.libs.contains_key("niji-math");
+        for tier in [Tier::Direct, Tier::Wide] {
+            for f in ["crates/ld/src/lib.rs", "crates/ld/src/init.rs", "crates/ld/src/boot.rs"] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(s.no_escalation() && !math(&s), "{f} ({tier:?}) is loader code: no niji-math suite: {:?} {:?}", s.libs.keys().collect::<Vec<_>>(), s.tests.keys().filter(|(k, _)| k == "niji-math").collect::<Vec<_>>());
+            }
+            let s = select_tier(repo(), &["crates/ld/src/lib.rs".to_string()], tier);
+            assert!(s.tests.keys().any(|(k, _)| k == "niji-ld") && s.libs.contains_key("niji-boundary") && s.conf.len() == repo().conf.len() && has_test(&s, LAYOUT_TESTS[0].1), "{tier:?}: the loader's own tests, boundary's, every conformance program and the layout tests: {:?}", s.tests.keys().collect::<Vec<_>>());
+            for f in ["crates/math/src/lib.rs", "crates/rt/src/lib.rs"] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(math(&s) && s.tests.keys().any(|(k, t)| k == "niji-math" && t == "elem_products"), "{f} ({tier:?}): niji-math's suites run");
+            }
+            let s = select_tier(repo(), &["crates/rt/src/lib.rs".to_string()], tier);
+            assert!(s.tests.keys().any(|(k, _)| k == "niji-ld"), "niji-rt ({tier:?}): the loader's suites run too");
+        }
+        let r = repo();
+        assert!(r.dependents("niji-ld").contains("niji-boundary") && !r.dependents("niji-ld").contains("niji-math"), "{:?}", r.dependents("niji-ld"));
+        let gates = module_gates("#[cfg(any(feature = \"runtime\", feature = \"ld\"))]\nmod bootstrap;\n#[cfg(feature = \"ld\")]\npub mod ld;\n#[cfg(not(feature = \"x\"))]\nmod a;\n#[cfg(test)]\nmod b;\nmod c;\n");
+        assert_eq!(gates, vec![(["ld".to_string(), "runtime".to_string()].into(), "bootstrap".to_string()), (["ld".to_string()].into(), "ld".to_string())]);
+        let ws = dep_edges("[workspace.dependencies]\nb = { path = \"b\" }\n", "workspace.dependencies", None);
+        let dev = dep_edges("[dev-dependencies]\nb = { workspace = true, features = [\"t\"] }\nu = { workspace = true }\n[dependencies]\nn = \"1\"\n", "dev-dependencies", Some(&ws));
+        assert_eq!((dev.get("b"), dev.get("u"), dev.contains_key("n")), (Some(&Some(["t".to_string()].into())), Some(&None), false));
+    }
+
     #[test]
     fn model_has_the_workspace() {
         let repo = repo();
-        assert!(repo.crates.iter().any(|c| c.name == "liella-boundary"));
-        assert!(repo.dependents("liella").contains("liella-boundary"), "boundary depends on core");
-        assert!(repo.dependents("liella").contains("liella"), "a crate depends on itself here");
-        assert!(repo.dependents("liella-kernel").contains("liella-math") || repo.dependents("liella-kernel").contains("liella-boundary"));
+        assert!(repo.crates.iter().any(|c| c.name == "niji-boundary"));
+        assert!(repo.dependents("niji").contains("niji-boundary"), "boundary depends on core");
+        assert!(repo.dependents("niji").contains("niji"), "a crate depends on itself here");
+        assert!(repo.dependents("niji-kernel").contains("niji-math") || repo.dependents("niji-kernel").contains("niji-boundary"));
         assert!(repo.targets.len() > 100 && repo.conf.len() > 50, "{} targets, {} conformance", repo.targets.len(), repo.conf.len());
     }
 
@@ -2589,21 +5295,157 @@ mod tests {
             "xtask/src/trace.rs",
             "spec/clauses.tsv",
             "spec/abi/layouts.tsv",
-            "include/liella/native.h",
-            "crates/boundary/src/posix/s10_math_gen.rs",
+            "include/niji/native.h",
             "crates/core/src/unicode/tables.rs",
-            "crates/boundary/src/posix/s10_math.tsv",
+            // XTASK-AFFECTED-MATH(-2): the math generated files outside the mapped set still escalate.
+            "crates/math/fits/fast32_tables_gen.py",
+            "crates/math/fits/sub/x.fit",
+            "crates/math/fits/removed_in_this_change.fit",
+            "crates/mathtools/src/sub/tables.rs",
+            "crates/math/src/coeffs/sub/x.rs",
+            "csys/src/adapter/math_libm.h",
+            "csys/src/adapter/other.c",
+            "crates/core/src/foo_gen.rs",
             "crates/libc-so/src/lib.rs",
             "scripts/anything.sh",
             "somewhere/unknown.bin",
         ] {
             let (_, s) = sel(&[f]);
-            assert!(!s.full.is_empty(), "{f} must escalate to full");
+            assert!(!s.no_escalation(), "{f} must escalate to full");
         }
     }
 
-    // TS-2b: the exact output of an empty nextest run, as `cargo xtask nextest -p liella-ld` prints it.
-    const NO_TESTS: &str = "== test -p liella-ld\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s\n────────────\n Nextest run ID fcec0948 with nextest profile: default\n    Starting 0 tests across 1 binary\n────────────\n     Summary [   0.000s] 0 tests run: 0 passed, 0 skipped\nerror: no tests to run\n(hint: use `--no-tests` to customize)\ntest result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.000s (nextest)\nxtask nextest: cd \"/h/w/b\" && \"cargo\" \"nextest\" \"run\" \"-p\" \"liella-ld\" failed: exit status: 4\n";
+    // XTASK-AFFECTED-MATH (ruling #3188), no spec clause: a change of the math export wiring or of a generated
+    // coefficient file selects the math export tests and the generator's check, not FULL, in the direct and wide tiers.
+    #[test]
+    fn math_wiring_and_coefficients_select_the_math_suites_not_full() {
+        let math_set: &[(&str, &str)] = &[
+            ("niji-boundary", "s10_math_symbols"),
+            ("niji-boundary", "math_fma_paths"),
+            ("niji-boundary", "libm_fma_select"),
+            ("niji-math", "s10_math_clauses"),
+            ("niji-math", "special_products"),
+            ("niji-math", "elem_products"),
+            ("niji-math", "fast64"),
+        ];
+        for (f, cmd) in [
+            (MATH_TSV, "math-gen --check"),
+            (MATH_GEN, "math-gen --check"),
+            ("csys/src/adapter/math_libm.c", "math-gen --check"),
+            ("crates/math/src/coeffs/trig.rs", "tables --check"),
+            ("crates/math/src/coeffs/fast32_sin.rs", "tables --check"),
+        ] {
+            for tier in [Tier::Direct, Tier::Wide] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(s.no_escalation(), "{f} ({tier:?}) must not escalate: {:?}", s.full);
+                assert!(s.xtask_cmds.contains(cmd), "{f} ({tier:?}): `cargo xtask {cmd}` not selected: {:?}", s.xtask_cmds);
+                for (c, t) in math_set {
+                    assert!(s.tests.contains_key(&(c.to_string(), t.to_string())), "{f} ({tier:?}): {c}::{t} not selected");
+                }
+                // Every niji-math suite, and every target whose own source names the math exports or libm.
+                for t in repo().targets.iter().filter(|t| {
+                    let own = &t.text[..t.own.min(t.text.len())];
+                    t.krate == MATH_CRATE || own.contains("s10_math") || own.contains("libm")
+                }) {
+                    assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{f} ({tier:?}): {}::{} not selected", t.krate, t.name);
+                }
+                assert!(s.libs.contains_key("niji-boundary") && s.libs.contains_key("niji-math"), "{f} ({tier:?}): unit tests {:?}", s.libs.keys());
+                // Targeted, not everything: a test of another section stays out.
+                assert!(!s.tests.contains_key(&("niji-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
+            }
+        }
+        // The coefficient family's users come from the `coeffs` module: its one-hop users' targets are a subset.
+        let c = select_tier(repo(), &["crates/math/src/coeffs/trig.rs".to_string()], Tier::Direct);
+        let m = select_tier(repo(), &["crates/math/src/coeffs.rs".to_string()], Tier::Direct);
+        for k in m.tests.keys() {
+            assert!(c.tests.contains_key(k), "coeffs/trig.rs misses {k:?}, which a change of coeffs.rs selects");
+        }
+    }
+
+    // D-X.39, no spec clause: each generator input under crates/mathtools/src/ selects its own mapping and the
+    // check of every generated set it feeds (remez: all fits in one `remez --check`; tables: `tables --check` and
+    // `kernel-index --check`); the comparison tool's sources select neither. Not FULL, in the direct and wide tiers.
+    #[test]
+    fn mathtools_generator_inputs_select_their_checks() {
+        let all_fits = format!("remez --check {}", repo().fits.iter().map(String::as_str).collect::<Vec<_>>().join(" "));
+        assert!(repo().fits.len() > 1, "the fit files of the tree: {:?}", repo().fits);
+        let both: &[&str] = &[&all_fits, "tables --check", "kernel-index --check"];
+        let remez: &[&str] = &[&all_fits];
+        let tables: &[&str] = &["tables --check", "kernel-index --check"];
+        let cases: &[(&str, &[&str])] = &[
+            ("crates/mathtools/src/remez.rs", remez),
+            ("crates/mathtools/src/bin/remez.rs", remez),
+            ("crates/mathtools/src/bessel_tables.rs", tables),
+            ("crates/mathtools/src/gamma_tables.rs", tables),
+            ("crates/mathtools/src/special_tables.rs", tables),
+            ("crates/mathtools/src/bin/tables.rs", tables),
+            ("crates/mathtools/src/lib.rs", both),
+            ("crates/mathtools/src/mp/func.rs", both),
+            ("crates/mathtools/src/mp/nat.rs", both),
+            ("crates/mathtools/src/cmp.rs", &[]),
+            ("crates/mathtools/src/cplx.rs", &[]),
+            ("crates/mathtools/src/bin/mathcmp.rs", &[]),
+        ];
+        for tier in [Tier::Direct, Tier::Wide] {
+            for (f, want) in cases {
+                assert!(root().join(f).is_file(), "{f} is not in the tree");
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(s.no_escalation(), "{f} ({tier:?}) must not escalate: {:?}", s.full);
+                assert!(s.libs.contains_key("niji-mathtools"), "{f} ({tier:?}): its own unit tests {:?}", s.libs.keys());
+                let checks: BTreeSet<&str> = s.xtask_cmds.iter().map(String::as_str).filter(|c| c.starts_with("remez") || c.starts_with("tables") || c.starts_with("kernel-index")).collect();
+                assert_eq!(checks, want.iter().copied().collect::<BTreeSet<_>>(), "{f} ({tier:?})");
+            }
+        }
+    }
+
+    // XTASK-AFFECTED-MATH-2 (ruling #3204), no spec clause: a fit file selects its family's math set (everything its
+    // generated coefficient file selects) plus `remez --check <fit>`; the tables generator selects its own mapping as a
+    // niji-mathtools source, the whole math set, `tables --check` and `kernel-index --check`. Not FULL, in the direct
+    // and wide tiers.
+    #[test]
+    fn math_fits_and_tables_generator_select_the_math_set_not_full() {
+        let fit = "crates/math/fits/fast32_sin.fit";
+        assert!(repo().fits.contains(fit), "the fit files of the tree: {:?}", repo().fits);
+        for tier in [Tier::Direct, Tier::Wide] {
+            let coeffs = select_tier(repo(), &["crates/math/src/coeffs/fast32_sin.rs".to_string()], tier);
+            for (f, cmds) in [
+                (fit, &["remez --check crates/math/fits/fast32_sin.fit", "tables --check"][..]),
+                (MATH_TABLES_GEN, &["tables --check", "kernel-index --check"][..]),
+            ] {
+                let s = select_tier(repo(), &[f.to_string()], tier);
+                assert!(s.no_escalation(), "{f} ({tier:?}) must not escalate: {:?}", s.full);
+                for cmd in cmds {
+                    assert!(s.xtask_cmds.contains(*cmd), "{f} ({tier:?}): `cargo xtask {cmd}` not selected: {:?}", s.xtask_cmds);
+                }
+                // Everything the family's coefficient file selects (the math export suites, every niji-math suite).
+                for k in coeffs.tests.keys() {
+                    assert!(s.tests.contains_key(k), "{f} ({tier:?}) misses {k:?}, which coeffs/fast32_sin.rs selects");
+                }
+                for k in coeffs.libs.keys().chain(coeffs.clippy.keys()) {
+                    assert!(s.libs.contains_key(k) || s.clippy.contains_key(k), "{f} ({tier:?}) misses the crate {k}");
+                }
+                assert!(!s.tests.contains_key(&("niji-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
+            }
+            // The generator is also a niji-mathtools source: its own crate's unit tests and its ordinary mapping.
+            let s = select_tier(repo(), &[MATH_TABLES_GEN.to_string()], tier);
+            assert!(s.libs.contains_key("niji-mathtools"), "{MATH_TABLES_GEN} ({tier:?}): unit tests {:?}", s.libs.keys());
+            let mut own = Selection { direct: tier == Tier::Direct, ..Selection::default() };
+            ordinary_mapping(repo(), MATH_TABLES_GEN, &mut own);
+            assert!(own.libs.contains_key("niji-mathtools"), "the ordinary mapping of {MATH_TABLES_GEN} ({tier:?}): {:?}", own.libs.keys());
+            for k in own.libs.keys() {
+                assert!(s.libs.contains_key(k), "{MATH_TABLES_GEN} ({tier:?}) misses the unit tests of {k} of its own mapping");
+            }
+            for k in own.tests.keys() {
+                assert!(s.tests.contains_key(k), "{MATH_TABLES_GEN} ({tier:?}) misses {k:?} of its own mapping");
+            }
+            for k in own.conf.keys() {
+                assert!(s.conf.contains_key(k), "{MATH_TABLES_GEN} ({tier:?}) misses the program {k} of its own mapping");
+            }
+        }
+    }
+
+    // TS-2b: the exact output of an empty nextest run, as `cargo xtask nextest -p niji-ld` prints it.
+    const NO_TESTS: &str = "== test -p niji-ld\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s\n────────────\n Nextest run ID fcec0948 with nextest profile: default\n    Starting 0 tests across 1 binary\n────────────\n     Summary [   0.000s] 0 tests run: 0 passed, 0 skipped\nerror: no tests to run\n(hint: use `--no-tests` to customize)\ntest result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.000s (nextest)\nxtask nextest: cd \"/h/w/b\" && \"cargo\" \"nextest\" \"run\" \"-p\" \"niji-ld\" failed: exit status: 4\n";
 
     #[test]
     fn an_empty_selection_is_a_skip_and_a_real_failure_is_not() {
@@ -2614,7 +5456,7 @@ mod tests {
         // A failed test, a build error, another exit status, and a bare empty-summary line are all FAILED.
         let failed_test = "     Summary [1s] 3 tests run: 2 passed, 1 failed, 0 skipped\n---- x::y stdout ----\ntest result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\nxtask nextest: cmd failed: exit status: 100\n";
         assert_eq!(classify_step(false, failed_test, true), Outcome::Failed);
-        let build = "error[E0425]: cannot find value `x`\nerror: could not compile `liella-ld`\nxtask nextest: cmd failed: exit status: 101\n";
+        let build = "error[E0425]: cannot find value `x`\nerror: could not compile `niji-ld`\nxtask nextest: cmd failed: exit status: 101\n";
         assert_eq!(classify_step(false, build, true), Outcome::Failed);
         let zero_only = "test result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in ?s (nextest: no summary line - the run did not finish)\nxtask nextest: cmd failed: exit status: 101\n";
         assert_eq!(classify_step(false, zero_only, true), Outcome::Failed, "0 passed / 0 failed is not the message");
@@ -2644,7 +5486,7 @@ mod tests {
             for f in &files {
                 let rel = f.strip_prefix(root()).unwrap_or(f).to_string_lossy().replace('\\', "/");
                 let s = select(r, std::slice::from_ref(&rel));
-                if s.full.is_empty() {
+                if s.no_escalation() {
                     assert!(s.libs.contains_key(&c.name) || s.tests.keys().any(|(k, _)| *k == c.name), "{rel}: no suite of its crate `{}` selected: {s:?}", c.name);
                     checked += 1;
                 }
@@ -2655,10 +5497,120 @@ mod tests {
 
     #[test]
     fn docs_only_runs_no_tests() {
-        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/probe/probe"] {
+        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/prof/prof.sh"] {
             let (_, s) = sel(&[f]);
-            assert!(s.full.is_empty() && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty() && s.clippy.is_empty(), "{f}: {s:?}");
+            assert!(s.no_escalation() && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty() && s.clippy.is_empty(), "{f}: {s:?}");
         }
+    }
+
+    // XTASK-AFFECTED-DOCS-PATHS (D-X.35); no spec clause. A results table alone: `cargo xtask static`, no tests, in
+    // every tier but full (it used to escalate: "not a path the selection knows"). Paths are built at run time so this
+    // test's own text does not name them.
+    #[test]
+    fn docs_paths_select_static_only() {
+        let made_up = ["results", "spec/security", "spec"].map(|d| format!("{d}/{}.md", "docs-paths-made-up"));
+        for f in made_up.iter().map(String::as_str).chain(["results/timing-sweep-1105.md", "spec/ERRATA.md", "docs/benchmarks.md"]) {
+            for t in [Tier::Direct, Tier::Wide] {
+                let s = tier(&[f], t);
+                assert!(s.no_escalation() && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty() && s.clippy.is_empty() && !s.xtask_tests, "{f} ({t:?}): {s:?}");
+                assert_eq!(s.xtask_cmds, BTreeSet::from(["static".to_string()]), "{f} ({t:?})");
+            }
+        }
+        // A path cited only in comments (the tests that cite the threat model) is no read.
+        let s = tier(&["spec/security/threat-model.md"], Tier::Direct);
+        assert!(s.tests.is_empty() && s.libs.is_empty() && !s.xtask_tests, "{s:?}");
+    }
+
+    // XTASK-AFFECTED-DOCS-PATHS; no spec clause. A docs file that code reads selects its readers and nothing wider.
+    #[test]
+    fn docs_read_by_code_select_their_readers() {
+        let has = |s: &Selection, k: &str, n: &str| s.tests.contains_key(&(k.to_string(), n.to_string()));
+        for t in [Tier::Direct, Tier::Wide] {
+            let s = tier(&["spec/behaviour/aio.glibc.txt"], t);
+            assert!(s.no_escalation() && has(&s, "niji", "aio_products") && s.xtask_cmds.contains("static"), "{t:?}: {s:?}");
+            assert!(!has(&s, "niji", "syslog_products"), "only the readers: {s:?}");
+            // Read by a test target and by a crate's unit-test module (`pattern::regex_oracle_diff`).
+            let s = tier(&["spec/behaviour/patterns.glibc.txt.gz"], t);
+            assert!(has(&s, "niji", "regex_record") && has(&s, "niji", "patterns_products") && s.libs.contains_key("niji"), "{t:?}: {s:?}");
+            // Read by this command (`Repo::load`), so by the xtask unit tests.
+            let s = tier(&["docs/codemap/symbols.tsv"], t);
+            assert!(s.no_escalation() && s.xtask_tests, "{t:?}: {s:?}");
+        }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. The probe client is run by an xtask integration test that names it
+    // (`xtask/tests/probe_client.rs`): a change to the client alone selects the xtask tests (it selected none).
+    #[test]
+    fn direct_tier_tool_named_by_an_xtask_integration_test_selects_the_xtask_tests() {
+        let s = tier(&["tools/probe/probe"], Tier::Direct);
+        assert!(s.no_escalation() && s.xtask_tests && s.xtask_cmds.contains("static") && s.tests.is_empty() && s.libs.is_empty(), "{s:?}");
+        assert!(s.notes.iter().any(|n| n.contains("xtask/tests/probe_client.rs")), "the reader is the integration test: {:?}", s.notes);
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 1: the tools/hottext scripts no code names (a test lists
+    // the directory and reads each script; runner.sh's test runs canon_host.sh) select the xtask tests, and the
+    // products test that runs tools/hottext/ldso_trace.sh (which sources runner.sh and runs canon_host.sh) on a
+    // prefixed interpreter (LDSO-TRACE-PREFIX); only `.sh` files directly in the directory.
+    #[test]
+    fn direct_tier_hottext_scripts_reached_by_listing_select_the_xtask_tests() {
+        let products = ("niji".to_string(), "hot_text_products".to_string());
+        for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh", "tools/hottext/ldso_trace.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.no_escalation() && s.xtask_tests && s.tests.keys().eq([&products]), "{f}: {s:?}");
+            assert!(!s.notes.iter().any(|n| n.contains("xtask (xtask/src/affected.rs)")), "this module's table is no reader: {:?}", s.notes);
+        }
+        for f in ["tools/hottext/faultmap.py", "tools/hottext/probes/made-up.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(!s.xtask_tests && s.tests.is_empty() && s.libs.is_empty(), "{f}: {s:?}");
+        }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 2: tools/deb/copyright, which system.sh stages in the
+    // symbols-only run of deb_symbols_products, selects that test; the row names the file, not a prefix.
+    #[test]
+    fn direct_tier_deb_copyright_selects_the_deb_symbols_test() {
+        let s = tier(&["tools/deb/copyright"], Tier::Direct);
+        assert!(s.no_escalation() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "only the deb test, not this module's table: {s:?}");
+        let s = tier(&["tools/deb/copyright.made-up"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 3: the configuration files under tools/deb/system/,
+    // which system.sh stages in the same run, select deb_symbols_products; a deeper path does not.
+    #[test]
+    fn direct_tier_deb_system_files_select_the_deb_symbols_test() {
+        for f in ["tools/deb/system/gai.conf", "tools/deb/system/nsswitch.conf"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.no_escalation() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "{f}: only the deb test: {s:?}");
+        }
+        let s = tier(&["tools/deb/system/made-up/x.conf"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
+    }
+
+    // XTASK-AFFECTED-DOCS-PATHS; no spec clause. Mixed with code: the code's selection as before, plus `static`.
+    #[test]
+    fn docs_mixed_with_code_select_as_before() {
+        let doc = format!("results/{}.md", "docs-paths-made-up");
+        assert!(!tier(&[doc.as_str(), "crates/abi/src/lib.rs"], Tier::Direct).no_escalation(), "code still escalates");
+        for code in ["crates/kernel/src/lib.rs", "crates/core/tests/aio_products.rs", "conformance/c/fpu_control_own.c"] {
+            for t in [Tier::Direct, Tier::Wide] {
+                let (a, b) = (tier(&[code], t), tier(&[code, doc.as_str()], t));
+                assert!(a.full == b.full && a.tests.keys().eq(b.tests.keys()) && a.conf.keys().eq(b.conf.keys()) && a.libs.keys().eq(b.libs.keys()) && a.xtask_tests == b.xtask_tests, "{code} ({t:?})");
+                assert!(b.xtask_cmds.contains("static"), "{code} ({t:?})");
+            }
+        }
+    }
+
+    #[test]
+    fn names_path_needs_a_quoted_path_outside_comments() {
+        assert!(names_path("let p = root.join(\"spec/behaviour/a.txt\");", "spec/behaviour/a.txt"));
+        assert!(names_path("include_bytes!(\"../../spec/behaviour/a.txt\")", "spec/behaviour/a.txt"));
+        for no in ["//! see spec/behaviour/a.txt", "    /// \"spec/behaviour/a.txt\"", " * \"spec/behaviour/a.txt\"", "let p = \"xspec/behaviour/a.txt\";"] {
+            assert!(!names_path(no, "spec/behaviour/a.txt"), "{no}");
+        }
+        // A top-level file: a bare name in a list is no path; a joined or `/`-prefixed one is.
+        assert!(!names_path("const SKIP: &[&str] = &[\"Makefile\", \"README.md\"];", "README.md"));
+        assert!(names_path("root.join(\"README.md\")", "README.md") && names_path("\"../../README.md\"", "README.md"));
     }
 
     #[test]
@@ -2668,21 +5620,60 @@ mod tests {
             assert!(s.xtask_tests, "{f} must select -p xtask: {s:?}");
         }
         let (_, s) = sel(&["bench/instr_limits.tsv"]);
-        assert!(s.full.is_empty() && s.tests.is_empty() && s.conf.is_empty(), "bench data selects only the xtask tests: {s:?}");
+        assert!(s.no_escalation() && s.tests.is_empty() && s.conf.is_empty(), "bench data selects only the xtask tests: {s:?}");
         assert!(!sel(&["fuzz/seeds/x"]).1.xtask_tests, "fuzz stays unselected");
+    }
+
+    // #4338: no spec clause (test-harness tooling). The fuzz workspace's manifest, lock and toolchain file never
+    // escalate to FULL (the build-configuration rule must not win over `fuzz/`); they select only `fuzz-check`.
+    #[test]
+    fn fuzz_workspace_files_select_only_fuzz_check() {
+        for f in ["fuzz/Cargo.toml", "fuzz/Cargo.lock", "fuzz/rust-toolchain.toml", "fuzz/fuzz_targets/new_target.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.no_escalation(), "{f} must not escalate to FULL: {s:?}");
+            assert!(s.tests.is_empty() && s.conf.is_empty() && !s.xtask_tests, "{f} selects no tests: {s:?}");
+            assert!(s.xtask_cmds.contains("fuzz-check"), "{f} must select fuzz-check: {s:?}");
+        }
+        assert!(!sel(&["Cargo.toml"]).1.no_escalation(), "the root manifest still escalates");
+        assert!(!sel(&["validation/Cargo.toml"]).1.no_escalation(), "only fuzz/ is a separate workspace");
+    }
+
+    // XTASK-AFFECTED-RECORDS (D-X.57): no spec clause. A record, a view input or the layout manifest selects its
+    // readers, never FULL and never nothing.
+    #[test]
+    fn records_select_the_xtask_tests_and_static_not_full() {
+        let files = ["records/decisions/D-X/D-X.57.toml", "records/compat/COMPAT-1.toml", "records/saturation/x.toml", "records/views/s01.head.md", "records/views/h.tail.md", "records/views.toml"];
+        for t in [Tier::Direct, Tier::Wide] {
+            for f in files {
+                let s = select_tier(repo(), &[f.to_string()], t);
+                assert!(s.no_escalation(), "{f} ({t:?}) must not escalate: {s:?}");
+                assert!(s.xtask_tests && s.xtask_cmds.contains("static"), "{f} ({t:?}) must select the xtask unit tests and `cargo xtask static`: {s:?}");
+                assert!(!s.xtask_cmds.contains(LAYOUT_CHECK) && s.conf.is_empty() && !needs_products(repo(), &s), "{f} ({t:?}): no products for a record: {s:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_layout_manifest_selects_layout_check_not_full() {
+        for t in [Tier::Direct, Tier::Wide] {
+            let s = select_tier(repo(), &[LAYOUT_CONSUMERS[0].to_string()], t);
+            assert!(s.no_escalation(), "{t:?}: must not escalate: {s:?}");
+            assert!(s.xtask_cmds.contains(LAYOUT_CHECK) && needs_products(repo(), &s), "{t:?}: must run `cargo xtask {LAYOUT_CHECK}` on fresh products: {s:?}");
+            assert!(s.xtask_tests && s.xtask_cmds.contains("static"), "{t:?}: must run the xtask unit tests and `cargo xtask static`: {s:?}");
+        }
     }
 
     #[test]
     fn own_module_runs_only_xtask_tests() {
         let (_, s) = sel(&["xtask/src/affected.rs"]);
-        assert!(s.full.is_empty() && s.xtask_tests && s.tests.is_empty() && s.conf.is_empty());
+        assert!(s.no_escalation() && s.xtask_tests && s.tests.is_empty() && s.conf.is_empty());
     }
 
     #[test]
     fn a_test_file_selects_its_target() {
         let (_, s) = sel(&["crates/core/tests/printf_products.rs"]);
-        assert!(s.full.is_empty() && s.tests.len() == 1 && has_test(&s, "printf_products"), "{s:?}");
-        assert!(s.conf.is_empty() && s.clippy.contains_key("liella"));
+        assert!(s.no_escalation() && s.tests.len() == 1 && has_test(&s, "printf_products"), "{s:?}");
+        assert!(s.conf.is_empty() && s.clippy.contains_key("niji"));
     }
 
     #[test]
@@ -2705,7 +5696,7 @@ mod tests {
     fn root_and_infrastructure_files_are_wide() {
         for f in ["crates/core/src/lib.rs", "crates/kernel/src/lib.rs", "crates/rt/src/sync.rs", "crates/mem/src/lib.rs"] {
             let (repo, s) = sel(&[f]);
-            assert!(s.full.is_empty(), "{f}");
+            assert!(s.no_escalation(), "{f}");
             assert_eq!(s.conf.len(), repo.conf.len(), "{f}: wide selects every conformance program");
             assert!(has_test(&s, "s12_stdio_clauses") && has_test(&s, "s05_ctype_clauses"), "{f}");
         }
@@ -2721,7 +5712,7 @@ mod tests {
     #[test]
     fn printf_change_is_a_superset_of_the_tests_that_reach_it() {
         let (repo, s) = sel(&["crates/core/src/printf.rs"]);
-        assert!(s.full.is_empty());
+        assert!(s.no_escalation());
         for k in reachers(repo, "printf") {
             assert!(s.tests.contains_key(&k), "{k:?} names printf:: but is not selected");
         }
@@ -2739,7 +5730,7 @@ mod tests {
     #[test]
     fn locale_change_is_a_superset_of_the_tests_that_reach_it() {
         let (repo, s) = sel(&["crates/core/src/locale/mod.rs"]);
-        assert!(s.full.is_empty());
+        assert!(s.no_escalation());
         for k in reachers(repo, "locale") {
             assert!(s.tests.contains_key(&k), "{k:?} names locale:: but is not selected");
         }
@@ -2752,20 +5743,21 @@ mod tests {
     #[test]
     fn csys_change_is_full() {
         let (_, s) = sel(&["csys/src/machine/x.S"]);
-        assert!(!s.full.is_empty() && s.tests.is_empty());
+        // FULL runs everything; the only targets named are the start-up layout tests (rule 9: csys is in libc.a).
+        assert!(!s.no_escalation() && s.tests.keys().all(|(k, t)| LAYOUT_TESTS.contains(&(k.as_str(), t.as_str()))), "{s:?}");
     }
 
     #[test]
     fn csys_assembly_selects_the_users_of_its_symbols() {
-        // restorer.S defines only `liella_` symbols, used by a plain function of sys.rs. (scan.S,
+        // restorer.S defines only `niji_` symbols, used by a plain function of sys.rs. (scan.S,
         // the earlier example, defines the C symbol `memchr` since MEMCHR-2: it escalates.)
         let (repo, s) = sel(&["csys/src/machine/restorer.S"]);
-        assert!(s.full.is_empty(), "{:?}", s.full);
+        assert!(s.no_escalation(), "{:?}", s.full);
         assert!(s.clippy.contains_key(CSYS_CRATE));
         assert!(s.notes.iter().any(|n| n.contains("crates/boundary/src/sys.rs")), "{:?}", s.notes);
         // Independent check: every test that names one of its symbols is selected.
         let syms = repo.csys["csys/src/machine/restorer.S"].symbols.clone().unwrap_or_default();
-        assert!(syms.iter().any(|x| x == "liella_machine_restorer"), "{syms:?}");
+        assert!(syms.iter().any(|x| x == "niji_machine_restorer"), "{syms:?}");
         for t in repo.targets.iter().filter(|t| syms.iter().any(|x| t.text.contains(x.as_str()))) {
             assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{}::{} names a restorer.S symbol", t.krate, t.name);
         }
@@ -2776,14 +5768,14 @@ mod tests {
 
     #[test]
     fn function_spans_and_traits() {
-        let src = "pub fn a() {\n    ffi::liella_x();\n}\n\nfn b(\n    v: u8,\n) -> u8 {\n    a();\n    v\n}\n\nfn c() {}\n\nimpl Machine for Sys {\n    fn m(&self) {\n        b(1);\n    }\n}\n";
-        let w = ["liella_x".to_string()];
+        let src = "pub fn a() {\n    ffi::niji_x();\n}\n\nfn b(\n    v: u8,\n) -> u8 {\n    a();\n    v\n}\n\nfn c() {}\n\nimpl Machine for Sys {\n    fn m(&self) {\n        b(1);\n    }\n}\n";
+        let w = ["niji_x".to_string()];
         assert_eq!(affected_fns(src, &w), Some(BTreeSet::from(["a".to_string(), "b".to_string(), "m".to_string()])));
         assert!(in_trait(src, "m") && !in_trait(src, "a") && !in_trait(src, "b"));
         // Outside every function, or a C entry point: unsure.
-        assert_eq!(affected_fns("static P: fn() = liella_x;\n", &w), None);
-        assert_eq!(affected_fns("#[unsafe(no_mangle)]\npub extern \"C\" fn e() {\n    liella_x();\n}\n", &w), None);
-        assert_eq!(affected_fns("fn e() {\n    liella_x();\n}\nexport!(e);\n", &w), None);
+        assert_eq!(affected_fns("static P: fn() = niji_x;\n", &w), None);
+        assert_eq!(affected_fns("#[unsafe(no_mangle)]\npub extern \"C\" fn e() {\n    niji_x();\n}\n", &w), None);
+        assert_eq!(affected_fns("fn e() {\n    niji_x();\n}\nexport!(e);\n", &w), None);
     }
 
     #[test]
@@ -2795,11 +5787,11 @@ mod tests {
             "csys/src/machine/new_file.S", // not in the tree
             "csys/src/sys/lock.c",         // generated
             "csys/src/adapter/va.c",       // C: not read statically
-            "csys/include/liella_csys.h",  // a header (no .changed.hdr diff in the unit tests' repo: not mappable)
+            "csys/include/niji_csys.h",  // a header (no .changed.hdr diff in the unit tests' repo: not mappable)
             "csys/syscalls.tsv",           // a generator input
         ] {
             let (_, s) = sel(&[f]);
-            assert!(!s.full.is_empty(), "{f} must escalate to full: {s:?}");
+            assert!(!s.no_escalation(), "{f} must escalate to full: {s:?}");
         }
         // TOOLS-21: in the DIRECT tier a listed machine export selects its fixed machine tests, not FULL; an unlisted
         // export (setjmp, getcontext, _start) stays FULL; --tier full is FULL. CSYS-MAP-2: read against a fixture whose
@@ -2819,43 +5811,77 @@ mod tests {
         let direct = |f: &str| if f.ends_with("scan.S") { &scan } else { &fold };
         for f in ["csys/src/machine/scan.S", "csys/src/machine/fold.S"] {
             let d = direct(f);
-            assert!(d.full.is_empty(), "{f}: a listed export must not escalate in the direct tier: {:?}", d.full);
+            assert!(d.no_escalation(), "{f}: a listed export must not escalate in the direct tier: {:?}", d.full);
             assert!(has_test(d, "machine_scanners") && has_test(d, "s04_strings_symbols"), "{f}: {:?}", d.tests);
-            assert!(!t(f, Tier::Full).full.is_empty(), "{f}: --tier full stays FULL");
+            assert!(!t(f, Tier::Full).no_escalation(), "{f}: --tier full stays FULL");
         }
         assert!(has_test(&fold, "small_copy"));
         // CSYS-MAP-4: the scanner race tests run when the scanners they call (memchr, strcmp in scan.S; memcmp in fold.S) change.
         for f in ["csys/src/machine/scan.S", "csys/src/machine/fold.S"] {
             assert!(has_test(direct(f), "scanner_races"), "{f}: scanner_races must be selected in the direct tier");
         }
-        // fold.S defines `liella_machine_chr_limit`, read by scan.S: the sibling is mapped as if it changed (direct tier).
+        // fold.S defines `niji_machine_chr_limit`, read by scan.S: the sibling is mapped as if it changed (direct tier).
         let d = &fold;
         assert!(d.notes.iter().any(|n| n.contains("mapped as if it changed") && n.contains("scan.S")), "{:?}", d.notes);
         for f in ["csys/src/machine/setjmp.S", "csys/src/machine/context.S", "csys/src/machine/entry.S"] {
-            assert!(!t(f, Tier::Direct).full.is_empty(), "{f}: an unlisted export must stay FULL in the direct tier");
+            assert!(!t(f, Tier::Direct).no_escalation(), "{f}: an unlisted export must stay FULL in the direct tier");
         }
         // The fixture is consistent with the map (each listed export mapped to existing targets that name it).
         assert_eq!(machine_exports_problems(&fx), None);
         // An export the map lacks: the direct tier escalates (safe), and the static check names the symbol and the fix.
         let fx = machine_fixture(&["zz_unlisted_export"]);
-        assert!(!select_tier(&fx, &["csys/src/machine/scan.S".to_string()], Tier::Direct).full.is_empty());
+        assert!(!select_tier(&fx, &["csys/src/machine/scan.S".to_string()], Tier::Direct).no_escalation());
         let p = machine_exports_problems(&fx).unwrap_or_default();
         assert!(p.len() == 1 && p[0].contains("`zz_unlisted_export`") && p[0].contains("add (\"scan.S\", \"zz_unlisted_export\""), "{p:?}");
     }
 
-    /// CSYS-MAP-2 fixture: the exported (non-`liella_`) symbols of the listed machine files, fixed; scan.S gets `extra` too.
+    #[test]
+    fn layout_manifest_names_select_the_layout_check() {
+        // Trace: no spec clause (test-harness tooling; LAYOUT-MANIFEST-2, D-X.48).
+        // The layout manifest and its checker name scan.S symbols (`libc.a:niji_machine_rawmemchr_entry`): in the
+        // direct tier that selects `cargo xtask layout-check` on fresh products, not FULL. Read against the CSYS-MAP-2
+        // fixture with one reference from each consumer added, so a manifest edit cannot break this test.
+        // The live manifest is scanned: each csys symbol it names has a reference from it.
+        let live = repo();
+        let manifest = read(&root().join(LAYOUT_CONSUMERS[0]));
+        let syms: BTreeSet<&str> = live.csys.values().filter_map(|c| c.symbols.as_ref()).flatten().map(String::as_str).collect();
+        let named: Vec<&str> = manifest.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).filter(|w| syms.contains(w)).collect();
+        assert!(!named.is_empty(), "{} names no csys symbol (its section-offset rows name scan.S entries)", LAYOUT_CONSUMERS[0]);
+        for w in &named {
+            assert!(live.csys_refs.get(*w).is_some_and(|v| v.iter().any(|r| r.file == LAYOUT_CONSUMERS[0])), "`{w}`: no reference from {}", LAYOUT_CONSUMERS[0]);
+        }
+        let mut fx = machine_fixture(&[]);
+        let s = fx.csys["csys/src/machine/scan.S"].symbols.as_ref().and_then(|v| v.iter().find(|s| s.starts_with("niji_")).cloned()).expect("a niji_ symbol of scan.S");
+        for c in LAYOUT_CONSUMERS {
+            fx.csys_refs.entry(s.clone()).or_default().push(SymRef { file: c.to_string(), decl: false });
+        }
+        let d = select_tier(&fx, &["csys/src/machine/scan.S".to_string()], Tier::Direct);
+        assert!(d.no_escalation(), "a layout-manifest name must not escalate: {:?}", d.full);
+        assert!(d.xtask_cmds.contains(LAYOUT_CHECK), "{:?}", d.xtask_cmds);
+        assert!(d.notes.iter().any(|n| n.contains("layout contracts") && LAYOUT_CONSUMERS.iter().all(|c| n.contains(c))), "{:?}", d.notes);
+        assert!(has_test(&d, "machine_scanners"), "the listed export's tests are still selected: {:?}", d.tests);
+        // The layout check reads the products, so they are built first.
+        assert!(needs_products(&fx, &Selection { xtask_cmds: BTreeSet::from([LAYOUT_CHECK.to_string()]), ..Selection::default() }));
+        assert!(!needs_products(&fx, &Selection::default()));
+        // Any other non-Rust file naming the symbol is still an unknown consumer: FULL.
+        fx.csys_refs.entry(s).or_default().push(SymRef { file: "tools/unknown.txt".into(), decl: false });
+        let u = select_tier(&fx, &["csys/src/machine/scan.S".to_string()], Tier::Direct);
+        assert!(u.train.iter().any(|w| w.contains("tools/unknown.txt")), "{:?}", u.train);
+    }
+
+    /// CSYS-MAP-2 fixture: the exported (non-`niji_`) symbols of the listed machine files, fixed; scan.S gets `extra` too.
     const FIXTURE_EXPORTS: &[(&str, &[&str])] = &[
         ("fold.S", &["memmove", "memcpy", "mempcpy", "__mempcpy", "memset", "memcmp", "bcmp", "__memcmpeq"]),
         ("scan.S", &["memchr"]),
     ];
 
-    /// The live repository with the listed machine files' exports replaced by `FIXTURE_EXPORTS` (their `liella_`
+    /// The live repository with the listed machine files' exports replaced by `FIXTURE_EXPORTS` (their `niji_`
     /// symbols, which tie the files to their Rust users and to each other, stay live).
     fn machine_fixture(extra: &[&str]) -> Repo {
-        let mut r = Repo { hdr_diff: None, ..Repo::load(&root()) };
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
         for (file, exports) in FIXTURE_EXPORTS {
             let c = r.csys.get_mut(&format!("csys/src/machine/{file}")).expect("listed machine file");
-            let mut syms: Vec<String> = c.symbols.take().expect("readable").into_iter().filter(|s| s.starts_with("liella_")).collect();
+            let mut syms: Vec<String> = c.symbols.take().expect("readable").into_iter().filter(|s| s.starts_with("niji_")).collect();
             syms.extend(exports.iter().map(|s| s.to_string()));
             if *file == "scan.S" {
                 syms.extend(extra.iter().map(|s| s.to_string()));
@@ -2867,22 +5893,27 @@ mod tests {
 
     #[test]
     fn csys_symbol_reading() {
-        assert_eq!(csys_symbols("a.S", "\t.globl liella_a, liella_b\n\t.weak w\nliella_c:\n.Llocal:\n\tret\n"), Some(vec!["liella_a".into(), "liella_b".into(), "liella_c".into(), "w".into()]));
-        assert_eq!(csys_symbols("a.S", "#include \"x.h\"\n\t.globl liella_a\n"), None);
-        assert_eq!(csys_symbols("a.S", ".macro M\n.endm\n"), None);
+        assert_eq!(csys_symbols("a.S", "\t.globl niji_a, niji_b\n\t.weak w\nniji_c:\n.Llocal:\n\tret\n"), Some(vec!["niji_a".into(), "niji_b".into(), "niji_c".into(), "w".into()]));
+        assert_eq!(csys_symbols("a.S", "#include \"x.h\"\n\t.globl niji_a\n"), None);
+        assert_eq!(csys_symbols("a.S", ".macro M\n.endm\n"), Some(vec![]));
+        assert_eq!(csys_symbols("a.S", ".macro M b\n.Lx\\@:\n\tjmp niji_y+\\b\n.endm\n#define SLOT 4032\nniji_z:\n"), Some(vec!["niji_z".into()]));
+        assert_eq!(csys_symbols("a.S", ".macro M\n\t.globl niji_a\n.endm\n"), None);
+        assert_eq!(csys_symbols("a.S", ".macro M\nniji_a:\n.endm\n"), None);
+        assert_eq!(csys_symbols("a.S", "#define memset niji_a\n"), None);
+        assert_eq!(csys_symbols("a.S", "#define SLOT(x) x\n"), None);
         // TOOLS-9: a one-line .symver alias maps to the alias and the exported name; a malformed one stays unmappable.
         assert_eq!(
-            csys_symbols("a.S", "\t.globl liella_x_alias\nliella_x_alias:\n\tjmp liella_x@PLT\n\t.symver liella_x_alias, stime@GLIBC_2.2.5\n"),
-            Some(vec!["liella_x_alias".into(), "stime".into()])
+            csys_symbols("a.S", "\t.globl niji_x_alias\nniji_x_alias:\n\tjmp niji_x@PLT\n\t.symver niji_x_alias, stime@GLIBC_2.2.5\n"),
+            Some(vec!["niji_x_alias".into(), "stime".into()])
         );
         assert_eq!(csys_symbols("a.S", "\t.symver a, b@@V\n"), Some(vec!["a".into(), "b".into()]));
         assert_eq!(csys_symbols("a.S", "\t.symver a\n"), None);
         assert_eq!(csys_symbols("a.S", "\t.symver a, b\n"), None);
-        assert_eq!(csys_symbols("a.c", "long liella_a(void) { return 0; }\n"), None);
-        let syms = BTreeSet::from(["liella_a".to_string()]);
+        assert_eq!(csys_symbols("a.c", "long niji_a(void) { return 0; }\n"), None);
+        let syms = BTreeSet::from(["niji_a".to_string()]);
         let mut out = BTreeMap::new();
-        sym_refs("x.rs", "    pub(crate) safe fn liella_a(s: *const u8) -> usize;\n    /// As `liella_a`\n    let n = ffi::liella_a(p);\n", &syms, &mut out);
-        let r = &out["liella_a"];
+        sym_refs("x.rs", "    pub(crate) safe fn niji_a(s: *const u8) -> usize;\n    /// As `niji_a`\n    let n = ffi::niji_a(p);\n", &syms, &mut out);
+        let r = &out["niji_a"];
         assert_eq!(r.iter().map(|r| r.decl).collect::<Vec<_>>(), [true, false], "a declaration, a comment (skipped), a use");
     }
 
@@ -2895,19 +5926,92 @@ mod tests {
     #[test]
     fn an_audit_module_selects_its_checks_not_full() {
         let (_, s) = sel(&["xtask/src/policy.rs"]);
-        assert!(s.full.is_empty() && s.xtask_tests && s.clippy.contains_key("xtask") && s.tests.is_empty() && s.conf.is_empty(), "{s:?}");
+        assert!(s.no_escalation() && s.xtask_tests && s.clippy.contains_key("xtask") && s.tests.is_empty() && s.conf.is_empty(), "{s:?}");
         let (_, s) = sel(&["xtask/src/symgap.rs"]);
-        assert!(s.full.is_empty() && s.xtask_cmds.contains("symgap"));
+        assert!(s.no_escalation() && s.xtask_cmds.contains("symgap"));
         for f in ["xtask/src/so.rs", "xtask/src/spec.rs", "xtask/src/csys.rs", "xtask/src/main.rs"] {
-            assert!(!sel(&[f]).1.full.is_empty(), "{f} must escalate to full");
+            assert!(!sel(&[f]).1.no_escalation(), "{f} must escalate to full");
         }
+    }
+
+    #[test]
+    fn a_bin_only_package_runs_its_unit_tests_through_its_bins() {
+        // no spec clause: XTASK-AFFECTED-XTASK-TESTS (D-X.41). xtask has no library target, so `--lib` fails the build;
+        // a library crate keeps `--lib`. xtask is reached through `wide` of a crate it depends on (niji-ld).
+        let r = repo();
+        assert_eq!(unit_tests_flag(r, "xtask"), "--bins");
+        assert_eq!(unit_tests_flag(r, "niji"), "--lib");
+        assert_eq!(unit_tests_flag(r, "niji-ld"), "--lib");
+        let mut s = Selection::default();
+        s.wide(r, "niji-ld", "probe");
+        assert!(s.libs.contains_key("xtask"), "xtask depends on niji-ld: {:?}", s.libs.keys());
+    }
+
+    const MODULE: &str = "fn run() {\n    work();\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn t() {\n        run();\n    }\n}\n";
+
+    fn diff_of(file: &str, hunks: &str) -> String {
+        format!("diff --git a/{file} b/{file}\nindex 1111111..2222222 100644\n--- a/{file}\n+++ b/{file}\n{hunks}")
+    }
+
+    #[test]
+    fn a_change_inside_the_test_module_is_test_code() {
+        // no spec clause: D-X.41. MODULE's test body is lines 7..=12; changed lines there (or a deletion between two of
+        // them) touch test code only.
+        let f = "xtask/src/x.rs";
+        assert_eq!(test_module_interior(MODULE), Some((7, 12)));
+        assert!(test_module_change(&diff_of(f, "@@ -10,0 +11 @@ fn t() {\n+        run();\n"), f, MODULE));
+        assert!(test_module_change(&diff_of(f, "@@ -9,2 +9,2 @@\n-    #[test]\n-    fn u() {\n+    #[test]\n+    fn t() {\n"), f, MODULE));
+        assert!(test_module_change(&diff_of(f, "@@ -11 +10,0 @@\n-        gone();\n"), f, MODULE));
+        assert!(test_module_change(&diff_of(f, "@@ -6,0 +7 @@\n+    use std::fs;\n"), f, MODULE));
+    }
+
+    #[test]
+    fn a_change_outside_the_test_module_stays_full() {
+        // no spec clause: D-X.41. Executed code, the module's boundaries, a column-0 line, a new or renamed file, a
+        // second section, no diff for the file, or a file without a trailing test module: not test-only.
+        let f = "xtask/src/x.rs";
+        let no = |d: &str, text: &str| assert!(!test_module_change(d, f, text), "{d}");
+        no(&diff_of(f, "@@ -2 +2 @@\n-    work();\n+    other();\n"), MODULE);
+        no(&diff_of(f, "@@ -2 +2 @@\n-    work();\n+    other();\n@@ -11 +11 @@\n-        run();\n+        run2();\n"), MODULE);
+        no(&diff_of(f, "@@ -5 +5 @@\n-#[cfg(not(test))]\n+#[cfg(test)]\n"), MODULE);
+        no(&diff_of(f, "@@ -13 +13 @@\n-}\n+}\n"), MODULE);
+        no(&diff_of(f, "@@ -10,0 +11 @@\n+}\n"), MODULE);
+        // A removed column-0 line `--- x` inside a hunk is a body line, not a header to skip.
+        no(&diff_of(f, "@@ -11 +10,0 @@\n---- x\n"), MODULE);
+        no(&format!("diff --git a/{f} b/{f}\nnew file mode 100644\n--- /dev/null\n+++ b/{f}\n@@ -0,0 +11 @@\n+        run();\n"), MODULE);
+        no(&diff_of("xtask/src/y.rs", "@@ -10,0 +11 @@\n+        run();\n"), MODULE);
+        no(&format!("{}\n{}", diff_of(f, "@@ -10,0 +11 @@\n+        run();"), diff_of(f, "@@ -2 +2 @@\n-    a();\n+    b();\n")), MODULE);
+        no(&diff_of(f, "@@ -10,0 +11 @@\n+        run();\n"), &format!("{MODULE}fn after() {{}}\n"));
+        no(&diff_of(f, "@@ -10,0 +11 @@\n+        run();\n"), "fn run() {}\n");
+        no(&diff_of(f, ""), MODULE);
+    }
+
+    #[test]
+    fn xtask_test_code_selects_the_xtask_tests_and_static_not_full() {
+        // no spec clause: D-X.41. xtask/tests/ always; a source only with a diff confined to its test module (the
+        // real file and its own text); without a diff, or for executed code, FULL as before. --tier full stays FULL.
+        let (_, s) = sel(&["xtask/tests/affected_mode.rs"]);
+        assert!(s.no_escalation() && s.xtask_tests && s.xtask_cmds.contains("static") && s.clippy.contains_key("xtask") && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty(), "{s:?}");
+        assert!(!select_tier(repo(), &["xtask/tests/affected_mode.rs".to_string()], Tier::Full).no_escalation());
+        let f = "xtask/src/so.rs";
+        let text = &repo().xtask_texts.iter().find(|(p, _)| p == f).expect("so.rs").1;
+        let (lo, hi) = test_module_interior(text).expect("so.rs ends with its test module");
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        assert!(!select_tier(&r, &[f.to_string()], Tier::Direct).no_escalation(), "no diff: FULL");
+        r.xtask_diff = Some(diff_of(f, &format!("@@ -{lo},0 +{} @@\n+        let _ = 1;\n", lo + 1)));
+        let s = select_tier(&r, &[f.to_string()], Tier::Direct);
+        assert!(s.no_escalation() && s.xtask_tests && s.xtask_cmds.contains("static"), "{s:?}");
+        assert!(!select_tier(&r, &[f.to_string()], Tier::Full).no_escalation(), "--tier full stays FULL");
+        r.xtask_diff = Some(diff_of(f, &format!("@@ -{},0 +{} @@\n+        let _ = 1;\n", lo - 3, lo - 2)));
+        assert!(!select_tier(&r, &[f.to_string()], Tier::Direct).no_escalation(), "executed code: FULL");
+        assert!(hi > lo);
     }
 
     #[test]
     fn a_plants_change_selects_exactly_the_xtask_tests_and_clippy() {
         // no spec clause: ruling #2993, plants.rs is a leaf like the audit modules, not FULL.
         let (_, s) = sel(&["xtask/src/plants.rs"]);
-        assert!(s.full.is_empty(), "plants.rs must not escalate to FULL: {s:?}");
+        assert!(s.no_escalation(), "plants.rs must not escalate to FULL: {s:?}");
         assert!(s.xtask_tests && s.xtask_cmds.is_empty() && s.tests.is_empty() && s.conf.is_empty(), "{s:?}");
         assert!(s.clippy.len() == 1 && s.clippy.contains_key("xtask"), "only the xtask clippy: {s:?}");
     }
@@ -2931,21 +6035,115 @@ mod tests {
     }
 
     #[test]
+    fn a_long_sweep_registration_selects_the_xtask_checks_not_full() {
+        // no spec clause: XTASK-AFFECTED-LONGSWEEPS (#5145). A diff touching only the long-sweep table runs the xtask
+        // unit tests (the table's own tests), its clippy and `cargo xtask static` (the long-sweeps check against the
+        // tests of the workspace), and selects no product test and no FULL.
+        for f in ["xtask/src/longsweeps.rs", "xtask/src/float_casts.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.no_escalation(), "{f} escalated to FULL: {:?}", s.full);
+            assert!(s.xtask_tests && s.xtask_cmds.contains("static") && s.tests.is_empty() && s.conf.is_empty(), "{f}: {s:?}");
+            assert!(s.clippy.len() == 1 && s.clippy.contains_key("xtask"), "{f}: only the xtask clippy: {s:?}");
+        }
+    }
+
+    #[test]
+    fn a_records_only_change_selects_the_xtask_checks_not_full() {
+        // no spec clause: XTASK-AFFECTED-XTASK (#4684). The records tool builds no product and runs no suite: the
+        // xtask unit tests, the xtask clippy and `cargo xtask static` (records, records-gen, register, ...) cover it.
+        for f in ["xtask/src/records/mod.rs", "xtask/src/records/check.rs", "xtask/src/kernel_index.rs", "xtask/src/bench.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.no_escalation(), "{f} is an xtask tool module off the product path, not FULL: {:?}", s.full);
+            assert!(s.xtask_tests && s.xtask_cmds.contains("static") && s.tests.is_empty() && s.conf.is_empty(), "{f}: {s:?}");
+            assert!(s.clippy.len() == 1 && s.clippy.contains_key("xtask"), "{f}: only the xtask clippy: {s:?}");
+        }
+        // `--tier full` still means everything.
+        assert!(!select_tier(repo(), &["xtask/src/records/mod.rs".to_string()], Tier::Full).no_escalation());
+    }
+
+    #[test]
+    fn a_product_build_path_change_still_selects_full() {
+        // no spec clause: XTASK-AFFECTED-XTASK. The product build, its image tools, the generators, the test runners and
+        // the dispatcher can change any product or test outcome.
+        for f in ["xtask/src/so.rs", "xtask/src/hottext.rs", "xtask/src/coldbss.rs", "xtask/src/layout.rs", "xtask/src/csys.rs", "xtask/src/csys/veneer.rs", "xtask/src/math.rs", "xtask/src/nextest.rs", "xtask/src/spec.rs", "xtask/src/trace.rs", "xtask/src/main.rs", "xtask/src/labnames.rs", "xtask/src/new_module.rs", "xtask/Cargo.toml"] {
+            assert!(!sel(&[f]).1.no_escalation(), "{f} takes part in building or checking the products: FULL");
+        }
+    }
+
+    #[test]
+    fn a_hottext_change_selects_the_layout_tests() {
+        // no spec clause: XTASK-AFFECTED-XTASK, XTASK-AFFECTED-LAYOUT. hottext.rs groups libc.a's hot text: the
+        // start-up layout tests measure it (and the change stays FULL: the products change).
+        let (_, s) = sel(&["xtask/src/hottext.rs"]);
+        for (k, t) in LAYOUT_TESTS {
+            assert!(s.tests.contains_key(&(k.to_string(), t.to_string())), "hottext.rs must select {k}/{t}: {:?}", s.tests.keys().collect::<Vec<_>>());
+        }
+        assert!(!s.no_escalation());
+    }
+
+    /// Does xtask source `text` name module `m` (`m::` after `crate::`, `super::` or a non-path character, or `m`
+    /// inside a `crate::{...}` import)? `niji_ld::arch::` is another crate's module, not xtask's `arch`.
+    fn names_xtask_module(text: &str, m: &str) -> bool {
+        let pat = format!("{m}::");
+        let path_use = text.match_indices(&pat).any(|(i, _)| {
+            let before = &text[..i];
+            before.ends_with("crate::") || before.ends_with("super::") || !before.chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_' || c == ':')
+        });
+        let import = text.split("crate::{").skip(1).any(|g| g.split('}').next().unwrap_or_default().split(|c: char| !(c.is_alphanumeric() || c == '_')).any(|w| w == m));
+        path_use || import
+    }
+
+    #[test]
+    fn tool_modules_stay_off_the_product_path() {
+        // no spec clause: XTASK-AFFECTED-XTASK. A module of XTASK_TOOLS is named only by main.rs, this command, other
+        // tool or audit modules, or an XTASK_TOOL_USES row; and the full gate's steps call it only where
+        // `cargo xtask static` calls it too.
+        let audits: Vec<&str> = XTASK_AUDITS.iter().filter_map(|(p, _)| xtask_module(p)).collect();
+        let tools: Vec<&str> = XTASK_TOOLS.iter().map(|(m, _)| *m).collect();
+        let mut files = Vec::new();
+        files_under(&root().join("xtask/src"), &["rs"], &mut files);
+        let files: Vec<(String, String)> = files.iter().map(|p| (p.strip_prefix(root()).unwrap_or(p).to_string_lossy().replace('\\', "/"), read(p))).collect();
+        for m in &tools {
+            assert!(files.iter().any(|(r, _)| xtask_module(r) == Some(*m)), "XTASK_TOOLS names {m}, which has no source under xtask/src");
+            for (rel, text) in &files {
+                let user = xtask_module(rel).unwrap_or_default();
+                if user == *m || user == "main" || user == "affected" || tools.contains(&user) || audits.contains(&user) || !names_xtask_module(text, m) {
+                    continue;
+                }
+                assert!(XTASK_TOOL_USES.iter().any(|(u, t, _)| *u == user && t == m), "{rel} names the tool module {m}: it is on the product path now; take {m} out of XTASK_TOOLS or, if the use is a check of `cargo xtask static` only, add an XTASK_TOOL_USES row");
+            }
+        }
+        let main = read(&root().join("xtask/src/main.rs"));
+        let body = |name: &str| ["\nfn ", "\npub(crate) fn "].iter().find_map(|p| main.split(&format!("{p}{name}(")).nth(1)).and_then(|b| b.split("\n}\n").next()).unwrap_or_default().to_string();
+        // The gate's steps: test_steps and the cheap steps it runs through `cheap_step`; static's checks: the list
+        // `static_list` returns, which `static_checks` runs (HANDBACK-INLOOP-CHECKS split both out).
+        let (steps, checks) = (body("test_steps") + &body("cheap_step"), body("static_checks") + &body("static_list"));
+        assert!(steps.contains("so::run_so") && steps.contains("fuzz::check") && checks.contains("records::check"), "main.rs's test_steps / cheap_step / static_checks / static_list not found");
+        for m in &tools {
+            assert!(!names_xtask_module(&steps, m) || names_xtask_module(&checks, m), "the full gate's steps call the tool module {m}, which `cargo xtask static` does not: take it out of XTASK_TOOLS");
+        }
+        // The rows of XTASK_TOOL_USES are real uses (a stale row would hide a later one).
+        for (u, t, _) in XTASK_TOOL_USES {
+            assert!(files.iter().any(|(r, text)| xtask_module(r) == Some(*u) && names_xtask_module(text, t)), "XTASK_TOOL_USES: {u} no longer names {t}: remove the row");
+        }
+    }
+
+    #[test]
     fn a_conformance_header_selects_its_includers() {
         let (repo, s) = sel(&["conformance/c/not_included.h"]);
-        assert!(s.full.is_empty() && s.conf.len() == repo.conf.len(), "a header nobody includes by name: every program");
-        assert!(!sel(&["conformance/c/sub/x.h"]).1.full.is_empty());
+        assert!(s.no_escalation() && s.conf.len() == repo.conf.len(), "a header nobody includes by name: every program");
+        assert!(!sel(&["conformance/c/sub/x.h"]).1.no_escalation());
     }
 
     #[test]
     fn only_mode_selects_exactly_the_named_binaries() {
         let repo = repo();
-        let s = select_only(repo, "s12_stdio_clauses,conformance:s12_printf,lib:liella-math").unwrap_or_else(|e| panic!("{e}"));
-        assert!(s.only && s.full.is_empty() && s.tests.len() == 1 && has_test(&s, "s12_stdio_clauses"));
+        let s = select_only(repo, "s12_stdio_clauses,conformance:s12_printf,lib:niji-math").unwrap_or_else(|e| panic!("{e}"));
+        assert!(s.only && s.no_escalation() && s.tests.len() == 1 && has_test(&s, "s12_stdio_clauses"));
         assert!(s.conf.len() == 1 && s.conf.contains_key("s12_printf") && s.libs.len() == 1 && s.clippy.is_empty());
         let krate = &s.tests.keys().next().map(|(c, _)| c.clone()).unwrap_or_default();
         assert!(select_only(repo, &format!("{krate}::s12_stdio_clauses")).is_ok());
-        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "liella-thread-db::s12_stdio_clauses"] {
+        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-thread-db::s12_stdio_clauses"] {
             assert!(select_only(repo, bad).is_err(), "{bad}");
         }
     }
@@ -2963,7 +6161,7 @@ mod tests {
         let t = repo.targets.iter().find(|t| t.name == "catalogs_products").unwrap_or_else(|| panic!("catalogs_products"));
         assert!(t.products && t.sections.contains(&7), "catalogs_products diffs the products and carries §7");
         let d = tier(&["crates/legacy/src/intl.rs"], Tier::Direct);
-        assert!(d.full.is_empty() && d.direct, "{:?}", d.full);
+        assert!(d.no_escalation() && d.direct, "{:?}", d.full);
         let k = (t.krate.clone(), t.name.clone());
         assert!(d.tests.contains_key(&k), "intl.rs must select catalogs_products: {:?}", d.tests.keys().collect::<Vec<_>>());
         assert!(d.tests[&k].contains("C entry the change reaches"), "{}", d.tests[&k]);
@@ -2972,14 +6170,14 @@ mod tests {
     }
 
     // GATE-TIER-2 red-before-green: a conformance program is C, so no module name reaches it; it is reached through the
-    // entry points it calls. s12_printf calls `printf`/`snprintf` (csys -> `liella_vfprintf4` etc., whose bodies name
+    // entry points it calls. s12_printf calls `printf`/`snprintf` (csys -> `niji_vfprintf4` etc., whose bodies name
     // boundary::printf, a one-hop user of core::printf). Before: 0 conformance programs for a core printf change.
     #[test]
     fn direct_tier_reaches_conformance_programs_through_their_entry_points() {
         let repo = repo();
         assert!(repo.conf.iter().any(|c| c.name == "s12_printf" && c.calls.contains("printf")), "s12_printf calls printf");
         let d = tier(&["crates/core/src/printf.rs"], Tier::Direct);
-        assert!(d.full.is_empty() && d.conf.contains_key("s12_printf"), "{:?}", d.conf.keys().collect::<Vec<_>>());
+        assert!(d.no_escalation() && d.conf.contains_key("s12_printf"), "{:?}", d.conf.keys().collect::<Vec<_>>());
         assert!(d.conf["s12_printf"].contains("calls `"), "{}", d.conf["s12_printf"]);
         // Only programs calling an entry that reaches the change: one calling no stdio entry is not selected.
         let w = tier(&["crates/core/src/printf.rs"], Tier::Wide);
@@ -2994,7 +6192,7 @@ mod tests {
     }
 
     // GATE-TIER-2 red-before-green: a module re-exported at its crate root resolves to the modules naming the
-    // re-exported items (`liella_kernel::Errno`), so it stays direct. Before: wide (every dependent crate).
+    // re-exported items (`niji_kernel::Errno`), so it stays direct. Before: wide (every dependent crate).
     #[test]
     fn direct_tier_resolves_re_exports_to_their_users() {
         let repo = repo();
@@ -3002,8 +6200,8 @@ mod tests {
         let root = repo.nodes.iter().find(|n| n.root && n.krate == kernel).unwrap_or_else(|| panic!("kernel root"));
         assert!(root.reexports.iter().any(|st| st.contains("errno") && st.contains("Errno") && !st.contains("*")), "kernel re-exports errno::Errno");
         let d = tier(&["crates/kernel/src/errno.rs"], Tier::Direct);
-        assert!(d.full.is_empty() && d.wide_crates.is_empty(), "stays direct: wide {:?}", d.wide_crates);
-        // Library modules import `liella_kernel::errno::Errno`; test targets name the re-export (`liella_kernel::Errno`).
+        assert!(d.no_escalation() && d.wide_crates.is_empty(), "stays direct: wide {:?}", d.wide_crates);
+        // Library modules import `niji_kernel::errno::Errno`; test targets name the re-export (`niji_kernel::Errno`).
         let via_item: Vec<&Target> = repo.targets.iter().filter(|t| t.krate != kernel && t.refs.contains(&(Some(kernel.clone()), "Errno".to_string()))).collect();
         assert!(!via_item.is_empty(), "some test target names the re-exported `Errno`");
         for t in via_item {
@@ -3018,13 +6216,13 @@ mod tests {
         let repo = repo();
         for (f, m) in [("crates/core/src/printf.rs", "printf"), ("crates/core/src/locale/mod.rs", "locale")] {
             let (d, w) = (tier(&[f], Tier::Direct), tier(&[f], Tier::Wide));
-            assert!(d.full.is_empty() && d.direct, "{f}: {:?}", d.full);
+            assert!(d.no_escalation() && d.direct, "{f}: {:?}", d.full);
             for k in reachers(repo, m) {
                 assert!(d.tests.contains_key(&k), "{f}: {k:?} names {m}:: but is not in the direct tier");
             }
             assert!(d.tests.keys().all(|k| w.tests.contains_key(k)), "{f}: direct must be inside wide");
             assert!(d.tests.len() < w.tests.len(), "{f}: direct {} vs wide {} targets", d.tests.len(), w.tests.len());
-            assert!(d.libs.contains_key("liella"), "{f}: the owning crate's unit tests");
+            assert!(d.libs.contains_key("niji"), "{f}: the owning crate's unit tests");
         }
         let d = tier(&["crates/core/src/printf.rs"], Tier::Direct);
         assert!(has_test(&d, "printf_products") && !has_test(&d, "s18_processes_clauses"), "{:?}", d.tests.keys());
@@ -3036,11 +6234,11 @@ mod tests {
     fn direct_tier_follows_one_hop_users() {
         let repo = repo();
         let d = tier(&["crates/core/src/printf.rs"], Tier::Direct);
-        let users: Vec<&Node> = repo.nodes.iter().filter(|n| d.modules.contains(&(n.krate.clone(), n.name.clone())) && !(n.krate == "liella" && n.name == "printf")).collect();
+        let users: Vec<&Node> = repo.nodes.iter().filter(|n| d.modules.contains(&(n.krate.clone(), n.name.clone())) && !(n.krate == "niji" && n.name == "printf")).collect();
         assert!(!users.is_empty(), "core::printf has one-hop users");
         // Some change in core selects a target through the name of a one-hop user (not the changed module).
         let mut via_user = Vec::new();
-        for n in repo.nodes.iter().filter(|n| n.krate == "liella" && !n.root) {
+        for n in repo.nodes.iter().filter(|n| n.krate == "niji" && !n.root) {
             let f = format!("crates/core/src/{}.rs", n.name);
             let s = tier(&[f.as_str()], Tier::Direct);
             via_user.extend(s.tests.iter().filter(|(_, why)| why.contains("names `") && !why.contains(&format!("names `{}`", n.name))).map(|(k, _)| (n.name.clone(), k.clone())));
@@ -3051,30 +6249,99 @@ mod tests {
         assert!(d.modules.len() < w.modules.len(), "direct {} vs wide {} modules", d.modules.len(), w.modules.len());
     }
 
-    // GATE-TIER: the tier does not touch the escalations, and `full` is everything.
+    // GATE-TIER: the tier does not touch the escalations (GATE-DEV-NO-FULL: the direct tier hands them to the train),
+    // and `full` is everything.
     #[test]
     fn direct_tier_keeps_the_full_escalations_and_root_files_stay_wide() {
-        for f in ["csys/src/x.c", "crates/abi/src/lib.rs", "Cargo.toml", "crates/boundary/build.rs", "xtask/src/main.rs", "spec/clauses.tsv", "include/liella/native.h", "crates/libc-so/src/lib.rs"] {
-            assert!(!tier(&[f], Tier::Direct).full.is_empty(), "{f} must stay FULL in the direct tier");
+        for f in ["csys/src/x.c", "crates/abi/src/lib.rs", "Cargo.toml", "crates/boundary/build.rs", "xtask/src/main.rs", "spec/clauses.tsv", "include/niji/native.h", "crates/libc-so/src/lib.rs"] {
+            assert!(!tier(&[f], Tier::Direct).no_escalation(), "{f} must still escalate (to the train) in the direct tier");
         }
-        assert!(!tier(&["docs/x.md"], Tier::Full).full.is_empty(), "--tier full escalates");
+        assert!(!tier(&["docs/x.md"], Tier::Full).no_escalation(), "--tier full escalates");
         let (repo, d) = (repo(), tier(&["crates/core/src/lib.rs"], Tier::Direct));
         assert_eq!(d.conf.len(), repo.conf.len(), "a crate root is still wide");
         let d = tier(&["crates/core/tests/printf_products.rs"], Tier::Direct);
         assert!(d.tests.len() == 1 && has_test(&d, "printf_products"), "a test file selects its target");
     }
 
+    // GATE-DEV-NO-FULL: in the per-fix tiers an escalated file of every class selects its bounded set, prints the
+    // train's line where the FULL line was, runs every cheap FULL step and `static`, and never runs FULL.
+    #[test]
+    fn per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class() {
+        // Trace: no spec clause (test-harness tooling; GATE-DEV-NO-FULL).
+        let repo = repo();
+        let cases = [
+            ("xtask/src/main.rs", TrainClass::Xtask),
+            ("xtask/src/so.rs", TrainClass::Xtask),
+            ("xtask/src/headers.rs", TrainClass::Xtask),
+            ("xtask/src/native_examples.rs", TrainClass::Xtask),
+            ("csys/src/x.c", TrainClass::Image),
+            ("crates/abi/src/lib.rs", TrainClass::Image),
+            ("crates/libc-so/src/lib.rs", TrainClass::Image),
+            ("spec/clauses.tsv", TrainClass::Generated),
+            ("include/niji/native.h", TrainClass::Generated),
+            ("Cargo.toml", TrainClass::Config),
+            ("crates/boundary/build.rs", TrainClass::Config),
+            ("nowhere/x.txt", TrainClass::Unknown),
+        ];
+        for (f, class) in cases {
+            assert_eq!(TrainClass::of(f), class, "{f}");
+            for t in [Tier::Direct, Tier::Wide] {
+                let s = tier(&[f], t);
+                assert!(s.full.is_empty(), "{f} ({t:?}) must not run FULL: {:?}", s.full);
+                assert!(!s.train.is_empty() && s.train.iter().all(|r| r.starts_with(&format!("{f}: "))), "{f} ({t:?}): {:?}", s.train);
+                let lines = train_lines(&s);
+                assert!(lines.iter().all(|l| l.starts_with(&format!("FULL: the train's ({f}: ")) && l.ends_with(')')), "{lines:?}");
+                assert_eq!(prechecks(&s), crate::precheck::CHEAP_STEPS, "{f} ({t:?}): every cheap FULL step first");
+                assert!(s.xtask_cmds.contains("static") && s.notes.iter().any(|n| n.starts_with(&format!("{f}: {class:?} bounded set"))), "{f}: {s:?}");
+                // Bounded: never every conformance program through the class's own set (a crate root may go wide).
+                if !f.ends_with("lib.rs") {
+                    assert!(s.conf.len() < repo.conf.len(), "{f} ({t:?}): every conformance program is not bounded");
+                }
+            }
+            // `--tier full` (CI's landing gate) and the bench-rows view keep the escalation FULL.
+            let full = tier(&[f], Tier::Full);
+            assert!(!full.full.is_empty() && full.train.is_empty(), "{f}: --tier full is unchanged");
+            assert!(!select_opts(repo, &[f.to_string()], true).full.is_empty(), "{f}: bench-rows still sees FULL");
+        }
+        let has_lib = |s: &Selection, c: &str| s.libs.contains_key(c);
+        let layout = |s: &Selection| LAYOUT_TESTS.iter().all(|(k, t)| has_test(s, t) && repo.targets.iter().any(|x| x.krate == *k && x.name == *t));
+        // xtask code: its unit tests and clippy; an image tool its command and the start-up layout tests on products;
+        // a generator its check; an example driver its example step on products.
+        let s = tier(&["xtask/src/main.rs"], Tier::Direct);
+        assert!(s.xtask_tests && s.clippy.contains_key("xtask") && s.tests.is_empty() && s.libs.is_empty(), "{s:?}");
+        let s = tier(&["xtask/src/so.rs"], Tier::Direct);
+        assert!(s.xtask_cmds.contains(LAYOUT_CHECK) && layout(&s) && needs_products(repo, &s), "{s:?}");
+        assert!(tier(&["xtask/src/headers.rs"], Tier::Direct).gen_prechecks.contains("headers-gen-check"));
+        let s = tier(&["xtask/src/native_examples.rs"], Tier::Direct);
+        assert!(s.xtask_cmds.contains("native") && s.example_steps && needs_products(repo, &s), "{s:?}");
+        // The image's bottom layers: products with the layout tests, k5, the owner and its one-hop dependents.
+        for (f, owner) in [("csys/src/x.c", CSYS_CRATE.to_string()), ("crates/abi/src/lib.rs", repo.crate_of("crates/abi/src/lib.rs").unwrap().name.clone())] {
+            let s = tier(&[f], Tier::Direct);
+            let hop: Vec<&Crate> = repo.crates.iter().filter(|c| c.deps.contains(&owner)).collect();
+            assert!(!hop.is_empty(), "{owner} has dependents");
+            assert!(s.k5 && layout(&s) && needs_products(repo, &s) && has_lib(&s, &owner) && s.clippy.contains_key(&owner) && hop.iter().all(|c| has_lib(&s, &c.name)), "{f}: {s:?}");
+        }
+        // A generated table: the code that reads it, nothing wide.
+        let s = tier(&["spec/clauses.tsv"], Tier::Direct);
+        let readers: Vec<&Target> = repo.targets.iter().filter(|t| names_path(&t.text, "spec/clauses.tsv")).collect();
+        assert!(readers.iter().all(|t| s.tests.contains_key(&(t.krate.clone(), t.name.clone()))) && s.wide_crates.is_empty(), "{s:?}");
+        // Build configuration: clippy; a crate's own manifest or build script its tests.
+        assert!(tier(&["Cargo.toml"], Tier::Direct).clippy.contains_key("workspace"));
+        let s = tier(&["crates/boundary/build.rs"], Tier::Direct);
+        assert!(has_lib(&s, "niji-boundary") && repo.targets.iter().filter(|t| t.krate == "niji-boundary").all(|t| s.tests.contains_key(&(t.krate.clone(), t.name.clone()))), "{s:?}");
+    }
+
     // GATE-TIER-3: an rt-internal module reaches its own crate's test targets (REALLOC-GROW-2: a heap.rs plant must run
-    // liella-rt::heap_and_sync). Every liella-rt target naming an rt module is selected for a change to it.
+    // niji-rt::heap_and_sync). Every niji-rt target naming an rt module is selected for a change to it.
     #[test]
     fn direct_tier_selects_the_own_crate_targets_of_an_internal_module() {
         let repo = repo();
         let d = tier(&["crates/rt/src/heap.rs"], Tier::Direct);
-        assert!(d.tests.contains_key(&("liella-rt".to_string(), "heap_and_sync".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
-        assert!(d.libs.contains_key("liella-rt"));
-        for n in repo.nodes.iter().filter(|n| n.krate == "liella-rt" && !n.root) {
+        assert!(d.tests.contains_key(&("niji-rt".to_string(), "heap_and_sync".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
+        assert!(d.libs.contains_key("niji-rt"));
+        for n in repo.nodes.iter().filter(|n| n.krate == "niji-rt" && !n.root) {
             let s = tier(&[format!("crates/rt/src/{}.rs", n.name).as_str()], Tier::Direct);
-            for t in repo.targets.iter().filter(|t| t.krate == "liella-rt" && t.refs.contains(&(Some("liella-rt".to_string()), n.name.clone()))) {
+            for t in repo.targets.iter().filter(|t| t.krate == "niji-rt" && t.refs.contains(&(Some("niji-rt".to_string()), n.name.clone()))) {
                 assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{} not selected for rt::{}", t.name, n.name);
             }
         }
@@ -3085,16 +6352,16 @@ mod tests {
     #[test]
     fn direct_tier_maps_a_support_file_to_the_targets_naming_it() {
         let repo = repo();
-        let all = repo.targets.iter().filter(|t| t.krate == "liella" && t.support.contains("oracle")).count();
+        let all = repo.targets.iter().filter(|t| t.krate == "niji" && t.support.contains("oracle")).count();
         let d = tier(&["crates/core/tests/oracle/aio_diff.c"], Tier::Direct);
-        assert!(d.tests.contains_key(&("liella".to_string(), "aio_products".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
+        assert!(d.tests.contains_key(&("niji".to_string(), "aio_products".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
         assert!(d.tests.len() < all, "{} of {all} oracle targets", d.tests.len());
         for (t, why) in &d.tests {
             let tt = repo.targets.iter().find(|x| x.krate == t.0 && x.name == t.1).unwrap_or_else(|| panic!("{t:?}"));
             assert!(tt.text[..tt.own].contains("aio_"), "{t:?} selected without naming the file: {why}");
         }
         // A Rust file of a support directory keeps the directory rule (it is reached through `mod`).
-        let names = |f: &str| support_namers(repo, "crates/core", "liella", &f.split('/').skip(3).collect::<Vec<_>>(), f);
+        let names = |f: &str| support_namers(repo, "crates/core", "niji", &f.split('/').skip(3).collect::<Vec<_>>(), f);
         assert!(names("crates/core/tests/oracle/x.rs").is_none());
         assert!(names("crates/core/tests/oracle/no_such_file_named.c").is_none(), "an unnamed file keeps the directory rule");
     }
@@ -3111,13 +6378,72 @@ mod tests {
         assert!(p.conf.contains_key("s12_printf"), "{:?}", p.conf.keys().collect::<Vec<_>>());
     }
 
+    // XTASK-AFFECTED-EXAMPLES red-before-green (no spec clause): a crate example that a step of `cargo xtask test`
+    // builds and runs selects that step's command on fresh products. Before: the native examples escalated to FULL
+    // and the boundary's `secure_zero_codegen` (built by the native-examples step) selected its crate's clippy only.
+    #[test]
+    fn direct_tier_maps_an_example_to_the_step_that_runs_it() {
+        for (f, want) in [
+            ("crates/native/examples/demo/mod.rs", &["native", "rust-dylib"][..]),
+            ("crates/native/examples/native_static.rs", &["native"]),
+            ("crates/native/examples/native_dynamic.rs", &["native"]),
+            ("crates/native/examples/native_rust_dylib.rs", &["rust-dylib"]),
+            ("crates/boundary/examples/secure_zero_codegen.rs", &["native"]),
+        ] {
+            for t in [Tier::Direct, Tier::Wide] {
+                let s = tier(&[f], t);
+                let got: BTreeSet<&str> = s.xtask_cmds.iter().map(String::as_str).filter(|c| ["native", "rust-dylib"].contains(c)).collect();
+                assert!(s.no_escalation(), "{f} ({t:?}): {:?}", s.full);
+                assert_eq!(got, want.iter().copied().collect::<BTreeSet<_>>(), "{f} ({t:?}): {:?}", s.xtask_cmds);
+                assert!(needs_products(repo(), &s), "{f} ({t:?}): the example steps link against the products");
+            }
+        }
+    }
+
+    // XTASK-AFFECTED-EXAMPLES (no spec clause): an example no gate step runs (the bench examples, which `cargo xtask
+    // bench` builds) keeps its crate's clippy only; a file that belongs to no example cannot be placed (FULL).
+    #[test]
+    fn direct_tier_keeps_clippy_only_for_examples_no_gate_step_runs() {
+        for f in ["crates/boundary/examples/bench_mem.rs", "crates/boundary/examples/copy_sweep.rs"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.no_escalation() && s.clippy.contains_key("niji-boundary") && !s.example_steps && !needs_products(repo(), &s), "{f}: {s:?}");
+        }
+        let s = tier(&["crates/native/examples/no_such_module/x.rs"], Tier::Direct);
+        assert!(s.train.iter().any(|w| w.contains("cannot place")), "{:?}", s.train);
+    }
+
+    // XTASK-AFFECTED-EXAMPLES (no spec clause): the steps come from the xtask sources: a module naming the example by
+    // path, the `cargo xtask test` step calling that module and the command arm running the same function; a step
+    // with no such arm is FULL, and a module no step calls (a bench runner) selects nothing.
+    #[test]
+    fn example_steps_follow_the_xtask_source_that_names_the_example() {
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        let main = r#"
+    t.time("demo-run", || demo_runner::go(root))?;
+    t.time("lonely", || lonely::go(root))?;
+        "demo-run" => demo_runner::go(&root),
+        "benchy" => benchy::go(&root),
+"#;
+        r.xtask_texts = vec![
+            ("xtask/src/main.rs".to_string(), main.to_string()),
+            ("xtask/src/demo_runner.rs".to_string(), r#"const P: &str = "crates/native/examples/native_static.rs";"#.to_string()),
+            ("xtask/src/benchy.rs".to_string(), r#"build("native_dynamic")"#.to_string()),
+        ];
+        let got = example_steps(&r, "crates/native", "crates/native/examples/native_static.rs").expect("placed");
+        assert_eq!(got.keys().collect::<Vec<_>>(), ["demo-run"], "{got:?}");
+        assert!(example_steps(&r, "crates/native", "crates/native/examples/native_dynamic.rs").expect("placed").is_empty(), "a module off the test steps");
+        r.xtask_texts.push(("xtask/src/lonely.rs".to_string(), r#"build("native_dynamic")"#.to_string()));
+        let err = example_steps(&r, "crates/native", "crates/native/examples/native_dynamic.rs").expect_err("no command runs the step alone");
+        assert!(err.contains("`lonely` step"), "{err}");
+    }
+
     // GATE-TIER-3b: an oracle diff prints its results: a change to printf's entry (or a module it names) reaches the tests
     // whose C support files call it.
     #[test]
     fn direct_tier_reaches_tests_whose_c_support_files_call_the_entry() {
         for f in ["crates/boundary/src/printf.rs", "crates/boundary/src/posix/s12_stdio.rs"] {
             let d = tier(&[f], Tier::Direct);
-            assert!(d.tests.contains_key(&("liella".to_string(), "aio_products".to_string())), "{f}: {:?}", d.tests.keys().collect::<Vec<_>>());
+            assert!(d.tests.contains_key(&("niji".to_string(), "aio_products".to_string())), "{f}: {:?}", d.tests.keys().collect::<Vec<_>>());
         }
     }
 
@@ -3125,16 +6451,16 @@ mod tests {
     #[test]
     fn replay_reports_failures_outside_the_tier() {
         let repo = repo();
-        let inside = "LOG a\nFILES crates/core/src/printf.rs\nFAILS FAILED: liella::printf_products x|STEP FAILED: test -p liella|\n";
+        let inside = "LOG a\nFILES crates/core/src/printf.rs\nFAILS FAILED: niji::printf_products x|STEP FAILED: test -p niji|\n";
         let (out, misses) = replay(repo, inside, Tier::Direct);
         assert_eq!(misses, 0, "{out}");
-        let outside = "LOG b\nFILES crates/core/src/printf.rs\nFAILS FAILED: liella-boundary::s18_processes_symbols x|\nLOG c\nFILES \nFAILS FAILED: liella::y z|\n";
+        let outside = "LOG b\nFILES crates/core/src/printf.rs\nFAILS FAILED: niji-boundary::s18_processes_symbols x|\nLOG c\nFILES \nFAILS FAILED: niji::y z|\n";
         let (out, misses) = replay(repo, outside, Tier::Direct);
         assert_eq!(misses, 1, "{out}");
-        assert!(out.contains("MISS liella-boundary::s18_processes_symbols") && out.contains("c: no changed files"), "{out}");
+        assert!(out.contains("MISS niji-boundary::s18_processes_symbols") && out.contains("c: no changed files"), "{out}");
         let (out, misses) = replay(repo, &format!("FLAKE s18_processes_symbols x\n{outside}"), Tier::Direct);
         assert!(misses == 0 && out.contains("1 outside but known flakes"), "{out}");
-        let (_, misses) = replay(repo, "LOG d\nFILES Cargo.toml\nFAILS FAILED: liella::anything x|\n", Tier::Direct);
+        let (_, misses) = replay(repo, "LOG d\nFILES Cargo.toml\nFAILS FAILED: niji::anything x|\n", Tier::Direct);
         assert_eq!(misses, 0, "a FULL selection covers everything");
     }
 
@@ -3145,8 +6471,8 @@ mod tests {
             let sec = n.section.unwrap_or(0);
             let file = format!("crates/boundary/src/posix/{}.rs", n.name);
             let s = select(repo, std::slice::from_ref(&file));
-            let eligible = repo.dependents("liella-boundary");
-            assert!(s.full.is_empty(), "{file}");
+            let eligible = repo.dependents("niji-boundary");
+            assert!(s.no_escalation(), "{file}");
             for c in repo.conf.iter().filter(|c| c.sections.contains(&sec)) {
                 assert!(s.conf.contains_key(&c.name), "{file}: {} (section {sec}) not selected", c.name);
             }
@@ -3161,18 +6487,18 @@ mod tests {
         assert_eq!(sections_of("s12_stdio_clauses", ""), BTreeSet::from([12]));
         assert_eq!(sections_of("printf_products", "//! spec §12.6; D-7.10; s3_2_c_1_x; bars3_2
 fn f() {} // §9"), BTreeSet::from([3, 7, 12]));
-        let aliases = BTreeMap::from([("liella".to_string(), "liella".to_string()), ("liella_kernel".to_string(), "liella-kernel".to_string())]);
+        let aliases = BTreeMap::from([("niji".to_string(), "niji".to_string()), ("niji_kernel".to_string(), "niji-kernel".to_string())]);
         let r = refs_of("use crate::{printf, fs::{dir}, stream as s};
-use liella::{ctype, text::x};
+use niji::{ctype, text::x};
 use std::{fmt, mem};
 mod hidden;
-use liella_kernel::errno::Errno;
-fn f() { let x = locale::get(); std::mem::swap(a, b); liella::time::now(); }
+use niji_kernel::errno::Errno;
+fn f() { let x = locale::get(); std::mem::swap(a, b); niji::time::now(); }
 // whole::line
 fn plain() {}", &aliases);
         let own = |m: &str| (None, m.to_string());
         let of = |c: &str, m: &str| (Some(c.to_string()), m.to_string());
-        for want in [own("printf"), own("fs"), own("locale"), of("liella", "ctype"), of("liella", "text"), of("liella", "time"), of("liella-kernel", "errno")] {
+        for want in [own("printf"), own("fs"), own("locale"), of("niji", "ctype"), of("niji", "text"), of("niji", "time"), of("niji-kernel", "errno")] {
             assert!(r.contains(&want), "{want:?} in {r:?}");
         }
         for not in ["hidden", "whole", "plain", "fmt", "mem", "s", "std", "x"] {
@@ -3190,10 +6516,221 @@ fn plain() {}", &aliases);
 
     #[test]
     fn summary_keeps_each_errors_location() {
-        let log = "error: unused variable: `x`\n  --> crates/core/src/a.rs:3:9\n   |\nerror[E0308]: mismatched types\n   --> crates/core/src/b.rs:7:1\n  --> crates/core/src/c.rs:1:1\nerror: unused variable: `x`\n  --> crates/core/src/d.rs:5:5\nerror: could not compile `liella`\n";
+        let log = "error: unused variable: `x`\n  --> crates/core/src/a.rs:3:9\n   |\nerror[E0308]: mismatched types\n   --> crates/core/src/b.rs:7:1\n  --> crates/core/src/c.rs:1:1\nerror: unused variable: `x`\n  --> crates/core/src/d.rs:5:5\nerror: could not compile `niji`\n";
         let s = summary(log);
         assert!(s.contains("error: unused variable: `x` [crates/core/src/a.rs:3:9]\n"), "{s}");
         assert!(s.contains("error[E0308]: mismatched types [crates/core/src/b.rs:7:1]\n"), "{s}");
-        assert!(s.contains("error: could not compile `liella`\n") && !s.contains("c.rs") && !s.contains("d.rs"), "{s}");
+        assert!(s.contains("error: could not compile `niji`\n") && !s.contains("c.rs") && !s.contains("d.rs"), "{s}");
+    }
+
+    // GATE-VALIDATION-SH-TESTS (no spec clause: gate tooling): every `validation/wl_*.sh` script is either covered by a
+    // self-test the gate runs or listed with a reason; every path the tables name exists; every self-test a row names
+    // is one the FULL tier runs, and covers itself.
+    #[test]
+    fn every_validation_wl_script_is_mapped() {
+        let root = root();
+        let mut problems = Vec::new();
+        for p in sorted_dir(&root.join("validation")) {
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+            if !(name.starts_with("wl_") && name.ends_with(".sh")) {
+                continue;
+            }
+            let rel = format!("validation/{name}");
+            let covered = validation_self_tests(&rel).is_some();
+            let listed = VALIDATION_UNCOVERED.iter().any(|(s, _)| *s == rel);
+            if covered == listed {
+                problems.push(format!("{rel}: {}", if covered { "in both VALIDATION_COVERED and VALIDATION_UNCOVERED" } else { "no covering self-test and no VALIDATION_UNCOVERED row" }));
+            }
+        }
+        let named = VALIDATION_COVERED.iter().flat_map(|(s, ts)| std::iter::once(*s).chain(ts.iter().copied())).chain(VALIDATION_UNCOVERED.iter().map(|(s, _)| *s)).chain(VALIDATION_SELF_TESTS.iter().copied());
+        for s in named {
+            if !root.join(s).is_file() {
+                problems.push(format!("{s}: named in the validation tables but missing"));
+            }
+        }
+        for (s, ts) in VALIDATION_COVERED {
+            for t in ts.iter().filter(|t| !VALIDATION_SELF_TESTS.contains(t)) {
+                problems.push(format!("{s}: self-test {t} is not in VALIDATION_SELF_TESTS"));
+            }
+        }
+        for t in VALIDATION_SELF_TESTS {
+            if !validation_self_tests(t).is_some_and(|ts| ts.contains(t)) {
+                problems.push(format!("{t}: a self-test that does not select itself"));
+            }
+        }
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+    }
+
+    // GATE-VALIDATION-SH-TESTS red-before-green: a change to the workload syscall verdict selected nothing (a
+    // `Nothing` note); it now selects its three self-tests, in the direct tier, without escalating to FULL. An
+    // uncovered validation script and a Rust source select no self-test.
+    #[test]
+    fn validation_script_changes_select_their_self_tests() {
+        let d = tier(&["validation/wl_syscls.sh"], Tier::Direct);
+        assert!(d.no_escalation(), "{:?}", d.full);
+        assert_eq!(d.scripts.keys().map(String::as_str).collect::<Vec<_>>(), [VALIDATION_MTMEM_TEST, VALIDATION_RUN_TEST, VALIDATION_STATS_TEST]);
+        assert!(d.tests.is_empty() && d.conf.is_empty() && !d.xtask_tests, "only the self-tests: {d:?}");
+        let r = tier(&["validation/wl_run.sh"], Tier::Direct);
+        assert_eq!(r.scripts.keys().map(String::as_str).collect::<Vec<_>>(), [VALIDATION_RUN_TEST]);
+        for unrelated in ["validation/wl_gate.sh", "validation/README.md", "crates/core/src/lib.rs"] {
+            assert!(tier(&[unrelated], Tier::Direct).scripts.is_empty(), "{unrelated} must select no validation self-test");
+        }
+    }
+
+    // XTASK-AFFECTED-REVERSE ------------------------------------------------------------------------------------------
+
+    fn branches(bs: &[(&str, &[&str])]) -> Vec<(String, Vec<String>)> {
+        bs.iter().map(|(n, fs)| (n.to_string(), fs.iter().map(|f| f.to_string()).collect())).collect()
+    }
+
+    fn hit_names(a: &Attribution) -> Vec<&str> {
+        a.hits.iter().map(|h| h.branch.as_str()).collect()
+    }
+
+    fn ids(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn reverse_attributes_a_test_to_the_one_branch_that_selects_it() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let bs = branches(&[("docs", &["docs/x.md"]), ("printf", &["docs/y.md", "crates/core/src/printf.rs"])]);
+        let (atts, full) = reverse(repo(), &ids(&["niji::printf_products x"]), &bs, Tier::Direct);
+        assert_eq!(full, [false, false]);
+        assert_eq!(hit_names(&atts[0]), ["printf"]);
+        assert_eq!(atts[0].kind, "target");
+        let h = &atts[0].hits[0];
+        assert!(!h.full && h.reasons.len() == 1, "{h:?}");
+        assert!(h.reasons[0].0 == "crates/core/src/printf.rs" && !h.reasons[0].1.is_empty() && !h.reasons[0].2, "{h:?}");
+        let s = reverse_summary(Tier::Direct, &bs, &full, &atts);
+        assert!(s.contains("niji::printf_products x: printf (high: crates/core/src/printf.rs)"), "{s}");
+    }
+
+    #[test]
+    fn reverse_reports_every_branch_that_selects_the_test() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let bs = branches(&[("a", &["crates/boundary/src/printf.rs"]), ("b", &["crates/boundary/src/posix/s12_stdio.rs"])]);
+        let (atts, _) = reverse(repo(), &ids(&["FAILED: niji::aio_products t"]), &bs, Tier::Direct);
+        assert_eq!(hit_names(&atts[0]), ["a", "b"], "{atts:?}");
+        assert!(atts[0].hits.iter().all(|h| !h.full && h.reasons.len() == 1), "{atts:?}");
+    }
+
+    #[test]
+    fn reverse_reports_a_test_no_branch_selects() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let bs = branches(&[("a", &["crates/core/src/printf.rs"]), ("d", &["docs/x.md"])]);
+        let (atts, full) = reverse(repo(), &ids(&["niji-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
+        assert!(atts[0].hits.is_empty(), "{atts:?}");
+        let j = reverse_json(Tier::Direct, &bs, &full, &atts);
+        assert!(j.contains("\"branches\":[]") && j.contains("\"unattributed\":[\"niji-boundary::s18_processes_symbols x\"]"), "{j}");
+        assert!(reverse_summary(Tier::Direct, &bs, &full, &atts).contains("s18_processes_symbols x: no branch selects it"));
+    }
+
+    #[test]
+    fn reverse_flags_full_escalation_as_low_confidence() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let bs = branches(&[("cargo", &["Cargo.toml"]), ("printf", &["crates/core/src/printf.rs"]), ("mixed", &["Cargo.toml", "crates/core/src/printf.rs"])]);
+        let (atts, full) = reverse(repo(), &ids(&["niji::printf_products x", "niji-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
+        assert_eq!(full, [true, false, true]);
+        assert_eq!(hit_names(&atts[0]), ["cargo", "printf", "mixed"]);
+        let [cargo, printf, mixed] = &atts[0].hits[..] else { panic!("{atts:?}") };
+        assert!(cargo.full && cargo.reasons.len() == 1 && cargo.reasons[0].2 && cargo.reasons[0].1.starts_with("FULL: Cargo.toml"), "{cargo:?}");
+        assert!(!printf.full, "{printf:?}");
+        // A specific reason next to an escalation: high confidence, both reasons kept.
+        assert!(!mixed.full && mixed.reasons.len() == 2 && mixed.reasons.iter().filter(|r| r.2).count() == 1, "{mixed:?}");
+        // A test only the FULL escalations reach: every claim is low confidence.
+        assert_eq!(hit_names(&atts[1]), ["cargo", "mixed"]);
+        assert!(atts[1].hits.iter().all(|h| h.full), "{atts:?}");
+        let j = reverse_json(Tier::Direct, &bs, &full, &atts);
+        assert!(j.starts_with("{\"version\":1,\"tier\":\"direct\",\"branches\":[{\"name\":\"cargo\",\"files\":1,\"full\":true},"), "{j}");
+        assert!(j.contains("{\"branch\":\"cargo\",\"confidence\":\"low\",\"full\":true,\"reasons\":[{\"file\":\"Cargo.toml\",\"rule\":\"FULL: Cargo.toml"), "{j}");
+        assert!(j.contains("\"unattributed\":[]"), "{j}");
+        let s = reverse_summary(Tier::Direct, &bs, &full, &atts);
+        assert!(s.contains("escalating to FULL (select everything, low confidence): cargo, mixed") && s.contains("cargo (low: FULL)"), "{s}");
+    }
+
+    /// The test oracle: membership read straight from the forward selection's maps (what `run_selection` runs).
+    fn forward_runs(sel: &Selection, id: &str) -> bool {
+        if !sel.full.is_empty() {
+            return true;
+        }
+        if let Some(n) = id.strip_prefix("conformance:") {
+            return sel.conf.contains_key(n);
+        }
+        let bin = id.split(' ').next().unwrap_or_default();
+        if bin.starts_with("xtask") {
+            return sel.xtask_tests;
+        }
+        match bin.split_once("::") {
+            Some((c, t)) => sel.tests.contains_key(&(c.to_string(), t.to_string())),
+            None => sel.libs.contains_key(bin),
+        }
+    }
+
+    // Forward and reverse agree: over several file sets, a one-branch reverse attributes a test exactly when the forward
+    // selection of that set runs it, and each claim is explained by a single file (the rules are per file).
+    #[test]
+    fn reverse_agrees_with_forward_over_file_sets() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let r = repo();
+        let conf = format!("conformance/c/{}.c", r.conf.first().map(|c| c.name.as_str()).unwrap_or("x"));
+        let sets: Vec<Vec<&str>> = vec![
+            vec!["crates/core/src/printf.rs"],
+            vec!["crates/boundary/src/printf.rs", "docs/x.md"],
+            vec!["crates/boundary/src/posix/s12_stdio.rs", "crates/core/src/printf.rs"],
+            vec![conf.as_str()],
+            vec!["xtask/src/policy.rs"],
+            vec!["docs/x.md"],
+            vec!["Cargo.toml"],
+        ];
+        // GATE-DEV-NO-FULL: attribution keeps an escalation FULL, so the oracle reads the selection before the train.
+        let forward: Vec<Selection> = sets.iter().map(|s| select_with(r, &s.iter().map(|f| f.to_string()).collect::<Vec<_>>(), false, Tier::Direct, false)).collect();
+        let mut cands: BTreeSet<String> = BTreeSet::from(["xtask::bin/xtask t".to_string(), "niji-boundary::s18_processes_symbols x".to_string()]);
+        for sel in &forward {
+            cands.extend(sel.tests.keys().map(|(c, t)| format!("{c}::{t} x")));
+            cands.extend(sel.libs.keys().map(|c| format!("{c} x")));
+            cands.extend(sel.conf.keys().map(|n| format!("conformance:{n}")));
+        }
+        let cands: Vec<String> = cands.into_iter().collect();
+        let mut seen = (0, 0);
+        for (set, sel) in sets.iter().zip(&forward) {
+            let (atts, _) = reverse(r, &cands, &branches(&[("b", set)]), Tier::Direct);
+            for a in &atts {
+                let want = forward_runs(sel, &a.test);
+                assert_eq!(!a.hits.is_empty(), want, "{set:?}: {}", a.test);
+                if want {
+                    seen.0 += 1;
+                    assert!(a.hits[0].reasons.iter().all(|(f, _, _)| set.contains(&f.as_str())), "{set:?}: {a:?}");
+                } else {
+                    seen.1 += 1;
+                }
+            }
+        }
+        assert!(seen.0 > 0 && seen.1 > 0, "the sets must both select and leave out tests: {seen:?}");
+    }
+
+    #[test]
+    fn reverse_arguments_and_failed_ids() {
+        // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
+        let o = opts(&["--reverse", "--failed", "niji::a x", "niji b", "--branch", "one=l1", "--failed", "xtask::bin/xtask y", "--tier", "wide"]).unwrap();
+        assert_eq!(o.mode(), Some(Mode::List));
+        assert_eq!(o.failed, ["niji::a x", "niji b", "xtask::bin/xtask y"]);
+        assert_eq!(o.branches, [("one".to_string(), "l1".to_string())]);
+        assert_eq!(o.tier, Tier::Wide);
+        assert!(opts(&["--reverse", "--run"]).is_err());
+        assert!(opts(&["--reverse", "--files", "a.rs"]).is_err());
+        assert!(opts(&["--branch", "a=b"]).is_err(), "--branch needs --reverse");
+        assert!(opts(&["--reverse", "--branch", "noeq"]).is_err());
+        assert!(opts(&["--reverse", "--branch", "a=x", "--branch", "a=y"]).is_err());
+        assert!(opts(&["--help"]).unwrap().help);
+        let log = "suites: 3 (2 ok, 1 failed)\nFAILED: niji::a x\nSTEP FAILED: test -p niji\nconformance FAILED: prog: killed by signal 6\nFAILED: niji::a x\n";
+        assert_eq!(failed_ids_of(log), ["niji::a x", "conformance:prog"]);
+        assert_eq!(FailedId::parse("FAILED: niji::a x"), FailedId::Target("niji".into(), "a".into()));
+        assert_eq!(FailedId::parse("niji-mem x"), FailedId::Lib("niji-mem".into()));
+        assert_eq!(FailedId::parse("xtask::bin/xtask t"), FailedId::Xtask);
+        assert_eq!(FailedId::parse("conformance FAILED: prog: why"), FailedId::Conf("prog".into()));
+        assert_eq!(branch_files("# c\n\na/b.rs\n  c.rs \n"), ["a/b.rs", "c.rs"]);
+        assert_eq!(json_str("a\"b\\\n\u{1}"), "\"a\\\"b\\\\\\n\\u0001\"");
+        assert!(REVERSE_HELP.contains("\"confidence\":\"high|low\"") && USAGE.contains("--reverse"));
     }
 }

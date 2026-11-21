@@ -1,6 +1,6 @@
 //! The profiling start object end to end (spec §28.1, GCRT1-START): `tests/oracle/gmon_pg.c`
 //! built with `-pg` against the host C library (its compiler driver links gcrt1.o) and
-//! statically against Liella's `liella-gcrt1.o` and `libc.a`. The program never calls the
+//! statically against libniji's `niji-gcrt1.o` and `libc.a`. The program never calls the
 //! profiling interface; the start object must start it over the executable's text and have
 //! `gmon.out` written at exit. `gprof` must read both files with the same call arcs between the
 //! program's own functions. Needs the products (`cargo xtask so`), a C compiler and `gprof`;
@@ -24,13 +24,13 @@ fn root() -> PathBuf {
 /// The program's own functions: arcs between them are compared.
 const OWN: [&str; 5] = ["main", "top", "mid", "leaf", "in_ctor"];
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/gmon_pg.c");
     let mut cmd = Command::new("cc");
     cmd.args(["-std=gnu17", "-O1", "-pg", "-static"]);
-    if liella {
-        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-gcrt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-gcrt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.arg(&src);
     }
@@ -95,18 +95,18 @@ fn symbol(exe: &Path, name: &str) -> u64 {
 fn gcrt1_profiles_like_the_reference() {
     // Clauses: s28_1_c_1, s28_1_c_2 (GCRT1-START).
     let r = root();
-    assert!(r.join("target/liella/liella-gcrt1.o").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/niji-gcrt1.o").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") || skip_note::missing("gprof") {
         skip_note::skipped("skipped: no C compiler or no gprof");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("gmon_pg_host"), dir.join("gmon_pg_liella"));
+    let (host, ours) = (dir.join("gmon_pg_host"), dir.join("gmon_pg_niji"));
     assert!(build(&host, false), "gmon_pg.c does not build with -pg against the host C library");
-    assert!(build(&ours, true), "gmon_pg.c does not link with -pg against liella-gcrt1.o and libc.a");
+    assert!(build(&ours, true), "gmon_pg.c does not link with -pg against niji-gcrt1.o and libc.a");
     let work = dir.join("gmon_pg_runs");
-    for (exe, who) in [(&host, "host"), (&ours, "liella")] {
+    for (exe, who) in [(&host, "host"), (&ours, "niji")] {
         let d = work.join(who);
         // Return from main and exit write gmon.out; _exit does not; a forked child writes its own.
         for mode in ["", "exit"] {
@@ -116,11 +116,11 @@ fn gcrt1_profiles_like_the_reference() {
         let forked = run(exe, &d.join("mfork"), "fork", Some("pfx"));
         assert!(forked.len() == 2 && forked.iter().all(|n| n.starts_with("pfx.")), "{who} fork: {forked:?}");
     }
-    let (want, got) = (arcs(&host, &work.join("host/m/gmon.out")), arcs(&ours, &work.join("liella/m/gmon.out")));
+    let (want, got) = (arcs(&host, &work.join("host/m/gmon.out")), arcs(&ours, &work.join("niji/m/gmon.out")));
     assert!(want.len() >= 4, "the reference shows too few arcs: {want:?}");
     assert_eq!(got, want, "call arcs differ from the reference");
     // The profiled range is the executable's text: __executable_start to _etext rounded up to 4.
-    let (lo, hi) = hist_range(&work.join("liella/m/gmon.out"));
+    let (lo, hi) = hist_range(&work.join("niji/m/gmon.out"));
     let (start, etext) = (symbol(&ours, "__executable_start"), symbol(&ours, "_etext"));
     assert_eq!((lo, hi), (start, (etext + 3) & !3), "text range differs from __executable_start.._etext");
     assert!(symbol(&ours, "__gmon_start__") > 0);

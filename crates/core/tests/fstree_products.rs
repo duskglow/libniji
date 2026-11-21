@@ -1,10 +1,10 @@
 //! The file-system tree end to end (spec §13.1–13.3, §13.8–13.9; D-13.1 to D-13.6, D-13.13):
 //! `tests/oracle/fstree_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/fstree_run.sh` (the unprivileged cases with
+//! libniji's products, each run by `tests/oracle/fstree_run.sh` (the unprivileged cases with
 //! their fixture in a scratch directory under `target/`, then the `root` cases on a tmpfs in a
-//! private mount namespace, as root through `sudo -n`), Liella with the name-service cache on
+//! private mount namespace, as root through `sudo -n`), libniji with the name-service cache on
 //! and off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
-//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella prints)
+//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints)
 //! and [`DROPPED`] (a line only the reference prints). An ADDED or DROPPED entry names the line
 //! that follows it too.
 //!
@@ -42,32 +42,30 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/fstree_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
     oracle::build_quiet(cmd, out)
 }
 
-const D13_2: &str = "D-13.2 (owner ruling 2026-10-03): readdir and its variants report the kernel's ENOENT for a directory removed while open, after the entries already buffered; the reference ends the stream silently (getdents64 itself fails with ENOENT, as the record shows)";
 const D13_5: &str = "D-13.5: canonicalization has no length limit internally, so the allocating forms resolve a path whose result is longer than PATH_MAX; the reference fails with ENAMETOOLONG";
-const D13_13_CHDIR: &str = "D-13.13 (owner ruling): nftw with FTW_CHDIR walks paths of any length (D-13.4: descriptor-relative, no depth limit); the reference aborts on an internal assertion past about 4.2 KB";
+const D13_13_CHDIR: &str = "D-13.13 (owner ruling): nftw with FTW_CHDIR walks paths of any length (D-13.4: descriptor-relative, no depth limit)";
 const D13_4_NOPENFD: &str = "D-13.4 (P-lift): nopenfd does not bound the walk; one descriptor is held per directory level, so a 25-level tree is walked whole with any nopenfd and 26 descriptors are open at the bottom";
 const D13_4_FTS: &str = "D-13.4: fts walks descriptor-relative in every mode, so paths longer than PATH_MAX are walked (the reference stats by path in FTS_NOCHDIR and FTS_LOGICAL mode and fails with ENAMETOOLONG), holding one descriptor per directory level (the reference holds 1 in chdir mode, 0 otherwise)";
 const FTS_SET: &str = "fts(3): fts_set returns -1 on an error (an invalid instruction, EINVAL); the reference returns 1";
 
 /// Lines that differ from the reference by decision: text the reference's line starts with, and
 /// why. A recorded line that no longer differs fails the test.
-const KNOWN: [(&str, &str); 39] = [
+const KNOWN: [(&str, &str); 20] = [
     ("PWD=<dir>/c/./sub: <dir>/c/./sub", "D-13.14 (owner ruling 2026-10-03): get_current_dir_name accepts $PWD only when it is absolute and has no . or .. component; the reference returns any $PWD that names the working directory"),
     ("PWD=<dir>/c/../c/sub: <dir>/c/../c/sub", "D-13.14 (owner ruling 2026-10-03): get_current_dir_name accepts $PWD only when it is absolute and has no . or .. component; the reference returns any $PWD that names the working directory"),
     ("PWD=. (relative, names cwd): .", "D-13.14 (owner ruling 2026-10-03): get_current_dir_name accepts $PWD only when it is absolute and has no . or .. component; the reference returns any $PWD that names the working directory"),
-    ("opendir(.): ok, readdir entries=0 errno=0", "D-13.2: in a removed working directory getdents64 fails with ENOENT, and readdir reports it"),
     ("getwd: NULL errno=ERANGE buf=[untouched]", "getwd(3): a working directory longer than PATH_MAX is ENAMETOOLONG (the caller cannot pass a size, so ERANGE would name a remedy it cannot apply); the reference gives ERANGE"),
     ("realpath(bottom, NULL): ENAMETOOLONG", D13_5),
     ("canonicalize_file_name(bottom): ENAMETOOLONG", D13_5),
@@ -75,37 +73,19 @@ const KNOWN: [(&str, &str); 39] = [
     ("canonicalize_file_name(rel): ENAMETOOLONG", D13_5),
     ("realpath(in, NULL): ENAMETOOLONG", D13_5),
     ("canonicalize_file_name(in): ENAMETOOLONG", D13_5),
-    ("readdir of a directory removed after opendir: 0 entries errno=0", D13_2),
-    ("[fs *] readdir, empty directory removed", D13_2),
-    ("[fs *] readdir, 3 files, emptied and removed", D13_2),
-    ("[fs *] readdir, 2000 files, emptied and removed", D13_2),
-    ("[fs *] readdir64, empty directory removed", D13_2),
-    ("[fs *] readdir64, 3 files, emptied and removed", D13_2),
-    ("[fs *] readdir64, 2000 files, emptied and removed", D13_2),
-    ("[fs *] readdir_r, empty directory removed", D13_2),
-    ("[fs *] readdir_r, 3 files, emptied and removed", D13_2),
-    ("[fs *] readdir_r, 2000 files, emptied and removed", D13_2),
-    ("[fs *] readdir64_r, empty directory removed", D13_2),
-    ("[fs *] readdir64_r, 3 files, emptied and removed", D13_2),
-    ("[fs *] readdir64_r, 2000 files, emptied and removed", D13_2),
-    ("[fs *] rewinddir after removal", D13_2),
-    ("[fs *] seekdir(0) after that", D13_2),
-    ("[fs *] rewinddir on a stream whose directory was removed", D13_2),
-    ("[fs *] fdopendir(descriptor of a removed directory)", D13_2),
-    ("[fs *] fdopendir, then the directory removed", D13_2),
     ("  the process was killed by signal 6 (SIGABRT)", D13_13_CHDIR),
     ("  callbacks=22 maxlevel=21 maxpathlen=4024", "D-13.13: every callback receives the entry's path (the reference passes an empty path at level 21 with FTW_CHDIR)"),
     ("nftw(deep, nopenfd=1, FTW_PHYS): callbacks=21 -> -1 errno=ENAMETOOLONG", D13_4_NOPENFD),
     ("nftw(deep, nopenfd=2, FTW_PHYS)", D13_4_NOPENFD),
     ("nftw(deep, nopenfd=5, FTW_PHYS)", D13_4_NOPENFD),
-    ("  the process was killed by signal 11", "D-13.13 (owner ruling): fts_open with an empty argument list returns NULL with EINVAL; the reference returns a stream whose first fts_read crashes"),
+    ("  the process was killed by signal 11", "D-13.13 (owner ruling): fts_open with an empty argument list returns NULL with EINVAL"),
     ("    fts_set(7): 1 EINVAL", FTS_SET),
     ("    fts_set(-1): 1 EINVAL", FTS_SET),
     (
         "  remaining fts_read: t/a:D t/a/f1:F t/a/s_up:SL t/a/sub:D t/a/sub/x:F t/a/sub:DP t/a:DP t/b:F [fts_children at file: NULL errno=0] t/e:D [fts_children at empty t/e: NULL errno=0] t/e:DP t/noread:D [fts_children at t/noread: NULL errno=EACCES] t/noread:DNR t/nosearch:D [fts_children at t/nosearch: ns_f:NS(EACCES) errno=EACCES]",
         "X3: errno is written only on failure; fts_children returning the entries of an unsearchable directory (each FTS_NS) succeeds, and the reference leaves its internal stat's EACCES in errno",
     ),
-    ("  fts_children after the end (in a child process): the process was killed by signal 11", "D-13.13 (owner ruling): fts_children after the walk has ended returns NULL with errno 0, as at the end of a directory; the reference crashes"),
+    ("  fts_children after the end (in a child process): the process was killed by signal 11", "D-13.13 (owner ruling): fts_children after the walk has ended returns NULL with errno 0, as at the end of a directory"),
 ];
 
 /// Lines that differ only in the deep fts walks (each counted once per mode).
@@ -116,7 +96,7 @@ const KNOWN_FTS_DEEP: [(&str, &str); 4] = [
     ("  FTS_LOGICAL|FTS_NOCHDIR: entries=43", D13_4_FTS),
 ];
 
-/// Lines only Liella prints: the text the line starts with, the text the next line starts with,
+/// Lines only libniji prints: the text the line starts with, the text the next line starts with,
 /// and why.
 const ADDED: [(&str, &str, &str); 0] = [];
 
@@ -168,6 +148,36 @@ fn without(text: &str, list: &[(&str, &str, &str)], who: &str) -> Vec<String> {
     out
 }
 
+/// The probe's stat chain line (`... chains l0..l<N> resolve; first failure l<K> stat <ERRNO>`, with
+/// ` (retried: <errno>)` when the failure came before l40 and persisted through the probe's retries)
+/// must name the first failure's chain index and errno, and must stop at the kernel's limit, so a run
+/// whose chain stops early says why (FSTREE-STAT-ERRNO). Returns the line's fault.
+fn stat_chain_fault(who: &str, out: &str) -> Option<String> {
+    const HEAD: &str = "stat (the kernel's limit, for comparison): chains l0..l";
+    let Some(line) = out.lines().find(|l| l.starts_with(HEAD)) else {
+        return Some(format!("{who}: no stat chain line"));
+    };
+    let shape = || -> Option<(i32, i32, &str)> {
+        let (last, rest) = line[HEAD.len()..].split_once(" resolve; first failure l")?;
+        let (fail, rest) = rest.split_once(" stat ")?;
+        let errno = rest.split(' ').next()?;
+        let named = errno.starts_with('E') && errno.len() > 1 && errno[1..].bytes().all(|b| b.is_ascii_uppercase())
+            || errno.strip_prefix("errno").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+        named.then_some(())?;
+        Some((last.parse().ok()?, fail.parse().ok()?, errno))
+    };
+    match shape() {
+        None => Some(format!("{who}: the stat chain line does not name the first failure's index and errno: {line:?}")),
+        // The kernel's limit: 40 links (path_resolution(7)), so l40 (41 links) is the first ELOOP, and
+        // the probe retries only failures before it.
+        Some((39, 40, "ELOOP")) if line.ends_with(" stat ELOOP") => None,
+        Some(_) => Some(format!(
+            "{who}: the stat chain does not stop at the kernel's link limit (l40, ELOOP), even after the probe's \
+             retries (a fault in this run, not a difference; the errno and the retry's answer say which): {line:?}"
+        )),
+    }
+}
+
 #[test]
 fn fstree_equals_the_reference() {
     // Clauses: s13_1_c_1, s13_1_c_1_1, s13_1_c_1_2, s13_1_c_2, s13_1_c_3, s13_1_c_4, s13_1_c_5, s13_1_f_0,
@@ -176,7 +186,7 @@ fn fstree_equals_the_reference() {
     // s13_3_i_0, s13_3_f_0, s13_8_c_0, s13_8_c_1, s13_8_c_2, s13_8_f_0, s13_9_c_1, s13_9_c_2, s13_9_c_3,
     // s13_9_c_4, s13_9_c_5, s13_9_i_0, s13_9_f_0 (D-13.1 to D-13.6, D-13.13, D-13.14).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -193,7 +203,7 @@ fn fstree_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("fstree_diff_host"), dir.join("fstree_diff_liella"));
+    let (host, ours) = (dir.join("fstree_diff_host"), dir.join("fstree_diff_niji"));
     assert!(build(&host, false), "fstree_diff.c does not build against the host C library");
     assert!(build(&ours, true), "fstree_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/fstree_run.sh");
@@ -211,6 +221,9 @@ fn fstree_equals_the_reference() {
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
     let reference = run(&host, "fstree-host", None);
+    if let Some(f) = stat_chain_fault("the reference", &reference) {
+        panic!("{f}");
+    }
     let record = std::fs::read_to_string(r.join("spec/behaviour/fstree.glibc.txt")).unwrap();
     let fs_line = reference.lines().next().unwrap_or("");
     assert!(fs_line.starts_with("stat -f -c %T: "), "the output must start by naming the scratch file system: {fs_line:?}");
@@ -222,27 +235,30 @@ fn fstree_equals_the_reference() {
     let known: Vec<(&str, &str)> = KNOWN.iter().chain(KNOWN_FTS_DEEP.iter()).copied().collect();
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("fstree-liella-{mode}"), Some(mode));
+        let got = run(&ours, &format!("fstree-niji-{mode}"), Some(mode));
+        if let Some(f) = stat_chain_fault("libniji", &got) {
+            panic!("{f}");
+        }
         let want = without(&neutral(&reference), &DROPPED, "the reference");
-        let got = without(&neutral(&got), &ADDED, "Liella");
+        let got = without(&neutral(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; known.len()];
         for (k, (w, g)) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = known.iter().position(|(needle, _)| w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", known[i].1);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].1);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 40 {
-                    eprintln!("line {}:\n  glibc  {w}\n  liella {g}", k + 1);
+                    eprintln!("line {}:\n  glibc  {w}\n  niji {g}", k + 1);
                 }
             }
         }
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", want.join("\n"), got.join("\n"));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", want.join("\n"), got.join("\n"));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", known[i]);

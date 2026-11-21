@@ -1,7 +1,7 @@
 //! Page faults of short static programs (PAGEFAULTS-2): `tests/oracle/page_faults.c` linked
 //! statically against the products reports its own minor-fault count (getrusage ru_minflt). The
 //! library's startup, stdio, printf and setlocale functions are grouped into `.text.hot.*`
-//! (`crates/libc-so/hot-text.list`, xtask/src/hottext.rs); scattered, the setlocale + printf
+//! (the build's traced `hot-text.list`, xtask/src/hottext.rs); scattered, the setlocale + printf
 //! program touched ~34 separate 64 KiB text windows, one fault each. The bounds below hold the
 //! grouped counts with headroom for layout-only deltas and fail when the grouping is lost; the
 //! program runs without address-space randomisation, so a build gives the same count every run.
@@ -13,9 +13,9 @@ use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 
 /// Upper bounds on the lowest of [`RUNS`] counts. Calibrated (HOTTEXT-FAULT-TEST-4, Zen 1 host, release
 /// list, 20 groups of 5 runs from a posix_spawn launcher; bash fork loops add ~120 COW faults and
@@ -44,7 +44,7 @@ use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// read 21. Both trees built in Skylake-SP host role s4: 18 / 62 / 64 (next), 20 / 62 / 64 (change).
 /// The change adds no writable data reached from startup (one AtomicBool in .bss, +8 bytes; the
 /// RW segment is 928 bytes SMALLER) and no startup code. It perturbs code generation: timer
-/// helper_main +3 KiB, and about 16 KiB of inlining churn elsewhere in liella_boundary (glob,
+/// helper_main +3 KiB, and about 16 KiB of inlining churn elsewhere in niji_boundary (glob,
 /// netdb pack_*, hsearch, time::load). That moves .rodata 16 KiB higher. perf page-fault
 /// addresses after exec, same run conditions as `faults`: 31 (next) vs 32 (change). Text and RW
 /// windows are the same count. In .rodata, the two environment-name constants that `env_find`
@@ -61,14 +61,53 @@ use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// 21. origin/next 635bb7aa vs the change, both built on Zen 1 host from the same tree, perf page-fault
 /// addresses after exec without randomisation: 61 vs 62, one more in .data, every other section
 /// the same. The changed code adds anonymous constants, .data grows 16 bytes (0x83b1 -> 0x83c1)
-/// and its objects are reordered: `liella_legacy::nscache::NSCACHE`, which
-/// `liella_boundary::nscache::start` touches at startup, moves from 0x80c138 (the page shared
+/// and its objects are reordered: `niji_legacy::nscache::NSCACHE`, which
+/// `niji_boundary::nscache::start` touches at startup, moves from 0x80c138 (the page shared
 /// with the .data end and .bss start, which execve already dirties when it zero-fills the bss
 /// tail) to 0x80a8e0, a page of its own: its first access (NSCACHE+0x25a) is the extra fault. No
 /// utmp code runs: gdb breakpoints on all 246 utmp/users/accounting/wtmp/lastlog functions in the
 /// program, none hit. LOCALE_BOUND 65 -> 68 (rule above: the highest count, 66, plus 2).
-const TRUE_BOUND: u64 = 23;
-const LOCALE_BOUND: u64 = 68;
+/// STARTUP-FAULTS-RESTORE: the bounds only ratchet down now (runs are deterministic, see
+/// HOTTEXT-VARIANCE): each is the count after the fix plus 1, no "highest seen plus 2" slack (the
+/// slack let DL-BOOT-RELOC-7's two start-up text faults through). Counts on the fix's build host:
+/// startup only 17, setlocale + printf 56, tool 59. TRUE_BOUND 23 -> 18, LOCALE_BOUND 68 -> 57,
+/// TOOL_BOUND 71 -> 60. [`init_startup_path_lies_in_the_hot_text_range`] checks the structure.
+/// STARTUP-FAULTS-RESTORE-4 (relay harness, see [`faults`]): every bound holds for both product
+/// profiles and both gate passes (exports interposed or not, which now read the same): one bound per
+/// mode at the larger profile's count plus 1. Haswell-EP host, every run identical, fast / release:
+/// startup only 16 / 15, setlocale + printf 56 / 56, tool 59 / 59, fork child 7 / 6, localtime and
+/// localtime + mktime 19 / 19, float 2 / 4. TRUE_BOUND 18 -> 17, FLOAT_BOUND 6 -> 5.
+/// STARTUP-FAULTS-RESTORE-5 (merged with next, relay harness): Skylake-SP host, both gate passes the
+/// same, fast / release: startup only 17 / 15, setlocale + printf 53 / 54, tool 56 / 57, fork child
+/// 7 / 6, localtime and localtime + mktime 20 / 19, float 2 / 4. LOCALE_BOUND 57 -> 55, TOOL_BOUND
+/// 60 -> 58; TRUE_BOUND, FORK_BOUND, LOCALTIME_BOUND and FLOAT_BOUND stay (each already at most the
+/// larger count plus 1; a bound is never raised).
+/// LAYOUT-DATA-CLUSTERS-9 (the first setlocale's global_locale counters, query statics and
+/// `process::SECURE` declared in the `.data1` cluster): Skylake-SP host, fast products, every run
+/// identical: setlocale + printf 51, tool 55 (next: 52, 55). LOCALE_BOUND 55 -> 52, TOOL_BOUND 58 -> 56.
+/// LAYOUT-DATA-CLUSTERS-11 (`_nl_msg_cat_cntr` declared: after next's merge it was the first setlocale's
+/// only write on the last `.bss` page): Skylake-SP host, fast products, every run identical: startup only
+/// 11, setlocale + printf 50, tool 54. LOCALE_BOUND 52 -> 51.
+/// LAYOUT-TRACE-DEFAULT (trace-at-build is the default: every build groups from a trace of itself, so a
+/// change that adds no start-up code no longer moves these counts; the bounds now sit at the highest
+/// measured count, no margin). Skylake-SP and Zen 1 hosts (next and next plus an unrelated libm change) and
+/// Haswell-EP and Broadwell-EP hosts (LAYOUT-TRACE-DEFAULT-3), both profiles, every run on every host
+/// identical (warm-up + 5, twice), fast / release: startup only 11 / 10,
+/// setlocale + printf 46 / 47, tool 50 / 49, fork child 5 / 5, localtime and localtime + mktime 17 / 18,
+/// float 3 / 3. TRUE_BOUND 17 -> 11, LOCALE_BOUND 51 -> 47, TOOL_BOUND 56 -> 50, FORK_BOUND 6 -> 5,
+/// LOCALTIME_BOUND and LOCALTIME_MKTIME_BOUND 20 -> 18, FLOAT_BOUND 5 -> 3.
+/// LAYOUT-WINDOW-BINS-7 (window bins, slice 3: the bounds at the bins' level, D-X.103): one bound per product
+/// profile, indexed by [`profile_index`], each at its measured level with no margin, checked from both sides
+/// ([`check_whole_count`]). origin/next f494ad65d (slices 1 and 2 landed), every run identical (warm-up + 5,
+/// twice), fast / release: startup only 11 / 10, setlocale + printf 43 / 43, tool 44 / 45. The same probe
+/// binaries read the same counts on the Zen 1 and the Skylake-SP host (and the products do not depend on the
+/// build host, LAYOUT-TRACE-HOST-CANONICAL), so the host classes share one bound. A program-side pad of
+/// 0x800-0xF000 bytes of `.text` or `.data` in the start file moves none of them; one in `.text.unlikely`
+/// (`pre`, ahead of the head bin) reads one more in each mode from 0x4000 (fast: from 0x800, start-up only
+/// from 0x4000), the head bin's room for what precedes the group being 0x400. TRUE_BOUND 11 -> 11 / 10,
+/// LOCALE_BOUND 47 -> 43 / 43, TOOL_BOUND 50 -> 44 / 45.
+const TRUE_BOUND: [u64; 2] = [11, 10];
+const LOCALE_BOUND: [u64; 2] = [43, 43];
 /// "tool" mode: a coreutils-shaped program (setlocale, bindtextdomain, atexit, getenv, strtoimax,
 /// printf), see `init_coreutils_shaped_program_stays_within_its_page_fault_bound`.
 /// PERF-READDIR-ENTRY-4 (layout-only delta, owner rule): CI read tool 69 (bound 68) for the readdir
@@ -78,21 +117,80 @@ const LOCALE_BOUND: u64 = 68;
 /// c3424c99 68 / 66 / 19 (CI's longer role path reads one more). The readdir code has no key in the hot
 /// list and adds no startup code; next already sits one under the bound, and the branch adds one fault in
 /// both bases. TOOL_BOUND 68 -> 71 (rule above: the highest count, 69, plus 2); LOCALE_BOUND stays 68
-/// (66 plus 2), TRUE_BOUND stays 23.
-const TOOL_BOUND: u64 = 71;
+/// (66 plus 2), TRUE_BOUND stays 23. STARTUP-FAULTS-RESTORE-5: 60 -> 58 (see TRUE_BOUND).
+/// LAYOUT-TRACE-DEFAULT: 56 -> 50 (see TRUE_BOUND). LAYOUT-WINDOW-BINS-7: 50 -> 44 / 45 (see TRUE_BOUND).
+const TOOL_BOUND: [u64; 2] = [44, 45];
 const RUNS: usize = 5;
+/// Every mode of `page_faults.c` whose first-call state is start-up state (the bounds below count each).
+const STARTUP_PROBE_MODES: [&str; 10] = ["true", "locale", "tool", "fork", "mktime", "localtime", "localtime_mktime", "float", "strings", "rebind"];
+/// The largest object `crates/libc-so/startup-state.list` may declare (xtask/src/coldbss.rs
+/// `STATE_DECLARED_MAX`): a start-up access to a smaller one outside the cluster is a missing entry.
+const STATE_DECLARED_MAX: u64 = 8192;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// A generated start-up list (`hot-text.list`, `startup-data.keys`, ...) as the products were grouped from it: the
+/// directory the products' `target/niji/.hot-lists` marker names (`target/product/<profile>`, written by the
+/// build's own trace). No list is committed (LT-5, LAYOUT-DELETE-LISTS): products without the marker have none.
+/// The hand-written inputs (`hot-text.clusters`, `startup-state.list`) are always the committed ones.
+fn generated_list(name: &str) -> PathBuf {
+    let m = std::fs::read_to_string(root().join("target/niji/.hot-lists"))
+        .unwrap_or_else(|e| panic!("target/niji/.hot-lists: {e}: no start-up lists (every product build writes them from a trace of itself: run `cargo xtask so`)"));
+    PathBuf::from(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
+}
+
+/// LAYOUT-TRACE-DEFAULT (rulings #5190-#5194): a product build traces its own start-up layout by default, so the
+/// products under test carry the `target/niji/.hot-lists` marker, and every generated list it names is the one
+/// the build grouped from (its FNV-1a hash as the marker records it) and holds keys (an ungrouped product's lists
+/// are empty). Products of the ungrouped opt-out are not what ships. No spec clause (layout of the products).
+#[test]
+fn init_products_are_grouped_from_a_trace_of_their_own_build() {
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let marker = std::fs::read_to_string(r.join("target/niji/.hot-lists")).unwrap_or_else(|e| {
+        panic!("TRACE-AT-BUILD: target/niji/.hot-lists: {e}: the products carry no lists of their own trace; a product build traces its own layout (run `cargo xtask so`)")
+    });
+    let mut lines = marker.lines();
+    let dir = PathBuf::from(lines.next().expect("TRACE-AT-BUILD: empty marker"));
+    let mut named = 0;
+    for l in lines {
+        let (name, want) = l.split_once(' ').unwrap_or_else(|| panic!("TRACE-AT-BUILD: marker line {l:?}"));
+        let bytes = std::fs::read(dir.join(name)).unwrap_or_else(|e| panic!("TRACE-AT-BUILD: {}: {e}", dir.join(name).display()));
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for &b in &bytes {
+            h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
+        }
+        assert_eq!(format!("{h:016x}"), want, "TRACE-AT-BUILD: {} changed after the build that grouped from it", dir.join(name).display());
+        let keys = String::from_utf8_lossy(&bytes).lines().filter(|k| !k.trim().is_empty() && !k.starts_with('#')).count();
+        if name == "hot-text.list" || name == "startup-text.keys" || name == "hot-text.signatures" {
+            assert!(keys > 0, "TRACE-AT-BUILD: {} holds no key: an ungrouped product (NIJI_LAYOUT_TRACE=ungrouped)", dir.join(name).display());
+        }
+        named += 1;
+    }
+    // LAYOUT-WINDOW-BINS (D-X.103): hot-text.signatures is the fifth.
+    assert_eq!(named, 5, "TRACE-AT-BUILD: the marker names {named} lists, want the 5 generated ones");
+}
+
 fn build(out: &Path) {
+    build_with(out, &[]);
+}
+
+/// [`build`] with extra compiler driver arguments (e.g. `-Wl,-Map=<file>`).
+fn build_with(out: &Path, extra: &[&str]) {
+    build_crt1(out, extra, &root().join("target/niji/niji-crt1.o"));
+}
+
+/// [`build_with`] with another start file in place of `niji-crt1.o` (the pad links below).
+fn build_crt1(out: &Path, extra: &[&str], crt1: &Path) {
     let r = root();
     let st = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .args(extra)
+        .arg(crt1)
         .arg(r.join("crates/core/tests/oracle/page_faults.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg("-o")
         .arg(out)
@@ -132,11 +230,22 @@ fn stage(exe: &Path, run: &Path) {
 /// spans one more page; on Zen 1 host argv[0] or env of 2.5 KiB moved every count by +1. The program
 /// therefore runs from a copy at a fixed-length private path, with a fixed argv[0], cwd and
 /// environment, so the count does not depend on where the tree is checked out.
+/// STARTUP-FAULTS-RESTORE-4: the program runs each mode as `relay <mode>`, in a vfork child of its
+/// own (`page_faults.c`), so the counted process is spawned by the products' vfork + execve, not by
+/// this test process. The gate runs this test twice, the second time with libniji's exports
+/// interposed on the test process; spawned by the test, the counted process ran the test
+/// process's spawn code before exec, and the whole-process modes (startup, setlocale + printf,
+/// tool) read one more fault in that pass (CI, Skylake-SP host: 58 / 61 against bounds 57 / 60).
 fn faults(exe: &Path, mode: &str) -> u64 {
+    faults_env(exe, mode, &[])
+}
+
+/// [`faults`] with `env` added to the program's fixed environment (a dynamic program's `LD_LIBRARY_PATH`).
+fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
     // One directory per call (the tests run in parallel); the name always has the same length.
     static CALL: AtomicUsize = AtomicUsize::new(0);
     let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
-    let dir = PathBuf::from(format!("/tmp/liella-hot-text-{:010}-{n}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-hot-text-{:010}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let run = dir.join("p");
@@ -146,10 +255,12 @@ fn faults(exe: &Path, mode: &str) -> u64 {
     for _ in 0..=RUNS {
         let o = Command::new(&run)
             .arg0("page_faults")
+            .arg("relay")
             .arg(mode)
             .current_dir("/")
             .env_clear()
             .env("LANG", "en_US.UTF-8")
+            .envs(env.iter().copied())
             .stdin(Stdio::null())
             .output()
             .unwrap();
@@ -167,18 +278,427 @@ fn faults(exe: &Path, mode: &str) -> u64 {
 fn init_short_programs_stay_within_their_page_fault_bounds() {
     // PAGEFAULTS-2: hot-text grouping of the startup, setlocale and printf paths.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     // The locale comes from the system archive, like the workloads the WL gate counts.
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella");
+    let exe = dir.join("page_faults_niji");
     build(&exe);
     let (t, l) = (faults(&exe, "true"), faults(&exe, "locale"));
-    eprintln!("minor faults: startup only {t} (bound {TRUE_BOUND}), setlocale + printf {l} (bound {LOCALE_BOUND})");
-    assert!(t <= TRUE_BOUND, "startup-only program: {t} page faults > {TRUE_BOUND}");
-    assert!(l <= LOCALE_BOUND, "setlocale + printf program: {l} page faults > {LOCALE_BOUND} (hot-text grouping lost?)");
+    check_whole_count("startup-only program", t, TRUE_BOUND, "start-up grew or its text left the hot group?");
+    check_whole_count("setlocale + printf program", l, LOCALE_BOUND, "hot-text grouping lost?");
+}
+
+/// LAYOUT-LDSO-ORDER: the static probes above never map the interpreter. This one is `page_faults.c`
+/// linked as a dynamic program of the products, run in its `true` mode: the whole process's faults, the
+/// interpreter's and libc.so.6's own pages included. The interpreter's start-up text is grouped from its
+/// entry in the order a trace of the build ran it (`ldso-text.list`); ungrouped, the same program reads
+/// more. The interpreter and libc.so.6 are staged in a fixed-length directory that the program's PT_INTERP
+/// names and LD_LIBRARY_PATH (ruling #5909) points to, so the count does not depend on the checkout's path.
+/// Measured (LAYOUT-LDSO-ORDER-2, next 627ef49ca plus the grouping, Zen 1 host, warm-up + 5 runs, every run
+/// identical), fast / release: 89 / 85. LAYOUT-LDSO-ORDER-3, the same head on the Skylake-SP host (two NUMA
+/// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
+/// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
+/// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
+/// DYN-START-PARITY (the start's tables hold 16 entries inline, not 64: a smaller stack frame), Skylake-SP
+/// host, in this test: fast 77, release 73 (before: 89 / 86 on that host); with DL-23-2's vDSO header page
+/// (+1 for a start that makes no vDSO call, as this program): fast 78, release 74. Tightened to those levels.
+/// DYN-START-PARITY-2: the count depends on the file system under /tmp, where the objects are staged. The
+/// interpreter's first whole-file mapping of libc.so.6 is placed by the kernel, which aligns it to 2 MiB on a
+/// file system with large folios (ext4) and not on tmpfs. The object's segments follow it, so their virtual
+/// placement, and with it the fault-around windows, differs. One A/B on the Skylake-SP host (same products, same
+/// head, only /tmp's file system changed, warm-up + 5 runs, every run identical): fast 79 on ext4 / 78 on tmpfs,
+/// release 74 on ext4 / 76 on tmpfs. `cargo xtask test` run outside the gate wrapper sees the host's /tmp (ext4).
+/// The gate wrapper gives a private tmpfs /tmp. The test-process environment (NIJI_TEST_MALLOC_PERTURB) changes
+/// nothing: the program runs with a cleared environment. The bound is the higher level of the two file systems.
+/// LAYOUT-DYN-PHASE (D-X.133): the count no longer moves with the size of libc.so.6 or ld.so (the loader maps
+/// the last page of a segment without zero fill from the file; libc's start-up read-only group is anchored and
+/// holds the build tag; ld.so's read-only data starts at its text's 64 KiB phase). Skylake-SP host, next
+/// 36df714e7 plus this change, each library padded by k = 0..16 pages of cold text, every run identical: fast
+/// 80, release 76 at every k (before: 85..87 and 83..85 by k). Merged with next fb63eeec8 (same host and
+/// method, k = 0, 8, 16): fast 81, release 76 at every k; the +1 is one more ld.so text window, the traced
+/// start-up group (`ldso-text.list`) grown past its second 64 KiB window by next's loader code.
+/// LAYOUT-DYN-PHASE-4, merged with next 05636bf0b (DL-23-2's vDSO header page, ruling #6756: one more fault per
+/// dynamic start without a vDSO call), Zen 1 host (same method, k = 0, 8, 16, both libraries padded, every run
+/// identical): fast 82, release 77 at every k, the Skylake-SP level above plus that page. The bound is the
+/// higher of the two host classes per profile, no margin; the Skylake-SP host was not re-measured with
+/// DL-23-2 (expected 82 / 77; the train's gate runs there).
+/// DYN-START-PARITY-3, the two stories merged (next 65d9d2cfd plus DYN-START-PARITY's smaller start frame):
+/// fast 73, release 67, warm-up + 5 runs, every run identical, on the Skylake-SP and the Zen 1 host, each with
+/// /tmp on ext4 and on tmpfs (the gate wrapper's): on the merged head the file system no longer changes the
+/// count (the cause was not isolated). Tightened to that level.
+/// DYN-START-SPEED-2: the dependence came back with DYN-START-SPEED's loader changes merged (Skylake-SP host,
+/// release: 67 with /tmp on ext4, 68 on tmpfs; perf fault addresses: only libc.so.6's whole-file view differs,
+/// 4 faults per process on ext4, 5 on tmpfs). The cause is the view's placement: the kernel puts it 2 MiB-aligned
+/// on ext4 and page-aligned on tmpfs, so the same file pages fall in different 64 KiB fault-around windows. The
+/// loader now places every view 64 KiB-aligned itself (`map_view`); the test below checks the two file systems
+/// read the same count.
+const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
+
+/// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
+/// configuration files below it, not below `/`.
+const COEXIST_PREFIX: &str = "/usr/lib/niji";
+
+/// LDSO-TRACE-PREFIX; no spec clause (the product build's interpreter trace). A product build traces its
+/// interpreter with the build's installation prefix: `cargo xtask ldso-trace` compiles the interpreter again
+/// with the coexist prefix and runs `tools/hottext/ldso_trace.sh` on it. The trace must read no host file
+/// (trace_gdb.py fails it on a configuration file below the prefix that the trace does not redirect) and must
+/// give the same names as the products' own trace (the hot list is the same function of the tree in both
+/// flavours).
+#[test]
+fn init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace() {
+    let r = root();
+    assert!(r.join("target/niji/ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("tools/hottext/ldso_trace.sh").exists());
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let o = Command::new(cargo)
+        .current_dir(&r)
+        .args(["xtask", "ldso-trace", "--prefix", COEXIST_PREFIX])
+        .stdin(Stdio::null())
+        .output()
+        .expect("cargo xtask ldso-trace");
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    let tail: Vec<&str> = err.lines().rev().take(12).collect::<Vec<_>>().into_iter().rev().collect();
+    assert!(o.status.success(), "prefixed interpreter trace failed ({}):\n{out}\n{}", o.status, tail.join("\n"));
+    assert_eq!(out.matches("the same as the products' own trace").count(), 2, "{out}");
+}
+
+#[test]
+fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
+    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let t = dyn_startup_faults(&lib);
+    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+}
+
+/// DYN-START-SPEED-2; no spec clause (cost of the products). The start-up count of the program above does
+/// not depend on the file system that holds ld.so and libc.so.6: the same products staged on the RAM file
+/// system (/dev/shm, tmpfs) and under the build tree (another file system on the build hosts) read the same
+/// count. The loader places each whole-file view it reads an object through at a 64 KiB-aligned address
+/// (`map_view`), so the view's fault-around windows follow the file offsets; a view left where the kernel
+/// puts a file mapping (2 MiB-aligned on a file system with large folios, page-aligned on tmpfs) read one
+/// more fault on tmpfs than on ext4 (Skylake-SP host, release: 68 / 67). Both directory names have the same
+/// length, so the strings on the program's stack and in the loader's tables are the same size. Skipped, with
+/// the reason printed, when the two directories are on the same kind of file system.
+#[test]
+fn init_dynamic_startup_fault_count_does_not_depend_on_the_file_system() {
+    let r = root();
+    let pid = std::process::id();
+    let a = r.join(format!("target/niji-fs-{pid:010}"));
+    let pad = a.as_os_str().len().saturating_sub(format!("/dev/shm/niji-fs-{pid:010}").len());
+    let b = PathBuf::from(format!("/dev/shm/niji-fs-{}{pid:010}", "x".repeat(pad)));
+    if !Path::new("/dev/shm").is_dir() {
+        eprintln!("SKIP: no /dev/shm on this host, no second file system to compare with");
+        return;
+    }
+    let kind = |d: &Path| {
+        std::fs::create_dir_all(d).unwrap();
+        let o = Command::new("stat").args(["-f", "-c", "%T"]).arg(d).output().expect("stat -f");
+        String::from_utf8_lossy(&o.stdout).trim().to_string()
+    };
+    let (ka, kb) = (kind(&a), kind(&b));
+    if ka == kb {
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+        eprintln!("SKIP: the build tree and /dev/shm are both on {ka}: no second file system to compare with");
+        return;
+    }
+    assert_eq!(a.as_os_str().len(), b.as_os_str().len(), "{} and {} differ in length", a.display(), b.display());
+    let (ta, tb) = (dyn_startup_faults(&a), dyn_startup_faults(&b));
+    eprintln!("dynamic startup-only program: {ta} page faults with the objects on {ka}, {tb} on {kb}");
+    assert_eq!(ta, tb, "the start-up fault count depends on the file system holding ld.so and libc.so.6 ({ka}: {ta}, {kb}: {tb}): a whole-file view left where the kernel places it?");
+}
+
+/// Stage ld.so and libc.so.6 of the products in the new directory `lib` (removed afterwards), link
+/// `oracle/page_faults.c` as a position-independent program whose interpreter and LD_LIBRARY_PATH are
+/// that directory, and return its whole-process minor faults in mode `true` ([`faults_env`]).
+fn dyn_startup_faults(lib: &Path) -> u64 {
+    let r = root();
+    let p = r.join("target/niji");
+    assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    let lib = lib.to_path_buf();
+    let _ = std::fs::remove_dir_all(&lib);
+    std::fs::create_dir_all(&lib).unwrap();
+    for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
+        stage(&p.join(f), &lib.join(f));
+    }
+    let exe = lib.join("page_faults_dyn");
+    // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
+    // `atexit` in libc_nonshared.a names).
+    let gcc_file = |f: &str| {
+        let o = Command::new("cc").arg(format!("-print-file-name={f}")).output().expect("cc -print-file-name");
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let st = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-fPIE", "-pie"])
+        .arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()))
+        .arg(p.join("niji-crt1.o"))
+        .arg(gcc_file("crtbeginS.o"))
+        .arg(r.join("crates/core/tests/oracle/page_faults.c"))
+        .arg(p.join("libc_nonshared.a"))
+        .arg(lib.join("libc.so.6"))
+        .arg(lib.join("ld-linux-x86-64.so.2"))
+        .arg("-lgcc")
+        .arg(gcc_file("crtendS.o"))
+        .arg("-o")
+        .arg(&exe)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "page_faults.c does not link as a dynamic program of the products");
+    let path = lib.display().to_string();
+    let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
+    let _ = std::fs::remove_dir_all(&lib);
+    t
+}
+
+/// DYN-START-PARITY; no spec clause (cost of the products). Upper bounds, per CPU model (`model name`
+/// of /proc/cpuinfo) and product profile (fast, release), on the user-mode instructions from exec to
+/// exit of a position-independent program whose `main` returns 0, linked dynamically against the
+/// products: the interpreter's whole start-up (its own relocation, mapping libc.so.6, relocating it,
+/// symbol and version lookups, initialisation) and libc.so.6's. Counted by `oracle/exec_instr.c`
+/// (median of [`DYN_INSTR_RUNS`], no randomisation). The test also counts the same program built by the
+/// host's compiler and C library and prints both, so the gap to the reference stays in view.
+/// Release, DYN-START-PARITY on next 255a6901d: 8,151,153 before (Skylake-SP host). Each level is the
+/// median measured on the branch's head plus 2%; `0` = not measured for that profile (unchecked).
+/// Measured (empty main, median of 21): Skylake-SP host fast 1,718,270, release 1,598,681, the host C
+/// library 101,863; Zen 1 host release 1,598,530, the host C library 96,002 (fast not measured).
+/// DYN-START-SPEED (the RELACOUNT prefix loop, the verdef record scan, the per-pass version-name memo):
+/// Skylake-SP host fast 854,405 in this test; release 785,631 by execcount (1,579,278 before), which read
+/// 1.4% under this test before, so the release level is 785,631 + 1.4% + 2%. Zen 1 host: not re-measured;
+/// its release level was within 0.01% of the Skylake-SP host's, so it takes the same bound.
+/// DYN-START-SPEED-2 (merged with next 90f71362a, whole-file views placed by the loader), the test's own
+/// staging and counter (median of 21) on the same products built on the Skylake-SP host: Skylake-SP host
+/// fast 855,582, release 803,431, the host C library 101,863; Zen 1 host fast 855,428, release 803,280, the
+/// host C library 96,002. The Zen 1 fast bound is that level plus 2%; the release bounds hold (1.1% over).
+/// DYN-START-LINK-SHAPE (D-27.68, the RELATIVE loop at 20 instructions per entry): release products,
+/// execcount median of 101, -38,180 / -38,167 / -38,182 on empty main / 3 libraries / clock_gettime on
+/// both hosts; the release bounds move down by 38,000 (the head passed at 812,400, so the margin stays).
+/// The fast bounds are not re-measured and stay.
+/// CRT-START-FILES-3 (start files without the 64 KiB-aligned anchors, D-X.144; merged with next e4777a6ba):
+/// this test on fast products built on the Skylake-SP host, next 790,290, the branch 778,859 (more than 10%
+/// under 871,500); the fast bound is that level plus 2%. Zen 1 host: not re-measured; its fast level was
+/// within 0.02% of the Skylake-SP host's (DYN-START-SPEED-2), so it takes the same bound.
+const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [794_500, 774_400]),
+    ("AMD EPYC 7551 32-Core Processor", [794_500, 774_400]),
+];
+
+/// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
+const DYN_INSTR_RUNS: &str = "21";
+
+/// The products' staging directory for a dynamic program: the interpreter and libc.so.6 copied to a
+/// fixed-length private path, which the program's `PT_INTERP` names and `LD_LIBRARY_PATH` points to.
+fn dyn_stage(tag: &str) -> PathBuf {
+    let p = root().join("target/niji");
+    assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    let lib = PathBuf::from(format!("/tmp/niji-{tag}-{:010}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&lib);
+    std::fs::create_dir_all(&lib).unwrap();
+    for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
+        stage(&p.join(f), &lib.join(f));
+    }
+    lib
+}
+
+/// Links `src` as a position-independent program of the products staged in `lib` ([`dyn_stage`]).
+fn dyn_link(lib: &Path, src: &Path, exe: &Path) {
+    dyn_link_with(lib, src, exe, &[]);
+}
+
+/// [`dyn_link`] with the shared objects `objs` linked in after `src` (each a `DT_NEEDED` of the program).
+fn dyn_link_with(lib: &Path, src: &Path, exe: &Path, objs: &[PathBuf]) {
+    let p = root().join("target/niji");
+    // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
+    // `atexit` in libc_nonshared.a names).
+    let gcc_file = |f: &str| {
+        let o = Command::new("cc").arg(format!("-print-file-name={f}")).output().expect("cc -print-file-name");
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let st = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-fPIE", "-pie"])
+        .arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()))
+        .arg(p.join("niji-crt1.o"))
+        .arg(gcc_file("crtbeginS.o"))
+        .arg(src)
+        .args(objs)
+        .arg(p.join("libc_nonshared.a"))
+        .arg(lib.join("libc.so.6"))
+        .arg(lib.join("ld-linux-x86-64.so.2"))
+        .arg("-lgcc")
+        .arg(gcc_file("crtendS.o"))
+        .arg("-o")
+        .arg(exe)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "{} does not link as a dynamic program of the products", src.display());
+}
+
+/// The median user-mode instructions of `exe` from exec to exit (`oracle/exec_instr.c`, built with the
+/// host's compiler), run with only `env`; `None` when this host gives no instruction counter (the
+/// harness's message is printed).
+fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
+    let counter = lib.join("exec_instr");
+    if !counter.exists() {
+        let st = Command::new("cc").args(["-O1", "-o"]).arg(&counter).arg(root().join("crates/core/tests/oracle/exec_instr.c")).status().expect("cc");
+        assert!(st.success(), "oracle/exec_instr.c does not build");
+    }
+    no_randomisation();
+    let mut cmd = Command::new(&counter);
+    cmd.arg(DYN_INSTR_RUNS);
+    for (k, v) in env {
+        cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    let o = cmd.arg(exe).current_dir("/").env_clear().stdin(Stdio::null()).output().unwrap();
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    if o.status.code() == Some(2) {
+        eprintln!("SKIP: {}", err.trim());
+        return None;
+    }
+    assert!(o.status.success(), "exec_instr {} failed ({}): {err}", exe.display(), o.status);
+    let median = out.split_whitespace().nth(2).and_then(|v| v.parse().ok());
+    Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
+}
+
+/// The system calls `exe` (staged in `lib`, [`dyn_stage`]) makes from its exec to its exit, as "nr arg0
+/// arg1 arg3" words, traced with ptrace (oracle/start_syscalls.c, built with the host's compiler; the
+/// products' path reaches the traced program only). `None`, with the reason printed, where ptrace is
+/// not permitted.
+fn start_calls(lib: &Path, exe: &Path) -> Option<Vec<[u64; 4]>> {
+    let tracer = lib.join("start_syscalls");
+    if !tracer.exists() {
+        let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
+        assert!(st.success(), "oracle/start_syscalls.c does not build");
+    }
+    let o = Command::new(&tracer).arg(exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
+    if o.status.code() == Some(121) || o.status.code() == Some(123) {
+        eprintln!("SKIP: ptrace is not permitted here ({})", o.status);
+        return None;
+    }
+    assert!(o.status.success(), "the traced {} failed ({})", exe.display(), o.status);
+    let calls = String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .map(|l| {
+            let w: Vec<u64> = l.split_whitespace().map(|v| v.parse().expect("a number")).collect();
+            [w[0], w[1], w[2], w[3]]
+        })
+        .collect();
+    Some(calls)
+}
+
+/// DYN-START-QUICK, DYN-START-RING; no spec clause (cost of the products). A dynamic empty main started by
+/// the products' interpreter makes none of the system calls its start does without: no `lseek` (a regular
+/// file's size comes from the `fstat` the loader makes), no anonymous mapping smaller than a page (the
+/// image views' buffers come from the loader's scratch arena), no `arch_prctl(ARCH_GET_FS)`
+/// (`__libc_start_main` sees the loader's early start first) and no `rt_sigaction` (the internal
+/// signal's handler waits for the first thread, D-20.1 as amended by owner ruling #7075). Skipped, with
+/// the reason printed, where ptrace is not permitted.
+#[test]
+fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
+    const MMAP: u64 = 9;
+    const LSEEK: u64 = 8;
+    const RT_SIGACTION: u64 = 13;
+    const ARCH_PRCTL: u64 = 158;
+    let lib = dyn_stage("dyn-calls");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let exe = lib.join("empty_dyn");
+    dyn_link(&lib, &src, &exe);
+    let calls = start_calls(&lib, &exe);
+    let _ = std::fs::remove_dir_all(&lib);
+    let Some(calls) = calls else { return };
+    eprintln!("dynamic empty main: {} system calls", calls.len());
+    let count = |f: &dyn Fn(&[u64; 4]) -> bool| calls.iter().filter(|c| f(c)).count();
+    assert_eq!(count(&|c| c[0] == LSEEK), 0, "lseek at start: a file size taken from lseek, not fstat");
+    assert_eq!(count(&|c| c[0] == MMAP && c[3] & 0x20 != 0 && c[2] < 4096), 0, "an anonymous mapping under a page at start: the image views were not taken from the scratch arena");
+    assert_eq!(count(&|c| c[0] == ARCH_PRCTL && c[1] == 0x1003), 0, "arch_prctl(ARCH_GET_FS) at start: __libc_start_main did not take the loader's early start first");
+    assert_eq!(count(&|c| c[0] == RT_SIGACTION), 0, "rt_sigaction at start: the internal signal's handler was installed before any thread");
+}
+
+/// DYN-START-RING; no spec clause (cost of the products). The number of system calls three dynamic starts
+/// make, from the exec to the exit: an empty main, a main calling into three libraries, and a main calling
+/// `clock_gettime`. Each count may only go down: a bound is the count measured when it was set (lower it
+/// when a change removes calls). `openat` is bounded apart, by the objects searched: each library
+/// search tries the `glibc-hwcaps` subdirectories the CPU supports (one to three) before the directory
+/// itself, so its count depends on the host's CPU level. Skipped, with the reason printed, where ptrace is
+/// not permitted.
+#[test]
+fn init_dynamic_start_system_calls_stay_within_their_bounds() {
+    const OPENAT: u64 = 257;
+    // (program, its source, the libraries it links, the bound on its calls other than openat).
+    const ROWS: [(&str, &str, usize, usize); 3] = [
+        ("empty", "int main(void) { return 0; }\n", 0, EMPTY_CALLS),
+        ("three", "int d1(void); int d2(void); int d3(void);\nint main(void) { return d1() + d2() + d3(); }\n", 3, THREE_CALLS),
+        ("clock", "#include <time.h>\nint main(void) { struct timespec t; return clock_gettime(CLOCK_MONOTONIC, &t); }\n", 0, CLOCK_CALLS),
+    ];
+    let lib = dyn_stage("dyn-count");
+    let mut over = Vec::new();
+    for (name, text, nlibs, bound) in ROWS {
+        let mut objs = Vec::new();
+        for k in 1..=nlibs {
+            let src = lib.join(format!("d{k}.c"));
+            std::fs::write(&src, format!("int d{k}(void) {{ return 0; }}\n")).unwrap();
+            let so = lib.join(format!("libd{k}.so"));
+            let st = Command::new("cc").args(["-O1", "-shared", "-fPIC", "-nostdlib", "-o"]).arg(&so).arg(&src).status().expect("cc");
+            assert!(st.success(), "{} does not build", src.display());
+            objs.push(so);
+        }
+        let src = lib.join(format!("{name}.c"));
+        std::fs::write(&src, text).unwrap();
+        let exe = lib.join(name);
+        dyn_link_with(&lib, &src, &exe, &objs);
+        let Some(calls) = start_calls(&lib, &exe) else {
+            let _ = std::fs::remove_dir_all(&lib);
+            return;
+        };
+        let opens = calls.iter().filter(|c| c[0] == OPENAT).count();
+        let rest = calls.len() - opens;
+        // `/etc/ld.so.preload`, then per object searched (libc and the libraries) up to three
+        // `glibc-hwcaps` levels and the directory.
+        let open_bound = 1 + 4 * (nlibs + 1);
+        eprintln!("dynamic {name}: {rest} system calls besides {opens} openat (bounds {bound}, {open_bound})");
+        if rest > bound || opens > open_bound {
+            over.push(format!("{name}: {rest} calls besides {opens} openat, over the bounds {bound} and {open_bound}"));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&lib);
+    assert!(over.is_empty(), "a dynamic start makes more system calls than its bound (DYN-START-RING: the counts only go down): {over:?}");
+}
+
+/// [`init_dynamic_start_system_calls_stay_within_their_bounds`]: the empty main's calls besides `openat`
+/// (DYN-START-RING, measured on the Zen 1 host).
+const EMPTY_CALLS: usize = 23;
+/// The same for the main calling three libraries (DYN-START-RING).
+const THREE_CALLS: usize = 50;
+/// The same for the main calling `clock_gettime` (DYN-START-RING).
+const CLOCK_CALLS: usize = 23;
+
+#[test]
+fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
+    let lib = dyn_stage("dyn-instr");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let (exe, reference) = (lib.join("empty_dyn"), lib.join("empty_ref"));
+    dyn_link(&lib, &src, &exe);
+    let st = Command::new("cc").args(["-O1", "-fPIE", "-pie", "-o"]).arg(&reference).arg(&src).status().expect("cc");
+    assert!(st.success(), "the reference program does not build");
+    let path = lib.display().to_string();
+    let niji = exec_instr(&lib, &exe, &[("LD_LIBRARY_PATH", path.as_str())]);
+    let host = exec_instr(&lib, &reference, &[]);
+    let _ = std::fs::remove_dir_all(&lib);
+    let (Some(niji), Some(host)) = (niji, host) else { return };
+    let cpu = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let model = cpu.lines().find_map(|l| l.strip_prefix("model name").and_then(|v| v.split_once(':')).map(|(_, m)| m.trim().to_owned())).unwrap_or_default();
+    let p = profile_index();
+    let profile = ["fast", "release"][p];
+    let tenths = niji.saturating_mul(10) / host.max(1);
+    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({}.{}x)", tenths / 10, tenths % 10);
+    let Some(bound) = DYN_START_INSTR.iter().find(|(m, _)| *m == model).map(|(_, b)| b[p]).filter(|&b| b != 0) else {
+        eprintln!("SKIP: no {profile} bound for this CPU model ({model:?}) in DYN_START_INSTR");
+        return;
+    };
+    assert!(niji <= bound, "dynamic empty main ({profile}): {niji} instructions > {bound}: the interpreter's or libc.so.6's start-up grew");
+    assert!(niji >= bound - bound / 10, "dynamic empty main ({profile}): {niji} instructions, more than 10% under {bound}: tighten DYN_START_INSTR");
 }
 
 #[test]
@@ -186,13 +706,204 @@ fn init_first_string_calls_after_printf_take_no_text_fault() {
     // RC1-FIRST: strlen, strncmp, memchr, memcmp and strcpy are in the hot group, so their first
     // calls after printf find their text mapped (main before the change: 2 faults on Zen 1 host).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_strings");
+    let exe = dir.join("page_faults_niji_strings");
     build(&exe);
     let s = faults(&exe, "strings");
     assert!(s == 0, "first string calls after printf: {s} page faults (string entry points left the hot group?)");
+}
+
+#[test]
+fn init_second_bindtextdomain_gettext_takes_no_text_fault() {
+    // No spec clause (layout of the products). COLDSTART-BINDTEXTDOMAIN-REBIND-2: the repeat
+    // lookup's functions (the resolution cache's text compare, the hinted catalog search) are in
+    // the hot group, so a same-directory rebind + dgettext after a first lookup finds its text
+    // mapped (next before the change: 2 file-backed text faults on a Zen 1 host).
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_rebind");
+    build(&exe);
+    let s = faults(&exe, "rebind");
+    assert!(s == 0, "second bindtextdomain + dgettext: {s} page faults (repeat-lookup functions left the hot group?)");
+}
+
+#[test]
+fn init_first_mktime_after_localtime_r_takes_no_fault() {
+    // No spec clause (cost of the products). PERF-FIRSTCALL-MKTIME-SNPRINTF: the zone load starts
+    // the TSC gate, so the first mktime after localtime_r neither queries the counter (a cold
+    // text page and a system call: 1 fault on next before the change) nor reads the clock.
+    if !Path::new("/usr/share/zoneinfo/America/New_York").exists() {
+        eprintln!("skipped: no /usr/share/zoneinfo/America/New_York on this host");
+        return;
+    }
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_mktime");
+    build(&exe);
+    let s = faults(&exe, "mktime");
+    assert!(s == 0, "first mktime after localtime_r: {s} page faults (counter query back on the first implicit tzset?)");
+}
+
+/// The faults of the first `localtime_r` (PERF-ZONE-LOAD-FAULTS): it reads, parses and keeps
+/// the zone file. Zen 1 host role, every run identical: 25 before the change (the path, the
+/// names and a temporary type table each grown or copied through their own allocation size),
+/// 22 after. Bound = that plus 2 for layout-only deltas, under the old count;
+/// `zone_load_alloc.rs` pins each table at one allocation exactly.
+/// PERF-ZONE-LOAD-FAULTS-2: the zone-load functions the list lacked (`zone_path`, the transition
+/// table's `TryVec::resize`, `rule::when_of`, `Zone::kind_period`) and the first-mktime path now
+/// sit in the localtime block of `hot-text.list`: Skylake-SP host role, every run identical,
+/// 22 -> 20 (and the first mktime 1 -> 0). LOCALTIME_BOUND 24 -> 22 (20 plus 2).
+/// PERF-ZONE-LOAD-FAULTS-3: after the merge of next, whose list added `tsc_probe`, `niji_sys_prctl`,
+/// `niji_machine_rdtsc`, `Resolution::matches` and `TscGate::fresh` to the mktime block, that block
+/// sits behind the localtime block with them and the first `localtime_r` finds its `tsc_probe` call in
+/// the same 64 KiB window: Zen 1 host role, every run identical, 18 (the mktime block back behind
+/// strftime's functions: 19; the rule-years table four times longer: 21). LOCALTIME_BOUND 22 -> 20
+/// (18 plus 2).
+/// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
+/// HEAP-RSEQ-NODE-3 (records/pending/HEAP-RSEQ-NODE-3-1.toml, amends D-X.53): the "localtime" mode now reports the whole
+/// process's faults up to the end of the first `localtime_r` (start-up plus the call). The vDSO lookup
+/// stays lazy (owner ruling #5735 (b)): when the heap stopped calling the vDSO `getcpu` at start-up, the
+/// lookup moved into the first clock call, which the call-only count read as +2 (20 > 18 on two-node
+/// hosts) although the process did no more work. Counted whole, a fault that moves between start-up
+/// and the first call shows as no change. Bound = origin/next 5bbefc645's whole-process count measured
+/// the same way (this probe, this harness), per profile: Skylake-SP host (two NUMA nodes), every run
+/// identical, fast 40, release 42; this branch reads the same. Indexed by [`profile_index`].
+/// LAYOUT-WINDOW-BINS-5 (window bins, slice 2): Zen 1 host role, every run identical, fast 36, release 36
+/// (base 40 / 41). The release bound comes down to 40 only because [`WHOLE_COUNT_SLACK`] refuses 36 under
+/// 42; the levels of the other host classes are not measured yet (the base read one more on Skylake-SP), so
+/// the tightening to the new level is left to the slice that records them (LAYOUT-WINDOW-BINS-6).
+/// LAYOUT-WINDOW-BINS-7 (slice 3): origin/next f494ad65d, fast 36, release 36 on the Zen 1 and the Skylake-SP
+/// host (the same probe binaries, every run identical; see TRUE_BOUND). 40 / 40 -> 36 / 36.
+const LOCALTIME_BOUND: [u64; 2] = [36, 36];
+
+/// The first `localtime_r` (zone load included) and the first `mktime` after it, counted
+/// together (PERF-ZONE-LOAD-FAULTS-2): a fault that moves from one call to its neighbour (the
+/// leaner zone load once left `days_from_civil64`'s text window to the first mktime) shows here
+/// as no change, an added one as a rise, while the per-call bounds above still hold each call.
+/// Skylake-SP host role, every run identical: 20 after the hot-text pin (before it the per-call
+/// modes read 22 + 1; this mode did not exist yet).
+/// Bound = 20 plus 2, as for LOCALTIME_BOUND.
+/// PERF-ZONE-LOAD-FAULTS-3 (merge of next, see LOCALTIME_BOUND): Zen 1 host role, every run
+/// identical, 18. Bound 22 -> 20 (18 plus 2).
+/// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
+/// HEAP-RSEQ-NODE-3: whole process up to the end of the first mktime, as for [`LOCALTIME_BOUND`];
+/// origin/next 5bbefc645, same host and harness, every run identical: fast 40, release 42.
+/// LAYOUT-WINDOW-BINS-5: fast 36, release 36 (Zen 1 host role); release 42 -> 40, as [`LOCALTIME_BOUND`].
+/// LAYOUT-WINDOW-BINS-7: fast 36, release 36 on the Zen 1 and the Skylake-SP host; 40 / 40 -> 36 / 36.
+const LOCALTIME_MKTIME_BOUND: [u64; 2] = [36, 36];
+
+/// A whole-process count this far under its bound fails too: either the probe no longer counts
+/// start-up (a call-only count reads about 20 under these bounds) or the level improved and the bound
+/// must come down to it (ALWAYS FORWARD). Room for the one-fault spread once seen between host classes (none
+/// since the window bins, LAYOUT-WINDOW-BINS-7).
+const WHOLE_COUNT_SLACK: u64 = 4;
+
+/// [`check_whole_count`]'s hint for the two localtime modes.
+const LOCALTIME_HINT: &str = "zone-load or mktime text left the hot group, or start-up grew?";
+
+/// 0 for products of the `fast` profile, 1 for `release`: the directory the products' start-up lists
+/// marker names (`target/product/<profile>`, see [`generated_list`]).
+fn profile_index() -> usize {
+    let dir = generated_list("");
+    let name = dir.components().next_back().map(|c| c.as_os_str().to_string_lossy().into_owned()).unwrap_or_default();
+    match name.as_str() {
+        "fast" => 0,
+        "release" => 1,
+        other => panic!("target/niji/.hot-lists names products of profile {other:?}, want fast or release"),
+    }
+}
+
+/// [`faults`] of a whole-process mode, checked against its per-profile bound from both sides; `hint` names the
+/// likely cause of a count over the bound.
+fn check_whole_count(what: &str, s: u64, bounds: [u64; 2], hint: &str) {
+    let p = profile_index();
+    let bound = bounds[p];
+    let profile = ["fast", "release"][p];
+    eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
+    fault_bound(s <= bound, &format!("{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})"));
+    fault_bound(
+        s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
+        &format!("{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"),
+    );
+}
+
+/// The switch that makes the runtime fault bounds blocking: `NIJI_FAULT_BOUNDS=enforce` (the release ratchet).
+const FAULT_BOUNDS_ENV: &str = "NIJI_FAULT_BOUNDS";
+
+/// LAYOUT-BYTE-BUDGETS-2 (D-X.136, owner ruling R2): a runtime fault bound is a release metric, not the per-story
+/// gate (that is the link map's WINDOW-BIN-BYTES contract, checked by every `cargo xtask so`). A bound that does not
+/// hold prints a `FAULT-COUNT REPORT` line and the test goes on; with [`FAULT_BOUNDS_ENV`]`=enforce` it fails.
+fn fault_bound(holds: bool, msg: &str) {
+    if holds {
+        return;
+    }
+    if std::env::var(FAULT_BOUNDS_ENV).is_ok_and(|v| v == "enforce") {
+        panic!("{msg}");
+    }
+    eprintln!("FAULT-COUNT REPORT (non-blocking, D-X.136; {FAULT_BOUNDS_ENV}=enforce makes it fail): {msg}");
+}
+
+#[test]
+fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound() {
+    // No spec clause (cost of the products). PERF-ZONE-LOAD-FAULTS-2.
+    if !Path::new("/usr/share/zoneinfo/America/New_York").exists() {
+        eprintln!("skipped: no /usr/share/zoneinfo/America/New_York on this host");
+        return;
+    }
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_localtime_mktime");
+    build(&exe);
+    let s = faults(&exe, "localtime_mktime");
+    check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND, LOCALTIME_HINT);
+}
+
+#[test]
+fn init_first_localtime_r_stays_within_its_page_fault_bound() {
+    // No spec clause (cost of the products). PERF-ZONE-LOAD-FAULTS: the zone load makes one
+    // allocation per table, each sized once, so it touches few heap regions.
+    if !Path::new("/usr/share/zoneinfo/America/New_York").exists() {
+        eprintln!("skipped: no /usr/share/zoneinfo/America/New_York on this host");
+        return;
+    }
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_localtime");
+    build(&exe);
+    let s = faults(&exe, "localtime");
+    check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND, LOCALTIME_HINT);
+}
+
+/// The faults of a program's first `%.2f` (PERF-FIRSTCALL-MKTIME-SNPRINTF). `format_float` with the
+/// full decimal expansion inlined had a 24 KiB frame whose prologue probed six stack pages.
+/// Haswell-EP host role, after the change: 4 in every run (text and the first stack page); bound
+/// = that plus 2 for layout-only deltas, below the six stack faults alone of the inlined frame.
+/// STARTUP-FAULTS-RESTORE-4: fast 2, release 4 (Haswell-EP host, relay harness); FLOAT_BOUND 6 -> 5.
+/// LAYOUT-TRACE-DEFAULT: 3 in both profiles on all four host classes (see TRUE_BOUND); FLOAT_BOUND 5 -> 3.
+const FLOAT_BOUND: u64 = 3;
+
+#[test]
+fn init_first_float_conversion_stays_within_its_page_fault_bound() {
+    // No spec clause (cost of the products): the common float conversion keeps a small frame.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_float");
+    build(&exe);
+    let s = faults(&exe, "float");
+    eprintln!("first %.2f: {s} page faults (bound {FLOAT_BOUND})");
+    fault_bound(s <= FLOAT_BOUND, &format!("first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)"));
 }
 
 #[test]
@@ -202,16 +913,49 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
     // workload) and only wl_count saw it. This program runs the functions such a tool runs, so a
     // list that no longer covers them fails here, in the direct tier.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_tool");
+    let exe = dir.join("page_faults_niji_tool");
     build(&exe);
     let t = faults(&exe, "tool");
-    eprintln!("minor faults: coreutils-shaped tool {t} (bound {TOOL_BOUND})");
-    assert!(t <= TOOL_BOUND, "coreutils-shaped program: {t} page faults > {TOOL_BOUND} (hot-text list stale? run tools/hottext/regen.sh with a coreutils program)");
+    check_whole_count("coreutils-shaped program", t, TOOL_BOUND, "the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log");
+}
+
+/// "fork" mode: the minor faults of a `fork` child that calls `_exit(0)` (the second of two, from
+/// `wait4`'s rusage). `fork` copies no page tables of the file-backed text, so the child faults
+/// once per 64 KiB text window its path touches (fork return, child reset, `_exit`) on top of its
+/// copy-on-write writes (stack, thread block, data). TIMING-COV-FORK-COW-FAULTS: before the fork
+/// path joined the hot list (tools/hottext/probes/p_fork.c), the path spanned 9 windows.
+/// Calibration (Zen 1 host, this test, every run identical): old list, release products 8 and fast
+/// products 13 (perf page-fault addresses: 9 text faults, 4 writes); regenerated list, release 6, fast
+/// 7. Bound = the highest count with the list, 7, plus 2 (the rule above); the old list on fast
+/// products (the gate's) reads 13. STARTUP-FAULTS-RESTORE-2 (D-X.53, count + 1): 7 on the Zen 1 host
+/// and on the Skylake-SP host (fast products, every run identical), so the bound is 8.
+/// STARTUP-FAULTS-RESTORE-3: 6 after the merge with next (fork-tier functions `#[inline(never)]`,
+/// HOTTEXT-REGEN-UNBLOCK): Haswell-EP host, every run identical, and 6 on the Zen 1 host in that
+/// story's base column, so the bound is 7.
+/// LAYOUT-DATA-CLUSTERS-7 (D-X.70): 5 in both profiles at every `data` pad (Haswell-EP host, every run
+/// identical; next read 6 release and 7 fast) once the state the child reads joined the `.data1` cluster,
+/// whose pages start-up touches, so the bound is 6.
+/// LAYOUT-TRACE-DEFAULT: 5 in both profiles on all four host classes (see TRUE_BOUND); FORK_BOUND 6 -> 5.
+const FORK_BOUND: u64 = 5;
+
+#[test]
+fn init_fork_child_stays_within_its_page_fault_bound() {
+    // No spec clause (layout of the products): the fork child's text path is grouped in the hot
+    // text, so a child that only exits faults on few text windows.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_niji_fork");
+    build(&exe);
+    let f = faults(&exe, "fork");
+    eprintln!("minor faults: fork child {f} (bound {FORK_BOUND})");
+    fault_bound(f <= FORK_BOUND, &format!("fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)"));
 }
 
 /// HOTTEXT-COLD-STARTUP: start-up's machine entry points (each in its own `.text.<f>` section of
@@ -224,7 +968,7 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
 /// No spec clause (layout of the products).
 #[test]
 fn init_cold_startup_functions_are_grouped() {
-    let out = Command::new("readelf").arg("-SW").arg(root().join("target/liella/libc.a")).output().expect("readelf");
+    let out = Command::new("readelf").arg("-SW").arg(root().join("target/niji/libc.a")).output().expect("readelf");
     let sections = String::from_utf8_lossy(&out.stdout).into_owned();
     let grouped: Vec<&str> = sections
         .lines()
@@ -233,22 +977,42 @@ fn init_cold_startup_functions_are_grouped() {
         .filter_map(|a| a.split_whitespace().next())
         .collect();
     for f in [
-        "liella_machine_set_scan_level",
-        "liella_machine_env_find",
-        "liella_machine_strlen",
-        "liella_machine_vcall3",
-        "15liella_boundary3cpu4init",
-        "liella_machine_strncmp",
-        "liella_machine_memchr_entry",
-        "liella_machine_strcpy",
-        "liella_machine_compare",
-        "liella_machine_memmove",
-        "liella_machine_memset",
+        "niji_machine_set_scan_level",
+        "niji_machine_env_find",
+        "niji_machine_strlen",
+        "niji_machine_vcall3",
+        "13niji_boundary3cpu4init",
+        "niji_machine_strncmp",
+        "niji_machine_memchr_entry",
+        "niji_machine_strcpy",
+        "niji_machine_compare",
+        "niji_machine_memmove",
+        "niji_machine_memset",
     ] {
         assert!(
             grouped.iter().any(|s| s.split_once('.').is_some_and(|(_, name)| name == f || name.ends_with(f))),
-            "{f}: not in the hot group of libc.a (its own section? listed in crates/libc-so/hot-text.list?)"
+            "{f}: not in the hot group of libc.a (its own section? in this build's traced hot-text.list?)"
         );
+    }
+    // HOTTEXT-STARTUP-COMPLETE: the first Rust function of start-up (generic since the run-path
+    // change: `start::<false>`, 5.1 KiB) and the IRELATIVE pass. Outside the group, `start` sat in
+    // cold `.text` and crossed a 64 KiB window when code before it grew (one more start-up fault).
+    // `start::<false>` itself: `_RINvNtCs<crate hash>_` then the path and `E` (closures and callers
+    // that carry `start::<false>` as a type argument, grouped or not, name other functions; plant
+    // start-key-removed). The release profile inlines `apply_irelative` into `start`: every section
+    // of it present must be grouped (the name's end: its closures are other functions).
+    let f = "13niji_boundary7runtime5startKb0_E";
+    assert!(
+        grouped.iter().any(|s| {
+            s.split_once('.').and_then(|(_, name)| name.strip_prefix("_RINvNtCs")).and_then(|r| r.split_once('_')).is_some_and(|(_, r)| r.starts_with(f))
+        }),
+        "{f}: not in the hot group of libc.a (renamed or generic? not reached by this build's trace?)"
+    );
+    for l in sections.lines().filter_map(|l| l.split_once("] ").map(|(_, a)| a)) {
+        let s = l.split_whitespace().next().unwrap_or("");
+        if s.starts_with(".text.") && s.ends_with("13niji_boundary7runtime15apply_irelative") {
+            assert!(s.starts_with(".text.sorted.h"), "{s}: apply_irelative is not in the hot group of libc.a (not reached by this build's trace?)");
+        }
     }
     // NSCACHE-SECOND-LOOKUP: the name-service cache's attach and hit paths (p_nss): outside the
     // group the second lookup of a process took 4 more text faults. Which of them keep a section of
@@ -264,11 +1028,108 @@ fn init_cold_startup_functions_are_grouped() {
     let mut seen = 0;
     for f in ["7NsCache11region_path", "7NsCache6attach", "6Memory10map_shared", "5Table11stamp_files", "5Table3get"] {
         for s in text.iter().filter(|s| s.contains(f)) {
-            assert!(s.starts_with("sorted.h"), "{f}: section .text.{s} is not in the hot group of libc.a (listed in crates/libc-so/hot-text.list?)");
+            assert!(s.starts_with("sorted.h"), "{f}: section .text.{s} is not in the hot group of libc.a (in this build's traced hot-text.list?)");
             seen += 1;
         }
     }
     assert!(seen >= 2, "name-service cache attach path: {seen} sections found in libc.a (renamed? update the names above)");
+}
+
+/// The address range of a linked program's start-up and hot text, from its GNU ld map: the
+/// input sections `.text.startup*` (`_start`, entry.S) and `.text.sorted.h*` (the hot group),
+/// which the default script places next to each other. `(lo, hi)`, hi exclusive.
+fn hot_text_range(map: &str) -> (u64, u64) {
+    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
+    let lines: Vec<&str> = map.lines().skip_while(|l| !l.starts_with("Linker script and memory map")).collect();
+    let (mut lo, mut hi) = (u64::MAX, 0);
+    for (i, l) in lines.iter().enumerate() {
+        let Some(t) = l.strip_prefix(' ') else { continue };
+        if !(t.starts_with(".text.sorted.h") || t.starts_with(".text.startup")) {
+            continue;
+        }
+        let mut w: Vec<&str> = t.split_whitespace().skip(1).collect();
+        if w.is_empty() {
+            w = lines.get(i.saturating_add(1)).map(|n| n.split_whitespace().collect()).unwrap_or_default();
+        }
+        if let (Some(a), Some(s)) = (w.first().and_then(|x| hex(x)), w.get(1).and_then(|x| hex(x))) {
+            if a != 0 && s != 0 {
+                lo = lo.min(a);
+                hi = hi.max(a.saturating_add(s));
+            }
+        }
+    }
+    (lo, hi)
+}
+
+/// STARTUP-FAULTS-RESTORE: the functions every static process runs before `main` lie inside the
+/// hot text range of a linked program, a check that does not depend on fault counts. When
+/// DL-BOOT-RELOC-7 made `runtime::start` generic, its list key went dead and `start::<false>`
+/// and `apply_irelative` ran from two 64 KiB windows of cold `.text` (two more faults), which
+/// fitted inside the count bounds' slack. Required: `_start`, `__libc_start_main` and
+/// `start::<false>`; `apply_irelative` and `niji_rt::start::program` when the program references
+/// their out-of-line copy (release inlines both; fast inlines `program` at its start-up call but
+/// keeps an unreferenced copy, whose list key regen drops). No spec clause (layout of the products).
+#[test]
+fn init_startup_path_lies_in_the_hot_text_range() {
+    let dir = std::env::temp_dir().join(format!("niji-hot-range-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let (exe, map) = (dir.join("page_faults"), dir.join("page_faults.map"));
+    build_with(&exe, &[&format!("-Wl,-Map={}", map.display())]);
+    let (lo, hi) = hot_text_range(&std::fs::read_to_string(&map).expect("link map"));
+    let out = Command::new("nm").arg(&exe).output().expect("nm");
+    assert!(lo < hi, "no .text.startup / .text.sorted.h* input sections in the link map");
+    // A v0 name after its crate hash: `_R<prefix>Cs<hash>_<rest>` -> `<rest>`.
+    let path = |name: &str, prefix: &str| name.strip_prefix(prefix).and_then(|r| r.split_once('_')).map(|(_, r)| r.to_string());
+    let mut found = std::collections::BTreeMap::new();
+    for l in String::from_utf8_lossy(&out.stdout).lines() {
+        let w: Vec<&str> = l.split_whitespace().collect();
+        let [addr, kind, name] = w[..] else { continue };
+        // `W`: the products' public functions are weak (`__libc_start_main`).
+        if !matches!(kind, "T" | "t" | "W" | "w") {
+            continue;
+        }
+        let name = name.split(".llvm.").next().unwrap_or(name);
+        let which = match name {
+            "_start" => "_start",
+            "__libc_start_main" => "__libc_start_main",
+            _ if path(name, "_RINvNtCs").is_some_and(|r| r.starts_with("13niji_boundary7runtime5startKb0_E")) => "runtime::start::<false>",
+            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "13niji_boundary7runtime15apply_irelative") => "runtime::apply_irelative",
+            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "7niji_rt5start7program") => "niji_rt::start::program",
+            _ => continue,
+        };
+        found.insert(which, u64::from_str_radix(addr, 16).expect("nm address"));
+    }
+    eprintln!("hot text {lo:#x}..{hi:#x}; start-up functions {found:x?}");
+    const REQUIRED: [&str; 3] = ["_start", "__libc_start_main", "runtime::start::<false>"];
+    for f in REQUIRED {
+        assert!(found.contains_key(f), "{f}: not found in the linked program (renamed? update this test)");
+    }
+    // An optional function outside the hot range counts only if an instruction names its address
+    // (a call, a tail jump, a pointer load). The fast profile inlines `start::program` into the
+    // start-up path but keeps an out-of-line copy for other users in its object; with no
+    // reference that copy never runs, so where it lies costs no fault. Disassembled only when
+    // needed (an optional function outside the range).
+    let outside = |a: &u64| !(lo..hi).contains(a);
+    let disasm = if found.iter().any(|(f, a)| !REQUIRED.contains(f) && outside(a)) {
+        let d = Command::new("objdump").args(["-d", "--no-show-raw-insn"]).arg(&exe).output().expect("objdump");
+        assert!(d.status.success(), "objdump -d failed");
+        String::from_utf8_lossy(&d.stdout).into_owned()
+    } else {
+        String::new()
+    };
+    let _ = std::fs::remove_dir_all(&dir);
+    // A label line reads `0000000000764f80 <name>:`; a reference reads `call   764f80 <name>`.
+    let referenced = |a: u64| {
+        let operand = format!(" {a:x} <");
+        disasm.lines().any(|l| l.contains(&operand))
+    };
+    for (f, a) in &found {
+        if REQUIRED.contains(f) || referenced(*a) {
+            assert!(!outside(a), "{f} at {a:#x}: outside the hot text {lo:#x}..{hi:#x} (not reached by this build's trace? see target/product/<profile>/trace.log)");
+        } else if outside(a) {
+            eprintln!("{f} at {a:#x}: outside the hot text, but nothing in the program references it (inlined; never runs)");
+        }
+    }
 }
 
 #[test]
@@ -279,7 +1140,7 @@ fn harness_staged_copy_execs_while_other_threads_spawn() {
     // (ETXTBSY: a spawned child still held the copy's write fd) fails the test.
     use std::sync::atomic::AtomicBool;
     let src = ["/usr/bin/true", "/bin/true"].iter().map(Path::new).find(|p| p.exists()).expect("no true program");
-    let dir = PathBuf::from(format!("/tmp/liella-hot-text-etxtbsy-{}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-hot-text-etxtbsy-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let stop = AtomicBool::new(false);
@@ -308,22 +1169,22 @@ fn harness_staged_copy_execs_while_other_threads_spawn() {
     assert!(failures.is_empty(), "staged copies failed to exec while other threads spawned ({} of 500): {:?}", failures.len(), &failures[..failures.len().min(3)]);
 }
 
-/// STARTUP-READ-CONSTANTS: the names start-up reads (`liella_boundary::startup_names`) sit in
+/// STARTUP-READ-CONSTANTS: the names start-up reads (`niji_boundary::startup_names`) sit in
 /// one `.rodata1` section of a static program, inside one 64 KiB fault-around window, so
 /// unrelated code growth cannot split them over two windows; and `Vdso::parse` has no jump
 /// table (its `.rodata.<f>` was the other start-up read that moved with the code).
 #[test]
 fn init_startup_names_sit_in_one_window() {
-    let dir = PathBuf::from(format!("/tmp/liella-startup-names-{:010}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-startup-names-{:010}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let (exe, map) = (dir.join("p"), dir.join("p.map"));
     let r = root();
     let st = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .arg(r.join("target/niji/niji-crt1.o"))
         .arg(r.join("crates/core/tests/oracle/page_faults.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg(format!("-Wl,-Map,{}", map.display()))
         .arg("-o")
@@ -350,9 +1211,875 @@ fn init_startup_names_sit_in_one_window() {
     let addr = u64::from_str_radix(f[2], 16).unwrap();
     let size = u64::from_str_radix(f[4], 16).unwrap();
     eprintln!("startup names: .rodata1 at {addr:#x}, {size} bytes");
-    assert!(size > 0 && size <= 4096, "startup names: .rodata1 holds {size} bytes, want one static of at most a page");
+    // D-X.62: .rodata1 holds the start-up read-only data group (STARTUP_NAMES among it), at most one window.
+    assert!(size > 0 && size <= 65536, "startup names: .rodata1 holds {size} bytes, want the start-up group of at most one 64 KiB window");
     assert_eq!(addr >> 16, (addr + size - 1) >> 16, "startup names: .rodata1 {addr:#x}+{size} crosses a 64 KiB window");
     let at = names_at.unwrap_or_else(|| panic!("startup names: no STARTUP_NAMES symbol in the program"));
     assert!(addr <= at && at < addr + size, "startup names: STARTUP_NAMES at {at:#x} is not in .rodata1");
     assert!(!map.lines().any(|l| l.contains(".rodata.") && l.contains("Vdso5parse")), "startup names: Vdso::parse has a .rodata table again");
+}
+
+/// A static's symbol without the tails the compiler may add to it: ThinLTO's promotion suffix
+/// (`<sym>.llvm.<n>`) and a split part number (`<sym>.<n>`), the same tails
+/// `xtask/src/coldbss.rs` drops before matching sections.
+fn symbol_stem(name: &str) -> &str {
+    let name = name.split_once(".llvm.").map_or(name, |(s, _)| s);
+    match name.rsplit_once('.') {
+        Some((s, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => s,
+        _ => name,
+    }
+}
+
+/// STARTUP-FAULTS-RESTORE (D-X.53): the small statics that start-up writes first sit in `.data1`
+/// in libc.a (`xtask/src/coldbss.rs::move_startup_state`), so the linker puts them on one page
+/// next to `.bss`. Each one is worth at most one fault, which the count bounds' +1 slack lets
+/// through, so this checks the placement itself. No spec clause (layout of the products).
+#[test]
+fn init_startup_state_statics_are_in_data1() {
+    let out = Command::new("objdump").arg("-t").arg(root().join("target/niji/libc.a")).output().expect("objdump");
+    let table = String::from_utf8_lossy(&out.stdout).into_owned();
+    for suffix in [
+        "13niji_boundary7process10AUXV_WORDS",
+        "13niji_boundary3sys12SYSINFO_EHDR",
+        "13niji_boundary3cpu14AVX2_ERMS_FROM",
+        "13niji_boundary3cpu12AVX2_ERMS_TO",
+        "11niji_legacy13global_locale6GLOBAL",
+        "11niji_legacy13global_locale4LOCK",
+        "11niji_legacy7nscache7NSCACHE",
+        "13niji_boundary5timer5EPOLL",
+    ] {
+        let sections: Vec<&str> = table
+            .lines()
+            .filter(|l| l.split_whitespace().last().is_some_and(|n| symbol_stem(n.rsplit_once(".llvm.").map_or(n, |(s, _)| s)).ends_with(suffix)))
+            // `<value> <flags> <section>\t<size> [.hidden ]<name>`
+            .filter_map(|l| l.split_once('\t').and_then(|(a, _)| a.split_whitespace().last()))
+            .filter(|s| *s != "*UND*")
+            .collect();
+        assert!(!sections.is_empty(), "start-up state: no definition of *{suffix} in libc.a (renamed? update xtask/src/coldbss.rs and this test)");
+        assert!(sections.iter().all(|s| *s == ".data1"), "start-up state: *{suffix} is in {sections:?}, want .data1 (move_startup_state not applied?)");
+    }
+}
+
+/// The kernel's fault-around window (64 KiB on the reference hosts): a static program's first text
+/// fault maps the 16 pages from the start of its executable segment.
+const FIRST_WINDOW: u64 = 0x10000;
+
+/// LAYOUT-FIRST-WINDOW (D-X pending record; #5026, #5096): the start-up group (the start file's
+/// `.text.startup*`, the start-up tier of `hot-text.list` and the keys of `hot-text.first-window`,
+/// which `cargo xtask so` links right after that tier) ends inside the first fault-around window of
+/// the probe, and `niji_sys_fstat` with it. When a 0x240-byte start-up growth moved fstat to
+/// 0x418040, one page past the window 0x408000..0x417fff, the release tool, locale, localtime and
+/// localtime_mktime probes each took one more text fault, inside their bounds' slack. Prints the
+/// margin. No spec clause (layout of the products).
+#[test]
+fn init_startup_group_ends_inside_the_first_fault_around_window() {
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = std::env::temp_dir().join(format!("niji-first-window-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let map = link_map(&dir, &r.join("target/niji/niji-crt1.o"));
+    let ph = Command::new("readelf").arg("-lW").arg(dir.join("page_faults")).output().expect("readelf -lW");
+    let _ = std::fs::remove_dir_all(&dir);
+    // `LOAD off vaddr paddr filesz memsz flags align`, flags as separate words (`R E`); the
+    // executable one starts the text mapping.
+    let seg = String::from_utf8_lossy(&ph.stdout)
+        .lines()
+        .map(|l| l.split_whitespace().collect::<Vec<_>>())
+        .find(|w| w.first() == Some(&"LOAD") && w.get(6..).is_some_and(|f| f.contains(&"E") || f.contains(&"RE")))
+        .and_then(|w| u64::from_str_radix(w[2].trim_start_matches("0x"), 16).ok())
+        .expect("no executable LOAD segment in the probe");
+    let (start, end) = (seg & !0xfff, (seg & !0xfff) + FIRST_WINDOW);
+    // LAYOUT-WINDOW-BINS slice 2 (D-X.103): the start-up group is the start file's `.text.startup*` and
+    // the head window bin (bin 0, members and fillers), which holds every section the `true` mode runs.
+    let inputs = text_inputs(&map);
+    let group_end = inputs.iter().filter(|(n, _, s, _)| *s > 0 && (n.starts_with(".text.startup") || bin_of(n) == Some(0))).map(|(_, a, s, _)| a + s).max().expect("no start-up group in the link map");
+    // Bytes left in the window; negative when the group ends past it.
+    let margin = i128::from(end) - i128::from(group_end);
+    eprintln!("first window {start:#x}..{end:#x}: start-up group (head bin) ends {group_end:#x}, margin {margin} bytes");
+    assert!(
+        group_end <= end,
+        "FIRST-WINDOW margin: the head window bin ends {group_end:#x}, {} bytes past the first fault-around window {start:#x}..{end:#x}: every probe takes one more text fault; the head bin's room (xtask/src/bins.rs HEAD_ROOM) no longer covers what precedes the group, never raise this window",
+        -margin
+    );
+}
+
+/// The window bin of a grouped section name `.text.sorted.h9<bin, 2><0|1><place, 5>.<f>`
+/// (xtask/src/bins.rs `section`); `None` for any other name.
+fn bin_of(name: &str) -> Option<usize> {
+    let d = name.strip_prefix(".text.sorted.h9")?;
+    let digits = d.bytes().take_while(u8::is_ascii_digit).count();
+    if digits != 8 {
+        return None;
+    }
+    d[..2].parse().ok()
+}
+
+/// The bins of this build's plan (`layout-bins.tsv` next to its list) that some counted `page_faults`
+/// mode touches: every one of them after the head bin starts on a 64 KiB boundary.
+fn counted_bins() -> std::collections::BTreeSet<usize> {
+    let tsv = std::fs::read_to_string(generated_list("layout-bins.tsv")).expect("layout-bins.tsv (cargo xtask so writes it)");
+    tsv.lines()
+        .filter(|l| !l.starts_with('#'))
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            (f.len() == 4 && f[3] != "-" && f[3] != "cold").then(|| f[0].parse().expect("layout-bins.tsv: bin"))
+        })
+        .collect()
+}
+
+/// The address range of each counted window bin in a link map, members and fillers: (bin, lo, hi), hi
+/// exclusive.
+fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
+    let counted = counted_bins();
+    assert!(counted.len() >= 2, "layout-bins.tsv: {} counted bins, want the head bin and more", counted.len());
+    let mut out: std::collections::BTreeMap<usize, (u64, u64)> = std::collections::BTreeMap::new();
+    for (n, a, s, _) in text_inputs(map) {
+        if let Some(b) = bin_of(&n).filter(|b| s > 0 && counted.contains(b)) {
+            let e = out.entry(b).or_insert((u64::MAX, 0));
+            e.0 = e.0.min(a);
+            e.1 = e.1.max(a.saturating_add(s));
+        }
+    }
+    let missing: Vec<&usize> = counted.iter().filter(|b| !out.contains_key(b)).collect();
+    assert!(missing.is_empty(), "counted window bins {missing:?} of layout-bins.tsv have no section in the probe's link (the plan's names not applied?)");
+    out.into_iter().map(|(b, (lo, hi))| (b, lo, hi)).collect()
+}
+
+/// The start file's empty section that ends the window bins (xtask/src/bins.rs `GROUP_END`).
+const GROUP_END: &str = ".text.sorted.h9z.niji_group_end";
+
+/// The window-bin structure of a linked probe: every counted bin after the head one starts on a 64 KiB
+/// boundary, and every counted bin of at most 64 KiB lies inside one window. GROUP-END
+/// (LAYOUT-WINDOW-BINS-5): the start file's [`GROUP_END`] follows every bin and sits on a 64 KiB boundary, so
+/// the program's own text after the group (the probe's `main`) starts there, not across the last bin's
+/// window (start-up read 12 against 11 when `main` spanned two windows).
+fn bin_window_errors(map: &str) -> Vec<String> {
+    let mut bad = Vec::new();
+    let inputs = text_inputs(map);
+    match inputs.iter().position(|s| s.0 == GROUP_END) {
+        None => bad.push(format!("GROUP-END: no {GROUP_END} input in .text (niji-crt1.o built without it?)")),
+        Some(e) => {
+            if inputs[e].1 % 0x10000 != 0 {
+                bad.push(format!("GROUP-END: {GROUP_END} at {:#x}, not on a 64 KiB boundary", inputs[e].1));
+            }
+            let late: Vec<&str> = inputs[e..].iter().filter(|s| s.2 > 0 && bin_of(&s.0).is_some()).map(|s| s.0.as_str()).collect();
+            if !late.is_empty() {
+                bad.push(format!("GROUP-END: window-bin sections after {GROUP_END}: {late:?}"));
+            }
+        }
+    }
+    for (b, lo, hi) in bin_ranges(map) {
+        if b > 0 && lo % 0x10000 != 0 {
+            bad.push(format!("BIN-WINDOW: bin {b} starts at {lo:#x}, not on a 64 KiB boundary (its first member's alignment missing?)"));
+        }
+        if hi.saturating_sub(lo) <= 0x10000 && lo >> 16 != hi.saturating_sub(1) >> 16 && b > 0 {
+            bad.push(format!("BIN-WINDOW: bin {b} at {lo:#x}..{hi:#x} straddles a 64 KiB window"));
+        }
+    }
+    bad
+}
+
+/// The input sections of the `.text` output section of a GNU ld map, in address order:
+/// (name, address, size, file). A long name sits alone on its line, the rest on the next.
+fn text_inputs(map: &str) -> Vec<(String, u64, u64, String)> {
+    output_inputs(map, ".text")
+}
+
+/// The input sections of output section `output` of a GNU ld map, as [`text_inputs`].
+fn output_inputs(map: &str, output: &str) -> Vec<(String, u64, u64, String)> {
+    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
+    let lines: Vec<&str> = map.lines().skip_while(|l| !l.starts_with("Linker script and memory map")).collect();
+    let start = lines.iter().position(|l| l.split_whitespace().next() == Some(output) && !l.starts_with(' ')).unwrap_or_else(|| panic!("no {output} output section in the link map"));
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate().skip(start.saturating_add(1)) {
+        if !l.is_empty() && !l.starts_with(' ') {
+            break;
+        }
+        let Some(t) = l.strip_prefix(' ') else { continue };
+        if !t.starts_with('.') {
+            continue;
+        }
+        let mut w: Vec<&str> = t.split_whitespace().collect();
+        let name = w.remove(0).to_string();
+        if w.is_empty() {
+            w = lines.get(i.saturating_add(1)).map(|n| n.split_whitespace().collect()).unwrap_or_default();
+        }
+        if let (Some(a), Some(s), Some(f)) = (w.first().and_then(|x| hex(x)), w.get(1).and_then(|x| hex(x)), w.get(2)) {
+            out.push((name, a, s, (*f).to_string()));
+        }
+    }
+    out
+}
+
+/// The probe linked with a `-Map`; returns the map's text.
+fn link_map(dir: &Path, crt1: &Path) -> String {
+    let (exe, map) = (dir.join("page_faults"), dir.join("page_faults.map"));
+    build_crt1(&exe, &[&format!("-Wl,-Map={}", map.display())], crt1);
+    std::fs::read_to_string(&map).expect("link map")
+}
+
+/// LAYOUT-TEXT-PIN (D-X.63): TEXT-PREFIX. No input section of `libc.a` lies between the start of
+/// `.text` and the hot group: rustc puts `#[cold]` functions in `.text.unlikely.<f>` (and a function
+/// named `exit` in `.text.exit`), which GNU ld places ahead of the group, so any cold function added
+/// anywhere in the library moved every 64 KiB window boundary inside the group (mktime 0 -> 1, start-up
+/// text 5 -> 4 in LAYOUT-STABILITY-RETHINK's pad matrix). `cargo xtask so` renames them out of those
+/// patterns. The start file's own `.text.startup._start` and the program's sections may stay.
+/// No spec clause (layout of the products).
+#[test]
+fn init_no_library_text_precedes_the_hot_group() {
+    let dir = std::env::temp_dir().join(format!("niji-text-prefix-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
+    let _ = std::fs::remove_dir_all(&dir);
+    let inputs = text_inputs(&map);
+    let group = inputs.iter().position(|s| s.0.starts_with(".text.sorted.h")).expect("no .text.sorted.h* input section: hot group missing");
+    let ahead: Vec<String> = inputs[..group].iter().filter(|s| s.2 > 0 && s.3.contains("libc.a(")).map(|s| format!("{} ({} bytes)", s.0, s.2)).collect();
+    eprintln!("TEXT-PREFIX: hot group at {:#x}; {} input sections ahead of it", inputs[group].1, group);
+    assert!(ahead.is_empty(), "TEXT-PREFIX: {} libc.a input sections lie ahead of the hot group (rename them in xtask/src/hottext.rs): {ahead:?}", ahead.len());
+}
+
+/// LAYOUT-WINDOW-BINS slice 2 (D-X.103; replaces LAYOUT-TEXT-PIN's CLUSTER-WINDOW): BIN-WINDOW. Every
+/// window bin a counted `page_faults` mode touches, after the head bin, starts on a 64 KiB boundary of
+/// the linked probe and lies inside one window, so a mode's text windows are those of its bins. Prints
+/// the padding ahead of each bin (the alignment's cost). No spec clause (layout of the products).
+#[test]
+fn init_window_bins_start_on_window_boundaries() {
+    let dir = std::env::temp_dir().join(format!("niji-bin-window-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
+    let file = std::fs::metadata(dir.join("page_faults")).map(|m| m.len()).unwrap_or(0);
+    let _ = std::fs::remove_dir_all(&dir);
+    let inputs = text_inputs(&map);
+    eprintln!("PADDING: probe file {file} bytes; .text starts at {:#x}", inputs.first().map_or(0, |s| s.1));
+    for (b, lo, hi) in bin_ranges(&map) {
+        let prev = inputs.iter().filter(|s| s.2 > 0 && s.1 < lo).map(|s| s.1 + s.2).max().unwrap_or(lo);
+        eprintln!("bin {b}: {lo:#x}..{hi:#x} ({} bytes; {} bytes of padding ahead of it)", hi.saturating_sub(lo), lo.saturating_sub(prev));
+    }
+    let bad = bin_window_errors(&map);
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// `niji-crt1.o` merged (`ld -r`) with `pad` bytes in `.text.unlikely.*` (`pre`: ahead of the hot
+/// group) or in `.text` (`cold`: after it). The start file is the first object of the link, so the
+/// pad shifts everything after it, as unrelated code of a program or the library would.
+fn padded_crt1(dir: &Path, region: &str, pad: u64) -> PathBuf {
+    padded_start(dir, region, pad, &root().join("target/niji/niji-crt1.o"))
+}
+
+/// [`padded_crt1`] for the start file `start`; region `data` puts the pad in `.data` (it moves the
+/// end of `.data` against the start alignment of `.data1`).
+fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
+    let body = match region {
+        "data" => format!(".section .data.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        "pre" => format!(".section .text.unlikely.niji_pad,\"ax\",@progbits\n.fill {pad},1,0xcc\n"),
+        // Shifts every `.lbss` object by `pad` against the page grid, as another emission order would.
+        "lbss" => format!(".section .lbss.niji_pad,\"aw\",@nobits\n.zero {pad}\n"),
+        // A program's own relro inputs, which the linker takes ahead of the library's start-up relro cluster.
+        "relro" => format!(".section .data.rel.ro.local.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        // Relro the linker takes behind the start-up cluster (the second `.data.rel.ro` pattern of the default
+        // script), as a story growing the library's other relro data would.
+        "relro-tail" => format!(".section .data.rel.ro.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        _ => format!(".text\n.fill {pad},1,0xcc\n"),
+    };
+    let (s, o, crt1) = (dir.join("pad.s"), dir.join("pad.o"), dir.join("crt1pad.o"));
+    std::fs::write(&s, body).expect("pad.s");
+    assert!(Command::new("cc").arg("-c").arg(&s).arg("-o").arg(&o).status().expect("cc -c").success(), "pad.s does not assemble");
+    let st = Command::new("ld").arg("-r").arg("-o").arg(&crt1).arg(start).arg(&o).status().expect("ld -r");
+    assert!(st.success(), "ld -r of the padded start file failed");
+    crt1
+}
+
+/// LAYOUT-TEXT-PIN (D-X.63): the 0-fault calls stay at 0 whatever code lies ahead of or after the
+/// hot group. The probe linked with a start file padded by 0x800, 0x2000, 0x8000 and 0xF000 bytes,
+/// ahead of the group (`pre`) and after it (`cold`): the first mktime after localtime_r, the first
+/// string calls after printf and a same-directory rebind take no fault, and every cluster stays in
+/// one 64 KiB window. Before the cluster alignment, the `pre` pads 0x800-0x3000 gave mktime 1
+/// (LAYOUT-STABILITY-RETHINK). No spec clause (layout of the products).
+#[test]
+fn init_zero_fault_calls_hold_at_every_text_phase() {
+    let base = std::env::temp_dir().join(format!("niji-text-phase-{}", std::process::id()));
+    let mut bad = Vec::new();
+    for region in ["pre", "cold"] {
+        for pad in [0x800_u64, 0x2000, 0x8000, 0xF000] {
+            let dir = base.join(format!("{region}-{pad:x}"));
+            std::fs::create_dir_all(&dir).expect("temp dir");
+            let crt1 = padded_crt1(&dir, region, pad);
+            let map = link_map(&dir, &crt1);
+            for e in bin_window_errors(&map) {
+                bad.push(format!("{region} {pad:#x}: {e}"));
+            }
+            let exe = dir.join("page_faults");
+            for mode in ["mktime", "strings", "rebind"] {
+                let n = faults(&exe, mode);
+                eprintln!("text phase {region} {pad:#x}: {mode} {n}");
+                if n != 0 {
+                    bad.push(format!("{region} {pad:#x}: {mode} {n} faults, want 0"));
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    assert!(bad.is_empty(), "text phase: {bad:#?}");
+}
+
+/// LAYOUT-STARTUP-RODATA (D-X.62; no spec clause, layout of the products): the read-only data start-up
+/// reads is grouped in `.rodata1`, which starts on a 64 KiB boundary (the start object's empty
+/// `.rodata1`), so it occupies one 64 KiB fault-around window wherever `.rodata` ends. Before the
+/// grouping, `page_faults.c` linked with 4 KiB steps of extra text read its start-up constants from
+/// 2 to 4 windows (fast) and 4 to 6 (release). Each of 16 links here adds `0x30 + k * 4 KiB` bytes
+/// of text, covering every 4 KiB position of `.rodata` in a window.
+#[test]
+fn init_startup_rodata_stays_in_one_window_for_any_text_size() {
+    let dir = std::env::temp_dir().join(format!("niji-startup-ro-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let mut spans = Vec::new();
+    for k in 0..16u64 {
+        let pad = 0x30 + k * 4096;
+        let (src, obj, exe) = (dir.join(format!("pad{k}.s")), dir.join(format!("pad{k}.o")), dir.join(format!("pf{k}")));
+        std::fs::write(&src, format!("\t.text\n\t.globl niji_test_pad{k}\nniji_test_pad{k}:\n\t.skip {pad}, 0x90\n\t.section .note.GNU-stack,\"\",@progbits\n")).expect("pad source");
+        assert!(Command::new("cc").arg("-c").arg(&src).arg("-o").arg(&obj).status().expect("cc").success(), "pad object");
+        build_with(&exe, &[obj.to_str().expect("utf-8 path")]);
+        let out = Command::new("readelf").arg("-SW").arg(&exe).output().expect("readelf");
+        let text = String::from_utf8_lossy(&out.stdout);
+        let line = text.lines().find(|l| l.split_once(']').and_then(|(_, r)| r.split_whitespace().next()) == Some(".rodata1")).unwrap_or_else(|| panic!("pad {pad:#x}: no .rodata1 in the probe"));
+        let f: Vec<&str> = line.split(']').nth(1).expect("section line").split_whitespace().collect();
+        let (start, size) = (u64::from_str_radix(f[2], 16).expect("address"), u64::from_str_radix(f[4], 16).expect("size"));
+        spans.push((pad, start, size));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    for (pad, start, size) in &spans {
+        eprintln!("text pad {pad:#x}: .rodata1 {start:#x}+{size:#x}");
+    }
+    for (pad, start, size) in &spans {
+        assert!(*size > 0, "pad {pad:#x}: .rodata1 is empty (start-up read-only data not grouped?)");
+        assert_eq!(start >> 16, (start + size - 1) >> 16, "pad {pad:#x}: .rodata1 {start:#x}+{size:#x} straddles a 64 KiB window boundary");
+    }
+    // The cause, when every span above happened to fit: the start alignment the grouping relies on.
+    for (pad, start, _) in &spans {
+        assert_eq!(start % 65536, 0, "pad {pad:#x}: .rodata1 at {start:#x} is not 64 KiB aligned (entry.S's .rodata1 not first?)");
+    }
+}
+
+/// A Rust symbol without its crate hashes (`Cs<hash>_` -> `C`) or split / ThinLTO suffixes: the form of
+/// the keys in the build's traced `startup-data.keys`.
+fn unhashed_key(name: &str) -> String {
+    let name = symbol_stem(name.rsplit_once(".llvm.").map_or(name, |(s, _)| s));
+    let (mut out, mut rest) = (String::new(), name);
+    while let Some(at) = rest.find("Cs") {
+        let (head, tail) = rest.split_at(at);
+        out.push_str(head);
+        let after = tail.strip_prefix("Cs").unwrap_or(tail);
+        match after.split_once('_') {
+            Some((h, r)) if !h.is_empty() && h.bytes().all(|c| c.is_ascii_alphanumeric()) && r.starts_with(|c: char| c.is_ascii_digit()) => {
+                out.push('C');
+                rest = r;
+            }
+            _ => {
+                out.push_str("Cs");
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// LAYOUT-DATA-CLUSTERS (D-X.64): every written start-up object the page-fault trace found (kind `rw`
+/// in the build's traced `startup-data.keys`) that is a `.data`/`.bss` static of at most 4 KiB sits in
+/// the `.data1` cluster of libc.a, so start-up writes the fewest pages wherever the rest of `.data`
+/// and `.bss` puts it. One left in `.data`/`.bss` is named. No spec clause (layout of the products).
+#[test]
+fn init_written_startup_objects_are_in_the_data1_cluster() {
+    let keys: std::collections::BTreeSet<String> = std::fs::read_to_string(generated_list("startup-data.keys"))
+        .expect("startup-data.keys")
+        .lines()
+        .filter(|l| !l.starts_with('#'))
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            (f.len() == 3 && f[1] == "rw").then(|| symbol_stem(f[0]).to_string())
+        })
+        .collect();
+    let out = Command::new("objdump").arg("-t").arg(root().join("target/niji/libc.a")).output().expect("objdump");
+    let table = String::from_utf8_lossy(&out.stdout).into_owned();
+    let (mut moved, mut named, mut bad) = (0, 0, Vec::new());
+    for l in table.lines() {
+        // `<value> <flags> <section>\t<size> [.hidden ]<name>`
+        let Some((a, b)) = l.split_once('\t') else { continue };
+        let (Some(section), Some(size), Some(name)) = (a.split_whitespace().last(), b.split_whitespace().next().and_then(|z| u64::from_str_radix(z, 16).ok()), b.split_whitespace().last()) else { continue };
+        // Only a static in a section of its own (`.data.<symbol>`) can be moved by name; a C object in a
+        // section named otherwise (`__environ` in `.bss.environ`) is out of scope (D-X.64, open).
+        if section == ".data1" && (name.ends_with("4heap4HEAP") || ["environ", "niji_machine_fold_limit", "niji_machine_cmp_sse_null", "niji_machine_set_mid"].contains(&name)) {
+            named += 1;
+        }
+        if !keys.contains(&unhashed_key(name)) || (section != ".data1" && !section.contains(name)) {
+            continue;
+        }
+        if section == ".data1" {
+            moved += 1;
+        } else if ((section.starts_with(".data.") && !section.starts_with(".data.rel.ro")) || section.starts_with(".bss.") || section.starts_with(".lbss.")) && size <= 4096 {
+            bad.push(format!("{name} ({size} bytes) in {section}"));
+        }
+    }
+    eprintln!("written start-up objects in .data1: {moved}");
+    assert!(moved > 0, "no written start-up key is in .data1 (move_startup_state not applied?)");
+    // LAYOUT-DATA-CLUSTERS-2: heap::HEAP (over 4 KiB, named in STATE_KEY_SUFFIXES) and C's environ
+    // (by section name) are written by every start and join the cluster too, as do fold.S's start-up words.
+    assert_eq!(named, 5, "heap::HEAP, environ and fold.S start-up words not all in .data1 (STATE_KEY_SUFFIXES / STATE_C_SECTIONS / fold.S)");
+    assert!(bad.is_empty(), "written start-up objects outside the .data1 cluster (xtask/src/coldbss.rs move_startup_state): {bad:#?}");
+}
+
+/// (address, size) of section `name` in `exe` (`readelf -SW`).
+fn section_span(exe: &Path, name: &str) -> Option<(u64, u64)> {
+    let out = Command::new("readelf").arg("-SW").arg(exe).output().expect("readelf");
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let line = text.lines().find(|l| l.split_once(']').and_then(|(_, r)| r.split_whitespace().next()) == Some(name))?;
+    let f: Vec<&str> = line.split(']').nth(1)?.split_whitespace().collect();
+    Some((u64::from_str_radix(f[2], 16).ok()?, u64::from_str_radix(f[4], 16).ok()?))
+}
+
+/// LAYOUT-DATA-CLUSTERS (D-X.64): the start-up data clusters hold whatever code lies ahead of or after
+/// the hot group. The probe linked with a start file padded by 0x800, 0x2000, 0x8000 and 0xF000 bytes
+/// (`pre`, `cold`, as the text-phase test) and with `.lbss` shifted by 0x800 and 0x2000 bytes (`lbss`, as
+/// another emission order of the large tables would): `.rodata1` sits in one 64 KiB window, `.data1` (the
+/// written start-up state, heap::HEAP and environ included: LAYOUT-DATA-CLUSTERS-2) takes exactly
+/// ceil(size / 4 KiB) pages, and the start-up, tool and fork-child fault counts are the same at every
+/// `cold`, `lbss` and `data` pad, the fork child within [`FORK_BOUND`]. Before the clusters, the `cold` pads moved the
+/// read-only data window by one (LAYOUT-STABILITY-RETHINK). LAYOUT-DATA-CLUSTERS-5 (#4602): `data` pads
+/// `.data` by 0x800, 0x1000, 0x2000 and 0x3000 bytes ahead of every library object, as another order of
+/// `.data` would (a libm change re-partitioned niji_boundary's codegen units and moved
+/// `__libc_single_threaded` and `_IO_2_1_stdout_` to a page of their own): start-up writes nothing in
+/// `.data` outside the cluster, so the counts stay. No spec clause (layout of the products).
+#[test]
+fn init_data_clusters_hold_at_every_text_phase() {
+    let base = std::env::temp_dir().join(format!("niji-data-phase-{}", std::process::id()));
+    let (mut bad, mut counts) = (Vec::new(), std::collections::BTreeMap::new());
+    for region in ["pre", "cold", "lbss", "data"] {
+        let pads: &[u64] = match region {
+            "lbss" => &[0x800, 0x2000],
+            "data" => &[0x800, 0x1000, 0x2000, 0x3000],
+            _ => &[0x800, 0x2000, 0x8000, 0xF000],
+        };
+        for &pad in pads {
+            let dir = base.join(format!("{region}-{pad:x}"));
+            std::fs::create_dir_all(&dir).expect("temp dir");
+            let crt1 = padded_crt1(&dir, region, pad);
+            let _map = link_map(&dir, &crt1);
+            let exe = dir.join("page_faults");
+            match section_span(&exe, ".rodata1") {
+                Some((a, z)) if z > 0 && a >> 16 == (a + z - 1) >> 16 => {}
+                other => bad.push(format!("{region} {pad:#x}: .rodata1 {other:x?} not in one 64 KiB window")),
+            }
+            match section_span(&exe, ".data1") {
+                Some((a, z)) if z > 0 && ((a + z - 1) >> 12) - (a >> 12) + 1 == z.div_ceil(4096) => eprintln!("data phase {region} {pad:#x}: .data1 {a:#x}+{z:#x}"),
+                other => bad.push(format!("{region} {pad:#x}: .data1 {other:x?} takes more than ceil(size / 4 KiB) pages")),
+            }
+            // The `pre` pads also move the text windows by one (the base's own text phase, measured on
+            // LAYOUT-TEXT-PIN-9's head: true 15 -> 16 at pre 0x800), so equal counts are required at the
+            // `cold` pads, where only the data classes move, and at the `lbss` and `data` pads, which move
+            // the `.lbss` and `.data` objects against the page grid (the written start-up state must not be there).
+            for mode in ["true", "tool", "fork"].into_iter().filter(|_| region != "pre") {
+                let n = faults(&exe, mode);
+                eprintln!("data phase {region} {pad:#x}: {mode} {n}");
+                counts.entry(mode).or_insert_with(Vec::new).push((format!("{region} {pad:#x}"), n));
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    for (mode, seen) in &counts {
+        if seen.iter().any(|(_, n)| *n != seen[0].1) {
+            bad.push(format!("{mode}: fault count moves with the text phase: {seen:?}"));
+        }
+        if *mode == "fork" && seen.iter().any(|(_, n)| *n > FORK_BOUND) {
+            bad.push(format!("fork child above its bound {FORK_BOUND}: {seen:?}"));
+        }
+    }
+    assert!(bad.is_empty(), "data phase: {bad:#?}");
+}
+
+/// The input sections of a link map whose name starts with `prefix`: (name, address, size). GNU ld prints a
+/// long name on a line of its own and the address and size on the next.
+fn map_inputs(map: &str, prefix: &str) -> Vec<(String, u64, u64)> {
+    let lines: Vec<&str> = map.lines().collect();
+    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
+    let mut out = Vec::new();
+    for (i, l) in lines.iter().enumerate() {
+        let mut f = l.split_whitespace();
+        let Some(name) = f.next().filter(|n| l.starts_with(' ') && n.starts_with(prefix)) else { continue };
+        let mut rest: Vec<&str> = f.collect();
+        if rest.is_empty() {
+            rest = lines.get(i.saturating_add(1)).map(|n| n.split_whitespace().collect()).unwrap_or_default();
+        }
+        if let (Some(a), Some(s)) = (rest.first().and_then(|a| hex(a)), rest.get(1).and_then(|s| hex(s))) {
+            out.push((name.to_string(), a, s));
+        }
+    }
+    out
+}
+
+/// The bytes of `*fill*` (alignment padding) a link map shows inside the output section `name`, from its
+/// header line (the name at column 0) to the next output section's.
+fn output_fill(map: &str, name: &str) -> u64 {
+    let mut inside = false;
+    let mut fill: u64 = 0;
+    for l in map.lines() {
+        if !l.starts_with(' ') && l.starts_with('.') {
+            inside = l.split_whitespace().next() == Some(name);
+            continue;
+        }
+        let mut f = l.split_whitespace();
+        if inside && f.next() == Some("*fill*") {
+            let size = f.nth(1).and_then(|s| s.strip_prefix("0x")).and_then(|h| u64::from_str_radix(h, 16).ok()).unwrap_or(0);
+            fill = fill.saturating_add(size);
+        }
+    }
+    fill
+}
+
+/// STARTUP-DATA-PAGE-ALIGN (pending record STARTUP-DATA-PAGE-ALIGN-1, series D-X): the written start-up data takes
+/// the same pages whatever lies ahead of it. The probe linked with a start file padded by 0x4d0, 0x800, 0xc18 and
+/// 0x14d0 bytes of `.data.rel.ro.local` (`relro`: a program's own relro inputs, which the linker takes first, as an
+/// unrelated change ahead of the cluster would; LIBM-F32-BESSEL-LARGE-6 moved the start-up relro objects by 0x4d0
+/// bytes and two pages) and of `.lbss` (`lbss`): the start-up relro cluster (`.data.rel.ro.local.niji_startup*`,
+/// xtask/src/startup_ro.rs) starts on a page boundary and spans the same number of pages at every pad and unpadded,
+/// and `heap::RESERVE_MEM` and `global_locale::SLOTS` start on a page boundary (their heads are the start-up part).
+/// No spec clause (layout of the products).
+#[test]
+fn init_startup_data_pages_hold_at_every_data_phase() {
+    let base = std::env::temp_dir().join(format!("niji-startup-pages-{}", std::process::id()));
+    let (mut bad, mut spans) = (Vec::new(), Vec::new());
+    for (region, pad) in [("none", 0_u64), ("relro", 0x4d0), ("relro", 0x800), ("relro", 0xc18), ("relro", 0x14d0), ("lbss", 0x4d0), ("lbss", 0xc18)] {
+        let dir = base.join(format!("{region}-{pad:x}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let crt1 = if pad == 0 { root().join("target/niji/niji-crt1.o") } else { padded_crt1(&dir, region, pad) };
+        let map = link_map(&dir, &crt1);
+        let cluster = map_inputs(&map, ".data.rel.ro.local.niji_startup");
+        let (lo, hi) = cluster.iter().filter(|c| c.2 > 0).fold((u64::MAX, 0), |(lo, hi), c| (lo.min(c.1), hi.max(c.1.saturating_add(c.2))));
+        if lo >= hi {
+            bad.push(format!("{region} {pad:#x}: no start-up relro cluster in the link"));
+            continue;
+        }
+        let pages = (hi.saturating_sub(1) >> 12).saturating_sub(lo >> 12).saturating_add(1);
+        eprintln!("startup pages {region} {pad:#x}: relro cluster {lo:#x}..{hi:#x}, {pages} pages, {} sections", cluster.len());
+        if lo & 0xfff != 0 {
+            bad.push(format!("{region} {pad:#x}: relro cluster starts at {lo:#x}, not on a page boundary"));
+        }
+        spans.push((format!("{region} {pad:#x}"), pages));
+        // STARTUP-DATA-PAGE-ALIGN-2: the start file's 64 KiB relro alignment comes ahead of the cluster, so relro
+        // holds no more fill than the cluster head's own alignment (behind the cluster it padded the rest of relro
+        // by 56 KiB, into a second fault-around window: first %.2f 3 -> 4 faults, coreutils-shaped 50 -> 51).
+        let fill = output_fill(&map, ".data.rel.ro");
+        if fill >= 4096 {
+            bad.push(format!("{region} {pad:#x}: .data.rel.ro holds {fill:#x} bytes of fill, a page or more"));
+        }
+        // The written start-up objects of a page or more: RESERVE_MEM, and (STARTUP-DATA-PAGE-ALIGN-3) the locale
+        // table global_locale::SLOTS, whose first records start-up writes.
+        let lbss = map_inputs(&map, ".lbss");
+        for (suffix, what) in [("4heap11RESERVE_MEM", "heap::RESERVE_MEM"), ("13global_locale5SLOTS", "global_locale::SLOTS")] {
+            let found: Vec<&(String, u64, u64)> = lbss.iter().filter(|s| s.0.ends_with(suffix)).collect();
+            if found.is_empty() {
+                bad.push(format!("{region} {pad:#x}: {what} not found in .lbss"));
+            }
+            for (name, a, _) in found {
+                if a & 0xfff != 0 {
+                    bad.push(format!("{region} {pad:#x}: {name} at {a:#x}, not on a page boundary"));
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    if spans.iter().any(|(_, n)| *n != spans[0].1) {
+        bad.push(format!("the start-up relro cluster's page count moves with the data phase: {spans:?}"));
+    }
+    assert!(bad.is_empty(), "startup data pages: {bad:#?}");
+}
+
+/// LAYOUT-GOT-ORDER (D-X.140): a static program linked against `libc.a` has no `.got`, whatever the size of
+/// `.data.rel.ro` (GNU ld's default script puts `.got` right behind it, so its page used to move with that size mod
+/// 4096: LAYOUT-BYTE-BUDGETS-3 step 3). `cargo xtask so` marks the library's GOT-indirect add/cmp operands
+/// relaxable, and the link turns them into immediates. The probe is linked unpadded and with 64, 512 and 4000 bytes
+/// of relro behind the start-up cluster (`relro-tail`); the cluster's page count does not move either.
+/// No spec clause (layout of the products).
+#[test]
+fn init_static_probe_has_no_got_at_any_relro_size() {
+    let base = std::env::temp_dir().join(format!("niji-no-got-{}", std::process::id()));
+    let (mut bad, mut spans) = (Vec::new(), Vec::new());
+    for pad in [0_u64, 64, 512, 4000] {
+        let dir = base.join(format!("relro-tail-{pad}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let crt1 = if pad == 0 { root().join("target/niji/niji-crt1.o") } else { padded_crt1(&dir, "relro-tail", pad) };
+        let map = link_map(&dir, &crt1);
+        let got: Vec<(String, u64, u64)> = map_inputs(&map, ".got").into_iter().filter(|g| g.0 == ".got" && g.2 > 0).collect();
+        eprintln!("relro-tail {pad}: .got inputs {got:x?}");
+        if !got.is_empty() {
+            bad.push(format!("relro-tail {pad}: the static probe has a .got ({got:x?}): a GOT-indirect operand of libc.a was not relaxed (D-X.140)"));
+        }
+        let cluster = map_inputs(&map, ".data.rel.ro.local.niji_startup");
+        let (lo, hi) = cluster.iter().filter(|c| c.2 > 0).fold((u64::MAX, 0), |(lo, hi), c| (lo.min(c.1), hi.max(c.1.saturating_add(c.2))));
+        spans.push((pad, (hi.saturating_sub(1) >> 12).saturating_sub(lo >> 12).saturating_add(1)));
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    if spans.iter().any(|(_, n)| *n != spans[0].1) {
+        bad.push(format!("the start-up relro cluster's page count moves with the relro behind it: {spans:?}"));
+    }
+    assert!(bad.is_empty(), "static probe GOT: {bad:#?}");
+}
+
+/// The default linker script (`ld --verbose`) with every input section of `.data`, `.bss` and `.lbss` on
+/// a 64 KiB boundary of its own (`SUBALIGN`), so each object there that a run touches faults at its own
+/// address; `.data1` stays packed. tools/hottext/startup_data.sh traces the same way (it aligns `.data1` too).
+fn isolated_data_script(dir: &Path) -> PathBuf {
+    let out = Command::new("ld").arg("--verbose").output().expect("ld --verbose");
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let (mut inside, mut script, mut n) = (false, String::new(), 0_u32);
+    for l in text.lines() {
+        if l.starts_with("=====") {
+            inside = !inside;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        let t = l.trim_start();
+        let isolated = [".data", ".bss", ".lbss"].iter().any(|s| t.strip_prefix(*s).is_some_and(|r| r.starts_with(char::is_whitespace) && r.trim_start().starts_with(':')));
+        match l.split_once(':') {
+            Some((a, b)) if isolated => {
+                script.push_str(&format!("{a}: SUBALIGN(65536){b}\n"));
+                n = n.saturating_add(1_u32);
+            }
+            _ => {
+                script.push_str(l);
+                script.push('\n');
+            }
+        }
+    }
+    assert!(n >= 3, "ld --verbose: the .data/.bss/.lbss output sections were not found ({n})");
+    let path = dir.join("isolated.ld");
+    std::fs::write(&path, script).expect("isolated.ld");
+    path
+}
+
+/// LAYOUT-DATA-CLUSTERS-5 (#4602, D-X.69): the writable data start-up touches is keyed by access
+/// (the build's traced `startup-data.keys`) and joins `.data1`; a key the trace no longer matches (a static
+/// renamed, or split by another codegen-unit partition) is named here instead of costing a page that
+/// moves with unrelated changes. The probe is linked with every `.data`, `.bss` and `.lbss` input
+/// section on a 64 KiB boundary of its own and `true` is traced with `perf record -e page-faults -d`:
+/// a fault in a static of at most 4 KiB in a section of its own outside `.data1` (what
+/// `xtask/src/coldbss.rs` moves by key) is named. LAYOUT-STARTUP-STATE-TIME (#4901): `localtime_mktime`
+/// (setenv, the first localtime_r and the first mktime) is traced the same way, so a first-call static
+/// left undeclared is named here, not found later as a fault that moved with emission order.
+/// LAYOUT-SINGLE-FAULT-TEST (#4869): the check is by object, so a single fault the count bounds keep as
+/// slack is named too (dropping `_nl_msg_cat_cntr` from the list cost the `locale` probe one fault, inside
+/// LOCALE_BOUND). Every object the list can declare is in scope (up to [`STATE_DECLARED_MAX`], heap::HEAP's
+/// 5376 bytes included), and a fault in a library member's shared `.data`/`.bss` (a C or assembly object
+/// without a section of its own) is named by the symbol it hit; [`STARTUP_PROBE_MODES`] must list every
+/// mode of `page_faults.c`. Accepted places: `.data1`, and for first calls the `.lbss` cluster (D-X.74).
+/// No spec clause (layout of the products).
+#[test]
+fn init_startup_data_accesses_are_in_the_data1_cluster() {
+    // Every probe mode is traced: a mode added to page_faults.c without a trace here would leave its
+    // first-call statics unchecked. (`true` is the probe's default, selected by no `strcmp`.)
+    let source = std::fs::read_to_string(root().join("crates/core/tests/oracle/page_faults.c")).expect("page_faults.c");
+    let modes: std::collections::BTreeSet<&str> = source.split("strcmp(argv[1], \"").skip(1).filter_map(|s| s.split_once('"').map(|(m, _)| m)).filter(|m| *m != "relay").collect();
+    let untraced: Vec<&&str> = modes.iter().filter(|m| !STARTUP_PROBE_MODES.contains(m)).collect();
+    assert!(modes.len() >= 3 && untraced.is_empty(), "STARTUP-DATA-KEYS: page_faults.c modes {untraced:?} are not in STARTUP_PROBE_MODES (found {modes:?})");
+    let dir = std::env::temp_dir().join(format!("niji-startup-access-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let script = isolated_data_script(&dir);
+    let (exe, map, data) = (dir.join("page_faults"), dir.join("page_faults.map"), dir.join("perf.data"));
+    let (t, m) = (format!("-Wl,-T,{}", script.display()), format!("-Wl,-Map={}", map.display()));
+    build_crt1(&exe, &[&t, &m], &root().join("target/niji/niji-crt1.o"));
+    let map = std::fs::read_to_string(&map).expect("link map");
+    let inputs: Vec<(String, u64, u64, String)> = [".data", ".bss", ".lbss"]
+        .into_iter()
+        .filter(|o| map.lines().any(|l| !l.starts_with(' ') && l.split_whitespace().next() == Some(*o)))
+        .flat_map(|o| output_inputs(&map, o))
+        .collect();
+    // (address, size, name) of every sized object of the probe, to name the object a fault hit.
+    let nm = Command::new("nm").args(["-nS", "--defined-only"]).arg(&exe).output().expect("nm");
+    let objects: Vec<(u64, u64, String)> = String::from_utf8_lossy(&nm.stdout)
+        .lines()
+        .filter_map(|l| match l.split_whitespace().collect::<Vec<_>>().as_slice() {
+            [a, s, _, n] => Some((u64::from_str_radix(a, 16).ok()?, u64::from_str_radix(s, 16).ok()?, (*n).to_string())),
+            _ => None,
+        })
+        .collect();
+    // LAYOUT-STARTUP-STATE-TIME (#4901): `localtime_mktime` runs start-up, setenv("TZ"), the first
+    // localtime_r (zone load) and the first mktime; a static those first calls touch outside `.data1`
+    // sits on a `.bss` page whose place follows emission order, and its fault moved into the first
+    // localtime_r with unrelated code growth (time_compat::GENERATION, sys::TSC_STATE, process::TABLE_ON
+    // and ENV_OWNED). Each mode's trace is checked the same way. LAYOUT-STARTUP-STATE-LOCALE (#4915):
+    // every start-up probe mode, so setlocale's statics (the `locale` and `tool` probes read 50/51 and
+    // 54/55/56 by `.bss` pad) and those of the other first calls are named too.
+    let (mut touched, mut bad) = (std::collections::BTreeSet::new(), std::collections::BTreeSet::new());
+    for mode in STARTUP_PROBE_MODES {
+        let rec = Command::new("perf")
+            .args(["record", "-q", "-e", "page-faults", "-c", "1", "-d", "-o"])
+            .arg(&data)
+            .arg("--")
+            .arg(&exe)
+            .arg(mode)
+            .current_dir("/")
+            .env_clear()
+            .env("LANG", "en_US.UTF-8")
+            .stdout(Stdio::null())
+            .output();
+        let rec = match rec {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&dir);
+                eprintln!("SKIP init_startup_data_accesses_are_in_the_data1_cluster: perf cannot be run ({e}); the fault data addresses need perf");
+                return;
+            }
+        };
+        let err = String::from_utf8_lossy(&rec.stderr).into_owned();
+        if !rec.status.success() && (err.contains("perf_event_paranoid") || err.contains("Permission denied")) {
+            let _ = std::fs::remove_dir_all(&dir);
+            eprintln!("SKIP init_startup_data_accesses_are_in_the_data1_cluster: page-fault events are not permitted here: {}", err.trim());
+            return;
+        }
+        assert!(rec.status.success(), "perf record of `page_faults {mode}` failed: {}", err.trim());
+        let script_out = Command::new("perf").args(["script", "-F", "addr", "-i"]).arg(&data).output().expect("perf script");
+        let addrs: Vec<u64> = String::from_utf8_lossy(&script_out.stdout).split_whitespace().filter_map(|w| u64::from_str_radix(w, 16).ok()).collect();
+        assert!(!addrs.is_empty(), "perf recorded no page fault of `page_faults {mode}`");
+        for a in addrs {
+            let Some((name, start, size, file)) = inputs.iter().find(|s| s.1 <= a && a < s.1 + s.2) else { continue };
+            touched.insert(format!("{mode}: {name} ({size} bytes, {file})"));
+            // The probe's own objects (`strings` writes its `.data.rel`) are not the library's to declare.
+            if !(file.contains("libc.a(") || file.ends_with("niji-crt1.o")) {
+                continue;
+            }
+            // A static in a section of its own is declared by name (D-X.64), up to the list's size limit.
+            let own = (name.starts_with(".data.") && !name.starts_with(".data.rel.ro")) || name.starts_with(".bss.") || name.starts_with(".lbss.");
+            if own && *size <= STATE_DECLARED_MAX {
+                bad.insert(format!("{mode}: {name} ({size} bytes, {file}) outside .data1"));
+            }
+            // A member's shared section (`.data`, `.bss`, `.data.rel.local` of a C or assembly object): the
+            // object the fault hit, which needs a section of its own before the list can declare it.
+            if !own && name != ".lbss" {
+                let object = objects.iter().find(|o| o.0 <= a && a < o.0 + o.1.max(1) && o.0 >= *start && o.0 < start + size);
+                match object {
+                    Some((_, osize, oname)) if *osize <= STATE_DECLARED_MAX => {
+                        bad.insert(format!("{mode}: {oname} ({osize} bytes) in shared {name} of {file} outside .data1 (give it a section of its own)"));
+                    }
+                    Some(_) => {}
+                    None => {
+                        bad.insert(format!("{mode}: {name}+{:#x} of {file} (no symbol) outside .data1", a - start));
+                    }
+                }
+            }
+            // LAYOUT-STARTUP-STATE-LOCALE-3 (ruling #4942): the first-call cluster (`.lbss` itself; the cold
+            // tables are `.lbss.<symbol>`) holds no state `true` touches, or every process pays its page.
+            if mode == "true" && name == ".lbss" && file.contains("libc.a(") {
+                bad.insert(format!("true: first-call cluster {name} ({size} bytes, {file}): every-process state declared after `cluster first-call`"));
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    eprintln!("start-up accesses in .data/.bss/.lbss outside .data1: {touched:#?}");
+    assert!(bad.is_empty(), "STARTUP-DATA-KEYS: start-up touches statics outside the .data1 cluster (declare each in crates/libc-so/startup-state.list): {bad:#?}");
+}
+
+/// LAYOUT-STARTUP-STATE-LOCALE (ruling #4923): within each library object, the start-up state in `.data1`
+/// is linked in the order of `crates/libc-so/startup-state.list` (`xtask/src/coldbss.rs::state_order`),
+/// not in the order the compiler emitted it: that order changed with any code change elsewhere, and the
+/// `.data1` pages then held other objects (the tool probe read 54 on next and 55 at 9 pads on a branch
+/// that only added libm code). The probe's map gives each `.data1` input section and its object; every
+/// declared static found there (by symbol, as the list names it) must follow the list within its
+/// object. No spec clause (layout of the products).
+#[test]
+fn init_startup_state_follows_the_declared_order() {
+    let dir = std::env::temp_dir().join(format!("niji-state-order-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
+    let nm = Command::new("nm").args(["-n", "--defined-only"]).arg(dir.join("page_faults")).output().expect("nm");
+    let _ = std::fs::remove_dir_all(&dir);
+    // LAYOUT-STARTUP-STATE-LOCALE-3 (ruling #4942): and the first-call cluster (`.lbss` inputs named `.lbss`
+    // itself), in list order within each cluster, starting a page.
+    let first_call: Vec<(String, u64, u64, String)> = output_inputs(&map, ".lbss").into_iter().filter(|s| s.0 == ".lbss" && s.2 > 0).collect();
+    let lead = first_call.iter().find(|s| s.3.contains("libc.a(")).expect("no first-call cluster (.lbss) from libc.a in the link map");
+    assert_eq!(lead.1 % 4096, 0, "STATE-ORDER: the first-call cluster starts at {:#x}, not on a page (FIRST_CALL_ALIGN)", lead.1);
+    let inputs: Vec<(String, u64, u64, String)> = output_inputs(&map, ".data1").into_iter().chain(first_call).collect();
+    let list = std::fs::read_to_string(root().join("crates/libc-so/startup-state.list")).expect("startup-state.list");
+    // (entry position, a symbol matcher): a path by its v0 tail, a symbol or section entry by name.
+    let entries: Vec<String> = list.lines().map(|l| l.split('#').next().unwrap_or("").trim()).filter(|l| !l.is_empty()).map(str::to_string).collect();
+    let position = |sym: &str| -> Option<usize> {
+        let stem = symbol_stem(sym);
+        entries.iter().position(|e| {
+            let f: Vec<&str> = e.split_whitespace().filter(|w| *w != "fast-only").collect();
+            match f.as_slice() {
+                ["symbol", n] => stem == *n,
+                ["section", s] => [".data.rel.local.", ".data.", ".bss."].iter().find_map(|p| s.strip_prefix(*p)) == Some(stem),
+                [path] => stem.ends_with(&path.split("::").map(|s| format!("{}{s}", s.len())).collect::<String>()),
+                _ => false,
+            }
+        })
+    };
+    let (mut last, mut seen, mut bad) = (std::collections::BTreeMap::<String, (usize, String)>::new(), 0_usize, Vec::new());
+    for l in String::from_utf8_lossy(&nm.stdout).lines() {
+        let w: Vec<&str> = l.split_whitespace().collect();
+        let (Some(a), Some(name)) = (w.first().and_then(|a| u64::from_str_radix(a, 16).ok()), w.get(2)) else { continue };
+        let Some((cluster, _, _, file)) = inputs.iter().find(|s| s.1 <= a && a < s.1 + s.2.max(1)) else { continue };
+        let file = &format!("{cluster} {file}");
+        let Some(p) = position(name) else { continue };
+        seen = seen.saturating_add(1);
+        if let Some((q, prev)) = last.get(file).filter(|(q, _)| *q > p) {
+            bad.push(format!("{file}: {name} (entry {p}) after {prev} (entry {q})"));
+        }
+        let keep = last.get(file).is_none_or(|(q, _)| *q <= p);
+        if keep {
+            last.insert(file.clone(), (p, (*name).to_string()));
+        }
+    }
+    assert!(seen.saturating_mul(2) >= entries.len(), "only {seen} declared statics found in .data1 of {} entries (symbols renamed?)", entries.len());
+    assert!(bad.is_empty(), "STATE-ORDER: .data1 is not in startup-state.list order: {bad:#?}");
+}
+
+/// LAYOUT-DATA-CLUSTERS-4 (D-X.68, D-27.10): every static PIE starts whatever the phase of its data.
+/// The static-PIE start relocates an executable with exactly one writable `PT_LOAD`, and the linker
+/// starts a new segment where the gap before a writable section reaches a page; a 16 KiB `.data1`
+/// start left a 3-page gap after `.data`, and the start refused the program (exit 127). A program
+/// with initialised TLS, a constructor and relro pointers (`.tdata` and `.init_array` ahead of
+/// `.data.rel.ro`), linked through `niji-rcrt1.o` with `.data` padded to each 4 KiB phase of a
+/// 16 KiB boundary, must have one writable `PT_LOAD` and run to exit 0. No spec clause (layout of
+/// the start object).
+#[test]
+fn init_static_pie_keeps_one_writable_segment_at_every_data_phase() {
+    let base = std::env::temp_dir().join(format!("niji-spie-phase-{}", std::process::id()));
+    std::fs::create_dir_all(&base).expect("temp dir");
+    let src = base.join("spie.c");
+    let prog = "static int ctor_ran;\n__attribute__((constructor)) static void mark(void) { ctor_ran = 1; }\n\
+                __thread int tls_seed = 7;\nstatic const char *const names[] = { \"zero\", \"one\" };\n\
+                const char *const *volatile names_ref = names;\n\
+                int main(void) { return ctor_ran == 1 && tls_seed == 7 && names_ref[1][1] == 'n' ? 0 : 3; }\n";
+    std::fs::write(&src, prog).expect("spie.c");
+    let rcrt1 = root().join("target/niji/niji-rcrt1.o");
+    let mut bad = Vec::new();
+    for pad in [0_u64, 0x800, 0x1000, 0x2000, 0x3000] {
+        let dir = base.join(format!("data-{pad:x}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let start = if pad == 0 { rcrt1.clone() } else { padded_start(&dir, "data", pad, &rcrt1) };
+        let exe = dir.join("spie");
+        let st = Command::new("cc")
+            .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-static-pie", "-fPIE", "-Wl,-z,pack-relative-relocs"])
+            .arg(&start)
+            .arg(&src)
+            .arg(root().join("target/niji/libc.a"))
+            .args(["-lgcc", "-o"])
+            .arg(&exe)
+            .status()
+            .expect("cc");
+        assert!(st.success(), "data {pad:#x}: the static PIE does not link against the products");
+        let ph = Command::new("readelf").arg("-lW").arg(&exe).output().expect("readelf -l");
+        let text = String::from_utf8_lossy(&ph.stdout);
+        let writable = text.lines().filter(|l| l.split_whitespace().next() == Some("LOAD") && l.split_whitespace().nth(6).is_some_and(|f| f.contains('W'))).count();
+        if writable != 1 {
+            bad.push(format!("data {pad:#x}: {writable} writable PT_LOAD segments (the static-PIE start relocates one)"));
+        }
+        let run = Command::new(&exe).stdin(Stdio::null()).output().expect("run the static PIE");
+        if run.status.code() != Some(0) {
+            bad.push(format!("data {pad:#x}: static PIE exit status {:?}: {}", run.status.code(), String::from_utf8_lossy(&run.stderr).trim()));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    assert!(bad.is_empty(), "static PIE data phase: {bad:#?}");
 }

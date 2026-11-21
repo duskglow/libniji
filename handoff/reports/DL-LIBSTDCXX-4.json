@@ -1,0 +1,23 @@
+{"task": "DL-LIBSTDCXX-4", "model": "opus", "tokens": null,
+ "result": "Merged origin/next (fakeroot cases and apt cases both kept in tools/deb/swap-cmds.sh) and reran every job on the merged head: gate, plants, Debian libstdc++ root check and trixie swap (52 of 52 same, apt and fakeroot pass) green",
+ "branch": "task/dl-libstdcxx-4", "head": "55fd3117f",
+ "gate": {"affected": "8 suites, 598 passed / 0 failed", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "keke has no Debian archive keyring in /usr/share/keyrings; swap-system.sh there needs KEYRING=~/keyrings/debian-archive-keyring.gpg (dl-libstdcxx-4-deb without it: swap rc 2, superseded by dl-libstdcxx-4-deb2)"
+ ],
+ "refused": [
+   ". ~/src/liella-ops/tools/vm_ssh.sh; vm_ssh_cmd mei; \"${VSSH[@]}\" 'ls -la ~/work/DL-LIBSTDCXX-3/ && head -c 3000 ~/work/DL-LIBSTDCXX-3/chain.sh' (reading the previous run's job scripts on mei; refused by the auto-mode classifier; new scripts were written from the handoff instead)"
+ ],
+ "impact": [
+   {"kind": "correctness", "what": "Debian trixie apt (C++, shared libstdc++.so.6) runs on Liella: apt-get check, apt-cache policy, apt-cache policy bash same as stock, alongside next's fakeroot cases (dl-libstdcxx-4-deb2)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "trixie swap commands same as stock after the merge (apt-1..3 from this branch, fakeroot-1..2 from next)", "before": 50, "after": 52, "unit": "commands same, of 52", "measured": true},
+   {"kind": "perf", "what": "dynamic C hello start-up user instructions (run 3 on mei, same loader code; this run's dl-libstdcxx-4-counts wl_count seq still running)", "before": 8925508, "after": 8924220, "unit": "instr", "measured": false},
+   {"kind": "faults", "what": "dynamic C hello start-up page faults (run 3 on mei, same loader code)", "before": 94, "after": 92, "unit": "faults", "measured": false},
+   {"kind": "unblock", "what": "Aqours stage 1 (apt is C++), GitHub #4; RELEASE-SNAPSHOT-CXX", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "The deb jobs need a host keyring that only some build hosts have in /usr/share/keyrings; swap-system.sh could default KEYRING to ~/keyrings/ when the system path is missing, so the deb job does not depend on which host the dispatcher picks",
+ "next_step": "land (RELEASE-SNAPSHOT-CXX waits on it)",
+ "report_file": "handoff/DL-LIBSTDCXX.md",
+ "jobs": ["dl-libstdcxx-4-gate", "dl-libstdcxx-4-plants", "dl-libstdcxx-4-deb2", "dl-libstdcxx-4-startup", "dl-libstdcxx-4-counts"]}

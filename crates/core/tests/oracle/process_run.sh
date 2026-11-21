@@ -12,7 +12,7 @@
 # The namespaces need root: `sudo -n` (passwordless on the test machine).
 #
 # Usage: process_run.sh PROGRAM SCRATCH
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 prog=$1
@@ -20,5 +20,5 @@ dir=$2
 rm -rf "$dir"
 mkdir -p "$dir"
 "$prog" "$dir"
-sudo -n env ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} unshare -m sh -c 'exec 3<"$2" && mount -t tmpfs tmpfs /mnt && cat <&3 >/mnt/process_diff && exec 3<&- && chmod 755 /mnt/process_diff && cd / && exec /mnt/process_diff "$1" root' sh "$dir" "$prog"
-sudo -n env ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} unshare -m sh -c 'mount --bind "$1/notashell" /bin/sh && exec "$2" "$1" noshell' sh "$dir" "$prog"
+sudo -n env ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} unshare -m sh -c 'exec 3<"$2" && mount -t tmpfs tmpfs /mnt && cat <&3 >/mnt/process_diff && exec 3<&- && chmod 755 /mnt/process_diff && cd / && exec /mnt/process_diff "$1" root' sh "$dir" "$prog"
+sudo -n env ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} unshare -m sh -c 'mount --bind "$1/notashell" /bin/sh && exec "$2" "$1" noshell' sh "$dir" "$prog"

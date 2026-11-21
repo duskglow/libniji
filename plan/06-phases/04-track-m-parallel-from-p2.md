@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Track M (parallel from P2): Mathematics (`libm`)
 
@@ -98,7 +98,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     (`s10_math_symbols.rs`; their family tests wait for the `long double` and `_Float128`
     members of milestone 5), and the differential test `elem_products.rs` (20,196 lines against
     glibc, every difference checked against the oracle; `spec/behaviour/libm-elem.md`).
-  * **Tooling:** `cargo xtask tables` (checked in the gate); `mathcmp` prints Liella's wrong
+  * **Tooling:** `cargo xtask tables` (checked in the gate); `mathcmp` prints libniji's wrong
     results and flag-difference samples; the oracle evaluates `tanh`, `expm1` and `hypot` near
     their limits at a representative operand (beyond its exponent range otherwise).
   * **Fix to milestone 1:** `hypot` of `long double` and `_Float128` lost the sticky bit of a
@@ -106,7 +106,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     are now kept exactly in 256 bits (`arith::hypot_exact`).
   * **Measurements:** `docs/libm-accuracy.tsv`, summarised in `docs/differences-from-glibc.md`.
   * **Speed** (an earlier machine, `~/bin/timing`, 2026-10-05, ns per call on arguments in [−10, 10]):
-    Liella 340–700 ns (`exp` 361, `log` 414, `sin` 417, `pow` 700, `expf` 377) against glibc
+    libniji 340–700 ns (`exp` 361, `log` 414, `sin` 417, `pow` 700, `expf` 377) against glibc
     4–26 ns, 15–95 times slower. The profile shows the double-double evaluation itself (Dekker
     products without FMA in every step) and about 10% in the two MXCSR switches; the gap is the
     design (always the accurate path), not a local defect. A fast path (plain `double`
@@ -122,7 +122,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     `fam_lgammaf32x_r`, `fam_lgammaf64_r` and the `float`/`double` members of the other
     families (`s10_math_symbols.rs`); `mp_kernels.rs` (the 384-bit kernels against the oracle),
     `special_cr.rs` (every function and mode against the oracle, `jn`/`yn` at orders −7 to 200)
-    and the differential test `special_products.rs` (every line where Liella differs from glibc
+    and the differential test `special_products.rs` (every line where libniji differs from glibc
     checked against the oracle; `spec/behaviour/libm-special.md`).
   * **Tooling:** oracles for `erfc` (continued fraction with bracketing convergents),
     `lgamma`/`tgamma` (Spouge's formula), `j0`/`j1`/`y0`/`y1`/`jn`/`yn` (series, Hankel,
@@ -130,7 +130,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     the `mp` constants (Bernoulli numbers exactly, γ by Brent–McMillan); `math-gen` maps
     `lgammaf_r` and the like to the family `lgamma_r`; `cargo xtask so` exports `signgam`.
   * **Measurements:** `docs/libm-accuracy.tsv` (5,000 random operands per function, format
-    and mode; every Liella result correctly rounded). Speed is not yet measured under
+    and mode; every libniji result correctly rounded). Speed is not yet measured under
     `~/bin/timing`: the 384-bit path runs on every call and is far slower than the elementary
     functions; milestone 6 covers it.
 * **Delivered** (milestone 4a, 2026-10-05):
@@ -146,9 +146,9 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     `long double` and `_Float128` members); the differential test `complex_products.rs`
     (130,096 grid lines in every direction and 68,000 random ones against glibc, every
     differing line checked against the oracle; `spec/behaviour/libm-complex.md`).
-  * **Tooling:** the complex oracle `liella_mathtools::cplx`.
+  * **Tooling:** the complex oracle `niji_mathtools::cplx`.
   * **Measurements:** `docs/libm-accuracy.tsv` (2,000 random operands per function and format,
-    round-to-nearest; every Liella part correctly rounded; glibc bit-identical 11–96%).
+    round-to-nearest; every libniji part correctly rounded; glibc bit-identical 11–96%).
     Speed not measured (milestone 6).
   * **Left for milestone 5:** the `long double` and `_Float128` members (complex forwarders in
     `math-gen`), then the family tests; a wider fallback precision for the remaining asymptotic
@@ -165,9 +165,9 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     results where only glibc is not correctly rounded, the rest flags and `errno` by D-10.14;
     `spec/behaviour/libm-elem-ld.md`). The family tests wait for the `_Float128` members.
   * **Tooling:** the oracle's `pow` decides (−1)^y for integers of any size; `mathcmp`'s probe
-    calls the `long double` elementary functions on the Liella side.
+    calls the `long double` elementary functions on the libniji side.
   * **Measurements:** `docs/libm-accuracy.tsv` (20,000 random operands per function in
-    round-to-nearest, 5,000 per directed mode): every classified Liella result correctly
+    round-to-nearest, 5,000 per directed mode): every classified libniji result correctly
     rounded; glibc bit-identical 73.5–99.9% in round-to-nearest. Speed not measured (milestone 6;
     the 384-bit path runs on every call).
   * **Left for milestone 5:** the `_Float128` elementary
@@ -185,7 +185,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     `fam_lgammal_r`, `fam_lgammaf64x_r` (`s10_math_symbols.rs`), and the differential test
     `special_ld_products.rs` (`spec/behaviour/libm-special-ld.md`).
   * **Measurements:** `docs/libm-accuracy.tsv` (`mathcmp` now calls the `long double` special functions
-    on the Liella side).
+    on the libniji side).
   * **Left for milestone 5:** the `_Float128` elementary and special functions, the complex
     `long double`/`_Float128` members, then the family tests.
 * **Delivered** (milestone 5, 2026-11-04; stories M5-1 to M5-8):
@@ -195,7 +195,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
   * **Tests:** the M5 differential `*_products.rs` tests (listed in `docs/codemap/README.md`),
     `special_cr.rs`, and the family tests of `s10_math_symbols.rs` (`elementary_...`, `special_...`
     and `complex_long_double_and_float128_forwarded_members` check every `f128`, `l` and `f64x` name).
-  * **Tooling:** `mathcmp` calls the `_Float128` special functions on the Liella side, and its max-ulp
+  * **Tooling:** `mathcmp` calls the `_Float128` special functions on the libniji side, and its max-ulp
     reference is never below the round-toward-zero result.
   * **Measurements:** `docs/libm-accuracy.tsv` format q, summary in `docs/differences-from-glibc.md`.
 * **Milestone 5 remainder: stories** (ruling #808, planned by MATH-M5-PLAN 2026-10-22). The list is
@@ -222,9 +222,9 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
     `LdBits`/`F128Bits`. No assembly is needed.
   * **Proof, the same for every story:**
     * Accuracy against glibc: a differential test in `crates/math/tests/`, built against the host
-      C library and statically against Liella's products, on Zen 1 host. It runs every function in every
+      C library and statically against libniji's products, on Zen 1 host. It runs every function in every
       rounding direction on special, boundary and random operands. Every differing line is checked
-      against the `liella-mathtools` oracle: Liella must be correctly rounded, and invalid,
+      against the `niji-mathtools` oracle: libniji must be correctly rounded, and invalid,
       division-by-zero, NaNs and `errno` must follow D-10.14/D-10.18.
     * Accuracy target: correctly rounded in every mode, the same as the family D-rows (D-10.17,
       D-10.19, D-10.20). The `libm-ulps.tsv` bound of the format is the ceiling that may never be
@@ -274,7 +274,7 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
       Re-derive the exact-result ranges for 113 bits: `exp10`/`log10` exact while 5^k < 2^113
       (k ≤ 48), the dyadic `pow` results, and the perfect cubes.
     * Proof: `elem_f128_products.rs`, s10_3_c_0 and r3 for `_Float128`, and the `mathcmp` probe
-      calling the `f128` functions on the Liella side.
+      calling the `f128` functions on the libniji side.
     * Extends D-10.19.
   * **M5-6 `MATH-M5-F128-ELEM-2`** (size M, after M5-5; 14 names):
     * Names: `sinf128`, `cosf128`, `tanf128`, `sincosf128`, `asinf128`, `acosf128`, `atanf128`,
@@ -312,10 +312,10 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
   * **Where we stand** (Zen 1 host, AMD EPYC 7551 (Zen 1, FMA and AVX2), idle (load 1.3 to 2.8 on 80 threads), not booked;
     origin/next 42e682a3; job `math-m6-plan-bench-2`). The harness is a scratch C program
     (`~/work/math-m6-plan/libm_ns.c` on Zen 1 host). It is built the way `cargo xtask mathcmp` builds: `-O2 -fno-builtin`,
-    statically against `target/liella/{libm,libc}.a`, and against host glibc 2.39 both statically and dynamically.
+    statically against `target/niji/{libm,libc}.a`, and against host glibc 2.39 both statically and dynamically.
     It measures throughput: 256 independent uniform operands in the range given, round-to-nearest, pinned to one CPU.
     Each function is run 5 times for ≥ 20 ms; the median is taken, and the whole thing runs twice per library. Cells
-    show Liella / glibc-static ns per call (×ratio). glibc-dynamic is within 0.1 to 0.5 ns of static except where
+    show libniji / glibc-static ns per call (×ratio). glibc-dynamic is within 0.1 to 0.5 ns of static except where
     noted. † = noisy: the two runs' medians differ by more than 10%. All other cells agree within 10% (most within 3%).
     Ranges: exp family, trig, atan, hyperbolic, tgamma/lgamma [−10, 10]; logs [0.01, 100]; log1p [−0.9, 10];
     asin/acos [−1, 1]; atanh [−0.99, 0.99]; acosh [1, 100]; erf/erfc [−5, 5]; j [−20, 20]; y (0.01, 20]; jn/yn order 3;
@@ -365,19 +365,19 @@ fall under the existing owner-ruling rule for unsafe and assembly (P10 (6)).
 | `csqrt` | 6,254 / 51.0 (×123) | 6,239 / 32.1 (×195) | 6,386 / 95.7 (×67) | - |
 | `cpow` | 76,366 / 143 (×533) | 76,222 / 120 (×635) | 76,452 / 552 (×138) | - |
 
-  * **What the table says:** Liella is slower than glibc in every cell but two (`hypotf128`, and `sqrtf128` is within
+  * **What the table says:** libniji is slower than glibc in every cell but two (`hypotf128`, and `sqrtf128` is within
     ×1.7). The elementary `float`/`double` functions are ×14 to ×118, the same 290 to 620 ns for both formats, because
     both run the double-double path. `long double` costs the same as `_Float128`: both run the 384-bit `mp` path, so
     they are ×21 to ×1408 against glibc's x87 code. The special and complex functions of every format, `float` and
     `double` included, run `mp` (24 to 122 µs). `sqrt` runs in software (213 to 941 ns) although SSE `sqrtss`/
     `sqrtsd` and x87 `fsqrt` are correctly rounded in the current rounding direction by definition (IEEE 754, Intel
     SDM).
-  * **The cost of the glibc-compatible envelope, measured in Liella (same job, `double` unless noted):**
-    | Probe | Liella | glibc static | What it shows |
+  * **The cost of the glibc-compatible envelope, measured in libniji (same job, `double` unless noted):**
+    | Probe | libniji | glibc static | What it shows |
     |---|---|---|---|
     | `stmxcsr`+`ldmxcsr` pair | 8.7 | - | one environment switch |
     | the wrapper's MXCSR sequence (read mode; save and load default; restore; set inexact) | 24.7 | - | `mathret::elem` without the function |
-    | `exp(qNaN)` (no evaluation) | 24.2 | 6.1 | Liella's per-call floor is the MXCSR sequence |
+    | `exp(qNaN)` (no evaluation) | 24.2 | 6.1 | libniji's per-call floor is the MXCSR sequence |
     | `expf(qNaN)` | 25.8 | 3.7 | |
     | `exp(tiny)` (result 1, inexact) | 99.8† | 5.1 | |
     | `exp(1000)` (overflow: flags and `errno` ERANGE) | 50.4 | 10.9 | errno and flags only on exceptional operands |

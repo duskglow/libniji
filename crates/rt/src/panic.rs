@@ -4,7 +4,7 @@
 
 use core::panic::PanicInfo;
 
-use liella_kernel::sys::Sys;
+use niji_kernel::sys::Sys;
 
 use crate::fatal;
 
@@ -14,8 +14,8 @@ pub fn panicked<S: Sys>(sys: &S, info: &PanicInfo<'_>, trap: impl FnOnce()) -> !
     match info.location() {
         Some(l) => {
             let line = fatal::decimal(u64::from(l.line()), &mut digits);
-            fatal::fatal(sys, &[b"liella: internal error at ", l.file().as_bytes(), b":", line, b"\n"], trap)
+            fatal::fatal(sys, &[b"niji: internal error at ", l.file().as_bytes(), b":", line, b"\n"], trap)
         }
-        None => fatal::fatal(sys, &[b"liella: internal error\n"], trap),
+        None => fatal::fatal(sys, &[b"niji: internal error\n"], trap),
     }
 }

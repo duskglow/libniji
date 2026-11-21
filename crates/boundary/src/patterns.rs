@@ -1,6 +1,6 @@
 //! `fnmatch`, `glob` and `wordexp` glue (spec §14.7, §14.8, §14.10; D-14.5): the C structures
 //! (`glob_t`, `wordexp_t`), the caller's callbacks and the process state over
-//! `liella::pattern::{fnmatch, glob, wordexp}`.
+//! `niji::pattern::{fnmatch, glob, wordexp}`.
 //!
 //! * Results live in caller-heap vectors (`crate::caller_alloc`): `gl_offs`/`we_offs` null
 //!   slots (with `GLOB_DOOFFS`/`WRDE_DOOFFS`), the strings, a null pointer. Without `DOOFFS`
@@ -26,18 +26,18 @@
 //!   the real user ID; `wordexp`'s `~` is `$HOME` whenever it is set (XCU 2.6.1), else the
 //!   passwd entry. `~user` is the passwd entry (through the name-service switch and cache).
 
-use liella::error::{Errno, KResult};
-use liella::mem::{InlineVec, TryVec};
-use liella::pattern::fnmatch;
-use liella::pattern::glob::{self, Access, Failure, KernelAccess};
-use liella::pattern::wordexp::{self, Shell, WordError, Words};
-use liella_abi::callback::{GlobErrFn, GlobT};
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::wordexp_t;
-use liella_kernel::sys::Sys;
-use liella_legacy::nss;
-use liella_legacy::versioned::GlobExistence;
-use liella_legacy::nss_files::Key;
+use niji::error::{Errno, KResult};
+use niji::mem::{InlineVec, TryVec};
+use niji::pattern::fnmatch;
+use niji::pattern::glob::{self, Access, Failure, KernelAccess};
+use niji::pattern::wordexp::{self, Shell, WordError, Words};
+use niji_abi::callback::{GlobErrFn, GlobT};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::wordexp_t;
+use niji_kernel::sys::Sys;
+use niji_legacy::nss;
+use niji_legacy::versioned::GlobExistence;
+use niji_legacy::nss_files::Key;
 
 use crate::sys::CSys;
 use crate::{caller_alloc, conv, errno, locale, process, spawn, strz};
@@ -114,7 +114,7 @@ fn report(errfunc: Option<GlobErrFn>, path: &[u8], e: Errno) -> bool {
 }
 
 impl AltAccess<'_> {
-    fn stat_with(f: Option<liella_abi::callback::GlobStatFn>, path: &[u8]) -> KResult<u32> {
+    fn stat_with(f: Option<niji_abi::callback::GlobStatFn>, path: &[u8]) -> KResult<u32> {
         let f = f.ok_or(Errno::ENOSYS)?;
         let p = z(path)?;
         // `struct stat` (144 bytes, spec Appendix C); `st_mode` is the low half of word 3.
@@ -282,7 +282,7 @@ pub fn glob(pattern: KResult<&[u8]>, flags: c_int, errfunc: Option<GlobErrFn>, p
 }
 
 /// `glob@GLIBC_2.2.5` (and `glob64@GLIBC_2.2.5`): [`glob`], except that with `GLOB_ALTDIRFUNC`
-/// a name's existence is checked with `gl_stat` (`liella_legacy::versioned`, LG-2).
+/// a name's existence is checked with `gl_stat` (`niji_legacy::versioned`, LG-2).
 pub fn glob_2_2_5(pattern: KResult<&[u8]>, flags: c_int, errfunc: Option<GlobErrFn>, pglob: Option<&mut GlobT>) -> c_int {
     glob_versioned(pattern, flags, errfunc, pglob, GlobExistence::for_version(true))
 }
@@ -365,7 +365,7 @@ struct ProcessShell {
 }
 
 impl Shell for ProcessShell {
-    fn var(&mut self, name: &[u8], out: &mut liella::pattern::wordexp::ValBuf) -> KResult<bool> {
+    fn var(&mut self, name: &[u8], out: &mut niji::pattern::wordexp::ValBuf) -> KResult<bool> {
         out.clear();
         if let Some((_, v)) = self.local.iter().find(|(n, _)| n.as_slice() == name) {
             out.extend_from_slice(v)?;
@@ -396,7 +396,7 @@ impl Shell for ProcessShell {
         process::arg_count().saturating_sub(1)
     }
 
-    fn arg(&mut self, i: usize, out: &mut liella::pattern::wordexp::ValBuf) -> KResult<bool> {
+    fn arg(&mut self, i: usize, out: &mut niji::pattern::wordexp::ValBuf) -> KResult<bool> {
         out.clear();
         process::arg_bytes(i, out)
     }
@@ -405,7 +405,7 @@ impl Shell for ProcessShell {
         CSys.getpid()
     }
 
-    fn home(&mut self, user: Option<&[u8]>, out: &mut liella::pattern::wordexp::ValBuf) -> KResult<bool> {
+    fn home(&mut self, user: Option<&[u8]>, out: &mut niji::pattern::wordexp::ValBuf) -> KResult<bool> {
         out.clear();
         let h = match user {
             Some(u) => passwd_home(Key::Name(u))?,

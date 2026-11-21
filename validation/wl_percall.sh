@@ -1,6 +1,6 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
-# Per-call instruction counts of libc functions, Liella vs glibc (WL-PERCALL). Counts, never time:
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
+# Per-call instruction counts of libc functions, libniji vs glibc (WL-PERCALL). Counts, never time:
 # instructions:u per call = (I(N calls) - I(0 calls)) / N, perf stat on keke, static binaries (glibc: gcc -static).
 # perf sampling loses most samples on a VM; this is the exact alternative for "which function is the gap".
 #
@@ -8,7 +8,7 @@
 #
 # RUNS ON THE HOST WHERE IT IS STARTED (VALIDATION-JOBRUN, 2026-10-20; no ssh, no vm_run). From a role directory:
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_percall.sh --spec X.c .'
-# <dir|rev>: a Liella tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
+# <dir|rev>: a libniji tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
 #   `head=` of its .synced marker, else "unknown" (never an error; an "unknown" run is not cached across runs); a tree that
 #   .synced calls dirty is refused unless --rev names it. A git worktree: its HEAD (dirty refused). Not a directory: a rev
 #   of the git repository you run in. The tree is copied to ~/wl/src/<rev> (not target/, .git, .synced).
@@ -18,24 +18,27 @@
 #   opendir_closedir malloc_free fopen_fclose fgets_line fwrite_short printf_short setlocale_query
 #   strcoll_short getenv); validation/percall/locale.c = the locale-sensitive calls (mb*/wc*, ctype, strxfrm,
 #   printf %ls/%lc, regex, iconv). --cases: only these (default all).
-# --base REV: the "base" column (Liella at REV). In a git tree, default (TOOLS-15): `git merge-base NEW origin/next`; --base none
+# --base REV: the "base" column (libniji at REV). In a git tree, default (TOOLS-15): `git merge-base NEW origin/next`; --base none
 #   drops the column; a REV the branch is behind becomes merge-base NEW REV (WL_BASE_EXACT=1 keeps it; wl_base.sh).
 #   Without git (a role directory) the default is the .synced `merge_base=` (sync_role --base writes it; none: no base
 #   column), and an explicit REV must be a full sha (it wins; `base_sha=` in .synced is the base ref's tip). Either way its
-#   source or products must be cached on this host (~/wl/src/<sha>, ~/wl/products/<sha>; prime them from a git checkout
+#   source or products must be cached on this host (~/wl/src/<sha>, ~/wl/products/<sha>-release; prime them from a git checkout
 #   with validation/wl_prime_base.sh <host> <sha>), else exit 2.
 #   The base used and why is printed and recorded in the log (wl_base: line, read by finish.sh). Output: table sorted by (new-glibc) x typical calls
 #   (calls = 0 in the spec: unsorted, last), per case glibc / base / new, new/glibc, sd over 5 runs (instructions).
-# Products cached per sha in ~/wl/products/<sha> on the host,
+# Products cached per sha and profile in ~/wl/products/<sha>-release on the host (the shipped release profile,
+# NIJI_FULL_PROFILE=1; WL_PROFILE=fast: the fast test profile in ~/wl/products/<sha>; WL-PREP-RELEASE-PROFILE),
 # binaries and rows per sha and spec hash in ~/wl/percall/ (COUNT_FRESH=1 ignores cached rows).
 # glibc is linked DYNAMICALLY (the system libc.so.6 with -z now; static glibc ignores the locale for collation) and
-# runs in the same locale as Liella: --locale L (default en_US.UTF-8) sets LC_ALL, and the harness calls
+# runs in the same locale as libniji: --locale L (default en_US.UTF-8) sets LC_ALL, and the harness calls
 # setlocale(LC_ALL, "") before every case (PERCALL-LOCALE; per-case override CASE_LOCALE in percall.h). The header
 # prints each variant's active locale and codeset; a variant that is not in the requested locale stops the run (exit 5). Column `check`: every case's self-check line (percall.h) agrees between
-# glibc and Liella (ok), differs (MISMATCH: that glibc number is no reference; details below the table) or is absent (-).
+# glibc and libniji (ok), differs (MISMATCH: that glibc number is no reference; details below the table) or is absent (-).
 # --event E: count the perf event E (e.g. cycles:u, branch-misses:u) instead of instructions:u; same table, the
 #   header names the event. Rows are cached per event. Only instructions:u is deterministic: other events on the keke
-#   VM are advisory (read sd_new / sd_glibc). Unknown flags exit 2. Tracing one call instruction by instruction: validation/wl_trace.sh.
+#   VM are advisory (read sd_new / sd_glibc). --event mite = r0479:u, IDQ.MITE_UOPS (uops from the legacy decoders,
+#   not the uop cache; D-4.67): only on Intel Sandy Bridge to Skylake-family hosts, where the raw code has that meaning
+#   (the JCC-erratum loss shows there and not in instructions). Unknown flags exit 2. Tracing one call instruction by instruction: validation/wl_trace.sh.
 # Clean room: glibc is only ever measured as a black box (totals).
 set -u
 base=
@@ -64,9 +67,13 @@ while [ $# -gt 0 ]; do
 done
 [ $# -eq 1 ] || { sed -n '2,/^set -u/p' "$0" | sed '$d'; exit 2; }
 target=$1
+[ "$event" = mite ] && event=r0479:u
 case "$event" in *[!A-Za-z0-9_:.-]*|"") echo "wl_percall: bad event name $event" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/wl_local.sh"
+. "$here/wl_lock.sh"   # wl_profile, wl_key: WL_PROFILE=fast counts the fast-profile products (default: release, what ships)
+profile=$(wl_profile) || exit 2
+link=$(wl_link) || exit 2   # WL_LINK=dynamic: libniji's columns linked against its libc.so.6 and ld.so (wl_lock.sh LINK)
 root=; gitmode=0
 if [ -d "$target" ]; then
     if wl_is_git "$target"; then
@@ -117,14 +124,14 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $shas; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$k/libc.a ] || [ -d ~/wl/src/$k ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -d ~/wl/src/$k ] && continue
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" && git -C "$repo" archive --format=tar "$s" | tar -x -C "$t" && { mv -T "$t" ~/wl/src/$k 2>/dev/null || rm -rf "$t"; } || return 1
         else
             wl_local_src "$root" "$k" || return 1
         fi
     done
-    cmd="${rec}WL_EVENT=$event COUNT_FRESH=${COUNT_FRESH:-0} PC_LOCALE=$locale bash $B/wl_percall_run.sh $sname $cases $base $srckey $trace"
+    cmd="${rec}WL_PROFILE=$profile WL_LINK=$link WL_EVENT=$event COUNT_FRESH=${COUNT_FRESH:-0} PC_LOCALE=$locale bash $B/wl_percall_run.sh $sname $cases $base $srckey $trace"
 }
 [ $nowait = 1 ] && echo "wl_percall: --nowait ignored (this tool runs where it is started; jobrun detaches)" >&2
 prep || exit 1

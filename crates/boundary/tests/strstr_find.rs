@@ -6,19 +6,19 @@
 //! haystack ending on the last byte of a page whose next page is unmapped; `strcasestr` with the
 //! case varied, with non-ASCII bytes (0x80..0xFF fold to nothing in the C and C.UTF-8 locales) in
 //! both strings. Both scan paths (SSE2, and AVX2 where the CPU has it).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::sync::{Mutex, MutexGuard};
 
 use core::ffi::c_char;
-use liella_abi::ctypes::c_void;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::c_void;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 const LC_CTYPE: i32 = 0;
@@ -153,7 +153,7 @@ fn sweep(ci: bool, high: bool, flip: bool, ms: core::ops::Range<usize>) {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// GATE-SPEED: each sweep test runs in needle-length ranges (one test each); `M_SHARDS` tiles
@@ -253,7 +253,45 @@ fn strstr_and_strcasestr_never_read_past_the_terminator() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
+    CSys.munmap(hi).unwrap();
+    CSys.munmap(lo).unwrap();
+}
+
+#[test]
+fn strstr_needle_ending_on_the_last_mapped_byte_is_measured_inside_its_page() {
+    // Clauses: s4_6_c_0 (D-4.28). The needle's NUL is the last mapped byte, so every needle
+    // offset from 4095 down to 4074 meets the direct entry's 16-byte needle load (TIMING-COV-STRSTR-PAIR).
+    let _g = level();
+    set_ctype(b"C\0");
+    let r = CSys.mmap(0, 2 * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
+    let (lo, mut hi) = r.split_at(PAGE).ok().unwrap();
+    CSys.mprotect(&mut hi, PROT_NONE).unwrap();
+    let base = lo.addr();
+    let mut hbuf = [0u8; 200];
+    for avx2 in paths() {
+        assert!(selftest::set_scan_avx2(avx2));
+        for m in 0..=21usize {
+            let nd = needle(m, false, false);
+            let at = (base + PAGE - m - 1) as *mut u8;
+            let mut img = nd.clone();
+            img.push(0);
+            s::memcpy(at.cast::<c_void>(), img.as_ptr().cast::<c_void>(), img.len());
+            for n in [0usize, 1, 15, 16, 40, 64, 100] {
+                for (k, pos) in positions(n, m).into_iter().enumerate() {
+                    let h = haystack(n, &nd, pos, m + n + k, false);
+                    let want = if m == 0 { Some(0) } else { naive(&h, &nd, false) };
+                    hbuf[..n].copy_from_slice(&h);
+                    hbuf[n] = 0;
+                    let got = s::strstr(hbuf.as_ptr().cast::<c_char>(), at.cast::<c_char>());
+                    let got = if got.is_null() { None } else { Some(got as usize - hbuf.as_ptr() as usize) };
+                    assert_eq!(got, want, "needle at page end avx2={avx2} m={m} n={n} pos={pos:?}");
+                }
+            }
+        }
+    }
+    selftest::set_scan_avx2(false);
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -285,7 +323,7 @@ fn strstr_and_strcasestr_with_many_failed_candidates_stay_correct() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -320,7 +358,7 @@ fn strstr_across_a_page_boundary_from_the_last_bytes_of_a_page() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -380,7 +418,48 @@ fn strstr_large_haystacks_find_every_position_in_the_wide_groups() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
+}
+
+#[test]
+fn strpair_names_the_first_candidate_or_the_terminator_exactly() {
+    // Clauses: s4_6_c_0 (D-4.28; the scanner contract under strstr). TIMING-N100-STRSTR-64:
+    // the head blocks' one-mask test names the first stop itself, not an earlier unit that
+    // strstr's compare would reject and resume after. A candidate or the terminator at every
+    // position of the first 160 bytes from p, a lone c1 (no candidate) before it, 34 alignments,
+    // four distances, both paths.
+    let _g = level();
+    niji_boundary::cpu::init();
+    let (c0, c1) = (b'x', b'y');
+    for avx2 in paths() {
+        assert!(selftest::set_scan_avx2(avx2));
+        for off in [1usize, 4, 7, 15] {
+            for align in 0..34usize {
+                for stop in 0..160usize {
+                    for cand in [false, true] {
+                        let mut buf = vec![b'a'; 512];
+                        buf[511] = 0;
+                        let p = align + off;
+                        if stop > 3 {
+                            buf[p + stop / 2] = c1;
+                        }
+                        if cand {
+                            buf[p + stop - off] = c0;
+                            buf[p + stop] = c1;
+                            buf[p + stop + 3] = 0;
+                        } else {
+                            buf[p + stop] = 0;
+                        }
+                        let want = 2 * stop + usize::from(!cand);
+                        let got = selftest::strpair(&buf[align..], off, c0, c1);
+                        assert_eq!(got, Some(want), "avx2={avx2} off={off} align={align} stop={stop} cand={cand}");
+                    }
+                }
+            }
+        }
+    }
+    selftest::set_scan_avx2(false);
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -411,7 +490,7 @@ fn strstr_filter_switch_keeps_every_candidate() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -463,5 +542,5 @@ fn strstr_dense_last_byte_then_first_byte_stream_keeps_every_candidate() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }

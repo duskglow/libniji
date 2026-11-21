@@ -1,11 +1,11 @@
 //! The integrated name-service cache end to end in the products (D-16.10):
 //! `tests/oracle/nscache_check.c`, a self-checking program (the reference has no such cache, so
-//! this is not a differential test) linked statically against Liella's products and run by
+//! this is not a differential test) linked statically against libniji's products and run by
 //! `tests/oracle/nscache_run.sh` as root in private mount and network namespaces with their own
 //! `/dev/shm`, `/mnt` and `/etc` (no region of the system's `/dev/shm` is used or left). It
 //! covers each requirement of D-16.10: a process's first lookup goes to the sources; `shadow` and
 //! `gshadow` never enter the table; fresh processes see edits at once; global and per-category
-//! files invalidate what they should; the rate limit, `liella_nscache_invalidate` and generations
+//! files invalidate what they should; the rate limit, `niji_nscache_invalidate` and generations
 //! seen without `stat`; keys and per-process steps (environment, locale and IDNA,
 //! `AI_ADDRCONFIG`, overrides, a modified `_res`) not leaking; squatting, corruption and killed
 //! writers; `AT_SECURE`, differing IDs, credential changes, `unshare(CLONE_NEWUSER)` and `setns` (a user
@@ -96,9 +96,9 @@ const CHECKS: &[&str] = &[
 
 #[test]
 fn the_cache_meets_d_16_10() {
-    // Trace: no spec clause (the integrated name-service cache is Liella's own, self-checked); D-16.10.
+    // Trace: no spec clause (the integrated name-service cache is libniji's own, self-checked); D-16.10.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -112,11 +112,11 @@ fn the_cache_meets_d_16_10() {
     let exe = dir.join("nscache_check");
     let mut cc = Command::new("cc");
     cc.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .arg(r.join("target/niji/niji-crt1.o"))
         .arg("-I")
         .arg(r.join("include"))
         .arg(r.join("crates/core/tests/oracle/nscache_check.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc");
     let built = oracle::build(cc, &exe);
     assert!(built, "nscache_check.c does not link against the products");

@@ -1,5 +1,5 @@
 /* The DNS stub resolver, getaddrinfo/getnameinfo through `dns`, and nsswitch.conf actions end to
- * end (spec §16.1-16.4; phase 10): built against the host C library and against Liella's
+ * end (spec §16.1-16.4; phase 10): built against the host C library and against libniji's
  * products, the outputs must match line for line (dns_products.rs). Black-box: every line is a
  * result of a public function. The DNS server is part of this program (a forked child answering
  * from a script on 127.0.0.1:53), so nothing depends on real DNS.

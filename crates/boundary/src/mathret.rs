@@ -1,26 +1,27 @@
 //! Conversions for the math exports (spec §10, D-10.2): C values to the formats of
-//! `liella-math`, the rounding direction the calling thread has set, and results back to C,
-//! raising the status's exception flags (`liella_rt::fpu::raise`) and setting `errno` from its
+//! `niji-math`, the rounding direction the calling thread has set, and results back to C,
+//! raising the status's exception flags (`niji_rt::fpu::raise`) and setting `errno` from its
 //! error. This is the only place math touches either.
 //!
 //! `long double` and `_Float128` arrive as bit structs (`LdBits`, `F128Bits`) from the C
 //! forwarders (OD-C4); out-parameters arrive as `Option<&mut T>`, and a NULL one where the C
 //! interface has no error channel is a diagnostic plus abort (S6).
 
-use liella_abi::ctypes::{c_int, F128Bits, LdBits};
-use liella_abi::layout::{femode_t, fenv_t, fexcept_t};
-use liella_kernel::machine::X87Env;
-use liella_kernel::errno::Errno;
-use liella_math::float::{self, Float};
-use liella_math::{MathError, Rounding, Status, F128, F80};
-use liella_rt::fpu;
+use niji_abi::ctypes::{c_int, F128Bits, LdBits};
+use niji_abi::layout::{femode_t, fenv_t, fexcept_t};
+use niji_kernel::machine::X87Env;
+use niji_kernel::errno::Errno;
+use niji_math::float::{self, Float};
+use niji_math::{MathError, Rounding, Status, F128, F80};
+use niji_rt::fpu;
 
 use crate::conv;
+use crate::hot::fpregs::{self, Pin};
 use crate::errno;
 use crate::ret;
 use crate::sys::CSys;
 
-/// A value of `liella-math` and its C representation.
+/// A value of `niji-math` and its C representation.
 pub trait CVal: Sized {
     /// The C type.
     type C;
@@ -496,6 +497,14 @@ impl Soft {
     }
 }
 
+/// `sqrt`/`sqrtf`'s `errno` for a negative operand, out of line so the in-place path keeps only
+/// its NaN test (D-10.71).
+#[cold]
+#[inline(never)]
+fn sqrt_domain() {
+    store_error(MathError::Domain);
+}
+
 /// A format whose square root has a hardware form ([`sqrt`], M6-2).
 pub trait Sqrt: CVal {
     /// The square root, correctly rounded in the caller's direction, with its flags and `errno`.
@@ -503,40 +512,44 @@ pub trait Sqrt: CVal {
 }
 
 impl Sqrt for f64 {
-    #[inline]
+    #[inline(always)]
     fn sqrt_c(self) -> f64 {
-        let mx = crate::ffi::liella_machine_mxcsr_get();
-        if fpu::is_sqrt_in_place(mx) {
-            let r = crate::ffi::liella_machine_sqrtsd(self);
-            // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
-            // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
-            if r.is_nan() && !self.is_nan() {
-                store_error(MathError::Domain);
-            }
-            r
-        } else {
-            let x = if fpu::is_daz(mx) { self.daz() } else { self };
-            ret(liella_math::fused::sqrt::<f64, f64>(x, fpu::rounding_of(mx)))
+        // No MXCSR read (D-10.101): `sqrtsd` on the caller's own MXCSR is the operation in
+        // every environment the caller can set, by whatever means (fenv, a direct `ldmxcsr`, a
+        // thread's or signal handler's own word): correctly rounded in its direction, DAZ read
+        // by the hardware, FTZ never acting (a non-zero root is normal), its flags raised and an
+        // unmasked exception trapping at the instruction, before the EDOM store (probed).
+        let x = self;
+        // The root takes its own pinned copy of x, dead after it, so `sqrtsd` writes its
+        // operand's register: x stays live for the EDOM test, and a root into any other
+        // register merges that register's upper lane, waiting on its last writer (in a
+        // loop of calls, the previous root). The root is pinned too, so the EDOM test reads the
+        // instruction's own result: the compiler cannot derive it from x (x < 0) and store EDOM
+        // before an unmasked invalid exception traps in the instruction.
+        let r = crate::hot::sqrtsd(x.pin()).pin();
+        // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
+        // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
+        if r.is_nan() && !x.is_nan() {
+            sqrt_domain();
         }
+        r
     }
 }
 
 impl Sqrt for f32 {
-    #[inline]
+    #[inline(always)]
     fn sqrt_c(self) -> f32 {
-        let mx = crate::ffi::liella_machine_mxcsr_get();
-        if fpu::is_sqrt_in_place(mx) {
-            let r = crate::ffi::liella_machine_sqrtss(self);
-            // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
-            // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
-            if r.is_nan() && !self.is_nan() {
-                store_error(MathError::Domain);
-            }
-            r
-        } else {
-            let x = if fpu::is_daz(mx) { self.daz() } else { self };
-            ret(liella_math::fused::sqrt::<f32, f32>(x, fpu::rounding_of(mx)))
+        // No MXCSR read (D-10.101), as in `sqrt`: `sqrtss` on the caller's own MXCSR.
+        let x = self;
+        // Its own copy of x for the root, as in `sqrt` (no merge with another register).
+        // The root pinned as in `sqrt`: EDOM is stored only after the instruction.
+        let r = crate::hot::sqrtss(x.pin()).pin();
+        // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
+        // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
+        if r.is_nan() && !x.is_nan() {
+            sqrt_domain();
         }
+        r
     }
 }
 
@@ -549,9 +562,9 @@ impl Sqrt for F80 {
         // any other exponent with it set. Pseudo-denormals and the invalid encodings keep the
         // software path's rules (D-10.20).
         let canonical = (e == 0) == (x.mant >> 63 == 0);
-        if canonical && u16::try_from(crate::ffi::liella_machine_x87_cw_get()).is_ok_and(fpu::is_x87_default_but_rounding) {
+        if canonical && u16::try_from(crate::ffi::niji_machine_x87_cw_get()).is_ok_and(fpu::is_x87_default_but_rounding) {
             let mut r = LdBits::default();
-            crate::ffi::liella_machine_fsqrt(&x, &mut r);
+            crate::ffi::niji_machine_fsqrt(&x, &mut r);
             let nan = e == 0x7fff && x.mant << 1 != 0;
             let zero = e == 0 && x.mant == 0;
             if x.se & 0x8000 != 0 && !nan && !zero {
@@ -559,7 +572,7 @@ impl Sqrt for F80 {
             }
             r
         } else {
-            ret(liella_math::fused::sqrt::<F80, F80>(self, mode87()))
+            ret(niji_math::fused::sqrt::<F80, F80>(self, mode87()))
         }
     }
 }
@@ -567,7 +580,7 @@ impl Sqrt for F80 {
 impl Sqrt for F128 {
     #[inline]
     fn sqrt_c(self) -> F128Bits {
-        ret(liella_math::fused::sqrt::<F128, F128>(self, mode()))
+        ret(niji_math::fused::sqrt::<F128, F128>(self, mode()))
     }
 }
 
@@ -597,13 +610,13 @@ impl Hypot for f32 {
     fn hypot_c(self, y: f32) -> f32 {
         // One MXCSR read serves both paths (the envelope fast entry's pattern, MATH-M6-ENVELOPE-COST):
         // a refusal takes its rounding direction from the value read on entry.
-        let mxcsr = crate::ffi::liella_machine_mxcsr_get();
+        let mxcsr = crate::ffi::niji_machine_mxcsr_get();
         if fpu::is_default_but_rounding(mxcsr) {
             if let Some(r) = hypotf_fast(self, y) {
                 return r;
             }
             // No FTZ, no DAZ, every trap masked: the accurate path runs in place as before.
-            return ret(liella_math::pow::hypot(self, y, fpu::rounding_of(mxcsr)));
+            return ret(niji_math::pow::hypot(self, y, fpu::rounding_of(mxcsr)));
         }
         // FTZ, DAZ or an unmasked trap: the caller's FTZ/DAZ is honoured (D-10.22).
         soft_hypot(mxcsr, self, y)
@@ -615,12 +628,16 @@ impl Hypot for f64 {
     /// entry [`elem_fast`] in the default MXCSR; a refusal, a directed mode, DAZ, FTZ or an
     /// unmasked trap take `pow::hypot` as before (the envelope honours the caller's DAZ/FTZ,
     /// D-10.22). A refused attempt's inexact is undone by the fallback's flag settlement.
+    /// `pow::hypot` runs its `double` kernel on the hardware root ([`crate::hot::Hw`], `sqrtsd`
+    /// in the default MXCSR that both fallbacks run in; LIBM-HYPOT-DIRECTED).
     #[inline]
     fn hypot_c(self, y: f64) -> f64 {
         elem_fast::<{ Status::HW_ANY.0 }, (f64, f64), f64>(
             (self, y),
             |(x, y)| crate::hot::hypot_nearest(x, y),
-            |(x, y), m| liella_math::pow::hypot(x, y, m),
+            // The kernel in its build chosen at startup (LIBM-HYPOT-DIRECTED-FAST); a NaN or an
+            // infinity (the kernel's `None`) takes the exact path, as in `pow::hypot_with`.
+            |(x, y), m| crate::hot::hypot_rounded(x, y, m).unwrap_or_else(|| niji_math::pow::hypot_exact(x, y, m)),
         )
     }
 }
@@ -632,20 +649,20 @@ impl Hypot for f64 {
 fn soft_hypot<T: Float + CVal + Denorm>(mxcsr: u32, x: T, y: T) -> T::C {
     let s = Soft::enter_sse_from(mxcsr);
     let (x, y) = (s.daz(x), s.daz(y));
-    s.ret(liella_math::pow::hypot(x, y, s.mode()))
+    s.ret(niji_math::pow::hypot(x, y, s.mode()))
 }
 
 impl Hypot for F80 {
     #[inline]
     fn hypot_c(self, y: F80) -> LdBits {
-        ret(liella_math::pow::hypot(self, y, mode87()))
+        ret(niji_math::pow::hypot(self, y, mode87()))
     }
 }
 
 impl Hypot for F128 {
     #[inline]
     fn hypot_c(self, y: F128) -> F128Bits {
-        ret(liella_math::pow::hypot(self, y, mode()))
+        ret(niji_math::pow::hypot(self, y, mode()))
     }
 }
 
@@ -674,7 +691,7 @@ impl Hypot for F128 {
 #[inline]
 pub fn hypotf_fast(x: f32, y: f32) -> Option<f32> {
     let (a, b) = (f64::from(x), f64::from(y));
-    let r = crate::ffi::liella_machine_sqrtsd(a * a + b * b);
+    let r = crate::ffi::niji_machine_sqrtsd(a * a + b * b);
     if !(r >= f64::from(f32::MIN_POSITIVE) && r <= f64::from(f32::MAX)) {
         return None;
     }
@@ -857,7 +874,7 @@ pub(crate) fn modes(a: conv::FeArg<'_, femode_t>) -> fpu::Mode {
 /// The payload `nan(tag)` derives from its tag: the tag read as `strtoull` reads it (saturating),
 /// if the whole tag is a number; otherwise 0 (spec §10.2, `strtod("NAN(tag)")`).
 pub fn nan_tag(tag: &[u8]) -> u128 {
-    use liella::num::parse::{parse_u64, Dialect, Status as P};
+    use niji::num::parse::{parse_u64, Dialect, Status as P};
     if !tag.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'_') {
         return 0;
     }
@@ -910,26 +927,155 @@ pub fn elem32_fast<const HW: u8>(
     elem_fast::<HW, f32, f32>(x, fast, f)
 }
 
+/// An envelope `float` function whose fast path runs in the caller's environment without reading
+/// MXCSR (LIBM-F32-ONEPASS, D-10.63): `fast` evaluates once in `double` and converts in the
+/// caller's rounding direction. `fast` must answer only where its result is right in every
+/// direction and under FTZ and DAZ, and where the arithmetic raises inexact and nothing else
+/// (inexact only for an inexact result); it must refuse before any floating-point operation an
+/// operand whose conversion could raise a flag (NaN, subnormal). A refusal may therefore leave
+/// inexact raised only when the result is inexact, and the fallback [`elem`] then reads MXCSR as
+/// usual. A NaN operand returns `x + x` (quiet; invalid for a signalling NaN) before the envelope.
+#[inline(always)]
+pub fn elem32_onepass(
+    x: f32,
+    fast: impl FnOnce(f32) -> Option<f32>,
+    f: impl FnOnce(f32, Rounding) -> (f32, Status),
+) -> f32 {
+    match fast(x) {
+        Some(v) => v,
+        None => elem32_onepass_cold(x, f),
+    }
+}
+
+/// [`elem32_onepass`] for a function of two `float`s (`atan2f`, LIBM-F32-REST, D-10.82): `fast`
+/// meets the same contract on both operands; every refusal (NaN included) takes the full envelope.
+#[inline(always)]
+pub fn elem32_onepass2(
+    x: f32,
+    y: f32,
+    fast: impl FnOnce(f32, f32) -> Option<f32>,
+    f: impl FnOnce((f32, f32), Rounding) -> (f32, Status),
+) -> f32 {
+    match fast(x, y) {
+        Some(v) => v,
+        None => elem32_onepass2_cold(x, y, f),
+    }
+}
+
+/// [`elem32_onepass2`]'s refusals, out of line and cold.
+#[cold]
+#[inline(never)]
+fn elem32_onepass2_cold(x: f32, y: f32, f: impl FnOnce((f32, f32), Rounding) -> (f32, Status)) -> f32 {
+    elem((x, y), Unit::Sse, f)
+}
+
+/// [`elem32_onepass`]'s refusals, out of line and cold: a NaN, or the full envelope.
+#[cold]
+#[inline(never)]
+fn elem32_onepass_cold(x: f32, f: impl FnOnce(f32, Rounding) -> (f32, Status)) -> f32 {
+    if x.is_nan() {
+        return x + x;
+    }
+    elem(x, Unit::Sse, f)
+}
+
+/// [`elem32_onepass`] for a two-argument `float` function (`powf`, LIBM-F32-POWF, D-10.78), under
+/// the same contract for `fast`. Every refusal (NaN operands included: pow's NaN cases are not
+/// all `x + y`) goes to the unchanged [`elem`] envelope, out of line and cold.
+#[inline(always)]
+pub fn elem2_32_onepass(
+    x: f32,
+    y: f32,
+    fast: impl FnOnce(f32, f32) -> Option<f32>,
+    f: impl FnOnce((f32, f32), Rounding) -> (f32, Status),
+) -> f32 {
+    match fast(x, y) {
+        Some(v) => v,
+        None => elem2_32_onepass_cold(x, y, f),
+    }
+}
+
+/// [`elem2_32_onepass`]'s refusals: the full envelope.
+#[cold]
+#[inline(never)]
+fn elem2_32_onepass_cold(x: f32, y: f32, f: impl FnOnce((f32, f32), Rounding) -> (f32, Status)) -> f32 {
+    elem((x, y), Unit::Sse, f)
+}
+
+/// [`fpu::peek`] with the inline MXCSR read ([`fpregs::mxcsr`], D-X.44): the fast entries'
+/// one read of the caller's word and whether it is the default control word.
+#[inline(always)]
+fn peek() -> (u32, bool) {
+    let saved = fpregs::mxcsr();
+    (saved, fpu::is_default_control(saved))
+}
+
 /// [`elem32_fast`] for any argument and a `float` or `double` result: the `double` exp, exp2,
 /// log, log2, log10 and pow entries use it with the `*_nearest` functions of
-/// `liella_math::fast64` (MATH-M6-F64-FAST-ENTRY), under the same contract (including `HW`).
+/// `niji_math::fast64` (MATH-M6-F64-FAST-ENTRY), under the same contract (including `HW`).
 #[inline(always)]
-pub fn elem_fast<const HW: u8, A: Denorm, R: CVal<C = R> + Denorm>(
+pub fn elem_fast<const HW: u8, A: Denorm + Pin, R: CVal<C = R> + Denorm>(
     x: A,
     fast: impl FnOnce(A) -> Option<R>,
     f: impl FnOnce(A, Rounding) -> (R, Status),
 ) -> R {
-    let (saved, in_place) = fpu::peek(&CSys);
+    let (saved, in_place) = peek();
     if !in_place {
         return elem_switched(x, saved, f);
     }
     // The barrier keeps the fast path's arithmetic after the read and behind the branch: a
-    // caller with an unmasked trap must never see it run before the switch.
-    let x = core::hint::black_box(x);
+    // caller with an unmasked trap must never see it run before the switch. Register-only
+    // (D-X.44): the operand stays in its `xmm` register, no store and reload.
+    let x = x.pin();
     if let Some(v) = fast(x) {
         return v;
     }
     elem_fast_cold::<HW, A, R>(x, saved, f)
+}
+
+/// [`elem_fast`] for a function whose quick phase is also proved in the directed rounding
+/// directions (D-10.94; `double` exp): under a caller's word that is the default one but for its
+/// rounding field, `dir` runs in place in the caller's direction, on the MXCSR value read once on
+/// entry, under the same contract as `fast` (it answers only where its arithmetic raises exactly
+/// inexact); a refusal, and every other word, takes the switched path as before.
+#[inline(always)]
+pub fn elem_fast_dir<const HW: u8, A: Denorm + Pin, R: CVal<C = R> + Denorm>(
+    x: A,
+    fast: impl FnOnce(A) -> Option<R>,
+    dir: impl FnOnce(A, Rounding) -> Option<R>,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    let (saved, in_place) = peek();
+    if !in_place {
+        return elem_directed(x, saved, dir, f);
+    }
+    // As in `elem_fast`: the barrier keeps the arithmetic behind the mode branch.
+    let x = x.pin();
+    if let Some(v) = fast(x) {
+        return v;
+    }
+    elem_fast_cold::<HW, A, R>(x, saved, f)
+}
+
+/// [`elem_fast_dir`] under a word that is not the default one: the directed quick phase in
+/// place when only the rounding field differs (out of line and cold, so the round-to-nearest
+/// entry keeps its size), else, and on a refusal, [`elem_switched`] on the same `saved`.
+#[cold]
+#[inline(never)]
+fn elem_directed<A: Denorm + Pin, R: CVal<C = R> + Denorm>(
+    x: A,
+    saved: u32,
+    dir: impl FnOnce(A, Rounding) -> Option<R>,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    if fpu::is_default_but_rounding(saved) {
+        // The barrier keeps the arithmetic behind the word test (traps may be unmasked otherwise).
+        let x = x.pin();
+        if let Some(v) = dir(x, fpu::rounding_of(saved)) {
+            return v;
+        }
+    }
+    elem_switched(x, saved, f)
 }
 
 /// [`elem_fast`]'s fallback in the default mode, out of line and cold (register 16.5 #4) so the
@@ -960,12 +1106,38 @@ fn elem_switched<A: Denorm, R: CVal<C = R> + Denorm>(
     saved: u32,
     f: impl FnOnce(A, Rounding) -> (R, Status),
 ) -> R {
+    if fpu::is_default_but_rounding(saved) {
+        return elem_rounding_switched(x, saved, f);
+    }
     fpu::switch_default(&CSys);
     let e = Entry { saved, in_place: false };
     let x = core::hint::black_box(e.operand(x));
     let (v, mut st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
     let v = e.result(v, &mut st);
     exit(e, st);
+    v
+}
+
+/// [`elem_switched`] under a word that is the default one but for its rounding field (a directed
+/// mode with no DAZ, no FTZ and every trap masked; LIBM-HYPOT-DIRECTED-FAST): the
+/// computation runs in the default word, then MXCSR becomes `saved` with the reported flags set,
+/// in one write. That is what [`Entry`] and [`exit`] do for this word, without their tests: the
+/// operand and the result pass unchanged (no DAZ, no FTZ), every flag's trap is masked, so
+/// raising a flag is setting it, and the flags the arithmetic raised in hardware are dropped by
+/// the write. The values written are `MX_DEFAULT` and a word the hardware gave plus flag bits, so
+/// no reserved bit is set and the `MXCSR_MASK` filter of `CSys::set_mxcsr` is not needed.
+#[inline(always)]
+fn elem_rounding_switched<A: Denorm, R: CVal<C = R> + Denorm>(
+    x: A,
+    saved: u32,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    crate::ffi::niji_machine_mxcsr_set(fpu::MX_DEFAULT_WORD);
+    // As in `elem_switched`: the barriers keep the computation between the two writes.
+    let x = core::hint::black_box(x);
+    let (v, st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
+    crate::ffi::niji_machine_mxcsr_set(fpu::with_flags(saved, st.flags));
+    store_error(st.error);
     v
 }
 
@@ -1010,7 +1182,7 @@ pub struct Complex<T> {
     pub im: T,
 }
 
-/// A part of a [`Complex`] at the C boundary and the format `liella-math` computes it in.
+/// A part of a [`Complex`] at the C boundary and the format `niji-math` computes it in.
 pub trait CPart: Copy + Denorm {
     /// The format.
     type V: Copy + Denorm;
@@ -1109,6 +1281,38 @@ pub fn cplx<C: CPart>(z: Complex<C>, unit: Unit, f: impl FnOnce(C::V, C::V, Roun
     r
 }
 
+/// [`cplx`] with an in-place attempt (LIBM-CPLX-EXP-TIER, as [`elem_fast`]): in the default
+/// environment `fast` runs first and its parts are the result (it raises inexact in hardware and
+/// nothing else where it answers); otherwise, and in every other mode, [`cplx`] runs, after the
+/// flags the attempt may have raised are dropped again (cold, out of line).
+#[inline(always)]
+pub fn cplx_fast<C: CPart>(
+    z: Complex<C>,
+    unit: Unit,
+    fast: impl FnOnce(C::V, C::V) -> Option<(C::V, C::V)>,
+    f: impl FnOnce(C::V, C::V, Rounding) -> ((C::V, C::V), Status),
+) -> Complex<C> {
+    let (saved, in_place) = fpu::peek(&CSys);
+    if in_place {
+        // The barrier as in `elem_fast`.
+        let z = core::hint::black_box(z);
+        if let Some((re, im)) = fast(z.re.v(), z.im.v()) {
+            return Complex { re: C::of_v(re), im: C::of_v(im) };
+        }
+        return cplx_fast_cold(z, saved, unit, f);
+    }
+    cplx(z, unit, f)
+}
+
+/// [`cplx_fast`]'s fallback after an attempt: MXCSR back to `saved` (the attempt's inexact or
+/// denormal-operand bits dropped unless the caller had them), then [`cplx`].
+#[cold]
+#[inline(never)]
+fn cplx_fast_cold<C: CPart>(z: Complex<C>, saved: u32, unit: Unit, f: impl FnOnce(C::V, C::V, Rounding) -> ((C::V, C::V), Status)) -> Complex<C> {
+    fpu::settle(&CSys, saved, fpu::Flags(0), FAST_ATTEMPT_HW);
+    cplx(z, unit, f)
+}
+
 /// `cpow`: a complex function of two complex arguments.
 pub fn cplx2<C: CPart>(z: Complex<C>, w: Complex<C>, unit: Unit, f: impl FnOnce(C::V, C::V, C::V, C::V, Rounding) -> ((C::V, C::V), Status)) -> Complex<C> {
     let (e, mode) = enter(unit);
@@ -1138,6 +1342,58 @@ pub fn sincos<A: CVal + Denorm>(x: A, unit: Unit, f: impl FnOnce(A, Rounding) ->
     *s = sv.c();
     *c = cv.c();
     exit(e, st);
+}
+
+/// `sincos` with [`elem_fast`]'s in-place attempt (the `double` entry, LIBM-F64-TRIG-TIER): the
+/// out-parameters are checked first, as in [`sincos`]; then, in the default SSE environment,
+/// `fast` answers both results in place, or the cold fallback runs `f` (in place, or in the full
+/// envelope of [`sincos`]). `HW` as in [`elem32_fast`].
+#[inline(always)]
+pub fn sincos_fast<const HW: u8, A: CVal<C = A> + Denorm + Pin>(
+    x: A,
+    fast: impl FnOnce(A) -> Option<(A, A)>,
+    f: impl FnOnce(A, Rounding) -> ((A, A), Status),
+    s: Option<&mut A>,
+    c: Option<&mut A>,
+) {
+    let (s, c) = (ret::must(conv::req(s)), ret::must(conv::req(c)));
+    let (saved, in_place) = peek();
+    let x = if in_place {
+        // The barrier as in `elem_fast`.
+        let x = x.pin();
+        if let Some((sv, cv)) = fast(x) {
+            *s = sv;
+            *c = cv;
+            return;
+        }
+        x
+    } else {
+        x
+    };
+    sincos_fast_cold::<HW, A>(x, saved, in_place, f, s, c);
+}
+
+/// [`sincos_fast`]'s fallback, out of line and cold as [`elem_fast_cold`].
+#[cold]
+#[inline(never)]
+fn sincos_fast_cold<const HW: u8, A: CVal<C = A> + Denorm>(
+    x: A,
+    saved: u32,
+    in_place: bool,
+    f: impl FnOnce(A, Rounding) -> ((A, A), Status),
+    s: &mut A,
+    c: &mut A,
+) {
+    if in_place {
+        let ((sv, cv), st) = core::hint::black_box(f(x, Rounding::Nearest));
+        debug_assert!(st.hw.0 & !HW == 0, "the compile-time hw set misses a bit the computation reports");
+        *s = sv;
+        *c = cv;
+        fpu::settle(&CSys, saved, st.flags, fpu::Flags(HW | FAST_ATTEMPT_HW.0));
+        store_error(st.error);
+        return;
+    }
+    sincos(x, Unit::Sse, f, Some(s), Some(c));
 }
 
 #[cfg(test)]

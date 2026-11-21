@@ -10,8 +10,8 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use liella_abi::ctypes::c_char;
-use liella_boundary::posix::s04_strings as s;
+use niji_abi::ctypes::c_char;
+use niji_boundary::posix::s04_strings as s;
 
 fn time(mut f: impl FnMut()) -> f64 {
     for _ in 0..2000 {
@@ -31,11 +31,11 @@ fn time(mut f: impl FnMut()) -> f64 {
 
 fn main() {
     // The C layer's paths are chosen at startup in the products; here, explicitly.
-    // `LIELLA_BENCH_NO_AVX2` (any value) measures the paths without AVX2 (PJ-7 before/after).
-    if std::env::var_os("LIELLA_BENCH_NO_AVX2").is_some() {
-        liella_boundary::cpu::init_with(&liella::config::Tunables { avx2: Some(false), ..Default::default() });
+    // `NIJI_BENCH_NO_AVX2` (any value) measures the paths without AVX2 (PJ-7 before/after).
+    if std::env::var_os("NIJI_BENCH_NO_AVX2").is_some() {
+        niji_boundary::cpu::init_with(&niji::config::Tunables { avx2: Some(false), ..Default::default() });
     } else {
-        liella_boundary::cpu::init();
+        niji_boundary::cpu::init();
     }
     for &(n, tag) in &[(64usize, "64"), (4096, "4k"), (65536, "64k")] {
         let src = vec![0x5Au8; n];

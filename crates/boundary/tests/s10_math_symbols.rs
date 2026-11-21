@@ -4,7 +4,7 @@
 
 //! Translation-layer tests for the exported symbols of spec §10 (326 entries).
 //! Test names keep the exported C name verbatim (`sym_<name>`) for traceability.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 //! A specified family test checks that every member is defined by its archive and exported at its
 //! default version by its shared object (spec Appendix C.3); their behaviour, called through the C
@@ -14,26 +14,26 @@
 use spectest::{family, symbol};
 
 mod products;
-#[path = "../../core/tests/support/skip_note.rs"]
-mod skip_note;
+#[path = "../../math/tests/support/hypot_pairs.rs"]
+mod hypot_pairs;
 
-use liella_abi::ctypes::LdBits;
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::sys::CSys;
-use liella_rt::fpu::{self, Flags};
+use niji_abi::ctypes::LdBits;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::sys::CSys;
+use niji_rt::fpu::{self, Flags};
 
 /// Run `f` with errno 0 and the flags clear; errno and the flags it leaves.
 fn observe(f: impl FnOnce()) -> (i32, Flags) {
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     fpu::clear(&CSys, Flags::ALL);
     f();
-    (liella_boundary::errno::get(), fpu::test(&CSys, Flags::ALL))
+    (niji_boundary::errno::get(), fpu::test(&CSys, Flags::ALL))
 }
 
 /// `observe(f)` with the caller's MXCSR set to `mx` for the call; the caller's word is restored.
 // ARCH(x86_64): the caller's MXCSR (FTZ, DAZ, rounding) around a call; FPCR on aarch64 (A-9)
 fn observe_with_ctl(mx: u32, f: impl FnOnce()) -> (i32, Flags) {
-    use liella_kernel::machine::Machine;
+    use niji_kernel::machine::Machine;
     // ARCH(x86_64): save, set and restore the caller's MXCSR; FPCR on aarch64 (A-9)
     let saved = CSys.mxcsr();
     // ARCH(x86_64): set the caller's MXCSR
@@ -47,7 +47,7 @@ fn observe_with_ctl(mx: u32, f: impl FnOnce()) -> (i32, Flags) {
 /// `observe(f)` with the x87 control word set to `cw` for the call; the caller's word is restored.
 // ARCH(x86_64): the x87 control word (precision control); no such unit on aarch64 (A-9)
 fn observe_with_cw(cw: u16, f: impl FnOnce()) -> (i32, Flags) {
-    use liella_kernel::machine::Machine;
+    use niji_kernel::machine::Machine;
     // ARCH(x86_64): save, set and restore the x87 control word; no x87 on aarch64 (A-9)
     let saved = CSys.x87_control();
     // ARCH(x86_64): set the x87 control word
@@ -62,6 +62,39 @@ fn observe_with_cw(cw: u16, f: impl FnOnce()) -> (i32, Flags) {
 /// bits 10-11): nearest, down, up, toward zero.
 // ARCH(x86_64): x87 rounding-control encodings of `fesetround`; FE_* values on aarch64 (A-9)
 const ROUND_DIRECTIONS: [(u32, i32); 4] = [(0, 0), (1, 0x400), (2, 0x800), (3, 0xc00)];
+
+/// The `double` hypot kernel on the hardware root (`hot::Hw`, `sqrtsd`; LIBM-HYPOT-DIRECTED) is
+/// the exact path (D-10.13) in every direction, value bits and status, on the math test's hard
+/// pairs (ties, exact roots, roots just off a midpoint, the subnormal and overflow edges); the
+/// `hypot` entry under each `fesetround` direction gives the same bits, errno and flags (a
+/// directed call runs that kernel on `sqrtsd` in the default MXCSR).
+#[test]
+fn hypot_on_the_hardware_root_is_the_exact_path_in_every_direction() {
+    // Clauses: s10_3_c_0 (D-10.104).
+    use niji_boundary::hot::Hw;
+    use niji_math::{invtrig, pow, MathError, Rounding};
+    let errno_of = |e: MathError| if e == MathError::Range { 34 } else { 0 };
+    let pairs: Vec<(f64, f64)> = hypot_pairs::hard_pairs().into_iter().flat_map(|(x, y)| [(x, y), (-y, x)]).collect();
+    let dirs = [(0, Rounding::Nearest), (0x400, Rounding::Down), (0x800, Rounding::Up), (0xc00, Rounding::Zero)];
+    for &(x, y) in &pairs {
+        for (_, mode) in dirs {
+            let (w, ws) = pow::hypot_exact::<f64>(x, y, mode);
+            let r = invtrig::hypot_rounded::<Hw>(x, y, mode);
+            assert!(r.is_some_and(|(g, gs)| g.to_bits() == w.to_bits() && gs == ws), "hypot({x:e}, {y:e}) {mode:?}: kernel on sqrtsd {r:?}, exact {w:e} {ws:?}: hardware kernel FAILED");
+        }
+    }
+    for (rc, mode) in dirs {
+        assert_eq!(niji_boundary::posix::s10_math::fesetround(rc), 0);
+        for &(x, y) in &pairs {
+            let (w, ws) = pow::hypot_exact::<f64>(x, y, mode);
+            let mut got = 0;
+            let seen = observe(|| got = m::hypot(x, y).to_bits());
+            let want = (w.to_bits(), (errno_of(ws.error), Flags(ws.flags.0)));
+            assert!((got, seen) == want, "hypot({x:e}, {y:e}) {mode:?}: entry {:e} {seen:?}, exact {w:e} {:?}: directed entry FAILED", f64::from_bits(got), want.1);
+        }
+    }
+    assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
+}
 
 #[test]
 fn math_translation_reports_errno_flags_and_out_parameters() {
@@ -79,7 +112,7 @@ fn math_translation_reports_errno_flags_and_out_parameters() {
     let mut ip = LdBits::from_bits(0);
     let half = LdBits::from_bits((0x3ffeu128 << 64) | (1u128 << 63));
     let two_and_half = LdBits::from_bits((0x4000u128 << 64) | (0xa0u128 << 56));
-    assert_eq!(m::liella_modfl_bits(two_and_half, Some(&mut ip)).to_bits(), half.to_bits());
+    assert_eq!(m::niji_modfl_bits(two_and_half, Some(&mut ip)).to_bits(), half.to_bits());
     assert_eq!(ip.to_bits(), (0x4000u128 << 64) | (1u128 << 63));
     let mut out = 0.0f64;
     assert_eq!(m::setpayload(Some(&mut out), 5.0), 0);
@@ -102,10 +135,10 @@ fn around(mxcsr: u32, f: impl FnOnce() -> u64) -> (u64, u32) {
 }
 
 /// The `double` exp, exp2, log, log2, log10, pow and exp10 exports as `(name, export, reference)`:
-/// the export through the C ABI entry, the reference `liella-math`'s accurate entry.
+/// the export through the C ABI entry, the reference `niji-math`'s accurate entry.
 #[allow(clippy::type_complexity)]
-fn double_fast_entries() -> [(&'static str, fn(f64, f64) -> f64, fn(f64, f64, liella_math::Rounding) -> f64); 7] {
-    use liella_math::real::Real;
+fn double_fast_entries() -> [(&'static str, fn(f64, f64) -> f64, fn(f64, f64, niji_math::Rounding) -> f64); 7] {
+    use niji_math::real::Real;
     [
         ("exp", |x, _| m::exp(x), |x, _, r| Real::exp(x, r).0),
         ("exp2", |x, _| m::exp2(x), |x, _, r| Real::exp2(x, r).0),
@@ -161,7 +194,7 @@ fn math_double_fast_entry_matches_the_envelope_in_every_mode() {
     // Clauses: s10_0_f_0.
     // Round to nearest with the default control word takes the in-place fast entry; DAZ set
     // (normal arguments: no effect on the value) forces the full envelope. Bits, flags and errno
-    // must agree. The directed modes must match the accurate path of liella-math.
+    // must agree. The directed modes must match the accurate path of niji-math.
     let (checked, mut bad) = double_fast_entry_mismatches(&double_fast_arguments());
     let n = bad.len();
     bad.truncate(24);
@@ -175,24 +208,36 @@ fn math_double_fast_entry_matches_the_envelope_in_every_mode() {
 fn math_double_fast_entry_stays_out_of_place_in_a_non_default_mode() {
     // Clauses: s10_0_f_0.
     // The fast path may run in place only under the default control word; under any other word
-    // the entry switches to the default one before computing (D-10.13). Every rounding direction,
-    // with and without FTZ and DAZ: the result is liella-math's accurate one in that direction and
+    // the entry switches to the default one before computing (D-10.13). The one exception is exp
+    // under a word that differs from the default only in its rounding field: its quick phase runs
+    // in place in the caller's direction (D-10.94), so the directed rows below check that path's
+    // results and flags too, while under the FTZ/DAZ words exp still switches. Every rounding direction,
+    // with and without FTZ and DAZ: the result is niji-math's accurate one in that direction and
     // MXCSR after the call is the caller's word with exactly the reference flags added, nothing
     // else. Values alone cannot show which path ran (the kernels' rounding tests also hold in the
     // caller's direction); a subnormal argument can: the fast domain tests compare it, raising the
     // denormal-operand bit in hardware, which the entry never leaves in the caller's word.
-    use liella_math::Rounding;
-    use liella_math::real::Real;
+    use niji_math::Rounding;
+    use niji_math::real::Real;
     let args = [(0.75, 2.5), (1.5, 0.3), (3.7, -1.7), (10.5, 7.25), (123.456, 0.1), (1e-310, 0.3), (5e-320, -0.3)]; // every result normal (FTZ)
     // The refused specials answered in place in the default word (ruling #2378) and the signalling NaN that is not.
     let specials = [(f64::NAN, 0.3), (f64::from_bits(0x7ff4_0000_0000_0000), 0.3), (f64::INFINITY, 0.3), (f64::NEG_INFINITY, 0.3)];
     let args: Vec<(f64, f64)> = args.into_iter().chain(specials).collect();
     let modes = [Rounding::Nearest, Rounding::Down, Rounding::Up, Rounding::Zero];
     let (mut checked, mut bad) = (0usize, Vec::new());
-    for (name, f, _) in double_fast_entries() {
+    for (name, f, _) in double_fast_entries().into_iter().chain(double_trig_entries()) {
+        let trig = double_trig_entries().iter().any(|e| e.0 == name);
         for &(x, y) in &args {
+            if trig && x.is_subnormal() {
+                continue; // sin x and tan x are about x: a subnormal result, flushed under FTZ
+            }
             for (rc, &mode) in (0u32..).zip(modes.iter()) {
                 let (want, st) = match name {
+                    "sin" => Real::sin(x, mode),
+                    "cos" => Real::cos(x, mode),
+                    "tan" => Real::tan(x, mode),
+                    "sincos.sin" => (Real::sincos(x, mode).0 .0, Real::sincos(x, mode).1),
+                    "sincos.cos" => (Real::sincos(x, mode).0 .1, Real::sincos(x, mode).1),
                     "exp" => Real::exp(x, mode),
                     "exp2" => Real::exp2(x, mode),
                     "log" => Real::log(x, mode),
@@ -223,13 +268,142 @@ fn math_double_fast_entry_stays_out_of_place_in_a_non_default_mode() {
     fpu::clear(&CSys, Flags::ALL);
 }
 
+#[test]
+fn math_double_fast_entry_stays_out_of_place_under_an_unmasked_trap() {
+    // Clauses: s10_0_f_0.
+    // A caller's word with one exception unmasked is not the default control word either, so the
+    // fast entries switch to the default one before any arithmetic (D-10.13; the MXCSR read and
+    // the operand barrier are D-X.44's inline forms). One test per mask the arguments' results
+    // never raise: denormal operand, divide-by-zero, overflow, underflow (invalid and inexact
+    // would trap on the entry's own legitimate raise). In place, a subnormal argument's domain
+    // comparison would trap on the unmasked denormal-operand bit, or leave that bit in the
+    // caller's word; out of place the result is niji-math's and MXCSR is the caller's word
+    // with exactly the reference flags added, in every rounding direction.
+    use niji_math::Rounding;
+    use niji_math::real::Real;
+    let args: [(f64, f64); 6] = [(0.75, 2.5), (1.5, 0.3), (3.7, -1.7), (10.5, 7.25), (1e-310, 0.3), (5e-320, -0.3)];
+    let modes = [Rounding::Nearest, Rounding::Down, Rounding::Up, Rounding::Zero];
+    let (mut checked, mut bad) = (0usize, Vec::new());
+    for (name, f, _) in double_fast_entries().into_iter().chain(double_trig_entries()) {
+        let trig = double_trig_entries().iter().any(|e| e.0 == name);
+        for &(x, y) in &args {
+            if trig && x.is_subnormal() {
+                continue; // sin x and tan x are about x: a subnormal result raises underflow
+            }
+            for (rc, &mode) in (0u32..).zip(modes.iter()) {
+                let (want, st) = match name {
+                    "sin" => Real::sin(x, mode),
+                    "cos" => Real::cos(x, mode),
+                    "tan" => Real::tan(x, mode),
+                    "sincos.sin" => (Real::sincos(x, mode).0 .0, Real::sincos(x, mode).1),
+                    "sincos.cos" => (Real::sincos(x, mode).0 .1, Real::sincos(x, mode).1),
+                    "exp" => Real::exp(x, mode),
+                    "exp2" => Real::exp2(x, mode),
+                    "log" => Real::log(x, mode),
+                    "log2" => Real::log2(x, mode),
+                    "log10" => Real::log10(x, mode),
+                    "exp10" => Real::exp10(x, mode),
+                    _ => Real::pow(x, y, mode),
+                };
+                for unmask in [0x100u32, 0x200, 0x400, 0x800] {
+                    let word = (0x1f80 & !unmask) | (rc << 13);
+                    let got = around(word, || f(x, y).to_bits());
+                    let need = (want.to_bits(), word | u32::from(st.flags.0));
+                    if got != need {
+                        bad.push(format!("{name}({x:e}, {y:e}) word {word:x}: {got:x?} vs {need:x?}"));
+                    }
+                    checked = checked.saturating_add(1);
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{} mismatches:\n{}", bad.len(), bad.join("\n"));
+    assert!(checked > 500, "{checked}");
+    fpu::clear(&CSys, Flags::ALL);
+}
+
 /// Every argument of `args` through each double fast entry ([`math_double_fast_entry_matches_the_envelope_in_every_mode`]):
 /// the number checked and one line per mismatch.
-#[allow(clippy::arithmetic_side_effects)] // counters over bounded test loops
 fn double_fast_entry_mismatches(args: &[(f64, f64)]) -> (usize, Vec<String>) {
+    fast_entry_mismatches(&double_fast_entries(), args)
+}
+
+/// The `double` sin, cos, tan and sincos exports (LIBM-F64-TRIG-TIER) as [`double_fast_entries`]
+/// does; `sincos` twice, once per result.
+#[allow(clippy::type_complexity)]
+fn double_trig_entries() -> [(&'static str, fn(f64, f64) -> f64, fn(f64, f64, niji_math::Rounding) -> f64); 5] {
+    use niji_math::real::Real;
+    [
+        ("sin", |x, _| m::sin(x), |x, _, r| Real::sin(x, r).0),
+        ("cos", |x, _| m::cos(x), |x, _, r| Real::cos(x, r).0),
+        ("tan", |x, _| m::tan(x), |x, _, r| Real::tan(x, r).0),
+        ("sincos.sin", |x, _| sincos_pair(x).0, |x, _, r| Real::sincos(x, r).0 .0),
+        ("sincos.cos", |x, _| sincos_pair(x).1, |x, _, r| Real::sincos(x, r).0 .1),
+    ]
+}
+
+/// `sincos` through its export.
+fn sincos_pair(x: f64) -> (f64, f64) {
+    let (mut s, mut c) = (0.0, 0.0);
+    m::sincos(x, Some(&mut s), Some(&mut c));
+    (s, c)
+}
+
+/// Trig arguments over and around the fast domain [2^-30, 2^20): the refused edges (zeros,
+/// subnormals, 2^-339 and 2^-30, 2^20, huge, specials), a few ulps around the multiples of π/2 and
+/// the cell edges k·π/64 ± π/128, then random values in every binade from 2^-36 to 2^23.
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions)] // bounded sample arithmetic
+fn double_trig_arguments() -> Vec<(f64, f64)> {
+    let ulps = |c: f64, w: u64| (0..=2 * w).map(move |d| f64::from_bits(c.to_bits().wrapping_add(d).wrapping_sub(w)));
+    let mut v: Vec<f64> = vec![0.0, f64::MIN_POSITIVE, 1e-310, f64::MAX, 1e300, f64::INFINITY, f64::NAN, 1.0, 0.5, 3.0, 1e5, 7e5];
+    // 2^-360 and 2^-1000: below the in-place cubic's range (x³ would underflow and raise it).
+    for c in [2f64.powi(-339), 2f64.powi(-30), 2f64.powi(20), 2f64.powi(-36), 2f64.powi(-200), 2f64.powi(-360), 2f64.powi(-1000)] {
+        v.extend(ulps(c, 3));
+    }
+    let q = core::f64::consts::PI / 128.0;
+    for k in (1u32..400).chain([1001, 4097, 65_535, 1_000_001, 8_000_001, 33_000_001, 42_000_001]) {
+        v.extend(ulps(f64::from(k) * core::f64::consts::FRAC_PI_2, 2)); // n·π/2: cancellation, tan's poles
+        v.extend(ulps(f64::from(2 * k + 1) * q, 1)); // the cell edges (2j + 1)·π/128
+    }
+    let mut s = 0x243f_6a88_85a3_08d3u64;
+    let mut next = || {
+        s = s.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        s
+    };
+    for _ in 0..4000 {
+        let (a, b) = (next(), next());
+        v.push(2f64.powi((b % 60) as i32 - 36) * (1.0 + (a >> 12) as f64 * 2f64.powi(-52)));
+    }
+    let n = v.len();
+    v.extend_from_within(..n);
+    for x in v.iter_mut().skip(n) {
+        *x = -*x;
+    }
+    v.into_iter().map(|x| (x, 0.0)).collect()
+}
+
+// ARCH(x86_64): the in-place fast entry of the double trig exports (s10_0_f_0); FPCR/FPSR on aarch64 (A-9)
+#[test]
+fn math_double_trig_fast_entry_matches_the_envelope_in_every_mode() {
+    // Clauses: s10_0_f_0.
+    // As math_double_fast_entry_matches_the_envelope_in_every_mode for sin, cos, tan and sincos
+    // (LIBM-F64-TRIG-TIER): the in-place entry (default word) against the full envelope (DAZ), bits,
+    // flags and errno; the directed modes against niji-math's accurate path. The arguments are
+    // the trig hard cases: the domain edges, n·π/2 and the reduction cells' edges.
+    let (checked, mut bad) = fast_entry_mismatches(&double_trig_entries(), &double_trig_arguments());
+    let n = bad.len();
+    bad.truncate(24);
+    assert!(n == 0, "{n} mismatches, the first:\n{}", bad.join("\n"));
+    assert!(checked > 50_000, "{checked}");
+    fpu::clear(&CSys, Flags::ALL);
+}
+
+/// [`double_fast_entry_mismatches`] over the given entries.
+#[allow(clippy::arithmetic_side_effects, clippy::type_complexity)] // counters over bounded test loops
+fn fast_entry_mismatches(entries: &[(&'static str, fn(f64, f64) -> f64, fn(f64, f64, niji_math::Rounding) -> f64)], args: &[(f64, f64)]) -> (usize, Vec<String>) {
     let mut checked = 0usize;
     let mut bad = Vec::new();
-    for (name, f, reference) in double_fast_entries() {
+    for &(name, f, reference) in entries {
         for &(x, y) in args {
             let sub = |a: f64| a != 0.0 && a.abs() < f64::MIN_POSITIVE;
             if sub(x) || sub(y) {
@@ -242,7 +416,7 @@ fn double_fast_entry_mismatches(args: &[(f64, f64)]) -> (usize, Vec<String>) {
             if (fast.0, fast.1 | 0x40, e_fast) != (full.0, full.1, e_full) {
                 bad.push(format!("{name}({x:e}, {y:e}) nearest: {fast:x?} {e_fast} vs {full:x?} {e_full}"));
             }
-            for (rc, mode) in [(1u32, liella_math::Rounding::Down), (2, liella_math::Rounding::Up), (3, liella_math::Rounding::Zero)] {
+            for (rc, mode) in [(1u32, niji_math::Rounding::Down), (2, niji_math::Rounding::Up), (3, niji_math::Rounding::Zero)] {
                 let (bits, _) = around(0x1f80 | (rc << 13), || f(x, y).to_bits());
                 let want = reference(x, y, mode).to_bits();
                 if bits != want && !(f64::from_bits(bits).is_nan() && f64::from_bits(want).is_nan()) {
@@ -256,10 +430,10 @@ fn double_fast_entry_mismatches(args: &[(f64, f64)]) -> (usize, Vec<String>) {
 }
 
 /// The `float` hyperbolic exports as `(name, export, reference)` (LIBM-F32-HYPERBOLIC-3): the
-/// export through its in-place fast entry, the reference `liella-math`'s accurate entry.
+/// export through its in-place fast entry, the reference `niji-math`'s accurate entry.
 #[allow(clippy::type_complexity)]
-fn float_hyperbolic_entries() -> [(&'static str, fn(f32) -> f32, fn(f32, liella_math::Rounding) -> f32); 6] {
-    use liella_math::real::Real;
+fn float_hyperbolic_entries() -> [(&'static str, fn(f32) -> f32, fn(f32, niji_math::Rounding) -> f32); 6] {
+    use niji_math::real::Real;
     [
         ("sinhf", |x| m::sinhf(x), |x, r| Real::sinh(x, r).0),
         ("coshf", |x| m::coshf(x), |x, r| Real::cosh(x, r).0),
@@ -277,7 +451,7 @@ fn math_float_hyperbolic_fast_entry_matches_the_envelope_in_every_mode() {
     // Clauses: s10_0_f_0.
     // Round to nearest with the default control word takes the in-place fast entry; DAZ set
     // (normal arguments: no effect on the value) forces the full envelope. Bits, flags and errno
-    // must agree. The directed modes must match the accurate path of liella-math. Arguments: every
+    // must agree. The directed modes must match the accurate path of niji-math. Arguments: every
     // 2^16th `float` bit pattern of each sign (the fast domains and every refused range: zeros,
     // tiny, the 2^-26 cut, the overflow edges, |x| ≥ 1 for atanh, x ≤ 1 for acosh, infinities,
     // NaNs) and the edges of each fast domain.
@@ -300,7 +474,7 @@ fn math_float_hyperbolic_fast_entry_matches_the_envelope_in_every_mode() {
             if (fast.0, fast.1 | 0x40, e_fast) != (full.0, full.1, e_full) {
                 bad.push(format!("{name}({x:e}) nearest: {fast:x?} {e_fast} vs {full:x?} {e_full}"));
             }
-            for (rc, mode) in [(1u32, liella_math::Rounding::Down), (2, liella_math::Rounding::Up), (3, liella_math::Rounding::Zero)] {
+            for (rc, mode) in [(1u32, niji_math::Rounding::Down), (2, niji_math::Rounding::Up), (3, niji_math::Rounding::Zero)] {
                 let (bits, _) = around(0x1f80 | (rc << 13), || u64::from(f(x).to_bits()));
                 let want = u64::from(reference(x, mode).to_bits());
                 if bits != want && !(f32::from_bits(u32::try_from(bits).unwrap_or(0)).is_nan() && reference(x, mode).is_nan()) {
@@ -317,16 +491,64 @@ fn math_float_hyperbolic_fast_entry_matches_the_envelope_in_every_mode() {
     fpu::clear(&CSys, Flags::ALL);
 }
 
+// ARCH(x86_64): the in-place fast entry of the float sincos export (s10_0_f_0); FPCR/FPSR on aarch64 (A-9)
+#[test]
+#[allow(clippy::arithmetic_side_effects)] // counters over bounded test loops
+fn math_float_sincos_fast_entry_matches_the_envelope_in_every_mode() {
+    // Clauses: s10_0_f_0.
+    // sincosf's in-place entry (LIBM-SINCOS-SHARED, D-10.89) as the float hyperbolic test above:
+    // round to nearest in the default word takes it, DAZ forces the full envelope, and both
+    // results, the flags and errno must agree; the directed modes must give niji-math's
+    // accurate pair. Arguments: every 2^16th `float` bit pattern of each sign (the fast range
+    // 2^-26 <= |x| < 2^19 and every refused range) and the range's edges.
+    use niji_math::real::Real;
+    let pair = |x: f32| {
+        let (mut s, mut c) = (0f32, 0f32);
+        m::sincosf(x, Some(&mut s), Some(&mut c));
+        u64::from(s.to_bits()) << 32 | u64::from(c.to_bits())
+    };
+    let edges: [f32; 6] = [1.490_116_1e-8, 1.490_116_2e-8, 524_287.97, 524_288.0, std::f32::consts::FRAC_PI_4, std::f32::consts::FRAC_PI_2];
+    let mut args: Vec<f32> = edges.iter().flat_map(|&x| [x, -x]).collect();
+    args.extend((0u32..1 << 16).map(|i| f32::from_bits(i << 16 | (i & 0xffff))));
+    let (mut checked, mut bad) = (0usize, Vec::new());
+    for &x in &args {
+        if x != 0.0 && x.abs() < f32::MIN_POSITIVE {
+            continue; // DAZ reads a subnormal argument as zero: another function value
+        }
+        let mut fast = (0, 0);
+        let e_fast = observe(|| fast = around(0x1f80, || pair(x))).0;
+        let mut full = (0, 0);
+        let e_full = observe(|| full = around(0x1f80 | 0x40, || pair(x))).0;
+        if (fast.0, fast.1 | 0x40, e_fast) != (full.0, full.1, e_full) {
+            bad.push(format!("sincosf({x:e}) nearest: {fast:x?} {e_fast} vs {full:x?} {e_full}"));
+        }
+        for (rc, mode) in [(1u32, niji_math::Rounding::Down), (2, niji_math::Rounding::Up), (3, niji_math::Rounding::Zero)] {
+            let (bits, _) = around(0x1f80 | (rc << 13), || pair(x));
+            let ((s, c), _) = Real::sincos(x, mode);
+            let want = u64::from(s.to_bits()) << 32 | u64::from(c.to_bits());
+            if bits != want && !x.is_nan() {
+                bad.push(format!("sincosf({x:e}) rc {rc}: {bits:x} vs {want:x}"));
+            }
+        }
+        checked += 1;
+    }
+    let n = bad.len();
+    bad.truncate(24);
+    assert!(n == 0, "{n} mismatches, the first:\n{}", bad.join("\n"));
+    assert!(checked > 60_000, "{checked}");
+    fpu::clear(&CSys, Flags::ALL);
+}
+
 // ARCH(x86_64): the in-place fast entry of the double exp/log/pow exports (s10_0_f_0); FPCR/FPSR on aarch64 (A-9)
 #[test]
-#[ignore = "long sweep:cargo test -p liella-boundary --release --test s10_math_symbols -- --ignored --nocapture math_double_fast_entry_sweep"]
+#[ignore = "long sweep:cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_double_fast_entry_sweep"]
 #[allow(clippy::arithmetic_side_effects)] // counters over bounded test loops
 fn math_double_fast_entry_sweep() {
-    // Clauses: s10_0_f_0. The fast-domain agreement sweep (MATH-M6-F64-FAST-ENTRY-2): LIELLA_FE_SWEEP_CHUNKS
+    // Clauses: s10_0_f_0. The fast-domain agreement sweep (MATH-M6-F64-FAST-ENTRY-2): NIJI_FE_SWEEP_CHUNKS
     // chunks (default 200) of 2·10^6 random pairs each, every one through all seven fast entries as above.
-    let chunks: u64 = std::env::var("LIELLA_FE_SWEEP_CHUNKS").ok().and_then(|v| v.parse().ok()).unwrap_or(200);
+    let chunks: u64 = std::env::var("NIJI_FE_SWEEP_CHUNKS").ok().and_then(|v| v.parse().ok()).unwrap_or(200);
     // MATH-M6-F64-GAP-ROUND-TEST: also count which rounding step answers each in-place call
-    // (liella_math::fast64::nearest_stage: 0 the constant test, 1 its miss settled by the exact
+    // (niji_math::fast64::nearest_stage: 0 the constant test, 1 its miss settled by the exact
     // test, 2 the exact test alone, 3 the accurate path, 4 refused). The cap (coordinator #2071): a
     // miss rate (1 over 0 + 1) of at most 2^-12 per function; a miss costs one exact test (~30
     // instructions), so 2^-12 bounds its cost below 0.01 instructions per call.
@@ -337,7 +559,7 @@ fn math_double_fast_entry_sweep() {
         let args = double_fast_arguments_seeded(1_000_000, 0x5eed_0000_0000_0001 ^ c.wrapping_mul(0x9e37_79b9_7f4a_7c15));
         for (which, row) in stages.iter_mut().enumerate() {
             for &(x, y) in &args {
-                let code = usize::from(liella_math::fast64::nearest_stage(which, x, y));
+                let code = usize::from(niji_math::fast64::nearest_stage(which, x, y));
                 if let Some(n) = row.get_mut(code) {
                     *n += 1;
                 }
@@ -525,10 +747,10 @@ fn math_software_paths_honour_the_callers_ftz_and_daz() {
         ("fsqrt(1e-80)", &|| f(m::fsqrt(1e-80)), None, Res::F32),
         ("fdiv(1,3)", &|| f(m::fdiv(1.0, 3.0)), None, Res::F32),
         ("ffma(1e-310,1,1e-39)", &|| f(m::ffma(1e-310, 1.0, 1e-39)), Some(&|| f(m::ffma(0.0, 1.0, 1e-39))), Res::F32),
-        ("daddl(2^-1070,0)", &|| d(m::liella_daddl_bits(ld_pow2(16383 - 1070), LdBits::from_bits(0))), None, Res::Kept),
-        ("faddl(2^-140,0)", &|| f(m::liella_faddl_bits(ld_pow2(16383 - 140), LdBits::from_bits(0))), None, Res::Kept),
-        ("fmull(2^-70,2^-70)", &|| f(m::liella_fmull_bits(ld_pow2(16383 - 70), ld_pow2(16383 - 70))), None, Res::Kept),
-        ("faddl(1,2^-30)", &|| f(m::liella_faddl_bits(ld_pow2(16383), ld_pow2(16383 - 30))), None, Res::Kept),
+        ("daddl(2^-1070,0)", &|| d(m::niji_daddl_bits(ld_pow2(16383 - 1070), LdBits::from_bits(0))), None, Res::Kept),
+        ("faddl(2^-140,0)", &|| f(m::niji_faddl_bits(ld_pow2(16383 - 140), LdBits::from_bits(0))), None, Res::Kept),
+        ("fmull(2^-70,2^-70)", &|| f(m::niji_fmull_bits(ld_pow2(16383 - 70), ld_pow2(16383 - 70))), None, Res::Kept),
+        ("faddl(1,2^-30)", &|| f(m::niji_faddl_bits(ld_pow2(16383), ld_pow2(16383 - 30))), None, Res::Kept),
         ("ldexp(1,-1070)", &|| d(m::ldexp(1.0, -1070)), None, Res::F64),
         ("ldexp(1e-310,4)", &|| d(m::ldexp(1e-310, 4)), Some(&|| d(m::ldexp(0.0, 4))), Res::F64),
         ("scalbn(3,-1060)", &|| d(m::scalbn(3.0, -1060)), None, Res::F64),
@@ -540,8 +762,8 @@ fn math_software_paths_honour_the_callers_ftz_and_daz() {
         ("nextafterf(-0,-1)", &|| f(m::nextafterf(-0.0, -1.0)), Some(&|| 0x8000_0001), Res::Kept),
         ("nextup(-5e-324)", &|| d(m::nextup(-5e-324)), Some(&|| 1 << 63), Res::Kept),
         ("nextdown(1e-310)", &|| d(m::nextdown(1e-310)), Some(&|| d(1e-310) - 1), Res::Kept),
-        ("nexttoward(1e-310,1)", &|| d(m::liella_nexttoward_bits(1e-310, ld_pow2(16383))), Some(&|| d(1e-310) + 1), Res::Kept),
-        ("nexttowardf(1e-40,-1)", &|| f(m::liella_nexttowardf_bits(1e-40, ld_pow2(16383 + (1 << 15)))), Some(&|| f(1e-40) - 1), Res::Kept),
+        ("nexttoward(1e-310,1)", &|| d(m::niji_nexttoward_bits(1e-310, ld_pow2(16383))), Some(&|| d(1e-310) + 1), Res::Kept),
+        ("nexttowardf(1e-40,-1)", &|| f(m::niji_nexttowardf_bits(1e-40, ld_pow2(16383 + (1 << 15)))), Some(&|| f(1e-40) - 1), Res::Kept),
         ("nextafter(1,2)", &|| d(m::nextafter(1.0, 2.0)), None, Res::Kept),
         ("ceil(1e-310)", &|| d(m::ceil(1e-310)), Some(&|| d(m::ceil(0.0))), Res::F64),
         ("floor(-1e-310)", &|| d(m::floor(-1e-310)), Some(&|| d(m::floor(-0.0))), Res::F64),
@@ -659,7 +881,10 @@ family!(fam_cproj, "cproj", 8);
 family!(fam_creal, "creal", 8);
 family!(fam_csin, "csin", 8);
 family!(fam_csinh, "csinh", 8);
-family!(fam_csqrt, "csqrt", 8);
+#[test]
+fn fam_csqrt() {
+    assert_eq!(products::math_family("csqrt"), 8);
+}
 family!(fam_ctan, "ctan", 8);
 family!(fam_ctanh, "ctanh", 8);
 #[test]
@@ -985,7 +1210,7 @@ fn fam_hypot() {
     assert_eq!(observe(|| assert!(m::hypotf(3e38, 3e38).is_infinite())), (34, Flags(0x28)));
     let three = LdBits::from_bits((0x4000u128 << 64) | (3u128 << 62));
     let four = LdBits::from_bits((0x4001u128 << 64) | (1u128 << 63));
-    assert_eq!(m::liella_hypotl_bits(three, four).to_bits(), (0x4001u128 << 64) | (5u128 << 61));
+    assert_eq!(m::niji_hypotl_bits(three, four).to_bits(), (0x4001u128 << 64) | (5u128 << 61));
 }
 #[test]
 fn fam_ilogb() {
@@ -1267,12 +1492,11 @@ fn sym___fpu_control() {
     products::archived("__fpu_control");
     let line = products::dynsym_line("__fpu_control");
     assert!(line.contains(" 2 OBJECT  GLOBAL DEFAULT"), "__fpu_control in libc.so.6: {line:?}");
-    // Statically linked on Liella (the program's own definition links and is ignored), then the
-    // same programs linked dynamically on glibc (the oracle). Their run on Liella's libc.so.6
-    // waits for Liella's ld.so (phase 14, #814): a reported skip, never a silent pass.
+    // Statically linked on libniji (the program's own definition links and is ignored), then the
+    // same programs linked dynamically, on glibc (the oracle) and on libniji's libc.so.6 under
+    // libniji's ld.so (#814, D-27.24): a program's own value applies.
     products::conformance(&["fpu_control_default", "fpu_control_own"]);
     products::conformance_dynamic(&["fpu_control_default", "fpu_control_own"]);
-    skip_note::skipped("skipped: fpu_control_default/fpu_control_own dynamic on Liella wait for Liella's ld.so (phase 14, #814); only the glibc oracle run checked");
 }
 symbol!(sym___gamma_r_finite, "__gamma_r_finite", "10", "2.15", r##""##);
 symbol!(sym___gammaf128_r_finite, "__gammaf128_r_finite", "10", "2.26", r##""##);
@@ -1411,10 +1635,22 @@ symbol!(sym___sinh_finite, "__sinh_finite", "10", "2.15", r##""##);
 symbol!(sym___sinhf128_finite, "__sinhf128_finite", "10", "2.26", r##""##);
 symbol!(sym___sinhf_finite, "__sinhf_finite", "10", "2.15", r##""##);
 symbol!(sym___sinhl_finite, "__sinhl_finite", "10", "2.15", r##""##);
-symbol!(sym___sqrt_finite, "__sqrt_finite", "10", "2.15", r##""##);
-symbol!(sym___sqrtf128_finite, "__sqrtf128_finite", "10", "2.26", r##""##);
-symbol!(sym___sqrtf_finite, "__sqrtf_finite", "10", "2.15", r##""##);
-symbol!(sym___sqrtl_finite, "__sqrtl_finite", "10", "2.15", r##""##);
+#[test]
+fn sym___sqrt_finite() {
+    products::math_compat("__sqrt_finite", "GLIBC_2.15");
+}
+#[test]
+fn sym___sqrtf128_finite() {
+    products::math_compat("__sqrtf128_finite", "GLIBC_2.26");
+}
+#[test]
+fn sym___sqrtf_finite() {
+    products::math_compat("__sqrtf_finite", "GLIBC_2.15");
+}
+#[test]
+fn sym___sqrtl_finite() {
+    products::math_compat("__sqrtl_finite", "GLIBC_2.15");
+}
 symbol!(sym___y0_finite, "__y0_finite", "10", "2.15", r##""##);
 symbol!(sym___y0f128_finite, "__y0f128_finite", "10", "2.26", r##""##);
 symbol!(sym___y0f_finite, "__y0f_finite", "10", "2.15", r##""##);
@@ -1446,16 +1682,16 @@ fn elementary_float_double_and_long_double_members() {
     }
     assert_eq!(observe(|| assert_eq!(m::exp(0.0), 1.0)), (0, Flags(0)));
     let one = (0x3fffu128 << 64) | (1u128 << 63);
-    assert_eq!(observe(|| assert_eq!(m::liella_expl_bits(LdBits::from_bits(0)).to_bits(), one)), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_exp2f64x_bits(LdBits::from_bits((0x4fffu128 << 64) | (1u128 << 63))).to_bits(), (0x7fffu128 << 64) | (1u128 << 63))), (34, Flags(0x28)));
-    assert_eq!(observe(|| assert_eq!(m::liella_log2l_bits(LdBits::from_bits(0)).to_bits(), (0xffffu128 << 64) | (1u128 << 63))), (34, Flags::DIVBYZERO));
-    assert_eq!(observe(|| assert_eq!(m::liella_powl_bits(LdBits::from_bits(one + (1u128 << 64)), LdBits::from_bits(one + (3u128 << 64))).to_bits(), (0x4007u128 << 64) | (1u128 << 63))), (0, Flags(0))); // 2^8 = 256
+    assert_eq!(observe(|| assert_eq!(m::niji_expl_bits(LdBits::from_bits(0)).to_bits(), one)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_exp2f64x_bits(LdBits::from_bits((0x4fffu128 << 64) | (1u128 << 63))).to_bits(), (0x7fffu128 << 64) | (1u128 << 63))), (34, Flags(0x28)));
+    assert_eq!(observe(|| assert_eq!(m::niji_log2l_bits(LdBits::from_bits(0)).to_bits(), (0xffffu128 << 64) | (1u128 << 63))), (34, Flags::DIVBYZERO));
+    assert_eq!(observe(|| assert_eq!(m::niji_powl_bits(LdBits::from_bits(one + (1u128 << 64)), LdBits::from_bits(one + (3u128 << 64))).to_bits(), (0x4007u128 << 64) | (1u128 << 63))), (0, Flags(0))); // 2^8 = 256
     let (mut sl, mut cl) = (LdBits::from_bits(9), LdBits::from_bits(9));
-    assert_eq!(observe(|| m::liella_sincosl_bits(LdBits::from_bits(0), Some(&mut sl), Some(&mut cl))), (0, Flags(0)));
+    assert_eq!(observe(|| m::niji_sincosl_bits(LdBits::from_bits(0), Some(&mut sl), Some(&mut cl))), (0, Flags(0)));
     assert_eq!((sl.to_bits(), cl.to_bits()), (0, one));
     // _Float128: exp(0) = 1 exactly, through the bit-level forwarder the C wrapper calls.
-    let q = |hi: u64| liella_abi::ctypes::F128Bits::from_bits(u128::from(hi) << 64);
-    assert_eq!(observe(|| assert_eq!(m::liella_expf128_bits(q(0)).to_bits(), q(0x3fff_0000_0000_0000).to_bits())), (0, Flags(0)));
+    let q = |hi: u64| niji_abi::ctypes::F128Bits::from_bits(u128::from(hi) << 64);
+    assert_eq!(observe(|| assert_eq!(m::niji_expf128_bits(q(0)).to_bits(), q(0x3fff_0000_0000_0000).to_bits())), (0, Flags(0)));
     assert_eq!(observe(|| assert!(m::expf(100.0).is_infinite())), (34, Flags(0x28))); // ERANGE, overflow
     assert_eq!(observe(|| assert_eq!(m::exp(-1000.0), 0.0)), (34, Flags(0x30))); // ERANGE, underflow
     assert_eq!(observe(|| assert!(m::log(-1.0).is_nan())), (33, Flags::INVALID)); // EDOM
@@ -1490,7 +1726,7 @@ fn special_float_double_and_long_double_members() {
     products::math_exported("signgam");
     products::math_exported("__signgam");
     use core::sync::atomic::Ordering::Relaxed;
-    let sg = || liella_boundary::data::signgam.load(Relaxed);
+    let sg = || niji_boundary::data::signgam.load(Relaxed);
     let v = m::lgamma(-0.5);
     assert!((v - 1.265_512_123_484_645_3).abs() < 1e-15 && sg() == -1);
     assert_eq!(m::gammaf(3.0), core::f32::consts::LN_2);
@@ -1509,25 +1745,25 @@ fn special_float_double_and_long_double_members() {
     // long double: through the bit-level forwarders the C wrappers call.
     let ld = |e: u128, sig: u64| LdBits::from_bits((e << 64) | u128::from(sig));
     let (one, half, neg_half) = (ld(0x3fff, 1 << 63), ld(0x3ffe, 1 << 63), ld(0xbffe, 1 << 63));
-    assert_eq!(observe(|| assert_eq!(m::liella_tgammal_bits(ld(0x4001, 5 << 61)).to_bits(), ld(0x4003, 3 << 62).to_bits())), (0, Flags(0))); // Γ(5) = 24
-    assert_eq!(observe(|| assert!(m::liella_lgammal_bits(neg_half).to_bits() > half.to_bits())), (0, Flags::INEXACT));
+    assert_eq!(observe(|| assert_eq!(m::niji_tgammal_bits(ld(0x4001, 5 << 61)).to_bits(), ld(0x4003, 3 << 62).to_bits())), (0, Flags(0))); // Γ(5) = 24
+    assert_eq!(observe(|| assert!(m::niji_lgammal_bits(neg_half).to_bits() > half.to_bits())), (0, Flags::INEXACT));
     assert_eq!(sg(), -1);
     let mut s = 0;
-    assert_eq!(observe(|| assert_eq!(m::liella_lgammaf64x_r_bits(one, Some(&mut s)).to_bits(), 0)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_lgammaf64x_r_bits(one, Some(&mut s)).to_bits(), 0)), (0, Flags(0)));
     assert_eq!((s, sg()), (1, -1), "lgammal_r leaves signgam");
-    assert_eq!(observe(|| assert_eq!(m::liella_gammal_bits(ld(0xbfff, 1 << 63)).to_bits(), ld(0x7fff, 1 << 63).to_bits())), (34, Flags::DIVBYZERO)); // pole at −1
+    assert_eq!(observe(|| assert_eq!(m::niji_gammal_bits(ld(0xbfff, 1 << 63)).to_bits(), ld(0x7fff, 1 << 63).to_bits())), (34, Flags::DIVBYZERO)); // pole at −1
     assert_eq!(sg(), 1);
-    assert_eq!(observe(|| assert_eq!(m::liella_erfcl_bits(ld(0xffff, 1 << 63)).to_bits(), ld(0x4000, 1 << 63).to_bits())), (0, Flags(0))); // erfc(−∞) = 2
-    assert_eq!(observe(|| assert_eq!(m::liella_y0l_bits(LdBits::from_bits(0)).to_bits(), ld(0xffff, 1 << 63).to_bits())), (34, Flags::DIVBYZERO));
-    assert_eq!(observe(|| assert_eq!(m::liella_j0f64x_bits(LdBits::from_bits(0)).to_bits(), one.to_bits())), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_ynl_bits(2, ld(0xbfff, 1 << 63)).to_bits() >> 64, 0x7fff)), (33, Flags::INVALID)); // EDOM
-    assert_eq!(observe(|| assert_eq!(m::liella_jnl_bits(-3, half).to_bits(), m::liella_jnl_bits(3, half).to_bits() ^ (1 << 79))), (0, Flags::INEXACT));
+    assert_eq!(observe(|| assert_eq!(m::niji_erfcl_bits(ld(0xffff, 1 << 63)).to_bits(), ld(0x4000, 1 << 63).to_bits())), (0, Flags(0))); // erfc(−∞) = 2
+    assert_eq!(observe(|| assert_eq!(m::niji_y0l_bits(LdBits::from_bits(0)).to_bits(), ld(0xffff, 1 << 63).to_bits())), (34, Flags::DIVBYZERO));
+    assert_eq!(observe(|| assert_eq!(m::niji_j0f64x_bits(LdBits::from_bits(0)).to_bits(), one.to_bits())), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_ynl_bits(2, ld(0xbfff, 1 << 63)).to_bits() >> 64, 0x7fff)), (33, Flags::INVALID)); // EDOM
+    assert_eq!(observe(|| assert_eq!(m::niji_jnl_bits(-3, half).to_bits(), m::niji_jnl_bits(3, half).to_bits() ^ (1 << 79))), (0, Flags::INEXACT));
     // Γ(1756) is above LDBL_MAX: ERANGE with overflow.
-    assert_eq!(observe(|| assert_eq!(m::liella_tgammal_bits(ld(0x4009, 0xdb80_0000_0000_0000)).to_bits(), ld(0x7fff, 1 << 63).to_bits())), (34, Flags(0x28)));
+    assert_eq!(observe(|| assert_eq!(m::niji_tgammal_bits(ld(0x4009, 0xdb80_0000_0000_0000)).to_bits(), ld(0x7fff, 1 << 63).to_bits())), (34, Flags(0x28)));
     // _Float128: Γ(5) = 24 and erf(−0) = −0, exact, through the bit-level forwarders.
-    let q = |hi: u64| liella_abi::ctypes::F128Bits::from_bits(u128::from(hi) << 64);
-    assert_eq!(observe(|| assert_eq!(m::liella_tgammaf128_bits(q(0x4001_4000_0000_0000)).to_bits(), q(0x4003_8000_0000_0000).to_bits())), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_erff128_bits(q(0x8000_0000_0000_0000)).to_bits(), q(0x8000_0000_0000_0000).to_bits())), (0, Flags(0)));
+    let q = |hi: u64| niji_abi::ctypes::F128Bits::from_bits(u128::from(hi) << 64);
+    assert_eq!(observe(|| assert_eq!(m::niji_tgammaf128_bits(q(0x4001_4000_0000_0000)).to_bits(), q(0x4003_8000_0000_0000).to_bits())), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_erff128_bits(q(0x8000_0000_0000_0000)).to_bits(), q(0x8000_0000_0000_0000).to_bits())), (0, Flags(0)));
     fpu::clear(&CSys, Flags::ALL);
 }
 
@@ -1549,7 +1785,7 @@ fn complex_float_and_double_members() {
     }
     products::math_exported("__clog10");
     products::math_exported("__clog10f");
-    use liella_boundary::mathret::Complex;
+    use niji_boundary::mathret::Complex;
     let z = |re: f64, im: f64| Complex { re, im };
     let zf = |re: f32, im: f32| Complex { re, im };
     assert_eq!(observe(|| assert_eq!(m::csqrt(z(-4.0, 0.0)), z(0.0, 2.0))), (0, Flags(0)));
@@ -1564,6 +1800,114 @@ fn complex_float_and_double_members() {
     assert_eq!(observe(|| assert_eq!(m::cpow(z(1.0, 1.0), z(2.0, 0.0)), z(0.0, 2.0))), (0, Flags(0)));
     assert_eq!(observe(|| assert_eq!(m::__clog10(z(100.0, 0.0)), z(2.0, 0.0))), (0, Flags(0)));
     assert_eq!(observe(|| assert_eq!(m::catanh(z(1.0, 0.0)).re, f64::INFINITY)), (34, Flags::DIVBYZERO));
+    fpu::clear(&CSys, Flags::ALL);
+}
+
+/// The in-place entries of `cexp`, `clog`, `csqrt` and their `float` members on the axes (one part
+/// an exact zero, LIBM-CPLX-LOG-SQRT-4, D-10.74): each result's bits, flags and `errno` equal the
+/// 384-bit route's to nearest, for unit, exact-root, ordinary, tiny, huge and overflowing
+/// magnitudes of both signs with both signed zeros, the other axis and the origin included.
+#[test]
+fn complex_axes_in_place_match_the_route() {
+    // Clauses: s10_5_c_0, s10_0_c_0.
+    use niji_boundary::mathret::Complex;
+    use niji_math::{complex as c, MathError, Rounding::Nearest};
+    let errno = |e: MathError| match e {
+        MathError::None => 0,
+        MathError::Domain => 33,
+        MathError::Range => 34,
+    };
+    let fmin = f64::from(f32::MIN_POSITIVE);
+    let mags = [
+        0.0, 1.0, 4.0, 0.25, 2.0, 3.0, 0.1, 0.5, 1.0 + f64::EPSILON, 1e300, f64::MAX, 1e-300, f64::MIN_POSITIVE, 2.0 * f64::MIN_POSITIVE,
+        700.0, 709.9, 1e-20, fmin, 2.0 * fmin, f64::from(f32::MAX), 90.0,
+    ];
+    let mut ops = Vec::new();
+    for m in mags {
+        for v in [m, -m] {
+            for z in [0.0, -0.0] {
+                ops.push((v, z));
+                ops.push((z, v));
+            }
+        }
+    }
+    type D = (&'static str, extern "C" fn(Complex<f64>) -> Complex<f64>, fn(f64, f64, niji_math::Rounding) -> c::Res<f64>);
+    type S = (&'static str, extern "C" fn(Complex<f32>) -> Complex<f32>, fn(f32, f32, niji_math::Rounding) -> c::Res<f32>);
+    let dbl: [D; 3] = [("cexp", m::cexp, c::cexp_route::<f64>), ("clog", m::clog, c::clog_route::<f64>), ("csqrt", m::csqrt, c::csqrt_route::<f64>)];
+    let flt: [S; 3] = [("cexpf", m::cexpf, c::cexp_route::<f32>), ("clogf", m::clogf, c::clog_route::<f32>), ("csqrtf", m::csqrtf, c::csqrt_route::<f32>)];
+    for &(x, y) in &ops {
+        for (name, f, route) in dbl {
+            let mut got = (0, 0);
+            let seen = observe(|| {
+                let r = f(Complex { re: x, im: y });
+                got = (r.re.to_bits(), r.im.to_bits());
+            });
+            let ((wr, wi), st) = route(x, y, Nearest);
+            assert_eq!((name, x, y, got, seen), (name, x, y, (wr.to_bits(), wi.to_bits()), (errno(st.error), st.flags)), "{name} on an axis differs from the route");
+        }
+        // The same magnitudes rounded to `float` (overflow to infinity and underflow to zero are wanted operands).
+        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
+        let (xf, yf) = (x as f32, y as f32);
+        for (name, f, route) in flt {
+            let mut got = (0, 0);
+            let seen = observe(|| {
+                let r = f(Complex { re: xf, im: yf });
+                got = (r.re.to_bits(), r.im.to_bits());
+            });
+            let ((wr, wi), st) = route(xf, yf, Nearest);
+            assert_eq!((name, xf, yf, got, seen), (name, xf, yf, (wr.to_bits(), wi.to_bits()), (errno(st.error), st.flags)), "{name} on an axis differs from the route");
+        }
+    }
+    fpu::clear(&CSys, Flags::ALL);
+}
+
+/// `cexp`'s cold fallback in the default environment (LIBM-CEXP-COLD-MIDDLE, D-10.99): where the
+/// in-place kernel declines, the envelope (quick tier with the middle tier, then the route) gives
+/// the 384-bit route's bits, flags and `errno` to nearest. The bench operand is one the kernel
+/// declines and the middle tier answers (checked first, so the case keeps reaching that branch);
+/// the others leave the quick tier's range (tiny, huge or zero-crossing parts, underflow and
+/// overflow).
+#[test]
+fn cexp_cold_fallback_matches_the_route() {
+    // Clauses: s10_5_c_0, s10_0_c_0.
+    use niji_boundary::mathret::Complex;
+    use niji_math::{complex as c, complex_fast as cf, MathError, Rounding::Nearest};
+    let bench = (f64::from_bits(0xbff9_c127_e0e2_1690), f64::from_bits(0xbffe_c14d_45bc_5e2d));
+    assert_eq!(cf::cexp_nearest(bench.0, bench.1), None, "the in-place kernel answers the bench operand");
+    assert!(cf::cexp(bench.0, bench.1, Nearest).is_some(), "the middle tier declines the bench operand");
+    let ops = [
+        bench,
+        (1.0, 1e-300),
+        (0.5, f64::MIN_POSITIVE),
+        (-0.5, 5e-324),
+        (1.0, 1e10),
+        (-745.0, 1.0),
+        (-707.5, -3.0),
+        (710.0, 1.0),
+        (2.0, f64::MAX),
+    ];
+    for (x, y) in ops {
+        use niji_kernel::machine::Machine;
+        let (mut got, mut word) = ((0, 0), 0);
+        let seen = observe(|| {
+            let r = m::cexp(Complex { re: x, im: y });
+            // ARCH(x86_64): the MXCSR flag bits after the call, the denormal-operand bit included
+            word = CSys.mxcsr() & 0x3f;
+            got = (r.re.to_bits(), r.im.to_bits());
+        });
+        let ((wr, wi), st) = c::cexp_route(x, y, Nearest);
+        let errno = match st.error {
+            MathError::None => 0,
+            MathError::Domain => 33,
+            MathError::Range => 34,
+        };
+        assert_eq!((x, y, got, seen), (x, y, (wr.to_bits(), wi.to_bits()), (errno, st.flags)), "cexp's cold fallback differs from the route");
+        // Where the middle tier answers, MXCSR holds exactly the caller's word with inexact: the
+        // declined attempt's own intermediate bits (the denormal-operand bit too) are dropped.
+        if (x, y) == bench {
+            assert_eq!((x, y, word), (x, y, u32::from(st.flags.0)), "cexp's cold fallback left an attempt's flag in MXCSR");
+        }
+    }
     fpu::clear(&CSys, Flags::ALL);
 }
 
@@ -1589,33 +1933,33 @@ fn complex_long_double_and_float128_forwarded_members() {
         }
     }
     products::math_exported("__clog10l");
-    use liella_abi::ctypes::F128Bits;
-    use liella_boundary::mathret::Complex;
+    use niji_abi::ctypes::F128Bits;
+    use niji_boundary::mathret::Complex;
     let ld = |e: u128, sig: u64| LdBits::from_bits((e << 64) | u128::from(sig));
     let q = |hi: u64| F128Bits::from_bits(u128::from(hi) << 64);
     let (one, two, neg_two, inf) = (ld(0x3fff, 1 << 63), ld(0x4000, 1 << 63), ld(0xc000, 1 << 63), ld(0x7fff, 1 << 63));
     let z = Complex { re: one, im: two };
-    assert_eq!(observe(|| assert_eq!(m::liella_creall_bits(z), one)), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_cimagf64x_bits(z), two)), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_conjl_bits(z), Complex { re: one, im: neg_two })), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_creall_bits(z), one)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cimagf64x_bits(z), two)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_conjl_bits(z), Complex { re: one, im: neg_two })), (0, Flags(0)));
     // cproj(1 − i∞) = +∞ − i0.
     let p = Complex { re: one, im: ld(0xffff, 1 << 63) };
-    assert_eq!(observe(|| assert_eq!(m::liella_cprojf64x_bits(p), Complex { re: inf, im: ld(0x8000, 0) })), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_cprojl_bits(z), z)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cprojf64x_bits(p), Complex { re: inf, im: ld(0x8000, 0) })), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cprojl_bits(z), z)), (0, Flags(0)));
     let (three, four, five) = (ld(0x4000, 3 << 62), ld(0x4001, 1 << 63), ld(0x4001, 5 << 61));
-    assert_eq!(observe(|| assert_eq!(m::liella_cabsl_bits(Complex { re: three, im: four }), five)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cabsl_bits(Complex { re: three, im: four }), five)), (0, Flags(0)));
     // carg(−1 + i0) = π, rounded to nearest.
     let minus_one = Complex { re: ld(0xbfff, 1 << 63), im: ld(0, 0) };
-    assert_eq!(observe(|| assert_eq!(m::liella_cargl_bits(minus_one), ld(0x4000, 0xc90f_daa2_2168_c235))), (0, Flags::INEXACT));
+    assert_eq!(observe(|| assert_eq!(m::niji_cargl_bits(minus_one), ld(0x4000, 0xc90f_daa2_2168_c235))), (0, Flags::INEXACT));
     let w = Complex { re: q(0x3fff_0000_0000_0000), im: q(0x4000_0000_0000_0000) };
-    assert_eq!(observe(|| assert_eq!(m::liella_crealf128_bits(w), w.re)), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_cimagf128_bits(w), w.im)), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_conjf128_bits(w), Complex { re: w.re, im: q(0xc000_0000_0000_0000) })), (0, Flags(0)));
-    assert_eq!(observe(|| assert_eq!(m::liella_cexpf128_bits(Complex { re: q(0), im: q(0) }), Complex { re: q(0x3fff_0000_0000_0000), im: q(0) })), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_crealf128_bits(w), w.re)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cimagf128_bits(w), w.im)), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_conjf128_bits(w), Complex { re: w.re, im: q(0xc000_0000_0000_0000) })), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cexpf128_bits(Complex { re: q(0), im: q(0) }), Complex { re: q(0x3fff_0000_0000_0000), im: q(0) })), (0, Flags(0)));
     let three_four = Complex { re: q(0x4000_8000_0000_0000), im: q(0x4001_0000_0000_0000) };
-    assert_eq!(observe(|| assert_eq!(m::liella_cabsf128_bits(three_four), q(0x4001_4000_0000_0000))), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cabsf128_bits(three_four), q(0x4001_4000_0000_0000))), (0, Flags(0)));
     let qinf = Complex { re: q(0xffff_0000_0000_0000), im: q(0x8000_0000_0000_0000) };
-    assert_eq!(observe(|| assert_eq!(m::liella_cprojf128_bits(qinf), Complex { re: q(0x7fff_0000_0000_0000), im: q(0x8000_0000_0000_0000) })), (0, Flags(0)));
+    assert_eq!(observe(|| assert_eq!(m::niji_cprojf128_bits(qinf), Complex { re: q(0x7fff_0000_0000_0000), im: q(0x8000_0000_0000_0000) })), (0, Flags(0)));
     fpu::clear(&CSys, Flags::ALL);
 }
 
@@ -1625,7 +1969,7 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
     // M6-2: the hardware square roots give the bits, flags and errno of `fused::sqrt` in every
     // rounding direction, for every class of operand (the x87 pseudo-denormal and an unnormal
     // take the software path).
-    use liella_math::{fused, MathError, Rounding, F80};
+    use niji_math::{fused, MathError, Rounding, F80};
     let ld = |se: u128, mant: u64| (se << 64) | u128::from(mant);
     let f80s = [
         ld(0x4000, 1 << 63), ld(0x4000, 3 << 62), ld(0x3fff, 1 << 63), ld(0x0000, 5), ld(0x0000, 1 << 62),
@@ -1639,11 +1983,11 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
         f32::from_bits(0x7f80_0001), -f32::NAN, 0.1];
     let errno_of = |e: MathError| if e == MathError::Domain { 33 } else { 0 };
     for (rc, mode) in [(0, Rounding::Nearest), (0x400, Rounding::Down), (0x800, Rounding::Up), (0xc00, Rounding::Zero)] {
-        assert_eq!(liella_boundary::posix::s10_math::fesetround(rc), 0);
+        assert_eq!(niji_boundary::posix::s10_math::fesetround(rc), 0);
         for b in f80s {
             let (want, st) = fused::sqrt::<F80, F80>(F80(b), mode);
             let mut got = 0;
-            let seen = observe(|| got = m::liella_sqrtl_bits(LdBits::from_bits(b)).to_bits());
+            let seen = observe(|| got = m::niji_sqrtl_bits(LdBits::from_bits(b)).to_bits());
             assert_eq!((rc, b, got, seen), (rc, b, want.0, (errno_of(st.error), Flags(st.flags.0))));
         }
         for x in f64s {
@@ -1659,7 +2003,7 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
             assert_eq!((rc, x.to_bits(), got, seen), (rc, x.to_bits(), want.to_bits(), (errno_of(st.error), Flags(st.flags.0))));
         }
     }
-    assert_eq!(liella_boundary::posix::s10_math::fesetround(0), 0);
+    assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
     // D-10.22 (owner ruling 2026-10-23): the caller's FTZ and DAZ are honoured. Under FTZ, DAZ or
     // both, every operand gives the exact square root of the operand as the caller's DAZ reads it
     // (a subnormal is a zero of its sign: no flag, no EDOM), in every rounding direction.
@@ -1726,13 +2070,13 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
                     assert_eq!((mx, x, got, seen), (mx, x, want, (0, Flags(flags))));
                 }
                 // x87 rounding follows the same direction; FTZ/DAZ do not reach fsqrt.
-                assert_eq!(liella_boundary::posix::s10_math::fesetround(fe_dir), 0);
+                assert_eq!(niji_boundary::posix::s10_math::fesetround(fe_dir), 0);
                 for (x, want, flags) in l_cases {
                     let mut got = 0;
-                    let seen = observe_with_ctl(mx, || got = m::liella_sqrtl_bits(LdBits::from_bits(x)).to_bits());
+                    let seen = observe_with_ctl(mx, || got = m::niji_sqrtl_bits(LdBits::from_bits(x)).to_bits());
                     assert_eq!((mx, x, got, seen), (mx, x, want, (0, Flags(flags))));
                 }
-                assert_eq!(liella_boundary::posix::s10_math::fesetround(0), 0);
+                assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
             }
         }
     }
@@ -1759,13 +2103,13 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
                     let seen = observe_with_ctl(mx, || got = m::sqrtf(f32::from_bits(x)).to_bits());
                     assert_eq!((mx, x, got, seen), (mx, x, 0xffc0_0000, (33, Flags::INVALID)));
                 }
-                assert_eq!(liella_boundary::posix::s10_math::fesetround(fe_dir), 0);
+                assert_eq!(niji_boundary::posix::s10_math::fesetround(fe_dir), 0);
                 for x in l_neg {
                     let mut got = 0;
-                    let seen = observe_with_ctl(mx, || got = m::liella_sqrtl_bits(LdBits::from_bits(x)).to_bits());
+                    let seen = observe_with_ctl(mx, || got = m::niji_sqrtl_bits(LdBits::from_bits(x)).to_bits());
                     assert_eq!((mx, x, got, seen), (mx, x, ld(0xffff, 3 << 62), (33, Flags::INVALID)));
                 }
-                assert_eq!(liella_boundary::posix::s10_math::fesetround(0), 0);
+                assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
             }
         }
     }
@@ -1776,7 +2120,7 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
             for b in [ld(0x4000, 1 << 63), ld(0x4000, 3 << 62), ld(0x3ffe, 0xb504_f333_f9de_6484)] {
                 let (want, st) = fused::sqrt::<F80, F80>(F80(b), Rounding::Nearest);
                 let mut got = 0;
-                let seen = observe_with_cw(cw, || got = m::liella_sqrtl_bits(LdBits::from_bits(b)).to_bits());
+                let seen = observe_with_cw(cw, || got = m::niji_sqrtl_bits(LdBits::from_bits(b)).to_bits());
                 assert_eq!((cw, b, got, seen), (cw, b, want.0, (errno_of(st.error), Flags(st.flags.0))));
             }
         }
@@ -1784,13 +2128,58 @@ fn math_sqrt_hardware_matches_the_software_square_root() {
     fpu::clear(&CSys, Flags::ALL);
 }
 
+#[test]
+fn math_sqrt_runs_in_place_under_every_mask() {
+    // Clauses: s10_0_f_0.
+    // D-10.101 (probed: the reference's `sqrt`/`sqrtf` are the instruction on the caller's word):
+    // `sqrtsd`/`sqrtss` run in place under every word, with no MXCSR read on entry. With the
+    // divide-by-zero, overflow or underflow exception unmasked (a square root never raises them)
+    // the answer is the reference's bits, flags and errno in every direction, subnormal operands
+    // included; with the denormal-operand exception unmasked, a normal operand answers the same
+    // (a subnormal one traps in the instruction: conformance/c/s10_sqrt_env.c). Invalid and
+    // inexact stay masked: the harness's own arithmetic raises them.
+    use niji_math::{fused, MathError, Rounding};
+    let errno_of = |e: MathError| if e == MathError::Domain { 33 } else { 0 };
+    let modes = [Rounding::Nearest, Rounding::Down, Rounding::Up, Rounding::Zero];
+    for unmask in [0x100_u32, 0x200, 0x400, 0x800] {
+        for (rc, &mode) in (0u32..).zip(modes.iter()) {
+            let mx = (0x1f80 & !unmask) | (rc << 13);
+            let sub64: &[f64] = if unmask == 0x100 { &[] } else { &[1e-310, 5e-324] };
+            let sub32: &[f32] = if unmask == 0x100 { &[] } else { &[1e-40, 1e-45] };
+            for &x in sub64.iter().chain(&[2.0, 0.5, -1.0, 3.0]) {
+                let (w, st) = fused::sqrt::<f64, f64>(x, mode);
+                let mut got = 0;
+                let seen = observe_with_ctl(mx, || got = m::sqrt(x).to_bits());
+                assert_eq!((mx, x.to_bits(), got, seen), (mx, x.to_bits(), w.to_bits(), (errno_of(st.error), Flags(st.flags.0))));
+            }
+            for &x in sub32.iter().chain(&[2.0f32, 0.5, -1.0, 3.0]) {
+                let (w, st) = fused::sqrt::<f32, f32>(x, mode);
+                let mut got = 0;
+                let seen = observe_with_ctl(mx, || got = m::sqrtf(x).to_bits());
+                assert_eq!((mx, x.to_bits(), got, seen), (mx, x.to_bits(), w.to_bits(), (errno_of(st.error), Flags(st.flags.0))));
+            }
+        }
+    }
+    fpu::clear(&CSys, Flags::ALL);
+}
+
+#[test]
+fn math_sqrtl_entry_tests_its_word_and_class_in_c() {
+    // Clauses: s10_0_f_0.
+    // D-10.71: `sqrtl`'s assembly entry (its own control-word and `fxam` tests) is reached only
+    // from C: the tests above call `niji_sqrtl_bits`. conformance/c/s10_sqrtl_entry.c calls the
+    // exported `sqrtl` statically linked: in place in two directions, a negative operand's EDOM,
+    // -0, and 53-bit precision control keeping the 64-bit root.
+    products::conformance(&["s10_sqrtl_entry"]);
+}
+
 /// `hypotf` in MXCSR direction `rc` (0 nearest, 1 down, 2 up, 3 toward zero): the result's bits,
 /// the IEEE flags it raised (the denormal-operand bit aside) and `errno`.
 #[allow(clippy::as_conversions, clippy::arithmetic_side_effects, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::cast_possible_wrap, clippy::float_arithmetic, clippy::integer_division)] // bit-level test arithmetic on bounded values
 fn hypotf_in(rc: u32, f: impl FnOnce() -> f32) -> (u64, u32, i32) {
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     let (v, after) = around(0x1f80 | rc << 13, || u64::from(f().to_bits()));
-    (v, after & 0x3d, liella_boundary::errno::get())
+    (v, after & 0x3d, niji_boundary::errno::get())
 }
 
 #[test]
@@ -1800,7 +2189,7 @@ fn math_hypotf_fast_path_is_the_accurate_hypotf() {
     // correctly rounded path's in every direction (exact roots included: they raise nothing);
     // roots on a float midpoint, overflow, subnormal results and NaN/infinity operands reach
     // the accurate path.
-    use liella_boundary::mathret as mr;
+    use niji_boundary::mathret as mr;
     let mut pairs: Vec<(f32, f32)> = vec![
         (3.0, 4.0), (-7.0, 24.0), (1.0, 1.0), (f32::MAX, f32::MAX), (f32::MAX, 1.0), (1.0, 2f32.powi(-12)),
         (f32::MIN_POSITIVE, f32::MIN_POSITIVE), (1e-45, 1e-45), (5e-39, 3e-39), (0.0, -0.0),
@@ -1836,7 +2225,7 @@ fn math_hypotf_fast_path_is_the_accurate_hypotf() {
     for rc in 0..4u32 {
         for &(x, y) in &pairs {
             let got = hypotf_in(rc, || m::hypotf(x, y));
-            let want = hypotf_in(rc, || mr::ret(liella_math::pow::hypot(x, y, mr::mode())));
+            let want = hypotf_in(rc, || mr::ret(niji_math::pow::hypot(x, y, mr::mode())));
             assert_eq!(got, want, "hypotf({x:e}, {y:e}) in direction {rc}");
             if comparable(x, y) {
                 eligible += 1;
@@ -1874,12 +2263,12 @@ fn math_double_invtrig_hypot_fast_tier_is_the_accurate_path() {
     // own (`annex_f`): underflow exactly for a tiny inexact result, overflow and ERANGE only as
     // §10.0 says, invalid and EDOM only for a domain error. An exact root raises nothing, and
     // atan(1/2), whose fast-tier arithmetic is exact up to the last addition, raises inexact.
-    use liella_boundary::mathret as mr;
-    use liella_math::{pow, trig};
+    use niji_boundary::mathret as mr;
+    use niji_math::{pow, trig};
     let d_in = |rc: u32, f: &dyn Fn() -> f64| {
-        liella_boundary::errno::set_raw(0);
+        niji_boundary::errno::set_raw(0);
         let (v, after) = around(0x1f80 | rc << 13, || f().to_bits());
-        (v, after & 0x3d, liella_boundary::errno::get())
+        (v, after & 0x3d, niji_boundary::errno::get())
     };
     // The entry against the accurate path's envelope, then the spec rule on the entry's own.
     let check = |what: &str, rc: u32, args: &[f64], entry: &dyn Fn() -> f64, envelope: &dyn Fn() -> f64| {
@@ -2018,14 +2407,465 @@ fn hypotf_oracle(x: f32, y: f32, f: f32, rc: u32) -> bool {
     above_lo && below_hi
 }
 
+/// The one-pass `float` entries (LIBM-F32-ONEPASS, D-10.63) and their reference: the full
+/// envelope on the accurate path, the entry they replaced.
+type OnePass = (&'static str, extern "C" fn(f32) -> f32, fn(f32) -> f32);
+const ONEPASS: [OnePass; 9] = [
+    ("expf", m::expf, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::exp)),
+    ("exp2f", m::exp2f, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::exp2)),
+    ("exp10f", m::exp10f, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::exp10)),
+    ("logf", m::logf, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::log)),
+    ("log2f", m::log2f, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::log2)),
+    ("log10f", m::log10f, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::log10)),
+    ("asinf", m::asinf, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::asin)),
+    ("acosf", m::acosf, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::acos)),
+    ("atanf", m::atanf, |x| niji_boundary::mathret::elem(x, niji_boundary::mathret::Unit::Sse, niji_math::real::Real::atan)),
+];
+
+/// Compare `entry` with `reference` on the encoding `b` under MXCSR `mx`: result bits, errno
+/// and flags. True when they differ (the first few are printed).
+fn onepass_differs(p: &OnePass, mx: u32, b: u32, printed: u64) -> bool {
+    let (name, entry, reference) = *p;
+    let x = f32::from_bits(b);
+    let (mut got, mut want) = (0u32, 0u32);
+    let seen = observe_with_ctl(mx, || got = entry(x).to_bits());
+    let wanted = observe_with_ctl(mx, || want = reference(x).to_bits());
+    let differs = (got, seen) != (want, wanted);
+    if differs && printed < 4 {
+        eprintln!("BAD {name}({b:#010x}) mxcsr {mx:#06x}: got {got:#010x} {seen:?}, want {want:#010x} {wanted:?}");
+    }
+    differs
+}
+
+/// [`onepass_differs`] on every `stride`-th encoding of the chunk `c` (2^20 encodings).
+/// Returns (calls, mismatches).
+#[allow(clippy::arithmetic_side_effects)] // counters below 2^34; b steps inside its chunk
+fn onepass_chunk(p: &OnePass, mx: u32, c: u32, stride: u32) -> (u64, u64) {
+    let (mut n, mut bad) = (0u64, 0u64);
+    let mut b = c << 20;
+    loop {
+        n += 1;
+        bad += u64::from(onepass_differs(p, mx, b, bad));
+        match b.checked_add(stride) {
+            Some(nb) if nb >> 20 == c => b = nb,
+            _ => break,
+        }
+    }
+    (n, bad)
+}
+
 #[test]
-#[ignore = "exhaustive: cargo test -p liella-boundary --release --test s10_math_symbols -- --ignored --nocapture math_hypotf_fast_path_sweep"]
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)] // bit fields and counters of bounded width
+fn math_expf_onepass_entries_match_the_envelope() {
+    // Clauses: s10_0_f_0. D-10.63: the entries that run in the caller's MXCSR unread give the
+    // envelope's bits, errno and flags in every rounding direction and under FTZ, DAZ and both
+    // (D-10.22), on a sample of every chunk of the encodings, and on the operands at the edges of
+    // the one-pass range, the exact results and the special values.
+    // D-10.72 adds exp10f's range edges (±37.9) and exact powers (1, 9, 10; 11 and 1.125 are not
+    // exact), and the log family's: 1 and its neighbours, the m split at 0.75 and 1.5, the least
+    // normal and the largest finite operand, -1, and the 10^n operands log10 refuses (10, 10^10).
+    // LIBM-TINY-FASTPATHS (D-10.108): the exp family's tiny-operand path below 2^-27 (0x3200_0000)
+    // on both sides of its bound and of the least normal (0x0080_0000, 0x0080_0001 above).
+    let edges: [u32; 54] = [
+        0x31ff_ffff, 0x3200_0000, 0xb1ff_ffff, 0xb200_0000,
+        0x0000_0000, 0x8000_0000, 0x0000_0001, 0x807f_ffff, 0x327f_ffff, 0x3280_0000, 0xb280_0000, 0x42ae_a8f5,
+        0x42ae_a8f6, 0xc2ae_a8f6, 0x42fb_ffff, 0x42fc_0000, 0xc2fc_0000, 0x4040_0000, 0xc0e0_0000, 0x7f80_0000,
+        0xff80_0000, 0x7fc0_0000, 0x7f80_0001, 0xffa0_0005, 0x4217_9999, 0x4217_999a, 0xc217_999a, 0x3f80_0000,
+        0x4110_0000, 0x4120_0000, 0x4130_0000, 0x3f90_0000, 0x3f7f_ffff, 0x3f80_0001, 0x3f40_0000, 0x3fc0_0000,
+        0x0080_0000, 0x7f7f_ffff, 0xbf80_0000, 0x5015_02f9,
+        // D-10.82 (asinf, acosf, atanf): the one-pass ranges' edges (|x| < 1, the least and the
+        // largest normal), the index split at s = 1/64 and 1/8, and 1 - 2^-24 on both sides.
+        0x3f7f_ffff, 0xbf7f_ffff, 0x3c80_0000, 0x3c7f_ffff, 0x3e00_0000, 0x0080_0001, 0x807f_ffff, 0xff7f_ffff,
+        // D-10.103: asinf/acosf's split at |x| = 1/2 on both sides, atanf's table at 32 (its end)
+        // and 2 (a reduced argument of exactly 0).
+        0x3eff_ffff, 0x3f00_0000, 0xbf00_0000, 0x41ff_ffff, 0x4200_0000, 0x4000_0000,
+    ];
+    for p in &ONEPASS {
+        for ctl in [0u32, 0x8000, 0x0040, 0x8040] {
+            for rc in 0..4u32 {
+                let mx = 0x1f80 | ctl | rc << 13;
+                let mut bad = 0;
+                for c in 0..1u32 << 12 {
+                    bad += onepass_chunk(p, mx, c, 0x3_fffb).1;
+                }
+                for &b in &edges {
+                    bad += u64::from(onepass_differs(p, mx, b, bad));
+                }
+                assert_eq!(bad, 0, "{} differs from the envelope under MXCSR {mx:#06x}", p.0);
+            }
+        }
+    }
+}
+
+/// Every `float` encoding (or every `NIJI_SWEEP_STRIDE`-th) in the four directions.
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)] // bit fields and counters of bounded width
+fn onepass_sweep(p: &OnePass) {
+    use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+    let stride = std::env::var("NIJI_SWEEP_STRIDE").ok().and_then(|s| s.parse().ok()).unwrap_or(1u32);
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+    let (next, calls, bad) = (AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0));
+    std::thread::scope(|sc| {
+        for _ in 0..threads {
+            sc.spawn(|| loop {
+                let c = next.fetch_add(1, Relaxed);
+                if c >= 1 << 14 {
+                    break;
+                }
+                let (n, b) = onepass_chunk(p, 0x1f80 | ((c as u32) & 3) << 13, (c >> 2) as u32, stride);
+                calls.fetch_add(n, Relaxed);
+                bad.fetch_add(b, Relaxed);
+            });
+        }
+    });
+    let (n, b) = (calls.load(Relaxed), bad.load(Relaxed));
+    println!("{} one-pass sweep: stride {stride}, calls {n} (4 directions), mismatches {b}", p.0);
+    assert_eq!(n, (1u64 << 14) * (1u64 << 20).div_ceil(u64::from(stride)), "every chunk checked once");
+    assert_eq!(b, 0, "{} differs from the envelope", p.0);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_expf_onepass_sweep"]
+fn math_expf_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.63: all 2^32 operands x 4 directions, bits, errno and flags.
+    onepass_sweep(&ONEPASS[0]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_exp2f_onepass_sweep"]
+fn math_exp2f_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.63: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[1]);
+}
+
+/// `powf`'s envelope on the accurate path: the entry the one-pass `powf` (D-10.78) replaced.
+fn powf_reference(x: f32, y: f32) -> f32 {
+    niji_boundary::mathret::elem((x, y), niji_boundary::mathret::Unit::Sse, |(x, y), r| niji_math::real::Real::pow(x, y, r))
+}
+
+/// Compare `powf` with [`powf_reference`] on (x, y) under MXCSR `mx`: bits, errno, flags.
+fn powf_differs(mx: u32, x: f32, y: f32, printed: u64) -> bool {
+    let (mut got, mut want) = (0u32, 0u32);
+    let seen = observe_with_ctl(mx, || got = m::powf(x, y).to_bits());
+    let wanted = observe_with_ctl(mx, || want = powf_reference(x, y).to_bits());
+    let differs = (got, seen) != (want, wanted);
+    if differs && printed < 4 {
+        eprintln!("BAD powf({:#010x}, {:#010x}) mxcsr {mx:#06x}: got {got:#010x} {seen:?}, want {want:#010x} {wanted:?}", x.to_bits(), y.to_bits());
+    }
+    differs
+}
+
+/// The hard and edge pairs of the one-pass `powf`: the special values, the bit-decided cases
+/// (y = 0, 1, 2 and their |x| bounds 2^-63 and 2^64 with the neighbouring encodings, x < 0 with
+/// odd, even and non-integer y, y with 2^23 ≤ |y| < 2^24), the exact results it must refuse (|x| a
+/// power of two; odd parts 3^k with y = n/2^j), y one ulp from integers and halves, x within a few
+/// ulps of 1 with large y, and results near the overflow and underflow thresholds.
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_wrap)] // bit fields of bounded width
+fn powf_hard_pairs() -> Vec<(f32, f32)> {
+    let mut v = Vec::new();
+    let sp: [u32; 12] = [0, 0x8000_0000, 1, 0x807f_ffff, 0x7f80_0000, 0xff80_0000, 0x7fc0_0000, 0x7f80_0001, 0xffc0_0000, 0x3f80_0000, 0xbf80_0000, 0x0080_0000];
+    let ys: [f32; 16] = [0.0, -0.0, 1.0, 2.0, -1.0, -2.0, 0.5, 3.0, 0.25, 1.5, 15.0, 15.875, 16.0, 0.125, 8_388_609.0, 8_388_610.0];
+    for &a in &sp {
+        for &b in &sp {
+            v.push((f32::from_bits(a), f32::from_bits(b)));
+        }
+        for &y in &ys {
+            v.push((f32::from_bits(a), y));
+            v.push((y, f32::from_bits(a)));
+        }
+    }
+    for xb in [0x1fff_ffffu32, 0x2000_0000, 0x2000_0001, 0x5f7f_ffff, 0x5f80_0000, 0x5f80_0001, 0x1fbf_ffff, 0x5f3f_ffff] {
+        for s in [0, 0x8000_0000] {
+            v.push((f32::from_bits(xb | s), 2.0));
+        }
+    }
+    for k in 0..16 {
+        let k = k as f32;
+        for x in [3.0f32, 9.0, 81.0, 6561.0, 5.0, 25.0, 0.75, 1.5, -3.0, -1.5, 2.0, 0.5, -2.0, 1024.0, 7.0, 49.0] {
+            for y in [k, k + 0.5, k + 0.25, k * 0.125, -k, -k - 0.5, k + 0.125, k + 0.0625] {
+                v.push((x, y));
+            }
+        }
+    }
+    for yb in [0x4b00_0001u32, 0x4b00_0002, 0x4b7f_ffff, 0x4b80_0001, 0xcb00_0001] {
+        for xb in [0x3f80_0001u32, 0x3f7f_ffff, 0x3f80_0002] {
+            v.push((-f32::from_bits(xb), f32::from_bits(yb)));
+        }
+    }
+    let mut s = 0x9e37_79b9_7f4a_7c15u64;
+    let mut next = move || {
+        s ^= s << 13;
+        s ^= s >> 7;
+        s ^= s << 17;
+        s
+    };
+    for _ in 0..20_000 {
+        let r = next();
+        let x = f32::from_bits(0x3c00_0000 + (r as u32 % 0x0700_0000));
+        let lx = f64::from(x).log2();
+        // y one ulp around integers and halves; results near 2^128 and 2^-126; x near 1, large y.
+        let n = ((r >> 32) % 40) as f32 - 20.0;
+        let yi = if r >> 63 == 0 { n } else { n + 0.5 };
+        let d = ((r >> 40) % 5) as i32 - 2;
+        v.push((x, f32::from_bits((yi.to_bits() as i32 + d) as u32)));
+        let (t, d) = (if r >> 62 & 1 == 0 { 128.0 } else { -126.0 }, ((r >> 45) % 9) as i32 - 4);
+        let yt = (t / lx) as f32;
+        v.push((x, f32::from_bits((yt.to_bits() as i32 + d) as u32)));
+        let x1 = f32::from_bits((0x3f80_0000i32 + ((r >> 20) % 64) as i32 - 32) as u32);
+        let y1 = f32::from_bits(0x4400_0000 + ((r >> 26) as u32 % 0x0480_0000)) * if r & 1 == 0 { 1.0 } else { -1.0 };
+        v.push((x1, y1));
+    }
+    v
+}
+
+/// A random pair: x and y from four generators by `r`'s low bits (every encoding; [0.01, 100]
+/// with |y| ≤ 64; x within 2^-8 of 1 with |y| up to 2^20; x < 0 with an integer y).
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss)] // bit fields of bounded width
+fn powf_random_pair(r: u64) -> (f32, f32) {
+    let (a, b) = ((r >> 2) as u32, (r >> 34) as u32);
+    let sign = (b & 1) << 31;
+    match r & 3 {
+        0 => (f32::from_bits(a), f32::from_bits(b)),
+        1 => (f32::from_bits(0x3c23_d70a + a % 0x0726_0000), f32::from_bits((0x3000_0000 + (b >> 1) % 0x1300_0000) | sign)),
+        2 => (f32::from_bits(0x3f80_0000 - 0x8000 + a % 0x1_0000), f32::from_bits((0x3800_0000 + (b >> 1) % 0x0f00_0000) | sign)),
+        _ => (-f32::from_bits(0x3d00_0000 + a % 0x0400_0000), ((b >> 1) % 128) as f32 - 64.0),
+    }
+}
+
+#[test]
+#[allow(clippy::arithmetic_side_effects)] // counters
+fn math_powf_onepass_matches_the_envelope() {
+    // Clauses: s10_0_f_0. D-10.78: powf runs in the caller's MXCSR unread and gives the envelope's
+    // bits, errno and flags in every rounding direction and under FTZ, DAZ and both (D-10.22), on
+    // the hard and edge pairs and 2^16 random pairs per mode.
+    let hard = powf_hard_pairs();
+    for ctl in [0u32, 0x8000, 0x0040, 0x8040] {
+        for rc in 0..4u32 {
+            let mx = 0x1f80 | ctl | rc << 13;
+            let mut bad = 0;
+            for &(x, y) in &hard {
+                bad += u64::from(powf_differs(mx, x, y, bad));
+            }
+            let mut s = 0x2545_f491_4f6c_dd1du64 ^ u64::from(mx);
+            for _ in 0..1 << 16 {
+                s ^= s << 13;
+                s ^= s >> 7;
+                s ^= s << 17;
+                let (x, y) = powf_random_pair(s);
+                bad += u64::from(powf_differs(mx, x, y, bad));
+            }
+            assert_eq!(bad, 0, "powf differs from the envelope under MXCSR {mx:#06x}");
+        }
+    }
+    // The sign of a negative base with an odd y in [2^23, 2^24) (no spec clause beyond s10_0_f_0:
+    // (-x)^n = -(x^n) for odd n).
+    assert!(m::powf(-1.000_000_1, 8_388_609.0) < -2.7, "powf(-(1 + 2^-23), 2^23 + 1) is negative");
+}
+
+#[test]
+#[ignore = "random pairs: NIJI_POWF_PAIRS (default 10^9) per mode: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_powf_onepass_random_pairs"]
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)] // counters
+fn math_powf_onepass_random_pairs() {
+    // Clauses: s10_0_f_0. D-10.78: NIJI_POWF_PAIRS random pairs in each of the four rounding
+    // directions (default MXCSR otherwise) plus the hard pairs in all 16 modes, bits, errno and flags.
+    use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+    let pairs: u64 = std::env::var("NIJI_POWF_PAIRS").ok().and_then(|s| s.parse().ok()).unwrap_or(1_000_000_000);
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get()) as u64;
+    const CHUNK: u64 = 1 << 20;
+    let chunks = pairs.div_ceil(CHUNK);
+    let (next, calls, bad, fast) = (AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0));
+    std::thread::scope(|sc| {
+        for _ in 0..threads {
+            sc.spawn(|| loop {
+                let c = next.fetch_add(1, Relaxed);
+                if c >= 4 * chunks {
+                    break;
+                }
+                let mx = 0x1f80 | ((c & 3) as u32) << 13;
+                let mut s = (c >> 2).wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1;
+                let (mut n, mut b, mut f) = (0u64, 0u64, 0u64);
+                for _ in 0..CHUNK.min(pairs - (c >> 2) * CHUNK) {
+                    s ^= s << 13;
+                    s ^= s >> 7;
+                    s ^= s << 17;
+                    let (x, y) = powf_random_pair(s);
+                    n += 1;
+                    f += u64::from(niji_math::fast32::pow_onepass_any(x, y).is_some());
+                    b += u64::from(powf_differs(mx, x, y, b + bad.load(Relaxed)));
+                }
+                calls.fetch_add(n, Relaxed);
+                bad.fetch_add(b, Relaxed);
+                fast.fetch_add(f, Relaxed);
+            });
+        }
+    });
+    let hard = powf_hard_pairs();
+    let mut hard_bad = 0;
+    for ctl in [0u32, 0x8000, 0x0040, 0x8040] {
+        for rc in 0..4u32 {
+            for &(x, y) in &hard {
+                hard_bad += u64::from(powf_differs(0x1f80 | ctl | rc << 13, x, y, hard_bad));
+            }
+        }
+    }
+    let (n, b, f) = (calls.load(Relaxed), bad.load(Relaxed), fast.load(Relaxed));
+    println!("powf one-pass random pairs: calls {n} (4 directions), answered by the one-pass path {f}, mismatches {b}; hard pairs {} x 16 modes, mismatches {hard_bad}", hard.len());
+    assert_eq!(n, 4 * pairs, "every pair checked once per direction");
+    assert_eq!(b + hard_bad, 0, "powf differs from the envelope");
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_exp10f_onepass_sweep"]
+fn math_exp10f_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.72: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[2]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_logf_onepass_sweep"]
+fn math_logf_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.72: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[3]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_log2f_onepass_sweep"]
+fn math_log2f_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.72: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[4]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_log10f_onepass_sweep"]
+fn math_log10f_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.72: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[5]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_asinf_onepass_sweep"]
+fn math_asinf_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.82: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[6]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_acosf_onepass_sweep"]
+fn math_acosf_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.82: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[7]);
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_atanf_onepass_sweep"]
+fn math_atanf_onepass_sweep() {
+    // Clauses: s10_0_f_0. D-10.82: as math_expf_onepass_sweep.
+    onepass_sweep(&ONEPASS[8]);
+}
+
+/// The `k`-th pair of the atan2f checks (a splitmix64 stream): uniform encodings for x, and for
+/// y either uniform (one in four) or x's encoding moved by up to ±2^25 (ratios within a few
+/// binades of 1 and of each other's sign, where the reduction's index runs over its whole table).
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)] // bit mixing on u64
+fn atan2_pair(k: u64) -> (u32, u32) {
+    let mut z = k.wrapping_mul(0x9e37_79b9_7f4a_7c15).wrapping_add(0x6a09_e667_f3bc_c909);
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z ^= z >> 31;
+    let x = z as u32;
+    let r = (z >> 32) as u32;
+    let y = if r & 3 == 0 { r } else { x.wrapping_add((r >> 6) & 0x03ff_ffff).wrapping_sub(0x0200_0000) ^ (r & 0x8000_0000) };
+    (y, x)
+}
+
+/// atan2f's one-pass entry against the full envelope (the entry it replaced) on the pairs
+/// `ks` under MXCSR `mx`: result bits, errno and flags. Returns the mismatches (a few printed).
+fn atan2_onepass_mismatches(mx: u32, ks: core::ops::Range<u64>) -> u64 {
+    let reference = |y: f32, x: f32| niji_boundary::mathret::elem((y, x), niji_boundary::mathret::Unit::Sse, |(y, x), md| niji_math::real::Real::atan2(y, x, md));
+    let mut bad = 0u64;
+    for k in ks {
+        let (by, bx) = atan2_pair(k);
+        let (y, x) = (f32::from_bits(by), f32::from_bits(bx));
+        let (mut got, mut want) = (0u32, 0u32);
+        let seen = observe_with_ctl(mx, || got = m::atan2f(y, x).to_bits());
+        let wanted = observe_with_ctl(mx, || want = reference(y, x).to_bits());
+        if (got, seen) != (want, wanted) {
+            if bad < 4 {
+                eprintln!("BAD atan2f({by:#010x}, {bx:#010x}) mxcsr {mx:#06x}: got {got:#010x} {seen:?}, want {want:#010x} {wanted:?}");
+            }
+            bad = bad.wrapping_add(1);
+        }
+    }
+    bad
+}
+
+#[test]
+#[allow(clippy::arithmetic_side_effects)] // MXCSR fields
+fn math_atan2f_onepass_matches_the_envelope() {
+    // Clauses: s10_0_f_0. D-10.82: atan2f's one-pass entry gives the envelope's bits, errno and
+    // flags in every rounding direction and under FTZ, DAZ and both, on a pair sample and on the
+    // special and edge pairs (zeros, subnormals, infinities, NaN, the least normal, signs, |y| = |x|).
+    let edges: [u32; 12] = [
+        0x0000_0000, 0x8000_0000, 0x0000_0001, 0x007f_ffff, 0x0080_0000, 0x3f80_0000, 0xbf80_0000, 0x7f7f_ffff,
+        0x7f80_0000, 0xff80_0000, 0x7fc0_0000, 0x7f80_0001,
+    ];
+    for ctl in [0u32, 0x8000, 0x0040, 0x8040] {
+        for rc in 0..4u32 {
+            let mx = 0x1f80 | ctl | rc << 13;
+            let mut bad = atan2_onepass_mismatches(mx, 0..1 << 15);
+            for &by in &edges {
+                for &bx in &edges {
+                    let (y, x) = (f32::from_bits(by), f32::from_bits(bx));
+                    let (mut got, mut want) = (0u32, 0u32);
+                    let seen = observe_with_ctl(mx, || got = m::atan2f(y, x).to_bits());
+                    let wanted = observe_with_ctl(mx, || {
+                        want = niji_boundary::mathret::elem((y, x), niji_boundary::mathret::Unit::Sse, |(y, x), md| niji_math::real::Real::atan2(y, x, md)).to_bits();
+                    });
+                    bad += u64::from((got, seen) != (want, wanted));
+                }
+            }
+            assert_eq!(bad, 0, "atan2f differs from the envelope under MXCSR {mx:#06x}");
+        }
+    }
+}
+
+#[test]
+#[ignore = "pairs: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_atan2f_onepass_pairs"]
+#[allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)] // counters and MXCSR fields
+fn math_atan2f_onepass_pairs() {
+    // Clauses: s10_0_f_0. D-10.82: 2.5·10^8 pairs in each of the four directions (10^9 checks;
+    // NIJI_PAIRS overrides the per-direction count) against the envelope, as
+    // math_atan2f_onepass_matches_the_envelope.
+    use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+    let per = std::env::var("NIJI_PAIRS").ok().and_then(|s| s.parse().ok()).unwrap_or(250_000_000u64);
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+    let chunks = per.div_ceil(1 << 20);
+    let (next, bad) = (AtomicU64::new(0), AtomicU64::new(0));
+    std::thread::scope(|sc| {
+        for _ in 0..threads {
+            sc.spawn(|| loop {
+                let c = next.fetch_add(1, Relaxed);
+                if c >= 4 * chunks {
+                    break;
+                }
+                let (rc, k) = ((c % 4) as u32, c / 4);
+                let ks = k << 20..((k + 1) << 20).min(per);
+                bad.fetch_add(atan2_onepass_mismatches(0x1f80 | rc << 13, ks), Relaxed);
+            });
+        }
+    });
+    let b = bad.load(Relaxed);
+    println!("atan2f one-pass pairs: {per} per direction (4 directions), mismatches {b}");
+    assert_eq!(b, 0, "atan2f differs from the envelope");
+}
+
+#[test]
+#[ignore = "exhaustive: cargo test -p niji-boundary --release --test s10_math_symbols -- --ignored --nocapture math_hypotf_fast_path_sweep"]
 #[allow(clippy::as_conversions, clippy::arithmetic_side_effects, clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::cast_possible_wrap, clippy::float_arithmetic, clippy::integer_division)] // bit-level test arithmetic on bounded values
 fn math_hypotf_fast_path_sweep() {
     // Clauses: s10_0_f_0. #1541: every float x (all 2^32 encodings) against nine second
     // operands (x itself and eight fixed ones), in the four directions: whenever the fast path
     // answers, the integer oracle confirms the correctly rounded result.
-    use liella_boundary::mathret as mr;
+    use niji_boundary::mathret as mr;
     use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
     let ys: [Option<f32>; 9] = [None, Some(1.0), Some(3.0), Some(0.1), Some(1.732_050_8), Some(f32::MIN_POSITIVE), Some(1e-40), Some(1e30), Some(f32::MAX)];
     let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
@@ -2071,7 +2911,7 @@ fn math_hypotf_fast_path_sweep() {
     let a: f32 = v.iter().map(|&(x, y)| m::hypotf(std::hint::black_box(x), y)).sum();
     let t_fast = t.elapsed().as_nanos() as f64 / v.len() as f64;
     let t = std::time::Instant::now();
-    let b: f32 = v.iter().map(|&(x, y)| mr::ret(liella_math::pow::hypot(std::hint::black_box(x), y, mr::mode()))).sum();
+    let b: f32 = v.iter().map(|&(x, y)| mr::ret(niji_math::pow::hypot(std::hint::black_box(x), y, mr::mode()))).sum();
     let t_acc = t.elapsed().as_nanos() as f64 / v.len() as f64;
     println!("hypotf timing: entry {t_fast:.1} ns/call, accurate path {t_acc:.1} ns/call ({a} {b})");
     fpu::clear(&CSys, Flags::ALL);

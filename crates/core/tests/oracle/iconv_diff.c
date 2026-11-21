@@ -1,5 +1,5 @@
 /* iconv end to end (spec §6.4; D-6.8, D-6.9): built against the host C library and against
- * Liella's products, the outputs must match line for line (iconv_products.rs). Each line is
+ * libniji's products, the outputs must match line for line (iconv_products.rs). Each line is
  * one conversion: the return value, errno, the input left and the output in hex. A conversion
  * is also run one input byte at a time, which must give the same output (resumption). */
 #include <errno.h>
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* stdio is not used (Liella's streams are a later phase): output goes through write(2). */
+/* stdio is not used (libniji's streams are a later phase): output goes through write(2). */
 static char obuf[1 << 16];
 static size_t used;
 

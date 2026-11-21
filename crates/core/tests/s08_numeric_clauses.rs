@@ -3,18 +3,19 @@
 
 //! Clause tests for spec §8 (44 clauses).
 //!
-//! The parsers and formatters are tested in `liella::num` and their C shapes in
-//! `liella_legacy::num_compat`; §8.8 (the byte-order functions, §15 exports) through the exports.
+//! The parsers and formatters are tested in `niji::num` and their C shapes in
+//! `niji_legacy::num_compat`; §8.8 (the byte-order functions, §15 exports) through the exports.
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::float_cmp, missing_docs)]
 
-use liella::num::format::{format_float, Bounded, Case, Spec, Style};
-use liella::num::parse::{parse_float, parse_i64, parse_i64_short, parse_u64, Dialect, FloatRange, Status};
-use liella::num::{self, Float, Format, Rounding, StdBit};
-use liella_kernel::Errno;
-use liella_legacy::mb_compat::Local;
-use liella_legacy::num_compat as nc;
+use niji::num::format::{format_float, Bounded, Case, Spec, Style};
+use niji::num::parse::{parse_float, parse_i64, parse_i64_short, parse_u64, Dialect, FloatRange, Status};
+use niji::num::{self, Float, Format, Rounding, StdBit};
+use niji_kernel::Errno;
+use niji_legacy::mb_compat::Local;
+use niji_boundary::sys::CSys;
+use niji_legacy::num_compat as nc;
 
 const N: Rounding = Rounding::Nearest;
 
@@ -203,20 +204,20 @@ fn s8_2_g_0() {
 fn s8_2_f_1() {
     let p = parse_float(b"1e400", b".", Format::F64, N, Dialect::C99);
     assert_eq!((p.range, f64::from_bits(p.value.pack(Format::F64) as u64)), (FloatRange::Overflow, f64::INFINITY));
-    assert_eq!(nc::strtod(b"-1e400", 0, None::<&mut Local>, N, b"."), (f64::NEG_INFINITY, Some(Errno::ERANGE)));
+    assert_eq!(nc::strtod(b"-1e400", 0, None::<&mut Local>, &CSys, b"."), (f64::NEG_INFINITY, Some(Errno::ERANGE)));
 }
 
 #[test]
 fn s8_2_f_2() {
-    let (v, e) = nc::strtod(b"4e-320", 0, None::<&mut Local>, N, b".");
+    let (v, e) = nc::strtod(b"4e-320", 0, None::<&mut Local>, &CSys, b".");
     assert_eq!((v.to_bits(), e), (8096, Some(Errno::ERANGE)), "a subnormal result");
-    assert_eq!(nc::strtod(b"1e-400", 0, None::<&mut Local>, N, b"."), (0.0, Some(Errno::ERANGE)));
+    assert_eq!(nc::strtod(b"1e-400", 0, None::<&mut Local>, &CSys, b"."), (0.0, Some(Errno::ERANGE)));
 }
 
 #[test]
 fn s8_2_f_3() {
     let mut end = Local(9);
-    assert_eq!(nc::strtod(b"abc", 300, Some(&mut end), N, b"."), (0.0, None));
+    assert_eq!(nc::strtod(b"abc", 300, Some(&mut end), &CSys, b"."), (0.0, None));
     assert_eq!(end.0, 300);
 }
 
@@ -225,7 +226,7 @@ fn s8_3_c_0() {
     let wide: Vec<i32> = " -0x10".chars().map(|c| c as i32).collect();
     assert_eq!(nc::strtol(&wide[..], 0, None::<&mut Local>, 0, Dialect::C99), (-16, None));
     let wf: Vec<i32> = "2.5".chars().map(|c| c as i32).collect();
-    assert_eq!(nc::strtod(&wf[..], 0, None::<&mut Local>, N, &[0x2E]), (2.5, None));
+    assert_eq!(nc::strtod(&wf[..], 0, None::<&mut Local>, &CSys, &[0x2E]), (2.5, None));
     let bad: Vec<i32> = vec![0x661, 0x662];
     assert_eq!(nc::strtol(&bad[..], 0, None::<&mut Local>, 10, Dialect::C99).0, 0, "only ASCII digits");
 }
@@ -273,7 +274,7 @@ fn s8_4_c_3() {
 }
 
 /// The `#` flag of `%g` after a rounding carry (clause s12_6_c_4, flags; COMPAT-8, differences row "`%#g` after a rounding carry").
-/// Liella follows C: the precision P counts significant digits, so `%#.2g` of 99.5 rounds up to `1.0e+02` with the
+/// libniji follows C: the precision P counts significant digits, so `%#.2g` of 99.5 rounds up to `1.0e+02` with the
 /// P-1 digits after the point kept. glibc 2.39 prints `1.e+02` there (the point with no digits after it); that is
 /// the recorded difference. Pinned here so a change to either shape is deliberate.
 #[test]
@@ -382,7 +383,7 @@ fn s8_7_c_7() {
 /// `<endian.h>` macros): the reference's symbol list (Appendix B) and the products agree.
 #[test]
 fn s8_8_c_0() {
-    use liella_boundary::posix::s15_sockets as so;
+    use niji_boundary::posix::s15_sockets as so;
     assert_eq!(so::htonl(0x0102_0304), 0x0403_0201);
     assert_eq!(so::htons(0x0102), 0x0201);
     assert_eq!(so::ntohl(0x0403_0201), 0x0102_0304);
@@ -403,7 +404,7 @@ fn s8_8_c_0() {
     names.dedup();
     assert_eq!(names, ["htonl", "htons", "ntohl", "ntohs"]);
     // And in the products (when built): the same four, no macro form defined as a symbol.
-    let lib = root.join("target/liella/libc.a");
+    let lib = root.join("target/niji/libc.a");
     if let Ok(o) = std::process::Command::new("nm").args(["-g", "--defined-only"]).arg(&lib).output() {
         if o.status.success() {
             let text = String::from_utf8_lossy(&o.stdout);

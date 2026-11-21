@@ -1,0 +1,63 @@
+{
+ "task": "TB-FOREIGN-WORDS-LOW-14",
+ "model": "opus",
+ "tokens": null,
+ "result": "Merged origin/next twice (HEAP-FIRST-USE-8 lazy first-use heap D-3.20, then HEAP-RSEQ-NODE-3 rseq node D-3.21), keeping the foreign-block rule (D-X.60); OwnPages now forwards allowed_nodes, which is required; limits unchanged (re-measured on keke)",
+ "branch": "task/tb-foreign-words-low-14",
+ "head": "5981d0241",
+ "gate": {
+  "affected": "gate2 on 5981d0241 running at hand-back; gate on e3c932b74: 11807 passed / 0 failed (conformance 137/0, heap_and_sync 27/0, hot_text_products 26/0)",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The merge would have let OwnPages (memalign family, malloc_compat paths) inherit allowed_nodes = 1, turning NUMA placement off for the whole process on a multi-node host when its first slow path came that way; fixed in the merge and made a compile error (required method).",
+  "next's startup_instr_c is 2144 on Zen 1, 6 under its own old limit (unchanged since -13)."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "NUMA placement kept on multi-node hosts when the first heap slow path is OwnPages (memalign family) after the merge",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the merge sites and foreign-block rule",
+   "before": 0,
+   "after": 6,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_startup startup_instr_c (Zen 1), branch vs next 2d5625a3e (and 5d8cb467c: same counts); accepted by the owner's 2026-11-14 safety ruling",
+   "before": 2144,
+   "after": 2155,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_hot errno_location (Zen 1), branch vs next 2d5625a3e (and 5d8cb467c: same counts); owner ruling 2026-11-14 (glibc 10)",
+   "before": 9,
+   "after": 11,
+   "unit": "instr/call",
+   "measured": true
+  }
+ ],
+ "improvement": "Make every forwarding method of a wrapper memory source required (no trait defaults on Pages): a default silently masks a missing forward, as allowed_nodes nearly did here.",
+ "next_step": "Land once gate2 is green.",
+ "report_file": "handoff/TB-FOREIGN-WORDS-LOW.md",
+ "jobs": [
+  "tb-foreign-words-low-14-lint3",
+  "tb-foreign-words-low-14-gate2",
+  "tb-foreign-words-low-14-plants2",
+  "keke:tb-foreign-words-low-14-kekenext2",
+  "keke:tb-foreign-words-low-14-kekemerged2"
+ ]
+}

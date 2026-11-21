@@ -1,4 +1,4 @@
-/* Spec §12, D-12.19, FILE-LOCK-3: flockfile / ftrylockfile / funlockfile on threads Liella set
+/* Spec §12, D-12.19, FILE-LOCK-3: flockfile / ftrylockfile / funlockfile on threads libniji set
  * up itself (the process's main thread and pthread_create threads), where the direct lock path
  * runs; the cargo test threads are not such threads and always take the full path. Checked:
  * standard streams at their first use, nesting (the depth is kept), ftrylockfile from another

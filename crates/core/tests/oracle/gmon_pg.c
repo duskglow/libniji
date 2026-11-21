@@ -1,5 +1,5 @@
 /* A -pg program for tests/gmon_products.rs (GCRT1-START): built with -pg against the host C
- * library and against Liella's liella-gcrt1.o + libc.a. It makes no profiling call itself: the
+ * library and against libniji's niji-gcrt1.o + libc.a. It makes no profiling call itself: the
  * start object must start profiling and have gmon.out written. Modes (argv[1]): none (return
  * from main), "exit", "_exit" (no gmon.out), "fork" (the child exits too: two writes). */
 #include <stdlib.h>

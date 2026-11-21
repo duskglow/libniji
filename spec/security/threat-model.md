@@ -1,6 +1,6 @@
 # Threat model
 
-Liella's trust boundaries: for each, the attacker, what they control, and what they must not be
+libniji's trust boundaries: for each, the attacker, what they control, and what they must not be
 able to achieve. This document is completed in the security pass after phase 15
 (`implementation-plan.md`, "Security pass"); the sections the dynamic loader (phase 14) depends on,
 the environment and secure-execution mode, are written first, before phase 14 starts.
@@ -22,10 +22,10 @@ the attacker's choosing, change what it resolves or reports, or learn anything t
 attacker could not learn directly.
 
 **Two mechanisms.** (1) **Clearing at start** (owner ruling 2026-10-03): in a secure process
-Liella's start code removes every entry whose name is on the list below from the initial
+libniji's start code removes every entry whose name is on the list below from the initial
 environment array, all occurrences, before constructors, `main` or any other code can read it
 (`rt::start::UNSECURE`, applied by `boundary::runtime` in step 2 of the start sequence), so
-neither the program nor a child it executes sees them. (2) **Ignoring on read:** where Liella
+neither the program nor a child it executes sees them. (2) **Ignoring on read:** where libniji
 itself reads a variable that names a file, a directory or behaviour a privileged program must not
 take from its caller, it reads it through `secure_getenv` (or checks `AT_SECURE`), which also
 covers variables a program sets itself after start.
@@ -44,12 +44,12 @@ program printing the names left in `environ`, built dynamically and statically a
 reference library, made set-group-ID with a supplementary group of the user (the kernel then
 sets `AT_SECURE`, no root needed), and run with `env -i` and 90 candidate names set: the 22, every
 other `LD_*`, `MALLOC_*`, `RESOLV_*` and tunable name known from documentation, the variables
-Liella reads, common variables (`PATH`, `HOME`, `IFS`, `LANG`, `LC_ALL`, `TZ`, `PWD`, ...) and
+libniji reads, common variables (`PATH`, `HOME`, `IFS`, `LANG`, `LC_ALL`, `TZ`, `PWD`, ...) and
 near-miss names (`TMPDIRX`, `LD_`, `LD_LIBRARY_PATH_X`). Both builds removed the same 34 names, by
 exact name and every occurrence (a repeated `TMPDIR` was removed twice); nothing else. A name
 absent from the candidate list could not be observed: the list covers what documentation names.
 
-| Variable | Read by (Liella) | In a secure process | Source |
+| Variable | Read by (libniji) | In a secure process | Source |
 |---|---|---|---|
 | `GCONV_PATH` | not read (iconv uses the installed charmaps, D-6.8) | cleared at start | ld.so(8), probe |
 | `GETCONF_DIR` | not read | cleared at start | ld.so(8), probe |
@@ -70,15 +70,15 @@ absent from the candidate list could not be observed: the list covers what docum
 | `TMPDIR` | `tmpfile`, `tempnam`, the temporary-name functions | cleared at start; ignored on read | ld.so(8), probe |
 | `TZDIR` | time-zone selection | cleared at start; ignored on read | ld.so(8), probe |
 | `PWD` | `get_current_dir_name` | **kept**; ignored on read (the physical path is returned) | D-13.14 (owner ruling) |
-| `LIELLA_NSCACHE` | the name-service cache | kept; ignored on read (the cache stays private in secure mode anyway) | D-16.10 |
-| `LIELLA_AIO_URING` | AIO engine (`0` forces worker threads) | kept; ignored on read (secure processes use threads anyway) | D-11.11 (owner ruling) |
+| `NIJI_NSCACHE` | the name-service cache | kept; ignored on read (the cache stays private in secure mode anyway) | D-16.10 |
+| `NIJI_AIO_URING` | AIO engine (`0` forces worker threads) | kept; ignored on read (secure processes use threads anyway) | D-11.11 (owner ruling) |
 | `TZ` | time-zone selection | kept; a zone name or a POSIX rule is honoured; a path (absolute, or `:path`) is honoured only when it lies inside the default zone directory `/usr/share/zoneinfo`; a path outside it, or any value with a `..` component, reads no file and gives offset 0 (abbreviated, as any value that is neither a zone nor a rule, by its leading valid name, empty if none: the DL-0a table); `TZDIR` is cleared, so a relative name always resolves under the default directory | owner approval #2661 (2026-11-04, DL-0d section A); DL-0a probe (`spec/behaviour/dynlink-secure.md`): the reference does the same, so no differences row |
 | `LD_ASSUME_KERNEL`, `LD_PROFILE_OUTPUT`, `LD_TRACE_LOADED_OBJECTS` | the dynamic loader (phase 14) | kept in the environment (not on the reference's list); the loader does not act on them in a secure process (loader rule 1): with `LD_TRACE_LOADED_OBJECTS` set, even empty, the program runs normally | ld.so(8); DL-0a probe: the reference keeps them and does not act on them |
 | `MALLOC_CHECK_`, `LD_USE_LOAD_BIAS`, other names | not read | kept (the reference keeps them too) | probe |
 
-Liella's own security-sensitive variables named in the ruling (`HOSTALIASES`, `RES_OPTIONS`,
+libniji's own security-sensitive variables named in the ruling (`HOSTALIASES`, `RES_OPTIONS`,
 `LOCALDOMAIN`, `TMPDIR`, `TZDIR`, `LOCPATH`, `GCONV_PATH`, `NLSPATH`) are all on the reference
-library's list, so clearing them is no difference from glibc. A variable Liella starts to read in
+library's list, so clearing them is no difference from glibc. A variable libniji starts to read in
 a later phase is added here, with its treatment in a secure process, in the same change. Every
 variable the dynamic loader reads that ld.so(8) lists has a row above (owner approval #2661); a
 loader variable not listed here is added in the change that makes the loader read it.
@@ -92,8 +92,8 @@ loader variable not listed here is added in the change that makes the loader rea
   is a filter, and `prctl` is not called. Only when procfs says 0 or cannot be read is
   `prctl(PR_GET_SECCOMP)` asked, and anything but 0 (an error included) is a filter. A filter that
   kills on `prctl` itself, or answers it `ERRNO(0)`, is therefore covered whenever procfs is
-  readable; the limit remains for a process without a readable procfs. Programs and administrators can force threads with `liella_aio_use_threads`
-  (`LIELLA_NATIVE_1`) or `LIELLA_AIO_URING=0`. A kernel refusal of io_uring falls back silently
+  readable; the limit remains for a process without a readable procfs. Programs and administrators can force threads with `niji_aio_use_threads`
+  (`NIJI_NATIVE_1`) or `NIJI_AIO_URING=0`. A kernel refusal of io_uring falls back silently
   (tested through the injected-failure kernel). `SIGEV_THREAD` notifications on a caller-supplied
   stack (AIO, timers, message queues) run one at a time on it, so requests completing together
   cannot corrupt each other's frames (the reference starts them at once on the one stack).
@@ -119,7 +119,7 @@ stage; the security pass writes the cache region's section around them.
   and eventfd) is now moved above 2 (`F_DUPFD_CLOEXEC`) before use.
 * **User namespaces and `/dev/shm`.** The region is named and owner-checked with the IDs the
   process sees. In a user namespace mapping UID 0 to user 1001, a process created
-  `liella-nscache-0` owned by 1001 in the shared `/dev/shm` (a real root process refused it, by
+  `niji-nscache-0` owned by 1001 in the shared `/dev/shm` (a real root process refused it, by
   the owner check, but the name was squatted and the two views of "UID 0" mixed). A process
   outside the initial user namespace now keeps a private table. A region whose header an
   attacker wrote is rejected or reinitialised on attach (layout, size cap, owner, boot ID, account
@@ -181,13 +181,20 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
    containing a token is refused (probe: `dlopen("$ORIGIN/lib/x.so")` fails with `cannot open
    shared object file`, no expansion); any element that is relative after expansion, or empty, is
    skipped. Outside secure mode `$ORIGIN` is the directory of the requesting object's resolved
-   path (for the program the kernel's `AT_EXECFN`, not `/proc/self/exe`), or `LD_ORIGIN_PATH`
-   when that cannot be determined.
+   path, or `LD_ORIGIN_PATH` when that cannot be determined. For a kernel-started program it is
+   the directory of the file the kernel ran, read from `/proc/self/exe` only when a search expands
+   the token (probe, DL-NAME-PATH-2: absolute with links resolved, a link to the program's file
+   included; with `/proc` hidden the origin is unknown and `LD_ORIGIN_PATH` is used as given);
+   for `ld.so PROGRAM` it is the directory of the path as given, after the working directory
+   when relative, or of the path the loader cache gives for a name without `/` (rule 3).
 3. **No search path may silently mean the current directory in a secure process.** An empty
    element and a relative element of any search list are skipped. Outside secure mode they mean
    the current directory, as documented. A `dlopen` name with a `/` that does not start with `/`
    is opened relative to the current directory in both modes (documented behaviour, and the
-   program chose it; probe: the reference does the same in both modes).
+   program chose it; probe: the reference does the same in both modes). `ld.so PROGRAM` (and
+   `--list PROGRAM`) with no `/` in PROGRAM never opens it from the current directory: the name is
+   looked up in the loader cache only, and a cache path that is not absolute is not used (D-27.69;
+   probe: the reference uses neither the current directory nor `LD_LIBRARY_PATH` for it).
 4. **Parsing never trusts lengths, offsets or counts:** every program header, segment, dynamic
    entry, relocation, symbol, version and hash table access is bounds-checked against the mapped
    file, before mapping anything executable; a malformed object is refused with a diagnostic, never
@@ -195,8 +202,11 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
    (never writable and executable at once; `PT_GNU_STACK` honoured; `PT_GNU_RELRO` made read-only
    after relocation). For a `PT_GNU_STACK` that asks for an executable stack, rule 10 applies.
 5. **Trusted directories and the cache.** The trusted directories are the compiled-in default
-   directories of the build (`<prefix>/lib`, and, when the prefix is `/`, the system's `/lib64`,
-   `/usr/lib64`, `/lib/x86_64-linux-gnu` and `/usr/lib/x86_64-linux-gnu`) and nothing else.
+   directories of the build and nothing else: `<prefix>/lib` when the prefix is not `/`
+   (co-install); when the prefix is `/`, exactly the reference loader's default directories for the
+   architecture as its `ld.so --help` reports them, taken from the `Arch` table (x86-64:
+   `/lib/x86_64-linux-gnu`, `/usr/lib/x86_64-linux-gnu`, `/lib` and `/usr/lib`; owner #4237, which
+   dropped `/lib64` and `/usr/lib64`).
    `ld.so.conf` directories are *searched* through the cache but are not trusted for rules 1 and
    2. **The cache is untrusted input** (`/etc/ld.so.cache`, format recorded in Appendix D, as the
    locale files were): a corrupt or truncated cache means falling back to the default
@@ -217,7 +227,7 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
 8. **Secure-process consistency with the C library's own rules:** whatever the loader clears or
    ignores, libc's start code (static programs) does the same, from the one list in
    `rt::start::UNSECURE`, so static and dynamic programs behave alike.
-9. **Liella's own libraries cannot be swapped by the environment in a secure process.** The
+9. **libniji's own libraries cannot be swapped by the environment in a secure process.** The
    pinned sonames (`libc.so.6`, `libm.so.6`, the placeholder libraries, the loader) resolve to the
    build's prefix before any search (R14-3). Outside secure mode `LD_PRELOAD` can still interpose
    symbols, as documented.
@@ -256,7 +266,7 @@ the executed file). Every rule needs its test before DL-29 closes:
 | Rule | Test it needs |
 |---|---|
 | 1 | Set-group-ID program with `LD_LIBRARY_PATH` (absolute, empty and relative elements), `LD_PRELOAD` and `LD_AUDIT` (absolute path, untrusted and trusted directory; bare name without a set-ID bit) and `GLIBC_TUNABLES`: no listed object is loaded, the `LD_PRELOAD` bare-name message is printed and the program runs; a private `/etc/ld.so.preload` (user and mount namespace) is honoured. The set-ID-bit case stays untested until the root probe is ruled |
-| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` follows `AT_EXECFN` |
+| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` is the directory of `/proc/self/exe` (links resolved), `LD_ORIGIN_PATH` when `/proc` is hidden |
 | 3 | Empty and relative `DT_RUNPATH`/`LD_LIBRARY_PATH` elements with the library in the current directory: skipped in secure mode, found in plain mode; `dlopen("lib/x.so")` loads from the current directory in both modes |
 | 4 | Malformed ELF corpus (truncated headers, out-of-range offsets and counts, overlapping segments, a writable and executable `PT_LOAD`): refused with a diagnostic, no crash; fuzz target `elf` in the security pass; mapped permissions read back from `/proc/self/maps`, `PT_GNU_RELRO` read-only after relocation |
 | 5 | Cache corpus (missing, empty, garbage, cut to 16 bytes, cut to half, out-of-range string offsets): the program starts and falls back to the default directories; fuzz target `cache`; an `ld.so.conf` directory does not count as trusted for rules 1 and 2 |

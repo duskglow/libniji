@@ -1,0 +1,11 @@
+id = "D-27.64"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "DYN-START-PARITY"
+date = "2026-11-19"
+tests = ["crates/core/tests/hot_text_products.rs::init_dynamic_startup_only_program_stays_within_its_page_fault_bound"]
+body = '''
+**The start's per-object tables hold 16 entries inline (DYN-START-PARITY).** The loader's start-time tables (DL-STARTUP-OBJECTS) live in one stack frame and spill to a private mapping beyond their inline size. Every page of the frame is touched as it is set up, so 64 inline entries per table (the lookup views alone 64 x 296 bytes) cost a dynamic empty main about ten page faults. **Rule:** 16 entries inline, the `DT_NEEDED` links twice that; a start of more objects takes the existing mapping path. Measured (release, Skylake-SP, no randomisation): empty main 75 -> 65 faults, three libraries 91 -> 81 (the reference: 49 / 62); in hot_text_products 89 / 86 -> 77 / 73 (fast / release). Trade-off: a start of 17 to 64 objects now maps its tables (one mapping per table that outgrows 16).
+'''

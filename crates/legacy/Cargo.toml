@@ -1,5 +1,5 @@
 [package]
-name = "liella-legacy"
+name = "niji-legacy"
 description = "Quarantined historical semantics required by the POSIX/glibc ABI, built on the clean API"
 version.workspace = true
 edition.workspace = true
@@ -8,18 +8,18 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
-name = "liella_legacy"
+name = "niji_legacy"
 
 [features]
-# Test-only hooks (`recheck::SKEW_NS`); enabled through liella-boundary's `selftest`, never by a product.
+# Test-only hooks (`recheck::SKEW_NS`); enabled through niji-boundary's `selftest`, never by a product.
 selftest = []
 
 [dependencies]
-liella-kernel = { workspace = true }
-liella-rt = { workspace = true }
-liella = { workspace = true }
+niji-kernel = { workspace = true }
+niji-rt = { workspace = true }
+niji = { workspace = true }
 # The C structures some legacy shapes fill in place (random_data, drand48_data).
-liella-abi = { workspace = true }
+niji-abi = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }

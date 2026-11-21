@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 13: Remaining services
 
@@ -24,14 +24,14 @@
   * **syslog (§26; D-26.2):** never blocks indefinitely (a 1 s bound per message where the
     reference blocks on a full receiver or a FIFO console), never changes `errno`.
   * **POSIX message queues and shared memory (§25.3–25.4; D-25.5):** `mq_notify` `SIGEV_THREAD`
-    over netlink (D-25.3); errors where the reference aborts, blocks or opens `/dev` itself.
+    over netlink (D-25.3); a defined error for every misuse (S6), nothing opened under `/dev`.
   * **gettext and catgets (§7.7–7.8; D-7.12):** catalogs checked whole before use (a damaged one
     is absent, never a crash), Plural-Forms never trapping, no stale translations, locale values
     never used as path components containing `/`, `.` or `..`.
   * **POSIX AIO (§11.11; D-11.11):** io_uring with a silent worker-pool fallback, both tested;
-    the reference's crashes are completions or errors; the io_uring calls are in the C layer's
+    every misuse is a completion or an error; the io_uring calls are in the C layer's
     system-call table.
-  * **Allocator debugging (§3.2–3.3; D-3.4, D-3.5):** Liella's libc provides the
+  * **Allocator debugging (§3.2–3.3; D-3.4, D-3.5):** libniji's libc provides the
     `libc_malloc_debug` semantics itself (`mcheck`, `mtrace`, `M_PERTURB`), one relaxed load per
     call when off; the statistics count pending remote frees as free, so they no longer depend on
     timing.
@@ -41,7 +41,7 @@
     including D.2.4 on gettext's catalog directories).
   * **Tests:** every in-scope clause and symbol specified. Differential tests against the host
     glibc: `syslog_products`, `posixipc_products`, `catalogs_products` (plus the damaged catalogs
-    outside the record), `aio_products` (five Liella variants: io_uring and both fallbacks, cache
+    outside the record), `aio_products` (five libniji variants: io_uring and both fallbacks, cache
     on and off), `mallocdbg_products`; conformance programs for `mcheck`, `mtrace` (including a
     set-group-ID run that must not create the trace file) and perturbation. The gate now leaves
     nothing in `/tmp`, `/dev/shm` or `/dev/mqueue` (15,897 leftover directories of earlier phases

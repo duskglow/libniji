@@ -1,6 +1,6 @@
 /* The measurement probe of `mathcmp` (D-10.3): one function of one format evaluated on a
  * stream of operands. Built against the host C library (the reference) and statically against
- * Liella's products (`-DLIELLA_SIDE`, which leaves out the functions Liella does not have yet).
+ * libniji's products (`-DNIJI_SIDE`, which leaves out the functions libniji does not have yet).
  *
  * Usage: mathcmp_probe FUNC FMT MODE
  *   FMT  f, d, l or q; MODE N, U, D or Z (the rounding direction).
@@ -17,7 +17,7 @@
 
 typedef unsigned char u8;
 
-/* Every supported function, per arity: X(name). LIELLA_SIDE drops the ones not implemented
+/* Every supported function, per arity: X(name). NIJI_SIDE drops the ones not implemented
  * yet; a later milestone moves each function out of its guard. */
 #define UNARY_EXACT(X) X(sqrt) X(rint) X(nearbyint) X(ceil) X(floor) X(trunc) X(round) X(roundeven) X(logb) X(nextup) X(nextdown)
 #define BINARY_EXACT(X) X(fmod) X(remainder) X(fdim) X(fmax) X(fmin) X(nextafter) X(copysign)
@@ -29,7 +29,7 @@ typedef unsigned char u8;
 #define BINARY_ALL(X) X(hypot)
 /* The special functions: float and double since milestone 3, long double since 5b. */
 #define UNARY_SPECIAL(X) X(erf) X(erfc) X(tgamma) X(lgamma) X(j0) X(j1) X(y0) X(y1)
-#ifndef LIELLA_SIDE
+#ifndef NIJI_SIDE
 #define UNARY_ELEM_WIDE(X) UNARY_ELEM(X)
 #define BINARY_ELEM_WIDE(X) BINARY_ELEM(X)
 #define UNARY_SPECIAL_WIDE(X) UNARY_SPECIAL(X)

@@ -1,0 +1,6 @@
+# SL-HEADERS-S05-4 plants (cargo xtask plants; docs/plants.md): the code this run added or changed (the
+# libc-include/ root, its orphan check, staging). The S05-3 plants are in plants.txt.
+hc4-orphan-check | xtask/src/headers.rs | lit:.filter(|f| !made.contains(f.as_str())) ==> .filter(|f| made.contains(f.as_str())) | cargo xtask headers-gen --check | msg:no template
+hc4-stage-collision | xtask/src/headers.rs | lit:if !seen.insert(rel.as_str()) { ==> if !seen.insert(rel.as_str()) && false { | cargo test -p xtask --bin xtask stage_tree_copies | msg:stage_tree_copies_and_refuses.*(FAILED|panicked)|panicked.*stage_tree
+hc4-stage-replace | xtask/src/headers.rs | lit:fs::remove_dir_all(dst).map_err(|e| format!("stage: {}: {e}", dst.display()))?; ==> let _ = 0; | cargo test -p xtask --bin xtask stage_tree_copies | msg:stage_tree_copies_and_refuses.*(FAILED|panicked)|panicked.*stage_tree
+hc4-stubs-row | spec/abi/stubs.tsv | lit:gtty	default ==> gtty	compat | cargo xtask headers-gen --check | msg:stale under libc-include/: gnu/stubs.h

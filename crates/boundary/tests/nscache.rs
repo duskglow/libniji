@@ -11,12 +11,12 @@ use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use liella_boundary::native::consts::*;
-use liella_boundary::native::nscache::*;
-use liella_boundary::native::types::LiellaNscacheInfo;
-use liella_boundary::selftest;
-use liella_legacy::nss;
-use liella_legacy::nss_files::Key;
+use niji_boundary::native::consts::*;
+use niji_boundary::native::nscache::*;
+use niji_boundary::native::types::NijiNscacheInfo;
+use niji_boundary::selftest;
+use niji_legacy::nss;
+use niji_legacy::nss_files::Key;
 
 static SERIAL: Mutex<()> = Mutex::new(());
 
@@ -24,15 +24,15 @@ fn serial() -> MutexGuard<'static, ()> {
     SERIAL.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-fn status() -> LiellaNscacheInfo {
-    let mut s = LiellaNscacheInfo::default();
-    assert_eq!(liella_nscache_status(Some(&mut s)), 0);
+fn status() -> NijiNscacheInfo {
+    let mut s = NijiNscacheInfo::default();
+    assert_eq!(niji_nscache_status(Some(&mut s)), 0);
     s
 }
 
 /// root's UID through the cache-enabled context (the system's files).
 fn root_uid() -> Option<u32> {
-    nss::found(nss::passwd(&liella_boundary::nscache::ctx(), Key::Name(b"root"), |p| p.uid)).unwrap()
+    nss::found(nss::passwd(&niji_boundary::nscache::ctx(), Key::Name(b"root"), |p| p.uid)).unwrap()
 }
 
 /// A private directory for the regions, removed with the value.
@@ -56,7 +56,7 @@ impl Dir {
     }
 
     fn region(&self) -> PathBuf {
-        self.0.join(format!("liella-nscache-{}", unsafe_free_euid()))
+        self.0.join(format!("niji-nscache-{}", unsafe_free_euid()))
     }
 }
 
@@ -69,7 +69,7 @@ impl Drop for Dir {
 }
 
 fn unsafe_free_euid() -> u32 {
-    liella_kernel::sys::Sys::geteuid(&liella_boundary::sys::CSys)
+    niji_kernel::sys::Sys::geteuid(&niji_boundary::sys::CSys)
 }
 
 #[test]
@@ -78,14 +78,14 @@ fn a_process_without_a_region_location_keeps_a_private_table() {
     let _g = serial();
     selftest::nscache_region_dir(None);
     selftest::nscache_reattach();
-    assert_eq!(liella_nscache_enable(1), 1);
+    assert_eq!(niji_nscache_enable(1), 1);
     let before = status();
     assert_eq!(root_uid(), Some(0));
     assert_eq!(root_uid(), Some(0));
     // (a process's first cacheable lookup goes to the sources; the table answers from the third)
     assert_eq!(root_uid(), Some(0));
     let s = status();
-    assert_eq!((s.mode, s.reason, s.owner), (LIELLA_NSCACHE_MODE_PRIVATE, LIELLA_NSCACHE_REASON_NO_REGION, u64::MAX));
+    assert_eq!((s.mode, s.reason, s.owner), (NIJI_NSCACHE_MODE_PRIVATE, NIJI_NSCACHE_REASON_NO_REGION, u64::MAX));
     assert!(s.hits > before.hits, "the second lookup is answered from the table");
     assert!(s.stats > 0, "the first lookup validated");
 }
@@ -94,24 +94,24 @@ fn a_process_without_a_region_location_keeps_a_private_table() {
 fn native_switches_and_errors() {
     // Clauses: s17_3_c_1, s16_1_g_3 (D-16.10, D-X.10).
     let _g = serial();
-    assert_eq!(liella_nscache_status(None), -14, "EFAULT for NULL");
-    assert_eq!(liella_nscache_enable(0), 1);
-    assert_eq!(status().mode, LIELLA_NSCACHE_MODE_OFF);
+    assert_eq!(niji_nscache_status(None), -14, "EFAULT for NULL");
+    assert_eq!(niji_nscache_enable(0), 1);
+    assert_eq!(status().mode, NIJI_NSCACHE_MODE_OFF);
     let s = status();
     assert_eq!(root_uid(), Some(0));
     let t = status();
     assert_eq!((t.hits, t.misses, t.stats, t.enabled), (s.hits, s.misses, s.stats, 0), "disabled: no table, no stat");
-    assert_eq!(liella_nscache_enable(1), 0);
-    assert_eq!(liella_nscache_category(LIELLA_NSCACHE_PASSWD, 0), 1);
-    assert_eq!(status().categories & (1 << LIELLA_NSCACHE_PASSWD), 0);
+    assert_eq!(niji_nscache_enable(1), 0);
+    assert_eq!(niji_nscache_category(NIJI_NSCACHE_PASSWD, 0), 1);
+    assert_eq!(status().categories & (1 << NIJI_NSCACHE_PASSWD), 0);
     let s = status();
     assert_eq!(root_uid(), Some(0));
     assert_eq!((status().hits, status().misses), (s.hits, s.misses), "a disabled category is not cached");
-    assert_eq!(liella_nscache_category(LIELLA_NSCACHE_PASSWD, 1), 0);
-    assert_eq!(liella_nscache_category(6, 1), -22);
-    assert_eq!(liella_nscache_invalidate(LIELLA_NSCACHE_ALL), 0);
-    assert_eq!(liella_nscache_invalidate(LIELLA_NSCACHE_NETWORKS), 0);
-    assert_eq!(liella_nscache_invalidate(6), -22);
+    assert_eq!(niji_nscache_category(NIJI_NSCACHE_PASSWD, 1), 0);
+    assert_eq!(niji_nscache_category(6, 1), -22);
+    assert_eq!(niji_nscache_invalidate(NIJI_NSCACHE_ALL), 0);
+    assert_eq!(niji_nscache_invalidate(NIJI_NSCACHE_NETWORKS), 0);
+    assert_eq!(niji_nscache_invalidate(6), -22);
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn a_trusted_region_is_shared() {
     assert_eq!(root_uid(), Some(0));
     assert_eq!(root_uid(), Some(0));
     let s = status();
-    assert_eq!((s.mode, s.reason, s.owner), (LIELLA_NSCACHE_MODE_SHARED, LIELLA_NSCACHE_REASON_NONE, u64::from(unsafe_free_euid())));
+    assert_eq!((s.mode, s.reason, s.owner), (NIJI_NSCACHE_MODE_SHARED, NIJI_NSCACHE_REASON_NONE, u64::from(unsafe_free_euid())));
     let m = std::fs::symlink_metadata(d.region()).unwrap();
     assert!(m.file_type().is_file());
     assert_eq!((m.permissions().mode() & 0o7777, m.len(), m.uid()), (0o600, 8 << 20, unsafe_free_euid()));
@@ -148,7 +148,7 @@ fn refused(tag: &str, make: impl FnOnce(&std::path::Path)) {
     // (twice: the process's first cacheable lookup does not attach, D-16.10)
     assert_eq!(root_uid(), Some(0), "{tag}");
     let s = status();
-    assert_eq!((s.mode, s.reason), (LIELLA_NSCACHE_MODE_PRIVATE, LIELLA_NSCACHE_REASON_REFUSED), "{tag}");
+    assert_eq!((s.mode, s.reason), (NIJI_NSCACHE_MODE_PRIVATE, NIJI_NSCACHE_REASON_REFUSED), "{tag}");
     let after = std::fs::symlink_metadata(&path).unwrap();
     assert_eq!((before.ino(), before.len(), before.mode(), before.mtime(), before.mtime_nsec()), (after.ino(), after.len(), after.mode(), after.mtime(), after.mtime_nsec()), "{tag}");
     if before.file_type().is_file() {
@@ -215,7 +215,7 @@ fn damaged_regions_never_answer_wrong() {
             assert_eq!(root_uid(), Some(0), "round {round}");
             selftest::nscache_reattach();
         }
-        assert_eq!(status().mode, LIELLA_NSCACHE_MODE_SHARED, "round {round}: reinitialised and used");
+        assert_eq!(status().mode, NIJI_NSCACHE_MODE_SHARED, "round {round}: reinitialised and used");
     }
 }
 
@@ -223,8 +223,8 @@ fn damaged_regions_never_answer_wrong() {
 fn on_tmpfs(p: &std::path::Path) -> bool {
     let mut b = p.as_os_str().as_encoded_bytes().to_vec();
     b.push(0);
-    let s = liella_kernel::sys::Sys::statfs(&liella_boundary::sys::CSys, liella_kernel::path::KStr::from_nul_terminated(&b).unwrap()).unwrap();
-    s.ftype == liella_kernel::uapi::TMPFS_MAGIC
+    let s = niji_kernel::sys::Sys::statfs(&niji_boundary::sys::CSys, niji_kernel::path::KStr::from_nul_terminated(&b).unwrap()).unwrap();
+    s.ftype == niji_kernel::uapi::TMPFS_MAGIC
 }
 
 /// The `read` system calls this thread has made (`/proc/thread-self/io`; one `pread` per call).
@@ -265,7 +265,7 @@ fn poke(p: &std::path::Path, at: u64, bytes: &[u8]) {
 fn made(d: &Dir) -> Vec<u8> {
     assert_eq!(root_uid(), Some(0));
     assert_eq!(root_uid(), Some(0));
-    assert_eq!(status().mode, LIELLA_NSCACHE_MODE_SHARED);
+    assert_eq!(status().mode, NIJI_NSCACHE_MODE_SHARED);
     selftest::nscache_reattach();
     assert_eq!(root_uid(), Some(0));
     boot_words(&d.region())
@@ -291,7 +291,7 @@ fn a_region_on_tmpfs_attaches_without_reading_the_boot_id() {
     selftest::nscache_reattach();
     let h = status().hits;
     assert_eq!(root_uid(), Some(0));
-    assert_eq!((status().hits, status().mode), (h + 1, LIELLA_NSCACHE_MODE_SHARED), "answered by the region");
+    assert_eq!((status().hits, status().mode), (h + 1, NIJI_NSCACHE_MODE_SHARED), "answered by the region");
     assert_eq!(boot_words(&path), vec![0x5a; 16], "the header is not rewritten");
     // A region reinitialised (here: its magic damaged) records the boot ID from /proc.
     let mut magic = std::fs::read(&path).unwrap()[..1].to_vec();
@@ -299,7 +299,7 @@ fn a_region_on_tmpfs_attaches_without_reading_the_boot_id() {
     poke(&path, 0, &magic);
     selftest::nscache_reattach();
     assert_eq!(root_uid(), Some(0));
-    assert_eq!(status().mode, LIELLA_NSCACHE_MODE_SHARED);
+    assert_eq!(status().mode, NIJI_NSCACHE_MODE_SHARED);
     assert_eq!(boot_words(&path), real, "a reinitialised region records this boot's ID");
 }
 
@@ -322,6 +322,6 @@ fn a_region_on_another_file_system_compares_the_boot_id() {
     selftest::nscache_reattach();
     let h = status().hits;
     assert_eq!(root_uid(), Some(0));
-    assert_eq!((status().hits, status().mode), (h, LIELLA_NSCACHE_MODE_SHARED), "a stale region does not answer");
+    assert_eq!((status().hits, status().mode), (h, NIJI_NSCACHE_MODE_SHARED), "a stale region does not answer");
     assert_eq!(boot_words(&path), real, "reinitialised with this boot's ID");
 }

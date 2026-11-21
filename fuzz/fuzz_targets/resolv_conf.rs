@@ -6,8 +6,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::names::dns::{client, conf::Config};
-use liella_fuzz::Input;
+use niji::names::dns::{client, conf::Config};
+use niji_fuzz::Input;
 
 fuzz_target!(|data: &[u8]| {
     let mut input = Input::new(data);
@@ -21,14 +21,14 @@ fuzz_target!(|data: &[u8]| {
     let zone = |z: &[u8]| (z.first() == Some(&b'e')).then_some(u32::try_from(z.len()).unwrap_or(0));
     let Ok(mut c) = Config::parse(text, localdomain, res_options, hostname, zone) else { return };
     assert!(!c.servers.is_empty(), "a configuration always has a server");
-    let _ = liella_legacy::nscache::config_fingerprint(&c);
+    let _ = niji_legacy::nscache::config_fingerprint(&c);
     for s in c.servers.iter() {
         let _ = client::sockaddr(s);
-        let _ = liella_legacy::resolv_compat::sockaddr_in6(s);
+        let _ = niji_legacy::resolv_compat::sockaddr_in6(s);
     }
 
     // The search rules (res_nsearch), every candidate refused, then one accepted.
-    let name = liella_legacy::resolv_compat::hostalias(name, aliases).unwrap_or(name);
+    let name = niji_legacy::resolv_compat::hostalias(name, aliases).unwrap_or(name);
     let domains: Vec<&[u8]> = c.search.iter().map(|d| d.as_slice()).collect();
     let mut asked = 0usize;
     let _ = client::search(name, c.ndots, &domains, c.options, |cand| {

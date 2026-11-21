@@ -1,0 +1,99 @@
+//! `ld.so` run as a program (plan/ph14/design.md §19, ld.so(8)): what its arguments ask for, and the
+//! text of `--version` and `--help` (phase 14 DL-5, D-27.13). Pure logic; the boundary writes the text.
+//!
+//! DL-5 added `--version` and `--help`; DL-6 (D-27.14) runs `ld.so PROGRAM [ARGS]`: a position-independent
+//! program without dependencies (the boundary maps and enters it, [`crate::start`], [`crate::map`]).
+
+use crate::arch::Arch;
+
+/// The exit status of a refused start (design §1 "Failure").
+pub const FAILURE: i32 = 127;
+
+/// What the command line asks of `ld.so`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Action<'a> {
+    /// `--version`: print the version and exit 0.
+    Version,
+    /// `--help`: print the usage and exit 0.
+    Help,
+    /// No program named: the usage hint on standard error, status 127.
+    Missing,
+    /// An option this loader does not know (or does not handle yet).
+    Unknown(&'a [u8]),
+    /// Run `PROGRAM` (DL-6).
+    Program(&'a [u8]),
+    /// `--list PROGRAM`: list the program's dependencies as `LD_TRACE_LOADED_OBJECTS` does (DL-8).
+    List(&'a [u8]),
+}
+
+/// The action for the arguments after `argv[0]`. The first of `--version` and `--help` wins, as
+/// ld.so(8) lists them as stand-alone options; scanning stops at the first argument that is not an
+/// option, the program name.
+pub fn action<'a>(args: impl IntoIterator<Item = &'a [u8]>) -> Action<'a> {
+    let mut args = args.into_iter();
+    match args.next() {
+        None => Action::Missing,
+        Some(b"--version") => Action::Version,
+        Some(b"--help") => Action::Help,
+        Some(b"--list") => args.next().map_or(Action::Missing, Action::List),
+        Some(arg @ [b'-', ..]) => Action::Unknown(arg),
+        Some(arg) => Action::Program(arg),
+    }
+}
+
+/// Where `ld.so PROGRAM` (and `--list PROGRAM`, `LD_TRACE_LOADED_OBJECTS`) finds the program file
+/// (D-27.69, black-box probes of the reference, LDSO-PROGRAM-NO-CWD).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Found<'a> {
+    /// The name holds a `/`: it is the path, opened as given (relative to the working directory
+    /// when it does not start with `/`; the caller chose that by writing the `/`).
+    AsGiven,
+    /// A name without `/` that the loader cache maps to this absolute path.
+    Cache(&'a [u8]),
+    /// A name without `/` that the cache does not map to an absolute path: the start ends with
+    /// `NAME: error while loading shared libraries: NAME: cannot open shared object file`, 127.
+    NotFound,
+}
+
+/// Find the program named `name`. A name without `/` is looked up in the loader cache only (`flags`:
+/// [`Arch::CACHE_FLAGS`]; `hwcaps`: the supported subdirectories, as for a library): never the
+/// working directory, `LD_LIBRARY_PATH`, `PATH` or a default directory. The cache reader takes only
+/// absolute paths (a relative one is an inconsistent entry), so a malformed cache cannot turn the
+/// lookup into a working-directory open.
+pub fn find<'a>(name: &[u8], cache: Option<&crate::cache::Cache<'a>>, flags: u32, hwcaps: &[&str]) -> Found<'a> {
+    if name.contains(&b'/') {
+        return Found::AsGiven;
+    }
+    cache.and_then(|c| c.lookup(name, flags, hwcaps)).map_or(Found::NotFound, Found::Cache)
+}
+
+/// The `--version` text, in the order it is written: libniji's name and version, the ABI it
+/// implements and the interpreter's own name ([`Arch::INTERP`]).
+pub fn version<A: Arch>(niji_version: &'static str) -> [&'static str; 5] {
+    ["ld.so (libniji) ", niji_version, "\nImplements the GNU C Library 2.39 ABI.\nProgram interpreter: ", A::INTERP, "\n"]
+}
+
+/// The `--help` text, in the order it is written.
+pub fn help<A: Arch>() -> [&'static str; 3] {
+    [
+        "Usage: ",
+        A::INTERP,
+        " [OPTION]... EXECUTABLE-FILE [ARGS-FOR-PROGRAM...]\n\
+         libniji's program interpreter. Run as a program, it loads and runs EXECUTABLE-FILE.\n\
+         \n\
+         \x20 --help     print this help and exit\n\
+         \x20 --version  print version information and exit\n\
+         \n\
+         This build runs position-independent programs that need no shared objects.\n",
+    ]
+}
+
+/// The message for an action that ends with [`FAILURE`], in the order it is written (standard error).
+pub fn refusal<'a>(action: Action<'a>) -> [&'a [u8]; 3] {
+    match action {
+        Action::Unknown(arg) => [b"ld.so: unrecognized option '", arg, b"'\nTry 'ld.so --help' for more information.\n"],
+        Action::Program(name) | Action::List(name) => [b"ld.so: cannot run '", name, b"'\n"],
+        Action::Missing | Action::Version | Action::Help => [b"ld.so: missing program name\nTry 'ld.so --help' for more information.\n", b"", b""],
+    }
+}
+

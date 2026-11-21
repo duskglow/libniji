@@ -1,4 +1,4 @@
-//! The C shapes of spec §6.2–§6.3 over `liella::text`: in-band sentinels (`(size_t)-2`,
+//! The C shapes of spec §6.2–§6.3 over `niji::text`: in-band sentinels (`(size_t)-2`,
 //! `(size_t)-3`), `NULL` arguments that reset or measure, hidden states for the non-restartable
 //! forms and for a `NULL` `mbstate_t *`, and the `*src` cursor of the `r` string forms.
 //!
@@ -9,9 +9,9 @@
 //! far as the character needs (AUD-M4: no scan over all of `n`, so a loop over a buffer stays
 //! O(N), and no byte past the character is touched, as the reference does).
 
-use liella::error::{Errno, Result};
-use liella::locale::Locale;
-use liella::text::{self, Converted, Decoded, Encoding, Fed, MbState};
+use niji::error::{Errno, Result};
+use niji::locale::Locale;
+use niji::text::{self, Converted, Decoded, Encoding, Fed, MbState};
 
 use crate::cstring::Dest;
 use crate::mb_state::{self, Slot};

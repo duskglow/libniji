@@ -4,9 +4,9 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::process::search;
-use liella_kernel::errno::Errno;
-use liella_kernel::path::{KStr, PATH_MAX};
+use niji::process::search;
+use niji_kernel::errno::Errno;
+use niji_kernel::path::{KStr, PATH_MAX};
 
 /// Run the search over `path` for `name`, failing every candidate with `fail(candidate)`;
 /// the candidates in order (with their terminators) and the result.

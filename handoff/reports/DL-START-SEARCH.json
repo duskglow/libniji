@@ -1,0 +1,13 @@
+{"task": "DL-START-SEARCH", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: start-time soname search wired (search::search, lazy cache, probed skip rule, reference message); compiles, clippy clean; no new tests, plants or counts yet (context checkpoint)",
+ "branch": "task/dl-start-search", "head": null,
+ "gate": {"affected": "dl-start-search-gate-1 running at hand-back", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Reference probe: a non-ELF, short, other-OS-ABI, other-byte-order, ET_REL, directory or executable candidate found first in a start-time search ends the start (127); only other-machine / other-class objects are skipped. The brief said non-ELF is skipped as in list(); implemented as probed and list() changed to match.",
+                   "dlopen's Refusal::skipped(searched) also skips Data/OsAbi; the start-time reference does not. Untouched."],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "dynamic programs naming libraries by soname can start (SL-FLAVOUR #5816, RELEASE-PACKAGING-DEB-2 #5516) once verified", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "Brief claims about reference behaviour (here: non-ELF skipped) should be marked unprobed; a 3-call probe overturned it.",
+ "next_step": "Read gate dl-start-search-gate-1, add product tests (ldso_search.rs), plants, start-up counts, static; see handoff/DL-START-SEARCH.md Not done 1-6.",
+ "report_file": "handoff/DL-START-SEARCH.md",
+ "jobs": ["mei:dl-start-search-gate-1"]}

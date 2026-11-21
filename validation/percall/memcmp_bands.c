@@ -1,5 +1,5 @@
 /* wl_percall spec (MEMCMP-SIZE-MIX): instructions per call of memcmp, bcmp and __memcmpeq by size band,
- * Liella vs glibc. Two shapes per size: "eq" (equal over all n bytes, the whole length is read) and "hd"
+ * libniji vs glibc. Two shapes per size: "eq" (equal over all n bytes, the whole length is read) and "hd"
  * (the first difference at byte 3, inside the 8-byte head). The pointers are mutually misaligned (a + 1,
  * b + 5), like two lines of a sorted file. Calls go through a volatile function pointer so gcc cannot expand
  * a constant-size compare inline; the indirect call costs the same for both libraries.

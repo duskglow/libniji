@@ -8,7 +8,7 @@ adds this note. Commits: 7353020 (s23 test fix; ALSO carries `.config/nextest.to
 ## What changed
 * `cargo xtask test`: both workspace passes run `cargo nextest run --workspace [--features ..]`
   then `cargo test --workspace --doc [--features ..]` (nextest skips doctests), when `cargo
-  nextest --version` works and `LIELLA_NO_NEXTEST` is unset; otherwise `cargo test --workspace`
+  nextest --version` works and `NIJI_NO_NEXTEST` is unset; otherwise `cargo test --workspace`
   exactly as before (vm510 guest has no nextest: unchanged there). `xtask/src/nextest.rs`.
 * `cargo xtask nextest <args>` = `cargo nextest run <args>` + the summary lines; `affected --run`
   runs its per-crate tests through it (FULL escalation goes through `xtask test` anyway).
@@ -44,7 +44,7 @@ adds this note. Commits: 7353020 (s23 test fix; ALSO carries `.config/nextest.to
 | run | runner | wall (whole `xtask test`) | result | peak |
 |---|---|---|---|---|
 | nx-run1 | nextest, before the s23 fix | 668 s, stopped | 4652 passed, 1 SIGTERM (hang, see Findings) | 9.8G |
-| nx-base2 | `LIELLA_NO_NEXTEST=1` (cargo test) | **2935 s** | 340 result lines ok; 9334 "passed" (=9330 + 4 child lines, below); 1396 ignored; conformance 82/0 | 9.8G |
+| nx-base2 | `NIJI_NO_NEXTEST=1` (cargo test) | **2935 s** | 340 result lines ok; 9334 "passed" (=9330 + 4 child lines, below); 1396 ignored; conformance 82/0 | 9.8G |
 | nx-run2 | nextest | 1131 s (cold-ish) | 9330 passed, 0 failed, 1396 ignored; conformance 82/0 | 12G, oom_kill=0 |
 | nx-base | nextest (env lost, see Findings) | 940 s | same, 0 failed | 11G |
 | nx-run3 | nextest | 961 s | same, 0 failed | 11G |
@@ -56,7 +56,7 @@ differing binaries, and the other ~150 by count); ignored 1396 both (697 skipped
 + 2 doc). 4 extra cargo-test "passes" are re-exec children's own result lines (Findings).
 FL-5 (nscache window) did not show in 4 green nextest runs.
 Longest tests (critical path): special_cr long_double_bessel 207-211 s, aio_products 163-165 s,
-liella fnmatch direct-vs-general 148 s. Not yet known which chain sets the ~400 s pass.
+niji fnmatch direct-vs-general 148 s. Not yet known which chain sets the ~400 s pass.
 
 ## Findings
 * FINDING (fixed, 7353020): `sym_clock_nanosleep` (boundary s23_time_symbols) slept on
@@ -64,8 +64,8 @@ liella fnmatch direct-vs-general 148 s. Not yet known which chain sets the ~400 
   burned CPU; alone (nextest) it hung at 0% CPU (nx-run1: killed at 324 s, SIGTERM). Red = nx-run1
   on the unfixed tree; green = every later run. A spinning thread now drives the clock.
 * `~/bin/gate` runs the command via `sudo systemd-run`: the caller's environment is DROPPED.
-  `LIELLA_NO_NEXTEST=1 ~/bin/gate ...` silently ran nextest (my first "baseline", nx-base);
-  put the variable inside the command: `~/bin/gate 12G bash -lc 'cd .. && LIELLA_NO_NEXTEST=1 cargo xtask test'`.
+  `NIJI_NO_NEXTEST=1 ~/bin/gate ...` silently ran nextest (my first "baseline", nx-base);
+  put the variable inside the command: `~/bin/gate 12G bash -lc 'cd .. && NIJI_NO_NEXTEST=1 cargo xtask test'`.
 * cargo test's own counts are inflated by tests that re-exec their binary with inherited stdout
   (the child prints its own `test result: ok. 1 passed; 23 filtered out`): +4 per gate (s04, s09
   clauses, both passes). nextest captures the child, so its 9330 is the true count.

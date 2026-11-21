@@ -22,10 +22,10 @@
 use crate::error::{Errno, Result};
 use crate::fs::cwd;
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::{KStr, PATH_MAX};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_NOFOLLOW, O_PATH, S_IFDIR, S_IFLNK, S_IFMT};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::{KStr, PATH_MAX};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_NOFOLLOW, O_PATH, S_IFDIR, S_IFLNK, S_IFMT};
 
 /// The most symbolic links one resolution follows (the kernel's `MAXSYMLINKS`, ⚑ KERN).
 pub const MAX_LINKS: u32 = 40;

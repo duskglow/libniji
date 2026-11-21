@@ -10,15 +10,15 @@
 #[path = "../../core/tests/support/kernel.rs"]
 mod kernel;
 
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::machine::Machine;
-use liella_kernel::mem::KPtrArray;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::machine::Machine;
+use niji_kernel::mem::KPtrArray;
 // ARCH(x86_64): checks the thread pointer through ARCH_GET_FS; TPIDR_EL0 on aarch64 (A-4)
-use liella_kernel::ops::ArchGet;
-use liella_kernel::sys::{FutexArg, Sys};
-use liella_kernel::uapi::*;
-use liella_kernel::{auxv, Errno, Fd, KPathBuf, KStr};
+use niji_kernel::ops::ArchGet;
+use niji_kernel::sys::{FutexArg, Sys};
+use niji_kernel::uapi::*;
+use niji_kernel::{auxv, Errno, Fd, KPathBuf, KStr};
 
 const K: CSys = CSys;
 
@@ -39,7 +39,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -65,8 +65,8 @@ fn s0_6_c0_1_0() {
 /// through the exports.
 #[test]
 fn s0_6_c0_1_1() {
-    use liella_boundary::errno;
-    use liella_boundary::posix::{s11_lowio as io, s12_stdio as st};
+    use niji_boundary::errno;
+    use niji_boundary::posix::{s11_lowio as io, s12_stdio as st};
     errno::set_raw(0);
     assert_eq!((io::close(-1), errno::get()), (-1, Errno::EBADF.get()));
     errno::set_raw(0);
@@ -180,7 +180,7 @@ fn s0_6_c0_3_0() {
 fn s0_6_c0_4_0() {
     conformance(&["s00_largefile"]);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let o = std::process::Command::new("nm").args(["-g", "--defined-only"]).arg(root.join("target/liella/libc.a")).output();
+    let o = std::process::Command::new("nm").args(["-g", "--defined-only"]).arg(root.join("target/niji/libc.a")).output();
     let Ok(o) = o.map(|o| String::from_utf8_lossy(&o.stdout).into_owned()) else { return };
     let ours: std::collections::BTreeSet<&str> = o.lines().filter_map(|l| l.split_whitespace().nth(2)).collect();
     let versions = std::fs::read_to_string(root.join("spec/abi/versions.tsv")).unwrap();
@@ -199,7 +199,7 @@ fn s0_6_c0_4_0() {
 /// the format forms reject `%n` in writable memory (`conformance/c/s12_symbols_printf_chk.c`).
 #[test]
 fn s0_6_c0_5_0() {
-    use liella_boundary::posix::s04_strings as st;
+    use niji_boundary::posix::s04_strings as st;
     let src = *b"fortify\0";
     let (mut a, mut b) = ([0u8; 8], [0u8; 8]);
     assert_eq!(st::__memcpy_chk(a.as_mut_ptr().cast(), src.as_ptr().cast(), 8, 8), a.as_mut_ptr().cast());
@@ -214,14 +214,14 @@ fn s0_6_c0_5_0() {
 /// overlap-safe old version checked by `s04_strings_symbols.rs`
 /// `compat_memcpy_2_2_5_is_overlap_safe`, and the default `memcpy@@GLIBC_2.14`), and every name
 /// the clause lists as exported only for old binaries that has a row in `spec/abi/compat-plan.tsv`
-/// is exported, where Liella exports it, with non-default versions only (`name@V`, never
+/// is exported, where libniji exports it, with non-default versions only (`name@V`, never
 /// `name@@V`), so a program linked anew cannot bind it. Read from the products' dynamic symbol
 /// tables with `readelf --dyn-syms`.
 #[test]
 fn s0_6_c0_6_0() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products: Vec<_> = ["libc.so.6", "libm.so.6"].iter().map(|l| root.join("target/liella").join(l)).filter(|p| p.exists()).collect();
-    assert!(products.iter().any(|p| p.ends_with("libc.so.6")), "target/liella/libc.so.6 is built by `cargo xtask so`");
+    let products: Vec<_> = ["libc.so.6", "libm.so.6"].iter().map(|l| root.join("target/niji").join(l)).filter(|p| p.exists()).collect();
+    assert!(products.iter().any(|p| p.ends_with("libc.so.6")), "target/niji/libc.so.6 is built by `cargo xtask so`");
     let mut dynsyms = String::new();
     for p in &products {
         let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(p).output().unwrap();
@@ -283,7 +283,7 @@ fn s0_6_c0_8_0() {
 /// them out for a new image.
 #[test]
 fn s0_6_c0_8_1() {
-    if std::env::var("LIELLA_PROBE").as_deref() == Ok("entry") {
+    if std::env::var("NIJI_PROBE").as_deref() == Ok("entry") {
         let args: Vec<String> = std::env::args().collect();
         let ok = args.len() == 5 && args[0] == "entry-probe" && std::env::var("ONLY").as_deref() == Ok("this")
             && std::env::vars().count() == 2;
@@ -292,7 +292,7 @@ fn s0_6_c0_8_1() {
     let exe = std::fs::read_link("/proc/self/exe").unwrap();
     let exe = kp(exe.to_str().unwrap());
     let args = [kp("entry-probe"), kp("s0_6_c0_8_1"), kp("--exact"), kp("--test-threads=1"), kp("-q")];
-    let env = [kp("LIELLA_PROBE=entry"), kp("ONLY=this")];
+    let env = [kp("NIJI_PROBE=entry"), kp("ONLY=this")];
     let a: Vec<KStr<'_>> = args.iter().map(|p| p.as_kstr()).collect();
     let e: Vec<KStr<'_>> = env.iter().map(|p| p.as_kstr()).collect();
     let (mut sa, mut se) = ([0usize; 8], [0usize; 4]);
@@ -389,18 +389,18 @@ fn s0_6_c0_1_3() {
     assert_eq!(CSys.close(Fd::new(-1)), Err(Errno::EBADF), "the kernel's EBADF, 9");
     assert_eq!(Errno::EBADF.get(), 9);
     let mut p = core::ptr::null_mut();
-    assert_eq!(liella_boundary::posix::s03_memory::posix_memalign(Some(&mut p), 3, 8), Errno::EINVAL.get(), "library-detected: EINVAL");
+    assert_eq!(niji_boundary::posix::s03_memory::posix_memalign(Some(&mut p), 3, 8), Errno::EINVAL.get(), "library-detected: EINVAL");
 }
 
 #[test]
 fn s0_6_c0_1_4() {
     // The newer interfaces return the error number and leave errno alone.
-    use liella_boundary::errno;
+    use niji_boundary::errno;
     errno::set_raw(1234);
     let mut p = core::ptr::null_mut();
-    assert_eq!(liella_boundary::posix::s03_memory::posix_memalign(Some(&mut p), 3, 8), Errno::EINVAL.get());
+    assert_eq!(niji_boundary::posix::s03_memory::posix_memalign(Some(&mut p), 3, 8), Errno::EINVAL.get());
     assert_eq!(errno::get(), 1234, "posix_memalign: errno untouched");
-    assert_eq!(liella_boundary::posix::s22_threads::pthread_join(liella_abi::layout::pthread_t(0x10), None), Errno::ESRCH.get());
+    assert_eq!(niji_boundary::posix::s22_threads::pthread_join(niji_abi::layout::pthread_t(0x10), None), Errno::ESRCH.get());
     assert_eq!(errno::get(), 1234, "pthread_join: errno untouched");
 }
 

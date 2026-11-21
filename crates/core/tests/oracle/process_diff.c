@@ -1,7 +1,7 @@
 /* Processes end to end (spec §18.3-18.9; phase 11): the exec family, posix_spawn and pidfd_spawn
  * with every attribute and file action, process descriptors, waiting and the status encoding,
  * system and popen, process groups and sessions, daemon, and the prctl/personality/ptrace
- * conventions. Built against the host C library and against Liella's products, the outputs must
+ * conventions. Built against the host C library and against libniji's products, the outputs must
  * match line for line. Black-box: every line is a result, an errno, a wait status, or a fact a
  * child reports about itself, stated relative to the probe (no PIDs, times or addresses).
  *

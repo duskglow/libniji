@@ -1,0 +1,4 @@
+# HEAP-FIRST-USE-8 plants (cargo xtask plants; docs/plants.md), CI-class two-node host (Skylake-SP), fast profile.
+# p_strlazy traced ahead of p_fmt puts the stream printf path before the snprintf group; there the first float
+# conversion crossed one more 64 KiB window (HEAP-FIRST-USE-7: fast float 4 > 3 on this host class).
+strlazy-before-fmt | tools/hottext/regen.sh | perl:s/p_str p_fmt p_strlazy p_loc p_cold; do/p_str p_strlazy p_fmt p_loc p_cold; do/ | cargo test -p liella --test hot_text_products init_first_float_conversion_stays_within_its_page_fault_bound | msg:page faults > 3 \(a large stack frame|init_first_float_conversion_stays_within_its_page_fault_bound.*FAILED

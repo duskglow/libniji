@@ -1,7 +1,7 @@
 //! The printf corpus (validation item C): the printf-family calls (format, typed arguments,
 //! locale, errno) the coreutils, sed, bash and findutils test suites made against glibc,
 //! deduplicated (`validation/corpus/printf.corpus`, `validation/harvest/`), formatted again with
-//! snprintf against the host C library and against Liella's products
+//! snprintf against the host C library and against libniji's products
 //! (`tests/oracle/printf_corpus.c`). Disagreements not fixed yet are recorded in
 //! `validation/corpus/printf.known`.
 #![allow(missing_docs)]

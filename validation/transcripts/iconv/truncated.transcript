@@ -1,0 +1,14 @@
+name: incomplete input at the end
+clause: s31_6_f_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1
+stdin:
+|~ ab\xc3
+status: exit 1
+stdout:
+|~ ab
+stderr:
+| iconv: incomplete character or shift sequence at end of buffer

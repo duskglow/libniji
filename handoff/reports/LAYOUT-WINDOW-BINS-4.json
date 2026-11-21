@@ -1,0 +1,19 @@
+{"task": "LAYOUT-WINDOW-BINS-4", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: phase modes' warm-up now in the signatures (regen <mode>.pre, planner groups by counted modes, start-up first); plan: strings/mktime/rebind 0 and float 1 windows, every whole-process mode at or 1 over its lower bound; open: phase sections at the unanchored head bin's tail fault at pre pads (zero-fault text-phase test); stopped at the context checkpoint",
+ "branch": "task/layout-window-bins-4", "head": null,
+ "gate": {"affected": "not run (WIP: counts3 measures the current design; zero-fault pre-pad test expected red)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["an empty python heredoc and a no-op cat redirect were typed by mistake in two commands (no effect, nothing refused); all edits used the Edit/Write tools",
+                   "hot_text_products bounds measured on Zen 1 only; tightening LOCALTIME/LOCALE/TOOL needs the other host classes' levels (Skylake-SP release ran 1 over Zen 1 in the base)"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "planned windows charged to strings + mktime + rebind, fast plan (run 3: 3 + 3 + 4, counted whole)", "before": 10, "after": 0, "unit": "windows", "measured": true},
+  {"kind": "faults", "what": "planned windows, float phase (offline re-plan of both profiles)", "before": 3, "after": 1, "unit": "windows", "measured": true},
+  {"kind": "none", "what": "product fault counts of the final design: counts3 pending (counts1 of the superseded early-placement design: startup-only 13 > 11 fast)", "before": null, "after": null, "unit": "faults", "measured": false}
+ ],
+ "improvement": "an offline re-run of the planner on a plan's own tsv (sim.py, seconds) predicts the plan's windows exactly; checking candidate rules there before each 27-minute product build would have skipped counts1",
+ "next_step": "read counts3; keep start-up sections at the head bin's tail (or move phase groups off the head bin, sim3) so pre pads cannot fault the zero-fault phases; then tighten bounds, plants, gate, start-up checks, record body (handoff/LAYOUT-WINDOW-BINS.md, Open)",
+ "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
+ "jobs": ["layout-window-bins-4-counts3"],
+ "superseded": ["layout-window-bins-4-lint0 (inherited head, step 0: clippy + static green)", "layout-window-bins-4-unit (a7ca1d604)", "layout-window-bins-4-counts1 (early-placement design, dropped)", "layout-window-bins-4-counts2 (test did not compile)"]}

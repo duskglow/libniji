@@ -1,4 +1,4 @@
-//! The measurement of D-10.3: one function of one format, evaluated by glibc and by Liella on the
+//! The measurement of D-10.3: one function of one format, evaluated by glibc and by libniji on the
 //! same operands (random samples, a hard-case corpus, or every `float`), compared bit for bit,
 //! and each result classified against the [`mp`] oracle: correctly rounded or not, and its error
 //! in ulps.
@@ -230,23 +230,23 @@ pub struct Tally {
     pub classified: u64,
     /// glibc's result correctly rounded.
     pub glibc_cr: u64,
-    /// Liella's result correctly rounded.
-    pub liella_cr: u64,
-    /// Mismatches where only Liella is correctly rounded (glibc not correctly rounded).
+    /// libniji's result correctly rounded.
+    pub niji_cr: u64,
+    /// Mismatches where only libniji is correctly rounded (glibc not correctly rounded).
     pub glibc_not_cr: u64,
-    /// Mismatches where only glibc is correctly rounded (a Liella error).
-    pub liella_not_cr: u64,
+    /// Mismatches where only glibc is correctly rounded (a libniji error).
+    pub niji_not_cr: u64,
     /// Mismatches where neither is.
     pub neither_cr: u64,
     /// Largest error of glibc's results in ulps.
     pub glibc_max_ulp: f64,
-    /// Largest error of Liella's results in ulps.
-    pub liella_max_ulp: f64,
+    /// Largest error of libniji's results in ulps.
+    pub niji_max_ulp: f64,
     /// Records the oracle could not decide.
     pub undetermined: u64,
-    /// Records where Liella is not correctly rounded (operands, Liella, the correct result).
+    /// Records where libniji is not correctly rounded (operands, libniji, the correct result).
     pub wrong: Vec<(Vec<u128>, u128, u128)>,
-    /// Some mismatching records (operands, glibc, Liella), for the report.
+    /// Some mismatching records (operands, glibc, libniji), for the report.
     pub samples: Vec<(Vec<u128>, u128, u128, u8, u8)>,
 }
 
@@ -258,12 +258,12 @@ impl Tally {
         self.flags_differ += o.flags_differ;
         self.classified += o.classified;
         self.glibc_cr += o.glibc_cr;
-        self.liella_cr += o.liella_cr;
+        self.niji_cr += o.niji_cr;
         self.glibc_not_cr += o.glibc_not_cr;
-        self.liella_not_cr += o.liella_not_cr;
+        self.niji_not_cr += o.niji_not_cr;
         self.neither_cr += o.neither_cr;
         self.glibc_max_ulp = self.glibc_max_ulp.max(o.glibc_max_ulp);
-        self.liella_max_ulp = self.liella_max_ulp.max(o.liella_max_ulp);
+        self.niji_max_ulp = self.niji_max_ulp.max(o.niji_max_ulp);
         self.undetermined += o.undetermined;
         for w in o.wrong {
             if self.wrong.len() < 10 {
@@ -317,8 +317,8 @@ pub struct Run<'a> {
     pub mode: char,
     /// The reference probe.
     pub host: PathBuf,
-    /// Liella's probe, if compared.
-    pub liella: Option<PathBuf>,
+    /// libniji's probe, if compared.
+    pub niji: Option<PathBuf>,
     /// Classify with the oracle (all records, or only mismatches).
     pub oracle: Oracle,
 }
@@ -345,7 +345,7 @@ pub fn shard(run: &Run<'_>, records: &[Vec<u128>]) -> Result<Tally, String> {
         }
     }
     let mut host = Probe::start(&run.host, run.func, run.fmt, run.mode, input.clone())?;
-    let mut ours = match &run.liella {
+    let mut ours = match &run.niji {
         Some(p) => Some(Probe::start(p, run.func, run.fmt, run.mode, input)?),
         None => None,
     };
@@ -353,7 +353,7 @@ pub fn shard(run: &Run<'_>, records: &[Vec<u128>]) -> Result<Tally, String> {
     for ops in records {
         let (g, gf) = host.result().ok_or("host probe ended early")?;
         let (l, lf) = match ours.as_mut() {
-            Some(p) => p.result().ok_or("Liella probe ended early")?,
+            Some(p) => p.result().ok_or("libniji probe ended early")?,
             None => (g, gf),
         };
         t.n += 1;
@@ -388,21 +388,21 @@ pub fn shard(run: &Run<'_>, records: &[Vec<u128>]) -> Result<Tally, String> {
         let ok = |b: u128| b == cr || (is_nan(fmt, b) && is_nan(fmt, cr));
         let (gok, lok) = (ok(g), ok(l));
         t.glibc_cr += u64::from(gok);
-        t.liella_cr += u64::from(lok);
+        t.niji_cr += u64::from(lok);
         if !lok && t.wrong.len() < 10 {
             t.wrong.push((ops.clone(), l, cr));
         }
         if !same {
             match (gok, lok) {
                 (false, true) => t.glibc_not_cr += 1,
-                (true, false) => t.liella_not_cr += 1,
+                (true, false) => t.niji_not_cr += 1,
                 _ => t.neither_cr += 1,
             }
         }
         if !gok || !lok {
             let exact = ulp_reference(run.func, fmt, mode, &args, cr);
             t.glibc_max_ulp = t.glibc_max_ulp.max(mp::ulp_error(fmt, g, &exact));
-            t.liella_max_ulp = t.liella_max_ulp.max(mp::ulp_error(fmt, l, &exact));
+            t.niji_max_ulp = t.niji_max_ulp.max(mp::ulp_error(fmt, l, &exact));
         }
     }
     host.finish()?;

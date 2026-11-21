@@ -1,19 +1,19 @@
 //! Translation for spec §19: terminals, job control and pseudo-terminals (phase 11;
-//! `crate::terminal`, `liella::term`, `liella_legacy::term_compat`). `ctermid` (§19.2) is in
+//! `crate::terminal`, `niji::term`, `niji_legacy::term_compat`). `ctermid` (§19.2) is in
 //! `s12_stdio` and `login_tty` (§19.4) in `s17_users`, where earlier phases put them.
 //!
 //! The C `struct termios` is a typed parameter (D-X.8), converted to the kernel's settings by
-//! `liella_abi::pack` (D-19.1). `tcdrain` is a cancellation point (§19.1); so are the calls that
+//! `niji_abi::pack` (D-19.1). `tcdrain` is a cancellation point (§19.1); so are the calls that
 //! open the pty multiplexer, as `open` is (`posix_openpt`, `getpt`, `openpty`, `forkpty`).
 //! `forkpty` forks, so it is exported by the products only, as `fork` is. The compat versions of
 //! `openpty`, `forkpty` and `login_tty` (`GLIBC_2.2.5`) wait for phase 15.
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t};
-use liella_abi::layout::{struct_termios, struct_ttyent, struct_winsize};
-use liella_kernel::uapi::O_RDWR;
-use liella::term;
-use liella_legacy::stubs;
-use liella_legacy::term_compat as tc;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t};
+use niji_abi::layout::{struct_termios, struct_ttyent, struct_winsize};
+use niji_kernel::uapi::O_RDWR;
+use niji::term;
+use niji_legacy::stubs;
+use niji_legacy::term_compat as tc;
 
 use crate::cancel;
 use crate::conv;

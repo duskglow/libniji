@@ -1,0 +1,6 @@
+libniji C library (run time, beside the system's C library)
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package installs its loader and shared libraries in the sysroot
+ /usr/lib/niji. It does not replace or change the system's C library: only
+ programs whose interpreter is /usr/lib/niji/lib64/ld-linux-x86-64.so.2
+ (built with niji-gcc from niji6-dev) run on libniji.

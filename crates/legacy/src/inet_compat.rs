@@ -6,7 +6,7 @@
 //!
 //! Values are host-order `u32`s; the boundary converts `struct in_addr` (network order).
 
-use liella::net::{hex_digit, hex_value, is_space, Text};
+use niji::net::{hex_digit, hex_value, is_space, Text};
 
 /// A number of the numbers-and-dots notation (`inet(3)`): `0x`/`0X` and hexadecimal digits,
 /// `0` and octal digits, or decimal digits. Its value (`None` beyond 32 bits) and length.
@@ -104,7 +104,7 @@ pub fn digits_dots(name: &[u8], af: i32) -> Option<Option<(i32, [u8; 16], usize)
             }
             (2, b, 4)
         }),
-        (false, true) => liella::net::addr::parse_v6(name).map(|b| (AF_INET6, b, 16)),
+        (false, true) => niji::net::addr::parse_v6(name).map(|b| (AF_INET6, b, 16)),
         _ => None,
     })
 }
@@ -112,7 +112,7 @@ pub fn digits_dots(name: &[u8], af: i32) -> Option<Option<(i32, [u8; 16], usize)
 /// `inet_network` (§15.3): a network number, one to four parts of one byte each (same number
 /// syntax as [`aton`]), right-aligned (`"10.1"` is `0x0a01`), followed by nothing but white
 /// space. A part beyond 255 is invalid (the reference wraps a part beyond 32 bits modulo 2³²
-/// and so accepts `4294967296` as 0; Liella treats it as the out-of-range part it is).
+/// and so accepts `4294967296` as 0; libniji treats it as the out-of-range part it is).
 pub fn network(text: &[u8]) -> Option<u32> {
     let (v, n, end) = parts(text)?;
     if !text.get(end..)?.iter().all(|&c| is_space(c)) {
@@ -292,7 +292,7 @@ pub fn net_ntop(src: &[u8], bits: i32) -> Option<Text<20>> {
 /// `inet_neta(src)` (§15.3): a network number's text, its leading zero bytes omitted (`0x0a14`
 /// is `10.20`), `0.0.0.0` for zero. Every remaining byte is printed: the reference also drops
 /// zero bytes after the first (`0x0a000100` prints as `10.1`), which makes distinct numbers
-/// print alike; Liella prints `10.0.1.0`.
+/// print alike; libniji prints `10.0.1.0`.
 pub fn neta(v: u32) -> Text<16> {
     let mut t = Text::new();
     if v == 0 {
@@ -456,7 +456,7 @@ pub fn option_layout(obj: &mut [u8], old_len: usize, at: usize, optlen: usize, n
 /// The outcome of a walk step of `inet6_option_next`/`find`. RFC 2292 §6.3.5–6.3.6: at the end
 /// of the options (or when the type is not found) `*tptrp` becomes NULL, after an error it is
 /// left as it was. The reference leaves `*tptrp` unchanged in both cases (probes, phase 10);
-/// Liella follows the RFC the spec names.
+/// libniji follows the RFC the spec names.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Step {
     /// An option at this offset in the object.

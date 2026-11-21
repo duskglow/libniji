@@ -1,10 +1,10 @@
 /* System logging end to end (spec §26.1; D-26.1; phase 13): built against the host C library and
- * against Liella's products, the outputs must match line for line. Black-box: every line is a
+ * against libniji's products, the outputs must match line for line. Black-box: every line is a
  * result, an errno, or bytes the probe itself received on its own fixture /dev/log socket, read
  * from its own fixture /dev/console file, or read from its own standard-error pipe.
  *
  * The program must never reach the system log. It refuses to run unless /dev holds the marker file
- * `.liella-syslog-fixture`, which syslog_run.sh creates in a private tmpfs mounted over /dev inside
+ * `.niji-syslog-fixture`, which syslog_run.sh creates in a private tmpfs mounted over /dev inside
  * a private mount namespace: /dev/log, /dev/console and everything else under /dev there belong to
  * the probe and vanish with the namespace.
  *
@@ -54,7 +54,7 @@
 extern void __syslog_chk(int pri, int flag, const char *fmt, ...);
 extern void __vsyslog_chk(int pri, int flag, const char *fmt, va_list ap);
 
-#define MARKER "/dev/.liella-syslog-fixture"
+#define MARKER "/dev/.niji-syslog-fixture"
 #define LOGPATH "/dev/log"
 #define CONSOLE "/dev/console"
 

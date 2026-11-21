@@ -1,0 +1,8 @@
+id = "D-X.115"
+section = "x"
+status = "active"
+story = "XTASK-AFFECTED-EXAMPLES"
+date = "2026-11-17"
+body = '''
+**`affected` maps a crate example to the `cargo xtask test` step that builds and runs it** (XTASK-AFFECTED-EXAMPLES, 2026-11-17; decided locally, tooling only). A file under `<crate>/examples/` selects its crate's clippy as before, plus the command of every test step that uses it, read from the sources rather than a list (`example_steps`): the examples it belongs to (`examples/<n>.rs`; for a module directory `examples/<d>/`, every example declaring `mod <d>;`), the xtask sources naming such an example (`"<n>"` or `examples/<n>.rs`), the `t.time("<step>", \|\| <module>::<fn>(..))` step of `xtask/src/main.rs` calling that module, and the command arm running the same function alone. Today: the native examples and their `demo/` module select `cargo xtask native` (the native-examples step) and/or `cargo xtask rust-dylib`, and `niji-boundary`'s `secure_zero_codegen` selects `cargo xtask native`; both run on fresh products. The blanket FULL for `crates/native/examples/` is gone. The bench examples (built only by `cargo xtask bench`, off the gate) keep clippy only. A file no example uses, or a step that uses an example but has no command to run it alone: FULL. Tests: `direct_tier_maps_an_example_to_the_step_that_runs_it`, `direct_tier_keeps_clippy_only_for_examples_no_gate_step_runs`, `example_steps_follow_the_xtask_source_that_names_the_example` (xtask).
+'''

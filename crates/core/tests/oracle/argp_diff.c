@@ -1,4 +1,4 @@
-/* argp end to end (spec §1.7; D-1.7): built against the host C library and against Liella's
+/* argp end to end (spec §1.7; D-1.7): built against the host C library and against libniji's
  * products, the outputs must match line for line (argp_products.rs). Black-box: each case runs
  * argp_parse in a child process, through the public <argp.h> interface, and the line shows the
  * child's exit status and everything it wrote to standard output and standard error. The parser

@@ -1,6 +1,6 @@
 //! POSIX message queues and shared memory, the process's side (spec §25.3–25.4; D-25.2,
 //! D-25.3, D-25.5): `mq_notify`'s `SIGEV_THREAD` notifications, `__mq_open_2` and the
-//! shared-memory directory. The names and the calls are `liella::ipc`. Design:
+//! shared-memory directory. The names and the calls are `niji::ipc`. Design:
 //! D-25.6 (M1-M8).
 //!
 //! **`SIGEV_THREAD`** (⚑ KERN: `<linux/mqueue.h>`). The kernel does not start threads: at the
@@ -42,14 +42,14 @@
 
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MqAttr, SigEvent, Timespec, AF_NETLINK, CLOCK_MONOTONIC, NETLINK_ROUTE, O_CREAT, SIGEV_THREAD, SOCK_CLOEXEC, SOCK_RAW};
-use liella_legacy::pthread_compat::ATTR_WORDS;
-use liella_rt::sync::RawMutex;
-use liella_rt::thread::Attr;
+use niji::error::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MqAttr, SigEvent, Timespec, AF_NETLINK, CLOCK_MONOTONIC, NETLINK_ROUTE, O_CREAT, SIGEV_THREAD, SOCK_CLOEXEC, SOCK_RAW};
+use niji_legacy::pthread_compat::ATTR_WORDS;
+use niji_rt::sync::RawMutex;
+use niji_rt::thread::Attr;
 
 use crate::sys::CSys;
 use crate::timer::{self, Notifier};
@@ -124,7 +124,7 @@ fn free_record() -> KResult<&'static [AtomicUsize]> {
     if let Some(r) = records().find(|r| get(r, KEY) == 0) {
         return Ok(r);
     }
-    let addr = liella_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::ENOMEM)?;
+    let addr = niji_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::ENOMEM)?;
     let r = record(addr);
     for w in r {
         w.store(0, Relaxed);
@@ -189,7 +189,7 @@ fn socket() -> KResult<Fd> {
     if s >= 0 {
         return Ok(Fd::new(s));
     }
-    let sock = CSys.socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE).and_then(|s| liella::io::above_standard(&CSys, s))?;
+    let sock = CSys.socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE).and_then(|s| niji::io::above_standard(&CSys, s))?;
     let a = Attr { detached: true, stack_size: SERVICE_STACK, sigmask: Some(APP_SIGNALS), ..Attr::default() };
     if let Err(e) = thread::create_service(&a, service_addr(), usize::try_from(sock.raw()).unwrap_or(0)) {
         let _ = CSys.close(sock);
@@ -300,7 +300,7 @@ extern "C" fn notification(key: usize) -> usize {
         })
     };
     if let Some((function, value)) = call {
-        let _ = ffi::liella_machine_call3(function, i64::from_ne_bytes(value.to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(function, i64::from_ne_bytes(value.to_ne_bytes()), 0, 0);
     }
     0
 }
@@ -339,12 +339,16 @@ pub(crate) fn abandoned_count() -> usize {
 /// reset rather than taken.
 pub(crate) fn after_fork_child() {
     LOCK.reset();
-    let s = SOCKET.swap(-1, Relaxed);
+    // Only the words that change are written (D-18.8).
+    let s = SOCKET.load(Relaxed);
     if s >= 0 {
+        SOCKET.store(-1, Relaxed);
         let _ = CSys.close(Fd::new(s));
     }
     for r in records() {
-        put(r, KEY, 0);
+        if get(r, KEY) != 0 {
+            put(r, KEY, 0);
+        }
     }
 }
 
@@ -367,12 +371,12 @@ pub fn shm_dir() -> &'static [u8] {
 }
 
 /// `__mq_open_2(name, flags)`: `mq_open` without the optional arguments, which `O_CREAT`
-/// needs: then `EINVAL`, creating nothing (the reference aborts).
+/// needs: then `EINVAL`, creating nothing (S6: a defined error where the contract has one).
 pub fn open_2(name: KStr<'_>, flags: u32) -> KResult<Fd> {
     if flags & O_CREAT != 0 {
         return Err(Errno::EINVAL);
     }
-    liella::ipc::mq_open(&CSys, name, flags, 0, None)
+    niji::ipc::mq_open(&CSys, name, flags, 0, None)
 }
 
 /// How many `struct mq_attr` `mq_open` reads at `attr`: one with `O_CREAT` and a non-NULL

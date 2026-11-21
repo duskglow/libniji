@@ -4,8 +4,8 @@
 //! compiled as written; these tests are the evidence an opt-in collapse would need.
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::indexing_slicing, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, Options, Window};
 
 const ERE: i32 = 1;
 
@@ -195,7 +195,7 @@ fn stacked_forms_equal_the_single_operator() {
 fn stacked_star_capture_pass_is_linear() {
     let stars = |n: usize| "*".repeat(n);
     let p17 = |anchor: char| format!(".((|)a{}4{}.{}?{}{anchor}{}\"**(b))+", stars(40), stars(40), stars(40), stars(40), stars(40));
-    // As written, the reference rejects its `$*` and so does Liella (REGEX-ANCHOR-REPEAT); the
+    // As written, the reference rejects its `$*` and so does libniji (REGEX-ANCHOR-REPEAT); the
     // same stacks with `c` for `$` keep the input's structure for the work bound.
     assert_eq!(regex::compile(p17('$').as_bytes(), regex::regcomp_syntax(ERE), &Locale::C).err(), Some(regex::ReError::BadRpt), "17cddcb6 as written");
     let p17 = p17('c');

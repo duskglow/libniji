@@ -1,0 +1,45 @@
+{
+ "task": "SYS-COMPAT-VERSIONS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "red gate fixed: the libm scope test lists every alias outside __*_finite (117 = 107 + 3 pow10 renames + 7 probe-identical GLIBC_2.2.5 aliases); full gate and 4 plants on the final head",
+ "branch": "task/sys-compat-versions-2",
+ "head": "f5d55d981 (jobs' tree; later commits touch handoff/ only)",
+ "gate": {
+  "affected": "full gate (cargo xtask clippy + static + cargo xtask test) on f5d55d981: 6739 passed / 0 failed, 5265 passed / 0 failed, conformance 137 passed",
+  "peak": "12G (page cache included), oom_kill=0"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "plants sys-compat-versions-2-plants: 4 CAUGHT, 0 SURVIVED, 0 WARN; sys-compat-versions-2-lint (rc 0) ran on da477a66d, superseded by the gate's own clippy/static",
+  "the second failing assertion (no alias may target its own name) was hidden behind the count assertion; both were wrong for same-name aliases",
+  "carried from SYS-COMPAT-VERSIONS: libmvec.so.1 not shipped (49 trixie packages); _r_debug@GLIBC_2.2.5 (5); log/log2@GLIBC_2.2.5 need a +NaN wrapper (6, 1); pthread_sigmask@GLIBC_2.2.5 needs its LG-0b probe (3); dlmopen@GLIBC_2.34 unimplemented (3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "programs binding fmod@GLIBC_2.2.5 (Debian gawk; 101 trixie packages) and fmodf, pow, exp, exp10, hypot, hypotf @GLIBC_2.2.5 load (from SYS-COMPAT-VERSIONS, lands with this branch)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the libm compat aliases (3 binding-test plants + 1 scope-test plant)",
+   "before": 3,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a count-only assertion hid the real change and a second broken assertion behind it; scope tests should list their members so the failure names the pairs",
+ "next_step": "land; cut stories for log/log2 compat wrappers, pthread_sigmask probe, dlmopen, libmvec, _r_debug (pow edges are MATH-POW-EDGES)",
+ "report_file": "handoff/SYS-COMPAT-VERSIONS.md",
+ "jobs": [
+  "sys-compat-versions-2-gate",
+  "sys-compat-versions-2-plants"
+ ]
+}

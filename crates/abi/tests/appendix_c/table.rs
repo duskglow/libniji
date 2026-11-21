@@ -24,7 +24,7 @@ pub(crate) fn expect_type(ty: &str, size: usize, align: usize) {
 }
 
 /// A type whose C alignment exceeds what its size allows Rust to express: the size must match
-/// and Liella's alignment must be the largest that divides it, below the C alignment.
+/// and libniji's alignment must be the largest that divides it, below the C alignment.
 pub(crate) fn expect_underaligned(ty: &str, size: usize, align: usize) {
     let row = rows().find(|f| f[0] == ty && f[1].is_empty()).unwrap_or_else(|| panic!("{ty}: not in layouts.tsv"));
     let (want_size, c_align): (usize, usize) = (row[2].parse().unwrap(), row[3].parse().unwrap());

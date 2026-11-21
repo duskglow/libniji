@@ -1,4 +1,4 @@
-/* wl_percall spec (PERF-MEMSET-4K-3): instructions per call of memset from 1 KiB to 64 KiB, Liella vs glibc.
+/* wl_percall spec (PERF-MEMSET-4K-3): instructions per call of memset from 1 KiB to 64 KiB, libniji vs glibc.
  * "a": a 64-byte-aligned destination; "o": the destination at +1 (unaligned head). The call goes through a
  * volatile function pointer so the compiler cannot expand a constant-size fill inline.
  *   bash validation/wl_percall.sh --spec validation/percall/memset_sizes.c <dir|rev> */

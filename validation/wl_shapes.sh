@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Argument shapes of the mem*/str*/malloc calls real programs make (WL-STAKES). Exact counts, never time.
 #
 #   export S=<scratchpad>; bash validation/wl_shapes.sh [--role R] [--fetch DIR] [--nowait] [<workload>...]

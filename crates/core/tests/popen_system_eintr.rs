@@ -23,13 +23,13 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella_boundary::errno;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::posix::s18_processes as x;
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
+use niji_boundary::errno;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::posix::s18_processes as x;
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
 
 const ECHILD: i32 = 10;
 const SIGINT: i32 = 2;
@@ -38,8 +38,8 @@ const SIGUSR1: i32 = 10;
 const SIGCHLD: i32 = 17;
 const WNOHANG: i32 = 1;
 
-const ALONE: &str = "LIELLA_EINTR_ALONE";
-const BASE: &str = "LIELLA_EINTR_BASE";
+const ALONE: &str = "NIJI_EINTR_ALONE";
+const BASE: &str = "NIJI_EINTR_BASE";
 
 static HITS: AtomicU32 = AtomicU32::new(0);
 extern "C" fn count_signal(_sig: i32) {
@@ -104,13 +104,13 @@ fn status_field(out: &str, key: &str) -> u64 {
 
 /// Install `count_signal` for `sig` WITHOUT `SA_RESTART`.
 fn catch(sig: i32) {
-    let sa = liella_legacy::signal_compat::CSigaction::new(handler_addr(), liella_kernel::uapi::SigSet::empty(), 0);
+    let sa = niji_legacy::signal_compat::CSigaction::new(handler_addr(), niji_kernel::uapi::SigSet::empty(), 0);
     assert_eq!(sg::sigaction(sig, Some(&sa), None), 0);
 }
 
 /// The disposition of `sig`: "default", "ignored", "handler" or "other".
 fn disp(sig: i32) -> &'static str {
-    let mut sa = liella_legacy::signal_compat::CSigaction::new(0, liella_kernel::uapi::SigSet::empty(), 0);
+    let mut sa = niji_legacy::signal_compat::CSigaction::new(0, niji_kernel::uapi::SigSet::empty(), 0);
     sg::sigaction(sig, None, Some(&mut sa));
     match sa.handler {
         0 => "default",
@@ -198,21 +198,35 @@ fn pclose_after_the_caller_reaped() {
 /// s18_7_c_1 (§18.7 Contract): while `system` waits `SIGCHLD` is blocked and `SIGINT`/`SIGQUIT` ignored in
 /// the caller; afterwards the handlers are back and `SIGCHLD` is unblocked (its handler runs once,
 /// then, for the child that ended meanwhile); a `SIGINT` that was already ignored stays ignored.
+///
+/// The case runs in a child of `fork`, the only thread of its process (D-X.40): a process-directed
+/// `SIGCHLD` then has exactly one thread to go to, the caller, so the handler runs before the
+/// caller's mask restore returns and `hits` is decided when it is read. In the re-executed test
+/// binary libtest's main thread has `SIGCHLD` unblocked and could take the signal while `system`
+/// still waits, leaving its handler in flight when `hits` is read.
 #[test]
 fn system_signal_state_during_and_after() {
     let out = alone_ok("system_signal_state_during_and_after", || {
-        catch(SIGINT);
-        catch(SIGQUIT);
-        catch(SIGCHLD);
-        let script = format!("grep -E '^Sig(Blk|Ign):' /proc/{}/task/{}/status | sed 's/^/R:caller /'", x::getpid(), x::gettid());
-        let r = x::system(cs(&script).as_ptr());
-        let mut m = liella_abi::layout::sigset_t { __val: [0; 16] };
-        sg::sigprocmask(0, None, Some(&mut m));
-        say(&format!("R:after {r} int={} quit={} chld={} blocked={} hits={}\n", disp(SIGINT), disp(SIGQUIT), disp(SIGCHLD), sg::sigismember(Some(&m), SIGCHLD), HITS.load(Ordering::SeqCst)));
-        sg::signal(SIGINT, 1);
-        let r = x::system(cs("exit 0").as_ptr());
-        say(&format!("R:ignored {r} {}\n", disp(SIGINT)));
-        true
+        let pid = x::fork();
+        assert!(pid >= 0, "fork");
+        if pid == 0 {
+            say(&format!("R:alone {}\n", x::gettid() == x::getpid()));
+            catch(SIGINT);
+            catch(SIGQUIT);
+            catch(SIGCHLD);
+            let script = format!("grep -E '^Sig(Blk|Ign):' /proc/{}/task/{}/status | sed 's/^/R:caller /'", x::getpid(), x::gettid());
+            let r = x::system(cs(&script).as_ptr());
+            let mut m = niji_abi::layout::sigset_t { __val: [0; 16] };
+            sg::sigprocmask(0, None, Some(&mut m));
+            say(&format!("R:after {r} int={} quit={} chld={} blocked={} hits={}\n", disp(SIGINT), disp(SIGQUIT), disp(SIGCHLD), sg::sigismember(Some(&m), SIGCHLD), HITS.load(Ordering::SeqCst)));
+            sg::signal(SIGINT, 1);
+            let r = x::system(cs("exit 0").as_ptr());
+            say(&format!("R:ignored {r} {}\n", disp(SIGINT)));
+            CSys.exit_group(0)
+        }
+        let mut st = -1;
+        assert_eq!(x::waitpid(pid, Some(&mut st), 0), pid);
+        st == 0
     });
     if out.is_empty() {
         return;
@@ -222,6 +236,7 @@ fn system_signal_state_during_and_after() {
     let iq = bit(SIGINT) | bit(SIGQUIT);
     assert_eq!(status_field(&caller, "SigIgn:") & iq, iq, "SIGINT and SIGQUIT ignored while it waits: {out}");
     let r = tagged(&out, "R:");
+    assert!(r.contains(&"alone true".to_string()), "the case runs in a single-threaded process: {out}");
     assert!(r.contains(&"after 0 int=handler quit=handler chld=handler blocked=0 hits=1".to_string()), "{out}");
     assert!(r.contains(&"ignored 0 ignored".to_string()), "{out}");
 }

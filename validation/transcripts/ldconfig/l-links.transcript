@@ -1,0 +1,28 @@
+# -l: each operand is a library; its soname link is made in the operand's own directory.
+name: ldconfig -l -N -v links each named library under its soname
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -l
+arg: -N
+arg: -v
+arg: @ROOT@/lib/libfoo.so.1.2
+arg: @ROOT@/opt/libbar.so.2.0
+arg: @ROOT@/lib/libbaz.so.3.1
+elf: lib/libfoo.so.1.2 soname=libfoo.so.1
+elf: lib/libfoo.so.1.9 soname=libfoo.so.1
+elf: opt/libbar.so.2.0 soname=libbar.so.2
+link: opt/libbar.so.2 -> libbar.so.2.old
+elf: lib/libbaz.so.3.1 soname=libbaz.so.3
+link: lib/libbaz.so.3 -> libbaz.so.3.1
+status: exit 0
+stdout:
+| \tlibfoo.so.1 -> libfoo.so.1.2 (changed)
+| \tlibbar.so.2 -> libbar.so.2.0 (changed)
+| \tlibbaz.so.3 -> libbaz.so.3.1
+stderr:
+written-link: lib/libfoo.so.1 -> libfoo.so.1.2
+written-link: opt/libbar.so.2 -> libbar.so.2.0

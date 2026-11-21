@@ -1,0 +1,21 @@
+# -l with two operands of one soname: argument order decides (the later operand's link stands), not the version.
+name: ldconfig -l -N with two files of one soname
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -l
+arg: -N
+arg: -v
+arg: @ROOT@/lib/libfoo.so.1.10
+arg: @ROOT@/lib/libfoo.so.1.9
+elf: lib/libfoo.so.1.10 soname=libfoo.so.1
+elf: lib/libfoo.so.1.9 soname=libfoo.so.1
+status: exit 0
+stdout:
+| \tlibfoo.so.1 -> libfoo.so.1.10 (changed)
+| \tlibfoo.so.1 -> libfoo.so.1.9 (changed)
+stderr:
+written-link: lib/libfoo.so.1 -> libfoo.so.1.9

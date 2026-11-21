@@ -5,27 +5,27 @@
 
 //! Clause tests for spec §20. Every test that changes a disposition, a mask or sends a signal
 //! runs in a re-executed child (`alone`): they are process- or thread-wide.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
-use liella::error::Errno;
-use liella_abi::layout::sigset_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s20_signals as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigInfo, SigSet, StackT};
-use liella_legacy::signal_compat::{self, CSigaction};
+use niji::error::Errno;
+use niji_abi::layout::sigset_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s20_signals as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigInfo, SigSet, StackT};
+use niji_legacy::signal_compat::{self, CSigaction};
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -90,16 +90,9 @@ extern "C" fn three(_sig: i32, info: Option<&SigInfo>, ctx: *mut core::ffi::c_vo
     CTX_SEEN.store(u32::from(!ctx.is_null()), Ordering::SeqCst);
 }
 
-/// Waits (up to a second) for `n` handler runs: a process-directed signal may be handled by
-/// another thread, after the send returned.
-fn wait_hits(n: u32) {
-    for _ in 0..1000 {
-        if HITS.load(Ordering::SeqCst) >= n {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(1));
-    }
-}
+#[path = "support/single_thread.rs"]
+mod single_thread;
+use single_thread::{single_threaded, sole_thread};
 
 fn h(f: extern "C" fn(i32)) -> usize {
     f as usize
@@ -143,12 +136,12 @@ fn later(sig: i32, ms: u64) {
 }
 
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_C20_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_C20_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_C20_ALONE", name)
+        .env("NIJI_C20_ALONE", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -240,7 +233,7 @@ fn s20_2_c_1_2() {
     // SA_RESTART resumes a blocking read; without it the read fails with EINTR (C0.3).
     alone("s20_2_c_1_2", || {
         let mut p = [-1; 2];
-        liella_boundary::posix::s25_ipc::pipe(Some(&mut p));
+        niji_boundary::posix::s25_ipc::pipe(Some(&mut p));
         let (r, w) = (p[0], p[1]);
         x::sigaction(SIGALRM, Some(&act(h(count), SA_RESTART, &[])), None);
         later(SIGALRM, 50);
@@ -334,7 +327,7 @@ fn s20_2_c_3() {
         x::signal(SIGALRM, h(count));
         x::siginterrupt(SIGALRM, 1);
         let mut p = [-1; 2];
-        liella_boundary::posix::s25_ipc::pipe(Some(&mut p));
+        niji_boundary::posix::s25_ipc::pipe(Some(&mut p));
         later(SIGALRM, 50);
         let mut b = [0u8; 1];
         errno::set_raw(0);
@@ -488,32 +481,30 @@ fn s20_3_g_0() {
 
 #[test]
 fn s20_4_c_1() {
-    alone("s20_4_c_1", || {
-        // A group of its own: the group signals must not reach the test harness. A
-        // process-directed signal may be handled by any thread of the child.
+    alone("s20_4_c_1", || single_threaded(|| {
+        // A group of its own: the group signals must not reach the test harness. The fork
+        // child's only thread takes each process-directed signal before kill returns.
         let _ = CSys.setpgid(0, 0);
         x::signal(SIGUSR1, h(count));
-        let me = std::process::id() as i32;
+        let me = CSys.getpid();
         let exists = x::kill(me, 0) == 0;
         let to_me = x::kill(me, SIGUSR1) == 0;
-        wait_hits(1);
+        let after_me = HITS.load(Ordering::SeqCst);
         let group = x::kill(0, SIGUSR1) == 0;
-        wait_hits(2);
+        let after_group = HITS.load(Ordering::SeqCst);
         let neg = x::kill(-CSys.getpgid(0).unwrap(), SIGUSR1) == 0;
-        wait_hits(3);
-        exists && to_me && group && neg && HITS.load(Ordering::SeqCst) == 3
-    });
+        exists && to_me && group && neg && sole_thread() && (after_me, after_group, HITS.load(Ordering::SeqCst)) == (1, 2, 3)
+    }));
 }
 
 #[test]
 fn s20_4_c_2() {
-    alone("s20_4_c_2", || {
+    alone("s20_4_c_2", || single_threaded(|| {
         let _ = CSys.setpgid(0, 0);
         x::signal(SIGUSR2, h(count));
         let ok = x::killpg(CSys.getpgid(0).unwrap(), SIGUSR2) == 0;
-        wait_hits(1);
-        ok && HITS.load(Ordering::SeqCst) == 1
-    });
+        ok && sole_thread() && HITS.load(Ordering::SeqCst) == 1
+    }));
 }
 
 #[test]
@@ -540,13 +531,12 @@ fn s20_4_c_3() {
 
 #[test]
 fn s20_4_c_4() {
-    alone("s20_4_c_4", || {
+    alone("s20_4_c_4", || single_threaded(|| {
         static VALUES: [AtomicI32; 2] = [const { AtomicI32::new(0) }; 2];
         static CODES: [AtomicI32; 2] = [const { AtomicI32::new(0) }; 2];
         static ENTERED: AtomicU32 = AtomicU32::new(0);
-        // The signal is process-directed, so the two handlers may run at once on two threads
-        // (libtest's and the main one): each claims its slot with ENTERED and counts in HITS
-        // only after its store, so `wait_hits(2)` never reads a slot still being written.
+        // The fork child's only thread takes each queued signal before sigqueue returns; each
+        // handler run claims its slot with ENTERED and counts in HITS after its store.
         extern "C" fn val(_sig: i32, info: Option<&SigInfo>, _ctx: *mut core::ffi::c_void) {
             let i = ENTERED.fetch_add(1, Ordering::SeqCst) as usize;
             if let (Some(info), Some(slot)) = (info, VALUES.get(i)) {
@@ -559,13 +549,12 @@ fn s20_4_c_4() {
         let me = std::process::id() as i32;
         let ra = (x::sigqueue(me, 40, 1), errno::get());
         let rb = (x::sigqueue(me, 40, 2), errno::get());
-        wait_hits(2);
         let (entered, stored) = (ENTERED.load(Ordering::SeqCst), HITS.load(Ordering::SeqCst));
         let seen = [VALUES[0].load(Ordering::SeqCst), VALUES[1].load(Ordering::SeqCst)];
         let codes = [CODES[0].load(Ordering::SeqCst), CODES[1].load(Ordering::SeqCst)];
         let mut got = seen;
         got.sort_unstable();
-        let ok = ra.0 == 0 && rb.0 == 0 && got == [1, 2];
+        let ok = ra.0 == 0 && rb.0 == 0 && got == [1, 2] && stored == 2 && sole_thread();
         if !ok {
             // Straight to fd 2: libtest's capture of `eprintln!` is lost when the child exits.
             use std::io::Write as _;
@@ -576,11 +565,11 @@ fn s20_4_c_4() {
             );
         }
         ok
-    });
+    }));
 }
 
 /// §20.4: `pthread_kill` and `pthread_sigqueue` target one thread of this process. Threads
-/// must be Liella's own (`pthread_create`), so the clause is checked by the self-checking C
+/// must be libniji's own (`pthread_create`), so the clause is checked by the self-checking C
 /// program `conformance/c/s20_pthread_kill.c`: the handler runs on the target thread, signal 0
 /// only checks, an invalid signal is `EINVAL` returned with `errno` untouched, the queued value
 /// and `SI_QUEUE` arrive, the caller's own thread gets the signal before the call returns, and a
@@ -658,7 +647,7 @@ fn s20_5_c_4() {
         let mut info = SigInfo::default();
         let got = x::sigwaitinfo(Some(&set), Some(&mut info)) == SIGUSR1 && info.signo == SIGUSR1;
         errno::set_raw(0);
-        let ts = liella_kernel::uapi::Timespec { sec: 0, nsec: 5_000_000 };
+        let ts = niji_kernel::uapi::Timespec { sec: 0, nsec: 5_000_000 };
         let timed = x::sigtimedwait(Some(&set), None, Some(&ts)) == -1 && errno::get() == Errno::EAGAIN.get();
         got && timed
     });
@@ -720,17 +709,17 @@ fn s20_7_c_0() {
 #[test]
 fn s20_7_i_0() {
     // The minimum is the kernel's (AT_MINSIGSTKSZ), what sysconf reports.
-    let min = liella_boundary::posix::s24_system::sysconf(249);
+    let min = niji_boundary::posix::s24_system::sysconf(249);
     assert!(min >= 1024);
     alone("s20_7_i_0", || {
-        let min = liella_boundary::posix::s24_system::sysconf(249) as usize;
+        let min = niji_boundary::posix::s24_system::sysconf(249) as usize;
         let mut mem = vec![0u8; 1 << 16];
         let mut ss = StackT::default();
         ss.sp = mem.as_mut_ptr() as usize;
         ss.size = min.min(2048) - 1;
         errno::set_raw(0);
         let small = x::sigaltstack(Some(&ss), None) == -1 && errno::get() == Errno::ENOMEM.get();
-        ss.size = liella_boundary::posix::s24_system::sysconf(250) as usize;
+        ss.size = niji_boundary::posix::s24_system::sysconf(250) as usize;
         small && x::sigaltstack(Some(&ss), None) == 0
     });
 }
@@ -738,9 +727,9 @@ fn s20_7_i_0() {
 #[test]
 fn s20_8_c_1() {
     let text = |p: *mut core::ffi::c_char| {
-        let n = liella_boundary::posix::s04_strings::strlen(p);
+        let n = niji_boundary::posix::s04_strings::strlen(p);
         let mut v = vec![0u8; n];
-        liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
+        niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
         String::from_utf8(v).unwrap()
     };
     assert_eq!(text(x::strsignal(SIGTERM)), "Terminated", "the C locale's text (translation is phase 7)");
@@ -752,7 +741,7 @@ fn s20_8_c_1() {
 #[test]
 fn s20_8_c_2() {
     let p = x::sigabbrev_np(SIGINT);
-    let n = liella_boundary::posix::s04_strings::strlen(p.cast_mut());
+    let n = niji_boundary::posix::s04_strings::strlen(p.cast_mut());
     assert_eq!(n, 3, "INT");
     assert!(!x::sigdescr_np(SIGINT).is_null());
     assert!(x::sigdescr_np(33).is_null(), "no description for real-time signals");

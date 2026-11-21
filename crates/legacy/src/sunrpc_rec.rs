@@ -1,5 +1,5 @@
 //! The XDR record-marking stream (`xdrrec_*`, spec §29.1, RFC 5531 §11) as safe state over two
-//! byte buffers; the C layer (`liella_boundary::posix::s29_xdr_streams`) supplies the caller's
+//! byte buffers; the C layer (`niji_boundary::posix::s29_xdr_streams`) supplies the caller's
 //! `readit`/`writeit` callbacks as closures. Settled black-box (`spec/behaviour/xdr_streams.glibc.txt`):
 //! buffers below 100 bytes become 4000, others round up to a unit; each flush is one `writeit`
 //! call; a decode refill keeps the unread bytes at the front and asks for the rest of the buffer;

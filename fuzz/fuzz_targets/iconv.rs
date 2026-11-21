@@ -8,8 +8,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::iconv::{self, Codec, Conv, Order, State};
-use liella_fuzz::Input;
+use niji::iconv::{self, Codec, Conv, Order, State};
+use niji_fuzz::Input;
 
 const CODECS: [Codec; 12] = [
     Codec::Utf8,
@@ -35,7 +35,7 @@ fn codec(full: &[u8]) -> (Codec, bool, bool) {
 /// Convert all of `input` with output pieces of `piece` bytes: the output, and whether every
 /// call succeeded.
 fn convert(conv: &mut Conv, input: &[u8], piece: usize) -> (Vec<u8>, bool) {
-    let loc = liella_fuzz::locale(true);
+    let loc = niji_fuzz::locale(true);
     let mut out = Vec::new();
     let mut buf = vec![0u8; piece];
     let mut rest = input;
@@ -50,7 +50,7 @@ fn convert(conv: &mut Conv, input: &[u8], piece: usize) -> (Vec<u8>, bool) {
         rest = &rest[o.read..];
         match o.result {
             Ok(_) => {}
-            Err(liella::error::Errno::E2BIG) if o.read > 0 || o.written > 0 => {}
+            Err(niji::error::Errno::E2BIG) if o.read > 0 || o.written > 0 => {}
             Err(_) => {
                 ok = false;
                 break;

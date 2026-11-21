@@ -1,5 +1,5 @@
 //! Category *allocator*: the process heap and `unsafe impl GlobalAlloc`, delegating every
-//! decision to the safe algorithm in `liella_rt::heap` (IP-7).
+//! decision to the safe algorithm in `niji_rt::heap` (IP-7).
 //!
 //! * [`HEAP`] is the one heap behind the exported `malloc` family and, in the products, Rust's
 //!   global allocator (both allocation domains of D-3.1 meet here unless a C program
@@ -15,13 +15,13 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::Relaxed};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
-use liella_legacy::malloc_compat::{self, Ctx};
-use liella_legacy::malloc_debug::{self, Call, Debug, Mem};
-use liella_rt::heap::{Heap, Misuse, Pages, ALIGN, PAGE};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_legacy::malloc_compat::{self, Ctx};
+use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
+use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
 
 use crate::raw;
 use crate::sys::CSys;
@@ -33,6 +33,13 @@ pub static HEAP: Heap = Heap::new();
 pub struct KernelPages;
 
 impl Pages for KernelPages {
+    type General = Self;
+    #[inline(always)]
+    fn general(&self) -> &Self {
+        self
+    }
+    // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
+    #[inline(never)]
     fn map(&self, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
         // Over-map by the alignment and cut the ends off, so that the range is aligned.
         let slack = if align > PAGE { align } else { 0 };
@@ -42,7 +49,7 @@ impl Pages for KernelPages {
         let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
             // The over-mapping may not fit under an address-space limit (T14): an aligned range
             // without the slack, found from where the kernel would place `len` bytes.
-            return if slack > 0 { map_aligned_exactly(len, align, node) } else { None };
+            return if slack > 0 { map_aligned_exactly(0, len, align, node) } else { None };
         };
         let base = region.addr();
         let addr = base.checked_next_multiple_of(align.max(PAGE))?;
@@ -59,6 +66,45 @@ impl Pages for KernelPages {
             let _ = raw::mbind_preferred(addr, len, n);
         }
         Some(addr)
+    }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        // Over-map by the room and the alignment (address space only, never touched), keep
+        // `head + len` bytes with the aligned address after `head`, and cut the rest off: the
+        // room above the kept part was free a moment ago, and the kernel places later mappings
+        // at the top of that gap first, so the mapping can usually grow in place.
+        let total = head.checked_add(room.max(len))?.checked_add(align)?;
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
+            // Under an address-space limit the over-mapping may not fit (T14).
+            return map_aligned_exactly(head, len, align, node);
+        };
+        let base = region.addr();
+        let addr = base.checked_add(head)?.checked_next_multiple_of(align.max(PAGE))?;
+        let start = addr.saturating_sub(head);
+        if start > base {
+            let _ = raw::munmap(base, start.saturating_sub(base));
+        }
+        let (end, top) = (addr.saturating_add(len), base.saturating_add(total));
+        if top > end {
+            let _ = raw::munmap(end, top.saturating_sub(end));
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(start, head.saturating_add(len), n);
+        }
+        Some(addr)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+        let Ok(region) = CSys.mmap(addr, len, PROT_READ | PROT_WRITE, flags, None, 0) else { return false };
+        if region.addr() != addr {
+            // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+            let _ = raw::munmap(region.addr(), len);
+            return false;
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(addr, len, n);
+        }
+        true
     }
     fn unmap(&self, addr: usize, len: usize) {
         let _ = raw::munmap(addr, len);
@@ -88,17 +134,31 @@ impl Pages for KernelPages {
     fn exclude_from_dumps(&self, addr: usize, len: usize) {
         let _ = raw::madvise_dontdump(addr, len);
     }
+    // TRACE-NUMA-PIN: out of line, the one entry every node read of the heap passes (`OwnPages`
+    // calls it too); the hot-text tracer answers it from its virtual topology
+    // (tools/hottext/trace_gdb.py), since the rseq area's `node_id` has no entry of its own.
+    #[inline(never)]
     fn shard(&self) -> usize {
         node_hint()
     }
-    fn cache_slot(&self) -> &AtomicUsize {
-        &crate::tb::current().heap_cache
+    fn allowed_nodes(&self) -> usize {
+        // One system call, once per process (D-3.20). A mask too small for the machine's nodes
+        // means many; no NUMA support (or any other refusal) means one.
+        match raw::allowed_node_count() {
+            Ok(n) => usize::try_from(n).unwrap_or(usize::MAX),
+            Err(Errno::EINVAL) => usize::MAX,
+            Err(_) => 1,
+        }
+    }
+    fn cache_slot(&self) -> Option<&AtomicUsize> {
+        crate::thread::heap_cache_slot()
     }
     #[inline(always)]
     fn cache_word(&self) -> usize {
-        // HEAP-CUTS2 C4: one `%fs`-relative load (plan S2 category tb-field) instead of the
-        // out-of-line thread-pointer call and the load through it.
-        crate::tb::read::<crate::tb::HeapCache>()
+        // D-X.60: the block's word only in a process the runtime started; elsewhere 0x90 is
+        // another library's word, and the registry's. One out-of-line call (the general paths
+        // only: the fast paths take `OwnPages`, one `%fs`-relative load).
+        crate::thread::heap_cache_word()
     }
     fn address_limit(&self) -> Option<usize> {
         // `RLIMIT_AS` (9); `RLIM_INFINITY` is none.
@@ -117,40 +177,146 @@ impl Pages for KernelPages {
     }
 }
 
+/// D-X.60: [`KernelPages`] for the paths [`DEBUG`]'s word has already cleared: that word holds
+/// [`malloc_debug::FOREIGN`] until the runtime takes the process (`thread::init_initial`), so
+/// a path reached with the word clear runs in a process the runtime started, where 0x90 of the
+/// calling thread's block is libniji's, and the cache word is read with no further test (the
+/// heap fast paths pay nothing for the foreign case). Everything else is [`KernelPages`]'s,
+/// including the heap's slow paths (`alloc_slow`, `free_slow`, `resize_held`) even with the word
+/// clear: one copy of each, the one start-up already runs ([`Pages::General`] is
+/// [`KernelPages`], so `Heap::alloc`/`free`/`resize` reached through the plain `c_*` paths call
+/// the same slow paths). Their second copies for this type were about 6 KiB of text ahead of the
+/// 32 KiB-aligned string kernels and, with the inlined `errno` test, moved those kernels and the
+/// text after them by 32 KiB (the coreutils-shaped program 51 faults against 50, Skylake-SP).
+pub struct OwnPages;
+
 /// `len` bytes at a multiple of `align` without mapping `len + align` first (T14): the kernel
 /// picks where `len` bytes go; if that is not aligned, the aligned addresses just above and just
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
-fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<usize> {
-    use liella_kernel::uapi::MAP_FIXED_NOREPLACE;
+/// With `head`: `head + len` bytes whose address plus `head` is the multiple (the address
+/// returned), as [`Pages::map_room`] places them.
+/// The gap the kernel picks may hold `head + len` bytes but no aligned range (a gap just above
+/// another segment, issue #21 under `ulimit -v`): both candidates are then taken. That gap is
+/// blocked with one-page `PROT_NONE` mappings (never replacing one) so that no free piece of
+/// it fits, and the kernel is asked again, at most [`EXACT_ROUNDS`] times; the blockers are
+/// removed before returning. Off every hot path: reached only when the over-mapping is refused.
+#[cold]
+#[inline(never)]
+fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+    use niji_kernel::uapi::PROT_NONE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
-    let probe = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
-    let addr = if probe.checked_rem(align) == Some(0) {
-        probe
-    } else {
-        let _ = raw::munmap(probe, len);
-        let up = probe.checked_next_multiple_of(align)?;
-        let down = up.checked_sub(align)?;
-        [up, down].into_iter().find_map(|a| {
-            let got = CSys.mmap(a, len, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
-            if got == a {
-                Some(a)
-            } else {
-                let _ = raw::munmap(got, len);
-                None
+    let total = head.checked_add(len)?;
+    // Blockers a page apart by at most `total` leave every free piece of the gap below `total`.
+    let step = (total & !(PAGE - 1)).max(PAGE);
+    let mut blockers = [0usize; EXACT_ROUNDS * EXACT_BLOCKERS];
+    let mut held = 0usize;
+    let mut found = None;
+    for _ in 0..EXACT_ROUNDS {
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0) else { break };
+        let probe = region.addr();
+        let Some(after_head) = probe.checked_add(head) else { break };
+        if after_head.checked_rem(align) == Some(0) {
+            found = Some(after_head);
+            break;
+        }
+        let _ = raw::munmap(probe, total);
+        let Some(up) = after_head.checked_next_multiple_of(align) else { break };
+        let Some(down) = up.checked_sub(align) else { break };
+        found = [up, down].into_iter().find_map(|a| map_fixed_noreplace(a.checked_sub(head)?, total, PROT_READ | PROT_WRITE).map(|_| a));
+        if found.is_some() {
+            break;
+        }
+        // Something is mapped in [down - head, probe) and in [probe + total, up + len) (the
+        // probe's own range was free), so the probe's gap lies inside (down - head, up + len).
+        let (Some(from), Some(to)) = (down.checked_sub(head), up.checked_add(len)) else { break };
+        let from = from & !(PAGE - 1);
+        if to.saturating_sub(from).div_ceil(step) > EXACT_BLOCKERS {
+            break;
+        }
+        // `from` itself is at or below that lower mapped page, outside the gap: start a step up.
+        let mut at = from.saturating_add(step);
+        while at < to {
+            if let Some(b) = map_fixed_noreplace(at, PAGE, PROT_NONE) {
+                if let Some(slot) = blockers.get_mut(held) {
+                    *slot = b;
+                    held = held.saturating_add(1);
+                }
             }
-        })?
-    };
+            at = at.saturating_add(step);
+        }
+    }
+    for &b in blockers.get(..held).unwrap_or(&[]) {
+        let _ = raw::munmap(b, PAGE);
+    }
+    let addr = found?;
     if let Some(n) = node {
-        let _ = raw::mbind_preferred(addr, len, n);
+        let _ = raw::mbind_preferred(addr.saturating_sub(head), total, n);
     }
     Some(addr)
 }
 
+/// Gaps [`map_aligned_exactly`] asks the kernel for before it gives up.
+const EXACT_ROUNDS: usize = 8;
+/// Bound on a round's blockers: `(align + head + len) / (head + len)` rounded up (one more than
+/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`]; a gap needing
+/// more is not blocked.
+const EXACT_BLOCKERS: usize = 8;
+
+/// `len` bytes mapped with `prot` at exactly `start`, never replacing a mapping.
+fn map_fixed_noreplace(start: usize, len: usize, prot: u32) -> Option<usize> {
+    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+    let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+    let got = CSys.mmap(start, len, prot, flags, None, 0).ok()?.addr();
+    if got == start {
+        Some(got)
+    } else {
+        // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+        let _ = raw::munmap(got, len);
+        None
+    }
+}
+
+/// Whether the kernel fills the rseq area's `node_id` (D-3.21): asked of the auxiliary vector
+/// once (0: not yet, 1: no, 2: yes).
+static RSEQ_NODE: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(0);
+
+/// The calling thread's node from the rseq area libniji registered for it (D-3.21), `None` when
+/// libniji does not own the thread's registration or the kernel does not fill `node_id` (its
+/// `AT_RSEQ_FEATURE_SIZE` is absent or too small for the field). A plain load, no system call.
+pub fn rseq_node() -> Option<usize> {
+    let area = crate::thread::own_rseq()?;
+    let filled = match RSEQ_NODE.load(Relaxed) {
+        0 => {
+            let yes = niji_kernel::uapi::Rseq::node_id_filled(
+                crate::process::auxval(niji_kernel::uapi::AT_RSEQ_FEATURE_SIZE),
+                niji_rt::thread::RSEQ_SIZE,
+            );
+            RSEQ_NODE.store(if yes { 2 } else { 1 }, Relaxed);
+            yes
+        }
+        v => v == 2,
+    };
+    filled.then(|| usize::try_from(area.node_id()).unwrap_or(0))
+}
+
+/// Whether libniji registered the calling thread's rseq area, so its `node_id` is libniji's to read
+/// (D-3.21). A thread another C library registered (or none did) answers false.
+pub fn rseq_owned() -> bool {
+    crate::thread::own_rseq().is_some()
+}
+
 /// The calling thread's NUMA node (D-3.12), asked only when the heap chooses a cache or a
-/// slab: the vDSO `getcpu` (no system call), remembered in the thread block as node + 1 for
-/// the next slow path. A thread that migrates is noticed at its next slow path.
+/// slab and only when more than one node is allowed (D-3.20): the rseq area's `node_id` when
+/// libniji registered the thread's area and the kernel fills it (D-3.21), otherwise the vDSO
+/// `getcpu` (no system call), remembered in the thread block as node + 1 for the next slow
+/// path. A thread that migrates is noticed at its next slow path.
 fn node_hint() -> usize {
-    let tb = crate::tb::current();
+    // D-X.60: the calling thread's words (0x98 is another library's in a block it made).
+    let tb = crate::thread::words();
+    if let Some(n) = rseq_node() {
+        tb.node.store(u32::try_from(n).unwrap_or(0).saturating_add(1), Relaxed);
+        return n;
+    }
     match CSys.getcpu() {
         Ok((_, node)) => {
             tb.node.store(node.saturating_add(1), Relaxed);
@@ -162,6 +328,9 @@ fn node_hint() -> usize {
 
 /// The heap with its kernel and memory source, as the C-shaped calls take it.
 pub static CTX: Ctx<'static, CSys, KernelPages> = Ctx { heap: &HEAP, sys: &CSys, pages: &KernelPages };
+
+/// [`CTX`] for the plain `c_*` paths, reached only with [`DEBUG`]'s word clear ([`OwnPages`]).
+static OWN_CTX: Ctx<'static, CSys, OwnPages> = Ctx { heap: &HEAP, sys: &CSys, pages: &OwnPages };
 
 /// The block-level misuse C leaves undefined: a diagnostic and abort (S4), in glibc's words.
 pub fn misuse(what: &str, m: Misuse) -> ! {
@@ -184,12 +353,12 @@ pub fn checked<T>(what: &str, r: Result<T, Misuse>) -> T {
 
 /// Make room for `len` more bytes in the obstack's current object (`_obstack_newchunk`'s
 /// growth: the object moves to a new chunk).
-pub(crate) fn obstack_grow_room(o: &mut liella_abi::layout::struct_obstack, len: usize) {
+pub(crate) fn obstack_grow_room(o: &mut niji_abi::layout::struct_obstack, len: usize) {
     // UNSAFE(slice): the obstack's chunks are memory its own functions handed to it.
     #[allow(unsafe_code)]
     // SAFETY: the obstack's chunk and object addresses are its own allocations (§3.4).
     let mem = unsafe { crate::conv::ctext() };
-    liella_legacy::obstack::obstack_newchunk(
+    niji_legacy::obstack::obstack_newchunk(
         o,
         len,
         mem,
@@ -214,19 +383,57 @@ pub fn obstack_handler() -> usize {
 /// The default `obstack_alloc_failed_handler`: report and exit with `obstack_exit_failure`.
 /// (`exit` runs no `atexit` handlers until phase 4.)
 pub extern "C" fn default_obstack_failure() {
-    let _ = CSys.write(Fd::STDERR, liella_legacy::obstack::EXHAUSTED);
+    let _ = CSys.write(Fd::STDERR, niji_legacy::obstack::EXHAUSTED);
     CSys.exit_group(crate::data::obstack_exit_failure.load(core::sync::atomic::Ordering::Relaxed))
+}
+
+/// Rust's global allocator in the libresolv product (LIBRESOLV-OWN-CODE): the caller allocator
+/// (`malloc` through the symbol), so libresolv.so.2 holds no heap of its own. Blocks are at most
+/// 16-aligned (`malloc`'s alignment); a larger alignment fails (null), which the fallible
+/// containers report as `ENOMEM`.
+#[cfg(feature = "libresolv")]
+pub struct LibresolvAlloc;
+
+#[cfg(feature = "libresolv")]
+// UNSAFE(allocator): implementing `GlobalAlloc` for the libresolv product.
+// SAFETY: blocks come from `malloc`/`calloc`/`realloc`, which never hand out overlapping live
+// blocks and honour sizes up to the 16-byte alignment checked here; null on exhaustion.
+#[allow(unsafe_code)]
+unsafe impl GlobalAlloc for LibresolvAlloc {
+    // UNSAFE(allocator): the trait's required method.
+    #[allow(unsafe_code)]
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_malloc(layout.size().max(1)).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's required method; `ptr` came from `alloc` (the trait's contract).
+    #[allow(unsafe_code)]
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        crate::caller_alloc::caller_free(ptr.cast());
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `calloc`).
+    #[allow(unsafe_code)]
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_calloc(layout.size().max(1), 1).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `realloc`); `ptr` came from `alloc`.
+    #[allow(unsafe_code)]
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_realloc(ptr.cast(), new_size.max(1)).cast() }
+    }
 }
 
 /// Rust's global allocator in the products (`#[global_allocator]` is set by the product
 /// crate, phase 4): the same heap, with sizes and alignments from `Layout`.
-pub struct Liella;
+pub struct Niji;
 
 // UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
 // SAFETY: blocks come from `HEAP`, which never hands out overlapping live blocks, honours the
 // layout's size and alignment, and returns null on exhaustion.
 #[allow(unsafe_code)]
-unsafe impl GlobalAlloc for Liella {
+unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -252,13 +459,13 @@ unsafe impl GlobalAlloc for Liella {
     }
 }
 
-/// [`Liella`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
+/// [`libniji`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
 /// reserve; 0 without memory.
 pub fn rust_alloc(size: usize, align: usize) -> usize {
     HEAP.alloc(&CSys, &KernelPages, size, align).map_or_else(|| reserve_alloc(size, align), |b| b.addr)
 }
 
-/// [`Liella`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
+/// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
     match HEAP.alloc(&CSys, &KernelPages, size, align) {
@@ -278,14 +485,14 @@ pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
     }
 }
 
-/// [`Liella`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
+/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
 pub fn rust_dealloc(addr: usize, size: usize) {
     if !reserve_free(addr, size) {
         checked("free", HEAP.free(&CSys, &KernelPages, addr));
     }
 }
 
-/// [`Liella`]'s `realloc` (HEAP-CUTS C2): the live block at `addr`, allocated with `size` bytes
+/// [`libniji`]'s `realloc` (HEAP-CUTS C2): the live block at `addr`, allocated with `size` bytes
 /// at `align`, resized to `new_size` (> 0) bytes; its new address, or 0 without memory (the
 /// block is then unchanged). A heap block at the heap's own alignment goes through
 /// [`Heap::resize`], so a growth inside its size class stays in place and a large block moves by
@@ -319,14 +526,19 @@ const RESERVE: usize = 64 << 10;
 /// stream is first used then (`stdio`; kept for good, at most three). A stack: a block freed at
 /// the top lowers it, and the whole reserve is free again when no block is live. Never used
 /// while the heap serves.
-static RESERVE_MEM: [AtomicU64; RESERVE / 8] = [const { AtomicU64::new(0) }; RESERVE / 8];
-static RESERVE_LOCK: liella_rt::sync::RawMutex = liella_rt::sync::RawMutex::new();
+/// Page-aligned (STARTUP-DATA-PAGE-ALIGN): start-up code addresses its head, which then takes one page
+/// wherever the objects ahead of it in `.lbss` end (it straddled two pages at an offset of 0xc18). The
+/// alignment costs at most 4 KiB of zero-filled address space, no file bytes.
+#[repr(C, align(4096))]
+struct Reserve([AtomicU64; RESERVE / 8]);
+static RESERVE_MEM: Reserve = Reserve([const { AtomicU64::new(0) }; RESERVE / 8]);
+static RESERVE_LOCK: niji_rt::sync::RawMutex = niji_rt::sync::RawMutex::new();
 /// The first free byte (an offset) and the number of live blocks.
 static RESERVE_TOP: AtomicUsize = AtomicUsize::new(0);
 static RESERVE_LIVE: AtomicUsize = AtomicUsize::new(0);
 
 fn reserve_base() -> usize {
-    core::ptr::from_ref(&RESERVE_MEM).expose_provenance()
+    core::ptr::from_ref(&RESERVE_MEM.0).expose_provenance()
 }
 
 /// Whether `addr` is in the reserve.
@@ -367,15 +579,19 @@ fn reserve_free(addr: usize, size: usize) -> bool {
 
 // ------------------------------------------------------------------------------ the C family
 
-/// The C `malloc` family's debugging state (`liella_legacy::malloc_debug`; D-3.5 as decided
-/// in phase 13): `M_PERTURB`, `mcheck`, `mtrace`. In the products (feature `export`) Liella's
+/// The C `malloc` family's debugging state (`niji_legacy::malloc_debug`; D-3.5 as decided
+/// in phase 13): `M_PERTURB`, `mcheck`, `mtrace`. In the products (feature `export`) libniji's
 /// heap serves the process from its start, so the state starts as `VIRGIN` and `mcheck` can
 /// succeed before the first allocation; in a test build the host's allocator served the
 /// process first, so it is always too late there. A test build (`selftest` without `runtime`:
 /// the host started the process, so [`perturb_from_start`] never ran) starts with `ENVIRON`
 /// as well: its first call through the C family reads [`TEST_PERTURB`] ([`begin`]).
+/// Every build starts with [`malloc_debug::FOREIGN`] (D-X.60): until the runtime takes the
+/// process, the heap words of the thread blocks are not known to be libniji's, so every C entry
+/// takes its general path, whose pages ([`KernelPages`]) ask whose block it is.
 pub(crate) static DEBUG: Debug = Debug::new(
-    (if cfg!(feature = "export") { malloc_debug::VIRGIN } else { 0 })
+    malloc_debug::FOREIGN
+        | (if cfg!(feature = "export") { malloc_debug::VIRGIN } else { 0 })
         | if cfg!(all(feature = "selftest", not(feature = "runtime"))) { malloc_debug::ENVIRON } else { 0 },
 );
 
@@ -383,7 +599,7 @@ pub(crate) static DEBUG: Debug = Debug::new(
 /// The test runner sets it so that every test poisons the blocks it frees and a read after
 /// `free` sees the fill byte on every host, instead of whatever a reuse left there. Its own name,
 /// not `MALLOC_PERTURB_`, so that the host's allocator (cargo, rustc) does not perturb too.
-pub const TEST_PERTURB: &[u8] = b"LIELLA_TEST_MALLOC_PERTURB";
+pub const TEST_PERTURB: &[u8] = b"NIJI_TEST_MALLOC_PERTURB";
 
 /// [`Debug::begin`] for the debugging paths; in a test build the first one takes its settings
 /// from the environment ([`malloc_debug::ENVIRON`]).
@@ -431,7 +647,7 @@ impl Mem for BlockMem {
         // memory of that length.
         let b = unsafe { crate::conv::buf(core::ptr::with_exposed_provenance(addr), out.len()) };
         if let Ok(b) = b {
-            liella::bytes::copy(out, b);
+            niji::bytes::copy(out, b);
         }
     }
     fn write(&self, addr: usize, bytes: &[u8]) {
@@ -440,7 +656,7 @@ impl Mem for BlockMem {
         // SAFETY: as `read`: the guards of a block the calling operation just allocated.
         let b = unsafe { crate::conv::buf_mut(core::ptr::with_exposed_provenance_mut(addr), bytes.len()) };
         if let Ok(b) = b {
-            liella::bytes::copy(b, bytes);
+            niji::bytes::copy(b, bytes);
         }
     }
     fn fill(&self, addr: usize, len: usize, byte: u8) {
@@ -449,7 +665,7 @@ impl Mem for BlockMem {
         // SAFETY: as `write`: a block the calling operation allocated or is releasing.
         let b = unsafe { crate::conv::buf_mut(core::ptr::with_exposed_provenance_mut(addr), len) };
         if let Ok(b) = b {
-            liella::bytes::fill(b, byte);
+            niji::bytes::fill(b, byte);
         }
     }
     fn copy(&self, from: usize, to: usize, len: usize) {
@@ -502,7 +718,7 @@ pub(crate) fn c_malloc(n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return debug_alloc(n, ALIGN, false);
     }
-    malloc_compat::malloc(&CTX, n)
+    malloc_compat::malloc(&OWN_CTX, n)
 }
 
 /// `malloc`'s entry point (TARC-ALLOC): the heap's fast path inline, everything else (the
@@ -512,7 +728,7 @@ pub(crate) fn c_malloc(n: usize) -> KResult<usize> {
 #[inline(always)]
 pub(crate) fn malloc_entry(n: usize) -> *mut core::ffi::c_void {
     if !DEBUG.active() {
-        if let Some(b) = Heap::alloc_fast(&KernelPages, n, ALIGN) {
+        if let Some(b) = Heap::alloc_fast(&OwnPages, n, ALIGN) {
             return core::ptr::with_exposed_provenance_mut(b.addr);
         }
     }
@@ -527,7 +743,7 @@ fn malloc_general(n: usize) -> *mut core::ffi::c_void {
     if DEBUG.active() {
         return crate::ret::null(debug_alloc(n, ALIGN, false));
     }
-    if let Some(b) = Heap::alloc_group(&KernelPages, n) {
+    if let Some(b) = Heap::alloc_group(&OwnPages, n) {
         return core::ptr::with_exposed_provenance_mut(b.addr);
     }
     crate::ret::null(HEAP.alloc_slow(&CSys, &KernelPages, n, ALIGN).map(|b| b.addr).ok_or(Errno::ENOMEM))
@@ -538,7 +754,7 @@ fn malloc_general(n: usize) -> *mut core::ffi::c_void {
 /// and four real frees per file). The same effect as `checked("free", c_free(p))`.
 #[inline(always)]
 pub(crate) fn free_entry(p: usize) {
-    if p == 0 || (!DEBUG.active() && Heap::free_hint(&KernelPages, p)) {
+    if p == 0 || (!DEBUG.active() && Heap::free_hint(&OwnPages, p)) {
         return;
     }
     free_general(p);
@@ -550,7 +766,7 @@ pub(crate) fn free_entry(p: usize) {
 fn free_general(p: usize) {
     let r = if DEBUG.active() {
         debug_free(p)
-    } else if Heap::free_seg(&KernelPages, p) {
+    } else if Heap::free_seg(&OwnPages, p) {
         return;
     } else {
         HEAP.free_slow(&CSys, &KernelPages, p)
@@ -564,7 +780,7 @@ pub(crate) fn c_calloc(k: usize, n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return k.checked_mul(n).ok_or(Errno::ENOMEM).and_then(|t| debug_alloc(t, ALIGN, true));
     }
-    malloc_compat::calloc(&CTX, k, n, zero_fresh)
+    malloc_compat::calloc(&OWN_CTX, k, n, zero_fresh)
 }
 
 /// `realloc`.
@@ -576,17 +792,30 @@ pub(crate) fn c_realloc(p: usize, n: usize) -> Result<KResult<usize>, Misuse> {
     // `realloc(NULL, n)` is `malloc(n)` (s3_1_c_3_1): taken here, before the resize path's
     // larger frame (REALLOC-FUSE; about a fifth of real reallocs).
     if p == 0 {
-        return Ok(malloc_compat::malloc(&CTX, n));
+        return Ok(malloc_compat::malloc(&OWN_CTX, n));
     }
-    malloc_compat::realloc(&CTX, p, n, copy_blocks)
+    malloc_compat::realloc(&OWN_CTX, p, n, copy_blocks)
 }
 
-/// Whether `realloc(p, n)` returns `p` itself: a live small block of the thread's current slab
-/// whose class still fits `n` (the first test of the resize path, REALLOC-FUSE). Inlined into
-/// the export, so that this case returns before the frame the rest needs.
+/// The first test of the resize path for `realloc(p, n)` (REALLOC-FUSE, REALLOC-ONE-LOOKUP):
+/// [`Fit::Same`] returns `p` itself (a live small block of the thread's current slab whose
+/// class still fits `n`), [`Fit::Held`] goes to [`c_realloc_held`] with the block already
+/// found. Inlined into the export, so that the in-place case returns before the frame the rest
+/// needs. Not while debugging: [`Fit::Other`], the full path.
 #[inline(always)]
-pub(crate) fn c_realloc_fits(p: usize, n: usize) -> bool {
-    p != 0 && !DEBUG.active() && Heap::fits_in_place(&KernelPages, p, n)
+pub(crate) fn c_realloc_fit(p: usize, n: usize) -> Fit {
+    if p == 0 || DEBUG.active() {
+        return Fit::Other;
+    }
+    Heap::fit(&OwnPages, p, n)
+}
+
+/// `realloc(p, n)` of the block [`c_realloc_fit`] found as `h`: moved without a second lookup
+/// (or by the general resize path on a miss; misuse is reported as `realloc` does). A held
+/// block comes only from [`c_realloc_fit`] with [`DEBUG`]'s word clear ([`OwnPages`]).
+#[inline(always)]
+pub(crate) fn c_realloc_held(p: usize, n: usize, h: Held) -> Result<KResult<usize>, Misuse> {
+    Ok(HEAP.resize_held(&CSys, &KernelPages, p, n, h, copy_blocks)?.map(|b| b.addr).ok_or(Errno::ENOMEM))
 }
 
 /// `reallocarray`.
@@ -611,7 +840,7 @@ pub(crate) fn c_free(p: usize) -> Result<(), Misuse> {
     if DEBUG.active() {
         return debug_free(p);
     }
-    malloc_compat::free(&CTX, p)
+    malloc_compat::free(&OWN_CTX, p)
 }
 
 /// `aligned_alloc` (and the native interface's allocation).
@@ -620,7 +849,7 @@ pub(crate) fn c_aligned_alloc(align: usize, n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return malloc_compat::aligned_request(align).and_then(|a| debug_alloc(n, a, false));
     }
-    malloc_compat::aligned_alloc(&CTX, align, n)
+    malloc_compat::aligned_alloc(&OWN_CTX, align, n)
 }
 
 /// `aligned_alloc` with the block zeroed (the native interface).
@@ -629,7 +858,7 @@ pub(crate) fn c_aligned_calloc(align: usize, n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return malloc_compat::aligned_request(align).and_then(|a| debug_alloc(n, a, true));
     }
-    malloc_compat::aligned_calloc(&CTX, align, n, zero_fresh)
+    malloc_compat::aligned_calloc(&OWN_CTX, align, n, zero_fresh)
 }
 
 /// `memalign`.
@@ -638,18 +867,18 @@ pub(crate) fn c_memalign(align: usize, n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return malloc_compat::memalign_request(align).and_then(|a| debug_alloc(n, a, false));
     }
-    malloc_compat::memalign(&CTX, align, n)
+    malloc_compat::memalign(&OWN_CTX, align, n)
 }
 
 /// `posix_memalign`.
 #[inline(always)]
-pub(crate) fn c_posix_memalign(mut out: impl liella_legacy::string_compat::Cursor, align: usize, n: usize) -> KResult<()> {
+pub(crate) fn c_posix_memalign(mut out: impl niji_legacy::string_compat::Cursor, align: usize, n: usize) -> KResult<()> {
     if DEBUG.active() {
         let p = malloc_compat::posix_memalign_request(align).and_then(|a| debug_alloc(n, a, false))?;
         out.set(p);
         return Ok(());
     }
-    malloc_compat::posix_memalign(&CTX, out, align, n)
+    malloc_compat::posix_memalign(&OWN_CTX, out, align, n)
 }
 
 /// `valloc`.
@@ -658,7 +887,7 @@ pub(crate) fn c_valloc(n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return debug_alloc(n, PAGE, false);
     }
-    malloc_compat::valloc(&CTX, n)
+    malloc_compat::valloc(&OWN_CTX, n)
 }
 
 /// `pvalloc`.
@@ -667,7 +896,7 @@ pub(crate) fn c_pvalloc(n: usize) -> KResult<usize> {
     if DEBUG.active() {
         return malloc_compat::pvalloc_size(n).and_then(|s| debug_alloc(s, PAGE, false));
     }
-    malloc_compat::pvalloc(&CTX, n)
+    malloc_compat::pvalloc(&OWN_CTX, n)
 }
 
 /// `malloc_usable_size`: a checked block's requested size.
@@ -679,22 +908,26 @@ pub(crate) fn c_usable_size(p: usize) -> Result<usize, Misuse> {
     malloc_compat::usable_size(&CTX, p)
 }
 
-/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing.
+/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing. The buffer exists
+/// only then (HEAP-FOREIGN-TB-SPEED): zeroing and moving 256 bytes on every call through the
+/// debugging paths was about 45% of a foreign thread's `malloc`/`free` pair (every operation of
+/// a process the runtime did not start comes here, `FOREIGN`).
 struct Caller {
-    buf: [u8; 256],
+    buf: Option<[u8; 256]>,
     len: usize,
 }
 
 impl Caller {
     fn new(f: u32) -> Caller {
-        let mut c = Caller { buf: [0; 256], len: 0 };
-        if f & malloc_debug::TRACE != 0 {
-            c.len = crate::backtrace::caller_text(&entry_points(), &mut c.buf);
+        if f & malloc_debug::TRACE == 0 {
+            return Caller { buf: None, len: 0 };
         }
-        c
+        let mut buf = [0; 256];
+        let len = crate::backtrace::caller_text(&entry_points(), &mut buf);
+        Caller { buf: Some(buf), len }
     }
     fn text(&self) -> &[u8] {
-        self.buf.get(..self.len).unwrap_or(&[])
+        self.buf.as_ref().and_then(|b| b.get(..self.len)).unwrap_or(&[])
     }
 }
 
@@ -711,9 +944,9 @@ fn entry_points() -> [usize; 25] {
     type Free = extern "C" fn(*mut c_void);
     type Resize = extern "C" fn(*mut c_void, usize) -> *mut c_void;
     let size: [Size; 6] = [m::malloc, m::__libc_malloc, m::valloc, m::__libc_valloc, m::pvalloc, m::__libc_pvalloc];
-    let two: [Two; 7] = [m::calloc, m::__libc_calloc, m::aligned_alloc, m::memalign, m::__libc_memalign, n::liella_heap_alloc, n::liella_heap_alloc_zeroed];
-    let free: [Free; 4] = [m::free, m::__libc_free, m::cfree, n::liella_heap_free];
-    let resize: [Resize; 3] = [m::realloc, m::__libc_realloc, n::liella_heap_realloc];
+    let two: [Two; 7] = [m::calloc, m::__libc_calloc, m::aligned_alloc, m::memalign, m::__libc_memalign, n::niji_heap_alloc, n::niji_heap_alloc_zeroed];
+    let free: [Free; 4] = [m::free, m::__libc_free, m::cfree, n::niji_heap_free];
+    let resize: [Resize; 3] = [m::realloc, m::__libc_realloc, n::niji_heap_realloc];
     let array: extern "C" fn(*mut c_void, usize, usize) -> *mut c_void = m::reallocarray;
     let posix: extern "C" fn(Option<&mut *mut c_void>, usize, usize) -> c_int = m::posix_memalign;
     let alloc: fn(usize, usize, bool) -> KResult<usize> = debug_alloc;
@@ -741,7 +974,7 @@ fn report(status: i32) {
             crate::ret::abort()
         }
         f => {
-            let _ = crate::ffi::liella_machine_call3(f, i64::from(status), 0, 0);
+            let _ = crate::ffi::niji_machine_call3(f, i64::from(status), 0, 0);
         }
     }
 }
@@ -757,6 +990,9 @@ fn pedantic(f: u32) {
 #[inline(never)]
 fn debug_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
     let f = begin(true);
+    if f == malloc_debug::FOREIGN {
+        return foreign_alloc(n, align, zero);
+    }
     let caller = Caller::new(f);
     pedantic(f);
     DEBUG.alloc(&CTX, &BlockMem, Call { flags: f, caller: caller.text() }, n, align, zero)
@@ -769,11 +1005,49 @@ fn debug_free(p: usize) -> Result<(), Misuse> {
     if p == 0 {
         return Ok(());
     }
+    if f == malloc_debug::FOREIGN {
+        return foreign_free(p);
+    }
     let caller = Caller::new(f);
     pedantic(f);
     let (r, status) = DEBUG.free(&CTX, &BlockMem, Call { flags: f, caller: caller.text() }, p);
     report(status);
     r
+}
+
+/// [`debug_alloc`] with no debugging on in a process the runtime did not start ([`DEBUG`]'s word
+/// is [`malloc_debug::FOREIGN`] alone, D-X.60): what `Debug::alloc` does with those flags, the
+/// heap's allocation (zeroed for `calloc`), with the calling thread's cache word found once
+/// ([`foreign::ForeignPages`]) instead of at each read the heap makes (each a registry probe
+/// through [`KernelPages`]), and without the steps of the debugging that is off
+/// (HEAP-FOREIGN-PAIR). Out of line and cold: `debug_alloc` runs at start-up (the first
+/// allocation clears `VIRGIN`), and inlined there the route grew it past its start-up layout
+/// window (WINDOW-BIN-BYTES); `debug_alloc` gains only the test and the call.
+#[cold]
+#[inline(never)]
+fn foreign_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
+    let b = match crate::thread::heap_cache_slot() {
+        Some(s) => HEAP.alloc(&CSys, &foreign::ForeignPages(s), n, align),
+        // No cache word (the registry had no room): `Heap::alloc`'s fast path finds no cache.
+        None => HEAP.alloc_slow(&CSys, &KernelPages, n, align),
+    };
+    let b = b.ok_or(Errno::ENOMEM)?;
+    if zero {
+        zero_fresh(b.addr, n);
+    }
+    Ok(b.addr)
+}
+
+/// [`debug_free`] of `p` (not NULL) with the flags [`foreign_alloc`] serves: the heap's release,
+/// with the cache word found once. Out of line and cold, as [`foreign_alloc`].
+#[cold]
+#[inline(never)]
+fn foreign_free(p: usize) -> Result<(), Misuse> {
+    match crate::thread::heap_cache_slot() {
+        Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p),
+        // No cache word: `Heap::free`'s fast path finds no cache.
+        None => HEAP.free_slow(&CSys, &KernelPages, p),
+    }
 }
 
 #[cold]
@@ -838,7 +1112,10 @@ pub fn drained() -> &'static Ctx<'static, CSys, KernelPages> {
 }
 
 /// `M_PERTURB` from the environment at start (`MALLOC_PERTURB_`, which the tunable
-/// `glibc.malloc.perturb` overrides; both removed in a secure process).
+/// `glibc.malloc.perturb` overrides; both removed in a secure process). Inlined into both
+/// instances of `runtime::start` (D-27.10: the non-PIE start costs what it did before the
+/// static-PIE one).
+#[inline(always)]
 pub fn perturb_from_start(tunable: Option<u8>) {
     let env = crate::process::getenv(crate::startup_names::MALLOC_PERTURB).map(crate::strz::env_value).and_then(malloc_debug::perturb_value);
     if let Some(v) = tunable.or(env) {
@@ -870,7 +1147,7 @@ impl StreamLines {
     }
 }
 
-impl liella::num::format::Sink for StreamLines {
+impl niji::num::format::Sink for StreamLines {
     fn put(&mut self, mut bytes: &[u8]) {
         // A run at a time: up to the next newline (which ends the line) or the buffer's end.
         while !bytes.is_empty() {
@@ -918,10 +1195,155 @@ pub fn malloc_info(options: core::ffi::c_int, fp: usize) -> KResult<()> {
 /// A heap block of `n` 8-byte words for an object the library hands to C (a `locale_t`):
 /// its address, or `None` when memory is exhausted.
 pub(crate) fn alloc_words(n: usize) -> Option<usize> {
-    liella_legacy::malloc_compat::malloc(&CTX, n.checked_mul(8)?).ok().filter(|a| *a != 0)
+    niji_legacy::malloc_compat::malloc(&CTX, n.checked_mul(8)?).ok().filter(|a| *a != 0)
 }
 
 /// Release a block [`alloc_words`] returned.
 pub(crate) fn free_words(addr: usize) {
-    checked("freelocale", liella_legacy::malloc_compat::free(&CTX, addr));
+    checked("freelocale", niji_legacy::malloc_compat::free(&CTX, addr));
+}
+
+// The last impl of the module on purpose: the mangled names of a module's impls number them in
+// source order, and the hot-text list keys the functions of the impls above by those numbers.
+impl Pages for OwnPages {
+    type General = KernelPages;
+    #[inline(always)]
+    fn general(&self) -> &KernelPages {
+        &KernelPages
+    }
+    #[inline(always)]
+    fn map(&self, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        KernelPages.map(len, align, node)
+    }
+    #[inline(always)]
+    fn unmap(&self, addr: usize, len: usize) {
+        KernelPages.unmap(addr, len);
+    }
+    #[inline(always)]
+    fn discard(&self, addr: usize, len: usize) {
+        KernelPages.discard(addr, len);
+    }
+    #[inline(always)]
+    fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
+        KernelPages.remap(addr, old_len, new_len)
+    }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        KernelPages.map_room(head, len, room, align, node)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        KernelPages.grow(addr, len, node)
+    }
+    #[inline(always)]
+    fn wipe(&self, addr: usize, len: usize) {
+        KernelPages.wipe(addr, len);
+    }
+    #[inline(always)]
+    fn exclude_from_dumps(&self, addr: usize, len: usize) {
+        KernelPages.exclude_from_dumps(addr, len);
+    }
+    #[inline(always)]
+    fn shard(&self) -> usize {
+        KernelPages.shard()
+    }
+    #[inline(always)]
+    fn allowed_nodes(&self) -> usize {
+        KernelPages.allowed_nodes()
+    }
+    #[inline(always)]
+    fn cache_slot(&self) -> Option<&AtomicUsize> {
+        KernelPages.cache_slot()
+    }
+    #[inline(always)]
+    fn cache_word(&self) -> usize {
+        // HEAP-CUTS2 C4: one `%fs`-relative load (plan S2 category tb-field); the block is
+        // libniji's (see the type).
+        crate::tb::read::<crate::tb::HeapCache>()
+    }
+    #[inline(always)]
+    fn address_limit(&self) -> Option<usize> {
+        KernelPages.address_limit()
+    }
+    #[inline(always)]
+    fn words(&self, addr: usize, n: usize) -> &[AtomicU64] {
+        KernelPages.words(addr, n)
+    }
+}
+
+/// The pages of [`foreign_alloc`] and [`foreign_free`]. A module of its own, so that the impls of
+/// this module keep their numbers (the hot-text list keys their functions by them, see above).
+mod foreign {
+    use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::Relaxed};
+
+    use niji_rt::heap::Pages;
+
+    use super::KernelPages;
+
+    /// [`KernelPages`] with the calling thread's heap cache word already found (the slot
+    /// `thread::heap_cache_slot` gives, for one operation): the fast paths read it with one load
+    /// instead of an out-of-line call and a registry probe per read. The same word
+    /// [`KernelPages`] reads; everything else, the slow paths included ([`Pages::General`]), is
+    /// [`KernelPages`]'s.
+    pub(super) struct ForeignPages(pub(super) &'static AtomicUsize);
+
+    impl Pages for ForeignPages {
+        type General = KernelPages;
+        #[inline(always)]
+        fn general(&self) -> &KernelPages {
+            &KernelPages
+        }
+        #[inline(always)]
+        fn map(&self, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+            KernelPages.map(len, align, node)
+        }
+        #[inline(always)]
+        fn unmap(&self, addr: usize, len: usize) {
+            KernelPages.unmap(addr, len);
+        }
+        #[inline(always)]
+        fn discard(&self, addr: usize, len: usize) {
+            KernelPages.discard(addr, len);
+        }
+        #[inline(always)]
+        fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
+            KernelPages.remap(addr, old_len, new_len)
+        }
+        fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+            KernelPages.map_room(head, len, room, align, node)
+        }
+        fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+            KernelPages.grow(addr, len, node)
+        }
+        #[inline(always)]
+        fn wipe(&self, addr: usize, len: usize) {
+            KernelPages.wipe(addr, len);
+        }
+        #[inline(always)]
+        fn exclude_from_dumps(&self, addr: usize, len: usize) {
+            KernelPages.exclude_from_dumps(addr, len);
+        }
+        #[inline(always)]
+        fn shard(&self) -> usize {
+            KernelPages.shard()
+        }
+        #[inline(always)]
+        fn allowed_nodes(&self) -> usize {
+            KernelPages.allowed_nodes()
+        }
+        #[inline(always)]
+        fn cache_slot(&self) -> Option<&AtomicUsize> {
+            Some(self.0)
+        }
+        #[inline(always)]
+        fn cache_word(&self) -> usize {
+            self.0.load(Relaxed)
+        }
+        #[inline(always)]
+        fn address_limit(&self) -> Option<usize> {
+            KernelPages.address_limit()
+        }
+        #[inline(always)]
+        fn words(&self, addr: usize, n: usize) -> &[AtomicU64] {
+            KernelPages.words(addr, n)
+        }
+    }
 }

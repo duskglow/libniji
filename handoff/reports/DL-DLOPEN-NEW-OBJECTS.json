@@ -1,0 +1,18 @@
+{"task": "DL-DLOPEN-NEW-OBJECTS", "model": "opus", "tokens": null,
+ "result": "One dlopen call adds any number of new objects (HL-4): NEW_MAX 64, the 1024 u8 edge array and the 64-entry TLS tables replaced by growing Tables reserved before publication; failure is '<file>: cannot allocate memory'",
+ "branch": "task/dl-dlopen-new-objects", "head": "58d1e52c7",
+ "gate": {"affected": "pending: dl-dlopen-new-objects-final (lint, affected --run, xtask test, full-profile hot_text_products); new tests 2 passed / 0 failed (dl-dlopen-new-objects-t4)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "Under an address-space limit some refused dlopens leave dlerror NULL or report 'ELF load command address/offset not page-aligned' / 'cannot read file data' when an object's mapping fails (existing mapping paths, not this change)", "recommendation": "follow-up: report a failed object mapping as 'cannot allocate memory' and always set a dlerror text on a failed dlopen"},
+   {"item": "Not covered by a plant: close_end's batch release and the SetTables/edge reservation failure paths (need a mapping failure at that exact point)", "recommendation": "accept; the address-space sweep shows no signal in the area"}],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "dlopen of a set with more than 64 new objects (libgtk-3 from a libc-only process, 67) failed with 'cannot load more objects in one call'; now 301 new objects in one call load, bind, run constructors in order, close and reload as the reference does", "before": 64, "after": null, "unit": "max new objects per dlopen", "measured": true},
+   {"kind": "correctness", "what": "dlclose of a set with more than 64 TLS modules left the IDs past 64 in the new-thread template; now all are released", "before": 64, "after": null, "unit": "TLS modules released per dlclose", "measured": false},
+   {"kind": "coverage", "what": "tests dlopen_new_objects_past_every_old_bound, dlopen_new_objects_out_of_memory_is_clean; 10 plants", "before": 0, "after": 2, "unit": "tests", "measured": true}],
+ "improvement": "the plants tool refuses a two-site literal only when the job starts; a local 'cargo xtask plants --check <file>' (pattern uniqueness, no build) would save a job round-trip",
+ "next_step": "HL-3 (process CAP 512, readers' table, THREAD_MODS, exit order) and HL-5 (NAMES/DEPS arenas) stories",
+ "report_file": "handoff/DL-DLOPEN-NEW-OBJECTS.md",
+ "jobs": ["dl-dlopen-new-objects-final", "dl-dlopen-new-objects-plants3", "dl-dlopen-new-objects-t4"]}

@@ -17,7 +17,7 @@
 //! At runtime this crate is both ends of the stack: C callers enter through `posix` (or, for
 //! programs not written against POSIX's conventions, through the native C ABI, `native`,
 //! D-X.10), the clean
-//! library runs generic over `liella_kernel::Sys`, and `sys::CSys` reaches the kernel through
+//! library runs generic over `niji_kernel::Sys`, and `sys::CSys` reaches the kernel through
 //! `ffi`. In Cargo terms it depends on everything and nothing depends on it, so there is no
 //! cycle.
 
@@ -47,6 +47,7 @@ pub mod mathret;
 pub mod strz;
 pub mod heap;
 pub mod cpu;
+pub mod classed;
 mod diag;
 pub mod tb;
 pub mod process;
@@ -78,6 +79,7 @@ pub mod spawn;
 pub mod timer;
 pub mod zone;
 pub mod netaddr;
+pub mod rpc_text;
 pub mod users;
 pub mod mntent;
 pub mod terminal;
@@ -91,9 +93,19 @@ pub mod aio;
 mod stacks;
 #[cfg(feature = "runtime")]
 pub mod runtime;
+#[cfg(any(feature = "runtime", feature = "ld"))]
+mod bootstrap;
+#[cfg(feature = "ld")]
+mod arch;
+#[cfg(feature = "ld")]
+pub mod ld;
+#[cfg(feature = "ldconfig")]
+pub mod ldconfig;
+pub mod dlerr;
 pub mod export;
 pub mod data;
 pub mod caller_alloc;
 pub mod va_source;
 pub mod posix;
 pub mod native;
+pub mod owner;

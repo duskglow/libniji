@@ -1,9 +1,10 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # THE WORKLOAD GATE: real programs (coreutils, sed, bash, grep, gawk, diffutils, tar, gzip,
-# make, built statically against Liella) timed against the same programs on glibc, for a
-# Liella commit and a baseline commit (INVIOLABLE rule of the owner, 2026-10-09: no real
-# workload may get slower overall).
+# make, built statically against libniji) timed against the same programs on glibc, for a
+# libniji commit and a baseline commit (INVIOLABLE rule of the owner, 2026-10-09: no real
+# workload may get slower overall). Since owner ruling #6965 (2026-11-20, D-X.141) the INVIOLABLE rule binds the
+# DYNAMIC kit through the deterministic counts (wl_count.sh + wl_verdict.py); this timing gate stays static.
 #
 #   validation/wl_gate.sh [--prep] [--time] [--report] NEW_SHA [BASE_SHA]
 #
@@ -22,7 +23,8 @@
 # glibc / BASE / NEW interleaved per workload; --report: wl_report.py per host (the table, the
 # noise bands, WL-GATE PASS or FAIL; a failing workload is re-measured once first).
 # Results: <host>:~/wl/out/<new>-<host>.tsv (+ -retry.tsv); the table is printed.
-# Caches: keke:~/wl/{src,products,kit}/<sha> are reused.
+# Caches: keke:~/wl/src/<sha> and ~/wl/{products,kit}/<sha>-release (wl_key, validation/wl_lock.sh: the shipped release
+# profile) are reused.
 set -u
 steps=
 while [ $# -gt 0 ]; do case $1 in --prep|--time|--report) steps="$steps $1"; shift ;; *) break ;; esac; done
@@ -33,16 +35,17 @@ hosts=${HOSTS:-"nozomi nico"}
 here=$(cd "$(dirname "$0")" && pwd)
 ns=${new:0:9}
 bs=${base:0:9}
-keke="ssh -o BatchMode=yes claude@10.0.100.53"
-hip() { # host -> address: the ONE host map (add new timing hosts here only)
+. "$here/lab_host.sh"
+. "$here/wl_lock.sh"   # wl_key: kits and products are keyed by sha and products profile (release, what ships; WL-PREP-RELEASE-PROFILE)
+# The timing run copies kits to the timing hosts; a dynamic kit names its products by absolute path on the build host,
+# which the copy does not carry. So this timing gate stays on the static kit (WL_LINK=static) while the deterministic
+# per-gate counts (wl_count.sh) bind the dynamic one (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141).
+export WL_LINK=static
+nk=$(wl_key "$new") && bk=$(wl_key "$base") || exit 2
+keke="ssh -o BatchMode=yes claude@$(lab_addr keke)"
+hip() { # host -> address (validation/lab_host.sh; addresses live on the operator's machine, never in the repo)
     case $1 in
-        keke) echo 10.0.100.53 ;;
-        shiki) echo 10.0.100.66 ;;
-        nico) echo 10.0.100.112 ;;
-        kotori) echo 10.0.100.115 ;;
-        nozomi) echo 10.0.100.118 ;;
-        kanon) echo 10.0.100.81 ;;
-        natsumi) echo 10.0.0.36 ;; # loaned Ryzen 5 5500 (Zen 3), other subnet, until the 10-25 spin-down
+        keke|shiki|nico|kotori|nozomi|kanon|natsumi) lab_addr "$1" ;;
         *) echo "wl_gate: unknown host $1" >&2; exit 2 ;;
     esac
 }
@@ -76,8 +79,8 @@ wlsig() { # paths -> remote command printing "<path> <md5 of its find listing: n
 }
 relay() { # host: stream what the host lacks (or holds in another version) keke -> this machine -> host, one tar
     local h=$1 want todo
-    $keke "cd ~/wl && test -d kit/glibc && test -d kit/$new && test -d kit/$base" || { echo "wl_gate: kits missing on keke"; return 1; }
-    want="work kit/glibc kit/$new kit/$base $($keke 'cd ~/wl && echo bin/*')"
+    $keke "cd ~/wl && test -d kit/glibc && test -d kit/$nk && test -d kit/$bk" || { echo "wl_gate: kits missing on keke"; return 1; }
+    want="work kit/glibc kit/$nk kit/$bk $($keke 'cd ~/wl && echo bin/*')"
     todo=$(LC_ALL=C comm -23 <($keke "$(wlsig $want)" | LC_ALL=C sort) <($(hssh "$h") "$(wlsig $want)" | LC_ALL=C sort) | cut -d' ' -f1 | paste -sd' ')
     [ -n "$todo" ] || { echo "wl_gate: $h is up to date (relay)"; return 0; }
     echo "wl_gate: relaying to $h through this machine: $todo"
@@ -89,7 +92,7 @@ copy() { # host: kits, inputs and scripts to a timing host; keke -> host directl
     local h=$1 ip
     ip=$(hip "$h") || return 1
     if [ "${WL_RELAY:-0}" != 1 ] && $keke "ssh -o BatchMode=yes -o ConnectTimeout=5 claude@$ip true" 2>/dev/null; then
-        $keke "ssh -o BatchMode=yes claude@$ip 'mkdir -p ~/wl/out ~/wl/kit' && rsync -a -e 'ssh -o BatchMode=yes' ~/wl/bin ~/wl/work claude@$ip:wl/ && rsync -a -e 'ssh -o BatchMode=yes' ~/wl/kit/glibc ~/wl/kit/$new ~/wl/kit/$base claude@$ip:wl/kit/" || { echo "wl_gate: rsync to $h failed"; return 1; }
+        $keke "ssh -o BatchMode=yes claude@$ip 'mkdir -p ~/wl/out ~/wl/kit' && rsync -a -e 'ssh -o BatchMode=yes' ~/wl/bin ~/wl/work claude@$ip:wl/ && rsync -a -e 'ssh -o BatchMode=yes' ~/wl/kit/glibc ~/wl/kit/$nk ~/wl/kit/$bk claude@$ip:wl/kit/" || { echo "wl_gate: rsync to $h failed"; return 1; }
     else
         relay "$h" || { echo "wl_gate: relay to $h failed"; return 1; }
     fi
@@ -99,10 +102,10 @@ $keke "mkdir -p ~/wl/bin ~/wl/out"
 . "$here/wl_install.sh"; wl_install_scripts || exit 1   # B = ~/wl/bin/v-<hash>, never overwritten; needed by EVERY step
 case " $steps " in *" --prep "*)
     for s in $new $base; do
-        $keke "test -f ~/wl/products/$s/libc.a || test -d ~/wl/src/$s" || \
+        $keke "test -f ~/wl/products/$(wl_key "$s")/libc.a || test -d ~/wl/src/$s" || \
             { git archive --format=tar "$s" | $keke "t=~/wl/src/.$s.\$\$; rm -rf \$t; mkdir -p \$t && tar -x -C \$t && { mv -T \$t ~/wl/src/$s 2>/dev/null || rm -rf \$t; }"; }
     done
-    long keke "wl-prep-$ns" 0 "bash $B/wl_prep.sh $new $base"
+    long keke "wl-prep-$ns" 0 "WL_LINK=static bash $B/wl_prep.sh $new $base"
     await keke "wl-prep-$ns"
     $keke "test \"\$(cat ~/logs/wl-prep-$ns.done)\" = 0" || { echo "wl_gate: prep failed (keke:~/logs/wl-prep-$ns.log)"; exit 1; } ;;
 esac
@@ -111,7 +114,7 @@ case " $steps " in *" --time "*)
     for h in $hosts; do
         copy "$h" || exit 1
         [ "${WL_COPY_ONLY:-0}" = 1 ] && continue
-        long "$h" "wl-$ns" 1 "bash $B/wl_run.sh ~/wl/out/$ns-$h.tsv glibc $base $new"
+        long "$h" "wl-$ns" 1 "WL_LINK=static bash $B/wl_run.sh ~/wl/out/$ns-$h.tsv glibc $base $new"
     done
     [ "${WL_COPY_ONLY:-0}" = 1 ] && exit 0
     for h in $hosts; do await "$h" "wl-$ns"; done ;;
@@ -128,16 +131,16 @@ case " $steps " in *" --report "*)
         if [ "${RETRY:-1}" = 1 ] && echo "$out" | grep -q '^WL-GATE FAIL'; then
             names=$(echo "$out" | sed -n 's/^WL-GATE FAIL: //p' | tr ',' '\n' | sed 's/ //g; s/(.*//' | paste -sd'|')
             echo "re-measuring: $names"
-            long "$h" "wl-$ns-retry" 1 "ONLY='^($names)\$' bash $B/wl_run.sh ~/wl/out/$ns-$h-retry.tsv glibc $base $new"
+            long "$h" "wl-$ns-retry" 1 "ONLY='^($names)\$' WL_LINK=static bash $B/wl_run.sh ~/wl/out/$ns-$h-retry.tsv glibc $base $new"
             await "$h" "wl-$ns-retry"
             out=$($(hssh "$h") "python3 $B/wl_report.py $new $base ~/wl/out/$ns-$h.tsv ~/wl/out/$ns-$h-retry.tsv --host $h")
         fi
         echo "$out"
         echo "$out" | grep -q '^WL-GATE PASS' || rc=1
-        # Attribution: top Liella symbols (instructions) for the workloads that failed a counter.
+        # Attribution: top libniji symbols (instructions) for the workloads that failed a counter.
         names=$(echo "$out" | sed -n 's/^WL-GATE FAIL: //p' | grep -oE '[a-zA-Z0-9-]+\((instr|pf|sys_[a-z]+)\)' | sed 's/(.*//' | sort -u | paste -sd' ')
         if [ -n "$names" ]; then
-            long "$h" "wl-$ns-attr" 1 "bash $B/wl_attr.sh $base $new $names > ~/wl/out/$ns-$h-attr.txt 2>&1"
+            long "$h" "wl-$ns-attr" 1 "WL_LINK=static bash $B/wl_attr.sh $base $new $names > ~/wl/out/$ns-$h-attr.txt 2>&1"
             await "$h" "wl-$ns-attr"
             $(hssh "$h") "cat ~/wl/out/$ns-$h-attr.txt"
         fi

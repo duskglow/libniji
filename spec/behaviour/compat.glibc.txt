@@ -58,14 +58,14 @@ fmemopen@GLIBC_2.2.5 [default] r+ "hello" size16: SEEK_END ftell=16 then "Z" buf
 realpath@GLIBC_2.2.5 "/" NULL: NULL errno=EINVAL | default: ok errno=0
 realpath@GLIBC_2.2.5 "." NULL: NULL errno=EINVAL | default: ok errno=0
 realpath@GLIBC_2.2.5 "" NULL: NULL errno=EINVAL | default: NULL errno=ENOENT
-realpath@GLIBC_2.2.5 "/nonexistent-liella/x" NULL: NULL errno=EINVAL | default: NULL errno=ENOENT
+realpath@GLIBC_2.2.5 "/nonexistent-niji/x" NULL: NULL errno=EINVAL | default: NULL errno=ENOENT
 realpath@GLIBC_2.2.5 "rp/loop" NULL: NULL errno=EINVAL | default: NULL errno=ELOOP
 realpath@GLIBC_2.2.5 "rp/file/" NULL: NULL errno=EINVAL | default: NULL errno=ENOTDIR
 realpath@GLIBC_2.2.5 "rp/dangling" NULL: NULL errno=EINVAL | default: NULL errno=ENOENT
 realpath@GLIBC_2.2.5 "/" buf: ok errno=0 | default: ok errno=0 results equal
 realpath@GLIBC_2.2.5 "." buf: ok errno=0 | default: ok errno=0 results equal
 realpath@GLIBC_2.2.5 "" buf: NULL errno=ENOENT | default: NULL errno=ENOENT
-realpath@GLIBC_2.2.5 "/nonexistent-liella/x" buf: NULL errno=ENOENT | default: NULL errno=ENOENT
+realpath@GLIBC_2.2.5 "/nonexistent-niji/x" buf: NULL errno=ENOENT | default: NULL errno=ENOENT
 realpath@GLIBC_2.2.5 "rp/loop" buf: NULL errno=ELOOP | default: NULL errno=ELOOP
 realpath@GLIBC_2.2.5 "rp/file/" buf: NULL errno=ENOTDIR | default: NULL errno=ENOTDIR
 realpath@GLIBC_2.2.5 "rp/dangling" buf: NULL errno=ENOENT | default: NULL errno=ENOENT

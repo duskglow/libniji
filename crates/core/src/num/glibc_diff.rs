@@ -3,15 +3,15 @@
 //! The test hosts run glibc 2.39, the reference. Each value goes through [`format_float`] here and
 //! through the host's `snprintf` (`double`), `strfromf` (`float`) or `strfroml` (x87 `long double`)
 //! in `tools/probe/printf_oracle.py` (its own process, so the calls reach the host library, never
-//! Liella's exports), in the same rounding mode, and the bytes must be identical. The values aim at
+//! libniji's exports), in the same rounding mode, and the bytes must be identical. The values aim at
 //! the hard cases: exact ties at a digit position, neighbours of decimal rounding boundaries, powers
 //! of ten, subnormals, the extremes, the `%g` style switch and hex rounding carries. `binary128` has
 //! no host path here (no `_Float128` argument type in the oracle); it shares every routine with the
 //! other formats and `tests/float_engine.rs` checks it.
 //!
 //! `differential_quick` runs in the suite; `differential_millions` (ignored) is the full run:
-//! `cargo test --release -p liella --lib glibc_diff -- --ignored --nocapture`, size from
-//! `LIELLA_GLIBC_DIFF_N` (default 2,000,000 `double` values plus a tenth as many `float` and x87).
+//! `cargo test --release -p niji --lib glibc_diff -- --ignored --nocapture`, size from
+//! `NIJI_GLIBC_DIFF_N` (default 2,000,000 `double` values plus a tenth as many `float` and x87).
 //! A host without `python3` fails these tests (it never skips them).
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)]
@@ -134,7 +134,7 @@ fn compare(cases: &[Case1]) {
     for (c, w) in cases.iter().zip(&want) {
         let mode = MODES[c.mode].0;
         let got = if c.ecvt { ecvt_text(c.bits, c.spec.precision.unwrap() + 1, mode) } else { ours(c.kind, c.bits, c.spec, mode) };
-        // Liella keeps C's `%#g` after a rounding carry (`%#.2g` of 99.5 is `1.0e+02`, P-1 digits
+        // libniji keeps C's `%#g` after a rounding carry (`%#.2g` of 99.5 is `1.0e+02`, P-1 digits
         // kept); the host prints `1.e+02`. Only that shape is excused (owner ruling 2026-10-22: keep C; COMPAT-8, D-8.11 (3)).
         let hash_g_carry = c.spec.style == Style::General && c.spec.alternate && (w.contains(".e") || w.contains(".E")) && {
             let (m, e) = got.split_once(['e', 'E']).unwrap_or((&got, ""));
@@ -311,9 +311,9 @@ fn bounded_counts_the_full_length() {
 }
 
 #[test]
-#[ignore = "minutes in release; the full differential run (LIELLA_GLIBC_DIFF_N)"]
+#[ignore = "minutes in release; the full differential run (NIJI_GLIBC_DIFF_N)"]
 fn differential_millions() {
-    let n = std::env::var("LIELLA_GLIBC_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(2_000_000u64);
+    let n = std::env::var("NIJI_GLIBC_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(2_000_000u64);
     // In slices, so the oracle's output for one slice stays in memory.
     for (k, seed) in (0..n.div_ceil(200_000)).zip([0x2545_F491_4F6C_DD1Du64, 0x9E37_79B9_7F4A_7C15].iter().cycle()) {
         compare(&cases(200_000, 20_000, seed ^ (k * 0x1000_0001)));

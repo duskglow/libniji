@@ -13,18 +13,18 @@
 //! and checks the export against what it read; nothing is written outside the temporary
 //! directory, and only numeric and loopback addresses are used. The enumerations, the netgroup
 //! state and `__nss_configure_lookup` are process-wide: they run in re-executed children.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
 use core::ptr::null_mut;
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::{struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent};
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s16_nameservices as s;
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::{struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent};
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s16_nameservices as s;
 
 const EINVAL: i32 = 22;
 const ERANGE: i32 = 34;
@@ -93,12 +93,12 @@ fn host_at(p: *mut struct_hostent) -> String {
 /// Run the test `name` again, alone, in a child (it changes process-wide state): true in the
 /// child; in the parent, the child's standard error after it passed.
 fn in_child(name: &str) -> Option<String> {
-    if std::env::var("LIELLA_S16_CHILD").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_S16_CHILD").is_ok_and(|v| v == name) {
         // This process runs this one test alone: `forbid_threads` may be called in it.
-        liella_boundary::selftest::mark_own_process();
+        niji_boundary::selftest::mark_own_process();
         return None;
     }
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"]).env("LIELLA_S16_CHILD", name).output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"]).env("NIJI_S16_CHILD", name).output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success(), "{name} in a child:\n{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     Some(String::from_utf8_lossy(&o.stderr).into_owned())
@@ -229,7 +229,7 @@ fn sym_gethostbyname() {
     assert_eq!(host_at(p), "127.0.0.1 2 4 127.0.0.1", "a numeric name is answered without a lookup");
     assert_eq!(host_at(s::gethostbyname(c"11.1".as_ptr())), "11.1 2 4 11.0.0.1", "inet_aton's forms");
     assert!(s::gethostbyname(c"".as_ptr()).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND);
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND);
 }
 
 #[test]
@@ -237,7 +237,7 @@ fn sym_gethostbyname2() {
     assert_eq!(host_at(s::gethostbyname2(c"::1".as_ptr(), AF_INET6)), "::1 10 16 ::1");
     assert!(s::gethostbyname2(c"::1".as_ptr(), AF_INET).is_null());
     assert!(s::gethostbyname2(c"127.0.0.1".as_ptr(), 99).is_null());
-    assert_eq!((liella_boundary::netdb::h_errno(), errno::get()), (NETDB_INTERNAL, EAFNOSUPPORT));
+    assert_eq!((niji_boundary::netdb::h_errno(), errno::get()), (NETDB_INTERNAL, EAFNOSUPPORT));
 }
 
 /// A `_r` host call: (return, result set, h_errno, the record).
@@ -283,7 +283,7 @@ fn sym_gethostbyaddr() {
         None => assert!(p.is_null() || !text_at(copy_at(p as usize, HOSTENT).h_name).is_empty()),
     }
     assert!(s::gethostbyaddr(a.as_ptr().cast(), 3, AF_INET).is_null(), "a length the family does not have");
-    assert_eq!((liella_boundary::netdb::h_errno(), errno::get()), (NETDB_INTERNAL, EINVAL));
+    assert_eq!((niji_boundary::netdb::h_errno(), errno::get()), (NETDB_INTERNAL, EINVAL));
     assert!(s::gethostbyaddr(a.as_ptr().cast(), 4, 99).is_null());
     assert_eq!(errno::get(), EAFNOSUPPORT);
 }
@@ -312,7 +312,7 @@ fn host_entries() -> Vec<String> {
         let h = copy_at(p as usize, HOSTENT);
         v.push(format!("{} {}", text_at(h.h_name), h.h_addrtype));
     }
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND, "the end");
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND, "the end");
     s::endhostent();
     v
 }
@@ -418,8 +418,8 @@ fn sym_getnetbyname() {
         }
         None => assert!(s::getnetbyname(c"loopback".as_ptr()).is_null() || first_network().is_none()),
     }
-    assert!(s::getnetbyname(c"liella-no-such-network".as_ptr()).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND);
+    assert!(s::getnetbyname(c"niji-no-such-network".as_ptr()).is_null());
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND);
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn net_r(f: impl FnOnce(&mut struct_netent, *mut c_char, usize, &mut usize, &mut
 
 #[test]
 fn sym_getnetbyname_r() {
-    let miss = net_r(|o, b, n, r, h| s::getnetbyname_r(c"liella-no-such-network".as_ptr(), Some(o), b, n, Some(r), Some(h)), 256);
+    let miss = net_r(|o, b, n, r, h| s::getnetbyname_r(c"niji-no-such-network".as_ptr(), Some(o), b, n, Some(r), Some(h)), 256);
     assert_eq!(miss, (0, false, HOST_NOT_FOUND, String::new()));
     if let Some((name, _)) = first_network() {
         let c = std::ffi::CString::new(name.clone()).unwrap();
@@ -538,7 +538,7 @@ fn sym___h_errno_location() {
     assert_eq!(s::__h_errno_location(), here, "the same cell on each call");
     let there = std::thread::spawn(|| s::__h_errno_location() as usize).join().unwrap();
     assert_ne!(there, here as usize, "one per thread");
-    liella_boundary::netdb::set_h_errno(NO_RECOVERY);
+    niji_boundary::netdb::set_h_errno(NO_RECOVERY);
     let mut v = 0;
     st::memcpy(core::ptr::from_mut(&mut v).cast(), here.cast(), 4);
     assert_eq!(v, NO_RECOVERY);
@@ -549,22 +549,22 @@ fn sym_herror() {
     let Some(err) = in_child("sym_herror") else {
         // Covers: the caller's errno is the same after herror (s2_2_c_6, COMPAT-15).
         let mut kept = true;
-        liella_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
+        niji_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
         errno::set_raw(ENOENT);
-        s::herror(c"liella".as_ptr());
+        s::herror(c"niji".as_ptr());
         kept &= errno::get() == ENOENT;
-        liella_boundary::netdb::set_h_errno(4);
+        niji_boundary::netdb::set_h_errno(4);
         errno::set_raw(EINVAL);
         s::herror(core::ptr::null());
         kept &= errno::get() == EINVAL;
-        liella_boundary::netdb::set_h_errno(-1);
+        niji_boundary::netdb::set_h_errno(-1);
         s::herror(c"".as_ptr());
-        liella_boundary::posix::s12_stdio::fflush(null_mut());
+        niji_boundary::posix::s12_stdio::fflush(null_mut());
         eprintln!("errno kept={kept}");
         return;
     };
     assert!(err.ends_with("errno kept=true\n"), "{err}");
-    assert!(err.contains("liella: Unknown host\nNo address associated with name\nResolver internal error\n"), "{err}");
+    assert!(err.contains("niji: Unknown host\nNo address associated with name\nResolver internal error\n"), "{err}");
 }
 
 /// Covers: the caller's errno is the same after herror also when the write to descriptor 2 fails
@@ -573,11 +573,11 @@ fn sym_herror() {
 #[test]
 fn sym_herror_failed_write_keeps_errno() {
     const NAME: &str = "sym_herror_failed_write_keeps_errno";
-    if std::env::var("LIELLA_S16_CHILD").is_ok_and(|v| v == NAME) {
-        liella_boundary::selftest::mark_own_process();
-        liella_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
+    if std::env::var("NIJI_S16_CHILD").is_ok_and(|v| v == NAME) {
+        niji_boundary::selftest::mark_own_process();
+        niji_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
         errno::set_raw(ENOENT);
-        s::herror(c"liella".as_ptr());
+        s::herror(c"niji".as_ptr());
         let first = errno::get();
         errno::set_raw(EINVAL);
         s::herror(core::ptr::null());
@@ -590,7 +590,7 @@ fn sym_herror_failed_write_keeps_errno() {
     };
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([NAME, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_S16_CHILD", NAME)
+        .env("NIJI_S16_CHILD", NAME)
         .stderr(full)
         .output()
         .unwrap();
@@ -646,7 +646,7 @@ fn sym_getservbyname() {
         assert!(!s::getservbyname(n.as_ptr(), core::ptr::null()).is_null(), "any protocol");
     }
     errno::set_raw(0);
-    assert!(s::getservbyname(c"liella-no-such-service".as_ptr(), core::ptr::null()).is_null());
+    assert!(s::getservbyname(c"niji-no-such-service".as_ptr(), core::ptr::null()).is_null());
     assert_eq!(errno::get(), 0, "not found: errno unchanged");
 }
 
@@ -657,7 +657,7 @@ fn sym_getservbyport() {
         let e = copy_at(s::getservbyport(c_int::from(port.to_be()), p.as_ptr()) as usize, SERVENT);
         assert_eq!(Some(text_at(e.s_name)), service_of(port, &proto));
     }
-    assert!(s::getservbyport(c_int::from(1u16.to_be()), c"liella-no-such-protocol".as_ptr()).is_null());
+    assert!(s::getservbyport(c_int::from(1u16.to_be()), c"niji-no-such-protocol".as_ptr()).is_null());
 }
 
 /// A `_r` service call: (return, result set, name).
@@ -671,7 +671,7 @@ fn serv_r(f: impl FnOnce(&mut struct_servent, *mut c_char, usize, &mut usize) ->
 
 #[test]
 fn sym_getservbyname_r() {
-    assert_eq!(serv_r(|o, b, n, r| s::getservbyname_r(c"liella-no-such-service".as_ptr(), core::ptr::null(), Some(o), b, n, Some(r)), 256), (0, false, String::new()));
+    assert_eq!(serv_r(|o, b, n, r| s::getservbyname_r(c"niji-no-such-service".as_ptr(), core::ptr::null(), Some(o), b, n, Some(r)), 256), (0, false, String::new()));
     if let Some((name, _, proto)) = first_service() {
         let (c, p) = (std::ffi::CString::new(name.clone()).unwrap(), std::ffi::CString::new(proto).unwrap());
         assert_eq!(serv_r(|o, b, n, r| s::getservbyname_r(c.as_ptr(), p.as_ptr(), Some(o), b, n, Some(r)), 2).0, ERANGE);
@@ -686,7 +686,7 @@ fn sym_getservbyport_r() {
         let r = serv_r(|o, b, n, r| s::getservbyport_r(c_int::from(port.to_be()), p.as_ptr(), Some(o), b, n, Some(r)), 1024);
         assert_eq!((r.0, Some(r.2)), (0, service_of(port, &proto)));
     }
-    assert!(!serv_r(|o, b, n, r| s::getservbyport_r(c_int::from(1u16.to_be()), c"liella-x".as_ptr(), Some(o), b, n, Some(r)), 256).1);
+    assert!(!serv_r(|o, b, n, r| s::getservbyport_r(c_int::from(1u16.to_be()), c"niji-x".as_ptr(), Some(o), b, n, Some(r)), 256).1);
 }
 
 /// The `services` enumeration through the exports (in a child): name/proto.
@@ -795,7 +795,7 @@ fn sym_getprotobyname() {
         let e = copy_at(s::getprotobyname(std::ffi::CString::new(name.to_uppercase()).unwrap().as_ptr()) as usize, PROTOENT);
         assert_eq!((text_at(e.p_name), e.p_proto), (name, num), "protocol names ignore case");
     }
-    assert!(s::getprotobyname(c"liella-no-such-protocol".as_ptr()).is_null());
+    assert!(s::getprotobyname(c"niji-no-such-protocol".as_ptr()).is_null());
 }
 
 #[test]
@@ -821,7 +821,7 @@ fn num_r<T: Copy>(zero: T, f: impl FnOnce(&mut T, *mut c_char, usize, &mut usize
 #[test]
 fn sym_getprotobyname_r() {
     let get = |p: &struct_protoent| (p.p_name, p.p_proto);
-    assert!(!num_r(PROTOENT, |o, b, n, r| s::getprotobyname_r(c"liella-x".as_ptr(), Some(o), b, n, Some(r)), 256, get).1);
+    assert!(!num_r(PROTOENT, |o, b, n, r| s::getprotobyname_r(c"niji-x".as_ptr(), Some(o), b, n, Some(r)), 256, get).1);
     if let Some((name, num)) = numbered("/etc/protocols", "protocols").first().cloned() {
         let c = std::ffi::CString::new(name.clone()).unwrap();
         assert_eq!(num_r(PROTOENT, |o, b, n, r| s::getprotobyname_r(c.as_ptr(), Some(o), b, n, Some(r)), 1, get).0, ERANGE);
@@ -923,7 +923,7 @@ fn sym_getrpcbyname() {
         let e = copy_at(s::getrpcbyname(std::ffi::CString::new(name.clone()).unwrap().as_ptr()) as usize, RPCENT);
         assert_eq!((text_at(e.r_name), e.r_number), (name, num));
     }
-    assert!(s::getrpcbyname(c"liella-no-such-program".as_ptr()).is_null());
+    assert!(s::getrpcbyname(c"niji-no-such-program".as_ptr()).is_null());
 }
 
 #[test]
@@ -942,7 +942,7 @@ fn sym_getrpcbyname_r() {
         assert_eq!(num_r(RPCENT, |o, b, n, r| s::getrpcbyname_r(c.as_ptr(), Some(o), b, n, Some(r)), 1, get).0, ERANGE);
         assert_eq!(num_r(RPCENT, |o, b, n, r| s::getrpcbyname_r(c.as_ptr(), Some(o), b, n, Some(r)), 1024, get), (0, true, name, num));
     }
-    assert_eq!(num_r(RPCENT, |o, b, n, r| s::getrpcbyname_r(c"liella-x".as_ptr(), Some(o), b, n, Some(r)), 256, get).0, 0);
+    assert_eq!(num_r(RPCENT, |o, b, n, r| s::getrpcbyname_r(c"niji-x".as_ptr(), Some(o), b, n, Some(r)), 256, get).0, 0);
 }
 
 #[test]
@@ -1016,7 +1016,7 @@ fn sym_setnetgrent() {
     if in_child("sym_setnetgrent").is_some() {
         return;
     }
-    assert_eq!(s::setnetgrent(c"liella-no-such-group".as_ptr()), 0);
+    assert_eq!(s::setnetgrent(c"niji-no-such-group".as_ptr()), 0);
     let (mut h, mut u, mut d) = (0usize, 0usize, 0usize);
     assert_eq!(s::getnetgrent(Some(&mut h), Some(&mut u), Some(&mut d)), 0, "no group: no entry");
     s::endnetgrent();
@@ -1061,8 +1061,8 @@ fn sym_endnetgrent() {
 
 #[test]
 fn sym_innetgr() {
-    assert_eq!(s::innetgr(c"liella-no-such-group".as_ptr(), c"host".as_ptr(), core::ptr::null(), core::ptr::null()), 0);
-    assert_eq!(s::innetgr(c"liella-no-such-group".as_ptr(), core::ptr::null(), core::ptr::null(), core::ptr::null()), 0);
+    assert_eq!(s::innetgr(c"niji-no-such-group".as_ptr(), c"host".as_ptr(), core::ptr::null(), core::ptr::null()), 0);
+    assert_eq!(s::innetgr(c"niji-no-such-group".as_ptr(), core::ptr::null(), core::ptr::null(), core::ptr::null()), 0);
 }
 
 // ------------------------------------------------------------------------------ §16.6
@@ -1113,7 +1113,7 @@ fn sym_getaliasbyname() {
         assert_eq!(&text_at(a.alias_name), first, "names ignore case");
     }
     errno::set_raw(0);
-    assert!(s::getaliasbyname(c"liella-no-such-alias".as_ptr()).is_null());
+    assert!(s::getaliasbyname(c"niji-no-such-alias".as_ptr()).is_null());
     // Not found: errno unchanged; a database file that cannot be read: its error (as the
     // reference, observed with no /etc/aliases).
     assert_eq!(errno::get(), missing_aliases());
@@ -1124,7 +1124,7 @@ fn sym_getaliasbyname_r() {
     let mut out = ALIASENT;
     let mut buf = [0 as c_char; 512];
     let mut res = 1usize;
-    assert_eq!(s::getaliasbyname_r(c"liella-no-such-alias".as_ptr(), Some(&mut out), buf.as_mut_ptr(), 512, Some(&mut res)), missing_aliases());
+    assert_eq!(s::getaliasbyname_r(c"niji-no-such-alias".as_ptr(), Some(&mut out), buf.as_mut_ptr(), 512, Some(&mut res)), missing_aliases());
     assert_eq!(res, 0);
     if let Some(first) = alias_lines().first() {
         let c = std::ffi::CString::new(first.clone()).unwrap();
@@ -1197,9 +1197,9 @@ mod dns_server;
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
 
-use liella_abi::ctypes::{c_uint, c_ulong};
-use liella_abi::layout::{ns_msg, ns_rr, struct___res_state, struct___res_state__u, struct_gaicb, struct_in_addr, struct_sockaddr_in};
-use liella_boundary::posix::s12_stdio as io;
+use niji_abi::ctypes::{c_uint, c_ulong};
+use niji_abi::layout::{ns_msg, ns_rr, struct___res_state, struct___res_state__u, struct_gaicb, struct_in_addr, struct_sockaddr_in};
+use niji_boundary::posix::s12_stdio as io;
 
 const STATE0: struct___res_state = struct___res_state {
     retrans: 0,
@@ -1293,7 +1293,7 @@ static GAI_QUEUE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn sym_getaddrinfo_a() {
     // Thread creation is forbidden process-wide: in a child of its own, not in the shared test process.
     if in_child("sym_getaddrinfo_a").is_none() {
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
     } else {
         return;
     }
@@ -1321,7 +1321,7 @@ const GAICB_BUSY: struct_gaicb = struct_gaicb { __return: -100, __glibc_reserved
 fn sym_gai_error() {
     // Thread creation is forbidden process-wide: in a child of its own, not in the shared test process.
     if in_child("sym_gai_error").is_none() {
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
     } else {
         return;
     }
@@ -1344,10 +1344,10 @@ fn sym_gai_suspend() {
     let mut busy = GAICB_BUSY;
     let d = core::ptr::from_mut(&mut done).cast::<c_void>().cast_const();
     let p = core::ptr::from_mut(&mut busy).cast::<c_void>().cast_const();
-    let t = liella_kernel::uapi::Timespec { sec: 0, nsec: 1000 };
+    let t = niji_kernel::uapi::Timespec { sec: 0, nsec: 1000 };
     assert_eq!(s::gai_suspend([p, d].as_ptr(), 2, Some(&t)), 0, "a completed request");
     let t0 = std::time::Instant::now();
-    assert_eq!(s::gai_suspend([p].as_ptr(), 1, Some(&liella_kernel::uapi::Timespec { sec: 0, nsec: 50_000_000 })), -3, "the timeout: EAI_AGAIN");
+    assert_eq!(s::gai_suspend([p].as_ptr(), 1, Some(&niji_kernel::uapi::Timespec { sec: 0, nsec: 50_000_000 })), -3, "the timeout: EAI_AGAIN");
     assert!(t0.elapsed() >= std::time::Duration::from_millis(45));
 }
 
@@ -1413,26 +1413,26 @@ fn sym___res_randomid() {
 #[test]
 fn sym__res() {
     // The initial thread's state object (568 bytes, Appendix C).
-    assert_eq!(size_of_val(&liella_boundary::data::_res), 568);
+    assert_eq!(size_of_val(&niji_boundary::data::_res), 568);
 }
 
 #[test]
 fn sym__res_hconf() {
-    assert_eq!(size_of_val(&liella_boundary::data::_res_hconf), 72);
-    liella_boundary::data::set_hconf(true, false);
-    assert_eq!(liella_boundary::data::_res_hconf[0].load(std::sync::atomic::Ordering::Relaxed), 1);
-    assert_eq!(liella_boundary::data::_res_hconf[8].load(std::sync::atomic::Ordering::Relaxed), 0x10, "multi");
+    assert_eq!(size_of_val(&niji_boundary::data::_res_hconf), 72);
+    niji_boundary::data::set_hconf(true, false);
+    assert_eq!(niji_boundary::data::_res_hconf[0].load(std::sync::atomic::Ordering::Relaxed), 1);
+    assert_eq!(niji_boundary::data::_res_hconf[8].load(std::sync::atomic::Ordering::Relaxed), 0x10, "multi");
 }
 
 #[test]
 fn sym__res_opcodes() {
-    let t = |i: usize| text_at(liella_boundary::data::_res_opcodes[i].load(std::sync::atomic::Ordering::Relaxed) as usize);
+    let t = |i: usize| text_at(niji_boundary::data::_res_opcodes[i].load(std::sync::atomic::Ordering::Relaxed) as usize);
     assert_eq!([t(0), t(4), t(5), t(6), t(15)], ["QUERY", "NOTIFY", "UPDATE", "6", "ZONEREF"]);
 }
 
 #[test]
 fn sym___p_type_syms() {
-    let table = liella_boundary::data::sym_table_addr(true);
+    let table = niji_boundary::data::sym_table_addr(true);
     let first = copy_at(table, [0usize; 3]);
     assert_eq!((first[0] as u32, text_at(first[1]), text_at(first[2])), (1, "A".into(), "address".into()));
     assert_eq!(text_at(s::__sym_ntos(table as *const c_void, 255, None) as usize), "ANY");
@@ -1440,7 +1440,7 @@ fn sym___p_type_syms() {
 
 #[test]
 fn sym___p_class_syms() {
-    let table = liella_boundary::data::sym_table_addr(false);
+    let table = niji_boundary::data::sym_table_addr(false);
     let first = copy_at(table, [0usize; 3]);
     assert_eq!((first[0] as u32, text_at(first[1]), first[2]), (1, "IN".into(), 0), "no human name");
 }
@@ -1457,9 +1457,9 @@ macro_rules! query_tests {
             assert!(n > 0);
             assert_eq!(answer_a(&ans[..n as usize]), Some([192, 0, 2, 10]));
             assert_eq!(s::$q(c"nx.test".as_ptr(), 1, 1, ans.as_mut_ptr(), 512), -1);
-            assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND);
+            assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND);
             assert_eq!(s::$q(c"nodata.test".as_ptr(), 1, 1, ans.as_mut_ptr(), 512), -1);
-            assert_eq!(liella_boundary::netdb::h_errno(), NO_DATA);
+            assert_eq!(niji_boundary::netdb::h_errno(), NO_DATA);
             assert_eq!(s::$q(c"a.test".as_ptr(), 1, 1, ans.as_mut_ptr(), 20), 20, "cut to the buffer");
         }
 
@@ -1473,10 +1473,10 @@ macro_rules! query_tests {
             st.dnsrch = [c"s1.test".as_ptr() as usize, 0, 0, 0, 0, 0, 0];
             st::memcpy(p.cast(), core::ptr::from_ref(&st).cast(), size_of::<struct___res_state>());
             let mut ans = [0u8; 512];
-            liella_boundary::netdb::set_h_errno(99);
+            niji_boundary::netdb::set_h_errno(99);
             let n = s::$s(c"x".as_ptr(), 1, 1, ans.as_mut_ptr(), 512);
             assert_eq!(answer_a(&ans[..n.max(0) as usize]), Some([192, 0, 2, 60]));
-            assert_eq!(liella_boundary::netdb::h_errno(), 99, "a success leaves h_errno (D-16.3)");
+            assert_eq!(niji_boundary::netdb::h_errno(), 99, "a success leaves h_errno (D-16.3)");
             assert_eq!(srv.take_log(), ["udp x.s1.test A ad=0 edns=0"]);
         }
 
@@ -1532,7 +1532,7 @@ macro_rules! nquery_tests {
             let n = s::$q(&mut st, c"cname.test".as_ptr(), 1, 1, ans.as_mut_ptr(), 512);
             assert!(n > 0);
             assert_eq!(s::$q(&mut st, c"servfail.test".as_ptr(), 1, 1, ans.as_mut_ptr(), 512), -1);
-            assert_eq!((liella_boundary::netdb::h_errno(), st.res_h_errno), (TRY_AGAIN, TRY_AGAIN));
+            assert_eq!((niji_boundary::netdb::h_errno(), st.res_h_errno), (TRY_AGAIN, TRY_AGAIN));
             s::__res_nclose(&mut st);
         }
 
@@ -2101,7 +2101,7 @@ fn sym___p_secstodate() {
 
 #[test]
 fn sym___sym_ston() {
-    let table = liella_boundary::data::sym_table_addr(true) as *const c_void;
+    let table = niji_boundary::data::sym_table_addr(true) as *const c_void;
     let mut ok = 9;
     assert_eq!(s::__sym_ston(table, c"mx".as_ptr(), Some(&mut ok)), 15);
     assert_eq!(ok, 1);
@@ -2111,7 +2111,7 @@ fn sym___sym_ston() {
 
 #[test]
 fn sym___sym_ntos() {
-    let table = liella_boundary::data::sym_table_addr(true) as *const c_void;
+    let table = niji_boundary::data::sym_table_addr(true) as *const c_void;
     let mut ok = 9;
     assert_eq!(text_at(s::__sym_ntos(table, 15, Some(&mut ok)) as usize), "MX");
     assert_eq!(ok, 1);
@@ -2121,7 +2121,7 @@ fn sym___sym_ntos() {
 
 #[test]
 fn sym___sym_ntop() {
-    let table = liella_boundary::data::sym_table_addr(true) as *const c_void;
+    let table = niji_boundary::data::sym_table_addr(true) as *const c_void;
     assert_eq!(text_at(s::__sym_ntop(table, 15, None) as usize), "mail exchanger");
 }
 
@@ -2203,50 +2203,50 @@ static HT_CURSOR: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn sym__gethtbyaddr() {
     let lo4 = [127u8, 0, 0, 1];
     errno::set_raw(0);
-    let p = s::liella_compat__gethtbyaddr(lo4.as_ptr().cast(), 4, 2);
+    let p = s::niji_compat__gethtbyaddr(lo4.as_ptr().cast(), 4, 2);
     assert!(host_at(p).ends_with(" 2 4 127.0.0.1"), "the hosts file's 127.0.0.1 line");
-    assert_eq!(host_at(s::liella_compat__gethtbyaddr(lo4.as_ptr().cast(), 3, 2)).split(' ').nth(3), Some("127.0.0.1"), "a shorter length compares that prefix");
-    assert!(s::liella_compat__gethtbyaddr(lo4.as_ptr().cast(), 17, 2).is_null(), "a length past any address");
-    assert!(s::liella_compat__gethtbyaddr(lo4.as_ptr().cast(), 4, 99).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND);
+    assert_eq!(host_at(s::niji_compat__gethtbyaddr(lo4.as_ptr().cast(), 3, 2)).split(' ').nth(3), Some("127.0.0.1"), "a shorter length compares that prefix");
+    assert!(s::niji_compat__gethtbyaddr(lo4.as_ptr().cast(), 17, 2).is_null(), "a length past any address");
+    assert!(s::niji_compat__gethtbyaddr(lo4.as_ptr().cast(), 4, 99).is_null());
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND);
     assert_eq!(errno::get(), 0, "errno unchanged");
 }
 
 #[test]
 fn sym__gethtbyname2() {
     errno::set_raw(0);
-    assert_eq!(host_at(s::liella_compat__gethtbyname2(c"localhost".as_ptr(), 2)).split(' ').nth(1), Some("2"), "AF_INET entry");
-    assert!(s::liella_compat__gethtbyname2(c"localhost".as_ptr(), 99).is_null(), "an unknown family");
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND, "HOST_NOT_FOUND, not NO_RECOVERY");
-    assert!(s::liella_compat__gethtbyname2(c"127.0.0.1".as_ptr(), 2).is_null(), "no numeric parsing");
+    assert_eq!(host_at(s::niji_compat__gethtbyname2(c"localhost".as_ptr(), 2)).split(' ').nth(1), Some("2"), "AF_INET entry");
+    assert!(s::niji_compat__gethtbyname2(c"localhost".as_ptr(), 99).is_null(), "an unknown family");
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND, "HOST_NOT_FOUND, not NO_RECOVERY");
+    assert!(s::niji_compat__gethtbyname2(c"127.0.0.1".as_ptr(), 2).is_null(), "no numeric parsing");
     assert_eq!(errno::get(), 0, "errno unchanged");
 }
 
 #[test]
 fn sym__gethtbyname() {
     errno::set_raw(0);
-    let p = s::liella_compat__gethtbyname(c"localhost".as_ptr());
+    let p = s::niji_compat__gethtbyname(c"localhost".as_ptr());
     assert!(host_at(p).starts_with("localhost 2 4 "), "{}", host_at(p));
     assert_ne!(p, s::gethostbyname(c"localhost".as_ptr()), "its own entry, not gethostbyname's");
-    assert!(s::liella_compat__gethtbyname(c"no-such-host.invalid".as_ptr()).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND);
+    assert!(s::niji_compat__gethtbyname(c"no-such-host.invalid".as_ptr()).is_null());
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND);
     assert_eq!(errno::get(), 0, "errno unchanged");
 }
 
 #[test]
 fn sym__gethtent() {
     let _one = HT_CURSOR.lock().unwrap_or_else(|e| e.into_inner());
-    s::liella_compat__sethtent(0);
+    s::niji_compat__sethtent(0);
     let mut n = 0;
-    while !s::liella_compat__gethtent().is_null() {
+    while !s::niji_compat__gethtent().is_null() {
         n += 1;
         assert!(n < 100_000, "the walk ends");
     }
     assert!(n >= 1, "the localhost line");
-    assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND, "the end");
-    assert!(s::liella_compat__gethtent().is_null(), "stays at the end");
-    s::liella_compat__sethtent(1);
-    assert!(!s::liella_compat__gethtent().is_null(), "_sethtent rewinds");
+    assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND, "the end");
+    assert!(s::niji_compat__gethtent().is_null(), "stays at the end");
+    s::niji_compat__sethtent(1);
+    assert!(!s::niji_compat__gethtent().is_null(), "_sethtent rewinds");
 }
 
 // res_gethostby* (no spec clause: LG-7 compat, spec/behaviour/nss-resolv-compat.md). Only the
@@ -2254,20 +2254,20 @@ fn sym__gethtent() {
 #[test]
 fn sym_res_gethostbyname() {
     errno::set_raw(0);
-    liella_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
-    let p = s::liella_compat_res_gethostbyname(c"127.0.0.1".as_ptr());
+    niji_boundary::netdb::set_h_errno(HOST_NOT_FOUND);
+    let p = s::niji_compat_res_gethostbyname(c"127.0.0.1".as_ptr());
     // Checked before gethostbyname runs, so only the res_ call can have cleared it.
-    assert_eq!(liella_boundary::netdb::h_errno(), 0, "success clears h_errno");
+    assert_eq!(niji_boundary::netdb::h_errno(), 0, "success clears h_errno");
     assert_eq!(host_at(p), host_at(s::gethostbyname(c"127.0.0.1".as_ptr())), "a dotted quad is read");
     assert!(host_at(p).starts_with("127.0.0.1 2 4 "), "{}", host_at(p));
     assert_ne!(p, s::gethostbyname(c"127.0.0.1".as_ptr()), "its own entry, not gethostbyname's");
     for n in [c"1.2.3", c"1.2.3.256", c"::1"] {
-        assert!(s::liella_compat_res_gethostbyname(n.as_ptr()).is_null(), "{n:?}");
-        assert_eq!(liella_boundary::netdb::h_errno(), HOST_NOT_FOUND, "{n:?}");
+        assert!(s::niji_compat_res_gethostbyname(n.as_ptr()).is_null(), "{n:?}");
+        assert_eq!(niji_boundary::netdb::h_errno(), HOST_NOT_FOUND, "{n:?}");
     }
     assert_eq!(errno::get(), 0, "errno unchanged");
-    assert!(s::liella_compat_res_gethostbyname(c"".as_ptr()).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), 3, "NO_RECOVERY (errno: EMSGSIZE only with a search list)");
+    assert!(s::niji_compat_res_gethostbyname(c"".as_ptr()).is_null());
+    assert_eq!(niji_boundary::netdb::h_errno(), 3, "NO_RECOVERY (errno: EMSGSIZE only with a search list)");
 }
 
 // The probe table (Zen 1 host 2026-10-23, COMPAT-NSS-RESOLV-PT2-3; no spec clause: LG-7 compat,
@@ -2275,12 +2275,12 @@ fn sym_res_gethostbyname() {
 // before any query. The asked names are not resolved here (no DNS server in process).
 #[test]
 fn sym_res_gethostbyname_names() {
-    use liella::names::nss::LookupError::{NotFound, Os};
-    use liella_boundary::netdb::res_name;
+    use niji::names::nss::LookupError::{NotFound, Os};
+    use niji_boundary::netdb::res_name;
     let label64 = [&[b'a'; 64][..], b".example."].concat();
     let label63 = [&[b'a'; 63][..], b".example."].concat();
     let long = b"b.".repeat(150);
-    type Want = liella::names::nss::Answer<Option<[u8; 4]>>;
+    type Want = niji::names::nss::Answer<Option<[u8; 4]>>;
     // Haswell-EP host 2026-10-23 (COMPAT-NSS-RESOLV-PT2-4): a part with a leading zero is not found, `0` is
     // read; "" without a search list leaves errno alone (Unavailable: NO_RECOVERY, no errno).
     for (n, want) in [
@@ -2293,22 +2293,22 @@ fn sym_res_gethostbyname_names() {
     ] {
         assert_eq!(res_name(n, false), want, "{:?}", String::from_utf8_lossy(n));
     }
-    assert_eq!(res_name(b"", false), Err(liella::names::nss::LookupError::Unavailable));
-    assert_eq!(liella_boundary::netdb::res_codes(liella::names::nss::LookupError::Unavailable), (3, None), "NO_RECOVERY, errno alone");
-    let refused = liella_boundary::netdb::res_codes(Os(liella::error::Errno::ECONNREFUSED));
-    assert_eq!(refused, (HOST_NOT_FOUND, Some(liella::error::Errno::ECONNREFUSED)), "a refusing server");
+    assert_eq!(res_name(b"", false), Err(niji::names::nss::LookupError::Unavailable));
+    assert_eq!(niji_boundary::netdb::res_codes(niji::names::nss::LookupError::Unavailable), (3, None), "NO_RECOVERY, errno alone");
+    let refused = niji_boundary::netdb::res_codes(Os(niji::error::Errno::ECONNREFUSED));
+    assert_eq!(refused, (HOST_NOT_FOUND, Some(niji::error::Errno::ECONNREFUSED)), "a refusing server");
     // Haswell-EP host 2026-10-23 (COMPAT-NSS-RESOLV-PT2-5): a server that times out is TRY_AGAIN (2) with ETIMEDOUT.
-    let timed_out = liella_boundary::netdb::res_codes(Os(liella::error::Errno::ETIMEDOUT));
-    assert_eq!(timed_out, (2, Some(liella::error::Errno::ETIMEDOUT)), "a server that times out");
+    let timed_out = niji_boundary::netdb::res_codes(Os(niji::error::Errno::ETIMEDOUT));
+    assert_eq!(timed_out, (2, Some(niji::error::Errno::ETIMEDOUT)), "a server that times out");
     let table: [(&[u8], Want); 16] = [
         (b"host.example.", Ok(None)),
         (b"host_x.example.", Ok(None)),
         (b"bad_name!", Ok(None)),
         (b"1.2.3.4.", Ok(None)),
         (&label63, Ok(None)),
-        (&label64, Err(Os(liella::error::Errno::EMSGSIZE))),
-        (&long, Err(Os(liella::error::Errno::EMSGSIZE))),
-        (b"", Err(Os(liella::error::Errno::EMSGSIZE))),
+        (&label64, Err(Os(niji::error::Errno::EMSGSIZE))),
+        (&long, Err(Os(niji::error::Errno::EMSGSIZE))),
+        (b"", Err(Os(niji::error::Errno::EMSGSIZE))),
         (b"127.0.0.1", Ok(Some([127, 0, 0, 1]))),
         (b"0127.0.0.1", Err(NotFound)),
         (b"0000000127.0.0.1", Err(NotFound)),
@@ -2323,27 +2323,27 @@ fn sym_res_gethostbyname_names() {
     }
     let c = std::ffi::CString::new(label64).unwrap();
     errno::set_raw(0);
-    assert!(s::liella_compat_res_gethostbyname(c.as_ptr()).is_null());
-    assert_eq!((liella_boundary::netdb::h_errno(), errno::get()), (3, 90), "NO_RECOVERY, EMSGSIZE, no query");
+    assert!(s::niji_compat_res_gethostbyname(c.as_ptr()).is_null());
+    assert_eq!((niji_boundary::netdb::h_errno(), errno::get()), (3, 90), "NO_RECOVERY, EMSGSIZE, no query");
 }
 
 #[test]
 fn sym_res_gethostbyname2() {
-    let p = s::liella_compat_res_gethostbyname2(c"127.0.0.2".as_ptr(), 10);
+    let p = s::niji_compat_res_gethostbyname2(c"127.0.0.2".as_ptr(), 10);
     assert!(host_at(p).starts_with("127.0.0.2 2 4 127.0.0.2"), "AF_INET whatever af: {}", host_at(p));
-    assert_eq!(p, s::liella_compat_res_gethostbyname(c"127.0.0.3".as_ptr()), "one entry for the res_ names");
-    assert!(s::liella_compat_res_gethostbyname2(c"::1".as_ptr(), 10).is_null(), "no IPv6 text");
+    assert_eq!(p, s::niji_compat_res_gethostbyname(c"127.0.0.3".as_ptr()), "one entry for the res_ names");
+    assert!(s::niji_compat_res_gethostbyname2(c"::1".as_ptr(), 10).is_null(), "no IPv6 text");
 }
 
 #[test]
 fn sym_res_gethostbyaddr() {
     let lo4 = [127u8, 0, 0, 1];
     errno::set_raw(0);
-    assert!(s::liella_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 4, 10).is_null(), "length not of the family");
-    assert_eq!((liella_boundary::netdb::h_errno(), errno::get()), (-1, EINVAL));
-    assert!(s::liella_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 4, 99).is_null());
-    assert_eq!((liella_boundary::netdb::h_errno(), errno::get()), (-1, EAFNOSUPPORT));
-    assert!(s::liella_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 17, 2).is_null());
+    assert!(s::niji_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 4, 10).is_null(), "length not of the family");
+    assert_eq!((niji_boundary::netdb::h_errno(), errno::get()), (-1, EINVAL));
+    assert!(s::niji_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 4, 99).is_null());
+    assert_eq!((niji_boundary::netdb::h_errno(), errno::get()), (-1, EAFNOSUPPORT));
+    assert!(s::niji_compat_res_gethostbyaddr(lo4.as_ptr().cast(), 17, 2).is_null());
     assert_eq!(errno::get(), EINVAL);
 }
 // The compat-only switch internals (LG-7; spec/behaviour/nss-resolv-compat.md): exported only as
@@ -2353,16 +2353,16 @@ fn sym_res_gethostbyaddr() {
 fn sym___nss_database_lookup() {
     errno::set_raw(0);
     let mut ni: usize = 0xAAAA_AAAA;
-    assert_eq!(s::liella_compat___nss_database_lookup(c"passwd".as_ptr(), core::ptr::null(), c"files".as_ptr(), Some(&mut ni)), -1);
+    assert_eq!(s::niji_compat___nss_database_lookup(c"passwd".as_ptr(), core::ptr::null(), c"files".as_ptr(), Some(&mut ni)), -1);
     assert_eq!(ni, 0, "the result slot is cleared");
-    assert_eq!(s::liella_compat___nss_database_lookup(core::ptr::null(), core::ptr::null(), core::ptr::null(), None), -1, "a NULL slot is not written");
+    assert_eq!(s::niji_compat___nss_database_lookup(core::ptr::null(), core::ptr::null(), core::ptr::null(), None), -1, "a NULL slot is not written");
     assert_eq!(errno::get(), 0, "errno unchanged");
 }
 
 #[test]
 fn sym___nss_group_lookup() {
     errno::set_raw(0);
-    assert_eq!(s::liella_compat___nss_group_lookup(), -1);
+    assert_eq!(s::niji_compat___nss_group_lookup(), -1);
     assert_eq!(errno::get(), 38, "ENOSYS");
 }
 #[test]
@@ -2370,7 +2370,7 @@ fn sym___nss_hostname_digits_dots() {
     // §16.1 (owner ruling 2026-10-05): a numeric name is answered (1) into the caller's buffer;
     // any other name is left to the switch (0). Clauses s16_1_c_3 to s16_1_c_6 and the
     // differential test digits_dots_products.rs cover the rest.
-    let mut h = liella_abi::layout::struct_hostent { h_name: 0, h_aliases: 0, h_addrtype: 0, h_length: 0, h_addr_list: 0 };
+    let mut h = niji_abi::layout::struct_hostent { h_name: 0, h_aliases: 0, h_addrtype: 0, h_length: 0, h_addr_list: 0 };
     let mut store = [0u64; 64];
     let mut buffer = store.as_mut_ptr() as usize;
     let (mut status, mut herr) = (-9, -9);
@@ -2382,28 +2382,28 @@ fn sym___nss_hostname_digits_dots() {
 #[test]
 fn sym___nss_hosts_lookup() {
     errno::set_raw(0);
-    assert_eq!(s::liella_compat___nss_hosts_lookup(), -1);
+    assert_eq!(s::niji_compat___nss_hosts_lookup(), -1);
     assert_eq!(errno::get(), 38, "ENOSYS");
 }
 
 #[test]
 fn sym___nss_next() {
     errno::set_raw(0);
-    assert_eq!(s::liella_compat___nss_next(), -1);
+    assert_eq!(s::niji_compat___nss_next(), -1);
     assert_eq!(errno::get(), 0, "errno unchanged");
 }
 
 #[test]
 fn sym___nss_passwd_lookup() {
     errno::set_raw(0);
-    assert_eq!(s::liella_compat___nss_passwd_lookup(), -1);
+    assert_eq!(s::niji_compat___nss_passwd_lookup(), -1);
     assert_eq!(errno::get(), 38, "ENOSYS");
 }
 #[test]
 fn sym__sethtent() {
     let _one = HT_CURSOR.lock().unwrap_or_else(|e| e.into_inner());
-    s::liella_compat__sethtent(1);
-    let first = host_at(s::liella_compat__gethtent());
-    s::liella_compat__sethtent(0);
-    assert_eq!(host_at(s::liella_compat__gethtent()), first, "rewound to the first entry");
+    s::niji_compat__sethtent(1);
+    let first = host_at(s::niji_compat__gethtent());
+    s::niji_compat__sethtent(0);
+    assert_eq!(host_at(s::niji_compat__gethtent()), first, "rewound to the first entry");
 }

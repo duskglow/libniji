@@ -1,0 +1,12 @@
+{"task": "LAYOUT-WINDOW-BINS", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: budget checkpoint before any code change; handoff records today's grouping and trace code and three landable slices",
+ "branch": "task/layout-window-bins", "head": "10b9e1158a95fb4b014bb6971255b30a4e872738",
+ "gate": {"affected": "not run (no code change)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "budget 50 calls / 90k is below what a Size L, Effort max story needs (reading the code took about 60k)", "recommendation": "cut the three slices in handoff/LAYOUT-WINDOW-BINS.md as separate stories, slice 1 first, each at least 100 calls / 200k"}],
+ "informational": ["the per-mode signature data already exists in regen.sh's per-probe names files; order.py keeps only the first tier"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "checkpoint note only; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "size budgets for layout stories by the code to be read (hottext.rs, regen.sh, hot_text_products.rs), or give the run a code-map summary in its brief",
+ "next_step": "slice 1: regen writes per-key signatures, so writes layout-bins.tsv from an unapplied planner, measure residual and head fill",
+ "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
+ "jobs": ["layout-window-bins-static"]}

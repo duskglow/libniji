@@ -375,6 +375,10 @@ pub fn strftime<U: Unit>(out: &mut [U], fmt: &[U], tm: &Tm<'_>, loc: &Locale, en
 }
 
 /// [`strftime`], with or without the direct path.
+// Out of line (SETLOCALE-CTYPE-ENV-5): the general formatter is ~12 KiB, behind the products'
+// own fast path; inlined into the `strftime` entry point (which LLVM did or did not do with
+// unrelated changes to the codegen units) it moved into the traced start-up text with it.
+#[inline(never)]
 fn format<U: Unit>(out: &mut [U], fmt: &[U], tm: &Tm<'_>, loc: &Locale, env: &dyn Env, direct: bool) -> Result<Written> {
     let cx = Ctx { tm, loc, time: Time::of(loc), env, encodings: core::cell::OnceCell::new(), direct };
     let mut sink = Sink { buf: out, pos: 0, total: 0, full: false };

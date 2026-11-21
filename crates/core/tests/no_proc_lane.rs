@@ -21,22 +21,22 @@ use std::process::Command;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use liella_abi::ctypes::{c_char, c_void};
-use liella_abi::layout::{pthread_attr_t, pthread_t};
-use liella_boundary::errno;
-use liella_boundary::posix::s01_startup as s01;
-use liella_boundary::posix::s11_lowio as lo;
-use liella_boundary::posix::s13_filesystem as fs;
-use liella_boundary::posix::s17_users as us;
-use liella_boundary::posix::s18_processes as pr;
-use liella_boundary::posix::s19_terminals as tm;
-use liella_boundary::posix::s22_threads as th;
-use liella_boundary::posix::s24_system as sy;
-use liella_boundary::posix::s25_ipc as ipc;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
+use niji_abi::ctypes::{c_char, c_void};
+use niji_abi::layout::{pthread_attr_t, pthread_t};
+use niji_boundary::errno;
+use niji_boundary::posix::s01_startup as s01;
+use niji_boundary::posix::s11_lowio as lo;
+use niji_boundary::posix::s13_filesystem as fs;
+use niji_boundary::posix::s17_users as us;
+use niji_boundary::posix::s18_processes as pr;
+use niji_boundary::posix::s19_terminals as tm;
+use niji_boundary::posix::s22_threads as th;
+use niji_boundary::posix::s24_system as sy;
+use niji_boundary::posix::s25_ipc as ipc;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
 
-const CASE: &str = "LIELLA_NO_PROC_CASE";
+const CASE: &str = "NIJI_NO_PROC_CASE";
 const ENOENT: i32 = 2;
 const EBADF: i32 = 9;
 const ENOTTY: i32 = 25;
@@ -162,10 +162,10 @@ fn link_max_without_proc() {
     if std::env::var(CASE).is_err() {
         let c = CString::new(dir).unwrap();
         let ext = Command::new("stat").args(["-f", "-c", "%t", dir]).output().map(|o| String::from_utf8_lossy(&o.stdout).trim() == "ef53").unwrap_or(false);
-        env.push(("LIELLA_NPL_LINK_MAX", if ext { "32000".to_string() } else { sy::pathconf(c.as_ptr(), 0).to_string() }));
+        env.push(("NIJI_NPL_LINK_MAX", if ext { "32000".to_string() } else { sy::pathconf(c.as_ptr(), 0).to_string() }));
     }
     without_proc("link_max_without_proc", &env, || {
-        let want: i64 = std::env::var("LIELLA_NPL_LINK_MAX").unwrap().parse().unwrap();
+        let want: i64 = std::env::var("NIJI_NPL_LINK_MAX").unwrap().parse().unwrap();
         let c = CString::new(dir).unwrap();
         check("pathconf(_PC_LINK_MAX)", sy::pathconf(c.as_ptr(), 0), want)
     });
@@ -240,12 +240,12 @@ fn ttyname_without_proc() {
 
 #[test]
 fn tty_line_without_proc() {
-    // D-X.12 (no spec clause: the accounting functions' terminal line, liella_legacy::accounting::
+    // D-X.12 (no spec clause: the accounting functions' terminal line, niji_legacy::accounting::
     // tty_line, behind getlogin, ttyslot and login): the device number's name without /proc.
     without_proc("tty_line_without_proc", &[], || {
         let (m, s, name) = pty()?;
         let mut out = [0u8; 256];
-        let got = liella_legacy::accounting::tty_line(&CSys, Fd::new(s), &mut out).map(|n| String::from_utf8_lossy(&out[..n]).into_owned());
+        let got = niji_legacy::accounting::tty_line(&CSys, Fd::new(s), &mut out).map(|n| String::from_utf8_lossy(&out[..n]).into_owned());
         lo::close(m);
         lo::close(s);
         check("tty_line(slave)", got, Some(name.strip_prefix("/dev/").unwrap_or(&name).to_string()))
@@ -317,7 +317,7 @@ fn lchmod_without_proc() {
     if std::env::var(CASE).is_err() {
         let r = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
         let mut v = r.trim().split(['.', '-']).map(|p| p.parse::<u32>().unwrap_or(0));
-        env.push(("LIELLA_NPL_FCHMODAT2", ((v.next().unwrap_or(0), v.next().unwrap_or(0)) >= (6, 6)).to_string()));
+        env.push(("NIJI_NPL_FCHMODAT2", ((v.next().unwrap_or(0), v.next().unwrap_or(0)) >= (6, 6)).to_string()));
     }
     without_proc("lchmod_without_proc", &env, || {
         use std::os::unix::fs::PermissionsExt;
@@ -334,7 +334,7 @@ fn lchmod_without_proc() {
         let link = (fs::lchmod(cl.as_ptr(), 0o640), errno::get());
         let mode_after = std::fs::metadata(&f).map(|m| m.permissions().mode() & 0o777).unwrap_or(0);
         let _ = std::fs::remove_dir_all(&dir);
-        if std::env::var("LIELLA_NPL_FCHMODAT2").unwrap() == "true" {
+        if std::env::var("NIJI_NPL_FCHMODAT2").unwrap() == "true" {
             check("lchmod(file) (fchmodat2)", (file.0, mode_f), (0, 0o600))?;
         } else {
             check("lchmod(file) (before 6.6)", (file, mode_f), ((-1, EOPNOTSUPP), 0o644))?;
@@ -348,13 +348,13 @@ fn lchmod_without_proc() {
 fn getauxval_hosted_without_proc() {
     // s1_5_c_0, D-X.12: a process the library did not start (this test harness) reads the
     // auxiliary vector from /proc/self/auxv; without it the entry is not found (0, ENOENT),
-    // never a wrong value. (A program Liella starts keeps the vector from its entry.)
+    // never a wrong value. (A program libniji starts keeps the vector from its entry.)
     let mut env = Vec::new();
     if std::env::var(CASE).is_err() {
-        env.push(("LIELLA_NPL_PAGESZ", s01::getauxval(AT_PAGESZ).to_string()));
+        env.push(("NIJI_NPL_PAGESZ", s01::getauxval(AT_PAGESZ).to_string()));
     }
     without_proc("getauxval_hosted_without_proc", &env, || {
-        let want: u64 = std::env::var("LIELLA_NPL_PAGESZ").unwrap().parse().unwrap();
+        let want: u64 = std::env::var("NIJI_NPL_PAGESZ").unwrap().parse().unwrap();
         lo::close(-1); // errno = EBADF, so a stale ENOENT cannot pass
         let got = (s01::getauxval(AT_PAGESZ), errno::get());
         if got.0 == want && want != 0 { Ok(()) } else { check("getauxval(AT_PAGESZ)", got, (0, ENOENT)) }
@@ -367,8 +367,8 @@ fn null_fold_guard_without_proc() {
     // entries needs vm.mmap_min_addr of at least 64 KiB; unreadable (no /proc) is refused and
     // the explicit checks stay.
     without_proc("null_fold_guard_without_proc", &[], || {
-        let on = liella_boundary::selftest::set_null_fold(true);
-        liella_boundary::selftest::set_null_fold(false);
+        let on = niji_boundary::selftest::set_null_fold(true);
+        niji_boundary::selftest::set_null_fold(false);
         check("set_null_fold(true) without /proc", on, false)
     });
 }

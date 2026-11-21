@@ -3,18 +3,18 @@
 
     limits_from_counters.py COUNTERS.tsv [--headroom 2%|N] [--rows a,b] [--cpu MODEL] [--check [LIMITS.tsv]]
 
-COUNTERS.tsv is target/liella/bench/counters.tsv of `cargo xtask bench --compare --counters` (columns: bench row
+COUNTERS.tsv is target/niji/bench/counters.tsv of `cargo xtask bench --compare --counters` (columns: bench row
 ns cycles upc instr  L-cycles G-cycles L-upc G-upc L-instr G-instr spread flags; the two instr columns are the
-median Liella and glibc instructions per call). Output: lines in the exact format of bench/instr_limits.tsv
-(`cpu bench row max_instr rationale`), one per selected row that has a Liella instruction count.
+median libniji and glibc instructions per call). Output: lines in the exact format of bench/instr_limits.tsv
+(`cpu bench row max_instr rationale`), one per selected row that has a libniji instruction count.
 
-  limit = ceil(Liella instr + headroom), headroom = max(2 instr, PCT of the count) for `--headroom PCT%` (default
+  limit = ceil(libniji instr + headroom), headroom = max(2 instr, PCT of the count) for `--headroom PCT%` (default
   2%), or exactly N instructions for `--headroom N`. --rows takes `row` or `bench/row` names (comma list).
   --cpu is the `model name` of /proc/cpuinfo (default: this machine's; `*` for every CPU).
 
 --check [LIMITS.tsv] (default bench/instr_limits.tsv next to this script) diffs the proposal against the current
 file instead of printing lines: LOOSE = current limit more than 5% above the proposal (candidate to tighten),
-WOULD-FAIL = current limit below the Liella count (the bench gate fails it), NO-ROW = limit line whose row is
+WOULD-FAIL = current limit below the libniji count (the bench gate fails it), NO-ROW = limit line whose row is
 absent from the counters, NEW = counted row without a limit. Exit 1 when any WOULD-FAIL. Never edits a file.
 """
 import math
@@ -39,7 +39,7 @@ def limit_for(count, spec):
 
 
 def parse_counters(text):
-    """[(bench, row, liella_instr, glibc_instr or None)] for rows with a Liella instruction count."""
+    """[(bench, row, niji_instr, glibc_instr or None)] for rows with a libniji instruction count."""
     out = []
     for ln in text.splitlines():
         f = ln.split("\t")
@@ -69,7 +69,7 @@ def propose(rows, cpu, spec):
     res = []
     for b, r, li, gi in rows:
         g = "" if gi is None else f" vs glibc {gi:.1f}"
-        res.append((cpu, b, r, limit_for(li, spec), f"Liella {li:.1f}{g}; headroom {spec}"))
+        res.append((cpu, b, r, limit_for(li, spec), f"libniji {li:.1f}{g}; headroom {spec}"))
     return res
 
 
@@ -93,13 +93,13 @@ def check(rows, spec, limits, cpu):
         seen.add(key)
         prop = limit_for(li, spec)
         if key not in cur:
-            res.append(("NEW", f"{b}/{r}", f"no limit; Liella {li:.1f}, proposed {prop}"))
+            res.append(("NEW", f"{b}/{r}", f"no limit; libniji {li:.1f}, proposed {prop}"))
             continue
         c = cur[key]
         if c < li:
-            res.append(("WOULD-FAIL", f"{b}/{r}", f"limit {c} < Liella count {li:.1f}"))
+            res.append(("WOULD-FAIL", f"{b}/{r}", f"limit {c} < libniji count {li:.1f}"))
         elif (c - prop) / prop * 100.0 > LOOSE_PCT:
-            res.append(("LOOSE", f"{b}/{r}", f"limit {c}, Liella {li:.1f}, proposed {prop} ({(c - prop) / prop * 100.0:.1f}% looser)"))
+            res.append(("LOOSE", f"{b}/{r}", f"limit {c}, libniji {li:.1f}, proposed {prop} ({(c - prop) / prop * 100.0:.1f}% looser)"))
     for key in sorted(cur):
         if key not in seen:
             res.append(("NO-ROW", f"{key[0]}/{key[1]}", f"limit {cur[key]} but the counters have no such row"))

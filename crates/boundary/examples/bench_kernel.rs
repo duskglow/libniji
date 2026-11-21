@@ -9,10 +9,10 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use liella_boundary::sys::CSys;
-use liella_kernel::machine::Machine;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::CLOCK_MONOTONIC;
+use niji_boundary::sys::CSys;
+use niji_kernel::machine::Machine;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::CLOCK_MONOTONIC;
 
 const K: CSys = CSys;
 
@@ -59,7 +59,7 @@ fn main() {
         black_box(K.cpuid(0, 0));
     });
     let mut buf = [0u8; 64];
-    let fd = K.openat(liella_kernel::Fd::CWD, liella_kernel::KPathBuf::new(b"/dev/zero").unwrap().as_kstr(), 0, 0).unwrap();
+    let fd = K.openat(niji_kernel::Fd::CWD, niji_kernel::KPathBuf::new(b"/dev/zero").unwrap().as_kstr(), 0, 0).unwrap();
     measure("read_dev_zero_64", || {
         black_box(K.read(fd, &mut buf).unwrap());
     });

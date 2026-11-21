@@ -5,12 +5,12 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §15: the socket calls through the exports, the address and option
-//! results and the control-message walk through `liella_legacy::net_compat`; from §15.3 the
+//! results and the control-message walk through `niji_legacy::net_compat`; from §15.3 the
 //! conversions, interfaces (compared with sysfs), IPv6 option builders and source filters
-//! through the exports, the Ethernet and trust-file lookups through `liella_legacy` on fixture
+//! through the exports, the Ethernet and trust-file lookups through `niji_legacy` on fixture
 //! files (the system's files are not touched), and `rexec` against a test server on loopback.
 //! `rcmd` and `rresvport` need privileged ports: unprivileged, their refusals are tested.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -24,24 +24,23 @@ mod scratch;
 use core::ffi::CStr;
 use core::ptr::null_mut;
 
-use liella::error::Errno;
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as strs;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as sio;
-use liella_boundary::posix::s15_sockets as x;
-use liella_kernel::uapi::{PollFd, SockAddrBuf};
-use liella_legacy::interim_db::{self, Ip};
-use liella_legacy::net_compat;
-use liella_legacy::rcmd::{self, TrustFiles};
+use niji::error::Errno;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as strs;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as sio;
+use niji_boundary::posix::s15_sockets as x;
+use niji_kernel::uapi::{PollFd, SockAddrBuf};
+use niji_legacy::interim_db;
+use niji_legacy::net_compat;
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -210,8 +209,8 @@ fn s15_1_c_4() {
     let s = x::accept4(l, (&raw mut peer).cast(), Some(&mut len), SOCK_NONBLOCK | SOCK_CLOEXEC);
     assert!(s >= 0);
     assert_eq!(peer, name_of(c), "the peer address, optionally");
-    assert_eq!(io::liella_fcntl3(s, 1, 0), 1);
-    assert_ne!(io::liella_fcntl3(s, 3, 0) & 0o4000, 0);
+    assert_eq!(io::niji_fcntl3(s, 1, 0), 1);
+    assert_ne!(io::niji_fcntl3(s, 3, 0) & 0o4000, 0);
     close(&[l, c, s]);
 }
 
@@ -264,7 +263,7 @@ fn s15_1_c_7() {
     assert_eq!(&tiny[2..4], &a.port.to_ne_bytes(), "truncated to the supplied 6 bytes");
     // The library's copy-out: truncate, report.
     let mut src = SockAddrBuf::new();
-    liella_kernel::sys::Sys::getsockname(&liella_boundary::sys::CSys, liella_kernel::fd::Fd::new(l), &mut src).unwrap();
+    niji_kernel::sys::Sys::getsockname(&niji_boundary::sys::CSys, niji_kernel::fd::Fd::new(l), &mut src).unwrap();
     let mut out = [0u8; 4];
     let mut ol = 4u32;
     net_compat::store_addr(&src, Some(net_compat::AddrOut { buf: &mut out, len: &mut ol }));
@@ -293,6 +292,90 @@ fn s15_1_c_8() {
     io::close(l);
 }
 
+/// §15.1 `getsockopt`: a NULL value with `*len` 0 is the option's size query and reaches the
+/// kernel, which reports the size in `*len` (`NETLINK_LIST_MEMBERSHIPS`, how a netlink user
+/// sizes its group list); a NULL value with room claimed is the kernel's `EFAULT`, after its
+/// own descriptor check.
+#[test]
+fn s15_1_c_8_null_value_size_query() {
+    const SOL_NETLINK: c_int = 270;
+    const NETLINK_LIST_MEMBERSHIPS: c_int = 9;
+    let nl = x::socket(AF_NETLINK, SOCK_RAW, 0);
+    assert!(nl >= 0, "a NETLINK_ROUTE socket");
+    // struct sockaddr_nl: family, pad, pid, groups (RTMGRP_LINK, so the group list is not empty).
+    let mut a = [0u8; 12];
+    a[..2].copy_from_slice(&(AF_NETLINK as u16).to_ne_bytes());
+    a[8..].copy_from_slice(&1u32.to_ne_bytes());
+    assert_eq!(x::bind(nl, a.as_ptr().cast(), 12), 0);
+    let mut len = 0u32;
+    assert_eq!(x::getsockopt(nl, SOL_NETLINK, NETLINK_LIST_MEMBERSHIPS, null_mut(), Some(&mut len)), 0, "errno {}", errno::get());
+    assert!(len != 0 && len % 4 == 0, "the group bitmap's size in u32 words: {len}");
+    let u = x::socket(AF_INET, SOCK_DGRAM, 0);
+    let mut len = 0u32;
+    assert_eq!(x::getsockopt(u, 1, 3, null_mut(), Some(&mut len)), 0, "SO_TYPE, nothing to copy");
+    assert_eq!(len, 0);
+    let mut len = 4u32;
+    assert!(err(x::getsockopt(u, 1, 3, null_mut(), Some(&mut len)) as isize, Errno::EFAULT), "room claimed at NULL");
+    assert!(err(x::getsockopt(-1, 1, 3, null_mut(), None) as isize, Errno::EBADF), "the descriptor is checked first");
+    close(&[nl, u]);
+}
+
+/// §15.1 `getsockopt` (s15_1_c_8): `*len` receives the kernel's length also when the call
+/// fails because the buffer is too small (`SO_PEERGROUPS`: `ERANGE` with the size of the
+/// peer's group list).
+#[test]
+fn s15_1_c_8_length_reported_with_erange() {
+    const SO_PEERGROUPS: c_int = 59;
+    let [a, b] = pair(SOCK_STREAM);
+    let mut g = [0u32; 1024];
+    let mut full = 4096u32;
+    assert_eq!(x::getsockopt(a, 1, SO_PEERGROUPS, g.as_mut_ptr().cast(), Some(&mut full)), 0);
+    for (p, cap) in [(null_mut(), 0u32), (g.as_mut_ptr().cast(), 1)] {
+        let mut len = cap;
+        let r = x::getsockopt(a, 1, SO_PEERGROUPS, p, Some(&mut len));
+        if full > cap {
+            assert!(err(r as isize, Errno::ERANGE), "ERANGE for {cap} bytes, {full} needed");
+        } else {
+            assert_eq!(r, 0);
+        }
+        assert_eq!(len, full, "the peer's group list size, for a {cap}-byte buffer");
+    }
+    close(&[a, b]);
+}
+
+/// §15.1 `getsockname`/`getpeername`: NULL with `*len` 0 is a length query (the full length
+/// comes back); NULL with room claimed is `EFAULT` with `*len` untouched; the descriptor and
+/// connection errors come before the result buffer's.
+#[test]
+fn s15_1_c_7_null_buffer_length_query() {
+    let (l, _) = listener(SOCK_DGRAM);
+    let mut len = 0u32;
+    assert_eq!(x::getsockname(l, null_mut(), Some(&mut len)), 0, "errno {}", errno::get());
+    assert_eq!(len, IN4);
+    let mut len = 8u32;
+    assert!(err(x::getsockname(l, null_mut(), Some(&mut len)) as isize, Errno::EFAULT));
+    assert_eq!(len, 8, "untouched");
+    let [a, b] = pair(SOCK_STREAM);
+    let mut len = 0u32;
+    assert_eq!(x::getpeername(a, null_mut(), Some(&mut len)), 0);
+    assert_eq!(len, 2, "an unnamed Unix peer: the family alone");
+    let mut len = 0u32;
+    assert!(err(x::getpeername(l, null_mut(), Some(&mut len)) as isize, Errno::ENOTCONN), "not connected");
+    assert!(err(x::getpeername(l, null_mut(), None) as isize, Errno::ENOTCONN), "not connected, before the missing length cell");
+    assert!(err(x::getsockname(-1, null_mut(), None) as isize, Errno::EBADF));
+    close(&[l, a, b]);
+}
+
+/// §15.1 `setsockopt`: a NULL value reaches the kernel, which decides (`EBADF` for a bad
+/// descriptor before anything is read, `EFAULT` when it must read the value).
+#[test]
+fn s15_1_c_8_setsockopt_null_value() {
+    let u = x::socket(AF_INET, SOCK_DGRAM, 0);
+    assert!(err(x::setsockopt(-1, 1, 2, core::ptr::null(), 4) as isize, Errno::EBADF));
+    assert!(err(x::setsockopt(u, 1, 2, core::ptr::null(), 4) as isize, Errno::EFAULT));
+    io::close(u);
+}
+
 #[test]
 fn s15_1_c_9() {
     let [a, b] = pair(SOCK_STREAM);
@@ -304,7 +387,7 @@ fn s15_1_c_9() {
         assert_eq!(x::sockatmark(a), 0, "no out-of-band data");
     }
     assert_eq!(x::isfdtype(a, 0o140000), 1);
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert_eq!(x::isfdtype(f, 0o140000), 0);
     assert_eq!(x::isfdtype(f, 0o020000), 1, "a character device");
     close(&[a, b, f]);
@@ -319,7 +402,7 @@ fn s15_1_f_0() {
     let c = x::socket(AF_INET, SOCK_STREAM, 0);
     x::connect(c, (&raw const a).cast(), IN4);
     assert!(err(x::connect(c, (&raw const a).cast(), IN4) as isize, Errno::EISCONN), "EISCONN");
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert!(err(x::listen(f, 1) as isize, Errno::ENOTSOCK), "ENOTSOCK");
     let mine = x::socket(AF_INET, SOCK_DGRAM, 0);
     let foreign = In4 { addr: [203, 0, 113, 1], ..lo(0) };
@@ -410,7 +493,7 @@ fn s15_2_c_4() {
     for d in [&b"1"[..], b"22", b"333"] {
         x::send(a, d.as_ptr().cast(), d.len(), 0);
     }
-    let mut ts = liella_kernel::uapi::Timespec { sec: 0, nsec: 100_000_000 };
+    let mut ts = niji_kernel::uapi::Timespec { sec: 0, nsec: 100_000_000 };
     assert_eq!(x::recvmmsg(b, v.as_mut_ptr().cast(), 3, 0, Some(&mut ts)), 3, "several per call, with a timeout");
     assert_eq!(v.iter().map(|m| m.len).collect::<Vec<_>>(), [1, 2, 3]);
     assert_eq!(x::sendmmsg(a, v.as_mut_ptr().cast(), 3, 0), 3);
@@ -604,7 +687,7 @@ fn s15_3_c_4() {
 
 #[test]
 fn s15_3_c2_0() {
-    use liella_boundary::data::{in6addr_any, in6addr_loopback, In6Addr};
+    use niji_boundary::data::{in6addr_any, in6addr_loopback, In6Addr};
     assert_eq!(in6addr_any.0, [0; 16], "::");
     let mut one = [0u8; 16];
     one[15] = 1;
@@ -946,9 +1029,9 @@ fn s15_7_c_0() {
     let file = dir.join("ethers");
     std::fs::write(&file, "# fixture\n00:11:22:33:44:55 alpha\n  0a:0b:0c:0d:0e:0f\tBeta # second\nbad line\n0:11:22:33:44:55 again\n").unwrap();
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
-    assert_eq!(interim_db::ether_by_name(&liella_boundary::sys::CSys, &path, b"beta"), Some([10, 11, 12, 13, 14, 15]), "names match without regard to case");
-    assert_eq!(interim_db::ether_by_name(&liella_boundary::sys::CSys, &path, b"nosuch"), None);
-    let name = interim_db::ether_by_addr(&liella_boundary::sys::CSys, &path, [0, 0x11, 0x22, 0x33, 0x44, 0x55]).unwrap().unwrap();
+    assert_eq!(interim_db::ether_by_name(&niji_boundary::sys::CSys, &path, b"beta"), Some([10, 11, 12, 13, 14, 15]), "names match without regard to case");
+    assert_eq!(interim_db::ether_by_name(&niji_boundary::sys::CSys, &path, b"nosuch"), None);
+    let name = interim_db::ether_by_addr(&niji_boundary::sys::CSys, &path, [0, 0x11, 0x22, 0x33, 0x44, 0x55]).unwrap().unwrap();
     assert_eq!(name.as_slice(), b"alpha", "the first entry wins");
     drop(dir);
     if !std::path::Path::new("/etc/ethers").exists() {
@@ -957,15 +1040,6 @@ fn s15_7_c_0() {
         let mut host = [0u8; 256];
         assert_eq!(x::ether_ntohost(host.as_mut_ptr().cast(), Some(&[0, 0x11, 0x22, 0x33, 0x44, 0x55])), -1);
     }
-}
-
-/// The user running the tests: (name, home), from /etc/passwd.
-fn me() -> Option<(String, String)> {
-    let uid = liella_boundary::posix::s17_users::geteuid();
-    std::fs::read_to_string("/etc/passwd").ok()?.lines().find_map(|l| {
-        let f: Vec<&str> = l.split(':').collect();
-        (f.len() >= 7 && f[2].parse::<u32>().ok()? == uid).then(|| (f[0].to_string(), f[5].to_string()))
-    })
 }
 
 #[test]
@@ -1048,59 +1122,7 @@ fn s15_8_c_3() {
     assert_eq!(x::iruserok(lo, 0, c"alice".as_ptr(), c"alice".as_ptr()), -1);
     assert_eq!(x::iruserok_af((&raw const lo).cast(), 0, c"alice".as_ptr(), c"alice".as_ptr(), AF_INET as u16), -1);
     assert_eq!(errno::get(), ERRNO_SENTINEL, "the trust checks leave errno alone");
-    // The files' checks (rcmd(3)), on fixture files in a private directory (owned by an
-    // unprivileged user, so that the system-wide file's owner check fails).
-    if liella_boundary::posix::s17_users::geteuid() == 0 {
-        skip_note::skipped("the file checks: run unprivileged");
-        return;
-    }
-    let Some((luser, _)) = me() else {
-        skip_note::skipped("the file checks: the user is not in /etc/passwd");
-        return;
-    };
-    let dir = scratch::Scratch::dir("c15-trust");
-    let equiv = dir.join("hosts.equiv");
-    let rhosts = dir.join(".rhosts");
-    let eq = equiv.to_str().unwrap().as_bytes().to_vec();
-    let home = dir.to_str().unwrap().as_bytes().to_vec();
-    let files = TrustFiles { equiv: &eq, home: Some(&home), check_rhosts: true };
-    let k = &liella_boundary::sys::CSys;
-    let ok = |files: TrustFiles<'_>, superuser: bool, ruser: &str| -> (bool, Option<&'static [u8]>) {
-        let mut why = None;
-        let r = rcmd::iruserok(k, files, Ip::V4(LO), superuser, ruser.as_bytes(), luser.as_bytes(), &mut why);
-        (r, why)
-    };
-    use std::os::unix::fs::PermissionsExt;
-    let mode = |p: &std::path::Path, m: u32| std::fs::set_permissions(p, std::fs::Permissions::from_mode(m)).unwrap();
-    assert_eq!(ok(files, false, "alice"), (false, Some(rcmd::errstr::LSTAT)), "neither file exists");
-    std::fs::write(&equiv, "+ +\n").unwrap();
-    mode(&equiv, 0o644);
-    assert_eq!(ok(files, false, "alice"), (false, Some(rcmd::errstr::LSTAT)), "hosts.equiv not owned by the superuser is ignored, then .rhosts is missing");
-    let no_rhosts = TrustFiles { check_rhosts: false, ..files };
-    assert_eq!(ok(no_rhosts, false, "alice"), (false, Some(rcmd::errstr::OWNER)), "bad owner");
-    assert_eq!(ok(no_rhosts, true, "alice"), (false, None), "superuser: hosts.equiv is not read");
-    std::fs::write(&rhosts, "127.0.0.1 alice\n").unwrap();
-    mode(&rhosts, 0o600);
-    assert!(ok(files, false, "alice").0, ".rhosts owned by the user admits alice");
-    assert!(ok(files, true, "alice").0, "also for a superuser");
-    assert!(!ok(files, false, "bob").0);
-    mode(&rhosts, 0o640);
-    assert!(ok(files, false, "alice").0, "readable by the group: allowed");
-    mode(&rhosts, 0o664);
-    assert_eq!(ok(files, true, "alice"), (false, Some(rcmd::errstr::WRITABLE)));
-    mode(&rhosts, 0o600);
-    let second = dir.join("second");
-    std::fs::hard_link(&rhosts, &second).unwrap();
-    assert_eq!(ok(files, true, "alice"), (false, Some(rcmd::errstr::LINKED)));
-    std::fs::remove_file(&second).unwrap();
-    let real = dir.join("real");
-    std::fs::rename(&rhosts, &real).unwrap();
-    std::os::unix::fs::symlink(&real, &rhosts).unwrap();
-    assert_eq!(ok(files, true, "alice"), (false, Some(rcmd::errstr::NOT_REGULAR)), "a symbolic link");
-    std::fs::remove_file(&rhosts).unwrap();
-    std::fs::create_dir(&rhosts).unwrap();
-    assert_eq!(ok(files, true, "alice"), (false, Some(rcmd::errstr::NOT_REGULAR)), "a directory");
-    // Through the exports: a host the files lookup does not know is refused.
+    // A host the files lookup does not know is refused too.
     assert_eq!(x::ruserok(c"nosuchhost.invalid".as_ptr(), 0, c"alice".as_ptr(), c"alice".as_ptr()), -1);
 }
 

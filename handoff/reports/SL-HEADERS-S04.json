@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S04", "model": "opus", "tokens": null,
+ "result": "CHECKPOINT (WIP): call-site/noexcept probe, checker and identical tables committed; unit tests, plants and gate not yet run",
+ "branch": "task/sl-headers-s04", "head": null,
+ "gate": {"affected": "not run", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["noexcept.tsv cxx98: 241 error rows, cause not verified (see handoff)"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "callsites.tsv rows (3778 functions, -O0 address and fortify calls)", "before": 0, "after": 7889, "unit": "rows", "measured": true},
+            {"kind": "unblock", "what": "SL-HEADERS-6 and SL-HEADERS-18 (P3 call-site tables)", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "a probe whose parallel jobs derive file names from a key needs a uniqueness guard; added one after a race",
+ "next_step": "run xtask tests/clippy/static, examine 241 cxx98 errors, plants and direct gate",
+ "report_file": "handoff/SL-HEADERS-S04.md",
+ "jobs": ["sl-headers-s04-probe3", "sl-headers-s04-probe4"]}

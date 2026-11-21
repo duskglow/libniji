@@ -8,8 +8,8 @@
  * largest finite, ±∞, NaNs quiet and signalling, and for long double the encodings the x87 does
  * not generate), and on random pairs, in every rounding direction. Each line prints the
  * operands' and results' encodings (20 hex digits for long double, 32 for _Float128), the raised
- * flags and errno. Built against the host C library and statically against Liella's products,
- * the outputs must agree (complex_ld_products.rs) except where Liella is correctly rounded and
+ * flags and errno. Built against the host C library and statically against libniji's products,
+ * the outputs must agree (complex_ld_products.rs) except where libniji is correctly rounded and
  * the host is not. */
 #define _GNU_SOURCE
 #include <complex.h>

@@ -15,14 +15,18 @@
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::sync::OnceLock;
 
-use liella_abi::layout::{regex_t, regmatch_t, sigset_t};
-use liella_boundary::posix::s14_search as rx;
-use liella_boundary::posix::s20_signals as sig;
-use liella_boundary::posix::s23_time as tm;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerval, SigSet, Timeval};
-use liella_legacy::signal_compat::CSigaction;
+use niji_abi::layout::{regex_t, regmatch_t, sigset_t};
+use niji_boundary::posix::s14_search as rx;
+use niji_boundary::posix::s20_signals as sig;
+use niji_boundary::posix::s23_time as tm;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerval, SigSet, Timeval};
+use niji_legacy::signal_compat::CSigaction;
+
+#[path = "../../core/tests/support/single_thread.rs"]
+mod single_thread;
+use single_thread::{single_threaded, sole_thread};
 
 const SIGALRM: i32 = 14;
 const SIG_BLOCK: i32 = 0;
@@ -132,7 +136,9 @@ fn signal_body() -> bool {
     let (hits, inner_bad, mid) = (HITS.load(Ordering::SeqCst), INNER_BAD.load(Ordering::SeqCst), MID.load(Ordering::SeqCst));
     eprintln!("runs {runs} in {:?}, handler calls {hits}, mid-search {mid}, outer wrong {outer_bad}, inner wrong {inner_bad}", start.elapsed());
     // At least 20 handler calls must have landed inside an outer search, or the test proves nothing.
-    mid >= 20 && hits >= 50 && outer_bad == 0 && inner_bad == 0
+    // SIGALRM goes to the whole process: only as the sole thread (D-X.42) is every handler run
+    // counted here one that interrupted this thread, not one that ran beside it.
+    sole_thread() && mid >= 20 && hits >= 50 && outer_bad == 0 && inner_bad == 0
 }
 
 fn subjects() -> Vec<std::ffi::CString> {
@@ -181,7 +187,7 @@ fn fork_body() -> bool {
         eprintln!("the subjects do not exercise both answers");
         return false;
     }
-    let pid = liella_boundary::fork::fork().unwrap();
+    let pid = niji_boundary::fork::fork().unwrap();
     if pid == 0 {
         // The child: cached states for `p`, then patterns compiled after the fork.
         let again: Vec<i32> = subs.iter().map(|s| exists(&nosub_p, s)).collect();
@@ -195,12 +201,12 @@ fn fork_body() -> bool {
 }
 
 fn in_child(name: &str, body: fn() -> bool) {
-    if std::env::var("LIELLA_REGEX_DFA_CHILD").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_REGEX_DFA_CHILD").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_REGEX_DFA_CHILD", name)
+        .env("NIJI_REGEX_DFA_CHILD", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -210,7 +216,7 @@ fn in_child(name: &str, body: fn() -> bool) {
 #[test]
 fn a_signal_handler_inside_the_dfa_keeps_both_answers() {
     // Clauses: no spec clause (D-14.12 busy word, D-14.13 store; plan row RX-T2-1).
-    in_child("a_signal_handler_inside_the_dfa_keeps_both_answers", signal_body);
+    in_child("a_signal_handler_inside_the_dfa_keeps_both_answers", || single_threaded(signal_body));
 }
 
 #[test]

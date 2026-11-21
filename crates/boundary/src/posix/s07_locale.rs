@@ -3,7 +3,7 @@
 //! (D-7.7, D-7.8); the catalogs are `crate::catalog` (D-7.5, D-7.6). `rpmatch` (§7.6) matches with
 //! the regular expressions of phase 12 (D-7.9; missed there, added in the validation stage, T2).
 
-use liella_abi::ctypes::{c_char, c_int, c_ulong, c_void, locale_t, size_t, ssize_t};
+use niji_abi::ctypes::{c_char, c_int, c_ulong, c_void, locale_t, size_t, ssize_t};
 
 use crate::catalog;
 use crate::conv;
@@ -61,7 +61,7 @@ pub extern "C" fn __uselocale(loc: locale_t) -> locale_t {
 }}
 
 export! { "GLIBC_2.2.5";
-pub extern "C" fn localeconv() -> *mut liella_abi::layout::struct_lconv {
+pub extern "C" fn localeconv() -> *mut niji_abi::layout::struct_lconv {
     ret::ptr(locale::localeconv())
 }}
 
@@ -176,8 +176,8 @@ pub extern "C" fn catclose(catd: *mut c_void) -> c_int {
 
 // ------------------------------------------------------------------------------ §7.5
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vstrfmon5(s: *mut c_char, max: size_t, loc: locale_t, fmt: *const c_char, ap: *mut c_void) -> ssize_t {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vstrfmon5(s: *mut c_char, max: size_t, loc: locale_t, fmt: *const c_char, ap: *mut c_void) -> ssize_t {
     // UNSAFE(slice) SAFETY: s has room for max bytes; fmt is a string; ap is the va_list of the amounts it names (§7.5).
     ret::ssize(crate::monetary::vstrfmon(unsafe { conv::buf_mut(s.cast(), max) }, conv::addr(loc), unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}

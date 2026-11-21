@@ -56,7 +56,7 @@ int main(void)
     unsetenv("DATEMSK");
     getdate_err = 0;
     CHECK("23.7", getdate("2024-02-29") == NULL && getdate_err == 1);
-    snprintf(path, sizeof path, "/tmp/liella-s23-timefmt-%d", (int)getpid());
+    snprintf(path, sizeof path, "/tmp/niji-s23-timefmt-%d", (int)getpid());
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     CHECK("23.7", fd >= 0);
     const char *tmpl = "%Y-%m-%d %H:%M\n";

@@ -1,0 +1,6 @@
+# TB-FOREIGN-WORDS-LOW-12: the two #[inline(never)] guards on crates/core/src/config.rs (cargo xtask plants; docs/plants.md).
+# Either guard alone keeps GLIBC_TUNABLE_TYPES off start-up code (its address is only in glibc_tunable_type, whose
+# only caller is warnings), so removing one is equivalent by design; the pair is proved by the merged-tree builds
+# tb-foreign-words-low-12-meim0 (no guard: CI's 8 > 7) and -meim1 (guards) on the Skylake-SP host (handoff).
+tunable-type-inline | crates/core/src/config.rs | perl:s/#\[inline\(never\)\](\npub fn glibc_tunable_type)/#[inline(always)]$1/ | cargo test -p liella --test s01_startup_clauses | equivalent:warnings keeps it out of line; inlined into warnings, the table address stays off start-up code
+warnings-inline | crates/core/src/config.rs | perl:s/#\[inline\(never\)\](\npub fn warnings)/#[inline(always)]$1/ | cargo test -p liella --test s01_startup_clauses | equivalent:glibc_tunable_type stays out of line, so start-up code inlining warnings still never addresses the table; behaviour is unchanged

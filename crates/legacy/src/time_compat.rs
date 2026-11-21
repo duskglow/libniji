@@ -1,6 +1,6 @@
 //! The process-wide time zone of `tzset` and the `tzname`/`timezone`/`daylight` globals, and
 //! `asctime`'s fixed text (spec §23.5–23.6; D-23.5, D-23.6). The zone engine itself is
-//! `liella::time` (IP-23); this module keeps which zone is the process's and publishes it.
+//! `niji::time` (IP-23); this module keeps which zone is the process's and publishes it.
 //!
 //! **Zones are kept.** Every zone the process selects is kept, with the `TZ` and `TZDIR` values
 //! it was selected under (and, for a file, the file's identity), for the rest of the process:
@@ -14,7 +14,7 @@
 //! (device, inode, size, modification and change times, by `stat`) at most once per second
 //! (`crate::recheck`, owner ruling 2026-10-05); any difference selects again. A changed `TZ` or
 //! `TZDIR` (compared, never stat'ed) and the explicit `tzset` check at once. glibc checks the file
-//! only for `/etc/localtime`; Liella checks every zone file the same way. The common case, an
+//! only for `/etc/localtime`; libniji checks every zone file the same way. The common case, an
 //! unchanged environment and no check due, takes no lock.
 //! The `_r` forms use the current zone without checking (as glibc), selecting one only when
 //! none has been.
@@ -25,18 +25,18 @@
 //! `tm_zone` and `tzname` pointers stay valid.
 //!
 //! **The globals** are written when the selected zone changes, and by every explicit `tzset`.
-//! They describe the zone (`liella::time::Globals`), never the period of the last conversion:
+//! They describe the zone (`niji::time::Globals`), never the period of the last conversion:
 //! glibc's `localtime` and `mktime` also rewrite them from the period they convert in.
 
 use core::sync::atomic::{AtomicI32, AtomicI64, AtomicUsize, Ordering::Acquire, Ordering::Release};
 
-use liella::error::{Errno, KResult};
-use liella::mem::{TryBox, TryVec};
-use liella::time::{self, FileId, Zone};
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::mem::{TryBox, TryVec};
+use niji::time::{self, FileId, Zone};
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
-use crate::recheck::{self, LastCheck};
+use crate::recheck::{self, LastCheck, TscGate};
 
 /// A selected zone and what it was selected under.
 #[derive(Debug)]
@@ -47,12 +47,16 @@ pub struct Entry {
     next: AtomicUsize,
     /// The last check of the zone's file (`recheck`).
     checked: LastCheck,
+    /// The TSC gate in front of `checked` on the hot path (D-7.14's rule, COLDSTART-SECOND-LATENCY-3).
+    gate: TscGate,
     /// The generation ([`invalidate`]) in which the file's identity was last checked.
     generation: AtomicUsize,
 }
 
 impl Entry {
-    /// The zone.
+    /// The zone. Always inlined: [`select`]'s lock-free path returns it, and an out-of-line copy
+    /// would have no hot-text key (HOTTEXT-TIME-CLUSTER-STABLE, as `recheck::TscGate::fresh`).
+    #[inline(always)]
     pub fn zone(&self) -> &Zone {
         self.loaded.zone.as_ref().unwrap_or(self.loaded.fixed)
     }
@@ -84,7 +88,7 @@ pub struct Env<'a> {
     /// `TZDIR` (`None`: unset or ignored), read only on a change of `TZ` and by the explicit
     /// `tzset` (TZ-FRESH: as glibc, a change of `TZDIR` alone is not seen by an implicit one).
     pub tzdir: &'a dyn Fn() -> Option<&'a [u8]>,
-    /// The file for an unset `TZ` (NUL-terminated): `liella::time::LOCALTIME`.
+    /// The file for an unset `TZ` (NUL-terminated): `niji::time::LOCALTIME`.
     pub default: &'a [u8],
 }
 
@@ -94,7 +98,7 @@ static CURRENT: AtomicUsize = AtomicUsize::new(0);
 /// The invalidation generation (D-X.13).
 static GENERATION: AtomicUsize = AtomicUsize::new(0);
 
-/// `liella_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
+/// `niji_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
 /// again before its next use, and read again if the file changed. The new generation.
 pub fn invalidate() -> usize {
     GENERATION.fetch_add(1, Release).wrapping_add(1)
@@ -133,10 +137,11 @@ pub fn publish(z: &'static Zone, g: &Globals<'_>) {
 /// for the current zone at most once per second (D-23.6; owner ruling 2026-10-05).
 pub fn select<S: Sys>(sys: &S, objs: &impl ZoneObjects, env: Env<'_>, g: &Globals<'_>, always: bool) -> &'static Zone {
     let cur = CURRENT.load(Acquire);
-    // The hot path, without the lock: the current zone, the same `TZ`, no check due.
+    // The hot path, without the lock: the current zone, the same `TZ`, no check due. `TZ` and the
+    // generation are compared first; only the once-a-second file check is behind the TSC gate.
     if !always && cur != 0 {
         let e = objs.entry_at(cur);
-        if e.tz.as_deref() == env.tz && (e.loaded.file.is_none() || (e.generation.load(Acquire) == GENERATION.load(Acquire) && !e.checked.due(recheck::now(sys)))) {
+        if e.tz.as_deref() == env.tz && (e.loaded.file.is_none() || (e.generation.load(Acquire) == GENERATION.load(Acquire) && e.gate.fresh(&e.checked, sys.tsc(), || recheck::now(sys)))) {
             return e.zone();
         }
     }
@@ -201,9 +206,17 @@ pub fn select<S: Sys>(sys: &S, objs: &impl ZoneObjects, env: Env<'_>, g: &Global
 fn add<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8]) -> KResult<&'static Entry> {
     let generation = AtomicUsize::new(GENERATION.load(Acquire));
     let loaded = time::load(sys, tz, tzdir, default)?;
+    // A file zone starts its TSC gate here (PERF-FIRSTCALL-MKTIME-SNPRINTF): the load already
+    // makes its system calls, so the counter's one-time `PR_GET_TSC` query (D-7.14) is made on
+    // this path, and the first implicit `tzset` after it (`mktime` after `localtime_r`) takes the
+    // gate without the query or a clock read. A rule zone has no file check and no gate.
+    let tsc = if loaded.file.is_some() { sys.tsc() } else { 0 };
+    let now = recheck::now(sys);
     let checked = LastCheck::new();
-    checked.checked(recheck::now(sys));
-    let e = Entry { loaded, tz: copy(tz)?, dir: copy(tzdir)?, next: AtomicUsize::new(HEAD.load(Acquire)), checked, generation };
+    checked.checked(now);
+    let gate = TscGate::new();
+    gate.start(tsc, now);
+    let e = Entry { loaded, tz: copy(tz)?, dir: copy(tzdir)?, next: AtomicUsize::new(HEAD.load(Acquire)), checked, gate, generation };
     let e: &'static Entry = TryBox::new(e)?.leak();
     HEAD.store(addr_of(e), Release);
     Ok(e)

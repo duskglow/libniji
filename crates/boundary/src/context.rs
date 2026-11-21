@@ -6,9 +6,9 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella_kernel::errno::KResult;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::SS_ONSTACK;
+use niji_kernel::errno::KResult;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::SS_ONSTACK;
 
 use crate::sys::CSys;
 use crate::{ffi, tb};
@@ -53,7 +53,7 @@ fn end_addr() -> usize {
 
 #[allow(clippy::as_conversions)] // as above
 fn start_context_addr() -> usize {
-    ffi::liella_machine_start_context as extern "C" fn() as usize
+    ffi::niji_machine_start_context as extern "C" fn() as usize
 }
 
 /// `makecontext(uc, func, argc, ...)`: `uc` resumes in `func` with `argc` register-sized
@@ -80,8 +80,8 @@ pub fn make(uc: KResult<&[AtomicUsize]>, stack: KResult<(usize, &[AtomicUsize])>
     put(uc, W_GREGS + REG_RSP, sp);
     put(uc, W_GREGS + REG_RBX, sp + link_idx * 8);
     for i in 0..argc {
-        // One argument per call, exactly argc of them (the obligation of `liella_va_long`).
-        let v = usize::from_ne_bytes(ffi::liella_va_long(ap).to_ne_bytes());
+        // One argument per call, exactly argc of them (the obligation of `niji_va_long`).
+        let v = usize::from_ne_bytes(ffi::niji_va_long(ap).to_ne_bytes());
         match ARG_REGS.get(i) {
             Some(&r) => put(uc, W_GREGS + r, v),
             None => put(stack, at(i - 5), v),
@@ -102,5 +102,5 @@ pub fn longjmp_chk(env: KResult<&[AtomicUsize]>, val: i32) -> ! {
             crate::process::fortify_fail(b"longjmp causes uninitialized stack frame");
         }
     }
-    ffi::liella_machine_siglongjmp(env.as_ptr().expose_provenance(), val)
+    ffi::niji_machine_siglongjmp(env.as_ptr().expose_provenance(), val)
 }

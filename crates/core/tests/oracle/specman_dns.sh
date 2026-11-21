@@ -5,7 +5,7 @@
 # getaddrinfo for an unqualified name. All of it in a private user, network and mount namespace
 # (unshare -r -n -m), so the system's resolver configuration is never touched.
 # Usage: sh specman_dns.sh [static-link-objects...]  (no argument: the host C library; with
-# Liella's liella-crt1.o and libc.a: the products).
+# libniji's niji-crt1.o and libc.a: the products).
 set -eu
 dir=$(mktemp -d "${TMPDIR:-/tmp}/specman-dns.XXXXXX")
 trap 'rm -rf "$dir"' EXIT

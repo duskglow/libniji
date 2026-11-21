@@ -1,5 +1,5 @@
 //! scanf end to end (spec §12.7; D-12.6, D-12.13): `tests/oracle/scanf_diff.c` built
-//! against the host C library and statically against Liella's products, run with the same
+//! against the host C library and statically against libniji's products, run with the same
 //! `LOCPATH`; the outputs must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler and `localedef`; without the
 //! latter two the test says so and passes.
@@ -25,12 +25,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/scanf_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -69,7 +69,7 @@ const KNOWN: [(&str, &str, &str); 23] = [
 
 /// D-12.6: an integer conversion out of its type's range stores the clamped value, where glibc
 /// stores the value converted to the type. Such a line differs only in the first argument's
-/// bytes, and Liella's are the type's minimum or maximum.
+/// bytes, and libniji's are the type's minimum or maximum.
 fn clamped(w: &str, g: &str) -> bool {
     let field = |l: &str| -> Option<(String, String)> {
         let at = l.find(" a=")?;
@@ -86,7 +86,7 @@ fn clamped(w: &str, g: &str) -> bool {
 
 /// D-12.13: wide input stored as a narrow string (`%s`, `%[`) gets one terminator; glibc writes a
 /// second zero byte past it (which can overrun a buffer sized for the string). Such a line is a
-/// wide one (`ws`, `wf`) that differs only in string arguments whose reference bytes are Liella's
+/// wide one (`ws`, `wf`) that differs only in string arguments whose reference bytes are libniji's
 /// followed by one more `00`.
 fn one_terminator(w: &str, g: &str) -> bool {
     if !(w.starts_with("ws ") || w.starts_with("wf ")) {
@@ -115,7 +115,7 @@ fn one_terminator(w: &str, g: &str) -> bool {
 fn scanf_behaviour_equals_the_reference() {
     // Clauses: s12_7_c_0, s12_7_c_1, s12_7_c_2, s12_7_c_3, s12_7_g_0, s12_7_f_0 (D-12.6, D-12.13).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     if !["en_US.UTF-8", "de_DE.UTF-8"].iter().all(|n| ensure_locale(&locales, n)) {
@@ -124,7 +124,7 @@ fn scanf_behaviour_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("scanf_diff_host"), dir.join("scanf_diff_liella"));
+    let (host, ours) = (dir.join("scanf_diff_host"), dir.join("scanf_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -147,7 +147,7 @@ fn scanf_behaviour_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
@@ -162,7 +162,7 @@ fn scanf_behaviour_equals_the_reference() {
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }

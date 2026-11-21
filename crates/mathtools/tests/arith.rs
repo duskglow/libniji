@@ -7,7 +7,7 @@
 mod common;
 
 use common::{f, Rng};
-use liella_mathtools::mp::{correctly_rounded, ulp_error, Approx, Big, Fmt, Round, Rounded};
+use niji_mathtools::mp::{correctly_rounded, ulp_error, Approx, Big, Fmt, Round, Rounded};
 use std::cmp::Ordering;
 
 const MODES: [Round; 4] = [Round::Nearest, Round::Up, Round::Down, Round::Zero];
@@ -78,6 +78,58 @@ fn exact_ops_identities() {
     assert!(Big::inf(false).add(&Big::inf(true)).is_nan());
     assert!(Big::inf(false).mul(&Big::zero(false)).is_nan());
     assert!(Big::zero(true).sqrt(10, Round::Nearest).is_neg());
+}
+
+/// `sqrt(a)` rounded down to `p` bits, checked by squaring: `s^2 <= a < (s + ulp)^2`; returns
+/// `(s, ulp, exact)`.
+fn sqrt_down_checked(a: &Big, p: u32) -> (Big, Big, bool) {
+    let s = a.sqrt(p, Round::Down);
+    let ulp = Big::pow2(s.ilogb().unwrap() - i64::from(p) + 1);
+    let up = s.add(&ulp);
+    assert!(s.mul(&s).cmp(a) != Some(Ordering::Greater), "sqrt down too large, p {p}");
+    assert_eq!(up.mul(&up).cmp(a), Some(Ordering::Greater), "sqrt down too small, p {p}");
+    let exact = s.mul(&s).cmp(a) == Some(Ordering::Equal);
+    (s, ulp, exact)
+}
+
+#[test]
+fn sqrt_of_long_operands_rounds_correctly_in_every_mode() {
+    // no spec clause: test tooling of the math oracle (D-10.130). Big::sqrt computes the
+    // root from only the operand's leading 2p + 6 or so bits; operands thousands of bits long
+    // (exact products and sums, as the complex oracle builds them), with the tail that decides
+    // the rounding far below those bits, must still round as their exact square root does:
+    // Down by squaring, Up from Down and exactness, Nearest from the squared midpoint.
+    let mut g = Rng(12);
+    for i in 0..3000 {
+        let p = [24, 53, 64, 113, 200, 640][i % 6];
+        let e = (g.next() % 200) as i64 - 100;
+        let x = g.big113(e).round(p, Round::Zero);
+        let gap = 2 * i64::from(p) + 4 + (g.next() % 3000) as i64;
+        let tiny = Big::pow2(x.ilogb().unwrap() * 2 - gap);
+        let a = match i % 4 {
+            // A square of a p-bit value with a tail far below: the tail alone makes it inexact.
+            0 => x.mul(&x).add(&tiny),
+            1 => x.mul(&x).sub(&tiny),
+            // An exact square: every mode returns x.
+            2 => x.mul(&x),
+            // A long significand from an exact sum with a wide exponent gap.
+            _ => x.mul(&g.big113(0)).add(&g.big113(-gap)),
+        };
+        let (down, ulp, exact) = sqrt_down_checked(&a, p);
+        let want_up = if exact { down.clone() } else { down.add(&ulp).round(p, Round::Zero) };
+        assert!(a.sqrt(p, Round::Up).identical(&want_up), "sqrt up, case {i}");
+        assert!(a.sqrt(p, Round::Zero).identical(&down), "sqrt zero, case {i}");
+        if i % 4 == 2 {
+            assert!(exact && down.identical(&x), "sqrt of a square, case {i}");
+        }
+        let mid = down.add(&ulp.mul_pow2(-1));
+        let near = a.sqrt(p, Round::Nearest);
+        match mid.mul(&mid).cmp(&a) {
+            Some(Ordering::Greater) => assert!(near.identical(&down), "sqrt nearest below the midpoint, case {i}"),
+            Some(Ordering::Less) => assert!(near.identical(&want_up), "sqrt nearest above the midpoint, case {i}"),
+            _ => assert!(near.identical(&down) || near.identical(&want_up)),
+        }
+    }
 }
 
 fn f32_next_up(x: f32) -> f32 {

@@ -1,18 +1,18 @@
 //! Translation for spec §29.1: the XDR record-marking and stdio streams (LG-13).
 //!
-//! Like the memory stream (`s29_legacy`), these are internal `liella_compat_*` entries (R15-1,
+//! Like the memory stream (`s29_legacy`), these are internal `niji_compat_*` entries (R15-1,
 //! R15-2). The record stream's logic (fragments, buffer sizes, refills) is
-//! `liella_legacy::sunrpc_rec::RecStream`; this layer keeps it with the caller's handle and
+//! `niji_legacy::sunrpc_rec::RecStream`; this layer keeps it with the caller's handle and
 //! `readit`/`writeit` callbacks in a heap block that `x_private` points at. The stdio stream is
 //! `fread`/`fwrite`/`ftell`/`fseek`/`fflush` over the caller's `FILE`. Behaviour record:
 //! `spec/behaviour/xdr_streams.glibc.txt`, `spec/behaviour/xdr_streams_rec2.glibc.txt`.
 
 use core::ptr;
 
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void};
-use liella_abi::layout::FILE;
-use liella_legacy::sunrpc::{self as rules, XDR_DECODE, XDR_ENCODE};
-use liella_legacy::sunrpc_rec::RecStream;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void};
+use niji_abi::layout::FILE;
+use niji_legacy::sunrpc::{self as rules, XDR_DECODE, XDR_ENCODE};
+use niji_legacy::sunrpc_rec::RecStream;
 
 use super::s11_lowio::lseek;
 use super::s12_stdio::{fflush, fread, fseek, ftell, fwrite};
@@ -34,7 +34,7 @@ struct RecState {
     writeit: RecIo,
 }
 
-/// The record stream's operations: `x_ops` of every stream `liella_compat_xdrrec_create` sets up
+/// The record stream's operations: `x_ops` of every stream `niji_compat_xdrrec_create` sets up
 /// (public so in-process tests can name a stream's table without reading through `x_ops`).
 pub static REC_OPS: XdrOps = XdrOps {
     x_getlong: Some(rec_getlong),
@@ -49,7 +49,7 @@ pub static REC_OPS: XdrOps = XdrOps {
     x_putint32: Some(rec_putint32),
 };
 
-/// The stdio stream's operations: `x_ops` of every stream `liella_compat_xdrstdio_create` sets up.
+/// The stdio stream's operations: `x_ops` of every stream `niji_compat_xdrstdio_create` sets up.
 pub static STDIO_OPS: XdrOps = XdrOps {
     x_getlong: Some(stdio_getlong),
     x_putlong: Some(stdio_putlong),
@@ -208,7 +208,7 @@ extern "C" fn rec_destroy(x: *mut Xdr) {
 crate::internal_entry! {
 /// `xdrrec_create`: a record stream over the caller's callbacks; `x_op` is the caller's. When
 /// the buffers cannot be had the stream is left as it was.
-pub extern "C" fn liella_compat_xdrrec_create(x: *mut Xdr, sendsize: c_uint, recvsize: c_uint, handle: *mut c_char, readit: RecIo, writeit: RecIo) {
+pub extern "C" fn niji_compat_xdrrec_create(x: *mut Xdr, sendsize: c_uint, recvsize: c_uint, handle: *mut c_char, readit: RecIo, writeit: RecIo) {
     let Some(stream) = RecStream::new(sendsize, recvsize) else { return };
     let p = heap::malloc_entry(core::mem::size_of::<RecState>()).cast::<RecState>();
     if p.is_null() {
@@ -224,19 +224,19 @@ pub extern "C" fn liella_compat_xdrrec_create(x: *mut Xdr, sendsize: c_uint, rec
 
 crate::internal_entry! {
 /// `xdrrec_endofrecord`: ends the record being encoded; sends it now when `sendnow` is set.
-pub extern "C" fn liella_compat_xdrrec_endofrecord(x: *mut Xdr, sendnow: c_int) -> c_int {
+pub extern "C" fn niji_compat_xdrrec_endofrecord(x: *mut Xdr, sendnow: c_int) -> c_int {
     c_int::from(with_rec(x, |s, _, w| s.end_of_record(sendnow != 0, w)))
 }}
 
 crate::internal_entry! {
 /// `xdrrec_skiprecord`: skips the rest of the record being decoded and starts the next.
-pub extern "C" fn liella_compat_xdrrec_skiprecord(x: *mut Xdr) -> c_int {
+pub extern "C" fn niji_compat_xdrrec_skiprecord(x: *mut Xdr) -> c_int {
     c_int::from(with_rec(x, |s, r, _| s.skip_record(r)))
 }}
 
 crate::internal_entry! {
 /// `xdrrec_eof`: consumes the rest of the record; 1 when no more input is buffered.
-pub extern "C" fn liella_compat_xdrrec_eof(x: *mut Xdr) -> c_int {
+pub extern "C" fn niji_compat_xdrrec_eof(x: *mut Xdr) -> c_int {
     c_int::from(with_rec(x, |s, r, _| s.eof(r)))
 }}
 
@@ -323,7 +323,7 @@ extern "C" fn stdio_destroy(x: *mut Xdr) {
 
 crate::internal_entry! {
 /// `xdrstdio_create`: a stream over the caller's `FILE` in direction `op`.
-pub extern "C" fn liella_compat_xdrstdio_create(x: *mut Xdr, fp: *mut FILE, op: c_int) {
+pub extern "C" fn niji_compat_xdrstdio_create(x: *mut Xdr, fp: *mut FILE, op: c_int) {
     // UNSAFE(slice) SAFETY: x is the caller's XDR (xdrstdio_create's contract).
     let xr = unsafe { &mut *x };
     xr.x_op = op;

@@ -4,7 +4,7 @@
 //! format `F` and the result format `T` (`T = F` for `sqrt` and `fma`).
 //!
 //! NaN operands: a signalling NaN raises invalid; the result is a quiet NaN with the payload of
-//! one operand, rescaled to `T`. Which operand ([`Pick`]) is not specified by IEEE 754; Liella
+//! one operand, rescaled to `T`. Which operand ([`Pick`]) is not specified by IEEE 754; libniji
 //! picks the one glibc returns (observed, `spec/behaviour/libm-exact.glibc.txt.gz`), because
 //! payloads are exact results: for `long double` and `_Float128` the x87 rule (a quiet NaN over
 //! a signalling one, then the larger significand), for `float` and `double` the operand order

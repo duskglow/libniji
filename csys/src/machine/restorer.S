@@ -10,9 +10,9 @@
  * signal frame: the frame it returns to is the interrupted one, whose address is the next
  * instruction to run rather than a return address. The FDE starts at the nop, where an
  * unwinder looks this trampoline up. */
-	.section .text.liella_machine_restorer,"ax",@progbits
-	.globl liella_machine_restorer
-	.type liella_machine_restorer, @function
+	.section .text.niji_machine_restorer,"ax",@progbits
+	.globl niji_machine_restorer
+	.type niji_machine_restorer, @function
 	.p2align 6
 	.cfi_startproc
 	.cfi_signal_frame
@@ -35,10 +35,10 @@
 	.cfi_offset %rsp, 160
 	.cfi_offset %rip, 168
 	nop
-liella_machine_restorer:
+niji_machine_restorer:
 	movq $15, %rax
 	syscall
 	hlt
 	.cfi_endproc
-	.size liella_machine_restorer, .-liella_machine_restorer
+	.size niji_machine_restorer, .-niji_machine_restorer
 	.section .note.GNU-stack,"",@progbits

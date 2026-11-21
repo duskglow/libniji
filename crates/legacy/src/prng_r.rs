@@ -1,5 +1,5 @@
 //! The reentrant generator forms of spec §9.3–§9.4 over caller structures: `drand48_data`
-//! (the 48-bit generator, bit-exact) and `random_data` (Liella's additive-feedback generator,
+//! (the 48-bit generator, bit-exact) and `random_data` (libniji's additive-feedback generator,
 //! OD-13).
 //!
 //! These are the primitive forms; `prng_global` is the same arithmetic over library-owned
@@ -8,16 +8,16 @@
 //! * A zero-initialised `drand48_data` takes the default parameters on first use (`__init`),
 //!   as the C contract has it; its state starts at 0.
 //! * `random_data.state` holds the address of the caller's state buffer itself (whose first
-//!   word is the generator's header, `liella::random::AdditiveFeedback`): the generator's
+//!   word is the generator's header, `niji::random::AdditiveFeedback`): the generator's
 //!   position lives in that buffer, so two descriptors over one buffer share a stream.
 //!   `rand_type`, `rand_deg` and `rand_sep` describe the layout, and `fptr`/`rptr`/`end_ptr`
 //!   bound it; the fields are opaque in the C contract (D-9.4).
 //! * Caller memory that cannot be reached is `EFAULT`; a descriptor that describes no state
 //!   is `EINVAL`.
 
-use liella::error::{Errno, Result};
-use liella::random::{AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES, TYPES};
-use liella_abi::layout::{struct_drand48_data, struct_random_data};
+use niji::error::{Errno, Result};
+use niji::random::{AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES, TYPES};
+use niji_abi::layout::{struct_drand48_data, struct_random_data};
 
 use crate::prng_global::CMem;
 

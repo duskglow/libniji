@@ -78,7 +78,7 @@ new rules 9-12 the design surfaced. Rules 4 and 8 are unchanged.
 
 ## C. New rules
 
-9. **Liella's own libraries cannot be swapped by the environment in a secure process.** The
+9. **libniji's own libraries cannot be swapped by the environment in a secure process.** The
    pinned sonames (`libc.so.6`, `libm.so.6`, placeholders, the loader) resolve to the build's
    prefix before any search (R14-3). Outside secure mode `LD_PRELOAD` can still interpose
    symbols, as documented.

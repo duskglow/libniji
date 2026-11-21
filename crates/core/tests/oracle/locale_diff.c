@@ -1,6 +1,6 @@
 /* Differential locale test (phase 7): built once against the host C library and once against
- * Liella's products, run with the same LOCPATH; the two outputs must be identical.
- * stdio is not used (Liella's streams are phase 8): output goes through write(2).
+ * libniji's products, run with the same LOCPATH; the two outputs must be identical.
+ * stdio is not used (libniji's streams are phase 8): output goes through write(2).
  * argv[1..]: locale names to examine. rpmatch (phase 12, D-7.9; milestone 5) in each. */
 #define _GNU_SOURCE
 #include <langinfo.h>

@@ -1,0 +1,11 @@
+id = "D-5.12"
+section = "s05"
+spec = "§5.2, App. D.1.2"
+ann = "PERF"
+status = "active"
+amends = ["D-5.10"]
+story = "WCTYPE-TRIE-FILE-8"
+date = "2026-11-14"
+body = '''
+**A compiled `LC_CTYPE`'s class-table block is resolved at its 65th miss, and built 32 characters per table walk** (amends D-5.10's "resolved on first use"). Measured cause: under `en_US.UTF-8` the first `iswalpha(U+00E9)` cost 160,256 user instructions, 99.9% in `ClassTable::resolve`, which walked each of the 12 class tables once per character of the 256-character block (wl_trace, Haswell-EP host); CI's `startup_instr_wctype` row read 228,598 against its limit of 70,900. (1) Miss count: an unresolved block's stage-1 cell counts its misses as values from `0x10000` (`COUNT_BASE`); such values name no built-in leaf and no pool leaf, so `ClassTable::hit`/`test` read them as misses with no added instruction. Misses 1..64 (`RESOLVE_AFTER`) answer with one walk of the asked class's table (`ClassTable::test_miss`, `is_w_file`), as next did before D-5.10; the count is a relaxed compare-exchange that never replaces a resolved value; miss 65 resolves the block, and the publishing compare-exchange (Release) replaces whatever count it finds. A short program asking a few wide class questions builds no block. (2) Block build: `Table3::bits32` returns the level-3 word holding 32 consecutive characters when both shifts are at least 5 (one walk), otherwise 32 single-bit walks; `block_words` ORs each standard class's mask into its members' words. The resolved words equal `w_classes_file` for every code point (test `file_class_tables_equal_the_file_walk`, resolution at the first miss); `class_table_resolves_at_its_miss_threshold` checks that a block stays unresolved for exactly `after` misses, per word and per class; `bits32_is_bit_of_each_character_with_small_shifts` checks the small-shift path. Threshold choice: 64 is a ski-rental bound (resolve cost over the per-miss surplus of the walk), set from the measured costs in handoff/wctype-trie-file.md.
+'''

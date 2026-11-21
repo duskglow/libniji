@@ -10,10 +10,10 @@
 //! the clocks mixed with the attempt number.
 
 use crate::error::{Errno, Result};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AT_SYMLINK_NOFOLLOW, CLOCK_MONOTONIC, CLOCK_REALTIME, GRND_NONBLOCK, O_CREAT, O_EXCL, O_RDWR};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AT_SYMLINK_NOFOLLOW, CLOCK_MONOTONIC, CLOCK_REALTIME, GRND_NONBLOCK, O_CREAT, O_EXCL, O_RDWR};
 
 /// Attempts before `EEXIST`: 62³ = 238,328, the spec's "about 238,000" and `TMP_MAX`.
 pub const ATTEMPTS: u32 = 238_328;

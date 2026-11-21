@@ -4,7 +4,7 @@
 §14.10 (`wordexp`: `IFS`), §7.7 (`gettext`: `LANGUAGE`), §23.5 and §23.6 (`localtime`, `tzset`: `TZ`).
 **Clauses:** `s1_3_c_0`, `s1_3_c_1`, `s1_3_c_5`, `s1_3_f_3`, `s1_3_t_0`, `s7_7_c_4`, `s14_10_c_3`, `s23_6_c_0`, `s23_6_g_0`.
 
-**Question (owner, 2026-10-09):** Liella may cache environment lookups (`IFS` in `wordexp`,
+**Question (owner, 2026-10-09):** libniji may cache environment lookups (`IFS` in `wordexp`,
 `LANGUAGE` in `gettext`, `TZ` in `localtime`/`tzset`) behind a process-wide generation counter
 bumped by `setenv`/`unsetenv`/`putenv`/`clearenv`. What does the reference library do? This is a
 fact record, not a decision.
@@ -161,6 +161,6 @@ change made without a library call, then `gettext("hello")` (already translated)
 | f: LANGUAGE's slot = NULL (the array ends there) | seen (`bye`: untranslated) |
 
 `hello`, already translated, keeps `hallo` in b, c, e and f (section `gt`). Finding: glibc reads the
-live array for every message not yet translated. Liella (ruling #504) remembers where LANGUAGE
+live array for every message not yet translated. libniji (ruling #504) remembers where LANGUAGE
 was found and sees b, e and f at once, and a, c and d at the next `setenv`/`putenv`/`unsetenv`/
 `clearenv` or new `environ` (docs/differences-from-glibc.md).

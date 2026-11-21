@@ -1,0 +1,14 @@
+name: -c with //TRANSLIT
+clause: s31_6_g_2
+command: iconv
+arg: -c
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1//TRANSLIT
+stdin:
+|~ a\xe2\x82\xacb\n
+status: exit 0
+stdout:
+| aEURb
+stderr:

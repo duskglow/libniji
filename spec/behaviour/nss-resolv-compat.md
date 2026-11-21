@@ -24,10 +24,10 @@ whose title names them).
 * **`__nss_group_lookup`, `__nss_hosts_lookup`, `__nss_passwd_lookup`:** return -1 with `errno`
   `ENOSYS`; write nothing.
 
-## Liella
+## libniji
 
-`crates/boundary/src/posix/s16_nameservices.rs`: `liella_compat___nss_database_lookup`,
-`liella_compat___nss_next` and `liella_compat___nss_{group,hosts,passwd}_lookup` (one body each),
+`crates/boundary/src/posix/s16_nameservices.rs`: `niji_compat___nss_database_lookup`,
+`niji_compat___nss_next` and `niji_compat___nss_{group,hosts,passwd}_lookup` (one body each),
 exported only as the compat versions by `cargo xtask compat-gen`'s stubs (the plan's behaviour
 rows, `spec/abi/compat-plan.tsv`, R15-1), not in `libc.a` (R15-2). Same results as above, with one difference: a NULL
 fourth argument to `__nss_database_lookup` is not written instead of faulting (the S6 rule
@@ -65,16 +65,16 @@ Tests: `crates/boundary/tests/s16_nameservices_symbols.rs` `sym___nss_*`.
   last 4 bytes and (mapped form, observed) answers `AF_INET`; other IPv6 asks `ip6.arpa`, answers
   `AF_INET6`. The three share one result buffer, not `gethostbyname`'s.
 
-Liella (`netdb.rs` `compat_res_gethostby*`, entries `liella_compat_res_gethostby*`, block
+libniji (`netdb.rs` `compat_res_gethostby*`, entries `niji_compat_res_gethostby*`, block
 `users::RES_HOST`): as above over the thread's resolver (`resolv_compat`). Names are classified as
-above (`res_name`) and every other name is asked for, host name or not. Differences: `errno` after a DNS exchange is whatever Liella's resolver leaves (the reference set 0); the
+above (`res_name`) and every other name is asked for, host name or not. Differences: `errno` after a DNS exchange is whatever libniji's resolver leaves (the reference set 0); the
 `::/96` answer shape is assumed `AF_INET` like the mapped form.
 Tests: `sym_res_gethostbyname`, `sym_res_gethostbyname_names` (the probe table), `sym_res_gethostbyname2`,
 `sym_res_gethostbyaddr` (no-DNS paths).
 
-Liella (`crates/boundary/src/netdb.rs` `compat_*`, entries `liella_compat__gethtby*`,
-`liella_compat__gethtent`, `liella_compat__sethtent` in `s16_nameservices.rs`): as above, with
+libniji (`crates/boundary/src/netdb.rs` `compat_*`, entries `niji_compat__gethtby*`,
+`niji_compat__gethtent`, `niji_compat__sethtent` in `s16_nameservices.rs`): as above, with
 one choice where nothing was observed: a `len` longer than the family's address never matches
-(Liella reads at most 16 bytes). `_sethtent` rewinds whatever its argument. Exported only when
+(libniji reads at most 16 bytes). `_sethtent` rewinds whatever its argument. Exported only when
 phase 14 builds `libresolv.so.2` (`spec/abi/compat-plan.tsv` rows, D-16.6).
 Tests: `crates/boundary/tests/s16_nameservices_symbols.rs` `sym__gethtby*`, `sym__gethtent`, `sym__sethtent`.

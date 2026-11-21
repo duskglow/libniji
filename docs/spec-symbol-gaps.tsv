@@ -25,7 +25,6 @@ a	_dl_rtld_di_serinfo	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14
 a	_dl_signal_error	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14	
 a	_dl_signal_exception	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14	
 a	_dl_x86_get_cpu_features	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14	
-a	_r_debug	ld-linux-x86-64.so.2	default	GLIBC_2.2.5	so	phase 14	27
 a	_rtld_global	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14	
 a	_rtld_global_ro	ld-linux-x86-64.so.2	private	GLIBC_PRIVATE	so	phase 14	
 a	__libanl_version_placeholder	libanl.so.1	compat	GLIBC_2.2.5	so	phase 14	29

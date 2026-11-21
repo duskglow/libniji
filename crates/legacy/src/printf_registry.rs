@@ -11,13 +11,13 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::mem::TryVec;
-use liella::num::float::{self, Float, Format, Rounding, Value};
-use liella::num::format::{Case, Spec, Style};
-use liella::printf::{self as pf, Call, Class, Conv, Count, Flags, Len, Unit};
-use liella_abi::ctypes::wchar_t;
-use liella_abi::layout::struct_printf_info;
+use niji::error::{Errno, KResult};
+use niji::mem::TryVec;
+use niji::num::float::{self, Float, Format, Rounding, Value};
+use niji::num::format::{Case, Spec, Style};
+use niji::printf::{self as pf, Call, Class, Conv, Count, Flags, Len, Unit};
+use niji_abi::ctypes::wchar_t;
+use niji_abi::layout::struct_printf_info;
 
 use crate::lock::SpinLock;
 

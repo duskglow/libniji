@@ -5,9 +5,9 @@
  * unsetenv and clearenv or directly (a slot stored, environ replaced, a putenv string's name
  * edited in place), and across fork and exec.
  *
- * Part 2 ("#### contract") runs only where liella_environ_contract exists (Liella; the reference
+ * Part 2 ("#### contract") runs only where niji_environ_contract exists (libniji; the reference
  * has no such name, so the weak reference is NULL): with the contract on, the writers keep
- * lookups current; a change made directly is not seen until liella_environ_reload; a replaced
+ * lookups current; a change made directly is not seen until niji_environ_reload; a replaced
  * environ is seen at once; fork keeps the table; exec starts with the contract off. Each check
  * prints "ok <what>" or "FAIL <what>". */
 #define _GNU_SOURCE
@@ -18,13 +18,13 @@
 #include <unistd.h>
 
 extern char **environ;
-#ifdef LIELLA_PRODUCTS
+#ifdef NIJI_PRODUCTS
 /* Strong references: a weak one would not pull the definitions out of the static libc.a. */
-int liella_environ_contract(int on);
-void liella_environ_reload(void);
+int niji_environ_contract(int on);
+void niji_environ_reload(void);
 #else
-int liella_environ_contract(int on) __attribute__((weak));
-void liella_environ_reload(void) __attribute__((weak));
+int niji_environ_contract(int on) __attribute__((weak));
+void niji_environ_reload(void) __attribute__((weak));
 #endif
 
 static const char *show(const char *name)
@@ -139,8 +139,8 @@ static void contract_part(void)
 {
     printf("#### contract\n");
     clearenv();
-    EXPECT("off before the first call", liella_environ_contract(1) == 0);
-    EXPECT("on after it", liella_environ_contract(1) == 1);
+    EXPECT("off before the first call", niji_environ_contract(1) == 0);
+    EXPECT("on after it", niji_environ_contract(1) == 1);
     EXPECT("empty environment: a miss", IS("A", NULL));
     fill(300);
     setenv("A", "1", 1);
@@ -159,14 +159,14 @@ static void contract_part(void)
     EXPECT("putenv replaces", IS("P", "new"));
     p2[0] = 'Q';
     EXPECT("an edited putenv name is not seen", IS("Q", NULL));
-    liella_environ_reload();
+    niji_environ_reload();
     EXPECT("until reload", IS("Q", "new") && IS("P", NULL));
     static char direct_z[] = "Z=slot", direct_b[] = "B=direct";
     environ[slot_of("B")] = direct_b;
     EXPECT("a slot stored with the same name is read at once", IS("B", "direct"));
     environ[slot_of("B")] = direct_z;
     EXPECT("a slot renamed: the old name is gone, the new one not seen", IS("B", NULL) && IS("Z", NULL));
-    liella_environ_reload();
+    niji_environ_reload();
     EXPECT("until reload", IS("Z", "slot") && IS("B", NULL));
     unsetenv("Z");
     unsetenv("NOT_SET");
@@ -198,7 +198,7 @@ static void contract_part(void)
     if (pid == 0) {
         setenv("T", "child", 1);
         EXPECT("fork child: the table is inherited and kept current", IS("S", "1") && IS("T", "child"));
-        EXPECT("fork child: still on", liella_environ_contract(1) == 1);
+        EXPECT("fork child: still on", niji_environ_contract(1) == 1);
         fflush(stdout);
         _exit(fails != 0);
     }
@@ -207,10 +207,10 @@ static void contract_part(void)
     EXPECT("fork child passed", WIFEXITED(status) && WEXITSTATUS(status) == 0);
     EXPECT("fork parent: the child's setenv is not here", IS("T", NULL) && IS("S", "1"));
     exec_child("contract-child");
-    EXPECT("off again: the previous state was on", liella_environ_contract(0) == 1);
+    EXPECT("off again: the previous state was on", niji_environ_contract(0) == 1);
     environ[slot_of("S")] = direct_z;
     EXPECT("off: a stored slot is seen at once", IS("Z", "slot") && IS("S", NULL));
-    liella_environ_reload();
+    niji_environ_reload();
     EXPECT("reload while off does nothing", IS("Z", "slot"));
     static char direct_o[] = "O2=x";
     setenv("OFF", "1", 1);
@@ -226,12 +226,12 @@ int main(int argc, char **argv)
         return 0;
     }
     if (argc > 1 && strcmp(argv[1], "contract-child") == 0) {
-        EXPECT("exec child: the contract is off in a new image", liella_environ_contract(0) == 0);
+        EXPECT("exec child: the contract is off in a new image", niji_environ_contract(0) == 0);
         EXPECT("exec child: the environment arrived", IS("S", "1"));
         return fails != 0;
     }
     off_part();
-    if (liella_environ_contract)
+    if (niji_environ_contract)
         contract_part();
     printf("fails %d\n", fails);
     return fails != 0;

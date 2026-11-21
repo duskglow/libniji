@@ -11,7 +11,7 @@
 //! reference system's), through a C program compiled against it. `ulimit` and `syscall` are
 //! variadic: their fixed-arity targets are tested here and the C entry points in
 //! `conformance/c/s24_variadic.c`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -22,10 +22,10 @@ use core::ptr::null_mut;
 use std::collections::BTreeMap;
 use std::ffi::CString;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s24_system as s;
-use liella_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
-use liella_legacy::sys_compat::{self, Vtimes};
+use niji_boundary::errno;
+use niji_boundary::posix::s24_system as s;
+use niji_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
+use niji_legacy::sys_compat::{self, Vtimes};
 use spectest::symbol;
 
 const EPERM: i32 = 1;
@@ -43,7 +43,7 @@ fn conformance_dies(name: &str) -> bool {
 /// root there (`unshare`); without `unshare` the test says so and passes.
 /// Whether this is the re-executed child (then `body` has run there).
 fn in_uts_namespace(test: &str, body: impl FnOnce()) -> bool {
-    const VAR: &str = "LIELLA_S24_UTSNS";
+    const VAR: &str = "NIJI_S24_UTSNS";
     if std::env::var(VAR).as_deref() == Ok(test) {
         body();
         return true;
@@ -74,7 +74,7 @@ fn fails(r: isize, e: i32) -> bool {
 }
 
 fn root() -> bool {
-    liella_kernel::sys::Sys::geteuid(&liella_boundary::sys::CSys) == 0
+    niji_kernel::sys::Sys::geteuid(&niji_boundary::sys::CSys) == 0
 }
 
 /// The reference table's names of one kind (`sc`, `cs`, `pc`): name -> number.
@@ -110,7 +110,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -144,7 +144,7 @@ fn sym___sysconf() {
             continue;
         }
         if (got, got_err) != (want, want_err) {
-            diffs.push(format!("{name}: liella {got}/{got_err}, glibc {want}/{want_err}"));
+            diffs.push(format!("{name}: niji {got}/{got_err}, glibc {want}/{want_err}"));
         }
     }
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -268,21 +268,21 @@ fn sym_delete_module() {
     if root() {
         return;
     }
-    let want = host("delete_module", "#include <sys/syscall.h>\nerrno = 0; int r = (int)syscall(SYS_delete_module, \"liella_no_such_module\", 0); printf(\"%d %d\\n\", r, r < 0 ? errno : 0);");
+    let want = host("delete_module", "#include <sys/syscall.h>\nerrno = 0; int r = (int)syscall(SYS_delete_module, \"niji_no_such_module\", 0); printf(\"%d %d\\n\", r, r < 0 ? errno : 0);");
     errno::set_raw(0);
-    let r = s::delete_module(c"liella_no_such_module".as_ptr(), 0);
+    let r = s::delete_module(c"niji_no_such_module".as_ptr(), 0);
     assert_eq!(vec![format!("{r} {}", if r < 0 { errno::get() } else { 0 })], want);
     errno::set_raw(0);
-    assert!(fails(s::delete_module(c"liella_nonesuch".as_ptr(), 0) as isize, EPERM));
+    assert!(fails(s::delete_module(c"niji_nonesuch".as_ptr(), 0) as isize, EPERM));
 }
 #[test]
 fn sym_fpathconf() {
     let pc = names("pc");
     let mut diffs = Vec::new();
     let mut p = [-1; 2];
-    liella_boundary::posix::s25_ipc::pipe(Some(&mut p));
+    niji_boundary::posix::s25_ipc::pipe(Some(&mut p));
     for (label, target) in [("/", 0), ("pipe", 1)] {
-        let fd = if target == 0 { liella_boundary::posix::s11_lowio::liella_open3(c"/".as_ptr(), 0o200000, 0) } else { p[0] };
+        let fd = if target == 0 { niji_boundary::posix::s11_lowio::niji_open3(c"/".as_ptr(), 0o200000, 0) } else { p[0] };
         let open = if target == 0 { "int fd = open(\"/\", 0200000);".to_string() } else { "int fd[2]; pipe(fd);".to_string() };
         let use_ = if target == 0 { "fd" } else { "fd[0]" };
         let body: String = open + &pc.iter().map(|(k, v)| format!("errno = 0; v = fpathconf({use_}, {v}); printf(\"{k} %ld %d\\n\", v, errno);")).collect::<String>();
@@ -292,12 +292,12 @@ fn sym_fpathconf() {
             errno::set_raw(0);
             let got = s::fpathconf(fd, pc[name]);
             if (got, errno::get()) != (want, want_err) {
-                diffs.push(format!("{label} {name}: liella {got}/{}, glibc {want}/{want_err}", errno::get()));
+                diffs.push(format!("{label} {name}: niji {got}/{}, glibc {want}/{want_err}", errno::get()));
             }
         }
-        liella_boundary::posix::s11_lowio::close(fd);
+        niji_boundary::posix::s11_lowio::close(fd);
     }
-    liella_boundary::posix::s11_lowio::close(p[1]);
+    niji_boundary::posix::s11_lowio::close(p[1]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     errno::set_raw(0);
     assert!(fails(s::fpathconf(999, 0) as isize, 9));
@@ -373,7 +373,7 @@ fn expected_hostid() -> i32 {
 fn sym_gethostid() {
     assert_eq!(s::gethostid(), i64::from(expected_hostid()), "sign-extended to long");
     // The file's forms, through the same function with a fixture file.
-    let k = &liella_boundary::sys::CSys;
+    let k = &niji_boundary::sys::CSys;
     let dir = scratch::Scratch::dir("s24-hostid");
     let file = dir.join("hostid");
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
@@ -420,9 +420,9 @@ fn name_sizes(tag: &str, cfun: &str, len: usize, f: impl Fn(&mut [u8]) -> i32) {
 /// The C text at `p`, through the exported strlen/memcpy (no unsafe in tests).
 fn text(p: *const core::ffi::c_char) -> String {
     assert!(!p.is_null());
-    let n = liella_boundary::posix::s04_strings::strlen(p);
+    let n = niji_boundary::posix::s04_strings::strlen(p);
     let mut v = vec![0u8; n];
-    liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
+    niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
     String::from_utf8(v).unwrap()
 }
 
@@ -441,7 +441,7 @@ fn sym_gethostname() {
     let len = uts_len(&uts().nodename);
     name_sizes("gethostname", "gethostname", len, |b| s::gethostname(b.as_mut_ptr().cast(), b.len()));
     errno::set_raw(0);
-    assert!(fails(s::gethostname(null_mut(), 10) as isize, EFAULT), "NULL with a size (glibc crashes)");
+    assert!(fails(s::gethostname(null_mut(), 10) as isize, EFAULT), "NULL with a size is EFAULT (S6)");
 }
 #[test]
 fn sym___gethostname_chk() {
@@ -626,7 +626,7 @@ fn sym_modify_ldt() {
     // (`syscall` sees 4294967258); the wrapper reports -1 with `errno` (modify_ldt(2)), where
     // the reference returns -38 and leaves `errno` alone (docs/differences-from-glibc.md).
     errno::set_raw(0);
-    let raw = s::liella_syscall7(154, 99, b.as_mut_ptr() as i64, 16, 0, 0, 0);
+    let raw = s::niji_syscall7(154, 99, b.as_mut_ptr() as i64, 16, 0, 0, 0);
     assert_eq!(raw, 0xffff_ffda, "the kernel's zero-extended -ENOSYS");
     errno::set_raw(0);
     assert!(fails(s::modify_ldt(99, b.as_mut_ptr().cast(), 16) as isize, 38), "ENOSYS");
@@ -644,7 +644,7 @@ fn sym_modify_ldt() {
 symbol!(sym_nfsservctl, "nfsservctl", "24", "2.2.5", r##"(no installed header declares it)"##);
 #[test]
 fn sym_nice() {
-    if std::env::var("LIELLA_S24_NICE").is_ok() {
+    if std::env::var("NIJI_S24_NICE").is_ok() {
         let a = s::nice(0);
         let b = s::nice(3);
         errno::set_raw(0);
@@ -654,7 +654,7 @@ fn sym_nice() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_nice", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_NICE", "1")
+        .env("NIJI_S24_NICE", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -674,7 +674,7 @@ fn sym_pathconf() {
             errno::set_raw(0);
             let got = s::pathconf(cpath.as_ptr(), pc[name]);
             if (got, errno::get()) != (want, want_err) {
-                diffs.push(format!("{path} {name}: liella {got}/{}, glibc {want}/{want_err}", errno::get()));
+                diffs.push(format!("{path} {name}: niji {got}/{}, glibc {want}/{want_err}", errno::get()));
             }
         }
     }
@@ -743,7 +743,7 @@ fn sym_reboot() {
 fn sym___sched_cpualloc() {
     let p = s::__sched_cpualloc(1025);
     assert!(!p.is_null());
-    assert!(liella_boundary::posix::s03_memory::malloc_usable_size(p) >= 136, "CPU_ALLOC_SIZE(1025) = 17 words");
+    assert!(niji_boundary::posix::s03_memory::malloc_usable_size(p) >= 136, "CPU_ALLOC_SIZE(1025) = 17 words");
     s::__sched_cpufree(p);
 }
 
@@ -803,6 +803,122 @@ fn sym_sched_getaffinity() {
     assert!(mask[128..].iter().all(|&b| b == 0), "beyond the kernel's mask: zeroed");
     errno::set_raw(0);
     assert!(fails(s::sched_getaffinity(0, 1, mask.as_mut_ptr().cast()) as isize, EINVAL) || ones <= 8, "too small for the kernel's mask");
+}
+
+/// `struct sched_attr` (kernel UAPI, version 1: 56 bytes) followed by room for a caller's larger
+/// structure, so the tests can pass sizes the kernel's structure does not have.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Attr {
+    size: u32,
+    policy: u32,
+    flags: u64,
+    nice: i32,
+    priority: u32,
+    deadline: [u64; 3],
+    util: [u32; 2],
+    tail: [u8; 64],
+}
+const SCHED_OTHER: u32 = 0;
+const SCHED_FIFO: u32 = 1;
+const SCHED_IDLE: u32 = 5;
+const E2BIG: i32 = 7;
+
+fn attr(size: u32, policy: u32, nice: i32) -> Attr {
+    Attr { size, policy, flags: 0, nice, priority: 0, deadline: [0; 3], util: [0; 2], tail: [0; 64] }
+}
+
+/// The calling thread's attributes through the export (`size` 56), with a filler the kernel
+/// must overwrite.
+fn read_attr() -> Attr {
+    let mut a = attr(0, 99, 99);
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), 56, 0), 0, "errno {}", errno::get());
+    a
+}
+
+#[test]
+fn sym_sched_getattr() {
+    // Thin wrapper (§24.3): the kernel fills at most `size` bytes and sets `attr->size` to the
+    // number filled; success leaves errno alone.
+    errno::set_raw(1234);
+    let a = read_attr();
+    assert_eq!(errno::get(), 1234, "success keeps errno");
+    assert_eq!((a.size, a.policy, a.nice), (56, SCHED_OTHER, 0), "a test thread runs SCHED_OTHER at nice 0");
+    let mut a = attr(0, 99, 99);
+    a.tail = [0xaa; 64];
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), size_of::<Attr>() as u32, 0), 0, "a larger buffer");
+    assert!(a.size >= 56 && a.size < size_of::<Attr>() as u32, "the kernel's own size: {}", a.size);
+    assert_eq!(a.tail[size_of::<Attr>() - 56 - 1], 0xaa, "nothing written past the kernel's structure");
+    let mut a = attr(0, 99, 99);
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), 48, 0), 0, "version 0");
+    assert_eq!((a.size, a.policy), (48, SCHED_OTHER));
+    // The arguments reach the kernel in their places: size, flags, pid and pointer each give
+    // their own error.
+    let mut a = attr(0, 99, 99);
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 47, 0) as isize, EINVAL), "size below version 0");
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 4097, 0) as isize, EINVAL), "size above a page");
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 56, 1) as isize, EINVAL), "nonzero flags");
+    assert_eq!((a.size, a.policy), (0, 99), "untouched on failure");
+    assert!(fails(s::sched_getattr(0, null_mut(), 56, 0) as isize, EINVAL), "null attr");
+    assert!(fails(s::sched_getattr(-1, (&raw mut a).cast(), 56, 0) as isize, EINVAL), "negative pid");
+    assert!(fails(s::sched_getattr(0x3fff_fff0, (&raw mut a).cast(), 56, 0) as isize, ESRCH), "no such thread");
+    assert!(fails(s::sched_getattr(0, 8 as *mut _, 56, 0) as isize, EFAULT), "unwritable attr");
+}
+
+#[test]
+fn sym_sched_setattr() {
+    // Each change in its own thread: the attributes are per thread (pid 0), and an unprivileged
+    // thread cannot undo some of them.
+    std::thread::spawn(|| {
+        let mut a = attr(56, SCHED_OTHER, 5);
+        errno::set_raw(1234);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "nice 5: errno {}", errno::get());
+        assert_eq!(errno::get(), 1234, "success keeps errno");
+        let b = read_attr();
+        assert_eq!((b.policy, b.nice), (SCHED_OTHER, 5), "read back");
+        if !root() {
+            let mut a = attr(56, SCHED_OTHER, 0);
+            assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EPERM), "nice below the RLIMIT_NICE floor (0 for an unprivileged test)");
+        }
+        let mut a = attr(56, SCHED_IDLE, 0);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "SCHED_IDLE: errno {}", errno::get());
+        assert_eq!(read_attr().policy, SCHED_IDLE, "read back");
+    })
+    .join()
+    .unwrap();
+    // The kernel's size protocol reaches the caller's structure: a larger structure with a
+    // nonzero byte past the kernel's is E2BIG with the kernel's size written back; size 0 is
+    // version 0.
+    std::thread::spawn(|| {
+        let mut a = attr(size_of::<Attr>() as u32, SCHED_OTHER, 0);
+        a.tail[0] = 1;
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, E2BIG));
+        let mut k = attr(0, 99, 99);
+        assert_eq!(s::sched_getattr(0, (&raw mut k).cast(), size_of::<Attr>() as u32, 0), 0);
+        assert_eq!(a.size, k.size, "the kernel's size written back");
+        let mut a = attr(0, SCHED_OTHER, 1);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "size 0: errno {}", errno::get());
+        assert_eq!(read_attr().nice, 1);
+        let mut a = attr(56, 99, 0);
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EINVAL), "unknown policy");
+        let mut a = attr(56, SCHED_OTHER, 1);
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 1) as isize, EINVAL), "nonzero flags");
+        assert!(fails(s::sched_setattr(0, null_mut(), 0) as isize, EINVAL), "null attr");
+        assert!(fails(s::sched_setattr(-1, (&raw mut a).cast(), 0) as isize, EINVAL), "negative pid");
+        assert!(fails(s::sched_setattr(0x3fff_fff0, (&raw mut a).cast(), 0) as isize, ESRCH), "no such thread");
+        assert!(fails(s::sched_setattr(0, 8 as *mut _, 0) as isize, EFAULT), "unreadable attr");
+        let mut rt = Rlimit::default();
+        assert_eq!(s::getrlimit(14, Some(&mut rt)), 0, "RLIMIT_RTPRIO");
+        if root() || rt.cur != 0 {
+            eprintln!("sym_sched_setattr: EPERM for SCHED_FIFO not checked (root or RLIMIT_RTPRIO {})", rt.cur);
+        } else {
+            let mut a = attr(56, SCHED_FIFO, 0);
+            a.priority = 1;
+            assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EPERM), "SCHED_FIFO needs privilege");
+        }
+    })
+    .join()
+    .unwrap();
 }
 
 #[test]
@@ -900,10 +1016,10 @@ fn sym_sched_setscheduler() {
 #[test]
 fn sym_setdomainname() {
     let child = in_uts_namespace("sym_setdomainname", || {
-        assert_eq!(s::setdomainname(c"liella.test".as_ptr(), 11), 0);
+        assert_eq!(s::setdomainname(c"niji.test".as_ptr(), 9), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::getdomainname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..12], b"liella.test\0");
+        assert_eq!(&b[..10], b"niji.test\0");
     });
     if child || root() {
         return;
@@ -924,7 +1040,7 @@ fn sym_sethostid() {
         assert!(fails(s::sethostid(5) as isize, EACCES), "a user may not write /etc/hostid");
     }
     // The file's form, on a fixture file.
-    let k = &liella_boundary::sys::CSys;
+    let k = &niji_boundary::sys::CSys;
     let dir = scratch::Scratch::dir("s24-sethostid");
     let file = dir.join("hostid");
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
@@ -938,10 +1054,10 @@ fn sym_sethostid() {
 #[test]
 fn sym_sethostname() {
     let child = in_uts_namespace("sym_sethostname", || {
-        assert_eq!(s::sethostname(c"liella-test-host".as_ptr(), 16), 0);
+        assert_eq!(s::sethostname(c"niji-test-host".as_ptr(), 14), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::gethostname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..17], b"liella-test-host\0");
+        assert_eq!(&b[..15], b"niji-test-host\0");
         errno::set_raw(0);
         let long = [b'x'; 65];
         assert!(fails(s::sethostname(long.as_ptr().cast(), 65) as isize, EINVAL), "longer than the kernel's 64");
@@ -957,14 +1073,14 @@ fn sym_sethostname() {
 #[test]
 fn sym_setns() {
     // The export is in posix::s18_processes (its contract is §18.9): thin, -1 and errno.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     errno::set_raw(0);
     assert_eq!((p::setns(-1, 0), errno::get()), (-1, 9), "EBADF");
     let f = CString::new("/proc/self/ns/uts").unwrap();
-    let fd = liella_boundary::posix::s11_lowio::liella_open3(f.as_ptr(), 0o2000000, 0);
+    let fd = niji_boundary::posix::s11_lowio::niji_open3(f.as_ptr(), 0o2000000, 0);
     assert!(fd >= 0);
     assert_eq!((p::setns(fd, 0x0400_0000), errno::get()), (-1, EPERM), "joining a UTS namespace needs CAP_SYS_ADMIN");
-    liella_boundary::posix::s11_lowio::close(fd);
+    niji_boundary::posix::s11_lowio::close(fd);
 }
 #[test]
 fn sym_setpriority() {
@@ -979,7 +1095,7 @@ fn sym_setpriority() {
 
 #[test]
 fn sym_setrlimit() {
-    if std::env::var("LIELLA_S24_RL").is_ok() {
+    if std::env::var("NIJI_S24_RL").is_ok() {
         let mut l = Rlimit { cur: 0, max: 0 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
         let ok = s::setrlimit(RLIMIT_CORE, Some(&Rlimit { cur: 0, max: l.max })) == 0;
@@ -991,7 +1107,7 @@ fn sym_setrlimit() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_setrlimit", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_RL", "1")
+        .env("NIJI_S24_RL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1000,7 +1116,7 @@ fn sym_setrlimit() {
 
 #[test]
 fn sym_setrlimit64() {
-    if std::env::var("LIELLA_S24_RL").is_ok() {
+    if std::env::var("NIJI_S24_RL").is_ok() {
         let mut l = Rlimit { cur: 0, max: 0 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
         let ok = s::setrlimit64(RLIMIT_CORE, Some(&Rlimit { cur: 0, max: l.max })) == 0;
@@ -1012,7 +1128,7 @@ fn sym_setrlimit64() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_setrlimit64", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_RL", "1")
+        .env("NIJI_S24_RL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1022,14 +1138,14 @@ fn sym_setrlimit64() {
 symbol!(sym_sstk, "sstk", "24", "2.2.5", r##"(no installed header declares it)"##);
 #[test]
 fn sym_syscall() {
-    assert_eq!(s::liella_syscall7(39, 0, 0, 0, 0, 0, 0), std::process::id() as i64, "SYS_getpid");
+    assert_eq!(s::niji_syscall7(39, 0, 0, 0, 0, 0, 0), std::process::id() as i64, "SYS_getpid");
     let mut p = [0i32; 2];
-    assert_eq!(s::liella_syscall7(293, p.as_mut_ptr() as i64, 0, 0, 0, 0, 0), 0, "SYS_pipe2 with an address");
+    assert_eq!(s::niji_syscall7(293, p.as_mut_ptr() as i64, 0, 0, 0, 0, 0), 0, "SYS_pipe2 with an address");
     errno::set_raw(0);
-    assert_eq!((s::liella_syscall7(3, -1, 0, 0, 0, 0, 0), errno::get()), (-1, 9), "SYS_close(-1): EBADF");
-    assert_eq!((s::liella_syscall7(100_000, 0, 0, 0, 0, 0, 0), errno::get()), (-1, 38), "ENOSYS");
-    liella_boundary::posix::s11_lowio::close(p[0]);
-    liella_boundary::posix::s11_lowio::close(p[1]);
+    assert_eq!((s::niji_syscall7(3, -1, 0, 0, 0, 0, 0), errno::get()), (-1, 9), "SYS_close(-1): EBADF");
+    assert_eq!((s::niji_syscall7(100_000, 0, 0, 0, 0, 0, 0), errno::get()), (-1, 38), "ENOSYS");
+    niji_boundary::posix::s11_lowio::close(p[0]);
+    niji_boundary::posix::s11_lowio::close(p[1]);
 }
 
 #[test]
@@ -1048,7 +1164,7 @@ fn sym_sysconf() {
             continue;
         }
         if (got, got_err) != (want, want_err) {
-            diffs.push(format!("{name}: liella {got}/{got_err}, glibc {want}/{want_err}"));
+            diffs.push(format!("{name}: niji {got}/{got_err}, glibc {want}/{want_err}"));
         }
     }
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -1070,12 +1186,12 @@ fn sym_sysinfo() {
 }
 #[test]
 fn sym_ulimit() {
-    let b = s::liella_ulimit2(1, 0);
+    let b = s::niji_ulimit2(1, 0);
     let mut l = Rlimit { cur: 0, max: 0 };
     s::getrlimit(1, Some(&mut l));
     assert_eq!(b, if l.cur == u64::MAX { i64::MAX } else { (l.cur / 512) as i64 }, "UL_GETFSIZE: 512-byte blocks");
     errno::set_raw(0);
-    assert!(fails(s::liella_ulimit2(42, 0) as isize, EINVAL));
+    assert!(fails(s::niji_ulimit2(42, 0) as isize, EINVAL));
     conformance(&["s24_variadic"]);
 }
 
@@ -1094,7 +1210,7 @@ fn sym_uname() {
 #[test]
 fn sym_unshare() {
     // The export is in posix::s18_processes (its contract is §18.9): thin, -1 and errno.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     errno::set_raw(0);
     assert_eq!((p::unshare(1), errno::get()), (-1, EINVAL), "an unknown flag");
     assert_eq!(p::unshare(0), 0, "nothing to detach");
@@ -1119,7 +1235,7 @@ fn sym_vlimit() {
     errno::set_raw(0);
     assert!(fails(s::vlimit(0, 1) as isize, EINVAL), "LIM_NORAISE is not settable");
     assert!(fails(s::vlimit(7, 1) as isize, EINVAL));
-    if std::env::var("LIELLA_S24_VL").is_ok() {
+    if std::env::var("NIJI_S24_VL").is_ok() {
         let ok = s::vlimit(5, 0) == 0; // LIM_CORE: RLIMIT_CORE's soft limit
         let mut l = Rlimit { cur: 9, max: 9 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
@@ -1127,7 +1243,7 @@ fn sym_vlimit() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_vlimit", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_VL", "1")
+        .env("NIJI_S24_VL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

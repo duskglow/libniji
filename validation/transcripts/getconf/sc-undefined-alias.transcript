@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: an unlisted name (TRACE) is accepted and -1 prints undefined
+clause: s31_5_i_2
+command: getconf
+env: LC_ALL=C
+arg: TRACE
+status: exit 0
+stdout:
+| undefined
+stderr:

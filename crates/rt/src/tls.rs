@@ -5,9 +5,9 @@
 //! conventions, which the spec leaves implicit, ERRATA E7): `%fs:0` holds the thread pointer
 //! itself, `%fs:0x28` the stack-protector canary. The block keeps glibc's `tcbhead_t` prefix
 //! up to 0x80 so that these, the pointer guard (0x30), the CET word (0x48) and the split-stack
-//! word (0x70) are where code expects them. Liella's own fields sit in what glibc reserves as
+//! word (0x70) are where code expects them. libniji's own fields sit in what glibc reserves as
 //! `__glibc_unused2` (0x80–0x280): a block glibc's own `ld.so` laid out is then also a valid
-//! Liella block (D-22.10).
+//! libniji block (D-22.10).
 //!
 //! **Static TLS** (variant II): the executable's TLS block ends at the thread pointer,
 //! `round_up(p_memsz, p_align)` bytes below it, as the linker assumes for local-exec accesses.
@@ -50,9 +50,9 @@ pub struct ThreadBlock {
     pub heap_cache: AtomicUsize,
     /// 0x98: the thread's NUMA node + 1, 0 if unknown (phase 6, D-3.10).
     pub node: AtomicU32,
-    /// 0x9c: Liella flags ([`FLAG_OWN`]).
+    /// 0x9c: libniji flags ([`FLAG_OWN`]).
     pub flags: AtomicU32,
-    /// 0xa0: the thread's descriptor (`liella_rt::thread::Thread`), 0 until it has one
+    /// 0xa0: the thread's descriptor (`niji_rt::thread::Thread`), 0 until it has one
     /// (D-22.9; zero in a block glibc made, D-22.10).
     pub thread: AtomicUsize,
     /// 0xa8: the thread's `uselocale` choice, a `locale_t`; 0 for the global locale (D-7.8).
@@ -74,7 +74,7 @@ pub struct ThreadBlock {
     /// §16.4; D-16.3): the process's `_res` for the initial thread, a block the library
     /// allocates for any other; 0 until first used.
     pub res: AtomicUsize,
-    /// 0x138: the thread's current locale view (`liella::locale::view::LocaleView`), kept with
+    /// 0x138: the thread's current locale view (`niji::locale::view::LocaleView`), kept with
     /// the ctype words by the same writers; 0 until stored (D-7.13).
     pub view: AtomicUsize,
     /// 0x140: the thread's cache words (TB-SLOTS): one cache line of per-thread caches the
@@ -82,8 +82,21 @@ pub struct ThreadBlock {
     /// reads); zero in a fresh block. Read with one `%fs`-relative load (`tb::read`), so a
     /// per-thread cache costs no descriptor lookup. The owners: [`CACHE_TZ_PERIOD`].
     pub cache: [AtomicUsize; CACHE_WORDS],
-    /// 0x180–0x300: room for later phases (0x180–0x280 is glibc's reserved area).
-    tail: [AtomicUsize; 48],
+    /// 0x180: the class-word table (`niji::locale::classes::ClassTable`) of the current view's
+    /// `LC_CTYPE`, stored with `view` by the same writers; 0 until stored (D-5.11).
+    pub wclass: AtomicUsize,
+    /// 0x188–0x280: room for later phases (0x180–0x280 is glibc's reserved area).
+    tail: [AtomicUsize; 31],
+    /// 0x280: the thread's dlerror record (DL-16a, plan/ph14/dl-16-dlopen.md §4): 0 until the
+    /// thread's first `dl*` failure, then the address of its record (`dlerror` reads it).
+    pub dlerror: AtomicUsize,
+    /// 0x288: how many of the loader's read sections (`dl_iterate_phdr`, `_dl_find_object`) the
+    /// thread is inside, nested, per reader parity (DL-17): written by the thread itself only. A
+    /// `dlopen` or `dlclose` it makes from inside one never waits for the readers to drain (it
+    /// could wait on itself), and a `fork` child rebuilds the reader counts from them.
+    pub dl_reading: [AtomicUsize; 2],
+    /// 0x298–0x300: room for later phases.
+    tail_rest: [AtomicUsize; 13],
 }
 
 /// The number of [`ThreadBlock::cache`] words.
@@ -124,7 +137,11 @@ const _: () = {
     // One cache line (0x140-0x180), inside glibc's reserved area (a block glibc's `ld.so`
     // made has it zero).
     assert!(size_of::<[AtomicUsize; CACHE_WORDS]>() == 64);
-    assert!(offset_of!(ThreadBlock, tail) == 0x180);
+    assert!(offset_of!(ThreadBlock, wclass) == 0x180);
+    assert!(offset_of!(ThreadBlock, tail) == 0x188);
+    assert!(offset_of!(ThreadBlock, dlerror) == 0x280);
+    assert!(offset_of!(ThreadBlock, dl_reading) == 0x288);
+    assert!(offset_of!(ThreadBlock, tail_rest) == 0x298);
     assert!(size_of::<ThreadBlock>() == 0x300);
 };
 

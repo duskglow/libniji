@@ -3,16 +3,16 @@
 //! * Kernel randomness: [`fill`], [`entropy`], and the never-failing `arc4random` family
 //!   ([`u32_random`], [`uniform`]), each taking the kernel as a value.
 //! * [`Rng48`]: the POSIX 48-bit linear congruential generator, bit-exact (§9.4).
-//! * [`AdditiveFeedback`]: Liella's documented additive lagged-Fibonacci generator behind
+//! * [`AdditiveFeedback`]: libniji's documented additive lagged-Fibonacci generator behind
 //!   `random`/`srandom`/`initstate`/`setstate` and `rand`. Per OD-13 its sequence is *not*
 //!   glibc's (the spec does not specify one); its algorithm is fixed here so that sequences are
-//!   reproducible across Liella versions.
+//!   reproducible across libniji versions.
 
 #![allow(clippy::as_conversions, clippy::arithmetic_side_effects, clippy::indexing_slicing)] // modular generator arithmetic; table indices are reduced modulo the table size
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::GRND_NONBLOCK;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::GRND_NONBLOCK;
 
 /// Fill `buf` from the kernel CSPRNG, retrying short reads; `EINTR` is retried because the
 /// callers' contracts never fail with it (`getentropy`, `arc4random`). Other errors propagate.
@@ -199,7 +199,7 @@ impl Words for ByteWords<'_> {
     }
 }
 
-/// Liella's additive-feedback generator (OD-13). Documented algorithm:
+/// libniji's additive-feedback generator (OD-13). Documented algorithm:
 ///
 /// * **Types by state size** (bytes, including the header word): 8 → type 0 (a 31-bit LCG,
 ///   `x = x·1103515245 + 12345 mod 2^31`); 32 → lags (7, 3); 64 → (15, 1); 128 → (31, 3);
@@ -296,7 +296,7 @@ impl AdditiveFeedback {
     }
 }
 
-/// `rand_r`: Liella's documented 32-bit-state generator (OD-13): three steps of
+/// `rand_r`: libniji's documented 32-bit-state generator (OD-13): three steps of
 /// `s = s·1103515245 + 12345 (mod 2^32)` contribute 11, 10 and 10 bits (bits 16 and up) of
 /// output.
 pub fn rand_r(seed: &mut u32) -> u32 {

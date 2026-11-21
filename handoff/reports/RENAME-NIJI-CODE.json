@@ -1,0 +1,13 @@
+{"task": "RENAME-NIJI-CODE", "model": "opus", "tokens": null,
+ "result": "CHECKPOINT (context): rename script + its output + size fallout committed; clippy red on bare Liella identifiers; baseline proof measured; after-proof, gate and plants not run",
+ "branch": "task/rename-niji-code", "head": null,
+ "gate": {"affected": "not run", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["compat records keep LIELLA_COMPAT_* and the liella. tunable in restore text (records are history and excluded); docs/compat-flags.md follows them",
+                   "baseline swapped trixie root (swap-system.sh) rc 1 on origin/next e1afc4e47 before any rename: not yet examined"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "work in progress: not ready to land", "before": null, "after": null, "unit": null, "measured": false}],
+ "jobs": ["rename-niji-code-before", "rename-niji-code-before-chroot2", "rename-niji-code-clippy1"],
+ "improvement": "the brief's proof (both flavours, chroots, symbols, layout) is one script; the ops kit could carry it as a reusable before/after packaging proof so the next run does not rebuild it",
+ "next_step": "fix bare Liella identifiers via a script rule, rerun the script on the base, clippy/static clean, then proof2.sh niji after, diff, gate, plants (handoff/rename-niji-code.md)",
+ "report_file": "handoff/rename-niji-code.md"}

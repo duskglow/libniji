@@ -3,8 +3,8 @@
 //! versioned contracts, and compatibility-only subsystems (spec H3, H4, H7, H8, §29).
 //!
 //! Why a separate crate: the POSIX translation layer must contain no logic
-//! (implementation-plan.md §8), and `liella` (core) must carry no historical artefacts. This crate
-//! is where such logic is allowed to live, visibly quarantined. `liella` never depends on it.
+//! (implementation-plan.md §8), and `niji` (core) must carry no historical artefacts. This crate
+//! is where such logic is allowed to live, visibly quarantined. `niji` never depends on it.
 //!
 //! `#![forbid(unsafe_code)]`.
 
@@ -28,7 +28,6 @@ pub mod fts;
 pub mod ipc_compat;
 pub mod net_compat;
 pub mod inet_compat;
-pub mod rcmd;
 pub mod interim_db;
 pub mod nss_files;
 pub mod gai;
@@ -69,11 +68,8 @@ pub mod obstack;
 pub mod search_global;
 pub mod search_c;
 pub mod regex_compat;
-pub mod des;
 pub mod sunrpc;
-pub mod sunrpc_clnt;
 pub mod sunrpc_rec;
-pub mod sunrpc_svc;
 pub mod nis;
 pub mod stubs;
 pub mod term_compat;

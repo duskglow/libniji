@@ -8,7 +8,7 @@
 //! missing file is 2 (POSIX: "cannot be opened for reading"); glibc reports 3.
 //!
 //! **Matching.** The input may have white space before and after it. Each line of the file is a
-//! template (blank lines are skipped), parsed as `strptime` does (`liella::time::parse`) with
+//! template (blank lines are skipped), parsed as `strptime` does (`niji::time::parse`) with
 //! ordinary characters matched regardless of case; the first that consumes the whole input
 //! decides, valid or not.
 //!
@@ -26,15 +26,15 @@
 //! The result is normalised as `mktime` does (`tm_isdst` from the zone unless `%s` gave it).
 #![allow(clippy::arithmetic_side_effects)] // calendar fields of struct tm (i32) widened to i64
 
-use liella::error::{Errno, KResult};
-use liella::locale::Locale;
-use liella::mem::TryVec;
-use liella::time::civil::{self, Fields};
-use liella::time::parse::{self, Local, Options, Parsed};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY, S_IFMT, S_IFREG};
+use niji::error::{Errno, KResult};
+use niji::locale::Locale;
+use niji::mem::TryVec;
+use niji::time::civil::{self, Fields};
+use niji::time::parse::{self, Local, Options, Parsed};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, S_IFMT, S_IFREG};
 
 /// `getdate_err` 1: `DATEMSK` is unset or empty.
 pub const NO_DATEMSK: i32 = 1;
@@ -172,7 +172,7 @@ fn complete<E: Env>(p: &Parsed<E::Zone>, env: &E) -> Result<Local<E::Zone>, i32>
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
-    use liella::time::utc;
+    use niji::time::utc;
 
     /// UTC, at 2026-10-02 19:46:39 (a Friday).
     struct At;
@@ -193,7 +193,7 @@ mod tests {
         }
 
         fn mktime(&self, f: &Fields, _: i32) -> KResult<Local<()>> {
-            let (_, c) = liella::time::timegm(f)?;
+            let (_, c) = niji::time::timegm(f)?;
             Ok(Local { civil: c, isdst: false, offset: 0, zone: () })
         }
     }

@@ -13,7 +13,7 @@
 #     fixture so that a dynamically linked program still starts.
 #
 # Usage: mntent_run.sh PROGRAM SCRATCH
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phase too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phase too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 # The mounts are made in glob order, which the record shows: fix the collation.
@@ -30,7 +30,7 @@ timeout $((120 * TSCALE)) "$prog" "$dir"
 if [ -f /etc/ld.so.cache ]; then
     cp /etc/ld.so.cache "$dir/etc/ld.so.cache"
 fi
-sudo -n env LC_ALL=C ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} timeout $((120 * TSCALE)) unshare -m --propagation private sh -c '
+sudo -n env LC_ALL=C ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} timeout $((120 * TSCALE)) unshare -m --propagation private sh -c '
 set -e
 for d in "$1"/m/*/; do
     case "$d" in

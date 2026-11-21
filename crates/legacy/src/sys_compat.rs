@@ -1,20 +1,20 @@
 //! The C shapes of spec §24.1–24.4: the C numbering of `sysconf`, `confstr` and `pathconf`
 //! names (the fixed answers are the reference glibc's, `crate::sysconf_table`; the computed
-//! ones are `liella::system`'s), and what glibc adds to the limit, usage and priority calls:
+//! ones are `niji::system`'s), and what glibc adds to the limit, usage and priority calls:
 //! `ulimit`, `vlimit`, `vtimes`, `nice`, and `sched_getaffinity`'s zero-filled tail.
 
-use liella::error::{Errno, Result};
-use liella::system::{self, Aux, Cache, Query};
+use niji::error::{Errno, Result};
+use niji::system::{self, Aux, Cache, Query};
 
 /// `gnu_get_libc_version()` (§24.5): the reference's version, NUL-terminated.
 pub static LIBC_VERSION: [u8; 5] = *b"2.39\0";
 /// `gnu_get_libc_release()` (§24.5).
 pub static LIBC_RELEASE: [u8; 7] = *b"stable\0";
-use liella_kernel::fd::Fd;
-use liella_kernel::machine::Machine;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, Rusage, Stat, Statfs};
+use niji_kernel::fd::Fd;
+use niji_kernel::machine::Machine;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, Rusage, Stat, Statfs};
 
 use crate::sysconf_table::{self, Fixed};
 
@@ -247,7 +247,7 @@ pub fn nice<S: Sys>(sys: &S, inc: i32) -> Result<i64> {
 
 /// `getpriority(which, who)` (§24.3): the nice value (-20..19), the kernel's bias undone.
 pub fn getpriority<S: Sys>(sys: &S, which: u32, who: u32) -> Result<i64> {
-    sys.getpriority(which, who).map(|p| i64::from(liella_kernel::uapi::nice_from_priority(p)))
+    sys.getpriority(which, who).map(|p| i64::from(niji_kernel::uapi::nice_from_priority(p)))
 }
 
 /// `sched_getaffinity(pid, size, mask)` (§24.3): the kernel writes the bytes it knows of;
@@ -297,8 +297,8 @@ pub fn gethostid<S: Sys>(sys: &S, file: &[u8]) -> i32 {
     let Ok(u) = sys.uname() else { return 0 };
     let end = u.nodename.iter().position(|&c| c == 0).unwrap_or(u.nodename.len());
     let name = u.nodename.get(..end).unwrap_or(&[]);
-    match crate::netdb_compat::resolve(sys, name, liella::names::Family::V4) {
-        Ok(Some(crate::netdb_compat::Resolved { addr: liella::names::Ip::V4(a), .. })) => i32::from_ne_bytes(u32::from_ne_bytes(a).rotate_left(16).to_ne_bytes()),
+    match crate::netdb_compat::resolve(sys, name, niji::names::Family::V4) {
+        Ok(Some(crate::netdb_compat::Resolved { addr: niji::names::Ip::V4(a), .. })) => i32::from_ne_bytes(u32::from_ne_bytes(a).rotate_left(16).to_ne_bytes()),
         _ => 0,
     }
 }
@@ -313,7 +313,7 @@ pub fn sethostid<S: Sys>(sys: &S, file: &[u8], id: i64) -> Result<()> {
     if sys.geteuid() != sys.getuid() || sys.getegid() != sys.getgid() {
         return Err(Errno::EPERM);
     }
-    use liella_kernel::uapi::{O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY};
+    use niji_kernel::uapi::{O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY};
     let fd = sys.openat(Fd::CWD, KStr::from_nul_terminated(file)?, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o644)?;
     let r = sys.write(fd, &v.to_ne_bytes()).and_then(|n| if n == 4 { Ok(()) } else { Err(Errno::ENOSPC) });
     let c = sys.close(fd);

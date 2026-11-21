@@ -1,0 +1,73 @@
+reference: ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+libniji products: ~/w/n3/target/niji (2026-11-17 07:31)
+== ./probes dlopen_many 600 ~/w/ahl-probes/lib
+  ref:   dlopen_many: ok 600 objects open at once
+  ref rc 0
+  niji:  dlopen_many: stopped at 509 of 600: ~/w/ahl-probes/lib/libp509.so: cannot load more objects
+  niji rc 1
+== ./probes dlopen_wide ~/w/ahl-probes/lib/libwide.so
+  ref:   dlopen_wide: ok
+  ref rc 0
+  niji:  dlopen_wide: failed: ~/w/ahl-probes/lib/libwide.so: cannot load more objects in one call
+  niji rc 1
+== ./need100
+  ref rc 0
+  niji:  ld.so: libp63.so: too many objects
+  niji rc 127
+== ./need300
+  ref rc 0
+  niji:  ld.so: libp63.so: too many objects
+  niji rc 127
+== ldd need300 (count of listed lines)
+  ref:   303 lines, rc 0
+  niji:  304 lines; tail: 	~/w/n3/target/niji/ld-linux-x86-64.so.2 => /lib64/ld-linux-x86-64.so.2 (0x000075c75ea84000)
+== ./probes sem_many 300
+  ref:   sem_many: ok 300 named semaphores open at once
+  ref rc 0
+  niji:  sem_many: stopped at 256 of 300: Too many open files
+  niji rc 1
+== ./probes severity_many 300
+  ref:   severity_many: ok 300 severities added
+  ref rc 0
+  niji:  severity_many: addseverity failed at 256 of 300
+  niji rc 1
+== ./probes gai_many 5000
+  ref:   gai_many: getaddrinfo_a(5000 requests) = 0 (success); ok 5000, EAI_AGAIN 0, other 0
+  ref rc 0
+  niji:  gai_many: getaddrinfo_a(5000 requests) = 0 (success); ok 5000, EAI_AGAIN 0, other 0
+  niji rc 0
+== ./probes locale_many 1100
+  ref:   locale_many: ok 1100 distinct locales held at once
+  ref rc 0
+  niji:  locale_many: newlocale stopped at 78 of 1100: No such file or directory
+  niji rc 1
+== ./probes printf_registry 20 300
+  ref:   printf_registry: modifiers 16 of 20 (No space left on device); types 248 of 300 (No space left on device)
+  ref rc 0
+  niji:  printf_registry: modifiers 16 of 20 (No space left on device); types 248 of 300 (No space left on device)
+  niji rc 0
+== ./probes atexit_many 1100000
+  ref:   atexit_many: ok 1100000 handlers registered
+  ref rc 0
+  niji:  atexit_many: failed at 1048575 of 1100000
+  niji rc 1
+== ./probes fnmatch_depth 65
+  ref:   fnmatch_depth: 65 nested @() groups: match
+  ref rc 0
+  niji:  fnmatch_depth: 65 nested @() groups: error
+  niji rc 0
+== ./probes fnmatch_depth 200
+  ref:   fnmatch_depth: 200 nested @() groups: match
+  ref rc 0
+  niji:  fnmatch_depth: 200 nested @() groups: error
+  niji rc 0
+== ./probes wordexp_depth 129
+  ref:   wordexp_depth: 129 nested ${x:-...}: rc 0 word a
+  ref rc 0
+  niji:  wordexp_depth: 129 nested ${x:-...}: rc 5
+  niji rc 0
+== ./probes wordexp_depth 300
+  ref:   wordexp_depth: 300 nested ${x:-...}: rc 0 word a
+  ref rc 0
+  niji:  wordexp_depth: 300 nested ${x:-...}: rc 5
+  niji rc 0

@@ -1,0 +1,12 @@
+name: ldd script: a script is not a dynamic executable
+clause: s31_3_f_1
+command: ldd
+arg: run.sh
+mask-addresses: yes
+file: run.sh
+| #!/bin/sh
+| echo hi
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

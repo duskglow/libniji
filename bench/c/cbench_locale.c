@@ -10,6 +10,7 @@
 #include <iconv.h>
 #include <langinfo.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,13 +99,59 @@ static int (*volatile iswalpha_l_fn)(wint_t, locale_t) = iswalpha_l;
 static wint_t (*volatile towupper_l_fn)(wint_t, locale_t) = towupper_l;
 static int (*volatile iswctype_fn)(wint_t, wctype_t) = iswctype;
 static char *(*volatile nl_langinfo_l_fn)(nl_item, locale_t) = nl_langinfo_l;
+static wint_t (*volatile towctrans_fn)(wint_t, wctrans_t) = towctrans;
+static wint_t (*volatile towlower_fn)(wint_t) = towlower;
+
+/* The towctrans rows' check (BENCH-ROWS-SINCOS-TOWCTRANS), run once before they are timed: for every code
+ * point and WEOF, towctrans with the "toupper" and "tolower" descriptors must equal towupper and towlower
+ * of the same library (probed on glibc: no difference in C and C.UTF-8). A difference ends the program; the
+ * FNV-1a digest of the mapped values goes to stderr, so the libniji and glibc builds can be compared. */
+static void check_towctrans(wctrans_t up, wctrans_t lo)
+{
+    static const char bad[] = "cbench_locale: towctrans identity check failed (towctrans differs from towupper/towlower)\n";
+    if (up == (wctrans_t)0 || lo == (wctrans_t)0) {
+        (void)!write(2, bad, sizeof bad - 1);
+        exit(1);
+    }
+    unsigned long long h = 0xcbf29ce484222325ULL;
+    for (wint_t c = 0;; c++) {
+        wint_t x = c > 0x10FFFF ? WEOF : c;
+        wint_t u = towctrans_fn(x, up), l = towctrans_fn(x, lo);
+        if (u != towupper_fn(x) || l != towlower_fn(x)) {
+            (void)!write(2, bad, sizeof bad - 1);
+            exit(1);
+        }
+        h = (h ^ u) * 0x100000001b3ULL;
+        h = (h ^ l) * 0x100000001b3ULL;
+        if (x == WEOF)
+            break;
+    }
+    fprintf(stderr, "cbench_locale: check towctrans_utf8 digest %#llx\n", h);
+}
 static const struct tm tm_fixed = { .tm_mday = 5, .tm_mon = 3, .tm_wday = 2, .tm_year = 120 };
 
-/* Case-insensitive pairs (PJ-23): equal apart from case, so every byte is folded. */
-static char case_a[257], case_b[257];
+/* Case-insensitive pairs (PJ-23): equal apart from case, so every byte is folded.
+ * BENCH-CASECMP-ALIGN: the operands sit at fixed page offsets in a page-aligned block, so a change in
+ * the data size around them cannot move one across a 4 KiB page boundary (an unaligned 257-byte array
+ * drifted to page offset 0xf00/0xf60 and changed the strcasecmp_*_256 rows with no code change).
+ * case_a is at offset 0 of page 0, case_b at offset 0x800 of page 0: neither crosses a page.
+ * case_x holds case_b's bytes at offset 0xf00 of page 1, so its terminator lies on page 2: the
+ * strcasecmp_c_256_xpage row measures a page-crossing operand on purpose.
+ * BENCH-CASECMP-ALIGN-2: case_a and case_b both start at a 2 KiB multiple, a best or worst case by
+ * accident; strcasecmp_c_256_odd compares copies at offsets 0x13 and 0x421 (neither a multiple of 16,
+ * mutual offset 0x40e), and strcasecmp_c_256_pageend a copy of case_a starting 16 bytes before a page
+ * end (0xff0 of page 2, running onto page 3) against case_b. main prints every operand's page offset. */
+static _Alignas(4096) char case_pages[4][4096];
+#define case_a (case_pages[0])
+#define case_b (case_pages[0] + 0x800)
+#define case_x (case_pages[1] + 0xf00)
+#define case_o (case_pages[3] + 0x413)
+#define case_p (case_pages[0] + 0x421)
+#define case_e (case_pages[2] + 0xff0)
 
-static char text[4096];
-static char out[16384];
+/* Page-aligned for the same reason: the iconv rows always touch exactly 1 and 4 whole pages. */
+static _Alignas(4096) char text[4096];
+static _Alignas(4096) char out[16384];
 
 /* One whole conversion of `text` (4 KiB) through `cd`. */
 static long convert(iconv_t cd)
@@ -132,17 +179,37 @@ int main(void)
         case_a[i] = (char)("abcdefghijklmnopqrstuvwxyz0123456789 .-_"[i % 40]);
         case_b[i] = (i & 1) && case_a[i] >= 'a' && case_a[i] <= 'z' ? (char)(case_a[i] - 32) : case_a[i];
     }
+    memcpy(case_x, case_b, 257);
+    memcpy(case_o, case_a, 257);
+    memcpy(case_p, case_b, 257);
+    memcpy(case_e, case_a, 257);
+    fprintf(stderr, "cbench_locale: operand page offsets: case_a %#lx case_b %#lx case_x %#lx case_o %#lx case_p %#lx case_e %#lx\n",
+            (unsigned long)((uintptr_t)case_a & 4095), (unsigned long)((uintptr_t)case_b & 4095),
+            (unsigned long)((uintptr_t)case_x & 4095), (unsigned long)((uintptr_t)case_o & 4095),
+            (unsigned long)((uintptr_t)case_p & 4095), (unsigned long)((uintptr_t)case_e & 4095));
 
     setlocale(LC_ALL, "C");
     MEASURE("isalpha_c", 10000000L, isalpha_fn((int)(i & 127)));
     MEASURE("toupper_c", 10000000L, toupper_fn((int)(i & 127)));
     MEASURE("strcasecmp_c_16", 10000000L, strcasecmp_fn("Hello World 1234", "hELLO wORLD 1234"));
     MEASURE("strcasecmp_c_256", 1000000L, strcasecmp_fn(case_a, case_b));
+    MEASURE("strcasecmp_c_256_xpage", 1000000L, strcasecmp_fn(case_a, case_x));
+    MEASURE("strcasecmp_c_256_odd", 1000000L, strcasecmp_fn(case_o, case_p));
+    MEASURE("strcasecmp_c_256_pageend", 1000000L, strcasecmp_fn(case_e, case_b));
     MEASURE("strncasecmp_c_64", 10000000L, strncasecmp_fn(case_a, case_b, 64));
     MEASURE("strtod_c", 1000000L, strtod_fn("3.14159", NULL) > 3.0);
+    /* LOCALE-SLOTS-GROWTH-7: a repeated setlocale that changes nothing (answered without the lock). */
+    MEASURE("setlocale_all_c", 1000000L, setlocale(LC_ALL, "C") != NULL);
 
     setlocale(LC_ALL, "C.UTF-8");
     MEASURE("towupper_utf8", 10000000L, towupper_fn((wint_t)(0xE0 + (i & 31))));
+    {
+        wctrans_t up = wctrans("toupper"), lo = wctrans("tolower");
+        if (!cb_skip("towctrans_toupper_utf8") || !cb_skip("towctrans_tolower_utf8"))
+            check_towctrans(up, lo);
+        MEASURE("towctrans_toupper_utf8", 10000000L, towctrans_fn((wint_t)(0xE0 + (i & 31)), up));
+        MEASURE("towctrans_tolower_utf8", 10000000L, towctrans_fn((wint_t)(0xC0 + (i & 31)), lo));
+    }
     MEASURE("iswalpha_utf8", 10000000L, iswalpha_fn((wint_t)(0x4E00 + (i & 255))));
     MEASURE("wcwidth_utf8", 10000000L, wcwidth_fn((wchar_t)(0x4E00 + (i & 255))));
     mbstate_t st;
@@ -158,6 +225,10 @@ int main(void)
 
     /* A compiled locale (its tables come from a file); skipped where it is not installed. */
     if (setlocale(LC_ALL, "en_US.UTF-8") != NULL) {
+        /* LOCALE-SLOTS-GROWTH-7: the query and the repeated selection of the locale in force, both
+         * answered from the query cache without the lock (ruling #6981 gates them per call). */
+        MEASURE("setlocale_query_en_us", 1000000L, setlocale(LC_ALL, NULL) != NULL);
+        MEASURE("setlocale_en_us_repeat", 1000000L, setlocale(LC_ALL, "en_US.UTF-8") != NULL);
         MEASURE("strcasecmp_en_256", 1000000L, strcasecmp_fn(case_a, case_b));
         MEASURE("fnmatch_casefold_en_32", 1000000L, fnmatch_fn("*hello*WORLD*[a-z]?.TXT", "My Hello big world file x1.txt", FNM_CASEFOLD));
         /* LV-0: the same calls as their C / C.UTF-8 twins, but in a compiled locale, where each call
@@ -184,7 +255,7 @@ int main(void)
         }
         MEASURE("iswctype_en_us", 10000000L, iswctype_fn((wint_t)(0x4E00 + (i & 255)), alpha));
     } else {
-        static const char skip[] = "cbench_locale: SKIPPED the en_US.UTF-8 rows (mbrtowc_en_us_3 iswalpha_en_us strtod_en_us snprintf_f_en_us fnmatch_en_us nl_langinfo_en_us localeconv_en_us strftime_names_en_us): "
+        static const char skip[] = "cbench_locale: SKIPPED the en_US.UTF-8 rows (setlocale_query_en_us setlocale_en_us_repeat mbrtowc_en_us_3iswalpha_en_us strtod_en_us snprintf_f_en_us fnmatch_en_us nl_langinfo_en_us localeconv_en_us strftime_names_en_us): "
                                    "locale not installed on this host\n";
         (void)!write(2, skip, sizeof skip - 1);
     }

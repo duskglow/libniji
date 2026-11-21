@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # MEMCMP-SIZE-MIX: build the histogram-instrumented kit of SHA (from the role tree ROLE) and run every workload of
 # validation/wl_workloads.sh once with MCS_OUT set; then sum the dumps with validation/mcs_hist.py.
 #   mcs_run.sh ROLE_DIR SHA OUT_DIR
@@ -12,7 +12,8 @@ echo "copied $(date +%T)"
 cp "$role"/validation/mcs_hist.py "$out"/ || exit 1
 bash "$role"/validation/wl_prep.sh "$sha" > "$out"/prep.log 2>&1 || { echo "wl_prep failed"; tail -20 "$out"/prep.log; exit 1; }
 . "$role"/validation/wl_workloads.sh
-kit=$HOME/wl/kit/$sha/bin
+. "$role"/validation/wl_lock.sh   # wl_key: the kit is keyed by sha and products profile (WL-PREP-RELEASE-PROFILE)
+kit=$HOME/wl/kit/$(wl_key "$sha")/bin
 for d in "${WL_DEFS[@]}"; do
     name=${d%%|*} cmd=${d#*|}
     c=${cmd//@/$kit}

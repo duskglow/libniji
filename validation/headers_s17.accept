@@ -1,0 +1,9 @@
+# Slice 17 differences accepted by docs/differences-from-glibc.md (D-X.131): the reserved argp helper, the exported-function forms of argp_usage and argz_next, and the complete struct _IO_FILE in printf.h.
+# The 19 ctype and fwrite_unlocked rows P2 prints for argp.h, malloc.h and stdio_ext.h are not listed: they are the headers slice 6 rows of ctype.h and stdio.h seen through an include.
+missing argp.h _option_is_end call - [*]
+extra argp.h _option_is_end call _option_is_end [*]
+missing argp.h argp_usage call argp_state_help,stderr [*]
+extra argp.h argp_usage call argp_usage [*]
+extra argz.h argz_next call argz_next [*]
+missing argz.h argz_next call strlen [*]
+extra printf.h _IO_FILE struct [!time64only]

@@ -1,0 +1,21 @@
+# SYS-ABI-DT-RELR-2 plants: cargo xtask plants handoff/SYS-ABI-DT-RELR-2-plants.txt (docs/plants.md).
+# The product's version scripts define the reference's symbol-less nodes (spec/abi/empty-versions.tsv) with the
+# reference's flags (none) and parent; the product build's check (cargo xtask so) and the module's unit tests must
+# catch a missing node, a WEAK one, and one with another parent.
+drop-libc-node | xtask/src/so.rs | lit:        nodes.entry(ver.clone()).or_default(); ==> let _ = ver; | cargo xtask so | msg:libc\.so\.6 does not define the version node GLIBC_ABI_DT_RELR|libm\.so\.6 does not define the version node GLIBC_2\.4
+libc-node-weak | xtask/src/so.rs | lit:if i == local_node || (empty.contains_key(*v) && !compat_nodes.contains(*v)) { ==> if i == local_node { | cargo xtask so | msg:libc\.so\.6 defines the version node GLIBC_ABI_DT_RELR with flags WEAK
+libc-node-parent | xtask/src/so.rs | lit:match empty.get(*v).or(prev) { ==> match prev { | cargo xtask so | msg:libc\.so\.6 defines the version node GLIBC_ABI_DT_RELR with parent GLIBC_2\.41
+ld-node-weak | xtask/src/so.rs | lit:"{ver} {{\n  local: *;\n}} {parent};\n" ==> "{ver} {{\n}} {parent};\n" | cargo xtask so | msg:ld-linux-x86-64\.so\.2 defines the version node GLIBC_2\.4 with flags WEAK
+check-flags | xtask/src/empty_versions.rs | lit:if flags != "none" { ==> if false { | cargo test -p xtask --bin xtask empty_versions | msg:a_weak_node_or_another_parent_is_named.*(FAILED|panicked)|panicked.*empty_versions
+check-parent | xtask/src/empty_versions.rs | lit:if p.as_deref() != Some(parent.as_str()) { ==> if false { | cargo test -p xtask --bin xtask empty_versions | msg:a_weak_node_or_another_parent_is_named.*(FAILED|panicked)|panicked.*empty_versions
+check-any-definition | xtask/src/empty_versions.rs | lit:n == v && flags != "BASE" ==> flags != "BASE" | cargo test -p xtask --bin xtask empty_versions | msg:a_defined_node_passes_and_a_missing_one_is_named.*(FAILED|panicked)|panicked.*empty_versions
+honour-any-node | xtask/src/empty_versions.rs | lit:        if !HONOURED.iter().any(|(l, v, _)| l == lib && v == ver) { ==>         if false { | cargo test -p xtask --bin xtask empty_versions | msg:a_node_not_honoured_is_refused.*(FAILED|panicked)|panicked.*empty_versions
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# drop-libc-node: CAUGHT, caught by no test the log names
+# libc-node-weak: CAUGHT, caught by no test the log names
+# libc-node-parent: CAUGHT, caught by no test the log names
+# ld-node-weak: CAUGHT, caught by no test the log names
+# check-flags: CAUGHT, caught by xtask empty_versions::tests::a_weak_node_or_another_parent_is_named
+# check-parent: CAUGHT, caught by xtask empty_versions::tests::a_weak_node_or_another_parent_is_named
+# check-any-definition: CAUGHT, caught by xtask empty_versions::tests::a_defined_node_passes_and_a_missing_one_is_named
+# honour-any-node: CAUGHT, caught by xtask empty_versions::tests::a_node_not_honoured_is_refused

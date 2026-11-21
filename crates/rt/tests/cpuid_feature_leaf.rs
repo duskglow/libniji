@@ -2,8 +2,8 @@
 //! glibc 2.39 reported on four CPUs (probe X86-CPUID-FEATURE-LEAF, 2026-10-22), replayed through
 //! a fake CPU that answers with the same raw words.
 
-use liella_kernel::machine::{Machine, X87Env};
-use liella_rt::cpu::{feature_leaves, FeatureLeaf, FEATURE_LEAVES};
+use niji_kernel::machine::{Machine, X87Env};
+use niji_rt::cpu::{feature_leaves, FeatureLeaf, FEATURE_LEAVES};
 
 struct Cpu {
     max: u32,

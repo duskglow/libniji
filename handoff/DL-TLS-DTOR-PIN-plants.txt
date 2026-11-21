@@ -1,0 +1,9 @@
+# DL-TLS-DTOR-PIN: a pending C++ thread_local destructor pins its dlopened object (spec s1_2_c_6).
+# Plants on the pin: not taken at registration (libc side), not counted as live (loader side), dropped
+# before the destructor ran, never dropped (the object would leak), dropped without unloading.
+# Run: cargo xtask plants handoff/DL-TLS-DTOR-PIN-plants.txt --dir <new RAM dir> --timeout 600
+pin-not-taken | crates/boundary/src/process.rs | lit:let pin = if dso == 0 { 0 } else { loader_pin(0, dso) }; ==> let pin = 0; | cargo test -p liella-ld --test dlclose s1_2_c_6_thread_local_destructor_keeps_its_object_loaded | msg:thread_local pin exit: stderr: check 3
+pin-not-live | crates/boundary/src/ld/dlopen.rs | lit:nd.opens > 0 || nd.pins > 0 || ==> nd.opens > 0 || | cargo test -p liella-ld --test dlclose s1_2_c_6_thread_local_destructor_keeps_its_object_loaded | msg:thread_local pin exit: stderr: check 3
+pin-dropped-before-dtor | crates/legacy/src/exit_handlers.rs | perl:s/call\.call3\(f, obj, 0, 0\);(\s+)done\(node, pin\);/done(node, pin);$1call.call3(f, obj, 0, 0);/ | cargo test -p liella-ld --test dlclose s1_2_c_6_thread_local_destructor_keeps_its_object_loaded | msg:thread_local pin exit: stderr
+pin-never-dropped | crates/boundary/src/process.rs | lit:let _ = loader_pin(1, pin); ==> | cargo test -p liella-ld --test dlclose s1_2_c_6_thread_local_destructor_keeps_its_object_loaded | msg:thread_local pin threads: stderr: check 10
+last-pin-no-unload | crates/boundary/src/ld/dlopen.rs | lit:                collect(l, &mut f); ==> | cargo test -p liella-ld --test dlclose s1_2_c_6_thread_local_destructor_keeps_its_object_loaded | msg:thread_local pin threads: stderr: check 10

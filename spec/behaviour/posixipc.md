@@ -28,7 +28,7 @@ after, no fixture mount survived, and the scratch directories were removed by th
 every queue lives and dies with it) and a private mount namespace (`--propagation private`). The
 shell first checks that its IPC namespace differs from that of process 1, then mounts a fresh
 `mqueue` file system (of the new IPC namespace) on `/dev/mqueue` and a fresh 4 MiB tmpfs (mode
-1777) on `/dev/shm`, holding the marker `.liella-posixipc-fixture`; the program refuses to run
+1777) on `/dev/shm`, holding the marker `.niji-posixipc-fixture`; the program refuses to run
 without it. The new IPC namespace has the kernel's default limits (`msg_max` 10, `msgsize_max`
 8192, `queues_max` 256; printed at the top of `== mq_open attributes`). Phases:
 
@@ -41,7 +41,7 @@ without it. The new IPC namespace has the kernel's default limits (`msg_max` 10,
 3. **`ext4`** (`== /dev/shm on another file system`): `SCRATCH/shmdir` (ext4) bind-mounted over
    `/dev/shm`.
 4. **`nodev`** (`== no /dev/shm`): an empty tmpfs mounted over `/dev`, so `/dev/shm` and
-   `/dev/mqueue` do not exist (marker `/dev/.liella-posixipc-nodev`).
+   `/dev/mqueue` do not exist (marker `/dev/.niji-posixipc-nodev`).
 
 ## What the probe does
 

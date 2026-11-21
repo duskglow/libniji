@@ -6,10 +6,10 @@
 #
 # If COMPAT_PROGRAM is given (the same source built with -DPATTERNS_COMPAT_GLOB against the host
 # C library, dynamically), its "compat" section is appended: glob@GLIBC_2.2.5 against the
-# default glob. Liella's static products cannot select a symbol version, so the products
+# default glob. libniji's static products cannot select a symbol version, so the products
 # comparison uses the first part only.
 #
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the program too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the program too
 # (`nscache_mode.sh` runs the script with the cache on and off; ~user expansion looks up passwd).
 #
 # Usage: patterns_run.sh PROGRAM SCRATCH [COMPAT_PROGRAM]
@@ -25,7 +25,7 @@ mkdir -p "$dir/locales" "$dir/fx"
 localedef -i C -f UTF-8 "$dir/locales/C.UTF-8" >/dev/null 2>&1 || [ $? -eq 1 ]
 localedef -i en_US -f UTF-8 "$dir/locales/en_US.UTF-8" >/dev/null 2>&1 || [ $? -eq 1 ]
 . "$(dirname "$0")/tscale.sh"
-env -i PATH=/usr/bin:/bin LOCPATH="$dir/locales" ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} timeout -s KILL $((1200 * TSCALE)) "$prog" "$dir/fx"
+env -i PATH=/usr/bin:/bin LOCPATH="$dir/locales" ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} timeout -s KILL $((1200 * TSCALE)) "$prog" "$dir/fx"
 if [ -n "$compat" ]; then
     mkdir -p "$dir/fxc"
     env -i PATH=/usr/bin:/bin LOCPATH="$dir/locales" timeout -s KILL $((120 * TSCALE)) "$compat" "$dir/fxc" compat

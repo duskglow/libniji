@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 8. The POSIX translation layer
 
@@ -11,8 +11,8 @@ does exactly two things:
 2. **Convert outputs** from internal results to C conventions.
 
 All logic, error handling, edge-case management and computation live in the Rust library:
-`liella`, `liella-legacy`, `liella-math` and `liella-rt`, with the safe half of the vocabulary in
-`liella-abi`. **Any logic found in the translation layer is a design error.**
+`niji`, `niji-legacy`, `niji-math` and `niji-rt`, with the safe half of the vocabulary in
+`niji-abi`. **Any logic found in the translation layer is a design error.**
 
 It lives in the boundary crate because it is C interop. Exporting symbols (category *export*)
 and turning C pointers into Rust memory (category *slice*) are two of the four things only the
@@ -24,8 +24,8 @@ when the internal API is designed.
 | # | Rule | Check |
 |---|---|---|
 | T1 | Each export is **one expression**: `ret::…( [conversions] → one library call with CSys )`. No `let`, `if`, `match`, loops, arithmetic, `?`, and no local or static state. | `cargo xtask purity` |
-| T2 | **Closed vocabulary.** Inputs are converted by `crate::conv`, `crate::strz` (unsafe, category *slice*) and `liella_abi::{chk, callback, va}` (safe). Outputs are converted by `liella_abi::{ret, pack}`. `Result`/`Option` combinators compose them. | Review |
-| T3 | **One library call.** Multi-step sequences live in `liella-legacy`. | Review |
+| T2 | **Closed vocabulary.** Inputs are converted by `crate::conv`, `crate::strz` (unsafe, category *slice*) and `niji_abi::{chk, callback, va}` (safe). Outputs are converted by `niji_abi::{ret, pack}`. `Result`/`Option` combinators compose them. | Review |
+| T3 | **One library call.** Multi-step sequences live in `niji-legacy`. | Review |
 | T4 | `unsafe` appears only as a single `unsafe { conv::… }` or `unsafe { strz::… }` block, each preceded by `// UNSAFE(slice) SAFETY: <which C contract guarantees the pointer>`. | `purity` and `unsafe-audit` |
 | T5 | **Aliases share one function.** Different contracts (versions, dialects) are different translations. | Manifest review |
 | T6 | Exports go only through `export!` (category *export*), with the version node from Appendix C.3. | Build; `unsafe-audit` |
@@ -39,7 +39,7 @@ when the internal API is designed.
 |---|---|---|
 | boundary (unsafe *slice*) | `conv` | `buf(ptr, n) → Result<&[u8]>`, `buf_mut`, `opt_buf(ptr, n) → OptBuf` (two-mode entry points), `array::<T>(ptr, n)` for POD element types from Appendix C, `path(ptr) → Result<KPath>` (via `strz`), `iov(ptr, n)`. NULL with n>0 is `EFAULT` or a fatal diagnostic, per S6. |
 | boundary (unsafe *slice*) | `strz` | NUL-terminated C text into Rust views without reading past the terminator (F1, OD-C2); `strz_n(ptr, n)` for `strn*`; `wcsz(ptr)`. |
-| boundary (safe) | `va_source` | `VaSource` over the C layer's `liella_va_*` accessors. |
+| boundary (safe) | `va_source` | `VaSource` over the C layer's `niji_va_*` accessors. |
 | boundary (unsafe *export*) | `export`, `data` | the `export!` macro; data objects (F6, F45) |
 | boundary (unsafe *extern*) | `caller_alloc` | caller-owned memory through the interposable `malloc` (F23) |
 | abi (safe) | `ret` | `errno_neg1`, `errno_null`, `errnum`, `ssize`, `int_len`, `size_or_neg1`, `map_failed`, `eof`, `weof`, `found_ptr(base, Option<index>)` (a `wrapping_add` on the caller's pointer, which is safe), `eai`, `h_errno`, `dlerror`, `wait_status`, `elements(bytes, size)`, `mb_sentinels`, `parse_end` |
@@ -55,13 +55,13 @@ These show the shape a translation will take. They are not code in the scaffold.
 export! { "GLIBC_2.2.5";
 pub extern "C" fn read(fd: c_int, buf: *mut c_void, n: size_t) -> ssize_t {
     // UNSAFE(slice) SAFETY: read's contract (§11.3) makes the caller guarantee n writable bytes at buf.
-    ret::ssize(unsafe { conv::buf_mut(buf, n) }.and_then(|b| liella::io::read(&CSys, conv::fd(fd), b)))
+    ret::ssize(unsafe { conv::buf_mut(buf, n) }.and_then(|b| niji::io::read(&CSys, conv::fd(fd), b)))
 }}
 
 // §13.6 fstat: a fixed-size object needs no unsafe at all (T8).
 export! { "GLIBC_2.33";
 pub extern "C" fn fstat(fd: c_int, st: Option<&mut stat>) -> c_int {
-    ret::errno_neg1(liella::fs::stat_fd(&CSys, conv::fd(fd)).and_then(|s| pack::stat(st, s)))
+    ret::errno_neg1(niji::fs::stat_fd(&CSys, conv::fd(fd)).and_then(|s| pack::stat(st, s)))
 }}
 
 // §14.1 qsort: the comparator is a typed C function pointer, safe to call; the array is one slice.
@@ -69,7 +69,7 @@ export! { "GLIBC_2.2.5";
 pub extern "C" fn qsort(base: *mut c_void, n: size_t, size: size_t,
                         cmp: Option<extern "C" fn(*const c_void, *const c_void) -> c_int>) {
     // UNSAFE(slice) SAFETY: qsort's contract (§14.1) makes the caller guarantee n*size bytes at base.
-    ret::unit(unsafe { conv::elements_mut(base, n, size) }.map(|a| liella::search::sort_stable(a, size, callback::cmp(cmp))))
+    ret::unit(unsafe { conv::elements_mut(base, n, size) }.map(|a| niji::search::sort_stable(a, size, callback::cmp(cmp))))
 }}
 
 // §12.6 printf: the variadic entry is a C adapter (csys/src/adapter/variadic.c):
@@ -139,7 +139,7 @@ runtime price of translating. Findings F44–F50 are new with the C-layer archit
 | F48 | Heap metadata | The safe heap algorithm handles addresses as integers. Metadata regions reach it as slices converted once per region. | No | None | IP-7. |
 | F49 | Soundness of `safe` foreign declarations with pointer parameters | Encapsulation argument (private declarations, slice-typed wrappers) rather than a compiler guarantee. | No | None | S4; review of `ffi.rs` in every phase. |
 | F50 | Typed C function-pointer parameters (`Option<extern "C" fn>`) | Calling them is safe Rust, because the export signature carries the trust (category *export*). A caller passing a mistyped pointer is a C contract violation. | No | None | T8; D-X.8. |
-| F51 | `__pthread_unwind_buf_t` | glibc gives the typedef `__attribute__((aligned))`: 104 bytes, alignment 16. A Rust type's size must be a multiple of its alignment. | No (the object is C-allocated) | None | Liella declares it 8-aligned; the Appendix C test checks the size and documents the exception. Objects of this type are only reached through pointers from C (`pthread_cleanup_push` frames). |
+| F51 | `__pthread_unwind_buf_t` | glibc gives the typedef `__attribute__((aligned))`: 104 bytes, alignment 16. A Rust type's size must be a multiple of its alignment. | No (the object is C-allocated) | None | libniji declares it 8-aligned; the Appendix C test checks the size and documents the exception. Objects of this type are only reached through pointers from C (`pthread_cleanup_push` frames). |
 | F52 | Kernel calls that write through "input" pointers | `pselect6` and `ppoll` write the remaining time back into the timeout, as does `recvmmsg`; `capset` writes the preferred version into the header. A `const` C prototype would hide this. | No | None | `Sys` takes `&mut` for each (D-X.9 refinement c); found by reading the kernel's ABI while typing the syscall table. |
 | F53 | `semctl(GETALL/SETALL)` | The array length is the set's `sem_nsems`, which the call does not take. | No | One extra `IPC_STAT` call | `CSys` reads `sem_nsems` first and refuses a short array. Residual: a set deleted and its ID reused between the two calls (IDs carry a sequence number, so this needs about 32,768 recycles). The phase-1 tests caught a wrong `sem_nsems` word index here before it shipped. |
 | F54 | Raw fork in a multithreaded process | Without `atfork` handlers the child inherits locks other threads held. | No | None | `selftest` children do not allocate. The real `fork()` (phase 6) must reset the allocator and stdio locks in the child, as the spec requires (§18.1). |
@@ -168,7 +168,7 @@ of the findings are unchanged.
     `UNSAFE(<category>)`.
 
   It prints per-category counts. Verified: it rejects an undocumented boundary site, an
-  undocumented `#[allow(unsafe_code)]`, and `unsafe` in `liella`. The compiler also rejects
+  undocumented `#[allow(unsafe_code)]`, and `unsafe` in `niji`. The compiler also rejects
   the last.
 * `cargo xtask csys-audit` checks the C layer: single-statement bodies, no control flow or
   `errno`, the freestanding includes, and assembly only under `machine/`.

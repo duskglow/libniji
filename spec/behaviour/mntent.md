@@ -29,12 +29,12 @@ The harness has two phases.
    errors, `endmntent`, `addmntent`, `hasmntopt`, and only the *structure* of the real
    `/proc/self/mounts`, `/proc/mounts` and `/etc/mtab`. The fixture files are created in SCRATCH
    and removed by the program; it then leaves `SCRATCH/etc` (a fixture `/etc`: `fstab`, `mtab`
-   and a marker file `liella-mntent-fixture`) and empty mount points `SCRATCH/m/<name>`. This
+   and a marker file `niji-mntent-fixture`) and empty mount points `SCRATCH/m/<name>`. This
    phase ends with `done` (line 719).
 2. **`root`** (from line 720): run by `sudo -n env LC_ALL=C timeout 120 unshare -m --propagation
    private`. Inside the namespace the shell mounts a 64 KiB tmpfs on each `SCRATCH/m/<name>`
    (in `LC_ALL=C` glob order), bind-mounts `SCRATCH/etc` over `/etc`, and only then runs the
-   program, which refuses to run unless `/etc/liella-mntent-fixture` exists. The phase changes
+   program, which refuses to run unless `/etc/niji-mntent-fixture` exists. The phase changes
    only fixture files (it renames, empties and replaces the fixture `/etc/fstab` and replaces the
    fixture `/etc/mtab` with a link); the real `/etc` and the real mount table are never written,
    and every mount vanishes with the namespace. The loader cache is copied into the fixture so

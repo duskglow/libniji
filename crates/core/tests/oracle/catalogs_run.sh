@@ -127,7 +127,7 @@ printf '$set 1\n1 x\n' >"$fix/c.msg"
 # gencat runs in C.UTF-8: in the C locale it rejects a byte outside ASCII ("invalid character:
 # message ignored"), and an octal escape above \177 ("invalid escape sequence"), and exits 1.
 printf '%s\n' \
-    '$ Liella catalogs fixture' \
+    '$ libniji catalogs fixture' \
     '$set 1 first set' \
     '1 one' \
     '2 tab\there' \

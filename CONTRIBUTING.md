@@ -5,19 +5,21 @@ The principles behind these rules are in [docs/PRINCIPLES.md](docs/PRINCIPLES.md
 
 ## Project status
 
-Liella is public as a work in progress, not an alpha or a release candidate (see the status
+libniji is public as a work in progress, not an alpha or a release candidate (see the status
 table in [README.md](README.md)). The maintainer
 reviews pull requests and answers issues. Well-tested fixes, new probes and tests, parity
-improvements and documentation are the most likely to be merged. Phases 14 and 15 (the dynamic
-loader and binary-compatibility acceptance) are the largest open areas; talk to us in an issue
+improvements and documentation are the most likely to be merged. Phase 15 (binary-compatibility
+acceptance), the rest of phase 14 (the dynamic loader: `dlmopen`, lazy binding, `LD_AUDIT`,
+`libthread_db`), libniji's own C headers ([plan/headers.md](plan/headers.md)) and the remaining
+C library utilities are the largest open areas; talk to us in an issue
 before starting one, because the design is recorded in
 [plan/06-phases](plan/06-phases/00-overview.md) and in owner rulings.
 
 ## Clean-room design (read first)
 
-Liella was written as a clean room: from a specification and from observing glibc's behaviour,
-not from glibc's code. Licensing was never the main reason (Liella is LGPL-2.1-or-later, the same
-licence as glibc). The reason is design: every decision in Liella should be its own, made for a
+libniji was written as a clean room: from a specification and from observing glibc's behaviour,
+not from glibc's code. Licensing was never the main reason (libniji is LGPL-2.1-or-later, the same
+licence as glibc). The reason is design: every decision in libniji should be its own, made for a
 reason we can state, for current hardware and with current techniques, rather than inherited from
 decades of another library's choices. The history and the record are in
 [docs/clean-room.md](docs/clean-room.md) and [plan section 1.4](plan/01-ground-rules.md).
@@ -25,11 +27,11 @@ decades of another library's choices. The history and the record are in
 What that asks of every contributor, human or AI:
 
 * **Do not build on glibc's implementation in any form.** Do not copy its code, tables, comments
-  or structure, and do not write Liella code from memory of how glibc (or another C library)
+  or structure, and do not write libniji code from memory of how glibc (or another C library)
   does something. Work from the specification and from observed behaviour.
 * **glibc is a specification, not a foundation.** Its observable behaviour is what programs
-  depend on, so Liella matches it by default ([docs/PRINCIPLES.md](docs/PRINCIPLES.md) section
-  2). But nothing glibc does, now or in the future, is settled for Liella: any behaviour,
+  depend on, so libniji matches it by default ([docs/PRINCIPLES.md](docs/PRINCIPLES.md) section
+  2). But nothing glibc does, now or in the future, is settled for libniji: any behaviour,
   interface or design choice is open to discussion and to a different implementation, as long as
   the change states what it gains.
 * **Say where an idea came from.** If you have studied how glibc or another C library implements
@@ -44,17 +46,17 @@ What that asks of every contributor, human or AI:
 * the Linux kernel's UAPI and documentation, the x86-64 psABI, ELF gABI, IEEE 754, RFCs,
   the Unicode Character Database;
 * **black-box probes** of the installed glibc: write a small C program, run it against glibc
-  and against Liella, compare outputs (`tools/probe/`); what glibc does is the question, not
+  and against libniji, compare outputs (`tools/probe/`); what glibc does is the question, not
   how it does it.
 
 The complete table is in [plan section 1.2](plan/01-ground-rules.md).
 
 If the specification and probes are not enough to decide a behaviour, that is a spec gap: raise
-it in an issue, and the decision is made and recorded for Liella's own reasons.
+it in an issue, and the decision is made and recorded for libniji's own reasons.
 
 ## Legacy interfaces
 
-Liella generally does not implement interfaces that are deprecated, removed upstream, or
+libniji generally does not implement interfaces that are deprecated, removed upstream, or
 insecure by design, or it provides them only in a reduced form (a compatibility-only symbol or
 a failing stub). [plan/scope-review-legacy.md](plan/scope-review-legacy.md) lists the decisions
 made so far. Use your judgement about whether an interface falls into this category; if you're
@@ -68,10 +70,11 @@ every build command are in [docs/toolchain.md](docs/toolchain.md).
 
 ```bash
 cargo xtask stubs     # regenerate test stubs and spec/clauses.tsv from the spec
-cargo xtask so        # build libc.a, libc.so.6, liella-crt1.o into target/liella/
-cargo xtask test      # the full test gate (long)
+cargo xtask so        # build libc.a, libc.so.6, ld.so, crt files, utilities into target/niji/
+cargo xtask test      # the full test gate (long); math sweep shards with unchanged inputs print
+                      # `verdict cached` and skip (D-10.57); NIJI_NO_VERDICT_CACHE=1 runs them all
 cargo xtask affected --list   # only the tests your change can reach (--tier direct, the default)
-cargo xtask affected          # run them
+cargo xtask affected --run    # run them (--list or --run is required: without either, exit 2)
 cargo xtask clippy            # must be clean (workspace, all targets, -D warnings)
 cargo xtask static            # static policy checks
 ```
@@ -92,9 +95,12 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
 
 1. **Branch** from `origin/next` (the integration branch), one story per branch.
 2. **Direct-tier gate.** `cargo xtask clippy`, `cargo xtask static`, then
-   `cargo xtask affected` (default `--tier direct`: the changed module, its one-hop users, the
-   test targets naming either and the spec sections of those modules; anything the selector is
-   unsure of escalates to the full run). Pass `--base origin/next` when the branch was cut from
+   `cargo xtask affected --run` (default `--tier direct`: the changed module, its one-hop users, the
+   test targets naming either and the spec sections of those modules). A file that would need the
+   whole gate (xtask code, generated tables, `csys/`, `crates/abi`, product crates and linker
+   inputs, build configuration, unknown paths) never makes a developer's run FULL: the run takes
+   that file's bounded set instead and prints `FULL: the train's (<file>: <reason>)`, since the
+   CI train runs the FULL gate on the merged tree. Pass `--base origin/next` when the branch was cut from
    `next`. `--tier wide` and `--tier full` exist; the header of `xtask/src/affected.rs` has the
    rules. A developer proves their own change; whole-tree runs are the merge queue's job.
 3. **Plants** (mutation checks). For a code change, deliberately break the new code in a
@@ -106,33 +112,64 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
    system calls of whole workloads, new versus base versus glibc, with an output check) and
    `validation/wl_percall.sh` (instructions per call of single functions). Counts are
    deterministic; wall time is advisory. See [validation/README.md](validation/README.md).
-5. **Merge queue.** A green, pushed branch is queued. A dedicated CI host composes queued
+5. **Precheck before you hand back.** On the tree you synced from your final commit, run
+   `cargo xtask precheck --jobs <the labels you will name> --head <sha>` (about 75 s on a warm
+   Skylake-SP build host). It runs the seconds-long steps of the FULL gate (`stubs`, the
+   policy audits, `trace`, every `*-gen --check`, the validation self-tests), the rest of
+   `cargo xtask static`, the hand-back's record checks (placeholder ids, train-owned views),
+   checks that each named job ended rc 0 on the content you hand back, and clippy. It prints one line
+   per check and exits 0 (green), 1 (a red: the hand-back is NOT READY; the line names the fix)
+   or 3 (a named job is still queued or running: wait for it, or hand back with the jobs
+   pending). The module doc of `xtask/src/precheck.rs` lists each rule and where it comes from.
+   The direct-tier gate runs the generator checks of the files you changed first, and every
+   cheap FULL step first when a file is left to the train, so a stale generated file stops the gate in seconds.
+6. **Merge queue.** A green, pushed branch is queued. A dedicated CI host composes queued
    branches onto `next`, runs the FULL gate (`cargo xtask test` with the conformance programs),
    bisects a red train and lands the green branches on `next`.
-6. **Promotion.** The release manager promotes `next` to `main`; release candidates get one
+7. **Promotion.** The release manager promotes `next` to `main`; release candidates get one
    timing run of old versus new `main` per host.
 
-**Planned (owner ruling 2026-10-11, not implemented yet):** the direct tier will drop the
-serialized `*_products` tests and the interposed re-run, and will map exported assembly labels
-(and `crates/libc-so/hot-text.list`) to the tests that reach them, so a change to a `.S` kernel selects its
-tests directly. The CI FULL gate stays the exhaustive run.
+**Owner ruling 2026-10-11, partly implemented:** a change to a `.S` kernel selects the tests
+that reach its exported labels directly (rule 6 in `xtask/src/affected.rs`), and the interposed
+re-run runs only for a change in `mem`, `rt`, `kernel`, `abi` or `boundary` (`--with-exports`
+forces it). Still planned: the direct tier will drop the serialized `*_products` tests and map
+the hot-text grouping to the tests that reach it. The CI FULL gate stays the exhaustive run.
 
 ## Tests and how decisions are recorded
 
 * Tests are generated from the spec. A function is complete when every edge case and failure
   clause of its spec entry has an active test. Add a regression test for each bug; it must
   fail without your fix.
-* Decisions go in the decision register, `plan/07-decisions/`, as `D-<section>.<n>` rows in
-  the part file for that section. Find one with `grep -rn "^| D-12.18 " plan/`. Local details
-  you can decide yourself with a one-line row; trust boundaries, spec deviations, public
-  interfaces and anything costly to unwind need a maintainer's ruling first.
+* Decisions go in the decision register as records, one file per decision:
+  `records/decisions/D-<section>/D-<section>.<n>.toml` (`cargo xtask records new decision D-12.19`
+  writes the skeleton; fill it, then `cargo xtask records check`). Compat flags are
+  `records/compat/COMPAT-<n>.toml` and the classified saturation rows `records/saturation/SR-<n>.toml`.
+  The tables `plan/07-decisions/*.md`, `docs/compat-flags.md`, `docs/saturation-register.md` and
+  `docs/saturation/01..07-*.md` are **generated** (`cargo xtask records-gen`, first line
+  `@generated`): never edit them, and do not commit them in a change that adds records; the
+  maintainers' merge train regenerates them (D-X.55). To see a view with your records in it, run
+  `cargo xtask records-gen` and read it under `target/records-views/<same path>`; the tracked
+  views stay untouched, so there is nothing to restore (`crates/math/KERNELS.md` and
+  `cargo xtask kernel-index` work the same way; only the train writes in place, D-X.59). The start-up
+  lists (`hot-text.list`, `startup-text.keys`, `probe-text.keys`, `startup-data.keys`) are never committed:
+  every `cargo xtask so` traces the probes linked against the archive it built and writes them into
+  `target/product/<profile>` (trace-at-build, D-X.88 / D-X.92; needs gdb with Python, or
+  `NIJI_LAYOUT_TRACE=ungrouped` for an ungrouped product), and `cargo xtask static` refuses one in the tree
+  (LT-5, LAYOUT-DELETE-LISTS). Nothing needs regenerating on your branch. The hand-written inputs
+  (`startup-state.list` in `crates/libc-so/`; the text layout comes from the window bins, D-X.103) are still edited and
+  committed on your branch; the fault bounds and the layout contracts fail everywhere. A decision that replaces an earlier one is
+  a new record with `supersedes = ["D-..."]`, a partial change uses `amends`; edit an existing
+  record only to correct it or add a test reference. Find a decision with
+  `grep -rn "D-12.18" records/` (or in the generated tables). Local details you can decide
+  yourself with a one-line record; trust boundaries, spec deviations, public interfaces and
+  anything costly to unwind need a maintainer's ruling first.
 * **The three-way rule** (plan section 1.4) applies when an implementation, test or probe
   disagrees with the spec. Compare the spec clause, a glibc probe and official documentation:
   if the spec is contradicted by both, correct the spec and `spec/clauses.tsv` with the
   evidence; if the spec agrees with the documentation and glibc differs, follow the spec and
   add a row to [docs/differences-from-glibc.md](docs/differences-from-glibc.md); in any other
   case change nothing and ask. The kernel's behaviour wins over all three.
-* **Don't break the ABI without a very good reason.** Liella's userspace interface stays
+* **Don't break the ABI without a very good reason.** libniji's userspace interface stays
   identical to glibc's unless there is a very good reason to differ, and an accepted difference
   comes with a compatibility option that restores glibc's behaviour
   ([docs/compat-flags.md](docs/compat-flags.md)), unless there is a very good reason not to
@@ -140,17 +177,17 @@ tests directly. The CI FULL gate stays the exhaustive run.
 * **Wall-clock bounds in tests scale with the machine load.** Never write `elapsed < N s` or
   `Duration::from_secs(N)` as a pass/fail limit: a gate that shares a loaded machine fails it
   (FL-13: a 120 s bound failed at load 20). Prefer an instruction or iteration budget. Where a clock
-  is unavoidable, include `tests/support/timeout.rs` and write the idle-machine value:
+  is unavoidable, include `crates/core/tests/support/timeout.rs` and write the idle-machine value:
   `timeout::assert_within("what", Duration::from_secs(N), t.elapsed())` after the work (the failure
   names the bound, the load scale and the measured time), `timeout::deadline(d)` / `timeout::limit(d)`
   for polling loops and `recv_timeout`. The scale is `clamp(1 + ceil(load / cpus), 2, 10)`;
-  `LIELLA_TEST_TIMEOUT_SCALE=<n>` overrides it.
-* `unsafe` is permitted only in `liella-boundary` and the C layer, within the documented
+  `NIJI_TEST_TIMEOUT_SCALE=<n>` overrides it.
+* `unsafe` is permitted only in `niji-boundary` and the C layer, within the documented
   categories, each use commented `// UNSAFE(<category>) SAFETY:`.
 
 ## Tested processors
 
-Liella is tested on these classes of x86_64 processor. Each class covers an instruction-set level the
+libniji is tested on these classes of x86_64 processor. Each class covers an instruction-set level the
 library selects code for at start-up, so every level has a machine that runs it.
 
 | Processor class | Instruction-set level it covers |
@@ -161,15 +198,16 @@ library selects code for at start-up, so every level has a machine that runs it.
 | Intel Xeon E5 v4 (Broadwell-EP) | AVX2; used for timing and workload runs before 2026-10-20 |
 | Intel Xeon E3 v2 (Ivy Bridge) | AVX without AVX2 (the fallback kernels) |
 | Intel N100 (Alder Lake-N efficiency cores) | AVX2 without AVX-512 |
+| AMD Ryzen 5000 series (Zen 3) | AVX2 on a newer AMD core; used for timing sweeps |
 
-Instruction counters (`instr/call`) are measured on AMD Zen 1; timing comparisons run on the Ivy Bridge
-and N100 machines (and, in the early tables of [docs/benchmarks.md](docs/benchmarks.md), on Haswell-EP and
+Instruction counters (`instr/call`) are measured on AMD Zen 1; timing comparisons run on the Ivy Bridge,
+N100 and Zen 3 machines (and, in the early tables of [docs/benchmarks.md](docs/benchmarks.md), on Haswell-EP and
 Broadwell-EP). Figures from different processors are not comparable with each other: compare a figure only
 with the glibc figure measured beside it on the same processor.
 
 ## Performance
 
-Glibc parity is the upper bound: for each benchmarked row Liella's median time should be at or
+Glibc parity is the upper bound: for each benchmarked row libniji's median time should be at or
 below glibc's (ratio 1.00). A row above parity needs either a plan to reach it or measured
 evidence that it cannot. Host limits in the benchmark files are regression guards, not
 targets. Benchmarks and the method are in [docs/benchmarks.md](docs/benchmarks.md) and
@@ -198,10 +236,10 @@ describes.
 
 ## Licence
 
-Liella is licensed under LGPL-2.1-or-later ([LICENSE](LICENSE)). Contributions are accepted under
+libniji is licensed under LGPL-2.1-or-later ([LICENSE](LICENSE)). Contributions are accepted under
 the same licence: by submitting a contribution you license it under LGPL-2.1-or-later.
 
 ## Reporting a problem
 
-Include the Liella commit, the function and input, what glibc does (a probe's output is best),
-and what Liella does. For security issues use [SECURITY.md](SECURITY.md), not a public issue.
+Include the libniji commit, the function and input, what glibc does (a probe's output is best),
+and what libniji does. For security issues use [SECURITY.md](SECURITY.md), not a public issue.

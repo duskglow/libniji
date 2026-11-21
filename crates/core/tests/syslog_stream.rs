@@ -1,5 +1,5 @@
 //! §26 over a stream listener under stress (SYSLOG-STREAM-PARTIAL): the handle
-//! `liella::log::Logger` on channels in a scratch directory (no test writes to the system log),
+//! `niji::log::Logger` on channels in a scratch directory (no test writes to the system log),
 //! the log path a stream listener so the connection falls back to a stream socket
 //! (`EPROTOTYPE`). Each record is big (300000 bytes of text), so it takes many partial sends:
 //!
@@ -27,15 +27,15 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use liella::log::{Channels, Delivery, Logger, Stamp};
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::SockLevel;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::SigSet;
-use liella_legacy::signal_compat::CSigaction;
+use niji::log::{Channels, Delivery, Logger, Stamp};
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::SockLevel;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::SigSet;
+use niji_legacy::signal_compat::CSigaction;
 
 const BIG: usize = 300_000;
 const SIGUSR1: i32 = 10;
@@ -105,12 +105,12 @@ fn read_slow(c: &mut UnixStream, pause: Duration, cut: Option<usize>) -> Vec<u8>
 /// Run test `name` alone in a child process (its own signal dispositions); `body` is its
 /// verdict there.
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_SYSLOG_STREAM_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_SYSLOG_STREAM_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_SYSLOG_STREAM_ALONE", name)
+        .env("NIJI_SYSLOG_STREAM_ALONE", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

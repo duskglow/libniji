@@ -8,10 +8,10 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::charmap::{inflate, Charmap, Step, MAX_BYTES};
-use liella::iconv::{Codec, Conv, State};
-use liella::text::CharmapRef;
-use liella_fuzz::Input;
+use niji::charmap::{inflate, Charmap, Step, MAX_BYTES};
+use niji::iconv::{Codec, Conv, State};
+use niji::text::CharmapRef;
+use niji_fuzz::Input;
 
 /// The largest text inflated (the installed charmaps are below 1 MiB).
 const INFLATE_LIMIT: usize = 4 << 20;
@@ -40,8 +40,8 @@ fn use_charmap(cm: Charmap, sample: &[u8]) {
     }
     // Conversions through the charmap, both directions.
     let size = sample.len().saturating_mul(16).saturating_add(4096);
-    let Some(cm) = liella_fuzz::leak_value(cm, size) else { return };
-    let loc = liella_fuzz::locale(true);
+    let Some(cm) = niji_fuzz::leak_value(cm, size) else { return };
+    let loc = niji_fuzz::locale(true);
     let codec = Codec::Charmap(CharmapRef(cm));
     for (from, to) in [(codec, Codec::Utf8), (Codec::Utf8, codec), (codec, Codec::Utf16(None))] {
         for (translit, ignore) in [(false, false), (true, true)] {
@@ -76,7 +76,7 @@ fuzz_target!(|data: &[u8]| {
     }
     let text = input.part();
     let sample = input.rest();
-    liella::charmap::header_names(text, &mut |n| {
+    niji::charmap::header_names(text, &mut |n| {
         let _ = n.len();
     });
     if let Ok(cm) = Charmap::parse(text) {

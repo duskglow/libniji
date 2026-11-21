@@ -10,10 +10,10 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 
-use liella::error::{Errno, Result};
-use liella_abi::layout::sigset_t;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{KSigAction, SigInfo, SigSet, StackT, Timespec};
+use niji::error::{Errno, Result};
+use niji_abi::layout::sigset_t;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{KSigAction, SigInfo, SigSet, StackT, Timespec};
 
 /// The library's internal signal (D-20.1): cancellation and the credential broadcast.
 pub const SIG_INTERNAL: i32 = 32;
@@ -346,11 +346,18 @@ pub fn sigvec(sig: i32, vec: Option<&CSigvec>, restorer: usize, rt: impl FnOnce(
 // ------------------------------------------------------------------------------ masks
 
 /// `sigprocmask(how, set, oset)` (§20.3): the internal signal is never blocked and never
-/// shown; `SIGKILL`/`SIGSTOP` are dropped by the kernel.
-pub fn sigprocmask<S: Sys>(sys: &S, how: i32, set: Option<&sigset_t>) -> Result<sigset_t> {
-    let how = u32::try_from(how).map_err(|_| Errno::EINVAL)?;
+/// shown; `SIGKILL`/`SIGSTOP` are dropped by the kernel. With a null `set` the call only reads
+/// the mask and `how` is not significant (POSIX `pthread_sigmask`): any value succeeds. The
+/// result is the old mask as the kernel's 64-signal word without the internal signal; the
+/// caller stores it into the first word of its `sigset_t` and leaves the other words of the
+/// caller's set as they were (spec/behaviour/pthread-sigmask-compat.md).
+pub fn sigprocmask<S: Sys>(sys: &S, how: i32, set: Option<&sigset_t>) -> Result<u64> {
+    let how = match set {
+        None => SIG_BLOCK,
+        Some(_) => u32::try_from(how).map_err(|_| Errno::EINVAL)?,
+    };
     let new = set.map(kernel_set);
-    sys.sigprocmask(how, new.as_ref()).map(c_set)
+    sys.sigprocmask(how, new.as_ref()).map(|old| old.0 & !INTERNAL_BIT)
 }
 
 /// `sigblock(mask)` (§20.3, BSD): add the `int` mask; the old mask as an `int`.
@@ -566,7 +573,7 @@ pub fn sigabbrev(sig: i32) -> Option<&'static [u8]> {
 fn decimal(out: &mut impl FnMut(&[u8]), n: i64) {
     let mut d = [0u8; 20];
     let neg = n < 0;
-    let digits = liella_rt::fatal::decimal(n.unsigned_abs(), &mut d);
+    let digits = niji_rt::fatal::decimal(n.unsigned_abs(), &mut d);
     if neg {
         out(b"-");
     }

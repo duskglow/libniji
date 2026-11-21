@@ -48,6 +48,7 @@ owner	P15	order=16;state=future	§6 Phase 15	Legacy tier and binary-compatibilit
 owner	OPT2	order=17;state=future	§6 "Validation and optimization", last line; §2.3 P10	Short final optimization pass after phase 15 (the plan does not order it against the security pass)
 owner	SEC	order=17;state=future	§6 "Security pass (after phase 15, before release preparation)"	Security pass
 owner	POST	order=18;state=future	§6 "Post-release ledger and experiments"	After the first release
+owner	UTIL	order=14;state=track;from=VAL;join=POST;started=2026-11-14	plan/utilities.md §6 (LIELLA-UTILITIES-DESIGN, owner's approval 2026-11-14)	The libc utilities (spec §31), stories UTIL-1 to UTIL-16; UTIL-0 (UTIL-SPEC) wrote the clauses
 
 # ---------------------------------------------------------------------------------------------
 # Item rows: finer assignments where the plan splits a section, moves an item, or defers it.
@@ -99,7 +100,7 @@ assign	§10	M	§6 Track M Scope (§10) and Translation ("The __*_finite compat n
 assign	compat-only	P15	§6 Phase 15 Scope ("every superseded versioned contract ... 545 compatibility-only names"); C0.6; F15	Includes sys_errlist/sys_nerr (§2), the __*_small helpers (§4, ERRATA E6), the §16 compat names (§6 Phase 10 Delivered), §24.6's removed calls and §29
 
 # ---------------------------------------------------------------------------------------------
-# Section rows (spec §0-§29). Symbols carry only their section number, so each section also has
+# Section rows (spec §0-§29 and §31; §30 has no clauses). Symbols carry only their section number, so each section also has
 # a whole-section row.
 
 assign	§0	P1	§6 Phase 1 Scope (C0.1 numbering, C0.3, C0.8)	Other C0 clauses: item rows above
@@ -173,6 +174,7 @@ assign	§26	P13	§6 Phase 13 Scope (§26)
 assign	§27	P14	§6 Phase 14 Scope (§27)	The dynamic loader's names
 assign	§28	P15	§6 Phase 15 Scope (§28, profiling)
 assign	§29	P15	§6 Phase 15 Scope (§29); D-H8
+assign	§31	UTIL	plan/utilities.md §6 (UTIL-1 to UTIL-16)	The utilities (§30 holds no clauses)
 
 # ---------------------------------------------------------------------------------------------
 # The other status groups: appendices and hand-written suites.
@@ -181,12 +183,12 @@ assign	group:appendix	P1	§6 Phase 1 Exit (the 281 Appendix A primitive tests an
 assign	group:csys	P0	§6 Phase 0 Delivered (csys_link.rs)
 assign	group:kernel,uapi,modern,ret,export	P1	§6 Phase 1 Delivered, Tests ("kernel types, uapi against Appendix C, modern calls, ret, export!")
 assign	group:bytes,float,search	P2	§6 Phase 2 Delivered and Builds (exhaustive byte primitives, IP-18, §14.1-14.6 structures)
-assign	group:heap,primitives	P3	§6 Phase 3 Delivered ("liella-rt's own suite"); §4.2 (runtime primitives from phase 3)	heap_threads.rs is phase 6's
+assign	group:heap,primitives	P3	§6 Phase 3 Delivered ("niji-rt's own suite"); §4.2 (runtime primitives from phase 3)	heap_threads.rs is phase 6's
 assign	group:machine	P4	D-4.14 (phase 4); D-4.17 (6a)
 assign	group:as	P5	§6 Phase 5 Delivered (AS-safety exit criterion)
 assign	group:pthread	P6	§6 Phase 6 Delivered (sync objects)
 assign	group:charmap,locale,iconv	P7	§6 Phase 7 Delivered, Tests
-assign	group:stdio,wstream,printf,scanf,registry,diag,getopt,argp,monetary,backtrace,stream	P8	§6 Phase 8 Delivered (differential tests; liella::stream)
+assign	group:stdio,wstream,printf,scanf,registry,diag,getopt,argp,monetary,backtrace,stream	P8	§6 Phase 8 Delivered (differential tests; niji::stream)
 assign	group:timers,zones,timefmt	P9	§6 Phase 9 Delivered, Tests
 assign	group:netaddr,users,netdb,dns	P10	§6 Phase 10 Delivered, Tests
 assign	group:process,terminals	P11	§6 Phase 11 Delivered, Tests
@@ -212,4 +214,4 @@ assign	group:sigev	VAL	§6 "Validation and optimization", TEST thread (caller st
 assign	group:native	UNASSIGNED	D-X.10 (cross-cutting; no phase scope names the native interface)	No pending tests
 assign	group:historical,vocabulary	UNASSIGNED	§7 and §8.3 (no phase named)	No tests yet
 
-assign	group:casecmp,cold,collate,core,cpuid,cxx,env,exec,find,gmon,hot,langpack,legacy,liella,oracle,scanner,skip,small,strstr,time,unwind,wcsstr,wordexp,x87	UNASSIGNED	DOCS-STATUS-REFRESH (#1744): suites added by stories since the table was written; no phase scope names them	No pending tests (0 at 2026-10-24); give each an owner if a test in it ever goes pending
+assign	group:casecmp,cold,collate,core,cpuid,cxx,env,exec,find,gmon,hot,langpack,legacy,niji,oracle,scanner,skip,small,strstr,time,unwind,wcsstr,wordexp,x87	UNASSIGNED	DOCS-STATUS-REFRESH (#1744): suites added by stories since the table was written; no phase scope names them	No pending tests (0 at 2026-10-24); give each an owner if a test in it ever goes pending

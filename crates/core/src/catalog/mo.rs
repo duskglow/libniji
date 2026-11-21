@@ -5,8 +5,7 @@
 //! and every string's start, so that a lookup never reads outside the image. The image must end
 //! with a NUL (the caller copies a file that does not, D.2.1 "files that are not catalogs"), so
 //! every string is terminated within it. A file that fails the checks is not a catalog: it is
-//! treated as absent (decision; the reference library reads outside its mapping or crashes on
-//! some of them).
+//! treated as absent (decision: nothing outside the checked file is ever read).
 //!
 //! **Lookup** (D-7.5, decision 2026-10-04): a binary search of the sorted original strings; the
 //! hash table is neither used nor checked. Keys compare as NUL-terminated strings (the lengths in

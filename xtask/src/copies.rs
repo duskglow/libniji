@@ -8,7 +8,7 @@
 //!
 //! 1. In the member that defines `memcpy` (the LTO object), every relocation naming `memcpy`,
 //!    `memmove` or `memset` on a call or jump, or on a load of the call target from the GOT, is
-//!    pointed at `liella_internal_memcpy`, `_memmove` or `_memset`
+//!    pointed at `niji_internal_memcpy`, `_memmove` or `_memset`
 //!    (`crates/boundary/src/conv.rs`), defined in the same member: only the
 //!    relocation's symbol index changes. A load is LLVM hoisting the target of repeated calls
 //!    out of a loop (`mov memcpy@GOTPCREL(%rip), %r12` ... `call *%r12`): the library's source
@@ -21,7 +21,7 @@
 //!    becomes `R_X86_64_GOTPCRELX` (`R_X86_64_REX_GOTPCRELX` for a `REX.W` load): the same
 //!    relocation, which the linker may rewrite into a direct call, jump or `lea` once the symbol
 //!    is known to be local (a static link; in `libc.so.6` the symbols the version script makes
-//!    local, such as the csys helpers `liella_machine_tp` and `liella_sys_*`, PJ-19). This is the
+//!    local, such as the csys helpers `niji_machine_tp` and `niji_sys_*`, PJ-19). This is the
 //!    relocation C compilers emit for these instructions: the type only says which instruction
 //!    holds it, and the linker keeps the GOT for a symbol a program may interpose (an exported
 //!    name of `libc.so.6`), so binding is unchanged. Any other use of a GOT entry (an opcode not
@@ -36,7 +36,7 @@ use std::path::Path;
 use std::process::Command;
 
 /// The names rustc's lowering calls and the internal entries they are pointed at.
-pub const TARGETS: [(&str, &str); 3] = [("memcpy", "liella_internal_memcpy"), ("memmove", "liella_internal_memmove"), ("memset", "liella_internal_memset")];
+pub const TARGETS: [(&str, &str); 3] = [("memcpy", "niji_internal_memcpy"), ("memmove", "niji_internal_memmove"), ("memset", "niji_internal_memset")];
 
 const SHT_SYMTAB: u32 = 2;
 const SHT_RELA: u32 = 4;
@@ -275,14 +275,14 @@ fn run(cmd: &mut Command) -> Result<(), String> {
 /// that is not exported made local. The fast profile (TOOL-PROFILE: thin LTO, 16 units) leaves
 /// each crate's units as members (`c-<h>.<crate>-<h>.<crate>.<h>-cgu.<n>...`), their private
 /// symbols hidden but global. Two things then differ from the product: step 1 needs `memcpy`
-/// and `liella_internal_memcpy` in the same object (a relocation can only be pointed at a symbol
+/// and `niji_internal_memcpy` in the same object (a relocation can only be pointed at a symbol
 /// of its own object's table), and a global `__rustc::__rust_alloc` in the static `libc.a`
 /// clashes with the allocator shim of any Rust program linked against it. So all those members
-/// (and the staticlib crate's own, such as its allocator shims, and `liella_mem`'s: they use `core`'s private symbols) are joined (`ld -r`) into the first, and hidden symbols are made local (`objcopy
+/// (and the staticlib crate's own, such as its allocator shims, and `niji_mem`'s: they use `core`'s private symbols) are joined (`ld -r`) into the first, and hidden symbols are made local (`objcopy
 /// --localize-hidden`, and Rust-mangled names too), which is what LTO's internalisation does. Nothing happens when there is
 /// one such member (release). Returns the member list afterwards.
 fn merge_codegen_units(ar: &str, archive: &Path, work: &Path, members: Vec<String>) -> Result<Vec<String>, String> {
-    let g: Vec<String> = members.iter().filter(|m| m.starts_with("c-") || m.starts_with("liella_mem-")).cloned().collect();
+    let g: Vec<String> = members.iter().filter(|m| m.starts_with("c-") || m.starts_with("niji_mem-")).cloned().collect();
     if g.len() < 2 {
         return Ok(members);
     }
@@ -410,18 +410,18 @@ mod tests {
         // Defines memcpy and calls it, with no internal entry: still an error (the plant the
         // original rule caught).
         let (r, _) = edit_asm(".text\n.globl memcpy\nmemcpy: ret\n.globl f\nf: call memcpy\n");
-        assert!(r.is_err_and(|e| e.contains("defines memcpy but not liella_internal_memcpy")));
+        assert!(r.is_err_and(|e| e.contains("defines memcpy but not niji_internal_memcpy")));
         // Defines memset and jumps to it through a GOT load: still an error.
         let (r, _) = edit_asm(".text\n.globl memset\nmemset: ret\n.globl f\nf: jmp *memset@GOTPCREL(%rip)\n");
-        assert!(r.is_err_and(|e| e.contains("defines memset but not liella_internal_memset")));
+        assert!(r.is_err_and(|e| e.contains("defines memset but not niji_internal_memset")));
         // The LTO member (defines both, calls memcpy): redirected as before.
-        let (r, st) = edit_asm(".text\n.globl memcpy\nmemcpy: ret\n.globl liella_internal_memcpy\nliella_internal_memcpy: ret\n.globl f\nf: call memcpy\n");
+        let (r, st) = edit_asm(".text\n.globl memcpy\nmemcpy: ret\n.globl niji_internal_memcpy\nniji_internal_memcpy: ret\n.globl f\nf: call memcpy\n");
         assert_eq!(r, Ok(true));
         assert_eq!(st.redirected.get("memcpy"), Some(&1));
         // An internal entry that calls a replaced name: still the recursion error. `memmove` stays
         // undefined here: the assembler resolves a jump to a symbol defined in the same section
         // without a relocation, and the real members reach it through one.
-        let (r, _) = edit_asm(".text\n.globl liella_internal_memmove\nliella_internal_memmove: jmp memmove\n.size liella_internal_memmove, .-liella_internal_memmove\n");
+        let (r, _) = edit_asm(".text\n.globl niji_internal_memmove\nniji_internal_memmove: jmp memmove\n.size niji_internal_memmove, .-niji_internal_memmove\n");
         assert!(r.is_err_and(|e| e.contains("would recurse")));
     }
 

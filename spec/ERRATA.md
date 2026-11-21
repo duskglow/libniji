@@ -41,7 +41,7 @@ Still open:
 
 | Gap | Needed for | Resolution path |
 |---|---|---|
-| Kernel ABI numbers and layouts (syscall numbers, `struct stat`, `siginfo_t`, ioctl codes) | the C syscall layer and `liella-kernel` | Normative reference (owner decision OD-2): the Linux UAPI. |
+| Kernel ABI numbers and layouts (syscall numbers, `struct stat`, `siginfo_t`, ioctl codes) | the C syscall layer and `niji-kernel` | Normative reference (owner decision OD-2): the Linux UAPI. |
 | Binary formats named but not described: `locale-archive`, gconv modules, nscd wire protocol, X/Open message catalogs, `ld.so.cache` | locales, iconv, nscd, catgets, library search | Format inspection approved (owner decision on formats). Performed in the phase that needs each format; results added to the spec as Appendix D. |
 | Numerical accuracy bounds per libm function | math acceptance criteria | Not in any header. Set by the plan's own tests (decision D-10.3). |
 
@@ -56,7 +56,7 @@ between glibc's own libraries.
 
 | Gap | Needed for | Resolution path |
 |---|---|---|
-| §9.3 calls the `random()` additive-feedback sequence a contract but does not specify the algorithm (seeding, lags per state size, discarded outputs, output extraction); §9.2 does not name `rand()`'s generator. | the §9.2/§9.3 exact-sequence tests | **Resolved (OD-13, option b):** the sequences are unspecified. Recorded incompatibility: programs that depend on glibc's exact `random()`/`rand()`/`rand_r()` sequences get different (but deterministic, documented) sequences from Liella. |
+| §9.3 calls the `random()` additive-feedback sequence a contract but does not specify the algorithm (seeding, lags per state size, discarded outputs, output extraction); §9.2 does not name `rand()`'s generator. | the §9.2/§9.3 exact-sequence tests | **Resolved (OD-13, option b):** the sequences are unspecified. Recorded incompatibility: programs that depend on glibc's exact `random()`/`rand()`/`rand_r()` sequences get different (but deterministic, documented) sequences from libniji. |
 | The built-in `"C"` locale's treatment of bytes 0x80–0xFF (classification, `mbrtowc`, `btowc`, `MB_CUR_MAX`). | §5, §6 at C-locale scope | **Resolved:** D-6.7 (ASCII), approved. |
 | The C calling convention of `long double` (x87) and `_Float128` parameters and results is outside what Rust can express. | about 400 exports (§8, §10) | **Resolved:** OD-C4 approved (floating-ABI adapters). |
 
@@ -73,7 +73,7 @@ Compiled code reads fixed offsets from the thread pointer: `%fs:0` (the thread p
 Appendix A.2 names the thread-pointer register and "TLS layout expectations" without these
 offsets, which every program built with `-fstack-protector` depends on. **Resolved** from the
 x86-64 psABI and the compilers' documented conventions (normative references, OD-2):
-`liella_rt::tls::ThreadBlock` keeps glibc's `tcbhead_t` prefix up to 0x80 and places Liella's
+`niji_rt::tls::ThreadBlock` keeps glibc's `tcbhead_t` prefix up to 0x80 and places libniji's
 own fields in glibc's reserved 0x80–0x280 range (D-4.15).
 
 ## E8. The assertion message (phase 4)
@@ -88,7 +88,7 @@ against that text. **Resolved:** glibc's exact text (D-2.8).
 destructors. C++ ([basic.start.term]) requires a thread's `thread_local` objects to be destroyed
 before any object with static storage duration, whose destructors are registered with
 `__cxa_atexit`; glibc 2.18 and later run them first (`__call_tls_dtors` at the start of
-`__run_exit_handlers`). **Resolved:** Liella runs the thread destructors first (D-1.9), as C++
+`__run_exit_handlers`). **Resolved:** libniji runs the thread destructors first (D-1.9), as C++
 programs require. Only `__cxa_thread_atexit_impl` registers such destructors, and only C++
 runtimes call it.
 
@@ -117,7 +117,7 @@ Clause §18.6. An earlier text of the ⚑ note said `waitid` exposes the full 32
 `si_status`. The black-box record (`spec/behaviour/process.md`: `_exit(300)` gives `si_status`
 44, `_exit(0x12345)` gives 69) shows the kernel hands `waitid` only the low 8 bits, the same as
 `wait`/`waitpid`. The bullet "returns a `siginfo_t` with the full status" still reads loosely.
-**Resolved:** Liella follows the record (D-18.4): the waits pass on what the kernel gives. The
+**Resolved:** libniji follows the record (D-18.4): the waits pass on what the kernel gives. The
 exit status is a library-independent kernel fact, so nothing is gained by pretending otherwise.
 Owner correction of 2026-10-03 already amended the ⚑ note; this entry records the disagreement.
 The bullet's wording is left for the owner to amend.
@@ -127,7 +127,7 @@ The bullet's wording is left for the owner to amend.
 Clause §23.5. The spec said `asctime` is undefined outside years 1000-9999 and that glibc returns
 `NULL` outside that range. The record (`spec/behaviour/zones.md`) shows glibc formats years 0 to
 999 without padding (`... 01:03:52 0`) and fails with `EOVERFLOW` only for years below 0 and
-above 9999 (`asctime_r` is probed from -1900 to 2147481747 for the fields). **Resolved:** Liella
+above 9999 (`asctime_r` is probed from -1900 to 2147481747 for the fields). **Resolved:** libniji
 follows the record, as glibc does; the spec text was corrected on 2026-10-02 (owner), so this
 entry only records the disagreement. The 1000-9999 claim was a spec inaccuracy about the
 reference, not a contract.
@@ -138,7 +138,7 @@ Clause §1.7 lists `ARGP_PARSE_ARGV0` among the `argp_parse` flags and says noth
 condition. `<argp.h>` and the conformance probe (`conformance/c/s01_argp.c`) show that the
 flag takes effect only together with `ARGP_NO_ERRS`: with both, `argv[0]` is parsed as an
 element; with `ARGP_PARSE_ARGV0` alone, parsing starts at element 1 (`argv[0]` names the program in
-messages). **Resolved:** Liella follows the reference (D-1.10: the flag reaches the core, and
+messages). **Resolved:** libniji follows the reference (D-1.10: the flag reaches the core, and
 element 0 is parsed only with `ARGP_NO_ERRS` too). The related index quirk under
 both flags is a recorded difference (`docs/differences-from-glibc.md`, D-1.7). Spec text
 unchanged; the owner decides whether to add the condition to §1.7.

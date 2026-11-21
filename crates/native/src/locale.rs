@@ -1,4 +1,4 @@
-//! The current locale (`liella_locale_*`): the calling thread's (its `uselocale` choice, else
+//! The current locale (`niji_locale_*`): the calling thread's (its `uselocale` choice, else
 //! the global locale `setlocale` sets), shared with the C code.
 
 #![forbid(unsafe_code)]
@@ -9,7 +9,7 @@ use crate::buf::{self, Fit};
 use crate::ffi;
 use crate::Errno;
 
-/// A locale category (`LIELLA_LC_*`).
+/// A locale category (`NIJI_LC_*`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Category {
     /// `LC_CTYPE`.
@@ -41,7 +41,7 @@ pub enum Category {
 }
 
 impl Category {
-    /// The C ABI's value (`LIELLA_LC_*`).
+    /// The C ABI's value (`NIJI_LC_*`).
     pub const fn raw(self) -> i32 {
         match self {
             Category::Ctype => 0,
@@ -89,7 +89,7 @@ pub fn decimal_point_into(buf: &mut [u8]) -> Result<Fit, Errno> {
 /// loaded again by its names. `ENOENT` when one of them no longer resolves (the global locale is
 /// then unchanged).
 pub fn invalidate() -> Result<(), Errno> {
-    buf::done(ffi::liella_locale_invalidate())
+    buf::done(ffi::niji_locale_invalidate())
 }
 
 #[cfg(test)]

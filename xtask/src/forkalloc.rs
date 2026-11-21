@@ -1,7 +1,7 @@
 //! `fork-child-alloc` (static): no heap allocation in the body of a raw-fork test child.
 //!
 //! `selftest::in_child` / `in_child_quiet` / `spawn_child` fork without the host C library's after-fork
-//! resets, and `in_library_child` forks through Liella's `fork`, which does not reset the host allocator
+//! resets, and `in_library_child` forks through libniji's `fork`, which does not reset the host allocator
 //! either: the child is a copy of the process with only the forking thread. When another test thread held
 //! the allocator's lock at the fork, an allocation in the child waits forever and the gate hangs
 //! (MEMCMP-EQ-24-32-2: 45 minutes). A child body must work on memory made before the fork (statics, stack
@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-/// The helpers of `liella_boundary::selftest` that run their `fn` argument in a forked child.
+/// The helpers of `niji_boundary::selftest` that run their `fn` argument in a forked child.
 const HELPERS: &[&str] = &["in_child", "in_child_quiet", "spawn_child", "in_library_child"];
 
 /// Tokens that allocate on the heap (the print macros write into libtest's capture buffer, a `Vec`).

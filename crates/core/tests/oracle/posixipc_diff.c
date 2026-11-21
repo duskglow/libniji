@@ -1,5 +1,5 @@
 /* POSIX message queues and shared memory end to end (spec §25.3-25.4; D-25.2, D-25.3; phase 13):
- * built against the host C library and against Liella's products, the outputs must match line for
+ * built against the host C library and against libniji's products, the outputs must match line for
  * line. Black-box: every line is a result, an errno, or a fact read back through a public
  * function or the file system.
  *
@@ -7,7 +7,7 @@
  * private IPC namespace (`unshare -i`, so every queue lives and dies with the namespace) and a
  * private mount namespace in which /dev/mqueue is a fresh mqueue mount of that IPC namespace and
  * /dev/shm a fresh tmpfs. Each phase refuses to run unless the fixture's marker is present
- * (/dev/shm/.liella-posixipc-fixture, or /dev/.liella-posixipc-nodev for the `nodev` phase).
+ * (/dev/shm/.niji-posixipc-fixture, or /dev/.niji-posixipc-nodev for the `nodev` phase).
  *
  * Output conventions: strings are printed in brackets with every byte outside printable ASCII as
  * \xNN and a backslash as \\; a run of more than 60 equal bytes is printed as <c>*<n>. Nothing
@@ -50,8 +50,8 @@
  * the probe undefines _FORTIFY_SOURCE and repeats the declaration. */
 extern mqd_t __mq_open_2(const char *name, int oflag);
 
-#define SHM_MARKER "/dev/shm/.liella-posixipc-fixture"
-#define NODEV_MARKER "/dev/.liella-posixipc-nodev"
+#define SHM_MARKER "/dev/shm/.niji-posixipc-fixture"
+#define NODEV_MARKER "/dev/.niji-posixipc-nodev"
 
 /* ---------------------------------------------------------------- formatting helpers */
 
@@ -222,7 +222,7 @@ static void list_dir(const char *label, const char *path)
     struct dirent *e;
     while ((e = readdir(d)) && n < 64) {
         if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")
-            || !strcmp(e->d_name, ".liella-posixipc-fixture"))
+            || !strcmp(e->d_name, ".niji-posixipc-fixture"))
             continue;
         names[n++] = strdup(e->d_name);
     }

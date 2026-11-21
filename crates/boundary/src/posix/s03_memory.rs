@@ -1,16 +1,17 @@
 //! Translation for spec §3: memory allocation.
 //!
 //! Every block comes from the process heap (`crate::heap`, IP-7) through the C family's way in
-//! (`heap::c_*`: the C shapes of `liella_legacy::malloc_compat`, behind one test of the
+//! (`heap::c_*`: the C shapes of `niji_legacy::malloc_compat`, behind one test of the
 //! debugging state); block-level misuse (an invalid or double `free`) is a diagnostic and abort
 //! (S4). `brk`/`sbrk` move the program break, which the heap never uses (D-3.7). The hooks are
 //! inert data (D-3.5); `M_PERTURB`, `mcheck` and `mtrace` have the semantics glibc provides with
 //! `libc_malloc_debug.so`, here in the C library itself (D-3.5 as decided in phase 13).
 
-use liella_abi::ctypes::{c_int, c_void, size_t};
-use liella_abi::layout::{struct_mallinfo, struct_mallinfo2, struct_obstack, FILE};
-use liella_legacy::malloc_compat;
-use liella_legacy::obstack;
+use niji_abi::ctypes::{c_int, c_void, size_t};
+use niji_abi::layout::{struct_mallinfo, struct_mallinfo2, struct_obstack, FILE};
+use niji_legacy::malloc_compat;
+use niji_legacy::obstack;
+use niji_rt::heap::{Fit, Held};
 
 use crate::caller_alloc;
 use crate::conv;
@@ -57,13 +58,21 @@ pub extern "C" fn __libc_calloc(k: size_t, n: size_t) -> *mut c_void {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn realloc(p: *mut c_void, n: size_t) -> *mut c_void {
-    if heap::c_realloc_fits(conv::addr(p), n) {
-        return p;
+    match heap::c_realloc_fit(conv::addr(p), n) {
+        Fit::Same(_) => p,
+        Fit::Held(h) => realloc_held(p, n, h),
+        Fit::Other => realloc_general(p, n),
     }
-    realloc_general(p, n)
 }}
 
-/// `realloc` past the in-place test: moves, `NULL`, size 0, debugging and misuse.
+/// `realloc` of a block the in-place test found and that moves (REALLOC-ONE-LOOKUP: not looked
+/// up again).
+#[inline(never)]
+fn realloc_held(p: *mut c_void, n: size_t, h: Held) -> *mut c_void {
+    ret::null(heap::checked("realloc", heap::c_realloc_held(conv::addr(p), n, h)))
+}
+
+/// `realloc` past the in-place test: `NULL`, size 0, debugging, large blocks and misuse.
 #[inline(never)]
 fn realloc_general(p: *mut c_void, n: size_t) -> *mut c_void {
     ret::null(heap::checked("realloc", heap::c_realloc(conv::addr(p), n)))
@@ -71,10 +80,11 @@ fn realloc_general(p: *mut c_void, n: size_t) -> *mut c_void {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn __libc_realloc(p: *mut c_void, n: size_t) -> *mut c_void {
-    if heap::c_realloc_fits(conv::addr(p), n) {
-        return p;
+    match heap::c_realloc_fit(conv::addr(p), n) {
+        Fit::Same(_) => p,
+        Fit::Held(h) => realloc_held(p, n, h),
+        Fit::Other => realloc_general(p, n),
     }
-    realloc_general(p, n)
 }}
 
 export! { "GLIBC_2.26";
@@ -195,7 +205,7 @@ pub extern "C" fn malloc_set_state(_state: *mut c_void) -> c_int {
 // linked anew (static or dynamic) does not find it (R15-2). Tests call the plain Rust function.
 crate::internal_entry! {
 /// `__default_morecore`'s translation, exported only as `__default_morecore@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat___default_morecore(_delta: isize) -> *mut c_void {
+pub extern "C" fn niji_compat___default_morecore(_delta: isize) -> *mut c_void {
     ret::null(malloc_compat::state_unsupported())
 }}
 
@@ -226,8 +236,8 @@ pub extern "C" fn muntrace() {
 
 crate::internal_entry! {
 /// `tr_break`'s translation, exported only as `tr_break@GLIBC_2.2.5` (compat-only; see
-/// `liella_compat___default_morecore`).
-pub extern "C" fn liella_compat_tr_break() {
+/// `niji_compat___default_morecore`).
+pub extern "C" fn niji_compat_tr_break() {
     malloc_compat::inert()
 }}
 

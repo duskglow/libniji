@@ -1,11 +1,11 @@
-//! The per-architecture login record (`liella::users::UtmpShape`, ARCH-UTMP-LAYOUT): the shapes
+//! The per-architecture login record (`niji::users::UtmpShape`, ARCH-UTMP-LAYOUT): the shapes
 //! agree with the probed layout tables, and a record encodes and decodes in either shape on any
 //! host. Spec clause: §17.6 (utmp and wtmp records); the aarch64 numbers are the compile-only
 //! probes in `spec/abi/layouts-aarch64.tsv` (no spec clause for the aarch64 shape itself).
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::users::{Utmp, UtmpShape, UT_SEC_MAX_32};
+use niji::users::{Utmp, UtmpShape, UT_SEC_MAX_32};
 
 /// `(size, offset of member)` from a layout table: the `struct utmp` rows.
 fn table(name: &str) -> (usize, impl Fn(&str) -> usize) {
@@ -42,10 +42,10 @@ fn shapes_match_the_layout_tables() {
 
 fn sample() -> Utmp {
     let mut u = Utmp { kind: 7, pid: 4242, exit: [3, 4], session: 99, time: (1_700_000_000, 123_456), addr: [1, 2, 3, 4], ..Utmp::default() };
-    liella::users::set_field(&mut u.line, b"pts/7");
-    liella::users::set_field(&mut u.id, b"ts/7");
-    liella::users::set_field(&mut u.user, b"mallory");
-    liella::users::set_field(&mut u.host, b"attacker.example");
+    niji::users::set_field(&mut u.line, b"pts/7");
+    niji::users::set_field(&mut u.id, b"ts/7");
+    niji::users::set_field(&mut u.user, b"mallory");
+    niji::users::set_field(&mut u.host, b"attacker.example");
     u
 }
 
@@ -120,5 +120,5 @@ fn native_codec_is_the_native_shape() {
     let mut b = vec![0u8; UtmpShape::NATIVE.size];
     u.encode(&UtmpShape::NATIVE, &mut b);
     assert_eq!(b, u.to_bytes().to_vec());
-    assert_eq!(liella::users::UTMP_SIZE, UtmpShape::NATIVE.size);
+    assert_eq!(niji::users::UTMP_SIZE, UtmpShape::NATIVE.size);
 }

@@ -4,8 +4,8 @@
 //! (spec §14.9 regexec leftmost-longest and subexpression offsets; D-14.4).
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, Accel, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, Accel, Options, Window};
 
 /// A match: start, end and the group offsets.
 type Found = Option<(usize, usize, Vec<(i64, i64)>)>;

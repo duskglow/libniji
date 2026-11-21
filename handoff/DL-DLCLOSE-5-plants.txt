@@ -1,0 +1,12 @@
+# DL-DLCLOSE-5 (DL-17 dlclose merged with DL-18 dladdr): plants on the merge's own code. dladdr/dlinfo
+# read inside the counted reader section; dlclose unlinks a node at its predecessor only and keeps the
+# node's own l_next and range; lookups of a caller under the lock skip gone nodes (D-27.50 (3)).
+# The concurrent test's chain phase stops its dladdr reader with a signal while the objects in front of
+# the one it looks up are closed (rounds until 100 stops landed inside the counted walk): a reader that
+# is not counted leaves the closed objects unmapped (check 59), and one standing on an unlinked node
+# whose l_next was cleared stops there (check 58). One run each, no repeats.
+# Run: cargo xtask plants handoff/DL-DLCLOSE-5-plants.txt --dir <new RAM dir> --timeout 600
+chain-not-unlinked | crates/boundary/src/ld/dlopen.rs | lit:p.l_next.store(next, Release); ==> p.l_next.store(p.l_next.load(Relaxed), Release); | cargo test -p liella-ld --test dlclose s27_1_c_4_dlclose_unloads_finalises_and_reclaims | msg:basic check
+caller-in-gone-node | crates/boundary/src/ld/dlopen/dlsym.rs | lit:!nd.gone && (nd.lo..nd.hi) ==> (nd.lo..nd.hi) | cargo test -p liella-ld --test dlclose s27_1_c_4_dlclose_unloads_finalises_and_reclaims | msg:basic check Some\(46\)
+dladdr-not-counted | crates/boundary/src/ld/dlopen.rs | lit:Some(super::readers::read_section(|_| f(&View { at }))) ==> Some(f(&View { at })) | cargo test -p liella-ld --test dlclose s27_1_c_4_dlclose_concurrent_with_readers | msg:concurrent check (None|Some\(5[0-9]\))
+unlinked-node-ends-walk | crates/boundary/src/ld/dlopen.rs | lit:nd.opens = 0; ==> nd.opens = 0; nd.l_next.store(0, Relaxed); | cargo test -p liella-ld --test dlclose s27_1_c_4_dlclose_concurrent_with_readers | msg:concurrent check Some\(58\)

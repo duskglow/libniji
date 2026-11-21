@@ -1,9 +1,9 @@
 //! `cargo xtask symcov [--tsv <file>]`: every name and version node of the glibc 2.39 ABI
-//! (`spec/abi/versions.tsv`, Appendix C) that Liella's products do not define (README-COVERAGE-TRUTH,
+//! (`spec/abi/versions.tsv`, Appendix C) that libniji's products do not define (README-COVERAGE-TRUTH,
 //! ruling #811). Unlike `symgap` (glibc's `libc.a` only) and the stem list in `spec/symbols.tsv`
 //! (which names a family once), this walks every row of the version table, in every library.
 //!
-//! A row `library symbol version binding` is present when the library's `.so` in `target/liella/`
+//! A row `library symbol version binding` is present when the library's `.so` in `target/niji/`
 //! defines `symbol@@version` (a default row; an unversioned definition also counts) or
 //! `symbol@version` / `symbol@@version` (a compatibility row), by `nm -D --defined-only`. For a
 //! default row of a library with a static archive, the name must also be defined by the `.a`
@@ -80,16 +80,16 @@ pub fn milestone5(name: &str) -> bool {
 }
 
 /// The class letter (as in the gap doc) and the owner in the plan of a missing name.
-/// `shipped`: Liella builds this library; `section`: the name's §, when `spec/symbols.tsv` lists it.
+/// `shipped`: libniji builds this library; `section`: the name's §, when `spec/symbols.tsv` lists it.
 pub fn owner(library: &str, name: &str, class: &str, shipped: bool, section: Option<u32>) -> (&'static str, &'static str) {
     if library.starts_with("ld-linux") || library == "libthread_db.so.1" || library == "libc_malloc_debug.so.0" || name.ends_with("_version_placeholder") || section == Some(27) {
         ("a", "phase 14")
     } else if !shipped {
         ("c", if library == "libnsl.so.1" { "phase 15" } else { "not in plan" })
     } else if class == "private" {
-        // Ruling #822: GLIBC_PRIVATE names are glibc-internal (programs cannot link them); Liella
+        // Ruling #822: GLIBC_PRIVATE names are glibc-internal (programs cannot link them); libniji
         // replaces those components together with its own internal interfaces. Phase 14 revisits
-        // them only if Liella's ld.so must interoperate with glibc libraries.
+        // them only if libniji's ld.so must interoperate with glibc libraries.
         ("p", "out of scope")
     } else if class == "compat" {
         ("b", "phase 15")
@@ -100,7 +100,7 @@ pub fn owner(library: &str, name: &str, class: &str, shipped: bool, section: Opt
     } else if section.is_some() {
         ("d", "phases 1-13")
     } else {
-        // A default name of a library Liella ships that `spec/symbols.tsv` does not list.
+        // A default name of a library libniji ships that `spec/symbols.tsv` does not list.
         ("n", "not in spec")
     }
 }
@@ -154,9 +154,9 @@ pub fn row_present(dynsyms: &BTreeSet<(String, String, bool)>, name: &str, versi
 }
 
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
-    let products = root.join("target/liella");
+    let products = root.join("target/niji");
     if !products.join("libc.so.6").exists() {
-        return Err("target/liella/libc.so.6 is missing: run `cargo xtask so`".into());
+        return Err("target/niji/libc.so.6 is missing: run `cargo xtask so`".into());
     }
     let table = fs::read_to_string(root.join("spec/symbols.tsv")).map_err(|e| format!("symbols.tsv: {e}"))?;
     let sections: BTreeMap<&str, u32> = table.lines().skip(1).filter_map(|l| {
@@ -176,7 +176,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     // Every name the archives define: a static program linked with `-lresolv` (an empty archive)
     // takes the resolver from `libc.a`, so an archive-only library counts as covered by any archive.
     let mut all_static = BTreeSet::new();
-    for e in fs::read_dir(&products).map_err(|e| format!("target/liella: {e}"))?.flatten() {
+    for e in fs::read_dir(&products).map_err(|e| format!("target/niji: {e}"))?.flatten() {
         if e.path().extension().is_some_and(|x| x == "a") {
             all_static.extend(archive_names(&e.path())?);
         }
@@ -235,7 +235,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         tsv.push_str(&format!("{letter}\t{}\t{}\t{class}\t{}\t{}\t{own}\t{}\n", m.name, m.library, vers.join(","), m.missing_in,
             sec.map_or(String::new(), |s| s.to_string())));
     }
-    println!("symcov: {} of {} names ({total_rows} version rows) in spec/abi/versions.tsv are not defined by target/liella", missing.len(),
+    println!("symcov: {} of {} names ({total_rows} version rows) in spec/abi/versions.tsv are not defined by target/niji", missing.len(),
         abi.values().map(BTreeMap::len).sum::<usize>());
     let mut by_owner: BTreeMap<&str, usize> = BTreeMap::new();
     for ((_, own, _, _), v) in &groups {

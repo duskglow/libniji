@@ -1,0 +1,8 @@
+@@generated
+/* sys/syslog.h: another name of <syslog.h> (plan/headers.md section 1). */
+#ifndef __NIJI_H_sys_syslog_h
+#define __NIJI_H_sys_syslog_h 1
+
+#include <syslog.h>
+
+#endif

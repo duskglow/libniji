@@ -1,0 +1,29 @@
+# DL-ATEXIT-OWNER-2 plants (docs/plants.md): the opted-in registrations (D-27.29).
+net-on-stub-entries | crates/legacy/src/exit_handlers.rs | lit:e[0] == OPTED_EXIT && mine(e) ==> mine(e) | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dH hH'
+net-owner-only | crates/legacy/src/exit_handlers.rs | lit:inside(e[3]) || inside(e[1]) ==> inside(e[3]) | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dB'
+quick-kept-after-unload | crates/legacy/src/exit_handlers.rs | lit:e[0] == OPTED_QUICK && mine(e) ==> false | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:net: check None failed
+atfork-kept-after-unload | crates/boundary/src/fork.rs | lit:if owner & 1 == 1 && ( ==> if owner & 1 == 2 && ( | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:net: check None failed
+owner-misattributed | crates/boundary/src/owner.rs | lit:    r.dlfo_map_start ==>     r.dlfo_map_end | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dA aX'
+unload-step-not-called | crates/boundary/src/ld/dlopen.rs | lit:if self.owner_unload != 0 { ==> if self.owner_unload == 1 { | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dB'
+unload-step-not-exported | xtask/src/so.rs | lit:"__liella_owner_unload", ==> | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dB'
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# net-on-stub-entries: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# net-owner-only: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# quick-kept-after-unload: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# atfork-kept-after-unload: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# owner-misattributed: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# unload-step-not-called: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+# unload-step-not-exported: CAUGHT, caught by atexit_owner s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose
+
+# DL-ATEXIT-OWNER-3 plants (docs/plants.md): the notice, the loader's report and the link-time interface (D-27.29).
+notice-on-by-default | xtask/src/so.rs | lit:is_ok_and(|v| v == "1"); ==> is_ok_and(|v| v == "1") || true; | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5_nonshared_notice | msg:default libc_nonshared.a carries a notice section
+report-missing-at-start | crates/boundary/src/ld.rs | lit:report_nonshared(&o.elf, o.name); ==> let _ = o; | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5_nonshared_notice | msg:start: the report must name the program once
+report-missing-at-dlopen | crates/boundary/src/ld/dlopen.rs | lit:report_nonshared(&elf, shown); ==> let _ = shown; | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5_nonshared_notice | msg:dlopen: the report must name the noticed library
+report-without-setting | crates/ld/src/start.rs | lit:out.report_nonshared = report.is_some_and(|v| !v.is_empty()); ==> out.report_nonshared = true; | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5_nonshared_notice | msg:the report printed without the setting
+link-interface-not-default | xtask/src/so.rs | lit:.arg("-DLIELLA_OWNER_LINK_STUB") ==> .arg("-DLIELLA_OWNER_LINK_STUB_OFF") | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5_owner_optin | msg:opted-in link failed|does not need LIELLA_OWNER_1
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# notice-on-by-default: CAUGHT, caught by s01_startup_symbols s1_2_c_5_nonshared_notice_warning_and_loader_report
+# report-missing-at-start: CAUGHT, caught by s01_startup_symbols s1_2_c_5_nonshared_notice_warning_and_loader_report
+# report-missing-at-dlopen: CAUGHT, caught by s01_startup_symbols s1_2_c_5_nonshared_notice_warning_and_loader_report
+# report-without-setting: CAUGHT, caught by s01_startup_symbols s1_2_c_5_nonshared_notice_warning_and_loader_report
+# link-interface-not-default: CAUGHT, caught by s01_startup_symbols s1_2_c_5_owner_optin_link_and_reference_refusal

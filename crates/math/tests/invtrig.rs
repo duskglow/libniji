@@ -1,17 +1,21 @@
-//! The `double` `atan`/`asin`/`acos`/`atan2`/`hypot` fast tier (`liella_math::invtrig`,
+//! The `double` `atan`/`asin`/`acos`/`atan2`/`hypot` fast tier (`niji_math::invtrig`,
 //! LIBM-F64-INVTRIG-HYPOT-TIER) against the accurate path, spec §10.3 and D-10.13 (every result
 //! correctly rounded): where a kernel answers it gives the accurate path's round-to-nearest
 //! result bit for bit; hard cases (results next to a rounding boundary, exact roots, the table's
 //! nodes, the window edges) are refused or settled right; random operands rarely fall back. The
 //! exported entries (fast tier plus fallback) give the accurate path's bits in both builds of
 //! the kernels (Dekker and FMA, D-10.25, switched by `selftest::set_math_fma`).
-#![no_builtins] // calls to libc names (atan, hypot, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (atan, hypot, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::arithmetic_side_effects, clippy::float_arithmetic, missing_docs)]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::status::Rounding;
-use liella_math::{invtrig, pow, trig};
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::status::Rounding;
+use niji_math::hwop::SoftOps;
+use niji_math::{invtrig, pow, trig};
+
+#[path = "support/hypot_pairs.rs"]
+mod hypot_pairs;
 
 type K1 = fn(f64) -> Option<f64>;
 type K2 = fn(f64, f64) -> Option<f64>;
@@ -42,7 +46,7 @@ fn accurate1(f: &str, x: f64) -> f64 {
 }
 
 fn accurate2(f: &str, a: f64, b: f64) -> f64 {
-    if f == "atan2" { trig::atan2::<f64>(a, b, Rounding::Nearest).0 } else { pow::hypot::<f64>(a, b, Rounding::Nearest).0 }
+    if f == "atan2" { trig::atan2::<f64>(a, b, Rounding::Nearest).0 } else { pow::hypot_exact::<f64>(a, b, Rounding::Nearest).0 }
 }
 
 fn entry1(f: &str, x: f64) -> f64 {
@@ -236,7 +240,7 @@ fn double_atan_fast_tier_table_agrees_with_the_multiprecision_atan() {
     // kernel, so agreement with it cannot catch a wrong entry: here each entry's neighbourhood
     // (operands within 1/128 of j/64) is checked against `mp::atan`, which uses no table,
     // rounded to nearest: the Dekker kernel directly, and the exported entry in each build.
-    use liella_math::mp::{self, Mp};
+    use niji_math::mp::{self, Mp};
     let mut rng = Rng(0x51_7cc1_b727_220a);
     for fma in builds() {
         selftest::set_math_fma(fma);
@@ -257,6 +261,74 @@ fn double_atan_fast_tier_table_agrees_with_the_multiprecision_atan() {
                 }
                 let e = m::atan(xr);
                 assert_eq!(e.to_bits(), want.to_bits(), "atan({xr:e}) = {e:e} by the entry (fma {fma}) near 64/{j}, multiprecision {want:e}: folded table entry FAILED");
+            }
+        }
+    }
+    selftest::set_math_fma(false);
+}
+
+#[test]
+fn double_atan_quick_phase_answers_alone_and_agrees_with_the_multiprecision_atan() {
+    // Clauses: s10_3_c_0 (D-10.13, D-10.69). The quick phase without tier 2 behind it: it must
+    // answer nearly every operand by itself (a quick phase that always refuses would hide behind
+    // tier 2) and each answer must be the multiprecision `atan` rounded to nearest, also next to
+    // every table node j/64 (where `|v|/|y|` is largest) and at the nodes themselves.
+    use niji_math::mp::{self, Mp};
+    let mut rng = Rng(0x2f1d_33a7_9b0c_51e3);
+    let (mut answered, mut total) = (0usize, 0usize);
+    let mut xs: Vec<f64> = (0..=64).map(|j| f64::from(j) / 64.0).filter(|&x| x > 0.0).collect();
+    for j in 1..=64u32 {
+        for _ in 0..64 {
+            xs.push((f64::from(j) - 0.5 + (rng.next() >> 11) as f64 * 2f64.powi(-53)) / 64.0);
+        }
+    }
+    for _ in 0..4096 {
+        xs.push(rng.mag(-60, 0).abs());
+    }
+    for &x in &xs {
+        let want: f64 = mp::round::<f64>(mp::atan(Mp::from_f64(x)), Rounding::Nearest).0;
+        total += 1;
+        if let Some(v) = invtrig::atan_quick_only(-x) {
+            answered += 1;
+            assert_eq!((-v).to_bits(), want.to_bits(), "atan(-{x:e}) = {v:e} by the quick phase, multiprecision -{want:e}: quick phase FAILED");
+        }
+    }
+    // The test refuses about 2^-8 of operands (EPS = 2^-62 against a 2^-63 bound).
+    assert!(answered * 100 > total * 98, "quick phase answered only {answered} of {total}: quick phase FAILED");
+}
+
+/// The `double` kernel `invtrig::hypot_rounded` (D-10.104) on the software root (`SoftOps`; the
+/// boundary's test runs the hardware root) is the exact path (D-10.13) in every direction, value bits, flags and `errno`, and the fast entry gives its nearest result in both
+/// builds: bit patterns, near-binade pairs at every magnitude, the gap boundary (26/27/28), ties
+/// (triples with an odd 54-bit hypotenuse) and exact roots at several scales, overflow at
+/// `DBL_MAX`, two subnormals (the `2^-1022` tininess edge) and a subnormal beside a normal.
+#[test]
+fn double_hypot_kernel_is_the_exact_path_in_every_direction() {
+    // Clauses: s10_3_c_0 (D-10.104).
+    let v = hypot_pairs::hard_pairs();
+    let modes = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
+    for &(x, y) in &v {
+        for (x, y) in [(x, y), (-y, x)] {
+            for mode in modes {
+                let (w, ws) = pow::hypot_exact::<f64>(x, y, mode);
+                let (g, gs) = invtrig::hypot_rounded::<SoftOps>(x, y, mode).expect("a finite pair");
+                assert!(g.to_bits() == w.to_bits() && gs == ws, "hypot({x:e}, {y:e}) {mode:?}: kernel {g:e} {gs:?}, exact {w:e} {ws:?}: kernel FAILED");
+            }
+            let w = pow::hypot_exact::<f64>(x, y, Rounding::Nearest).0;
+            if let Some(f) = invtrig::hypot_nearest(x, y, f64::sqrt) {
+                assert_eq!(f.to_bits(), w.to_bits(), "hypot({x:e}, {y:e}): fast entry {f:e}, exact {w:e}: fast FAILED");
+            }
+            for fma in builds() {
+                selftest::set_math_fma(fma);
+                assert_eq!(m::hypot(x, y).to_bits(), w.to_bits(), "hypot({x:e}, {y:e}) by the entry (fma {fma}): entry FAILED");
+                // The directed entry runs the kernel in the selected build (LIBM-HYPOT-DIRECTED-FAST).
+                for (rc, mode) in [(0x800, Rounding::Up), (0x400, Rounding::Down), (0xc00, Rounding::Zero)] {
+                    let w = pow::hypot_exact::<f64>(x, y, mode).0;
+                    assert_eq!(niji_boundary::posix::s10_math::fesetround(rc), 0);
+                    let g = m::hypot(x, y);
+                    assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
+                    assert_eq!(g.to_bits(), w.to_bits(), "hypot({x:e}, {y:e}) {mode:?} by the entry (fma {fma}): directed entry FAILED");
+                }
             }
         }
     }

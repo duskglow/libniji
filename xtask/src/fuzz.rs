@@ -11,8 +11,8 @@
 //! cargo xtask fuzz <target>|--all --time <m> --summary <file>   also write the per-target rows as TSV
 //! ```
 //!
-//! The corpus lives outside the repository, in `$LIELLA_FUZZ_CORPUS/<target>/corpus` (default
-//! `~/liella-fuzz-corpus`), with crash artifacts beside it in `artifacts/`; the repository's
+//! The corpus lives outside the repository, in `$NIJI_FUZZ_CORPUS/<target>/corpus` (default
+//! `~/niji-fuzz-corpus`), with crash artifacts beside it in `artifacts/`; the repository's
 //! seeds (`fuzz/seeds/<target>`) are read as a second corpus and never written. A run is a
 //! series of chunks, each a fresh libFuzzer process resuming from the corpus; the first crash,
 //! time-out or memory-limit report ends the run. On the shared machines the whole command runs
@@ -112,7 +112,7 @@ const MAX_MINUTES: u64 = 140;
 
 /// Per-target libFuzzer settings: the largest input, the time-out per input (seconds), the
 /// memory limit (MiB), and the longest chunk (minutes; short for the targets that leak their
-/// `'static` input, `liella_fuzz::LEAK_BUDGET`).
+/// `'static` input, `niji_fuzz::LEAK_BUDGET`).
 struct Settings {
     max_len: usize,
     timeout: u32,
@@ -124,6 +124,8 @@ fn settings(target: &str) -> Settings {
     match target {
         "locale" => Settings { max_len: 1 << 20, timeout: 20, rss_mb: 4096, chunk: 10 },
         "charmap" => Settings { max_len: 1 << 16, timeout: 20, rss_mb: 4096, chunk: 20 },
+        // Whole ELF files: the seeds are small shared objects of a few KiB to tens of KiB.
+        "elf" => Settings { max_len: 1 << 16, timeout: 10, rss_mb: 2048, chunk: 30 },
         "nscache" => Settings { max_len: 1 << 16, timeout: 10, rss_mb: 2048, chunk: 30 },
         "regex" | "regex_dfa" | "glob" | "wordexp" | "printf" | "scanf" => Settings { max_len: 4096, timeout: 10, rss_mb: 2048, chunk: 30 },
         _ => Settings { max_len: 16384, timeout: 10, rss_mb: 2048, chunk: 30 },
@@ -149,7 +151,7 @@ fn targets(root: &Path) -> Result<Vec<String>, String> {
 }
 
 /// The nightly toolchain of `fuzz/rust-toolchain.toml`.
-fn toolchain(root: &Path) -> Result<String, String> {
+pub(crate) fn toolchain(root: &Path) -> Result<String, String> {
     let t = fs::read_to_string(root.join("fuzz/rust-toolchain.toml")).map_err(|e| format!("fuzz/rust-toolchain.toml: {e}"))?;
     t.lines()
         .filter_map(|l| l.trim().strip_prefix("channel"))
@@ -160,11 +162,11 @@ fn toolchain(root: &Path) -> Result<String, String> {
 }
 
 fn corpus_root() -> PathBuf {
-    if let Some(d) = std::env::var_os("LIELLA_FUZZ_CORPUS") {
+    if let Some(d) = std::env::var_os("NIJI_FUZZ_CORPUS") {
         return PathBuf::from(d);
     }
     let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    home.join("liella-fuzz-corpus")
+    home.join("niji-fuzz-corpus")
 }
 
 /// `rustup run <nightly> cargo fuzz <args>` in `fuzz/`, with the environment of this `cargo`
@@ -176,7 +178,7 @@ fn cargo_fuzz(root: &Path, nightly: &str) -> Command {
 }
 
 /// `rustup run <nightly> cargo` in `fuzz/` (environment of this `cargo` removed, own target dir).
-fn nightly_cargo(root: &Path, nightly: &str) -> Command {
+pub(crate) fn nightly_cargo(root: &Path, nightly: &str) -> Command {
     let rustup = std::env::var_os("CARGO_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cargo")))
@@ -209,16 +211,17 @@ fn status(c: &mut Command) -> Result<bool, String> {
 /// their own on a pinned nightly, so a signature change in a library crate breaks them without any gate
 /// noticing (wordexp after WORDEXP-3, regex after RX-T2-1: every fuzz binary failed to build for days).
 /// `cargo check --bins` needs no fuzzer runtime or sanitizer, and is incremental. The gate runs it
-/// (`xtask test`, and `affected` whenever `crates/` or `fuzz/` changed).
+/// (`xtask test`, and `affected` whenever `crates/` or `fuzz/` changed). `--locked`: the check never
+/// rewrites `fuzz/Cargo.lock`; a stale lock fails here and in `lock-fresh` (FUZZ-LOCK-FRESH).
 pub fn check(root: &Path) -> Result<(), String> {
     let nightly = toolchain(root)?;
     let mut c = nightly_cargo(root, &nightly);
-    c.args(["check", "--bins"]);
+    c.args(["check", "--bins", "--locked"]);
     if status(&mut c)? {
         println!("xtask fuzz-check: all {} fuzz targets type-check", targets(root)?.len());
         Ok(())
     } else {
-        Err("the fuzz targets do not build (fuzz/ is a workspace of its own: a library signature changed? see `cargo xtask fuzz-check`)".into())
+        Err("the fuzz targets do not build (fuzz/ is a workspace of its own: a library signature changed, or fuzz/Cargo.lock is stale (`cargo xtask locks --check`)? see `cargo xtask fuzz-check`)".into())
     }
 }
 

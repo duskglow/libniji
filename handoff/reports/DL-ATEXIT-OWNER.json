@@ -1,0 +1,13 @@
+{"task": "DL-ATEXIT-OWNER", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: LIELLA_OWNER_1 opt-in exports, caller attribution, unload net and link-stub directory written (WIP); clippy clean; cargo xtask so stops at the compat-export check; no tests, plants, record or docs yet",
+ "branch": "task/dl-atexit-owner", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Prerequisites DL-LIBC-NONSHARED, DL-17 dlclose, DL-16c _dl_find_object and DL-ATFORK-FINALIZE are on next; the story is unblocked.",
+                   "Process slip: one edit used sed -i (crates/ld/src/start.rs import line) against the Edit-tool rule; it was not refused, and the change was verified (one line, the .bak removed)."],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "WIP: product code for the opt-in, not yet built into the products or tested", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "A brief whose story is size L with a 41 KB brief leaves about 70k of context for the work; splitting the brief into the change and a shared developer-flow file would save about a quarter of each run's context.",
+ "next_step": "Skip LIELLA_OWNER_1 in check_compat_exports, rerun check1.sh, then the product tests (i)-(iv), plants, D-27.29 record, docs and #4861 setting per handoff/DL-ATEXIT-OWNER.md.",
+ "report_file": "handoff/DL-ATEXIT-OWNER.md",
+ "jobs": ["shiki:dl-atexit-owner-build-2"]}

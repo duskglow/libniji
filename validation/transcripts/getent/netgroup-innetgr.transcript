@@ -1,0 +1,33 @@
+name: getent group and a full triple: the membership test, printed with its result
+clause: s31_4_g_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/netgroup
+| trusted (box,alice,example.org) (-,bob,)
+| all trusted (,carol,)
+arg: netgroup
+arg: trusted
+arg: box
+arg: alice
+arg: example.org
+status: exit 0
+stdout:
+| trusted               (box,alice,example.org) = 1
+stderr:

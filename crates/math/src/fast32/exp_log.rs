@@ -25,14 +25,174 @@ pub(super) fn exp_core(x: f32, lo: f64, hi: f64, c: f64) -> Option<f64> {
     if !(x > lo && x < hi) {
         return None;
     }
-    let z = x * c;
+    Some(exp_z(x * c))
+}
+
+/// 2^(z/128) for |z| < 2^14.24: the reduction and polynomial of [`exp_core`] (whose proof
+/// covers every z in that range, the rounding of z itself aside).
+#[inline(always)]
+pub(super) fn exp_z(z: f64) -> f64 {
     let kd = z + SHIFT;
     let k = kd.to_bits() as i32;
     let r = z - (kd - SHIFT);
     let r2 = r * r;
     let p = (1.0 + E1 * r) + r2 * ((E2 + E3 * r) + r2 * E4);
     let s = EXP2_BITS[(k & 127) as usize].wrapping_add((i64::from(k >> 7) as u64) << 52);
-    Some(f64::from_bits(s) * p)
+    f64::from_bits(s) * p
+}
+
+/// The smallest |x| the one-pass entries take: 2^-26, a normal `float` (below it y is within the
+/// margin of 1 and the test would refuse anyway).
+const ONEPASS_AMIN: u32 = 0x3280_0000;
+
+/// 2^896: [`onepass_scaled`]'s exponent offset, folded into the one-pass kernels' constants.
+const ONEPASS_SCALE: f64 = f64::from_bits((1023 + 896) << 52);
+
+/// x·2^-896 exactly, for a normal `float` x (the one-pass entries' operands), built from x's bits:
+/// sign to bit 63, the 8-bit biased exponent e to the low byte of the 11-bit field (a `double`
+/// with exponent e - 1023 = (e - 127) - 896), the 23 fraction bits to the top of the 52. It is the
+/// same value [`f64::from`] gives scaled by 2^-896 (normal: e ≥ 1), but the `double` arrives by a
+/// full-register `movq` from an integer register, not by `cvtss2sd`, which writes only the low
+/// half of its destination and so waits for that register's previous writer (D-10.67: with the
+/// previous call's result there, back-to-back calls formed one latency chain).
+#[inline(always)]
+pub(super) fn onepass_scaled(x: f32) -> f64 {
+    let b = u64::from(x.to_bits());
+    f64::from_bits(((b & 0x7fff_ffff) << 29) | ((b & 0x8000_0000) << 32))
+}
+
+/// e^x (`c` = [`INV_L`], `amax` = the bits of 87.33) or 2^x (`c` = 128, `amax` = the bits of 126)
+/// rounded in the caller's rounding direction by one evaluation in `double` and one `cvtsd2ss`
+/// (LIBM-F32-ONEPASS, D-10.63), or `None` for the caller's envelope.
+///
+/// It runs in the caller's MXCSR without reading it, so the proof holds in every rounding
+/// direction and under FTZ and DAZ:
+/// * Operands: 2^-26 ≤ |x| < `amax`, tested on the bits before any floating-point operation, so a
+///   NaN, an infinity, a zero or a subnormal (whose conversion DAZ would read as 0 and which
+///   raises denormal-operand) never reaches the arithmetic. f = base^x then lies in
+///   [2^-125.99, 2^125.99] (87.33 < 126·ln 2): normal, far from overflow and underflow.
+/// * Every intermediate is a normal `double` (z = x·c with |z| < 2^13.98, S = T·2^(k>>7) with
+///   k>>7 in [-127, 126], p near 1), so the arithmetic raises inexact and nothing else, and FTZ
+///   and DAZ change nothing. It raises inexact only for an inexact result: e^x is exact only at
+///   x = 0 (refused above) and 2^x at the integers, where z = 128·x, r = 0, p = 1 and y = S are
+///   all exact.
+/// * Bound in any direction (each operation's error ≤ 2^-52 relative, RN's 2^-53 doubled): z's
+///   error ≤ (2^-53 + 2^-52)|z| ≤ 2^-37.43 (0 for exp2), ≤ 2^-44.96 relative in f; k is the integer
+///   z + SHIFT rounds to, so |r| < 1 (1/2 in RN) and r's own rounding is ≤ 2^-53 absolute
+///   (2^-60.5 in f); |u| = |r|·ln 2/128 ≤ 2^-7.53, Taylor remainder ≤ |u|^5/120·1.01 ≤ 2^-44.54;
+///   the evaluation ≤ 2·1.006·2^-52 + 2^-59 ≤ 2^-50.97 (the two sums near 1; every other term is
+///   below 2^-15); T 2^-53, the product S·p 2^-52. Total ε ≤ 2.446·2^-45 = 2^-43.71: |y - f| <
+///   ε·2^53/(1 - ε) < 627 ulp(y) ([`EXP_ONEPASS_DELTA`] = 1024 ≥ 1.5·627 + 1).
+/// * Rounding: when y's low 28 significand bits are more than `delta` from 0 and from 2^28, no
+///   `float` and no midpoint lies between y and f (as in [`super::round`]), so `cvtsd2ss` of y in
+///   the caller's direction is f correctly rounded in that direction; y is not a `float`, so the
+///   conversion raises inexact, and the result is normal: no overflow, no underflow, no errno.
+/// * The operand reaches the `double` domain as [`onepass_scaled`]`(x)` = x·2^-896 (integer
+///   operations and one full-register move, LIBM-EXPF-RATCHET, D-10.67), multiplied by c·2^896:
+///   both scalings are exact (x·2^-896 ≥ 2^-922 is normal, c·2^896 < 2^904 finite) and z = x·c
+///   is normal, so RN, RD, RU and RZ of the product are those of x·c and the bound above holds
+///   unchanged.
+#[inline(always)]
+pub(super) fn exp_onepass(x: f32, c: f64, amax: u32) -> Option<f32> {
+    if (x.to_bits() & 0x7fff_ffff).wrapping_sub(ONEPASS_AMIN) >= amax - ONEPASS_AMIN {
+        return exp_onepass_tiny(x);
+    }
+    let y = exp_z(onepass_scaled(x) * (c * ONEPASS_SCALE));
+    if (y.to_bits().wrapping_add(EXP_ONEPASS_DELTA) & 0x0fff_ffff) <= 2 * EXP_ONEPASS_DELTA {
+        return None;
+    }
+    Some(y as f32)
+}
+
+/// [`exp_onepass`]'s answer below its range (LIBM-TINY-FASTPATHS, D-10.108), inlined into the
+/// kernel's refusal branch: as an out-of-line call it made the entry a non-leaf function, 2
+/// instructions more on every operand (probed). e^x, 2^x or 10^x for a normal x with |x| < 2^-27, as 1 + x
+/// rounded in the caller's direction, or `None` (zeros, subnormals, |x| ≥ 2^-27, NaN).
+/// * Value: b^x - 1 has x's sign and |b^x - 1| < 2^-27·ln 10·1.001 < 2^-25.79 (b = e, 2, 10), so
+///   b^x and 1 + x both lie strictly inside (1 - 2^-24, 1) or (1, 1 + 2^-23) on x's side of 1,
+///   and inside (1 - 2^-25, 1 + 2^-24), between the midpoints around 1. Neither is a `float` and
+///   no `float` lies between them, so every directed rounding gives both the same `float`, and
+///   round to nearest gives 1 for both.
+/// * Arithmetic: x is normal (its conversion raises nothing; DAZ reads it unchanged). The `double`
+///   sum 1 + x is rounded in the caller's direction and then converted in that direction: the
+///   `float` grid is part of the `double` grid, so two directed roundings the same way are the one
+///   rounding of 1 + x; in round to nearest the sum stays within 2^-26 of 1 and converts to 1. x ≠ 0,
+///   so the sum or the conversion is inexact, and nothing else is raised (operands and result
+///   near 1: no overflow, underflow or subnormal): the one-pass contract, inexact only.
+#[inline(always)]
+fn exp_onepass_tiny(x: f32) -> Option<f32> {
+    // 2^-27 and the least normal as `float` bits.
+    if (x.to_bits() & 0x7fff_ffff).wrapping_sub(0x0080_0000) >= 0x3200_0000 - 0x0080_0000 {
+        return None;
+    }
+    Some((1.0 + f64::from(x)) as f32)
+}
+
+/// The `float`s 10^n, n = 1..=10 (5^10 < 2^24, so each is exact), at index (biased exponent mod
+/// 32): their exponents 130, 133, ..., 160 differ mod 32. Every other index holds 0, which no
+/// positive normal operand matches. [`log_onepass`] refuses these operands (D-10.72).
+const TEN_POW_BITS: [u32; 32] = {
+    let mut t = [0u32; 32];
+    let p = [0x4120_0000, 0x42c8_0000, 0x447a_0000, 0x461c_4000, 0x47c3_5000, 0x4974_2400, 0x4b18_9680, 0x4cbe_bc20, 0x4e6e_6b28, 0x5015_02f9];
+    let mut k = 0;
+    while k < p.len() {
+        t[((p[k] >> 23) & 31) as usize] = p[k];
+        k += 1;
+    }
+    t
+};
+
+/// ln x (`BASE` 0), log2 x (1) or log10 x (2) rounded in the caller's rounding direction by one
+/// evaluation in `double` and one `cvtsd2ss` (LIBM-F32-ONEPASS-REST, D-10.72), or `None` for the
+/// caller's envelope. The kernel of [`log_core`] with every operand built from x's bits:
+/// * Operands: positive normal x only, tested on the bits first (zero, negative, subnormal, ∞ and
+///   NaN never reach a floating-point instruction). log10 also refuses x = 10^n (n = 1..=10), whose
+///   result is exact while the kernel's arithmetic is not (one table load and compare).
+/// * x = 2^e·m, m in [0.75, 1.5), split on the bits: e = (bits(x) - bits(0.75)) >> 23 (arithmetic),
+///   m's `float` bits = bits(x) - e·2^23, and m as a `double` = those bits shifted to the `double`
+///   fields plus 896 in the exponent; e as a `double` = (bits(1.5·2^52) + e) - 1.5·2^52 (exact).
+///   No `cvtss2sd`/`cvtsi2sd`: each `double` arrives by a full-register `movq` (D-10.67, D-10.68).
+/// * r = m·LOG_INV[i] - 1 is exact in every direction (24 by 24 bits, then Sterbenz); log adds
+///   ((e·LN2 + LOG_C[i]) + r) + s as [`log_core`]; log2 adds e + ((LOG_C[i] + r) + s)·(1/ln 2), so
+///   x = 2^n (m = 1, i = 0, LOG_C[0] = 0, r = s = 0) gives y = n with every operation exact; log10
+///   multiplies the log sum by 1/ln 10. x = 1 makes every operation exact for all three (y = ±0,
+///   which the test below refuses). So the arithmetic raises inexact only for an inexact result.
+/// * Bound in any direction (each operation 2^-52 relative, RN's 2^-53 doubled, the constants RN):
+///   [`log_core`]'s cases with each rounding term doubled: case A (e = 0, c = 1, y = r + s, r
+///   exact) ε ≤ 2^-44.8 (remainder) + 2^-52 + 2^-57 ≤ 2^-44.78, then ≤ 2^-44.7 after log2's and
+///   log10's constant and product; cases B1/B2 and log2's e + t (|e + t| ≥ 0.415 for e ≠ 0, |t| ≤
+///   ln 1.5) stay below 2^-47.5. |y - f| < ε·2^53/(1 - ε) < 313 ulp(y) ([`LOG_DELTA`] = 640 ≥
+///   1.5·313 + 1). Every intermediate is a normal `double` or an exact zero (|r| ≥ 2^-24 when
+///   nonzero, r⁴ ≥ 2^-96), so FTZ and DAZ change nothing and nothing but inexact is raised.
+/// * Rounding: as [`exp_onepass`] (the result's magnitude lies in [2^-26, 128], a normal `float`).
+///   The exhaustive tests (all 2^32 operands × 4 directions against the envelope) check the bound.
+#[inline(always)]
+pub(super) fn log_onepass<const BASE: u8>(x: f32) -> Option<f32> {
+    let b = x.to_bits();
+    if b.wrapping_sub(0x0080_0000) >= 0x7f00_0000 {
+        return None;
+    }
+    if BASE == 2 && TEN_POW_BITS[((b >> 23) & 31) as usize] == b {
+        return None;
+    }
+    let e = (b.wrapping_sub(0x3f40_0000) as i32) >> 23;
+    let mb = b.wrapping_sub((e as u32) << 23);
+    let m = f64::from_bits((u64::from(mb) << 29).wrapping_add(896 << 52));
+    let i = ((mb >> 16) & 127) as usize;
+    let ef = f64::from_bits(SHIFT.to_bits().wrapping_add(e as i64 as u64)) - SHIFT;
+    let r = m * LOG_INV[i] - 1.0;
+    let r2 = r * r;
+    let s = r2 * (-0.5 + r * D3) + (r2 * r2) * ((D4 + r * D5) + r2 * D6);
+    let y = if BASE == 1 {
+        ef + ((LOG_C[i] + r) + s) * INV_LN2
+    } else {
+        let l = ((ef * LN2 + LOG_C[i]) + r) + s;
+        if BASE == 2 { l * INV_LN10 } else { l }
+    };
+    if (y.to_bits().wrapping_add(LOG_DELTA) & 0x0fff_ffff) <= 2 * LOG_DELTA {
+        return None;
+    }
+    Some(y as f32)
 }
 
 /// ln x as a `double` y with |y/ln x - 1| ≤ 2^-51, for a positive finite `float` x.
@@ -236,6 +396,150 @@ pub(super) fn pow_core(ax: f64, yd: f64) -> Option<f64> {
     Some(v * f64::from_bits((((k >> 7) + 1023) as u64) << 52))
 }
 
+/// The `double` of a normal `float`'s magnitude bits `a` (the same value [`f64::from`] gives),
+/// built with integer operations: the 8-bit biased exponent moves to the 11-bit field (rebiased by
+/// 1023 - 127 = 896) and the 23 fraction bits to the top of the 52. The `double` then arrives by a
+/// full-register move, not by `cvtss2sd`'s partial write (D-10.67).
+#[inline(always)]
+fn f32_mag_to_f64(a: u32) -> f64 {
+    f64::from_bits((u64::from(a) << 29) + (896 << 52))
+}
+
+/// `powf` rounded in the caller's rounding direction by one evaluation in `double` and one
+/// `cvtsd2ss`, without reading MXCSR (LIBM-F32-POWF, D-10.78), or `None` for the caller's
+/// envelope. The proof holds in every rounding direction and under FTZ and DAZ.
+///
+/// Decided on the bits, before any floating-point operation:
+/// * y = ±0 and x not a NaN: 1, exact (C Annex F: pow(x, ±0) = 1 for every x). A NaN x goes to the
+///   envelope (a signalling NaN's flag is its business).
+/// * Either operand zero, subnormal, infinite or NaN: the envelope (Annex F's special cases, and
+///   no subnormal reaches an instruction that would raise denormal-operand or read it as 0 under DAZ).
+/// * y = 1: x itself, exact, no flag.
+/// * y = 2: x² is exact in `double` (24 by 24 bits, normal), so one `cvtsd2ss` rounds it correctly
+///   in the caller's direction and raises inexact exactly when the result is inexact. Taken only
+///   for 2^-63 ≤ |x| < 2^64, where 2^-126 ≤ x² < 2^128; the largest x² below 2^128 is
+///   (2^24 - 1)²·2^80 < (2^24 - 1)·2^104, the largest `float`, so no x² there overflows in any
+///   direction and none is tiny. Outside: the envelope (its overflow and underflow, errno).
+/// * x < 0: y must be an integer (|y| ≥ 2^24, or no fraction bit at or below its units bit for
+///   2^0 ≤ |y| < 2^24; |y| < 1 is not one); the result's sign is its parity (the units bit; even
+///   for |y| ≥ 2^24). Otherwise the envelope (NaN, invalid).
+/// * Exact results go to the envelope: the arithmetic below raises inexact, so it must see only
+///   operands whose result is inexact. With |x| = m·2^a, m odd, and y = Y·2^q, Y odd: if m = 1
+///   (|x| a power of two, fraction bits 0, x = ±1 among them) the result may be exact for many y:
+///   refused. If m ≥ 3, |x|^y is a `float` only if it is a dyadic rational with an odd part below
+///   2^24. y < 0 gives m^-|y|, not dyadic. q ≥ 0 (y an integer) needs m^y < 2^24, so y ≤ 15
+///   (3^15 < 2^24 < 3^16). q < 0 needs m = w^(2^-q) with w odd ≥ 3, so 3^(2^-q) ≤ m < 2^24 and
+///   -q ≤ 3, and then w^Y < 2^24 with Y = y·2^-q ≥ 1, so y < 16. Every exact result therefore has
+///   m = 1, or 0 < y < 16 with 8y an integer: both refused.
+///
+/// The evaluation, for normal x, y, |x| ≠ 2^a, and t = y·ln|x|:
+/// * ln|x| = L: [`log_core`]'s reduction from the bits (e, m in [0.75, 1.5), i, r = m·LOG_INV[i] - 1
+///   exact in any direction: the product has at most 48 bits and the subtraction is exact by
+///   Sterbenz), e as a `double` by the shift trick (exact, no `cvtsi2sd`), and [`log1p_core`]'s
+///   series to r^8 (s = r²·(-1/2 + r/3 - … - r^6/8), remainder |r|^9/9 ≤ 2^-66|r|).
+///   L = ((e·LN2_HI + LOG_C[i]) + r) + (s + e·LN2_LO); e·LN2_HI is exact (|e| ≤ 128, 44 bits).
+///   Each operation rounds by at most 2^-52 relative (one ulp: any direction). With [`log_core`]'s
+///   bounds (|LOG_C| ≤ 1.51|L|; |L| ≥ 0.287 when e ≠ 0; |r| < 2^-7, |r| < 0.0040 when c ≠ 1):
+///   case A (e = 0, c = 1): L = RD/RU/RZ/RN(r + s), the first sums exact: 1.03·2^-52|L| (the
+///   last sum 1, s's evaluation ≤ 4·2^-52|s| ≤ 2^-58|r|). Case B1 (e ≠ 0): LOG_C's table rounding
+///   2^-53·1.43|L| (0.72), the first and second sums (|·| ≤ |L| + 0.008 ≤ 1.03|L|) 1.03 each,
+///   the last 1, the small sum s + e·LN2_LO (≤ 2^-15) and the remainder below 0.01: 3.8·2^-52|L|.
+///   Case B2 (e = 0, c ≠ 1): LOG_C 0.76, the second and last sums 1.01 + 1: 2.8·2^-52|L|.
+///   So |L/ln|x| - 1| ≤ 3.9·2^-52.
+/// * z = (y·L)·INV_L, INV_L = RN(128/ln 2): two roundings 2^-52 each and INV_L's 2^-53, so
+///   z = z*·(1 + η), z* = 128·log2(|x|^y), |η| ≤ (3.9 + 1 + 1 + 0.5)·2^-52·1.001 ≤ 2^-49.32.
+///   Every intermediate is a normal `double` or an exact zero (|r| ≥ 2^-48 when nonzero, |y·L| ≥
+///   2^-150), so the arithmetic raises inexact and nothing else, and FTZ/DAZ change nothing.
+/// * |z| < 16512 is required (comparisons raise nothing: z is never a NaN), else the envelope:
+///   [`exp_z`] then has k>>7 in [-130, 129] and S normal. y0 = [`exp_z`]`(z)`: from
+///   [`exp_onepass`]'s directed-rounding bound without z's own rounding (|r| < 1, Taylor 2^-44.54,
+///   evaluation 2^-50.97, T 2^-53, product 2^-52, r 2^-60.5) ≤ 2^-44.51 relative to 2^(z/128).
+/// * Answered results lie in [2^-126, 2^128), so |z*|·ln 2/128 = |ln f| ≤ 88.73 and
+///   2^((z - z*)/128) - 1 ≤ 88.73·2^-49.32·1.001 ≤ 2^-42.85. Total ε ≤ 2^-42.85 + 2^-44.51 + their
+///   product ≤ 2^-42.45: |y0 - f| < ε·2^53 ulp(y0)·(1 + ε) < 1499 ulp ([`POW_ONEPASS_DELTA`] =
+///   4096 ≥ 1.5·1499 + 1, as in [`exp_onepass`]).
+/// * Range and rounding: y0 must lie in [2^-126, M) with M = (2 - 2^-23)·2^127 the largest
+///   `float` (`POW_Y0_MIN`, `POW_Y0_MAX`: one compare on the bits), and y0's low 28 significand
+///   bits more than the margin from 0 and 2^28. Then no `float` (2^-126 and M among them) and no
+///   midpoint lies between y0 and f, so 2^-126 < f < M: f rounds to a normal `float` at most M in
+///   every direction (the bound is M, not 2^128: above M, round to nearest and upward give
+///   infinity), f is not a `float` (inexact, as the arithmetic already said), and `cvtsd2ss` of
+///   ±y0 (the sign set on the bits) is f correctly rounded in the caller's direction: no
+///   overflow, no underflow, no errno. A refusal
+///   after the arithmetic leaves inexact raised for an inexact result only (exact ones never got
+///   there): the envelope raises it too.
+#[inline(always)]
+pub(super) fn pow_onepass(x: f32, y: f32) -> Option<f32> {
+    const POW_Y0_MIN: u64 = 0x3810_0000_0000_0000; // 2^-126
+    const POW_Y0_MAX: u64 = 0x47ef_ffff_e000_0000; // (2 - 2^-23)·2^127, the largest `float`
+    let (xb, yb) = (x.to_bits(), y.to_bits());
+    let (xa, ya) = (xb & 0x7fff_ffff, yb & 0x7fff_ffff);
+    if ya == 0 && xa <= 0x7f80_0000 {
+        return Some(1.0);
+    }
+    if xa.wrapping_sub(0x0080_0000) >= 0x7f00_0000 || ya.wrapping_sub(0x0080_0000) >= 0x7f00_0000 {
+        return None; // zero, subnormal, infinite or NaN operand
+    }
+    if yb == 0x3f80_0000 {
+        return Some(x); // y = 1
+    }
+    if yb == 0x4000_0000 {
+        // y = 2: 2^-63 ≤ |x| < 2^64.
+        if xa.wrapping_sub(0x2000_0000) >= 0x5f80_0000 - 0x2000_0000 {
+            return None;
+        }
+        let d = f32_mag_to_f64(xa);
+        return Some((d * d) as f32);
+    }
+    let mut sign = 0u64;
+    if xb >> 31 != 0 {
+        let ey = (ya >> 23) as i32 - 127;
+        if ey < 0 {
+            return None; // 0 < |y| < 1: not an integer
+        }
+        if ey <= 23 {
+            let sig = (ya & 0x7f_ffff) | 0x80_0000;
+            let sh = (23 - ey) as u32;
+            if sig & ((1u32 << sh) - 1) != 0 {
+                return None;
+            }
+            sign = u64::from((sig >> sh) & 1) << 63;
+        }
+    }
+    if xa & 0x7f_ffff == 0 {
+        return None; // |x| a power of two: possibly exact
+    }
+    if yb < 0x4180_0000 {
+        // 0 < y < 16 (y normal and positive): exact candidates have 8y an integer.
+        let ey = (yb >> 23) as i32 - 127;
+        if ey >= -3 && yb & ((1u32 << (20 - ey) as u32) - 1) == 0 {
+            return None;
+        }
+    }
+    let xd = f32_mag_to_f64(xa).to_bits();
+    let e = xd.wrapping_sub(0x3fe8_0000_0000_0000) as i64 >> 52;
+    let m = f64::from_bits(xd.wrapping_sub((e as u64) << 52));
+    let i = ((m.to_bits() >> 45) & 127) as usize;
+    let r = m * LOG_INV[i] - 1.0;
+    let r2 = r * r;
+    let s = r2 * ((-0.5 + r * D3) + r2 * ((D4 + r * D5) + r2 * ((D6 + r * D7) + r2 * D8)));
+    let ef = f64::from_bits(SHIFT.to_bits().wrapping_add(e as u64)) - SHIFT;
+    let l = ((ef * LN2_HI + LOG_C[i]) + r) + (s + ef * LN2_LO);
+    let yd = f64::from_bits(f32_mag_to_f64(ya).to_bits() | (u64::from(yb >> 31) << 63));
+    let z = (yd * l) * INV_L;
+    if !(z > -16512.0 && z < 16512.0) {
+        return None; // far outside the normal range: the envelope (overflow, underflow)
+    }
+    let b = exp_z(z).to_bits();
+    if b.wrapping_sub(POW_Y0_MIN) >= POW_Y0_MAX - POW_Y0_MIN {
+        return None; // not in [2^-126, the largest `float`)
+    }
+    if (b.wrapping_add(POW_ONEPASS_DELTA) & 0x0fff_ffff) <= 2 * POW_ONEPASS_DELTA {
+        return None;
+    }
+    Some(f64::from_bits(b | sign) as f32)
+}
+
 /// `powf`'s fast path: x, y finite and nonzero, x > 0 or y an integer (the sign from its parity).
 /// Every other operand (the C Annex F special cases, ±0, ±∞, NaN, x < 0 with y not an integer)
 /// and every result the rounding test refuses (the exact powers among them) go to [`crate::pow`].
@@ -253,7 +557,7 @@ pub fn eval_pow(x: f32, y: f32, mode: Rounding) -> Option<(f32, Status)> {
         if ey < 0 {
             return None;
         }
-        if ey < 23 {
+        if ey <= 23 {
             let sig = (ya & 0x7f_ffff) | 0x80_0000;
             let sh = 23 - ey as u32;
             if sig & ((1 << sh) - 1) != 0 {

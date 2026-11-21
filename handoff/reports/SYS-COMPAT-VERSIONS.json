@@ -1,0 +1,23 @@
+{"task": "SYS-COMPAT-VERSIONS", "model": "opus", "tokens": null,
+ "result": "libm.so.6 exports fmod, fmodf, exp, exp10, pow, hypot, hypotf at GLIBC_2.2.5 as probe-proven aliases; Debian's gawk prints 1.5 on libniji; audit of all multi-version pairs ranked by a full trixie scan",
+ "branch": "task/sys-compat-versions", "head": null,
+ "gate": {"affected": "pending (sys-compat-versions-gate); targeted test, clippy, static green in sys-compat-versions-verify4", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "pow(sNaN, +-0) and pow(1, sNaN): libniji returns 1 with FE_INVALID, the reference a quiet NaN", "recommendation": "follow the reference (quiet NaN) in the pow story"}],
+ "informational": [
+  "libniji's default pow(-1, +-1e308) returns 0 with ERANGE; the correct result is 1 (found by the new differential test; listed in its DEFAULT_POW cases)",
+  "libmvec.so.1 is not shipped: 49 trixie packages bind _ZGVbN2v_sin@GLIBC_2.22 (about 40 symbols with users)",
+  "_r_debug@GLIBC_2.2.5 (ld-linux-x86-64.so.2) is not exported: 5 trixie packages",
+  "remaining multi-version pairs with users: log@GLIBC_2.2.5 (6 pkgs) and log2 (1) need a +NaN wrapper; pthread_sigmask@GLIBC_2.2.5 (3) needs its LG-0b probe; dlmopen@GLIBC_2.34 (3) is unimplemented",
+  "swap-system.sh run with gawk (now 54 commands) and the empty-root form not run in this story (need build.sh --flavour system from a git checkout)",
+  "rule slip: one Bash heredoc used to append the test to crt_products.rs"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "programs binding fmod@GLIBC_2.2.5 (Debian gawk; 101 trixie packages, 142 ELF files) start instead of failing with undefined symbol", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "fmodf, pow, exp, exp10, hypot, hypotf @GLIBC_2.2.5 exported (26, 8, 7, 4, 3, 2 trixie packages)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "binding test old_libm_versions_bind_and_match_the_reference, 2004 differential cases; 3 plants", "before": 0, "after": 1, "unit": "tests", "measured": true},
+  {"kind": "unblock", "what": "Yohane stage 1 (gawk, systemd build)", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "the plants tool refuses .S plants not anchored on niji_machine_ labels, which also blocks plants on generated compat stubs (niji_compat_*); let it accept any label the plant names",
+ "next_step": "collect sys-compat-versions-gate and -plants-2; cut stories for log/log2 compat wrappers, pthread_sigmask probe, dlmopen, libmvec, _r_debug and the pow defect",
+ "report_file": "handoff/SYS-COMPAT-VERSIONS.md",
+ "jobs": ["sys-compat-versions-verify4", "sys-compat-versions-gate", "sys-compat-versions-plants-2", "sys-compat-versions-scan"]}

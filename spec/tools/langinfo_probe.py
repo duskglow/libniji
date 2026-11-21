@@ -25,7 +25,7 @@ sys.path.insert(0, __file__.rsplit('/', 1)[0])
 import locale_inspect as li  # noqa: E402
 
 SRC = '/usr/lib/locale/C.utf8'
-COPY = '/tmp/liella-langinfo-probe'
+COPY = '/tmp/niji-langinfo-probe'
 CATS = [('LC_CTYPE', 0), ('LC_NUMERIC', 1), ('LC_TIME', 2), ('LC_COLLATE', 3), ('LC_MONETARY', 4),
         ('LC_MESSAGES', 5), ('LC_PAPER', 7), ('LC_NAME', 8), ('LC_ADDRESS', 9), ('LC_TELEPHONE', 10),
         ('LC_MEASUREMENT', 11), ('LC_IDENTIFICATION', 12)]
@@ -85,7 +85,7 @@ def main():
                 cval = (craw.split(b'\0')[0] + b'\0').hex()
             elif c == 12:
                 # LC_IDENTIFICATION is descriptive metadata. The reference "C" names a person
-                # (address, e-mail, telephone); Liella's "C" carries the C.UTF-8 values instead
+                # (address, e-mail, telephone); libniji's "C" carries the C.UTF-8 values instead
                 # (D-7.10), so no personal contact data is copied.
                 cval = uval
             else:

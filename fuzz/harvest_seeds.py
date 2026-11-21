@@ -14,7 +14,7 @@ Writes fuzz/seeds/<target>/<sha1 prefix> from the repository's own tests and beh
 
 The repository keeps these small (a cap per target). With --system DIR, it also writes seeds
 made from the installed locale files and charmaps into DIR/<target>/corpus, outside the
-repository: the campaign corpus root (`cargo xtask fuzz` uses ~/liella-fuzz-corpus).
+repository: the campaign corpus root (`cargo xtask fuzz` uses ~/niji-fuzz-corpus).
 
 Run from the repository root: python3 fuzz/harvest_seeds.py [--system DIR]
 """
@@ -218,7 +218,7 @@ def built(out):
     # The name-service cache: patched tables (mode odd) and a raw header (mode even).
     put(out, "nscache", b"\x01" + b"\x02\x01\x00\x00\x00\x04root\0\x00root:x:0:0:root:/root:/bin/sh\0host\0\x00value\0\0")
     put(out, "nscache", b"\x01key\0value\0\0" + struct.pack("<HQ", 7, 1) + struct.pack("<HQ", 80, 0x1000000001))
-    hdr = struct.pack("<8Q", int.from_bytes(b"LIELLANC", "little"), 1, 4096, 1000, 0x1234, 0x5678, 0x9ABC, 0)
+    hdr = struct.pack("<8Q", int.from_bytes(b"NIJI_NSC", "little"), 1, 4096, 1000, 0x1234, 0x5678, 0x9ABC, 0)
     put(out, "nscache", b"\x00" + hdr + struct.pack("<QQ", 3, 3) + b"\0" * 48 + struct.pack("<Q", 256))
 
     # Locale: synthetic category files (a header, item offsets, NUL-terminated strings).

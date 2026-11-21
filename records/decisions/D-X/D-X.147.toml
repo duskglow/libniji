@@ -1,0 +1,10 @@
+id = "D-X.147"
+section = "x"
+status = "active"
+amends = ["D-X.103"]
+story = "HEAP-ADDRESS-SPACE-6"
+date = "2026-11-18"
+tests = ["xtask/src/bins.rs", "crates/core/tests/hot_text_products.rs"]
+body = '''
+**A group of hot sections that only measured phases run never joins the head window bin** (HEAP-ADDRESS-SPACE-6, 2026-11-18; amends D-X.103's LAYOUT-WINDOW-BINS-4 rule that a phase's sections join any bin its warm-up runs in). The head bin is not anchored to a window boundary (`HEAD_ANCHOR`): it leaves `HEAD_ROOM` (0x400 bytes) for what a program links ahead of the group, and a program with more puts the head bin's tail in a second 64 KiB window. Sections only a measured phase counts are first run late, so they sort last in the bin, and that tail window held nothing the process had run before the phase. Found when HEAP-ADDRESS-SPACE-5 shrank the head bin's heap sections (full profile, Zen 1 build host: 60626 -> 60400 plan bytes): the planner moved the rebind phase's group (`Resolution::same_texts`, `Mo::hinted`, `Mo::form`, `unlink`, `unlinkat`, `rmdir`; 1142 bytes) from bin 1 into the head bin's tail, and `page_faults` rebind linked with a 0x800-byte pad ahead of the group took 1 fault at `Mo::hinted` (0 on the merge base, where the bytes past offset 0xF800 were a cold filler; `init_zero_fault_calls_hold_at_every_text_phase`). Rule: a group whose counted modes are all phase modes (modes with a `.pre` warm-up) may join any bin but the head bin. Later bins start on a 64 KiB boundary, so the warm-up's fault there covers the phase's sections whatever precedes the group. A group that a non-phase mode counts too still joins the head bin. Neither profile's head bin held such a group on the merge base, so the rule moves nothing there. Cost: when no later bin the warm-up runs in has room, the group opens a fresh bin and its phase is charged one window there. Test: `a_measured_phase_shares_its_warm_up_windows` (xtask bins).
+'''

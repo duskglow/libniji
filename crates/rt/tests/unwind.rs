@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 
-use liella_rt::unwind::{self, Image, Memory, Object, Regs, RA, RBP, RBX, RSP};
+use niji_rt::unwind::{self, Image, Memory, Object, Regs, RA, RBP, RBX, RSP};
 
 /// Memory as a map of words.
 struct Words(HashMap<u64, u64>);

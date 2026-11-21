@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 7: Locale and text
 
@@ -74,7 +74,7 @@
         reference iconv; the alias scan sees what the full parse sees.
       * `locale_data.rs`: the data formats against oracles (`LC_CTYPE` tables, `strxfrm`,
         `wcsxfrm`).
-    * Clause and symbol tests: §5 (7 of 7 clauses), §6 (37 of 37; §6.4 through `liella::iconv`
+    * Clause and symbol tests: §5 (7 of 7 clauses), §6 (37 of 37; §6.4 through `niji::iconv`
       with the built-in codecs), §7.1–7.4 (24 clauses, 13 symbols).
     * Full gate on the two-node VM: 5,184 tests over both passes, 0 failed; 35 of 35 conformance programs;
       clippy, purity, unsafe-audit, csys-audit and the generators' checks (csys, abi, unicode,

@@ -1,4 +1,4 @@
-//! The integrated name-service cache (`liella_nscache_*`, D-16.10): switch it for the process
+//! The integrated name-service cache (`niji_nscache_*`, D-16.10): switch it for the process
 //! or per category, invalidate it, read its state.
 //!
 //! The cache keeps the answers of the built-in sources (`files`, `dns`) for hosts, passwd,
@@ -15,7 +15,7 @@ use crate::buf;
 use crate::ffi;
 use crate::Errno;
 
-/// A category of the cache (`LIELLA_NSCACHE_*`).
+/// A category of the cache (`NIJI_NSCACHE_*`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Category {
     /// Hosts (`gethostbyname*`, `gethostbyaddr`, `getaddrinfo`, `getnameinfo`).
@@ -36,7 +36,7 @@ impl Category {
     /// Every category.
     pub const ALL: [Category; 6] = [Category::Hosts, Category::Passwd, Category::Group, Category::Services, Category::Protocols, Category::Networks];
 
-    /// The category's number (`LIELLA_NSCACHE_*`).
+    /// The category's number (`NIJI_NSCACHE_*`).
     pub fn number(self) -> u32 {
         match self {
             Category::Hosts => 0,
@@ -49,7 +49,7 @@ impl Category {
     }
 }
 
-/// What table the cache uses (`LIELLA_NSCACHE_MODE_*`).
+/// What table the cache uses (`NIJI_NSCACHE_MODE_*`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Disabled.
@@ -66,7 +66,7 @@ pub enum Mode {
     Other(u32),
 }
 
-/// `struct liella_nscache_info` (64 bytes, alignment 8), as the C library fills it.
+/// `struct niji_nscache_info` (64 bytes, alignment 8), as the C library fills it.
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub struct Status {
@@ -74,9 +74,9 @@ pub struct Status {
     pub enabled: u32,
     /// The enabled categories (bit `1 << number`).
     pub categories: u32,
-    /// `LIELLA_NSCACHE_MODE_*` ([`Status::mode`]).
+    /// `NIJI_NSCACHE_MODE_*` ([`Status::mode`]).
     pub mode: u32,
-    /// Why the table is not the shared region: `LIELLA_NSCACHE_REASON_*` (0: it is).
+    /// Why the table is not the shared region: `NIJI_NSCACHE_REASON_*` (0: it is).
     pub reason: u32,
     /// The shared region's user ID (`u64::MAX`: none).
     pub owner: u64,
@@ -92,7 +92,7 @@ pub struct Status {
     pub stores: u64,
 }
 
-// The layout of `struct liella_nscache_info` (include/liella/native.h asserts the same).
+// The layout of `struct niji_nscache_info` (include/niji/native.h asserts the same).
 const _: () = assert!(size_of::<Status>() == 64 && align_of::<Status>() == 8);
 const _: () = assert!(offset_of!(Status, owner) == 16 && offset_of!(Status, stores) == 56);
 
@@ -118,22 +118,22 @@ impl Status {
 /// Enable or disable the cache for the process: whether it was enabled. Disabled, nothing is
 /// mapped, `stat`ed or kept.
 pub fn enable(on: bool) -> bool {
-    ffi::liella_nscache_enable(u32::from(on)) == 1
+    ffi::niji_nscache_enable(u32::from(on)) == 1
 }
 
 /// Enable or disable one category: whether it was enabled.
 pub fn set_category(c: Category, on: bool) -> Result<bool, Errno> {
-    buf::value(ffi::liella_nscache_category(c.number(), u32::from(on))).map(|v| v == 1)
+    buf::value(ffi::niji_nscache_category(c.number(), u32::from(on))).map(|v| v == 1)
 }
 
 /// Invalidate one category (`Some`) or all of them, here and in the user's shared region; the
 /// next lookup validates the watched files at once.
 pub fn invalidate(c: Option<Category>) -> Result<(), Errno> {
-    buf::done(ffi::liella_nscache_invalidate(c.map_or(u32::MAX, Category::number)))
+    buf::done(ffi::niji_nscache_invalidate(c.map_or(u32::MAX, Category::number)))
 }
 
 /// The cache's state.
 pub fn status() -> Result<Status, Errno> {
     let mut s = Status::default();
-    buf::done(ffi::liella_nscache_status(&mut s)).map(|()| s)
+    buf::done(ffi::niji_nscache_status(&mut s)).map(|()| s)
 }

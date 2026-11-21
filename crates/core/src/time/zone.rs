@@ -28,10 +28,10 @@
 //!   hour, reads as DST). DST asked of a zone that never has it reads one hour ahead of the time
 //!   in force; standard time asked of a zone that never has it is ignored.
 //!
-//! Where Liella differs: glibc's choice of occurrence in a repeated hour with `tm_isdst = -1`
+//! Where libniji differs: glibc's choice of occurrence in a repeated hour with `tm_isdst = -1`
 //! depends on the previous `mktime` call of the process (the first call of a process in a zone
 //! east of UTC takes the later occurrence, a call after one that returned the earlier offset the
-//! earlier one). Liella always takes the first occurrence.
+//! earlier one). libniji always takes the first occurrence.
 #![allow(clippy::arithmetic_side_effects)] // i128 instants derived from i64 values and bounded offsets
 
 use super::civil::{civil_from_days, civil_from_seconds, civil_from_seconds64, fits_tm, CivilTime, Fields, DAY};
@@ -409,14 +409,20 @@ impl Zone {
     pub fn from_tzif(bytes: &[u8]) -> Result<Zone> {
         let f = tzif::parse(bytes)?;
         let mut z = Zone::fixed(b"\0", b"\0");
-        z.types.reserve(f.types.len())?;
-        for t in f.types.iter() {
-            let name = intern(&mut z.names, f.designation(t))?;
+        // Every name the zone keeps fits at once (PERF-ZONE-LOAD-FAULTS): the designations,
+        // each with its NUL (`intern` only shares or appends one), and the footer's two names,
+        // each shorter than the footer, plus their NULs. The table is then made in one
+        // allocation, not grown through several sizes.
+        z.names.reserve_exact(f.designations.len().saturating_add(1).saturating_add(f.footer.len().saturating_add(1).saturating_mul(2)))?;
+        z.types.reserve_exact(f.type_count())?;
+        for t in f.types() {
+            let name = intern(&mut z.names, f.designation(&t))?;
             z.types.push(Kind { offset: t.utoff, isdst: t.isdst, name })?;
         }
         z.base = *z.types.first().ok_or(Errno::EINVAL)?;
         z.trans = f.transitions;
-        z.sorted = z.trans.windows(2).all(|w| matches!(w, [a, b] if a.0 < b.0));
+        // `tzif::parse` rejects a file whose transition times do not strictly increase.
+        z.sorted = true;
         z.leaps = f.leaps;
         if let Parsed::Rule(r) = rule::parse(f.footer) {
             z.rule = Some(z.store_rule(&r)?);
@@ -1009,6 +1015,49 @@ mod tests {
         let c = z.at(78_796_801).unwrap().civil;
         assert_eq!((c.month, c.day, c.hour, c.second), (7, 1, 0, 0));
         assert_eq!(z.resolve(&fields(1972, 7, 1, 0, 0), -1).unwrap().0, 78_796_801);
+    }
+
+    /// Spec §23.6, RFC 8536 §3.1–§3.3: a version 2+ file is read from its 64-bit body (a
+    /// transition before 1901, which the 32-bit body cannot hold, applies from its own instant),
+    /// never from the version 1 body, and instants after its last transition from the footer.
+    #[test]
+    fn wide_body_and_footer_rule() {
+        let types = [(-17_762, 0, 0), (-18_000, 0, 4), (-14_400, 1, 8)];
+        let trans = [(-2_500_000_000, 1), (1_000_000_000, 2), (1_100_000_000, 1)];
+        let full = tzif(&types, &trans, b"LMT\0EST\0EDT\0", &[], b"EST5EDT,M3.2.0,M11.1.0");
+        // The helper's own version 1 block is 44 header bytes and 7 data bytes; replace it by
+        // one that disagrees with the 64-bit body (one transition, one type of +9999 "V1T").
+        let mut f = TryVec::new();
+        f.extend_from_slice(b"TZif2").unwrap();
+        f.extend_from_slice(&[0; 15]).unwrap();
+        for n in [0u32, 0, 0, 1, 1, 4] {
+            f.extend_from_slice(&n.to_be_bytes()).unwrap();
+        }
+        f.extend_from_slice(&500_000_000i32.to_be_bytes()).unwrap();
+        f.push(0).unwrap();
+        f.extend_from_slice(&9999i32.to_be_bytes()).unwrap();
+        f.extend_from_slice(&[0, 0]).unwrap();
+        f.extend_from_slice(b"V1T\0").unwrap();
+        f.extend_from_slice(&full[51..]).unwrap();
+        let z = Zone::from_tzif(&f).unwrap();
+        let at = |t: i64| {
+            let l = z.at(t).unwrap();
+            (l.offset, l.isdst, z.name(l.name).to_vec())
+        };
+        // Before 1901: type 0 up to the first transition, its type from that very instant.
+        assert_eq!(at(-2_500_000_001), (-17_762, false, b"LMT".to_vec()));
+        assert_eq!(at(-2_500_000_000), (-18_000, false, b"EST".to_vec()));
+        assert_eq!(at(500_000_000), (-18_000, false, b"EST".to_vec()));
+        assert_eq!(at(999_999_999).0, -18_000);
+        assert_eq!(at(1_000_000_000), (-14_400, true, b"EDT".to_vec()));
+        assert_eq!(at(1_099_999_999).0, -14_400);
+        assert_eq!(at(1_100_000_000).0, -18_000);
+        // After 2037: the footer rule (2040-01-15 and 2040-07-01, 00:00 UTC).
+        assert_eq!(at(2_210_198_400), (-18_000, false, b"EST".to_vec()));
+        assert_eq!(at(2_224_713_600), (-14_400, true, b"EDT".to_vec()));
+        // Out-of-order times are no TZif file.
+        let bad = tzif(&types, &[(1_000_000_000, 1), (1_000_000_000, 2)], b"LMT\0EST\0EDT\0", &[], b"");
+        assert_eq!(Zone::from_tzif(&bad).unwrap_err(), Errno::EINVAL);
     }
 
     /// The instants around every change of the years in `years`, of `z`'s rule.

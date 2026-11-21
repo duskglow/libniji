@@ -68,7 +68,7 @@ int main(void)
     static char *const bad_argv[] = {"none", NULL};
     p = vfork();
     if (p == 0) {
-        execve("/nonexistent/liella-vfork-test", bad_argv, no_env);
+        execve("/nonexistent/niji-vfork-test", bad_argv, no_env);
         _exit(127);
     }
     CHECK(status_of(p) == 127, "failed exec in the child: 127");

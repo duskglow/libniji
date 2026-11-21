@@ -1,4 +1,4 @@
-# TIMING-SWEEP-1105 (INCOMPLETE: measurement running, table not yet produced)
+# TIMING-SWEEP-1105 (COMPLETE: table and REOPEN/CLOSE lists in results/timing-sweep-1105.md)
 
 State: branch task/timing-sweep-1105, base origin/next f2157504 (products built from this tree, no code change).
 Build: shiki role sh1, job timing-sweep-1105-build2 rc 0 (`cargo xtask bench --build-only`, 21 programs, 302 s).
@@ -15,7 +15,7 @@ Stage on each host: stage.tar from shiki (tree = target/liella, bench/, xtask/Ca
 The bench's own `sudo -n true` probe prints "sudo: a password is required" (xtask/src/bench.rs:1019); it is the tool's probe, harmless.
 
 ## Exact next step (a continuation, ~6 calls)
-1. Wait: `ssh claude@10.0.100.112 'grep rc= ~/work/TIMING-SWEEP-1105/out/bench.log'` and the same on .118 until both show rc=0.
+1. Wait: `ssh claude@nico 'grep rc= ~/work/TIMING-SWEEP-1105/out/bench.log'` and the same on nozomi until both show rc=0.
 2. `scp` out/counters.tsv and out/rounds.tsv from each host into <dir>/nico and <dir>/nozomi; run
    `python3 -I handoff/timing-sweep-1105-analyze.py <dir>` (in this branch): writes table.md (per-row instr ratio, time
    ratio = median of per-round ratios, spread = (max-min)/median of rounds, verdict faster <0.95 / parity / slower >1.05) and
@@ -28,3 +28,6 @@ Instruction ratios come from the same run's counters.tsv (same CPUs, same code),
 ## Not to redo
 The build and the staging (done). Do not start the benches again while the runs are alive (kill by PID otherwise).
 No code was changed. Plan rows: V-4 handoff/benchmarks-v4.md, docs/benchmarks.md section 6.
+
+## Run 2 (TIMING-SWEEP-1105-2)
+Copied counters/rounds from nico (.112, bench rc=1: nscache first_getpwnam_r_cached/create budget vs uncached) and nozomi (.118, rc=0), ran the analyzer, wrote results/timing-sweep-1105.md and -table.md. Open follow-ups: REOPEN rows (Ivy Bridge strchr/malloc/memcmp family), nscache budget on Ivy Bridge.

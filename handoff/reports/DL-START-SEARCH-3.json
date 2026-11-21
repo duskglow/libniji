@@ -1,0 +1,21 @@
+{"task": "DL-START-SEARCH-3", "model": "opus", "tokens": null,
+ "result": "counts script fixed (base skips p_soname); traced the -2 start-up surplus and removed the costs every start paid (p_none +304 -> +15); p_path still +540 above base (link codegen)",
+ "branch": "task/dl-start-search-3", "head": "71db28f7f",
+ "gate": {"affected": "131 passed / 0 failed (5 suites) on 06a5c42; final head 71db28f7f gate2 running at hand-back", "peak": "1.6G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "mei:dl-start-search-2-startup (the -2 start-up checks) ended rc 0",
+   "stopping a start-up check job mid-build left trace-at-build gdb tracers orphaned (parent 1) holding the role busy; ended by PID",
+   "the dispatcher synced the role with base = dl-start-search-2's head, so affected saw no change until a re-sync with --base origin/next"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "ld.so start of a -nostdlib program with no DT_NEEDED (p_none), head vs base 30,011", "before": 30315, "after": 30026, "unit": "instr/start", "measured": true},
+   {"kind": "cost", "what": "ld.so start with one path-named DT_NEEDED (p_path), base 131,437: still +540; fix-forward: move the bare-name search out of link (next step)", "before": 132267, "after": 131977, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "ld.so start with a bare soname found through DT_RUNPATH (p_soname; base cannot start it)", "before": 149276, "after": 149106, "unit": "instr/start", "measured": true}
+ ],
+ "improvement": "a gdb stepi trace plus a RELR target diff (~/work/DL-START-SEARCH-3 on keke) explains an instruction-count delta to the function and the relocated word in two jobs; worth a validation/ tool",
+ "next_step": "move link's bare-name search state and code into an #[inline(never)] function so p_path returns to base (the 512-byte array copy and the out-of-line parse), then rerun counts_head.sh",
+ "report_file": "handoff/DL-START-SEARCH-3-report.md",
+ "jobs": ["dl-start-search-3-lint3", "dl-start-search-3-counts-3", "dl-start-search-3-gate2", "dl-start-search-3-plants2"]}

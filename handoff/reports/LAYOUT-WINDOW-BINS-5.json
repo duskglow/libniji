@@ -1,0 +1,20 @@
+{"task": "LAYOUT-WINDOW-BINS-5", "model": "opus", "tokens": null,
+ "result": "slice 2 finished: the window bins end on a window boundary (start-file GROUP_END, every bin filled), start-up 11/10 again; release localtime bounds 42 -> 40 (forced by the slack check); final-head gate, start-up checks and plants queued",
+ "branch": "task/layout-window-bins-5", "head": "277f460cb",
+ "gate": {"affected": "pending (keke:layout-window-bins-5-gate)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Release LOCALTIME_BOUND and LOCALTIME_MKTIME_BOUND 42 -> 40 although the coordinator asked for no tightening: WHOLE_COUNT_SLACK refuses 36 under 42, and 40 is the highest value that passes; the other host classes' levels are not measured (slice 3)", "Run 4's open item 1 (phase sections at the head bin's tail at pre pads) did not reproduce: strings/mktime/rebind read 0 at all 8 pads, both profiles"],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "page_faults true (start-up only), fast products, Zen 1, vs run 4 head", "before": 12, "after": 11, "unit": "minor faults", "measured": true},
+   {"kind": "faults", "what": "coreutils-shaped tool, fast / release, Zen 1, vs next 7288d847a", "before": 49, "after": 44, "unit": "minor faults", "measured": true},
+   {"kind": "faults", "what": "setlocale + printf, both profiles, Zen 1, vs next 7288d847a", "before": 45, "after": 43, "unit": "minor faults", "measured": true},
+   {"kind": "faults", "what": "first localtime_r whole process, release, Zen 1, vs next 7288d847a", "before": 41, "after": 36, "unit": "minor faults", "measured": true},
+   {"kind": "coverage", "what": "unit tests and product check GROUP-END, 3 new plants", "before": null, "after": 3, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "localtime_r 41 > 40 bound (#1307), snapshot gate DL-START-SEARCH", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "a label reused for a rerun (lint1) made jobrun refuse the whole chain silently; job chains should derive a fresh suffix per run",
+ "next_step": "LAYOUT-WINDOW-BINS-6: measure every host class's levels and tighten TRUE/LOCALE/TOOL/LOCALTIME bounds to them; pad sweep and file sizes",
+ "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
+ "jobs": ["layout-window-bins-5-gate", "layout-window-bins-5-xtest", "layout-window-bins-5-relhot", "layout-window-bins-5-plants2"]}

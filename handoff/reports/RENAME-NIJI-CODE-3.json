@@ -1,0 +1,62 @@
+{
+ "task": "RENAME-NIJI-CODE-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "CI red fixed (native example lengths left by the rename) and the same defect class swept from the rename diff: 4 sites fixed (native example, its expected byte count, s22_sync PID offset, codemap module scan stem skip); full cargo xtask test green (6738/6738 tests, conformance 137/137, native-examples, rust-dylib; full-profile hot_text_products 26/26); plants 6/6 CAUGHT",
+ "branch": "task/rename-niji-code-3",
+ "head": "170f53589",
+ "gate": {
+  "affected": "full cargo xtask test (all steps): 6738 passed / 0 failed, conformance 137 passed / 0 failed; hot_text_products 26 passed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The full gate ran the train's three view generators (records-gen, kernel-index, codemap, --in-place) in the role only before cargo xtask test, as ruling #6086 says the train does; the branch carries no view",
+  "The codemap fix changes what the train's codemap --in-place writes into the generated part of docs/codemap/README.md (module lists named niji_<crate>:: paths wrongly, e.g. re::names for niji_core::names)",
+  "Records keep liella (compat key, liella. tunable text, D-27.43 test names) and docs/ keeps the old name: RENAME-NIJI-DOCS"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "native_static example: pwrite/pread/read-back checks and the expected 'ok file' line match the renamed data (CI's 'pwrite was short')",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "conformance s22_sync: the named semaphore keeps the PID after the prefix (it was cut by a NUL) and the program now checks it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "codemap README module lists: niji_<crate>::x paths read with the right crate name",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added (all CAUGHT) and one unit test (codemap modules)",
+   "before": 0,
+   "after": 6,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A rename script that changes a literal's length should flag numbers within a few lines that equal the old length or an offset past the old stem; three of the four sites were exactly that (n == 6, k + 7, at = 13)",
+ "next_step": "Land via the train (it regenerates the views); RENAME-NIJI-DOCS for prose and records",
+ "report_file": "handoff/rename-niji-code-report.md",
+ "jobs": [
+  "rename-niji-code-3-lint2",
+  "rename-niji-code-3-plants3",
+  "rename-niji-code-3-gate2"
+ ]
+}

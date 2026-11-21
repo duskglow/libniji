@@ -1,4 +1,4 @@
-//! The C string contracts of spec §4 composed from `liella::bytes` (D-4.1, D-4.3): copying with
+//! The C string contracts of spec §4 composed from `niji::bytes` (D-4.1, D-4.3): copying with
 //! terminators, appending at the end of a terminated destination, `strl*` truncation rules,
 //! `strxfrm`, and the argz/envz packed lists. Generic over the code unit (`u8`, `i32` for
 //! `wchar_t`).
@@ -8,8 +8,8 @@
 
 use alloc::vec::Vec;
 
-use liella::bytes::{copy, copy_padded, copy_truncating, Unit};
-use liella::error::{Errno, Result};
+use niji::bytes::{copy, copy_padded, copy_truncating, Unit};
+use niji::error::{Errno, Result};
 
 /// A destination buffer whose required length is decided by the operation.
 pub trait Dest<T> {
@@ -235,7 +235,7 @@ pub fn argz_replace(argz: &[u8], from: &[u8], to: &[u8]) -> Result<(Vec<u8>, usi
     }
     for (s, l) in argz_entries(argz) {
         let mut e = argz.get(s..s.saturating_add(l)).unwrap_or(&[]);
-        while let Some(i) = liella::bytes::find_seq(e, from, |x| x) {
+        while let Some(i) = niji::bytes::find_seq(e, from, |x| x) {
             push(&mut v, e.get(..i).unwrap_or(&[]))?;
             push(&mut v, to)?;
             count = count.saturating_add(1);

@@ -4,7 +4,7 @@
 //! A multiplexed call interprets its argument as an integer or as an address depending on
 //! the command. `Sys` accepts only the commands listed here, each with an argument of the
 //! right type, so no command can make the kernel write through an integer the caller chose
-//! (decision D-X.9). Commands not listed go through `liella_boundary::raw`. The numbers are
+//! (decision D-X.9). Commands not listed go through `niji_boundary::raw`. The numbers are
 //! the kernel's (⚑ KERN).
 
 macro_rules! commands {
@@ -93,7 +93,7 @@ commands!(
         CapbsetRead = 23, CapbsetDrop = 24, GetSecurebits = 27, SetSecurebits = 28,
         GetSeccomp = 21, SetTimerslack = 29, GetTimerslack = 30, SetChildSubreaper = 36, SetNoNewPrivs = 38,
         GetNoNewPrivs = 39, SetThpDisable = 41, GetThpDisable = 42, CapAmbient = 47,
-        GetSpeculationCtrl = 52, SetTsc = 26,
+        GetSpeculationCtrl = 52, SetTsc = 26, SetMdwe = 65, GetMdwe = 66,
     }
 );
 

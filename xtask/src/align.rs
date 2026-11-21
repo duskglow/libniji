@@ -18,7 +18,7 @@ use std::process::Command;
 pub const PRODUCT_RUSTFLAGS: &[&str] = &["-Cllvm-args=-align-all-functions=6"];
 
 /// What the workspace root is spelled as in the products (PRODUCT-PATH-REMAP).
-pub const REMAP_ROOT: &str = "/liella";
+pub const REMAP_ROOT: &str = "/niji";
 /// What `$CARGO_HOME` (registry sources, if a dependency ever appears) is spelled as in the products.
 pub const REMAP_CARGO_HOME: &str = "/cargo";
 
@@ -108,7 +108,7 @@ pub fn check(so: &Path) -> Result<(), String> {
 /// The static check: the products if they are built (`cargo xtask so` runs `check` itself after
 /// every product build, so a gate that builds them is covered either way).
 pub fn static_check(root: &Path) -> Result<(), String> {
-    let so = root.join("target/liella/libc.so.6");
+    let so = root.join("target/niji/libc.so.6");
     if !so.exists() {
         println!("align: {} not built here; the check also runs at the end of every `cargo xtask so`", so.display());
         return Ok(());
@@ -134,7 +134,7 @@ mod tests {
         let e = encoded_rustflags(Path::new("/x/y"), Some("-Ctarget-cpu=x86-64-v3"));
         let v: Vec<&str> = e.split('\x1f').collect();
         assert_eq!(v[0], "-Cllvm-args=-align-all-functions=6");
-        assert_eq!(v[1], "--remap-path-prefix=/x/y=/liella", "the workspace root is remapped in every product build");
+        assert_eq!(v[1], "--remap-path-prefix=/x/y=/niji", "the workspace root is remapped in every product build");
         assert_eq!(*v.last().unwrap(), "-Ctarget-cpu=x86-64-v3");
     }
 }

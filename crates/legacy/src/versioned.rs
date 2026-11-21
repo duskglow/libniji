@@ -1,7 +1,7 @@
 //! Superseded versioned contracts (C0.6, H7; LG-2 `COMPAT-BEHAVIOUR`, R15-1).
 //!
 //! A `behaviour` row of `spec/abi/compat-plan.tsv` is an old version whose contract differs
-//! from the default one. Each is a Rust entry `liella_compat_<name>` in the boundary crate that
+//! from the default one. Each is a Rust entry `niji_compat_<name>` in the boundary crate that
 //! the generated `csys/src/machine/compat_aliases.S` gives the old version (single `@`; never
 //! the default), linked into `libc.so.6` only (R15-2). The rules that set an old contract apart
 //! live here; the entries combine them with the default code. Black-box probes of glibc 2.39
@@ -17,7 +17,7 @@
 //!
 //! The other `behaviour` rows assigned to LG-2 are still missing (see the handoff).
 
-use liella::error::{Errno, Result};
+use niji::error::{Errno, Result};
 
 /// `realpath@GLIBC_2.2.5`'s own rule: a NULL `resolved` buffer is an error (`EINVAL`), checked
 /// before anything else (a NULL path included); with a buffer the call is the default

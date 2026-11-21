@@ -5,7 +5,7 @@
  * every rounding direction, and cpow on a smaller grid of bases and exponents; then a random
  * sample of RN operands per function and format in round-to-nearest (mode letter 'n'), the
  * measurement of D-10.3. Each line prints the operands' and the results' bits, the raised flags
- * and errno. Built against the host C library and statically against Liella's products, the
+ * and errno. Built against the host C library and statically against libniji's products, the
  * outputs must agree (complex_products.rs) apart from recorded differences. */
 #define _GNU_SOURCE
 #include <complex.h>

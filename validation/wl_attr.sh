@@ -1,7 +1,7 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload gate, attribution (runs on a timing host): for the workloads that failed a counter,
-# the top Liella symbols by user instructions, NEW against BASE.
+# the top libniji symbols by user instructions, NEW against BASE.
 #
 #   wl_attr.sh BASE NEW WORKLOAD...        (WL as in wl_run.sh)
 #
@@ -13,19 +13,20 @@ set -u
 PATH=$HOME/.cargo/bin:$HOME/bin:$PATH
 WL=${WL:-$HOME/wl}
 . "$(dirname "$0")/wl_workloads.sh"
+. "$(dirname "$0")/wl_lock.sh"   # wl_key: a commit's kit is keyed by sha and products profile (WL-PREP-RELEASE-PROFILE)
 base=$1 new=$2
 shift 2
 tmp=$WL/tmp.attr.$$
 mkdir -p "$tmp"
 trap 'rm -rf "$tmp"' EXIT
-progs=$(ls "$WL/kit/$new/bin" | paste -sd'|')
+progs=$(ls "$WL/kit/$(wl_key "$new")/bin" | paste -sd'|')
 for want in "$@"; do
     for d in "${WL_DEFS[@]}"; do
         name=${d%%|*}
         [ "$name" = "$want" ] || continue
         cmd=${d#*|}
         for v in $base $new; do
-            c=${cmd//@/$WL/kit/$v/bin}
+            c=${cmd//@/$WL/kit/$(wl_key "$v")/bin}
             (cd "$WL/work" && perf record -q -e instructions:u -c 1000000 -o "$tmp/$v.data" sh -c "$c" > /dev/null 2>&1)
             perf report -i "$tmp/$v.data" --stdio --no-children -n --sort dso,sym 2>/dev/null | grep -v '^#' | \
                 awk -v re="^($progs)\$" '$3 ~ re { s = $5; for (i = 6; i <= NF; i++) s = s " " $i; print $2 "\t" s }' > "$tmp/$v.sym"
@@ -35,7 +36,7 @@ for want in "$@"; do
                 paste <(cut -f1 "$tmp/$v.sym") "$tmp/$v.dem" > "$tmp/$v.sym2" && mv "$tmp/$v.sym2" "$tmp/$v.sym"
             fi
         done
-        echo "== $want: top Liella symbols by user instructions (Minstr = samples; base $base -> new $new)"
+        echo "== $want: top libniji symbols by user instructions (Minstr = samples; base $base -> new $new)"
         awk -F'\t' 'NR == FNR { b[$2] += $1; next } { n[$2] += $1 } END {
             for (s in n) printf "%d\t%d\t%d\t%s\n", n[s] - b[s], b[s], n[s], substr(s, 1, 110)
             for (s in b) if (!(s in n)) printf "%d\t%d\t0\t%s\n", -b[s], b[s], substr(s, 1, 110) }' \

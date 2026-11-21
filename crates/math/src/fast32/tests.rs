@@ -3,12 +3,29 @@
 use super::*;
 use crate::exp_log as acc;
 
-const ALL: [Fast; 21] = [Fast::Exp, Fast::Exp2, Fast::Exp10, Fast::Log, Fast::Log2, Fast::Log10, Fast::Log1p, Fast::Sin, Fast::Cos, Fast::Tan, Fast::Expm1, Fast::Cbrt, Fast::Asin, Fast::Acos, Fast::Atan, Fast::Sinh, Fast::Cosh, Fast::Tanh, Fast::Asinh, Fast::Acosh, Fast::Atanh];
-const NAMES: [&str; 21] = ["expf", "exp2f", "exp10f", "logf", "log2f", "log10f", "log1pf", "sinf", "cosf", "tanf", "expm1f", "cbrtf", "asinf", "acosf", "atanf", "sinhf", "coshf", "tanhf", "asinhf", "acoshf", "atanhf"];
+const ALL: [Fast; 23] = [Fast::Exp, Fast::Exp2, Fast::Exp10, Fast::Log, Fast::Log2, Fast::Log10, Fast::Log1p, Fast::Sin, Fast::Cos, Fast::Tan, Fast::Expm1, Fast::Cbrt, Fast::Asin, Fast::Acos, Fast::Atan, Fast::Sinh, Fast::Cosh, Fast::Tanh, Fast::Asinh, Fast::Acosh, Fast::Atanh, Fast::Erf, Fast::Erfc];
+const NAMES: [&str; 23] = ["expf", "exp2f", "exp10f", "logf", "log2f", "log10f", "log1pf", "sinf", "cosf", "tanf", "expm1f", "cbrtf", "asinf", "acosf", "atanf", "sinhf", "coshf", "tanhf", "asinhf", "acoshf", "atanhf", "erff", "erfcf"];
+/// The functions whose accurate path is cheap enough for [`agree`]'s wide strides: not erff and
+/// erfcf (384-bit mp, some 2·10^5 instructions a call), which have their own test.
+const CHEAP: usize = 21;
 const TRIG: [Fast; 3] = [Fast::Sin, Fast::Cos, Fast::Tan];
-const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
+pub(super) const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 
-fn accurate(f: Fast, x: f32, m: Rounding) -> (f32, Status) {
+/// [`eval`], and for the Bessel functions the large band after its refusal, the order
+/// `special::j0` and its siblings take (D-10.109): what the `float` functions answer without the
+/// accurate path.
+pub(super) fn fast(f: Fast, x: f32, m: Rounding) -> Option<(f32, Status)> {
+    let (n, name) = match f {
+        Fast::J0 => (0, "j0f"),
+        Fast::J1 => (1, "j1f"),
+        Fast::Y0 => (2, "y0f"),
+        Fast::Y1 => (3, "y1f"),
+        _ => return eval(f, x, m),
+    };
+    eval(f, x, m).or_else(|| bessel_large(n, x, m, name))
+}
+
+pub(super) fn accurate(f: Fast, x: f32, m: Rounding) -> (f32, Status) {
     match f {
         Fast::Exp => acc::exp(x, m),
         Fast::Exp2 => acc::exp2(x, m),
@@ -31,16 +48,24 @@ fn accurate(f: Fast, x: f32, m: Rounding) -> (f32, Status) {
         Fast::Asinh => crate::hyper::asinh(x, m),
         Fast::Acosh => crate::hyper::acosh(x, m),
         Fast::Atanh => crate::hyper::atanh(x, m),
+        Fast::Erf => crate::special::erf(x, m),
+        Fast::Erfc => crate::special::erfc(x, m),
+        Fast::Tgamma => crate::special::tgamma_accurate::<f32>(x, m),
+        Fast::Lgamma => crate::special::lgamma_accurate::<f32>(x, m).0,
+        Fast::J0 => crate::special::j0_accurate(x, m),
+        Fast::J1 => crate::special::j1_accurate(x, m),
+        Fast::Y0 => crate::special::y0_accurate(x, m),
+        Fast::Y1 => crate::special::y1_accurate(x, m),
     }
 }
 
 /// Compare the fast path with the accurate path on `xs` in every mode; the number taken.
 fn agree(xs: impl Iterator<Item = f32> + Clone) -> u64 {
-    agree_in(&ALL, xs)
+    agree_in(&ALL[..CHEAP], xs)
 }
 
 /// [`agree`] for the functions `fs`; with trig among them also `sincosf` against `sinf`, `cosf`.
-fn agree_in(fs: &[Fast], xs: impl Iterator<Item = f32> + Clone) -> u64 {
+pub(super) fn agree_in(fs: &[Fast], xs: impl Iterator<Item = f32> + Clone) -> u64 {
     let mut taken = 0;
     if fs.contains(&Fast::Sin) {
         for m in MODES {
@@ -175,6 +200,9 @@ fn fast_path_agrees_with_the_accurate_path() {
             // acoshf over [1, 100], atanhf over [-0.99, 0.99] (the bench rows' ranges).
             19 => (0..1u32 << 17).map(|i| 1.0 + 99.0 * (i as f32) / 131_072.0).collect(),
             20 => (0..1u32 << 17).map(|i| -0.99 + 1.98 * (i as f32) / 131_072.0).collect(),
+            // erff over [-5, 5], erfcf over [-3, 10] (the kernels' working ranges).
+            21 => trigs.clone().map(|x| x / 20.0).collect(),
+            22 => trigs.clone().map(|x| 3.5 + x * 0.065).collect(),
             _ => logs.clone().collect(),
         };
         for x in xs {
@@ -251,30 +279,45 @@ fn trig_core_is_within_its_bound() {
 /// `fs` on every `float` operand in every mode; the number taken. The threads take 2^16-operand
 /// chunks from one counter, so one that meets a cheap range (NaN, a refused domain) takes more
 /// chunks instead of idling while another finishes a fixed slice of expensive operands.
-/// `LIELLA_SWEEP_STRIDE=k` checks every k-th encoding only (sizing a sweep before its job).
+/// `NIJI_SWEEP_STRIDE=k` checks every k-th encoding only (sizing a sweep before its job).
 fn exhaustive(fs: &'static [Fast]) -> u64 {
+    exhaustive_by(|xs| agree_in(fs, xs.iter().copied()))
+}
+
+/// [`exhaustive`] with the check `check` on each chunk's operands.
+pub(super) fn exhaustive_by(check: impl Fn(&[f32]) -> u64 + Sync) -> u64 {
+    exhaustive_range_by(0, 1 << 32, check)
+}
+
+/// The 2^16-encoding chunks of a sweep: a shard's bounds are multiples of it.
+pub(super) const SWEEP_CHUNK: u64 = 1 << 16;
+
+/// [`exhaustive_by`] on the encodings `start..end` only (both multiples of [`SWEEP_CHUNK`]): one shard of a
+/// sweep too long for one job, whose shards together cover `0..2^32`.
+pub(super) fn exhaustive_range_by(start: u64, end: u64, check: impl Fn(&[f32]) -> u64 + Sync) -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
-    const CHUNK: u64 = 1 << 16;
+    const CHUNK: u64 = SWEEP_CHUNK;
+    assert!(start % CHUNK == 0 && end % CHUNK == 0 && start < end && end <= 1 << 32, "shard {start:#x}..{end:#x}");
     let n = std::thread::available_parallelism().map_or(8, |n| n.get());
-    let stride = std::env::var("LIELLA_SWEEP_STRIDE").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k > 0).unwrap_or(1);
-    let next = AtomicU64::new(0);
+    let stride = std::env::var("NIJI_SWEEP_STRIDE").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k > 0).unwrap_or(1);
+    let next = AtomicU64::new(start);
     let (taken, seen) = std::thread::scope(|sc| {
         let hs: std::vec::Vec<_> = (0..n).map(|_| sc.spawn(|| {
             let (mut taken, mut seen) = (0, 0);
             loop {
                 let lo = next.fetch_add(CHUNK, Ordering::Relaxed);
-                if lo >= 1 << 32 {
+                if lo >= end {
                     return (taken, seen);
                 }
-                let xs = (lo..lo + CHUNK).step_by(stride).map(|b| f32::from_bits(b as u32));
-                seen += xs.clone().count() as u64;
-                taken += agree_in(fs, xs);
+                let xs: std::vec::Vec<f32> = (lo..lo + CHUNK).step_by(stride).map(|b| f32::from_bits(b as u32)).collect();
+                seen += xs.len() as u64;
+                taken += check(&xs);
             }
         })).collect();
         hs.into_iter().map(|h| h.join().unwrap_or_else(|e| std::panic::resume_unwind(e))).fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
     });
     // Every chunk exactly once: a lost or repeated chunk would pass unseen otherwise.
-    assert_eq!(seen, ((1u64 << 32) / CHUNK) * CHUNK.div_ceil(stride as u64), "sweep coverage (stride {stride})");
+    assert_eq!(seen, ((end - start) / CHUNK) * CHUNK.div_ceil(stride as u64), "sweep coverage (stride {stride})");
     taken
 }
 
@@ -310,6 +353,9 @@ fn atan2_dd(y: crate::dd::Dd, x: crate::dd::Dd) -> crate::dd::Dd {
 /// the `double`: it misrounds only next to a `float` boundary. (No spec clause.)
 #[test]
 fn inverse_trig_cores_are_within_their_bounds() {
+    let Some(verdict) = crate::verdict::Key::new(concat!(env!("CARGO_CRATE_NAME"), ".fast32.inverse_trig_cores_are_within_their_bounds")).begin() else {
+        return;
+    };
     use crate::dd::{two_sum, Dd};
     let ulp = |y: f64| f64::from_bits(y.to_bits() & 0x7ff0_0000_0000_0000) / 4_503_599_627_370_496.0;
     let check = |y: Option<f64>, f: Dd, b: f64, what: &str, x: f32| {
@@ -352,6 +398,55 @@ fn inverse_trig_cores_are_within_their_bounds() {
         }
     }
     assert!(seen > 1_000_000, "{seen}");
+    verdict.pass();
+}
+
+/// The one-pass kernels' `double` results (asinf, acosf: polynomial below |x| = 1/2, half-angle
+/// form above; atanf: the table-point reduction above |x| = 1) within INV_ONEPASS_BOUND ulp of
+/// [`atan2_dd`], round to nearest: every encoding of the band 3/8 ≤ |x| < 3/4 around the split
+/// (a split moved either way puts the polynomial outside its fit interval, hundreds of ulp off
+/// within the band), every 509th over the rest of the range, and every 61st atanf operand in
+/// [1, 64), across the table's bins and its end at 32. Above 1 atanf is held to its own proof's
+/// 5.4u (relative, u = 2^-53), not the shared bound: a table point read from the wrong bin or
+/// cut short leaves |u| up to 1/16 outside the fit's interval, about 16u, inside the shared
+/// bound. The agreement sweeps see such a loss only next to a `float` boundary. (No spec clause:
+/// LIBM-ASINF-NODIV, D-10.103.)
+#[test]
+fn inverse_trig_onepass_kernels_are_within_their_bound() {
+    let Some(verdict) = crate::verdict::Key::new(concat!(env!("CARGO_CRATE_NAME"), ".fast32.inverse_trig_onepass_kernels_are_within_their_bound")).begin() else {
+        return;
+    };
+    use crate::dd::{two_sum, Dd};
+    let ulp = |y: f64| f64::from_bits(y.to_bits() & 0x7ff0_0000_0000_0000) / 4_503_599_627_370_496.0;
+    let bound = INV_ONEPASS_BOUND as f64;
+    let check = |y: f64, f: Dd, what: &str, b: u32| {
+        let err = Dd::from(y).sub(f).to_f64();
+        assert!(err.abs() <= bound * ulp(y), "onepass bound: {what}({b:#010x}): {} ulp", err / ulp(y));
+    };
+    let one = Dd::from(1.0);
+    let band = (0x3ec0_0000u32..0x3f40_0000).step_by(16);
+    let rest = (0x0080_0000u32..0x3f80_0000).step_by(509);
+    let mut seen = 0u32;
+    for b in band.chain(rest).flat_map(|b| [b, b | 1 << 31]) {
+        let a = f64::from(f32::from_bits(b));
+        let (p, q) = (crate::dd::sqrt(two_sum(1.0, -a)), crate::dd::sqrt(two_sum(1.0, a)));
+        check(acos_y(b, f64::sqrt), atan2_dd(p, q).scale(2.0), "acos", b);
+        if b & 0x7fff_ffff >= 0x3280_0000 {
+            let d = crate::dd::sqrt(two_sum(1.0, -a).mul(two_sum(1.0, a)));
+            check(asin_y(b, f64::sqrt), atan2_dd(Dd::from(a), d), "asin", b);
+            check(atan_y(b), atan2_dd(Dd::from(a), one), "atan", b);
+        }
+        seen += 1;
+    }
+    // atanf above 1 (D-10.103's proof at `atan_onepass_any`): 5.4u relative.
+    let above_one = 5.4 / 9_007_199_254_740_992.0;
+    for b in (0x3f80_0001u32..0x4280_0000).step_by(61).chain((0x4280_0000..0x7f80_0000).step_by(0x1_0001)) {
+        let y = atan_y(b);
+        let err = Dd::from(y).sub(atan2_dd(Dd::from(f64::from(f32::from_bits(b))), one)).to_f64();
+        assert!(err.abs() <= above_one * y, "onepass bound: atan({b:#010x}): {} u above 1", err / y * 9_007_199_254_740_992.0);
+    }
+    assert!(seen > 2_500_000, "{seen}");
+    verdict.pass();
 }
 
 /// atan2f's fast path against the accurate path in every mode: pairs across the range with
@@ -650,6 +745,60 @@ fn hyperbolic_hardware_sqrt_agrees_sampled() {
     assert!(taken > 150_000, "{taken}");
 }
 
+/// The 256 bits of 2/π behind `TRIG_LARGE` are the generated table's, and its entries at both
+/// ends and the middle are ⌊2^K/π⌋ mod 2^128 (K = 123, 177, 231), computed independently with
+/// Machin's formula in integers. (No spec clause: LIBM-TINY-FASTPATHS-2.)
+#[test]
+fn trig_large_table_is_two_over_pi() {
+    assert_eq!(TWO_OVER_PI_256[..], t::TWO_OVER_PI[..4]);
+    assert_eq!(TRIG_LARGE[0], 0x028b_e60d_b939_1054_a7f0_9d5f_47d4_d377);
+    assert_eq!(TRIG_LARGE[54], 0x1529_fc27_57d1_f534_ddc0_db62_9599_3c43);
+    assert_eq!(TRIG_LARGE[108], 0x4d37_7036_d8a5_664f_10e4_107f_9458_eaf7);
+}
+
+/// trig_core_wide above 2^19 (reduce_large): sin, cos (< TRIG_BOUND ulp) and tan (< TAN_BOUND
+/// ulp) against the accurate path's `sin_cos` on every 2003rd encoding of [2^19, 2^128) of either
+/// sign; below 2^19 the same `double`s as trig_core (or the same refusal). (No spec clause:
+/// LIBM-TINY-FASTPATHS-2.)
+#[test]
+fn trig_core_wide_is_within_its_bound_above_2_19() {
+    let ulp = |y: f64| f64::from_bits(y.to_bits() & 0x7ff0_0000_0000_0000) / 4_503_599_627_370_496.0;
+    let mut seen = 0u32;
+    for x in (0x4900_0000u32..0x7f80_0000).step_by(2003).flat_map(|b| [b, b | 1 << 31]).map(f32::from_bits) {
+        let Some((s, c)) = trig_core_wide(x) else { continue };
+        seen += 1;
+        let (fs, fc) = crate::trig::sin_cos(f64::from(x));
+        for (y, f, b, n) in [(s, fs, TRIG_BOUND, "sin"), (c, fc, TRIG_BOUND, "cos"), (s / c, fs.div(fc), TAN_BOUND, "tan")] {
+            let err = crate::dd::Dd::from(y).sub(f).to_f64();
+            assert!(err.abs() <= b * ulp(y), "trig_core_wide {n}({x:e}): {} ulp", err / ulp(y));
+        }
+    }
+    assert!(seen > 900_000, "{seen}");
+    let bits = |v: Option<(f64, f64)>| v.map(|(s, c)| (s.to_bits(), c.to_bits()));
+    for x in (0..0x4900_0000u32).step_by(4099).flat_map(|b| [b, b | 1 << 31]).map(f32::from_bits) {
+        assert_eq!(bits(trig_core_wide(x)), bits(trig_core(x)), "{:#010x}", x.to_bits());
+    }
+}
+
+/// The `float` sin, cos and tan entries with the boundary's conversion (`f64::from`, what its
+/// in-place `cvtss2sd` computes) answer exactly where, and exactly what, the bit-built entries do,
+/// on every 16411th `float` encoding: the operand handed to the core is x's `double` and each
+/// entry rounds its own result. (No spec clause: LIBM-SINF-IVB-RATCHET-2, D-10.79.)
+#[test]
+fn trig_widen_entries_match_the_bit_built_ones() {
+    let mut taken = 0u64;
+    for x in (0..u32::MAX).step_by(16411).map(f32::from_bits) {
+        let pairs = [(sin_nearest(x), sin_nearest_widen(x, f64::from)), (cos_nearest(x), cos_nearest_widen(x, f64::from)), (tan_nearest(x), tan_nearest_widen(x, f64::from))];
+        for (k, (want, got)) in pairs.into_iter().enumerate() {
+            assert_eq!(got.map(f32::to_bits), want.map(f32::to_bits), "entry {k} at {:#010x}", x.to_bits());
+            taken += u64::from(got.is_some());
+        }
+    }
+    // 261,712 encodings sampled, 45 of 256 exponents in the core's range: about 3 x 46,000 entry
+    // calls reach the core, less its refusals (128,091 taken). A floor that proves the core ran.
+    assert!(taken > 120_000, "{taken}");
+}
+
 /// asinhf and acoshf with the hardware root on every `float` (2^33 calls, its own job:
 /// LIBM-F32-HYPERBOLIC-4's accuracy check). (No spec clause.)
 #[test]
@@ -881,4 +1030,43 @@ fn fast_path_agrees_exhaustively() {
         hs.into_iter().map(|h| h.join().unwrap_or_else(|e| std::panic::resume_unwind(e))).sum()
     });
     std::println!("fast path taken {taken} of {} calls", (fs.len() as u64 * 4) << 32);
+}
+
+/// `f` against the tiered oracle (ruling #2889) on `xs`, `est` its family's estimator: one
+/// oracle call per operand the fast path takes in any mode, the accurate path only for the
+/// modes the double-double tier leaves undecided; the number of calls taken.
+pub(super) fn agree_oracle(f: Fast, get: impl Fn(f32, Rounding) -> Option<(f32, Status)>, est: impl Fn(f32) -> crate::oracle32::Est, xs: impl Iterator<Item = f32>, tally: &crate::oracle32::Tally) -> u64 {
+    use crate::oracle32 as o;
+    let mut taken = 0;
+    for x in xs {
+        let got = o::MODES.map(|m| get(x, m));
+        if got.iter().all(Option::is_none) {
+            continue;
+        }
+        let want = o::oracle(est(x), tally, |m| accurate(f, x, m));
+        for (i, g) in got.into_iter().enumerate() {
+            if let Some(r) = g {
+                taken += 1;
+                let m = o::MODES[i];
+                assert_eq!((f, m, x.to_bits(), r.0.to_bits(), r.1), (f, m, x.to_bits(), want[i].0.to_bits(), want[i].1));
+            }
+        }
+    }
+    taken
+}
+
+/// `f` on every `float` operand in every mode against the tiered oracle (`est` its family's
+/// estimator; `NIJI_SWEEP_STRIDE` thins the sweep) through [`fast`] (for the Bessel functions
+/// the large band after the fast path, D-10.109); prints the calls taken and how often the
+/// oracle needed the mp path.
+pub(super) fn exhaustive_oracle(f: Fast, name: &str, est: impl Fn(f32) -> crate::oracle32::Est + Sync) {
+    exhaustive_oracle_by(f, name, est, |x, m| fast(f, x, m));
+}
+
+/// [`exhaustive_oracle`] with `get` in place of [`fast`]: the fast path and what its entry adds
+/// before the accurate path (erff and erfcf: the tiny operands' direct paths, D-10.107).
+pub(super) fn exhaustive_oracle_by(f: Fast, name: &str, est: impl Fn(f32) -> crate::oracle32::Est + Sync, get: impl Fn(f32, Rounding) -> Option<(f32, Status)> + Sync) {
+    let tally = crate::oracle32::Tally::default();
+    let taken = exhaustive_by(|xs| agree_oracle(f, &get, &est, xs.iter().copied(), &tally));
+    std::println!("{name} fast path taken {taken} of {} calls; oracle: {}", 4u64 << 32, tally.summary());
 }

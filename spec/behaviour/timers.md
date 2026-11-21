@@ -57,5 +57,5 @@ on the machine's load. Signals are blocked and collected with `sigtimedwait`.
 ## What the record does not settle
 
 * Whether each `SIGEV_THREAD` call runs in a new thread or a reused one (the spec says "a new
-  thread"; D-23.3 records Liella's choice).
+  thread"; D-23.3 records libniji's choice).
 * The signal mask of the `SIGEV_THREAD` thread beyond the case above.

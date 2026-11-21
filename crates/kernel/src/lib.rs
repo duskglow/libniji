@@ -2,7 +2,7 @@
 //!
 //! This crate defines *what* the kernel provides, as the safe `Sys` and `Machine` traits and the
 //! kernel's data types. It performs no system calls itself: the only implementation that reaches
-//! the kernel is `liella_boundary::sys::CSys`, which calls the C syscall layer (`csys/`). Every
+//! the kernel is `niji_boundary::sys::CSys`, which calls the C syscall layer (`csys/`). Every
 //! other crate receives the kernel as a generic parameter `S: Sys`, which is zero-cost after
 //! monomorphisation and lets tests substitute a fault-injecting kernel (rule X5).
 //!

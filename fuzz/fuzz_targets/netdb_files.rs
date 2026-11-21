@@ -4,8 +4,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::names::db;
-use liella_fuzz::Input;
+use niji::names::db;
+use niji_fuzz::Input;
 
 fuzz_target!(|data: &[u8]| {
     let mut input = Input::new(data);

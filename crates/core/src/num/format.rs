@@ -465,11 +465,21 @@ fn decimal_general(out: &mut dyn Sink, x: Float, spec: Spec, radix: &[u8], mode:
             if exact_small_into(mant, exp, sig, frac, &mut d) {
                 decimal_styles(out, &d, x.neg, spec, radix, mode);
             } else {
-                decimal_styles(out, &exact(mant, exp), x.neg, spec, radix, mode);
+                decimal_exact(out, mant, exp, x.neg, spec, radix, mode);
             }
         }
         _ => decimal_styles(out, &Decimal::<SMALL_DIGITS>::zero(), x.neg, spec, radix, mode),
     }
+}
+
+/// The full decimal expansion's branch of [`decimal_general`], kept out of line
+/// (PERF-FIRSTCALL-MKTIME-SNPRINTF): its [`MAX_DIGITS`] decimal and the rounded copy
+/// `decimal_styles` makes of it take about 24 KiB of stack. Inlined, that frame belonged to
+/// `format_float`, whose prologue then probed six stack pages on every float conversion, the
+/// common ones that never reach this branch included (six page faults on a first `%.2f`).
+#[inline(never)]
+fn decimal_exact(out: &mut dyn Sink, mant: u128, exp: i32, neg: bool, spec: Spec, radix: &[u8], mode: Rounding) {
+    decimal_styles(out, &exact(mant, exp), neg, spec, radix, mode);
 }
 
 /// `%.<p>f` of `mant × 2^exp` for `p` up to 19 by scaled integer arithmetic (PRINTF-FLOAT): with
@@ -1354,14 +1364,14 @@ mod tests {
         assert!(hits * 3 > runs, "scaled %g took {hits} of {runs}");
     }
 
-    /// The PRINTF-FLOAT differential run: millions of values (LIELLA_PF_DIFF_N, default 4M,
+    /// The PRINTF-FLOAT differential run: millions of values (NIJI_PF_DIFF_N, default 4M,
     /// two formats each). Ignored in the suite (minutes unoptimised); run with --release
     /// --ignored --nocapture.
     #[test]
     #[ignore]
     fn scaled_general_matches_the_general_path_on_millions() {
-        let n = std::env::var("LIELLA_PF_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(4_000_000u64);
-        let seed = std::env::var("LIELLA_PF_DIFF_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(0x9E37_79B9_7F4A_7C15u64);
+        let n = std::env::var("NIJI_PF_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(4_000_000u64);
+        let seed = std::env::var("NIJI_PF_DIFF_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(0x9E37_79B9_7F4A_7C15u64);
         let (runs, hits) = general_differential(n, seed | 1);
         std::eprintln!("PF-DIFF: {n} values, {runs} formats, {hits} by the scaled path, all identical to the general path");
         assert!(hits * 3 > runs, "scaled %g took {hits} of {runs}");

@@ -1,0 +1,12 @@
+# UTIL-GETENT plants: getent's formatting, key parsing, exit statuses and stream choice (csys/utils/getent.c),
+# each caught by the recorded transcripts (validation/transcripts/getent/). Run with cargo xtask plants (docs/plants.md);
+# the tool rebuilds the products (cargo xtask so links target/liella-test/getent) before each plant's command.
+hosts-pad | csys/utils/getent.c | lit:printf("%-15s %s", text, h->h_name); ==> printf("%-16s %s", text, h->h_name); | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*hosts-keys
+number-whole | csys/utils/getent.c | lit:if (*end != '\0' || errno != 0) ==> if (errno != 0) | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*passwd-keys
+noenum-stream | csys/utils/getent.c | lit:fputs("Enumeration not supported on ethers\n", stderr); ==> fputs("Enumeration not supported on ethers\n", stdout); | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*ethers-enum
+initgroups-base | csys/utils/getent.c | lit:if (list[k] != (gid_t)-1) ==> if (list[k] != (gid_t)-2) | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*initgroups-keys
+v4mapped | csys/utils/getent.c | lit:(family == AF_INET6 ? AI_V4MAPPED : 0) ==> 0 | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*ahostsv6-mapped
+unknown-db-stream | csys/utils/getent.c | lit:fprintf(stderr, "Unknown database: %s\n", operands[0]); ==> fprintf(stdout, "Unknown database: %s\n", operands[0]); | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*unknown-db
+service-db-error | csys/utils/getent.c | lit:if (rc != 0) { ==> if (rc == 0) { | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*service-(bad-db|db)
+rpc-alias-gap | csys/utils/getent.c | lit:if (r->r_aliases != NULL && r->r_aliases[0] != NULL) ==> if (r->r_aliases != NULL) | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*rpc-enum
+netgroup-null-host | csys/utils/getent.c | lit:host != NULL ? host : " " ==> host != NULL ? host : "" | cargo xtask transcript check validation/transcripts/getent | msg:MISMATCH .*netgroup-list

@@ -1,5 +1,5 @@
 [package]
-name = "liella"
+name = "niji"
 description = "The clean capability API: one contract per need, explicit state, a single error model"
 version.workspace = true
 edition.workspace = true
@@ -8,28 +8,28 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
-name = "liella"
+name = "niji"
 
 [features]
 # Test-only counters of which regex execution path ran (`pattern::regex::paths`); enabled by
-# liella-boundary's `selftest`, never by a product.
+# niji-boundary's `selftest`, never by a product.
 selftest = []
 
 [dependencies]
-liella-kernel = { workspace = true }
-liella-mem = { workspace = true }
-liella-rt = { workspace = true }
+niji-kernel = { workspace = true }
+niji-mem = { workspace = true }
+niji-rt = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
-# The clause tests also exercise the C-shaped compositions of liella-legacy (argz, strl*,
-# tokenizer steps); integration tests link one copy of liella, so the cycle is harmless.
-liella-legacy = { workspace = true }
+# The clause tests also exercise the C-shaped compositions of niji-legacy (argz, strl*,
+# tokenizer steps); integration tests link one copy of niji, so the cycle is harmless.
+niji-legacy = { workspace = true }
 # Clauses about the C interface itself (fortify aborts, strdup ENOMEM, strtok's hidden cursor)
 # run through the exports.
-liella-boundary = { workspace = true, features = ["selftest"] }
-liella-kernel = { workspace = true }
-liella-abi = { workspace = true }
+niji-boundary = { workspace = true, features = ["selftest"] }
+niji-kernel = { workspace = true }
+niji-abi = { workspace = true }
 
 [lints]
 workspace = true

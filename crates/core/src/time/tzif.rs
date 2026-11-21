@@ -26,8 +26,10 @@ pub struct Tzif<'a> {
     pub version: u8,
     /// Transition times and the index of the type each selects.
     pub transitions: TryVec<(i64, u8)>,
-    /// The local time types (at least one).
-    pub types: TryVec<TypeRecord>,
+    /// The local time type records as stored (six bytes each, at least one), already checked:
+    /// read them with [`Tzif::types`]. Kept in the file's bytes rather than copied into a table
+    /// of their own, so that loading a zone makes one allocation fewer (PERF-ZONE-LOAD-FAULTS).
+    pub type_records: &'a [u8],
     /// The designation bytes (NUL-separated).
     pub designations: &'a [u8],
     /// Leap-second records: occurrence and the correction from then on.
@@ -42,6 +44,25 @@ impl<'a> Tzif<'a> {
         let rest = self.designations.get(t.idx..).unwrap_or(&[]);
         rest.split(|&b| b == 0).next().unwrap_or(&[])
     }
+
+    /// The local time types, in file order.
+    pub fn types(&self) -> impl Iterator<Item = TypeRecord> + 'a {
+        self.type_records.chunks_exact(6).map(type_record)
+    }
+
+    /// The number of local time types.
+    pub fn type_count(&self) -> usize {
+        self.type_records.chunks_exact(6).len()
+    }
+}
+
+/// The record in `b` (six bytes: a big-endian `i32` offset, the DST flag, the designation
+/// index); zero where `b` is short, which [`block`] never passes.
+fn type_record(b: &[u8]) -> TypeRecord {
+    let utoff = b.get(..4).and_then(|s| s.try_into().ok()).map_or(0, |w| i64::from(i32::from_be_bytes(w)));
+    let isdst = b.get(4).is_some_and(|&v| v != 0);
+    let idx = b.get(5).map_or(0, |&v| usize::from(v));
+    TypeRecord { utoff, isdst, idx }
 }
 
 struct Reader<'a> {
@@ -132,30 +153,31 @@ fn block<'a>(r: &mut Reader<'a>, c: &Counts, wide: bool, version: u8) -> Result<
         return Err(Errno::EINVAL);
     }
     let mut out = Tzif { version, ..Tzif::default() };
-    out.transitions.reserve(c.time)?;
-    let mut times = TryVec::with_capacity(c.time)?;
-    for _ in 0..c.time {
-        times.push(r.time(wide)?)?;
-    }
-    for &t in times.iter() {
-        let i = r.byte()?;
-        if usize::from(i) >= c.types {
+    // The times and their type indices in one pass over the two arrays, straight into the
+    // result (the first use of a zone parses every transition of its file), checking each
+    // index and that the times strictly increase.
+    let width = if wide { 8 } else { 4 };
+    let times = r.take(c.time.checked_mul(width).ok_or(Errno::EINVAL)?)?;
+    let indices = r.take(c.time)?;
+    out.transitions.resize(c.time, (0, 0))?;
+    let mut prev = i64::MIN;
+    for (n, ((slot, raw), &i)) in out.transitions.as_mut_slice().iter_mut().zip(times.chunks_exact(width)).zip(indices).enumerate() {
+        let t = match (raw.try_into(), raw.try_into()) {
+            (Ok(w), _) if wide => i64::from_be_bytes(w),
+            (_, Ok(w)) if !wide => i64::from(i32::from_be_bytes(w)),
+            _ => return Err(Errno::EINVAL),
+        };
+        if usize::from(i) >= c.types || (n > 0 && t <= prev) {
             return Err(Errno::EINVAL);
         }
-        out.transitions.push((t, i))?;
+        prev = t;
+        *slot = (t, i);
     }
-    if out.transitions.windows(2).any(|w| w.first().map(|x| x.0) >= w.get(1).map(|x| x.0)) {
-        return Err(Errno::EINVAL);
-    }
-    out.types.reserve(c.types)?;
-    for _ in 0..c.types {
-        let utoff = r.i32()?;
-        let isdst = r.byte()? != 0;
-        let idx = usize::from(r.byte()?);
-        if utoff == i64::from(i32::MIN) || (idx >= c.chars && c.chars != 0) {
+    out.type_records = r.take(c.types.checked_mul(6).ok_or(Errno::EINVAL)?)?;
+    for t in out.types() {
+        if t.utoff == i64::from(i32::MIN) || (t.idx >= c.chars && c.chars != 0) {
             return Err(Errno::EINVAL);
         }
-        out.types.push(TypeRecord { utoff, isdst, idx })?;
     }
     out.designations = r.take(c.chars)?;
     out.leaps.reserve(c.leap)?;

@@ -1,6 +1,6 @@
 //! Shared pieces of the fuzz harnesses (implementation-plan.md §6, "Fuzzing infrastructure").
 //!
-//! Every harness calls Liella's own parsers through their internal API (never the host C
+//! Every harness calls libniji's own parsers through their internal API (never the host C
 //! library) on bytes held in memory: no harness opens a system file, runs a command or touches
 //! the network. Inputs are split by [`Input`]: text parts separated by NUL bytes (so a seed can
 //! be plain text), or length-prefixed binary parts for binary formats.
@@ -158,6 +158,6 @@ mod tests {
 }
 
 /// The locales the harnesses run under: the built-in `"C"` and `"C.UTF-8"`.
-pub fn locale(utf8: bool) -> liella::locale::Locale {
-    if utf8 { liella::locale::Locale::c_utf8(b"C.UTF-8") } else { liella::locale::Locale::C }
+pub fn locale(utf8: bool) -> niji::locale::Locale {
+    if utf8 { niji::locale::Locale::c_utf8(b"C.UTF-8") } else { niji::locale::Locale::C }
 }

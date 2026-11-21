@@ -39,7 +39,7 @@ pub(crate) const SETSID: i64 = 157;
 pub(crate) const GETSID: i64 = 156;
 pub(crate) const SETPGID: i64 = 154;
 pub(crate) const GETPGID: i64 = 155;
-// GETPGRP: absent (liella_sys_getpgrp is built on getpgid).
+// GETPGRP: absent (niji_sys_getpgrp is built on getpgid).
 pub(crate) const RT_SIGACTION: i64 = 134;
 pub(crate) const RT_SIGPROCMASK: i64 = 135;
 pub(crate) const RT_SIGSUSPEND: i64 = 133;
@@ -51,7 +51,7 @@ pub(crate) const KILL: i64 = 129;
 pub(crate) const TGKILL: i64 = 131;
 pub(crate) const SIGALTSTACK: i64 = 132;
 pub(crate) const SIGNALFD4: i64 = 74;
-// PAUSE: absent (liella_sys_pause is built on ppoll).
+// PAUSE: absent (niji_sys_pause is built on ppoll).
 pub(crate) const BRK: i64 = 214;
 pub(crate) const MMAP: i64 = 222;
 pub(crate) const MUNMAP: i64 = 215;
@@ -89,7 +89,7 @@ pub(crate) const NAME_TO_HANDLE_AT: i64 = 264;
 pub(crate) const CLOSE: i64 = 57;
 pub(crate) const CLOSE_RANGE: i64 = 436;
 pub(crate) const DUP: i64 = 23;
-// DUP2: absent (liella_sys_dup2 is built on dup3).
+// DUP2: absent (niji_sys_dup2 is built on dup3).
 pub(crate) const DUP3: i64 = 24;
 pub(crate) const FCNTL: i64 = 25;
 pub(crate) const IOCTL: i64 = 29;
@@ -214,11 +214,11 @@ pub(crate) const CLOCK_ADJTIME: i64 = 266;
 pub(crate) const CLOCK_NANOSLEEP: i64 = 115;
 pub(crate) const GETTIMEOFDAY: i64 = 169;
 pub(crate) const SETTIMEOFDAY: i64 = 170;
-// TIME: absent (liella_sys_time is built on clock_gettime).
+// TIME: absent (niji_sys_time is built on clock_gettime).
 pub(crate) const TIMES: i64 = 153;
 pub(crate) const SETITIMER: i64 = 103;
 pub(crate) const GETITIMER: i64 = 102;
-// ALARM: absent (liella_sys_alarm is built on setitimer).
+// ALARM: absent (niji_sys_alarm is built on setitimer).
 pub(crate) const TIMER_CREATE: i64 = 107;
 pub(crate) const TIMER_SETTIME: i64 = 110;
 pub(crate) const TIMER_GETTIME: i64 = 108;

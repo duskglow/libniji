@@ -14,16 +14,16 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 #![allow(unused_imports)]
 
-use liella_boundary::errno;
+use niji_boundary::errno;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use liella_boundary::posix::s20_signals as sig;
+use niji_boundary::posix::s20_signals as sig;
 use spectest::symbol;
 
-use liella_abi::layout::{
+use niji_abi::layout::{
     cnd_t, cpu_set_t, mtx_t, pthread_attr_t, pthread_barrier_t, pthread_barrierattr_t, pthread_cond_t, pthread_condattr_t, pthread_mutex_t,
     pthread_mutexattr_t, pthread_rwlock_t, pthread_rwlockattr_t, pthread_spinlock_t, pthread_t, sem_t, sigset_t, struct_sched_param, thrd_t,
 };
-use liella_boundary::posix::s22_threads as t;
+use niji_boundary::posix::s22_threads as t;
 
 mod products;
 use products::{archived, compat_only, conformance, exported, loader_owned};
@@ -202,16 +202,16 @@ fn sem_roundtrip() {
     assert_eq!(t::sem_getvalue(&mut s, Some(&mut v)), 0);
     assert_eq!(v, 1);
     assert_eq!(t::sem_trywait(&mut s), 0);
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     assert_eq!(t::sem_trywait(&mut s), -1);
-    assert_eq!(liella_boundary::errno::get(), EAGAIN);
+    assert_eq!(niji_boundary::errno::get(), EAGAIN);
     assert_eq!(t::sem_post(&mut s), 0);
     t::sem_getvalue(&mut s, Some(&mut v));
     assert_eq!(v, 1);
     assert_eq!(t::sem_destroy(&mut s), 0);
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     assert_eq!(t::sem_init(&mut s, 0, u32::MAX), -1, "above SEM_VALUE_MAX");
-    assert_eq!(liella_boundary::errno::get(), EINVAL);
+    assert_eq!(niji_boundary::errno::get(), EINVAL);
 }
 
 fn objects_roundtrip() {
@@ -592,35 +592,35 @@ fn sym_pthread_cond_init() {
 /// first use and zero again after `destroy`; `init` refuses a shared or monotonic attribute after
 /// zeroing (tools/probe/compat/compat_condvar.c). No thread waits here (waits need the products).
 #[test]
-fn sym_liella_compat_pthread_cond_objects() {
+fn sym_niji_compat_pthread_cond_objects() {
     let mut w: u64 = 0xa5a5_a5a5_a5a5_a5a5;
-    assert_eq!(t::liella_compat_pthread_cond_init(&mut w, core::ptr::null()), 0);
+    assert_eq!(t::niji_compat_pthread_cond_init(&mut w, core::ptr::null()), 0);
     assert_eq!(w, 0, "init zeroes the word");
-    assert_eq!(t::liella_compat_pthread_cond_signal(&mut w), 0);
+    assert_eq!(t::niji_compat_pthread_cond_signal(&mut w), 0);
     assert_ne!(w, 0, "first use installs the condition variable");
     let first = w;
-    assert_eq!(t::liella_compat_pthread_cond_broadcast(&mut w), 0);
+    assert_eq!(t::niji_compat_pthread_cond_broadcast(&mut w), 0);
     assert_eq!(w, first, "later uses keep it");
-    assert_eq!(t::liella_compat_pthread_cond_destroy(&mut w), 0);
+    assert_eq!(t::niji_compat_pthread_cond_destroy(&mut w), 0);
     assert_eq!(w, 0, "destroy detaches it");
-    assert_eq!(t::liella_compat_pthread_cond_destroy(&mut w), 0, "destroy of an unused object");
+    assert_eq!(t::niji_compat_pthread_cond_destroy(&mut w), 0, "destroy of an unused object");
     let mut a = pthread_condattr_t { __size: [0; 4] };
     assert_eq!(t::pthread_condattr_init(&mut a), 0);
     assert_eq!(t::pthread_condattr_setpshared(&mut a, 1), 0);
     w = u64::MAX;
-    assert_eq!(t::liella_compat_pthread_cond_init(&mut w, &a), 22, "process-shared refused (EINVAL)");
+    assert_eq!(t::niji_compat_pthread_cond_init(&mut w, &a), 22, "process-shared refused (EINVAL)");
     assert_eq!(w, 0, "zeroed before the refusal");
     assert_eq!(t::pthread_condattr_init(&mut a), 0);
     assert_eq!(t::pthread_condattr_setclock(&mut a, 1), 0);
-    assert_eq!(t::liella_compat_pthread_cond_init(&mut w, &a), 22, "CLOCK_MONOTONIC refused (EINVAL)");
-    assert_eq!(t::liella_compat_pthread_cond_signal(core::ptr::null_mut()), 22, "NULL: EINVAL");
+    assert_eq!(t::niji_compat_pthread_cond_init(&mut w, &a), 22, "CLOCK_MONOTONIC refused (EINVAL)");
+    assert_eq!(t::niji_compat_pthread_cond_signal(core::ptr::null_mut()), 22, "NULL: EINVAL");
 }
-/// s22_5_c_1_2: the old condition variable across Liella's threads, through the products: signal
+/// s22_5_c_1_2: the old condition variable across libniji's threads, through the products: signal
 /// hands each of 20000 items to one of 4 consumers, broadcast releases 4 waiters for each of 2000
 /// generations, timedwait returns 0 when signalled before its deadline and ETIMEDOUT past it, and
 /// destroy zeroes the word. A lost wakeup hangs the program until its alarm fails it (LG-3, #1167).
 #[test]
-fn sym_liella_compat_pthread_cond_threads() {
+fn sym_niji_compat_pthread_cond_threads() {
     conformance(&["s22_compat_condvar"]);
 }
 #[test]
@@ -1336,11 +1336,11 @@ fn sym_pthread_setspecific() {
 fn sym_pthread_sigmask() {
     // In a fresh thread: the mask is per thread.
     std::thread::spawn(|| {
-        let mut set = liella_abi::layout::sigset_t { __val: [0; 16] };
+        let mut set = niji_abi::layout::sigset_t { __val: [0; 16] };
         sig::sigaddset(Some(&mut set), 10);
-        let mut old = liella_abi::layout::sigset_t { __val: [9; 16] };
+        let mut old = niji_abi::layout::sigset_t { __val: [9; 16] };
         assert_eq!(sig::pthread_sigmask(0, Some(&set), Some(&mut old)), 0);
-        let mut now = liella_abi::layout::sigset_t { __val: [0; 16] };
+        let mut now = niji_abi::layout::sigset_t { __val: [0; 16] };
         sig::pthread_sigmask(0, None, Some(&mut now));
         assert_eq!(sig::sigismember(Some(&now), 10), 1);
         errno::set_raw(0);

@@ -1,0 +1,29 @@
+name: getent an ambiguous long option prefix: exit 64
+clause: s31_1_f_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+arg: --no
+arg: hosts
+arg: box
+status: exit 64
+stdout:
+stderr:
+| getent: option '--no' is ambiguous; possibilities: '--no-idn' '--no-addrconfig'
+| Try `getent --help' or `getent --usage' for more information.

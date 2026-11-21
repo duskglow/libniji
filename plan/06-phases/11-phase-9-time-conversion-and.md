@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 9: Time conversion and zones
 
@@ -46,7 +46,7 @@
     conformance programs `s23_zones.c` and `s23_timefmt.c`. `cargo xtask test`: plain,
     export+selftest, conformance 54/54; clippy clean.
   * **Budgets:** `benchmarks/progress.md` entry 7. No owner budgets exist for this phase; sanity
-    bounds only (`cbench_time`). Liella is 1.3× glibc for `localtime_r` with a zone file and
+    bounds only (`cbench_time`). libniji is 1.3× glibc for `localtime_r` with a zone file and
     2–3.6× for `gmtime_r`/`timegm`, but 9–18× with UTC or a POSIX rule and 11× for `mktime`
     (the environment is read on every call; listed as an optimization target). One phase-7 sanity
     bound (`isalpha_c`) was raised from 10 to 12 ns: the phase-8 products measure the same 10.1 ns

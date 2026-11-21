@@ -4,7 +4,7 @@
  * arguments, exact cases, the C Annex F tables of pow and atan2) and on random operands, in
  * every rounding direction. Each line prints the operands' and results' 80-bit encodings (20
  * hex digits), the raised flags and errno. Built against the host C library and statically
- * against Liella's products, the outputs must agree (elem_ld_products.rs) except where Liella is
+ * against libniji's products, the outputs must agree (elem_ld_products.rs) except where libniji is
  * correctly rounded and the host is not. */
 #define _GNU_SOURCE
 #include <errno.h>

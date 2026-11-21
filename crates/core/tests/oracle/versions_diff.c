@@ -1,5 +1,5 @@
 /* strverscmp end to end (validation T18): built against the host C library and against
- * Liella's products, the outputs must be identical (versions_products.rs). Every pair of
+ * libniji's products, the outputs must be identical (versions_products.rs). Every pair of
  * strings of 0 to 4 characters over "012a." (781 strings): one line per left string, one sign
  * character per right string. */
 #define _GNU_SOURCE

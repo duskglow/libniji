@@ -16,12 +16,12 @@
 //!   (OD-5).
 //! * **`/etc/ttys`** (§19.5): [`TtyLine::parse`] reads one line of the BSD terminal table.
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{IoctlIntArg, IoctlIntIn, IoctlIntOut, TcSet2};
-use liella_kernel::path::{KStr, PATH_MAX};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{KTermios2, Winsize, O_NOCTTY, O_RDWR};
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{IoctlIntArg, IoctlIntIn, IoctlIntOut, TcSet2};
+use niji_kernel::path::{KStr, PATH_MAX};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{KTermios2, Winsize, O_NOCTTY, O_RDWR};
 
 use crate::error::Result;
 
@@ -495,7 +495,7 @@ pub fn name_in<S: Sys>(sys: &S, fd: Fd, out: &mut [u8]) -> Result<usize> {
 /// when it is this very terminal (the same device, inode and device number as `st`, the
 /// terminal's status), so a mount namespace with another `/dev` gives `ENODEV`, never a wrong
 /// name. Written to `out` with its terminator: its length.
-pub fn name_by_device<S: Sys>(sys: &S, st: &liella_kernel::uapi::Stat, out: &mut [u8]) -> Result<usize> {
+pub fn name_by_device<S: Sys>(sys: &S, st: &niji_kernel::uapi::Stat, out: &mut [u8]) -> Result<usize> {
     let (major, minor) = (crate::fs::major(st.rdev), crate::fs::minor(st.rdev));
     let mut digits = [0u8; 10];
     let (stem, number): (&[u8], Option<u32>) = match (major, minor) {

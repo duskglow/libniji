@@ -1,7 +1,7 @@
 //! The C conventions of spec §13.13 (phase 12; D-13.8, D-13.10, D-13.15): the mount-table
 //! streams (`setmntent`, `getmntent`, `getmntent_r`, `addmntent`, `endmntent`, `hasmntopt`) and
 //! the `fstab` enumeration (`setfsent`, `getfsent`, `getfsspec`, `getfsfile`, `endfsent`). The
-//! text format is `liella::fs::mnttab`; the streams are `crate::stdio`'s; the exports in
+//! text format is `niji::fs::mnttab`; the streams are `crate::stdio`'s; the exports in
 //! `posix::s13_filesystem` convert the C arguments.
 //!
 //! **Results.** `getmntent` and the `fsent` functions return a record in a block of the calling
@@ -18,19 +18,19 @@
 //! with a positive size, a NULL `mntbuf` and a NULL key are `EFAULT`. `endmntent(NULL)` returns 1
 //! and does nothing.
 
-use liella::error::Errno;
-use liella::fs::mnttab::{self, Entry};
-use liella::mem::TryVec;
-use liella::stream::Whence;
-use liella_abi::layout::{struct_fstab, struct_mntent};
-use liella_abi::pack::Packer;
-use liella_kernel::errno::KResult;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY, S_IFDIR, S_IFMT};
-use liella_legacy::cursors::{self, Step, FS_CURSOR};
-use liella_legacy::stdio_compat as sc;
+use niji::error::Errno;
+use niji::fs::mnttab::{self, Entry};
+use niji::mem::TryVec;
+use niji::stream::Whence;
+use niji_abi::layout::{struct_fstab, struct_mntent};
+use niji_abi::pack::Packer;
+use niji_kernel::errno::KResult;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, S_IFDIR, S_IFMT};
+use niji_legacy::cursors::{self, Step, FS_CURSOR};
+use niji_legacy::stdio_compat as sc;
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;

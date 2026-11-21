@@ -1,22 +1,27 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload gate, step 1 (runs on Zen 1 host): products, link kits and inputs.   validation/wl_gate.sh
 #
 #   wl_prep.sh SHA...
 #
 # SHA: full commit ids whose source tree is already unpacked in ~/wl/src/SHA (wl_gate.sh does
-# that with git archive). For each SHA: build the products (cargo xtask so; libc.a and
-# liella-crt1.o) into ~/wl/products/SHA, then relink every workload program against them into
-# the kit ~/wl/kit/SHA/bin. The program objects come from the validation builds
-# (~/validation/build/liella-m, make: liella-noload), compiled with the system's headers, so
-# they do not depend on the Liella commit; only the final link does. The link commands are
+# that with git archive). For each SHA: build the products (`cargo xtask so` with NIJI_FULL_PROFILE=1, the shipped
+# release profile; WL_PROFILE=fast for the fast one; libc.a, libm.a and niji-crt1.o) into ~/wl/products/KEY, then
+# relink every workload program against them into the kit ~/wl/kit/KEY/bin. KEY = $(wl_key SHA) (validation/wl_lock.sh):
+# SHA-release, or SHA for the fast profile. The program objects come from the validation builds
+# (~/validation/build/niji-m, make: niji-noload), compiled with the system's headers, so
+# they do not depend on the libniji commit; only the final link does. The link commands are
 # taken once from `make -n` (nothing is built in the validation trees). The glibc kit
 # ~/wl/kit/glibc/bin holds the dynamically linked host builds. Inputs: ~/wl/work.
+# WL_LINK=dynamic (WL-DYNAMIC-KIT): the libniji-dynamic kit, the same objects linked against libniji's libc.so.6 and
+# started by its ld.so (wl_dyncc.sh), keyed $(wl_key SHA) = SHA-release-dyn (products and kit); default static.
 set -eu
 V=$HOME/validation
 W=$HOME/wl
 mkdir -p "$W/products" "$W/kit" "$W/recipes" "$W/work" "$W/src"
-. "$(dirname "$0")/wl_lock.sh"
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/wl_lock.sh"
+wl_link > /dev/null || exit 2   # WL_LINK=dynamic: the libniji-dynamic kit (wl_lock.sh LINK, wl_dyncc.sh)
 
 # name|path in the tree|main object|tree under build/<variant>/
 PROGS=(
@@ -36,8 +41,17 @@ if [ -n "${WL_PROGS:-}" ]; then
     for p in "${PROGS[@]}"; do case " $WL_PROGS " in *" ${p%%|*} "*) keep+=("$p") ;; esac; done
     PROGS=("${keep[@]}")
 fi
-ltree() { # name tree -> the liella validation tree
-    case $1 in make) echo "$V/build/liella-noload/$2" ;; *) echo "$V/build/liella-m/$2" ;; esac
+ltree() { # name tree -> the niji validation tree
+    local s=m b c
+    [ "$1" = make ] && s=noload
+    b=$V/build/niji-$s
+    # Hosts whose validation builds predate the project's rename keep the same objects (system headers, independent
+    # of the libniji commit) under the former name: take the non-glibc tree with the same suffix. Without this no kit
+    # linked on such a host.
+    if [ ! -d "$b" ]; then
+        for c in "$V"/build/*-"$s"; do case ${c##*/} in glibc-*) ;; *) [ -d "$c" ] && b=$c ;; esac; done
+    fi
+    echo "$b/$2"
 }
 gtree() { case $1 in make) echo "$V/build/glibc-noload/$2" ;; *) echo "$V/build/glibc/$2" ;; esac; }
 
@@ -69,20 +83,34 @@ for p in "${PROGS[@]}"; do
 done
 
 for sha in "$@"; do
-    prod=$W/products/$sha
+    key=$(wl_key "$sha")
+    prod=$W/products/$key
     wl_lock "$sha"
     wl_build_products "$sha" || exit 1
-    kit=$W/kit/$sha/bin
+    kit=$W/kit/$key/bin
     mkdir -p "$kit"
     for p in "${PROGS[@]}"; do
         IFS='|' read -r name path obj tree <<< "$p"
         [ -x "$kit/$name" ] && continue
         { read -r sub; read -r p; read -r cmd; } < "$W/recipes/$name.cmd"
         extra=
-        # gawk's liella-m objects were configured without -lm (no libm.a then); its maths
-        # functions come from Liella's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
+        # gawk's niji-m objects were configured without -lm (no libm.a then); its maths
+        # functions come from libniji's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
         [ "$name" = gawk ] && extra=$prod/libm.a
-        (cd "$(ltree "$name" "$tree")/$sub" && LIELLA_PRODUCTS=$prod LIELLA_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$sha/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$sha/link-$name.log)" >&2; exit 1; }
+        # The recipe's driver is whichever scripts/niji-cc (or its pre-rename name, which reads another variable
+        # and products path) configured the validation tree. The link uses the measured tree's own driver instead:
+        # scripts/niji-cc of SHA (static), or wl_dyncc.sh (WL-DYNAMIC-KIT, WL_LINK=dynamic: libniji's libc.so.6
+        # and ld.so; gawk takes libm.so.6 by -lm, as the glibc kit's gawk has libm.so.6).
+        drv= re='([^ ;]*/scripts/[a-z]+-cc)( |$)'
+        [[ $cmd =~ $re ]] && drv=${BASH_REMATCH[1]}
+        [ -n "$drv" ] || { echo "wl_prep: no niji-cc driver in the link recipe of $name" >&2; exit 1; }
+        if [ "$(wl_link)" = dynamic ]; then
+            [ "$name" = gawk ] && extra=-lm
+            cmd=${cmd//"$drv "/"sh $here/wl_dyncc.sh "}
+        else
+            cmd=${cmd//"$drv "/"sh $W/src/$sha/scripts/niji-cc "}
+        fi
+        (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod WL_DYN_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
         mv -f "$kit/$name.tmp" "$kit/$name"
     done
     wl_unlock

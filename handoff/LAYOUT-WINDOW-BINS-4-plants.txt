@@ -1,0 +1,32 @@
+# LAYOUT-WINDOW-BINS-4 plants (slice 2 finished: the window-bin plan applied, phase modes' warm-up in the signatures).
+# The first seven are LAYOUT-WINDOW-BINS-3's (written, never run); the rest cover the warm-up planning.
+# Unit plants run the xtask tests of xtask/src/bins.rs and hottext.rs; product plants build the products (traced) in
+# the plant copy and run hot_text_products on the linked probe.
+#
+# Every bin after a gap keeps its own alignment (no 64 KiB start).
+bins-no-bin-align | xtask/src/bins.rs | lit:let align = if Some(i) == head && items[i].align < BIN { BIN } else { 0 }; ==> let align = 0; | cargo test -p xtask --bin xtask -- bins:: | msg:placements_name_sections_in_link_order.*(FAILED|panicked)|test result: FAILED
+# The bin after the last counted bin is aligned too (a 64 KiB gap no mode needs).
+bins-align-uncounted | xtask/src/bins.rs | lit:let aligned = if n == 0 { anchor } else { self.bins[n - 1].gap }; ==> let aligned = if n == 0 { anchor } else { true }; | cargo test -p xtask --bin xtask -- bins:: | msg:placements_name_sections_in_link_order.*(FAILED|panicked)|test result: FAILED
+# Members and fillers swap their sort digit (fillers ahead of the bin's members).
+bins-filler-digit | xtask/src/bins.rs | lit:u8::from(filler)) ==> u8::from(!filler)) | cargo test -p xtask --bin xtask -- bins:: hottext:: | msg:(placements_name_sections_in_link_order|grouped_names_give_back).*(FAILED|panicked)|test result: FAILED
+# The head bin fills the whole window (no room for the start file ahead of the group).
+bins-no-head-room | xtask/src/bins.rs | lit:if n == 0 { BIN - HEAD_ROOM } else { BIN } ==> if n == usize::MAX { BIN - HEAD_ROOM } else { BIN } | cargo test -p xtask --bin xtask -- bins:: | msg:(the_head_bin_leaves_room|fillers_take_the_gap).*(FAILED|panicked)|test result: FAILED
+# A bin member's list position is read from the wrong digits.
+hottext-bin-position | xtask/src/hottext.rs | lit:9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..], ==> 9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[3..], | cargo test -p xtask --bin xtask -- hottext:: | msg:grouped_names_give_back_their_list_position.*(FAILED|panicked)|test result: FAILED
+# so plans the bins but sets no alignment: bins start wherever the previous one ends.
+group-no-align | xtask/src/hottext.rs | lit:secs[i].set_align = align; ==> secs[i].set_align = 0; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:BIN-WINDOW: bin \d+ starts at|test result: FAILED
+# so plans the bins but keeps the list-position names: nothing is placed.
+group-no-rename | xtask/src/hottext.rs | lit:secs[i].want = name; ==> let _ = name; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:have no section in the probe's link|test result: FAILED
+#
+# A section the warm-up of a phase mode runs still counts for that mode (its phase is split into two groups).
+bins-counted-keeps-phase | xtask/src/bins.rs | lit:!m.ends_with(WARM_UP) && !sig.contains(&warm_up(m)) ==> !m.ends_with(WARM_UP) | cargo test -p xtask --bin xtask -- bins:: | msg:a_phase_split_by_its_warm_up_is_one_group.*(FAILED|panicked)|test result: FAILED
+# A phase mode is charged the windows its warm-up already faulted.
+bins-windows-no-warm | xtask/src/bins.rs | lit:let w = if b.modes.contains(&warm_up(m)) { 0 } else { b.windows() }; ==> let w = b.windows(); | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# The start-up groups no longer come first: a wider group takes the head bin.
+bins-startup-not-first | xtask/src/bins.rs | lit:(!s.contains(STARTUP_MODE), Reverse(s.len()) ==> (s.is_empty(), Reverse(s.len()) | cargo test -p xtask --bin xtask -- bins:: | msg:the_start_up_group_takes_the_head_bin_before_wider_groups.*(FAILED|panicked)|test result: FAILED
+# A bin records only its members' counted modes, so it loses the warm-ups that run in it.
+bins-join-drops-warm-up | xtask/src/bins.rs | lit:b.modes.extend(items[i].sig.iter().cloned()); ==> b.modes.extend(counted(&items[i].sig)); | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# A phase mode's lower bound counts its phase's bytes (as if no warm-up window could hold them).
+bins-bound-phase | xtask/src/bins.rs | lit:if phase.contains(m.as_str()) { 0 } else { b.div_ceil(BIN) } ==> if phase.is_empty() { 0 } else { b.div_ceil(BIN) } | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# regen writes no warm-up modes: the plan is the whole-process one again and the strings phase takes a text fault.
+regen-no-warm-up | tools/hottext/regen.sh | lit:echo "$m.pre=$f.pre" >> "$work/modes" ==> : "$m.pre=$f.pre" | cargo test -p liella --test hot_text_products -- init_first_string_calls_after_printf_take_no_text_fault init_first_float_conversion_stays_within_its_page_fault_bound | msg:first string calls after printf: [1-9]|first %.2f: [4-9] page faults|test result: FAILED

@@ -1,6 +1,6 @@
 /* The netdb databases through the NSS `files` source, and getaddrinfo/getnameinfo without DNS
  * (spec §16.1-16.3, §16.5-16.6, §15.7; phase 10): built against the host C library and against
- * Liella's products, the outputs must match line for line (netdb_products.rs). Black-box: every
+ * libniji's products, the outputs must match line for line (netdb_products.rs). Black-box: every
  * line is a result of a public function.
  *
  * Usage: netdb_diff DIR [lookup]. Without `lookup`, the program writes the fixture DIR/etc. With

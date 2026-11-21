@@ -1,5 +1,5 @@
 # The C syscall layer's system calls: single source of truth for csys/src/sys/*.c,
-# csys/include/liella_sysnr.h and crates/boundary/src/ffi_sys.rs (`cargo xtask csys-gen`).
+# csys/include/niji_sysnr.h and crates/boundary/src/ffi_sys.rs (`cargo xtask csys-gen`).
 #
 # Columns: wrapper name, kernel syscall name (__NR_<name> in the Linux UAPI asm/unistd_64.h),
 # spec Appendix A.1 area, argument kinds. Argument kinds follow the kernel ABI:
@@ -90,7 +90,7 @@ pkey_mprotect	pkey_mprotect	memory	iiii
 process_madvise	process_madvise	memory	iciii
 process_mrelease	process_mrelease	memory	ii
 # NUMA placement for the allocator (D-3.10). Not in spec Appendix A, which lists what glibc
-# itself wraps; Liella uses them internally and exports neither.
+# itself wraps; libniji uses them internally and exports neither.
 mbind	mbind	memory	iiicii
 get_mempolicy	get_mempolicy	memory	ppiii
 process_vm_readv	process_vm_readv	memory	icicii

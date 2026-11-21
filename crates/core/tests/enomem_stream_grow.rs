@@ -18,18 +18,18 @@
 //!
 //! The limit is process-wide and permanent, so each case runs in a re-executed child that
 //! calibrates the limit from its own size. `s12_stdio_clauses.rs` has no `RLIMIT_AS` case.
-#![no_builtins] // calls to libc names reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, missing_docs)]
 
 use core::ptr::null_mut;
 
-use liella_abi::ctypes::{c_char, c_void, wchar_t};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji_abi::ctypes::{c_char, c_void, wchar_t};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
 
 const ENOMEM: i32 = 12;
 /// Address space the child may add to its size at the time of the limit.
@@ -74,7 +74,7 @@ fn limit() {
     CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: size_bytes() + HEADROOM, max: RLIM_INFINITY })).unwrap();
 }
 
-fn open(path: &[u8], mode: &[u8]) -> *mut liella_abi::layout::FILE {
+fn open(path: &[u8], mode: &[u8]) -> *mut niji_abi::layout::FILE {
     x::fopen(path.as_ptr().cast(), mode.as_ptr().cast())
 }
 
@@ -122,7 +122,7 @@ fn case_getdelim() -> i32 {
         return 11;
     }
     limit();
-    // The buffer the first call made is Liella's own allocation; the call must regrow it.
+    // The buffer the first call made is libniji's own allocation; the call must regrow it.
     let (mut line, mut n) = (warm, warm_n);
     if line.is_null() || n == 0 {
         return 30;
@@ -157,7 +157,7 @@ fn case_getdelim() -> i32 {
     if l2.is_null() || n2 == 0 {
         return 17;
     }
-    // (The child exits next; the buffers belong to Liella's heap and are not freed here.)
+    // (The child exits next; the buffers belong to libniji's heap and are not freed here.)
     0
 }
 
@@ -165,7 +165,7 @@ fn case_memstream() -> i32 {
     memstream(false)
 }
 
-/// Glibc leaves the error indicator clear after the failed growth; Liella sets it (exit 18 if
+/// Glibc leaves the error indicator clear after the failed growth; libniji sets it (exit 18 if
 /// it is clear). Not heap-layout dependent: every failed backing write sets it.
 fn case_memstream_flag() -> i32 {
     memstream(true)
@@ -323,14 +323,14 @@ const RAN: &str = "enomem-stream case ran: ";
 /// test runs nothing and exits 0, which once made an `#[ignore]`d case look like an intermittent
 /// pass (MEMSTREAM-FERROR-INTERMITTENT).
 fn run(name: &'static str, body: fn() -> i32) {
-    if std::env::var("LIELLA_ENOMEM_STREAM").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_ENOMEM_STREAM").is_ok_and(|v| v == name) {
         use std::io::Write as _;
         let _ = std::io::stderr().write_all(format!("{RAN}{name}\n").as_bytes());
         CSys.exit_group(body());
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_ENOMEM_STREAM", name)
+        .env("NIJI_ENOMEM_STREAM", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

@@ -2,7 +2,7 @@
 //!
 //! Phase 2 covers §14.1–§14.6: arrays (`qsort`, `bsearch`, `lfind`, `lsearch`), trees, hash
 //! tables and queues. Their nodes live in caller-visible memory reached through
-//! `liella_legacy::search_c` (allocated with the caller's `malloc`). Phase 12 adds the regular
+//! `niji_legacy::search_c` (allocated with the caller's `malloc`). Phase 12 adds the regular
 //! expressions (§14.9: the POSIX, GNU and BSD interfaces, through `crate::regex`) and `fnmatch`,
 //! `glob` and `wordexp` (§14.7, §14.8, §14.10, through `crate::patterns`). `glob` and `glob64`
 //! are the current contract, `glob@@GLIBC_2.27`; the compat `glob@GLIBC_2.2.5` comes with
@@ -12,10 +12,10 @@
 //! the C caller, as in glibc (OD-6 revised, D-14.6). Only `qsort`/`qsort_r` have state to clean
 //! up (`sort_guarded` frees their buffer); all of them compare before they change anything.
 
-use liella_abi::callback::{ActionCtxFn, ActionFn, CompareCtxFn, CompareFn, FreeFn, GlobErrFn, GlobT};
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void, size_t};
-use liella_abi::layout::{regex_t, regmatch_t, struct_hsearch_data, struct_re_registers, wordexp_t, ENTRY};
-use liella_legacy::search_c::{self, SortCompare, SortScratch, Table};
+use niji_abi::callback::{ActionCtxFn, ActionFn, CompareCtxFn, CompareFn, FreeFn, GlobErrFn, GlobT};
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void, size_t};
+use niji_abi::layout::{regex_t, regmatch_t, struct_hsearch_data, struct_re_registers, wordexp_t, ENTRY};
+use niji_legacy::search_c::{self, SortCompare, SortScratch, Table};
 
 use crate::conv;
 use crate::export;
@@ -32,14 +32,14 @@ const REGEXP_H_NO_MATCH: c_int = 0;
 
 crate::internal_entry! {
 /// `step@GLIBC_2.2.5` (compat only): stub, never matches (see [`REGEXP_H_NO_MATCH`]).
-pub extern "C" fn liella_compat_step(_string: *const c_char, _expbuf: *const c_char, _loc1: Option<&mut *const c_char>, _loc2: Option<&mut *const c_char>) -> c_int {
+pub extern "C" fn niji_compat_step(_string: *const c_char, _expbuf: *const c_char, _loc1: Option<&mut *const c_char>, _loc2: Option<&mut *const c_char>) -> c_int {
     REGEXP_H_NO_MATCH
 }
 }
 
 crate::internal_entry! {
 /// `advance@GLIBC_2.2.5` (compat only): stub, never matches (see [`REGEXP_H_NO_MATCH`]).
-pub extern "C" fn liella_compat_advance(_string: *const c_char, _expbuf: *const c_char, _loc1: Option<&mut *const c_char>, _loc2: Option<&mut *const c_char>) -> c_int {
+pub extern "C" fn niji_compat_advance(_string: *const c_char, _expbuf: *const c_char, _loc1: Option<&mut *const c_char>, _loc2: Option<&mut *const c_char>) -> c_int {
     REGEXP_H_NO_MATCH
 }
 }
@@ -65,7 +65,7 @@ mod regexp_h_tests {
             for advance in [false, true] {
                 let sent = c"sentinel".as_ptr();
                 let (mut l1, mut l2) = (sent, sent);
-                let f = if advance { liella_compat_advance } else { liella_compat_step };
+                let f = if advance { niji_compat_advance } else { niji_compat_step };
                 assert_eq!(f(string, expbuf, Some(&mut l1), Some(&mut l2)), 0, "case {i} advance {advance}");
                 assert!(l1 == sent && l2 == sent, "case {i} advance {advance}: outputs untouched");
                 assert_eq!(f(string, expbuf, None, None), 0, "case {i} advance {advance}: no outputs");
@@ -100,7 +100,7 @@ struct ByOffsetCtx(CompareCtxFn, *mut c_void);
 fn at(base: &[u8], o: usize) -> *const c_void {
     debug_assert!(o < base.len(), "SortCompare contract: offset {o} past {}", base.len());
     // UNSAFE(slice) SAFETY: the sort passes only offsets of whole elements of `base`, whatever
-    // the comparator answers (the `SortCompare` contract in liella::search), so the pointer
+    // the comparator answers (the `SortCompare` contract in niji::search), so the pointer
     // stays inside `base` and keeps its provenance.
     unsafe { base.as_ptr().add(o) }.cast()
 }
@@ -277,15 +277,15 @@ pub extern "C" fn glob64(pattern: *const c_char, flags: c_int, errfunc: Option<G
 crate::internal_entry! {
 /// `glob@GLIBC_2.2.5` and `glob64@GLIBC_2.2.5`: with `GLOB_ALTDIRFUNC`, existence is checked
 /// with `gl_stat` (LG-2, the plan's ledger). Exported only under those compat versions.
-pub extern "C" fn liella_compat_glob(pattern: *const c_char, flags: c_int, errfunc: Option<GlobErrFn>, pglob: Option<&mut GlobT>) -> c_int {
+pub extern "C" fn niji_compat_glob(pattern: *const c_char, flags: c_int, errfunc: Option<GlobErrFn>, pglob: Option<&mut GlobT>) -> c_int {
     // UNSAFE(slice) SAFETY: pattern is a NUL-terminated string (§14.8).
     patterns::glob_2_2_5(unsafe { strz::strz(pattern) }, flags, errfunc, pglob)
 }}
 
 crate::internal_entry! {
-/// `glob64@GLIBC_2.2.5`: the same contract as [`liella_compat_glob`] (glob64_t is glob_t's layout);
-/// its own entry so the plan's behaviour row finds `liella_compat_glob64` (compat-gen).
-pub extern "C" fn liella_compat_glob64(pattern: *const c_char, flags: c_int, errfunc: Option<GlobErrFn>, pglob: Option<&mut GlobT>) -> c_int {
+/// `glob64@GLIBC_2.2.5`: the same contract as [`niji_compat_glob`] (glob64_t is glob_t's layout);
+/// its own entry so the plan's behaviour row finds `niji_compat_glob64` (compat-gen).
+pub extern "C" fn niji_compat_glob64(pattern: *const c_char, flags: c_int, errfunc: Option<GlobErrFn>, pglob: Option<&mut GlobT>) -> c_int {
     // UNSAFE(slice) SAFETY: pattern is a NUL-terminated string (§14.8); glob64_t is glob_t's layout.
     patterns::glob_2_2_5(unsafe { strz::strz(pattern) }, flags, errfunc, pglob)
 }}

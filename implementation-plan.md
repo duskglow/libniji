@@ -1,4 +1,4 @@
-# Liella: Implementation Plan
+# libniji: Implementation Plan
 
 *A clean reimplementation of the glibc 2.39 x86_64 ABI in Rust, designed from
 `glibc-functional-spec.md` and nothing else.*

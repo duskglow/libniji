@@ -1,7 +1,7 @@
 //! The table of the integrated name-service cache (D-16.10): one format for the per-process
-//! table and for the shared region of a user (`/dev/shm/liella-nscache-<euid>`), as 64-bit
+//! table and for the shared region of a user (`/dev/shm/niji-nscache-<euid>`), as 64-bit
 //! atomic words. The process-wide logic (when to look, what to watch, who may write) is
-//! `liella_legacy::nscache`; this module only reads and writes a table, and treats every word of
+//! `niji_legacy::nscache`; this module only reads and writes a table, and treats every word of
 //! it as untrusted input: another process of the same user may have written anything, died in the
 //! middle of a change, or truncated the file.
 //!
@@ -9,7 +9,7 @@
 //!
 //! | Words | Content |
 //! |---|---|
-//! | 0 | [`MAGIC`] (`"LIELLANC"`) |
+//! | 0 | [`MAGIC`] (`"NIJI_NSC"`) |
 //! | 1 | [`LAYOUT`] |
 //! | 2 | the table's size in words (the mapping's size) |
 //! | 3 | the owner's user ID |
@@ -47,8 +47,8 @@ use core::sync::atomic::{fence, AtomicU64, Ordering::{Acquire, Relaxed, Release}
 use crate::error::Result;
 use crate::mem::TryVec;
 
-/// The first word of a table: `"LIELLANC"`.
-pub const MAGIC: u64 = u64::from_le_bytes(*b"LIELLANC");
+/// The first word of a table: `"NIJI_NSC"`.
+pub const MAGIC: u64 = u64::from_le_bytes(*b"NIJI_NSC");
 /// The layout version this module reads and writes.
 pub const LAYOUT: u64 = 1;
 /// The largest table (8 MiB): the shared region's size cap.

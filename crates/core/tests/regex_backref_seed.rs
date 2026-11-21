@@ -4,8 +4,8 @@
 //! match empty (seeded everywhere) and multibyte subjects.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, Accel, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, Accel, Options, Window};
 
 fn span(pat: &[u8], cflags: i32, subject: &[u8], loc: &Locale) -> Option<(usize, usize)> {
     let prog = regex::compile(pat, regex::regcomp_syntax(cflags), loc).unwrap();

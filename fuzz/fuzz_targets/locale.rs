@@ -5,7 +5,7 @@
 //! regular expressions and `fnmatch` patterns in the locale.
 //!
 //! Locale data is `'static` in the library (mapped for the life of the process), so the input
-//! is leaked once per run within `liella_fuzz::LEAK_BUDGET`.
+//! is leaked once per run within `niji_fuzz::LEAK_BUDGET`.
 //!
 //! Input: a flag byte (bit 0: `LOCPATH` set), then binary parts, each a little-endian `u32`
 //! length and its bytes: the requested name, `locale.alias`, `locale-archive`, then the twelve
@@ -14,13 +14,13 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::ctype;
-use liella::locale::file::Cat;
-use liella::locale::{self, Locale, Source};
-use liella::pattern::{fnmatch, regex};
-use liella::text::{self, Decoded, Encoding, MbState};
-use liella::time::format::{self as tf, Tm};
-use liella_fuzz::Input;
+use niji::ctype;
+use niji::locale::file::Cat;
+use niji::locale::{self, Locale, Source};
+use niji::pattern::{fnmatch, regex};
+use niji::text::{self, Decoded, Encoding, MbState};
+use niji::time::format::{self as tf, Tm};
+use niji_fuzz::Input;
 
 struct Files {
     alias: &'static [u8],
@@ -45,7 +45,7 @@ impl Source for Files {
         self.locpath.then_some(b"/fuzz/a::/fuzz/b")
     }
 
-    fn charmap(&self, _name: &[u8]) -> Option<&'static liella::charmap::Charmap> {
+    fn charmap(&self, _name: &[u8]) -> Option<&'static niji::charmap::Charmap> {
         None
     }
 }
@@ -125,7 +125,7 @@ fn use_locale(loc: &Locale) {
 }
 
 fuzz_target!(|data: &[u8]| {
-    let Some(data) = liella_fuzz::leak(data) else { return };
+    let Some(data) = niji_fuzz::leak(data) else { return };
     let mut input = Input::new(data);
     let flags = input.byte();
     let name: &'static [u8] = input.sized();

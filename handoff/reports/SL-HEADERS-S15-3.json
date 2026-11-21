@@ -1,0 +1,23 @@
+{
+ "task": "SL-HEADERS-S15-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "INCOMPLETE: select.h and fcntl.h includes are plain (timex.h, mount.h); the unexplained timespec difference was fcntl.h's; 18 P2 differences wait for sys/ioctl.h, which has no template on next",
+ "branch": "task/sl-headers-s15-3",
+ "head": "08e9c2254",
+ "jobs": ["sl-headers-s15-3-plants2", "sl-headers-s15-3-gate"],
+ "gate": {"affected": "passed (direct tier, exit 0)", "peak": "16G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "sys/ioctl.h is not generated on next (slice 7 tail blocked on slice 14); the 18 TCSETS2/TTYDEF_* P2 rows of sys/mount.h, sys/mtio.h, sys/raw.h cannot close until it lands", "recommendation": "land SL-HEADERS-S07-TAIL, then a short S15 continuation switches the three optional includes to plain; or land S15 now with the optional include (the names stay owned, P2 gap of 18 rows)"}],
+ "informational": [
+  "P2 on 27 headers: 69 -> 60 differences: 42 accepted by differences rows (27 MS_* enumerators COMPAT-34, 14 vm86.h, 1 mntent.h _IO_FILE) and 18 waiting for sys/ioctl.h",
+  "The unexplained timespec difference in sys/mount.h: the reference's header makes it visible through fcntl.h; including fcntl.h plainly closes it",
+  "Plants: 9 caught; the placeholder-enum plant and code were removed (next's tables list the enumerators, no caller); the three libc-include value plants now run headers-gen --check (cargo xtask so no longer reports stale output)",
+  "origin/next advanced while this run was in progress; not re-merged after the final jobs"
+ ],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "P2 differences in slice 15 headers", "before": 69, "after": 60, "unit": "rows", "measured": true}],
+ "improvement": "A slice's P2 script (header_probe + probe_compare, NIJI_UAPI staged) should be a documented xtask command; each continuation rebuilds it by hand.",
+ "next_step": "after sys/ioctl.h lands: plain include in mount/mtio/raw, empty DEFERRED, rerun P2",
+ "report_file": "handoff/SL-HEADERS-S15.md"
+}

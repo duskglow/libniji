@@ -1,0 +1,18 @@
+{"task": "SL-SYMBOLS-NODES", "model": "opus", "tokens": null,
+ "result": "System packages build again: symbols.py has one rule for every LIELLA_<KIND>_<n> node (table: NATIVE -> liella-native-abi, OWNER -> liella-owner-abi), unknown nodes stay a hard error naming the node; the gate now runs the symbols step on its products",
+ "branch": "task/sl-symbols-nodes", "head": "ac5c85306",
+ "gate": {"affected": "420 passed / 0 failed (direct tier, 4 suites, 0 skipped; clippy and static clean)", "peak": "gate: peak memory 1.5G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The system libc6-dev does not ship the opt-in link-stub directory liella-owner/, so on a system install a program opts in only through .symver (as smoke/sym-owner.c does); whether to ship it is for the SL packaging stories.", "Rule slips: two empty Bash heredocs (no effect)."],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "tools/deb/build.sh --flavour system on origin/next 99f649ec6: failed at 'no minimum version rule for node LIELLA_OWNER_1', now builds; check-symbols PASS (dpkg-gensymbols -c4 clean, 4135 lines) and check-system PASS", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "unblock", "what": "snapshot reference .debs and Aqours stage 1 (system packages from next)", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "gate test deb_symbols_products (selected by tools/deb build.sh/system.sh/symbols.py and every FULL escalation) + dpkg-shlibdeps sample sym-owner; plants CAUGHT", "before": 0, "after": 3, "unit": "plants", "measured": true},
+  {"kind": "tooling", "what": "added gate cost: build.sh --symbols-only step on the products", "before": 0, "after": 923, "unit": "ms", "measured": true}
+ ],
+ "improvement": "Cross-feature breakage like this (two green landings, red combination) is caught only where a gate builds the combined artefact; packaging steps should be cheap enough to run in the gate, as --symbols-only now is.",
+ "next_step": "None for this story; land it, then build the snapshot's system .debs from next.",
+ "report_file": "handoff/SL-SYMBOLS-NODES.md",
+ "jobs": ["sl-symbols-nodes-gate", "sl-symbols-nodes-plants", "sl-symbols-nodes-deb-1"]}

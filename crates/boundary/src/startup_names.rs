@@ -33,7 +33,7 @@ macro_rules! startup_names {
 startup_names! {
     GLIBC_TUNABLES = b"GLIBC_TUNABLES",
     MALLOC_PERTURB = b"MALLOC_PERTURB_",
-    LIELLA_NSCACHE = b"LIELLA_NSCACHE",
+    NIJI_NSCACHE = b"NIJI_NSCACHE",
     VDSO_CLOCK_GETTIME = b"__vdso_clock_gettime",
     VDSO_CLOCK_GETRES = b"__vdso_clock_getres",
     VDSO_GETTIMEOFDAY = b"__vdso_gettimeofday",
@@ -66,7 +66,7 @@ pub const ALIGN: usize = 512;
 
 const _: () = assert!(LEN <= ALIGN && ALIGN.is_power_of_two() && 65536 % ALIGN == 0);
 
-/// The names, back to back, without terminators.
+/// The names, back to back, without terminators. LAYOUT(STARTUP-NAMES-WINDOW).
 #[repr(C, align(512))]
 pub struct Names([u8; LEN]);
 

@@ -2,18 +2,18 @@
 //! (phase 10) address conversion, interfaces, IPv6 helpers, source filters, Ethernet names and
 //! the `rcmd` family (§15.3–15.8), whose C conventions are in `crate::netaddr`.
 //!
-//! Addresses in are byte slices of the caller's `socklen_t`. Address and option results go
-//! through `liella_legacy::net_compat`, which copies them back truncated and reports the full
-//! length. `struct msghdr` and `struct mmsghdr` have the kernel's layout and are viewed in
-//! place (`conv::msghdr`), so the kernel reads and writes the buffers they name, as for a C
-//! caller. `setsockopt` at a level that registers caller memory, and `SIOCATMARK`, go through
-//! `crate::raw`.
+//! Addresses in are byte slices of the caller's `socklen_t`. Address results go through
+//! `niji_legacy::net_compat`, which copies them back truncated and reports the full length.
+//! `struct msghdr` and `struct mmsghdr` have the kernel's layout and are viewed in place
+//! (`conv::msghdr`), so the kernel reads and writes the buffers they name, as for a C caller.
+//! `getsockopt`, `setsockopt` with a NULL value or at a level that registers caller memory,
+//! and `SIOCATMARK` go through `crate::raw` with the caller's addresses (D-15.5 as amended).
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ushort, c_void, size_t, ssize_t};
-use liella_kernel::mem::{MMsgHdr, MMsgHdrMut};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::Timespec;
-use liella_legacy::net_compat;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ushort, c_void, size_t, ssize_t};
+use niji_kernel::mem::{MMsgHdr, MMsgHdrMut};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::Timespec;
+use niji_legacy::net_compat;
 
 use crate::cancel;
 use crate::conv;
@@ -82,24 +82,30 @@ pub extern "C" fn shutdown(fd: c_int, how: c_int) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getsockname(fd: c_int, addr: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: addr is NULL or holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(addr, len) }.and_then(conv::req).and_then(|o| net_compat::sockname(&CSys, conv::fd(fd), o, false)))
+    // UNSAFE(slice) SAFETY: addr holds *len writable bytes, or is NULL with *len 0 (§15.1).
+    ret::zero(net_compat::sockname(&CSys, conv::fd(fd), || unsafe { conv::name_out(addr, len) }, false))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getpeername(fd: c_int, addr: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: addr is NULL or holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(addr, len) }.and_then(conv::req).and_then(|o| net_compat::sockname(&CSys, conv::fd(fd), o, true)))
+    // UNSAFE(slice) SAFETY: addr holds *len writable bytes, or is NULL with *len 0 (§15.1).
+    ret::zero(net_compat::sockname(&CSys, conv::fd(fd), || unsafe { conv::name_out(addr, len) }, true))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getsockopt(fd: c_int, level: c_int, name: c_int, value: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: value holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(value, len) }.and_then(conv::req).and_then(|o| net_compat::getsockopt(&CSys, conv::fd(fd), level, name, o)))
+    // The caller's addresses go to the kernel as given (D-15.5 as amended): it reads and
+    // writes them, a NULL value with *len 0 being the option's size query.
+    ret::zero(raw::getsockopt(fd, level, name, conv::addr(value), len.map_or(0, |l| conv::addr(core::ptr::from_mut(l)))))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn setsockopt(fd: c_int, level: c_int, name: c_int, value: *const c_void, len: c_uint) -> c_int {
+    // A NULL value goes to the kernel as given: whether it is valid is the option's
+    // (D-15.5 as amended).
+    if value.is_null() {
+        return ret::zero(raw::setsockopt(fd, level, name, 0, len));
+    }
     // UNSAFE(slice) SAFETY: value holds len readable bytes (§15.1).
     ret::zero(unsafe { conv::sockaddr(value, len) }.and_then(|v| net_compat::setsockopt(&CSys, conv::fd(fd), level, name, v, || raw::setsockopt(fd, level, name, conv::addr(value), len))))
 }}
@@ -238,19 +244,19 @@ pub extern "C" fn inet_netof(a: u32) -> u32 {
     netaddr::netof(a)
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_net_pton(af: c_int, cp: *const c_char, buf: *mut c_void, len: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: cp is a string; buf holds len bytes (§15.3).
     ret::int(netaddr::net_pton(af, unsafe { strz::strz(cp) }, unsafe { conv::buf_mut(buf, len) }))
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_net_ntop(af: c_int, cp: *const c_void, bits: c_int, buf: *mut c_char, len: size_t) -> *mut c_char {
     // UNSAFE(slice) SAFETY: cp holds the bytes the prefix covers; buf holds len bytes (§15.3).
     ret::null(netaddr::net_ntop(af, |n| unsafe { conv::buf(cp, n) }, bits, unsafe { conv::buf_mut(buf.cast(), len) }))
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_neta(net: u32, buf: *mut c_char, len: size_t) -> *mut c_char {
     // UNSAFE(slice) SAFETY: buf holds len bytes (§15.3).
     ret::null(netaddr::neta(net, unsafe { conv::buf_mut(buf.cast(), len) }))
@@ -356,18 +362,18 @@ pub extern "C" fn inet6_opt_get_val(databuf: *mut c_void, offset: c_int, val: *m
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_opt_next(extbuf: *mut c_void, extlen: c_uint, offset: c_int, typep: Option<&mut u8>, lenp: Option<&mut c_uint>, databufp: Option<&mut usize>) -> c_int {
     // UNSAFE(slice) SAFETY: extbuf holds extlen bytes (RFC 3542).
-    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| liella::net::ip6opt::opt_next(b, offset), typep, lenp, databufp)
+    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| niji::net::ip6opt::opt_next(b, offset), typep, lenp, databufp)
 }}
 
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_opt_find(extbuf: *mut c_void, extlen: c_uint, offset: c_int, ty: u8, lenp: Option<&mut c_uint>, databufp: Option<&mut usize>) -> c_int {
     // UNSAFE(slice) SAFETY: extbuf holds extlen bytes (RFC 3542).
-    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| liella::net::ip6opt::opt_find(b, offset, ty), None, lenp, databufp)
+    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| niji::net::ip6opt::opt_find(b, offset, ty), None, lenp, databufp)
 }}
 
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_rth_space(ty: c_int, segments: c_int) -> c_uint {
-    u32::try_from(liella::net::ip6opt::rth_space(ty, segments)).unwrap_or(0)
+    u32::try_from(niji::net::ip6opt::rth_space(ty, segments)).unwrap_or(0)
 }}
 
 export! { "GLIBC_2.5";
@@ -402,7 +408,7 @@ pub extern "C" fn inet6_rth_getaddr(bp: *const c_void, index: c_int) -> *mut c_v
 
 export! { "GLIBC_2.3.3";
 pub extern "C" fn inet6_option_space(nbytes: c_int) -> c_int {
-    liella_legacy::inet_compat::option_space(nbytes)
+    niji_legacy::inet_compat::option_space(nbytes)
 }}
 
 export! { "GLIBC_2.3.3";

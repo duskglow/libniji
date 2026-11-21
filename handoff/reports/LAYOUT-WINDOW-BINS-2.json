@@ -1,0 +1,78 @@
+{
+ "task": "LAYOUT-WINDOW-BINS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Slice 1 of window bins: regen writes hot-text.signatures, cargo xtask so plans 64 KiB bins into layout-bins.tsv and prints the plan; layout unchanged",
+ "branch": "task/layout-window-bins-2",
+ "head": "f3c6ddf10",
+ "gate": {
+  "affected": "escalated to FULL (xtask change): layout-window-bins-2-gate4 running at hand-back; static + hot_text_products release 26 passed (startup4); xtask unit tests 402 passed on 4d7ec5a66 (lint1, superseded)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Planner: greedy by signature width; fast sum of windows per mode 26 against lower bound 19, release 27 against 20; a deepening search over bin mode sets (scratch prototype) found no plan at cost 19-25 for fast, four greedy variants were worse (29-39)",
+  "Head fill variant (i) for page_faults: 32,704 bytes in both profiles (group at 0x408040, 64 bytes into .text)",
+  "plants: 8 plants; run 1 had regen-no-modes SURVIVED because the plants tool builds products ungrouped by default; fixed with layout:traced (plants3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "none",
+   "what": "products: section names and alignments unchanged (plan only)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "planned residual fill over all gaps, fast",
+   "before": null,
+   "after": 42,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "planned residual fill over all gaps, release",
+   "before": null,
+   "after": 10,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "head fill of variant (i), page_faults static, both profiles",
+   "before": null,
+   "after": 32704,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "unit tests added (bins.rs 7, keys.py signatures 1) and plants",
+   "before": null,
+   "after": 8,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "LAYOUT-WINDOW-BINS-3 (slice 2 APPLY) and -4 (slice 3 PROOF)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the plants tool builds product plants ungrouped unless layout:traced is given; a plant on trace-at-build code silently survives without it: the tool could refuse a plant whose path is under tools/hottext/ without layout:traced",
+ "next_step": "LAYOUT-WINDOW-BINS-3: apply the plan (bin names, 64 KiB alignment, fillers, head constant), retire cluster_align and the hand-kept cluster files",
+ "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
+ "jobs": [
+  "layout-window-bins-2-startup4",
+  "layout-window-bins-2-plants3",
+  "layout-window-bins-2-gate4"
+ ]
+}

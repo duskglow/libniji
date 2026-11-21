@@ -1,4 +1,4 @@
-/* Spec §19.4 forkpty and the §19.1/§19.4 cancellation points, in a process Liella started (its
+/* Spec §19.4 forkpty and the §19.1/§19.4 cancellation points, in a process libniji started (its
  * fork and its threads). forkpty: the parent receives the master (and only it), name is the
  * slave's path; the child leads a new session whose controlling terminal is the slave, on
  * descriptors 0-2, with termp and winp applied; the child's output and exit status reach the

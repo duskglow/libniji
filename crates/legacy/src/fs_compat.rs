@@ -4,12 +4,12 @@
 //! `fchmodat2`, `faccessat`'s flags without `faccessat2`, the microsecond and second timestamp
 //! forms, `statvfs` from `statfs`, and the `__xstat`/`__xmknod` version arguments.
 
-use liella::error::{Errno, Result};
-use liella_abi::layout::struct_statvfs;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji::error::{Errno, Result};
+use niji_abi::layout::struct_statvfs;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     Stat, Statfs, Timespec, Timeval, AT_EACCESS, AT_EMPTY_PATH, AT_REMOVEDIR, AT_SYMLINK_NOFOLLOW, F_OK, O_CLOEXEC, O_NOFOLLOW, O_PATH, S_IFIFO, S_IFLNK,
     S_IFMT, X_OK,
 };
@@ -66,7 +66,7 @@ fn proc_fd_path(fd: Fd, buf: &mut [u8; 32]) -> Result<KStr<'_>> {
     const PREFIX: &[u8] = b"/proc/self/fd/";
     let n = u32::try_from(fd.raw()).map_err(|_| Errno::EBADF)?;
     let mut d = [0u8; 20];
-    let digits = liella_rt::fatal::decimal(u64::from(n), &mut d);
+    let digits = niji_rt::fatal::decimal(u64::from(n), &mut d);
     for (slot, &b) in buf.iter_mut().zip(PREFIX.iter().chain(digits).chain(&[0u8])) {
         *slot = b;
     }

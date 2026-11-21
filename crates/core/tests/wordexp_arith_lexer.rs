@@ -3,8 +3,8 @@
 //! keep. Clauses: s14_10_c_1, s14_10_c_2 (D-14.5).
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 
-use liella::error::Result;
-use liella::pattern::wordexp::{self, ValBuf, WordError};
+use niji::error::Result;
+use niji::pattern::wordexp::{self, ValBuf, WordError};
 
 fn eval(text: &str) -> core::result::Result<i64, WordError> {
     let mut var = |name: &[u8], out: &mut ValBuf| -> Result<bool> {

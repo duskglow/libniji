@@ -6,7 +6,7 @@
 # copied into the fixture so that a dynamically linked program still starts.
 #
 # Usage: users_run.sh PROGRAM SCRATCH
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 prog=$1
@@ -17,4 +17,4 @@ mkdir -p "$dir"
 if [ -f /etc/ld.so.cache ]; then
     cp /etc/ld.so.cache "$dir/etc/ld.so.cache"
 fi
-sudo -n env ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} unshare -m sh -c 'mount --bind "$1/etc" /etc && exec "$2" "$1" nss' sh "$dir" "$prog"
+sudo -n env ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} unshare -m sh -c 'mount --bind "$1/etc" /etc && exec "$2" "$1" nss' sh "$dir" "$prog"

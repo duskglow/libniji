@@ -2,7 +2,7 @@
  * every function of those families in every format, on edge inputs, under every rounding mode
  * where the result depends on it. Each line prints the result's bits, the raised exception flags
  * and errno. Built against the host C library it records the reference behaviour
- * (spec/behaviour/libm-exact.glibc.txt.gz); built statically against Liella's products it must
+ * (spec/behaviour/libm-exact.glibc.txt.gz); built statically against libniji's products it must
  * print the same lines (math_products.rs), apart from recorded differences.
  *
  * Operands are volatile and functions are called through pointers, so the compiler folds

@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 3: Internal primitives and memory
 
@@ -9,7 +9,7 @@
 * **Clauses:** about 30.
 * **Needs:** P1, P2.
 * **Builds:** IP-5 (futex locks), IP-6 (page source), IP-7 (the heap algorithm in
-  `liella-rt`; the `GlobalAlloc` shim in `boundary::heap`, category *allocator*;
+  `niji-rt`; the `GlobalAlloc` shim in `boundary::heap`, category *allocator*;
   `TryVec`/`TryBox`; allocation domains), and `boundary::caller_alloc`.
 * **Design:** size-class heap over `mmap`. Per-thread caches are enabled only after the
   first thread (P5). Size-aware free is used internally (D-3.3), and C `free(p)` looks the
@@ -27,7 +27,7 @@
 * **Exit:** §3.1/§3.5 green. The allocator passes a randomised allocation-trace fuzzer.
 * **Delivered** (exit met, with the deviations listed):
   * **Exports:** 59 of the 60 §3 symbols, each a single-expression translation (`cargo xtask
-    purity` clean), over `liella_legacy::malloc_compat` and `liella_legacy::obstack`. The
+    purity` clean), over `niji_legacy::malloc_compat` and `niji_legacy::obstack`. The
     hooks, `__curbrk`, `obstack_exit_failure` and `obstack_alloc_failed_handler` are data
     objects in `boundary::data`. Not exported: `malloc_info`, which writes to a `FILE`
     (phase 8).
@@ -40,18 +40,18 @@
     table, and grow with `mremap`. Invalid and double frees are detected exactly and abort
     with glibc's messages (S4). The memory source is the `Pages` trait;
     `boundary::heap::KernelPages` implements it with `mmap` (never `brk`, D-3.7), and
-    `boundary::heap::Liella` is the `GlobalAlloc` shim (category *allocator*: 4 sites).
-  * **Fallible allocation (S8):** `liella::mem::{TryVec, TryBox}` and the obstack-semantics
+    `boundary::heap::libniji` is the `GlobalAlloc` shim (category *allocator*: 4 sites).
+  * **Fallible allocation (S8):** `niji::mem::{TryVec, TryBox}` and the obstack-semantics
     `Arena` (D-3.6). `clippy.toml` bans the infallible `alloc` methods, denied in every
     library crate root (D-3.9).
-  * **Tests:** 59 translation tests and 43 clause tests for §3. `liella-rt`'s own suite runs
+  * **Tests:** 59 translation tests and 43 clause tests for §3. `niji-rt`'s own suite runs
     the heap against a fake page source: fault injection at every page request, a
     60,000-step randomised trace fuzzer (no overlap, alignment, usable size, statistics), and
     misuse detection. It also runs the four sync primitives under real threads. Aborts,
     exits, resource limits and heap statistics run in a re-executed copy of the test binary.
     Full workspace: 1,398 passed, 0 failed, both plain and with `--all-features`. The latter
     interposes the exports on the test processes themselves, so the test harness runs on
-    Liella's `malloc` and `memcpy` (D-4.13). `cargo clippy --workspace --all-targets
+    libniji's `malloc` and `memcpy` (D-4.13). `cargo clippy --workspace --all-targets
     --all-features` is clean.
   * **Pending clauses:** 3: `malloc_info` (phase 8) and the two `alloca` clauses (a compiler
     builtin, D-3.8).
@@ -77,7 +77,7 @@
        until `exit` exists (phase 4). The C obstack protocol works on caller memory directly
        (`legacy::obstack`), not over `Arena`: the `<obstack.h>` macros own that memory.
     7. **`#[global_allocator]`** is set by the product crate (phase 4). Until then Rust code in
-       the test processes allocates through the host allocator, or through Liella's exports
+       the test processes allocates through the host allocator, or through libniji's exports
        when they interpose.
 
   * **NUMA review** (owner request, 2026-10-01; changes made before phase 4). The review asked

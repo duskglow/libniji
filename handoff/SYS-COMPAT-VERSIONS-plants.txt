@@ -1,0 +1,10 @@
+# SYS-COMPAT-VERSIONS plants: libm.so.6's old versions (fmod@GLIBC_2.2.5 and the other aliases).
+# Each gives one alias row of spec/abi/compat-plan.tsv a wrong target (the generator's `target=`); the command
+# regenerates the stubs (crates/libm-so/compat_aliases.S), rebuilds the products and runs the binding test, which
+# must see the wrong function behind the old version. (A plant on the generated .S itself is refused: the tool
+# anchors .S plants on niji_machine_ labels only.)
+fmod-old-to-remainder | spec/abi/compat-plan.tsv | lit:probe: identical to fmod@@GLIBC_2.38 ( ==> target=remainder probe: identical to fmod@@GLIBC_2.38 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
+pow-old-to-hypot | spec/abi/compat-plan.tsv | lit:probe: identical to pow@@GLIBC_2.29 ( ==> target=hypot probe: identical to pow@@GLIBC_2.29 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
+exp10-old-to-exp | spec/abi/compat-plan.tsv | lit:probe: identical to exp10@@GLIBC_2.39 ( ==> target=exp probe: identical to exp10@@GLIBC_2.39 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
+# SYS-COMPAT-VERSIONS-2: the scope test names each alias outside __*_finite, so a retargeted alias fails it without a product build.
+hypotf-old-to-hypot-scope | spec/abi/compat-plan.tsv | lit:probe: identical to hypotf@@GLIBC_2.35 ( ==> target=hypot probe: identical to hypotf@@GLIBC_2.35 ( | cargo test -p xtask --bin xtask compat::tests::the_real_tables_give_the_libm_scope | msg:the_real_tables_give_the_libm_scope.*(FAILED|panicked)|libm aliases outside

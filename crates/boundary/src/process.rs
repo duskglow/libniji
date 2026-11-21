@@ -2,29 +2,28 @@
 //! D-1.3, D-1.5): the exit-handler registries, the environment's bookkeeping, the auxiliary
 //! vector, `exit`, and the fatal diagnostics.
 //!
-//! In a process Liella started, the runtime (`crate::runtime`) fills in the auxiliary vector and
+//! In a process libniji started, the runtime (`crate::runtime`) fills in the auxiliary vector and
 //! `environ`. In a test process the host C library started, `environ` and the program names are
 //! the host's objects (`crate::ffi`), and the auxiliary vector is read from `/proc/self/auxv`.
 
 use core::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella_kernel::auxv::Auxv;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::AT_SECURE;
-use liella_legacy::env_table;
-use liella_legacy::environ::{self, EnvState};
-use liella_legacy::exit_handlers::{self, Entry, Registry};
-use liella_legacy::mb_compat::ReadAt;
-use liella_legacy::search_c::CWords;
-use liella_rt::fatal;
-use liella_rt::sync::RawMutex;
+use niji_kernel::auxv::Auxv;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::AT_SECURE;
+use niji_legacy::env_table;
+use niji_legacy::environ::{self, EnvState};
+use niji_legacy::exit_handlers::{self, Entry, Registry};
+use niji_legacy::mb_compat::ReadAt;
+use niji_legacy::search_c::CWords;
+use niji_rt::fatal;
+use niji_rt::sync::RawMutex;
 
 use crate::conv;
 use crate::ffi;
 use crate::heap::{KernelPages, HEAP};
 use crate::sys::CSys;
-use crate::tb;
 
 /// `atexit`, `on_exit` and `__cxa_atexit` registrations.
 pub static EXIT_HANDLERS: Registry = Registry::new();
@@ -38,6 +37,32 @@ static ENV_CAP: AtomicUsize = AtomicUsize::new(0);
 /// The initial auxiliary vector (address and words), set by the runtime; 0 in test processes.
 pub(crate) static AUXV_ADDR: AtomicUsize = AtomicUsize::new(0);
 pub(crate) static AUXV_WORDS: AtomicUsize = AtomicUsize::new(0);
+/// The executable's load bias when the start found it some other way than `PT_PHDR`, else 0
+/// (D-27.12). Only the static-PIE start (`niji-rcrt1.o`) sets it, once, to the bias its
+/// relocator took from `__ehdr_start`: a static PIE linked by GNU ld has no `PT_PHDR`. A
+/// non-PIE static program and a dynamically linked one leave it 0 and keep the `PT_PHDR` bias.
+pub(crate) static EXE_BIAS: AtomicUsize = AtomicUsize::new(0);
+
+/// The executable's load bias, for its program headers `words` (`phnum` of them, at `phdr`):
+/// the static-PIE start's ([`EXE_BIAS`]) when it set one, else the one `ld.so` derives too
+/// (`niji_rt::start::bias`, D-27.18): `PT_PHDR`'s, or without one the ELF header's and the
+/// `PT_LOAD` holding the headers' (0 when neither gives one). The one source for `%n`
+/// (`is_read_only`), `dl_iterate_phdr`, `_dl_find_object` and the backtrace (D-27.12).
+pub(crate) fn exe_bias(words: &[u64], phnum: usize, phdr: usize) -> usize {
+    match EXE_BIAS.load(Acquire) {
+        0 => niji_rt::start::bias(words, phnum, phdr, niji_rt::start::PAGE, exe_header).unwrap_or(0),
+        b => b,
+    }
+}
+
+#[cfg(feature = "runtime")]
+use crate::runtime::exe_header;
+/// Without libc's start (no `runtime` feature: the library's own test and fuzz builds) no
+/// executable header is read: a program without `PT_PHDR` is then seen at bias 0.
+#[cfg(not(feature = "runtime"))]
+fn exe_header(_: usize) -> [u8; 64] {
+    [0; 64]
+}
 
 fn w(x: usize) -> u64 {
     u64::try_from(x).unwrap_or(u64::MAX)
@@ -79,9 +104,9 @@ pub(crate) fn getenv_raw(name: *const u8, len: usize) -> usize {
 
 // ------------------------------------------------------------- the environment contract (D-1.12)
 
-/// Whether the environment contract is on (`liella_environ_contract`; off by default). While it
-/// is, `getenv` answers from the table (`liella_legacy::env_table`), which this library's
-/// environment writers keep current and `liella_environ_reload` rebuilds.
+/// Whether the environment contract is on (`niji_environ_contract`; off by default). While it
+/// is, `getenv` answers from the table (`niji_legacy::env_table`), which this library's
+/// environment writers keep current and `niji_environ_reload` rebuilds.
 static TABLE_ON: AtomicBool = AtomicBool::new(false);
 static TABLE_SEQ: AtomicU64 = AtomicU64::new(0);
 static TABLE_N: AtomicUsize = AtomicUsize::new(0);
@@ -154,7 +179,7 @@ fn table_written(before: usize, r: Result<Option<usize>, ()>) {
     }
 }
 
-/// `liella_environ_contract(on)`: turn the contract on (building the table) or off; the previous
+/// `niji_environ_contract(on)`: turn the contract on (building the table) or off; the previous
 /// state (1: on).
 pub fn environ_contract(on: bool) -> bool {
     let _g = ENV_LOCK.lock(&CSys);
@@ -171,7 +196,7 @@ pub fn environ_contract(on: bool) -> bool {
     was
 }
 
-/// `liella_environ_reload()`: rebuild the table after a change to `environ` made without this
+/// `niji_environ_reload()`: rebuild the table after a change to `environ` made without this
 /// library's writers (nothing while the contract is off).
 pub fn environ_reload() {
     let _g = ENV_LOCK.lock(&CSys);
@@ -372,7 +397,7 @@ pub fn env_entry_into(i: usize, out: &mut [u8]) -> Option<usize> {
 pub(crate) static ARGC: AtomicUsize = AtomicUsize::new(0);
 pub(crate) static ARGV: AtomicUsize = AtomicUsize::new(0);
 
-/// The number of program arguments (`argc`; 0 in a process Liella did not start).
+/// The number of program arguments (`argc`; 0 in a process libniji did not start).
 pub fn arg_count() -> usize {
     ARGC.load(Acquire)
 }
@@ -386,7 +411,7 @@ pub fn arg_into(i: usize, out: &mut [u8]) -> Option<usize> {
 
 /// Argument `i` (`argv[i]`, `i < argc`) appended to `out`: `false` when there is none
 /// (`wordexp`'s positional parameters, §14.10).
-pub fn arg_bytes(i: usize, out: &mut liella::pattern::wordexp::ValBuf) -> KResult<bool> {
+pub fn arg_bytes(i: usize, out: &mut niji::pattern::wordexp::ValBuf) -> KResult<bool> {
     if i >= arg_count() {
         return Ok(false);
     }
@@ -425,12 +450,23 @@ pub fn auxval(key: u64) -> Option<u64> {
     }
 }
 
+/// The executable's program headers (`AT_PHDR`, `AT_PHNUM`): (words, count, address).
+fn exe_headers() -> (&'static [u64], usize, usize) {
+    let get = |k: u64| auxval(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
+    let (phdr, phnum) = (get(niji_kernel::uapi::AT_PHDR), get(niji_kernel::uapi::AT_PHNUM));
+    (conv::program_headers(phdr, phnum.saturating_mul(niji_rt::start::PHDR_WORDS)), phnum, phdr)
+}
+
 /// Whether `addr` lies in a read-only segment of the executable (D-12.4).
 pub fn is_read_only(addr: usize) -> bool {
-    let get = |k: u64| auxval(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
-    let (phdr, phnum) = (get(liella_kernel::uapi::AT_PHDR), get(liella_kernel::uapi::AT_PHNUM));
-    let words = conv::program_headers(phdr, phnum.saturating_mul(liella_rt::start::PHDR_WORDS));
-    liella_rt::start::read_only(words, phnum, phdr, addr)
+    let (words, phnum, phdr) = exe_headers();
+    niji_rt::start::read_only(words, phnum, exe_bias(words, phnum, phdr), addr)
+}
+
+/// The executable's load bias: 0 for a position-dependent program, the load address of a PIE.
+pub(crate) fn executable_bias() -> usize {
+    let (words, phnum, phdr) = exe_headers();
+    exe_bias(words, phnum, phdr)
 }
 
 /// `getauxval(key)`: the value, or 0 with `ENOENT`.
@@ -481,21 +517,42 @@ pub fn entry(kind: u64, f: usize, arg: usize, dso: usize) -> Entry {
     [kind, w(f), w(arg), w(dso)]
 }
 
-/// `__cxa_thread_atexit_impl(f, obj, dso)` for the calling thread; `false` without memory.
+/// The loader's `thread_local` destructor pin (`StartInfo::dl_pin`, stored by
+/// `runtime::early_init`): 0 in a program `ld.so` did not start, which loads no object later.
+pub(crate) static LOADER_PIN: AtomicUsize = AtomicUsize::new(0);
+
+/// The loader's pin step `(op, arg)` ([`LOADER_PIN`]); 0 without a loader.
+fn loader_pin(op: usize, arg: usize) -> usize {
+    let f = LOADER_PIN.load(Acquire);
+    if f == 0 {
+        return 0;
+    }
+    let a = |v: usize| i64::from_ne_bytes(w(v).to_ne_bytes());
+    usize::try_from(ffi::niji_machine_call3(f, a(op), a(arg), 0)).unwrap_or(0)
+}
+
+/// `__cxa_thread_atexit_impl(f, obj, dso)` for the calling thread; `false` without memory. A
+/// `dso` inside a `dlopen`ed object pins that object until the destructor has run (spec s1_2_c_6:
+/// a `dlclose` meanwhile leaves it loaded, its finalisers not run yet).
 pub fn thread_atexit(f: usize, obj: usize, dso: usize) -> bool {
     match HEAP.alloc(&CSys, &KernelPages, 32, 16) {
         Some(b) => {
-            exit_handlers::thread_atexit(&tb::current().tls_dtors, &KernelPages, b.addr, f, obj, dso);
+            let pin = if dso == 0 { 0 } else { loader_pin(0, dso) };
+            // D-X.60: the calling thread's words (0x88 is another library's in a block it made).
+            exit_handlers::thread_atexit(&crate::thread::words().tls_dtors, &KernelPages, b.addr, f, obj, pin);
             true
         }
         None => false,
     }
 }
 
-/// Run the calling thread's C++ `thread_local` destructors.
+/// Run the calling thread's C++ `thread_local` destructors, dropping each one's pin after it ran.
 pub fn run_thread_dtors() {
-    exit_handlers::run_thread_dtors(&tb::current().tls_dtors, &KernelPages, &mut conv::CCalls, |n| {
+    exit_handlers::run_thread_dtors(&crate::thread::words().tls_dtors, &KernelPages, &mut conv::CCalls, |n, pin| {
         let _ = HEAP.free(&CSys, &KernelPages, n);
+        if pin != 0 {
+            let _ = loader_pin(1, pin);
+        }
     });
 }
 
@@ -504,6 +561,8 @@ pub fn run_thread_dtors() {
 /// including those registered meanwhile (a static program's `.fini_array` and `_fini` are one
 /// of them, registered at startup), then every stream's pending output is written (§12.1), then
 /// the whole process ends.
+// LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
+#[inline(never)]
 pub fn exit(status: i32) -> ! {
     run_thread_dtors();
     exit_handlers::run_all(&EXIT_HANDLERS, &CSys, &KernelPages, status, &mut conv::CCalls);
@@ -520,9 +579,12 @@ pub fn quick_exit(status: i32) -> ! {
 /// `__cxa_finalize(dso)`.
 pub fn finalize(dso: usize) {
     exit_handlers::finalize(&EXIT_HANDLERS, &QUICK_HANDLERS, &CSys, &KernelPages, dso, &mut conv::CCalls);
+    // The module's `pthread_atfork` handlers go too (DL-17, DL-ATFORK-FINALIZE).
+    crate::fork::forget_dso(dso);
 }
 
 /// `_exit`/`_Exit(status)`: end the process now.
+#[inline(never)]
 pub fn exit_now(status: i32) -> ! {
     CSys.exit_group(status)
 }
@@ -543,10 +605,10 @@ pub fn assert_fail(expr: &[u8], file: &[u8], line: u32, function: Option<&[u8]>)
 /// `__assert_perror_fail`: the error's text (`strerror`'s).
 pub fn assert_perror_fail(errnum: i32, file: &[u8], line: u32, function: Option<&[u8]>) -> ! {
     let mut b = [0u8; 32];
-    let text = match liella::diag::description(errnum) {
+    let text = match niji::diag::description(errnum) {
         Some(d) => d.as_bytes(),
         None => {
-            let n = liella::diag::unknown(errnum, &mut b);
+            let n = niji::diag::unknown(errnum, &mut b);
             b.get(..n).unwrap_or(&[])
         }
     };
@@ -567,19 +629,24 @@ pub fn stack_chk_fail() -> ! {
 /// A panic inside the libm product (a bug): a fixed diagnostic, then abort. The product keeps
 /// no location formatting or unwinder of its own (D-10.7).
 pub fn libm_panicked() -> ! {
-    fatal::fatal(&CSys, &[b"liella: internal error in libm\n"], crate::ret::trap)
+    fatal::fatal(&CSys, &[b"niji: internal error in libm\n"], crate::ret::trap)
 }
 
-/// A panic inside the library (a bug): the location, then abort (`liella_rt::panic`).
+/// The libresolv product's panic handler (LIBRESOLV-OWN-CODE): a diagnostic, then abort, as libm's.
+pub fn libresolv_panicked() -> ! {
+    fatal::fatal(&CSys, &[b"niji: internal error in libresolv\n"], crate::ret::trap)
+}
+
+/// A panic inside the library (a bug): the location, then abort (`niji_rt::panic`).
 pub fn panicked(info: &core::panic::PanicInfo<'_>) -> ! {
-    liella_rt::panic::panicked(&CSys, info, crate::ret::trap)
+    niji_rt::panic::panicked(&CSys, info, crate::ret::trap)
 }
 
-/// The auxiliary vector as `liella::system` reads it (`sysconf`'s page size, clock ticks and
+/// The auxiliary vector as `niji::system` reads it (`sysconf`'s page size, clock ticks and
 /// signal-stack minimum).
 pub struct ProcessAux;
 
-impl liella::system::Aux for ProcessAux {
+impl niji::system::Aux for ProcessAux {
     fn aux(&self, key: u64) -> Option<u64> {
         auxval(key)
     }
@@ -588,15 +655,15 @@ impl liella::system::Aux for ProcessAux {
 /// Writes `bytes` to standard error, ignoring failures (`psiginfo`, which like glibc's writes to descriptor 2
 /// behind the stream's back).
 pub fn stderr(bytes: &[u8]) {
-    let _ = liella_kernel::sys::Sys::write(&crate::sys::CSys, liella_kernel::Fd::new(2), bytes);
+    let _ = niji_kernel::sys::Sys::write(&crate::sys::CSys, niji_kernel::Fd::new(2), bytes);
 }
 
 /// Take (`true`) or release the environment lock without a guard (`fork`, the AS-safety
 /// harness).
 pub fn hold_env_lock(take: bool) {
     if take {
-        ENV_LOCK.lock_raw(&CSys, liella_rt::futex::Scope::Private);
+        ENV_LOCK.lock_raw(&CSys, niji_rt::futex::Scope::Private);
     } else {
-        ENV_LOCK.unlock(&CSys, liella_rt::futex::Scope::Private);
+        ENV_LOCK.unlock(&CSys, niji_rt::futex::Scope::Private);
     }
 }

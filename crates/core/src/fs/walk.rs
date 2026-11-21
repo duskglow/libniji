@@ -15,15 +15,15 @@
 //!   directory reported once (D-13.4; a directory reached a second time through a symbolic link
 //!   is skipped silently, as the reference does), symbolic links followed unless physical.
 //!   Its C conventions (`FTW_*` codes, `FTW_CHDIR`, `FTW_ACTIONRETVAL`) are in
-//!   `liella_legacy::fs_tree`.
+//!   `niji_legacy::fs_tree`.
 
 use crate::error::{Errno, Result};
 use crate::fs::dir::{DirStream, D_NAME, D_RECLEN, D_TYPE};
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_NOFOLLOW, O_RDONLY, S_IFDIR, S_IFLNK, S_IFMT};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_NOFOLLOW, O_RDONLY, S_IFDIR, S_IFLNK, S_IFMT};
 
 /// The buffer a walk reads directories with.
 const LIST_BUFFER: usize = 16 * 1024;

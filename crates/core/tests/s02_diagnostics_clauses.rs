@@ -7,14 +7,14 @@
 //! §2.1, §2.4, §2.5 (phase 4); §2.2, §2.3, §2.6, §2.7 (phase 8).
 //!
 //! Error text (§2.2) and `fmtmsg` (§2.6) are tested through the exports
-//! (`liella_boundary::posix::s02_diagnostics`); what writes to `stderr` or reads the environment
+//! (`niji_boundary::posix::s02_diagnostics`); what writes to `stderr` or reads the environment
 //! once per process (`perror`, `fmtmsg`) runs in a re-executed child, one per configuration. C
 //! memory is read through the exported `strlen`/`memcpy` (no unsafe in tests). The `err` and
 //! `error` families (§2.3) are variadic and exit, and `backtrace` (§2.7) is about the call stack
 //! of a C program: their clauses are checked by the self-checking C programs
 //! `conformance/c/s02_report.c` and `s02_backtrace.c`, built against the products and run once
 //! per test binary; each clause test requires its clause's checks to have run and passed.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
 use core::ffi::{c_char, c_long};
@@ -23,17 +23,17 @@ use std::ffi::CString;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::OnceLock;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s02_diagnostics as x;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji_boundary::errno;
+use niji_boundary::posix::s02_diagnostics as x;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
 
-const PROBE: &str = "LIELLA_CLAUSE_PROBE";
+const PROBE: &str = "NIJI_CLAUSE_PROBE";
 
 fn probe() -> Option<String> {
     std::env::var(PROBE).ok()
@@ -59,7 +59,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -74,18 +74,37 @@ struct CRun {
 static REPORT: OnceLock<CRun> = OnceLock::new();
 static BACKTRACE: OnceLock<CRun> = OnceLock::new();
 
-/// `conformance/c/<name>.c` built statically against the products (as `conformance/run.sh`
-/// builds it) and run, once per test binary.
-fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
+static BACKTRACE_PIE: OnceLock<CRun> = OnceLock::new();
+static BACKTRACE_FIXED: OnceLock<CRun> = OnceLock::new();
+
+/// How a C conformance program is linked.
+#[derive(Clone, Copy, PartialEq)]
+enum Link {
+    /// A fixed-address static program, from `niji-crt1.o` (load bias 0).
+    Static,
+    /// A static PIE (`-static-pie -fPIE`, packed relative relocations), from `niji-rcrt1.o`,
+    /// as `conformance/run.sh` links `LINK-STATIC-PIE: relr` (D-27.10).
+    StaticPie,
+}
+
+/// `conformance/c/<name>.c` built against the products as `link` says (as `conformance/run.sh`
+/// builds it) and run with `args`, once per test binary.
+fn c_run_linked(cell: &'static OnceLock<CRun>, name: &str, link: Link, args: &[&str]) -> &'static CRun {
     cell.get_or_init(|| {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let (crt, libc) = (root.join("target/liella/liella-crt1.o"), root.join("target/liella/libc.a"));
+        let start = if link == Link::StaticPie { "target/niji/niji-rcrt1.o" } else { "target/niji/niji-crt1.o" };
+        let (crt, libc) = (root.join(start), root.join("target/niji/libc.a"));
         assert!(crt.exists() && libc.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
         let dir = root.join("target/test-oracles");
         std::fs::create_dir_all(&dir).unwrap();
-        let exe = dir.join(format!("{name}-{}", std::process::id()));
+        let exe = dir.join(format!("{name}-{}-{}", if link == Link::StaticPie { "pie" } else { "fixed" }, std::process::id()));
+        let mode: &[&str] = match link {
+            Link::Static => &["-static"],
+            Link::StaticPie => &["-static-pie", "-fPIE", "-Wl,-z,pack-relative-relocs"],
+        };
         let b = std::process::Command::new("cc")
-            .args(["-std=c17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-fstack-protector-strong"])
+            .args(["-std=c17", "-O1", "-nostdlib", "-fno-builtin", "-fstack-protector-strong"])
+            .args(mode)
             .arg(&crt)
             .arg(root.join(format!("conformance/c/{name}.c")))
             .arg(&libc)
@@ -94,7 +113,7 @@ fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
             .output()
             .unwrap();
         assert!(b.status.success(), "{name}.c does not build: {}", String::from_utf8_lossy(&b.stderr));
-        let r = std::process::Command::new(&exe).current_dir(&dir).stdin(std::process::Stdio::null()).output().unwrap();
+        let r = std::process::Command::new(&exe).args(args).current_dir(&dir).stdin(std::process::Stdio::null()).output().unwrap();
         let _ = std::fs::remove_file(&exe);
         CRun { status: r.status.code(), stderr: String::from_utf8_lossy(&r.stderr).into_owned() }
     })
@@ -102,7 +121,20 @@ fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
 
 /// The checks of `clause` in the C program `name` ran to their end and passed.
 fn c_clause(cell: &'static OnceLock<CRun>, name: &str, clause: &str) {
-    let r = c_run(cell, name);
+    clause_passed(c_run_linked(cell, name, Link::Static, &[]), name, clause);
+}
+
+/// The checks of `clause` in the C program `name`, linked as `link`, ran to their end and passed.
+/// The program is told the link kind (`pie` or `fixed`, its first argument), so it checks the
+/// load bias that kind must have (a compiler that builds `-fPIE` by default defines `__PIE__`
+/// in the fixed-address build too, so the program cannot tell from the preprocessor).
+fn c_clause_linked(cell: &'static OnceLock<CRun>, name: &str, clause: &str, link: Link) {
+    let kind = if link == Link::StaticPie { "pie" } else { "fixed" };
+    clause_passed(c_run_linked(cell, name, link, &[kind]), name, clause);
+}
+
+/// The run `r` of the C program `name` reached the end of `clause` with no failed check.
+fn clause_passed(r: &CRun, name: &str, clause: &str) {
     let failed = r.stderr.lines().any(|l| l.starts_with(&format!("FAIL {clause}:")));
     let ended = r.stderr.lines().any(|l| l == format!("end {clause}"));
     assert!(ended && !failed, "{name}.c, {clause} (exit status {:?}):\n{}", r.status, r.stderr);
@@ -162,11 +194,37 @@ fn assigned() -> impl Iterator<Item = i32> {
 
 #[test]
 fn s2_1_c_0() {
-    // errno is the thread block's word at 0x80 (rt::tls); `errno` in C is
-    // (*__errno_location()): conformance s01_startup checks both from C.
-    assert_eq!(liella_rt::tls::ERRNO_OFFSET, 0x80);
-    assert_eq!(x::__errno_location() as usize, liella_boundary::tb::tp() + 0x80);
+    // errno is (*__errno_location()), one word per thread (D-X.58/D-X.60). In a process the
+    // runtime started it is the thread block's word at 0x80 (rt::tls): conformance s01_startup
+    // checks that case from C (`&errno == __errno_location()` at tp + 0x80). This test process
+    // was started by another C library, whose block owns 0x80: the location is the thread's
+    // registry word, outside the block, and stays the same across calls.
+    assert_eq!(niji_rt::tls::ERRNO_OFFSET, 0x80);
+    assert!(!niji_boundary::selftest::runtime_started(), "a test process is not started by the runtime");
+    let e = x::__errno_location() as usize;
+    assert_eq!(e, niji_boundary::selftest::foreign_errno_word() as usize);
+    let tp = niji_boundary::tb::tp();
+    assert!(!(tp..tp + niji_rt::tls::BLOCK_SIZE).contains(&e), "errno inside another library's block");
+    assert_eq!(x::__errno_location() as usize, e);
     conformance(&["s01_startup"]);
+    // The started case: a static program on the products, errno at tp + 0x80 in two threads.
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = root.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("errno_owned_niji");
+    let st = std::process::Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
+        .arg(root.join("target/niji/niji-crt1.o"))
+        .arg(root.join("crates/core/tests/oracle/errno_owned.c"))
+        .arg(root.join("target/niji/libc.a"))
+        .args(["-lgcc", "-o"])
+        .arg(&exe)
+        .status()
+        .unwrap();
+    assert!(st.success(), "errno_owned.c does not link against the products");
+    let o = std::process::Command::new(&exe).env_clear().output().unwrap();
+    assert_eq!(o.status.code(), Some(0), "errno in a started process is not tp + 0x80 (1: initial thread, 2: created thread, 3: no thread)");
 }
 
 #[test]
@@ -182,7 +240,7 @@ fn s2_1_g_0() {
 fn s2_2_c_0() {
     assert_eq!(text(x::strerror(EINVAL)), "Invalid argument");
     assert_eq!(text(x::strerror(ENOENT)), "No such file or directory");
-    assert_eq!(liella::diag::description(EINVAL), Some("Invalid argument"), "the internal table");
+    assert_eq!(niji::diag::description(EINVAL), Some("Invalid argument"), "the internal table");
     for e in assigned() {
         let m = text(x::strerror(e));
         assert!(!m.is_empty() && !m.starts_with("Unknown error"), "{e}: every kernel number has a message");
@@ -284,7 +342,7 @@ fn s2_2_c_5() {
 #[test]
 fn s2_2_c_6() {
     let err = in_child("s2_2_c_6", "s2_2_c_6", &[], || {
-        let fp = with_exposed_provenance_mut(liella_boundary::stdio::stderr());
+        let fp = with_exposed_provenance_mut(niji_boundary::stdio::stderr());
         assert!(io::fwide(fp, 1) > 0);
         errno::set_raw(ENOENT);
         x::perror(cs("ctx").as_ptr());
@@ -364,7 +422,7 @@ fn s2_5_g_0() {
         let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
         let pages: u64 = statm.split_whitespace().next().unwrap().parse().unwrap();
         CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: pages * 4096, max: RLIM_INFINITY })).unwrap();
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         x::__chk_fail();
     }
     let o = run_probe("s2_5_g_0", "nomem");
@@ -587,7 +645,7 @@ fn s2_6_c_0_empty_fields() {
 #[test]
 fn s2_6_c_0_orientation() {
     let t = "s2_6_c_0_orientation";
-    let fp = || with_exposed_provenance_mut(liella_boundary::stdio::stderr());
+    let fp = || with_exposed_provenance_mut(niji_boundary::stdio::stderr());
     let wide = in_child(t, "wide", &[], || {
         assert!(io::fwide(fp(), 1) > 0);
         assert_eq!(fmtmsg(MM_PRINT, Some("UX:cat"), MM_ERROR, Some("wide"), None, None), MM_OK);
@@ -647,7 +705,7 @@ fn s2_7_c_3() {
 }
 
 /// §2.7: "the first call may load the unwinder, so it is not async-signal-safe unless primed"
-/// describes the reference library. D-2.7: Liella's own unwinder needs no loading, so the first
+/// describes the reference library. D-2.7: libniji's own unwinder needs no loading, so the first
 /// call is async-signal-safe: made first from a signal handler, with no memory left to map, it
 /// traces through the signal frame.
 #[test]
@@ -668,6 +726,47 @@ fn s2_7_f_2() {
 #[test]
 fn s2_7_f_3() {
     c_clause(&BACKTRACE, "s02_backtrace", "s2_7_f_3");
+}
+
+/// §2.7 (D-27.12): in a static PIE (`niji-rcrt1.o`, loaded at a non-zero bias), `backtrace`
+/// returns addresses inside the loaded image (its `PT_LOAD` extent moved by the bias found from
+/// `AT_ENTRY` and the file's `e_entry`), the innermost naming the program's own functions
+/// (`conformance/c/s02_backtrace_static_pie.c`).
+#[test]
+fn s2_7_c_1_static_pie() {
+    c_clause_linked(&BACKTRACE_PIE, "s02_backtrace_static_pie", "s2_7_c_1", Link::StaticPie);
+}
+
+/// §2.7 (D-27.12): in a static PIE, `backtrace_symbols` gives `program(+offset) [address]` with
+/// the offset from the load bias, which names the known function at its link address.
+#[test]
+fn s2_7_c_2_static_pie() {
+    c_clause_linked(&BACKTRACE_PIE, "s02_backtrace_static_pie", "s2_7_c_2", Link::StaticPie);
+}
+
+/// §2.7 (D-27.12): in a static PIE, `backtrace_symbols_fd` writes the same texts, offsets from
+/// the load bias.
+#[test]
+fn s2_7_c_3_static_pie() {
+    c_clause_linked(&BACKTRACE_PIE, "s02_backtrace_static_pie", "s2_7_c_3", Link::StaticPie);
+}
+
+/// §2.7: the static-PIE program's checks, built as a fixed-address static program (bias 0).
+#[test]
+fn s2_7_c_1_fixed_address() {
+    c_clause_linked(&BACKTRACE_FIXED, "s02_backtrace_static_pie", "s2_7_c_1", Link::Static);
+}
+
+/// §2.7: `backtrace_symbols` in the fixed-address build of the static-PIE program (bias 0).
+#[test]
+fn s2_7_c_2_fixed_address() {
+    c_clause_linked(&BACKTRACE_FIXED, "s02_backtrace_static_pie", "s2_7_c_2", Link::Static);
+}
+
+/// §2.7: `backtrace_symbols_fd` in the fixed-address build of the static-PIE program (bias 0).
+#[test]
+fn s2_7_c_3_fixed_address() {
+    c_clause_linked(&BACKTRACE_FIXED, "s02_backtrace_static_pie", "s2_7_c_3", Link::Static);
 }
 
 /// The child's exit status, stdout and stderr (the last 60 lines of each) for a failure message.

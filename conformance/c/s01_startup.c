@@ -1,4 +1,4 @@
-/* Spec §1.1, §1.4, §1.5, §2.1: the state Liella's runtime sets up before main.
+/* Spec §1.1, §1.4, §1.5, §2.1: the state libniji's runtime sets up before main.
  * Each failing CHECK exits with its line number. */
 /* RUN-ARGS: alpha beta */
 /* RUN-ENV: CONF=1 HOME=/home/x */

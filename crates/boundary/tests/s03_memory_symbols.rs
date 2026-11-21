@@ -6,9 +6,9 @@
 //!
 //! Memory the library hands out is written and read through the exported `memset`/`memcpy`,
 //! never with `unsafe` here. The heap is process-wide, so tests that compare its statistics hold
-//! [`GLOBAL`]. Aborts and exits run in a re-executed copy of this binary (`LIELLA_S03_PROBE`):
+//! [`GLOBAL`]. Aborts and exits run in a re-executed copy of this binary (`NIJI_S03_PROBE`):
 //! forking a multi-threaded test process and then allocating could deadlock.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -17,22 +17,22 @@ use core::sync::atomic::Ordering::Relaxed;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_abi::layout::{struct_obstack, struct_obstack__temp};
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s03_memory as s;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_abi::layout::{struct_obstack, struct_obstack__temp};
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s03_memory as s;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 const ENOMEM: i32 = 12;
 const EINVAL: i32 = 22;
 const ENOSYS: i32 = 38;
 const PAGE: usize = 4096;
-const PROBE: &str = "LIELLA_S03_PROBE";
+const PROBE: &str = "NIJI_S03_PROBE";
 
 static GLOBAL: Mutex<()> = Mutex::new(());
 
@@ -122,13 +122,13 @@ fn sym_free() {
         Some("double") => {
             let q = opaque::malloc(40);
             opaque::free(q);
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free(q);
             return;
         }
         Some("invalid") => {
             let q = opaque::malloc(40);
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free(q.cast::<u8>().wrapping_add(8).cast());
             return;
         }
@@ -189,7 +189,7 @@ fn sym_realloc() {
     if probe().as_deref() == Some("stale") {
         let x = opaque::malloc(8);
         opaque::free(x);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         opaque::realloc(x, 16);
         return;
     }
@@ -388,9 +388,19 @@ fn sym_mallinfo2() {
 #[test]
 fn sym_mallinfo() {
     isolated("sym_mallinfo", || {
-        let m = s::mallinfo();
-        let m2 = s::mallinfo2();
-        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)));
+        // The process is not quiescent (the harness thread and the interposed runtime may allocate a few
+        // bytes between two calls, finding #6881), so `mallinfo` is compared with `mallinfo2` within one
+        // window: two `mallinfo2` reads around it that agree. A budget of tries, no clock.
+        const TRIES: u32 = 1000;
+        let window = (0..TRIES).find_map(|_| {
+            let before = s::mallinfo2();
+            let m = s::mallinfo();
+            let after = s::mallinfo2();
+            (before.uordblks == after.uordblks).then_some((m, before))
+        });
+        assert!(window.is_some(), "mallinfo2's bytes in use changed around every one of {TRIES} mallinfo calls");
+        let (m, m2) = window.unwrap();
+        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)), "mallinfo's bytes in use within a quiescent window");
         assert!(m.hblks >= 0 && m.arena >= 0, "saturated, never negative");
     });
 }
@@ -463,8 +473,8 @@ fn sym_malloc_set_state() {
 #[test]
 fn sym___default_morecore() {
     // Compat-only (`__default_morecore@GLIBC_2.2.5`, LG-11): the translation under its internal name.
-    assert!(s::liella_compat___default_morecore(4096).is_null(), "the heap never uses the break (D-3.7)");
-    assert!(s::liella_compat___default_morecore(0).is_null());
+    assert!(s::niji_compat___default_morecore(4096).is_null(), "the heap never uses the break (D-3.7)");
+    assert!(s::niji_compat___default_morecore(0).is_null());
 }
 
 // ------------------------------------------------------------------------------ debugging
@@ -510,7 +520,7 @@ fn sym_muntrace() {
 fn sym_tr_break() {
     // Compat-only (`tr_break@GLIBC_2.2.5`, LG-11): a no-op mtrace breakpoint.
     errno::set_raw(12345);
-    s::liella_compat_tr_break();
+    s::niji_compat_tr_break();
     assert_eq!(errno::get(), 12345, "tr_break does nothing, errno included");
 }
 
@@ -757,7 +767,7 @@ fn sym_obstack_free() {
     if probe().as_deref() == Some("foreign") {
         let mut h = obstack();
         begin(&mut h, 64);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::obstack_free(Some(&mut h), 0x10 as *mut c_void);
         return;
     }
@@ -851,20 +861,20 @@ fn node_free_bytes(n: u32) -> Option<usize> {
 #[test]
 fn kernel_pages_align_and_prefer_a_node() {
     // Trace: no spec clause (the heap's kernel page source); D-3.10, M3.
-    use liella_boundary::heap::KernelPages;
-    use liella_rt::heap::{Pages, SEG};
+    use niji_boundary::heap::KernelPages;
+    use niji_rt::heap::{Pages, SEG};
     let pages = KernelPages;
     let a = pages.map(SEG, SEG, Some(0)).unwrap();
     assert_eq!(a % SEG, 0, "aligned as asked (segments are found by address, D-3.10)");
     fill(a as *mut c_void, 7, SEG);
-    // Liella controls the policy, not the placement. Kernel doc (admin-guide/mm/numa_memory_policy):
+    // libniji controls the policy, not the placement. Kernel doc (admin-guide/mm/numa_memory_policy):
     // MPOL_PREFERRED "attempts to allocate pages from the preferred node, but will fall back to
     // other nodes" - the kernel also weighs zone watermarks, reclaim and page-cache state, so a page
     // can land elsewhere with free memory on node 0 (FLAKE-NUMA-NODE, seen twice). Asserted: the mode
     // and mask via get_mempolicy. The placement is only printed as a diagnostic.
     match selftest::policy_of(a) {
         Ok((mode, mask)) => {
-            assert_eq!(mode, liella_kernel::uapi::MPOL_PREFERRED as i32, "the preferred-node policy was applied");
+            assert_eq!(mode, niji_kernel::uapi::MPOL_PREFERRED as i32, "the preferred-node policy was applied");
             assert_eq!(mask & 1, 1, "and it names node 0");
             eprintln!(
                 "diagnostic: page on node {:?}, node 0 MemFree {:?}",
@@ -872,7 +882,7 @@ fn kernel_pages_align_and_prefer_a_node() {
                 node_free_bytes(0)
             );
         }
-        Err(e) => assert_eq!(e, liella_kernel::Errno::ENOSYS, "only a kernel without CONFIG_NUMA may refuse"),
+        Err(e) => assert_eq!(e, niji_kernel::Errno::ENOSYS, "only a kernel without CONFIG_NUMA may refuse"),
     }
     let b = pages.map(3 * PAGE, PAGE, None).unwrap();
     assert_eq!(bytes(b as *const c_void, 3 * PAGE), vec![0; 3 * PAGE], "fresh mappings read as zero");
@@ -880,7 +890,130 @@ fn kernel_pages_align_and_prefer_a_node() {
     pages.unmap(b, 3 * PAGE);
 }
 
-/// no spec clause (Liella's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
+/// This process's address-space size (`/proc/self/statm` field 1, in pages), in bytes.
+fn vm_size() -> u64 {
+    let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
+    statm.split_whitespace().next().unwrap().parse::<u64>().unwrap() * PAGE as u64
+}
+
+#[test]
+fn kernel_pages_map_aligned_under_an_address_space_limit() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE). Under a limit that leaves room for a segment but not for the
+    // alignment slack, `map` and `map_room` still return aligned, zero-filled, writable memory
+    // (the exact placement path), and `grow` extends the `map_room` mapping in place. In a
+    // re-executed copy: the limit is process-wide.
+    isolated("kernel_pages_map_aligned_under_an_address_space_limit", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let (head, len) = (2 * PAGE, SEG / 4);
+        // Room for one SEG mapping and a quarter more, never for SEG plus its alignment.
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let over = CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0);
+        assert!(over.is_err(), "precondition: the limit refuses the over-mapping, so the exact path is taken");
+        let a = pages.map(SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map: SEG bytes at a SEG boundary fit under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        fill(a as *mut c_void, 7, PAGE);
+        fill((a + SEG - PAGE) as *mut c_void, 7, PAGE);
+        assert_eq!(bytes((a + PAGE) as *const c_void, PAGE), vec![0; PAGE], "map: zero-filled");
+        pages.unmap(a, SEG);
+        let b = pages.map_room(head, len, SEG, SEG, None).unwrap_or(0);
+        assert_ne!(b, 0, "map_room: head + len bytes fit under the limit");
+        assert_eq!(b % SEG, 0, "map_room: the address after the head is aligned");
+        assert_eq!(bytes((b + len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "map_room: zero-filled to its end");
+        fill((b - head) as *mut c_void, 7, head + len);
+        pages.unmap(b - head, head + len);
+        // Under the limit the exact path promises no room above, so `grow` gets a known hole: the
+        // upper half of a mapping of its own, given back.
+        let c = pages.map(2 * len, PAGE, None).unwrap_or(0);
+        assert_ne!(c, 0, "2 * len bytes fit under the limit");
+        pages.unmap(c + len, len);
+        assert!(!pages.grow(c, len, None), "grow: a taken range is never replaced");
+        assert!(pages.grow(c + len, len, None), "grow: a free range that fits the limit is mapped");
+        assert_eq!(bytes((c + 2 * len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "grow: zero-filled");
+        fill((c + len) as *mut c_void, 7, len);
+        pages.unmap(c, 2 * len);
+    });
+}
+
+#[test]
+fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE-10). The kernel's first choice for SEG bytes is made a gap that holds
+    // SEG bytes but no SEG-aligned range (pinned by a page at each end), as a gap just above a
+    // segment is in a process whose heap is libniji's. Under a limit that refuses the
+    // over-mapping, `map` still returns an aligned range (from another gap) and leaves nothing
+    // of its own in the pinned gap. Nothing allocates between the layout and the check: the
+    // heap could otherwise place its own mapping in the gap.
+    isolated("kernel_pages_map_aligned_past_a_gap_without_an_aligned_range", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_NORESERVE, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let pin = |at: usize| -> Option<usize> {
+            let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
+            (got == at).then_some(got)
+        };
+        let mut pins = [0usize; 16];
+        let mut held = 0;
+        let mut keep = |p: Option<usize>| {
+            if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
+                *slot = p;
+                held += 1;
+            }
+        };
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        let probe = |len: usize| -> usize {
+            let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
+            assert_ne!(p, 0, "a mapping before any limit");
+            KernelPages.unmap(p, len);
+            p
+        };
+        // The gap: SEG + PAD bytes (PAD: the huge-page alignment a kernel may give anonymous
+        // mappings, which then only uses a gap of len + PAD), pinned by a page at each end, at
+        // `gap` with no multiple of SEG in [gap, gap + PAD]: room for SEG bytes, none aligned.
+        // Carved from the kernel's first choice for SEG + 3 * PAD bytes.
+        const PAD: usize = 2 << 20;
+        let r = probe(SEG + 3 * PAD);
+        let gap = if r % SEG != 0 && r % SEG < SEG - PAD { r } else { r + PAD + PAGE };
+        keep(pin(gap - PAGE));
+        keep(pin(gap + SEG + PAD));
+        // Higher gaps that fit SEG bytes but not SEG + 3 * PAD are split by a page in their
+        // middle until the kernel's first choice for SEG bytes is the gap.
+        let mut first = false;
+        for _ in 0..8 {
+            let q = probe(SEG);
+            if q >= gap && q < gap + SEG + PAD {
+                first = true;
+                break;
+            }
+            keep(pin(q + SEG / 2));
+        }
+        assert!(first, "precondition: the gap is the kernel's first choice for SEG bytes within 8 splits");
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
+        let a = pages.map(SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map: an aligned SEG range from another gap fits under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        assert!(a + SEG <= gap || a >= gap + SEG + PAD, "map: never inside the pinned gap");
+        fill(a as *mut c_void, 7, PAGE);
+        pages.unmap(a, SEG);
+        let back = CSys.mmap(gap, SEG + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
+        assert_eq!(back, gap, "map: the pinned gap is whole again (no page of the call's left in it)");
+        pages.unmap(gap, SEG + PAD);
+        for &p in pins.get(..held).unwrap_or(&[]) {
+            pages.unmap(p, PAGE);
+        }
+    });
+}
+
+/// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
 /// while the request fits the block's class and is more than half the class below it, and moves
 /// the block otherwise. The export tests this before its general path (PERF-REALLOC-USABLE-2).
 #[test]
@@ -910,5 +1043,61 @@ fn realloc_in_place_fit_rule() {
         assert!(!m.is_null());
         assert_ne!(m, p, "{first} -> {moved} moves to the class below");
         s::free(m);
+    }
+}
+
+/// `realloc` across every small size class boundary (REALLOC-ONE-LOOKUP): growing one byte past
+/// a class, back to it, and shrinking to half the class below, through the export (the fused
+/// path `Heap::fit` / `resize_held`), keeps the old bytes and returns a block whose usable size
+/// covers the request; a request that fits the class and is above half the class below stays
+/// in place.
+// Clauses: s3_1_c_3, s3_1_g_2 (and malloc_usable_size: at least the request).
+#[test]
+fn realloc_keeps_bytes_and_usable_size_at_every_class_boundary() {
+    let _g = global();
+    // The class sizes, from the heap itself: 1, then one past each usable size, up to 64 KiB.
+    let mut classes = Vec::new();
+    let mut n = 1;
+    while n <= 65536 {
+        let p = opaque::malloc(n);
+        let u = s::malloc_usable_size(p);
+        opaque::free(p);
+        assert!(u >= n);
+        classes.push(u);
+        n = u + 1;
+    }
+    assert!(classes.len() > 20, "small classes found: {classes:?}");
+    let pattern = |i: usize| u8::try_from(i * 7 % 251).unwrap_or(0) ^ 0x5a;
+    for (i, &u) in classes.iter().enumerate() {
+        let below = if i == 0 { 0 } else { classes[i - 1] };
+        let mut p = opaque::malloc(u);
+        assert_eq!(s::malloc_usable_size(p), u);
+        // Every usable byte (malloc_usable_size's bytes are the caller's).
+        let src: Vec<u8> = (0..u).map(pattern).collect();
+        st::memcpy(p, src.as_ptr().cast(), u);
+        // Within the class: in place.
+        for n in [u, below / 2 + 1, (below / 2 + u) / 2] {
+            if n == 0 || n > u {
+                continue;
+            }
+            let q = opaque::realloc(p, n);
+            assert_eq!(q, p, "class {u}: realloc to {n} stays in place");
+            assert!(s::malloc_usable_size(q) >= n);
+        }
+        // Growth past the class: all `u` old bytes kept.
+        let grown = opaque::realloc(p, u + 1);
+        assert!(!grown.is_null());
+        assert!(s::malloc_usable_size(grown) > u, "class {u}: growth by one byte gets room for it");
+        let got = bytes(grown, u);
+        assert!(got.iter().enumerate().all(|(k, &b)| b == pattern(k)), "class {u}: growth kept every byte");
+        // Back to the class size, then to half the class below: the bytes the request covers.
+        p = opaque::realloc(grown, u);
+        assert!(s::malloc_usable_size(p) >= u);
+        assert!(bytes(p, u).iter().enumerate().all(|(k, &b)| b == pattern(k)), "class {u}: back to {u} kept every byte");
+        let half = (below / 2).max(1);
+        let small = opaque::realloc(p, half);
+        assert!(s::malloc_usable_size(small) >= half);
+        assert!(bytes(small, half).iter().enumerate().all(|(k, &b)| b == pattern(k)), "class {u}: shrink to {half} kept its bytes");
+        opaque::free(small);
     }
 }

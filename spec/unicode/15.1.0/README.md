@@ -3,7 +3,7 @@
 Normative inputs for the generated Unicode tables (implementation-plan.md IP-19, D-X.4). The
 spec pins the Unicode version glibc 2.39 uses (§5: "Unicode 15.1.0 in 2.39"). These files are
 unmodified copies, distributed under the Unicode License v3 (`license.txt`, compatible with
-Liella's LGPL-2.1-or-later terms; its notice must accompany them and the tables generated from
+libniji's LGPL-2.1-or-later terms; its notice must accompany them and the tables generated from
 them).
 
 Fetched 2026-10-01 (owner approval) from:

@@ -9,14 +9,14 @@
 
 use std::sync::Mutex;
 
-use liella::random::{AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES, TYPES};
-use liella_abi::layout::{struct_drand48_data, struct_random_data};
-use liella_boundary::posix::s25_ipc as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::Errno;
-use liella_legacy::ipc_compat::{self, CtlShape};
-use liella_legacy::prng_global::{self, CMem};
-use liella_legacy::{cred_compat, prng_r, string_compat};
+use niji::random::{AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES, TYPES};
+use niji_abi::layout::{struct_drand48_data, struct_random_data};
+use niji_boundary::posix::s25_ipc as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::Errno;
+use niji_legacy::ipc_compat::{self, CtlShape};
+use niji_legacy::prng_global::{self, CMem};
+use niji_legacy::{cred_compat, prng_r, string_compat};
 
 static GLOBAL: Mutex<()> = Mutex::new(());
 
@@ -188,7 +188,7 @@ fn chk_9_2_t_global_rand_r() {
     let mut a = 5u32;
     let mut b = 5u32;
     let v = prng_global::rand_r(&mut a);
-    assert_eq!(v, i32::try_from(liella::random::rand_r(&mut b)).unwrap());
+    assert_eq!(v, i32::try_from(niji::random::rand_r(&mut b)).unwrap());
     assert_eq!(a, b);
 }
 
@@ -371,7 +371,7 @@ fn ftok_check() {
     let exe = std::env::current_exe().unwrap();
     let md = std::fs::metadata(&exe).unwrap();
     let c = std::ffi::CString::new(exe.to_str().unwrap()).unwrap();
-    let path = liella_kernel::path::KStr::from_nul_terminated(c.as_bytes_with_nul()).unwrap();
+    let path = niji_kernel::path::KStr::from_nul_terminated(c.as_bytes_with_nul()).unwrap();
     for id in [0, 1, 0x7f, 0xff, 0x1ab, -1] {
         let want = (md.ino() & 0xffff) as i32 | ((md.dev() & 0xff) as i32) << 16 | (id & 0xff) << 24;
         assert_eq!(ipc_compat::ftok(&CSys, path, id), Ok(want), "id {id}");
@@ -391,7 +391,7 @@ fn ctl_check() {
     assert_eq!(ipc_compat::semctl(&CSys, id, 0, SETALL, ipc_compat::SemArg::Values(&mut [4, 5, 6])), Ok(0));
     assert_eq!(ipc_compat::semctl(&CSys, id, 0, GETALL, ipc_compat::SemArg::Values(&mut vals)), Ok(0));
     assert_eq!(vals, [4, 5, 6]);
-    let mut ds = liella_kernel::uapi::SemidDs::default();
+    let mut ds = niji_kernel::uapi::SemidDs::default();
     assert_eq!(ipc_compat::semctl(&CSys, id, 0, IPC_STAT, ipc_compat::SemArg::Ds(&mut ds)), Ok(0));
     assert_eq!(ds.nsems(), 3);
     assert_eq!(ipc_compat::semctl(&CSys, id, 0, IPC_RMID, ipc_compat::SemArg::None), Ok(0));
@@ -400,13 +400,13 @@ fn ctl_check() {
 
     let q = x::msgget(0, 0o600);
     assert!(q >= 0);
-    let mut mds = liella_kernel::uapi::MsqidDs::default();
+    let mut mds = niji_kernel::uapi::MsqidDs::default();
     assert_eq!(ipc_compat::msgctl(&CSys, q, IPC_STAT, ipc_compat::CtlArg::Ds(&mut mds)), Ok(0));
     assert_eq!(ipc_compat::msgctl(&CSys, q, 3, ipc_compat::CtlArg::Info(&mut [0u8; 32])).map(|_| ()), Ok(()));
     assert_eq!(ipc_compat::msgctl(&CSys, q, IPC_RMID, ipc_compat::CtlArg::None), Ok(0));
     let m = x::shmget(0, 4096, 0o600);
     assert!(m >= 0);
-    let mut sds = liella_kernel::uapi::ShmidDs::default();
+    let mut sds = niji_kernel::uapi::ShmidDs::default();
     assert_eq!(ipc_compat::shmctl(&CSys, m, IPC_STAT, ipc_compat::CtlArg::Ds(&mut sds)), Ok(0));
     assert_eq!(sds.segsz(), 4096);
     assert_eq!(ipc_compat::shmctl(&CSys, m, IPC_RMID, ipc_compat::CtlArg::None), Ok(0));
@@ -419,7 +419,7 @@ fn s17_1_c_0() {
     let n = cred_compat::getgroups(&CSys, 0, &mut []).unwrap();
     let mut list = vec![0u32; n];
     assert_eq!(cred_compat::getgroups(&CSys, i32::try_from(n).unwrap(), &mut list), Ok(n));
-    let egid = liella_boundary::posix::s17_users::getegid();
+    let egid = niji_boundary::posix::s17_users::getegid();
     assert_eq!(cred_compat::getgroups(&CSys, -1, &mut list), Err(Errno::EINVAL));
     if n > 0 {
         assert_eq!(cred_compat::getgroups(&CSys, i32::try_from(n - 1).unwrap(), &mut list[..n - 1]), Err(Errno::EINVAL));

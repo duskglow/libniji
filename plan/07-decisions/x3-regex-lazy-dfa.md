@@ -10,9 +10,9 @@ automata literature (below) and black-box counts. No other C library's source wa
 
 Job `regex-lazy-dfa-profile`: `cargo xtask bench --compare --counters --runs 3 cbench_patterns
 cbench_opt` on the 60-vCPU x86-64 build host, then `perf record -e instructions:u` of the
-**Liella** static bench binary only (`CBENCH_ROWS=<row>`). Instructions per call, user space:
+**libniji** static bench binary only (`CBENCH_ROWS=<row>`). Instructions per call, user space:
 
-| Row | Liella | glibc | ratio | time ratio (same host) |
+| Row | libniji | glibc | ratio | time ratio (same host) |
 |---|---|---|---|---|
 | `regexec_backref` (`\(b[a-z]*\)@\1`, 13-byte subject, nmatch 2) | 24,460 | 21,950 | **1.11** | 1.13 |
 | `regexec_class_nomatch_1k` | 8,647 | 8,665 | 1.00 | 0.75 |

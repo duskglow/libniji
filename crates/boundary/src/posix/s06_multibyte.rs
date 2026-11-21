@@ -4,12 +4,12 @@
 //! `crate::iconv` (D-6.8, D-6.9). Hidden states (the non-restartable forms, a `NULL` `mbstate_t *`) are process-wide until
 //! the phase-4 thread blocks.
 
-use liella::text::{Encoding, MbState};
+use niji::text::{Encoding, MbState};
 use core::ffi::c_void;
 
-use liella_abi::ctypes::{c_char, c_int, char16_t, char32_t, char8_t, mbstate_t, size_t, wchar_t, wint_t};
-use liella_legacy::mb_compat;
-use liella_legacy::mb_state::{self, Slot};
+use niji_abi::ctypes::{c_char, c_int, char16_t, char32_t, char8_t, mbstate_t, size_t, wchar_t, wint_t};
+use niji_legacy::mb_compat;
+use niji_legacy::mb_state::{self, Slot};
 
 use crate::conv;
 use crate::iconv;
@@ -170,12 +170,12 @@ pub extern "C" fn __wctomb_chk(s: *mut c_char, wc: wchar_t, buflen: size_t) -> c
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn btowc(c: c_int) -> wint_t {
-    mb_compat::btowc(c, locale::current())
+    locale::with_current(move |l| mb_compat::btowc(c, l))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn wctob(wc: wint_t) -> c_int {
-    mb_compat::wctob(wc, locale::current())
+    locale::with_current(move |l| mb_compat::wctob(wc, l))
 }}
 
 export! { "GLIBC_2.2.5";
@@ -185,12 +185,12 @@ pub extern "C" fn mbsinit(ps: Option<&mbstate_t>) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn __ctype_get_mb_cur_max() -> size_t {
-    mb_compat::mb_cur_max(locale::current())
+    locale::with_current(mb_compat::mb_cur_max)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn wcwidth(wc: wchar_t) -> c_int {
-    u32::try_from(wc).map_or(-1, |c| locale::view().width(c))
+    u32::try_from(wc).map_or(-1, |c| locale::with_view(move |v| v.width(c)))
 }}
 
 export! { "GLIBC_2.2.5";

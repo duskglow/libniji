@@ -7,10 +7,19 @@
 
 extern crate alloc;
 
+pub mod arch;
+pub mod boot;
+pub mod link;
+pub mod program;
+pub mod start;
 pub mod elf;
 pub mod map;
 pub mod search;
+pub mod cache;
+pub mod ldconfig;
 pub mod reloc;
+pub mod init;
+pub mod dlopen;
 pub mod symbols;
 pub mod tls;
 pub mod namespaces;

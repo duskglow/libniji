@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 11. Scaffold map and commands
 
@@ -18,23 +18,23 @@ glib-rewrite/
 │   └── ERRATA.md
 ├── csys/                      ARTIFACT 2: the C syscall layer (freestanding C + asm)
 │   ├── README.md              classes and rules (K1–K6)
-│   ├── include/liella_csys.h
+│   ├── include/niji_csys.h
 │   └── src/ version.c · sys/*.c (19 areas) · machine/*.S (12 primitives) · adapter/*.c
 ├── crates/                    ARTIFACT 3: the Rust library
-│   ├── kernel/   (liella-kernel)   Sys/Machine traits, Errno, Fd, KPath, auxv, vdso, uapi, testing  [forbid]
-│   ├── rt/       (liella-rt)       start tls futex sync heap thread signal context fpu cpu fatal panic [forbid]
-│   ├── abi/      (liella-abi)      ctypes layout ret pack callback va chk                              [forbid]
+│   ├── kernel/   (niji-kernel)   Sys/Machine traits, Errno, Fd, KPath, auxv, vdso, uapi, testing  [forbid]
+│   ├── rt/       (niji-rt)       start tls futex sync heap thread signal context fpu cpu fatal panic [forbid]
+│   ├── abi/      (niji-abi)      ctypes layout ret pack callback va chk                              [forbid]
 │   │   └── tests/appendix_c_layouts.rs                                           171 pending
-│   ├── core/     (liella)          the clean capability API (30 modules)                                [forbid]
+│   ├── core/     (niji)          the clean capability API (30 modules)                                [forbid]
 │   │   └── tests/sNN_*_clauses.rs                                                1,147 pending
-│   ├── legacy/   (liella-legacy)   quarantined historical semantics (26 modules)                        [forbid]
-│   ├── math/     (liella-math)     libm                                                                 [forbid]
+│   ├── legacy/   (niji-legacy)   quarantined historical semantics (26 modules)                        [forbid]
+│   ├── math/     (niji-math)     libm                                                                 [forbid]
 │   │   └── tests/s10_math_clauses.rs                                             56 pending
 │   ├── ld/, thread-db/            ld.so and libthread_db logic                                         [forbid]
 │   ├── spectest/                  pending-test macros                                                   [forbid]
-│   ├── boundary/ (liella-boundary) THE ONLY UNSAFE: ffi sys conv strz heap export data caller_alloc
+│   ├── boundary/ (niji-boundary) THE ONLY UNSAFE: ffi sys conv strz heap export data caller_alloc
 │   │   │                          va_source, and posix/ = ARTIFACT 4, the translation layer   [deny + 4 categories]
-│   │   ├── build.rs               compiles csys/ into libliella_csys.a
+│   │   ├── build.rs               compiles csys/ into libniji_csys.a
 │   │   └── tests/                 s00 conventions (22), sNN symbols (3,112), appendix A primitives (281),
 │   │                              csys_link.rs (1 specified: the C layer links and is callable)
 │   └── libc-so/                   product crate (separate build from phase 4)                         [forbid]
@@ -82,7 +82,7 @@ This runs the lint policy.
   * Conformance: SKIPPED until phase 4.
 * Clippy at `-D warnings`: clean.
 * Injected-violation check: an undocumented unsafe site in the boundary, an undocumented
-  `#[allow(unsafe_code)]`, and `unsafe` in `liella` are each rejected by the audit. The last
+  `#[allow(unsafe_code)]`, and `unsafe` in `niji` are each rejected by the audit. The last
   is also rejected by the compiler.
 * No implementation code yet. The only functional code is the phase-0 link proof: one C
   function returning the C layer's ABI version, and its declaration.

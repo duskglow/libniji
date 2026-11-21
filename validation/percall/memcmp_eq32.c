@@ -1,5 +1,5 @@
 /* wl_percall spec (MEMCMP-EQ-24-32): instructions per call of memcmp, bcmp and __memcmpeq at the folded
- * sizes 8-64 and the first sizes above, Liella vs glibc. "eq": the regions are equal over all n bytes;
+ * sizes 8-64 and the first sizes above, libniji vs glibc. "eq": the regions are equal over all n bytes;
  * "hd": they differ at byte 3 (inside the 8-byte head). Misaligned pointers (a + 1, b + 5). Calls go
  * through a volatile function pointer so the compiler cannot expand a constant-size compare inline.
  *   bash validation/wl_percall.sh --spec validation/percall/memcmp_eq32.c <dir|rev> */

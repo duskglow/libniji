@@ -1,0 +1,4 @@
+# __STDC_ISO_10646__ (yyyymm, C 6.10.8.2) for the Unicode version in spec/unicode/: the month of that Unicode
+# release, whose repertoire ISO/IEC 10646 then holds.
+unicode	yyyymm
+15.1.0	202309

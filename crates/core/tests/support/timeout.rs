@@ -11,7 +11,7 @@
 //! scale    = clamp(1 + ceil(pressure / cpus), 2, 10)
 //! ```
 //!
-//! `LIELLA_TEST_TIMEOUT_SCALE=<n>` (1..=100) overrides it. On expiry the report says which limit
+//! `NIJI_TEST_TIMEOUT_SCALE=<n>` (1..=100) overrides it. On expiry the report says which limit
 //! expired, the scale and the elapsed time (`expired`).
 #![allow(dead_code, clippy::arithmetic_side_effects)]
 
@@ -36,7 +36,7 @@ pub(crate) fn scale_from(loadavg: &str, cpus: u64) -> u64 {
 
 /// The scale now: the override, else from the load. Not cached: the load changes over a long run.
 pub(crate) fn scale() -> u64 {
-    if let Some(n) = std::env::var("LIELLA_TEST_TIMEOUT_SCALE").ok().and_then(|v| v.parse::<u64>().ok()) {
+    if let Some(n) = std::env::var("NIJI_TEST_TIMEOUT_SCALE").ok().and_then(|v| v.parse::<u64>().ok()) {
         return n.clamp(1, 100);
     }
     let cpus = std::thread::available_parallelism().map_or(1, |n| u64::try_from(n.get()).unwrap_or(1));

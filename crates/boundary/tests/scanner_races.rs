@@ -7,7 +7,7 @@
 //! through `pwrite` while the test thread calls each scanner's export in a loop: until the library
 //! reports a rescan (so a test cannot pass without the race having happened), at most 20 s per
 //! scanner. Every answer is checked against the ones the two versions of the text allow.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 #[path = "../../core/tests/support/timeout.rs"]
@@ -18,16 +18,16 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicUsize, Ordering::
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_boundary::posix::s01_startup as e;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::Region;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_SHARED, MFD_CLOEXEC, PROT_READ, PROT_WRITE, SIGABRT, SIGKILL, SIGUSR1};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_boundary::posix::s01_startup as e;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::Region;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_SHARED, MFD_CLOEXEC, PROT_READ, PROT_WRITE, SIGABRT, SIGKILL, SIGUSR1};
 
 const PAGE: usize = 4096;
 /// Offsets in the page: the first text, the second text (comparisons), the environment entry.
@@ -37,7 +37,7 @@ const ENV: usize = 512;
 /// The byte the writer flips, and the text's own end (or match) after it.
 const AT: usize = 15;
 const END: usize = 40;
-const NAME: &core::ffi::CStr = c"LIELLA_SCANNER_RACE";
+const NAME: &core::ffi::CStr = c"NIJI_SCANNER_RACE";
 
 /// The rescan counter and the environment are process-wide: every test holds this.
 static LOCK: Mutex<()> = Mutex::new(());
@@ -47,7 +47,7 @@ fn lock() -> MutexGuard<'static, ()> {
 }
 
 /// Set in the process `alone` starts, to the test it runs.
-const ALONE: &str = "LIELLA_SCANNER_RACES_ALONE";
+const ALONE: &str = "NIJI_SCANNER_RACES_ALONE";
 
 /// Run `body` in a fresh process of this binary that runs only `test` (one test thread): the
 /// environment writes (`putenv`/`setenv`/`unsetenv` of the test entries) then share the process
@@ -87,7 +87,7 @@ struct Shared {
 
 impl Shared {
     fn map_with_entry() -> Shared {
-        let fd = CSys.memfd_create(KStr::from_nul_terminated(b"liella-race\0").unwrap(), MFD_CLOEXEC).unwrap();
+        let fd = CSys.memfd_create(KStr::from_nul_terminated(b"niji-race\0").unwrap(), MFD_CLOEXEC).unwrap();
         CSys.pwrite(fd, &[0u8; PAGE], 0).unwrap();
         let region = CSys.mmap(0, PAGE, PROT_READ | PROT_WRITE, MAP_SHARED, Some(fd), 0).unwrap();
         let p = Shared { fd, addr: region.addr(), region: Some(region) };
@@ -151,7 +151,7 @@ fn prepare(p: &Shared, c: Case) {
             (b'a', b'c')
         }
         Case::Memcmp | Case::Strcmp | Case::Strcoll => (b'a', b'b'),
-        Case::Getenv => (b'L', b'M'),
+        Case::Getenv => (NAME.to_bytes()[3], NAME.to_bytes()[3] + 1),
     };
     p.put(A, &text);
     p.put(B, &text);
@@ -342,11 +342,11 @@ fn a_stale_answer_is_rescanned_from_the_reported_index_alone() {
     assert_eq!(selftest::settle_memcmp(b"abc", b"abc", 1), Ordering::Equal);
     assert_eq!(selftest::settle_memcmp(b"abc", b"abcd", 1), Ordering::Less);
     // getenv: an entry that is not `name=` is searched for again in the environment.
-    assert_eq!(e::setenv(c"LIELLA_SETTLE".as_ptr(), c"1".as_ptr(), 1), 0);
-    let want = e::getenv(c"LIELLA_SETTLE".as_ptr()).addr();
-    assert_eq!(selftest::settle_getenv(b"LIELLA_SETTLE", b"LIELLA_SETTLX=1\0"), Some(want));
-    assert_eq!(selftest::settle_getenv(b"LIELLA_UNSET_NAME", b"OTHER=1\0"), None);
-    assert_eq!(e::unsetenv(c"LIELLA_SETTLE".as_ptr()), 0);
+    assert_eq!(e::setenv(c"NIJI_SETTLE".as_ptr(), c"1".as_ptr(), 1), 0);
+    let want = e::getenv(c"NIJI_SETTLE".as_ptr()).addr();
+    assert_eq!(selftest::settle_getenv(b"NIJI_SETTLE", b"NIJI_SETTLX=1\0"), Some(want));
+    assert_eq!(selftest::settle_getenv(b"NIJI_UNSET_NAME", b"OTHER=1\0"), None);
+    assert_eq!(e::unsetenv(c"NIJI_SETTLE".as_ptr()), 0);
     assert_eq!(selftest::rescans(), before + 13);
 }
 

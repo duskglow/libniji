@@ -1,0 +1,30 @@
+@@generated
+/* unistd.h: standard symbolic constants and types (XSH <unistd.h>). The _SC_, _CS_ and _PC_ names are enumerators and macros of the same value. */
+#ifndef __NIJI_H_unistd_h
+#define __NIJI_H_unistd_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL TEMP_FAILURE_RETRY
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+/* GNU: repeat an interrupted call (errno is EINTR) until it ends otherwise. */
+@@when TEMP_FAILURE_RETRY
+# define TEMP_FAILURE_RETRY(expression) (__extension__ ({ long int __result; do __result = (long int) (expression); while (__result == -1L && errno == EINTR); __result; }))
+#endif
+
+__NIJI_END_C
+
+#endif

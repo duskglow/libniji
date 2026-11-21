@@ -1,0 +1,18 @@
+# -l -X: links are not updated, so -l only reports (-v) what it would link.
+name: ldconfig -l -N -X -v makes no link
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -l
+arg: -N
+arg: -X
+arg: -v
+arg: @ROOT@/lib/libfoo.so.1.2
+elf: lib/libfoo.so.1.2 soname=libfoo.so.1
+status: exit 0
+stdout:
+| \tlibfoo.so.1 -> libfoo.so.1.2
+stderr:

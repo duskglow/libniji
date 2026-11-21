@@ -1,0 +1,49 @@
+{
+ "task": "SL-HEADERS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: probe + check written; two full runs byte-identical; tables, C.12, gate and plants pending (context checkpoint)",
+ "branch": "task/sl-headers-2",
+ "head": null,
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  {
+   "item": "visibility.tsv is 5.2 MB with the !-complement encoding; a set-id table (105 distinct sets) would be ~1.8 MB",
+   "recommendation": "decide before the table lands"
+  },
+  {
+   "item": "appendix_c.py output differs from the committed Appendix C outside C.12 (hand-edited R3 counts)",
+   "recommendation": "splice C.12 only"
+  }
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "header visibility probe: full run of 243 headers x 40 configurations",
+   "before": null,
+   "after": 960,
+   "unit": "s wall at 20 jobs",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "SL-HEADERS-3, SL-HEADERS-5 (visibility facts for the header generator)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "tests whose error marks a DECLARED name avoid GCC spelling-hint cost (10 min -> seconds per unit); the startup read of thread_common (60 KB) alone cost ~100k context",
+ "next_step": "jobwait sl-headers-2-full3, commit tables + PROVENANCE + C.12, then clippy/static/test, gate and plants (handoff/SL-HEADERS-2.md)",
+ "report_file": "handoff/SL-HEADERS-2.md",
+ "jobs": [
+  "keke:sl-headers-2-full3"
+ ]
+}

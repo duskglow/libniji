@@ -2,12 +2,12 @@
 // Specify a test by replacing its stub with a real #[test] fn of the SAME NAME (see crates/spectest).
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
-//! Clause tests for spec §26 (12 clauses): the clean handle `liella::log::Logger` on channels in
+//! Clause tests for spec §26 (12 clauses): the clean handle `niji::log::Logger` on channels in
 //! a scratch directory, and the C interface's process-wide logger through the exports, sent to
 //! the same kind of channels (`selftest::syslog_paths`, accepted only in tests): no test writes
 //! to the system log. The process-wide logger is shared by the tests of this file, which take
 //! [`LOCK`] and reset it. The variadic entry points (`syslog`, `__syslog_chk`) are adapters
-//! over `liella_vsyslog4`, exercised end to end by `syslog_products.rs`.
+//! over `niji_vsyslog4`, exercised end to end by `syslog_products.rs`.
 //!
 //! The PID appears only with `LOG_PID` (syslog(3) and the reference; §26.1's "prefixed with ...
 //! and PID" is reported as a spec error).
@@ -26,14 +26,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use liella::error::Errno;
-use liella::log::{Channels, Delivery, Logger, Stamp, LOG_CONS, LOG_NDELAY, LOG_NOWAIT, LOG_ODELAY, LOG_PERROR, LOG_PID};
-use liella_boundary::errno;
-use liella_boundary::posix::s26_syslog as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
+use niji::error::Errno;
+use niji::log::{Channels, Delivery, Logger, Stamp, LOG_CONS, LOG_NDELAY, LOG_NOWAIT, LOG_ODELAY, LOG_PERROR, LOG_PID};
+use niji_boundary::errno;
+use niji_boundary::posix::s26_syslog as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
 
 const LOG_ERR: i32 = 3;
 const LOG_WARNING: i32 = 4;
@@ -94,7 +94,7 @@ fn split(rec: &[u8]) -> (u32, String, String) {
 
 /// The local time of instant `t` as a header shows it.
 fn stamp_at(t: i64) -> String {
-    let tm = liella_boundary::zone::localtime_r(t).unwrap();
+    let tm = niji_boundary::zone::localtime_r(t).unwrap();
     let s = Stamp { month: tm.tm_mon as u8, day: tm.tm_mday as u8, hour: tm.tm_hour as u8, min: tm.tm_min as u8, sec: tm.tm_sec as u8 };
     String::from_utf8(s.text().to_vec()).unwrap()
 }
@@ -117,14 +117,14 @@ fn global(s: &Scratch) {
     x::openlog(core::ptr::null(), 0, LOG_USER);
     x::setlogmask(0xff);
     let (sock, cons) = (s.path("log"), s.path("console"));
-    liella_boundary::selftest::syslog_paths(Some((sock.as_os_str().as_encoded_bytes(), cons.as_os_str().as_encoded_bytes(), 50_000_000)));
+    niji_boundary::selftest::syslog_paths(Some((sock.as_os_str().as_encoded_bytes(), cons.as_os_str().as_encoded_bytes(), 50_000_000)));
 }
 
 fn done() {
     x::closelog();
     x::openlog(core::ptr::null(), 0, LOG_USER);
     x::setlogmask(0xff);
-    liella_boundary::selftest::syslog_paths(None);
+    niji_boundary::selftest::syslog_paths(None);
 }
 
 /// `vsyslog(pri, fmt)` for a format that takes no argument.
@@ -464,7 +464,7 @@ fn s26_1_g_3() {
     // A FIFO console nobody reads: not waited for.
     std::fs::remove_file(s.path("console")).unwrap();
     let f = CString::new(s.path("console").as_os_str().as_encoded_bytes()).unwrap();
-    assert_eq!(liella_boundary::posix::s13_filesystem::mkfifo(f.as_ptr(), 0o600), 0);
+    assert_eq!(niji_boundary::posix::s13_filesystem::mkfifo(f.as_ptr(), 0o600), 0);
     std::fs::remove_file(s.path("log")).unwrap();
     let t = Instant::now();
     assert_eq!(l.log(&CSys, 6, STAMP, b"m"), Ok(Delivery::Lost));

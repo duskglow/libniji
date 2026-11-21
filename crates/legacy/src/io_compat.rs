@@ -5,13 +5,13 @@
 //! `posix_fallocate`'s emulation, `posix_madvise`'s advice map, and the protection-key
 //! register.
 
-use liella::error::{Errno, Result};
-use liella_kernel::fd::Fd;
-use liella_kernel::machine::Machine;
-use liella_kernel::ops::{FcntlHint, FcntlInt, FcntlLock};
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji::error::{Errno, Result};
+use niji_kernel::fd::Fd;
+use niji_kernel::machine::Machine;
+use niji_kernel::ops::{FcntlHint, FcntlInt, FcntlLock};
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     EpollEvent, FOwnerEx, Flock, FdSet, PollFd, SigSet, Timespec, Timeval, F_UNLCK, F_WRLCK, O_APPEND, O_CREAT, O_DIRECTORY, O_RDONLY, O_TMPFILE,
     SEEK_CUR, SEEK_DATA, SEEK_HOLE, S_IFIFO, S_IFMT, S_IFREG,
 };

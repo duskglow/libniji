@@ -20,7 +20,7 @@ int main(void)
     CHECK("s1_1_g_4", getenv("MALLOC_ARENA_MAX") == NULL && getenv("GLIBC_TUNABLES") == NULL);
     CHECK("s1_1_g_4", getenv("TMPDIR") == NULL && getenv("LOCPATH") == NULL);
     CHECK("s1_1_g_4", getenv("SAFE") != NULL && strcmp(getenv("SAFE"), "1") == 0);
-    /* Liella's own security-sensitive variables (owner ruling 2026-10-03): all removed. */
+    /* libniji's own security-sensitive variables (owner ruling 2026-10-03): all removed. */
     CHECK("s1_1_g_4", getenv("HOSTALIASES") == NULL && getenv("RES_OPTIONS") == NULL && getenv("LOCALDOMAIN") == NULL);
     CHECK("s1_1_g_4", getenv("TZDIR") == NULL && getenv("GCONV_PATH") == NULL && getenv("NLSPATH") == NULL);
     /* Kept: PWD (ignored where it is read) and names outside the list. */

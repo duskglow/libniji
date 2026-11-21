@@ -4,18 +4,18 @@
 //! every first-difference position, and byte pairs on both sides of 0x80 (the order is that of
 //! `unsigned char`). Every byte after the first difference differs the opposite way, so a kernel
 //! that lets a later byte decide gets the sign wrong; and a lone difference catches a skipped byte. Guard pages catch a read past either end.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
-const MAX: usize = 256;
+const MAX: usize = 300; // every size 0-300 (PARITY-MEMCMP-SMALL-EQ: past the 129-256 class into the long one)
 const WIN: usize = 16;
 
 /// The kernel builds are one process-wide flag: the tests that force one take turns.
@@ -30,7 +30,7 @@ static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn each_build(test: impl Fn()) {
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let rescans = selftest::rescans();
-    let avx2 = liella_boundary::cpu::avx2();
+    let avx2 = niji_boundary::cpu::avx2();
     let before = selftest::kernel_avx2();
     // Each build with NULL folding on (the direct entries' head probe in fold.S, MEMCMP-FOLD) and
     // off (every size through the checked entry); folding on is then left as the gate machines'
@@ -188,7 +188,7 @@ fn zero_length_compares_accept_null_and_are_equal() {
 
 /// GATE-SPEED: the sweep runs in size ranges (one test each, below); `SIZE_SHARDS` tiles 0..=MAX
 /// (checked by `the_size_shards_tile_0_to_max`), so the coverage is the whole sweep's.
-const SIZE_SHARDS: [(usize, usize); 4] = [(0, 64), (65, 130), (131, 190), (191, MAX)];
+const SIZE_SHARDS: [(usize, usize); 5] = [(0, 64), (65, 130), (131, 190), (191, 256), (257, MAX)];
 
 fn sweep_shard(i: usize) {
     // Clauses: s4_3_c_1, s4_3_c_2, s4_3_c_3 (each build of the kernels, D-4.25).
@@ -198,26 +198,42 @@ fn sweep_shard(i: usize) {
 
 #[test]
 fn compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_0() {
-    // no spec clause: a shard of the compare kernels byte-loop oracle sweep (D-4 kernels), not a spec clause.
+    // Clause: s4_3_c_1 (memcmp orders by the first differing unsigned char), s4_3_c_2 and s4_3_c_3
+    // (bcmp, __memcmpeq: equal or not), a shard of the byte-loop sweep, both builds forced
+    // (TIMING-COV-MEMCMP-NONAVX2: the SSE2 head probes and equality classes).
     sweep_shard(0);
 }
 
 #[test]
 fn compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_1() {
-    // no spec clause: a shard of the compare kernels byte-loop oracle sweep (D-4 kernels), not a spec clause.
+    // Clause: s4_3_c_1 (memcmp orders by the first differing unsigned char), s4_3_c_2 and s4_3_c_3
+    // (bcmp, __memcmpeq: equal or not), a shard of the byte-loop sweep, both builds forced
+    // (TIMING-COV-MEMCMP-NONAVX2: the SSE2 head probes and equality classes).
     sweep_shard(1);
 }
 
 #[test]
 fn compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_2() {
-    // no spec clause: a shard of the compare kernels byte-loop oracle sweep (D-4 kernels), not a spec clause.
+    // Clause: s4_3_c_1 (memcmp orders by the first differing unsigned char), s4_3_c_2 and s4_3_c_3
+    // (bcmp, __memcmpeq: equal or not), a shard of the byte-loop sweep, both builds forced
+    // (TIMING-COV-MEMCMP-NONAVX2: the SSE2 head probes and equality classes).
     sweep_shard(2);
 }
 
 #[test]
 fn compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_3() {
-    // no spec clause: a shard of the compare kernels byte-loop oracle sweep (D-4 kernels), not a spec clause.
+    // Clause: s4_3_c_1 (memcmp orders by the first differing unsigned char), s4_3_c_2 and s4_3_c_3
+    // (bcmp, __memcmpeq: equal or not), a shard of the byte-loop sweep, both builds forced
+    // (TIMING-COV-MEMCMP-NONAVX2: the SSE2 head probes and equality classes).
     sweep_shard(3);
+}
+
+#[test]
+fn compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_4() {
+    // Clause: s4_3_c_1 (memcmp orders by the first differing unsigned char), s4_3_c_2 and s4_3_c_3
+    // (bcmp, __memcmpeq: equal or not), a shard of the byte-loop sweep, both builds forced
+    // (TIMING-COV-MEMCMP-NONAVX2: the SSE2 head probes and equality classes).
+    sweep_shard(4);
 }
 
 #[test]
@@ -230,6 +246,45 @@ fn the_size_shards_tile_0_to_max() {
         next = hi + 1;
     }
     assert_eq!(next, MAX + 1);
+}
+
+/// Sizes of the long classes above `MAX` (TIMING-N100-MEMCMP: the 256-byte steps from byte 32,
+/// then the 128-byte chunk at the cursor when more than 128 bytes remain, then the last at
+/// n - 128): no step (257-288), one step and a short rest (289-300 in the shards; 416), one step
+/// and the 128-byte rest chunk (417, 543), the step boundary (544, 545), several steps (673-1100),
+/// the class limit and the entry above it (2048, 2049) and the 4 KiB rows (4096, 4097).
+const LONG_SIZES: [usize; 17] = [289, 416, 417, 543, 544, 545, 673, 800, 1056, 1100, 2048, 2049, 4096, 4097, 8192, 8193, 8449];
+
+/// The long classes against the byte loop: three alignment pairs, a first difference at the start,
+/// middle and end of every 32-byte block (offsets 0, 17 and 31) and at the edges, each pair order
+/// across 0x80 with every later byte differing the other way, and a lone difference.
+fn compares_match_a_byte_loop_in_the_long_classes() {
+    let top = LONG_SIZES[LONG_SIZES.len() - 1];
+    let mut a = vec![0u8; top + WIN];
+    let mut b = vec![0u8; top + WIN];
+    for n in LONG_SIZES {
+        for (ao, bo) in [(0, 0), (3, 9), (15, 1)] {
+            build(&mut a, &mut b, ao, bo, n, None, false);
+            check(&a, &b, ao, bo, n, "equal");
+            let mut positions: Vec<usize> = (0..n).filter(|p| matches!(p % 32, 0 | 17 | 31)).chain(edge_positions(n)).collect();
+            positions.sort_unstable();
+            positions.dedup();
+            for p in positions {
+                for (x, y) in [(0x7F, 0x80), (0x80, 0x7F)] {
+                    build(&mut a, &mut b, ao, bo, n, Some((p, x, y)), true);
+                    check(&a, &b, ao, bo, n, &format!("first difference at {p}: {x:#04x} vs {y:#04x}"));
+                }
+                build(&mut a, &mut b, ao, bo, n, Some((p, 0x00, 0xFF)), false);
+                check(&a, &b, ao, bo, n, &format!("only difference at {p}"));
+            }
+        }
+    }
+}
+
+#[test]
+fn compares_match_a_byte_loop_in_the_long_classes_in_each_build() {
+    // Clauses: s4_3_c_1, s4_3_c_2, s4_3_c_3 (each build of the kernels, D-4.25; the long classes).
+    each_build(compares_match_a_byte_loop_in_the_long_classes);
 }
 
 #[test]
@@ -280,7 +335,7 @@ const NULL_CALLS: usize = 6;
 fn null_call(k: &CSys) -> i32 {
     use std::sync::atomic::Ordering::SeqCst;
     // No core dump (a crash reporter such as apport took about a second per child).
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
     let (case, fold) = (NULL_CASE.load(SeqCst), NULL_FOLD.load(SeqCst));
@@ -300,14 +355,15 @@ fn null_call(k: &CSys) -> i32 {
 fn null_faults_in_the_folded_compare_sizes_and_aborts_in_every_other() {
     // Clause: s4_3_c_1 with S6 (NULL with n > 0 is the EFAULT abort) and the compare fold
     // (MEMCMP-FOLD, owner ruling 2026-10-10): with folding on, NULL with 8 <= n <= 64 dies by SIGSEGV
-    // on page zero (the head probe's load in fold.S), and so does 65-2048 in the AVX2 build (its
-    // first 32-byte load, ruling #2517 (coordinator, 2026-11-04), PERF-MEMCMP-TAILS); 1-7, 65 and up in the SSE2 build,
-    // 2049 and up, and every size with folding off take the S6 abort.
+    // on page zero (the head probe's load in fold.S), and so does 65-2048 in both builds (AVX2: its
+    // first 32-byte load, ruling #2517 (coordinator, 2026-11-04), PERF-MEMCMP-TAILS; SSE2: its first
+    // 16-byte block or word, ruling #3592, D-4.62); 1-7, 2049 and up, and every size with folding
+    // off take the S6 abort.
     use std::sync::atomic::Ordering::SeqCst;
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut runs = vec![(false, false), (true, false)];
-    if liella_boundary::cpu::avx2() {
-        // Folding off with AVX2 on too: the 33-64 gate (liella_machine_cmp_wide) must stay shut.
+    if niji_boundary::cpu::avx2() {
+        // Folding off with AVX2 on too: the 33-64 gate (niji_machine_cmp_wide) must stay shut.
         runs.extend([(true, true), (false, true)]);
     }
     for (fold, avx2) in runs {
@@ -317,11 +373,34 @@ fn null_faults_in_the_folded_compare_sizes_and_aborts_in_every_other() {
             for call in 0..NULL_CALLS {
                 NULL_CASE.store(n * NULL_CALLS + call, SeqCst);
                 let end = selftest::in_child_quiet(null_call).unwrap();
-                // The AVX2 65-2048 classes fold too (ruling #2517 (coordinator, 2026-11-04), PERF-MEMCMP-TAILS): their
-                // first 32-byte load faults on page zero.
-                let folded = (8..=64).contains(&n) || (avx2 && (65..=2048).contains(&n));
+                // The 65-2048 classes fold too: AVX2 (ruling #2517 (coordinator, 2026-11-04),
+                // PERF-MEMCMP-TAILS) and SSE2 (ruling #3592, D-4.62): their first load (offset 0
+                // of a, then of b) faults on page zero.
+                let folded = (8..=2048).contains(&n);
                 let want = if fold && folded { 11 } else { 6 };
                 assert_eq!(end, ChildEnd::Signaled(want), "fold {fold} avx2 {avx2} call {call} n {n}");
+            }
+        }
+    }
+}
+
+#[test]
+fn null_faults_at_every_sse2_folded_size_and_aborts_with_folding_off() {
+    // Clause: s4_3_c_1 with S6 and ruling #3592 (D-4.62): in the SSE2 build with folding on, a NULL
+    // a or b dies by SIGSEGV at every size 65-2048 in memcmp, bcmp and __memcmpeq (the first load
+    // is offset 0 of each region); 2049 takes the S6 abort; with folding off every size aborts.
+    // 64 (the 33-64 class) and 2049 bound the range.
+    use std::sync::atomic::Ordering::SeqCst;
+    let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    NULL_AVX2.store(false, SeqCst);
+    for fold in [true, false] {
+        NULL_FOLD.store(fold, SeqCst);
+        for n in 64..=2049 {
+            for call in 0..NULL_CALLS {
+                NULL_CASE.store(n * NULL_CALLS + call, SeqCst);
+                let end = selftest::in_child_quiet(null_call).unwrap();
+                let want = if fold && n <= 2048 { 11 } else { 6 };
+                assert_eq!(end, ChildEnd::Signaled(want), "sse2 fold {fold} call {call} n {n}");
             }
         }
     }

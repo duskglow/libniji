@@ -1,6 +1,6 @@
-# Benchmarks: Liella against glibc 2.39
+# Benchmarks: libniji against glibc 2.39
 
-This page says where Liella is faster than glibc, where it is slower, how that changed since the
+This page says where libniji is faster than glibc, where it is slower, how that changed since the
 `5cc49dc` bench, and how to re-measure. Numbers come from the runs named below, on the CPU and commit
 named there. Nothing here is a claim about whole programs: see
 [What the numbers do not show](#what-the-numbers-do-not-show).
@@ -33,9 +33,9 @@ on an Ivy Bridge host; it is not in this run.
 
 ## 1. How to read the numbers
 
-**The ratio.** Each row is `median(Liella ns / glibc ns)` over the rounds, from the same run.
-Below 1.00 means Liella is faster; 2.00 means Liella takes twice as long. The glibc side is
-built from the same C source as the Liella side (same compiler flags, `-fno-builtin`
+**The ratio.** Each row is `median(libniji ns / glibc ns)` over the rounds, from the same run.
+Below 1.00 means libniji is faster; 2.00 means libniji takes twice as long. The glibc side is
+built from the same C source as the libniji side (same compiler flags, `-fno-builtin`
 included), so both run identical benchmark code; only the library differs. Rounds alternate
 between the two. See the header of [`xtask/src/bench.rs`](../xtask/src/bench.rs) and
 [`bench/budgets.tsv`](../bench/budgets.tsv) (the `ratio_host` rows).
@@ -49,7 +49,7 @@ below.
 **Noise.** A difference of a few percent is not a result. The project's working figure for
 the median ratio is about 1 to 3% run to run; I did not re-measure it. The raw per-round
 spread is larger: `liella-historic:handoff/measure-1.md` (Haswell-EP) records a median
-round-to-round spread of 4.3% and a p90 of 13.7% for Liella's own time, and a code-layout
+round-to-round spread of 4.3% and a p90 of 13.7% for libniji's own time, and a code-layout
 effect (the same code linked in another order) of median 1.5%, p90 5.9%, up to 13.9% on one
 row. Rows within about 5% of 1.00 are therefore called **at parity** below, neither a win nor
 a loss. The regression limits in `host_limits.tsv` are 1.25 times a past median: they catch
@@ -61,14 +61,17 @@ about +-10% in time with where the linker happens to place the code, so a time l
 fails or passes by chance. Such rows are gated on **instructions per call** instead, in
 [`bench/instr_limits.tsv`](../bench/instr_limits.tsv) (columns `cpu bench row max_instr
 rationale`; `*` = every CPU). `cargo xtask bench` makes the counted run (the one `--counters`
-prints) whenever a selected row has such a limit, and fails the row when the median Liella
+prints) whenever a selected row has such a limit, and fails the row when the median libniji
 instructions per call exceed the limit, or when the row has no counted value. Instruction
 counts are near-deterministic and identical on Zen 1 and the timing processors for the same code
 path; a CPU that takes another path (no AVX2) needs its own line. The time ratio of these
 rows stays reported but is advisory (their `host_limits.tsv` lines are retired). Setting a limit: the larger of the current count and
 glibc's, rounded up; where we are above glibc, current + 1 so a regression fails and the gap
 stays visible. The owner edits the limit files.
-`python3 bench/limits_from_counters.py target/liella/bench/counters.tsv [--headroom 2%|N] [--rows a,b] [--cpu MODEL]`
+`python3 bench/limits_from_counters.py target/niji/bench/counters.tsv [--headroom 2%|N] [--rows a,b] [--cpu MODEL]`
+(the table of the last `--counters` run: every `--counters` run, `bench` or `bench --compare`, rewrites
+`counters.tsv` with its own rows only and writes `counters-<bench>.tsv` per bench it counted, same columns, so a
+per-bench file is the input for one bench)
 prints limit lines in this format from a counted run (limit = count + max(2 instr, 2%), rounded up); with `--check` it
 diffs them against the current file (LOOSE = more than 5% above the proposal, WOULD-FAIL, NEW, NO-ROW) and edits nothing.
 The owner still edits the limit files.
@@ -86,7 +89,7 @@ The first three matter for how to read any row; the rest are completeness notes.
   builds differ by a median of 1.3% (`measure-1.md` finding 2: static/dynamic median 0.987,
   25 of 123 rows differ by more than 5%); gap sizes move for some rows (for example
   `strftime_c_en_us` 1.10 to 1.77, `strcmp_equal_16` 2.10 to 1.69 in that analysis) but no row
-  changed sides of parity. Liella's own dynamic loader is not built yet, so a Liella
+  changed sides of parity. libniji's own dynamic loader is not built yet, so a libniji
   dynamic-link measurement does not exist. This matters for a few rows.
 * **Single-threaded**, except the `re_mt4_*` rows (four threads). Nothing here measures
   contention in malloc or stdio under load. This matters if you care about threaded programs.
@@ -117,7 +120,7 @@ Median instructions-per-call ratio without libm: 0.86. The libm rows dominate th
 
 | Comparison | basis | better | same | worse |
 |---|---|---:|---:|---:|
-| Liella instructions per call, now against 2026-10-23, same CPU class (+-3%) | counters, 214 rows with a count in both | 43 | 163 | 8 |
+| libniji instructions per call, now against 2026-10-23, same CPU class (+-3%) | counters, 214 rows with a count in both | 43 | 163 | 8 |
 | Time ratio against glibc, now (Ivy Bridge) against 5cc49dc (Haswell-EP) (+-5%) | time, advisory, different CPU class, 159 common rows | 122 | 24 | 13 |
 
 The 329 rows with no earlier count (new rows, most of libm; 543 rows were counted, 542 of them with an instruction ratio) are in the appendix as "no earlier count".
@@ -158,7 +161,7 @@ Haswell-EP is not like for like, and the instruction ratio next to each shows th
 | `cbench_opt/snprintf_f_large` | 0.20 | 0.21 | 0.22 | 0.18 |
 | `cbench_opt/regcomp_regfree_sed_kv` | 0.44 | 0.44 | 0.47 | 0.40 |
 
-Where the instruction ratio is below 1.00 the higher time ratio is probably the change of CPU class, not a Liella
+Where the instruction ratio is below 1.00 the higher time ratio is probably the change of CPU class, not a libniji
 regression; that is a reading, not a measurement (no 5cc49dc build was run on Ivy Bridge). The rows that are higher in
 time and above 1.05 in instructions (`iswalpha_en_us`, `iswalpha_utf8`) are real and are listed in section 4b.
 
@@ -184,7 +187,7 @@ Per benchmark program, instruction-ratio bands against glibc now (Ivy Bridge hos
 
 The same counted bench (`cargo xtask bench --compare --counters --runs 3`, 17 of the 18 C programs;
 `a6fc34c2`, release profile) on a Skylake-SP host (Xeon Platinum 8151, AVX2 and AVX-512), run on a shared host that was not booked for timing. Instruction counts do not depend on load, so they hold; **the time ratios of this run
-are not used anywhere on this page** (host not booked). The count per row is `instr_ratio_ss`: Liella static against
+are not used anywhere on this page** (host not booked). The count per row is `instr_ratio_ss`: libniji static against
 glibc static, user-mode instructions per call. Bands as in section 1. The Ivy Bridge column is the "now instr vs glibc"
 column of the appendix (host A).
 
@@ -204,21 +207,21 @@ instructions:u` of a loop of 100,000 `rep movsb` (and, separately, `rep stosb`) 
 bytes counted 9.00 instructions per iteration at every size on a Skylake-SP host (Xeon Platinum 8151), a Haswell-EP host
 (E5-2697 v3) and an Ivy Bridge host (E3-1265L V2): the loop's 8 plus **one** for the `rep` instruction, whatever its
 length. On all three classes a `rep movsb`/`rep stosb` is one instruction, so a row where either side runs one counts
-that side's setup only, not the copy. Such rows are judged by timing on a booked timing host (Liella and the reference
+that side's setup only, not the copy. Such rows are judged by timing on a booked timing host (libniji and the reference
 on the same host, interleaved, same-host ratio; cycles there are that measurement), not by instructions (owner ruling,
 2026-11-05: timing is the final arbiter). Rows where neither side runs a rep string instruction keep instruction counts
 as the development gate, and the periodic timing sweep gives their verdict. Copy rows this concerns (the side
-that runs `rep movsb` follows from its per-size count; Liella's dispatch is in `crates/boundary/src/cpu.rs`):
-`memcpy_4k` (Skylake-SP: Liella's `rep movsb` window starts at 4 KiB on an ERMS CPU with AVX-512, 73 instructions;
-Ivy Bridge: the reference's count of about 27 against Liella's 718-instruction SSE2 loop, which runs below
+that runs `rep movsb` follows from its per-size count; libniji's dispatch is in `crates/boundary/src/cpu.rs`):
+`memcpy_4k` (Skylake-SP: libniji's `rep movsb` window starts at 4 KiB on an ERMS CPU with AVX-512, 73 instructions;
+Ivy Bridge: the reference's count of about 27 against libniji's 718-instruction SSE2 loop, which runs below
 `COPY_ERMS_MIN` = 6144), `memcpy_64k` (both sides `rep movsb` on Skylake-SP: 85.5 against 57.5 is setup against setup;
-Ivy Bridge 100 against 54, the same), and on Haswell-EP 16 and 64 KiB (the reference's 44 is setup; Liella's 80 at 16 KiB
+Ivy Bridge 100 against 54, the same), and on Haswell-EP 16 and 64 KiB (the reference's 44 is setup; libniji's 80 at 16 KiB
 is its `rep movsb` window, 5718 at 64 KiB its vector loop). `memmove_4k`, `memcpy_64`, `memmove_64` and the 1 KiB copies
 run vector code on both sides: developed and gated on instructions, verdict from the timing sweep.
 
 **Where the two classes give a different verdict.** 89 of the 529 rows change band between the Ivy Bridge and the
 AVX2 class (bands on instructions per call vs glibc): faster to parity 31, faster to slower 21, slower to parity 13,
-parity to faster 10, parity to slower 9, slower to faster 5. The pattern in the lists below: on Ivy Bridge Liella's string and memory rows mostly use fewer
+parity to faster 10, parity to slower 9, slower to faster 5. The pattern in the lists below: on Ivy Bridge libniji's string and memory rows mostly use fewer
 instructions than glibc's; on the AVX2 class many of them are at parity or above 1.05 (glibc may use AVX2 or AVX-512
 variants there; not separated), mostly on the 16-byte to 64 KiB `strlen`, `strnlen`, `memchr`, `rawmemchr`, `memset`, `memcmp` and
 `strcmp` rows. The reverse (slower on Ivy Bridge, parity or better here) happens for `memchr`, `bcmp`, `memcmp` and
@@ -227,7 +230,7 @@ time was taken at this commit.
 
 The rows at **parity on one class and above 1.05 on the other** (22):
 
-| Row | Ivy Bridge instr vs glibc | AVX2-class instr vs glibc | AVX2-class Liella instr per call |
+| Row | Ivy Bridge instr vs glibc | AVX2-class instr vs glibc | AVX2-class libniji instr per call |
 |---|---:|---:|---:|
 | `strchr_16_hit` (cbench_hot) | 1.06 | 1.00 | 28 |
 | `strchrnul_16_hit` (cbench_hot) | 1.07 | 1.04 | 25 |
@@ -260,7 +263,7 @@ The rows that are faster than glibc (< 0.95) on Ivy Bridge and slower (> 1.05) o
 0.17 here; I did not look into why, and a count ratio that far from 1 on a plain copy needs a look before it is trusted.)
 The full row-by-row list of all 89 is in the run's scratch output, not in the repository.
 
-## 3. Where Liella is faster
+## 3. Where libniji is faster
 
 The shape of the 5cc49dc page holds: 234 of the 373 non-libm counted rows are faster by instructions and the median
 instruction ratio is 0.86. The reasons recorded for the largest wins are unchanged and live in
@@ -316,7 +319,7 @@ column, so the register is the authority on what was tried per row.
   Broadwell-EP times are the only AVX2 timings). No `--v3` or `--sorted` comparison on any class. The AVX2-class run was
   on a CPU that also has AVX-512, and the run did not separate the AVX2 kernels from AVX-512 ones on either side:
   glibc may have chosen an AVX-512 (EVEX) variant there. A `--tunables glibc.cpu.hwcaps=-AVX512F` count would split them.
-* `cbench_nscache` (it includes a Liella-only header, so the host build cannot compile it and the command stops) and
+* `cbench_nscache` (it includes a libniji-only header, so the host build cannot compile it and the command stops) and
   the glibc column of `cbench_netdb` (static host build fails) have no AVX2-class comparison.
 * No AMD host. The saturation register's Zen 1 numbers are from earlier runs and are not refreshed here.
 * The `5cc49dc` instruction counts (section 1 of this page).
@@ -342,7 +345,7 @@ cargo xtask bench --only cbench_opt,cbench_patterns
 Compare against the host glibc and print the ratio table (`--runs N` sets the number of
 rounds, `--counters` adds per-row instruction counts and IPC from `perf stat`, using aggregate
 counters of the glibc-linked reference only; the summary table then ends with instructions per
-operation for Liella and glibc and their ratio):
+operation for libniji and glibc and their ratio):
 
 ```
 cargo xtask bench --compare --counters --runs 5 cbench_opt
@@ -352,13 +355,30 @@ cargo xtask bench --compare --only cbench_opt,cbench_patterns
 In compare mode `--only a,b` and positional names are the same list; any other argument starting
 with `-` is an error, never a benchmark name.
 
+Time only some rows (XTASK-BENCH-ROWS-BASE, D-X.33): `--rows <item>,...`, where an item is a row name (it applies
+to every compared bench), `<bench>/<row>` (that bench only), or a glob of either (`*`, `?`):
+
+```
+cargo xtask bench --compare --counters --runs 5 cbench_memref --rows memchr_16,memchr_16_mix
+cargo xtask bench --compare cbench_memref cbench_opt --rows 'cbench_memref/memchr_16*,cbench_opt/strlen_16'
+```
+
+Each bench gets one `CBENCH_ROWS` list (`bench/c/cbench_rows.h`), the same for every build of the comparison
+(libniji, glibc dynamic and static, `--v3`, `--sorted`, and the `--counters` runs). The libniji build's warm-up round
+must print every selected row: a name that is not a row is an error listing the bench's rows, which xtask gets from one
+unfiltered run of the libniji build. That run happens only for this error and to expand globs. A `<bench>/` item whose bench is not
+compared, and a compared bench that no item selects from, are errors too. Rows that a bench prints outside its
+`MEASURE` filter (cold-start and `put` rows) are left out of the table, and xtask prints their names.
+
 Measure a lower dispatch level (BENCH-TUNABLES): `--tunables <value>` sets `GLIBC_TUNABLES` for both the
-Liella and the glibc side, in `cargo xtask bench` and in `--compare`, and the output prints a `tunables:` line
+libniji and the glibc side, in `cargo xtask bench` and in `--compare`, and the output prints a `tunables:` line
 so a reader sees which level ran, for example
 `cargo xtask bench --compare --counters --runs 1 --tunables glibc.cpu.hwcaps=-AVX2 cbench_opt`. The benchmark
-environment is fixed (BENCH-FIXED-ENV), so a `GLIBC_TUNABLES=... cargo xtask bench` in the caller's environment is
-dropped and measures the full-width paths on both sides; use the option. Compare the instruction counts with and
-without the option to confirm the level changed.
+environment is otherwise fixed (BENCH-FIXED-ENV); a non-empty `GLIBC_TUNABLES=... cargo xtask bench` in the
+caller's environment is taken as the `--tunables` value (D-X.39), and an option and a caller value that differ are an
+error. The value reaches every route: the plain run, the private-`/dev/shm` route of the name-service benches (as an
+argument of its script, since `sudo` resets the environment) and the Rust benches. Compare the instruction counts with
+and without the value to confirm the level changed.
 
 Where a row's limit lives: [`bench/host_limits.tsv`](../bench/host_limits.tsv) is keyed by the
 exact `model name` string from `/proc/cpuinfo`. A CPU with no entry is measured but not
@@ -369,15 +389,123 @@ the file's header).
 Which flags exist is defined in [`xtask/src/bench.rs`](../xtask/src/bench.rs); read it before
 relying on a flag from this page. The raw logs of the two runs above are not in the repository.
 
-Timing hosts have no compiler. For a timing-host run build once with `cargo xtask bench --build-only --counters` on a
-build host, copy `target/liella/` (the benchmark programs, `libc.a`, `libm.a`, the `.profile` marker), `bench/`, and the
-`xtask` binary to the timing host, create stub `crates/*.rs` and `csys/*.c` files older than `libc.a` (the staleness
-check reads their mtimes), and run `xtask bench --no-build --counters` there with the host booked.
+Timing hosts have no compiler. A timing-host run is two commands (XTASK-BENCH-STAGE):
+
+```bash
+# on a build host, in the tree to measure (the same selection flags as the measuring run):
+cargo xtask bench --stage /tmp/stage.tar [--only <benches> | --rows <bench>/<row>,...]
+# on the timing host, with the host booked:
+mkdir ~/work/<story>/tree && tar -xf stage.tar -C ~/work/<story>/tree && cd ~/work/<story>/tree
+./xtask-bin bench --no-build --staged --counters [--only <benches> | --rows ...]
+```
+
+`--stage` builds as `--build-only` does, then writes one tarball: the workspace `Cargo.toml` and `xtask/Cargo.toml`,
+`bench/`, `target/niji/` (without the generated `bench/stress/`), the selected Rust bench examples, the xtask
+binary as `xtask-bin`, and `bench-stage.manifest` (commit, a sha256 of the source tree, build profile, built-on
+host, and the sha256 of every staged product), with the build's mtimes. A `--no-build` run in a tree that holds the
+manifest (`--staged` requires one) checks every product against its sha256 instead of comparing mtimes, needs no
+git and no source tree, and prints a `staged: commit ...` header line naming what it timed; a product that does not
+match is refused. The commit comes from git, or from the `head=` line of a role directory's `.synced` file.
+
+Stage the "before" tree in the same command (XTASK-BENCH-ROWS-BASE, D-X.33): `--stage <out.tar> --base <ref>` stages
+the current tree to `<out.tar>` as above, then checks `<ref>` out as a temporary detached git worktree under
+`target/bench-base/<pid>`. There it runs the same `cargo xtask bench` command without `--base`, staging to
+`<stem>.base.tar` next to `<out.tar>`. The worktree is removed afterwards, on success and on failure. The last line
+names both tarballs and the commit in each manifest. Unpack each into its own directory and run `--compare --no-build`
+(or `--no-build --staged`) in both, with the same `--rows`. `--base` needs a tree with git history (a git checkout,
+not a synced role directory), and the base tree is built from scratch in its own `target/`:
+
+```bash
+cargo xtask bench --stage /tmp/s.tar --base origin/next --only cbench_memref   # writes /tmp/s.tar and /tmp/s.base.tar
+```
+
+`bench --compare --no-build` works the same way in a staged tree (XTASK-BENCH-COMPARE-STAGED): it checks the products
+against the manifest, prints the `staged:` header, and measures the staged libniji and glibc (dynamic) programs, so the
+libniji/glibc time ratio of any row (the `second_*`/`first_*` rows included) comes from the timing host itself
+(`./xtask-bin bench --compare --no-build --counters --runs 5 cbench_opt`; stage with `--only cbench_opt`; the static
+glibc column is filled when the build host's `target/niji/bench` holds a `.host-static` program, which `--stage`
+then stages like every other file there, and is left empty otherwise). xtask works on the nearest directory at or above the
+working directory that holds `bench-stage.manifest` or `Cargo.toml` with `xtask/Cargo.toml`. Unpack the tarball
+whole: a tree repacked without its manifest and `Cargo.toml` is no root, and xtask stops with an error naming the
+directory (it used to fall back to the build host's path, where `--compare` found no bench and printed
+"Valid names: ."). An unknown bench name lists the `*.c` files it found and the directory it looked in.
+
+A run in a staged tree writes its tables (`bench_times.tsv`, `rounds.tsv`, `ratio_host.tsv`, `decision.tsv`,
+`counters.tsv`, `counters-<bench>.tsv`, and for `--compare` `measure.tsv` and `<bench>.compare.tsv`) to `bench-out/` at
+the staged root, never into `target/niji/` (XTASK-BENCH-OUTPUTS), so the same unpacked tree runs any number of times;
+`scp` the tables from `<dir>/bench-out/`. `--stage` leaves the build host's own run tables out of the tarball. Outside a
+staged tree the tables stay in `target/niji/bench/`.
+
+### The periodic timing sweep (`xtask sweep`, SWEEP-RUN-TOOL)
+
+A sweep times every `cbench_*` row (libm included; the libm bench takes about two minutes per host) on each timing-host class and compares the result with the previous sweep. `bench`
+exits 1 when its per-host limit check flags a row. A sweep is meant to find flagged rows, so a sweep does not run
+`bench` directly. It runs `sweep run`, whose exit status says only whether the measurement finished (gates still call
+`bench` itself):
+
+```bash
+# build host: stage the default sweep groups (every cbench_* group of bench/budgets.tsv, cbench_libm included)
+cargo xtask bench --stage /tmp/sweep.tar --only "$(grep -o '^cbench_[a-z_]*' bench/budgets.tsv | sort -u | paste -sd,)"
+# each timing host, booked, in the unpacked tree; this is the job a sweep brief names (one per host):
+./xtask-bin sweep run --out ~/work/<story>/out
+# anywhere with the per-host tables and the previous sweep's tables:
+cargo xtask sweep compare --new <class>=<dir>/sweep.tsv ... --old <class>=<previous>/sweep.tsv ... --label <previous sweep>
+cargo xtask sweep compare --new <class>=<dir>/sweep.tsv ... --old-table <older results file with a `## Table`> --label <sweep>
+```
+
+`sweep run` runs `bench --no-build --staged --counters --only <groups>` (`--only` overrides the groups) with its
+output in `<out>/bench.log`. It deletes the tables of any earlier run first. It then reads the tables the bench
+wrote:
+
+* **exit 0**: every selected `ratio_host` row has a median in this run's `ratio_host.tsv`, `rounds.tsv` and a
+  non-empty `counters.tsv` were written, and a nonzero bench exit is explained entirely by limit flags (every line
+  of the bench's `budget regressions` report says that a row exceeds a limit). It writes `<out>/sweep.tsv`, copies
+  the bench's tables into `<out>`, and prints one `sweep: COMPLETE: ...` line (also in `<out>/summary.txt`) with the
+  verdict counts (selected rows only) and the flagged rows. Flagged rows are findings, not a failed run. With libm
+  rows selected it also prints the median time ratio per libm family and precision (exp/log/pow, trig, hyperbolic,
+  gamma, bessel, erf, roots/hypot, complex, special; f32, f64, long double, f128) and writes it to
+  `<out>/libm-families.md`. It also prints the magnitude of the gap over the selected rows and writes it to
+  `<out>/distribution.md` (SWEEP-DISTRIBUTION): the row count per time-ratio bucket (<= 1.05, 1.05-2, 2-10,
+  10-100, > 100; a ratio on an edge is in the lower bucket), the five slowest rows with their ratio, and the median
+  time ratio per family (a `cbench_libm` row by family and precision, the cells of the libm table; any other row by
+  its bench). A family whose median is above 10x is marked `RETHINK?` and named on one line above the family table:
+  the magnitude trigger of the RUT rule (an order-of-magnitude gap calls for a RETHINK story, not another tweak).
+* **nonzero**: the measurement did not finish. Either the bench died on a signal, a table is missing, a selected
+  row has no median, or the bench reported a failure that is not a limit flag (a stage refused, a row not measured,
+  an instruction value missing). No `sweep.tsv` is written, `summary.txt` says `sweep: INCOMPLETE: <why>`, and the
+  error shows the last lines of `bench.log`.
+
+`sweep.tsv` columns: `bench row instr cycles time spread rounds verdict limit status flagged selected`. `instr` and
+`cycles` are the libniji/glibc ratios per call from `counters.tsv` (`-` for a row that was not counted). `time` is
+the median of the per-round libniji/glibc time ratios. `spread` is (max - min) / median of those round ratios.
+`verdict` is faster (< 0.95), parity, or slower (> 1.05). `status` is the limit check's verdict (from
+`decision.tsv` on a CPU decided on cycles). `flagged` is `yes` when the limit check flagged the row. `selected` is
+`yes` for a selected `ratio_host` row and `no` for a counted row outside the selection (the libm bench's calibration
+rows `add_baseline`, `mxcsr_pair`, `mxcsr_wrapper_seq`).
+
+`sweep compare` prints a markdown report to stdout. It judges only the rows with `selected` `yes`; the other rows
+are listed, not counted. A table without the `selected` column (written before SWEEP-COMPARE-SELECTED) has every row
+judged, calibration rows included, as before, and the report says so in a line above the counts.
+
+* the verdict counts per class, now and in the previous sweep (over the rows measured now);
+* the run-to-run spread (median, p90, max) and the change now/previous (median, p10, p90);
+* the lists (a) regressions (slower now, parity or faster before), (b) reopen (instructions <= 1.05, time > 1.05)
+  and (c) improved (slower before, parity or faster now);
+* per class, the distribution of the time ratios in the buckets above, the five slowest rows and the family
+  medians with the `RETHINK?` marks (the same section `sweep run` writes to `distribution.md`), printed after the
+  counts;
+* the median time ratio per libm family and precision, per class with libm rows;
+* rows new in this sweep, rows no longer measured, the deferred `wordexp` rows (timed, not judged) and the rows
+  outside the selection.
+
+The output depends only on the input tables. `--old-table` reads the combined table of a results file written
+before this tool. It reads the rows after `## Table`, and the class names come from its `time <CLASS>` columns,
+lowercased (`ivb`, `n100`).
 
 ## Appendix: all rows
 
 One table per benchmark program. Columns: the 5cc49dc time ratio on each AVX2 machine (`-` = the row did not exist);
-Liella instructions per call on the Ivy Bridge hosts in the 2026-10-23 record and now (host A), and the ratio of
+libniji instructions per call on the Ivy Bridge hosts in the 2026-10-23 record and now (host A), and the ratio of
 those instructions to glibc's; the time ratio now on host A and host B; and the change in instructions per call
 against 2026-10-23 (better / same / worse, +-3%). Time ratios are advisory; "no earlier count" means the row is not in
 the 2026-10-23 record.

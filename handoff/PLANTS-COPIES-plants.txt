@@ -1,0 +1,18 @@
+# PLANTS-COPIES: plants on `cargo xtask plants --copies` (xtask/src/plants.rs), caught by the xtask unit tests.
+pc-deal-all-to-one | xtask/src/plants.rs | lit:shares[i % copies].push(i); ==> shares[0].push(i); | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::plants_are_dealt_to_the_copies_in_turn \.\.\. FAILED
+pc-merge-unsorted | xtask/src/plants.rs | lit:judged.sort_by_key(|(i, _, _)| *i); ==> let _ = &judged; | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::two_copies_report_as_a_serial_run \.\.\. FAILED
+pc-auto-strict | xtask/src/plants.rs | lit:Some(l) if l >= 2 * COPY_PEAK_BYTES => 2, ==> Some(l) if l > 2 * COPY_PEAK_BYTES => 2, | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::auto_copies_follows_the_ram_limit \.\.\. FAILED
+pc-stop-baseline-lost | xtask/src/plants.rs | lit:[EXIT_REFUSED, EXIT_BASELINE].into_iter() ==> [EXIT_REFUSED].into_iter() | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::a_baseline_failing_in_one_copy_fails_the_run \.\.\. FAILED
+pc-second-copy-dropped | xtask/src/plants.rs | lit:out.plants.push((i, Some(verdict), line)); ==> if k == 0 { out.plants.push((i, Some(verdict), line)); } | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::two_copies_report_as_a_serial_run \.\.\. FAILED
+pc-copies-zero | xtask/src/plants.rs | lit:.filter(|c| (1..=8).contains(c)) ==> .filter(|c| (0..=8).contains(c)) | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::copies_option_is_parsed_and_bounded \.\.\. FAILED
+pc-logs-name | xtask/src/plants.rs | lit:format!("logs-{}", k + 1) ==> format!("logs-{}", k) | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::two_copies_report_as_a_serial_run \.\.\. FAILED
+pc-limit-largest | xtask/src/plants.rs | lit:env.into_iter().chain(cgroups).chain(available).min() ==> env.into_iter().chain(cgroups).chain(available).max() | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::the_ram_limit_is_the_smallest_known \.\.\. FAILED
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pc-deal-all-to-one: CAUGHT, caught by xtask plants::tests::plants_are_dealt_to_the_copies_in_turn
+# pc-merge-unsorted: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-auto-strict: CAUGHT, caught by xtask plants::tests::auto_copies_follows_the_ram_limit
+# pc-stop-baseline-lost: CAUGHT, caught by xtask plants::tests::a_baseline_failing_in_one_copy_fails_the_run
+# pc-second-copy-dropped: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-copies-zero: CAUGHT, caught by xtask plants::tests::copies_option_is_parsed_and_bounded
+# pc-logs-name: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-limit-largest: CAUGHT, caught by xtask plants::tests::the_ram_limit_is_the_smallest_known

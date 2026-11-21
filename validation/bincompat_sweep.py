@@ -6,17 +6,17 @@ with `readelf -W -l -d -V --dyn-syms` (files only: symlinks are not followed, so
 once). Its version needs on the glibc ABI libraries (the `library` column of spec/abi/versions.tsv)
 are compared with
   * the manifest: is each needed `sym@VER` the default or a compat version, or absent, and
-  * Liella's built products (target/liella/*.so*): does Liella export it today.
+  * libniji's built products (target/niji/*.so*): does libniji export it today.
 
 Outputs (OUT directory; every file is sorted and host-independent in form, so two runs on one host
 diff clean and two hosts diff only where their installed packages differ):
   summary.md          counts and the top compat needs
   compat-needs.tsv    every needed compat `sym@VER`, ranked by the number of ELFs that need it
-  missing-needs.tsv   every needed `sym@VER` (any kind) that Liella does not export yet, ranked
-  version-nodes.tsv   every needed (library, version node), with whether Liella defines it
+  missing-needs.tsv   every needed `sym@VER` (any kind) that libniji does not export yet, ranked
+  version-nodes.tsv   every needed (library, version node), with whether libniji defines it
   programs.tsv        every program (an ELF with PT_INTERP): direct / transitive status, first blocker
-  liella-exports.tsv  the Liella export set used (reuse elsewhere with --liella-exports)
-  run.txt             host, date, glibc, Liella product commit (the only file that differs per run)
+  niji-exports.tsv  the libniji export set used (reuse elsewhere with --niji-exports)
+  run.txt             host, date, glibc, libniji product commit (the only file that differs per run)
 
 Semantics (ELF symbol versioning as documented by the gABI/LSB): a version need names a file and a
 version node; the file must define that node unless the need is flagged WEAK. A versioned symbol
@@ -24,10 +24,10 @@ reference is satisfied by a definition with the same name and version in the glo
 `pthread_create@GLIBC_2.2.5` need recorded against libpthread.so.0 is met by a libc.so.6 definition.
 A WEAK undefined reference that nothing defines resolves to 0 and is counted, not treated as a
 blocker. Unversioned references to a glibc library (no version need on it) are not judged.
-The program interpreter (ld.so) is not judged: Liella's ld.so is phase-14 work (DL-14).
+The program interpreter (ld.so) is not judged: libniji's ld.so is phase-14 work (DL-14).
 
 Usage:
-  python3 -I validation/bincompat_sweep.py --out DIR [--liella target/liella | --liella-exports TSV]
+  python3 -I validation/bincompat_sweep.py --out DIR [--niji target/niji | --niji-exports TSV]
          [--manifest spec/abi/versions.tsv] [--root /usr/bin --root ...] [--jobs N]
   python3 -I validation/bincompat_sweep.py --self-test
 """
@@ -148,7 +148,7 @@ def classify(manifest, sym, ver):
 
 
 def judge(info, glibc_libs, exports):
-    """Direct status of one ELF against Liella's exports.
+    """Direct status of one ELF against libniji's exports.
 
     exports = {"libs": {soname: set(verdef names)}, "syms": {(sym, ver)}}.
     Returns (blockers, weak_missing, needs) where needs is the list of (lib, sym, ver) glibc needs.
@@ -183,7 +183,7 @@ def judge(info, glibc_libs, exports):
 def glibc_component(info, glibc_libs):
     """True for glibc's own files: a glibc ABI soname, or a GLIBC_PRIVATE need on a glibc library.
 
-    Liella replaces these files instead of serving them, so they are counted apart and judged not.
+    libniji replaces these files instead of serving them, so they are counted apart and judged not.
     """
     if info["soname"] in glibc_libs:
         return True
@@ -269,8 +269,8 @@ def readelf(path):
         return ""
 
 
-def liella_exports(product_dir):
-    """Liella's built shared objects -> exports dict, from readelf of each product."""
+def niji_exports(product_dir):
+    """libniji's built shared objects -> exports dict, from readelf of each product."""
     exp = {"libs": {}, "syms": set()}
     for n in sorted(os.listdir(product_dir)):
         p = os.path.join(product_dir, n)
@@ -310,7 +310,7 @@ def read_exports(path):
 
 def sweep(args):
     manifest, glibc_libs = load_manifest(args.manifest)
-    exp = read_exports(args.liella_exports) if args.liella_exports else liella_exports(args.liella)
+    exp = read_exports(args.niji_exports) if args.niji_exports else niji_exports(args.niji)
     roots = args.root or ROOTS + sorted(
         os.path.join("/usr", n) for n in os.listdir("/usr") if n.startswith("lib"))
     roots = [r for r in roots if os.path.isdir(r) and not os.path.islink(r)]
@@ -369,7 +369,7 @@ def sweep(args):
 
     compat = [(k, u) for k, u in need_users.items() if classify(manifest, k[1], k[2]) == "compat"]
     with open(os.path.join(args.out, "compat-needs.tsv"), "w", encoding="utf-8") as f:
-        f.write("library\tsymbol\tversion\telf_users\tprogram_users\tliella_exports\tfirst_user\n")
+        f.write("library\tsymbol\tversion\telf_users\tprogram_users\tniji_exports\tfirst_user\n")
         for (lib, sym, ver), u in ranked(compat):
             f.write("%s\t%s\t%s\t%d\t%d\t%s\t%s\n" % (lib, sym, ver, u[0], u[1],
                                                       "yes" if (sym, ver) in exp["syms"] else "no", u[2]))
@@ -380,7 +380,7 @@ def sweep(args):
             f.write("%s\t%s\t%s\t%s\t%d\t%d\t%s\n" % (lib, sym, ver, classify(manifest, sym, ver),
                                                       u[0], u[1], u[2]))
     with open(os.path.join(args.out, "version-nodes.tsv"), "w", encoding="utf-8") as f:
-        f.write("library\tversion\telf_users\tliella_defines\n")
+        f.write("library\tversion\telf_users\tniji_defines\n")
         for (lib, node), n in sorted(node_users.items(), key=lambda kv: (-kv[1], kv[0])):
             have = exp["libs"].get(lib)
             f.write("%s\t%s\t%d\t%s\n" % (lib, node, n, "no-library" if have is None
@@ -395,8 +395,8 @@ def sweep(args):
                                               len(r["weak"])))
     with open(os.path.join(args.out, "glibc-components.txt"), "w", encoding="utf-8") as f:
         f.write("".join(c + "\n" for c in components))
-    if not args.liella_exports:
-        write_exports(exp, os.path.join(args.out, "liella-exports.tsv"))
+    if not args.niji_exports:
+        write_exports(exp, os.path.join(args.out, "niji-exports.tsv"))
     kinds = {}
     for k in need_users:
         c = classify(manifest, k[1], k[2])
@@ -419,7 +419,7 @@ def sweep(args):
         for c in sorted(kinds):
             f.write("| ... of kind %s | %d |\n" % (c, kinds[c]))
         f.write("| distinct compat sym@VER needed | %d |\n" % len(compat))
-        f.write("| distinct needed sym@VER Liella lacks | %d |\n" % len(missing))
+        f.write("| distinct needed sym@VER libniji lacks | %d |\n" % len(missing))
         f.write("| programs ok directly | %d of %d |\n" % (direct_ok, len(progs)))
         f.write("| programs ok with their libraries | %d of %d |\n" % (trans_ok, len(progs)))
         f.write("| libraries/objects ok directly | %d of %d |\n" % (lib_ok, len(results) - len(progs)))
@@ -438,17 +438,17 @@ def sweep(args):
         for b, n in sorted(trans_rank.items(), key=lambda kv: (-kv[1], kv[0]))[:25]:
             f.write("- %s: %d\n" % (b, n))
     prods = []
-    if not args.liella_exports:
-        for n in sorted(os.listdir(args.liella)):
-            p = os.path.join(args.liella, n)
+    if not args.niji_exports:
+        for n in sorted(os.listdir(args.niji)):
+            p = os.path.join(args.niji, n)
             if ".so" in n and os.path.isfile(p) and not os.path.islink(p):
                 with open(p, "rb") as fh:
                     prods.append("%s=%s" % (n, hashlib.sha256(fh.read()).hexdigest()[:16]))
     glibc = subprocess.run(["getconf", "GNU_LIBC_VERSION"], capture_output=True, text=True).stdout.strip()
     with open(os.path.join(args.out, "run.txt"), "w", encoding="utf-8") as f:
-        f.write("host: %s\ndate: %s\nhost glibc: %s\nliella: %s\n" % (
+        f.write("host: %s\ndate: %s\nhost glibc: %s\nniji: %s\n" % (
             socket.gethostname(), datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-            glibc, " ".join([args.liella_exports or args.liella] + prods)))
+            glibc, " ".join([args.niji_exports or args.niji] + prods)))
     print("bincompat-sweep: %d ELFs, %d programs, %d compat needs, %d missing, %d/%d programs ok "
           "directly, %d transitively -> %s" % (counts["elf"], len(progs), len(compat), len(missing),
                                                direct_ok, len(progs), trans_ok, args.out))
@@ -572,8 +572,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out")
     ap.add_argument("--manifest", default="spec/abi/versions.tsv")
-    ap.add_argument("--liella", default="target/liella")
-    ap.add_argument("--liella-exports")
+    ap.add_argument("--niji", default="target/niji")
+    ap.add_argument("--niji-exports")
     ap.add_argument("--root", action="append")
     ap.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 1))
     ap.add_argument("--self-test", action="store_true")

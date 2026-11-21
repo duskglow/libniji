@@ -1,0 +1,42 @@
+# -l -v with edge operands: a symlink to a library, an object without a soname, a truncated object, an i386
+# object, one whose soname path is a regular file, the dynamic linker's soname.
+name: ldconfig -l -N -v with edge operands
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -l
+arg: -N
+arg: -v
+arg: @ROOT@/lib/libsym.so.1
+arg: @ROOT@/lib/libnos.so.4
+arg: @ROOT@/lib/libcut.so.5.0
+arg: @ROOT@/lib/libi.so.6.0
+arg: @ROOT@/lib/libreg.so.7.0
+arg: @ROOT@/lib/ld-x.so.1
+elf: lib/libreal.so.1.0 soname=libreal.so.1
+link: lib/libsym.so.1 -> libreal.so.1.0
+elf: lib/libnos.so.4
+elf: lib/libcut.so.5.0 soname=libcut.so.5 cut=100
+elf: lib/libi.so.6.0 soname=libi.so.6 class=i386
+elf: lib/libreg.so.7.0 soname=libreg.so.7
+file: lib/libreg.so.7
+| a regular file
+elf: lib/ld-x.so.1 soname=ld-linux-x86-64.so.2
+status: exit 0
+stdout:
+| \tlibnos.so.4 -> libnos.so.4
+| \tlibi.so.6 -> libi.so.6.0 (changed)
+| \tlibreg.so.7 -> libreg.so.7.0
+| \tld-linux-x86-64.so.2 -> ld-x.so.1 (changed)
+stderr:
+| ldconfig: Ignored file @ROOT@/lib/libsym.so.1 since it is not a regular file.
+| ldconfig: file @ROOT@/lib/libcut.so.5.0 is truncated
+|
+| ldconfig: No link created since soname could not be found for @ROOT@/lib/libcut.so.5.0
+| ldconfig: @ROOT@/lib/libreg.so.7 is not a symbolic link
+|
+written-link: lib/ld-linux-x86-64.so.2 -> ld-x.so.1
+written-link: lib/libi.so.6 -> libi.so.6.0

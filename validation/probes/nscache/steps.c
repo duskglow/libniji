@@ -20,7 +20,7 @@ static long long base;
     printf("%-28s kinstr %7lld faults %ld\n", label, b - a - base, f1 - f0); } while (0)
 
 int main(int argc, char **argv) {
-    const char *path = argc > 1 ? argv[1] : "/dev/shm/liella-nscache-1000";
+    const char *path = argc > 1 ? argv[1] : "/dev/shm/niji-nscache-1000";
     struct perf_event_attr at;
     memset(&at, 0, sizeof at);
     at.type = PERF_TYPE_HARDWARE; at.size = sizeof at; at.config = PERF_COUNT_HW_INSTRUCTIONS;

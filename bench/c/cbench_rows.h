@@ -4,7 +4,7 @@
  * rows a change can move plus the sentinel rows, not whole binaries. Unset or empty: every row runs and the
  * timed loops are unchanged (one cached test per row, outside the rounds). The setup code between rows
  * still runs, so the state a later row sees is the same except for what skipped rows themselves did (heap
- * shape, warm caches): the Liella and glibc builds skip the same rows, so the ratio stays like for like. */
+ * shape, warm caches): the libniji and glibc builds skip the same rows, so the ratio stays like for like. */
 #ifndef CBENCH_ROWS_H
 #define CBENCH_ROWS_H
 #include <stdlib.h>

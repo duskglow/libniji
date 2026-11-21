@@ -1,0 +1,17 @@
+{"task": "LIBM-JNF-LARGE-3", "model": "opus", "tokens": null,
+ "result": "the jnf/ynf low-order exhaustive sweep runs as 16 shards of 2^28 encodings (one long-sweeps row and one job each, 20-40 min under load) with a unit test that the shards tile every encoding once; all 16 shards pass (the whole sweep green), gate and 7 plants green",
+ "branch": "task/libm-jnf-large-3", "head": "c605a3f05",
+ "gate": {"affected": "affected: ok (rc 0, libm-jnf-large-3-gate1)", "peak": "2.7G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["run 2's red (sweep5 rc 124) was the single sweep's size (~5.6 h on one 7-CPU slot of a Broadwell-EP host) against the 150-min job limit, not the code; product code unchanged since 833dd6654 and percall1 identical to run 2 on every row",
+                   "the 16 long-sweeps rows carry no .secs() yet: the shard jobs' long-sweep lines (handoff/LIBM-JNF-LARGE.md) give them"],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "exhaustive jnf/ynf orders 0,+-1 sweep runnable inside the job limit: 16 shard tests and long-sweeps rows, 1 tiling unit test, 7 plants", "before": 0, "after": 16, "unit": "shards", "measured": true},
+  {"kind": "tooling", "what": "longest jnf/ynf low-order sweep job (one 7-CPU slot)", "before": 20100, "after": 2309, "unit": "s", "measured": true},
+  {"kind": "perf", "what": "bes_jnf0_large per call (run 2's change, unchanged here, re-measured)", "before": 175480.4, "after": 459.5, "unit": "instr/call", "measured": true}
+ ],
+ "improvement": "a sweep sized from one strided run (-size64, 5 min) before its first full job would have avoided two red runs; jobrun's FIFO queue put the gate behind 12 queued shard jobs until I reordered them by hand",
+ "next_step": "follow-up story for jnf/ynf n = 2, 3 on the f32 large band (analysis and the dfix range blocker in handoff/LIBM-JNF-LARGE.md)",
+ "report_file": "handoff/LIBM-JNF-LARGE.md",
+ "jobs": ["libm-jnf-large-3-lint3", "libm-jnf-large-3-percall1", "libm-jnf-large-3-percall1-sse2", "libm-jnf-large-3-gate1", "libm-jnf-large-3-plants1", "libm-jnf-large-3-shard00", "libm-jnf-large-3-shard01", "libm-jnf-large-3-shard02", "libm-jnf-large-3-shard03", "libm-jnf-large-3-shard04", "libm-jnf-large-3-shard05", "libm-jnf-large-3-shard06", "libm-jnf-large-3-shard07", "libm-jnf-large-3-shard08", "libm-jnf-large-3-shard09", "libm-jnf-large-3-shard10", "libm-jnf-large-3-shard11", "libm-jnf-large-3-shard12", "libm-jnf-large-3-shard13", "libm-jnf-large-3-shard14", "libm-jnf-large-3-shard15"]}

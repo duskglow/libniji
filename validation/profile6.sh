@@ -1,13 +1,13 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Timing and profiles of the milestone-6 packages (validation/profiles.md), glibc builds against
-# Liella builds, the same way as validation/profile.sh for the first packages.
+# libniji builds, the same way as validation/profile.sh for the first packages.
 #
 #   validation/profile6.sh OUT_DIR
 #
 # ONLY=REGEX limits the run to the matching workload names.
-# Uses the suite builds in $VALIDATION/build/{glibc,liella-m}/{grep,gawk,diffutils,tar,gzip}
-# and, for make, {glibc,liella}-noload (T27). Each workload runs under `perf stat -r 5` (one
+# Uses the suite builds in $VALIDATION/build/{glibc,niji-m}/{grep,gawk,diffutils,tar,gzip}
+# and, for make, {glibc,niji}-noload (T27). Each workload runs under `perf stat -r 5` (one
 # warm-up run first, discarded) for both builds, and once under `perf record` for each; each
 # timing records the load before and after. perf runs through sudo -n.
 set -u
@@ -37,7 +37,7 @@ if [ ! -f "$work/big.mk" ]; then
                      for (i = 0; i < 977; i++) printf "d%d: ;\n", i }'
     } > "$work/big.mk"
 fi
-nm "$V/products-m6/libc.a" 2>/dev/null | awk 'NF == 3 { print $3 }' | sort -u > "$work/liella-symbols"
+nm "$V/products-m6/libc.a" 2>/dev/null | awk 'NF == 3 { print $3 }' | sort -u > "$work/niji-symbols"
 
 # name|package|command (run from $work; @ is the program's build tree)
 workloads=(
@@ -73,7 +73,7 @@ if [ "${CHECK:-0}" = 1 ]; then
         name=${w%%|*} rest=${w#*|}
         pkg=${rest%%|*} cmd=${rest#*|}
         sums=
-        for b in glibc liella-m; do
+        for b in glibc niji-m; do
             c=${cmd//@/$(tree $b "$pkg")}
             s=$(cd "$work" && sh -c "$c" 2>&1 | md5sum | cut -c1-12)
             sums="$sums $b=$s"
@@ -91,9 +91,9 @@ for w in "${workloads[@]}"; do
     rest=${w#*|}
     pkg=${rest%%|*}
     cmd=${rest#*|}
-    for build in glibc liella; do
+    for build in glibc niji; do
         b=glibc
-        [ $build = liella ] && b=liella-m
+        [ $build = niji ] && b=niji-m
         c=${cmd//@/$(tree $b "$pkg")}
         (cd "$work" && sh -c "$c" > /dev/null 2>&1) # warm-up, discarded
         before=$(load)

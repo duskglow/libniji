@@ -16,14 +16,14 @@ Template lines (fields: file, perl substitution anchored to the function, test c
 message):
 
 ```
-crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)eps \* 1\.0/$1eps * 0.5/s	cmd:cargo test -p liella-math --test elem_products	caught	msg:<test name>
-crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)if !same/$1if same/s	cmd:cargo test -p liella-math --test elem_products	caught	msg:<test name>
-crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)if !same \{/$1if false {/s	cmd:cargo test -p liella-math --test elem_products	caught	msg:<test name>
-crates/math/src/<file>.rs	perl:s/(<TABLE>: .*?0x[0-9a-f]+?)([0-9a-f]),/$1 . sprintf("%x", hex($2) ^ 1) . ","/se	cmd:cargo test -p liella-math --test elem_products	caught	msg:<test name>
-crates/math/src/<file>.rs	perl:s/(const <REDUCTION_LO>: f64 = )[^;]+;/${1}0.0;/	cmd:cargo test -p liella-math --test elem_products	caught	msg:<test name>
+crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)eps \* 1\.0/$1eps * 0.5/s	cmd:cargo test -p niji-math --test elem_products	caught	msg:<test name>
+crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)if !same/$1if same/s	cmd:cargo test -p niji-math --test elem_products	caught	msg:<test name>
+crates/math/src/<file>.rs	perl:s/(fn <fn>_fast.*?)if !same \{/$1if false {/s	cmd:cargo test -p niji-math --test elem_products	caught	msg:<test name>
+crates/math/src/<file>.rs	perl:s/(<TABLE>: .*?0x[0-9a-f]+?)([0-9a-f]),/$1 . sprintf("%x", hex($2) ^ 1) . ","/se	cmd:cargo test -p niji-math --test elem_products	caught	msg:<test name>
+crates/math/src/<file>.rs	perl:s/(const <REDUCTION_LO>: f64 = )[^;]+;/${1}0.0;/	cmd:cargo test -p niji-math --test elem_products	caught	msg:<test name>
 ```
 
-The fallback-rate check uses `liella_math::stats` (feature `fastpath-stats`, on in the math crate's
+The fallback-rate check uses `niji_math::stats` (feature `fastpath-stats`, on in the math crate's
 tests): `let before = stats::counts("exp");` ... `stats::counts("exp").since(before).check_fallback("exp", 10_000)`.
-The speed check uses the `cbench_libm` rows: `cargo xtask bench --compare cbench_libm` (Liella, glibc
+The speed check uses the `cbench_libm` rows: `cargo xtask bench --compare cbench_libm` (libniji, glibc
 dynamic, glibc static) on an idle host.

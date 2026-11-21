@@ -4,14 +4,14 @@
 
 //! Clause tests for spec §10 (56 clauses).
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::float_cmp, clippy::cast_possible_truncation, clippy::panic, clippy::cast_possible_wrap, missing_docs)]
 
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
 
 /// The section headers, dynamic symbols (with versions) and bytes of an ELF64 little-endian
-/// shared object: only what `s10_0_c2_0` reads. Reads Liella's own `libm.so.6`.
+/// shared object: only what `s10_0_c2_0` reads. Reads libniji's own `libm.so.6`.
 mod elf {
     /// One dynamic symbol: name, version name, whether that version is hidden (non-default,
     /// `name@V`), section index and value.
@@ -125,9 +125,9 @@ mod elf {
 #[test]
 fn s10_0_c2_0() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lib = root.join("target/liella/libm.so.6");
+    let lib = root.join("target/niji/libm.so.6");
     let Ok(bytes) = std::fs::read(&lib) else {
-        skip_note::skipped("target/liella/libm.so.6 is not built (cargo xtask so)");
+        skip_note::skipped("target/niji/libm.so.6 is not built (cargo xtask so)");
         return;
     };
     let elf = elf::Elf::parse(bytes);
@@ -202,12 +202,12 @@ fn s10_0_c2_0() {
 // rounded operations, the environment). The compat `__*_finite` names (s10_0_c2_0) are above.
 // ---------------------------------------------------------------------------------------------
 
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_math::classify::{self, FP_INFINITE, FP_NAN, FP_NORMAL, FP_SUBNORMAL, FP_ZERO};
-use liella_math::float::{self as fl, Float};
-use liella_math::{fenv, fused, manip, minmax, rem, round, Flags, MathError, Rounding, Status, F128, F80};
-use liella_mathtools::mp::{self, Big, Fmt, Round};
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_math::classify::{self, FP_INFINITE, FP_NAN, FP_NORMAL, FP_SUBNORMAL, FP_ZERO};
+use niji_math::float::{self as fl, Float};
+use niji_math::{fenv, fused, manip, minmax, rem, round, Flags, MathError, Rounding, Status, F128, F80};
+use niji_mathtools::mp::{self, Big, Fmt, Round};
 
 const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 
@@ -751,10 +751,10 @@ fn s10_6_g_0() {
 // `cargo xtask mathcmp` (docs/libm-accuracy.tsv).
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::elem::Small;
-use liella_math::real::Real;
-use liella_math::{exp_log, hyper, pow as pw, trig};
-use liella_mathtools::cmp;
+use niji_math::elem::Small;
+use niji_math::real::Real;
+use niji_math::{exp_log, hyper, pow as pw, trig};
+use niji_mathtools::cmp;
 
 type Unary<F> = fn(F, Rounding) -> (F, Status);
 
@@ -925,6 +925,34 @@ fn s10_3_c_r2() {
     assert_eq!(exp_log::log10(1e22f64, n), (22.0, Status::OK));
 }
 
+/// [`s10_3_c_r3`]'s signalling-NaN and (−1)^huge cases in the format `F`.
+fn pow_edges<F: Float + Real>(n: Rounding) {
+    let p = i32::try_from(F::PREC).unwrap();
+    let w = F::PREC - u32::from(!F::EXPLICIT); // stored significand bits
+    let e = (1u128 << F::EXP_BITS) - 1;
+    let snan = |neg: bool| F::from_bits((u128::from(neg) << (w + F::EXP_BITS)) | (e << w) | (u128::from(F::EXPLICIT) << (w - 1)) | 1);
+    let one = fl::pack::<F>(false, 1, 0);
+    let m_one = fl::pack::<F>(true, 1, 0);
+    let quiet_invalid = |(r, st): (F, Status), what: &str| {
+        assert!(fl::decode(r).kind == fl::Kind::QNan && st == Status::INVALID, "{what}: {r:?} {st:?}");
+    };
+    for neg in [false, true] {
+        for z in [false, true] {
+            quiet_invalid(snan(neg).pow(fl::zero::<F>(z), n), &format!("pow(sNaN neg={neg}, zero neg={z}) prec {p}"));
+        }
+        quiet_invalid(one.pow(snan(neg), n), &format!("pow(1, sNaN neg={neg}) prec {p}"));
+    }
+    for mode in MODES {
+        for neg in [false, true] {
+            for y in [fl::pack::<F>(neg, 1, p), fl::pack::<F>(neg, 1, p + 7) , fl::pack::<F>(neg, 3, p), fl::max_finite::<F>(neg)] {
+                assert_eq!(m_one.pow(y, mode), (one, Status::OK), "pow(-1, {y:?}) prec {p} {mode:?}");
+            }
+            let odd = fl::pack::<F>(neg, (1u128 << (p - 1)) + 1, 0); // 2^(PREC-1) + 1
+            assert_eq!(m_one.pow(odd, mode), (m_one, Status::OK), "pow(-1, {odd:?}) prec {p} {mode:?}");
+        }
+    }
+}
+
 #[test]
 fn s10_3_c_r3() {
     let n = Rounding::Nearest;
@@ -938,6 +966,13 @@ fn s10_3_c_r3() {
     assert_eq!(pw::pow(1.0, f64::NAN, n), (1.0, Status::OK));
     assert_eq!(pw::pow(1.0f32, f32::INFINITY, n), (1.0, Status::OK));
     assert!(pw::pow(1.0, snan, n).1.flags.any(Flags::INVALID));
+    // Every format (IEEE 754-2019 9.2.1 and 6.2; C23 F.10.4.5): a signalling NaN with a zero
+    // exponent or base 1 is invalid with a quiet NaN, and (−1)^y for a huge finite y (every one of
+    // magnitude 2^PREC or more is even) is exactly ±1 with no range error.
+    pow_edges::<f32>(n);
+    pow_edges::<f64>(n);
+    pow_edges::<F80>(n);
+    pow_edges::<F128>(n);
     // pow(−∞, y) by the parity of y.
     assert_eq!(pw::pow(f64::NEG_INFINITY, 3.0, n).0, f64::NEG_INFINITY);
     assert_eq!(pw::pow(f64::NEG_INFINITY, 2.0, n).0, f64::INFINITY);
@@ -1063,10 +1098,22 @@ fn s10_3_c_r4() {
         let (r, st) = f(f64::NEG_INFINITY, n);
         assert!(r.is_nan() && st.error == MathError::Domain && st.flags == Flags::INVALID);
     }
-    // sincos: both at once, each as the single function computes it.
-    for x in [0.5f64, -3.0, 1e22, 7.0e-12] {
-        let ((s, c), _) = trig::sincos(x, n);
-        assert_eq!((s.to_bits(), c.to_bits()), (trig::sin(x, n).0.to_bits(), trig::cos(x, n).0.to_bits()));
+    // sincos: both at once from one reduction (LIBM-SINCOS-SHARED, D-10.89), each result and
+    // the flags as the single functions give them, in every mode: the fast tier's operands, the
+    // double-double path's (|x| above the fast limit, and `float`, which has no fast tier here),
+    // the tiny ones and the specials.
+    let modes = [Rounding::Nearest, Rounding::Down, Rounding::Up, Rounding::Zero];
+    for m in modes {
+        for x in [0.5f64, -3.0, 1e22, -2.5e300, 7.0e-12, 1e-300, 0.0, -0.0, f64::INFINITY, f64::NAN] {
+            let ((s, c), st) = trig::sincos(x, m);
+            let ((ws, wt), (wc, wu)) = (trig::sin(x, m), trig::cos(x, m));
+            assert_eq!((s.to_bits(), c.to_bits(), st), (ws.to_bits(), wc.to_bits(), wt.and(wu)), "sincos({x:e}) {m:?}");
+        }
+        for x in [0.5f32, -3.0, 1e22, -3.0e38, 7.0e-12, 1e-40, 0.0, f32::INFINITY] {
+            let ((s, c), st) = trig::sincos(x, m);
+            let ((ws, wt), (wc, wu)) = (trig::sin(x, m), trig::cos(x, m));
+            assert_eq!((s.to_bits(), c.to_bits(), st), (ws.to_bits(), wc.to_bits(), wt.and(wu)), "sincos({x:e}) {m:?}");
+        }
     }
     // atan2: the signed-zero and infinity quadrants of Annex F.
     let (pi, half, quarter) = (std::f64::consts::PI, std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_4);
@@ -1111,7 +1158,7 @@ fn s10_3_c_r5() {
 // samples: `special_cr.rs`; special operands against the reference: `special_products.rs`.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::special as sp;
+use niji_math::special as sp;
 
 #[test]
 fn s10_3_c_r6() {
@@ -1133,7 +1180,43 @@ fn s10_3_c_r6() {
     assert_eq!(sp::lgamma(-0.5f64, n).1, -1);
     assert_eq!(sp::lgamma(-1.5f64, n).1, 1);
     assert_eq!(sp::lgamma(-2.5f32, n).1, -1);
+    // float's sign at the ends of the integer-part parity (D-10.95: no conversion to an integer):
+    // |x| < 1, and the spacing-1/2 binade just below 2^23 (past the fast path's domain).
+    assert_eq!(sp::lgamma(-0.5f32, n).1, -1);
+    assert_eq!(sp::lgamma(-1.5f32, n).1, 1);
+    assert_eq!(sp::lgamma(-8_388_606.5f32, n).1, -1);
+    assert_eq!(sp::lgamma(-8_388_605.5f32, n).1, 1);
     assert_eq!(sp::lgamma(7.0f64, n).1, 1);
+    // lgammaf at negative half-integers against the exact value: |Γ(1/2 − n)| = 4^n·n!/(2n)!·√π,
+    // so lgamma(1/2 − n) = n·ln 4 + ln n! − ln (2n)! + ln(π)/2, evaluated to 90 digits and rounded
+    // to nearest (LIBM-INVALID-CONVERT-SCAN-4); the sign of Γ(1/2 − n) is (−1)^n. −2.5 is the
+    // per-call check's operand; −17.5 lies 0.0002 ulp from a rounding boundary; −39.5 is near the
+    // fast path's end. The table also checks the oracle below.
+    for (x, rn, sign) in [
+        (-0.5f32, 0x3fa1_fc4du32, -1),
+        (-1.5, 0x3f5c_2c0b, 1),
+        (-2.5, 0xbd66_5fd0, -1),
+        (-3.5, 0xbfa7_8d88, 1),
+        (-5.5, 0xc090_9215, 1),
+        (-6.5, 0xc0cc_77e2, -1),
+        (-10.5, 0xc172_5b38, -1),
+        (-17.5, 0xc207_31c0, 1),
+        (-39.5, 0xc2d6_a81d, 1),
+    ] {
+        let b = u128::from(x.to_bits());
+        let ((r, _), s) = sp::lgamma(x, n);
+        assert_eq!((r.to_bits(), s), (rn, sign), "lgammaf({x}): exact value rounded to nearest, sign");
+        assert_eq!(cr("lgamma", Fmt::F32, n, &[b]).0, u128::from(rn), "oracle lgammaf({x})");
+    }
+    // The neighbourhood of −2.5 (±4 ulp) in every mode, by the oracle.
+    for k in -4i32..=4 {
+        let x = f32::from_bits((-2.5f32).to_bits().wrapping_add_signed(k));
+        for mode in MODES {
+            let b = u128::from(x.to_bits());
+            let ((r, _), s) = sp::lgamma(x, mode);
+            assert_eq!((u128::from(r.to_bits()), s), (cr("lgamma", Fmt::F32, mode, &[b]).0, -1), "lgammaf({x}) {mode:?}");
+        }
+    }
     // lgamma(1) = lgamma(2) = +0 in every mode; poles at 0 and the negative integers.
     for mode in MODES {
         assert_eq!(sp::lgamma(1.0f64, mode).0, (0.0, Status::OK));
@@ -1242,8 +1325,8 @@ fn s10_3_c_r7() {
 // `complex_products.rs`.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::complex as cx;
-use liella_mathtools::cplx;
+use niji_math::complex as cx;
+use niji_mathtools::cplx;
 
 type Complex<F> = fn(F, F, Rounding) -> ((F, F), Status);
 

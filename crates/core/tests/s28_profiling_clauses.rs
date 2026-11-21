@@ -16,9 +16,9 @@ use core::ffi::c_int;
 use std::sync::atomic::{AtomicU16, AtomicU32, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
-use liella_boundary::posix::{s20_signals as sg, s23_time as tm, s28_profiling as pr};
-use liella_kernel::uapi::{Itimerval, SigSet, SIGPROF};
-use liella_legacy::signal_compat::CSigaction;
+use niji_boundary::posix::{s20_signals as sg, s23_time as tm, s28_profiling as pr};
+use niji_kernel::uapi::{Itimerval, SigSet, SIGPROF};
+use niji_legacy::signal_compat::CSigaction;
 
 
 const ITIMER_PROF: c_int = 2;
@@ -204,7 +204,7 @@ fn s28_1_c_3() {
 // ------------------------------------------------------------------ monstartup, mcount, __fentry__
 
 /// Set in a child this binary re-executes: the test it runs does the child's half.
-const CHILD: &str = "LIELLA_S28_GMON_CHILD";
+const CHILD: &str = "NIJI_S28_GMON_CHILD";
 
 fn in_child() -> bool {
     std::env::var_os(CHILD).is_some()
@@ -254,8 +254,27 @@ fn start_and_run(mcount: bool, n: u32) -> (usize, usize) {
     pr::probe_run(mcount, n);
     let site = if mcount { mc } else { fentry };
     // libtest has printed `test <name> ... ` without a newline: the line may follow it.
-    println!("S28 {low} {high} {site} {caller}");
+    println!("S28 {low} {high} {site} {caller} {}", exe_load_bias());
     (site, caller)
+}
+
+/// This executable's load bias, read from `/proc/self/maps` (independently of the code under
+/// test): the start of its mapping at file offset 0, which is where its first segment (virtual
+/// address 0 in a PIE) was loaded; 0 when the program is not a PIE.
+fn exe_load_bias() -> usize {
+    let exe = std::fs::read_link("/proc/self/exe").unwrap();
+    let maps = std::fs::read_to_string("/proc/self/maps").unwrap();
+    let line = maps
+        .lines()
+        .find(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            f.len() >= 6 && f[2] == "00000000" && std::path::Path::new(f[5]) == exe
+        })
+        .expect("the executable's first mapping");
+    let start = usize::from_str_radix(line.split('-').next().unwrap(), 16).unwrap();
+    let ehdr = std::fs::read(&exe).unwrap();
+    // e_type ET_DYN (3): a PIE, whose link-time addresses start at 0.
+    if u16::from_le_bytes([ehdr[16], ehdr[17]]) == 3 { start } else { 0 }
 }
 
 /// The arcs whose callee is within `site`'s first 16 bytes: `(from, to, count)`.
@@ -337,7 +356,10 @@ fn s28_1_c_1() {
     // Clause s28_1_c_1. Probe of glibc 2.39 (static -pg program, gcrt1, exit from main, fresh
     // directory): without GMON_OUT_PREFIX the only file written is `gmon.out`; with
     // GMON_OUT_PREFIX=p it is `p.<pid>` and no `gmon.out`. The start object registers
-    // `_mcleanup` for exit (gmon_products.rs); this child calls it as that exit would.
+    // `_mcleanup` for exit (gmon_products.rs); this child calls it as that exit would. The file
+    // holds link-time pcs: a probe of a dynamic and a static PIE -pg program (SL-CRT-2) showed the
+    // histogram's low pc at `__executable_start`'s link-time address 0, so every pc written is
+    // less the executable's load bias (this test program is a PIE).
     if in_child() {
         start_and_run(true, GMON_CALLS);
         pr::_mcleanup();
@@ -348,13 +370,14 @@ fn s28_1_c_1() {
         let (pid, out) = run_child("s28_1_c_1", &dir, prefix);
         let line = out.lines().find_map(|l| l.split_once("S28 ").map(|(_, r)| r)).expect("the child's range line");
         let v: Vec<usize> = line.split(' ').map(|w| w.parse().unwrap()).collect();
-        let (low, high, site, caller) = (v[0], v[1], v[2], v[3]);
+        let bias = v[4];
+        let (low, high, site, caller) = (v[0].wrapping_sub(bias), v[1].wrapping_sub(bias), v[2] - bias, v[3] - bias);
         let want = prefix.map_or_else(|| "gmon.out".to_string(), |p| format!("{p}.{pid}"));
         let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         names.sort();
         assert_eq!(names, core::slice::from_ref(&want), "GMON_OUT_PREFIX={prefix:?}: the one file written");
         let (lo, hi, bins, arcs) = parse_gmon(&std::fs::read(dir.join(&want)).unwrap());
-        assert_eq!((lo, hi), ((low & !3) as u64, ((high + 3) & !3) as u64), "the histogram covers the range given to monstartup");
+        assert_eq!((lo, hi), ((low & !3) as u64, (high.wrapping_add(3) & !3) as u64), "the histogram covers the range given to monstartup, at link-time pcs");
         assert!(bins > 0, "monstartup allocated a histogram");
         assert_one_arc(&want, &arcs, site, caller, GMON_CALLS);
     }
@@ -363,8 +386,8 @@ fn s28_1_c_1() {
 // ------------------------------------------------------------------ __cyg_profile_func_enter/_exit
 
 /// Builds `tests/oracle/cyg_hooks.c` with `-finstrument-functions`, statically, against the host
-/// C library or against Liella's crt1 and libc.a; `own` adds the program's own hooks.
-fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
+/// C library or against libniji's crt1 and libc.a; `own` adds the program's own hooks.
+fn build_cyg(out: &std::path::Path, niji: bool, own: bool) -> bool {
     let r = root();
     let mut cmd = std::process::Command::new("cc");
     cmd.args(["-std=gnu17", "-O1", "-finstrument-functions", "-static"]);
@@ -372,8 +395,8 @@ fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
         cmd.arg("-DOWN_HOOKS");
     }
     let src = r.join("crates/core/tests/oracle/cyg_hooks.c");
-    if liella {
-        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.arg(&src);
     }
@@ -384,17 +407,17 @@ fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
 #[test]
 fn s28_1_c_4() {
     // Clause s28_1_c_4. In process: the hooks leave errno as it was.
-    liella_boundary::errno::set_raw(4242);
+    niji_boundary::errno::set_raw(4242);
     let (f, site) = (core::ptr::null_mut(), core::ptr::null_mut());
     pr::__cyg_profile_func_enter(f, site);
     pr::__cyg_profile_func_exit(f, site);
-    assert_eq!(liella_boundary::errno::get(), 4242, "the hooks leave errno unchanged");
+    assert_eq!(niji_boundary::errno::get(), 4242, "the hooks leave errno unchanged");
 
     // As programs: probe of glibc 2.39 (static, -finstrument-functions): the library's hooks
     // print nothing and keep errno (enter=0 exit=0); a program's own hooks link without a
     // duplicate definition and are called once per instrumented entry and exit (main, 5 mid,
     // 10 leaf: 16 entries, 15 exits when main prints).
-    assert!(root().join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(root().join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -402,9 +425,9 @@ fn s28_1_c_4() {
     let dir = root().join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     for (own, want) in [(false, "r=85 errno=4242 enter=0 exit=0\n"), (true, "r=85 errno=4242 enter=16 exit=15\n")] {
-        for liella in [false, true] {
-            let exe = dir.join(format!("cyg_hooks_{}_{}", if liella { "liella" } else { "host" }, if own { "own" } else { "lib" }));
-            assert!(build_cyg(&exe, liella, own), "cyg_hooks.c (own hooks: {own}) does not link against {}", if liella { "libc.a" } else { "the host" });
+        for niji in [false, true] {
+            let exe = dir.join(format!("cyg_hooks_{}_{}", if niji { "niji" } else { "host" }, if own { "own" } else { "lib" }));
+            assert!(build_cyg(&exe, niji, own), "cyg_hooks.c (own hooks: {own}) does not link against {}", if niji { "libc.a" } else { "the host" });
             let o = std::process::Command::new("timeout").arg(timeout::secs(30)).arg(&exe).output().unwrap();
             assert!(o.status.success(), "{}: {:?}", exe.display(), o.status);
             assert_eq!((String::from_utf8_lossy(&o.stdout).as_ref(), o.stderr.len()), (want, 0), "{}: output", exe.display());

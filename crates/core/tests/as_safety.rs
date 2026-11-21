@@ -12,7 +12,7 @@
 //! timer calls (phase 9) run on a `SIGEV_NONE` kernel timer and on a `SIGEV_THREAD` timer (the
 //! library's own: a `timerfd` and its helper, #544) made before the locks are taken;
 //! `alarm` is left out because the child's own alarm is the harness's watchdog.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
 #[path = "support/timeout.rs"]
@@ -20,19 +20,19 @@ mod timeout;
 use core::ptr::{null, null_mut};
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s08_numeric as nm;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s13_filesystem as fs;
-use liella_boundary::posix::s15_sockets as sk;
-use liella_boundary::posix::s17_users as us;
-use liella_boundary::posix::s18_processes as pr;
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::posix::s23_time as tm;
-use liella_boundary::posix::s25_ipc as ip;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerspec, PollFd, SigEvent, Timespec, Timeval, Tms};
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s08_numeric as nm;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s13_filesystem as fs;
+use niji_boundary::posix::s15_sockets as sk;
+use niji_boundary::posix::s17_users as us;
+use niji_boundary::posix::s18_processes as pr;
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::posix::s23_time as tm;
+use niji_boundary::posix::s25_ipc as ip;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerspec, PollFd, SigEvent, Timespec, Timeval, Tms};
 
 static FILE: AtomicI32 = AtomicI32::new(-1);
 static DIR: AtomicI32 = AtomicI32::new(-1);
@@ -88,8 +88,8 @@ struct Msg {
     flags: i32,
 }
 
-fn empty_set() -> liella_abi::layout::sigset_t {
-    liella_abi::layout::sigset_t { __val: [0; 16] }
+fn empty_set() -> niji_abi::layout::sigset_t {
+    niji_abi::layout::sigset_t { __val: [0; 16] }
 }
 
 type Call = (&'static str, fn());
@@ -141,13 +141,13 @@ const CALLS: &[Call] = &[
     // §11 descriptors
     ("write", || { io::write(f(&NULL_FD), b"x".as_ptr().cast(), 1); }),
     ("read", || { let mut b = [0u8; 4]; io::read(f(&ZERO_FD), b.as_mut_ptr().cast(), 4); }),
-    ("open", || { let d = io::liella_open3(c"f".as_ptr(), 2, 0); io::close(d); }),
-    ("openat", || { let d = io::liella_openat4(f(&DIR), c"f".as_ptr(), 0, 0); io::close(d); }),
+    ("open", || { let d = io::niji_open3(c"f".as_ptr(), 2, 0); io::close(d); }),
+    ("openat", || { let d = io::niji_openat4(f(&DIR), c"f".as_ptr(), 0, 0); io::close(d); }),
     ("creat", || { let d = io::creat(c"c".as_ptr(), 0o600); io::close(d); fs::unlink(c"c".as_ptr()); }),
     ("close", || { let d = io::dup(f(&NULL_FD)); io::close(d); }),
     ("dup", || { let d = io::dup(f(&NULL_FD)); io::close(d); }),
     ("dup2", || { io::dup2(f(&NULL_FD), 950); io::close(950); }),
-    ("fcntl", || { io::liella_fcntl3(f(&FILE), 1, 0); }),
+    ("fcntl", || { io::niji_fcntl3(f(&FILE), 1, 0); }),
     ("lseek", || { io::lseek(f(&FILE), 0, 0); }),
     ("fsync", || { io::fsync(f(&FILE)); }),
     ("fdatasync", || { io::fdatasync(f(&FILE)); }),
@@ -231,7 +231,7 @@ const CALLS: &[Call] = &[
     // §20 signals
     ("kill", || { sg::kill(pr::getpid(), 0); }),
     ("raise", || { sg::raise(0); }),
-    ("sigaction", || { let mut a = liella_legacy::signal_compat::CSigaction::new(0, liella_kernel::uapi::SigSet::empty(), 0); sg::sigaction(12, None, Some(&mut a)); }),
+    ("sigaction", || { let mut a = niji_legacy::signal_compat::CSigaction::new(0, niji_kernel::uapi::SigSet::empty(), 0); sg::sigaction(12, None, Some(&mut a)); }),
     ("signal", || { sg::signal(12, 0); }),
     ("sigset", || { sg::sigset(12, 0); }),
     ("sigaddset", || { let mut s = empty_set(); sg::sigaddset(Some(&mut s), 2); }),
@@ -270,7 +270,7 @@ extern "C" fn run_all(_sig: i32) {
     if CONTROL.load(Ordering::SeqCst) {
         io::write(1, b"malloc
 ".as_ptr().cast(), 7);
-        liella_boundary::selftest::opaque::malloc(CONTROL_SIZE);
+        niji_boundary::selftest::opaque::malloc(CONTROL_SIZE);
         DONE.store(true, Ordering::SeqCst);
         return;
     }
@@ -293,10 +293,10 @@ fn child(alarm: u32) -> ! {
         std::fs::write(dir.join("f"), b"contents").unwrap();
         std::os::unix::fs::symlink("f", dir.join("l")).unwrap();
         std::env::set_current_dir(&dir).unwrap();
-        FILE.store(io::liella_open3(c"f".as_ptr(), 2, 0), Ordering::SeqCst);
-        DIR.store(io::liella_open3(c".".as_ptr(), 0o200000, 0), Ordering::SeqCst);
-        NULL_FD.store(io::liella_open3(c"/dev/null".as_ptr(), 2, 0), Ordering::SeqCst);
-        ZERO_FD.store(io::liella_open3(c"/dev/zero".as_ptr(), 0, 0), Ordering::SeqCst);
+        FILE.store(io::niji_open3(c"f".as_ptr(), 2, 0), Ordering::SeqCst);
+        DIR.store(io::niji_open3(c".".as_ptr(), 0o200000, 0), Ordering::SeqCst);
+        NULL_FD.store(io::niji_open3(c"/dev/null".as_ptr(), 2, 0), Ordering::SeqCst);
+        ZERO_FD.store(io::niji_open3(c"/dev/zero".as_ptr(), 0, 0), Ordering::SeqCst);
         let mut v = [-1; 2];
         sk::socketpair(1, 2, 0, Some(&mut v));
         DGRAM[0].store(v[0], Ordering::SeqCst);
@@ -314,7 +314,7 @@ fn child(alarm: u32) -> ! {
         THREAD_TIMER.store(t.addr(), Ordering::SeqCst);
         sg::signal(10, run_all as extern "C" fn(i32) as usize);
         let _ = CSys.alarm(alarm);
-        liella_boundary::selftest::with_all_locks(|| {
+        niji_boundary::selftest::with_all_locks(|| {
             sg::raise(10);
         });
         CSys.exit_group(if DONE.load(Ordering::SeqCst) { 0 } else { 1 });
@@ -322,7 +322,7 @@ fn child(alarm: u32) -> ! {
 }
 
 /// The variable naming the child's scratch directory.
-const SCRATCH: &str = "LIELLA_AS_DIR";
+const SCRATCH: &str = "NIJI_AS_DIR";
 
 /// A scratch directory, removed on drop (also when the test fails). It lives on tmpfs (`/dev/shm`) when there is one:
 /// the harness calls `fsync` on its file, and on a busy disk (a host that also runs other VMs) that waited over 20 s
@@ -333,7 +333,7 @@ impl Scratch {
     fn new(tag: &str) -> Scratch {
         let shm = std::path::Path::new("/dev/shm");
         let base = if shm.is_dir() { shm.to_path_buf() } else { std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")) };
-        let d = base.join(format!("liella-as-{}-{tag}", std::process::id()));
+        let d = base.join(format!("niji-as-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         Scratch(d)
@@ -353,7 +353,7 @@ fn run_child(name: &str, var: &str) -> (std::process::Output, std::time::Duratio
     let dir = Scratch::new(name);
     let scale = timeout::scale();
     let t = std::time::Instant::now();
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1"]).env(var, "1").env(SCRATCH, &dir.0).env("LIELLA_TEST_TIMEOUT_SCALE", scale.to_string()).output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1"]).env(var, "1").env(SCRATCH, &dir.0).env("NIJI_TEST_TIMEOUT_SCALE", scale.to_string()).output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     (o, t.elapsed(), scale)
 }
@@ -361,10 +361,10 @@ fn run_child(name: &str, var: &str) -> (std::process::Output, std::time::Duratio
 #[test]
 fn async_signal_safe_functions_take_no_lock_and_allocate_nothing() {
     // Clauses: s20_9_c_0, s0_6_c0_2_3, s4_n_2.
-    if std::env::var("LIELLA_AS_SAFETY").is_ok() {
+    if std::env::var("NIJI_AS_SAFETY").is_ok() {
         child(10 * u32::try_from(timeout::scale()).unwrap());
     }
-    let (o, took, scale) = run_child("async_signal_safe_functions_take_no_lock_and_allocate_nothing", "LIELLA_AS_SAFETY");
+    let (o, took, scale) = run_child("async_signal_safe_functions_take_no_lock_and_allocate_nothing", "NIJI_AS_SAFETY");
     let out = String::from_utf8_lossy(&o.stdout);
     let last = out.lines().filter_map(|l| l.trim().parse::<usize>().ok()).next_back();
     let name = last.and_then(|i| CALLS.get(i)).map_or("(before the first call)", |(n, _)| n);
@@ -379,11 +379,11 @@ fn the_harness_catches_an_allocation() {
     // Trace: no spec clause (negative control of the AS-safety harness); plan §6, phase 5 exit criterion.
     // The negative control: `malloc` from the handler blocks on the heap lock the harness
     // holds, the alarm ends the child, and the harness names the call.
-    if std::env::var("LIELLA_AS_CONTROL").is_ok() {
+    if std::env::var("NIJI_AS_CONTROL").is_ok() {
         CONTROL.store(true, Ordering::SeqCst);
         child(u32::try_from(timeout::scale()).unwrap());
     }
-    let (o, took, _) = run_child("the_harness_catches_an_allocation", "LIELLA_AS_CONTROL");
+    let (o, took, _) = run_child("the_harness_catches_an_allocation", "NIJI_AS_CONTROL");
     assert_eq!(std::os::unix::process::ExitStatusExt::signal(&o.status), Some(14), "ended by the alarm (SIGALRM): status {:?} after {took:?}, stdout {:?}, stderr {:?}", o.status, String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert!(String::from_utf8_lossy(&o.stdout).contains("malloc"), "the progress names the call");
 }

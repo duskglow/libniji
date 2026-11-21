@@ -1,4 +1,4 @@
-//! The process (`liella_process_*`): its arguments, its ID, and exit.
+//! The process (`niji_process_*`): its arguments, its ID, and exit.
 
 #![forbid(unsafe_code)]
 
@@ -11,12 +11,12 @@ use crate::Errno;
 /// End the process with `status`, as C `exit`: the C exit handlers (`atexit`, `__cxa_atexit`,
 /// ...) run and the C streams are flushed. Rust destructors of live values do not run.
 pub fn exit(status: i32) -> ! {
-    ffi::liella_process_exit(status)
+    ffi::niji_process_exit(status)
 }
 
 /// The number of program arguments (`argc`, the program name included).
 pub fn arg_count() -> Result<usize, Errno> {
-    buf::len(ffi::liella_process_arg_count())
+    buf::len(ffi::niji_process_arg_count())
 }
 
 /// Argument `index` (0 is the program name as it was started), or `None` past the last.
@@ -58,5 +58,5 @@ impl Iterator for Args {
 
 /// The process ID.
 pub fn id() -> Result<u32, Errno> {
-    buf::value(ffi::liella_process_id()).and_then(|v| u32::try_from(v).map_err(|_| Errno::EOVERFLOW))
+    buf::value(ffi::niji_process_id()).and_then(|v| u32::try_from(v).map_err(|_| Errno::EOVERFLOW))
 }

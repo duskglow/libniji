@@ -1,0 +1,13 @@
+{"task": "SL-FLAVOUR", "model": "opus", "tokens": null,
+ "result": "System build flavour (prefix /) and the R1/R2 package set (libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n) with conffiles and ldconfig trigger stubs; checks PASS, empty-root install + static hello in root, lintian 17E/41W (10 no-shlibs left to SL-SYMBOLS)",
+ "branch": "task/sl-flavour", "head": "7c83f6980",
+ "gate": {"affected": "397 passed / 0 failed", "peak": "1.3G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["lintian no-shlibs x10 on libc6 not fixed: shlibs/symbols are SL-SYMBOLS (plan 6 item 3)", "dynamic hello in the empty root waits on DL-8 (start-time soname search); ld.so --list resolves libc.so.6 to /usr/lib/x86_64-linux-gnu there", "ldconfig trigger handler is a documented no-op until SL-LDCONFIG", "the / prefix builds as it stands (plan 3.3 NOT VERIFIED settled)"],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "SL-SYMBOLS, SL-SWAP-SMOKE, SL-LDCONFIG get the system packages to extend", "before": null, "after": null, "unit": null, "measured": false},
+            {"kind": "coverage", "what": "packaging plants added (all caught)", "before": 0, "after": 8, "unit": "plants", "measured": true}],
+ "improvement": "build hosts lack lintian; tools/deb/lint.sh runs it in an unprivileged chroot from the LAN mirror, reusable by every packaging story",
+ "next_step": "SL-SYMBOLS: shlibs + symbols for libc6 (clears no-shlibs), then SL-SWAP-SMOKE",
+ "report_file": "handoff/SL-FLAVOUR.md",
+ "jobs": ["sl-flavour-deb-3", "sl-flavour-plants-2", "sl-flavour-gate-2"]}

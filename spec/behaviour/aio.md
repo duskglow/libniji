@@ -2,7 +2,7 @@
 
 **Spec:** §11.11 (`aio_read`, `aio_write`, `aio_fsync`, `aio_error`, `aio_return`, `aio_suspend`,
 `aio_cancel`, `lio_listio`, `aio_init` and the `64` forms), with decision row D-11.8 of
-implementation-plan.md (Liella runs POSIX AIO on io_uring where available and permitted, with a
+implementation-plan.md (libniji runs POSIX AIO on io_uring where available and permitted, with a
 worker pool as the fallback, and keeps completion order per descriptor and priority). The record
 is therefore about the observable contract: results, error codes and where they are reported,
 ordering, which notifications arrive, in which thread and with which `si_code`. It says nothing
@@ -350,7 +350,7 @@ unspecified.
   submission with `EAGAIN`: `aio_read`, `aio_write`, `aio_fsync`, `aio_read` with `SIGEV_THREAD`;
   `lio_listio(LIO_WAIT)` returns -1 `EAGAIN` and each entry's `aio_error` is `EAGAIN` with
   `aio_return` 0. This shows the reference needs a new thread to accept a request when none is
-  idle; a Liella io_uring path that creates no thread may accept the requests (see below).
+  idle; a libniji io_uring path that creates no thread may accept the requests (see below).
 
 ## Spec, record and documentation disagree
 
@@ -390,12 +390,12 @@ unspecified.
   list.
 * **`lio_listio(LIO_WAIT)` and `EINTR`**: POSIX and the man page allow `EINTR` with some
   operations initiated; in the reference the completion of such an operation afterwards kills
-  the process. Liella must not reproduce this; the record line is a reference defect.
+  the process. libniji must not reproduce this; the record line is a reference defect.
 * **fork**: POSIX says no asynchronous operation is inherited by the child (and use of the
   parent's control blocks is undefined). In the reference the child cannot run new requests at
   all when it was forked while a request was held or shortly after one completed, and
   `aio_cancel` in the child reports the parent's request as not cancellable. Nothing in POSIX, the
-  man pages or the manual allows the first point; Liella should run the child's requests (a known
+  man pages or the manual allows the first point; libniji should run the child's requests (a known
   difference for the differential test).
 * **close**: POSIX says a request not cancelled by `close` "completes as if the `close()`
   operation had not yet occurred". The reference's queued request B neither is cancelled
@@ -447,7 +447,7 @@ relies on time in these places only:
 ## What the record does not settle
 
 * Whether a request that has started can be cancelled is implementation-defined (POSIX). The
-  reference never cancels a started request; with io_uring Liella may be able to cancel a pipe or
+  reference never cancels a started request; with io_uring libniji may be able to cancel a pipe or
   socket read that is still waiting, which would print `AIO_CANCELED` and `ECANCELED` on those
   lines. D-11.8 should say which; the record does not decide it.
 * Requests of different priorities on one descriptor: kept outside the record (below), because the

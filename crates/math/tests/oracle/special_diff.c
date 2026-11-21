@@ -4,7 +4,7 @@
  * overflow and underflow thresholds, zeros of the Bessel functions and of lgamma, huge
  * arguments, in every rounding direction. Each line prints the result's bits (and for lgamma,
  * gamma and lgamma_r the sign of Γ(x) stored), the raised flags and errno. Built against the host
- * C library and statically against Liella's products, the outputs must agree
+ * C library and statically against libniji's products, the outputs must agree
  * (special_products.rs) apart from recorded differences. */
 #define _GNU_SOURCE
 #include <errno.h>

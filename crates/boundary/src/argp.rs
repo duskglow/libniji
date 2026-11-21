@@ -1,7 +1,7 @@
 //! argp glue (spec §1.7; D-1.7): the C side of `argp_parse`, `argp_help`, `argp_state_help`,
 //! `argp_usage`, `argp_error` and `argp_failure`. The parsing and the help text are
-//! `liella::argp`; when messages are printed and when the process ends is
-//! `liella_legacy::argp`. This module reads the caller's `struct argp` tree, keeps the
+//! `niji::argp`; when messages are printed and when the process ends is
+//! `niji_legacy::argp`. This module reads the caller's `struct argp` tree, keeps the
 //! `struct argp_state` the parser functions see, calls those functions and the help filters,
 //! writes to the streams and exits.
 //!
@@ -32,17 +32,17 @@
 use core::mem::{offset_of, size_of};
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella::argp::{self as ap, Arg, Builtin, Defaults, Filtered, Format, FormatError, Host, Opt, Parser, Problem, Table, View};
-use liella::diag;
-use liella::error::{Errno, KResult};
-use liella::getopt::{Args, Event, Span};
-use liella::mem::TryVec;
-use liella::text::Encoding;
-use liella_abi::layout::{struct_argp, struct_argp_child, struct_argp_option, struct_argp_state};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::Timespec;
-use liella_legacy::argp as legacy;
-use liella_legacy::stdio_compat::{self as sc, Env as _};
+use niji::argp::{self as ap, Arg, Builtin, Defaults, Filtered, Format, FormatError, Host, Opt, Parser, Problem, Table, View};
+use niji::diag;
+use niji::error::{Errno, KResult};
+use niji::getopt::{Args, Event, Span};
+use niji::mem::TryVec;
+use niji::text::Encoding;
+use niji_abi::layout::{struct_argp, struct_argp_child, struct_argp_option, struct_argp_state};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::Timespec;
+use niji_legacy::argp as legacy;
+use niji_legacy::stdio_compat::{self as sc, Env as _};
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
@@ -303,7 +303,7 @@ fn filter(tree: &CTree<'_>, state: usize, p: usize, key: i32, t: Option<&[u8]>) 
         None => 0,
     };
     let input = input_of(state, tree.argps.get(p).copied().unwrap_or(0));
-    let r = usize::from_ne_bytes(ffi::liella_machine_call3(f, i64::from(key), w(given), w(input)).to_ne_bytes());
+    let r = usize::from_ne_bytes(ffi::niji_machine_call3(f, i64::from(key), w(given), w(input)).to_ne_bytes());
     if r == 0 {
         return Filtered::Omit;
     }
@@ -410,7 +410,7 @@ fn version(state: usize) {
     let out = word(field(state, S_OUT));
     let hook = ffi::argp_program_version_hook.load(Relaxed);
     if hook != 0 {
-        let _ = ffi::liella_machine_call3(hook, w(out), w(state), 0);
+        let _ = ffi::niji_machine_call3(hook, w(out), w(state), 0);
     } else if let Some(v) = program_text(ffi::argp_program_version.load(Relaxed)) {
         put(out, &[v, b"\n"]);
     }
@@ -531,7 +531,7 @@ impl Host for Run<'_, '_> {
         self.put_view(Some(parser), view);
         let a = self.arg_addr(arg);
         // The program's own `argp_parser_t`, given for exactly this use (§1.7).
-        let r = c_int(ffi::liella_machine_call3(f, i64::from(key), w(a), w(self.state)));
+        let r = c_int(ffi::niji_machine_call3(f, i64::from(key), w(a), w(self.state)));
         self.get_view(Some(parser), view);
         r
     }

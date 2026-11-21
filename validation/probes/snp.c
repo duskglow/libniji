@@ -1,5 +1,5 @@
 /* Milestone-6 probe (gawk-printf profile): cost of snprintf("%.3f") against the size the
- * caller passes, under glibc and Liella. */
+ * caller passes, under glibc and libniji. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

@@ -14,7 +14,7 @@ underflow thresholds, huge values, ±∞, quiet, negative, signalling and payloa
 bits, the flags raised and `errno`). The probe's random section (2,000 operands per function
 and format, round-to-nearest, a fixed generator) is not recorded; it is the measurement of
 `docs/libm-accuracy.tsv`. The same program is the differential test
-`crates/math/tests/complex_products.rs`, which checks every line where Liella differs against
+`crates/math/tests/complex_products.rs`, which checks every line where libniji differs against
 the project's oracle (`crates/mathtools/src/cplx.rs`).
 
 Nothing here describes or derives from glibc's source code.
@@ -57,7 +57,7 @@ glibc follows Annex G's tables, with these choices where Annex G leaves them ope
   ulp (`catanh`); in the directed modes the constants of the special values and many
   finite results are the round-to-nearest values.
 
-## What Liella does (D-10.17, D-10.18)
+## What libniji does (D-10.17, D-10.18)
 
 Every part correctly rounded in every mode, exact parts exact; the special values,
 NaN choices and invalid flags as glibc; inexact by IEEE 754; `errno` by the §10.0 rule. The

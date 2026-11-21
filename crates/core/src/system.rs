@@ -4,16 +4,16 @@
 //! [`Query`] and [`sysconf`] (D-24.1: `Ok(None)` means "no limit"), the processor counts read
 //! from sysfs, the memory counts from `sysinfo`, the cache geometry from CPUID, the
 //! signal-stack minimums, and the per-file-system answers of `pathconf`. The C numbering of the
-//! names, and the answers that are fixed, are in `liella_legacy::sys_compat`.
+//! names, and the answers that are fixed, are in `niji_legacy::sys_compat`.
 
 use crate::config;
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::machine::Machine;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, Statfs, O_CLOEXEC, O_RDONLY};
+use niji_kernel::fd::Fd;
+use niji_kernel::machine::Machine;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, Statfs, O_CLOEXEC, O_RDONLY};
 
 /// `RLIM_INFINITY`.
 const INFINITY: u64 = u64::MAX;

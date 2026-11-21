@@ -1,4 +1,4 @@
-//! Arbitrary-precision binary floating point: the reference that `liella-math` is measured
+//! Arbitrary-precision binary floating point: the reference that `niji-math` is measured
 //! against.
 //!
 //! A [`Big`] is NaN, ±inf, ±0 or `±m * 2^e` with `m` an odd big integer, so every value has one
@@ -483,17 +483,32 @@ impl Big {
     /// The integer square root of the significand scaled to at least `prec + 2` bits: returns
     /// `(root, exp, exact)` with `sqrt(self) = (root + f) * 2^exp`, `0 <= f < 1`, `f = 0` iff
     /// `exact`. Self must be finite and positive.
-    fn sqrt_parts(&self, prec: u32) -> (Nat, i64, bool) {
+    ///
+    /// With `truncate`, a significand longer than the `2 prec + 6` bits the root needs is
+    /// shifted right first (an even shift, so the exponent stays whole): with `m = man >> t` and
+    /// `d` the dropped bits, `floor(sqrt(m + d/2^t)) = floor(sqrt(m))` because `m + d/2^t < m + 1`,
+    /// so the root is the same truncation of the true root and `f = 0` iff `d = 0` and `m` is a
+    /// square. The root then has `prec + 3` bits or more, the same rounding information as the
+    /// full root, at a cost set by `prec` instead of the operand's length. Without it the root
+    /// keeps every bit (`sqrt_exact` returns it).
+    fn sqrt_parts(&self, prec: u32, truncate: bool) -> (Nat, i64, bool) {
         let p = u64::from(prec.max(1));
         let bl = self.man.bit_len();
-        let mut s = (2 * p + 6).saturating_sub(bl);
-        if (self.exp - s as i64).rem_euclid(2) != 0 {
+        // Shift left by `s` (negative: right by `-s`), with `exp - s` even.
+        let mut s = (2 * p + 6) as i64 - bl as i64;
+        if !truncate {
+            s = s.max(0);
+        }
+        if (self.exp - s).rem_euclid(2) != 0 {
             s += 1;
         }
-        let m = self.man.shl(s);
-        let root = m.isqrt();
-        let exact = root.mul(&root) == m;
-        (root, (self.exp - s as i64) / 2, exact)
+        let (m, dropped) = if s >= 0 {
+            (self.man.shl(s as u64), false)
+        } else {
+            (self.man.shr(s.unsigned_abs()), self.man.low_bits_nonzero(s.unsigned_abs()))
+        };
+        let (root, rem) = m.sqrtrem();
+        (root, (self.exp - s) / 2, rem.is_zero() && !dropped)
     }
 
     /// Square root correctly rounded to `prec` bits; `sqrt(-0) = -0`, negative values give NaN.
@@ -504,7 +519,7 @@ impl Big {
             _ if self.neg => Big::nan(),
             Kind::Inf => self.clone(),
             Kind::Fin => {
-                let (root, exp, exact) = self.sqrt_parts(prec);
+                let (root, exp, exact) = self.sqrt_parts(prec, true);
                 Big::round_sticky(false, root, exp, !exact, prec.max(1), mode)
             }
         }
@@ -513,7 +528,7 @@ impl Big {
     /// Square root, exactly if it is a dyadic rational (with at most about `prec` bits more
     /// than needed), else truncated to at least `prec + 2` bits. Returns `(value, exact)`.
     fn sqrt_exact(&self, prec: u32) -> (Big, bool) {
-        let (root, exp, exact) = self.sqrt_parts(prec);
+        let (root, exp, exact) = self.sqrt_parts(prec, false);
         (Big::fin(false, root, exp), exact)
     }
 

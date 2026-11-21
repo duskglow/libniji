@@ -5,12 +5,12 @@
 //!
 //! The C locale is ASCII (D-6.7); `C.UTF-8` carries the built-in Unicode tables (D-5.4).
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, missing_docs)]
 
-use liella::ctype::{self, Class, Trans};
-use liella::locale::Locale;
-use liella_legacy::ctype_tables as t;
+use niji::ctype::{self, Class, Trans};
+use niji::locale::Locale;
+use niji_legacy::ctype_tables as t;
 
 const EOF: i32 = -1;
 const WEOF: u32 = u32::MAX;
@@ -106,7 +106,7 @@ fn s5_3_c_0() {
 fn s5_1_i_p1() {
     // isctype/__isctype test an arbitrary combination of the class bits (_IS*: upper 0x100,
     // lower 0x200, alpha 0x400, digit 0x800, space 0x2000, punct 0x4).
-    use liella_boundary::posix::s05_ctype as cx;
+    use niji_boundary::posix::s05_ctype as cx;
     assert_ne!(cx::isctype(i32::from(b'A'), 0x100), 0);
     assert_eq!(cx::isctype(i32::from(b'a'), 0x100), 0);
     assert_ne!(cx::isctype(i32::from(b'a'), 0x100 | 0x200), 0, "any bit of the combination");

@@ -1,0 +1,60 @@
+{
+ "task": "DL-DLCLOSE-5",
+ "model": "opus",
+ "tokens": null,
+ "result": "PENDING JOBS: the chain phase stops its dladdr reader inside the walk (SIGUSR1) while 32 objects in front of A are closed; all 4 plants caught in one run each (the unlinked-node one by check 58); gate/stress/release/xtask test queued on d6f2100e5",
+ "branch": "task/dl-dlclose-5",
+ "head": "d6f2100e5",
+ "gate": {
+  "affected": "dl-dlclose-5-gate3 running at hand-back (direct tier); gate2 on d818613a0: 6570 passed / 1 failed (test hang, fixed)",
+  "peak": "13G (gate2)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Plant unlinked-node-ends-walk: check 58 caught it in plants1, plants3 and plants4 (plants4: 100 of 133 rounds stopped the reader inside its walk, 57 calls stopped early). In plants2 the racing walkers check 54 caught it first (by chance), so the chain phase now runs first.",
+  "Plant dladdr-not-counted: caught by a fault of the uncounted reader (check None) in all four plant runs; check 59 (no stop keeps the closed objects mapped) catches it when no fault happens.",
+  "gate2 (d818613a0) found a hang of the new chain phase under load ~60: a close made while the reader was stopped hit ruling #5651 room wait for that reader; fixed in d6f2100e5 by holding the reader outside its walk between rounds (test-only).",
+  "The docs change (one sentence in the dl_iterate_phdr differences row) widens the direct tier to every *_products differential test.",
+  "Rule slips: one local python call used a heredoc and one scratch script was edited with sed -i (brief: neither); no effect on the tree."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "dlclose.rs chain phase: dladdr reader stopped inside its walk while 32 objects are closed (checks 58, 59); the unlinked-node-ends-walk plant goes from SURVIVED (13 runs) to caught in one run",
+   "before": 3,
+   "after": 4,
+   "unit": "plants caught of 4",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "DL-17 dlclose with DL-18 dladdr/dlinfo as counted readers (runs 1-4), now landable",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "DL-DLCLOSE (DL-17) landing; DL-EXIT-ORDER-PROBE, DL-ATEXIT-OWNER, DL-OBJ-TABLE-GROW",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A race plant whose window is a few ns needs a test that stops the reader at the spot (a signal-paused thread plus an observable 'stopped inside' such as a still-mapped object), not more repeats; plants files could flag repeat loops on race plants for that redesign.",
+ "next_step": "If gate3/stress2/release1/xtest1 are green: land; then DL-EXIT-ORDER-PROBE, DL-ATEXIT-OWNER, sorted address index with DL-OBJ-TABLE-GROW.",
+ "report_file": "handoff/DL-DLCLOSE.md",
+ "jobs": [
+  "dl-dlclose-5-lint4",
+  "dl-dlclose-5-tests2",
+  "dl-dlclose-5-plants4",
+  "dl-dlclose-5-gate3",
+  "dl-dlclose-5-stress2",
+  "dl-dlclose-5-release1",
+  "dl-dlclose-5-xtest1"
+ ]
+}

@@ -6,7 +6,7 @@
 //! `getc`/`putc` and `feof`/`ferror` read the buffer window and `_flags` directly (Appendix
 //! C.9), so those words always describe the stream: before an operation the engine's window is
 //! read back from them (C code may have advanced it), and after the operation written to them.
-//! Liella's own state is an [`Ext`] record that `_codecvt` points to, and the stream's recursive
+//! libniji's own state is an [`Ext`] record that `_codecvt` points to, and the stream's recursive
 //! lock a [`StreamLock`] that `_lock` points to; both are private to the library.
 //!
 //! **Locking order.** The open-streams list lock is taken before a stream's lock, never while
@@ -16,15 +16,15 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::stream::{Backing, Policy, Role, State, Transfer, Whence, RESERVE};
-use liella::iconv;
-use liella::locale::Locale;
-use liella::text::{self, Decoded, Encoding, MbState};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::stream::{Backing, Policy, Role, State, Transfer, Whence, RESERVE};
+use niji::iconv;
+use niji::locale::Locale;
+use niji::text::{self, Decoded, Encoding, MbState};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 /// The words of a `FILE` object: `struct _IO_FILE` (216 bytes) and the vtable word (224 bytes,
 /// the size of the exported `_IO_2_1_*_` objects).
@@ -203,9 +203,16 @@ impl StreamLock {
     /// In a `fork` child (only the forking thread `me` survives): a lock another thread held
     /// becomes free.
     pub fn reset_in_child(&self, me: u32) {
-        if self.owner.load(Relaxed) != me {
-            self.owner.store(0, Relaxed);
-            self.depth.store(0, Relaxed);
+        // Only the words that differ from a free lock are written: an unused stream's page
+        // stays shared copy-on-write with the parent (D-18.8).
+        let owner = self.owner.load(Relaxed);
+        if owner != me {
+            if owner != 0 {
+                self.owner.store(0, Relaxed);
+            }
+            if self.depth.load(Relaxed) != 0 {
+                self.depth.store(0, Relaxed);
+            }
             self.raw.reset();
         }
     }
@@ -341,15 +348,19 @@ pub struct Wide {
     back_len: usize,
     /// The last character read (`_IO_sungetwc`).
     last: Option<u32>,
-    /// A charset character's leading bytes read so far (`Codec::Charset`).
+    /// A charset character's leading bytes read so far (`Codec::Charset`); with `Codec::Text`,
+    /// the partial character's bytes (`partial` of them; `pending_len` stays 0).
     pending: [u8; 8],
     /// How many.
     pending_len: usize,
     /// The bytes of a partial character (`Codec::Text`) read so far.
     partial: usize,
+    /// The partial character's first byte was the first byte of the buffer's latest fill: the
+    /// wide read had no buffered input left when it reached that character (D-12.29).
+    fresh: bool,
 }
 
-/// Liella's state of one stream (D-12.11).
+/// libniji's state of one stream (D-12.11).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Ext {
     /// The engine's state.
@@ -379,7 +390,7 @@ pub struct Ext {
     pub pos_known: bool,
 }
 
-/// Where a stream's `fprintf` plan cache lives (D-12.21): a [`liella::printf::PlanCache`] made
+/// Where a stream's `fprintf` plan cache lives (D-12.21): a [`niji::printf::PlanCache`] made
 /// on the [`PlanSlot::AFTER`]th formatted call and kept for the slot's life, across `fclose`
 /// and `freopen` (a cache keyed on the format's bytes is not state). Outside the record so a
 /// one-shot printer pays neither its ~220 bytes in every stream's slot nor its fill: inline,
@@ -511,9 +522,9 @@ fn fd_of(fd: i32) -> Fd {
 
 fn whence_code(w: Whence) -> u32 {
     match w {
-        Whence::Set => liella_kernel::uapi::SEEK_SET,
-        Whence::Cur => liella_kernel::uapi::SEEK_CUR,
-        Whence::End => liella_kernel::uapi::SEEK_END,
+        Whence::Set => niji_kernel::uapi::SEEK_SET,
+        Whence::Cur => niji_kernel::uapi::SEEK_CUR,
+        Whence::End => niji_kernel::uapi::SEEK_END,
     }
 }
 
@@ -539,7 +550,7 @@ impl<E: Env> Backing for Live<'_, E> {
                 let n = avail.min(buf.len());
                 let src = self.env.bytes(m.addr, m.size);
                 if let (Some(d), Some(s)) = (buf.get_mut(..n), src.get(m.pos..m.pos + n)) {
-                    liella::mem::copy(d, s);
+                    niji::mem::copy(d, s);
                 }
                 m.pos += n;
                 Ok(n)
@@ -664,7 +675,7 @@ fn mem_write<E: Env>(env: &E, m: &mut MemStream, data: &[u8]) -> KResult<usize> 
     }
     let buf = env.bytes(m.addr, m.size);
     if let (Some(d), Some(s)) = (buf.get_mut(m.pos..m.pos + n), data.get(..n)) {
-        liella::mem::copy(d, s);
+        niji::mem::copy(d, s);
     }
     m.pos += n;
     if m.pos > m.len {
@@ -725,18 +736,18 @@ fn grow_write<E: Env>(env: &E, g: &mut GrowStream, data: &[u8]) -> KResult<usize
     let buf = env.bytes(g.buf, g.cap);
     if g.pos > g.filled {
         if let Some(gap) = buf.get_mut(g.filled..g.pos) {
-            liella::mem::fill(gap, 0);
+            niji::mem::fill(gap, 0);
         }
     }
     if let Some(d) = buf.get_mut(g.pos..end) {
-        liella::mem::copy(d, data);
+        niji::mem::copy(d, data);
     }
     g.pos = end;
     g.len = g.len.max(end);
     if end > g.filled {
         g.filled = end;
         if let Some(t) = buf.get_mut(end..end + unit) {
-            liella::mem::fill(t, 0);
+            niji::mem::fill(t, 0);
         }
     }
     Ok(data.len())
@@ -982,6 +993,8 @@ pub fn unlink<E: Env>(env: &E, fp: usize) {
 }
 
 /// Every open stream's address, with the list lock held.
+// LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
+#[inline(never)]
 fn each_stream<E: Env>(env: &E, mut f: impl FnMut(usize)) {
     let mut at = env.list_head().load(Acquire);
     while at != 0 {
@@ -1166,7 +1179,7 @@ pub fn parse_mode(mode: &[u8]) -> KResult<Mode> {
 
 /// The `open` flags of a mode.
 pub fn open_flags(m: &Mode) -> u32 {
-    use liella_kernel::uapi::{O_APPEND, O_CLOEXEC, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY};
+    use niji_kernel::uapi::{O_APPEND, O_CLOEXEC, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY};
     let mut f = match (m.read, m.write) {
         (true, true) => O_RDWR,
         (false, true) => O_WRONLY,
@@ -1206,6 +1219,8 @@ pub fn setup<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, kind: Kind, m
 
 /// Set up a standard stream (`fd` 0, 1, 2) at first use: `stdin` reads, the others write;
 /// `stderr` is unbuffered.
+// LAYOUT-HOTKEY-INLINE-STABLE: release already inlines it; always inlined, its code stays in the keyed caller in both profiles.
+#[inline(always)]
 pub fn setup_standard<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, fd: i32) {
     let m = if fd == 0 { Mode { read: true, first: b'r', ..Mode::default() } } else { Mode { write: true, first: b'w', ..Mode::default() } };
     let flags = get(file, word::FLAGS);
@@ -1239,7 +1254,7 @@ pub fn close<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<()
             let unit = if g.wide { 4 } else { 1 };
             let at = g.pos.min(g.len);
             if let Some(t) = env.bytes(g.buf, g.cap).get_mut(at..at + unit) {
-                liella::mem::fill(t, 0);
+                niji::mem::fill(t, 0);
             }
             Ok(())
         }
@@ -1274,6 +1289,15 @@ fn byte_oriented(file: &[AtomicUsize]) -> bool {
         }
         m => m < 0,
     }
+}
+
+/// A byte read (`fgetc`, `fread`, `fgets`, `getdelim`), `ungetc` or `fputc` makes an undecided
+/// stream byte-oriented (§12.1); on a wide-oriented stream it works on the stream's bytes in
+/// order (D-12.27): the wide layer decodes one character at a time from the same buffer, so
+/// the next byte is the one after the last character delivered (after an invalid sequence,
+/// its first byte), with the indicators a byte operation sets. The orientation stays wide.
+fn byte_access(file: &[AtomicUsize]) {
+    byte_oriented(file);
 }
 
 /// A wide operation makes an undecided stream wide-oriented, converting with `enc` (the
@@ -1312,14 +1336,12 @@ fn input_flushes(ext: &Ext) -> bool {
     ext.state.policy != Policy::Full && (ext.state.role != Role::Reading || ext.state.rpos >= ext.state.rend)
 }
 
-/// `fgetc` and `__uflow`: the next byte, `None` at end of input (and on a wide-oriented
-/// stream, D-12.14).
+/// `fgetc` and `__uflow`: the next byte, `None` at end of input (a wide-oriented stream's next
+/// byte too, D-12.27).
 /// STDIO-6: the engine only; the refill path ([`refill`]) is the caller's to try first, before
 /// its locking plumbing, so a first read (no buffer) pays nothing for it here.
 pub fn getc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u8>> {
-    if !byte_oriented(file) {
-        return Ok(None);
-    }
+    byte_access(file);
     getc_raw(env, file, ext)
 }
 
@@ -1403,9 +1425,7 @@ fn getc_raw<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Opt
 
 /// `fread`: bytes into `out`.
 pub fn read<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut [u8]) -> Transfer {
-    if !byte_oriented(file) {
-        return Transfer { done: 0, error: Some(Errno::EINVAL) };
-    }
+    byte_access(file);
     load(file, ext);
     let was_reading = ext.state.role == Role::Reading;
     match read_direct(env, ext, out) {
@@ -1571,7 +1591,7 @@ fn write_straddle<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, data: &[
     }
     let buf = env.bytes(ext.buf, len);
     let (Some(hd), Some(src)) = (buf.get_mut(at..len), data.get(..head)) else { return None };
-    liella::mem::copy(hd, src);
+    niji::mem::copy(hd, src);
     ext.pos_known = false;
     let mut from = RESERVE;
     while from < len {
@@ -1592,7 +1612,7 @@ fn write_straddle<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, data: &[
     }
     let tail = data.len() - head;
     if let (Some(dst), Some(src)) = (buf.get_mut(RESERVE..RESERVE + tail), data.get(head..)) {
-        liella::mem::copy(dst, src);
+        niji::mem::copy(dst, src);
     }
     let s = &mut ext.state;
     (s.rpos, s.rend, s.wpos, s.wend, s.win_known) = (RESERVE, RESERVE, RESERVE + tail, len, false);
@@ -1683,7 +1703,7 @@ fn window_put<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, data: &[u8]) -> 
     match env.bytes(ext.buf, ext.buf_len).get_mut(at..stop) {
         Some(dst) => {
             let shut = low_int(get(file, word::MODE)) >= 0;
-            liella::mem::copy(dst, data);
+            niji::mem::copy(dst, data);
             wp.store(p + data.len(), Relaxed);
             if shut {
                 set(file, word::WRITE_END, p + data.len());
@@ -1741,7 +1761,7 @@ impl Window {
         let to = self.at + data.len();
         match env.bytes(self.buf, self.len).get_mut(self.at..to) {
             Some(dst) => {
-                liella::mem::copy(dst, data);
+                niji::mem::copy(dst, data);
                 self.at = to;
                 true
             }
@@ -1820,7 +1840,7 @@ fn short_copy(dst: &mut [u8], data: &[u8]) {
             }
         }
     } else {
-        liella::mem::copy(dst, data);
+        niji::mem::copy(dst, data);
     }
 }
 
@@ -1829,7 +1849,7 @@ fn short_copy(dst: &mut [u8], data: &[u8]) {
 pub const FRONT_INLINE: usize = 64;
 
 /// [`put_front`]'s copy (`dst` and `data` of one length): 33 to [`FRONT_INLINE`] bytes as two
-/// overlapping 32-byte pieces, plain loads and stores; anything else as [`liella::mem::copy`]
+/// overlapping 32-byte pieces, plain loads and stores; anything else as [`niji::mem::copy`]
 /// (inline up to 32 bytes, a call beyond). FWRITE-FRONT: a 33-64 byte line (sort's, uniq's)
 /// was a `memcpy` call that also gave the whole `fwrite` export a frame.
 #[inline(always)]
@@ -1849,7 +1869,7 @@ fn front_copy(dst: &mut [u8], data: &[u8]) {
         piece(dst, data, 0);
         piece(dst, data, n - HALF);
     } else {
-        liella::mem::copy(dst, data);
+        niji::mem::copy(dst, data);
     }
 }
 
@@ -1914,9 +1934,7 @@ pub fn get_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize) -> 
 
 /// `fputc` and `__overflow`.
 pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     if window_put(env, file, ext, &[c]) {
         return Ok(());
     }
@@ -1925,9 +1943,7 @@ pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KRes
 
 /// `ungetc`.
 pub fn ungetc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     ungetc_raw(env, file, ext, c)
 }
 
@@ -1938,7 +1954,7 @@ fn ungetc_raw<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KR
 /// `_IO_sungetc` (§12.13, IO-VTABLES): give back the last byte read, which the next read
 /// returns again, as `ungetc` of that byte. Only a byte still in the current read window (from
 /// `RESERVE` up to the read position) counts as read; anything else (nothing read yet, a
-/// writing or idle stream, a wide stream, no buffer) is `EINVAL` and changes nothing. Liella
+/// writing or idle stream, a wide stream, no buffer) is `EINVAL` and changes nothing. libniji
 /// never steps the read position below the window.
 pub fn unget_last<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<u8> {
     if !byte_oriented(file) || ext.buf == 0 {
@@ -1961,7 +1977,8 @@ pub fn gets_into<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut
     // STDIO-FGETS: the line is scanned and copied from the window in pieces, one engine run per
     // piece, not per byte. A stream that is not fully buffered reads one window per run, so the
     // line-buffered streams are flushed before every read of the backing, as `getc` does.
-    if room > 0 && byte_oriented(file) {
+    byte_access(file);
+    if room > 0 {
         let once = ext.state.policy != Policy::Full;
         while n < room {
             load(file, ext);
@@ -1992,7 +2009,7 @@ pub fn gets_into<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut
 /// A record up to and including `delim`, appended to `out` (the library's own line readers:
 /// the mount tables, §13.13): the bytes read, 0 at end of input. A read error sets the error
 /// indicator, as `getdelim` does.
-pub fn read_record<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, delim: u8, out: &mut liella::mem::TryVec<u8>) -> KResult<usize> {
+pub fn read_record<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, delim: u8, out: &mut niji::mem::TryVec<u8>) -> KResult<usize> {
     if !byte_oriented(file) {
         return Ok(0);
     }
@@ -2043,7 +2060,7 @@ pub fn getdelim_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize
     if partial && n > 0 && room == n.saturating_add(1) && get(file, word::FLAGS) & ERR_SEEN == 0 {
         let done = env.find_copy_done(n).min(n);
         if let (Some(d), Some(s)) = (dst.get_mut(done..n), window.get(done..n)) {
-            liella::mem::copy(d, s);
+            niji::mem::copy(d, s);
         }
         set(file, word::READ_PTR, p + n);
         return Err(Partial(n));
@@ -2061,7 +2078,7 @@ pub struct Partial(pub usize);
 pub fn find_copy<E: Env + ?Sized>(env: &E, s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
     let lim = d.len().checked_sub(1)?;
     let n = env.find(s.get(..lim).unwrap_or(s), c)?.checked_add(1)?;
-    liella::mem::copy(d.get_mut(..n)?, s.get(..n)?);
+    niji::mem::copy(d.get_mut(..n)?, s.get(..n)?);
     *d.get_mut(n)? = 0;
     Some(n)
 }
@@ -2098,7 +2115,7 @@ pub fn gets_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, ou
         None if window.len() >= room && room > 0 => room,
         None => return None,
     };
-    liella::mem::copy(out.get_mut(..n)?, window.get(..n)?);
+    niji::mem::copy(out.get_mut(..n)?, window.get(..n)?);
     *out.get_mut(n)? = 0;
     set(file, word::READ_PTR, p + n);
     Some(n)
@@ -2112,7 +2129,7 @@ pub fn gets_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, ou
 pub fn read_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, out: &mut [u8]) -> Option<usize> {
     let window: &[u8] = read_window(env, file, ext, p)?;
     let n = out.len();
-    liella::mem::copy(out, window.get(..n)?);
+    niji::mem::copy(out, window.get(..n)?);
     set(file, word::READ_PTR, p + n);
     Some(n)
 }
@@ -2120,23 +2137,29 @@ pub fn read_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, ou
 /// `getdelim`: a record up to and including `delim` into the caller's `malloc` buffer
 /// (`*lineptr`, `*n`), grown as needed and terminated. The length, or `None` at end of input.
 /// With `prefix` > 0 the front path has already moved the first `prefix` bytes of the record
-/// into `*lineptr` ([`Partial`]); the record continues at the stream's position.
+/// into `*lineptr` ([`Partial`]); the record continues at the stream's position. `None` also
+/// when the stream's error indicator is already set: nothing is read and `errno` is not changed.
 pub fn getdelim<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, lineptr: usize, cap_var: usize, delim: u8, prefix: usize) -> KResult<Option<usize>> {
     let mut buf = env.load_word(lineptr);
     let mut cap = if buf == 0 { 0 } else { env.load_word(cap_var) };
     let mut len = prefix;
     // Set when the growth of the caller's buffer failed: that error is the result, not a read error.
     let mut grow_failed = false;
-    if !byte_oriented(file) {
+    byte_access(file);
+    // The error indicator stops a record read before it reads, and the result is -1 with
+    // `errno` left as the caller had it: the indicator is the report, no error happens in this
+    // call (the reference; STDIO-STICKY-ERROR-ERRNO, D-12.1). The bit is read from `_flags`,
+    // the word [`load`] takes `ext.state.err` from, so no load is needed here.
+    if get(file, word::FLAGS) & ERR_SEEN != 0 {
         return Ok(None);
     }
-    load(file, ext);
-    // The error indicator stops a record read before it reads (the reference).
-    if ext.state.err {
-        return Err(Errno::EIO);
-    }
-    if input_flushes(ext) {
-        flush_line_buffered(env, true);
+    // TIMING-COV-GETLINE-LONG: `run` loads the window itself; only the flush test needs it
+    // earlier, and a fully buffered stream never flushes before input.
+    if ext.state.policy != Policy::Full {
+        load(file, ext);
+        if input_flushes(ext) {
+            flush_line_buffered(env, true);
+        }
     }
     let r = run(env, file, ext, |s, b, back| {
         s.read_until_with(b, back, delim, &|w, c| env.find(w, c), &mut |piece| {
@@ -2157,7 +2180,7 @@ pub fn getdelim<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, lineptr: u
                 env.store_word(cap_var, cap);
             }
             if let Some(d) = env.bytes(buf, cap).get_mut(len..len + piece.len()) {
-                liella::mem::copy(d, piece);
+                niji::mem::copy(d, piece);
             }
             len += piece.len();
             Ok(())
@@ -2251,7 +2274,7 @@ fn seek_window_fd<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, offset: 
     let (target, to) = ext.state.window_target(offset, whence)?;
     // `window_target` checked that `win_end` fits a signed offset.
     let end = i64::try_from(ext.state.win_end).unwrap_or(i64::MAX);
-    let r = env.sys().lseek(fd_of(fd), end, liella_kernel::uapi::SEEK_SET);
+    let r = env.sys().lseek(fd_of(fd), end, niji_kernel::uapi::SEEK_SET);
     ext.pos_known = r.is_ok();
     if let Ok(p) = r {
         ext.pos = p;
@@ -2382,9 +2405,80 @@ fn set_error(file: &[AtomicUsize], ext: &mut Ext) {
 }
 
 /// `fgetwc`: the next wide character, `None` at end of input (an incomplete character there
-/// included, as the reference library has it). An invalid sequence is `EILSEQ` with the
-/// error indicator set, its first byte left unread. On a byte-oriented stream, `None`.
+/// included, unless it began the input read last: then `EILSEQ`, D-12.29). An invalid sequence is `EILSEQ` with the
+/// error indicator set, its bytes (from the first) left unread. On a byte-oriented stream, `None`.
 pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
+    if let Some(c) = getwc_front(env, file, ext) {
+        return Ok(Some(c));
+    }
+    getwc_slow(env, file, ext, enc)
+}
+
+/// The front path of [`getwc`] (WIDE-READ-FAST, D-12.30): a stream already wide-oriented on a
+/// UTF-8, ASCII or ISO-8859-1 locale encoding (`Codec::Text`) gets the last character given back
+/// (`ungetwc`), if any; else, reading, with no partial character, whose read window holds the
+/// whole next character, that character decoded in place from the window, its bytes consumed. That is the character the
+/// general path ([`getwc_slow`]) returns byte by byte: the window's bytes are the ones
+/// [`State::getc`] hands out, a byte in the window never refills or flushes the line-buffered
+/// streams and changes no indicator, the conversion state is the initial one whenever no
+/// partial character is held, and the decoder gives the same answer for the bytes at once
+/// ([`text::decode_utf8_initial`]). `None` (nothing touched) for anything else: a character
+/// cut by the window's end, an invalid sequence, an empty window, a charmap or `,ccs=` codec;
+/// the general path then decides. `_IO_read_ptr` and `_IO_read_end` move together (the
+/// published window of a wide stream stays closed at the position, D-12.19).
+/// `ext` is a record [`Env::record`] accepted for this `FILE`; the caller holds the lock or
+/// needs none.
+#[inline(always)]
+pub fn getwc_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> Option<u32> {
+    let words = file.get(..FILE_WORDS)?;
+    if low_int(get(words, word::MODE)) <= 0 {
+        return None;
+    }
+    let Codec::Text(enc) = ext.wide.codec else { return None };
+    if let Some(i) = ext.wide.back_len.checked_sub(1) {
+        // A character given back comes first, as on the general path.
+        let c = ext.wide.back.get(i).copied()?;
+        ext.wide.back_len = i;
+        ext.wide.last = Some(c);
+        return Some(c);
+    }
+    let b = ext.buf;
+    if ext.wide.partial != 0 || b == 0 || ext.state.role != Role::Reading || ext.kind == Kind::Closed {
+        return None;
+    }
+    // As [`load`]: the position from `_IO_read_ptr`; the window ends at the engine's end of data
+    // inside the buffer (an `_IO_read_ptr` past it leaves the window empty: the general path).
+    let at = get(words, word::READ_PTR).wrapping_sub(b);
+    let win = env.bytes(b, ext.buf_len).get(at..ext.state.rend.min(ext.buf_len))?;
+    let (c, n) = decode_front(win, enc)?;
+    let to = at + n;
+    set(words, word::READ_PTR, b + to);
+    set(words, word::READ_END, b + to);
+    ext.state.rpos = to;
+    ext.wide.last = Some(c);
+    Some(c)
+}
+
+/// One whole character of `enc` from the start of `win`, and its length; `None` when `win`
+/// does not begin with one (empty, cut short, invalid) or `enc` is a charmap.
+#[inline(always)]
+fn decode_front(win: &[u8], enc: Encoding) -> Option<(u32, usize)> {
+    let &b0 = win.first()?;
+    match enc {
+        Encoding::Ascii if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Latin1 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 => match text::decode_utf8_initial(|i| win.get(i).copied()) {
+            (Decoded::Char(c, n), _) => Some((c, n)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// [`getwc`] past its front path ([`getwc_front`]): the general path, unchanged.
+#[inline(never)]
+pub fn getwc_slow<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
     if !wide_oriented(file, ext, enc) {
         return Ok(None);
     }
@@ -2410,8 +2504,8 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
             Ok(Some(u32::from_ne_bytes(u)))
         }
         Codec::Text(enc) => loop {
-            // At end of file a partial character stays pending (the position excludes it).
-            let Some(b) = getc_raw(env, file, ext)? else { return Ok(None) };
+            // At end of file a partial character's bytes go back unread (D-12.28).
+            let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
             let mut st = ext.wide.decode;
             match text::decode(&mut st, &[b], enc) {
                 Decoded::Char(c, _) => {
@@ -2426,20 +2520,32 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 }
                 Decoded::Incomplete => {
                     ext.wide.decode = st;
+                    if ext.wide.partial == 0 {
+                        ext.wide.fresh = ext.state.rpos == RESERVE + 1;
+                    }
+                    if let Some(slot) = ext.wide.pending.get_mut(ext.wide.partial) {
+                        *slot = b;
+                    }
                     ext.wide.partial += 1;
                 }
                 Decoded::Invalid | Decoded::Continuation(_) => {
+                    let n = ext.wide.partial;
+                    if let Some(slot) = ext.wide.pending.get_mut(n) {
+                        *slot = b;
+                    }
                     ext.wide.decode = MbState::INITIAL;
                     ext.wide.partial = 0;
-                    ungetc_raw(env, file, ext, b)?;
-                    set_error(file, ext);
-                    return Err(Errno::EILSEQ);
+                    return invalid_sequence(env, file, ext, n + 1);
                 }
             }
         },
         Codec::Charset { mut dec, enc } => loop {
-            let Some(b) = getc_raw(env, file, ext)? else { return Ok(None) };
+            let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
+            let lead = ext.state.rpos == RESERVE + 1;
             let w = &mut ext.wide;
+            if w.pending_len == 0 {
+                w.fresh = lead;
+            }
             let Some(slot) = w.pending.get_mut(w.pending_len) else {
                 w.pending_len = 0;
                 set_error(file, ext);
@@ -2460,14 +2566,66 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 Ok(_) if o.read == w.pending_len => w.pending_len = 0,
                 Err(Errno::EINVAL) | Ok(_) => {}
                 Err(_) => {
+                    let n = w.pending_len;
                     w.pending_len = 0;
-                    set_error(file, ext);
-                    return Err(Errno::EILSEQ);
+                    return invalid_sequence(env, file, ext, n);
                 }
             }
         },
         Codec::Unset => Err(Errno::EINVAL),
     }
+}
+
+/// An invalid sequence, its `n` bytes read so far in `ext.wide.pending`: they go back to the
+/// stream, so a byte read returns its first byte and the bytes after it in order, and a wide
+/// read meets it again (D-12.27); `EILSEQ` with the error indicator. A sequence cut short by a
+/// byte that cannot continue it keeps its leading bytes this way, as a single invalid byte does.
+#[cold]
+#[inline(never)]
+fn invalid_sequence<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, n: usize) -> KResult<Option<u32>> {
+    let seq = ext.wide.pending;
+    for &b in seq.get(..n).unwrap_or(&seq).iter().rev() {
+        ungetc_raw(env, file, ext, b)?;
+    }
+    set_error(file, ext);
+    Err(Errno::EILSEQ)
+}
+
+/// End of input, `WEOF`. Inside a character (its bytes read so far: `partial` of
+/// `Codec::Text`, `pending_len` of `Codec::Charset`, in `ext.wide.pending`), the conversion
+/// state is reset, and then (D-12.29):
+/// * the character's first byte began the buffer's latest fill (`ext.wide.fresh`: no buffered
+///   input was left when the read reached it): its bytes are consumed, `EILSEQ` with the error
+///   indicator, the end-of-file indicator clear; the position includes them;
+/// * otherwise they go back to the stream: a byte read returns them, the position excludes
+///   them, and a wide read after more input arrives decodes them again; the end-of-file
+///   indicator stays set (D-12.28).
+#[cold]
+#[inline(never)]
+fn end_of_input<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u32>> {
+    let n = ext.wide.partial + ext.wide.pending_len;
+    if n == 0 {
+        return Ok(None);
+    }
+    ext.wide.decode = MbState::INITIAL;
+    ext.wide.partial = 0;
+    ext.wide.pending_len = 0;
+    if ext.wide.fresh {
+        ext.wide.fresh = false;
+        load(file, ext);
+        ext.state.eof = false;
+        ext.state.err = true;
+        store(file, ext);
+        return Err(Errno::EILSEQ);
+    }
+    let seq = ext.wide.pending;
+    for &b in seq.get(..n).unwrap_or(&seq).iter().rev() {
+        ungetc_raw(env, file, ext, b)?;
+    }
+    load(file, ext);
+    ext.state.eof = true;
+    store(file, ext);
+    Ok(None)
 }
 
 /// `ungetwc`: give `c` back (up to [`WIDE_BACK`] characters); clears the end-of-file indicator.

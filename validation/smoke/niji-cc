@@ -1,0 +1,64 @@
+#!/bin/sh
+# validation/smoke/niji-cc (and niji-c++, a link to it): the compiler a smoke build uses as CC/CXX.
+# Made for validation/smoke/smoke.sh, which sets the environment below; see validation/smoke/README.md.
+#
+# Compiling is the system compiler with the system's headers, unchanged (or, with NIJI_SMOKE_HEADERS, with libniji's
+# staged headers alone; the system's headers otherwise: it is ABI-compatible with the glibc 2.39 headers). Linking follows the dynamic link line of conformance/run.sh:
+# the loader does not search for libraries by soname yet, so libniji's libc.so.6 is linked by path (a copy
+# without DT_SONAME in $NIJI_SMOKE_SYSROOT, which smoke.sh makes) and libm from libniji's libm.a (its
+# libm.so.6 names libc.so.6 by soname, which needs the search), the program interpreter is
+# libniji's loader, and no other C library is named. -L$NIJI_SMOKE_SYSROOT comes first, so -lm, -lpthread,
+# -ldl, -lrt, -lutil, -lanl and -lresolv resolve to libniji's objects, never to the system's.
+# C++ links libstdc++ and the unwinder statically (no libstdc++.so.6 / libgcc_s.so.1 to search for).
+#
+# Every program a smoke build makes is checked afterwards (check-elf.sh), so a link that falls back to the
+# system's C library fails the run instead of passing on the wrong library.
+#
+# Environment: NIJI_SMOKE_SYSROOT, NIJI_SMOKE_LDSO (required); NIJI_REAL_CC (default gcc),
+# NIJI_REAL_CXX (default g++).
+set -eu
+# A test suite that runs the compiler with a cleared environment (make's) still gets this run's settings:
+# smoke.sh writes them to niji-cc.env beside the wrapper it installs.
+if [ -z "${NIJI_SMOKE_SYSROOT:-}" ] && [ -f "${0%/*}/niji-cc.env" ]; then
+    . "${0%/*}/niji-cc.env"
+fi
+sys=${NIJI_SMOKE_SYSROOT:?niji-cc: NIJI_SMOKE_SYSROOT is not set (run through validation/smoke/smoke.sh)}
+ldso=${NIJI_SMOKE_LDSO:?niji-cc: NIJI_SMOKE_LDSO is not set}
+
+case ${0##*/} in
+    *++) cc=${NIJI_REAL_CXX:-g++}; cxx=yes ;;
+    *) cc=${NIJI_REAL_CC:-gcc}; cxx=no ;;
+esac
+
+[ $# -eq 1 ] && [ "$1" = -v ] && exec "$cc" -v
+# NIJI_SMOKE_HEADERS (smoke.sh --niji-headers, plan/headers.md P7): C compiles against libniji's staged headers alone,
+# as conformance/run.sh --niji-headers does: the staged tree, the compiler's own include directory, the kernel UAPI.
+if [ -n "${NIJI_SMOKE_HEADERS:-}" ] && [ $cxx = no ]; then
+    set -- -nostdinc -isystem "$NIJI_SMOKE_HEADERS" -isystem "$("$cc" -print-file-name=include)" -isystem "${NIJI_SMOKE_UAPI:?niji-cc: NIJI_SMOKE_UAPI is not set}" "$@"
+fi
+mode=dynamic
+for a in "$@"; do
+    case $a in
+        -c | -S | -E | -M | -MM | --version | -dumpversion | -dumpfullversion | -dumpmachine | -print-* | -V | -qversion)
+            exec "$cc" "$@" ;;
+        -shared) mode=shared ;;
+        -static | -static-pie)
+            echo "niji-cc: $a is not supported by the smoke harness (the dynamic link is what it checks)" >&2
+            exit 2 ;;
+    esac
+done
+
+if [ ! -f "$sys/libc.so" ] || [ ! -x "$ldso" ]; then
+    echo "niji-cc: $sys/libc.so or $ldso is missing (smoke.sh setup makes them)" >&2
+    exit 1
+fi
+
+if [ $cxx = yes ]; then
+    set -- "$@" -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
+fi
+# `-x none`: a `-x LANG` among the program's arguments (`-xc -`) must not make the libc.so script a source.
+if [ $mode = dynamic ]; then
+    exec "$cc" -nodefaultlibs -L"$sys" "-Wl,--dynamic-linker=$ldso" "$@" \
+        -x none -Wl,--start-group "$sys/libc.so" -lgcc -lgcc_eh -Wl,--end-group
+fi
+exec "$cc" -nodefaultlibs -L"$sys" "$@" -x none -Wl,--start-group "$sys/libc.so" -lgcc -lgcc_eh -Wl,--end-group

@@ -1,4 +1,4 @@
-/* Spec §3.3 mcheck/mprobe/mcheck_check_all (D-3.5 as decided in phase 13: Liella's C library
+/* Spec §3.3 mcheck/mprobe/mcheck_check_all (D-3.5 as decided in phase 13: libniji's C library
  * provides libc_malloc_debug semantics itself): mcheck before the first allocation turns
  * checking on, once; every block of the malloc family is checked; problems go to abortfn, and
  * the operation goes on when it returns. */

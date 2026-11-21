@@ -1,6 +1,6 @@
 /* Spec §22.4, §22.5, §22.7: the synchronisation objects from C, with glibc's headers and static
  * initialisers. A robust mutex whose owner thread exits reports EOWNERDEAD (the kernel walks
- * the robust list Liella registers per thread), then ENOTRECOVERABLE if not made consistent;
+ * the robust list libniji registers per thread), then ENOTRECOVERABLE if not made consistent;
  * priority-inheritance mutexes exclude; the _NP initialisers give their types; condition
  * variables, read-write locks, barriers, once, semaphores (unnamed and named), spin locks and
  * the C11 forms work across threads. */
@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <threads.h>
 #include <time.h>
 #include <unistd.h>
@@ -93,6 +95,56 @@ static int c11_thread(void *arg)
     call_once(&c11_once, c11_init);
     tss_set(tkey, (void *)(intptr_t)3);
     return arg == NULL ? 0 : 1;
+}
+
+/* A waiter that is really asleep in pthread_mutex_lock is woken by pthread_mutex_unlock (§22.4:
+ * unlock makes the mutex available to a blocked thread). The waiter publishes its TID, then
+ * blocks; main sees it in state S in /proc (asleep in the kernel; spinning would read R) before
+ * it unlocks, so a release that leaves the sleeper unwoken is caught every run, not by chance. */
+static int sleeper_tid;
+static void *sleeper(void *arg)
+{
+    pthread_mutex_t *mx = arg;
+    __atomic_store_n(&sleeper_tid, gettid(), __ATOMIC_RELEASE);
+    pthread_mutex_lock(mx);
+    pthread_mutex_unlock(mx);
+    return NULL;
+}
+static int task_asleep(int tid)
+{
+    char path[64], buf[512];
+    snprintf(path, sizeof path, "/proc/self/task/%d/stat", tid);
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    ssize_t n = read(fd, buf, sizeof buf - 1);
+    close(fd);
+    if (n <= 0)
+        return 0;
+    buf[n] = 0;
+    char *p = strrchr(buf, ')');
+    return p != NULL && p[1] == ' ' && p[2] == 'S';
+}
+/* 0: the sleeper was woken; 1: it never went to sleep (hang guard); 2: unlock left it asleep. */
+static int wakes_sleeper(pthread_mutex_t *mx)
+{
+    pthread_t t;
+    __atomic_store_n(&sleeper_tid, 0, __ATOMIC_RELAXED);
+    pthread_mutex_lock(mx);
+    pthread_create(&t, NULL, sleeper, mx);
+    int tid, tries = 0;
+    while ((tid = __atomic_load_n(&sleeper_tid, __ATOMIC_ACQUIRE)) == 0 || !task_asleep(tid)) {
+        if (++tries > 600000) /* hang guard only (~60 s): a sleeping waiter is seen in microseconds */
+            return 1;
+        usleep(100);
+    }
+    pthread_mutex_unlock(mx);
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_sec += 60; /* hang guard only: a woken waiter finishes in microseconds */
+    if (pthread_timedjoin_np(t, NULL, &until) != 0)
+        return 2;
+    return 0;
 }
 
 int main(void)
@@ -225,17 +277,21 @@ int main(void)
         return 19;
 
     /* Named semaphore: same address twice, O_EXCL, unlink. */
-    char name[64] = "/liella-conf-";
+#define SEM_PREFIX "/niji-conf-"
+    char name[64] = SEM_PREFIX;
     {
         /* the PID in decimal (no stdio before phase 8) */
         char digits[16];
         int nd = 0;
         for (unsigned p = (unsigned)getpid(); p != 0 || nd == 0; p /= 10)
             digits[nd++] = (char)('0' + p % 10);
-        int at = 13;
+        int at = (int)sizeof SEM_PREFIX - 1; /* after the prefix, whatever its length */
         while (nd > 0)
             name[at++] = digits[--nd];
         name[at] = 0;
+        /* the PID really follows the prefix (a NUL left between them still names a semaphore) */
+        if (strlen(name) != (size_t)at)
+            return 34;
     }
     sem_t *a = sem_open(name, O_CREAT | O_EXCL, 0600, 2);
     if (a == SEM_FAILED)
@@ -274,5 +330,16 @@ int main(void)
     }
     if (c11_runs != 1 || tss_freed != 9)
         return 29;
+
+    /* Unlock wakes a waiter asleep on a normal, error-checking and recursive mutex. */
+    pthread_mutex_t wn = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t we = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+    pthread_mutex_t wr = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+    if (wakes_sleeper(&wn) != 0)
+        return 31;
+    if (wakes_sleeper(&we) != 0)
+        return 32;
+    if (wakes_sleeper(&wr) != 0)
+        return 33;
     return 0;
 }

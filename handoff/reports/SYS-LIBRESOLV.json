@@ -1,0 +1,48 @@
+{
+ "task": "SYS-LIBRESOLV",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE checkpoint: system packages ship libresolv.so.2/libresolv.so, ns_* differential probe and package checks written, nothing run yet",
+ "branch": "task/sys-libresolv",
+ "head": null,
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "brief asks for a real libresolv.a; D-16.6 keeps it empty because libc.a defines every libresolv function",
+   "recommendation": "keep D-16.6; check-system.sh proves a static -lresolv link resolves and runs"
+  }
+ ],
+ "informational": [
+  "system flavour also lacks libBrokenLocale.so.1/.so/.a, libg.a, libmcheck.a, libpthread_nonshared.a (coexist ships them)",
+  "libresolv.so.2 itself, its versions.tsv rows and the ns_* implementation already existed (D-16.6); the gap was system.sh packaging"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "system libc6 ships libresolv.so.2 and libc6-dev libresolv.so (Debian libkrb5 can link and load)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "ns_* differential probe over 40 good and malformed messages; check-system/check-symbols libresolv checks",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": false
+  }
+ ],
+ "improvement": "the brief assumed libresolv was missing from the product; a grep of xtask/src/placeholders.rs and tools/deb would have scoped it to packaging up front",
+ "next_step": "wait for sys-libresolv-so1, run ns_parse_products, build system debs, run check-system/check-symbols, add krb5 proof to root-system.sh, plants",
+ "report_file": "handoff/SYS-LIBRESOLV.md",
+ "jobs": [
+  "sys-libresolv-so1"
+ ]
+}

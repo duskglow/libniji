@@ -1,0 +1,32 @@
+{
+  "task": "HEAP-ADDRESS-SPACE-10",
+  "model": "opus",
+  "tokens": null,
+  "result": "INCOMPLETE: RLIMIT_AS xtest red fixed (library defect, 39acf3bd3) and fuzz-check fixed; fast-profile WINDOW-BIN-BYTES tool 3/2 is dev codegen-unit drift of locale functions (merge alone and merge with next's planner give the identical plan); release windows = next; ruling needed",
+  "branch": "task/heap-address-space-10",
+  "head": null,
+  "gate": {"affected": "FULL: the train's (xtask/src/bins.rs); v2 (xtask clippy, cargo clippy --all-features -D warnings, static, 2 tests x 20 native + 20 interposed) rc 0; plants 6/6 CAUGHT; xtest rc 1 (WINDOW-BIN-BYTES fast tool 3/2); fullhot 31 passed", "peak": "xtest gate peak 1.8G oom_kill=0"},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "Fast-profile WINDOW-BIN-BYTES tool 3/2: the branch's niji_boundary heap.rs edits re-partition dev codegen units; locale group in bin 2 +1033 B (each_block<publish_global> 696->2083, setlocale_env_kept outlined 1208); heap hot text -23 B; no traced mode changed; release product = next on every mode", "recommendation": "treat as layout jitter (as #7028), no heap text trimming; cut a tooling story making the fast window gate stable under codegen-unit re-partitioning (one codegen unit for start-up crates in the products build, cost measured) or judge windows on release only"},
+    {"item": "Heap first-reservation cost on malloc'ing start-up children: setlocale +6..+9, printf +2..+4, wctype +4..+5 user instr (perf stat -r 300, two passes); true 0", "recommendation": "accept as the cost of issue #21's fix; look for it in HEAP-SPILL-COLD"}
+  ],
+  "informational": [
+    "cbench_startup startup_kinstr_c +18.6k in the bench job is noise: same binaries, perf stat -r 300 alternating: next 200699/183955, head 183942/181839; syscalls, faults (8) and user instr (3029) equal",
+    "cbench_startup LOAD count equal (5/5, two read-only each): ruling #7061's pad pair not needed",
+    "origin/next moved to 305065b07 after the merged d4cbe1667; not merged in this run"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "correctness", "what": "malloc under an address-space limit (ulimit -v) no longer fails with room left when the kernel's choice is a gap with no aligned range", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "deterministic test kernel_pages_map_aligned_past_a_gap_without_an_aligned_range; plants", "before": 0, "after": 6, "unit": "plants caught", "measured": true},
+    {"kind": "cost", "what": "startup setlocale child user instructions (static cbench_startup, perf stat mean)", "before": 62256, "after": 62262, "unit": "instr", "measured": true},
+    {"kind": "cost", "what": "startup printf child user instructions", "before": 65869, "after": 65873, "unit": "instr", "measured": true},
+    {"kind": "cost", "what": "startup wctype child user instructions", "before": 62725, "after": 62730, "unit": "instr", "measured": true}
+  ],
+  "improvement": "the fast-profile window gate moves with dev codegen-unit partitioning of a crate a change touches: a heap edit reddened a locale window; gate windows on a one-codegen-unit build so a red names real growth",
+  "next_step": "after the ruling: merge current next, cargo xtask test + full-profile pair, cbench_startup head vs next, precheck, hand back",
+  "report_file": "handoff/HEAP-ADDRESS-SPACE-10-report.md",
+  "jobs": ["keke:heap-address-space-10-v2", "keke:heap-address-space-10-plants", "keke:heap-address-space-10-xtest", "keke:heap-address-space-10-fullhot", "keke:heap-address-space-10-cbhead"],
+  "superseded": ["keke:heap-address-space-10-kcmp (wrong invocation: whole harness, not its child; stopped)"]
+}

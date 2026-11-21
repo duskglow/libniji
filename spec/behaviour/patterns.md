@@ -41,7 +41,7 @@ given, its `compat` section is appended (see below). The scratch directory is re
 
 **Two parts.** The record's last section, `== glob compat`, comes from the `-DPATTERNS_COMPAT_GLOB`
 build, which binds `glob@GLIBC_2.2.5` with `.symver` and so builds only against the host's
-dynamic library. Liella's static products cannot select a symbol version (compat versions arrive
+dynamic library. libniji's static products cannot select a symbol version (compat versions arrive
 in phase 15), so the products comparison covers everything before `== glob compat`, and the
 compat part is the oracle for the phase that adds `glob@GLIBC_2.2.5`.
 

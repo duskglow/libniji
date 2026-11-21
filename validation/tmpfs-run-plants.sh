@@ -11,7 +11,7 @@ cd "$copy" || exit 2
 . "$HOME/.cargo/env"
 out=$copy/plant-out; mkdir -p "$out"
 cargo xtask so > "$out/so.log" 2>&1 || { echo "BASELINE RED: so"; exit 2; }
-cargo nextest run --no-run -p liella -p liella-boundary > "$out/nr.log" 2>&1 || { echo "BASELINE RED: build"; exit 2; }
+cargo nextest run --no-run -p niji -p niji-boundary > "$out/nr.log" 2>&1 || { echo "BASELINE RED: build"; exit 2; }
 validation/tmpfs-run.sh --no-build --out "$out/base" -- -E 'binary(=s13_filesystem_clauses) & test(/s13_2_c/)' > "$out/base.txt" 2>&1
 rc=$?
 tail -3 "$out/base.txt"

@@ -1,6 +1,6 @@
 //! Locale glue (spec §7; D-7.7, D-7.8): the calling thread's current locale, `locale_t`
 //! objects, the per-thread table pointers of `__ctype_b_loc` and its siblings, and the file
-//! access `liella_legacy::global_locale` loads locales through.
+//! access `niji_legacy::global_locale` loads locales through.
 //!
 //! A `locale_t` is a heap block laid out as `struct __locale_struct` (29 words): `__locales`
 //! (13 words; each holds the interned locale's handle, D-7.8), `__ctype_b`, `__ctype_tolower`,
@@ -9,16 +9,17 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::locale::file::Cat;
-use liella::ctype::Class;
-use liella::locale::view::LocaleView;
-use liella::locale::{Ctype, Item, Locale};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ};
-use liella_legacy::ctype_tables::{self, C_CLASS, C_TOLOWER, C_TOUPPER, ZERO};
-use liella_legacy::global_locale::{self as gl, Mapper, Objects};
+use niji::error::{Errno, KResult};
+use niji::locale::file::Cat;
+use niji::ctype::Class;
+use niji::locale::view::{LocaleView, EMPTY};
+use niji::locale::{Ctype, Item, Locale};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ};
+use niji_legacy::ctype_tables::{self, C_CLASS, C_TOLOWER, C_TOUPPER, ZERO};
+use niji_legacy::global_locale::{self as gl, Mapper, Objects};
 
 use crate::sys::CSys;
 use crate::{conv, heap, process, strz, tb};
@@ -38,8 +39,18 @@ impl Objects for Glue {
         if len == 0 { &[] } else { conv::mapped_bytes(addr, len) }
     }
 
-    fn charmap_at(&self, addr: usize) -> &'static liella::charmap::Charmap {
+    fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {
         tb::charmap_at(addr)
+    }
+
+    fn slots_at(&self, addr: usize, len: usize) -> &'static [gl::Slot] {
+        tb::locale_slots_at(addr, len)
+    }
+
+    fn words_at(&self, addr: usize, n: usize) -> &'static [AtomicUsize] {
+        // A lookup index chunk or the charmap table: a leaked heap allocation of `n` words
+        // (`words64`'s contract).
+        if n == 0 || addr == 0 { &[] } else { tb::words64(addr, n) }
     }
 }
 
@@ -53,22 +64,24 @@ fn with_path<T>(path: &[u8], f: impl FnOnce(KStr<'_>) -> Option<T>) -> Option<T>
 
 /// A file's identity for `global_locale` (D-X.13): device, inode, size, and the modification
 /// and change times.
-fn identity_of(st: &liella_kernel::uapi::Stat) -> gl::Identity {
+fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
     let u = |v: i64| u64::from_ne_bytes(v.to_ne_bytes());
     [st.dev, st.ino, u(st.size), u(st.mtime.sec), u(st.mtime.nsec), u(st.ctime.sec), u(st.ctime.nsec)]
 }
 
 impl Mapper for Glue {
-    fn map(&self, path: &[u8]) -> Option<(usize, usize, gl::Identity)> {
-        let fd = with_path(path, |p| CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0).ok())?;
+    fn map(&self, path: &[u8]) -> KResult<(usize, usize, gl::Identity)> {
+        // A path that does not fit the buffer names no file the kernel would open.
+        let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0)))
+            .unwrap_or(Err(Errno::ENAMETOOLONG))?;
         let mapped = (|| {
-            let st = CSys.fstat(fd).ok()?;
-            let size = usize::try_from(st.size).ok()?;
+            let st = CSys.fstat(fd)?;
+            let size = usize::try_from(st.size).map_err(|_| Errno::EFBIG)?;
             if size == 0 {
-                return Some((0, 0, identity_of(&st)));
+                return Ok((0, 0, identity_of(&st)));
             }
-            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0).ok()?;
-            Some((region.addr(), size, identity_of(&st)))
+            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0)?;
+            Ok((region.addr(), size, identity_of(&st)))
         })();
         let _ = CSys.close(fd);
         mapped
@@ -155,14 +168,210 @@ fn view_of_special(loc: usize) -> &'static LocaleView {
     gl::view(&Glue, if loc == GLOBAL || loc == 0 { gl::global_handle() } else { 0 })
 }
 
-/// The calling thread's current locale view (D-7.13): its `view` word, one `%fs` load; a thread
-/// whose word is not stored (0) resolves its `uselocale` choice, else the global locale.
+/// Whether wide character `c` has a class of `mask` in the calling thread's current locale
+/// (`iswalpha`, ...), as the C `int`: the thread block's class-word table (D-5.11), one `%fs`
+/// load, then the table's resolved block (D-5.10). A word that reads 0 (not stored yet, or a
+/// process the runtime did not start) and a block not resolved yet take the view's path.
+#[inline(always)]
+pub fn isw(c: u32, mask: Class) -> i32 {
+    let w = class_word();
+    if w != 0
+        && let Some(r) = tb::class_table_at(w).test(c, mask.0)
+    {
+        return r;
+    }
+    isw_view(c, mask)
+}
+
+/// The calling thread's `wclass` word (0x180) in a process the runtime started; 0 in one it did
+/// not start, whatever another library keeps at that offset of its block (D-5.11, ruling #4281:
+/// the gate is the process's ownership word, as [`view_word`], never a flag in the block). The
+/// `and` with a memory operand takes the place of the zero check's `test`. [`store_view`] stores
+/// the word with `view`, so a non-zero word is the current view's class table.
+#[inline(always)]
+fn class_word() -> usize {
+    tb::read::<tb::WClass>() & crate::thread::owned_mask()
+}
+
+/// `iswctype(c, desc)` in the calling thread's current locale: a standard class's mask (or
+/// any value below 2^16) through [`isw`], a locale-defined class through the view.
+#[inline(always)]
+pub fn iswctype(c: u32, desc: u64) -> i32 {
+    match u16::try_from(desc) {
+        Ok(m) => isw(c, Class(m)),
+        Err(_) => iswctype_defined(c, desc),
+    }
+}
+
+/// [`iswctype`] for a descriptor of 2^16 or more (a locale-defined class, or no class).
+#[cold]
+#[inline(never)]
+fn iswctype_defined(c: u32, desc: u64) -> i32 {
+    ctype_tables::iswctype_view(c, desc, view())
+}
+
+/// [`isw`] through the current view (its class table resolves the block).
+#[inline(never)]
+fn isw_view(c: u32, mask: Class) -> i32 {
+    view().isw_int(c, mask)
+}
+
+/// The calling thread's current locale view (D-7.13): its `view` word, one `%fs` load
+/// ([`view_word`]: 0 in a process the runtime did not start, D-X.58); a word that reads 0 resolves
+/// the thread's `uselocale` choice, else the global locale, in one cold call.
 #[inline]
 pub fn view() -> &'static LocaleView {
-    match tb::read::<tb::View>() {
-        0 => view_of(tb::read::<tb::Locale>()),
+    match view_word() {
+        0 => unstored_view_cold(),
         w => tb::view_at(w),
     }
+}
+
+/// `f` of the calling thread's current locale view ([`view`]), for an entry whose whole result is
+/// one use of the view (`iswalpha`, `towupper`, `wcwidth`, `MB_CUR_MAX`, ...). The unstored case
+/// (and the foreign one, D-X.58) is a tail call to [`unstored_with_view`], which takes `f` along,
+/// so the stored path stays frameless: with [`view`] the cold call returns into the entry's own
+/// code and costs every call a `push`/`pop` for the call's stack alignment (ruling #4828). Give
+/// `f` its arguments by value (`move`): a closure of at most two words travels in registers, so
+/// the call stays a jump.
+#[inline(always)]
+pub fn with_view<R>(f: impl FnOnce(&'static LocaleView) -> R) -> R {
+    match view_word() {
+        0 => unstored_with_view(f),
+        w => f(tb::view_at(w)),
+    }
+}
+
+/// `iswalpha(wc)` and its siblings: class `mask` of `wc` in the calling thread's locale. Not
+/// through [`with_view`]: its closure would be one function shared by the twelve entries, which
+/// the compiler then calls instead of inlining; the unstored case is the same tail call.
+#[inline(always)]
+pub fn isw_int(wc: u32, mask: Class) -> i32 {
+    match view_word() {
+        0 => unstored_isw_int(wc, mask),
+        w => tb::view_at(w).isw_int(wc, mask),
+    }
+}
+
+/// [`isw_int`] when the `view` word reads 0 ([`unstored_view`]).
+#[cold]
+#[inline(never)]
+fn unstored_isw_int(wc: u32, mask: Class) -> i32 {
+    unstored_view().isw_int(wc, mask)
+}
+
+/// `towupper(wc)` (`upper`) or `towlower(wc)` in the calling thread's locale (shaped as
+/// [`isw_int`]).
+#[inline(always)]
+pub fn wtrans(wc: u32, upper: bool) -> u32 {
+    match view_word() {
+        0 => unstored_wtrans(wc, upper),
+        w => tb::view_at(w).wtrans(wc, upper),
+    }
+}
+
+/// [`wtrans`] when the `view` word reads 0 ([`unstored_view`]).
+#[cold]
+#[inline(never)]
+fn unstored_wtrans(wc: u32, upper: bool) -> u32 {
+    unstored_view().wtrans(wc, upper)
+}
+
+/// [`with_view`] with the view's locale ([`current`]).
+#[inline(always)]
+pub fn with_current<R>(f: impl FnOnce(&'static Locale) -> R) -> R {
+    with_view(move |v| f(v.locale()))
+}
+
+/// The calling thread's `view` word in a process the runtime started; 0 in one it did not start
+/// (D-X.58), whatever another library keeps at that offset of its block. The word is ANDed with
+/// [`owned_mask`](crate::thread::owned_mask): the `and` with a memory operand takes the place of
+/// the `test` the zero check costs, so the gate adds no instruction to the stored path. Every
+/// caller sends 0 to one cold function ([`unstored_view`]), which tests
+/// [`owned`](crate::thread::owned) there: a test of the same word inline would keep the mask in
+/// a register for it and cost the hot path a load and a move.
+#[inline(always)]
+fn view_word() -> usize {
+    tb::read::<tb::View>() & crate::thread::owned_mask()
+}
+
+/// The view when [`view_word`] reads 0: the `uselocale` choice of a thread whose word is not
+/// stored, in a process the runtime started; the registry words' choice in one it did not start
+/// (D-X.58). Only cold functions call it.
+#[inline(always)]
+fn unstored_view() -> &'static LocaleView {
+    if crate::thread::owned() { view_of(tb::read::<tb::Locale>()) } else { foreign_view() }
+}
+
+/// [`unstored_view`] out of line, for [`view`].
+#[cold]
+#[inline(never)]
+fn unstored_view_cold() -> &'static LocaleView {
+    unstored_view()
+}
+
+/// [`with_view`] when the `view` word reads 0 ([`unstored_view`]).
+#[cold]
+#[inline(never)]
+fn unstored_with_view<R, F: FnOnce(&'static LocaleView) -> R>(f: F) -> R {
+    f(unstored_view())
+}
+
+/// [`view`] in a process the runtime did not start (D-X.58): the thread block's words are not
+/// libniji's, so the choice comes from the thread's registry words (no `view` word is kept there).
+#[cold]
+#[inline(never)]
+fn foreign_view() -> &'static LocaleView {
+    view_of(crate::thread::foreign_words().locale.load(Acquire))
+}
+
+/// The calling thread's ctype word `slot` (0 class, 1 `tolower`, 2 `toupper`; `F` its field):
+/// one `%fs` load in a process the runtime started, the registry words elsewhere (D-X.58).
+#[inline(always)]
+fn ctype_word<F: tb::Field>(slot: usize) -> usize {
+    // 0 elsewhere: the caller's unstored path (one cold call site, so the hot path keeps no
+    // frame) reads the registry word through [`foreign_word_or_zero`].
+    // The word ANDed with the ownership mask: the gate rides on the caller's zero test.
+    let _ = slot;
+    tb::read::<F>() & crate::thread::owned_mask()
+}
+
+/// The registry ctype word `slot` in a process the runtime did not start (D-X.58), 0 in one it
+/// started (the cold paths of [`byte_class`] and [`case_map`] ask it first: a word a program
+/// stored through `__ctype_*_loc` there is honoured as in a block of the runtime's).
+#[inline]
+fn foreign_word_or_zero(slot: usize) -> usize {
+    if crate::thread::owned() { 0 } else { foreign_ctype_word(slot) }
+}
+
+/// The word of [`foreign_ctype_slot`].
+#[cold]
+#[inline(never)]
+fn foreign_ctype_word(slot: usize) -> usize {
+    let b = crate::thread::foreign_words();
+    match slot {
+        0 => &b.ctype_b,
+        1 => &b.ctype_tolower,
+        _ => &b.ctype_toupper,
+    }
+    .load(Acquire)
+}
+
+/// [`ctype_slot`] in a process the runtime did not start: the address of the word in the
+/// thread's registry words, filled on first use.
+#[cold]
+#[inline(never)]
+fn foreign_ctype_slot(slot: usize) -> usize {
+    let b = crate::thread::foreign_words();
+    if b.ctype_b.load(Acquire) == 0 {
+        crate::thread::serialized(|| refresh_words(b));
+    }
+    let w = match slot {
+        0 => &b.ctype_b,
+        1 => &b.ctype_tolower,
+        _ => &b.ctype_toupper,
+    };
+    core::ptr::from_ref(w).expose_provenance()
 }
 
 /// The calling thread's current locale: its `uselocale` choice, else the global locale.
@@ -218,7 +427,7 @@ fn tables(l: &Locale) -> [usize; 3] {
 
 /// Store the ctype words of `b` for its current choice (its object, else the global locale).
 /// Callers serialise against [`publish_global`] (see above).
-pub(crate) fn refresh_words(b: &liella_rt::tls::ThreadBlock) {
+pub(crate) fn refresh_words(b: &niji_rt::tls::ThreadBlock) {
     store_words(b, view_of(b.locale.load(Acquire)));
 }
 
@@ -227,14 +436,27 @@ pub(crate) fn refresh_words(b: &liella_rt::tls::ThreadBlock) {
 /// another `ld.so`'s threads, D-22.10) a thread may not be listed, so `setlocale` in another
 /// thread could not reach its view: the word stays 0 and [`view`] resolves on every call, as
 /// before. In a process the runtime started every thread that runs library code is listed.
-fn store_words(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
+fn store_words(b: &niji_rt::tls::ThreadBlock, v: &'static LocaleView) {
     let [class, lower, upper] = tables(v.locale());
     b.ctype_b.store(class, Release);
     b.ctype_tolower.store(lower, Release);
     b.ctype_toupper.store(upper, Release);
-    if crate::thread::owned() {
-        b.view.store(core::ptr::from_ref(v).expose_provenance(), Release);
+    // `store_view` makes the ownership test (one test on this start-up path, not two).
+    store_view(b, v);
+}
+
+/// `b`'s `view` word and, with it, its `wclass` word (D-5.11: the class tests read the table
+/// without the view). Every writer of `view` stores both, `wclass` first; each word is replaced
+/// whole, so a reader takes the old or the new value of each, both valid tables or views (a
+/// word that still reads 0 sends the reader to the view path). In a process the runtime did not
+/// start ([`owned`](crate::thread::owned) false) nothing is written: those words are another
+/// library's (D-5.11, ruling #4281).
+fn store_view(b: &niji_rt::tls::ThreadBlock, v: &'static LocaleView) {
+    if !crate::thread::owned() {
+        return;
     }
+    b.wclass.store(core::ptr::from_ref(v.class_table()).expose_provenance(), Release);
+    b.view.store(core::ptr::from_ref(v).expose_provenance(), Release);
 }
 
 /// After `newlocale` changed the object `loc` in place: the `view` word of every thread that
@@ -246,7 +468,7 @@ fn refresh_views_of(loc: usize) {
     }
     crate::thread::each_block(|b| {
         if b.locale.load(Acquire) == loc {
-            b.view.store(core::ptr::from_ref(view_of(loc)).expose_provenance(), Release);
+            store_view(b, view_of(loc));
         }
     });
 }
@@ -269,19 +491,30 @@ pub fn ctype_slot(slot: usize) -> usize {
     // word's offset (`__ctype_b_loc` = two loads and an add, no call). The unfilled case
     // returns `ctype_fill`'s result, a tail call, so the filled path keeps no frame (no
     // push/pop of the stack-alignment slot a call in the middle would cost: PERF-CTYPE-LOC).
-    if tb::read::<tb::CtypeB>() == 0 {
-        return ctype_fill(slot);
+    // D-X.58: one cold call site for both slow cases (another library's block, words not yet
+    // stored); the word ANDed with the ownership mask is 0 in the first, so the gate rides on
+    // the zero test (no `cmpb`, no frame).
+    if tb::read::<tb::CtypeB>() & crate::thread::owned_mask() != 0 {
+        return ctype_off(slot);
     }
-    ctype_off(slot)
+    ctype_slot_slow(slot)
+}
+
+/// [`ctype_slot`]'s slow cases: the registry words in a process the runtime did not start,
+/// else the words filled on first use.
+#[cold]
+#[inline(never)]
+fn ctype_slot_slow(slot: usize) -> usize {
+    if crate::thread::owned() { ctype_fill(slot) } else { foreign_ctype_slot(slot) }
 }
 
 /// The address of the calling thread's pointer `slot`, the words known to be stored.
 #[inline(always)]
 fn ctype_off(slot: usize) -> usize {
     let off = match slot {
-        0 => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_b),
-        1 => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_tolower),
-        _ => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_toupper),
+        0 => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_b),
+        1 => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_tolower),
+        _ => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_toupper),
     };
     tb::tp().wrapping_add(off)
 }
@@ -316,13 +549,20 @@ fn entry_offset<const UNIT: usize>(c: i32) -> Option<usize> {
 #[cold]
 #[inline(never)]
 fn class_unstored(c: i32) -> Class {
-    ctype_tables::class(c, current())
+    match foreign_word_or_zero(0) {
+        0 => ctype_tables::class(c, current()),
+        w => class_in(w, c),
+    }
 }
 
 /// [`case_map`] for a thread whose ctype words are not stored: the locale's answer.
 #[cold]
 #[inline(never)]
 fn case_unstored(c: i32, upper: bool) -> i32 {
+    let w = foreign_word_or_zero(if upper { 2 } else { 1 });
+    if w != 0 {
+        return case_in(c, w);
+    }
     let l = current();
     if upper { ctype_tables::toupper(c, l) } else { ctype_tables::tolower(c, l) }
 }
@@ -331,10 +571,16 @@ fn case_unstored(c: i32, upper: bool) -> i32 {
 /// (D-5.5); none outside -128...255.
 #[inline]
 pub fn byte_class(c: i32) -> Class {
-    let w = tb::read::<tb::CtypeB>();
+    let w = ctype_word::<tb::CtypeB>(0);
     if w == 0 {
         return class_unstored(c);
     }
+    class_in(w, c)
+}
+
+/// The classes of `c` in the table at the class word `w` (non-zero).
+#[inline(always)]
+fn class_in(w: usize, c: i32) -> Class {
     // The entry's address is the word plus twice the (signed) character: one range test, no
     // rebasing of the word to the table's first entry.
     if entry_offset::<2>(c).is_none() {
@@ -351,6 +597,13 @@ fn case_map(c: i32, w: usize, upper: bool) -> i32 {
     if w == 0 {
         return case_unstored(c, upper);
     }
+    case_in(c, w)
+}
+
+/// `c` through the case table at the word `w` (non-zero); values outside -128...255 map to
+/// themselves.
+#[inline(always)]
+fn case_in(c: i32, w: usize) -> i32 {
     let Some(o) = entry_offset::<4>(c) else { return c };
     table_bytes::<4>(w).get(o..o.wrapping_add(4)).and_then(|b| <[u8; 4]>::try_from(b).ok()).map_or(c, i32::from_ne_bytes)
 }
@@ -402,13 +655,13 @@ pub fn case_map_l(c: i32, loc: usize, upper: bool) -> i32 {
 /// `toupper(c)` in the calling thread's locale (D-5.5).
 #[inline]
 pub fn toupper(c: i32) -> i32 {
-    case_map(c, tb::read::<tb::CtypeToupper>(), true)
+    case_map(c, ctype_word::<tb::CtypeToupper>(2), true)
 }
 
 /// `tolower(c)` in the calling thread's locale (D-5.5).
 #[inline]
 pub fn tolower(c: i32) -> i32 {
-    case_map(c, tb::read::<tb::CtypeTolower>(), false)
+    case_map(c, ctype_word::<tb::CtypeTolower>(1), false)
 }
 
 /// Fill a `locale_t` object for the interned locale `handle`.
@@ -436,11 +689,16 @@ fn new_object(handle: usize) -> usize {
     addr
 }
 
-/// The categories of an `LC_*_MASK` combination, or `EINVAL` for unknown bits.
-fn categories(mask: i32) -> Result<([Cat; 12], usize), liella::error::Errno> {
+/// `1 << LC_ALL` (bit 6): accepted alone as every category; with any other bit it is `EINVAL`.
+const LC_ALL_BIT: i32 = 1 << 6;
+
+/// The categories of an `LC_*_MASK` combination, or `EINVAL` for unknown bits. `1 << LC_ALL`
+/// alone means every category (libstdc++ asks for it at start-up), as the reference answers it.
+fn categories(mask: i32) -> Result<([Cat; 12], usize), niji::error::Errno> {
     let all = Cat::ALL.iter().fold(0i32, |m, c| m | (1 << c.number()));
+    let mask = if mask == LC_ALL_BIT { all } else { mask };
     if mask & !all != 0 {
-        return Err(liella::error::Errno::EINVAL);
+        return Err(niji::error::Errno::EINVAL);
     }
     let mut out = [Cat::Ctype; 12];
     let mut n = 0usize;
@@ -456,11 +714,18 @@ fn categories(mask: i32) -> Result<([Cat; 12], usize), liella::error::Errno> {
 }
 
 /// `newlocale(mask, name, base)`: the new object (or `base`, reused), or 0 and the error.
-pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, liella::error::Errno> {
+pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, niji::error::Errno> {
     let (cats, n) = categories(mask)?;
-    let name = name.ok_or(liella::error::Errno::EINVAL)?;
+    let name = name.ok_or(niji::error::Errno::EINVAL)?;
     let base_locale = if base == 0 { Locale::C } else { *of(base) };
-    let handle = gl::newlocale(&CSys, &Glue, cats.get(..n).unwrap_or(&[]), name, base_locale)?;
+    let cats = cats.get(..n).unwrap_or(&[]);
+    let handle = if name.is_empty() {
+        // `""`: each category from the environment, as `setlocale(cat, "")` takes it.
+        let getenv = |k: &[u8]| -> Option<&'static [u8]> { process::getenv(k).map(strz::env_value) };
+        gl::newlocale_env(&CSys, &Glue, cats, &getenv, base_locale)?
+    } else {
+        gl::newlocale(&CSys, &Glue, cats, name, base_locale)?
+    };
     // `base` is consumed: reuse its block (D-7.3).
     if base != 0 && base != GLOBAL {
         if let Some(w) = tb::locale_object(base) {
@@ -470,15 +735,15 @@ pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, l
         }
     }
     match new_object(handle) {
-        0 => Err(liella::error::Errno::ENOMEM),
+        0 => Err(niji::error::Errno::ENOMEM),
         a => Ok(a),
     }
 }
 
 /// `duplocale(loc)`: a new object for the same locale.
-pub fn duplocale(loc: usize) -> Result<usize, liella::error::Errno> {
+pub fn duplocale(loc: usize) -> Result<usize, niji::error::Errno> {
     match new_object(handle_of(loc)) {
-        0 => Err(liella::error::Errno::ENOMEM),
+        0 => Err(niji::error::Errno::ENOMEM),
         a => Ok(a),
     }
 }
@@ -495,10 +760,11 @@ pub fn freelocale(loc: usize) {
 pub fn uselocale(loc: usize) -> usize {
     if loc == 0 {
         // NO-ROW: the query (`ls` asks once per file) is one `%fs` load of the thread's own word.
-        let prev = tb::read::<tb::Locale>();
+        let prev = if crate::thread::owned() { tb::read::<tb::Locale>() } else { crate::thread::foreign_words().locale.load(Relaxed) };
         return if prev == 0 { GLOBAL } else { prev };
     }
-    let b = tb::current();
+    // D-X.58: the thread's own words (its block only in a process the runtime started).
+    let b = crate::thread::words();
     let prev = b.locale.load(Relaxed);
     let new = if loc == GLOBAL { 0 } else { loc };
     if loc != 0 {
@@ -517,7 +783,8 @@ pub fn uselocale(loc: usize) -> usize {
 }
 
 /// The variables `setlocale(cat, "")` reads (`global_locale::setlocale`: `LC_ALL`, the
-/// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS).
+/// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS). Their order is
+/// `gl::ENV_LC_ALL`'s numbering: `LC_ALL`, the categories in `Cat::ALL` order, `LANG`.
 const ENV_KEYS: [&[u8]; 14] = {
     use crate::startup_names as n;
     [
@@ -526,11 +793,6 @@ const ENV_KEYS: [&[u8]; 14] = {
     ]
 };
 
-/// The index of `k` in [`ENV_KEYS`].
-fn env_key(k: &[u8]) -> Option<usize> {
-    ENV_KEYS.iter().position(|&n| n == k)
-}
-
 /// `setlocale(category, name)`: the name (`'static`, NUL-terminated), or `None`.
 pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let cat = if category == 6 { None } else { Some(Cat::from_number(category)?) };
@@ -538,30 +800,13 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let Some(name) = name else {
         return gl::setlocale(&CSys, &Glue, cat, gl::Request::Query);
     };
-    let name = Some(name);
-    // `""`: every variable the selection may read, from one walk over `environ` (SETLOCALE-3:
-    // fourteen `getenv` scans before); a name it was not given to look up is looked up alone.
-    let mut found: [Option<&'static [u8]>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
-    if name == Some(b"") {
-        let mut at = [None; ENV_KEYS.len()];
-        process::getenv_many(&ENV_KEYS, &mut at);
-        for (v, a) in found.iter_mut().zip(at) {
-            *v = a.map(strz::env_value);
-        }
+    // `""` is out of line (SETLOCALE-CTYPE-ENV): its lookups would otherwise set up a frame and
+    // locals on every named call too (+7 per call on the "C" and "POSIX" rows when inline).
+    if name.is_empty() {
+        return setlocale_env(cat);
     }
-    let getenv = |k: &[u8]| -> Option<&'static [u8]> {
-        match env_key(k) {
-            Some(i) => found.get(i).copied().flatten(),
-            None => process::getenv(k).map(strz::env_value),
-        }
-    };
-    let req = match name {
-        None => gl::Request::Query,
-        Some(b"") => gl::Request::Environment(&getenv),
-        Some(n) => gl::Request::Name(n),
-    };
     let before = gl::global_handle();
-    let r = gl::setlocale(&CSys, &Glue, cat, req);
+    let r = gl::setlocale(&CSys, &Glue, cat, gl::Request::Name(name));
     // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
     if gl::global_handle() != before {
         publish_global();
@@ -570,11 +815,62 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     r
 }
 
-/// `liella_locale_invalidate` (D-X.13): the mapped locale files and parsed charmaps are checked
+/// Variable `k` (`gl::ENV_LC_ALL`'s numbering, which is [`ENV_KEYS`]' order) for
+/// [`setlocale_env`]: its value from `found` when `k < known`, else from `getenv`. Out of line
+/// (SETLOCALE-CTYPE-ENV-5): inlined at each of the selection's lookups it was four copies of the
+/// scanner call and the value's `strlen`, start-up text the coreutils-shaped program paid a
+/// fault-around window for.
+#[inline(never)]
+fn env_lookup(found: &[Option<usize>; ENV_KEYS.len()], known: usize, k: usize) -> Option<&'static [u8]> {
+    let at = if k < known { found.get(k).copied().flatten() } else { process::getenv(ENV_KEYS.get(k)?) };
+    at.map(strz::env_value)
+}
+
+/// `setlocale(cat, "")`: each category's name from the environment, read on every call.
+#[inline(never)]
+fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
+    // `""`, one category: each variable the selection reads (`LC_ALL`, `LC_<cat>`, `LANG`, in
+    // that order, only as far as the first non-empty one) through `getenv`'s scanner, a few
+    // instructions per entry (SETLOCALE-CTYPE-ENV: a walk for all fourteen names cost ~80 per entry,
+    // since they all start with `L`). `LC_ALL`: `LC_ALL` first, and when it decides nothing the
+    // other thirteen from one walk over `environ` (SETLOCALE-3: thirteen scans).
+    // The values' addresses; a value is measured only when the selection asks for it
+    // (SETLOCALE-CTYPE-ENV-5: measuring all fourteen up front was unrolled into ten inlined
+    // `strlen` sequences, ~1 KiB of start-up text, and the coreutils-shaped program's hot text
+    // then crossed into one more 64 KiB fault-around window).
+    let mut found: [Option<usize>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
+    let mut known = 0;
+    if cat.is_none() {
+        if let Some(v) = found.first_mut() {
+            *v = process::getenv(crate::startup_names::LC_ALL);
+        }
+        known = 1;
+        if env_lookup(&found, known, gl::ENV_LC_ALL).is_none_or(<[u8]>::is_empty) {
+            process::getenv_many(ENV_KEYS.get(1..).unwrap_or_default(), found.get_mut(1..).unwrap_or_default());
+            known = ENV_KEYS.len();
+        }
+    }
+    let getenv = |k: usize| env_lookup(&found, known, k);
+    let req = gl::Request::Environment(&getenv);
+    let before = gl::global_handle();
+    // Answered without the lock when every category keeps its name, else the locked path.
+    let r = match gl::setlocale_env_kept(&Glue, cat, &getenv) {
+        Some(s) => Some(s),
+        None => gl::setlocale_locked(&CSys, &Glue, cat, &req),
+    };
+    // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
+    if gl::global_handle() != before {
+        publish_global();
+        crate::catalog::locale_changed();
+    }
+    r
+}
+
+/// `niji_locale_invalidate` (D-X.13): the mapped locale files and parsed charmaps are checked
 /// against their files before their next use (changed ones are read again), and the global
 /// locale is loaded again by its names. `ENOENT` when a name no longer resolves (the global
 /// locale is then unchanged).
-pub fn invalidate() -> Result<(), liella::error::Errno> {
+pub fn invalidate() -> Result<(), niji::error::Errno> {
     let before = gl::global_handle();
     let r = gl::invalidate_and_reload(&CSys, &Glue);
     if gl::global_handle() != before {
@@ -583,9 +879,6 @@ pub fn invalidate() -> Result<(), liella::error::Errno> {
     }
     r
 }
-
-/// An empty string for absent items.
-static EMPTY: [u8; 1] = [0];
 
 /// `nl_langinfo(item)` in `l`: the item's address, or for a word item its value (D-7.10). The
 /// category's item table answers (LV-3); a category without one, the name item and an unknown
@@ -596,7 +889,25 @@ pub fn langinfo(item: i32, v: &LocaleView) -> usize {
     // negative item, a number past the table, `LC_ALL` and the name item (index 0xffff: no table
     // has that many entries) find no entry and take the slow path.
     let bits = u32::from_ne_bytes(item.to_ne_bytes());
+    let index = usize::try_from(bits & 0xffff).unwrap_or(usize::MAX);
+    // PARITY-SMALL-ENTRY: the view's answer table (the same words the match below works out),
+    // one bounds check and one load. Until a view has decoded `ANSWERS_AFTER` entries below, its
+    // table is `NO_ANSWERS` (every lookup misses): building a view costs nothing for it.
+    if let Some(a) = tb::answers_at(v.answers()).get(bits >> 16, index) {
+        return a;
+    }
+    langinfo_decode(item, v)
+}
+
+/// [`langinfo`] without a table answer: decode the entry (and count the call towards the view's
+/// table), else [`langinfo_slow`]. Out of line so that the table path stays a leaf: inline, the
+/// `note_decoded` call made every `nl_langinfo` save and restore three registers
+/// (PARITY-SMALL-ENTRY-2, +5 instructions per call).
+#[inline(never)]
+fn langinfo_decode(item: i32, v: &LocaleView) -> usize {
+    let bits = u32::from_ne_bytes(item.to_ne_bytes());
     if let Some(entry) = v.entry(bits >> 16, usize::try_from(bits & 0xffff).unwrap_or(usize::MAX)) {
+        v.note_decoded();
         return match entry {
             Item::Word(v) => usize::try_from(v).unwrap_or(0),
             Item::Bytes([]) => EMPTY.as_ptr().expose_provenance(),
@@ -648,7 +959,7 @@ fn lconv_char(l: &Locale, index: usize) -> u8 {
 
 /// `localeconv()`: the calling thread's `struct lconv`, filled from its current locale.
 pub fn localeconv() -> usize {
-    let w = &tb::current().lconv;
+    let w = &crate::thread::words().lconv;
     // The words are worked out once per locale view (D-7.13) and copied into this thread's
     // `struct lconv`, so that a pointer returned earlier keeps its address (D-7.8).
     for (slot, v) in w.iter().zip(view().lconv(lconv_words)) {
@@ -682,30 +993,44 @@ fn lconv_words(l: &Locale) -> [usize; 12] {
 }
 
 /// `setlocale` for C: the name's address, or 0.
-pub fn setlocale_c(category: i32, name: liella::error::KResult<Option<&[u8]>>) -> usize {
+pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> usize {
     match name {
-        Ok(n) => setlocale(category, n).map_or(0, |s| s.as_ptr().expose_provenance()),
+        Ok(n) => setlocale(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
         Err(_) => 0,
     }
 }
 
+/// A `setlocale` that returns NULL sets `errno` (`spec/behaviour/setlocale-errno.md`): `EINVAL`
+/// for a category number that names no category, otherwise `ENOENT`, the locale data of a name
+/// not being available, as `newlocale` reports it (D-7.18). A successful call leaves `errno`
+/// alone. Out of line: only failures pay for it.
+#[cold]
+#[inline(never)]
+fn setlocale_failed(category: i32) -> usize {
+    let known = category == 6 || Cat::from_number(category).is_some();
+    // A known category: the locale's data is not available (`ENOENT`) or memory ran out while
+    // loading it (`ENOMEM`; `global_locale` keeps the cause).
+    crate::errno::set(if known { gl::last_failure() } else { niji::error::Errno::EINVAL });
+    0
+}
+
 /// `newlocale` for C (`name` NULL: `EINVAL`).
-pub fn newlocale_c(mask: i32, name: liella::error::KResult<&[u8]>, base: usize) -> liella::error::KResult<usize> {
-    newlocale(mask, Some(name?), base)
+pub fn newlocale_c(mask: i32, name: niji::error::KResult<&[u8]>, base: usize) -> niji::error::KResult<usize> {
+    newlocale(mask, name.ok(), base)
 }
 
 /// The name of category `category` (a C `LC_*` number) of the calling thread's current locale,
 /// copied into `out` if it fits whole: its length (the native interface, D-X.10). `LC_ALL` (6)
 /// is the composite name `setlocale(LC_ALL, NULL)` would give; an unknown category is `EINVAL`.
-pub fn current_name(category: i32, out: &mut [u8]) -> liella::error::KResult<usize> {
+pub fn current_name(category: i32, out: &mut [u8]) -> niji::error::KResult<usize> {
     let l = current();
     if category == 6 {
         // Twelve names below `MAX_NAME` bytes, with their category labels, fit in 4 KiB.
         let mut buf = [0u8; 4096];
-        let n = liella::locale::name::composite(l.names(), &mut buf).ok_or(liella::error::Errno::ERANGE)?;
+        let n = niji::locale::name::composite(l.names(), &mut buf).ok_or(niji::error::Errno::ERANGE)?;
         return Ok(conv::copy_out(buf.get(..n).unwrap_or(&[]), out));
     }
-    let cat = Cat::from_number(category).ok_or(liella::error::Errno::EINVAL)?;
+    let cat = Cat::from_number(category).ok_or(niji::error::Errno::EINVAL)?;
     Ok(conv::copy_out(l.name(cat), out))
 }
 
@@ -725,17 +1050,17 @@ pub fn wradix(l: &Locale) -> [i32; 1] {
 /// The byte fold of `l` for the case-insensitive functions (`strcasecmp`, `strcasestr`; D-4.4:
 /// the locale's byte `tolower` table).
 pub fn lower(l: &'static Locale) -> impl Fn(u8) -> u8 + Copy {
-    move |b| liella::ctype::to_lower(b, l)
+    move |b| niji::ctype::to_lower(b, l)
 }
 
 /// The wide fold of `l` (`wcscasecmp`): `towlower` on a `wchar_t` unit.
 pub fn wlower(l: &'static Locale) -> impl Fn(i32) -> i32 + Copy {
-    move |c| u32::try_from(c).map_or(c, |u| i32::try_from(liella::ctype::wtrans(u, liella::ctype::Trans::Lower, l)).unwrap_or(c))
+    move |c| u32::try_from(c).map_or(c, |u| i32::try_from(niji::ctype::wtrans(u, niji::ctype::Trans::Lower, l)).unwrap_or(c))
 }
 
 /// `rpmatch(response)` (§7.6; D-7.9): 1 when `response` (a C string's address) matches the
 /// current locale's `YESEXPR`, 0 when it matches `NOEXPR`, otherwise -1 (also for an expression
-/// that does not compile, and for NULL, where the reference crashes). The expressions are
+/// that does not compile, and for NULL: no response). The expressions are
 /// POSIX extended regular expressions, matched with the library's `regcomp`/`regexec`.
 pub fn rpmatch(response: usize) -> i32 {
     if response == 0 {
@@ -745,8 +1070,8 @@ pub fn rpmatch(response: usize) -> i32 {
     for (index, answer) in [(0usize, 1), (1, 0)] {
         let Item::Bytes(expr) = l.item(Cat::Messages, index) else { continue };
         let expr = expr.split(|&b| b == 0).next().unwrap_or(&[]);
-        let mut re = liella_abi::layout::regex_t { buffer: 0, allocated: 0, used: 0, syntax: 0, fastmap: 0, translate: 0, re_nsub: 0, can_be_null: [0] };
-        let flags = liella::pattern::regex::cflags::EXTENDED | liella::pattern::regex::cflags::NOSUB;
+        let mut re = niji_abi::layout::regex_t { buffer: 0, allocated: 0, used: 0, syntax: 0, fastmap: 0, translate: 0, re_nsub: 0, can_be_null: [0] };
+        let flags = niji::pattern::regex::cflags::EXTENDED | niji::pattern::regex::cflags::NOSUB;
         if crate::regex::regcomp(Some(&mut re), Ok(expr), flags) != 0 {
             continue;
         }
@@ -763,6 +1088,68 @@ pub fn rpmatch(response: usize) -> i32 {
 mod tests {
     use super::*;
 
+    /// D-5.11 safety (no spec clause: a libniji design rule, records/decisions/D-5/D-5.11.toml):
+    /// in a process the runtime did not start (this test process, its threads made by the
+    /// system's `ld.so`; ruling #4281), the words at 0x138-0x187 (`view`, the cache
+    /// line, `wclass`) are never used as pointers or values and never written. The test fills
+    /// them with non-canonical addresses (a dereference faults), asks the class tests, the view
+    /// and the time zone period, stores a view the way every writer does, and checks the
+    /// answers and that the words still hold what the test put there; then restores them.
+    #[test]
+    #[allow(clippy::unwrap_used)] // a test: a panic in the thread is the failure
+    fn foreign_block_words_are_never_read_or_written() {
+        std::thread::spawn(|| {
+            let b = tb::current();
+            if crate::thread::owned() {
+                println!("skipped: the runtime started this process, so its blocks are not foreign");
+                return;
+            }
+            let words = || {
+                let mut w = [b.view.load(Relaxed), b.wclass.load(Relaxed), 0, 0, 0, 0, 0, 0, 0, 0];
+                for (d, s) in w.iter_mut().skip(2).zip(&b.cache) {
+                    *d = s.load(Relaxed);
+                }
+                w
+            };
+            let saved = words();
+            let flags = b.flags.load(Relaxed);
+            // Answers before the garbage (the view path: nothing stored for this thread).
+            let probe = [0x41u32, 0x7a, 0x30, 0xe9, 0x3b1, 0x4e00, 0x1_0400, 0x11_0000];
+            let classes = [Class::ALPHA, Class::DIGIT, Class::SPACE, Class::UPPER, Class::PRINT];
+            let want: Vec<i32> = probe.iter().flat_map(|&c| classes.iter().map(move |&m| view().isw_int(c, m))).collect();
+            let garbage = |k: usize| 0xdead_0000_0000_1000usize.wrapping_add(k.wrapping_mul(0x40));
+            b.view.store(garbage(0), Relaxed);
+            b.wclass.store(garbage(1), Relaxed);
+            for (k, w) in b.cache.iter().enumerate() {
+                w.store(garbage(k.wrapping_add(2)), Relaxed);
+            }
+            let planted = words();
+            let got: Vec<i32> = probe.iter().flat_map(|&c| classes.iter().map(move |&m| isw(c, m))).collect();
+            let defined = iswctype(0x41, u64::from(Class::ALPHA.0));
+            let v = core::ptr::from_ref(view()).expose_provenance();
+            let vw = with_view(|w| core::ptr::from_ref(w).expose_provenance());
+            store_view(b, view_of(GLOBAL));
+            let fresh = crate::zone::with_period(|p| {
+                let seen = *p == niji::time::Period::from_words(&[0; 3]);
+                *p = niji::time::Period::from_words(&[1, 2, 3]);
+                seen
+            });
+            let after = words();
+            for (d, s) in [&b.view, &b.wclass].into_iter().chain(&b.cache).zip(saved) {
+                d.store(s, Relaxed);
+            }
+            assert_eq!(got, want, "isw answers with garbage words");
+            assert_eq!(defined, 1, "iswctype('A', alpha)");
+            assert!(v != garbage(0), "view() used the garbage view word");
+            assert!(vw != garbage(0), "with_view() used the garbage view word");
+            assert!(fresh, "with_period read the garbage cache words");
+            assert_eq!(after, planted, "a word at 0x138-0x187 of a foreign block was written");
+            assert_eq!(b.flags.load(Relaxed), flags, "the flag word of a foreign block was written");
+        })
+        .join()
+        .unwrap();
+    }
+
     /// The item-table fast path of `nl_langinfo` answers what the per-call path answers (LV-4),
     /// for the built-in locales over every category number around the valid ones, item indexes
     /// past the tables and negative items.
@@ -773,7 +1160,9 @@ mod tests {
         let utf8 = LocaleView::new(Locale::c_utf8(b"C.UTF-8"), 1, &|_, _| None).unwrap();
         let mut asked = 0usize;
         let mut hits = 0usize;
-        for v in [&c, &utf8] {
+        // Two passes: the first decodes until the view builds its answer table
+        // (PARITY-SMALL-ENTRY-2), the second answers every entry from the table.
+        for v in [&c, &c, &utf8, &utf8] {
             for cat in (-2..16).chain([0x7fff, 0x8000]) {
                 for index in (0..300).chain([0xfffe]) {
                     let item = (cat << 16) | index;
@@ -787,7 +1176,10 @@ mod tests {
         for item in [-1, i32::MIN, i32::MAX, 0xffff, (6 << 16) | 3, 13 << 16] {
             assert_eq!(langinfo(item, &c), langinfo_slow(item, c.locale()), "item {item:#x}");
         }
-        // Not vacuous: plenty of real entries were compared.
-        assert!(asked > 10_000 && hits > 300, "{asked} asked, {hits} non-empty");
+        // Not vacuous: plenty of real entries were compared, and both tables were used.
+        assert!(asked > 20_000 && hits > 600, "{asked} asked, {hits} non-empty");
+        for v in [&c, &utf8] {
+            assert!(!core::ptr::eq(v.answers(), &niji::locale::view::NO_ANSWERS), "{:?}: the answer table was built", v.locale().name(Cat::Ctype));
+        }
     }
 }

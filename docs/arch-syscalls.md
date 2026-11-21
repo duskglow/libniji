@@ -7,7 +7,7 @@ kernel's generic table (UAPI `asm-generic/unistd.h`, which arm64 includes after 
 
 | File | Contents |
 |---|---|
-| `csys/include/aarch64/liella_sysnr.h` | `LIELLA_NR_*` for aarch64, the absent calls as comments, `LIELLA_CLONE_BACKWARDS` |
+| `csys/include/aarch64/niji_sysnr.h` | `NIJI_NR_*` for aarch64, the absent calls as comments, `NIJI_CLONE_BACKWARDS` |
 | `crates/boundary/src/nr_aarch64.rs` | the same numbers for Rust, `CLONE_BACKWARDS` |
 | `crates/boundary/src/ffi_sys_aarch64.rs` | `ffi_sys.rs` without the x86-only wrappers |
 
@@ -39,7 +39,7 @@ an error.
 **clone.** arm64 selects `CONFIG_CLONE_BACKWARDS` (`arch/arm64/Kconfig`). On x86 only `X86_32`
 selects it. The aarch64 kernel therefore takes `(flags, newsp, parent_tid, tls, child_tid)`, while
 x86_64 takes `(flags, newsp, parent_tid, child_tid, tls)`. The table marks clone `=backwards`, and
-the aarch64 outputs define `LIELLA_CLONE_BACKWARDS`. The A-6 wrapper swaps the last two arguments.
+the aarch64 outputs define `NIJI_CLONE_BACKWARDS`. The A-6 wrapper swaps the last two arguments.
 
 **Open for A-5/A-6 (needs an aarch64 toolchain or the reference, RL-2/RL-3).** Whether the
 reference exports `ustat`, `ioperm`, `iopl`, `arch_prctl` and `modify_ldt` on aarch64. The C

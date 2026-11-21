@@ -1,5 +1,5 @@
 /* The user, group and shadow databases, login shells and login accounting end to end (spec
- * §17.3-17.6; phase 10): built against the host C library and against Liella's products, the
+ * §17.3-17.6; phase 10): built against the host C library and against libniji's products, the
  * outputs must match line for line (users_products.rs). Black-box: every line is a result of a
  * public function.
  *

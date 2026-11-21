@@ -1,6 +1,6 @@
 //! gettext's language-pack directory end to end (spec §7.7; D-7.5; owner ruling 2026-10-22,
 //! #411): `tests/oracle/langpack_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/langpack_run.sh` (fixture `/usr/share/locale` and
+//! libniji's products, each run by `tests/oracle/langpack_run.sh` (fixture `/usr/share/locale` and
 //! `/usr/share/locale-langpack` in an unprivileged user and mount namespace); the outputs must be
 //! identical. Needs the products (`cargo xtask so`), a C compiler, `msgfmt`, `unshare -r -m` and
 //! the `en_US.UTF-8` locale; without them the test says so and passes.
@@ -19,12 +19,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/langpack_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -35,14 +35,14 @@ fn build(out: &Path, liella: bool) -> bool {
 fn langpack_equals_the_reference() {
     // Clauses: s7_7_c_3 (D-7.5).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("langpack_diff_host"), dir.join("langpack_diff_liella"));
+    let (host, ours) = (dir.join("langpack_diff_host"), dir.join("langpack_diff_niji"));
     assert!(build(&host, false) && build(&ours, true), "the oracle does not build");
     let script = r.join("crates/core/tests/oracle/langpack_run.sh");
     let run = |exe: &Path, scratch: &str| -> Option<String> {
@@ -57,7 +57,7 @@ fn langpack_equals_the_reference() {
         skip_note::skipped("skipped: needs msgfmt, unshare -r -m and the en_US.UTF-8 locale");
         return;
     };
-    let got = run(&ours, "langpack-liella").unwrap();
+    let got = run(&ours, "langpack-niji").unwrap();
     assert!(want.contains("dgettext lponly: langpack"), "the reference does not search the language-pack directory here:\n{want}");
-    assert_eq!(got, want, "Liella (left) against the reference (right)");
+    assert_eq!(got, want, "libniji (left) against the reference (right)");
 }

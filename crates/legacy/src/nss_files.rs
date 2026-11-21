@@ -5,8 +5,8 @@
 //!
 //! A file that cannot be read is the source failing with that error (`unavail` for the rules,
 //! the error reported to the caller: `ENOENT` when missing); a record that is not there is
-//! `notfound`. The formats are `liella::names::db` (the netdb files), `liella::users` (the user
-//! databases) and `liella::net::ether` (`ethers`).
+//! `notfound`. The formats are `niji::names::db` (the netdb files), `niji::users` (the user
+//! databases) and `niji::net::ether` (`ethers`).
 //!
 //! **User databases** (§17.3, §17.4). A lookup takes the first record that matches and skips
 //! NIS compatibility entries (`+name`, `-name`: not users or groups of this source); the
@@ -18,23 +18,23 @@
 //! matching line of the family asked for adds its addresses and names (the first line's name
 //! is the official one), as `host.conf(5)` describes and the reference does (probe, D-16.2).
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::names::db;
-use liella::names::nss::{Answer, LookupError};
-use liella::names::{Family, Ip};
-use liella::net::ether;
-use liella::users::{self, Group, Gshadow, Passwd, Shadow};
-use liella_kernel::sys::Sys;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::names::db;
+use niji::names::nss::{Answer, LookupError};
+use niji::names::{Family, Ip};
+use niji::net::ether;
+use niji::users::{self, Group, Gshadow, Passwd, Shadow};
+use niji_kernel::sys::Sys;
 
 /// The text of `file`, or the source's failure.
 pub fn read<S: Sys>(sys: &S, file: &[u8]) -> Answer<TryVec<u8>> {
-    liella::system::read_file(sys, file).map_err(LookupError::Os)
+    niji::system::read_file(sys, file).map_err(LookupError::Os)
 }
 
 /// A copy of the first line of `file` that `pred` accepts (`db::lines`; reading stops there).
 pub fn find_line<S: Sys>(sys: &S, file: &[u8], pred: impl FnMut(&[u8]) -> bool) -> Answer<TryVec<u8>> {
-    liella::system::find_line(sys, file, pred).map_err(LookupError::Os)?.ok_or(LookupError::NotFound)
+    niji::system::find_line(sys, file, pred).map_err(LookupError::Os)?.ok_or(LookupError::NotFound)
 }
 
 // ------------------------------------------------------------------------------ users and groups (§17.3, §17.4)
@@ -77,25 +77,25 @@ pub fn group_is(g: &Group<'_>, key: Key<'_>) -> bool {
 
 /// The user record for `key` in the passwd file `file`, given to `f` (`getpwnam`, `getpwuid`).
 pub fn passwd_by<S: Sys, T>(sys: &S, file: &[u8], key: Key<'_>, f: impl FnOnce(&Passwd<'_>) -> T) -> Result<Option<T>> {
-    let text = liella::system::read_file(sys, file)?;
+    let text = niji::system::read_file(sys, file)?;
     Ok(users::lines(&text).filter_map(users::passwd).find(|p| passwd_is(p, key)).map(|p| f(&p)))
 }
 
 /// The group record for `key` in the group file `file` (`getgrnam`, `getgrgid`).
 pub fn group_by<S: Sys, T>(sys: &S, file: &[u8], key: Key<'_>, f: impl FnOnce(&Group<'_>) -> T) -> Result<Option<T>> {
-    let text = liella::system::read_file(sys, file)?;
+    let text = niji::system::read_file(sys, file)?;
     Ok(users::lines(&text).filter_map(users::group).find(|g| group_is(g, key)).map(|g| f(&g)))
 }
 
 /// The shadow record of `name` in `file` (`getspnam`).
 pub fn shadow_by<S: Sys, T>(sys: &S, file: &[u8], name: &[u8], f: impl FnOnce(&Shadow<'_>) -> T) -> Result<Option<T>> {
-    let text = liella::system::read_file(sys, file)?;
+    let text = niji::system::read_file(sys, file)?;
     Ok(users::lines(&text).filter_map(users::shadow).find(|s| !users::is_compat(s.name) && s.name == name).map(|s| f(&s)))
 }
 
 /// The shadow group record of `name` in `file` (`getsgnam`).
 pub fn gshadow_by<S: Sys, T>(sys: &S, file: &[u8], name: &[u8], f: impl FnOnce(&Gshadow<'_>) -> T) -> Result<Option<T>> {
-    let text = liella::system::read_file(sys, file)?;
+    let text = niji::system::read_file(sys, file)?;
     Ok(users::lines(&text).filter_map(users::gshadow).find(|g| !users::is_compat(g.name) && g.name == name).map(|g| f(&g)))
 }
 
@@ -117,7 +117,7 @@ pub fn add_groups(text: &[u8], user: &[u8], out: &mut TryVec<u32>) -> Result<boo
 /// (`getgrouplist`, `initgroups` with the `files` source alone). A file that cannot be read
 /// lists `base` alone.
 pub fn group_list<S: Sys>(sys: &S, file: &[u8], user: &[u8], base: u32) -> Result<TryVec<u32>> {
-    let text = liella::system::read_file(sys, file).unwrap_or_else(|_| TryVec::new());
+    let text = niji::system::read_file(sys, file).unwrap_or_else(|_| TryVec::new());
     let mut out = TryVec::new();
     out.push(base)?;
     let mut found = TryVec::new();

@@ -1,6 +1,6 @@
-//! The mechanical proof that `liella_secure_zero` is never optimised away (D-X.11), checked by
+//! The mechanical proof that `niji_secure_zero` is never optimised away (D-X.11), checked by
 //! `cargo xtask native`: this program is built with the workspace's release profile (fat LTO,
-//! one codegen unit, `opt-level = 3`), so `liella_secure_zero` and everything it calls in Rust
+//! one codegen unit, `opt-level = 3`), so `niji_secure_zero` and everything it calls in Rust
 //! can be inlined into the functions below, and the executable is then disassembled.
 //!
 //! Each function derives a secret into a 4096-byte local buffer, folds it into a checksum (the
@@ -13,8 +13,8 @@
 //! * `dead_wipe_without_barrier` zeroes it with the clean library's `bytes::wipe` and a
 //!   closure that does nothing: also gone, which shows that the barrier is what keeps the
 //!   stores.
-//! * `dead_secure_zero` calls `liella_secure_zero`: the 4096-byte zeroing must remain, and be
-//!   followed by the call to the C layer's barrier `liella_machine_barrier`.
+//! * `dead_secure_zero` calls `niji_secure_zero`: the 4096-byte zeroing must remain, and be
+//!   followed by the call to the C layer's barrier `niji_machine_barrier`.
 
 #![allow(missing_docs)]
 
@@ -50,7 +50,7 @@ fn dead_fill(seed: u64) -> u64 {
 fn dead_wipe_without_barrier(seed: u64) -> u64 {
     let mut secret = derive(seed);
     let sum = checksum(&secret, 37);
-    liella::bytes::wipe(&mut secret, |_| {});
+    niji::bytes::wipe(&mut secret, |_| {});
     sum
 }
 
@@ -58,7 +58,7 @@ fn dead_wipe_without_barrier(seed: u64) -> u64 {
 fn dead_secure_zero(seed: u64) -> u64 {
     let mut secret = derive(seed);
     let sum = checksum(&secret, 41);
-    liella_boundary::native::secure::liella_secure_zero(secret.as_mut_ptr().cast(), secret.len());
+    niji_boundary::native::secure::niji_secure_zero(secret.as_mut_ptr().cast(), secret.len());
     sum
 }
 

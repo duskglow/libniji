@@ -1,6 +1,6 @@
 //! Formatting and parsing time (spec §23.7; D-23.7): the glue between the C entry points and
-//! the engines `liella::time::format` (`strftime`, `wcsftime`), `liella::time::parse`
-//! (`strptime`) and `liella_legacy::getdate`.
+//! the engines `niji::time::format` (`strftime`, `wcsftime`), `niji::time::parse`
+//! (`strptime`) and `niji_legacy::getdate`.
 //!
 //! * The process's zone is reached as an implicit `tzset` would (§23.6 names `strftime` among
 //!   the functions that call it), and only by the directives that need it: `%Z` with a NULL or
@@ -12,19 +12,19 @@
 //! * `getdate` stores its `struct tm` in the calling thread's result slots (`SLOT_GETDATE`, D-H3)
 //!   and its error in `getdate_err`; `getdate_r` returns the error and writes only on success.
 
-use liella::error::{Errno, KResult};
-use liella::locale::view::LocaleView;
-use liella::locale::Locale;
-use liella::time::fast;
-use liella::time::format::{self, Tm, Written};
-use liella::time::parse::{self, Local, Options};
-use liella::time::{Fields, Zone};
-use liella_abi::layout::struct_tm;
-use liella_abi::pack;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::CLOCK_REALTIME;
-use liella_legacy::getdate;
-use liella_rt::thread::SLOT_GETDATE;
+use niji::error::{Errno, KResult};
+use niji::locale::view::LocaleView;
+use niji::locale::Locale;
+use niji::time::fast;
+use niji::time::format::{self, Tm, Written};
+use niji::time::parse::{self, Local, Options};
+use niji::time::{Fields, Zone};
+use niji_abi::layout::struct_tm;
+use niji_abi::pack;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::CLOCK_REALTIME;
+use niji_legacy::getdate;
+use niji_rt::thread::SLOT_GETDATE;
 
 use crate::sys::CSys;
 use crate::{data, process, strz, thread, zone};

@@ -1,5 +1,5 @@
 /* backtrace end to end (spec §2.7; D-2.7): built against the host C library and against
- * Liella's products, the outputs must match line for line (backtrace_products.rs). Black-box:
+ * libniji's products, the outputs must match line for line (backtrace_products.rs). Black-box:
  * frames are reported by which of this program's own functions contains each return address
  * (the two builds lay code out differently), and the texts of backtrace_symbols with the
  * addresses and the program's name normalised. */
@@ -27,7 +27,7 @@ static void num(long v) {
 /* The functions whose frames are expected. Each is in its own `.text.sorted.*` section, which
  * the default linker script places in name order, so their order in memory is fixed and each
  * range ends where the next function starts (checked below). */
-#define NI(n) __attribute__((noinline, noclone, section(".text.sorted.liella_probe_" #n)))
+#define NI(n) __attribute__((noinline, noclone, section(".text.sorted.niji_probe_" #n)))
 static void *frames[64];
 static int got;
 static int depth_n = 64;

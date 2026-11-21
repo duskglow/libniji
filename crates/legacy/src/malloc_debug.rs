@@ -1,7 +1,7 @@
 //! Allocator debugging for the C `malloc` family (spec §3.2 `M_PERTURB`, §3.3 `mcheck`,
 //! `mcheck_pedantic`, `mcheck_check_all`, `mprobe`, `mtrace`, `muntrace`; D-3.5 as decided in
 //! phase 13): the semantics glibc provides with `libc_malloc_debug.so` preloaded, provided by
-//! Liella's own C library when the program asks for them, since its heap can do it without a
+//! libniji's own C library when the program asks for them, since its heap can do it without a
 //! second library. Written from the spec, mcheck(3), mtrace(3), mallopt(3), the glibc manual's
 //! "Heap Consistency Checking" and "Allocation Debugging", and `spec/behaviour/mallocdbg.md`.
 //!
@@ -51,14 +51,14 @@ use core::sync::atomic::AtomicU32;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 
-use liella::error::{Errno, Result};
-use liella::num::format::{format_u64, Bounded, Case, Sink};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE};
-use liella_kernel::KStr;
-use liella_rt::heap::{Misuse, Pages, ALIGN};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::num::format::{format_u64, Bounded, Case, Sink};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE};
+use niji_kernel::KStr;
+use niji_rt::heap::{Misuse, Pages, ALIGN};
+use niji_rt::sync::RawMutex;
 
 use crate::malloc_compat::Ctx;
 
@@ -87,6 +87,11 @@ pub const TRACE: u32 = 16;
 /// operation through the C family does ([`Debug::take_environ`]), then this flag is gone and
 /// the fast paths are plain again (the products take theirs at start instead).
 pub const ENVIRON: u32 = 32;
+/// The heap serves a process whose thread blocks are not known to be its library's (D-X.60:
+/// another C library started it, or the runtime has not taken it yet): every operation takes
+/// the general path, which asks whose block it is before touching a heap word. No debugging
+/// of its own; cleared for good when the runtime takes the process ([`Debug::clear_foreign`]).
+pub const FOREIGN: u32 = 64;
 
 /// Blocks perturbation holds back after their release (the quarantine's length).
 pub const QUARANTINE: usize = 32;
@@ -251,8 +256,17 @@ impl Debug {
     }
 
     /// The flags for an operation; an allocating one clears [`VIRGIN`].
+    /// Only the allocation that finds [`VIRGIN`] set writes the word, so the operations of a
+    /// [`FOREIGN`] process, which all come here, share it read-only.
     pub fn begin(&self, allocating: bool) -> u32 {
-        if allocating { self.flags.fetch_and(!VIRGIN, AcqRel) & !VIRGIN } else { self.flags.load(Acquire) }
+        let f = self.flags.load(Acquire);
+        if allocating && f & VIRGIN != 0 { self.flags.fetch_and(!VIRGIN, AcqRel) & !VIRGIN } else { f }
+    }
+
+    /// The runtime has taken the process (D-X.60): its thread blocks are the library's, and the
+    /// operations take the plain paths again unless debugging is on. Never set again.
+    pub fn clear_foreign(&self) {
+        self.flags.fetch_and(!FOREIGN, AcqRel);
     }
 
     /// The lock serialising checked operations and tracing (`fork` takes it in its prepare
@@ -348,7 +362,7 @@ impl Debug {
     /// among the [`PROBE`] its key hashes to, else (all taken) it shares the first of them. O(1).
     fn ring<'w, P: Pages>(pages: &P, w: &'w [AtomicUsize]) -> Option<&'w [AtomicUsize]> {
         // The address of the thread's heap cache word: distinct for every live thread.
-        let key = core::ptr::from_ref(pages.cache_slot()).addr();
+        let key = pages.cache_slot().map_or(0, |s| core::ptr::from_ref(s).addr());
         let h = (key >> 6).wrapping_mul(0x9e37_79b9_7f4a_7c15).wrapping_shr(usize::BITS.wrapping_sub(RINGS.trailing_zeros()));
         let at = |i: usize| {
             let k = i.wrapping_rem(RINGS).wrapping_mul(RING_WORDS);
@@ -814,7 +828,7 @@ impl Debug {
         let Ok(k) = KStr::from_nul_terminated(z) else { return };
         let Ok(fd) = sys.openat(Fd::CWD, k, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o666) else { return };
         // Kept until `muntrace`: never a standard descriptor (validation T12).
-        let Ok(fd) = liella::io::above_standard(sys, fd) else { return };
+        let Ok(fd) = niji::io::above_standard(sys, fd) else { return };
         let _ = sys.write(fd, b"= Start\n");
         self.trace.store(fd.raw(), Release);
         self.flags.fetch_or(TRACE, AcqRel);

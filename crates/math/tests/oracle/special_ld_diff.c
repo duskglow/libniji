@@ -6,7 +6,7 @@
  * and on random operands, in every rounding direction. Each line prints the operands' and
  * results' 80-bit encodings (20 hex digits; for lgammal, gammal and lgammal_r also the sign of
  * Γ(x) stored), the raised flags and errno. Built against the host C library and statically
- * against Liella's products, the outputs must agree (special_ld_products.rs) except where Liella
+ * against libniji's products, the outputs must agree (special_ld_products.rs) except where libniji
  * is correctly rounded and the host is not. */
 #define _GNU_SOURCE
 #include <errno.h>

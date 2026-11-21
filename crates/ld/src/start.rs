@@ -1,0 +1,340 @@
+//! `ld.so`'s start decisions (phase 14 DL-6, plan/ph14/design.md §1 steps 3 to 5, D-27.14). Pure
+//! logic over words and byte strings the boundary (`boundary/src/ld.rs`) reads from the initial
+//! stack; nothing here touches memory it was not given.
+//!
+//! * [`secure`]: secure mode is `AT_SECURE` only (owner approval #2661, spec/security/threat-model.md
+//!   "Who clears, and when"). The boundary removes `rt::start::UNSECURE` from the environment array
+//!   before [`ld_env`] reads any `LD_*` name.
+//! * [`program`]: the program the kernel mapped (`AT_PHDR`, `AT_PHNUM`, `AT_PHENT`, `AT_ENTRY`),
+//!   refused when the vector is malformed (a missing entry, a wrong header size, a count of zero or
+//!   one the gABI reserves).
+//! * [`rewrite`]: for `ld.so PROGRAM`, the auxiliary vector entries that describe the program the
+//!   loader mapped instead of the loader itself.
+//! * [`ld_env`], [`preload_names`]: the `LD_*` settings, read once.
+//! * [`preload_file_names`], [`preload_rule`], [`preload_mode_admits`], [`preload_ignored`]: the
+//!   preloaded objects (DL-LD-PRELOAD): the preload file's syntax, the secure-mode rule for each
+//!   name (threat model rule 1) and the "cannot be preloaded" diagnostic.
+//! * [`bias`]: the mapped program's load bias, from `PT_PHDR` or, without one, its ELF header.
+//! * [`needs_objects`]: whether a dynamic array names a `DT_NEEDED` object (loading dependencies
+//!   comes with DL-8; until then such a program is refused).
+//! * [`private`]: the C library's private start interface (`NIJI_PRIVATE`, design §14, L14-10,
+//!   D-27.22): the build tag both products carry, [`private::StartInfo`] and the lookup of
+//!   `__niji_libc_early_init` with the tag check.
+
+use niji_kernel::auxv::Auxv;
+use niji_kernel::uapi::{AT_BASE, AT_ENTRY, AT_PHDR, AT_PHENT, AT_PHNUM, AT_SECURE};
+
+/// `sizeof(Elf64_Phdr)`: the only program-header size the loader reads.
+pub const PHENT: u64 = 56;
+
+/// `PN_XNUM` (ELF gABI): an `e_phnum` of this value means the real count is elsewhere (section
+/// header 0). The kernel never passes it for an executable it mapped; the loader refuses it and
+/// anything above it.
+pub const PN_XNUM: u64 = 0xffff;
+
+/// `DT_NULL` and `DT_NEEDED` (ELF gABI dynamic tags).
+const DT_NULL: u64 = 0;
+const DT_NEEDED: u64 = 1;
+
+/// The program the kernel mapped, from the auxiliary vector.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Program {
+    /// Run-time address of the program headers (`AT_PHDR`).
+    pub phdr: usize,
+    /// Number of program headers (`AT_PHNUM`), 1 to `PN_XNUM - 1`.
+    pub phnum: usize,
+    /// Run-time entry point (`AT_ENTRY`).
+    pub entry: usize,
+}
+
+/// Why the auxiliary vector does not describe a program the loader can start.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StartError {
+    /// No `AT_PHDR` (or zero).
+    NoPhdr,
+    /// No `AT_ENTRY` (or zero).
+    NoEntry,
+    /// `AT_PHENT` present and not [`PHENT`].
+    BadPhent,
+    /// `AT_PHNUM` missing, zero, or `PN_XNUM` and above.
+    BadPhnum,
+}
+
+impl StartError {
+    /// The diagnostic line (standard error) for a refused start.
+    pub fn message(self) -> &'static [u8] {
+        match self {
+            StartError::NoPhdr => b"ld.so: the auxiliary vector has no program headers (AT_PHDR)\n",
+            StartError::NoEntry => b"ld.so: the auxiliary vector has no entry point (AT_ENTRY)\n",
+            StartError::BadPhent => b"ld.so: the auxiliary vector has a wrong program header size (AT_PHENT)\n",
+            StartError::BadPhnum => b"ld.so: the auxiliary vector has a bad program header count (AT_PHNUM)\n",
+        }
+    }
+}
+
+/// Secure mode: `AT_SECURE` present and non-zero, and nothing else (owner approval #2661; the
+/// hosted rule on real and effective IDs stays in the tests). The same rule as libc's start.
+pub fn secure(aux: &Auxv<'_>) -> bool {
+    aux.get(AT_SECURE).is_some_and(|v| v != 0)
+}
+
+/// The program the kernel mapped. A missing `AT_PHENT` is taken as [`PHENT`] (the kernel always
+/// passes it; the value is checked when present).
+///
+/// # Errors
+///
+/// [`StartError`] for a malformed vector.
+pub fn program(aux: &Auxv<'_>) -> Result<Program, StartError> {
+    let word = |key| aux.get(key).filter(|&v| v != 0).and_then(|v| usize::try_from(v).ok());
+    let phdr = word(AT_PHDR).ok_or(StartError::NoPhdr)?;
+    let entry = word(AT_ENTRY).ok_or(StartError::NoEntry)?;
+    if aux.get(AT_PHENT).is_some_and(|v| v != PHENT) {
+        return Err(StartError::BadPhent);
+    }
+    let phnum = aux.get(AT_PHNUM).filter(|&n| n != 0 && n < PN_XNUM).ok_or(StartError::BadPhnum)?;
+    let phnum = usize::try_from(phnum).map_err(|_| StartError::BadPhnum)?;
+    Ok(Program { phdr, phnum, entry })
+}
+
+/// For `ld.so PROGRAM`: make the auxiliary vector `words` (key/value pairs, up to `AT_NULL`)
+/// describe `prog`, which the loader mapped, with the loader itself at `base` (`AT_BASE`, as when
+/// the kernel starts the loader for a program's `PT_INTERP`). Only entries already present change.
+pub fn rewrite(words: &mut [u64], prog: &Program, base: usize) {
+    let as_word = |v: usize| u64::try_from(v).unwrap_or(u64::MAX);
+    for pair in words.chunks_exact_mut(2) {
+        let value = match pair.first().copied() {
+            Some(0) | None => return,
+            Some(AT_PHDR) => as_word(prog.phdr),
+            Some(AT_PHNUM) => as_word(prog.phnum),
+            Some(AT_PHENT) => PHENT,
+            Some(AT_ENTRY) => as_word(prog.entry),
+            Some(AT_BASE) => as_word(base),
+            Some(_) => continue,
+        };
+        if let Some(v) = pair.get_mut(1) {
+            *v = value;
+        }
+    }
+}
+
+/// The `LD_*` settings the loader reads (ld.so(8) "Environment"), read once, after secure-mode
+/// clearing. The first entry of a name counts, as for `getenv`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LdEnv<'a> {
+    /// `LD_PRELOAD`: objects to load before the program's dependencies.
+    pub preload: Option<&'a [u8]>,
+    /// `LD_LIBRARY_PATH`: directories searched before the defaults (DL-8).
+    pub library_path: Option<&'a [u8]>,
+    /// `LD_BIND_NOW` set to a non-empty string: resolve every symbol at start (DL-10, DL-13).
+    pub bind_now: bool,
+    /// `GLIBC_TUNABLES` (D-1.8): parsed by the caller with the secure filter.
+    pub tunables: Option<&'a [u8]>,
+    /// `LD_TRACE_LOADED_OBJECTS` is set, to any value (ld.so(8)); the loader ignores it in secure
+    /// mode (threat model rule 11, DL-8).
+    pub trace: bool,
+    /// `LD_ORIGIN_PATH` (ld.so(8)); the loader ignores it in secure mode (rule 2, DL-8).
+    pub origin_path: Option<&'a [u8]>,
+    /// [`REPORT_NONSHARED_ENV`] set to a non-empty string: report each loaded object that carries
+    /// the libc_nonshared.a notice ([`uses_nonshared_stubs`]); the loader ignores it in secure mode.
+    pub report_nonshared: bool,
+}
+
+/// The libniji-only setting that asks the loader for the libc_nonshared.a report (D-27.29, owner
+/// ruling #4861): a distribution that built its archive with the notice lists the objects still
+/// registering exit or fork handlers through the archive's members.
+pub const REPORT_NONSHARED_ENV: &[u8] = b"NIJI_LD_REPORT_NONSHARED";
+
+/// The owner name of the notice note an archive member built with `NIJI_NONSHARED_NOTICE=1`
+/// carries (section `.note.niji.nonshared`, allocated, so in the linked object's `PT_NOTE`).
+pub const NONSHARED_NOTE_NAME: &[u8] = b"libniji";
+
+/// The notice note's `n_type` (libniji's own note namespace; the descriptor is empty).
+pub const NT_NIJI_NONSHARED: u32 = 1;
+
+/// Whether the object `elf` carries the libc_nonshared.a notice: a [`NONSHARED_NOTE_NAME`] note of
+/// type [`NT_NIJI_NONSHARED`] in any `PT_NOTE` segment. Notes the reader cannot read count as
+/// absent (the report is advice; it never refuses an object).
+#[must_use]
+pub fn uses_nonshared_stubs(elf: &crate::elf::Elf<'_>) -> bool {
+    elf.program_headers()
+        .filter(|ph| ph.p_type == crate::elf::pt::NOTE)
+        .any(|ph| elf.notes(&ph).is_ok_and(|ns| ns.map_while(Result::ok).any(|n| n.name == NONSHARED_NOTE_NAME && n.n_type == NT_NIJI_NONSHARED)))
+}
+
+/// The report line for an object `name` that carries the notice (standard error, in order).
+#[must_use]
+pub fn nonshared_report(name: &[u8]) -> [&[u8]; 3] {
+    [b"ld.so: ", name, b": registers exit or fork handlers through libc_nonshared.a (link with the niji-owner directory to opt in to NIJI_OWNER_1)\n"]
+}
+
+/// The value of `name` in the environment entry `entry` (`NAME=value`), if it is that name's entry.
+pub fn value_of<'a>(entry: &'a [u8], name: &[u8]) -> Option<&'a [u8]> {
+    entry.strip_prefix(name)?.strip_prefix(b"=")
+}
+
+/// The loader's settings from the environment entries `env` (each `NAME=value`, without the NUL).
+/// The caller passes the environment after secure-mode clearing (threat model rule 1).
+pub fn ld_env<'a>(env: impl IntoIterator<Item = &'a [u8]>) -> LdEnv<'a> {
+    let mut out = LdEnv::default();
+    let mut bind_now = None;
+    let mut report = None;
+    for e in env {
+        let first = |slot: &mut Option<&'a [u8]>, name: &[u8]| {
+            if slot.is_none() {
+                *slot = value_of(e, name);
+            }
+        };
+        first(&mut out.preload, b"LD_PRELOAD");
+        first(&mut out.library_path, b"LD_LIBRARY_PATH");
+        first(&mut out.tunables, b"GLIBC_TUNABLES");
+        first(&mut bind_now, b"LD_BIND_NOW");
+        first(&mut out.origin_path, b"LD_ORIGIN_PATH");
+        first(&mut report, REPORT_NONSHARED_ENV);
+        out.trace |= value_of(e, b"LD_TRACE_LOADED_OBJECTS").is_some();
+    }
+    out.bind_now = bind_now.is_some_and(|v| !v.is_empty());
+    out.report_nonshared = report.is_some_and(|v| !v.is_empty());
+    out
+}
+
+/// The object names in an `LD_PRELOAD` value: separated by spaces or colons (ld.so(8)), empty
+/// names skipped.
+pub fn preload_names(value: &[u8]) -> impl Iterator<Item = &[u8]> {
+    value.split(|&b| b == b' ' || b == b':').filter(|n| !n.is_empty())
+}
+
+/// The object names in the preload file (`<prefix>/etc/ld.so.preload`): separated by spaces, tabs,
+/// newlines or colons; a `#` starts a comment that ends at the end of its line; empty names skipped
+/// (DL-LD-PRELOAD probe of the reference, spec/behaviour/dynlink-preload.md).
+pub fn preload_file_names(text: &[u8]) -> impl Iterator<Item = &[u8]> {
+    text.split(|&b| b == b'\n')
+        .flat_map(|line| line.split(|&b| b == b'#').next().unwrap_or(&[]).split(|&b| b == b' ' || b == b'\t' || b == b':'))
+        .filter(|n| !n.is_empty())
+}
+
+/// The text a preload's diagnostic names as its source: `LD_PRELOAD` (the file's path is the other).
+pub const PRELOAD_ENV: &[u8] = b"LD_PRELOAD";
+
+/// How a preload name is looked for (threat model rule 1, spec/behaviour/dynlink-secure.md).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreloadRule {
+    /// As a `DT_NEEDED` name of the program: a name with `/` as given (after token expansion), else
+    /// the search (in secure mode the search's own rules apply).
+    Search,
+    /// Secure mode, an `LD_PRELOAD` name without `/`: only in a trusted directory, and only a file
+    /// with the set-user-ID bit ([`preload_mode_admits`]); otherwise not found.
+    TrustedSetUid,
+    /// Secure mode, an `LD_PRELOAD` name with `/`: skipped without a message.
+    Skip,
+}
+
+/// The rule for the preload `name`, from `LD_PRELOAD` (`from_env`) or from the preload file. The
+/// file is root-owned configuration: honoured as given in secure mode too (probe DL-0a).
+pub fn preload_rule(name: &[u8], from_env: bool, secure: bool) -> PreloadRule {
+    match (secure && from_env, name.contains(&b'/')) {
+        (false, _) => PreloadRule::Search,
+        (true, true) => PreloadRule::Skip,
+        (true, false) => PreloadRule::TrustedSetUid,
+    }
+}
+
+/// Whether a file of mode `mode` (`st_mode`) may be preloaded by a secure process: it has the
+/// set-user-ID bit (threat model rule 1; a set-group-ID bit alone does not admit it).
+pub fn preload_mode_admits(mode: u32) -> bool {
+    mode & 0o4000 != 0
+}
+
+/// The reason a preload that was not found gives (the reference's text, probed).
+pub const PRELOAD_MISSING: &[u8] = b"cannot open shared object file";
+
+/// The diagnostic for a preload that cannot be loaded (standard error, in order): the reference's
+/// line (probed), naming the object, its source ([`PRELOAD_ENV`] or the file's path) and the
+/// reason. The program still runs, as there.
+pub fn preload_ignored<'a>(name: &'a [u8], source: &'a [u8], reason: &'a [u8]) -> [&'a [u8]; 7] {
+    [b"ERROR: ld.so: object '", name, b"' from ", source, b" cannot be preloaded (", reason, b"): ignored.\n"]
+}
+
+/// Whether the dynamic array `words` (tag/value pairs, up to `DT_NULL`) names a `DT_NEEDED` object.
+pub fn needs_objects(words: &[u64]) -> bool {
+    words.chunks_exact(2).map(|p| p.first().copied().unwrap_or(DT_NULL)).take_while(|&t| t != DT_NULL).any(|t| t == DT_NEEDED)
+}
+
+/// The diagnostic for a program with dependencies (DL-8 loads them).
+pub const NEEDS_OBJECTS: &[u8] = b"ld.so: the program needs shared objects; loading them is not available in this build\n";
+
+/// The load bias of a mapped program (D-27.18, ruling #4371): `PT_PHDR`'s, or without one the
+/// one its ELF header and the `PT_LOAD` holding its program headers give. One implementation,
+/// in libc's start (`niji_rt::start::bias`), shared with libc's own lookups of the executable.
+pub use niji_rt::start::bias;
+
+/// The private start interface between `ld.so` and `libc.so.6` (version node `NIJI_PRIVATE`,
+/// plan/ph14/design.md §14, L14-10, R14-12, D-27.22). Never in a public header.
+pub mod private {
+    use crate::reloc::Obj;
+    use crate::symbols::{Object, Request, Want};
+
+    pub use niji_rt::start::private::{BUILD_TAG, EARLY_INIT, NODE, OWNER_UNLOAD, STACK_EXEC, StartInfo, TAG_LEN, TAG_PREFIX, THREAD_WALK};
+
+    /// The loader's build tag (`niji_rt::start::private::tag`), compared with the C library's.
+    pub const TAG: [u8; TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));
+
+    /// [`TAG_LEN`] as a symbol size.
+    const TAG_SIZE: u64 = 64;
+
+    /// The C library's early-init entry found among the loaded objects.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct Found {
+        /// The object defining it.
+        pub obj: usize,
+        /// Its run-time address.
+        pub early_init: u64,
+    }
+
+    /// Why the private interface refuses a pair (the object's index).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum PrivateError {
+        /// The object's tag is missing, malformed or not this loader's: built from another commit.
+        Mismatch(usize),
+        /// The object's symbol tables cannot be read.
+        Malformed(usize),
+    }
+
+    impl PrivateError {
+        /// The diagnostic after the object's name (standard error).
+        pub fn message(self) -> &'static [u8] {
+            match self {
+                PrivateError::Mismatch(_) => b": NIJI_PRIVATE build tag differs from the dynamic loader's (the C library and ld.so come from different builds)\n",
+                PrivateError::Malformed(_) => b": malformed NIJI_PRIVATE symbols\n",
+            }
+        }
+    }
+
+    /// The first object but `skip` (the loader itself) that defines [`EARLY_INIT`] at [`NODE`], once its
+    /// [`BUILD_TAG`] is checked against [`TAG`] (L14-10): the tag must be a [`TAG_LEN`]-byte object
+    /// inside the file part of a `PT_LOAD`, read through `read(address, out)` (the object is mapped).
+    /// `None`: no object has the interface (a program without libniji's C library).
+    ///
+    /// # Errors
+    ///
+    /// [`PrivateError`] for the object whose tag differs or whose tables cannot be read.
+    pub fn find(objs: &[Obj<'_>], syms: &[Object<'_>], skip: Option<usize>, mut read: impl FnMut(u64, &mut [u8])) -> Result<Option<Found>, PrivateError> {
+        let (early, tag) = (Request::new(EARLY_INIT, Want::Version(NODE)), Request::new(BUILD_TAG, Want::Version(NODE)));
+        for (k, (o, s)) in objs.iter().zip(syms).enumerate().filter(|&(k, _)| Some(k) != skip) {
+            let Some(def) = s.lookup(&early).map_err(|_| PrivateError::Malformed(k))? else { continue };
+            let t = s.lookup(&tag).map_err(|_| PrivateError::Malformed(k))?.filter(|t| t.st.size == TAG_SIZE);
+            let Some(t) = t.filter(|t| {
+                let end = t.st.value.checked_add(TAG_SIZE);
+                o.elf.program_headers().any(|p| p.p_type == crate::elf::pt::LOAD && p.vaddr <= t.st.value && end.is_some_and(|e| e <= p.vaddr.saturating_add(p.filesz)))
+            }) else {
+                return Err(PrivateError::Mismatch(k));
+            };
+            let mut theirs = [0u8; TAG_LEN];
+            read(o.bias.wrapping_add(t.st.value), &mut theirs);
+            if theirs != TAG {
+                return Err(PrivateError::Mismatch(k));
+            }
+            return Ok(Some(Found { obj: k, early_init: o.bias.wrapping_add(def.st.value) }));
+        }
+        Ok(None)
+    }
+}

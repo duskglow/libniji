@@ -1,7 +1,7 @@
 /* The DNS stub resolver beyond dns_diff.c (spec §16.2, §16.4; phase 10, part 4): the resolv.conf
  * options, several servers, timeouts, rotate, edns0, single-request(-reopen), sortlist,
  * RES_OPTIONS, LOCALDOMAIN, HOSTALIASES, re-reading resolv.conf, the search order, IDNA and
- * getaddrinfo_a. Built against the host C library and against Liella's products, the outputs
+ * getaddrinfo_a. Built against the host C library and against libniji's products, the outputs
  * must match line for line (dns_products.rs). Black-box: every line is a result of a public
  * function, or a query as the test's own DNS servers received it (a log the servers write).
  *
@@ -181,7 +181,7 @@ static int put_name(unsigned char *m, int at, const char *name)
 }
 
 /* The names whose repeated host lookups the query logs and server sequences compare get TTL 0:
- * their answers may not be cached (RFC 1035 §3.2.1), so a resolver that caches, Liella's
+ * their answers may not be cached (RFC 1035 §3.2.1), so a resolver that caches, libniji's
  * name-service cache (D-16.10), sends the same queries as one that does not. Every other answer
  * keeps TTL 300. The reference's output is the same either way: no line prints these TTLs. */
 static const char *const UNCACHED[] = {"who.test", "many.test", "junk.test", "c1.test", "c2.test", "a.test", "sort.test", "xn--bcher-kva.test",

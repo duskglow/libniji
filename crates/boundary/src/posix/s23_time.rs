@@ -3,22 +3,22 @@
 //! zones, §23.7 formatting and parsing).
 //!
 //! `clock_gettime` reads the vDSO through `Sys` (P3). The older readings are translations of
-//! it (D-23.1), and what glibc adds is in `liella_legacy::clock_compat`. Structures are typed
+//! it (D-23.1), and what glibc adds is in `niji_legacy::clock_compat`. Structures are typed
 //! parameters (D-X.8). `alarm`, `ualarm` and the itimers are the kernel's shared timers
 //! (D-23.2); `timerfd_*` are the system calls; the POSIX timers go through `crate::timer`,
 //! which keeps the `SIGEV_THREAD` timers (D-23.3).
 //!
-//! Broken-down time and zones go through `crate::zone` (the zone engine is `liella::time`, the
-//! process's zone and the globals `liella_legacy::time_compat`; D-23.4 to D-23.6). NULL
+//! Broken-down time and zones go through `crate::zone` (the zone engine is `niji::time`, the
+//! process's zone and the globals `niji_legacy::time_compat`; D-23.4 to D-23.6). NULL
 //! pointers are `EFAULT` (S6). Formatting and parsing go through `crate::timefmt` (the engines
-//! `liella::time::{format, parse}` and `liella_legacy::getdate`; D-23.7).
+//! `niji::time::{format, parse}` and `niji_legacy::getdate`; D-23.7).
 
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void, locale_t, size_t, wchar_t};
-use liella_abi::layout::{struct_ntptimeval, struct_timeb, struct_tm};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerspec, Itimerval, SigEvent, Timespec, Timeval, Timex, Timezone, Tms, CLOCK_REALTIME};
-use liella_legacy::clock_compat;
-use liella_legacy::time_compat::ASCTIME_LEN;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void, locale_t, size_t, wchar_t};
+use niji_abi::layout::{struct_ntptimeval, struct_timeb, struct_tm};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerspec, Itimerval, SigEvent, Timespec, Timeval, Timex, Timezone, Tms, CLOCK_REALTIME};
+use niji_legacy::clock_compat;
+use niji_legacy::time_compat::ASCTIME_LEN;
 
 use crate::cancel;
 use crate::conv;
@@ -103,7 +103,7 @@ pub extern "C" fn settimeofday(tv: Option<&Timeval>, tz: Option<&Timezone>) -> c
 // reference matches in `libc.a`). Tests call it as the plain Rust function (D-27.4).
 crate::internal_entry! {
 /// `stime`'s translation, exported only as `stime@GLIBC_2.2.5` (compat-only; see above).
-pub extern "C" fn liella_compat_stime(t: Option<&i64>) -> c_int {
+pub extern "C" fn niji_compat_stime(t: Option<&i64>) -> c_int {
     ret::zero(conv::req(t).and_then(|t| clock_compat::stime(&CSys, conv::copy(t))))
 }}
 
@@ -276,12 +276,12 @@ pub extern "C" fn timegm(tm: Option<&mut struct_tm>) -> i64 {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn difftime(t1: i64, t0: i64) -> f64 {
-    liella::time::difftime(t1, t0)
+    niji::time::difftime(t1, t0)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn dysize(year: c_int) -> c_int {
-    liella::time::dysize(year)
+    niji::time::dysize(year)
 }}
 
 export! { "GLIBC_2.2.5";

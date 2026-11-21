@@ -22,16 +22,16 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::Errno;
-use liella::mem::TryVec;
-use liella::num::parse::{parse_i64, Dialect, Status};
-use liella::text::Encoding;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_WRONLY};
-use liella_legacy::stdio_compat as sc;
-use liella_rt::sync::RawMutex;
+use niji::error::Errno;
+use niji::mem::TryVec;
+use niji::num::parse::{parse_i64, Dialect, Status};
+use niji::text::Encoding;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_WRONLY};
+use niji_legacy::stdio_compat as sc;
+use niji_rt::sync::RawMutex;
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;

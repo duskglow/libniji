@@ -259,12 +259,12 @@ fn exempt_list_names_only_exported_long_double_functions() {
 fn every_long_double_function_gives_the_default_nan_for_an_invalid_encoding() {
     // Clauses: s10_3_c_0 (D-10.20).
     let r = root();
-    assert!(r.join("target/liella/libm.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libm.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
-    let p = r.join("target/liella");
+    let p = r.join("target/niji");
     let nm = Command::new("nm").args(["-g", "--defined-only", "-P"]).arg(p.join("libm.a")).arg(p.join("libc.a")).output().unwrap();
     let defined: BTreeSet<String> = String::from_utf8_lossy(&nm.stdout).lines().filter_map(|l| l.split_whitespace().next().map(str::to_string)).collect();
     assert!(defined.contains("sinl"), "nm lists no symbols of the products");
@@ -283,7 +283,7 @@ fn every_long_double_function_gives_the_default_nan_for_an_invalid_encoding() {
     let (c, exe) = (dir.join("x87_invalid_sweep.c"), dir.join("x87_invalid_sweep"));
     std::fs::write(&c, src).unwrap();
     let mut cmd = Command::new("cc");
-    cmd.args(["-std=gnu17", "-O0", "-static", "-nostdlib", "-fno-builtin", "-w"]).arg(p.join("liella-crt1.o")).arg(&c).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
+    cmd.args(["-std=gnu17", "-O0", "-static", "-nostdlib", "-fno-builtin", "-w"]).arg(p.join("niji-crt1.o")).arg(&c).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
     assert!(oracle::build(cmd, &exe), "x87_invalid_sweep.c does not link against the products");
     let out = Command::new(&exe).env_clear().output().unwrap();
     assert!(out.status.success(), "the sweep program failed: {:?}", out.status);

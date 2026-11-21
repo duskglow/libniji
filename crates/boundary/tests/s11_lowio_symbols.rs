@@ -10,7 +10,7 @@
 //! `ioctl`, `mremap` and their aliases) are tested through their fixed-arity targets here and
 //! through real C varargs in `conformance/c/s11_variadic.c`. Aborts run in re-executed copies
 //! of this binary.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -25,14 +25,14 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_abi::layout::sigset_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as s;
-use liella_boundary::sys::CSys;
-use liella_kernel::mem::{IoVec, IoVecMut, RemoteIoVec};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{EpollEvent, FdSet, PollFd, Timespec, Timeval};
+use niji_abi::ctypes::{c_int, c_void};
+use niji_abi::layout::sigset_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as s;
+use niji_boundary::sys::CSys;
+use niji_kernel::mem::{IoVec, IoVecMut, RemoteIoVec};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{EpollEvent, FdSet, PollFd, Timespec, Timeval};
 
 const EBADF: i32 = 9;
 const EAGAIN: i32 = 11;
@@ -49,7 +49,7 @@ const O_TRUNC: c_int = 0o1000;
 const O_NONBLOCK: c_int = 0o4000;
 const O_CLOEXEC: c_int = 0o2000000;
 const AT_FDCWD: c_int = -100;
-const PROBE: &str = "LIELLA_S11_PROBE";
+const PROBE: &str = "NIJI_S11_PROBE";
 
 static SEQ: AtomicU32 = AtomicU32::new(0);
 
@@ -97,7 +97,7 @@ fn tmp(tag: &str) -> Tmp {
 /// A new file opened read-write, with `content`.
 fn file(tag: &str, content: &[u8]) -> (Tmp, c_int) {
     let p = tmp(tag);
-    let fd = s::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_TRUNC, 0o600);
+    let fd = s::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_TRUNC, 0o600);
     assert!(fd >= 0, "open {p:?}: errno {}", errno::get());
     assert_eq!(s::write(fd, content.as_ptr().cast(), content.len()), content.len() as isize);
     (p, fd)
@@ -121,7 +121,7 @@ fn pipe() -> (c_int, c_int) {
 }
 
 fn is_open(fd: c_int) -> bool {
-    CSys.fcntl_int(liella_kernel::Fd::new(fd), liella_kernel::ops::FcntlInt::GetFd, 0).is_ok()
+    CSys.fcntl_int(niji_kernel::Fd::new(fd), niji_kernel::ops::FcntlInt::GetFd, 0).is_ok()
 }
 
 fn closed(fd: c_int) -> bool {
@@ -153,13 +153,13 @@ fn run_probe(test: &str, name: &str) -> std::process::Output {
 }
 
 /// The variable naming a re-executed child's scratch directory ([`run_probe`]).
-const CHILD_TMP: &str = "LIELLA_S11_TMP";
+const CHILD_TMP: &str = "NIJI_S11_TMP";
 
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -409,7 +409,7 @@ fn check_cancel(cancel: extern "C" fn(c_int, *mut c_void) -> c_int) {
 
 /// `lio_listio`/`lio_listio64`: `EINVAL` for a mode; `LIO_WAIT` returns when every entry is
 /// done (0, or `EIO` when one failed); NULL and `LIO_NOP` entries are skipped.
-fn check_listio(listio: extern "C" fn(c_int, *const *mut c_void, c_int, Option<&liella_kernel::uapi::SigEvent>) -> c_int) {
+fn check_listio(listio: extern "C" fn(c_int, *const *mut c_void, c_int, Option<&niji_kernel::uapi::SigEvent>) -> c_int) {
     let (path, fd) = file("lio_listio", b"abcdef");
     let mut buf = [0u8; 4];
     let mut rd = Cb::new(fd, buf.as_mut_ptr(), 3, 1);
@@ -558,9 +558,9 @@ fn sym_aio_init() {
     // aio_init changes the process's worker pool: in a re-executed copy of this binary, on
     // the worker engine, where one worker makes a request on another descriptor wait.
     if probe().as_deref() == Some("aio_init") {
-        liella_boundary::selftest::aio_force_workers(true);
+        niji_boundary::selftest::aio_force_workers(true);
         s::aio_init(None);
-        let init = liella_abi::layout::struct_aioinit { aio_threads: 1, aio_num: 4, aio_locks: 0, aio_usedba: 0, aio_debug: 0, aio_numusers: 0, aio_idle_time: 1, aio_reserved: 0 };
+        let init = niji_abi::layout::struct_aioinit { aio_threads: 1, aio_num: 4, aio_locks: 0, aio_usedba: 0, aio_debug: 0, aio_numusers: 0, aio_idle_time: 1, aio_reserved: 0 };
         s::aio_init(Some(&init));
         let (r, w) = pipe();
         let mut buf = [0u8; 4];
@@ -568,7 +568,7 @@ fn sym_aio_init() {
         let hp = &raw mut held;
         assert_eq!(s::aio_read(hp.cast()), 0);
         std::thread::sleep(std::time::Duration::from_millis(100));
-        let z = s::liella_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
+        let z = s::niji_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
         let mut zb = [1u8; 4];
         let mut zc = Cb::new(z, zb.as_mut_ptr(), 4, 0);
         let zp = &raw mut zc;
@@ -610,7 +610,7 @@ fn sym_close_range() {
         assert!(fails(s::close_range(lo, hi, 4) as isize, EINVAL), "an unknown flag before 5.11");
     } else {
         assert_eq!(s::close_range(lo, hi, 4), 0, "CLOSE_RANGE_CLOEXEC marks");
-        assert_eq!(CSys.fcntl_int(liella_kernel::Fd::new(b), liella_kernel::ops::FcntlInt::GetFd, 0).unwrap(), 1);
+        assert_eq!(CSys.fcntl_int(niji_kernel::Fd::new(b), niji_kernel::ops::FcntlInt::GetFd, 0).unwrap(), 1);
     }
     assert_eq!(s::close_range(lo, hi, 0), 0);
     assert!(closed(b) && closed(c));
@@ -711,7 +711,7 @@ fn sym_dup3() {
     let (_f, fd) = file("dup3", b"");
     let (_f, other) = file("dup3b", b"");
     assert_eq!(s::dup3(fd, other, O_CLOEXEC), other);
-    assert_eq!(CSys.fcntl_int(liella_kernel::Fd::new(other), liella_kernel::ops::FcntlInt::GetFd, 0).unwrap(), 1);
+    assert_eq!(CSys.fcntl_int(niji_kernel::Fd::new(other), niji_kernel::ops::FcntlInt::GetFd, 0).unwrap(), 1);
     errno::set_raw(0);
     assert!(fails(s::dup3(fd, fd, 0) as isize, EINVAL), "the same descriptor");
     s::close(other);
@@ -890,13 +890,13 @@ fn sym_fanotify_mark() {
 #[test]
 fn sym___fcntl() {
     let (_f, fd) = file("__fcntl", b"");
-    assert_eq!(s::liella_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
-    assert_eq!(s::liella_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
-    let mut fl = liella_kernel::uapi::Flock::new(1, 0, 0, 10);
-    assert_eq!(s::liella_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
+    assert_eq!(s::niji_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
+    assert_eq!(s::niji_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
+    let mut fl = niji_kernel::uapi::Flock::new(1, 0, 0, 10);
+    assert_eq!(s::niji_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
     errno::set_raw(0);
-    assert!(fails(s::liella_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
-    assert!(fails(s::liella_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
+    assert!(fails(s::niji_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
+    assert!(fails(s::niji_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
     s::close(fd);
     conformance(&["s11_variadic"]);
 }
@@ -904,13 +904,13 @@ fn sym___fcntl() {
 #[test]
 fn sym_fcntl() {
     let (_f, fd) = file("fcntl", b"");
-    assert_eq!(s::liella_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
-    assert_eq!(s::liella_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
-    let mut fl = liella_kernel::uapi::Flock::new(1, 0, 0, 10);
-    assert_eq!(s::liella_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
+    assert_eq!(s::niji_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
+    assert_eq!(s::niji_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
+    let mut fl = niji_kernel::uapi::Flock::new(1, 0, 0, 10);
+    assert_eq!(s::niji_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
     errno::set_raw(0);
-    assert!(fails(s::liella_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
-    assert!(fails(s::liella_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
+    assert!(fails(s::niji_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
+    assert!(fails(s::niji_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
     s::close(fd);
     conformance(&["s11_variadic"]);
 }
@@ -918,13 +918,13 @@ fn sym_fcntl() {
 #[test]
 fn sym_fcntl64() {
     let (_f, fd) = file("fcntl64", b"");
-    assert_eq!(s::liella_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
-    assert_eq!(s::liella_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
-    let mut fl = liella_kernel::uapi::Flock::new(1, 0, 0, 10);
-    assert_eq!(s::liella_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
+    assert_eq!(s::niji_fcntl3(fd, 2, 1), 0, "F_SETFD FD_CLOEXEC (an int argument)");
+    assert_eq!(s::niji_fcntl3(fd, 1, 0x1234_5678_0000_0000), 1, "F_GETFD: an absent argument is ignored");
+    let mut fl = niji_kernel::uapi::Flock::new(1, 0, 0, 10);
+    assert_eq!(s::niji_fcntl3(fd, 6, &raw mut fl as usize), 0, "F_SETLK (a struct flock)");
     errno::set_raw(0);
-    assert!(fails(s::liella_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
-    assert!(fails(s::liella_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
+    assert!(fails(s::niji_fcntl3(fd, 6, 0) as isize, 14), "a NULL structure: EFAULT");
+    assert!(fails(s::niji_fcntl3(fd, 0x7fff, 0) as isize, EINVAL), "an unknown command");
     s::close(fd);
     conformance(&["s11_variadic"]);
 }
@@ -948,7 +948,7 @@ fn sym___fdelt_chk() {
     assert_eq!(s::__fdelt_chk(0), 0);
     assert_eq!(s::__fdelt_chk(1023), 15);
     if probe().as_deref() == Some("big") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__fdelt_chk(1024);
         return;
     }
@@ -961,7 +961,7 @@ fn sym___fdelt_warn() {
     assert_eq!(s::__fdelt_warn(0), 0);
     assert_eq!(s::__fdelt_warn(1023), 15);
     if probe().as_deref() == Some("big") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__fdelt_warn(1024);
         return;
     }
@@ -972,7 +972,7 @@ fn sym___fdelt_warn() {
 #[test]
 fn sym_flock() {
     let (p, a) = file("flock", b"");
-    let b = s::liella_open3(p.as_ptr(), O_RDWR, 0);
+    let b = s::niji_open3(p.as_ptr(), O_RDWR, 0);
     assert_eq!(s::flock(a, 2 | 4), 0, "LOCK_EX|LOCK_NB");
     errno::set_raw(0);
     assert!(fails(s::flock(b, 2 | 4) as isize, EAGAIN), "another open file description conflicts");
@@ -1051,10 +1051,10 @@ fn sym_ioctl() {
     let (r, w) = pipe();
     s::write(w, b"abc".as_ptr().cast(), 3);
     let mut avail: c_int = 0;
-    assert_eq!(s::liella_ioctl3(r, 0x541B, &raw mut avail as usize), 0, "FIONREAD");
+    assert_eq!(s::niji_ioctl3(r, 0x541B, &raw mut avail as usize), 0, "FIONREAD");
     assert_eq!(avail, 3);
     errno::set_raw(0);
-    assert!(fails(s::liella_ioctl3(r, 0x5401, 0) as isize, 25), "TCGETS on a pipe: ENOTTY");
+    assert!(fails(s::niji_ioctl3(r, 0x5401, 0) as isize, 25), "TCGETS on a pipe: ENOTTY");
     s::close(r);
     s::close(w);
     conformance(&["s11_variadic"]);
@@ -1080,7 +1080,7 @@ fn sym_llseek() {
 fn sym_lockf() {
     if let Some(path) = probe() {
         let p = CString::new(path).unwrap();
-        let fd = s::liella_open3(p.as_ptr(), O_RDWR, 0);
+        let fd = s::niji_open3(p.as_ptr(), O_RDWR, 0);
         errno::set_raw(0);
         let test = s::lockf(fd, 3, 0);
         let tlock = s::lockf(fd, 2, 0);
@@ -1108,7 +1108,7 @@ fn sym_lockf() {
 fn sym_lockf64() {
     if let Some(path) = probe() {
         let p = CString::new(path).unwrap();
-        let fd = s::liella_open3(p.as_ptr(), O_RDWR, 0);
+        let fd = s::niji_open3(p.as_ptr(), O_RDWR, 0);
         errno::set_raw(0);
         let test = s::lockf64(fd, 3, 0);
         let tlock = s::lockf64(fd, 2, 0);
@@ -1183,17 +1183,17 @@ fn sym_lseek64() {
 #[test]
 fn sym_madvise() {
     let p = anon(4096);
-    liella_boundary::posix::s04_strings::memset(p, 7, 4096);
+    niji_boundary::posix::s04_strings::memset(p, 7, 4096);
     assert_eq!(s::madvise(p, 4096, 4), 0, "MADV_DONTNEED");
     let mut b = [1u8; 1];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
     assert_eq!(b[0], 0, "anonymous contents discarded");
     s::munmap(p, 4096);
 }
 
 #[test]
 fn sym_memfd_create() {
-    let fd = s::memfd_create(c"liella".as_ptr(), 1);
+    let fd = s::memfd_create(c"niji".as_ptr(), 1);
     assert!(fd >= 0);
     assert_eq!(s::write(fd, b"anon".as_ptr().cast(), 4), 4);
     assert_eq!(s::lseek(fd, 0, 2), 4);
@@ -1205,7 +1205,7 @@ fn sym_memfd_create() {
 #[test]
 fn sym_mincore() {
     let p = anon(8192);
-    liella_boundary::posix::s04_strings::memset(p, 1, 4096);
+    niji_boundary::posix::s04_strings::memset(p, 1, 4096);
     let mut v = [0u8; 2];
     assert_eq!(s::mincore(p, 8192, v.as_mut_ptr()), 0);
     assert_eq!(v[0] & 1, 1, "the touched page is resident");
@@ -1247,11 +1247,11 @@ fn sym_mlockall() {
 fn sym_mmap() {
     let p = s::mmap(null_mut(), 8192, 3, 0x22, -1, 0);
     assert_ne!(p as isize, -1);
-    liella_boundary::posix::s04_strings::memset(p, 0x5A, 8192);
+    niji_boundary::posix::s04_strings::memset(p, 0x5A, 8192);
     let (_f, fd) = file("mmap", b"file contents");
     let f = s::mmap(null_mut(), 4096, 1, 1, fd, 0);
     let mut b = [0u8; 4];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), f, 4);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), f, 4);
     assert_eq!(&b, b"file");
     errno::set_raw(0);
     assert_eq!(s::mmap(null_mut(), 4096, 1, 0x20, -1, 0) as isize, -1, "MAP_FAILED, not NULL (neither MAP_PRIVATE nor MAP_SHARED)");
@@ -1265,11 +1265,11 @@ fn sym_mmap() {
 fn sym_mmap64() {
     let p = s::mmap64(null_mut(), 8192, 3, 0x22, -1, 0);
     assert_ne!(p as isize, -1);
-    liella_boundary::posix::s04_strings::memset(p, 0x5A, 8192);
+    niji_boundary::posix::s04_strings::memset(p, 0x5A, 8192);
     let (_f, fd) = file("mmap64", b"file contents");
     let f = s::mmap64(null_mut(), 4096, 1, 1, fd, 0);
     let mut b = [0u8; 4];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), f, 4);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), f, 4);
     assert_eq!(&b, b"file");
     errno::set_raw(0);
     assert_eq!(s::mmap64(null_mut(), 4096, 1, 0x20, -1, 0) as isize, -1, "MAP_FAILED, not NULL (neither MAP_PRIVATE nor MAP_SHARED)");
@@ -1291,14 +1291,14 @@ fn sym_mprotect() {
 #[test]
 fn sym_mremap() {
     let p = anon(4096);
-    liella_boundary::posix::s04_strings::memset(p, 3, 4096);
-    let g = s::liella_mremap5(p, 4096, 16384, 1, null_mut());
+    niji_boundary::posix::s04_strings::memset(p, 3, 4096);
+    let g = s::niji_mremap5(p, 4096, 16384, 1, null_mut());
     assert_ne!(g as isize, -1);
     let mut b = [0u8; 1];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), g, 1);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), g, 1);
     assert_eq!(b[0], 3, "contents kept");
     errno::set_raw(0);
-    assert_eq!(s::liella_mremap5(g, 16384, 32768, 0x8, null_mut()) as isize, -1, "MREMAP_FIXED without MAYMOVE");
+    assert_eq!(s::niji_mremap5(g, 16384, 32768, 0x8, null_mut()) as isize, -1, "MREMAP_FIXED without MAYMOVE");
     s::munmap(g, 16384);
     conformance(&["s11_variadic"]);
 }
@@ -1307,7 +1307,7 @@ fn sym_mremap() {
 fn sym_msync() {
     let fd = mem_file(c"msync", &[0u8; 4096]);
     let m = s::mmap(null_mut(), 4096, 3, 1, fd, 0);
-    liella_boundary::posix::s04_strings::memset(m, 9, 1);
+    niji_boundary::posix::s04_strings::memset(m, 9, 1);
     assert_eq!(s::msync(m, 4096, 4), 0, "MS_SYNC");
     errno::set_raw(0);
     assert!(fails(s::msync(m, 4096, 5) as isize, EINVAL), "MS_SYNC with MS_ASYNC");
@@ -1370,12 +1370,12 @@ fn sym___open() {
 fn sym_open() {
     // The fixed-arity target of the variadic entry; C varargs: conformance s11_variadic.
     let p = tmp("open");
-    let fd = s::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
+    let fd = s::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
     assert!(fd >= 0);
     errno::set_raw(0);
-    assert!(fails(s::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600) as isize, EEXIST));
-    assert!(fails(s::liella_open3(tmp("absent").as_ptr(), O_RDONLY, 0) as isize, ENOENT));
-    assert!(fails(s::liella_open3(null(), O_RDONLY, 0) as isize, 14), "NULL path: EFAULT");
+    assert!(fails(s::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600) as isize, EEXIST));
+    assert!(fails(s::niji_open3(tmp("absent").as_ptr(), O_RDONLY, 0) as isize, ENOENT));
+    assert!(fails(s::niji_open3(null(), O_RDONLY, 0) as isize, 14), "NULL path: EFAULT");
     s::close(fd);
     conformance(&["s11_variadic"]);
 }
@@ -1397,7 +1397,7 @@ fn sym___open64_2() {
     let (p, fd0) = file("__open64_2", b"x");
     s::close(fd0);
     if probe().as_deref() == Some("nomode") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__open64_2(p.as_ptr(), O_RDWR | O_CREAT);
         return;
     }
@@ -1414,7 +1414,7 @@ fn sym___open_2() {
     let (p, fd0) = file("__open_2", b"x");
     s::close(fd0);
     if probe().as_deref() == Some("nomode") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__open_2(p.as_ptr(), O_RDWR | O_CREAT);
         return;
     }
@@ -1442,7 +1442,7 @@ fn sym___openat64_2() {
     let (p, fd0) = file("__openat64_2", b"x");
     s::close(fd0);
     if probe().as_deref() == Some("nomode") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__openat64_2(AT_FDCWD, p.as_ptr(), O_RDWR | O_CREAT);
         return;
     }
@@ -1464,7 +1464,7 @@ fn sym___openat_2() {
     let (p, fd0) = file("__openat_2", b"x");
     s::close(fd0);
     if probe().as_deref() == Some("nomode") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__openat_2(AT_FDCWD, p.as_ptr(), O_RDWR | O_CREAT);
         return;
     }
@@ -1479,13 +1479,13 @@ fn sym___openat_2() {
 #[test]
 fn sym_openat() {
     let p = tmp("openat");
-    let dir = s::liella_open3(c"/".as_ptr(), O_RDONLY, 0);
-    let fd = s::liella_openat4(dir, p.as_ptr(), O_RDWR | O_CREAT, 0o600);
+    let dir = s::niji_open3(c"/".as_ptr(), O_RDONLY, 0);
+    let fd = s::niji_openat4(dir, p.as_ptr(), O_RDWR | O_CREAT, 0o600);
     assert!(fd >= 0, "an absolute path ignores the directory");
     let rel = CString::new(p.to_bytes().strip_prefix(b"/").unwrap()).unwrap();
-    let again = s::liella_openat4(dir, rel.as_ptr(), O_RDONLY, 0);
+    let again = s::niji_openat4(dir, rel.as_ptr(), O_RDONLY, 0);
     assert!(again >= 0, "relative to the directory descriptor");
-    let cwd = s::liella_openat4(AT_FDCWD, p.as_ptr(), O_RDONLY, 0);
+    let cwd = s::niji_openat4(AT_FDCWD, p.as_ptr(), O_RDONLY, 0);
     assert!(cwd >= 0);
     for f in [fd, again, cwd, dir] {
         s::close(f);
@@ -1562,7 +1562,7 @@ fn sym___poll_chk() {
     let (r, w) = pipe();
     let mut fds = [PollFd { fd: w, events: 4, revents: 0 }];
     if probe().as_deref() == Some("over") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__poll_chk(fds.as_mut_ptr().cast(), 2, 0, 8);
         return;
     }
@@ -1621,10 +1621,10 @@ fn sym_posix_fallocate64() {
 #[test]
 fn sym_posix_madvise() {
     let p = anon(4096);
-    liella_boundary::posix::s04_strings::memset(p, 7, 4096);
+    niji_boundary::posix::s04_strings::memset(p, 7, 4096);
     assert_eq!(s::posix_madvise(p, 4096, 4), 0, "POSIX_MADV_DONTNEED");
     let mut b = [0u8; 1];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
     assert_eq!(b[0], 7, "never discards");
     assert_eq!(s::posix_madvise(p, 4096, 2), 0);
     assert_eq!(s::posix_madvise(p, 4096, 77), EINVAL, "returned directly");
@@ -1686,7 +1686,7 @@ fn sym___pread64_chk() {
     let (_f, fd) = file("__pread64_chk", b"abcd");
     if probe().as_deref() == Some("over") {
         let mut b = [0u8; 2];
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__pread64_chk(fd, b.as_mut_ptr().cast(), 4, 0, 2);
         return;
     }
@@ -1702,7 +1702,7 @@ fn sym___pread_chk() {
     let (_f, fd) = file("__pread_chk", b"abcd");
     if probe().as_deref() == Some("over") {
         let mut b = [0u8; 2];
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__pread_chk(fd, b.as_mut_ptr().cast(), 4, 0, 2);
         return;
     }
@@ -1929,7 +1929,7 @@ fn sym___read_chk() {
     s::lseek(fd, 0, 0);
     if probe().as_deref() == Some("over") {
         let mut b = [0u8; 2];
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__read_chk(fd, b.as_mut_ptr().cast(), 4, 2);
         return;
     }
@@ -2156,7 +2156,7 @@ fn sym___write() {
 #[test]
 fn sym_write() {
     let (r, w) = pipe();
-    assert_eq!(CSys.fcntl_int(liella_kernel::Fd::new(w), liella_kernel::ops::FcntlInt::SetFl, i64::from(O_NONBLOCK)).unwrap(), 0);
+    assert_eq!(CSys.fcntl_int(niji_kernel::Fd::new(w), niji_kernel::ops::FcntlInt::SetFl, i64::from(O_NONBLOCK)).unwrap(), 0);
     let big = vec![7u8; 1 << 20];
     let n = s::write(w, big.as_ptr().cast(), big.len());
     assert!(n > 0 && (n as usize) < big.len(), "short: the pipe's capacity");

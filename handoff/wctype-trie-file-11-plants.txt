@@ -1,0 +1,14 @@
+# WCTYPE-TRIE-FILE-10 plants: the built-in tables (C, C.UTF-8) are all zero and resolve a block at its first miss.
+builtin-no-store | crates/core/src/locale/classes.rs | lit:slot.store(u32::from(i).wrapping_add(1), Relaxed); ==> let _ = slot; | cargo test -p liella --lib locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss | msg:builtin_class_tables_resolve_a_block_at_its_first_miss.*(FAILED|panicked)|a hit once resolved
+builtin-leaf-off-by-one | crates/core/src/locale/classes.rs | lit:slot.store(u32::from(i).wrapping_add(1), Relaxed); ==> slot.store(u32::from(i), Relaxed); | cargo test -p liella --lib locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss | msg:builtin_class_tables_resolve_a_block_at_its_first_miss.*(FAILED|panicked)|a hit once resolved
+builtin-word-arm | crates/core/src/locale/classes.rs | lit:(Mode::Builtin(s1), _) => self.resolve_builtin(c, s1), ==> (Mode::Builtin(_), _) => 0, | cargo test -p liella --lib locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss | msg:builtin_class_tables_resolve_a_block_at_its_first_miss.*(FAILED|panicked)|word 0x
+builtin-test-arm | crates/core/src/locale/classes.rs | lit:(Mode::Builtin(s1), _) => i32::from(self.resolve_builtin(c, s1) & mask.0 != 0), ==> (Mode::Builtin(_), _) => 0, | cargo test -p liella --lib locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss | msg:builtin_class_tables_resolve_a_block_at_its_first_miss.*(FAILED|panicked)|test 0x
+builtin-utf8-by-address | crates/core/src/locale/classes.rs | lit:Mode::Builtin(&class_words::C_UTF8_STAGE1) ==> Mode::Builtin(&class_words::C_STAGE1) | cargo test -p liella --lib locale::view::class_word_tests::builtin_class_tables_equal_wclasses | msg:builtin_class_tables_equal_wclasses.*(FAILED|panicked)|C.UTF-8: isw
+builtin-c-by-address | crates/core/src/locale/classes.rs | lit:if core::ptr::eq(self, &C_TABLE) { ==> if core::ptr::eq(self, &WALK_TABLE) { | cargo test -p liella --lib locale::view::class_word_tests::builtin_class_tables_equal_wclasses | msg:builtin_class_tables_equal_wclasses.*(FAILED|panicked)|C: isw
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# builtin-no-store: CAUGHT, caught by liella locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss
+# builtin-leaf-off-by-one: CAUGHT, caught by liella locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss
+# builtin-word-arm: CAUGHT, caught by liella locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss
+# builtin-test-arm: CAUGHT, caught by liella locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss
+# builtin-utf8-by-address: CAUGHT, caught by liella locale::view::class_word_tests::builtin_class_tables_equal_wclasses
+# builtin-c-by-address: CAUGHT, caught by liella locale::view::class_word_tests::builtin_class_tables_equal_wclasses

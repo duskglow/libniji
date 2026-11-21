@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Compare two binding tables (tools/binding_table.sh output): binding_diff.py glibc.tsv liella.tsv
-Prints counts and, with -v, the differing symbols (name, version, glibc bind, liella bind)."""
+"""Compare two binding tables (tools/binding_table.sh output): binding_diff.py glibc.tsv niji.tsv
+Prints counts and, with -v, the differing symbols (name, version, glibc bind, niji bind)."""
 import sys
 
 

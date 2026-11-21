@@ -1,6 +1,6 @@
 //! The resolver's environment in secure-execution mode (owner ruling 2026-10-03;
 //! `spec/security/threat-model.md`): `tests/oracle/secure_env.c`, built against the host C library
-//! and statically against Liella's products, runs with `HOSTALIASES`, `RES_OPTIONS` and
+//! and statically against libniji's products, runs with `HOSTALIASES`, `RES_OPTIONS` and
 //! `LOCALDOMAIN` set, as a set-group-ID copy (the kernel sets `AT_SECURE`) and plainly. The
 //! secure runs must ignore all three, the plain runs honour them, and both libraries must agree.
 //! The set-group-ID copy needs no privilege: it uses a supplementary group of the user running
@@ -20,17 +20,17 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/secure_env.c");
     let mut cmd = Command::new("cc");
-    if liella {
+    if niji {
         cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-            .arg(r.join("target/liella/liella-crt1.o"))
+            .arg(r.join("target/niji/niji-crt1.o"))
             .arg(&src)
-            .arg(r.join("target/liella/libc.a"))
+            .arg(r.join("target/niji/libc.a"))
             .arg("-L")
-            .arg(r.join("target/liella"))
+            .arg(r.join("target/niji"))
             .args(["-lresolv", "-lgcc"]);
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src).arg("-lresolv");
@@ -51,7 +51,7 @@ fn run(exe: &Path, aliases: &Path) -> String {
         .env("HOSTALIASES", aliases)
         .env("RES_OPTIONS", "ndots:7")
         .env("LOCALDOMAIN", "evil.test")
-        .env("LIELLA_NSCACHE", "0")
+        .env("NIJI_NSCACHE", "0")
         .output()
         .unwrap();
     assert!(o.status.success(), "{} failed", exe.display());
@@ -62,7 +62,7 @@ fn run(exe: &Path, aliases: &Path) -> String {
 fn secure_processes_ignore_the_resolver_environment() {
     // Clauses: s1_1_g_4, s1_1_c_7, s1_3_c_2, s16_4_c_1_3 (owner ruling 2026-10-03).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -78,18 +78,18 @@ fn secure_processes_ignore_the_resolver_environment() {
     let aliases = dir.join("aliases");
     std::fs::write(&aliases, "short evil.example\n").unwrap();
     let mut outs = Vec::new();
-    for liella in [false, true] {
-        let exe = dir.join(if liella { "liella" } else { "host" });
-        assert!(build(&exe, liella), "secure_env.c does not build (liella: {liella})");
+    for niji in [false, true] {
+        let exe = dir.join(if niji { "niji" } else { "host" });
+        assert!(build(&exe, niji), "secure_env.c does not build (niji: {niji})");
         let plain = run(&exe, &aliases);
         assert!(Command::new("chgrp").arg(&group).arg(&exe).status().unwrap().success());
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o2755)).unwrap();
         let secure = run(&exe, &aliases);
         assert!(secure.starts_with("AT_SECURE=1\n"), "the copy did not run in secure mode:\n{secure}");
-        assert_eq!(secure, "AT_SECURE=1\nndots=1\nsearch[0] is LOCALDOMAIN's: no\nhostalias(short)=(null)\n", "liella: {liella}");
-        assert_eq!(plain, "AT_SECURE=0\nndots=7\nsearch[0] is LOCALDOMAIN's: yes\nhostalias(short)=evil.example\n", "liella: {liella}");
+        assert_eq!(secure, "AT_SECURE=1\nndots=1\nsearch[0] is LOCALDOMAIN's: no\nhostalias(short)=(null)\n", "niji: {niji}");
+        assert_eq!(plain, "AT_SECURE=0\nndots=7\nsearch[0] is LOCALDOMAIN's: yes\nhostalias(short)=evil.example\n", "niji: {niji}");
         outs.push((plain, secure));
     }
-    assert_eq!(outs[0], outs[1], "Liella and the reference agree");
+    assert_eq!(outs[0], outs[1], "libniji and the reference agree");
     let _ = std::fs::remove_dir_all(&dir);
 }

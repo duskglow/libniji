@@ -1,16 +1,16 @@
 //! Translation for spec §9: random numbers.
 //!
 //! The `arc4random` family takes every value from `getrandom` and terminates the process if
-//! the kernel cannot supply entropy. `rand`/`random` and the `_r` forms use Liella's documented
+//! the kernel cannot supply entropy. `rand`/`random` and the `_r` forms use libniji's documented
 //! additive-feedback generator (OD-13); the 48-bit family is bit-exact (§9.4). The global
 //! states are process-wide under one lock until the phase-4 thread blocks.
 
-use liella::random;
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ushort, c_void, size_t, ssize_t};
-use liella_abi::layout::{struct_drand48_data, struct_random_data};
-use liella_kernel::sys::Sys;
-use liella_legacy::prng_global;
-use liella_legacy::prng_r;
+use niji::random;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ushort, c_void, size_t, ssize_t};
+use niji_abi::layout::{struct_drand48_data, struct_random_data};
+use niji_kernel::sys::Sys;
+use niji_legacy::prng_global;
+use niji_legacy::prng_r;
 
 use crate::cancel;
 use crate::conv;

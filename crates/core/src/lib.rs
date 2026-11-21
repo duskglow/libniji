@@ -3,8 +3,8 @@
 //! interface happened to take (implementation-plan.md §2, §7).
 //!
 //! Crate-wide rules:
-//! * `#![forbid(unsafe_code)]`. The kernel arrives as a generic `S: liella_kernel::Sys` value;
-//!   the only unsafe code in the project is in `liella-boundary`, and the machine is reached
+//! * `#![forbid(unsafe_code)]`. The kernel arrives as a generic `S: niji_kernel::Sys` value;
+//!   the only unsafe code in the project is in `niji-boundary`, and the machine is reached
 //!   through the C syscall layer (`csys/`).
 //! * One error model: `Result<T, Error>`. No errno, no sentinels, no out-of-band channels.
 //! * No hidden global state. Locale, time zone, environment, cursors and seeds are explicit

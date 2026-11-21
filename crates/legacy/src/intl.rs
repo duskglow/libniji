@@ -1,6 +1,6 @@
 //! The process-wide state of the gettext family (spec §7.7 ⚑ HIST; D-7.5) and the search of
 //! `catopen` (§7.8; D-7.6): the default domain, the bindings, the loaded catalogs and their
-//! converted strings. The file formats are `liella::catalog`.
+//! converted strings. The file formats are `niji::catalog`.
 //!
 //! **State.** Everything lives in records the module leaks (arrays of atomic words) and in leaked
 //! strings, reached from the statics below by address through [`Host`]; one lock serializes every
@@ -14,7 +14,7 @@
 //! name when `LANGUAGE` is unset or empty, is tried in order (an element `C` or `POSIX` ends the
 //! search untranslated, as observed; so do `C.UTF-8` and `C.utf8`, by decision, as the locale of
 //! those names does), after replacement through the alias file, in each of its directory
-//! variants (`liella::catalog::variants`): `<dir>/<variant>/<CATEGORY>/<domain>.mo`, where `<dir>`
+//! variants (`niji::catalog::variants`): `<dir>/<variant>/<CATEGORY>/<domain>.mo`, where `<dir>`
 //! is the domain's binding (`/usr/share/locale` by default), then, for `LC_MESSAGES` only, the
 //! same variants under `/usr/share/locale-langpack` whatever the binding (as the reference, a
 //! distribution addition; owner ruling 2026-10-22, #411), before the next element. The first
@@ -46,15 +46,15 @@
 
 use core::sync::atomic::{AtomicU64, AtomicU8, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::catalog::{self, mo, plural, variants, xopen};
-use liella::charmap::Charmap;
-use liella::error::Errno;
-use liella::iconv::{self, Codec, Conv, State};
-use liella::locale::file::Cat;
-use liella::locale::{name, Data, Locale, ALIAS_FILE};
-use liella::mem::TryVec;
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::catalog::{self, mo, plural, variants, xopen};
+use niji::charmap::Charmap;
+use niji::error::Errno;
+use niji::iconv::{self, Codec, Conv, State};
+use niji::locale::file::Cat;
+use niji::locale::{name, Data, Locale, ALIAS_FILE};
+use niji::mem::TryVec;
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
 use crate::recheck;
 
@@ -474,6 +474,8 @@ fn stored_id(rec: &[AtomicUsize]) -> Identity {
 }
 
 /// The catalog record of `path`, made (not yet loaded: absent, of no generation) if there is none.
+/// Out of line: a hot-text key (LAYOUT-HOTKEY-INLINE-STABLE).
+#[inline(never)]
 fn record_for<H: Host>(h: &H, path: &[u8]) -> Option<&'static [AtomicUsize]> {
     if let Some(r) = each(h, &CATALOGS, C_WORDS, |r| (text(h, r, C_PATH) == path).then_some(r)) {
         return Some(r);
@@ -723,7 +725,7 @@ fn lookup<H: Host>(h: &H, rec: &'static [AtomicUsize], msgid: &[u8], n: Option<u
         }
     }
     let to = cached_codec(h, rec, C_TO.saturating_add(3), || match codeset {
-        Some(cs) => h.codec(iconv::parse_name(cs).name),
+        Some(cs) => h.codec(iconv::parse_name(cs).name.form(&mut [0; iconv::NAME_MAX])?),
         None => Some(iconv::of_locale(loc)),
     })?;
     for (j, w) in selector.iter().enumerate() {
@@ -1198,6 +1200,7 @@ impl Key<'_> {
 /// The slots, page aligned so that the table (smaller than a page, checked below) always costs
 /// one page fault, never two: unaligned, the static link placed it across a page boundary and a
 /// program's first lookup touched both pages (GETTEXT-HIT-3, ls -l: +3.5 faults per process).
+/// LAYOUT(GETTEXT-SLOTS-PAGE).
 #[repr(C, align(4096))]
 struct Slots([Resolution; R_SLOTS]);
 const _: () = assert!(size_of::<Slots>() == 4096);

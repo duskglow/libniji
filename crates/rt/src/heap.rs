@@ -47,7 +47,7 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::sys::Sys;
+use niji_kernel::sys::Sys;
 
 use crate::sync::RawMutex;
 
@@ -66,6 +66,15 @@ pub trait Pages {
     /// Resize a whole mapping, possibly moving it; `None` if it cannot (the mapping is then
     /// unchanged). The node preference moves with it.
     fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize>;
+    /// A new zero-filled mapping of `head + len` bytes whose address plus `head` is a multiple
+    /// of `align`, placed where the `room` bytes from that aligned address (`room >= len`) were
+    /// free when it was made, so that [`Pages::grow`] can usually extend it in place up to
+    /// `room`. Returns the aligned address (the mapping starts `head` bytes before it). A
+    /// segment is mapped only as far as it is used (HEAP-ADDRESS-SPACE).
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize>;
+    /// Map `[addr, addr + len)`, just past the end of a mapping the heap made, without replacing
+    /// any mapping: false (nothing mapped) when any part of the range is taken.
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool;
     /// Zero `[addr, addr + len)`, the whole mapping of a secure block being released, so that
     /// the stores cannot be elided (D-X.11: the boundary passes the bytes through the
     /// explicit-zeroing barrier). The mapping is still in place and owned by the releasing
@@ -78,18 +87,34 @@ pub trait Pages {
     /// The metadata words at `addr` (inside a mapping the heap made and never hands out).
     fn words(&self, addr: usize, n: usize) -> &[AtomicU64];
     /// The shard serving the calling thread: its NUMA node when that is known cheaply (D-3.12).
-    /// Asked only on slow paths (a cache or a slab is being chosen).
+    /// Asked only on slow paths (a cache or a slab is being chosen), and only when
+    /// [`Pages::allowed_nodes`] reported more than one node (D-3.20).
     fn shard(&self) -> usize {
         0
     }
+    /// The memory source the heap's slow paths take (`alloc_slow`, `free_slow`, `resize_slow`).
+    /// A source whose fast-path reads skip a test the general paths keep names the general source
+    /// here, so each slow path exists once in the products (D-X.60); otherwise `Self`.
+    type General: Pages;
+    /// The [`Self::General`] source.
+    fn general(&self) -> &Self::General;
+    /// How many NUMA nodes the process may allocate on (`get_mempolicy(MPOL_F_MEMS_ALLOWED)`);
+    /// 1 when that cannot be asked. Asked once per heap, on its first slow path (D-3.20), by
+    /// whichever source that path took: a source that wraps another (an `OwnPages`-style fast
+    /// source) must pass the question on, or that one answer would turn NUMA placement off for
+    /// the whole process. Required, so a wrapper cannot inherit a silent 1.
+    fn allowed_nodes(&self) -> usize;
     /// The calling thread's cache word (the address of its cache, 0 for none yet). Each
-    /// thread has its own; the heap is the only writer.
-    fn cache_slot(&self) -> &AtomicUsize;
-    /// `cache_slot().load(Relaxed)`: the fast paths' read of the cache word. An implementation
-    /// may read it more directly (the boundary: one thread-pointer-relative load, HEAP-CUTS2 C4).
+    /// thread has its own; the heap is the only writer. `None`: the thread has no word of its
+    /// own (D-X.60: a thread another library made whose words could not be placed), so it runs
+    /// with no cache: a cache is never shared by two threads.
+    fn cache_slot(&self) -> Option<&AtomicUsize>;
+    /// `cache_slot()`'s value, 0 for none: the fast paths' read of the cache word. An
+    /// implementation may read it more directly (the boundary: one thread-pointer-relative load,
+    /// HEAP-CUTS2 C4).
     #[inline(always)]
     fn cache_word(&self) -> usize {
-        self.cache_slot().load(Relaxed)
+        self.cache_slot().map_or(0, |s| s.load(Relaxed))
     }
     /// The process's address-space limit in bytes (`RLIMIT_AS`), `None` for none. Asked once,
     /// before the heap's first reservation: its registries are sized to fit (T14).
@@ -158,6 +183,20 @@ const HEAD_WORDS: usize = 8;
 /// R_REMOTE bit 63: the slab is queued for its owner's collection (D-3.15 amendment).
 const QUEUED: u64 = 1 << 63;
 const SLABS: usize = 63;
+/// Slabs mapped with a new segment (HEAP-ADDRESS-SPACE): a segment's 16 MiB window is mapped
+/// only as far as its shard hands slabs out, growing in place by doubling ([`Pages::grow`]);
+/// a window whose next part is taken simply ends there. Mapping whole windows cost every
+/// process 16 MiB of address space at its first `malloc` and 16 MiB per segment after it.
+/// 16 slabs (4 MiB, address space only: untouched until used) because the start-up probes of
+/// `page_faults.c` use up to 16 classes: with 2 the locale, tool, strings, mktime, localtime
+/// and rebind modes grew 1 to 3 times (one `mmap` each, strace on the Zen 1 build host), so the
+/// growth joined the start-up trace and its text; with 16 no start-up mode grows.
+const SEG_FIRST: usize = 16;
+/// The bytes a new segment maps: its metadata and [`SEG_FIRST`] slabs.
+const SEG_MIN: usize = META + SEG_FIRST * SLAB;
+/// Generation 0 of the large-block table at most: 256 slots, one page (later generations
+/// double, T14). Was the maximum, 16 MiB of address space at the first large block.
+const FIRST_LARGE: usize = 256;
 // Segment metadata, dense (D-3.15): line 0 the shard + 1 (word 0); line 1 + i slab i's head; from
 // LOCALS the slabs' local bitmaps, 2 KiB each, then their remote bitmaps (REMOTE_OFF after the
 // local one); slab data from META. The heads of all slabs share one page and a bitmap is written
@@ -273,6 +312,12 @@ const _: () = assert!(FORECAST_CAP >> 4 == SMALL_CLASS.len() - 1 && CLASSES[31] 
 const _: () = assert!(C_SLABS + SLAB_HINTS <= CACHE_WORDS && SLAB_HINTS.is_power_of_two());
 const CACHE_BYTES: usize = CACHE_WORDS * 8;
 const CACHE_CHUNK: usize = 64 << 10;
+/// Generation 0 of the segment registry and of the cache table at most (D-3.19): 128 segments
+/// (2 GiB of slabs) and 64 caches, so that the three generation-0 tables (cache addresses,
+/// segment bases, segment hash at twice the entries) share one page; later generations double.
+const FIRST_SEGS: usize = 128;
+const FIRST_CACHES: usize = 64;
+const _: () = assert!((FIRST_CACHES + 3 * FIRST_SEGS) * 8 <= PAGE && FIRST_SEGS.is_power_of_two() && FIRST_CACHES.is_power_of_two());
 
 /// The size classes: 16-byte steps to 128, then four per doubling up to 64 KiB.
 pub const CLASSES: [usize; 44] = [
@@ -345,6 +390,25 @@ pub struct Block {
     pub zeroed: bool,
 }
 
+/// What the first test of a resize found ([`Heap::fit`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Fit {
+    /// The block stays where it is; its usable size.
+    Same(usize),
+    /// A live block of the calling thread's current slab that moves ([`Heap::resize_held`]).
+    Held(Held),
+    /// Anything else: the general path decides.
+    Other,
+}
+
+/// A block [`Heap::fit`] found and [`Heap::resize_held`] moves: its class and its index in
+/// the slab. Only `fit` makes one (the fields are private).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Held {
+    c: usize,
+    q: usize,
+}
+
 /// A misuse the caller made, which C leaves undefined and the boundary turns into an abort.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Misuse {
@@ -410,6 +474,8 @@ struct Shard {
     seg: AtomicUsize,
     /// The next never-used slab of `seg`.
     next_slab: AtomicUsize,
+    /// Slabs of `seg` mapped so far (HEAP-ADDRESS-SPACE).
+    mapped: AtomicUsize,
     /// Parked caches (cache identifier; linked through the cache's pool word).
     pool: AtomicU64,
 }
@@ -422,6 +488,7 @@ impl Shard {
             empties: AtomicUsize::new(0),
             seg: AtomicUsize::new(0),
             next_slab: AtomicUsize::new(0),
+            mapped: AtomicUsize::new(0),
             pool: AtomicU64::new(0),
         }
     }
@@ -432,9 +499,13 @@ pub struct Heap {
     shards: [Shard; SHARDS],
     /// Whether segments are placed on their shard's node (more than one node exists).
     numa: AtomicBool,
+    /// Whether the allowed-node set has been asked (or [`Heap::set_numa`] decided it; D-3.20).
+    topology: AtomicBool,
     /// Serialises segment and cache creation (the registries are read without it).
     grow: RawMutex,
     nsegs: AtomicUsize,
+    /// Bytes of segment mappings (they grow with use, HEAP-ADDRESS-SPACE).
+    seg_mapped: AtomicUsize,
     /// The segment registry (its generation 0's capacity is `seg.cap`).
     seg: SegRegistry,
     /// Caches: identifier - 1 → address, by generation as `seg_bases`.
@@ -452,6 +523,10 @@ pub struct Heap {
     /// Unused room for caches in the current chunk: (address, bytes left).
     cache_room: AtomicUsize,
     cache_left: AtomicUsize,
+    /// The first segment, mapped by [`Heap::first_reservation`] and not yet registered (its
+    /// base, 0 for none), and the shard it was mapped for.
+    spare_seg: AtomicUsize,
+    spare_shard: AtomicUsize,
     large: RawMutex,
     /// (address, length) pairs, one hash table per generation (generation g has
     /// `large_cap << g` slots); a block is entered in the newest; lookups search all.
@@ -698,8 +773,10 @@ impl Heap {
         Heap {
             shards: [const { Shard::new() }; SHARDS],
             numa: AtomicBool::new(false),
+            topology: AtomicBool::new(false),
             grow: RawMutex::new(),
             nsegs: AtomicUsize::new(0),
+            seg_mapped: AtomicUsize::new(0),
             seg: SegRegistry {
                 cap: AtomicUsize::new(0),
                 ngens: AtomicUsize::new(0),
@@ -714,6 +791,8 @@ impl Heap {
             ncaches: AtomicUsize::new(0),
             cache_room: AtomicUsize::new(0),
             cache_left: AtomicUsize::new(0),
+            spare_seg: AtomicUsize::new(0),
+            spare_shard: AtomicUsize::new(0),
             large: RawMutex::new(),
             large_table: [const { AtomicUsize::new(0) }; GENS],
             large_used: [const { AtomicUsize::new(0) }; GENS],
@@ -747,10 +826,36 @@ impl Heap {
         }
     }
 
-    /// Place each shard's new memory on its own node (the runtime calls this when the machine
-    /// has more than one NUMA node).
+    /// Place each shard's new memory on its own node and choose shards by the calling thread's
+    /// node (`on`), or use shard 0 with the kernel's default placement without reading the node.
+    /// The heap decides this itself on its first slow path ([`Heap::shard_of`]); a call made
+    /// before that takes the decision instead.
     pub fn set_numa(&self, on: bool) {
         self.numa.store(on, Relaxed);
+        self.topology.store(true, Relaxed);
+    }
+
+    /// The shard for a cache or slab being chosen (slow paths only; D-3.12 as amended by
+    /// D-3.20). The first call asks [`Pages::allowed_nodes`] once: more than one allowed node
+    /// turns NUMA placement on and the thread's node ([`Pages::shard`]) is read from then on;
+    /// one node keeps shard 0 and never reads the node (first touch is optimal there). Racing
+    /// first calls ask the same set and store the same answer.
+    #[inline]
+    fn shard_of<P: Pages>(&self, pages: &P) -> usize {
+        if !self.topology.load(Relaxed) {
+            self.decide_topology(pages);
+        }
+        if self.numa.load(Relaxed) { pages.shard() % SHARDS } else { 0 }
+    }
+
+    /// [`Heap::shard_of`]'s one-time question, out of line and cold: it runs once per process,
+    /// so its code stays out of the slow paths' hot text (HEAP-FIRST-USE-3: inlined at both
+    /// sites, the slow paths grew and moved the first `mktime`'s text past a fault-around window).
+    #[cold]
+    #[inline(never)]
+    fn decide_topology<P: Pages>(&self, pages: &P) {
+        self.numa.store(pages.allowed_nodes() > 1, Relaxed);
+        self.topology.store(true, Relaxed);
     }
 
     fn node_for(&self, shard: usize) -> Option<u32> {
@@ -759,13 +864,15 @@ impl Heap {
 
     /// Choose the registries' capacities once (T14): the maxima, or under an address-space limit
     /// `L` registries sized to it (segments for `L`, a cache per MiB of `L`, a large block per
-    /// page of `L`), so that their reservations, which count against `L`, stay small.
+    /// page of `L`), so that their reservations, which count against `L`, stay small. The
+    /// segment registry and the cache table start at most at [`FIRST_SEGS`] and
+    /// [`FIRST_CACHES`] either way (D-3.19).
     fn choose_capacities<P: Pages>(&self, pages: &P) {
         if self.seg.cap.load(Acquire) != 0 {
             return;
         }
         let limit = pages.address_limit();
-        if limit.is_some_and(|l| l < 4 * SEG) {
+        if limit.is_some_and(|l| l < 4 * SEG_MIN) {
             self.no_segments.store(true, Relaxed);
         }
         let (segs, caches, large) = match limit {
@@ -776,9 +883,44 @@ impl Heap {
             ),
             _ => (MAX_SEGS, MAX_CACHES, LARGE_CAP),
         };
+        // Generation 0 of the segments and caches fits one page (D-3.19); they grow by generations.
+        let (segs, caches) = (segs.min(FIRST_SEGS), caches.min(FIRST_CACHES));
         let _ = self.caches.compare_exchange(0, caches, AcqRel, Acquire);
-        let _ = self.large_cap.compare_exchange(0, large, AcqRel, Acquire);
+        let _ = self.large_cap.compare_exchange(0, large.min(FIRST_LARGE), AcqRel, Acquire);
         let _ = self.seg.cap.compare_exchange(0, segs, AcqRel, Acquire);
+    }
+
+    /// The heap's first reservation (D-3.19), under `grow` after [`Heap::choose_capacities`]:
+    /// one mapping holds one page with the generation-0 cache table, segment bases and segment
+    /// hash, then the first cache chunk, then the first segment (at its 16 MiB boundary, mapped
+    /// as far as [`SEG_MIN`], with room to grow).
+    /// Separately they were five mappings (and their pages three more faults). Does nothing once
+    /// any of them exists, without segments, or when the mapping fails (each part is then
+    /// mapped on its own as before). Inlined into its two cold callers: out of line it took a
+    /// text page fault of its own on the first allocation.
+    #[inline(always)]
+    fn first_reservation<P: Pages>(&self, pages: &P, shard: usize) {
+        if self.no_segments.load(Relaxed)
+            || self.nsegs.load(Relaxed) != 0
+            || self.seg.ngens.load(Relaxed) != 0
+            || self.cache_ngens.load(Relaxed) != 0
+            || self.cache_left.load(Relaxed) != 0
+        {
+            return;
+        }
+        let (caches, segs) = (self.caches.load(Relaxed), self.seg.cap.load(Relaxed));
+        let tables = ((caches + 3 * segs) * 8).next_multiple_of(PAGE);
+        let Some(base) = pages.map_room(tables + CACHE_CHUNK, SEG_MIN, SEG, SEG, self.node_for(shard)) else { return };
+        let tab = base - tables - CACHE_CHUNK;
+        self.cache_tab[0].store(tab, Release);
+        self.cache_ngens.store(1, Release);
+        self.seg.bases[0].store(tab + caches * 8, Release);
+        self.seg.hash[0].store(tab + (caches + segs) * 8, Release);
+        self.seg.ngens.store(1, Release);
+        self.cache_room.store(tab + tables, Relaxed);
+        self.cache_left.store(CACHE_CHUNK, Relaxed);
+        self.spare_shard.store(shard, Relaxed);
+        self.spare_seg.store(base, Relaxed);
     }
 
     fn seg_base<P: Pages>(&self, pages: &P, idx: usize) -> usize {
@@ -790,7 +932,7 @@ impl Heap {
     /// After the address-space limit may have been raised (T14): segments again when it allows
     /// four. Asked when a registry needs a new generation (rare).
     fn recheck_limit<P: Pages>(&self, pages: &P) {
-        if self.no_segments.load(Relaxed) && pages.address_limit().is_none_or(|l| l >= 4 * SEG) {
+        if self.no_segments.load(Relaxed) && pages.address_limit().is_none_or(|l| l >= 4 * SEG_MIN) {
             self.no_segments.store(false, Relaxed);
         }
     }
@@ -832,6 +974,7 @@ impl Heap {
         if self.no_segments.load(Relaxed) {
             return None;
         }
+        self.first_reservation(pages, shard);
         let segs = self.seg.cap.load(Relaxed);
         let n = self.nsegs.load(Relaxed);
         let (g, o) = gen_of(n, segs);
@@ -852,7 +995,15 @@ impl Heap {
             self.seg.hash[g].store(hash, Release);
             self.seg.ngens.store(g + 1, Release);
         }
-        let base = pages.map(SEG, SEG, self.node_for(shard))?;
+        // The first reservation's segment, unless it was mapped for another node.
+        let spare = self.spare_seg.load(Relaxed);
+        let base = if spare != 0 && self.node_for(self.spare_shard.load(Relaxed)) == self.node_for(shard) {
+            self.spare_seg.store(0, Relaxed);
+            spare
+        } else {
+            pages.map_room(0, SEG_MIN, SEG, SEG, self.node_for(shard))?
+        };
+        self.seg_mapped.fetch_add(SEG_MIN, Relaxed);
         pages.words(base, 1)[0].store(w64(shard) + 1, Release);
         pages.words(self.seg.bases[g].load(Relaxed), len)[o].store(w64(base), Release);
         let table = pages.words(self.seg.hash[g].load(Relaxed), len * 2);
@@ -865,7 +1016,7 @@ impl Heap {
             i = (i + 1) & (table.len() - 1);
         }
         self.nsegs.store(n + 1, Release);
-        self.peak_mapped.fetch_max((n + 1) * SEG + self.large_mapped.load(Relaxed), Relaxed);
+        self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
         Some(n)
     }
 
@@ -898,10 +1049,40 @@ impl Heap {
             return Some(s);
         }
         let sh = &self.shards[shard];
+        // The current segment's mapped part is spent but its window is not: grow it in place.
+        // The test stays here and the growth out of line, so a program whose heap fits a new
+        // segment's first SEG_FIRST slabs (start-up) neither runs nor carries it.
+        if sh.seg.load(Relaxed) != 0 && sh.mapped.load(Relaxed) < SLABS {
+            if let Some(s) = self.grow_segment(pages, shard) {
+                return Some(s);
+            }
+        }
         let idx = self.new_segment(sys, pages, shard)?;
         sh.seg.store(idx + 1, Relaxed);
         sh.next_slab.store(1, Relaxed);
+        sh.mapped.store(SEG_FIRST, Relaxed);
         Some(w64(idx * SLABS))
+    }
+
+    /// Map more of the current segment of `shard` (its lock held) in place, doubling its mapped
+    /// slabs by at most 8 (2 MiB: a segment never maps more than 2 MiB it does not use), and hand
+    /// out the first new slab (HEAP-ADDRESS-SPACE). `None` when the window's next part is taken
+    /// by another mapping: the segment then ends there and the caller maps a new one. Cold and
+    /// out of line: it runs once per doubling, never in a short program.
+    #[cold]
+    #[inline(never)]
+    fn grow_segment<P: Pages>(&self, pages: &P, shard: usize) -> Option<u64> {
+        let sh = &self.shards[shard];
+        let (idx, mapped) = (sh.seg.load(Relaxed).checked_sub(1)?, sh.mapped.load(Relaxed));
+        let more = mapped.min(8).min(SLABS.checked_sub(mapped)?);
+        if more == 0 || !pages.grow(self.seg_base(pages, idx) + META + mapped * SLAB, more * SLAB, self.node_for(shard)) {
+            return None;
+        }
+        self.seg_mapped.fetch_add(more * SLAB, Relaxed);
+        self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
+        sh.mapped.store(mapped + more, Relaxed);
+        sh.next_slab.store(mapped + 1, Relaxed);
+        Some(w64(idx * SLABS + mapped))
     }
 
     /// An empty or never-used slab `shard` already holds (its lock held); maps nothing.
@@ -913,7 +1094,7 @@ impl Heap {
             return Some(s);
         }
         let (seg, next) = (sh.seg.load(Relaxed), sh.next_slab.load(Relaxed));
-        if seg != 0 && next < SLABS {
+        if seg != 0 && next < sh.mapped.load(Relaxed) {
             sh.next_slab.store(next + 1, Relaxed);
             return Some(w64((seg - 1) * SLABS + next));
         }
@@ -980,7 +1161,7 @@ impl Heap {
     /// The calling thread's cache, taking a parked one or making one on first use.
     #[inline]
     fn cache<'p, S: Sys, P: Pages>(&self, sys: &S, pages: &'p P) -> Option<Cache<'p>> {
-        match pages.cache_slot().load(Relaxed) {
+        match pages.cache_slot()?.load(Relaxed) {
             0 => self.first_cache(sys, pages),
             addr => Self::cache_of(pages, addr),
         }
@@ -1013,13 +1194,14 @@ impl Heap {
 
     #[cold]
     fn first_cache<'p, S: Sys, P: Pages>(&self, sys: &S, pages: &'p P) -> Option<Cache<'p>> {
-        let shard = pages.shard() % SHARDS;
+        let slot = pages.cache_slot()?;
+        let shard = self.shard_of(pages);
         let id = self
             .unpark(sys, pages, shard)
             .or_else(|| self.new_cache(sys, pages, shard))
             .or_else(|| self.unpark_elsewhere(sys, pages, shard))?;
         let k = self.cache_at(pages, id)?;
-        pages.cache_slot().store(self.cache_addr(pages, id), Relaxed);
+        slot.store(self.cache_addr(pages, id), Relaxed);
         Some(k)
     }
 
@@ -1046,6 +1228,7 @@ impl Heap {
     fn new_cache<S: Sys, P: Pages>(&self, sys: &S, pages: &P, shard: usize) -> Option<u64> {
         let _g = self.grow.lock(sys);
         self.choose_capacities(pages);
+        self.first_reservation(pages, shard);
         let cap = self.caches.load(Relaxed);
         let n = self.ncaches.load(Relaxed);
         let (g, o) = gen_of(n, cap);
@@ -1080,8 +1263,8 @@ impl Heap {
     /// Park the calling thread's cache (its thread is exiting): its large blocks are unmapped,
     /// its slabs stay with it, and the next new thread on its shard takes it over (D-3.11).
     pub fn park<S: Sys, P: Pages>(&self, sys: &S, pages: &P) {
-        if let Some(c) = Self::own_cache(pages) {
-            pages.cache_slot().store(0, Relaxed);
+        if let (Some(c), Some(slot)) = (Self::own_cache(pages), pages.cache_slot()) {
+            slot.store(0, Relaxed);
             self.park_cache(sys, pages, &c);
         }
     }
@@ -1109,6 +1292,8 @@ impl Heap {
 
     /// Park every cache but `keep` (`fork`'s child: only the calling thread survives, D-18.6).
     /// The child is single-threaded, so the caches of the vanished threads are idle.
+    // LAYOUT-HOTKEY-INLINE-STABLE: release already inlines it; always inlined, its code stays in the keyed caller in both profiles.
+    #[inline(always)]
     pub fn park_others<S: Sys, P: Pages>(&self, sys: &S, pages: &P) {
         let keep = Self::own_cache(pages).map_or(0, |c| c.id());
         for i in 0..self.ncaches.load(Acquire) {
@@ -1224,7 +1409,7 @@ impl Heap {
             self.make_current(pages, k, c, s);
             return Some(());
         }
-        let shard = pages.shard() % SHARDS;
+        let shard = self.shard_of(pages);
         let s = {
             let own = {
                 let _g = self.shards[shard].lock.lock(sys);
@@ -1438,7 +1623,7 @@ impl Heap {
         let (count, mapped) = (self.large_count.load(Relaxed), self.large_mapped.load(Relaxed));
         self.peak_large_blocks.fetch_max(count, Relaxed);
         self.peak_large_mapped.fetch_max(mapped, Relaxed);
-        self.peak_mapped.fetch_max(mapped + self.nsegs.load(Acquire) * SEG, Relaxed);
+        self.peak_mapped.fetch_max(mapped + self.seg_mapped.load(Relaxed), Relaxed);
     }
 
     /// A kept large block of at least `len` bytes (and at most twice that plus 1 MiB) at
@@ -1545,7 +1730,7 @@ impl Heap {
         if let Some(b) = Self::alloc_fast(pages, size, align) {
             return Some(b);
         }
-        self.alloc_slow(sys, pages, size, align)
+        self.alloc_slow(sys, pages.general(), size, align)
     }
 
     /// [`Heap::alloc`]'s fast path alone: a block from the current slab's hint word, or `None`
@@ -1686,7 +1871,10 @@ impl Heap {
         }
         let slab = w64(idx * SLABS + i);
         let d = pages.words(base + HEADS + i * HEAD_WORDS * 8 + R_DESC * 8, 1)[0].load(Acquire);
-        let class = uz(d & 0xff).checked_sub(1).ok_or(Misuse::InvalidPointer)?;
+        // No cache owns the slab: no small block lives there, and the address may be past the
+        // segment's mapped part (HEAP-ADDRESS-SPACE), where another mapping, a large block's
+        // too, can sit. The large table decides (an invalid pointer is not found there either).
+        let Some(class) = uz(d & 0xff).checked_sub(1) else { return Ok(Loc::Large) };
         let (magic, size) = ((d >> 8) & ((1 << 37) - 1), d >> 45);
         let rel = w64(within & (SLAB - 1));
         let q = (rel * magic) >> 40;
@@ -1720,7 +1908,7 @@ impl Heap {
         if Self::free_fast(pages, addr) {
             return Ok(());
         }
-        self.free_slow(sys, pages, addr)
+        self.free_slow(sys, pages.general(), addr)
     }
 
     /// [`Heap::free`]'s fast path alone: true if the block at `addr` was released (a live block
@@ -1900,87 +2088,108 @@ impl Heap {
     /// mapping a secure block gives up passes through [`Pages::wipe`]).
     ///
     /// A small block of a current slab of the calling thread's cache, resized to at most
-    /// [`FORECAST_CAP`] bytes, takes one fused path (REALLOC-FUSE): the block is found once
+    /// [`MAX_SMALL`] bytes, takes one fused path (REALLOC-FUSE, REALLOC-ONE-LOOKUP: [`Heap::fit`]
+    /// then [`Heap::resize_held`]): the block is found once
     /// through the slab hint (as [`Heap::free`]'s fast path finds it), checked live, kept in
     /// place when its class still fits, or else moved into a block from the target class's hint
     /// word and its old bit cleared, without looking it up again. Anything else, and any miss on
-    /// the way, takes the general path. A block that moves upward gets the class for about
-    /// twice the request ([`Heap::forecast`]).
+    /// the way, takes the general path. A block that moves upward gets the general path's
+    /// growth forecast ([`Heap::move_target`]).
     #[inline(always)]
     pub fn resize<S: Sys, P: Pages>(&self, sys: &S, pages: &P, addr: usize, size: usize, copy: impl FnOnce(usize, usize, usize)) -> Result<Option<Block>, Misuse> {
-        if size <= FORECAST_CAP {
-            if let Some(k) = Self::own_cache(pages) {
-                let last = k.get(slab_hint(addr));
-                let off = w64(addr).wrapping_sub(last & !(SLAB64 - 1));
-                if last != 0 && off < SLAB64 {
-                    let c = uz(last & 63);
-                    let [csize, magic, n] = FREE_VIEW[c];
-                    let q = (off * magic) >> 40;
-                    if q * csize == off && q < n {
-                        if let Some(r) = Self::record_words(pages, uz(k.class(c, K_REC))) {
-                            let (j, b) = bit(uz(q));
-                            // `q < n` keeps `j` in the bitmap; the mask lets the compiler see it.
-                            let j = j & (BITMAP_WORDS - 1);
-                            let word = &r.local[j];
-                            // Not live: the general path decides (and reports a double free).
-                            if word.load(Relaxed) & b != 0 && !(k.remote_any() && r.remote_has(j, b)) {
-                                let usable = uz(csize);
-                                // `c` came from the masked hint: a padding entry has no blocks,
-                                // so `c` is a class here; the `min` lets the compiler see it.
-                                let below = CLASSES[c.min(CLASSES.len() - 1).saturating_sub(1)];
-                                if size <= usable && (c == 0 || size > below / 2) {
-                                    return Ok(Some(Block { addr, usable, zeroed: false }));
-                                }
-                                let target = if size > usable { Self::forecast(size) } else { size };
-                                // `target <= FORECAST_CAP`: the table's class (at most 19, so the
-                                // mask is the identity and spares the cache words' bounds checks).
-                                let nc = usize::from(SMALL_CLASS[((target + 15) >> 4).min(FORECAST_CAP >> 4)]) & 31;
-                                if let Some(new) = Self::alloc_hint(pages, &k, nc) {
-                                    copy(addr, new.addr, usable.min(size));
-                                    // The old block's bit, cleared as the free fast path does.
-                                    let v = word.load(Relaxed);
-                                    word.store(v & !b, Relaxed);
-                                    k.freed_into(c, j);
-                                    return Ok(Some(new));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        match Self::fit(pages, addr, size) {
+            Fit::Same(usable) => Ok(Some(Block { addr, usable, zeroed: false })),
+            Fit::Held(h) => self.resize_held(sys, pages, addr, size, h, copy),
+            Fit::Other => self.resize_slow(sys, pages.general(), addr, size, copy),
         }
-        self.resize_slow(sys, pages, addr, size, copy)
     }
 
-    /// Whether a live small block of the calling thread's current slab, resized to `size`
-    /// (`0 < size <= FORECAST_CAP`), stays where it is: the first test of [`Heap::resize`]
-    /// alone, so that a caller can return the same pointer without the frame the moving and
-    /// general paths need. `false` decides nothing: the caller takes the full path.
+    /// The first test of [`Heap::resize`] (REALLOC-ONE-LOOKUP): for a live small block of the
+    /// calling thread's current slab resized to `0 < size <= MAX_SMALL`, found once through the
+    /// slab hint (as [`Heap::free`]'s fast path finds it), whether it stays where it is
+    /// ([`Fit::Same`], by the rule of [`Heap::keeps_in_place`]) or moves ([`Fit::Held`]: its
+    /// class and index, which [`Heap::resize_held`] completes the move with, without finding
+    /// the block again). Separate so that a caller can return the same pointer without the
+    /// frame the moving path needs. [`Fit::Other`] decides nothing: the general path does.
     #[inline(always)]
-    pub fn fits_in_place<P: Pages>(pages: &P, addr: usize, size: usize) -> bool {
-        if size == 0 || size > FORECAST_CAP {
-            return false;
+    pub fn fit<P: Pages>(pages: &P, addr: usize, size: usize) -> Fit {
+        if size == 0 || size > MAX_SMALL {
+            return Fit::Other;
         }
-        let Some(k) = Self::own_cache(pages) else { return false };
+        let Some(k) = Self::own_cache(pages) else { return Fit::Other };
         let last = k.get(slab_hint(addr));
         let off = w64(addr).wrapping_sub(last & !(SLAB64 - 1));
         if last == 0 || off >= SLAB64 {
-            return false;
+            return Fit::Other;
         }
         let c = uz(last & 63);
         let [csize, magic, n] = FREE_VIEW[c];
         let q = (off * magic) >> 40;
         if q * csize != off || q >= n {
-            return false;
+            return Fit::Other;
         }
-        let Some(r) = Self::record_words(pages, uz(k.class(c, K_REC))) else { return false };
+        let Some(r) = Self::record_words(pages, uz(k.class(c, K_REC))) else { return Fit::Other };
         let (j, b) = bit(uz(q));
+        // `q < n` keeps `j` in the bitmap; the mask lets the compiler see it.
         let j = j & (BITMAP_WORDS - 1);
-        // Not live (or remotely freed): the full path decides and reports a double free.
+        // Not live (or remotely freed): the general path decides and reports a double free.
         if r.local[j].load(Relaxed) & b == 0 || (k.remote_any() && r.remote_has(j, b)) {
-            return false;
+            return Fit::Other;
         }
-        size <= uz(csize) && size > uz(HALF_BELOW[c])
+        let usable = uz(csize);
+        // Up to the cap, `HALF_BELOW` is `keeps_in_place`'s rule (its slack is 2 for these
+        // sizes: a class four times the need is above `MID_GROWTH * MID_FORECAST`, whose lower
+        // bound is above the cap). `c` came from the masked hint: a padding entry has no blocks,
+        // so `c` is a class here; the `min` lets the compiler see it.
+        let keep = if size <= FORECAST_CAP { size <= usable && size > uz(HALF_BELOW[c]) } else { Self::keeps_in_place(c.min(CLASSES.len() - 1), size) };
+        if keep {
+            return Fit::Same(usable);
+        }
+        Fit::Held(Held { c, q: uz(q) })
+    }
+
+    /// Move the block [`Heap::fit`] found as `h` into a block of the class for its growth
+    /// target ([`Heap::move_target`]) taken from that class's hint word, and clear its old bit
+    /// as the free fast path does, without looking it up again. Nothing between the two calls
+    /// may touch the heap; any miss (no current slab of the target class, its hint word full)
+    /// takes the general path.
+    #[inline(always)]
+    pub fn resize_held<S: Sys, P: Pages>(&self, sys: &S, pages: &P, addr: usize, size: usize, h: Held, copy: impl FnOnce(usize, usize, usize)) -> Result<Option<Block>, Misuse> {
+        let c = h.c & 63;
+        if let Some(k) = Self::own_cache(pages) {
+            if let Some(r) = Self::record_words(pages, uz(k.class(c, K_REC))) {
+                let (j, b) = bit(h.q);
+                let j = j & (BITMAP_WORDS - 1);
+                let word = &r.local[j];
+                let usable = uz(FREE_VIEW[c][0]);
+                let target = Self::move_target(usable, size);
+                // `target <= FORECAST_CAP`: the table's class (at most 19, so the mask is the
+                // identity and spares the cache words' bounds checks); above it, the general rule.
+                let nc = if target <= FORECAST_CAP { Some(usize::from(SMALL_CLASS[(target + 15) >> 4]) & 31) } else { class_for(target, ALIGN) };
+                if let Some(new) = nc.and_then(|nc| Self::alloc_hint(pages, &k, nc)) {
+                    copy(addr, new.addr, usable.min(size));
+                    let v = word.load(Relaxed);
+                    word.store(v & !b, Relaxed);
+                    k.freed_into(c, j);
+                    return Ok(Some(new));
+                }
+            }
+        }
+        self.resize_slow(sys, pages.general(), addr, size, copy)
+    }
+
+    /// The size a small block of `usable` bytes resized to `size` moves into: the growth
+    /// forecast ([`Heap::forecast`] below `FORECAST_CAP`, [`Heap::forecast_mid`] from
+    /// `MID_FORECAST`), or `size` itself when it shrinks or for the sizes between.
+    #[inline(always)]
+    fn move_target(usable: usize, size: usize) -> usize {
+        if size > usable && usable < FORECAST_CAP {
+            Self::forecast(size)
+        } else if size > usable && (MID_FORECAST..MAX_SMALL).contains(&usable) {
+            Self::forecast_mid(size)
+        } else {
+            size
+        }
     }
 
     /// The size a small block that `resize` moves upward is allocated for (REALLOC-FUSE growth
@@ -2071,13 +2280,7 @@ impl Heap {
             }
         };
         // A small block growing: the forecast size (a large block's `usable` is above both caps).
-        let want = if size > usable && usable < FORECAST_CAP {
-            Self::forecast(size)
-        } else if size > usable && (MID_FORECAST..MAX_SMALL).contains(&usable) {
-            Self::forecast_mid(size)
-        } else {
-            size
-        };
+        let want = Self::move_target(usable, size);
         let new = if secure { self.alloc_secure(sys, pages, size, ALIGN) } else { self.alloc(sys, pages, want, ALIGN) };
         let Some(new) = new else { return Ok(None) };
         copy(addr, new.addr, usable.min(size));
@@ -2167,7 +2370,7 @@ impl Heap {
         let large_mapped = self.large_mapped.load(Relaxed);
         Stats {
             in_use: in_use + large_mapped.saturating_sub(self.large_kept.load(Relaxed)),
-            small_mapped: self.nsegs.load(Acquire) * SEG,
+            small_mapped: self.seg_mapped.load(Relaxed),
             large_mapped,
             large_blocks: self.large_count.load(Relaxed),
             releasable: empty_slabs * SLAB,

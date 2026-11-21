@@ -1,0 +1,15 @@
+@@generated
+/* inttypes.h: format conversion of integer types (C 7.8). */
+#ifndef __NIJI_H_inttypes_h
+#define __NIJI_H_inttypes_h 1
+
+#include <features.h>
+#include <stdint.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

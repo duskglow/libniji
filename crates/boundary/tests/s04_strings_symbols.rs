@@ -16,10 +16,10 @@
 
 use core::ptr::{null, null_mut};
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t, wchar_t};
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t, wchar_t};
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
 use spectest::symbol;
 
 const SIGABRT: i32 = 6;
@@ -427,7 +427,7 @@ fn compat_memcpy_2_2_5_is_overlap_safe() {
             let mut a: Vec<u8> = (0..4096u32).map(|k| (k * 7 + 1) as u8).collect();
             let mut b = a.clone();
             let base = a.as_mut_ptr().wrapping_add(1024);
-            let r = s::liella_compat_memcpy(base.wrapping_offset(shift).cast(), base.cast(), n);
+            let r = s::niji_compat_memcpy(base.wrapping_offset(shift).cast(), base.cast(), n);
             assert_eq!(r, base.wrapping_offset(shift).cast(), "returns the destination");
             b.copy_within(1024..1024 + n, (1024 + shift) as usize);
             assert!(a == b, "n={n} shift={shift}: memmove's result");

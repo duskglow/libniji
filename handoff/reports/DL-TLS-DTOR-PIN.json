@@ -1,0 +1,13 @@
+{"task": "DL-TLS-DTOR-PIN", "model": "opus", "tokens": null,
+ "result": "A pending C++ thread_local destructor now pins its dlopened object (s1_2_c_6): dlclose leaves it loaded, the last destructor unloads it after running",
+ "branch": "task/dl-tls-dtor-pin", "head": "4c7534584",
+ "gate": {"affected": "dl-tls-dtor-pin-gate1 (see hand-back)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["fork child: pins of threads absent in the child are never dropped there; the object stays loaded in the child until exit (safe; recorded)", "crates/legacy has no unit test of run_thread_dtors; covered by the C test in crates/ld/tests/dlclose.rs"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "thread_local destructor of a dlclosed plugin called into unmapped memory at thread exit (SIGSEGV); now runs before the plugin's static destructors and the unmap", "before": null, "after": null, "unit": null, "measured": true},
+            {"kind": "coverage", "what": "tests added (s1_2_c_6 exit and threads modes)", "before": 0, "after": 1, "unit": "tests", "measured": true},
+            {"kind": "coverage", "what": "plants added, all CAUGHT", "before": 0, "after": 5, "unit": "plants", "measured": true}],
+ "improvement": "the chain script queues every final-head build job in one detached call (one build per role at a time) and plants alongside in RAM",
+ "next_step": "land; optional follow-up: drop gone threads' pins in a fork child",
+ "report_file": "handoff/DL-TLS-DTOR-PIN.md",
+ "jobs": ["dl-tls-dtor-pin-lint2", "dl-tls-dtor-pin-tests2", "dl-tls-dtor-pin-plants1", "dl-tls-dtor-pin-gate1", "dl-tls-dtor-pin-xtest1", "dl-tls-dtor-pin-release1"]}

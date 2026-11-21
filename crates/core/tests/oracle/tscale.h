@@ -5,9 +5,9 @@
  * killed by a limit sized for an idle one, while a child that is really hung still dies, at most 10x
  * later. Keep the formula in step with crates/core/tests/support/timeout.rs and oracle/tscale.sh:
  *   pressure = max(load1, running tasks - 1); scale = clamp(1 + ceil(pressure / cpus), 2, 10)
- * LIELLA_TEST_TIMEOUT_SCALE=<n> overrides it (1..100). `alarm(0)` stays a cancel. */
-#ifndef LIELLA_TSCALE_H
-#define LIELLA_TSCALE_H
+ * NIJI_TEST_TIMEOUT_SCALE=<n> overrides it (1..100). `alarm(0)` stays a cancel. */
+#ifndef NIJI_TSCALE_H
+#define NIJI_TSCALE_H
 #include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -18,7 +18,7 @@ static unsigned tw_scale(void)
     static unsigned cached;
     if (cached)
         return cached;
-    const char *e = getenv("LIELLA_TEST_TIMEOUT_SCALE");
+    const char *e = getenv("NIJI_TEST_TIMEOUT_SCALE");
     if (e && *e) {
         long v = atol(e);
         return cached = v < 1 ? 1 : v > 100 ? 100 : (unsigned)v;

@@ -1,6 +1,6 @@
 //! The exact and correctly rounded math functions end to end (spec §10.1, §10.2, §10.4, §10.6;
 //! D-10.3): `tests/oracle/exact_diff.c` built against the host C library and statically against
-//! Liella's products (`libm.a`, `libc.a`); every function of those families in every format, on
+//! libniji's products (`libm.a`, `libc.a`); every function of those families in every format, on
 //! edge operands, under every rounding direction where it matters. The outputs (result bits,
 //! raised flags, `errno`) must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`) and a C compiler; without the compiler the
@@ -19,14 +19,14 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/math/tests/oracle/exact_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        let p = r.join("target/liella");
+    if niji {
+        let p = r.join("target/niji");
         cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-            .arg(p.join("liella-crt1.o"))
+            .arg(p.join("niji-crt1.o"))
             .arg(&src)
             .arg(p.join("libm.a"))
             .arg(p.join("libc.a"))
@@ -65,14 +65,14 @@ fn known(line: &str) -> Option<usize> {
 fn exact_functions_equal_the_reference() {
     // Clauses: s10_1_c_1, s10_2_t_r16, s10_4_t_r1, s10_6_c_0 (D-10.10).
     let r = root();
-    assert!(r.join("target/liella/libm.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libm.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("exact_diff_host"), dir.join("exact_diff_liella"));
+    let (host, ours) = (dir.join("exact_diff_host"), dir.join("exact_diff_niji"));
     assert!(build(&host, false), "exact_diff.c does not build against the host C library");
     assert!(build(&ours, true), "exact_diff.c does not link against the products");
     let run = |exe: &Path| -> String {
@@ -92,7 +92,7 @@ fn exact_functions_equal_the_reference() {
         }
         match known(w) {
             Some(i) => used[i] = true,
-            None => errors.push(format!("reference: {w}\n   liella: {g}")),
+            None => errors.push(format!("reference: {w}\n   niji: {g}")),
         }
     }
     for (i, u) in used.iter().enumerate() {

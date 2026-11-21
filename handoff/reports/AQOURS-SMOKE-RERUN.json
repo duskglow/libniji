@@ -1,0 +1,14 @@
+{"task": "AQOURS-SMOKE-RERUN", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (context checkpoint): harness extended (mirror/keyring, dlclose programs); full runs on keke, mei, shiki in progress; F1 and F11 fixed, F3 changed direction, one private item",
+ "branch": "task/aqours-smoke-rerun", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [
+   "bash run-glob-test: reference prints the setlocale warning without strerror, Liella with ENOENT; the direct setlocale reproducer gives ENOENT on both (to classify: path through setlocale(LC_ALL, \"\"))",
+   "bash run-read output differs run to run on both builds (needs a tty): noise"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "smoke programs added (gawk_ext, python3_shared, lua_reload, cxx_dlclose) and plants on the harness", "before": 14, "after": 18, "unit": "programs", "measured": true},
+            {"kind": "tooling", "what": "smoke harness: LAN mirror with pinned keyring, output-compare kind, make recipe fixed", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "the ~150k context checkpoint arrives before a 3-host smoke run finishes; such stories fit Park: 1",
+ "next_step": "collect aqours-smoke-rerun-full-<host>, fix gawk_ext build, rerun make/gawk_ext, write RESULTS.md (handoff/AQOURS-SMOKE-RERUN.md, Next step)",
+ "report_file": "handoff/AQOURS-SMOKE-RERUN.md",
+ "jobs": ["keke:aqours-smoke-rerun-plants1", "keke:aqours-smoke-rerun-full-keke", "mei:aqours-smoke-rerun-full-mei", "shiki:aqours-smoke-rerun-full-shiki"]}

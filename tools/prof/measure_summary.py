@@ -39,7 +39,7 @@ layout = []
 v3 = []
 glibc_sd = []
 for r in sel:
-    ls, gs = num(r, "liella_static_ratio"), num(r, "glibc_static_ratio")
+    ls, gs = num(r, "niji_static_ratio"), num(r, "glibc_static_ratio")
     if ls is None:
         continue
     ss = ls / gs if gs else None
@@ -64,7 +64,7 @@ for r in sel:
         s[2].append(f"{r['row']} t{ss:.2f} i{ir:.2f} ipc{pr:.2f}")
 
 print(f"above parity: {above_dyn} vs glibc dynamic (current pairing); {above_ss} vs glibc static (like-for-like)")
-print("== parity status CHANGES under the static-static pairing (row: Liella/glibc-dyn -> Liella/glibc-static)")
+print("== parity status CHANGES under the static-static pairing (row: libniji/glibc-dyn -> libniji/glibc-static)")
 for b, row, ls, ss in sorted(changed, key=lambda x: x[3] - x[2]):
     print(f"  {b}/{row}: {ls:.3f} -> {ss:.3f}")
 glibc_sd.sort()

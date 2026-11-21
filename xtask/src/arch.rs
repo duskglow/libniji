@@ -23,7 +23,7 @@ const CATEGORIES: &[(&str, &[&str])] = &[
     ("cfg", &["target_arch"]),
     ("intrinsics", &["arch::x86_64", "arch::x86::"]),
     ("asm", &["asm!", "global_asm!", "naked_asm!"]),
-    ("machine-decl", &["fn liella_machine_"]),
+    ("machine-decl", &["fn niji_machine_"]),
     ("fpu", &["mxcsr", "MXCSR", "Mxcsr", "x87", "X87", "fnstcw", "fldcw", "fnstsw"]),
     ("thread-pointer", &["arch_prctl", "ARCH_SET_FS", "ARCH_GET_FS", "ArchGet", "ARCH_SET_GS", "ARCH_GET_GS"]),
     ("reloc", &["R_X86_64"]),
@@ -33,8 +33,8 @@ const CATEGORIES: &[(&str, &[&str])] = &[
 /// replaces it). Whole units only (a model, a trait, generated code, a test double); scattered sites are tagged instead.
 /// A category not listed for a module still needs a tag there.
 const ALLOWED: &[(&str, &[&str], &str)] = &[
-    ("crates/boundary/src/strz.rs", &["machine-decl"], "module `portable` (cfg liella_portable_scan): the portable Rust stand-ins, named after the machine entries they replace on targets without scan.S; the file has no other machine declaration (A-8, D-4.22 PORTABLE-SCAN)"),
-    ("crates/boundary/src/ffi.rs", &[], "the one declaration of the csys/src/machine/*.S entry points (K5 matches it against liella_csys.h); per-arch assembly, A-6"),
+    ("crates/boundary/src/strz.rs", &["machine-decl"], "module `portable` (cfg niji_portable_scan): the portable Rust stand-ins, named after the machine entries they replace on targets without scan.S; the file has no other machine declaration (A-8, D-4.22 PORTABLE-SCAN)"),
+    ("crates/boundary/src/ffi.rs", &[], "the one declaration of the csys/src/machine/*.S entry points (K5 matches it against niji_csys.h); per-arch assembly, A-6"),
     ("crates/boundary/src/ffi_sys.rs", &["thread-pointer"], "generated from csys/syscalls.tsv (arch_prctl); per-arch table, A-3"),
     ("crates/abi/", &["fpu", "cfg"], "generated from spec/abi/layouts.tsv (fenv_t, ucontext_t) and its layout tests, picked per target_arch (layouts-aarch64.tsv probed, A-5)"),
     ("crates/kernel/src/uapi.rs", &["thread-pointer"], "x86_64 UAPI constants (asm/prctl.h); A-3"),
@@ -106,15 +106,15 @@ fn scan(root: &Path, t: &Tools) -> Result<Vec<Seam>, String> {
 /// no target-feature flags, until RL-1 is ruled). Listed in rust-toolchain.toml.
 pub const CROSS_TARGET: &str = "aarch64-unknown-linux-gnu";
 
-/// The check set, every target and feature: the crates that build without csys (no `liella-boundary` among their
+/// The check set, every target and feature: the crates that build without csys (no `niji-boundary` among their
 /// normal or dev dependencies; docs/arch-seams.md). A crate that gains that dependency fails the check at the
 /// boundary build script, which refuses a non-x86_64 target.
 pub const CHECK_ALL_TARGETS: &[&str] =
-    &["liella-kernel", "liella-mem", "liella-abi", "liella-legacy", "liella-ld", "liella-native", "liella-thread-db", "liella-mathtools", "spectest"];
+    &["niji-kernel", "niji-mem", "niji-abi", "niji-legacy", "niji-ld", "niji-native", "niji-thread-db", "niji-mathtools", "spectest"];
 
-/// The check set, library only: these crates build without csys, but their tests take `liella-boundary` as a
+/// The check set, library only: these crates build without csys, but their tests take `niji-boundary` as a
 /// dev-dependency (csys), so only the library target is checked.
-pub const CHECK_LIB_ONLY: &[&str] = &["liella-rt", "liella-math", "liella"];
+pub const CHECK_LIB_ONLY: &[&str] = &["niji-rt", "niji-math", "niji"];
 
 /// `cargo xtask arch-check`: the cargo argument lists of the cross check, one `cargo check` each.
 pub fn cross_check_args() -> Vec<Vec<String>> {

@@ -4,13 +4,15 @@
 //! The checks run a child copy of this test binary with its own PATH.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs, dead_code)]
 
+#[path = "helpers/exec_stage.rs"]
+mod exec_stage;
 #[path = "support/oracle.rs"]
 mod oracle;
 
 use std::path::PathBuf;
 use std::process::Command;
 
-const CHILD: &str = "LIELLA_SKIP_PRECOND_CHILD";
+const CHILD: &str = "NIJI_SKIP_PRECOND_CHILD";
 
 fn scratch(tag: &str) -> PathBuf {
     let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("skip-precond-{tag}-{}", std::process::id()));
@@ -25,7 +27,7 @@ fn scratch(tag: &str) -> PathBuf {
 fn child_probe() {
     // Trace: no spec clause (test-harness behaviour; TEST-SILENT-SKIPS).
     let Some(what) = std::env::var_os(CHILD) else { return };
-    let dir = PathBuf::from(std::env::var_os("LIELLA_PRECOND_DIR").unwrap());
+    let dir = PathBuf::from(std::env::var_os("NIJI_PRECOND_DIR").unwrap());
     let r = if what == "locale" {
         oracle::locale(&dir.join("out/xx_XX.UTF-8"), "en_US", "UTF-8", "LC_COLLATE")
     } else {
@@ -41,7 +43,7 @@ fn run_child(what: &str, path: &std::path::Path, dir: &std::path::Path) -> (bool
         .args(["child_probe", "--exact", "--nocapture", "--include-ignored"])
         .env(CHILD, what)
         .env("PATH", path)
-        .env("LIELLA_PRECOND_DIR", dir)
+        .env("NIJI_PRECOND_DIR", dir)
         .output()
         .unwrap();
     let out = String::from_utf8_lossy(&o.stdout).into_owned();
@@ -52,13 +54,11 @@ fn run_child(what: &str, path: &std::path::Path, dir: &std::path::Path) -> (bool
 #[test]
 fn a_failing_localedef_fails_and_an_absent_one_skips() {
     // Trace: no spec clause (test-harness behaviour; TEST-SILENT-SKIPS).
-    use std::os::unix::fs::PermissionsExt;
     let d = scratch("locale");
     let bin = d.join("bin");
     std::fs::create_dir_all(&bin).unwrap();
     let fake = bin.join("localedef");
-    std::fs::write(&fake, "#!/bin/sh\necho 'localedef: broken on purpose' >&2\nexit 3\n").unwrap();
-    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+    exec_stage::write_for_exec(&fake, b"#!/bin/sh\necho 'localedef: broken on purpose' >&2\nexit 3\n", 0o755);
     let (ok, _out, err) = run_child("locale", &bin, &d);
     assert!(!ok, "a localedef that exits 3 must fail the test, not skip it");
     assert!(err.contains("localedef is present but failed"), "stderr: {err}");

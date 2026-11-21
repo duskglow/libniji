@@ -27,7 +27,7 @@ static int count(const char *needle)
 int main(void)
 {
     const char *dir = getenv("TMPDIR");
-    snprintf(path, sizeof path, "%s/liella-mtrace-%d", dir && *dir ? dir : "/tmp", (int)getpid());
+    snprintf(path, sizeof path, "%s/niji-mtrace-%d", dir && *dir ? dir : "/tmp", (int)getpid());
     unlink(path);
 
     /* Without MALLOC_TRACE: nothing. */

@@ -1,5 +1,5 @@
 //! The C interface's process-wide logger (spec §26.1 ⚑ HIST; D-26.1): `openlog`, `closelog`,
-//! `setlogmask` and the delivery of `syslog`'s formatted text, over `liella::log`.
+//! `setlogmask` and the delivery of `syslog`'s formatted text, over `niji::log`.
 //!
 //! The C contract keeps one logger per process, and its rules are historical:
 //! * **The identifier is kept by pointer** (§26.1 ⚑ HIST): the caller's string is read again for
@@ -24,11 +24,11 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering::Relaxed};
 
-use liella::error::KResult;
-use liella::log::{self, Channels, Link, Record, Stamp, FACMASK, LOG_AUTH, LOG_ERR, LOG_NDELAY, LOG_PID, PRIMASK};
-use liella::mem::TryVec;
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::error::KResult;
+use niji::log::{self, Channels, Link, Record, Stamp, FACMASK, LOG_AUTH, LOG_ERR, LOG_NDELAY, LOG_PID, PRIMASK};
+use niji::mem::TryVec;
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
 /// What the logger needs from the process.
 pub trait Host {

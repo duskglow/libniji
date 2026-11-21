@@ -4,13 +4,13 @@
 //! the phase-10 functions are in `crate::users`.
 //!
 //! The ID queries cannot fail and return the `Sys` values directly; `getgroups`' count query
-//! and `group_member` are in `liella_legacy::cred_compat`.
+//! and `group_member` are in `niji_legacy::cred_compat`.
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t};
-use liella_abi::layout::{struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp};
-use liella_legacy::nss_files::Key;
-use liella_kernel::sys::Sys;
-use liella_legacy::cred_compat;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void, size_t};
+use niji_abi::layout::{struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp};
+use niji_legacy::nss_files::Key;
+use niji_kernel::sys::Sys;
+use niji_legacy::cred_compat;
 
 use crate::conv;
 use crate::export;
@@ -592,10 +592,10 @@ pub extern "C" fn logwtmp(line: *const c_char, name: *const c_char, host: *const
 }}
 
 // ------------------------------------------------------------------------------ login_tty (§19.4)
-// Phase 10 for `getlogin`'s needs; the terminal work is `liella::term::login` (phase 11): a
+// Phase 10 for `getlogin`'s needs; the terminal work is `niji::term::login` (phase 11): a
 // caller that already leads a session keeps it, and nothing changes when `fd` is no terminal.
 
 export! { "GLIBC_2.34";
 pub extern "C" fn login_tty(fd: c_int) -> c_int {
-    ret::zero(liella::term::login(&CSys, conv::fd(fd)))
+    ret::zero(niji::term::login(&CSys, conv::fd(fd)))
 }}

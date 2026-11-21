@@ -12,10 +12,10 @@
 //! POSIX queues live in the IPC namespace: each queue test runs in a private one (the test
 //! re-executed under `unshare --user --ipc --map-current-user`), so no test touches the
 //! system's `/dev/mqueue`; without such a namespace the test says so and passes. `mq_open` is
-//! variadic: its fixed-arity target `liella_mq_open4` is tested here and the C entry point
+//! variadic: its fixed-arity target `niji_mq_open4` is tested here and the C entry point
 //! through real varargs in `conformance/c/s25_mqueue.c`. Shared-memory objects are made in a
 //! scratch directory under `target/` that `selftest::shm_dir` substitutes for `/dev/shm/`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
@@ -27,10 +27,10 @@ mod scratch;
 use core::ptr::{null, null_mut};
 use std::ffi::{CStr, CString};
 
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s25_ipc as s;
-use liella_kernel::uapi::{MqAttr, Sembuf, SigEvent, Timespec, SIGEV_NONE};
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s25_ipc as s;
+use niji_kernel::uapi::{MqAttr, Sembuf, SigEvent, Timespec, SIGEV_NONE};
 
 const ENOENT: i32 = 2;
 const EAGAIN: i32 = 11;
@@ -64,7 +64,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -113,7 +113,7 @@ const EBADF: i32 = 9;
 const EBUSY: i32 = 16;
 const EMSGSIZE: i32 = 90;
 const ETIMEDOUT: i32 = 110;
-const IPCNS: &str = "LIELLA_S25_SYMBOLS_IPCNS";
+const IPCNS: &str = "NIJI_S25_SYMBOLS_IPCNS";
 
 /// Run `body` in a private IPC namespace (see the module documentation).
 fn in_ipc_ns(test: &str, body: impl FnOnce()) {
@@ -133,7 +133,7 @@ fn in_ipc_ns(test: &str, body: impl FnOnce()) {
 }
 
 fn mq(name: &CStr, flags: i32, attr: Option<&MqAttr>) -> i32 {
-    s::liella_mq_open4(name.as_ptr(), flags, 0o600, attr.map_or(null(), |a| a as *const MqAttr))
+    s::niji_mq_open4(name.as_ptr(), flags, 0o600, attr.map_or(null(), |a| a as *const MqAttr))
 }
 
 /// A fresh queue of `n` messages of 8 bytes.
@@ -156,9 +156,9 @@ fn sym_mq_open() {
         assert!(q >= 0, "the descriptor");
         let a = attr_of(q);
         assert_eq!((a.maxmsg, a.msgsize), (3, 16), "the attributes reach the kernel");
-        assert_eq!(io::liella_fcntl3(q, 1, 0), 1, "close-on-exec always");
+        assert_eq!(io::niji_fcntl3(q, 1, 0), 1, "close-on-exec always");
         // Without O_CREAT the attribute argument is not read (here: no valid address).
-        let again = s::liella_mq_open4(c"/o".as_ptr(), O_RDONLY, 0, core::ptr::with_exposed_provenance(8));
+        let again = s::niji_mq_open4(c"/o".as_ptr(), O_RDONLY, 0, core::ptr::with_exposed_provenance(8));
         assert!(again >= 0, "the optional arguments are ignored without O_CREAT");
         errno::set_raw(0);
         assert!(fails(mq(c"o", O_RDWR, None) as isize, EINVAL), "-1 with errno");
@@ -343,7 +343,7 @@ fn sym_msgctl() {
     let q = s::msgget(IPC_PRIVATE, 0o600);
     let m = Msg { mtype: 1, text: *b"ab" };
     s::msgsnd(q, (&raw const m).cast(), 2, 0);
-    let mut ds = liella_kernel::uapi::MsqidDs::default();
+    let mut ds = niji_kernel::uapi::MsqidDs::default();
     assert_eq!(s::msgctl(q, IPC_STAT, (&raw mut ds).cast()), 0);
     assert_eq!(ds.qnum(), 1, "msg_qnum");
     assert_eq!(s::msgctl(q, IPC_SET, (&raw mut ds).cast()), 0);
@@ -409,7 +409,7 @@ fn sym___pipe() {
     let mut b = [0u8; 7];
     assert_eq!(io::read(fds[0], b.as_mut_ptr().cast(), 7), 7);
     assert_eq!(&b, b"through");
-    assert_eq!(io::liella_fcntl3(fds[0], 1, 0), 0, "no FD_CLOEXEC");
+    assert_eq!(io::niji_fcntl3(fds[0], 1, 0), 0, "no FD_CLOEXEC");
     io::close(fds[0]);
     io::close(fds[1]);
     errno::set_raw(0);
@@ -424,7 +424,7 @@ fn sym_pipe() {
     let mut b = [0u8; 7];
     assert_eq!(io::read(fds[0], b.as_mut_ptr().cast(), 7), 7);
     assert_eq!(&b, b"through");
-    assert_eq!(io::liella_fcntl3(fds[0], 1, 0), 0, "no FD_CLOEXEC");
+    assert_eq!(io::niji_fcntl3(fds[0], 1, 0), 0, "no FD_CLOEXEC");
     io::close(fds[0]);
     io::close(fds[1]);
     errno::set_raw(0);
@@ -435,7 +435,7 @@ fn sym_pipe() {
 fn sym_pipe2() {
     let mut fds = [-1; 2];
     assert_eq!(s::pipe2(Some(&mut fds), 0o2000000 | 0o4000), 0, "O_CLOEXEC | O_NONBLOCK");
-    assert_eq!(io::liella_fcntl3(fds[0], 1, 0), 1);
+    assert_eq!(io::niji_fcntl3(fds[0], 1, 0), 1);
     let mut b = [0u8; 1];
     errno::set_raw(0);
     assert!(fails(io::read(fds[0], b.as_mut_ptr().cast(), 1), EAGAIN));
@@ -447,22 +447,22 @@ fn sym_pipe2() {
 #[test]
 fn sym_semctl() {
     let id = s::semget(IPC_PRIVATE, 3, 0o600);
-    assert_eq!(s::liella_semctl4(id, 1, SETVAL, 0xdead_beef_0000_0007), 0, "SETVAL: the int member (the upper half is not part of it)");
-    assert_eq!(s::liella_semctl4(id, 1, GETVAL, 0), 7);
+    assert_eq!(s::niji_semctl4(id, 1, SETVAL, 0xdead_beef_0000_0007), 0, "SETVAL: the int member (the upper half is not part of it)");
+    assert_eq!(s::niji_semctl4(id, 1, GETVAL, 0), 7);
     let mut all = [5u16, 6, 7];
-    assert_eq!(s::liella_semctl4(id, 0, SETALL, all.as_mut_ptr() as usize), 0);
+    assert_eq!(s::niji_semctl4(id, 0, SETALL, all.as_mut_ptr() as usize), 0);
     let mut got = [0u16; 3];
-    assert_eq!(s::liella_semctl4(id, 0, GETALL, got.as_mut_ptr() as usize), 0, "one entry per semaphore");
+    assert_eq!(s::niji_semctl4(id, 0, GETALL, got.as_mut_ptr() as usize), 0, "one entry per semaphore");
     assert_eq!(got, [5, 6, 7]);
-    let mut ds = liella_kernel::uapi::SemidDs::default();
-    assert_eq!(s::liella_semctl4(id, 0, IPC_STAT, (&raw mut ds) as usize), 0);
+    let mut ds = niji_kernel::uapi::SemidDs::default();
+    assert_eq!(s::niji_semctl4(id, 0, IPC_STAT, (&raw mut ds) as usize), 0);
     assert_eq!(ds.nsems(), 3);
     let mut info = [0u8; 40];
-    assert!(s::liella_semctl4(id, 0, SEM_INFO, info.as_mut_ptr() as usize) >= 0, "struct seminfo (40 bytes)");
+    assert!(s::niji_semctl4(id, 0, SEM_INFO, info.as_mut_ptr() as usize) >= 0, "struct seminfo (40 bytes)");
     errno::set_raw(0);
-    assert!(fails(s::liella_semctl4(id, 0, 99, 0) as isize, EINVAL));
-    assert!(fails(s::liella_semctl4(id, 0, IPC_STAT, 0) as isize, EFAULT));
-    assert_eq!(s::liella_semctl4(id, 0, IPC_RMID, 0), 0);
+    assert!(fails(s::niji_semctl4(id, 0, 99, 0) as isize, EINVAL));
+    assert!(fails(s::niji_semctl4(id, 0, IPC_STAT, 0) as isize, EFAULT));
+    assert_eq!(s::niji_semctl4(id, 0, IPC_RMID, 0), 0);
     conformance(&["s25_semctl"]);
 }
 
@@ -476,8 +476,8 @@ fn sym_semget() {
     let k = s::semget(key, 1, IPC_CREAT | 0o600);
     assert!(k >= 0);
     assert!(fails(s::semget(key, 1, IPC_CREAT | IPC_EXCL | 0o600) as isize, EEXIST));
-    assert_eq!(s::liella_semctl4(k, 0, IPC_RMID, 0), 0);
-    assert_eq!(s::liella_semctl4(id, 0, IPC_RMID, 0), 0);
+    assert_eq!(s::niji_semctl4(k, 0, IPC_RMID, 0), 0);
+    assert_eq!(s::niji_semctl4(id, 0, IPC_RMID, 0), 0);
 }
 
 #[test]
@@ -485,12 +485,12 @@ fn sym_semop() {
     let id = s::semget(IPC_PRIVATE, 2, 0o600);
     let mut up = [Sembuf { num: 0, op: 2, flg: 0 }, Sembuf { num: 1, op: 1, flg: 0 }];
     assert_eq!(s::semop(id, up.as_mut_ptr().cast(), 2), 0, "applied atomically");
-    assert_eq!(s::liella_semctl4(id, 0, GETVAL, 0), 2);
+    assert_eq!(s::niji_semctl4(id, 0, GETVAL, 0), 2);
     let mut down = [Sembuf { num: 1, op: -2, flg: IPC_NOWAIT as i16 }];
     errno::set_raw(0);
     assert!(fails(s::semop(id, down.as_mut_ptr().cast(), 1) as isize, EAGAIN), "would block");
     assert!(fails(s::semop(id, up.as_mut_ptr().cast(), 0) as isize, EINVAL), "no operations");
-    s::liella_semctl4(id, 0, IPC_RMID, 0);
+    s::niji_semctl4(id, 0, IPC_RMID, 0);
 }
 
 #[test]
@@ -502,7 +502,7 @@ fn sym_semtimedop() {
     assert!(fails(s::semtimedop(id, down.as_mut_ptr().cast(), 1, Some(&ts)) as isize, EAGAIN), "the timeout");
     let bad = Timespec { sec: 0, nsec: 2_000_000_000 };
     assert!(fails(s::semtimedop(id, down.as_mut_ptr().cast(), 1, Some(&bad)) as isize, EINVAL));
-    s::liella_semctl4(id, 0, IPC_RMID, 0);
+    s::niji_semctl4(id, 0, IPC_RMID, 0);
 }
 
 // ------------------------------------------------------------------------------ POSIX shared memory
@@ -518,9 +518,9 @@ fn with_shm_dir(tag: &str, body: impl FnOnce(&std::path::Path)) {
     let dir = dir.canonicalize().unwrap();
     let mut d = dir.as_os_str().as_encoded_bytes().to_vec();
     d.push(b'/');
-    liella_boundary::selftest::shm_dir(Some(&d));
+    niji_boundary::selftest::shm_dir(Some(&d));
     body(&dir);
-    liella_boundary::selftest::shm_dir(None);
+    niji_boundary::selftest::shm_dir(None);
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -531,11 +531,11 @@ fn sym_shm_open() {
         assert!(fd >= 0, "a descriptor");
         let m = std::fs::metadata(dir.join("obj")).unwrap();
         assert_eq!(std::os::unix::fs::PermissionsExt::mode(&m.permissions()) & 0o7777, 0o640 & !umask(), "the mode, less the umask");
-        assert_eq!(io::liella_fcntl3(fd, 1, 0), 1, "close-on-exec");
-        assert_eq!(io::liella_fcntl3(fd, 3, 0) & 3, O_RDWR, "the access mode");
+        assert_eq!(io::niji_fcntl3(fd, 1, 0), 1, "close-on-exec");
+        assert_eq!(io::niji_fcntl3(fd, 3, 0) & 3, O_RDWR, "the access mode");
         let nb = s::shm_open(c"obj".as_ptr(), O_RDONLY | O_NONBLOCK, 0);
         assert!(nb >= 0, "no slash is the same name");
-        assert_eq!(io::liella_fcntl3(nb, 3, 0) & O_NONBLOCK, O_NONBLOCK, "O_NONBLOCK kept when asked");
+        assert_eq!(io::niji_fcntl3(nb, 3, 0) & O_NONBLOCK, O_NONBLOCK, "O_NONBLOCK kept when asked");
         errno::set_raw(0);
         assert!(fails(s::shm_open(c"/obj".as_ptr(), O_RDWR | O_CREAT | 0o200, 0o600) as isize, EEXIST), "O_EXCL");
         assert!(fails(s::shm_open(c"/a/b".as_ptr(), O_RDWR | O_CREAT, 0o600) as isize, EINVAL), "a further slash");
@@ -577,9 +577,9 @@ fn sym_shmat() {
     assert_ne!(a as isize, -1);
     let b = s::shmat(id, null(), 0o10000);
     assert_ne!(b as isize, -1, "SHM_RDONLY");
-    liella_boundary::posix::s04_strings::memcpy(a, b"shared".as_ptr().cast(), 6);
+    niji_boundary::posix::s04_strings::memcpy(a, b"shared".as_ptr().cast(), 6);
     let mut v = [0u8; 6];
-    liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), b, 6);
+    niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), b, 6);
     assert_eq!(&v, b"shared", "two attachments of one segment");
     s::shmdt(a);
     s::shmdt(b);
@@ -591,7 +591,7 @@ fn sym_shmat() {
 #[test]
 fn sym_shmctl() {
     let id = s::shmget(IPC_PRIVATE, 12288, 0o600);
-    let mut ds = liella_kernel::uapi::ShmidDs::default();
+    let mut ds = niji_kernel::uapi::ShmidDs::default();
     assert_eq!(s::shmctl(id, IPC_STAT, (&raw mut ds).cast()), 0);
     assert_eq!(ds.segsz(), 12288);
     let mut info = [0u8; 72];
@@ -607,7 +607,7 @@ fn sym_shmctl() {
 fn sym_shmdt() {
     let id = s::shmget(IPC_PRIVATE, 4096, 0o600);
     let a = s::shmat(id, null(), 0);
-    let mut ds = liella_kernel::uapi::ShmidDs::default();
+    let mut ds = niji_kernel::uapi::ShmidDs::default();
     s::shmctl(id, IPC_STAT, (&raw mut ds).cast());
     assert!(ds.nattch() >= 1, "ours is counted (a concurrently forked child may add its inherited one)");
     assert_eq!(s::shmdt(a), 0);

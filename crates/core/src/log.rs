@@ -18,16 +18,16 @@
 //!   past that the message counts as not delivered. The descriptors themselves stay blocking.
 //! * **[`emit`]** delivers a record as the options ask (the socket; the console with
 //!   `LOG_CONS` when that fails; standard error with `LOG_PERROR`), for the handle here and for
-//!   the C interface's process-wide logger (`liella_legacy::log_compat`).
+//!   the C interface's process-wide logger (`niji_legacy::log_compat`).
 //! * **[`Logger`]**, the clean handle: an owned identifier, explicit options, facility and mask,
 //!   its own connection and channels. Priorities with bits outside the priority and facility
 //!   fields are `EINVAL`.
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     PollFd, Timespec, AF_UNIX, CLOCK_MONOTONIC, MSG_DONTWAIT, MSG_NOSIGNAL, O_CLOEXEC, O_NOCTTY, O_NONBLOCK, O_WRONLY, POLLOUT, SOCK_CLOEXEC,
     SOCK_DGRAM, SOCK_STREAM,
 };

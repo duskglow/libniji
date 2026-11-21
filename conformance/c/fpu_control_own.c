@@ -3,7 +3,7 @@
  * the x87 control word at `main` is the program's value; linked statically, the definition is
  * ignored and the word stays 0x037f. A constructor's assignment comes too late either way.
  * conformance/run.sh links it statically; crates/boundary/tests/s10_math_symbols.rs also runs it
- * dynamically, on glibc and on Liella's libc.so.6. */
+ * dynamically, on glibc and on libniji's libc.so.6. */
 #include <fpu_control.h>
 #include <stdio.h>
 #include <sys/auxv.h>

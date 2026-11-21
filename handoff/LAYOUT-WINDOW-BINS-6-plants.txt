@@ -1,0 +1,61 @@
+# LAYOUT-WINDOW-BINS-6 plants (run 5's file, rerun on the final head; hottext-bin-position is now equivalent and
+# hottext-bin-digit, caught by the five-digit place in the unit test, replaces it as the bin-position plant).
+# Run 5's header: slice 2 (the window-bin plan applied, phase modes' warm-up in the signatures, the group
+# ending on a window boundary). Run 4's plants (never run) plus three for the group end (GROUP_END, LAYOUT-WINDOW-BINS-5).
+# Unit plants run the xtask tests of xtask/src/bins.rs and hottext.rs; product plants build the products (traced) in
+# the plant copy and run hot_text_products on the linked probe.
+#
+# Every bin after a gap keeps its own alignment (no 64 KiB start).
+bins-no-bin-align | xtask/src/bins.rs | lit:let align = if Some(i) == head && items[i].align < BIN { BIN } else { 0 }; ==> let align = 0; | cargo test -p xtask --bin xtask -- bins:: | msg:placements_name_sections_in_link_order.*(FAILED|panicked)|test result: FAILED
+# Members and fillers swap their sort digit (fillers ahead of the bin's members).
+bins-filler-digit | xtask/src/bins.rs | lit:u8::from(filler)) ==> u8::from(!filler)) | cargo test -p xtask --bin xtask -- bins:: hottext:: | msg:(placements_name_sections_in_link_order|grouped_names_give_back).*(FAILED|panicked)|test result: FAILED
+# The head bin fills the whole window (no room for the start file ahead of the group).
+bins-no-head-room | xtask/src/bins.rs | lit:if n == 0 { BIN - HEAD_ROOM } else { BIN } ==> if n == usize::MAX { BIN - HEAD_ROOM } else { BIN } | cargo test -p xtask --bin xtask -- bins:: | msg:(the_head_bin_leaves_room|fillers_take_the_gap).*(FAILED|panicked)|test result: FAILED
+# A bin member's list position is read from the wrong digits.
+hottext-bin-position | xtask/src/hottext.rs | lit:9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..], ==> 9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[3..], | cargo test -p xtask --bin xtask -- hottext:: | equivalent:the guard requires the fourth digit to be 0, and a leading 0 does not change the parsed position
+# The position drops its first digit (a member at place 12345 is placed at 2345).
+hottext-bin-digit | xtask/src/hottext.rs | lit:9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..], ==> 9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[5..], | cargo test -p xtask --bin xtask -- hottext:: | msg:grouped_names_give_back_their_list_position.*(FAILED|panicked)|test result: FAILED
+# so plans the bins but sets no alignment: bins start wherever the previous one ends.
+group-no-align | xtask/src/hottext.rs | lit:secs[i].set_align = align; ==> secs[i].set_align = 0; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:BIN-WINDOW: bin \d+ starts at|test result: FAILED
+# so plans the bins but keeps the list-position names: nothing is placed.
+group-no-rename | xtask/src/hottext.rs | lit:secs[i].want = name; ==> let _ = name; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:have no section in the probe's link|test result: FAILED
+#
+# A section the warm-up of a phase mode runs still counts for that mode (its phase is split into two groups).
+bins-counted-keeps-phase | xtask/src/bins.rs | lit:!m.ends_with(WARM_UP) && !sig.contains(&warm_up(m)) ==> !m.ends_with(WARM_UP) | cargo test -p xtask --bin xtask -- bins:: | msg:a_phase_split_by_its_warm_up_is_one_group.*(FAILED|panicked)|test result: FAILED
+# A phase mode is charged the windows its warm-up already faulted.
+bins-windows-no-warm | xtask/src/bins.rs | lit:let w = if b.modes.contains(&warm_up(m)) { 0 } else { b.windows() }; ==> let w = b.windows(); | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# The start-up groups no longer come first: a wider group takes the head bin.
+bins-startup-not-first | xtask/src/bins.rs | lit:(!s.contains(STARTUP_MODE), Reverse(s.len()) ==> (s.is_empty(), Reverse(s.len()) | cargo test -p xtask --bin xtask -- bins:: | msg:the_start_up_group_takes_the_head_bin_before_wider_groups.*(FAILED|panicked)|test result: FAILED
+# A bin records only its members' counted modes, so it loses the warm-ups that run in it.
+bins-join-drops-warm-up | xtask/src/bins.rs | lit:b.modes.extend(items[i].sig.iter().cloned()); ==> b.modes.extend(counted(&items[i].sig)); | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# A phase mode's lower bound counts its phase's bytes (as if no warm-up window could hold them).
+bins-bound-phase | xtask/src/bins.rs | lit:if phase.contains(m.as_str()) { 0 } else { b.div_ceil(BIN) } ==> if phase.is_empty() { 0 } else { b.div_ceil(BIN) } | cargo test -p xtask --bin xtask -- bins:: | msg:a_measured_phase_shares_its_warm_up_windows.*(FAILED|panicked)|test result: FAILED
+# regen writes no warm-up modes: the plan is the whole-process one again and the strings phase takes a text fault.
+regen-no-warm-up | tools/hottext/regen.sh | lit:echo "$m.pre=$f.pre" >> "$work/modes" ==> : "$m.pre=$f.pre" | cargo test -p liella --test hot_text_products -- init_first_string_calls_after_printf_take_no_text_fault init_first_float_conversion_stays_within_its_page_fault_bound | msg:first string calls after printf: [1-9]|first %.2f: [4-9] page faults|test result: FAILED
+#
+# Run 4's bins-align-uncounted (every bin after the first aligned) is now the design: every bin has a gap.
+bins-align-uncounted | xtask/src/bins.rs | lit:let aligned = if n == 0 { anchor } else { self.bins[n - 1].gap }; ==> let aligned = if n == 0 { anchor } else { true }; | cargo test -p xtask --bin xtask -- bins:: | equivalent:every bin has a gap since LAYOUT-WINDOW-BINS-5, so the previous bin's gap is always true
+# Bins no counted mode touches lose their gap again: the trailing bins end unfilled, short of the group end's boundary.
+bins-uncounted-no-gap | xtask/src/bins.rs | lit:b.gap = true; ==> b.gap = !b.modes.is_empty(); | cargo test -p xtask --bin xtask -- bins:: | msg:every_bin_fills_to_its_boundary_and_the_group_end_sorts_last.*(FAILED|panicked)|test result: FAILED
+# The group end's name no longer matches the start file's section: so must refuse the start object.
+group-end-name | xtask/src/bins.rs | lit:pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_end"; ==> pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_eNd"; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:no \.text\.sorted\.h9z\.liella_group_eNd section aligned | layout:traced
+# The start file's group end loses its 64 KiB alignment: so must refuse it (the product check GROUP-END backs it).
+entry-group-end-unaligned | csys/src/machine/entry.S | perl:s/(liella_machine_ld_entry:.*?)\.balign 65536/$1.balign 1/s | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:no \.text\.sorted\.h9z\.liella_group_end section aligned|GROUP-END: | layout:traced
+# cargo xtask plants results (17 plants: 15 CAUGHT, 0 SURVIVED, 2 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bins-no-bin-align: CAUGHT, caught by xtask bins::tests::placements_name_sections_in_link_order_and_align_each_bin_after_a_gap
+# bins-filler-digit: CAUGHT, caught by xtask bins::tests::placements_name_sections_in_link_order_and_align_each_bin_after_a_gap
+# bins-no-head-room: CAUGHT, caught by xtask bins::tests::fillers_take_the_gap_best_fit_and_never_twice
+# hottext-bin-position: EQUIVALENT
+# hottext-bin-digit: CAUGHT, caught by xtask hottext::tests::grouped_names_give_back_their_list_position_and_function
+# group-no-align: CAUGHT, caught by hot_text_products init_window_bins_start_on_window_boundaries
+# group-no-rename: CAUGHT, caught by hot_text_products init_window_bins_start_on_window_boundaries
+# bins-counted-keeps-phase: CAUGHT, caught by xtask bins::tests::a_phase_split_by_its_warm_up_is_one_group
+# bins-windows-no-warm: CAUGHT, caught by xtask bins::tests::a_measured_phase_shares_its_warm_up_windows
+# bins-startup-not-first: CAUGHT, caught by xtask bins::tests::the_start_up_group_takes_the_head_bin_before_wider_groups
+# bins-join-drops-warm-up: CAUGHT, caught by xtask bins::tests::a_phase_split_by_its_warm_up_is_one_group
+# bins-bound-phase: CAUGHT, caught by xtask bins::tests::a_group_splits_only_where_a_bin_is_full
+# regen-no-warm-up: CAUGHT, caught by hot_text_products init_first_string_calls_after_printf_take_no_text_fault
+# bins-align-uncounted: EQUIVALENT
+# bins-uncounted-no-gap: CAUGHT, caught by xtask bins::tests::every_bin_fills_to_its_boundary_and_the_group_end_sorts_last
+# group-end-name: CAUGHT, caught by no test the log names
+# entry-group-end-unaligned: CAUGHT, caught by no test the log names

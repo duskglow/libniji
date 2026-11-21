@@ -4,7 +4,7 @@
  * bench/c/cbench_aio.c`), so benchmarks/progress.md compares identical code. Prints
  * `name<TAB>ns/op` lines, the best of several rounds, formatted by hand.
  *
- * Liella runs the requests on io_uring where the kernel permits it (a helper thread submits;
+ * libniji runs the requests on io_uring where the kernel permits it (a helper thread submits;
  * the caller sleeps until the completion), else on worker threads; the reference always on
  * worker threads. `pread_4k` is the synchronous call the requests stand for. The file is made
  * under /tmp and unlinked at once; every call is checked before it is timed. */

@@ -10,17 +10,17 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use liella_boundary::sys::CSys;
-use liella_kernel::errno::Errno;
-use liella_kernel::machine::{Machine, X87Env};
-use liella_kernel::sys::{Disposition, Sys};
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{SigSet, Timespec, SIGABRT, SIG_BLOCK};
-use liella_rt::cpu::Features;
-use liella_rt::futex::{self, Clock, Scope};
-use liella_rt::sync::{RawCondvar, RawMutex, RawOnce, RawRwLock};
-use liella_rt::thread::{DESC_SIZE, KEY_AREA, SLOT_AREA};
-use liella_rt::{fatal, tls};
+use niji_boundary::sys::CSys;
+use niji_kernel::errno::Errno;
+use niji_kernel::machine::{Machine, X87Env};
+use niji_kernel::sys::{Disposition, Sys};
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{SigSet, Timespec, SIGABRT, SIG_BLOCK};
+use niji_rt::cpu::Features;
+use niji_rt::futex::{self, Clock, Scope};
+use niji_rt::sync::{RawCondvar, RawMutex, RawOnce, RawRwLock};
+use niji_rt::thread::{DESC_SIZE, KEY_AREA, SLOT_AREA};
+use niji_rt::{fatal, tls};
 
 const LONG: Duration = Duration::from_secs(20);
 
@@ -463,7 +463,7 @@ extern "C" fn notify_from_handler(_sig: i32) {
 fn condvar_notify_between_release_and_sleep_is_not_lost() {
     let tid = Arc::new(std::sync::atomic::AtomicI32::new(0));
     let done = Arc::new(AtomicBool::new(false));
-    let lost = liella_boundary::selftest::with_handler_and_flags(liella_kernel::uapi::SIGUSR1, notify_from_handler, liella_kernel::uapi::SA_RESTART, || {
+    let lost = niji_boundary::selftest::with_handler_and_flags(niji_kernel::uapi::SIGUSR1, notify_from_handler, niji_kernel::uapi::SA_RESTART, || {
         let h = {
             let (tid, done) = (Arc::clone(&tid), Arc::clone(&done));
             std::thread::spawn(move || {
@@ -477,7 +477,7 @@ fn condvar_notify_between_release_and_sleep_is_not_lost() {
         eventually("the waiter holds the mutex", || tid.load(Ordering::SeqCst) != 0);
         // The waiter gives the mutex up only inside wait, after it has read the condition.
         eventually("wait releases the mutex", || SIG_M.try_lock());
-        CSys.tgkill(CSys.getpid(), tid.load(Ordering::SeqCst), liella_kernel::uapi::SIGUSR1).unwrap();
+        CSys.tgkill(CSys.getpid(), tid.load(Ordering::SeqCst), niji_kernel::uapi::SIGUSR1).unwrap();
         SIG_M.unlock(&CSys, Scope::Private);
         let t = Instant::now();
         while !done.load(Ordering::SeqCst) && t.elapsed() < LONG {
@@ -683,7 +683,7 @@ fn tls_fixed_offsets() {
     assert_eq!(tls::ERRNO_OFFSET, 0x80);
     assert_eq!(tls::H_ERRNO_OFFSET, 0x128);
     assert_eq!(tls::STACK_GUARD_OFFSET, 0x28);
-    assert_eq!(tls::RSEQ_OFFSET, tls::BLOCK_SIZE + liella_rt::thread::RSEQ_IN_DESC);
+    assert_eq!(tls::RSEQ_OFFSET, tls::BLOCK_SIZE + niji_rt::thread::RSEQ_IN_DESC);
 }
 
 /// Internal-primitive contract (no spec clause; COLD-REWRITE-W-far-13 equivalence).
@@ -749,7 +749,7 @@ fn tls_guards_canary_keeps_each_random_byte_in_place() {
 
 // ---------------------------------------------------------------- fatal (in a child)
 
-const CHILD: &str = "LIELLA_CORE_CONTRACT_CHILD";
+const CHILD: &str = "NIJI_CORE_CONTRACT_CHILD";
 
 /// Run `case` in a child copy of this binary: (stderr, exit code, terminating signal).
 fn child(case: &str) -> (Vec<u8>, Option<i32>, Option<i32>) {

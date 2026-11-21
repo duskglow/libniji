@@ -74,7 +74,7 @@ pub struct Object {
 impl Object {
     /// The object's own (local in `libc.so.6`) symbol.
     pub fn label(&self) -> String {
-        format!("liella_compat_{}_{}", self.name, self.version.replace('.', "_"))
+        format!("niji_compat_{}_{}", self.name, self.version.replace('.', "_"))
     }
 }
 
@@ -197,21 +197,21 @@ pub fn render(m: &Model) -> String {
         NAMES.len()
     );
     let tables = [(Kind::Errlist, "err", &m.errlist), (Kind::Siglist, "sig", &m.siglist), (Kind::Sigabbrev, "abbr", &m.sigabbrev)];
-    s.push_str("\t.section .rodata.liella_compat_strings,\"aMS\",@progbits,1\n");
+    s.push_str("\t.section .rodata.niji_compat_strings,\"aMS\",@progbits,1\n");
     for (_, tag, t) in tables {
         for (i, e) in t.iter().enumerate() {
             if let Some(text) = e {
-                s.push_str(&format!(".Lliella_compat_{tag}_{i}:\n\t.asciz \"{}\"\n", escape(text)));
+                s.push_str(&format!(".Lniji_compat_{tag}_{i}:\n\t.asciz \"{}\"\n", escape(text)));
             }
         }
     }
     for (k, tag, t) in tables {
         let objs: Vec<&Object> = m.objects.iter().filter(|o| kind(&o.name) == k).collect();
-        s.push_str(&format!("\t.section .data.rel.ro.liella_compat_{tag},\"aw\",@progbits\n\t.p2align 3\n"));
+        s.push_str(&format!("\t.section .data.rel.ro.niji_compat_{tag},\"aw\",@progbits\n\t.p2align 3\n"));
         declare(&mut s, &objs);
         for (i, e) in t.iter().enumerate() {
             match e {
-                Some(_) => s.push_str(&format!("\t.quad .Lliella_compat_{tag}_{i}\n")),
+                Some(_) => s.push_str(&format!("\t.quad .Lniji_compat_{tag}_{i}\n")),
                 None => s.push_str("\t.quad 0\n"),
             }
         }
@@ -222,7 +222,7 @@ pub fn render(m: &Model) -> String {
         nerr.entry(m.nerr(&o.version).unwrap_or(0)).or_default().push(o);
     }
     for (v, objs) in nerr {
-        s.push_str(&format!("\t.section .rodata.liella_compat_nerr_{v},\"a\",@progbits\n\t.p2align 2\n"));
+        s.push_str(&format!("\t.section .rodata.niji_compat_nerr_{v},\"a\",@progbits\n\t.p2align 2\n"));
         declare(&mut s, &objs);
         s.push_str(&format!("\t.long {v}\n"));
         symver(&mut s, &objs);
@@ -353,7 +353,7 @@ mod tests {
     fn the_regexp_h_objects_are_writable_zeroed_storage() {
         let s = render(&model(root()).unwrap());
         for o in ["loc1", "loc2", "locs"] {
-            let l = format!("liella_compat_{o}_GLIBC_2_2_5");
+            let l = format!("niji_compat_{o}_GLIBC_2_2_5");
             let want = format!("\t.section .bss.{l},\"aw\",@nobits\n\t.p2align 3\n\t.globl {l}\n\t.type {l}, @object\n\t.size {l}, 8\n{l}:\n\t.zero 8\n\t.symver {l}, {o}@GLIBC_2.2.5\n");
             assert!(s.contains(&want), "{o}");
         }

@@ -5,11 +5,11 @@
 //! gathered write, so that two dying threads do not interleave inside it (D-22.12
 //! (8)).
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::IoVec;
-use liella_kernel::sys::{Disposition, Sys};
-use liella_kernel::uapi::{SigSet, SIGABRT, SIG_UNBLOCK};
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::IoVec;
+use niji_kernel::sys::{Disposition, Sys};
+use niji_kernel::uapi::{SigSet, SIGABRT, SIG_UNBLOCK};
 
 /// Parts handed to one `writev`.
 const GATHER: usize = 16;

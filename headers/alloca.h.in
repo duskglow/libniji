@@ -1,0 +1,17 @@
+@@generated
+/* alloca.h: stack allocation (alloca(3)). */
+#ifndef __NIJI_H_alloca_h
+#define __NIJI_H_alloca_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns alloca
+@@emit
+
+#define alloca(size) __builtin_alloca (size)
+
+__NIJI_END_C
+
+#endif

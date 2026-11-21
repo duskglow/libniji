@@ -1,5 +1,5 @@
 /* POSIX asynchronous I/O end to end (spec §11.11; D-11.8). Black-box: built against the host C
- * library and against Liella's products, the outputs must match line for line. Each line is a
+ * library and against libniji's products, the outputs must match line for line. Each line is a
  * call's result and errno, an aio_error/aio_return pair, or a fact about a notification. Nothing
  * prints a descriptor number, an address, a PID or a time; waits are shown only against coarse
  * thresholds. Requests that must stay in progress are reads from an empty pipe or writes into a

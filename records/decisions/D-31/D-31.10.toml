@@ -1,0 +1,10 @@
+id = "D-31.10"
+section = "s31"
+spec = "§31"
+ann = "—"
+status = "active"
+story = "UTIL-HARNESS"
+date = "2026-11-14"
+body = '''
+The utilities' transcript harness (UTIL-1) is `cargo xtask transcript` in xtask/src/transcript/, not scripts under validation/: xtask is std-only with no third-party code, already links liella-ld (whose writer builds a transcript's `cache:` items and whose reader backs the `ldconfig -p` stub until UTIL-3), and its comparator is Rust with unit tests that plants check. Transcripts are data (validation/transcripts/<utility>/*.transcript; format in docs/transcripts.md): argv with argv[0] the bare command name on both sides, the exact environment, stdin, the private root's items, an optional unprivileged user and mount namespace with binds, and the reference's outcome written by `record`. `check` compares Liella with the reference and the reference with the record (a stale record fails); status, stdout, stderr and every written path are compared separately, so text on the wrong stream is a mismatch. Normalisation is only the private root's path (`@ROOT@`) unless a transcript adds a `normalise:` literal with its reason. A host without user namespaces prints SKIPPED with the reason.
+'''

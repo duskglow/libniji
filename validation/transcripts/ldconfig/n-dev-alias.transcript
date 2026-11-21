@@ -1,0 +1,23 @@
+# -n DIR (GitHub issue #16, Debian's libcmocka0/libcmocka-dev layout): the real file, its soname link already in
+# place, the development link `libcmocka.so -> libcmocka.so.0` and a compatibility development name
+# `libcmockery.so -> libcmocka.so` whose name is not a prefix of the soname. The soname link keeps pointing at the
+# real file: a `.so` development name is never a soname link's target.
+name: ldconfig -n -v DIR never points a soname link at a .so development alias
+clause: s31_2_g_4
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -n
+arg: -v
+arg: @ROOT@/lib
+elf: lib/libcmocka.so.0.8.0 soname=libcmocka.so.0
+link: lib/libcmocka.so.0 -> libcmocka.so.0.8.0
+link: lib/libcmocka.so -> libcmocka.so.0
+link: lib/libcmockery.so -> libcmocka.so
+status: exit 0
+stdout:
+| @ROOT@/lib: (from <cmdline>:0)
+| \tlibcmocka.so.0 -> libcmockery.so
+stderr:

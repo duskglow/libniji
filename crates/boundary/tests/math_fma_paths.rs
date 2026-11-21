@@ -5,13 +5,13 @@
 
 // Sample generation is bit-level arithmetic on bounded values; indexing is over equal-length vectors.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
-// exp/log are Liella's own C entries (m::exp, m::log): keep LLVM from treating them as builtins.
+// exp/log are libniji's own C entries (m::exp, m::log): keep LLVM from treating them as builtins.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::real::Real;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::real::Real;
+use niji_math::status::Rounding;
 
 /// xorshift64: a fixed, reproducible sample.
 fn next(s: &mut u64) -> u64 {
@@ -148,3 +148,254 @@ fn exp2_logb_pow_fma_build_matches_baseline_bit_for_bit() {
     }
     assert!(selftest::set_math_fma(true));
 }
+
+/// `sincos` through its export, as one value pair of bits.
+fn sincos_bits(x: f64) -> (u64, u64) {
+    let (mut s, mut c) = (0.0, 0.0);
+    m::sincos(x, Some(&mut s), Some(&mut c));
+    (s.to_bits(), c.to_bits())
+}
+
+/// The trig sample (LIBM-F64-TRIG-TIER): every binade of the fast domain [2^-30, 2^20) and beyond
+/// it on both sides, next to the cell edges k·π/64 ± π/128 and the multiples of π/2 (a few ulps
+/// apart: reduced arguments near zero and cancellations), and both signs.
+fn trig_sample(s: &mut u64) -> Vec<f64> {
+    let sign = |b: u64, v: f64| if b & 1 == 0 { v } else { -v };
+    let mut xs: Vec<f64> = (0..120_000).map(|_| {
+        let b = next(s);
+        let e = (b % 60) as i32 - 36; // 2^-36 .. 2^23
+        sign(b >> 63, 2f64.powi(e) * (1.0 + (next(s) >> 12) as f64 * 2f64.powi(-52)))
+    }).collect();
+    let q = core::f64::consts::PI / 128.0;
+    xs.extend((0..60_000).map(|_| {
+        let b = next(s);
+        let k = ((b % 4_000_000) + 1) as f64; // cell edges (odd k) and cell centres (k = 2j) up to ~10^5
+        let c = k * q;
+        sign(b >> 63, f64::from_bits(c.to_bits().wrapping_add((b >> 40) % 9).wrapping_sub(4)))
+    }));
+    xs.extend((0..20_000).map(|_| {
+        let b = next(s);
+        let c = ((b % 600_000) + 1) as f64 * core::f64::consts::FRAC_PI_2;
+        sign(b >> 63, f64::from_bits(c.to_bits().wrapping_add((b >> 40) % 5).wrapping_sub(2)))
+    }));
+    xs
+}
+
+// s10_3_c_0, s10_0_g_0: sin, cos, tan and sincos (LIBM-F64-TRIG-TIER: each export with an FMA
+// build) compute the same, correctly rounded result in both builds.
+#[test]
+fn trig_fma_build_matches_baseline_bit_for_bit() {
+    if !selftest::set_math_fma(true) {
+        eprintln!("SKIP: this CPU (or its OS) has no FMA; only the baseline build exists here");
+        return;
+    }
+    let mut s = 0xbb67_ae85_84ca_a73bu64;
+    let xs = trig_sample(&mut s);
+    let a = both(m::sin, |x| Real::sin(x, Rounding::Nearest).0, &xs);
+    let b = both(m::cos, |x| Real::cos(x, Rounding::Nearest).0, &xs);
+    let c = both(m::tan, |x| Real::tan(x, Rounding::Nearest).0, &xs);
+    assert!(a > 3000 && b > 3000 && c > 3000, "sample too small: {a} {b} {c}");
+    let fused: Vec<(u64, u64)> = xs.iter().map(|&x| sincos_bits(x)).collect();
+    assert!(selftest::set_math_fma(false));
+    for (i, &x) in xs.iter().enumerate() {
+        let plain = sincos_bits(x);
+        assert_eq!(fused[i], plain, "sincos({x:e}): FMA build {:x?}, baseline {plain:x?}", fused[i]);
+        if i % 64 == 0 {
+            let ((sv, cv), _) = Real::sincos(x, Rounding::Nearest);
+            assert_eq!(plain, (sv.to_bits(), cv.to_bits()), "sincos({x:e}): not the correctly rounded pair");
+        }
+    }
+    assert!(selftest::set_math_fma(true));
+}
+
+// s10_3_c_0 (D-10.13), s10_0_g_0: erf and erfc (LIBM-SPECIAL-FAST-TIER-3's in-place paths) give
+// the same correctly rounded result in both builds, and in the default environment raise inexact
+// alone (and underflow for a subnormal result), as the accurate path does.
+#[test]
+fn erf_and_erfc_fma_build_matches_baseline_and_raises_inexact_alone() {
+    use niji_boundary::posix::s10_math::{feclearexcept, fetestexcept};
+    const FE_ALL: i32 = 0x3d;
+    const FE_UNDERFLOW: i32 = 0x10;
+    const FE_INEXACT: i32 = 0x20;
+    if !selftest::set_math_fma(true) {
+        eprintln!("SKIP: this CPU (or its OS) has no FMA; only the baseline build exists here");
+        return;
+    }
+    let mut s = 0x6a09_e667_f3bc_c908u64;
+    let unit = |s: &mut u64| (next(s) >> 11) as f64 * 2f64.powi(-53);
+    // (−7, 7): every branch of both functions; [1, 27.6): erfc's e^(−x²)·Y branch and its end,
+    // subnormal results included; magnitudes down to 2^-60 on both sides of 2^-55.
+    let mut xs: Vec<f64> = (0..100_000).map(|_| unit(&mut s) * 14.0 - 7.0).collect();
+    xs.extend((0..50_000).map(|_| 1.0 + unit(&mut s) * 26.6));
+    xs.extend((0..20_000).map(|_| {
+        let b = next(&mut s);
+        let mag = 2f64.powi(-((b % 60) as i32)) * (1.0 + (b >> 12) as f64 * 2f64.powi(-52));
+        if b & 1 == 0 { mag } else { -mag }
+    }));
+    let n = both(m::erf, |x| niji_math::special::erf(x, Rounding::Nearest).0, &xs);
+    let k = both(m::erfc, |x| niji_math::special::erfc(x, Rounding::Nearest).0, &xs);
+    assert!(n > 2000 && k > 2000, "sample too small: {n} {k}");
+    for build in [true, false] {
+        assert!(selftest::set_math_fma(build));
+        for &x in xs.iter().step_by(7) {
+            for (name, f) in [("erf", m::erf as extern "C" fn(f64) -> f64), ("erfc", m::erfc)] {
+                feclearexcept(FE_ALL);
+                let v = f(x);
+                let raised = fetestexcept(FE_ALL);
+                // Every sampled x is finite and nonzero, so every result is inexact; below 2^-1022
+                // (zero included: erfc x for x above about 27.2) it is tiny, so underflow too.
+                let want = FE_INEXACT | if v.abs() < f64::MIN_POSITIVE { FE_UNDERFLOW } else { 0 };
+                assert_eq!(raised, want, "{name}({x:e}) = {v:e} (FMA build {build}): flags {raised:#x}, expected {want:#x}");
+            }
+        }
+    }
+    assert!(selftest::set_math_fma(true));
+}
+
+// s10_3_c_0 (D-10.13), s10_0_g_0: erf for |x| < 2^-55 (LIBM-ERF-TINY-F64: c·x rounded by one FMA
+// or by integer arithmetic, tools/proofs/erf_tiny_f64.py) in both builds and all four modes against
+// the 384-bit path: every binade of the band with random significands, each binade's ends, the
+// significands either side of 2^53/c (the integer path's switch) and the proof's hard significand
+// at every exponent, the subnormal edges and M0. Flags: inexact always; underflow exactly when the
+// result is below 2^-1022, or for M0 in round-to-nearest (its result 2^-1022 is tiny rounded to 53
+// bits; a black-box probe of the reference raises underflow there too).
+#[test]
+fn erf_tiny_band_rounds_correctly_with_its_flags_in_every_mode() {
+    use niji_boundary::posix::s10_math::{feclearexcept, fesetround, fetestexcept};
+    const FE_ALL: i32 = 0x3d;
+    const FE_UNDERFLOW: i32 = 0x10;
+    const FE_INEXACT: i32 = 0x20;
+    const MODES: [(i32, Rounding); 4] =
+        [(0, Rounding::Nearest), (0x800, Rounding::Up), (0x400, Rounding::Down), (0xc00, Rounding::Zero)];
+    const MANT: u64 = 0x000f_ffff_ffff_ffff;
+    const M0: u64 = 0x000e_2dfc_48da_77b5;
+    const HARD: u64 = 0x0018_430f_efa1_5cea;
+    const T: u64 = 0x001c_5bf8_91b4_ef6b;
+    let mut s = 0x243f_6a88_85a3_08d3u64;
+    let mut xs: Vec<f64> = Vec::new();
+    for e in 1..=967u64 {
+        xs.extend((0..16).map(|_| f64::from_bits(e << 52 | next(&mut s) >> 12)));
+        for m in [0, MANT, HARD & MANT, (T - 1) & MANT, T & MANT] {
+            xs.push(f64::from_bits(e << 52 | m));
+        }
+    }
+    for m in [1, 2, 3, 0x7f, M0 - 1, M0, M0 + 1, 1 << 51, (1 << 52) - 2, (1 << 52) - 1] {
+        xs.push(f64::from_bits(m));
+    }
+    xs.extend((0..3000).map(|_| f64::from_bits(1 + next(&mut s) % MANT)));
+    let neg: Vec<f64> = xs.iter().map(|x| -x).collect();
+    xs.extend(neg);
+    let want: Vec<[f64; 4]> =
+        xs.iter().map(|&x| MODES.map(|(_, r)| niji_math::special::erf_accurate::<f64>(x, r).0)).collect();
+    let mut builds = 0;
+    for fma in [true, false] {
+        if !selftest::set_math_fma(fma) {
+            eprintln!("SKIP FMA build: this CPU (or its OS) has no FMA");
+            continue;
+        }
+        builds += 1;
+        for (k, (round, mode)) in MODES.into_iter().enumerate() {
+            let mut got = Vec::with_capacity(xs.len());
+            assert_eq!(fesetround(round), 0);
+            for &x in &xs {
+                feclearexcept(FE_ALL);
+                let v = m::erf(x);
+                got.push((v, fetestexcept(FE_ALL)));
+            }
+            assert_eq!(fesetround(0), 0);
+            for (i, &x) in xs.iter().enumerate() {
+                let (v, raised) = got[i];
+                assert_eq!(v.to_bits(), want[i][k].to_bits(), "erf({x:e}) in {mode:?} (FMA build {fma}): {v:e}, 384-bit path {:e}", want[i][k]);
+                let tiny = v.abs() < f64::MIN_POSITIVE || (k == 0 && x.abs().to_bits() == M0);
+                let flags = FE_INEXACT | if tiny { FE_UNDERFLOW } else { 0 };
+                assert_eq!(raised, flags, "erf({x:e}) = {v:e} in {mode:?} (FMA build {fma}): flags {raised:#x}, expected {flags:#x}");
+            }
+        }
+    }
+    assert!(selftest::set_math_fma(true) || builds == 1);
+    // ±0 returns itself with no flag.
+    for z in [0.0f64, -0.0] {
+        feclearexcept(FE_ALL);
+        assert_eq!(m::erf(z).to_bits(), z.to_bits());
+        assert_eq!(fetestexcept(FE_ALL), 0, "erf({z:e}) raised a flag");
+    }
+}
+
+/// `count` signed values `±m·2^-e` (`e` below `emax`) scaled by `scale`, and `count` uniform in
+/// `[lo, hi)`.
+fn sample(s: &mut u64, count: usize, emax: u64, scale: f64, lo: f64, hi: f64) -> Vec<f64> {
+    let mut xs: Vec<f64> = (0..count)
+        .map(|_| {
+            let b = next(s);
+            let mag = scale * 2f64.powi(-((b % emax) as i32)) * (1.0 + (b >> 12) as f64 * 2f64.powi(-52));
+            if b & 1 == 0 { mag } else { -mag }
+        })
+        .collect();
+    xs.extend((0..count).map(|_| lo + (next(s) >> 11) as f64 * 2f64.powi(-53) * (hi - lo)));
+    xs
+}
+
+// s10_0_f_0, s10_0_g_0: every build of expm1/log1p/sinh/cosh/tanh/cbrt computes the same,
+// correctly rounded result (LIBM-F64-EXPM1-HYPER-CBRT-TIER).
+#[test]
+fn expm1_log1p_hyperbolic_cbrt_fma_build_matches_baseline_bit_for_bit() {
+    if !selftest::set_math_fma(true) {
+        eprintln!("SKIP: this CPU (or its OS) has no FMA; only the baseline build exists here");
+        return;
+    }
+    let mut s = 0x2545_f491_4f6c_dd1du64;
+    let ex = sample(&mut s, 60_000, 62, 0.03, -38.0, 710.0);
+    let a = both(m::expm1, |x| Real::expm1(x, Rounding::Nearest).0, &ex);
+    let lp: Vec<f64> = sample(&mut s, 60_000, 62, 0.01, -1.0, 8.0).into_iter().chain((0..20_000).map(|_| f64::from_bits(next(&mut s) >> 1))).filter(|x| x.is_finite()).collect();
+    let b = both(m::log1p, |x| Real::log1p(x, Rounding::Nearest).0, &lp);
+    let hy = sample(&mut s, 60_000, 62, 0.03, -712.0, 712.0);
+    let c = both(m::sinh, |x| Real::sinh(x, Rounding::Nearest).0, &hy);
+    let d = both(m::cosh, |x| Real::cosh(x, Rounding::Nearest).0, &hy);
+    let th = sample(&mut s, 60_000, 62, 0.03, -23.0, 23.0);
+    let e = both(m::tanh, |x| Real::tanh(x, Rounding::Nearest).0, &th);
+    let cb: Vec<f64> = (0..120_000).map(|_| f64::from_bits(next(&mut s))).filter(|x| x.is_finite()).chain((1..3000).map(|n| f64::from(n).powi(3))).collect();
+    let f = both(m::cbrt, |x| Real::cbrt(x, Rounding::Nearest).0, &cb);
+    assert!([a, b, c, d, e, f].iter().all(|&n| n > 1000), "sample too small: {a} {b} {c} {d} {e} {f}");
+    assert!(selftest::set_math_fma(true));
+}
+
+/// `cexp` through its export, as one pair of bits.
+fn cexp_bits((x, y): (f64, f64)) -> (u64, u64) {
+    let r = m::cexp(niji_boundary::mathret::Complex { re: x, im: y });
+    (r.re.to_bits(), r.im.to_bits())
+}
+
+// s10_0_f_0, s10_0_g_0: cexp's in-place quick tier (LIBM-CPLX-EXP-TIER, D-10.53) gives the same
+// pair in both builds, and that pair is the 384-bit route's (correctly rounded) one. Regimes:
+// general, y next to π/2 + kπ (cos y tiny, the bound stays relative), x near the overflow and
+// underflow thresholds (the scaling's range checks), and |y| up to 2^20 (the reduction's range).
+#[test]
+fn cexp_fma_build_matches_baseline_bit_for_bit() {
+    if !selftest::set_math_fma(true) {
+        eprintln!("SKIP: this CPU (or its OS) has no FMA; only the baseline build exists here");
+        return;
+    }
+    let mut s = 0x6a09_e667_f3bc_c908u64;
+    let mut u = |lo: f64, hi: f64| lo + (next(&mut s) >> 11) as f64 * 2f64.powi(-53) * (hi - lo);
+    let zs: Vec<(f64, f64)> = (0..24_000)
+        .map(|i| match i % 5 {
+            0 => (u(-30.0, 30.0), u(-12.0, 12.0)),
+            1 => (u(-5.0, 5.0), (u(-64.0, 64.0).round() + 0.5) * core::f64::consts::PI + u(-1e-9, 1e-9)),
+            2 => (u(700.0, 746.0), u(-4.0, 4.0)),
+            3 => (u(-746.0, -700.0), u(-4.0, 4.0)),
+            _ => (u(-2.0, 2.0), u(-1.1e6, 1.1e6)),
+        })
+        .collect();
+    let fused: Vec<(u64, u64)> = zs.iter().map(|&z| cexp_bits(z)).collect();
+    assert!(selftest::set_math_fma(false));
+    for (i, &z) in zs.iter().enumerate() {
+        let plain = cexp_bits(z);
+        assert_eq!(fused[i], plain, "cexp({z:?}): FMA build {:x?}, baseline {plain:x?}", fused[i]);
+        if i % 16 == 0 {
+            let ((re, im), _) = niji_math::complex::cexp_route(z.0, z.1, Rounding::Nearest);
+            assert_eq!(plain, (re.to_bits(), im.to_bits()), "cexp({z:?}): not the 384-bit route's pair");
+        }
+    }
+    assert!(selftest::set_math_fma(true));
+}
+

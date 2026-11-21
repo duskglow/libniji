@@ -58,10 +58,12 @@ fn exact_int<F: Small>(neg: bool, odd: u128, e: i64, mode: Rounding) -> (F, Stat
 pub fn pow<F: Small>(x: F, y: F, mode: Rounding) -> (F, Status) {
     let (a, b) = (float::decode(x), float::decode(y));
     let (xf, yf) = (x.widen(), y.widen());
-    // x^±0 = 1 and 1^y = 1, even for a quiet NaN.
-    if b.kind == Kind::Zero || (xf == 1.0 && a.kind == Kind::Finite) {
-        let st = if a.kind == Kind::SNan || b.kind == Kind::SNan { Status::INVALID } else { Status::OK };
-        return (elem::exact::<F>(1.0).0, st);
+    // x^±0 = 1 and 1^y = 1, even for a quiet NaN (IEEE 754-2019 9.2.1, C23 F.10.4.5). A signalling
+    // NaN operand takes the general rule instead (IEEE 754-2019 6.2): invalid and a quiet NaN, from
+    // `nan_operands` below.
+    let snan = a.kind == Kind::SNan || b.kind == Kind::SNan;
+    if !snan && (b.kind == Kind::Zero || (xf == 1.0 && a.kind == Kind::Finite)) {
+        return elem::exact::<F>(1.0);
     }
     if let Some(r) = fused::nan_operands::<F, F>(&[a, b]) {
         return r;
@@ -93,6 +95,13 @@ pub fn pow<F: Small>(x: F, y: F, mode: Rounding) -> (F, Status) {
         return elem::domain();
     }
     let ax = dd::abs(xf);
+    // x = -1 (x = 1 returned above) and an integer y: (-1)^y = ±1 by y's parity, exactly. Every
+    // finite y of magnitude 2^PREC or more is an even integer (`integer_parity`), so the result is
+    // 1 there with no range error; the paths below would form e·y, ln|x|·y or a core call for
+    // |x| = 1, which they are not built for (the double-double splitting of a huge y overflows).
+    if ax == 1.0 {
+        return elem::exact(if neg { -1.0 } else { 1.0 });
+    }
     // The exactly computable cases.
     if yf == 1.0 {
         return (x, Status::OK);
@@ -178,7 +187,30 @@ pub fn cbrt<F: Small>(x: F, mode: Rounding) -> (F, Status) {
 
 /// `hypot(x, y)` = √(x² + y²), correctly rounded in every format. `hypot(±∞, y)` is +∞ even
 /// for a quiet NaN `y`.
+/// The `double` format (cabs, cpow and the `hypot` entry's slow path included) takes the
+/// kernel `invtrig::hypot_rounded` (D-10.104) for every finite pair in every direction.
 pub fn hypot<F: Float>(x: F, y: F, mode: Rounding) -> (F, Status) {
+    hypot_with::<F, crate::hwop::SoftOps>(x, y, mode)
+}
+
+/// [`hypot`] with the `double` kernel's first root from `O` ([`crate::hwop::HwOps`]; the
+/// boundary's `f64` entry passes its `sqrtsd`, LIBM-HYPOT-DIRECTED).
+#[inline]
+pub fn hypot_with<F: Float, O: crate::hwop::HwOps>(x: F, y: F, mode: Rounding) -> (F, Status) {
+    if F::PREC == 53 {
+        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)] // a `double`'s 64 bits
+        let (xf, yf) = (f64::from_bits(x.to_bits() as u64), f64::from_bits(y.to_bits() as u64));
+        if let Some((v, st)) = crate::invtrig::hypot_rounded::<O>(xf, yf, mode) {
+            return (F::from_bits(u128::from(v.to_bits())), st);
+        }
+    }
+    hypot_exact(x, y, mode)
+}
+
+/// [`hypot`] by the exact sum of the exact squares (D-10.13), every format: the `double`
+/// kernel's oracle in the tests.
+#[doc(hidden)]
+pub fn hypot_exact<F: Float>(x: F, y: F, mode: Rounding) -> (F, Status) {
     let (a, b) = (float::decode(x), float::decode(y));
     let inf = a.kind == Kind::Inf || b.kind == Kind::Inf;
     let signalling = [a.kind, b.kind].iter().any(|k| matches!(k, Kind::SNan | Kind::Invalid));

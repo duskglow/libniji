@@ -7,7 +7,7 @@
 //! * [`addrs`]: every address (`RTM_GETADDR` dump, IPv4 then IPv6 as the kernel lists them).
 //! * [`index_of`] and [`name_of`]: one link, asked for by name or by index.
 
-use liella_kernel::sys::Sys;
+use niji_kernel::sys::Sys;
 
 use super::netlink::{self, NLM_F_DUMP, NLM_F_REQUEST, RTM_GETADDR, RTM_GETLINK, RTM_GETROUTE, RTM_NEWADDR, RTM_NEWLINK, RTM_NEWROUTE};
 use super::Text;
@@ -75,7 +75,7 @@ impl Addr {
 
     /// The length of the family's addresses (4 or 16).
     pub fn addr_len(&self) -> usize {
-        if u32::from(self.family) == liella_kernel::uapi::AF_INET6 { 16 } else { 4 }
+        if u32::from(self.family) == niji_kernel::uapi::AF_INET6 { 16 } else { 4 }
     }
 }
 
@@ -179,7 +179,7 @@ pub fn addrs<S: Sys>(sys: &S) -> Result<TryVec<Addr>> {
         if m.ty == RTM_NEWADDR {
             if let Some(a) = parse_addr(m.body) {
                 let fam = u32::from(a.family);
-                if fam == liella_kernel::uapi::AF_INET || fam == liella_kernel::uapi::AF_INET6 {
+                if fam == niji_kernel::uapi::AF_INET || fam == niji_kernel::uapi::AF_INET6 {
                     out.push(a)?;
                 }
             }
@@ -228,8 +228,8 @@ const RTA_PREFSRC: u16 = 7;
 /// `Ok(None)` when there is no route (`ENETUNREACH`, `EHOSTUNREACH`, `ENETDOWN`, `EINVAL`).
 pub fn route<S: Sys>(sys: &S, dest: &[u8]) -> Result<Option<Route>> {
     let (family, bits) = match dest.len() {
-        4 => (liella_kernel::uapi::AF_INET, 32u8),
-        16 => (liella_kernel::uapi::AF_INET6, 128u8),
+        4 => (niji_kernel::uapi::AF_INET, 32u8),
+        16 => (niji_kernel::uapi::AF_INET6, 128u8),
         _ => return Err(Errno::EINVAL),
     };
     // struct rtmsg: family, dst_len, src_len, tos, table, protocol, scope, type, flags.

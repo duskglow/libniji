@@ -10,23 +10,23 @@
 //! family runs unprivileged: `rexec` against a test server on loopback, `rcmd` and `rresvport`
 //! to their refusals; process-wide state (`__rcmd_errstr`, `__check_rhosts_file`, `HOME` for
 //! `ruserpass`) is changed only in re-executed children.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::ptr::{null, null_mut};
 
-use liella_abi::ctypes::{c_int, c_void};
+use niji_abi::ctypes::{c_int, c_void};
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as strs;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as sio;
-use liella_boundary::posix::s15_sockets as s;
-use liella_boundary::posix::s17_users as s17;
-use liella_kernel::uapi::Timespec;
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as strs;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as sio;
+use niji_boundary::posix::s15_sockets as s;
+use niji_boundary::posix::s17_users as s17;
+use niji_kernel::uapi::Timespec;
 
 mod products;
 #[path = "../../core/tests/support/scratch.rs"]
@@ -143,12 +143,12 @@ fn in_child(name: &str) -> bool {
 
 /// [`in_child`] with extra environment variables, after `setup` (run in the parent only).
 fn in_child_env(name: &str, env: &[(&str, &str)], setup: impl FnOnce()) -> bool {
-    if std::env::var("LIELLA_S15_CHILD").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_S15_CHILD").is_ok_and(|v| v == name) {
         return true;
     }
     setup();
     let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.args([name, "--exact", "--test-threads=1"]).env("LIELLA_S15_CHILD", name);
+    cmd.args([name, "--exact", "--test-threads=1"]).env("NIJI_S15_CHILD", name);
     for (k, v) in env {
         cmd.env(k, v);
     }
@@ -229,7 +229,7 @@ fn sym_accept() {
     s::connect(c2, (&raw const a).cast(), IN4);
     let s2 = s::accept(l, null_mut(), None);
     assert!(s2 >= 0, "no address wanted");
-    io::liella_fcntl3(l, 4, 0o4000);
+    io::niji_fcntl3(l, 4, 0o4000);
     errno::set_raw(0);
     assert!(fails(s::accept(l, null_mut(), None) as isize, EAGAIN), "nothing pending, non-blocking");
     assert!(fails(s::accept(l, peer.as_mut_ptr().cast(), None) as isize, EFAULT), "a buffer without its length");
@@ -247,12 +247,12 @@ fn sym_accept4() {
     assert!(srv >= 0);
     assert_eq!(len, 16, "the full length, though only 8 bytes fit");
     assert_eq!(&peer[..2], &(AF_INET as u16).to_ne_bytes(), "truncated, not refused");
-    assert_eq!(io::liella_fcntl3(srv, 1, 0), 1, "SOCK_CLOEXEC");
+    assert_eq!(io::niji_fcntl3(srv, 1, 0), 1, "SOCK_CLOEXEC");
     let c2 = s::socket(AF_INET, SOCK_STREAM, 0);
     s::connect(c2, (&raw const a).cast(), IN4);
     let s2 = s::accept4(l, null_mut(), None, SOCK_CLOEXEC);
     assert!(s2 >= 0, "no address wanted");
-    io::liella_fcntl3(l, 4, 0o4000);
+    io::niji_fcntl3(l, 4, 0o4000);
     errno::set_raw(0);
     assert!(fails(s::accept4(l, null_mut(), None, SOCK_CLOEXEC) as isize, EAGAIN), "nothing pending, non-blocking");
     assert!(fails(s::accept4(l, peer.as_mut_ptr().cast(), None, SOCK_CLOEXEC) as isize, EFAULT), "a buffer without its length");
@@ -953,7 +953,7 @@ fn sym_isfdtype() {
     assert_eq!(s::isfdtype(a, S_IFSOCK), 1);
     assert_eq!(s::isfdtype(a, S_IFIFO), 0);
     let mut p = [-1; 2];
-    liella_boundary::posix::s25_ipc::pipe(Some(&mut p));
+    niji_boundary::posix::s25_ipc::pipe(Some(&mut p));
     assert_eq!(s::isfdtype(p[0], S_IFIFO), 1);
     errno::set_raw(0);
     assert!(fails(s::isfdtype(0x7fff_0000, S_IFSOCK) as isize, EBADF));
@@ -1048,7 +1048,7 @@ fn sym_recv() {
 
 #[test]
 fn sym___recv_chk() {
-    if std::env::var("LIELLA_S15_CHK").is_ok() {
+    if std::env::var("NIJI_S15_CHK").is_ok() {
         let [_a, b] = pair(SOCK_DGRAM);
         let mut r = [0u8; 4];
         s::__recv_chk(b, r.as_mut_ptr().cast(), 8, 4, MSG_DONTWAIT);
@@ -1061,7 +1061,7 @@ fn sym___recv_chk() {
     close(&[a, b]);
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym___recv_chk", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S15_CHK", "1")
+        .env("NIJI_S15_CHK", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1399,7 +1399,7 @@ fn sym_shutdown() {
     assert_eq!(io::write(b, b"x".as_ptr().cast(), 1), 1, "the other direction still works");
     errno::set_raw(0);
     assert!(fails(s::shutdown(a, 7) as isize, EINVAL));
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert!(fails(s::shutdown(f, 2) as isize, ENOTSOCK));
     close(&[a, b, f]);
 }
@@ -1427,7 +1427,7 @@ fn sym_sockatmark() {
     }
     assert_eq!(at, 1, "at the out-of-band mark");
     errno::set_raw(0);
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert_eq!(s::sockatmark(f), -1);
     close(&[l, c, srv, f]);
 }
@@ -1436,8 +1436,8 @@ fn sym_sockatmark() {
 fn sym_socket() {
     let fd = s::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
     assert!(fd >= 0);
-    assert_eq!(io::liella_fcntl3(fd, 1, 0), 1, "SOCK_CLOEXEC");
-    assert_ne!(io::liella_fcntl3(fd, 3, 0) & 0o4000, 0, "SOCK_NONBLOCK");
+    assert_eq!(io::niji_fcntl3(fd, 1, 0), 1, "SOCK_CLOEXEC");
+    assert_ne!(io::niji_fcntl3(fd, 3, 0) & 0o4000, 0, "SOCK_NONBLOCK");
     let mut ty = 0;
     let mut len = 4;
     assert_eq!(s::getsockopt(fd, SOL_SOCKET, SO_TYPE, (&raw mut ty).cast(), Some(&mut len)), 0);

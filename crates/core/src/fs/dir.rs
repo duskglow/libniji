@@ -8,17 +8,20 @@
 //! * Positions ([`DirStream::tell`], [`DirStream::seek`]) are the file system's cookies, passed
 //!   through unchanged (D-13.3): the `d_off` of the last entry returned, or the position last
 //!   set.
-//! * A failed `getdents64` is reported (D-13.2, owner ruling 2026-10-03): a directory removed
-//!   while open ends with the kernel's `ENOENT` once the entries already buffered are used up,
-//!   on every further call too. The end of the directory is `Ok(None)`.
+//! * A failed `getdents64` is reported, except the kernel's `ENOENT` for a directory removed
+//!   while open: that ends the stream (`Ok(None)`, as the end of the directory) once the
+//!   entries already buffered are used up, on every further call too, so `readdir` leaves
+//!   `errno` alone there (coordinator ruling #5467, superseding D-13.2's removed-directory part;
+//!   `spec/behaviour/fstree.md`). Every reader of a stream (`readdir` and its forms, `scandir`,
+//!   the tree walks, `fts`, `glob`) ends that way.
 
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{FD_CLOEXEC, O_CLOEXEC, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_WRONLY, SEEK_CUR, SEEK_SET, S_IFDIR, S_IFMT};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{FD_CLOEXEC, O_CLOEXEC, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_WRONLY, SEEK_CUR, SEEK_SET, S_IFDIR, S_IFMT};
 
 /// A stream's buffer: big enough that one `getdents64` call returns a small directory whole.
 pub const STREAM_BUFFER: usize = 32 * 1024;
@@ -252,7 +255,13 @@ impl DirStream {
         }
         let (base, cap) = (self.base, self.cap);
         let area = self.buf.get_mut(base..base.saturating_add(cap)).unwrap_or(&mut []);
-        let n = sys.getdents64(self.fd, area)?;
+        let n = match sys.getdents64(self.fd, area) {
+            Ok(n) => n,
+            // A directory removed while open: the kernel's `ENOENT` is the end of the stream,
+            // with `errno` left alone (spec/behaviour/fstree.md, removed directory).
+            Err(Errno::ENOENT) => return Ok(false),
+            Err(e) => return Err(e),
+        };
         if n == 0 {
             return Ok(false);
         }

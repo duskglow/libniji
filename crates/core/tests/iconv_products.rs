@@ -1,5 +1,5 @@
 //! iconv end to end (spec §6.4; D-6.8, D-6.9): `tests/oracle/iconv_diff.c` built against the
-//! host C library and statically against Liella's products, run with the same environment and
+//! host C library and statically against libniji's products, run with the same environment and
 //! `LOCPATH`; the outputs must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler, `localedef` and the
 //! installed charmaps; without the latter three the test says so and passes.
@@ -25,12 +25,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/iconv_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -55,7 +55,7 @@ fn iconv_behaviour_equals_the_reference() {
     // Clauses: s6_4_c_1, s6_4_c_1_1, s6_4_c_1_2, s6_4_c_1_3, s6_4_c_2, s6_4_c_3, s6_4_c_4, s6_4_c_5, s6_4_f_1,
     // s6_4_f_2, s6_4_f_2_1, s6_4_f_2_2, s6_4_f_2_3, s6_4_f_3, s6_4_g_0 (D-6.8, D-6.9).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if !Path::new("/usr/share/i18n/charmaps").exists() {
         skip_note::skipped("skipped: no charmaps");
         return;
@@ -68,7 +68,7 @@ fn iconv_behaviour_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("iconv_diff_host"), dir.join("iconv_diff_liella"));
+    let (host, ours) = (dir.join("iconv_diff_host"), dir.join("iconv_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -91,14 +91,14 @@ fn iconv_behaviour_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }

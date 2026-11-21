@@ -1,6 +1,6 @@
 /* The integrated name-service cache (D-16.10): the same lookups with the cache (the user's shared
- * region, warm) and without it (`liella_nscache_enable(0)`, as with LIELLA_NSCACHE=0), in one
- * process. Liella only (it uses <liella/native.h>); the reference's numbers for the uncached rows
+ * region, warm) and without it (`niji_nscache_enable(0)`, as with NIJI_NSCACHE=0), in one
+ * process. libniji only (it uses <niji/native.h>); the reference's numbers for the uncached rows
  * are cbench_netdb's. `cargo xtask bench` runs it with a private /dev/shm when it can, so that no
  * region is left in the system's. Prints `name<TAB>ns/op`, the best of several rounds.
  *
@@ -20,7 +20,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <liella/native.h>
+#include <niji/native.h>
 
 static volatile long sink;
 
@@ -114,39 +114,49 @@ static long serv(void)
 }
 
 /* A fresh process (this program again, through execve) times its first and second lookups:
- * `out` gets the best of `runs` for each (ns). `env` is its whole environment; `fresh` removes
- * the user's region before each run (so the first lookup creates it). */
-static void fresh_process(char *const env[], int fresh, int runs, double out[2])
+ * `out` keeps the best of the runs for each (ns). `env` is its whole environment; `fresh`
+ * removes the user's region first (so the second lookup creates it). */
+static void fresh_process(char *const env[], int fresh, double out[2])
 {
-    out[0] = out[1] = 1e300;
     char region[64];
-    snprintf(region, sizeof region, "/dev/shm/liella-nscache-%u", (unsigned)geteuid());
-    for (int i = 0; i < runs; i++) {
-        if (fresh)
-            unlink(region);
-        int fd[2];
-        if (pipe(fd) != 0)
-            fail("pipe");
-        pid_t p = fork();
-        if (p == 0) {
-            dup2(fd[1], 1);
-            char *argv[] = {(char *)"cbench_nscache", (char *)"first", NULL};
-            execve("/proc/self/exe", argv, env);
-            _exit(127);
-        }
-        close(fd[1]);
-        char buf[128] = {0};
-        ssize_t n = read(fd[0], buf, sizeof buf - 1);
-        close(fd[0]);
-        int st;
-        waitpid(p, &st, 0);
-        double a, b;
-        if (n <= 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0 || sscanf(buf, "%lf %lf", &a, &b) != 2)
-            fail("fresh process");
-        if (a < out[0])
-            out[0] = a;
-        if (b < out[1])
-            out[1] = b;
+    snprintf(region, sizeof region, "/dev/shm/niji-nscache-%u", (unsigned)geteuid());
+    if (fresh)
+        unlink(region);
+    int fd[2];
+    if (pipe(fd) != 0)
+        fail("pipe");
+    pid_t p = fork();
+    if (p == 0) {
+        dup2(fd[1], 1);
+        char *argv[] = {(char *)"cbench_nscache", (char *)"first", NULL};
+        execve("/proc/self/exe", argv, env);
+        _exit(127);
+    }
+    close(fd[1]);
+    char buf[128] = {0};
+    ssize_t n = read(fd[0], buf, sizeof buf - 1);
+    close(fd[0]);
+    int st;
+    waitpid(p, &st, 0);
+    double a, b;
+    if (n <= 0 || !WIFEXITED(st) || WEXITSTATUS(st) != 0 || sscanf(buf, "%lf %lf", &a, &b) != 2)
+        fail("fresh process");
+    if (a < out[0])
+        out[0] = a;
+    if (b < out[1])
+        out[1] = b;
+}
+
+/* `rounds` rounds of the three kinds of fresh process, in turn: `t[0]` the region valid, `t[1]`
+ * the region created, `t[2]` the cache off (`off`); each the best first and second lookups. */
+static void fresh_rounds(char *const on[], char *const off[], int rounds, double t[3][2])
+{
+    for (int k = 0; k < 3; k++)
+        t[k][0] = t[k][1] = 1e300;
+    for (int i = 0; i < rounds; i++) {
+        fresh_process(on, 0, t[0]);
+        fresh_process(on, 1, t[1]);
+        fresh_process(off, 0, t[2]);
     }
 }
 
@@ -165,31 +175,34 @@ int main(int argc, char **argv)
     }
     if (pw() != 1 || gai() != 101 || serv() != 80)
         fail("lookups");
-    struct liella_nscache_info st;
-    if (liella_nscache_status(&st) != 0 || st.hits + st.misses == 0)
+    struct niji_nscache_info st;
+    if (niji_nscache_status(&st) != 0 || st.hits + st.misses == 0)
         fail("the cache is not in use");
     MEASURE("getpwnam_r_cached", 1000000, pw());
     MEASURE("getaddrinfo_localhost_cached", 200000, gai());
     MEASURE("getservbyname_r_cached", 1000000, serv());
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     MEASURE("getpwnam_r_uncached", 100000, pw());
     MEASURE("getaddrinfo_localhost_uncached", 100000, gai());
     MEASURE("getservbyname_r_uncached", 50000, serv());
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
     if (pw() != 1)
         fail("enable");
-    /* Fresh processes: the region exists and is valid, the region is created, the cache off. */
-    char *const on[] = {(char *)"PATH=/usr/bin:/bin", NULL};
-    char *const off[] = {(char *)"PATH=/usr/bin:/bin", (char *)"LIELLA_NSCACHE=0", NULL};
-    double t[2];
-    fresh_process(on, 0, 40, t);
-    put("first_getpwnam_r_cached", t[0]);
-    put("second_getpwnam_r_cached", t[1]);
-    fresh_process(on, 1, 40, t);
-    put("first_getpwnam_r_create", t[0]);
-    put("second_getpwnam_r_create", t[1]);
-    fresh_process(off, 0, 40, t);
-    put("first_getpwnam_r_uncached", t[0]);
-    put("second_getpwnam_r_uncached", t[1]);
+    /* Fresh processes: the region exists and is valid, the region is created, the cache off.
+     * The three environments have the same size (any value but "0" leaves the cache on), so
+     * that the processes' stacks are laid out alike, and the three kinds take turns, so that
+     * none of them is measured only early or only late in the run. The three first lookups do
+     * the same work (the same system calls, page faults and instructions, D-16.10's first
+     * lookup going to the sources), so these rows differ only by how they are measured. */
+    char *const on[] = {(char *)"PATH=/usr/bin:/bin", (char *)"NIJI_NSCACHE=1", NULL};
+    char *const off[] = {(char *)"PATH=/usr/bin:/bin", (char *)"NIJI_NSCACHE=0", NULL};
+    double t[3][2];
+    fresh_rounds(on, off, 40, t);
+    put("first_getpwnam_r_cached", t[0][0]);
+    put("second_getpwnam_r_cached", t[0][1]);
+    put("first_getpwnam_r_create", t[1][0]);
+    put("second_getpwnam_r_create", t[1][1]);
+    put("first_getpwnam_r_uncached", t[2][0]);
+    put("second_getpwnam_r_uncached", t[2][1]);
     return 0;
 }

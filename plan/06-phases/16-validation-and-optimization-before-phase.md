@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Validation and optimization (before phase 14)
 
@@ -13,14 +13,14 @@ repository remote:
   timing benchmarks. Any work may run on either, but never anything on a machine while another
   agent is timing there: every remote command runs under `flock -s ~/machine.lock`, timing runs
   under `flock -x ~/machine.lock`, with a line in `~/CLAIMS`. Baselines are taken on the machine
-  of the later numbers. Liella is installed only inside a prefix or chroot.
+  of the later numbers. libniji is installed only inside a prefix or chroot.
 * **TEST thread.** First the owner's small items (a second seccomp check via
   `/proc/self/status`; the AIO fallback test through the injected-failure kernel; caller stacks
   serialised on every notification path). Then each suite against glibc (baseline), then
   statically against `libc.a`: GNU coreutils, bash, sed (a static validation: dynamic linking waits
   for phase 14, D-22.10, and the report says so). Records which gnulib replacements configure
   selects for each library, and checks `ls`, `find`, `du`, `rm -r` when a directory is removed
-  during traversal (D-13.13). Triage: Liella bug or spec error (fixed under the three-way rule);
+  during traversal (D-13.13). Triage: libniji bug or spec error (fixed under the three-way rule);
   glibc-specific behaviour a program depends on (an owner ruling when it would change a
   default); environment. Timing and profiles recorded during validation feed the optimization
   thread.
@@ -88,7 +88,7 @@ phase-14 *implementation* story, "overlap" = may run alongside phase 14):
    packages statically against the merged head's `libc.a`; results and triage rows refreshed;
    any new failure becomes a fix story.
    **Done 2026-10-23** (`validation/README.md`, "Seventh runs"): all ten packages as is, no
-   stand-in (`liella-cc` links Liella's `libm.a`); everything equals glibc except phase-14 items
+   stand-in (`niji-cc` links libniji's `libm.a`); everything equals glibc except phase-14 items
    (T4, T17, T27, T33), grep `stack-overflow` (T30, kept bound) and one new failure, **T34**
    (`libc.a` exports `fmod`, so gawk's configure drops `-lm`): fix story `PRE14-LIBC-FMOD`
    (proposed).

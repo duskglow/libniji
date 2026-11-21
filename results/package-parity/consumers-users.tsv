@@ -1,0 +1,20 @@
+# kind	gap item	users of 4000 scanned	packages that depend on a user	users (first 25)
+symbol	libm.so.6 fmod@GLIBC_2.2.5	25	13	eukleides,flexpart,gjh-asl-json,gnome-pie,lcd4linux,libcg,libnoise0,libnvidia-gpucomp,libnvidia-tesla-535-nvoptix1,libnvoptix1,libobjcryst0,missfits,newlisp,nsight-compute,pd-vbap,povray,r-cran-desolve,shelxle,sift,ska,socnetv,swarp,virt-top,vt,weightwatcher
+soname	libmvec.so.1	18	12	bristol,cif2hkl,direwolf,dpf-plugins-dssi,drumkv1-lv2,ebumeter,garli,guitarix,libflam3-0,libgwyddion2-0t64,libslicot0,libtachyon-openmpi-0,raster3d,splash,splat,tap-plugins,wsynth-dssi,xfoil
+soname	libresolv.so.2	13	41	adbd,cifs-utils,connman,libasynccpp1.6t64,libkafs-client0,mailutils,msmtp,netcat-openbsd,nsight-compute,nss-tlsd,opensmtpd,tmate,wrapsrv
+symbol	libm.so.6 pow@GLIBC_2.2.5	12	12	exiftags,libcg,libegl-nvidia-tesla-535-0,libgxccd,libnvidia-gpucomp,libnvidia-tesla-535-cuda1,libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute,nvidia-tesla-535-opencl-icd,sift,tandem-mass
+symbol	libm.so.6 fmodf@GLIBC_2.2.5	9	4	btanks,flextra,gnome-pie,inspectrum,libnvidia-gpucomp,libobjcryst0,mocassin,nsight-compute,pingus
+symbol	libm.so.6 exp@GLIBC_2.2.5	8	8	exiftags,libcg,libnvidia-gpucomp,libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute,sift,tandem-mass
+symbol	libm.so.6 log@GLIBC_2.2.5	7	7	libcg,libnvidia-gpucomp,libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute,sift,tandem-mass
+symbol	libm.so.6 exp2@GLIBC_2.2.5	4	4	libnvidia-gpucomp,libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 log2@GLIBC_2.2.5	4	4	libnvidia-gpucomp,libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 hypot@GLIBC_2.2.5	3	2	libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 hypotf@GLIBC_2.2.5	3	2	libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 log2f@GLIBC_2.2.5	3	2	libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 logf@GLIBC_2.2.5	3	2	libnvidia-tesla-535-nvoptix1,libnvoptix1,nsight-compute
+symbol	libm.so.6 expf@GLIBC_2.2.5	2	2	libnvidia-gpucomp,nsight-compute
+soname	libthread_db.so.1	1	1	nvidia-openjdk-8-jre
+symbol	libm.so.6 exp10@GLIBC_2.2.5	1	0	ir.lv2
+symbol	libm.so.6 exp2f@GLIBC_2.2.5	1	0	nsight-compute
+symbol	libm.so.6 lgamma@GLIBC_2.2.5	1	0	sift
+symbol	libm.so.6 powf@GLIBC_2.2.5	1	0	nsight-compute

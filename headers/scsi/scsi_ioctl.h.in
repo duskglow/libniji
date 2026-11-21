@@ -1,0 +1,6 @@
+@@generated
+/* scsi/scsi_ioctl.h: SCSI ioctls: no name of the tables belongs here */
+#ifndef __NIJI_H_scsi_scsi_ioctl_h
+#define __NIJI_H_scsi_scsi_ioctl_h 1
+
+#endif

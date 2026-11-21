@@ -9,11 +9,11 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::error::Result;
-use liella::num::float::Rounding;
-use liella::scanf::{self, Ctx, FmtUnit, Outcome, Set, Sink};
-use liella::text::Encoding;
-use liella_fuzz::Input;
+use niji::error::Result;
+use niji::num::float::Rounding;
+use niji::scanf::{self, Ctx, FmtUnit, Outcome, Set, Sink};
+use niji::text::Encoding;
+use niji_fuzz::Input;
 
 /// The text being scanned: units with one unit of pushback, checked.
 struct Text<'a> {
@@ -91,7 +91,7 @@ fuzz_target!(|data: &[u8]| {
     let header = input.byte();
     let fmt = input.part();
     let text = input.rest();
-    let loc = liella_fuzz::locale(header & 2 != 0);
+    let loc = niji_fuzz::locale(header & 2 != 0);
     let set = [Set::Gnu, Set::C99, Set::C23, Set::C99][usize::from((header >> 2) & 3)];
     let ctx = Ctx { loc: &loc, enc: Encoding::of(&loc), rounding: Rounding::Nearest, set };
     let null_after = (header & 0x10 != 0).then_some(3);

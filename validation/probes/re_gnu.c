@@ -1,5 +1,5 @@
 /* Milestone-6 probe (T28): re_compile_pattern of interval edge cases under GNU syntaxes,
- * printed under glibc and Liella. */
+ * printed under glibc and libniji. */
 #define _GNU_SOURCE
 #include <regex.h>
 #include <stdio.h>

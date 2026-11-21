@@ -1,0 +1,62 @@
+{
+ "task": "SL-HEADERS-S04-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "slice 4 finished: checker unit tests green, C++98 noexcept errors 241 -> 45 (probe faults fixed, two identical runs), 27/27 plants caught, C.13 spec text; FULL gate pending",
+ "branch": "task/sl-headers-s04-2",
+ "head": "39bfcfdad",
+ "gate": {
+  "affected": "pending: sl-headers-s04-2-gate (escalated to FULL by affected; running at hand-back)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "368 noexcept.tsv rows are cxx17 `-` but cxx98 `throw()` (e.g. __cabs*): a visibility.tsv fact, not checked further",
+  "abs, modf, register_printf_type stay cxx98 `error`: &f does not resolve in C++98 with the system C++ headers",
+  "this run used one Bash heredoc (python3 - <<X) for a fixture edit before switching to the Edit tool; no effect on the result"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "accuracy",
+   "what": "noexcept.tsv cxx98 rows without a value (error)",
+   "before": 241,
+   "after": 45,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on xtask/src/callsites.rs",
+   "before": 0,
+   "after": 27,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "callsites checker unit tests (fixture used a non-canonical configuration form)",
+   "before": "3 of 6 failing",
+   "after": "6 of 6 passing",
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "plan/headers.md slice 5 (headers built from the spec/abi tables)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "a probe that drops a whole unit on any outside-line failure hides real faults; split to per-name units on failure and count rows per value after every run",
+ "next_step": "land; slice 5 of plan/headers.md consumes callsites.tsv and noexcept.tsv",
+ "report_file": "handoff/SL-HEADERS-S04.md",
+ "jobs": [
+  "sl-headers-s04-2-lint2",
+  "sl-headers-s04-2-plants",
+  "sl-headers-s04-2-gate"
+ ]
+}

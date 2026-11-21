@@ -1,7 +1,7 @@
 /* `__fpu_control` (spec §10.6, D-10.5), a program that does not define it: the variable reads
  * 0x037f (`_FPU_DEFAULT`) and so does the x87 control word at `main`, linked statically or
  * dynamically. crates/boundary/tests/s10_math_symbols.rs also runs this program dynamically, on
- * glibc and on Liella's libc.so.6. */
+ * glibc and on libniji's libc.so.6. */
 #include <fpu_control.h>
 #include <stdio.h>
 
