@@ -1,11 +1,11 @@
 {"task": "COMPAT19-LDSO-COST", "model": "opus", "tokens": null,
- "result": "start dependencies mapped by the plan their search check made (D-27.71): -18.8k user instructions per empty main, -22.4k with three libraries, both CPU classes, faults and syscalls unchanged",
- "branch": "task/compat19-ldso-cost", "head": "HEAD_SHA",
- "gate": {"affected": "GATE_RESULT", "peak": "GATE_PEAK"},
+ "result": "start dependencies mapped by the plan their search check made (D-27.71): -18.8k user instructions per empty main, -22.4k with three libraries, both CPU classes, faults and syscalls unchanged; a malformed searched dependency now has a test",
+ "branch": "task/compat19-ldso-cost", "head": "ce03d2e14",
+ "gate": {"affected": "766 passed / 0 failed (compat19-ldso-cost-gate4, direct tier, mei)", "peak": "gate: peak memory 2.4G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "heap_meta_products the_heap_keeps_address_space_near_its_use failed once in pass 2 of gate compat19-ldso-cost-gate (realloc +45640 KiB > 41288) and passed in pass 1 on the same products; it is a -static program, which runs none of the changed loader code",
+   "heap_meta_products the_heap_keeps_address_space_near_its_use failed in gate (realloc +45640 KiB > 41288) and gate2 (RLIMIT_AS run exit 12), passed in gate3 and gate4: by hand on mei the base's (32261597b) and this branch's libc.a give identical, passing results (+41288, rc 0) unpinned, pinned and 8-parallel; moving the process from NUMA node 0 to node 1 1-12 ms into its 10 ms run reproduces +41544/+45640 and exit 11/12 with BOTH libc.a files. The test depends on the process staying on one node (a second node's heap segment adds 4 MiB + 256 KiB); flake source for the heap's owner, bound not loosened (handoff/compat19-ldso-cost.md, leg 3)",
    "DL-PROCESS-OBJECTS landed on next after this branch's base (32261597b) and touches the loader's per-object tables: the train's merge re-measures",
    "the c19 snapshot check (16 of 16) needs debs built from this head: not run here (the train / RC builds them)"
  ],
@@ -19,9 +19,10 @@
    {"kind": "perf", "what": "clock_gettime program, user instructions per start, Zen 1", "before": 774457, "after": 755584, "unit": "instr/start", "measured": true},
    {"kind": "faults", "what": "user faults per start (empty main / 3 libraries / clock_gettime), both hosts", "before": "52/67/56 (Zen 1 57 for clock_gettime)", "after": "unchanged", "unit": "faults", "measured": true},
    {"kind": "coverage", "what": "DYN_START_INSTR bounds tightened (fast 871,500/872,600 -> 788,100; release 774,400 -> 758,100)", "before": null, "after": null, "unit": "bound", "measured": true},
-   {"kind": "coverage", "what": "plants on the moved checks", "before": 0, "after": 4, "unit": "plants", "measured": true}
+   {"kind": "coverage", "what": "test map_malformed_dependency_refused_at_start: the malformed corpus as a searched DT_NEEDED, each corpus entry refused at start", "before": 0, "after": 1, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants on the moved checks, all CAUGHT (compat19-ldso-cost-plants4)", "before": 0, "after": 4, "unit": "plants", "measured": true}
  ],
- "jobs": ["mei:compat19-ldso-cost-gate2", "mei:compat19-ldso-cost-plants2", "mei:compat19-ldso-cost-xtest", "mei:compat19-ldso-cost-hot2", "mei:compat19-ldso-cost-m2", "mei:compat19-ldso-cost-snap", "keke:compat19-ldso-cost-zen"],
- "improvement": "a returned-by-value record deep in the loader's search cost a whole stack page per start: a page-fault list (perf record -e page-faults:u -d) next to the PT split found it in one run; worth a standing loader start-up check of stack depth",
+ "jobs": ["mei:compat19-ldso-cost-gate4", "mei:compat19-ldso-cost-plants4", "mei:compat19-ldso-cost-xtest4", "mei:compat19-ldso-cost-hot4", "mei:compat19-ldso-cost-m2", "mei:compat19-ldso-cost-snap", "keke:compat19-ldso-cost-zen"],
+ "improvement": "a returned-by-value record deep in the loader's search cost a whole stack page per start: a page-fault list (perf record -e page-faults:u -d) next to the PT split found it in one run; and a heap test that fails when the scheduler moves it between NUMA nodes cost two gate cycles here: pinning such address-space tests to one node (or one cpu) would remove that flake",
  "next_step": "land; the c19 snapshot check runs on the train's debs",
  "report_file": "handoff/compat19-ldso-cost.md"}
