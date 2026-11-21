@@ -291,11 +291,10 @@ fn rendezvous_reference_sized_copy_says_version_1() {
     std::fs::write(&c, REF_PROG).unwrap();
     let prog = d.join("refprog");
     // Linked against the host's C library (its `_r_debug` is 40 bytes); at run time libniji's loader
-    // starts it and its libraries are found through the program's RPATH.
+    // starts it and finds libniji's libraries through LD_LIBRARY_PATH.
     let r = Command::new("cc")
-        .args(["-O1", "-fno-pic", "-no-pie", "-fcf-protection=none", "-Wl,--disable-new-dtags"])
+        .args(["-O1", "-fno-pic", "-no-pie", "-fcf-protection=none"])
         .arg(format!("-Wl,--dynamic-linker={}", ld.display()))
-        .arg(format!("-Wl,-rpath,{}", lib.display()))
         .arg(&c)
         .arg("-o")
         .arg(&prog)
@@ -312,7 +311,7 @@ fn rendezvous_reference_sized_copy_says_version_1() {
             return;
         }
     }
-    let o = Command::new(&prog).output().unwrap();
+    let o = Command::new(&prog).env("LD_LIBRARY_PATH", &lib).output().unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert_eq!(o.status.code(), Some(0), "failed check {:?}: {out}", o.status.code());
     let _ = std::fs::remove_dir_all(&d);
