@@ -1,0 +1,8 @@
+id = "D-X.146"
+section = "x"
+status = "active"
+story = "SYS-DBG-DWARF"
+date = "2026-11-21"
+body = '''
+**Every ELF object the libc packages ship has a libc6-dbg file with DWARF (`.debug_info` and `.debug_line`); the release profile's loaded bytes do not change** (SYS-DBG-DWARF). Two causes, two fixes. (1) libm.so.6 and libresolv.so.2: the one-object step's `objcopy --strip-unneeded` also removed the Rust line tables; it now keeps them (`KEEP_DEBUG_SECTIONS`, `--keep-section=.debug_*`; unneeded symbols are still removed). (2) The C products (the placeholder libraries libpthread, libdl, librt, libutil, libanl, libnsl, libBrokenLocale, libc_malloc_debug; libmvec.so.1; getent, iconv, locale, and getconf's and ldd's own C file) were compiled without `-g`: `so::release_debug_cflags` adds `-g1` (line tables and function entries, the least that gives a source line) and `-fdebug-prefix-map=<tree>=/niji` in the release profile only; the fast profile is unchanged. `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, which is loaded data. iconv and locale ship with strip `debug` (a libc6-dbg file) like getent. tools/deb/check-system.sh fails when a debug file lacks `.debug_info` or `.debug_line`, or when an ELF EXEC/DYN file of a libc package (found by its ELF header, not by the manifest) has no libc6-dbg file. Measured on the system flavour (Skylake-SP host): every SHF_ALLOC section but the build-id note SHA-256-identical before and after for all 19 products; libc6-dbg 8.6 MB to 11.0 MB.
+'''

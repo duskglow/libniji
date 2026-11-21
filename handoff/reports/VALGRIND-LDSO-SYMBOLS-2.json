@@ -1,0 +1,21 @@
+{"task": "VALGRIND-LDSO-SYMBOLS-2", "model": "opus", "tokens": null,
+ "result": "origin/next merged into the valgrind loader-names branch (check-system.sh conflict with SYS-DBG-DWARF resolved: next's per-debug-file DWARF checks plus the loader's local strcmp/strlen check); check-system PASS on the merged head's debs, memcheck still runs programs with the loader's debug file, 6/6 plants CAUGHT, direct gate green",
+ "branch": "task/valgrind-ldso-symbols-2", "head": "d3fffeda1",
+ "gate": {"affected": "gate1: 14 suites, 8363 passed / 0 failed", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Unchanged from legs 1-2 on the merged head: with the whole libc6-dbg every valgrind tool aborts in m_debuginfo/readelf.c:3013 find_rodata (libc.so.6's .rodata1/.rodata pair; next story); helgrind hg_main.c:5421 Assertion 'found' under libniji; one memcheck start-up report in the loader at link.rs:356",
+  "plants1 printed WARN-DEV-SHM (RAM dir under /dev/shm, as the brief prescribes for a Zen 1 host); no WARN-RC-ONLY or WARN-NO-MSG",
+  "keke was saturated: each of lint0, lint1 and final1 queued about 10-25 minutes for a slot; most of the run's wall time was queue time"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "VALGRIND-LDSO-SYMBOLS (GitHub #13 loader names) can land: the CI conflict in tools/deb/check-system.sh with SYS-DBG-DWARF is resolved", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "valgrind memcheck under libniji with libc6-dbg's loader debug file (merged head's debs): /bin/true rc 0, an invalid-read program rc 0 with the read reported; before: fatal mandatory-redirect abort", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "plants on the merged head (unit check, link alias and size, packaging check)", "before": 6, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A coordinator merge note that names the conflicting story and says 'keep both' made this a two-minute resolution; the rest of the run (~2.5 h) was slot queueing for re-proof jobs on a saturated host: a merge-only leg could reuse one chained job (lint+final+gate) in one slot instead of queueing each",
+ "next_step": "Land via the CI train; then the story for libc6-dbg readable by valgrind (libc.so.6 .rodata1/.rodata, layout measured per section 9), then helgrind's client request and the loader's memcheck report",
+ "report_file": "handoff/VALGRIND-LDSO-SYMBOLS.md",
+ "jobs": ["keke:valgrind-ldso-symbols-2-lint1", "keke:valgrind-ldso-symbols-2-final1", "keke:valgrind-ldso-symbols-2-plants1", "keke:valgrind-ldso-symbols-2-gate1", "keke:valgrind-ldso-symbols-2-startup1"]}

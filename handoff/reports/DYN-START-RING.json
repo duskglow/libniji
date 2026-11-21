@@ -1,0 +1,28 @@
+{"task": "DYN-START-RING", "model": "opus", "tokens": null,
+ "result": "dynamic start system calls 36->28 (empty main), 78->58 (3 libraries) on Zen 1; user, faults and Skylake-SP kernel lower on every row; leg-1 regression traced to a libc text-segment split and fixed",
+ "branch": "task/dyn-start-ring", "head": "414a84a0d",
+ "gate": {"affected": "pending (dyn-start-ring-gate2 running, direct tier 241 of 308 targets; lint and static passed in it)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Zen 1 kernel-instruction medians under host load ~20 mix two modes: the static empty main (code unchanged but for one rt_sigaction fewer) moved +3.7k..+9.4k with equal mins; nt (clock_gettime) median +13k..+20k while its min is -26k..-33k. Skylake-SP interleaved runs are lower on every row. Settled by dyn-start-ring-krep1 (8 alternating rounds): nt kernel median lower in all 8 (about 909k -> 871k), n0 lower in all 8, s0 level.",
+  "libc.so.6's text could split into two executable PT_LOADs whenever the first read-only segment's size moved the PLT to leave a whole page before .text: any change to the symbol tables could add ~1 header + 1 mapping per dynamic start. PLT_AFTER_TEXT removes the dependence; so checks it.",
+  "layout-bins.tsv was not diffed against the merge base (no base copy of it on the role)."
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main system calls (strace incl. execve), Zen 1", "before": 36, "after": 28, "unit": "syscalls", "measured": true},
+  {"kind": "perf", "what": "dynamic main + 3 libraries system calls, Zen 1", "before": 78, "after": 58, "unit": "syscalls", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main kernel instructions, Skylake-SP (median of 101, two interleaved rounds)", "before": 806255, "after": 773456, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic main + 3 libraries kernel instructions, Skylake-SP", "before": 1237187, "after": 1183001, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic clock_gettime main kernel instructions, Skylake-SP", "before": 834264, "after": 803072, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main kernel instructions, Zen 1 (interleaved)", "before": 824174, "after": 791400, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main user instructions, Zen 1", "before": 763452, "after": 762847, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic main + 3 libraries user instructions, Zen 1", "before": 1027009, "after": 1026163, "unit": "instr/start", "measured": true},
+  {"kind": "faults", "what": "page faults per dynamic start (n0, n3, nt), both CPU classes", "before": 59, "after": 58, "unit": "faults (n0)", "measured": true},
+  {"kind": "perf", "what": "dynamic clock_gettime main kernel instructions, Zen 1 (8 alternating rounds beside a gate, round 8)", "before": 908881, "after": 871362, "unit": "instr/start", "measured": true},
+  {"kind": "coverage", "what": "tests added: start system-call bounds (3 rows), one-executable-segment check + 2 unit tests; plants", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "sync_role counts queued (not yet started) jobs as BUSY, so a commit after queueing forces cancel-and-requeue; and a host with full slots queued a 10-second probe 25 minutes behind builds: a small 'probe' slot class would keep measurement off the build queue",
+ "next_step": "collect gate2, startup1, plants2, krep1 on keke; precheck; land if green (krep1 settled the Zen 1 rows)",
+ "report_file": "handoff/DYN-START-RING.md",
+ "jobs": ["keke:dyn-start-ring-gate2", "keke:dyn-start-ring-startup1", "keke:dyn-start-ring-plants2", "keke:dyn-start-ring-so3", "keke:dyn-start-ring-abab1", "keke:dyn-start-ring-krep1", "mei:dyn-start-ring-sk-abab1", "mei:dyn-start-ring-sk-base0"]}

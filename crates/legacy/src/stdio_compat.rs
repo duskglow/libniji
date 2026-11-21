@@ -355,6 +355,9 @@ pub struct Wide {
     pending_len: usize,
     /// The bytes of a partial character (`Codec::Text`) read so far.
     partial: usize,
+    /// The partial character's first byte was the first byte of the buffer's latest fill: the
+    /// wide read had no buffered input left when it reached that character (D-12.29).
+    fresh: bool,
 }
 
 /// libniji's state of one stream (D-12.11).
@@ -2402,7 +2405,7 @@ fn set_error(file: &[AtomicUsize], ext: &mut Ext) {
 }
 
 /// `fgetwc`: the next wide character, `None` at end of input (an incomplete character there
-/// included, as the reference library has it). An invalid sequence is `EILSEQ` with the
+/// included, unless it began the input read last: then `EILSEQ`, D-12.29). An invalid sequence is `EILSEQ` with the
 /// error indicator set, its bytes (from the first) left unread. On a byte-oriented stream, `None`.
 pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
     if !wide_oriented(file, ext, enc) {
@@ -2446,6 +2449,9 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 }
                 Decoded::Incomplete => {
                     ext.wide.decode = st;
+                    if ext.wide.partial == 0 {
+                        ext.wide.fresh = ext.state.rpos == RESERVE + 1;
+                    }
                     if let Some(slot) = ext.wide.pending.get_mut(ext.wide.partial) {
                         *slot = b;
                     }
@@ -2464,7 +2470,11 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
         },
         Codec::Charset { mut dec, enc } => loop {
             let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
+            let lead = ext.state.rpos == RESERVE + 1;
             let w = &mut ext.wide;
+            if w.pending_len == 0 {
+                w.fresh = lead;
+            }
             let Some(slot) = w.pending.get_mut(w.pending_len) else {
                 w.pending_len = 0;
                 set_error(file, ext);
@@ -2510,11 +2520,15 @@ fn invalid_sequence<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, n: usi
     Err(Errno::EILSEQ)
 }
 
-/// End of input, `WEOF`. Inside a character, its bytes read so far (`partial` of
-/// `Codec::Text`, `pending_len` of `Codec::Charset`, in `ext.wide.pending`) go back to the
-/// stream with the conversion state reset: a byte read returns them, the position excludes
-/// them, and a wide read after more input arrives decodes them again; the end-of-file
-/// indicator stays set (D-12.28).
+/// End of input, `WEOF`. Inside a character (its bytes read so far: `partial` of
+/// `Codec::Text`, `pending_len` of `Codec::Charset`, in `ext.wide.pending`), the conversion
+/// state is reset, and then (D-12.29):
+/// * the character's first byte began the buffer's latest fill (`ext.wide.fresh`: no buffered
+///   input was left when the read reached it): its bytes are consumed, `EILSEQ` with the error
+///   indicator, the end-of-file indicator clear; the position includes them;
+/// * otherwise they go back to the stream: a byte read returns them, the position excludes
+///   them, and a wide read after more input arrives decodes them again; the end-of-file
+///   indicator stays set (D-12.28).
 #[cold]
 #[inline(never)]
 fn end_of_input<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u32>> {
@@ -2525,6 +2539,14 @@ fn end_of_input<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult
     ext.wide.decode = MbState::INITIAL;
     ext.wide.partial = 0;
     ext.wide.pending_len = 0;
+    if ext.wide.fresh {
+        ext.wide.fresh = false;
+        load(file, ext);
+        ext.state.eof = false;
+        ext.state.err = true;
+        store(file, ext);
+        return Err(Errno::EILSEQ);
+    }
     let seq = ext.wide.pending;
     for &b in seq.get(..n).unwrap_or(&seq).iter().rev() {
         ungetc_raw(env, file, ext, b)?;

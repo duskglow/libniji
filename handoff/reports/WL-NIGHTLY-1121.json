@@ -1,0 +1,19 @@
+{"task": "WL-NIGHTLY-1121", "model": "opus", "tokens": null,
+ "result": "ls-l-enUS DIFF = the accepted D-4.42 strcoll order (fingerprint 20:4c9756b03421 matches wl_known_diffs.tsv; mei's tree lacks the names; no regression); kit table now checks the accepted list; static fault rows = heap first-touch in the work (+43 pages/ls run), not start-up or the read-only layout",
+ "branch": "task/wl-nightly-1121", "head": "15baf51b7",
+ "gate": {"affected": "565 passed / 0 failed (5 suites)", "peak": "1.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "keke and mei kit trees differ (tree.tar 30afe5ba72d1 vs 006fe7b231e5): cross-host kit tables compare different inputs; same tree.tar on both hosts if cross-host comparison is wanted",
+   "ls-l-enUS static +481 faults/10 runs: heap +428 (gobble_file, memmove into fresh pages, Heap::refill, memset), text +80, locale +30, nscache +30, r-- -30, rw- -50; a heap footprint story",
+   "sed-s 1.104: libniji sed heap stable 59-62 pages; glibc's sed heap count depends on launch context (27 under sh -c env, 68-73 direct), libniji lower than glibc when run directly (105 vs 136)"],
+ "refused": ["python3 - <<'X' ... X (accidental no-op heredoc, blocked by the no-heredoc hook; not retried)"],
+ "impact": [
+   {"kind": "correctness", "what": "nightly kit table marks an accepted output difference KNOWN (fingerprint-checked) instead of DIFF; an unlisted or changed fingerprint stays DIFF and is listed", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "wl_kits_test.sh checks + plants (4 CAUGHT)", "before": 0, "after": 7, "unit": "checks", "measured": true},
+   {"kind": "none", "what": "page-fault attribution of ls-l-enUS and sed-s static rows (no behaviour change)", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "the nightly kit and the per-gate report each had their own diff verdict; one allow-list now feeds both. Kit inputs should be identical across hosts (one tree.tar) so a host switch cannot change a verdict",
+ "next_step": "none for this story; optional heap story: distinct heap pages per size class for ls -lR (target +43 pages/run)",
+ "report_file": "handoff/WL-NIGHTLY-1121.md",
+ "jobs": ["keke:wl-nightly-1121-gate", "keke:wl-nightly-1121-plants", "keke:wl-nightly-1121-lint"]}

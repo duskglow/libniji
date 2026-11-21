@@ -186,12 +186,15 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
    the token (probe, DL-NAME-PATH-2: absolute with links resolved, a link to the program's file
    included; with `/proc` hidden the origin is unknown and `LD_ORIGIN_PATH` is used as given);
    for `ld.so PROGRAM` it is the directory of the path as given, after the working directory
-   when relative.
+   when relative, or of the path the loader cache gives for a name without `/` (rule 3).
 3. **No search path may silently mean the current directory in a secure process.** An empty
    element and a relative element of any search list are skipped. Outside secure mode they mean
    the current directory, as documented. A `dlopen` name with a `/` that does not start with `/`
    is opened relative to the current directory in both modes (documented behaviour, and the
-   program chose it; probe: the reference does the same in both modes).
+   program chose it; probe: the reference does the same in both modes). `ld.so PROGRAM` (and
+   `--list PROGRAM`) with no `/` in PROGRAM never opens it from the current directory: the name is
+   looked up in the loader cache only, and a cache path that is not absolute is not used (D-27.69;
+   probe: the reference uses neither the current directory nor `LD_LIBRARY_PATH` for it).
 4. **Parsing never trusts lengths, offsets or counts:** every program header, segment, dynamic
    entry, relocation, symbol, version and hash table access is bounds-checked against the mapped
    file, before mapping anything executable; a malformed object is refused with a diagnostic, never

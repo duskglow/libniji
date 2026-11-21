@@ -475,9 +475,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// execcount median of 101, -38,180 / -38,167 / -38,182 on empty main / 3 libraries / clock_gettime on
 /// both hosts; the release bounds move down by 38,000 (the head passed at 812,400, so the margin stays).
 /// The fast bounds are not re-measured and stay.
+/// CRT-START-FILES-3 (start files without the 64 KiB-aligned anchors, D-X.144; merged with next e4777a6ba):
+/// this test on fast products built on the Skylake-SP host, next 790,290, the branch 778,859 (more than 10%
+/// under 871,500); the fast bound is that level plus 2%. Zen 1 host: not re-measured; its fast level was
+/// within 0.02% of the Skylake-SP host's (DYN-START-SPEED-2), so it takes the same bound.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 774_400]),
-    ("AMD EPYC 7551 32-Core Processor", [872_600, 774_400]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [794_500, 774_400]),
+    ("AMD EPYC 7551 32-Core Processor", [794_500, 774_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
@@ -499,6 +503,11 @@ fn dyn_stage(tag: &str) -> PathBuf {
 
 /// Links `src` as a position-independent program of the products staged in `lib` ([`dyn_stage`]).
 fn dyn_link(lib: &Path, src: &Path, exe: &Path) {
+    dyn_link_with(lib, src, exe, &[]);
+}
+
+/// [`dyn_link`] with the shared objects `objs` linked in after `src` (each a `DT_NEEDED` of the program).
+fn dyn_link_with(lib: &Path, src: &Path, exe: &Path, objs: &[PathBuf]) {
     let p = root().join("target/niji");
     // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
     // `atexit` in libc_nonshared.a names).
@@ -512,6 +521,7 @@ fn dyn_link(lib: &Path, src: &Path, exe: &Path) {
         .arg(p.join("niji-crt1.o"))
         .arg(gcc_file("crtbeginS.o"))
         .arg(src)
+        .args(objs)
         .arg(p.join("libc_nonshared.a"))
         .arg(lib.join("libc.so.6"))
         .arg(lib.join("ld-linux-x86-64.so.2"))
@@ -550,46 +560,118 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
     Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
 }
 
-/// DYN-START-QUICK; no spec clause (cost of the products). A dynamic empty main started by the products'
-/// interpreter makes none of the system calls its start does without: no `lseek` (a regular file's size
-/// comes from the `fstat` the loader makes), no anonymous mapping smaller than a page (the
-/// image views' buffers come from the loader's scratch arena) and no `arch_prctl(ARCH_GET_FS)`
-/// (`__libc_start_main` sees the loader's early start first). Traced with ptrace
-/// (oracle/start_syscalls.c); skipped, with the reason printed, where ptrace is not permitted.
-#[test]
-fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
-    const MMAP: u64 = 9;
-    const LSEEK: u64 = 8;
-    const ARCH_PRCTL: u64 = 158;
-    let lib = dyn_stage("dyn-calls");
-    let src = lib.join("empty.c");
-    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
-    let exe = lib.join("empty_dyn");
-    dyn_link(&lib, &src, &exe);
+/// The system calls `exe` (staged in `lib`, [`dyn_stage`]) makes from its exec to its exit, as "nr arg0
+/// arg1 arg3" words, traced with ptrace (oracle/start_syscalls.c, built with the host's compiler; the
+/// products' path reaches the traced program only). `None`, with the reason printed, where ptrace is
+/// not permitted.
+fn start_calls(lib: &Path, exe: &Path) -> Option<Vec<[u64; 4]>> {
     let tracer = lib.join("start_syscalls");
-    let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
-    assert!(st.success(), "oracle/start_syscalls.c does not build");
-    // The products' path reaches the traced program only: the tracer runs on the host C library.
-    let o = Command::new(&tracer).arg(&exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
-    let _ = std::fs::remove_dir_all(&lib);
+    if !tracer.exists() {
+        let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
+        assert!(st.success(), "oracle/start_syscalls.c does not build");
+    }
+    let o = Command::new(&tracer).arg(exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
     if o.status.code() == Some(121) || o.status.code() == Some(123) {
         eprintln!("SKIP: ptrace is not permitted here ({})", o.status);
-        return;
+        return None;
     }
-    assert!(o.status.success(), "the traced empty main failed ({})", o.status);
-    let calls: Vec<[u64; 4]> = String::from_utf8_lossy(&o.stdout)
+    assert!(o.status.success(), "the traced {} failed ({})", exe.display(), o.status);
+    let calls = String::from_utf8_lossy(&o.stdout)
         .lines()
         .map(|l| {
             let w: Vec<u64> = l.split_whitespace().map(|v| v.parse().expect("a number")).collect();
             [w[0], w[1], w[2], w[3]]
         })
         .collect();
+    Some(calls)
+}
+
+/// DYN-START-QUICK, DYN-START-RING; no spec clause (cost of the products). A dynamic empty main started by
+/// the products' interpreter makes none of the system calls its start does without: no `lseek` (a regular
+/// file's size comes from the `fstat` the loader makes), no anonymous mapping smaller than a page (the
+/// image views' buffers come from the loader's scratch arena), no `arch_prctl(ARCH_GET_FS)`
+/// (`__libc_start_main` sees the loader's early start first) and no `rt_sigaction` (the internal
+/// signal's handler waits for the first thread, D-20.1 as amended by owner ruling #7075). Skipped, with
+/// the reason printed, where ptrace is not permitted.
+#[test]
+fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
+    const MMAP: u64 = 9;
+    const LSEEK: u64 = 8;
+    const RT_SIGACTION: u64 = 13;
+    const ARCH_PRCTL: u64 = 158;
+    let lib = dyn_stage("dyn-calls");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let exe = lib.join("empty_dyn");
+    dyn_link(&lib, &src, &exe);
+    let calls = start_calls(&lib, &exe);
+    let _ = std::fs::remove_dir_all(&lib);
+    let Some(calls) = calls else { return };
     eprintln!("dynamic empty main: {} system calls", calls.len());
     let count = |f: &dyn Fn(&[u64; 4]) -> bool| calls.iter().filter(|c| f(c)).count();
     assert_eq!(count(&|c| c[0] == LSEEK), 0, "lseek at start: a file size taken from lseek, not fstat");
     assert_eq!(count(&|c| c[0] == MMAP && c[3] & 0x20 != 0 && c[2] < 4096), 0, "an anonymous mapping under a page at start: the image views were not taken from the scratch arena");
     assert_eq!(count(&|c| c[0] == ARCH_PRCTL && c[1] == 0x1003), 0, "arch_prctl(ARCH_GET_FS) at start: __libc_start_main did not take the loader's early start first");
+    assert_eq!(count(&|c| c[0] == RT_SIGACTION), 0, "rt_sigaction at start: the internal signal's handler was installed before any thread");
 }
+
+/// DYN-START-RING; no spec clause (cost of the products). The number of system calls three dynamic starts
+/// make, from the exec to the exit: an empty main, a main calling into three libraries, and a main calling
+/// `clock_gettime`. Each count may only go down: a bound is the count measured when it was set (lower it
+/// when a change removes calls). `openat` is bounded apart, by the objects searched: each library
+/// search tries the `glibc-hwcaps` subdirectories the CPU supports (one to three) before the directory
+/// itself, so its count depends on the host's CPU level. Skipped, with the reason printed, where ptrace is
+/// not permitted.
+#[test]
+fn init_dynamic_start_system_calls_stay_within_their_bounds() {
+    const OPENAT: u64 = 257;
+    // (program, its source, the libraries it links, the bound on its calls other than openat).
+    const ROWS: [(&str, &str, usize, usize); 3] = [
+        ("empty", "int main(void) { return 0; }\n", 0, EMPTY_CALLS),
+        ("three", "int d1(void); int d2(void); int d3(void);\nint main(void) { return d1() + d2() + d3(); }\n", 3, THREE_CALLS),
+        ("clock", "#include <time.h>\nint main(void) { struct timespec t; return clock_gettime(CLOCK_MONOTONIC, &t); }\n", 0, CLOCK_CALLS),
+    ];
+    let lib = dyn_stage("dyn-count");
+    let mut over = Vec::new();
+    for (name, text, nlibs, bound) in ROWS {
+        let mut objs = Vec::new();
+        for k in 1..=nlibs {
+            let src = lib.join(format!("d{k}.c"));
+            std::fs::write(&src, format!("int d{k}(void) {{ return 0; }}\n")).unwrap();
+            let so = lib.join(format!("libd{k}.so"));
+            let st = Command::new("cc").args(["-O1", "-shared", "-fPIC", "-nostdlib", "-o"]).arg(&so).arg(&src).status().expect("cc");
+            assert!(st.success(), "{} does not build", src.display());
+            objs.push(so);
+        }
+        let src = lib.join(format!("{name}.c"));
+        std::fs::write(&src, text).unwrap();
+        let exe = lib.join(name);
+        dyn_link_with(&lib, &src, &exe, &objs);
+        let Some(calls) = start_calls(&lib, &exe) else {
+            let _ = std::fs::remove_dir_all(&lib);
+            return;
+        };
+        let opens = calls.iter().filter(|c| c[0] == OPENAT).count();
+        let rest = calls.len() - opens;
+        // `/etc/ld.so.preload`, then per object searched (libc and the libraries) up to three
+        // `glibc-hwcaps` levels and the directory.
+        let open_bound = 1 + 4 * (nlibs + 1);
+        eprintln!("dynamic {name}: {rest} system calls besides {opens} openat (bounds {bound}, {open_bound})");
+        if rest > bound || opens > open_bound {
+            over.push(format!("{name}: {rest} calls besides {opens} openat, over the bounds {bound} and {open_bound}"));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&lib);
+    assert!(over.is_empty(), "a dynamic start makes more system calls than its bound (DYN-START-RING: the counts only go down): {over:?}");
+}
+
+/// [`init_dynamic_start_system_calls_stay_within_their_bounds`]: the empty main's calls besides `openat`
+/// (DYN-START-RING, measured on the Zen 1 host).
+const EMPTY_CALLS: usize = 23;
+/// The same for the main calling three libraries (DYN-START-RING).
+const THREE_CALLS: usize = 50;
+/// The same for the main calling `clock_gettime` (DYN-START-RING).
+const CLOCK_CALLS: usize = 23;
 
 #[test]
 fn init_dynamic_empty_main_stays_within_its_instruction_bound() {

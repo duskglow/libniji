@@ -603,6 +603,12 @@ fn startup_text(keys: &[String], fns: &BTreeMap<String, Vec<Func>>, sections: &[
             if !seen.insert((f.start, f.name.clone())) {
                 continue;
             }
+            // CRT-START-FILES (D-X.144): a static anchor's start symbol, a jump run once from the group end's
+            // boundary (the window of the program's own text, which every program runs), is start code like the
+            // start object's, not a library function the trace groups: it adds no start-up window of libc's.
+            if sections.iter().any(|s| (s.start..s.end).contains(&f.start) && crate::so::static_anchor_member(&s.file)) {
+                continue;
+            }
             for w in window_of(f.start, window)..=window_of(f.end - 1, window) {
                 t.windows.entry(w).or_default().push(f.clone());
             }
@@ -995,6 +1001,19 @@ fn startup_objects(c: &Contract, p: &BTreeMap<String, String>, root: &Path, prob
 // WINDOW-BIN-BYTES (D-X.136, owner ruling R2 of plan/layout-budget-rethink.md): the per-story start-up layout gate in
 // bytes and windows from the probe's link map (`crate::binbudget`).
 
+/// D-X.145: whether `profile`'s windows per mode block: `windows-block` lists the profiles (the shipped `release`),
+/// each with its own `windows-<profile>` budget; in the others they are a non-blocking report.
+fn window_counts_block(p: &BTreeMap<String, String>, c: &Contract, profile: &str) -> Result<bool, String> {
+    let block: Vec<&str> = param(p, c, "windows-block")?.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if block.is_empty() {
+        return Err(format!("layout: {}: windows-block names no profile: the windows per mode would block nowhere", c.id));
+    }
+    if let Some(x) = block.iter().find(|x| !p.contains_key(&format!("windows-{x}"))) {
+        return Err(format!("layout: {}: windows-block names {x}, which has no windows-{x} budget", c.id));
+    }
+    Ok(block.contains(&profile))
+}
+
 fn check_window_bins(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Products) -> Result<String, Vec<String>> {
     use crate::binbudget::{Budgets, DataObject, Linked};
     let one = |e: String| vec![e];
@@ -1006,6 +1025,7 @@ fn check_window_bins(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Produc
     same(c, "head-room", head_room, crate::bins::HEAD_ROOM).map_err(one)?;
     let profile = pr.profile.clone().ok_or_else(|| one(format!("layout: {}: the products' profile is unknown (no {}/.profile)", c.id, pr.dir.display())))?;
     let modes = crate::binbudget::parse_budgets(param(p, c, &format!("windows-{profile}")).map_err(one)?).map_err(|e| one(format!("layout: {}: windows-{profile}: {e}", c.id)))?;
+    let counts_block = window_counts_block(p, c, &profile).map_err(one)?;
     let rodata1 = param_num(p, c, "rodata1-windows").map_err(one)?;
     let data1 = param_num(p, c, &format!("data1-pages-{profile}")).map_err(one)?;
     let path = param(p, c, "signatures").map_err(one)?;
@@ -1036,7 +1056,7 @@ fn check_window_bins(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Produc
     let find = |n: &str| out.iter().find(|s| s.name == n).map(|s| Linked { start: s.start, end: s.end, name: s.name.clone() });
     let dbins = crate::binbudget::data_bins(&data, STARTUP_WINDOW, page, &data_budgets);
     let (data_report, data_broken) = crate::binbudget::data_verdict(&dbins, &data_budgets, &profile);
-    let b = Budgets { window, page, head_room, profile, modes, rodata1: find(".rodata1").map(|s| (s, rodata1)), data1: find(".data1").map(|s| (s, data1)) };
+    let b = Budgets { window, page, head_room, profile, modes, counts_block, rodata1: find(".rodata1").map(|s| (s, rodata1)), data1: find(".data1").map(|s| (s, data1)) };
     let (mut report, mut broken) = crate::binbudget::verdict(&a, &b, base.as_ref());
     report.extend(data_report);
     broken.extend(data_broken);
@@ -1291,6 +1311,20 @@ mod tests {
     }
 
     #[test]
+    fn window_counts_block_in_the_shipped_profile_only() {
+        // no spec clause: tooling (D-X.145).
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let c = load(root).unwrap().into_iter().find(|c| c.id == "WINDOW-BIN-BYTES").unwrap();
+        let p = c.params().unwrap();
+        assert_eq!(window_counts_block(&p, &c, "release"), Ok(true), "the shipped products' windows per mode block");
+        assert_eq!(window_counts_block(&p, &c, "fast"), Ok(false), "the tool profile's partition moves with unrelated edits: it reports");
+        let bad = |rule: &str| window_counts_block(&row("W", rule).params().unwrap(), &row("W", rule), "release").unwrap_err();
+        assert!(bad("windows-release=true:1; windows-block=").contains("names no profile"));
+        assert!(bad("windows-release=true:1; windows-block=relaese").contains("windows-block names relaese, which has no windows-relaese budget"));
+        assert!(bad("windows-release=true:1").contains("windows-block"));
+    }
+
+    #[test]
     fn the_manifest_parses_and_names_known_kinds() {
         // no spec clause: tooling (D-X.48).
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -1468,6 +1502,13 @@ mod tests {
         assert!(t.straddling.is_empty());
         let names: Vec<&str> = t.ungrouped.iter().map(|f| f.name.as_str()).collect();
         assert_eq!(names, ["cold_b"], "crt1's _start is not a libc.a function");
+        // CRT-START-FILES (D-X.144): the static anchor's `__libc_start_main` jump, at the group end's boundary in a
+        // window of its own here, is not either, and adds no window.
+        let anchored = map.replace(" .text.cold_b", " .text.sorted.h9z.niji_group_end 0x00000000006e0000 0x10 /x/libc.a(niji_static_anchor.o)\n .text.cold_b");
+        let anchored_nm = nm.replace("0000000000401000 0000000000000200 T __libc_start_main", "00000000006e0000 0000000000000005 W __libc_start_main");
+        let a = startup_text(&keys(), &parse_nm(&anchored_nm), &parse_map(&anchored), STARTUP_WINDOW).unwrap();
+        assert_eq!(a.ungrouped.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["cold_b"], "the static anchor's start symbol");
+        assert_eq!(a.windows.keys().copied().collect::<Vec<_>>(), [0x40, 0x41, 0x6f], "the static anchor's start symbol takes no window");
         let c = startup_row("window=65536; budget-fast=3; grouped=warn; keys=k");
         let ok = startup_verdict(&c, &t, STARTUP_WINDOW, 3, false, "fast").unwrap();
         assert!(ok.contains("3 start-up text windows") && ok.contains("outside it: 0x6f0000"), "{ok}");

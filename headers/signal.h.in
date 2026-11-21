@@ -1,0 +1,91 @@
+@@generated
+/* signal.h: signals (C 7.14, XSH <signal.h>). Appendix C.9: SIGRTMIN and SIGRTMAX are the run-time values
+   __libc_current_sigrtmin () and __libc_current_sigrtmax (); under _DYNAMIC_STACK_SIZE_SOURCE MINSIGSTKSZ and
+   SIGSTKSZ are sysconf (_SC_MINSIGSTKSZ) and sysconf (_SC_SIGSTKSZ). */
+#ifndef __NIJI_H_signal_h
+#define __NIJI_H_signal_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL SIG_HOLD
+@@owns-macro SIG_DFL SIG_IGN SIG_ERR SIGRTMIN SIGRTMAX MINSIGSTKSZ SIGSTKSZ si_value si_status TEMP_FAILURE_RETRY
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+/* C 7.14.1: the dispositions; their addresses are macros.tsv's. */
+#define SIG_DFL ((__sighandler_t) @@value(SIG_DFL))
+#define SIG_IGN ((__sighandler_t) @@value(SIG_IGN))
+#define SIG_ERR ((__sighandler_t) @@value(SIG_ERR))
+
+@@if SIG_HOLD
+# define SIG_HOLD ((__sighandler_t) @@value(SIG_HOLD))
+#endif
+
+/* The members of the anonymous unions of struct sigaction and siginfo_t (POSIX XSH <signal.h>: sa_handler, sa_sigaction
+   and the si_* names are members there; the macros name the members the layout table records). */
+@@when sigaction
+# define sa_handler __sigaction_handler.sa_handler
+# define sa_sigaction __sigaction_handler.sa_sigaction
+#endif
+@@when siginfo_t
+# define si_pid _sifields._kill.si_pid
+# define si_uid _sifields._kill.si_uid
+# define si_timerid _sifields._timer.si_tid
+# define si_overrun _sifields._timer.si_overrun
+# define si_utime _sifields._sigchld.si_utime
+# define si_stime _sifields._sigchld.si_stime
+# define si_int _sifields._rt.si_sigval.sival_int
+# define si_ptr _sifields._rt.si_sigval.sival_ptr
+# define si_addr _sifields._sigfault.si_addr
+# define si_addr_lsb _sifields._sigfault.si_addr_lsb
+# define si_band _sifields._sigpoll.si_band
+# define si_fd _sifields._sigpoll.si_fd
+#endif
+@@when si_value
+# define si_value _sifields._rt.si_sigval
+#endif
+@@when si_status
+# define si_status _sifields._sigchld.si_status
+#endif
+/* sigevent(3type): the thread-notification members are named at the top level of struct sigevent. */
+@@when sigevent
+# define sigev_notify_function _sigev_un._sigev_thread._function
+# define sigev_notify_attributes _sigev_un._sigev_thread._attribute
+#endif
+
+/* unistd.h's retry macro; signal.h shows it under the GNU levels as well (its body names errno and EINTR at the use). */
+@@when TEMP_FAILURE_RETRY
+# ifndef TEMP_FAILURE_RETRY
+#  define TEMP_FAILURE_RETRY(expression) (__extension__ ({ long int __niji_r; do __niji_r = (long int) (expression); while (__niji_r == -1L && errno == EINTR); __niji_r; }))
+# endif
+#endif
+
+@@if SIGRTMIN
+# define SIGRTMIN (__libc_current_sigrtmin ())
+# define SIGRTMAX (__libc_current_sigrtmax ())
+#endif
+
+@@if MINSIGSTKSZ
+# if __NIJI_DYNSTACK
+#  define MINSIGSTKSZ __sysconf (@@value(_SC_MINSIGSTKSZ))
+#  define SIGSTKSZ __sysconf (@@value(_SC_SIGSTKSZ))
+# else
+#  define MINSIGSTKSZ @@value(MINSIGSTKSZ)
+#  define SIGSTKSZ @@value(SIGSTKSZ)
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -1,0 +1,12 @@
+id = "D-12.29"
+section = "s12"
+spec = "§12.5, §12.10"
+ann = "ARB"
+status = "active"
+amends = ["D-12.28"]
+story = "STDIO-WIDE-BYTE-READS-4"
+date = "2026-11-21"
+tests = ["conformance/c/s12_wide_byte_reads.c"]
+body = '''
+**A character cut short by end of input at the start of the input read is an invalid sequence** (amends D-12.28's end of input inside a character; STDIO-WIDE-BYTE-READS-4, Yohane #23). When a wide read meets end of input inside a character whose first byte was the first byte the stream's buffer received in its latest fill (the read found no buffered input left when it reached that character: the whole input is `\xc3`, or the character is the first thing a later read of the file returned), the read returns `WEOF` with `EILSEQ` and sets the error indicator, not the end-of-file one; the character's bytes are consumed (the position counts them, a byte read does not return them), and the next wide read is a plain end of input with the end-of-file indicator. A character cut short at end of input after other buffered input (`a\xc3`, `end\xe2\x82`, after a byte given back from an invalid sequence) keeps D-12.28's rule: `WEOF` with the end-of-file indicator, its bytes back for the byte reads. The same holds for the locale's encoding and a `ccs=` charset. Black-box probes (C.UTF-8 and `ccs=UTF-8`; files of 1 to 4 bytes, and 4094 to 4099 bytes against a 4096-byte buffer): the reference library gives these results for every input shorter than its buffer; where the character straddles or follows a buffer boundary its result depends on how far its wide layer has converted ahead (`differences-from-glibc.md`, byte operations on a wide-oriented stream). The check costs one compare per multibyte lead byte; the rest is on the cold end-of-input path.
+'''
