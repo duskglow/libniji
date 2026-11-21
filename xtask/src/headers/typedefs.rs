@@ -81,6 +81,10 @@ impl Gen<'_> {
         } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
             // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
             vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
+        } else if cxx == "_IO_FILE" && !self.t.vis.iter().any(|v| v["header"] == self.header && v["name"] == cxx && v["kind"] == "struct") {
+            // `FILE` named by a header that does not show the tag (`wchar.h`; `stdio.h` defines `struct _IO_FILE`)
+            // only declares the tag: visibility.tsv has the structure incomplete there.
+            vec![format!("struct {cxx};"), format!("typedef struct {cxx} {name};")]
         } else {
             // The structure or union is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`, `__sigval_t`
             // `union sigval`): defined here, under the guard its tag row (tag()) uses, so it is defined once.
