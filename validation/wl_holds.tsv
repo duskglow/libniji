@@ -10,6 +10,10 @@
 # exceed is a flake), from a wl_count run whose BASE column is next: instructions:u the base column's mean and glibc's
 # mean; page faults the highest single base run and the lowest glibc run (the log's "faults min..max" line); recorded =
 # the measured next head and date.
+# D-X.151 (WL-COUNT-HONEST-CHEAP, 2026-11-21): a count's page faults are now the lowest of 5 runs under setarch -R. gzip-c's
+# hold is dropped (next measures 292 / 269 = 1.0855 in every count, so the 1.10 bound binds). The other levels are not
+# re-recorded yet: in one address layout the size of the environment moves a row by about one fault per process, so
+# levels come from counts in a fixed environment (handoff/WL-COUNT-HONEST-CHEAP.md, next step).
 cpu	workload	metric	glibc	libniji	level	recorded	cause
 AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3129	4089	1.3069	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	md5sum	pf	147	183	1.2449	189ab9cbc 2026-11-20	dynamic start-up
@@ -31,7 +35,6 @@ AMD EPYC 7551 32-Core Processor	gawk-utf8	pf	304	356	1.1711	189ab9cbc 2026-11-20
 AMD EPYC 7551 32-Core Processor	gawk-printf	pf	249	299	1.2009	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	tar-c	pf	408	494	1.2108	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	tar-tv	pf	235	288	1.2256	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gzip-c	pf	322	566	1.7578	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	gzip-d	pf	215	256	1.1907	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	pipe-mix	pf	1131	1332	1.1778	189ab9cbc 2026-11-20	dynamic start-up
 AMD EPYC 7551 32-Core Processor	tar-gz	pf	531	648	1.2204	189ab9cbc 2026-11-20	dynamic start-up
