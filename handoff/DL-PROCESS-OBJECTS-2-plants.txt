@@ -21,3 +21,22 @@ handle-gen0 | crates/boundary/src/ld/dlopen/dlsym.rs | lit:    l.index_of(handle
 view-find-past | crates/boundary/src/ld/dlopen.rs | lit:                return self.find_past(next, &mut pred); ==>                 return None; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
 iterate-past | crates/boundary/src/ld/readers.rs | lit:            return iterate_past(v, cb, data); ==>             return 0; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
 find-object-past | crates/boundary/src/ld/readers.rs | lit:            .or_else(|| find_past(v, n, pc)) ==>             .or_else(|| None) | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+# cargo xtask plants results (18 plants: 18 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# nodes-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# recs-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# readers-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# fin-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# global-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# log-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# retired-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# scratch-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# room-inline: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# view-node-addr: CAUGHT, caught by timeout: `cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables` timed out after 600 s
+# view-find-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# recs-addr-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# readers-slot-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# finis-entry-first: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# handle-gen0: CAUGHT, caught by dlclose s27_1_c_4_dlopen_waits_for_readers_only_outside_them
+# view-find-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# iterate-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# find-object-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
