@@ -162,32 +162,45 @@ impl<'n> Request<'n> {
 }
 
 /// Slots of a [`VersionMemo`] (a power of two).
-const MEMO_SLOTS: usize = 16;
+const MEMO_SLOTS: usize = 64;
 
-/// The [`MemoSlot`] key bit saying the name is one of the object's own definitions (else a
-/// requirement's).
-const MEMO_OWN: u32 = 1 << 30;
+/// [`MemoSlot`] key bits: a reference's name (else a definition's).
+const MEMO_REF: u32 = 1 << 16;
+/// [`MemoSlot`] key bits: the name is one of the object's own definitions (else a requirement's).
+const MEMO_OWN: u32 = 1 << 17;
+/// [`MemoSlot`] key bits: the name's length, from this bit (13 bits; a longer name is not remembered).
+const MEMO_LEN_SHIFT: u32 = 18;
+/// [`MemoSlot`] key bits: the slot is in use.
+const MEMO_USED: u32 = 1 << 31;
+/// The [`MemoSlot`] key bits a probe compares: index, walk and use.
+const MEMO_MATCH: u32 = 0xffff | MEMO_REF | MEMO_USED;
 
-/// One remembered version name: the object's string table (its address: the object's identity
-/// for the pass), which walk found it (bit 16: a reference's, else a definition's; bit 30: the name
-/// is the object's own definition's; bit 31: in use) with the index, and where the name lies in
-/// that string table.
+/// One remembered version name, 16 bytes: the object's string table (its address: the object's
+/// identity for the pass), the key (the index; [`MEMO_REF`]: which walk found it; [`MEMO_OWN`]:
+/// whose name it is; the length; [`MEMO_USED`]) and where the name starts in that string table.
 #[derive(Clone, Copy, Debug, Default)]
 struct MemoSlot {
     strtab: usize,
     key: u32,
     off: u32,
-    len: u32,
 }
 
 /// The version names one relocation pass has found, by object and version index, so the walks of
 /// the version tables run once per name and not once per symbolic relocation (DYN-START-SPEED:
-/// they were a sixth of a dynamic start). A small direct-mapped cache on the pass's stack: a slot
-/// holds an offset in the object's own string table, so it has no lifetime, and a miss walks the
-/// tables as before. Answers are the walks' answers; only found names are remembered.
-#[derive(Debug, Default)]
+/// they were a sixth of a dynamic start). A direct-mapped cache on the pass's stack: a slot holds an
+/// offset in the object's own string table, so it has no lifetime, and a miss walks the tables as
+/// before. Answers are the walks' answers; only found names are remembered. 64 slots (1 KiB): a
+/// program needing a few dozen versions of the C library (each a reference and a definition key)
+/// thrashed 16 (LD-LOOKUP-COST).
+#[derive(Debug)]
 pub struct VersionMemo {
     slots: [Cell<MemoSlot>; MEMO_SLOTS],
+}
+
+impl Default for VersionMemo {
+    fn default() -> Self {
+        VersionMemo { slots: [const { Cell::new(MemoSlot { strtab: 0, key: 0, off: 0 }) }; MEMO_SLOTS] }
+    }
 }
 
 /// A definition found in one object.
@@ -422,12 +435,13 @@ impl<'a> Object<'a> {
         let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name_from(index) };
         let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) else { return walk(self) };
         let base = tab.as_ptr().addr();
-        let key = u32::from(index) | if reference { 1 << 16 } else { 0 } | 1 << 31;
-        let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4)) & (MEMO_SLOTS - 1);
+        let key = u32::from(index) | if reference { MEMO_REF } else { 0 } | MEMO_USED;
+        let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4) ^ (base >> 10)) & (MEMO_SLOTS - 1);
         let Some(slot) = memo.slots.get(at) else { return walk(self) };
         let s = slot.get();
-        if s.key & !MEMO_OWN == key && s.strtab == base {
-            let (off, len) = (usize::try_from(s.off).unwrap_or(usize::MAX), usize::try_from(s.len).unwrap_or(0));
+        if s.key & MEMO_MATCH == key && s.strtab == base {
+            let off = usize::try_from(s.off).unwrap_or(usize::MAX);
+            let len = usize::try_from(s.key >> MEMO_LEN_SHIFT).unwrap_or(0) & 0x1fff;
             if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
                 return Ok(Some((name, s.key & MEMO_OWN != 0)));
             }
@@ -436,8 +450,8 @@ impl<'a> Object<'a> {
         if let Some((n, own)) = found {
             let off = n.as_ptr().addr().wrapping_sub(base);
             if off.checked_add(n.len()).is_some_and(|end| end <= tab.len()) {
-                if let (Ok(off), Ok(len)) = (u32::try_from(off), u32::try_from(n.len())) {
-                    slot.set(MemoSlot { strtab: base, key: key | if own { MEMO_OWN } else { 0 }, off, len });
+                if let (Ok(off), Ok(len @ 0..0x2000)) = (u32::try_from(off), u32::try_from(n.len())) {
+                    slot.set(MemoSlot { strtab: base, key: key | if own { MEMO_OWN } else { 0 } | len << MEMO_LEN_SHIFT, off });
                 }
             }
         }
