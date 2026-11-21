@@ -75,6 +75,11 @@ fn slot(i: usize) -> Option<&'static [AtomicUsize; 5]> {
 }
 /// Entries a reader looks at (0: the start-time entries are not filled yet).
 static PUBLISHED: AtomicUsize = AtomicUsize::new(0);
+
+/// [`PUBLISHED`] now: a bound on the objects a walk visits (`dladdr` picks the walk or the index).
+pub(super) fn published() -> usize {
+    PUBLISHED.load(Relaxed)
+}
 /// The reader parity (DL-17): bit 0 says which counter of its stripe a reader entering now uses.
 static PARITY: AtomicUsize = AtomicUsize::new(0);
 /// Readers inside [`read_section`], per parity, striped by thread pointer over cache lines.
