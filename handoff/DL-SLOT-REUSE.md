@@ -31,6 +31,11 @@ plants, gate, start-up checks, decision record, report.
 `dlopen_slot_reuse_churn_with_concurrent_readers` (reader thread: dl_iterate_phdr names/headers, dladdr of
 a stack address; distinct <= 276). Before the change distinct = N.
 
+**For the report.** Jobs so far (mei): `dl-slot-reuse-clippy1` (green), `-t1` (red: test bug + exit order),
+`-t2` (red: test bug), `-t3` (green, 5/5); all superseded by the final-head jobs. Process slip in leg 1: one
+import line in `readers.rs` was edited with `sed -i` instead of the Edit tool (not refused; rule
+thread_common.txt "never sed -i"); report it in the hand-back.
+
 **Next steps (exact).**
 1. Churn table (brief step 1): a scratch probe in `~/work/DL-SLOT-REUSE/` on mei (the CHURN program
    extended to print, at N = 1k, 10k, 100k: distinct handles, VmSize/VmPeak from /proc/self/status, user
