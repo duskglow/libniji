@@ -209,7 +209,8 @@ pub struct ExitWalk {
 /// [`OrderError::TooMany`] when `out`, `rank` or `work` is shorter than `n` or `n` does not fit 32
 /// bits; [`OrderError::BadEdge`] for a successor outside `0..n`.
 // Every index is below n <= work.len() (checked), counts stay below n or the number of successors.
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+// One slice holds every per-unit and per-group field, so the loops index it by unit and by group.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::needless_range_loop)]
 pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: &[u32], out: &mut [u32], work: &mut [ExitWalk]) -> Result<usize, OrderError> {
     const NONE: u32 = u32::MAX;
     if out.len() < n || rank.len() < n || work.len() < n || u32::try_from(n).map_or(true, |n| n == NONE) {
