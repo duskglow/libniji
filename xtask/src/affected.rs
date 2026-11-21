@@ -146,8 +146,10 @@ use std::time::{Duration, Instant};
 /// Crates whose changes are narrowed through the module graph.
 const NARROW: &[&str] = &["niji", "niji-boundary", "niji-legacy", "niji-math"];
 /// xtask sources that name csys symbols only to check the csys source or products, from `cargo xtask static` and
-/// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol.
-const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs"];
+/// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol. `so.rs` names the interpreter's
+/// entry (its pre-relocation check) and the targets of its tool-name aliases (`niji_machine_strlen`,
+/// VALGRIND-LDSO-SYMBOLS), which its own link checks refuse when they go missing.
+const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs", "xtask/src/so.rs"];
 
 /// The layout contracts (D-X.48): the manifest names the csys symbols whose placement it holds, and its checker names
 /// them in its unit tests. A csys symbol named here selects `cargo xtask layout-check` on fresh products, not FULL.

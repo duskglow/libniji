@@ -2014,6 +2014,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     check_interp_prerelocation(&staged)?;
     let span = check_interp_span(&staged)?;
     check_interp_ro_phase(&staged)?;
+    check_interp_tool_names(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed; mapped span {span:#x}, {LDSO_SPAN_BUCKET:#x} per bucket)");
     Ok(())
@@ -2027,6 +2028,7 @@ struct LdLink {
     map: std::path::PathBuf,
     span: std::path::PathBuf,
     phase: std::path::PathBuf,
+    names: std::path::PathBuf,
 }
 
 impl LdLink {
@@ -2045,7 +2047,9 @@ impl LdLink {
         fs::write(&span, ldso_span_script()).map_err(|e| e.to_string())?;
         let phase = dir.join("ld-phase.ld");
         fs::write(&phase, ldso_phase_script()).map_err(|e| e.to_string())?;
-        Ok(LdLink { entry, archive, map, span, phase })
+        let names = dir.join("ld-names.o");
+        run(Command::new(cc).arg("-c").arg(root.join("csys/src/machine/ld_names.S")).arg("-o").arg(&names))?;
+        Ok(LdLink { entry, archive, map, span, phase, names })
     }
 
     /// Link the interpreter `out` from `entry` (first) and `archive`.
@@ -2057,8 +2061,11 @@ impl LdLink {
             .arg(format!("-Wl,-T,{}", self.phase.display()))
             .arg(format!("-Wl,--version-script={}", self.map.display()))
             .arg(format!("-Wl,-soname,{}", niji_ld::arch::Native::INTERP))
+            .args(LD_TOOL_ALIASES.iter().map(|(name, target)| format!("-Wl,--defsym={name}={target}")))
             .arg(entry)
             .arg(archive)
+            // After the archive: its text comes last, so no function of the interpreter moves.
+            .arg(&self.names)
             .arg("-lgcc")
             .arg("-o")
             .arg(out))
@@ -2629,6 +2636,109 @@ pub(crate) fn check_interp(path: &Path) -> Result<(), String> {
         "{}: the interpreter's link invariant (L14-1) does not hold: dynamic {}, {} undefined symbols (first {first:?}), {} DT_NEEDED, {} relocations other than RELATIVE/RELR (first {:?}), text relocations {}",
         path.display(), r.dynamic, r.undefined, r.needed, r.other, r.first_other, r.textrel
     ))
+}
+
+/// VALGRIND-LDSO-SYMBOLS (GitHub issue #13): the names tools look up in the interpreter's symbol table
+/// (valgrind on amd64 refuses to start a program without `strcmp` and `strlen` there or in the debug
+/// file libc6-dbg ships). Each is a local function symbol: `strlen` an alias of the interpreter's own
+/// string length routine, `strcmp` of `niji_machine_ld_strcmp` in `csys/src/machine/ld_names.S`
+/// ([`LD_TOOL_ALIASES`], `--defsym` in the link, sized after it). None is exported (the version
+/// script keeps them local).
+pub(crate) const LD_TOOL_NAMES: &[&str] = &["strcmp", "strlen"];
+
+/// The names of [`LD_TOOL_NAMES`] the link defines as aliases: (name, the interpreter's function).
+const LD_TOOL_ALIASES: &[(&str, &str)] = &[("strcmp", "niji_machine_ld_strcmp"), ("strlen", "niji_machine_strlen")];
+
+/// [`LD_TOOL_NAMES`] over `readelf -sW` of a linked interpreter: each name is a `FUNC` `LOCAL` row of
+/// `.symtab`, an alias sits at its target's address, and `.dynsym` has none of them (no new export).
+pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
+    // (table, value, type, bind, name, size) of every symbol row.
+    let mut table = "";
+    let mut rows = Vec::new();
+    for line in readelf.lines() {
+        if let Some(rest) = line.strip_prefix("Symbol table '") {
+            table = rest.split('\'').next().unwrap_or("");
+            continue;
+        }
+        let f: Vec<&str> = line.split_whitespace().collect();
+        if f.len() == 8 && f[0].ends_with(':') {
+            rows.push((table, f[1], f[3], f[4], f[7], f[2]));
+        }
+    }
+    let mut errs = Vec::new();
+    for name in LD_TOOL_NAMES {
+        if rows.iter().any(|r| r.0 == ".dynsym" && r.4 == *name) {
+            errs.push(format!("{name} is in .dynsym (it must stay local)"));
+        }
+        let Some(row) = rows.iter().find(|r| r.0 == ".symtab" && r.4 == *name) else {
+            errs.push(format!("no {name} in .symtab"));
+            continue;
+        };
+        if (row.2, row.3) != ("FUNC", "LOCAL") {
+            errs.push(format!("{name} is {} {}, not FUNC LOCAL", row.2, row.3));
+        }
+        // Valgrind passes over a function symbol of size 0 (measured: a size-0 `strlen` alias, and it
+        // still asked for strlen).
+        if row.5 == "0" {
+            errs.push(format!("{name} has size 0"));
+        }
+        if let Some((_, target)) = LD_TOOL_ALIASES.iter().find(|(n, _)| n == name) {
+            match rows.iter().find(|r| r.0 == ".symtab" && r.4 == *target) {
+                Some(t) if t.1 == row.1 => {}
+                Some(t) => errs.push(format!("{name} at {}, not at {target}'s {}", row.1, t.1)),
+                None => errs.push(format!("no {target} in .symtab (the target of {name})")),
+            }
+        }
+    }
+    if errs.is_empty() { Ok(()) } else { Err(errs.join("; ")) }
+}
+
+/// Give each alias of [`LD_TOOL_ALIASES`] in the ELF64 little-endian image `elf` its target's size in
+/// `.symtab` (`--defsym` makes a size-0 symbol, which valgrind passes over). Only `st_size` changes:
+/// `.symtab` is not loaded, so no loaded byte of the interpreter moves.
+pub(crate) fn size_tool_aliases(elf: &mut [u8]) -> Result<(), String> {
+    fn get(b: &[u8], at: usize, n: usize) -> Result<u64, String> {
+        let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
+        Ok(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x)))
+    }
+    let us = |v: u64| usize::try_from(v).map_err(|e| e.to_string());
+    if elf.get(..6) != Some(&[0x7f, b'E', b'L', b'F', 2, 1][..]) {
+        return Err("not an ELF64 little-endian object".into());
+    }
+    let (shoff, shentsize, shnum) = (us(get(elf, 0x28, 8)?)?, us(get(elf, 0x3a, 2)?)?, us(get(elf, 0x3c, 2)?)?);
+    let sec = |i: usize| shoff + i * shentsize;
+    let symtab = (0..shnum).find(|&i| get(elf, sec(i) + 4, 4).is_ok_and(|t| t == 2)).ok_or("no .symtab")?;
+    let (off, size) = (us(get(elf, sec(symtab) + 0x18, 8)?)?, us(get(elf, sec(symtab) + 0x20, 8)?)?);
+    let strtab = us(get(elf, sec(symtab) + 0x28, 4)?)?;
+    let stroff = us(get(elf, sec(strtab) + 0x18, 8)?)?;
+    // (entry offset, name, value, size) of every symbol.
+    let mut syms = Vec::new();
+    for e in (off..off + size).step_by(24) {
+        let name_at = stroff + us(get(elf, e, 4)?)?;
+        let name = elf.get(name_at..).and_then(|s| s.split(|&c| c == 0).next()).ok_or("symbol name past the end")?.to_vec();
+        syms.push((e, name, get(elf, e + 8, 8)?, get(elf, e + 16, 8)?));
+    }
+    for (alias, target) in LD_TOOL_ALIASES {
+        let t = syms.iter().find(|s| s.1 == target.as_bytes()).ok_or_else(|| format!("no {target} in .symtab"))?;
+        let a = syms.iter().find(|s| s.1 == alias.as_bytes()).ok_or_else(|| format!("no {alias} in .symtab"))?;
+        if a.2 != t.2 {
+            return Err(format!("{alias} at {:#x}, not at {target}'s {:#x}", a.2, t.2));
+        }
+        elf[a.0 + 16..a.0 + 24].copy_from_slice(&t.3.to_le_bytes());
+    }
+    Ok(())
+}
+
+fn check_interp_tool_names(path: &Path) -> Result<(), String> {
+    let mut bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    size_tool_aliases(&mut bytes).map_err(|e| format!("{}: sizing the tool aliases: {e}", path.display()))?;
+    fs::write(path, &bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    let out = Command::new("readelf").args(["-sW"]).arg(path).output().map_err(|e| format!("readelf: {e}"))?;
+    if !out.status.success() {
+        return Err(format!("readelf -sW {} failed", path.display()));
+    }
+    tool_names_errors(&String::from_utf8_lossy(&out.stdout))
+        .map_err(|e| format!("{}: the names valgrind looks up in the interpreter (VALGRIND-LDSO-SYMBOLS): {e}", path.display()))
 }
 
 /// The entry primitive of `ld.so` (`machine/entry.S` with `-DNIJI_LD`).
@@ -3213,6 +3323,26 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// VALGRIND-LDSO-SYMBOLS (no spec clause: the build of the interpreter; valgrind's must-be-redirected
+    /// names): `readelf -sW` rows of a linked interpreter. The good table passes; a missing name, an
+    /// export, a non-function, or an alias away from its target is each reported.
+    #[test]
+    fn ld_tool_names() {
+        let dynsym = "Symbol table '.dynsym' contains 2 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     1: 0000000000030000    10 FUNC    GLOBAL DEFAULT    1 __tls_get_addr@@GLIBC_2.3\n";
+        let good = format!("{dynsym}\nSymbol table '.symtab' contains 3 entries:\n   447: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 niji_machine_strlen\n   655: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen\n   264: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 niji_machine_ld_strcmp\n   265: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 strcmp\n");
+        assert_eq!(tool_names_errors(&good), Ok(()));
+        let no_strcmp = good.replace(" strcmp\n", " strcmq\n");
+        assert!(tool_names_errors(&no_strcmp).unwrap_err().contains("no strcmp in .symtab"));
+        let exported = good.replace("__tls_get_addr@@GLIBC_2.3", "strcmp");
+        assert!(tool_names_errors(&exported).unwrap_err().contains("strcmp is in .dynsym"));
+        let object = good.replace("23 FUNC    LOCAL  DEFAULT    1 strcmp", "23 OBJECT  LOCAL  DEFAULT    1 strcmp");
+        assert!(tool_names_errors(&object).unwrap_err().contains("strcmp is OBJECT LOCAL"));
+        let moved = good.replace("000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen", "000000000004ff50   966 FUNC    LOCAL  DEFAULT    1 strlen");
+        assert!(tool_names_errors(&moved).unwrap_err().contains("strlen at 000000000004ff50, not at niji_machine_strlen's"));
+        let zero_size = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
+        assert!(tool_names_errors(&zero_size).unwrap_err().contains("strlen has size 0"));
+    }
 
     /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
     /// (a fast-profile interpreter archive, 16 units). A crate in units 1.. is reported, two-digit unit
