@@ -63,6 +63,7 @@ stock without it, and #23 is held open only for kind 1. The owed compat-flag reg
 * post1: waits for gate1, then `wl_percall.sh --spec ~/work/STDIO-WIDE-BYTE-READS-4/stdio_wide.c .` (byte reads
   fgetc/getc/getc_unlocked; wide reads fgetwc/getwc/fgetwc_unlocked on NULs and on U+00E9; base = synced merge
   base 7ac731794) and the hot text check (`NIJI_FULL_PROFILE=1` so + `hot_text_products`).
+  post1 rc 0; hot text: `NIJI_FULL_PROFILE=1` so ok, `hot_text_products` 32 passed / 0 failed.
   percall (instr/call, glibc / base / head): fgetwc_unlocked_2byte 58.2 / 636 / 639; getwc_2byte and fgetwc_2byte
   90.2 / 646 / 649; fgetwc_unlocked_nul 35.6 / 356 / 356; getwc_nul, fgetwc_nul 67.7 / 366 / 366; getc_unlocked
   13 / 13 / 13; getc, fgetc 31 / 24 / 24. COST: +3 on the 2-byte wide rows (the `fresh` note on a multibyte lead
