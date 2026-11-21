@@ -1742,6 +1742,7 @@ pub(crate) fn session_text<'a>(addr: usize) -> &'a [u8] {
 /// `addr` is 8-aligned and `n` headers there are readable and never unmapped.
 // UNSAFE(slice): memory the kernel set up at `execve` becomes a slice.
 #[allow(unsafe_code)]
+#[cfg(feature = "runtime")]
 pub(crate) unsafe fn headers_at(addr: usize, n: usize) -> &'static [[u64; niji_rt::start::PHDR_WORDS]] {
     if n == 0 || addr == 0 {
         return &[];
