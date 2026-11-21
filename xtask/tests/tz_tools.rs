@@ -287,8 +287,6 @@ fn zdump_full_range_and_options_match_the_reference() {
         &["-i", "Asia/Kolkata", "Antarctica/Troll"],
         &["-V", "-t", "1600000000,1700000000", "Europe/London"],
         &["-v", "-c", "x", "UTC"],
-        &["-Q", "UTC"],
-        &["--help"],
         &[],
     ];
     // Messages name the program as it was run: each side's path is replaced by its name.
@@ -298,6 +296,15 @@ fn zdump_full_range_and_options_match_the_reference() {
         let a = run(Command::new(REF_ZDUMP).args(*c));
         let b = run(Command::new(&zdump).args(*c));
         assert_eq!(text(&a, REF_ZDUMP), text(&b, &ours_path), "zdump {c:?}");
+    }
+    // A bad option and --help: the same status and usage text (the bug-report line is each library's own, D-31.4).
+    for c in [&["-Q", "UTC"][..], &["--help"][..]] {
+        let a = text(&run(Command::new(REF_ZDUMP).args(c)), REF_ZDUMP);
+        let b = text(&run(Command::new(&zdump).args(c)), &ours_path);
+        assert_eq!(a.0, b.0, "zdump {c:?} status");
+        let usage = |t: &(Option<i32>, String, String)| format!("{}{}", t.1, t.2).lines().filter(|l| !l.contains("Report bugs") && !l.is_empty()).collect::<Vec<_>>().join("
+");
+        assert_eq!(usage(&a), usage(&b), "zdump {c:?} usage text");
     }
     // An abbreviation under three characters is warned about once; other unusual ones are not (TZDIR names the
     // zone directory).
