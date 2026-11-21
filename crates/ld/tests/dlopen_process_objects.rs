@@ -52,7 +52,8 @@ fn build_all(jobs: Vec<(String, Command)>) {
 
 /// The program: `argv[1]` is the corpus directory. Two rounds of `dlopen(libroot.so)`, the checks,
 /// and `dlclose`; status 1 with `open: <dlerror>` when a `dlopen` fails.
-const PROG: &str = r#"#include <dlfcn.h>
+const PROG: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <link.h>
 #include <stdio.h>
 #include <string.h>
