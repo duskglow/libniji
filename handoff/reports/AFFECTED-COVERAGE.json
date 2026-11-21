@@ -6,7 +6,7 @@
  "branch": "task/affected-coverage",
  "head": null,
  "gate": {
-  "affected": "see JOBS (mei affected-coverage-gate3)",
+  "affected": "gate4 (see JOBS); plants3 9/9 CAUGHT",
   "peak": null
  },
  "accepted_first_attempt": null,
@@ -19,7 +19,8 @@
  "informational": [
   "the train already ran pass 2 over niji-boundary (cargo xtask test native_tests --workspace); the gap was the direct tier only (#7407)",
   "the rest of spec/encoding/ (unicode/, whatwg/) still escalates to the train's FULL",
-  "kill-label on a gate job left ~/bin/gate's inner affected run alive; kill-mine ended it"
+  "kill-label on a gate job left ~/bin/gate's inner affected run alive; kill-mine ended it",
+  "xtask-only changes run cargo test -p xtask without products; xtask/tests/transcripts.rs needs target/niji-test/iconv, so a fresh role fails 2 tests (gate3); recommend xtask_test_split product targets set products"
  ],
  "refused": [],
  "impact": [
@@ -53,14 +54,15 @@
    "before": 0,
    "after": 9,
    "unit": "plants",
-   "measured": false
+   "measured": true
   }
  ],
  "improvement": "kill-label <gate label> does not end ~/bin/gate's inner run (the role stayed BUSY): make kill-label follow the gate scope",
  "next_step": "land; VALGRIND-LOADER-VIEW-2's ld unit test then runs in the niji-boundary+ld set",
  "report_file": "handoff/AFFECTED-COVERAGE.md",
  "jobs": [
-  "mei:affected-coverage-gate3",
-  "mei:affected-coverage-plants3"
+  "mei:affected-coverage-gate4",
+  "mei:affected-coverage-plants3",
+  "mei:affected-coverage-transcripts"
  ]
 }

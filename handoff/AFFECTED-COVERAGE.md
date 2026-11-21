@@ -50,13 +50,21 @@ native_tests over `--workspace`, interposed_suite and `coverage::run_all`.
 
 ## Jobs (mei, role s4)
 
-check3 (clippy, 109 xtask tests, static: green), gate3, plants3 (9 plants). SUPERSEDED: gate, plants, gate2, plants2
-(stopped: a wrong host class in a comment; gate2/plants2 had started on an unsynced tree, sync rc 4).
+gate4 (direct tier; FULL: the train's, for the xtask files), plants3 (9 plants: 9 CAUGHT, 0 WARN), transcripts
+(`cargo xtask so` + `cargo test -p xtask --test transcripts`: 6 passed). Earlier: check3 (clippy, 109 xtask tests,
+static: green, one comment-only commit before the final head). SUPERSEDED: gate, plants (stopped: a wrong host class
+in a comment), gate2, plants2 (started on an unsynced tree, sync rc 4), gate3 (red only on xtask transcripts
+`every_name_iconv_lists_converts` and `the_committed_iconv_transcripts_hold`: `target/niji-test/iconv` missing, since
+the role was fresh and the direct gate builds no products for an xtask-only change; green after the products build).
 
 ## Open / next
 
 - RULING NEEDED: none required. Recommendation: a D-X row for the pass-2 rule and the test-sets step (pending id: D-NEW).
 - INFORMATIONAL: the rest of `spec/encoding/` (unicode/, whatwg/ data) is still unmapped (FULL, train's).
+- INFORMATIONAL (another gap of the same kind, not fixed here): an xtask-only change runs `cargo test -p xtask`
+  without building the products (`run_selection`: `products` is false), yet `xtask/tests/transcripts.rs` runs
+  `target/niji-test/iconv`; on a fresh role those two tests fail with ENOENT (gate3). Recommendation: let
+  `xtask_test_split`'s product-running targets make `products` true when `sel.xtask_tests` is set.
 - INFORMATIONAL: `~/bin/kill-label <gate label> --kill` left the inner `cargo xtask affected --run` of `~/bin/gate`
   running; `kill-mine s4 --kill` ended it.
 - Next: when VALGRIND-LOADER-VIEW-2 lands, its ld unit test runs in the `niji-boundary+ld` set (no change needed).
