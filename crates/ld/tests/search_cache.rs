@@ -445,13 +445,15 @@ fn list_interpreter_line_matches_reference() {
 #[test]
 fn program_find_cache_only() {
     use niji_ld::program::{find, Found};
-    let f = cache_file(&[(FLAGS, "libprogy.so.1", "rel/libprogy.so.1", None), (FLAGS, "libprogx.so.1", "/c/libprogx.so.1", None)], &[]);
+    let f = cache_file(&[(FLAGS, "libprogx.so.1", "/c/libprogx.so.1", None)], &[]);
     let c = Cache::parse(&f).expect("well-formed cache");
+    let rel = cache_file(&[(FLAGS, "libprogy.so.1", "rel/libprogy.so.1", None)], &[]);
+    let rel = Cache::parse(&rel).expect("parsed: the entry is checked at lookup");
     assert_eq!(find(b"./prog", Some(&c), FLAGS, &[]), Found::AsGiven);
     assert_eq!(find(b"lib/libprogx.so.1", Some(&c), FLAGS, &[]), Found::AsGiven, "a relative path with `/` is the caller's choice");
     assert_eq!(find(b"libprogx.so.1", Some(&c), FLAGS, &[]), Found::Cache(b"/c/libprogx.so.1"));
     assert_eq!(find(b"libprogx.so.1", Some(&c), 0x0803, &[]), Found::NotFound, "another architecture's entry is never taken");
-    assert_eq!(find(b"libprogy.so.1", Some(&c), FLAGS, &[]), Found::NotFound, "a relative cache path would open from the working directory");
+    assert_eq!(find(b"libprogy.so.1", Some(&rel), FLAGS, &[]), Found::NotFound, "a relative cache path would open from the working directory");
     for name in [&b"prog"[..], b""] {
         assert_eq!(find(name, Some(&c), FLAGS, &[]), Found::NotFound, "{name:?}");
     }
@@ -535,7 +537,7 @@ fn ldso_program_without_slash() {
     assert_eq!(run(&[""], &[]), (Some(127), String::new(), ": error while loading shared libraries: cannot open shared object file\n".into()), "empty name");
     assert_eq!(run(&["./prog", "a"], &[]), (Some(0), "ran:cwd\narg:./prog\narg:a\n".into(), String::new()), "./prog");
     assert_eq!(run(&["lib/prog", "a"], &[]), (Some(0), "ran:libdir\narg:lib/prog\narg:a\n".into(), String::new()), "lib/prog");
-    // A private cache: `libprogx.so.1` listed with its absolute path, `libprogy.so.1` with a relative one.
+    // A private cache listing `libprogx.so.1` (the copy in `cache/`).
     let mut cache_path = search::PathBuf::default();
     assert!(search::prefixed(search::CACHE_FILE, &mut cache_path));
     let system_cache = String::from_utf8(cache_path.as_bytes().to_vec()).unwrap();
@@ -544,7 +546,7 @@ fn ldso_program_without_slash() {
         return eprintln!("SKIP (cache cases): needs {system_cache} and `unshare -r -m`");
     }
     let target_x = d.join("cache/libprogx.so.1").display().to_string();
-    std::fs::write(d.join("ld.so.cache"), cache_file(&[(FLAGS, "libprogy.so.1", "lib/libprogx.so.1", None), (FLAGS, "libprogx.so.1", &target_x, None)], &[])).unwrap();
+    std::fs::write(d.join("ld.so.cache"), cache_file(&[(FLAGS, "libprogx.so.1", &target_x, None)], &[])).unwrap();
     let in_ns = |args: &[&str]| {
         let o = Command::new("unshare")
             .args(["-r", "-m", "sh", "-c","mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
@@ -560,6 +562,6 @@ fn ldso_program_without_slash() {
     };
     assert_eq!(in_ns(&["libprogx.so.1", "a"]), (Some(0), "ran:cache\narg:libprogx.so.1\narg:a\n".into(), String::new()), "cache hit");
     assert_eq!(in_ns(&["--list", "libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "--list cache hit");
-    assert_eq!(in_ns(&["libprogy.so.1"]), missing("libprogy.so.1"), "a relative cache path is not used");
+    assert_eq!(in_ns(&["prog", "a"]), missing("prog"), "not in the cache");
     let _ = std::fs::remove_dir_all(&d);
 }

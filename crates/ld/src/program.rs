@@ -57,16 +57,14 @@ pub enum Found<'a> {
 
 /// Find the program named `name`. A name without `/` is looked up in the loader cache only (`flags`:
 /// [`Arch::CACHE_FLAGS`]; `hwcaps`: the supported subdirectories, as for a library): never the
-/// working directory, `LD_LIBRARY_PATH`, `PATH` or a default directory. A cache path that is not
-/// absolute is not used, so a malformed cache cannot turn the lookup into a working-directory open.
+/// working directory, `LD_LIBRARY_PATH`, `PATH` or a default directory. The cache reader takes only
+/// absolute paths (a relative one is an inconsistent entry), so a malformed cache cannot turn the
+/// lookup into a working-directory open.
 pub fn find<'a>(name: &[u8], cache: Option<&crate::cache::Cache<'a>>, flags: u32, hwcaps: &[&str]) -> Found<'a> {
     if name.contains(&b'/') {
         return Found::AsGiven;
     }
-    match cache.and_then(|c| c.lookup(name, flags, hwcaps)) {
-        Some(path) if path.first() == Some(&b'/') => Found::Cache(path),
-        _ => Found::NotFound,
-    }
+    cache.and_then(|c| c.lookup(name, flags, hwcaps)).map_or(Found::NotFound, Found::Cache)
 }
 
 /// The `--version` text, in the order it is written: libniji's name and version, the ABI it

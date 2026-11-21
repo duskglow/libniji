@@ -3,8 +3,6 @@
 find-slash-free-as-given | crates/ld/src/program.rs | lit:if name.contains(&b'/') { ==> if !name.is_empty() { | cargo test -p niji-ld --test search_cache | msg:program_find_cache_only.*FAILED|ldso_program_without_slash.*FAILED
 # The boundary returns a slash-free name unresolved (opened from the working directory).
 boundary-slash-free-as-given | crates/boundary/src/ld/image.rs | lit:if name.contains(&b'/') { ==> if !name.is_empty() { | cargo test -p niji-ld --test search_cache | msg:ldso_program_without_slash.*FAILED
-# A relative cache path is used.
-relative-cache-path | crates/ld/src/program.rs | lit:Some(path) if path.first() == Some(&b'/') => ==> Some(path) => | cargo test -p niji-ld --test search_cache | msg:program_find_cache_only.*FAILED|ldso_program_without_slash.*FAILED
 # `--list NAME` and LD_TRACE_LOADED_OBJECTS skip the lookup.
 list-unresolved | crates/boundary/src/ld/entry.rs | lit:list(&list_env, program_file(name, &list_env), true, invoked) ==> list(&list_env, name, true, invoked) | cargo test -p niji-ld --test search_cache | msg:ldso_program_without_slash.*FAILED
 trace-unresolved | crates/boundary/src/ld/entry.rs | lit:list(&list_env, file, false, invoked) ==> list(&list_env, name, false, invoked) | cargo test -p niji-ld --test search_cache | msg:ldso_program_without_slash.*FAILED
