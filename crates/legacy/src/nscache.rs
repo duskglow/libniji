@@ -725,7 +725,11 @@ impl NsCache {
         // A file on tmpfs cannot outlive the boot it was made in, so there the header's boot ID
         // is taken as it is and `/proc` is not read (D-16.10); a region made or reinitialised
         // records the boot ID read from `/proc`, so one on another file system is still checked.
-        let tmpfs = !created && sys.fstatfs(fd).is_ok_and(|f| f.ftype == TMPFS_MAGIC);
+        // `fstatfs` is asked on creation too (once per region): the build's layout trace always
+        // creates its region (ruling #5223), so only then does it run, and group, the call every
+        // later attach makes (without it, a process's first attach took one more text fault).
+        let on_tmpfs = sys.fstatfs(fd).is_ok_and(|f| f.ftype == TMPFS_MAGIC);
+        let tmpfs = !created && on_tmpfs;
         // The files the account stamp rests on, as they are now (the first validation reuses
         // these `stat`s).
         let files = [(File::Passwd, identity(sys, path_of(File::Passwd))), (File::Nsswitch, identity(sys, path_of(File::Nsswitch)))];
