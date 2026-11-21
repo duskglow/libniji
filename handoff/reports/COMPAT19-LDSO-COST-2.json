@@ -1,0 +1,31 @@
+{
+ "task": "COMPAT19-LDSO-COST-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPAT19-LDSO-COST merged with next cd1bbabdb (both sides kept: next's view arena and StartMapper, D-27.71's planned map): -17.2k user instructions per empty main, -20.5k with three libraries against next on the Zen 1 host, faults and syscalls unchanged; plants 4/4 CAUGHT; direct gate green",
+ "branch": "task/compat19-ldso-cost-2",
+ "head": "b8387b18b",
+ "gate": {
+  "affected": "927 passed / 0 failed (compat19-ldso-cost-2-gate, direct tier, keke, 12 suites); lint1 (clippy -D warnings + xtask static) green; plants 4 CAUGHT; xtest and hot: see the hand-back",
+  "peak": "gate: peak memory 2.9G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Skylake-SP host start-up counts not re-measured: this run's role is on the Zen 1 host; the first run measured both classes and the change moved them by the same amount (-18,811 / -18,817)",
+  "step 0 on the inherited head 167e63d3e: covered by the first run's precheck GREEN at 47b89c8bf (the difference is handoff text only); its own clippy/static job (lint0) waited 30 min unstarted for a slot and held the role against the sync, so it was ended and the checks ran on the merged head (lint1, green)",
+  "keke was full (6 of 6 slots) for most of the run: about 30 min queue per job; the counts ran beside the role's sequence by building both product sets with validation/wl_prep.sh outside the role"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main, user instructions per start, Zen 1 host, release products, origin/next cd1bbabdb -> merged branch (execcount median of 101)", "before": 740758, "after": 723608, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic main with three libraries, user instructions per start, Zen 1 host (execcount median of 101)", "before": 983495, "after": 962974, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic clock_gettime program, user instructions per start, Zen 1 host (execcount median of 101)", "before": 762879, "after": 745750, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main, user instructions per start, Skylake-SP host (first run, against 32261597b; not re-measured after the merge)", "before": 740620, "after": 721809, "unit": "instr/start", "measured": false},
+  {"kind": "coverage", "what": "plants on the D-27.71 code (first run; re-run on the merged head, 4 CAUGHT) and the malformed searched dependency test", "before": 0, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["keke:compat19-ldso-cost-2-lint1", "keke:compat19-ldso-cost-2-gate", "keke:compat19-ldso-cost-2-plants", "keke:compat19-ldso-cost-2-counts", "keke:compat19-ldso-cost-2-xtest", "keke:compat19-ldso-cost-2-hot", "keke:compat19-ldso-cost-2-count"],
+ "improvement": "a story whose job is a merge plus re-measurement waited about 2 h of its 4 h in a full host's slot queue; merge-and-remeasure stories could carry a reserved slot or go to the least loaded build host at admission",
+ "next_step": "land through the train; the c19 16/16 snapshot check on debs of this head stays for the train/RC",
+ "report_file": "handoff/compat19-ldso-cost.md"
+}
