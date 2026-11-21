@@ -52,5 +52,5 @@ thread_common.txt "never sed -i"); report it in the hand-back.
    checks (`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji
    --test hot_text_products`), layout-bins diff vs merge base, counts for the N=100 rows of
    DL-PROCESS-OBJECTS-2 (`~/work/DL-PROCESS-OBJECTS-2/count.sh`; phdr walk +2 expected).
-4. Decision record: `python3 /home/claude/src/liella-ops/bin/ops reserve --story DL-SLOT-REUSE D-27`
+4. Decision record: `python3 ~/src/liella-ops/bin/ops reserve --story DL-SLOT-REUSE D-27`
    (first fit after staging; chain order kept; reorder flag), then precheck, report json, handback-check.
