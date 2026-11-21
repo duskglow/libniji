@@ -1926,6 +1926,7 @@ const XTASK_TOOLS: &[(&str, &str)] = &[
     ("arch", "the architecture seam audit (static: arch-audit); `arch-check` is not a gate step"),
     ("bench", "`cargo xtask bench`, not a gate step"),
     ("benchrows", "`cargo xtask bench-rows`, not a gate step"),
+    ("startpair", "`cargo xtask startup-pair`, not a gate step"),
     ("benchstage", "`cargo xtask bench --stage`, not a gate step"),
     ("abbench", "the A/B bench driver of `cargo xtask bench`, not a gate step"),
     ("sweep", "`cargo xtask sweep`, not a gate step"),
