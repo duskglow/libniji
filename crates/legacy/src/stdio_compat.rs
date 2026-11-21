@@ -2415,9 +2415,9 @@ pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding
 }
 
 /// The front path of [`getwc`] (WIDE-READ-FAST, D-12.30): a stream already wide-oriented on a
-/// UTF-8, ASCII or ISO-8859-1 locale encoding (`Codec::Text`), reading, with nothing given back
-/// and no partial character, whose read window holds the whole next character: the character
-/// is decoded in place from the window and its bytes are consumed. That is the character the
+/// UTF-8, ASCII or ISO-8859-1 locale encoding (`Codec::Text`) gets the last character given back
+/// (`ungetwc`), if any; else, reading, with no partial character, whose read window holds the
+/// whole next character, that character decoded in place from the window, its bytes consumed. That is the character the
 /// general path ([`getwc_slow`]) returns byte by byte: the window's bytes are the ones
 /// [`State::getc`] hands out, a byte in the window never refills or flushes the line-buffered
 /// streams and changes no indicator, the conversion state is the initial one whenever no
@@ -2431,12 +2431,19 @@ pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding
 #[inline(always)]
 pub fn getwc_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> Option<u32> {
     let words = file.get(..FILE_WORDS)?;
-    let Codec::Text(enc) = ext.wide.codec else { return None };
-    let b = ext.buf;
-    if ext.wide.back_len != 0 || ext.wide.partial != 0 || b == 0 || ext.state.role != Role::Reading || ext.kind == Kind::Closed {
+    if low_int(get(words, word::MODE)) <= 0 {
         return None;
     }
-    if low_int(get(words, word::MODE)) <= 0 {
+    let Codec::Text(enc) = ext.wide.codec else { return None };
+    if let Some(i) = ext.wide.back_len.checked_sub(1) {
+        // A character given back comes first, as on the general path.
+        let c = ext.wide.back.get(i).copied()?;
+        ext.wide.back_len = i;
+        ext.wide.last = Some(c);
+        return Some(c);
+    }
+    let b = ext.buf;
+    if ext.wide.partial != 0 || b == 0 || ext.state.role != Role::Reading || ext.kind == Kind::Closed {
         return None;
     }
     // As [`load`]: the position from `_IO_read_ptr`; the window ends at the engine's end of data

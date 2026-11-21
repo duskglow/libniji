@@ -1890,6 +1890,29 @@ pub fn getwc(fp: usize, how: Locking) -> KResult<Option<u32>> {
     })?
 }
 
+/// [`getwc`] with its C result (the character, or `WEOF` with `errno` set; the exports' form):
+/// the front path ([`sc::getwc_front`]) on a sealed record that needs no lock taken (as
+/// [`with`] decides: the `_unlocked` forms, the only thread, `__fsetlocking`), with no
+/// `KResult` round trip; anything else is one call to [`getwc_c_slow`] (WIDE-READ-FAST, D-12.30).
+#[inline(always)]
+pub fn getwc_c(fp: usize, how: Locking) -> u32 {
+    if let Some(file) = tb::file_words(fp) {
+        let ext = sc::ext_word(file);
+        if Glue.record(fp, ext) && (how == Locking::Unlocked || crate::thread::alone() || sc::by_caller(file)) {
+            if let Some(c) = sc::getwc_front(&Glue, file, tb::stream_ext_at(ext)) {
+                return c;
+            }
+        }
+    }
+    getwc_c_slow(fp, how)
+}
+
+/// [`getwc_c`] past its front path: [`getwc`] (under the lock as [`with`] decides).
+#[inline(never)]
+fn getwc_c_slow(fp: usize, how: Locking) -> u32 {
+    crate::ret::wint_or_weof(getwc(fp, how))
+}
+
 /// `__wunderflow`: the next wide character without consuming it.
 pub fn peekwc(fp: usize) -> KResult<Option<u32>> {
     let enc = encoding();
