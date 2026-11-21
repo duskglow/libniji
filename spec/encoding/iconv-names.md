@@ -19,7 +19,7 @@ same way: `bind_textdomain_codeset`, `fopen`'s `ccs=`). Decision: `records/pendi
    punctuation that counts is not ignored: `CP-1252` is not `CP1252`. A spelling the system knows
    (for example `ISO88591` beside `ISO-8859-1`) is a listed name of its own.
    The known names also include libniji's table of listed names that stand for a charmap
-   (`spec/encoding/iconv-aliases.tsv`, read by `crates/core/src/iconv/aliases.rs`; 658 rows, for
+   (`spec/encoding/iconv-aliases.tsv`, read by `crates/core/src/iconv/aliases.rs`; 654 rows, for
    example `KOI8R` for `KOI8-R`, `ISO885915` for `ISO-8859-15`, `WINDOWS-1252` for `CP1252`).
    These names work whichever charmap files are installed, as on the reference system, where the
    names do not come from the charmap files. The table holds every name the reference's `iconv -l`

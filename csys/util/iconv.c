@@ -293,14 +293,41 @@ static _Noreturn void list(void) {
     if (dir != NULL)
         closedir(dir);
     /* The listed names that stand for a charmap (iconv-aliases.h): each one whose charmap file
-     * opened above, and that iconv_open then accepts. A row whose charmap is not installed is
-     * never opened (a failed open scans every charmap's header). */
-    size_t stems = n;
-    for (size_t k = 0; k < sizeof ALIAS_ROWS / sizeof ALIAS_ROWS[0]; k++) {
+     * opened above, or whose charmap iconv_open accepts under another file's name (CP874 as an
+     * alias in IBM874's header), and that iconv_open then accepts; such a charmap name is listed
+     * too. A charmap that is no installed file is tried once (a failed open scans every charmap's
+     * header), a row whose charmap does not open is never opened. */
+    enum { ROWS = sizeof ALIAS_ROWS / sizeof ALIAS_ROWS[0] };
+    static const char *tried[ROWS];
+    static int opened[ROWS];
+    size_t stems = n, ntried = 0;
+    for (size_t k = 0; k < ROWS; k++) {
+        const char *target = ALIAS_ROWS[k][1];
         int installed = 0;
         for (size_t s = sizeof BUILTIN_NAMES / sizeof BUILTIN_NAMES[0]; s < stems && !installed; s++)
-            installed = strcasecmp(names[s], ALIAS_ROWS[k][1]) == 0;
-        if (!installed)
+            installed = strcasecmp(names[s], target) == 0;
+        for (size_t t = 0; t < ntried && !installed; t++)
+            if (strcmp(tried[t], target) == 0)
+                installed = opened[t] ? 1 : -1;
+        if (installed == 0) {
+            iconv_t tcd = iconv_open("UTF-8", target);
+            installed = tcd == (iconv_t)-1 ? -1 : 1;
+            if (installed > 0)
+                iconv_close(tcd);
+            tried[ntried] = target;
+            opened[ntried++] = installed > 0;
+            if (installed > 0) {
+                if (n == cap) {
+                    cap *= 2;
+                    const char **p = realloc(names, cap * sizeof *names);
+                    if (p == NULL)
+                        fail_memory();
+                    names = p;
+                }
+                names[n++] = target;
+            }
+        }
+        if (installed < 0)
             continue;
         iconv_t cd = iconv_open("UTF-8", ALIAS_ROWS[k][0]);
         if (cd == (iconv_t)-1)
