@@ -1,8 +1,13 @@
 # DL-PROCESS-OBJECTS: no limit on the objects, TLS modules and names a process holds (audit HL-3, HL-5)
 
 **State.** Branch `task/dl-process-objects` from next `df83365cd`; role mei:~/w/s2. The story lands in three parts,
-each keeping everything working: **1 the arenas (HL-5)**, 2 the object tables (HL-3 without TLS), 3 TLS (HL-3's
-`MODULES_MAX`). This note holds the design (written before the code); the run's results are at the end.
+each keeping everything working: **1 the arenas (HL-5): done in run 1** (`ld/table.rs` `Arena`; tests
+`crates/ld/tests/dlopen_process_objects.rs`; 5 plants caught; pending record `records/pending/DL-PROCESS-OBJECTS-1.toml`,
+D-NEW in D-27), 2 the object tables (HL-3 without TLS), 3 TLS (HL-3's `MODULES_MAX`). Full report:
+handoff/DL-PROCESS-OBJECTS-report.md. **Next step:** part 2, sections 3-7 below, reusing `Arena`'s generation
+arithmetic for the nodes, records and readers' table (fixed-size entries: an index, not a span). **Not to redo:** the
+reference passes the part-1 corpus (300 libraries, 320,292 path bytes, 44,850 dependency entries); `CAP` 512 is
+untouched, so dependency entries stay u16 until part 2 widens the indices.
 
 ## Design (one section per table)
 
