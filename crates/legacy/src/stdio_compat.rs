@@ -642,8 +642,11 @@ impl<E: Env> Backing for Live<'_, E> {
                 let mut off = offset;
                 let code = usize::try_from(whence_code(whence)).unwrap_or(0);
                 let r = self.env.call3(c.seek, c.cookie, core::ptr::from_mut(&mut off).expose_provenance(), code);
+                // A failure reports the hook's own `errno`, as the read and write hooks do
+                // (FCLOSE-COOKIE-SEEK): a hook that cannot seek says `ESPIPE`, which a give-back
+                // of read-ahead tolerates (`State::flush`).
                 if r != 0 {
-                    return Err(Errno::EINVAL);
+                    return Err(Errno::new(self.env.errno()).unwrap_or(Errno::EIO));
                 }
                 u64::try_from(off).map_err(|_| Errno::EINVAL)
             }
@@ -1238,7 +1241,15 @@ pub fn setup_standard<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, fd: 
 /// `fclose` after the stream left the open-streams list: flush, release the backing and the
 /// buffer. The stream is gone either way; the first error is reported.
 pub fn close<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<()> {
-    let flushed = if ext.kind == Kind::Closed { Ok(()) } else { flush(env, file, ext) };
+    let flushed = match ext.kind {
+        Kind::Closed => Ok(()),
+        // A cookie stream that is reading drops its read-ahead: no give-back seek through the
+        // caller's hook, so a hook that cannot seek does not fail the close (GitHub #20; probe:
+        // the reference calls no seek hook at close). A descriptor still gets the give-back
+        // (POSIX `fclose`).
+        Kind::Cookie(_) if ext.state.role == Role::Reading => Ok(()),
+        _ => flush(env, file, ext),
+    };
     let closed = match ext.kind {
         Kind::Closed => Ok(()),
         Kind::Fd(fd) => env.sys().close(fd_of(fd)),
