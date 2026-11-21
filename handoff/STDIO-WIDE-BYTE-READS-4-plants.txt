@@ -1,0 +1,6 @@
+# STDIO-WIDE-BYTE-READS-4 plants (D-12.29): each breaks the cut-short-at-end-of-input rule.
+fresh-never | crates/legacy/src/stdio_compat.rs | lit:ext.wide.fresh = ext.state.rpos == RESERVE + 1; ==> ext.wide.fresh = false; | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+fresh-always | crates/legacy/src/stdio_compat.rs | lit:ext.wide.fresh = ext.state.rpos == RESERVE + 1; ==> ext.wide.fresh = true; | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+charset-fresh-never | crates/legacy/src/stdio_compat.rs | lit:w.fresh = lead; ==> w.fresh = false; | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+drop-sets-eof | crates/legacy/src/stdio_compat.rs | perl:s/(if ext\.wide\.fresh \{.*?)ext\.state\.eof = false;/$1ext.state.eof = true;/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+drop-no-error | crates/legacy/src/stdio_compat.rs | perl:s/(if ext\.wide\.fresh \{.*?)ext\.state\.err = true;/$1/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
