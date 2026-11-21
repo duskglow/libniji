@@ -1,0 +1,17 @@
+{"task": "DL-FIND-OBJECT-FAST", "model": "opus", "tokens": null,
+ "result": "_dl_find_object and dladdr through a sorted address index under a seqlock latch: last of 104 objects 18387 -> 403 instr (reference 173), of 600 110124 -> 471; _dl_find_object now finds pcs in an object's span gaps (probe R-5); target (at or below the reference) not reached",
+ "branch": "task/dl-find-object-fast", "head": "b4cba586a",
+ "gate": {"affected": "pending: dl-find-object-fast-gate2", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["dl_iterate_phdr walk is 4x the reference (15833 vs 3798 at 104 objects): not in this story", "dladdr of the program's own addresses is ~6x the reference (symbol search, not the object search)"], "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "_dl_find_object last of 104 objects", "before": 18387, "after": 403, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "_dl_find_object last of 600 objects", "before": 110124, "after": 471, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "_dl_find_object first object (program), 104 loaded", "before": 639, "after": 402, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "C++ throw through 10 frames in the last of 104 objects (base; head in throw2)", "before": 437417, "after": null, "unit": "instr/throw", "measured": false},
+  {"kind": "correctness", "what": "_dl_find_object of a pc in an object's span but outside its segments (past p_memsz, between segments) gave -1; now the object (probe R-5)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests dl_find_object_index (map, churn), 5 plants, per-call spec dl_objects.c (28 rows), C++ throw measurement, probe R-5", "before": null, "after": 5, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a background ssh that chains mkdir before setsid holds the channel: the rule 'nothing chained before it' matters; per-call rows caught a behaviour gap the tests' own oracle shared",
+ "next_step": "profile _dl_find_object's constant cost (~400 vs 51-197) with wl_trace; dl_iterate_phdr walk as its own story",
+ "report_file": "handoff/DL-FIND-OBJECT-FAST.md",
+ "jobs": ["dl-find-object-fast-lint", "dl-find-object-fast-gate2", "dl-find-object-fast-xtest", "dl-find-object-fast-hot", "dl-find-object-fast-plants2", "dl-find-object-fast-pc3", "dl-find-object-fast-throw2"]}
