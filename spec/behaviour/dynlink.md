@@ -163,6 +163,20 @@ library with no entry point run through `ld.so`: SIGSEGV (139). `--verify`: 0 dy
 static program or non-ELF, 2 shared library. `--list` of a program with a missing dependency:
 127. `--version`, `--help`: 0.
 
+**`ld.so PROGRAM` with no `/` in PROGRAM** (LDSO-PROGRAM-NO-CWD probe, Zen 1 host; D-27.69). The
+name is looked up in the loader cache (`/etc/ld.so.cache`) only. A file of that name in the
+working directory, in an `LD_LIBRARY_PATH` directory (absolute, relative, `.`, empty element),
+in a `--library-path` directory, on `PATH` or in a default library directory not listed in the
+cache is not used. Not found: 127, nothing on stdout, stderr `<name>: error while loading shared
+libraries: <name>: cannot open shared object file` (no errno text); an empty name gives
+`: error while loading shared libraries: cannot open shared object file`. The same for `--list
+<name>` and with `LD_TRACE_LOADED_OBJECTS=1`. A name the cache lists runs the cache's file, even
+when the working directory and `LD_LIBRARY_PATH` hold another file of that name, and the program's
+`argv[0]` is the name as given. `--list <name>` and `LD_TRACE_LOADED_OBJECTS=1` for a name the
+cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
+working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
+is opened as given.
+
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are
 `ET_DYN`. Lazy binding is the rare case for system programs (input to R14-13 / DL-10).

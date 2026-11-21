@@ -1,0 +1,25 @@
+{
+ "task": "SL-HEADERS-S08-6",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "slice 8 rebased as data only on next (generator hooks landed): no diff under xtask/ or spec/tools/; headers and layouts regenerated; clippy, static, direct-tier gate and 9 of 9 plants green",
+ "branch": "task/sl-headers-s08-6",
+ "head": "see git",
+ "gate": {"affected": "gate2 rc 0 (221 of 308 test targets selected)", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "header_check.py: 8 failed of 9785, all P8 sys/mount.h vs linux/mount.h (redefinition of struct winsize); sys/mount.h and sys/ioctl.h are byte-identical to next's, so not slice 8's (slice 15's header)",
+  "The first gate run was red on headers::tests::every_table_row_is_emitted_and_matches_the_tables: a TD_SIGNO_MASK macros.tsv row of slice 8's older type_probe is covered by next's rows-exceptions.tsv; the row was dropped, gate2 green",
+  "headers/fmtmsg.h.in is next's: its @@value already emits the pointer cast"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "slice 8 headers (signal.h, pthread.h, threads.h, ucontext.h, ...) landable as data-only", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "slice 8 plants kept (9, all caught)", "before": 9, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a gate that is already red in one step keeps running for 50 minutes; failing fast on the first red xtask unit step would save a cycle",
+ "next_step": "the train's gate and landing",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": ["mei:sl-headers-s08-6-gate2", "mei:sl-headers-s08-6-plants2"]
+}

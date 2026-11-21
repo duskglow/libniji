@@ -37,6 +37,13 @@ struct timeval {
   long tv_usec;
 };
 # endif
+# ifndef __NIJI_D_struct___exit_status
+#  define __NIJI_D_struct___exit_status 1
+struct __exit_status {
+  short e_termination;
+  short e_exit;
+};
+# endif
 # ifndef __NIJI_D_struct_utmpx
 #  define __NIJI_D_struct_utmpx 1
 struct utmpx {
@@ -46,7 +53,7 @@ struct utmpx {
   char ut_id[4];
   char ut_user[32];
   char ut_host[256];
-  struct __exit_status { short e_termination; short e_exit; } ut_exit;
+  struct __exit_status ut_exit;
   int ut_session;
   struct { int tv_sec; int tv_usec; } ut_tv;
   int ut_addr_v6[4];
@@ -215,15 +222,21 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 #if 1
 # ifndef __NIJI_D_enum_ITIMER_PROF
 #  define __NIJI_D_enum_ITIMER_PROF 1
+#  ifndef ITIMER_PROF
 enum { ITIMER_PROF = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_REAL
 #  define __NIJI_D_enum_ITIMER_REAL 1
+#  ifndef ITIMER_REAL
 enum { ITIMER_REAL = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_VIRTUAL
 #  define __NIJI_D_enum_ITIMER_VIRTUAL 1
+#  ifndef ITIMER_VIRTUAL
 enum { ITIMER_VIRTUAL = 1 };
+#  endif
 # endif
 # ifndef BOOT_TIME
 #  define BOOT_TIME 2

@@ -1,0 +1,20 @@
+{"task": "SL-HEADERS-S07", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: 24 of 29 slice 7 headers generated, P1 and P5 green (0 failed of 3245); sys/wait.h, wait.h, sys/param.h, spawn.h, sys/ioctl.h blocked on slices 8 and 14; P2, P3, P6, P7, P8, P10 not run; direct gate escalated to FULL and went red at `stubs` and `cargo xtask test` (not diagnosed)",
+ "branch": "task/sl-headers-s07", "head": "f57dc20af",
+ "gate": {"affected": "escalated to FULL: stubs FAIL, cargo xtask test FAIL (0 tests ran); cause not diagnosed", "peak": "992M"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "getumask is declared by the reference but defined by no library version; libniji omits it (headers/reserved.tsv). Needs a differences row, and a compat option or a recorded reason for none", "recommendation": "keep omitted; row says a declaration of an undefined function only causes link errors, so no compat option"},
+  {"item": "bsd_signal (obsolescent, removed from POSIX 2008) has a versions row but no prototypes row; sys/wait.h and sys/param.h in the reference declare it", "recommendation": "do not declare it; keep the symbol exported; differences row"},
+  {"item": "sys/wait.h, sys/param.h pull in the whole signal vocabulary in the reference", "recommendation": "land slice 8 first, then generate them as includes of signal.h"}
+ ],
+ "informational": ["abi_extract.py full rerun drops the two sched_getattr/sched_setattr prototype rows of the committed table", "_IO/_IOR/_IOW/_IOWR not defined by sys/ioctl.h (blocked anyway)", "plants job sl-headers-s07-plants was still running at hand-back"],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "headers generated and checked by P1/P5 over 40 configurations", "before": 0, "after": 24, "unit": "headers", "measured": true},
+  {"kind": "coverage", "what": "plants on slice 7 generator, templates, header_check", "before": 0, "after": 8, "unit": "plants", "measured": false}
+ ],
+ "improvement": "headers-gen builds take 3-6 min per iteration on the role: a --only <header> mode in the xtask and a prebuilt xtask binary would cut the loop; a table-gap report listing all missing layouts at once (not per header) would save runs",
+ "next_step": "diagnose the FULL escalation (stubs, cargo xtask test) on the role, then slice 8 and the five blocked headers, then P2/P3/P6/P7/P8/P10",
+ "report_file": "handoff/SL-HEADERS-S07.md",
+ "jobs": ["sl-headers-s07-gate", "sl-headers-s07-plants"]}

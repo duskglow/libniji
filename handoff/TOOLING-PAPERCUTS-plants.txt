@@ -1,0 +1,10 @@
+# Plants for TOOLING-PAPERCUTS. No spec clause: tooling. The tp-s17-* lines are the six validation/headers_s17.plants
+# plants that were WARN-NO-MSG while `cargo xtask so` ran the header staleness check (#6677): with it gone from the build
+# path they must be CAUGHT by their own command's message.
+tp-ended-timeout | xtask/src/plants.rs | lit:if rc == TIMED_OUT { format!("timed out after {limit} s ({flag} <secs>)") } ==> if rc == 0 { format!("timed out after {limit} s ({flag} <secs>)") } | cargo test -p xtask -- a_timeout_names_its_limit | msg:a_timeout_names_its_limit_and_the_baseline_names_its_plants.*(FAILED|panicked)
+tp-baseline-plants-build | xtask/src/plants.rs | lit:**l == layout && (build ==> **l == layout && (!build | cargo test -p xtask -- a_timeout_names_its_limit | msg:a_timeout_names_its_limit_and_the_baseline_names_its_plants.*(FAILED|panicked)
+tp-full-steps-flag | xtask/src/affected.rs | lit:test.push(crate::precheck::CHEAP_DONE); ==> let _ = &test; | cargo test -p xtask -- escalated_full_run | msg:escalated_full_run_does_not_repeat_the_cheap_steps.*(FAILED|panicked)
+tp-full-steps-stubs | xtask/src/affected.rs | lit:(!pre.contains(&"stubs"), test) ==> (true, test) | cargo test -p xtask -- escalated_full_run | msg:escalated_full_run_does_not_repeat_the_cheap_steps.*(FAILED|panicked)
+tp-s17-queue-tailq-remove | headers/sys/queue.h.in | lit:*(elm)->field.tqe_prev = (elm)->field.tqe_next; } while (0) ==> *(elm)->field.tqe_prev = (elm)->field.tqe_prev; } while (0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT
+tp-s17-obstack-finish-align | headers/obstack.h.in | lit:& ~ (__PTRDIFF_TYPE__) __o->alignment_mask) ==> & ~ (__PTRDIFF_TYPE__) 0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT
+tp-s17-printf-va-list | headers/printf.h.in | lit:typedef __builtin_va_list va_list; ==> typedef int va_list; | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P1 printf\.h

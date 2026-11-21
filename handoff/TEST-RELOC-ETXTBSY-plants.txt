@@ -1,0 +1,2 @@
+# TEST-RELOC-ETXTBSY plants
+exec-stage-inproc-copy | crates/core/tests/helpers/exec_stage.rs | perl:s/let st = Command::new\("cp"\)[^\n]*\n/let st = std::fs::copy(from, to).map(|_| <std::process::ExitStatus as std::os::unix::process::ExitStatusExt>::from_raw(0)).expect("cp");\n/ | cargo test -p niji --test exec_stage | msg:exec of .* failed|Text file busy

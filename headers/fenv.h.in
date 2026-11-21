@@ -15,7 +15,7 @@ __NIJI_BEGIN_C
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
 #endif
-@@emit-c
+@@emit
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
 #endif

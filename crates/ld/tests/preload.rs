@@ -14,6 +14,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/helpers/exec_stage.rs"]
+mod exec_stage;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -213,7 +216,7 @@ fn secure_preload_only_trusted_set_user_id() {
             continue;
         }
         let p = dir.join("prog-sgid");
-        std::fs::copy(&prog, &p).unwrap();
+        exec_stage::copy_for_exec(&prog, &p);
         assert!(Command::new("chgrp").arg(&group).arg(&p).status().unwrap().success());
         assert!(Command::new("chmod").arg("g+s").arg(&p).status().unwrap().success());
         let (out, err) = ran(&run(Command::new(&p), &[]), "secure, no preload");

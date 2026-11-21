@@ -9,7 +9,7 @@
 __NIJI_BEGIN_C
 
 @@owns-macro fpclassify isfinite isnormal signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
-@@emit-c
+@@emit
 
 @@if fpclassify
 # define fpclassify(x) __builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x)
@@ -20,10 +20,10 @@ __NIJI_BEGIN_C
 @@if isnormal
 # define isnormal(x) __builtin_isnormal (x)
 #endif
-@@if-macro isnan
+@@if isnan
 # define isnan(x) __builtin_isnan (x)
 #endif
-@@if-macro isinf
+@@if isinf
 /* C 7.12.3.3 asks for non-zero; the sign (-1 for -inf, +1 for +inf) is the documented extension of the builtin. */
 # define isinf(x) __builtin_isinf_sign (x)
 #endif

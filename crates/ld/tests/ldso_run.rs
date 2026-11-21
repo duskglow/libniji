@@ -223,15 +223,30 @@ fn ldso_run_features_only_from_arch() {
     }
     assert!(files.iter().any(|p| p.starts_with(src.join("cache"))), "the walk does not reach src/cache/");
     files.sort(); // FS-ORDER: every file is checked; sorted for a stable first failure
-    let ld = root.join("../boundary/src/ld.rs");
-    files.push(ld.clone());
+    // The boundary's loader: ld.rs and every file of its modules under ld/ (LD-SPLIT).
+    let boundary = root.join("../boundary/src");
+    let (mut ld_files, mut ld_dirs) = (vec![boundary.join("ld.rs")], vec![boundary.join("ld")]);
+    while let Some(d) = ld_dirs.pop() {
+        for e in std::fs::read_dir(&d).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                ld_dirs.push(p);
+            } else {
+                ld_files.push(p);
+            }
+        }
+    }
+    ld_files.sort(); // FS-ORDER: as above
+    files.extend(ld_files);
     for f in &files {
         let s = std::fs::read_to_string(f).unwrap();
         for bad in ["Features::detect", "cpuid", "AT_HWCAP", "AT_PLATFORM", "xcr0"] {
             assert!(!s.contains(bad), "{}: `{bad}` outside the arch seam", f.display());
         }
     }
-    assert!(std::fs::read_to_string(&ld).unwrap().contains("Native::features("), "ld.rs takes no features from the seam");
+    // The loader's start: ld.rs, or ld/entry.rs once the start moved there.
+    let start: String = ["ld.rs", "ld/entry.rs"].iter().filter_map(|f| std::fs::read_to_string(boundary.join(f)).ok()).collect();
+    assert!(start.contains("Native::features("), "the loader's start (ld.rs, ld/entry.rs) takes no features from the seam");
 }
 
 /// (no spec clause: ld.so's start, plan/ph14/design.md §1 steps 3-5, D-27.14.)

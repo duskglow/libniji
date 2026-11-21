@@ -96,8 +96,11 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
 1. **Branch** from `origin/next` (the integration branch), one story per branch.
 2. **Direct-tier gate.** `cargo xtask clippy`, `cargo xtask static`, then
    `cargo xtask affected --run` (default `--tier direct`: the changed module, its one-hop users, the
-   test targets naming either and the spec sections of those modules; anything the selector is
-   unsure of escalates to the full run). Pass `--base origin/next` when the branch was cut from
+   test targets naming either and the spec sections of those modules). A file that would need the
+   whole gate (xtask code, generated tables, `csys/`, `crates/abi`, product crates and linker
+   inputs, build configuration, unknown paths) never makes a developer's run FULL: the run takes
+   that file's bounded set instead and prints `FULL: the train's (<file>: <reason>)`, since the
+   CI train runs the FULL gate on the merged tree. Pass `--base origin/next` when the branch was cut from
    `next`. `--tier wide` and `--tier full` exist; the header of `xtask/src/affected.rs` has the
    rules. A developer proves their own change; whole-tree runs are the merge queue's job.
 3. **Plants** (mutation checks). For a code change, deliberately break the new code in a
@@ -119,7 +122,7 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
    or 3 (a named job is still queued or running: wait for it, or hand back with the jobs
    pending). The module doc of `xtask/src/precheck.rs` lists each rule and where it comes from.
    The direct-tier gate runs the generator checks of the files you changed first, and every
-   cheap FULL step first when it escalates, so a stale generated file stops the gate in seconds.
+   cheap FULL step first when a file is left to the train, so a stale generated file stops the gate in seconds.
 6. **Merge queue.** A green, pushed branch is queued. A dedicated CI host composes queued
    branches onto `next`, runs the FULL gate (`cargo xtask test` with the conformance programs),
    bisects a red train and lands the green branches on `next`.

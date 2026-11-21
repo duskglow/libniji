@@ -46,15 +46,6 @@ struct timeval {
 };
 # endif
 #endif
-#if (__NIJI_MISC && __NIJI_CXX < 1) || (__NIJI_ISOC < 2023 && __NIJI_XSI >= 500)
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-# endif
-#endif
 #if 1
 # ifndef __NIJI_D_div_t
 #  define __NIJI_D_div_t 1
@@ -217,9 +208,47 @@ typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 500
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D_struct___pthread_cond_s
+#  define __NIJI_D_struct___pthread_cond_s 1
+struct __pthread_cond_s {
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
+  unsigned int __g_refs[2];
+  unsigned int __g_size[2];
+  unsigned int __g1_orig_size;
+  unsigned int __wrefs;
+  unsigned int __g_signals[2];
+};
+# endif
 # ifndef __NIJI_D_pthread_cond_t
 #  define __NIJI_D_pthread_cond_t 1
-typedef struct { char __niji_opaque[48] __attribute__ ((__aligned__ (8))); } pthread_cond_t;
+typedef union {
+  struct __pthread_cond_s __data;
+  char __size[48];
+  long long __align;
+} pthread_cond_t;
 # endif
 # ifndef __NIJI_D_pthread_condattr_t
 #  define __NIJI_D_pthread_condattr_t 1
@@ -232,9 +261,37 @@ typedef union {
 #  define __NIJI_D_pthread_key_t 1
 typedef unsigned int pthread_key_t;
 # endif
+# ifndef __NIJI_D_struct___pthread_internal_list
+#  define __NIJI_D_struct___pthread_internal_list 1
+struct __pthread_internal_list {
+  struct __pthread_internal_list * __prev;
+  struct __pthread_internal_list * __next;
+};
+# endif
+# ifndef __NIJI_D___pthread_list_t
+#  define __NIJI_D___pthread_list_t 1
+typedef struct __pthread_internal_list __pthread_list_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_mutex_s
+#  define __NIJI_D_struct___pthread_mutex_s 1
+struct __pthread_mutex_s {
+  int __lock;
+  unsigned int __count;
+  int __owner;
+  unsigned int __nusers;
+  int __kind;
+  short __spins;
+  short __elision;
+  __pthread_list_t __list;
+};
+# endif
 # ifndef __NIJI_D_pthread_mutex_t
 #  define __NIJI_D_pthread_mutex_t 1
-typedef struct { char __niji_opaque[40] __attribute__ ((__aligned__ (8))); } pthread_mutex_t;
+typedef union {
+  struct __pthread_mutex_s __data;
+  char __size[40];
+  long __align;
+} pthread_mutex_t;
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_t
 #  define __NIJI_D_pthread_mutexattr_t 1
@@ -247,9 +304,31 @@ typedef union {
 #  define __NIJI_D_pthread_once_t 1
 typedef int pthread_once_t;
 # endif
+# ifndef __NIJI_D_struct___pthread_rwlock_arch_t
+#  define __NIJI_D_struct___pthread_rwlock_arch_t 1
+struct __pthread_rwlock_arch_t {
+  unsigned int __readers;
+  unsigned int __writers;
+  unsigned int __wrphase_futex;
+  unsigned int __writers_futex;
+  unsigned int __pad3;
+  unsigned int __pad4;
+  int __cur_writer;
+  int __shared;
+  signed char __rwelision;
+  unsigned char __pad1[7];
+  unsigned long __pad2;
+  unsigned int __flags;
+  int : 32;
+};
+# endif
 # ifndef __NIJI_D_pthread_rwlock_t
 #  define __NIJI_D_pthread_rwlock_t 1
-typedef struct { char __niji_opaque[56] __attribute__ ((__aligned__ (8))); } pthread_rwlock_t;
+typedef union {
+  struct __pthread_rwlock_arch_t __data;
+  char __size[56];
+  long __align;
+} pthread_rwlock_t;
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_t
 #  define __NIJI_D_pthread_rwlockattr_t 1
@@ -428,7 +507,11 @@ extern int getpt (void);
 # endif
 # ifndef __NIJI_D_mkostemp
 #  define __NIJI_D_mkostemp 1
+#  if __NIJI_FOB64
+extern int mkostemp (char *, int) __asm__ ("mkostemp64");
+#  else
 extern int mkostemp (char *, int);
+#  endif
 # endif
 # ifndef __NIJI_D_mkostemp64
 #  define __NIJI_D_mkostemp64 1
@@ -436,7 +519,11 @@ extern int mkostemp64 (char *, int);
 # endif
 # ifndef __NIJI_D_mkostemps
 #  define __NIJI_D_mkostemps 1
+#  if __NIJI_FOB64
+extern int mkostemps (char *, int, int) __asm__ ("mkostemps64");
+#  else
 extern int mkostemps (char *, int, int);
+#  endif
 # endif
 # ifndef __NIJI_D_mkostemps64
 #  define __NIJI_D_mkostemps64 1
@@ -936,7 +1023,11 @@ extern int getsubopt (char **, char *const *, char **) __NIJI_NOTHROW;
 # ifndef __NIJI_D_mkstemp
 #  define __NIJI_D_mkstemp 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int mkstemp (char *) __asm__ ("mkstemp64");
+#   else
 extern int mkstemp (char *);
+#   endif
 #  elif __NIJI_FOB64
 extern int mkstemp (char *) __asm__ ("mkstemp64");
 #  endif

@@ -33,7 +33,7 @@ The release notes of that snapshot ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)) c
 | Package | Like Debian's | Contents |
 |---|---|---|
 | `niji6` | `libc6` | the loader `ld-linux-x86-64.so.2` and the shared libraries (`libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2`, `librt.so.1`, `libutil.so.1`, `libanl.so.1`, `libnsl.so.1`, `libc_malloc_debug.so.0`, `libresolv.so.2`, `libBrokenLocale.so.1`) |
-| `niji6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, and `libBrokenLocale.a` with the library's override), the `libm.so` link, the development links `libresolv.so`, `libBrokenLocale.so`, `libanl.so`, `libc_malloc_debug.so`, and the `niji-gcc` / `niji-g++` compiler wrapper |
+| `niji6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, and `libBrokenLocale.a` with the library's override), the `libm.so` linker script (`libm.so.6`, and `libmvec.so.1` only when a program calls a vector variant), the development links `libresolv.so`, `libBrokenLocale.so`, `libanl.so`, `libc_malloc_debug.so`, and the `niji-gcc` / `niji-g++` compiler wrapper |
 
 Everything is inside the sysroot `/usr/lib/niji`, laid out as Debian lays out `/` (merged
 `/usr`, multiarch): the libraries in `/usr/lib/niji/usr/lib/x86_64-linux-gnu/`, the loader also
@@ -42,8 +42,11 @@ at `/usr/lib/niji/lib64/ld-linux-x86-64.so.2`. The only files outside it are
 The packages have no maintainer scripts: installing them does not touch `/etc/ld.so.conf`, the
 system's loader cache or any other file.
 
-Versions of snapshots are `0.0~snapshotYYYYMMDD+<commit>` (the commit's date and its first 12 hex
-digits).
+Versions of snapshots are `0.0~snapshotYYYYMMDD.<n>+<commit>` (the commit's date, the serial `<n>` of
+the day's snapshot, and the commit's first 12 hex digits), for example
+`0.0~snapshot20261120.2+3f2a84520118`. `NIJI_DEB_SERIAL` sets `<n>` (default 1), as for the system
+packages below. Two snapshots of one day order by serial, whatever their commits. Earlier snapshots
+(`0.0~snapshotYYYYMMDD+<commit>`, no serial) sort below every serial version, so apt upgrades from them.
 
 ## Installing
 

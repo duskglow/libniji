@@ -35,6 +35,7 @@ use crate::conv;
 use crate::data;
 use crate::errno;
 use crate::netdb;
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
 
@@ -1068,13 +1069,44 @@ pub fn sym_ntos(table: usize, number: i32, ok: Option<&mut i32>, human: bool) ->
 }
 
 /// Write `t` to the stream `fp`.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 fn put(fp: usize, t: &[u8]) {
     let _ = stdio::fputs(Ok(t), fp, Locking::Locked);
 }
 
+/// [`put`] in the libresolv product (LIBRESOLV-OWN-CODE): through the C library's `fwrite`.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+fn put(fp: usize, t: &[u8]) {
+    crate::posix::s16_nameservices::libc_fwrite(t, fp);
+}
+
+/// The calling thread's `_res.pfcode`, its state read or read again as for every use.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
+pub(crate) fn thread_pfcode() -> u64 {
+    thread_state().map_or(0, |(b, _)| State(b).pfcode())
+}
+
+/// [`thread_pfcode`] in the libresolv product: the C library's, through its private entry.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn thread_pfcode() -> u64 {
+    crate::caller_alloc::libc_pfcode()
+}
+
+/// The standard output stream's address.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
+fn standard_output() -> usize {
+    stdio::stdout()
+}
+
+/// [`standard_output`] in the libresolv product: the C library's `stdout`.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+fn standard_output() -> usize {
+    crate::posix::s16_nameservices::libc_stdout()
+}
+
 /// `fp_nquery(msg, len, file)`.
 pub fn fp_nquery(m: usize, len: i32, fp: usize) {
-    let pfcode = thread_state().map_or(0, |(b, _)| State(b).pfcode());
+    let pfcode = thread_pfcode();
     let mut t = TryVec::new();
     let bytes = usize::try_from(len).ok().and_then(|n| conv::named_bytes(m, n)).unwrap_or(&[]);
     if text::nquery(bytes, pfcode, &mut t).is_ok() {
@@ -1089,7 +1121,7 @@ pub fn fp_query(m: usize, fp: usize) {
 
 /// `p_query(msg)`: to standard output.
 pub fn p_query(m: usize) {
-    fp_query(m, stdio::stdout());
+    fp_query(m, standard_output());
 }
 
 /// `fp_resstat(state, file)`.

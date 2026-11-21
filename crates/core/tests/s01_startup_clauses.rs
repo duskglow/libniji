@@ -416,6 +416,12 @@ impl Pages for NoPages {
     fn remap(&self, _: usize, _: usize, _: usize) -> Option<usize> {
         None
     }
+    fn map_room(&self, _: usize, _: usize, _: usize, _: usize, _: Option<u32>) -> Option<usize> {
+        None
+    }
+    fn grow(&self, _: usize, _: usize, _: Option<u32>) -> bool {
+        false
+    }
     fn wipe(&self, _: usize, _: usize) {}
     fn words(&self, _: usize, _: usize) -> &[std::sync::atomic::AtomicU64] {
         &[]
@@ -1475,7 +1481,7 @@ fn s1_7_f_0() {
 #[test]
 fn s1_8_c_0() {
     let t = Tunables::parse(b"glibc.cpu.hwcaps=-AVX2,ERMS:glibc.cpu.x86_rep_movsb_threshold=0x800:niji.cpu.rep_stosb_threshold=4096:bogus=1:glibc.malloc.arena_max=2", false);
-    assert_eq!(t, Tunables { avx2: Some(false), erms: Some(true), fma: None, rep_movsb_threshold: Some(2048), rep_stosb_threshold: Some(4096), rseq: None, no_classed_swap: None });
+    assert_eq!(t, Tunables { avx2: Some(false), erms: Some(true), fma: None, rep_movsb_threshold: Some(2048), rep_stosb_threshold: Some(4096), rseq: None, no_classed_swap: None, exec_stack: None });
     assert_eq!(Tunables::parse(b"glibc.pthread.rseq=0", false).rseq, Some(false), "rseq registration off (§22.9)");
     assert_eq!(Tunables::parse(b"glibc.cpu.hwcaps=-AVX2_Usable", false).avx2, Some(false), "2.26-era names");
     assert_eq!(Tunables::parse(b"glibc.cpu.x86_rep_movsb_threshold=lots", false).rep_movsb_threshold, None, "invalid values are ignored");

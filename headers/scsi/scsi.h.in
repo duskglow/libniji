@@ -1,0 +1,14 @@
+@@generated
+/* scsi/scsi.h: SCSI command codes */
+#ifndef __NIJI_H_scsi_scsi_h
+#define __NIJI_H_scsi_scsi_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

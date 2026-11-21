@@ -52,6 +52,31 @@ pub(crate) fn run(cmd: &mut Command) -> Result<(), String> {
     if status.success() { Ok(()) } else { Err(format!("{cmd:?} failed: {status}")) }
 }
 
+/// [`run`], then its `step: so/<phase> <seconds>s` line (also when it failed): the cargo builds of `cargo xtask so`.
+pub(crate) fn run_timed(phase: &str, cmd: &mut Command) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    let r = run(cmd);
+    println!("{}", phase_line(phase, started.elapsed()));
+    r
+}
+
+/// The line one phase of `cargo xtask so` prints (PLANTS-BUILD-2): the gate's `step:` format ([`crate::steptime`]) with
+/// the name `so/<phase>`, so a log reader that greps `step:` finds it and the gate's own summary, which leaves out
+/// names with a `/` (they are parts of a step), does not count it twice.
+fn phase_line(phase: &str, d: std::time::Duration) -> String {
+    crate::steptime::line(&format!("so/{phase}"), d)
+}
+
+/// The phases of one `run_so_as`: each [`Phases::mark`] prints the time since the previous mark (or the start).
+struct Phases(std::time::Instant);
+
+impl Phases {
+    fn mark(&mut self, phase: &str) {
+        println!("{}", phase_line(phase, self.0.elapsed()));
+        self.0 = std::time::Instant::now();
+    }
+}
+
 /// The exclusive lock of one product directory (`<product>/.lock`), held until dropped. Two
 /// product builds in one tree used to post-process the same archive at once and left `libc.a`
 /// with zeroed members (XTASK-SO-ATOMIC); the second now waits for the first.
@@ -63,12 +88,18 @@ pub(crate) struct ProductLock(#[allow(dead_code)] fs::File); // held for its lif
 #[allow(clippy::incompatible_msrv)]
 pub(crate) fn lock_product_dir(product: &Path) -> Result<ProductLock, String> {
     fs::create_dir_all(product).map_err(|e| format!("{}: {e}", product.display()))?;
-    let path = product.join(".lock");
-    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    lock_exclusive(&product.join(".lock"), "so: another product build")
+}
+
+/// Take the exclusive `flock` of the file `path` (made if absent), held until the returned lock is
+/// dropped; when another holder has it, print `<who> holds <path>; waiting for it to finish` and wait.
+#[allow(clippy::incompatible_msrv)]
+pub(crate) fn lock_exclusive(path: &Path, who: &str) -> Result<ProductLock, String> {
+    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     match file.try_lock() {
         Ok(()) => {}
         Err(fs::TryLockError::WouldBlock) => {
-            eprintln!("so: another product build holds {}; waiting for it to finish", path.display());
+            eprintln!("{who} holds {}; waiting for it to finish", path.display());
             file.lock().map_err(|e| format!("{}: {e}", path.display()))?;
         }
         Err(fs::TryLockError::Error(e)) => return Err(format!("{}: {e}", path.display())),
@@ -421,13 +452,35 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_thread_walk"];
+const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
 /// each path then its bytes), so products built from different sources refuse each other, in a git
 /// checkout or a synced copy alike. About 13 MB read per run.
+///
+/// PLANTS-BUILD-2: a `cargo xtask plants` run sets [`PLANTS_TAG_ENV`] for every command it runs in its copy, so the
+/// baseline and every mutant of one run build with that one constant tag. The tag is an input of the two crates that
+/// carry it (`niji-boundary`, `niji-ld`), so a changing hash rebuilt boundary (135k lines) in every product target
+/// directory for a mutant that did not touch it. Products outside a plants copy never see the variable: they keep the
+/// hash. The ld.so start-up check (D-27.22) is unchanged: both products of one plants build carry the same tag.
 fn build_tag(root: &Path) -> String {
+    tag_or_hash(root, std::env::var(PLANTS_TAG_ENV).ok().as_deref())
+}
+
+/// The environment variable a plants run sets to give its copy's builds one constant tag ([`build_tag`]).
+pub(crate) const PLANTS_TAG_ENV: &str = "NIJI_PLANTS_BUILD_TAG";
+
+/// `fixed` (non-empty) as the tag, else [`source_hash_tag`] of `root`.
+fn tag_or_hash(root: &Path, fixed: Option<&str>) -> String {
+    match fixed {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => source_hash_tag(root),
+    }
+}
+
+/// The hash tag of the product sources under `root`.
+fn source_hash_tag(root: &Path) -> String {
     fn walk(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
         let Ok(rd) = fs::read_dir(dir) else { return };
         for e in rd.flatten() {
@@ -950,6 +1003,8 @@ pub(crate) struct ProductBuild {
 pub(crate) const LIBC_BUILD: ProductBuild = ProductBuild { manifest: "crates/libc-so/Cargo.toml", archive: "libc.a", subdir: "", extra: None };
 /// `libm.a` and `libm.so.6` ([`run_libm`]): the libc build's flags and tag, so the two share their dependencies.
 pub(crate) const LIBM_BUILD: ProductBuild = ProductBuild { manifest: "crates/libm-so/Cargo.toml", archive: "libm.a", subdir: "", extra: None };
+/// libresolv.so.2's own code ([`libresolv_object`], LIBRESOLV-OWN-CODE): the libc build's flags and tag.
+pub(crate) const LIBRESOLV_BUILD: ProductBuild = ProductBuild { manifest: "crates/libresolv-so/Cargo.toml", archive: "libresolv.a", subdir: "", extra: None };
 /// The interpreter ([`run_ld`]): its own flags, so its own target directory.
 pub(crate) const LD_BUILD: ProductBuild = ProductBuild { manifest: "crates/ld-so/Cargo.toml", archive: "libld_so.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
 
@@ -989,6 +1044,37 @@ pub fn built_profile(root: &Path) -> Option<Profile> {
     }
 }
 
+/// The interpreter's and `ldconfig`'s cargo builds, started beside the libc build (PLANTS-BUILD-SLOWDOWN). Their
+/// crates build as one codegen unit each ([`LD_RUSTFLAGS`]), so mostly on one thread: after a change to the library
+/// crates each took about 50 s on the Skylake-SP build host, after the libc and libm builds and one after the other.
+/// Their output is dropped: [`run_ld`] and [`run_ldconfig`] run the same commands again, which cargo answers from
+/// these builds (replaying their warnings) or redoes, and they report any failure. Dropping this waits for the
+/// builds, so none outlives `run_so_as`, on an error path too.
+struct EarlyBuilds(Option<std::thread::JoinHandle<()>>);
+
+impl EarlyBuilds {
+    fn start(root: &Path, product: &Path, profile: Profile) -> EarlyBuilds {
+        let tag = build_tag(root);
+        let cmds: Vec<(&str, Command)> = [("early-cargo-ld", &LD_BUILD), ("early-cargo-ldconfig", &LDCONFIG_BUILD)].into_iter().map(|(n, b)| (n, b.command(root, product, profile, None, &tag))).collect();
+        EarlyBuilds(Some(std::thread::spawn(move || {
+            for (phase, mut c) in cmds {
+                let started = std::time::Instant::now();
+                let _ = c.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status();
+                // Beside the libc build, so these seconds overlap the other phases' (named `early-` for that).
+                println!("{}", phase_line(phase, started.elapsed()));
+            }
+        })))
+    }
+}
+
+impl Drop for EarlyBuilds {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take() {
+            let _ = h.join();
+        }
+    }
+}
+
 /// `cargo xtask so`: the products with the test profile (see `Profile::for_tests`).
 pub fn run_so(root: &Path) -> Result<(), String> {
     run_so_as(root, Profile::for_tests())
@@ -1014,7 +1100,7 @@ pub fn build_archive(root: &Path, product: &Path, out: &Path, rustflags: Option<
 /// [`build_archive`] with the caller holding the lock of `product` (`run_so_as` holds it for the whole run).
 fn build_archive_locked(root: &Path, product: &Path, out: &Path, rustflags: Option<&str>, profile: Profile, layout: Layout) -> Result<(std::path::PathBuf, (usize, usize), crate::copies::Stats), String> {
     // Every product crate gets the 64-byte function alignment (D-4.33), then the caller's flags.
-    run(&mut LIBC_BUILD.command(root, product, profile, rustflags, &build_tag(root)))?;
+    run_timed("cargo-libc", &mut LIBC_BUILD.command(root, product, profile, rustflags, &build_tag(root)))?;
     // Cargo's archive stays as cargo built it; the steps below work on a fresh copy, so every run
     // post-processes the same input once (a killed run cannot leave a half-edited archive behind).
     let raw = LIBC_BUILD.raw_archive(product, profile);
@@ -1206,6 +1292,19 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
     let weak = weaken_archive(archive, &product.join("weaken"), &staged)?;
     // After the weakening pass, which rebuilds the product crate's objects.
     shared_personality_ref(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &staged, &product.join("personality-work"))?;
+    // D-22.21: the published archive only (libc.so.6 keeps the form that returns 0).
+    static_unwinder_member(root, &staged, &product.join("unwinder-work"))?;
+    println!("so: libc.a refers weakly to the unwinder a static program links (D-22.21)");
+    // LAYOUT-GOT-ORDER (D-X.140): the published archive only (libc.so.6 was linked from `archive`, and a
+    // position-independent link keeps these GOT slots anyway), so a static program has no `.got`.
+    let got = crate::gotrelax::mark_archive(&staged)?;
+    if got.marked == 0 {
+        return Err(format!(
+            "{}: no plain R_X86_64_GOTPCREL on an add/cmp/... operand to mark (D-X.140): the compiler now emits the relaxable form itself? Check that static programs have no .got, then retire xtask/src/gotrelax.rs",
+            staged.display()
+        ));
+    }
+    println!("so: {} GOT operands of add/cmp/... marked relaxable in {} members, {} plain GOTPCREL left (D-X.140)", got.marked, got.members, got.left);
     rust_symbols_stay_local(&staged)?;
     check_archive_elf(&staged)?;
     boot_anchor_pc_relative(&staged)?;
@@ -1260,6 +1359,153 @@ fn check_no_link_edge(so: &Path) -> Result<(), String> {
     }
 }
 
+/// The unwinder entries libc.a refers to weakly (machine/unwinder.S, D-22.21).
+const STATIC_UNWINDER: [&str; 2] = ["_Unwind_ForcedUnwind", "_Unwind_GetCFA"];
+
+/// The source of the unwinder entries (D-22.21) and the libc.a member made from it.
+const UNWINDER_SRC: &str = "csys/src/machine/unwinder.S";
+const UNWINDER_MEMBER: &str = "niji-unwinder.o";
+/// The entry the library's thread exit calls (machine/unwinder.S).
+const UNWINDER_ENTRY: &str = "niji_machine_unwind_force";
+
+/// D-22.21: adds to the published `archive` the member [`UNWINDER_MEMBER`], machine/unwinder.S
+/// assembled with -DNIJI_STATIC_ARCHIVE (weak references to [`STATIC_UNWINDER`]); the C layer
+/// leaves the file out of the library product, so the archive's thread exit refers to its
+/// entries undefined. Before, no member may define [`UNWINDER_ENTRY`] (under any prefix) and
+/// some member must refer to it; after, the new member must be the archive's only reference to
+/// [`STATIC_UNWINDER`], a weak one each; anything else is an error.
+fn static_unwinder_member(root: &Path, archive: &Path, work: &Path) -> Result<(), String> {
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let _ = fs::remove_dir_all(work);
+    fs::create_dir_all(work).map_err(|e| format!("{}: {e}", work.display()))?;
+    // `nm -A` lines: `<archive>:<member>:<value> <kind> <name>` (the value is blank when undefined).
+    let nm = |args: &[&str]| -> Result<Vec<(String, String, String)>, String> {
+        let out = Command::new("nm").args(["-A"]).args(args).arg(archive).output().map_err(|e| format!("nm: {e}"))?;
+        Ok(String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter_map(|l| {
+                let mut w = l.split_whitespace().rev();
+                let (sym, kind) = (w.next()?, w.next()?);
+                Some((l.split(':').nth(1)?.to_string(), kind.to_string(), sym.to_string()))
+            })
+            .collect())
+    };
+    let defined = nm(&["--defined-only"])?;
+    if let Some((m, _, s)) = defined.iter().find(|(_, _, s)| s.ends_with(UNWINDER_ENTRY)) {
+        return Err(format!("{}: member {m} defines {s}: {UNWINDER_SRC} must reach libc.a only as {UNWINDER_MEMBER} (crates/boundary/build.rs)", archive.display()));
+    }
+    let undefined = nm(&["--undefined-only"])?;
+    if !undefined.iter().any(|(_, _, s)| s == UNWINDER_ENTRY) {
+        return Err(format!("{}: no member refers to {UNWINDER_ENTRY} (crates/boundary/src/cancel.rs)", archive.display()));
+    }
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_ARCHIVE").arg(root.join(UNWINDER_SRC)).arg("-o").arg(work.join(UNWINDER_MEMBER)))?;
+    run(Command::new(&ar).current_dir(work).arg("rs").arg(archive).arg(UNWINDER_MEMBER))?;
+    let refs: Vec<(String, String, String)> = nm(&["--undefined-only"])?.into_iter().filter(|(_, _, s)| STATIC_UNWINDER.contains(&s.as_str())).collect();
+    let want: Vec<(String, String, String)> = STATIC_UNWINDER.iter().map(|s| (UNWINDER_MEMBER.to_string(), "w".to_string(), (*s).to_string())).collect();
+    if refs != want {
+        return Err(format!("{}: references to the unwinder are {refs:?}, expected only {want:?} (D-22.21)", archive.display()));
+    }
+    Ok(())
+}
+
+/// LAYOUT-RO-STABLE (D-X.143): the linker-script fragment both libc links add. GNU ld's default script puts
+/// `.rodata1` (the start-up read-only group, 64 KiB aligned) after `.rodata`, so the gap ahead of the group
+/// followed the text's size, and the linker starts a new segment where a gap holds a whole page: one or two
+/// read-only PT_LOADs by the text's size (DYN-START-BISECT-1120: two cost each dynamic start about 1,250
+/// user instructions, the loader's extra mapping). Placed first, the group starts the read-only segment on
+/// its alignment (the gap is the one between segments) and `.rodata` follows it without a gap.
+const RODATA1_FIRST: &str = "SECTIONS\n{\n  .rodata1 : { *(.rodata1) }\n}\nINSERT BEFORE .rodata;\n";
+
+/// LAYOUT-RO-STABLE (D-X.143): `so`'s read-only data after its text is one PT_LOAD, led by the start-up group.
+fn check_read_only_segment(so: &Path) -> Result<(), String> {
+    let ph = Command::new("readelf").arg("-lW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    let secs = Command::new("readelf").arg("-SW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    read_only_segment_errors(&String::from_utf8_lossy(&ph.stdout), &String::from_utf8_lossy(&secs.stdout)).map_err(|e| format!("{}: {e} (xtask/src/so.rs RODATA1_FIRST)", so.display()))
+}
+
+/// The check of [`check_read_only_segment`] on `readelf -lW` and `readelf -SW` text: exactly one read-only
+/// (`R`) PT_LOAD after the last executable one, starting at the start-up group's section.
+pub fn read_only_segment_errors(phdrs: &str, sections: &str) -> Result<(), String> {
+    // `LOAD off vaddr paddr filesz memsz flags align`, the flags as separate words (`R E`).
+    let loads: Vec<(u64, String)> = phdrs
+        .lines()
+        .filter_map(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            (w.first() == Some(&"LOAD") && w.len() >= 8).then_some(())?;
+            Some((u64::from_str_radix(w[2].trim_start_matches("0x"), 16).ok()?, w[6..w.len() - 1].concat()))
+        })
+        .collect();
+    let text = loads.iter().rposition(|(_, f)| f.contains('E')).ok_or("no executable PT_LOAD")?;
+    let ro: Vec<u64> = loads[text + 1..].iter().filter(|(_, f)| f == "R").map(|(a, _)| *a).collect();
+    let list = ro.iter().map(|a| format!("{a:#x}")).collect::<Vec<_>>().join(", ");
+    if ro.len() != 1 {
+        return Err(format!("{} read-only PT_LOADs after the text ({list}), not one: the read-only layout depends on the text's size again", ro.len()));
+    }
+    let sec = crate::startup_ro::SECTION;
+    let at = sections
+        .lines()
+        .find_map(|l| {
+            let g: Vec<&str> = l.trim_start().strip_prefix('[')?.split_once(']')?.1.split_whitespace().collect();
+            (g.first() == Some(&sec)).then_some(())?;
+            u64::from_str_radix(g.get(2)?, 16).ok()
+        })
+        .ok_or_else(|| format!("no {sec} section"))?;
+    if at != ro[0] {
+        return Err(format!("the read-only PT_LOAD starts at {list}, not at {sec} ({at:#x}): the start-up group no longer leads it"));
+    }
+    Ok(())
+}
+
+/// D-22.21: libc.so.6 neither imports nor refers to [`STATIC_UNWINDER`] (it finds the unwinder
+/// with `dlsym` at a thread's exit, D-22.19): no symbol and no start-up lookup.
+fn check_no_static_unwinder(so: &Path) -> Result<(), String> {
+    let out = Command::new("nm").arg("-D").arg(so).output().map_err(|e| format!("nm: {e}"))?;
+    match String::from_utf8_lossy(&out.stdout).lines().find(|l| l.split_whitespace().last().is_some_and(|s| STATIC_UNWINDER.contains(&s))) {
+        Some(l) => Err(format!("{} refers to the unwinder: {l} (D-22.21)", so.display())),
+        None => Ok(()),
+    }
+}
+
+/// LAYOUT-DYN-PHASE (D-X.133): libc.so.6's start-up read-only group starts on its alignment `align` (the
+/// anchor came first in the link) and holds every object the interpreter reads
+/// ([`crate::startup_ro::LOADER_READ`]).
+fn check_rodata1_anchor(so: &Path, align: u64) -> Result<(), String> {
+    let secs = Command::new("readelf").arg("-SW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    let syms = Command::new("nm").args(["-D", "-S", "--defined-only"]).arg(so).output().map_err(|e| format!("nm: {e}"))?;
+    rodata1_anchor_errors(&String::from_utf8_lossy(&secs.stdout), &String::from_utf8_lossy(&syms.stdout), align).map_err(|e| format!("{}: {e} (csys/src/machine/entry.S NIJI_LIBC_SO, xtask/src/startup_ro.rs)", so.display()))
+}
+
+/// The check of [`check_rodata1_anchor`] on `readelf -SW` and `nm -D -S --defined-only` text.
+pub fn rodata1_anchor_errors(readelf: &str, nm: &str, align: u64) -> Result<(), String> {
+    let sec = crate::startup_ro::SECTION;
+    let (at, size) = readelf
+        .lines()
+        .find_map(|l| {
+            let g: Vec<&str> = l.trim_start().strip_prefix('[')?.split_once(']')?.1.split_whitespace().collect();
+            (g.first() == Some(&sec)).then_some(())?;
+            Some((u64::from_str_radix(g.get(2)?, 16).ok()?, u64::from_str_radix(g.get(4)?, 16).ok()?))
+        })
+        .ok_or_else(|| format!("no {sec} section"))?;
+    if align == 0 || at % align != 0 {
+        return Err(format!("{sec} starts at {at:#x}, not on its {align:#x} alignment: the anchor is not the link's first input"));
+    }
+    for want in crate::startup_ro::LOADER_READ {
+        let (addr, len) = nm
+            .lines()
+            .find_map(|l| {
+                let g: Vec<&str> = l.split_whitespace().collect();
+                (g.len() == 4 && g[3].split('@').next() == Some(want)).then_some(())?;
+                Some((u64::from_str_radix(g[0], 16).ok()?, u64::from_str_radix(g[1], 16).ok()?))
+            })
+            .ok_or_else(|| format!("{want} is not defined"))?;
+        if addr < at || addr + len > at + size {
+            return Err(format!("{want} at {addr:#x} (+{len:#x}) lies outside {sec} [{at:#x}, {:#x}): the interpreter's read takes a window of its own", at + size));
+        }
+    }
+    Ok(())
+}
+
 /// `niji-crt1.o` in `dir`, assembled for the `libc.a` there; returns its `-D` cluster alignments.
 fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<Vec<String>, String> {
     // Each start-up data cluster's start alignment, from its size over the whole archive (D-X.64).
@@ -1297,6 +1543,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let release = root.join("target/niji");
     // One product build per tree at a time; the lock is held to the end of this function.
     let _lock = lock_product_dir(&product)?;
+    // PLANTS-BUILD-2: a `step: so/<phase> <seconds>s` line per phase (the `so/cargo-*` and `so/early-cargo-*` lines are
+    // parts of the phases that hold them, or beside them), so a phase that grows shows in every plants and gate log.
+    let (mut phases, run_started) = (Phases(std::time::Instant::now()), std::time::Instant::now());
+    let early = EarlyBuilds::start(root, &product, profile);
     fs::create_dir_all(&release).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(release.join(".profile"));
     // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
@@ -1306,12 +1556,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: profile {}", profile.name());
     // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
     crate::headers::stage(root, &release)?;
+    phases.mark("headers-gen");
     if layout == Layout::Traced {
         println!("so: trace-at-build (the default; {}=ungrouped opts out): the start-up layout comes from a trace of this build", crate::hotlists::TRACE_ENV);
     }
 
     // 1. The archive, with its definitions made overridable (D-X.14).
     let (archive, weak, copies) = build_archive_locked(root, &product, &release.join("libc.a"), None, profile, layout)?;
+    phases.mark("libc-archive");
 
     // 2. The compat versions (LG-1, `compat.rs`): their stubs are assembled here and linked into
     //    libc.so.6 only, never archived (R15-2); every stub's target must be defined by libc.a.
@@ -1348,25 +1600,42 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // Both links of the library (libc.so.6 and the opt-in's libc-owner.so) define the forwarding
     // aliases (SL-SONAMES) the version script names.
     let defsyms = forward_defsyms(root, &have)?;
+    // LAYOUT-DYN-PHASE (D-X.133): the start-up read-only group's anchor (entry.S with -DNIJI_LIBC_SO), the
+    // first input of both links, so the group starts on its alignment (as the start object does in a program).
+    let rodata1_align = crate::startup_ro::cluster_aligns(&archive)?.into_iter().find(|(d, _)| *d == "NIJI_RODATA1_ALIGN").map_or(crate::startup_ro::ALIGN, |(_, a)| a);
+    let anchor = product.join("libc-so-anchor.o");
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_LIBC_SO").arg(format!("-DNIJI_RODATA1_ALIGN={rodata1_align}")).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&anchor))?;
+    // D-22.21: the unwinder entries' form that returns 0 (the C layer leaves the file out of the product).
+    let unwinder = product.join("libc-so-unwinder.o");
+    run(Command::new(&cc).arg("-c").arg(root.join(UNWINDER_SRC)).arg("-o").arg(&unwinder))?;
+    // LAYOUT-RO-STABLE (D-X.143): the group leads the read-only segment in both links.
+    let ro_first = product.join("libc-rodata1-first.ld");
+    fs::write(&ro_first, RODATA1_FIRST).map_err(|e| format!("{}: {e}", ro_first.display()))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .arg(format!("-Wl,-T,{}", ro_first.display()))
             .args(extra)
             .arg(format!("-Wl,--version-script={}", map.display()))
             .arg("-Wl,-soname,libc.so.6")
             .args(&defsyms)
+            .arg(&anchor)
             .arg("-Wl,--whole-archive")
             .arg(&so_input)
             .arg("-Wl,--no-whole-archive")
             .arg(&compat_obj)
+            .arg(&unwinder)
             .arg(owner)
             .arg("-lgcc")
             .arg("-o")
             .arg(out))
     };
     link_libc(&owner_obj, &so, &[])?;
+    check_rodata1_anchor(&so, rodata1_align)?;
+    check_read_only_segment(&so)?;
     check_no_link_edge(&so)?;
-    let native = check_native_exports(root, &so)?;
+    check_no_static_unwinder(&so)?;
+    let native =check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
     let objects = crate::compat_objects::check(root, &so)?;
     println!("so: {objects} data objects exported, each at its versions.tsv size (LG-6)");
@@ -1396,6 +1665,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let staged = tmp_name(&stub);
     link_libc(&owner_link_obj, &staged, &["-Wl,--strip-all"])?;
     publish(&staged, &stub)?;
+    phases.mark("libc-link");
 
     // 4. The start object.
     let defines = build_crt1(root, &cc, &release)?;
@@ -1423,39 +1693,54 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     }
     // The link-time archive and the installed `libc.so` script (D-27.28).
     build_nonshared(root, &cc, &release)?;
+    phases.mark("crt");
 
     // 5. The placeholder libraries (D-27.9, design plan/ph14/design.md §16; spec §22 notes: since
     //    2.34 libpthread is in libc.so.6): libpthread.so.0, libdl.so.2, librt.so.1, libutil.so.1,
     //    libanl.so.1 and libc_malloc_debug.so.0, generated from versions.tsv, linked against
     //    libc.so.6 and each checked against the table; empty static archives for `-l<x>`.
     let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
-    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar)?);
+    let resolv_own = libresolv_object(root, &ar, profile, &release.join("libc.so.6"))?;
+    println!("so: libresolv.so.2's own code: {} names in {}", resolv_own.1.len(), resolv_own.0.display());
+    let cdebug = release_debug_cflags(root, profile);
+    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar, Some(&resolv_own), &cdebug)?);
 
     //    libresolv (D-16.6, SL-SONAMES): the symbols spec Appendix C places in `libresolv.so.2`
     //    (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other symbol, so the
-    //    empty `libresolv.a` lets `-lresolv` resolve statically. `libc.so.6` exports them only as
-    //    `NIJI_PRIVATE` aliases, and `libresolv.so.2` (step 5) forwards its exports to those.
+    //    empty `libresolv.a` lets `-lresolv` resolve statically. libresolv.so.2's own code
+    //    (LIBRESOLV-OWN-CODE, [`libresolv_object`]) is a separate build of those names; `libc.so.6`
+    //    exports only `placeholders::STILL_FORWARDED` as `NIJI_PRIVATE` aliases, which
+    //    `libresolv.so.2` (step 5) forwards to.
 
     let redirected: Vec<String> = copies.redirected.iter().map(|(n, c)| format!("{n} {c}")).collect();
     let kept: usize = copies.kept.values().sum();
     println!("so: internal copies (D-X.15): {} references to the internal entries (redirected now: {}; made relaxable: {}), {kept} other uses of memcpy/memmove/memset kept", copies.internal, redirected.join(", "), copies.relaxable_internal);
     println!("so: GOT calls, jumps and loads made relaxable (D-X.15, PJ-19): {}, {} other GOT uses left as they are", copies.relaxable, copies.unrecognised);
     println!("so: target/niji/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), niji-crt1.o, niji-rcrt1.o, niji-gcrt1.o, niji-grcrt1.o, niji-crti.o, niji-crtn.o, niji-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
+    phases.mark("placeholders");
     run_libm(root, &cc, &ar, profile)?;
+    phases.mark("libm");
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
-    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar, &cdebug)?);
+    phases.mark("libmvec");
+    drop(early);
+    phases.mark("early-builds-wait");
     run_ld(root, &cc, profile, layout)?;
+    phases.mark("ld");
     run_ldconfig(root, &cc, profile)?;
-    run_getconf(root, &cc, &release)?;
-    run_getent(root, &cc)?;
-    run_iconv(root, &cc)?;
-    run_ldd(root, &cc, &release)?;
+    phases.mark("ldconfig");
+    run_getconf(root, &cc, &release, &cdebug)?;
+    run_getent(root, &cc, &cdebug)?;
+    run_iconv(root, &cc, &cdebug)?;
+    run_ldd(root, &cc, &release, &cdebug)?;
+    phases.mark("utilities");
     // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
     // packages install for iconv_open (D-6.8's directory).
     let n = crate::charmaps::write(root, &release.join("charmaps"))?;
     println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
     check_placement(root, &release)?;
+    phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
     // SYS-ABI-DT-RELR: every symbol-less node of the reference that libniji honours is defined.
@@ -1477,11 +1762,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 {e}", crate::hotlists::TRACE_ENV),
         r => r?,
     }
+    phases.mark("layout");
     // The marker last, so a set that was not finished has none.
     let marker = tmp_name(&release.join(".profile"));
     fs::write(&marker, format!("{}
 ", profile.name())).map_err(|e| e.to_string())?;
-    publish(&marker, &release.join(".profile"))
+    publish(&marker, &release.join(".profile"))?;
+    println!("{}", phase_line("total", run_started.elapsed()));
+    Ok(())
 }
 
 /// The interpreter product (phase 14 DL-5, R14-2, D-27.13): `crates/ld-so` as a static archive,
@@ -1511,13 +1799,39 @@ const LD_RUSTFLAGS: &str = "-Crelocation-model=pie\x1f-Ccodegen-units=1";
 /// note aside). The `fast` tool profile stays without DWARF.
 const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 
+/// SYS-DBG-DWARF: the C counterpart of [`RELEASE_DEBUG_RUSTFLAGS`], for the C compiles of the shipped
+/// products (the placeholder libraries, libmvec.so.1, the utilities): line tables and function
+/// entries without variable locations (`-g1`, what `line-tables-only` gives the crates) in the
+/// `release` profile, nothing in `fast`. Debug information leaves the generated code as it is
+/// (measured per product: `.text` identical with and without it). `-fdebug-prefix-map` spells the
+/// workspace root `/niji` in the debug sections, as `--remap-path-prefix` does for the crates
+/// (PRODUCT-PATH-REMAP); `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, a
+/// loaded string.
+pub(crate) fn release_debug_cflags(root: &Path, profile: Profile) -> Vec<String> {
+    if profile != Profile::Release {
+        return Vec::new();
+    }
+    let mut flags = vec!["-g1".to_string(), format!("-fdebug-prefix-map={}={}", root.display(), crate::align::REMAP_ROOT)];
+    if let Ok(real) = root.canonicalize() {
+        if real != root {
+            flags.push(format!("-fdebug-prefix-map={}={}", real.display(), crate::align::REMAP_ROOT));
+        }
+    }
+    flags
+}
+
+/// SYS-DBG-DWARF: `objcopy --strip-unneeded` also removes the debug sections; the one-object
+/// builds of libm.so.6 and libresolv.so.2's own code keep them (the crates' line tables, which
+/// libc6-dbg carries), while unneeded symbols are still removed.
+const KEEP_DEBUG_SECTIONS: &str = "--keep-section=.debug_*";
+
 fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
     let name = niji_ld::arch::Native::INTERP;
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    let ld = LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
+    run_timed("cargo-ld", &mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let ld =LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
     let (entry, archive) = (ld.entry.clone(), ld.archive.clone());
     let link = |entry: &Path, archive: &Path, out: &Path| ld.link(cc, entry, archive, out);
     let out = release.join(name);
@@ -1536,6 +1850,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     check_interp(&staged)?;
     check_interp_prerelocation(&staged)?;
     let span = check_interp_span(&staged)?;
+    check_interp_ro_phase(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed; mapped span {span:#x}, {LDSO_SPAN_BUCKET:#x} per bucket)");
     Ok(())
@@ -1548,6 +1863,7 @@ struct LdLink {
     archive: std::path::PathBuf,
     map: std::path::PathBuf,
     span: std::path::PathBuf,
+    phase: std::path::PathBuf,
 }
 
 impl LdLink {
@@ -1557,14 +1873,16 @@ impl LdLink {
         // LAYOUT-LDSO-WINDOW: the large zero-filled tables after the small state words (a copy: cargo owns `raw`).
         let archive = dir.join("ld-coldbss.a");
         fs::copy(raw, &archive).map_err(|e| format!("copy {}: {e}", raw.display()))?;
-        crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS)?;
+        crate::coldbss::move_cold_bss_first(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS, LDSO_LBSS_FIRST)?;
         let entry = dir.join("ld-entry.o");
         run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
         let map = dir.join("ld.map");
         fs::write(&map, ld_version_script(root, niji_ld::arch::Native::INTERP)?).map_err(|e| e.to_string())?;
         let span = dir.join("ld-span.ld");
         fs::write(&span, ldso_span_script()).map_err(|e| e.to_string())?;
-        Ok(LdLink { entry, archive, map, span })
+        let phase = dir.join("ld-phase.ld");
+        fs::write(&phase, ldso_phase_script()).map_err(|e| e.to_string())?;
+        Ok(LdLink { entry, archive, map, span, phase })
     }
 
     /// Link the interpreter `out` from `entry` (first) and `archive`.
@@ -1573,6 +1891,7 @@ impl LdLink {
         run(Command::new(cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
             .arg(format!("-Wl,-T,{}", self.span.display()))
+            .arg(format!("-Wl,-T,{}", self.phase.display()))
             .arg(format!("-Wl,--version-script={}", self.map.display()))
             .arg(format!("-Wl,-soname,{}", niji_ld::arch::Native::INTERP))
             .arg(entry)
@@ -1606,6 +1925,17 @@ pub(crate) const LDSO_SPAN_BUCKET: u64 = 0x8_0000;
 /// (1.5 KiB), which lie on the pages start-up writes (libc's threshold was not measured here).
 const LDSO_COLD_BSS: u64 = 4096;
 
+/// DL-23-2: the interpreter's cold tables placed first in `.lbss`, on the page `.bss`'s last words
+/// share, which every start writes: `ld::dlopen::NODES`, the first 16 entries of the thread-local
+/// module table (written at the start for each object with a `PT_TLS` segment; the C library has
+/// none) and then the link-map nodes (176 bytes each), whose first entries the start fills for the
+/// debugger rendezvous (program, each start-time object, `ld.so`). After them, at their own pages:
+/// the rest of the module table (`ld::THREAD_MODS`) and `ld::readers::TABLE`. Measured on the
+/// Skylake-SP host (fast profile, ASLR off, exact fault counts): with `THREAD_MODS` first, the nodes
+/// took a page of their own (+1 fault per dynamic start); with the whole of `THREAD_MODS` after the
+/// nodes, a start with a `PT_TLS` object took one (+1); with the head inside `NODES`, neither.
+const LDSO_LBSS_FIRST: &[&str] = &["2ld6dlopen5NODES"];
+
 /// The linker script fragment that rounds the interpreter's span ([`LDSO_SPAN_BUCKET`]): an empty
 /// `NOLOAD` section after `.lbss` (the last zero-filled section, [`LDSO_COLD_BSS`]), the default
 /// script otherwise unchanged (`INSERT`). The image is linked at 0, so aligning the absolute end
@@ -1635,6 +1965,42 @@ fn check_interp_span(path: &Path) -> Result<u64, String> {
         ));
     }
     Ok(span)
+}
+
+/// LAYOUT-DYN-PHASE (D-X.133): the interpreter's read-only data (its first section, `.rodata`, and with it
+/// every segment after the text) starts at the same phase modulo this window size as its `.text`. The
+/// kernel places the interpreter's base (its end at the mmap base, [`LDSO_SPAN_BUCKET`]) at a fixed phase,
+/// one page below a 64 KiB boundary with ASLR off, so the text (image offset 0x1000) starts a fault-around
+/// window; the read-only data followed the text's end, and the start-up reads in its first 12 KiB
+/// straddled a window boundary for 2 of 16 text sizes (+1 fault, Skylake-SP host, fast profile). Cost:
+/// up to 60 KiB of address space and file bytes between text and read-only data, never touched.
+pub(crate) const LDSO_RO_PHASE: u64 = 0x1_0000;
+
+/// The linker script fragment of [`LDSO_RO_PHASE`]: the location counter moved forward to the text's
+/// phase before `.rodata`, the default script otherwise unchanged (`INSERT`).
+pub(crate) fn ldso_phase_script() -> String {
+    let m = LDSO_RO_PHASE - 1;
+    format!("/* @generated by `cargo xtask so` (LAYOUT-DYN-PHASE): the interpreter's read-only data at its text's {LDSO_RO_PHASE:#x}-byte phase. */\nSECTIONS\n{{\n  . = ALIGN(. - (ADDR(.text) & {m:#x}), {LDSO_RO_PHASE:#x}) + (ADDR(.text) & {m:#x});\n}}\nINSERT BEFORE .rodata;\n")
+}
+
+/// The check of [`LDSO_RO_PHASE`] on the interpreter's bytes: the first read-only `PT_LOAD` after the
+/// executable one starts at the executable one's phase.
+pub(crate) fn interp_ro_phase_errors(bytes: &[u8]) -> Result<(), String> {
+    const PF_X: u32 = 1;
+    const PF_W: u32 = 2;
+    let elf = niji_ld::elf::Elf::parse::<niji_ld::arch::Native>(bytes).map_err(|e| format!("{e:?}"))?;
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == niji_ld::elf::pt::LOAD).collect();
+    let rx = loads.iter().find(|p| p.flags & PF_X != 0).ok_or("no executable PT_LOAD")?;
+    let ro = loads.iter().find(|p| p.vaddr > rx.vaddr && p.flags & (PF_X | PF_W) == 0).ok_or("no read-only PT_LOAD after the text")?;
+    if (ro.vaddr ^ rx.vaddr) & (LDSO_RO_PHASE - 1) != 0 {
+        return Err(format!("read-only data at {:#x}, text at {:#x}: not the same {LDSO_RO_PHASE:#x}-byte phase (ld-phase.ld not applied?)", ro.vaddr, rx.vaddr));
+    }
+    Ok(())
+}
+
+fn check_interp_ro_phase(path: &Path) -> Result<(), String> {
+    let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    interp_ro_phase_errors(&bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The members of the interpreter's archive (`ar t` output) that rustc wrote for a codegen unit other
@@ -1767,6 +2133,23 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// PASS2-NATIVE-RUNNER: the interpreter of the built products' profile compiled with the installation prefix
+/// `prefix` (so it pins libraries to `<prefix>/lib` and searches nowhere else), linked ungrouped to `out`. Its
+/// cargo target directory (`target/product/ld-native`) and work directory are its own: no other step or test
+/// builds there (`run_ldso_trace` and the tests that call it use `ld-prefix`, finding #6821).
+pub fn build_native_ld(root: &Path, prefix: &str, out: &Path) -> Result<(), String> {
+    let profile = built_profile(root).ok_or("the products are missing or half-built: run `cargo xtask so` first")?;
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let product = root.join("target/product");
+    let build = ProductBuild { subdir: "ld-native", ..LD_BUILD };
+    run(build.command(root, &product, profile, None, &build_tag(root)).env("NIJI_PREFIX", prefix))?;
+    let work = build.target_dir(&product).join("work");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let ld = LdLink::prepare(root, &cc, &work, &build.raw_archive(&product, profile))?;
+    ld.link(&cc, &ld.entry, &ld.archive, out)
+}
+
 /// LDSO-TRACE-PREFIX: the installation prefix the interpreter of this build is compiled with: `NIJI_PREFIX` of
 /// the environment the product build hands to cargo (`crates/ld/src/search.rs` reads it with `option_env!`), or
 /// the loader's own default when it is unset.
@@ -1871,7 +2254,7 @@ pub(crate) fn getconf_names(sysconf_tsv: &str, getconf_tsv: &str) -> Result<Stri
 /// The shipped getconf (UTIL-5, D-31 pending record UTIL-GETCONF-1): `csys/util/getconf.c` over the generated name
 /// table, linked as a static PIE against this build's `libc.a` and `niji-rcrt1.o`, so its values are libniji's on
 /// any host and in any root, with no loader involved.
-fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let read = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
     let table = getconf_names(&read("spec/abi/sysconf.tsv")?, &read("spec/abi/getconf.tsv")?)?;
     let gen_dir = root.join("target/getconf-gen");
@@ -1881,6 +2264,7 @@ fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
     let staged = tmp_name(&out);
     run(Command::new(cc)
         .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"])
+        .args(cdebug)
         .arg("-I")
         .arg(&gen_dir)
         .arg(release.join("niji-rcrt1.o"))
@@ -1905,7 +2289,7 @@ pub(crate) const LDCONFIG_BUILD: ProductBuild = ProductBuild { manifest: "crates
 fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    run_timed("cargo-ldconfig", &mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
     let archive = LDCONFIG_BUILD.raw_archive(&product, profile);
     let entry = product.join("ldconfig-entry.o");
     run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg("-DNIJI_LDCONFIG").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
@@ -1941,22 +2325,23 @@ pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 /// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
 pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 
-fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
-    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
+fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST, cdebug)
 }
 
-fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
-fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str, cdebug: &[String]) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
     let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
+        .args(cdebug)
         .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
@@ -1992,10 +2377,11 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(),
 ///   transcripts on a host whose system loader is another one. Kept out of `target/niji`: it names a build path.
 pub(crate) const LDD_TEST: &str = "target/niji-test/ldd";
 
-fn run_ldd(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_ldd(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
+        c.args(cdebug);
         if let Some(r) = rtld {
             c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
         }
@@ -2029,9 +2415,13 @@ fn check_no_interp(path: &Path) -> Result<(), String> {
 }
 
 /// The symbols the interpreter exports (DL-12, D-27.20), each at the version `spec/abi/versions.tsv`
-/// gives it for the interpreter's soname; every other symbol stays local.
+/// gives it for the interpreter's soname (a `GLIBC_PRIVATE` row at `NIJI_PRIVATE`, R14-12); every
+/// other symbol stays local.
 /// `__libc_stack_end` and the rseq objects live here, not in `libc.so.6` (R14-12, D-27.26).
-const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags"];
+/// `_r_debug` and `_dl_debug_state`: the debugger rendezvous (DL-23).
+/// `_dl_get_tls_static_info`: the static TLS size and alignment, which sanitizer runtimes look up by
+/// name (LDSO-TLS-STATIC-INFO).
+const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state", "_dl_get_tls_static_info"];
 
 /// The interpreter's version script: one node per version of [`LD_EXPORTS`], everything else local.
 fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
@@ -2040,6 +2430,9 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     for sym in LD_EXPORTS {
         let version = table.lines().map(|l| l.split('\t').collect::<Vec<_>>()).find(|f| f.first() == Some(&soname) && f.get(1) == Some(sym)).and_then(|f| f.get(2).map(|v| (*v).to_string()));
         let version = version.ok_or_else(|| format!("versions.tsv: no row for {soname} {sym}"))?;
+        // No GLIBC_PRIVATE node (R14-12): a private name is libniji's own interface, NIJI_PRIVATE
+        // (`_dl_debug_state`, found by name by a debugger, DL-23 / D-27.62).
+        let version = if version == "GLIBC_PRIVATE" { "NIJI_PRIVATE".to_string() } else { version };
         nodes.entry(version).or_default().push(sym);
     }
     let mut out = String::new();
@@ -2346,6 +2739,103 @@ fn build_owner_dir(release: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// libresolv.so.2's own code (LIBRESOLV-OWN-CODE): `crates/libresolv-so` as a static library, then
+/// one relocatable object of it with unused sections dropped (roots: the libresolv.so.2 exports
+/// not in `placeholders::STILL_FORWARDED`), only those names global. Checked: every root defined
+/// and nothing else global; every undefined symbol one `libc_so` exports (the C library's state is
+/// reached only through its interface); and no writable data except the exported objects (no
+/// second heap, stdio, environment or tuning state in a library loaded beside libc.so.6).
+/// Returns the object and the names it defines.
+pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so: &Path) -> Result<(std::path::PathBuf, BTreeSet<String>), String> {
+    let _ = ar;
+    let product = root.join("target/product");
+    run_timed("cargo-libresolv", &mut LIBRESOLV_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let raw = LIBRESOLV_BUILD.raw_archive(&product, profile);
+    let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
+    let plan = crate::placeholders::plan(&table, "libresolv.so.2")?;
+    let names = crate::placeholders::own_wanted(&plan);
+    // A compat-only export is defined as `niji_own_<name>`, local to the library: the generated
+    // `niji_ph_<name>` exports it under `<name>@<version>` (`placeholders::c_source_own`).
+    let compat = crate::placeholders::own_compat(&plan, &names);
+    let own_name = |s: &str| if compat.contains(s) { format!("{}{s}", crate::placeholders::OWN_PREFIX) } else { s.to_string() };
+    let keep = product.join("libresolv.keep");
+    fs::write(&keep, names.iter().map(|s| format!("{}\n", own_name(s))).collect::<String>()).map_err(|e| e.to_string())?;
+    let all = product.join("libresolv-all.o");
+    let mut ld = Command::new("ld");
+    ld.args(["-r", "--gc-sections"]);
+    for s in &names {
+        ld.arg("-u").arg(s);
+    }
+    run(ld.arg("--whole-archive").arg(&raw).arg("--no-whole-archive").arg("-o").arg(&all))?;
+    let obj = product.join("libresolv-own.o");
+    let renamed = product.join("libresolv-renamed.o");
+    let mut rename = Command::new("objcopy");
+    for s in &compat {
+        rename.arg(format!("--redefine-sym={s}={}", own_name(s)));
+    }
+    run(rename.arg(&all).arg(&renamed))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
+
+    let out = Command::new("nm").args(["-P"]).arg(&obj).output().map_err(|e| format!("nm: {e}"))?;
+    let mut defined = BTreeSet::new();
+    let mut undefined = BTreeSet::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        match line.split_whitespace().collect::<Vec<_>>().as_slice() {
+            [name, "U", ..] | [name, "w", ..] => {
+                undefined.insert((*name).to_string());
+            }
+            [name, kind, ..] if kind.chars().all(|c| c.is_ascii_uppercase()) => {
+                // A compat-only export's definition counts under its export name.
+                let export = name.strip_prefix(crate::placeholders::OWN_PREFIX).filter(|n| compat.contains(*n)).unwrap_or(name);
+                defined.insert(export.to_string());
+            }
+            _ => {}
+        }
+    }
+    let dynsyms = crate::placeholders::readelf(&["--dyn-syms", "-W"], libc_so)?;
+    let libc: BTreeSet<String> = dynsyms
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            (f.len() >= 8 && f.get(6) != Some(&"UND")).then(|| f.get(7).map(|n| n.split('@').next().unwrap_or(n).to_string())).flatten()
+        })
+        .collect();
+    let mut errors = Vec::new();
+    for s in names.difference(&defined) {
+        errors.push(format!("libresolv.so.2's own code does not define {s}"));
+    }
+    for s in defined.difference(&names) {
+        errors.push(format!("libresolv.so.2's own code defines {s}, which is not its export"));
+    }
+    for s in undefined.iter().filter(|s| !libc.contains(*s) && s.as_str() != "_GLOBAL_OFFSET_TABLE_") {
+        errors.push(format!("libresolv.so.2's own code needs {s}, which libc.so.6 does not export"));
+    }
+    // Writable data: only the exported objects (each in its own section, `-fdata-sections`).
+    let objects: Vec<&str> = plan.exports.iter().filter(|e| names.contains(&e.name)).map(|e| e.name.as_str()).filter(|n| defined.contains(*n) && n.chars().next().is_some()).collect();
+    let sections = crate::placeholders::readelf(&["-SW"], &obj)?;
+    for l in sections.lines().filter_map(|l| l.split_once(']').map(|(_, r)| r)) {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        let (Some(name), Some(size), Some(flags)) = (f.first(), f.get(4), f.get(6)) else { continue };
+        // No start-up or exit code of its own: a constructor would run the C library's start-up
+        // pieces a second time in a library loaded beside libc.so.6.
+        if [".init_array", ".fini_array", ".preinit_array", ".ctors", ".dtors", ".init", ".fini"].iter().any(|p| *name == *p || name.starts_with(&format!("{p}."))) {
+            errors.push(format!("libresolv.so.2's own code holds {name}: start-up and exit code belong to libc.so.6"));
+            continue;
+        }
+        let read_only_after_relocation = [".data.rel.ro", ".got"].iter().any(|p| name.starts_with(p));
+        if !flags.contains('W') || !flags.contains('A') || read_only_after_relocation || u64::from_str_radix(size, 16).unwrap_or(1) == 0 {
+            continue;
+        }
+        if !objects.iter().any(|o| name.ends_with(&format!(".{o}"))) {
+            errors.push(format!("libresolv.so.2's own code holds writable data of its own in {name} (size 0x{size}): state belongs to libc.so.6, reached through its exports"));
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors.join("\n"));
+    }
+    Ok((obj, defined))
+}
+
 /// An empty `ar` archive at `dst`, written under a temporary name and renamed into place.
 pub(crate) fn empty_archive(ar: &str, dst: &Path) -> Result<(), String> {
     let staged = tmp_name(dst);
@@ -2414,8 +2904,8 @@ const LIBM_DATA: [&str; 2] = ["signgam", "__signgam"];
 fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LIBM_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    let raw = LIBM_BUILD.raw_archive(&product, profile);
+    run_timed("cargo-libm", &mut LIBM_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let raw =LIBM_BUILD.raw_archive(&product, profile);
     let (_, both, libm_only) = crate::math::owners(root)?;
     // The data objects of libm.so.6 (`signgam`, D-10.4) are not generated functions.
     let mut exports: BTreeSet<String> = libm_only.union(&both).filter(|s| !s.starts_with("niji_")).cloned().collect();
@@ -2444,7 +2934,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     run(ld.arg("--whole-archive").arg(&staged).arg("--no-whole-archive").arg("-o").arg(&all))?;
     fs::write(&weak, both.iter().filter(|s| !s.starts_with("niji_")).map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
     let obj = product.join("libm.o");
-    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
     // The archive's copy: the names glibc exports from both libraries are libc.a's alone in a
     // static link (glibc's libm.a does not define them, LIBC-A-PLACEMENT), so they are local here.
     let obj_a = product.join("libm-archive.o");
@@ -2639,6 +3129,33 @@ mod tests {
     /// when nothing changed; the interpreter's own flags give it a directory of its own; every build sets the tag;
     /// and each build's archive is read from its own directory.
     #[test]
+    fn a_fixed_tag_replaces_the_source_hash_and_only_a_fixed_one() {
+        // no spec clause (PLANTS-BUILD-2): a plants run's constant tag is the tag, whatever the sources; without one (or an
+        // empty one) the tag is the hash of the sources, which changes with a source byte
+        let root = std::env::temp_dir().join(format!("xtask-so-tag-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("crates")).unwrap();
+        fs::write(root.join("Cargo.lock"), "lock").unwrap();
+        fs::write(root.join("crates/a.rs"), "one").unwrap();
+        let hash = tag_or_hash(&root, None);
+        assert!(hash.starts_with("src-") && hash.len() == "src-".len() + 16, "{hash}");
+        assert_eq!(tag_or_hash(&root, Some("")), hash, "an empty variable is no tag");
+        assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7");
+        fs::write(root.join("crates/a.rs"), "two").unwrap();
+        assert_ne!(tag_or_hash(&root, None), hash, "the hash follows the sources");
+        assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7", "the fixed tag does not");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_phase_prints_one_gate_step_line() {
+        // no spec clause (PLANTS-BUILD-2): `so/<phase>` in the gate's `step:` format, which a log reader parses
+        let line = phase_line("headers-gen", std::time::Duration::from_millis(1500));
+        assert_eq!(line, "step: so/headers-gen 1.5s");
+        assert_eq!(crate::steptime::parse(&line), Some(("so/headers-gen", 1.5)));
+    }
+
+    #[test]
     fn product_builds_sharing_a_target_directory_build_alike() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let product = root.join("target/product");
@@ -2687,6 +3204,80 @@ mod tests {
         assert!(boot_anchor_errors(other).is_err_and(|e| e.contains("no member defines")));
         let undefined_only = member("R_X86_64_PC32").replace("FUNC    GLOBAL DEFAULT    4", "NOTYPE  GLOBAL DEFAULT  UND");
         assert!(boot_anchor_errors(&undefined_only).is_err(), "a reference to the anchor is not its definition");
+    }
+
+    /// LAYOUT-DYN-PHASE (no spec clause: layout of the products): libc.so.6's start-up read-only group
+    /// passes when it starts on its alignment and holds the build tag, and fails when it starts off it
+    /// (the anchor not first), holds no tag, or is missing.
+    #[test]
+    fn libc_so_rodata1_group_is_anchored_and_holds_the_build_tag() {
+        let sec = |at: &str| format!("  [16] .rodata1          PROGBITS        {at} 3e0000 009520 00   A  0   0 65536\n");
+        let tag = |at: &str| format!("{at} 0000000000000040 R __niji_build_tag@@NIJI_PRIVATE\n0000000000000000 A NIJI_PRIVATE\n");
+        assert_eq!(rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e0040"), 65536), Ok(()));
+        let off = rodata1_anchor_errors(&sec("00000000003d7c00"), &tag("00000000003d7c40"), 65536);
+        assert!(off.is_err_and(|e| e.contains("not on its")), "a group off its alignment");
+        let outside = rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003d60b8"), 65536);
+        assert!(outside.is_err_and(|e| e.contains("outside")), "the tag outside the group");
+        let past_end = rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e9500"), 65536);
+        assert!(past_end.is_err_and(|e| e.contains("outside")), "the tag past the group's end");
+        assert!(rodata1_anchor_errors("", &tag("00000000003e0040"), 65536).is_err_and(|e| e.contains("no .rodata1")));
+        assert!(rodata1_anchor_errors(&sec("00000000003e0000"), "", 65536).is_err_and(|e| e.contains("not defined")));
+    }
+
+    /// LAYOUT-RO-STABLE (D-X.143; no spec clause: layout of the products): libc.so.6 passes with one read-only
+    /// PT_LOAD after its text led by `.rodata1`, and fails with the split layout DYN-START-BISECT-1120 found
+    /// (`.rodata1` 64 KiB aligned after `.rodata`, a 62 KiB gap: a second read-only PT_LOAD) and with the
+    /// group after `.rodata` in one segment (the layout a few KiB less text gave).
+    #[test]
+    fn libc_so_read_only_data_is_one_segment_led_by_the_startup_group() {
+        let load = |at: u64, flags: &str| format!("  LOAD           0x{at:06x} 0x{at:016x} 0x{at:016x} 0x010000 0x010000 {flags} 0x10000\n");
+        let text = format!("{}{}{}", load(0, "R  "), load(0x2c000, "R E"), load(0x30000, "R E"));
+        let secs = |ro1: u64| format!("  [15] .rodata           PROGBITS        {:016x} 30e000 092764 00   A  0   0 64\n  [16] .rodata1          PROGBITS        {ro1:016x} 3b0000 009520 00   A  0   0 65536\n", 0x30e000);
+        let one = format!("{text}{}{}", load(0x3b0000, "R  "), load(0x3f6000, "RW "));
+        assert_eq!(read_only_segment_errors(&one, &secs(0x3b0000)), Ok(()));
+        let split = format!("{text}{}{}{}", load(0x30e000, "R  "), load(0x3b0000, "R  "), load(0x3f6000, "RW "));
+        let e = read_only_segment_errors(&split, &secs(0x3b0000));
+        assert!(e.as_ref().is_err_and(|e| e.starts_with("2 read-only PT_LOADs after the text (0x30e000, 0x3b0000)")), "{e:?}");
+        let after = format!("{text}{}{}", load(0x30e000, "R  "), load(0x3f6000, "RW "));
+        assert!(read_only_segment_errors(&after, &secs(0x3a0000)).is_err_and(|e| e.contains("no longer leads it")));
+        assert!(read_only_segment_errors(&one, "").is_err_and(|e| e.contains("no .rodata1")));
+        assert!(read_only_segment_errors(&load(0, "R  "), &secs(0)).is_err_and(|e| e.contains("no executable")));
+    }
+
+    /// LAYOUT-RO-STABLE (D-X.143; no spec clause: layout of the products): with [`RODATA1_FIRST`] a shared
+    /// library shaped like libc.so.6 (the 64 KiB-aligned `.rodata1` anchor first, 20 KiB of `.rodata`) keeps
+    /// one read-only PT_LOAD led by the group at text sizes 0x30 + k * 4 KiB, k = 0..16 (every 4 KiB phase of
+    /// a 64 KiB window); linked without it, some of those sizes give two (the split this guards against).
+    #[test]
+    fn startup_group_first_keeps_one_read_only_segment_at_every_text_size() {
+        let dir = std::env::temp_dir().join(format!("niji-ro-stable-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let frag = dir.join("ro-first.ld");
+        fs::write(&frag, RODATA1_FIRST).expect("fragment");
+        let readelf = |flag: &str, so: &Path| String::from_utf8_lossy(&Command::new("readelf").arg(flag).arg(so).output().expect("readelf").stdout).into_owned();
+        let mut split_without = 0;
+        for k in 0..16u64 {
+            let src = dir.join(format!("lib{k}.s"));
+            let text = 0x30 + k * 4096;
+            fs::write(&src, format!("\t.section .rodata1,\"aR\",@progbits\n\t.balign 65536\n\t.byte 1\n\t.section .rodata,\"a\",@progbits\n\t.fill 20480,1,2\n\t.text\n\t.globl niji_test_f\nniji_test_f:\n\t.fill {text},1,0x90\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n")).expect("source");
+            for with in [true, false] {
+                let so = dir.join(format!("lib{k}-{with}.so"));
+                let mut cc = Command::new("cc");
+                cc.args(["-shared", "-nostdlib"]);
+                if with {
+                    cc.arg(format!("-Wl,-T,{}", frag.display()));
+                }
+                assert!(cc.arg(&src).arg("-o").arg(&so).status().expect("cc").success(), "text {text:#x}: link failed");
+                let verdict = read_only_segment_errors(&readelf("-lW", &so), &readelf("-SW", &so));
+                if with {
+                    assert_eq!(verdict, Ok(()), "text {text:#x} with the fragment");
+                } else if verdict.is_err_and(|e| e.starts_with("2 read-only PT_LOADs")) {
+                    split_without += 1;
+                }
+            }
+        }
+        let _ = fs::remove_dir_all(&dir);
+        assert!(split_without > 0, "no text size split the read-only data without the fragment: the test no longer sees the case it guards");
     }
 
     /// D-27.10 (no spec clause: start-up internals): the static-PIE start object passes with

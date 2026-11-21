@@ -1,0 +1,10 @@
+id = "D-10.129"
+section = "s10"
+spec = "§10.0"
+ann = "—"
+status = "active"
+story = "MATH-ORACLE-PROFILE"
+date = "2026-11-20"
+body = '''
+**The C-oracle sweeps run their two programs once per test run** (MATH-ORACLE-PROFILE; AUDIT-PRE-SELFHOST item 1b; amends the sweeps of D-10.57). The sweeps complex_ld_cr, complex_f128, special_ld, special_f128 and complex products used to run the reference and the libniji program over the whole grid in every shard before checking the shard's share. `verdict_programs::shared_outputs` runs them in the first shard to need them and stores each standard output as `target/test-oracles/outputs/<sweep>-<key id>-<run>.<j>`: the key is the shard's verdict key without the shard (test binary, CPU flags, kernel release, both programs' bytes, every shared object the reference loads), `<run>` is nextest's `NEXTEST_RUN_ID` (or the process id under `cargo test`), so an output never serves another test run even with equal inputs. A per-sweep flock serialises the run and the reads; outputs are written to a temporary name and renamed; a program that exits with a status other than 0, an incomplete key or a failed write stores nothing (the next shard runs the programs again). Every shard still reads the complete outputs and checks exactly the lines it checked before. Values of the multi-precision oracle are not cached (that is ORACLE-VALUE-CACHE).
+'''

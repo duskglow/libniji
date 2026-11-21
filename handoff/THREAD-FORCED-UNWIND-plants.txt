@@ -1,0 +1,7 @@
+skip-unwind | crates/boundary/src/cancel.rs | lit:forced_unwind(); ==> | cargo test -p niji --test forced_unwind_products | msg:(cxx_frames_unwind|c_cleanups_run).*(FAILED|panicked)
+buffer-wrong-frame | crates/boundary/src/cancel.rs | lit:head != 0 && head < cfa ==> head != 0 && head > cfa | cargo test -p niji --test forced_unwind_products | msg:c_cleanups_run_in_frame_order.*(FAILED|panicked)
+swallow-no-abort | crates/boundary/src/cancel.rs | lit:niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap) ==> niji_rt::fatal::message(&CSys, &[b"FATAL: exception not rethrown\n"]) | cargo test -p niji --test forced_unwind_products | msg:cxx_frames_unwind.*(FAILED|panicked)
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# skip-unwind: CAUGHT, caught by forced_unwind_products c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled
+# buffer-wrong-frame: CAUGHT, caught by forced_unwind_products c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled
+# swallow-no-abort: CAUGHT, caught by forced_unwind_products cxx_frames_unwind_when_a_thread_exits_or_is_cancelled

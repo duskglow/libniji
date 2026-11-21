@@ -1,0 +1,14 @@
+@@generated
+/* langinfo.h: language information (XSH <langinfo.h>). */
+#ifndef __NIJI_H_langinfo_h
+#define __NIJI_H_langinfo_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

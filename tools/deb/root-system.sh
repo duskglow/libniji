@@ -150,6 +150,19 @@ cxxlibs="$cxxlibs libthrowlib.so"
 # libresolv.so.2 symbols against the root's.
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/resolv.c" -lresolv -lc -lgcc "$e" -o "$r/tmp/resolv" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic resolv (-lresolv) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# -lm (issue #28): smoke/mvec.c (-O3 -ffast-math: a loop vectorised into libmvec calls, built only
+# when the compiler's headers declare sinf's simd variants) and smoke/nomvec.c (one scalar call),
+# both linked with plain -lm through libc6-dev's libm.so script.
+mvec=
+if "$cc" -O3 -ffast-math -S -o - "$here/smoke/mvec.c" 2>/dev/null | grep -q _ZGVbN4v_sinf; then
+    mvec=1
+    "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/mvec.c" -lm -lc -lgcc "$e" -o "$r/tmp/mvec" > "$tmp/cc.log" 2>&1 ||
+        fail "dynamic mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+else
+    info "skip mvec: the compiler's headers declare no simd variant of sinf"
+fi
+"$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/nomvec.c" -Wl,--no-as-needed -lm -lc -lgcc "$e" -o "$r/tmp/nomvec" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic nomvec (-lm) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 krbdir=/usr/lib/$ma
 krblibs=
 for f in libgssapi_krb5.so.2 libkrb5.so.3 libk5crypto.so.3 libkrb5support.so.0 libcom_err.so.2 libkeyutils.so.1; do
@@ -195,6 +208,21 @@ for pe in "hello:hello from niji" "threads:threads: total 40000" "devlinks:devli
         0:*"$want"*) pass "dynamic $p runs in the root: $(echo "$out" | head -1)" ;;
         *) fail "dynamic $p in the root exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
     esac
+done
+# -lm (issue #28): mvec needs libmvec.so.1 (the libm.so script's AS_NEEDED entry), which the loader
+# finds in the root, and prints sinf(1.0); nomvec needs libm.so.6 and not libmvec.so.1.
+for pe in ${mvec:+"mvec:0.8415:libmvec.so.1"} "nomvec:nomvec: sin(1) 0.8415:-"; do
+    p=${pe%%:*}; want=${pe#*:}; want=${want%:*}; lv=${pe##*:}
+    n=" $(readelf -dW "$r/tmp/$p" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $lv:$n in
+        libmvec.so.1:*" libmvec.so.1 "*) ;;
+        -:*" libmvec.so.1 "*) fail "$p needs libmvec.so.1 ('$n'): -lm must add it only as needed" ;;
+        -:*" libm.so.6 "*) ;;
+        *) fail "$p needs '$n'" ;;
+    esac
+    out=$(in_root "/tmp/$p" 2>&1) && rc=0 || rc=$?
+    [ "$rc:$out" = "0:$want" ] && pass "dynamic $p (-lm) runs in the root: $out (needs$n)" ||
+        fail "dynamic $p (-lm) in the root exits $rc: '$(echo "$out" | head -3 | tr '\n' ' ')', not '$want'"
 done
 # krb5: the loader finds libresolv.so.2 in the root for libkrb5.so.3, and with LD_BIND_NOW every
 # symbol of every library (libkrb5.so.3's ns_initparse@GLIBC_2.9 among them) resolves before main.

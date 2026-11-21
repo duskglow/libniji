@@ -99,7 +99,10 @@ typedef int __pid_t;
 # endif
 # ifndef __NIJI_D___mbstate_t
 #  define __NIJI_D___mbstate_t 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (4))); } __mbstate_t;
+typedef struct {
+  int __count;
+  union { unsigned int __wch; char __wchb[4]; } __value;
+} __mbstate_t;
 # endif
 # ifndef __NIJI_D_struct__G_fpos_t
 #  define __NIJI_D_struct__G_fpos_t 1
@@ -654,7 +657,11 @@ extern FILE *popen (const char *, const char *);
 # ifndef __NIJI_D_fseeko
 #  define __NIJI_D_fseeko 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 500
+#   if __NIJI_FOB64
+extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
+#   else
 extern int fseeko (FILE *, long, int);
+#   endif
 #  elif __NIJI_FOB64
 extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
 #  endif
@@ -662,7 +669,11 @@ extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
 # ifndef __NIJI_D_ftello
 #  define __NIJI_D_ftello 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 500
+#   if __NIJI_FOB64
+extern long ftello (FILE *) __asm__ ("ftello64");
+#   else
 extern long ftello (FILE *);
+#   endif
 #  elif __NIJI_FOB64
 extern long ftello (FILE *) __asm__ ("ftello64");
 #  endif

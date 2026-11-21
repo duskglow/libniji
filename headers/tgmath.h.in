@@ -11,7 +11,7 @@
 __NIJI_BEGIN_C
 
 @@owns-macro acos acosh asin asinh atan atan2 atanh carg cbrt ceil cimag conj copysign cos cosh cproj creal dadd ddiv dfma dmul dsqrt dsub erf erfc exp exp10 exp2 expm1 f32add f32div f32fma f32mul f32sqrt f32sub f32xadd f32xdiv f32xfma f32xmul f32xsqrt f32xsub f64add f64div f64fma f64mul f64sqrt f64sub f64xadd f64xdiv f64xfma f64xmul f64xsqrt f64xsub fabs fadd fdim fdiv ffma floor fma fmax fmaximum fmaximum_mag fmaximum_mag_num fmaximum_num fmaxmag fmin fminimum fminimum_mag fminimum_mag_num fminimum_num fminmag fmod fmul frexp fromfp fromfpx fsqrt fsub hypot ilogb ldexp lgamma llogb llrint llround log log10 log1p log2 logb lrint lround nearbyint nextafter nextdown nexttoward nextup pow remainder remquo rint round roundeven scalb scalbln scalbn sin sinh sqrt tan tanh tgamma trunc ufromfp ufromfpx
-@@emit-c
+@@emit
 
 @@if acos
 # define acos(x) __builtin_tgmath (acosf, acos, acosl, acosf32, acosf64, acosf32x, acosf64x, acosf128, cacosf, cacos,  \

@@ -973,6 +973,8 @@ function	_dl_find_object	dlfcn.h			int (void*, dl_find_object*)
 function	_dl_mcount_wrapper_check	dlfcn.h			void (void*)
 function	_exit	arpa/nameser.h			void (int)
 function	_flushlbf	stdio_ext.h			void ()
+struct	_fpstate	arpa/nameser.h	512	8	_fpstate
+struct	_fpxreg	arpa/nameser.h	16	2	_fpxreg
 struct	_ftsent	fts.h	120	8	_ftsent
 struct	_libc_fpstate	arpa/nameser.h	512	8	_libc_fpstate
 struct	_libc_fpxreg	arpa/nameser.h	16	2	_libc_fpxreg
@@ -991,6 +993,7 @@ object	_r_debug	link.h	40	8	r_debug
 function	_setjmp	setjmp.h			int (__jmp_buf_tag*)
 function	_tolower	argp.h			int (int)
 function	_toupper	argp.h			int (int)
+struct	_xmmreg	arpa/nameser.h	16	4	_xmmreg
 function	a64l	complex.h			long (char const*)
 function	abort	complex.h			void ()
 function	abs	complex.h			int (int)
@@ -3208,6 +3211,7 @@ function	shmdt	sys/shm.h			int (void const*)
 function	shmget	sys/shm.h			int (int, unsigned long, int)
 struct	shmid_ds	sys/shm.h	112	8	shmid_ds
 function	shutdown	arpa/inet.h			int (int, int)
+typedef	sig_atomic_t	arpa/nameser.h	4	4	int
 function	sigabbrev_np	argz.h			char const* (int)
 struct	sigaction	arpa/nameser.h	152	8	sigaction
 function	sigaction	arpa/nameser.h			int (int, sigaction const*, sigaction*)
@@ -3220,6 +3224,7 @@ function	sigdelset	arpa/nameser.h			int (__sigset_t*, int)
 function	sigdescr_np	argz.h			char const* (int)
 function	sigemptyset	arpa/nameser.h			int (__sigset_t*)
 struct	sigevent	aio.h	64	8	sigevent
+typedef	sigevent_t	aio.h	64	8	sigevent
 function	sigfillset	arpa/nameser.h			int (__sigset_t*)
 function	siggetmask	arpa/nameser.h			int ()
 function	sighold	arpa/nameser.h			int (int)
