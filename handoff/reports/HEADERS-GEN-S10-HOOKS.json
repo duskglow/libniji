@@ -1,0 +1,22 @@
+{
+ "task": "HEADERS-GEN-S10-HOOKS",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "slice 10's two shared generator edits landed as a generator change; the FILE tag-only rule is live, six libc-include headers regenerated",
+ "branch": "task/headers-gen-s10-hooks",
+ "head": "00187ffb7",
+ "gate": {"affected": "560 passed / 0 failed", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["spec/tools/header_check.py is red on origin/next independent of this change: 8 P8 sys/mount.h vs linux/mount.h FAILs (struct winsize redefinition); zero P1 FAILs. The header_check.py hooks are therefore not planted here (plants.rs aborts on a red baseline); slice 10's plants cover them."],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "SL-HEADERS-S10 rebases on these as data-only", "measured": false},
+  {"kind": "coverage", "what": "plants added (FILE tag-only rule, headers-gen --check)", "before": 0, "after": 1, "unit": "plants", "measured": true},
+  {"kind": "correctness", "what": "grp.h gshadow.h mntent.h printf.h pwd.h shadow.h declare FILE's tag instead of defining struct _IO_FILE (34 lines each removed)", "before": 6, "after": 0, "unit": "headers defining the struct", "measured": true}
+ ],
+ "improvement": "plants.rs aborts the whole run when one plant's command is red at baseline; skipping that plant and reporting it would save a rerun",
+ "next_step": "land, then rebase SL-HEADERS-S10 and drop its copies of these edits",
+ "report_file": "handoff/HEADERS-GEN-S10-HOOKS.md",
+ "jobs": ["mei:headers-gen-s10-hooks-gate", "mei:headers-gen-s10-hooks-plants2"]
+}
