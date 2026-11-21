@@ -1,0 +1,30 @@
+{
+  "task": "CRT-START-FILES-2",
+  "model": "opus",
+  "tokens": null,
+  "result": "Static start reads program headers with one bit test each (startup_instr_c 2191 CI red -> 2108, limit 2161, notes kept); the window-bin planner breaks head-bin ties away from phase-only groups so a start file pad no longer gives the rebind phase a fault",
+  "branch": "task/crt-start-files-2",
+  "head": null,
+  "gate": {"affected": "see job crt-start-files-2-gate4 (direct tier)", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "Window-bin planner, latent: the head bin is not aligned at its start, so text ahead of the group beyond HEAD_ROOM (1 KiB) pushes a suffix of bin 0 into its own window; a phase-only section there with no warm-up section after it is the phase's first touch of that window. The tie-break fixes every case with an equal-cost later bin; the fast plan's two float-phase sections (printf Env::text, conv::printf_text) have none and stay in that tail (reachable only by a pre pad of most of a window; float is not in the text-phase test).",
+    "Rule slip: one `sed -i` edit of records/decisions/D-X/D-X.144.toml (a one-phrase wording change, later rewritten with the Edit tool); not refused, result checked."
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "perf", "what": "static cbench_startup/startup_instr_c, with the required notes (Zen 1, release)", "before": 2188, "after": 2108, "unit": "instr/call", "measured": true},
+    {"kind": "perf", "what": "static cbench_startup/startup_instr_c, notes removed (Zen 1, release)", "before": 2160, "after": 2096, "unit": "instr/call", "measured": true},
+    {"kind": "faults", "what": "page_faults rebind phase, start file padded 0x800 ahead of the hot group (full profile)", "before": 1, "after": 0, "unit": "faults", "measured": true},
+    {"kind": "perf", "what": "empty-main dynamic start, user instructions (Skylake-SP), old vs new crt1", "before": 787674, "after": 792166, "unit": "instr/start", "measured": true},
+    {"kind": "perf", "what": "3-library dynamic start, user instructions (Skylake-SP)", "before": 1042894, "after": 1035107, "unit": "instr/start", "measured": true},
+    {"kind": "perf", "what": "clock_gettime dynamic start, user instructions (Skylake-SP)", "before": 821675, "after": 814266, "unit": "instr/start", "measured": true},
+    {"kind": "faults", "what": "dynamic start faults (Skylake-SP): empty main 57->56, 3 libraries 73->71, clock_gettime 61->59", "before": 61, "after": 59, "unit": "faults (clock_gettime row)", "measured": true},
+    {"kind": "coverage", "what": "tests: program_reads_only_its_three_types_among_any_others, a_measured_phase_only_section_never_ends_the_head_bin; plants in handoff/CRT-START-FILES-2-plants.txt", "before": 0, "after": 9, "unit": "plants", "measured": true}
+  ],
+  "jobs": ["keke:crt-start-files-2-gate4", "keke:crt-start-files-2-plants5", "keke:crt-start-files-2-lint4", "keke:crt-start-files-2-fullprof4", "keke:crt-start-files-2-xtest4", "mei:crt-start-files-2-sky0"],
+  "improvement": "The text-phase test names the failing mode and pad but not the window; printing the faulting section (perf page-fault address -> map) in its message would have saved this leg's probe.",
+  "next_step": "Land; follow-up: the head-bin tail condition in general (order phase-only sections ahead of a warm-up section, or a HEAD_ROOM covering the tested pads).",
+  "report_file": "handoff/CRT-START-FILES.md"
+}

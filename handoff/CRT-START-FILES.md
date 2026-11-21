@@ -2,53 +2,54 @@
 
 Branch `task/crt-start-files-2` (continues `task/crt-start-files`, merge base origin/next ed38a2b3d). Decision:
 D-X.144 (records/decisions/D-X/D-X.144.toml, this chain's own record, not landed). Plants: handoff/CRT-START-FILES-plants.txt
-(legs 1-2), handoff/CRT-START-FILES-2-plants.txt (leg 3). Role keke:~/w/n2 (Zen 1 host). Scratch on keke: ~/work/crt-start-files-2/.
+(legs 1-2), handoff/CRT-START-FILES-2-plants.txt (legs 3-4). Role keke:~/w/n2 (Zen 1 host). Scratch on keke:
+~/work/crt-start-files-2/ (ab.sh static A/B, pf.sh text-phase fault probe, tail.py head-bin tail classifier).
 
 ## Legs 1-2 (CRT-START-FILES, done; details in D-X.144)
 Start objects: `_start` (endbr64), `.note.gnu.property` (IBT, SHSTK, x86-64 baseline), `.note.ABI-tag`, `__data_start`,
-weak `data_start`, `_IO_stdin_used`, nothing aligned above 64. The layout anchors are libc.a's first two members
-(`niji_static_anchor.o`, `niji_static_pie_anchor.o`). crt1.o 67,136 -> 1,816 bytes; dynamic empty main one `R E` LOAD,
-page-aligned LOADs, IBT/SHSTK kept. Ruling #7085 accepted the dynamic +4,932 user instructions (per-header cost in
-ld.so: DYN-START-RING's item). Tests and leg-2 fixes: see D-X.144 and the plants file.
+weak `data_start`, `_IO_stdin_used`, nothing aligned above 64. The layout anchors are libc.a's first two members.
+crt1.o 67,136 -> 1,816 bytes; dynamic empty main one `R E` LOAD, page-aligned LOADs, IBT/SHSTK kept. Ruling #7085
+accepted the dynamic +4,932 user instructions (per-header cost in ld.so: DYN-START-RING's item).
 
-## Leg 3 (CRT-START-FILES-2): the CI instruction red
-CI red: static `cbench_startup/startup_instr_c` 2191 vs limit 2161 (merged tree f56c02def).
-Attribution (keke, release profile, the bench linked as `cargo xtask bench` links it, ~/work/crt-start-files-2/ab.sh,
-min of 5 children x3, all identical): head cbf537515 2188; same with crt1's property note removed 2160 (ABI-tag note
-removed: 2188, costs nothing). Same 5 LOADs in all variants (no read-only PT_LOAD flip, ruling #7061 not involved).
-Cause: the static start's one walk over the program headers (`niji_rt::start::program`) cost 14 instructions per
-unread non-load header and 8 per PT_LOAD; the property note adds PT_NOTE + PT_GNU_PROPERTY (+28).
-Fix (commits 59b0a202f, d7c085162, 7e6a6d3de): a header's type is tested with one bit test
-(`READS >> (type & 63) & 1`, mask of PT_PHDR/PT_TLS/PT_GNU_RELRO; a type sharing a bit is compared exactly, first of
-each type still wins), and the walk runs over whole headers with one pointer bound. `as_chunks` gave that but is
-newer than the workspace MSRV 1.85 (clippy incompatible_msrv), so the boundary now hands the start
-`&[[u64; 7]]` (`conv::headers_at`, UNSAFE(slice), same contract as `words_at`, cfg feature "runtime");
-`start::program(heads, phdr)`; `program_words(words, phnum, phdr)` keeps the word form for `relro()` and tests.
-Measured with the as_chunks version (59b0a202f, same loop shape): 2188 -> 2133 with notes, 2160 -> 2121 without
-(6 instructions per header). An intermediate `while get(at)` version measured 2194 (not inlined, bounds checks):
-superseded. NOT YET MEASURED: the final head (headers_at form); expected the same as 59b0a202f.
-Test: `crates/rt/src/start.rs` `program_reads_only_its_three_types_among_any_others`. Plants: 5/5 CAUGHT (job
-crt-start-files-2-plants2 on 7e6a6d3de).
+## Leg 3 (done): the CI instruction red
+Static `cbench_startup/startup_instr_c` 2191 vs limit 2161: the property note adds PT_NOTE + PT_GNU_PROPERTY and the
+static start's header walk cost 14 instructions per unread header. Fix: one bit test per header type
+(`READS >> (type & 63) & 1`), whole headers with one bound (`conv::headers_at`, `start::program(heads, phdr)`).
+Test `program_reads_only_its_three_types_among_any_others`; plants lines 3-7.
 
-## Open: RED on the final head 7e6a6d3de (job crt-start-files-2-fullprof1)
-`NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`: `init_zero_fault_calls_hold_at_every_text_phase`
-"pre 0x800: rebind 1 faults, want 0" (every run; all other pads/modes 0). Inherited head passed (fullprof0).
-Window bin 0 (release so log, WINDOW-BIN-BYTES): inherited head 63176 B / 103 members (headroom 1336); as_chunks
-build 63112 / 103; final head 64395 / 109 members (headroom 117), bin 1 74 -> 68 members: the packer moved 6
-members from bin 1 into bin 0 with this head. This touches start-up code, so ALWAYS FORWARD applies (not jitter).
-Saved: ~/work/crt-start-files-2/layout-bins.release.59b0a202f.tsv (as_chunks build), layout-bins.fast.cbf537515.tsv.
+## Leg 4 (this leg): the full-profile hot_text_products red, fixed in the window-bin planner
+Red: `init_zero_fault_calls_hold_at_every_text_phase` "pre 0x800: rebind 1 faults" (full profile only).
+Cause (probe pf.sh, maps and perf page-fault addresses): a `pre` pad shifts the whole hot group; the head bin is the
+one bin not aligned at its start (HEAD_ROOM 1 KiB), so a pad > ~0x3c0 pushes a suffix of bin 0 into a window of its
+own and bin 1 realigns past it. Leg 3's start is 108 bytes smaller (5150 -> 5042), so the planner fitted the six
+rebind-phase-only sections (same_texts, Mo::hinted, Mo::form, unlink, unlinkat, rmdir; 1,154 B) at the end of bin 0
+(64,395 of 64,512 B). At pad 0x800 that suffix held only them: rebind's first touch of the window = 1 fault. At 0x2000
+the suffix also held niji_machine_equal (run in the warm-up): 0.
+Fix (xtask/src/bins.rs `head_takes`, `put`): a group counting a phase mode (mode without its `.pre` in the signature)
+takes a later bin rather than the head bin when both charge it the same modes: a tie-break only, so no mode's window
+count can move. Two stricter forms were tried and REJECTED (jobs fullprof2, fullprof3): refusing such groups in the
+head bin outright pushed the start-up group out (fullprof2), then strings/locale over their window budgets
+(fullprof3: strings 1/0, locale 3/2); the fast plan's float sections have no other zero-cost bin either.
+Test `a_measured_phase_only_section_never_ends_the_head_bin`; plants lines 9-12.
+Residual (INFORMATIONAL, not fixed): the exact condition is "no phase-only section of bin 0 without a warm-up section
+of that phase after it"; tail.py shows the fast plan's two float-phase sections (printf Env::text, conv::printf_text)
+violate it, reachable only by a pre pad of most of a window and not covered by the text-phase test (float untested).
+
+## Results on the final head
+Static `startup_instr_c` (ab.sh, release/full profile, min of 5 x3, all identical; job fullprof4): with notes 2108
+(CI red 2191, limit 2161), notes removed 2096; same 5 LOADs (no read-only PT_LOAD flip, ruling #7061 not involved).
+Full profile `hot_text_products` green, bin 0 62,984 B / 103 members (headroom 1,528), windows per mode all within
+budget (fullprof4). Plants (plants5): 9 lines, see the job log; lint4 green (clippy -D warnings, static).
+Ruling #7085's dynamic rows on the Skylake-SP class (#7090; mei, Xeon Platinum 8151; sky.sh = leg 1's startcount.sh
+with the final head's libc.so.6/ld.so, old vs new crt1; execcount 101 runs, user / kernel median / faults):
+empty main 787,674 -> 792,166 user (+4,492), kernel 860,465 -> 852,395, faults 57 -> 56; 3 libraries 1,042,894 ->
+1,035,107 (-7,787), kernel 1,289,172 -> 1,276,266, faults 73 -> 71; clock_gettime 821,675 -> 814,266 (-7,409), kernel
+894,339 -> 881,656, faults 61 -> 59. Same shape as the Zen 1 host.
+Jobs: keke crt-start-files-2-fullprof4, -plants5, -lint4, -gate4, -xtest4; mei crt-start-files-2-sky0.
+Superseded: fullprof1 (red, 7e6a6d3de), fullprof2/fullprof3 (rejected stricter rules), plants3 (refused pattern),
+plants4 (killed, older rule), bins0, pf0, aff0/aff1 (probes).
 
 ## Exact next step
-1. On keke: diff `~/w/n2/target/product/release/layout-bins.tsv` against layout-bins.release.59b0a202f.tsv: which
-   6 members moved to bin 0, and why (start<false>/<true> size? `program_words` or `headers_at` emitted out of
-   line?). Make the start's code match the as_chunks build's shape (e.g. `#[inline(always)]` on `headers_at`, or
-   keep `program_words` out of the start path), rebuild release, rerun hot_text_products.
-2. Then: `sh ~/work/crt-start-files-2/ab.sh ~/w/n2 ~/work/crt-start-files-2/ab3` (expect ~2133), clippy + static,
-   direct-tier gate, `cargo xtask test`, fullprof, plants rerun on the final head, D-X.144's numbers checked
-   (the body already states the 59b0a202f numbers), report json, precheck, handback-check.
-3. Brief item still owed: Skylake-SP class numbers for ruling #7085's dynamic rows (#7090), same rows.
-
-## Jobs (keke)
-Green, but on older heads: crt-start-files-2-lint0, crt-start-files-2-fullprof0 (inherited cbf537515),
-crt-start-files-2-lint2 (d7c085162), crt-start-files-2-plants2 (7e6a6d3de, 5/5). Red: crt-start-files-2-fullprof1
-(7e6a6d3de). Superseded: crt-start-files-2-plants1 (killed, stale code), ab0-ab2, cg, cg2 (probes).
+None for the story once gate4/xtest4 are green: land. Follow-ups (not this story): the head-bin tail condition in
+general (Residual above; a planner that orders the head bin's phase-only sections ahead of a warm-up section, or a
+HEAD_ROOM covering the text-phase pads); the per-header dynamic start cost is DYN-START-RING's (#7062).
