@@ -240,8 +240,10 @@ fn a_killed_run_leaves_no_process() {
         return;
     }
     let token = format!("niji-contain-{}", std::process::id());
+    // reexec-guard: allow(the child is killed mid-run, so it never prints its summary; that it ran the test is
+    // shown by `started`: its root process appears only from this test's helper side)
     let mut helper = Command::new(std::env::current_exe().unwrap())
-        .args(["a_killed_run_leaves_no_process", "--exact", "--test-threads=1"])
+        .args(["a_killed_run_leaves_no_process", "--exact", "--include-ignored", "--test-threads=1"])
         .env_clear()
         .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
         .env(HELPER, &token)
