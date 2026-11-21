@@ -5,7 +5,7 @@
   "result": "Static start reads program headers with one bit test each (startup_instr_c 2191 CI red -> 2108, limit 2161, notes kept); the window-bin planner breaks head-bin ties away from phase-only groups so a start file pad no longer gives the rebind phase a fault",
   "branch": "task/crt-start-files-2",
   "head": null,
-  "gate": {"affected": "see job crt-start-files-2-gate4 (direct tier)", "peak": null},
+  "gate": {"affected": "pending: crt-start-files-2-gate4 (direct tier, 267 of 305 targets); plants 9/9 CAUGHT (crt-start-files-2-plants5)", "peak": null},
   "accepted_first_attempt": null,
   "rulings": [],
   "informational": [

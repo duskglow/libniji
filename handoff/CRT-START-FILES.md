@@ -39,7 +39,7 @@ violate it, reachable only by a pre pad of most of a window and not covered by t
 Static `startup_instr_c` (ab.sh, release/full profile, min of 5 x3, all identical; job fullprof4): with notes 2108
 (CI red 2191, limit 2161), notes removed 2096; same 5 LOADs (no read-only PT_LOAD flip, ruling #7061 not involved).
 Full profile `hot_text_products` green, bin 0 62,984 B / 103 members (headroom 1,528), windows per mode all within
-budget (fullprof4). Plants (plants5): 9 lines, see the job log; lint4 green (clippy -D warnings, static).
+budget (fullprof4). Plants (plants5): 9/9 CAUGHT, no WARN lines; lint4 green (clippy -D warnings, static).
 Ruling #7085's dynamic rows on the Skylake-SP class (#7090; mei, Xeon Platinum 8151; sky.sh = leg 1's startcount.sh
 with the final head's libc.so.6/ld.so, old vs new crt1; execcount 101 runs, user / kernel median / faults):
 empty main 787,674 -> 792,166 user (+4,492), kernel 860,465 -> 852,395, faults 57 -> 56; 3 libraries 1,042,894 ->
