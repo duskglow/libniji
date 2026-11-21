@@ -1,0 +1,102 @@
+{
+ "task": "DL-PROCESS-OBJECTS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Part 2 of DL-PROCESS-OBJECTS: the loader's object tables (link-map nodes, object/symbol records, readers' table, Finis, lock-held lists, per-call scratch) grow by never-moved generations past 512 objects; within 512 the reader hot paths count at or below next; part 3 (TLS) left for a later story",
+ "branch": "task/dl-process-objects-2",
+ "head": "9601fcc70",
+ "gate": {
+  "affected": "747 passed / 0 failed (11 suites, direct tier, 6 targets)",
+  "peak": "2.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Freed loader slots are reused only from the top, so out-of-order dlclose (FIFO plugin churn) leaves holes; past 512 the tables now grow per hole and dlclose/live_set walk up to the top (before part 2 such a process failed at 512)",
+   "recommendation": "a follow-up story: reuse a run of freed slots below the top (first fit for the set's size)"
+  }
+ ],
+ "informational": [
+  "A program linked with -Wl,-rpath,<products> naming libc.so.6 by soname did not find it at start ('cannot open shared object file'); tests and count.sh name libc by path, not chased",
+  "libniji's _dl_find_object is linear in the objects (18462 instructions for the last of 104 objects; the reference 167) and dladdr about 3x the reference: separate performance stories",
+  "cargo xtask test (dl-process-objects-2-xtest): 6980/6980 then 4853/4854; the one failure, niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range (s03_memory_symbols.rs:1008, the pinned gap cannot be mapped again), is on next too: run 100 times under xtask test native-pass runner next fails 100/100, this branch 97/100; both pass 100/100 run plainly. Not this story (heap KernelPages, untouched); needs its own story",
+  "Plant view-node-addr was caught by the 600 s timeout, not its message: a wrong decode makes the chain loop and the lock-free walk guard is 2^32 steps; a tighter guard (the published count) would turn such a defect into a clean failure"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "dlopen past 512 objects: 'cannot load more objects' at the 510th library is gone (2000-object test, output equal to the reference's)",
+   "before": 512,
+   "after": null,
+   "unit": "objects per process (memory bound after)",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr, last of 104 objects (Skylake-SP, user instructions per call)",
+   "before": 2441,
+   "after": 2239,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr, own object (104 objects)",
+   "before": 1002,
+   "after": 928,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "_dl_find_object, last of 104 objects",
+   "before": 18464,
+   "after": 18462,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dl_iterate_phdr full walk of 104 objects: +3 per walk (the final generation compare)",
+   "before": 16021,
+   "after": 16024,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "dlopen_process_objects_out_of_memory_is_clean: 48 limits -> 11 (sweep stops after two completed runs in a row); 474 s for that test in part 1's gate, 20.9 s for the whole 3-test binary now",
+   "before": 474,
+   "after": 20.9,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the table bounds, the later-generation decodes and the readers' cold continuations",
+   "before": null,
+   "after": 18,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "DL-PROCESS-OBJECTS part 3 (TLS modules, MODULES_MAX)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "cargo xtask test runs ~11800 tests (46 min here) for a loader change; a failure already on next in it (heap gap test under the native-pass runner) makes every start-up-touching story red until fixed: a next-health check before briefs require it would save each story the bisect",
+ "next_step": "part 3 (TLS, MODULES_MAX) as a new story from handoff/DL-PROCESS-OBJECTS.md; follow-up for slot reuse below the top",
+ "report_file": "handoff/DL-PROCESS-OBJECTS-2.md",
+ "jobs": [
+  "mei:dl-process-objects-2-gate",
+  "mei:dl-process-objects-2-plants2",
+  "mei:dl-process-objects-2-t6",
+  "mei:dl-process-objects-2-xtest",
+  "mei:dl-process-objects-2-fullprof"
+ ]
+}

@@ -32,7 +32,11 @@ objects" is gone; a failed reservation is `<name>: cannot allocate memory` befor
 - Jobs on the final code tree: `dl-process-objects-2-plants2` (18 plants), `dl-process-objects-2-gate` (direct
   tier, 6 targets), `dl-process-objects-2-xtest` (`cargo xtask test`), `dl-process-objects-2-fullprof`
   (`NIJI_FULL_PROFILE=1` so + hot_text_products); chained by `~/work/DL-PROCESS-OBJECTS-2/chain.sh`.
-  Results: see handoff/reports/DL-PROCESS-OBJECTS-2.json and the hand-back.
+  Results: plants 18/18 CAUGHT (view-node-addr by the 600 s timeout: a wrong decode loops the chain, the walk's
+  guard is 2^32 steps); gate 747 passed, 0 failed, peak 2.9G; `cargo xtask test` 6980/6980 then 4853/4854, the
+  failure `s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (heap, untouched) is
+  on next too: 100 runs under the native-pass runner, next 100 fail, branch 97; plain runs 0 fail on both
+  (`~/work/DL-PROCESS-OBJECTS-2/rep2.sh`, job `dl-process-objects-2-rep2`); fullprof green (hot_text_products 32 passed).
 
 **Superseded.** `dl-process-objects-2-plants` (stopped: reader code changed), `-counts2`, `-t3`, `-t4`, `-t5`
 (earlier trees).
