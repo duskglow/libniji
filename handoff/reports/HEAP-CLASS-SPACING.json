@@ -20,4 +20,5 @@
  "improvement": "A heap-layout story should start from per-slab fault addresses of libniji's own release build (perf record -e page-faults -c 1 -d, bucketed by slab: one minute per workload) rather than a model from glibc-linked size histograms, which missed du by ~45 pages per run here; wl_kits could also record max RSS",
  "next_step": "Do not land; if the find case matters, a RETHINK of when to split a class (only where many same-size blocks are live together), measured per slab first",
  "report_file": "handoff/HEAP-CLASS-SPACING.md",
- "jobs": ["keke:heap-class-spacing-gate3", "keke:heap-class-spacing-plants3", "keke:heap-class-spacing-kits", "keke:heap-class-spacing-percall", "keke:heap-class-spacing-findrel", "keke:heap-class-spacing-dufaults", "keke:heap-class-spacing-smallrss"]}
+ "jobs": ["keke:heap-class-spacing-gate3", "keke:heap-class-spacing-plants3", "keke:heap-class-spacing-percall2"],
+ "data_jobs": "keke: heap-class-spacing-kits, -findrel, -dufaults, -smallrss and -percall measured 91cfc81d5 (code identical to the head apart from one comment and one test), against base jobs heap-class-spacing-kits-base and -find-base2 on 7e5d8b3fa; run from ~/wl/src copies, so precheck cannot judge them"}

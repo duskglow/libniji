@@ -53,8 +53,9 @@ any of them would win. Per the RUT RULE a second spacing tweak is not tried here
 ## Proof run on the final code head (9b2f88563)
 Gate (direct tier) `heap-class-spacing-gate3`: 10 suites ok, 1456 passed, 0 failed, conformance 9 passed, peak 11G,
 `affected: ok`. Plants `heap-class-spacing-plants3`: 5 CAUGHT, 0 SURVIVED, no WARN. Plants (`handoff/HEAP-CLASS-SPACING-plants.txt`, 5 plants: off-by-one class boundary, old
-table restored, table rule, aligned index, above-1 KiB arithmetic). Counts (on 91cfc81d5, the same code apart from a comment and the test): kits, percall,
-findrel; diagnostics dufaults, smallrss (keke). Earlier: plants2 5/5 CAUGHT on
+table restored, table rule, aligned index, above-1 KiB arithmetic). Per call on the final head: `heap-class-spacing-percall2`. Data on 91cfc81d5 (the same code
+apart from a comment and the test; run from ~/wl/src copies, so precheck cannot judge them): `-kits`, `-percall`,
+`-findrel`, diagnostics `-dufaults`, `-smallrss`; base: `-kits-base`, `-find-base2` (keke). Earlier: plants2 5/5 CAUGHT on
 36e4e1270; gate2 red on `realloc_in_place_fit_rule` (it hard-coded 896 as the class below 1 KiB; fixed in 9b2f88563).
 Not run (DO NOT LAND): `cargo xtask test`, full-profile hot_text_products, layout-bins diff, D-3.23.
 
