@@ -46,7 +46,10 @@ Every other exported replaced name was already visible (vgnames.py over the head
 `--trace-redir=yes` on strs, head: active redirections in libc.so.6 for every exported replaced name above, plus
 `__GI_strlen`, `__GI_strnlen`, `__GI_memchr`, `__GI___rawmemchr`. check-system PASS (7 packages).
 
-## Jobs (mei, code head f9dd3abc1; later commits handoff/ only)
+## Jobs (mei, code head f9dd3abc1; later commits handoff/ and the record only)
+
+D-X.154 is `records/decisions/D-X/D-X.154.toml` (59235050f; first written by hand into the generated
+plan/07-decisions table, which precheck's train-owned check refused). Precheck on 59235050f: GREEN (34 checks).
 
 * `valgrind-string-redirect-gate`: direct tier (FULL: the train's, xtask/src/so.rs), 16 suites ok, 11263 passed,
   0 failed; conformance 142/0; peak 15G.
