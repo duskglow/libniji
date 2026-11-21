@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "COMPAT19-LDSO-COST merged with next cd1bbabdb (both sides kept: next's view arena and StartMapper, D-27.71's planned map): -17.2k user instructions per empty main, -20.5k with three libraries against next on the Zen 1 host, faults and syscalls unchanged; plants 4/4 CAUGHT; direct gate green",
  "branch": "task/compat19-ldso-cost-2",
- "head": null,
+ "head": "b8387b18b",
  "gate": {
   "affected": "927 passed / 0 failed (compat19-ldso-cost-2-gate, direct tier, keke, 12 suites); lint1 (clippy -D warnings + xtask static) green; plants 4 CAUGHT; xtest and hot: see the hand-back",
   "peak": "gate: peak memory 2.9G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"
