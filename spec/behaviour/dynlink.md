@@ -172,7 +172,10 @@ libraries: <name>: cannot open shared object file` (no errno text); an empty nam
 `: error while loading shared libraries: cannot open shared object file`. The same for `--list
 <name>` and with `LD_TRACE_LOADED_OBJECTS=1`. A name the cache lists runs the cache's file, even
 when the working directory and `LD_LIBRARY_PATH` hold another file of that name, and the program's
-`argv[0]` is the name as given. A name with a `/` (`./prog`, `lib/prog`) is opened as given.
+`argv[0]` is the name as given. `--list <name>` and `LD_TRACE_LOADED_OBJECTS=1` for a name the
+cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
+working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
+is opened as given.
 
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are

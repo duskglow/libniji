@@ -509,9 +509,12 @@ fn ldso_program_without_slash() {
             .unwrap();
         assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     };
-    for (out, tag) in [("prog", "cwd"), ("lib/prog", "libdir"), ("bin/prog", "path"), ("libprogx.so.1", "cwd"), ("lib/libprogx.so.1", "libdir"), ("cache/libprogx.so.1", "cache")] {
+    for (out, tag) in [("prog", "cwd"), ("lib/prog", "libdir"), ("bin/prog", "path"), ("lib/libprogx.so.1", "libdir"), ("cache/libprogx.so.1", "cache")] {
         cc(out, tag);
     }
+    // The working directory's `libprogx.so.1` is not an object: running, listing or tracing it
+    // instead of the cache's file gives a different result.
+    std::fs::write(d.join("libprogx.so.1"), "not an object\n").unwrap();
     let run = |args: &[&str], env: &[(&str, String)]| {
         // No wrapper process: `LD_TRACE_LOADED_OBJECTS` would list the wrapper instead.
         let o = Command::new(&ld).args(args).envs(env.iter().map(|(k, v)| (k, v))).current_dir(&d).output().unwrap();
@@ -547,11 +550,14 @@ fn ldso_program_without_slash() {
     }
     let target_x = d.join("cache/libprogx.so.1").display().to_string();
     std::fs::write(d.join("ld.so.cache"), cache_file(&[(FLAGS, "libprogx.so.1", &target_x, None)], &[])).unwrap();
-    let in_ns = |args: &[&str]| {
+    // `trace` exports `LD_TRACE_LOADED_OBJECTS=1` just before the loader starts (not to `unshare`
+    // or `sh`, which would list themselves).
+    let in_ns_with = |trace: bool, args: &[&str]| {
         let o = Command::new("unshare")
-            .args(["-r", "-m", "sh", "-c","mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
+            .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && t=$3 && shift 3 && if [ \"$t\" = 1 ]; then export LD_TRACE_LOADED_OBJECTS=1; fi && exec \"$@\"", "sh"])
             .arg(d.join("ld.so.cache"))
             .arg(&system_cache)
+            .arg(if trace { "1" } else { "0" })
             .arg(&ld)
             .args(args)
             .env("LD_LIBRARY_PATH", &lib)
@@ -560,8 +566,10 @@ fn ldso_program_without_slash() {
             .unwrap();
         (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
     };
+    let in_ns = |args: &[&str]| in_ns_with(false, args);
     assert_eq!(in_ns(&["libprogx.so.1", "a"]), (Some(0), "ran:cache\narg:libprogx.so.1\narg:a\n".into(), String::new()), "cache hit");
     assert_eq!(in_ns(&["--list", "libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "--list cache hit");
+    assert_eq!(in_ns_with(true, &["libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "LD_TRACE_LOADED_OBJECTS cache hit");
     assert_eq!(in_ns(&["prog", "a"]), missing("prog"), "not in the cache");
     let _ = std::fs::remove_dir_all(&d);
 }
