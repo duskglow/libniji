@@ -1,0 +1,11 @@
+{"task": "SL-HEADERS-S11-5", "model": "sonnet", "tokens": null,
+ "result": "merge-only: origin/next merged into slice 11, both sides kept in header_check.py and headers.rs; clippy, static, gate rc 0, plants 23 CAUGHT / 0 WARN",
+ "branch": "task/sl-headers-s11-5", "head": "3f2743071",
+ "gate": {"affected": "gate rc 0 (direct tier, escalated to FULL clippy+test)", "peak": "16G"},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": ["Open item 1 of handoff/SL-HEADERS-S11.md still waits for the other slices' headers."],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "slice 11 lands on next again after the header_check.py conflict", "before": null, "after": null, "unit": "story", "measured": false}],
+ "jobs": ["mei:sl-headers-s11-5-gate", "mei:sl-headers-s11-5-plants"],
+ "improvement": "none", "next_step": "none for this story",
+ "report_file": "handoff/SL-HEADERS-S11.md"}

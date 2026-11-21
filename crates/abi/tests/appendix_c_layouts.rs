@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (238 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (241 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -685,6 +685,30 @@ fn abi_sem_t() {
     expect_type("sem_t", size_of::<sem_t>(), align_of::<sem_t>());
     expect_member("sem_t", "__size", offset_of!(sem_t, __size));
     expect_member("sem_t", "__align", offset_of!(sem_t, __align));
+}
+
+#[test]
+fn abi_union_ieee754_float() {
+    expect_type("union ieee754_float", size_of::<union_ieee754_float>(), align_of::<union_ieee754_float>());
+    expect_member("union ieee754_float", "f", offset_of!(union_ieee754_float, f));
+    expect_member("union ieee754_float", "ieee", offset_of!(union_ieee754_float, ieee));
+    expect_member("union ieee754_float", "ieee_nan", offset_of!(union_ieee754_float, ieee_nan));
+}
+
+#[test]
+fn abi_union_ieee754_double() {
+    expect_type("union ieee754_double", size_of::<union_ieee754_double>(), align_of::<union_ieee754_double>());
+    expect_member("union ieee754_double", "d", offset_of!(union_ieee754_double, d));
+    expect_member("union ieee754_double", "ieee", offset_of!(union_ieee754_double, ieee));
+    expect_member("union ieee754_double", "ieee_nan", offset_of!(union_ieee754_double, ieee_nan));
+}
+
+#[test]
+fn abi_union_ieee854_long_double() {
+    expect_type("union ieee854_long_double", size_of::<union_ieee854_long_double>(), align_of::<union_ieee854_long_double>());
+    expect_member("union ieee854_long_double", "d", offset_of!(union_ieee854_long_double, d));
+    expect_member("union ieee854_long_double", "ieee", offset_of!(union_ieee854_long_double, ieee));
+    expect_member("union ieee854_long_double", "ieee_nan", offset_of!(union_ieee854_long_double, ieee_nan));
 }
 
 #[test]

@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S11-4", "model": "sonnet", "tokens": null,
+ "result": "slice 11 close-out: ifmacro-owner survivor fixed (math.h.in no longer lists isnan/isinf in @@owns-macro, so @@if-macro ownership is what the plant breaks), 3 plants given a msg naming the stale-header build failure; plants 23 CAUGHT / 0 survivors / 0 WARN, gate green",
+ "branch": "task/sl-headers-s11-4", "head": "9a96912bd",
+ "gate": {"affected": "gate rc 0 (direct tier, --base origin/next)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": ["Open item 1 of handoff/SL-HEADERS-S11.md (cmath/complex in every -std, C++ rows) waits for the other slices' headers; items 2 and 3 unchanged."],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice-11 plants: 23 caught, 0 survivors, 0 without msg", "before": 19, "after": 23, "unit": "plants caught", "measured": true}],
+ "jobs": ["mei:sl-headers-s11-4-plants", "mei:sl-headers-s11-4-gate"],
+ "improvement": "plants.md could say that a plant on a generator file is caught by the products build, so msg: needs the stale-header text",
+ "next_step": "none for this story; item 1 of the handoff when other slices land",
+ "report_file": "handoff/SL-HEADERS-S11.md"}
