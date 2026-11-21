@@ -1,6 +1,6 @@
 {"task": "RELEASE-SNAPSHOT-1121D", "model": "opus", "tokens": null,
  "result": "COMPLETE: snapshot-ready at cd1bbabdb (serial 5, staged snapshot-20261121.5): no regression vs 21.4; #14 in the package (zic/zdump: vs glibc 2.39 zdump -v identical, zic 591/598 decode the same, rest read the same; localedef missing, partial); #20 as FCLOSE-COOKIE-SEEK states; wide reads 640 -> 120 instr (2-byte fgetwc_unlocked); start-up unchanged",
- "branch": "task/release-snapshot-1121d", "head": null,
+ "branch": "task/release-snapshot-1121d", "head": "6a54583bf",
  "gate": {"affected": "gate-1 GATE bad=0 (handoff-only branch); 31 snapshot checks same as 21.4", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
