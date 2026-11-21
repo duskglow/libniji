@@ -2495,13 +2495,21 @@ pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 /// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
 pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 
+/// zic and zdump (TZ-TOOLS, spec §31.9, §31.10): `csys/util/zic.c` (the source compiler and TZif writer) and
+/// `csys/util/zdump.c` (a front end over `localtime_r`), linked as getent is: `target/niji/zic` (libc-bin's
+/// `/usr/sbin/zic`), `target/niji/zdump` (`/usr/bin/zdump`) and the test links under `target/niji-test`.
+pub(crate) const ZIC_TEST: &str = "target/niji-test/zic";
+pub(crate) const ZDUMP_TEST: &str = "target/niji-test/zdump";
+
 fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
     run_dynamic_util(root, cc, "locale", LOCALE_TEST, cdebug)
 }
 
 fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
-    run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "zic", ZIC_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
