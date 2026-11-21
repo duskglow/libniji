@@ -15,40 +15,51 @@ latch (Boehm, MSPC 2012); `dlclose` removes entries at unpublish. `NESTED` -> wa
   ~17 instr/node; the index cost ~a dozen nodes).
 
 **Counts (instructions per call, dynamic, Zen 1 host; wl_percall spec `validation/percall/dl_objects.c`, corpus
-`validation/percall/dl_objects.sh` 600 libs in ~/work/dl-find-object-fast/q).** glibc / base d5764940d / head
-b2a8a77 (job pc2; `_dl_find_object` code unchanged since):
+`validation/percall/dl_objects.sh` 600 libs in ~/work/dl-find-object-fast/q).** glibc / base d5764940d / final
+head b4cba586a (code f92f73c40), job `dl-find-object-fast-pc3` (28 rows):
 
 | row | glibc | base | head |
 |---|---|---|---|
 | _dl_find_object last 104 | 173 | 18387 (-1: wrong) | 403 |
 | _dl_find_object last 600 | 159 | 110124 (-1) | 471 |
+| _dl_find_object middle 32 | 181 | 5715 (-1) | 373 |
 | _dl_find_object first 104 | 51 | 639 | 402 |
 | _dl_find_object last 4 | 89 | 873 | 332 |
-| dladdr last 104 (b2a8a77) | 794 | 2300 | 723 |
-| dladdr last 600 (b2a8a77) | 3274 | 23721 | 954 |
-| dl_iterate_phdr walk 104 | 3798 | 15833 | 15833 (not in scope of the index) |
+| dladdr last 600 | 3274 | 23721 | 968 |
+| dladdr last 104 | 794 | 2300 | 735 |
+| dladdr middle 104 | 540 | 1382 | 735 |
+| dladdr last 32 | 436 | 1004 | 703 |
+| **dladdr first 4/32/104/600** (program) | 301 | 1565 (1578.5 at 4) | **1607 (1633.5): +42..+55, slower** |
+| **dladdr last 4 / middle 4** | 1499 / 82820 | 949.5 / 121320.5 | **959.5 / 121344.5: +10 / +24, slower** |
+| dl_iterate_phdr walk 4/32/104/600 | 298/1278/3798/21171 | 633/4889/15833/95170 | same as base (untouched) |
 
-dladdr on b2a8a77 was slower than base on the `first` rows (1565 -> 1874) and with 4 objects; f92f73c40 fixes
-that (walk for short chains, program first): final rows in job `dl-find-object-fast-pc3`.
-C++ throw, 10 frames, instr/throw (job throw1; head in `dl-find-object-fast-throw2`): glibc prog/lib 8 objects
-29609/31399, 104 objects 29610/31950; base 44929/65705, 104 objects 44929/**437417**.
+C++ throw through 10 frames, instr/throw (job throw2): glibc prog/lib 8 objects 29608/31400, 104 objects
+29609/32406; base 44929/65705, 104 objects 44929/**437417**; head 36692/36370, 104 objects 38292/**37640**.
+
+**Cost (fix-forward, not done: no wall time left for a rerun).** The dladdr rows of a program address (+42..+55,
++2.7..3.5%) and two 4-object rows (+10, +24) are slower than base. The walk path differs from base only by one
+relaxed load (`readers::published()`) and a compare, so the excess is codegen (the shared `holds` closure /
+the larger read-section closure); trace of the head call: job trace1 (1606 instr: `containing` symbol search 415,
+`dladdr_entry` 20, `fill_start` 17). A base trace for comparison (trace2) was stopped in the queue. Fix-forward:
+test `holds(0)` before anything else (both paths start there) and keep the walk closure as base wrote it, then
+trace both revisions (`validation/wl_trace.sh --spec validation/percall/dl_objects.c <dir|rev> dladdr_first_4 dladdr`).
 
 **Proof.** Tests `crates/ld/tests/dl_find_object_index.rs` (map: span oracle at every segment edge and gap,
 before/after dlopen, after dlclose (checks 41/42), reopen; churn: 3 readers x 3000 open/close, check 71).
 Plants `handoff/DL-FIND-OBJECT-FAST-plants.txt`: 5/5 CAUGHT on b2a8a77 (job plants: stale-after-dlclose,
-torn-writer-no-odd, torn-reader-no-validate, search-edge, added-missing); rerun on the final head: plants2.
+torn-writer-no-odd, torn-reader-no-validate, search-edge, added-missing); final head: plants2 5/5 CAUGHT, no WARN.
 
 **Jobs on the final head (keke).** `~/work/dl-find-object-fast/seq2.sh`: lint (workspace clippy + static), gate2
 (direct tier, 56 tests), xtest (`cargo xtask test`), hot (NIJI_FULL_PROFILE so + hot_text_products).
 `par2.sh`: plants2, pc3, throw2. Superseded: t2 (wrong test name, killed), gate (b2a8a77, killed for the dladdr
 change), plants (b2a8a77), pc1/pc2 (older heads).
 
-**Open / next step (leg 3).** lint is GREEN (workspace clippy + static, code head f92f73c40). 1. `jobwait` the
-other six labels (gate2, xtest, hot, plants2, pc3, throw2; seq2/par2 run them in order); fix a red. Then fill the
-final numbers (pc3 dladdr rows: check no row slower than base; throw2 head row) into the table above and into
-`handoff/reports/DL-FIND-OBJECT-FAST.json` (gate, impact), commit, push, sync, `cargo xtask precheck --jobs
-<the seven labels> --head <sha>` on the role, `ops handback-check`, hand back COMPLETE (target not reached) or
-PENDING JOBS if ~45 min before the 22:06Z deadline. 2. Target not reached: `_dl_find_object` is
+**Coordinator note (DL-SLOT-REUSE #7379, 20:41Z): remove its +4 instr per dl_iterate_phdr call.** Not done: that
+change is not on next yet (not in this branch, base d5764940d), so there is nothing here to remove; this branch
+leaves dl_iterate_phdr unchanged against next before DL-SLOT-REUSE (pc3 rows above, base = head). Whoever merges
+both takes the REORDERED test out of the per-call path.
+
+**Next step.** 1. The dladdr fix-forward above (cost rows). 2. Target not reached: `_dl_find_object` is
 ~400 vs the reference's 51-197: profile the constant part (read section counters, `region()` slice, bounds-checked
 `word()`, `node_address`) with `validation/wl_trace.sh`; a first-object fast path is one option. dladdr `first` rows
 (program) stay ~5x the reference (symbol search, not the object search). `dl_iterate_phdr` walk ~4x: separate story.
