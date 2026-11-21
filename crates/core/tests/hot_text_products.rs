@@ -661,12 +661,13 @@ fn init_dynamic_start_system_calls_stay_within_their_bounds() {
     assert!(over.is_empty(), "a dynamic start makes more system calls than its bound (DYN-START-RING: the counts only go down): {over:?}");
 }
 
-/// [`init_dynamic_start_system_calls_stay_within_their_bounds`]: the empty main's calls besides `openat`.
-const EMPTY_CALLS: usize = 1000;
-/// The same for the main calling three libraries.
-const THREE_CALLS: usize = 1000;
-/// The same for the main calling `clock_gettime`.
-const CLOCK_CALLS: usize = 1000;
+/// [`init_dynamic_start_system_calls_stay_within_their_bounds`]: the empty main's calls besides `openat`
+/// (DYN-START-RING, measured on the Zen 1 host).
+const EMPTY_CALLS: usize = 23;
+/// The same for the main calling three libraries (DYN-START-RING).
+const THREE_CALLS: usize = 50;
+/// The same for the main calling `clock_gettime` (DYN-START-RING).
+const CLOCK_CALLS: usize = 23;
 
 #[test]
 fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
