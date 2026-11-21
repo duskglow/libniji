@@ -194,7 +194,9 @@ fn join(items: &[Item], b: &mut Bin, rest: &mut Vec<usize>) {
 }
 
 /// Whether a group of counted signature `sig` may go in the head bin: not when it counts a phase mode
-/// (one of `phases`, a mode with a warm-up). The head bin is the one bin that does not start on a window
+/// (one of `phases`, a mode with a warm-up) and is no start-up group. A start-up group is the head bin's
+/// own (it is placed first); the phase modes it counts run it past `f1` (in the release signatures: exit and
+/// the stdio that prints the count). The head bin is the one bin that does not start on a window
 /// boundary ([`HEAD_ANCHOR`]): text a program or its start file links ahead of the group beyond
 /// [`HEAD_ROOM`] pushes the head bin's tail into a window of its own, and the next bin moves to the
 /// boundary after it. A section of the tail that the warm-up runs faults that window before the phase; a
@@ -202,7 +204,7 @@ fn join(items: &[Item], b: &mut Bin, rest: &mut Vec<usize>) {
 /// show (CRT-START-FILES-2: a start file padded by 0x800 bytes, rebind 1 fault from its 6 measured-only
 /// sections at the end of the head bin). In any later bin the warm-up's windows stay the phase's.
 fn head_takes(sig: &BTreeSet<String>, phases: &BTreeSet<String>) -> bool {
-    sig.is_disjoint(phases)
+    sig.contains(STARTUP_MODE) || sig.is_disjoint(phases)
 }
 
 /// Places the group `rest` of counted signature `sig`: whole into the existing bin it charges the fewest
@@ -581,16 +583,18 @@ mod tests {
         // CRT-START-FILES-2 (no spec clause: build tooling, D-X.144): the head bin does not start on a
         // window boundary, so text ahead of the group beyond HEAD_ROOM pushes its tail into a window of its
         // own. A section only phase `s` measures (`p`, room to spare in the head bin) goes to a later bin;
-        // a section the warm-up runs too (`q`) and a whole-run mode's section (`w`) may still join the
-        // head bin. Without a warm-up anywhere, `s` is no phase mode and `p` joins the head bin.
+        // a section the warm-up runs too (`q`), a whole-run mode's section (`w`) and a start-up section
+        // the phase counts (`x`, exit code past `f1`) still join the head bin. Without a warm-up anywhere,
+        // `s` is no phase mode and `p` joins the head bin.
         let items = [
             item("t", 0x4000, 1, 0, &["true", "s", "s.pre"]),
+            item("x", 0x100, 1, 4, &["true", "s"]),
             item("q", 0x1000, 1, 1, &["s", "s.pre", "a"]),
             item("p", 0x1000, 1, 2, &["s"]),
             item("w", 0x1000, 1, 3, &["a"]),
         ];
         let p = plan(&items, &[]);
-        assert_eq!(names(&p, &items), [vec!["t", "q", "w"], vec!["p"]]);
+        assert_eq!(names(&p, &items), [vec!["t", "q", "w", "x"], vec!["p"]]);
         let plain = [item("t", 0x4000, 1, 0, &["true", "s"]), item("p", 0x1000, 1, 1, &["s2"])];
         assert_eq!(names(&plan(&plain, &[]), &plain), [vec!["t", "p"]]);
         let only = [item("p", 0x1000, 1, 0, &["s"]), item("r", 0x1000, 1, 1, &["s", "s.pre"])];
