@@ -1,0 +1,6 @@
+# Plants of HEADERS-GEN-S10-HOOKS (cargo xtask plants; docs/plants.md): slice 10's two shared generator edits.
+# Both hooks are data-driven and dormant on this base (no slice names p1_skip or must_fail, no wchar.h FILE row), so a plant
+# here cannot fail a test; slice 10's own plants (s10-file-tag-incomplete, s10-p1-file-incomplete, s10-p1-ftw-statx,
+# s10-regexp-must-fail, s10-must-fail-reason, s10-p5-regexp-in-p5) catch them once its rows land on top of this change.
+s10h-file-tag-only | xtask/src/headers/typedefs.rs | lit:cxx == "_IO_FILE" && !self.t.vis ==> cxx == "_IO_FILEX" && !self.t.vis | cargo xtask headers-gen --check | equivalent:dormant until slice 10 adds FILE to wchar.h; caught by s10-file-tag-incomplete there
+s10h-must-fail-reason | spec/tools/header_check.py | lit:r.returncode != 0 and "is not provided" in r.stderr ==> r.returncode != 0 and "is not provide-" in r.stderr | python3 spec/tools/header_check.py | equivalent:dormant until a slice names must_fail; caught by s10-must-fail-reason there
