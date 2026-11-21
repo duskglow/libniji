@@ -164,9 +164,14 @@ impl<'n> Request<'n> {
 /// Slots of a [`VersionMemo`] (a power of two).
 const MEMO_SLOTS: usize = 16;
 
+/// The [`MemoSlot`] key bit saying the name is one of the object's own definitions (else a
+/// requirement's).
+const MEMO_OWN: u32 = 1 << 30;
+
 /// One remembered version name: the object's string table (its address: the object's identity
-/// for the pass), which walk found it (bit 16: a reference's, else a definition's; bit 31: in use)
-/// with the index, and where the name lies in that string table.
+/// for the pass), which walk found it (bit 16: a reference's, else a definition's; bit 30: the name
+/// is the object's own definition's; bit 31: in use) with the index, and where the name lies in
+/// that string table.
 #[derive(Clone, Copy, Debug, Default)]
 struct MemoSlot {
     strtab: usize,
@@ -383,53 +388,60 @@ impl<'a> Object<'a> {
     /// object's string table address and the version index, when the name is one of this object's
     /// own definitions (no requirement gives the index), else `None`.
     pub(crate) fn reference_want_origin(&self, sym: u32, memo: &VersionMemo) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
-        let want = self.reference_want_with(sym, Some(memo))?;
-        let Want::Reference(name) = want else { return Ok((want, None)) };
-        let (Some(vs), Some(tab)) = (self.versym, self.dynm.strtab()) else { return Ok((want, None)) };
+        let Some(vs) = self.versym else { return Ok((Want::Oldest, None)) };
         let index = vs.get(sym)?.index;
-        // A definition of this object with this index matches exactly when its version name (the
-        // definition side's answer) is the very bytes the reference names. Asked through the memo; an
-        // error here only gives no origin, so a lookup that never reaches this object's definitions
-        // meets no error it did not meet before.
-        let own = matches!(self.memo_name(Some(memo), index, false), Ok(Some(d)) if core::ptr::eq(d, name));
-        Ok((want, own.then_some((tab.as_ptr().addr(), index))))
+        if index <= VER_NDX_GLOBAL {
+            return Ok((Want::Oldest, None));
+        }
+        // The reference side answers from this object's own definitions only when no requirement
+        // gives the index; a definition of this object with this index then has exactly that name
+        // (the definition side asks its own definitions first).
+        let (name, own) = self.memo_name_from(Some(memo), index, true)?.ok_or(LookupError::UnknownVersion { sym, index })?;
+        let origin = if own { self.dynm.strtab().map(|t| (t.as_ptr().addr(), index)) } else { None };
+        Ok((Want::Reference(name), origin))
     }
 
     /// The version name a reference with index `index` names: a requirement's, else one of the
-    /// object's own definitions.
-    fn reference_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
+    /// object's own definitions (`true`: the name is the definition's).
+    fn reference_name(&self, index: u16) -> Result<Option<(&'a [u8], bool)>, LookupError> {
         if let Some(name) = self.needed_version_name(index)? {
-            return Ok(Some(name));
+            return Ok(Some((name, false)));
         }
-        self.version_name(index)
+        Ok(self.version_name(index)?.map(|n| (n, true)))
     }
 
     /// [`Object::reference_name`] (`reference`) or [`Object::def_version_name`] of `index`, through
     /// `memo` ([`VersionMemo`]) when there is one.
     fn memo_name(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<&'a [u8]>, LookupError> {
-        let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name(index) };
+        Ok(self.memo_name_from(memo, index, reference)?.map(|(n, _)| n))
+    }
+
+    /// [`Object::memo_name`], and whether the name is one of this object's own definitions (else a
+    /// requirement's).
+    fn memo_name_from(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<(&'a [u8], bool)>, LookupError> {
+        let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name_from(index) };
         let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) else { return walk(self) };
         let base = tab.as_ptr().addr();
         let key = u32::from(index) | if reference { 1 << 16 } else { 0 } | 1 << 31;
         let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4)) & (MEMO_SLOTS - 1);
         let Some(slot) = memo.slots.get(at) else { return walk(self) };
         let s = slot.get();
-        if s.key == key && s.strtab == base {
+        if s.key & !MEMO_OWN == key && s.strtab == base {
             let (off, len) = (usize::try_from(s.off).unwrap_or(usize::MAX), usize::try_from(s.len).unwrap_or(0));
             if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
-                return Ok(Some(name));
+                return Ok(Some((name, s.key & MEMO_OWN != 0)));
             }
         }
-        let name = walk(self)?;
-        if let Some(n) = name {
+        let found = walk(self)?;
+        if let Some((n, own)) = found {
             let off = n.as_ptr().addr().wrapping_sub(base);
             if off.checked_add(n.len()).is_some_and(|end| end <= tab.len()) {
                 if let (Ok(off), Ok(len)) = (u32::try_from(off), u32::try_from(n.len())) {
-                    slot.set(MemoSlot { strtab: base, key, off, len });
+                    slot.set(MemoSlot { strtab: base, key: key | if own { MEMO_OWN } else { 0 }, off, len });
                 }
             }
         }
-        Ok(name)
+        Ok(found)
     }
 
     /// The name of version index `index` among this object's requirements (the `vna_other` of a
@@ -456,9 +468,15 @@ impl<'a> Object<'a> {
     /// index of the version it needs from the provider, and the provider's own references bind to
     /// that copy by that version (index space shared by `DT_VERDEF` and `DT_VERNEED`).
     fn def_version_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
+        Ok(self.def_version_name_from(index)?.map(|(n, _)| n))
+    }
+
+    /// [`Object::def_version_name`], and whether the name is one of this object's own definitions
+    /// (else a requirement's).
+    fn def_version_name_from(&self, index: u16) -> Result<Option<(&'a [u8], bool)>, LookupError> {
         match self.version_name(index)? {
-            Some(name) => Ok(Some(name)),
-            None if index > VER_NDX_GLOBAL => self.needed_version_name(index),
+            Some(name) => Ok(Some((name, true))),
+            None if index > VER_NDX_GLOBAL => Ok(self.needed_version_name(index)?.map(|n| (n, false))),
             None => Ok(None),
         }
     }
