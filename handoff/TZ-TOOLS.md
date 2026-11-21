@@ -1,9 +1,11 @@
 # TZ-TOOLS: `zic` and `zdump` in libc-bin (GitHub #14, the rest)
 
-**State.** Branch `task/tz-tools` (from origin/next `7e5d8b3fa`), role keke `~/w/n3`. Code head `e6633eb30`; this
-note and `handoff/reports/TZ-TOOLS.json` are the commit after it. Jobs: `tz-tools-gate` (direct tier,
-`--base origin/next`), `tz-tools-plants` (`handoff/TZ-TOOLS-plants.txt`, 11 plants); development runs
-`tz-tools-t1` (stopped, see the hand-back), `tz-tools-t2`, `tz-tools-t3` (earlier heads).
+**State.** Branch `task/tz-tools` (from origin/next `7e5d8b3fa`), role keke `~/w/n3`. Code head `0b7936dc5`; this
+note and `handoff/reports/TZ-TOOLS.json` are the commit after it. Jobs on the code head: `tz-tools-gate3` (direct
+tier, `--base origin/next`), `tz-tools-plants3` (`handoff/TZ-TOOLS-plants.txt`, 11 plants). Superseded:
+`tz-tools-gate` (clippy: host collections in the new test), `tz-tools-gate2` (the test compared program paths;
+zic and zdump name themselves by argv[0] as the reference does), `tz-tools-plants`, `tz-tools-plants2` (stopped /
+baseline red for the same reasons); development runs `tz-tools-t1` to `-t3`.
 
 ## On the branch
 
@@ -39,7 +41,9 @@ Not byte-identical (format freedom, RFC 9636): the order of the type table, unus
 Decoded differences left (listed in the test with reasons): fat/`-L` Asia/Tbilisi and Europe/Lisbon (the reference
 keeps one transition that changes nothing visible), Europe/Warsaw (standard-time indicator of the 1918 change);
 slim also America/Ciudad_Juarez, America/Ojinaga, America/Indiana/Winamac, Asia/Gaza, Asia/Hebron (handover to the
-footer one transition earlier or later; same reading). Tried and rejected: keeping every no-op line start (361/598).
+footer one transition earlier or later). The listed zones are read (libniji's zdump, 1800-2100) against the
+reference's fat file, which lists every source transition: all read the same. America/Ojinaga: libniji's slim file
+reads CST from 2022-10-30 as the source gives; the reference's slim file reads CDT until 2022-11-06. Tried and rejected: keeping every no-op line start (361/598).
 
 ## Not done
 

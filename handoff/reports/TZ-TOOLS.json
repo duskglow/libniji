@@ -1,0 +1,24 @@
+{"task": "TZ-TOOLS", "model": "opus", "tokens": null,
+ "result": "zic and zdump in libc-bin: zic decodes identically to the reference for 593/598 zones fat and -L, 590/598 slim (the rest read the same); zdump -v/-i identical for all 497 installed zones over libniji's localtime",
+ "branch": "task/tz-tools", "head": "0b7936dc5",
+ "gate": {"affected": "see tz-tools-gate3", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The coexist flavour ships no libc-bin utilities (getent, iconv, locale are system-only); zic and zdump follow that, so the brief's coexist part is not done.",
+   "Not run: Debian's tzdata package built in the swapped trixie root, and lintian (the deb build rebuilds release products; one product build per role). The manifest lint (deb_manifest) is in the gate.",
+   "zic -r is refused (exit 1); zic checks only literal abbreviation formats for its warnings; zdump rejects a malformed -c/-t even without a listing option.",
+   "Decoded differences left, listed in xtask/tests/tz_tools.rs with reasons and checked to read the same: Asia/Tbilisi, Europe/Lisbon, Europe/Warsaw (fat, -L, slim); America/Ciudad_Juarez, America/Ojinaga, America/Indiana/Winamac, Asia/Gaza, Asia/Hebron (slim only)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "libc-bin gains /usr/sbin/zic and /usr/bin/zdump (issue #14): tzdata can be compiled and zones checked on a libniji system", "before": 0, "after": 2, "unit": "programs", "measured": true},
+   {"kind": "accuracy", "what": "zic -b fat on tzdata 2026e tzdata.zi: zones decoding identically to the reference", "before": null, "after": 593, "unit": "zones of 598", "measured": true},
+   {"kind": "accuracy", "what": "zdump -v -c 1800,2100 over libniji localtime: zones printing identically to the reference", "before": null, "after": 497, "unit": "zones of 497", "measured": true},
+   {"kind": "coverage", "what": "xtask/tests/tz_tools.rs tests", "before": 0, "after": 8, "unit": "tests", "measured": true},
+   {"kind": "unblock", "what": "Yohane Linux tzdata rebuild (issue #14, zic/zdump part)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "Each plant rebuilds all products (about 10-19 min here) although a csys/util program only needs its own compile and link; a utilities-only rebuild path in cargo xtask so would make utility plants minutes, not hours.",
+ "next_step": "Land after tz-tools-gate3 and tz-tools-plants3; then UTIL-12 (localedef).",
+ "report_file": "handoff/TZ-TOOLS.md",
+ "jobs": ["keke:tz-tools-gate3", "keke:tz-tools-plants3"]}
