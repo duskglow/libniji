@@ -18,3 +18,19 @@ continuation-line | csys/util/zic.c | lit:ERR("expected continuation line not fo
 zdump-short-abbr | csys/util/zdump.c | lit:if (strlen(abbr) < 3) { ==> if (strlen(abbr) < 2) { | cargo test -p xtask --test tz_tools zdump_full_range | msg:zdump_full_range.*(FAILED|panicked)
 zdump-brief-minutes | csys/util/zdump.c | lit:if (s->tm.tm_min || s->tm.tm_sec) { ==> if (s->tm.tm_sec) { | cargo test -p xtask --test tz_tools zdump_brief | msg:zdump \["-i"
 zdump-sampling | csys/util/zdump.c | lit:time_t step = t > hi - 43200 ? hi : t + 43200; ==> time_t step = t > hi - 8640000 ? hi : t + 8640000; | cargo test -p xtask --test tz_tools zdump_verbose | msg:zdump \["-v"
+# cargo xtask plants results (15 plants: 15 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# start-clock: CAUGHT, caught by tz_tools zic_compiles_every_zone_as_the_reference_does
+# keep-noops: CAUGHT, caught by tz_tools zic_compiles_every_zone_as_the_reference_does
+# no-int32max-mark: CAUGHT, caught by tz_tools zic_compiles_every_zone_as_the_reference_does
+# no-v3-shift: CAUGHT, caught by tz_tools zic_compiles_every_zone_as_the_reference_does
+# slim-cut: CAUGHT, caught by tz_tools zic_slim_compiles_every_zone_as_the_reference_does
+# expiry-mark: CAUGHT, caught by tz_tools zic_with_leap_seconds_matches_the_reference
+# zone-name-check: CAUGHT, caught by tz_tools zic_handles_zone_and_link_names_as_the_reference_does
+# link-to-directory: CAUGHT, caught by tz_tools zic_handles_zone_and_link_names_as_the_reference_does
+# walk-follows-links: CAUGHT, caught by tz_tools zic_never_writes_through_a_symbolic_link_below_the_output_directory
+# name-length-limit: CAUGHT, caught by tz_tools zic_handles_zone_and_link_names_as_the_reference_does
+# component-length-limit: CAUGHT, caught by tz_tools zic_handles_zone_and_link_names_as_the_reference_does
+# continuation-line: CAUGHT, caught by tz_tools zic_rejects_malformed_source_as_the_reference_does
+# zdump-short-abbr: CAUGHT, caught by tz_tools zdump_full_range_and_options_match_the_reference
+# zdump-brief-minutes: CAUGHT, caught by tz_tools zdump_brief_matches_the_reference_for_every_zone
+# zdump-sampling: CAUGHT, caught by tz_tools zdump_verbose_matches_the_reference_for_every_zone
