@@ -1820,8 +1820,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
             .arg(out))
     };
     link_libc(&owner_obj, &so, &[])?;
-    check_rodata1_anchor(&so, rodata1_align)?;
     check_debug_reader_rodata(&so)?;
+    check_rodata1_anchor(&so, rodata1_align)?;
     check_read_only_segment(&so)?;
     check_executable_segment(&so)?;
     check_no_link_edge(&so)?;
