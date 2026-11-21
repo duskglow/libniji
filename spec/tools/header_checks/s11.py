@@ -10,9 +10,7 @@ where the language has them.
 Loaded by spec/tools/header_check.py, which lists this directory (plan/headers.md section 4, "Adding a slice").
 """
 import decimal
-import glob
 import os
-import re
 
 HEADERS = ["math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
 
@@ -47,21 +45,21 @@ def expand(configs, ids):
 
 def p1(ctx):
     """[(configuration id, label, unit text)] of the table P1 of this slice's headers."""
-    # A template with `@@emit-c` decides a name by its C configurations only (same filter as headers-gen): a name with
-    # no C row is the C++ wrapper's, not the header's.
-    emit_c = set()
-    for t in glob.glob(os.path.join(ctx.root, "headers", "**", "*.h.in"), recursive=True):
-        with open(t) as f:
-            if any(l.startswith("@@emit-c") for l in f):
-                emit_c.add(os.path.relpath(t, os.path.join(ctx.root, "headers"))[:-3])
-    c_names = {(r["header"], r["name"]) for r in ctx.vis if any(not c.startswith("cxx") for c in re.split(r"[,!]", r["configs"]) if c)}
+    # A macro of a type the generator has no literal form for stays undefined and is a reviewed exception of
+    # headers/rows-exceptions.tsv (HEADERS-TABLES-COMPLETE): P1 asserts only what the generator emits.
+    excepted = set()
+    with open(os.path.join(ctx.root, "headers", "rows-exceptions.tsv")) as f:
+        for l in f:
+            c = l.rstrip("\n").split("\t")
+            if len(c) > 1 and c[0] == "macros":
+                excepted.add(c[1])
     out = {}
     for r in ctx.vis:
         h = r["header"]
         if h not in HEADERS or r["kind"] not in ("macro", "typedef", "struct", "union"):
             continue
         n = r["name"]
-        if h in emit_c and (h, n) not in c_names:
+        if n in excepted:
             continue
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
@@ -76,7 +74,7 @@ def p1(ctx):
         elif r["kind"] == "macro" and m and m["type"] in FLOAT_SUFFIX and m["header"] == h and m["value"].startswith("0x"):
             # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant.
             suffix, size = FLOAT_SUFFIX[m["type"]]
-            tests.append(f"sizeof({n}) == {size}")
+            tests.append(f"H:sizeof({n}) == {size}")
             tests.append(f"F:(({n}) == {decimal_literal(m['value'])}{suffix})")
         elif r["kind"] == "typedef" and n in ctx.typedefs and ctx.typedefs[n]["size"]:
             t = ctx.typedefs[n]
@@ -91,10 +89,17 @@ def p1(ctx):
     units = []
     for (h, cid), tests in sorted(out.items()):
         if tests:
-            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if not t.startswith("F:"))
+            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if t[:2] not in ("F:", "H:"))
+            # A floating macro the generator spells as a hexadecimal constant is a token only where the language has
+            # hexadecimal floating constants (C99 on, C++17 on): earlier modes cannot use it (RULING NEEDED,
+            # HEADERS-TABLES-COMPLETE: a decimal spelling there), so the unit names it only where the use can compile.
+            ht = [(i, t[2:]) for i, t in enumerate(tests) if t.startswith("H:")]
+            if ht:
+                body += "#if (defined __cplusplus && __cplusplus >= 201703L) || (!defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L)\n"
+                body += "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in ht) + "#endif\n"
             ft = [t[2:] for t in tests if t.startswith("F:")]
             if ft:
-                body += "#if defined __cplusplus && __cplusplus >= 201103L\n"
+                body += "#if defined __cplusplus && __cplusplus >= 201703L\n"
                 body += "".join(f"static_assert({t}, \"niji_p1_float\");\n" for t in ft)
                 body += "#elif !defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L\n"
                 body += "".join(f"_Static_assert({t}, \"niji_p1_float\");\n" for t in ft) + "#endif\n"
