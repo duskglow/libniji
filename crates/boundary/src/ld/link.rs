@@ -107,6 +107,8 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 no_memory(name);
             }
             let mut found = None;
+            // What the search's check read of `found` (`None` for a file found by path).
+            let mut checked = None;
             if (bare || pre.is_some()) && !is_interp {
                 // The requester chain: this object, then each first requester up to the program.
                 let mut chain: Table<Scope<'_>, INLINE> = Table::new(Scope::default());
@@ -141,12 +143,13 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
                 let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
-                    match open_candidate(c, page, env) {
+                    match open_candidate(c, page, env, &mut checked) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
-                        Ok((fd, at, file, _, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
+                        Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
                             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
                             let _ = raw::munmap(at, file.len());
+                            checked = None;
                             return false;
                         }
                         Ok(hit) => found = Some(hit),
@@ -186,13 +189,16 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
             } else {
-                let (fd, at, file, id, checked) = found.unwrap_or_else(|| {
-                    // The string table entry is NUL-terminated in the mapped file; not checked here
-                    // (`map::load` checks it).
-                    let (fd, at, file, id) = open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING));
-                    (fd, at, file, id, None)
-                });
-                found = Some((fd, at, file, id, checked));
+                let (fd, at, file, id) = match found {
+                    Some(f) => f,
+                    None => {
+                        // Not checked here (`map::load` checks it).
+                        checked = None;
+                        // The string table entry is NUL-terminated in the mapped file.
+                        open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING))
+                    }
+                };
+                found = Some((fd, at, file, id));
                 // `ld.so` by any name it was found by is the start-time `ld.so` (ruling #5126).
                 let dynm = checked.map(|c| c.dynm).or_else(|| dynamic_of(file));
                 is_interp = bare && dynm.and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
@@ -201,7 +207,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             // Another path to an object already loaded (L14-4): the same object, loaded once.
             let again = if is_interp { interp } else { ids[..n].iter().position(|x| *x == id) };
             if is_interp || again.is_some() {
-                if let Some((fd, at, file, _, _)) = found {
+                if let Some((fd, at, file, _)) = found {
                     let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
                     let _ = raw::munmap(at, file.len());
                 }
@@ -222,7 +228,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 n += 1;
                 continue;
             }
-            let Some((fd, at, file, id, checked)) = found else { continue };
+            let Some((fd, at, file, id)) = found else { continue };
             if !bare && pre.is_none() {
                 // Kept (NUL-terminated) as its link map's name: the DT_NEEDED string is in a mapping
                 // released below.

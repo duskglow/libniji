@@ -361,7 +361,7 @@ fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_a
 /// Map the object `file` by `plan`, the [`plan`] (or [`plan_accepting_exec_stack`]) the caller made
 /// of `elf`, `file` as parsed, with the same `page`: reserve, map each segment, zero the `.bss`, as
 /// [`load`] does after planning. Nothing stays mapped on failure. For a caller that has already
-/// checked the file (`crate::dlopen::check_planned`): the plan is not made a second time.
+/// checked the file (`crate::dlopen::check_into`): the plan is not made a second time.
 ///
 /// # Errors
 ///

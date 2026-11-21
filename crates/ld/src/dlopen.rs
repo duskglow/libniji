@@ -261,10 +261,10 @@ pub fn of_map_error(e: MapError) -> Refusal {
 ///
 /// The [`Refusal`].
 pub fn check<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
-    check_planned::<A>(file, page).map(|c| c.elf)
+    verdict::<A>(file, page).map(|c| c.elf)
 }
 
-/// What [`check_planned`] read on the way to its verdict: the parsed file, its mapping plan and its
+/// What [`check_into`] read on the way to its verdict: the parsed file, its mapping plan and its
 /// dynamic section, for a caller that maps the file it checked ([`map::map_planned`]) without
 /// parsing and planning it again.
 #[derive(Clone, Copy, Debug)]
@@ -277,12 +277,22 @@ pub struct Checked<'a> {
     pub dynm: Dynamic<'a>,
 }
 
-/// [`check`], keeping what it read ([`Checked`]): the same verdict in the same order.
+/// [`check`], keeping what it read ([`Checked`]) in `out`: the same verdict in the same order;
+/// `out` is left as it was on a refusal. The record is written to the caller's slot rather than
+/// returned: a program-start search calls this a few frames deep, and a returned record was copied
+/// through each of them (one more stack page per start, D-27.71).
 ///
 /// # Errors
 ///
 /// The [`Refusal`].
-pub fn check_planned<A: Arch>(file: &[u8], page: u64) -> Result<Checked<'_>, Refusal> {
+pub fn check_into<'a, A: Arch>(file: &'a [u8], page: u64, out: &mut Option<Checked<'a>>) -> Result<(), Refusal> {
+    *out = Some(verdict::<A>(file, page)?);
+    Ok(())
+}
+
+/// The verdict [`check`] and [`check_into`] give, with what it read.
+#[inline(always)]
+fn verdict<A: Arch>(file: &[u8], page: u64) -> Result<Checked<'_>, Refusal> {
     let elf = Elf::parse::<A>(file).map_err(of_elf_error)?;
     if elf.header().e_type == et::EXEC {
         return Err(Refusal::Executable);
