@@ -2384,7 +2384,7 @@ const LD_TOOL_ALIASES: &[(&str, &str)] = &[("strlen", "niji_machine_strlen")];
 /// [`LD_TOOL_NAMES`] over `readelf -sW` of a linked interpreter: each name is a `FUNC` `LOCAL` row of
 /// `.symtab`, an alias sits at its target's address, and `.dynsym` has none of them (no new export).
 pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
-    // (table, value, type, bind, name) of every symbol row.
+    // (table, value, type, bind, name, size) of every symbol row.
     let mut table = "";
     let mut rows = Vec::new();
     for line in readelf.lines() {
@@ -2394,7 +2394,7 @@ pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
         }
         let f: Vec<&str> = line.split_whitespace().collect();
         if f.len() == 8 && f[0].ends_with(':') {
-            rows.push((table, f[1], f[3], f[4], f[7]));
+            rows.push((table, f[1], f[3], f[4], f[7], f[2]));
         }
     }
     let mut errs = Vec::new();
@@ -2409,6 +2409,11 @@ pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
         if (row.2, row.3) != ("FUNC", "LOCAL") {
             errs.push(format!("{name} is {} {}, not FUNC LOCAL", row.2, row.3));
         }
+        // Valgrind passes over a function symbol of size 0 (measured: a size-0 `strlen` alias, and it
+        // still asked for strlen).
+        if row.5 == "0" {
+            errs.push(format!("{name} has size 0"));
+        }
         if let Some((_, target)) = LD_TOOL_ALIASES.iter().find(|(n, _)| n == name) {
             match rows.iter().find(|r| r.0 == ".symtab" && r.4 == *target) {
                 Some(t) if t.1 == row.1 => {}
@@ -2420,7 +2425,46 @@ pub(crate) fn tool_names_errors(readelf: &str) -> Result<(), String> {
     if errs.is_empty() { Ok(()) } else { Err(errs.join("; ")) }
 }
 
+/// Give each alias of [`LD_TOOL_ALIASES`] in the ELF64 little-endian image `elf` its target's size in
+/// `.symtab` (`--defsym` makes a size-0 symbol, which valgrind passes over). Only `st_size` changes:
+/// `.symtab` is not loaded, so no loaded byte of the interpreter moves.
+pub(crate) fn size_tool_aliases(elf: &mut [u8]) -> Result<(), String> {
+    fn get(b: &[u8], at: usize, n: usize) -> Result<u64, String> {
+        let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
+        Ok(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x)))
+    }
+    let us = |v: u64| usize::try_from(v).map_err(|e| e.to_string());
+    if elf.get(..6) != Some(&[0x7f, b'E', b'L', b'F', 2, 1][..]) {
+        return Err("not an ELF64 little-endian object".into());
+    }
+    let (shoff, shentsize, shnum) = (us(get(elf, 0x28, 8)?)?, us(get(elf, 0x3a, 2)?)?, us(get(elf, 0x3c, 2)?)?);
+    let sec = |i: usize| shoff + i * shentsize;
+    let symtab = (0..shnum).find(|&i| get(elf, sec(i) + 4, 4).is_ok_and(|t| t == 2)).ok_or("no .symtab")?;
+    let (off, size) = (us(get(elf, sec(symtab) + 0x18, 8)?)?, us(get(elf, sec(symtab) + 0x20, 8)?)?);
+    let strtab = us(get(elf, sec(symtab) + 0x28, 4)?)?;
+    let stroff = us(get(elf, sec(strtab) + 0x18, 8)?)?;
+    // (entry offset, name, value, size) of every symbol.
+    let mut syms = Vec::new();
+    for e in (off..off + size).step_by(24) {
+        let name_at = stroff + us(get(elf, e, 4)?)?;
+        let name = elf.get(name_at..).and_then(|s| s.split(|&c| c == 0).next()).ok_or("symbol name past the end")?.to_vec();
+        syms.push((e, name, get(elf, e + 8, 8)?, get(elf, e + 16, 8)?));
+    }
+    for (alias, target) in LD_TOOL_ALIASES {
+        let t = syms.iter().find(|s| s.1 == target.as_bytes()).ok_or_else(|| format!("no {target} in .symtab"))?;
+        let a = syms.iter().find(|s| s.1 == alias.as_bytes()).ok_or_else(|| format!("no {alias} in .symtab"))?;
+        if a.2 != t.2 {
+            return Err(format!("{alias} at {:#x}, not at {target}'s {:#x}", a.2, t.2));
+        }
+        elf[a.0 + 16..a.0 + 24].copy_from_slice(&t.3.to_le_bytes());
+    }
+    Ok(())
+}
+
 fn check_interp_tool_names(path: &Path) -> Result<(), String> {
+    let mut bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    size_tool_aliases(&mut bytes).map_err(|e| format!("{}: sizing the tool aliases: {e}", path.display()))?;
+    fs::write(path, &bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     let out = Command::new("readelf").args(["-sW"]).arg(path).output().map_err(|e| format!("readelf: {e}"))?;
     if !out.status.success() {
         return Err(format!("readelf -sW {} failed", path.display()));
@@ -2921,7 +2965,7 @@ mod tests {
     #[test]
     fn ld_tool_names() {
         let dynsym = "Symbol table '.dynsym' contains 2 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     1: 0000000000030000    10 FUNC    GLOBAL DEFAULT    1 __tls_get_addr@@GLIBC_2.3\n";
-        let good = format!("{dynsym}\nSymbol table '.symtab' contains 3 entries:\n   447: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 niji_machine_strlen\n   655: 000000000004ff40     0 FUNC    LOCAL  DEFAULT    1 strlen\n   265: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 strcmp\n");
+        let good = format!("{dynsym}\nSymbol table '.symtab' contains 3 entries:\n   447: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 niji_machine_strlen\n   655: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen\n   265: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 strcmp\n");
         assert_eq!(tool_names_errors(&good), Ok(()));
         let no_strcmp = good.replace(" strcmp\n", " strcmq\n");
         assert!(tool_names_errors(&no_strcmp).unwrap_err().contains("no strcmp in .symtab"));
@@ -2929,8 +2973,10 @@ mod tests {
         assert!(tool_names_errors(&exported).unwrap_err().contains("strcmp is in .dynsym"));
         let object = good.replace("23 FUNC    LOCAL  DEFAULT    1 strcmp", "23 OBJECT  LOCAL  DEFAULT    1 strcmp");
         assert!(tool_names_errors(&object).unwrap_err().contains("strcmp is OBJECT LOCAL"));
-        let moved = good.replace("000000000004ff40     0 FUNC", "000000000004ff50     0 FUNC");
+        let moved = good.replace("000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen", "000000000004ff50   966 FUNC    LOCAL  DEFAULT    1 strlen");
         assert!(tool_names_errors(&moved).unwrap_err().contains("strlen at 000000000004ff50, not at niji_machine_strlen's"));
+        let unsized = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
+        assert!(tool_names_errors(&unsized).unwrap_err().contains("strlen has size 0"));
     }
 
     /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
