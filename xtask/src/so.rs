@@ -452,7 +452,7 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_stack_exec", "__niji_thread_walk"];
+const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
@@ -1003,6 +1003,8 @@ pub(crate) struct ProductBuild {
 pub(crate) const LIBC_BUILD: ProductBuild = ProductBuild { manifest: "crates/libc-so/Cargo.toml", archive: "libc.a", subdir: "", extra: None };
 /// `libm.a` and `libm.so.6` ([`run_libm`]): the libc build's flags and tag, so the two share their dependencies.
 pub(crate) const LIBM_BUILD: ProductBuild = ProductBuild { manifest: "crates/libm-so/Cargo.toml", archive: "libm.a", subdir: "", extra: None };
+/// libresolv.so.2's own code ([`libresolv_object`], LIBRESOLV-OWN-CODE): the libc build's flags and tag.
+pub(crate) const LIBRESOLV_BUILD: ProductBuild = ProductBuild { manifest: "crates/libresolv-so/Cargo.toml", archive: "libresolv.a", subdir: "", extra: None };
 /// The interpreter ([`run_ld`]): its own flags, so its own target directory.
 pub(crate) const LD_BUILD: ProductBuild = ProductBuild { manifest: "crates/ld-so/Cargo.toml", archive: "libld_so.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
 
@@ -1698,12 +1700,16 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     //    libanl.so.1 and libc_malloc_debug.so.0, generated from versions.tsv, linked against
     //    libc.so.6 and each checked against the table; empty static archives for `-l<x>`.
     let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
-    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar)?);
+    let resolv_own = libresolv_object(root, &ar, profile, &release.join("libc.so.6"))?;
+    println!("so: libresolv.so.2's own code: {} names in {}", resolv_own.1.len(), resolv_own.0.display());
+    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar, Some(&resolv_own))?);
 
     //    libresolv (D-16.6, SL-SONAMES): the symbols spec Appendix C places in `libresolv.so.2`
     //    (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other symbol, so the
-    //    empty `libresolv.a` lets `-lresolv` resolve statically. `libc.so.6` exports them only as
-    //    `NIJI_PRIVATE` aliases, and `libresolv.so.2` (step 5) forwards its exports to those.
+    //    empty `libresolv.a` lets `-lresolv` resolve statically. libresolv.so.2's own code
+    //    (LIBRESOLV-OWN-CODE, [`libresolv_object`]) is a separate build of those names; `libc.so.6`
+    //    exports only `placeholders::STILL_FORWARDED` as `NIJI_PRIVATE` aliases, which
+    //    `libresolv.so.2` (step 5) forwards to.
 
     let redirected: Vec<String> = copies.redirected.iter().map(|(n, c)| format!("{n} {c}")).collect();
     let kept: usize = copies.kept.values().sum();
@@ -2701,6 +2707,103 @@ fn build_owner_dir(release: &Path) -> Result<(), String> {
     publish(&staged, &script)?;
     println!("so: target/niji/niji-owner/ (libc-owner.so, the link-time interface at {OWNER_NODE}, and its libc.so script)");
     Ok(())
+}
+
+/// libresolv.so.2's own code (LIBRESOLV-OWN-CODE): `crates/libresolv-so` as a static library, then
+/// one relocatable object of it with unused sections dropped (roots: the libresolv.so.2 exports
+/// not in `placeholders::STILL_FORWARDED`), only those names global. Checked: every root defined
+/// and nothing else global; every undefined symbol one `libc_so` exports (the C library's state is
+/// reached only through its interface); and no writable data except the exported objects (no
+/// second heap, stdio, environment or tuning state in a library loaded beside libc.so.6).
+/// Returns the object and the names it defines.
+pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so: &Path) -> Result<(std::path::PathBuf, BTreeSet<String>), String> {
+    let _ = ar;
+    let product = root.join("target/product");
+    run_timed("cargo-libresolv", &mut LIBRESOLV_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let raw = LIBRESOLV_BUILD.raw_archive(&product, profile);
+    let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
+    let plan = crate::placeholders::plan(&table, "libresolv.so.2")?;
+    let names = crate::placeholders::own_wanted(&plan);
+    // A compat-only export is defined as `niji_own_<name>`, local to the library: the generated
+    // `niji_ph_<name>` exports it under `<name>@<version>` (`placeholders::c_source_own`).
+    let compat = crate::placeholders::own_compat(&plan, &names);
+    let own_name = |s: &str| if compat.contains(s) { format!("{}{s}", crate::placeholders::OWN_PREFIX) } else { s.to_string() };
+    let keep = product.join("libresolv.keep");
+    fs::write(&keep, names.iter().map(|s| format!("{}\n", own_name(s))).collect::<String>()).map_err(|e| e.to_string())?;
+    let all = product.join("libresolv-all.o");
+    let mut ld = Command::new("ld");
+    ld.args(["-r", "--gc-sections"]);
+    for s in &names {
+        ld.arg("-u").arg(s);
+    }
+    run(ld.arg("--whole-archive").arg(&raw).arg("--no-whole-archive").arg("-o").arg(&all))?;
+    let obj = product.join("libresolv-own.o");
+    let renamed = product.join("libresolv-renamed.o");
+    let mut rename = Command::new("objcopy");
+    for s in &compat {
+        rename.arg(format!("--redefine-sym={s}={}", own_name(s)));
+    }
+    run(rename.arg(&all).arg(&renamed))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
+
+    let out = Command::new("nm").args(["-P"]).arg(&obj).output().map_err(|e| format!("nm: {e}"))?;
+    let mut defined = BTreeSet::new();
+    let mut undefined = BTreeSet::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        match line.split_whitespace().collect::<Vec<_>>().as_slice() {
+            [name, "U", ..] | [name, "w", ..] => {
+                undefined.insert((*name).to_string());
+            }
+            [name, kind, ..] if kind.chars().all(|c| c.is_ascii_uppercase()) => {
+                // A compat-only export's definition counts under its export name.
+                let export = name.strip_prefix(crate::placeholders::OWN_PREFIX).filter(|n| compat.contains(*n)).unwrap_or(name);
+                defined.insert(export.to_string());
+            }
+            _ => {}
+        }
+    }
+    let dynsyms = crate::placeholders::readelf(&["--dyn-syms", "-W"], libc_so)?;
+    let libc: BTreeSet<String> = dynsyms
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            (f.len() >= 8 && f.get(6) != Some(&"UND")).then(|| f.get(7).map(|n| n.split('@').next().unwrap_or(n).to_string())).flatten()
+        })
+        .collect();
+    let mut errors = Vec::new();
+    for s in names.difference(&defined) {
+        errors.push(format!("libresolv.so.2's own code does not define {s}"));
+    }
+    for s in defined.difference(&names) {
+        errors.push(format!("libresolv.so.2's own code defines {s}, which is not its export"));
+    }
+    for s in undefined.iter().filter(|s| !libc.contains(*s) && s.as_str() != "_GLOBAL_OFFSET_TABLE_") {
+        errors.push(format!("libresolv.so.2's own code needs {s}, which libc.so.6 does not export"));
+    }
+    // Writable data: only the exported objects (each in its own section, `-fdata-sections`).
+    let objects: Vec<&str> = plan.exports.iter().filter(|e| names.contains(&e.name)).map(|e| e.name.as_str()).filter(|n| defined.contains(*n) && n.chars().next().is_some()).collect();
+    let sections = crate::placeholders::readelf(&["-SW"], &obj)?;
+    for l in sections.lines().filter_map(|l| l.split_once(']').map(|(_, r)| r)) {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        let (Some(name), Some(size), Some(flags)) = (f.first(), f.get(4), f.get(6)) else { continue };
+        // No start-up or exit code of its own: a constructor would run the C library's start-up
+        // pieces a second time in a library loaded beside libc.so.6.
+        if [".init_array", ".fini_array", ".preinit_array", ".ctors", ".dtors", ".init", ".fini"].iter().any(|p| *name == *p || name.starts_with(&format!("{p}."))) {
+            errors.push(format!("libresolv.so.2's own code holds {name}: start-up and exit code belong to libc.so.6"));
+            continue;
+        }
+        let read_only_after_relocation = [".data.rel.ro", ".got"].iter().any(|p| name.starts_with(p));
+        if !flags.contains('W') || !flags.contains('A') || read_only_after_relocation || u64::from_str_radix(size, 16).unwrap_or(1) == 0 {
+            continue;
+        }
+        if !objects.iter().any(|o| name.ends_with(&format!(".{o}"))) {
+            errors.push(format!("libresolv.so.2's own code holds writable data of its own in {name} (size 0x{size}): state belongs to libc.so.6, reached through its exports"));
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors.join("\n"));
+    }
+    Ok((obj, defined))
 }
 
 /// An empty `ar` archive at `dst`, written under a temporary name and renamed into place.

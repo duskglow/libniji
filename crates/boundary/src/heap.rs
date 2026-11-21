@@ -291,6 +291,44 @@ pub extern "C" fn default_obstack_failure() {
     CSys.exit_group(crate::data::obstack_exit_failure.load(core::sync::atomic::Ordering::Relaxed))
 }
 
+/// Rust's global allocator in the libresolv product (LIBRESOLV-OWN-CODE): the caller allocator
+/// (`malloc` through the symbol), so libresolv.so.2 holds no heap of its own. Blocks are at most
+/// 16-aligned (`malloc`'s alignment); a larger alignment fails (null), which the fallible
+/// containers report as `ENOMEM`.
+#[cfg(feature = "libresolv")]
+pub struct LibresolvAlloc;
+
+#[cfg(feature = "libresolv")]
+// UNSAFE(allocator): implementing `GlobalAlloc` for the libresolv product.
+// SAFETY: blocks come from `malloc`/`calloc`/`realloc`, which never hand out overlapping live
+// blocks and honour sizes up to the 16-byte alignment checked here; null on exhaustion.
+#[allow(unsafe_code)]
+unsafe impl GlobalAlloc for LibresolvAlloc {
+    // UNSAFE(allocator): the trait's required method.
+    #[allow(unsafe_code)]
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_malloc(layout.size().max(1)).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's required method; `ptr` came from `alloc` (the trait's contract).
+    #[allow(unsafe_code)]
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        crate::caller_alloc::caller_free(ptr.cast());
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `calloc`).
+    #[allow(unsafe_code)]
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_calloc(layout.size().max(1), 1).cast() }
+    }
+
+    // UNSAFE(allocator): the trait's provided method, overridden (one `realloc`); `ptr` came from `alloc`.
+    #[allow(unsafe_code)]
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        if layout.align() > 16 { core::ptr::null_mut() } else { crate::caller_alloc::caller_realloc(ptr.cast(), new_size.max(1)).cast() }
+    }
+}
+
 /// Rust's global allocator in the products (`#[global_allocator]` is set by the product
 /// crate, phase 4): the same heap, with sizes and alignments from `Layout`.
 pub struct Niji;
