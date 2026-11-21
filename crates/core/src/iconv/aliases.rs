@@ -53,11 +53,15 @@ const fn row_count() -> usize {
         let row = is_row(t, at);
         let mut tabs = 0;
         while t[at] != b'\n' {
-            tabs += usize::from(t[at] == b'\t');
+            if t[at] == b'\t' {
+                tabs += 1;
+            }
             at += 1;
         }
         assert!(!row || tabs == 1, "an iconv-aliases.tsv row is name<TAB>charmap");
-        n += usize::from(row);
+        if row {
+            n += 1;
+        }
         at += 1;
     }
     n
