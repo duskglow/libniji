@@ -1,7 +1,7 @@
 # DL-RUNPATH: dlopen searches the program's and the caller's DT_RUNPATH/DT_RPATH `$ORIGIN`; RTLD_NOLOAD by loaded names
 
-State: branch `task/dl-runpath`, cut from origin/next df83365cd (DL-NAME-PATH-2 already landed in it). Head and job
-results: handoff/reports/DL-RUNPATH.json and the hand-back.
+State: branch `task/dl-runpath-2` (DL-RUNPATH continued, origin/next e4d7011e6 merged). Head and job results:
+handoff/reports/DL-RUNPATH-2.json and the hand-back.
 
 ## Premise and what the probes found (reference = the build host's glibc 2.39, black box; Zen 1 host)
 
@@ -52,49 +52,66 @@ sits where libc.so.6's dependency would be, before deeper objects); libniji's ld
   DT_NEEDED name its path ends in.
 - Tests: `crates/ld/tests/runpath_search.rs` (4). Plants: handoff/DL-RUNPATH-plants.txt.
 
+## Secure mode (ruling #7190, accepted: one rule everywhere, #7094)
+
+dlopen expands the program's `$ORIGIN` in a secure process only when it is a trusted directory, through the same
+`search::expand` rule the start uses (dlopen's `Env::ctx` passes `AT_SECURE`). DL-RUNPATH-2 adds the test the ruling
+asked for, `secure_dlopen_origin_only_trusted` (crates/ld/tests/runpath_search.rs), with no root:
+
+- forced flag: the test program sets `AT_SECURE` to 1 in its own auxiliary vector, which is where dlopen reads it. Then
+  `libB.so` (via DT_RUNPATH `$ORIGIN/sub`) and `$ORIGIN/sub/libB.so` give NULL when the program sits in the corpus
+  (untrusted), and both are found when the corpus is bound over a default directory (`/usr/lib/x86_64-linux-gnu` on
+  the Skylake-SP host) in `unshare -r -m`. The same program with the flag left alone finds both in the corpus.
+- the kernel's flag: a set-group-ID copy (a supplementary group) must also refuse the untrusted `$ORIGIN`.
+- All three parts ran on the Skylake-SP host (no SKIP lines). The plant `no-secure-rule` drops the flag from dlopen's
+  search context.
+
+Set-user-ID probe for the owner (needs root; nothing here was run as root). Build as the user, in a scratch dir D that
+is not on a nosuid file system: the SECURE program of runpath_search.rs, linked against the system C library
+(`cc -o probe secure.c -Wl,--enable-new-dtags,-rpath,'$ORIGIN/niji-origin-sub'`), a libniji copy linked as in the
+test with the same RUNPATH, and `cc -shared -fPIC -o libB.so b.c`, where b.c holds `int libb(void){return 2;}`.
+Then, as root:
+1. `install -d D/u/niji-origin-sub && install -m 644 D/libB.so D/u/niji-origin-sub/ && install -o root -m 4755 D/probe D/u/probe`
+   (untrusted, set-user-ID). As the user: `D/u/probe keep libB.so '$ORIGIN/niji-origin-sub/libB.so'`. Expected:
+   `secure 1`, both NULL.
+2. `install -d /usr/lib/x86_64-linux-gnu/niji-origin-sub && install -m 644 D/libB.so /usr/lib/x86_64-linux-gnu/niji-origin-sub/ && install -o root -m 4755 D/probe /usr/lib/x86_64-linux-gnu/niji-origin-probe`
+   (trusted). As the user: `/usr/lib/x86_64-linux-gnu/niji-origin-probe keep libB.so '$ORIGIN/niji-origin-sub/libB.so'`.
+   Expected: `secure 1`, both `/usr/lib/x86_64-linux-gnu/niji-origin-sub/libB.so`.
+3. Repeat 1 and 2 with the libniji copy, then compare the outputs. Clean up:
+   `rm -rf D/u /usr/lib/x86_64-linux-gnu/niji-origin-sub /usr/lib/x86_64-linux-gnu/niji-origin-probe`.
+
 ## Open (route)
 
-- RULING NEEDED, secure mode: no AT_SECURE probe was possible without root (a set-uid program needs another owner).
-  dlopen now applies to the program's `$ORIGIN` the same rule the start already does (threat-model rule 2: only
-  a trusted directory; the `/proc/self/exe` source is DL-NAME-PATH-2's pending ruling). Recommend accept.
-- INFORMATIONAL: `$PLATFORM` is `haswell` on an x86-64-v3 CPU (D-27.16, probed on Haswell); on this Zen 1 host the
+- RULING NEEDED (coordinator note, DL-PROCESS-OBJECTS-2 #7265; not the `$ORIGIN` defect, no test added). A program
+  with DT_RPATH or DT_RUNPATH `<dir>` whose DT_NEEDED names `libc.so.6` by soname. Probed on the Skylake-SP host
+  (scratch ~/work/dl-runpath-2/pin.sh, job dl-runpath-2-pin): the reference maps `<dir>/libc.so.6` for both tags.
+  libniji's loader (this head's products, `NIJI_PREFIX` unset) opens only `/lib/libc.so.6` and stops with
+  `libc.so.6: cannot open shared object file`. This is the pin (`search::PINNED`, R14-3 (a), threat-model rule 9:
+  libniji's own sonames resolve to `<prefix>/<libdir>` before any search), not the search. Naming libc by path
+  bypasses the pin, which is why that works. The pin is in spec/security/threat-model.md but has no row in
+  docs/differences-from-glibc.md. Recommend: keep the pin and add the row. Decide separately whether a development
+  build (products outside the prefix) should get a fallback.
+
+- INFORMATIONAL: `$PLATFORM` is `haswell` on an x86-64-v3 CPU (D-27.16, probed on Haswell); on the Zen 1 host the
   reference expands it to `x86_64`. A loader story should probe both CPU kinds.
 - INFORMATIONAL: start-time objects without DT_SONAME are still left out of a handle's local scope
   (`adopt_deps` matches by soname or path only). `given_name` now has the name, so a follow-up can match it.
 - Not probed on the reference: dlopen through an LD_LIBRARY_PATH `$ORIGIN` list (the start's case was probed by
   DL-NAME-PATH-2). The test expects the start's rule.
 
-## Run state (leg 2, 06:25Z: PENDING JOBS)
+## Run state (DL-RUNPATH-2, branch `task/dl-runpath-2`)
 
-- Leg 2 results, all on the code head 8526d26e4 (later commits touch handoff/ only): `dl-runpath-aff` direct tier
-  (not FULL); `dl-runpath-plants` 7 plants: 6 CAUGHT, 1 EQUIVALENT (no-start-publish, reason in the plants file), no
-  WARN-RC-ONLY / WARN-NO-MSG (only WARN-DEV-SHM, informational); `dl-runpath-gate2` green: 4 suites, 82 passed, 0
-  failed, peak 1.8G. `dl-runpath-startup`: probe diff matches the reference except install paths and `$PLATFORM`;
-  `cargo xtask test` (6957 tests) and the full-profile hot_text_products were still running at hand-back (PENDING).
-- The role could not take the handoff-only head (sync BUSY with my own jobs); precheck ran with `--head 8526d26e4`.
-
-## Run state (leg 1 ended 04:20Z at the call budget; refresh)
-
-- Head 8526d26e4 is synced to keke:~/w/n4. The job `dl-runpath-check1` (clippy for niji-boundary and niji-ld, so,
-  runpath_search, object_names) ran on c032a71d5: clippy and so were green, object_names was 4/4, and runpath_search
-  was 3/4. `program_origin_lists_serve_dlopen` failed only because cargo's LD_LIBRARY_PATH came first in the SERINFO
-  list (the `$ORIGIN` entries were present). 8526d26e4 clears it in the test. SUPERSEDED: dl-runpath-check1 (old
-  head, test defect).
-- Running on keke when the leg ended: `dl-runpath-aff` (`cargo xtask affected --list --base origin/next`, to see
-  whether it says FULL) and `dl-runpath-plants` (handoff/DL-RUNPATH-plants.txt, dir
-  /dev/shm/claude/dl-runpath/plants-1).
-- Next leg, exactly:
-  1. `~/bin/jobwait dl-runpath-aff dl-runpath-plants`. List every WARN line of the plants.
-  2. If aff is not FULL: start `dl-runpath-gate2` (gate kind, `~/bin/gate 16G sh -c "cd ~/w/n4 && cargo xtask
-     affected --run --base origin/next"`). If it is FULL: run `cargo xtask precheck` plus `cargo test -p niji-ld`
-     and `-p niji-boundary` as kind `test`, and write `FULL: the train's (<reason>)`.
-  3. Start `dl-runpath-startup` (kind test): `sh ~/work/dl-runpath/startup.sh`. It waits for dl-runpath-gate2,
-     reruns the probe diff (~/work/dl-runpath/diff.out; the remaining expected differences are the libc path
-     line and `$PLATFORM`), then runs `cargo xtask test` and the full-profile hot_text_products.
-  4. Before hand-back: foreground clippy (workspace) and `cargo xtask static` on the role, then `cargo xtask precheck
-     --jobs <labels> --head <sha>`. Write handoff/reports/DL-RUNPATH.json, push, run `ops handback-check`.
-- Background tasks: none local. On keke: only the jobs named above.
+- origin/next e4d7011e6 merged (a0abf5f3b). The one conflict was dlopen.rs's imports: next's `Arena` kept along with
+  `START_ORIGIN` / `START_RUN_PATH`. The DL-RUNPATH code uses the loader's arena accessors (`path`, `keep`,
+  `objs_upto`) and indexes no old array. The COMPAT-19 placement is as next has it (entry.rs and link.rs auto-merged).
+- Code head e6047c2f1 (the test and handoff/DL-RUNPATH-2-plants.txt: DL-RUNPATH's 7, `no-secure-rule`, and
+  DL-PROCESS-OBJECTS' 5). Step 0 (clippy + static on the inherited head): green. `dl-runpath-2-check1` (clippy, so,
+  runpath_search 5/5, dlopen_process_objects 2/2): green.
+- Jobs on the Skylake-SP role: `dl-runpath-2-gate` (direct tier, refuses FULL), `dl-runpath-2-plants`,
+  `dl-runpath-2-y10` (system-flavour packages of this head, then RELEASE-SNAPSHOT-1121C's y10.sh; the bare-name
+  `$ORIGIN` dlopen line was its one FAIL), `dl-runpath-2-startup` (after the gate: `cargo xtask test`, full-profile
+  so + hot_text_products). Results: handoff/reports/DL-RUNPATH-2.json and the hand-back.
 
 ## Next step
 
-Land. Then the secure-mode ruling above; the `$PLATFORM` probe on a v3 Intel and an AMD host.
+Land. Then the owner's set-user-ID probe above, and the `$PLATFORM` probe on a v3 Intel host and an AMD host.
