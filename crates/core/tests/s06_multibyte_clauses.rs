@@ -330,7 +330,7 @@ fn s6_4_c_1_charmap_aliases() {
     // Clauses: s6_4_c_1 (spec/encoding/iconv-names.md rule 5: listed names that stand for a charmap).
     let show = |n: &[u8]| String::from_utf8_lossy(n).into_owned();
     let rows: Vec<_> = iconv::charmap_aliases().collect();
-    assert!(rows.len() > 100, "the table lost rows: {}", rows.len());
+    assert!(rows.len() >= 658, "the table lost rows: {}", rows.len());
     for w in rows.windows(2) {
         assert!(w[0].0 < w[1].0, "not sorted (the lookup is a binary search): {} before {}", show(w[0].0), show(w[1].0));
     }
@@ -344,6 +344,11 @@ fn s6_4_c_1_charmap_aliases() {
     }
     assert_eq!(iconv::charmap_alias(b"KOI8R"), Some(&b"KOI8-R"[..]));
     assert_eq!(iconv::charmap_alias(b"ISO885915"), Some(&b"ISO-8859-15"[..]));
+    // Names no distro charmap header carries (only the generated charmaps did).
+    assert_eq!(iconv::charmap_alias(b"WINDOWS-1252"), Some(&b"CP1252"[..]));
+    assert_eq!(iconv::charmap_alias(b"WINDOWS-1251"), Some(&b"CP1251"[..]));
+    assert_eq!(iconv::charmap_alias(b"MS-ANSI"), Some(&b"CP1252"[..]));
+    assert_eq!(iconv::charmap_alias(b"CP1252"), None, "a charmap's file name is no alias");
     assert_eq!(iconv::charmap_alias(b"KOI8-R"), None, "a charmap's own name is no alias");
     assert_eq!(iconv::charmap_alias(b"koi8r"), None, "looked up in matching form");
     // A generated charmap (spec/encoding/charmaps.tsv) that carries a row's name must be that

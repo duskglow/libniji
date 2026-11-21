@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`, `cjk.rs`).
-const CHARSETS: [&str; 6] = ["EUC-JP", "BIG5", "EUC-KR", "CP932", "CP936", "GB18030"];
+const CHARSETS: [&str; 7] = ["EUC-JP", "BIG5", "EUC-KR", "CP949", "CP932", "CP936", "GB18030"];
 
 /// Charsets whose sequences longer than two bytes are compared as one hash per two-byte prefix
 /// (the oracle's `-c`): GB18030's four-byte area is 165 million lines.
@@ -26,7 +26,14 @@ const COMPACT: [&str; 1] = ["GB18030"];
 /// the built-in `C` locale's transliteration is derived from the UCD, not the reference library's
 /// table (D-6.9; e.g. U+00AD, U+00B2, U+00B5, U+2014). A `BT` difference in any other block fails;
 /// a listed block that stops differing is only noted (the transliteration may improve).
-const TRANSLIT_BLOCKS: [(&str, &[u32]); 5] = [
+const TRANSLIT_BLOCKS: [(&str, &[u32]); 6] = [
+    (
+        "CP949",
+        &[
+            0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4,
+            0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
     (
         "EUC-JP",
         &[

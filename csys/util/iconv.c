@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "iconv-names.h"
+#include "iconv-aliases.h"
 
 #define CHARMAP_DIR "/usr/share/i18n/charmaps"
 
@@ -254,7 +255,8 @@ static int by_name(const void *a, const void *b) {
     return strcasecmp(*(const char *const *)a, *(const char *const *)b);
 }
 
-/* `-l`: the built-in names and every installed charmap iconv_open accepts, sorted, each once, as `NAME//`
+/* `-l`: the built-in names, every installed charmap iconv_open accepts and the listed names that stand
+ * for one of those charmaps, sorted, each once, as `NAME//`
  * (a name that holds a `/` ends in one `/`, as the reference lists `ISO-10646/UCS4/`). */
 static _Noreturn void list(void) {
     size_t n = 0, cap = 512;
@@ -290,6 +292,29 @@ static _Noreturn void list(void) {
     }
     if (dir != NULL)
         closedir(dir);
+    /* The listed names that stand for a charmap (iconv-aliases.h): each one whose charmap file
+     * opened above, and that iconv_open then accepts. A row whose charmap is not installed is
+     * never opened (a failed open scans every charmap's header). */
+    size_t stems = n;
+    for (size_t k = 0; k < sizeof ALIAS_ROWS / sizeof ALIAS_ROWS[0]; k++) {
+        int installed = 0;
+        for (size_t s = sizeof BUILTIN_NAMES / sizeof BUILTIN_NAMES[0]; s < stems && !installed; s++)
+            installed = strcasecmp(names[s], ALIAS_ROWS[k][1]) == 0;
+        if (!installed)
+            continue;
+        iconv_t cd = iconv_open("UTF-8", ALIAS_ROWS[k][0]);
+        if (cd == (iconv_t)-1)
+            continue;
+        iconv_close(cd);
+        if (n == cap) {
+            cap *= 2;
+            const char **p = realloc(names, cap * sizeof *names);
+            if (p == NULL)
+                fail_memory();
+            names = p;
+        }
+        names[n++] = ALIAS_ROWS[k][0];
+    }
     qsort(names, n, sizeof *names, by_name);
     for (size_t k = 0; k < n; k++) {
         if (k > 0 && strcasecmp(names[k], names[k - 1]) == 0)
