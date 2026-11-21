@@ -6,12 +6,14 @@
 //! * **Entries.** One per `PT_LOAD` segment of a published object, sorted by segment start:
 //!   `[segment start, segment end, object low, object high, PT_GNU_EH_FRAME, object index]`, the
 //!   object's range being its lowest to highest `PT_LOAD` address (what `_dl_find_object` reports
-//!   and `dladdr` matches). Segments of one object that overlap are merged into one entry.
-//! * **Flags.** [`OVERLAP`]: segments of two objects overlap (`_dl_find_object` falls back to the
-//!   table walk); [`NESTED`]: the ranges of two objects overlap (`dladdr`, whose object is the first
-//!   in chain order whose range holds the address, falls back to the chain walk). Neither happens
-//!   when every object is mapped by its own reservation; both keep the walk's result exact when a
-//!   malformed or unusual layout does it.
+//!   and `dladdr` matches). Segments of one object that overlap are merged into one entry. Both
+//!   callers ask for the object whose range holds the address, gaps between its segments included
+//!   (`_dl_find_object`: probe R-5 in `spec/behaviour/dynlink.md`): the last entry starting at or
+//!   below the address, when its object's range holds it.
+//! * **Flag.** [`NESTED`]: the ranges of two objects overlap, so the last entry below an address
+//!   need not be the object that holds it; the callers walk instead (`dladdr` takes the first
+//!   object in chain order). It never happens when every object is mapped by its own reservation;
+//!   it keeps the walk's result exact when a malformed or unusual layout does it.
 //! * **The start-time objects** (never unloaded) get an immutable index built by the first reader
 //!   or `dlopen` in a private mapping and published by one compare-and-swap ([`START`]); racing
 //!   builders build the same index and the losers unmap theirs. No lock, nothing at start-up.
@@ -43,8 +45,6 @@ const W: usize = 6;
 const H: usize = 3;
 const PT_LOAD: u64 = 1;
 const PT_GNU_EH_FRAME: u64 = 0x6474_e550;
-/// Segments of two objects overlap.
-const OVERLAP: usize = 1;
 /// The ranges of two objects overlap.
 const NESTED: usize = 2;
 /// Validated attempts before a reader walks instead.
@@ -124,8 +124,8 @@ fn set_head(r: &[AtomicUsize], k: usize, v: usize) {
     }
 }
 
-/// The object whose segment (`whole`: whose range) holds `a`. Called inside a read section.
-pub(super) fn find(a: usize, whole: bool) -> Found {
+/// The object whose range holds `a`. Called inside a read section.
+pub(super) fn find(a: usize) -> Found {
     for _ in 0..TRIES {
         let s = SEQ.load(Acquire);
         if DISABLED.load(Relaxed) != 0 {
@@ -143,7 +143,7 @@ pub(super) fn find(a: usize, whole: bool) -> Found {
             return Found::Unknown;
         }
         let r = region(at);
-        let answer = search(r, a, whole);
+        let answer = search(r, a);
         if s == 0 {
             // The start index never changes once published.
             return answer;
@@ -158,9 +158,8 @@ pub(super) fn find(a: usize, whole: bool) -> Found {
 
 /// [`find`] in one region.
 #[inline(always)]
-fn search(r: &[AtomicUsize], a: usize, whole: bool) -> Found {
-    let flags = head(r, 1);
-    if flags & if whole { NESTED } else { OVERLAP } != 0 {
+fn search(r: &[AtomicUsize], a: usize) -> Found {
+    if head(r, 1) & NESTED != 0 {
         return Found::Unknown;
     }
     // The last entry whose segment starts at or below `a`.
@@ -174,9 +173,8 @@ fn search(r: &[AtomicUsize], a: usize, whole: bool) -> Found {
         }
     }
     let Some(e) = lo.checked_sub(1) else { return Found::Miss };
-    let [seg_lo, seg_hi, o_lo, o_hi, eh, i] = entry(r, e);
-    let holds = if whole { o_lo <= a && a < o_hi } else { seg_lo <= a && a < seg_hi };
-    if holds {
+    let [_, _, o_lo, o_hi, eh, i] = entry(r, e);
+    if o_lo <= a && a < o_hi {
         Found::Hit(Hit { lo: o_lo, hi: o_hi, eh, i })
     } else {
         Found::Miss
@@ -282,7 +280,7 @@ impl<'a> Out<'a> {
                     }
                     return;
                 }
-                self.flags |= OVERLAP | NESTED;
+                self.flags |= NESTED;
             }
         }
         // A segment that starts inside another object's range: the ranges overlap.

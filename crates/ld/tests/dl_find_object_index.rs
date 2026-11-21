@@ -103,11 +103,11 @@ static int cb(struct dl_phdr_info *i, size_t sz, void *d) {
 }
 static void snapshot(void) { nobj = 0; dl_iterate_phdr(cb, 0); }
 static void fail(int n, const char *what, unsigned long a) { fprintf(stderr, "check %d: %s at %#lx\n", n, what, a); exit(n); }
-/* The object whose segment holds a (-1: none), and the first non-vDSO object whose range holds it. */
-static int seg_owner(unsigned long a) {
+/* The object whose range (lowest to highest PT_LOAD address, gaps between segments included: probe R-5)
+ * holds a (-1: none), and the first non-vDSO object whose range holds it. */
+static int span_owner(unsigned long a) {
     for (int j = 0; j < nobj; j++)
-        for (int k = 0; k < objs[j].nseg; k++)
-            if (objs[j].s[k][0] <= a && a < objs[j].s[k][1]) return j;
+        if (objs[j].lo <= a && a < objs[j].hi) return j;
     return -1;
 }
 static int range_owner(unsigned long a) {
@@ -118,9 +118,9 @@ static int range_owner(unsigned long a) {
 static void probe(int base, unsigned long a) {
     struct dl_find_object f;
     memset(&f, 0, sizeof f);
-    int j = seg_owner(a), r = _dl_find_object((void *)a, &f);
+    int j = span_owner(a), r = _dl_find_object((void *)a, &f);
     if (j < 0 && r != -1) fail(base + 1, "_dl_find_object found an object where none is", a);
-    if (j >= 0 && r != 0) fail(base + 2, "_dl_find_object found nothing in a loaded segment", a);
+    if (j >= 0 && r != 0) fail(base + 2, "_dl_find_object found nothing in a loaded object's range", a);
     if (j >= 0 && ((unsigned long)f.dlfo_map_start != objs[j].lo || (unsigned long)f.dlfo_map_end != objs[j].hi || (unsigned long)f.dlfo_eh_frame != objs[j].eh))
         fail(base + 3, "_dl_find_object: wrong range or PT_GNU_EH_FRAME", a);
     Dl_info info;
@@ -236,8 +236,9 @@ fn run(prog: &Path, d: &Path, mode: &str) {
     assert!(o.status.success() && o.stdout == b"ok\n", "{mode}: status {:?}\n{}{}", o.status.code(), String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
 
-/// s27_1_c_9, s27_1_c_6: `_dl_find_object` and `dladdr` give the walk's answers for every
-/// segment's edges and the bytes between segments, with only the start-time objects (the index's
+/// s27_1_c_9, s27_1_c_6: `_dl_find_object` and `dladdr` find the object whose range (lowest to
+/// highest `PT_LOAD` address) holds an address, at every segment's edges and in the gaps between
+/// segments (`_dl_find_object` too: probe R-5), with only the start-time objects (the index's
 /// first build), after `dlopen`, after `dlclose` (a closed object is never found again) and after
 /// reopening.
 #[test]

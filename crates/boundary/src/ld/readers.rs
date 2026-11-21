@@ -499,7 +499,7 @@ fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usiz
 /// map is 0 before the first `dlopen` makes the loader's nodes, and for the vDSO); 0, or -1 with
 /// `*result` untouched.
 extern "C" fn find_object(pc: usize, result: usize) -> i64 {
-    let found = read_section(|v| match super::index::find(pc, false) {
+    let found = read_section(|v| match super::index::find(pc) {
         Found::Hit(h) => Some((h.lo, h.hi, h.eh, node_address(h.i))),
         Found::Miss => None,
         Found::Unknown => find_walk(v, pc),

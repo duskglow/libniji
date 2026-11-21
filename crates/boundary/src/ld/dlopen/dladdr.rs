@@ -143,7 +143,7 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         };
         // The address index (`crate::ld::index`); the chain walk when it cannot tell, or when its
         // object's range is not the node's (never expected: both are the `PT_LOAD` span).
-        let i = match crate::ld::index::find(addr, true) {
+        let i = match crate::ld::index::find(addr) {
             Found::Hit(h) if holds(h.i) => h.i,
             Found::Miss => return None,
             _ => v.find(holds)?,
