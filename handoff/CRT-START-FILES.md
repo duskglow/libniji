@@ -48,8 +48,8 @@ caught it); fixed by section `q` in the test (5aba79593); plants2 9/9 CAUGHT, no
 test2 red: `init_dynamic_empty_main_stays_within_its_instruction_bound` 778,859 (fast, Skylake-SP) more than 10% under
 871,500 (fast bounds not re-measured since DYN-START-LINK-SHAPE). Same test on next e4777a6ba built on mei (job
 nextdyn0): 790,290. Fast bounds -> 794,500 (level + 2%; Zen 1 takes it unmeasured, as the file's reasoning does), 7ce12fe26.
-Final head jobs (mei): test3, xtest3 (6979 + 4854 + 128 + 46 passed), fullprof3 (32/32), plants2, lint2; all rc 0.
-Superseded: lint0 (inherited head, green), lint1/plants1/test1 (merge commit), test2/xtest2 (old bound; stopped),
+Final head jobs (mei): test3, xtest3 (6979 + 4854 + 128 + 46 passed), fullprof3 (32/32), plants3, lint2; all rc 0.
+Superseded: plants2 (9/9 CAUGHT, before the bound change), lint0 (inherited head, green), lint1/plants1/test1 (merge commit), test2/xtest2 (old bound; stopped),
 fullprof1/2 (never ran: stopped for the new head), aff1 (listing), nextdyn0 (comparison).
 
 ## Results on the leg-4 head (904e4002e)
@@ -67,6 +67,6 @@ Superseded: fullprof1 (red, 7e6a6d3de), fullprof2/fullprof3 (rejected stricter r
 plants4 (killed, older rule), bins0, pf0, aff0/aff1 (probes).
 
 ## Exact next step
-None for the story once leg 5's jobs (mei crt-start-files-3-test3, -xtest3, -fullprof3, -plants2, -lint2) are green: land. Follow-ups (not this story): the head-bin tail condition in
+None for the story once leg 5's jobs (mei crt-start-files-3-test3, -xtest3, -fullprof3, -plants3, -lint2) are green: land. Follow-ups (not this story): the head-bin tail condition in
 general (Residual above; a planner that orders the head bin's phase-only sections ahead of a warm-up section, or a
 HEAD_ROOM covering the text-phase pads); the per-header dynamic start cost is DYN-START-RING's (#7062).

@@ -6,7 +6,7 @@
   "branch": "task/crt-start-files-3",
   "head": "7ce12fe26",
   "gate": {
-    "affected": "FULL: the train's (csys start sources); test3 (xtask, niji-rt, niji-boundary, crt_products, hot_text_products) green, xtest3 (cargo xtask test: 6979+4854+128+46 passed) green, fullprof3 (32 passed) green; plants2 9/9 CAUGHT",
+    "affected": "FULL: the train's (csys start sources); test3 (xtask, niji-rt, niji-boundary, crt_products, hot_text_products) green, xtest3 (cargo xtask test: 6979+4854+128+46 passed) green, fullprof3 (32 passed) green; plants3 9/9 CAUGHT",
     "peak": null
   },
   "accepted_first_attempt": null,
@@ -47,7 +47,7 @@
     "mei:crt-start-files-3-test3",
     "mei:crt-start-files-3-xtest3",
     "mei:crt-start-files-3-fullprof3",
-    "mei:crt-start-files-3-plants2",
+    "mei:crt-start-files-3-plants3",
     "mei:crt-start-files-3-lint2"
   ],
   "improvement": "Instruction bounds checked from both sides need every profile re-measured when one moves; DYN-START-LINK-SHAPE lowered only the release bounds and left the fast floor 6k from red for the next start-up gain.",
