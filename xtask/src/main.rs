@@ -59,6 +59,7 @@ mod abbench;
 mod abi;
 mod affected;
 mod encodings;
+mod encodings_cjk;
 mod charmaps;
 mod align;
 mod bench;
