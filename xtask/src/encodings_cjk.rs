@@ -292,6 +292,13 @@ fn set(w: &mut String, root: &Path, rg: &[(u32, u32)], s: &(&str, &str, &str, Fm
             enc.insert(*cp, bytes.clone());
         }
     }
+    // A four-byte departure's code point is written as that pointer unless a shorter form or an
+    // `encode` record names another (probed: all 19 of GB18030's).
+    for &(p, cp) in &v.four {
+        if !enc.contains_key(&cp) && !four_enc.iter().any(|&(c, _)| c == cp) {
+            four_enc.push((cp, p));
+        }
+    }
     let mut pages: Vec<[u16; 64]> = vec![[0; 64]];
     let mut index = vec![0u16; 1024];
     for (pg, slot) in index.iter_mut().enumerate() {
@@ -346,7 +353,7 @@ fn set(w: &mut String, root: &Path, rg: &[(u32, u32)], s: &(&str, &str, &str, Fm
     let _ = writeln!(w, "    high: [\n        {}\n    ],", high_s.chunks(16).map(|c| c.join(", ")).collect::<Vec<_>>().join(",\n        "));
     let _ = writeln!(w, "    lead_lo: 0x{lead_lo:02X},\n    rows: &{ident}_ROWS,\n    cells: &{ident}_CELLS,\n    skip1: &{ident}_SKIP1,\n    skip_row: &{ident}_SKIP_ROW,");
     let _ = writeln!(w, "    pages: &{ident}_PAGES,\n    codes: &{ident}_CODES,\n    four: &{ident}_FOUR,\n    four_enc: &{ident}_FOUR_ENC,\n    ignore_error: {},\n}};\n", v.ignore_error);
-    Ok(256 + rows.len() * 4 + packed.len() * 2 + maps.len() * 32 + skip_row.len() + 2048 + flat.len() * 2 + (v.four.len() + four_s.len()) * 8)
+    Ok(256 + rows.len() * 4 + packed.len() * 2 + maps.len() * 32 + skip_row.len() + 2048 + flat.len() * 2 + (four_s.len() + four_enc_s.len()) * 8)
 }
 
 pub fn generate(root: &Path) -> Result<(String, Vec<(&'static str, usize)>), String> {

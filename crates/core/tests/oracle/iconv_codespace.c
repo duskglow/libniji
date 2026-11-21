@@ -8,56 +8,88 @@
  *   E <cp> <seq>      the encoding of a code point (U+0000..U+10FFFF, no surrogates)
  *   BT/BI <block> <hash>  per 256 code points: a hash of each code point's encoding with
  *                     //TRANSLIT (BT) and with //IGNORE (BI): output, return value, errno, input left
- * Sequences grow a byte at a time while iconv reports EINVAL, up to 4 bytes. */
+ * Sequences grow a byte at a time while iconv reports EINVAL, up to 4 bytes. After the argument
+ * -c, the D/I/T/P/G lines of sequences longer than two bytes are not written but hashed, one line
+ * per two-byte prefix (GB18030's four-byte area alone would be 165 million lines):
+ *   H <prefix> <lines> <hash>
+ * -c applies to the charsets named after it. */
 #include <errno.h>
 #include <iconv.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 static iconv_t dec, dec_ign, enc, enc_tr, enc_ign;
 
+static unsigned long long fnv(unsigned long long h, const void *p, size_t n);
+
+/* Lines of sequences longer than two bytes fold into fold_hash (compact mode). */
+static int compact, folding;
+static unsigned long long fold_hash, fold_lines;
+
+static void out(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    if (folding) {
+        char buf[256];
+        int n = vsnprintf(buf, sizeof buf, fmt, ap);
+        if (n > 0) fold_hash = fnv(fold_hash, buf, (size_t)n < sizeof buf ? (size_t)n : sizeof buf - 1);
+        if (strchr(buf, '\n')) fold_lines++;
+    } else {
+        vprintf(fmt, ap);
+    }
+    va_end(ap);
+}
+
 static void hex(const unsigned char *s, size_t n) {
-    for (size_t i = 0; i < n; i++) printf("%02X", s[i]);
+    for (size_t i = 0; i < n; i++) out("%02X", s[i]);
 }
 
 static void ignored(const unsigned char *seq, size_t n) {
     unsigned char in[8];
-    unsigned int out[16];
+    unsigned int buf[16];
     memcpy(in, seq, n);
     in[n] = 'A';
-    char *ip = (char *)in, *op = (char *)out;
-    size_t il = n + 1, ol = sizeof out;
+    char *ip = (char *)in, *op = (char *)buf;
+    size_t il = n + 1, ol = sizeof buf;
     iconv(dec_ign, NULL, NULL, NULL, NULL);
     errno = 0;
     size_t r = iconv(dec_ign, &ip, &il, &op, &ol);
     int e = r == (size_t)-1 ? errno : 0;
-    printf("G ");
+    out("G ");
     hex(seq, n);
-    for (unsigned int *p = out; (char *)p < op; p++) printf(" %X", *p);
-    printf(" r=%ld e=%d left=%zu\n", (long)r, e, il);
+    for (unsigned int *p = buf; (char *)p < op; p++) out(" %X", *p);
+    out(" r=%ld e=%d left=%zu\n", (long)r, e, il);
 }
 
 static void walk(unsigned char *seq, size_t n) {
     for (int b = 0; b < 256; b++) {
         seq[n - 1] = (unsigned char)b;
-        unsigned int out[8];
-        char *ip = (char *)seq, *op = (char *)out;
-        size_t il = n, ol = sizeof out;
+        unsigned int buf[8];
+        char *ip = (char *)seq, *op = (char *)buf;
+        size_t il = n, ol = sizeof buf;
         iconv(dec, NULL, NULL, NULL, NULL);
         size_t r = iconv(dec, &ip, &il, &op, &ol);
         if (r != (size_t)-1 && il == 0) {
-            printf("D ");
+            out("D ");
             hex(seq, n);
-            for (unsigned int *p = out; (char *)p < op; p++) printf(" %X", *p);
-            printf("\n");
+            for (unsigned int *p = buf; (char *)p < op; p++) out(" %X", *p);
+            out("\n");
         } else if (r == (size_t)-1 && errno == EINVAL) {
-            if (n < 4) walk(seq, n + 1);
-            else { printf("T "); hex(seq, n); printf("\n"); }
+            if (n == 2 && compact) {
+                folding = 1;
+                fold_hash = 14695981039346656037ULL;
+                fold_lines = 0;
+                walk(seq, 3);
+                folding = 0;
+                printf("H %02X%02X %llu %016llX\n", seq[0], seq[1], fold_lines, fold_hash);
+            } else if (n < 4) walk(seq, n + 1);
+            else { out("T "); hex(seq, n); out("\n"); }
         } else if (r == (size_t)-1 && errno == EILSEQ) {
-            printf("I "); hex(seq, n); printf(" %zu\n", n - il);
+            out("I "); hex(seq, n); out(" %zu\n", n - il);
             ignored(seq, n);
         } else {
-            printf("P "); hex(seq, n); printf(" %zu\n", n - il);
+            out("P "); hex(seq, n); out(" %zu\n", n - il);
         }
     }
 }
@@ -91,6 +123,10 @@ static int encode(iconv_t cd, unsigned int c, unsigned char *out, size_t *len, u
 int main(int argc, char **argv) {
     for (int a = 1; a < argc; a++) {
         const char *cs = argv[a];
+        if (strcmp(cs, "-c") == 0) {
+            compact = 1;
+            continue;
+        }
         char tr[96], ig[96];
         snprintf(tr, sizeof tr, "%s//TRANSLIT", cs);
         snprintf(ig, sizeof ig, "%s//IGNORE", cs);

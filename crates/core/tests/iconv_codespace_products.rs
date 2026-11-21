@@ -15,8 +15,12 @@ mod oracle;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`).
-const CHARSETS: [&str; 1] = ["EUC-JP"];
+/// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`, `cjk.rs`).
+const CHARSETS: [&str; 6] = ["EUC-JP", "BIG5", "EUC-KR", "CP932", "CP936", "GB18030"];
+
+/// Charsets whose sequences longer than two bytes are compared as one hash per two-byte prefix
+/// (the oracle's `-c`): GB18030's four-byte area is 165 million lines.
+const COMPACT: [&str; 1] = ["GB18030"];
 
 /// Blocks of 256 code points whose `//TRANSLIT` hash (`BT`) differs by decision, per charset:
 /// the built-in `C` locale's transliteration is derived from the UCD, not the reference library's
@@ -69,7 +73,7 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
     let mut compared = 0;
     for cs in CHARSETS {
         let run = |exe: &Path| -> String {
-            let o = Command::new(exe).arg(cs).env_clear().output().unwrap();
+            let o = Command::new(exe).args(COMPACT.contains(&cs).then_some("-c")).arg(cs).env_clear().output().unwrap();
             assert!(o.status.success(), "{} {cs} failed: {:?}", exe.display(), o.status);
             String::from_utf8_lossy(&o.stdout).into_owned()
         };
