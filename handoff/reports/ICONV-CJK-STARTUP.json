@@ -1,0 +1,86 @@
+{
+ "task": "ICONV-CJK-STARTUP",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE (target not reached for faults and getconf): built-in iconv tables hold offsets, not addresses; 135 RELATIVE fewer than 21.6 (64 below 21.5), start-up instructions below 21.5 on all three rows (Zen 1); faults +4/+5 over 21.5 remain; getconf size unchanged",
+ "branch": "task/iconv-cjk-startup",
+ "head": "a5b0f172f",
+ "gate": {
+  "affected": "FULL (escalated: xtask changed) is the train's; precheck + crates-2 (static, cargo test -p niji, -p xtask) + chk3 (clippy, static, iconv_reloc_products)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The dev (non-LTO) profile reads about 22 statics (locale::classes::C_TABLE, iconv::aliases::TEXT, niji_boundary::heap::HEAP, NAME_BYTES, ...) through `add sym@GOTPCREL(%rip)`, which ld cannot relax in a shared object: one .got RELATIVE each in dev-profile libc.so.6; the release profile (fat LTO) has none for the iconv tables. iconv_reloc_products leaves .got words out of 'points into' for that reason.",
+  "Skylake-SP class not measured (only the Zen 1 host).",
+  "getconf likely keeps cjk.rs because printf's wide conversions reach Codec::decode/encode (NOT VERIFIED by a link map)."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "empty main start-up, user instructions (Zen 1, full profile, median of 101)",
+   "before": 742212,
+   "after": 739510,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "3 libraries start-up, user instructions",
+   "before": 985019,
+   "after": 982318,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "clock_gettime start-up, user instructions",
+   "before": 764333,
+   "after": 761632,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "empty main start-up page faults (21.5 had 51)",
+   "before": 56,
+   "after": 55,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "libc.so.6 R_X86_64_RELATIVE count (full profile)",
+   "before": 1573,
+   "after": 1438,
+   "unit": "relocations",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "iconv_reloc_products test + 3 plants (CAUGHT)",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "getconf static text not reduced (21.5 903,524 B; head 1,340,708 B); follow-up named in next_step",
+   "before": 1340252,
+   "after": 1340708,
+   "unit": "bytes",
+   "measured": true
+  }
+ ],
+ "improvement": "plants tool could warn when a plant's cmd runs a test filter that never references the planted function's file (name-off ran --lib iconv, which has no builtin() test).",
+ "next_step": "faults: per-page fault trace of an empty main, 21.5 vs head, both classes; getconf: link map, make CJK dispatch reachable only from iconv_open/setlocale",
+ "report_file": "handoff/ICONV-CJK-STARTUP.md",
+ "jobs": [
+  "keke:iconv-cjk-startup-chk3",
+  "keke:iconv-cjk-startup-crates-2",
+  "keke:iconv-cjk-startup-plants-3"
+ ]
+}

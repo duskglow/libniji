@@ -46,10 +46,13 @@ the locale codec dispatch (`Codec::decode/encode` match `Codec::Cjk`), so `--gc-
 
 ## Jobs (keke)
 
-chk1 (f4b9f1482: clippy, static, iconv lib tests, full-profile so, hot_text_products, iconv_reloc_products) rc 0;
-crates (f4b9f1482 code = head code: static, `cargo test -p niji`, `cargo test -p xtask`) rc 0; chk3 (6fce3b3e6:
-clippy -D warnings, static, iconv_reloc_products) rc 0; plants-2 (6fce3b3e6). SUPERSEDED: plants (baseline red,
-fixed by 6fce3b3e6), chk2 (stopped: mis-chained). `affected` escalates to FULL (xtask changed): FULL is the train's.
+On the final code (a5b0f172f): chk3 (clippy -D warnings, static, iconv_reloc_products on the full-profile
+products) rc 0; crates-2 (static, `cargo test -p niji`, `cargo test -p xtask`); plants-3 (the 3 plants).
+SUPERSEDED: chk1 (f4b9f1482: full-profile so, hot_text_products 33 ok, iconv lib 17 ok; no tested-content record),
+crates (rc 0 on f4b9f1482, before the test edit), plants (baseline red, fixed by 6fce3b3e6), chk2 (stopped:
+mis-chained), plants-2 (desc-ptr, span-cut CAUGHT; name-off SURVIVED under a wrong cmd, fixed by a5b0f172f).
+`affected` escalates to FULL (xtask changed): FULL is the train's; `cargo xtask test` (full gate) not run for that
+reason. plants-3 and crates-2 waited ~30 min in keke's slot queue (all 24 cores busy).
 
 ## Next step (follow-up stories)
 
