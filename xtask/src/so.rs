@@ -1456,6 +1456,74 @@ pub fn debug_reader_rodata_errors(readelf: &str) -> Result<(), String> {
 /// gap and `.text` starts the executable segment on its alignment (the gap is the one between segments).
 const PLT_AFTER_TEXT: &str = "SECTIONS\n{\n  .plt : { *(.plt) *(.iplt) }\n  .plt.got : { *(.plt.got) }\n  .plt.sec : { *(.plt.sec) }\n}\nINSERT AFTER .text;\n";
 
+/// LIBC-SELF-BIND (D-27.NEW, ruling #7401): the functions libc.so.6's own references leave preemptible. The
+/// link binds every other reference to a function the library defines to that definition (`--dynamic-list`
+/// with `--dynamic-list-data`: `-Bsymbolic-functions` with exceptions), so a start no longer looks up ~230 of
+/// the library's own names through the whole scope. These stay preemptible: the malloc family the GNU C Library
+/// manual lets a program replace ("Replacing malloc"), whose internal callers (strdup, fopen, every allocation
+/// the library hands to its caller) reach the program's definitions, as on the reference. Data stays
+/// preemptible as a whole (`--dynamic-list-data`): a program's COPY of `stdout`, `optind`, `__fpu_control` or
+/// any other exported object is the one the library uses. Per-family probes of the reference
+/// (conformance/c/x_self_bind.c) found no other function whose internal callers reach a program's definition.
+pub const LIBC_PREEMPTIBLE: [&str; 11] =
+    ["malloc", "free", "calloc", "realloc", "aligned_alloc", "posix_memalign", "memalign", "valloc", "pvalloc", "malloc_usable_size", "reallocarray"];
+
+/// The `--dynamic-list` file of [`LIBC_PREEMPTIBLE`].
+fn libc_dynamic_list() -> String {
+    let mut s = String::from("{\n");
+    for n in LIBC_PREEMPTIBLE {
+        s.push_str(&format!("  {n};\n"));
+    }
+    s.push_str("};\n");
+    s
+}
+
+/// LIBC-SELF-BIND: the symbolic relocations of `so` that look up a function the object defines are exactly
+/// those of [`LIBC_PREEMPTIBLE`], and the object's data references stay symbolic. Returns the number of
+/// symbolic relocations (all names) for the build log.
+fn check_self_binding(so: &Path) -> Result<usize, String> {
+    let text = |args: &[&str]| -> Result<String, String> {
+        let o = Command::new("readelf").args(args).arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+        Ok(String::from_utf8_lossy(&o.stdout).into_owned())
+    };
+    self_binding_errors(&text(&["-rW"])?, &text(&["--dyn-syms", "-W"])?).map_err(|e| format!("{}: {e} (xtask/src/so.rs LIBC_PREEMPTIBLE)", so.display()))
+}
+
+/// The check of [`check_self_binding`] on `readelf -rW` and `readelf --dyn-syms -W` text.
+pub fn self_binding_errors(relocs: &str, dynsyms: &str) -> Result<usize, String> {
+    let mut defined: BTreeMap<&str, &str> = BTreeMap::new();
+    for l in dynsyms.lines() {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        if f.len() >= 8 && f[0].ends_with(':') && f[6] != "UND" {
+            defined.entry(f[7].split('@').next().unwrap_or(f[7])).or_insert(f[3]);
+        }
+    }
+    let (mut symbolic, mut data) = (0usize, 0usize);
+    let mut bound_late = BTreeSet::new();
+    for l in relocs.lines() {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        if f.len() < 5 || !f[2].starts_with("R_X86_64_") || f[2].ends_with("RELATIVE") || u64::from_str_radix(f[0], 16).is_err() {
+            continue;
+        }
+        let name = f[4].split('@').next().unwrap_or(f[4]);
+        symbolic += 1;
+        match defined.get(name) {
+            Some(&"FUNC") | Some(&"IFUNC") if !LIBC_PREEMPTIBLE.contains(&name) => {
+                bound_late.insert(name);
+            }
+            Some(&"OBJECT") => data += 1,
+            _ => {}
+        }
+    }
+    if !bound_late.is_empty() {
+        return Err(format!("{} functions the object defines are still looked up at load time: {}", bound_late.len(), bound_late.into_iter().collect::<Vec<_>>().join(", ")));
+    }
+    if data == 0 {
+        return Err("no symbolic reference to the object's own data is left (a program's COPY relocation of stdout or optind would not be the library's)".into());
+    }
+    Ok(symbolic)
+}
+
 /// DYN-START-RING: `so` has exactly one executable PT_LOAD ([`PLT_AFTER_TEXT`]).
 fn check_executable_segment(so: &Path) -> Result<(), String> {
     let ph = Command::new("readelf").arg("-lW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
@@ -1799,9 +1867,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // DYN-START-RING: one executable segment whatever the size of the tables before the text.
     let plt_after = product.join("libc-plt-after-text.ld");
     fs::write(&plt_after, PLT_AFTER_TEXT).map_err(|e| format!("{}: {e}", plt_after.display()))?;
+    // LIBC-SELF-BIND (D-27.76): the library's own function references bind at link time, but for the malloc family.
+    let dyn_list = product.join("libc-preemptible.list");
+    fs::write(&dyn_list, libc_dynamic_list()).map_err(|e| format!("{}: {e}", dyn_list.display()))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .arg(format!("-Wl,--dynamic-list={}", dyn_list.display()))
+            .arg("-Wl,--dynamic-list-data")
             .arg(format!("-Wl,-T,{}", ro_first.display()))
             .arg(format!("-Wl,-T,{}", plt_after.display()))
             .args(extra)
@@ -1826,6 +1899,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     check_executable_segment(&so)?;
     check_no_link_edge(&so)?;
     check_no_static_unwinder(&so)?;
+    let symbolic = check_self_binding(&so)?;
+    println!("so: {symbolic} symbolic relocations in libc.so.6; of its own functions only the malloc family is looked up (D-27.76)");
     let native =check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
     let objects = crate::compat_objects::check(root, &so)?;
@@ -3363,6 +3438,25 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LIBC-SELF-BIND (no spec clause: the build of libc.so.6, D-27.76): `readelf -rW` and `--dyn-syms -W` rows
+    /// of a linked library. References to the malloc family, to the object's data and to names it does not
+    /// define pass; a reference to any other function it defines (FUNC or IFUNC) is reported by name, and a
+    /// table with no data reference left (data bound at link time too) is reported.
+    #[test]
+    fn libc_self_binding_keeps_only_the_malloc_family_and_data_symbolic() {
+        let syms = "Symbol table '.dynsym' contains 6 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     1: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND _Unwind_Resume@GCC_3.0\n     2: 0000000000040000    10 FUNC    GLOBAL DEFAULT   12 malloc@@GLIBC_2.2.5\n     3: 0000000000200000     8 OBJECT  GLOBAL DEFAULT   24 stdout@@GLIBC_2.2.5\n     4: 0000000000041000    10 FUNC    GLOBAL DEFAULT   12 memcmp@@GLIBC_2.2.5\n     5: 0000000000042000    10 IFUNC   GLOBAL DEFAULT   12 strlen@@GLIBC_2.2.5\n";
+        let head = "Relocation section '.rela.dyn' at offset 0x1000 contains 4 entries:\n    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n000000000020f000  0000000000000008 R_X86_64_RELATIVE                         41000\n";
+        let good = format!("{head}000000000020f008  0000000300000006 R_X86_64_GLOB_DAT      0000000000200000 stdout@@GLIBC_2.2.5 + 0\n000000000020f010  0000000200000006 R_X86_64_GLOB_DAT      0000000000040000 malloc@@GLIBC_2.2.5 + 0\n000000000020f018  0000000100000007 R_X86_64_JUMP_SLOT     0000000000000000 _Unwind_Resume@GCC_3.0 + 0\n");
+        assert_eq!(self_binding_errors(&good, syms), Ok(3));
+        let func = format!("{good}000000000020f020  0000000400000007 R_X86_64_JUMP_SLOT     0000000000041000 memcmp@@GLIBC_2.2.5 + 0\n");
+        assert!(self_binding_errors(&func, syms).is_err_and(|e| e.contains("1 functions") && e.contains("memcmp")));
+        let ifunc = format!("{good}000000000020f020  0000000500000006 R_X86_64_GLOB_DAT      0000000000042000 strlen@@GLIBC_2.2.5 + 0\n");
+        assert!(self_binding_errors(&ifunc, syms).is_err_and(|e| e.contains("strlen")));
+        let no_data = good.replace("stdout@@GLIBC_2.2.5 + 0", "_Unwind_Resume@GCC_3.0 + 0");
+        assert!(self_binding_errors(&no_data, syms).is_err_and(|e| e.contains("COPY")));
+        assert!(LIBC_PREEMPTIBLE.iter().all(|n| libc_dynamic_list().contains(&format!("  {n};\n"))));
+    }
 
     /// VALGRIND-LDSO-SYMBOLS (no spec clause: the build of the interpreter; valgrind's must-be-redirected
     /// names): `readelf -sW` rows of a linked interpreter. The good table passes; a missing name, an
