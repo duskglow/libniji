@@ -1,0 +1,13 @@
+{"task": "STATIC-LAYOUT-FLIP", "model": "opus", "tokens": null,
+ "result": "cargo xtask startup-pair: static cbench_startup rows base vs head, judged at a text pad where read-only PT_LOAD counts agree (LAYOUT-FLIP printed, unpadded pair reported); D-X.148",
+ "branch": "task/static-layout-flip", "head": "8cb409fd9",
+ "gate": {"affected": "565 passed / 0 failed", "peak": "1.8G"}, "accepted_first_attempt": null,
+ "rulings": [{"item": "the per-train instruction-limit check has no base to pair with; a flip alone moved startup_instr_c by 7 user instructions (Zen 1 limit headroom 4)", "recommendation": "on a red cbench_startup row the train runs startup-pair --base <merge base> and judges on its verdict"}],
+ "informational": ["HEAP-ADDRESS-SPACE-9 case (b732d9b46 vs f9eb8bd63) does not flip on the Skylake-SP host (2/2 read-only PT_LOADs, fast and release); fast profile head costs +10 user / +15,427 kernel instructions per static start at equal layout, release +0..+6 user, kernel within noise", "the flip path shown by the --head-pad self-check: base 2 / head 1 at a 32 KiB head pad, unpadded -7 user / -5,536 kernel, matched at pad 0x1000: +0 / -427"],
+ "refused": [],
+ "impact": [{"kind": "tooling", "what": "static start-up rows judged at a matching read-only layout (removes the ~5.5-7.5k kernel-instruction flip from base-vs-head verdicts)", "before": -5536, "after": -427, "unit": "kernel instr/start (flip-only change, unpadded vs matched)", "measured": true},
+            {"kind": "coverage", "what": "unit tests 3, plants 6 CAUGHT", "before": 0, "after": 6, "unit": "plants", "measured": true}],
+ "improvement": "the brief named HAS-9's case as proof without its link/host; a brief that names the exact measuring command for a reproduction would have saved two product builds",
+ "next_step": "land; coordinator rules on wiring startup-pair into the train's cbench_startup check",
+ "report_file": "handoff/STATIC-LAYOUT-FLIP.md",
+ "jobs": ["mei:static-layout-flip-gate3", "mei:static-layout-flip-plants2", "mei:static-layout-flip-lint3", "mei:static-layout-flip-proof2", "mei:static-layout-flip-sweep"]}
