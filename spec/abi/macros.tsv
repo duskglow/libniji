@@ -6320,7 +6320,6 @@ TCSETXF	net/if_ppp.h	int	21556
 TCSETXW	net/if_ppp.h	int	21557
 TCXONC	net/if_ppp.h	int	21514
 TD_EVENTSIZE	thread_db.h	int	2
-TD_SIGNO_MASK	thread_db.h	pointer	0
 TD_THR_ANY_USER_FLAGS	thread_db.h	unsigned int	4294967295
 TD_THR_LOWEST_PRIORITY	thread_db.h	int	-20
 TFD_CLOEXEC	sys/timerfd.h	int	524288

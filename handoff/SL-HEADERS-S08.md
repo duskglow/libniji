@@ -1,25 +1,22 @@
-# SL-HEADERS-S08: slice 8, signals, threads, contexts (handoff after run 5, SL-HEADERS-S08-5, merge-only)
+# SL-HEADERS-S08: slice 8, signals, threads, contexts (handoff after run 6, SL-HEADERS-S08-6, data-only rebase)
 
-**State.** Branch `task/sl-headers-s08-5` (run 4's branch plus origin/next merged). Head: see `handoff/reports/SL-HEADERS-S08-5.json`.
-`headers-gen` writes 94 headers; `header_check.py` 0 failed of 6435 (all slices; run 4 had 0 of 5382). Say "slice 8" in commits.
+**State.** Branch `task/sl-headers-s08-6`. Head: see `handoff/reports/SL-HEADERS-S08-6.json`. Say "slice 8" in commits.
 
-**Done in run 5 (merge only, no new header content).**
-* Merged origin/next. next had split `xtask/src/headers.rs` into `xtask/src/headers/*.rs` (aggregates, cond, rows, values, ...), with its own
-  `@@init`, function-pointer members, packed/aligned aggregates and pointer literals. Run 4's monolith edits for those were dropped in favour of
-  next's modules; nothing slice-8-only stays in the shared emitter except what is listed next.
-* Four small generic generator edits slice 8 still needs, now on next's modules: `LANGUAGE_MODE` (`max_align_t`) and `union_tag`/`cxx_mask`
-  (a union typedef without a C++ spelling is declared in C++, `pthread_attr_t`) in `headers/cond.rs`; an include right after an `#if` line is
-  conditional (`headers.rs`, `sched.h` declares `size_t`). `fmtmsg.h.in` takes the `MM_NULL*` pointer values from the table with `@@value`.
-* Function-pointer members: next's emitter declared them `void (*m) (void)`; `aggregates.rs` now reads `headers/fnmembers.tsv` again and
-  declares the tags and typedefs the declarator names first (`siginfo_t`, `union sigval`). Plant `s8-fnmember-declarator` caught the loss.
-* Differences doc: every row of both sides kept (next had no rows where run 4's three sit). `headers/reserved.tsv`: both lists. `header_probe.py`:
-  `standard_names()` holds both lists (slice 17's and slice 8's). Generated headers and `appendix_c_layouts.rs` regenerated, not hand-merged.
-* Plants file `handoff/SL-HEADERS-S08-4-plants.txt`: paths of three plants follow the split (cond.rs, values.rs).
+**Done in run 6.**
+* Merged origin/next after HEADERS-GEN-S08-HOOKS landed. The branch has no diff under `xtask/`, `spec/tools/` or `tools/`: next's versions were
+  taken whole (function-pointer members, `LANGUAGE_MODE`, `union_tag`/`cxx_mask`, the conditional include are next's).
+* Data kept: slice 8's rows in `spec/abi/layouts.tsv`, `typedefs.tsv`, `visibility.tsv`; `headers/reserved.tsv` (both lists); the three
+  slice 8 differences rows (both sides kept); `headers/fnmembers.tsv` = next's `struct argp` row plus slice 8's five rows
+  (`struct sigaction`, `struct sigevent`, `sigevent_t`, `struct _pthread_cleanup_buffer`).
+* `macros.tsv` conflicts: next's typed pointer constants taken (`void (*)(int)` SIG_*, `void*` RTLD_*, `char*` MM_NULL*, ...);
+  `headers/fmtmsg.h.in` is next's (its `@@value` already carries the cast; slice 8's own cast produced a doubled cast and is dropped).
+* Regenerated with `cargo xtask headers-gen` (145 headers; `abi-gen` rewrote `crates/abi/src/layout.rs` and `appendix_c_layouts.rs`),
+  second run stable. clippy and `cargo xtask static` clean on the role.
 
-**Not to redo.** The member emitter work: it is next's `aggregates.rs`. No second `LANGUAGE_MODE` or union-tag code anywhere else.
+**Not to redo.** Nothing generic in the generator; if another gap shows up it is a RULING NEEDED, not a slice edit.
 
-**Open.** `macros.tsv` has five TTYDEF_* rows in pty.h that type_probe.py does not reproduce (slice of pty.h). P6 (`conformance/run.sh
---niji-headers`) was not rerun in this merge-only run: the 45 of 47 of run 4 are on the old head. A full layouts regeneration would re-add
-`__sigset_t` rows (abi_extract.py TYPES lists it).
+**Open.** `header_check.py`: 8 failed of 9785, all P8 `sys/mount.h` vs `linux/mount.h` ("redefinition of struct winsize"). `libc-include/sys/mount.h`
+and `sys/ioctl.h` are byte-identical to next's, so this is not slice 8's (slice 15's header; not chased). Plants of slice 8:
+`handoff/SL-HEADERS-S08-4-plants.txt` (see the report json for the run's result).
 
-**Next step.** None for slice 8 beyond the train's FULL gate and landing.
+**Next step.** The train's gate and landing.
