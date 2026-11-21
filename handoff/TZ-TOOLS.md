@@ -1,11 +1,12 @@
 # TZ-TOOLS: `zic` and `zdump` in libc-bin (GitHub #14, the rest)
 
-**State.** Branch `task/tz-tools` (from origin/next `7e5d8b3fa`), role keke `~/w/n3`. Code head `0b7936dc5`; this
-note and `handoff/reports/TZ-TOOLS.json` are the commit after it. Jobs on the code head: `tz-tools-gate3` (direct
-tier, `--base origin/next`), `tz-tools-plants3` (`handoff/TZ-TOOLS-plants.txt`, 11 plants). Superseded:
+**State.** Branch `task/tz-tools` (from origin/next `7e5d8b3fa`), role keke `~/w/n3`. Code head `c448a7eb7`; this
+note and `handoff/reports/TZ-TOOLS.json` are the commit after it. Jobs on the code head: `tz-tools-gate4` (direct
+tier, `--base origin/next`), `tz-tools-plants4` (`handoff/TZ-TOOLS-plants.txt`, 11 plants). Superseded:
 `tz-tools-gate` (clippy: host collections in the new test), `tz-tools-gate2` (the test compared program paths;
 zic and zdump name themselves by argv[0] as the reference does), `tz-tools-plants`, `tz-tools-plants2` (stopped /
-baseline red for the same reasons); development runs `tz-tools-t1` to `-t3`.
+baseline red for the same reasons), `tz-tools-gate3`, `tz-tools-plants3` (stopped: the slim cut dropped a Gaza/Hebron
+transition the footer cannot give; fixed in the code head); development runs `tz-tools-t1` to `-t3`.
 
 ## On the branch
 

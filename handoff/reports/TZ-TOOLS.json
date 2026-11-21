@@ -1,7 +1,7 @@
 {"task": "TZ-TOOLS", "model": "opus", "tokens": null,
  "result": "zic and zdump in libc-bin: zic decodes identically to the reference for 593/598 zones fat and -L, 590/598 slim (the rest read the same); zdump -v/-i identical for all 497 installed zones over libniji's localtime",
- "branch": "task/tz-tools", "head": "0b7936dc5",
- "gate": {"affected": "see tz-tools-gate3", "peak": null},
+ "branch": "task/tz-tools", "head": "c448a7eb7",
+ "gate": {"affected": "see tz-tools-gate4", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
@@ -19,6 +19,6 @@
    {"kind": "unblock", "what": "Yohane Linux tzdata rebuild (issue #14, zic/zdump part)", "before": null, "after": null, "unit": null, "measured": false}
  ],
  "improvement": "Each plant rebuilds all products (about 10-19 min here) although a csys/util program only needs its own compile and link; a utilities-only rebuild path in cargo xtask so would make utility plants minutes, not hours.",
- "next_step": "Land after tz-tools-gate3 and tz-tools-plants3; then UTIL-12 (localedef).",
+ "next_step": "Land after tz-tools-gate4 and tz-tools-plants4; then UTIL-12 (localedef).",
  "report_file": "handoff/TZ-TOOLS.md",
- "jobs": ["keke:tz-tools-gate3", "keke:tz-tools-plants3"]}
+ "jobs": ["keke:tz-tools-gate4", "keke:tz-tools-plants4"]}
