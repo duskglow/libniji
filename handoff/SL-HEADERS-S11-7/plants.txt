@@ -1,7 +1,7 @@
 # Plants of slice 11, run 7 (data-only re-port on the generator): the header text and table rows, the slice's checks (header_checks/s11.py) and the P6 proof.
-s11-ieee-float-width | libc-include/ieee754.h | lit:    unsigned int mantissa : 23; ==>     unsigned int mantissa : 22; | cargo xtask headers-gen --check | msg:stale under
-s11-ieee-double-size | libc-include/ieee754.h | lit:    unsigned int mantissa0 : 20; ==>     unsigned int mantissa0 : 21; | cargo xtask headers-gen --check | msg:stale under
-s11-ieee-x87-one | libc-include/ieee754.h | lit:    unsigned int one : 1; ==>     unsigned int one : 2; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-float-width | libc-include/ieee754.h | lit:unsigned int mantissa : 23; ==> unsigned int mantissa : 22; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-double-size | libc-include/ieee754.h | lit:unsigned int mantissa0 : 20; ==> unsigned int mantissa0 : 21; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-x87-one | libc-include/ieee754.h | lit:unsigned int one : 1; ==> unsigned int one : 2; | cargo xtask headers-gen --check | msg:stale under
 s11-ieee-table-position | spec/abi/layouts.tsv | perl:s/(union ieee754_float\tieee\.exponent\t0\t\tunsigned int\tbits 8)\x4023/${1}\x4024/ | cargo xtask headers-gen --check | msg:headers-gen
 s11-ieee-proof-float | spec/tools/ieee754_fields.c | lit:.f == 1.5f, ==> .f == 1.25f, | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp1 | msg:FAIL P6 ieee754 fields
 s11-ieee-proof-x87 | spec/tools/ieee754_fields.c | lit:.d == 0x1.0000000000000002p0L, ==> .d == 0x1.0000000000000004p0L, | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp2 | msg:FAIL P6 ieee754 fields
