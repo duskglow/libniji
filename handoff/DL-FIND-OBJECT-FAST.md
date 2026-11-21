@@ -49,10 +49,13 @@ before/after dlopen, after dlclose (checks 41/42), reopen; churn: 3 readers x 30
 Plants `handoff/DL-FIND-OBJECT-FAST-plants.txt`: 5/5 CAUGHT on b2a8a77 (job plants: stale-after-dlclose,
 torn-writer-no-odd, torn-reader-no-validate, search-edge, added-missing); final head: plants2 5/5 CAUGHT, no WARN.
 
-**Jobs on the final head (keke).** `~/work/dl-find-object-fast/seq2.sh`: lint (workspace clippy + static), gate2
-(direct tier, 56 tests), xtest (`cargo xtask test`), hot (NIJI_FULL_PROFILE so + hot_text_products).
-`par2.sh`: plants2, pc3, throw2. Superseded: t2 (wrong test name, killed), gate (b2a8a77, killed for the dladdr
-change), plants (b2a8a77), pc1/pc2 (older heads).
+**Jobs on the final head d91a4174d (keke, started 21:17Z, pending at hand-back).** `~/work/dl-find-object-fast/seq3.sh`:
+lint3 (workspace clippy + static), gate3 (direct tier), xtest3 (`cargo xtask test`), hot3 (NIJI_FULL_PROFILE so +
+hot_text_products). `par3.sh`: plants3, pc4, throw3. The numbers above are from the same code one commit earlier
+(b4cba586a: lint, gate2 786 passed / 0 failed / peak 2.4G, plants2, pc3, throw2, all rc 0); d91a4174d changes
+only `index.rs`'s module doc (the reserved id), so pc4/throw3 should repeat them exactly. Superseded: those five
+(content check: index.rs changed after them), xtest (b4cba586a, stopped for the resync), t2 (wrong test name),
+gate (b2a8a77), plants (b2a8a77), pc1/pc2 (older heads), trace1/trace2 (diagnostics).
 
 **Coordinator note (DL-SLOT-REUSE #7379, 20:41Z): remove its +4 instr per dl_iterate_phdr call.** Not done: that
 change is not on next yet (not in this branch, base d5764940d), so there is nothing here to remove; this branch
