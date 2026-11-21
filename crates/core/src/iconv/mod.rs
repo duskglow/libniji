@@ -153,7 +153,75 @@ const LATIN1_MORE: [&[u8]; 7] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b
 /// Every built-in name, in table order: what the `iconv` command lists beside the installed
 /// charmaps (`iconv -l`, spec §31.6, UTIL-7).
 pub fn builtin_names() -> impl Iterator<Item = &'static [u8]> {
-    NAMES.iter().map(|(n, _)| *n).chain(LATIN1_MORE.iter().copied())
+    (0..NAME_ROWS.len()).filter_map(|i| name_row(i).map(|(n, _)| n))
+}
+
+/// [`NAMES`] and [`LATIN1_MORE`] are read at build time only: the program holds their names back
+/// to back in [`NAME_BYTES`] and per row (offset, length, codec) in [`NAME_ROWS`], numbers instead
+/// of pointers, so the tables need no load-time relocation (ICONV-CJK-STARTUP: a table of
+/// `&[u8]` costs every process one relocation per row).
+static NAME_BYTES: [u8; NAME_BYTES_LEN] = name_bytes();
+
+/// Per row of [`NAMES`], then of [`LATIN1_MORE`] (codec ISO-8859-1): its name's offset in
+/// [`NAME_BYTES`], its length and its codec.
+static NAME_ROWS: [(u16, u8, Codec); NAMES.len() + LATIN1_MORE.len()] = name_rows();
+
+/// Row `i`'s name and codec ([`NAME_ROWS`]).
+fn name_row(i: usize) -> Option<(&'static [u8], Codec)> {
+    let &(at, n, c) = NAME_ROWS.get(i)?;
+    let at = usize::from(at);
+    Some((NAME_BYTES.get(at..at.saturating_add(usize::from(n)))?, c))
+}
+
+/// Row `i`'s name, at build time.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn source_name(i: usize) -> &'static [u8] {
+    if i < NAMES.len() { NAMES[i].0 } else { LATIN1_MORE[i - NAMES.len()] }
+}
+
+const NAME_BYTES_LEN: usize = {
+    let (mut i, mut n) = (0, 0);
+    while i < NAMES.len() + LATIN1_MORE.len() {
+        n += source_name(i).len();
+        i += 1;
+    }
+    n
+};
+
+// Const fns: an offset past `u16` or a name past `u8` fails the build (constant evaluation).
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn name_bytes() -> [u8; NAME_BYTES_LEN] {
+    let mut t = [0u8; NAME_BYTES_LEN];
+    let (mut i, mut at) = (0, 0);
+    while i < NAMES.len() + LATIN1_MORE.len() {
+        let n = source_name(i);
+        let mut k = 0;
+        while k < n.len() {
+            t[at + k] = n[k];
+            k += 1;
+        }
+        at += n.len();
+        i += 1;
+    }
+    t
+}
+
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)]
+const fn name_rows() -> [(u16, u8, Codec); NAMES.len() + LATIN1_MORE.len()] {
+    let mut t = [(0u16, 0u8, Codec::Latin1); NAMES.len() + LATIN1_MORE.len()];
+    let (mut i, mut at) = (0, 0usize);
+    while i < t.len() {
+        let n = source_name(i).len();
+        assert!(at <= u16::MAX as usize && n <= u8::MAX as usize);
+        t[i].0 = at as u16;
+        t[i].1 = n as u8;
+        if i < NAMES.len() {
+            t[i].2 = NAMES[i].1;
+        }
+        at += n;
+        i += 1;
+    }
+    t
 }
 
 /// The built-in codec `name` denotes, if any. The table is in matching form, so each row is
@@ -164,11 +232,10 @@ pub fn builtin(name: Name<'_>) -> Option<Codec> {
     while rows != 0 {
         let i = usize::try_from(rows.trailing_zeros()).unwrap_or(usize::MAX);
         rows &= rows.wrapping_sub(1);
-        match NAMES.get(i) {
-            Some((n, c)) if name.is(n) => return Some(*c),
-            Some(_) => {}
-            None if LATIN1_MORE.get(i.wrapping_sub(NAMES.len())).is_some_and(|n| name.is(n)) => return Some(Codec::Latin1),
-            None => {}
+        if let Some((n, c)) = name_row(i) {
+            if name.is(n) {
+                return Some(c);
+            }
         }
     }
     None

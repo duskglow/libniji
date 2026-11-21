@@ -19,33 +19,45 @@
 #![allow(clippy::arithmetic_side_effects)] // bytes, pointers below 1237576, code points below 0x110000
 
 use super::Dec;
-use super::cjk_tables::{BIG5, CP932, CP936, EUC_KR, GB18030, GB18030_RANGES};
+use super::cjk_tables::{CELLS, CODES, FOUR, FOUR_ENC, GB18030_RANGES, PAGES, ROWS, SETS, SKIP1, SKIP_ROW};
 
-/// One set's tables (generated in `cjk_tables`).
+/// A part of a pooled table in `cjk_tables` (`ROWS`, `CELLS`, ...): (start, count). A span, not a
+/// slice: an address in a static would be a load-time relocation in every process.
+pub(super) type Span = (u32, u32);
+
+/// One set's descriptor (generated in `cjk_tables`); integers only.
 pub(super) struct Set {
     /// The bytes 0x80..=0xFF: a code point, [`LEAD`] or [`BAD`].
     pub(super) high: [u16; 128],
     /// The first lead byte; `rows`, `skip_row` start there.
     pub(super) lead_lo: u8,
     /// Per lead: the offset of its cells in `cells` and its first and last trail byte.
-    pub(super) rows: &'static [(u16, u8, u8)],
+    pub(super) rows: Span,
     /// The two-byte cells, 0 for none.
-    pub(super) cells: &'static [u16],
+    pub(super) cells: Span,
     /// Bitmaps of trail bytes after which an invalid sequence is skipped one byte.
-    pub(super) skip1: &'static [[u32; 8]],
+    pub(super) skip1: Span,
     /// Per lead: its bitmap in `skip1`.
-    pub(super) skip_row: &'static [u8],
+    pub(super) skip_row: Span,
     /// Per 64 BMP code points: its page in `codes`.
-    pub(super) pages: &'static [u16],
+    pub(super) pages: Span,
     /// The encoding of each code point: one byte (below 0x100), two bytes, 0 for none or
     /// [`BLOCKED`].
-    pub(super) codes: &'static [u16],
+    pub(super) codes: Span,
     /// GB18030: four-byte pointers whose code point is not the ranges' (pointer, code point).
-    pub(super) four: &'static [(u32, u32)],
+    pub(super) four: Span,
     /// GB18030: code points written as a four-byte pointer other than the ranges give.
-    pub(super) four_enc: &'static [(u32, u32)],
+    pub(super) four_enc: Span,
     /// Whether input `//IGNORE` skipped makes the call end with `EILSEQ`.
     pub(super) ignore_error: bool,
+}
+
+/// Span `(at, n)` of the pooled table `all` (empty if it does not fit, which the generator never
+/// writes).
+fn part<T>(all: &'static [T], (at, n): Span) -> &'static [T] {
+    let at = usize::try_from(at).unwrap_or(usize::MAX);
+    let n = usize::try_from(n).unwrap_or(0);
+    all.get(at..at.saturating_add(n)).unwrap_or(&[])
 }
 
 const LEAD: u16 = 0xFFFF;
@@ -71,14 +83,17 @@ impl Which {
     /// Every set, in descriptor tag order.
     pub(super) const ALL: [Which; 5] = [Which::Big5, Which::EucKr, Which::Cp932, Which::Cp936, Which::Gb18030];
 
+    #[allow(clippy::indexing_slicing)] // SETS has one descriptor per `Which`, in `ALL` order
     fn set(self) -> &'static Set {
-        match self {
-            Which::Big5 => &BIG5,
-            Which::EucKr => &EUC_KR,
-            Which::Cp932 => &CP932,
-            Which::Cp936 => &CP936,
-            Which::Gb18030 => &GB18030,
-        }
+        // An index, not a match on addresses (a table of addresses would be relocated at load).
+        let i = match self {
+            Which::Big5 => 0,
+            Which::EucKr => 1,
+            Which::Cp932 => 2,
+            Which::Cp936 => 3,
+            Which::Gb18030 => 4,
+        };
+        &SETS[i]
     }
 
     /// Whether input `//IGNORE` skipped makes the call end with `EILSEQ`.
@@ -89,8 +104,9 @@ impl Which {
 
 /// The code point of GB18030 four-byte pointer `p` (None: no character).
 fn four_cp(p: u32) -> Option<u32> {
-    if let Ok(i) = GB18030.four.binary_search_by_key(&p, |&(q, _)| q) {
-        return GB18030.four.get(i).map(|&(_, c)| c);
+    let four = part(&FOUR, Which::Gb18030.set().four);
+    if let Ok(i) = four.binary_search_by_key(&p, |&(q, _)| q) {
+        return four.get(i).map(|&(_, c)| c);
     }
     if (189_000..=1_237_575).contains(&p) {
         return Some(0x1_0000 + p - 189_000);
@@ -104,8 +120,9 @@ fn four_cp(p: u32) -> Option<u32> {
 
 /// The four-byte pointer GB18030 writes `c` as, if any.
 fn four_ptr(c: u32) -> Option<u32> {
-    if let Ok(i) = GB18030.four_enc.binary_search_by_key(&c, |&(x, _)| x) {
-        return GB18030.four_enc.get(i).map(|&(_, p)| p);
+    let four_enc = part(&FOUR_ENC, Which::Gb18030.set().four_enc);
+    if let Ok(i) = four_enc.binary_search_by_key(&c, |&(x, _)| x) {
+        return four_enc.get(i).map(|&(_, p)| p);
     }
     let p = if c >= 0x1_0000 {
         189_000 + c - 0x1_0000
@@ -146,16 +163,16 @@ pub(super) fn decode(w: Which, input: &[u8]) -> Dec {
         return decode_four(input);
     }
     let r = usize::from(b0.wrapping_sub(s.lead_lo));
-    if let Some(&(off, first, last)) = s.rows.get(r) {
+    if let Some(&(off, first, last)) = part(&ROWS, s.rows).get(r) {
         if (first..=last).contains(&b1) {
-            if let Some(&c) = s.cells.get(usize::from(off) + usize::from(b1 - first)) {
+            if let Some(&c) = part(&CELLS, s.cells).get(usize::from(off) + usize::from(b1 - first)) {
                 if c != 0 {
                     return Dec::Char(u32::from(c), 2);
                 }
             }
         }
     }
-    let map = s.skip_row.get(r).and_then(|&k| s.skip1.get(usize::from(k)));
+    let map = part(&SKIP_ROW, s.skip_row).get(r).and_then(|&k| part(&SKIP1, s.skip1).get(usize::from(k)));
     let one = map.and_then(|m| m.get(usize::from(b1 / 32))).is_some_and(|&word| word & (1 << (b1 % 32)) != 0);
     Dec::Invalid(if one { 1 } else { 2 })
 }
@@ -177,8 +194,8 @@ fn encode_set(w: Which, c: u32, out: &mut [u8; 8]) -> Option<usize> {
     }
     let s = w.set();
     if c <= 0xFFFF {
-        let page = usize::from(*s.pages.get(usize::try_from(c >> 6).ok()?)?);
-        let v = *s.codes.get(page * 64 + usize::try_from(c & 63).ok()?)?;
+        let page = usize::from(*part(&PAGES, s.pages).get(usize::try_from(c >> 6).ok()?)?);
+        let v = *part(&CODES, s.codes).get(page * 64 + usize::try_from(c & 63).ok()?)?;
         match v {
             BLOCKED => return None,
             0 => {}

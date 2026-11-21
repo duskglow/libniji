@@ -1,0 +1,5 @@
+# ICONV-CJK-STARTUP plants: an address table of the CJK descriptors back (the relocation check), a wrong span
+# cut of a pooled CJK table (the codec's unit tests), a wrong name offset in the built-in name rows (iconv unit tests).
+desc-ptr | crates/core/src/iconv/cjk.rs | lit:        &SETS[i] ==>         static ALL: [&Set; 5] = [&SETS[0], &SETS[1], &SETS[2], &SETS[3], &SETS[4]]; ALL[i] | cargo test -p niji --test iconv_reloc_products | msg:iconv_tables_have_no_load_relocations.*FAILED|points into
+span-cut | crates/core/src/iconv/cjk.rs | lit:    all.get(at..at.saturating_add(n)).unwrap_or(&[]) ==>     all.get(at..at.saturating_add(n).saturating_sub(1)).unwrap_or(&[]) | cargo test -p niji --lib iconv::cjk | msg:cjk_.*FAILED|panicked
+name-off | crates/core/src/iconv/mod.rs | lit:    Some((NAME_BYTES.get(at..at.saturating_add(usize::from(n)))?, c)) ==>     Some((NAME_BYTES.get(at + 1..at.saturating_add(usize::from(n)) + 1)?, c)) | cargo test -p niji --lib iconv | msg:FAILED|panicked

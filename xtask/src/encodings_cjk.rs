@@ -15,7 +15,10 @@
 //! `crates/core/src/iconv/cjk.rs`): the bytes 0x80..=0xFF, the two-byte cells by lead (a row
 //! index of offset and trail span into packed cells), the trail bytes after which `//IGNORE`
 //! skips one byte (distinct bitmaps, one index per lead) and the encoder as pages of 64 code
-//! points over the BMP (identical pages shared).
+//! points over the BMP (identical pages shared). The tables of all sets are concatenated per kind
+//! (`ROWS`, `CELLS`, ...) and a `Set` holds (start, count) spans into them, never a pointer, so the
+//! descriptors need no load-time relocation and every program that never converts pays nothing
+//! for them at start-up (ICONV-CJK-STARTUP).
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -204,8 +207,8 @@ fn hex16(v: &[u16]) -> Vec<String> {
     v.iter().map(|x| format!("0x{x:04X}")).collect()
 }
 
-/// One set's statics; returns its size in bytes.
-fn set(w: &mut String, root: &Path, rg: &[(u32, u32)], s: &(&str, &str, &str, Fmt, &str)) -> Result<usize, String> {
+/// One set: its tables go into `pool`, its descriptor into `w`; returns its size in bytes.
+fn set(w: &mut String, pool: &mut Pool, root: &Path, rg: &[(u32, u32)], s: &(&str, &str, &str, Fmt, &str)) -> Result<usize, String> {
     let (ident, name, file, fmt, var) = *s;
     let v = variant(&root.join("spec/encoding/reference").join(var))?;
     let (pub2, pub1) = public(&root.join("spec/encoding").join(file), fmt)?;
@@ -336,27 +339,56 @@ fn set(w: &mut String, root: &Path, rg: &[(u32, u32)], s: &(&str, &str, &str, Fm
             return Err(format!("{var}: four {p} repeats the ranges"));
         }
     }
-    let _ = writeln!(w, "// {name}: {} two-byte cells; public table spec/encoding/{file}, variant spec/encoding/reference/{var}.", cells.len());
-    list(w, &format!("static {ident}_ROWS: [(u16, u8, u8); {}]", rows.len()), &rows, 6);
-    list(w, &format!("static {ident}_CELLS: [u16; {}]", packed.len()), &hex16(&packed), 12);
     let maps_s: Vec<String> = maps.iter().map(|m| format!("[{}]", m.iter().map(|x| format!("0x{x:08X}")).collect::<Vec<_>>().join(", "))).collect();
-    list(w, &format!("static {ident}_SKIP1: [[u32; 8]; {}]", maps.len()), &maps_s, 1);
-    list(w, &format!("static {ident}_SKIP_ROW: [u8; {}]", skip_row.len()), &skip_row, 32);
-    list(w, &format!("static {ident}_PAGES: [u16; {}]", index.len()), &index, 32);
     let flat: Vec<u16> = pages.iter().flatten().copied().collect();
-    list(w, &format!("static {ident}_CODES: [u16; {}]", flat.len()), &hex16(&flat), 12);
     let four_s: Vec<String> = v.four.iter().map(|(p, c)| format!("({p}, 0x{c:04X})")).collect();
     let mut four_enc_s: Vec<(u32, u32)> = four_enc;
     four_enc_s.sort_unstable();
     let four_enc_s: Vec<String> = four_enc_s.iter().map(|(c, p)| format!("(0x{c:04X}, {p})")).collect();
-    list(w, &format!("static {ident}_FOUR: [(u32, u32); {}]", four_s.len()), &four_s, 4);
-    list(w, &format!("static {ident}_FOUR_ENC: [(u32, u32); {}]", four_enc_s.len()), &four_enc_s, 4);
+    let size = 256 + rows.len() * 4 + packed.len() * 2 + maps.len() * 32 + skip_row.len() + 2048 + flat.len() * 2 + (four_s.len() + four_enc_s.len()) * 8;
+    // The descriptor holds (start, count) spans into the pooled tables, never a pointer: an
+    // address in a static would be a load-time relocation in every process (ICONV-CJK-STARTUP).
+    let sp = |at: usize, n: usize| format!("({at}, {n})");
+    let spans = [
+        ("rows", sp(pool.rows.len(), rows.len())),
+        ("cells", sp(pool.cells.len(), packed.len())),
+        ("skip1", sp(pool.skip1.len(), maps_s.len())),
+        ("skip_row", sp(pool.skip_row.len(), skip_row.len())),
+        ("pages", sp(pool.pages.len(), index.len())),
+        ("codes", sp(pool.codes.len(), flat.len())),
+        ("four", sp(pool.four.len(), four_s.len())),
+        ("four_enc", sp(pool.four_enc.len(), four_enc_s.len())),
+    ];
+    pool.rows.extend(rows);
+    pool.cells.extend(packed);
+    pool.skip1.extend(maps_s);
+    pool.skip_row.extend(skip_row);
+    pool.pages.extend(index);
+    pool.codes.extend(flat);
+    pool.four.extend(four_s);
+    pool.four_enc.extend(four_enc_s);
     let high_s = hex16(&high);
-    let _ = writeln!(w, "/// {name} (`cjk`).\npub(super) static {ident}: Set = Set {{");
-    let _ = writeln!(w, "    high: [\n        {}\n    ],", high_s.chunks(16).map(|c| c.join(", ")).collect::<Vec<_>>().join(",\n        "));
-    let _ = writeln!(w, "    lead_lo: 0x{lead_lo:02X},\n    rows: &{ident}_ROWS,\n    cells: &{ident}_CELLS,\n    skip1: &{ident}_SKIP1,\n    skip_row: &{ident}_SKIP_ROW,");
-    let _ = writeln!(w, "    pages: &{ident}_PAGES,\n    codes: &{ident}_CODES,\n    four: &{ident}_FOUR,\n    four_enc: &{ident}_FOUR_ENC,\n    ignore_error: {},\n}};\n", v.ignore_error);
-    Ok(256 + rows.len() * 4 + packed.len() * 2 + maps.len() * 32 + skip_row.len() + 2048 + flat.len() * 2 + (four_s.len() + four_enc_s.len()) * 8)
+    let _ = writeln!(w, "    // {ident}: {name}, {} two-byte cells; public table spec/encoding/{file}, variant spec/encoding/reference/{var}.", cells.len());
+    let _ = writeln!(w, "    Set {{\n        high: [\n            {}\n        ],", high_s.chunks(16).map(|c| c.join(", ")).collect::<Vec<_>>().join(",\n            "));
+    let _ = writeln!(w, "        lead_lo: 0x{lead_lo:02X},");
+    for (field, span) in &spans {
+        let _ = writeln!(w, "        {field}: {span},");
+    }
+    let _ = writeln!(w, "        ignore_error: {},\n    }},", v.ignore_error);
+    Ok(size)
+}
+
+/// Every set's tables, concatenated per kind (in `SETS` order); each descriptor names its parts.
+#[derive(Default)]
+struct Pool {
+    rows: Vec<String>,
+    cells: Vec<u16>,
+    skip1: Vec<String>,
+    skip_row: Vec<u8>,
+    pages: Vec<u16>,
+    codes: Vec<u16>,
+    four: Vec<String>,
+    four_enc: Vec<String>,
 }
 
 /// The generated file and each set's table size in bytes.
@@ -374,11 +406,21 @@ pub fn generate(root: &Path) -> Result<Generated, String> {
     w.push_str("#![allow(clippy::unreadable_literal)]\n\nuse super::cjk::Set;\n\n");
     let rs: Vec<String> = rg.iter().map(|(p, c)| format!("({p}, 0x{c:04X})")).collect();
     list(&mut w, &format!("/// GB18030's four-byte ranges (pointer, first code point), ascending.\npub(super) static GB18030_RANGES: [(u32, u32); {}]", rs.len()), &rs, 6);
-    let mut sizes = Vec::new();
+    let (mut sizes, mut pool, mut descs) = (Vec::new(), Pool::default(), String::new());
     for s in &SETS {
-        let n = set(&mut w, root, &rg, s)?;
+        let n = set(&mut descs, &mut pool, root, &rg, s)?;
         sizes.push((s.1, n));
     }
+    let what = "every set's in turn; a descriptor's (start, count) names its part";
+    list(&mut w, &format!("/// Per lead: offset in its set's cells, first and last trail ({what}).\npub(super) static ROWS: [(u16, u8, u8); {}]", pool.rows.len()), &pool.rows, 6);
+    list(&mut w, &format!("/// The two-byte cells ({what}).\npub(super) static CELLS: [u16; {}]", pool.cells.len()), &hex16(&pool.cells), 12);
+    list(&mut w, &format!("/// Skip bitmaps ({what}).\npub(super) static SKIP1: [[u32; 8]; {}]", pool.skip1.len()), &pool.skip1, 1);
+    list(&mut w, &format!("/// Per lead: its bitmap in its set's `SKIP1` ({what}).\npub(super) static SKIP_ROW: [u8; {}]", pool.skip_row.len()), &pool.skip_row, 32);
+    list(&mut w, &format!("/// Per 64 BMP code points: its page in its set's `CODES` ({what}).\npub(super) static PAGES: [u16; {}]", pool.pages.len()), &pool.pages, 32);
+    list(&mut w, &format!("/// The encoder pages ({what}).\npub(super) static CODES: [u16; {}]", pool.codes.len()), &hex16(&pool.codes), 12);
+    list(&mut w, &format!("/// Four-byte departures, (pointer, code point) ({what}).\npub(super) static FOUR: [(u32, u32); {}]", pool.four.len()), &pool.four, 4);
+    list(&mut w, &format!("/// Four-byte encodings, (code point, pointer) ({what}).\npub(super) static FOUR_ENC: [(u32, u32); {}]", pool.four_enc.len()), &pool.four_enc, 4);
+    let _ = writeln!(w, "/// The descriptors, in `Which::ALL` order; integers only, so no load-time relocation.\npub(super) static SETS: [Set; {}] = [\n{descs}];", SETS.len());
     while w.ends_with("\n\n") {
         w.pop();
     }
