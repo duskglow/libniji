@@ -2,3 +2,7 @@
 kernel-name-size0 | csys/src/machine/scan.S | perl:s/(niji_machine_memchr:.*?\.size __GI_memchr, )\.-__GI_memchr/${1}0/s | cargo xtask so | msg:niji_machine_memchr \(at [0-9a-f]+\) does not carry __GI_memchr
 export-size0 | csys/src/machine/scan.S | perl:s/(niji_machine_strcmp:.*?\.size strcmp, )\.-strcmp/${1}0/s | cargo xtask so | msg:strcmp \(exported at [0-9a-f]+\) is not a name valgrind sees
 check-kernel-any | xtask/src/so.rs | lit:Some(k) if names_at(k.0).iter().any(|n| n == name) => {} ==> Some(_) => {} | cargo test -p xtask valgrind_string_names | msg:valgrind_string_names_resolve_to_the_bodies.*(FAILED|panicked)
+# cargo xtask plants results (job valgrind-string-redirect-plants2) (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# kernel-name-size0: CAUGHT (cargo xtask so: check_valgrind_string_names)
+# export-size0: CAUGHT (cargo xtask so: check_valgrind_string_names)
+# check-kernel-any: CAUGHT, caught by xtask so::tests::valgrind_string_names_resolve_to_the_bodies
