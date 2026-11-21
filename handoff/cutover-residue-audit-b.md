@@ -1,6 +1,9 @@
 # CUTOVER-RESIDUE-AUDIT-B (audit only, 2026-11-21)
 
-State: branch `task/cutover-residue-audit-b`, cut from origin/next 43058b7df. No code changed. JOBS: none.
+State: branch `task/cutover-residue-audit-b`, cut from origin/next 43058b7df. No code changed.
+JOBS: keke:cutover-residue-audit-b-precheck2 (cargo xtask precheck on the final head). The brief says "JOBS: none",
+but it has no `Kind: planning` header, so handback-check rejects none. SUPERSEDED: cutover-residue-audit-b-precheck
+(GREEN, 34 checks, on 9a9e79174, before this note and the report record were last edited).
 Report (the ranked table, method, not-verified items): `plan/reviews/CUTOVER-RESIDUE-AUDIT-B.md`.
 
 ## Result
