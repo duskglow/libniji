@@ -84,7 +84,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/etc/ttys` | crates/legacy/src/accounting.rs:46 |
 | `/proc/loadavg` | crates/core/src/system.rs:191 |
 | `/proc/self/auxv` | crates/boundary/src/sys.rs:353 |
-| `/proc/self/exe` | crates/boundary/src/ld/link.rs:525 |
+| `/proc/self/exe` | crates/boundary/src/ld/link.rs:545 |
 | `/proc/self/fd` | crates/core/src/process.rs:453, crates/legacy/src/io_compat.rs:40 |
 | `/proc/self/fd/` | crates/core/src/term.rs:462, crates/legacy/src/fs_compat.rs:66 |
 | `/proc/self/fd/0123456789` | crates/legacy/src/accounting.rs:447 |
