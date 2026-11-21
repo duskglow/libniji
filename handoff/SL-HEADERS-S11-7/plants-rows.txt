@@ -1,2 +1,2 @@
 # Slice 11: the bit-position plant runs the rows test, which checks each layouts.tsv `bits W@P` row against the compiled object (the generator reads W only and places fields in table order).
-s11-ieee-table-position | spec/abi/layouts.tsv | perl:s/(union ieee754_float\tieee\.exponent\t0\t\tunsigned int\tbits 8)\x4023/${1}\x4024/ | mkdir -p /dev/shm/claude/sl-headers-s11-7/rows-plant \&\& cargo xtask headers-gen --rows /dev/shm/claude/sl-headers-s11-7/rows-plant | msg:FAIL layouts
+s11-ieee-table-position | spec/abi/layouts.tsv | perl:s/(union ieee754_float\tieee\.exponent\t0\t\tunsigned int\tbits 8)\x4023/${1}\x4024/ | mkdir -p /dev/shm/claude/sl-headers-s11-7/rows-plant && cargo xtask headers-gen --rows /dev/shm/claude/sl-headers-s11-7/rows-plant | msg:FAIL layouts
