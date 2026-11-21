@@ -2335,6 +2335,75 @@ fn s12_10_c_0() {
     x::fclose(fp);
 }
 
+/// §12.10 (D-12.30 WIDE-READ-FAST): characters in the locale's encoding that the read window
+/// holds only in part are read across the refill, whatever the buffer size; the bytes a shorter
+/// later fill leaves past the window's end are never part of a character.
+#[test]
+fn wide_read_characters_cut_by_the_window_end() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let text = "a\u{e9}\u{3042}\u{1F600}z\u{e9}";
+    let want: Vec<(wint_t, i64)> = vec![(0x61, 1), (0xE9, 3), (0x3042, 6), (0x1F600, 10), (0x7A, 11), (0xE9, 13)];
+    let t = tmp_with("c100cut", text.as_bytes());
+    for size in 1..=6 {
+        let fp = fopen(&t, "r");
+        assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, size), 0);
+        for &(c, at) in &want {
+            assert_eq!(x::fgetwc(fp), c, "buffer {size}: the character ending at {at}");
+            assert_eq!(x::ftell(fp), at, "buffer {size}: its bytes consumed");
+        }
+        assert_eq!(x::fgetwc(fp), WEOF);
+        assert!(x::feof(fp) != 0 && x::ferror(fp) == 0, "buffer {size}: end of file");
+        x::fclose(fp);
+    }
+    // A 4-byte buffer: the fills are `e3 81 82 61` and `62 e3`; past the second one's end the
+    // buffer still holds `81 82`. The `e3` cut short at end of input is D-12.28's (its byte
+    // goes back, end of file), not U+3042.
+    let s = tmp_with("c100stale", b"\xe3\x81\x82ab\xe3");
+    let fp = fopen(&s, "r");
+    assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, 4), 0);
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp), x::fgetwc(fp)), (0x3042, 0x61, 0x62));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "a character cut short by end of input");
+    assert!(errno::get() == 0 && x::feof(fp) != 0 && x::ferror(fp) == 0, "end of file, errno {}", errno::get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xE3, EOF), "its byte came back (D-12.28)");
+    x::fclose(fp);
+}
+
+/// §12.10 (D-12.30 WIDE-READ-FAST): a character begun before a read error (`EAGAIN` from an
+/// empty non-blocking pipe) is continued by the next wide read, whatever the read window holds
+/// then: a byte given back with `ungetc` that cannot continue it makes the sequence invalid,
+/// both bytes coming back (D-12.28); bytes that arrive later complete it.
+#[test]
+fn wide_read_partial_character_is_continued() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let begun = || {
+        let [r, wr] = CSys.pipe2(O_CLOEXEC | O_NONBLOCK).unwrap();
+        let fp = x::fdopen(r.raw(), cs("r").as_ptr());
+        assert!(!fp.is_null());
+        assert_eq!(CSys.write(wr, b"\xc3"), Ok(1));
+        errno::set_raw(0);
+        assert_eq!(x::fgetwc(fp), WEOF, "no byte after the lead byte yet");
+        assert_eq!(errno::get(), Errno::EAGAIN.get());
+        x::clearerr(fp);
+        (fp, wr)
+    };
+    let (fp, wr) = begun();
+    assert_eq!(x::ungetc(c_int::from(b'b'), fp), c_int::from(b'b'));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "the lead byte held, then 'b': no character");
+    assert_eq!(errno::get(), Errno::EILSEQ.get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xC3, c_int::from(b'b')), "both bytes come back");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
+    let (fp, wr) = begun();
+    assert_eq!(CSys.write(wr, b"\xa9b"), Ok(2));
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp)), (0xE9, 0x62), "the held lead byte completed");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
+}
+
 // ------------------------------------------------------------------------------ §12.11
 
 /// §12.11: `register_printf_specifier` installs a process-wide handler for a new letter;
