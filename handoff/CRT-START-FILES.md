@@ -1,77 +1,54 @@
 # CRT-START-FILES (GitHub #27): start files hold only `_start`, the notes and the usual symbols
 
-Branch `task/crt-start-files` (from origin/next ed38a2b3d). Decision: D-X.144 (records/decisions/D-X/D-X.144.toml).
-Plants: handoff/CRT-START-FILES-plants.txt. Role keke:~/w/n2 (Zen 1 host).
+Branch `task/crt-start-files-2` (continues `task/crt-start-files`, merge base origin/next ed38a2b3d). Decision:
+D-X.144 (records/decisions/D-X/D-X.144.toml, this chain's own record, not landed). Plants: handoff/CRT-START-FILES-plants.txt
+(legs 1-2), handoff/CRT-START-FILES-2-plants.txt (leg 3). Role keke:~/w/n2 (Zen 1 host). Scratch on keke: ~/work/crt-start-files-2/.
 
-## What changed
-- `csys/src/machine/entry.S`: the start object (crt1/Scrt1/rcrt1, and gcrt1/grcrt1 through gcrt1.S) no longer carries
-  the empty 16-64 KiB-aligned anchors (`.rodata1`, `.data1`, `.data.rel.ro.local`, `.text.sorted.h9z.niji_group_end`).
-  It now has `_start` starting with endbr64, `.note.gnu.property` (IBT, SHSTK, x86-64 baseline) and `.note.ABI-tag`
-  (Linux 3.2.0) (macros in `csys/start/notes.inc`), `__data_start` (global, `.data`), weak `data_start`, and
-  `_IO_stdin_used` (global 4-byte object, 0x20001, value/size/binding from a readelf/nm probe of the installed
-  Scrt1.o). crti.o/crtn.o carry the property note; `__gmon_start__` starts with endbr64.
-- The anchors are now libc.a's first two members, `niji_static_anchor.o` and `niji_static_pie_anchor.o` (entry.S with
-  `-DNIJI_STATIC_ANCHOR`, inserted by `insert_static_anchors` in `finish_archive`, so the traced and final archives
-  both get them). A static link takes the first index entry defining a still-undefined symbol; the start object
-  leaves only `__libc_start_main` (crt1/gcrt1) or `niji_start_main_static_pie` (rcrt1/grcrt1), which each anchor
-  defines weakly as `jmp __niji_libc_<name>`. Map of a static link: the anchor is libc.a's first input; static-PIE
-  links take only the PIE anchor. Cost: one jmp per static start, at the group end (the program-text window).
-- `cargo xtask so` checks each start object (`check_start_file`: no section aligned above 64, both notes, endbr64 at
-  `_start`, the three symbols, no other exported definition) and the anchors' place. STARTUP-TEXT-WINDOWS exempts the
-  anchor members like crt1's `_start` (`so::static_anchor_member`).
-- Tests: xtask `start_file_check_names_each_missing_or_extra_piece`, `start_files_and_static_anchors_assemble_as_checked`,
-  layout fixture case; `crt_products.rs` `programs_get_one_executable_mapping_and_keep_their_properties` (oracle
-  `crt_maps.c`): no start file reported by `-z cet-report` in any link; dynamic PIE and -no-pie: one executable LOAD,
-  no LOAD aligned above a page, IBT/SHSTK kept, one r-xp mapping of the program at run time (the lsfd
-  `column-xmode` property; the trixie root was not used).
+## Legs 1-2 (CRT-START-FILES, done; details in D-X.144)
+Start objects: `_start` (endbr64), `.note.gnu.property` (IBT, SHSTK, x86-64 baseline), `.note.ABI-tag`, `__data_start`,
+weak `data_start`, `_IO_stdin_used`, nothing aligned above 64. The layout anchors are libc.a's first two members
+(`niji_static_anchor.o`, `niji_static_pie_anchor.o`). crt1.o 67,136 -> 1,816 bytes; dynamic empty main one `R E` LOAD,
+page-aligned LOADs, IBT/SHSTK kept. Ruling #7085 accepted the dynamic +4,932 user instructions (per-header cost in
+ld.so: DYN-START-RING's item). Tests and leg-2 fixes: see D-X.144 and the plants file.
 
-## Measurements (Zen 1 host, keke; same libc.so.6/ld.so, only crt1 differs; medians of 101 runs)
-Start files: crt1.o 67,136 -> 1,816 bytes (rcrt1 1,784, gcrt1 2,744, grcrt1 2,712; reference Scrt1.o 1,656); largest
-section alignment 65536 -> 64. Empty main through the driver: PIE 142,680 -> 15,968 bytes (reference 15,776), 2 -> 1
-`R E` LOAD, LOAD aligns 0x10000 -> 0x1000, IBT/SHSTK kept (before: none); same for -no-pie.
+## Leg 3 (CRT-START-FILES-2): the CI instruction red
+CI red: static `cbench_startup/startup_instr_c` 2191 vs limit 2161 (merged tree f56c02def).
+Attribution (keke, release profile, the bench linked as `cargo xtask bench` links it, ~/work/crt-start-files-2/ab.sh,
+min of 5 children x3, all identical): head cbf537515 2188; same with crt1's property note removed 2160 (ABI-tag note
+removed: 2188, costs nothing). Same 5 LOADs in all variants (no read-only PT_LOAD flip, ruling #7061 not involved).
+Cause: the static start's one walk over the program headers (`niji_rt::start::program`) cost 14 instructions per
+unread non-load header and 8 per PT_LOAD; the property note adds PT_NOTE + PT_GNU_PROPERTY (+28).
+Fix (commits 59b0a202f, d7c085162, 7e6a6d3de): a header's type is tested with one bit test
+(`READS >> (type & 63) & 1`, mask of PT_PHDR/PT_TLS/PT_GNU_RELRO; a type sharing a bit is compared exactly, first of
+each type still wins), and the walk runs over whole headers with one pointer bound. `as_chunks` gave that but is
+newer than the workspace MSRV 1.85 (clippy incompatible_msrv), so the boundary now hands the start
+`&[[u64; 7]]` (`conv::headers_at`, UNSAFE(slice), same contract as `words_at`, cfg feature "runtime");
+`start::program(heads, phdr)`; `program_words(words, phnum, phdr)` keeps the word form for `relro()` and tests.
+Measured with the as_chunks version (59b0a202f, same loop shape): 2188 -> 2133 with notes, 2160 -> 2121 without
+(6 instructions per header). An intermediate `while get(at)` version measured 2194 (not inlined, bounds checks):
+superseded. NOT YET MEASURED: the final head (headers_at form); expected the same as 59b0a202f.
+Test: `crates/rt/src/start.rs` `program_reads_only_its_three_types_among_any_others`. Plants: 5/5 CAUGHT (job
+crt-start-files-2-plants2 on 7e6a6d3de).
 
-| program | user instr old -> new (glibc) | kernel instr old -> new (glibc) | faults old -> new (glibc) | syscalls |
-|---|---|---|---|---|
-| empty main | 832,290 -> **837,222** (100,881) | 895,669 -> 892,187 (701,365) | 62 -> 61 (48) | 43 -> 43 |
-| 3 libraries | 1,095,776 -> 1,087,780 (136,032) | 1,343,422 -> 1,323,381 (997,048) | 78 -> 76 (64) | 88 -> 88 |
-| clock_gettime | 867,398 -> 859,779 (103,018) | 935,379 -> 926,115 (708,173) | 67 -> 65 (50) | 43 -> 43 |
+## Open: RED on the final head 7e6a6d3de (job crt-start-files-2-fullprof1)
+`NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`: `init_zero_fault_calls_hold_at_every_text_phase`
+"pre 0x800: rebind 1 faults, want 0" (every run; all other pads/modes 0). Inherited head passed (fullprof0).
+Window bin 0 (release so log, WINDOW-BIN-BYTES): inherited head 63176 B / 103 members (headroom 1336); as_chunks
+build 63112 / 103; final head 64395 / 109 members (headroom 117), bin 1 74 -> 68 members: the packer moved 6
+members from bin 1 into bin 0 with this head. This touches start-up code, so ALWAYS FORWARD applies (not jitter).
+Saved: ~/work/crt-start-files-2/layout-bins.release.59b0a202f.tsv (as_chunks build), layout-bins.fast.cbf537515.tsv.
 
-
-Empty main, user instructions +4,932: the cost is per program header, not the property. Probe (keke,
-~/work/crt-start-files/m0probe3.sh, medians of 101 runs, same libc.so.6/ld.so): crt1 without the property note
-832,383 (13 program headers); the same plus a dummy 48-byte note of another type (one more PT_NOTE) 834,805 (14);
-the new crt1 (PT_NOTE + PT_GNU_PROPERTY) 837,253 (15). So libniji's start (loader or libc) spends about 2.4k user
-instructions per program header of the program; the property note adds two. The only runtime property reader in
-crates/ld (`needs_indirect_extern_access`) reads the defining library's notes, not the program's.
-NOT MEASURED: the Skylake-SP class; static programs' start-up.
-Static programs still have two `R E` LOADs, before and after: `.init` (crti) and then libc.a's hot text group at a
-64 KiB boundary, more than a page away. That is libc.a's layout, which this story leaves as it is.
-
-## Leg 2 (fixes of the leg-1 gate's two hot_text_products reds; commit c9d0df2f5)
-1. TEXT-PREFIX (`init_no_library_text_precedes_the_hot_group`): the anchor's `jmp` stub was the libc.a input
-   `.text.startup.niji_static_anchor`, ahead of the hot group. It now sits inside `.text.sorted.h9z.niji_group_end`
-   after its `.balign 65536`, at the start of the program-text window; `layout.rs startup_text` skips the anchor
-   members' functions (no window, not ungrouped); fixture: the jump in a window of its own adds none.
-2. `init_startup_data_pages_hold_at_every_data_phase`: with the program's relro padded 0x4d0/0x800/0xc18 bytes the
-   libc.a relro anchor (`.data.rel.ro.local`, 64 KiB) came after the pad: 0xeb38-0xfb38 bytes of fill in relro.
-   A real regression for any static program with its own relro (a -fPIE object's pointer tables). The relro
-   anchor is now an empty `.preinit_array` (the default script puts it ahead of `.init_array` and `.data.rel.ro`,
-   in relro). Probe (keke, ~/work/crt-start-files/relro_exp.sh, the page_faults probe padded as the test pads it,
-   static and static-PIE): fill 0x3f0-0xb38 (< a page), cluster page-aligned, static PIE one RW LOAD, runs (rc 0).
-   Padded non-PIE static had 2 RW LOADs with the experiment's anchor (the `.data1` 16 KiB alignment after a
-   shifted `.data`); not compared with the pre-story crt1 (the same section order); no test bounds it.
-D-X.144 records both.
+## Exact next step
+1. On keke: diff `~/w/n2/target/product/release/layout-bins.tsv` against layout-bins.release.59b0a202f.tsv: which
+   6 members moved to bin 0, and why (start<false>/<true> size? `program_words` or `headers_at` emitted out of
+   line?). Make the start's code match the as_chunks build's shape (e.g. `#[inline(always)]` on `headers_at`, or
+   keep `program_words` out of the start path), rebuild release, rerun hot_text_products.
+2. Then: `sh ~/work/crt-start-files-2/ab.sh ~/w/n2 ~/work/crt-start-files-2/ab3` (expect ~2133), clippy + static,
+   direct-tier gate, `cargo xtask test`, fullprof, plants rerun on the final head, D-X.144's numbers checked
+   (the body already states the 59b0a202f numbers), report json, precheck, handback-check.
+3. Brief item still owed: Skylake-SP class numbers for ruling #7085's dynamic rows (#7090), same rows.
 
 ## Jobs (keke)
-Final head: see the hand-back. Leg 2: crt-start-files-lint3 (clippy + static, green), crt-start-files-plants3,
-crt-start-files-gate3, then crt-start-files-xtest3 and crt-start-files-fullprof3.
-Superseded: leg 1's crt-start-files-gate (red: the two tests above), crt-start-files-plants2 (6/6 caught, before the
-layout.rs and entry.S change), crt-start-files-so1, crt-start-files-plants, crt-start-files-xtest,
-crt-start-files-fullprof (stale head).
-
-## Open
-- RULING NEEDED: accept +4,932 user instructions (+0.6%) for empty main (kernel -3.5k, faults -1) as the cost of the
-  property note the brief requires (two program headers at about 2.4k each in libniji's start), with a follow-up
-  story to make libniji's start cost independent of the program's header count.
-- Next step: that follow-up (trace which start-up code walks the program headers per header: dummy-note pair
-  `noprop-m0x`/`dummy-m0x` in /dev/shm/claude/crt-start-files/sc on keke).
+Green, but on older heads: crt-start-files-2-lint0, crt-start-files-2-fullprof0 (inherited cbf537515),
+crt-start-files-2-lint2 (d7c085162), crt-start-files-2-plants2 (7e6a6d3de, 5/5). Red: crt-start-files-2-fullprof1
+(7e6a6d3de). Superseded: crt-start-files-2-plants1 (killed, stale code), ab0-ab2, cg, cg2 (probes).
