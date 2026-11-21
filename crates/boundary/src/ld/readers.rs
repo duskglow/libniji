@@ -28,7 +28,7 @@
 //!   at its entry, holding no lock, unless its thread is itself inside a read section ([`inside`],
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
-use super::dlopen::{node_address, CAP};
+use super::dlopen::{node_address, reader_entry, CAP};
 use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
@@ -48,7 +48,30 @@ const DT_SONAME: u64 = 14;
 /// Per object: `[load bias, name address, program header table address, header count, live]`; a
 /// reader reads the first four words only after it saw `live` set (Acquire), and they do not change
 /// until the slot is reused, after a grace period (DL-17).
+/// The first [`CAP`] entries (generation 0); later ones are in generations the loader maps and
+/// lists in its directory before staging them (DL-PROCESS-OBJECTS part 2, [`slot`]).
 static TABLE: [[AtomicUsize; 5]; CAP] = [const { [const { AtomicUsize::new(0) }; 5] }; CAP];
+/// Bytes of one entry of the readers' table.
+pub(super) const ENTRY_BYTES: usize = size_of::<[AtomicUsize; 5]>();
+
+/// Entry `i` of the readers' table: below [`CAP`] the static table, else one directory load; `None`
+/// when its generation is not mapped.
+fn slot(i: usize) -> Option<&'static [AtomicUsize; 5]> {
+    if let Some(e) = TABLE.get(i) {
+        return Some(e);
+    }
+    let at = reader_entry(i);
+    if at == 0 {
+        return None;
+    }
+    // UNSAFE(slice): one entry of a mapped generation of the readers' table.
+    #[allow(unsafe_code)]
+    // SAFETY: `at` is entry `i` of a generation the loader mapped (read-write, page aligned, never
+    // moved or unmapped) and published in its directory with Release before staging any entry in
+    // it; the entry is five atomic words (all-zero valid), readable and writable through a shared
+    // reference by the writer and every reader.
+    Some(unsafe { &*core::ptr::with_exposed_provenance::<[AtomicUsize; 5]>(at) })
+}
 /// Entries a reader looks at (0: the start-time entries are not filled yet).
 static PUBLISHED: AtomicUsize = AtomicUsize::new(0);
 /// The reader parity (DL-17): bit 0 says which counter of its stripe a reader entering now uses.
@@ -164,12 +187,12 @@ struct Entry {
 impl View {
     /// Entries visible now (reloaded at every step: the walk is live).
     fn len(&self) -> usize {
-        PUBLISHED.load(Acquire).min(CAP)
+        PUBLISHED.load(Acquire)
     }
 
     /// Entry `i`, below [`View::len`], when it is live.
     fn entry(&self, i: usize) -> Option<Entry> {
-        let e = TABLE.get(i)?;
+        let e = slot(i)?;
         if e.get(4)?.load(Acquire) == 0 {
             return None;
         }
@@ -283,7 +306,7 @@ fn fill_start() -> usize {
 /// Write entry `k` of an object not visible yet (`super::dlopen::candidate`): a slot no reader can
 /// be reading (never used, or freed after a grace period, DL-17).
 pub(super) fn stage(k: usize, bias: usize, name: usize, phdr: usize, phnum: usize) {
-    if let Some(e) = TABLE.get(k) {
+    if let Some(e) = slot(k) {
         for (w, v) in e.iter().zip([bias, name, phdr, phnum]) {
             w.store(v, Relaxed);
         }
@@ -295,7 +318,7 @@ pub(super) fn stage(k: usize, bias: usize, name: usize, phdr: usize, phnum: usiz
 pub(super) fn publish(base: usize, len: usize) {
     fill_start();
     ADDS.fetch_add(u64::try_from(len.saturating_sub(base)).unwrap_or(0), Relaxed);
-    for e in TABLE.get(base..len).unwrap_or(&[]) {
+    for e in (base..len).filter_map(slot) {
         if let Some(live) = e.get(4) {
             live.store(1, Release);
         }
@@ -306,7 +329,7 @@ pub(super) fn publish(base: usize, len: usize) {
 /// `dlclose` unloads object `k` (DL-17): its entry is invisible to readers entering from now on,
 /// and `dlpi_subs` counts it (probe `== close` C-1: as `dlclose` returns).
 pub(super) fn unpublish(k: usize) {
-    if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
+    if let Some(live) = slot(k).and_then(|e| e.get(4)) {
         live.store(0, Release);
     }
     SUBS.fetch_add(1, Release);
