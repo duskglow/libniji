@@ -42,9 +42,15 @@ rule (`head_may_take`: a group only measured phases count never joins the head b
 still matters for groups a measured phase AND other modes count. The leg-4 test's phase-only case is now next's
 rule, so the test became `a_section_a_measured_phase_counts_prefers_a_later_bin_on_a_tie` (mixed group); plants
 lines 9-12 and D-X.144 follow. `affected` escalates to FULL (csys start sources): gated on precheck plus the
-changed crates' tests (test2), `cargo xtask test` (xtest2), full-profile hot_text_products (fullprof2); plants2.
+changed crates' tests, `cargo xtask test`, full-profile hot_text_products, plants.
 plants1 (merge commit 340b65681): 8/9 CAUGHT, tie-break-over-cost SURVIVED (next's rule took the phase-only case that
-caught it); fixed by section `q` in the test (5aba79593). test1/xtest1/fullprof1 stopped for the new head (superseded).
+caught it); fixed by section `q` in the test (5aba79593); plants2 9/9 CAUGHT, no WARN lines.
+test2 red: `init_dynamic_empty_main_stays_within_its_instruction_bound` 778,859 (fast, Skylake-SP) more than 10% under
+871,500 (fast bounds not re-measured since DYN-START-LINK-SHAPE). Same test on next e4777a6ba built on mei (job
+nextdyn0): 790,290. Fast bounds -> 794,500 (level + 2%; Zen 1 takes it unmeasured, as the file's reasoning does), 7ce12fe26.
+Final head jobs (mei): test3, xtest3 (6979 + 4854 + 128 + 46 passed), fullprof3 (32/32), plants2, lint2; all rc 0.
+Superseded: lint0 (inherited head, green), lint1/plants1/test1 (merge commit), test2/xtest2 (old bound; stopped),
+fullprof1/2 (never ran: stopped for the new head), aff1 (listing), nextdyn0 (comparison).
 
 ## Results on the leg-4 head (904e4002e)
 Static `startup_instr_c` (ab.sh, release/full profile, min of 5 x3, all identical; job fullprof4): with notes 2108
@@ -61,6 +67,6 @@ Superseded: fullprof1 (red, 7e6a6d3de), fullprof2/fullprof3 (rejected stricter r
 plants4 (killed, older rule), bins0, pf0, aff0/aff1 (probes).
 
 ## Exact next step
-None for the story once leg 5's jobs (mei crt-start-files-3-test2, -xtest2, -fullprof2, -plants2) are green: land. Follow-ups (not this story): the head-bin tail condition in
+None for the story once leg 5's jobs (mei crt-start-files-3-test3, -xtest3, -fullprof3, -plants2, -lint2) are green: land. Follow-ups (not this story): the head-bin tail condition in
 general (Residual above; a planner that orders the head bin's phase-only sections ahead of a warm-up section, or a
 HEAD_ROOM covering the text-phase pads); the per-header dynamic start cost is DYN-START-RING's (#7062).
