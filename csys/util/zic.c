@@ -1632,6 +1632,7 @@ static void usage(FILE *f, int status) {
 
 int main(int argc, char **argv) {
     const char *leapfile = NULL, *localtime_zone = NULL, *posixrules = NULL, *localtime_link = NULL;
+    if (argc > 0 && argv[0]) progname = argv[0]; /* messages name the program as it was run */
     int opt;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
