@@ -409,7 +409,8 @@ impl State {
 
     /// `fflush`: write pending output; for a stream reading ahead, give the bytes read ahead
     /// back to the backing (POSIX 2008: the backing's position becomes the stream's), if it can
-    /// seek.
+    /// seek. A give-back that fails otherwise is reported but changes nothing: the read-ahead
+    /// stays and the error indicator stays clear (no data was lost; probe FCLOSE-COOKIE-SEEK).
     pub fn flush(&mut self, buf: &mut [u8], back: &mut dyn Backing) -> Result<()> {
         match self.role {
             Role::Writing => self.drain(buf, back),
@@ -421,7 +422,7 @@ impl State {
                         Ok(())
                     }
                     Err(Errno::ESPIPE) => Ok(()),
-                    Err(e) => Err(self.fail(e)),
+                    Err(e) => Err(e),
                 }
             }
             Role::Idle => Ok(()),
