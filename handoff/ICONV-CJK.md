@@ -1,7 +1,9 @@
 # ICONV-CJK: BIG5, EUC-KR, CP932, CP936, GB18030 built in (GitHub #6)
 
 **State.** Branch `task/iconv-cjk` (from origin/next 5e1903cce), role mei `~/w/s2`. Leg 2 built, fixed and
-compared the codec; head and job results are in the report json `handoff/reports/ICONV-CJK.json` and below.
+compared the codec. Code head 781e1a64a: clippy + static clean, plants 5/5 CAUGHT (mei:iconv-cjk-plants4,
+`handoff/ICONV-CJK-plants.txt`), affected escalates to FULL (the train's), changed crates' tests green after
+two stale-expectation fixes (mei:iconv-cjk-crates then mei:iconv-cjk-fix). Report: `handoff/reports/ICONV-CJK.json`.
 Crate name is `niji` (`-p niji`).
 
 ## What the branch does
