@@ -525,10 +525,6 @@ impl<const N: usize, const G: usize> Gens<N, G> {
     /// Power-of-two generations whose indices fit 32 bits.
     const FITS: () = assert!(N.is_power_of_two() && G >= 1 && G < 32 && N <= (1usize << 32) >> G);
 
-    pub(super) const fn new() -> Self {
-        Gens { gens: [const { AtomicUsize::new(0) }; G] }
-    }
-
     /// Entries generations `0..=G` hold together: one more index than any.
     pub(super) const MOST: usize = N << G;
 
@@ -587,7 +583,7 @@ impl<const N: usize, const G: usize> Gens<N, G> {
             }
             let len = Arena::<u8, N, G>::gen_len(g);
             if let Some(off) = addr.checked_sub(base).filter(|&o| o < len.saturating_mul(size)) {
-                return (off.checked_rem(size)? == 0).then(|| Arena::<u8, N, G>::gen_start(g).wrapping_add(off / size));
+                return (off.checked_rem(size)? == 0).then_some(Arena::<u8, N, G>::gen_start(g).wrapping_add(off.checked_div(size)?));
             }
         }
         None
@@ -656,22 +652,6 @@ impl<T: ZeroValid, const N: usize, const G: usize> Grown<T, N, G> {
         len <= N || self.gens.reserve(size_of::<T>(), len)
     }
 
-    pub(super) fn get(&self, i: usize) -> Option<&T> {
-        if i < N {
-            return self.inline.get(i);
-        }
-        let at = self.addr(i);
-        if at == 0 {
-            return None;
-        }
-        // UNSAFE(slice): one entry of a mapped generation.
-        #[allow(unsafe_code)]
-        // SAFETY: `at` is entry `i` of a generation `reserve` mapped (read-write, page aligned, never
-        // unmapped), aligned for `T` (`ALIGNED`); all-zero and every value written are valid `T`s
-        // (`ZeroValid`); the borrow of `self` keeps the only writer (`&mut self`) away.
-        Some(unsafe { &*core::ptr::with_exposed_provenance::<T>(at) })
-    }
-
     pub(super) fn get_mut(&mut self, i: usize) -> Option<&mut T> {
         if i < N {
             return self.inline.get_mut(i);
@@ -682,7 +662,9 @@ impl<T: ZeroValid, const N: usize, const G: usize> Grown<T, N, G> {
         }
         // UNSAFE(slice): one entry of a mapped generation, for its one writer.
         #[allow(unsafe_code)]
-        // SAFETY: as in `get`; `&mut self` excludes every other reference made through the table, and
+        // SAFETY: `at` is entry `i` of a generation `reserve` mapped (read-write, page aligned, never
+        // unmapped), aligned for `T` (`ALIGNED`); all-zero and every value written are valid `T`s
+        // (`ZeroValid`); `&mut self` excludes every other reference made through the table, and
         // readers without a lock read only entries published to them, which the writer does not
         // change until their slot is reused after a grace period.
         Some(unsafe { &mut *core::ptr::with_exposed_provenance_mut::<T>(at) })
@@ -714,10 +696,6 @@ pub(super) struct Wide<T: ZeroValid> {
 }
 
 impl<T: ZeroValid> Wide<T> {
-    pub(super) const fn new() -> Self {
-        Wide { at: 0, cap: 0, _t: PhantomData }
-    }
-
     /// Room for `len` entries (zero when never written); `false` when the mapping cannot grow.
     pub(super) fn reserve(&mut self, len: usize) -> bool {
         if len <= self.cap {
@@ -730,7 +708,7 @@ impl<T: ZeroValid> Wide<T> {
         if at == 0 {
             return false;
         }
-        (self.at, self.cap) = (at, bytes.next_multiple_of(4096) / size);
+        (self.at, self.cap) = (at, bytes.next_multiple_of(4096).checked_div(size).unwrap_or(0));
         true
     }
 
@@ -771,7 +749,7 @@ impl<T: Copy> Records<T> {
         if at == 0 {
             return false;
         }
-        (self.at, self.cap) = (at, bytes.next_multiple_of(4096) / size);
+        (self.at, self.cap) = (at, bytes.next_multiple_of(4096).checked_div(size).unwrap_or(0));
         true
     }
 

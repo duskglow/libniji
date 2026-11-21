@@ -858,7 +858,7 @@ impl View {
             // Generation 0's range first: within CAP objects, the arithmetic as before.
             let off = next.wrapping_sub(first);
             i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
-                (off % size_of::<Node>() == 0).then_some(off / size_of::<Node>())?
+                (off.checked_rem(size_of::<Node>())? == 0).then_some(off.checked_div(size_of::<Node>())?)?
             } else {
                 Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), next)?
             };
