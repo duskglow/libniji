@@ -1,54 +1,74 @@
-# HEAP-CLASS-SPACING: handoff (leg 1 -> leg 2, REFRESH at ctx 152k / 91 calls)
+# HEAP-CLASS-SPACING: handoff and report (DO NOT LAND: evidence only)
 
-State: branch `task/heap-class-spacing`, base origin/next `7e5d8b3fa` (heap.rs, heap_and_sync.rs and
-heap_meta_products.rs are identical to origin/next `ef7bc6fd3`). Commits: `520e74474` (the change), `91cfc81d5`
-(plants file), then this note. Role keke `~/w/n1` (Zen 1, 60 vCPU), synced at `91cfc81d5`. Brief:
-`~/state/briefs/HEAP-CLASS-SPACING.md` (coordinator addition: measure on RELEASE products). Reserved id: D-3.23 (not
-yet written: `records/decisions/D-3/D-3.23.toml`, ann "—", spec "§3.1", no amends; no earlier record fixed the table).
+State: branch `task/heap-class-spacing`, base origin/next `7e5d8b3fa`; commits `520e74474` (eight classes per doubling
+in [256, 1 KiB), 52 classes), `91cfc81d5` (plants), `9d89acf45` (plant line fix), `36e4e1270` (fused-path comment: class bound 27), `9b2f88563`
+(`realloc_in_place_fit_rule` follows the class below 1 KiB: 960), then handoff/report commits. Role keke `~/w/n1`
+(Zen 1, 60 vCPU). Measurements on RELEASE products (`NIJI_FULL_PROFILE=1` kits, ~/wl/kits/<sha>-release). Reserved
+id D-3.23: NOT written (no decision taken; return it or keep it for a follow-up).
 
-## The change (520e74474)
-`crates/rt/src/heap.rs`: CLASSES 44 -> 52: 16-byte steps to 128, four per doubling, EIGHT per doubling for the
-doublings in [256, 1 KiB) (`EIGHTHS_FROM` = 256, `EIGHTHS_TO` = `FORECAST_CAP`), four after, to 64 KiB. A const block
-checks the table against the rule; `NCLASSES` replaces every literal 44; `CACHE_WORDS` 384 -> 448 (C_CLASS 8 +
-52*8 + 2*LARGE_KEEP + 16 hints); `class_for` takes sizes <= 1024 from SMALL_CLASS for every alignment, and above 1 KiB
-`ABOVE_1K + (e - 10) * 4 + ...` (`ABOVE_1K` = 28, computed). Fused path: classes <= 1 KiB are indexes 0..27 (< 32,
-mask 31 ok). Test added: `rounding_loses_at_most_one_step_of_the_class_spacing` (+ aligned cases in
-`classes_cover_every_small_size_with_the_fundamental_alignment`), `crates/rt/tests/heap_and_sync.rs`.
+## Result
+The rule (eight per doubling from 256 to 1 KiB, four elsewhere) does NOT lower the workload kits' total cost, so per the
+brief (step 3) nothing should land. It wins only on find over 200000 entries, which is outside the kits and is the
+one-program case the brief excludes.
 
-## Measured so far (keke, Zen 1)
-- Model (LD_PRELOAD counter `~/work/heap-class-spacing/hc.c` on the glibc kit; per process sum over classes of
-  roundup(peak live blocks x class size, 4 KiB) = touched-page model; table `~/work/heap-class-spacing/model-table.txt`,
-  scratch copy here: .scratch/HEAP-CLASS-SPACING): total over all 27 workloads + find + probe, KiB vs today:
-  e8 128..1K -4744, 128..4K -4732, 256..1K -3860, 256..4K -3848, 256..2K -3856, 256..512 -3904, lin256 -884,
-  e2 (two per doubling) -309644 (all printf-loop: 20000 procs x -16 KiB) but find +6240, du +1800, probe +3028.
-  Gains: find-200k -3120 (200009 entries of 257..272 B -> 320), du -800 (10 runs), make-n -316 / probe -776 only
-  with 128..256 refined. Costs: every class a process uses touches its own page: 128..1K costs +4..+20 KiB on ~20 small
-  workloads; 256..1K +4..+8 KiB on ~9 (gawk x4, grep-E/F, sed-utf8, bash-loop, find-3); >1K refinement: no gain.
-  Chosen 256..1K: near-best total, fewest regressing rows, cap at the fused-path cap (512 cap: 44 KiB better in the
-  model but no general reason to stop there).
-- RELEASE base (findrel.sh, products ~/wl/src/7e5d.../target/niji): find 200k niji u=263.3M k=136.9M 8036 faults
-  34080 KiB; glibc static 288.5M/128.3M/6708/27840; glibc dyn 292.5M/129.0M/6741/28800; 3 entries niji 149k/1103k/93
-  faults/2400 KiB. Probe VmSize: start 6528 malloc1 10948 alloc 35524 refill 45764 realloc 47816; RLIMIT need fixed
-  41296, random 41488 41296 41312 41568 41312. => rounding cost IS present on release products (premise holds).
-- Base workload kits: `~/wl/kits/7e5d8b3fabb489794a46fe277fcb4fbf9c9d0b7f-release/table.txt` (job
-  heap-class-spacing-kits-base, 2716 s; dynamic verdict FAIL 23 rows > 1.10, geomean 0.8941: base state, not ours).
+| measure (release, Zen 1) | base 7e5d8b3fa | candidate 91cfc81d5 | delta |
+|---|---|---|---|
+| kits static, sum of 30 rows: user instr | 96,203,247,536 | 96,204,202,604 | +955,068 (+0.001%) |
+| kits static: page faults | 1,205,379 | 1,205,698 | +319 |
+| kits dynamic: user instr | 114,732,246,410 | 114,738,380,704 | +6,134,294 (+0.005%) |
+| kits dynamic: page faults | 2,170,531 | 2,171,163 | +632 |
+| du row (10 runs), static / dynamic faults | 3,525 / 3,954 | 3,775 / 4,202 | +250 / +248 |
+| du row user instr (static) | 106,776,668 | 107,771,308 | +994,640 (+0.93%) |
+| ls-lR / ls-l-enUS rows, static faults | 3,314 / 3,537 | 3,346 / 3,567 | +32 / +30 |
+| printf-loop dynamic user instr (20000 starts) | 19,581,477,551 | 19,586,617,181 | +257 per start |
+| `--version` starts, dynamic user instr (18 rows) | | | +258..+976, median about +290 |
+| `--version` starts, faults | | | within +-3 both ways (jitter) |
+| find 200k (static, findutils 4.11 objects) u / faults / max RSS | 263.3M / 8,036 / 34,080 KiB | 264.8M / 7,199 / 30,720 KiB | +0.5% / -837 / -3,360 KiB |
+| find 3 entries u / faults / RSS | 148,954 / 93 / 2,400 | 149,470 / 95 / 2,400 | +2 faults |
+| issue #21 probe (VmSize steps, RLIMIT_AS need) | 6528/10948/35524/45764/47816, 41296 | identical | 0 |
+| per call (wl_percall): malloc_free / realloc_chain | 117.2 / 294.2 | 117.2 / 294.2 | 0 |
 
-## Jobs
-Running at refresh: `heap-class-spacing-rt` (cargo test -p niji-rt --test heap_and_sync && cargo xtask clippy).
-Done: kits-base, find-base2, hist2, findhist. Killed (mine): malloc-base2 (blocked the sync).
-SUPERSEDED: heap-class-spacing-find-base (no libm.a yet), heap-class-spacing-malloc-base (chain broke on git log).
+Deterministic: user instructions and faults repeat within a few units per rep (du 3523..3530 base, 3775..3776 cand). Not
+usable: kernel instructions (sort-C, untouched by this change, moved +15% between the two kit runs; printf-loop's reps
+spread 15.5G..16.5G; the candidate kits ran beside my gate and plants), so the kernel column is not counted for or
+against. The kits record no RSS (raw column 9 is wall time). Small-program max RSS: see "RSS" below. Only the Zen 1
+class was measured (only keke assigned); Skylake-SP not measured.
 
-## Exact next steps
-1. `~/bin/jobwait heap-class-spacing-rt`; fix any failure (re-sync after each fix).
-2. `wl_percall` with base: `~/bin/jobrun heap-class-spacing-percall count -- sh -c 'cd ~/w/n1 && bash
-   validation/wl_percall.sh --base 7e5d8b3fabb489794a46fe277fcb4fbf9c9d0b7f .'` (malloc_free, realloc_chain rows =
-   the hot-function counts before/after; it also copies n1 to ~/wl/src/<head>).
-3. Candidate kits FROM THAT COPY so n1 stays free: `cd ~/wl/src/<head> && bash validation/wl_kits.sh <head>` (~45 min),
-   then `bash ~/work/heap-class-spacing/findrel.sh <head> cand` (find + probe after).
-4. On n1, one at a time: gate `cargo xtask affected --run` (gate kind), `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo
-   xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`; diff
-   target/product/fast/layout-bins.tsv vs base (start-up code: heap). Plants: `cargo xtask plants
-   handoff/HEAP-CLASS-SPACING-plants.txt --dir /dev/shm/claude/heap-class-spacing/plants-1 --timeout 600` (plants kind).
-5. Small programs VmSize/RSS + start-up faults (kits step 3 `--version` rows cover per-start faults) before/after.
-6. Write D-3.23 (`cargo xtask records new decision D-3.23`, numbers above + after), report json, precheck, handback-check.
-Not measured / out of reach: Skylake-SP class (only keke assigned) -> say so.
+## Why the model was wrong (diagnosis, measured)
+The model (handoff leg 1: LD_PRELOAD size histograms of the glibc kit, per class roundup(peak live x size, 4 KiB))
+predicted du -80 KiB per run and ranked 256..1K near best. Measured, du is +25 faults per run. `perf record -e
+page-faults -c 1 -d` on one `du -s /usr/include /usr/share/man` (static release kit, setarch -R): every extra fault
+is in the heap's first segment (du 348 -> 374, ls 98 -> 101; every other region identical). Per 256 KiB slab, the
+21 base slabs keep identical page counts and the candidate adds one slab with 25 touched pages. The new class takes
+its blocks from a class that keeps its pages anyway: that class's pages are reused from freed blocks, so splitting it
+only adds a slab. A finer table pays only where many blocks of one size are live together (find), and costs a slab
+where blocks churn. Not verified: the cause of the dynamic +290 instructions per start (candidates: the per-class
+work at cache creation over 52 classes instead of 44, and 512 B more cache words).
+
+## Other rules
+Only this rule was measured on real products. The model's ranking of the others (e8 from 128, caps 512/2K/4K, two per
+doubling) rests on the same per-class-peak assumption that missed du by ~45 pages per run, so it is not evidence that
+any of them would win. Per the RUT RULE a second spacing tweak is not tried here.
+
+## Proof run on the final code head (9b2f88563)
+Gate (direct tier) `heap-class-spacing-gate3`: 10 suites ok, 1456 passed, 0 failed, conformance 9 passed, peak 11G,
+`affected: ok`. Plants `heap-class-spacing-plants3`: 5 CAUGHT, 0 SURVIVED, no WARN. Plants (`handoff/HEAP-CLASS-SPACING-plants.txt`, 5 plants: off-by-one class boundary, old
+table restored, table rule, aligned index, above-1 KiB arithmetic). Counts (on 91cfc81d5, the same code apart from a comment and the test): kits, percall,
+findrel; diagnostics dufaults, smallrss (keke). Earlier: plants2 5/5 CAUGHT on
+36e4e1270; gate2 red on `realloc_in_place_fit_rule` (it hard-coded 896 as the class below 1 KiB; fixed in 9b2f88563).
+Not run (DO NOT LAND): `cargo xtask test`, full-profile hot_text_products, layout-bins diff, D-3.23.
+
+## RSS
+Max RSS (`/usr/bin/time %M`, one run each, this host reports it in 480 KiB steps), static / dynamic release kits, base
+-> candidate: `--version` of bash, cut, du, gawk, grep, ls, sed, sort, tar and `du -s`, `ls -lR` over the kit tree:
+4 of 22 rows one step higher (bash static 1920 -> 2400, sort static 1920 -> 2400, du -s static 3360 -> 3840, gawk
+dynamic 2880 -> 3360), none lower. find 200k: 34,080 -> 30,720 KiB. Class tables: CLASSES, MAGIC and BLOCKS +64 B each
+(8 entries), SMALL_CLASS unchanged (65 B); each thread cache +512 B (CACHE_WORDS 384 -> 448). Fused realloc path:
+classes up to `FORECAST_CAP` are indexes 0..27, still below 32, so the mask with 31 and `CLASSES[31] >= FORECAST_CAP`
+hold unchanged.
+
+## Next step (recommendation)
+Do not land. Return D-3.23. If the find case matters, rethink rather than retune: measure per-class touched pages
+with the fault-address method above on the kits' heaviest rows first; a design that splits a class only where many
+blocks of one size are live together (one uniform rule, decided at run time) is the shape the data points to.
+Scratch: keke `~/work/heap-class-spacing/` (model-table.txt, kitcmp.py/kitcmp.txt, dufaults/, findrel.sh, rel-*).

@@ -1,0 +1,23 @@
+{"task": "HEAP-CLASS-SPACING", "model": "opus", "tokens": null,
+ "result": "DO NOT LAND: eight classes per doubling in [256, 1 KiB) cut find-200k faults 10% and RSS 10% but raise the release kits' totals (faults +319 static / +632 dynamic, du +250, ls +31; dynamic start +~290 instr); no rule measured beats today's table",
+ "branch": "task/heap-class-spacing", "head": null,
+ "gate": {"affected": "10 suites ok, 1456 passed / 0 failed, conformance 9 passed (direct tier)", "peak": "gate: peak memory 11G oom_kill=0 rc=0"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "Reserved id D-3.23 is unused (no decision taken)", "recommendation": "return it"}],
+ "informational": [
+   "The per-class touched-page model from glibc-kit size histograms predicted du -80 KiB per run; measured +25 faults per run: the extra class adds a 25-page slab and no other slab shrinks (perf record -e page-faults -c 1 -d, per 256 KiB slab)",
+   "Kernel instruction counts of the workload kits are not usable at this resolution: sort-C (untouched) moved +15% between two runs; kits raw.tsv has no RSS column (column 9 is wall time)",
+   "Only the Zen 1 class measured; Skylake-SP not measured (no role there)"],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "workload kits static, sum of page faults over 30 rows (release)", "before": 1205379, "after": 1205698, "unit": "faults", "measured": true},
+   {"kind": "faults", "what": "workload kits dynamic, sum of page faults over 30 rows (release)", "before": 2170531, "after": 2171163, "unit": "faults", "measured": true},
+   {"kind": "perf", "what": "workload kits dynamic, sum of instructions:u (release)", "before": 114732246410, "after": 114738380704, "unit": "instr", "measured": true},
+   {"kind": "faults", "what": "find over 200000 entries, static release (data point, not in kits)", "before": 8036, "after": 7199, "unit": "faults", "measured": true},
+   {"kind": "size", "what": "find over 200000 entries max RSS", "before": 34080, "after": 30720, "unit": "KiB", "measured": true},
+   {"kind": "perf", "what": "malloc_free per call (wl_percall, release)", "before": 117.2, "after": 117.2, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "plants on the class table and class_for", "before": 0, "after": 5, "unit": "plants caught", "measured": true}],
+ "improvement": "A heap-layout story should start from per-slab fault addresses of libniji's own release build (perf record -e page-faults -c 1 -d, bucketed by slab: one minute per workload) rather than a model from glibc-linked size histograms, which missed du by ~45 pages per run here; wl_kits could also record max RSS",
+ "next_step": "Do not land; if the find case matters, a RETHINK of when to split a class (only where many same-size blocks are live together), measured per slab first",
+ "report_file": "handoff/HEAP-CLASS-SPACING.md",
+ "jobs": ["keke:heap-class-spacing-gate3", "keke:heap-class-spacing-plants3", "keke:heap-class-spacing-kits", "keke:heap-class-spacing-percall", "keke:heap-class-spacing-findrel", "keke:heap-class-spacing-dufaults", "keke:heap-class-spacing-smallrss"]}
