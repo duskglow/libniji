@@ -1,8 +1,25 @@
 # TEST-SCRATCH-CLEANUP
 
-State: branch task/test-scratch-cleanup-2 (TEST-SCRATCH-CLEANUP-2, continuing task/test-scratch-cleanup 41304e7f5),
-origin/next 97bf3542f merged in (709f3c1ea). Role mei:~/w/s2. Code done; proof under "Leg 3". HEAD: see
-`git log -1` (handoff/report commit on top of bf745ec74).
+State: branch task/test-scratch-cleanup-3 (TEST-SCRATCH-CLEANUP-3, continuing task/test-scratch-cleanup-2 7bc7ac116),
+origin/next 4f32aa946 merged in. Role mei:~/w/s2. Code done; proof under "Leg 4". HEAD: see
+`git log -1` (handoff/report commit on top of ddb0699d5).
+
+## Leg 4 (TEST-SCRATCH-CLEANUP-3): CI red E0277 fixed
+- CI red on 7bc7ac116 was a semantic conflict: next's new `map_malformed_dependency_refused_at_start`
+  (crates/ld/tests/map.rs, COMPAT19-LDSO-COST-2) passed the `dir()` result (now a Scratch guard) to
+  `Command::env`, which needs `AsRef<OsStr>`. Merged origin/next 4f32aa946; ddb0699d5 passes `d.as_os_str()`
+  and drops the test's own `remove_dir_all` (the guard removes on pass, keeps and names on failure).
+- Step-1 grep of every line next added since the last merge (process::id / CARGO_TARGET_TMPDIR / temp_dir /
+  create_dir / remove_dir): only that one test.
+- Results on ddb0699d5 (mei s2): inherited head 7bc7ac116 clippy + static clean (test-scratch-cleanup-3-lint0).
+  Merged head: `cargo build --tests --workspace` + clippy -D warnings + `cargo xtask static` clean, no E0277
+  (test-scratch-cleanup-3-lint1). Gate test-scratch-cleanup-3-gate (so + affected --run --base origin/next,
+  direct tier): 8393 passed, 0 failed, 776 ignored, SKIPPED lines 0, peak 5.1G, no `scratch kept` line.
+  Plants test-scratch-cleanup-3-plants (handoff/TEST-SCRATCH-CLEANUP-plants.txt): 3 CAUGHT of 3, no WARN.
+  du before/after the lint1 build + gate: pid-named entries in target/, target/tmp, target/crt-products
+  0/0/0 -> 0/0/0; crt-products 1 -> 1 MiB, tmp 1 -> 1 MiB; du target 3862 -> 8507 MiB, of which debug/
+  2352 -> 6796 MiB (cargo build state of the full `--tests --workspace` build and the gate's build).
+  NOT VERIFIED: per-directory attribution of the remaining +201 MiB outside debug/ (no full listing before).
 
 ## Leg 3 (TEST-SCRATCH-CLEANUP-2): CI merge conflict resolved
 - 709f3c1ea merge of origin/next: nscache.rs keeps next's `Dir::under` (region dir on a chosen base);
@@ -76,5 +93,5 @@ guards' Drop -> `scratch::release` (they removed even on failure; now kept and n
   INFORMATIONAL, not chased.
 
 ## Next step (exact)
-None for the story (leg 3 green); land task/test-scratch-cleanup-2. Follow-up (optional): the
+None for the story (leg 4 green); land task/test-scratch-cleanup-3. Follow-up (optional): the
 success-path-removal sites listed under owed #17, and xtask/tests/tz_tools.rs `scratch()`, to `Scratch`.
