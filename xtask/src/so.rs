@@ -2793,8 +2793,11 @@ pub(crate) fn versioned_default_aliases(dynsyms: &str) -> Vec<(String, String, u
     defaults.into_iter().filter(|(n, _)| compat.contains(n)).map(|(n, (v, value))| (format!("{n}@@{v}"), n, value)).collect()
 }
 
-/// The `.symtab` of the ELF64 little-endian image `elf`: (entry offset, name, value, size) of every symbol.
-fn symtab_entries(elf: &[u8]) -> Result<Vec<(usize, Vec<u8>, u64, u64)>, String> {
+/// One `.symtab` entry of [`symtab_entries`]: (entry offset, name, value, size).
+type SymtabEntry = (usize, Vec<u8>, u64, u64);
+
+/// The `.symtab` of the ELF64 little-endian image `elf`: every symbol's [`SymtabEntry`].
+fn symtab_entries(elf: &[u8]) -> Result<Vec<SymtabEntry>, String> {
     fn get(b: &[u8], at: usize, n: usize) -> Result<u64, String> {
         let s = b.get(at..at + n).ok_or_else(|| format!("ELF read at {at:#x} past the end"))?;
         Ok(s.iter().rev().fold(0u64, |v, x| (v << 8) | u64::from(*x)))

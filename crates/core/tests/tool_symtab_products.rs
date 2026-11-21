@@ -38,7 +38,8 @@ fn rows(text: &str) -> Vec<(String, String, String, String, String)> {
     v
 }
 
-/// Every function libc.so.6 exports at a default version and at a compat version is also named
+/// VALGRIND-LOADER-VIEW (D-X.153); no spec clause (a tool's view of `.symtab`). Every function
+/// libc.so.6 exports at a default version and at a compat version is also named
 /// `name@@VERSION` in `.symtab`, with the plain name's value, size (not 0) and type; `pthread_create`
 /// (the one helgrind needs) among them.
 #[test]
