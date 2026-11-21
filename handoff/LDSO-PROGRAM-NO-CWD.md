@@ -16,7 +16,8 @@ head (tree 96cb0ea5).
 - `crates/boundary/src/ld/entry.rs`: the `Action::Program` arm resolves the file first, then uses it for the trace
   list, `load` and `run` (so messages and `$ORIGIN` follow the file; `argv[0]` stays as given). `Action::List`
   resolves the same way. The kernel-start path is untouched.
-- Records: the D-27.69 row (plan/07-decisions/s26-29.md); the probe record in spec/behaviour/dynlink.md (after
+- Records: D-27.69 in records/decisions/D-27/D-27.69.toml (the generated view plan/07-decisions/s26-29.md is the
+  train's; leg 2 moved the row there after precheck's train-owned red); the probe record in spec/behaviour/dynlink.md (after
   "Loader exit status and messages"); spec/security/threat-model.md rule 2 (origin of a cache-found program) and
   rule 3 (no working-directory open). No differences row or compat flag: the behaviour now matches the reference.
 - Tests: `crates/ld/tests/search_cache.rs` `program_find_cache_only` (pure) and `ldso_program_without_slash`
@@ -58,7 +59,9 @@ CAUGHT). Older: `ldso-program-no-cwd-check` (test-cache bug).
 On 203aca154 (keke): `ldso-program-no-cwd-check3` green (clippy, static, so, search_cache 11 passed with
 --nocapture, no SKIP); `ldso-program-no-cwd-gate2` green (direct tier, 5 of 307 targets, 180 passed, 0 failed,
 peak 1.5G); `ldso-program-no-cwd-plants2` 6 of 6 CAUGHT with their msg (WARN-DEV-SHM only). Started after the
-doc-only head's sync: `ldso-program-no-cwd-startup` (cargo xtask test, full-profile so, hot_text_products).
+doc-only head's sync: `ldso-program-no-cwd-startup` (stopped, superseded), then on 691f58853 (records-only change)
+`ldso-program-no-cwd-startup2` (cargo xtask test, full-profile so, hot_text_products). precheck on 691f58853: no red,
+WAIT on startup2 only.
 
 Layout: `target/product/fast/layout-bins.tsv` lists only libc.so.6's hot group; the change is confined to ld.so's
 command path (`Action::Program`/`List`, new code in one `#[cold] #[inline(never)]` function), so no bin moves;
@@ -66,7 +69,7 @@ no primed base product to diff on keke.
 
 ## Exact next step
 
-1. On keke: `~/bin/jobwait ldso-program-no-cwd-check3 ldso-program-no-cwd-gate2 ldso-program-no-cwd-startup ldso-program-no-cwd-plants2`
+1. On keke: `~/bin/jobwait ldso-program-no-cwd-startup2` (check3, gate2, plants2 already green)
    (a label not yet started is refused: wait on the started ones). Fix a red, then run only that suite again.
 2. Plants: every plant CAUGHT with its msg; list any WARN lines (WARN-DEV-SHM seen).
 3. `cargo xtask precheck --jobs <labels> --head <sha>` on the role, then handoff/reports/LDSO-PROGRAM-NO-CWD.json

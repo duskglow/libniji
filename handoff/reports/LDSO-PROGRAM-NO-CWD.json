@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "ld.so PROGRAM with no '/' finds PROGRAM through the loader cache only (never the working directory, LD_LIBRARY_PATH or PATH); not found: 127 with the probed message; also for --list and LD_TRACE_LOADED_OBJECTS (D-27.69)",
  "branch": "task/ldso-program-no-cwd",
- "head": "203aca154",
+ "head": "691f58853",
  "gate": {
   "affected": "180 passed / 0 failed (keke:ldso-program-no-cwd-gate2, direct tier, 5 of 307 targets, --base origin/next)",
   "peak": "1.5G"
@@ -21,9 +21,10 @@
   "keke:ldso-program-no-cwd-check3",
   "keke:ldso-program-no-cwd-gate2",
   "keke:ldso-program-no-cwd-plants2",
-  "keke:ldso-program-no-cwd-startup"
+  "keke:ldso-program-no-cwd-startup2"
  ],
  "superseded": [
+  "keke:ldso-program-no-cwd-startup (4f812864b; stopped by me to sync 691f58853, which moved D-27.69 into its record)",
   "keke:ldso-program-no-cwd-check (older head: test cache held a relative entry)",
   "keke:ldso-program-no-cwd-check2 (58bcb3e96, green; superseded by the test fix)",
   "keke:ldso-program-no-cwd-gate (58bcb3e96, green; superseded by the test fix)",
