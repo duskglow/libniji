@@ -71,6 +71,10 @@ unsafe extern "C" {
     /// (machine/unwinder.S, D-22.21), or 0 (always 0 outside libc.a). No arguments, no memory access.
     pub(crate) safe fn niji_machine_unwind_force() -> usize;
     pub(crate) safe fn niji_machine_unwind_get_cfa() -> usize;
+    /// valgrind's `RUNNING_ON_VALGRIND` client request (machine/tool.S, VALGRIND-LOADER-VIEW): 0 on the
+    /// bare machine, the tool's nesting depth under valgrind. No arguments, no system call; touches only
+    /// its own stack block.
+    pub(crate) safe fn niji_machine_running_on_valgrind() -> u64;
     /// `cpuid`; writes exactly the four words of `out`.
     pub(crate) safe fn niji_machine_cpuid(leaf: u32, subleaf: u32, out: &mut [u32; 4]);
     /// `xgetbv(0)`. Faults (`#UD`) unless CPUID.1:ECX.OSXSAVE: callers check first.
