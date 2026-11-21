@@ -290,7 +290,17 @@ fn rendezvous_reference_sized_copy_says_version_1() {
     let c = d.join("refprog.c");
     std::fs::write(&c, REF_PROG).unwrap();
     let prog = d.join("refprog");
-    let r = Command::new("cc").args(["-O1", "-fno-pic", "-no-pie", "-fcf-protection=none"]).arg(&c).arg("-o").arg(&prog).output().unwrap();
+    // Linked against the host's C library (its `_r_debug` is 40 bytes); at run time libniji's loader
+    // starts it and its libraries are found through the program's RPATH.
+    let r = Command::new("cc")
+        .args(["-O1", "-fno-pic", "-no-pie", "-fcf-protection=none", "-Wl,--disable-new-dtags"])
+        .arg(format!("-Wl,--dynamic-linker={}", ld.display()))
+        .arg(format!("-Wl,-rpath,{}", lib.display()))
+        .arg(&c)
+        .arg("-o")
+        .arg(&prog)
+        .output()
+        .unwrap();
     assert!(r.status.success(), "{}", String::from_utf8_lossy(&r.stderr));
     // The host's C library names its `_r_debug` 40 bytes: the copy is that long (the premise).
     let rel = Command::new("readelf").args(["-sW"]).arg(&prog).output();
@@ -302,7 +312,7 @@ fn rendezvous_reference_sized_copy_says_version_1() {
             return;
         }
     }
-    let o = Command::new(&ld).arg("--library-path").arg(&lib).arg(&prog).output().unwrap();
+    let o = Command::new(&prog).output().unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert_eq!(o.status.code(), Some(0), "failed check {:?}: {out}", o.status.code());
     let _ = std::fs::remove_dir_all(&d);
