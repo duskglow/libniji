@@ -1,0 +1,20 @@
+{"task": "VALGRIND-LDSO-SYMBOLS", "model": "opus", "tokens": null,
+ "result": "ld.so gets local sized strlen (alias of niji_machine_strlen) and strcmp symbols, in libc6-dbg's debug file: valgrind's mandatory-redirect abort is gone and memcheck runs programs with the loader's debug file; with the whole libc6-dbg every tool still aborts in valgrind's debug reader on libc.so.6's .rodata1/.rodata pair (next story)",
+ "branch": "task/valgrind-ldso-symbols", "head": "8e3640133",
+ "gate": {"affected": "see hand-back (valgrind-ldso-symbols-gate4)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libc6-dbg + valgrind 3.24: m_debuginfo/readelf.c:3013 find_rodata assertion 'di->rodata_size == sh_size' for every tool; libc.so.6 has .rodata1 (D-X.133 start-up anchor, 64 KiB aligned) and .rodata with a gap; loader-only debug file does not trigger it. Fix is a libc.so.6 layout change (needs start-up measurements): next story",
+   "helgrind: hg_main.c:5421 hg_handle_client_request Assertion 'found' failed under libniji with or without debug files; drd runs (0 errors) without libc6-dbg and with the loader's debug file",
+   "memcheck with the loader's debug file: one start-up report inside the loader beyond stock's counts (details in the hand-back)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "valgrind memcheck under libniji with libc6-dbg's loader debug file: no longer aborts at start-up (mandatory strcmp/strlen redirect); /bin/true and an invalid-read program run, rc 0, invalid read reported at bad.c:11", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "unit test ld_tool_names, build-time interpreter names check, check-system.sh libc6-dbg names check; plants", "before": 0, "after": 6, "unit": "plants", "measured": true},
+   {"kind": "size", "what": "ld.so .text grows by the 23-byte strcmp at its end (no loader function moved)", "before": null, "after": 23, "unit": "bytes", "measured": true}
+ ],
+ "improvement": "Run clippy/static before the package build in a chained job: a compile error (reserved word) and a codemap failure each cost one full build cycle here",
+ "next_step": "Story: libc6-dbg readable by valgrind (libc.so.6 .rodata1/.rodata pair, layout measured per section 9); then helgrind's client request and the loader's memcheck start-up report",
+ "report_file": "handoff/VALGRIND-LDSO-SYMBOLS.md",
+ "jobs": ["keke:valgrind-ldso-symbols-gate4", "keke:valgrind-ldso-symbols-plants4", "keke:valgrind-ldso-symbols-lint4", "keke:valgrind-ldso-symbols-final3", "keke:valgrind-ldso-symbols-probe4"]}

@@ -20,11 +20,11 @@ vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh). Code head ba8bbb4e
 ## The change (commits c74eb73fb, 68b92caed, ba8bbb4ec)
 
 * `xtask/src/so.rs`: the interpreter link adds `--defsym=strlen=niji_machine_strlen` (LD_TOOL_ALIASES; the
-  version script keeps it local) and `csys/src/ld/ld_names.S` after the archive; after the link
+  version script keeps it local) and `csys/src/machine/ld_names.S` after the archive; after the link
   `size_tool_aliases` copies the target's st_size to the alias in .symtab (not loaded: no loaded byte
   changes); `check_interp_tool_names` refuses an interpreter whose `strcmp`/`strlen` are not LOCAL FUNC,
   sized, at the alias target, or are in .dynsym. Unit test `ld_tool_names`.
-* `csys/src/ld/ld_names.S`: a 23-byte byte-wise strcmp (C17 7.24.4.2), local, section retained (`R`),
+* `csys/src/machine/ld_names.S`: a 23-byte byte-wise strcmp (C17 7.24.4.2), local, section retained (`R`),
   linked last so its text is the end of .text (it landed at .text's end: no loader function moved). Nothing
   calls it. `crates/boundary/build.rs` keeps the file out of the C layer archive (libc.so.6/libc.a unchanged).
 * `tools/deb/check-system.sh`: libc6-dbg's debug file of the loader must have LOCAL FUNC strcmp and strlen.
@@ -58,6 +58,21 @@ vg-probe2.sh, vg-cmds.sh, bad.c, thr.c, final.sh, probe4.sh). Code head ba8bbb4e
 2. helgrind: `hg_handle_client_request: Assertion 'found' failed` (with or without debug files): helgrind's
    pthread wrappers and libniji's threads; probe which client request (`--trace-redir=yes`, `-v`).
 3. memcheck: one start-up report in the loader (hand-back has the detail).
+
+## Leg 2 state (REFRESH at 01:35Z; read this first)
+
+Code head = the commit "Alias strcmp to niji_machine_ld_strcmp" (after 8e3640133). Why: `cargo xtask static`
+codemap reads csys/src/machine/*.S labels as libc asm exports (a `strcmp:` label there failed it), and
+csys-audit allows assembly only under csys/src/machine/ (the csys/src/ld/ move failed it). Now ld_names.S
+(back in machine/) defines hidden `niji_machine_ld_strcmp`; `strcmp` is a sized link alias like `strlen`
+(LD_TOOL_ALIASES). The loader's symbols are otherwise as in final3 (plus the niji_machine_ld_strcmp row).
+Chain started on that head on keke (`~/work/VALGRIND-LDSO-SYMBOLS/chain.sh`): plants5 (detached), lint5,
+then gate5. Exact next step: `~/bin/jobwait valgrind-ldso-symbols-lint5 valgrind-ldso-symbols-plants5`,
+fix any red; then gate5; rerun final.sh as `valgrind-ldso-symbols-final5` only if time allows (product
+symbols changed: strcmp is now an alias; the listing in Proof is from final3); then precheck
+(`cargo xtask precheck --jobs <labels> --head <sha>` on the role), update the JSON's head/jobs, push,
+`ops handback-check`, hand back (COMPLETE, target not reached: libc6-dbg rodata assertion is the next story).
+Superseded also: lint3/gate3/plants3 (ba8bbb4ec), lint4/gate4/plants4 (8e3640133, static red).
 
 ## Plants and gates
 

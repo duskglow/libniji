@@ -11,21 +11,24 @@
  * `strlen` is the interpreter's own niji_machine_strlen: `cargo xtask so` defines it as a local
  * alias at that address when it links ld.so (--defsym; the version script keeps every symbol but
  * the loader's exports local). The interpreter compares no NUL-terminated strings, so this file
- * holds a `strcmp` of its own for the tools to find: C17 7.24.4.2, the bytes compared as unsigned
- * char, the sign of the first difference returned. Nothing in ld.so calls it.
+ * holds a strcmp of its own for the tools to find, niji_machine_ld_strcmp: C17 7.24.4.2, the bytes
+ * compared as unsigned char, the sign of the first difference returned. Nothing in ld.so calls it.
+ * `strcmp` is a link alias of it as `strlen` is of niji_machine_strlen (no `strcmp` label here: the
+ * code map reads this directory's labels as libc.so.6's asm exports).
  *
- * Local symbols only (no .globl): nothing links against them, ld.so exports nothing new
- * (spec/abi lists and tools/deb/check-symbols.sh unchanged), and the stripped loader drops them
- * with the rest of its symbol table; libc6-dbg's debug file keeps them, as the
- * check in tools/deb/check-system.sh requires. `R` (SHF_GNU_RETAIN) keeps the unreferenced
- * section through the link's --gc-sections. `cargo xtask so` assembles this file alone, after the
- * interpreter's archive in its link (its text comes last, so no other function moves);
- * crates/boundary/build.rs leaves it out of the C layer's archive, so neither libc.so.6 nor libc.a
- * has it. Not under csys/src/machine: the code map reads the labels there as libc's asm exports. */
+ * Hidden, and local in ld.so (version script): ld.so exports nothing new (spec/abi lists and
+ * tools/deb/check-symbols.sh unchanged), and the stripped loader drops these names with the rest
+ * of its symbol table; libc6-dbg's debug file keeps them, as the check in
+ * tools/deb/check-system.sh requires. `R` (SHF_GNU_RETAIN) keeps the unreferenced section through
+ * the link's --gc-sections. `cargo xtask so` assembles this file alone, after the interpreter's
+ * archive in its link (its text comes last, so no other function moves); crates/boundary/build.rs
+ * leaves it out of the C layer's archive, so neither libc.so.6 nor libc.a has it. */
 	.section .text.niji_ld_strcmp,"axR",@progbits
-	.type strcmp, @function
+	.globl niji_machine_ld_strcmp
+	.hidden niji_machine_ld_strcmp
+	.type niji_machine_ld_strcmp, @function
 	.p2align 4
-strcmp:
+niji_machine_ld_strcmp:
 	.cfi_startproc
 1:	movzbl (%rdi), %eax
 	movzbl (%rsi), %ecx
@@ -38,6 +41,6 @@ strcmp:
 	jmp 1b
 2:	ret
 	.cfi_endproc
-	.size strcmp, .-strcmp
+	.size niji_machine_ld_strcmp, .-niji_machine_ld_strcmp
 
 	.section .note.GNU-stack,"",@progbits

@@ -1784,7 +1784,7 @@ impl LdLink {
         let phase = dir.join("ld-phase.ld");
         fs::write(&phase, ldso_phase_script()).map_err(|e| e.to_string())?;
         let names = dir.join("ld-names.o");
-        run(Command::new(cc).arg("-c").arg(root.join("csys/src/ld/ld_names.S")).arg("-o").arg(&names))?;
+        run(Command::new(cc).arg("-c").arg(root.join("csys/src/machine/ld_names.S")).arg("-o").arg(&names))?;
         Ok(LdLink { entry, archive, map, span, phase, names })
     }
 
@@ -2374,12 +2374,13 @@ pub(crate) fn check_interp(path: &Path) -> Result<(), String> {
 /// VALGRIND-LDSO-SYMBOLS (GitHub issue #13): the names tools look up in the interpreter's symbol table
 /// (valgrind on amd64 refuses to start a program without `strcmp` and `strlen` there or in the debug
 /// file libc6-dbg ships). Each is a local function symbol: `strlen` an alias of the interpreter's own
-/// string length routine ([`LD_TOOL_ALIASES`], `--defsym` in the link), `strcmp` defined in
-/// `csys/src/ld/ld_names.S`. None is exported (the version script keeps them local).
+/// string length routine, `strcmp` of `niji_machine_ld_strcmp` in `csys/src/machine/ld_names.S`
+/// ([`LD_TOOL_ALIASES`], `--defsym` in the link, sized after it). None is exported (the version
+/// script keeps them local).
 pub(crate) const LD_TOOL_NAMES: &[&str] = &["strcmp", "strlen"];
 
 /// The names of [`LD_TOOL_NAMES`] the link defines as aliases: (name, the interpreter's function).
-const LD_TOOL_ALIASES: &[(&str, &str)] = &[("strlen", "niji_machine_strlen")];
+const LD_TOOL_ALIASES: &[(&str, &str)] = &[("strcmp", "niji_machine_ld_strcmp"), ("strlen", "niji_machine_strlen")];
 
 /// [`LD_TOOL_NAMES`] over `readelf -sW` of a linked interpreter: each name is a `FUNC` `LOCAL` row of
 /// `.symtab`, an alias sits at its target's address, and `.dynsym` has none of them (no new export).
@@ -2965,7 +2966,7 @@ mod tests {
     #[test]
     fn ld_tool_names() {
         let dynsym = "Symbol table '.dynsym' contains 2 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     1: 0000000000030000    10 FUNC    GLOBAL DEFAULT    1 __tls_get_addr@@GLIBC_2.3\n";
-        let good = format!("{dynsym}\nSymbol table '.symtab' contains 3 entries:\n   447: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 niji_machine_strlen\n   655: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen\n   265: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 strcmp\n");
+        let good = format!("{dynsym}\nSymbol table '.symtab' contains 3 entries:\n   447: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 niji_machine_strlen\n   655: 000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen\n   264: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 niji_machine_ld_strcmp\n   265: 0000000000053e50    23 FUNC    LOCAL  DEFAULT    1 strcmp\n");
         assert_eq!(tool_names_errors(&good), Ok(()));
         let no_strcmp = good.replace(" strcmp\n", " strcmq\n");
         assert!(tool_names_errors(&no_strcmp).unwrap_err().contains("no strcmp in .symtab"));
