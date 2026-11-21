@@ -1,0 +1,9 @@
+id = "D-X.139"
+section = "x"
+status = "active"
+amends = ["D-X.134"]
+story = "HEAP-FOREIGN-PAIR"
+date = "2026-11-20"
+body = '''
+**In a process the runtime did not start, with no debugging on (the heap's debugging word is `FOREIGN` alone), `debug_alloc` and `debug_free` call the heap directly with the calling thread's cache word found once per operation** (`heap::foreign::ForeignPages`: `KernelPages` with the slot of `thread::heap_cache_slot`, read with one load by the fast paths; the slow paths stay `KernelPages`'), instead of going through `Debug::alloc`/`Debug::free`, the caller text and the pedantic test, with a registry probe at each cache-word read. The route is two cold out-of-line functions (`foreign_alloc`, `foreign_free`) that the debugging paths call; the plain entry points of a runtime-made thread are unchanged. Inlined into `debug_alloc`, which runs at start-up (the first allocation clears `VIRGIN`), the route saved 23 instructions more per pair (325) but put three start-up modes one layout window over budget (WINDOW-BIN-BYTES). Measured (Zen 1 host, 60 vCPU, heap_foreign_pair_cost under `--release`, user instructions per malloc(64)/free pair): 395 -> 348 (export,selftest build), 389 -> 341 (plain build); test profile 1672 -> 1641; a runtime-made thread's pair 122.2 (cbench_malloc, unchanged code). Still above 1.5x the runtime-made pair: what remains is the call chain (export, general path, debugging path, cache-slot lookup) and two registry probes per pair; the next step is per-thread storage for foreign threads (D-X.58 option 4), which needs a ruling. Tests: crates/boundary/tests/heap_foreign_plain.rs (calloc zeroes a reused block on the route; with `M_PERTURB` set the route is not taken), heap_foreign_pair_cost.rs (the cost bound); plants handoff/HEAP-FOREIGN-PAIR-plants.txt.
+'''

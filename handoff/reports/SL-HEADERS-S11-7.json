@@ -1,0 +1,30 @@
+{
+  "task": "SL-HEADERS-S11-7",
+  "model": "sonnet",
+  "tokens": null,
+  "result": "slice 11 (math.h, fenv.h, fpu_control.h, ieee754.h, values.h) re-ported as data only on the generator: libc-include is headers-gen output, no generator change; complex.h, tgmath.h, the _FloatN literal macros and the hex constants left to HEADERS-TABLES-COMPLETE",
+  "branch": "task/sl-headers-s11-7",
+  "head": "d51bbf2a0",
+  "gate": {"affected": "direct tier green (221 test targets selected)", "peak": "12G"},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "complex.h and tgmath.h are not in slice 11: their C++ rows are the C++ wrappers' pull-ins (pthread_attr_t, a union typedef without a C++ spelling) and tgmath.h's type-generic macros have no table form", "recommendation": "HEADERS-TABLES-COMPLETE takes them (C++ spelling for union typedefs, type-generic macro rows)"},
+    {"item": "70 _Float32/64/128/32x/64x literal macros of math.h (M_Ef32 ...) have no literal form in the generator; listed in headers/rows-exceptions.tsv", "recommendation": "add the literal form in HEADERS-TABLES-COMPLETE and drop the 70 exception rows"},
+    {"item": "values.h hex floating constants (MAXDOUBLE, MAXFLOAT, MINDOUBLE, MINFLOAT) are emitted as hex, which C89 and C++98-14 cannot lex", "recommendation": "decimal spelling in the generator (HEADERS-TABLES-COMPLETE); s11.py asserts them from C99 and C++17 until then"}
+  ],
+  "informational": [
+    "header_check.py: 8 failures of 11659, all P8 sys/mount.h vs linux/mount.h (struct winsize redefined); sys/mount.h is identical to next's, not slice 11; the 8 header_check plants filter those lines so their baseline passes",
+    "plants run 3 on an earlier head: 16 caught, 1 survived (s11-ieee-table-position: the generator reads a bit-field width only; the position is proved by the rows test); the plant now runs headers-gen --rows (plants-rows.txt, run plants5, caught)",
+    "the plants tool prints 'caught by no test the log names' for every plant whose command is not a cargo test; each plant has a msg: naming the failing check and all matched"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "coverage", "what": "slice 11 header rows: 147 macros, 40 ieee754/ieee854 union layouts, 160 visibility rows now generated and checked in C and C++ by the rows test", "before": 0, "after": 147, "unit": "macro rows", "measured": true},
+    {"kind": "coverage", "what": "plants for slice 11 (header text, table rows, checks, P6 proof)", "before": 0, "after": 17, "unit": "plants", "measured": true},
+    {"kind": "unblock", "what": "HEADERS-TABLES-COMPLETE: complex.h, tgmath.h, _FloatN literals, decimal hex constants", "before": null, "after": null, "unit": "stories", "measured": false}
+  ],
+  "improvement": "plants whose command runs a whole check with unrelated pre-existing failures cannot take a baseline: a plants-file option to ignore named FAIL lines would save the wrapper pipe and a rerun",
+  "next_step": "land; HEADERS-TABLES-COMPLETE takes the four left-out items",
+  "report_file": "handoff/SL-HEADERS-S11-7.md",
+  "jobs": ["keke:sl-headers-s11-7-gate", "keke:sl-headers-s11-7-plants5", "keke:sl-headers-s11-7-plants6"]
+}

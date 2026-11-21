@@ -1,0 +1,37 @@
+{
+ "task": "SL-HEADERS-S10-5",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "COMPLETE: slice 10 is data-only on origin/next (generator edits dropped), headers regenerated, headers-gen --check ok; gate and plants on the final head",
+ "branch": "task/sl-headers-s10-5",
+ "head": "6333f0fe2",
+ "gate": {
+  "affected": "direct tier green (rc 0)",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "header_check.py: 8 P8 failures, all sys/mount.h with linux/mount.h (struct winsize redefined); this branch has no diff in sys/mount.h or its template against origin/next, so it is next's",
+  "The generator now rejects a literal define of a macro macros.tsv owns: FNM_NOSYS and LC_GLOBAL_LOCALE templates use @@value()",
+  "Plants: 10 of 11 caught in sl-headers-s10-5-plants2 (the other, s10-regexp-must-fail, survived as written: a #warning under -Werror still fails with the text; the plant now removes the text and is CAUGHT in plants3). Plants need NIJI_UAPI set to a UAPI-only directory on a host with libc6-dev: the default multiarch include dir lets sys/mount.h find the host sys/ioctl.h (8 P8 failures, none in slice 10 files)."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "slice 10 passes the slice-contract precheck (no diff in header_check.py or xtask/)",
+   "before": null,
+   "after": null,
+   "unit": "",
+   "measured": false
+  }
+ ],
+ "improvement": "the merge left generator-vs-template conflicts that only headers-gen --check shows; running it right after the merge (before clippy) shows them in seconds",
+ "next_step": "After slice 7 lands: sys/stat.h include in ftw.h/fts.h, empty p1_skip, P2 and P7 (see handoff/SL-HEADERS-S10.md)",
+ "report_file": "handoff/SL-HEADERS-S10.md",
+ "jobs": [
+  "mei:sl-headers-s10-5-gate",
+  "mei:sl-headers-s10-5-plants3"
+ ]
+}

@@ -15,15 +15,21 @@ extern void _flushlbf (void);
 # endif
 # ifndef __NIJI_D_enum_FSETLOCKING_BYCALLER
 #  define __NIJI_D_enum_FSETLOCKING_BYCALLER 1
+#  ifndef FSETLOCKING_BYCALLER
 enum { FSETLOCKING_BYCALLER = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FSETLOCKING_INTERNAL
 #  define __NIJI_D_enum_FSETLOCKING_INTERNAL 1
+#  ifndef FSETLOCKING_INTERNAL
 enum { FSETLOCKING_INTERNAL = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FSETLOCKING_QUERY
 #  define __NIJI_D_enum_FSETLOCKING_QUERY 1
+#  ifndef FSETLOCKING_QUERY
 enum { FSETLOCKING_QUERY = 0 };
+#  endif
 # endif
 # ifndef FSETLOCKING_BYCALLER
 #  define FSETLOCKING_BYCALLER 2

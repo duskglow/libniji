@@ -1,0 +1,14 @@
+@@generated
+/* sys/sysinfo.h: sysinfo(2), get_nprocs(3), get_phys_pages(3) */
+#ifndef __NIJI_H_sys_sysinfo_h
+#define __NIJI_H_sys_sysinfo_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

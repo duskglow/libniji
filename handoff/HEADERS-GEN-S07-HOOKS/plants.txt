@@ -1,0 +1,4 @@
+# HEADERS-GEN-S07-HOOKS plants (cargo xtask plants; format docs/plants.md): the lfs redirection and the byte-structure rule of headers-gen.
+lfs-excl | xtask/src/headers/functions.rs | lit:Some(y) if sym == name && !excl && ==> Some(y) if sym == name && | cargo test -p xtask a_gnu_only_function_is_redirected | msg:a_gnu_only_function_is_redirected.*FAILED|panicked
+lfs-exported | xtask/src/headers/functions.rs | lit: && self.t.exported.contains(y) => ==> => | cargo test -p xtask a_gnu_only_function_is_redirected | msg:a_gnu_only_function_is_redirected.*FAILED|panicked
+bytes-packed | xtask/src/headers/aggregates.rs | lit:lv.wide && lv.align != Some(1) && align == Some(1) ==> lv.wide && align == Some(1) | cargo test -p xtask a_structure_of_bytes_is_not_packed | msg:a_structure_of_bytes_is_not_packed.*FAILED|panicked

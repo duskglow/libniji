@@ -1,0 +1,5 @@
+# Plants of HEADERS-GEN-S10-HOOKS (cargo xtask plants; docs/plants.md): slice 10's two shared generator edits.
+# The FILE tag-only rule is live on this base for grp.h gshadow.h mntent.h printf.h pwd.h shadow.h; headers-gen --check catches it.
+# The header_check.py hooks (p1_skip, must_fail, the P1 FILE skip) are not planted here: the baseline of header_check.py is
+# red on origin/next (8 P8 sys/mount.h FAILs, struct winsize), so plants.rs aborts on it; slice 10's plants catch them.
+s10h-file-tag-only | xtask/src/headers/typedefs.rs | lit:cxx == "_IO_FILE" && !self.t.vis ==> cxx == "_IO_FILEX" && !self.t.vis | cargo xtask headers-gen --check | msg:headers-gen

@@ -35,7 +35,7 @@ sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mch
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
-net/ethernet.h net/if_arp.h netpacket/packet.h""".split()
+net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -56,15 +56,29 @@ TYPES = [
  ("pthread_barrier_t", "pthread_barrier_t"), ("pthread_barrierattr_t", "pthread_barrierattr_t"),
  ("pthread_key_t", "pthread_key_t"), ("pthread_once_t", "pthread_once_t"),
  ("struct _pthread_cleanup_buffer", "struct _pthread_cleanup_buffer"),
- ("__pthread_unwind_buf_t", "__pthread_unwind_buf_t"), ("cpu_set_t", "cpu_set_t"),
+ ("__pthread_unwind_buf_t", "__pthread_unwind_buf_t"), ("struct __cancel_jmp_buf_tag", "struct __cancel_jmp_buf_tag"),
+ ("sigevent_t", "sigevent_t"),
+ ("struct sigcontext", "struct sigcontext"),
+ ("struct _fpstate", "struct _fpstate"), ("struct _fpxreg", "struct _fpxreg"), ("struct _xmmreg", "struct _xmmreg"),
+ ("struct _libc_fpstate", "struct _libc_fpstate"),
+ ("struct _libc_fpxreg", "struct _libc_fpxreg"),
+ ("struct _libc_xmmreg", "struct _libc_xmmreg"),
+ ("struct __pthread_mutex_s", "struct __pthread_mutex_s"),
+ ("struct __pthread_rwlock_arch_t", "struct __pthread_rwlock_arch_t"),
+ ("struct __pthread_cond_s", "struct __pthread_cond_s"),
+ ("struct __pthread_internal_list", "struct __pthread_internal_list"),
+ ("__sigset_t", "__sigset_t"),
+ ("cpu_set_t", "cpu_set_t"),
  ("struct sched_param", "struct sched_param"), ("sem_t", "sem_t"),
+ ("union ieee754_float", "union ieee754_float"), ("union ieee754_double", "union ieee754_double"),
+ ("union ieee854_long_double", "union ieee854_long_double"),
  ("thrd_t", "thrd_t"), ("mtx_t", "mtx_t"), ("cnd_t", "cnd_t"), ("tss_t", "tss_t"), ("once_flag", "once_flag"),
  ("struct timespec", "struct timespec"), ("struct timeval", "struct timeval"), ("struct tm", "struct tm"),
  ("struct itimerval", "struct itimerval"), ("struct itimerspec", "struct itimerspec"),
  ("struct timezone", "struct timezone"), ("struct timex", "struct timex"),
  ("struct ntptimeval", "struct ntptimeval"), ("struct tms", "struct tms"), ("struct timeb", "struct timeb"),
  ("struct rusage", "struct rusage"), ("struct rlimit", "struct rlimit"), ("struct utsname", "struct utsname"),
- ("struct sysinfo", "struct sysinfo"), ("struct stat", "struct stat"), ("struct statx", "struct statx"),
+ ("struct sysinfo", "struct sysinfo"), ("struct stat", "struct stat"), ("struct statx", "struct statx"), ("struct statx_timestamp", "struct statx_timestamp"),
  ("struct statfs", "struct statfs"), ("struct statvfs", "struct statvfs"),
  ("struct dirent", "struct dirent"), ("struct dirent64", "struct dirent64"),
  ("FTS", "FTS"), ("FTSENT", "FTSENT"), ("struct FTW", "struct FTW"), ("glob_t", "glob_t"),
@@ -717,6 +731,13 @@ def main():
             mac = macros(tmp)
         write("constants.tsv", ["macro", "value"], mac)
         print(f"{ver}\nconstants: {len(mac)}")
+        return
+    if "--prototypes-only" in sys.argv:
+        # Regenerate prototypes.tsv alone (slice 7 added utime.h to HEADERS; the other tables do not depend on it).
+        with tempfile.TemporaryDirectory() as tmp:
+            pro = prototypes(tmp)
+        write("prototypes.tsv", ["name", "header", "declaration"], [(k, *v) for k, v in sorted(pro.items())])
+        print(f"{ver}\nPrototypes: {len(pro)}")
         return
     if "--empty-versions-only" in sys.argv:
         # Write empty-versions.tsv alone and add its line to PROVENANCE (SYS-ABI-DT-RELR).

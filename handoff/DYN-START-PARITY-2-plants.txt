@@ -1,0 +1,4 @@
+# DYN-START-PARITY-2 plants: the dynamic start-up fault bound, set to the higher level of the two file systems
+# under /tmp ([79, 76]), still catches a start that grows: the start's tables back to 64 inline entries (D-27.64
+# saved about 10 faults with 16).
+inline-64 | crates/boundary/src/ld/table.rs | lit:pub(super) const INLINE: usize = 16; ==> pub(super) const INLINE: usize = 64; | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:dynamic startup-only program .*page faults > 79

@@ -9,7 +9,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, missing_docs)]
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
+
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 
 /// Upper bound on the lowest of [`RUNS`] counts: 7 bitmap pages for 14 classes plus headroom.
 const BOUND: u64 = 9;
@@ -132,4 +136,74 @@ fn several_nodes_read_the_node_from_rseq() {
     let (node, page) = err.trim().strip_prefix("node ").and_then(|v| v.split_once(" page ")).unwrap_or_else(|| panic!("unexpected output {err:?}"));
     eprintln!("rseq node read: node {node}, page on node {page}");
     assert_eq!(node, page, "the thread on node {node} took a slab placed on node {page} (node_id read from the wrong field?)");
+}
+
+/// The address space (VmSize) the steps of GitHub issue #21 add over the process's start, in
+/// KiB: `tests/oracle/heap_address_space.c` (one `malloc(16)`; 200000 blocks of 96..159 bytes;
+/// every other one freed and refilled with `malloc(120)`; all freed; a pointer array grown to
+/// 200000 by doubling `realloc`). Per step: the reference's growth (glibc 2.39, measured on the
+/// Zen 1 build host, identical over 5 runs) and libniji's bound. malloc1 and alloc: libniji's
+/// measured growth (identical over 5 runs) plus 256 KiB (one slab of a segment's growth). Before
+/// HEAP-ADDRESS-SPACE libniji grew by 16448, 32836, 49220 and 67652 KiB (whole 16 MiB segment
+/// windows, a 16 MiB large-block table): every step but the first fails. malloc1: a new
+/// segment's first 16 slabs (4 MiB of address space, HEAP-ADDRESS-SPACE-5).
+/// refill and realloc: the measured level without the reuse of a nearby class's freed blocks
+/// (ruling #6513, HEAP-ADDRESS-SPACE-6). They do not yet meet their targets, 33092 (refill) and
+/// 35144 KiB (realloc), measured with that reuse; HEAP-SPILL-COLD closes the gap and tightens
+/// these bounds to the targets.
+const AS_STEPS: [(&str, u64, u64); 4] = [("malloc1", 132, 4420 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 39236), ("realloc", 28052, 41288)];
+/// RLIMIT_AS over the VmSize at start under which the whole program must still succeed, run
+/// with a fixed layout (`ADDR_NO_RANDOMIZE`; ruling #6566): the least the reference needs is
+/// 29568 KiB; this is libniji's measured need without the reuse of a nearby class's freed blocks
+/// (bisected to 16 KiB, Zen 1 host: 41296 in 10 of 10 fixed-layout runs; ruling #6513). With
+/// randomisation the need depends on where the kernel places the heap's segments next to the
+/// other mappings: 41296..43088 KiB over 40 runs (HEAP-ADDRESS-SPACE-6), 41296..43552 over 20
+/// (HEAP-ADDRESS-SPACE-7), so a randomised check at one value would be intermittent;
+/// HEAP-SPILL-COLD makes the need placement-independent and adds that check. It does not yet
+/// meet its target, 35152 KiB (the need with that reuse plus 256 KiB, inside the issue's 35000
+/// KiB headroom for findutils' many-dir-entries-vs-OOM test); HEAP-SPILL-COLD closes the gap.
+/// Before HEAP-ADDRESS-SPACE libniji needed 67652 KiB.
+const AS_HEADROOM: u64 = 41296;
+
+#[test]
+fn the_heap_keeps_address_space_near_its_use() {
+    // Clauses: s3_1_c_1 (T14: address space under a limit); GitHub issue #21, HEAP-ADDRESS-SPACE.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("heap_address_space_niji");
+    build("heap_address_space.c", &exe);
+    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+    assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
+    let out = String::from_utf8_lossy(&o.stdout);
+    let kib = |step: &str| -> u64 {
+        out.lines()
+            .find_map(|l| l.strip_prefix(step).and_then(|v| v.strip_prefix(' ')).and_then(|v| v.parse().ok()))
+            .unwrap_or_else(|| panic!("no step {step} in {out:?}"))
+    };
+    let start = kib("start");
+    for (step, reference, bound) in AS_STEPS {
+        let grew = kib(step).saturating_sub(start);
+        eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
+        assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
+    }
+    let o = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
+    assert!(
+        o.status.success(),
+        "under RLIMIT_AS = start + {AS_HEADROOM} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
+        o.status
+    );
+}
+
+/// Runs `run` with `ADDR_NO_RANDOMIZE` in the calling (test) thread's persona, which the program
+/// it spawns inherits, and restores the persona afterwards so that other runs in this thread keep
+/// the randomised layout.
+fn with_fixed_layout(run: impl FnOnce() -> Output) -> Output {
+    let cur = CSys.personality(PERSONALITY_QUERY).expect("personality query");
+    CSys.personality(cur | ADDR_NO_RANDOMIZE).expect("personality ADDR_NO_RANDOMIZE");
+    assert_eq!(CSys.personality(PERSONALITY_QUERY).ok(), Some(cur | ADDR_NO_RANDOMIZE), "ADDR_NO_RANDOMIZE did not stick");
+    let o = run();
+    CSys.personality(cur).expect("personality restore");
+    o
 }

@@ -1,0 +1,44 @@
+{
+ "task": "SL-HEADERS-S07-6",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Slice 7 rebased as data-only on origin/next (shared generator edits dropped for next's); libc-include unchanged from run 5; P10 now checks each FD_* macro; gate green, plants 17 of 17 caught",
+ "branch": "task/sl-headers-s07-6",
+ "head": "4caed6b7b",
+ "gate": {
+  "affected": "direct tier green (gate2); first gate on the merge head: 11456 passed / 0 failed, conformance 91 passed",
+  "peak": "14G (first gate)"
+ },
+ "accepted_first_attempt": null,
+ "jobs": [
+  "mei:sl-headers-s07-6-gate2",
+  "mei:sl-headers-s07-6-plants2"
+ ],
+ "rulings": [],
+ "informational": [
+  "run 5's plant s7-p10-fdelt survived (FD_SET only mutated; FD_CLR/FD_ISSET kept the symbol): header_p10.py now checks each macro alone; all 17 plants caught",
+  "plants log prints 'caught by no test the log names' for s7-map-failed (its message names the generator check, not a test); the plant still counts CAUGHT"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "slice 7 branch merges with origin/next with no shared-generator change (slice-contract clean)",
+   "before": null,
+   "after": null,
+   "unit": "branch",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "header_p10.py: three per-macro FD_SET/FD_CLR/FD_ISSET range-check binding checks, two optimisation levels",
+   "before": 0,
+   "after": 6,
+   "unit": "checks",
+   "measured": true
+  }
+ ],
+ "improvement": "none",
+ "next_step": "SL-HEADERS-S07-TAIL after slices 8 and 14",
+ "report_file": "handoff/SL-HEADERS-S07.md"
+}

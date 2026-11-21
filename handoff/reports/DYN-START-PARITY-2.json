@@ -1,0 +1,29 @@
+{
+ "task": "DYN-START-PARITY-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "dynamic start-up fault bound set to [79, 76] (fast, release): the count depends on /tmp's file system (ext4 79/74, tmpfs 78/76, controlled A/B, Skylake-SP), not on NIJI_TEST_MALLOC_PERTURB; still below next's [89, 86]",
+ "branch": "task/dyn-start-parity-2",
+ "head": "7e5e8a609",
+ "gate": {
+  "affected": "817 passed / 0 failed (10 suites, direct tier, dyn-start-parity-2-gate1)",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The dynamic start-up fault count depends on the file system holding the staged objects: the interpreter's first whole-file mapping of libc.so.6 is 2 MiB-aligned by the kernel on ext4 (large folios), not on tmpfs, and the segments follow it. Finding for DYN-START-SPEED: reserve the object's span at a loader-chosen alignment (or map only the headers first), so the count no longer depends on the file system.",
+  "The release bound rises 74 -> 76 against the inherited bound: 74 held only on ext4 /tmp; under the gate wrapper's tmpfs /tmp release reads 76 (dyn-start-parity-2-ab3, fsrel). Still below next's 86.",
+  "Zen 1 host levels of this bound not measured.",
+  "One empty no-op heredoc ran by mistake (a python3 - <<'X' with an empty body) while editing a scratch probe; it changed nothing."
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "hot_text_products dynamic start-up fault test no longer fails on an ext4 /tmp (cargo xtask test) or, for release, on the gate's tmpfs /tmp", "before": 79, "after": 79, "unit": "faults (fast, ext4 /tmp; bound 78 -> 79)", "measured": true},
+  {"kind": "coverage", "what": "plants added (start tables 64 inline: caught at 88 > 79)", "before": 0, "after": 1, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A page-fault bound measured in one job wrapper only (gate tmpfs /tmp or plain ext4 /tmp) is set at zero headroom for the other: start-up fault bounds should be measured in both /tmp file systems (or the test should stage on one fixed file system).",
+ "next_step": "DYN-START-SPEED: make object placement independent of the file system (loader-chosen reservation), then the steps in this handoff (version name O(1), RELATIVE loop, RELR per ruling #6786).",
+ "report_file": "handoff/DYN-START-PARITY.md",
+ "jobs": ["mei:dyn-start-parity-2-lint1", "mei:dyn-start-parity-2-gate1", "mei:dyn-start-parity-2-plants1", "mei:dyn-start-parity-2-release1", "mei:dyn-start-parity-2-xtest1"]
+}

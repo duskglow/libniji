@@ -46,15 +46,6 @@ struct timeval {
 };
 # endif
 #endif
-#if (__NIJI_MISC && __NIJI_CXX < 1) || (__NIJI_ISOC < 2023 && __NIJI_XSI >= 500)
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-# endif
-#endif
 #if 1
 # ifndef __NIJI_D_div_t
 #  define __NIJI_D_div_t 1
@@ -217,6 +208,14 @@ typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 500
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
 typedef union {
@@ -508,7 +507,11 @@ extern int getpt (void);
 # endif
 # ifndef __NIJI_D_mkostemp
 #  define __NIJI_D_mkostemp 1
+#  if __NIJI_FOB64
+extern int mkostemp (char *, int) __asm__ ("mkostemp64");
+#  else
 extern int mkostemp (char *, int);
+#  endif
 # endif
 # ifndef __NIJI_D_mkostemp64
 #  define __NIJI_D_mkostemp64 1
@@ -516,7 +519,11 @@ extern int mkostemp64 (char *, int);
 # endif
 # ifndef __NIJI_D_mkostemps
 #  define __NIJI_D_mkostemps 1
+#  if __NIJI_FOB64
+extern int mkostemps (char *, int, int) __asm__ ("mkostemps64");
+#  else
 extern int mkostemps (char *, int, int);
+#  endif
 # endif
 # ifndef __NIJI_D_mkostemps64
 #  define __NIJI_D_mkostemps64 1
@@ -1016,7 +1023,11 @@ extern int getsubopt (char **, char *const *, char **) __NIJI_NOTHROW;
 # ifndef __NIJI_D_mkstemp
 #  define __NIJI_D_mkstemp 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int mkstemp (char *) __asm__ ("mkstemp64");
+#   else
 extern int mkstemp (char *);
+#   endif
 #  elif __NIJI_FOB64
 extern int mkstemp (char *) __asm__ ("mkstemp64");
 #  endif

@@ -61,7 +61,14 @@ impl Gen<'_> {
             match self.aggregate(name) {
                 Some(a) => {
                     self.emit_nested(a.nested);
-                    [vec![format!("typedef {}{} {{", a.kw, a.attrs)], a.lines, vec![format!("}} {name}{};", a.td_attrs)]].concat()
+                    if a.td_attrs.is_empty() && a.attrs.is_empty() && self.union_tag(name) {
+                        // A union the program may name as `union N` as well as `N` (C 6.7.2.3): the tag carries the
+                        // members, so C++ sees a union of that name, not an unnamed union named for linkage. A union
+                        // with attributes (the transparent unions of <sys/socket.h>) stays unnamed.
+                        [vec![format!("union {name} {{")], a.lines, vec!["};".into(), format!("typedef union {name} {name};")]].concat()
+                    } else {
+                        [vec![format!("typedef {}{} {{", a.kw, a.attrs)], a.lines, vec![format!("}} {name}{};", a.td_attrs)]].concat()
+                    }
                 }
                 // No size: an incomplete type the program only points to.
                 None if r["size"].is_empty() => vec![format!("typedef struct {name} {name};")],
@@ -74,6 +81,10 @@ impl Gen<'_> {
         } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
             // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
             vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
+        } else if cxx == "_IO_FILE" && !self.t.vis.iter().any(|v| v["header"] == self.header && v["name"] == cxx && v["kind"] == "struct") {
+            // `FILE` named by a header that does not show the tag (`wchar.h`; `stdio.h` defines `struct _IO_FILE`)
+            // only declares the tag: visibility.tsv has the structure incomplete there.
+            vec![format!("struct {cxx};"), format!("typedef struct {cxx} {name};")]
         } else {
             // The structure or union is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`, `__sigval_t`
             // `union sigval`): defined here, under the guard its tag row (tag()) uses, so it is defined once.

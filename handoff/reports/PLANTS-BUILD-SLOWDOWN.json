@@ -1,0 +1,87 @@
+{
+ "task": "PLANTS-BUILD-SLOWDOWN",
+ "model": "opus",
+ "tokens": null,
+ "result": "Cause: headers-gen (run by every cargo xtask so) scanned all 72k visibility.tsv rows per name per header (~150 s per product build); indexed (0.66 s, output identical), and the interpreter/ldconfig cargo builds now overlap the libc build: a library-crate mutant rebuilds in 117 s instead of ~350 s, a no-op in 43 s instead of 190 s (Skylake-SP)",
+ "branch": "task/plants-build-slowdown",
+ "head": null,
+ "gate": {
+  "affected": "mei:plants-build-slowdown-gate3: clippy, static, affected --run (xtask bounded set; FULL: the train's) ok",
+  "peak": "2.0G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "NIJI_BUILD_TAG is read with option_env! by niji-boundary and niji-ld, so a change to any hashed file (crates/, csys/, include/, Cargo.lock) rebuilds boundary in every product target dir: a one-line mutant of the 24-line libc-so root crate took 173 s, and 48 s with a constant tag (scratch measurement)",
+   "recommendation": "take the tag out of rustc's inputs: the build links it into libc.so.6 and ld.so from an xtask-assembled object and ld.so compares the two through its symbol lookup (D-27.22/L14-10 change, start-up path), or, cheaper, let a cargo xtask plants copy build with one tag per run"
+  },
+  {
+   "item": "concurrent mutants in cargo xtask plants (N copies, each its own target dir: a cold build is ~225 s and the target dir takes GBs of RAM per copy)",
+   "recommendation": "decide after the tag ruling; with ~117 s per library mutant and ~45 s per no-op the serial run is already about 3x faster"
+  }
+ ],
+ "informational": [
+  "Not bisected: thread_common forbids checking out other people's old commits. A perf profile names the cause directly (58% BTreeMap search + 25% memcmp under headers::cond Gen::rows/dont_care); the cost grows with the header slices' table rows. For per-commit numbers, time cargo xtask headers-gen --check on primed ~/wl/src/<sha> trees.",
+  "keke (Zen 1) not measured: the run's only role was on mei. The removed cost is CPU-bound generator work, so the ~150 s saving applies there too (not measured).",
+  "Each plant pays for two product builds (mutant, then the restore before the next plant or at a non-products plant); after this change both cost the per-mutant time above.",
+  "Timings share the host with other stories' jobs; load is noted beside each number in handoff/PLANTS-BUILD-SLOWDOWN.md."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "cargo xtask headers-gen --check (run inside every cargo xtask so)",
+   "before": 161,
+   "after": 0.66,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "no-op cargo xtask so, Skylake-SP, ungrouped",
+   "before": 190,
+   "after": 43,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "products rebuild for a one-line mutant in a library crate (core before, boundary after; both rebuild boundary)",
+   "before": 351,
+   "after": 117,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "products rebuild for a one-line mutant of the libc-so root crate",
+   "before": 344,
+   "after": 118,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "cold cargo xtask so, Skylake-SP, ungrouped",
+   "before": 524,
+   "after": 224,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "unit test pinning the visibility index + 6 plants (5 CAUGHT, 1 EQUIVALENT)",
+   "before": 0,
+   "after": 6,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A plants log already prints per-mutant build time but not where it goes; cargo xtask so printing a step: line per phase (steptime) would have shown the 150 s headers-gen cost the day it appeared.",
+ "next_step": "land; then rule on taking NIJI_BUILD_TAG out of rustc's inputs (173 -> 48 s measured for a root-crate mutant; other hashed files outside boundary's dependencies not measured)",
+ "report_file": "handoff/PLANTS-BUILD-SLOWDOWN.md",
+ "jobs": [
+  "mei:plants-build-slowdown-gate3",
+  "mei:plants-build-slowdown-plants2"
+ ]
+}

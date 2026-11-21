@@ -1,0 +1,11 @@
+id = "D-22.20"
+section = "s22"
+spec = "§22.6"
+ann = "—"
+status = "active"
+story = "ASAN-MAIN-THREAD"
+date = "2026-11-20"
+tests = ["crates/ld/tests/tls_static_info.rs::initial_thread_keeps_words_set_before_main", "crates/ld/tests/tls_static_info.rs::tls_static_info_sanitizer_runtimes_start"]
+body = '''
+**The initial thread keeps the words it was given before `main` (story ASAN-MAIN-THREAD, GitHub issue #26).** Under libniji's `ld.so` the program's `.preinit_array` and every shared object's initialisation run before `__libc_start_main` takes the process for the runtime (D-27.24). Until then the C library treats the process as one it did not start (D-22.10, D-X.60), so the initial thread's per-thread words live in its registry entry: `errno`, `h_errno`, the descriptor with its key values (`pthread_setspecific`), the `uselocale` choice with its ctype and view words, the C++ `thread_local` destructor list, the heap cache, the resolver state and the cache words. `init_initial` now moves every non-zero word of that entry into the thread's own block before it marks the process as the runtime's, and reuses a descriptor made there instead of mapping a new one; a word the entry never set keeps the block's value (the loader's `flags`). Black-box probes on the reference 2.39 (Zen 1 build host, gcc 13): a key value, `errno` and a `uselocale` choice set in `.preinit_array` are seen by a library constructor and `main`, and a `thread_local` destructor registered in a library constructor runs at `exit`; libniji before this change lost all four. A sanitizer runtime records its main thread with `pthread_setspecific` from `.preinit_array`: losing it made ASan report `thread T-1` and stop on its own internal check before the allocation stack and the summary. The move is one cold function, run once at start-up; when nothing used the registry before `main` it finds no registry chunk and maps none, and `init_initial` stores the descriptor it makes straight into the thread's block.
+'''

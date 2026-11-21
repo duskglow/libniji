@@ -420,7 +420,7 @@ fn positions(entries: &[Entry]) -> BTreeMap<String, usize> {
 /// A function section's name without any hot prefix: `.text.sorted.h<n>.<f>`, the older
 /// `.text.hot.<f>`, rustc's `.text.unlikely.<f>` (a `#[cold]` function) and plain `.text.<f>` all
 /// give `<f>`. `None` for other sections.
-fn function_of(section: &str) -> Option<&str> {
+pub(crate) fn function_of(section: &str) -> Option<&str> {
     let f = section.strip_prefix(".text.")?;
     // LAYOUT-TEXT-PIN: `.text.startup.<f>` / `.text.exit.<f>` (GCC) and this tool's own
     // [`COLD_PREFIX`] carry the function name the same way.

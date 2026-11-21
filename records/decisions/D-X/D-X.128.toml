@@ -1,0 +1,8 @@
+id = "D-X.128"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S08-4"
+date = "2026-11-18"
+body = '''
+Slice 8 headers (plan/headers.md section 4; signals, threads, contexts): generator additions in xtask/src/headers.rs. The inline marker `@@init(NAME)` is the brace initializer of the `spec/abi/initializers.tsv` row NAME, built from the layout of its type (PTHREAD_MUTEX_INITIALIZER and the other static initializers), so no byte image is typed by hand. The member emitter writes anonymous unions and structures (`<anon>` rows, unnamed members), nested aggregates by their rows, and a structure tag with no rows of its own from the rows below it; a function-pointer member (`fn(...) *` in layouts.tsv, which records only its size and offset) takes its declarator from `headers/fnmembers.tsv`, a table of five rows each citing its source (POSIX XSH `<signal.h>` for struct sigaction and struct sigevent, sigaction(2) for sa_restorer, pthread_cleanup_push(3) for the cleanup buffer), and each row is proved by a C++ exact-type probe (an assignment of that exact function-pointer type compiles; a wrong parameter type does not). `type_probe.py` classes a pointer constant as `pointer` (FE_DFL_ENV, MAP_FAILED, RTLD_NEXT, LC_GLOBAL_LOCALE, MM_NULL*, TD_SIGNO_MASK and others; NULL stays out) so a template names them with `@@value`. `LANGUAGE_MODE` lists the names whose visibility follows the compiler's language version rather than the feature levels (max_align_t). A union typedef with no C++ spelling (pthread_attr_t) is a union tag in C++ and a typedef in C. Rulings: #6447 (extra pointer constants kept) and #6448 (fnmembers.tsv accepted with source citation and the C++ probe per row).
+'''

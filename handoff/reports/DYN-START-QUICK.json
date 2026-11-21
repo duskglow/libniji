@@ -1,0 +1,98 @@
+{
+ "task": "DYN-START-QUICK",
+ "model": "opus",
+ "tokens": null,
+ "result": "dynamic start drops 6 system calls (9 with 3 libraries): lseek after fstat (1 per object), the two scratch mappings (4), ARCH_GET_FS (1); every counter equal or lower on Zen 1 and Skylake-SP; items 1, 4, 5b left to DYN-START-RING, item 6 needs a ruling",
+ "branch": "task/dyn-start-quick",
+ "head": "421f140be (code and test head; later commits add only handoff/report)",
+ "gate": {
+  "affected": "1400 passed / 0 failed (direct tier, 7 suites, conformance 22 passed; gate3 on 421f140be); xtest3 rc 0; fullprof3 rc 0 (32 passed)",
+  "peak": "1.5G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "item 6: the eager rt_sigaction(SIGRTMIN) at start; conformance s20_internal_signal (OD-8, D-20.1) needs a handler for signal 32 at start that absorbs a raw 32 sent by the program, so a lazy install would let such a signal end the process (1 call per start)",
+   "recommendation": "keep it eager until a ruling; if the owner accepts dropping the absorb-at-start property (the host C library installs no handler at start), make it lazy on the first cancellation-capable path in DYN-START-RING with a differences row"
+  }
+ ],
+ "informational": [
+  "giving the scratch arena to every image view (head ba1fe1d5e) made dladdr of a dlopened object's address answer ld.so and broke two dlclose tests; the final head keeps the arena to link's view of the program only (dlmap3b: dladdr names the object again); the exact mechanism in the adopt path was not traced",
+  "item 1 (mmap_min_addr read, 3 calls) was removed and reverted: taking the NULL-folding decision as off in the loader-only build cost about +33k user instructions per start; fix-forward for DYN-START-RING: make the loader's own small copies not use the exported entries, then the read can go",
+  "plants3 baseline timed out at 900 s (cargo xtask so 900-1386 s on a loaded host beside xtest3); rerun as plants4 with --timeout 2400, PENDING at hand-back (both baselines ok); precheck not run: the role was busy with plants4 and could not be synced",
+  "the probe's user count grows with the library and program path lengths; base00 was measured with the same path length as after2/after3"
+ ],
+ "refused": [
+  "Bash: `cd ~/w/DYN-START-QUICK &&python3 - <<'X' ... X` (an empty heredoc no-op, refused by the no-heredoc hook; nothing ran, not retried)"
+ ],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "system calls per dynamic start, empty main / 3 libraries / clock_gettime, Zen 1 (base00 = origin/next)",
+   "before": "43 / 88 / 43",
+   "after": "37 / 79 / 37",
+   "unit": "syscalls/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "kernel instructions per dynamic start, 3 libraries, Zen 1 (median of 101, same job)",
+   "before": 1351181,
+   "after": 1307511,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "kernel instructions per dynamic start, empty main, Zen 1 (median of 101, same job)",
+   "before": 904564,
+   "after": 864538,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "kernel instructions per dynamic start, 3 libraries, Skylake-SP (median of 101)",
+   "before": 1311659,
+   "after": 1272802,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "user instructions per dynamic start, 3 libraries, Zen 1 (faults unchanged on every row)",
+   "before": 1095564,
+   "after": 1095527,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "products test init_dynamic_empty_main_makes_no_removable_start_system_call (ptrace oracle) and 5 plants",
+   "before": 0,
+   "after": 6,
+   "unit": "count",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "DYN-START-RING (held until this lands)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the start-up probe kit should pin its directory-name lengths (fixed-length symlinks): user counts grow with LD_LIBRARY_PATH and program path length, which made a first before/after comparison wrong by 55-70 instructions",
+ "next_step": "owner ruling on item 6; DYN-START-RING takes items 1 (fix-forward), 4 and 5b",
+ "report_file": "handoff/DYN-START-QUICK.md",
+ "jobs": [
+  "mei:dyn-start-quick-lint3",
+  "mei:dyn-start-quick-after3",
+  "mei:dyn-start-quick-gate3",
+  "mei:dyn-start-quick-plants4",
+  "mei:dyn-start-quick-xtest3",
+  "mei:dyn-start-quick-fullprof3",
+  "keke:dyn-start-quick-zen3"
+ ]
+}

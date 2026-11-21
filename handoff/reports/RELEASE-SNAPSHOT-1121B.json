@@ -1,0 +1,22 @@
+{"task": "RELEASE-SNAPSHOT-1121B", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at fe0899b79 (serial 3, 2.39+niji20261121.3-1, staged snapshot-20261121.3): no regression against 21.2; #23 kind 1 rows of Yohane's probe as stock; the 300-library dlopen corpus as stock; plants 6/6 CAUGHT",
+ "branch": "task/release-snapshot-1121b", "head": null,
+ "gate": {"affected": "GATE bad=0 (0 suites: handoff-only branch); every snapshot check same as 21.2", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Start-up: +55..60 user instructions per start on Skylake-SP and Zen 1 against 21.2 (741,092 -> 741,148 empty main, Skylake-SP), faults unchanged, one munmap fewer; not chased (no product change in this run)",
+  "Docs (same as 21.2): RELEASE-NOTES Unreleased lists only COMPAT-19 (no #23 kind 1, loader arenas, #21, libresolv, libc6-dbg DWARF); differences 'Character sets' still snapshot-2026-11-17's state; no -static-libgcc thread-exit row (ruling #7118); doccheck 23 problems as 21.2",
+  "STDIO-WIDE-BYTE-READS-4's handoff says ccs-head.txt = ccs239.txt; its files differ in 4 of 8 rows (indicators, ftell, a kind-2 byte); the kind-1 ccs rows match in Yohane's format",
+  "HEAP-SPILL-COLD (592faaec6) landed in this head but was not in the brief's list; #21 numbers unchanged against 21.2 (find 3-file need +16 KiB, one bisection step)",
+  "VALGRIND-LDSO-SYMBOLS-2 (#13) and CRT-START-FILES-3 (#27) are not in the head: their checks were not run"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "#23 kind 1 in the serial-3 packages: Yohane's differential probe kind-1 rows (6 table + 4 ccs=UTF-8) identical to stock; 21.2 had all 10 different", "before": 10, "after": 0, "unit": "kind-1 rows differing from stock", "measured": true},
+  {"kind": "correctness", "what": "DL-PROCESS-OBJECTS' 300-library corpus (320,292 path bytes, 44,850 dependency entries) through dlopen in the swapped trixie root: 21.2 fails (out of room for object names), head opens, names and closes as stock", "before": 1, "after": 0, "unit": "exit status", "measured": true},
+  {"kind": "perf", "what": "empty-main start-up user instructions, Skylake-SP, 21.2 -> head", "before": 741092, "after": 741148, "unit": "instr/start", "measured": true},
+  {"kind": "coverage", "what": "two new snapshot checks (y23p: #23 differential probe; dlc: loader corpus) in the swapped root", "before": 0, "after": 2, "unit": "checks", "measured": true}],
+ "improvement": "cmp3.sh's substitution carried 1120F's per-job old label numbers, so it silently found no 21.2 log for 13 of 16 checks; cmp4.sh takes the previous run's labels as one suffix and prints 'missing log' instead of a blank, and the next snapshot should copy cmp4.sh, not cmp3.sh",
+ "next_step": "Coordinator: tag snapshot-2026-11-21.3 from keke ~/release-staging/snapshot-20261121.3/ at fe0899b79 on the owner's word and tell Yohane (#23 kind 1); route the docs finding",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1121B.md",
+ "jobs": ["mei:release-snapshot-1121b-smoke-mei-1", "mei:release-snapshot-1121b-gate-1", "mei:release-snapshot-1121b-startup-mei-1", "mei:release-snapshot-1121b-kstart-mei-1", "mei:release-snapshot-1121b-rstart-mei-1", "mei:release-snapshot-1121b-debs-1", "mei:release-snapshot-1121b-plants-1", "mei:release-snapshot-1121b-lint-1", "mei:release-snapshot-1121b-many-1", "mei:release-snapshot-1121b-dyn22-1", "mei:release-snapshot-1121b-y19-1", "mei:release-snapshot-1121b-y26-1", "mei:release-snapshot-1121b-y26t-1", "mei:release-snapshot-1121b-y23-1", "mei:release-snapshot-1121b-c19-1", "mei:release-snapshot-1121b-y25-1", "mei:release-snapshot-1121b-y24-1", "mei:release-snapshot-1121b-y28-1", "mei:release-snapshot-1121b-y25s-1", "mei:release-snapshot-1121b-y21-1", "mei:release-snapshot-1121b-yres-1", "mei:release-snapshot-1121b-y23p-1", "mei:release-snapshot-1121b-dlc-1", "mei:release-snapshot-1121b-precheck-1", "keke:release-snapshot-1121b-smoke-keke-1", "keke:release-snapshot-1121b-startup-keke-1", "keke:release-snapshot-1121b-kstart-keke-1", "keke:release-snapshot-1121b-rstart-keke-1", "keke:release-snapshot-1121b-pkgdiff-1", "keke:release-snapshot-1121b-stage-1", "keke:release-snapshot-1121b-install-1"]}

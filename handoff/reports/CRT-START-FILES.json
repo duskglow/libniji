@@ -1,0 +1,126 @@
+{
+ "task": "CRT-START-FILES",
+ "model": "opus",
+ "tokens": null,
+ "result": "PENDING JOBS: Start files carry only _start (endbr64), the property and ABI-tag notes, __data_start/data_start/_IO_stdin_used, no section aligned above 64; libc.a's layout anchors are its first two members; dynamic programs get one R E LOAD, page alignment and keep IBT/SHSTK; leg 2 fixed the two hot_text_products reds (relro anchor in .preinit_array, anchor jump at the group end); gate green; xtask test pending; full-profile pair not run",
+ "branch": "task/crt-start-files",
+ "head": "c9d0df2f5",
+ "gate": {
+  "affected": "1749 passed / 0 failed (14 suites, crt-start-files-gate3)",
+  "peak": "1.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Empty-main dynamic start: +4,932 user instructions (832,290 -> 837,222, +0.6%; kernel -3,482, faults 62 -> 61). The cost is per program header: libniji's start spends about 2.4k user instructions per header of the program (dummy-note probe: 13 headers 832,383, 14 headers 834,805, 15 headers 837,253), and the required property note adds PT_NOTE + PT_GNU_PROPERTY; every program with text after the old group end gains (3 libraries -7,996 user, -20,041 kernel, -2 faults)",
+   "recommendation": "accept, with a follow-up story making libniji's start cost independent of the program's header count (it would also cut the cost of every program's existing headers)"
+  }
+ ],
+ "informational": [
+  "libniji's start (loader or libc) costs about 2.4k user instructions per program header of the program (Zen 1, medians of 101 runs, ~/work/crt-start-files/m0probe3.sh on keke); glibc-built programs carry the same headers",
+  "Static programs keep two R E LOADs (before and after): crti's .init, then libc.a's hot text group at a 64 KiB boundary more than a page later; libc.a layout, not the start files",
+  "Static relro anchor moved from .data.rel.ro.local to an empty .preinit_array: in libc.a the former followed a program's own relro and padded it by up to 60 KiB; padded non-PIE static probe showed 2 RW LOADs (no test bounds it; not compared with the pre-story crt1)",
+  "cargo xtask plants refuses .S plants outside a niji_machine_<fn>: label, so _start, the anchor stub and crti.S cannot be planted; the source-assembly unit test covers them",
+  "Skylake-SP class not measured"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "size",
+   "what": "crt1.o/Scrt1.o",
+   "before": 67136,
+   "after": 1816,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "empty-main PIE program via the driver",
+   "before": 142680,
+   "after": 15968,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "dynamic programs: R E LOADs (lsfd column-xmode) 2 -> 1; IBT/SHSTK and ISA properties kept; __data_start, data_start, _IO_stdin_used defined",
+   "before": 2,
+   "after": 1,
+   "unit": "R E LOADs",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "3-library dynamic start, user instructions (Zen 1)",
+   "before": 1095776,
+   "after": 1087780,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "3-library dynamic start, kernel instructions (Zen 1)",
+   "before": 1343422,
+   "after": 1323381,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "3-library dynamic start (Zen 1)",
+   "before": 78,
+   "after": 76,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "clock_gettime dynamic start, user instructions (Zen 1)",
+   "before": 867398,
+   "after": 859779,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "clock_gettime dynamic start (Zen 1)",
+   "before": 67,
+   "after": 65,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "empty-main dynamic start, user instructions (Zen 1): the PT_GNU_PROPERTY note; fix-forward: find its reader in libniji's start",
+   "before": 832290,
+   "after": 837222,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: 2 xtask unit tests, 1 layout fixture case, 1 crt_products test; plants in handoff/CRT-START-FILES-plants.txt",
+   "before": null,
+   "after": 4,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the start-file check, anchor placement and the window exemption",
+   "before": 0,
+   "after": 6,
+   "unit": "plants caught",
+   "measured": true
+  }
+ ],
+ "improvement": "A dummy-note probe (one extra program header, same bytes) separates layout cost from feature cost in start-up counts in one run; worth a tool flag",
+ "next_step": "Follow-up story: find the start-up code that walks the program's headers per header (~2.4k instr each) and make it one pass",
+ "report_file": "handoff/CRT-START-FILES.md",
+ "jobs": [
+  "keke:crt-start-files-gate3",
+  "keke:crt-start-files-plants3",
+  "keke:crt-start-files-lint3",
+  "keke:crt-start-files-xtest3"
+ ]
+}

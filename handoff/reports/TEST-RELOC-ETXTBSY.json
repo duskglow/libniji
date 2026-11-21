@@ -1,0 +1,13 @@
+{"task": "TEST-RELOC-ETXTBSY", "model": "sonnet", "tokens": null,
+ "result": "ETXTBSY race fixed: tests that write or copy a file and exec it use one cp-based helper (copy_for_exec, write_for_exec); reproducer failed 10/10 runs before, 0/10 after; plant caught",
+ "branch": "task/test-reloc-etxtbsy", "head": "see hand-back",
+ "gate": {"affected": "12 test targets", "peak": null}, "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+   "Premise: none stated; the cause is a writable descriptor inherited by a sibling test thread's forked child",
+   "A helper under crates/core/tests/support/ selects all 147 core test targets; helpers/ selects 12"],
+ "refused": [],
+ "improvement": "A shared test-support directory in a path that does not widen affected selection would help; a panic in thread::scope with looping siblings hung a job for 40 minutes",
+ "next_step": "Land",
+ "report_file": "handoff/test-reloc-etxtbsy.md",
+ "jobs": ["test-reloc-etxtbsy-gate4", "test-reloc-etxtbsy-plants5"]}

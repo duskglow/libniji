@@ -101,7 +101,7 @@ impl Gen<'_> {
         if transparent_union(head) {
             // A union a parameter takes as any of its members (GCC manual, transparent_union): layouts.tsv's mark.
             attrs = " __attribute__ ((__transparent_union__))".into();
-        } else if lv.wide && align == Some(1) {
+        } else if lv.wide && lv.align != Some(1) && align == Some(1) {
             attrs = " __attribute__ ((__packed__))".into();
         } else if let (Some(a), Some(natural)) = (align, lv.align) {
             // Declared stricter than its members (`struct rseq`, 32): the type carries it, or (a size that is not a
@@ -170,7 +170,22 @@ impl Gen<'_> {
         // through the structure, so it is declared as a pointer to `void (void)`; size and offset are those of any
         // object pointer.
         if mt.starts_with("fn(") && mt.trim_end().ends_with('*') {
-            lv.lines.push(format!("  void (*{name}) (void);"));
+            // headers/fnmembers.tsv spells the type of the members whose signature a standard or man page gives.
+            let decl = self.t.fnmembers.get(&(key.to_string(), r["member"].clone())).map_or(format!("void (*{name}) (void)"), |d| d.replace('@', name));
+            // The tags and typedefs the declarator names are declared first.
+            let words: Vec<&str> = decl.split(|c: char| !(c.is_alphanumeric() || c == '_')).filter(|w| !w.is_empty()).collect();
+            for (i, w) in words.iter().enumerate() {
+                let dep = match *w {
+                    "struct" | "union" => words.get(i + 1).map(|t| format!("{w} {t}")),
+                    _ if i > 0 && matches!(words[i - 1], "struct" | "union") => None,
+                    _ if self.t.typedefs.contains_key(&("typedef".to_string(), w.to_string())) => Some(format!("typedef {w}")),
+                    _ => None,
+                };
+                if let Some(d) = dep.filter(|d| !nested.contains(d)) {
+                    nested.push(d);
+                }
+            }
+            lv.lines.push(format!("  {decl};"));
             lv.add(off, Some(8), Some(8));
             return Some(());
         }

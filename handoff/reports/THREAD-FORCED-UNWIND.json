@@ -1,0 +1,20 @@
+{"task": "THREAD-FORCED-UNWIND", "model": "opus", "tokens": null,
+ "result": "pthread_exit and cancellation now unwind C++/-fexceptions frames via the program's unwinder (all probe cases match glibc 2.39); held on a STARTUP-DATA-WINDOWS layout-jitter red",
+ "branch": "task/thread-forced-unwind", "head": "70ddb590c",
+ "gate": {"affected": "not run (cargo xtask so red on STARTUP-DATA-WINDOWS); forced_unwind_products 2 passed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "STARTUP-DATA-WINDOWS red: libc.a .data.rel* 45552 -> 45224 B moves the GOT across a page (8 written pages > 7); origin/next holds", "recommendation": "hold until the data-window placement is fixed, or land with the red accepted for Yohane #25"},
+  {"item": "C++ handler that swallows the exit: libniji restarts the unwind from the handler's end (reference not probed, crash rule)", "recommendation": "keep"},
+  {"item": "static programs and -static-libgcc programs still skip destructors", "recommendation": "follow-up story: libc.a-only weak reference to _Unwind_ForcedUnwind"}],
+ "informational": ["per-exit dlsym lookup cost NOT MEASURED", "plants written (3) but not run: the plants tool's product build fails on the same contract"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "C++ destructors and catch(abi::__forced_unwind&)/catch(...) handlers run on pthread_exit and cancellation (12 thread cases + main thread + std::async broken_promise)", "before": 0, "after": 20, "unit": "probe lines matching glibc of 20", "measured": true},
+  {"kind": "correctness", "what": "C pthread_cleanup_push handlers built with -fexceptions run (order 3a1K, was K)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests in forced_unwind_products.rs (each runs reference and libniji)", "before": 0, "after": 2, "unit": "tests", "measured": true},
+  {"kind": "cost", "what": "STARTUP-DATA-WINDOWS written start-up pages in the traced static program (layout jitter)", "before": 7, "after": 8, "unit": "pages", "measured": true}],
+ "improvement": "sync_role-synced role dirs lack the base products: a primed ~/wl/products/<base> for every admitted story would make a layout red a one-call diff instead of a rebuild",
+ "next_step": "after the layout ruling: cargo xtask so, plants, direct gate, cargo xtask test, hot_text_products, precheck",
+ "report_file": "handoff/THREAD-FORCED-UNWIND.md",
+ "jobs": ["mei:thread-forced-unwind-so3", "mei:thread-forced-unwind-lint", "mei:thread-forced-unwind-baseso"]}

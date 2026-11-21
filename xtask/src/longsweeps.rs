@@ -250,6 +250,7 @@ pub const SWEEPS: &[Sweep] = &[
 /// function's name, or for an ignore inside a macro invocation (`grid_tests! { [#[ignore ...]] F80, ...`) the
 /// first name after the attribute, or inside a `macro_rules!` body the `$` name of the generated function.
 pub const NOT_SWEEPS: &[(&str, &str, &str)] = &[
+    ("crates/boundary/tests/pass2_native_process.rs", "every_pass_libniji_serves_the_c_family_in_poisons_its_fresh_blocks", "the number it reads is the test runner's poison byte (NIJI_TEST_MALLOC_PERTURB), the value it checks for, not a size"),
     ("crates/math/src/fast32/gamma.rs", "gamma_sweep_profile", "a profile that prints where a gamma sweep spends its time; it asserts nothing"),
     ("crates/math/tests/complex_directed.rs", "F80", "the open long double findings of M6-10: a probe that fails until they are fixed (handoff/math-m6-cplx-directed.md)"),
     ("crates/math/tests/complex_directed.rs", "F128", "the open _Float128 findings of M6-10: a probe that fails until they are fixed"),

@@ -111,7 +111,7 @@
 #endif
 #if defined _TIME_BITS && _TIME_BITS - 0 == 64
 # define __NIJI_TIME64 1
-# if !__NIJI_FOB64
+# if !__NIJI_FOB64 && !defined __NIJI_TIME_BITS_UNCHECKED
 #  error "_TIME_BITS=64 is allowed only with _FILE_OFFSET_BITS=64"
 # endif
 #else

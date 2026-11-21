@@ -15,7 +15,8 @@
 # 3. The wrapper, from the unpacked packages: a dynamic program's interpreter is exactly libniji's
 #    loader and it needs libc.so.6 with no RPATH/RUNPATH; static programs (C, threads, C++ with an
 #    exception) build and run and have no interpreter; -lanl -lBrokenLocale -lc_malloc_debug link
-#    the shared libraries through niji6-dev's development links (SYS-DEV-LINKS).
+#    the shared libraries through niji6-dev's development links (SYS-DEV-LINKS); -lm (issue #28,
+#    the libm.so script) adds libmvec.so.1 only to a program that calls a vector variant.
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -90,6 +91,31 @@ if [ -x "$cc" ]; then
         done
     else
         fail "wrapper: dynamic devlinks does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+    fi
+    # Issue #28: -lm is niji6-dev's libm.so script (never a link): a loop vectorised into libmvec
+    # calls (smoke/mvec.c, -O3 -ffast-math) links with plain -lm, needs libmvec.so.1 and prints
+    # 0.8415 (run by the unpacked loader); a scalar program (smoke/nomvec.c, --no-as-needed -lm)
+    # needs libm.so.6 and not libmvec.so.1. The vector calls need headers that declare the simd
+    # variants: without them the first check is skipped with an INFO line.
+    nlib=$NIJI_SYSROOT/usr/lib/x86_64-linux-gnu
+    [ -f "$nlib/libm.so" ] && [ ! -L "$nlib/libm.so" ] || fail "niji6-dev's libm.so is not a regular file (a linker script)"
+    if ! "$cc" -O3 -ffast-math -S -o - "$here/smoke/mvec.c" 2>/dev/null | grep -q _ZGVbN4v_sinf; then
+        echo "check: INFO skip mvec: the compiler's headers declare no simd variant of sinf"
+    elif "$cc" -O3 -ffast-math "$here/smoke/mvec.c" -lm -o "$tmp/mvec" > "$tmp/log" 2>&1; then
+        needed=" $(readelf -dW "$tmp/mvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+        case $needed in *" libmvec.so.1 "*) ;; *) fail "wrapper: mvec (-lm) needs '$needed', without libmvec.so.1" ;; esac
+        # env inside the watchdog: the host's timeout must not load the packaged libraries.
+        out=$(timeout 60 env LD_LIBRARY_PATH="$nlib" "$nlib/ld-linux-x86-64.so.2" "$tmp/mvec" 2>&1) || fail "wrapper: mvec exits $?: $out"
+        [ "$out" = 0.8415 ] || fail "wrapper: mvec printed '$out', not 0.8415"
+    else
+        fail "wrapper: mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+    fi
+    if "$cc" -O3 -ffast-math "$here/smoke/nomvec.c" -Wl,--no-as-needed -lm -o "$tmp/nomvec" > "$tmp/log" 2>&1; then
+        needed=" $(readelf -dW "$tmp/nomvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+        case $needed in *" libm.so.6 "*) ;; *) fail "wrapper: nomvec (--no-as-needed -lm) needs '$needed', without libm.so.6" ;; esac
+        case $needed in *" libmvec.so.1 "*) fail "wrapper: nomvec needs libmvec.so.1 ('$needed'): -lm must add it only as needed" ;; esac
+    else
+        fail "wrapper: nomvec (-lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
     fi
     # run_static NAME COMPILER SOURCE EXPECTED: a static program builds, has no interpreter, prints EXPECTED.
     run_static() {

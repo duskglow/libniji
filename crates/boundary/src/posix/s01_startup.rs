@@ -44,6 +44,14 @@ pub extern "C" fn __niji_thread_walk(cb: usize, ctx: usize) -> usize {
 
 export! { runtime "NIJI_PRIVATE";
 #[cfg(feature = "runtime")]
+pub extern "C" fn __niji_stack_exec() {
+    // libniji's `ld.so` accepted an object asking for an executable stack (COMPAT-19): the
+    // C library's thread stacks, listed and later, become executable.
+    crate::thread::stacks_executable()
+}}
+
+export! { runtime "NIJI_PRIVATE";
+#[cfg(feature = "runtime")]
 pub extern "C" fn __niji_owner_unload(lo: usize, hi: usize) {
     // libniji's `ld.so` unloads the module mapped at [lo, hi): the opted-in registrations it owns
     // or whose handlers it holds go (DL-ATEXIT-OWNER, D-27.29).

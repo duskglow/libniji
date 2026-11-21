@@ -192,6 +192,11 @@ pub fn check_tables(typedefs: &str, macros: &str, visibility: &str, layouts: &st
                 }
                 _ => errors.push(format!("{at}: `{value}` is not a value of type {ty}")),
             }
+        } else if ty == "pointer" {
+            // A pointer constant: its address as a signed 64-bit value (the pointer's own type is the header's).
+            if value.parse::<i64>().is_err() {
+                errors.push(format!("{at}: `{value}` is not an address of a pointer constant"));
+            }
         } else if FLOATS.contains(&ty) {
             if !is_hexfloat(value) {
                 errors.push(format!("{at}: `{value}` is not a normalised hexadecimal floating value"));
@@ -324,6 +329,7 @@ mod tests {
         fails_mac(&MAC.replace("\tint\t1", "\tunsigned int\t-1"), "not a value of type unsigned int");
         fails_mac(&MAC.replace("long\t9223372036854775807", "long\t9223372036854775806"), "in constants.tsv");
         fails_mac(&MAC.replace("p+1", "p1"), "hexadecimal floating");
+        fails_mac(&MAC.replace("linux\t-\tint\t1", "linux\t-\tpointer\tx"), "address of a pointer");
         fails_mac(&MAC.replace("42d18p", "42d10p"), "hexadecimal floating");
         fails_mac(&MAC.replace("0x1.9", "0x3.9"), "hexadecimal floating");
         fails_mac(&MAC.replace("char[5]", "char[4]"), "quoted string");
