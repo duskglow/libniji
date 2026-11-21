@@ -1,0 +1,17 @@
+{"task": "TZ-TOOLS-2", "model": "opus", "tokens": null,
+ "result": "zic keeps every output under -d and follows no symbolic link below it (D-31.18); zone/link names and link targets match the reference's status, message and files for 61 probed cases; the two plants that did not compile now compile, and 4 new plants cover the new checks",
+ "branch": "task/tz-tools-2", "head": "af5cefc64",
+ "gate": {"affected": "tz-tools-2-gate1 (direct tier, 5 of 309 targets): see hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "D-31.18: zic never follows a symbolic link below -d when it writes (a trust boundary; what the reference does there was not probed)", "recommendation": "accept: the source is untrusted input and the only cost is an error for a name whose directory below -d is a symbolic link"}],
+ "informational": ["zic -v's extra warnings are not implemented (-v accepted and ignored)", "-t with an absolute path still lands under -d (old path code, unchanged, not probed)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "zic: a Link line whose target is a directory, or a link already in the output tree, can no longer take a write outside -d (libniji's own unlanded branch)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "zic: a 255-byte name component is written (was refused: the temporary name added a suffix); absolute link targets stay absolute in the symbolic link", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests: 2 new (61 name cases vs the reference, 7 no-follow cases); plants 11 -> 15, two rewritten to compile", "before": 11, "after": 15, "unit": "plants", "measured": true}
+ ],
+ "improvement": "cargo xtask plants could compile each mutant first (seconds) and report a mutant that fails -Werror as BUILD-FAILED instead of WARN-NO-MSG after a 6-minute products build",
+ "next_step": "land after tz-tools-2-gate1 and tz-tools-2-plants1; then UTIL-12 (localedef)",
+ "report_file": "handoff/TZ-TOOLS.md",
+ "jobs": ["keke:tz-tools-2-gate1", "keke:tz-tools-2-plants1"]}
