@@ -67,7 +67,7 @@ pub enum Codec {
 /// The built-in names (compared without regard to case). The reference library's aliases of
 /// ASCII and ISO-8859-1 are the ones their charmaps list, plus every name the reference's
 /// `iconv -l` lists whose conversion a black-box probe found identical to a built-in's
-/// (`spec/encoding/iconv-names.md`, rule 6).
+/// (`spec/encoding/iconv-names.md`, rule 5).
 const NAMES: [(&[u8], Codec); 101] = [
     (b"BIG5", Codec::Cjk(cjk::Which::Big5)),
     (b"BIG-5", Codec::Cjk(cjk::Which::Big5)),

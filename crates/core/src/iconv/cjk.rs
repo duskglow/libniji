@@ -284,7 +284,7 @@ mod tests {
     fn cp949_cells_and_unassigned_pair() {
         let u = Which::Cp949;
         assert_eq!(decode(u, &[0x81, 0x41]), Dec::Char(0xAC02, 2));
-        assert_eq!(decode(Which::EucKr, &[0x81, 0x41]), Dec::Invalid(1));
+        assert_eq!(decode(Which::EucKr, &[0x81, 0x41]), Dec::Char(0x81, 1), "EUC-KR reads 0x81 alone");
         assert_eq!(decode(u, &[0xA2, 0xE6]), Dec::Char(0x20AC, 2));
         assert_eq!(decode(u, &[0xA2, 0xE7]), Dec::Char(0xAE, 2));
         assert_eq!(decode(u, &[0xA2, 0xE8]), Dec::Invalid(2));
