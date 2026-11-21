@@ -2206,7 +2206,7 @@ impl Heap {
                 let word = &r.local[j];
                 let usable = uz(FREE_VIEW[c][0]);
                 let target = Self::move_target(usable, size);
-                // `target <= FORECAST_CAP`: the table's class (at most 19, so the mask is the
+                // `target <= FORECAST_CAP`: the table's class (at most 27, so the mask is the
                 // identity and spares the cache words' bounds checks); above it, the general rule.
                 let nc = if target <= FORECAST_CAP { Some(usize::from(SMALL_CLASS[(target + 15) >> 4]) & 31) } else { class_for(target, ALIGN) };
                 if let Some(new) = nc.and_then(|nc| Self::alloc_hint(pages, &k, nc)) {
