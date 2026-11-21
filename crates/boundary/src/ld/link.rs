@@ -354,7 +354,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     }
     // The cache, when a search read it, is no longer needed; the path store is kept: its paths are the
     // start-time link maps' names (DL-23).
-    let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
+    let cache_map = cache.get().map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
     for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
         unmap_view(at, len);

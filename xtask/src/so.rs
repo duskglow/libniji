@@ -1416,7 +1416,37 @@ fn static_unwinder_member(root: &Path, archive: &Path, work: &Path) -> Result<()
 /// read-only PT_LOADs by the text's size (DYN-START-BISECT-1120: two cost each dynamic start about 1,250
 /// user instructions, the loader's extra mapping). Placed first, the group starts the read-only segment on
 /// its alignment (the gap is the one between segments) and `.rodata` follows it without a gap.
-const RODATA1_FIRST: &str = "SECTIONS\n{\n  .rodata1 : { *(.rodata1) }\n}\nINSERT BEFORE .rodata;\n";
+/// VALGRIND-DBG-RODATA (D-X.150): the group's output section is [`LIBC_SO_STARTUP_RO`], not `.rodata1`.
+const RODATA1_FIRST: &str = "SECTIONS\n{\n  .startup_ro : { *(.rodata1) }\n}\nINSERT BEFORE .rodata;\n";
+
+/// VALGRIND-DBG-RODATA (D-X.150, GitHub issue #13): the output section of libc.so.6's start-up read-only group
+/// (the archive's `.rodata1` input sections, [`RODATA1_FIRST`]). Valgrind's ELF reader (3.24) takes the
+/// first section whose name starts with `.rodata` as the object's read-only data and, reading the object's
+/// separate debug file (libc6-dbg), asserts that the section named exactly `.rodata` there has that size:
+/// with `.rodata1` ahead of `.rodata` every valgrind tool aborted once libc6-dbg was installed. A name
+/// outside the `.rodata` prefix leaves `.rodata` the one such section; only the section header's name
+/// changes (no loaded byte moves).
+pub const LIBC_SO_STARTUP_RO: &str = ".startup_ro";
+
+/// VALGRIND-DBG-RODATA (D-X.150): `so` has at most one section whose name starts with `.rodata`, and it is
+/// `.rodata` (what valgrind's reader needs of a shared object with a separate debug file, [`LIBC_SO_STARTUP_RO`]).
+fn check_debug_reader_rodata(so: &Path) -> Result<(), String> {
+    let secs = Command::new("readelf").arg("-SW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    debug_reader_rodata_errors(&String::from_utf8_lossy(&secs.stdout)).map_err(|e| format!("{}: {e} (xtask/src/so.rs LIBC_SO_STARTUP_RO)", so.display()))
+}
+
+/// The check of [`check_debug_reader_rodata`] on `readelf -SW` text.
+pub fn debug_reader_rodata_errors(readelf: &str) -> Result<(), String> {
+    let names: Vec<&str> = readelf
+        .lines()
+        .filter_map(|l| l.trim_start().strip_prefix('[')?.split_once(']')?.1.split_whitespace().next())
+        .filter(|n| n.starts_with(".rodata"))
+        .collect();
+    match names.as_slice() {
+        [] | [".rodata"] => Ok(()),
+        _ => Err(format!("read-only data sections {}: valgrind reads only one section named `.rodata` (with libc6-dbg installed, a second `.rodata*` section aborts it)", names.join(", "))),
+    }
+}
 
 /// DYN-START-RING: the linker-script fragment that puts libc.so.6's PLT after its text. GNU ld's default script
 /// puts `.plt` and `.plt.got` ahead of `.text` (64 KiB aligned: the window bins), so the gap between them
@@ -1474,7 +1504,7 @@ pub fn read_only_segment_errors(phdrs: &str, sections: &str) -> Result<(), Strin
     if ro.len() != 1 {
         return Err(format!("{} read-only PT_LOADs after the text ({list}), not one: the read-only layout depends on the text's size again", ro.len()));
     }
-    let sec = crate::startup_ro::SECTION;
+    let sec = LIBC_SO_STARTUP_RO;
     let at = sections
         .lines()
         .find_map(|l| {
@@ -1510,7 +1540,7 @@ fn check_rodata1_anchor(so: &Path, align: u64) -> Result<(), String> {
 
 /// The check of [`check_rodata1_anchor`] on `readelf -SW` and `nm -D -S --defined-only` text.
 pub fn rodata1_anchor_errors(readelf: &str, nm: &str, align: u64) -> Result<(), String> {
-    let sec = crate::startup_ro::SECTION;
+    let sec = LIBC_SO_STARTUP_RO;
     let (at, size) = readelf
         .lines()
         .find_map(|l| {
@@ -1790,6 +1820,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
             .arg(out))
     };
     link_libc(&owner_obj, &so, &[])?;
+    check_debug_reader_rodata(&so)?;
     check_rodata1_anchor(&so, rodata1_align)?;
     check_read_only_segment(&so)?;
     check_executable_segment(&so)?;
@@ -2015,6 +2046,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     let span = check_interp_span(&staged)?;
     check_interp_ro_phase(&staged)?;
     check_interp_tool_names(&staged)?;
+    check_debug_reader_rodata(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed; mapped span {span:#x}, {LDSO_SPAN_BUCKET:#x} per bucket)");
     Ok(())
@@ -3582,7 +3614,7 @@ mod tests {
     /// (the anchor not first), holds no tag, or is missing.
     #[test]
     fn libc_so_rodata1_group_is_anchored_and_holds_the_build_tag() {
-        let sec = |at: &str| format!("  [16] .rodata1          PROGBITS        {at} 3e0000 009520 00   A  0   0 65536\n");
+        let sec = |at: &str| format!("  [16] .startup_ro       PROGBITS        {at} 3e0000 009520 00   A  0   0 65536\n");
         let tag = |at: &str| format!("{at} 0000000000000040 R __niji_build_tag@@NIJI_PRIVATE\n0000000000000000 A NIJI_PRIVATE\n");
         assert_eq!(rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e0040"), 65536), Ok(()));
         let off = rodata1_anchor_errors(&sec("00000000003d7c00"), &tag("00000000003d7c40"), 65536);
@@ -3591,19 +3623,36 @@ mod tests {
         assert!(outside.is_err_and(|e| e.contains("outside")), "the tag outside the group");
         let past_end = rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e9500"), 65536);
         assert!(past_end.is_err_and(|e| e.contains("outside")), "the tag past the group's end");
-        assert!(rodata1_anchor_errors("", &tag("00000000003e0040"), 65536).is_err_and(|e| e.contains("no .rodata1")));
+        assert!(rodata1_anchor_errors("", &tag("00000000003e0040"), 65536).is_err_and(|e| e.contains("no .startup_ro")));
         assert!(rodata1_anchor_errors(&sec("00000000003e0000"), "", 65536).is_err_and(|e| e.contains("not defined")));
     }
 
+    /// VALGRIND-DBG-RODATA (D-X.150, GitHub issue #13; no spec clause: what valgrind's debug-file reader needs
+    /// of a shared object): one `.rodata`, beside a start-up group named outside the `.rodata` prefix, passes;
+    /// the group named `.rodata1` ahead of `.rodata` (the section pair that aborted valgrind with libc6-dbg),
+    /// or any other `.rodata*` name beside `.rodata`, fails.
+    #[test]
+    fn libc_so_has_one_read_only_data_section_for_valgrind() {
+        let row = |n: u32, name: &str| format!("  [{n:2}] {name:<17} PROGBITS        0000000000310000 310000 0087be 00   A  0   0 65536\n");
+        let ok = format!("{}{}{}", row(11, ".startup_ro"), row(12, ".rodata"), row(13, ".eh_frame_hdr"));
+        assert_eq!(debug_reader_rodata_errors(&ok), Ok(()));
+        assert_eq!(debug_reader_rodata_errors(&row(9, ".text")), Ok(()));
+        let pair = format!("{}{}", row(11, ".rodata1"), row(12, ".rodata"));
+        let e = debug_reader_rodata_errors(&pair);
+        assert!(e.as_ref().is_err_and(|e| e.starts_with("read-only data sections .rodata1, .rodata:")), "{e:?}");
+        assert!(debug_reader_rodata_errors(&format!("{}{}", row(12, ".rodata"), row(13, ".rodata.cst16"))).is_err());
+        assert!(debug_reader_rodata_errors(&row(11, ".rodata1")).is_err());
+    }
+
     /// LAYOUT-RO-STABLE (D-X.143; no spec clause: layout of the products): libc.so.6 passes with one read-only
-    /// PT_LOAD after its text led by `.rodata1`, and fails with the split layout DYN-START-BISECT-1120 found
-    /// (`.rodata1` 64 KiB aligned after `.rodata`, a 62 KiB gap: a second read-only PT_LOAD) and with the
+    /// PT_LOAD after its text led by the group (`.startup_ro`, D-X.150), and fails with the split layout DYN-START-BISECT-1120 found
+    /// (the group 64 KiB aligned after `.rodata`, a 62 KiB gap: a second read-only PT_LOAD) and with the
     /// group after `.rodata` in one segment (the layout a few KiB less text gave).
     #[test]
     fn libc_so_read_only_data_is_one_segment_led_by_the_startup_group() {
         let load = |at: u64, flags: &str| format!("  LOAD           0x{at:06x} 0x{at:016x} 0x{at:016x} 0x010000 0x010000 {flags} 0x10000\n");
         let text = format!("{}{}{}", load(0, "R  "), load(0x2c000, "R E"), load(0x30000, "R E"));
-        let secs = |ro1: u64| format!("  [15] .rodata           PROGBITS        {:016x} 30e000 092764 00   A  0   0 64\n  [16] .rodata1          PROGBITS        {ro1:016x} 3b0000 009520 00   A  0   0 65536\n", 0x30e000);
+        let secs = |ro1: u64| format!("  [15] .rodata           PROGBITS        {:016x} 30e000 092764 00   A  0   0 64\n  [16] .startup_ro       PROGBITS        {ro1:016x} 3b0000 009520 00   A  0   0 65536\n", 0x30e000);
         let one = format!("{text}{}{}", load(0x3b0000, "R  "), load(0x3f6000, "RW "));
         assert_eq!(read_only_segment_errors(&one, &secs(0x3b0000)), Ok(()));
         let split = format!("{text}{}{}{}", load(0x30e000, "R  "), load(0x3b0000, "R  "), load(0x3f6000, "RW "));
@@ -3611,7 +3660,7 @@ mod tests {
         assert!(e.as_ref().is_err_and(|e| e.starts_with("2 read-only PT_LOADs after the text (0x30e000, 0x3b0000)")), "{e:?}");
         let after = format!("{text}{}{}", load(0x30e000, "R  "), load(0x3f6000, "RW "));
         assert!(read_only_segment_errors(&after, &secs(0x3a0000)).is_err_and(|e| e.contains("no longer leads it")));
-        assert!(read_only_segment_errors(&one, "").is_err_and(|e| e.contains("no .rodata1")));
+        assert!(read_only_segment_errors(&one, "").is_err_and(|e| e.contains("no .startup_ro")));
         assert!(read_only_segment_errors(&load(0, "R  "), &secs(0)).is_err_and(|e| e.contains("no executable")));
     }
 
@@ -3640,6 +3689,10 @@ mod tests {
                 }
                 assert!(cc.arg(&src).arg("-o").arg(&so).status().expect("cc").success(), "text {text:#x}: link failed");
                 let verdict = read_only_segment_errors(&readelf("-lW", &so), &readelf("-SW", &so));
+                // VALGRIND-DBG-RODATA (D-X.150): the group's output section is not a second `.rodata*` section
+                // (GNU ld's default script names it `.rodata1`, which aborts valgrind with libc6-dbg).
+                let rodata = debug_reader_rodata_errors(&readelf("-SW", &so));
+                assert_eq!(rodata.is_ok(), with, "text {text:#x}, fragment {with}: {rodata:?}");
                 if with {
                     assert_eq!(verdict, Ok(()), "text {text:#x} with the fragment");
                 } else if verdict.is_err_and(|e| e.starts_with("2 read-only PT_LOADs")) {
