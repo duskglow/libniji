@@ -195,7 +195,9 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
     let o = run(Command::new(&prog).arg(&d));
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
-    let want: String = ["first", "again"].iter().map(|r| format!("{r} sum {SUM}\n{r} dladdr {N}\n{r} phdr {}\n{r} lmap {}\n", N + 1, N + 1)).collect();
+    // Listed in the directory: the `N` libraries, the root, and the C library the corpus names by path
+    // (`libc-dl.so`, in the same directory).
+    let want: String = ["first", "again"].iter().map(|r| format!("{r} sum {SUM}\n{r} dladdr {N}\n{r} phdr {}\n{r} lmap {}\n", N + 2, N + 2)).collect();
     assert_eq!(out, want, "every object's full path, in both loads");
     std::fs::remove_dir_all(top_of(&d)).ok();
 }
