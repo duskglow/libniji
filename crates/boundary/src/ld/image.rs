@@ -530,7 +530,10 @@ fn map_view_alone(fd: i32, len: usize) -> Result<usize, ()> {
 
 /// Address space of the start's view arena ([`views_arm`]): inaccessible until a view is mapped
 /// into it, so it commits no memory; a start whose views do not fit maps the rest on their own.
-const VIEWS_LEN: usize = 1 << 30;
+/// 64 MiB (libc.so.6's view is about 6 MiB): every mapping made while it is open lands below it, and
+/// at 1 GiB that moved them into another top-level page-table range than the loader's (new table
+/// pages for each; on the Zen 1 host about +11.6k kernel instructions on an empty main).
+const VIEWS_LEN: usize = 64 << 20;
 
 /// [`VIEWS_STATE`]: no arena (every view is mapped on its own).
 const VIEWS_NONE: u8 = 0;

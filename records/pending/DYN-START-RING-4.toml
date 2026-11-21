@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+amends = ["D-X.143"]
+story = "DYN-START-RING"
+date = "2026-11-21"
+tests = ["xtask/src/so.rs::libc_so_text_is_one_executable_segment", "xtask/src/so.rs::plt_after_text_keeps_one_executable_segment_at_every_header_size"]
+body = '''
+**libc.so.6's text is one executable PT_LOAD whatever the size of the tables before it** (DYN-START-RING; amends D-X.143, the same method on the executable side). Cause: GNU ld's default script places `.plt` and `.plt.got` ahead of `.text`, which is 64 KiB aligned (the window bins), so the gap between the PLT's end and `.text` followed the size of the headers and dynamic tables in the first read-only segment; where that gap held a whole page the linker started a second executable PT_LOAD. A 0x168-byte smaller first segment did it on this branch (`.plt` at 0x2e000, `.text` at 0x30000): one more program header for the loader to read and one more mapping per dynamic start, measured on the Zen 1 host as part of a +3.2k user instruction regression on every dynamic row. Fix: a second linker-script fragment (`PLT_AFTER_TEXT`, xtask/src/so.rs) inserts `.plt`, `.plt.got` and `.plt.sec` after `.text`; `.text` then starts the executable segment on its alignment (the gap is the one between segments, as before) and the PLT follows the text without a gap. `.text`'s address does not change. `so` checks the product has exactly one executable PT_LOAD (`check_executable_segment`).
+'''
