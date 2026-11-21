@@ -428,10 +428,6 @@ fn reloc_version_check_and_refusals_in_the_model() {
     std::fs::remove_dir_all(&d).ok();
 }
 
-/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
-/// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
-/// built object, moved: into the read-only text, past every segment, across the end of the writable
-/// segment (refused), and onto its last word (applied).
 /// s27_1_f_0: the version check answers for each needed version as a walk of the provider's definitions
 /// from the start would (LD-LOOKUP-COST: one walk per requirement entry, the first 64 definitions
 /// kept). A program needs four of a library's 70 versions, two of them past the kept definitions; it is
@@ -473,6 +469,10 @@ fn reloc_version_check_beyond_the_kept_definitions() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
+/// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
+/// built object, moved: into the read-only text, past every segment, across the end of the writable
+/// segment (refused), and onto its last word (applied).
 #[test]
 fn reloc_field_must_lie_in_a_writable_segment() {
     if !cc_ok() {
