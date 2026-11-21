@@ -325,7 +325,6 @@ pub(super) fn keep_start_paths(l: &mut Loader) {
 
 /// Start-time object `i` without `DT_SONAME`: the bare `DT_NEEDED` name it was found by (its path
 /// ends in `/` and that name), which a bare `dlopen` name matches (DL-RUNPATH, probed).
-#[allow(clippy::indexing_slicing)] // i < n_start < CAP
 fn given_name(l: &mut Loader, i: usize) {
     let total = l.n_start.min(CAP);
     let Some(o) = l.objs_upto(total).get(i).copied() else { return };
@@ -337,6 +336,6 @@ fn given_name(l: &mut Loader, i: usize) {
         !n.contains(&b'/') && path.strip_suffix(*n).is_some_and(|d| d.ends_with(b"/"))
     });
     if let Some(name) = found {
-        l.objs[i] = core::mem::MaybeUninit::new(super::Obj { name, ..o });
+        l.objs.set(i, super::Obj { name, ..o });
     }
 }
