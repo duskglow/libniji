@@ -50,26 +50,33 @@ signal calls), so the probe's fixed 60 s + 5 s wait ran out, it did not lose req
   reference 0.010 s (before 0.169 / 0.174); drain 3.7 s vs 3.6 s; CPU per request 77..78 us vs
   62 us (DNS path; informational).
 
-## NEXT LEG (refresh 1, ~21:50Z): exact next steps
-1. Collect the final-head gate: `~/bin/jobwait gai-mass-loss-gate2` on keke (started 21:28Z on
-   67ec7b6f6, clippy + static + affected). Plants job `gai-mass-loss-plants` is done (3 CAUGHT).
-2. Coordinator note 21:37Z (in force): hung or killed dns_products runs leave ROOT-owned oracle
-   children (resolv_diff_host/_niji under `sudo -n unshare`) orphaned for days (46 on the
-   Skylake-SP host, 16 on the Zen 1 host). Make the harness unable to leave anything behind: run
-   the oracles in their own PID namespace whose init dies with the test (`unshare --pid --fork
-   --kill-child` or equivalent), on timeout end the whole namespace, then reap. Add a test that
-   kills the harness mid-run and checks no process of it remains. Do NOT kill the existing
-   orphans (root; the owner does). Files: `crates/core/tests/oracle/resolv_run.sh`,
-   `dns_run.sh` (same `sudo -n unshare -m -n` line), `crates/core/tests/dns_products.rs` (`run`).
-   Design point to settle: the chain is test -> timeout -> sh -> sudo -> unshare -> ns init; the
-   namespace must die when the TEST dies, not only on timeout (e.g. the PID namespace outermost,
-   created by the test's own command, with `--kill-child`, and the test's child given a parent-
-   death signal; `setpriv --pdeathsig KILL` exists in util-linux). Check `unshare --help` on both
-   hosts for `--kill-child`.
-3. Then clippy/static, a direct gate, plants for the harness change if testable, precheck
-   (`cargo xtask precheck --jobs <labels> --head <sha>`), handback-check, hand back. The hand-back
-   must carry a SECURITY-PRIVATE section: ask the previous leg's final message (the refresh
-   message) for its content; it is not written in the repo.
+## Leg 2 (refresh 1): oracle runs contained
+- Coordinator note 21:37Z: hung or killed dns_products runs left ROOT oracle children
+  (resolv_diff_host/_niji under `sudo -n unshare`) orphaned for days. Not killed here (root; the
+  owner does).
+- `crates/core/tests/oracle/contain.sh` (new): runs a command, as the caller again, as the first
+  process of its own PID namespace with its own /proc (`sudo -n unshare --pid --fork --kill-child
+  --mount-proc`, `setpriv --reuid/--regid --init-groups`, then `setpriv --pdeathsig KILL`: the
+  change back to the user clears the parent-death signal `--kill-child` set; seen in a probe, the
+  first version left the namespace's first process running). The namespace ends when the run
+  ends or `timeout` (its first process) fires; and when the caller dies: the caller holds the
+  only write end of stdin, a root watcher kills unshare on EOF. Command gets the caller's PATH only.
+- `dns_products.rs`: `contained()` runs every oracle run through it (stdin piped and taken
+  before `wait`; `std::io::pipe` is past the MSRV 1.85). New test
+  `a_killed_run_leaves_no_process`: re-runs the test binary as a helper (env
+  `NIJI_CONTAIN_HELPER`) that starts a user loop and a root one under `sudo -n unshare -m -n`,
+  SIGKILLs the helper once the root loop runs, checks no process carrying the token remains
+  (hang guard 10 s x load scale). Loops end themselves after 300 s, so a surviving plant cleans up.
+- Probe on keke (by hand, scratch only): pid 1 inside, 3 pids in /proc, `sudo -n` works inside,
+  exit status passed through, caller death leaves nothing.
+- Plants: `handoff/GAI-MASS-LOSS-contain-plants.txt` (no watcher, no pdeathsig, no PID ns), job
+  `gai-mass-loss-plants2`. Gate on the final code head 4b8dfee64: `gai-mass-loss-gate3`.
+  gate2 (67ec7b6f6) was stopped to free the role; gate3 supersedes it.
+- Not done: other harnesses that start root processes (noproc_products, admin_products,
+  iconv_charmaps_products, time_gaps_probe, no_proc_lane, s12/s13 clauses, s24/s25 symbols) are
+  not contained; contain.sh can wrap them (follow-up).
+- SECURITY-PRIVATE: leg 1's section lives only in its refresh message (not in the repo); leg 2
+  added nothing to it.
 
 ## Not done / next step (leg 1)
 - Pinned (1 CPU) run of the harness for a contention measurement: started, sat 20 min queued for
