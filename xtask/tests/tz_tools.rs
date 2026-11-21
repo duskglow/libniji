@@ -11,6 +11,8 @@
 //! Trace: s31_9_c_1, s31_9_i_1, s31_9_i_2, s31_9_g_1, s31_9_g_2, s31_9_g_3, s31_9_f_1, s31_10_c_1,
 //! s31_10_i_1, s31_10_g_1, s31_10_g_2, s31_10_g_3, s31_10_g_4.
 
+#![allow(clippy::disallowed_methods)] // a host tool's test: S8 governs the library crates only
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -285,7 +287,7 @@ fn zdump_full_range_and_options_match_the_reference() {
     for c in cases {
         let a = run(Command::new(REF_ZDUMP).args(*c));
         let b = run(Command::new(&zdump).args(*c));
-        assert_eq!((a.status.code(), String::from_utf8_lossy(&a.stdout), String::from_utf8_lossy(&a.stderr)), (b.status.code(), String::from_utf8_lossy(&b.stdout), String::from_utf8_lossy(&b.stderr)).clone(), "zdump {c:?}");
+        assert_eq!((a.status.code(), String::from_utf8_lossy(&a.stdout), String::from_utf8_lossy(&a.stderr)), (b.status.code(), String::from_utf8_lossy(&b.stdout), String::from_utf8_lossy(&b.stderr)), "zdump {c:?}");
     }
     // An abbreviation under three characters is warned about once; other unusual ones are not (TZDIR names the
     // zone directory).
