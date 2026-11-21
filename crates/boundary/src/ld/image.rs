@@ -803,7 +803,7 @@ pub(super) fn dir_of(path: &[u8]) -> &[u8] {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 mod tests {
     use super::{map_view_hidden, raw, unmap_view, views_hidden};
     use std::os::unix::io::AsRawFd;
