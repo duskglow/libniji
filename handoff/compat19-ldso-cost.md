@@ -54,3 +54,5 @@ Per-symbol diff command used in leg 1 (awk join of two pt-*.txt files on everyth
 ## Leg-1 slips to report
 * One `sed -i` edit (an import line in crates/ld/src/dlopen.rs): against the Edit-tool rule; it ran.
 * One heredoc attempt, refused by the hook (no-op command); nothing worked around.
+* Commit 5e6f63f32 (the code WIP) has no why-body and no Co-Authored-By trailer (pushed; not rewritten, no
+  force-push): the final code commit on top carries both.
