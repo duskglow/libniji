@@ -1,0 +1,5 @@
+# DL-RDEBUG-VERSION plants: r_version 2 and the 40-byte copy (crates/ld/tests/rendezvous.rs).
+own-version-1 | crates/ld/src/debug.rs | lit:pub const VERSION: i32 = 2; ==> pub const VERSION: i32 = 1; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 3
+copy-version-2-at-40 | crates/boundary/src/ld/debug.rs | lit:if len == SIZE { VERSION_COPY } else { r.r_version.load(Relaxed) } ==> r.r_version.load(Relaxed) | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:rendezvous_reference_sized_copy_says_version_1.*FAILED|failed check Some\(3\)
+copy-of-40-not-noted | crates/boundary/src/ld/debug.rs | lit:(len == SIZE || len == SIZE_EXT) ==> len == SIZE_EXT | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:rendezvous_reference_sized_copy_says_version_1.*FAILED|failed check Some\(3\)
+copy-of-48-not-noted | crates/boundary/src/ld/debug.rs | lit:(len == SIZE || len == SIZE_EXT) ==> len == SIZE | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:rendezvous_copy_relocation_is_kept_current.*FAILED|failed check 4
