@@ -1,8 +1,34 @@
 # TEST-SCRATCH-CLEANUP
 
-State: branch task/test-scratch-cleanup-3 (TEST-SCRATCH-CLEANUP-3, continuing task/test-scratch-cleanup-2 7bc7ac116),
-origin/next 4f32aa946 merged in. Role mei:~/w/s2. Code done; proof under "Leg 4". HEAD: see
-`git log -1` (handoff/report commit on top of ddb0699d5).
+State: branch task/test-scratch-cleanup-4 (TEST-SCRATCH-CLEANUP-4, continuing task/test-scratch-cleanup-3
+9a38f336f; origin/next 4f32aa946 merged in by leg 4). Role mei:~/w/s4. Code unchanged since ddb0699d5 (last
+code commit); leg 5 adds only handoff/. HEAD: see `git log -1`.
+
+## Leg 5 (TEST-SCRATCH-CLEANUP-4): the CI red is an intermittent test, not this branch
+CI red at 9a38f336f: `niji::heap_meta_products the_heap_keeps_address_space_near_its_use` failed in the gate's
+second pass (the harness running on libniji). The VmSize steps were exactly at their bounds (refill +39236,
+realloc +41288). The run under `RLIMIT_AS = start + 41296` then failed with exit 12 (the realloc step).
+The same test passed in the first pass of that gate.
+- Not this branch: the branch changes no library or start-up code (`git diff origin/next...HEAD` touches only
+  `*/tests/*`, handoff/, docs/). heap_meta_products.rs and its oracle are unchanged. The oracle child runs
+  with `env_clear()` from a fixed path (`target/test-oracles/heap_address_space_niji`), not a scratch path.
+  So nothing here changes its start VmSize or what it measures.
+- Measured on mei s4 (Skylake-SP, 2 NUMA nodes), head 9a38f336f, unloaded host (job test-scratch-cleanup-4-heaprep2):
+  - The test in pass 1 (host process) failed 0 of 20 runs. The native copy (pass 2, set up by
+    `affected --only heap_meta_products --with-exports --run`) also failed 0 of 20.
+  - The oracle alone under `setarch -R` with limit start+41296, pinned to node 0, pinned to node 1 or unpinned:
+    0 of 20 failures each. Its steps were the same in every case: start 7584, alloc 36580, refill 46828,
+    realloc 48880 KiB. So the realloc need is exactly start + 41296 KiB, which leaves zero margin.
+  - Moving the process between the two nodes during its run (job test-scratch-cleanup-4-heapmig; script
+    `~/work/test-scratch-cleanup-4/heapmig.sh` on mei, which flips its affinity until exit): 15 of 20 runs
+    failed with exit 12. alloc grew to 36844..40940 KiB (vs 36580) and refill to 47084..48876. The same runs
+    with no limit failed 0 of 20.
+- Cause: the heap takes blocks node-locally, so a process that changes node during the run maps slabs on both
+  nodes and uses more address space. Both the VmSize bounds and AS_HEADROOM equal the single-node level
+  measured on a host with one node (Zen 1). On a two-node host under gate load the scheduler can move the child
+  between nodes, and then the test fails. Leg 1's VmSize-bound failure on a loaded host (alongside plants) fits
+  the same cause. This belongs to the HEAP-ADDRESS-SPACE line (HEAP-SPILL-COLD makes the need
+  placement-independent), not to this story. No bound was changed here.
 
 ## Leg 4 (TEST-SCRATCH-CLEANUP-3): CI red E0277 fixed
 - CI red on 7bc7ac116 was a semantic conflict: next's new `map_malformed_dependency_refused_at_start`
@@ -93,5 +119,7 @@ guards' Drop -> `scratch::release` (they removed even on failure; now kept and n
   INFORMATIONAL, not chased.
 
 ## Next step (exact)
-None for the story (leg 4 green); land task/test-scratch-cleanup-3. Follow-up (optional): the
+None for the story; land task/test-scratch-cleanup-4. For the heap test (another story):
+make heap_meta_products' address-space test independent of node placement. Options: pin the oracle child to
+one node, or have HEAP-SPILL-COLD remove the dependence. That is a ruling for the heap line's owner. Follow-up (optional): the
 success-path-removal sites listed under owed #17, and xtask/tests/tz_tools.rs `scratch()`, to `Scratch`.
