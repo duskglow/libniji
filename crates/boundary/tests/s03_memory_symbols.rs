@@ -1034,8 +1034,8 @@ fn realloc_in_place_fit_rule() {
     assert!(u.is_null(), "size 0 frees and returns NULL");
 
     // The lower bound is exact: in the 32-byte class a request of 9 stays (more than half of 16)
-    // and 8 moves; in the 1024-byte class 449 stays (more than half of 896) and 448 moves.
-    for (first, keep, moved) in [(17usize, 9usize, 8usize), (1000, 449, 448)] {
+    // and 8 moves; in the 1024-byte class 481 stays (more than half of 960) and 480 moves.
+    for (first, keep, moved) in [(17usize, 9usize, 8usize), (1000, 481, 480)] {
         let p = s::malloc(first);
         assert!(!p.is_null());
         assert_eq!(s::realloc(p, keep), p, "{first} -> {keep} stays");
