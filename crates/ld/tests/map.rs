@@ -578,7 +578,7 @@ fn map_malformed_dependency_refused_at_start() {
     let lib_bytes = std::fs::read(&lib).unwrap();
     let dir_flag = format!("-L{}", d.display());
     let prog = build(&d, "needs-dep", &["-fPIE", "-pie", "-Wl,--no-as-needed", &dir_flag, "-l:libdep.so"], Some(&ld));
-    let run = || Command::new("timeout").arg("60").arg(&prog).env("LD_LIBRARY_PATH", &d).output().unwrap();
+    let run = || Command::new("timeout").arg("60").arg(&prog).env("LD_LIBRARY_PATH", d.as_os_str()).output().unwrap();
     // The positive control: the unedited library is found by the search, mapped and run past.
     let o = run();
     assert_eq!(o.status.code(), Some(0), "the unedited libdep.so: {o:?}");
@@ -591,7 +591,6 @@ fn map_malformed_dependency_refused_at_start() {
         assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
         assert!(err.contains(&refusal) && err.lines().count() == 1, "{name}: not the start's refusal: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 // ---------------------------------------------------------------- /proc/self/maps
