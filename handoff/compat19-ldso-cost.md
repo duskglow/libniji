@@ -68,6 +68,14 @@ depends on scheduling is a flake; not loosened here, ALWAYS FORWARD).
 * link-fold-zero-bias SURVIVED ldso_run: ldso_run's programs load no library found by search; the plant now runs
   `--test ldso_search` (its programs do).
 
+## Leg 3: xtest4 (cargo xtask test) red, outside this change
+One failure of 6978: `niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range`
+(line 1008: the pinned gap was not free again after the call's unmap). KernelPages (crates/boundary/src/heap.rs) is
+unchanged here; 7 CI gates on mei passed it, no other mei log has it failing. Started after hand-back prep:
+`compat19-ldso-cost-kpages` (that test alone x60, prints `kpages: ... failed N of 60`) then `compat19-ldso-cost-xtest5`
+(cargo xtask test again), by `~/work/compat19-ldso-cost/seq5.sh`. PENDING at hand-back. gate4 green, plants4 4 CAUGHT,
+hot4 32/32 (release empty main 743,209), precheck GREEN at 47b89c8bf.
+
 ## Slips (all legs)
 * Leg 1: one `sed -i` edit (an import line, crates/ld/src/dlopen.rs), against the Edit-tool rule; it ran.
 * Heredoc attempts refused by the hook: one in leg 1, two in leg 2 (no-op commands; nothing worked around).
@@ -75,7 +83,6 @@ depends on scheduling is a flake; not loosened here, ALWAYS FORWARD).
   test's first form expected the DT_NEEDED name in the refusal (one gate and plants cycle).
 
 ## Next step
-Collect gate4/plants4/xtest4/hot4 (`~/bin/jobwait compat19-ldso-cost-gate4 compat19-ldso-cost-plants4
-compat19-ldso-cost-xtest4 compat19-ldso-cost-hot4` on mei); commit plants-4/results.txt as
-handoff/COMPAT19-LDSO-COST-plants.txt; precheck; handback-check. Open after landing: the c19 16/16 snapshot check
+Collect `compat19-ldso-cost-kpages` and `compat19-ldso-cost-xtest5` on mei (`~/bin/jobwait` both); a kpages rate above
+0 of 60 is the heap test's own flake (INFORMATIONAL to its owner); xtest5 green closes the start-up checks. Open after landing: the c19 16/16 snapshot check
 on debs of this head (train/RC).
