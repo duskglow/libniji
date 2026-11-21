@@ -17942,6 +17942,7 @@ math.h	LITTLE_ENDIAN	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	MATH_ERREXCEPT	macro	!c89,time64only
 math.h	MATH_ERRNO	macro	!c89,time64only
 math.h	MAXFLOAT	macro	xopen,xopen500,xopen600,xopen700,xopenext,gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+math.h	MB_CUR_MAX	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	M_1_PI	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,isoc99,isoc11,isoc2x,time64only
 math.h	M_1_PIf	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	M_1_PIf128	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -18046,7 +18047,6 @@ math.h	M_SQRT2f32x	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	M_SQRT2f64	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	M_SQRT2f64x	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	M_SQRT2l	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-math.h	MB_CUR_MAX	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	NAN	macro	!c89,time64only
 math.h	NFDBITS	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	NULL	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
