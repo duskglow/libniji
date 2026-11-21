@@ -717,7 +717,8 @@ fn fflush_on_a_full_pipe() {
 // hook works, fails with ESPIPE or EINVAL; a pipe; a regular file through a dup'ed descriptor):
 // `fclose` of a reading cookie stream calls no seek hook and returns 0; `fflush` gives the
 // read-ahead back through the hook, tolerates ESPIPE, reports another errno with EOF, and in
-// both failures keeps the read-ahead and leaves `ferror` clear.
+// both failures keeps the read-ahead. (A failed `fflush` sets the error indicator, as
+// s12_4_f_0 and POSIX `fflush` say.)
 
 const ESPIPE: i32 = 29;
 const EINVAL: i32 = 22;
@@ -767,7 +768,7 @@ fn seeker(seek_errno: Option<i32>, mode: &str) -> (usize, *mut FILE) {
     (id, fp)
 }
 
-/// §12.2 (`fclose`), §12.3: closing a reading cookie stream calls no seek hook and succeeds,
+/// s12_2_c_4, s12_3_c_3: closing a reading cookie stream calls no seek hook and succeeds,
 /// whether the hook works or fails (ESPIPE: the issue's reproducer; EINVAL), after a partial read
 /// or a read to the end, opened `r` or `r+`.
 #[test]
@@ -789,10 +790,10 @@ fn cookie_close_after_read_calls_no_seek_hook() {
     }
 }
 
-/// §12.4 (`fflush`), §12.3: `fflush` of a reading cookie stream gives the read-ahead back through
-/// the seek hook. ESPIPE: 0. Another errno: EOF with the hook's errno. Either failure keeps the
-/// read-ahead (the next byte is the 11th) and leaves `ferror` clear; `ftell` reports the hook's
-/// errno.
+/// s12_4_c_3_2, s12_4_f_0, s12_3_c_3: `fflush` of a reading cookie stream gives the read-ahead
+/// back through the seek hook. ESPIPE: 0, `ferror` clear. Another errno: EOF with the hook's
+/// errno and `ferror` set. Either failure keeps the read-ahead (the next byte is the 11th);
+/// `ftell` reports the hook's errno.
 #[test]
 fn cookie_flush_of_read_ahead_reports_the_seek_hooks_errno() {
     for (seek_errno, flushed) in [(None, 0), (Some(ESPIPE), 0), (Some(EINVAL), EOF)] {
@@ -807,7 +808,7 @@ fn cookie_flush_of_read_ahead_reports_the_seek_hooks_errno() {
             assert_eq!(Some(e), seek_errno, "{what}: fflush errno");
         }
         assert_eq!(with(id, |c| c.seeks), 1, "{what}: one give-back seek");
-        assert!(!err(fp), "{what}: ferror after fflush");
+        assert_eq!(err(fp), r == EOF, "{what}: ferror after fflush");
         if seek_errno.is_none() {
             assert_eq!(with(id, |c| c.ipos), 10, "{what}: the hook is back at the stream's position");
         }
@@ -821,7 +822,7 @@ fn cookie_flush_of_read_ahead_reports_the_seek_hooks_errno() {
     }
 }
 
-/// §12.2 (`fclose`), POSIX `fclose`: closing a reading stream on a seekable descriptor still
+/// s12_2_c_4, s12_4_c_3_2, POSIX `fclose`: closing a reading stream on a seekable descriptor still
 /// gives the read-ahead back, so a duplicate of the descriptor continues at the stream's position
 /// (a memfd: no file system involved).
 #[test]
