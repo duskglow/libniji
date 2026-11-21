@@ -1077,7 +1077,7 @@ fn put(fp: usize, t: &[u8]) {
 /// [`put`] in the libresolv product (LIBRESOLV-OWN-CODE): through the C library's `fwrite`.
 #[cfg(all(feature = "libresolv", not(feature = "runtime")))]
 fn put(fp: usize, t: &[u8]) {
-    crate::caller_alloc::libc_fwrite(t, fp);
+    crate::posix::s16_nameservices::libc_fwrite(t, fp);
 }
 
 /// The calling thread's `_res.pfcode`, its state read or read again as for every use.
@@ -1101,7 +1101,7 @@ fn standard_output() -> usize {
 /// [`standard_output`] in the libresolv product: the C library's `stdout`.
 #[cfg(all(feature = "libresolv", not(feature = "runtime")))]
 fn standard_output() -> usize {
-    crate::caller_alloc::libc_stdout()
+    crate::posix::s16_nameservices::libc_stdout()
 }
 
 /// `fp_nquery(msg, len, file)`.

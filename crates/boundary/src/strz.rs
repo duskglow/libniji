@@ -73,9 +73,10 @@ unsafe fn byte_len(p: *const u8, limit: usize) -> usize {
     // `strnlen`: their CPU dispatch is libc.so.6's, decided once there, with no second copy of
     // the CPU state in libresolv.so.2. The length is the same whichever scanner answers.
     #[cfg(all(feature = "libresolv", not(feature = "runtime")))]
-    // UNSAFE(extern): the C library's length scanners, under this function's contract.
-    // SAFETY: the function's contract: `p` is non-NULL and readable up to a NUL or `limit` bytes.
-    let n = unsafe { crate::caller_alloc::libc_len(p, limit) };
+    // UNSAFE(slice): the C library's length scanners on the caller's string.
+    // SAFETY: the function's contract: `p` is non-NULL and readable up to a NUL or `limit` bytes,
+    // which is `strlen`'s (unbounded) and `strnlen`'s obligation.
+    let n = unsafe { if limit == usize::MAX { crate::caller_alloc::strlen(p) } else { crate::caller_alloc::strnlen(p, limit) } };
     // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
     // SAFETY: the function's contract; `n` is the scanner's answer for `p` and `limit`.
     unsafe { settle_len(p, limit, n) }

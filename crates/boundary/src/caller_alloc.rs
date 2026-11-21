@@ -160,37 +160,30 @@ pub(crate) fn release(addr: usize) {
 // ------------------------------------------------------------------------------ libresolv.so.2
 //
 // The libresolv product (LIBRESOLV-OWN-CODE) reaches the C library's state only through
-// libc.so.6's exports: `fwrite` and `stdout` (the standard interface), and two private entries
-// (`NIJI_PRIVATE`) for what has no standard one: the thread's result blocks and `_res.pfcode`.
+// libc.so.6's exports: `fwrite`, `stdout`, `strlen` and `strnlen` (the standard interface), and
+// two private entries (`NIJI_PRIVATE`) for what has no standard one: the thread's result blocks
+// and `_res.pfcode`. The calls that need `unsafe` are made where the category allows them:
+// `strz::byte_len` (the length scanners), `posix::s16_nameservices` (`fwrite`, `stdout`); the
+// product's global allocator is `heap::Caller`.
 
 // Soundness: `__niji_resolv_block` and `__niji_resolv_pfcode` are sound for every argument (a
-// block address or 0; a number). `fwrite` reads `n` bytes at `p` (the caller passes a live
-// slice) and takes a stream the C caller vouches for. `stdout` is the C library's object, written
-// only by the C library (a pointer-sized word).
+// block address or 0; a number). `fwrite` reads `n` bytes at `p` and takes a stream the C caller
+// vouches for; `strlen`/`strnlen` read a string the caller vouches for; `stdout` is the C
+// library's object, written only by the C library (a pointer-sized word).
 #[cfg(all(feature = "libresolv", not(feature = "runtime")))]
 // UNSAFE(extern): Rust cannot call C library functions or read its objects without declaring them.
 #[allow(unsafe_code)]
 unsafe extern "C" {
     safe fn __niji_resolv_block(kind: usize, need: usize) -> usize;
     safe fn __niji_resolv_pfcode() -> u64;
-    fn fwrite(p: *const c_void, size: usize, n: usize, fp: *mut c_void) -> usize;
-    static stdout: usize;
-    fn strlen(s: *const u8) -> usize;
-    fn strnlen(s: *const u8, max: usize) -> usize;
-}
-
-/// Bytes before the first NUL at `p`, at most `limit` (`usize::MAX`: unbounded), measured by the
-/// C library's `strlen`/`strnlen`.
-///
-/// # Safety
-/// `p` is non-NULL and points to readable bytes up to and including a NUL, or `limit` bytes.
-#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
-// UNSAFE(extern): calling the C library's length scanners on a caller-vouched pointer.
-#[allow(unsafe_code)]
-pub(crate) unsafe fn libc_len(p: *const u8, limit: usize) -> usize {
-    // UNSAFE(extern): the C library's `strlen`/`strnlen`.
-    // SAFETY: the function's contract (readable up to a NUL or `limit` bytes) is theirs.
-    unsafe { if limit == usize::MAX { strlen(p) } else { strnlen(p, limit) } }
+    /// Obligation: `p` holds `size * n` readable bytes; `fp` is a valid stream.
+    pub(crate) fn fwrite(p: *const c_void, size: usize, n: usize, fp: *mut c_void) -> usize;
+    /// Written only by the C library.
+    pub(crate) static stdout: usize;
+    /// Obligation: `s` is readable up to and including a NUL.
+    pub(crate) fn strlen(s: *const u8) -> usize;
+    /// Obligation: `s` is readable up to a NUL or `max` bytes.
+    pub(crate) fn strnlen(s: *const u8, max: usize) -> usize;
 }
 
 /// The calling thread's result block of `kind` (`need` bytes): its address, 0 without memory.
@@ -205,61 +198,28 @@ pub(crate) fn libc_pfcode() -> u64 {
     __niji_resolv_pfcode()
 }
 
-/// Write `t` to the stream at `fp` (a stream the C caller passed).
-#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
-pub(crate) fn libc_fwrite(t: &[u8], fp: usize) {
-    if t.is_empty() {
-        return;
-    }
-    // UNSAFE(extern): the C library's `fwrite`.
-    #[allow(unsafe_code)]
-    // SAFETY: `t` is a live slice of `t.len()` bytes; `fp` is the stream the C caller named
-    // (its contract: a valid `FILE *`).
-    let _ = unsafe { fwrite(t.as_ptr().cast(), 1, t.len(), core::ptr::with_exposed_provenance_mut(fp)) };
+/// `malloc(n)` for the libresolv product's global allocator (`heap::Caller`): through the symbol.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_malloc(n: usize) -> *mut c_void {
+    c_malloc(n)
 }
 
-/// The address of the standard output stream (`stdout`'s value).
-#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
-pub(crate) fn libc_stdout() -> usize {
-    // UNSAFE(extern): reading the C library's `stdout` object.
-    #[allow(unsafe_code)]
-    // SAFETY: `stdout` is a pointer-sized object the C library defines and keeps valid.
-    unsafe { core::ptr::read_volatile(core::ptr::addr_of!(stdout)) }
+/// `calloc(n, size)` for `heap::Caller`.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_calloc(n: usize, size: usize) -> *mut c_void {
+    c_calloc(n, size)
 }
 
-/// Rust's global allocator in the libresolv product: the caller allocator (`malloc` through the
-/// symbol), so libresolv.so.2 holds no heap of its own. Blocks are at most 16-aligned (`malloc`'s
-/// alignment); a larger alignment fails (null), which the fallible containers report as `ENOMEM`.
+/// `realloc(p, n)` for `heap::Caller`. Obligation: `p` is NULL or came from this allocator and is
+/// not used afterwards.
 #[cfg(feature = "libresolv")]
-pub struct Caller;
+pub(crate) fn caller_realloc(p: *mut c_void, n: usize) -> *mut c_void {
+    c_realloc(p, n)
+}
 
-// Soundness: blocks come from `malloc`/`calloc`/`realloc`, which never hand out overlapping live
-// blocks and honour sizes up to the 16-byte alignment checked here; null on exhaustion.
+/// `free(p)` for `heap::Caller`. Obligation: `p` is NULL or came from this allocator and is not
+/// used afterwards.
 #[cfg(feature = "libresolv")]
-// UNSAFE(allocator): implementing `GlobalAlloc` for the libresolv product.
-#[allow(unsafe_code)]
-unsafe impl core::alloc::GlobalAlloc for Caller {
-    // UNSAFE(allocator): the trait's required method.
-    #[allow(unsafe_code)]
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        if layout.align() > 16 { core::ptr::null_mut() } else { c_malloc(layout.size().max(1)).cast() }
-    }
-
-    // UNSAFE(allocator): the trait's required method.
-    #[allow(unsafe_code)]
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
-        c_free(ptr.cast());
-    }
-
-    // UNSAFE(allocator): the trait's provided method, overridden (one `calloc`).
-    #[allow(unsafe_code)]
-    unsafe fn alloc_zeroed(&self, layout: core::alloc::Layout) -> *mut u8 {
-        if layout.align() > 16 { core::ptr::null_mut() } else { c_calloc(layout.size().max(1), 1).cast() }
-    }
-
-    // UNSAFE(allocator): the trait's provided method, overridden (one `realloc`).
-    #[allow(unsafe_code)]
-    unsafe fn realloc(&self, ptr: *mut u8, layout: core::alloc::Layout, new_size: usize) -> *mut u8 {
-        if layout.align() > 16 { core::ptr::null_mut() } else { c_realloc(ptr.cast(), new_size.max(1)).cast() }
-    }
+pub(crate) fn caller_free(p: *mut c_void) {
+    c_free(p);
 }

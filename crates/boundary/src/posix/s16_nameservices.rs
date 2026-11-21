@@ -1028,3 +1028,29 @@ pub extern "C" fn __p_fqnname(cp: *const u8, msg: *const u8, msglen: c_int, name
     // UNSAFE(slice) SAFETY: name holds namelen bytes (resolv.h).
     core::ptr::with_exposed_provenance(resolv::p_fqnname(conv::addr(cp), conv::addr(msg), msglen, unsafe { conv::buf_mut(name.cast(), conv::nonneg(namelen)) }))
 }}
+
+// ------------------------------------------------------------------------------ libresolv.so.2's output
+
+/// Write `t` to the stream at `fp` (a stream the C caller passed) through the C library's
+/// `fwrite`: the libresolv product's printers (LIBRESOLV-OWN-CODE), whose streams are libc.so.6's.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+// UNSAFE(slice): calling the C library's `fwrite` on a live slice and the caller's stream.
+#[allow(unsafe_code)]
+pub(crate) fn libc_fwrite(t: &[u8], fp: usize) {
+    if t.is_empty() {
+        return;
+    }
+    // UNSAFE(slice) SAFETY: `t` is a live slice of `t.len()` bytes; `fp` is the stream the C
+    // caller named (its contract: a valid `FILE *`).
+    let _ = unsafe { crate::caller_alloc::fwrite(t.as_ptr().cast(), 1, t.len(), core::ptr::with_exposed_provenance_mut(fp)) };
+}
+
+/// The address of the standard output stream (`stdout`'s value) in the libresolv product.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+// UNSAFE(slice): reading the C library's `stdout` object.
+#[allow(unsafe_code)]
+pub(crate) fn libc_stdout() -> usize {
+    // UNSAFE(slice) SAFETY: `stdout` is a pointer-sized object the C library defines and keeps
+    // valid; a volatile read sees the C library's latest store.
+    unsafe { core::ptr::read_volatile(core::ptr::addr_of!(crate::caller_alloc::stdout)) }
+}
