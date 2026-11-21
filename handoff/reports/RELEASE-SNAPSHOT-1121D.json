@@ -1,0 +1,26 @@
+{"task": "RELEASE-SNAPSHOT-1121D", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at cd1bbabdb (serial 5, staged snapshot-20261121.5): no regression vs 21.4; #14 in the package (zic/zdump: vs glibc 2.39 zdump -v identical, zic 591/598 decode the same, rest read the same; localedef missing, partial); #20 as FCLOSE-COOKIE-SEEK states; wide reads 640 -> 120 instr (2-byte fgetwc_unlocked); start-up unchanged",
+ "branch": "task/release-snapshot-1121d", "head": null,
+ "gate": {"affected": "gate-1 GATE bad=0 (handoff-only branch); 31 snapshot checks same as 21.4", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "#14: zic's EET and WET differ from glibc 2.39's only in the std/UT indicators of the type before the first transition (ref 1/1, libniji 0/0); same transitions, footer and reading; not in TZ-TOOLS' KNOWN_FAT list",
+  "#14: zdump on a name that is no zone adds an 'abbreviation \"\" has fewer than 3 characters' warning the reference does not print; with an empty name it omits the reference's 'more than 6 characters' warning for Universal (stderr only; unrecorded)",
+  "loader: the packaged ld.so run as a program accepts only --help/--version; --library-path is refused (127), same in 21.4; spec/behaviour/dynlink.md names --library-path; no differences row or limitation states it",
+  "#20: FCLOSE-COOKIE-SEEK's three ruled differences have no docs/differences-from-glibc.md row yet",
+  "y19: the loader's _r_debug is 48 bytes by design (DL-RDEBUG-VERSION, COMPAT-36); y19's hard-coded 40 updated, y19-2 pass=14",
+  "docs: release notes 'Unreleased' has nothing for #14, #20 or wide reads; lintian +2 no-manual-page (zic, zdump); doccheck same 23 lines as 21.4"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "#14 in the package: zic and zdump in libc-bin (21.4: none); zdump -v/-c/-i on 14 zones identical to glibc 2.39's", "before": 0, "after": 29787, "unit": "zdump lines identical to the reference", "measured": true},
+  {"kind": "correctness", "what": "#20 in the package: y20 rows as glibc 2.39 or as ruled (21.4 differed from the head on 15 of 37)", "before": 22, "after": 37, "unit": "rows as expected", "measured": true},
+  {"kind": "perf", "what": "fgetwc_unlocked, 2-byte character, Skylake-SP (21.4 -> head)", "before": 640, "after": 120.2, "unit": "instr/call", "measured": true},
+  {"kind": "size", "what": "libc-bin package (21.4 -> head; zic and zdump added)", "before": 390768, "after": 411580, "unit": "bytes", "measured": true}
+ ],
+ "improvement": "a release check that compares a utility with 'stock' should name which reference it means: trixie's libc-bin is glibc 2.41, so y14's stock comparison was mostly version skew and needed a second check (y14r) against glibc 2.39",
+ "next_step": "coordinator: tag snapshot-2026-11-21.5 at cd1bbabdb from keke staging when the owner says so; tell Yohane #14 partial (zic/zdump, no localedef), #20 fixed; route findings 4-6 (TZ-TOOLS follow-up, loader --library-path)",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1121D.md",
+ "jobs": ["mei:release-snapshot-1121d-smoke-mei-1", "mei:release-snapshot-1121d-gate-1", "mei:release-snapshot-1121d-startup-mei-1", "mei:release-snapshot-1121d-kstart-mei-1", "mei:release-snapshot-1121d-rstart-mei-1", "mei:release-snapshot-1121d-percall-1", "mei:release-snapshot-1121d-sig32-1", "mei:release-snapshot-1121d-y20-1", "mei:release-snapshot-1121d-debs-1", "mei:release-snapshot-1121d-plants-1", "mei:release-snapshot-1121d-lint-1", "mei:release-snapshot-1121d-many-1", "mei:release-snapshot-1121d-dyn22-1", "mei:release-snapshot-1121d-y19-2", "mei:release-snapshot-1121d-y26-1", "mei:release-snapshot-1121d-y26t-1", "mei:release-snapshot-1121d-y23-1", "mei:release-snapshot-1121d-c19-1", "mei:release-snapshot-1121d-y25-1", "mei:release-snapshot-1121d-y24-1", "mei:release-snapshot-1121d-y28-1", "mei:release-snapshot-1121d-y25s-1", "mei:release-snapshot-1121d-y21-1", "mei:release-snapshot-1121d-yres-1", "mei:release-snapshot-1121d-y23p-1", "mei:release-snapshot-1121d-dlc-1", "mei:release-snapshot-1121d-y27-1", "mei:release-snapshot-1121d-eetwet-1", "mei:release-snapshot-1121d-precheck-1", "keke:release-snapshot-1121d-smoke-keke-1", "keke:release-snapshot-1121d-startup-keke-1", "keke:release-snapshot-1121d-kstart-keke-1", "keke:release-snapshot-1121d-rstart-keke-1", "keke:release-snapshot-1121d-pkgdiff-1", "keke:release-snapshot-1121d-stage-1", "keke:release-snapshot-1121d-install-1"]
+}
