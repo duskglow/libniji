@@ -2860,12 +2860,15 @@ pub(crate) fn loaded_bytes_errors(before: &[u8], after: &[u8]) -> Result<(), Str
         }
         Ok(r)
     };
-    // The section header fields (offset, entry size, count, names) may move: they are not loaded.
-    let header = |b: &[u8]| -> Vec<u8> { b.iter().take(0x40).enumerate().filter(|(i, _)| !(0x28..0x30).contains(i) && !(0x3a..0x40).contains(i)).map(|(_, x)| *x).collect() };
-    if header(before) != header(after) {
+    // The section header fields (offset, entry size, count, names) may move: no loader reads them, though
+    // a segment at file offset 0 (libc.so.6's first) covers them; they are compared as zero everywhere.
+    let unloaded = |i: usize| (0x28..0x30).contains(&i) || (0x3a..0x40).contains(&i);
+    let masked = |b: &[u8]| -> Vec<u8> { b.iter().enumerate().map(|(i, x)| if unloaded(i) { 0 } else { *x }).collect() };
+    let (before, after) = (masked(before), masked(after));
+    if before.get(..0x40) != after.get(..0x40) {
         return Err("the ELF header differs (outside the section header fields)".into());
     }
-    let (rb, ra) = (ranges(before)?, ranges(after)?);
+    let (rb, ra) = (ranges(&before)?, ranges(&after)?);
     if rb != ra {
         return Err("the program headers differ".into());
     }
@@ -3629,8 +3632,9 @@ mod tests {
     }
 
     /// VALGRIND-LOADER-VIEW (no spec clause: the build of libc.so.6): renaming in `.symtab` and moving
-    /// the section headers leave the loaded bytes as they were; a changed byte inside the loaded
-    /// segment, or a changed program header, is reported.
+    /// the section headers leave the loaded bytes as they were, also when the loaded segment starts at
+    /// file offset 0 and so covers the ELF header's section header fields (as libc.so.6's first does);
+    /// a changed byte inside the loaded segment, or a changed program header, is reported.
     #[test]
     fn loaded_bytes_compare_only_what_is_loaded() {
         let elf = tiny_elf(&[("f", 0x12, 5, 0x90, 4)]);
