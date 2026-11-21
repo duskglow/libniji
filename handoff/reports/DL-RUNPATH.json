@@ -10,7 +10,7 @@
   "start-time objects without DT_SONAME are still left out of a handle's local scope (adopt_deps matches soname or path only); given_name now has the name for a follow-up",
   "dlopen through an LD_LIBRARY_PATH $ORIGIN list not probed on the reference; the test expects the start's rule"
  ],
- "refused": [],
+ "refused": ["Bash with a heredoc (python3 -I - handoff/DL-RUNPATH.md ... <<'X'), refused by the no-heredoc hook; my error, done with the Edit tool instead"],
  "impact": [
   {"kind": "correctness", "what": "dlopen of a bare name / $ORIGIN name through a program's or library's $ORIGIN DT_RUNPATH/DT_RPATH now finds the library (was: not found)", "before": null, "after": null, "unit": null, "measured": true},
   {"kind": "correctness", "what": "dlopen(RTLD_NOLOAD) of a start-time library without DT_SONAME by its DT_NEEDED name, and of ld.so by its PT_INTERP path, returns the handle (was NULL)", "before": null, "after": null, "unit": null, "measured": true},
