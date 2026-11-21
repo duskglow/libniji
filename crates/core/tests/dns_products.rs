@@ -190,9 +190,25 @@ fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped:
         if let Some(m) = mode {
             cmd.arg("sh").arg(&wrap).arg(m);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").output().unwrap();
-        assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
-        String::from_utf8_lossy(&o.stdout).into_owned()
+        // Output to files, and wait for the child only: a process left behind by a run that was
+        // ended (a probe's DNS server) holding a pipe open would otherwise keep the test waiting
+        // for the pipe's end after `timeout` has gone, with no failure ever reported.
+        let (out, err) = (dir.join(format!("{scratch}.stdout")), dir.join(format!("{scratch}.stderr")));
+        let status = cmd
+            .arg("sh")
+            .arg(&script)
+            .arg(exe)
+            .arg(dir.join(scratch))
+            .env_clear()
+            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::fs::File::create(&out).unwrap())
+            .stderr(std::fs::File::create(&err).unwrap())
+            .status()
+            .unwrap();
+        let text = |p: &Path| String::from_utf8_lossy(&std::fs::read(p).unwrap_or_default()).into_owned();
+        assert!(status.success(), "{} failed: {status:?} (124: still running after the time limit)\n{}", exe.display(), text(&err));
+        text(&out)
     };
     let mut reference = run(&host, &format!("{stem}-host"), None);
     // libniji with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).

@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -518,8 +519,14 @@ static void start(const char *ip, int port, int idx, int mode)
     int p[2];
     if (pipe(p))
         exit(1);
+    pid_t parent = getpid();
     pid_t pid = fork();
     if (pid == 0) {
+        /* The server ends with the program, also when a time limit ends the program: a server
+         * left behind would keep the program's output open. */
+        syscall(SYS_prctl, PR_SET_PDEATHSIG, SIGKILL, 0L, 0L, 0L);
+        if (getppid() != parent)
+            _exit(0);
         close(p[0]);
         serve(p[1], ip, port, idx, mode);
         _exit(0);
