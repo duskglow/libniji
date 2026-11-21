@@ -4,9 +4,9 @@
  "tokens": null,
  "result": "No lost requests: gaimass missed its fixed 65 s wait under load; verdict made load-independent, O(lists waiting) group search fixed (submission CPU 0.17 s -> 0.02 s), dns_products can no longer hang, and its oracle runs (root processes included) can no longer outlive the run or the test (own PID namespace)",
  "branch": "task/gai-mass-loss",
- "head": "4b8dfee64 (last code commit; the report commit on top touches handoff/ only)",
+ "head": "25eca3995 (last code commit; the report commit on top touches handoff/ only)",
  "gate": {
-  "affected": "gai-mass-loss-gate3 (4b8dfee64): see hand-back; gai-mass-loss-gate (0faf848): affected ok, 0 SKIPPED; gate2 stopped (superseded by gate3)",
+  "affected": "gai-mass-loss-gate4 (25eca3995): see hand-back; gate3 (4b8dfee64) red on the reexec-audit only, fixed in 25eca3995; gai-mass-loss-gate (0faf848): affected ok, 0 SKIPPED; gate2 stopped (superseded)",
   "peak": "4.5G (gate on 0faf848)"
  },
  "accepted_first_attempt": null,
@@ -66,7 +66,7 @@
   },
   {
    "kind": "coverage",
-   "what": "a_killed_run_leaves_no_process: 1 test, 3 plants (contain.sh)",
+   "what": "a_killed_run_leaves_no_process: 1 test, 3 plants on contain.sh (all CAUGHT, gai-mass-loss-plants2)",
    "before": 0,
    "after": 1,
    "unit": "tests",
@@ -77,7 +77,7 @@
  "next_step": "Optional: wrap the other root-running harnesses with oracle/contain.sh; DNS-path CPU per request story (77-102 us vs 62-89 us).",
  "report_file": "handoff/GAI-MASS-LOSS.md",
  "jobs": [
-  "keke:gai-mass-loss-gate3",
+  "keke:gai-mass-loss-gate4",
   "keke:gai-mass-loss-plants",
   "keke:gai-mass-loss-plants2"
  ]
