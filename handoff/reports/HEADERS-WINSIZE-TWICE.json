@@ -1,0 +1,21 @@
+{"task": "HEADERS-WINSIZE-TWICE", "model": "opus", "tokens": null,
+ "result": "sys/mount.h, sys/mtio.h, sys/raw.h no longer include a non-libniji <sys/ioctl.h>; header_check 8 failed -> 0 failed of 11659",
+ "branch": "task/headers-winsize-twice", "head": null,
+ "gate": {"affected": "FULL: the train's (generated headers); header_check 0 failed of 11659, headers-gen --check ok, clippy and static clean", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "c89 -pedantic-errors: <sys/mount.h> with _GNU_SOURCE fails in fcntl.h (zero-size array f_handle); <sys/mtio.h> with _GNU_SOURCE/_DEFAULT_SOURCE fails in sys/types.h:155 (long long). Same on origin/next; reference not probed; no header_check unit runs P5's c89 -pedantic-errors clause",
+   "No decision record written; suggested D-row text is in handoff/HEADERS-WINSIZE-TWICE.md"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "header_check P8 sys/mount.h with linux/mount.h: struct winsize redefined", "before": 8, "after": 0, "unit": "failing units of 11659", "measured": true},
+   {"kind": "correctness", "what": "sys/mount.h, sys/mtio.h, sys/raw.h alone on an include path with a non-libniji sys/ioctl.h (scratch probe, 4 language modes each)", "before": 12, "after": 0, "unit": "failing units of 12", "measured": true},
+   {"kind": "coverage", "what": "slice 15 include check (header_checks/s15.py problems) and 2 plants, both CAUGHT", "before": 0, "after": 2, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "header_check baseline green on next: SL-HEADERS-S12-6 gate and plants, HEADERS-GEN-S10-HOOKS deferred header_check.py plants", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "header_check's uapi_flags() docstring says the host's C library headers stay out of reach, but P8 puts all of /usr/include on the path; P8 could use the same kernel-only link directory as P5 plus a deliberate foreign-libc unit, so no single header reaches the host libc by accident",
+ "next_step": "land; optionally reserve a D-row for the no-foreign-include rule and widen the include check to every slice",
+ "report_file": "handoff/HEADERS-WINSIZE-TWICE.md",
+ "jobs": ["mei:headers-winsize-twice-hc-final", "mei:headers-winsize-twice-plants"]}

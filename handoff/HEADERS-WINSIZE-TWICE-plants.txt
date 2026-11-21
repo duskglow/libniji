@@ -3,3 +3,6 @@
 # (the host's include path); sys/mtio.h has no P8 pair: caught by slice 15's include check (header_checks/s15.py).
 ws-mount-ioctl | headers/sys/mount.h.in | perl:s/(#include <fcntl\.h>\n)/$1#if defined __has_include\n# if __has_include(<sys\/ioctl.h>)\n#  include <sys\/ioctl.h>\n# endif\n#endif\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL P8 sys/mount\.h then linux/mount\.h.*redefinition of .struct winsize
 ws-mtio-ioctl | headers/sys/mtio.h.in | perl:s/(#include <sys\/types\.h>\n)/$1#if defined __has_include\n# if __has_include(<sys\/ioctl.h>)\n#  include <sys\/ioctl.h>\n# endif\n#endif\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py --include libc-include | msg:FAIL headers/sys/mtio\.h\.in:[0-9]+: includes <sys/ioctl\.h>
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# ws-mount-ioctl: CAUGHT, caught by no test the log names
+# ws-mtio-ioctl: CAUGHT, caught by no test the log names
