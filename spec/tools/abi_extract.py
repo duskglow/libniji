@@ -35,7 +35,7 @@ sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mch
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
-net/ethernet.h net/if_arp.h netpacket/packet.h utime.h""".split()
+net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -70,6 +70,8 @@ TYPES = [
  ("__sigset_t", "__sigset_t"),
  ("cpu_set_t", "cpu_set_t"),
  ("struct sched_param", "struct sched_param"), ("sem_t", "sem_t"),
+ ("union ieee754_float", "union ieee754_float"), ("union ieee754_double", "union ieee754_double"),
+ ("union ieee854_long_double", "union ieee854_long_double"),
  ("thrd_t", "thrd_t"), ("mtx_t", "mtx_t"), ("cnd_t", "cnd_t"), ("tss_t", "tss_t"), ("once_flag", "once_flag"),
  ("struct timespec", "struct timespec"), ("struct timeval", "struct timeval"), ("struct tm", "struct tm"),
  ("struct itimerval", "struct itimerval"), ("struct itimerspec", "struct itimerspec"),

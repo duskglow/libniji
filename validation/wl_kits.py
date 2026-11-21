@@ -11,7 +11,12 @@
 # extra cost is paid once per start (loader, relocation, IFUNC resolution) rather than per call (PLT).
 # "dyn@glibc-start" = the dynamic column with each start priced at glibc's per-start instructions instead: the level
 # the dynamic kit would reach if libniji's dynamic start-up matched glibc's (what DYN-START-SPEED works on).
+#
+# Output column "out": SAME, or per libniji column "=" (md5 = glibc's), "k" (differs, and the differing lines'
+# fingerprint (dfp row, count:sha1 as wl_run.sh makes it) is allowed for the workload by wl_known_diffs.tsv, the list
+# the workload gate's wl_report.py reads) or "!" (differs, unexplained): KNOWN(sk,dk) when nothing is "!", else DIFF(...).
 import math
+import os
 import statistics
 import sys
 from collections import defaultdict
@@ -36,9 +41,46 @@ def geo(xs):
     return math.exp(sum(math.log(x) for x in xs) / len(xs)) if xs else float("nan")
 
 
-def main(path):
+def load_known(path):
+    """(workload, fingerprint) pairs of wl_known_diffs.tsv (header row workload, fingerprint, ...; # comments)."""
+    known = set()
+    if not os.path.exists(path):
+        return known
+    hdr = None
+    for line in open(path):
+        if line.startswith("#") or not line.strip():
+            continue
+        f = line.rstrip("\n").split("\t")
+        if hdr is None:
+            hdr = f
+            continue
+        r = dict(zip(hdr, f))
+        known.add((r.get("workload"), r.get("fingerprint")))
+    return known
+
+
+def out_mark(w, md5, dfp, known):
+    """The "out" column: SAME, KNOWN(sk,dk) or DIFF(s!,d=) (see the header)."""
+    ref = md5.get((w, "glibc"))
+    marks = []
+    for col in ("static", "dynamic"):
+        if md5.get((w, col)) == ref:
+            marks.append("=")
+        elif (w, dfp.get((w, col))) in known:
+            marks.append("k")
+        else:
+            marks.append("!")
+    if marks == ["=", "="]:
+        return "SAME"
+    return "%s(s%s,d%s)" % ("DIFF" if "!" in marks else "KNOWN", marks[0], marks[1])
+
+
+def main(path, known_path):
+    known = load_known(known_path)
+    unexplained, allowed = [], []
     runs = defaultdict(lambda: defaultdict(list))   # (w, col) -> field -> values
     md5 = {}
+    dfp = {}
     execs = defaultdict(dict)
     start = defaultdict(lambda: defaultdict(list))  # (prog, col) -> field -> values
     order = []
@@ -52,6 +94,8 @@ def main(path):
                 runs[(w, col)][k].append(num(v))
         elif f[0] == "md5":
             md5[(f[1], f[2])] = f[3]
+        elif f[0] == "dfp":
+            dfp[(f[1], f[2])] = f[3]
         elif f[0] == "exec":
             execs[f[1]][f[2]] = int(f[3])
         elif f[0] == "start":
@@ -86,8 +130,8 @@ def main(path):
         excess = sum(n * (s[(p, "dynamic")]["iu"] - s[(p, "glibc")]["iu"]) for p, n in execs[w].items() if (p, "dynamic") in s and (p, "glibc") in s)
         atg = (dy["iu"] - excess) / g["iu"]
         ratios["datg"].append(atg)
-        out = "SAME" if md5.get((w, "static")) == md5.get((w, "glibc")) == md5.get((w, "dynamic")) else \
-            "DIFF(s%s,d%s)" % ("=" if md5.get((w, "static")) == md5.get((w, "glibc")) else "!", "=" if md5.get((w, "dynamic")) == md5.get((w, "glibc")) else "!")
+        out = out_mark(w, md5, dfp, known)
+        (unexplained if out.startswith("DIFF") else allowed if out.startswith("KNOWN") else []).append(w)
         for col, key in (("static", "s"), ("dynamic", "d")):
             for k in ("iu", "pf", "tc"):
                 v = r[key + k]
@@ -109,6 +153,9 @@ def main(path):
             for lim in ("1.10", "1.00"):
                 lst = over[(col, k)][lim]
                 print("%-7s %-22s > %s: %2d  %s" % (col, names[k], lim, len(lst), ", ".join(lst)))
+    print("output differs from glibc, unexplained (no wl_known_diffs.tsv row for its fingerprint): %d  %s"
+          % (len(unexplained), ", ".join(unexplained)))
+    print("output differs from glibc, known (wl_known_diffs.tsv): %d  %s" % (len(allowed), ", ".join(allowed)))
     # The nightly / release-candidate sweep (WL-DYNAMIC-GATE, D-X.141): the INVIOLABLE rule reported for both kits, the
     # held rows of validation/wl_holds.tsv not applied (the dynamic column's binding verdict is wl_count's).
     for col, key in (("static", "s"), ("dynamic", "d")):
@@ -119,7 +166,11 @@ def main(path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.stderr.write("usage: wl_kits.py RAW.tsv\n")
+    a = sys.argv[1:]
+    kp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wl_known_diffs.tsv")
+    if len(a) == 3 and a[1] == "--known":
+        kp = a[2]
+    elif len(a) != 1:
+        sys.stderr.write("usage: wl_kits.py RAW.tsv [--known wl_known_diffs.tsv]\n")
         sys.exit(2)
-    main(sys.argv[1])
+    main(a[0], kp)

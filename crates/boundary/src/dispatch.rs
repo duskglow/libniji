@@ -185,7 +185,10 @@ fn store_cmp_gates(fold: bool, avx2: bool) {
 /// `[0, 64 KiB)` can succeed, which [`page_zero_unmappable`] establishes at startup
 /// (`runtime`; `selftest` forces it in tests). A folded kernel touches at most
 /// `[d, d + FOLD_MAX)` with `FOLD_MAX` = 64 <= 64 KiB, so a NULL `d` or `s` faults; the 65-2048
-/// compare classes first touch `[a, a + 32)` and `[b, b + 32)` (their head block).
+/// compare classes first touch `[a, a + 32)` and `[b, b + 32)` (their head block). The one
+/// exception is the loader build (`ld` without `export`, [`resolve_fold_slow`]): no caller outside
+/// its own Rust code exists there, so no NULL with a nonzero size reaches an entry, and the
+/// obligation holds without the read.
 // The word itself lives in machine/fold.S (`niji_machine_fold_limit`), which reads it on every
 // call (D-4.22 COPY-FILL).
 use crate::ffi::niji_machine_fold_limit as FOLD;
@@ -311,7 +314,14 @@ fn resolve_fold_slow() {
     if FOLD_RESOLVING.swap(true, Relaxed) {
         return;
     }
-    select_null_fold(page_zero_unmappable(&crate::sys::CSys));
+    // The loader and ldconfig (`ld` without `export`) export no copy, fill, compare or scan entry
+    // (ld.so's dynamic symbol table has none), so their only callers are the program's own Rust
+    // code, which never passes NULL with a nonzero size (UB in Rust). The explicit NULL tests can
+    // then never fire, folding changes no outcome, and the decision needs no `vm.mmap_min_addr`
+    // read: 3 system calls off every dynamic start (DYN-START-RING), the same folded paths as
+    // with the read on a usual host (deciding "off" cost about 33k instructions, DYN-START-QUICK).
+    let fold = cfg!(all(feature = "ld", not(feature = "export"))) || page_zero_unmappable(&crate::sys::CSys);
+    select_null_fold(fold);
     FOLD_RESOLVING.store(false, Relaxed);
 }
 

@@ -1,0 +1,62 @@
+{
+ "task": "SL-HEADERS-S11-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "ieee754.h generated from the tables with a field proof; isinf/isnan functions and __fpu_control now declared; P2/P3 classified (C configs agree, C++ rows are wrapper-sourced); gate and plants pending",
+ "branch": "task/sl-headers-s11-3",
+ "head": "c9c77b9a8",
+ "gate": {
+  "affected": "pending (job sl-headers-s11-3-gate: stubs, clippy, static, so, conformance, affected, cargo xtask test)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  {
+   "item": "C++ visibility rows (3659 P2, 116 P3) differ only in C++ configurations: the table was probed with libstdc++'s wrapper headers, libniji's probe has none; <cmath>/<complex> in every -std cannot be built until other slices' headers exist",
+   "recommendation": "re-run cxx.sh when the headers of the other slices land"
+  },
+  {
+   "item": "conformance --niji-headers: 4 of the 5 slice-11 programs need headers of other slices (sys/auxv.h, pthread.h, setjmp.h, signal.h, locale.h, wchar.h); fpu_control_default found the missing __fpu_control declaration (fixed); s10_sqrtl_entry passes",
+   "recommendation": "none"
+  },
+  {
+   "item": "plants on libc-include/*.h and on the generator are caught at the products build (headers-gen stale check) before header_check runs; run 2's four float-conversion plants report WARN-NO-MSG for that reason",
+   "recommendation": "none"
+  }
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "ieee754.h generated + 26 field checks + 12 new plants + union P1 coverage",
+   "before": 0,
+   "after": 26,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "isinf(double)/isnan(double) functions and __fpu_control object were not declared by math.h/fpu_control.h",
+   "before": null,
+   "after": null,
+   "unit": "declarations",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "layouts.tsv bit-field offsets were 0 for every bit-field; now the real first bit",
+   "before": 0,
+   "after": 46,
+   "unit": "rows corrected",
+   "measured": true
+  }
+ ],
+ "improvement": "plants whose target is a generated header are caught by the products build's stale check, so they never test the checker; a plants mode that runs the direct cmd without the products build for header plants would let P1/P5/P6 plants test the checks",
+ "next_step": "collect gate and plants2; then <cmath>/<complex> in every -std once other slices' headers exist",
+ "report_file": "handoff/SL-HEADERS-S11.md",
+ "jobs": [
+  "sl-headers-s11-3-gate",
+  "sl-headers-s11-3-plants2"
+ ]
+}

@@ -1,0 +1,22 @@
+{"task": "DYN-START-RING-2", "model": "opus", "tokens": null,
+ "result": "plants rerun (no code change): 7 plants, 7 CAUGHT on Skylake-SP with --timeout 6000; gate2 and startup1 rc 0; DYN-START-RING's start-up system-call cuts ready to land",
+ "branch": "task/dyn-start-ring-2", "head": null,
+ "gate": {"affected": "keke:dyn-start-ring-gate2 rc 0 (direct tier, head 414a84a0d, same code)", "peak": "12G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "keke:dyn-start-ring-plants2 failed only on its limit: the traced product build took 2414 s / 2636 s on Zen 1 with two copies, and the baseline command's own `cargo xtask so` hit --timeout 2400. On Skylake-SP (mei, load ~23 of 48) the traced build took 1087 s / 987 s and the whole run 2 h 07 min.",
+  "Plant commands of the form `cargo xtask so && cargo test ...` build the products a second time: the plants tool already rebuilds them after applying each plant whose command uses the products. The plants file was not changed here (the brief said rerun it as is)."
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "plants on DYN-START-RING's code verified: 7 CAUGHT, 0 SURVIVED, 0 WARN", "before": 0, "after": 7, "unit": "plants", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main system calls (strace incl. execve), Zen 1 (DYN-START-RING leg 2)", "before": 36, "after": 28, "unit": "syscalls", "measured": false},
+  {"kind": "perf", "what": "dynamic main + 3 libraries system calls, Zen 1 (DYN-START-RING leg 2)", "before": 78, "after": 58, "unit": "syscalls", "measured": false},
+  {"kind": "perf", "what": "dynamic empty main kernel instructions, Skylake-SP (DYN-START-RING leg 2)", "before": 806255, "after": 773456, "unit": "instr/start", "measured": false},
+  {"kind": "perf", "what": "dynamic main + 3 libraries kernel instructions, Skylake-SP (DYN-START-RING leg 2)", "before": 1237187, "after": 1183001, "unit": "instr/start", "measured": false},
+  {"kind": "faults", "what": "page faults per dynamic start n0 (DYN-START-RING leg 2)", "before": 59, "after": 58, "unit": "faults", "measured": false}
+ ],
+ "improvement": "drop the leading `cargo xtask so &&` from product-using plant commands (the tool rebuilds products per plant already); on a traced layout that doubles each plant's ~15-40 min build and is what ran the baseline into its limit",
+ "next_step": "land task/dyn-start-ring-2 (coordinator); then the brief items left in handoff/DYN-START-RING.md step 3",
+ "report_file": "handoff/DYN-START-RING.md",
+ "jobs": ["mei:dyn-start-ring-2-plants", "keke:dyn-start-ring-gate2", "keke:dyn-start-ring-startup1"]}

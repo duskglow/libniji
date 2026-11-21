@@ -1,0 +1,8 @@
+# WIDE-READ-FAST plants (D-12.30): each makes the wide-read front path take a character it must leave to the general path.
+front-past-window | crates/legacy/src/stdio_compat.rs | lit:let win = env.bytes(b, ext.buf_len).get(at..ext.state.rend.min(ext.buf_len))?; ==> let win = env.bytes(b, ext.buf_len).get(at..ext.buf_len)?; | cargo test -p niji --test s12_stdio_clauses -- s12_10_c_0 wide_read_ | msg:wide_read_characters_cut_by_the_window_end.*(FAILED|panicked)
+front-pending-state | crates/legacy/src/stdio_compat.rs | lit:if ext.wide.partial != 0 || b == 0 ==> if b == 0 | cargo test -p niji --test s12_stdio_clauses -- s12_10_c_0 wide_read_ | msg:wide_read_partial_character_is_continued.*(FAILED|panicked)
+front-given-back | crates/legacy/src/stdio_compat.rs | lit:if let Some(i) = ext.wide.back_len.checked_sub(1) { ==> if let Some(i) = None::<usize> { | cargo test -p niji --test s12_stdio_clauses -- s12_10_c_0 wide_read_ | msg:s12_10_c_0 .*(FAILED|panicked)|pushback
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# front-past-window: CAUGHT, caught by s12_stdio_clauses s12_10_c_0
+# front-pending-state: CAUGHT, caught by s12_stdio_clauses wide_read_partial_character_is_continued
+# front-given-back: CAUGHT, caught by s12_stdio_clauses s12_10_c_0

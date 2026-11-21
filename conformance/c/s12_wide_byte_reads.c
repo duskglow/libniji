@@ -1,4 +1,4 @@
-/* Spec §12.1, §12.5 and §12.10, D-12.27, D-12.28: byte operations on a wide-oriented stream work on
+/* Spec §12.1, §12.5 and §12.10, D-12.27, D-12.28, D-12.29: byte operations on a wide-oriented stream work on
  * the stream's bytes in order. The wide layer stops before an invalid sequence (WEOF, EILSEQ, the
  * error indicator) and before a character cut short at end of file (WEOF, the end-of-file
  * indicator); a byte read then returns its first byte and wide reads go on after it, as a program
@@ -158,6 +158,18 @@ static int run(void)
     CHECK(35, (f = open_mode(end, sizeof end - 1, "r")) != NULL && fgetwc(f) == L'e');
     CHECK(36, fgetwc(f) == WEOF && feof(f) && !ferror(f) && ftell(f) == 1);
     CHECK(37, getc(f) == 0xe2 && getc(f) == 0x82 && getc(f) == EOF && feof(f));
+
+    /* Cut short at end of file with nothing before it in the input read (D-12.29): EILSEQ with the
+     * error indicator and not the end-of-file one, the bytes consumed (the position after them),
+     * then a plain end of input. In the locale's encoding and a ccs= one. */
+    static const char alone[] = "\xe3\x81";
+    for (int k = 0; k < 2; k++) {
+        CHECK(38, (f = open_mode(alone, sizeof alone - 1, k ? "r,ccs=UTF-8" : "r")) != NULL);
+        errno = 0;
+        CHECK(39, fgetwc(f) == WEOF && errno == EILSEQ && ferror(f) && !feof(f) && ftell(f) == 2);
+        errno = 0;
+        CHECK(40, fgetwc(f) == WEOF && errno != EILSEQ && feof(f) && ftell(f) == 2);
+    }
     return 0;
 }
 

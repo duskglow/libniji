@@ -4,16 +4,26 @@
 //!
 //! The structure is `<link.h>`'s `struct r_debug` (40 bytes on LP64): `r_version`, `r_map` (the
 //! base namespace's `link_map` list), `r_brk` (the function the loader calls around every change of
-//! the list), `r_state`, `r_ldbase` (the loader's load address). Version 1 has no `r_next`; version 2
-//! (`r_debug_extended`, one structure per namespace linked through `r_next`) extends it with
-//! `dlmopen` (DL-22) without changing these fields.
+//! the list), `r_state`, `r_ldbase` (the loader's load address). Version 2 (`r_debug_extended`, one
+//! structure per namespace linked through `r_next`, at offset 40) extends it without changing these
+//! fields; `ld.so`'s own `_r_debug` is that 48-byte structure, with `r_next` null while there is one
+//! namespace (DL-22's `dlmopen` links the others). A program's `COPY` relocation made against a
+//! 40-byte `_r_debug` (every program linked against the reference) has no room for `r_next`, so
+//! its copy says version 1 (D-27.62; COMPAT-36).
 
-/// `r_version` of the base namespace's rendezvous while there is one namespace (probe: the reference
-/// reports 1).
-pub const VERSION: i32 = 1;
+/// `r_version` of `ld.so`'s own rendezvous: the extended structure (spec s27_4_c_0).
+pub const VERSION: i32 = 2;
 
-/// `_r_debug`'s size and the offsets of its fields (`<link.h>`, LP64).
+/// `r_version` of a program's copy that is only [`SIZE`] bytes: the structure without `r_next`.
+pub const VERSION_COPY: i32 = 1;
+
+/// `struct r_debug`'s size and the offsets of its fields (`<link.h>`, LP64): what a program linked
+/// against the reference copies.
 pub const SIZE: usize = 40;
+/// The size of `ld.so`'s own `_r_debug`, `r_debug_extended`: [`SIZE`] bytes and `r_next`.
+pub const SIZE_EXT: usize = 48;
+/// Offset of `r_next` (extended structure only): the next namespace's rendezvous, null for the last.
+pub const NEXT: usize = 40;
 /// Offset of `r_map`.
 pub const MAP: usize = 8;
 /// Offset of `r_brk`.
@@ -55,6 +65,7 @@ mod tests {
     #[test]
     fn states_are_the_link_h_values() {
         assert_eq!((State::Consistent.word(), State::Add.word(), State::Delete.word()), (0, 1, 2));
-        assert_eq!((MAP, BRK, STATE, LDBASE, SIZE), (8, 16, 24, 32, 40));
+        assert_eq!((MAP, BRK, STATE, LDBASE, SIZE, NEXT, SIZE_EXT), (8, 16, 24, 32, 40, 40, 48));
+        assert_eq!((VERSION, VERSION_COPY), (2, 1));
     }
 }

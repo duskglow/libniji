@@ -448,6 +448,46 @@ struct sched_param	sched_priority	0		int
 sem_t		32	8		
 sem_t	__size	0		char[32]	
 sem_t	__align	0		long int	
+union ieee754_float		4	4		
+union ieee754_float	f	0		float	
+union ieee754_float	ieee	0		struct <anon>	
+union ieee754_float	ieee.mantissa	0		unsigned int	bits 23@0
+union ieee754_float	ieee.exponent	0		unsigned int	bits 8@23
+union ieee754_float	ieee.negative	0		unsigned int	bits 1@31
+union ieee754_float	ieee_nan	0		struct <anon>	
+union ieee754_float	ieee_nan.mantissa	0		unsigned int	bits 22@0
+union ieee754_float	ieee_nan.quiet_nan	0		unsigned int	bits 1@22
+union ieee754_float	ieee_nan.exponent	0		unsigned int	bits 8@23
+union ieee754_float	ieee_nan.negative	0		unsigned int	bits 1@31
+union ieee754_double		8	8		
+union ieee754_double	d	0		double	
+union ieee754_double	ieee	0		struct <anon>	
+union ieee754_double	ieee.mantissa1	0		unsigned int	bits 32@0
+union ieee754_double	ieee.mantissa0	4		unsigned int	bits 20@0
+union ieee754_double	ieee.exponent	4		unsigned int	bits 11@20
+union ieee754_double	ieee.negative	4		unsigned int	bits 1@31
+union ieee754_double	ieee_nan	0		struct <anon>	
+union ieee754_double	ieee_nan.mantissa1	0		unsigned int	bits 32@0
+union ieee754_double	ieee_nan.mantissa0	4		unsigned int	bits 19@0
+union ieee754_double	ieee_nan.quiet_nan	4		unsigned int	bits 1@19
+union ieee754_double	ieee_nan.exponent	4		unsigned int	bits 11@20
+union ieee754_double	ieee_nan.negative	4		unsigned int	bits 1@31
+union ieee854_long_double		16	16		
+union ieee854_long_double	d	0		long double	
+union ieee854_long_double	ieee	0		struct <anon>	
+union ieee854_long_double	ieee.mantissa1	0		unsigned int	bits 32@0
+union ieee854_long_double	ieee.mantissa0	4		unsigned int	bits 32@0
+union ieee854_long_double	ieee.exponent	8		unsigned int	bits 15@0
+union ieee854_long_double	ieee.negative	8		unsigned int	bits 1@15
+union ieee854_long_double	ieee.empty	8		unsigned int	bits 16@16
+union ieee854_long_double	ieee_nan	0		struct <anon>	
+union ieee854_long_double	ieee_nan.mantissa1	0		unsigned int	bits 32@0
+union ieee854_long_double	ieee_nan.mantissa0	4		unsigned int	bits 30@0
+union ieee854_long_double	ieee_nan.quiet_nan	4		unsigned int	bits 1@30
+union ieee854_long_double	ieee_nan.one	4		unsigned int	bits 1@31
+union ieee854_long_double	ieee_nan.exponent	8		unsigned int	bits 15@0
+union ieee854_long_double	ieee_nan.negative	8		unsigned int	bits 1@15
+union ieee854_long_double	ieee_nan.empty	8		unsigned int	bits 16@16
 thrd_t		8	8		
 mtx_t		40	8		
 mtx_t	__size	0		char[40]	

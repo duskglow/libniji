@@ -54,6 +54,7 @@ _IO_sprintf		csys/src/adapter/variadic.c:162	niji_vsnprintf6
 _IO_sputbackc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:834	
 _IO_sputbackwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:597	ret::wint_written
 _IO_sscanf		csys/src/adapter/variadic.c:197	niji_vsscanf4
+_IO_stdin_used		csys/src/machine/entry.S:224	niji_start_main_static_pie
 _IO_sungetc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:602	ret::byte_written
 _IO_sungetwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:657	ret::wint_written
 _IO_ungetc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:829	
@@ -97,6 +98,7 @@ __cxa_finalize	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:135	process:
 __cxa_thread_atexit_impl	GLIBC_2.18	crates/boundary/src/posix/s01_startup.rs:140	ret::registered
 __cyg_profile_func_enter	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:372	
 __cyg_profile_func_exit	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:376	
+__data_start		csys/src/machine/entry.S:216	niji_start_main_static_pie
 __dcgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:118	ret::ptr
 __default_morecore	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:208	ret::null
 __dgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:106	ret::ptr
@@ -556,7 +558,7 @@ __wmemset_chk	GLIBC_2.4	crates/boundary/src/posix/s04_strings.rs:1364	ret::same
 __woverflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:587	ret::wint_written
 __wprintf_chk		csys/src/adapter/variadic.c:177	niji_vfwprintf4
 __write	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:162	ret::ssize
-__wuflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:547	ret::wint_or_weof
+__wuflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:547	stdio::getwc_c
 __wunderflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:552	ret::wint_or_weof
 __x86_get_cpuid_feature_leaf	GLIBC_2.33	crates/boundary/src/posix/s27_dynlink.rs:216	usize::try_from
 __xmknod	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:187	ret::zero
@@ -593,7 +595,7 @@ _pthread_cleanup_push_defer	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs
 _rpc_dtablesize	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:382	
 _seterr_reply	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:234	u64::from
 _setjmp		csys/src/machine/setjmp.S:108	niji_machine_sigsetjmp
-_start		csys/src/machine/entry.S:171	niji_start_main_static_pie
+_start		csys/src/machine/entry.S:234	niji_start_main_static_pie
 _sys_errlist	GLIBC_2.12	csys/src/machine/compat_aliases.S:3496	
 _sys_errlist	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3493	
 _sys_errlist	GLIBC_2.3	csys/src/machine/compat_aliases.S:3494	
@@ -1280,8 +1282,8 @@ fgetsgent	GLIBC_2.10	crates/boundary/src/posix/s17_users.rs:364	ret::null
 fgetsgent_r	GLIBC_2.10	crates/boundary/src/posix/s17_users.rs:369	conv::addr
 fgetspent	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:292	ret::null
 fgetspent_r	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:297	conv::addr
-fgetwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:517	ret::wint_or_weof
-fgetwc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:527	ret::wint_or_weof
+fgetwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:517	stdio::getwc_c
+fgetwc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:527	stdio::getwc_c
 fgetws	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:662	ret::buf_or_null
 fgetws_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:668	ret::buf_or_null
 fgetxattr	GLIBC_2.3	crates/boundary/src/posix/s13_filesystem.rs:512	ret::ssize
@@ -1653,10 +1655,10 @@ getutxent	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:521	ret::null
 getutxid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:526	ret::null
 getutxline	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:531	ret::null
 getw	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:303	ret::int_or_eof
-getwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:522	ret::wint_or_weof
-getwc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:532	ret::wint_or_weof
-getwchar	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:537	ret::wint_or_weof
-getwchar_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:542	ret::wint_or_weof
+getwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:522	stdio::getwc_c
+getwc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:532	stdio::getwc_c
+getwchar	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:537	stdio::getwc_c
+getwchar_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:542	stdio::getwc_c
 getwd	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:655	ret::null
 getxattr	GLIBC_2.3	crates/boundary/src/posix/s13_filesystem.rs:500	ret::ssize
 glob	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:280	patterns::glob_2_2_5

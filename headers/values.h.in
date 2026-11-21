@@ -1,0 +1,18 @@
+@@generated
+/* values.h: the SVID machine constants (legacy; shipped, plan/headers.md 5.1). */
+#ifndef __NIJI_H_values_h
+#define __NIJI_H_values_h 1
+
+#include <features.h>
+#include <limits.h>
+#include <float.h>
+
+__NIJI_BEGIN_C
+
+/* INFINITY and NAN are the compiler's <float.h> macros (C2X mode). */
+@@owns INFINITY NAN
+@@emit
+
+__NIJI_END_C
+
+#endif

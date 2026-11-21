@@ -15,7 +15,8 @@ use niji_kernel::auxv::Auxv;
 use niji_kernel::machine::Machine;
 // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
 use niji_kernel::sys::Sys;
-use niji_kernel::uapi::{AT_NULL, AT_PHDR, AT_PHNUM, AT_RANDOM, AT_SECURE, AT_SYSINFO_EHDR, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_kernel::uapi::{AT_EXECFN, AT_NULL, AT_PAGESZ, AT_PHDR, AT_PHNUM, AT_RANDOM, AT_SECURE, AT_SYSINFO_EHDR, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_abi::layout::struct_dl_phdr_info;
 use niji_legacy::exit_handlers::ATEXIT;
 use niji_legacy::search_c::CWords;
 // ARCH(x86_64): x87 control word reset at start-up; FPCR on aarch64 (A-9)
@@ -97,8 +98,8 @@ fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bo
     // UNSAFE(slice): the program headers the kernel mapped with the executable.
     #[allow(unsafe_code)]
     // SAFETY: `AT_PHDR`/`AT_PHNUM` describe the loaded headers (⚑ KERN), which stay mapped.
-    let words = unsafe { conv::words_at(phdr, phnum.saturating_mul(start::PHDR_WORDS)) };
-    let mut prog = start::program(words, phnum, phdr);
+    let heads = unsafe { conv::headers_at(phdr, phnum) };
+    let mut prog = start::program(heads, phdr);
     let mut pie = None;
     if !PIE {
         if prog.bias != 0 {
@@ -329,6 +330,58 @@ fn publish(argv_addr: usize, n_args: usize, envp: usize, stack_end: usize) {
     ffi::__libc_stack_end.store(stack_end, Release);
 }
 
+/// COMPAT-19 at start (D-27.66, ruling #6941), from [`early_init`] and only when `GLIBC_TUNABLES`
+/// sets `niji.compat.execstack=1` in a process that is not secure: `ld.so` read the same string
+/// and accepted every start object asking for an executable stack (it refuses such an object
+/// otherwise, so an object asking is one accepted). When one asks, the initial thread's stack and
+/// every thread stack this library maps become executable, here, before any constructor. A normal
+/// start, without the tunable, reads nothing for COMPAT-19. It takes no arguments: the auxiliary
+/// vector comes from what [`early_init`] published (the top page without `AT_EXECFN` is the
+/// vector's own address), so the caller's closure borrows nothing and the normal path keeps the
+/// code it had (a borrowed `Auxv` there was spilled to the stack on every start).
+#[cold]
+#[inline(never)]
+fn exec_stacks_at_start() {
+    // The loader's walk itself (stored above), not the exported, interposable `dl_iterate_phdr`:
+    // a call to that export binds a GOT slot every dynamic start resolves (one more symbol lookup,
+    // about 1,400 instructions per start on an empty main), the cost this function exists to avoid.
+    let walk = crate::posix::s27_dynlink::LOADER_ITERATE.load(Acquire);
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    let cb = i64::from_ne_bytes(u64::try_from((asks_exec_stack as *const ()).expose_provenance()).unwrap_or(0).to_ne_bytes());
+    if walk == 0 || crate::posix::s27_dynlink::int_result(crate::ffi::niji_machine_call3(walk, cb, 0, 0)) == 0 {
+        return;
+    }
+    let auxv = process::AUXV_ADDR.load(Acquire);
+    let aux = Auxv::from_words(conv::startup_auxv(auxv, process::AUXV_WORDS.load(Acquire)));
+    let get = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
+    let execfn = get(AT_EXECFN);
+    // UNSAFE(slice): the `AT_EXECFN` string on the initial stack.
+    #[allow(unsafe_code)]
+    // SAFETY: the kernel's `AT_EXECFN` is a NUL-terminated copy of the program's path in the
+    // initial stack mapping (⚑ KERN, execve), which stays mapped for the process's lifetime.
+    let len = if execfn == 0 { 0 } else { unsafe { strz::strz(core::ptr::with_exposed_provenance::<i8>(execfn)) }.map_or(0, <[u8]>::len) };
+    let top = if execfn == 0 { auxv } else { execfn.wrapping_add(len) };
+    crate::thread::exec_main_stack(top, get(AT_PAGESZ));
+    crate::thread::stacks_executable();
+}
+
+/// `dl_iterate_phdr` callback for [`exec_stacks_at_start`]: 1 (which ends the walk) when the
+/// object's program headers ask for an executable stack (`PT_GNU_STACK` with `PF_X`).
+extern "C" fn asks_exec_stack(info: &struct_dl_phdr_info, _size: usize, _data: *mut c_void) -> c_int {
+    let n = usize::from(info.dlpi_phnum);
+    // UNSAFE(slice): a loaded object's program header table.
+    #[allow(unsafe_code)]
+    // SAFETY: the loader's walk passes each loaded object's mapped program headers, `dlpi_phnum`
+    // entries of 56 bytes (7 words, 8-aligned) at `dlpi_phdr`, mapped while the object is.
+    let w = unsafe { conv::words_at(info.dlpi_phdr, n.saturating_mul(7)) };
+    // ELF64 `p_type` and `p_flags` are the first word's low and high halves (little-endian).
+    let heads = w.chunks_exact(7).map(|h| {
+        let x = h.first().copied().unwrap_or(0);
+        (u32::try_from(x & 0xffff_ffff).unwrap_or(0), u32::try_from(x >> 32).unwrap_or(0))
+    });
+    c_int::from(niji_ld::map::executable_stack(heads))
+}
+
 /// `__niji_libc_early_init` (`NIJI_PRIVATE`, plan/ph14/design.md §14, D-27.22): libniji's
 /// `ld.so` calls it after relocation and before any constructor, `.preinit_array` included, so
 /// constructors see an initialised C library: the auxiliary vector, steps 3 and 4 (`environ`, the
@@ -381,7 +434,14 @@ pub fn early_init(info: usize) {
     if secure && start::open_std_fds(&CSys).is_err() {
         die(b"cannot open /dev/null on a closed standard descriptor");
     }
-    let tunables = process::getenv(crate::startup_names::GLIBC_TUNABLES).map_or(Tunables::default(), |v| Tunables::parse(strz::env_value(v), secure));
+    let tunables = process::getenv(crate::startup_names::GLIBC_TUNABLES).map_or(Tunables::default(), |v| {
+        let t = Tunables::parse(strz::env_value(v), secure);
+        // COMPAT-19: only a start with this tunable can have accepted an executable-stack object.
+        if t.exec_stack == Some(true) {
+            exec_stacks_at_start();
+        }
+        t
+    });
     let _ = cpu::init_with(&tunables);
     for (slot, v) in PROGRAM_INIT.iter().zip([info.init, info.init_array, info.init_array_len]) {
         slot.store(v, Relaxed);
@@ -433,7 +493,7 @@ fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: 
     // rseq stays with the loader (DL-13): libc registers no area of its own here.
     crate::thread::RSEQ_OWNED.store(false, Release);
     crate::thread::init_initial(false);
-    crate::cancel::install();
+    // The internal signal's handler is installed by the first thread creation (D-20.1, #7075).
     // 5. Termination, then the program's initialisation.
     if let Some(f) = rtld_fini {
         process::register(process::entry(ATEXIT, addr0(f), 0, 0));
@@ -605,8 +665,8 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     // another `ld.so`, that loader registered rseq already.
     crate::thread::RSEQ_OWNED.store(static_program && tunables.rseq != Some(false), Release);
     crate::thread::init_initial(static_program);
-    // The internal signal (D-20.1): cancellation requests and the setxid broadcast.
-    crate::cancel::install();
+    // The internal signal (D-20.1): cancellation requests and the setxid broadcast. Its handler
+    // is installed by the first thread creation (owner ruling #7075), not here.
     // The standard streams are set up at first use; with the heap exhausted then, their slots
     // come from the library's reserve (T22, D-12.17), so an empty program maps no heap.
 

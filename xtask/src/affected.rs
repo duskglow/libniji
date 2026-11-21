@@ -146,8 +146,10 @@ use std::time::{Duration, Instant};
 /// Crates whose changes are narrowed through the module graph.
 const NARROW: &[&str] = &["niji", "niji-boundary", "niji-legacy", "niji-math"];
 /// xtask sources that name csys symbols only to check the csys source or products, from `cargo xtask static` and
-/// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol.
-const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs"];
+/// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol. `so.rs` names the interpreter's
+/// entry (its pre-relocation check) and the targets of its tool-name aliases (`niji_machine_strlen`,
+/// VALGRIND-LDSO-SYMBOLS), which its own link checks refuse when they go missing.
+const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs", "xtask/src/so.rs"];
 
 /// The layout contracts (D-X.48): the manifest names the csys symbols whose placement it holds, and its checker names
 /// them in its unit tests. A csys symbol named here selects `cargo xtask layout-check` on fresh products, not FULL.
@@ -1972,7 +1974,10 @@ const VALIDATION_LOCK_TEST: &str = "validation/wl_lock_test.sh";
 /// WL-DYNAMIC-GATE (D-X.141): the INVIOLABLE workload verdict, its held rows' ratchet and wl_count's call of it
 /// (fixture logs, no build; under a second).
 const VALIDATION_VERDICT_TEST: &str = "validation/wl_verdict_test.sh";
-pub(crate) const VALIDATION_SELF_TESTS: &[&str] = &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST];
+/// WL-NIGHTLY-1121: the kit table's output column against wl_known_diffs.tsv (fixture rows, no build; under a second).
+const VALIDATION_KITS_TEST: &str = "validation/wl_kits_test.sh";
+pub(crate) const VALIDATION_SELF_TESTS: &[&str] =
+    &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST, VALIDATION_KITS_TEST];
 
 /// GATE-VALIDATION-SH-TESTS: a `validation/` script -> the self-tests that exercise it (each self-test also covers
 /// itself). A change to a script here selects those self-tests in every tier. `wl_run.sh` and `wl_count_run.sh` are
@@ -1996,6 +2001,10 @@ const VALIDATION_COVERED: &[(&str, &[&str])] = &[
     ("validation/wl_holds.tsv", &[VALIDATION_VERDICT_TEST]),
     ("validation/wl_count.sh", &[VALIDATION_VERDICT_TEST]),
     (VALIDATION_VERDICT_TEST, &[VALIDATION_VERDICT_TEST]),
+    // The kit table's output column (WL-NIGHTLY-1121): a differing output is checked against the accepted list.
+    ("validation/wl_kits.py", &[VALIDATION_KITS_TEST]),
+    ("validation/wl_known_diffs.tsv", &[VALIDATION_KITS_TEST]),
+    (VALIDATION_KITS_TEST, &[VALIDATION_KITS_TEST]),
 ];
 
 /// GATE-VALIDATION-SH-TESTS: the `validation/wl_*.sh` scripts with no self-test the gate can run, each with why. The

@@ -122,6 +122,16 @@ for f in $(awk -F '\t' -v r="$r" '$6 == "debug" { print r "/" $2 }' "$tmp/rows")
     grep -q ' \.symtab ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no symbol table"
     grep -q ' \.debug_info ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no debug information (.debug_info)"
     grep -q ' \.debug_line ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no line tables (.debug_line)"
+    case $name in
+        # VALGRIND-LDSO-SYMBOLS (GitHub issue #13): valgrind (amd64) starts a program only when it finds
+        # functions named strcmp and strlen among the loader's symbols; the stripped loader has none, so
+        # they must be local function symbols of its debug file (xtask/src/so.rs LD_TOOL_NAMES).
+        */ld-linux-x86-64.so.2)
+            for n in strcmp strlen; do
+                readelf -sW "$dbgroot/$d" | grep -q -E "^ *[0-9]+: [0-9a-f]+ +[0-9]+ FUNC +LOCAL +DEFAULT +[0-9]+ $n\$" ||
+                    fail "libc6-dbg's $d (for $name) has no local function $n (valgrind cannot start a program without it)"
+            done ;;
+    esac
 done
 # Every shipped ELF executable or shared object (the debug files aside) is a strip debug row's.
 find "$r" -path "$dbgroot" -prune -o -type f -print | sort > "$tmp/shipped"

@@ -444,11 +444,30 @@ fn internal_addr() -> usize {
     internal as extern "C" fn(i32, usize, usize) as usize
 }
 
-/// Install the internal signal's handler (the products' startup): every signal blocked while
-/// it runs, restarting interrupted calls, on the alternate stack if one is set.
+/// Whether the internal signal's handler is installed ([`install`]). A fork child inherits both
+/// the handler and this word, so it never installs again.
+static INSTALLED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+/// Install the internal signal's handler, once per process: every signal blocked while it runs,
+/// restarting interrupted calls, on the alternate stack if one is set. Lazy (owner ruling #7075,
+/// D-20.1): the library sends the signal only to a thread it created (a cancellation request,
+/// the setxid broadcast), so thread creation installs it before its first clone and a start
+/// makes no `rt_sigaction`. The reservation itself is fixed from the start (OD-8). Racing
+/// creators both install the same action, which is harmless.
+#[inline]
 pub fn install() {
+    if !INSTALLED.load(Relaxed) {
+        install_now();
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn install_now() {
     use niji_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
-    let _ = raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0));
+    if raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0)).is_ok() {
+        INSTALLED.store(true, Relaxed);
+    }
 }
 
 /// `pthread_cancel`: mark the request; a thread that can act is interrupted with the internal

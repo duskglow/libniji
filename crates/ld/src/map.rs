@@ -153,6 +153,12 @@ pub trait Mapper {
     fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()>;
     /// Unmap `len` bytes at `at` (never fails on a range this mapper mapped).
     fn unmap(&mut self, at: u64, len: u64);
+    /// Whether an aligned reservation's slack (the inaccessible bytes before and after the object
+    /// that over-reserving for its alignment left) may stay reserved rather than be unmapped: only
+    /// for an object that is never unmapped (the start's, DYN-START-RING), saving two system calls.
+    fn keeps_slack(&self) -> bool {
+        false
+    }
 }
 
 /// A mapped object.
@@ -396,6 +402,9 @@ fn reserve<M: Mapper>(m: &mut M, plan: &Plan) -> Result<(u64, u64), MapError> {
     let raw = m.reserve(None, len).map_err(|()| MapError::System)?;
     // The start congruent to `first` modulo `align`, so `base - first` (the bias) is a multiple of it.
     let base = raw.wrapping_add(plan.first.wrapping_sub(raw) & plan.align.wrapping_sub(1));
+    if m.keeps_slack() {
+        return Ok((base, base.wrapping_sub(plan.first)));
+    }
     if base > raw {
         m.unmap(raw, base.wrapping_sub(raw));
     }
