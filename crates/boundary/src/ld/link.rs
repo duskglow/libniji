@@ -16,7 +16,7 @@ use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
 use super::exec_stack::exec_stack_dependency;
-use super::image::{AT_FDCWD, FileId, ProcImage, SysMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image};
+use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, unmap_view, views_arm, views_close};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_PAGE, START_SPILL};
@@ -46,6 +46,8 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     let mut store = PathStore::default();
     let cache: search::LazyCache<'_> = core::cell::OnceCell::new();
     let mut maps: Table<(usize, usize), INLINE> = Table::new((0, 0));
+    // The objects' whole-file views come from one arena, unmapped whole below (DYN-START-RING).
+    views_arm();
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
     let (prog_views, own_views) = views.split_at_mut(3);
@@ -146,7 +148,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                         Err(Unusable::Refused(r)) => refused = Some(r),
                         Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
                             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
-                            let _ = raw::munmap(at, file.len());
+                            unmap_view(at, file.len());
                             return false;
                         }
                         Ok(hit) => found = Some(hit),
@@ -200,7 +202,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             if is_interp || again.is_some() {
                 if let Some((fd, at, file, _)) = found {
                     let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
-                    let _ = raw::munmap(at, file.len());
+                    unmap_view(at, file.len());
                 }
             }
             if pre.is_some() && (is_interp || again.is_some()) {
@@ -225,7 +227,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 // released below.
                 paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
-            let loaded = match map::load::<Native, _>(&mut SysMapper { fd }, file, page) {
+            let loaded = match map::load::<Native, _>(&mut StartMapper { fd }, file, page) {
                 Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
                 other => other,
             };
@@ -356,8 +358,9 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
     for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
-        let _ = raw::munmap(at, len);
+        unmap_view(at, len);
     }
+    views_close();
     let words = |k: usize, o: &Obj<'_>| {
         let (phdr, phnum) = phdrs[k];
         [u64::try_from(phdr).unwrap_or(0), u64::try_from(phnum).unwrap_or(0), o.bias, ids[k].0, ids[k].1]

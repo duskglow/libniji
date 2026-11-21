@@ -377,13 +377,13 @@ pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) 
     // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
     // after the last use of this slice below.
     let file = unsafe { conv::bytes_at(file_at, len) };
-    let loaded = match map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page) {
+    let loaded = match map::load::<Native, _>(&mut StartMapper { fd: fd32 }, file, page) {
         // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
-        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page),
+        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut StartMapper { fd: fd32 }, file, page),
         Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
         other => other,
     };
-    let _ = raw::munmap(file_at, len);
+    unmap_view(file_at, len);
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
     let at = |v: u64| usize::try_from(v).unwrap_or(0);
@@ -438,6 +438,43 @@ impl map::Mapper for SysMapper {
     }
 }
 
+/// [`SysMapper`] for the objects of the start (the program, its dependencies): never unmapped, so
+/// an aligned reservation's slack stays reserved, inaccessible, rather than being trimmed by two
+/// `munmap`s ([`map::Mapper::keeps_slack`], DYN-START-RING).
+pub(super) struct StartMapper {
+    pub(super) fd: i32,
+}
+
+impl map::Mapper for StartMapper {
+    fn reserve(&mut self, at: Option<u64>, len: u64) -> Result<u64, ()> {
+        SysMapper { fd: self.fd }.reserve(at, len)
+    }
+
+    fn map_file(&mut self, at: u64, len: u64, prot: i32, offset: u64) -> Result<(), ()> {
+        SysMapper { fd: self.fd }.map_file(at, len, prot, offset)
+    }
+
+    fn map_zero(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
+        SysMapper { fd: self.fd }.map_zero(at, len, prot)
+    }
+
+    fn store(&mut self, at: u64, len: u64, bytes: Option<&[u8]>) {
+        SysMapper { fd: self.fd }.store(at, len, bytes);
+    }
+
+    fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
+        SysMapper { fd: self.fd }.protect(at, len, prot)
+    }
+
+    fn unmap(&mut self, at: u64, len: u64) {
+        SysMapper { fd: self.fd }.unmap(at, len);
+    }
+
+    fn keeps_slack(&self) -> bool {
+        true
+    }
+}
+
 /// An address or length as a machine word.
 fn word(v: u64) -> Result<usize, ()> {
     usize::try_from(v).map_err(|_| ())
@@ -448,6 +485,7 @@ pub(super) const MAP_PRIVATE_I32: i32 = 0x02;
 const MAP_FIXED_I32: i32 = 0x10;
 pub(super) const MAP_ANONYMOUS_I32: i32 = 0x20;
 const MAP_FIXED_NOREPLACE_I32: i32 = 0x10_0000;
+const MAP_NORESERVE_I32: i32 = 0x4000;
 
 /// The alignment of a whole-file view ([`map_view`]): the kernel's default fault-around window
 /// (`fault_around_bytes`, 64 KiB), the unit in which a read of a file-backed mapping maps pages in.
@@ -461,6 +499,16 @@ const VIEW_ALIGN: usize = 0x1_0000;
 /// aligned part, and both ends are given back, so the result is one mapping of exactly `len`
 /// bytes (rounded to the page) that `munmap(at, len)` removes. Nothing stays mapped on failure.
 pub(super) fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
+    if VIEWS_STATE.load(Relaxed) != VIEWS_NONE {
+        if let Some(at) = views_take(len) {
+            return raw::mmap(at, len, map::PROT_READ, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).map_err(|_| ());
+        }
+    }
+    map_view_alone(fd, len)
+}
+
+/// [`map_view`] outside the view arena: its own aligned reservation, trimmed to the view.
+fn map_view_alone(fd: i32, len: usize) -> Result<usize, ()> {
     const PAGE: usize = 0x1000;
     let mapped = len.checked_add(PAGE - 1).ok_or(())? & !(PAGE - 1);
     let span = mapped.checked_add(VIEW_ALIGN).ok_or(())?;
@@ -478,6 +526,78 @@ pub(super) fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
     let end = at.wrapping_add(mapped);
     let _ = raw::munmap(end, raw.wrapping_add(span).wrapping_sub(end));
     Ok(at)
+}
+
+/// Address space of the start's view arena ([`views_arm`]): inaccessible until a view is mapped
+/// into it, so it commits no memory; a start whose views do not fit maps the rest on their own.
+const VIEWS_LEN: usize = 1 << 30;
+
+/// [`VIEWS_STATE`]: no arena (every view is mapped on its own).
+const VIEWS_NONE: u8 = 0;
+/// [`VIEWS_STATE`]: armed by `link`, reserved at the first view.
+const VIEWS_ARMED: u8 = 1;
+/// [`VIEWS_STATE`]: reserved at [`VIEWS_AT`].
+const VIEWS_OPEN: u8 = 2;
+
+/// Whether the start's views come from the arena ([`VIEWS_NONE`], [`VIEWS_ARMED`], [`VIEWS_OPEN`]).
+static VIEWS_STATE: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(VIEWS_NONE);
+/// The arena's reservation (`VIEWS_LEN + VIEW_ALIGN` bytes from here) while [`VIEWS_OPEN`].
+static VIEWS_AT: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+/// Bytes of the arena handed out, from its first [`VIEW_ALIGN`] boundary; only grows.
+static VIEWS_USED: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// Take the start's whole-file views (`link`, which runs before any other thread exists) from one
+/// arena (DYN-START-RING): one inaccessible reservation at the first view, each view then mapped
+/// over its next [`VIEW_ALIGN`]-aligned slot with one `mmap` (same alignment, so the same faults,
+/// as [`map_view_alone`]'s), and the whole arena unmapped by one `munmap` ([`views_close`]). Four
+/// system calls fewer per loaded object than a reservation and two trims per view and an unmap
+/// each. A start with no dependency reserves nothing.
+pub(super) fn views_arm() {
+    let _ = VIEWS_STATE.compare_exchange(VIEWS_NONE, VIEWS_ARMED, Relaxed, Relaxed);
+}
+
+/// The next arena slot for a view of `len` bytes, reserving the arena first when armed; `None`
+/// without an arena or when the view does not fit (the caller maps it on its own).
+fn views_take(len: usize) -> Option<usize> {
+    if VIEWS_STATE.load(Relaxed) == VIEWS_ARMED {
+        let span = VIEWS_LEN.checked_add(VIEW_ALIGN)?;
+        let Ok(at) = raw::mmap(0, span, 0, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32 | MAP_NORESERVE_I32, -1, 0) else {
+            // No address space for it (an RLIMIT_AS): every view on its own.
+            VIEWS_STATE.store(VIEWS_NONE, Relaxed);
+            return None;
+        };
+        VIEWS_AT.store(at, Relaxed);
+        VIEWS_STATE.store(VIEWS_OPEN, Relaxed);
+    }
+    if VIEWS_STATE.load(Relaxed) != VIEWS_OPEN {
+        return None;
+    }
+    // A page-aligned user address plus a length the kernel accepted: no wrap.
+    let first = VIEWS_AT.load(Relaxed).wrapping_add(VIEW_ALIGN - 1) & !(VIEW_ALIGN - 1);
+    let from = VIEWS_USED.load(Relaxed);
+    let end = from.checked_add(len.checked_next_multiple_of(VIEW_ALIGN)?).filter(|&e| e <= VIEWS_LEN)?;
+    VIEWS_USED.store(end, Relaxed);
+    Some(first.wrapping_add(from))
+}
+
+/// Give back the view [`map_view`] made at `at` (`len` bytes). A view inside the arena stays until
+/// [`views_close`] unmaps the arena whole: unmapping it alone would open a hole another mapping
+/// could take, which the arena's own unmap would then remove.
+pub(super) fn unmap_view(at: usize, len: usize) {
+    let base = VIEWS_AT.load(Relaxed);
+    let inside = VIEWS_STATE.load(Relaxed) == VIEWS_OPEN && at >= base && at.wrapping_sub(base) < VIEWS_LEN.wrapping_add(VIEW_ALIGN);
+    if !inside {
+        let _ = raw::munmap(at, len);
+    }
+}
+
+/// End the start's view arena: unmap it with every view in it, after the last use and the last
+/// [`unmap_view`] of any of them. Later views (`dlopen`) are mapped on their own, and may reuse
+/// the range.
+pub(super) fn views_close() {
+    if VIEWS_STATE.swap(VIEWS_NONE, Relaxed) == VIEWS_OPEN {
+        let _ = raw::munmap(VIEWS_AT.swap(0, Relaxed), VIEWS_LEN.wrapping_add(VIEW_ALIGN));
+    }
 }
 
 /// Open the NUL-terminated `path` and map the whole file read-only: the file and its descriptor
@@ -511,7 +631,7 @@ pub(super) fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let parsed = Cache::parse(f);
     if parsed.is_none() {
-        let _ = raw::munmap(f.as_ptr().expose_provenance(), f.len());
+        unmap_view(f.as_ptr().expose_provenance(), f.len());
     }
     parsed.map(|c| (f, c))
 }
@@ -557,7 +677,7 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(
         c => c.map(|_| ()),
     };
     if let Err(r) = checked {
-        let _ = raw::munmap(at, len);
+        unmap_view(at, len);
         return Err(refuse(r));
     }
     Ok((fd32, at, file, (st.dev, st.ino)))

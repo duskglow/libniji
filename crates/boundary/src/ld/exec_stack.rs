@@ -13,7 +13,7 @@ use niji_ld::{map, start};
 use crate::raw;
 use super::dlopen;
 use super::entry::List;
-use super::image::SysMapper;
+use super::image::StartMapper;
 use super::io::{c_string, fail_loading, fail_with, stack_word};
 use super::state::START_PAGE;
 
@@ -57,7 +57,7 @@ pub(super) fn exec_stack_dependency(fd: i32, file: &[u8], page: u64, name: &[u8]
     if !exec_stack_accepted(env.ld, env.secure) {
         fail_loading(prog, name, Refusal::ExecutableStack.at_start().0);
     }
-    map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd }, file, page)
+    map::load_accepting_exec_stack::<Native, _>(&mut StartMapper { fd }, file, page)
 }
 
 /// COMPAT-19: make the main stack executable. The kernel puts the `AT_EXECFN` string at the top of
