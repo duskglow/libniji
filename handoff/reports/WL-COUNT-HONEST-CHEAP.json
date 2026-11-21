@@ -1,0 +1,22 @@
+{"task": "WL-COUNT-HONEST-CHEAP", "model": "opus", "tokens": null,
+ "result": "Page-fault noise traced to ASLR (setarch -R + lowest of 5: every single-process row repeats exactly over 5 counts); dynamic count 33% less wall, 30% less CPU, 34% fewer writes; gzip-c hold dropped; other levels not re-recorded (environment-size effect found); ruling needed on 3 levels",
+ "branch": "task/wl-count-honest-cheap", "head": null,
+ "gate": {"affected": "direct tier rc 0 (wl_stats_test 60 passed, wl_verdict_test 38 passed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "sed-s, gawk-sum, gawk-printf held pf levels (1.2112, 1.1993, 1.2009) are below what next measures (1.2817, 1.2000, 1.2075); recorded glibc numbers came from a noise-inflated column", "recommendation": "re-record the three from counts in a fixed environment as a correction (owner to confirm, since the numbers rise)"}],
+ "informational": ["wl_stats_plants.sh plants total_keeps_mtmem/total_keeps_futex are stale on origin/next (no change)", "cargo xtask plants rebuilds products for plants on validation/ scripts (70 s each)", "in one address layout the environment size moves a row by about one fault per process: fixed environment needed before re-recording levels"],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "dynamic wl_count wall, 5 workloads incl. printf-loop, all columns fresh", "before": 3434, "after": 2288, "unit": "s", "measured": true},
+  {"kind": "tooling", "what": "dynamic wl_count CPU (user+sys), same run", "before": 2939, "after": 2060, "unit": "s", "measured": true},
+  {"kind": "tooling", "what": "dynamic wl_count file-system writes, same run", "before": 1127, "after": 739, "unit": "MB", "measured": true},
+  {"kind": "accuracy", "what": "page-fault spread over 5 repeated counts, gzip-c libniji (count statistic)", "before": 25, "after": 0, "unit": "faults", "measured": true},
+  {"kind": "accuracy", "what": "page-fault spread over 5 repeated counts, tar-gz libniji", "before": 129, "after": 8, "unit": "faults", "measured": true},
+  {"kind": "correctness", "what": "gzip-c pf hold 1.7578 dropped: the row now binds at 1.10 (measures 1.0855)", "before": 1.7578, "after": 1.10, "unit": "ratio", "measured": true},
+  {"kind": "coverage", "what": "self-test cases added to wl_stats_test.sh / plants added", "before": 0, "after": 11, "unit": "plants", "measured": true},
+  {"kind": "cost", "what": "with this branch a dynamic count of next FAILS sed-s (and by probe numbers gawk-sum, gawk-printf) until the ruling on their levels; fix-forward: re-record them", "before": null, "after": null, "unit": "rows", "measured": true}
+ ],
+ "improvement": "a count's environment and layout are part of its measurement: record them in the log so two counts can be compared, and let jobrun's slot queue time show in the hand-back (the subset counts waited 10-20 min for slots)",
+ "next_step": "fixed environment for measured runs (env -i in wl_run_prefix), then 5 real COUNT_FRESH counts of next and re-record the levels",
+ "report_file": "handoff/WL-COUNT-HONEST-CHEAP.md",
+ "jobs": ["keke:wl-count-honest-cheap-gate2", "keke:wl-count-honest-cheap-plants2"]}
