@@ -313,8 +313,7 @@ int main(int argc, char **argv) {
                 }
                 break;
             } else {
-                fprintf(stderr, "%s: invalid option -- '%c'
-", progname, *p);
+                fprintf(stderr, "%s: invalid option -- '%c'\n", progname, *p);
                 usage(stderr, 1);
             }
         }
