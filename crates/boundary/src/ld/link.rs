@@ -11,7 +11,6 @@ use niji_ld::search::{self, CacheRef, PathBuf, Scope};
 use niji_ld::{boot, elf, init, map, start};
 use niji_ld::tls::{self as ltls, Module, Placed};
 use crate::ffi_sys::{niji_sys_getcwd, niji_sys_readlinkat};
-use crate::raw;
 use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
