@@ -6,6 +6,8 @@
 //! `N^2 / 2` entries, well over the 16 Ki the arena once held. `dladdr` (`dli_fname`),
 //! `dl_iterate_phdr` (`dlpi_name`) and the link-map chain (`l_name`) must give each object's full
 //! path; `dlclose` and a second load of the same set (spans written again) must do the same.
+//! Part 2 (the object tables): 2000 objects at once, past the tables' first generation of 512
+//! (`many_corpus`), found, listed, closed, reused and finalised at exit.
 //!
 //! Skips (with the reason) when `cc` is absent or the products are not built.
 // ARCH(x86_64): the corpus is built with the host compiler for x86_64 and run under the x86_64 loader.
@@ -110,9 +112,8 @@ int main(int argc, char **argv) {
 }
 "#;
 
-/// The corpus in a new scratch directory of its own (`tag`: each test builds its own): (the
-/// long-named library directory, the program), or `None` with the reason printed.
-fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
+/// The built products (`target/niji`, its `ld.so`), or `None` with the reason printed.
+fn products() -> Option<(PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -123,13 +124,11 @@ fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
-    let top = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-process-objects-{tag}"));
-    // Five components of 200 bytes: every library path is over 1000 bytes.
-    let d = ["a", "b", "c", "d", "e"].iter().fold(top.to_path_buf(), |p, c| p.join(c.repeat(200)));
-    std::fs::create_dir_all(d.join("stub")).unwrap();
-    let d = std::fs::canonicalize(d).unwrap();
-    let stub = d.join("stub");
-    // libc named by path (its DT_SONAME tag made inert), as the other loader corpora name it.
+    Some((lib, ld))
+}
+
+/// libc named by path in `d` (its DT_SONAME tag made inert), as the other loader corpora name it.
+fn named_libc(lib: &Path, d: &Path) -> String {
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
     let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
@@ -138,7 +137,31 @@ fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    let libc_s = libc.to_str().unwrap().to_string();
+    libc.to_str().unwrap().to_string()
+}
+
+/// The flags that link a program of the corpus in `d` against the products.
+fn prog_flags(lib: &Path, ld: &Path, libc: &str, extra: &[&str]) -> Vec<String> {
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let crt1 = lib.join("niji-crt1.o").to_str().unwrap().to_string();
+    let mut f: Vec<String> = ["-nostdlib", "-fPIE", "-pie"].map(String::from).to_vec();
+    f.extend(extra.iter().map(|s| s.to_string()));
+    f.extend([interp, crt1, libc.to_string(), ld.to_str().unwrap().to_string(), "-lgcc".to_string()]);
+    f
+}
+
+/// The corpus in a new scratch directory of its own (`tag`: each test builds its own): (the
+/// long-named library directory, the program), or `None` with the reason printed. The scratch
+/// guard is removed when the test passes and kept (path on stderr) when it fails.
+fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
+    let (lib, ld) = products()?;
+    let top = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-process-objects-{tag}"));
+    // Five components of 200 bytes: every library path is over 1000 bytes.
+    let d = ["a", "b", "c", "d", "e"].iter().fold(top.to_path_buf(), |p, c| p.join(c.repeat(200)));
+    std::fs::create_dir_all(d.join("stub")).unwrap();
+    let d = std::fs::canonicalize(d).unwrap();
+    let stub = d.join("stub");
+    let libc_s = named_libc(&lib, &d);
     let shared = |name: &str| -> Vec<String> {
         let mut f: Vec<String> = ["-nostdlib", "-fPIC", "-shared", "-Wl,--no-as-needed"].map(String::from).to_vec();
         f.extend([format!("-Wl,-soname,{name}"), format!("-Wl,-rpath,{}", d.display()), format!("-L{}", stub.display())]);
@@ -165,9 +188,7 @@ fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
     let body: String = (1..=N).map(|k| format!(" + f{k}()")).collect();
     jobs.push(("libroot.so".to_string(), cc(&d, "libroot.so", &format!("{decls}int froot(void) {{ return 0{body}; }}\n"), &flags)));
     build_all(jobs);
-    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
-    let crt1 = lib.join("niji-crt1.o").to_str().unwrap().to_string();
-    let flags = ["-nostdlib", "-fPIE", "-pie", &format!("-DN={N}"), &interp, &crt1, &libc_s, ld.to_str().unwrap(), "-lgcc"].map(String::from).to_vec();
+    let flags = prog_flags(&lib, &ld, &libc_s, &[&format!("-DN={N}")]);
     build_all(vec![("prog".to_string(), cc(&top, "prog", PROG, &flags))]);
     let prog = top.join("prog");
     Some((top, d, prog))
@@ -203,13 +224,17 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
 /// no spec clause (the arenas grow, so the only limit is memory): under a sweep of address-space
 /// limits, from the first one at which the program runs at all, each run either completes or fails
 /// cleanly: `dlopen` returns NULL with a `dlerror` text (status 1) or the start ends with the
-/// loader's message (127); never a signal.
+/// loader's message (127); never a signal. Every limit refused is swept; the sweep ends once two
+/// runs in a row complete (a larger limit only adds room no growth path lacks).
 #[test]
 fn dlopen_process_objects_out_of_memory_is_clean() {
     let Some((_top, d, prog)) = corpus("oom") else { return };
-    let (mut ran, mut refused) = (0, 0);
+    let (mut ran, mut refused, mut in_row) = (0, 0, 0);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (2048..=96 * 1024).step_by(2048) {
+        if in_row == 2 {
+            break;
+        }
         let o = run(Command::new("sh").arg("-c").arg(format!("ulimit -v {kb}; exec \"$0\" \"$1\"")).arg(&prog).arg(&d));
         let (out, err) = (String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned());
         let started = out.lines().next().is_some() || err.starts_with("ld.so:") || err.contains("error while loading shared libraries");
@@ -218,8 +243,10 @@ fn dlopen_process_objects_out_of_memory_is_clean() {
         }
         if o.status.success() {
             ran += 1;
+            in_row += 1;
             continue;
         }
+        in_row = 0;
         refused += 1;
         let code = o.status.code();
         assert!(code == Some(1) || code == Some(127), "limit {kb} KiB: not a clean failure: {:?}\n{err}", o.status);
@@ -233,4 +260,292 @@ fn dlopen_process_objects_out_of_memory_is_clean() {
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
     eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran");
+}
+
+/// Each library of the object-table corpus (DL-PROCESS-OBJECTS part 2): `KIND` `t` (a top, needing
+/// `libbase.so`), `b` (a base), `q` (one of the hub's dependencies) or `h` (the hub). Its
+/// constructor registers its own marker with the program, its destructor reports it.
+const MANY_LIB: &str = r#"
+void reg(const void *, int);
+void note(const void *);
+static char m;
+#ifdef BASE
+const void *fb(void) { return &m; }
+#endif
+#ifdef TOP
+const void *fb(void);
+const void *ft(void) { return fb(); }
+#endif
+__attribute__((constructor)) static void ini(void) { reg(&m, KIND); }
+__attribute__((destructor)) static void fin(void) { note(&m); }
+"#;
+
+/// The object-table program: `argv[1]` holds `p<k>/` (1500 copies of a top and its base, each
+/// its own pair of files) and `h/` (the hub and its 600 dependencies). Every line it prints is the
+/// same under any C library; `reused` (on stderr) is libniji's slot reuse. Status 1 with
+/// `open: <dlerror>` or `close: <dlerror>` when a call fails.
+const MANY: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <link.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#define PAIRS 1000
+#define MORE 500
+#define Q 600
+#define DIRS (PAIRS + MORE)
+#define MAXO (2 * DIRS + Q + 1)
+static char line[512];
+#define SAY(fd, ...) do { int n_ = snprintf(line, sizeof line, __VA_ARGS__); if (write(fd, line, (size_t)n_) != n_) _exit(3); } while (0)
+static const char *dir;
+static size_t dir_len;
+/* Every object a constructor registered: its marker, kind, whether it is still loaded. */
+static const void *who[MAXO];
+static char kind[MAXO];
+static int live[MAXO], lab[MAXO], nwho, at_exit;
+static int top_id[DIRS], base_id[DIRS], q_id[Q + 1], hub_id = -1;
+static void *handle[DIRS];
+/* The finalisation sequence (object ids). */
+static int seq[MAXO], nseq;
+void reg(const void *m, int k) {
+    if (nwho == MAXO) _exit(4);
+    who[nwho] = m; kind[nwho] = (char)k; live[nwho] = 1; nwho++;
+}
+void note(const void *m) {
+    int id = nwho - 1;
+    while (id >= 0 && !(live[id] && who[id] == m)) id--;
+    if (id < 0) { SAY(1, "fini of an unknown object\n"); return; }
+    live[id] = 0;
+    seq[nseq++] = id;
+    if (at_exit) SAY(1, "x %c %d\n", kind[id], lab[id]);
+}
+/* The object id a path names; -2 for one outside the corpus, -1 for no corpus object. */
+static int parse(const char *p) {
+    char *e;
+    if (!p || strncmp(p, dir, dir_len) != 0 || p[dir_len] != '/') return -2;
+    p += dir_len + 1;
+    if (p[0] == 'p') {
+        long k = strtol(p + 1, &e, 10);
+        if (e == p + 1 || k < 0 || k >= DIRS) return -1;
+        if (!strcmp(e, "/libtop.so")) return top_id[k];
+        if (!strncmp(e, "/libbase", 8)) return base_id[k];
+        return -1;
+    }
+    if (!strcmp(p, "h/libhub.so")) return hub_id;
+    if (!strncmp(p, "h/libq", 6)) {
+        long j = strtol(p + 6, &e, 10);
+        if (e != p + 6 && j >= 1 && j <= Q && !strcmp(e, ".so")) return q_id[j];
+    }
+    return -1;
+}
+static int seen[MAXO];
+static int walk(struct dl_phdr_info *i, size_t size, void *data) {
+    (void)size;
+    int id = parse(i->dlpi_name);
+    if (id != -2 && (id < 0 || !live[id] || seen[id]++)) ++*(int *)data;
+    return 0;
+}
+/* Every loaded corpus object found by its marker (dladdr, _dl_find_object), listed once by
+   dl_iterate_phdr and once on the link-map chain, by its own path; nothing unloaded is. */
+static void check(const char *round) {
+    int nlive = 0, a = 0, f = 0, ph = 0, lm = 0, bad = 0;
+    for (int i = 0; i < nwho; i++) {
+        if (!live[i]) continue;
+        nlive++;
+        Dl_info info;
+        if (dladdr(who[i], &info) && parse(info.dli_fname) == i) a++;
+        struct dl_find_object o;
+        if (_dl_find_object((void *)who[i], &o) == 0 && o.dlfo_map_start <= who[i] && who[i] < o.dlfo_map_end && o.dlfo_link_map && parse(o.dlfo_link_map->l_name) == i) f++;
+    }
+    memset(seen, 0, sizeof seen);
+    dl_iterate_phdr(walk, &bad);
+    for (int i = 0; i < nwho; i++) ph += live[i] && seen[i] == 1;
+    memset(seen, 0, sizeof seen);
+    struct dl_find_object o;
+    if (_dl_find_object((void *)check, &o) != 0 || !o.dlfo_link_map) { SAY(1, "%s: the program is in no object\n", round); return; }
+    struct link_map *m = o.dlfo_link_map;
+    while (m->l_prev) m = m->l_prev;
+    for (; m; m = m->l_next) {
+        int id = parse(m->l_name);
+        if (id != -2 && (id < 0 || !live[id] || seen[id]++)) bad++;
+    }
+    for (int i = 0; i < nwho; i++) lm += live[i] && seen[i] == 1;
+    SAY(1, "%s: live %d dladdr %d find %d phdr %d lmap %d stray %d\n", round, nlive, a, f, ph, lm, bad);
+}
+static int open_pair(int k, int *bound, int *ordered) {
+    static char path[4096];
+    int s = nwho;
+    snprintf(path, sizeof path, "%s/p%d/libtop.so", dir, k);
+    void *h = dlopen(path, RTLD_NOW);
+    if (!h) { SAY(1, "open: %s\n", dlerror()); return 1; }
+    handle[k] = h;
+    if (nwho - s == 2 && kind[s] == 'b' && kind[s + 1] == 't') {
+        base_id[k] = s; top_id[k] = s + 1; lab[s] = lab[s + 1] = k; ++*ordered;
+    }
+    const void *(*ft)(void) = (const void *(*)(void))dlsym(h, "ft");
+    *bound += ft && base_id[k] >= 0 && ft() == who[base_id[k]];
+    return 0;
+}
+static void *map_of(const void *m) {
+    struct dl_find_object o;
+    return _dl_find_object((void *)m, &o) == 0 ? (void *)o.dlfo_link_map : NULL;
+}
+int main(int argc, char **argv) {
+    static char path[4096];
+    static void *old[PAIRS];
+    if (argc < 2) return 2;
+    dir = argv[1];
+    dir_len = strlen(dir);
+    for (int k = 0; k < DIRS; k++) top_id[k] = base_id[k] = -1;
+    for (int j = 0; j <= Q; j++) q_id[j] = -1;
+    int bound = 0, ordered = 0;
+    for (int k = 0; k < PAIRS; k++) if (open_pair(k, &bound, &ordered)) return 1;
+    SAY(1, "opened %d: bound %d dependency first %d\n", PAIRS, bound, ordered);
+    check("first");
+    /* Close every odd pair: the top's finaliser, then its base's. */
+    int fin = 0, dep_first = 0, nold = 0;
+    for (int k = 1; k < PAIRS; k += 2) {
+        if (top_id[k] >= 0) { old[nold++] = handle[k]; old[nold++] = map_of(who[base_id[k]]); }
+        int s = nseq;
+        if (dlclose(handle[k])) { SAY(1, "close: %s\n", dlerror()); return 1; }
+        fin += nseq - s;
+        dep_first += nseq - s == 2 && seq[s] == top_id[k] && seq[s + 1] == base_id[k];
+    }
+    SAY(1, "closed %d: finalised %d dependent first %d\n", PAIRS / 2, fin, dep_first);
+    check("closed");
+    bound = ordered = 0;
+    for (int k = PAIRS; k < DIRS; k++) if (open_pair(k, &bound, &ordered)) return 1;
+    SAY(1, "opened %d more: bound %d dependency first %d\n", MORE, bound, ordered);
+    int reused = 0;
+    for (int k = PAIRS; k < DIRS; k++) {
+        void *mine[2] = { handle[k], base_id[k] >= 0 ? map_of(who[base_id[k]]) : NULL };
+        for (int x = 0; x < 2; x++) for (int i = 0; i < nold; i++) if (mine[x] && mine[x] == old[i]) { reused++; break; }
+    }
+    SAY(2, "reused %d of %d\n", reused, nold);
+    check("reopened");
+    /* The hub: one call adds 601 objects, one dlclose removes them. */
+    int s0 = nwho;
+    snprintf(path, sizeof path, "%s/h/libhub.so", dir);
+    void *hub = dlopen(path, RTLD_NOW);
+    if (!hub) { SAY(1, "open: %s\n", dlerror()); return 1; }
+    int hub_last = nwho - s0 == Q + 1 && kind[nwho - 1] == 'h', named = 0;
+    if (hub_last) hub_id = nwho - 1;
+    for (int i = s0; i < nwho; i++) {
+        Dl_info info;
+        char *e;
+        if (kind[i] != 'q' || !dladdr(who[i], &info) || !info.dli_fname) continue;
+        const char *p = info.dli_fname;
+        if (strncmp(p, dir, dir_len) != 0 || strncmp(p + dir_len, "/h/libq", 7) != 0) continue;
+        long j = strtol(p + dir_len + 7, &e, 10);
+        if (j >= 1 && j <= Q && !strcmp(e, ".so") && q_id[j] < 0) { q_id[j] = i; lab[i] = (int)j; named++; }
+    }
+    SAY(1, "hub: objects %d named %d hub last %d\n", nwho - s0, named, hub_last);
+    check("hub");
+    int s = nseq;
+    if (dlclose(hub)) { SAY(1, "close: %s\n", dlerror()); return 1; }
+    int order = nseq - s == Q + 1;
+    for (int k = 0; order && k <= Q; k++) order = seq[s + k] == nwho - 1 - k;
+    SAY(1, "hub closed: finalised %d dependents first, in reverse %d\n", nseq - s, order);
+    check("hub closed");
+    SAY(1, "exit\n");
+    at_exit = 1;
+    return 0;
+}
+"#;
+
+/// The object-table corpus in a new scratch directory: (the object directory, the program), or
+/// `None` with the reason printed. One top, base and hub dependency are built, then copied (each
+/// copy its own file, so its own object). The scratch guard is removed when the test passes and
+/// kept (path on stderr) when it fails.
+fn many_corpus() -> Option<(Scratch, PathBuf, PathBuf)> {
+    let (lib, ld) = products()?;
+    let guard = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-process-objects-many");
+    std::fs::create_dir_all(guard.join("o/h")).unwrap();
+    std::fs::create_dir_all(guard.join("build")).unwrap();
+    let top = guard.to_path_buf();
+    let (d, b, h) = (top.join("o"), top.join("build"), top.join("o/h"));
+    let libc = named_libc(&lib, &top);
+    let flags = |more: &[&str]| -> Vec<String> { ["-nostdlib", "-fPIC", "-shared"].iter().chain(more).map(|s| s.to_string()).collect() };
+    build_all(vec![
+        ("libbase0000.so".into(), cc(&b, "libbase0000.so", MANY_LIB, &flags(&["-DBASE", "-DKIND='b'", "-Wl,-soname,libbase0000.so"]))),
+        ("libq.so".into(), cc(&b, "libq.so", MANY_LIB, &flags(&["-DKIND='q'"]))),
+    ]);
+    let base = b.join("libbase0000.so");
+    build_all(vec![("libtop.so".into(), cc(&b, "libtop.so", MANY_LIB, &flags(&["-DTOP", "-DKIND='t'", "-Wl,--no-as-needed", "-Wl,-rpath,$ORIGIN", base.to_str().unwrap()])))]);
+    // Pair k's base is `libbase<k>.so` (4 digits), named so in its soname and its top's DT_NEEDED: a
+    // needed name matching a loaded object's soname is that object, so one shared name would make
+    // every top share the first base.
+    let (top_so, base_so) = (std::fs::read(b.join("libtop.so")).unwrap(), std::fs::read(&base).unwrap());
+    let named = |so: &[u8], k: usize| -> Vec<u8> {
+        let (from, to) = (b"libbase0000.so", format!("libbase{k:04}.so"));
+        let mut out = so.to_vec();
+        let at: Vec<usize> = so.windows(from.len()).enumerate().filter(|(_, w)| w == from).map(|(i, _)| i).collect();
+        assert!(!at.is_empty(), "the name to patch is in the object");
+        for i in at {
+            out[i..i + from.len()].copy_from_slice(to.as_bytes());
+        }
+        out
+    };
+    for k in 0..1500 {
+        let p = d.join(format!("p{k}"));
+        std::fs::create_dir(&p).unwrap();
+        std::fs::write(p.join("libtop.so"), named(&top_so, k)).unwrap();
+        std::fs::write(p.join(format!("libbase{k:04}.so")), named(&base_so, k)).unwrap();
+    }
+    for j in 1..=600 {
+        std::fs::copy(b.join("libq.so"), h.join(format!("libq{j}.so"))).unwrap();
+    }
+    let mut hub = flags(&["-DKIND='h'", "-Wl,--no-as-needed", "-Wl,-rpath,$ORIGIN", &format!("-L{}", h.display())]);
+    hub.extend((1..=600).map(|j| format!("-l:libq{j}.so")));
+    build_all(vec![("libhub.so".into(), cc(&b, "libhub.so", MANY_LIB, &hub))]);
+    std::fs::copy(b.join("libhub.so"), h.join("libhub.so")).unwrap();
+    let flags = prog_flags(&lib, &ld, &libc, &["-Wl,--export-dynamic"]);
+    build_all(vec![("prog".into(), cc(&top, "prog", MANY, &flags))]);
+    Some((guard, d, top.join("prog")))
+}
+
+/// s27_1_c_1, s27_1_c_4, s27_1_c_6, s27_1_c_8, s27_1_c_9 (dlopen(3) states no limit on the objects
+/// a process holds): 2000 objects held at once, four times the tables' first generation of 512.
+/// Each is found by an address inside it (`dladdr`, `_dl_find_object`), listed once by
+/// `dl_iterate_phdr` and once on the link-map chain, each by its own path, and binds to its own
+/// dependency; its constructor runs after its dependency's. Closing every other pair runs the
+/// top's finaliser before its base's and leaves no closed object listed or found; 500 more pairs
+/// load, the first in the freed slots at the top (libniji). One `dlopen` of a hub adds 601 objects and its `dlclose`
+/// finalises them all, the hub first, then in reverse constructor order. At exit the 2000 objects
+/// left are finalised once each, in load order with each top before its base (DL-EXIT-ORDER-PROBE),
+/// as under the reference (probe of this program, DL-PROCESS-OBJECTS-2 handoff).
+#[test]
+fn dlopen_process_objects_past_the_old_object_tables() {
+    let Some((_top, d, prog)) = many_corpus() else { return };
+    let o = run(Command::new(&prog).arg(&d));
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    assert!(o.status.success(), "the program failed: {:?}\n{out}{err}", o.status);
+    let all = |r: &str, n: usize| format!("{r}: live {n} dladdr {n} find {n} phdr {n} lmap {n} stray 0\n");
+    let want = [
+        "opened 1000: bound 1000 dependency first 1000\n".to_string(),
+        all("first", 2000),
+        "closed 500: finalised 1000 dependent first 500\n".to_string(),
+        all("closed", 1000),
+        "opened 500 more: bound 500 dependency first 500\n".to_string(),
+        all("reopened", 2000),
+        "hub: objects 601 named 600 hub last 1\n".to_string(),
+        all("hub", 2601),
+        "hub closed: finalised 601 dependents first, in reverse 1\n".to_string(),
+        all("hub closed", 2000),
+    ]
+    .concat();
+    let (head, exit) = out.split_once("exit\n").unwrap_or((&out, ""));
+    assert_eq!(head, want, "the object tables past 512 objects");
+    // The pairs left in load order (the even pairs below 1000, then 1000..1500; DL-EXIT-ORDER-PROBE),
+    // each top before the base it needs, whatever slot each took.
+    let want_exit: Vec<String> = (0..1000).step_by(2).chain(1000..1500).flat_map(|k| [format!("x t {k}"), format!("x b {k}")]).collect();
+    let got: Vec<&str> = exit.lines().collect();
+    let first = got.iter().zip(&want_exit).position(|(g, w)| g != w);
+    assert!(got.len() == want_exit.len() && first.is_none(), "exit finalisers: {} of {}, first difference at {first:?}: {:?}", got.len(), want_exit.len(), first.map(|i| (got[i], &want_exit[i])));
+    // libniji reuses the freed slots at the top of the tables (the D-27 dlclose record: a new set
+    // starts at the top): pair 999, closed last, held the top two, and pair 1000 takes them. The
+    // holes below the top stay unused (DL-PROCESS-OBJECTS-2 handoff, a later story's).
+    let reused: usize = err.split("reused ").nth(1).and_then(|s| s.split(' ').next()).and_then(|s| s.parse().ok()).unwrap_or(0);
+    assert!(reused >= 2, "slot reuse at the top: {err}");
 }

@@ -1,0 +1,19 @@
+{"task": "NSCACHE-BOOTID-TMPFS-2", "model": "opus", "tokens": null,
+ "result": "tmpfs boot-ID skip on attach merged onto next, layout fixed (fstatfs traced, Table::boot inlined): 1st cached lookup 136.5k -> 126.3k kernel instr, faults 8 = 8; gate green, 3/3 plants caught",
+ "branch": "task/nscache-bootid-tmpfs-2", "head": null,
+ "gate": {"affected": "11585 passed / 0 failed (17 suites), conformance 56/56", "peak": "14G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The layout trace always creates its name-service region (ruling #5223), so code that only an attach to an existing region runs is never grouped; this branch keeps that path's calls on the creation path or inlined. A future attach-only function will meet the same thing."],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "first cached getpwnam_r of a process (attach to the tmpfs region), kernel instructions, median of 8", "before": 136500, "after": 126300, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "same call, user instructions", "before": 18540, "after": 17610, "unit": "instr/call", "measured": true},
+  {"kind": "faults", "what": "same call, page faults", "before": 8, "after": 8, "unit": "faults", "measured": true},
+  {"kind": "cost", "what": "region creation (once per region): one extra fstatfs so the layout trace groups it", "before": null, "after": null, "unit": "syscalls", "measured": false},
+  {"kind": "coverage", "what": "boot-ID tests (tmpfs and other file system) and plants", "before": 0, "after": 5, "unit": "2 tests + 3 plants", "measured": true}
+ ],
+ "improvement": "A fault map of the probe call (tools/hottext/faultmap.py) named the two layout faults in one run; a counts step that always pairs next with the branch and runs faultmap would catch such regressions before the gate.",
+ "next_step": "CI; optional booked timing.sh run to restate the break-even by time",
+ "report_file": "handoff/NSCACHE-BOOTID-TMPFS.md",
+ "jobs": ["mei:nscache-bootid-tmpfs-2-gate2", "mei:nscache-bootid-tmpfs-2-plants2", "mei:nscache-bootid-tmpfs-2-counts2"]}

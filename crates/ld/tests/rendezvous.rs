@@ -73,7 +73,9 @@ static int check(const char *when, int base, int want, const char *last, const c
         return base + 1;
     }
     if (dt() != own) return base + 2;
-    if (own->r_version != 1 || RDBG.r_version != 1) return base + 3;
+    /* ld.so's own is the extended structure: version 2, r_next (offset 40) null with one namespace.
+       RDBG is ld.so's own or a copy made against this ld.so's 48-byte symbol: the same. */
+    if (own->r_version != 2 || RDBG.r_version != 2 || *(void **)((char *)own + 40) || *(void **)((char *)&RDBG + 40)) return base + 3;
     if (own->r_state != RT_CONSISTENT || RDBG.r_state != RT_CONSISTENT) return base + 4;
     if ((void *)own->r_brk != brk || RDBG.r_brk != own->r_brk) return base + 5;
     if (own->r_map != RDBG.r_map || own->r_ldbase != RDBG.r_ldbase || !own->r_ldbase) return base + 6;
@@ -238,6 +240,79 @@ fn rendezvous_copy_relocation_is_kept_current() {
     assert_ne!(copied(&b.prog), Some(false), "the -no-pie program has no COPY relocation of _r_debug");
     let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
+}
+
+/// Reads `_r_debug` through `DT_DEBUG` (ld.so's own, version 2 with a null `r_next`) and through the
+/// program's copy, made at the 40 bytes the program was linked against.
+const REF_PROG: &str = r#"
+#include <elf.h>
+#include <link.h>
+#include <stdio.h>
+extern ElfW(Dyn) _DYNAMIC[];
+extern struct r_debug _r_debug;
+int main(void) {
+    struct r_debug *own = 0;
+    for (ElfW(Dyn) *d = _DYNAMIC; d->d_tag != DT_NULL; d++)
+        if (d->d_tag == DT_DEBUG) own = (struct r_debug *)d->d_un.d_ptr;
+    if (!own || own == &_r_debug) return 1;
+    if (own->r_version != 2 || *(void **)((char *)own + 40)) return 2;
+    if (_r_debug.r_version != 1) return 3;
+    if (_r_debug.r_state != RT_CONSISTENT || _r_debug.r_map != own->r_map || _r_debug.r_brk != own->r_brk || !_r_debug.r_map) return 4;
+    puts("reference-sized copy ok");
+    return 0;
+}
+"#;
+
+// Spec s27_4_c_0: `_r_debug` is version 2 with `r_next` null; a program's copy made at the 40 bytes
+// of a program linked against the reference's symbol has no room for `r_next` and says version 1,
+// while it stays current. Built with the host's C library and run under libniji's loader.
+#[test]
+fn rendezvous_reference_sized_copy_says_version_1() {
+    if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        eprintln!("SKIP: no system C compiler to build the corpus");
+        return;
+    }
+    let lib = target().join("niji");
+    let ld = lib.join(Native::INTERP);
+    if !ld.exists() || !lib.join("libc.so.6").exists() {
+        eprintln!("SKIP: ld.so or libc.so.6 not built (run cargo xtask so)");
+        return;
+    }
+    let lib = std::fs::canonicalize(lib).unwrap();
+    let d = std::fs::canonicalize({
+        let d = target().join(format!("ld-rendezvous-refcopy-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    })
+    .unwrap();
+    let c = d.join("refprog.c");
+    std::fs::write(&c, REF_PROG).unwrap();
+    let prog = d.join("refprog");
+    // Linked against the host's C library (its `_r_debug` is 40 bytes); at run time libniji's loader
+    // starts it and finds libniji's libraries through LD_LIBRARY_PATH.
+    let r = Command::new("cc")
+        .args(["-O1", "-fno-pic", "-no-pie", "-fcf-protection=none"])
+        .arg(format!("-Wl,--dynamic-linker={}", ld.display()))
+        .arg(&c)
+        .arg("-o")
+        .arg(&prog)
+        .output()
+        .unwrap();
+    assert!(r.status.success(), "{}", String::from_utf8_lossy(&r.stderr));
+    // The host's C library names its `_r_debug` 40 bytes: the copy is that long (the premise).
+    let rel = Command::new("readelf").args(["-sW"]).arg(&prog).output();
+    if let Ok(o) = rel.as_ref().map(|o| String::from_utf8_lossy(&o.stdout).into_owned()) {
+        let line = o.lines().find(|l| l.contains(" _r_debug")).unwrap_or("");
+        if !line.split_whitespace().nth(2).is_some_and(|s| s == "40") {
+            eprintln!("SKIP: the host's _r_debug is not 40 bytes in the program ({line:?})");
+            let _ = std::fs::remove_dir_all(&d);
+            return;
+        }
+    }
+    let o = Command::new(&prog).env("LD_LIBRARY_PATH", &lib).output().unwrap();
+    let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    assert_eq!(o.status.code(), Some(0), "failed check {:?}: {out}", o.status.code());
+    let _ = std::fs::remove_dir_all(&d);
 }
 
 // Spec s27_4_c_0: a debugger that breaks on r_brk sees every object: gdb lists libc by path and stops

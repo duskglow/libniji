@@ -1,0 +1,42 @@
+# DL-PROCESS-OBJECTS-2 plants (part 2, the object tables): each table bound restored alone (link-map nodes, object
+# and symbol records, the readers' table, the Finis store, the global/log/retired lists, the reserved scratch, the
+# per-call sets' choice of scratch past 512), the later-generation decode of each lock-free reader (View::node_addr,
+# View::find, Recs::addr_in, readers::slot, Finis::entry), each reader's continuation past generation 0
+# (View::find_past, iterate_past, find_past) and a handle in a later generation (handle_index).
+nodes-cap | crates/boundary/src/ld/dlopen.rs | lit:        len <= CAP || self.gens.reserve(size_of::<Node>(), len) ==>         len <= CAP | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+recs-cap | crates/boundary/src/ld/dlopen.rs | lit:        if !self.published.reserve(len) || !self.wide.reserve(len) { ==>         if len > CAP || !self.published.reserve(len) || !self.wide.reserve(len) { | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+readers-cap | crates/boundary/src/ld/dlopen.rs | lit:        && l.readers.reserve(super::readers::ENTRY_BYTES, len) ==>         && len <= CAP | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+fin-cap | crates/boundary/src/ld/dlopen.rs | lit:        && l.fin.reserve(len) ==>         && len <= CAP | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+global-cap | crates/boundary/src/ld/dlopen.rs | lit:        && l.global.reserve(len) ==>         && len <= CAP | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+log-cap | crates/boundary/src/ld/dlopen.rs | lit:        && l.log.reserve(len) ==>         && len <= CAP | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+retired-cap | crates/boundary/src/ld/dlopen.rs | lit:        && l.retired.reserve(len); ==>         && len <= CAP; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+scratch-cap | crates/boundary/src/ld/dlopen.rs | lit:    if !scratch(l).is_some_and(|s| s.reserve(len)) { ==>     if len > CAP || !scratch(l).is_some_and(|s| s.reserve(len)) { | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the program failed
+room-inline | crates/boundary/src/ld/dlopen.rs | lit:    let s = if n <= inline.len() { inline.get_mut(..n) } else { wide.and_then(|w| w.slice_mut(n)) }; ==>     let s = if n <= inline.len() { inline.get_mut(..n) } else { inline.get_mut(..) }; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+view-node-addr | crates/boundary/src/ld/dlopen.rs | lit:        Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i) ==>         Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i % CAP) | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+view-find-gen0 | crates/boundary/src/ld/dlopen.rs | lit:        Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), addr) ==>         Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), addr).filter(|&i| i < CAP) | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects
+recs-addr-gen0 | crates/boundary/src/ld/dlopen.rs | lit:        Grown::<MaybeUninit<T>, CAP, OBJ_GENS>::addr_in(at.wrapping_add(core::mem::offset_of!(Recs<T>, published)), i) ==>         Grown::<MaybeUninit<T>, CAP, OBJ_GENS>::addr_in(at.wrapping_add(core::mem::offset_of!(Recs<T>, published)), i % CAP) | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+readers-slot-gen0 | crates/boundary/src/ld/readers.rs | lit:    let at = reader_entry(i); ==>     let at = reader_entry(i % CAP); | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+finis-entry-first | crates/boundary/src/ld/dlopen.rs | lit:        let at = Grown::<Fin, CAP, OBJ_GENS>::addr_in(self.store, self.from.saturating_add(j.saturating_sub(CAP))); ==>         let at = Grown::<Fin, CAP, OBJ_GENS>::addr_in(self.store, self.from); | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+handle-gen0 | crates/boundary/src/ld/dlopen/dlsym.rs | lit:    l.index_of(handle).filter(|&i| i < l.n && !l.gone(i)) ==>     l.index_of(handle).filter(|&i| i < l.n.min(CAP) && !l.gone(i)) | cargo test -p niji-ld --test dlclose s27_1_c_4_dlopen_waits_for_readers_only_outside_them | msg:callback opens
+view-find-past | crates/boundary/src/ld/dlopen.rs | lit:                return self.find_past(next, &mut pred); ==>                 return None; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+iterate-past | crates/boundary/src/ld/readers.rs | lit:            return iterate_past(v, cb, data); ==>             return 0; | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+find-object-past | crates/boundary/src/ld/readers.rs | lit:            .or_else(|| find_past(v, n, pc)) ==>             .or_else(|| None) | cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects|the program failed
+# cargo xtask plants results (18 plants: 18 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# nodes-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# recs-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# readers-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# fin-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# global-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# log-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# retired-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# scratch-cap: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# room-inline: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# view-node-addr: CAUGHT, caught by timeout: `cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables` timed out after 600 s
+# view-find-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# recs-addr-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# readers-slot-gen0: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# finis-entry-first: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# handle-gen0: CAUGHT, caught by dlclose s27_1_c_4_dlopen_waits_for_readers_only_outside_them
+# view-find-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# iterate-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables
+# find-object-past: CAUGHT, caught by dlopen_process_objects dlopen_process_objects_past_the_old_object_tables

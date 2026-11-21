@@ -47,6 +47,18 @@ static void *t_lock(void *) {
     Unlock u;
     pthread_exit(nullptr);
 }
+// Asynchronous cancellation, in a frame with nothing to clean up and no handler, so the C++
+// personality routine never looks at it. On a library that acts at once, the request can
+// interrupt any instruction here (the loop's jump included); the frames above this one are
+// then left at their call instructions, which their call-site tables cover. A frame with a
+// handler interrupted between two calls is outside its table, and the personality routine calls
+// std::terminate instead of unwinding (an outcome that depends on timing). libniji acts at the
+// next safe point, pthread_testcancel (D-22.11).
+__attribute__((noinline, noclone)) static void async_spin() {
+    int old;
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
+    for (;;) pthread_testcancel();
+}
 // One cancellation point of each kind libniji has: a blocking call in the cancellation window
 // (pause, nanosleep), a direct point (read), the futex waits (pthread_cond_wait, sem_wait,
 // pthread_join), pthread_testcancel, and asynchronous cancellation.
@@ -63,7 +75,7 @@ static void *t_cancel(void *arg) {
         case 4: sem_wait(&sem); break;
         case 5: for (;;) pthread_testcancel();
         case 6: pthread_join(blocker, nullptr); break;
-        case 7: { int old; pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old); for (;;) pthread_testcancel(); }
+        case 7: async_spin();
         }
     } catch (abi::__forced_unwind &) { caught_fu++; throw; }
     return nullptr;

@@ -487,3 +487,373 @@ impl<T: Plain, const N: usize, const G: usize> Arena<T, N, G> {
         if at == 0 { 0 } else { at.wrapping_add(i.wrapping_mul(size_of::<T>())) }
     }
 }
+
+/// Entries for which all-zero (a fresh mapping) and every value written are valid: what [`Grown`],
+/// [`Wide`] and [`Spill`] hand out before or after a write.
+pub(super) trait ZeroValid: Copy {}
+impl ZeroValid for bool {}
+impl ZeroValid for u8 {}
+impl ZeroValid for u32 {}
+impl ZeroValid for u64 {}
+impl ZeroValid for usize {}
+impl<A: ZeroValid, B: ZeroValid> ZeroValid for (A, B) {}
+impl<T: ZeroValid, const N: usize> ZeroValid for [T; N] {}
+impl<T: Copy> ZeroValid for MaybeUninit<T> {}
+impl ZeroValid for niji_ld::init::ExitWalk {}
+
+/// A private read-write anonymous mapping of `bytes` (rounded up to pages); 0 when it cannot be made.
+fn map_zeroed(bytes: usize) -> usize {
+    let Some(bytes) = bytes.checked_next_multiple_of(4096) else { return 0 };
+    raw::mmap(0, bytes, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).unwrap_or(0)
+}
+
+/// The directory of a table of fixed-size entries that grows by generations (DL-PROCESS-OBJECTS
+/// part 2, audit HL-3), whose generation 0 (`N` entries) lives elsewhere: `ld.so`'s data (the
+/// link-map nodes), a static (the readers' table) or a [`Grown`]'s place. Generation `g >= 1` holds
+/// `N << (g - 1)` entries in a private anonymous mapping made by [`Gens::reserve`], never moved or
+/// unmapped, with [`Arena`]'s generation arithmetic: an entry's address (a handle, a link map)
+/// stays valid for the process, and a reader that holds no lock decodes an index past generation 0
+/// with one directory load (Acquire). The directory word is stored (Release) before any entry in
+/// the generation is published. Indices fit 32 bits (`N << G <= 2^32`). All-zero is the empty
+/// directory.
+#[repr(C)]
+pub(super) struct Gens<const N: usize, const G: usize> {
+    gens: [AtomicUsize; G],
+}
+
+impl<const N: usize, const G: usize> Gens<N, G> {
+    /// Power-of-two generations whose indices fit 32 bits.
+    const FITS: () = assert!(N.is_power_of_two() && G >= 1 && G < 32 && N <= (1usize << 32) >> G);
+
+    /// Entries generations `0..=G` hold together: one more index than any.
+    pub(super) const MOST: usize = N << G;
+
+    /// Entry `i`'s address: `zero` (generation 0's first entry) plus its offset there, else from
+    /// generation `g`'s address `base(g)`; 0 when that generation is not mapped or `i` is past every
+    /// generation.
+    fn locate(i: usize, size: usize, zero: usize, base: impl FnOnce(usize) -> usize) -> usize {
+        let () = Self::FITS;
+        let (g, j) = Arena::<u8, N, G>::gen_of(i);
+        let at = if g == 0 {
+            zero
+        } else if g <= G {
+            base(g)
+        } else {
+            0
+        };
+        if at == 0 { 0 } else { at.wrapping_add(j.wrapping_mul(size)) }
+    }
+
+    /// Generation `g >= 1`'s address in the directory at address `dir`, loaded without a reference
+    /// (Acquire); 0 when not mapped.
+    fn base_in(dir: usize, g: usize) -> usize {
+        if g == 0 || g > G {
+            return 0;
+        }
+        let w = dir.wrapping_add(g.wrapping_sub(1).wrapping_mul(size_of::<usize>()));
+        // UNSAFE(slice): one directory word, by address.
+        #[allow(unsafe_code)]
+        // SAFETY: `dir` is a live `Gens`'s address (a field of the loader's mapping, never unmapped,
+        // or a reference's) and `g - 1 < G`, so `w` is the aligned address of `gens[g - 1]`
+        // (`#[repr(C)]`, the only field); an atomic may be loaded while the writer stores it.
+        unsafe { (*core::ptr::with_exposed_provenance::<AtomicUsize>(w)).load(Acquire) }
+    }
+
+    /// Entry `i`'s address for the directory at address `dir` (a reader that may run while the
+    /// writer holds `&mut` of what holds the directory), entries of `size` bytes, generation 0 at
+    /// `zero`; 0 when not mapped.
+    #[inline(always)]
+    pub(super) fn at_in(dir: usize, zero: usize, size: usize, i: usize) -> usize {
+        // Generation 0 inline: a reader within `N` entries pays one compare (DL-PROCESS-OBJECTS-2).
+        if i < N {
+            return zero.wrapping_add(i.wrapping_mul(size));
+        }
+        Self::at_past(dir, zero, size, i)
+    }
+
+    /// [`Gens::at_in`] past generation 0.
+    #[inline(never)]
+    fn at_past(dir: usize, zero: usize, size: usize, i: usize) -> usize {
+        Self::locate(i, size, zero, |g| Self::base_in(dir, g))
+    }
+
+    /// [`Gens::at_in`] through a reference.
+    pub(super) fn at(&self, zero: usize, size: usize, i: usize) -> usize {
+        Self::at_in(core::ptr::from_ref(self).expose_provenance(), zero, size, i)
+    }
+
+    /// The index of the entry whose first byte is `addr` (entries of `size` bytes, generation 0 at
+    /// `zero`), for the directory at `dir`: one range test for generation 0, then one per mapped
+    /// generation (mapped in order, so the first unmapped one ends the search).
+    pub(super) fn index_in(dir: usize, zero: usize, size: usize, addr: usize) -> Option<usize> {
+        let () = Self::FITS;
+        for g in 0..=G {
+            let base = if g == 0 { zero } else { Self::base_in(dir, g) };
+            if base == 0 {
+                return None;
+            }
+            let len = Arena::<u8, N, G>::gen_len(g);
+            if let Some(off) = addr.checked_sub(base).filter(|&o| o < len.saturating_mul(size)) {
+                return (off.checked_rem(size)? == 0).then_some(Arena::<u8, N, G>::gen_start(g).wrapping_add(off.checked_div(size)?));
+            }
+        }
+        None
+    }
+
+    /// [`Gens::index_in`] through a reference.
+    pub(super) fn index(&self, zero: usize, size: usize, addr: usize) -> Option<usize> {
+        Self::index_in(core::ptr::from_ref(self).expose_provenance(), zero, size, addr)
+    }
+
+    /// Map every generation entries `0..len` need (entries of `size` bytes), publishing each
+    /// address before it returns; `false` when a mapping cannot be made or `len` passes every
+    /// generation (the ones made stay, as all generations do).
+    pub(super) fn reserve(&self, size: usize, len: usize) -> bool {
+        let () = Self::FITS;
+        for g in 1..=G {
+            if Arena::<u8, N, G>::gen_start(g) >= len {
+                return true;
+            }
+            let Some(word) = self.gens.get(g.wrapping_sub(1)) else { return false };
+            if word.load(Relaxed) == 0 {
+                let at = Arena::<u8, N, G>::gen_len(g).checked_mul(size).map_or(0, map_zeroed);
+                if at == 0 {
+                    return false;
+                }
+                word.store(at, Release);
+            }
+        }
+        Arena::<u8, N, G>::gen_start(G.wrapping_add(1)) >= len
+    }
+}
+
+/// A table of `T` that grows by never-moved generations ([`Gens`]) with its generation 0 in place
+/// (`N` entries, after the directory): a process within `N` entries uses the same bytes as a fixed
+/// array of `N`. Only the lock holder writes; a reader that holds no lock reads an entry published
+/// to it by address ([`Grown::addr_in`]).
+#[repr(C)]
+pub(super) struct Grown<T: ZeroValid, const N: usize, const G: usize> {
+    gens: Gens<N, G>,
+    inline: [T; N],
+}
+
+impl<T: ZeroValid, const N: usize, const G: usize> Grown<T, N, G> {
+    /// Generation 0's offset (after the `G` directory words; entries no more aligned than a word).
+    pub(super) const INLINE_AT: usize = G.wrapping_mul(size_of::<usize>());
+    const ALIGNED: () = assert!(align_of::<T>() <= align_of::<usize>() && size_of::<T>() > 0);
+
+    fn zero(&self) -> usize {
+        self.inline.as_ptr().expose_provenance()
+    }
+
+    /// Entry `i`'s address (0: its generation is not mapped).
+    pub(super) fn addr(&self, i: usize) -> usize {
+        let () = Self::ALIGNED;
+        self.gens.at(self.zero(), size_of::<T>(), i)
+    }
+
+    /// Entry `i`'s address in the table at address `at`, read without a reference to it.
+    #[inline(always)]
+    pub(super) fn addr_in(at: usize, i: usize) -> usize {
+        let () = Self::ALIGNED;
+        Gens::<N, G>::at_in(at, at.wrapping_add(Self::INLINE_AT), size_of::<T>(), i)
+    }
+
+    /// Room for entries `0..len`; `false` when a generation cannot be mapped.
+    pub(super) fn reserve(&self, len: usize) -> bool {
+        len <= N || self.gens.reserve(size_of::<T>(), len)
+    }
+
+    pub(super) fn get_mut(&mut self, i: usize) -> Option<&mut T> {
+        if i < N {
+            return self.inline.get_mut(i);
+        }
+        let at = self.addr(i);
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): one entry of a mapped generation, for its one writer.
+        #[allow(unsafe_code)]
+        // SAFETY: `at` is entry `i` of a generation `reserve` mapped (read-write, never unmapped),
+        // aligned for `T` (`ALIGNED`); all-zero and every value written are valid (`ZeroValid`);
+        // `&mut self` excludes other references through the table; lock-free readers read only
+        // published entries, unchanged until their slot is reused after a grace period.
+        Some(unsafe { &mut *core::ptr::with_exposed_provenance_mut::<T>(at) })
+    }
+
+    /// Generation 0 (the fixed array it replaced).
+    pub(super) fn inline(&self) -> &[T; N] {
+        &self.inline
+    }
+}
+
+/// Grow the mapping at `at` (`old` bytes, 0: none) to `new` bytes, moving it (`mremap`) when it must:
+/// its new address, 0 when that cannot be done (the old mapping is kept).
+fn grow_map(at: usize, old: usize, new: usize) -> usize {
+    let Some(new) = new.checked_next_multiple_of(4096) else { return 0 };
+    if at == 0 {
+        return map_zeroed(new);
+    }
+    raw::mremap(at, old, new).unwrap_or(0)
+}
+
+/// A contiguous lock-held buffer of `T` in a mapping of its own, moved and grown by `mremap`
+/// (DL-PROCESS-OBJECTS part 2): scratch that the `dlopen` growing the object count reserves, so the
+/// calls that must not allocate (`dlclose`, the exit) find it sized. All-zero is the empty buffer.
+pub(super) struct Wide<T: ZeroValid> {
+    at: usize,
+    cap: usize,
+    _t: PhantomData<T>,
+}
+
+impl<T: ZeroValid> Wide<T> {
+    /// Room for `len` entries (zero when never written); `false` when the mapping cannot grow.
+    pub(super) fn reserve(&mut self, len: usize) -> bool {
+        if len <= self.cap {
+            return true;
+        }
+        let size = size_of::<T>().max(1);
+        let want = len.max(self.cap.saturating_mul(2));
+        let Some(bytes) = want.checked_mul(size) else { return false };
+        let at = grow_map(self.at, self.cap.saturating_mul(size).next_multiple_of(4096), bytes);
+        if at == 0 {
+            return false;
+        }
+        (self.at, self.cap) = (at, bytes.next_multiple_of(4096).checked_div(size).unwrap_or(0));
+        true
+    }
+
+    /// Entries `0..len`, `None` past the room reserved.
+    pub(super) fn slice_mut(&mut self, len: usize) -> Option<&mut [T]> {
+        if len > self.cap || self.at == 0 {
+            return if len == 0 { Some(&mut []) } else { None };
+        }
+        // UNSAFE(slice): the reserved prefix of the buffer's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: `at` is a private read-write mapping of `cap >= len` entries (page aligned, so
+        // aligned for `T`), made or moved by `reserve` only, which `&mut self` keeps from running
+        // while the slice lives; all-zero and every value written are valid `T`s (`ZeroValid`).
+        Some(unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<T>(self.at), len) })
+    }
+}
+
+/// Contiguous lock-held copies of records (not `ZeroValid`: they hold references) in a mapping of
+/// their own, moved and grown by `mremap`: `0..len` are written. The relocator's and the lookups'
+/// slices of the objects past generation 0 ([`Grown`] holds the published ones).
+pub(super) struct Records<T: Copy> {
+    at: usize,
+    cap: usize,
+    len: usize,
+    _t: PhantomData<T>,
+}
+
+impl<T: Copy> Records<T> {
+    /// Room for `len` records; `false` when the mapping cannot grow.
+    pub(super) fn reserve(&mut self, len: usize) -> bool {
+        if len <= self.cap {
+            return true;
+        }
+        let size = size_of::<T>().max(1);
+        let want = len.max(self.cap.saturating_mul(2));
+        let Some(bytes) = want.checked_mul(size) else { return false };
+        let at = grow_map(self.at, self.cap.saturating_mul(size).next_multiple_of(4096), bytes);
+        if at == 0 {
+            return false;
+        }
+        (self.at, self.cap) = (at, bytes.next_multiple_of(4096).checked_div(size).unwrap_or(0));
+        true
+    }
+
+    /// Records written (`0..len`).
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Write record `i` (at most one past the written ones, inside the room reserved); `false`
+    /// (nothing written) otherwise.
+    pub(super) fn set(&mut self, i: usize, v: T) -> bool {
+        if i > self.len || i >= self.cap || self.at == 0 {
+            return false;
+        }
+        // UNSAFE(slice): one record of the buffer's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: `i < cap`: inside the private read-write mapping `reserve` made (page aligned, so
+        // aligned for `T`); `&mut self` excludes every slice `slice` handed out; a plain write of a
+        // `Copy` value, so the old bytes need not be a valid `T`.
+        unsafe {
+            core::ptr::with_exposed_provenance_mut::<T>(self.at).wrapping_add(i).write(v);
+        }
+        if i == self.len {
+            self.len = self.len.wrapping_add(1);
+        }
+        true
+    }
+
+    /// Records `0..k`, `None` unless all are written.
+    pub(super) fn slice(&self, k: usize) -> Option<&[T]> {
+        if k > self.len || self.at == 0 {
+            return if k == 0 { Some(&[]) } else { None };
+        }
+        // UNSAFE(slice): the written prefix of the buffer's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: records `0..len` were written by `set` as valid `T`s, inside the mapping (`len <=
+        // cap`); the borrow of `self` keeps `reserve` (the only mover) and `set` away.
+        Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(self.at), k) })
+    }
+}
+
+/// A lock-held list with its first `N` entries in place (the fixed array it replaced: a process
+/// within `N` uses the same bytes) that moves, whole, to a [`Wide`] buffer the first time it needs
+/// more (the in-place entries are then no longer read). All-zero is the empty list.
+pub(super) struct Spill<T: ZeroValid, const N: usize> {
+    inline: [T; N],
+    wide: Wide<T>,
+}
+
+impl<T: ZeroValid, const N: usize> Spill<T, N> {
+    /// Room for entries `0..len`; `false` when the buffer cannot be made or grow.
+    pub(super) fn reserve(&mut self, len: usize) -> bool {
+        if len <= N && self.wide.cap == 0 {
+            return true;
+        }
+        let first = self.wide.cap == 0;
+        if !self.wide.reserve(len.max(N.saturating_mul(2))) {
+            return false;
+        }
+        if first {
+            if let Some(w) = self.wide.slice_mut(N) {
+                w.copy_from_slice(&self.inline);
+            }
+        }
+        true
+    }
+
+    /// Entries `0..len` (`None` past the room reserved).
+    pub(super) fn slice(&self, len: usize) -> Option<&[T]> {
+        if self.wide.cap == 0 {
+            return self.inline.get(..len);
+        }
+        if len > self.wide.cap {
+            return None;
+        }
+        // UNSAFE(slice): the reserved prefix of the list's buffer.
+        #[allow(unsafe_code)]
+        // SAFETY: as `Wide::slice_mut`, shared: the borrow of `self` keeps `reserve` away.
+        Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(self.wide.at), len) })
+    }
+
+    pub(super) fn slice_mut(&mut self, len: usize) -> Option<&mut [T]> {
+        if self.wide.cap == 0 {
+            return self.inline.get_mut(..len);
+        }
+        self.wide.slice_mut(len)
+    }
+
+    pub(super) fn get(&self, i: usize) -> Option<&T> {
+        self.slice(i.checked_add(1)?)?.last()
+    }
+
+    pub(super) fn get_mut(&mut self, i: usize) -> Option<&mut T> {
+        self.slice_mut(i.checked_add(1)?)?.last_mut()
+    }
+}

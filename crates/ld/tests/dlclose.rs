@@ -479,14 +479,15 @@ static void concurrent(void) {
     walkers();
 }
 
-/* Ruling #5651: past a retired threshold (a quarter of the 512-object table) dlopen and dlclose
-   wait at entry for the readers to drain, never from inside a read section or a constructor. */
-static int fill_n = -1, fill_full, fill_close;
+/* Ruling #5651: past a retired threshold (128 retired objects) dlopen and dlclose wait at entry
+   for the readers to drain, never from inside a read section or a constructor. */
+static int fill_n = -1, fill_close;
+static char fill_err[256];
 static int fill_cb(struct dl_phdr_info *i, size_t s, void *d) {
     (void)i; (void)s; (void)d;
     for (int k = 0; k < 600; k++) {
         void *p = dlopen(P("libP.so"), RTLD_NOW);
-        if (!p) { fill_n = k; fill_full = strstr(err(), "cannot load more objects") != NULL; return 1; }
+        if (!p) { fill_n = k; snprintf(fill_err, sizeof fill_err, "%s", err()); return 1; }
         if (dlclose(p) != 0) { fill_close = k + 1; return 1; }
     }
     fill_n = 600;
@@ -563,9 +564,10 @@ static int fork_cb(struct dl_phdr_info *i, size_t s, void *d) { (void)i; (void)s
 
 static void room(void) {
     /* A callback opening and closing: each close stays retired (its own thread is the reader), the
-       threshold passes and its calls never wait on themselves; dlopen fails once the table is full. */
+       threshold passes and its calls never wait on themselves; the 600 retired objects grow the
+       object tables past their first 512 entries, and every pair succeeds. */
     dl_iterate_phdr(fill_cb, NULL);
-    CHECK(60, fill_full && fill_n > 128 && fill_n < 512 && !fill_close, "callback opens: %d (full %d, close failed at %d)", fill_n, fill_full, fill_close);
+    CHECK(60, fill_n == 600 && !fill_close, "callback opens: %d (%s; close failed at %d)", fill_n, fill_err, fill_close);
     void *p = dlopen(P("libP.so"), RTLD_NOW);
     CHECK(61, p && dlclose(p) == 0, "open after the walk: %s", err());
     /* A reader stalled inside a walk: the main thread's opens wait for it past the threshold
@@ -880,11 +882,11 @@ fn s27_1_c_4_dlclose_concurrent_with_readers() {
     run(&d, &ld, &prog, "concurrent");
 }
 
-/// s27_1_c_4, s27_1_c_8 (ruling #5651, the D-27 dlclose record's amendment): past a quarter of the
-/// table in retired objects, `dlopen`/`dlclose` wait at entry for the readers to drain. A
-/// `dl_iterate_phdr` callback that opens and closes in a loop never waits on itself: its `dlopen`
-/// fails with `cannot load more objects` once the table is full, and the next call outside the walk
-/// reclaims everything. A reader stalled inside a walk makes the main thread's 600 open/close
+/// s27_1_c_4, s27_1_c_8 (ruling #5651, the D-27 dlclose record's amendment): past 128 retired
+/// objects, `dlopen`/`dlclose` wait at entry for the readers to drain. A `dl_iterate_phdr`
+/// callback that opens and closes 600 times never waits on itself: the retired objects grow the
+/// object tables past their first 512 entries (a handle in a later generation closes), and the
+/// next call outside the walk reclaims everything. A reader stalled inside a walk makes the main thread's 600 open/close
 /// pairs wait (seen asleep after 100..200 pairs) instead of filling the table. A constructor
 /// (holding the writer lock) that passes the threshold while a stalled reader's callback is
 /// blocked on that lock never waits (a deadlock otherwise; `alarm` is the hang guard). A child

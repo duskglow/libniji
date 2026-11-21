@@ -1,0 +1,12 @@
+id = "D-16.14"
+section = "s16"
+spec = "§16.2"
+ann = "ARB"
+status = "active"
+amends = ["D-16.8"]
+story = "LIMITS-RUNTIME-SMALL"
+date = "2026-11-21"
+tests = ["crates/core/tests/dns_products.rs"]
+body = '''
+**`getaddrinfo_a` has no limit on the requests pending at once or on the lists awaiting a notification but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-9; replaces D-16.8's queue of up to 4096 requests and its 256 notification groups). The queue is a ring of 64 slots inside the library that grows, when full, by the next chunk of `niji_rt::chunks::Chunks` (one page, then doubling, under the queue lock; the cold `grow` moves the wrapped part of the ring past the old end so the order stays). Notification groups: 16 inside the library, more in chunks mapped as needed and never moved, because a worker finishing a list's last request and the notifier read a group without the lock. When the queue or the groups cannot grow (no memory), the call returns `EAI_MEMORY` and, under `GAI_NOWAIT`, so does each of its requests; `EAI_AGAIN` stays the answer only for "no worker thread could be made". The 32 workers (`MAX_WORKERS`) are a concurrency policy, not a limit on requests, and stay. Test: `dns_products` `resolv_equals_the_reference`, scenario `gaimass` (20000 requests in one call and 5000 calls of one request each with a queued signal, all pending at once behind a server that holds its first query 1.5 s; every request answered, 5000 signals; the same lines as the reference).
+'''

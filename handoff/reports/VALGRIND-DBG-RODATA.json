@@ -1,0 +1,74 @@
+{
+ "task": "VALGRIND-DBG-RODATA",
+ "model": "opus",
+ "tokens": null,
+ "result": "valgrind runs with libniji's whole libc6-dbg (no find_rodata abort) and memcheck's error summaries equal stock on /bin/true, a C and a C++ program and a leak; the leak record's stack walk past libc and helgrind remain (cause of the first found, ruling needed)",
+ "branch": "task/valgrind-dbg-rodata",
+ "head": "470f25d84",
+ "gate": {
+  "affected": "11 suites ok, 760 passed / 0 failed (direct tier; FULL: the train's, xtask/src/so.rs)",
+  "peak": "4.3G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "memcheck's leak record stops after libc's vasprintf frame: valgrind takes libc.so.6's .eh_frame/.rodata bias from the loader's whole-file view (map_view, mapped read-only before the segments and recorded by valgrind as a mapping of the library)",
+   "recommendation": "map views PROT_NONE then mprotect PROT_READ only when RUNNING_ON_VALGRIND (valgrind's documented client request), after measuring the unconditional variant's start-up cost; follow-up story"
+  }
+ ],
+ "informational": [
+  "cargo xtask test (valgrind-dbg-rodata-startup): pass 2 failed niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range once (a mapping in the test pinned gap); passes 20/20 in pass 1; rerun valgrind-dbg-rodata-xtest2 pending",
+  "helgrind still asserts (hg_main.c:5421, JOIN_POST: the joined pthread_t was never registered by helgrind's pthread_create child wrapper); next: --trace-redir run in the swapped root",
+  "static programs (libc.a links) keep GNU ld's .rodata + .rodata1; not changed here",
+  "plant ro-first-name dropped: the products build refuses that mutant before the unit test runs (same catch as ro-first-name-build)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "every valgrind tool aborted (find_rodata assertion) on every program once libniji's libc6-dbg was installed; now runs",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "memcheck's spurious start-up report (loader lazy cache cell) on every program; /bin/true error summary 1 -> 0 (stock 0)",
+   "before": 1,
+   "after": 0,
+   "unit": "errors",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "loader .text",
+   "before": 484928,
+   "after": 484880,
+   "unit": "bytes (file)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: libc_so_has_one_read_only_data_section_for_valgrind, lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address; so-build and check-system checks; 5 plants caught",
+   "before": null,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "an acceptance script that runs every valgrind case plus a --trace-symtab run in one mmdebstrap would have found the view-bias cause one leg earlier; keep vgacc/vgdiag as a tool (tools/deb) for #13-style reports",
+ "next_step": "collect valgrind-dbg-rodata-xtest2; ruling on the loader view mapping under valgrind, then a follow-up story for the leak frames and helgrind",
+ "report_file": "handoff/VALGRIND-DBG-RODATA.md",
+ "jobs": [
+  "mei:valgrind-dbg-rodata-gate",
+  "mei:valgrind-dbg-rodata-plants",
+  "mei:valgrind-dbg-rodata-startup2",
+  "mei:valgrind-dbg-rodata-xtest2"
+ ],
+ "superseded": [
+  "mei:valgrind-dbg-rodata-startup (cargo xtask test: one s03 failure in pass 2; rerun as xtest2)",
+  "mei:valgrind-dbg-rodata-accfinal (acceptance run; rc 1 is the leak-frame case, RULING NEEDED)",
+  "mei:valgrind-dbg-rodata-build3 (debs and check-system PASS; no tested-content record)"
+ ]
+}
