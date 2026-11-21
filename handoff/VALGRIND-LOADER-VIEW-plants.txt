@@ -1,8 +1,8 @@
 # VALGRIND-LOADER-VIEW plants (D-X.152: the loader's whole-file views hidden from valgrind; D-X.153: libc.so.6's
 # defaults with a compat version beside them named name@@VERSION in .symtab, for valgrind's versioned wrappers):
 # cargo xtask plants handoff/VALGRIND-LOADER-VIEW-plants.txt --dir <RAM dir> --timeout 600
-view-kept-readable | crates/boundary/src/ld/image.rs | lit:let at = map_view_as(fd, len, PROT_NONE_I32)?; ==> let at = map_view_as(fd, len, map::PROT_READ)?; | cargo test -p niji-boundary --lib hidden_view | msg:the view was readable when it was mapped
-bare-machine-hides | csys/src/machine/tool.S | perl:s/(niji_machine_running_on_valgrind:.*?)movq %rdx, %rax/$1movl \$1, %eax/s | cargo test -p niji-boundary --lib hidden_view | msg:the bare machine answered RUNNING_ON_VALGRIND
+view-kept-readable | crates/boundary/src/ld/image.rs | lit:let at = map_view_as(fd, len, PROT_NONE_I32)?; ==> let at = map_view_as(fd, len, map::PROT_READ)?; | cargo test -p niji-boundary --lib --features ld hidden_view | msg:the view was readable when it was mapped
+bare-machine-hides | csys/src/machine/tool.S | perl:s/(niji_machine_running_on_valgrind:.*?)movq %rdx, %rax/$1movl \$1, %eax/s | cargo test -p niji-boundary --lib --features ld hidden_view | msg:the bare machine answered RUNNING_ON_VALGRIND
 compat-filter-lost | xtask/src/so.rs | lit:defaults.into_iter().filter(|(n, _)| compat.contains(n)) ==> defaults.into_iter().filter(|(n, _)| !n.is_empty()) | cargo test -p xtask --bin xtask so::tests::versioned_defaults | msg:versioned_defaults_of_compat_functions.*panicked|assertion .left == right. failed
 alias-size-zero | xtask/src/so.rs | lit:elf.copy_within(from + 4..from + 24, to + 4); ==> elf.copy_within(from + 4..from + 16, to + 4); | cargo test -p xtask --bin xtask so::tests::versioned_default_alias | msg:versioned_default_alias_copies_its_function.*panicked|assertion .left == right. failed
 alias-from-local | xtask/src/so.rs | lit:s.2 == *value && elf[s.0 + 4] >> 4 != 0) ==> s.2 == *value) | cargo test -p xtask --bin xtask so::tests::versioned_default_alias | msg:versioned_default_alias_copies_its_function.*panicked|assertion .left == right. failed
