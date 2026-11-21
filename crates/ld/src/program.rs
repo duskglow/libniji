@@ -41,6 +41,34 @@ pub fn action<'a>(args: impl IntoIterator<Item = &'a [u8]>) -> Action<'a> {
     }
 }
 
+/// Where `ld.so PROGRAM` (and `--list PROGRAM`, `LD_TRACE_LOADED_OBJECTS`) finds the program file
+/// (D-27.69, black-box probes of the reference, LDSO-PROGRAM-NO-CWD).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Found<'a> {
+    /// The name holds a `/`: it is the path, opened as given (relative to the working directory
+    /// when it does not start with `/`; the caller chose that by writing the `/`).
+    AsGiven,
+    /// A name without `/` that the loader cache maps to this absolute path.
+    Cache(&'a [u8]),
+    /// A name without `/` that the cache does not map to an absolute path: the start ends with
+    /// `NAME: error while loading shared libraries: NAME: cannot open shared object file`, 127.
+    NotFound,
+}
+
+/// Find the program named `name`. A name without `/` is looked up in the loader cache only (`flags`:
+/// [`Arch::CACHE_FLAGS`]; `hwcaps`: the supported subdirectories, as for a library): never the
+/// working directory, `LD_LIBRARY_PATH`, `PATH` or a default directory. A cache path that is not
+/// absolute is not used, so a malformed cache cannot turn the lookup into a working-directory open.
+pub fn find<'a>(name: &[u8], cache: Option<&crate::cache::Cache<'a>>, flags: u32, hwcaps: &[&str]) -> Found<'a> {
+    if name.contains(&b'/') {
+        return Found::AsGiven;
+    }
+    match cache.and_then(|c| c.lookup(name, flags, hwcaps)) {
+        Some(path) if path.first() == Some(&b'/') => Found::Cache(path),
+        _ => Found::NotFound,
+    }
+}
+
 /// The `--version` text, in the order it is written: libniji's name and version, the ABI it
 /// implements and the interpreter's own name ([`Arch::INTERP`]).
 pub fn version<A: Arch>(niji_version: &'static str) -> [&'static str; 5] {

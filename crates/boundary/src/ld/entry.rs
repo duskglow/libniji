@@ -15,7 +15,7 @@ use niji_ld::tls as ltls;
 use niji_legacy::search_c::CWords;
 use crate::conv;
 use super::exec_stack::{exec_stack_accepted, refuse_exec_stack_program};
-use super::image::{load, open_whole, read_image};
+use super::image::{load, open_whole, program_file, read_image};
 use super::io::{c_string, exit, lo32, refuse, stack_word, write_all};
 use super::link::{Origin, Preloads, link};
 use super::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS};
@@ -248,18 +248,22 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             exit(0)
         }
         Action::Program(name) => {
+            // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the
+            // name as given, the file's path names it in messages and gives its `$ORIGIN`.
+            let file = program_file(name, &list_env);
             if ld.trace && !secure {
-                list(&list_env, name, false, invoked)
+                list(&list_env, file, false, invoked)
             }
             // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
-            let (prog, bias) = load(arg(1), page, &ld, secure);
+            let file = file.as_ptr().expose_provenance();
+            let (prog, bias) = load(file, page, &ld, secure);
             let mut copy = copy;
             start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
             store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
             store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
-            run(argv, &prog, bias, page, arg(1), &list_env)
+            run(argv, &prog, bias, page, file, &list_env)
         }
-        Action::List(name) => list(&list_env, name, true, invoked),
+        Action::List(name) => list(&list_env, program_file(name, &list_env), true, invoked),
         other => {
             for part in program::refusal(other) {
                 write_all(2, part);

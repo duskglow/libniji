@@ -5,7 +5,7 @@
 use core::ffi::c_void;
 use core::sync::atomic::Ordering::Relaxed;
 use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
-use niji_ld::arch::Native;
+use niji_ld::arch::{Arch, Native};
 use niji_ld::program;
 use niji_ld::cache::Cache;
 use niji_ld::dlopen::Refusal;
@@ -15,8 +15,9 @@ use crate::{conv, raw};
 use super::debug;
 use super::entry::List;
 use super::exec_stack::{exec_stack_accepted, exec_stack_candidate, refuse_exec_stack_program};
-use super::io::{c_string, fail_with, refuse, write_all};
+use super::io::{c_string, exit, fail_loading, fail_with, refuse, write_all};
 use super::state::OWN_BASE;
+use super::table::PathStore;
 
 /// The identity of an open file, (`st_dev`, `st_ino`): one object reached by two paths (a symlink, a
 /// hard link) is the same object (L14-4).
@@ -297,6 +298,40 @@ impl niji_ld::reloc::Image for ProcImage {
 
 /// `AT_FDCWD` (kernel UAPI `linux/fcntl.h`): a relative path is taken from the current directory.
 pub(super) const AT_FDCWD: i64 = -100;
+
+/// The file `ld.so PROGRAM` (or `--list PROGRAM`) runs for the argument `name`, NUL-terminated as
+/// `name` is: `name` itself when it holds a `/`, else the path the loader cache gives for it
+/// ([`program::find`], D-27.69: never the working directory). A name the cache does not have ends
+/// the start as the reference does (probed): `NAME: error while loading shared libraries: NAME:
+/// cannot open shared object file`, status 127. Cold: only the loader run as a command comes here.
+#[cold]
+#[inline(never)]
+pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8] {
+    if name.contains(&b'/') {
+        return name;
+    }
+    let cache = read_cache();
+    let ctx = env.ctx(cache.as_ref().map(|(_, c)| c).into());
+    let found = match program::find(name, cache.as_ref().map(|(_, c)| c), Native::CACHE_FLAGS, ctx.hwcaps) {
+        // The store's copy ends in a NUL and stays mapped for the process, as `name` does.
+        program::Found::Cache(path) => PathStore::default().keep(path).map_err(|_| b"cannot allocate memory".as_slice()),
+        program::Found::NotFound => Err(b"cannot open shared object file".as_slice()),
+        program::Found::AsGiven => Ok(name),
+    };
+    if let Some((f, _)) = cache {
+        let _ = raw::munmap(f.as_ptr().expose_provenance(), f.len());
+    }
+    found.unwrap_or_else(|text| {
+        if name.is_empty() {
+            // An empty name: no name before the reason (probed).
+            for part in [&b": error while loading shared libraries: "[..], text, b"\n"] {
+                write_all(2, part);
+            }
+            exit(program::FAILURE)
+        }
+        fail_loading(name, name, text)
+    })
+}
 
 /// Open, read and map the program file named by the NUL-terminated path at `path` (`ld.so PROGRAM`)
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left

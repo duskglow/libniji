@@ -438,3 +438,128 @@ fn list_interpreter_line_matches_reference() {
     let _ = std::fs::remove_dir_all(&d);
     assert!(bad.is_empty(), "list_interpreter_line_matches_reference: lists differ from the reference:\n{}", bad.join("\n"));
 }
+
+/// `ld.so PROGRAM` finds a name without `/` through the loader cache only (D-27.69, probe recorded
+/// in spec/behaviour/dynlink.md): a path with `/` as given, a cache hit, and never a miss, a
+/// relative cache path or the working directory. x86_64 table. s27_1_c_1_1 (the cache step).
+#[test]
+fn program_find_cache_only() {
+    use niji_ld::program::{find, Found};
+    let f = cache_file(&[(FLAGS, "libprogy.so.1", "rel/libprogy.so.1", None), (FLAGS, "libprogx.so.1", "/c/libprogx.so.1", None)], &[]);
+    let c = Cache::parse(&f).expect("well-formed cache");
+    assert_eq!(find(b"./prog", Some(&c), FLAGS, &[]), Found::AsGiven);
+    assert_eq!(find(b"lib/libprogx.so.1", Some(&c), FLAGS, &[]), Found::AsGiven, "a relative path with `/` is the caller's choice");
+    assert_eq!(find(b"libprogx.so.1", Some(&c), FLAGS, &[]), Found::Cache(b"/c/libprogx.so.1"));
+    assert_eq!(find(b"libprogx.so.1", Some(&c), 0x0803, &[]), Found::NotFound, "another architecture's entry is never taken");
+    assert_eq!(find(b"libprogy.so.1", Some(&c), FLAGS, &[]), Found::NotFound, "a relative cache path would open from the working directory");
+    for name in [&b"prog"[..], b""] {
+        assert_eq!(find(name, Some(&c), FLAGS, &[]), Found::NotFound, "{name:?}");
+    }
+    assert_eq!(find(b"libprogx.so.1", None, FLAGS, &[]), Found::NotFound, "no cache: not found, never the working directory");
+}
+
+/// The test program for [`ldso_program_without_slash`]: prints `ran:<TAG>` and one `arg:` line per argument.
+#[cfg(target_arch = "x86_64")] // ARCH(x86_64): x86-64 system call numbers and assembly
+const TAGGED: &str = r#"
+static long sys3(long n, long a, long b, long c) {
+    long r;
+    __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c) : "rcx", "r11", "memory");
+    return r;
+}
+static unsigned long len(const char *s) { unsigned long n = 0; while (s[n]) n++; return n; }
+static void put(const char *p, const char *s) { sys3(1, 1, (long)p, len(p)); sys3(1, 1, (long)s, len(s)); sys3(1, 1, (long)"\n", 1); }
+void start_c(long *sp) {
+    char **argv = (char **)(sp + 1);
+    put("ran:", TAG);
+    for (long i = 0; i < sp[0]; i++) put("arg:", argv[i]);
+    sys3(231, 0, 0, 0);
+}
+__asm__(".globl _start\n_start:\n\tmov %rsp, %rdi\n\tand $-16, %rsp\n\tcall start_c\n\thlt\n");
+"#;
+
+/// The built `ld.so` run as a command with a program name without `/` (D-27.69; every case of the
+/// probe recorded in spec/behaviour/dynlink.md): a file of that name in the working directory, on
+/// `LD_LIBRARY_PATH` (`.`, an empty element, absolute, relative) or on `PATH` is never run; the
+/// reference's message and 127, also for `--list` and `LD_TRACE_LOADED_OBJECTS`; `./prog` and
+/// `lib/prog` run as given. With a private loader cache (`unshare -r -m`, skipped with the reason
+/// when unavailable) a listed name runs the cache's file with `argv[0]` as given, ahead of copies in
+/// the working directory and on `LD_LIBRARY_PATH`. s27_1_c_1_1.
+#[cfg(target_arch = "x86_64")] // ARCH(x86_64): the test program is x86-64
+#[test]
+fn ldso_program_without_slash() {
+    let ld = target().join("niji").join(Native::INTERP);
+    if !ld.exists() || !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        return eprintln!("SKIP: needs cc and {} (cargo xtask so)", ld.display());
+    }
+    let d = target().join(format!("ldso-program-name-{}", std::process::id()));
+    for sub in ["lib", "bin", "cache"] {
+        std::fs::create_dir_all(d.join(sub)).unwrap();
+    }
+    std::fs::write(d.join("prog.c"), TAGGED).unwrap();
+    let cc = |out: &str, tag: &str| {
+        let o = Command::new("cc")
+            .args(["-nostdlib", "-fPIE", "-pie", "-O1", "-fno-stack-protector", "-fcf-protection=none"])
+            .arg(format!("-DTAG=\"{tag}\""))
+            .arg(d.join("prog.c"))
+            .arg("-o")
+            .arg(d.join(out))
+            .output()
+            .unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    };
+    for (out, tag) in [("prog", "cwd"), ("lib/prog", "libdir"), ("bin/prog", "path"), ("libprogx.so.1", "cwd"), ("lib/libprogx.so.1", "libdir"), ("cache/libprogx.so.1", "cache")] {
+        cc(out, tag);
+    }
+    let run = |args: &[&str], env: &[(&str, String)]| {
+        // No wrapper process: `LD_TRACE_LOADED_OBJECTS` would list the wrapper instead.
+        let o = Command::new(&ld).args(args).envs(env.iter().map(|(k, v)| (k, v))).current_dir(&d).output().unwrap();
+        (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+    };
+    let missing = |n: &str| (Some(127), String::new(), format!("{n}: error while loading shared libraries: {n}: cannot open shared object file\n"));
+    let lib = d.join("lib").display().to_string();
+    let bin = format!("{}:/usr/bin:/bin", d.join("bin").display());
+    let envs: [(&str, &[(&str, String)]); 7] = [
+        ("cwd", &[]),
+        ("LD_LIBRARY_PATH=.", &[("LD_LIBRARY_PATH", ".".into())]),
+        ("LD_LIBRARY_PATH=:", &[("LD_LIBRARY_PATH", ":".into())]),
+        ("LD_LIBRARY_PATH=lib:", &[("LD_LIBRARY_PATH", "lib:".into())]),
+        ("LD_LIBRARY_PATH absolute", &[("LD_LIBRARY_PATH", lib.clone())]),
+        ("PATH", &[("PATH", bin)]),
+        ("LD_TRACE_LOADED_OBJECTS", &[("LD_TRACE_LOADED_OBJECTS", "1".into())]),
+    ];
+    for (what, env) in envs {
+        assert_eq!(run(&["prog", "a"], env), missing("prog"), "{what}");
+    }
+    assert_eq!(run(&["--list", "prog"], &[]), missing("prog"), "--list");
+    assert_eq!(run(&["absentprog", "a"], &[]), missing("absentprog"), "absent");
+    assert_eq!(run(&[""], &[]), (Some(127), String::new(), ": error while loading shared libraries: cannot open shared object file\n".into()), "empty name");
+    assert_eq!(run(&["./prog", "a"], &[]), (Some(0), "ran:cwd\narg:./prog\narg:a\n".into(), String::new()), "./prog");
+    assert_eq!(run(&["lib/prog", "a"], &[]), (Some(0), "ran:libdir\narg:lib/prog\narg:a\n".into(), String::new()), "lib/prog");
+    // A private cache: `libprogx.so.1` listed with its absolute path, `libprogy.so.1` with a relative one.
+    let mut cache_path = search::PathBuf::default();
+    assert!(search::prefixed(search::CACHE_FILE, &mut cache_path));
+    let system_cache = String::from_utf8(cache_path.as_bytes().to_vec()).unwrap();
+    if !Path::new(&system_cache).exists() || !Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) {
+        let _ = std::fs::remove_dir_all(&d);
+        return eprintln!("SKIP (cache cases): needs {system_cache} and `unshare -r -m`");
+    }
+    let target_x = d.join("cache/libprogx.so.1").display().to_string();
+    std::fs::write(d.join("ld.so.cache"), cache_file(&[(FLAGS, "libprogy.so.1", "lib/libprogx.so.1", None), (FLAGS, "libprogx.so.1", &target_x, None)], &[])).unwrap();
+    let in_ns = |args: &[&str]| {
+        let o = Command::new("unshare")
+            .args(["-r", "-m", "sh", "-c","mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
+            .arg(d.join("ld.so.cache"))
+            .arg(&system_cache)
+            .arg(&ld)
+            .args(args)
+            .env("LD_LIBRARY_PATH", &lib)
+            .current_dir(&d)
+            .output()
+            .unwrap();
+        (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+    };
+    assert_eq!(in_ns(&["libprogx.so.1", "a"]), (Some(0), "ran:cache\narg:libprogx.so.1\narg:a\n".into(), String::new()), "cache hit");
+    assert_eq!(in_ns(&["--list", "libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "--list cache hit");
+    assert_eq!(in_ns(&["libprogy.so.1"]), missing("libprogy.so.1"), "a relative cache path is not used");
+    let _ = std::fs::remove_dir_all(&d);
+}
