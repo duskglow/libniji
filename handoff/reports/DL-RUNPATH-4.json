@@ -1,0 +1,53 @@
+{
+ "task": "DL-RUNPATH-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "origin/next 97bf3542f merged into the DL-RUNPATH chain: the dlopen.rs conflict with DL-PROCESS-OBJECTS-2 resolved keeping both sides, given_name writes through Recs::set; direct gate, plants, y10, process-objects corpus and start-up checks green",
+ "branch": "task/dl-runpath-4",
+ "head": "9d3b0f530",
+ "gate": {
+  "affected": "665 passed / 0 failed (direct tier, 10 suites)",
+  "peak": "2.3G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "DL-RUNPATH (dlopen $ORIGIN search, RTLD_NOLOAD by loaded names, secure-mode rule #7190, COMPAT-37 row) mergeable onto next again; the queued loader stories serialised behind it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "Yohane y10 #10/#18 probe lines (dl-nopie, dl-pie bare-name $ORIGIN dlopen) on this head's system packages",
+   "before": null,
+   "after": "20 PASS / 0 FAIL",
+   "unit": "y10 probe lines",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "DL-RUNPATH-4 plants rerun after the merge",
+   "before": null,
+   "after": 13,
+   "unit": "plants (12 CAUGHT, 1 EQUIVALENT)",
+   "measured": true
+  }
+ ],
+ "improvement": "CI's merge_next could report which of the branch's own lines stopped compiling after a clean textual merge (here one direct index into a table next had turned into a type); a pre-train 'merge next and build' check per queued loader story would catch it before the train",
+ "next_step": "Land. Then the owner's set-user-ID probe (handoff/DL-RUNPATH.md) and the $PLATFORM probe on a v3 Intel host and an AMD host",
+ "report_file": "handoff/DL-RUNPATH.md",
+ "jobs": [
+  "mei:dl-runpath-4-gate",
+  "mei:dl-runpath-4-plants",
+  "mei:dl-runpath-4-check2",
+  "mei:dl-runpath-4-y10",
+  "mei:dl-runpath-4-hottext",
+  "mei:dl-runpath-4-startup"
+ ]
+}

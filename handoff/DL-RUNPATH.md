@@ -1,8 +1,8 @@
 # DL-RUNPATH: dlopen searches the program's and the caller's DT_RUNPATH/DT_RPATH `$ORIGIN`; RTLD_NOLOAD by loaded names
 
-State: branch `task/dl-runpath-3` (DL-RUNPATH-2's branch continued; origin/next e4d7011e6 merged in DL-RUNPATH-2,
-no merge since). Head and job results: handoff/reports/DL-RUNPATH-3.json and the hand-back. DL-RUNPATH-3's work is in
-"Run state (DL-RUNPATH-3)" at the end.
+State: branch `task/dl-runpath-4` (DL-RUNPATH-3's branch continued; origin/next 97bf3542f merged in DL-RUNPATH-4).
+Head and job results: handoff/reports/DL-RUNPATH-4.json and the hand-back. DL-RUNPATH-4's work is in
+"Run state (DL-RUNPATH-4)" at the end.
 
 ## Premise and what the probes found (reference = the build host's glibc 2.39, black box; Zen 1 host)
 
@@ -133,6 +133,21 @@ Then, as root:
   the same `kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (HEAP-GAP-TEST-KEKE), nothing else. Its
   `&&` chain therefore stopped before the full-profile check, which ran on its own as `dl-runpath-3-hottext`.
 - Jobs and results: handoff/reports/DL-RUNPATH-3.json and the hand-back.
+
+## Run state (DL-RUNPATH-4, branch `task/dl-runpath-4`, Skylake-SP host)
+
+- Why it was red: CI could not merge next (conflict in dlopen.rs with DL-PROCESS-OBJECTS-2's growing loader
+  tables), not a failure of this work. Step 0 (clippy + static on the inherited head 0ac30daa3,
+  `dl-runpath-4-step0`): green.
+- origin/next 97bf3542f merged (ebd22a1af). Conflict resolution: next's table imports and its `Spill` `retired`,
+  with START_ORIGIN / START_RUN_PATH and the loader's `origin_tried` / `origin_len` / `origin` fields after it.
+  One more site no longer compiled (`dl-runpath-4-check1`, E0608): `given_name` indexed `l.objs` directly; it now
+  writes through `Recs::set` (9d3b0f530; both copies). Everything else of the chain already used the arena accessors.
+- Plants: handoff/DL-RUNPATH-4-plants.txt (DL-RUNPATH-2's 13, `no-given-name`'s literal following the new line).
+- Results on 9d3b0f530: `dl-runpath-4-check2` (clippy -D warnings, static, so, runpath_search 5/5,
+  dlopen_process_objects 3/3 incl. the 300-library corpus), `dl-runpath-4-gate` (direct tier: 10 suites, 665 passed,
+  0 failed, peak 2.3G), `dl-runpath-4-plants` (12 CAUGHT, 1 EQUIVALENT, 0 WARN), `dl-runpath-4-y10` (#10/#18:
+  20 PASS / 0 FAIL), `dl-runpath-4-hottext`, `dl-runpath-4-startup`: see the hand-back and the report json.
 
 ## Next step
 
