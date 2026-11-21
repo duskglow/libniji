@@ -248,29 +248,41 @@ extern int setrlimit64 (int, const struct rlimit64 *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_PRIO_PGRP
 #  define __NIJI_D_enum_PRIO_PGRP 1
+#  ifndef PRIO_PGRP
 enum { PRIO_PGRP = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PRIO_PROCESS
 #  define __NIJI_D_enum_PRIO_PROCESS 1
+#  ifndef PRIO_PROCESS
 enum { PRIO_PROCESS = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PRIO_USER
 #  define __NIJI_D_enum_PRIO_USER 1
+#  ifndef PRIO_USER
 enum { PRIO_USER = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_RUSAGE_CHILDREN
 #  define __NIJI_D_enum_RUSAGE_CHILDREN 1
+#  ifndef RUSAGE_CHILDREN
 enum { RUSAGE_CHILDREN = (-1) };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_RUSAGE_SELF
 #  define __NIJI_D_enum_RUSAGE_SELF 1
+#  ifndef RUSAGE_SELF
 enum { RUSAGE_SELF = 0 };
+#  endif
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_enum_RUSAGE_THREAD
 #  define __NIJI_D_enum_RUSAGE_THREAD 1
+#  ifndef RUSAGE_THREAD
 enum { RUSAGE_THREAD = 1 };
+#  endif
 # endif
 #endif
 #if 1

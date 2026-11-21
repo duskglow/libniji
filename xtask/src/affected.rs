@@ -107,7 +107,16 @@
 //! the merged tree. Each escalated file selects a bounded set by its class (`TrainClass`: xtask code, the image's
 //! bottom layers, generated tables and inputs, build configuration, unknown paths) plus `cargo xtask static` and every
 //! cheap FULL step, and the plan prints `FULL: the train's (<file>: <reason>)` where the FULL line was. `bench-rows`
-//! (`select_opts`) and `--reverse` attribution still see the escalations as FULL.
+//! (`select_opts`) and `--reverse` attribution still see the escalations as FULL. The classes and why each bounded set
+//! catches what a change of its class most likely breaks are the decision record D-X.142
+//! (`records/decisions/D-X/D-X.142.toml`); this doc holds the rules: `TrainClass::of` classifies (xtask code; csys,
+//! `crates/abi`, the product crates, `crates/native/link`, linker and version lists, `scripts/`; generated tables and
+//! inputs; build scripts, manifests, the toolchain and cargo configuration; anything else), `Selection::bounded`
+//! selects (`XTASK_TRAIN` per xtask module).
+//! GATE-BOUNDED-PARALLEL (same record): a non-FULL run that selects both the xtask tests and the products build runs
+//! the xtask unit tests and every xtask target that runs no products (`names_products`) BESIDE the products build when
+//! the memory limit holds `SIDE_BY_SIDE_BYTES` (else the products first, then those tests), then the xtask targets that
+//! run products, on the fresh products. Each step keeps its own console lines and log; any red step makes the run red.
 //! `--replay <records>` checks that the failures of past gates fall inside a tier (`replay`).
 //!
 //! `--reverse` (XTASK-AFFECTED-REVERSE, attribution for a train gate): given the failed tests (`--failed <id>...` as
@@ -3873,9 +3882,6 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             cmd.args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]);
             ok &= step_saving(root, &log, &format!("clippy --workspace (changed: {})", sel.clippy.keys().cloned().collect::<Vec<_>>().join(", ")), &mut cmd, "clippy.log");
         }
-        if sel.xtask_tests {
-            ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
-        }
         // Per crate: its unit tests and its selected targets, then (as the gate does, for the crates
         // that can link the boundary) again as libniji processes (PASS2-NATIVE-RUNNER) and, for the
         // targets of the interposed suite among them (`nextest::interposed`, ruling #6820), with
@@ -3899,10 +3905,42 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         // second pass.
         let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);
         // The native pass runs on the products.
-        if needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts)) {
-            let mut cmd = Command::new(&cargo);
-            cmd.args(["xtask", "so"]);
-            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
+        let products = needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts));
+        let mut products_cmd = Command::new(&cargo);
+        products_cmd.args(["xtask", "so"]);
+        if sel.xtask_tests && products {
+            // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
+            // products go beside the products build when the memory allows; the targets that run products go after it.
+            let (beside, after) = xtask_test_split(root);
+            let mut beside_cmd = Command::new(&cargo);
+            beside_cmd.args(&beside);
+            match side_by_side_room(memory_room()) {
+                Ok(why) => {
+                    println!("note: the xtask tests that run no products go beside the products build ({why})");
+                    // `cargo xtask so` is `cargo run -p xtask -- so`: it would wait for the `target/debug` build lock
+                    // that `cargo test -p xtask` holds while it compiles the tests. This process is that fresh xtask
+                    // binary, so the products build runs it directly (`/proc/self/exe`: the image this process runs,
+                    // even while cargo replaces `target/debug/xtask`).
+                    let mut products_cmd = Command::new("/proc/self/exe");
+                    products_cmd.arg("so");
+                    ok &= products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
+                }
+                Err(why) => {
+                    println!("note: the products build and the xtask tests run one after the other ({why})");
+                    ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
+                    ok &= step_out(root, &log, XTASK_BESIDE_LABEL, &mut beside_cmd, Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+                }
+            }
+            if !after.is_empty() {
+                ok &= step_out(root, &log, "xtask tests on the fresh products", Command::new(&cargo).args(&after), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+            }
+        } else {
+            if sel.xtask_tests {
+                ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
+            }
+            if products {
+                ok &= step(root, &log, "products (cargo xtask so)", &mut products_cmd);
+            }
         }
         let nextest = crate::nextest::available(&cargo);
         // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
@@ -4005,6 +4043,120 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     }
     let _ = repo;
     if ok { Ok(()) } else { Err("a selected test or check failed".into()) }
+}
+
+/// GATE-BOUNDED-PARALLEL: the label of the xtask tests that run no products, and the log they write when they run
+/// beside the products build (appended to the run's log when both have ended, and kept).
+const XTASK_BESIDE_LABEL: &str = "xtask tests that run no products";
+const XTASK_BESIDE_LOG: &str = "affected-xtask.log";
+
+/// GATE-BOUNDED-PARALLEL: the memory the products build and the xtask tests take side by side, with headroom. Measured
+/// on a Zen 1 host, 60 vCPU, from cold products (`anon` of the gate's cgroup, page cache left out): the xtask tests
+/// 0.47 GiB and the products build 1.85 GiB one after the other, 2.32 GiB together; 6 GiB leaves 2.5x headroom and
+/// fits the gate's 16 GiB limit. The side-by-side peak is in the record.
+const SIDE_BY_SIDE_BYTES: u64 = 6 << 30;
+
+/// The two `cargo test -p xtask` commands of a run that builds the products (GATE-BOUNDED-PARALLEL): the unit tests
+/// (`--bins`) with every integration target that runs no products, and the integration targets that do
+/// ([`names_products`], the rule that decides whether a selection builds the products at all), which must see the
+/// fresh ones. The second is empty when no target runs products. `Repo::load` keeps no xtask targets (the xtask tests
+/// run whole), so the targets are listed here by cargo's own rule (`tests/*.rs`, `tests/*/main.rs`; xtask's manifest
+/// declares none): a target missed here would not run at all.
+fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>) {
+    let mut beside: Vec<String> = ["test", "-p", "xtask", "--bins"].map(String::from).to_vec();
+    let mut after: Vec<String> = Vec::new();
+    for p in sorted_dir(&root.join("xtask").join("tests")) {
+        let (name, text) = if p.is_dir() {
+            if !p.join("main.rs").exists() {
+                continue;
+            }
+            let mut all = Vec::new();
+            files_under(&p, &["rs"], &mut all);
+            (p.file_name(), all.iter().map(|f| read(f)).collect::<Vec<_>>().join("\n"))
+        } else if p.extension().is_some_and(|e| e == "rs") {
+            (p.file_stem(), read(&p))
+        } else {
+            continue;
+        };
+        let runs_products = names_products(&text);
+        let into = if runs_products { &mut after } else { &mut beside };
+        into.extend(["--test".to_string(), name.and_then(|s| s.to_str()).unwrap_or_default().to_string()]);
+    }
+    if !after.is_empty() {
+        after.splice(0..0, ["test", "-p", "xtask"].map(String::from));
+    }
+    (beside, after)
+}
+
+/// The memory this process may use (bytes): the smallest `memory.max` of its cgroup (v2) and the cgroups above it, and
+/// the host's `MemTotal`; `None` when neither can be read.
+fn memory_room() -> Option<u64> {
+    let read = |p: &str| fs::read_to_string(p).ok();
+    let limit = read("/proc/self/cgroup").and_then(|c| cgroup_limit(&c, &read));
+    let total = read("/proc/meminfo").and_then(|m| m.lines().find_map(|l| l.strip_prefix("MemTotal:")).and_then(|v| v.trim().strip_suffix("kB")).and_then(|v| v.trim().parse::<u64>().ok())).map(|k| k * 1024);
+    match (limit, total) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+/// The smallest `memory.max` on the path of the cgroup v2 line `0::<path>` of `/proc/self/cgroup`, read through `read`
+/// (`max`, a missing file or another hierarchy: no limit there).
+fn cgroup_limit(proc_self_cgroup: &str, read: &dyn Fn(&str) -> Option<String>) -> Option<u64> {
+    const ROOT: &str = "/sys/fs/cgroup";
+    let path = proc_self_cgroup.lines().find_map(|l| l.strip_prefix("0::"))?.trim().trim_end_matches('/');
+    if !path.is_empty() && !path.starts_with('/') {
+        return None;
+    }
+    let mut dir = format!("{ROOT}{path}");
+    let mut min: Option<u64> = None;
+    loop {
+        if let Some(v) = read(&format!("{dir}/memory.max")).and_then(|s| s.trim().parse::<u64>().ok()) {
+            min = Some(min.map_or(v, |m| m.min(v)));
+        }
+        if dir.len() <= ROOT.len() {
+            return min;
+        }
+        dir.truncate(dir.rfind('/').unwrap_or(0));
+    }
+}
+
+/// Whether the products build and the xtask tests fit side by side in `room` bytes ([`SIDE_BY_SIDE_BYTES`]); the text
+/// says why, for the run's note.
+fn side_by_side_room(room: Option<u64>) -> Result<String, String> {
+    let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
+    match room {
+        Some(r) if r >= SIDE_BY_SIDE_BYTES => Ok(format!("{} of memory, {} needed", gib(r), gib(SIDE_BY_SIDE_BYTES))),
+        Some(r) => Err(format!("{} of memory, side by side needs {}", gib(r), gib(SIDE_BY_SIDE_BYTES))),
+        None => Err("the memory limit cannot be read".into()),
+    }
+}
+
+/// GATE-BOUNDED-PARALLEL: the products build (`products`, into the run's `log`) and the xtask tests that run no
+/// products (`tests`, into `target/affected-xtask.log`) side by side. They share no cargo build directory (the products
+/// build in `target/product`; the tests in `target/debug`, whose lock cargo takes while it builds). The tests' console
+/// lines are printed once both have ended and their log is then appended to the run's log, so each step's output stays
+/// in one piece. The verdict is that of the two steps run one after the other: true only when both are green.
+fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, tests: &mut Command) -> bool {
+    let side = root.join("target").join(XTASK_BESIDE_LOG);
+    let _ = fs::remove_file(&side);
+    let mut console: Vec<u8> = Vec::new();
+    let (built, tested) = std::thread::scope(|s| {
+        let t = s.spawn(|| step_out(root, &side, XTASK_BESIDE_LABEL, tests, Some("xtask"), &mut console));
+        let built = step(root, log, "products (cargo xtask so)", products);
+        (built, t.join().unwrap_or(Outcome::Failed))
+    });
+    print!("{}", String::from_utf8_lossy(&console));
+    let appended = fs::read(&side).and_then(|b| {
+        use std::io::Write;
+        fs::OpenOptions::new().create(true).append(true).open(log)?.write_all(&b)
+    });
+    if let Err(e) = appended {
+        println!("        cannot append {} to {}: {e}", side.display(), log.display());
+        log_step_failed(log, XTASK_BESIDE_LABEL, &format!("its log {} was not appended: {e}", side.display()));
+        return false;
+    }
+    built && tested == Outcome::Ok
 }
 
 /// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
@@ -4572,6 +4724,81 @@ mod tests {
         }
         assert!(!saved.contains("STALE") && !saved.contains("earlier-output"), "{saved:?}");
         let _ = fs::remove_dir_all(&root);
+    }
+
+    /// GATE-BOUNDED-PARALLEL: a step that marks `own` and waits for `other`, within an iteration budget (a hang guard,
+    /// not a time bound); it fails unless the other step ran at the same time, then exits `rc`.
+    fn rendezvous(own: &str, other: &str, rc: u8) -> Command {
+        let mut c = Command::new("sh");
+        c.args(["-c", &format!("echo out-{own}; touch {own}; i=0; while [ ! -f {other} ] && [ $i -lt 3000 ]; do sleep 0.01; i=$((i+1)); done; [ -f {other} ] || exit 9; exit {rc}")]);
+        c
+    }
+
+    // The products build and the xtask tests run side by side (each waits for the other), the verdict is that of the
+    // two steps run one after the other, and each step's output stays in one piece in the run's log, the tests' log kept.
+    #[test]
+    fn the_products_and_the_xtask_tests_run_side_by_side_with_their_own_verdicts_and_logs() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        for (prc, trc) in [(0u8, 0u8), (1, 0), (0, 1)] {
+            let root = std::env::temp_dir().join(format!("xtask-beside-{}-{prc}{trc}", std::process::id()));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(root.join("target")).unwrap();
+            let log = root.join("target").join("affected.log");
+            let got = products_beside_xtask_tests(&root, &log, &mut rendezvous("p", "t", prc), &mut rendezvous("t", "p", trc));
+            assert_eq!(got, prc == 0 && trc == 0, "products rc {prc}, tests rc {trc}");
+            let text = fs::read_to_string(&log).unwrap();
+            let side = fs::read_to_string(root.join("target").join(XTASK_BESIDE_LOG)).unwrap();
+            assert!(side.starts_with(&format!("== {XTASK_BESIDE_LABEL}\nout-t\n")) && !side.contains("out-p"), "{side:?}");
+            assert!(text.starts_with("== products (cargo xtask so)\nout-p\n") && text.contains(&side) && text.ends_with(&side), "{text:?}");
+            assert_eq!(text.contains("STEP FAILED: products"), prc != 0, "{text:?}");
+            assert_eq!(side.contains(&format!("STEP FAILED: {XTASK_BESIDE_LABEL}")), trc != 0, "{side:?}");
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    // The xtask tests that run products (`transcripts` runs `target/niji/ldconfig`) come after the products build;
+    // the unit tests and every other xtask target go beside it; every target is in exactly one of the two commands
+    // (cargo's rule: `tests/*.rs` and `tests/*/main.rs`, nothing else), so none is dropped.
+    #[test]
+    fn the_xtask_targets_that_run_products_wait_for_the_products() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        let named = |v: &[String]| v.windows(2).filter(|w| w[0] == "--test").map(|w| w[1].clone()).collect::<Vec<_>>();
+        let fx = std::env::temp_dir().join(format!("xtask-split-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&fx);
+        let t = fx.join("xtask").join("tests");
+        for d in ["dir_plain", "dir_products", "fixtures/sub"] {
+            fs::create_dir_all(t.join(d)).unwrap();
+        }
+        for (f, text) in [("plain.rs", "fn main() {}"), ("runs.rs", "let p = root.join(\"target/niji/ldconfig\");"), ("notes.txt", "target/niji"), ("dir_plain/main.rs", "mod helper;"), ("dir_plain/helper.rs", ""), ("dir_products/main.rs", "mod helper;"), ("dir_products/helper.rs", "target/niji-test/iconv"), ("fixtures/sub/x.rs", "")] {
+            fs::write(t.join(f), text).unwrap();
+        }
+        let (beside, after) = xtask_test_split(&fx);
+        let _ = fs::remove_dir_all(&fx);
+        assert_eq!(beside[..4], ["test", "-p", "xtask", "--bins"], "{beside:?}");
+        assert_eq!(after[..3], ["test", "-p", "xtask"], "{after:?}");
+        assert_eq!((named(&beside), named(&after)), (vec!["dir_plain".to_string(), "plain".into()], vec!["dir_products".to_string(), "runs".into()]));
+        // The live tree: `transcripts` (it runs `target/niji/ldconfig`) waits, the other targets go beside.
+        let (beside, after) = xtask_test_split(&root());
+        let (b, a) = (named(&beside), named(&after));
+        assert!(a.contains(&"transcripts".to_string()) && !b.contains(&"transcripts".to_string()), "{beside:?} {after:?}");
+        assert!(["affected_mode", "header_p2_fixed_rows", "probe_client"].iter().all(|n| b.contains(&n.to_string())), "{beside:?} {after:?}");
+    }
+
+    // The memory room is the smallest `memory.max` on the cgroup's path (`max` is no limit); side by side needs
+    // `SIDE_BY_SIDE_BYTES`, and an unreadable limit runs the steps one after the other.
+    #[test]
+    fn side_by_side_needs_the_measured_memory_under_the_smallest_cgroup_limit() {
+        // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
+        let fs_of = |m: &'static [(&'static str, &'static str)]| move |p: &str| m.iter().find(|(k, _)| *k == p).map(|(_, v)| (*v).to_string());
+        let nested = fs_of(&[("/sys/fs/cgroup/a/memory.max", "17179869184\n"), ("/sys/fs/cgroup/a/b/memory.max", "8589934592\n"), ("/sys/fs/cgroup/a/b/c/memory.max", "max\n")]);
+        assert_eq!(cgroup_limit("1:name=x:/q\n0::/a/b/c\n", &nested), Some(8 << 30));
+        assert_eq!(cgroup_limit("0::/a/b/\n", &nested), Some(8 << 30));
+        assert_eq!(cgroup_limit("0::/\n", &nested), None);
+        assert_eq!(cgroup_limit("0::a/b\n", &nested), None);
+        assert_eq!(cgroup_limit("1:memory:/a\n", &nested), None);
+        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES)).is_ok());
+        assert!(side_by_side_room(Some(SIDE_BY_SIDE_BYTES - 1)).is_err());
+        assert!(side_by_side_room(None).is_err());
     }
 
     /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `NIJI_AFFECTED_FAIL_FIXTURE` is set; with it

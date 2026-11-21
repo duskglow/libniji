@@ -1,0 +1,20 @@
+@@generated
+/* semaphore.h: semaphores (XSH <semaphore.h>). */
+#ifndef __NIJI_H_semaphore_h
+#define __NIJI_H_semaphore_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro SEM_FAILED
+@@emit
+
+@@if SEM_FAILED
+# define SEM_FAILED ((sem_t *) @@value(SEM_FAILED))
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -1284,6 +1284,7 @@ pub(crate) fn finish(result: usize) -> ! {
     // result table or resolver state again, which only these release.
     crate::users::thread_ending();
     crate::resolv::thread_ending();
+    crate::dlerr::thread_ending();
     // The loader's last word on this thread (its static area goes with the mapping).
     let release = LOADER_RELEASE.load(Acquire);
     if release != 0 {

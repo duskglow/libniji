@@ -1,0 +1,15 @@
+@@generated
+/* ucontext.h: user context switching (XSH <ucontext.h>, obsolescent in POSIX.1-2008 but exported). */
+#ifndef __NIJI_H_ucontext_h
+#define __NIJI_H_ucontext_h 1
+
+#include <features.h>
+#include <sys/ucontext.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

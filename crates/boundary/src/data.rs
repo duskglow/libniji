@@ -251,6 +251,20 @@ macro_rules! product_data {
     };
 }
 
+/// A libresolv.so.2 data object (LIBRESOLV-OWN-CODE): a C symbol of libc.a (feature `runtime`,
+/// a static `-lresolv` link) and of the libresolv product (feature `libresolv`).
+macro_rules! libresolv_data {
+    ($(#[$m:meta])* $name:ident: $t:ty = $init:expr) => {
+        $(#[$m])*
+        // UNSAFE(export): a C data symbol needs an unmangled name; names are unique per
+        // version node (spec Appendix B).
+        #[cfg_attr(any(feature = "runtime", feature = "libresolv"), unsafe(no_mangle))]
+        #[allow(unsafe_code)]
+        #[allow(non_upper_case_globals)]
+        pub static $name: $t = $init;
+    };
+}
+
 /// A `FILE` object as atomic words (C code reads and moves its buffer window).
 #[repr(C, align(8))]
 pub struct FileObject(pub [AtomicUsize; FILE_WORDS]);
@@ -499,15 +513,15 @@ const fn opcode_table() -> [AtomicPtr<u8>; 16] {
     out
 }
 
-product_data!(
+libresolv_data!(
     /// `__p_type_syms` (§16.4).
     __p_type_syms: [ResSym; 45] = sym_table(&TYPE_SYMS)
 );
-product_data!(
+libresolv_data!(
     /// `__p_class_syms` (§16.4).
     __p_class_syms: [ResSym; 7] = sym_table(&CLASS_SYMS)
 );
-product_data!(
+libresolv_data!(
     /// `_res_opcodes` (§16.4): the opcode names.
     _res_opcodes: [AtomicPtr<u8>; 16] = opcode_table()
 );

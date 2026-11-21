@@ -1,0 +1,14 @@
+@@generated
+/* sys/vm86.h: vm86(2), x86 virtual 8086 mode */
+#ifndef __NIJI_H_sys_vm86_h
+#define __NIJI_H_sys_vm86_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

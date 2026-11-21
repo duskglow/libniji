@@ -1,0 +1,12 @@
+# Function-pointer structure members. layouts.tsv records such a member as `fn(...) *` (offset and size only);
+# this table spells its type, `@` standing for the member's name. A row's type and member are layouts.tsv's. A
+# member with no row here is declared `void (*m) (void)`: the table lists the members whose signature a standard,
+# man page or the GNU C Library manual gives.
+# Sources: the GNU C Library manual (Argp Help Filtering).
+type	member	declarator	source
+struct argp	help_filter	char *(*@)(int, const char *, void *)	GNU C Library manual, Argp Help Filtering
+struct sigaction	__sigaction_handler.sa_sigaction	void (*@)(int, siginfo_t *, void *)	POSIX struct sigaction
+struct sigaction	sa_restorer	void (*@)(void)	sigaction(2)
+struct sigevent	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
+sigevent_t	_sigev_un._sigev_thread._function	void (*@)(union sigval)	POSIX struct sigevent
+struct _pthread_cleanup_buffer	__routine	void (*@)(void *)	pthread_cleanup_push(3)

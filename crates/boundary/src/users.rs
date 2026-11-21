@@ -200,8 +200,29 @@ pub(crate) fn table_of(slot: &RecordsSlot) -> KResult<&'static Table> {
 
 /// The address of the calling thread's block for `kind`, with at least `need` bytes (kept
 /// and grown between calls, freed when the thread exits).
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 pub(crate) fn block_addr(kind: usize, need: usize) -> KResult<usize> {
     block_addr_in(table()?, kind, need)
+}
+
+/// [`block_addr`] in the libresolv product (LIBRESOLV-OWN-CODE): the C library's, through its
+/// private entry, so the blocks stay in the thread's one table (freed when the thread exits).
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn block_addr(kind: usize, need: usize) -> KResult<usize> {
+    match crate::caller_alloc::libc_block(kind, need) {
+        0 => Err(Errno::ENOMEM),
+        a => Ok(a),
+    }
+}
+
+/// [`block_addr`] for libresolv.so.2's code (LIBRESOLV-OWN-CODE): the address, 0 without memory
+/// or for a kind that does not exist.
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))] // the private entry is a product export
+pub(crate) fn block_addr_or_zero(kind: usize, need: usize) -> usize {
+    if kind >= KINDS {
+        return 0;
+    }
+    table().and_then(|t| block_addr_in(t, kind, need)).unwrap_or(0)
 }
 
 /// [`block_addr`] in the calling thread's table `words` (fetched once by a caller that needs

@@ -23,6 +23,25 @@ __ctype_b_loc	emit	C.9: the is* macros index (*__ctype_b_loc ())[c]
 __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
+__sigsetjmp	emit	C.9: sigsetjmp(env, save) and pthread_cleanup_push call it
+__sigsetjmp_cancel	emit	C.9: the cancellation buffer form of __sigsetjmp
+__libc_current_sigrtmin	emit	C.9: SIGRTMIN expands to this call
+__libc_current_sigrtmax	emit	C.9: SIGRTMAX expands to this call
+__pthread_register_cancel	emit	C.9: pthread_cleanup_push expands to this call
+__pthread_register_cancel_defer	emit	C.9: pthread_cleanup_push_defer_np expands to this call
+__pthread_unregister_cancel	emit	C.9: pthread_cleanup_pop expands to this call
+__pthread_unregister_cancel_restore	emit	C.9: pthread_cleanup_pop_restore_np expands to this call
+__pthread_unwind_next	emit	C.9: the cancellation handler of pthread_cleanup_push calls it
+__pthread_unwind_buf_t	emit	C.9: pthread_cleanup_push declares one on the caller's stack
+__cancel_jmp_buf_tag	emit	C.9: member type of __pthread_unwind_buf_t
+__jmp_buf_tag	emit	C.9: the structure setjmp's jmp_buf holds
+__sighandler_t	emit	C 7.14: the type of SIG_DFL, SIG_IGN and SIG_ERR
+__libc_single_threaded	emit	sys/single_threaded.h: the exported object
+__sched_cpucount	emit	CPU_SET(3): CPU_COUNT_S expands to this call
+__sched_cpualloc	emit	CPU_SET(3): CPU_ALLOC expands to this call
+__sched_cpufree	emit	CPU_SET(3): CPU_FREE expands to this call
+bsd_signal	omit	C 7.1.3 (ruling #6468): the symbol stays exported and no header declares it
+__vlimit_resource	emit	the parameter type of vlimit (sys/vlimit.h): a tag a program may name
 getumask	omit	declared by the reference but defined by no library version; libniji declares only what it exports (slice 7)
 _argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
 _option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol

@@ -23,6 +23,11 @@ runtime = ["export"]
 # Independent of `export`: the libm archive carries no libc symbols, and test builds with `export`
 # never interpose on the host libm that Rust's own `f64` functions call.
 libm = []
+# The libresolv product (`crates/libresolv-so`, LIBRESOLV-OWN-CODE): emit the libresolv.so.2 names
+# whose code reaches the C library only through its exports (`export! { libc_libresolv ... }`), so
+# that code lives in libresolv.so.2 rather than in every process's libc.so.6. With `export` the
+# same names are libc.a's (a static `-lresolv` link, D-16.6).
+libresolv = []
 # Test-only helpers (`selftest`): forked children, a signal round trip. Enabled for this
 # crate's own tests through the self dev-dependency below; never by a product.
 selftest = ["niji/selftest", "niji-legacy/selftest"]

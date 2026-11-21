@@ -1,0 +1,16 @@
+{"task": "HEAP-ADDRESS-SPACE-4", "model": "opus", "tokens": null,
+ "result": "-3's red gate (5 tests) and surviving plant fixed by cause; spill kept off short programs (start-up +1 fault); new rt tests; gate, start-up checks and plants running",
+ "branch": "task/heap-address-space-4", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["-3's gate was red (5 tests), not only its plants; the role had been synced against the -3 branch (empty .changed)"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "start-up programs (coreutils-shaped, setlocale+printf, first %.2f) vs -3 head: expected back to next's 44/43/3 from 45/44/4", "before": 45, "after": null, "unit": "page faults", "measured": false},
+  {"kind": "coverage", "what": "rt tests: window-tail large block, small heap does not spill; plants", "before": 0, "after": 2, "unit": "tests", "measured": true},
+  {"kind": "correctness", "what": "realloc in-place test and mallocdbg record aligned with growth-with-use", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "sync_role default base for a continuation should be origin/next, not the predecessor's branch (it left .changed empty)",
+ "next_step": "read gate/xtest/fullhot/plants; if hot_text still +1, trim more heap code from layout bin 0",
+ "report_file": "handoff/HEAP-ADDRESS-SPACE.md",
+ "jobs": ["heap-address-space-4-gate", "heap-address-space-4-xtest", "heap-address-space-4-fullhot", "heap-address-space-4-plants"]}

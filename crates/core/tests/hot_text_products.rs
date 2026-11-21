@@ -471,9 +471,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// staging and counter (median of 21) on the same products built on the Skylake-SP host: Skylake-SP host
 /// fast 855,582, release 803,431, the host C library 101,863; Zen 1 host fast 855,428, release 803,280, the
 /// host C library 96,002. The Zen 1 fast bound is that level plus 2%; the release bounds hold (1.1% over).
+/// DYN-START-LINK-SHAPE (D-27.68, the RELATIVE loop at 20 instructions per entry): release products,
+/// execcount median of 101, -38,180 / -38,167 / -38,182 on empty main / 3 libraries / clock_gettime on
+/// both hosts; the release bounds move down by 38,000 (the head passed at 812,400, so the margin stays).
+/// The fast bounds are not re-measured and stay.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 812_400]),
-    ("AMD EPYC 7551 32-Core Processor", [872_600, 812_400]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 774_400]),
+    ("AMD EPYC 7551 32-Core Processor", [872_600, 774_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
@@ -544,6 +548,47 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
     assert!(o.status.success(), "exec_instr {} failed ({}): {err}", exe.display(), o.status);
     let median = out.split_whitespace().nth(2).and_then(|v| v.parse().ok());
     Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
+}
+
+/// DYN-START-QUICK; no spec clause (cost of the products). A dynamic empty main started by the products'
+/// interpreter makes none of the system calls its start does without: no `lseek` (a regular file's size
+/// comes from the `fstat` the loader makes), no anonymous mapping smaller than a page (the
+/// image views' buffers come from the loader's scratch arena) and no `arch_prctl(ARCH_GET_FS)`
+/// (`__libc_start_main` sees the loader's early start first). Traced with ptrace
+/// (oracle/start_syscalls.c); skipped, with the reason printed, where ptrace is not permitted.
+#[test]
+fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
+    const MMAP: u64 = 9;
+    const LSEEK: u64 = 8;
+    const ARCH_PRCTL: u64 = 158;
+    let lib = dyn_stage("dyn-calls");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let exe = lib.join("empty_dyn");
+    dyn_link(&lib, &src, &exe);
+    let tracer = lib.join("start_syscalls");
+    let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
+    assert!(st.success(), "oracle/start_syscalls.c does not build");
+    // The products' path reaches the traced program only: the tracer runs on the host C library.
+    let o = Command::new(&tracer).arg(&exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
+    let _ = std::fs::remove_dir_all(&lib);
+    if o.status.code() == Some(121) || o.status.code() == Some(123) {
+        eprintln!("SKIP: ptrace is not permitted here ({})", o.status);
+        return;
+    }
+    assert!(o.status.success(), "the traced empty main failed ({})", o.status);
+    let calls: Vec<[u64; 4]> = String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .map(|l| {
+            let w: Vec<u64> = l.split_whitespace().map(|v| v.parse().expect("a number")).collect();
+            [w[0], w[1], w[2], w[3]]
+        })
+        .collect();
+    eprintln!("dynamic empty main: {} system calls", calls.len());
+    let count = |f: &dyn Fn(&[u64; 4]) -> bool| calls.iter().filter(|c| f(c)).count();
+    assert_eq!(count(&|c| c[0] == LSEEK), 0, "lseek at start: a file size taken from lseek, not fstat");
+    assert_eq!(count(&|c| c[0] == MMAP && c[3] & 0x20 != 0 && c[2] < 4096), 0, "an anonymous mapping under a page at start: the image views were not taken from the scratch arena");
+    assert_eq!(count(&|c| c[0] == ARCH_PRCTL && c[1] == 0x1003), 0, "arch_prctl(ARCH_GET_FS) at start: __libc_start_main did not take the loader's early start first");
 }
 
 #[test]

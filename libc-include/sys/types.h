@@ -141,6 +141,14 @@ typedef int key_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
 typedef union {
@@ -232,15 +240,6 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199506 && __NIJI_CXX < 1
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

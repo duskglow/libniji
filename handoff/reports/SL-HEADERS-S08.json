@@ -1,0 +1,22 @@
+{"task": "SL-HEADERS-S08", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: 11 slice 8 templates, the @@init marker and 109 layout rows are in; headers-gen still reports 10 problems, P1-P3, P5, P6 and plants not run",
+ "branch": "task/sl-headers-s08", "head": "630521926",
+ "gate": {"affected": "not run", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "SIG_HOLD 2, PTHREAD_CANCELED -1, SEM_FAILED 0, SIG_DFL/IGN/ERR 0/1/-1 are typed in templates because no spec/abi table holds them", "recommendation": "add them to macros.tsv through type_probe.py (value of the probe's own object) in a table slice, then use @@value"}
+ ],
+ "informational": [
+  "cargo xtask static passed (job sl-headers-s08-lint, rc 0) while headers-gen reported 10 problems: --check does not fail on a template that cannot generate",
+  "anonymous-union members and unnamed function-pointer members (sigaction, sigevent, sigcontext, ucontext_t, _pthread_cleanup_buffer) need generator support",
+  "bsd_signal is omitted (compat-only, not exported at a default version)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "slice 8 generator pieces (@@init, typedef members, 11 layout types) that the continuation needs", "before": null, "after": null, "unit": "none", "measured": false},
+  {"kind": "coverage", "what": "layout rows added to layouts.tsv", "before": 1908, "after": 2017, "unit": "rows", "measured": true}
+ ],
+ "improvement": "a --check that fails when a template cannot generate would have caught the red state in static; the layout extractor should record unnamed function-pointer types with their prototype",
+ "next_step": "anonymous aggregates in members_nested, si_* macros, max_align_t, then P1-P3, P5, P6, plants, gate",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": ["keke:sl-headers-s08-lint"]}

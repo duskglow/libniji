@@ -1,0 +1,28 @@
+{
+  "task": "LOCALE-SLOTS-GROWTH-6",
+  "model": "opus",
+  "tokens": null,
+  "result": "COMPLETE: merged next cleanly, no product change; so (13 contracts, STARTUP-DATA-WINDOWS 7/7, start-up .got on one page), direct gate, plants 21/21, xtask test and full-profile hot_text_products all green; setlocale repeat/query paths +20 instr/call vs next (ruling needed)",
+  "branch": "task/locale-slots-growth-6",
+  "head": "23993a813548966abe2dc7ab6a21184f732d0289",
+  "gate": {"affected": "10572 passed / 0 failed (14 suites, conformance 36/36)", "peak": "14G"},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "setlocale per call vs next (Skylake-SP, release): warm_setlocale_enUS 137 -> 157, setlocale_query 71 -> 92, setlocale_all_c 121.6 -> 141.6; no bench/instr_limits.tsv row covers these (startup_instr_setloc is Zen 1 only)", "recommendation": "follow-up: query_cached reads both name fields through one slot lookup (as name_bytes does) and spilled() becomes #[cold] #[inline(never)]; recount against next's 71/137"}
+  ],
+  "informational": [
+    "The run-5 .got straddle does not occur on this merge: the six start-up .got objects sit on one page, STARTUP-DATA-WINDOWS 7 of 7",
+    "Signature diff and tool/strings fault counts against the new base not rerun (needs a base fast build on Zen 1); strings group still in bin 2 (63,056 B); R2 byte budgets pass in so"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "correctness", "what": "no cap on locales, names and locale files a process loads (HL-10); ENOMEM reported from newlocale/setlocale", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "plants on the story's code, all caught", "before": null, "after": 21, "unit": "plants", "measured": true},
+    {"kind": "cost", "what": "setlocale(LC_ALL, \"en_US.UTF-8\") of the loaded locale per call (Skylake-SP, release); fix-forward in rulings", "before": 137, "after": 157, "unit": "instr/call", "measured": true},
+    {"kind": "cost", "what": "setlocale(LC_ALL, NULL) query per call (Skylake-SP, release); fix-forward in rulings", "before": 71, "after": 92, "unit": "instr/call", "measured": true}
+  ],
+  "improvement": "a story that changes a hot locale lookup should run wl_percall setlocale.c against next in its own gate run; the +20 surfaced only because a reviewer asked",
+  "next_step": "coordinator rules on the setlocale +20 instr/call; if a fix is allowed, change query_cached and spilled only, then rerun plants, gate, start-up checks and setlocale.c percall",
+  "report_file": "handoff/LOCALE-SLOTS-GROWTH-report.md",
+  "jobs": ["mei:locale-slots-growth-6-lint", "mei:locale-slots-growth-6-gate", "mei:locale-slots-growth-6-plants", "mei:locale-slots-growth-6-xtest", "mei:locale-slots-growth-6-hottext", "mei:locale-slots-growth-6-percall"]
+}

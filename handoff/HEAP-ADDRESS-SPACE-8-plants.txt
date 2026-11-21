@@ -1,0 +1,18 @@
+# HEAP-ADDRESS-SPACE-8 plants (cargo xtask plants; docs/plants.md): every plant of this story whose code is still on
+# the branch, run on the final head after the merge of origin/next 3f2a84520 (runs 5, 6 and 7's two; their reasons
+# are in handoff/HEAP-ADDRESS-SPACE-<n>-plants.txt). seg-first-17's msg now also names the per-step bound ("the heap
+# added"), which is what caught it in run 7 (WARN-NO-MSG there). Run 3's got-unaligned is gone with the 256-aligned
+# .got it planted (dropped in run 8). On the head before that drop (`afeb37b5e`), heap-address-space-8-plants: 13 of
+# 13 CAUGHT, got-unaligned included.
+grow-never | crates/rt/src/heap.rs | lit:if sh.seg.load(Relaxed) != 0 && sh.mapped.load(Relaxed) < SLABS { ==> if sh.seg.load(Relaxed) == usize::MAX && sh.mapped.load(Relaxed) < SLABS { | cargo test -p niji-rt --test heap_and_sync | msg:segments_are_aligned_and_found_from_any_address.*FAILED|left == right
+grow-whole-window | crates/rt/src/heap.rs | lit:let more = mapped.min(8).min(SLABS.checked_sub(mapped)?); ==> let more = SLABS.checked_sub(mapped)?; | cargo test -p niji-rt --test heap_and_sync | msg:segments_are_aligned_and_found_from_any_address.*FAILED|left == right
+grow-same-slab | crates/rt/src/heap.rs | lit:sh.next_slab.store(mapped + 1, Relaxed); ==> sh.next_slab.store(mapped, Relaxed); | cargo test -p niji-rt --test heap_and_sync | msg:FAILED|panicked
+held-past-mapped | crates/rt/src/heap.rs | lit:if seg != 0 && next < sh.mapped.load(Relaxed) { ==> if seg != 0 && next < SLABS { | cargo test -p niji-rt --test heap_and_sync | msg:FAILED|panicked
+seg-first-whole | crates/rt/src/heap.rs | lit:const SEG_FIRST: usize = 16; ==> const SEG_FIRST: usize = SLABS; | cargo test -p niji-rt --test heap_and_sync | msg:the_first_allocation_reserves_one_mapping.*FAILED|an_address_space_limit_sizes_the_registries.*FAILED
+seg-first-two | crates/rt/src/heap.rs | lit:const SEG_FIRST: usize = 16; ==> const SEG_FIRST: usize = 2; | cargo test -p niji-rt --test heap_and_sync | msg:the_first_allocation_reserves_one_mapping.*FAILED|an_address_space_limit_sizes_the_registries.*FAILED
+window-tail-invalid | crates/rt/src/heap.rs | lit:uz(d & 0xff).checked_sub(1) else { return Ok(Loc::Large) } ==> uz(d & 0xff).checked_sub(1) else { return Err(Misuse::InvalidPointer) } | cargo test -p niji-rt --test heap_and_sync | msg:a large block in a window tail is found
+head-takes-phase | xtask/src/bins.rs | lit:(head || *n > 0) && fits ==> (head || *n < usize::MAX) && fits | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
+head-refuses-mixed | xtask/src/bins.rs | lit:sig.is_empty() || !sig.is_subset(phases) ==> sig.is_empty() || sig.is_disjoint(phases) | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
+first-large-max | crates/rt/src/heap.rs | lit:large.min(FIRST_LARGE) ==> large | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|the heap added
+as-room-fallback | crates/boundary/src/heap.rs | lit:return map_aligned_exactly(head, len, align, node); ==> return None; | cargo test -p niji --test heap_meta_products the_heap_keeps | msg:steps failed
+seg-first-17 | crates/rt/src/heap.rs | lit:const SEG_FIRST: usize = 16; ==> const SEG_FIRST: usize = 17; | cargo test -p niji --test heap_meta_products the_heap_keeps | msg:the heap added|steps failed

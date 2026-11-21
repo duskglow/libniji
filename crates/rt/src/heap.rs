@@ -66,6 +66,15 @@ pub trait Pages {
     /// Resize a whole mapping, possibly moving it; `None` if it cannot (the mapping is then
     /// unchanged). The node preference moves with it.
     fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize>;
+    /// A new zero-filled mapping of `head + len` bytes whose address plus `head` is a multiple
+    /// of `align`, placed where the `room` bytes from that aligned address (`room >= len`) were
+    /// free when it was made, so that [`Pages::grow`] can usually extend it in place up to
+    /// `room`. Returns the aligned address (the mapping starts `head` bytes before it). A
+    /// segment is mapped only as far as it is used (HEAP-ADDRESS-SPACE).
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize>;
+    /// Map `[addr, addr + len)`, just past the end of a mapping the heap made, without replacing
+    /// any mapping: false (nothing mapped) when any part of the range is taken.
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool;
     /// Zero `[addr, addr + len)`, the whole mapping of a secure block being released, so that
     /// the stores cannot be elided (D-X.11: the boundary passes the bytes through the
     /// explicit-zeroing barrier). The mapping is still in place and owned by the releasing
@@ -174,6 +183,20 @@ const HEAD_WORDS: usize = 8;
 /// R_REMOTE bit 63: the slab is queued for its owner's collection (D-3.15 amendment).
 const QUEUED: u64 = 1 << 63;
 const SLABS: usize = 63;
+/// Slabs mapped with a new segment (HEAP-ADDRESS-SPACE): a segment's 16 MiB window is mapped
+/// only as far as its shard hands slabs out, growing in place by doubling ([`Pages::grow`]);
+/// a window whose next part is taken simply ends there. Mapping whole windows cost every
+/// process 16 MiB of address space at its first `malloc` and 16 MiB per segment after it.
+/// 16 slabs (4 MiB, address space only: untouched until used) because the start-up probes of
+/// `page_faults.c` use up to 16 classes: with 2 the locale, tool, strings, mktime, localtime
+/// and rebind modes grew 1 to 3 times (one `mmap` each, strace on the Zen 1 build host), so the
+/// growth joined the start-up trace and its text; with 16 no start-up mode grows.
+const SEG_FIRST: usize = 16;
+/// The bytes a new segment maps: its metadata and [`SEG_FIRST`] slabs.
+const SEG_MIN: usize = META + SEG_FIRST * SLAB;
+/// Generation 0 of the large-block table at most: 256 slots, one page (later generations
+/// double, T14). Was the maximum, 16 MiB of address space at the first large block.
+const FIRST_LARGE: usize = 256;
 // Segment metadata, dense (D-3.15): line 0 the shard + 1 (word 0); line 1 + i slab i's head; from
 // LOCALS the slabs' local bitmaps, 2 KiB each, then their remote bitmaps (REMOTE_OFF after the
 // local one); slab data from META. The heads of all slabs share one page and a bitmap is written
@@ -451,6 +474,8 @@ struct Shard {
     seg: AtomicUsize,
     /// The next never-used slab of `seg`.
     next_slab: AtomicUsize,
+    /// Slabs of `seg` mapped so far (HEAP-ADDRESS-SPACE).
+    mapped: AtomicUsize,
     /// Parked caches (cache identifier; linked through the cache's pool word).
     pool: AtomicU64,
 }
@@ -463,6 +488,7 @@ impl Shard {
             empties: AtomicUsize::new(0),
             seg: AtomicUsize::new(0),
             next_slab: AtomicUsize::new(0),
+            mapped: AtomicUsize::new(0),
             pool: AtomicU64::new(0),
         }
     }
@@ -478,6 +504,8 @@ pub struct Heap {
     /// Serialises segment and cache creation (the registries are read without it).
     grow: RawMutex,
     nsegs: AtomicUsize,
+    /// Bytes of segment mappings (they grow with use, HEAP-ADDRESS-SPACE).
+    seg_mapped: AtomicUsize,
     /// The segment registry (its generation 0's capacity is `seg.cap`).
     seg: SegRegistry,
     /// Caches: identifier - 1 → address, by generation as `seg_bases`.
@@ -748,6 +776,7 @@ impl Heap {
             topology: AtomicBool::new(false),
             grow: RawMutex::new(),
             nsegs: AtomicUsize::new(0),
+            seg_mapped: AtomicUsize::new(0),
             seg: SegRegistry {
                 cap: AtomicUsize::new(0),
                 ngens: AtomicUsize::new(0),
@@ -843,7 +872,7 @@ impl Heap {
             return;
         }
         let limit = pages.address_limit();
-        if limit.is_some_and(|l| l < 4 * SEG) {
+        if limit.is_some_and(|l| l < 4 * SEG_MIN) {
             self.no_segments.store(true, Relaxed);
         }
         let (segs, caches, large) = match limit {
@@ -857,13 +886,14 @@ impl Heap {
         // Generation 0 of the segments and caches fits one page (D-3.19); they grow by generations.
         let (segs, caches) = (segs.min(FIRST_SEGS), caches.min(FIRST_CACHES));
         let _ = self.caches.compare_exchange(0, caches, AcqRel, Acquire);
-        let _ = self.large_cap.compare_exchange(0, large, AcqRel, Acquire);
+        let _ = self.large_cap.compare_exchange(0, large.min(FIRST_LARGE), AcqRel, Acquire);
         let _ = self.seg.cap.compare_exchange(0, segs, AcqRel, Acquire);
     }
 
     /// The heap's first reservation (D-3.19), under `grow` after [`Heap::choose_capacities`]:
-    /// one mapping holds the first segment (at its 16 MiB boundary), then one page with the
-    /// generation-0 cache table, segment bases and segment hash, then the first cache chunk.
+    /// one mapping holds one page with the generation-0 cache table, segment bases and segment
+    /// hash, then the first cache chunk, then the first segment (at its 16 MiB boundary, mapped
+    /// as far as [`SEG_MIN`], with room to grow).
     /// Separately they were five mappings (and their pages three more faults). Does nothing once
     /// any of them exists, without segments, or when the mapping fails (each part is then
     /// mapped on its own as before). Inlined into its two cold callers: out of line it took a
@@ -880,8 +910,8 @@ impl Heap {
         }
         let (caches, segs) = (self.caches.load(Relaxed), self.seg.cap.load(Relaxed));
         let tables = ((caches + 3 * segs) * 8).next_multiple_of(PAGE);
-        let Some(base) = pages.map(SEG + tables + CACHE_CHUNK, SEG, self.node_for(shard)) else { return };
-        let tab = base + SEG;
+        let Some(base) = pages.map_room(tables + CACHE_CHUNK, SEG_MIN, SEG, SEG, self.node_for(shard)) else { return };
+        let tab = base - tables - CACHE_CHUNK;
         self.cache_tab[0].store(tab, Release);
         self.cache_ngens.store(1, Release);
         self.seg.bases[0].store(tab + caches * 8, Release);
@@ -902,7 +932,7 @@ impl Heap {
     /// After the address-space limit may have been raised (T14): segments again when it allows
     /// four. Asked when a registry needs a new generation (rare).
     fn recheck_limit<P: Pages>(&self, pages: &P) {
-        if self.no_segments.load(Relaxed) && pages.address_limit().is_none_or(|l| l >= 4 * SEG) {
+        if self.no_segments.load(Relaxed) && pages.address_limit().is_none_or(|l| l >= 4 * SEG_MIN) {
             self.no_segments.store(false, Relaxed);
         }
     }
@@ -971,8 +1001,9 @@ impl Heap {
             self.spare_seg.store(0, Relaxed);
             spare
         } else {
-            pages.map(SEG, SEG, self.node_for(shard))?
+            pages.map_room(0, SEG_MIN, SEG, SEG, self.node_for(shard))?
         };
+        self.seg_mapped.fetch_add(SEG_MIN, Relaxed);
         pages.words(base, 1)[0].store(w64(shard) + 1, Release);
         pages.words(self.seg.bases[g].load(Relaxed), len)[o].store(w64(base), Release);
         let table = pages.words(self.seg.hash[g].load(Relaxed), len * 2);
@@ -985,7 +1016,7 @@ impl Heap {
             i = (i + 1) & (table.len() - 1);
         }
         self.nsegs.store(n + 1, Release);
-        self.peak_mapped.fetch_max((n + 1) * SEG + self.large_mapped.load(Relaxed), Relaxed);
+        self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
         Some(n)
     }
 
@@ -1018,10 +1049,40 @@ impl Heap {
             return Some(s);
         }
         let sh = &self.shards[shard];
+        // The current segment's mapped part is spent but its window is not: grow it in place.
+        // The test stays here and the growth out of line, so a program whose heap fits a new
+        // segment's first SEG_FIRST slabs (start-up) neither runs nor carries it.
+        if sh.seg.load(Relaxed) != 0 && sh.mapped.load(Relaxed) < SLABS {
+            if let Some(s) = self.grow_segment(pages, shard) {
+                return Some(s);
+            }
+        }
         let idx = self.new_segment(sys, pages, shard)?;
         sh.seg.store(idx + 1, Relaxed);
         sh.next_slab.store(1, Relaxed);
+        sh.mapped.store(SEG_FIRST, Relaxed);
         Some(w64(idx * SLABS))
+    }
+
+    /// Map more of the current segment of `shard` (its lock held) in place, doubling its mapped
+    /// slabs by at most 8 (2 MiB: a segment never maps more than 2 MiB it does not use), and hand
+    /// out the first new slab (HEAP-ADDRESS-SPACE). `None` when the window's next part is taken
+    /// by another mapping: the segment then ends there and the caller maps a new one. Cold and
+    /// out of line: it runs once per doubling, never in a short program.
+    #[cold]
+    #[inline(never)]
+    fn grow_segment<P: Pages>(&self, pages: &P, shard: usize) -> Option<u64> {
+        let sh = &self.shards[shard];
+        let (idx, mapped) = (sh.seg.load(Relaxed).checked_sub(1)?, sh.mapped.load(Relaxed));
+        let more = mapped.min(8).min(SLABS.checked_sub(mapped)?);
+        if more == 0 || !pages.grow(self.seg_base(pages, idx) + META + mapped * SLAB, more * SLAB, self.node_for(shard)) {
+            return None;
+        }
+        self.seg_mapped.fetch_add(more * SLAB, Relaxed);
+        self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
+        sh.mapped.store(mapped + more, Relaxed);
+        sh.next_slab.store(mapped + 1, Relaxed);
+        Some(w64(idx * SLABS + mapped))
     }
 
     /// An empty or never-used slab `shard` already holds (its lock held); maps nothing.
@@ -1033,7 +1094,7 @@ impl Heap {
             return Some(s);
         }
         let (seg, next) = (sh.seg.load(Relaxed), sh.next_slab.load(Relaxed));
-        if seg != 0 && next < SLABS {
+        if seg != 0 && next < sh.mapped.load(Relaxed) {
             sh.next_slab.store(next + 1, Relaxed);
             return Some(w64((seg - 1) * SLABS + next));
         }
@@ -1562,7 +1623,7 @@ impl Heap {
         let (count, mapped) = (self.large_count.load(Relaxed), self.large_mapped.load(Relaxed));
         self.peak_large_blocks.fetch_max(count, Relaxed);
         self.peak_large_mapped.fetch_max(mapped, Relaxed);
-        self.peak_mapped.fetch_max(mapped + self.nsegs.load(Acquire) * SEG, Relaxed);
+        self.peak_mapped.fetch_max(mapped + self.seg_mapped.load(Relaxed), Relaxed);
     }
 
     /// A kept large block of at least `len` bytes (and at most twice that plus 1 MiB) at
@@ -1810,7 +1871,10 @@ impl Heap {
         }
         let slab = w64(idx * SLABS + i);
         let d = pages.words(base + HEADS + i * HEAD_WORDS * 8 + R_DESC * 8, 1)[0].load(Acquire);
-        let class = uz(d & 0xff).checked_sub(1).ok_or(Misuse::InvalidPointer)?;
+        // No cache owns the slab: no small block lives there, and the address may be past the
+        // segment's mapped part (HEAP-ADDRESS-SPACE), where another mapping, a large block's
+        // too, can sit. The large table decides (an invalid pointer is not found there either).
+        let Some(class) = uz(d & 0xff).checked_sub(1) else { return Ok(Loc::Large) };
         let (magic, size) = ((d >> 8) & ((1 << 37) - 1), d >> 45);
         let rel = w64(within & (SLAB - 1));
         let q = (rel * magic) >> 40;
@@ -2306,7 +2370,7 @@ impl Heap {
         let large_mapped = self.large_mapped.load(Relaxed);
         Stats {
             in_use: in_use + large_mapped.saturating_sub(self.large_kept.load(Relaxed)),
-            small_mapped: self.nsegs.load(Acquire) * SEG,
+            small_mapped: self.seg_mapped.load(Relaxed),
             large_mapped,
             large_blocks: self.large_count.load(Relaxed),
             releasable: empty_slabs * SLAB,
