@@ -1,0 +1,29 @@
+{
+  "task": "REVIEW-SL-HEADERS-S11",
+  "model": "opus",
+  "tokens": null,
+  "result": "not a rabbit hole now: content done 11-18 (36% of 14.5 h); 64% was re-ports after foundation changes landed under it (#6748 fixes the cause); let S11-7 land; tripwire re-fired on an already-explained red outside the chain",
+  "branch": "task/review-sl-headers-s11",
+  "head": null,
+  "gate": {"affected": null, "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "tripwire re-fires on a chain already reviewed, on a red closed as explained in the same minute, while the chain's head is queued for CI", "recommendation": "do not count explained reds; re-fire only on new attributable reds after a review; no fire while the head member is queued_ci or finished; make grouped reasons sum to the count"},
+    {"item": "math-vector-fortran.h, item 4 of the S11-7 handoff, has no owner (HEADERS-TABLES-COMPLETE-2 covers three items)", "recommendation": "add it to HEADERS-TABLES-COMPLETE-2 or its promised complex.h/tgmath.h slice"}
+  ],
+  "informational": [
+    "premise: 4 of the 6 counted reds are the chain's (S11, S11-3, S11-4, S11-6); S11-5 was a ruling change, S11-7's CI red is outside slice 11",
+    "runs.impact overstates the landable gain: S11-2's C89/C++98 literal fix (values.h hex again), tgmath.h, S11-6's tooling gain and 5 of 23 plants did not survive the data-only re-port",
+    "next's sys/mount.h gives 8 header_check P8 failures that every slice's plants must filter (owed #85 is queued behind the series)",
+    "the forced_unwind_products CI failure has no owning story (rule 3)",
+    "S11-7 report JSON says 17 plants, its handoff says 18"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "none", "what": "review of chain SL-HEADERS-S11; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}
+  ],
+  "improvement": "the tripwire spent a reviewer run on a chain already reviewed whose only new red was explained the same minute; gate re-fires on new attributable reds",
+  "next_step": "let SL-HEADERS-S11-7 land; give math-vector-fortran.h an owner; apply the tripwire changes",
+  "report_file": "plan/reviews/REVIEW-SL-HEADERS-S11.md",
+  "jobs": []
+}
