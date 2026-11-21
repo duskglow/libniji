@@ -855,7 +855,7 @@ pub fn check_versions_live<'a>(objs: &[Obj<'a>], live: impl Fn(usize) -> bool) -
                             match names.get_mut(seen) {
                                 Some(slot) => {
                                     *slot = n;
-                                    seen += 1;
+                                    seen = seen.wrapping_add(1);
                                 }
                                 None => overflow = true,
                             }
