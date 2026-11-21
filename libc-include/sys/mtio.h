@@ -6,13 +6,9 @@
 #include <features.h>
 #include <sys/types.h>
 
-/* The terminal ioctl names and the descriptor-control structure come with <sys/ioctl.h> (slice 7); until that header is
-   generated the names are owned here and the include is optional. */
-#if defined __has_include
-# if __has_include(<sys/ioctl.h>)
-#  include <sys/ioctl.h>
-# endif
-#endif
+/* The terminal ioctl names and the descriptor-control structure, which <sys/ioctl.h> shows, are emitted below until
+   libniji generates <sys/ioctl.h> (slice 7); this header includes it then. A <sys/ioctl.h> from outside libniji's tree
+   is never included: its definitions carry no __NIJI_D_ guard, so each would be defined a second time here. */
 
 __NIJI_BEGIN_C
 
