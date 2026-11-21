@@ -1,0 +1,4 @@
+# MP-LN10-SERIES plants: the oracle's ln 10 by (10 ln 2 - 2 atanh(3/253)) / 3 (D-10.133).
+ln10-first-term-dropped | crates/mathtools/src/mp/consts.rs | lit:let (s, _) = atan_frac(3, 253, w, false); ==> let (s, _) = atan_frac(3, 253, w, false); let s = s.sub(&Nat::from_u64(3).shl(w).divrem_small(253).0); | cargo test -p niji-mathtools --lib consts:: | msg:ln10_series.*FAILED
+series-second-term-dropped | crates/mathtools/src/mp/consts.rs | lit:let t = p.divrem_small(2 * k + 1).0; ==> let t = if k == 1 { Nat::zero() } else { p.divrem_small(2 * k + 1).0 }; | cargo test -p niji-mathtools --lib consts:: | msg:ln10_series_and_logarithm_within_their_bounds.*FAILED
+ln2-guard-bits-dropped | crates/mathtools/src/mp/consts.rs | lit:let l2 = ln2_w(bits.saturating_add(8)); ==> let l2 = ln2_w(bits); | cargo test -p niji-mathtools --lib consts:: | msg:ln10_series.*FAILED
