@@ -1939,8 +1939,9 @@ static TOP: AtomicUsize = AtomicUsize::new(0);
 /// Whether a `dlopen`/`dlclose` must make room first: more than [`RETIRED_WAIT`] objects retired,
 /// or any retired while the table's top is past three quarters. The second case is readers that
 /// are always inside some walk: each reclaim then frees only the objects retired before the
-/// previous flip while the newest stay at the top, slots are reused from the top only, and the
-/// freed slots below become holes, so the top climbs by every epoch's opens with few retired.
+/// previous flip while the newest stay at the top, and the freed slots below become holes; a set
+/// goes into the first run of them that holds it ([`settle`]), so the top climbs only when no run
+/// does (sets larger than the holes), by every epoch's opens with few retired.
 fn room_short() -> bool {
     let r = RETIRED.load(Relaxed);
     r > RETIRED_WAIT || (r > 0 && TOP.load(Relaxed) > CAP.saturating_sub(RETIRED_WAIT) && TOP.load(Relaxed) <= CAP)
