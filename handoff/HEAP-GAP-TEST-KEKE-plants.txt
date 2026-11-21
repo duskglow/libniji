@@ -1,0 +1,4 @@
+# HEAP-GAP-TEST-KEKE plants: the gap test's limit must cover what the heap maps when the limit
+# applies. Run through pass 2 (libniji processes), where the thread's first allocation maps heap
+# address space; a glibc-process run (cargo test) cannot see this plant.
+vm-size-allocates-after-read | crates/boundary/tests/s03_memory_symbols.rs | lit:let n = std::fs::File::open("/proc/self/statm").and_then(|mut f| f.read(&mut buf)).unwrap(); ==> let n = std::fs::read_to_string("/proc/self/statm").map(|s| { let k = s.len().min(128); buf[..k].copy_from_slice(&s.as_bytes()[..k]); k }).unwrap(); | cargo xtask affected --only niji-boundary::s03_memory_symbols --with-exports --run | msg:the pinned gap is whole again
