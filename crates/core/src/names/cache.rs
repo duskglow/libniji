@@ -452,6 +452,14 @@ impl<'a> Table<'a> {
         self.read(|| self.ld(H_ACCOUNT))
     }
 
+    /// The boot ID the header holds (`None`: busy). Inlined into the attach (which the build's
+    /// layout trace groups; it never attaches to a region on tmpfs, the only caller of this):
+    /// out of line it took a text fault of its own.
+    #[inline]
+    pub fn boot(&self) -> Option<[u64; 2]> {
+        self.read(|| [self.ld(H_BOOT), self.ld(H_BOOT.saturating_add(1))])
+    }
+
     /// The identities of `passwd` and `nsswitch.conf` the stamp was verified against (`None`:
     /// busy).
     pub fn stamp_files(&self) -> Option<[FileId; 2]> {
