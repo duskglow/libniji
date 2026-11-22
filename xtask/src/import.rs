@@ -1,4 +1,4 @@
-//! The products manifest and the products import (CI-PRODUCTS-ONCE, D-NEW, a cache trust boundary).
+//! The products manifest and the products import (CI-PRODUCTS-ONCE, D-27.82, a cache trust boundary).
 //!
 //! Every finished product build (`so::run_so_as`) writes [`MANIFEST`] into `target/niji`, last: the build tag of the
 //! sources (`so::build_tag`), the commit ([`commit_of`]), the toolchain ([`toolchain`]: the compilers, linkers and
