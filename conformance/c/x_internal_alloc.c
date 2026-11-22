@@ -186,6 +186,24 @@ int main(void)
             }
         }
     }
+    /* printf's common conversions make no call to the replacement (INTERNAL-ALLOC-ROUTING-2; the text
+     * is C11 7.21.6.1's): with every allocation failing, snprintf still succeeds with the full text. The
+     * format is read through a volatile pointer so the compiler cannot fold the call's result. */
+    static const char *volatile pf_fmt = "%d|%5s%-3c|%#lx %o|%*d|%.2f|%ls";
+    static const char pf_want[] = "-42|   abz  |0x1000 10|   7|2.50|w";
+    char pf_out[96];
+    calls = 0;
+    fail_at = 1;
+    sticky = 1;
+    int pf_n = snprintf(pf_out, sizeof pf_out, pf_fmt, -42, "ab", 'z', 4096ul, 8u, 4, 7, 2.5, L"w");
+    unsigned long pf_calls = calls;
+    fail_at = 0;
+    sticky = 0;
+    if (pf_calls != 0)
+        dprintf(2, "FAIL snprintf: %lu calls to the replacement for common conversions\n", pf_calls);
+    failures += pf_calls != 0;
+    CHECK(pf_n == (int)strlen(pf_want));
+    CHECK(strcmp(pf_out, pf_want) == 0);
     /* qsort sorts with every allocation failing. */
     for (int i = 0; i < 200000; i++)
         v[i] = (i * 7919) % 200000;
