@@ -441,6 +441,33 @@ const PF_R: u32 = 4;
 /// The dynamic tags whose value is the link-time address of a table the reader reads.
 const IMAGE_TABLES: [u64; 10] = [dt::STRTAB, dt::SYMTAB, dt::HASH, dt::GNU_HASH, dt::VERSYM, dt::VERDEF, dt::VERNEED, dt::RELA, dt::JMPREL, dt::RELR];
 
+/// The table addresses an [`ImageTables`] keeps: one per [`IMAGE_TABLES`] tag and room for a few
+/// repeated ones; beyond them the entries are walked.
+const IMAGE_TABLE_SLOTS: usize = 16;
+
+/// What [`Elf::image_span_kind`] reads of an object's dynamic entries ([`Elf::image_tables`]): whether
+/// it is text-relocated, and the addresses of the tables the reader reads by address.
+#[derive(Clone, Copy, Debug)]
+pub struct ImageTables<'d> {
+    dynamic: &'d [u8],
+    be: bool,
+    text: bool,
+    /// The number of [`IMAGE_TABLES`] entries; past [`IMAGE_TABLE_SLOTS`] only `dynamic` has them.
+    n: usize,
+    at: [u64; IMAGE_TABLE_SLOTS],
+}
+
+/// The (tag, value) entries of the dynamic bytes `dynamic` up to its `DT_NULL` or its end.
+fn image_entries(dynamic: &[u8], be: bool) -> impl Iterator<Item = (u64, u64)> + '_ {
+    let rd = Rd { b: dynamic, be };
+    (0..dynamic.len().checked_div(DYN_SIZE).unwrap_or(0))
+        .map_while(move |i| {
+            let off = i.checked_mul(DYN_SIZE)?;
+            Some((rd.u64(off)?, rd.u64(off.checked_add(8)?)?))
+        })
+        .take_while(|&(tag, _)| tag != dt::NULL)
+}
+
 /// The dynamic tags whose entries a loaded object's dynamic array holds as run-time addresses
 /// (load bias added) once the loader has relocated it (DL-DYNAMIC-RELOC, probe
 /// `tools/probe/dl/dynreloc`): programs read these through `_DYNAMIC`, `dl_iterate_phdr` and `l_ld`
@@ -620,20 +647,38 @@ impl<'a> Elf<'a> {
     /// table the reader reads by address starts in it, and not seen at all otherwise.
     #[must_use]
     pub fn image_span_kind(&self, ph: &ProgramHeader, dynamic: &[u8]) -> SpanKind {
-        let rd = Rd { b: dynamic, be: self.rd.be };
-        let entries = (0..dynamic.len().checked_div(DYN_SIZE).unwrap_or(0))
-            .map_while(|i| {
-                let off = i.checked_mul(DYN_SIZE)?;
-                Some((rd.u64(off)?, rd.u64(off.checked_add(8)?)?))
-            })
-            .take_while(|&(tag, _)| tag != dt::NULL);
-        let mut text = false;
-        let mut holds_table = false;
-        let file_end = ph.vaddr.saturating_add(ph.filesz);
-        for (tag, val) in entries {
-            text |= tag == dt::TEXTREL || (tag == dt::FLAGS && val & dt::DF_TEXTREL != 0);
-            holds_table |= IMAGE_TABLES.contains(&tag) && ph.vaddr <= val && val < file_end;
+        self.image_span_kind_with(ph, &self.image_tables(dynamic))
+    }
+
+    /// What [`Elf::image_span_kind`] reads of the dynamic entries `dynamic`, read once for all of an
+    /// object's segments (LD-OBJECT-ONCE: each segment's kind, asked three times per segment, walked
+    /// every entry).
+    #[must_use]
+    pub fn image_tables<'d>(&self, dynamic: &'d [u8]) -> ImageTables<'d> {
+        let mut t = ImageTables { dynamic, be: self.rd.be, text: false, n: 0, at: [0; IMAGE_TABLE_SLOTS] };
+        for (tag, val) in image_entries(dynamic, self.rd.be) {
+            t.text |= tag == dt::TEXTREL || (tag == dt::FLAGS && val & dt::DF_TEXTREL != 0);
+            if IMAGE_TABLES.contains(&tag) {
+                if let Some(slot) = t.at.get_mut(t.n) {
+                    *slot = val;
+                }
+                t.n = t.n.saturating_add(1);
+            }
         }
+        t
+    }
+
+    /// [`Elf::image_span_kind`] from the entries' [`Elf::image_tables`].
+    #[must_use]
+    pub fn image_span_kind_with(&self, ph: &ProgramHeader, tables: &ImageTables<'_>) -> SpanKind {
+        let text = tables.text;
+        let file_end = ph.vaddr.saturating_add(ph.filesz);
+        let holds = |val: u64| ph.vaddr <= val && val < file_end;
+        let holds_table = match tables.at.get(..tables.n) {
+            Some(at) => at.iter().any(|&v| holds(v)),
+            // More table entries than the slots (repeated tags): every entry, as they come.
+            None => image_entries(tables.dynamic, tables.be).any(|(tag, val)| IMAGE_TABLES.contains(&tag) && holds(val)),
+        };
         // The relocator stores into PF_W segments, and into every segment of a text-relocated object.
         let changes = |p: &ProgramHeader| p.p_type == pt::LOAD && (text || p.flags & PF_W != 0);
         let aliased = self.program_headers().any(|p| changes(&p) && overlaps(p.vaddr, p.memsz, ph.vaddr, ph.filesz));

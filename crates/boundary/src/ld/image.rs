@@ -230,7 +230,9 @@ pub(super) fn image_view(
     maps[1] = (at, unmap);
     let dynamic: &'static [u8] = buf;
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
-    let copy_len = loads().filter(|p| probe.image_span_kind(p, dynamic) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
+    // The entries the segments' kinds read, read once (LD-OBJECT-ONCE).
+    let tables = probe.image_tables(dynamic);
+    let copy_len = loads().filter(|p| probe.image_span_kind_with(p, &tables) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
         let (at, unmap, buf) = scratch(copy_len, name, !published);
@@ -239,7 +241,7 @@ pub(super) fn image_view(
     }
     let mut k = 0usize;
     for kind in [SpanKind::Copy, SpanKind::Live] {
-        for p in loads().filter(|p| probe.image_span_kind(p, dynamic) == kind) {
+        for p in loads().filter(|p| probe.image_span_kind_with(p, &tables) == kind) {
             let len = usize::try_from(p.filesz).unwrap_or(usize::MAX);
             if !mapped(p.vaddr, p.filesz) || k == spans.len() {
                 bad(b": malformed program headers\n");
