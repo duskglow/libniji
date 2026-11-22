@@ -36,10 +36,15 @@ Skylake-SP counts and Intel PT: NOT run this run (no build on mei; products are 
 ~/work/ld-object-once/head2-rel and base-rel for copying).
 
 ## Jobs (keke)
-ld-object-once-base-count (next), ld-object-once-head1-count (view change only), ld-object-once-levels (code
-head), ld-object-once-plants (run 1: 8 CAUGHT, 2 SURVIVED -> tests added; superseded), ld-object-once-plants2,
-ld-object-once-gate, ld-object-once-startup. Results: handoff/LD-OBJECT-ONCE-report.md is not written; see the
-report json and the hand-back.
+Counts: ld-object-once-base-count (next), ld-object-once-head1-count (view change only), ld-object-once-levels
+(on the commit "read the image tables once per object": the products code of the final head; later commits
+change tests, bounds, the record and this note only).
+Final head 884b3e8e2 (code): clippy (workspace, all targets, all features) and `cargo xtask static` clean;
+ld-object-once-gate3 (direct tier), ld-object-once-plants3, ld-object-once-startup (`cargo xtask test`, release
+products, release hot_text_products; starts when gate3 ends).
+SUPERSEDED: ld-object-once-plants (run 1: 8 CAUGHT, 2 SURVIVED: verdef-revision, image-table-address -> tests
+`versym_err` cases and `image_span_kind_finds_each_table` added), ld-object-once-gate and ld-object-once-plants2
+(stopped: the gate's clippy step failed on `type_complexity` in elf_tables.rs, fixed by `type Case`).
 
 ## Open / next
 - Per-object target (<= 25k) not reached: 31,363. Not profiled per function this run (PT needs the

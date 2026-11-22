@@ -1,0 +1,20 @@
+{"task": "LD-OBJECT-ONCE", "model": "opus", "tokens": null,
+ "result": "dynamic start -26.9% (empty main 268,797 -> 196,486 instr, Zen 1 release): view tags in one pass, hash tables read once, branch-free GNU bucket scan, version tables checked in one walk, hash-first version check, image tables read once; per-object 36,417 -> 31,363 (25k target not reached)",
+ "branch": "task/ld-object-once", "head": "884b3e8e2",
+ "gate": {"affected": "pending: ld-object-once-gate3", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["per-object marginal 31,363 against the 25,000 target: not reached; next candidates are the symbolic lookups walking past the libraries and the reloc-side Dynamic::get/once users (LD-RELR-LOOP's code)", "check_versions' own count not isolated (inlined into link in release): LD-VERSIONS-ONCE's <= 5k / <= 10k NOT VERIFIED", "Skylake-SP counts and Intel PT not run this run"],
+ "refused": ["local: for p in $(ps -eo pid,cmd | awk '$2==\"python3\" && $3==\"-\" {print $1}'); do kill $p; echo killed $p; done (a stray python3 - of mine; the harness stopped it at its time limit)"],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main, release, Zen 1 host (kit n0)", "before": 268797, "after": 196486, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "three one-function libraries, release, Zen 1 host (kit n3)", "before": 378047, "after": 290575, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "per extra loaded object ((n3-n0)/3), release, Zen 1 host", "before": 36417, "after": 31363, "unit": "user instr/object", "measured": true},
+  {"kind": "perf", "what": "/bin/true, release, Zen 1 host (kit t)", "before": 329173, "after": 254366, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "200 GLOB_DAT imports, release, Zen 1 host (kit n200)", "before": 554706, "after": 486317, "unit": "user instr/start", "measured": true},
+  {"kind": "coverage", "what": "tests added or extended (relocation_tags_checked, verdef/verneed_malformed via versym alone, image_span_kind_finds_each_table, reloc_version_check_hashes_never_change_the_answer) and 10 plants", "before": null, "after": 10, "unit": "plants", "measured": true}
+ ],
+ "improvement": "sync_role BUSY after kill-label: kill-label ended the gate's jobrun wrapper but not its cargo xtask children in the role; kill-mine was needed - kill-label could end the whole process group",
+ "next_step": "per-object marginal to <= 25k: profile per function on the Skylake-SP host (PT) with the kit, then the symbolic-lookup story and a one-pass tag table for reloc's tag reads",
+ "report_file": "handoff/LD-OBJECT-ONCE.md",
+ "jobs": ["keke:ld-object-once-gate3", "keke:ld-object-once-plants3", "keke:ld-object-once-startup", "keke:ld-object-once-levels", "keke:ld-object-once-base-count"]}
