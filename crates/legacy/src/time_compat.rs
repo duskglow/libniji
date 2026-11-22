@@ -88,6 +88,9 @@ pub struct Env<'a> {
     /// `TZDIR` (`None`: unset or ignored), read only on a change of `TZ` and by the explicit
     /// `tzset` (TZ-FRESH: as glibc, a change of `TZDIR` alone is not seen by an implicit one).
     pub tzdir: &'a dyn Fn() -> Option<&'a [u8]>,
+    /// Whether the process is secure (`AT_SECURE`), asked only when a zone is loaded: a secure
+    /// process names a zone file only inside the system zone directory (`niji::time::load`).
+    pub secure: &'a dyn Fn() -> bool,
     /// The file for an unset `TZ` (NUL-terminated): `niji::time::LOCALTIME`.
     pub default: &'a [u8],
 }
@@ -191,7 +194,7 @@ pub fn select<S: Sys>(sys: &S, objs: &impl ZoneObjects, env: Env<'_>, g: &Global
         }
         at = e.next.load(Acquire);
     }
-    match add(sys, env.tz, tzdir, env.default) {
+    match add(sys, env.tz, tzdir, env.default, (env.secure)()) {
         Ok(e) => {
             CURRENT.store(addr_of(e), Release);
             publish(e.zone(), g);
@@ -203,9 +206,9 @@ pub fn select<S: Sys>(sys: &S, objs: &impl ZoneObjects, env: Env<'_>, g: &Global
 }
 
 /// Load the zone `env` names and keep it. The caller holds [`LOCK`].
-fn add<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8]) -> KResult<&'static Entry> {
+fn add<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8], secure: bool) -> KResult<&'static Entry> {
     let generation = AtomicUsize::new(GENERATION.load(Acquire));
-    let loaded = time::load(sys, tz, tzdir, default)?;
+    let loaded = time::load(sys, tz, tzdir, default, secure)?;
     // A file zone starts its TSC gate here (PERF-FIRSTCALL-MKTIME-SNPRINTF): the load already
     // makes its system calls, so the counter's one-time `PR_GET_TSC` query (D-7.14) is made on
     // this path, and the first implicit `tzset` after it (`mktime` after `localtime_r`) takes the

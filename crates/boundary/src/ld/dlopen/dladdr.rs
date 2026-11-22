@@ -24,7 +24,7 @@
 //!   A handle must be a published link map (one comparison per object, never dereferenced).
 
 use super::dlsym::start_path;
-use super::{dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
+use super::{c_string, dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
 use crate::ld::index::Found;
 use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
@@ -191,6 +191,9 @@ fn scope_in(v: &View, i: usize) -> Scope<'static> {
 
 /// The directory of object `i`'s path (`$ORIGIN`), `None` when its path is unknown.
 fn origin(v: &View, i: usize) -> Option<&'static [u8]> {
+    if i == 0 {
+        return v.program_origin();
+    }
     let (at, len) = v.path(i);
     if len == 0 {
         return None;
@@ -326,10 +329,31 @@ pub(super) fn keep_start_paths(l: &mut Loader) {
             continue;
         }
         let mut out = PathBuf::default();
-        if start_path(l, i, &mut out) {
+        // A link map the start named keeps the path the start found the object by (DL-NAME-PATH-2;
+        // its `$ORIGIN` came from the program's, which a search again may not know).
+        let linked = l.nodes[i].l_ld != 0 && l.nodes[i].l_name != 0 && c_string(l.nodes[i].l_name).contains(&b'/');
+        if (linked && out.push(c_string(l.nodes[i].l_name))) || start_path(l, i, &mut out) {
             if let Some(span) = l.keep(out.as_bytes()) {
                 l.nodes[i].path = span;
             }
         }
+        given_name(l, i);
+    }
+}
+
+/// Start-time object `i` without `DT_SONAME`: the bare `DT_NEEDED` name it was found by (its path
+/// ends in `/` and that name), which a bare `dlopen` name matches (DL-RUNPATH, probed).
+fn given_name(l: &mut Loader, i: usize) {
+    let total = l.n_start.min(CAP);
+    let Some(o) = l.objs_upto(total).get(i).copied() else { return };
+    let path = l.path(i);
+    if super::soname(&o).is_some() || path.is_empty() {
+        return;
+    }
+    let found = l.objs_upto(total).iter().flat_map(|q| q.dynm.needed().map_while(Result::ok)).find(|n| {
+        !n.contains(&b'/') && path.strip_suffix(*n).is_some_and(|d| d.ends_with(b"/"))
+    });
+    if let Some(name) = found {
+        l.objs.set(i, super::Obj { name, ..o });
     }
 }

@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S16-2", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: sys/elf.h confirmed unconditional #error, sys/platform/x86.h generated from probed x86-features.tsv, header_check 0 of 2165 failed; gate RED (stubs check and cargo xtask test fail in the direct tier, not investigated), plants unfinished (x86 plants not caught by the msg regex), P2/P3/P6 not green, thread_db/proc_service/a.out/stab not generated",
+ "branch": "task/sl-headers-s16-2", "head": "see git log",
+ "gate": {"affected": "FAILED: FAIL stubs (0.1s), FAIL cargo xtask test; clippy and static pass", "peak": "396M"},
+ "accepted_first_attempt": null,
+ "jobs": ["s16-2-hc3", "s16-2-proofs", "SL-HEADERS-S16-2-plants", "SL-HEADERS-S16-2-gate"],
+ "rulings": [{"item": "link.h La_x86_64_regs/retval typedefs are C-only in visibility.tsv but named by the C++ prototypes; libniji declares them in C++", "recommendation": "keep, rerun the probe classification"}],
+ "informational": ["gate red on `stubs` and `cargo xtask test`: read ~/logs/SL-HEADERS-S16-2-gate.log on keke first", "plants s16b-x86-*: WARN-NO-MSG, the products build (cargo xtask so) failed on the mutant before x86_header_check ran; cmd must run headers-gen and the check without the so build, or the msg regex must match the so log", "P2 52/285 row differences, P3 one (__monstartup), P6 s27_dladdr needs RTLD_DL_LINKMAP and ELFMAG (in no table); see handoff/SL-HEADERS-S16-2.md", "Phdr p_type rows respelled by hand in layouts.tsv"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "sys/platform/x86.h and 172 feature names", "before": 0, "after": 1, "unit": "headers", "measured": true}],
+ "improvement": "run the gate's stubs and test checks on the inherited head in step 0 too",
+ "next_step": "fix the gate (stubs, cargo xtask test), fix the x86 plants, then P2/P3/P6, decision record, remaining four headers",
+ "report_file": "handoff/SL-HEADERS-S16-2.md"}

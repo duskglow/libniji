@@ -11,6 +11,8 @@
 #![allow(clippy::unwrap_used, missing_docs)]
 
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 use products::{conformance, exported};
 

@@ -361,10 +361,22 @@ pub fn load_accepting_exec_stack<A: Arch, M: Mapper>(m: &mut M, file: &[u8], pag
 fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_accepted: bool) -> Result<Loaded, MapError> {
     let elf = Elf::parse::<A>(file).map_err(MapError::Elf)?;
     let plan = plan_with::<A>(&elf, page, exec_stack_accepted)?;
-    let (base, bias) = reserve(m, &plan)?;
+    map_planned(m, &elf, &plan, file, page)
+}
+
+/// Map the object `file` by `plan`, the [`plan`] (or [`plan_accepting_exec_stack`]) the caller made
+/// of `elf`, `file` as parsed, with the same `page`: reserve, map each segment, zero the `.bss`, as
+/// [`load`] does after planning. Nothing stays mapped on failure. For a caller that has already
+/// checked the file (`crate::dlopen::check_into`): the plan is not made a second time.
+///
+/// # Errors
+///
+/// [`MapError::Placement`], [`MapError::System`], or a segment's [`MapError`] as [`load`] gives it.
+pub fn map_planned<M: Mapper>(m: &mut M, elf: &Elf<'_>, plan: &Plan, file: &[u8], page: u64) -> Result<Loaded, MapError> {
+    let (base, bias) = reserve(m, plan)?;
     let at = |v: u64| v.wrapping_add(bias);
-    for seg in segments::<A>(file, page) {
-        let mapped = seg.and_then(|s| map_segment(m, file, &s, bias, page));
+    for ph in elf.program_headers().filter(|p| p.p_type == pt::LOAD && p.memsz != 0) {
+        let mapped = segment(&ph, page).and_then(|s| map_segment(m, file, &s, bias, page));
         if let Err(e) = mapped {
             m.unmap(base, plan.span);
             return Err(e);

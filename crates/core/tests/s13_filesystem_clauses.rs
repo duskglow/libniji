@@ -13,7 +13,11 @@
 
 #[path = "support/kernel.rs"]
 mod kernel;
+#[path = "support/contain.rs"]
+mod contain;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use core::ptr::null_mut;
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -47,7 +51,7 @@ struct Dir(std::path::PathBuf);
 impl Dir {
     fn new(tag: &str) -> Dir {
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
-        let p = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c13d-{}-{tag}-{n}", std::process::id()));
+        let p = crate::scratch::base().join(format!("c13d-{}-{tag}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir(&p).unwrap();
         Dir(p)
@@ -66,7 +70,7 @@ impl Dir {
 }
 impl Drop for Dir {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -205,7 +209,7 @@ mod p12 {
                 }
             }
             let n = SEQ.fetch_add(1, Ordering::Relaxed);
-            let p = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c13-{}-{tag}-{n}", std::process::id()));
+            let p = crate::scratch::base().join(format!("c13-{}-{tag}-{n}", std::process::id()));
             let _ = std::fs::remove_dir_all(&p);
             std::fs::create_dir_all(&p).unwrap();
             Scratch { path: std::fs::canonicalize(&p).unwrap(), owned: true }
@@ -366,7 +370,8 @@ mod p12 {
         let ns = ns && std::process::Command::new("unshare").args(unshare).arg("true").output().is_ok_and(|o| o.status.success());
         let exe = std::env::current_exe().unwrap();
         let mut cmd = if ns {
-            let mut c = std::process::Command::new("unshare");
+            // Contained (support/contain.rs).
+            let mut c = crate::contain::user("unshare");
             c.args(unshare).arg("--").arg(&exe).env(NS, "1");
             c
         } else {

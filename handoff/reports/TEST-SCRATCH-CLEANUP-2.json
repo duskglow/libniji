@@ -1,0 +1,16 @@
+{"task": "TEST-SCRATCH-CLEANUP-2", "model": "opus", "tokens": null,
+ "result": "CI merge conflict resolved (origin/next merged; nscache, dlopen_process_objects and next's new rendezvous refcopy and many_corpus scratch go through the Scratch guard); gate, plants and one full xtask test green, pid-named entries 0 -> 0",
+ "branch": "task/test-scratch-cleanup-2", "head": "bf745ec74",
+ "gate": {"affected": "8392 passed / 0 failed", "peak": "5.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["xtask/tests/tz_tools.rs scratch() (new on next) makes /tmp/niji-tz-<pid>-<n>-<tag> and removes it at the end of each passing test; left as is (kept on failure without the stderr line), same class as the optional success-path-removal follow-up"],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "build-host RAM disk growth: per-process scratch left in the role's target/, target/tmp, target/crt-products by one full cargo xtask test", "before": null, "after": 0, "unit": "entries", "measured": true},
+   {"kind": "unblock", "what": "TEST-SCRATCH-CLEANUP's CI landing (merge conflict with next resolved)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the CI conflict was two files that next changed while the story ran; a story that converts a pattern tree-wide would conflict less if it landed in smaller per-crate commits",
+ "next_step": "land; optional follow-up: success-path-removal sites and tz_tools scratch() to Scratch",
+ "report_file": "handoff/TEST-SCRATCH-CLEANUP.md",
+ "jobs": ["test-scratch-cleanup-2-gate", "test-scratch-cleanup-2-plants", "test-scratch-cleanup-2-xtest", "test-scratch-cleanup-2-lint1"]}

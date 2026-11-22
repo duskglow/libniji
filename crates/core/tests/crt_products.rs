@@ -14,6 +14,9 @@
 mod skip_note;
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -67,12 +70,12 @@ fn tools_missing() -> bool {
     missing.is_some()
 }
 
-/// A fresh work directory with `lib/`: the link-time files under their installed names.
-fn work(name: &str) -> (PathBuf, PathBuf) {
+/// A fresh work directory with `lib/`: the link-time files under their installed names. Removed
+/// when the test passes, kept (path on stderr) when it fails.
+fn work(name: &str) -> (Scratch, PathBuf) {
     let p = products();
     assert!(p.join("niji-crti.o").exists(), "the products are missing: run `cargo xtask so`");
-    let w = root().join("target/crt-products").join(format!("{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&w);
+    let w = Scratch::dir_in(&root().join("target/crt-products"), name);
     let lib = w.join("lib");
     std::fs::create_dir_all(&lib).unwrap();
     for (installed, product) in START {

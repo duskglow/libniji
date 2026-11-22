@@ -12,6 +12,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
 use std::path::{Path, PathBuf};
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
+use scratch::Scratch;
 use std::process::Command;
 
 use niji_ld::arch::{Arch, Native};
@@ -75,7 +80,7 @@ int main(int argc, char **argv) {
 /// with `$ORIGIN/lib`), `bin/lib/libnames-a.so` they need by bare name, `bin/sub/libnames-b.so`,
 /// `link` a symbolic link to `bin`, `alias/prog` one to `bin/runpath`; `ld` libniji's loader.
 struct Corpus {
-    dir: PathBuf,
+    dir: Scratch,
     ld: PathBuf,
 }
 
@@ -91,12 +96,11 @@ fn setup(tag: &str) -> Option<Corpus> {
     }
     let lib = std::fs::canonicalize(lib).unwrap();
     let ld = lib.join(Native::INTERP);
-    let d = target().join(format!("ld-names-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
+    // Canonical base, so the directory's own path is canonical.
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-names-{tag}"));
     for sub in ["bin/lib", "bin/sub", "alias"] {
         std::fs::create_dir_all(d.join(sub)).unwrap();
     }
-    let d = std::fs::canonicalize(d).unwrap();
     let cc = |out: &Path, src: &str, flags: &[&str]| {
         let c = d.join(format!("{}.c", out.file_name().unwrap().to_str().unwrap()));
         std::fs::write(&c, src).unwrap();
@@ -203,6 +207,7 @@ fn relative_search_and_dlopen_names_are_kept_as_given() {
 #[test]
 fn origin_without_proc_is_ld_origin_path() {
     let Some(c) = setup("noproc") else { return };
+    // contain: probe(one mount and a test, then exits)
     let probe = Command::new("unshare").args(["-r", "-m", "sh", "-c", "mount -t tmpfs none /proc && test ! -e /proc/self"]).output();
     if !probe.as_ref().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no unprivileged user and mount namespace to hide /proc ({probe:?})");
@@ -210,7 +215,8 @@ fn origin_without_proc_is_ld_origin_path() {
     }
     let script = "mount -t tmpfs none /proc && cd \"$0\" && exec \"$@\"";
     let hidden = |env: &[&str], argv: &[&str]| {
-        let o = Command::new("unshare").args(["-r", "-m", "env"]).args(env).args(["sh", "-c", script]).arg(&c.dir).args(argv).output().unwrap();
+        // Contained (support/contain.rs).
+        let o = contain::user("unshare").args(["-r", "-m", "env"]).args(env).args(["sh", "-c", script]).arg(&*c.dir).args(argv).output().unwrap();
         (o.status.code().unwrap_or(-1), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
     };
     let stand_in = format!("LD_ORIGIN_PATH={}", c.path("bin/sub/.."));

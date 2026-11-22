@@ -15,7 +15,8 @@
 //! [`DROPPED`] (a line only the reference prints). A recorded difference that no longer shows
 //! fails the test. A disagreement is checked by running both probes again (up to [`ATTEMPTS`]
 //! runs): the outputs include server logs and timed waits that a loaded machine can stretch, so
-//! only a disagreement seen in every run fails. Needs the products (`cargo xtask so`), a C compiler and passwordless `sudo`;
+//! only a disagreement seen in every run fails. Each run is contained (`oracle/contain.sh`, its own
+//! PID namespace): when it ends, times out or the test dies, nothing it started remains. Needs the products (`cargo xtask so`), a C compiler and passwordless `sudo`;
 //! without the latter two the test says so and passes.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -26,8 +27,9 @@ mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -159,6 +161,18 @@ fn check(want: &str, got: &str, known: &[Entry], added: &[Entry], dropped: &[Ent
     }
 }
 
+/// Runs `args` (a command and its arguments, with only `PATH` in its environment) contained
+/// (`oracle::contain`, `support/contain.rs`): in its own PID namespace, so that when the command
+/// ends, times out or this test process dies, every process it started ends too, including the
+/// root ones under `sudo` that the user cannot signal (a hung or killed run used to leave them
+/// behind for days; `harness_containment.rs` kills a run to check). Output goes to files and only
+/// the child is waited for: a process holding a pipe open cannot keep the test waiting.
+fn contained(args: &[OsString], out: &Path, err: &Path) -> ExitStatus {
+    let mut cmd = Command::new(&args[0]);
+    cmd.args(&args[1..]).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
+    oracle::contain::status(&cmd, std::fs::File::create(out).unwrap().into(), std::fs::File::create(err).unwrap().into()).unwrap()
+}
+
 /// Runs of both probes when they disagree: the probes print what their own DNS servers logged
 /// and how long the timed waits took, which a loaded machine stretches (a server process not
 /// scheduled within the 1 s timeout makes the resolver ask again). A disagreement fails only if
@@ -185,14 +199,16 @@ fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped:
     let script = r.join("crates/core/tests/oracle").join(script);
     let wrap = root().join("crates/core/tests/oracle/nscache_mode.sh");
     let run = |exe: &Path, scratch: &str, mode: Option<&str>| -> String {
-        let mut cmd = Command::new("timeout");
-        cmd.arg(timeout::secs(900));
+        let mut args: Vec<OsString> = vec!["timeout".into(), timeout::secs(900).into()];
         if let Some(m) = mode {
-            cmd.arg("sh").arg(&wrap).arg(m);
+            args.extend(["sh".into(), wrap.clone().into(), m.into()]);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").output().unwrap();
-        assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
-        String::from_utf8_lossy(&o.stdout).into_owned()
+        args.extend(["sh".into(), script.clone().into(), exe.into(), dir.join(scratch).into()]);
+        let (out, err) = (dir.join(format!("{scratch}.stdout")), dir.join(format!("{scratch}.stderr")));
+        let status = contained(&args, &out, &err);
+        let text = |p: &Path| String::from_utf8_lossy(&std::fs::read(p).unwrap_or_default()).into_owned();
+        assert!(status.success(), "{} failed: {status:?} (124: still running after the time limit)\n{}", exe.display(), text(&err));
+        text(&out)
     };
     let mut reference = run(&host, &format!("{stem}-host"), None);
     // libniji with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).

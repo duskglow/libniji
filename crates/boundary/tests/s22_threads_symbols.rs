@@ -25,6 +25,8 @@ use niji_abi::layout::{
 };
 use niji_boundary::posix::s22_threads as t;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 use products::{archived, compat_only, conformance, exported, loader_owned};
 

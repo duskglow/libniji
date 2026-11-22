@@ -19,14 +19,22 @@ same way: `bind_textdomain_codeset`, `fopen`'s `ccs=`). Decision: `records/pendi
    punctuation that counts is not ignored: `CP-1252` is not `CP1252`. A spelling the system knows
    (for example `ISO88591` beside `ISO-8859-1`) is a listed name of its own.
    The known names also include libniji's table of listed names that stand for a charmap
-   (`crates/core/src/iconv/aliases.rs`, 106 rows, for example `KOI8R` for `KOI8-R` and
-   `ISO885915` for `ISO-8859-15`). These names work whichever charmap files are installed, as on
-   the reference system, where the names do not come from the charmap files. The table holds every
-   name `iconv -l` lists that is not a name of an installed charmap or a built-in, but has the same
-   letters and digits as one. Each row passed a black-box check on the reference: both names decode
-   every one- and two-byte input and encode every code point (all of the BMP and a stride of the
-   rest) the same way. Listed names without such a partner (`BIG-FIVE`, `CP1140`, ...) are not in
-   the table; they are an open item (`handoff/ICONV-NAME-MATCH.md`).
+   (`spec/encoding/iconv-aliases.tsv`, read by `crates/core/src/iconv/aliases.rs`; 654 rows, for
+   example `KOI8R` for `KOI8-R`, `ISO885915` for `ISO-8859-15`, `WINDOWS-1252` for `CP1252`).
+   These names work whichever charmap files are installed, as on the reference system, where the
+   names do not come from the charmap files. The table holds every name the reference's `iconv -l`
+   lists that is not a built-in name or a charmap file name but converts exactly as one charmap: a
+   black-box probe (`tools/probe/iconv_aliases.py`, fingerprints by
+   `tools/probe/iconv_fingerprint.c`) decodes every one- and two-byte input and encodes every code
+   point (all of the BMP and a stride of the rest) through the listed name and through the
+   charmap's names, and the row names the charmap with the same fingerprint. The tool is
+   reproducible: rerun it on the reference to regenerate the table and `csys/util/iconv-aliases.h`.
+   Listed names whose conversion libniji has neither as a built-in nor as a charmap (EBCDIC and
+   double-byte IBM sets with no charmap, `ISO-2022-*`, `UTF-7`, ...) are not in the table and
+   stay unsupported; names with a `/` in them are left out.
+   A listed name that converts exactly as a built-in is a built-in name
+   (`crates/core/src/iconv/mod.rs` `NAMES`, `csys/util/iconv-names.h`; for example `UHC`,
+   `MSCP949` and `OSF100203B5` beside `CP949`, `CSWINDOWS31J` beside `CP932`).
 6. An empty result is the current locale's codeset. A result longer than 128 bytes names nothing (`EINVAL`).
 
 Locale codeset names are matched differently (Appendix D.1, letters and digits only); that rule is unchanged.

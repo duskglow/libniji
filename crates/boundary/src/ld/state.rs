@@ -33,6 +33,11 @@ pub(super) static START_N: AtomicUsize = AtomicUsize::new(0);
 pub(super) static START_INTERP: AtomicUsize = AtomicUsize::new(usize::MAX);
 /// The page size.
 pub(super) static START_PAGE: AtomicU64 = AtomicU64::new(0);
+/// The program's `$ORIGIN` as the start looked it up (address and length in the start's path
+/// store; length 0: not looked up, or unknown), and the path it was run by under `ld.so PROGRAM`
+/// (0: started by the kernel), for `dlopen`'s own look-up (DL-RUNPATH, `link::program_origin`).
+pub(super) static START_ORIGIN: [AtomicUsize; 2] = [const { AtomicUsize::new(0) }; 2];
+pub(super) static START_RUN_PATH: AtomicUsize = AtomicUsize::new(0);
 /// The program's `argc`, `argv`, `envp` and auxiliary vector as `run_init` found them on the initial
 /// stack, for `dlopen` (its constructors' arguments, its search's environment). Recorded, never
 /// re-read from the stack: after `ld.so PROGRAM` the start's words are rearranged (argv[0] dropped).

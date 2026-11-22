@@ -326,6 +326,33 @@ mod ziv_tests {
         a.0 .0.to_bits() == b.0 .0.to_bits() && a.0 .1.to_bits() == b.0 .1.to_bits() && a.1 == b.1
     }
 
+    /// The parts left undecided on this thread at 384, 768, 1536 and 3072 bits (the last: the
+    /// residual path). The tests assert on these, never on the process-wide counters
+    /// (`retries` .. `residual`): those also count the tests running beside this one, several
+    /// of which force retries and the residual path on purpose.
+    fn mine() -> [u64; 4] {
+        [n::misses(), w::misses(), wx::misses(), wy::misses()]
+    }
+
+    /// The counts the tests assert on are this thread's own: a thread forced up the whole ladder
+    /// (every width undecided, two parts on the residual path) inside the measured window grows
+    /// the process-wide counters and leaves this thread's unchanged, so a test means the same
+    /// alone or beside the forcing tests (no spec clause; D-10.17).
+    #[test]
+    fn counts_ignore_other_threads() {
+        let (before, all) = (mine(), [retries(), wide_retries(), wider_retries(), residual()]);
+        std::thread::spawn(|| {
+            force(4, true);
+            let _ = cpow::<F128>(q(0.3), q(0.7), q(1.5), q(0.25), Rounding::Down);
+            force(4, false);
+        })
+        .join()
+        .unwrap();
+        let now = [retries(), wide_retries(), wider_retries(), residual()];
+        assert!(now.iter().zip(all).all(|(a, b)| *a > b), "the forced thread did not climb the ladder: {all:?} -> {now:?}");
+        assert_eq!(mine(), before, "another thread's undecided parts counted as this thread's");
+    }
+
     /// Loosening the 384-bit bound past every boundary takes the retry, and the 768-bit
     /// evaluation gives the same correctly rounded parts (no spec clause; D-10.17).
     #[test]
@@ -333,11 +360,11 @@ mod ziv_tests {
         for (name, f, x, y) in cases() {
             for m in MODES {
                 let want = f(q(x), q(y), m);
-                let before = retries();
+                let before = mine()[0];
                 n::force_loose(1000);
                 let got = f(q(x), q(y), m);
                 n::force_loose(0);
-                assert!(retries() > before, "{name} {m:?}: no retry");
+                assert!(mine()[0] > before, "{name} {m:?}: no retry");
                 assert!(same(got, want), "{name} {m:?}: retry changed the result");
             }
         }
@@ -358,7 +385,8 @@ mod ziv_tests {
     /// clause; D-10.17).
     #[test]
     fn forced_undecided_climbs_each_step_of_the_ladder() {
-        let counters: [fn() -> u64; 3] = [wide_retries, wider_retries, residual];
+        // This thread's counts (`mine`) at 768, 1536 and 3072 bits.
+        let counters: [fn() -> u64; 3] = [w::misses, wx::misses, wy::misses];
         for (k, counter) in (2..=4).zip(counters) {
             for (name, f, x, y) in cases() {
                 for m in MODES {
@@ -374,12 +402,12 @@ mod ziv_tests {
         }
         // carg and cpow take the same ladder.
         let want = carg::<F128>(q(0.3), q(0.7), Rounding::Up);
-        let before = residual();
+        let before = mine()[3];
         force(4, true);
         let got = carg::<F128>(q(0.3), q(0.7), Rounding::Up);
         let pw = cpow::<F128>(q(0.3), q(0.7), q(1.5), q(0.25), Rounding::Down);
         force(4, false);
-        assert!(residual() >= before + 2, "carg/cpow: residual path not taken");
+        assert!(mine()[3] >= before + 2, "carg/cpow: residual path not taken");
         assert_eq!(got.0.to_bits(), want.0.to_bits());
         assert!(same(pw, cpow::<F128>(q(0.3), q(0.7), q(1.5), q(0.25), Rounding::Down)), "cpow: ladder changed the result");
     }
@@ -423,12 +451,12 @@ mod ziv_tests {
     /// `carg` and `cpow` go through the same step (no spec clause; D-10.17).
     #[test]
     fn carg_and_cpow_retry() {
-        let before = retries();
+        let before = mine()[0];
         n::force_loose(1000);
         let a = carg(q(0.3), q(0.7), Rounding::Up);
         let p = cpow(q(0.3), q(0.7), q(1.5), q(0.25), Rounding::Down);
         n::force_loose(0);
-        assert!(retries() >= before + 2);
+        assert!(mine()[0] >= before + 2);
         assert_eq!(a.0.to_bits(), carg(q(0.3), q(0.7), Rounding::Up).0.to_bits());
         assert!(same(p, cpow(q(0.3), q(0.7), q(1.5), q(0.25), Rounding::Down)));
     }
@@ -704,11 +732,12 @@ mod ziv_tests {
         use crate::mp::Mp;
         for m in MODES {
             let r = |v: Mp| crate::mp::round_exact::<F>(v, Rounding::Nearest).0;
-            let (before, res) = (n::misses(), residual());
+            let before = mine();
             let ((a, b), _) = cpow::<F>(r(x), r(y), r(Mp::from_i64(n)), r(Mp::ZERO), m);
             let (wa, wb) = (beside::<F>(re.0, re.1, m), beside::<F>(im.0, im.1, m));
             assert!(a.to_bits() == wa.to_bits() && b.to_bits() == wb.to_bits(), "{name}^{n} {m:?}: got ({a:?}, {b:?}) want ({wa:?}, {wb:?})");
-            assert_eq!((n::misses(), residual()), (before, res), "{name}^{n} {m:?}: not decided at 384 bits");
+            let now = mine();
+            assert_eq!((now[0], now[3]), (before[0], before[3]), "{name}^{n} {m:?}: not decided at 384 bits");
         }
     }
 

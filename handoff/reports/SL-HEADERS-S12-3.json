@@ -1,0 +1,19 @@
+{"task": "SL-HEADERS-S12-3", "model": "sonnet", "tokens": null,
+ "result": "slice 12 P8 libc-first closed (0 failed of 2702), res_sym abi-gen output regenerated, D-X.124, bindresvport6 differences row, header_check cargo test; gate (FULL-escalated) 12122 passed 0 failed; plants 3 CAUGHT",
+ "branch": "task/sl-headers-s12-3", "head": "115604fbf",
+ "jobs": ["mei:sl-headers-s12-3-gate", "mei:sl-headers-s12-3-plants3"],
+ "gate": {"affected": "12122 passed / 0 failed (escalated to FULL: workspace clippy and cargo xtask test ok)", "peak": "16G cap, oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Plants on generator and template code are caught at the product build (headers-gen --check inside cargo xtask so), before any test runs: the plants log says 'caught by no test the log names'. The earlier slice 12 plants share this.",
+  "The earlier run's 4 P10 plants (handoff/SL-HEADERS-S12-2-plants.txt) use msg regexes that the so-time failure does not match; not rerun here (WARN-NO-MSG expected).",
+  "P5 c89 / -pedantic for the slice 12 headers is not run."],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "<netinet/in.h> then <linux/in.h> no longer fails with a redefinition of IP_RECVRETOPTS, IP_RECVORIGDSTADDR, IPV6_RECVORIGDSTADDR (P8 libc-first, 10 units)", "before": 10, "after": 0, "unit": "failing P8 units of 2702", "measured": true},
+  {"kind": "unblock", "what": "FULL gate of slice 12 (stubs: abi_struct_res_sym had neither stub nor test); SL-HEADERS-S13 kernel-first measurement", "before": null, "after": null, "unit": "", "measured": false},
+  {"kind": "coverage", "what": "xtask tests alias_macros_are_emitted_by_name_and_must_agree and network_headers_pass_header_check; 3 plants; record D-X.124; 1 differences row", "before": 0, "after": 2, "unit": "tests", "measured": true}],
+ "improvement": "Generated-output plants are always caught at the product build's headers-gen --check; the plants tool could say so up front, or let a plant skip `so` for header-only changes.",
+ "next_step": "Land; slice 13 measures the kernel-first order and proposes the extension (ruling #6458).",
+ "report_file": "handoff/SL-HEADERS-S12.md"}

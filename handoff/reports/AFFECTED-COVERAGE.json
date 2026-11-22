@@ -1,0 +1,68 @@
+{
+ "task": "AFFECTED-COVERAGE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Five test sets no runner ran (ld, portable-scan, fastpath-stats, native dylib, fuzz lib) now run where affected and in the train; boundary targets get pass 1+2 whenever the direct tier selects them; iconv-names.h and spec/encoding/reference/ mapped; static check test-coverage catches the next unrun set",
+ "branch": "task/affected-coverage",
+ "head": null,
+ "gate": {
+  "affected": "gate4 (see JOBS); plants3 9/9 CAUGHT",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "a D-X row for the direct tier's pass-2 rule for niji-boundary and the train's test-sets step",
+   "recommendation": "record as D-NEW (pending id); local, testable tooling detail"
+  }
+ ],
+ "informational": [
+  "the train already ran pass 2 over niji-boundary (cargo xtask test native_tests --workspace); the gap was the direct tier only (#7407)",
+  "the rest of spec/encoding/ (unicode/, whatwg/) still escalates to the train's FULL",
+  "kill-label on a gate job left ~/bin/gate's inner affected run alive; kill-mine ended it",
+  "xtask-only changes run cargo test -p xtask without products; xtask/tests/transcripts.rs needs target/niji-test/iconv, so a fresh role fails 2 tests (gate3); recommend xtask_test_split product targets set products"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "tests in configurations no runner ran, now run: machine_scanners under portable-scan 52 (plus the 26 boundary unit tests again under it), fastpath-stats 1, native dylib 3, fuzz lib 1; ld holds 0 today",
+   "before": 0,
+   "after": 57,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "train step test-sets, all five sets rebuilt (Skylake-SP host, warm deps)",
+   "before": 0,
+   "after": 176,
+   "unit": "s/train",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "csys/util/iconv-names.h and spec/encoding/reference/ no longer escalate a direct gate to the train's FULL",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants for the new check and mappings",
+   "before": 0,
+   "after": 9,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "kill-label <gate label> does not end ~/bin/gate's inner run (the role stayed BUSY): make kill-label follow the gate scope",
+ "next_step": "land; VALGRIND-LOADER-VIEW-2's ld unit test then runs in the niji-boundary+ld set",
+ "report_file": "handoff/AFFECTED-COVERAGE.md",
+ "jobs": [
+  "mei:affected-coverage-gate4",
+  "mei:affected-coverage-plants3",
+  "mei:affected-coverage-transcripts"
+ ]
+}

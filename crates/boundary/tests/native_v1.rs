@@ -4,6 +4,8 @@
 
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use std::collections::BTreeMap;
 use std::mem::{align_of, offset_of, size_of};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -524,13 +526,13 @@ struct Scratch(String);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
 /// A fresh directory for one test, under the target directory, and its guard.
 fn scratch(tag: &str) -> (Scratch, String) {
-    let dir = format!("{}/native-v1-{}-{tag}", env!("CARGO_TARGET_TMPDIR"), std::process::id());
+    let dir = format!("{}/native-v1-{}-{tag}", crate::scratch::base().display(), std::process::id());
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(niji_fs_mkdir(dir.as_ptr(), dir.len(), 0o700), 0);
     (Scratch(dir.clone()), dir)

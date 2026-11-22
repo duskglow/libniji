@@ -18,6 +18,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -88,10 +91,8 @@ fn reference() -> Option<PathBuf> {
 
 /// A canonical scratch directory under the target directory (not /tmp: the set-group-ID test needs a
 /// file system that honours the bit; canonical, so `$ORIGIN` and the given paths agree).
-fn dir(name: &str) -> PathBuf {
-    let d = target().join(format!("ldso-search-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    std::fs::canonicalize(&d).unwrap()
+fn dir(name: &str) -> Scratch {
+    Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ldso-search-{name}"))
 }
 
 fn s(p: &Path) -> String {
@@ -262,7 +263,6 @@ fn ldso_search_steps_match_reference() {
             assert_eq!(deps(&mine.stdout), deps(&theirs.stdout), "{what}: --list differs from the reference");
         }
     }
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// A set-group-ID program (the kernel sets AT_SECURE; a supplementary group of the user, no root)
@@ -290,12 +290,10 @@ fn ldso_search_secure_ignores_library_path() {
     assert!(Command::new("chgrp").arg(&group).arg(&probe).status().unwrap().success());
     assert!(Command::new("chmod").arg("g+s").arg(&probe).status().unwrap().success());
     if output(timed(&probe)).status.code() != Some(1) {
-        let _ = std::fs::remove_dir_all(&d);
         return eprintln!("SKIP: the kernel did not set AT_SECURE (the file system ignores set-group-ID here)");
     }
     let secure = output(with_llp(timed(&prog), Some(llp.as_str())));
     assert_eq!(secure.status.code(), Some(13), "secure: LD_LIBRARY_PATH ignored, DT_RUNPATH used: {}", String::from_utf8_lossy(&secure.stderr));
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// The cache is opened only when a search reaches it, and once per start: a program whose only
@@ -333,5 +331,4 @@ fn ldso_search_cache_opened_once_when_reached() {
     assert_eq!(String::from_utf8_lossy(&o.stderr), want);
     assert!(t.lines().any(|l| l.contains("libgcc_s.so.1\"") && !l.contains("= -1")), "libgcc_s.so.1 found:\n{t}");
     assert_eq!(opens(&t), 1, "two searches reached the cache: one open:\n{t}");
-    let _ = std::fs::remove_dir_all(&d);
 }

@@ -1,0 +1,26 @@
+{"task": "DL-SLOT-REUSE-2", "model": "opus", "tokens": null,
+ "result": "Merged origin/next into the slot-reuse branch (the train's dlopen.rs conflict: Loader fields of both sides kept); direct gate, loader tests and 6/6 plants green on the merged head",
+ "branch": "task/dl-slot-reuse-2", "head": "7a582470f",
+ "gate": {"affected": "706 passed / 0 failed (direct tier, 11 suites)", "peak": "3.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the merge needed no design decision: next's by_given skips gone slots (settle's vacated slots are gone), the $ORIGIN state is per process, given_name touches only start-time records below n_start, which settle never moves",
+  "cargo xtask test on the merged head (keke dl-slot-reuse-2-xtest1) rc 0: 7039/7039 and native 4864/4864 passed, conformance 142/0; run 1's dns_products hang did not recur",
+  "xtest1 took 101 min on a Zen 1 host at load ~22 (phase 1 alone 2605 s, its first ~150 tests, long math kernels, took ~30 min)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "task/dl-slot-reuse merges with next again (the CI CONFLICT on crates/boundary/src/ld/dlopen.rs)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "FIFO dlopen/dlclose churn, K=8, 100k opens: distinct loader slots (run 1's measurement, code unchanged by the merge)", "before": 100000, "after": 9, "unit": "slots", "measured": false},
+  {"kind": "perf", "what": "dlopen per call under FIFO churn, K=8, N=100k (run 1)", "before": 10768815, "after": 73561, "unit": "instr/call", "measured": false},
+  {"kind": "perf", "what": "dlclose per call under FIFO churn, K=8, N=100k (run 1)", "before": 11068793, "after": 7569, "unit": "instr/call", "measured": false},
+  {"kind": "size", "what": "VmSize after 100k FIFO opens, K=8 (run 1)", "before": 219144, "after": 23088, "unit": "kB", "measured": false},
+  {"kind": "cost", "what": "dl_iterate_phdr full walk, 100 objects (accepted, ruling #7379; fix-forward DL-FIND-OBJECT-FAST)", "before": 16030, "after": 16034, "unit": "instr/call", "measured": false},
+  {"kind": "size", "what": "ld.so text (run 1)", "before": 398081, "after": 405737, "unit": "bytes", "measured": false},
+  {"kind": "coverage", "what": "plants on the merged head", "before": null, "after": 6, "unit": "plants caught", "measured": true}
+ ],
+ "improvement": "the coordinator note in the brief (DL-RUNPATH-4 merge) already named the exact conflict and what to keep; a merge-only continuation could be handed to the train's merge step with a 'keep both struct fields' resolution instead of a full agent run",
+ "next_step": "follow-up story: first-fit placement of path and dependency spans with the grace-period rule, so the address space under churn is bounded too",
+ "report_file": "handoff/DL-SLOT-REUSE.md",
+ "jobs": ["keke:dl-slot-reuse-2-lint1", "keke:dl-slot-reuse-2-gate1", "keke:dl-slot-reuse-2-loader1", "keke:dl-slot-reuse-2-plants1", "keke:dl-slot-reuse-2-xtest1", "keke:dl-slot-reuse-2-hottext1"]}

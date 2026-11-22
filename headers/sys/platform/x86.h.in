@@ -1,0 +1,28 @@
+@@generated
+/* sys/platform/x86.h: the processor features of the running x86 CPU (CPUID leaves of the Intel SDM). */
+#ifndef __NIJI_H_sys_platform_x86_h
+#define __NIJI_H_sys_platform_x86_h 1
+
+#include <features.h>
+#include <stdbool.h>
+
+__NIJI_BEGIN_C
+
+@@owns true false _Bool
+@@owns-macro CPU_FEATURE_ACTIVE CPU_FEATURE_PRESENT
+@@emit
+
+/* The bit of a CPUID register word of struct cpuid_feature array `arr` (cpuid_array: what CPUID reports; active_array:
+   what the system also has enabled), for the feature index `idx` of __x86_get_cpuid_feature_leaf. */
+#define __NIJI_X86_TEST(arr, idx, reg, bit) \
+  ((_Bool) ((__x86_get_cpuid_feature_leaf (idx)->arr[reg] >> (bit)) & 1u))
+
+/* Per feature name (spec/abi/x86-features.tsv): the expression of CPU_FEATURE_PRESENT and CPU_FEATURE_ACTIVE. */
+@@x86features
+
+#define CPU_FEATURE_PRESENT(name) __NIJI_X86_P_##name
+#define CPU_FEATURE_ACTIVE(name) __NIJI_X86_A_##name
+
+__NIJI_END_C
+
+#endif

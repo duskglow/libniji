@@ -1,0 +1,12 @@
+{"task": "ROOT-HARNESS-CONTAIN-3", "model": "opus", "tokens": null,
+ "result": "merged origin/next into ROOT-HARNESS-CONTAIN; runpath_search's shared in_namespace helper now runs through contain::user, so next's new secure-mode cases are contained",
+ "branch": "task/root-harness-contain-3", "head": null,
+ "gate": {"affected": "4313 passed / 0 failed (direct tier, 12 suites, 0 SKIPPED lines)", "peak": "4.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": [], "refused": [],
+ "impact": [{"kind": "unblock", "what": "clears the CI merge conflict on crates/ld/tests/runpath_search.rs so ROOT-HARNESS-CONTAIN can land", "before": null, "after": null, "unit": null, "measured": true},
+            {"kind": "coverage", "what": "plants on the containment helpers and static check (6, one new on the merged helper)", "before": 5, "after": 6, "unit": "plants", "measured": true}],
+ "improvement": "when a landing refactors a contained call into a helper, the merge is a one-line contain::user swap; the static harness-contain check plus a plant made it safe to verify without rerunning the full chain",
+ "next_step": "land; ROOT-HARNESS-CONTAIN-2 (held) covers the bench route, profile sudo perf and namespace tooling",
+ "report_file": "handoff/ROOT-HARNESS-CONTAIN.md",
+ "jobs": ["keke:root-harness-contain-3-gate1", "keke:root-harness-contain-3-plants1"]}

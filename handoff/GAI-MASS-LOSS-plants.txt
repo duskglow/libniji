@@ -1,0 +1,5 @@
+# GAI-MASS-LOSS plants: the queue's growth and the group search broken; gai_queue_products must
+# catch each. Run with cargo xtask plants (docs/plants.md).
+gai-grow-no-move | crates/boundary/src/gai_async.rs | lit:for t in 0..HEAD.load(Relaxed) { ==> for t in 0..0 { | cargo test -p niji --test gai_queue_products | msg:lost [1-9]
+gai-hint-no-round | crates/boundary/src/gai_async.rs | lit:round = true; ==> return None; | cargo test -p niji --test gai_queue_products | msg:refused [1-9]
+gai-thread-note-dropped | crates/boundary/src/gai_async.rs | lit:if thread::create(&a, notifier_addr(), g, false).is_err() { ==> if true { | cargo test -p niji --test gai_queue_products | msg:missing [1-9]

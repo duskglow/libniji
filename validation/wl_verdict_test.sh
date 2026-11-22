@@ -97,6 +97,20 @@ printf '%s\n%s\n%s\n' "$H" "$CPU	printf-loop	instr	1000	3646	3.6460	fixture	dyna
 check "new hold on a recorded CPU class refused" 1 "$(hc "$tmp/added.tsv" --base "$tmp/holds.tsv")"
 printf '%s\n%s\n%s\n' "$H" "$CPU	printf-loop	instr	1000	3646	3.6460	fixture	dynamic start-up" "Other CPU	seq	pf	100	130	1.3000	fixture	dynamic start-up" > "$tmp/newcpu.tsv"
 check "first levels of a new CPU class accepted" 0 "$(hc "$tmp/newcpu.tsv" --base "$tmp/holds.tsv")"
+# D-X.155 (WL-LEVELS-RERECORD; no spec clause, lab tooling): a level is recomputed from the counts it records, so a
+# level edited without a re-count is refused whichever way it moves; a raised level is accepted only as a correction of
+# an overstated glibc count (named decision, recorded again, libniji did not rise, so glibc fell).
+printf '%s\n%s\n' "$H" "$CPU	printf-loop	instr	1000	3646	3.6000	fixture	dynamic start-up" > "$tmp/edited.tsv"
+check "level lowered without a re-count refused" 1 "$(hc "$tmp/edited.tsv")"
+check "the refusal names the recorded counts" 1 "$(grep -c 'not the ratio of the counts it records (3646 / 1000 = 3.6460' "$tmp/out")"
+printf '%s\n%s\n' "$H" "$CPU	printf-loop	instr	1000	3600	3.6000	fixture2	dynamic start-up" > "$tmp/tight.tsv"
+check "level lowered with its new counts accepted" 0 "$(hc "$tmp/tight.tsv" --base "$tmp/holds.tsv")"
+cor() { printf '%s\n%s\n' "$H" "$CPU	printf-loop	instr	$1	$2	$3	$4	$5" > "$tmp/cor.tsv"; hc "$tmp/cor.tsv" --base "$tmp/holds.tsv"; }
+check "correction of an overstated glibc count accepted" 0 "$(cor 900 3600 4.0000 fixture2 'dynamic start-up; correction D-X.155')"
+check "correction without a named decision refused" 1 "$(cor 900 3600 4.0000 fixture2 'dynamic start-up')"
+check "correction not recorded again refused" 1 "$(cor 900 3600 4.0000 fixture 'dynamic start-up; correction D-X.155')"
+check "correction with libniji's count risen refused" 1 "$(cor 900 3700 4.1112 fixture2 'dynamic start-up; correction D-X.155')"
+check "the refusal says libniji got worse" 1 "$(grep -c 'libniji got worse' "$tmp/out")"
 printf '%s\n%s\n' "$H" "$CPU	seq	pf	100	105	1.0500	fixture	dynamic start-up" > "$tmp/low.tsv"
 check "a hold at or below 1.10 refused" 1 "$(hc "$tmp/low.tsv")"
 printf '%s\n%s\n' "$H" "$CPU	seq	pf	100	130	1.3000	fixture	 " > "$tmp/nocause.tsv"
