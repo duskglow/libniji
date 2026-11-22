@@ -418,7 +418,7 @@ struct Loader {
     names: Names,
     /// The static surplus's places for `dlopen`ed modules (DL-16d) and their count when the
     /// current `load_set` began ([`unwind`] takes back the later ones).
-    surplus: ltls::Surplus<{ ltls::MODULES_MAX }>,
+    surplus: ltls::Surplus<super::Places>,
     tls_mark: usize,
     /// `__niji_thread_walk`'s address once looked up (0: not yet).
     thread_walk: usize,
@@ -426,6 +426,9 @@ struct Loader {
     owner_unload: usize,
     /// The TLS module IDs of `dlopen`ed modules (DL-17: an unloaded module's ID is reused).
     ids: ltls::ModuleIds,
+    /// The free bits of module IDs past the ones `ids` holds (DL-PROCESS-OBJECTS part 3), grown by
+    /// the `dlopen` that takes such an ID ([`tls_room_past`]).
+    ids_more: Wide<u64>,
     /// Unloaded objects still mapped: (index, whether the reader parity flipped since it was
     /// unpublished; [`reclaim`]).
     n_retired: usize,
@@ -926,7 +929,20 @@ impl View {
     #[inline(never)]
     fn find_past(&self, mut next: usize, pred: &mut impl FnMut(usize) -> bool) -> Option<usize> {
         let first = nodes_base();
-        for _ in 0..=u32::MAX {
+        // A chain of distinct nodes holds at most the nodes the mapped generations have: a longer
+        // walk decoded a wrong node and ends here, not after 2^32 steps. A generation mapped during
+        // the walk raises the bound before it ends (its nodes may be on the chain now).
+        let mut bound = Gens::<CAP, OBJ_GENS>::mapped_in(self.node_dir());
+        let mut steps = CAP;
+        loop {
+            if steps >= bound {
+                let now = Gens::<CAP, OBJ_GENS>::mapped_in(self.node_dir());
+                if now <= bound {
+                    return None;
+                }
+                bound = now;
+            }
+            steps = steps.wrapping_add(1);
             let off = next.wrapping_sub(first);
             let i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
                 off.checked_div(size_of::<Node>())?
@@ -941,7 +957,6 @@ impl View {
                 return None;
             }
         }
-        None
     }
 
     /// Object `i`'s mapped range [lo, hi).
@@ -1822,7 +1837,7 @@ fn close_end(f: &Finis) {
                 tls.mods.clear();
                 let _ = tls.mods.push(m);
             }
-            generation = l.ids.release(id, generation);
+            generation = l.ids.release(id, generation, l.ids_more.all_mut());
         }
         if let Some(o) = out.get_mut(n_out) {
             *o = ix32(j);
@@ -2434,7 +2449,7 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
     super::readers::count_unmapped(k.saturating_sub(base));
     for i in (base..k).rev() {
         if let Some(p) = l.objs_upto(k).get(i).and_then(|o| o.tls) {
-            l.ids.put_back(p.module);
+            l.ids.put_back(p.module, l.ids_more.all_mut());
         }
     }
     l.names.set_top(names_top);
@@ -2578,14 +2593,17 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
         if thread_walk(l) == 0 {
             return Err(refused(l));
         }
-        let (floor, max) = super::module_room();
+        let floor = super::module_floor();
+        if (l.surplus.is_full() || l.ids.top(floor) >= MODS_IN_PLACE) && !tls_room_past(l, floor) {
+            return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
+        }
         let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
-        let Some(id) = l.ids.take(floor, max) else {
+        let Some(id) = l.ids.take(floor, l.ids_more.all_mut()) else {
             let _ = l.surplus.free(off);
             return Err(refused(l));
         };
         if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, u64::from_ne_bytes(off.to_ne_bytes())]).is_err() {
-            l.ids.put_back(id);
+            l.ids.put_back(id, l.ids_more.all_mut());
             let _ = l.surplus.free(off);
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
@@ -2593,6 +2611,24 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
         l.objs.set(i, o);
     }
     Ok(())
+}
+
+/// The module IDs whose free bits and table entries are in place.
+#[allow(clippy::as_conversions)] // const context: `try_from` is not const; 512 fits
+const MODS_IN_PLACE: u64 = ltls::MODULES_MAX as u64;
+
+/// [`place_tls`] past the room in place (DL-PROCESS-OBJECTS part 3, rare): a larger store of
+/// surplus places when it is full, then, for the next new module ID, the word of its free bit and
+/// its entry of the module table every new thread copies. `false` when a mapping cannot be made
+/// (the store and words grown so far stay, as every table's generations do).
+#[cold]
+#[inline(never)]
+fn tls_room_past(l: &mut Loader, floor: u64) -> bool {
+    if l.surplus.is_full() && !l.surplus.store_mut().grow() {
+        return false;
+    }
+    let next = l.ids.top(floor).saturating_add(1);
+    l.ids_more.reserve(ltls::ModuleIds::words_for(next)) && super::reserve_thread_mods(next)
 }
 
 /// [`Loader::grow_to`] past the room the tables have (more than [`CAP`] objects, rare): every
