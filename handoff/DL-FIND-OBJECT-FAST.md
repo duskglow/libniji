@@ -11,9 +11,13 @@ DL-READER-COSTS, not this story.
 clippy -D warnings + static), gate `dl-find-object-fast-2-gate` (direct tier: 786 passed / 0 failed / 52 ignored,
 conformance 12/12, peak 2.8G), plants `dl-find-object-fast-2-plants` (5/5 CAUGHT, no WARN-RC-ONLY/NO-MSG; one
 WARN-DEV-SHM location note), per-call `dl-find-object-fast-2-pc` (the 24 _dl_find_object/dladdr rows: identical to
-the table below, the head's self-checks agree with glibc, MISMATCH rows are base's -1). Start-up checks
-`dl-find-object-fast-2-hot`, then `dl-find-object-fast-2-xtest` (chained after the gate; see the hand-back for their
-state). The previous run's xtest3 (same code, role n4) passed: 4862 + 128 + 46 tests.
+the table below, the head's self-checks agree with glibc, MISMATCH rows are base's -1), start-up check
+`dl-find-object-fast-2-hot` (NIJI_FULL_PROFILE so + hot_text_products 33 passed). `dl-find-object-fast-2-xtest`
+(`cargo xtask test`, started 00:56Z on the synced final head `809c87f31`) was PENDING at hand-back (~90 min job).
+`cargo xtask precheck` on r2 at `809c87f31`: 34 checks, no red, WAIT on xtest only. The previous run's xtest3 (same
+code, role n4) passed: 4862 + 128 + 46 tests. The pending record still has `id = "D-NEW"` while `index.rs` names the
+reserved D-27.75: the coordinator assigns D-27.75 to it (no record edit in a rerun-only run). The branch conflicts
+with next (handback-check NOTE); no merge was allowed here, the train resolves it.
 
 **Design (in force).** `crates/boundary/src/ld/index.rs` (module doc): one entry per `PT_LOAD` segment, sorted by
 start, binary search for the last entry at or below the address, kept when its object's whole range holds it.

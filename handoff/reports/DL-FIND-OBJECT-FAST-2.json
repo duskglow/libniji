@@ -2,29 +2,98 @@
   "task": "DL-FIND-OBJECT-FAST-2",
   "model": "opus",
   "tokens": null,
-  "result": "Rerun only, no code change: lint, direct-tier gate, plants and the 24 _dl_find_object/dladdr per-call rows rerun on the final head (code d91a4174d) on keke r2, all rc 0; numbers repeat DL-FIND-OBJECT-FAST's report exactly (_dl_find_object last of 104: 18387 -> 403, glibc 173; dladdr program address +42 cost recorded per ruling #7391)",
+  "result": "Rerun only, no code change: lint, direct-tier gate, plants, the 24 _dl_find_object/dladdr per-call rows and hot_text_products rerun on the final head (code d91a4174d) on keke r2, all rc 0; cargo xtask test pending; numbers repeat DL-FIND-OBJECT-FAST exactly (_dl_find_object last of 104: 18387 -> 403, glibc 173; dladdr program address +42 cost recorded per ruling #7391)",
   "branch": "task/dl-find-object-fast-2",
   "head": "d91a4174d",
-  "gate": {"affected": "786 passed / 0 failed (52 ignored), conformance 12/12 (dl-find-object-fast-2-gate)", "peak": "2.8G"},
+  "gate": {
+    "affected": "786 passed / 0 failed (52 ignored), conformance 12/12 (dl-find-object-fast-2-gate)",
+    "peak": "2.8G"
+  },
   "accepted_first_attempt": null,
   "rulings": [],
   "informational": [
     "the gate waited 63 min in keke's slot queue (queued 22:55Z, started 23:58Z) behind wl-levels-rerecord and other stories' jobs; the previous run's xtest3/hot3 chain on n4 was still running at admission (driver stopped by PID so hot3 never started; xtest3 ended rc 0)",
-    "previous run's xtest3 (same code d91a4174d, role n4) passed: 4862 + 128 + 46 tests"
+    "previous run's xtest3 (same code d91a4174d, role n4) passed: 4862 + 128 + 46 tests",
+    "pending record records/pending/DL-FIND-OBJECT-FAST-1.toml has id D-NEW while index.rs names the reserved D-27.75: recommend the coordinator assigns D-27.75",
+    "the branch conflicts with next (handback-check NOTE); the train resolves it",
+    "precheck on 809c87f31: 34 checks, no red, WAIT on dl-find-object-fast-2-xtest only"
   ],
   "refused": [],
   "impact": [
-    {"kind": "perf", "what": "_dl_find_object last of 104 objects", "before": 18387, "after": 403, "unit": "instr/call", "measured": true},
-    {"kind": "perf", "what": "_dl_find_object last of 600 objects", "before": 110124, "after": 471, "unit": "instr/call", "measured": true},
-    {"kind": "perf", "what": "_dl_find_object first object (program), 104 loaded", "before": 639, "after": 402, "unit": "instr/call", "measured": true},
-    {"kind": "perf", "what": "dladdr last of 600 objects", "before": 23721, "after": 968, "unit": "instr/call", "measured": true},
-    {"kind": "perf", "what": "dladdr last of 104 objects", "before": 2300, "after": 735, "unit": "instr/call", "measured": true},
-    {"kind": "cost", "what": "dladdr of a program address (4..600 objects); fix-forward is DL-READER-COSTS item 5 (ruling #7391)", "before": 1565, "after": 1607, "unit": "instr/call", "measured": true},
-    {"kind": "cost", "what": "dladdr last / middle object with 4 loaded (+10 / +24)", "before": 949.5, "after": 959.5, "unit": "instr/call", "measured": true},
-    {"kind": "correctness", "what": "_dl_find_object of a pc in an object's span outside its segments gave -1; now the object (probe R-5; per-call self-checks agree with glibc)", "before": null, "after": null, "unit": null, "measured": true}
+    {
+      "kind": "perf",
+      "what": "_dl_find_object last of 104 objects",
+      "before": 18387,
+      "after": 403,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "_dl_find_object last of 600 objects",
+      "before": 110124,
+      "after": 471,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "_dl_find_object first object (program), 104 loaded",
+      "before": 639,
+      "after": 402,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "dladdr last of 600 objects",
+      "before": 23721,
+      "after": 968,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "dladdr last of 104 objects",
+      "before": 2300,
+      "after": 735,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "cost",
+      "what": "dladdr of a program address (4..600 objects); fix-forward is DL-READER-COSTS item 5 (ruling #7391)",
+      "before": 1565,
+      "after": 1607,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "cost",
+      "what": "dladdr last / middle object with 4 loaded (+10 / +24)",
+      "before": 949.5,
+      "after": 959.5,
+      "unit": "instr/call",
+      "measured": true
+    },
+    {
+      "kind": "correctness",
+      "what": "_dl_find_object of a pc in an object's span outside its segments gave -1; now the object (probe R-5; per-call self-checks agree with glibc)",
+      "before": null,
+      "after": null,
+      "unit": null,
+      "measured": true
+    }
   ],
   "improvement": "a rerun-only story could reuse the previous run's jobs when their tested content equals the head's code (here gate3/plants3/pc4/xtest3 on d91a4174d were green); at least the dispatcher could stop a superseded run's chain at re-admission (its xtest3/hot3 still held a slot on keke)",
   "next_step": "land (ruling #7391); follow-ups: DL-READER-COSTS item 5 (dladdr program-address cost), _dl_find_object constant part (~400 vs 51-197)",
   "report_file": "handoff/DL-FIND-OBJECT-FAST.md",
-  "jobs": ["keke:dl-find-object-fast-2-lint", "keke:dl-find-object-fast-2-gate", "keke:dl-find-object-fast-2-plants", "keke:dl-find-object-fast-2-pc", "keke:dl-find-object-fast-2-hot", "keke:dl-find-object-fast-2-xtest"]
+  "jobs": [
+    "keke:dl-find-object-fast-2-lint",
+    "keke:dl-find-object-fast-2-gate",
+    "keke:dl-find-object-fast-2-plants",
+    "keke:dl-find-object-fast-2-pc",
+    "keke:dl-find-object-fast-2-hot",
+    "keke:dl-find-object-fast-2-xtest"
+  ]
 }
