@@ -1,0 +1,16 @@
+@@generated
+/* netinet/igmp.h: IGMP (RFC 3376) */
+#ifndef __NIJI_H_netinet_igmp_h
+#define __NIJI_H_netinet_igmp_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

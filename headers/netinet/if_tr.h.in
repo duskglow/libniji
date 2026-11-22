@@ -1,0 +1,16 @@
+@@generated
+/* netinet/if_tr.h: Token Ring */
+#ifndef __NIJI_H_netinet_if_tr_h
+#define __NIJI_H_netinet_if_tr_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

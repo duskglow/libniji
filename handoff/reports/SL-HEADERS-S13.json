@@ -1,0 +1,16 @@
+{"task": "SL-HEADERS-S13", "model": "sonnet", "tokens": null,
+ "result": "slice 13: 35 network protocol and family headers generated from templates and spec/abi (structs, typedefs, macro values the tables hold); header_check 0 failed of 16200; own macros of these headers are not in the tables (RULING NEEDED)",
+ "branch": "task/sl-headers-s13", "head": "572ab33a1",
+ "gate": {"affected": "0 selected (generated headers only; FULL: the train's) / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "spec/abi has none of the own macros and some structs of the slice 13 headers (IPTOS_*, IPOPT_*, ICMP_*, ICMP6_*, ND_*, RTF_*, TELOPT_*, struct rtentry, arpreq, ether_arp; arpa/ftp.h, arpa/telnet.h, net/if_slip.h, net/ppp-comp.h have no rows at all): the headers are include-compatible but thin", "recommendation": "HEADERS-TABLES-COMPLETE (or an extraction story over this header list), then rerun this slice's headers-gen; templates need no change"},
+  {"item": "kernel-first order for netinet/ip6.h with linux/ipv6.h: the reference compiles it, libniji does not (struct in6_addr twice); netinet/ip6.h left without a uapi cell in s13.tsv", "recommendation": "small opt-in extension in netinet/in.h (define the kernel compat marker before the structs); the table is in handoff/SL-HEADERS-S13.md"}],
+ "informational": ["net/if_ppp.h and net/if_shaper.h wait for sys/ioctl.h (slice 7 tail): p1 0 with header_checks/s13.py; delete s13.py when it lands", "a plant dropping the netinet/ip_icmp.h include of netinet/ip.h survived (no table row reads that include; the table gap), so it was replaced by a no-emit plant", "all eight legacy headers shipped: plan/headers.md 5.1 lists every one as ship"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 13 headers generated and checked (P1/P5/P8)", "before": 0, "after": 35, "unit": "headers", "measured": true},
+            {"kind": "coverage", "what": "plants added on slice 13 templates, check module and slice table", "before": 0, "after": 5, "unit": "plants", "measured": true}],
+ "improvement": "a template plant needs a command that checks the generated output (headers-gen alone regenerates and passes); say so in docs/plants.md",
+ "next_step": "land; then HEADERS-TABLES-COMPLETE rows for the slice 13 macros and structs, and delete header_checks/s13.py once sys/ioctl.h has a template",
+ "report_file": "handoff/SL-HEADERS-S13.md",
+ "jobs": ["mei:sl-headers-s13-gate2", "mei:sl-headers-s13-plants4"]}
