@@ -1517,13 +1517,13 @@ fn s23_6_g_0() {
         install_zone("Asia/Tokyo", &def);
         let mut path = def.to_str().unwrap().as_bytes().to_vec();
         path.push(0);
-        let first = niji::time::load(&CSys, None, None, &path).unwrap();
+        let first = niji::time::load(&CSys, None, None, &path, false).unwrap();
         let (_, id) = first.file.as_ref().unwrap();
         assert_eq!(first.zone.as_ref().unwrap().at(t).unwrap().offset, 32_400);
         assert_eq!(niji::time::file_id(&CSys, &path), *id, "unchanged");
         install_zone("Europe/Berlin", &def);
         assert_ne!(niji::time::file_id(&CSys, &path), *id, "replaced: seen by stat");
-        let second = niji::time::load(&CSys, None, None, &path).unwrap();
+        let second = niji::time::load(&CSys, None, None, &path, false).unwrap();
         assert_eq!(second.zone.as_ref().unwrap().at(t).unwrap().offset, 7200);
         true
     });
