@@ -1,64 +1,49 @@
 # ROOT-HARNESS-FOLLOWUP: contain the root and namespace launches outside the tests
 
-State: branch `task/root-harness-followup` (from origin/next 5f07429d3), WIP commit, NOT compiled yet (no local
-cargo; the role could not be synced: see "Count check" below). Role: mei `~/w/s1` (Skylake-SP class).
+State: branch `task/root-harness-followup` (from origin/next 5f07429d3); see `git log origin/next..HEAD`.
+Role: mei `~/w/s1` (Skylake-SP class), synced at the head after "Mark the bench tests' inspected sudo command".
 Brief: `~/state/briefs/ROOT-HARNESS-FOLLOWUP.md`. Predecessor: `handoff/ROOT-HARNESS-CONTAIN.md`.
+Legs: 1 (WIP code), 2 (this note: compile fixes, count route fix, kill tests, plants file, doc).
 
-## Done (in the WIP commit, unverified)
-- `xtask/src/contain.rs` (new, `mod contain` in main.rs): `user(program)` (same argv as the tests'
-  `support/contain.rs`), `root(cmd)` (contain.sh + `env K=V` args) and `output(cmd)`: stdin = read end of a
-  process-lifetime pipe (`static HOLD`, `std::io::pipe`, close-on-exec), so contain.sh's watcher ends the namespace
-  when xtask dies. Unit tests: kill test per kind (re-exec helper, SIGKILL, nothing carrying the token remains;
-  root skips without `sudo -n`), and `root_form_keeps_arguments_and_variables`.
-- `xtask/src/bench.rs`: `pub(crate) fn bench_output(&mut Command)` + `is_root_route` (program == "sudo");
-  every C-bench spawn (bench.rs 6 sites, abbench.rs 2, startpair.rs 1) goes through it. Wrapped at spawn, not in
-  `private_shm`, because callers add CBENCH_COUNTERS / CBENCH_ROWS after building the command. `private_shm`: no
-  `exec` before `setpriv` (the bench stays a child of the root sh, never PID 1); its `Command::new("sudo")` is
-  marked `contain: inside(...)`. `namespace_command`: `crate::contain::user("unshare")`, and no `exec` before the
-  nested `unshare -U` (bench not PID 1).
-- `xtask/src/transcript/run.rs`: namespaced transcripts spawn through `crate::contain::user(unshare)`; the nested
-  exec in the helper is marked `contain: inside(...)`. The transcript program becomes PID 1 (96 namespaced
-  transcripts: getent, locale, ldconfig; none expects a signal outcome).
-- `tools/contained.sh` (new, sourced prologue): kinds `root` (re-run through contain.sh; FIFO held by the outer
-  shell; CONTAINED_KEEP vars + HOME passed), `rootopt` (root where `sudo -n` works, else uncontained with a stderr
-  note), `user` (exec setpriv --pdeathsig KILL -- unshare --user --map-current-user --pid --fork --kill-child
-  --mount-proc). NIJI_CONTAINED marks the re-run; `none` = caller's opt-out.
-- Prologue added to: validation/profile.sh, profile6.sh (root), validation/tmpfs-run.sh (user), tools/deb/lint.sh,
-  swap-system.sh, dbg-system.sh, proof.sh (rootopt: mmdebstrap --mode=unshare needs newuidmap ranges, which a
-  nested single-id user namespace cannot map; mmdebstrap 1.4.3 keeps no parent-death tie, checked in
-  /usr/bin/mmdebstrap on mei), tools/deb/root-system.sh, tools/probe/util_surface.sh, ldcache_loader.sh,
-  dl/preload/run.sh, run2.sh (user), tools/probe/dlsecure/run.sh (rootopt: `--map-users=auto`),
-  crates/core/tests/oracle/specman_dns.sh (user).
-- `xtask/src/harness_contain.rs`: + xtask sources (line rule, `Command::new(unshare)` too, marker
-  `contain: inside(`), + scripts (validation/**/*.sh, tools/**/*.sh, oracle/*.sh no test names): must source
-  tools/contained.sh, root/rootopt kind if `sudo `. Unit test `xtask_spawns_and_tool_scripts_are_named`.
+## Done
+- `xtask/src/contain.rs`: `user(program)`, `root(cmd)`, `output(cmd)` (tie = `UnixStream::pair`, held for xtask's
+  lifetime; std::io::pipe is 1.87 > MSRV 1.85). Kill test per kind + `root_form_keeps_arguments_and_variables`.
+- `xtask/src/bench.rs`: `bench_output` (all C-bench spawns), `is_root_route`, NEW `past_sudo`: CBENCH_* vars
+  passed as `sudo -n env K=V ...` args. FINDING: before this, sudo's env reset meant cbench_netdb's counted runs
+  through the private-/dev/shm route printed NO counters (`--compare --counters` table: instr columns `-`;
+  log mei `~/work/root-harness-followup/counts-before/run1.log`). `NIJI_CONTAINED=none` = uncontained route
+  (opt-out, same as tools/contained.sh), used by the count check. Unit tests `the_root_route_alone_runs_contained`,
+  `root_route_carries_the_bench_variables_past_sudo` (their `sudo()` helper is marked `contain: probe(...)`).
+- cbench_nscache does NOT build for `--compare` (includes niji/native.h): no counted mode in xtask; it is checked
+  by its budgets (ratio_to rows) uncontained vs contained instead.
+- transcript run.rs, tools/contained.sh + prologues (list in the doc), static rule extension: from leg 1.
+- `crates/core/tests/harness_containment.rs`: + `a_killed_root_script_leaves_no_process`,
+  `a_killed_user_namespace_script_leaves_no_process` (temp script with the prologue, SIGKILL the script's pid).
+- `handoff/ROOT-HARNESS-FOLLOWUP-plants.txt`: 13 plants (xtask kinds, bench route + carry, sh kinds, static per
+  path kind: validation x2, tools/deb, tools/probe, oracle, xtask transcript, xtask bench ns).
+- Doc `docs/testing/harness-containment.md`: rules + "Outside the tests" section; `COUNTS-TO-FILL` placeholder.
+- Clippy clean (lint-2: only static failed, on the test sudo lines, since fixed).
 
-## Count check (brief step 1)
-- Job `root-harness-followup-count-before` (kind count) started 09:53Z on mei, QUEUED behind release-snapshot
-  slots: `~/work/root-harness-followup/count.sh before` = 5 x `cargo xtask bench --counters-only --only
-  cbench_netdb,cbench_nscache` on `~/w/s1` (origin/next as synced by the dispatcher), copies
-  `target/niji/bench/counters-<bench>.tsv` to `~/work/root-harness-followup/counts-before/<bench>-<i>.tsv`.
-  DO NOT sync the role until it has ended (`~/bin/jobwait root-harness-followup-count-before`).
-- Then: sync, `count.sh after` as job `root-harness-followup-count-after`, compare instructions per row
-  (before vs after, 5 each). Also check the counters columns are present for the shm benches at all (sudo resets
-  the environment: if CBENCH_COUNTERS does not reach the bench today, say so; it is the same before and after).
-  Only one CPU class (no second role).
+## Jobs started (mei, queued behind release-snapshot slots at 10:37Z)
+- `root-harness-followup-lint-3` (clippy + static on the synced head): must be rc 0.
+- `root-harness-followup-count2`: `~/work/root-harness-followup/count2.sh` -> `~/work/root-harness-followup/count2/`
+  netdb-{uncontained,contained}-{1..5}.tsv (counters-cbench_netdb.tsv copies; columns per COUNTERS_HEADER in
+  bench.rs ~1091) and nscache-{uncontained,contained}.log (budget lines). Alternating, same head.
+- `root-harness-followup-test-1`: `cargo test -p xtask -- contain:: bench::tests harness_contain` and
+  `cargo test -p niji --test harness_containment`.
+`jobwait` returns 3 at once while a job is QUEUED: one wait per call, do not poll.
 
 ## Next steps (in order)
-1. jobwait count-before; sync (`bash ~/src/liella-ops/tools/sync_role.sh --story ROOT-HARNESS-FOLLOWUP --base
-   origin/next <worktree> mei s1`, check rc); on the role: `cargo clippy --workspace --all-targets --all-features
-   -- -D warnings`, `cargo xtask static` (harness-contain must be clean: fix any script it names), fix compile.
-2. Start count-after; run `cargo test -p xtask contain:: harness_contain bench::` (kind test) and the namespaced
-   transcripts (`cargo xtask transcript` on validation/transcripts/{locale,getent,ldconfig}, check its usage).
-3. Shell kill tests: add to `crates/core/tests/harness_containment.rs` one test per script kind (write a temp
-   script that sets contained_kind=root|user, sources tools/contained.sh, starts a token-carrying loop + forked
-   child (root: under `sudo -n`); SIGKILL the script's pid; nothing carrying the token remains).
-4. Plants file `handoff/ROOT-HARNESS-FOLLOWUP-plants.txt` (docs/plants.md format): xtask user without
-   --kill-child (contain.rs USER), xtask root output without the held stdin, bench_output bypass (is_root_route ->
-   false), contained.sh user without --pdeathsig, contained.sh root not closing fd 8 for the child, static: a
-   script prologue removed (validation/profile.sh), static: transcript marker removed. Run via `cargo xtask
-   plants` under jobrun (`/mnt/zram/claude/root-harness-followup/plants-1`).
-5. Doc `docs/testing/harness-containment.md`: replace "Not contained yet" with the new inventory (xtask kinds,
-   scripts + kinds, rootopt reason, PID-1 note for transcripts), static rule text, count table.
-6. Gate (`cargo xtask affected` likely FULL: xtask files -> precheck + changed crates' tests), report json,
-   handback-check.
+1. jobwait lint-3, test-1, count2 (one call). Fix anything red (re-sync after a fix, re-run only that job).
+2. Count table: per netdb row, instr/op libniji and glibc, uncontained vs contained (5 each): equal, or explain.
+   If the PID namespace changes the counts: STOP and report the numbers (brief step 1). nscache: budgets pass both.
+   Fill `COUNTS-TO-FILL` in the doc (rows, medians, range, "Skylake-SP"; one CPU class only, say so).
+3. Namespaced transcripts: find the usage (`cargo xtask transcript` with no args / `--help`) and run the
+   locale/getent/ldconfig ones on the role as a job (kind test).
+4. Plants: `setsid nohup ~/bin/jobrun root-harness-followup-plants-1 plants -- sh -c '. ~/.cargo/env; cd ~/w/s1 &&
+   cargo xtask plants handoff/ROOT-HARNESS-FOLLOWUP-plants.txt --dir /mnt/zram/claude/root-harness-followup/plants-1
+   --timeout 600' </dev/null >/dev/null 2>&1 &` ; all CAUGHT; append the result lines to the plants file.
+5. Gate: `cargo xtask affected` (no --run) first; FULL escalation -> precheck + changed crates' tests (kind test),
+   write `FULL: the train's (...)`. Then precheck `--jobs <labels> --head <sha>`.
+6. Report: `handoff/reports/ROOT-HARNESS-FOLLOWUP.json` (+ "jobs"), this note as the report, handback-check.
+   INFORMATIONAL: counters never reached the shm-route benches before (fixed here); nscache uncountable in xtask.
