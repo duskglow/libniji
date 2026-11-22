@@ -1,6 +1,6 @@
 {"task": "SL-HEADERS-S07-TAIL", "model": "opus", "tokens": null,
  "result": "slice 7's last five headers (sys/wait.h, wait.h, sys/param.h, spawn.h, sys/ioctl.h) generated from tables; slice 12 __has_include guards removed with a check; P1/P5 0 of 14262, P10 0, P2 0 unaccepted, P3 2 (waitid, ruling); P6 failures traced outside these headers",
- "branch": "task/sl-headers-s07-tail", "head": "fc0904996",
+ "branch": "task/sl-headers-s07-tail", "head": "ce50e469b",
  "gate": {"affected": "FULL: the train's (generated headers); precheck + cargo test -p xtask 609 passed / 0 failed; header_check 0 failed of 14262", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [
@@ -26,4 +26,4 @@
  "improvement": "conformance/build is wiped by the next sync, so P6 failure logs were gone when read: the --niji-headers run should copy failing programs' logs to its output dir (and name them .lh.log.stderr)",
  "next_step": "land through the train (FULL); rulings 1-2 go to HEADERS-TABLES-COMPLETE / a sys/param.h spec story",
  "report_file": "handoff/SL-HEADERS-S07-TAIL.md",
- "jobs": ["sl-headers-s07-tail-plants4", "sl-headers-s07-tail-hc5", "sl-headers-s07-tail-lint2", "sl-headers-s07-tail-test2", "sl-headers-s07-tail-proof3", "sl-headers-s07-tail-p6r"]}
+ "jobs": ["sl-headers-s07-tail-plants4", "sl-headers-s07-tail-hc5", "sl-headers-s07-tail-proof4", "sl-headers-s07-tail-test3"]}

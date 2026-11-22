@@ -8,11 +8,12 @@ new headers, P2 accept file), 59764b091 + f89e764bf (s15.py: f_owner_ex checked)
 spawn.h rows), 2602431a2 + cbb151bc0 (s07.py: P1 of the macros these headers show but another header owns).
 
 **Proofs (plan/headers.md section 3).**
-* P1/P5 header_check: 0 failed of 14262 on cbb151bc0 (`hc5`; 14067 before the new units).
+* Final-head jobs (ce50e469b, mei): `proof4`, `test3`, `hc5`, `plants4` (labels `sl-headers-s07-tail-<x>`); precheck.
+* P1/P5 header_check: 0 failed of 14262 (`hc5`, `proof4`; 14067 before the new units).
 * P10 header_p10: 0 failed; P2 header_probe: 0 unaccepted of 36 (accept file `handoff/SL-HEADERS-S07-TAIL/p2-accept.txt`
   + S15's; D-X.129 siginfo_t via <signal.h>, D-X.118 reserved names, COMPAT-34 MS_*); P3 callsite_probe: 2 unaccepted,
-  both `waitid` (ruling 1) (`proof3`, be67b5b63; later commits change only s07.py, which only P1 runs).
-* `cargo test -p xtask` (rows test, diagnostic attributes): 609 passed, 0 failed (`test2`, be67b5b63).
+  both `waitid` (ruling 1) (`proof4`).
+* `cargo test -p xtask` (rows test, diagnostic attributes): 609 passed, 0 failed (`test3`).
 * Guard removal (ruling #6406): plain includes in arpa/nameser.h, resolv.h, netdb.h; s07.py `problems` fails on any
   generated header that `__has_include`-guards an include of a header libniji ships (plant s7t-guarded-include).
 * Plants: `plants2` (be67b5b63) 6 CAUGHT, 2 SURVIVED: s7t-param-value (MAXSYMLINKS) and s7t-ioctl-value (TIOCGWINSZ).
