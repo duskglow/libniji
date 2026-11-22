@@ -3,7 +3,7 @@
 State: branch `task/ldso-run-program` (from origin/next 90390071c). Commits: d9c103ffb (the change, tests, records,
 plants), 44ccf4e9a (empty `--argv0` fix and a test-harness fix), then this note and the report. Role keke `~/w/r1`.
 
-## What changed (pending record records/pending/LDSO-RUN-PROGRAM-1.toml, D-NEW in D-27)
+## What changed (D-27.80, records/decisions/D-27/D-27.80.toml, reserved this run)
 
 - `crates/ld/src/program.rs` (pure): `Action::Program { mode, name, at, options }`, `Mode` (Run, List, Verify),
   `Options` (library_path, preload, argv0, audit, inhibit_cache), `UNSUPPORTED`, `USAGE` (1), `verify_status`,
@@ -76,4 +76,4 @@ Layout: no libc.so.6 code changed; ld.so's changes are in its command path plus 
 - `--list` of a missing file and of a non-ELF file keep libniji's earlier texts (pre-existing; reference differs).
 - `--verify` of a name without `/` gives 1 without a search (not probed).
 - Release notes: the snapshot notes' known limitation for program mode can shrink to the six options above.
-- Plan rows: D-27.69, D-27.14, D-27.13; the pending record above.
+- Plan rows: D-27.69, D-27.14, D-27.13; D-27.80.
