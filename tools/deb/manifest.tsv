@@ -156,3 +156,13 @@ system	libc6-dev	usr/share/doc/libc6-dev/changelog.Debian.gz	changelog	-	0644	no
 system	libc6-dev	usr/share/doc/libc6-dev/copyright	text	copyright	0644	none	-
 system	locales	usr/share/doc/locales/changelog.Debian.gz	changelog	-	0644	none	-
 system	locales	usr/share/doc/locales/copyright	text	copyright	0644	none	-
+system	locales	usr/share/i18n/charmaps/ANSI_X3.4-1968.gz	file	locale-charmaps/ANSI_X3.4-1968.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/BIG5.gz	file	locale-charmaps/BIG5.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/CP949.gz	file	locale-charmaps/CP949.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/EUC-JP.gz	file	locale-charmaps/EUC-JP.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/EUC-KR.gz	file	locale-charmaps/EUC-KR.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/GB18030.gz	file	locale-charmaps/GB18030.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/GBK.gz	file	locale-charmaps/GBK.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/ISO-8859-1.gz	file	locale-charmaps/ISO-8859-1.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/UTF-8.gz	file	locale-charmaps/UTF-8.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/charmaps/WINDOWS-31J.gz	file	locale-charmaps/WINDOWS-31J.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec

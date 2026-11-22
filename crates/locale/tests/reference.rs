@@ -301,12 +301,33 @@ fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<Stri
     println!("LC_COLLATE: {} strings, {same} strxfrm keys byte-equal", bytes.len());
 }
 
+/// The installed sources with libniji's generated charmaps (`niji_charmaps`, LOCALE-CHARMAPS-GEN)
+/// in place of the installed ones: what localedef reads on a system with libniji's `locales`.
+struct Generated;
+
+impl Files for Generated {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        match kind {
+            Kind::Locale => Disk.read(kind, name),
+            Kind::Charmap => match niji_charmaps::CHARSETS.iter().find(|c| c.0.as_bytes() == name) {
+                Some(&(n, codec)) => TryVec::from_slice(niji_charmaps::charmap(n, codec).as_bytes()).map_err(Into::into),
+                None => Err(niji_locale::Error::missing("no generated charmap")),
+            },
+        }
+    }
+}
+
 fn compare(locale: &str, charmap: &str) {
+    compare_with(locale, charmap, &mut Disk, false);
+}
+
+/// `ctype_only`: compare `LC_CTYPE` alone (what a charmap decides: classes, maps, widths).
+fn compare_with(locale: &str, charmap: &str, files: &mut dyn Files, ctype_only: bool) {
     let Some(dir) = reference(locale, charmap) else { return };
-    let ours = niji_locale::compile(locale.as_bytes(), charmap.as_bytes(), &mut Disk).unwrap_or_else(|e| panic!("{locale}.{charmap}: {e:?}"));
+    let ours = niji_locale::compile(locale.as_bytes(), charmap.as_bytes(), files).unwrap_or_else(|e| panic!("{locale}.{charmap}: {e:?}"));
     let mut out = Vec::new();
     for (n, file) in FILES.iter().enumerate() {
-        let Some(file) = file else { continue };
+        let Some(file) = file.filter(|_| n == 0 || !ctype_only) else { continue };
         let Ok(theirs) = std::fs::read(dir.join("out").join(file)) else {
             out.push(format!("{file}: the reference wrote none"));
             continue;
@@ -377,4 +398,24 @@ fn tr_tr_utf8() {
 #[test]
 fn en_us_iso_8859_1() {
     compare("en_US", "ISO-8859-1");
+}
+
+/// s31_8_c_1, s31_8_i_2: the #14 locales compiled with libniji's generated charmaps
+/// (LOCALE-CHARMAPS-GEN) equal the reference's compile with its own, compared as the module
+/// comment says.
+#[test]
+fn generated_charmaps_compile_like_the_reference() {
+    for (locale, charmap) in [("en_US", "UTF-8"), ("de_DE", "UTF-8"), ("fr_FR", "UTF-8"), ("ja_JP", "UTF-8"), ("tr_TR", "UTF-8"), ("en_US", "ISO-8859-1")] {
+        compare_with(locale, charmap, &mut Generated, false);
+    }
+}
+
+/// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
+/// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
+/// categories are not compared here: they differ with the installed charmaps too (handoff).
+#[test]
+fn generated_cjk_charmaps_give_the_reference_ctype() {
+    for (locale, charmap) in [("ja_JP", "EUC-JP"), ("ja_JP", "WINDOWS-31J"), ("ko_KR", "EUC-KR"), ("ko_KR", "CP949")] {
+        compare_with(locale, charmap, &mut Generated, true);
+    }
 }
