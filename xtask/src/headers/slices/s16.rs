@@ -12,21 +12,8 @@ use super::super::{tsv, Gen, Marker, Slice};
 pub(super) const SLICE: Slice = Slice {
     markers: &[Marker { name: "@@sonames", run: sonames }, Marker { name: "@@x86features", run: x86features }],
     inline: &[],
-    // link.h's audit interface: functions an audit library defines and the dynamic loader calls; libniji exports none.
-    linked_elsewhere: &[
-        "la_activity",
-        "la_objclose",
-        "la_objopen",
-        "la_objsearch",
-        "la_preinit",
-        "la_symbind32",
-        "la_symbind64",
-        "la_version",
-        "la_x32_gnu_pltenter",
-        "la_x32_gnu_pltexit",
-        "la_x86_64_gnu_pltenter",
-        "la_x86_64_gnu_pltexit",
-    ],
+    // The audit entry points of link.h are headers/providers.tsv rows (an audit library defines them), not entries here.
+    linked_elsewhere: &[],
 };
 
 fn sonames(g: &mut Gen<'_>, _args: &[&str]) {

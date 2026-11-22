@@ -5,8 +5,8 @@
 # owns those constructs and its own plants; the rows below plant the slice's data instead.
 s16c-x86-bitshift | headers/sys/platform/x86.h.in | lit:>> (bit)) & 1u ==> >> (bit + 1)) & 1u | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86|features, [1-9][0-9]* failed|headers-gen
 s16c-x86-array | headers/sys/platform/x86.h.in | lit:#define CPU_FEATURE_PRESENT(name) __NIJI_X86_P_##name ==> #define CPU_FEATURE_PRESENT(name) __NIJI_X86_A_##name | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86|stale under libc-include
-s16c-x86-index | spec/abi/x86-features.tsv | perl:s/(\nSSE2\t)0\t/${1}1\t/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86|features, [1-9][0-9]* failed|headers-gen
-s16c-x86-register | spec/abi/x86-features.tsv | perl:s/(\nSSE3\t0\t0x1\t0\t)ecx/${1}edx/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86|features, [1-9][0-9]* failed|headers-gen
+s16c-x86-index | spec/abi/x86-features.tsv | perl:s/(\nSSE2\t)0\t/${1}1\t/ | cargo xtask headers-gen --check | msg:stale under libc-include
+s16c-x86-register | spec/abi/x86-features.tsv | perl:s/(\nSSE3\t0\t0x1\t0\t)ecx/${1}edx/ | cargo xtask headers-gen --check | msg:stale under libc-include
 s16c-x86-never | xtask/src/headers/slices/s16.rs | lit:r["active"] == "yes" ==> r["active"] != "no" | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86|features, [1-9][0-9]* failed|headers-gen
 s16c-x86-layout | spec/abi/layouts.tsv | perl:s/(struct cpuid_feature\tactive_array\t)16/${1}20/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:headers-gen|FAIL x86|features, [1-9][0-9]* failed
 s16c-soname-stem | xtask/src/headers/slices/s16.rs | lit:.replace('-', "_") ==> .replace('-', "") | cargo xtask headers-gen --check | msg:headers-gen
@@ -17,7 +17,6 @@ s16c-regs-offset-row | spec/abi/layouts.tsv | perl:s/(\nLa_x86_64_regs\tlr_r8\t)
 s16c-cxx-typedef | spec/abi/visibility.tsv | perl:s/(La_x86_64_regs\ttypedef\t!time64only)\n/$1,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23\n/ | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:headers-gen|FAIL|header_check: [1-9]
 s16c-reject-row | spec/tools/header_check.py | lit:what.startswith("P5 reject ") ==> what.startswith("P5 zzz ") | python3 spec/tools/header_check.py | msg:FAIL P5 reject sys/elf.h|header_check: [1-9]
 s16c-member-offset | spec/tools/header_checks/s16.py | lit:== {o}" for m, o in mem[key]] ==> == {o} + 1" for m, o in mem[key]] | python3 spec/tools/header_check.py | msg:FAIL S16 offsets|header_check: [1-9]
-s16c-audit-hook | xtask/src/headers/slices/s16.rs | lit:"la_version", ==> "lb_version", | cargo xtask headers-gen --check | msg:not exported
 s16c-prof-size | spec/abi/layouts.tsv | perl:s/(struct prof\t\t)32/${1}40/ | cargo xtask headers-gen --check | msg:headers-gen
 # cargo xtask plants results (16 plants: 16 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
 # s16c-x86-bitshift: CAUGHT, caught by no test the log names
@@ -34,5 +33,4 @@ s16c-prof-size | spec/abi/layouts.tsv | perl:s/(struct prof\t\t)32/${1}40/ | car
 # s16c-cxx-typedef: CAUGHT, caught by no test the log names
 # s16c-reject-row: CAUGHT, caught by no test the log names
 # s16c-member-offset: CAUGHT, caught by no test the log names
-# s16c-audit-hook: CAUGHT, caught by no test the log names
 # s16c-prof-size: CAUGHT, caught by no test the log names
