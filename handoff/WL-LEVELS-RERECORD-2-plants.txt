@@ -1,0 +1,12 @@
+# WL-LEVELS-RERECORD-2 plants (cargo xtask plants): the excursion re-measure of D-X.157 switched off, wired out,
+# made to forget a lower batch, made to hide a real regression, its threshold moved either way, its long-row and
+# lowest-run limits dropped; and a Skylake-SP level edited without its counts.
+excursion-off | validation/wl_stats.sh | lit:        [ -n "$side" ] || break ==>         break | bash validation/wl_stats_test.sh | msg:FAIL k2_excursion
+excursion-unwired | validation/wl_count_run.sh | lit:        wl_excursions xmeasure || echo ==>         : || echo | bash validation/wl_stats_test.sh | msg:FAIL wl_count_run_calls_excursions
+batch-replaces | validation/wl_stats.sh | lit:r[4] = (s[5] + 0 < r[4] + 0) ? s[5] : r[4]; r[7] = lo; ==> r[4] = s[5]; r[7] = s[5]; | bash validation/wl_stats_test.sh | msg:FAIL row_lowest_keeps_lower
+regression-hidden | validation/wl_stats.sh | lit:    [ -n "$WL_XNOTE" ] || return 0 ==>     [ -n "$WL_XNOTE" ] || return 0; [ -n "$(wl_excursion_side "$WL_RN" "$WL_RB")" ] && WL_RN=$WL_RB | bash validation/wl_stats_test.sh | msg:FAIL regression_(stays|still_fails)
+threshold-loose | validation/wl_stats.sh | lit:-v p="${3:-${WL_XPCT:-7}}" ==> -v p="${3:-${WL_XPCT:-30}}" | bash validation/wl_stats_test.sh | msg:FAIL excursion_new_high
+threshold-tight | validation/wl_stats.sh | lit:-v p="${3:-${WL_XPCT:-7}}" ==> -v p="${3:-${WL_XPCT:-2}}" | bash validation/wl_stats_test.sh | msg:FAIL excursion_normal_spread
+long-row-any | validation/wl_stats.sh | lit:-v l="${WL_LONG_INSTR:-4000000000}" ==> -v l="${WL_LONG_INSTR:-0}" | bash validation/wl_stats_test.sh | msg:FAIL short_row_not_remeasured
+median-method-too | validation/wl_stats.sh | lit:    [ "$(wl_fault_field)" = 5 ] || return 0 ==> | bash validation/wl_stats_test.sh | msg:FAIL aslr_not_remeasured
+skx-level-edited | validation/wl_holds.tsv | lit:1.3097 ==> 1.3100 | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv
