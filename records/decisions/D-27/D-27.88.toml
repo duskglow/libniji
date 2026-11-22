@@ -1,0 +1,12 @@
+id = "D-27.88"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "LDSO-PROGRAM-OPTIONS-REST-2"
+date = "2026-11-22"
+amends = ["D-27.80"]
+tests = ["crates/ld/tests/ldso_program_options.rs::ldso_program_option_parsing", "crates/ld/tests/ldso_program_options.rs::ldso_program_inhibit_rpath_hwcaps_and_lists"]
+body = '''
+**`ld.so` run as a program takes `--inhibit-rpath`, `--glibc-hwcaps-prepend`, `--glibc-hwcaps-mask`, `--list-tunables` and `--list-diagnostics` (story LDSO-PROGRAM-OPTIONS-REST-2; rulings #7513, #7514; amends D-27.80, which refused them).** Black-box probes of the reference settle each (spec/behaviour/dynlink.md, "Program mode options"). `--inhibit-rpath LIST`: an object whose load path equals an entry of the colon-separated LIST exactly (no normalisation; the program's own path is never matched) has its `DT_RPATH`/`DT_RUNPATH` ignored for every search; an empty first entry (`''`, `':'`) matches the program; the last copy wins. The check sits in `image::search_list`, reached only when the object has one of the tags, so a start without the option reads one static word per tagged object at most. `--glibc-hwcaps-prepend LIST` searches LIST's subdirectories first (empty names dropped), `--glibc-hwcaps-mask LIST` keeps only the supported subdirectories it names; program mode builds the list once (cold, an anonymous mapping) and keeps it for `dlopen`. The names are bytes as given (`&[u8]` throughout the search; no UTF-8 check, which would add a GOT slot, i.e. a relocation, to every start). `$PLATFORM` comes from the number of supported levels (two or more: `haswell`), with no name comparison. `--list-tunables` prints libniji's own tunables (docs/tunables.md), sorted, `name: value (min: x, max: y)` with sizes in hex and counts in decimal, string tunables as `name:` and their value; `--list-diagnostics` prints `key=value` lines (strings quoted, non-printing bytes as three-digit octal escapes of their value, `[0xN]` indexes, environment variables not on an allowlist as `env_filtered[0xN]="NAME"`) with libniji's keys. Both exit 0 and open no program; the last mode option wins. Their content is libniji's by nature (docs/differences-from-glibc.md). Start-up: none of the five adds instructions to an exec'd start (counts in handoff/LDSO-PROGRAM-OPTIONS-REST-2-report.md). `--audit` stays as D-27.80 has it (rtld-audit is a separate phase, ruling #7514).
+'''
