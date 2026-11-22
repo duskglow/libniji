@@ -1,50 +1,47 @@
-# INTERNAL-ALLOC-ROUTING-2 (handoff; leg 1 = analysis only, no code yet)
+# INTERNAL-ALLOC-ROUTING-2 (handoff; end of leg 2)
 
 State: branch `task/internal-alloc-routing-2`, stacked on INTERNAL-ALLOC-ROUTING (code head fbbb0d309, base
-origin/next 279a24ee4; origin/next is now b69d50e78, not merged). Role keke:~/w/n3 (synced at leg 1, tree
-4277ae0c, nothing built there yet). Read first: handoff/INTERNAL-ALLOC-ROUTING.md and -report.md (start-up table,
-mint table, plants file), then this page. Rulings in force: #7583, #7696, #7697 (dlopen exception accepted), #7698.
+origin/next 279a24ee4, not merged). Role keke:~/w/n3. Leg 2 code: 1b9ba980e + "Drop an unused routing helper"
+(variant (b), atomics). Job `internal-alloc-routing-2-build2` (clippy + static green, then `cargo xtask so`) was
+still linking at hand-over: `~/bin/jobwait internal-alloc-routing-2-build2` first; its product is the (b) build.
 
-## Where the predecessor's start-up cost comes from (read from its diff and an older product's disassembly)
-* `heap::Niji`'s GlobalAlloc methods are inlined at every call site (an older product: 162 calls of
-  `heap::rust_alloc`, 1863 of `heap::rust_dealloc`, 4 of `rust_realloc`, all out of line). The predecessor's
-  `caller_alloc::route() != PRIVATE` test sits in those inlined bodies: a load and a branch per internal
-  allocation, release and resize (about two thirds of +137..+187), plus `decide_route` (six C wrapper calls and
-  the compares, about a third).
+## Rulings in force
+#7583, #7696, #7697, #7698; **#7707** (coordinator): libc-side exact test once in early_init, zero added per
+allocation, report the exact per-start cost in the hand-back's first line, DYN_START_INSTR not loosened; printf
+(step 2) STAYS in this story, size M (use `ops extend-budget` when needed). **#7708 (OWNER): option (a)**: the
+`process-flag` unsafe category now covers the two write-once heap.rs words as well as OWNED_HERE. Switch from
+atomics to plain reads, each with its `// UNSAFE(process-flag)` reason + SAFETY lines, list exactly those three
+reads in xtask/src/policy.rs (PROCESS_FLAG_FILE / PROCESS_FLAG_READ are single values today: make them a list of
+(file, body) pairs), cite #7708 there and in the commit. Report BOTH measurements: (b) counts and (a) counts, per
+start and per internal allocation.
 
-## Design for leg 2 (no instruction added on the ordinary path)
-1. Put `Niji`'s four methods back to next's bodies exactly (no route test at the call sites).
-2. Turn two compares the ordinary path ALREADY makes into compares against start-set plain words. Probe (rustc
-   on the build host, -O, PIC cdylib): a Relaxed atomic load is NOT folded (`mov` + `cmp`, one extra instruction);
-   a plain read of an `UnsafeCell<usize>` in a `Sync` wrapper that some function writes IS folded:
-   `cmpq W(%rip), %rax` - the same count as `cmpq $65536, %rax`. So (niji-boundary heap.rs, UNSAFE comments; written
-   once in early_init, before any thread and before the library's first allocation; read-only afterwards):
-   * `FAST_ALIGN_END` (ordinary `ALIGN + 1`, routed 0) replaces the `align <= ALIGN` test of the fast path in
-     `rust_alloc` / `rust_alloc_zeroed` (needs a niji_rt `Heap` fast-path variant taking the bound; `malloc` keeps
-     the constant, so its code does not change). Shape: `align < end` -> as today (small, then class_for);
-     `align > ALIGN` -> today's over-aligned path (stays private, as D-X.156 already says; +2 instructions only for
-     an over-aligned internal allocation); else (only possible when routed) -> cold `routed_alloc`.
-   * `RESERVE_SPAN` (ordinary `RESERVE`, routed `usize::MAX`) in `in_reserve`: when routed, `rust_dealloc` and
-     `rust_realloc` take the reserve branch, which checks the route FIRST (cold): ROUTED -> `caller_alloc::free` /
-     `realloc`; ROUTED_CHECKED keeps the predecessor's reserve / `HEAP.usable` test. Check every other user of
-     `in_reserve` (reserve_alloc, the stdio slots) keeps its meaning (maybe keep a constant-bound twin for them).
-   * Verify by disassembly of target/niji/libc.so.6 on head and base: `heap10rust_alloc`, `heap12rust_dealloc`,
-     `rust_alloc_zeroed`, `rust_realloc` bodies the same length; call sites with no `ROUTE` load.
-3. The decision, once, in `early_init`. The brief says StartInfo; finding (challenge flagged at leg 1): libniji's
-   ld.so keeps no "replaced" state. Deriving it there costs either a name check on every relocation bound outside
-   its own object (copy relocations do that in every ordinary program) or four bloom/hash lookups in the objects
-   ahead of libc (about 8+ instructions each). The exact and cheapest test is libc's own: its four GOT entries
-   (`&malloc` .. `&free` in csys runtime.c) against hidden local aliases of its own definitions, one expression
-   (~14 instructions, no loop, no six calls). Use StartInfo only if the coordinator answers the challenge so.
-   Either way the start keeps a few instructions (the read and the branch): report the exact delta, never "equal".
-4. Bench as the predecessor did (base and head each in a RAM copy, `cargo xtask bench --compare --counters`
-   startup_instr_setloc / _wctype / _printf / _c, the STARTUP-REPROFILE kit rows, DYN_START_INSTR), and rerun `mint`
-   (the predecessor's probe: its report names it) and `x_internal_alloc`.
+## What leg 2 did (design; do not redo)
+* rt `Heap::alloc_below(sys, pages, size, align, end) -> Result<Option<Block>, Routed>` (new `Routed` type):
+  `align < end` = alloc's path; `align > ALIGN` = class_for path; else `Err(Routed)`. Removed predecessor's
+  `Heap::untouched` (unused now).
+* boundary heap.rs: `Niji` methods back to next's bodies, except `dealloc` picks `rust_dealloc_private` when
+  `layout.align() > ALIGN` (folds at compile time). Words `FAST_ALIGN_END` (ALIGN+1 / 0 routed) and `RESERVE_LAST`
+  (RESERVE-1 / usize::MAX routed), set by `route_internal()`. `rust_alloc(_zeroed)` use `alloc_below` with
+  FAST_ALIGN_END; `rust_dealloc` tests `reserve_or_routed(addr)` (`addr - base <= RESERVE_LAST`) then cold
+  `release_cold` (reserve block -> reserve, else replacement's free); `rust_realloc` uses `reserve_or_routed`
+  and its fallback frees by alignment. Over-aligned internal blocks stay private (D-X.156).
+* caller_alloc.rs: ROUTE/ROUTED/ROUTED_CHECKED removed; `family_replaced` = one C call
+  `niji_link_alloc_family(w[6])` (runtime.c, adapter: no logic) + branch-free compares; `decide_route` calls
+  `heap::route_internal`. startup-state.list: ROUTE replaced by the two words.
+* Why not route frees through the misuse path: a forwarding replacement (wrapper calling the real malloc) hands
+  back heap blocks, whose frees would then bypass its `free`.
 
-## Step 2 (printf, #7698): not started
-Probe the reference with a counting and a refusing replacement over the brief's corpus; where it makes no call,
-libniji must make none (D-12.12 format tables: keep them on the stack or in static storage for the common
-conversions). The brief sizes the story S; with step 1 it is two changes (challenge recommends a separate story).
-
-## Next step
-Leg 2: implement step 1 (items 1-3), build (`cargo xtask so` on keke n3 under jobrun), disassemble, bench base vs head.
+## Next steps (leg 3)
+1. jobwait build2. Bench (b): base vs head as the predecessor did (handoff/INTERNAL-ALLOC-ROUTING-report.md:
+   RAM copies, `cargo xtask bench --compare --counters` startup_instr_setloc/_wctype/_printf/_c, STARTUP-REPROFILE
+   kit rows, DYN_START_INSTR). Record (b) numbers in the report.
+2. Switch to (a) (plain reads, policy.rs list, #7708), build, disassemble `rust_alloc`, `rust_dealloc`,
+   `rust_alloc_zeroed`, `rust_realloc` on head vs base (same instruction count on the ordinary path), bench (a).
+   Rerun `mint` and `x_internal_alloc` (conformance; the predecessor's plants file names the command).
+3. Step 2 printf (#7698): probe reference with counting and refusing replacements over the brief's corpus;
+   no allocation where the reference makes none (D-12.12 tables static/stack for common conversions).
+4. Tests + plants (docs/plants.md form, `cargo xtask plants`): a per-allocation route test put back on the
+   ordinary path (caught by a counts/hot-text test or disassembly-based test), a heap table for a plain %d.
+   The predecessor's `no-route` plant text no longer matches (now `if family_replaced() {`).
+5. Start-up checks (§9): `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so && ... hot_text_products`;
+   direct gate; precheck; D-X.156 text update; report json.
