@@ -39,6 +39,9 @@ D-X.14 (caller memory through the symbols). Ruling #7583.
 | time zones, catalogs, resolver, NSS, regex | - | through the same global allocator | routed (not probed one by one) |
 
 ## Open
+* RULING NEEDED (start-up cost): dynamic start-up rows +137..+187 user instructions (+0.22..0.29%; startup_instr_c 0),
+  against the brief's "start-up must not move": the decision's wrapper calls once, then a load and branch per internal
+  allocation. Recommend accept; follow-up: ld.so passes "family replaced" in StartInfo. Numbers in the report.
 * RULING NEEDED (dlopen): the loader's object tables stay in ld.so's mappings (no heap; lock-free readers). Recommend:
   accept as the ruling's "ld.so's own data" exception (row written).
 * RULING NEEDED (printf, D-12.12): the printf family's format tables are internal allocations, now routed, so a
