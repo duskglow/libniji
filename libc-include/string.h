@@ -278,6 +278,177 @@ extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW __attribute__ 
 extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bcopy
+#  define __NIJI_F_bcopy 1
+__NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  __builtin___memmove_chk (__p1, __p0, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bzero
+#  define __NIJI_F_bzero 1
+__NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  __builtin___memset_chk (__p0, 0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_explicit_bzero
+#  define __NIJI_F_explicit_bzero 1
+#  ifndef __NIJI_D___explicit_bzero_chk
+#   define __NIJI_D___explicit_bzero_chk 1
+extern void __explicit_bzero_chk (void *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (explicit_bzero) __niji_plain_explicit_bzero __asm__ ("explicit_bzero");
+__NIJI_FORTIFY_FN void explicit_bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    { __niji_plain_explicit_bzero (__p0, __p1); return; }
+  __explicit_bzero_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memcpy
+#  define __NIJI_F_memcpy 1
+__NIJI_FORTIFY_FN void *memcpy (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memmove
+#  define __NIJI_F_memmove 1
+__NIJI_FORTIFY_FN void *memmove (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memmove_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mempcpy
+#  define __NIJI_F_mempcpy 1
+__NIJI_FORTIFY_FN void *mempcpy (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___mempcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memset
+#  define __NIJI_F_memset 1
+__NIJI_FORTIFY_FN void *memset (void *__p0, int __p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memset_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_stpcpy
+#  define __NIJI_F_stpcpy 1
+__NIJI_FORTIFY_FN char *stpcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___stpcpy_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_stpncpy
+#  define __NIJI_F_stpncpy 1
+__NIJI_FORTIFY_FN char *stpncpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___stpncpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strcat
+#  define __NIJI_F_strcat 1
+__NIJI_FORTIFY_FN char *strcat (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___strcat_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strcpy
+#  define __NIJI_F_strcpy 1
+__NIJI_FORTIFY_FN char *strcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___strcpy_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strlcat
+#  define __NIJI_F_strlcat 1
+#  ifndef __NIJI_D___strlcat_chk
+#   define __NIJI_D___strlcat_chk 1
+extern unsigned long __strlcat_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (strlcat) __niji_plain_strlcat __asm__ ("strlcat");
+__NIJI_FORTIFY_FN unsigned long strlcat (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
+    return __niji_plain_strlcat (__p0, __p1, __p2);
+  return __strlcat_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strlcpy
+#  define __NIJI_F_strlcpy 1
+#  ifndef __NIJI_D___strlcpy_chk
+#   define __NIJI_D___strlcpy_chk 1
+extern unsigned long __strlcpy_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (strlcpy) __niji_plain_strlcpy __asm__ ("strlcpy");
+__NIJI_FORTIFY_FN unsigned long strlcpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
+    return __niji_plain_strlcpy (__p0, __p1, __p2);
+  return __strlcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strncat
+#  define __NIJI_F_strncat 1
+__NIJI_FORTIFY_FN char *strncat (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___strncat_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strncpy
+#  define __NIJI_F_strncpy 1
+__NIJI_FORTIFY_FN char *strncpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___strncpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
 
 #if 1
 # ifndef NULL

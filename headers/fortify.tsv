@@ -30,17 +30,17 @@ bzero	builtin	__builtin___memset_chk ($0, 0, $1, $S0)	-	0
 confstr	chk	$0, $1, $2, $S1	$2 <= $S1	0
 dprintf	va	$0, $F, $1, $V	-	0
 explicit_bzero	chk	$0, $1, $S0	$1 <= $S0	0
-fgets	chk	$0, $S0, $1, $2	$1 > 0 && (size_t) $1 <= $S0	0
-fgets_unlocked	chk	$0, $S0, $1, $2	$1 > 0 && (size_t) $1 <= $S0	0
-fgetws	chk	$0, $E0, $1, $2	$1 > 0 && (size_t) $1 <= $E0	0
-fgetws_unlocked	chk	$0, $E0, $1, $2	$1 > 0 && (size_t) $1 <= $E0	0
+fgets	chk	$0, $S0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $S0	0
+fgets_unlocked	chk	$0, $S0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $S0	0
+fgetws	chk	$0, $E0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $E0	0
+fgetws_unlocked	chk	$0, $E0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $E0	0
 fprintf	va	$0, $F, $1, $V	-	0
 fread	chk	$0, $S0, $1, $2, $3	$1 != 0 && $2 <= $S0 / $1	0
 fread_unlocked	chk	$0, $S0, $1, $2, $3	$1 != 0 && $2 <= $S0 / $1	0
 fwprintf	va	$0, $F, $1, $V	-	0
 getcwd	chk	$0, $1, $S0	$1 <= $S0	0
 getdomainname	chk	$0, $1, $S0	$1 <= $S0	0
-getgroups	chk	$0, $1, $S1	$0 >= 0 && (size_t) $0 <= $E1	0
+getgroups	chk	$0, $1, $S1	$0 >= 0 && (__SIZE_TYPE__) $0 <= $E1	0
 gethostname	chk	$0, $1, $S0	$1 <= $S0	0
 getlogin_r	chk	$0, $1, $S0	$1 <= $S0	0
 getwd	chk	$0, $S0	-	0

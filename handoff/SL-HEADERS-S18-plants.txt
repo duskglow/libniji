@@ -1,0 +1,2 @@
+wrapper-removed | headers/fortify.tsv | perl:s/memcpy\tbuiltin/memcpy_gone\tbuiltin/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort
+size-off-by-one | xtask/src/headers/slices/s18.rs | perl:s/\Q"__NIJI_BOS (__p{digits}, {t})"\E/"(__NIJI_BOS (__p{digits}, {t}) + 1)"/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort

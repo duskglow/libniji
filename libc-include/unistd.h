@@ -3758,6 +3758,243 @@ enum { _SC_XOPEN_XPG4 = 100 };
 #  define _POSIX_THREAD_ROBUST_PRIO_PROTECT (-1)
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (__NIJI_POSIX >= 2) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_confstr
+#  define __NIJI_F_confstr 1
+#  ifndef __NIJI_D___confstr_chk
+#   define __NIJI_D___confstr_chk 1
+extern unsigned long __confstr_chk (int, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (confstr) __niji_plain_confstr __asm__ ("confstr");
+__NIJI_FORTIFY_FN unsigned long confstr (int __p0, char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_confstr (__p0, __p1, __p2);
+  return __confstr_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_getcwd
+#  define __NIJI_F_getcwd 1
+#  ifndef __NIJI_D___getcwd_chk
+#   define __NIJI_D___getcwd_chk 1
+extern char *__getcwd_chk (char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (getcwd) __niji_plain_getcwd __asm__ ("getcwd");
+__NIJI_FORTIFY_FN char *getcwd (char *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_getcwd (__p0, __p1);
+  return __getcwd_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_getdomainname
+#  define __NIJI_F_getdomainname 1
+#  ifndef __NIJI_D___getdomainname_chk
+#   define __NIJI_D___getdomainname_chk 1
+extern int __getdomainname_chk (char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (getdomainname) __niji_plain_getdomainname __asm__ ("getdomainname");
+__NIJI_FORTIFY_FN int getdomainname (char *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_getdomainname (__p0, __p1);
+  return __getdomainname_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_getgroups
+#  define __NIJI_F_getgroups 1
+#  ifndef __NIJI_D___getgroups_chk
+#   define __NIJI_D___getgroups_chk 1
+extern int __getgroups_chk (int, unsigned int *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (getgroups) __niji_plain_getgroups __asm__ ("getgroups");
+__NIJI_FORTIFY_FN int getgroups (int __p0, unsigned int *__p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p0 >= 0 && (__SIZE_TYPE__) __p0 <= (__NIJI_BOS (__p1, 0) / sizeof (*__p1))) && (__p0 >= 0 && (__SIZE_TYPE__) __p0 <= (__NIJI_BOS (__p1, 0) / sizeof (*__p1)))))
+    return __niji_plain_getgroups (__p0, __p1);
+  return __getgroups_chk (__p0, __p1, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200112 || __NIJI_XSI >= 450) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_gethostname
+#  define __NIJI_F_gethostname 1
+#  ifndef __NIJI_D___gethostname_chk
+#   define __NIJI_D___gethostname_chk 1
+extern int __gethostname_chk (char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (gethostname) __niji_plain_gethostname __asm__ ("gethostname");
+__NIJI_FORTIFY_FN int gethostname (char *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_gethostname (__p0, __p1);
+  return __gethostname_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 199506) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_getlogin_r
+#  define __NIJI_F_getlogin_r 1
+#  ifndef __NIJI_D___getlogin_r_chk
+#   define __NIJI_D___getlogin_r_chk 1
+extern int __getlogin_r_chk (char *, unsigned long, unsigned long);
+#  endif
+extern __typeof__ (getlogin_r) __niji_plain_getlogin_r __asm__ ("getlogin_r");
+__NIJI_FORTIFY_FN int getlogin_r (char *__p0, unsigned long __p1)
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_getlogin_r (__p0, __p1);
+  return __getlogin_r_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC || (__NIJI_POSIX < 200809 && __NIJI_XSI >= 450)) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_getwd
+#  define __NIJI_F_getwd 1
+#  ifndef __NIJI_D___getwd_chk
+#   define __NIJI_D___getwd_chk 1
+extern char *__getwd_chk (char *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (getwd) __niji_plain_getwd __asm__ ("getwd");
+__NIJI_FORTIFY_FN char *getwd (char *__p0) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1)
+    return __niji_plain_getwd (__p0);
+  return __getwd_chk (__p0, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809 || __NIJI_XSI >= 500) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_pread
+#  define __NIJI_F_pread 1
+#  if __NIJI_FOB64
+#  ifndef __NIJI_D___pread64_chk
+#   define __NIJI_D___pread64_chk 1
+extern long __pread64_chk (int, void *, unsigned long, long, unsigned long);
+#  endif
+extern __typeof__ (pread) __niji_plain_pread __asm__ ("pread64");
+__NIJI_FORTIFY_FN long pread (int __p0, void *__p1, unsigned long __p2, long __p3)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_pread (__p0, __p1, __p2, __p3);
+  return __pread64_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p1, 0));
+}
+#  else
+#  ifndef __NIJI_D___pread_chk
+#   define __NIJI_D___pread_chk 1
+extern long __pread_chk (int, void *, unsigned long, long, unsigned long);
+#  endif
+extern __typeof__ (pread) __niji_plain_pread __asm__ ("pread");
+__NIJI_FORTIFY_FN long pread (int __p0, void *__p1, unsigned long __p2, long __p3)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_pread (__p0, __p1, __p2, __p3);
+  return __pread_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p1, 0));
+}
+#  endif
+# endif
+#endif
+#if (__NIJI_LFS64) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_pread64
+#  define __NIJI_F_pread64 1
+#  ifndef __NIJI_D___pread64_chk
+#   define __NIJI_D___pread64_chk 1
+extern long __pread64_chk (int, void *, unsigned long, long, unsigned long);
+#  endif
+extern __typeof__ (pread64) __niji_plain_pread64 __asm__ ("pread64");
+__NIJI_FORTIFY_FN long pread64 (int __p0, void *__p1, unsigned long __p2, long __p3)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_pread64 (__p0, __p1, __p2, __p3);
+  return __pread64_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_read
+#  define __NIJI_F_read 1
+#  ifndef __NIJI_D___read_chk
+#   define __NIJI_D___read_chk 1
+extern long __read_chk (int, void *, unsigned long, unsigned long);
+#  endif
+extern __typeof__ (read) __niji_plain_read __asm__ ("read");
+__NIJI_FORTIFY_FN long read (int __p0, void *__p1, unsigned long __p2)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_read (__p0, __p1, __p2);
+  return __read_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200112 || __NIJI_XSI >= 450) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_readlink
+#  define __NIJI_F_readlink 1
+#  ifndef __NIJI_D___readlink_chk
+#   define __NIJI_D___readlink_chk 1
+extern long __readlink_chk (const char *, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (readlink) __niji_plain_readlink __asm__ ("readlink");
+__NIJI_FORTIFY_FN long readlink (const char *__p0, char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_readlink (__p0, __p1, __p2);
+  return __readlink_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_readlinkat
+#  define __NIJI_F_readlinkat 1
+#  ifndef __NIJI_D___readlinkat_chk
+#   define __NIJI_D___readlinkat_chk 1
+extern long __readlinkat_chk (int, const char *, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (readlinkat) __niji_plain_readlinkat __asm__ ("readlinkat");
+__NIJI_FORTIFY_FN long readlinkat (int __p0, const char *__p1, char *__p2, unsigned long __p3) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p2, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p3 <= __NIJI_BOS (__p2, 0)) && (__p3 <= __NIJI_BOS (__p2, 0))))
+    return __niji_plain_readlinkat (__p0, __p1, __p2, __p3);
+  return __readlinkat_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p2, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_ttyname_r
+#  define __NIJI_F_ttyname_r 1
+#  ifndef __NIJI_D___ttyname_r_chk
+#   define __NIJI_D___ttyname_r_chk 1
+extern int __ttyname_r_chk (int, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (ttyname_r) __niji_plain_ttyname_r __asm__ ("ttyname_r");
+__NIJI_FORTIFY_FN int ttyname_r (int __p0, char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_ttyname_r (__p0, __p1, __p2);
+  return __ttyname_r_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
 
 #if 1
 # ifndef NULL

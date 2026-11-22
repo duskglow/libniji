@@ -1106,6 +1106,101 @@ extern int posix_openpt (int) __attribute__ ((__warn_unused_result__));
 #  define WSTOPPED 2
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mbstowcs
+#  define __NIJI_F_mbstowcs 1
+#  ifndef __NIJI_D___mbstowcs_chk
+#   define __NIJI_D___mbstowcs_chk 1
+extern unsigned long __mbstowcs_chk (wchar_t *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (mbstowcs) __niji_plain_mbstowcs __asm__ ("mbstowcs");
+__NIJI_FORTIFY_FN unsigned long mbstowcs (wchar_t *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_mbstowcs (__p0, __p1, __p2);
+  return __mbstowcs_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_GNU || __NIJI_FORTIFY >= 1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_ptsname_r
+#  define __NIJI_F_ptsname_r 1
+#  ifndef __NIJI_D___ptsname_r_chk
+#   define __NIJI_D___ptsname_r_chk 1
+extern int __ptsname_r_chk (int, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (ptsname_r) __niji_plain_ptsname_r __asm__ ("ptsname_r");
+__NIJI_FORTIFY_FN int ptsname_r (int __p0, char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_ptsname_r (__p0, __p1, __p2);
+  return __ptsname_r_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC || __NIJI_XSI >= 450) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_realpath
+#  define __NIJI_F_realpath 1
+#  ifndef __NIJI_D___realpath_chk
+#   define __NIJI_D___realpath_chk 1
+extern char *__realpath_chk (const char *, char *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (realpath) __niji_plain_realpath __asm__ ("realpath");
+__NIJI_FORTIFY_FN char *realpath (const char *__p0, char *__p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1)
+    return __niji_plain_realpath (__p0, __p1);
+  return __realpath_chk (__p0, __p1, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcstombs
+#  define __NIJI_F_wcstombs 1
+#  ifndef __NIJI_D___wcstombs_chk
+#   define __NIJI_D___wcstombs_chk 1
+extern unsigned long __wcstombs_chk (char *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (wcstombs) __niji_plain_wcstombs __asm__ ("wcstombs");
+__NIJI_FORTIFY_FN unsigned long wcstombs (char *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, 0)) && (__p2 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_wcstombs (__p0, __p1, __p2);
+  return __wcstombs_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wctomb
+#  define __NIJI_F_wctomb 1
+#  ifndef __NIJI_D___wctomb_chk
+#   define __NIJI_D___wctomb_chk 1
+extern int __wctomb_chk (char *, wchar_t, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern __typeof__ (wctomb) __niji_plain_wctomb __asm__ ("wctomb");
+__NIJI_FORTIFY_FN int wctomb (char *__p0, wchar_t __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wctomb (__p0, __p1);
+  return __wctomb_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
 
 /* alloca and the byte-order conversions are <alloca.h>'s and <endian.h>'s, where this header exposes them. */
 #if __NIJI_MISC

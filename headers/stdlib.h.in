@@ -11,6 +11,7 @@ __NIJI_BEGIN_C
 @@owns NULL MB_CUR_MAX WEXITSTATUS WIFCONTINUED WIFEXITED WSTOPSIG WTERMSIG FD_CLR FD_ISSET FD_SET FD_ZERO
 @@owns-macro alloca be16toh le64toh
 @@emit
+@@fortify
 
 /* alloca and the byte-order conversions are <alloca.h>'s and <endian.h>'s, where this header exposes them. */
 @@when alloca

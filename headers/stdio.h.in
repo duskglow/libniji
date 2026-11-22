@@ -45,6 +45,7 @@ extern FILE *stdout;
 extern FILE *stderr;
 #endif
 
+@@fortify
 __NIJI_END_C
 
 #endif
