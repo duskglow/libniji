@@ -82,123 +82,123 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_posix_spawn
 #  define __NIJI_D_posix_spawn 1
-extern int posix_spawn (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *);
+extern int posix_spawn (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addclose
 #  define __NIJI_D_posix_spawn_file_actions_addclose 1
-extern int posix_spawn_file_actions_addclose (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addclose (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_adddup2
 #  define __NIJI_D_posix_spawn_file_actions_adddup2 1
-extern int posix_spawn_file_actions_adddup2 (posix_spawn_file_actions_t *, int, int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_adddup2 (posix_spawn_file_actions_t *, int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addopen
 #  define __NIJI_D_posix_spawn_file_actions_addopen 1
-extern int posix_spawn_file_actions_addopen (posix_spawn_file_actions_t *, int, const char *, int, unsigned int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addopen (posix_spawn_file_actions_t *, int, const char *, int, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_destroy
 #  define __NIJI_D_posix_spawn_file_actions_destroy 1
-extern int posix_spawn_file_actions_destroy (posix_spawn_file_actions_t *) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_destroy (posix_spawn_file_actions_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_init
 #  define __NIJI_D_posix_spawn_file_actions_init 1
-extern int posix_spawn_file_actions_init (posix_spawn_file_actions_t *) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_init (posix_spawn_file_actions_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_destroy
 #  define __NIJI_D_posix_spawnattr_destroy 1
-extern int posix_spawnattr_destroy (posix_spawnattr_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_destroy (posix_spawnattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getflags
 #  define __NIJI_D_posix_spawnattr_getflags 1
-extern int posix_spawnattr_getflags (const posix_spawnattr_t *, short int *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getflags (const posix_spawnattr_t *, short int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getpgroup
 #  define __NIJI_D_posix_spawnattr_getpgroup 1
-extern int posix_spawnattr_getpgroup (const posix_spawnattr_t *, int *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getpgroup (const posix_spawnattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct sched_param;
 # ifndef __NIJI_D_posix_spawnattr_getschedparam
 #  define __NIJI_D_posix_spawnattr_getschedparam 1
-extern int posix_spawnattr_getschedparam (const posix_spawnattr_t *, struct sched_param *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getschedparam (const posix_spawnattr_t *, struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getschedpolicy
 #  define __NIJI_D_posix_spawnattr_getschedpolicy 1
-extern int posix_spawnattr_getschedpolicy (const posix_spawnattr_t *, int *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getschedpolicy (const posix_spawnattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getsigdefault
 #  define __NIJI_D_posix_spawnattr_getsigdefault 1
-extern int posix_spawnattr_getsigdefault (const posix_spawnattr_t *, sigset_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getsigdefault (const posix_spawnattr_t *, sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getsigmask
 #  define __NIJI_D_posix_spawnattr_getsigmask 1
-extern int posix_spawnattr_getsigmask (const posix_spawnattr_t *, sigset_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getsigmask (const posix_spawnattr_t *, sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_init
 #  define __NIJI_D_posix_spawnattr_init 1
-extern int posix_spawnattr_init (posix_spawnattr_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_init (posix_spawnattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setflags
 #  define __NIJI_D_posix_spawnattr_setflags 1
-extern int posix_spawnattr_setflags (posix_spawnattr_t *, short int) __NIJI_NOTHROW;
+extern int posix_spawnattr_setflags (posix_spawnattr_t *, short int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setpgroup
 #  define __NIJI_D_posix_spawnattr_setpgroup 1
-extern int posix_spawnattr_setpgroup (posix_spawnattr_t *, int) __NIJI_NOTHROW;
+extern int posix_spawnattr_setpgroup (posix_spawnattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct sched_param;
 # ifndef __NIJI_D_posix_spawnattr_setschedparam
 #  define __NIJI_D_posix_spawnattr_setschedparam 1
-extern int posix_spawnattr_setschedparam (posix_spawnattr_t *, const struct sched_param *) __NIJI_NOTHROW;
+extern int posix_spawnattr_setschedparam (posix_spawnattr_t *, const struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setschedpolicy
 #  define __NIJI_D_posix_spawnattr_setschedpolicy 1
-extern int posix_spawnattr_setschedpolicy (posix_spawnattr_t *, int) __NIJI_NOTHROW;
+extern int posix_spawnattr_setschedpolicy (posix_spawnattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setsigdefault
 #  define __NIJI_D_posix_spawnattr_setsigdefault 1
-extern int posix_spawnattr_setsigdefault (posix_spawnattr_t *, const sigset_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_setsigdefault (posix_spawnattr_t *, const sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setsigmask
 #  define __NIJI_D_posix_spawnattr_setsigmask 1
-extern int posix_spawnattr_setsigmask (posix_spawnattr_t *, const sigset_t *) __NIJI_NOTHROW;
+extern int posix_spawnattr_setsigmask (posix_spawnattr_t *, const sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnp
 #  define __NIJI_D_posix_spawnp 1
-extern int posix_spawnp (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *);
+extern int posix_spawnp (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_pidfd_spawn
 #  define __NIJI_D_pidfd_spawn 1
-extern int pidfd_spawn (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *);
+extern int pidfd_spawn (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (2, 5)));
 # endif
 # ifndef __NIJI_D_pidfd_spawnp
 #  define __NIJI_D_pidfd_spawnp 1
-extern int pidfd_spawnp (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *);
+extern int pidfd_spawnp (int *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const *, char *const *) __attribute__ ((__nonnull__ (1, 2, 5)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addchdir_np
 #  define __NIJI_D_posix_spawn_file_actions_addchdir_np 1
-extern int posix_spawn_file_actions_addchdir_np (posix_spawn_file_actions_t *, const char *) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addchdir_np (posix_spawn_file_actions_t *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addclosefrom_np
 #  define __NIJI_D_posix_spawn_file_actions_addclosefrom_np 1
-extern int posix_spawn_file_actions_addclosefrom_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addclosefrom_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addfchdir_np
 #  define __NIJI_D_posix_spawn_file_actions_addfchdir_np 1
-extern int posix_spawn_file_actions_addfchdir_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addfchdir_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawn_file_actions_addtcsetpgrp_np
 #  define __NIJI_D_posix_spawn_file_actions_addtcsetpgrp_np 1
-extern int posix_spawn_file_actions_addtcsetpgrp_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW;
+extern int posix_spawn_file_actions_addtcsetpgrp_np (posix_spawn_file_actions_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_getcgroup_np
 #  define __NIJI_D_posix_spawnattr_getcgroup_np 1
-extern int posix_spawnattr_getcgroup_np (const posix_spawnattr_t *, int *) __NIJI_NOTHROW;
+extern int posix_spawnattr_getcgroup_np (const posix_spawnattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_posix_spawnattr_setcgroup_np
 #  define __NIJI_D_posix_spawnattr_setcgroup_np 1
-extern int posix_spawnattr_setcgroup_np (posix_spawnattr_t *, int) __NIJI_NOTHROW;
+extern int posix_spawnattr_setcgroup_np (posix_spawnattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if 1

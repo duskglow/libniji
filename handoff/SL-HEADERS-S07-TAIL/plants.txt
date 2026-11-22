@@ -7,3 +7,4 @@ s7t-ioctl-value | libc-include/sys/ioctl.h | lit:#  define TIOCGWINSZ 21523 ==> 
 s7t-param-value | libc-include/sys/param.h | lit:#  define MAXSYMLINKS 20 ==> #  define MAXSYMLINKS 21 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/param.h
 s7t-guarded-include | libc-include/arpa/nameser.h | lit:#include <sys/param.h> ==> #include <sys/param.h> /* __has_include(<sys/param.h>) */ | python3 spec/tools/header_check.py | msg:guards the include of <sys/param.h>
 s7t-wait-no-signal | libc-include/sys/wait.h | lit:# include <signal.h> ==> # include <stddef.h> | python3 spec/tools/header_check.py | msg:FAIL P1 sys/wait.h
+s7t-spawn-nonnull | spec/abi/diagattrs.tsv | perl:s/^posix_spawnattr_init\t1\t/posix_spawnattr_init\t\t/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:posix_spawnattr_init n 1
