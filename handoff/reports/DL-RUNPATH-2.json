@@ -1,0 +1,21 @@
+{"task": "DL-RUNPATH-2", "model": "opus", "tokens": null,
+ "result": "origin/next (arena loader tables, COMPAT-19 start path) merged into DL-RUNPATH; secure-mode dlopen $ORIGIN test (ruling #7190) added; y10 #10/#18 now 20 PASS / 0 FAIL",
+ "branch": "task/dl-runpath-2", "head": "e6047c2f1",
+ "gate": {"affected": "direct tier: 4 suites, 83 passed / 0 failed", "peak": "2.4G"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "Coordinator note #7265: DT_NEEDED libc.so.6 by soname with DT_RPATH/DT_RUNPATH <dir>: the reference maps <dir>/libc.so.6; libniji opens only /lib/libc.so.6 (<prefix>/<libdir>, the pin of R14-3 (a) / threat-model rule 9) and fails. Not the $ORIGIN search defect; the pin has no differences-from-glibc.md row", "recommendation": "keep the pin, add the differences row; decide separately whether a development build with products outside the prefix gets a fallback"}],
+ "informational": [
+   "Ruling #7190 asked for 'the hook or seam the start uses for #7094': the start has none (its secure tests use set-group-ID copies). The new test forces AT_SECURE in the test program's own auxiliary vector (no product seam) and gets a trusted $ORIGIN by binding the corpus over a default directory in unshare -r -m; it also runs a set-group-ID copy (the kernel's flag)",
+   "$PLATFORM is haswell on an x86-64-v3 CPU (D-27.16); on the Zen 1 host the reference gives x86_64: a loader story should probe both",
+   "start-time objects without DT_SONAME are still left out of a handle's local scope (adopt_deps matches soname or path only)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "dlopen of a bare name through the program's DT_RUNPATH $ORIGIN (Yohane y10 probe, dl-nopie and dl-pie) in a trixie root with this head's packages", "before": "1 FAIL", "after": "0 FAIL (20 PASS)", "unit": "y10 probe lines", "measured": true},
+   {"kind": "coverage", "what": "secure_dlopen_origin_only_trusted (forced flag untrusted / trusted, set-group-ID) and plant no-secure-rule", "before": 4, "after": 5, "unit": "runpath_search tests", "measured": true},
+   {"kind": "unblock", "what": "DL-RUNPATH lands (CI conflict in dlopen.rs resolved onto the arena API)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A brief that names a release probe (y10) could name its script and package recipe; finding them took several calls. A 'force AT_SECURE in the test's own auxv' helper beside the set-group-ID helpers would let every secure-mode test run without a supplementary group",
+ "next_step": "Land; the owner's set-user-ID probe in handoff/DL-RUNPATH.md (root); the $PLATFORM probe on a v3 Intel host and an AMD host",
+ "report_file": "handoff/DL-RUNPATH.md",
+ "jobs": ["dl-runpath-2-gate", "dl-runpath-2-plants", "dl-runpath-2-y10", "dl-runpath-2-startup", "dl-runpath-2-check1"]}

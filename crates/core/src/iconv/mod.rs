@@ -59,14 +59,16 @@ pub enum Codec {
     Charmap(CharmapRef),
     /// EUC-JP, built in from the WHATWG JIS X 0208 and JIS X 0212 indexes (`jis`).
     EucJp,
-    /// BIG5, EUC-KR, CP932, CP936 or GB18030, built in from public mapping tables and the
+    /// BIG5, EUC-KR, CP949, CP932, CP936 or GB18030, built in from public mapping tables and the
     /// reference library's probed variant of each (`cjk`).
     Cjk(cjk::Which),
 }
 
 /// The built-in names (compared without regard to case). The reference library's aliases of
-/// ASCII and ISO-8859-1 are the ones their charmaps list.
-const NAMES: [(&[u8], Codec); 78] = [
+/// ASCII and ISO-8859-1 are the ones their charmaps list, plus every name the reference's
+/// `iconv -l` lists whose conversion a black-box probe found identical to a built-in's
+/// (`spec/encoding/iconv-names.md`, rule 5).
+const NAMES: [(&[u8], Codec); 101] = [
     (b"BIG5", Codec::Cjk(cjk::Which::Big5)),
     (b"BIG-5", Codec::Cjk(cjk::Which::Big5)),
     (b"BIG-FIVE", Codec::Cjk(cjk::Which::Big5)),
@@ -77,10 +79,15 @@ const NAMES: [(&[u8], Codec); 78] = [
     (b"EUCKR", Codec::Cjk(cjk::Which::EucKr)),
     (b"CSEUCKR", Codec::Cjk(cjk::Which::EucKr)),
     (b"OSF0004000A", Codec::Cjk(cjk::Which::EucKr)),
+    (b"CP949", Codec::Cjk(cjk::Which::Cp949)),
+    (b"UHC", Codec::Cjk(cjk::Which::Cp949)),
+    (b"MSCP949", Codec::Cjk(cjk::Which::Cp949)),
+    (b"OSF100203B5", Codec::Cjk(cjk::Which::Cp949)),
     (b"GB18030", Codec::Cjk(cjk::Which::Gb18030)),
     (b"CP932", Codec::Cjk(cjk::Which::Cp932)),
     (b"MS932", Codec::Cjk(cjk::Which::Cp932)),
     (b"WINDOWS-31J", Codec::Cjk(cjk::Which::Cp932)),
+    (b"CSWINDOWS31J", Codec::Cjk(cjk::Which::Cp932)),
     (b"SJIS-OPEN", Codec::Cjk(cjk::Which::Cp932)),
     (b"SJIS-WIN", Codec::Cjk(cjk::Which::Cp932)),
     (b"CP936", Codec::Cjk(cjk::Which::Cp936)),
@@ -98,6 +105,7 @@ const NAMES: [(&[u8], Codec); 78] = [
     (b"ISO-10646/UTF8", Codec::Utf8),
     (b"ISO-10646/UTF-8", Codec::Utf8),
     (b"ISO-IR-193", Codec::Utf8),
+    (b"OSF05010001", Codec::Utf8),
     (b"UTF-16", Codec::Utf16(None)),
     (b"UTF16", Codec::Utf16(None)),
     (b"UTF-16LE", Codec::Utf16(Some(Order::Le))),
@@ -114,6 +122,10 @@ const NAMES: [(&[u8], Codec); 78] = [
     (b"UCS2", Codec::Ucs2(Order::Le)),
     (b"ISO-10646/UCS2", Codec::Ucs2(Order::Le)),
     (b"CSUNICODE", Codec::Ucs2(Order::Le)),
+    (b"UNICODE", Codec::Ucs2(Order::Le)),
+    (b"OSF00010100", Codec::Ucs2(Order::Le)),
+    (b"OSF00010101", Codec::Ucs2(Order::Le)),
+    (b"OSF00010102", Codec::Ucs2(Order::Le)),
     (b"UCS-2LE", Codec::Ucs2(Order::Le)),
     (b"UNICODELITTLE", Codec::Ucs2(Order::Le)),
     (b"UCS-2BE", Codec::Ucs2(Order::Be)),
@@ -125,6 +137,9 @@ const NAMES: [(&[u8], Codec); 78] = [
     (b"10646-1:1993", Codec::Ucs4(Order::Be)),
     (b"10646-1:1993/UCS4", Codec::Ucs4(Order::Be)),
     (b"CSUCS4", Codec::Ucs4(Order::Be)),
+    (b"OSF00010104", Codec::Ucs4(Order::Be)),
+    (b"OSF00010105", Codec::Ucs4(Order::Be)),
+    (b"OSF00010106", Codec::Ucs4(Order::Be)),
     (b"UCS-4BE", Codec::Ucs4(Order::Be)),
     (b"UCS-4LE", Codec::Ucs4(Order::Le)),
     (b"WCHAR_T", Codec::Ucs4(Order::Le)),
@@ -139,6 +154,16 @@ const NAMES: [(&[u8], Codec); 78] = [
     (b"IBM367", Codec::Ascii),
     (b"CP367", Codec::Ascii),
     (b"CSASCII", Codec::Ascii),
+    (b"ANSI_X3.4", Codec::Ascii),
+    (b"IBM891", Codec::Ascii),
+    (b"CP891", Codec::Ascii),
+    (b"CSIBM891", Codec::Ascii),
+    (b"IBM903", Codec::Ascii),
+    (b"CP903", Codec::Ascii),
+    (b"CSIBM903", Codec::Ascii),
+    (b"OSF00010020", Codec::Ascii),
+    (b"OSF1002037B", Codec::Ascii),
+    (b"OSF10020387", Codec::Ascii),
     (b"ISO-8859-1", Codec::Latin1),
     (b"ISO_8859-1", Codec::Latin1),
     (b"ISO8859-1", Codec::Latin1),
@@ -1191,7 +1216,7 @@ fn untag(t: usize, addr: usize, charmap_at: &dyn Fn(usize) -> &'static Charmap) 
         13 => Codec::Latin1,
         14 if addr != 0 => Codec::Charmap(CharmapRef(charmap_at(addr))),
         15 => Codec::EucJp,
-        16..=20 => Codec::Cjk(*cjk::Which::ALL.get(t - 16)?),
+        16..=21 => Codec::Cjk(*cjk::Which::ALL.get(t - 16)?),
         _ => return None,
     })
 }

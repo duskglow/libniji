@@ -1,9 +1,10 @@
-//! The tables of the built-in East Asian multi-byte codecs (BIG5, EUC-KR, CP932, CP936, GB18030),
-//! part of `cargo xtask encodings-gen`.
+//! The tables of the built-in East Asian multi-byte codecs (BIG5, EUC-KR, CP949, CP932, CP936,
+//! GB18030), part of `cargo xtask encodings-gen`.
 //!
 //! Each set is a public mapping table plus the reference library's variant of it:
 //! * the public tables, vendored unchanged: the Unicode Consortium's mapping tables
-//!   (`spec/encoding/unicode/VENDORS/MICSFT/WINDOWS/CP950.TXT` for BIG5, `CP932.TXT`, `CP936.TXT`,
+//!   (`spec/encoding/unicode/VENDORS/MICSFT/WINDOWS/CP950.TXT` for BIG5, `CP949.TXT` (Unified
+//!   Hangul Code), `CP932.TXT`, `CP936.TXT`,
 //!   `spec/encoding/unicode/OBSOLETE/EASTASIA/KSC/KSC5601.TXT` for EUC-KR's KS X 1001) and, for
 //!   GB18030, the WHATWG Encoding Standard's `index-gb18030.txt` (two bytes) and
 //!   `index-gb18030-ranges.txt` (four bytes, a piecewise-linear map);
@@ -34,9 +35,10 @@ const BAD: u16 = 0xFFFE;
 const BLOCKED: u16 = 0xFFFF;
 
 /// (identifier, charset, public table, its format, variant file).
-const SETS: [(&str, &str, &str, Fmt, &str); 5] = [
+const SETS: [(&str, &str, &str, Fmt, &str); 6] = [
     ("BIG5", "BIG5", "unicode/VENDORS/MICSFT/WINDOWS/CP950.TXT", Fmt::Unicode, "BIG5.tsv"),
     ("EUC_KR", "EUC-KR", "unicode/OBSOLETE/EASTASIA/KSC/KSC5601.TXT", Fmt::Unicode, "EUC-KR.tsv"),
+    ("CP949", "CP949", "unicode/VENDORS/MICSFT/WINDOWS/CP949.TXT", Fmt::Unicode, "CP949.tsv"),
     ("CP932", "CP932", "unicode/VENDORS/MICSFT/WINDOWS/CP932.TXT", Fmt::Unicode, "CP932.tsv"),
     ("CP936", "CP936", "unicode/VENDORS/MICSFT/WINDOWS/CP936.TXT", Fmt::Unicode, "CP936.tsv"),
     ("GB18030", "GB18030", "whatwg/index-gb18030.txt", Fmt::Gb18030, "GB18030.tsv"),
@@ -407,10 +409,12 @@ pub fn generate(root: &Path) -> Result<Generated, String> {
     let rs: Vec<String> = rg.iter().map(|(p, c)| format!("({p}, 0x{c:04X})")).collect();
     list(&mut w, &format!("/// GB18030's four-byte ranges (pointer, first code point), ascending.\npub(super) static GB18030_RANGES: [(u32, u32); {}]", rs.len()), &rs, 6);
     let (mut sizes, mut pool, mut descs) = (Vec::new(), Pool::default(), String::new());
-    for s in &SETS {
+    for (i, s) in SETS.iter().enumerate() {
+        let _ = writeln!(w, "/// {}'s descriptor in `SETS`.\npub(super) const {}: usize = {i};", s.1, s.0);
         let n = set(&mut descs, &mut pool, root, &rg, s)?;
         sizes.push((s.1, n));
     }
+    w.push('\n');
     let what = "every set's in turn; a descriptor's (start, count) names its part";
     list(&mut w, &format!("/// Per lead: offset in its set's cells, first and last trail ({what}).\npub(super) static ROWS: [(u16, u8, u8); {}]", pool.rows.len()), &pool.rows, 6);
     list(&mut w, &format!("/// The two-byte cells ({what}).\npub(super) static CELLS: [u16; {}]", pool.cells.len()), &hex16(&pool.cells), 12);
@@ -420,7 +424,7 @@ pub fn generate(root: &Path) -> Result<Generated, String> {
     list(&mut w, &format!("/// The encoder pages ({what}).\npub(super) static CODES: [u16; {}]", pool.codes.len()), &hex16(&pool.codes), 12);
     list(&mut w, &format!("/// Four-byte departures, (pointer, code point) ({what}).\npub(super) static FOUR: [(u32, u32); {}]", pool.four.len()), &pool.four, 4);
     list(&mut w, &format!("/// Four-byte encodings, (code point, pointer) ({what}).\npub(super) static FOUR_ENC: [(u32, u32); {}]", pool.four_enc.len()), &pool.four_enc, 4);
-    let _ = writeln!(w, "/// The descriptors, in `Which::ALL` order; integers only, so no load-time relocation.\npub(super) static SETS: [Set; {}] = [\n{descs}];", SETS.len());
+    let _ = writeln!(w, "/// The descriptors, each at its index constant above; integers only, so no load-time relocation.\npub(super) static SETS: [Set; {}] = [\n{descs}];", SETS.len());
     while w.ends_with("\n\n") {
         w.pop();
     }

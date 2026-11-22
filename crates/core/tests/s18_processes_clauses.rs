@@ -11,6 +11,8 @@
 #![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::panic, clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -142,7 +144,7 @@ const ALONE: &str = "NIJI_C18_ALONE";
 /// A fresh scratch directory; `tag` is unique per call site. The test process removes it when
 /// the guard goes (a re-executed copy leaves it to the test process).
 fn scratch(tag: &str) -> Scratch {
-    let p = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c18-{}-{tag}", base()));
+    let p = crate::scratch::base().join(format!("c18-{}-{tag}", base()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
     Scratch(p)
@@ -167,7 +169,7 @@ impl AsRef<std::path::Path> for Scratch {
 impl Drop for Scratch {
     fn drop(&mut self) {
         if std::env::var(ALONE).is_err() {
-            let _ = std::fs::remove_dir_all(&self.0);
+            crate::scratch::release(std::path::Path::new(&self.0));
         }
     }
 }

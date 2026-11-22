@@ -1,0 +1,21 @@
+{"task": "ICONV-REST", "model": "opus", "tokens": null,
+ "result": "CP949/UHC built in (whole code space as the reference), 654 probed alias rows (WINDOWS-1252, windows-1251, KOI8R, ISO885915 open), iconv -l lists 982 of the reference's 1,180 names",
+ "branch": "task/iconv-rest", "head": "5ee069088",
+ "gate": {"affected": "direct tier: 16 suites ok, 3393 passed / 0 failed (116 ignored)", "peak": "5.1G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "107 reference-listed names convert differently through libniji (fingerprint): 68 alias rows exactly as their charmap does and 35 other names (UTF-8/UTF-16/UNICODE built-ins, CP1255, CP1258, BIG5-HKSCS, EUC-TW, GB2312, SHIFT_JIS, IBM113x...), all differences libniji already had before this branch, plus the CP949 family at the unassigned pair A2E8 (unit-tested)",
+  "222 names the reference lists have no libniji converter (EBCDIC/DBCS IBM sets without a charmap, ISO-2022-*, UTF-7): not listed, not faked; ISO/TR_11548-1 and NF_Z_62-010_(1973) open but are not listed",
+  "Not verified: start-up counts against next (no base products on the role) and vim's cp949 test in a trixie root (the whole-code-space comparison stands in)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "iconv_open(\"CP949\"/\"UHC\"/\"MSCP949\"/\"OSF100203B5\") was EINVAL; now converts as the reference over the whole code space", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "WINDOWS-1252, windows-1251, MS-ANSI, KOI8R, ISO885915 and the other listed spellings: alias rows", "before": 104, "after": 654, "unit": "alias rows", "measured": true},
+  {"kind": "correctness", "what": "iconv -l names in common with the reference (Ubuntu 24.04 charmaps)", "before": 294, "after": 982, "unit": "names", "measured": false},
+  {"kind": "size", "what": "CP949 tables, read-only data in libc", "before": 0, "after": 108801, "unit": "bytes", "measured": true},
+  {"kind": "cost", "what": "CP949 descriptor RELATIVE relocations in libc.so.6 (in .data.rel.ro pages the other sets' descriptors already use); fix-forward ICONV-CJK-STARTUP", "before": 0, "after": 9, "unit": "relocations (CP949's; 60 for all six sets)", "measured": true},
+  {"kind": "coverage", "what": "tests: cp949_cells_and_unassigned_pair, iconv_listing_products, iconv_listing_aliases_match_the_library, CP949 in the code-space and round-trip tests; 7 plants", "before": null, "after": 7, "unit": "plants", "measured": true}],
+ "improvement": "The alias probe matched names through libniji's own generated alias lists (circular); a reference-only fingerprint source is the rule for any probe that derives tables from the reference",
+ "next_step": "Land; ICONV-CJK-STARTUP converts the six descriptors to offsets",
+ "report_file": "handoff/ICONV-REST.md",
+ "jobs": ["mei:iconv-rest-gate1", "mei:iconv-rest-plants1"]}

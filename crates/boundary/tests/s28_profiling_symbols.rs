@@ -7,6 +7,9 @@
 #![allow(non_snake_case, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use std::sync::Once;
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use niji_boundary::posix::s28_profiling as pr;
 use spectest::symbol;
@@ -73,9 +76,8 @@ const CHILD: &str = "NIJI_S28_SYM_CHILD";
 
 /// Re-execute this binary running only `test` in a fresh directory; the files it left there.
 fn child_files(test: &str) -> Vec<(String, Vec<u8>)> {
-    let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("{test}.{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    // The files are read into memory: the directory goes when this returns (kept if it panics).
+    let dir = Scratch::dir(test);
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([test, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
         .env(CHILD, "1")

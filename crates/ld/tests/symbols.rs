@@ -17,6 +17,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use std::sync::OnceLock;
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use niji_ld::arch::X86_64;
 use niji_ld::elf::{dt, pt, Dynamic, Elf, ElfError, Table, STB_GNU_UNIQUE, STB_WEAK};
@@ -102,7 +105,8 @@ fn corpus() -> Option<&'static HashMap<&'static str, Vec<u8>>> {
             println!("SKIP: `cc` is not available, the symbol corpus cannot be built");
             return None;
         }
-        let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("ld_symbols_{}", std::process::id()));
+        // Read into memory below; the directory goes when this closure returns.
+        let dir = Scratch::dir("ld-symbols");
         for d in ["v", "vs", "vb", "stub"] {
             std::fs::create_dir_all(dir.join(d)).unwrap();
         }

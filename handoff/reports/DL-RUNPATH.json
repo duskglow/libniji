@@ -1,0 +1,24 @@
+{"task": "DL-RUNPATH", "model": "opus", "tokens": null,
+ "result": "dlopen searches $ORIGIN elements of the program's and the caller's DT_RUNPATH/DT_RPATH and $ORIGIN names; RTLD_NOLOAD matches start-time objects by loaded name and ld.so by its PT_INTERP path",
+ "branch": "task/dl-runpath", "head": "8526d26e4",
+ "gate": {"affected": "dl-runpath-gate2 (direct tier): see hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "secure mode (AT_SECURE): dlopen applies to the program's $ORIGIN the same trusted-directory rule the start already uses; no set-uid probe possible without root", "recommendation": "accept"}],
+ "informational": [
+  "brief item 1 premise no longer held: the start's and dlopen's search already followed the ld.so(8) order; only $ORIGIN elements failed under dlopen (program had no path in dlopen's loader; start-time objects lost their path)",
+  "$PLATFORM expands to haswell on x86-64-v3 (D-27.16); the reference gives x86_64 on the Zen 1 host: probe both CPU kinds in a loader story",
+  "start-time objects without DT_SONAME are still left out of a handle's local scope (adopt_deps matches soname or path only); given_name now has the name for a follow-up",
+  "dlopen through an LD_LIBRARY_PATH $ORIGIN list not probed on the reference; the test expects the start's rule"
+ ],
+ "refused": ["Bash with a heredoc (python3 -I - handoff/DL-RUNPATH.md ... <<'X'), refused by the no-heredoc hook; my error, done with the Edit tool instead"],
+ "impact": [
+  {"kind": "correctness", "what": "dlopen of a bare name / $ORIGIN name through a program's or library's $ORIGIN DT_RUNPATH/DT_RPATH now finds the library (was: not found)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "dlopen(RTLD_NOLOAD) of a start-time library without DT_SONAME by its DT_NEEDED name, and of ld.so by its PT_INTERP path, returns the handle (was NULL)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "RTLD_DI_SERINFO lists a $ORIGIN program's expanded entries (were missing)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests in crates/ld/tests/runpath_search.rs", "before": 0, "after": 4, "unit": "tests", "measured": true},
+  {"kind": "coverage", "what": "plants (handoff/DL-RUNPATH-plants.txt): 6 CAUGHT, 1 EQUIVALENT", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "improvement": "sync_role reports BUSY while a plants job only reads the role to copy it; letting a sync through once the plants copy check has printed would save a wait",
+ "next_step": "land; then the secure-mode ruling and the $PLATFORM probe on an x86-64-v3 Intel and an AMD host",
+ "report_file": "handoff/DL-RUNPATH.md",
+ "jobs": ["dl-runpath-gate2", "dl-runpath-plants", "dl-runpath-startup"]}

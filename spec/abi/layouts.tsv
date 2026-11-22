@@ -2140,3 +2140,7 @@ struct elf_siginfo		12	4
 struct elf_siginfo	si_signo	0		int	
 struct elf_siginfo	si_code	4		int	
 struct elf_siginfo	si_errno	8		int	
+struct res_sym		24	8		
+struct res_sym	number	0		int	
+struct res_sym	name	8		char *	
+struct res_sym	humanname	16		char *	

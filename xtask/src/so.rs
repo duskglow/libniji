@@ -1821,6 +1821,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     };
     link_libc(&owner_obj, &so, &[])?;
     check_debug_reader_rodata(&so)?;
+    check_valgrind_string_names(&so)?;
     check_rodata1_anchor(&so, rodata1_align)?;
     check_read_only_segment(&so)?;
     check_executable_segment(&so)?;
@@ -2811,6 +2812,125 @@ fn check_interp_tool_names(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("{}: the names valgrind looks up in the interpreter (VALGRIND-LDSO-SYMBOLS): {e}", path.display()))
 }
 
+/// VALGRIND-STRING-REDIRECT (GitHub issue #13): the names memcheck 3.24 replaces in an object whose soname
+/// is `libc.so*` on Linux (`shared/vg_replace_strmem.c` in valgrind's source). It binds a replacement to
+/// the start address of each function symbol carrying one of these names, so every call that reaches that
+/// address, through the PLT or from inside libc, runs the replacement.
+const VALGRIND_LIBC_NAMES: &[&str] = &[
+    "bcmp", "bcopy", "index", "memccpy", "memchr", "memcmp", "memcpy", "memmove", "mempcpy", "memrchr", "memset",
+    "rawmemchr", "rindex", "stpcpy", "stpncpy", "strcasecmp", "strcasecmp_l", "strcasestr", "strcat", "strchr",
+    "strchrnul", "strcmp", "strcpy", "strcspn", "strlcat", "strlcpy", "strlen", "strncasecmp", "strncasecmp_l",
+    "strncat", "strncmp", "strncpy", "strnlen", "strpbrk", "strrchr", "strspn", "strstr", "wcpncpy", "wcschr",
+    "wcscmp", "wcscpy", "wcslen", "wcsncmp", "wcsncpy", "wcsnlen", "wcsrchr", "wmemchr", "wmemcmp",
+    "__memcpy_chk", "__memmove_chk", "__stpcpy_chk", "__strcpy_chk",
+];
+
+/// The kernels libc calls directly (not through the exported entry) that compute exactly one replaced
+/// function, and the local name each carries in `.symtab` (`csys/src/machine/scan.S`, one of valgrind's
+/// libc names that no libniji export uses): a call inside libc that skips the entry is replaced too.
+const VALGRIND_KERNEL_NAMES: &[(&str, &str)] = &[
+    ("niji_machine_strlen", "__GI_strlen"),
+    ("niji_machine_strnlen", "__GI_strnlen"),
+    ("niji_machine_memchr", "__GI_memchr"),
+    ("niji_machine_rawmemchr", "__GI___rawmemchr"),
+];
+
+/// Valgrind's view of a function symbol table (`coregrind/m_debuginfo`: `readelf.c` drops a function
+/// symbol of size 0; `storage.c`'s `canonicaliseSymtab` merges symbols with the same start and size into
+/// one with all their names, and of two overlapping symbols keeps the start for the one that ends first,
+/// moving the other past it): (start, size, names), sorted by start.
+pub(crate) fn valgrind_symbols(mut syms: Vec<(u64, u64, Vec<String>)>) -> Vec<(u64, u64, Vec<String>)> {
+    syms.retain(|s| s.1 > 0);
+    loop {
+        syms.sort_by_key(|s| s.0);
+        let mut merged: Vec<(u64, u64, Vec<String>)> = Vec::with_capacity(syms.len());
+        for s in syms {
+            match merged.last_mut() {
+                Some(m) if (m.0, m.1) == (s.0, s.1) => {
+                    for n in s.2 {
+                        if !m.2.contains(&n) {
+                            m.2.push(n);
+                        }
+                    }
+                }
+                _ => merged.push(s),
+            }
+        }
+        syms = merged;
+        // One overlap per pass, then sort and merge again (valgrind repeats its passes until none is left).
+        let Some(i) = (1..syms.len()).find(|&i| syms[i - 1].0 + syms[i - 1].1 > syms[i].0) else { return syms };
+        let (a, b) = (syms[i - 1].clone(), syms[i].clone());
+        let (a_end, b_end) = (a.0 + a.1, b.0 + b.1);
+        if a.0 < b.0 {
+            syms[i - 1].1 = b.0 - a.0;
+        } else if a_end > b_end {
+            // Same start, `a` longer: `b` keeps the start, `a` moves past `b`'s end.
+            syms[i - 1] = b;
+            syms[i] = (b_end, a_end - b_end, a.2);
+        } else {
+            // Same start, `b` longer (same start and end were merged above).
+            syms[i] = (a_end, b_end - a_end, b.2);
+        }
+    }
+}
+
+/// The check of [`check_valgrind_string_names`] on `readelf -sW` of libc.so.6: every name of
+/// [`VALGRIND_LIBC_NAMES`] that `.dynsym` exports as a function names, in valgrind's view of `.symtab`,
+/// the symbol at each address it is exported at, and each kernel of [`VALGRIND_KERNEL_NAMES`] carries its
+/// name. A name valgrind cannot see there leaves the function unreplaced: memcheck then reports the vector
+/// reads past a string's end that the kernels make inside the string's last aligned block.
+pub(crate) fn valgrind_string_names_errors(readelf: &str) -> Result<(), String> {
+    let mut table = "";
+    let mut symtab = Vec::new();
+    let mut exported: Vec<(String, u64)> = Vec::new();
+    for line in readelf.lines() {
+        if let Some(rest) = line.strip_prefix("Symbol table '") {
+            table = rest.split('\'').next().unwrap_or("");
+            continue;
+        }
+        let f: Vec<&str> = line.split_whitespace().collect();
+        if f.len() != 8 || !f[0].ends_with(':') || !matches!(f[3], "FUNC" | "IFUNC") || f[6] == "UND" {
+            continue;
+        }
+        let (Ok(value), Ok(size)) = (u64::from_str_radix(f[1], 16), f[2].parse::<u64>()) else { continue };
+        let name = f[7].split('@').next().unwrap_or("");
+        match table {
+            ".symtab" => symtab.push((value, size, vec![name.to_string()])),
+            ".dynsym" if VALGRIND_LIBC_NAMES.contains(&name) => exported.push((name.to_string(), value)),
+            _ => {}
+        }
+    }
+    let view = valgrind_symbols(symtab.clone());
+    let names_at = |value: u64| view.iter().find(|s| s.0 == value).map(|s| s.2.clone()).unwrap_or_default();
+    let mut errs = Vec::new();
+    if exported.is_empty() {
+        errs.push("no replaced name in .dynsym".to_string());
+    }
+    for (name, value) in &exported {
+        if !names_at(*value).contains(name) {
+            errs.push(format!("{name} (exported at {value:x}) is not a name valgrind sees there (it sees {:?})", names_at(*value)));
+        }
+    }
+    for (kernel, name) in VALGRIND_KERNEL_NAMES {
+        match symtab.iter().find(|s| s.2[0] == *kernel) {
+            Some(k) if names_at(k.0).iter().any(|n| n == name) => {}
+            Some(k) => errs.push(format!("{kernel} (at {:x}) does not carry {name} in valgrind's view (it sees {:?})", k.0, names_at(k.0))),
+            None => errs.push(format!("no {kernel} in .symtab")),
+        }
+    }
+    if errs.is_empty() { Ok(()) } else { Err(errs.join("; ")) }
+}
+
+/// VALGRIND-STRING-REDIRECT: [`valgrind_string_names_errors`] on the linked libc.so.6.
+fn check_valgrind_string_names(so: &Path) -> Result<(), String> {
+    let out = Command::new("readelf").args(["-sW"]).arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    if !out.status.success() {
+        return Err(format!("readelf -sW {} failed", so.display()));
+    }
+    valgrind_string_names_errors(&String::from_utf8_lossy(&out.stdout))
+        .map_err(|e| format!("{}: the names memcheck replaces (VALGRIND-STRING-REDIRECT): {e}", so.display()))
+}
+
 /// The entry primitive of `ld.so` (`machine/entry.S` with `-DNIJI_LD`).
 const LD_ENTRY: &str = "niji_machine_ld_entry";
 /// The Rust start it calls; only its part up to the call of [`LD_RELOCATOR`] runs unrelocated.
@@ -3412,6 +3532,41 @@ mod tests {
         assert!(tool_names_errors(&moved).unwrap_err().contains("strlen at 000000000004ff50, not at niji_machine_strlen's"));
         let zero_size = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
         assert!(tool_names_errors(&zero_size).unwrap_err().contains("strlen has size 0"));
+    }
+
+    /// VALGRIND-STRING-REDIRECT (no spec clause: the build of libc.so.6; GitHub #13, memcheck's string
+    /// replacements): `readelf -sW` rows in the shape of a linked libc.so.6. The good table passes; an export
+    /// of size 0, a kernel without its name, and a name valgrind moves off the kernel's start (a longer
+    /// symbol sharing the start of a shorter one) are each reported.
+    #[test]
+    fn valgrind_string_names_resolve_to_the_bodies() {
+        let good = "Symbol table '.dynsym' contains 3 entries:\n\
+            \x20  10: 0000000000039980  2149 FUNC    GLOBAL DEFAULT    9 strcmp@@GLIBC_2.2.5\n\
+            \x20  11: 0000000000050000    18 FUNC    GLOBAL DEFAULT    9 strlen@@GLIBC_2.2.5\n\
+            \x20  12: 0000000000051080  1953 FUNC    GLOBAL DEFAULT    9 memchr@@GLIBC_2.2.5\n\
+            Symbol table '.symtab' contains 9 entries:\n\
+            \x20  20: 0000000000039980  2149 FUNC    LOCAL  DEFAULT    9 niji_machine_strcmp\n\
+            \x20  21: 0000000000039980  2149 FUNC    GLOBAL DEFAULT    9 strcmp\n\
+            \x20  22: 0000000000050000    18 FUNC    GLOBAL DEFAULT    9 strlen\n\
+            \x20  23: 0000000000031dc0   966 FUNC    LOCAL  DEFAULT    9 niji_machine_strlen\n\
+            \x20  24: 0000000000031dc0   966 FUNC    LOCAL  DEFAULT    9 __GI_strlen\n\
+            \x20  25: 0000000000051080  1953 FUNC    GLOBAL DEFAULT    9 memchr\n\
+            \x20  26: 0000000000051091  1936 FUNC    LOCAL  DEFAULT    9 niji_machine_memchr\n\
+            \x20  27: 0000000000051091  1936 FUNC    LOCAL  DEFAULT    9 __GI_memchr\n\
+            \x20  28: 0000000000060000   100 FUNC    LOCAL  DEFAULT    9 niji_machine_strnlen\n\
+            \x20  29: 0000000000060000   100 FUNC    LOCAL  DEFAULT    9 __GI_strnlen\n\
+            \x20  30: 0000000000061000   100 FUNC    LOCAL  DEFAULT    9 niji_machine_rawmemchr\n\
+            \x20  31: 0000000000061000   100 FUNC    LOCAL  DEFAULT    9 __GI___rawmemchr\n";
+        assert_eq!(valgrind_string_names_errors(good), Ok(()));
+        let size0 = good.replace("2149 FUNC    GLOBAL DEFAULT    9 strcmp\n", "   0 FUNC    GLOBAL DEFAULT    9 strcmp\n");
+        assert!(valgrind_string_names_errors(&size0).unwrap_err().contains("strcmp (exported at 39980)"));
+        let unnamed = good.replace(" __GI_strlen\n", " __GI_strlem\n");
+        assert!(valgrind_string_names_errors(&unnamed).unwrap_err().contains("niji_machine_strlen (at 31dc0) does not carry __GI_strlen"));
+        let moved = good.replace("1936 FUNC    LOCAL  DEFAULT    9 __GI_memchr", "1940 FUNC    LOCAL  DEFAULT    9 __GI_memchr");
+        assert!(valgrind_string_names_errors(&moved).unwrap_err().contains("niji_machine_memchr (at 51091) does not carry __GI_memchr"));
+        // Valgrind's view: the entry symbol is cut at the kernel's start; the kernel's names stay together.
+        let view = valgrind_symbols(vec![(0x80, 1953, vec!["memchr".into()]), (0x91, 1936, vec!["k".into()]), (0x91, 1936, vec!["a".into()])]);
+        assert_eq!(view, vec![(0x80, 0x11, vec!["memchr".to_string()]), (0x91, 1936, vec!["k".to_string(), "a".to_string()])]);
     }
 
     /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
