@@ -6,3 +6,11 @@ hash-word-nul | crates/ld/src/elf.rs | lit:& 0x8080_8080_8080_8080 != 0 { ==> & 
 memo-len | crates/ld/src/symbols.rs | lit:& 0x1fff; ==> & 0x7; | cargo test -p niji-ld --test symbols | msg:(version_memo_answers_as_the_walks|lookup_fast_paths_answer_as_the_plain_ones).*FAILED|panicked
 versions-overflow | crates/ld/src/reloc.rs | lit:None => overflow = true, ==> None => {} | cargo test -p niji-ld --test reloc | msg:reloc_version_check_beyond_the_kept_definitions.*FAILED|panicked
 versions-kept | crates/ld/src/reloc.rs | lit:s.contains(&Some(aux.name)) ==> !s.is_empty() | cargo test -p niji-ld --test reloc | msg:reloc_version_check_beyond_the_kept_definitions.*FAILED|panicked
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bloom-reject: CAUGHT, caught by symbols gnu_and_sysv_give_the_same_answers
+# string-is-nul: CAUGHT, caught by symbols gnu_and_sysv_give_the_same_answers
+# origin-index: CAUGHT, caught by symbols lookup_fast_paths_answer_as_the_plain_ones
+# hash-word-nul: CAUGHT, caught by symbols lookup_fast_paths_answer_as_the_plain_ones
+# memo-len: CAUGHT, caught by symbols lookup_fast_paths_answer_as_the_plain_ones
+# versions-overflow: CAUGHT, caught by reloc reloc_version_check_beyond_the_kept_definitions
+# versions-kept: CAUGHT, caught by reloc reloc_version_check_beyond_the_kept_definitions
