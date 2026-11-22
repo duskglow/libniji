@@ -93,13 +93,12 @@ fn fixture(name: &str) -> Option<(Scratch, PathBuf)> {
     Some((s, ld))
 }
 
-/// Run `ld args` in `d` with only `env` (plus PATH) in the environment, under a hang guard.
+/// Run `ld args` in `d` with only `env` (plus PATH) in the environment, under a hang guard. `env`
+/// reaches the interpreter through `env(1)`, so the host's `timeout` never sees an `LD_PRELOAD` meant
+/// for the loader under test.
 fn run(ld: &Path, d: &Path, env: &[(&str, &str)], args: &[&str]) -> Output {
     let mut c = Command::new("timeout");
-    c.arg("20").arg(ld).args(args).current_dir(d).env_clear();
-    for (k, v) in env {
-        c.env(k, v);
-    }
+    c.args(["20", "env"]).args(env.iter().map(|(k, v)| format!("{k}={v}"))).arg(ld).args(args).current_dir(d).env_clear();
     if let Some(p) = std::env::var_os("PATH") {
         c.env("PATH", p);
     }

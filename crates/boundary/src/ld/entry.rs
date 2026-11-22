@@ -322,8 +322,10 @@ fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize,
     let top = st.argv.wrapping_add(at.wrapping_mul(8));
     store_words(top, &[u64::try_from(st.argc.wrapping_sub(at).wrapping_sub(1)).unwrap_or(0)]);
     if let Some(a) = options.argv0 {
-        // The string is the loader's own argument, on the stack for the process's lifetime.
-        store_words(top.wrapping_add(8), &[u64::try_from(a.as_ptr().expose_provenance()).unwrap_or(0)]);
+        // The string is the loader's own argument, on the stack for the process's lifetime; an empty
+        // one may not point there (an empty slice's address is arbitrary), so it is the loader's "".
+        let s = if a.is_empty() { b"\0".as_slice() } else { a };
+        store_words(top.wrapping_add(8), &[u64::try_from(s.as_ptr().expose_provenance()).unwrap_or(0)]);
     }
     if !interp {
         // A static program or static PIE starts itself, as from the kernel. An object with no entry
