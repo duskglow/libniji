@@ -1,23 +1,22 @@
 # DL-FIND-OBJECT-FAST: _dl_find_object and dladdr through an address index
 
-**State.** Branch `task/dl-find-object-fast-2` (continues `task/dl-find-object-fast`, from next `d5764940d`); role
-keke:~/w/r2. Code head `d91a4174d` (the last code commit; later commits are handoff/report only). Decision:
-`records/pending/DL-FIND-OBJECT-FAST-1.toml` (D-NEW, series D-27; id D-27.75 reserved and named in `index.rs`'s
-module doc). Ruling #7391: land with the dladdr program-address cost recorded; its fix-forward is item 5 of
-DL-READER-COSTS, not this story.
+**State.** Branch `task/dl-find-object-fast-3` (continues -2 and the first run; merged with next `5f07429d3`);
+role mei:~/w/s4. Code commits on top of the -2 head: `b888e662f` (merge), `09c0a4166` (record id). Decision:
+`records/decisions/D-27/D-27.75.toml` (id D-27.75, the one reserved for DL-FIND-OBJECT-FAST and named in `index.rs`'s
+module doc; D-27.79, reserved for -2, is now unused: the coordinator may release it). Ruling #7391: land with
+the dladdr program-address cost recorded; its fix-forward is item 5 of DL-READER-COSTS, not this story.
 
-**DL-FIND-OBJECT-FAST-2 (rerun only, no code change).** The last run's gate2/lint ran before `d91a4174d`. Synced
-`7a4c57899` (code = `d91a4174d`) to keke r2 and reran, all rc 0: lint `dl-find-object-fast-2-lint` (workspace
-clippy -D warnings + static), gate `dl-find-object-fast-2-gate` (direct tier: 786 passed / 0 failed / 52 ignored,
-conformance 12/12, peak 2.8G), plants `dl-find-object-fast-2-plants` (5/5 CAUGHT, no WARN-RC-ONLY/NO-MSG; one
-WARN-DEV-SHM location note), per-call `dl-find-object-fast-2-pc` (the 24 _dl_find_object/dladdr rows: identical to
-the table below, the head's self-checks agree with glibc, MISMATCH rows are base's -1), start-up check
-`dl-find-object-fast-2-hot` (NIJI_FULL_PROFILE so + hot_text_products 33 passed). `dl-find-object-fast-2-xtest`
-(`cargo xtask test`, started 00:56Z on the synced final head `809c87f31`) was PENDING at hand-back (~90 min job).
-`cargo xtask precheck` on r2 at `809c87f31`: 34 checks, no red, WAIT on xtest only. The previous run's xtest3 (same
-code, role n4) passed: 4862 + 128 + 46 tests. The pending record still has `id = "D-NEW"` while `index.rs` names the
-reserved D-27.75: the coordinator assigns D-27.75 to it (no record edit in a rerun-only run). The branch conflicts
-with next (handback-check NOTE); no merge was allowed here, the train resolves it.
+**DL-FIND-OBJECT-FAST-3 (merge + record id).** Inherited head `164409049`: lint0 (workspace clippy -D warnings +
+static) rc 0 on mei s4. Merged origin/next `5f07429d3`: one conflict, `dladdr.rs`'s import line (DL-RUNPATH-4 added
+`c_string`, this branch `Found`): kept both, nothing else touched. DL-SLOT-REUSE-2 (on next now) moves a new set
+into freed slots in `dlopen::settle` before `readers::publish(base, k)`, with `base`/`k` remapped, and
+`unpublish` still calls `index::removed(k)`, so the index sees the final object numbers and needs no change; its
+REORDERED test in `dl_iterate_phdr` is DL-SLOT-REUSE's (the coordinator's "+4 instr" note is not this story's
+change; left as is). Record `D-27.79.toml` renamed to `D-27.75.toml`, id set to match `index.rs`. Jobs on the
+merged head: see the report json / hand-back (lint1, gate1, plants1, hot1, xtest1).
+
+**DL-FIND-OBJECT-FAST-2 (rerun only, superseded by -3's jobs).** keke r2, code `d91a4174d`: lint, gate (786 passed
+/ 0 failed / 52 ignored, peak 2.8G), plants 5/5 CAUGHT, per-call rows identical to the table below, hot 33 passed.
 
 **Design (in force).** `crates/boundary/src/ld/index.rs` (module doc): one entry per `PT_LOAD` segment, sorted by
 start, binary search for the last entry at or below the address, kept when its object's whole range holds it.

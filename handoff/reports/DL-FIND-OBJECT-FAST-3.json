@@ -1,0 +1,63 @@
+{
+ "task": "DL-FIND-OBJECT-FAST-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Merged origin/next (one import-line conflict in dladdr.rs, both sides kept; index unaffected by DL-SLOT-REUSE-2's slot reuse) and gave the record its reserved id D-27.75; lint, direct gate, plants 5/5, hot_text_products and cargo xtask test on the merged head",
+ "branch": "task/dl-find-object-fast-3",
+ "head": "09c0a4166",
+ "gate": {
+  "affected": "834 passed / 0 failed / 52 ignored (15 suites), conformance 14/14",
+  "peak": "3.3G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "D-27.79 (reserved for DL-FIND-OBJECT-FAST-2) is now unused: the record carries D-27.75, the id reserved for DL-FIND-OBJECT-FAST and named in index.rs; the coordinator may release D-27.79",
+  "The coordinator note 'remove DL-SLOT-REUSE's +4 instr per dl_iterate_phdr call' (REORDERED test in readers::iterate) is DL-SLOT-REUSE's code, now on next; this merge-only run left it unchanged"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "_dl_find_object last of 104 objects, dynamic, per call (inherited, DL-FIND-OBJECT-FAST pc3; not re-measured in this merge-only run)",
+   "before": 18387,
+   "after": 403,
+   "unit": "instr/call",
+   "measured": false
+  },
+  {
+   "kind": "perf",
+   "what": "C++ throw through 10 frames, 104 objects, lib frames (inherited, throw2)",
+   "before": 437417,
+   "after": 37640,
+   "unit": "instr/throw",
+   "measured": false
+  },
+  {
+   "kind": "cost",
+   "what": "dladdr of a program address (ruling #7391; fix-forward DL-READER-COSTS item 5)",
+   "before": 1565,
+   "after": 1607,
+   "unit": "instr/call",
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "_dl_find_object finds a pc in the gap between an object's segments (probe R-5; base gave -1)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A record renamed by the coordinator after the code named a different reserved id cost a continuation note; an ops check that a record's id matches the ids its story's code names would catch it at assignment",
+ "next_step": "Land (ruling #7391); follow-ups in handoff/DL-FIND-OBJECT-FAST.md (dladdr program-address cost, _dl_find_object constant part)",
+ "report_file": "handoff/DL-FIND-OBJECT-FAST.md",
+ "jobs": [
+  "mei:dl-find-object-fast-3-lint1",
+  "mei:dl-find-object-fast-3-gate1",
+  "mei:dl-find-object-fast-3-plants1",
+  "mei:dl-find-object-fast-3-hot1",
+  "mei:dl-find-object-fast-3-xtest1"
+ ]
+}
