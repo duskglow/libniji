@@ -10,6 +10,7 @@ use alloc::vec::Vec;
 use niji_kernel::fd::Fd;
 use niji_kernel::path::KPathBuf;
 use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{LOCK_EX, O_CLOEXEC, O_DIRECTORY, O_RDONLY};
 use niji_ld::ldconfig::sysfs::SysFs;
 use niji_ld::ldconfig::Fs;
 use niji_locale::prog::{self, Host};
@@ -40,6 +41,24 @@ impl Host for Disk<'_> {
         self.fs.replace_file(path, data).map_err(|(_, e)| e)
     }
 
+    fn read_stdin(&mut self, max: usize) -> Result<TryVec<u8>, i32> {
+        let mut out = TryVec::new();
+        let mut chunk = [0u8; 4096];
+        while out.len() < max {
+            let n = CSys.read(Fd::STDIN, &mut chunk).map_err(|e| e.get())?;
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(chunk.get(..n).unwrap_or_default()).map_err(|_| 12)?; // ENOMEM
+        }
+        Ok(out)
+    }
+    fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
+        let p = KPathBuf::new(dir).map_err(|e| e.get())?;
+        let fd = CSys.openat(Fd::CWD, p.as_kstr(), O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0).map_err(|e| e.get())?;
+        // The descriptor stays open, and the lock held, until the program exits.
+        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())
+    }
     fn error_text(&self, errno: i32) -> &'static [u8] {
         niji::diag::description(errno).map_or(&b"Unknown error"[..], |t| t.trim_end_matches('\0').as_bytes())
     }

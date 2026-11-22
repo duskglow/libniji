@@ -13,6 +13,10 @@ struct Mem {
     files: BTreeMap<Vec<u8>, Vec<u8>>,
     dirs: Vec<Vec<u8>>,
     fail_mkdir: Option<i32>,
+    /// The standard input (`None`: reading it fails with EBADF).
+    stdin: Option<Vec<u8>>,
+    /// The directories locked, in order.
+    locked: Vec<Vec<u8>>,
 }
 
 impl Host for Mem {
@@ -31,6 +35,13 @@ impl Host for Mem {
     }
     fn write(&mut self, path: &[u8], data: &[u8]) -> Result<(), i32> {
         self.files.insert(path.to_vec(), data.to_vec());
+        Ok(())
+    }
+    fn read_stdin(&mut self, _max: usize) -> Result<TryVec<u8>, i32> {
+        self.stdin.take().map(|d| TryVec::from_slice(&d).unwrap()).ok_or(9)
+    }
+    fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
+        self.locked.push(dir.to_vec());
         Ok(())
     }
     fn error_text(&self, errno: i32) -> &'static [u8] {

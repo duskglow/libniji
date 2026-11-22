@@ -22,6 +22,7 @@
 
 extern crate alloc;
 
+pub mod archive;
 pub mod build;
 pub mod cats;
 pub mod charset;
@@ -108,6 +109,8 @@ pub struct Output {
     /// The syntax errors the compile went past, in the order found: lines outside any category,
     /// then one per category that failed (that category has its default instead).
     pub errors: TryVec<Error>,
+    /// How many of [`Output::errors`] are lines outside any category (the first ones).
+    pub outside: usize,
 }
 
 /// Compile the locale source `locale` for the charmap `charmap` (both read through `files`):
@@ -138,7 +141,8 @@ pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> R
 /// [`compile_output`] of the source `text` (already read) for the charset `cs`.
 pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
     let src = source::parse(text, files)?;
-    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors };
+    let outside = src.errors.len();
+    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside };
     for (n, stmts) in src.cats.iter().enumerate() {
         let Some(stmts) = stmts else { continue };
         if let Some(d) = out.defined.get_mut(n) {
