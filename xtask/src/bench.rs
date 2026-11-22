@@ -1346,9 +1346,49 @@ fn decide_cycles(key: (&str, &str), ns: (f64, f64), ns_lim: Option<&Limit>, cell
 /// `sudo -n`) runs contained (`contain::output`, `docs/testing/harness-containment.md`): as the first process of a
 /// PID namespace of its own that ends with it or with this process, so a killed xtask leaves no root process.
 /// It is wrapped here, not in `private_shm`, because the callers add variables (`CBENCH_COUNTERS`, `CBENCH_ROWS`)
-/// after the command is built, and the contained form has to carry them as arguments.
+/// after the command is built: [`past_sudo`] carries them past `sudo` to the route's script. `NIJI_CONTAINED=none`
+/// in xtask's environment runs the route uncontained (the caller's opt-out, as for `tools/contained.sh`; used by the
+/// count check that compares both forms).
 pub(crate) fn bench_output(c: &mut Command) -> std::io::Result<std::process::Output> {
-    if is_root_route(c) { crate::contain::output(c) } else { c.output() }
+    if !is_root_route(c) {
+        return c.output();
+    }
+    let mut c = past_sudo(c);
+    if std::env::var_os("NIJI_CONTAINED").is_some_and(|v| v == "none") { c.output() } else { crate::contain::output(&c) }
+}
+
+/// The root route with the `CBENCH_*` variables set on it carried past `sudo`, which resets the environment:
+/// `sudo -n env CBENCH_COUNTERS=1 ... unshare ...` (the route's script hands them on to the bench). Without this
+/// the bench never saw them and its counted runs printed no counters. Program, arguments, other variables and
+/// working directory are kept.
+fn past_sudo(c: &Command) -> Command {
+    let mut args = c.get_args();
+    let mut n = Command::new(c.get_program());
+    n.args(args.next());
+    let carried: Vec<std::ffi::OsString> = c
+        .get_envs()
+        .filter_map(|(k, v)| {
+            let v = v.filter(|_| k.to_string_lossy().starts_with("CBENCH_"))?;
+            let mut kv = k.to_os_string();
+            kv.push("=");
+            kv.push(v);
+            Some(kv)
+        })
+        .collect();
+    if !carried.is_empty() {
+        n.arg("env").args(carried);
+    }
+    n.args(args);
+    n.env_clear();
+    for (k, v) in c.get_envs() {
+        if let Some(v) = v {
+            n.env(k, v);
+        }
+    }
+    if let Some(d) = c.get_current_dir() {
+        n.current_dir(d);
+    }
+    n
 }
 
 /// Whether `c` is the private-/dev/shm route, which starts root processes.
@@ -2034,6 +2074,21 @@ mod tests {
         assert!(super::is_root_route(&std::process::Command::new("sudo")));
         assert!(!super::is_root_route(&std::process::Command::new("target/niji/bench/cbench_netdb")));
         assert!(!super::is_root_route(&std::process::Command::new("setpriv")));
+    }
+
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): the route's `CBENCH_*` variables pass `sudo` as
+    /// `env` arguments (sudo resets the environment), so a counted run of `cbench_netdb` prints its counters.
+    #[test]
+    fn root_route_carries_the_bench_variables_past_sudo() {
+        let mut c = std::process::Command::new("sudo");
+        c.args(["-n", "unshare", "-m", "sh"]).env_clear().env("PATH", "/p").env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", "a,b");
+        let n = super::past_sudo(&c);
+        let args: Vec<String> = n.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(n.get_program(), "sudo");
+        assert_eq!(args, ["-n", "env", "CBENCH_COUNTERS=1", "CBENCH_ROWS=a,b", "unshare", "-m", "sh"]);
+        assert!(n.get_envs().any(|(k, v)| k == "PATH" && v == Some(std::ffi::OsStr::new("/p"))));
+        let plain = super::past_sudo(std::process::Command::new("sudo").args(["-n", "unshare"]).env_clear());
+        assert_eq!(plain.get_args().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>(), ["-n", "unshare"]);
     }
 
     /// Ruling #5463 (no spec clause: measurement tooling): the v3 measurement build is traced whenever the host can
