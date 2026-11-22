@@ -829,4 +829,10 @@ extern FILE *stderr;
 
 __NIJI_END_C
 
+/* Under _FORTIFY_SOURCE fwrite_unlocked is also a macro (visibility.tsv); a call still references the exported
+   fwrite_unlocked (callsites.tsv), which this one calls (a macro does not expand inside its own replacement). */
+#if __NIJI_FORTIFY >= 1
+# define fwrite_unlocked(ptr, size, n, stream) fwrite_unlocked ((ptr), (size), (n), (stream))
+#endif
+
 #endif

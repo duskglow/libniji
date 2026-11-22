@@ -2,7 +2,9 @@
 //! not the committed `libc-include/`) show the names of this story's rows in exactly the configurations of
 //! `spec/abi/visibility.tsv`: `WIFCONTINUED` (stdlib.h), no feature-test macro from `features-time64.h` or
 //! `gnu/stubs.h` included alone, and `struct timespec` beside `struct stat` (sys/pidfd.h) only where it is the
-//! implementation's. A plant on a template or on the generator is seen here without any other build.
+//! implementation's. SL-HEADERS-S06-RESIDUE: slice 6's hand-written macros (ctype.h `_tolower`, `_toupper`, `isascii`,
+//! `toascii` in C and C++, the twelve `isX_l`, `tolower_l` / `toupper_l`; stdio.h `fwrite_unlocked`), which the rows
+//! test does not compile. A plant on a template or on the generator is seen here without any other build.
 //! Runs `spec/tools/header_probe.py` and `spec/tools/probe_compare.py`; needs cc and python3.
 //!
 //! Trace: no spec clause (header visibility proof P2, plan/headers.md).
@@ -10,7 +12,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const HEADERS: &str = "stdlib.h,gnu/stubs.h,features-time64.h,sys/pidfd.h";
+const HEADERS: &str = "stdlib.h,gnu/stubs.h,features-time64.h,sys/pidfd.h,ctype.h,stdio.h";
 
 fn have(tool: &str) -> bool {
     Command::new(tool).arg("--version").output().is_ok_and(|o| o.status.success())
