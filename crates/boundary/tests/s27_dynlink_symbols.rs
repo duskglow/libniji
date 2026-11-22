@@ -8,6 +8,8 @@
 
 use spectest::symbol;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 
 /// §27.1 / D-27.5: a static program's segment and the vDSO are found, with their

@@ -85,8 +85,17 @@ done
 for sha in "$@"; do
     key=$(wl_key "$sha")
     prod=$W/products/$key
+    # PHASES (WL-COUNT-HONEST-CHEAP): `wl_phase: <seconds> <step> ...` lines for wl_count.sh's cost summary.
+    ps0=$SECONDS
     wl_lock "$sha"
+    echo "wl_phase: $((SECONDS - ps0)) lockwait $key"
+    ps0=$SECONDS
+    pst=built
+    wl_products_ok "$prod" 2> /dev/null && pst=cached
     wl_build_products "$sha" || exit 1
+    echo "wl_phase: $((SECONDS - ps0)) build $key $pst"
+    ps0=$SECONDS
+    nrl=0
     kit=$W/kit/$key/bin
     mkdir -p "$kit"
     for p in "${PROGS[@]}"; do
@@ -112,7 +121,9 @@ for sha in "$@"; do
         fi
         (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod WL_DYN_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
         mv -f "$kit/$name.tmp" "$kit/$name"
+        nrl=$((nrl + 1))
     done
+    echo "wl_phase: $((SECONDS - ps0)) relink $key $nrl programs"
     wl_unlock
 done
 

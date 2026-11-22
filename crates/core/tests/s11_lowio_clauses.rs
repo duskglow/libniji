@@ -17,6 +17,8 @@ mod kernel;
 #[path = "support/sync_trap.rs"]
 mod sync_trap;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use core::ptr::null_mut;
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
@@ -64,16 +66,14 @@ impl core::ops::Deref for Tmp {
 impl Drop for Tmp {
     fn drop(&mut self) {
         let p = std::path::Path::new(std::ffi::OsStr::from_bytes(self.0.as_bytes()));
-        if std::fs::remove_file(p).is_err() {
-            let _ = std::fs::remove_dir_all(p);
-        }
+        crate::scratch::release(p);
     }
 }
 
 /// A fresh scratch path (in a re-executed child, in the directory its parent made for it).
 fn tmp(tag: &str) -> Tmp {
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let base = std::env::var_os(CHILD_TMP).map_or_else(|| std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")), std::path::PathBuf::from);
+    let base = std::env::var_os(CHILD_TMP).map_or_else(crate::scratch::base, std::path::PathBuf::from);
     let p = base.join(format!("c11-{}-{tag}-{n}", std::process::id()));
     let _ = std::fs::remove_file(&p);
     let _ = std::fs::remove_dir_all(&p);

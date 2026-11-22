@@ -54,6 +54,8 @@
 #[path = "../../core/tests/support/timeout.rs"]
 mod timeout;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use core::ffi::c_void;
 use core::ptr::{null, null_mut, with_exposed_provenance, with_exposed_provenance_mut, without_provenance_mut};
 use std::ffi::CString;
@@ -111,9 +113,7 @@ struct Tmp(String);
 
 impl Drop for Tmp {
     fn drop(&mut self) {
-        if std::fs::remove_file(&self.0).is_err() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -130,7 +130,7 @@ impl Tmp {
 /// A fresh scratch name: in a re-executed child, in the directory its parent made for it.
 fn tmp(tag: &str) -> Tmp {
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let base = std::env::var_os(CHILD_TMP).map_or_else(|| std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")), std::path::PathBuf::from);
+    let base = std::env::var_os(CHILD_TMP).map_or_else(crate::scratch::base, std::path::PathBuf::from);
     let p = base.join(format!("s12-{}-{tag}-{n}", std::process::id()));
     let t = Tmp(p.to_str().unwrap().to_owned());
     let _ = std::fs::remove_file(&t.0);

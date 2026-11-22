@@ -1,6 +1,6 @@
 # The reference library's variants of the East Asian multi-byte charsets
 
-One file per built-in East Asian codec (`BIG5`, `EUC-KR`, `CP932`, `CP936`, `GB18030`): what a
+One file per built-in East Asian codec (`BIG5`, `EUC-KR`, `CP949`, `CP932`, `CP936`, `GB18030`): what a
 black-box probe of the reference library's converter found beyond the public mapping table the
 codec is generated from (`../unicode/`, `../whatwg/`). The probe is
 `crates/core/tests/oracle/iconv_codespace.c` run against the reference C library (every byte

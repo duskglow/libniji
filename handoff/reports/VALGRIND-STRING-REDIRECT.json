@@ -1,0 +1,56 @@
+{
+ "task": "VALGRIND-STRING-REDIRECT",
+ "model": "opus",
+ "tokens": null,
+ "result": "memcheck now replaces libniji's string functions: ls /, ls -l /etc, find /etc -name passwd, sort /etc/passwd and a program calling every replaced function report 0 errors in a swapped trixie root with libc6-dbg, as stock (before: 12, 14, 72, 0, 12); a real strlen overread is still reported",
+ "branch": "task/valgrind-string-redirect",
+ "head": "59235050f",
+ "gate": {
+  "affected": "16 suites ok, 11263 passed / 0 failed; conformance 142/0 (direct tier; FULL is the train's: xtask/src/so.rs)",
+  "peak": "15G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "__stpcpy_chk: memcheck loads the spec but binds no redirection under libniji (stock binds it); same before this change; next: m_redir.c binding rules against the head's --trace-redir output",
+  "per-call counts not re-measured: the change is symbol-table only (no code byte; kernel addresses unchanged in the fast products)",
+  "process: one sed -i was used on scan.S for an id substitution (against the Edit-tool rule); the result was checked by grep",
+  "D-X.154 was first written into the generated plan/07-decisions table (precheck train-owned RED); moved to records/decisions/D-X/D-X.154.toml, precheck GREEN"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "memcheck false 'Invalid read of size 32' in ls / (12), ls -l /etc (14), find /etc -name passwd (72), strs (12) under libniji",
+   "before": 110,
+   "after": 0,
+   "unit": "memcheck errors over the 4 programs",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "products check check_valgrind_string_names + unit test valgrind_string_names_resolve_to_the_bodies; 3 plants",
+   "before": 0,
+   "after": 3,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "GitHub #13: test suites under valgrind --error-exitcode on Yohane",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "a reusable swapped-root valgrind acceptance script (mei ~/work/VALGRIND-STRING-REDIRECT/acc.sh) should live in the repo under validation/ so the next valgrind story does not rebuild it from a previous story's scratch",
+ "next_step": "land; then __stpcpy_chk's missing binding and helgrind (VALGRIND-DBG-RODATA item 2)",
+ "report_file": "handoff/VALGRIND-STRING-REDIRECT.md",
+ "jobs": [
+  "mei:valgrind-string-redirect-gate",
+  "mei:valgrind-string-redirect-plants2",
+  "mei:valgrind-string-redirect-acc",
+  "mei:valgrind-string-redirect-lint"
+ ]
+}
