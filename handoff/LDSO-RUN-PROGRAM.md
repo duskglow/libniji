@@ -1,7 +1,34 @@
 # LDSO-RUN-PROGRAM: ld.so run as a program takes ld.so(8)'s options and runs static programs
 
-State: branch `task/ldso-run-program` (from origin/next 90390071c). Commits: d9c103ffb (the change, tests, records,
-plants), 44ccf4e9a (empty `--argv0` fix and a test-harness fix), then this note and the report. Role keke `~/w/r1`.
+State: branch `task/ldso-run-program-2` (continues `task/ldso-run-program`, from origin/next 90390071c). Commits:
+d9c103ffb (the change, tests, records, plants), 44ccf4e9a (empty `--argv0` fix and a test-harness fix), the first
+run's note and report; run 2: ebd5de49d (the map test's expected refusal form), then this note and the report.
+Roles: run 1 keke `~/w/r1`, run 2 mei `~/w/s3`.
+
+## Run 2 (LDSO-RUN-PROGRAM-2): the start-up check's red
+
+- Red: `niji-ld::map map_malformed_corpus_refused_by_ldso` (start-up job, `cargo xtask test`): it expected program
+  mode's refusal of a malformed file to start `ld.so: `; run 1 had moved program mode's `image.rs` `load` refusals to
+  `PATH: error while loading shared libraries: PATH: <reason>`. Reproduced on mei (deterministic, the only failure
+  of run 1's 7047-test run).
+- Probe (mei, the test's own PIE and corpus rebuilt from it by a scratch script; reference = the installed 2.39
+  ld.so run as a program): on the entries it refuses (congruence-broken, huge, huge-align, not-loadable, the
+  fixed-address program at 0) the reference prints exactly that one-line form, status 127. Program mode did not
+  regress: status 127 as before, one line, no signal, and the plan refuses before the first mapping call
+  (`map_malformed_corpus_refused`, unchanged and green). So the test encoded libniji's old text: it now checks the
+  reference's form, a non-empty reason and one line for every corpus entry (ebd5de49d).
+- Reasons: libniji's program mode keeps its own reason texts (`MapError::message`: "malformed loadable segments",
+  "not a valid ELF file for this machine" for `ET_REL`, ...); the reference's differ, and libniji's dependency path
+  already gives the reference's texts for some of them ("only ET_DYN and ET_EXEC can be loaded", "ELF load command
+  address/offset not page-aligned"). Not changed here (pre-existing, not a regression); next step below.
+- Plants (handoff/LDSO-RUN-PROGRAM-2-plants.txt): the old `ld.so:` form, an empty reason: 2 CAUGHT.
+- Jobs (mei `~/w/s3`, tree of ebd5de49d): `ldso-run-program-2-check0` (clippy all-targets all-features and
+  `cargo xtask static` on the inherited head: clean), `ldso-run-program-2-plants` (2 CAUGHT, no WARN),
+  `ldso-run-program-2-gate` (direct tier, `--base origin/next`: 13 suites, 816 passed, 0 failed, 0 SKIPPED, peak
+  3.8G), `ldso-run-program-2-startup` (`cargo xtask test`: 7047 passed, 0 failed; full-profile `so` ok;
+  `hot_text_products` 33 passed), then clippy, static and precheck on the final head (hand-back names them).
+  The +128-instruction start-up cost is unchanged by run 2 (no loader code changed); its fix-forward is
+  LDSO-PROGRAM-OPTIONS-REST (#7513).
 
 ## What changed (D-27.80, records/decisions/D-27/D-27.80.toml, reserved this run)
 
@@ -76,4 +103,7 @@ Layout: no libc.so.6 code changed; ld.so's changes are in its command path plus 
 - `--list` of a missing file and of a non-ELF file keep libniji's earlier texts (pre-existing; reference differs).
 - `--verify` of a name without `/` gives 1 without a search (not probed).
 - Release notes: the snapshot notes' known limitation for program mode can shrink to the six options above.
+- Program mode's reasons for a file it cannot map (`image.rs` `load`, `MapError::message`) could take the
+  dependency path's reference texts (`niji_ld::dlopen::Refusal::text`) where the two agree on the cause; suggested
+  for LDSO-PROGRAM-OPTIONS-REST (it already holds the `--list` texts and the `--preload` fix-forward, #7513/#7514).
 - Plan rows: D-27.69, D-27.14, D-27.13; D-27.80.

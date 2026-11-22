@@ -3,3 +3,6 @@
 refusal-old-form | crates/boundary/src/ld/image.rs | lit:fail_loading(name, name, msg.strip_suffix(b"\n").unwrap_or(msg)) ==> fail_with(&[name, b": ", msg], program::FAILURE) | cargo test -p niji-ld --test map map_malformed_corpus_refused_by_ldso | msg:map_malformed_corpus_refused_by_ldso.*FAILED|not the start's refusal
 # Program mode's refusal keeps the form but loses the reason.
 refusal-no-reason | crates/boundary/src/ld/image.rs | lit:fail_loading(name, name, msg.strip_suffix(b"\n").unwrap_or(msg)) ==> fail_loading(name, name, &msg[..0]) | cargo test -p niji-ld --test map map_malformed_corpus_refused_by_ldso | msg:map_malformed_corpus_refused_by_ldso.*FAILED|panicked
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# refusal-old-form: CAUGHT, caught by map map_malformed_corpus_refused_by_ldso
+# refusal-no-reason: CAUGHT, caught by map map_malformed_corpus_refused_by_ldso
