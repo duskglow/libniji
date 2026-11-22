@@ -67,3 +67,25 @@ regenerated `libc-include/`: 628 functions, 0 differences.
 * Not to redo: the table rerun (628 functions) and the merge.
 * Next step: land.
 
+## Continuation S19-4 (after HEADERS-GEN-COMPLETE)
+
+* Merged origin/next. The generator is now split into `xtask/src/headers/*.rs`; it provides no diagnostic-attribute code, so the
+  shared edit stays (and is the only one): `Tables.attrs` + `attr_text` in `headers.rs`, the `@@attrs(NAME)` inline marker, and
+  `extern_lines` in `headers/functions.rs` appends the text after the asm label. The slice adds data (`diagattrs.tsv`), the
+  differential test (`slices/s19.rs`) and the template markers.
+* Table rerun for every header that landed since (2254 functions probed, 1195 rows; no earlier row lost). Probe fixes: (1) the
+  clean-room slip of run 3 is removed: `const` was read from `gcc -E` of the reference's headers, against the probe's own rule
+  (plan/headers.md 2.2); it is now a black-box test (`ct`: two calls with a memory clobber between, marker dropped when merged;
+  numeric parameters only) plus C 7.22.6.2 for div/ldiv/lldiv/imaxdiv (the compiler never merges structure results); (2) `bp`
+  (redeclare with `pure`: the compiler refuses it for const builtins, e.g. asinhl, so the row is const); (3) the corpus leaves
+  out headers the reference refuses (regexp.h) and libgen.h (its `basename` macro changes the probed function); unistd.h first
+  (fcntl.h before it hides lockf's warn_unused_result); open/creat get no sentinel test (the reference's checking wrappers raise an
+  error in a header that no test line owns). The nm reader knows the new marker.
+* Hand-written lines: `headers/wchar.h.in` (wcschr family, wcswcs) and `headers/ftw.h.in` (nftw) carry `@@attrs`.
+* Results: `header_check.py` 0 failed of 13677 (run 3: 0 of 4563); `attr_probe.py check` 0 differ of 11133 tests (known differences
+  listed by the tool: fwrite_unlocked, gettext, dgettext, btowc, wctob: the compiler's own builtin knowledge decides them).
+* Plants: 11 (10 + `s19-wchar-template`). The plants of the probe's table derivation (the `ct`/`bp` tests) have no direct test:
+  the committed table is what the generator reads, and `check` compares headers, not table derivation.
+* Open: C++ overloads and `gets` (earlier notes) are still not probed.
+* Next step: land.
+
