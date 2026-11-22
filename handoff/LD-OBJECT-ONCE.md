@@ -1,10 +1,28 @@
 # LD-OBJECT-ONCE: one validating pass per loaded object (LD-VERSIONS-ONCE merged in)
 
-**State:** done; should land. Branch `task/ld-object-once-2` (= `task/ld-object-once` + this note and the run-2 report),
-from origin/next fd973fc44; code head c6f3f05a5 (later commits: plants line, notes, reports only). Run 1: keke `~/w/n3`
+**State:** done; should land (run 3: merged next, CI red not reproduced). Branch `task/ld-object-once-3` (= `task/ld-object-once-2`
++ a merge of origin/next 8e1837914 + this note), first cut from origin/next fd973fc44; code head c6f3f05a5 (later commits: plants line, notes, reports only). Run 1: keke `~/w/n3`
 (Zen 1 host). Run 2 (LD-OBJECT-ONCE-2): mei `~/w/s4` (Skylake-SP host). Briefs: ~/state/briefs/LD-OBJECT-ONCE.md,
 ~/state/briefs/LD-VERSIONS-ONCE.md, ~/state/briefs/LD-OBJECT-ONCE-2.md. Decision: D-27.85
 (records/decisions/D-27/D-27.85.toml). Plants: handoff/LD-OBJECT-ONCE-plants.txt (10 plants).
+
+## Run 3 (LD-OBJECT-ONCE-3, branch `task/ld-object-once-3`, mei `~/w/s1`, Skylake-SP host)
+- CI red on a9be076d8 (CI merge 4d6305816, 20:28Z): eleven address-lookup tests (dladdr/_dl_find_object one object
+  short, atexit_owner main handlers unattributed, s27_dladdr status 134, ...). LD-RELR-LOOP-2 (same base fd973fc44)
+  failed the same eleven at 22:15Z; trains on next alone at 21:05Z/21:55Z and 22:51Z (8e1837914) are green.
+- Merged origin/next 8e1837914 (clean, no conflicts; no code change in this run). On that head, NOT reproduced:
+  direct-tier gate 13 suites / 1,048 passed (atexit_owner, dl_find_object_index, dlclose, dlopen_concurrent,
+  dlopen_process_objects, runpath_search included), and `cargo xtask test` (what CI runs, s27_dynlink_clauses incl.)
+  green; plants 10/10 caught. Between 08af73077 (green train) and 8e1837914 only LDSO-PROGRAM-OPTIONS-REST-2 and
+  THREAD-EXIT-NO-UNWINDER landed (they touch `ld/entry.rs`, `ld/image.rs`, `ld/state.rs`, `ld/dlopen.rs`).
+- Cause NOT FOUND: the failing path (index.rs `find` / readers.rs) reads only program headers, nothing this branch
+  changed (elf.rs tags/hashes/versions, symbols.rs, reloc.rs, image.rs `image_tables`). The red needed a
+  next of 20:28-22:15Z plus a fd973fc44-based branch; reproducing it needs a build of an old next, which the
+  clean-room git rules forbid (no old checkouts of others' work). If CI goes red the same way again, keep
+  ci-z's products (`target/niji`) with the scratch so the failing ld.so can be examined.
+- Start-up kit counts were not re-measured (no code change); hot_text_products bounds pass on the merged head.
+- Jobs (mei, merged head): ld-object-once-3-lint (clippy, static, so), ld-object-once-3-gate, ld-object-once-3-plants
+  (10 CAUGHT, no WARN), ld-object-once-3-startup (`cargo xtask test` 7,152 passed + full-profile hot_text_products 33).
 
 ## What changed (no check dropped; every error the same, in the same order)
 - `crates/ld/src/elf.rs`: `Tags` (the nine tags a lookup view reads, one pass over the entries, `once`'s answers incl.
