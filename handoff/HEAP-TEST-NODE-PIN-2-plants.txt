@@ -8,3 +8,6 @@
 # pin-all-cpus: with_cpus sets every CPU instead of the node's.
 pin-skipped | crates/core/tests/heap_meta_products.rs | lit:[first, _, ..] => first, ==> [_first, _, ..] => &[], | a=$(taskset -pc $$); a=${a##*: }; f=${a%%[-,]*}; o=; for n in /sys/devices/system/node/node[0-9]*; do [ -e $n/cpu$f ] && continue; o=$(cat $n/cpulist); o=,${o%%[-,]*}; break; done; echo "plant cpus: $a$o"; taskset -c "$a$o" cargo test -p niji --test heap_meta_products the_heap_keeps_address_space_near_its_use -- --nocapture | msg:not one \(pinning skipped or wrong mask\)
 pin-all-cpus | crates/core/tests/heap_meta_products.rs | lit:for &c in cpus { ==> for c in 0..8192 { | a=$(taskset -pc $$); a=${a##*: }; f=${a%%[-,]*}; o=; for n in /sys/devices/system/node/node[0-9]*; do [ -e $n/cpu$f ] && continue; o=$(cat $n/cpulist); o=,${o%%[-,]*}; break; done; echo "plant cpus: $a$o"; taskset -c "$a$o" cargo test -p niji --test heap_meta_products the_heap_keeps_address_space_near_its_use -- --nocapture | msg:not one \(pinning skipped or wrong mask\)
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pin-skipped: CAUGHT, caught by heap_meta_products the_heap_keeps_address_space_near_its_use
+# pin-all-cpus: CAUGHT, caught by heap_meta_products the_heap_keeps_address_space_near_its_use
