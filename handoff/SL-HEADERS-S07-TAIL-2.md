@@ -17,8 +17,8 @@ State: branch `task/sl-headers-s07-tail-2` (stacks on SL-HEADERS-S07-TAIL; its h
 * `lint`: `cargo clippy --workspace --all-targets --all-features -D warnings`, `cargo xtask static`, `affected --list`
   (selects only the stubs/purity/unsafe/csys checks, the xtask unit tests and static; no test targets). All clean.
 * `gate2`: `cargo xtask so && cargo xtask affected --run --base origin/next`: affected ok, 0 SKIPPED lines.
-* Final content: `hc2` (header_check 0 failed of 16777) and `gate3` (clippy -D warnings, `cargo xtask static`,
-  `affected --run --base origin/next`: ok, 0 SKIPPED, peak 1.7G). Then `cargo xtask precheck`.
+* Final head: `hc3` and `gate4` (same commands, run after the last sync). Earlier `hc2` (header_check 0 failed of 16777) and `gate3` (clippy -D warnings, `cargo xtask static`,
+  `affected --run --base origin/next`: ok, 0 SKIPPED, peak 1.7G). These two are SUPERSEDED: a later handoff-only sync bumped the mtime of header_checks/, so precheck lists s13.py as removed.
 * SUPERSEDED `hc`, `lint`, `gate2`: precheck found that the role still had the deleted s13.py when they ran.
 * SUPERSEDED `gate`: red only in `xtask --test transcripts` (iconv). The role's `target/niji-test/iconv` came from an
   earlier build, and its NEEDED `libc-by-path.so` was gone (ENOENT on exec). After `cargo xtask so` rebuilt the
