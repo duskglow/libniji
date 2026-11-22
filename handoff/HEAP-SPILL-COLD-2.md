@@ -7,9 +7,10 @@ head `libc.a` in `base-niji/`, `head-niji/`). Decision: D-3.23 (amends D-3.12, D
 
 ## Done: the node-migration part (ruling #7441)
 
-1. `the_heap_keeps_address_space_near_its_use` runs its oracle child pinned to the first NUMA node's allowed CPUs
-   (test thread's affinity, inherited; restored after); comment names it a single-node measurement and cites
-   jobs test-scratch-cleanup-4-heaprep2 / -heapmig. Bounds and `AS_HEADROOM` (41296) unchanged.
+1. The single-node pin was built, then DROPPED (coordinator note 11-22 03:30Z: it is HEAP-TEST-NODE-PIN's, which
+   lands first). `the_heap_keeps_address_space_near_its_use` is as on next. OWED: merge origin/next once
+   HEAP-TEST-NODE-PIN has landed (submitted 03:30Z, not landed by this run's deadline); its helpers may conflict with
+   this branch's `numa_nodes` / `with_cpus` (keep one pair), and the migration test then sits beside the pinned one.
 2. Measured (`heap_address_space.c` gained `- | <limit> CPU AT`: move to CPU at point AT, 1 after malloc1, 2 mid-alloc,
    3 after alloc, 4 after refill; fixed layout; 3/3 runs; Zen 1 and Skylake-SP identical). Base:
 
@@ -40,6 +41,20 @@ head `libc.a` in `base-niji/`, `head-niji/`). Decision: D-3.23 (amends D-3.12, D
 Issue #21 formula (find under `ulimit -v`, single-threaded): a move of `find` between nodes mid-run raised its need by
 up to 4352 KiB before; under the limit it is now at most +2304 by the probe's points (+256 when it moves while
 growing). Not measured with `find` itself (estimate from the probe, measured: false).
+
+## Results (mei, Skylake-SP)
+
+- Gate (direct tier) on `e69555d58` (pin included): 16 suites ok, 2058 passed, 0 failed, 9 conformance passed, peak
+  12G. Rerun on the final head (pin dropped, tests only): see the hand-back's JOBS.
+- Plants (`~/work/heap-spill-cold-2/plants.txt`): 5 CAUGHT, 0 WARN (check removed, in rt and in the products
+  migration test; the empty-slab term; the never-used term; the limit condition).
+- Start-up checks on `e69555d58`: `cargo xtask test` 7039 + 4866 passed; full-profile `so` + `hot_text_products`:
+  see JOBS. Product code is identical on the final head (its last commit changes a test file only).
+- Layout bins against base (`basebins.sh`: role source with this branch's heap.rs diff reversed): bin 0 60779 ->
+  60748 B, bins 1-8 unchanged; `refill` 3889 -> 3922 B (+33: the inlined `new_segment`'s call to the cold check);
+  two other bin-0 sections swapped by the traced grouping.
+- INFORMATIONAL: in a slot whose cpuset is one node's CPUs the migration test skips (it prints why): the
+  `cargo xtask test` run passed it in 0.03 s, a skip; the plants run had both nodes and the plant failed it.
 
 ## Not done: the spill (the story's original part)
 

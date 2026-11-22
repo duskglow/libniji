@@ -174,15 +174,7 @@ fn the_heap_keeps_address_space_near_its_use() {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("heap_address_space_niji");
     build("heap_address_space.c", &exe);
-    // A single-node measurement: the bounds and AS_HEADROOM are the levels of a run that stays on
-    // one NUMA node, so the program runs on the first node's CPUs alone. A process the scheduler
-    // moves to another node mid-run takes that node's segment (+4360 KiB at most; Skylake-SP
-    // build host: pinned to either node or unpinned 0/20 failures each, affinity flipped between
-    // the nodes mid-run 15/20 exit 12 under start + 41296 KiB; jobs test-scratch-cleanup-4-heaprep2
-    // and test-scratch-cleanup-4-heapmig, ruling #7441). That case has its own test and bounds:
-    // `the_heap_bounds_address_space_after_a_node_change`.
-    let node0 = numa_nodes().into_iter().next().unwrap_or_default();
-    let o = with_cpus(&node0, || Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap());
+    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
     assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
     let out = String::from_utf8_lossy(&o.stdout);
     let kib = |step: &str| -> u64 {
@@ -196,7 +188,7 @@ fn the_heap_keeps_address_space_near_its_use() {
         eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
         assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
     }
-    let o = with_cpus(&node0, || with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
+    let o = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
     assert!(
         o.status.success(),
         "under RLIMIT_AS = start + {AS_HEADROOM} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
