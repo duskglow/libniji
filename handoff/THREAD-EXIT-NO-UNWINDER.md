@@ -48,7 +48,13 @@ libniji never loads libgcc_s.so.1 itself, so "present" and "hidden" behave alike
 * No product test puts a handler frame in a shared library other than the executable (the `frame_object`
   path is unit-tested only through `find`); a frame beyond an object without CFI ends the walk early, and the
   exit then goes on (documented in D-22.23).
-* Start-up checks (`cargo xtask test`, NIJI_FULL_PROFILE hot_text_products): see the hand-back's JOBS line.
+* The check runs only when libniji's `ld.so` started the process (`LOADER_DLSYM` set): gate2 found
+  `s23_4_c_3_3` aborting in the in-process test runtime (test-profile Rust frames carry LSDAs, no lookup).
+* Jobs (keke): probe-ref, probe-base2, probe-head (tables), gate2 on ea95f35b8 (red: s23_4_c_3_3, fixed),
+  plants2 (5 CAUGHT + 1 WARN-NO-MSG caught for the right reason), final (clippy, so, static, failing
+  suite and the thread suites on fe6f805ec). Superseded: gate, plants (pre-guard-skip head), build1 (compile error).
+* Start-up checks (`cargo xtask test`, NIJI_FULL_PROFILE hot_text_products) not run: the change is on the
+  thread-exit path only (cold functions), no start-up code.
 
 ## Next step
 None on this branch if the hand-back is COMPLETE. Plan rows: D-22.19, D-22.21, D-22.23.
