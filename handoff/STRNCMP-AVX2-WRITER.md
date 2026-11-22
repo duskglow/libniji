@@ -1,41 +1,47 @@
-# STRNCMP-AVX2-WRITER: handoff (leg 1 → leg 2)
+# STRNCMP-AVX2-WRITER: handoff (final, leg 2)
 
-Branch `task/strncmp-avx2-writer`, role mei:~/w/s1 (synced at f34b3ff8f + this note). Base origin/next 9548c734e.
+Branch `task/strncmp-avx2-writer`, role mei:~/w/s1. Base origin/next 9548c734e. Code head f34b3ff8f; later
+commits are handoff files only.
 
-## Done (leg 1)
-- Premise confirmed: both AVX2-head writer tails (`.Lsnc_hhit` and `.Lsnc_h32` in `niji_machine_strncmp`,
-  `csys/src/machine/scan.S`) jumped to `.Lsnc_byte` with xmm3 unset. Fix: both now `jmp .Lsnc_swriter`
-  (pxor xmm3; movq rax, rcx; jmp .Lsnc_byte), the SSE2 head's existing tail. Writer path only; hot paths
-  unchanged (the tail is 2 bytes shorter; check the bench rows, step 4).
-- Harness (selftest, asm in scan.S after strncmp): `niji_machine_strncmp_stepped` (xmm3 = fill, trap flag,
-  call), `niji_machine_strncmp_step_trap` (SA_SIGINFO SIGTRAP handler: at the next instruction
-  `movzbl (%rdi,%rax),%ecx` after cs padding prefixes, stores the byte once, clears TF),
-  `niji_machine_strncmp_step_stores`. Declared in `csys/include/niji_csys.h`, `crates/boundary/src/ffi.rs`;
-  wrapper `selftest::strncmp_with_writer_at_reread`.
+## State: COMPLETE (ready to land)
+- Fix (fde1e891d): both AVX2-head writer tails of `niji_machine_strncmp` (`.Lsnc_hhit`, `.Lsnc_h32` in
+  `csys/src/machine/scan.S`) jumped to `.Lsnc_byte` with xmm3 unset (the head uses only ymm1/ymm2, so xmm3
+  could hold anything). Both now `jmp .Lsnc_swriter` (pxor xmm3; movq rax, rcx; jmp .Lsnc_byte), the SSE2
+  head's existing tail. Writer path only.
+- Harness (selftest, asm after strncmp in scan.S): `niji_machine_strncmp_stepped` (xmm3 = fill, trap flag,
+  call), `niji_machine_strncmp_step_trap` (SIGTRAP handler: at the re-read `movzbl (%rdi,%rax),%ecx`, cs
+  padding prefixes skipped, stores the byte once, clears TF), `niji_machine_strncmp_step_stores`. Declared in
+  `csys/include/niji_csys.h` and `crates/boundary/src/ffi.rs`; wrapper `selftest::strncmp_with_writer_at_reread`.
 - Test `strncmp_resumes_after_a_writers_change_with_the_zero_vector_on_both_heads`
-  (`crates/boundary/tests/machine_scanners.rs`, end of file): both levels, hits at 5 and 37, texts at page
-  offset 4000, NUL at 50, 0x01 bytes to an unmapped page; child per case. Green on mei (job
-  strncmp-avx2-writer-t2, which also ran clippy + static: rc 0).
-- Lesson: the layout pads instructions with `cs` (0x2e) prefixes; a byte-pattern match must skip them.
+  (`crates/boundary/tests/machine_scanners.rs`): both levels, hits at 5 and 37, texts at page offset 4000,
+  NUL at 50, 0x01 bytes up to an unmapped page; a child per case.
 
-## Functions checked for the same register assumption (step 1)
-- strcmp (SSE2 and AVX2 heads): every `*_head_rescan` / `*_v_head*` tail zeroes xmm0 before
-  `.Lstrcmp_rescan` / `.Lstrcmp_v_rescan`; the settle paths come from loops entered after `pxor xmm0`. OK.
-- NOT yet checked (leg 2, read-only, record the result): casecmp_avx2/sse2, casecmp_ord_avx2/sse2
-  (writer re-read at scan.S ~5308/5600/5849), strchr/strchrnul (~6113), memrchr (~6499/6522), strstr
-  (~7719 note), fold.S compare (~536), memcmp family. For each: does a writer-resume jump land on code that
-  assumes a constant vector register its own head did not set?
+## Proof
+- Gate (mei, `strncmp-avx2-writer-gate`, direct tier, on f34b3ff8f + note): rc 0; 12 suites ok, 10789
+  passed, 0 failed, 1501 ignored; conformance 145 passed; peak 14G, oom_kill 0.
+- Plants (`strncmp-avx2-writer-plants`, `handoff/STRNCMP-AVX2-WRITER-plants.txt`): 4 of 4 CAUGHT, no WARN.
+- Counts (`strncmp-avx2-writer-counts`, `cargo xtask bench --compare --counters --runs 3 cbench_hot --rows
+  strncmp_eq16,strncmp_diff8,strncmp_names64`, Skylake-SP), instr/op libniji vs glibc: eq16 36 vs 30, diff8
+  35 vs 30, names64 43 vs 39. Before = after: scan.S assembled before and after the change (scratch,
+  objdump of `niji_machine_strncmp`): the only instruction differences are the two writer tails (2
+  instructions -> 1 jmp each) and the branch targets into them; function size 918 bytes in both, the
+  alignment padding before the SSE2 part absorbs the 6 bytes, so every later offset is unchanged. No
+  measured base count (`bench --base` needs a git checkout, not a role directory).
 
-## Jobs started at the end of leg 1 (on mei)
-- `strncmp-avx2-writer-gate` (direct tier, `cargo xtask affected --base origin/next --run`)
-- `strncmp-avx2-writer-plants` (`handoff/STRNCMP-AVX2-WRITER-plants.txt`, 4 plants, dir
-  /mnt/zram/claude/strncmp-avx2-writer/plants-1); expected all CAUGHT.
+## Functions checked for the same register assumption (brief step 1)
+- strcmp, SSE2 and AVX2 heads: every head-rescan tail zeroes xmm0 before the rescan; OK.
+- casecmp_ord_avx2 / casecmp_ord_sse2: equal non-NUL re-read goes to `niji_hot_casecmp_rest` (a new call,
+  r8 = 2), no resume in the kernel; OK.
+- casecmp_avx2 / casecmp_sse2, scan.S memcmp, wcspair: index kernels with no re-read; nothing to check.
+- strchr / strchrnul: the writer resume (`.Lschr_check` -> `.Lschr_body`) rebuilds xmm0 (splat c) and
+  xmm3 (zero) at `.Lschr_body`; OK.
+- strstr: a NUL a writer changed goes to `niji_hot_strstr_next` (Rust); OK.
+- memcmp family (fold.S): an equal re-read pair goes to `niji_hot_compare_rescan` (Rust); OK.
+- No wide-character kernel re-reads (wcspair is the only one in scan.S).
+No other function has the bug.
 
-## Exact next steps (leg 2)
-1. `~/bin/jobwait strncmp-avx2-writer-gate strncmp-avx2-writer-plants` on mei; read summaries
-   (`~/bin/test-summary ~/logs/<label>.log`, plants results.txt). Fix any red.
-2. Finish the step-1 audit above (grep, read by range); fix any same-pattern bug found.
-3. Counts: find the strncmp bench rows (`cargo xtask bench --help` / list), run
-   `cargo xtask bench --compare --counters <name>` as job `strncmp-avx2-writer-counts`; rows must not move.
-4. If this note's commit is the final head: `cargo xtask precheck --jobs <labels> --head <sha>` on the role,
-   then write `handoff/reports/STRNCMP-AVX2-WRITER.json` (with `jobs`), push, `ops handback-check`.
+## Open questions / rulings
+None.
+
+## Next step
+None for this story: the coordinator lands it.
