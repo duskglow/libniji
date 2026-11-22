@@ -750,6 +750,18 @@ def main():
                     f"definitions no exported symbol carries.\n")
         print(f"{ver}\nempty versions: {len(emp)}")
         return
+    if "--prototypes-fortify" in sys.argv:
+        # The `__*_chk` declarations the headers make only under _FORTIFY_SOURCE (plan/headers.md slice 18; C.9
+        # "Signatures per chk-prototypes.tsv"): the `_GNU_SOURCE` prelude compiled at -O2 with _FORTIFY_SOURCE=3,
+        # the `-aux-info` lines of `__*_chk` names only, in their own table so prototypes.tsv and the tables keyed on
+        # it (noexcept.tsv, callsites.tsv) keep their contents. Names GCC provides as builtins and the headers do
+        # not declare (`__memcpy_chk`) get no row.
+        with tempfile.TemporaryDirectory() as tmp:
+            got = prototypes(tmp, None, ("-std=gnu17", "-O2", "-D_FORTIFY_SOURCE=3"))
+        rows = sorted((k, *v) for k, v in got.items() if re.fullmatch(r"__\w+_chk", k))
+        write("chk-prototypes.tsv", ["name", "header", "declaration"], rows)
+        print(f"{ver}\nchk prototypes: {len(rows)}")
+        return
     if "--prototypes-missing" in sys.argv:
         # Add the prototypes of the functions only other configurations declare (HEADERS-TABLES-COMPLETE): the
         # existing rows are kept where they are, each new one goes before the first row whose name sorts after it.
