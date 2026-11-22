@@ -12,6 +12,9 @@
 # FAULT_RUNS runs (WLC_ASLR=1: ASLR on and the median, the method before WL-COUNT-HONEST-CHEAP), with min..max
 # printed; instructions are the mean (exact). When new and base faults differ by > FAULT_PCT (default 2) % the faults
 # of both are re-measured fresh in the same job (not the syscalls or output, which do not vary) and the table says so.
+# Then, in a row of 4 x 10^9 user instructions or more (about 2 s), a column whose lowest run is still more than 7 %
+# above its pair's is measured again, keeping the lowest run of all its batches, up to 3 batches (EXCURSION RE-MEASURE,
+# D-X.157, wl_stats.sh wl_excursions); the table's note lists each batch.
 # Each step logs a `wl_phase:` line (PHASES below). Rows are cached in ~/wl/count/<variant>/<workload>.q.tsv (a variant
 # is a commit: kit, inputs and the host's glibc do not change); COUNT_FRESH=1 ignores the cache.
 # FUTEX (WLCOUNT-FUTEX, 2026-10-21): futex wait/wake counts of threaded workloads (sort-C, sort-utf8) depend on
@@ -96,6 +99,17 @@ refaults() {
     echo "wl_phase: $((SECONDS - s0)) refaults $name $(col "$v")" >&2
 }
 
+# xmeasure new|base -> a fresh wl_stats batch of that column of the current row ($name, $cmd), for wl_excursions
+xmeasure() {
+    local v=$new c s0=$SECONDS st
+    [ "$1" = base ] && v=$base
+    c=${cmd//@/$WL/kit/$(wl_vkey "$v")/bin}
+    [ -n "$wenv" ] && c="env $wenv $c"
+    st=$(perf_runs "$c")
+    echo "wl_phase: $((SECONDS - s0)) refaults $name $1" >&2
+    echo "$st"
+}
+
 measure() { # workload cmd variant [fresh] [noenv] -> row on stdout; fresh=1 ignores the cache, noenv=1 drops WLC_ENV
     local name=$1 cmd=$2 v=$3 fresh=${4:-0} c cache e=$wenv t=$etag s0=$SECONDS s1 s2
     [ "${5:-0}" = 1 ] && { e=; t=; }
@@ -162,6 +176,16 @@ for w in "${want[@]}"; do
             rb=$(refaults "$name" "$cmd" "$base" "$rb")
             rn=$(refaults "$name" "$cmd" "$new" "$rn")
             note="faults differed by > 2% (first measurement: $first): faults and instructions of new and base re-measured fresh in this job (syscalls and output kept)"
+        fi
+        # EXCURSION RE-MEASURE (D-X.157, wl_stats.sh wl_excursions): in a long row, a column still far above its pair is
+        # measured again and keeps the lowest run of all its batches; the rows go back to the cache as measured.
+        WL_RN=$rn WL_RB=$rb
+        wl_excursions xmeasure || echo "wl_count_run: $name: excursion re-measure failed; the batches measured before it are kept" >&2
+        if [ -n "$WL_XNOTE" ]; then
+            rb=$WL_RB rn=$WL_RN
+            echo "$rb" > "$WL/count/$(wl_vkey "$base")/$name$etag$msuf"
+            echo "$rn" > "$WL/count/$(wl_vkey "$new")/$name$etag$msuf"
+            note="${note:+$note; }$WL_XNOTE"
         fi
         printf '%s\n%s\n%s\n' "$rn" "$rb" "$rg" | awk -F'\t' -v name="$name" -v nsha="${new:0:9}" -v bsha="${base:0:9}" -v note="$note" -v envck="$envck" -v stat="$([ "$ff" = 5 ] && echo lowest || echo median)" '
             function ratio(a, b) { return (b + 0 > 0) ? sprintf("%.4f", a / b) : "-" }

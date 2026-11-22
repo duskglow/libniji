@@ -24,13 +24,22 @@
 # above the one before (libniji did not get worse; glibc's number was wrong). tar-gz (a 4 s two-process pipeline): 2
 # of its 10 libniji columns had every run 110+ faults above the rest (758, 765: positive excursions as in D-X.151);
 # its libniji is the highest of the other 8 (629..647).
+# D-X.157 (WL-LEVELS-RERECORD-2, 2026-11-22): `recorded` names how many counts a row rests on. printf-loop (the longest
+# row, about 32 minutes of a count) rests on 2 counts on the Zen 1 host. The Skylake-SP class (the CI gate's) is recorded as a new class from its 5
+# counts of the same revision (jobs wl-levels-rerecord-m1..m5 of D-X.155), with exactly D-X.155's rule: libniji = the
+# highest of the 10 libniji columns, glibc = the lowest of the 5 glibc columns, level = ceil4 of the ratio. Every row
+# repeated exactly in all 5 counts except tar-c (libniji 465..476, glibc 389..400: 476 / 389). du (3284 / 3094 = 1.0615)
+# and every instructions:u row are at or below 1.10 there, so they have no hold. printf-loop was not in those 5;
+# its Skylake-SP rows rest on 2 counts of their own (2026-11-22, same revision and method; jobs
+# wl-levels-rerecord-2-m-printf and -m-printf2). Counts now measure a long row's far-off column again (wl_stats.sh
+# wl_excursions), so an excursion such as tar-gz's 758 is measured away rather than held by a looser level.
 cpu	workload	metric	glibc	libniji	level	recorded	cause
 AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3112	3952	1.2700	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	md5sum	pf	143	176	1.2308	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	cut-tr-uniq	pf	476	585	1.2290	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	seq	pf	133	161	1.2106	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
-AMD EPYC 7551 32-Core Processor	printf-loop	instr	5203469249	19142789292	3.6789	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
-AMD EPYC 7551 32-Core Processor	printf-loop	pf	1440309	1960175	1.3610	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	instr	5203469249	19142789292	3.6789	0299fd6e1 2026-11-21 (fixed env, D-X.155); 2 counts	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	printf-loop	pf	1440309	1960175	1.3610	0299fd6e1 2026-11-21 (fixed env, D-X.155); 2 counts	dynamic start-up
 AMD EPYC 7551 32-Core Processor	ls-lR	pf	3132	3732	1.1916	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	du	pf	3332	3962	1.1891	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	sed-s	pf	212	275	1.2972	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
@@ -48,3 +57,25 @@ AMD EPYC 7551 32-Core Processor	tar-tv	pf	230	279	1.2131	0299fd6e1 2026-11-21 (f
 AMD EPYC 7551 32-Core Processor	gzip-d	pf	212	248	1.1699	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	pipe-mix	pf	1119	1288	1.1511	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
 AMD EPYC 7551 32-Core Processor	tar-gz	pf	523	647	1.2371	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	ls-l-enUS	pf	2654	3434	1.2939	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	md5sum	pf	145	177	1.2207	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	cut-tr-uniq	pf	482	588	1.2200	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	seq	pf	135	162	1.2000	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	ls-lR	pf	2754	3214	1.1671	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	sed-s	pf	215	277	1.2884	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	sed-utf8	pf	227	276	1.2159	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	bash-loop	pf	197	258	1.3097	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	grep-F	pf	424	484	1.1416	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	grep-E	pf	432	497	1.1505	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	grep-i-utf8	pf	452	505	1.1173	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gawk-sum	pf	247	299	1.2106	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gawk-regex	pf	249	306	1.2290	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gawk-utf8	pf	300	350	1.1667	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gawk-printf	pf	244	296	1.2132	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	tar-c	pf	389	476	1.2237	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	tar-tv	pf	232	280	1.2069	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gzip-d	pf	214	249	1.1636	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	pipe-mix	pf	1126	1293	1.1484	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	tar-gz	pf	520	623	1.1981	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	printf-loop	instr	5268874366	19131967207	3.6312	0299fd6e1 2026-11-22 (fixed env, D-X.155, D-X.157); 2 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	printf-loop	pf	1460184	1960130	1.3424	0299fd6e1 2026-11-22 (fixed env, D-X.155, D-X.157); 2 counts	dynamic start-up
