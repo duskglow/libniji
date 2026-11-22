@@ -1,6 +1,6 @@
 # LDSO-PROGRAM-OPTIONS-REST plants (cargo xtask plants; the product tests rebuild target/niji).
 # --preload folded into LD_PRELOAD's value: LD_PRELOAD's own names lost when both are given.
-fold-drops-env | crates/boundary/src/ld/entry.rs | lit:head.copy_from_slice(env); ==> head.fill(b':'); | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+fold-drops-env | crates/boundary/src/ld/entry.rs | lit:let joined = env.iter() ==> let joined = b"".iter() | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
 # The folded value's option part misplaced: LD_PRELOAD's missing name reported as --preload's.
 fold-range-whole | crates/boundary/src/ld/entry.rs | lit:value.get(env.len().saturating_add(1)..) ==> value.get(..) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
 # The diagnostic's source never --preload.

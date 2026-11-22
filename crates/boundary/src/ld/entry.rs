@@ -361,13 +361,12 @@ fn fold_preload(env: Option<&'static [u8]>, option: &'static [u8]) -> &'static [
     // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else refers
     // to them, and they are never unmapped (the value lives as long as the process).
     let buf = unsafe { conv::bytes_at_mut(at, len) };
-    let (head, rest) = buf.split_at_mut(env.len());
-    head.copy_from_slice(env);
-    let (colon, rest) = rest.split_at_mut(1);
-    colon.fill(b':');
-    let (tail, nul) = rest.split_at_mut(option.len());
-    tail.copy_from_slice(option);
-    nul.fill(0);
+    // The mapping is zero-filled, so the NUL is there already. Copied without an operation that can
+    // panic: each panic site's location is a self-relocation that every start of ld.so pays for.
+    let joined = env.iter().chain(b":").chain(option);
+    for (to, &from) in buf.iter_mut().zip(joined) {
+        *to = from;
+    }
     let value: &'static [u8] = buf;
     let value = value.get(..len.saturating_sub(1)).unwrap_or(&[]);
     super::state::keep_preload_option(value.get(env.len().saturating_add(1)..).unwrap_or(&[]));
