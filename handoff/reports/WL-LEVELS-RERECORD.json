@@ -1,0 +1,20 @@
+{"task": "WL-LEVELS-RERECORD", "model": "opus", "tokens": null,
+ "result": "Fixed run environment for the workload count; every Zen 1 held level re-recorded from 5 fresh counts of next (7 corrections up, 16 tightened, D-X.155); levels must equal their counts' ratio and raises need a cited correction",
+ "branch": "task/wl-levels-rerecord", "head": null,
+ "gate": {"affected": "affected: ok (direct tier, mei:wl-levels-rerecord-gate rc 0)", "peak": "434M"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "tar-gz (Zen 1, 4 s pipeline) still fails 1 of 5 counts: a positive excursion hit all 5 fault runs of one column (758, 765 against 629..647)", "recommendation": "fix-forward story in the count (more fault runs or a re-measure of a column far over its pair, for rows over ~2 s); never a looser level"},
+  {"item": "Skylake-SP (the CI gate's class) has no recorded levels; rows report HELD-UNRECORDED (advisory)", "recommendation": "record them from the m1..m5 counts already taken (table in handoff/WL-LEVELS-RERECORD.md) in a follow-up"}],
+ "informational": ["Skylake-SP: 20 of 21 page-fault rows repeat exactly over 5 counts; tar-c (pipeline) 465..476 / 389..400",
+  "printf-loop recorded from 2 counts (k1, k2; 80 min a count on the Zen 1 host)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "held page-fault levels whose glibc number did not reproduce (sed-s glibc 251 recorded, 212 measured): 7 corrected up (sed-s 1.2112->1.2972, gawk-sum, gawk-regex, gawk-utf8, gawk-printf, tar-gz, printf-loop instr)", "before": 5, "after": 0, "unit": "rows failing a count of next (k1, k3-k5)", "measured": true},
+  {"kind": "perf", "what": "held levels tightened to their honest ratio (bash-loop pf 1.5205->1.3164, ls-l-enUS 1.3069->1.2700, ...)", "before": null, "after": 16, "unit": "rows tightened", "measured": true},
+  {"kind": "coverage", "what": "plants on the fixed environment, the recompute and the correction rule", "before": 0, "after": 9, "unit": "plants", "measured": true},
+  {"kind": "cost", "what": "tar-gz can still fail a Zen 1 count on a page-fault excursion (1 of 5 counts here)", "before": null, "after": 1, "unit": "failing counts of 5", "measured": true}],
+ "improvement": "parse the full wlc-*.log, not the label log: the label log is only the tail (5 rows were missing on the first parse); a count of 22 rows on the loaded Zen 1 host takes 30-80 min, so 5 repeats per class should be the dispatcher's job, not an agent leg's",
+ "next_step": "land; then the two rulings (tar-gz excursion fix-forward, Skylake-SP levels)",
+ "report_file": "handoff/WL-LEVELS-RERECORD.md",
+ "jobs": ["mei:wl-levels-rerecord-gate", "mei:wl-levels-rerecord-plants", "keke:wl-levels-rerecord-k1", "keke:wl-levels-rerecord-k2", "keke:wl-levels-rerecord-k3", "keke:wl-levels-rerecord-k4", "keke:wl-levels-rerecord-k5", "mei:wl-levels-rerecord-m1", "mei:wl-levels-rerecord-m2", "mei:wl-levels-rerecord-m3", "mei:wl-levels-rerecord-m4", "mei:wl-levels-rerecord-m5"]}

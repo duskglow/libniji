@@ -10,3 +10,13 @@ raise-no-decision | validation/wl_verdict.py | lit:if not CORRECTION.search(r["c
 raise-not-recounted | validation/wl_verdict.py | lit:if r["recorded"] == b["recorded"]: ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction not recorded again refused
 raise-libniji-worse | validation/wl_verdict.py | lit:if float(r["libniji"]) > float(b["libniji"]): ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction with libniji's count risen refused
 level-edited | validation/wl_holds.tsv | lit:1.2972 ==> 1.2980 | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# env-inherit: CAUGHT, caught by no test the log names
+# env-leaky: CAUGHT, caught by no test the log names
+# env-caller-value: CAUGHT, caught by no test the log names
+# cache-shared: CAUGHT, caught by no test the log names
+# level-no-recompute: CAUGHT, caught by no test the log names
+# raise-no-decision: CAUGHT, caught by no test the log names
+# raise-not-recounted: CAUGHT, caught by no test the log names
+# raise-libniji-worse: CAUGHT, caught by no test the log names
+# level-edited: CAUGHT, caught by no test the log names
