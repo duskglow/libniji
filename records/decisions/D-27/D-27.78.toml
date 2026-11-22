@@ -5,7 +5,7 @@ ann = "—"
 status = "active"
 story = "CI-INSTR-REBUILDS"
 date = "2026-11-22"
-amends = "D-27.22"
+amends = ["D-27.22"]
 tests = ["xtask/src/so.rs::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else", "xtask/src/so.rs::a_product_build_that_reads_a_file_outside_the_tag_fails", "xtask/src/so.rs::a_fixed_tag_replaces_the_source_hash_and_only_a_fixed_one"]
 body = '''
 **The build tag hashes the product inputs only, and every product build checks that it covers what it read (CI-INSTR-REBUILDS).** The tag of D-27.22 (`NIJI_BUILD_TAG`, read with `option_env!` by `niji-boundary` and `niji-ld`) was an FNV-1a hash of every file under `crates/`, `csys/` and `include/` plus `Cargo.lock`. A change to a test file, a bench or a crate no product compiles therefore changed the tag and rebuilt every release library (about 7 to 8 minutes of cargo on the Zen 1 CI host) for products that came out the same. The hash now covers `Cargo.lock`, `csys/`, `include/`, `crates/Cargo.toml`, `crates/Cargo.lock` and the crates the five product manifests reach through `[dependencies]` and `[build-dependencies]` (target tables included, never `[dev-dependencies]`), without their `tests/`, `benches/` and `examples/` (`xtask/src/so.rs` `tag_covers`, `product_crates`). The narrower set can never let two builds from different sources carry one tag unnoticed: after each product cargo build, `check_tag_covers` reads cargo's dep-info for the archive and the absolute paths its build scripts watch, and fails the build naming any file inside the workspace (outside `target/`) that the hash leaves out. The start-up check of D-27.22 is unchanged.
