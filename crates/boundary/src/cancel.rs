@@ -240,11 +240,6 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
     0
 }
 
-/// The exception's cleanup function: a handler caught the thread's exit and ended without
-/// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither
-/// go on (it was told to exit) nor exit from here (the frames outside the handler would not
-/// unwind), so the process ends: a fatal diagnostic, then `abort` (D-22.19, ruling #6884).
-#[cold]
 /// The exit without an unwinder (D-22.23, rulings #7118 and #7119): when a frame of the thread's
 /// stack has unwind work (`-fexceptions` cleanups, C++ destructors or handlers, found by this
 /// library's own call-frame walker), going on would skip it (a mutex a destructor owns stays
@@ -263,6 +258,11 @@ fn no_unwinder() {
 /// [`no_unwinder`]'s message.
 const NO_UNWINDER: &[u8] = b"FATAL: an exiting or cancelled thread has frames to unwind (cleanups, destructors or handlers) and no unwinder can be found; link libgcc_s dynamically (not -static-libgcc) in a program whose threads exit or are cancelled\n";
 
+/// The exception's cleanup function: a handler caught the thread's exit and ended without
+/// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither
+/// go on (it was told to exit) nor exit from here (the frames outside the handler would not
+/// unwind), so the process ends: a fatal diagnostic, then `abort` (D-22.19, ruling #6884).
+#[cold]
 extern "C" fn swallowed(_reason: c_int, _exc: usize) {
     niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap)
 }
