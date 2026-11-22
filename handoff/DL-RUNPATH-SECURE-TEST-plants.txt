@@ -1,0 +1,6 @@
+# DL-RUNPATH-SECURE-TEST plants: cargo xtask plants handoff/DL-RUNPATH-SECURE-TEST-plants.txt --dir <new dir> --timeout 600
+# The secure-mode $ORIGIN rule itself (search::expand, rulings #7094, #7190), as dlopen applies it to a caller library.
+# Dropped: secure mode expands an untrusted $ORIGIN.
+secure-origin-drop | crates/ld/src/search.rs | lit:(Some(o), true) if trusted::<A>(o) => o, ==> (Some(o), true) => o, | cargo test -p niji-ld --test runpath_search | msg:test secure_dlopen_caller_origin_only_trusted \.\.\. FAILED
+# Inverted: secure mode skips a trusted $ORIGIN and expands an untrusted one.
+secure-origin-invert | crates/ld/src/search.rs | lit:(Some(o), true) if trusted::<A>(o) => o, ==> (Some(o), true) if !trusted::<A>(o) => o, | cargo test -p niji-ld --test runpath_search | msg:test secure_dlopen_caller_origin_only_trusted \.\.\. FAILED
