@@ -1,0 +1,6 @@
+# Plants of slice 13 (data only: templates headers/<path>.in, headers/slices/s13.tsv, spec/tools/header_checks/s13.py) (cargo xtask plants; docs/plants.md). Each is a deliberately broken copy the slice's checks must catch.
+s13-ip-without-in | headers/netinet/ip.h.in | lit:#include <netinet/in.h> ==> #include <stdint.h> | cargo xtask headers-gen | msg:no macros.tsv value|stale under libc-include
+s13-ip-icmp-without-ip | headers/netinet/ip_icmp.h.in | lit:#include <netinet/ip.h> ==> #include <stdint.h> | cargo xtask headers-gen | msg:no macros.tsv value|stale under libc-include
+s13-ppp-deferral-dropped | spec/tools/header_checks/s13.py | lit:not (r["header"] in HEADERS and r["name"] in deferred) ==> True | python3 -I spec/tools/header_check.py --include libc-include | msg:FAIL P1
+s13-ether-no-emit | headers/net/ethernet.h.in | lit:@@emit ==> /* nothing */ | cargo xtask headers-gen | msg:stale under libc-include|has no macros.tsv value|not emitted
+s13-row-without-template | headers/slices/s13.tsv | lit:net/route.h	1 ==> net/routez.h	1 | python3 -I spec/tools/header_check.py --include libc-include | msg:FAIL slices|no template
