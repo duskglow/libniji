@@ -2986,8 +2986,8 @@ fn sym_fwide() {
     puts("a", fp);
     assert!(x::fwide(fp, 0) < 0, "fixed by the first byte operation");
     assert_eq!(x::fclose(fp), 0);
-    // A recycled stream slot starts clean whichever stream used it before: undecided, no
-    // indicators (STDIO-3: `new_slot` clears the words of a reused slot).
+    // A stream in memory an earlier stream used starts clean: undecided, no indicators (STDIO-3;
+    // since D-12.31 a closed stream's memory goes back to the allocator, which hands it out again).
     for _ in 0..8 {
         let fp = x::tmpfile();
         assert_eq!((x::fwide(fp, 0), x::feof(fp), x::ferror(fp)), (0, 0, 0), "a fresh stream");

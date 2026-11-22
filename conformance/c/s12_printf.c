@@ -131,7 +131,7 @@ int main(void)
     }
     /* A busy stream (its plan cache is made on the 8th call, D-12.21) prints what snprintf
        does, every call: formats rewritten in place at one address, a format that is not
-       simple, the stream closed and its slot reused, and reopened. Arguments are volatile
+       simple, the stream closed (its plan cache given back for the next stream, D-12.31), and reopened. Arguments are volatile
        so the compiler cannot fold the oracle. */
     {
         static char want[8192];

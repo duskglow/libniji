@@ -179,47 +179,95 @@ impl Env for Glue {
 
 // ------------------------------------------------------------------------------ slots
 
-/// Closed slots, linked through their `_chain` word.
+/// Standard-stream slots left over by a lost set-up race, linked through their `_chain` word.
 static FREE: AtomicUsize = AtomicUsize::new(0);
 /// Serializes the free list and the standard streams' set-up.
 static SLOTS: RawMutex = RawMutex::new();
 
-/// A slot for a new stream, its `FILE` words zeroed and pointing at its lock and record: the
-/// slot's address (the `FILE *`).
+/// Where a slot's memory comes from.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Source {
+    /// The program's allocator (`malloc` through the symbol), released by `fclose`: a stream the
+    /// program opens, which a program that replaces `malloc` sees made and freed (D-12.31,
+    /// ruling #7583).
+    Caller,
+    /// The library's heap (or its reserve, T22), kept for the process: a standard stream's
+    /// record, which is set up without the program asking for memory (D-12.17).
+    Library,
+}
+
+/// A new slot, its `FILE` words zero but `_lock` and the record's, pointing at its lock and record.
+#[inline(always)]
+fn fresh_slot() -> Slot {
+    Slot { file: [const { AtomicUsize::new(0) }; FILE_WORDS], lock: StreamLock::new(), seal: AtomicUsize::new(0), ext: Ext::default(), spare: [0; sc::SPARE] }
+}
+
+/// A slot for a new stream from `from`, its `FILE` words zeroed and pointing at its lock and
+/// record: the slot's address (the `FILE *`).
 // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
 #[inline(never)]
-fn new_slot() -> KResult<usize> {
+fn new_slot(from: Source) -> KResult<usize> {
+    let slot: &'static mut Slot = if from == Source::Caller {
+        caller_alloc::new_value(fresh_slot())?
+    } else {
+        if let Some(fp) = reuse_slot() {
+            return Ok(fp);
+        }
+        TryBox::new(fresh_slot())?.leak()
+    };
+    let fp = addr_of(&*slot);
+    if let (Some(l), Some(e)) = (slot.file.get(word::LOCK), slot.file.get(word::EXT)) {
+        l.store(addr_of(&slot.lock), Relaxed);
+        e.store(addr_of(&slot.ext), Relaxed);
+    }
+    seal(addr_of(&slot.ext), fp);
+    Ok(fp)
+}
+
+/// A library slot from the free list, its `FILE` words zeroed but `_lock` and the record's.
+#[cold]
+#[inline(never)]
+fn reuse_slot() -> Option<usize> {
     SLOTS.lock_raw(&CSys, Scope::Private);
-    let reused = FREE.load(Acquire);
-    if reused != 0 {
-        let next = Glue.file_at(reused).get(word::CHAIN).map_or(0, |w| w.load(Relaxed));
+    let fp = FREE.load(Acquire);
+    if fp != 0 {
+        let next = Glue.file_at(fp).get(word::CHAIN).map_or(0, |w| w.load(Relaxed));
         FREE.store(next, Release);
     }
     SLOTS.unlock(&CSys, Scope::Private);
-    let fp = if reused != 0 {
-        reused
-    } else {
-        let slot: &'static mut Slot = TryBox::new(Slot { file: [const { AtomicUsize::new(0) }; FILE_WORDS], lock: StreamLock::new(), seal: AtomicUsize::new(0), ext: Ext::default(), spare: [0; sc::SPARE] })?.leak();
-        let fp = addr_of(&*slot);
-        if let (Some(l), Some(e)) = (slot.file.get(word::LOCK), slot.file.get(word::EXT)) {
-            l.store(addr_of(&slot.lock), Relaxed);
-            e.store(addr_of(&slot.ext), Relaxed);
-        }
-        fp
-    };
+    if fp == 0 {
+        return None;
+    }
     let file = Glue.file_at(fp);
-    // Every word but `_lock` and the record's: three runs of plain stores, no per-word test
-    // (STDIO-3: the per-word test was most of `new_slot`'s ~370 instructions in fopen).
     const { assert!(word::LOCK < word::EXT) };
     let zero = |words: &[AtomicUsize]| words.iter().for_each(|w| w.store(0, Relaxed));
     zero(file.get(..word::LOCK).unwrap_or(&[]));
     zero(file.get(word::LOCK + 1..word::EXT).unwrap_or(&[]));
     zero(file.get(word::EXT + 1..).unwrap_or(&[]));
     seal(file.get(word::EXT).map_or(0, |w| w.load(Relaxed)), fp);
-    Ok(fp)
+    Some(fp)
 }
 
-/// Return a closed stream's slot.
+/// Give a closed stream's slot back to the program's allocator (`Source::Caller`). Its `printf`
+/// plan cache goes to the pool for the next stream, and its seal is cleared first, so a stale
+/// `FILE *` to it is refused while its memory is unchanged.
+fn release_slot(fp: usize, ext: usize) {
+    crate::printf::give_back_plans(core::mem::take(&mut tb::stream_ext_at(ext).printf_plans));
+    if let Some(w) = tb::c_word(ext.wrapping_sub(SEAL_BEFORE_EXT)) {
+        w.store(0, Release);
+    }
+    caller_alloc::release(fp);
+}
+
+/// `f` under the slot lock, which the `printf` plan-cache pool shares (D-12.31).
+pub(crate) fn under_slot_lock<R>(f: impl FnOnce() -> R) -> R {
+    SLOTS.lock_raw(&CSys, Scope::Private);
+    let r = f();
+    SLOTS.unlock(&CSys, Scope::Private);
+    r
+}
+
+/// Return a standard stream's slot that lost its set-up race (`Source::Library`).
 fn recycle(fp: usize) {
     SLOTS.lock_raw(&CSys, Scope::Private);
     if let Some(w) = Glue.file_at(fp).get(word::CHAIN) {
@@ -244,7 +292,7 @@ fn set_up_standard(fp: usize, file: &'static [AtomicUsize], fd: i32) -> KResult<
     if done {
         return Ok(());
     }
-    let slot = new_slot()?;
+    let slot = new_slot(Source::Library)?;
     let slot_file = Glue.file_at(slot);
     let (lock, ext) = (slot_file.get(word::LOCK).map_or(0, |w| w.load(Relaxed)), slot_file.get(word::EXT).map_or(0, |w| w.load(Relaxed)));
     SLOTS.lock_raw(&CSys, Scope::Private);
@@ -521,7 +569,7 @@ pub fn stderr() -> usize {
 
 /// A new stream on `kind`: its `FILE *`.
 fn open_stream(kind: Kind, mode: &sc::Mode, fd: i32) -> KResult<usize> {
-    let fp = new_slot()?;
+    let fp = new_slot(Source::Caller)?;
     let (file, _, ext) = parts(fp)?;
     sc::setup(&Glue, file, tb::stream_ext_at(ext), kind, mode, fd);
     sc::link(&Glue, fp, file);
@@ -576,8 +624,9 @@ pub fn fdopen(fd: i32, mode: KResult<&[u8]>) -> KResult<usize> {
     open_stream(Kind::Fd(fd), &m, fd)
 }
 
-/// `fclose(fp)`: the stream leaves the list, is closed and its slot recycled (a standard
-/// stream's `FILE` stays, closed).
+/// `fclose(fp)`: the stream leaves the list, is closed and its slot freed (a standard stream's
+/// `FILE` stays, closed). The list walkers (`fflush(NULL)`, `exit`) hold the list lock while they
+/// reach a stream, so none can reach the slot once it has left the list.
 pub fn fclose(fp: usize) -> KResult<()> {
     let (file, lock, ext) = parts(fp)?;
     sc::unlink(&Glue, fp);
@@ -586,7 +635,7 @@ pub fn fclose(fp: usize) -> KResult<()> {
     let r = sc::close(&Glue, file, tb::stream_ext_at(ext));
     lock.unlock(&CSys, me);
     if standard_fd(fp).is_none() {
-        recycle(fp);
+        release_slot(fp, ext);
     }
     r
 }
