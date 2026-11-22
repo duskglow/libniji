@@ -1,25 +1,34 @@
 # LOCALEDEF-ARCHIVE: locale archive writer, the #7534 gaps, a freeing arena
 
-**State.** Branch `task/localedef-archive` (from origin/next), role keke `~/w/n2`. Leg 1 of the run ended in a
-REFRESH at ~135k context. The WIP commit is NOT compiled or tested yet. Reserved ids: D-31.23 (arena),
-D-31.24 (defaults), D-31.25 (archive), D-31.26 (spare: -c / stdin / big-endian). No COMPAT reserved.
-Probe scripts and logs: `~/work/localedef-archive/` on keke (probe1.sh/.log via p1/, probe2.sh, dump.py, rss.sh).
+**State.** Branch `task/localedef-archive` (from origin/next), role keke `~/w/n2`. Leg 2 ended in a REFRESH at
+~150k context (93 calls). Workspace clippy (`--all-targets --all-features -D warnings`) is CLEAN on the leg-2 head.
+Reserved ids: D-31.23 (arena), D-31.24 (defaults), D-31.25 (archive), D-31.26 (spare: -c / stdin / big-endian).
+No COMPAT reserved. Probe scripts and logs: `~/work/localedef-archive/` on keke. Leg-2 helper (local scratch):
+`bash ~/w/.scratch/LOCALEDEF-ARCHIVE/sc.sh '<cmd>'` syncs the worktree to keke n2 and runs `<cmd>` there.
 
-## Done in leg 1 (WIP commit, uncompiled)
+## Done in leg 2
 
-* `crates/boundary/src/ldconfig.rs`: `Arena` replaced by a freeing allocator (D-31.23): power-of-two size
-  classes 16 B..64 KiB with intrusive free lists, cut from 1 MiB chunks at their own alignment; bigger blocks are
-  their own mapping (`crate::raw::munmap` on free, `crate::raw::mremap` on realloc). Check: clippy, the unsafe audit
-  (`// UNSAFE(allocator)` comments sit above each `#[allow(unsafe_code)]` / `unsafe {`), then RSS.
-* `crates/locale/src/source.rs`: lines outside any category are recorded in `Source::errors` ("syntax error: not
-  inside a locale definition section") and skipped (was: fatal).
-* `crates/locale/src/lib.rs`: `Output { files, defined, errors }`, `compile_output` (goes past syntax errors, fills
-  every undefined or failed category with its default), `compile_text`, private `category()`; `compile()` stays strict
-  (first error is Err; undefined categories None) so `tests/reference.rs` keeps its meaning.
-* `crates/locale/src/defaults.rs`: `SOURCE`, a built-in locale source of the defaults (POSIX XBD 7.3 POSIX locale
-  for LC_CTYPE classes/maps; C values for TIME/NUMERIC/MONETARY/MESSAGES; reference default values for PAPER 297/210,
-  NAME name_fmt, ADDRESS postal_fmt, TELEPHONE tel_int_fmt "+%c %a%t%l", MEASUREMENT 1; IDENTIFICATION and
-  COLLATE empty). NOT yet compared with the reference; values from `locale -k` of reference defaults (below).
+* Commit `125135975` (tested): defaults. `undefined_categories_get_the_references_defaults` in
+  `crates/locale/tests/reference.rs` PASSES for UTF-8 and ISO-8859-1 (source with only LC_MEASUREMENT, reference
+  `localedef -i <path> -c`). Finding: the reference's undefined-category output is NOT the POSIX locale in places:
+  LC_CTYPE without print/graph/cntrl/punct for ASCII (widths -1, no outdigits), LC_TIME wide strings and alt month
+  names empty, LC_MONETARY "not available" numbers 0xff (a source's `-1` gives 0x7f) and mon_grouping "\x7f",
+  LC_ADDRESS country_ab2/ab3 spaces. Decision taken (D-31.24, to write): libniji writes the POSIX values there;
+  the test skips exactly those items and checks ASCII classes/widths against XBD 7.3.1 (`posix_ctype`). Matched:
+  `week 7;19971130;7`, NUMERIC grouping empty, collate code-point form. Needs a differences row + RULING NEEDED
+  (recommend: no compat flag, a degenerate default has no use). Arena clippy fixes done.
+* Commit `c6d6bbbe3` (WIP, clippy clean, NOT tested beyond unit tests): `crates/locale/src/archive.rs` (Archive
+  parse/names/contains/remove/add/write; 3 unit tests pass), prog.rs body rewritten (archive default, list/add/
+  delete/--replace, `--no-archive` name normalized, stdin via `Host::read_stdin`, `<stdin>` in messages, -c and
+  outside-section statuses via `compile_text` + `Output::outside`), `Host::lock` (flock on the archive dir in
+  `crates/boundary/src/localedef.rs`), prog test mock gained `stdin`/`locked`.
+
+## Done in leg 1 (now compiled, in the two commits above)
+
+* Freeing tool arena in `crates/boundary/src/ldconfig.rs` (D-31.23): power-of-two classes 16 B..64 KiB with
+  intrusive free lists from 1 MiB chunks; bigger blocks are own mappings (munmap/mremap). RSS not yet measured.
+* `source.rs`: lines outside a category recorded in `Source::errors` and skipped. `lib.rs`: `Output`,
+  `compile_output`, `compile_text`; `compile()` stays strict. `defaults.rs`: the built-in defaults source.
 
 ## Measured before (base = origin/next 8e1837914, job localedef-archive-so-base, keke)
 
@@ -66,17 +75,28 @@ Gaps:
 * `--big-endian`: the reference writes big-endian files, status 0. Plan: a differences row (libniji is x86-64 only;
   no libniji reads them) + COMPAT-NEW or the stated reason; RULING NEEDED in the hand-back.
 
-## Exact next steps (leg 2)
+## Exact next steps (leg 3)
 
-1. Sync, `cargo clippy -p niji-locale -p niji-boundary` on keke; fix the WIP compile.
-2. Test `undefined_categories_get_the_references_defaults` in `crates/locale/tests/reference.rs`: temp source with only
-   `LC_MEASUREMENT measurement 2`, reference `localedef -i <path> -c -f UTF-8`, ours `compile_output` over a Files that
-   serves the temp path; reuse `diff_items`/`diff_ctype`/`diff_collate`. Iterate `defaults.rs` until equal.
-3. `crates/locale/src/archive.rs` (read: bounds-checked, damaged = error; add/replace/delete; write with dedup and the
-   hash above), prog.rs: archive default for NAME without `/`, names per the rules above, `--list-archive`,
-   `--add-to-archive`, `--delete-from-archive`, `--replace`, `--no-archive` normalization, stdin (`Host::read_stdin`
-   in prog.rs + boundary `Disk`), -c handling via `compile_output`, `<stdin>` naming. Archive write via
-   `host.write` (boundary `replace_file` is atomic).
-4. Core reader fix (locrec 0). Test: setlocale over an archive libniji wrote, every #14 locale (prog test + core).
-5. Records: D-31.23..26 rows in `plan/07-decisions/s31-utilities.md`, spec §31.8 Guarantees lines, differences row.
-6. RSS after (rss.sh), plants file `handoff/LOCALEDEF-ARCHIVE.plants`, `cargo xtask plants`, direct gate, precheck.
+1. Fix the 2 failing prog tests (expected changes): `directory_form_writes_the_defined_categories` (now 12 files:
+   `m.files.len()` 14, the defaults are written) and `name_without_slash` (dir is `mini.mini`, archive default now
+   works: assert archive written at `/usr/lib/locale/locale-archive` and `--list-archive` lists `mini.mini`).
+   Add prog tests: stdin source (`m.stdin = Some(MINI)`, no -i), outside-section line (status 1, written without -c),
+   category syntax error (status 4 without -c, 1 with -c), list (missing default: nothing/0; missing FILE: message/1),
+   delete (missing name message, status 0), add (`Adding DIR`, exists -> 255, `--replace`, missing DIR -> stat msg).
+   Check the exact error texts our `Error.what` gives vs the probed ones (`syntax error: not inside a locale
+   definition section`, `LC_NUMERIC: syntax error`); align if cheap.
+2. Core reader fix: `crates/core/src/locale/archive.rs` `entry`: locrec offset 0 = absent (+ unit test).
+3. End-to-end on keke: `cargo xtask so`, then target/niji/localedef into a `--prefix` archive for the 5 #14 locales
+   and setlocale through libniji reading it (find how the existing prog/conformance tests run setlocale over a
+   directory; mei `~/work/RELEASE-SNAPSHOT-1122C/y14l/` has the six-POSIX-category case from the coordinator's
+   note: it must now give all 12 files and setlocale(LC_ALL) non-NULL). Reference `localedef --list-archive F` on our
+   archive is a cheap interop check.
+4. Records: D-31.23..26 rows in `plan/07-decisions/s31-utilities.md`, spec §31.8 lines (archive, stdin, -c, defaults),
+   `docs/differences-from-glibc.md` rows (defaults' POSIX values; --big-endian refused), `cargo xtask stubs` if the
+   spec changes. RULING NEEDED: big-endian, defaults.
+5. RSS after: `sh ~/work/localedef-archive/rss.sh target/niji/localedef <outdir>` (before: en_US 224640 KiB, de_DE
+   344160, fr_FR 344160, ja_JP 234240, tr_TR 283680).
+6. Plants file `handoff/LOCALEDEF-ARCHIVE.plants` (arena free list, defaults fill, archive hash/locrec, stdin, -c
+   status, reader locrec 0), `cargo xtask plants` (brief step 6), direct gate (`cargo xtask affected --run`),
+   `cargo xtask static`, precheck, report json, handback-check. Wall deadline 2026-11-23T02:58Z.
+
