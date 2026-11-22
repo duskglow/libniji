@@ -9,3 +9,4 @@ level-no-recompute | validation/wl_verdict.py | lit:elif lv != ceil4(n / g): ==>
 raise-no-decision | validation/wl_verdict.py | lit:if not CORRECTION.search(r["cause"]): ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction without a named decision refused
 raise-not-recounted | validation/wl_verdict.py | lit:if r["recorded"] == b["recorded"]: ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction not recorded again refused
 raise-libniji-worse | validation/wl_verdict.py | lit:if float(r["libniji"]) > float(b["libniji"]): ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction with libniji's count risen refused
+level-edited | validation/wl_holds.tsv | lit:1.2972 ==> 1.2980 | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv
