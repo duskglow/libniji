@@ -81,6 +81,30 @@ pub trait Image {
     }
     /// Report a warning that does not stop the load: `parts` make one line. Nothing by default.
     fn warn(&mut self, _parts: &[&[u8]]) {}
+    /// Add `bias` to the 8-byte word at `at + 8 * k` for each set bit `k` of `bits`, each word in
+    /// little-endian byte order when `little`, else big-endian: one RELR bitmap, every word of
+    /// which the relocator checked lies in a writable segment of the object. By default each word
+    /// is read ([`Image::load`]) and written ([`Image::store`]) in turn; an image of the running
+    /// process may add in place (LD-RELR-LOOP-2: the hottest loop of a dynamic start).
+    fn add_bits(&mut self, at: u64, bits: u64, bias: u64, little: bool) {
+        add_bits_by_word(self, at, bits, bias, little);
+    }
+}
+
+/// [`Image::add_bits`] through [`Image::load`] and [`Image::store`], one word at a time: the
+/// default, and the way for an image whose own method does not handle `little`.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+pub fn add_bits_by_word<I: Image + ?Sized>(img: &mut I, at: u64, bits: u64, bias: u64, little: bool) {
+    let mut rest = bits;
+    while rest != 0 {
+        let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8));
+        rest &= rest.wrapping_sub(1);
+        let mut w = [0u8; 8];
+        img.load(p, &mut w);
+        let v = if little { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) }.wrapping_add(bias);
+        img.store(p, &if little { v.to_le_bytes() } else { v.to_be_bytes() });
+    }
 }
 
 /// Why an object could not be relocated.
@@ -671,12 +695,7 @@ fn relr_entry<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, wi
     if !(window.0 <= first && last <= window.1) {
         return relr_checked::<A, I>(img, loads, o, window, base, bits, any);
     }
-    let from = o.bias.wrapping_add(base);
-    let mut rest = bits;
-    while rest != 0 {
-        add_bias::<A, I>(img, o, from.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8)));
-        rest &= rest.wrapping_sub(1);
-    }
+    img.add_bits(o.bias.wrapping_add(base), bits, o.bias, A::EI_DATA == ELFDATA2LSB);
     Ok(())
 }
 

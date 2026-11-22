@@ -193,6 +193,23 @@ pub trait Memory {
     /// The bytes of the writable segment linked at `vaddr` with memory size `memsz`, from its
     /// first byte. Asked for only after [`Writer`] found the target inside that segment.
     fn segment(&mut self, vaddr: u64, memsz: u64) -> &mut [u8];
+
+    /// Add `bias` to the native-order word at offset `off + 8 * k` of the writable segment linked
+    /// at `vaddr` (memory size `memsz`) for each set bit `k` of `bits`; false if one lies outside
+    /// [`Memory::segment`]'s view. Asked for only after [`Writer`] found the lowest and highest of
+    /// them inside that segment, so every one is. By default each word is written through the
+    /// view, bounds-checked; a memory that is the running image may add in place (LD-RELR-LOOP-2).
+    fn add_bits(&mut self, vaddr: u64, memsz: u64, off: u64, bits: u64, bias: u64) -> bool {
+        let view = self.segment(vaddr, memsz);
+        let mut rest = bits;
+        while rest != 0 {
+            let at = usize::try_from(off.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8))).unwrap_or(usize::MAX);
+            rest &= rest.wrapping_sub(1);
+            let Some(w) = view.get_mut(at..at.wrapping_add(8)).and_then(|b| <&mut [u8; 8]>::try_from(b).ok()) else { return false };
+            *w = u64::from_ne_bytes(*w).wrapping_add(bias).to_ne_bytes();
+        }
+        true
+    }
 }
 
 /// The writable segments as the relocator sees them: each target is found in the segment that
@@ -301,17 +318,12 @@ impl<M: Memory> Writer<'_, M> {
         if !holds(self.last, last) {
             return self.add_bits_checked(start, bits, bias);
         }
-        // `vaddr <= first <= last` and `last + 8 <= vaddr + memsz`: every offset below is in the view.
-        let from = first.wrapping_sub(vaddr);
-        let view = self.mem.segment(vaddr, memsz);
-        let mut rest = bits.wrapping_shr(bits.trailing_zeros());
-        while rest != 0 {
-            let off = usize::try_from(from.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8))).unwrap_or(usize::MAX);
-            rest &= rest.wrapping_sub(1);
-            let w = view.get_mut(off..off.wrapping_add(8)).and_then(|b| <&mut [u8; 8]>::try_from(b).ok()).ok_or(BootError::Outside(first))?;
-            *w = u64::from_ne_bytes(*w).wrapping_add(bias).to_ne_bytes();
+        // `vaddr <= first <= last` and `last + 8 <= vaddr + memsz`: every word named is in the segment.
+        if self.mem.add_bits(vaddr, memsz, first.wrapping_sub(vaddr), bits.wrapping_shr(bits.trailing_zeros()), bias) {
+            Ok(())
+        } else {
+            Err(BootError::Outside(first))
         }
-        Ok(())
     }
 
     /// [`Writer::add_bits`] word by word, for a bitmap that leaves one segment: each word found in
