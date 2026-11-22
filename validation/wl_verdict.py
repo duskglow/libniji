@@ -18,11 +18,15 @@
 #       LOG: a wl_count log (validation/wl_count_run.sh tables). Judges the NEW column. --link static: the same rule,
 #       no holds (the static sweep). Exit 0 PASS, 1 FAIL, 2 usage or nothing to judge.
 #   wl_verdict.py holds FILE [--base BASEFILE]
-#       The holds file's own ratchet: each level at or below the measurement it records (ceil to 4 decimals) and above
-#       1.10, a cause named, no duplicate; against BASEFILE (the merge base's copy), no level raised and no row added
-#       for a CPU class the base already records. Exit 0 ok, 1 not.
+#       The holds file's own ratchet: each level EQUAL to the ratio of the counts it records (libniji / glibc, ceil to
+#       4 decimals: a level edited without a re-count is refused, D-X.155) and above 1.10, a cause named, no duplicate;
+#       against BASEFILE (the merge base's copy), no row added for a CPU class the base already records and no level
+#       raised, except a CORRECTION (owner ruling 2026-11-21, D-X.155: a level recorded from an overstated glibc
+#       count): the cause names "correction D-X.<n>", the row is recorded again and its libniji count did
+#       not rise (so its glibc count fell). Exit 0 ok, 1 not.
 import math
 import os
+import re
 import sys
 
 BOUND = 1.10
@@ -192,6 +196,24 @@ def check(args):
     return 1 if fails else 0
 
 
+CORRECTION = re.compile(r"\bcorrection (D-X\.[0-9]+)\b")
+
+
+def correction_refused(r, b):
+    """Why a raised level is not an accepted CORRECTION, or "" when it is (owner ruling 2026-11-21, D-X.155: a level
+    recorded from an overstated glibc count is corrected from honest counts, never raised because libniji got worse).
+    Accepted only when the row names the decision that corrects it ("correction D-X.<n>" in its cause), was recorded
+    again (its `recorded` differs from the base's), and its libniji count did not rise (so its glibc count fell)."""
+    if not CORRECTION.search(r["cause"]):
+        return "no 'correction D-X.<n>' in its cause"
+    if r["recorded"] == b["recorded"]:
+        return "a correction is recorded from new counts: its recorded revision and date are the base's"
+    # (a raise whose libniji count did not rise has a lower glibc count: the overstated column is what moved)
+    if float(r["libniji"]) > float(b["libniji"]):
+        return "libniji's count rose (%s, base %s): a level never rises because libniji got worse" % (r["libniji"], b["libniji"])
+    return ""
+
+
 def holds(args):
     path = args[0]
     base = args[2] if len(args) >= 3 and args[1] == "--base" else None
@@ -217,6 +239,11 @@ def holds(args):
         if g <= 0 or lv > ceil4(n / g):
             errs.append("%s: level %s is above the measurement it records (%.0f / %.0f = %.6f): a hold is never loosened"
                         % (where, r["level"], n, g, n / g if g > 0 else float("nan")))
+        elif lv != ceil4(n / g):
+            # D-X.155: a level is the ratio of the counts it records, so a level edited without a re-count (lowered
+            # or raised) is caught here; tightening means recording the new counts too.
+            errs.append("%s: level %s is not the ratio of the counts it records (%.0f / %.0f = %.4f, rounded up): "
+                        "re-count and record the counts with the level" % (where, r["level"], n, g, ceil4(n / g)))
         if lv <= BOUND:
             errs.append("%s: level %s is at or below %.2f: the row needs no hold (drop it)" % (where, r["level"], BOUND))
     if base is not None:
@@ -232,7 +259,10 @@ def holds(args):
             elif b is not None:
                 try:
                     if float(r["level"]) > float(b["level"]):
-                        errs.append("%s: level %s raised from the base's %s: a hold is never loosened" % (where, r["level"], b["level"]))
+                        why = correction_refused(r, b)
+                        if why:
+                            errs.append("%s: level %s raised from the base's %s: a hold is never loosened (%s)"
+                                        % (where, r["level"], b["level"], why))
                 except ValueError:
                     pass
     for e in errs:

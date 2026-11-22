@@ -92,7 +92,7 @@ check wl_count_run_traces_pipe_fds 1 "$(grep -c 'strace -C -f -y -o "$tmp/strace
 check wl_count_run_setup_every_run 4 "$(grep -c '&& $pin \(sh -c\|perf stat\|strace\) ' "$here/wl_count_run.sh")"
 check wl_count_run_row_fault_field 2 "$(grep -c '\$ff, sys\|wl_row_refaults "\$st" "\$row" "\$ff"' "$here/wl_count_run.sh")"
 # rows of the fixed-layout method are cached apart from rows of the method before (never served to each other)
-check wl_count_run_cache_apart 2 "$(grep -c '^msuf=.q.tsv$\|^\[ "${WLC_ASLR:-0}" = 1 \] && msuf=.p.tsv$' "$here/wl_count_run.sh")"
+check wl_count_run_cache_apart 2 "$(grep -c '^msuf=.r.tsv$\|^\[ "${WLC_ASLR:-0}" = 1 \] && msuf=.p.tsv$' "$here/wl_count_run.sh")"
 # a faults re-measure takes instructions and faults from the new runs and keeps syscalls, md5 and advisory fields
 check row_refaults "$(printf '1000\t0.10\t50\t300\t77\tabcdef\t300\t320\t1\t2\t3')" \
     "$(wl_row_refaults "1000 0.10 50 300 300 320" "$(printf '999\t0.20\t40\t400\t77\tabcdef\t390\t410\t1\t2\t3')" 5)"
@@ -128,7 +128,17 @@ check fault_field_lowest 5 "$(wl_fault_field)"
 check fault_field_aslr_median 4 "$(WLC_ASLR=1 wl_fault_field)"
 check lowest_of_outlier_set 309 "$(printf '%s\n' "1000 5 309" "1000 5 479" "1000 5 310" "1000 5 309" "1000 5 310" | wl_stats | cut -d' ' -f"$(wl_fault_field)")"
 if command -v setarch > /dev/null; then
-    check run_prefix_fixed_layout "setarch -R" "$(wl_run_prefix)"
+    check run_prefix_fixed_layout "env -i HOME=/ PATH=/usr/bin:/bin LANG=en_US.UTF-8 LC_CTYPE=C.UTF-8 setarch -R" "$(wl_run_prefix)"
+    # FIXED ENVIRONMENT (WL-LEVELS-RERECORD, D-X.155; no spec clause, lab tooling): what a measured program sees does
+    # not depend on the caller. Two callers with different environments (one large, one empty but for PATH) start the
+    # same measured command; it must see the same variables, values and total size, and nothing of the caller's.
+    envseen() { $(wl_run_prefix) sh -c 'env | LC_ALL=C sort'; }
+    e1=$(env WL_STATS_CALLER=1 SSH_CONNECTION="caller-a 2 caller-b 4" JOBRUN_LABEL=a-long-job-label-0123456789 bash -c "$(declare -f wl_run_prefix envseen); WL_RUN_ENV='$WL_RUN_ENV'; envseen")
+    e2=$(env -i PATH=/usr/bin:/bin bash -c "$(declare -f wl_run_prefix envseen); WL_RUN_ENV='$WL_RUN_ENV'; envseen")
+    check run_env_same_for_any_caller "$e1" "$e2"
+    check run_env_same_size "$(printf '%s' "$e1" | wc -c)" "$(printf '%s' "$e2" | wc -c)"
+    check run_env_no_caller_vars 0 "$(printf '%s\n' "$e1" | grep -c 'WL_STATS_CALLER\|SSH_CONNECTION\|JOBRUN_LABEL')"
+    check run_env_fixed_vars 4 "$(printf '%s\n' "$e1" | grep -c '^HOME=/$\|^PATH=/usr/bin:/bin$\|^LANG=en_US.UTF-8$\|^LC_CTYPE=C.UTF-8$')"
 else
     echo "wl_stats_test: skip run_prefix_fixed_layout: setarch is not installed here"
 fi
