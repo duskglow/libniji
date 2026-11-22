@@ -560,7 +560,7 @@ __wprintf_chk		csys/src/adapter/variadic.c:177	niji_vfwprintf4
 __write	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:162	ret::ssize
 __wuflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:547	stdio::getwc_c
 __wunderflow	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:552	ret::wint_or_weof
-__x86_get_cpuid_feature_leaf	GLIBC_2.33	crates/boundary/src/posix/s27_dynlink.rs:216	usize::try_from
+__x86_get_cpuid_feature_leaf	GLIBC_2.33	crates/boundary/src/posix/s27_dynlink.rs:219	usize::try_from
 __xmknod	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:187	ret::zero
 __xmknodat	GLIBC_2.4	crates/boundary/src/posix/s13_filesystem.rs:193	ret::zero
 __xpg_basename	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:918	ret::path_part
@@ -570,7 +570,7 @@ __xstat	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:266	ret::store_i
 __xstat64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:272	ret::store_into
 _authenticate	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:157	
 _dl_debug_state		crates/boundary/src/ld.rs:65	core::sync::atomic::compiler_fence
-_dl_find_object	GLIBC_2.35	crates/boundary/src/posix/s27_dynlink.rs:179	i64::from_ne_bytes
+_dl_find_object	GLIBC_2.35	crates/boundary/src/posix/s27_dynlink.rs:182	i64::from_ne_bytes
 _dl_get_tls_static_info		crates/boundary/src/ld/tls.rs:492	crate::tb::c_word
 _exit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:89	process::exit_now
 _flushlbf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:109	stdio::flushlbf
@@ -1049,16 +1049,16 @@ dirfd	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:742	ret::int
 dirname	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:924	ret::path_part
 div	GLIBC_2.2.5	crates/boundary/src/posix/s08_numeric.rs:1053	pack::div
 dl_iterate_phdr	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:113	i64::from_ne_bytes
-dladdr	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:349	core::ptr::null_mut
-dladdr	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:349	core::ptr::null_mut
-dladdr1	GLIBC_2.3.3	crates/boundary/src/posix/s27_dynlink.rs:357	
-dladdr1	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:357	
-dlclose	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:308	crate::dlerr::set
-dlclose	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:308	crate::dlerr::set
-dlerror	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:324	core::ptr::with_exposed_provenance_mut
-dlerror	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:324	core::ptr::with_exposed_provenance_mut
-dlinfo	GLIBC_2.3.3	crates/boundary/src/posix/s27_dynlink.rs:365	crate::dlerr::set
-dlinfo	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:365	crate::dlerr::set
+dladdr	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:352	core::ptr::null_mut
+dladdr	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:352	core::ptr::null_mut
+dladdr1	GLIBC_2.3.3	crates/boundary/src/posix/s27_dynlink.rs:360	
+dladdr1	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:360	
+dlclose	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:311	crate::dlerr::set
+dlclose	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:311	crate::dlerr::set
+dlerror	GLIBC_2.2.5	crates/boundary/src/posix/s27_dynlink.rs:327	core::ptr::with_exposed_provenance_mut
+dlerror	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:327	core::ptr::with_exposed_provenance_mut
+dlinfo	GLIBC_2.3.3	crates/boundary/src/posix/s27_dynlink.rs:368	crate::dlerr::set
+dlinfo	GLIBC_2.34	crates/boundary/src/posix/s27_dynlink.rs:368	crate::dlerr::set
 dlopen	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:844	dlopen
 dlopen	GLIBC_2.34	csys/src/machine/dl.S:17	niji_dl_open
 dlsym	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:852	dlsym
@@ -2420,8 +2420,8 @@ niji_ctanl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1621	mret
 niji_daddl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1626	mret::Soft::enter
 niji_ddivl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1632	mret::Soft::enter
 niji_dfmal_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1638	mret::Soft::enter
-niji_dl_open		crates/boundary/src/posix/s27_dynlink.rs:239	crate::strz::strz
-niji_dl_sym		crates/boundary/src/posix/s27_dynlink.rs:272	crate::dlerr::set
+niji_dl_open		crates/boundary/src/posix/s27_dynlink.rs:242	crate::strz::strz
+niji_dl_sym		crates/boundary/src/posix/s27_dynlink.rs:275	crate::dlerr::set
 niji_dmull_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1644	mret::Soft::enter
 niji_dreml_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1662	mret::ret
 niji_dsqrtl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1667	mret::Soft::enter
