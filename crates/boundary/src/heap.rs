@@ -21,7 +21,7 @@ use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 use niji_legacy::malloc_compat::{self, Ctx};
 use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
-use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
+use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, Routed, ALIGN, PAGE};
 
 use crate::caller_alloc;
 use crate::raw;
@@ -438,95 +438,139 @@ unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if caller_alloc::route() != caller_alloc::PRIVATE && layout.align() <= ALIGN {
-            return routed_alloc(layout.size(), false);
-        }
         core::ptr::with_exposed_provenance_mut(rust_alloc(layout.size(), layout.align()))
     }
 
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        if caller_alloc::route() != caller_alloc::PRIVATE && routed_block(ptr.expose_provenance(), layout.align()) {
-            return caller_alloc::free(ptr.cast());
+        // The alignment is a constant at nearly every call site, so the test folds away: an
+        // over-aligned block is always the heap's own (D-X.156), the rest may be a replacement's.
+        if layout.align() > ALIGN {
+            rust_dealloc_private(ptr.expose_provenance(), layout.size());
+        } else {
+            rust_dealloc(ptr.expose_provenance(), layout.size());
         }
-        rust_dealloc(ptr.expose_provenance(), layout.size());
     }
 
     // UNSAFE(allocator): the trait's provided method, overridden (HEAP-CUTS C2).
     #[allow(unsafe_code)]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        if caller_alloc::route() != caller_alloc::PRIVATE && layout.align() <= ALIGN {
-            return routed_alloc(layout.size(), true);
-        }
         core::ptr::with_exposed_provenance_mut(rust_alloc_zeroed(layout.size(), layout.align()))
     }
 
     // UNSAFE(allocator): the trait's provided method, overridden (HEAP-CUTS C2).
     #[allow(unsafe_code)]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        if caller_alloc::route() != caller_alloc::PRIVATE && routed_block(ptr.expose_provenance(), layout.align()) {
-            // A block of the replacement: its `realloc` (NULL leaves the block as it was, as the
-            // trait requires).
-            return caller_alloc::realloc(ptr.cast(), new_size.max(1)).cast();
-        }
         core::ptr::with_exposed_provenance_mut(rust_realloc(ptr.expose_provenance(), layout.size(), layout.align(), new_size))
     }
 }
 
-/// A block for the library's own use from the replacing allocator (ruling #7583): `malloc` or,
-/// zeroed, `calloc` through the symbols. NULL when the replacement has none: the library's
-/// fallible collections then report `ENOMEM`, so a replacement that fails a call makes the call
-/// that needed it fail, as with the reference. The reserve is not used here: it stands in for
-/// libniji's own heap only. Out of line and cold: only a process with a replacement gets here.
-#[cold]
-#[inline(never)]
-fn routed_alloc(size: usize, zero: bool) -> *mut u8 {
-    let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) };
-    p.cast()
+// ------------------------------------------------------------------------------ internal routing
+//
+// Ruling #7583 (D-X.156): when a program, an `LD_PRELOAD` library or a tool replaces the malloc
+// family, the library's own allocations at most `ALIGN`-aligned go through the replacement.
+// INTERNAL-ALLOC-ROUTING-2: the ordinary path makes no test of its own for it. Two words stand in
+// for the bounds the paths already compare against; `route_internal` changes both, once, in
+// `early_init` (before any thread and before the library's first allocation), and nothing
+// changes them afterwards:
+// * `FAST_ALIGN_END` replaces the `align <= ALIGN` bound of the allocation fast path: 0 sends
+//   every allocation at most `ALIGN`-aligned to `routed_alloc`;
+// * `RESERVE_LAST` replaces the reserve's bound in the release and resize paths: `usize::MAX`
+//   sends every block they name into the reserve's branch, where `release_cold` hands it to the
+//   replacement's `free` (the reserve's own blocks stay the reserve's).
+
+/// The fast path's alignment bound: `ALIGN + 1`, or 0 once the library's own allocations are routed.
+static FAST_ALIGN_END: AtomicUsize = AtomicUsize::new(ALIGN + 1);
+/// The largest offset from the reserve's base that the release path sends to the reserve's
+/// branch: `RESERVE - 1`, or `usize::MAX` once routed.
+static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE - 1);
+
+/// Route the library's own allocations through the replacing malloc family from here on
+/// (`caller_alloc::decide_route`, once, in `early_init`, before any thread exists).
+pub(crate) fn route_internal() {
+    FAST_ALIGN_END.store(0, Relaxed);
+    RESERVE_LAST.store(usize::MAX, Relaxed);
 }
 
-/// Whether the library's block at `addr` (allocated at `align`) came from the replacing
-/// allocator: every block at most [`ALIGN`]-aligned once the route was decided with an untouched
-/// heap; with blocks of the heap's own already live then ([`caller_alloc::ROUTED_CHECKED`]),
-/// those of the heap and the reserve stay the heap's. Cold, as [`routed_alloc`].
+/// Whether [`route_internal`] ran.
+fn routed() -> bool {
+    FAST_ALIGN_END.load(Relaxed) == 0
+}
+
+/// A block for the library's own use from the replacing allocator: `malloc` or, zeroed,
+/// `calloc` through the symbols. 0 when the replacement has none: the library's fallible
+/// collections then report `ENOMEM`, so a replacement that fails a call makes the call that
+/// needed it fail, as with the reference. The reserve is not used: it stands in for libniji's own
+/// heap only. Out of line and cold: only a process with a replacement gets here.
 #[cold]
 #[inline(never)]
-fn routed_block(addr: usize, align: usize) -> bool {
-    if align > ALIGN {
-        return false;
+fn routed_alloc(size: usize, zero: bool) -> usize {
+    let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) };
+    p.expose_provenance()
+}
+
+/// The release path's reserve test with the routing bound ([`RESERVE_LAST`]): true for a block
+/// of the reserve, and for every block once routed.
+#[inline(always)]
+fn reserve_or_routed(addr: usize) -> bool {
+    addr.wrapping_sub(reserve_base()) <= RESERVE_LAST.load(Relaxed)
+}
+
+/// [`rust_dealloc`] for a block [`reserve_or_routed`] names: the reserve's own block back to the
+/// reserve, any other (only once routed) to the replacement's `free`. Cold: the reserve serves
+/// only when the heap is exhausted.
+#[cold]
+#[inline(never)]
+fn release_cold(addr: usize, size: usize) {
+    if !reserve_free(addr, size) {
+        caller_alloc::free(core::ptr::with_exposed_provenance_mut(addr));
     }
-    caller_alloc::route() == caller_alloc::ROUTED || !(in_reserve(addr) || HEAP.usable(&CSys, &KernelPages, addr).is_ok())
 }
 
 /// [`libniji`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
-/// reserve; 0 without memory.
+/// reserve; 0 without memory. Once routed, a block at most [`ALIGN`]-aligned comes from the
+/// replacement ([`routed_alloc`]).
 pub fn rust_alloc(size: usize, align: usize) -> usize {
-    HEAP.alloc(&CSys, &KernelPages, size, align).map_or_else(|| reserve_alloc(size, align), |b| b.addr)
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, FAST_ALIGN_END.load(Relaxed)) {
+        Ok(b) => b.map_or_else(|| reserve_alloc(size, align), |b| b.addr),
+        Err(Routed) => routed_alloc(size, false),
+    }
 }
 
 /// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
-    match HEAP.alloc(&CSys, &KernelPages, size, align) {
-        Some(b) => {
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, FAST_ALIGN_END.load(Relaxed)) {
+        Ok(Some(b)) => {
             if !b.zeroed {
                 zero_fresh(b.addr, size);
             }
             b.addr
         }
-        None => {
+        Ok(None) => {
             let a = reserve_alloc(size, align);
             if a != 0 {
                 zero_fresh(a, size);
             }
             a
         }
+        Err(Routed) => routed_alloc(size, true),
     }
 }
 
-/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
+/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes at most
+/// [`ALIGN`]-aligned (once routed, the replacement's block).
 pub fn rust_dealloc(addr: usize, size: usize) {
+    if reserve_or_routed(addr) {
+        return release_cold(addr, size);
+    }
+    checked("free", HEAP.free(&CSys, &KernelPages, addr));
+}
+
+/// [`libniji`]'s `dealloc` of a block allocated above [`ALIGN`]: always the heap's or the
+/// reserve's, routed or not.
+pub fn rust_dealloc_private(addr: usize, size: usize) {
     if !reserve_free(addr, size) {
         checked("free", HEAP.free(&CSys, &KernelPages, addr));
     }
@@ -538,9 +582,11 @@ pub fn rust_dealloc(addr: usize, size: usize) {
 /// [`Heap::resize`], so a growth inside its size class stays in place and a large block moves by
 /// `mremap`, instead of the trait's default allocate + copy + free. A block of the reserve, or
 /// one with a larger alignment (`Heap::resize` moves at [`ALIGN`]), takes that default path;
-/// so does a resize the heap has no memory for, so that the reserve still serves it.
+/// so does a resize the heap has no memory for, so that the reserve still serves it. Once
+/// routed, a block at most [`ALIGN`]-aligned takes the default path too, through the
+/// replacement's `malloc` and `free`.
 pub fn rust_realloc(addr: usize, size: usize, align: usize, new_size: usize) -> usize {
-    if align <= ALIGN && !in_reserve(addr) {
+    if align <= ALIGN && !reserve_or_routed(addr) {
         match HEAP.resize(&CSys, &KernelPages, addr, new_size, copy_blocks) {
             Ok(Some(b)) => return b.addr,
             Ok(None) => {}
@@ -550,7 +596,11 @@ pub fn rust_realloc(addr: usize, size: usize, align: usize, new_size: usize) -> 
     let new = rust_alloc(new_size, align);
     if new != 0 {
         copy_blocks(addr, new, size.min(new_size));
-        rust_dealloc(addr, size);
+        if align > ALIGN {
+            rust_dealloc_private(addr, size);
+        } else {
+            rust_dealloc(addr, size);
+        }
     }
     new
 }

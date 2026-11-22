@@ -379,6 +379,10 @@ const FREE_VIEW: [[u64; 3]; 64] = {
 };
 const _: () = assert!(CLASSES.len() <= 64);
 
+/// [`Heap::alloc_below`]'s answer for an allocation its caller sends elsewhere.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Routed;
+
 /// A block handed out.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Block {
@@ -898,16 +902,6 @@ impl Heap {
     /// any of them exists, without segments, or when the mapping fails (each part is then
     /// mapped on its own as before). Inlined into its two cold callers: out of line it took a
     /// text page fault of its own on the first allocation.
-    /// Whether the heap has never mapped anything: no segment, cache table or large block, so it
-    /// holds no live block (INTERNAL-ALLOC-ROUTING: the library's own allocations may then all go
-    /// to a replacing allocator, with nothing of this heap's to tell apart at release).
-    pub fn untouched(&self) -> bool {
-        self.nsegs.load(Acquire) == 0
-            && self.seg.ngens.load(Acquire) == 0
-            && self.cache_ngens.load(Acquire) == 0
-            && self.large_ngens.load(Acquire) == 0
-    }
-
     #[inline(always)]
     fn first_reservation<P: Pages>(&self, pages: &P, shard: usize) {
         if self.no_segments.load(Relaxed)
@@ -1763,6 +1757,37 @@ impl Heap {
             return Some(b);
         }
         self.alloc_slow(sys, pages.general(), size, align)
+    }
+
+    /// [`Heap::alloc`] with the default-alignment bound of the fast path given by the caller
+    /// (INTERNAL-ALLOC-ROUTING-2, D-X.156): `align < end` takes [`Heap::alloc`]'s path with the
+    /// same compares; an alignment above [`ALIGN`] takes it too; `Err(Routed)` when `align` is at
+    /// most [`ALIGN`] but not below `end` (only when the caller set `end` to 0: its allocations at
+    /// the default alignment then go elsewhere). With `end == ALIGN + 1` the result is
+    /// [`Heap::alloc`]'s, and an allocation at most [`ALIGN`]-aligned makes the same number of
+    /// compares (one bound read from the caller's word in place of an immediate).
+    #[inline(always)]
+    pub fn alloc_below<S: Sys, P: Pages>(&self, sys: &S, pages: &P, size: usize, align: usize, end: usize) -> Result<Option<Block>, Routed> {
+        let c = if align < end {
+            if size <= FORECAST_CAP {
+                // As in `alloc_fast`: the class is below 32 and the index inside `SMALL_CLASS`.
+                Some(usize::from(SMALL_CLASS[(size + 15) >> 4]) & 31)
+            } else {
+                class_for(size, align)
+            }
+        } else if align > ALIGN {
+            class_for(size, align)
+        } else {
+            return Err(Routed);
+        };
+        if let Some(c) = c {
+            if let Some(k) = Self::own_cache(pages) {
+                if let Some(b) = Self::alloc_hint(pages, &k, c) {
+                    return Ok(Some(b));
+                }
+            }
+        }
+        Ok(self.alloc_slow(sys, pages.general(), size, align))
     }
 
     /// [`Heap::alloc`]'s fast path alone: a block from the current slab's hint word, or `None`
