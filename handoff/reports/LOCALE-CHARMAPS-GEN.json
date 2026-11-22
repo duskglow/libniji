@@ -1,0 +1,32 @@
+{
+ "task": "LOCALE-CHARMAPS-GEN",
+ "model": "opus",
+ "tokens": null,
+ "result": "locales ships /usr/share/i18n/charmaps/<NAME>.gz for the 10 built-in multi-byte/ASCII/Latin-1/UTF-8 codecs, generated from the codecs themselves (niji-charmaps, cargo xtask so); each equals its codec's round-trip set over the whole code space; the #14 locales compile equal to the reference with them (D-31.22)",
+ "branch": "task/locale-charmaps-gen",
+ "head": null,
+ "gate": {
+  "affected": "10 suites ok: 882 passed / 0 failed, conformance 146/146 (mei:locale-charmaps-gen-gate, direct tier, code head 4dc49bb2f; later commits: D-31.22 record and handoff/ only)",
+  "peak": "2.6G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "GB18030 WIDTH: 45470 rows still differ from the reference: it gives East Asian ambiguous four-byte characters 2 columns; a fix needs East Asian Width data (follow-up story)",
+  "libniji localedef differs from the reference independent of the charmaps (same with the installed ones): LC_COLLATE collseq of byte 255 in non-UTF-8 multi-byte locales; class hanzi empty in zh_CN.GB18030/GBK and zh_TW.BIG5; ko_KR.EUC-KR LC_MONETARY items 1/15/23/37 (KRW symbol)",
+  "GB18030's four-byte width exception has no plant: no test can check it against the reference while the EAW gap remains",
+  "mei:locale-charmaps-gen-so (cargo xtask so + manifest lint --products: OK) ended rc 141 from a zcat|head appended to the job after both passed"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "localedef -f / locale-gen on an installed system find charmaps for ANSI_X3.4-1968, ISO-8859-1, UTF-8, EUC-JP, BIG5, EUC-KR, CP949, GB18030, GBK, WINDOWS-31J (none before)", "before": 0, "after": 10, "unit": "charmaps", "measured": true},
+  {"kind": "correctness", "what": "LC_CTYPE widths wrong when libniji's localedef compiles ja_JP.EUC-JP / ko_KR.EUC-KR / zh_CN.GBK (installed charmaps vs generated)", "before": 11887, "after": 0, "unit": "code points", "measured": true},
+  {"kind": "size", "what": "locales package: generated charmaps (gzip -9n)", "before": 0, "after": 1366420, "unit": "bytes", "measured": true},
+  {"kind": "coverage", "what": "tests added (11 codespace, 2 reference compile) and plants (7, all caught)", "before": 0, "after": 13, "unit": "tests", "measured": true},
+  {"kind": "unblock", "what": "LOCALE-SOURCES-GEN: its locale sources have charmaps to compile against", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "a plants file can only reach the host by a sync of the role tree, which must wait for a running gate; cargo xtask plants taking the file from ~/work/<story>/ worked and could be the documented route",
+ "next_step": "land; follow-ups: GB18030 East Asian ambiguous widths, and the three localedef differences listed",
+ "report_file": "handoff/LOCALE-CHARMAPS-GEN.md",
+ "jobs": ["mei:locale-charmaps-gen-gate", "mei:locale-charmaps-gen-plants"]
+}
