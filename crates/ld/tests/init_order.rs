@@ -16,6 +16,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -190,7 +193,7 @@ fn init_order_corpus_matches_reference() {
         eprintln!("SKIP: {} not built (run cargo xtask so)", ld.display());
         return;
     }
-    let d = target().join(format!("ld-init-order-{}", std::process::id()));
+    let d = Scratch::dir_in(&target(), "ld-init-order");
     let ours = corpus(&d, Some(&ld));
     for (name, start, exit) in RECORD {
         let want = format!("{start}main\ncall fini\n{exit}   rc=0\n");
@@ -209,7 +212,6 @@ fn init_order_corpus_matches_reference() {
     } else {
         eprintln!("SKIP (live reference part): no {REFERENCE}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// [`init::exit_order`] over named units: `seq` in sequence order, `before` pairs by name, `inits`
@@ -221,9 +223,10 @@ fn exit(seq: &[&'static str], before: &[(&str, &str)], inits: &[&str]) -> Vec<&'
         succ[at(a)].push(at(b));
     }
     let rank: Vec<u32> = seq.iter().map(|s| inits.iter().position(|x| x == s).map_or(0, |p| u32::try_from(p + 1).unwrap())).collect();
-    let mut out = vec![0u16; seq.len()];
-    let len = init::exit_order(seq.len(), |v, e| succ[v].get(e).copied(), &rank, &mut out).unwrap();
-    out[..len].iter().map(|&v| seq[usize::from(v)]).collect()
+    let mut out = vec![0u32; seq.len()];
+    let mut work = vec![init::ExitWalk::default(); seq.len()];
+    let len = init::exit_order(seq.len(), |v, e| succ[v].get(e).copied(), &rank, &mut out, &mut work).unwrap();
+    out[..len].iter().map(|&v| seq[usize::try_from(v).unwrap()]).collect()
 }
 
 /// s1_1_c_6, s27_1_c_1 (probe tools/probe/dl/exitorder E1-E30 and DL-0b's `== order` exit record;
@@ -270,9 +273,14 @@ fn exit_order_load_order_dependents_first() {
     let inits = ["Z", "Y", "X", "K"];
     assert_eq!(exit(&["main", "libc", "X", "Y", "Z", "K"], &b, &inits), ["main", "K", "X", "Y", "Z", "libc"]);
     assert_eq!(exit(&["main", "libc", "K", "Y", "Z", "X"], &b, &inits), ["main", "K", "X", "Y", "Z", "libc"]);
-    // A successor outside the units, or more units than the table.
-    let mut out = [0u16; 2];
-    assert_eq!(init::exit_order(2, |v, e| (v == 0 && e == 0).then_some(2), &[0, 0], &mut out), Err(OrderError::BadEdge));
-    let mut big = vec![0u16; init::EXIT_MAX + 1];
-    assert_eq!(init::exit_order(init::EXIT_MAX + 1, |_, _| None, &vec![0; init::EXIT_MAX + 1], &mut big), Err(OrderError::TooMany));
+    // A successor outside the units, or more units than the caller's work slice.
+    let (mut out, mut work) = ([0u32; 2], [init::ExitWalk::default(); 2]);
+    assert_eq!(init::exit_order(2, |v, e| (v == 0 && e == 0).then_some(2), &[0, 0], &mut out, &mut work), Err(OrderError::BadEdge));
+    assert_eq!(init::exit_order(2, |_, _| None, &[0, 0], &mut out, &mut work[..1]), Err(OrderError::TooMany));
+    // No table size (DL-PROCESS-OBJECTS part 2): 2000 units in a chain, each before the next.
+    let n = 2000;
+    let (mut out, mut work) = (vec![0u32; n], vec![init::ExitWalk::default(); n]);
+    let len = init::exit_order(n, |v, e| (e == 0 && v + 1 < n).then_some(v + 1), &vec![0; n], &mut out, &mut work).unwrap();
+    assert_eq!(len, n);
+    assert!(out.iter().enumerate().all(|(i, &v)| usize::try_from(v).unwrap() == i), "the units of a chain past 512 run in sequence order");
 }

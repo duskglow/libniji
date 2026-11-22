@@ -60,6 +60,18 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_epoll_create
 #  define __NIJI_D_epoll_create 1
 extern int epoll_create (int) __NIJI_NOTHROW;
@@ -103,67 +115,99 @@ extern int epoll_wait (int, struct epoll_event *, int, int);
 # endif
 # ifndef __NIJI_D_enum_EPOLLERR
 #  define __NIJI_D_enum_EPOLLERR 1
+#  ifndef EPOLLERR
 enum { EPOLLERR = 8U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLET
 #  define __NIJI_D_enum_EPOLLET 1
+#  ifndef EPOLLET
 enum { EPOLLET = 2147483648U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLEXCLUSIVE
 #  define __NIJI_D_enum_EPOLLEXCLUSIVE 1
+#  ifndef EPOLLEXCLUSIVE
 enum { EPOLLEXCLUSIVE = 268435456U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLHUP
 #  define __NIJI_D_enum_EPOLLHUP 1
+#  ifndef EPOLLHUP
 enum { EPOLLHUP = 16U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLIN
 #  define __NIJI_D_enum_EPOLLIN 1
+#  ifndef EPOLLIN
 enum { EPOLLIN = 1U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLMSG
 #  define __NIJI_D_enum_EPOLLMSG 1
+#  ifndef EPOLLMSG
 enum { EPOLLMSG = 1024U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLONESHOT
 #  define __NIJI_D_enum_EPOLLONESHOT 1
+#  ifndef EPOLLONESHOT
 enum { EPOLLONESHOT = 1073741824U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLOUT
 #  define __NIJI_D_enum_EPOLLOUT 1
+#  ifndef EPOLLOUT
 enum { EPOLLOUT = 4U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLPRI
 #  define __NIJI_D_enum_EPOLLPRI 1
+#  ifndef EPOLLPRI
 enum { EPOLLPRI = 2U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLRDBAND
 #  define __NIJI_D_enum_EPOLLRDBAND 1
+#  ifndef EPOLLRDBAND
 enum { EPOLLRDBAND = 128U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLRDHUP
 #  define __NIJI_D_enum_EPOLLRDHUP 1
+#  ifndef EPOLLRDHUP
 enum { EPOLLRDHUP = 8192U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLRDNORM
 #  define __NIJI_D_enum_EPOLLRDNORM 1
+#  ifndef EPOLLRDNORM
 enum { EPOLLRDNORM = 64U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLWAKEUP
 #  define __NIJI_D_enum_EPOLLWAKEUP 1
+#  ifndef EPOLLWAKEUP
 enum { EPOLLWAKEUP = 536870912U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLWRBAND
 #  define __NIJI_D_enum_EPOLLWRBAND 1
+#  ifndef EPOLLWRBAND
 enum { EPOLLWRBAND = 512U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLLWRNORM
 #  define __NIJI_D_enum_EPOLLWRNORM 1
+#  ifndef EPOLLWRNORM
 enum { EPOLLWRNORM = 256U };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_EPOLL_CLOEXEC
 #  define __NIJI_D_enum_EPOLL_CLOEXEC 1
+#  ifndef EPOLL_CLOEXEC
 enum { EPOLL_CLOEXEC = 524288 };
+#  endif
 # endif
 # ifndef EPOLLERR
 #  define EPOLLERR 8U

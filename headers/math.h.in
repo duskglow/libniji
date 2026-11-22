@@ -1,0 +1,83 @@
+@@generated
+/* math.h: mathematics (C 7.12, XSH <math.h>, TS 18661-1..4). The classification and comparison macros use
+   the compiler builtins GCC's manual documents (fpclassify, isinf_sign, ...). No `simd` declarations. */
+#ifndef __NIJI_H_math_h
+#define __NIJI_H_math_h 1
+
+#include <features.h>
+#ifdef __cplusplus
+/* The C++ library's <math.h> wrapper takes <cmath>, which takes <cstdlib>: the names stdlib.h supplies are
+   visible after <math.h> in C++ (visibility.tsv shows them in math.h in the C++ configurations). */
+# include <stdlib.h>
+#endif
+
+__NIJI_BEGIN_C
+
+@@owns-macro fpclassify isfinite isnormal signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
+@@owns-macro M_1_PIf128 M_1_PIf32 M_1_PIf32x M_1_PIf64 M_1_PIf64x M_2_PIf128 M_2_PIf32 M_2_PIf32x M_2_PIf64 M_2_PIf64x M_2_SQRTPIf128 M_2_SQRTPIf32 M_2_SQRTPIf32x M_2_SQRTPIf64 M_2_SQRTPIf64x M_Ef128 M_Ef32 M_Ef32x M_Ef64 M_Ef64x M_LN10f128 M_LN10f32 M_LN10f32x M_LN10f64 M_LN10f64x M_LN2f128 M_LN2f32 M_LN2f32x M_LN2f64 M_LN2f64x M_LOG10Ef128 M_LOG10Ef32 M_LOG10Ef32x M_LOG10Ef64 M_LOG10Ef64x M_LOG2Ef128 M_LOG2Ef32 M_LOG2Ef32x M_LOG2Ef64 M_LOG2Ef64x M_PI_2f128 M_PI_2f32 M_PI_2f32x M_PI_2f64 M_PI_2f64x M_PI_4f128 M_PI_4f32 M_PI_4f32x M_PI_4f64 M_PI_4f64x M_PIf128 M_PIf32 M_PIf32x M_PIf64 M_PIf64x M_SQRT1_2f128 M_SQRT1_2f32 M_SQRT1_2f32x M_SQRT1_2f64 M_SQRT1_2f64x M_SQRT2f128 M_SQRT2f32 M_SQRT2f32x M_SQRT2f64 M_SQRT2f64x SNANF128 SNANF32 SNANF32X SNANF64 SNANF64X
+@@emit
+
+@@if fpclassify
+# define fpclassify(x) __builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x)
+#endif
+@@if isfinite
+# define isfinite(x) __builtin_isfinite (x)
+#endif
+@@if isnormal
+# define isnormal(x) __builtin_isnormal (x)
+#endif
+@@if isnan
+# define isnan(x) __builtin_isnan (x)
+#endif
+@@if isinf
+/* C 7.12.3.3 asks for non-zero; the sign (-1 for -inf, +1 for +inf) is the documented extension of the builtin. */
+# define isinf(x) __builtin_isinf_sign (x)
+#endif
+@@if signbit
+# define signbit(x) __builtin_signbit (x)
+#endif
+@@if issignaling
+# define issignaling(x) __builtin_issignaling (x)
+#endif
+@@if iszero
+# define iszero(x) (__builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_ZERO)
+#endif
+@@if issubnormal
+# define issubnormal(x) (__builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_SUBNORMAL)
+#endif
+@@if __iscanonical
+/* Every encoding of float, double and binary128 is canonical. The x87 types (long double, _Float64x) have encodings
+   that are not (pseudo-denormals, unnormals, pseudo-infinities, pseudo-NaNs): the library tests those bits. */
+# define __iscanonical(x) (__builtin_types_compatible_p (__typeof (x), long double) \
+			   || __builtin_types_compatible_p (__typeof (x), _Float64x) \
+			   ? __iscanonicall ((long double) (x)) : ((void) (x), 1))
+#endif
+@@if iscanonical
+# define iscanonical(x) __iscanonical (x)
+#endif
+@@if iseqsig
+/* C2X 7.12.17.7: the relational operators raise "invalid" for a quiet NaN too, as the signaling comparison needs. */
+# define iseqsig(x, y) (((x) <= (y)) && ((x) >= (y)))
+#endif
+@@if isgreater
+# define isgreater(x, y) __builtin_isgreater (x, y)
+#endif
+@@if isgreaterequal
+# define isgreaterequal(x, y) __builtin_isgreaterequal (x, y)
+#endif
+@@if isless
+# define isless(x, y) __builtin_isless (x, y)
+#endif
+@@if islessequal
+# define islessequal(x, y) __builtin_islessequal (x, y)
+#endif
+@@if islessgreater
+# define islessgreater(x, y) __builtin_islessgreater (x, y)
+#endif
+@@if isunordered
+# define isunordered(x, y) __builtin_isunordered (x, y)
+#endif
+
+__NIJI_END_C
+
+#endif

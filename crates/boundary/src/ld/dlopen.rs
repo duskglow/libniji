@@ -6,7 +6,8 @@
 //!   start: `link` only records a few words per object). It holds every object as the relocator
 //!   sees it (the start-time objects read again from their memory images, as `link` read them),
 //!   their lookup views, the link-map nodes (the public `struct link_map` prefix first), the global
-//!   scope, and two bump arenas (paths, dependency lists). A new set is linked in with one Release
+//!   scope, and two arenas (paths, dependency lists) that grow by generations never moved
+//!   ([`Arena`], DL-PROCESS-OBJECTS). A new set is linked in with one Release
 //!   store; `dlclose` ([`close_entry`], DL-17) unlinks what it unloads.
 //! * **Locks.** The writer lock [`CALL`], re-entrant for its owner (a constructor may call
 //!   `dlopen`), held for the whole call; inside it [`STATE`] while the call changes the loader's
@@ -31,13 +32,13 @@
 //! Not here yet (plan §6): lazy binding (DL-20).
 
 use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
-use super::table::{Table, INLINE};
-use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_PAGE};
+use super::table::{Arena, Gens, Grown, Records, Spill, Table, Wide, ZeroValid, INLINE};
+use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_ORIGIN, START_PAGE, START_RUN_PATH};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use core::sync::atomic::{AtomicU32, AtomicUsize};
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize};
 use niji_kernel::auxv::Auxv;
 use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
@@ -50,21 +51,55 @@ use niji_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, Un
 use niji_ld::tls::{self as ltls, Module, Placed};
 use niji_ld::{init, map, start};
 
-/// Objects the process can hold, the start-time ones included; one more is refused with a text.
+/// The object tables' entries in place (their generation 0: the link-map nodes in `ld.so`'s data,
+/// the object records, the readers' table, the lock-held lists and the stack scratch). Past it each
+/// table grows by generations ([`OBJ_GENS`], DL-PROCESS-OBJECTS part 2, audit HL-3): memory is the
+/// only bound on the objects a process holds. The start-time objects stay below it (the start
+/// writes their nodes before any loader exists).
 pub(super) const CAP: usize = 512;
+/// Generations of the object tables past [`CAP`]: indices fit 32 bits (`CAP << OBJ_GENS` = 2^32,
+/// past the mappings the kernel lets a process hold: every object takes two or more).
+pub(super) const OBJ_GENS: usize = 23;
+/// An object index as stored (dependency lists, the constructor log, roots); indices fit 32 bits.
+fn ix32(i: usize) -> u32 {
+    u32::try_from(i).unwrap_or(u32::MAX)
+}
+/// A stored index as an index.
+fn ix(i: u32) -> usize {
+    usize::try_from(i).unwrap_or(usize::MAX)
+}
+/// An index of a new object relative to its set's first, for `init::init_order`'s edges.
+#[derive(Clone, Copy)]
+struct Rel(u32);
+impl From<Rel> for usize {
+    fn from(r: Rel) -> usize {
+        ix(r.0)
+    }
+}
 /// One `dlopen` adds any number of new objects (DL-DLOPEN-NEW-OBJECTS): its per-object tables
 /// ([`Binds`], [`Ctors`], the pass-2 marks, the dependency edges and the init walk, the new TLS
 /// modules) hold their first [`INLINE`] entries in place and spill to a mapping beyond that,
 /// reserved before anything is published; the only failure left is that mapping's,
 /// `<file>: cannot allocate memory`.
 const NO_MEMORY: &[u8] = b": cannot allocate memory";
+/// [`Found::Full`]'s text when an arena cannot grow (DL-PROCESS-OBJECTS: memory is the only bound).
+const NO_ROOM: &[u8] = b"cannot allocate memory";
 /// Dependency edges between one call's new objects held in place (a set of a few dozen objects
 /// has a few hundred).
 const EDGES_INLINE: usize = 256;
-/// Bytes of the path arena.
+/// The path arena's bytes in place (its generation 0, in the loader's mapping); later generations
+/// double, each mapped at its first use and never moved: the paths of every object the process holds
+/// (DL-PROCESS-OBJECTS, audit HL-5). `l_name`, `dlpi_name` and `dli_fname` point into it.
 const NAMES: usize = 128 * 1024;
-/// Entries of the dependency-list arena.
+/// Generations of the path arena past the one in place (its offsets fit 32 bits: 4 GiB of paths,
+/// past the mappings the kernel lets a process hold for that many objects).
+const NAMES_GENS: usize = 15;
+type Names = Arena<u8, NAMES, NAMES_GENS>;
+/// The dependency-list arena's entries in place (generation 0), then generations as for the paths:
+/// every object's dependencies and recorded bindings, however many.
 const DEPS: usize = 16 * 1024;
+const DEPS_GENS: usize = 18;
+type Deps = Arena<u32, DEPS, DEPS_GENS>;
 /// The unique-symbol table: (name, version) keys and the bytes of their strings, each in its own
 /// mapping that grows as needed (no count of unique names is too many; C++ libraries define
 /// hundreds). Only a failed mapping makes the binding that needed the entry fail, with a text that
@@ -151,28 +186,77 @@ impl<T: Copy> reloc::Stack<T> for MapStack<T> {
 /// `SHN_ABS` (ELF gABI): an absolute symbol, not moved by the load bias.
 const SHN_ABS: u16 = 0xfff1;
 
-/// `objs[..k]` of the loader's object array (a field borrow, so another field may be borrowed
-/// mutably beside it).
-fn objs_of<'l>(objs: &'l [MaybeUninit<Obj<'static>>; CAP], k: usize) -> &'l [Obj<'static>] {
-    let k = k.min(CAP);
-    // UNSAFE(slice): the initialised prefix of a MaybeUninit array.
-    #[allow(unsafe_code)]
-    // SAFETY: every caller passes a `k` whose slots are written (the loaded objects and the
-    // attempt's new ones, written before `k` is advanced).
-    unsafe {
-        core::slice::from_raw_parts(objs.as_ptr().cast::<Obj<'static>>(), k)
+/// The object records (`Obj` or `Object`) as two copies (DL-PROCESS-OBJECTS part 2): the published
+/// ones in never-moved generations (generation 0 the array in place), which [`View`] reads without
+/// a lock, and, once the process holds more than [`CAP`] objects, a contiguous lock-held copy of
+/// every record, which the relocator and the lookups take as one slice. Within [`CAP`] the array in
+/// place is both, as before. All-zero is the empty table.
+#[repr(C)]
+struct Recs<T: Copy> {
+    published: Grown<MaybeUninit<T>, CAP, OBJ_GENS>,
+    wide: Records<T>,
+}
+
+impl<T: Copy> Recs<T> {
+    /// Records `0..k`; every caller passes a `k` whose records are written (the loaded objects and
+    /// the attempt's new ones, written before `k` is advanced). Empty when they are not.
+    fn upto(&self, k: usize) -> &[T] {
+        if k > CAP {
+            return self.wide.slice(k).unwrap_or(&[]);
+        }
+        let k = k.min(CAP);
+        // UNSAFE(slice): the initialised prefix of a MaybeUninit array.
+        #[allow(unsafe_code)]
+        // SAFETY: as documented above: `k <= CAP` records of the array in place are written.
+        unsafe {
+            core::slice::from_raw_parts(self.published.inline().as_ptr().cast::<T>(), k)
+        }
+    }
+
+    /// Room for records `0..len`: the published generations, and past [`CAP`] the lock-held copy
+    /// (filled with the `written` records the first time); `false` when a mapping cannot be made.
+    fn reserve(&mut self, len: usize, written: usize) -> bool {
+        if len <= CAP {
+            return true;
+        }
+        if !self.published.reserve(len) || !self.wide.reserve(len) {
+            return false;
+        }
+        for i in self.wide.len()..written.min(CAP) {
+            let Some(&r) = self.upto(written.min(CAP)).get(i) else { return false };
+            if !self.wide.set(i, r) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Write record `i` in both copies (the room reserved).
+    fn set(&mut self, i: usize, v: T) {
+        if let Some(s) = self.published.get_mut(i) {
+            *s = MaybeUninit::new(v);
+        }
+        if i >= CAP || self.wide.len() > 0 {
+            let _ = self.wide.set(i, v);
+        }
+    }
+
+    /// The published record `i`'s address in the table at `at`, read without a lock.
+    #[inline(always)]
+    fn addr_in(at: usize, i: usize) -> usize {
+        Grown::<MaybeUninit<T>, CAP, OBJ_GENS>::addr_in(at.wrapping_add(core::mem::offset_of!(Recs<T>, published)), i)
     }
 }
 
+/// `objs[..k]` of the loader's object records (a field borrow, so another field may be borrowed
+/// mutably beside it).
+fn objs_of<'l>(objs: &'l Recs<Obj<'static>>, k: usize) -> &'l [Obj<'static>] {
+    objs.upto(k)
+}
+
 /// `syms[..k]`, as [`objs_of`].
-fn syms_of<'l>(syms: &'l [MaybeUninit<Object<'static>>; CAP], k: usize) -> &'l [Object<'static>] {
-    let k = k.min(CAP);
-    // UNSAFE(slice): the initialised prefix of a MaybeUninit array.
-    #[allow(unsafe_code)]
-    // SAFETY: as `objs_of`.
-    unsafe {
-        core::slice::from_raw_parts(syms.as_ptr().cast::<Object<'static>>(), k)
-    }
+fn syms_of<'l>(syms: &'l Recs<Object<'static>>, k: usize) -> &'l [Object<'static>] {
+    syms.upto(k)
 }
 
 /// The unique table as one lookup sees it: an entry recorded by this loader, or else the start's
@@ -186,17 +270,25 @@ struct Uniq<'a> {
     binds: Option<&'a mut Binds>,
 }
 
-/// The bindings one `dlopen`'s relocations made (DL-17): per new object (index - `base`), a bit
-/// per object it bound to.
+/// The bindings one `dlopen`'s relocations made (DL-17): per new object (index - `base`), a row of
+/// `width` words with a bit per object it bound to (`CAP` bits while the set ends within [`CAP`]).
 struct Binds {
     base: usize,
-    bits: Table<[u64; CAP / 64], INLINE>,
+    width: usize,
+    bits: Table<u64, { INLINE * CAP / 64 }>,
 }
 
 impl Binds {
+    /// Word `obj / 64` of row `by`.
+    fn word(&self, by: usize, obj: usize) -> Option<usize> {
+        let row = by.checked_sub(self.base)?;
+        let w = obj.checked_div(64).filter(|&w| w < self.width)?;
+        row.checked_mul(self.width)?.checked_add(w)
+    }
+
     fn has(&self, by: usize, obj: usize) -> bool {
-        let Some(row) = by.checked_sub(self.base).and_then(|r| self.bits.get(r)) else { return false };
-        row.get(obj / 64).is_some_and(|w| w & (1u64 << (obj % 64)) != 0)
+        let Some(&w) = self.word(by, obj).and_then(|at| self.bits.get(at)) else { return false };
+        w & (1u64 << (obj % 64)) != 0
     }
 }
 
@@ -213,9 +305,8 @@ impl UniqueRegistry for Uniq<'_> {
     }
     fn bound(&mut self, by: usize, found: &SymFound) {
         let Some(b) = self.binds.as_deref_mut() else { return };
-        let Some(row) = by.checked_sub(b.base).and_then(|r| b.bits.get_mut(r)) else { return };
         if found.obj != by {
-            if let Some(w) = row.get_mut(found.obj / 64) {
+            if let Some(w) = b.word(by, found.obj).and_then(|at| b.bits.get_mut(at)) {
                 *w |= 1u64 << (found.obj % 64);
             }
         }
@@ -273,7 +364,7 @@ struct Node {
     /// A `dlopen`ed object: the root of the call that loaded it, whose local scope it was relocated
     /// with (`RTLD_NEXT` and `RTLD_DEFAULT` from it search that scope, probe P-5); itself once that
     /// root is unloaded.
-    root: u16,
+    root: u32,
     /// The objects its relocations bound to outside itself (indices), a span of the dependency
     /// arena: they stay loaded while it does (DL-17, probe `== close` C-3).
     binds: (u32, u32),
@@ -300,17 +391,31 @@ struct Loader {
     /// version) is every later binding's; `unique_mark` is its length when a `dlopen` began.
     unique: Unique,
     unique_mark: usize,
-    names_top: usize,
-    deps_top: usize,
     /// `dlopen`ed objects whose constructors started, in that order (destructors run backwards).
     n_log: AtomicUsize,
-    log: [u16; CAP],
-    global: [usize; CAP],
-    nodes: [Node; CAP],
-    objs: [MaybeUninit<Obj<'static>>; CAP],
-    syms: [MaybeUninit<Object<'static>>; CAP],
-    deps: [u16; DEPS],
-    names: [u8; NAMES],
+    log: Spill<u32, CAP>,
+    global: Spill<usize, CAP>,
+    /// The link-map nodes: the first [`CAP`] in [`NODES`] (DL-23), then the directory of their
+    /// later generations.
+    nodes: Nodes,
+    objs: Recs<Obj<'static>>,
+    syms: Recs<Object<'static>>,
+    /// The readers' table's generations past its static [`CAP`] entries (`super::readers`).
+    readers: Gens<CAP, OBJ_GENS>,
+    /// Objects every table and the scratch of `dlclose` and the exit have room for ([`grow_to`];
+    /// below [`CAP`]: [`CAP`]).
+    room: usize,
+    /// [`Scratch`]'s address once the count passed [`CAP`] (0: not made).
+    scratch: usize,
+    /// Finalisers of a `dlclose` or the exit past a [`Finis`]'s [`CAP`] in place: entries
+    /// `0..fin_top` belong to the calls in progress (nested by a destructor's `dlclose`, last in
+    /// first out). Never moved: [`Finis::run`] reads them without the loader.
+    fin: Grown<Fin, CAP, OBJ_GENS>,
+    fin_top: usize,
+    /// The dependency lists (`Node::deps`, `Node::binds`) and the paths (`Node::path`): spans of
+    /// arenas that grow by generations never moved ([`Arena`]); their tops are the attempt marks.
+    deps: Deps,
+    names: Names,
     /// The static surplus's places for `dlopen`ed modules (DL-16d) and their count when the
     /// current `load_set` began ([`unwind`] takes back the later ones).
     surplus: ltls::Surplus<{ ltls::MODULES_MAX }>,
@@ -324,11 +429,258 @@ struct Loader {
     /// Unloaded objects still mapped: (index, whether the reader parity flipped since it was
     /// unpublished; [`reclaim`]).
     n_retired: usize,
-    retired: [(u16, bool); CAP],
+    retired: Spill<(u32, bool), CAP>,
+    /// The program's `$ORIGIN` (DL-RUNPATH, [`program_origin`]): `origin[..origin_len]`, published
+    /// once (`origin_len` 0: not known); `origin_tried` once looked up.
+    origin_tried: bool,
+    origin_len: AtomicUsize,
+    origin: [u8; search::PATH_MAX],
+}
+
+/// One finaliser entry of a [`Finis`] past its [`CAP`] in place.
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct Fin {
+    call: [u64; 3],
+    range: (usize, usize),
+    idx: u32,
+}
+impl ZeroValid for Fin {}
+
+/// The scratch of the calls that run past [`CAP`] objects (`dlclose`'s live set and unload list, the
+/// exit's order, a new set's scope, `dlsym`'s scope), in a mapping of its own made by the `dlopen`
+/// that first passes [`CAP`] and sized by every `dlopen` that grows the count ([`grow_to`]), so
+/// `dlclose` and the exit never allocate. Within [`CAP`] the stack arrays serve, as before. Taken
+/// only by the lock holder, once per call ([`scratch`]).
+struct Scratch {
+    keep: Wide<bool>,
+    stack: Wide<u32>,
+    set: Wide<bool>,
+    out: Wide<u32>,
+    local: Wide<u32>,
+    scope: Wide<usize>,
+    seen: Wide<bool>,
+    pos: Wide<u32>,
+    unit: Wide<u32>,
+    rank: Wide<u32>,
+    logged: Wide<u32>,
+    order: Wide<u32>,
+    walk: Wide<init::ExitWalk>,
+}
+
+impl Scratch {
+    fn reserve(&mut self, n: usize) -> bool {
+        self.keep.reserve(n) && self.stack.reserve(n) && self.set.reserve(n) && self.out.reserve(n) && self.local.reserve(n) && self.scope.reserve(n) && self.seen.reserve(n) && self.pos.reserve(n) && self.unit.reserve(n) && self.rank.reserve(n) && self.logged.reserve(n) && self.order.reserve(n) && self.walk.reserve(n)
+    }
+}
+
+/// The loader's [`Scratch`] (`None` while the count never passed [`CAP`]). The caller holds the
+/// lock and takes it once per call, before any foreign code runs and with no other borrow of it
+/// live, as [`loader`] does.
+fn scratch(l: &Loader) -> Option<&'static mut Scratch> {
+    if l.scratch == 0 {
+        return None;
+    }
+    // UNSAFE(slice): the loader's scratch in its own mapping.
+    #[allow(unsafe_code)]
+    // SAFETY: `l.scratch` is a private read-write mapping of `size_of::<Scratch>()` bytes, page
+    // aligned, made by `grow_to` and never unmapped; all-zero is a valid `Scratch` (empty buffers).
+    // Only the lock holder calls this, once per call with no borrow of it surviving the call, and
+    // no foreign code runs while it is borrowed.
+    Some(unsafe { &mut *core::ptr::with_exposed_provenance_mut::<Scratch>(l.scratch) })
+}
+
+/// `n` entries of scratch filled with `fill`: `inline` (the stack array within [`CAP`]) when it holds
+/// them, else the loader's reserved buffer; empty when neither has the room (not reached: every
+/// `dlopen` that grows the count reserves it first).
+fn room<'a, T: ZeroValid>(inline: &'a mut [T], wide: Option<&'a mut Wide<T>>, n: usize, fill: T) -> &'a mut [T] {
+    let s = if n <= inline.len() { inline.get_mut(..n) } else { wide.and_then(|w| w.slice_mut(n)) };
+    let s = s.unwrap_or(&mut []);
+    s.fill(fill);
+    s
 }
 
 /// The loader's address (0: not made yet).
 static LOADER: AtomicUsize = AtomicUsize::new(0);
+
+/// Words of [`NODES`].
+const NODE_WORDS: usize = CAP * size_of::<Node>() / 8;
+const _: () = assert!(size_of::<Node>() % 8 == 0 && core::mem::align_of::<Node>() <= 64);
+
+/// Entries of `ld.so`'s table of thread-local modules ([`thread_mods_head`]) held before the nodes.
+pub(super) const MODS_HEAD: usize = 16;
+const _: () = assert!(MODS_HEAD * 5 * 8 % 64 == 0);
+
+/// The storage of every link-map node (DL-23): in `ld.so`'s own zero-filled data rather than in the
+/// loader's mapping, so the start fills the start-time objects' public `struct link_map` prefix
+/// ([`start_node`]) for the debugger rendezvous before any `dlopen`, and a node's address (an
+/// object's handle and link map) is the same from the start to the exit. Only the pages the start
+/// writes are touched (a node is under 200 bytes). The first [`MODS_HEAD`] entries of the
+/// thread-local module table come first: the build places this table first in `ld.so`'s `.lbss`,
+/// on the page the end of `.bss` already shares, so a start writes its first nodes and its first
+/// thread-local modules there, not on new pages.
+#[repr(C, align(64))]
+struct NodeSpace {
+    mods: [[AtomicU64; 5]; MODS_HEAD],
+    nodes: [AtomicU64; NODE_WORDS],
+}
+
+static NODES: NodeSpace = NodeSpace { mods: [const { [const { AtomicU64::new(0) }; 5] }; MODS_HEAD], nodes: [const { AtomicU64::new(0) }; NODE_WORDS] };
+
+/// Node 0's address (64-byte aligned); node `i` is `size_of::<Node>()` bytes further per index.
+fn nodes_base() -> usize {
+    core::ptr::from_ref(&NODES.nodes).expose_provenance()
+}
+
+/// The first [`MODS_HEAD`] entries of `ld.so`'s table of thread-local modules (`super::thread_mod`).
+pub(super) fn thread_mods_head() -> &'static [[AtomicU64; 5]; MODS_HEAD] {
+    &NODES.mods
+}
+
+// A node is 176 bytes, as before the tables grew: generation 0 is the same bytes.
+const _: () = assert!(size_of::<Node>() == 176);
+
+/// The nodes in [`NODES`] (generation 0), for [`Nodes`] and the start.
+fn gen0_nodes() -> &'static [Node; CAP] {
+    // UNSAFE(slice): the link-map nodes in `ld.so`'s data.
+    #[allow(unsafe_code)]
+    // SAFETY: NODES.nodes is a zero-filled, 64-byte aligned array of CAP Nodes (all-zero is a valid
+    // Node; its words are atomics, readable through a shared reference). Reached only by the start
+    // (one thread, before any `Loader` exists) and through the one live `&Loader` ([`Nodes`]);
+    // readers read published fields by address.
+    unsafe { &*core::ptr::with_exposed_provenance::<[Node; CAP]>(nodes_base()) }
+}
+
+/// [`gen0_nodes`] for their one writer.
+fn gen0_nodes_mut() -> &'static mut [Node; CAP] {
+    // UNSAFE(slice): the link-map nodes in `ld.so`'s data, for their one writer.
+    #[allow(unsafe_code)]
+    // SAFETY: as in `gen0_nodes`; reached only by the start (one thread, before any `Loader`
+    // exists) and through the one live `&mut Loader` ([`Nodes`]), so no other reference to the
+    // nodes is live (readers hold none: they read by address).
+    unsafe { &mut *core::ptr::with_exposed_provenance_mut::<[Node; CAP]>(nodes_base()) }
+}
+
+/// The loader's view of the link-map nodes (DL-PROCESS-OBJECTS part 2): the first [`CAP`] in
+/// [`NODES`], then generations never moved ([`Gens`]), so a node's address (a handle, a link map)
+/// stays valid for the process. A field of [`Loader`], so the `&mut Loader` holder (one at a time,
+/// under the lock) is their one writer, as when they were the loader's own bytes. All-zero is the
+/// view with no later generation.
+#[repr(C)]
+struct Nodes {
+    gens: Gens<CAP, OBJ_GENS>,
+}
+
+impl Nodes {
+    /// Node `i`'s address, 0 when its generation is not mapped.
+    fn addr(&self, i: usize) -> usize {
+        self.gens.at(nodes_base(), size_of::<Node>(), i)
+    }
+
+    /// The index of the node at `addr`.
+    fn index_of(&self, addr: usize) -> Option<usize> {
+        self.gens.index(nodes_base(), size_of::<Node>(), addr)
+    }
+
+    /// Room for nodes `0..len`.
+    fn reserve(&self, len: usize) -> bool {
+        len <= CAP || self.gens.reserve(size_of::<Node>(), len)
+    }
+
+    fn get(&self, i: usize) -> Option<&Node> {
+        if i < CAP {
+            return gen0_nodes().get(i);
+        }
+        let at = self.addr(i);
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): one node of a mapped generation.
+        #[allow(unsafe_code)]
+        // SAFETY: `at` is node `i` of a generation `reserve` mapped (read-write, page aligned, never
+        // unmapped; a node is 176 bytes, so every one is 8-byte aligned); all-zero is a valid Node;
+        // the borrow of the loader keeps its one writer away; readers read by address.
+        Some(unsafe { &*core::ptr::with_exposed_provenance::<Node>(at) })
+    }
+
+    fn get_mut(&mut self, i: usize) -> Option<&mut Node> {
+        if i < CAP {
+            return gen0_nodes_mut().get_mut(i);
+        }
+        let at = self.addr(i);
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): one node of a mapped generation, for its one writer.
+        #[allow(unsafe_code)]
+        // SAFETY: as in `get`; `&mut self` is reached only through the one `&mut Loader`, so no other
+        // reference to the node is live (readers hold none: they read by address).
+        Some(unsafe { &mut *core::ptr::with_exposed_provenance_mut::<Node>(at) })
+    }
+
+    /// Nodes `0..n` in order (as far as they are mapped).
+    fn upto(&self, n: usize) -> impl Iterator<Item = &Node> + '_ {
+        (0..n).map_while(|i| self.get(i))
+    }
+}
+
+impl core::ops::Index<usize> for Nodes {
+    type Output = Node;
+    // Past every mapped node: the array's bounds check, as when the nodes were one array.
+    #[allow(clippy::indexing_slicing)]
+    fn index(&self, i: usize) -> &Node {
+        match self.get(i) {
+            Some(n) => n,
+            None => &gen0_nodes()[i],
+        }
+    }
+}
+
+impl core::ops::IndexMut<usize> for Nodes {
+    // As `index`.
+    #[allow(clippy::indexing_slicing)]
+    fn index_mut(&mut self, i: usize) -> &mut Node {
+        if i < CAP || self.addr(i) == 0 {
+            return &mut gen0_nodes_mut()[i];
+        }
+        match self.get_mut(i) {
+            Some(n) => n,
+            None => &mut gen0_nodes_mut()[i],
+        }
+    }
+}
+
+/// The name the start gave start-time object `k`'s link map ([`start_node`]), 0 when it linked none.
+pub(super) fn start_name(k: usize) -> usize {
+    if k >= CAP {
+        return 0;
+    }
+    let at = nodes_base().wrapping_add(k.wrapping_mul(size_of::<Node>())).wrapping_add(core::mem::offset_of!(Node, l_name));
+    // UNSAFE(slice): one word of a start-time node in `ld.so`'s data.
+    #[allow(unsafe_code)]
+    // SAFETY: `k < CAP`: the word is inside NODES.nodes (aligned: a usize field of a Node). The start wrote
+    // it before any reader or `dlopen` ran, and nothing writes it again (`adopt_start` keeps a
+    // linked node's prefix; slots are reused only past the start-time objects).
+    unsafe { core::ptr::with_exposed_provenance::<usize>(at).read() }
+}
+
+/// The start's link map of start-time object `k` (DL-23; [`super::link`], before any `dlopen`, one
+/// thread): its public prefix, with `l_prev` = `prev` (the previous link map's address, 0 for the
+/// program's) and no `l_next` yet ([`link_next`]). `name` is a NUL-terminated string kept for the
+/// process's lifetime. The node's address, or 0 when `k` is past the nodes ([`CAP`]).
+pub(super) fn start_node(k: usize, l_addr: usize, name: usize, l_ld: usize, prev: usize) -> usize {
+    let Some(node) = gen0_nodes_mut().get_mut(k) else { return 0 };
+    (node.l_addr, node.l_name, node.l_ld, node.l_prev) = (l_addr, name, l_ld, prev);
+    node.l_next.store(0, Relaxed);
+    core::ptr::from_ref(&*node).expose_provenance()
+}
+
+/// Link `next` after start-time node `k` (DL-23, [`super::link`], one thread).
+pub(super) fn link_next(k: usize, next: usize) {
+    if let Some(p) = gen0_nodes().get(k) {
+        p.l_next.store(next, Release);
+    }
+}
 
 /// A futex mutex re-entrant for its owner: `word` 0 free, 1 held, 2 held with waiters; the
 /// holder's thread pointer and depth are written by the holder only.
@@ -454,44 +806,122 @@ pub(super) fn read_section<R>(f: impl FnOnce(&View) -> R) -> Option<R> {
 }
 
 impl View {
-    /// Node `i`'s address (the handle and link map of object `i`).
+    /// Node `i`'s address (the handle and link map of object `i`): below [`CAP`] in [`NODES`], else
+    /// one directory load (0: not mapped).
+    #[inline(always)]
     pub(super) fn node_addr(&self, i: usize) -> usize {
-        self.at.wrapping_add(core::mem::offset_of!(Loader, nodes)).wrapping_add(i.wrapping_mul(size_of::<Node>()))
+        Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i)
+    }
+
+    /// Node `i`'s address, `None` when its generation is not mapped (within [`CAP`], no test).
+    #[inline(always)]
+    fn node_of(&self, i: usize) -> Option<usize> {
+        if i < CAP {
+            return Some(nodes_base().wrapping_add(i.wrapping_mul(size_of::<Node>())));
+        }
+        Some(self.node_addr(i)).filter(|&a| a != 0)
+    }
+
+    /// The address of the nodes' directory of later generations.
+    fn node_dir(&self) -> usize {
+        self.at.wrapping_add(core::mem::offset_of!(Loader, nodes))
+    }
+
+    /// The index of the node at `addr` outside generation 0, by the directory.
+    #[inline(never)]
+    fn index_past(&self, addr: usize) -> Option<usize> {
+        Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), addr)
+    }
+
+    /// The program's `$ORIGIN` once published ([`look_up_origin`]), else `None`.
+    pub(super) fn program_origin(&self) -> Option<&'static [u8]> {
+        let len_at = self.at.wrapping_add(core::mem::offset_of!(Loader, origin_len));
+        // UNSAFE(slice): the published origin length in the loader's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: `self.at` is the loader's mapping, never unmapped; the field is an aligned AtomicUsize.
+        let len = unsafe { &*core::ptr::with_exposed_provenance::<AtomicUsize>(len_at) }.load(Acquire);
+        if len == 0 {
+            return None;
+        }
+        let at = self.at.wrapping_add(core::mem::offset_of!(Loader, origin));
+        // UNSAFE(slice): the published origin bytes in the loader's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: the first `len` bytes were written before `origin_len` was stored (Release, read
+        // above with Acquire) and are never written again; the mapping is never unmapped.
+        Some(unsafe { conv::bytes_at(at, len) })
     }
 
     /// A published, final field of node `i` (`off` from [`core::mem::offset_of`]).
-    fn field<T: Copy>(&self, i: usize, off: usize) -> T {
-        let at = self.node_addr(i).wrapping_add(off);
+    fn field<T: Copy + Default>(&self, i: usize, off: usize) -> T {
+        let Some(node) = self.node_of(i) else { return T::default() };
+        let at = node.wrapping_add(off);
         // UNSAFE(slice): one field of a published node in the loader's own mapping.
         #[allow(unsafe_code)]
-        // SAFETY: `i` came from the published chain (below CAP): the node is in the loader's mapping,
-        // never unmapped; `off` is a field's offset (aligned for `T`); the field was written before
+        // SAFETY: `i` came from the published chain: the node is in `ld.so`'s data or a generation
+        // mapped before its publication, never unmapped (0 is no node: refused); `off` is a field's offset (aligned for `T`); the field was written before
         // the node's publication and not again (`unload` keeps it) until `reclaim` reuses the slot
         // after this counted reader has left, so this read does not race with the writer.
         unsafe { core::ptr::with_exposed_provenance::<T>(at).read() }
     }
 
-    /// The next published node after `i` (0: none).
+    /// The next published node after `i` (0: none); the vDSO's link map, which is no node, is
+    /// stepped over.
     fn next(&self, i: usize) -> usize {
-        let at = self.node_addr(i).wrapping_add(core::mem::offset_of!(Node, l_next));
+        let Some(node) = self.node_of(i) else { return 0 };
+        let at = node.wrapping_add(core::mem::offset_of!(Node, l_next));
         // UNSAFE(slice): the atomic `l_next` word of a published node.
         #[allow(unsafe_code)]
         // SAFETY: as in `field`; an atomic may be read while the writer stores it.
         let next = unsafe { &*core::ptr::with_exposed_provenance::<AtomicUsize>(at) };
-        next.load(Acquire)
+        super::debug::past_vdso(next.load(Acquire))
     }
 
     /// The first published object, in chain order, for which `pred` holds.
     pub(super) fn find(&self, mut pred: impl FnMut(usize) -> bool) -> Option<usize> {
-        let first = self.node_addr(0);
+        let first = nodes_base();
         let mut i = 0usize;
+        // Generation 0 as before: the index is bounded by CAP where it is decoded, so the node reads
+        // in `pred` and `next` need no test of their own; the first node past it continues in
+        // `find_past`. Every published object once (a chain longer than the indices is no chain
+        // of ours).
         for _ in 0..CAP {
             if pred(i) {
                 return Some(i);
             }
             let next = self.next(i);
-            i = next.checked_sub(first)?.checked_div(size_of::<Node>())?;
-            if next == 0 || i >= CAP {
+            if next == 0 {
+                return None;
+            }
+            let k = next.wrapping_sub(first).checked_div(size_of::<Node>())?;
+            if next < first || k >= CAP {
+                return self.find_past(next, &mut pred);
+            }
+            // `k < CAP` already; the mask (CAP is a power of two) is what lets the compiler drop
+            // the node reads' own `i < CAP` tests (it folds the test above into one on the byte
+            // offset and loses the index's bound): one `and` a step instead of a compare and a merge.
+            const { assert!(CAP.is_power_of_two()) };
+            i = k & CAP.wrapping_sub(1);
+        }
+        None
+    }
+
+    /// [`View::find`] from the node at `next` on, once the walk left generation 0.
+    #[cold]
+    #[inline(never)]
+    fn find_past(&self, mut next: usize, pred: &mut impl FnMut(usize) -> bool) -> Option<usize> {
+        let first = nodes_base();
+        for _ in 0..=u32::MAX {
+            let off = next.wrapping_sub(first);
+            let i = if next >= first && off < CAP.wrapping_mul(size_of::<Node>()) {
+                off.checked_div(size_of::<Node>())?
+            } else {
+                self.index_past(next)?
+            };
+            if pred(i) {
+                return Some(i);
+            }
+            next = self.next(i);
+            if next == 0 {
                 return None;
             }
         }
@@ -516,27 +946,38 @@ impl View {
             return (0, 0);
         }
         let names = self.at.wrapping_add(core::mem::offset_of!(Loader, names));
-        (names.wrapping_add(usize::try_from(a).unwrap_or(0)), usize::try_from(b).unwrap_or(0))
+        let at = Names::addr_in(names, usize::try_from(a).unwrap_or(usize::MAX));
+        if at == 0 {
+            return (0, 0);
+        }
+        (at, usize::try_from(b).unwrap_or(0))
     }
 
     /// Object `i` as the relocator saw it.
-    pub(super) fn obj(&self, i: usize) -> &Obj<'static> {
-        let at = self.at.wrapping_add(core::mem::offset_of!(Loader, objs)).wrapping_add(i.wrapping_mul(size_of::<Obj<'static>>()));
-        // UNSAFE(slice): a published object record in the loader's own mapping.
+    pub(super) fn obj(&self, i: usize) -> Option<&Obj<'static>> {
+        let at = Recs::<Obj<'static>>::addr_in(self.at.wrapping_add(core::mem::offset_of!(Loader, objs)), i);
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): a published object record in the loader's mapping or a generation of it.
         #[allow(unsafe_code)]
-        // SAFETY: `i` came from the published chain, so `objs[i]` was initialised before the Release
-        // store that published it and is not written again until the slot is reused, after this
-        // counted reader has left (`reclaim`), and the mapping outlives the view.
-        unsafe { &*core::ptr::with_exposed_provenance::<Obj<'static>>(at) }
+        // SAFETY: `i` came from the published chain, so record `i` (in place below CAP, else in a
+        // generation mapped before it was written, never moved or unmapped) was initialised before
+        // the Release store that published it and is not written again until the slot is reused,
+        // after this counted reader has left (`reclaim`), and the mapping outlives the view.
+        Some(unsafe { &*core::ptr::with_exposed_provenance::<Obj<'static>>(at) })
     }
 
     /// Object `i`'s symbol tables.
-    pub(super) fn syms(&self, i: usize) -> &Object<'static> {
-        let at = self.at.wrapping_add(core::mem::offset_of!(Loader, syms)).wrapping_add(i.wrapping_mul(size_of::<Object<'static>>()));
-        // UNSAFE(slice): a published symbol-table record in the loader's own mapping.
+    pub(super) fn syms(&self, i: usize) -> Option<&Object<'static>> {
+        let at = Recs::<Object<'static>>::addr_in(self.at.wrapping_add(core::mem::offset_of!(Loader, syms)), i);
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): a published symbol-table record in the loader's mapping or a generation.
         #[allow(unsafe_code)]
         // SAFETY: as in `obj`.
-        unsafe { &*core::ptr::with_exposed_provenance::<Object<'static>>(at) }
+        Some(unsafe { &*core::ptr::with_exposed_provenance::<Object<'static>>(at) })
     }
 }
 
@@ -588,10 +1029,21 @@ extern "C" fn entry(file: usize, mode: i32, caller: usize) -> usize {
 /// the state is made (readers call this while a `dlopen` may hold `&mut Loader`).
 pub(super) fn node_address(i: usize) -> usize {
     let at = LOADER.load(Acquire);
-    if at == 0 || i >= CAP {
+    if at == 0 {
         return 0;
     }
-    at.wrapping_add(core::mem::offset_of!(Loader, nodes)).wrapping_add(i.wrapping_mul(size_of::<Node>()))
+    View { at }.node_addr(i)
+}
+
+/// Entry `i` of the readers' table past its static [`CAP`] (`super::readers`): its address in a
+/// generation mapped (and in the loader's directory) before the entry was staged; 0 when there is
+/// none. Read without a lock and without a reference to the loader.
+pub(super) fn reader_entry(i: usize) -> usize {
+    let at = LOADER.load(Acquire);
+    if at == 0 || i < CAP {
+        return 0;
+    }
+    Gens::<CAP, OBJ_GENS>::at_in(at.wrapping_add(core::mem::offset_of!(Loader, readers)), 0, super::readers::ENTRY_BYTES, i)
 }
 
 /// The loader, made (with the start-time objects) at the first call. The caller holds the lock
@@ -615,6 +1067,9 @@ fn loader() -> Option<&'static mut Loader> {
             let _ = raw::munmap(at, size_of::<Loader>());
             return None;
         }
+        if origin_listed(l) {
+            look_up_origin(l);
+        }
         dladdr::keep_start_paths(l);
         LOADER.store(at, Release);
     }
@@ -623,35 +1078,48 @@ fn loader() -> Option<&'static mut Loader> {
 
 impl Loader {
     fn node_addr(&self, i: usize) -> usize {
-        self.nodes.get(i).map_or(0, |n| core::ptr::from_ref(n).expose_provenance())
+        self.nodes.addr(i)
     }
 
-    /// Copy `s` and a NUL into the path arena: its span.
+    /// Room in every object table for objects `0..len` and, past [`CAP`], the scratch of the calls
+    /// that must not allocate (DL-PROCESS-OBJECTS part 2): called before object `len - 1` is written
+    /// (`written` records are). `false` when a mapping cannot be made (the call fails with
+    /// `cannot allocate memory`; what was mapped stays, as every generation does).
+    fn grow_to(&mut self, len: usize, written: usize) -> bool {
+        if len <= self.room.max(CAP) {
+            return true;
+        }
+        grow_cold(self, len, written)
+    }
+
+    /// Copy `s` and a NUL into the path arena: its span; `None` only when the arena cannot grow (no
+    /// memory).
     fn keep(&mut self, s: &[u8]) -> Option<(u32, u32)> {
-        let start = self.names_top;
-        let end = start.checked_add(s.len())?;
-        self.names.get_mut(start..end)?.copy_from_slice(s);
-        *self.names.get_mut(end)? = 0;
-        self.names_top = end.checked_add(1)?;
+        let start = self.names.append(s, 0)?;
         Some((u32::try_from(start).ok()?, u32::try_from(s.len()).ok()?))
     }
 
+    /// The bytes of path span `(a, b)`, `None` when it is no written span.
+    fn path_span(&self, (a, b): (u32, u32)) -> Option<&[u8]> {
+        self.names.get(usize::try_from(a).ok()?, usize::try_from(b).ok()?)
+    }
+
     fn path(&self, i: usize) -> &[u8] {
-        let Some(&Node { path: (a, b), .. }) = self.nodes.get(i) else { return b"" };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(b"")
+        let Some(&Node { path, .. }) = self.nodes.get(i) else { return b"" };
+        self.path_span(path).unwrap_or(b"")
     }
 
-    fn deps_of(&self, i: usize) -> &[u16] {
-        let Some(&Node { deps: (a, b), .. }) = self.nodes.get(i) else { return &[] };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.deps.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(&[])
+    /// The entries of dependency-arena span `(a, b)`.
+    fn dep_span(&self, (a, b): (u32, u32)) -> &[u32] {
+        usize::try_from(a).ok().zip(usize::try_from(b).ok()).and_then(|(a, b)| self.deps.get(a, b)).unwrap_or(&[])
     }
 
-    fn binds_of(&self, i: usize) -> &[u16] {
-        let Some(&Node { binds: (a, b), .. }) = self.nodes.get(i) else { return &[] };
-        let a = usize::try_from(a).unwrap_or(0);
-        self.deps.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(&[])
+    fn deps_of(&self, i: usize) -> &[u32] {
+        self.nodes.get(i).map_or(&[], |nd| self.dep_span(nd.deps))
+    }
+
+    fn binds_of(&self, i: usize) -> &[u32] {
+        self.nodes.get(i).map_or(&[], |nd| self.dep_span(nd.binds))
     }
 
     /// Whether object `j` is unloaded (its memory may be gone: never read its `Obj`).
@@ -661,14 +1129,30 @@ impl Loader {
 
     /// The index of the node at `addr`.
     fn index_of(&self, addr: usize) -> Option<usize> {
-        let off = addr.checked_sub(self.node_addr(0))?;
-        (off.checked_rem(size_of::<Node>())? == 0).then_some(off.checked_div(size_of::<Node>())?).filter(|&i| i < CAP)
+        self.nodes.index_of(addr)
+    }
+
+    /// The global scope.
+    fn global(&self) -> &[usize] {
+        self.global.slice(self.n_global).unwrap_or(&[])
+    }
+
+    /// The constructor log.
+    fn log(&self) -> &[u32] {
+        self.log.slice(self.n_log.load(Relaxed)).unwrap_or(&[])
     }
 
     /// The object whose `DT_SONAME` is `name`, among the first `k`.
     fn by_soname(&self, name: &[u8], k: usize) -> Option<usize> {
         let objs = self.objs_upto(k);
         objs.iter().enumerate().position(|(j, o)| self.nodes.get(j).is_some_and(|nd| !nd.gone) && soname(o) == Some(name))
+    }
+
+    /// An object without `DT_SONAME` loaded by the bare name `name` (a `DT_NEEDED` entry or a
+    /// `dlopen` name; probed: the reference matches that name too).
+    fn by_given(&self, name: &[u8], k: usize) -> Option<usize> {
+        let objs = self.objs_upto(k);
+        objs.iter().enumerate().position(|(j, o)| self.nodes.get(j).is_some_and(|nd| !nd.gone) && soname(o).is_none() && o.name == name)
     }
 
     /// `objs[..k]` (`k` may pass `n` by the objects of the attempt in progress).
@@ -692,23 +1176,27 @@ fn range(o: &Obj<'_>) -> (usize, usize) {
 }
 
 /// Fill node `i` of `o`, not yet linked.
-fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u64)) {
+fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u64), prefix: bool) {
     let (lo, hi) = range(o);
     let dynv = o.elf.find(pt::DYNAMIC).map_or(0, |p| p.vaddr);
     let prev = if i == 0 { 0 } else { l.node_addr(i.wrapping_sub(1)) };
     if let Some(node) = l.nodes.get_mut(i) {
-        node.l_addr = usize::try_from(o.bias).unwrap_or(0);
-        node.l_name = name;
-        node.l_ld = usize::try_from(o.bias.wrapping_add(dynv)).unwrap_or(0);
-        node.l_next.store(0, Relaxed);
-        node.l_prev = prev;
+        // A start-time node the start linked (DL-23) keeps its public prefix: the chain a debugger
+        // or a program may be walking is never cut.
+        if prefix {
+            node.l_addr = usize::try_from(o.bias).unwrap_or(0);
+            node.l_name = name;
+            node.l_ld = usize::try_from(o.bias.wrapping_add(dynv)).unwrap_or(0);
+            node.l_next.store(0, Relaxed);
+            node.l_prev = prev;
+        }
         (node.dev, node.ino) = id;
         (node.lo, node.hi) = (lo, hi);
     }
 }
 
 /// Read the start-time objects again from their memory images ([`image_view`], as `link` did) and
-/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (not global) when
+/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (global, last) when
 /// no object named it at start. False when `link` did not run (no records).
 // Indices stay below CAP (checked).
 #[allow(clippy::indexing_slicing)]
@@ -744,21 +1232,31 @@ fn adopt_start(l: &mut Loader) -> bool {
         if k == 0 {
             s.mark_program();
         }
-        l.objs[k] = MaybeUninit::new(o);
-        l.syms[k] = MaybeUninit::new(s);
-        // `l_name`: the program's is "", another object's its DT_SONAME (NUL-terminated in the
+        l.objs.set(k, o);
+        l.syms.set(k, s);
+        // `l_name` when the start linked none: the program's is "", another object's its DT_SONAME (NUL-terminated in the
         // string table the view holds).
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { o.name.as_ptr().expose_provenance() };
+        // A node the start linked keeps its name (the path the start found the object by).
+        let linked = l.nodes[k].l_ld != 0;
+        let name = if linked {
+            l.nodes[k].l_name
+        } else if k == 0 {
+            c"".as_ptr().expose_provenance()
+        } else {
+            o.name.as_ptr().expose_provenance()
+        };
         let id = if k == interp { (u64::MAX, u64::MAX) } else { (w[3], w[4]) };
-        describe(l, k, &o, name, id);
+        describe(l, k, &o, name, id, !linked);
         l.nodes[k].nodelete = true;
-        // At start every object was in the global scope; an `ld.so` that joins now is not.
-        if k < n {
-            l.nodes[k].global = true;
-            l.global[l.n_global] = k;
-            l.n_global = l.n_global.saturating_add(1);
+        // At start every object was in the global scope. An `ld.so` that joins now joins it last,
+        // where the C library naming it would put it (D-27.65), so `dlsym`'s
+        // `RTLD_DEFAULT`/`RTLD_NEXT` find its exports (`_dl_get_tls_static_info`, `__tls_get_addr`).
+        l.nodes[k].global = true;
+        if let Some(g) = l.global.get_mut(l.n_global) {
+            *g = k;
         }
-        if k > 0 {
+        l.n_global = l.n_global.saturating_add(1);
+        if k > 0 && !linked {
             let me = l.node_addr(k);
             l.nodes[k.wrapping_sub(1)].l_next.store(me, Relaxed);
         }
@@ -790,7 +1288,7 @@ fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
     }
     for (k, p) in placed[..n].iter().enumerate() {
         let o = Obj { tls: *p, ..l.objs_upto(n)[k] };
-        l.objs[k] = MaybeUninit::new(o);
+        l.objs.set(k, o);
     }
     true
 }
@@ -799,27 +1297,27 @@ fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
 /// handle's `dlsym`, `RTLD_GLOBAL` promotion): a name matches a start-time object's `DT_SONAME`, a
 /// name with a `/` the object at that path by (`st_dev`, `st_ino`). A name that matches neither
 /// (a start-time object without `DT_SONAME` found by a bare name) is left out.
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)] // deps_top < DEPS is checked
+/// False only when the dependency arena cannot grow (no memory).
+#[allow(clippy::indexing_slicing)] // q < total < CAP
 fn adopt_deps(l: &mut Loader, total: usize) -> bool {
     for q in 0..total {
         let o = l.objs_upto(total)[q];
-        let start = l.deps_top;
+        // Room for every entry first: one list is one span.
+        let Some(start) = l.deps.open(o.dynm.needed().count()) else { return false };
         for needed in o.dynm.needed().map_while(Result::ok) {
             let j = l.by_soname(needed, total).or_else(|| {
                 if !needed.contains(&b'/') {
                     return None;
                 }
                 let id = file_id(needed)?;
-                l.nodes[..total].iter().position(|nd| (nd.dev, nd.ino) == id)
+                l.nodes.upto(total).position(|nd| (nd.dev, nd.ino) == id)
             });
             let Some(j) = j else { continue };
-            if l.deps_top >= DEPS {
+            if !l.deps.push(ix32(j)) {
                 return false;
             }
-            l.deps[l.deps_top] = u16::try_from(j).unwrap_or(0);
-            l.deps_top += 1;
         }
-        l.nodes[q].deps = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps_top - start).unwrap_or(0));
+        l.nodes[q].deps = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps.top().saturating_sub(start)).unwrap_or(0));
     }
     true
 }
@@ -896,34 +1394,47 @@ pub(super) fn fini_exit(start: &[(usize, [u64; 3])]) -> bool {
 /// objects in the constructor log, not unloaded or finalising, by index (= load order: a slot is
 /// reused only from the top). A `dlopen`ed unit runs before each unit it needs or bound to.
 fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
-    const NONE: u16 = u16::MAX;
-    let as16 = |v: usize| u16::try_from(v).unwrap_or(NONE);
-    let as32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
+    const NONE: u32 = u32::MAX;
+    let as32 = ix32;
     let m = start.len().min(CAP);
+    // Within CAP objects the stack arrays, else the scratch the growing `dlopen` reserved.
+    let s = scratch(l);
+    let (s_pos, s_unit, s_rank, s_logged, s_order, s_walk) = match s {
+        Some(s) => (Some(&mut s.pos), Some(&mut s.unit), Some(&mut s.rank), Some(&mut s.logged), Some(&mut s.order), Some(&mut s.walk)),
+        None => (None, None, None, None, None, None),
+    };
+    let total = l.n.max(m);
+    let (mut pos0, mut unit0, mut rank0, mut logged0, mut out0) = ([NONE; CAP], [NONE; CAP], [0u32; CAP], [NONE; CAP], [0u32; CAP]);
+    let mut walk0 = [init::ExitWalk::default(); CAP];
     // `pos[node]`: its unit; `unit[u]`: a dlopen unit's node; `rank[u]`: higher = initialised later.
-    let (mut pos, mut unit, mut rank, mut logged) = ([NONE; CAP], [NONE; CAP], [0u32; CAP], [NONE; CAP]);
+    let pos = room(&mut pos0, s_pos, total, NONE);
+    let unit = room(&mut unit0, s_unit, total, NONE);
+    let rank = room(&mut rank0, s_rank, total, 0);
+    let logged = room(&mut logged0, s_logged, total, NONE);
+    let out = room(&mut out0, s_order, total, 0);
+    let walk = room(&mut walk0, s_walk, total, init::ExitWalk::default());
     for (u, &(i, _)) in start.iter().take(m).enumerate() {
         if let (Some(p), Some(r)) = (pos.get_mut(i), rank.get_mut(u)) {
-            *p = as16(u);
+            *p = as32(u);
             *r = as32(m.saturating_sub(u));
         }
     }
-    let n_log = l.n_log.load(Relaxed).min(CAP);
-    for (k, &i) in l.log.iter().take(n_log).enumerate() {
-        if let Some(x) = logged.get_mut(usize::from(i)) {
-            *x = as16(k);
+    let n_log = l.log().len();
+    for (k, &i) in l.log().iter().enumerate() {
+        if let Some(x) = logged.get_mut(ix(i)) {
+            *x = as32(k);
         }
     }
     let mut n = m;
-    for i in l.n_start..l.n.min(CAP) {
+    for i in l.n_start..l.n {
         let k = logged.get(i).copied().unwrap_or(NONE);
         if k == NONE || l.nodes.get(i).is_none_or(|nd| nd.gone || nd.finalising) {
             continue;
         }
         let (Some(p), Some(x), Some(r)) = (pos.get_mut(i), unit.get_mut(n), rank.get_mut(n)) else { break };
-        *p = as16(n);
-        *x = as16(i);
-        *r = as32(m.saturating_add(1).saturating_add(usize::from(k)));
+        *p = as32(n);
+        *x = as32(i);
+        *r = as32(m.saturating_add(1).saturating_add(ix(k)));
         n = n.saturating_add(1);
     }
     let lr: &Loader = l;
@@ -932,27 +1443,27 @@ fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
             let w = v.saturating_add(1);
             return (e == 0 && w < m).then_some(w);
         }
-        let i = usize::from(*unit.get(v)?);
-        let targets = lr.deps_of(i).iter().chain(lr.binds_of(i)).map(|&j| pos.get(usize::from(j)).copied().unwrap_or(NONE));
-        targets.filter(|&p| p != NONE && usize::from(p) != v).nth(e).map(usize::from)
+        let i = ix(*unit.get(v)?);
+        let targets = lr.deps_of(i).iter().chain(lr.binds_of(i)).map(|&j| pos.get(ix(j)).copied().unwrap_or(NONE));
+        targets.filter(|&p| p != NONE && ix(p) != v).nth(e).map(ix)
     };
-    let mut out = [0u16; CAP];
-    let len = init::exit_order(n, succ, rank.get(..n).unwrap_or(&[]), &mut out).unwrap_or(0);
+    let len = init::exit_order(n, succ, rank.get(..n).unwrap_or(&[]), out, walk).unwrap_or(0);
     let order = out.get(..len).unwrap_or(&[]);
     if order.is_empty() && n > 0 {
-        // Not reached (n <= CAP = EXIT_MAX, every edge is a unit): the `dlopen`ed objects the last
-        // initialised first, then the start-time ones.
+        // Not reached (the scratch has room for every unit, every edge is a unit): the `dlopen`ed
+        // objects the last initialised first, then the start-time ones.
         for k in (0..n_log).rev() {
-            f.add(l, l.log.get(k).map_or(CAP, |&i| usize::from(i)));
+            let j = l.log().get(k).map_or(usize::MAX, |&i| ix(i));
+            f.add(l, j);
         }
-        start.iter().take(m).for_each(|&(i, w)| f.push(i, w));
+        start.iter().take(m).for_each(|&(i, w)| f.push(l, i, w));
         return;
     }
     for &u in order {
-        let u = usize::from(u);
+        let u = ix(u);
         match start.get(u) {
-            Some(&(i, w)) if u < m => f.push(i, w),
-            _ => f.add(l, unit.get(u).map_or(CAP, |&i| usize::from(i))),
+            Some(&(i, w)) if u < m => f.push(l, i, w),
+            _ => f.add(l, unit.get(u).map_or(usize::MAX, |&i| ix(i))),
         }
     }
 }
@@ -960,8 +1471,11 @@ fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
 /// The finalisers of the objects one `dlclose` (or the exit) unloads, in the order they run.
 struct Finis {
     calls: [[u64; 3]; CAP],
-    idx: [u16; CAP],
+    idx: [u32; CAP],
     len: usize,
+    /// Entries past [`CAP`]: from `from` in the loader's never-moved `fin` store, at `store`.
+    from: usize,
+    store: usize,
     /// Each object's mapped range [lo, hi), for the C library's `__niji_owner_unload`.
     ranges: [(usize, usize); CAP],
     /// `__niji_owner_unload`'s address when this is a `dlclose` or a last-pin unload (0: at exit, or
@@ -970,34 +1484,78 @@ struct Finis {
 }
 
 impl Finis {
-    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0, ranges: [(0, 0); CAP], owner_unload: 0 };
+    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0, from: 0, store: 0, ranges: [(0, 0); CAP], owner_unload: 0 };
 
     /// Add object `i` (loaded, not finalising yet) and mark it finalising.
     fn add(&mut self, l: &mut Loader, i: usize) {
-        let Some(node) = l.nodes.get_mut(i) else { return };
+        let Some(node) = l.nodes.get(i) else { return };
         if node.gone || node.finalising || i >= l.n {
             return;
         }
-        let (Some(c), Some(x)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len)) else { return };
-        node.finalising = true;
-        if let Some(r) = self.ranges.get_mut(self.len) {
-            *r = (node.lo, node.hi);
+        let e = Fin { call: node.fini, range: (node.lo, node.hi), idx: ix32(i) };
+        if self.put(l, e) {
+            if let Some(node) = l.nodes.get_mut(i) {
+                node.finalising = true;
+            }
         }
-        *c = node.fini;
-        *x = u16::try_from(i).unwrap_or(0);
-        self.len = self.len.saturating_add(1);
     }
 
     /// Add a start-time object's finalisation words (`i`: its node; never unloaded).
-    fn push(&mut self, i: usize, words: [u64; 3]) {
-        let (Some(c), Some(x)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len)) else { return };
-        *c = words;
-        *x = u16::try_from(i).unwrap_or(u16::MAX);
-        self.len = self.len.saturating_add(1);
+    fn push(&mut self, l: &mut Loader, i: usize, words: [u64; 3]) {
+        let _ = self.put(l, Fin { call: words, range: (0, 0), idx: ix32(i) });
     }
 
-    fn set(&self) -> &[u16] {
-        self.idx.get(..self.len).unwrap_or(&[])
+    /// Append `e`: in place within [`CAP`], else in the loader's `fin` store (reserved for every
+    /// object by the `dlopen` that grew the count, so this never allocates); `false` when neither
+    /// has room (not reached).
+    fn put(&mut self, l: &mut Loader, e: Fin) -> bool {
+        if let (Some(c), Some(x), Some(r)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len), self.ranges.get_mut(self.len)) {
+            (*c, *x, *r) = (e.call, e.idx, e.range);
+        } else {
+            if self.len == CAP {
+                (self.from, self.store) = (l.fin_top, core::ptr::from_ref(&l.fin).expose_provenance());
+            }
+            let at = self.from.saturating_add(self.len.saturating_sub(CAP));
+            let Some(slot) = l.fin.get_mut(at) else { return false };
+            *slot = e;
+            l.fin_top = at.saturating_add(1);
+        }
+        self.len = self.len.saturating_add(1);
+        true
+    }
+
+    /// Entry `j` (below `len`): in place, else read from the `fin` store by address (no loader
+    /// borrow: [`Finis::run`] holds none).
+    fn entry(&self, j: usize) -> Option<Fin> {
+        if j >= self.len {
+            return None;
+        }
+        if let (Some(&call), Some(&idx), Some(&range)) = (self.calls.get(j), self.idx.get(j), self.ranges.get(j)) {
+            return Some(Fin { call, range, idx });
+        }
+        let at = Grown::<Fin, CAP, OBJ_GENS>::addr_in(self.store, self.from.saturating_add(j.saturating_sub(CAP)));
+        if at == 0 {
+            return None;
+        }
+        // UNSAFE(slice): one finaliser entry of this call's part of the loader's `fin` store.
+        #[allow(unsafe_code)]
+        // SAFETY: `put` wrote entry `from + (j - CAP)` of the store (in the loader's mapping or a
+        // generation of it, never moved or unmapped) before `len` passed `j`; nothing writes it again
+        // while this call is in progress (a nested call's entries lie above it), and it is read by
+        // value.
+        Some(unsafe { core::ptr::with_exposed_provenance::<Fin>(at).read() })
+    }
+
+    /// The objects in the set, in order.
+    fn set(&self) -> impl Iterator<Item = usize> + '_ {
+        (0..self.len).filter_map(|j| self.entry(j)).map(|e| ix(e.idx))
+    }
+
+    /// Give this call's part of the `fin` store back (its nested calls have ended).
+    fn release(&self, l: &mut Loader) {
+        if self.len > CAP {
+            l.fin_top = l.fin_top.min(self.from);
+        }
     }
 
     /// Each object's `DT_FINI_ARRAY` in reverse, then its `DT_FINI` (probe `== order`); then, for a
@@ -1005,7 +1563,7 @@ impl Finis {
     /// handlers it holds (D-27.29), while its code is still mapped.
     fn run(&self) {
         let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-        for (&[addr, len, fini], &(lo, hi)) in self.calls.get(..self.len).unwrap_or(&[]).iter().zip(self.ranges.iter()) {
+        for Fin { call: [addr, len, fini], range: (lo, hi), .. } in (0..self.len).filter_map(|j| self.entry(j)) {
             for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
                 let _ = crate::ffi::niji_machine_call0(usize::try_from(f).unwrap_or(0));
             }
@@ -1077,7 +1635,7 @@ fn pin(dso: usize) -> usize {
     STATE.lock();
     let mut token = 0;
     if let Some(l) = loader() {
-        let at = l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&dso)));
+        let at = l.nodes.upto(l.n).position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&dso));
         if let Some((i, nd)) = at.filter(|&i| i >= l.n_start).and_then(|i| Some((i, l.nodes.get_mut(i)?))) {
             nd.pins = nd.pins.saturating_add(1);
             // A saturated count can no longer be dropped exactly: the object stays for good.
@@ -1140,10 +1698,18 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
 
 /// Fill `f` with every object no longer live, in finalisation order (marked finalising).
 fn collect(l: &mut Loader, f: &mut Finis) {
-    let keep = live_set(l, &[false; CAP]);
-    let n = l.n_log.load(Relaxed).min(CAP);
+    let s = scratch(l);
+    let (s_keep, s_stack) = match s {
+        Some(s) => (Some(&mut s.keep), Some(&mut s.stack)),
+        None => (None, None),
+    };
+    let (mut keep0, mut stack0) = ([false; CAP], [0u32; CAP]);
+    let keep = room(&mut keep0, s_keep, l.n, false);
+    let stack = room(&mut stack0, s_stack, l.n, 0);
+    live_set(l, &[], keep, stack);
+    let n = l.log().len();
     for k in (0..n).rev() {
-        let j = l.log.get(k).map_or(CAP, |&j| usize::from(j));
+        let j = l.log().get(k).map_or(usize::MAX, |&j| ix(j));
         if !keep.get(j).copied().unwrap_or(true) {
             f.add(l, j);
         }
@@ -1162,60 +1728,68 @@ fn collect(l: &mut Loader, f: &mut Finis) {
 /// Which objects stay (plan §1): every object that is initial, `nodelete`, open, pinned, or finalising in
 /// an outer call (`set`'s own excepted), and every object reachable from one through its
 /// dependencies and its relocations' bindings.
-fn live_set(l: &Loader, set: &[bool; CAP]) -> [bool; CAP] {
-    let mut keep = [false; CAP];
-    let mut stack = [0u16; CAP];
+/// `keep` and `stack` hold `l.n` entries (`keep` all false).
+fn live_set(l: &Loader, set: &[bool], keep: &mut [bool], stack: &mut [u32]) {
     let mut sp = 0usize;
-    let push = |keep: &mut [bool; CAP], stack: &mut [u16; CAP], sp: &mut usize, i: usize| {
+    let push = |keep: &mut [bool], stack: &mut [u32], sp: &mut usize, i: usize| {
         if let (Some(k), Some(s)) = (keep.get_mut(i), stack.get_mut(*sp)) {
             if !*k {
                 *k = true;
-                *s = u16::try_from(i).unwrap_or(0);
+                *s = ix32(i);
                 *sp = sp.saturating_add(1);
             }
         }
     };
-    for (i, nd) in l.nodes.iter().enumerate().take(l.n) {
+    for (i, nd) in l.nodes.upto(l.n).enumerate() {
         let mine = set.get(i).copied().unwrap_or(false);
         if !nd.gone && (i < l.n_start || nd.nodelete || nd.opens > 0 || nd.pins > 0 || (nd.finalising && !mine)) {
-            push(&mut keep, &mut stack, &mut sp, i);
+            push(keep, stack, &mut sp, i);
         }
     }
     while sp > 0 {
         sp = sp.saturating_sub(1);
-        let i = stack.get(sp).map_or(0, |&i| usize::from(i));
+        let i = stack.get(sp).map_or(0, |&i| ix(i));
         for &d in l.deps_of(i).iter().chain(l.binds_of(i)) {
-            let d = usize::from(d);
+            let d = ix(d);
             if !l.gone(d) {
-                push(&mut keep, &mut stack, &mut sp, d);
+                push(keep, stack, &mut sp, d);
             }
         }
     }
-    keep
 }
 
 /// After the finalisers of `f` ran: unpublish and retire every object of the set that is still not
 /// reachable (one a destructor opened again stays, its destructors run), then [`reclaim`].
 fn close_end(f: &Finis) {
     let Some(l) = loader() else { return };
-    let mut set = [false; CAP];
-    for &j in f.set() {
-        if let Some(b) = set.get_mut(usize::from(j)) {
+    f.release(l);
+    let s = scratch(l);
+    let (s_set, s_keep, s_stack, s_out) = match s {
+        Some(s) => (Some(&mut s.set), Some(&mut s.keep), Some(&mut s.stack), Some(&mut s.out)),
+        None => (None, None, None, None),
+    };
+    let (mut set0, mut keep0, mut stack0, mut out0) = ([false; CAP], [false; CAP], [0u32; CAP], [0u32; CAP]);
+    let set = room(&mut set0, s_set, l.n, false);
+    for j in f.set() {
+        if let Some(b) = set.get_mut(j) {
             *b = true;
         }
     }
-    let keep = live_set(l, &set);
+    let keep = room(&mut keep0, s_keep, l.n, false);
+    live_set(l, set, keep, room(&mut stack0, s_stack, l.n, 0));
     let mut tls = super::NewTls::none();
     let mut generation = super::tls_generation();
-    let mut out = [0u16; CAP];
+    let out = room(&mut out0, s_out, l.n, 0);
     let mut n_out = 0usize;
-    for &j in f.set() {
-        let j = usize::from(j);
+    for j in f.set() {
         if let Some(nd) = l.nodes.get_mut(j) {
             nd.finalising = false;
         }
         if keep.get(j).copied().unwrap_or(true) {
             continue;
+        }
+        if n_out == 0 {
+            super::debug::change(niji_ld::debug::State::Delete);
         }
         if let Some(id) = unload(l, j) {
             // Words other than the ID are not read for a release. A batch the table cannot grow
@@ -1230,20 +1804,21 @@ fn close_end(f: &Finis) {
             generation = l.ids.release(id, generation);
         }
         if let Some(o) = out.get_mut(n_out) {
-            *o = u16::try_from(j).unwrap_or(0);
+            *o = ix32(j);
             n_out = n_out.saturating_add(1);
         }
     }
     if n_out == 0 {
         return;
     }
+    super::debug::change(niji_ld::debug::State::Consistent);
     // A survivor relocated with an unloaded root's scope now searches its own (`dlsym`'s
     // `RTLD_DEFAULT`/`RTLD_NEXT`).
     for i in l.n_start..l.n {
-        let r = l.nodes.get(i).map_or(0, |nd| usize::from(nd.root));
+        let r = l.nodes.get(i).map_or(0, |nd| ix(nd.root));
         if !l.gone(i) && l.gone(r) {
             if let Some(nd) = l.nodes.get_mut(i) {
-                nd.root = u16::try_from(i).unwrap_or(0);
+                nd.root = ix32(i);
             }
         }
     }
@@ -1251,6 +1826,7 @@ fn close_end(f: &Finis) {
         super::release_tls(thread_walk(l), &mut tls, generation);
     }
     for &j in out.get(..n_out).unwrap_or(&[]) {
+        // Never short: `grow_to` gave the list room for every object.
         if let Some(r) = l.retired.get_mut(l.n_retired) {
             *r = (j, false);
             l.n_retired = l.n_retired.saturating_add(1);
@@ -1271,7 +1847,7 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         nx.l_prev = prev;
     }
     let mut w = 0usize;
-    for r in 0..l.n_global.min(CAP) {
+    for r in 0..l.n_global {
         let g = l.global.get(r).copied().unwrap_or(j);
         if g != j {
             if let Some(slot) = l.global.get_mut(w) {
@@ -1281,11 +1857,11 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         }
     }
     l.n_global = w;
-    let n = l.n_log.load(Relaxed).min(CAP);
+    let n = l.log().len();
     let mut w = 0usize;
     for r in 0..n {
         let g = l.log.get(r).copied().unwrap_or(0);
-        if usize::from(g) != j {
+        if ix(g) != j {
             if let Some(slot) = l.log.get_mut(w) {
                 *slot = g;
             }
@@ -1320,10 +1896,10 @@ fn reclaim(l: &mut Loader) {
             break;
         }
         let (mut w, mut waiting) = (0usize, false);
-        for r in 0..l.n_retired.min(CAP) {
+        for r in 0..l.n_retired {
             let (j, flipped) = l.retired.get(r).copied().unwrap_or((0, false));
             if flipped {
-                if let Some(nd) = l.nodes.get_mut(usize::from(j)) {
+                if let Some(nd) = l.nodes.get_mut(ix(j)) {
                     map::Mapper::unmap(&mut SysMapper { fd: -1 }, nd.reserve.0, nd.reserve.1);
                     let _ = raw::munmap(nd.file.0, nd.file.1);
                     nd.freed = true;
@@ -1348,19 +1924,21 @@ fn reclaim(l: &mut Loader) {
     if n < l.n {
         l.n = n;
         let end = |(a, b): (u32, u32)| usize::try_from(a).unwrap_or(0).saturating_add(usize::try_from(b).unwrap_or(0));
-        let live = l.nodes.get(..n).unwrap_or(&[]);
-        l.deps_top = live.iter().filter(|nd| !nd.gone).map(|nd| end(nd.deps).max(end(nd.binds))).max().unwrap_or(0);
-        l.names_top = live.iter().filter(|nd| !nd.gone && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
+        let deps_top = l.nodes.upto(n).filter(|nd| !nd.gone).map(|nd| end(nd.deps).max(end(nd.binds))).max().unwrap_or(0);
+        let names_top = l.nodes.upto(n).filter(|nd| !nd.gone && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
+        l.deps.set_top(deps_top);
+        l.names.set_top(names_top);
     }
     RETIRED.store(l.n_retired, Relaxed);
     TOP.store(l.n, Relaxed);
 }
 
 /// Retired objects past which a `dlopen` or `dlclose` first waits for the readers to drain
-/// (ruling #5651): a quarter of the table. A reader preempted inside `dl_iterate_phdr` stalls every
-/// unmap, so without the wait a loop of opens and closes would fill the table and refuse a valid
-/// load.
-const RETIRED_WAIT: usize = CAP / 4;
+/// (ruling #5651): a quarter of the tables in place, a count (DL-PROCESS-OBJECTS part 2: the
+/// tables grow, so it bounds the memory that retired objects hold, not a table). A reader preempted
+/// inside `dl_iterate_phdr` stalls every unmap, so without the wait a loop of opens and closes
+/// would grow the tables without end.
+const RETIRED_WAIT: usize = 128;
 /// `Loader::n_retired` and `Loader::n` as [`reclaim`] last left them, read without the locks by
 /// [`room_wait`].
 static RETIRED: AtomicUsize = AtomicUsize::new(0);
@@ -1373,7 +1951,7 @@ static TOP: AtomicUsize = AtomicUsize::new(0);
 /// freed slots below become holes, so the top climbs by every epoch's opens with few retired.
 fn room_short() -> bool {
     let r = RETIRED.load(Relaxed);
-    r > RETIRED_WAIT || (r > 0 && TOP.load(Relaxed) > CAP.saturating_sub(RETIRED_WAIT))
+    r > RETIRED_WAIT || (r > 0 && TOP.load(Relaxed) > CAP.saturating_sub(RETIRED_WAIT) && TOP.load(Relaxed) <= CAP)
 }
 /// The poll interval of [`room_wait`] (`CLOCK_MONOTONIC`, nanoseconds).
 const ROOM_POLL_NS: i64 = 50_000;
@@ -1382,8 +1960,8 @@ const CLOCK_MONOTONIC: i64 = 1;
 /// At the entry of `dlopen` and `dlclose`, holding no loader lock: while [`room_short`], reclaim,
 /// and wait (poll) for the readers to drain when that was not enough. Never waits when the calling thread holds [`CALL`] (a constructor or
 /// destructor: a reader may be blocked on that lock) or is inside a read section (it may be the
-/// reader); the call then goes on and fails as it would have (`cannot load more objects`) only
-/// if the table is full. Each drain lets [`reclaim`] unmap what was flipped before it, so the loop
+/// reader); the call then goes on and grows the tables past their first generation (failing
+/// only when no memory is left for them). Each drain lets [`reclaim`] unmap what was flipped before it, so the loop
 /// ends once the readers present now have left.
 fn room_wait() {
     while room_short() {
@@ -1408,29 +1986,28 @@ fn room_wait() {
 }
 
 /// Record, for each new object `base..k`, the objects its relocations bound to that its own
-/// dependencies do not list (a start-time object never unloads: left out). A full arena makes the
-/// definer `nodelete` instead (it then stays, never unmapped under its user).
+/// dependencies do not list (a start-time object never unloads: left out). When the arena cannot
+/// grow (no memory) the definer becomes `nodelete` instead (it then stays, never unmapped under its
+/// user), so this never fails the call.
 fn record_binds(l: &mut Loader, base: usize, k: usize, b: &Binds) {
     for i in base..k {
-        let start = l.deps_top;
+        let wanted = |l: &Loader, j: usize| b.has(i, j) && !l.deps_of(i).contains(&ix32(j));
+        // Room for the whole list first: one list is one span. Without it the list holds what the
+        // rest of its generation takes.
+        let most = (l.n_start..k).filter(|&j| wanted(l, j)).count();
+        let start = l.deps.open(most).unwrap_or_else(|| l.deps.top());
         for j in l.n_start..k {
-            if !b.has(i, j) || l.deps_of(i).contains(&u16::try_from(j).unwrap_or(u16::MAX)) {
+            if !wanted(l, j) {
                 continue;
             }
-            match l.deps.get_mut(l.deps_top) {
-                Some(slot) => {
-                    *slot = u16::try_from(j).unwrap_or(0);
-                    l.deps_top = l.deps_top.saturating_add(1);
-                }
-                None => {
-                    if let Some(nd) = l.nodes.get_mut(j) {
-                        nd.nodelete = true;
-                    }
+            if !l.deps.push(ix32(j)) {
+                if let Some(nd) = l.nodes.get_mut(j) {
+                    nd.nodelete = true;
                 }
             }
         }
         if let Some(nd) = l.nodes.get_mut(i) {
-            nd.binds = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps_top.saturating_sub(start)).unwrap_or(0));
+            nd.binds = (u32::try_from(start).unwrap_or(0), u32::try_from(l.deps.top().saturating_sub(start)).unwrap_or(0));
         }
     }
 }
@@ -1509,15 +2086,58 @@ impl Drop for Env {
 /// the path it was opened by; unknown for a start-time object without one).
 fn scope_of(l: &Loader, i: usize) -> Scope<'static> {
     let Some(o) = l.objs_upto(l.n.max(i.saturating_add(1))).get(i).copied() else { return Scope::default() };
-    let path = l.path(i);
-    let origin = path.iter().rposition(|&b| b == b'/').and_then(|p| path.get(..p.max(1)));
-    // UNSAFE(slice): a span of the loader's path arena, which rewinds only past freed objects.
+    let origin = if i == 0 {
+        // The program's has no path of its own ([`look_up_origin`]).
+        l.origin.get(..l.origin_len.load(Relaxed)).filter(|d| !d.is_empty())
+    } else {
+        let path = l.path(i);
+        path.iter().rposition(|&b| b == b'/').and_then(|p| path.get(..p.max(1)))
+    };
+    // UNSAFE(slice): a span of the loader's path arena, which rewinds only past freed objects, or
+    // the program's published origin.
     #[allow(unsafe_code)]
     // SAFETY: the bytes stay in the loader's mapping for the process's lifetime and a written span
     // is never rewritten while it is in use: a failed attempt rewinds only past its own spans, and
-    // `reclaim` only past the spans of objects already unmapped.
+    // `reclaim` only past the spans of objects already unmapped; the origin is written once.
     let origin: Option<&'static [u8]> = origin.map(|s| unsafe { conv::bytes_at(s.as_ptr().expose_provenance(), s.len()) });
     Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin }
+}
+
+/// Whether a search can expand the program's `$ORIGIN`: a token in its `DT_RPATH` or `DT_RUNPATH`.
+fn origin_listed(l: &Loader) -> bool {
+    let Some(o) = l.objs_upto(l.n).first() else { return false };
+    [DT_RPATH, DT_RUNPATH].into_iter().any(|t| dyn_string(&o.dynm, t).is_some_and(|s| s.contains(&b'$')))
+}
+
+/// Look up the program's `$ORIGIN` once (DL-RUNPATH): the start's when it looked it up, else by
+/// the start's rule now ([`super::link::program_origin`]), so `dlopen`, `RTLD_DI_SERINFO` and
+/// `RTLD_DI_ORIGIN` expand it as the start did. Cold: only for a search that can expand it.
+#[cold]
+#[inline(never)]
+fn look_up_origin(l: &mut Loader) {
+    if l.origin_tried {
+        return;
+    }
+    l.origin_tried = true;
+    let mut out = PathBuf::default();
+    let len = START_ORIGIN[1].load(Acquire);
+    if len != 0 {
+        // UNSAFE(slice): the start's copy of the program's origin in its path store.
+        #[allow(unsafe_code)]
+        // SAFETY: the start kept the bytes in its path store, never released or rewritten, and
+        // published their length (Release) after writing them.
+        let kept = unsafe { conv::bytes_at(START_ORIGIN[0].load(Relaxed), len) };
+        if !out.push(kept) {
+            return;
+        }
+    } else if !super::link::program_origin(START_RUN_PATH.load(Relaxed), &mut out) {
+        return;
+    }
+    let dir = out.as_bytes();
+    if let Some(d) = l.origin.get_mut(..dir.len()) {
+        d.copy_from_slice(dir);
+        l.origin_len.store(dir.len(), Release);
+    }
 }
 
 /// Open the candidate `path` for the attempt whose next index is `k`; see [`Found`].
@@ -1536,7 +2156,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return None;
     }
-    if let Some(j) = l.nodes[..k].iter().position(|nd| !nd.gone && (nd.dev, nd.ino) == (st.dev, st.ino)) {
+    if let Some(j) = l.nodes.upto(k).position(|nd| !nd.gone && (nd.dev, nd.ino) == (st.dev, st.ino)) {
         close();
         return Some(Found::Loaded(j));
     }
@@ -1544,7 +2164,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return Some(Found::Missing);
     }
-    let refused = |l: &mut Loader, r: Refusal| Some(l.keep(shown).map_or(Found::Full(b"out of room for object names"), |s| Found::Refused(r, s)));
+    let refused = |l: &mut Loader, r: Refusal| Some(l.keep(shown).map_or(Found::Full(NO_ROOM), |s| Found::Refused(r, s)));
     if st.mode & S_IFMT == S_IFDIR {
         close();
         return refused(l, Refusal::Directory);
@@ -1554,7 +2174,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return refused(l, Refusal::TooShort);
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = super::map_view(fd32, len) else {
         close();
         return Some(Found::Full(b"cannot read file data"));
     };
@@ -1568,8 +2188,20 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         let _ = raw::munmap(at, len);
         close();
     };
+    // COMPAT-19: an object asking for an executable stack, accepted under the start-time tunable.
+    let mut exec_stack = false;
     let elf = match dl::check::<Native>(file, page) {
         Ok(e) => e,
+        Err(Refusal::ExecutableStack) if exec_stack_accepted() => match dl::check_accepting_exec_stack::<Native>(file, page) {
+            Ok(e) => {
+                exec_stack = true;
+                e
+            }
+            Err(r) => {
+                drop_file();
+                return refused(l, r);
+            }
+        },
         Err(r) if r.skipped(searched) => {
             drop_file();
             return None;
@@ -1588,11 +2220,16 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         drop_file();
         return Some(l.by_soname(Native::INTERP.as_bytes(), k).map_or(Found::Missing, Found::Loaded));
     }
-    if k >= CAP {
+    // Room in every object table for object `k` (DL-PROCESS-OBJECTS part 2: memory is the bound).
+    if !l.grow_to(k.saturating_add(1), k) {
         drop_file();
-        return Some(Found::Full(b"cannot load more objects"));
+        return Some(Found::Full(NO_ROOM));
     }
-    let loaded = map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page);
+    let loaded = if exec_stack {
+        map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    } else {
+        map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    };
     close();
     let loaded = match loaded {
         Ok(x) => x,
@@ -1601,6 +2238,12 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
             return refused(l, dl::of_map_error(e));
         }
     };
+    if exec_stack {
+        // Before the object's relocation and constructors, which may need the executable stack;
+        // kept if the set later fails (the reference's stacks stay executable too).
+        super::exec_main_stack(start_arg(3), START_PAGE.load(Relaxed));
+        call_stack_exec(l);
+    }
     let Ok(sym) = Object::new(dynm) else {
         loaded.unmap(&mut SysMapper { fd: -1 });
         let _ = raw::munmap(at, len);
@@ -1611,14 +2254,14 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         loaded.unmap(&mut SysMapper { fd: -1 });
         let _ = raw::munmap(at, len);
         super::readers::count_unmapped(1);
-        return Some(Found::Full(b"out of room for object names"));
+        return Some(Found::Full(NO_ROOM));
     };
     let o = Obj { elf, dynm, bias: loaded.bias, name: given, tls: None };
     report_nonshared(&elf, shown);
-    l.objs[k] = MaybeUninit::new(o);
-    l.syms[k] = MaybeUninit::new(sym);
-    let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));
-    describe(l, k, &o, name, (st.dev, st.ino));
+    l.objs.set(k, o);
+    l.syms.set(k, sym);
+    let name = l.names.addr(usize::try_from(span.0).unwrap_or(usize::MAX));
+    describe(l, k, &o, name, (st.dev, st.ino), true);
     let node = &mut l.nodes[k];
     node.path = span;
     node.deps = (0, 0);
@@ -1642,9 +2285,13 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
 fn find(l: &mut Loader, name: &'static [u8], chain: &[Scope<'_>], env: &Env, k: usize, noload: bool, page: u64) -> Found {
     let bare = dl::bare(name);
     if bare {
-        if let Some(j) = l.by_soname(name, k) {
+        if let Some(j) = l.by_soname(name, k).or_else(|| l.by_given(name, k)) {
             return Found::Loaded(j);
         }
+    } else if let Some(j) = l.by_soname(Native::INTERP.as_bytes(), k).filter(|&j| l.nodes.get(j).is_some_and(|nd| nd.l_name != 0 && c_string(nd.l_name) == name)) {
+        // `ld.so` by the path its link map is named by (its `PT_INTERP` path), RTLD_NOLOAD included
+        // (probed: another path to its file is not it).
+        return Found::Loaded(j);
     }
     let ctx = env.ctx();
     let mut out = Found::Missing;
@@ -1704,24 +2351,27 @@ fn reopen(l: &mut Loader, i: usize, m: Mode) {
         node.nodelete |= pin || m.nodelete;
     }
     if promote {
-        let mut local = [0u16; CAP];
-        let len = local_scope(l, i, &mut local);
+        let mut local0 = [0u32; CAP];
+        let local = room(&mut local0, scratch(l).map(|s| &mut s.local), l.n, 0);
+        let len = local_scope(l, i, local);
         make_global(l, local.get(..len).unwrap_or(&[]));
     }
 }
 
-/// The breadth-first local scope of `root` (itself first) into `out`: its length.
-// `len` stays at most CAP: every index is below CAP and appears once.
+/// The breadth-first local scope of `root` (itself first) into `out` (room for every object): its
+/// length.
+// `len` stays at most `out.len()`: every index is below `l.n` and appears once.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
-fn local_scope(l: &Loader, root: usize, out: &mut [u16; CAP]) -> usize {
-    let Ok(r) = u16::try_from(root) else { return 0 };
-    out[0] = r;
+fn local_scope(l: &Loader, root: usize, out: &mut [u32]) -> usize {
+    let Ok(r) = u32::try_from(root) else { return 0 };
+    let Some(first) = out.first_mut() else { return 0 };
+    *first = r;
     let mut len = 1usize;
     let mut q = 0usize;
     while q < len {
-        let deps = l.deps_of(usize::from(out[q]));
+        let deps = l.deps_of(ix(out[q]));
         for &d in deps {
-            if len < CAP && !out[..len].contains(&d) {
+            if len < out.len() && !out[..len].contains(&d) {
                 out[len] = d;
                 len += 1;
             }
@@ -1732,14 +2382,15 @@ fn local_scope(l: &Loader, root: usize, out: &mut [u16; CAP]) -> usize {
 }
 
 /// Append `set`'s objects that are not global yet to the global scope (`RTLD_GLOBAL`).
-fn make_global(l: &mut Loader, set: &[u16]) {
+fn make_global(l: &mut Loader, set: &[u32]) {
     for &i in set {
-        let i = usize::from(i);
+        let i = ix(i);
         let Some(node) = l.nodes.get_mut(i) else { continue };
         if node.global {
             continue;
         }
         node.global = true;
+        // Never short: `grow_to` gave the scope room for every object.
         if let Some(slot) = l.global.get_mut(l.n_global) {
             *slot = i;
             l.n_global = l.n_global.saturating_add(1);
@@ -1749,7 +2400,7 @@ fn make_global(l: &mut Loader, set: &[u16]) {
 
 /// Unmap the objects `base..k` of a failed attempt and rewind the arenas and the unique table.
 fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usize) {
-    for node in l.nodes.get(base..k).unwrap_or(&[]) {
+    for node in (base..k).filter_map(|i| l.nodes.get(i)) {
         map::Mapper::unmap(&mut SysMapper { fd: -1 }, node.reserve.0, node.reserve.1);
         let _ = raw::munmap(node.file.0, node.file.1);
     }
@@ -1759,8 +2410,8 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
             l.ids.put_back(p.module);
         }
     }
-    l.names_top = names_top;
-    l.deps_top = deps_top;
+    l.names.set_top(names_top);
+    l.deps.set_top(deps_top);
     l.unique.truncate(l.unique_mark);
     l.surplus.rollback(l.tls_mark);
 }
@@ -1768,16 +2419,16 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
 /// Pin the definers of the unique-table entries recorded since mark `from`: an object whose
 /// `STB_GNU_UNIQUE` definition was bound is never unloaded (plan §1, design §5).
 fn pin_unique(l: &mut Loader, from: usize) {
-    let mut owners = [0u16; 64];
+    let mut owners = [0u32; 64];
     let mut from = from;
     loop {
         let mut n = 0usize;
         for (slot, o) in owners.iter_mut().zip(l.unique.owners(from)) {
-            *slot = u16::try_from(o).unwrap_or(u16::MAX);
+            *slot = ix32(o);
             n = n.saturating_add(1);
         }
         for &o in owners.get(..n).unwrap_or(&[]) {
-            if let Some(node) = l.nodes.get_mut(usize::from(o)) {
+            if let Some(node) = l.nodes.get_mut(ix(o)) {
                 node.nodelete = true;
             }
         }
@@ -1818,11 +2469,42 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
         o.tls = Some(Placed { module: id, tp_offset: off });
-        if let Some(s) = l.objs.get_mut(i) {
-            *s = MaybeUninit::new(o);
-        }
+        l.objs.set(i, o);
     }
     Ok(())
+}
+
+/// [`Loader::grow_to`] past the room the tables have (more than [`CAP`] objects, rare): every
+/// table's generations, the lock-held lists, the records' contiguous copies, the readers' table,
+/// the `fin` store and the [`Scratch`] (made now the first time), each for `len` objects. `room`
+/// moves only when all of them have it.
+#[cold]
+#[inline(never)]
+fn grow_cold(l: &mut Loader, len: usize, written: usize) -> bool {
+    if len > Gens::<CAP, OBJ_GENS>::MOST {
+        return false;
+    }
+    let tables = l.nodes.reserve(len)
+        && l.objs.reserve(len, written)
+        && l.syms.reserve(len, written)
+        && l.readers.reserve(super::readers::ENTRY_BYTES, len)
+        && l.fin.reserve(len)
+        && l.global.reserve(len)
+        && l.log.reserve(len)
+        && l.retired.reserve(len);
+    if !tables {
+        return false;
+    }
+    if l.scratch == 0 {
+        let flags = MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32 | MAP_NORESERVE_I32;
+        let Ok(at) = raw::mmap(0, size_of::<Scratch>(), map::PROT_READ | map::PROT_WRITE, flags, -1, 0) else { return false };
+        l.scratch = at;
+    }
+    if !scratch(l).is_some_and(|s| s.reserve(len)) {
+        return false;
+    }
+    l.room = len;
+    true
 }
 
 /// The C library's `__niji_thread_walk` (a start object's, at `NIJI_PRIVATE`), looked up once
@@ -1835,6 +2517,48 @@ fn thread_walk(l: &mut Loader) -> usize {
         l.thread_walk = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
     }
     l.thread_walk
+}
+
+/// COMPAT-19: whether the start-time `GLIBC_TUNABLES` (the environment and auxiliary vector the
+/// process started with, as the search reads them) set `niji.compat.execstack=1`; never in a
+/// secure process. Reached only for an object asking for an executable stack.
+#[cold]
+#[inline(never)]
+fn exec_stack_accepted() -> bool {
+    let (envp, auxv) = (start_arg(2), start_arg(3));
+    let mut copy = [0u64; AUXV_WORDS_MAX];
+    let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
+    let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
+    start::ld_env(env_entries(envp)).tunables.is_some_and(|t| niji::config::Tunables::parse(t, secure).exec_stack == Some(true))
+}
+
+/// COMPAT-19: call the C library's `__niji_stack_exec` (a start object's, at `NIJI_PRIVATE`) once
+/// an object asking for an executable stack is accepted; nothing when no start object has it.
+#[cold]
+#[inline(never)]
+fn call_stack_exec(l: &Loader) {
+    let req = Request::new(start::private::STACK_EXEC, Want::Version(start::private::NODE));
+    let n = START_N.load(Acquire).min(l.n);
+    let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+    if let Some(f) = found.and_then(|a| usize::try_from(a).ok()) {
+        let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
+    }
+}
+
+/// COMPAT-19 at start without libniji's C library (`run_init`): the program or a start-up
+/// dependency asking for an executable stack was accepted; before any constructor, the later thread
+/// stacks of a start object defining `__niji_stack_exec` are made executable (the loader made the
+/// main stack executable).
+#[cold]
+#[inline(never)]
+pub(super) fn stacks_executable_at_start() {
+    CALL.lock();
+    STATE.lock();
+    if let Some(l) = loader() {
+        call_stack_exec(l);
+    }
+    STATE.unlock();
+    CALL.unlock();
 }
 
 /// The C library's `__niji_owner_unload` (a start object's, at `NIJI_PRIVATE`; D-27.29),
@@ -1853,9 +2577,8 @@ fn owner_unload(l: &mut Loader) -> usize {
 fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8]; 3]) -> &'a [&'a [u8]] {
     match f {
         Found::Missing => *out = [name, b": ", dl::FILE_MISSING],
-        Found::Refused(r, (a, b)) => {
-            let a = usize::try_from(a).unwrap_or(0);
-            let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
+        Found::Refused(r, span) => {
+            let p = l.path_span(span).unwrap_or(name);
             *out = [p, b": ", r.text()];
         }
         Found::Full(t) => *out = [name, b": ", t],
@@ -1870,11 +2593,17 @@ fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8
 fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Result<(usize, Ctors), Fail> {
     let page = START_PAGE.load(Relaxed);
     let base = l.n;
-    let (names_top, deps_top) = (l.names_top, l.deps_top);
+    let (names_top, deps_top) = (l.names.top(), l.deps.top());
     l.unique_mark = l.unique.len();
     l.tls_mark = l.surplus.len();
     let who = dlsym::caller_index(l, caller);
     let env = Env::read();
+    // The program's `$ORIGIN` for its own `$ORIGIN` name or an LD_LIBRARY_PATH token (its lists'
+    // tokens looked it up when the loader was made).
+    let token = |s: Option<&[u8]>| s.is_some_and(|s| s.contains(&b'$'));
+    if !l.origin_tried && ((who == 0 && token(Some(given))) || token(env.library_path)) {
+        look_up_origin(l);
+    }
     let chain = [scope_of(l, who), scope_of(l, 0)];
     let chain = if who == 0 { &chain[..1] } else { &chain[..] };
     let root = find(l, given, chain, &env, base, m.noload, page);
@@ -1887,18 +2616,23 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         Found::Missing if m.noload => return Ok((0, Ctors::none())),
         Found::New(_) => k += 1,
         f => {
-            let t = fail_text(l, given, f);
+            let t = fail_text(l, given, f, who);
             unwind(l, base, base, names_top, deps_top);
             return Err(t);
         }
     }
     // Breadth-first over the new objects' DT_NEEDED (each the requester of its own).
-    // Indices relative to `base`, below `CAP`.
-    let mut edges: Table<(u16, u16), EDGES_INLINE> = Table::new((0, 0));
+    // Indices relative to `base`.
+    let mut edges: Table<(Rel, Rel), EDGES_INLINE> = Table::new((Rel(0), Rel(0)));
     let mut q = base;
     while q < k {
         let o = l.objs_upto(k)[q];
-        let dep_start = l.deps_top;
+        // Room for every entry first: one list is one span (the arena grows; only memory bounds it).
+        let Some(dep_start) = l.deps.open(o.dynm.needed().count()) else {
+            let t = fail_parts(&[given, NO_MEMORY]);
+            unwind(l, base, k, names_top, deps_top);
+            return Err(t);
+        };
         for needed in o.dynm.needed() {
             let Ok(needed) = needed else {
                 let t = fail_parts(&[l_path_static(l, q), b": ", Refusal::Malformed.text()]);
@@ -1923,25 +2657,20 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
                     return Err(t);
                 }
                 f => {
-                    let t = fail_text(l, needed, f);
+                    let t = fail_text(l, needed, f, who);
                     unwind(l, base, k, names_top, deps_top);
                     return Err(t);
                 }
             };
-            if l.deps_top >= DEPS {
-                let t = fail_parts(&[given, b": cannot load more objects in one call"]);
-                unwind(l, base, k, names_top, deps_top);
-                return Err(t);
-            }
-            if j >= base && edges.push((u16::try_from(q - base).unwrap_or(0), u16::try_from(j - base).unwrap_or(0))).is_err() {
+            let edge_full = j >= base && edges.push((Rel(ix32(q - base)), Rel(ix32(j - base)))).is_err();
+            // The push stays in the room `open` found (one entry per `DT_NEEDED` entry at most).
+            if edge_full || !l.deps.push(ix32(j)) {
                 let t = fail_parts(&[given, NO_MEMORY]);
                 unwind(l, base, k, names_top, deps_top);
                 return Err(t);
             }
-            l.deps[l.deps_top] = u16::try_from(j).unwrap_or(0);
-            l.deps_top += 1;
         }
-        l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps_top - dep_start).unwrap_or(0));
+        l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps.top() - dep_start).unwrap_or(0));
         q += 1;
     }
     // The set's per-object tables, sized now, while the attempt can still be unwound: from here on
@@ -1963,17 +2692,23 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
     }
-    let mut local = [0u16; CAP];
-    let llen = local_scope(l, base, &mut local);
+    // Within CAP objects the stack arrays, else the scratch `grow_to` reserved for every object.
+    let (s_local, s_scope, s_seen) = match scratch(l) {
+        Some(s) => (Some(&mut s.local), Some(&mut s.scope), Some(&mut s.seen)),
+        None => (None, None, None),
+    };
+    let (mut local0, mut scope0, mut seen0) = ([0u32; CAP], [0usize; CAP], [false; CAP]);
+    let local = room(&mut local0, s_local, k, 0);
+    let llen = local_scope(l, base, local);
     // The new set's scope (plan §2): the global scope, then the root's local scope; with
     // `RTLD_DEEPBIND` the local scope first. Each object once.
-    let mut scope = [0usize; CAP];
+    let scope = room(&mut scope0, s_scope, k, 0);
     let mut sn = 0usize;
-    let mut seen = [false; CAP];
-    let global = l.global[..l.n_global].iter().copied();
-    let local_it = local[..llen].iter().map(|&i| usize::from(i));
+    let seen = room(&mut seen0, s_seen, k, false);
+    let global = l.global().iter().copied();
+    let local_it = local[..llen].iter().map(|&i| ix(i));
     let mut push = |i: usize| {
-        if i < CAP && !seen[i] && sn < CAP {
+        if i < seen.len() && !seen[i] && sn < scope.len() {
             seen[i] = true;
             scope[sn] = i;
             sn += 1;
@@ -1985,9 +2720,9 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         global.chain(local_it).for_each(&mut push);
     }
     for i in base..k {
-        l.nodes[i].root = u16::try_from(base).unwrap_or(0);
+        l.nodes[i].root = ix32(base);
     }
-    let start = &l.global[..l.n_start_global];
+    let start = l.global.slice(l.n_start_global).unwrap_or(&[]);
     let (objs, syms) = (objs_of(&l.objs, k), syms_of(&l.syms, k));
     let set = Objects { objs, syms, global: &scope[..sn] };
     let SetTables { binds, deferred, order, work, ctors } = &mut set_tables;
@@ -2028,7 +2763,8 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     }
     // Publication, after pass 2 and before the constructors (plan §4): one Release store links the
     // whole new set into the chain, one makes it visible to the readers (`dl_iterate_phdr`,
-    // `_dl_find_object`) with `dlpi_adds`.
+    // `_dl_find_object`) with `dlpi_adds`. The debugger rendezvous announces it around the change.
+    super::debug::change(niji_ld::debug::State::Add);
     for i in base..k {
         let next = if i + 1 < k { l.node_addr(i + 1) } else { 0 };
         l.nodes[i].l_next.store(next, Relaxed);
@@ -2040,6 +2776,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     l.nodes[base].l_prev = l.node_addr(tail);
     l.nodes[tail].l_next.store(first, Release);
     super::readers::publish(base, k);
+    super::debug::change(niji_ld::debug::State::Consistent);
     l.nodes[base].opens = 1;
     l.nodes[base].nodelete |= m.nodelete;
     pin_unique(l, l.unique_mark);
@@ -2056,8 +2793,9 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         // Never fails: `SetTables::new` gave the table room for every new object.
         let _ = ctors.calls.push((h.init, h.init_array.addr, h.init_array.len));
         let n = l.n_log.load(Relaxed);
-        if n < CAP {
-            l.log[n] = u16::try_from(i).unwrap_or(0);
+        // Never short: `grow_to` gave the log room for every object.
+        if let Some(slot) = l.log.get_mut(n) {
+            *slot = ix32(i);
             l.n_log.store(n + 1, Release);
         }
     }
@@ -2078,8 +2816,10 @@ struct SetTables {
 impl SetTables {
     /// The tables for `n` new objects from index `base`; `None` when one cannot grow to `n`.
     fn new(base: usize, n: usize) -> Option<Self> {
-        let mut s = SetTables { binds: Binds { base, bits: Table::new([0; CAP / 64]) }, deferred: Table::new(false), order: Table::new(0), work: Table::new(init::Walk::default()), ctors: Ctors::none() };
-        s.binds.bits.reserve(n).ok()?;
+        // A bit per object up to the set's end, whole words (`CAP` bits within `CAP` objects).
+        let width = base.checked_add(n)?.max(CAP).div_ceil(64);
+        let mut s = SetTables { binds: Binds { base, width, bits: Table::new(0) }, deferred: Table::new(false), order: Table::new(0), work: Table::new(init::Walk::default()), ctors: Ctors::none() };
+        s.binds.bits.reserve(n.checked_mul(width)?).ok()?;
         s.deferred.reserve(n).ok()?;
         s.order.reserve(n).ok()?;
         s.work.reserve(n).ok()?;
@@ -2107,7 +2847,16 @@ fn l_path_static(l: &Loader, i: usize) -> &'static [u8] {
     }
 }
 
-fn fail_text(l: &Loader, name: &[u8], f: Found) -> Fail {
+fn fail_text(l: &Loader, name: &[u8], f: Found, who: usize) -> Fail {
+    if let Found::Refused(Refusal::ExecutableStack, span) = f {
+        // COMPAT-19 (ruling of 2026-11-20): the object, the `dlopen` caller and the ways in.
+        let p = l.path_span(span).unwrap_or(name);
+        // The program's own entry has an empty path: name it by `argv[0]`.
+        let from = l_path_static(l, who);
+        let argv0 = || Some(start_arg(1)).filter(|&v| v != 0).and_then(|v| usize::try_from(super::stack_word(v)).ok()).filter(|&a| a != 0).map_or(&b"the program"[..], c_string);
+        let from = if from.is_empty() { argv0() } else { from };
+        return fail_parts(&[p, b": ", Refusal::ExecutableStack.text(), b" (dlopen called from ", from, b"); ", dl::EXEC_STACK_WAYS]);
+    }
     let mut out: [&[u8]; 3] = [b"", b"", b""];
     let parts = found_text(l, name, f, &mut out);
     fail_parts(parts)

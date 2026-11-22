@@ -64,8 +64,19 @@ pub(crate) fn note_rescan() {
 // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
 #[allow(unsafe_code)]
 unsafe fn byte_len(p: *const u8, limit: usize) -> usize {
-    crate::cpu::ready();
-    let n = if limit == usize::MAX { ffi::niji_machine_strlen(p) } else { ffi::niji_machine_strnlen(p, limit) };
+    #[cfg(any(feature = "runtime", not(feature = "libresolv")))]
+    let n = {
+        crate::cpu::ready();
+        if limit == usize::MAX { ffi::niji_machine_strlen(p) } else { ffi::niji_machine_strnlen(p, limit) }
+    };
+    // The libresolv product (LIBRESOLV-OWN-CODE) measures with the C library's `strlen` and
+    // `strnlen`: their CPU dispatch is libc.so.6's, decided once there, with no second copy of
+    // the CPU state in libresolv.so.2. The length is the same whichever scanner answers.
+    #[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+    // UNSAFE(slice): the C library's length scanners on the caller's string.
+    // SAFETY: the function's contract: `p` is non-NULL and readable up to a NUL or `limit` bytes,
+    // which is `strlen`'s (unbounded) and `strnlen`'s obligation.
+    let n = unsafe { if limit == usize::MAX { crate::caller_alloc::strlen(p) } else { crate::caller_alloc::strnlen(p, limit) } };
     // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
     // SAFETY: the function's contract; `n` is the scanner's answer for `p` and `limit`.
     unsafe { settle_len(p, limit, n) }

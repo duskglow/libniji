@@ -1,0 +1,9 @@
+# DL-NAME-PATH-2 plants: cargo xtask plants handoff/DL-NAME-PATH-2-plants.txt --dir <new dir> --timeout 600
+# The bare DT_NEEDED name again as the start-time link map's name.
+bare-needed-name | crates/boundary/src/ld/link.rs | lit:paths[k].as_ptr().expose_provenance() ==> objs[k].name.as_ptr().expose_provenance() | cargo test -p niji-ld --test object_names | msg:origin_library_is_named_by_its_full_path.*FAILED|panicked
+# `ld.so PROGRAM`: the relative path's directory without the working directory.
+no-cwd-join | crates/boundary/src/ld/link.rs | lit:if given.first() != Some(&b'/') { ==> if given.is_empty() { | cargo test -p niji-ld --test object_names | msg:ld_so_program_origin_is_the_given_path_after_the_working_directory.*FAILED|panicked
+# The lazy lookup's gate misses a token in DT_RUNPATH, in DT_RPATH, or in LD_LIBRARY_PATH.
+gate-no-runpath | crates/boundary/src/ld/link.rs | lit:token(rpath) || token(runpath) || ==> token(rpath) || | cargo test -p niji-ld --test object_names | msg:origin_library_is_named_by_its_full_path.*FAILED|panicked
+gate-no-rpath | crates/boundary/src/ld/link.rs | lit:if token(rpath) || ==> if | cargo test -p niji-ld --test object_names | msg:origin_library_is_named_by_its_full_path.*FAILED|panicked
+gate-no-library-path | crates/boundary/src/ld/link.rs | lit:|| token(lib_path) ==> | cargo test -p niji-ld --test object_names | msg:origin_library_is_named_by_its_full_path.*FAILED|panicked

@@ -1,0 +1,15 @@
+{"task": "LOCALE-SLOTS-GROWTH-3", "model": "opus", "tokens": null,
+ "result": "start-up fault red (tool 45 > 44) traced to ~3.7 KB of new locale-tier text overflowing window bin 2 (bindtextdomain moved to a new window); the growth paths moved out of line and cold; gate, plants and start-up checks queued",
+ "branch": "task/locale-slots-growth-3", "head": "df9ab2569",
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["run 2's jobs locale-slots-growth-2-gate (red), -plants, -startup are superseded by run 3's jobs"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "coreutils-shaped start-up probe, fast products (branch before this run: 45, merge base: 44)", "before": 45, "after": null, "unit": "page faults", "measured": false},
+  {"kind": "perf", "what": "newlocale at 1100 loaded locales, loaded case (run 2 figure, not re-measured on this head)", "before": 42614426, "after": 135035, "unit": "instr/call", "measured": false},
+  {"kind": "coverage", "what": "plants on the new out-of-line paths", "before": 16, "after": 20, "unit": "plants", "measured": false}
+ ],
+ "improvement": "pf.py hard-codes target/liella paths; a maintained copy taking the product dir would save each start-up red a rewrite",
+ "next_step": "read locale-slots-growth-3-gate, -plants, -startup on keke; all rc 0 -> COMPLETE",
+ "report_file": "handoff/LOCALE-SLOTS-GROWTH.md",
+ "jobs": ["locale-slots-growth-3-gate", "locale-slots-growth-3-plants", "locale-slots-growth-3-startup"]}

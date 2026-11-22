@@ -1,0 +1,19 @@
+{"task": "CUTOVER-RESIDUE-AUDIT-B", "model": "opus", "tokens": null,
+ "result": "All 28 cutover-era red stories are contained in or obsoleted on next: close all 28; nothing to port",
+ "branch": "task/cutover-residue-audit-b", "head": null,
+ "gate": {"affected": "no affected tests (audit only); cargo xtask precheck GREEN on keke r2 (job cutover-residue-audit-b-precheck2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The public root 7374bf3f2 equals historic/next 76041c218 minus 784 handoff/ files only: any branch 0 commits ahead of historic/next reached the public tree (removes the 11-04 triage's NOT VERIFIED; useful to CUTOVER-RESIDUE-AUDIT A)",
+   "MATH-M5-CPLX-F128 and MATH-M5-CPLX-F128-ZIV-A-3 were already closed by the 11-20 red triage minutes after this brief was written",
+   "libresolv.so.2 compat names (LG-7 PT2) checked in source only: no libresolv product was on hand to readelf",
+   "The brief says JOBS: none but has no Kind: planning header, so handback-check rejects none; the precheck job on the final head is named instead",
+   "Comparing others' branches (git diff/merge-base/rev-list on historic/task/*) was done because the brief requires it; no log -p/show/blame used"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "audit: 28 red stories classified (13 in the public root as they were, 15 contained through their chain's checked next link; 5 RPC items obsolete by owner ruling)", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "Promote contain2.py (added-line containment with the rename normalised and a tree-wide fallback) and the root-equals-historic-next check into one ops audit command, so a residue audit is one call per story instead of hand-built scripts",
+ "next_step": "Coordinator: close the 26 still-red stories with a pointer to plan/reviews/CUTOVER-RESIDUE-AUDIT-B.md",
+ "report_file": "plan/reviews/CUTOVER-RESIDUE-AUDIT-B.md",
+ "jobs": ["keke:cutover-residue-audit-b-precheck2"]}

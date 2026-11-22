@@ -17,9 +17,14 @@
 
 use crate::charmap::Charmap;
 use crate::error::Errno;
+mod aliases;
+pub use aliases::{charmap_alias, charmap_aliases};
 mod fast;
 mod jis;
 mod jis_tables;
+mod cjk;
+mod cjk_tables;
+pub use cjk::Which as CjkSet;
 
 use crate::locale::{Ctype, Locale};
 use crate::text::{self, CharmapRef};
@@ -54,11 +59,42 @@ pub enum Codec {
     Charmap(CharmapRef),
     /// EUC-JP, built in from the WHATWG JIS X 0208 and JIS X 0212 indexes (`jis`).
     EucJp,
+    /// BIG5, EUC-KR, CP949, CP932, CP936 or GB18030, built in from public mapping tables and the
+    /// reference library's probed variant of each (`cjk`).
+    Cjk(cjk::Which),
 }
 
 /// The built-in names (compared without regard to case). The reference library's aliases of
-/// ASCII and ISO-8859-1 are the ones their charmaps list.
-const NAMES: [(&[u8], Codec); 57] = [
+/// ASCII and ISO-8859-1 are the ones their charmaps list, plus every name the reference's
+/// `iconv -l` lists whose conversion a black-box probe found identical to a built-in's
+/// (`spec/encoding/iconv-names.md`, rule 5).
+const NAMES: [(&[u8], Codec); 101] = [
+    (b"BIG5", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIG-5", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIG-FIVE", Codec::Cjk(cjk::Which::Big5)),
+    (b"BIGFIVE", Codec::Cjk(cjk::Which::Big5)),
+    (b"CN-BIG5", Codec::Cjk(cjk::Which::Big5)),
+    (b"CP950", Codec::Cjk(cjk::Which::Big5)),
+    (b"EUC-KR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"EUCKR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"CSEUCKR", Codec::Cjk(cjk::Which::EucKr)),
+    (b"OSF0004000A", Codec::Cjk(cjk::Which::EucKr)),
+    (b"CP949", Codec::Cjk(cjk::Which::Cp949)),
+    (b"UHC", Codec::Cjk(cjk::Which::Cp949)),
+    (b"MSCP949", Codec::Cjk(cjk::Which::Cp949)),
+    (b"OSF100203B5", Codec::Cjk(cjk::Which::Cp949)),
+    (b"GB18030", Codec::Cjk(cjk::Which::Gb18030)),
+    (b"CP932", Codec::Cjk(cjk::Which::Cp932)),
+    (b"MS932", Codec::Cjk(cjk::Which::Cp932)),
+    (b"WINDOWS-31J", Codec::Cjk(cjk::Which::Cp932)),
+    (b"CSWINDOWS31J", Codec::Cjk(cjk::Which::Cp932)),
+    (b"SJIS-OPEN", Codec::Cjk(cjk::Which::Cp932)),
+    (b"SJIS-WIN", Codec::Cjk(cjk::Which::Cp932)),
+    (b"CP936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"GBK", Codec::Cjk(cjk::Which::Cp936)),
+    (b"MS936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"WINDOWS-936", Codec::Cjk(cjk::Which::Cp936)),
+    (b"GB13000", Codec::Cjk(cjk::Which::Cp936)),
     (b"EUC-JP", Codec::EucJp),
     (b"EUCJP", Codec::EucJp),
     (b"UJIS", Codec::EucJp),
@@ -69,6 +105,7 @@ const NAMES: [(&[u8], Codec); 57] = [
     (b"ISO-10646/UTF8", Codec::Utf8),
     (b"ISO-10646/UTF-8", Codec::Utf8),
     (b"ISO-IR-193", Codec::Utf8),
+    (b"OSF05010001", Codec::Utf8),
     (b"UTF-16", Codec::Utf16(None)),
     (b"UTF16", Codec::Utf16(None)),
     (b"UTF-16LE", Codec::Utf16(Some(Order::Le))),
@@ -85,6 +122,10 @@ const NAMES: [(&[u8], Codec); 57] = [
     (b"UCS2", Codec::Ucs2(Order::Le)),
     (b"ISO-10646/UCS2", Codec::Ucs2(Order::Le)),
     (b"CSUNICODE", Codec::Ucs2(Order::Le)),
+    (b"UNICODE", Codec::Ucs2(Order::Le)),
+    (b"OSF00010100", Codec::Ucs2(Order::Le)),
+    (b"OSF00010101", Codec::Ucs2(Order::Le)),
+    (b"OSF00010102", Codec::Ucs2(Order::Le)),
     (b"UCS-2LE", Codec::Ucs2(Order::Le)),
     (b"UNICODELITTLE", Codec::Ucs2(Order::Le)),
     (b"UCS-2BE", Codec::Ucs2(Order::Be)),
@@ -96,6 +137,9 @@ const NAMES: [(&[u8], Codec); 57] = [
     (b"10646-1:1993", Codec::Ucs4(Order::Be)),
     (b"10646-1:1993/UCS4", Codec::Ucs4(Order::Be)),
     (b"CSUCS4", Codec::Ucs4(Order::Be)),
+    (b"OSF00010104", Codec::Ucs4(Order::Be)),
+    (b"OSF00010105", Codec::Ucs4(Order::Be)),
+    (b"OSF00010106", Codec::Ucs4(Order::Be)),
     (b"UCS-4BE", Codec::Ucs4(Order::Be)),
     (b"UCS-4LE", Codec::Ucs4(Order::Le)),
     (b"WCHAR_T", Codec::Ucs4(Order::Le)),
@@ -110,6 +154,16 @@ const NAMES: [(&[u8], Codec); 57] = [
     (b"IBM367", Codec::Ascii),
     (b"CP367", Codec::Ascii),
     (b"CSASCII", Codec::Ascii),
+    (b"ANSI_X3.4", Codec::Ascii),
+    (b"IBM891", Codec::Ascii),
+    (b"CP891", Codec::Ascii),
+    (b"CSIBM891", Codec::Ascii),
+    (b"IBM903", Codec::Ascii),
+    (b"CP903", Codec::Ascii),
+    (b"CSIBM903", Codec::Ascii),
+    (b"OSF00010020", Codec::Ascii),
+    (b"OSF1002037B", Codec::Ascii),
+    (b"OSF10020387", Codec::Ascii),
     (b"ISO-8859-1", Codec::Latin1),
     (b"ISO_8859-1", Codec::Latin1),
     (b"ISO8859-1", Codec::Latin1),
@@ -119,7 +173,7 @@ const NAMES: [(&[u8], Codec); 57] = [
 ];
 
 /// More names of ISO-8859-1 (its charmap's aliases).
-const LATIN1_MORE: [&[u8]; 6] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b"CSISOLATIN1", b"8859_1", b"OSF00010001"];
+const LATIN1_MORE: [&[u8]; 7] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b"CSISOLATIN1", b"8859_1", b"OSF00010001", b"ISO88591"];
 
 /// Every built-in name, in table order: what the `iconv` command lists beside the installed
 /// charmaps (`iconv -l`, spec §31.6, UTIL-7).
@@ -127,12 +181,117 @@ pub fn builtin_names() -> impl Iterator<Item = &'static [u8]> {
     NAMES.iter().map(|(n, _)| *n).chain(LATIN1_MORE.iter().copied())
 }
 
-/// The built-in codec `name` denotes (without suffixes), if any.
-pub fn builtin(name: &[u8]) -> Option<Codec> {
-    if let Some((_, c)) = NAMES.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
-        return Some(*c);
+/// The built-in codec `name` denotes, if any. The table is in matching form, so each row is
+/// compared with the name in place ([`Name::is`]; most rows differ in length and cost one compare).
+pub fn builtin(name: Name<'_>) -> Option<Codec> {
+    // Only the rows of the name's length are compared, in table order.
+    let mut rows = BY_LEN.get(name.len).copied().unwrap_or(0);
+    while rows != 0 {
+        let i = usize::try_from(rows.trailing_zeros()).unwrap_or(usize::MAX);
+        rows &= rows.wrapping_sub(1);
+        match NAMES.get(i) {
+            Some((n, c)) if name.is(n) => return Some(*c),
+            Some(_) => {}
+            None if LATIN1_MORE.get(i.wrapping_sub(NAMES.len())).is_some_and(|n| name.is(n)) => return Some(Codec::Latin1),
+            None => {}
+        }
     }
-    LATIN1_MORE.iter().any(|n| n.eq_ignore_ascii_case(name)).then_some(Codec::Latin1)
+    None
+}
+
+/// Longer than every built-in name: [`BY_LEN`]'s size.
+const BY_LEN_SIZE: usize = 20;
+
+/// For each name length, the built-in rows of that length: bit `i` for row `i` of [`NAMES`],
+/// then bit `NAMES.len() + j` for row `j` of [`LATIN1_MORE`].
+const BY_LEN: [u128; BY_LEN_SIZE] = by_len();
+
+// A const fn (no `get_mut`): a row past bit 127 or a name of `BY_LEN_SIZE` bytes or more fails
+// the build (overflow or index out of range in constant evaluation).
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn by_len() -> [u128; BY_LEN_SIZE] {
+    let mut t = [0u128; BY_LEN_SIZE];
+    let mut i = 0;
+    while i < NAMES.len() {
+        t[NAMES[i].0.len()] |= 1 << i;
+        i += 1;
+    }
+    let mut j = 0;
+    while j < LATIN1_MORE.len() {
+        t[LATIN1_MORE[j].len()] |= 1 << (NAMES.len() + j);
+        j += 1;
+    }
+    t
+}
+
+/// For each byte, how it reads in a charset name (D-6.8 amendment, `spec/encoding/iconv-names.md`):
+/// 0 when it is dropped (space, control, other punctuation, any byte above 0x7F); else its byte in
+/// the matching form (letters uppercased) in the low seven bits, with [`PLAIN`] set unless it is
+/// `,` or `/`. Letters, digits and `, - . / : _` count.
+static FOLD: [u8; 256] = fold_table();
+
+/// [`FOLD`]'s flag of a plain byte: significant and neither `,` nor `/`, what names are usually
+/// made of (read without the bookkeeping of the full rule).
+const PLAIN: u8 = 0x80;
+
+// A const fn (no `get_mut`): `b` stays below 256.
+#[allow(clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects)]
+const fn fold_table() -> [u8; 256] {
+    let mut t = [0u8; 256];
+    let mut b = 0usize;
+    while b < 256 {
+        let c = b as u8;
+        if c.is_ascii_alphanumeric() || matches!(c, b'-' | b'.' | b':' | b'_') {
+            t[b] = c.to_ascii_uppercase() | PLAIN;
+        } else if matches!(c, b',' | b'/') {
+            t[b] = c;
+        }
+        b += 1;
+    }
+    t
+}
+
+/// [`FOLD`] of `b`.
+#[inline(always)]
+fn fold(b: u8) -> u8 {
+    FOLD.get(usize::from(b)).copied().unwrap_or(0)
+}
+
+/// Whether `b` counts in a charset name.
+#[inline(always)]
+fn significant(b: u8) -> bool {
+    fold(b) != 0
+}
+
+/// `b` in the matching form (meaningful for a significant byte).
+#[inline(always)]
+fn upper(b: u8) -> u8 {
+    fold(b) & !PLAIN
+}
+
+/// Whether `text`, every byte of it significant, reads as `form` (in matching form): equal but
+/// for case. Most rows differ in their first byte.
+#[inline(always)]
+fn folds_to(text: &[u8], form: &[u8]) -> bool {
+    text.len() == form.len() && text.iter().zip(form).all(|(&t, &f)| upper(t) == f)
+}
+
+/// Whether `listed` (a charmap's name or alias, as its file spells it) is the charset `name`
+/// (matching form, [`Name::form`]): equal once `listed`'s dropped bytes are removed and its
+/// letters uppercased. Punctuation that counts must match: `CP-1252` is not `CP1252`.
+pub fn names_charset(listed: &[u8], name: &[u8]) -> bool {
+    // Same length and equal but for case (`name` has no dropped byte, so a dropped byte of
+    // `listed`, read as 0, never matches).
+    if folds_to(listed, name) {
+        return true;
+    }
+    let mut want = name.iter();
+    for c in listed.iter().filter(|&&c| significant(c)) {
+        if want.next() != Some(&upper(*c)) {
+            return false;
+        }
+    }
+    want.next().is_none()
 }
 
 /// The codec of `loc`'s `LC_CTYPE` codeset (the empty name of `iconv_open`).
@@ -145,23 +304,152 @@ pub fn of_locale(loc: &Locale) -> Codec {
     }
 }
 
-/// A charset name and its suffixes: the name ends at the first `/` that begins `//`; the
-/// suffixes after it are separated by `/` or `,` and matched without regard to case. Unknown
-/// suffixes are ignored, as by the reference library.
+/// Longest charset name (in matching form) that can name anything: a longer one names nothing.
+/// Above every built-in name and every charmap file name ([`Name::form`]).
+pub const NAME_MAX: usize = 128;
+
+/// A charset name as the caller wrote it, read in place in its matching form (D-6.8 amendment,
+/// `spec/encoding/iconv-names.md`): the significant bytes ([`FOLD`]) of the first part, then,
+/// when there is a second part, `/` and those of the second part, letters uppercased. Nothing is
+/// copied: [`Name::is`] compares a table row with the text where it lies, and [`Name::form`]
+/// writes the matching form out only for the charmap lookup.
+#[derive(Clone, Copy, Debug)]
+pub struct Name<'a> {
+    /// The name in the caller's text: the first part, then, when there is a second part, the `/`
+    /// and the second part without its trailing commas (the first part alone without its
+    /// trailing commas otherwise).
+    text: &'a [u8],
+    /// Index of the `/` before the second part in `text`; `text.len()` when there is none.
+    split: usize,
+    /// Length of the matching form. Equal to `text.len()` when every byte counts: the matching
+    /// form is then `text` uppercased.
+    len: usize,
+}
+
+impl<'a> Name<'a> {
+    /// Length of the matching form.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether the matching form is empty (the locale's codeset).
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// The matching form, byte by byte.
+    fn bytes(&self) -> impl Iterator<Item = u8> + 'a {
+        let (first, rest) = self.text.split_at(self.split.min(self.text.len()));
+        let sig = |p: &'a [u8]| p.iter().copied().filter(|&b| significant(b)).map(upper);
+        let (slash, second) = match rest.split_first() {
+            Some((_, second)) => (Some(b'/'), second),
+            None => (None, rest),
+        };
+        sig(first).chain(slash).chain(sig(second))
+    }
+
+    /// Whether the matching form is `form` (itself in matching form: a table row).
+    #[inline]
+    pub fn is(&self, form: &[u8]) -> bool {
+        if self.text.len() == self.len {
+            return folds_to(self.text, form);
+        }
+        form.len() == self.len && self.bytes().eq(form.iter().copied())
+    }
+
+    /// The matching form, written into `buf`; `None` when it is longer than [`NAME_MAX`] (it
+    /// names nothing).
+    pub fn form<'b>(&self, buf: &'b mut [u8; NAME_MAX]) -> Option<&'b [u8]> {
+        let out = buf.get_mut(..self.len)?;
+        if self.text.len() == self.len {
+            for (o, &b) in out.iter_mut().zip(self.text) {
+                *o = upper(b);
+            }
+        } else {
+            for (o, b) in out.iter_mut().zip(self.bytes()) {
+                *o = b;
+            }
+        }
+        Some(out)
+    }
+}
+
+/// A charset name and its suffixes. The text is `PART[/PART2][/SUFFIXES]`: the name ends at
+/// the second `/` ([`Name`]); trailing commas of the second part are dropped, and when it is
+/// then empty the name is the first part without its trailing commas. The suffixes are
+/// separated by `/` or `,` and matched without regard to case; unknown ones are ignored.
+#[derive(Clone, Copy, Debug)]
 pub struct Spec<'a> {
     /// The charset name.
-    pub name: &'a [u8],
+    pub name: Name<'a>,
     /// `//TRANSLIT`.
     pub translit: bool,
     /// `//IGNORE`.
     pub ignore: bool,
 }
 
-/// Split `full` into its name and suffixes.
+/// One part of a name, read in a single pass up to the next `/` (or the end).
+struct Part<'a> {
+    /// Length of the part, up to the `/`.
+    all: usize,
+    /// Significant bytes in the part.
+    len: usize,
+    /// Length of the part without its trailing commas: up to its last significant byte that is
+    /// not a comma (dropped bytes after it do not count either).
+    cut: usize,
+    /// Significant bytes in the first `cut` bytes.
+    cut_len: usize,
+    /// What follows the `/`; `None` when the text ended.
+    after: Option<&'a [u8]>,
+}
+
+fn part(text: &[u8]) -> Part<'_> {
+    let (mut len, mut cut, mut cut_len) = (0usize, 0, 0);
+    let mut end = text.len();
+    for (i, &b) in text.iter().enumerate() {
+        if b == b'/' {
+            end = i;
+            break;
+        }
+        if significant(b) {
+            len = len.saturating_add(1);
+            if b != b',' {
+                cut = i.saturating_add(1);
+                cut_len = len;
+            }
+        }
+    }
+    let after = (end < text.len()).then(|| text.get(end.saturating_add(1)..).unwrap_or(&[]));
+    Part { all: end, len, cut, cut_len, after }
+}
+
+/// Split `full` into its name and suffixes, in one pass over the name.
+#[inline]
 pub fn parse_name(full: &[u8]) -> Spec<'_> {
-    let cut = full.windows(2).position(|w| w == b"//").unwrap_or(full.len());
-    let (name, rest) = full.split_at(cut);
+    // The usual name: plain bytes to the end, no bookkeeping.
+    if full.iter().all(|&b| fold(b) & PLAIN != 0) {
+        return Spec { name: Name { text: full, split: full.len(), len: full.len() }, translit: false, ignore: false };
+    }
+    parse_full(full)
+}
+
+/// [`parse_name`] for a name with suffixes, a second part or bytes that do not count.
+#[inline(never)]
+fn parse_full(full: &[u8]) -> Spec<'_> {
+    let first = part(full);
+    let (name, rest) = match first.after.map(part) {
+        Some(second) if second.cut_len > 0 => {
+            let end = first.all.saturating_add(1).saturating_add(second.cut);
+            let len = first.len.saturating_add(1).saturating_add(second.cut_len);
+            (Name { text: full.get(..end).unwrap_or(&[]), split: first.all, len }, second.after)
+        }
+        second => {
+            let text = full.get(..first.cut).unwrap_or(&[]);
+            (Name { text, split: text.len(), len: first.cut_len }, second.and_then(|s| s.after))
+        }
+    };
     let mut s = Spec { name, translit: false, ignore: false };
+    let Some(rest) = rest else { return s };
     for word in rest.split(|&b| b == b'/' || b == b',') {
         if word.eq_ignore_ascii_case(b"TRANSLIT") {
             s.translit = true;
@@ -231,7 +519,7 @@ impl Codec {
     fn decode(self, input: &[u8], order: Option<Order>) -> Dec {
         let need = |n: usize| input.len() < n;
         // ASCII is itself in the byte codecs that contain it.
-        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp) = (input.first(), self) {
+        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_)) = (input.first(), self) {
             if b < 0x80 {
                 return Dec::Char(u32::from(b), 1);
             }
@@ -250,6 +538,7 @@ impl Codec {
                 crate::charmap::Step::Invalid => Dec::Invalid(1),
             },
             Codec::EucJp => jis::decode(input),
+            Codec::Cjk(w) => cjk::decode(w, input),
             Codec::Ucs2(o) => match unit(input, 2, o) {
                 None => Dec::Incomplete,
                 Some(c) if is_surrogate(c) => Dec::Invalid(2),
@@ -315,6 +604,7 @@ impl Codec {
             Codec::Charmap(_) if (0xE0000..=0xE007F).contains(&c) => Some(0),
             Codec::Charmap(cm) => cm.0.encode(c, out),
             Codec::EucJp => jis::encode(c, out),
+            Codec::Cjk(w) => cjk::encode(w, c, out),
             Codec::Ucs2(o) => (c < 0x1_0000).then(|| put(out, c, 2, o)),
             Codec::Utf16(fixed) => {
                 let o = fixed.unwrap_or(Order::Le);
@@ -340,7 +630,7 @@ impl Codec {
     /// Whether a byte below 0x80 decodes to itself, one byte per character.
     fn ascii_source(self) -> bool {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => true,
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_) => true,
             Codec::Charmap(c) => c.0.ascii(),
             _ => false,
         }
@@ -349,7 +639,7 @@ impl Codec {
     /// For ASCII code points: the unit this codec writes them as (its size and order).
     fn ascii_unit(self) -> Option<(usize, Order)> {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => Some((1, Order::Le)),
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp | Codec::Cjk(_) => Some((1, Order::Le)),
             Codec::Charmap(c) => c.0.ascii().then_some((1, Order::Le)),
             Codec::Utf16(o) => Some((2, o.unwrap_or(Order::Le))),
             Codec::Ucs2(o) => Some((2, o)),
@@ -676,7 +966,8 @@ impl Conv {
                 }
                 Dec::Invalid(n) => {
                     if self.ignore {
-                        ignored = true;
+                        // Probed: CP932 reports the input `//IGNORE` skipped as success.
+                        ignored |= !matches!(self.from, Codec::Cjk(w) if !w.ignore_error());
                         read += n.clamp(1, rest.len());
                         continue;
                     }
@@ -840,6 +1131,7 @@ fn tag(c: Codec) -> (usize, usize) {
         Codec::Latin1 => (13, 0),
         Codec::Charmap(cm) => (14, core::ptr::from_ref(cm.0).expose_provenance()),
         Codec::EucJp => (15, 0),
+        Codec::Cjk(w) => (16 + cjk::Which::ALL.iter().position(|&x| x == w).unwrap_or(0), 0),
     }
 }
 
@@ -857,6 +1149,7 @@ fn untag(t: usize, addr: usize, charmap_at: &dyn Fn(usize) -> &'static Charmap) 
         13 => Codec::Latin1,
         14 if addr != 0 => Codec::Charmap(CharmapRef(charmap_at(addr))),
         15 => Codec::EucJp,
+        16..=21 => Codec::Cjk(*cjk::Which::ALL.get(t - 16)?),
         _ => return None,
     })
 }

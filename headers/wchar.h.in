@@ -1,0 +1,71 @@
+@@generated
+/* wchar.h: wide characters (C 7.29, XSH <wchar.h>). In C++ the search functions are overloaded on the constness
+   of their argument ([cwchar.syn]): the const overload is the C function, the other one calls it. */
+#ifndef __NIJI_H_wchar_h
+#define __NIJI_H_wchar_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL va_list wcschr wcsrchr wcspbrk wcsstr wmemchr wcswcs
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+@@if va_list
+# ifndef __NIJI_D_va_list
+#  define __NIJI_D_va_list 1
+#  ifndef _VA_LIST_DEFINED
+#   define _VA_LIST_DEFINED
+typedef __builtin_va_list va_list;
+#  endif
+# endif
+#endif
+
+@@if wcschr
+# ifdef __cplusplus
+extern "C++" {
+extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr");
+extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr");
+extern const wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcspbrk");
+extern const wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcsstr");
+extern const wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __asm__ ("wmemchr");
+inline wchar_t *wcschr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcschr (static_cast<const wchar_t *> (__s), __c)); }
+inline wchar_t *wcsrchr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcsrchr (static_cast<const wchar_t *> (__s), __c)); }
+inline wchar_t *wcspbrk (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcspbrk (static_cast<const wchar_t *> (__s), __a)); }
+inline wchar_t *wcsstr (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcsstr (static_cast<const wchar_t *> (__s), __a)); }
+inline wchar_t *wmemchr (wchar_t *__s, wchar_t __c, size_t __n) __NIJI_NOTHROW { return const_cast<wchar_t *> (wmemchr (static_cast<const wchar_t *> (__s), __c, __n)); }
+}
+# else
+extern wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
+extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
+extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
+# endif
+#endif
+
+@@if wcswcs
+/* The XSI alias of wcsstr takes the same two overloads in C++. */
+# ifdef __cplusplus
+extern "C++" {
+extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs");
+inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcswcs (static_cast<const wchar_t *> (__s), __a)); }
+}
+# else
+extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

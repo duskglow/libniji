@@ -12,8 +12,8 @@
 //!   C++; C++: `decltype` against the `typedefs.tsv` function type); every `macros.tsv` value and type (`_Generic` in
 //!   C, `decltype` in C++; strings and floating values in C++ constant expressions); every `constants.tsv` value;
 //!   enumerator values;
-//! * a run-time program: each bit-field set to all ones covers exactly its bits (the psABI's sequential allocation
-//!   from the low bit of its storage unit), each `initializers.tsv` initializer gives exactly its bytes;
+//! * a run-time program: each bit-field set to all ones covers exactly the bits its layouts.tsv row records (`bits
+//!   W@P`: from bit P of its storage unit, as the extraction read them from DWARF), each `initializers.tsv` initializer gives exactly its bytes;
 //! * call sites: the configurations of `ftm-configs.tsv` grouped into families with the same feature levels (all the
 //!   emitted conditions can see), one unit per family, in that family's language and flags, taking the address of
 //!   every function with a `callsites.tsv` `addr` row there; its undefined symbols (`nm -u`) are exactly the table's;
@@ -239,34 +239,6 @@ fn c_type(t: &Tables, mt: &str) -> Option<String> {
     Some(format!("{konst}{ty}{}{arr}", " *".repeat(stars)))
 }
 
-/// The sizes of the DWARF base types of layouts.tsv (x86-64 psABI 3.1.2, figure 3.1).
-const DWARF_SIZE: &[(&str, u64)] = &[
-    ("char", 1), ("signed char", 1), ("unsigned char", 1), ("_Bool", 1), ("short int", 2), ("short unsigned int", 2),
-    ("int", 4), ("unsigned int", 4), ("long int", 8), ("long unsigned int", 8), ("long long int", 8),
-    ("long long unsigned int", 8), ("float", 4), ("double", 8), ("long double", 16), ("__int128", 16), ("__int128 unsigned", 16),
-];
-
-/// The size in bytes of a layouts.tsv member type, from the tables: a DWARF base type, a pointer, an array, a
-/// typedef or tag of typedefs.tsv, or a described aggregate. None when they do not give it.
-fn byte_size(t: &Tables, ty: &str) -> Option<u64> {
-    if let Some(i) = ty.find('[') {
-        let dims: Option<Vec<u64>> = ty[i..].split(['[', ']']).filter(|s| !s.is_empty()).map(|s| s.parse().ok()).collect();
-        return Some(dims?.iter().product::<u64>() * byte_size(t, ty[..i].trim_end())?);
-    }
-    if ty.ends_with('*') {
-        return Some(8);
-    }
-    let core = ty.trim_start_matches("const ").trim_start_matches("volatile ");
-    if let Some((_, s)) = DWARF_SIZE.iter().find(|(d, _)| *d == core) {
-        return Some(*s);
-    }
-    let (kind, name) = core.split_once(' ').filter(|(k, _)| matches!(*k, "struct" | "union" | "enum")).unwrap_or(("typedef", core));
-    if let Some(s) = t.typedefs.get(&(kind.to_string(), name.to_string())).and_then(|r| r["size"].parse().ok()) {
-        return Some(s);
-    }
-    t.layouts.get(core)?.iter().find(|r| r["member"].is_empty())?["offset_or_size"].parse().ok()
-}
-
 /// What the rows test builds before compiling: the units and the rows.
 struct Built {
     check: Check,
@@ -360,12 +332,30 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         }
         // The rows of an array typedef (`jmp_buf`, one `struct __jmp_buf_tag`) describe its element.
         let subj = if t.typedefs.get(&("typedef".to_string(), key.clone())).is_some_and(|r| r["cxx"].ends_with(']')) { format!("__typeof__ ((({key} *) 0)[0][0])") } else { key.clone() };
+        // A transparent union is a GNU C type: in C++ the name is its first member's pointer type (Gen::pointer_form;
+        // the function types that take it check that form), so its members are checked in C.
+        let tu = super::aggregates::transparent_union(rows.iter().find(|r| r["member"].is_empty()));
+        if tu {
+            // Transparent: a parameter of it takes a `void *` argument, which no ordinary union parameter does.
+            lines.push("#ifndef __cplusplus".into());
+            lines.push(format!("void niji_tu_{i} ({key}); __attribute__ ((__unused__)) static void niji_tu_call_{i} (void *p) {{ niji_tu_{i} (p); }}"));
+        }
         for r in rows.iter().filter(|r| !r["member"].is_empty() && r["bitfield"].is_empty()) {
             let Some(d) = designator(rows, &r["member"]) else { continue };
             lines.push(format!("NIJI_A (__builtin_offsetof ({subj}, {d}) == {}, \"layouts {key} {d}\");", r["offset_or_size"]));
             if let Some(ty) = c_type(t, &r["member_type"]) {
                 lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ((({subj} *) 0)->{d}), {ty}), \"layouts {key} {d} type\");"));
             }
+        }
+        if tu {
+            // C++: the first member's pointer type, `__restrict` where the head row says `restrict` (a top-level
+            // qualifier is no part of a function type, so only an object of it shows it).
+            let head = rows.iter().find(|r| r["member"].is_empty()).map_or("", |r| r["bitfield"].as_str());
+            let first = rows.iter().find(|r| !r["member"].is_empty()).map_or("", |r| r["member_type"].trim_end());
+            let ty = if head.split_whitespace().any(|w| w == "restrict") { format!("{first}__restrict") } else { first.to_string() };
+            lines.push("#else".into());
+            lines.push(format!("extern {key} niji_tux_{i}; NIJI_A (__is_same (decltype (&niji_tux_{i}), {ty} *), \"layouts {key} pointer form\");"));
+            lines.push("#endif".into());
         }
         c.put(&mut a, i, lines);
     }
@@ -415,6 +405,18 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
             c.put(&mut a, i, vec![format!("NIJI_A (sizeof ({sym}) == {size}, \"versions {sym}\");")]);
         }
     }
+    // Enumerations the tables declare as tags (typedefs.tsv `enum`): every enumerators.tsv member has its value and, in
+    // C++, the enumeration's type (an enumerator emitted alone is an `int` of an anonymous enumeration).
+    for (tag, members) in t.enums.iter().filter(|(k, _)| k.strip_prefix("enum ").is_some_and(|n| wanted(n) && t.typedefs.contains_key(&("enum".to_string(), n.to_string())))) {
+        let i = c.row("typedefs", tag);
+        let mut lines = Vec::new();
+        for (n, v) in members {
+            let e = int128(v).ok_or(format!("enumerators.tsv {tag} {n}: value {v:?} is not an integer"))?;
+            lines.push(format!("NIJI_A ((__int128) ({n}) == {e}, \"enumerators {tag} {n}\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), {tag}>::v, \"enumerators {n} is {tag}\");"));
+        }
+        c.put(&mut a, i, lines);
+    }
     // Enumerators.
     for n in &enumerators {
         let i = c.row("visibility", &format!("enumerator {n}"));
@@ -424,6 +426,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     }
     // Macros, each defined, checked and undefined in turn, after every declaration.
     let constants: BTreeMap<String, String> = tsv(root, "spec/abi/constants.tsv")?.into_iter().filter(|r| named(&r["macro"])).map(|r| (r["macro"].clone(), r["value"].clone())).collect();
+    let mut ptr_runs: Vec<(usize, Vec<String>)> = Vec::new();
     for (n, (ty, v)) in t.macros.iter().filter(|(n, _)| named(n)) {
         let i = c.row("macros", n);
         if c.lang(i) == Some("*") {
@@ -459,6 +462,19 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
                 x => format!("({n}) == {x}{sfx}"),
             };
             lines.push(format!("NIJI_X ({test}, \"macros {n} = {v}\");"));
+        } else if super::values::pointer_type(ty) {
+            // A pointer constant: its type in both languages; its address (a pointer converted to an integer is no
+            // constant expression) at run time, against macros.tsv and constants.tsv.
+            let cty = g.c_words(ty);
+            lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ({n}), {cty}), \"macros {n} is {ty}\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), {cty}>::v, \"macros {n} is {ty}\");"));
+            for (row, val) in [(i, Some(v)), (c.row("constants", n), constants.get(n))] {
+                match val.map(|x| super::values::literal("pointer", x)) {
+                    Some(Ok(e)) => ptr_runs.push((row, vec![format!("#define {n} {lit}"), format!("  if ((long) ({n}) != {e}) niji_bad ({row});"), format!("#undef {n}")])),
+                    Some(Err(e)) => c.fail(row, e),
+                    None => {}
+                }
+            }
         } else {
             c.fail(i, format!("macros.tsv type {ty:?}: the rows test has no check for it"));
         }
@@ -481,36 +497,21 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
 
     // The run-time program: bit-fields and initializers.
     let mut run = Tu::default();
+    for (i, l) in ptr_runs {
+        c.put(&mut run, i, l);
+    }
     for (key, rows) in t.layouts.iter().filter(|(k, _)| wanted(k.split_once(' ').map_or(k.as_str(), |(_, n)| n))) {
         let i = c.row("layouts", key);
         let mut lines = Vec::new();
-        // psABI 3.1.2: bit-fields are allocated in declaration order from the first free bit of their storage unit.
-        // The table's offset of a bit-field is its unit's byte (DWARF 4 data_member_location; the bit in it is not
-        // recorded): a bit-field starts after the earlier bit-fields of its unit, and the first one after a sibling
-        // member that lies in the unit (fenv_t: `__opcode` follows `__cs_selector` in the unit at byte 16).
-        let (mut at, mut used) = (None::<String>, Some(0u64));
-        // The previous member that is no bit-field: (path, offset, size in bytes when the tables give it).
-        let mut prev: Option<(&str, u64, Option<u64>)> = None;
-        for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            let off: u64 = r["offset_or_size"].parse().map_err(|_| format!("layouts.tsv {key} {}: bad offset", r["member"]))?;
-            let Some(w) = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).and_then(|w| w.parse::<u64>().ok()) else {
-                at = None;
-                prev = Some((&r["member"], off, byte_size(t, &r["member_type"])));
-                continue;
-            };
-            if at.as_ref() != Some(&r["offset_or_size"]) {
-                // An enclosing member (`s` of `s.bf`) is no earlier sibling.
-                let sibling = prev.filter(|(p, o, _)| *o >= off && !r["member"].starts_with(&format!("{p}.")));
-                used = match sibling {
-                    Some((_, o, size)) => size.map(|s| (o + s - off) * 8),
-                    None => Some(0),
-                };
-                at = Some(r["offset_or_size"].clone());
-            }
-            // The size of the member before it is not in the tables: its bit is not known here.
-            let Some(u) = used else { continue };
-            let pos = off * 8 + u;
-            used = Some(u + w);
+        // A bit-field row `bits W@P` gives its first bit P from the low bit of the storage unit at the row's byte offset
+        // (psABI 3.1.2, little-endian; recorded by the extraction from DWARF): set to all ones, it covers exactly the
+        // bits [8 * offset + P, + W) of an otherwise zero object.
+        for r in rows.iter().filter(|r| r["bitfield"].starts_with("bits ")) {
+            let bad = || format!("layouts.tsv {key} {}: bad bit-field {:?} (bits W@P)", r["member"], r["bitfield"]);
+            let off: u64 = r["offset_or_size"].parse().map_err(|_| bad())?;
+            let (w, p) = r["bitfield"][5..].split_once('@').ok_or_else(bad)?;
+            let (w, p): (u64, u64) = (w.parse().map_err(|_| bad())?, p.parse().map_err(|_| bad())?);
+            let pos = off * 8 + p;
             let Some(d) = designator(rows, &r["member"]) else { continue };
             lines.push(format!("  {{ {key} x; __builtin_memset (&x, 0, sizeof x); x.{d} = -1; if (niji_bits (&x, sizeof x, {pos}, {w})) niji_bad ({i}); }}"));
         }
@@ -546,6 +547,12 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
             "struct" | "union" | "enum" => has(kind) || t.layouts.contains_key(&format!("{kind} {n}")),
             "typedef" => has("typedef") || t.layouts.contains_key(n),
             "object" => has("object"),
+            // A type-generic macro's function form (providers.tsv `generic`): its overloads are the C++ library's
+            // or a template's, as the macro is.
+            "function" if t.providers.get(n).is_some_and(|p| p == "generic") => {
+                c.template_owned += 1;
+                true
+            }
             "function" => t.protos.contains_key(n) || has("function"),
             "enumerator" => true,
             "macro" | "include-error" => {

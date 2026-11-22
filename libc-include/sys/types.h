@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_types_h 1
 
 #include <features.h>
-#include <endian.h>
 
 __NIJI_BEGIN_C
 
@@ -141,13 +140,27 @@ typedef int key_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
-# ifndef __NIJI_D___atomic_wide_counter
-#  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1
@@ -226,15 +239,6 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199506 && __NIJI_CXX < 1
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
@@ -319,20 +323,39 @@ struct timeval;
 #  define __NIJI_D_select 1
 extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# ifndef BYTE_ORDER
+#  define BYTE_ORDER 1234
+# endif
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
+# endif
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
 # endif
 # ifndef NFDBITS
 #  define NFDBITS 64
 # endif
+# ifndef PDP_ENDIAN
+#  define PDP_ENDIAN 3412
+# endif
+#endif
+
+/* The byte-order conversions are <endian.h>'s, where this header exposes them. */
+#if __NIJI_MISC
+# include <endian.h>
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set. */
 #if __NIJI_MISC
+/* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
+extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 # define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-# define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-# define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-# define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+# define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+# define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+# define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 # define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 #endif
 

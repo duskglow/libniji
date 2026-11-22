@@ -1,0 +1,4 @@
+# DYN-START-SPEED-2 plants: the loader's whole-file views placed 64 KiB-aligned (map_view). The test stages the
+# same release products on tmpfs (/dev/shm) and under the build tree (ext4 on the build hosts) and requires one
+# count; a view left where the kernel puts a file mapping reads one more fault on tmpfs (68 / 67, release).
+view-candidate-kernel | crates/boundary/src/ld.rs | lit:let Ok(at) = map_view(fd32, len) else { return Err(refuse(Refusal::Truncated)) }; ==> let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else { return Err(refuse(Refusal::Truncated)) }; | NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products init_dynamic_startup_fault_count_does_not_depend_on_the_file_system | msg:depends on the file system holding

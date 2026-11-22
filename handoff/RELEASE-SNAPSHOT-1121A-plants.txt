@@ -1,0 +1,20 @@
+# RELEASE-SNAPSHOT-1121A plants: cargo xtask plants handoff/RELEASE-SNAPSHOT-1121A-plants.txt (docs/plants.md).
+# RELEASE-SNAPSHOT-1120C's six release-check plants (handoff/RELEASE-SNAPSHOT-1120C-plants.txt), rerun on
+# 71597d2a4's system products (job release-snapshot-1121a-debs-1's build,
+# ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji) with the copied swap verdict script
+# (~/work/RELEASE-SNAPSHOT-1121A/swapverdict.sh). Run in the mei role ~/w/s1 (Skylake-SP).
+# Changed from RELEASE-SNAPSHOT-1120F-plants.txt: paths, ids, the role (mei s1, was mei s3) and the deb version
+# (2.39+niji20261121.2-1) only.
+rs1121a-debug-rows-unstripped | tools/deb/build.sh | lit:rows_with unneeded debug ==> rows_with unneeded | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL .*usr/sbin/ldconfig is not stripped
+rs1121a-postinst-configure-ldconfig | tools/deb/system/libc-bin.postinst | perl:s/(ldconfig itself\.\n\s+)run_ldconfig/$1true/ | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL ldconfig -p in the root
+rs1121a-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG_ROOT/etc/ld.so.cache" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL left after purge: .*ld\.so\.cache
+rs1121a-postrm-not-packaged | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) case $path in DEBIAN/postrm) ;; *) put "$mode" "$here/$src" "$dest" ;; esac ;; | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:chmod: cannot access .*DEBIAN/postrm
+rs1121a-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
+rs1121a-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1121A/debs/system-work/src/target/niji --version 2.39+niji20261121.2-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-1121A/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rs1121a-debug-rows-unstripped: CAUGHT, caught by no test the log names
+# rs1121a-postinst-configure-ldconfig: CAUGHT, caught by no test the log names
+# rs1121a-postrm-purge-cache: CAUGHT, caught by no test the log names
+# rs1121a-postrm-not-packaged: CAUGHT, caught by no test the log names
+# rs1121a-cxx-needs-libstdcxx: CAUGHT, caught by no test the log names
+# rs1121a-swap-not-done: CAUGHT, caught by no test the log names

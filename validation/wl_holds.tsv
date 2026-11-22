@@ -1,0 +1,40 @@
+# LAB-ONLY. HELD ROWS of the INVIOLABLE workload rule (validation/wl_verdict.py; WL-DYNAMIC-GATE, owner ruling #6965,
+# 2026-11-20; D-X.141). The rule binds the dynamic kit: each workload at or below 1.10x glibc in instructions:u and in
+# page faults, geomean of instructions:u at or below 1.00. A row here was over 1.10x when the rule moved to the
+# dynamic kit, for the cause it names; it is bounded at `level` (libniji / glibc, the ratio recorded on next, rounded
+# up to 4 decimals) instead of 1.10. A RATCHET: a level is never raised and a row is never added for a CPU class
+# already recorded (wl_verdict.py holds, run by validation/wl_verdict_test.sh against the merge base). A row that
+# measures at or below 1.10x drops its hold in that run (HOLD-RELEASE): remove it (wl_verdict.py check --update).
+# cpu = /proc/cpuinfo "model name" of the count host (instructions follow the IFUNC variant a CPU selects); glibc and
+# libniji = the recorded counts, the WORST observed so a rerun of next does not exceed the level (a level a rerun can
+# exceed is a flake), from a wl_count run whose BASE column is next: instructions:u the base column's mean and glibc's
+# mean; page faults the highest single base run and the lowest glibc run (the log's "faults min..max" line); recorded =
+# the measured next head and date.
+# D-X.151 (WL-COUNT-HONEST-CHEAP, 2026-11-21): a count's page faults are now the lowest of 5 runs under setarch -R. gzip-c's
+# hold is dropped (next measures 292 / 269 = 1.0855 in every count, so the 1.10 bound binds). The other levels are not
+# re-recorded yet: in one address layout the size of the environment moves a row by about one fault per process, so
+# levels come from counts in a fixed environment (handoff/WL-COUNT-HONEST-CHEAP.md, next step).
+cpu	workload	metric	glibc	libniji	level	recorded	cause
+AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3129	4089	1.3069	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	md5sum	pf	147	183	1.2449	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	cut-tr-uniq	pf	483	609	1.2609	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	seq	pf	136	168	1.2353	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	instr	5680323909	20624302882	3.6309	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	pf	1482360	2035438	1.3732	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	ls-lR	pf	3148	3857	1.2253	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	du	pf	3360	4017	1.1956	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	sed-s	pf	251	304	1.2112	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	sed-utf8	pf	228	284	1.2457	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	bash-loop	pf	196	298	1.5205	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-F	pf	428	499	1.1659	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-E	pf	432	513	1.1875	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-i-utf8	pf	456	518	1.1360	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gawk-sum	pf	251	301	1.1993	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gawk-regex	pf	251	309	1.2311	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gawk-utf8	pf	304	356	1.1711	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gawk-printf	pf	249	299	1.2009	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	tar-c	pf	408	494	1.2108	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	tar-tv	pf	235	288	1.2256	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gzip-d	pf	215	256	1.1907	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	pipe-mix	pf	1131	1332	1.1778	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	tar-gz	pf	531	648	1.2204	189ab9cbc 2026-11-20	dynamic start-up

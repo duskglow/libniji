@@ -142,10 +142,14 @@ siginfo_t	_sifields._timer	16		struct <anon>
 siginfo_t	_sifields._timer.si_tid	16		int	
 siginfo_t	_sifields._timer.si_overrun	20		int	
 siginfo_t	_sifields._timer.si_sigval	24		__sigval_t	
+siginfo_t	_sifields._timer.si_sigval.sival_int	24		int	
+siginfo_t	_sifields._timer.si_sigval.sival_ptr	24		void *	
 siginfo_t	_sifields._rt	16		struct <anon>	
 siginfo_t	_sifields._rt.si_pid	16		__pid_t	
 siginfo_t	_sifields._rt.si_uid	20		__uid_t	
 siginfo_t	_sifields._rt.si_sigval	24		__sigval_t	
+siginfo_t	_sifields._rt.si_sigval.sival_int	24		int	
+siginfo_t	_sifields._rt.si_sigval.sival_ptr	24		void *	
 siginfo_t	_sifields._sigchld	16		struct <anon>	
 siginfo_t	_sifields._sigchld.si_pid	16		__pid_t	
 siginfo_t	_sifields._sigchld.si_uid	20		__uid_t	
@@ -156,6 +160,10 @@ siginfo_t	_sifields._sigfault	16		struct <anon>
 siginfo_t	_sifields._sigfault.si_addr	16		void *	
 siginfo_t	_sifields._sigfault.si_addr_lsb	24		short int	
 siginfo_t	_sifields._sigfault._bounds	32		union <anon>	
+siginfo_t	_sifields._sigfault._bounds._addr_bnd	32		struct <anon>	
+siginfo_t	_sifields._sigfault._bounds._addr_bnd._lower	32		void *	
+siginfo_t	_sifields._sigfault._bounds._addr_bnd._upper	40		void *	
+siginfo_t	_sifields._sigfault._bounds._pkey	32		__uint32_t	
 siginfo_t	_sifields._sigpoll	16		struct <anon>	
 siginfo_t	_sifields._sigpoll.si_band	16		long int	
 siginfo_t	_sifields._sigpoll.si_fd	24		int	
@@ -201,7 +209,11 @@ ucontext_t	__fpregs_mem.rdp	440		__uint64_t
 ucontext_t	__fpregs_mem.mxcsr	448		__uint32_t	
 ucontext_t	__fpregs_mem.mxcr_mask	452		__uint32_t	
 ucontext_t	__fpregs_mem._st	456		struct _libc_fpxreg[8]	
+ucontext_t	__fpregs_mem._st.significand	456		short unsigned int[4]	
+ucontext_t	__fpregs_mem._st.exponent	464		short unsigned int	
+ucontext_t	__fpregs_mem._st.__glibc_reserved1	466		short unsigned int[3]	
 ucontext_t	__fpregs_mem._xmm	584		struct _libc_xmmreg[16]	
+ucontext_t	__fpregs_mem._xmm.element	584		__uint32_t[4]	
 ucontext_t	__fpregs_mem.__glibc_reserved1	840		__uint32_t[24]	
 ucontext_t	__ssp	936		long long unsigned int[4]	
 mcontext_t		256	8		
@@ -249,9 +261,13 @@ pthread_cond_t	__data	0		struct __pthread_cond_s
 pthread_cond_t	__data.__wseq	0		__atomic_wide_counter	
 pthread_cond_t	__data.__wseq.__value64	0		long long unsigned int	
 pthread_cond_t	__data.__wseq.__value32	0		struct <anon>	
+pthread_cond_t	__data.__wseq.__value32.__low	0		unsigned int	
+pthread_cond_t	__data.__wseq.__value32.__high	4		unsigned int	
 pthread_cond_t	__data.__g1_start	8		__atomic_wide_counter	
 pthread_cond_t	__data.__g1_start.__value64	8		long long unsigned int	
 pthread_cond_t	__data.__g1_start.__value32	8		struct <anon>	
+pthread_cond_t	__data.__g1_start.__value32.__low	8		unsigned int	
+pthread_cond_t	__data.__g1_start.__value32.__high	12		unsigned int	
 pthread_cond_t	__data.__g_refs	16		unsigned int[2]	
 pthread_cond_t	__data.__g_size	24		unsigned int[2]	
 pthread_cond_t	__data.__g1_orig_size	32		unsigned int	
@@ -297,7 +313,134 @@ struct _pthread_cleanup_buffer	__canceltype	16		int
 struct _pthread_cleanup_buffer	__prev	24		struct _pthread_cleanup_buffer *	
 __pthread_unwind_buf_t		104	16		
 __pthread_unwind_buf_t	__cancel_jmp_buf	0		struct __cancel_jmp_buf_tag[1]	
+__pthread_unwind_buf_t	__cancel_jmp_buf.__cancel_jmp_buf	0		__jmp_buf	
+__pthread_unwind_buf_t	__cancel_jmp_buf.__mask_was_saved	64		int	
 __pthread_unwind_buf_t	__pad	72		void *[4]	
+struct __cancel_jmp_buf_tag		72	8		
+struct __cancel_jmp_buf_tag	__cancel_jmp_buf	0		__jmp_buf	
+struct __cancel_jmp_buf_tag	__mask_was_saved	64		int	
+sigevent_t		64	8		
+sigevent_t	sigev_value	0		__sigval_t	
+sigevent_t	sigev_value.sival_int	0		int	
+sigevent_t	sigev_value.sival_ptr	0		void *	
+sigevent_t	sigev_signo	8		int	
+sigevent_t	sigev_notify	12		int	
+sigevent_t	_sigev_un	16		union <anon>	
+sigevent_t	_sigev_un._pad	16		int[12]	
+sigevent_t	_sigev_un._tid	16		__pid_t	
+sigevent_t	_sigev_un._sigev_thread	16		struct <anon>	
+sigevent_t	_sigev_un._sigev_thread._function	16		fn(...) *	
+sigevent_t	_sigev_un._sigev_thread._attribute	24		pthread_attr_t *	
+struct sigcontext		256	8		
+struct sigcontext	r8	0		__uint64_t	
+struct sigcontext	r9	8		__uint64_t	
+struct sigcontext	r10	16		__uint64_t	
+struct sigcontext	r11	24		__uint64_t	
+struct sigcontext	r12	32		__uint64_t	
+struct sigcontext	r13	40		__uint64_t	
+struct sigcontext	r14	48		__uint64_t	
+struct sigcontext	r15	56		__uint64_t	
+struct sigcontext	rdi	64		__uint64_t	
+struct sigcontext	rsi	72		__uint64_t	
+struct sigcontext	rbp	80		__uint64_t	
+struct sigcontext	rbx	88		__uint64_t	
+struct sigcontext	rdx	96		__uint64_t	
+struct sigcontext	rax	104		__uint64_t	
+struct sigcontext	rcx	112		__uint64_t	
+struct sigcontext	rsp	120		__uint64_t	
+struct sigcontext	rip	128		__uint64_t	
+struct sigcontext	eflags	136		__uint64_t	
+struct sigcontext	cs	144		short unsigned int	
+struct sigcontext	gs	146		short unsigned int	
+struct sigcontext	fs	148		short unsigned int	
+struct sigcontext	__pad0	150		short unsigned int	
+struct sigcontext	err	152		__uint64_t	
+struct sigcontext	trapno	160		__uint64_t	
+struct sigcontext	oldmask	168		__uint64_t	
+struct sigcontext	cr2	176		__uint64_t	
+struct sigcontext	<anon>	184		union <anon>	size 8 rows 2
+struct sigcontext	fpstate	184		struct _fpstate *	
+struct sigcontext	__fpstate_word	184		__uint64_t	
+struct sigcontext	__reserved1	192		__uint64_t[8]	
+struct _fpstate		512	8		
+struct _fpstate	cwd	0		__uint16_t	
+struct _fpstate	swd	2		__uint16_t	
+struct _fpstate	ftw	4		__uint16_t	
+struct _fpstate	fop	6		__uint16_t	
+struct _fpstate	rip	8		__uint64_t	
+struct _fpstate	rdp	16		__uint64_t	
+struct _fpstate	mxcsr	24		__uint32_t	
+struct _fpstate	mxcr_mask	28		__uint32_t	
+struct _fpstate	_st	32		struct _fpxreg[8]	
+struct _fpstate	_xmm	160		struct _xmmreg[16]	
+struct _fpstate	__glibc_reserved1	416		__uint32_t[24]	
+struct _fpxreg		16	2		
+struct _fpxreg	significand	0		short unsigned int[4]	
+struct _fpxreg	exponent	8		short unsigned int	
+struct _fpxreg	__glibc_reserved1	10		short unsigned int[3]	
+struct _xmmreg		16	4		
+struct _xmmreg	element	0		__uint32_t[4]	
+struct _libc_fpstate		512	8		
+struct _libc_fpstate	cwd	0		__uint16_t	
+struct _libc_fpstate	swd	2		__uint16_t	
+struct _libc_fpstate	ftw	4		__uint16_t	
+struct _libc_fpstate	fop	6		__uint16_t	
+struct _libc_fpstate	rip	8		__uint64_t	
+struct _libc_fpstate	rdp	16		__uint64_t	
+struct _libc_fpstate	mxcsr	24		__uint32_t	
+struct _libc_fpstate	mxcr_mask	28		__uint32_t	
+struct _libc_fpstate	_st	32		struct _libc_fpxreg[8]	
+struct _libc_fpstate	_xmm	160		struct _libc_xmmreg[16]	
+struct _libc_fpstate	__glibc_reserved1	416		__uint32_t[24]	
+struct _libc_fpxreg		16	2		
+struct _libc_fpxreg	significand	0		short unsigned int[4]	
+struct _libc_fpxreg	exponent	8		short unsigned int	
+struct _libc_fpxreg	__glibc_reserved1	10		short unsigned int[3]	
+struct _libc_xmmreg		16	4		
+struct _libc_xmmreg	element	0		__uint32_t[4]	
+struct __pthread_mutex_s		40	8		
+struct __pthread_mutex_s	__lock	0		int	
+struct __pthread_mutex_s	__count	4		unsigned int	
+struct __pthread_mutex_s	__owner	8		int	
+struct __pthread_mutex_s	__nusers	12		unsigned int	
+struct __pthread_mutex_s	__kind	16		int	
+struct __pthread_mutex_s	__spins	20		short int	
+struct __pthread_mutex_s	__elision	22		short int	
+struct __pthread_mutex_s	__list	24		__pthread_list_t	
+struct __pthread_mutex_s	__list.__prev	24		struct __pthread_internal_list *	
+struct __pthread_mutex_s	__list.__next	32		struct __pthread_internal_list *	
+struct __pthread_rwlock_arch_t		56	8		
+struct __pthread_rwlock_arch_t	__readers	0		unsigned int	
+struct __pthread_rwlock_arch_t	__writers	4		unsigned int	
+struct __pthread_rwlock_arch_t	__wrphase_futex	8		unsigned int	
+struct __pthread_rwlock_arch_t	__writers_futex	12		unsigned int	
+struct __pthread_rwlock_arch_t	__pad3	16		unsigned int	
+struct __pthread_rwlock_arch_t	__pad4	20		unsigned int	
+struct __pthread_rwlock_arch_t	__cur_writer	24		int	
+struct __pthread_rwlock_arch_t	__shared	28		int	
+struct __pthread_rwlock_arch_t	__rwelision	32		signed char	
+struct __pthread_rwlock_arch_t	__pad1	33		unsigned char[7]	
+struct __pthread_rwlock_arch_t	__pad2	40		long unsigned int	
+struct __pthread_rwlock_arch_t	__flags	48		unsigned int	
+struct __pthread_cond_s		48	8		
+struct __pthread_cond_s	__wseq	0		__atomic_wide_counter	
+struct __pthread_cond_s	__wseq.__value64	0		long long unsigned int	
+struct __pthread_cond_s	__wseq.__value32	0		struct <anon>	
+struct __pthread_cond_s	__wseq.__value32.__low	0		unsigned int	
+struct __pthread_cond_s	__wseq.__value32.__high	4		unsigned int	
+struct __pthread_cond_s	__g1_start	8		__atomic_wide_counter	
+struct __pthread_cond_s	__g1_start.__value64	8		long long unsigned int	
+struct __pthread_cond_s	__g1_start.__value32	8		struct <anon>	
+struct __pthread_cond_s	__g1_start.__value32.__low	8		unsigned int	
+struct __pthread_cond_s	__g1_start.__value32.__high	12		unsigned int	
+struct __pthread_cond_s	__g_refs	16		unsigned int[2]	
+struct __pthread_cond_s	__g_size	24		unsigned int[2]	
+struct __pthread_cond_s	__g1_orig_size	32		unsigned int	
+struct __pthread_cond_s	__wrefs	36		unsigned int	
+struct __pthread_cond_s	__g_signals	40		unsigned int[2]	
+struct __pthread_internal_list		16	8		
+struct __pthread_internal_list	__prev	0		struct __pthread_internal_list *	
+struct __pthread_internal_list	__next	8		struct __pthread_internal_list *	
 cpu_set_t		128	8		
 cpu_set_t	__bits	0		__cpu_mask[16]	
 struct sched_param		4	4		
@@ -305,6 +448,46 @@ struct sched_param	sched_priority	0		int
 sem_t		32	8		
 sem_t	__size	0		char[32]	
 sem_t	__align	0		long int	
+union ieee754_float		4	4		
+union ieee754_float	f	0		float	
+union ieee754_float	ieee	0		struct <anon>	
+union ieee754_float	ieee.mantissa	0		unsigned int	bits 23@0
+union ieee754_float	ieee.exponent	0		unsigned int	bits 8@23
+union ieee754_float	ieee.negative	0		unsigned int	bits 1@31
+union ieee754_float	ieee_nan	0		struct <anon>	
+union ieee754_float	ieee_nan.mantissa	0		unsigned int	bits 22@0
+union ieee754_float	ieee_nan.quiet_nan	0		unsigned int	bits 1@22
+union ieee754_float	ieee_nan.exponent	0		unsigned int	bits 8@23
+union ieee754_float	ieee_nan.negative	0		unsigned int	bits 1@31
+union ieee754_double		8	8		
+union ieee754_double	d	0		double	
+union ieee754_double	ieee	0		struct <anon>	
+union ieee754_double	ieee.mantissa1	0		unsigned int	bits 32@0
+union ieee754_double	ieee.mantissa0	4		unsigned int	bits 20@0
+union ieee754_double	ieee.exponent	4		unsigned int	bits 11@20
+union ieee754_double	ieee.negative	4		unsigned int	bits 1@31
+union ieee754_double	ieee_nan	0		struct <anon>	
+union ieee754_double	ieee_nan.mantissa1	0		unsigned int	bits 32@0
+union ieee754_double	ieee_nan.mantissa0	4		unsigned int	bits 19@0
+union ieee754_double	ieee_nan.quiet_nan	4		unsigned int	bits 1@19
+union ieee754_double	ieee_nan.exponent	4		unsigned int	bits 11@20
+union ieee754_double	ieee_nan.negative	4		unsigned int	bits 1@31
+union ieee854_long_double		16	16		
+union ieee854_long_double	d	0		long double	
+union ieee854_long_double	ieee	0		struct <anon>	
+union ieee854_long_double	ieee.mantissa1	0		unsigned int	bits 32@0
+union ieee854_long_double	ieee.mantissa0	4		unsigned int	bits 32@0
+union ieee854_long_double	ieee.exponent	8		unsigned int	bits 15@0
+union ieee854_long_double	ieee.negative	8		unsigned int	bits 1@15
+union ieee854_long_double	ieee.empty	8		unsigned int	bits 16@16
+union ieee854_long_double	ieee_nan	0		struct <anon>	
+union ieee854_long_double	ieee_nan.mantissa1	0		unsigned int	bits 32@0
+union ieee854_long_double	ieee_nan.mantissa0	4		unsigned int	bits 30@0
+union ieee854_long_double	ieee_nan.quiet_nan	4		unsigned int	bits 1@30
+union ieee854_long_double	ieee_nan.one	4		unsigned int	bits 1@31
+union ieee854_long_double	ieee_nan.exponent	8		unsigned int	bits 15@0
+union ieee854_long_double	ieee_nan.negative	8		unsigned int	bits 1@15
+union ieee854_long_double	ieee_nan.empty	8		unsigned int	bits 16@16
 thrd_t		8	8		
 mtx_t		40	8		
 mtx_t	__size	0		char[40]	
@@ -527,6 +710,10 @@ struct statx	stx_mnt_id	144		__u64
 struct statx	stx_dio_mem_align	152		__u32	
 struct statx	stx_dio_offset_align	156		__u32	
 struct statx	__spare3	160		__u64[12]	
+struct statx_timestamp		16	8		
+struct statx_timestamp	tv_sec	0		__s64	
+struct statx_timestamp	tv_nsec	8		__u32	
+struct statx_timestamp	__reserved	12		__s32	
 struct statfs		120	8		
 struct statfs	f_type	0		__fsword_t	
 struct statfs	f_bsize	8		__fsword_t	
@@ -621,12 +808,12 @@ regex_t	fastmap	32		char *
 regex_t	translate	40		unsigned char *	
 regex_t	re_nsub	48		size_t	
 regex_t	can_be_null	56		unsigned int	bits 1@0
-regex_t	regs_allocated	56		unsigned int	bits 2@0
-regex_t	fastmap_accurate	56		unsigned int	bits 1@0
-regex_t	no_sub	56		unsigned int	bits 1@0
-regex_t	not_bol	56		unsigned int	bits 1@0
-regex_t	not_eol	56		unsigned int	bits 1@0
-regex_t	newline_anchor	56		unsigned int	bits 1@0
+regex_t	regs_allocated	56		unsigned int	bits 2@1
+regex_t	fastmap_accurate	56		unsigned int	bits 1@3
+regex_t	no_sub	56		unsigned int	bits 1@4
+regex_t	not_bol	56		unsigned int	bits 1@5
+regex_t	not_eol	56		unsigned int	bits 1@6
+regex_t	newline_anchor	56		unsigned int	bits 1@7
 regmatch_t		8	4		
 regmatch_t	rm_so	0		regoff_t	
 regmatch_t	rm_eo	4		regoff_t	
@@ -781,15 +968,23 @@ struct __res_state	retry	4		int
 struct __res_state	options	8		long unsigned int	
 struct __res_state	nscount	16		int	
 struct __res_state	nsaddr_list	20		struct sockaddr_in[3]	
+struct __res_state	nsaddr_list.sin_family	20		sa_family_t	
+struct __res_state	nsaddr_list.sin_port	22		in_port_t	
+struct __res_state	nsaddr_list.sin_addr	24		struct in_addr	
+struct __res_state	nsaddr_list.sin_addr.s_addr	24		in_addr_t	
+struct __res_state	nsaddr_list.sin_zero	28		unsigned char[8]	
 struct __res_state	id	68		short unsigned int	
 struct __res_state	dnsrch	72		char *[7]	
 struct __res_state	defdname	128		char[256]	
 struct __res_state	pfcode	384		long unsigned int	
 struct __res_state	ndots	392		unsigned int	bits 4@0
-struct __res_state	nsort	392		unsigned int	bits 4@0
-struct __res_state	ipv6_unavail	392		unsigned int	bits 1@0
-struct __res_state	unused	392		unsigned int	bits 23@0
+struct __res_state	nsort	392		unsigned int	bits 4@4
+struct __res_state	ipv6_unavail	392		unsigned int	bits 1@8
+struct __res_state	unused	392		unsigned int	bits 23@9
 struct __res_state	sort_list	396		struct <anon>[10]	
+struct __res_state	sort_list.addr	396		struct in_addr	
+struct __res_state	sort_list.addr.s_addr	396		in_addr_t	
+struct __res_state	sort_list.mask	400		uint32_t	
 struct __res_state	__glibc_unused_qhook	480		void *	
 struct __res_state	__glibc_unused_rhook	488		void *	
 struct __res_state	res_h_errno	496		int	
@@ -836,6 +1031,18 @@ struct sockaddr_storage		128	8
 struct sockaddr_storage	ss_family	0		sa_family_t	
 struct sockaddr_storage	__ss_padding	2		char[118]	
 struct sockaddr_storage	__ss_align	120		long unsigned int	
+__SOCKADDR_ARG		8	8		transparent_union restrict
+__SOCKADDR_ARG	__tu_sockaddr	0		struct sockaddr *	
+__SOCKADDR_ARG	__tu_sockaddr_in	0		struct sockaddr_in *	
+__SOCKADDR_ARG	__tu_sockaddr_in6	0		struct sockaddr_in6 *	
+__SOCKADDR_ARG	__tu_sockaddr_un	0		struct sockaddr_un *	
+__SOCKADDR_ARG	__tu_sockaddr_x25	0		struct sockaddr_x25 *	
+__CONST_SOCKADDR_ARG		8	8		transparent_union
+__CONST_SOCKADDR_ARG	__tu_sockaddr	0		const struct sockaddr *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_in	0		const struct sockaddr_in *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_in6	0		const struct sockaddr_in6 *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_un	0		const struct sockaddr_un *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_x25	0		const struct sockaddr_x25 *	
 struct sockaddr_in		16	4		
 struct sockaddr_in	sin_family	0		sa_family_t	
 struct sockaddr_in	sin_port	2		in_port_t	
@@ -924,6 +1131,9 @@ struct ip6_mtuinfo	ip6m_addr.sin6_port	2		in_port_t
 struct ip6_mtuinfo	ip6m_addr.sin6_flowinfo	4		uint32_t	
 struct ip6_mtuinfo	ip6m_addr.sin6_addr	8		struct in6_addr	
 struct ip6_mtuinfo	ip6m_addr.sin6_addr.__in6_u	8		union <anon>	
+struct ip6_mtuinfo	ip6m_addr.sin6_addr.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct ip6_mtuinfo	ip6m_addr.sin6_addr.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct ip6_mtuinfo	ip6m_addr.sin6_addr.__in6_u.__u6_addr32	8		uint32_t[4]	
 struct ip6_mtuinfo	ip6m_addr.sin6_scope_id	24		uint32_t	
 struct ip6_mtuinfo	ip6m_mtu	28		uint32_t	
 struct msghdr		56	8		
@@ -988,6 +1198,8 @@ struct aiocb	aio_sigevent._sigev_un	48		union <anon>
 struct aiocb	aio_sigevent._sigev_un._pad	48		int[12]	
 struct aiocb	aio_sigevent._sigev_un._tid	48		__pid_t	
 struct aiocb	aio_sigevent._sigev_un._sigev_thread	48		struct <anon>	
+struct aiocb	aio_sigevent._sigev_un._sigev_thread._function	48		fn(...) *	
+struct aiocb	aio_sigevent._sigev_un._sigev_thread._attribute	56		pthread_attr_t *	
 struct aiocb	__next_prio	96		struct aiocb *	
 struct aiocb	__abs_prio	104		int	
 struct aiocb	__policy	108		int	
@@ -1143,7 +1355,11 @@ Dl_serinfo	dls_size	0		size_t
 Dl_serinfo	dls_cnt	8		unsigned int	
 Dl_serinfo	<anon>	16		union <anon>	size 16 rows 2
 Dl_serinfo	dls_serpath	16		Dl_serpath[0]	
+Dl_serinfo	dls_serpath.dls_name	16		char *	
+Dl_serinfo	dls_serpath.dls_flags	24		unsigned int	
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
+Dl_serinfo	__dls_serpath_pad.dls_name	16		char *	
+Dl_serinfo	__dls_serpath_pad.dls_flags	24		unsigned int	
 Dl_serpath		16	8		
 Dl_serpath	dls_name	0		char *	
 Dl_serpath	dls_flags	8		unsigned int	
@@ -1267,8 +1483,8 @@ struct obstack	chunkfun	56		fn(...) *
 struct obstack	freefun	64		fn(...) *	
 struct obstack	extra_arg	72		void *	
 struct obstack	use_extra_arg	80		unsigned int	bits 1@0
-struct obstack	maybe_empty_object	80		unsigned int	bits 1@0
-struct obstack	alloc_failed	80		unsigned int	bits 1@0
+struct obstack	maybe_empty_object	80		unsigned int	bits 1@1
+struct obstack	alloc_failed	80		unsigned int	bits 1@2
 struct _obstack_chunk		24	8		
 struct _obstack_chunk	limit	0		char *	
 struct _obstack_chunk	prev	8		struct _obstack_chunk *	
@@ -1278,19 +1494,19 @@ struct printf_info	prec	0		int
 struct printf_info	width	4		int	
 struct printf_info	spec	8		wchar_t	
 struct printf_info	is_long_double	12		unsigned int	bits 1@0
-struct printf_info	is_short	12		unsigned int	bits 1@0
-struct printf_info	is_long	12		unsigned int	bits 1@0
-struct printf_info	alt	12		unsigned int	bits 1@0
-struct printf_info	space	12		unsigned int	bits 1@0
-struct printf_info	left	12		unsigned int	bits 1@0
-struct printf_info	showsign	12		unsigned int	bits 1@0
-struct printf_info	group	12		unsigned int	bits 1@0
-struct printf_info	extra	12		unsigned int	bits 1@0
-struct printf_info	is_char	12		unsigned int	bits 1@0
-struct printf_info	wide	12		unsigned int	bits 1@0
-struct printf_info	i18n	12		unsigned int	bits 1@0
-struct printf_info	is_binary128	12		unsigned int	bits 1@0
-struct printf_info	__pad	12		unsigned int	bits 3@0
+struct printf_info	is_short	12		unsigned int	bits 1@1
+struct printf_info	is_long	12		unsigned int	bits 1@2
+struct printf_info	alt	12		unsigned int	bits 1@3
+struct printf_info	space	12		unsigned int	bits 1@4
+struct printf_info	left	12		unsigned int	bits 1@5
+struct printf_info	showsign	12		unsigned int	bits 1@6
+struct printf_info	group	12		unsigned int	bits 1@7
+struct printf_info	extra	12		unsigned int	bits 1@8
+struct printf_info	is_char	12		unsigned int	bits 1@9
+struct printf_info	wide	12		unsigned int	bits 1@10
+struct printf_info	i18n	12		unsigned int	bits 1@11
+struct printf_info	is_binary128	12		unsigned int	bits 1@12
+struct printf_info	__pad	12		unsigned int	bits 3@13
 struct printf_info	user	14		short unsigned int	
 struct printf_info	pad	16		wchar_t	
 struct mallinfo		40	4		
@@ -1324,8 +1540,8 @@ fenv_t	__tags	8		short unsigned int
 fenv_t	__glibc_reserved3	10		short unsigned int	
 fenv_t	__eip	12		unsigned int	
 fenv_t	__cs_selector	16		short unsigned int	
-fenv_t	__opcode	16		unsigned int	bits 11@0
-fenv_t	__glibc_reserved4	16		unsigned int	bits 5@0
+fenv_t	__opcode	16		unsigned int	bits 11@16
+fenv_t	__glibc_reserved4	16		unsigned int	bits 5@27
 fenv_t	__data_offset	20		unsigned int	
 fenv_t	__data_selector	24		short unsigned int	
 fenv_t	__glibc_reserved5	26		short unsigned int	
@@ -1496,7 +1712,7 @@ struct file_handle	handle_type	4		int
 struct file_handle	f_handle	8		unsigned char[0]	
 struct ip		20	4		
 struct ip	ip_hl	0		unsigned int	bits 4@0
-struct ip	ip_v	0		unsigned int	bits 4@0
+struct ip	ip_v	0		unsigned int	bits 4@4
 struct ip	ip_tos	1		uint8_t	
 struct ip	ip_len	2		short unsigned int	
 struct ip	ip_id	4		short unsigned int	
@@ -1510,7 +1726,7 @@ struct ip	ip_dst	16		struct in_addr
 struct ip	ip_dst.s_addr	16		in_addr_t	
 struct iphdr		20	4		
 struct iphdr	ihl	0		unsigned int	bits 4@0
-struct iphdr	version	0		unsigned int	bits 4@0
+struct iphdr	version	0		unsigned int	bits 4@4
 struct iphdr	tos	1		uint8_t	
 struct iphdr	tot_len	2		uint16_t	
 struct iphdr	id	4		uint16_t	
@@ -1546,7 +1762,7 @@ struct tcphdr	th_dport	2		uint16_t
 struct tcphdr	th_seq	4		tcp_seq	
 struct tcphdr	th_ack	8		tcp_seq	
 struct tcphdr	th_x2	12		uint8_t	bits 4@0
-struct tcphdr	th_off	12		uint8_t	bits 4@0
+struct tcphdr	th_off	12		uint8_t	bits 4@4
 struct tcphdr	th_flags	13		uint8_t	
 struct tcphdr	th_win	14		uint16_t	
 struct tcphdr	th_sum	16		uint16_t	
@@ -1557,14 +1773,14 @@ struct tcphdr	dest	2		uint16_t
 struct tcphdr	seq	4		uint32_t	
 struct tcphdr	ack_seq	8		uint32_t	
 struct tcphdr	res1	12		uint16_t	bits 4@0
-struct tcphdr	doff	12		uint16_t	bits 4@0
-struct tcphdr	fin	12		uint16_t	bits 1@0
-struct tcphdr	syn	12		uint16_t	bits 1@0
-struct tcphdr	rst	12		uint16_t	bits 1@0
-struct tcphdr	psh	12		uint16_t	bits 1@0
-struct tcphdr	ack	12		uint16_t	bits 1@0
-struct tcphdr	urg	12		uint16_t	bits 1@0
-struct tcphdr	res2	12		uint16_t	bits 2@0
+struct tcphdr	doff	12		uint16_t	bits 4@4
+struct tcphdr	fin	12		uint16_t	bits 1@8
+struct tcphdr	syn	12		uint16_t	bits 1@9
+struct tcphdr	rst	12		uint16_t	bits 1@10
+struct tcphdr	psh	12		uint16_t	bits 1@11
+struct tcphdr	ack	12		uint16_t	bits 1@12
+struct tcphdr	urg	12		uint16_t	bits 1@13
+struct tcphdr	res2	12		uint16_t	bits 2@14
 struct tcphdr	window	14		uint16_t	
 struct tcphdr	check	16		uint16_t	
 struct tcphdr	urg_ptr	18		uint16_t	
@@ -1576,7 +1792,7 @@ struct tcp_info	tcpi_probes	3		uint8_t
 struct tcp_info	tcpi_backoff	4		uint8_t	
 struct tcp_info	tcpi_options	5		uint8_t	
 struct tcp_info	tcpi_snd_wscale	6		uint8_t	bits 4@0
-struct tcp_info	tcpi_rcv_wscale	6		uint8_t	bits 4@0
+struct tcp_info	tcpi_rcv_wscale	6		uint8_t	bits 4@4
 struct tcp_info	tcpi_rto	8		uint32_t	
 struct tcp_info	tcpi_ato	12		uint32_t	
 struct tcp_info	tcpi_snd_mss	16		uint32_t	
@@ -1651,6 +1867,19 @@ struct icmp	icmp_dun.id_ts.its_rtime	12		uint32_t
 struct icmp	icmp_dun.id_ts.its_ttime	16		uint32_t	
 struct icmp	icmp_dun.id_ip	8		struct <anon>	
 struct icmp	icmp_dun.id_ip.idi_ip	8		struct ip	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_hl	8		unsigned int	bits 4@0
+struct icmp	icmp_dun.id_ip.idi_ip.ip_v	8		unsigned int	bits 4@4
+struct icmp	icmp_dun.id_ip.idi_ip.ip_tos	9		uint8_t	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_len	10		short unsigned int	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_id	12		short unsigned int	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_off	14		short unsigned int	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_ttl	16		uint8_t	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_p	17		uint8_t	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_sum	18		short unsigned int	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_src	20		struct in_addr	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_src.s_addr	20		in_addr_t	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_dst	24		struct in_addr	
+struct icmp	icmp_dun.id_ip.idi_ip.ip_dst.s_addr	24		in_addr_t	
 struct icmp	icmp_dun.id_radv	8		struct icmp_ra_addr	
 struct icmp	icmp_dun.id_radv.ira_addr	8		uint32_t	
 struct icmp	icmp_dun.id_radv.ira_preference	12		uint32_t	
@@ -1958,3 +2187,7 @@ struct elf_siginfo		12	4
 struct elf_siginfo	si_signo	0		int	
 struct elf_siginfo	si_code	4		int	
 struct elf_siginfo	si_errno	8		int	
+struct res_sym		24	8		
+struct res_sym	number	0		int	
+struct res_sym	name	8		char *	
+struct res_sym	humanname	16		char *	

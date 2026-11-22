@@ -348,12 +348,16 @@ pub struct Wide {
     back_len: usize,
     /// The last character read (`_IO_sungetwc`).
     last: Option<u32>,
-    /// A charset character's leading bytes read so far (`Codec::Charset`).
+    /// A charset character's leading bytes read so far (`Codec::Charset`); with `Codec::Text`,
+    /// the partial character's bytes (`partial` of them; `pending_len` stays 0).
     pending: [u8; 8],
     /// How many.
     pending_len: usize,
     /// The bytes of a partial character (`Codec::Text`) read so far.
     partial: usize,
+    /// The partial character's first byte was the first byte of the buffer's latest fill: the
+    /// wide read had no buffered input left when it reached that character (D-12.29).
+    fresh: bool,
 }
 
 /// libniji's state of one stream (D-12.11).
@@ -638,8 +642,11 @@ impl<E: Env> Backing for Live<'_, E> {
                 let mut off = offset;
                 let code = usize::try_from(whence_code(whence)).unwrap_or(0);
                 let r = self.env.call3(c.seek, c.cookie, core::ptr::from_mut(&mut off).expose_provenance(), code);
+                // A failure reports the hook's own `errno`, as the read and write hooks do
+                // (FCLOSE-COOKIE-SEEK): a hook that cannot seek says `ESPIPE`, which a give-back
+                // of read-ahead tolerates (`State::flush`).
                 if r != 0 {
-                    return Err(Errno::EINVAL);
+                    return Err(Errno::new(self.env.errno()).unwrap_or(Errno::EIO));
                 }
                 u64::try_from(off).map_err(|_| Errno::EINVAL)
             }
@@ -1234,7 +1241,15 @@ pub fn setup_standard<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, fd: 
 /// `fclose` after the stream left the open-streams list: flush, release the backing and the
 /// buffer. The stream is gone either way; the first error is reported.
 pub fn close<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<()> {
-    let flushed = if ext.kind == Kind::Closed { Ok(()) } else { flush(env, file, ext) };
+    let flushed = match ext.kind {
+        Kind::Closed => Ok(()),
+        // A cookie stream that is reading drops its read-ahead: no give-back seek through the
+        // caller's hook, so a hook that cannot seek does not fail the close (GitHub #20; probe:
+        // the reference calls no seek hook at close). A descriptor still gets the give-back
+        // (POSIX `fclose`).
+        Kind::Cookie(_) if ext.state.role == Role::Reading => Ok(()),
+        _ => flush(env, file, ext),
+    };
     let closed = match ext.kind {
         Kind::Closed => Ok(()),
         Kind::Fd(fd) => env.sys().close(fd_of(fd)),
@@ -1287,6 +1302,15 @@ fn byte_oriented(file: &[AtomicUsize]) -> bool {
     }
 }
 
+/// A byte read (`fgetc`, `fread`, `fgets`, `getdelim`), `ungetc` or `fputc` makes an undecided
+/// stream byte-oriented (§12.1); on a wide-oriented stream it works on the stream's bytes in
+/// order (D-12.27): the wide layer decodes one character at a time from the same buffer, so
+/// the next byte is the one after the last character delivered (after an invalid sequence,
+/// its first byte), with the indicators a byte operation sets. The orientation stays wide.
+fn byte_access(file: &[AtomicUsize]) {
+    byte_oriented(file);
+}
+
 /// A wide operation makes an undecided stream wide-oriented, converting with `enc` (the
 /// calling thread's locale encoding) from then on. On a byte-oriented stream it fails
 /// (D-12.14): `false`.
@@ -1323,14 +1347,12 @@ fn input_flushes(ext: &Ext) -> bool {
     ext.state.policy != Policy::Full && (ext.state.role != Role::Reading || ext.state.rpos >= ext.state.rend)
 }
 
-/// `fgetc` and `__uflow`: the next byte, `None` at end of input (and on a wide-oriented
-/// stream, D-12.14).
+/// `fgetc` and `__uflow`: the next byte, `None` at end of input (a wide-oriented stream's next
+/// byte too, D-12.27).
 /// STDIO-6: the engine only; the refill path ([`refill`]) is the caller's to try first, before
 /// its locking plumbing, so a first read (no buffer) pays nothing for it here.
 pub fn getc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u8>> {
-    if !byte_oriented(file) {
-        return Ok(None);
-    }
+    byte_access(file);
     getc_raw(env, file, ext)
 }
 
@@ -1414,9 +1436,7 @@ fn getc_raw<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Opt
 
 /// `fread`: bytes into `out`.
 pub fn read<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut [u8]) -> Transfer {
-    if !byte_oriented(file) {
-        return Transfer { done: 0, error: Some(Errno::EINVAL) };
-    }
+    byte_access(file);
     load(file, ext);
     let was_reading = ext.state.role == Role::Reading;
     match read_direct(env, ext, out) {
@@ -1925,9 +1945,7 @@ pub fn get_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize) -> 
 
 /// `fputc` and `__overflow`.
 pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     if window_put(env, file, ext, &[c]) {
         return Ok(());
     }
@@ -1936,9 +1954,7 @@ pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KRes
 
 /// `ungetc`.
 pub fn ungetc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     ungetc_raw(env, file, ext, c)
 }
 
@@ -1972,7 +1988,8 @@ pub fn gets_into<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut
     // STDIO-FGETS: the line is scanned and copied from the window in pieces, one engine run per
     // piece, not per byte. A stream that is not fully buffered reads one window per run, so the
     // line-buffered streams are flushed before every read of the backing, as `getc` does.
-    if room > 0 && byte_oriented(file) {
+    byte_access(file);
+    if room > 0 {
         let once = ext.state.policy != Policy::Full;
         while n < room {
             load(file, ext);
@@ -2139,9 +2156,7 @@ pub fn getdelim<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, lineptr: u
     let mut len = prefix;
     // Set when the growth of the caller's buffer failed: that error is the result, not a read error.
     let mut grow_failed = false;
-    if !byte_oriented(file) {
-        return Ok(None);
-    }
+    byte_access(file);
     // The error indicator stops a record read before it reads, and the result is -1 with
     // `errno` left as the caller had it: the indicator is the report, no error happens in this
     // call (the reference; STDIO-STICKY-ERROR-ERRNO, D-12.1). The bit is read from `_flags`,
@@ -2401,9 +2416,80 @@ fn set_error(file: &[AtomicUsize], ext: &mut Ext) {
 }
 
 /// `fgetwc`: the next wide character, `None` at end of input (an incomplete character there
-/// included, as the reference library has it). An invalid sequence is `EILSEQ` with the
-/// error indicator set, its first byte left unread. On a byte-oriented stream, `None`.
+/// included, unless it began the input read last: then `EILSEQ`, D-12.29). An invalid sequence is `EILSEQ` with the
+/// error indicator set, its bytes (from the first) left unread. On a byte-oriented stream, `None`.
 pub fn getwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
+    if let Some(c) = getwc_front(env, file, ext) {
+        return Ok(Some(c));
+    }
+    getwc_slow(env, file, ext, enc)
+}
+
+/// The front path of [`getwc`] (WIDE-READ-FAST, D-12.30): a stream already wide-oriented on a
+/// UTF-8, ASCII or ISO-8859-1 locale encoding (`Codec::Text`) gets the last character given back
+/// (`ungetwc`), if any; else, reading, with no partial character, whose read window holds the
+/// whole next character, that character decoded in place from the window, its bytes consumed. That is the character the
+/// general path ([`getwc_slow`]) returns byte by byte: the window's bytes are the ones
+/// [`State::getc`] hands out, a byte in the window never refills or flushes the line-buffered
+/// streams and changes no indicator, the conversion state is the initial one whenever no
+/// partial character is held, and the decoder gives the same answer for the bytes at once
+/// ([`text::decode_utf8_initial`]). `None` (nothing touched) for anything else: a character
+/// cut by the window's end, an invalid sequence, an empty window, a charmap or `,ccs=` codec;
+/// the general path then decides. `_IO_read_ptr` and `_IO_read_end` move together (the
+/// published window of a wide stream stays closed at the position, D-12.19).
+/// `ext` is a record [`Env::record`] accepted for this `FILE`; the caller holds the lock or
+/// needs none.
+#[inline(always)]
+pub fn getwc_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> Option<u32> {
+    let words = file.get(..FILE_WORDS)?;
+    if low_int(get(words, word::MODE)) <= 0 {
+        return None;
+    }
+    let Codec::Text(enc) = ext.wide.codec else { return None };
+    if let Some(i) = ext.wide.back_len.checked_sub(1) {
+        // A character given back comes first, as on the general path.
+        let c = ext.wide.back.get(i).copied()?;
+        ext.wide.back_len = i;
+        ext.wide.last = Some(c);
+        return Some(c);
+    }
+    let b = ext.buf;
+    if ext.wide.partial != 0 || b == 0 || ext.state.role != Role::Reading || ext.kind == Kind::Closed {
+        return None;
+    }
+    // As [`load`]: the position from `_IO_read_ptr`; the window ends at the engine's end of data
+    // inside the buffer (an `_IO_read_ptr` past it leaves the window empty: the general path).
+    let at = get(words, word::READ_PTR).wrapping_sub(b);
+    let win = env.bytes(b, ext.buf_len).get(at..ext.state.rend.min(ext.buf_len))?;
+    let (c, n) = decode_front(win, enc)?;
+    let to = at + n;
+    set(words, word::READ_PTR, b + to);
+    set(words, word::READ_END, b + to);
+    ext.state.rpos = to;
+    ext.wide.last = Some(c);
+    Some(c)
+}
+
+/// One whole character of `enc` from the start of `win`, and its length; `None` when `win`
+/// does not begin with one (empty, cut short, invalid) or `enc` is a charmap.
+#[inline(always)]
+fn decode_front(win: &[u8], enc: Encoding) -> Option<(u32, usize)> {
+    let &b0 = win.first()?;
+    match enc {
+        Encoding::Ascii if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Latin1 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 if b0 < 0x80 => Some((u32::from(b0), 1)),
+        Encoding::Utf8 => match text::decode_utf8_initial(|i| win.get(i).copied()) {
+            (Decoded::Char(c, n), _) => Some((c, n)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// [`getwc`] past its front path ([`getwc_front`]): the general path, unchanged.
+#[inline(never)]
+pub fn getwc_slow<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, enc: Encoding) -> KResult<Option<u32>> {
     if !wide_oriented(file, ext, enc) {
         return Ok(None);
     }
@@ -2429,8 +2515,8 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
             Ok(Some(u32::from_ne_bytes(u)))
         }
         Codec::Text(enc) => loop {
-            // At end of file a partial character stays pending (the position excludes it).
-            let Some(b) = getc_raw(env, file, ext)? else { return Ok(None) };
+            // At end of file a partial character's bytes go back unread (D-12.28).
+            let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
             let mut st = ext.wide.decode;
             match text::decode(&mut st, &[b], enc) {
                 Decoded::Char(c, _) => {
@@ -2445,20 +2531,32 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 }
                 Decoded::Incomplete => {
                     ext.wide.decode = st;
+                    if ext.wide.partial == 0 {
+                        ext.wide.fresh = ext.state.rpos == RESERVE + 1;
+                    }
+                    if let Some(slot) = ext.wide.pending.get_mut(ext.wide.partial) {
+                        *slot = b;
+                    }
                     ext.wide.partial += 1;
                 }
                 Decoded::Invalid | Decoded::Continuation(_) => {
+                    let n = ext.wide.partial;
+                    if let Some(slot) = ext.wide.pending.get_mut(n) {
+                        *slot = b;
+                    }
                     ext.wide.decode = MbState::INITIAL;
                     ext.wide.partial = 0;
-                    ungetc_raw(env, file, ext, b)?;
-                    set_error(file, ext);
-                    return Err(Errno::EILSEQ);
+                    return invalid_sequence(env, file, ext, n + 1);
                 }
             }
         },
         Codec::Charset { mut dec, enc } => loop {
-            let Some(b) = getc_raw(env, file, ext)? else { return Ok(None) };
+            let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
+            let lead = ext.state.rpos == RESERVE + 1;
             let w = &mut ext.wide;
+            if w.pending_len == 0 {
+                w.fresh = lead;
+            }
             let Some(slot) = w.pending.get_mut(w.pending_len) else {
                 w.pending_len = 0;
                 set_error(file, ext);
@@ -2479,14 +2577,66 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 Ok(_) if o.read == w.pending_len => w.pending_len = 0,
                 Err(Errno::EINVAL) | Ok(_) => {}
                 Err(_) => {
+                    let n = w.pending_len;
                     w.pending_len = 0;
-                    set_error(file, ext);
-                    return Err(Errno::EILSEQ);
+                    return invalid_sequence(env, file, ext, n);
                 }
             }
         },
         Codec::Unset => Err(Errno::EINVAL),
     }
+}
+
+/// An invalid sequence, its `n` bytes read so far in `ext.wide.pending`: they go back to the
+/// stream, so a byte read returns its first byte and the bytes after it in order, and a wide
+/// read meets it again (D-12.27); `EILSEQ` with the error indicator. A sequence cut short by a
+/// byte that cannot continue it keeps its leading bytes this way, as a single invalid byte does.
+#[cold]
+#[inline(never)]
+fn invalid_sequence<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, n: usize) -> KResult<Option<u32>> {
+    let seq = ext.wide.pending;
+    for &b in seq.get(..n).unwrap_or(&seq).iter().rev() {
+        ungetc_raw(env, file, ext, b)?;
+    }
+    set_error(file, ext);
+    Err(Errno::EILSEQ)
+}
+
+/// End of input, `WEOF`. Inside a character (its bytes read so far: `partial` of
+/// `Codec::Text`, `pending_len` of `Codec::Charset`, in `ext.wide.pending`), the conversion
+/// state is reset, and then (D-12.29):
+/// * the character's first byte began the buffer's latest fill (`ext.wide.fresh`: no buffered
+///   input was left when the read reached it): its bytes are consumed, `EILSEQ` with the error
+///   indicator, the end-of-file indicator clear; the position includes them;
+/// * otherwise they go back to the stream: a byte read returns them, the position excludes
+///   them, and a wide read after more input arrives decodes them again; the end-of-file
+///   indicator stays set (D-12.28).
+#[cold]
+#[inline(never)]
+fn end_of_input<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u32>> {
+    let n = ext.wide.partial + ext.wide.pending_len;
+    if n == 0 {
+        return Ok(None);
+    }
+    ext.wide.decode = MbState::INITIAL;
+    ext.wide.partial = 0;
+    ext.wide.pending_len = 0;
+    if ext.wide.fresh {
+        ext.wide.fresh = false;
+        load(file, ext);
+        ext.state.eof = false;
+        ext.state.err = true;
+        store(file, ext);
+        return Err(Errno::EILSEQ);
+    }
+    let seq = ext.wide.pending;
+    for &b in seq.get(..n).unwrap_or(&seq).iter().rev() {
+        ungetc_raw(env, file, ext, b)?;
+    }
+    load(file, ext);
+    ext.state.eof = true;
+    store(file, ext);
+    Ok(None)
 }
 
 /// `ungetwc`: give `c` back (up to [`WIDE_BACK`] characters); clears the end-of-file indicator.

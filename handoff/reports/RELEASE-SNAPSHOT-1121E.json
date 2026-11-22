@@ -1,0 +1,26 @@
+{"task": "RELEASE-SNAPSHOT-1121E", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 97bf3542f (serial 6: 2.39+niji20261121.6-1, staged snapshot-20261121.6): #13 fixed (memcheck with the whole libc6-dbg as stock), #6 CJK fixed (26 names round-trip as glibc 2.39), 600 libraries load; other checks as 21.5; plants 6/6; start-up +1,408 instr / +5 faults (finding 1)",
+ "branch": "task/release-snapshot-1121e", "head": "f93c0a1c7",
+ "gate": {"affected": "GATE bad=0 (handoff-only branch); 37 named jobs rc 0", "peak": "2.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Start-up +1,408 user instructions and +5 page faults (+6 with 3 libraries) per process vs 21.5 on Skylake-SP and Zen 1; syscalls unchanged; libc.so.6 +71 RELATIVE relocations, 40 of them in the ICONV-CJK table descriptors; faults not attributed (layout). Recommend routing to ICONV-CJK's owner / start-up owners; not blocking.",
+   "memcheck under libniji reports 4,104 bytes still reachable at exit where stock reports 0 (also in 21.5); route to VALGRIND-LOADER-VIEW.",
+   "libc-bin's getconf grew by 459,136 B (about the CJK tables' size) and ldd by 65,920 B.",
+   "RELEASE-NOTES.md mentions none of #6 CJK, #13, #14, #20; doccheck 23 problems as 21.5."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "#13: valgrind memcheck with the whole libc6-dbg: error summaries as stock for /bin/true, C, C++ and leaking programs (21.5 aborted)", "before": 3, "after": 0, "unit": "failing y13 rows", "measured": true},
+   {"kind": "correctness", "what": "#6: CJK iconv rows (26 names open + round trip, 5 iconv-program round trips) differing from stock", "before": 13, "after": 0, "unit": "failing rows", "measured": true},
+   {"kind": "correctness", "what": "dlopen of 600 libraries (DL-PROCESS-OBJECTS-2)", "before": 509, "after": 600, "unit": "libraries loaded", "measured": true},
+   {"kind": "cost", "what": "start-up user instructions, empty main, Skylake-SP (in the head; fix-forward routed)", "before": 741532, "after": 742940, "unit": "instr/process", "measured": true},
+   {"kind": "faults", "what": "start-up page faults, empty main, both classes (in the head; not attributed)", "before": 51, "after": 56, "unit": "faults/process", "measured": true},
+   {"kind": "unblock", "what": "snapshot-2026-11-21.6 staged for tagging; Yohane #6 and #13", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A snapshot chain should never join an expected-rc-1 check to the next job with && (eetwet was skipped); and the y6c/dpo600 checks should become part of the copied set so the next snapshot gets them for free.",
+ "next_step": "Coordinator: tag snapshot-2026-11-21.6 from keke ~/release-staging/snapshot-20261121.6/ at 97bf3542f when the owner says so; tell Yohane #13 and #6 (CJK) fixed; route findings 1-4.",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1121E.md",
+ "jobs": ["release-snapshot-1121e-smoke-mei-1", "release-snapshot-1121e-gate-1", "release-snapshot-1121e-startup-mei-1", "release-snapshot-1121e-kstart-mei-1", "release-snapshot-1121e-rstart-mei-1", "release-snapshot-1121e-sig32-1", "release-snapshot-1121e-y20-1", "release-snapshot-1121e-dpo600-1", "release-snapshot-1121e-debs-1", "release-snapshot-1121e-plants-1", "release-snapshot-1121e-lint-1", "release-snapshot-1121e-many-1", "release-snapshot-1121e-dyn22-1", "release-snapshot-1121e-y19-1", "release-snapshot-1121e-y26-1", "release-snapshot-1121e-y26t-1", "release-snapshot-1121e-y23-1", "release-snapshot-1121e-c19-1", "release-snapshot-1121e-y25-1", "release-snapshot-1121e-y24-1", "release-snapshot-1121e-y28-1", "release-snapshot-1121e-y25s-1", "release-snapshot-1121e-y21-1", "release-snapshot-1121e-yres-1", "release-snapshot-1121e-y23p-1", "release-snapshot-1121e-dlc-1", "release-snapshot-1121e-y27-1", "release-snapshot-1121e-y13-1", "release-snapshot-1121e-y6c-1", "release-snapshot-1121e-eetwet-1", "release-snapshot-1121e-precheck-1", "keke:release-snapshot-1121e-smoke-keke-1", "keke:release-snapshot-1121e-startup-keke-1", "keke:release-snapshot-1121e-kstart-keke-1", "keke:release-snapshot-1121e-rstart-keke-1", "keke:release-snapshot-1121e-pkgdiff-1", "keke:release-snapshot-1121e-stage-1", "keke:release-snapshot-1121e-install-1"]
+}

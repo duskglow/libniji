@@ -18,6 +18,7 @@ pub mod tls;
 pub mod futex;
 pub mod sync;
 pub mod heap;
+pub mod chunks;
 pub mod thread;
 pub mod pthread_sync;
 pub mod signal;

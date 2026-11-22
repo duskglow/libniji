@@ -22,6 +22,18 @@ fn iconv_listing_names_match_the_builtins() {
     let extra: Vec<_> = h.difference(&l).map(|n| String::from_utf8_lossy(n).into_owned()).collect();
     assert!(missing.is_empty() && extra.is_empty(), "iconv-names.h lacks {missing:?}, has unknown {extra:?}");
     for n in &header {
-        assert!(niji::iconv::builtin(n).is_some(), "{} is not a built-in name", String::from_utf8_lossy(n));
+        assert!(niji::iconv::builtin(niji::iconv::parse_name(n).name).is_some(), "{} is not a built-in name", String::from_utf8_lossy(n));
     }
+}
+
+#[test]
+fn iconv_listing_aliases_match_the_library() {
+    // Trace: s31_6_g_3 (`-l` lists the names the command accepts: the alias rows `iconv -l` offers
+    // are the rows iconv_open looks up, `csys/util/iconv-aliases.h` against `spec/encoding/iconv-aliases.tsv`).
+    let text = include_str!("../../../csys/util/iconv-aliases.h");
+    let body = text.split_once("ALIAS_ROWS[][2] = {").unwrap().1.split_once("};").unwrap().0;
+    let quoted: Vec<&str> = body.split('"').skip(1).step_by(2).collect();
+    let header: Vec<(&[u8], &[u8])> = quoted.chunks(2).map(|p| (p[0].as_bytes(), p[1].as_bytes())).collect();
+    let lib: Vec<(&[u8], &[u8])> = niji::iconv::charmap_aliases().collect();
+    assert_eq!(header, lib, "iconv-aliases.h and the library's alias rows differ");
 }

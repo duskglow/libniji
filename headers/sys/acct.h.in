@@ -1,0 +1,16 @@
+@@generated
+/* sys/acct.h: acct(2), process accounting */
+#ifndef __NIJI_H_sys_acct_h
+#define __NIJI_H_sys_acct_h 1
+
+#include <features.h>
+#include <stdint.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

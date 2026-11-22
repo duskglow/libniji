@@ -1,0 +1,45 @@
+{
+ "task": "DL-RUNPATH-SECURE-TEST",
+ "model": "opus",
+ "tokens": null,
+ "result": "secure_dlopen_caller_origin_only_trusted: a dlopen caller library's own $ORIGIN in secure mode (forced AT_SECURE, no root) is searched only from a trusted directory, whatever the program's; 2 plants on search::expand CAUGHT; no defect found, no loader change",
+ "branch": "task/dl-runpath-secure-test",
+ "head": "2e469cdf3",
+ "gate": {
+  "affected": "1 suite, 6 passed / 0 failed, 0 SKIPPED lines",
+  "peak": "834M"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Premise partly stale (#7440, accepted): the program-$ORIGIN secure test secure_dlopen_origin_only_trusted and plant no-secure-rule landed with DL-RUNPATH-2; only the caller part and plants on the rule itself were added",
+  "The owner's set-user-ID probe commands for the caller case: handoff/DL-RUNPATH-SECURE-TEST.md (nothing run as root)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "tests: secure_dlopen_caller_origin_only_trusted (4 cases: keep, untrusted, trusted program only, trusted caller only)",
+   "before": 5,
+   "after": 6,
+   "unit": "runpath_search tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the secure-mode $ORIGIN rule in search::expand (drop, invert), both CAUGHT",
+   "before": 0,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A brief generated from a hand-back should be checked against the later continuation runs' handoff (DL-RUNPATH-2 had already added the test this brief said was missing).",
+ "next_step": "Land; then the owner's set-user-ID probe (handoff/DL-RUNPATH-SECURE-TEST.md) settles the reference's caller-$ORIGIN behaviour",
+ "report_file": "handoff/DL-RUNPATH-SECURE-TEST.md",
+ "jobs": [
+  "mei:dl-runpath-secure-test-gate",
+  "mei:dl-runpath-secure-test-plants",
+  "mei:dl-runpath-secure-test-check1"
+ ]
+}

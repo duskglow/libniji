@@ -22,6 +22,7 @@ Slice 16 (SL-HEADERS-S16): layouts.tsv rerun with abi_extract.py --layouts-only 
 Slice 16 (SL-HEADERS-S16): La_x86_64_regs, La_x86_64_retval, La_x86_64_xmm, La_x86_64_ymm, La_x86_64_zmm, La_x86_64_vector added to layouts.tsv (abi_extract.py --layouts-only).
 Slice 16 (SL-HEADERS-S16-2): Dl_serpath and struct cpuid_feature added to layouts.tsv (abi_extract.py --layouts-only): 2 types added, earlier rows unchanged. GCC 13.3, glibc 2.39.
 Slice 16 (SL-HEADERS-S16-2): the p_type member of Elf32_Phdr and Elf64_Phdr is spelled __p_type in the DWARF of abi_extract.py's probe and p_type by every program that uses it (conformance/c/s27_dladdr.c): the two rows were respelled by hand; abi_extract.py needs a rerun check (handoff/SL-HEADERS-S16-2.md).
+Slice 7 (SL-HEADERS-S07): utime.h added to the prototype headers (utime row), struct statx_timestamp to the layout types (4 rows); abi_extract.py --layouts-only and --prototypes-only on the reference system, other rows unchanged (the two sched_*attr prototype rows of the committed table are kept: a full rerun does not produce them). callsites.tsv and noexcept.tsv: the utime rows from callsite_probe.py --names utime.
 sys/reg.h and sys/debugreg.h names (SL-HEADERS-S09, ruling #6399): 53 rows in macros.tsv and constants.tsv by
 spec/tools/uapi_regs_table.py. Kernel ABI, so the source is the kernel: the register indexes are the member order of
 `struct user_regs_struct` (layouts.tsv; its first 21 members are the UAPI `struct pt_regs` of asm/ptrace.h), the DR_ names
@@ -31,3 +32,8 @@ the reference (exit status only: the macro exists, with this value and type); si
 rows of the two headers by header_probe.py --headers sys/reg.h,sys/debugreg.h (27 and 26 macros, every configuration).
 Slice 16 (SL-HEADERS-S16-3, ruling #6472): the visibility.tsv rows of link.h `La_x86_64_regs` and `La_x86_64_retval` were edited by hand from `!time64only,cxx98,...` (C only, as probed) to `!time64only`: libniji declares them in C++ too, because the C++ prototypes of the la_* entry points name them (D-X.130; docs/differences-from-glibc.md). A rerun of header_probe.py would restore the probed rows.
 Slice 16 (SL-HEADERS-S16-4): typedefs.tsv rows of link.h La_x86_64_vector, La_x86_64_xmm, La_x86_64_ymm, La_x86_64_zmm and their visibility.tsv rows (`!time64only`, as La_x86_64_regs) added by hand, sizes and alignments from layouts.tsv; the element type of La_x86_64_xmm (float, 4 lanes) from a probe of the reference system (sizeof and element type of the typedef). ymm and zmm are 32 and 64 bytes aligned to 16, which a `vector_size` typedef cannot spell, so their rows are memberless (an aligned structure): RULING NEEDED for HEADERS-TABLES-COMPLETE (aligned vector typedefs).
+enumerators.tsv, layouts.tsv (HEADERS-TABLES-COMPLETE): abi_extract.py --layouts-only on the reference system (ldd (Ubuntu
+GLIBC 2.39-0ubuntu8.9) 2.39, GCC 13.3), one DWARF probe: members at every depth and the first element of arrays of
+aggregates (48 rows added), bit-field positions `bits W@P` from DW_AT_bit_offset/byte_size (38 rows changed, the
+other 1874 rows unchanged), 310 enumerators of the named enumerations. The script before the change reproduced the
+committed layouts.tsv byte for byte on the same system.

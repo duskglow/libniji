@@ -15,22 +15,74 @@ mod oracle;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`).
-const CHARSETS: [&str; 1] = ["EUC-JP"];
+/// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`, `cjk.rs`).
+const CHARSETS: [&str; 7] = ["EUC-JP", "BIG5", "EUC-KR", "CP949", "CP932", "CP936", "GB18030"];
+
+/// Charsets whose sequences longer than two bytes are compared as one hash per two-byte prefix
+/// (the oracle's `-c`): GB18030's four-byte area is 165 million lines.
+const COMPACT: [&str; 1] = ["GB18030"];
 
 /// Blocks of 256 code points whose `//TRANSLIT` hash (`BT`) differs by decision, per charset:
 /// the built-in `C` locale's transliteration is derived from the UCD, not the reference library's
 /// table (D-6.9; e.g. U+00AD, U+00B2, U+00B5, U+2014). A `BT` difference in any other block fails;
 /// a listed block that stops differing is only noted (the transliteration may improve).
-const TRANSLIT_BLOCKS: [(&str, &[u32]); 1] = [(
-    "EUC-JP",
-    &[
-        0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF,
-        0x107, 0x1D4, 0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
-    ],
-)];
+const TRANSLIT_BLOCKS: [(&str, &[u32]); 6] = [
+    (
+        "CP949",
+        &[
+            0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4,
+            0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+    (
+        "EUC-JP",
+        &[
+            0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF,
+            0x107, 0x1D4, 0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+    (
+        "BIG5",
+        &[
+            0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4, 0x1D6, 0x1D7,
+            0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+    (
+        "EUC-KR",
+        &[
+            0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4,
+            0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+    (
+        "CP932",
+        &[
+            0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4,
+            0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+    (
+        "CP936",
+        &[
+            0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF, 0x107, 0x1D4,
+            0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+        ],
+    ),
+];
 
 /// Whether line `w` is a `//TRANSLIT` block hash of `cs` that may differ (D-6.9).
+/// Sequences whose result libniji's own unit test fixes instead of this comparison (charset, the
+/// sequence's hex): CP949's A2E8 is a pair CP949.TXT does not assign, invalid with nothing consumed
+/// (`crates/core/src/iconv/cjk.rs`, `cp949_cells_and_unassigned_pair`).
+const OWN_TEST: [(&str, &str); 1] = [("CP949", "A2E8")];
+
+/// Whether the reference line `w` is an I or G line of an [`OWN_TEST`] sequence.
+fn own_test(cs: &str, w: &str) -> bool {
+    let mut f = w.split(' ');
+    matches!(f.next(), Some("I" | "G")) && f.next().is_some_and(|seq| OWN_TEST.contains(&(cs, seq)))
+}
+
 fn recorded(cs: &str, w: &str) -> bool {
     let Some(block) = w.strip_prefix("BT ").and_then(|r| r.split(' ').next()).and_then(|b| u32::from_str_radix(b, 16).ok()) else { return false };
     TRANSLIT_BLOCKS.iter().any(|(c, blocks)| *c == cs && blocks.contains(&block))
@@ -69,7 +121,7 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
     let mut compared = 0;
     for cs in CHARSETS {
         let run = |exe: &Path| -> String {
-            let o = Command::new(exe).arg(cs).env_clear().output().unwrap();
+            let o = Command::new(exe).args(COMPACT.contains(&cs).then_some("-c")).arg(cs).env_clear().output().unwrap();
             assert!(o.status.success(), "{} {cs} failed: {:?}", exe.display(), o.status);
             String::from_utf8_lossy(&o.stdout).into_owned()
         };
@@ -81,6 +133,9 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
         let got = run(&ours);
         let (mut diffs, mut same) = (0, 0);
         for (k, (w, g)) in want.lines().zip(got.lines()).enumerate() {
+            if own_test(cs, w) {
+                continue;
+            }
             if recorded(cs, w) {
                 same += usize::from(w == g);
                 continue;

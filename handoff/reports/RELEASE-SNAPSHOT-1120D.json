@@ -1,0 +1,34 @@
+{
+ "task": "RELEASE-SNAPSHOT-1120D",
+ "model": "opus",
+ "tokens": null,
+ "result": "snapshot-ready at 0e5a87e92: snapshot-20261120.4 staged; #25 (forced unwind on pthread_exit / cancellation) fixed end to end: the issue's reproducer and 10 probe cases built with trixie's g++ 14 are cmp-identical to stock glibc in the swapped root (20.3: 10 of 10 differ, ptask/async hang); every other check identical to 20.3",
+ "branch": "task/release-snapshot-1120d",
+ "head": null,
+ "gate": {
+  "affected": "gate-1 on 0e5a87e92 and gate-3 on the final head (handoff-only), same gate.sh: clippy --all-features, xtask clippy, static, records check, affected --base origin/next; gate-2 red on static private-paths (two home paths in leg 1's handoff note), fixed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "coexist niji6/niji6-dev version 0.0~snapshot20261120+0e5a87e92723 sorts below 20.3's 0.0~snapshot20261120+b732d9b46a41 (dpkg --compare-versions lt): apt sees 20.3 -> 20.4 of the coexist packages as a downgrade (1120B finding 1, now hit); system packages 2.39+niji20261120.4-1 order right", "recommendation": "not blocking for Yohane (system packages); packaging story to put the snapshot serial into the coexist version; release notes tell coexist users to install 20.4 with dpkg -i or an explicit version"}
+ ],
+ "informational": [
+  "start-up vs 20.3: +44 user instructions per start (Skylake-SP and Zen 1, empty main / 3 libraries / clock_gettime), one page fault fewer in every row; kernel instructions 8-21k lower (one fault fewer; run spread 5-10k); syscalls unchanged (glibc +18-21 fewer with 3 libraries)",
+  "docs: no RELEASE-NOTES entry and no docs sentence for #25 (THREAD-FORCED-UNWIND-3, D-22.19); changed user docs since 20.3: compat-flags COMPAT-32/33/34 and differences rows getumask, bsd_signal, MS_* macros, <sys/vm86.h>, struct _IO_FILE after <mntent.h>; doccheck the same 23 problems; route to a docs story",
+  "unchanged from 20.3: dbg Breakpoint 1.1; bare-name dlopen through $ORIGIN DT_RUNPATH (y10); libc6-dev ships no C headers (yohane fail=2); DBG 17 of 19 (ruling #6321); #23 cut-short sequences (1120C finding 1, y23 11/2)",
+  "evidence jobs not named in JOBS: debs-1, roots-1, yohane-1, y10-1, y23-1 (rc 1 on known unchanged failures), y25-ref203-1 (20.3's packages, rc 1 by design)",
+  "plants WARN-DEV-SHM: the brief prescribes /dev/shm for plants on the Zen 1 host while cargo xtask plants warns that /dev/shm hides the copy from tests that mount their own /dev; no plant here depends on it"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "#25 probe table (issue reproducer + 9 fu cases) under the snapshot's packages in a trixie root, g++ 14: cases cmp-identical to stock glibc", "before": 0, "after": 10, "unit": "cases of 10", "measured": true},
+  {"kind": "unblock", "what": "snapshot-2026-11-20.4 staged for Yohane Linux (#25)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "start-up empty main vs snapshot-2026-11-20.3 (Skylake-SP), user instructions", "before": 788635, "after": 788679, "unit": "instructions", "measured": true},
+  {"kind": "faults", "what": "start-up page faults, every program, both classes, vs 20.3 (empty main Skylake-SP shown)", "before": 57, "after": 56, "unit": "faults", "measured": true}
+ ],
+ "improvement": "copied snapshot scripts carry stale labels (cmp.sh prints 'vs 1120b' while reading 1120c logs; usage comments name 20.2): subst.sed should rewrite the previous snapshot's id too, or the scripts should take the base snapshot as a variable",
+ "next_step": "coordinator: tag snapshot-2026-11-20.4 from the staged dir at 0e5a87e92 when the owner says so, tell Yohane #25 is fixed; rule on the coexist version order; route the docs finding",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1120D.md",
+ "jobs": ["keke:release-snapshot-1120d-gate-3", "keke:release-snapshot-1120d-plants-1", "keke:release-snapshot-1120d-smoke-keke-1", "keke:release-snapshot-1120d-startup-keke-1", "keke:release-snapshot-1120d-kstart-keke-1", "keke:release-snapshot-1120d-pkgdiff-1", "keke:release-snapshot-1120d-stage-1", "keke:release-snapshot-1120d-install-1", "mei:release-snapshot-1120d-smoke-mei-1", "mei:release-snapshot-1120d-startup-mei-1", "mei:release-snapshot-1120d-kstart-mei-1", "mei:release-snapshot-1120d-lint-1", "mei:release-snapshot-1120d-many-1", "mei:release-snapshot-1120d-dyn22-1", "mei:release-snapshot-1120d-y19-1", "mei:release-snapshot-1120d-y26-1", "mei:release-snapshot-1120d-y26t-1", "mei:release-snapshot-1120d-c19-1", "mei:release-snapshot-1120d-y25-1"]
+}

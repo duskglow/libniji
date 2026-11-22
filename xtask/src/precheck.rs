@@ -56,6 +56,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::time::{Instant, SystemTime};
 
+/// `cargo xtask test`'s first argument from an escalated `affected` run whose prechecks ran every [`CHEAP_STEPS`]
+/// entry green on the same tree: `test` then skips them (run once, not twice; TOOLING-PAPERCUTS, audit item 9).
+pub(crate) const CHEAP_DONE: &str = "--cheap-steps-done";
+
 /// The steps of the FULL tier that take seconds, in `test_steps` order (main.rs runs them from this list), with
 /// `stubs` first (the FULL gate's own first step). `affected` runs these as prechecks of an escalated run.
 pub(crate) const CHEAP_STEPS: &[&str] = &[

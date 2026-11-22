@@ -11,7 +11,10 @@ one come from `spec/abi/visibility.tsv`. Writes two tables into spec/abi/ (or --
   spelling that enters C++ linkage names: `FILE` is spelled through its tag). For an object, `cxx` is its
   declared type (`decltype(O)`); for a function, its function type with the parameter typedefs resolved.
 * `macros.tsv`    name, header, type, value: the C type of each integer constant (`_Generic`) with its
-  value, and the type and value of each floating macro (hexadecimal, exact) and string macro.
+  value, and the type and value of each floating macro (hexadecimal, exact) and string macro. A macro whose
+  value is a pointer constant that is a small or a negated small address (`SIG_DFL`, `SIG_ERR`, `SEM_FAILED`,
+  `PTHREAD_CANCELED`) has type `pointer` and the signed address as its value; the pointer's own type is the
+  header's to spell.
 
 Clean room (plan/headers.md section 2.2, ruling R-H0). A probe unit includes one public header and declares
 objects and functions of its own, one test per line. The probe reads back exactly three things: the line
@@ -52,7 +55,9 @@ FLOAT_SEL = ", ".join(f"{t}: {i + 1}" for i, t in enumerate(FLOAT_ORDER))
 # Not header facts: compiler macros whose value depends on the probe unit itself (its path, line, build time),
 # the type keywords visibility.tsv's empty unit shows as typedefs (`long *p;` declares), and `main`.
 POSITIONAL = {"__FILE__", "__LINE__", "__DATE__", "__TIME__", "__TIMESTAMP__", "__COUNTER__", "__BASE_FILE__",
-              "__FILE_NAME__", "__INCLUDE_LEVEL__", "long", "short", "signed", "unsigned", "main"}
+              "__FILE_NAME__", "__INCLUDE_LEVEL__", "long", "short", "signed", "unsigned", "main",
+              # NULL is the language's null pointer constant: C++ spells it `__null`, so no value fits both.
+              "NULL"}
 MISSING = object()
 
 
@@ -197,6 +202,10 @@ def probe_c(header, kinds, names_undef, work, flags=C_CFG[2]):
         u.test(("flt", n), f"_Static_assert(_Generic(({n}), {FLOAT_SEL}, default: 0), \"f\"); "
                            f"const int tp_k_{n} = _Generic(({n}), {FLOAT_SEL}); const __typeof__({n}) tp_f_{n} = ({n});")
         u.test(("str", n), f"_Static_assert(_Generic(({n}), char *: 1, default: 0), \"s\"); const char tp_s_{n}[] = {n};")
+        # A pointer constant whose address is known at translation time (not an object's or a string's address).
+        u.test(("ptr", n), f"_Static_assert(__builtin_classify_type({n}) == 5, \"p\"); "
+                           f"_Static_assert((unsigned long)({n}) < 4096UL || (unsigned long)({n}) > -4096UL, \"p\"); "
+                           f"const long tp_p_{n} = (long)({n});")
     for n in sorted(names_undef):
         u.raw(f"#undef {n}")
     for kind in ("typedef", "struct", "union", "enum"):
@@ -232,6 +241,8 @@ def probe_c(header, kinds, names_undef, work, flags=C_CFG[2]):
         elif f"tp_s_{n}" in data:
             s = data[f"tp_s_{n}"]
             macros[n] = (f"char[{len(s)}]", c_string(s[:-1]))
+        elif f"tp_p_{n}" in data:
+            macros[n] = ("pointer", str(struct.unpack("<q", data[f"tp_p_{n}"])[0]))
     return sizes, macros
 
 
@@ -270,32 +281,53 @@ def retry_missing(args):
     macros, run-time values) stay without a row: a header template owns them."""
     ids = [c[0] for c in hp.CONFIGS]
     mine = set(args.headers.split(","))
+    names = set(args.names.split(",")) if args.names else None
     have = {r["name"] for r in hp.tsv("macros.tsv")}
-    shown = {}
-    for r in hp.tsv("visibility.tsv"):
-        if r["kind"] in ("macro", "enumerator") and r["header"] != "-" and in_config(r["configs"], C_CFG[0], ids):
-            shown.setdefault(r["name"], set()).add(r["header"])
+    # A name no header shows in `gnu` (`FNM_NOSYS`: X/Open only) is probed in the first C configuration (in
+    # header_probe.CONFIGS order) that shows it, with that configuration's flags.
+    vis = [r for r in hp.tsv("visibility.tsv") if r["kind"] in ("macro", "enumerator") and r["header"] != "-"]
+    shown, flags = {}, {}
+    for cid, _, fl, _ in [C_CFG] + [c for c in hp.CONFIGS if c[1] == "c" and c[0] != C_CFG[0]]:
+        for r in vis:
+            if flags.get(r["name"], fl) == fl and in_config(r["configs"], cid, ids):
+                shown.setdefault(r["name"], set()).add(r["header"])
+                flags[r["name"]] = fl
     pending = {n: sorted(hs, key=lambda h: (h not in mine, h)) for n, hs in shown.items()
-               if n not in have and hhs_hit(hs, mine) and not n.startswith("__") and n not in POSITIONAL}
+               if n not in have and hhs_hit(hs, mine) and not n.startswith("__") and n not in POSITIONAL
+               and (names is None or n in names)}
+    constants = {r["macro"]: r["value"] for r in hp.tsv("constants.tsv")}
     found = {}
     for attempt in range(RETRY_HEADERS):
         plan = {}
         for n, hs in pending.items():
             if n not in found and attempt < len(hs):
-                plan.setdefault(hs[attempt], []).append(n)
+                plan.setdefault((hs[attempt], flags[n]), []).append(n)
         if not plan:
             break
         work = tempfile.mkdtemp(prefix="type_probe.")
         try:
             os.makedirs(os.path.join(work, "c"))
+            os.makedirs(os.path.join(work, "c++"))
+            keys = sorted(plan)
             with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-                res = list(ex.map(lambda h: probe_c(h, {"macro": plan[h]}, set(), os.path.join(work, "c")),
-                                  sorted(plan)))
+                res = list(ex.map(lambda k: probe_c(k[0], {"macro": plan[k]}, set(), os.path.join(work, "c"), k[1]),
+                                  keys))
+            for k, (_, macros) in zip(keys, res):
+                for n, tv in macros.items():
+                    found[n] = (k[0], tv[0], tv[1])
+            # A pointer constant (`SIG_DFL`, `MAP_FAILED`): its type is the C++ spelling of `decltype` (nm -C, as for
+            # the typedefs), kept when it is a pointer type; its value is its constants.tsv integer.
+            rest = {k: [n for n in v if n not in found and n in constants] for k, v in plan.items()}
+            rest = {k: v for k, v in rest.items() if v}
+            with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+                spelled = list(ex.map(lambda k: probe_cxx(k[0], {"object": rest[k]}, set(), os.path.join(work, "c++")),
+                                      sorted(rest)))
+            for k, sp in zip(sorted(rest), spelled):
+                for (_, n), t in sp.items():
+                    if t.endswith("*") or "(*)" in t:
+                        found[n] = (k[0], t, constants[n])
         finally:
             shutil.rmtree(work, ignore_errors=True)
-        for h, (_, macros) in zip(sorted(plan), res):
-            for n, tv in macros.items():
-                found[n] = (h, tv[0], tv[1])
     # The existing lines are kept byte for byte (string values are stored quoted).
     with open(os.path.join(ABI, "macros.tsv"), newline="") as f:
         head, *old = f.read().splitlines()
@@ -316,6 +348,7 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--headers", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--names", default="", help="with --retry-missing: only these names (comma-separated)")
     ap.add_argument("--retry-missing", action="store_true",
                     help="probe the macros of --headers that have no macros.tsv row in their other headers")
     args = ap.parse_args()
@@ -389,7 +422,8 @@ def main():
                        for k, v in ks.items()) for lang in plan}
     print(f"units {len(jobs)}  C names {asked['c']}  C++ names {asked['c++']}  typedefs.tsv rows {len(trows)}"
           f"  macros.tsv rows {len(mrows)} (integer {sum(1 for r in mrows if r[2] in INT_TYPES)},"
-          f" floating {sum(1 for r in mrows if r[2] in FLOAT_TYPES)}, string {sum(1 for r in mrows if r[2].startswith('char['))})")
+          f" floating {sum(1 for r in mrows if r[2] in FLOAT_TYPES)}, string {sum(1 for r in mrows if r[2].startswith('char['))},"
+          f" pointer {sum(1 for r in mrows if r[2] == 'pointer')})")
 
 
 if __name__ == "__main__":

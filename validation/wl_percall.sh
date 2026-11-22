@@ -73,6 +73,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 . "$here/wl_local.sh"
 . "$here/wl_lock.sh"   # wl_profile, wl_key: WL_PROFILE=fast counts the fast-profile products (default: release, what ships)
 profile=$(wl_profile) || exit 2
+link=$(wl_link) || exit 2   # WL_LINK=dynamic: libniji's columns linked against its libc.so.6 and ld.so (wl_lock.sh LINK)
 root=; gitmode=0
 if [ -d "$target" ]; then
     if wl_is_git "$target"; then
@@ -123,14 +124,14 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $shas; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$(wl_key "$k")/libc.a ] || [ -d ~/wl/src/$k ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -d ~/wl/src/$k ] && continue
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" && git -C "$repo" archive --format=tar "$s" | tar -x -C "$t" && { mv -T "$t" ~/wl/src/$k 2>/dev/null || rm -rf "$t"; } || return 1
         else
             wl_local_src "$root" "$k" || return 1
         fi
     done
-    cmd="${rec}WL_PROFILE=$profile WL_EVENT=$event COUNT_FRESH=${COUNT_FRESH:-0} PC_LOCALE=$locale bash $B/wl_percall_run.sh $sname $cases $base $srckey $trace"
+    cmd="${rec}WL_PROFILE=$profile WL_LINK=$link WL_EVENT=$event COUNT_FRESH=${COUNT_FRESH:-0} PC_LOCALE=$locale bash $B/wl_percall_run.sh $sname $cases $base $srckey $trace"
 }
 [ $nowait = 1 ] && echo "wl_percall: --nowait ignored (this tool runs where it is started; jobrun detaches)" >&2
 prep || exit 1

@@ -118,7 +118,16 @@ def c_integer_names():
 def standard_names():
     """Names that standards and man pages give headers whose names no other table holds (slice 17): the POSIX
     <tar.h> and <cpio.h> constants (XBD 13), the exit codes of sysexits(3), the queue macros of list(3), slist(3),
-    stailq(3), tailq(3) and circleq(3), and the obstack macros of the GNU C Library manual (Obstacks)."""
+    stailq(3), tailq(3) and circleq(3), and the obstack macros of the GNU C Library manual (Obstacks). Also (slice 8): names the standards give that no other table spells: the integer type of the signal-handler flag
+    (`sig_atomic_t`, C 7.14 and POSIX <signal.h>), the notification structure's type name (`sigevent_t`,
+    POSIX <signal.h>), and the mutex kinds of pthread_mutexattr_settype (POSIX: NORMAL, ERRORCHECK, RECURSIVE,
+    DEFAULT) and the GNU timed kind `PTHREAD_MUTEX_TIMED_NP`, the name the layout notes of the pthread
+    types use for kind 0 (crates/abi/src/layout_init.rs). Also the other pthread attribute values that are
+    enumeration constants, which constants.tsv (macros only) cannot hold: the priority protocols
+    (pthread_mutexattr_setprotocol(3): PTHREAD_PRIO_NONE, _INHERIT, _PROTECT), the robustness values
+    (pthread_mutexattr_setrobust(3): PTHREAD_MUTEX_STALLED, _ROBUST and their `_NP` spellings) and the lock
+    preference kinds (pthread_rwlockattr_setkind_np(3): PTHREAD_RWLOCK_PREFER_READER_NP, _PREFER_WRITER_NP,
+    _PREFER_WRITER_NONRECURSIVE_NP, _DEFAULT_NP)."""
     out = ["TMAGIC", "TMAGLEN", "TVERSION", "TVERSLEN", "REGTYPE", "AREGTYPE", "LNKTYPE", "SYMTYPE", "CHRTYPE",
            "BLKTYPE", "DIRTYPE", "FIFOTYPE", "CONTTYPE", "TSUID", "TSGID", "TSVTX", "TUREAD", "TUWRITE", "TUEXEC",
            "TGREAD", "TGWRITE", "TGEXEC", "TOREAD", "TOWRITE", "TOEXEC", "MAGIC"]
@@ -140,6 +149,40 @@ def standard_names():
                                      "int_grow", "finish", "object_size", "room", "make_room", "blank_fast", "1grow_fast",
                                      "ptr_grow_fast", "int_grow_fast", "base", "next_free", "chunk_size",
                                      "alignment_mask", "chunk_alloc", "chunk_free")]
+    out +=["sig_atomic_t", "sigevent_t", "PTHREAD_MUTEX_NORMAL", "PTHREAD_MUTEX_RECURSIVE",
+            "PTHREAD_MUTEX_ERRORCHECK", "PTHREAD_MUTEX_DEFAULT", "PTHREAD_MUTEX_TIMED_NP",
+            "PTHREAD_PRIO_NONE", "PTHREAD_PRIO_INHERIT", "PTHREAD_PRIO_PROTECT",
+            "PTHREAD_MUTEX_STALLED", "PTHREAD_MUTEX_ROBUST", "PTHREAD_MUTEX_STALLED_NP", "PTHREAD_MUTEX_ROBUST_NP",
+            "PTHREAD_RWLOCK_PREFER_READER_NP", "PTHREAD_RWLOCK_PREFER_WRITER_NP",
+            "PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP", "PTHREAD_RWLOCK_DEFAULT_NP"]
+    return out
+
+
+def math_names():
+    """The identifiers of the math group of headers (slice 11), which no other table spells: the types and
+    macros of C 7.12 (<math.h>: float_t, double_t, HUGE_VAL*, SNAN*, FP_FAST_*), of the TS 18661 and C2X extended
+    suffixes (F32 ... F64X), the POSIX XSI constants (M_E ... M_SQRT1_2), the SVID error names and the SVID
+    <values.h> constants, C 7.3 (<complex.h>: _Complex_I, CMPLX*), C 7.6 (<fenv.h>) and the x87 control-word names
+    of <fpu_control.h>. Only names: their visibility, types and values are probed (ruling #6047 for the pattern)."""
+    suffixes = ["", "f", "l", "f32", "f64", "f128", "f32x", "f64x"]
+    out = ["isgreaterequal", "isless", "islessequal", "islessgreater", "float_t", "double_t", "MAXFLOAT", "HUGE", "X_TLOSS", "DOMAIN", "SING", "OVERFLOW", "UNDERFLOW", "TLOSS",
+           "PLOSS", "exception", "matherr", "_LIB_VERSION", "_IEEE_", "_SVID_", "_XOPEN_", "_POSIX_", "_ISOC_"]
+    out += [f"HUGE_VAL{s.upper()}" for s in suffixes] + [f"SNAN{s.upper()}" for s in suffixes]
+    out += ["FP_FAST_FMA", "FP_FAST_FMAF", "FP_FAST_FMAL"]
+    for op in ("ADD", "SUB", "MUL", "DIV", "FMA", "SQRT"):
+        out += [f"FP_FAST_{p}{op}{s}" for p in ("F", "D") for s in ("", "L") if not (p == "D" and s == "")]
+    for c in ("E", "LOG2E", "LOG10E", "LN2", "LN10", "PI", "PI_2", "PI_4", "1_PI", "2_PI", "2_SQRTPI", "SQRT2", "SQRT1_2"):
+        out += [f"M_{c}{s}" for s in suffixes]
+    out += ["complex", "imaginary", "_Complex_I", "_Imaginary_I", "I"] + [f"CMPLX{s.upper()}" for s in suffixes]
+    out += ["fenv_t", "fexcept_t", "femode_t", "FE_DFL_ENV", "FE_NOMASK_ENV", "FE_DFL_MODE", "FE_SNANS_ALWAYS_SIGNAL",
+            "FE_ENABLE", "FE_DISABLE"]
+    out += ["_FPU_MASK_IM", "_FPU_MASK_DM", "_FPU_MASK_ZM", "_FPU_MASK_OM", "_FPU_MASK_UM", "_FPU_MASK_PM",
+            "_FPU_EXTENDED", "_FPU_DOUBLE", "_FPU_SINGLE", "_FPU_RC_NEAREST", "_FPU_RC_DOWN", "_FPU_RC_UP",
+            "_FPU_RC_ZERO", "_FPU_RESERVED", "_FPU_DEFAULT", "_FPU_IEEE", "_FPU_GETCW", "_FPU_SETCW", "fpu_control_t",
+            "__fpu_control"]
+    out += ["BITSPERBYTE", "BITS", "MAXSHORT", "MAXINT", "MAXLONG", "MINSHORT", "MININT", "MINLONG", "HIBITS", "HIBITL",
+            "HIBITI", "DMAXEXP", "FMAXEXP", "DMINEXP", "FMINEXP", "DSIGNIF", "FSIGNIF", "DMAXPOWTWO", "FMAXPOWTWO",
+            "_DEXPLEN", "_FEXPLEN", "_HIDDENBIT", "LN_MAXDOUBLE", "LN_MINDOUBLE", "MAXDOUBLE", "MINDOUBLE", "MINFLOAT"]
     return out
 
 
@@ -170,6 +213,8 @@ def candidates():
         names.update(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)(?:\(\))?`", f.read()))
     names.update(c_integer_names())
     names.update(standard_names())
+    names.update(math_names())
+    tags.update(["exception", "ieee754_float", "ieee754_double", "ieee754_long_double", "ieee854_long_double"])
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)

@@ -16,4 +16,8 @@
 	addq $8, %rsp
 	ret
 
+/* The x86 feature and ISA properties (notes.inc): a link whose every input has them keeps them. */
+#include "notes.inc"
+	NIJI_NOTE_PROPERTY
+
 	.section .note.GNU-stack,"",@progbits

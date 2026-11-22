@@ -1,0 +1,37 @@
+{
+ "task": "ICONV-NAME-MATCH-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: CI start-up fault red fixed at its cause: the 106-row iconv alias table held 212 relocated slices (+3,392 B .data.rel.ro, one more relro page written by ld.so); now pointer-free .rodata, dynamic start-up faults 71 = next; name-rule gains kept (UTF-8 -9.7% .. latin1 -26.1% per open+close)",
+ "branch": "task/iconv-name-match-4",
+ "head": null,
+ "gate": {
+  "affected": "direct tier 16 suites: 8242 passed / 0 failed, 554 ignored; conformance 6/0; xtask test 6929+4844 passed; NIJI_FULL_PROFILE hot_text_products 31 passed",
+  "peak": "11G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Per-page fault split (Skylake-SP, fast products, ASLR off): the extra fault was libc.so.6 rw-p relro written by the loader's relocation pass (14 pages vs 13), not placement; .data.rel.ro now +320 B vs next, relro 12 pages = next",
+  "layout-bins (fast) vs next: bin 0 60,721 -> 60,741 B; start-up mode lists unchanged; other differences are niji crate codegen-unit repartition in code this branch does not touch",
+  "jobwait returns at once (rc 4) for a label not yet queued: a job chained as 'jobwait <label>; ...' started in the same second as <label> does not wait; this cost gate1",
+  "ISO88591 fails with EINVAL on next (issue #6) and opens as Latin-1 here, so its count is not comparable"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "iconv_open accepts the reference's spellings (iso88591, KOI8R, ISO885915, ...): issue #6", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "faults", "what": "dynamic start-up-only program page faults (hot_text bound test, Skylake-SP fast products), next vs head", "before": 71, "after": 71, "unit": "faults", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, UTF-8 (next vs head, same host)", "before": 1697672, "after": 1533675, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, CP1252", "before": 3211062, "after": 2933274, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, ISO-8859-15", "before": 3015867, "after": 2857967, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, KOI8R", "before": 4053262, "after": 3213508, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, latin1", "before": 2378672, "after": 1756676, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, EUC-JP", "before": 1656672, "after": 1514674, "unit": "instructions", "measured": true},
+  {"kind": "size", "what": "libc.so.6 .data.rel.ro vs next (fast products)", "before": 43944, "after": 44264, "unit": "bytes", "measured": true},
+  {"kind": "coverage", "what": "plants on the pointer-free alias table (all CAUGHT)", "before": 0, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "jobwait should block (or fail loudly) for a label that is not yet queued instead of returning rc 4 at once; a chained 'jobwait X; next' silently ran beside X and cost one gate",
+ "next_step": "train: FULL gate (csys/util/iconv-names.h escalates); follow-up could map the 493 unpartnered reference names by fingerprint",
+ "report_file": "handoff/ICONV-NAME-MATCH.md",
+ "jobs": ["iconv-name-match-4-gate2", "iconv-name-match-4-plants2", "iconv-name-match-4-startup", "iconv-name-match-4-counts"]
+}

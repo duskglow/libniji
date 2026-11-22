@@ -1,0 +1,28 @@
+@@generated
+/* ftw.h: file tree walk (XSH <ftw.h>). */
+#ifndef __NIJI_H_ftw_h
+#define __NIJI_H_ftw_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns statx statx_timestamp getumask
+@@emit
+
+@@if nftw
+# ifndef __NIJI_D___nftw_func_t
+#  define __NIJI_D___nftw_func_t 1
+typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
+# endif
+# if __NIJI_FOB64
+extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64");
+# else
+extern int nftw (const char *, __nftw_func_t, int, int);
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

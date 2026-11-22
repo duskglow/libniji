@@ -1,10 +1,14 @@
 //! Unsigned big integers: little-endian `u64` limbs with no high zero limbs, so every value has
 //! exactly one representation and `Vec` equality is numeric equality.
 //!
-//! Schoolbook multiplication; division is Knuth's Algorithm D (TAOCP vol. 2, 4.3.1); square and
-//! cube roots are Newton iterations from above, started from a floating-point estimate.
+//! Karatsuba multiplication above a threshold, schoolbook below; division is Knuth's Algorithm D (TAOCP vol. 2, 4.3.1); the square
+//! root is Zimmermann's Karatsuba square root (D-10.130); the cube root is Newton's
+//! iteration from above, started from a floating-point estimate.
 
 use std::cmp::Ordering;
+
+/// Factors with at least this many limbs each are multiplied by Karatsuba's method.
+const KARATSUBA_MIN: usize = 40;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Nat {
@@ -150,7 +154,34 @@ impl Nat {
         Nat::from_limbs(r)
     }
 
+    /// The product: Karatsuba's method above `KARATSUBA_MIN` limbs in both factors (Knuth, TAOCP
+    /// vol. 2, 4.3.3; D-10.130), schoolbook below.
     pub(crate) fn mul(&self, o: &Nat) -> Nat {
+        if self.d.len().min(o.d.len()) < KARATSUBA_MIN {
+            return self.mul_schoolbook(o);
+        }
+        // Split at h limbs: x = x1 B^h + x0 with B = 2^64.
+        let h = self.d.len().max(o.d.len()) / 2;
+        let (long, short) = if self.d.len() >= o.d.len() { (self, o) } else { (o, self) };
+        if short.d.len() <= h {
+            // Unbalanced: x0 y + (x1 y) B^h, each half split again as needed.
+            return long.low_limbs(h).mul(short).add(&long.shr(64 * h as u64).mul(short).shl(64 * h as u64));
+        }
+        let (a0, a1) = (self.low_limbs(h), self.shr(64 * h as u64));
+        let (b0, b1) = (o.low_limbs(h), o.shr(64 * h as u64));
+        let z0 = a0.mul(&b0);
+        let z2 = a1.mul(&b1);
+        // (a0 + a1)(b0 + b1) = z0 + z2 + a0 b1 + a1 b0 >= z0 + z2.
+        let z1 = a0.add(&a1).mul(&b0.add(&b1)).sub(&z0).sub(&z2);
+        z0.add(&z1.shl(64 * h as u64)).add(&z2.shl(128 * h as u64))
+    }
+
+    /// `self mod B^h`, `B = 2^64`.
+    fn low_limbs(&self, h: usize) -> Nat {
+        Nat::from_limbs(self.d[..h.min(self.d.len())].to_vec())
+    }
+
+    fn mul_schoolbook(&self, o: &Nat) -> Nat {
         if self.is_zero() || o.is_zero() {
             return Nat::zero();
         }
@@ -322,25 +353,67 @@ impl Nat {
         r
     }
 
-    /// `floor(sqrt(self))`. Newton's iteration `x <- (x + n/x)/2` decreases monotonically from
-    /// any start `>= floor(sqrt(n))` and stops at it (the first `y >= x`).
-    pub(crate) fn isqrt(&self) -> Nat {
-        if self.is_zero() {
-            return Nat::zero();
+    /// `self mod 2^k`.
+    fn low_bits(&self, k: u64) -> Nat {
+        let full = (k / 64) as usize;
+        if full >= self.d.len() {
+            return self.clone();
         }
-        let (t, s) = self.shr_even_top();
-        // sqrt(t) has relative error < 2^-52; the 2^-40 margin and +2 keep the start above
-        // sqrt(t + 1) >= the true root of the shifted-out value.
-        let r = (t.sqrt() * (1.0 + 2f64.powi(-40))) as u128 + 2;
-        let mut x = Nat::from_u128(r).shl(s / 2);
-        loop {
-            let (q, _) = self.divrem(&x);
-            let y = x.add(&q).shr(1);
-            if y.cmp(&x) != Ordering::Less {
-                return x;
+        let mut d = self.d[..full].to_vec();
+        let r = k % 64;
+        if r > 0 {
+            d.push(self.d[full] & ((1u64 << r) - 1));
+        }
+        Nat::from_limbs(d)
+    }
+
+    /// `(s, r)` with `s = floor(sqrt(self))` and `r = self - s^2` (so `0 <= r <= 2s`).
+    ///
+    /// Zimmermann's Karatsuba square root (P. Zimmermann, "Karatsuba Square Root", INRIA
+    /// RR-3805, 1999; R. Brent and P. Zimmermann, *Modern Computer Arithmetic*, Algorithm 1.12
+    /// SqrtRem), on bit fields instead of words: with `n = a3 2^3k + a2 2^2k + a1 2^k + a0`,
+    /// `a2, a1, a0 < 2^k` and `a3 >= 2^(k-2)`, take `(s', r')` = the root and remainder of
+    /// `a3 2^k + a2`, then `(q, u) = divrem(r' 2^k + a1, 2s')`, `s = s' 2^k + q` and
+    /// `r = u 2^k + a0 - q^2`. The paper bounds the error of `s` to one too large (one
+    /// correction); the loops below correct any error, so the result never depends on that bound.
+    /// The only divisions are a half-size one per level, against Newton's full-size one per
+    /// iteration.
+    pub(crate) fn sqrtrem(&self) -> (Nat, Nat) {
+        let len = self.bit_len();
+        if len <= 128 {
+            let n = self.to_u128().unwrap_or(0);
+            let s = isqrt_u128(n);
+            return (Nat::from_u128(s), Nat::from_u128(n - s * s));
+        }
+        // 4k <= len + 1 makes a3 = n >> 3k at least 2^(k-2), so s' >= 2^(k-1) as the method needs.
+        let k = (len + 1) / 4;
+        let (s1, r1) = self.shr(2 * k).sqrtrem();
+        let a1 = self.shr(k).low_bits(k);
+        let a0 = self.low_bits(k);
+        let (q, u) = r1.shl(k).add(&a1).divrem(&s1.shl(1));
+        let mut s = s1.shl(k).add(&q);
+        let a = u.shl(k).add(&a0);
+        let q2 = q.mul(&q);
+        let mut r = if a.cmp(&q2) != Ordering::Less {
+            a.sub(&q2)
+        } else {
+            // r = a - q^2 < 0: s is too large; each step down adds 2s - 1 (the new 2s + 1).
+            let mut deficit = q2.sub(&a);
+            loop {
+                s = s.sub(&Nat::from_u64(1));
+                let step = s.shl(1).add_small(1);
+                if step.cmp(&deficit) != Ordering::Less {
+                    break step.sub(&deficit);
+                }
+                deficit = deficit.sub(&step);
             }
-            x = y;
+        };
+        // r > 2s: s is too small (not reached when the bound holds).
+        while r.cmp(&s.shl(1)) == Ordering::Greater {
+            r = r.sub(&s.shl(1).add_small(1));
+            s = s.add_small(1);
         }
+        (s, r)
     }
 
     /// `floor(cbrt(self))`, by Newton's iteration `x <- (2x + n/x^2)/3` from above (by the
@@ -362,12 +435,6 @@ impl Nat {
             }
             x = y;
         }
-    }
-
-    /// The top bits of `self` with an even shift: `(self >> s) as f64`, `s` even.
-    fn shr_even_top(&self) -> (f64, u64) {
-        let s = self.bit_len().saturating_sub(100) & !1;
-        (self.shr(s).to_u128().unwrap_or(0) as f64, s)
     }
 
     /// Lower-case hexadecimal digits, at least `min_digits` of them.
@@ -412,6 +479,19 @@ impl Nat {
         }
         s
     }
+}
+
+/// `floor(sqrt(n))`: the double-precision root (within a few units of the true root for any
+/// `n < 2^128`), corrected by exact integer comparisons.
+fn isqrt_u128(n: u128) -> u128 {
+    let mut s = ((n as f64).sqrt() as u128).min(u128::from(u64::MAX));
+    while s * s > n {
+        s -= 1;
+    }
+    while (s + 1).checked_mul(s + 1).is_some_and(|p| p <= n) {
+        s += 1;
+    }
+    s
 }
 
 #[cfg(test)]
@@ -476,12 +556,13 @@ mod tests {
                 assert_eq!(na.shl(k).to_u128(), Some(a << k));
             }
             assert_eq!(na.bit_len(), u64::from(128 - a.leading_zeros()));
-            assert_eq!(na.isqrt().to_u128(), Some(isqrt_u128(a)));
+            assert_eq!(na.sqrtrem().0.to_u128(), Some(isqrt_bisect(a)));
             assert_eq!(na.low_bits_nonzero(k), k > 0 && a & (u128::MAX >> (128 - k.min(128))) != 0);
+            assert_eq!(na.low_bits(k).to_u128(), Some(if k >= 128 { a } else { a & ((1u128 << k) - 1) }));
         }
     }
 
-    fn isqrt_u128(a: u128) -> u128 {
+    fn isqrt_bisect(a: u128) -> u128 {
         let mut lo = 0u128;
         let mut hi = 1u128 << 64;
         while hi - lo > 1 {
@@ -516,7 +597,7 @@ mod tests {
         let mut g = Rng(3);
         for _ in 0..3000 {
             let n = g.nat(20);
-            let s = n.isqrt();
+            let s = n.sqrtrem().0;
             assert!(s.mul(&s).cmp(&n) != Ordering::Greater);
             let s1 = s.add_small(1);
             assert_eq!(s1.mul(&s1).cmp(&n), Ordering::Greater);
@@ -525,8 +606,123 @@ mod tests {
             assert_eq!(c.add_small(1).pow(3).cmp(&n), Ordering::Greater);
             // Exact powers.
             let x = g.nat(5);
-            assert_eq!(x.mul(&x).isqrt(), x);
+            assert_eq!(x.mul(&x).sqrtrem(), (x.clone(), Nat::zero()));
             assert_eq!(x.pow(3).icbrt(), x);
+        }
+    }
+
+    #[test]
+    fn karatsuba_product_matches_schoolbook() {
+        // no spec clause: oracle arithmetic (D-10.130). A wrong split, middle term or recombination
+        // shift in Karatsuba's method changes the product; sizes straddle the threshold and its
+        // recursion levels, balanced and unbalanced, with runs of zero and all-ones limbs (carry
+        // and borrow chains through the middle term).
+        let mut g = Rng(7);
+        let sizes = [KARATSUBA_MIN - 1, KARATSUBA_MIN, KARATSUBA_MIN + 1, 2 * KARATSUBA_MIN + 1, 97, 300, 1025];
+        for &la in &sizes {
+            for &lb in &sizes {
+                let limbs_of = |g: &mut Rng, n: usize| {
+                    let mut d: Vec<u64> = (0..n).map(|_| match g.next() % 4 { 0 => u64::MAX, 1 => 0, _ => g.next() }).collect();
+                    d.push(1 + g.next() % 7);
+                    Nat::from_limbs(d)
+                };
+                let (a, b) = (limbs_of(&mut g, la), limbs_of(&mut g, lb));
+                assert_eq!(a.mul(&b), a.mul_schoolbook(&b), "{la} x {lb} limbs");
+            }
+        }
+        let ones = Nat::from_limbs(vec![u64::MAX; 513]);
+        assert_eq!(ones.mul(&ones), ones.mul_schoolbook(&ones));
+    }
+
+    /// `floor(sqrt(n))` by Newton's iteration `x <- (x + n/x)/2` on full division, from a
+    /// floating-point start above the root: the method `sqrtrem` replaced, kept as its reference.
+    fn isqrt_newton(n: &Nat) -> Nat {
+        if n.is_zero() {
+            return Nat::zero();
+        }
+        let s = n.bit_len().saturating_sub(100) & !1;
+        let t = n.shr(s).to_u128().unwrap() as f64;
+        let mut x = Nat::from_u128((t.sqrt() * (1.0 + 2f64.powi(-40))) as u128 + 2).shl(s / 2);
+        loop {
+            let y = x.add(&n.divrem(&x).0).shr(1);
+            if y.cmp(&x) != Ordering::Less {
+                return x;
+            }
+            x = y;
+        }
+    }
+
+    /// The root of `n` by `sqrtrem`, after checking its remainder: `s^2 + r = n` with
+    /// `0 <= r <= 2s` holds for `s = floor(sqrt(n))` only, so this alone proves the pair.
+    fn checked_sqrtrem(n: &Nat) -> Nat {
+        let (s, r) = n.sqrtrem();
+        assert_eq!(s.mul(&s).add(&r), *n, "s^2 + r != n for n = {}", n.to_hex(0));
+        assert!(r.cmp(&s.shl(1)) != Ordering::Greater, "r > 2s for n = {}", n.to_hex(0));
+        s
+    }
+
+    #[test]
+    fn sqrtrem_matches_newton_on_edges_and_random_values() {
+        // no spec clause: oracle arithmetic (D-10.130). A wrong split point, quotient or
+        // correction step in the Karatsuba square root gives a root one off or a wrong remainder;
+        // the cases are powers of two and their neighbours (every limb boundary 2^64k +- 1 up
+        // to 700 bits), squares and their neighbours on both sides, the largest value with a
+        // given root ((x+1)^2 - 1), and random values with runs of zero and all-ones limbs.
+        let one = Nat::from_u64(1);
+        let mut cases = Vec::new();
+        for j in 0..700 {
+            let p = one.shl(j);
+            cases.push(p.sub(&one));
+            cases.push(p.add_small(1));
+            cases.push(p);
+        }
+        let mut g = Rng(4);
+        for _ in 0..600 {
+            let x = g.nat(12);
+            let sq = x.mul(&x);
+            cases.push(sq.sub(&one));
+            cases.push(sq.add_small(1));
+            cases.push(sq.add(&x.shl(1)));
+            cases.push(sq);
+            cases.push(g.nat(24));
+        }
+        for n in &cases {
+            assert_eq!(checked_sqrtrem(n), isqrt_newton(n), "n = {}", n.to_hex(0));
+        }
+    }
+
+    #[test]
+    fn u128_root_corrects_the_float_estimate() {
+        // no spec clause: oracle arithmetic (D-10.130). The base case starts from the
+        // double-precision root, which is off by units for roots above 2^53; squares and their
+        // neighbours there (up to u128::MAX) must still give the floor.
+        let mut g = Rng(5);
+        let mut xs: Vec<u128> = vec![1, 2, 3, (1 << 26) - 1, 1 << 26, (1 << 32) - 1, 1 << 32, (1 << 53) - 1, 1 << 53, (1 << 53) + 1, (1 << 63) - 1, 1 << 63];
+        xs.extend([u128::from(u64::MAX) - 1, u128::from(u64::MAX)]);
+        xs.extend((0..2000).map(|_| u128::from(g.next() >> (g.next() % 64)).max(1)));
+        for x in xs {
+            for n in [x * x - 1, x * x, x * x + 1, x * x + 2 * x] {
+                assert_eq!(isqrt_u128(n), isqrt_bisect(n), "n = {n}");
+            }
+        }
+        assert_eq!(isqrt_u128(u128::MAX), u128::from(u64::MAX));
+    }
+
+    #[test]
+    fn sqrtrem_on_huge_values() {
+        // no spec clause: oracle arithmetic (D-10.130). The oracle's operands reach the
+        // Ziv cap (2^17 bits and beyond); deep recursion with odd and even split sizes, exact
+        // squares and the values next to them at those lengths.
+        let mut g = Rng(6);
+        for limbs in [33usize, 100, 257, 1024, 2049, 4100] {
+            let mut d: Vec<u64> = (0..limbs).map(|_| g.next()).collect();
+            *d.last_mut().unwrap() >>= g.next() % 64;
+            let n = Nat::from_limbs(d.clone());
+            checked_sqrtrem(&n);
+            let x = Nat::from_limbs(d[..limbs / 2].to_vec());
+            let sq = x.mul(&x);
+            assert_eq!(sq.sqrtrem(), (x.clone(), Nat::zero()));
+            assert_eq!(checked_sqrtrem(&sq.sub(&Nat::from_u64(1))), x.sub(&Nat::from_u64(1)));
         }
     }
 

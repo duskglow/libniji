@@ -1,0 +1,23 @@
+{"task": "MP-LN10-SERIES", "model": "opus", "tokens": null,
+ "result": "oracle ln 10 = (10 ln2 - 2 atanh(3/253))/3 with proven 2^-(bits+6) bound; no stated bound found wrong; 844,812 correctly rounded sweep results identical; shard 0 -6.2 % (f128) / -4.5 % (x87); step 0 shows no complex_products regression",
+ "branch": "task/mp-ln10-series", "head": null,
+ "gate": {"affected": "1072 passed / 0 failed (7 suites, direct tier)", "peak": "2.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "#6922 premise (old and new ln 10 differ beyond the stated bound) not reproduced: both within their bounds at 256..131072 bits against an independent value",
+   "complex_products shard 0 base a33f92314 43.4-44.8 G vs head 40.8-41.7 G instructions: the 273 -> 390 s was wall-time noise",
+   "ln10_w still 12.0 % (f128) / 9.5 % (x87) of shard 0, now almost all ln 2 by atanh(1/3); follow-up: ln 2 by a Machin-like atanh formula",
+   "ORACLE-VALUE-CACHE upper bound after this change: oracle 86.3 % (f128) / 87.7 % (x87) of shard 0 (perf samples)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "complex_f128_products shard 0, whole test process", "before": 165.36, "after": 155.04, "unit": "G instructions:u", "measured": true},
+   {"kind": "perf", "what": "complex_ld_cr_products shard 0, whole test process", "before": 235.52, "after": 225.03, "unit": "G instructions:u", "measured": true},
+   {"kind": "perf", "what": "oracle ln 10 at 65536 bits", "before": 1.94, "after": 0.19, "unit": "s (one run, scratch diagnostic)", "measured": true},
+   {"kind": "coverage", "what": "unit tests of the ln 10 bound (embedded 4400-bit reference, 20000-bit two-method check) and plants", "before": 0, "after": 2, "unit": "tests (3 plants CAUGHT)", "measured": true}
+ ],
+ "improvement": "sync_role reports BUSY when any job's command line names the role dir, even a job that only read it at start: copy the tree first and pass the copy (cost one killed job and a wasted lint here)",
+ "next_step": "ln 2 by a Machin-like atanh formula with large arguments (about 1.7x fewer terms), measured with the same profile and equivalence run",
+ "report_file": "handoff/MP-LN10-SERIES.md",
+ "jobs": ["mei:mp-ln10-series-gate", "mei:mp-ln10-series-plants", "mei:mp-ln10-series-lint-4", "mei:mp-ln10-series-eq-2", "mei:mp-ln10-series-count-head", "mei:mp-ln10-series-count-base", "mei:mp-ln10-series-count-after", "mei:mp-ln10-series-prof"]}

@@ -28,8 +28,8 @@
 //!   at its entry, holding no lock, unless its thread is itself inside a read section ([`inside`],
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
-use super::dlopen::{node_address, CAP};
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS, THREAD_MODS_LEN};
+use super::dlopen::{node_address, reader_entry, CAP};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
@@ -48,7 +48,30 @@ const DT_SONAME: u64 = 14;
 /// Per object: `[load bias, name address, program header table address, header count, live]`; a
 /// reader reads the first four words only after it saw `live` set (Acquire), and they do not change
 /// until the slot is reused, after a grace period (DL-17).
+/// The first [`CAP`] entries (generation 0); later ones are in generations the loader maps and
+/// lists in its directory before staging them (DL-PROCESS-OBJECTS part 2, [`slot`]).
 static TABLE: [[AtomicUsize; 5]; CAP] = [const { [const { AtomicUsize::new(0) }; 5] }; CAP];
+/// Bytes of one entry of the readers' table.
+pub(super) const ENTRY_BYTES: usize = size_of::<[AtomicUsize; 5]>();
+
+/// Entry `i` of the readers' table: below [`CAP`] the static table, else one directory load; `None`
+/// when its generation is not mapped.
+fn slot(i: usize) -> Option<&'static [AtomicUsize; 5]> {
+    if let Some(e) = TABLE.get(i) {
+        return Some(e);
+    }
+    let at = reader_entry(i);
+    if at == 0 {
+        return None;
+    }
+    // UNSAFE(slice): one entry of a mapped generation of the readers' table.
+    #[allow(unsafe_code)]
+    // SAFETY: `at` is entry `i` of a generation the loader mapped (read-write, page aligned, never
+    // moved or unmapped) and published in its directory with Release before staging any entry in
+    // it; the entry is five atomic words (all-zero valid), readable and writable through a shared
+    // reference by the writer and every reader.
+    Some(unsafe { &*core::ptr::with_exposed_provenance::<[AtomicUsize; 5]>(at) })
+}
 /// Entries a reader looks at (0: the start-time entries are not filled yet).
 static PUBLISHED: AtomicUsize = AtomicUsize::new(0);
 /// The reader parity (DL-17): bit 0 says which counter of its stripe a reader entering now uses.
@@ -164,12 +187,30 @@ struct Entry {
 impl View {
     /// Entries visible now (reloaded at every step: the walk is live).
     fn len(&self) -> usize {
-        PUBLISHED.load(Acquire).min(CAP)
+        PUBLISHED.load(Acquire)
     }
 
-    /// Entry `i`, below [`View::len`], when it is live.
+    /// Entries of generation 0 visible now (the walks' first loop: the index is tested against
+    /// [`CAP`] in the loop condition, so [`View::entry`] needs no test of its own).
+    fn len0(&self) -> usize {
+        self.len().min(CAP)
+    }
+
+    /// Entry `i` of generation 0, below [`View::len0`], when it is live.
+    #[inline(always)]
     fn entry(&self, i: usize) -> Option<Entry> {
-        let e = TABLE.get(i)?;
+        Self::read(TABLE.get(i)?)
+    }
+
+    /// Entry `i` past generation 0, below [`View::len`], when it is live.
+    #[inline(never)]
+    fn entry_past(&self, i: usize) -> Option<Entry> {
+        Self::read(slot(i)?)
+    }
+
+    /// The words of a live entry.
+    #[inline(always)]
+    fn read(e: &[AtomicUsize; 5]) -> Option<Entry> {
         if e.get(4)?.load(Acquire) == 0 {
             return None;
         }
@@ -267,7 +308,9 @@ fn fill_start() -> usize {
             let w = super::start_obj(k).map(|x| usize::try_from(x).unwrap_or(0));
             (w[0], w[1], w[2])
         };
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { soname_at(bias, phdr, phnum) };
+        // The link map's name (DL-23: the rendezvous and this walk agree); `DT_SONAME` if none.
+        let linked = super::dlopen::start_name(k);
+        let name = if k == 0 { c"".as_ptr().expose_provenance() } else if linked != 0 { linked } else { soname_at(bias, phdr, phnum) };
         let name = if name == 0 { c"".as_ptr().expose_provenance() } else { name };
         stage(k, bias, name, phdr, phnum);
         if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
@@ -281,7 +324,7 @@ fn fill_start() -> usize {
 /// Write entry `k` of an object not visible yet (`super::dlopen::candidate`): a slot no reader can
 /// be reading (never used, or freed after a grace period, DL-17).
 pub(super) fn stage(k: usize, bias: usize, name: usize, phdr: usize, phnum: usize) {
-    if let Some(e) = TABLE.get(k) {
+    if let Some(e) = slot(k) {
         for (w, v) in e.iter().zip([bias, name, phdr, phnum]) {
             w.store(v, Relaxed);
         }
@@ -293,7 +336,7 @@ pub(super) fn stage(k: usize, bias: usize, name: usize, phdr: usize, phnum: usiz
 pub(super) fn publish(base: usize, len: usize) {
     fill_start();
     ADDS.fetch_add(u64::try_from(len.saturating_sub(base)).unwrap_or(0), Relaxed);
-    for e in TABLE.get(base..len).unwrap_or(&[]) {
+    for e in (base..len).filter_map(slot) {
         if let Some(live) = e.get(4) {
             live.store(1, Release);
         }
@@ -304,7 +347,7 @@ pub(super) fn publish(base: usize, len: usize) {
 /// `dlclose` unloads object `k` (DL-17): its entry is invisible to readers entering from now on,
 /// and `dlpi_subs` counts it (probe `== close` C-1: as `dlclose` returns).
 pub(super) fn unpublish(k: usize) {
-    if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
+    if let Some(live) = slot(k).and_then(|e| e.get(4)) {
         live.store(0, Release);
     }
     SUBS.fetch_add(1, Release);
@@ -324,7 +367,7 @@ fn tls_of(e: &Entry) -> (u64, usize) {
     let Some((_, vaddr, _, _)) = headers(e.phdr, e.phnum).find(|h| h.0 == PT_TLS) else { return (0, 0) };
     let image = u64::try_from(e.bias).unwrap_or(0).wrapping_add(vaddr);
     let n = THREAD_MODS_LEN.load(Acquire);
-    for m in THREAD_MODS.iter().take(n) {
+    for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
             let tp = u64::try_from(tb::tp()).unwrap_or(0);
@@ -358,31 +401,68 @@ fn call(cb: usize, info: &struct_dl_phdr_info, data: usize) -> i32 {
 extern "C" fn iterate(cb: usize, data: usize) -> i64 {
     read_section(|v| {
         let mut i = 0usize;
-        while i < v.len() {
-            let Some(e) = v.entry(i) else {
-                i = i.wrapping_add(1);
-                continue;
-            };
-            let (adds, subs) = v.counters();
-            let (modid, block) = tls_of(&e);
-            let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(e.bias).unwrap_or(0), dlpi_name: e.name, dlpi_phdr: e.phdr, dlpi_phnum: u16::try_from(e.phnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: modid, dlpi_tls_data: block };
-            let r = call(cb, &info, data);
-            if r != 0 {
-                return i64::from(r);
-            }
-            let vd = vdso();
-            if i == 0 && vd != 0 {
-                let (vphdr, vphnum, bias) = vdso_headers(vd);
-                let (adds, subs) = v.counters();
-                let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
-                let r = call(cb, &info, data);
-                if r != 0 {
-                    return i64::from(r);
+        while i < v.len0() {
+            if let Some(e) = v.entry(i) {
+                if let Some(r) = report(v, i, &e, cb, data) {
+                    return r;
                 }
             }
             i = i.wrapping_add(1);
         }
+        if i < v.len() {
+            return iterate_past(v, cb, data);
+        }
         0
+    })
+}
+
+/// [`iterate`] past generation 0 (entries [`CAP`] on).
+#[cold]
+#[inline(never)]
+fn iterate_past(v: &View, cb: usize, data: usize) -> i64 {
+    let mut i = CAP;
+    while i < v.len() {
+        if let Some(e) = v.entry_past(i) {
+            if let Some(r) = report(v, i, &e, cb, data) {
+                return r;
+            }
+        }
+        i = i.wrapping_add(1);
+    }
+    0
+}
+
+/// Call `cb` for live entry `i` (and the vDSO after entry 0): `Some` with the callback's nonzero
+/// result, which ends the walk.
+#[inline(always)]
+fn report(v: &View, i: usize, e: &Entry, cb: usize, data: usize) -> Option<i64> {
+    let (adds, subs) = v.counters();
+    let (modid, block) = tls_of(e);
+    let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(e.bias).unwrap_or(0), dlpi_name: e.name, dlpi_phdr: e.phdr, dlpi_phnum: u16::try_from(e.phnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: modid, dlpi_tls_data: block };
+    let r = call(cb, &info, data);
+    if r != 0 {
+        return Some(i64::from(r));
+    }
+    let vd = vdso();
+    if i == 0 && vd != 0 {
+        let (vphdr, vphnum, bias) = vdso_headers(vd);
+        let (adds, subs) = v.counters();
+        let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
+        let r = call(cb, &info, data);
+        if r != 0 {
+            return Some(i64::from(r));
+        }
+    }
+    None
+}
+
+/// [`find_object`]'s walk past generation 0 (entries [`CAP`] to `n`).
+#[cold]
+#[inline(never)]
+fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usize)> {
+    (CAP..n).find_map(|i| {
+        let e = v.entry_past(i)?;
+        find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
     })
 }
 
@@ -392,10 +472,13 @@ extern "C" fn iterate(cb: usize, data: usize) -> i64 {
 /// `*result` untouched.
 extern "C" fn find_object(pc: usize, result: usize) -> i64 {
     let found = read_section(|v| {
-        (0..v.len()).find_map(|i| {
-            let e = v.entry(i)?;
-            find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
-        })
+        let n = v.len();
+        (0..n.min(CAP))
+            .find_map(|i| {
+                let e = v.entry(i)?;
+                find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+            })
+            .or_else(|| find_past(v, n, pc))
     });
     let found = found.or_else(|| {
         let vd = vdso();

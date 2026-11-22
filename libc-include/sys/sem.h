@@ -46,6 +46,18 @@ struct semid_ds {
   unsigned long __glibc_reserved4;
 };
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_semctl
 #  define __NIJI_D_semctl 1
 extern int semctl (int, int, int, ...) __NIJI_NOTHROW;

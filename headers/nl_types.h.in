@@ -1,0 +1,14 @@
+@@generated
+/* nl_types.h: message catalogs (XSH <nl_types.h>). */
+#ifndef __NIJI_H_nl_types_h
+#define __NIJI_H_nl_types_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

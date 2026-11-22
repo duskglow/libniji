@@ -184,6 +184,18 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+#endif
+#if 1
 struct itimerval;
 # ifndef __NIJI_D_getitimer
 #  define __NIJI_D_getitimer 1
@@ -258,15 +270,21 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 #if 1
 # ifndef __NIJI_D_enum_ITIMER_PROF
 #  define __NIJI_D_enum_ITIMER_PROF 1
+#  ifndef ITIMER_PROF
 enum { ITIMER_PROF = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_REAL
 #  define __NIJI_D_enum_ITIMER_REAL 1
+#  ifndef ITIMER_REAL
 enum { ITIMER_REAL = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_VIRTUAL
 #  define __NIJI_D_enum_ITIMER_VIRTUAL 1
+#  ifndef ITIMER_VIRTUAL
 enum { ITIMER_VIRTUAL = 1 };
+#  endif
 # endif
 # ifndef ELF_NGREG
 #  define ELF_NGREG 27UL

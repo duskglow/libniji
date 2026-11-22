@@ -9,6 +9,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
 use std::path::{Path, PathBuf};
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::process::Command;
 
 use niji_ld::arch::{Arch, Native};
@@ -282,6 +285,44 @@ fn search_pinned_sonames() {
     assert_eq!(candidates("libc.so.6", &[s], &ctx(false, Some(b"/env"), Some(&c))), ["/env/libc.so.6".to_string(), own]);
 }
 
+/// s27_1_c_1_1 (the cache step; a cache read on first use, DL-START-SEARCH-3): the cell is read at most
+/// once, keeps the bytes for the caller to release (none when there is no cache), and its empty state
+/// takes no tag of its own: it is the bytes' address, a word every state writes, so the start-up loader's
+/// release of an unread cache reads no unwritten stack memory (valgrind's memcheck reported a branch on a
+/// nested `Option`'s unwritten payload at every program start). x86_64 table.
+#[test]
+fn lazy_cache_reads_once_and_its_empty_state_is_the_bytes_address() {
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+    static READS: AtomicUsize = AtomicUsize::new(0);
+    static ABSENT_READS: AtomicUsize = AtomicUsize::new(0);
+    fn read() -> Option<(&'static [u8], Cache<'static>)> {
+        READS.fetch_add(1, Relaxed);
+        let f: &'static [u8] = Box::leak(cache_file(&[(FLAGS, "libv.so.1", "/d/libv.so.1", None)], &[]).into_boxed_slice());
+        Some((f, Cache::parse(f).expect("well-formed cache")))
+    }
+    fn absent() -> Option<(&'static [u8], Cache<'static>)> {
+        ABSENT_READS.fetch_add(1, Relaxed);
+        None
+    }
+    fn untagged<T>(_: &core::cell::OnceCell<T>) -> bool {
+        size_of::<core::cell::OnceCell<T>>() == size_of::<T>()
+    }
+    let cell = search::LazyCache::new();
+    assert!(untagged(&cell), "an empty lazy cache cell is a niche of its contents, not a tag beside unwritten contents");
+    let lazy = search::CacheRef::Lazy(&cell, read);
+    assert!(cell.get().is_none(), "nothing is read before a search asks");
+    for _ in 0..2 {
+        assert_eq!(lazy.get().and_then(|c| c.lookup(b"libv.so.1", FLAGS, &[])), Some(&b"/d/libv.so.1"[..]));
+    }
+    assert_eq!(READS.load(Relaxed), 1, "read once");
+    assert!(cell.get().is_some_and(|(f, c)| !f.is_empty() && c.is_some()), "the bytes are kept for release");
+    let none = search::LazyCache::new();
+    let lazy = search::CacheRef::Lazy(&none, absent);
+    assert!(lazy.get().is_none() && lazy.get().is_none());
+    assert_eq!(ABSENT_READS.load(Relaxed), 1, "an absent cache is looked for once");
+    assert_eq!(none.get().map(|(f, c)| (f.len(), c.is_some())), Some((0, false)), "no cache: no bytes to release");
+}
+
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from)
@@ -311,7 +352,7 @@ fn list_matches_reference() {
         return;
     }
     // Canonical, so the reference's kernel-started `$ORIGIN` and the given path agree.
-    let d = std::fs::canonicalize(target()).unwrap().join(format!("dl-search-{}", std::process::id()));
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "dl-search");
     std::fs::create_dir_all(d.join("sub")).unwrap();
     std::fs::write(d.join("x.c"), "int x(void){return 1;}\n").unwrap();
     std::fs::write(d.join("main.c"), "int x(void); int main(void){return x();}\n").unwrap();
@@ -356,9 +397,7 @@ fn list_interpreter_line_matches_reference() {
         return;
     }
     let libs = std::fs::canonicalize(target().join("niji")).unwrap();
-    let d = std::fs::canonicalize(target()).unwrap().join(format!("dl-trace-interp-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "dl-trace-interp");
     let src = [
         ("foo.c", "int foo(void) { return 1; }\n"),
         ("start.c", "void _start(void) { for (;;) {} }\n"),
@@ -437,4 +476,139 @@ fn list_interpreter_line_matches_reference() {
     }
     let _ = std::fs::remove_dir_all(&d);
     assert!(bad.is_empty(), "list_interpreter_line_matches_reference: lists differ from the reference:\n{}", bad.join("\n"));
+}
+
+/// `ld.so PROGRAM` finds a name without `/` through the loader cache only (D-27.69, probe recorded
+/// in spec/behaviour/dynlink.md): a path with `/` as given, a cache hit, and never a miss, a
+/// relative cache path or the working directory. x86_64 table. s27_1_c_1_1 (the cache step).
+#[test]
+fn program_find_cache_only() {
+    use niji_ld::program::{find, Found};
+    let f = cache_file(&[(FLAGS, "libprogx.so.1", "/c/libprogx.so.1", None)], &[]);
+    let c = Cache::parse(&f).expect("well-formed cache");
+    let rel = cache_file(&[(FLAGS, "libprogy.so.1", "rel/libprogy.so.1", None)], &[]);
+    let rel = Cache::parse(&rel).expect("parsed: the entry is checked at lookup");
+    assert_eq!(find(b"./prog", Some(&c), FLAGS, &[]), Found::AsGiven);
+    assert_eq!(find(b"lib/libprogx.so.1", Some(&c), FLAGS, &[]), Found::AsGiven, "a relative path with `/` is the caller's choice");
+    assert_eq!(find(b"libprogx.so.1", Some(&c), FLAGS, &[]), Found::Cache(b"/c/libprogx.so.1"));
+    assert_eq!(find(b"libprogx.so.1", Some(&c), 0x0803, &[]), Found::NotFound, "another architecture's entry is never taken");
+    assert_eq!(find(b"libprogy.so.1", Some(&rel), FLAGS, &[]), Found::NotFound, "a relative cache path would open from the working directory");
+    for name in [&b"prog"[..], b""] {
+        assert_eq!(find(name, Some(&c), FLAGS, &[]), Found::NotFound, "{name:?}");
+    }
+    assert_eq!(find(b"libprogx.so.1", None, FLAGS, &[]), Found::NotFound, "no cache: not found, never the working directory");
+}
+
+/// The test program for [`ldso_program_without_slash`]: prints `ran:<TAG>` and one `arg:` line per argument.
+#[cfg(target_arch = "x86_64")] // ARCH(x86_64): x86-64 system call numbers and assembly
+const TAGGED: &str = r#"
+static long sys3(long n, long a, long b, long c) {
+    long r;
+    __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c) : "rcx", "r11", "memory");
+    return r;
+}
+static unsigned long len(const char *s) { unsigned long n = 0; while (s[n]) n++; return n; }
+static void put(const char *p, const char *s) { sys3(1, 1, (long)p, len(p)); sys3(1, 1, (long)s, len(s)); sys3(1, 1, (long)"\n", 1); }
+void start_c(long *sp) {
+    char **argv = (char **)(sp + 1);
+    put("ran:", TAG);
+    for (long i = 0; i < sp[0]; i++) put("arg:", argv[i]);
+    sys3(231, 0, 0, 0);
+}
+__asm__(".globl _start\n_start:\n\tmov %rsp, %rdi\n\tand $-16, %rsp\n\tcall start_c\n\thlt\n");
+"#;
+
+/// The built `ld.so` run as a command with a program name without `/` (D-27.69; every case of the
+/// probe recorded in spec/behaviour/dynlink.md): a file of that name in the working directory, on
+/// `LD_LIBRARY_PATH` (`.`, an empty element, absolute, relative) or on `PATH` is never run; the
+/// reference's message and 127, also for `--list` and `LD_TRACE_LOADED_OBJECTS`; `./prog` and
+/// `lib/prog` run as given. With a private loader cache (`unshare -r -m`, skipped with the reason
+/// when unavailable) a listed name runs the cache's file with `argv[0]` as given, ahead of copies in
+/// the working directory and on `LD_LIBRARY_PATH`. s27_1_c_1_1.
+#[cfg(target_arch = "x86_64")] // ARCH(x86_64): the test program is x86-64
+#[test]
+fn ldso_program_without_slash() {
+    let ld = target().join("niji").join(Native::INTERP);
+    if !ld.exists() || !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        return eprintln!("SKIP: needs cc and {} (cargo xtask so)", ld.display());
+    }
+    let d = Scratch::dir_in(&target(), "ldso-program-name");
+    for sub in ["lib", "bin", "cache"] {
+        std::fs::create_dir_all(d.join(sub)).unwrap();
+    }
+    std::fs::write(d.join("prog.c"), TAGGED).unwrap();
+    let cc = |out: &str, tag: &str| {
+        let o = Command::new("cc")
+            .args(["-nostdlib", "-fPIE", "-pie", "-O1", "-fno-stack-protector", "-fcf-protection=none"])
+            .arg(format!("-DTAG=\"{tag}\""))
+            .arg(d.join("prog.c"))
+            .arg("-o")
+            .arg(d.join(out))
+            .output()
+            .unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    };
+    for (out, tag) in [("prog", "cwd"), ("lib/prog", "libdir"), ("bin/prog", "path"), ("lib/libprogx.so.1", "libdir"), ("cache/libprogx.so.1", "cache")] {
+        cc(out, tag);
+    }
+    // The working directory's `libprogx.so.1` is not an object: running, listing or tracing it
+    // instead of the cache's file gives a different result.
+    std::fs::write(d.join("libprogx.so.1"), "not an object\n").unwrap();
+    let run = |args: &[&str], env: &[(&str, String)]| {
+        // No wrapper process: `LD_TRACE_LOADED_OBJECTS` would list the wrapper instead.
+        let o = Command::new(&ld).args(args).envs(env.iter().map(|(k, v)| (k, v))).current_dir(&d).output().unwrap();
+        (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+    };
+    let missing = |n: &str| (Some(127), String::new(), format!("{n}: error while loading shared libraries: {n}: cannot open shared object file\n"));
+    let lib = d.join("lib").display().to_string();
+    let bin = format!("{}:/usr/bin:/bin", d.join("bin").display());
+    let envs: [(&str, &[(&str, String)]); 7] = [
+        ("cwd", &[]),
+        ("LD_LIBRARY_PATH=.", &[("LD_LIBRARY_PATH", ".".into())]),
+        ("LD_LIBRARY_PATH=:", &[("LD_LIBRARY_PATH", ":".into())]),
+        ("LD_LIBRARY_PATH=lib:", &[("LD_LIBRARY_PATH", "lib:".into())]),
+        ("LD_LIBRARY_PATH absolute", &[("LD_LIBRARY_PATH", lib.clone())]),
+        ("PATH", &[("PATH", bin)]),
+        ("LD_TRACE_LOADED_OBJECTS", &[("LD_TRACE_LOADED_OBJECTS", "1".into())]),
+    ];
+    for (what, env) in envs {
+        assert_eq!(run(&["prog", "a"], env), missing("prog"), "{what}");
+    }
+    assert_eq!(run(&["--list", "prog"], &[]), missing("prog"), "--list");
+    assert_eq!(run(&["absentprog", "a"], &[]), missing("absentprog"), "absent");
+    assert_eq!(run(&[""], &[]), (Some(127), String::new(), ": error while loading shared libraries: cannot open shared object file\n".into()), "empty name");
+    assert_eq!(run(&["./prog", "a"], &[]), (Some(0), "ran:cwd\narg:./prog\narg:a\n".into(), String::new()), "./prog");
+    assert_eq!(run(&["lib/prog", "a"], &[]), (Some(0), "ran:libdir\narg:lib/prog\narg:a\n".into(), String::new()), "lib/prog");
+    // A private cache listing `libprogx.so.1` (the copy in `cache/`).
+    let mut cache_path = search::PathBuf::default();
+    assert!(search::prefixed(search::CACHE_FILE, &mut cache_path));
+    let system_cache = String::from_utf8(cache_path.as_bytes().to_vec()).unwrap();
+    if !Path::new(&system_cache).exists() || !Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) {
+        let _ = std::fs::remove_dir_all(&d);
+        return eprintln!("SKIP (cache cases): needs {system_cache} and `unshare -r -m`");
+    }
+    let target_x = d.join("cache/libprogx.so.1").display().to_string();
+    std::fs::write(d.join("ld.so.cache"), cache_file(&[(FLAGS, "libprogx.so.1", &target_x, None)], &[])).unwrap();
+    // `trace` exports `LD_TRACE_LOADED_OBJECTS=1` just before the loader starts (not to `unshare`
+    // or `sh`, which would list themselves).
+    let in_ns_with = |trace: bool, args: &[&str]| {
+        let o = Command::new("unshare")
+            .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && t=$3 && shift 3 && if [ \"$t\" = 1 ]; then export LD_TRACE_LOADED_OBJECTS=1; fi && exec \"$@\"", "sh"])
+            .arg(d.join("ld.so.cache"))
+            .arg(&system_cache)
+            .arg(if trace { "1" } else { "0" })
+            .arg(&ld)
+            .args(args)
+            .env("LD_LIBRARY_PATH", &lib)
+            .current_dir(&d)
+            .output()
+            .unwrap();
+        (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+    };
+    let in_ns = |args: &[&str]| in_ns_with(false, args);
+    assert_eq!(in_ns(&["libprogx.so.1", "a"]), (Some(0), "ran:cache\narg:libprogx.so.1\narg:a\n".into(), String::new()), "cache hit");
+    assert_eq!(in_ns(&["--list", "libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "--list cache hit");
+    assert_eq!(in_ns_with(true, &["libprogx.so.1"]), (Some(0), "\tstatically linked\n".into(), String::new()), "LD_TRACE_LOADED_OBJECTS cache hit");
+    assert_eq!(in_ns(&["prog", "a"]), missing("prog"), "not in the cache");
+    let _ = std::fs::remove_dir_all(&d);
 }

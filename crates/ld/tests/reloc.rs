@@ -16,6 +16,12 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/helpers/exec_stage.rs"]
+mod exec_stage;
+
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -48,10 +54,8 @@ fn product() -> Option<PathBuf> {
     None
 }
 
-fn dir(name: &str) -> PathBuf {
-    let d = target().join(format!("ld-reloc-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir(name: &str) -> Scratch {
+    Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-reloc-{name}"))
 }
 
 /// Build `src` (C) into `out` in `d` with `flags`.
@@ -324,7 +328,6 @@ fn reloc_model_corpus_one_object_per_type() {
     let (at, _) = reloc::relro_range(&objs[1], 4096).expect("liba has RELRO");
     assert_eq!(m.prot.get(&at), Some(&1), "liba's RELRO read-only");
     let _ = pb;
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// `no spec clause` (DL-DYNAMIC-RELOC, probe `tools/probe/dl/dynreloc`): each loaded object's dynamic
@@ -382,7 +385,6 @@ fn reloc_publish_dynamic_in_the_model() {
         shift_address_entries(&mut back, o.bias.wrapping_neg());
         assert_eq!(back, file, "the copy shifted back is the file's array");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_f_0: a versioned reference to an object without version tables stops the load (D-27.11,
@@ -422,7 +424,148 @@ fn reloc_version_check_and_refusals_in_the_model() {
         "missing version refused"
     );
     assert_eq!(RelocError::Tls(36).message(), b"TLS descriptor relocations are not available in this build\n");
-    std::fs::remove_dir_all(&d).ok();
+}
+
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
+/// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
+/// built object, moved: into the read-only text, past every segment, across the end of the writable
+/// segment (refused), and onto its last word (applied).
+#[test]
+fn reloc_field_must_lie_in_a_writable_segment() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("outside");
+    let lib = std::fs::read(build(&d, "libo.so", "static int x[512]; int *p = &x[1];\n", &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let rela = dynm.get(niji_ld::elf::dt::RELA).expect("DT_RELA");
+    let relas: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!((relas.len(), relas[0].kind), (1, RelocKind::Relative), "one RELATIVE entry");
+    // The entry is the table's `DT_RELACOUNT` prefix, so the pass's prefix loop (DYN-START-SPEED) applies it.
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELACOUNT), Some(1), "the linker counts the RELATIVE prefix");
+    // The entry's file offset: the first PT_LOAD maps the file from offset 0 at address 0.
+    let at = usize::try_from(loads[0].offset + rela - loads[0].vaddr).unwrap();
+    let end = rw.vaddr + rw.memsz;
+    let cases = [(ro.vaddr, false), (end + 0x10_0000, false), (end - 4, false), (end - 8, true), (relas[0].offset, true)];
+    for (offset, ok) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&offset.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"libo.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        if ok {
+            assert_eq!(r, Ok(()), "field at {offset:#x} is inside the writable segment");
+            assert_eq!(word(&mut m, bias(0) + offset), bias(0) + relas[0].addend as u64, "B + A stored at {offset:#x}");
+        } else {
+            assert_eq!(r.map_err(|e| e.error), Err(RelocError::Outside(offset)), "field at {offset:#x} refused");
+        }
+    }
+}
+
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): the `RELATIVE`
+/// prefix loop accepts a word at once when it lies in the writable segment the previous entry lay
+/// in (DYN-START-LINK-SHAPE), and that shortcut accepts nothing the general check refuses. Two
+/// entries: the first stays in the writable segment (so the second meets the shortcut), the second
+/// is moved into the read-only text, past every segment, across the end of the writable segment
+/// (refused), and onto its last word (applied, both words B + A).
+#[test]
+fn reloc_relative_run_checks_each_entry_after_the_first() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("outside2");
+    let lib = std::fs::read(build(&d, "libo2.so", "static int x[512]; int *p = &x[1]; int *q = &x[2];\n", &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let rela = dynm.get(niji_ld::elf::dt::RELA).expect("DT_RELA");
+    let relas: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!(relas.iter().map(|r| r.kind).collect::<Vec<_>>(), [RelocKind::Relative; 2], "two RELATIVE entries");
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELACOUNT), Some(2), "the linker counts the RELATIVE prefix");
+    // The second entry's file offset (24-byte entries; the first PT_LOAD maps the file from 0 at 0).
+    let at = usize::try_from(loads[0].offset + rela - loads[0].vaddr).unwrap() + 24;
+    let end = rw.vaddr + rw.memsz;
+    let cases = [(ro.vaddr, false), (end + 0x10_0000, false), (end - 4, false), (end - 8, true), (relas[1].offset, true)];
+    for (offset, ok) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&offset.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"libo2.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        if ok {
+            assert_eq!(r, Ok(()), "second field at {offset:#x} is inside the writable segment");
+            assert_eq!(word(&mut m, bias(0) + relas[0].offset), bias(0) + relas[0].addend as u64, "B + A stored by the first entry");
+            assert_eq!(word(&mut m, bias(0) + offset), bias(0) + relas[1].addend as u64, "B + A stored at {offset:#x}");
+        } else {
+            assert_eq!(r.map_err(|e| e.error), Err(RelocError::Outside(offset)), "second field at {offset:#x} refused");
+        }
+    }
+}
+
+/// Covers no spec clause (design §6, `Relas::relative_prefix`'s contract): the prefix loop leaves
+/// the table iterator just after the run it applied, so the entries after it are yielded once,
+/// in order; a count past the run stops at the first other entry; when the callback fails, the
+/// iterator stands on the entry it failed for (DYN-START-LINK-SHAPE moved the position update out
+/// of the loop).
+#[test]
+fn reloc_relative_prefix_leaves_the_table_after_its_run() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("prefixpos");
+    let src = "static int x[512]; int *p = &x[1]; int *q = &x[2]; extern int e; int *r = &e;\n";
+    let lib = std::fs::read(build(&d, "libpp.so", src, &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let all: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!(all.iter().map(|r| r.kind == RelocKind::Relative).collect::<Vec<_>>(), [true, true, false], "two RELATIVE entries, then the reference to e");
+    for n in [2, 3, usize::MAX] {
+        let mut rs = dynm.rela::<Native>().unwrap().unwrap();
+        let mut seen = vec![];
+        assert_eq!(rs.relative_prefix(n, |at, a| -> Result<(), ()> { seen.push((at, a)); Ok(()) }), Ok(()));
+        assert_eq!(seen, [(all[0].offset, all[0].addend), (all[1].offset, all[1].addend)], "count {n}: the run, in order");
+        let rest: Vec<_> = rs.map(|r| r.offset).collect();
+        assert_eq!(rest, [all[2].offset], "count {n}: only the entry after the run follows");
+    }
+    let mut rs = dynm.rela::<Native>().unwrap().unwrap();
+    let mut calls = 0;
+    let failed = rs.relative_prefix(2, |at, _| {
+        calls += 1;
+        if calls == 2 { Err(at) } else { Ok(()) }
+    });
+    assert_eq!(failed, Err(all[1].offset), "the second entry's error");
+    let rest: Vec<_> = rs.map(|r| r.offset).collect();
+    assert_eq!(rest, [all[1].offset, all[2].offset], "the iterator stands on the entry that failed");
 }
 
 // ------------------------------------------------------------------ (3) the built ld.so
@@ -449,7 +592,6 @@ fn reloc_ldso_runs_multi_object_program() {
     let [.., p2] = corpus(&d, &[&interp]);
     let (code, sig, err) = run(&mut Command::new(&p2));
     assert_eq!((code, sig), (Some(0), None), "PT_INTERP: check number {code:?} failed; stderr: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause (L14-4, ruling #4231): a library reached by two paths (its own and a symlink) is one
@@ -488,7 +630,6 @@ void _start(void) {
     let (c2, n2, maps) = exec_maps(&p);
     assert_eq!((c1, c2), (Some(0), Some(0)), "both programs run");
     assert_eq!(n2, n1, "libb.so must be mapped executable exactly once:\n{maps}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_f_0: a program needing VER_1 run against an unversioned stub stops with status 127 and a
@@ -508,7 +649,6 @@ fn reloc_ldso_version_needed_from_unversioned_stub() {
     let (code, sig, err) = run(Command::new(&ld).arg(&p));
     assert_eq!((code, sig), (Some(127), None), "unversioned stub must stop the load: {err}");
     assert!(err.contains("libv.so") && err.contains("VER_1") && err.contains("not found"), "message names object and version: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause (R14-13, threat model loader rule 10): an object or a program asking for an
@@ -529,7 +669,6 @@ fn reloc_ldso_refuses_executable_stack() {
     let (code, sig, err) = run(Command::new(&ld).arg(&q));
     assert_eq!((code, sig), (Some(127), None), "program with an executable stack: {err}");
     assert!(err.contains("executable stack"), "{err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1, design §6 (RELRO last): after relocation a dependency's RELRO data is read-only: a
@@ -552,7 +691,6 @@ void _start(void) {{ int **pp = r_pp(); int c = *pp == &r_x ? 0 : 3; if ({}) *pp
     let write = build(&d, "pwrite", &src(true), &["-fPIE", "-pie", r.to_str().unwrap()]);
     let (code, sig, _) = run(Command::new(&ld).arg(&write));
     assert_eq!((code, sig), (None, Some(11)), "writing RELRO data after relocation must fault");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1, design §6 (RELRO last), D-27.25 (amends D-27.10): a dependency whose `PT_GNU_RELRO`
@@ -571,10 +709,7 @@ int **r_first(void) { return (int **)&r_p[0]; } int **r_last(void) { return (int
     let (file, at) = split_relro_load(&std::fs::read(&r).unwrap());
     let p = sym_value(&file, b"r_p");
     assert!(p < at && p + 1099 * 8 >= at, "r_p[0] ({p:#x}) must lie in the first segment and r_p[1099] in the second (split at {at:#x})");
-    // Written under another name and copied over the linked object by cp(1) (no ETXTBSY window).
-    let tmp = d.join("libr.bytes");
-    std::fs::write(&tmp, &file).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&r).status().unwrap().success());
+    exec_stage::write_for_exec(&r, &file, 0o755);
     let prog = |name: &str, write: &str| {
         let s = format!(
             "extern int **r_first(void); extern int **r_last(void); extern int r_x;
@@ -589,7 +724,6 @@ __asm__ volatile(\"syscall\" :: \"a\"(231), \"D\"(c)); }}\n"
         let (code, sig, _) = run(Command::new(&ld).arg(prog(name, write)));
         assert_eq!((code, sig), (None, Some(11)), "{name}: writing RELRO in that segment after relocation must fault");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// `f` with the writable `PT_LOAD` holding `PT_GNU_RELRO`'s last whole page split in two at that
@@ -723,7 +857,6 @@ fn reloc_image_reader_slices_only_unchanging_segments() {
         let image = Elf::from_image::<Native>(phdrs, &spans).unwrap();
         assert_eq!(reader_view(&image), reader_view(&elf), "{}: the image reader reads what the file reader reads", prog.display());
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1 (ruling #4229): a program started by the kernel through `PT_INTERP` loads its
@@ -735,7 +868,7 @@ fn reloc_ldso_kernel_started_without_proc() {
         eprintln!("SKIP: unshare -r (an unprivileged user namespace for chroot) is not available here");
         return;
     }
-    let d = std::fs::canonicalize(dir("noproc")).unwrap();
+    let d = dir("noproc");
     let ld = std::fs::canonicalize(ld).unwrap();
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let files = corpus(&d, &[&interp]);
@@ -743,13 +876,15 @@ fn reloc_ldso_kernel_started_without_proc() {
     let inside = |p: &Path| root.join(p.strip_prefix("/").unwrap());
     for f in files.iter().chain([&ld]) {
         std::fs::create_dir_all(inside(f).parent().unwrap()).unwrap();
-        std::fs::copy(f, inside(f)).unwrap();
+        // Copied by cp(1) (helpers/exec_stage.rs): the loader and the program are exec'd below, and a
+        // copy written in this process can still be open for writing in a sibling test's forked child
+        // (ETXTBSY, finding #6787).
+        exec_stage::copy_for_exec(f, &inside(f));
     }
     assert!(!root.join("proc").exists());
     // `unshare --root` changes the root itself: no chroot(8), which sits outside many PATHs.
     let (code, sig, err) = run(Command::new("unshare").arg("-r").arg(format!("--root={}", root.display())).arg(&files[3]));
     assert_eq!((code, sig), (Some(0), None), "kernel-started program without /proc: check number {code:?} failed; stderr: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1 (ruling #4371, D-27.18): a position-independent program without `PT_PHDR` runs, started
@@ -773,7 +908,6 @@ void _start(void) { int *q = *(int *const volatile *)&p; int c = q == &x ? 0 : 3
     for (i, p) in [p, alone].iter().enumerate() {
         without_pt_phdr(&ld, &d, p, &format!("prog{i}-nophdr"));
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// Run `p` with its `PT_PHDR` made `PT_NULL` (written to `d/name`), kernel-started and as `ld.so PROGRAM`.
@@ -783,12 +917,8 @@ fn without_pt_phdr(ld: &Path, d: &Path, p: &Path, name: &str) {
     let (phoff, phnum) = (elf.header().phoff as usize, usize::from(elf.header().phnum));
     let at = (0..phnum).map(|i| phoff + i * 56).find(|&o| file[o..o + 4] == 6u32.to_le_bytes()).expect("the linker gave the program a PT_PHDR");
     file[at..at + 4].copy_from_slice(&0u32.to_le_bytes()); // PT_PHDR -> PT_NULL
-    // Written under another name and copied by cp(1): the program run below is never open for
-    // writing in this process, so a fork by another test thread cannot make its exec fail (ETXTBSY).
-    let (tmp, q) = (d.join(format!("{name}.bytes")), d.join(name));
-    std::fs::write(&tmp, &file).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join(name);
+    exec_stage::write_for_exec(&q, &file, 0o755);
     assert!(Elf::parse::<Native>(&file).unwrap().find(niji_ld::elf::pt::PHDR).is_none());
     let (code, sig, err) = run(&mut Command::new(&q));
     assert_eq!((code, sig), (Some(0), None), "{name}: kernel-started program without PT_PHDR: check number {code:?} failed; stderr: {err}");
@@ -852,14 +982,13 @@ fn reloc_libc_early_init_before_preinit() {
         eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
-    let d = std::fs::canonicalize(dir("libcearly")).unwrap();
+    let d = dir("libcearly");
     let libc = libc_by_path(&lib, &d, "libc-early.so", |_| {});
     let p = early_prog(&ld, &d, &libc, "early");
     for (how, mut cmd) in [("kernel-started", Command::new(&p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&p); c })] {
         let (code, sig, err) = run(cmd.env("NIJI_EARLY_PROBE", "1"));
         assert_eq!((code, sig), (Some(0), None), "{how}: early init before .preinit_array: check number {code:?} failed; stderr: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// A program that reads the objects `ld.so` exports (D-27.26) through copy relocations (a PIE's
@@ -902,7 +1031,7 @@ fn reloc_loader_objects_published() {
         eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
-    let d = std::fs::canonicalize(dir("ldobjects")).unwrap();
+    let d = dir("ldobjects");
     let libc = libc_by_path(&lib, &d, "libc-objects.so", |_| {});
     let c = d.join("objects.c");
     std::fs::write(&c, LOADER_OBJECTS_PROG).unwrap();
@@ -919,7 +1048,6 @@ fn reloc_loader_objects_published() {
             assert_eq!((code, sig), (Some(0), None), "{how}, rseq tunable off {off}: loader objects: check number {code:?} failed; stderr: {err}");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_8, L14-10, D-27.22: a `libc.so.6` whose `NIJI_PRIVATE` build tag differs from the
@@ -932,7 +1060,7 @@ fn reloc_libc_build_tag_mismatch_refused() {
         eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
-    let d = std::fs::canonicalize(dir("libctag")).unwrap();
+    let d = dir("libctag");
     let prefix = niji_ld::start::private::TAG_PREFIX;
     let libc = libc_by_path(&lib, &d, "libc-other.so", |so| {
         let at = so.windows(prefix.len()).position(|w| w == prefix).expect("libc.so.6 carries a build tag") + prefix.len();
@@ -944,7 +1072,6 @@ fn reloc_libc_build_tag_mismatch_refused() {
         assert_eq!((code, sig), (Some(127), None), "{how}: a libc from another build ran; stderr: {err}");
         assert!(err.contains("libc-other.so: NIJI_PRIVATE build tag differs"), "{how}: the build-tag diagnostic is missing: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// The program of [`reloc_libc_bias_without_pt_phdr`]: exits 0 when libc's view of the executable's
@@ -986,7 +1113,7 @@ fn reloc_libc_bias_without_pt_phdr() {
         eprintln!("SKIP: {} or libc.a not built (run cargo xtask so)", crt1.display());
         return;
     }
-    let d = std::fs::canonicalize(dir("libcbias")).unwrap();
+    let d = dir("libcbias");
     let libc_so = libc_by_path(&lib, &d, "libc-by-path.so", |_| {});
     let c = d.join("bias.c");
     std::fs::write(&c, LIBC_BIAS_PROG).unwrap();
@@ -1007,7 +1134,6 @@ fn reloc_libc_bias_without_pt_phdr() {
     assert!(Elf::parse::<Native>(&file).unwrap().find(niji_ld::elf::pt::PHDR).is_none(), "the static ET_EXEC has no PT_PHDR");
     let (code, sig, err) = run(&mut Command::new(&stat));
     assert_eq!((code, sig), (Some(0), None), "static ET_EXEC without PT_PHDR: check number {code:?} failed; stderr: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// The C hello world of [`reloc_libc_start_hello_world`]. Its `.preinit_array` function (run by
@@ -1091,7 +1217,7 @@ fn reloc_libc_start_hello_world() {
         eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
-    let d = std::fs::canonicalize(dir("libcstart")).unwrap();
+    let d = dir("libcstart");
     let libc = libc_by_path(&lib, &d, "libc-start.so", |_| {});
     let c = d.join("hello.c");
     std::fs::write(&c, HELLO_PROG).unwrap();
@@ -1121,7 +1247,6 @@ fn reloc_libc_start_hello_world() {
             assert_eq!(out, *want, "hello world, {start}, {how}: wrong output (start steps, constructors or destructors)");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1, D-27.15, D-27.18: a program with dependencies and 300 `PT_LOAD`s (no count bound) runs
@@ -1134,16 +1259,12 @@ fn reloc_ldso_program_with_many_loads() {
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let [.., p] = corpus(&d, &[&interp]);
     let file = with_loads(&std::fs::read(&p).unwrap(), 300);
-    // Written under another name and copied by cp(1), as in `without_pt_phdr` (no ETXTBSY window).
-    let (tmp, q) = (d.join("many.bytes"), d.join("many"));
-    std::fs::write(&tmp, &file).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join("many");
+    exec_stage::write_for_exec(&q, &file, 0o755);
     // As `ld.so PROGRAM` only: the kernel refuses (ENOEXEC) a program header table larger than a page,
     // so a kernel-started program has at most 73 headers; `link` and the reader are the same code.
     let (code, sig, err) = run(Command::new(&ld).arg(&q));
     assert_eq!((code, sig), (Some(0), None), "ld.so PROGRAM with 300 PT_LOADs: check number {code:?} failed; stderr: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// `f` with its program header table moved to a new page at the end of the file, mapped by a new
@@ -1241,7 +1362,6 @@ fn reloc_ldso_program_multi_writable_no_deps() {
     let p = build(&d, "pself", &src, &["-fPIE", "-pie"]);
     let q = build(&d, "pself-interp", &src, &["-fPIE", "-pie", &interp]);
     run_multi_writable(&ld, &p, &q, "no dependencies");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause (D-27.25, D-27.10 refusals): the program of
@@ -1262,15 +1382,11 @@ fn reloc_ldso_program_target_outside_writable_refused() {
     let last = (0..phnum).filter(|&i| rd(&f, at(i)) == 1 && rd(&f, at(i) + 4) & 2 != 0).max_by_key(|&i| vaddr(&f, i)).unwrap();
     let flags = rd(&f, at(last) + 4) & !2;
     f[at(last) + 4..at(last) + 8].copy_from_slice(&flags.to_le_bytes());
-    // Written under another name and copied by cp(1), as in `without_pt_phdr` (no ETXTBSY window).
-    let (tmp, q) = (d.join("ro.bytes"), d.join("pro"));
-    std::fs::write(&tmp, &f).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join("pro");
+    exec_stage::write_for_exec(&q, &f, 0o755);
     let (code, sig, err) = run(Command::new(&ld).arg(&q));
     assert_eq!((code, sig), (Some(127), None), "a RELATIVE target in a read-only segment must be refused; stderr: {err}");
     assert!(err.contains("cannot relocate the program"), "the refusal names the cause: {err}");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1, D-27.25: a PIE with a dependency (libb.so) whose targets in three writable `PT_LOAD`s
@@ -1290,7 +1406,6 @@ fn reloc_ldso_program_multi_writable_with_deps() {
     let p = build(&d, "plink", &src, &["-fPIE", "-pie", b.to_str().unwrap()]);
     let q = build(&d, "plink-interp", &src, &["-fPIE", "-pie", b.to_str().unwrap(), &interp]);
     run_multi_writable(&ld, &p, &q, "with libb.so");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_1, L14-6 (ruling #4323): a text-relocated program with a dependency runs, started by the
@@ -1312,5 +1427,4 @@ fn reloc_ldso_textrel_program_text_rx_before_it_runs() {
         let (code, sig, err) = run(&mut cmd);
         assert_eq!((code, sig), (Some(0), None), "text-relocated program ({how}): 10 = text not r-x when it runs, 11 = wrong word; stderr: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }

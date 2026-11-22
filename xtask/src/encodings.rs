@@ -85,17 +85,24 @@ fn generate(root: &Path) -> Result<String, String> {
 }
 
 pub fn run(root: &Path, check: bool) -> Result<(), String> {
-    let text = generate(root)?;
-    let path = root.join(OUT);
-    if check {
-        let have = fs::read_to_string(&path).map_err(|e| format!("{OUT}: {e}"))?;
-        if have != text {
-            return Err(format!("{OUT} is stale: run `cargo xtask encodings-gen`"));
+    let (cjk, sizes) = super::encodings_cjk::generate(root)?;
+    for (out, text) in [(OUT, generate(root)?), (super::encodings_cjk::OUT, cjk)] {
+        let path = root.join(out);
+        if check {
+            let have = fs::read_to_string(&path).map_err(|e| format!("{out}: {e}"))?;
+            if have != text {
+                return Err(format!("{out} is stale: run `cargo xtask encodings-gen`"));
+            }
+            println!("encodings-gen: {out} is current");
+            continue;
         }
-        println!("encodings-gen: {OUT} is current");
-        return Ok(());
+        fs::write(&path, text).map_err(|e| format!("{out}: {e}"))?;
+        println!("encodings-gen: wrote {out}");
     }
-    fs::write(&path, text).map_err(|e| format!("{OUT}: {e}"))?;
-    println!("encodings-gen: wrote {OUT}");
+    if !check {
+        for (name, bytes) in sizes {
+            println!("encodings-gen: {name}: {bytes} bytes of tables");
+        }
+    }
     Ok(())
 }

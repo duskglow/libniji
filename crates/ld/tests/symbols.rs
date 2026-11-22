@@ -17,11 +17,14 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use std::sync::OnceLock;
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use niji_ld::arch::X86_64;
 use niji_ld::elf::{dt, pt, Dynamic, Elf, ElfError, Table, STB_GNU_UNIQUE, STB_WEAK};
 use niji_ld::symbols::{
-    gnu_hash, lookup, resolve, sysv_hash, Binding, Found, HashStyle, LookupError, Object, Request, Scope, UniqueRegistry, Want,
+    gnu_hash, lookup, resolve, sysv_hash, Binding, Found, HashStyle, LookupError, Object, Request, Scope, UniqueRegistry, VersionMemo, Want,
 };
 
 const LIB_C: &str = r#"
@@ -102,7 +105,8 @@ fn corpus() -> Option<&'static HashMap<&'static str, Vec<u8>>> {
             println!("SKIP: `cc` is not available, the symbol corpus cannot be built");
             return None;
         }
-        let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("ld_symbols_{}", std::process::id()));
+        // Read into memory below; the directory goes when this closure returns.
+        let dir = Scratch::dir("ld-symbols");
         for d in ["v", "vs", "vb", "stub"] {
             std::fs::create_dir_all(dir.join(d)).unwrap();
         }
@@ -233,6 +237,44 @@ fn versions_bind_like_the_reference() {
         assert_eq!(found(&stub, "f", want), "<base>");
     }
     assert_eq!(found(&stub, "f", Want::Version(b"VER_1")), "-");
+}
+
+/// Covers no spec clause (GNU symbol-versioning document; design §5): the lookup view's version names by
+/// index (kept tables, DYN-START-PARITY) are the ones a walk of `DT_VERDEF` and `DT_VERNEED` finds,
+/// for every index up to past the highest, in every corpus object with version tables.
+#[test]
+fn version_names_by_index_match_the_table_walk() {
+    let Some(c) = corpus() else { return };
+    let mut seen = (0, 0);
+    for (file, bytes) in c.iter() {
+        let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
+        let d = o.dynamic();
+        let defs: Vec<(u16, Option<Vec<u8>>)> = d.verdef().unwrap().into_iter().flatten().map(|v| {
+            let v = v.unwrap();
+            (v.ndx & 0x7fff, v.names().next().map(|a| a.unwrap().name.to_vec()))
+        }).collect();
+        let needs: Vec<(u16, Vec<u8>)> = d.verneed().unwrap().into_iter().flatten().flat_map(|n| n.unwrap().auxes().map(|a| a.unwrap()).map(|a| (a.other & 0x7fff, a.name.to_vec())).collect::<Vec<_>>()).collect();
+        let top = defs.iter().map(|x| x.0).chain(needs.iter().map(|x| x.0)).max().unwrap_or(0);
+        for i in 0..=top.saturating_add(2) {
+            let walk = if i <= 1 { None } else { defs.iter().find(|x| x.0 == i).and_then(|x| x.1.clone()) };
+            assert_eq!(o.version_name(i).unwrap().map(<[u8]>::to_vec), walk, "{file}: definition index {i}");
+            seen.0 += usize::from(walk.is_some());
+        }
+        // A reference's version: a requirement's name first, else a definition's.
+        let Some(vs) = d.versym().unwrap() else { continue };
+        for sym in 0..o.symtab().count().unwrap() {
+            let i = vs.get(sym).unwrap().index;
+            let walk = needs.iter().find(|x| x.0 == i).map(|x| x.1.clone()).or_else(|| defs.iter().find(|x| x.0 == i).and_then(|x| x.1.clone()));
+            let got = match o.reference_want(sym) {
+                Ok(Want::Reference(n)) => Some(n.to_vec()),
+                Ok(_) => None,
+                Err(e) => panic!("{file}: symbol {sym}: {e:?}"),
+            };
+            assert_eq!(got, if i <= 1 { None } else { walk }, "{file}: reference through symbol {sym} (index {i})");
+            seen.1 += usize::from(i > 1 && needs.iter().any(|x| x.0 == i));
+        }
+    }
+    assert!(seen.0 > 0 && seen.1 > 0, "the corpus has named definitions and requirements: {seen:?}");
 }
 
 #[test]
@@ -458,4 +500,44 @@ fn any_byte_changed_never_panics() {
             }
         }
     }
+}
+
+/// Covers no spec clause (GNU symbol-versioning document; design §5): a relocation pass's version-name
+/// memo (`VersionMemo`, DYN-START-SPEED) answers as the walks do. One memo is shared by every corpus
+/// object (string tables as keys, slots that collide, an index walked as a reference and as a
+/// definition), each symbol asked twice (a miss, then a hit): every reference's version, and the lookup
+/// of every versioned definition by its own version (the definition side of the memo).
+#[test]
+fn version_memo_answers_as_the_walks() {
+    let Some(c) = corpus() else { return };
+    let memo = VersionMemo::default();
+    let mut seen = (0usize, 0usize);
+    // The corpus objects have a few versions each, too few for two keys of one object to share a slot; the
+    // installed C library (read as input data, when present) has dozens.
+    let host = std::fs::read("/lib/x86_64-linux-gnu/libc.so.6").ok();
+    if host.is_none() {
+        println!("SKIP: no /lib/x86_64-linux-gnu/libc.so.6: only the corpus objects are checked");
+    }
+    for (file, bytes) in c.iter().map(|(f, b)| (*f, b.as_slice())).chain(host.as_deref().map(|b| ("host libc.so.6", b))) {
+        let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
+        let (d, Some(n)) = (o.dynamic(), o.symtab().count()) else { continue };
+        let Some(vs) = d.versym().unwrap() else { continue };
+        for round in 0..2 {
+            for sym in 0..n {
+                let want = o.reference_want(sym);
+                assert_eq!(o.reference_want_with(sym, Some(&memo)), want, "{file}: symbol {sym}, round {round}");
+                seen.0 += usize::from(matches!(want, Ok(Want::Reference(_))));
+                let st = o.symtab().get(sym).unwrap();
+                let v = vs.get(sym).unwrap().index;
+                let (Ok(name), Ok(Some(version))) = (d.string(u64::from(st.name)), o.version_name(v)) else { continue };
+                if st.shndx == 0 {
+                    continue;
+                }
+                let plain = o.lookup(&Request::new(name, Want::Reference(version)));
+                assert_eq!(o.lookup(&Request::new(name, Want::Reference(version)).with_memo(&memo)), plain, "{file}: definition {sym}, round {round}");
+                seen.1 += usize::from(matches!(plain, Ok(Some(_))));
+            }
+        }
+    }
+    eprintln!("version memo: {} versioned references, {} versioned definitions found", seen.0, seen.1);
 }

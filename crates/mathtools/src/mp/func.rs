@@ -828,8 +828,8 @@ fn pow_exact(ax: &Big, y: &Big, prec: u32) -> Option<Big> {
     }
     let mut r = m.clone();
     for _ in 0..j {
-        let s = r.isqrt();
-        if s.mul(&s) != r {
+        let (s, rem) = r.sqrtrem();
+        if !rem.is_zero() {
             return None;
         }
         r = s;

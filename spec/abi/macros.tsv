@@ -329,6 +329,7 @@ BC_DIM_MAX	argp.h	int	2048
 BC_SCALE_MAX	argp.h	int	99
 BC_STRING_MAX	argp.h	int	1000
 BIG_ENDIAN	aio.h	int	4321
+BITSPERBYTE	values.h	int	8
 BLKBSZGET	sys/mount.h	unsigned long	2148012656
 BLKBSZSET	sys/mount.h	unsigned long	1074270833
 BLKFLSBUF	sys/mount.h	unsigned int	4705
@@ -541,8 +542,11 @@ DF_STATIC_TLS	elf.h	int	16
 DF_SYMBOLIC	elf.h	int	2
 DF_TEXTREL	elf.h	int	4
 DIRTYPE	tar.h	int	53
+DLFO_EH_SEGMENT_TYPE	link.h	int	1685382480
 DLFO_STRUCT_HAS_EH_COUNT	dlfcn.h	int	0
 DLFO_STRUCT_HAS_EH_DBASE	dlfcn.h	int	0
+DMAXEXP	values.h	int	1024
+DMINEXP	values.h	int	-1021
 DN_ACCESS	fcntl.h	int	1
 DN_ATTRIB	fcntl.h	int	32
 DN_CREATE	fcntl.h	int	4
@@ -1596,10 +1600,13 @@ FASYNC	fcntl.h	int	8192
 FD_CLOEXEC	fcntl.h	int	1
 FD_SETSIZE	aio.h	int	1024
 FE_ALL_EXCEPT	fenv.h	int	61
+FE_DFL_ENV	fenv.h	fenv_t const*	-1
+FE_DFL_MODE	fenv.h	femode_t const*	-1
 FE_DIVBYZERO	fenv.h	int	4
 FE_DOWNWARD	fenv.h	int	1024
 FE_INEXACT	fenv.h	int	32
 FE_INVALID	fenv.h	int	1
+FE_NOMASK_ENV	fenv.h	fenv_t const*	-2
 FE_OVERFLOW	fenv.h	int	8
 FE_TONEAREST	fenv.h	int	0
 FE_TOWARDZERO	fenv.h	int	3072
@@ -1620,6 +1627,8 @@ FIONREAD	net/if_ppp.h	int	21531
 FIOQSIZE	net/if_ppp.h	int	21600
 FIOSETOWN	arpa/inet.h	int	35073
 FLUSHO	pty.h	int	4096
+FMAXEXP	values.h	int	128
+FMINEXP	values.h	int	-125
 FNDELAY	fcntl.h	int	2048
 FNM_CASEFOLD	fnmatch.h	int	16
 FNM_EXTMATCH	fnmatch.h	int	32
@@ -1627,6 +1636,7 @@ FNM_FILE_NAME	fnmatch.h	int	1
 FNM_LEADING_DIR	fnmatch.h	int	8
 FNM_NOESCAPE	fnmatch.h	int	2
 FNM_NOMATCH	fnmatch.h	int	1
+FNM_NOSYS	fnmatch.h	int	-1
 FNM_PATHNAME	fnmatch.h	int	1
 FNM_PERIOD	fnmatch.h	int	4
 FNONBLOCK	fcntl.h	int	2048
@@ -1838,10 +1848,14 @@ GS	sys/reg.h	int	26
 GS_BASE	sys/reg.h	int	22
 HASHFRACTION	sys/gmon.h	int	2
 HFIXEDSZ	arpa/nameser.h	int	12
+HIBITL	values.h	long	-9223372036854775808
+HIBITS	values.h	int	-32768
 HISTFRACTION	sys/gmon.h	int	2
 HOST_NAME_MAX	argp.h	int	64
 HOST_NOT_FOUND	netdb.h	int	1
 HUGE_VAL	math.h	double	inf
+HUGE_VALF	math.h	float	inf
+HUGE_VALL	math.h	long double	inf
 HUPCL	pty.h	int	1024
 HZ	arpa/nameser.h	int	100
 ICANON	pty.h	int	2
@@ -2186,6 +2200,7 @@ LC_COLLATE	locale.h	int	3
 LC_COLLATE_MASK	locale.h	int	8
 LC_CTYPE	locale.h	int	0
 LC_CTYPE_MASK	locale.h	int	1
+LC_GLOBAL_LOCALE	locale.h	__locale_struct*	-1
 LC_IDENTIFICATION	locale.h	int	12
 LC_IDENTIFICATION_MASK	locale.h	int	4096
 LC_MEASUREMENT	locale.h	int	11
@@ -2322,6 +2337,7 @@ MAP_ANON	sys/mman.h	int	32
 MAP_ANONYMOUS	sys/mman.h	int	32
 MAP_DENYWRITE	sys/mman.h	int	2048
 MAP_EXECUTABLE	sys/mman.h	int	4096
+MAP_FAILED	sys/mman.h	void*	-1
 MAP_FILE	sys/mman.h	int	0
 MAP_FIXED	sys/mman.h	int	16
 MAP_FIXED_NOREPLACE	sys/mman.h	int	1048576
@@ -2346,13 +2362,18 @@ MAXCDNAME	arpa/nameser.h	int	255
 MAXDFLSRCH	resolv.h	int	3
 MAXDNAME	arpa/nameser.h	int	1025
 MAXDNSRCH	resolv.h	int	6
+MAXDOUBLE	values.h	double	0x1.fffffffffffffp+1023
+MAXFLOAT	math.h	float	0x1.fffffep+127
 MAXHOSTNAMELEN	arpa/nameser.h	int	64
+MAXINT	values.h	int	2147483647
 MAXLABEL	arpa/nameser.h	int	63
+MAXLONG	values.h	long	9223372036854775807
 MAXNAMLEN	dirent.h	int	255
 MAXNS	resolv.h	int	3
 MAXPATHLEN	arpa/nameser.h	int	4096
 MAXQUOTAS	sys/quota.h	int	3
 MAXRESOLVSORT	resolv.h	int	10
+MAXSHORT	values.h	int	32767
 MAXSYMLINKS	arpa/nameser.h	int	20
 MAXTC	sys/timex.h	int	6
 MAX_ADDR_LEN	net/if_arp.h	int	7
@@ -2385,6 +2406,11 @@ MFD_EXEC	sys/mman.h	unsigned int	16
 MFD_HUGETLB	sys/mman.h	unsigned int	4
 MFD_NOEXEC_SEAL	sys/mman.h	unsigned int	8
 MINARCS	sys/gmon.h	int	50
+MINDOUBLE	values.h	double	0x1p-1022
+MINFLOAT	values.h	float	0x1p-126
+MININT	values.h	int	-2147483648
+MINLONG	values.h	long	-9223372036854775808
+MINSHORT	values.h	int	-32768
 MINSIGSTKSZ	arpa/nameser.h	int	2048
 MIPS_AFL_ASE_DSP	elf.h	int	1
 MIPS_AFL_ASE_DSPR2	elf.h	int	2
@@ -2436,8 +2462,12 @@ MM_NOMSG	fmtmsg.h	int	1
 MM_NOSEV	fmtmsg.h	int	0
 MM_NOTOK	fmtmsg.h	int	-1
 MM_NRECOV	fmtmsg.h	int	128
+MM_NULLACT	fmtmsg.h	char*	0
+MM_NULLLBL	fmtmsg.h	char*	0
 MM_NULLMC	fmtmsg.h	long	0
 MM_NULLSEV	fmtmsg.h	int	0
+MM_NULLTAG	fmtmsg.h	char*	0
+MM_NULLTXT	fmtmsg.h	char*	0
 MM_OK	fmtmsg.h	int	0
 MM_OPSYS	fmtmsg.h	int	32
 MM_PRINT	fmtmsg.h	int	256
@@ -2566,16 +2596,120 @@ MS_SYNC	sys/mman.h	int	4
 MS_SYNCHRONOUS	sys/mount.h	int	16
 MS_UNBINDABLE	sys/mount.h	int	131072
 MS_VERBOSE	sys/mount.h	int	32768
+M_1_PI	math.h	double	0x1.45f306dc9c883p-2
+M_1_PIf	math.h	float	0x1.45f306p-2
+M_1_PIf128	math.h	_Float128	0x1.45f306dc9c882a53f84eafa3ea6ap-2
+M_1_PIf32	math.h	_Float32	0x1.45f306p-2
+M_1_PIf32x	math.h	_Float32x	0x1.45f306dc9c883p-2
+M_1_PIf64	math.h	_Float64	0x1.45f306dc9c883p-2
+M_1_PIf64x	math.h	_Float64x	0x1.45f306dc9c882a54p-2
+M_1_PIl	math.h	long double	0x1.45f306dc9c882a54p-2
+M_2_PI	math.h	double	0x1.45f306dc9c883p-1
+M_2_PIf	math.h	float	0x1.45f306p-1
+M_2_PIf128	math.h	_Float128	0x1.45f306dc9c882a53f84eafa3ea6ap-1
+M_2_PIf32	math.h	_Float32	0x1.45f306p-1
+M_2_PIf32x	math.h	_Float32x	0x1.45f306dc9c883p-1
+M_2_PIf64	math.h	_Float64	0x1.45f306dc9c883p-1
+M_2_PIf64x	math.h	_Float64x	0x1.45f306dc9c882a54p-1
+M_2_PIl	math.h	long double	0x1.45f306dc9c882a54p-1
+M_2_SQRTPI	math.h	double	0x1.20dd750429b6dp+0
+M_2_SQRTPIf	math.h	float	0x1.20dd76p+0
+M_2_SQRTPIf128	math.h	_Float128	0x1.20dd750429b6d11ae3a914fed7fep+0
+M_2_SQRTPIf32	math.h	_Float32	0x1.20dd76p+0
+M_2_SQRTPIf32x	math.h	_Float32x	0x1.20dd750429b6dp+0
+M_2_SQRTPIf64	math.h	_Float64	0x1.20dd750429b6dp+0
+M_2_SQRTPIf64x	math.h	_Float64x	0x1.20dd750429b6d11ap+0
+M_2_SQRTPIl	math.h	long double	0x1.20dd750429b6d11ap+0
 M_ARENA_MAX	malloc.h	int	-8
 M_ARENA_TEST	malloc.h	int	-7
 M_CHECK_ACTION	malloc.h	int	-5
+M_E	math.h	double	0x1.5bf0a8b145769p+1
+M_Ef	math.h	float	0x1.5bf0a8p+1
+M_Ef128	math.h	_Float128	0x1.5bf0a8b1457695355fb8ac404e7ap+1
+M_Ef32	math.h	_Float32	0x1.5bf0a8p+1
+M_Ef32x	math.h	_Float32x	0x1.5bf0a8b145769p+1
+M_Ef64	math.h	_Float64	0x1.5bf0a8b145769p+1
+M_Ef64x	math.h	_Float64x	0x1.5bf0a8b145769536p+1
+M_El	math.h	long double	0x1.5bf0a8b145769536p+1
 M_GRAIN	malloc.h	int	3
 M_KEEP	malloc.h	int	4
+M_LN10	math.h	double	0x1.26bb1bbb55516p+1
+M_LN10f	math.h	float	0x1.26bb1cp+1
+M_LN10f128	math.h	_Float128	0x1.26bb1bbb5551582dd4adac5705a6p+1
+M_LN10f32	math.h	_Float32	0x1.26bb1cp+1
+M_LN10f32x	math.h	_Float32x	0x1.26bb1bbb55516p+1
+M_LN10f64	math.h	_Float64	0x1.26bb1bbb55516p+1
+M_LN10f64x	math.h	_Float64x	0x1.26bb1bbb5551582ep+1
+M_LN10l	math.h	long double	0x1.26bb1bbb5551582ep+1
+M_LN2	math.h	double	0x1.62e42fefa39efp-1
+M_LN2f	math.h	float	0x1.62e43p-1
+M_LN2f128	math.h	_Float128	0x1.62e42fefa39ef35793c7673007e6p-1
+M_LN2f32	math.h	_Float32	0x1.62e43p-1
+M_LN2f32x	math.h	_Float32x	0x1.62e42fefa39efp-1
+M_LN2f64	math.h	_Float64	0x1.62e42fefa39efp-1
+M_LN2f64x	math.h	_Float64x	0x1.62e42fefa39ef358p-1
+M_LN2l	math.h	long double	0x1.62e42fefa39ef358p-1
+M_LOG10E	math.h	double	0x1.bcb7b1526e50ep-2
+M_LOG10Ef	math.h	float	0x1.bcb7b2p-2
+M_LOG10Ef128	math.h	_Float128	0x1.bcb7b1526e50e32a6ab7555f5a68p-2
+M_LOG10Ef32	math.h	_Float32	0x1.bcb7b2p-2
+M_LOG10Ef32x	math.h	_Float32x	0x1.bcb7b1526e50ep-2
+M_LOG10Ef64	math.h	_Float64	0x1.bcb7b1526e50ep-2
+M_LOG10Ef64x	math.h	_Float64x	0x1.bcb7b1526e50e32ap-2
+M_LOG10El	math.h	long double	0x1.bcb7b1526e50e32ap-2
+M_LOG2E	math.h	double	0x1.71547652b82fep+0
+M_LOG2Ef	math.h	float	0x1.715476p+0
+M_LOG2Ef128	math.h	_Float128	0x1.71547652b82fe1777d0ffda0d23ap+0
+M_LOG2Ef32	math.h	_Float32	0x1.715476p+0
+M_LOG2Ef32x	math.h	_Float32x	0x1.71547652b82fep+0
+M_LOG2Ef64	math.h	_Float64	0x1.71547652b82fep+0
+M_LOG2Ef64x	math.h	_Float64x	0x1.71547652b82fe178p+0
+M_LOG2El	math.h	long double	0x1.71547652b82fe178p+0
 M_MMAP_MAX	malloc.h	int	-4
 M_MMAP_THRESHOLD	malloc.h	int	-3
 M_MXFAST	malloc.h	int	1
 M_NLBLKS	malloc.h	int	2
 M_PERTURB	malloc.h	int	-6
+M_PI	math.h	double	0x1.921fb54442d18p+1
+M_PI_2	math.h	double	0x1.921fb54442d18p+0
+M_PI_2f	math.h	float	0x1.921fb6p+0
+M_PI_2f128	math.h	_Float128	0x1.921fb54442d18469898cc51701b8p+0
+M_PI_2f32	math.h	_Float32	0x1.921fb6p+0
+M_PI_2f32x	math.h	_Float32x	0x1.921fb54442d18p+0
+M_PI_2f64	math.h	_Float64	0x1.921fb54442d18p+0
+M_PI_2f64x	math.h	_Float64x	0x1.921fb54442d1846ap+0
+M_PI_2l	math.h	long double	0x1.921fb54442d1846ap+0
+M_PI_4	math.h	double	0x1.921fb54442d18p-1
+M_PI_4f	math.h	float	0x1.921fb6p-1
+M_PI_4f128	math.h	_Float128	0x1.921fb54442d18469898cc51701b8p-1
+M_PI_4f32	math.h	_Float32	0x1.921fb6p-1
+M_PI_4f32x	math.h	_Float32x	0x1.921fb54442d18p-1
+M_PI_4f64	math.h	_Float64	0x1.921fb54442d18p-1
+M_PI_4f64x	math.h	_Float64x	0x1.921fb54442d1846ap-1
+M_PI_4l	math.h	long double	0x1.921fb54442d1846ap-1
+M_PIf	math.h	float	0x1.921fb6p+1
+M_PIf128	math.h	_Float128	0x1.921fb54442d18469898cc51701b8p+1
+M_PIf32	math.h	_Float32	0x1.921fb6p+1
+M_PIf32x	math.h	_Float32x	0x1.921fb54442d18p+1
+M_PIf64	math.h	_Float64	0x1.921fb54442d18p+1
+M_PIf64x	math.h	_Float64x	0x1.921fb54442d1846ap+1
+M_PIl	math.h	long double	0x1.921fb54442d1846ap+1
+M_SQRT1_2	math.h	double	0x1.6a09e667f3bcdp-1
+M_SQRT1_2f	math.h	float	0x1.6a09e6p-1
+M_SQRT1_2f128	math.h	_Float128	0x1.6a09e667f3bcc908b2fb1366ea95p-1
+M_SQRT1_2f32	math.h	_Float32	0x1.6a09e6p-1
+M_SQRT1_2f32x	math.h	_Float32x	0x1.6a09e667f3bcdp-1
+M_SQRT1_2f64	math.h	_Float64	0x1.6a09e667f3bcdp-1
+M_SQRT1_2f64x	math.h	_Float64x	0x1.6a09e667f3bcc908p-1
+M_SQRT1_2l	math.h	long double	0x1.6a09e667f3bcc908p-1
+M_SQRT2	math.h	double	0x1.6a09e667f3bcdp+0
+M_SQRT2f	math.h	float	0x1.6a09e6p+0
+M_SQRT2f128	math.h	_Float128	0x1.6a09e667f3bcc908b2fb1366ea95p+0
+M_SQRT2f32	math.h	_Float32	0x1.6a09e6p+0
+M_SQRT2f32x	math.h	_Float32x	0x1.6a09e667f3bcdp+0
+M_SQRT2f64	math.h	_Float64	0x1.6a09e667f3bcdp+0
+M_SQRT2f64x	math.h	_Float64x	0x1.6a09e667f3bcc908p+0
+M_SQRT2l	math.h	long double	0x1.6a09e667f3bcc908p+0
 M_TOP_PAD	malloc.h	int	-2
 M_TRIM_THRESHOLD	malloc.h	int	-1
 NAMESERVER_PORT	arpa/nameser.h	int	53
@@ -3240,6 +3374,7 @@ PR_UNALIGN_NOPRINT	sys/prctl.h	int	1
 PR_UNALIGN_SIGBUS	sys/prctl.h	int	2
 PTHREAD_ATTR_NO_SIGMASK_NP	pthread.h	int	-1
 PTHREAD_BARRIER_SERIAL_THREAD	pthread.h	int	-1
+PTHREAD_CANCELED	pthread.h	void*	-1
 PTHREAD_CANCEL_ASYNCHRONOUS	pthread.h	int	1
 PTHREAD_CANCEL_DEFERRED	pthread.h	int	0
 PTHREAD_CANCEL_DISABLE	pthread.h	int	1
@@ -3251,9 +3386,25 @@ PTHREAD_EXPLICIT_SCHED	pthread.h	int	1
 PTHREAD_INHERIT_SCHED	pthread.h	int	0
 PTHREAD_KEYS_MAX	argp.h	int	1024
 PTHREAD_MUTEX_ADAPTIVE_NP	pthread.h	int	3
+PTHREAD_MUTEX_DEFAULT	pthread.h	int	0
+PTHREAD_MUTEX_ERRORCHECK	pthread.h	int	2
+PTHREAD_MUTEX_NORMAL	pthread.h	int	0
+PTHREAD_MUTEX_RECURSIVE	pthread.h	int	1
+PTHREAD_MUTEX_ROBUST	pthread.h	int	1
+PTHREAD_MUTEX_ROBUST_NP	pthread.h	int	1
+PTHREAD_MUTEX_STALLED	pthread.h	int	0
+PTHREAD_MUTEX_STALLED_NP	pthread.h	int	0
+PTHREAD_MUTEX_TIMED_NP	pthread.h	int	0
 PTHREAD_ONCE_INIT	pthread.h	int	0
+PTHREAD_PRIO_INHERIT	pthread.h	int	1
+PTHREAD_PRIO_NONE	pthread.h	int	0
+PTHREAD_PRIO_PROTECT	pthread.h	int	2
 PTHREAD_PROCESS_PRIVATE	pthread.h	int	0
 PTHREAD_PROCESS_SHARED	pthread.h	int	1
+PTHREAD_RWLOCK_DEFAULT_NP	pthread.h	int	0
+PTHREAD_RWLOCK_PREFER_READER_NP	pthread.h	int	0
+PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP	pthread.h	int	2
+PTHREAD_RWLOCK_PREFER_WRITER_NP	pthread.h	int	1
 PTHREAD_SCOPE_PROCESS	pthread.h	int	1
 PTHREAD_SCOPE_SYSTEM	pthread.h	int	0
 PTHREAD_STACK_MIN	argp.h	int	16384
@@ -3614,9 +3765,11 @@ RSI	sys/reg.h	int	13
 RSP	sys/reg.h	int	19
 RTLD_BINDING_MASK	dlfcn.h	int	3
 RTLD_DEEPBIND	dlfcn.h	int	8
+RTLD_DEFAULT	dlfcn.h	void*	0
 RTLD_GLOBAL	dlfcn.h	int	256
 RTLD_LAZY	dlfcn.h	int	1
 RTLD_LOCAL	dlfcn.h	int	0
+RTLD_NEXT	dlfcn.h	void*	-1
 RTLD_NODELETE	dlfcn.h	int	4096
 RTLD_NOLOAD	dlfcn.h	int	4
 RTLD_NOW	dlfcn.h	int	2
@@ -5661,6 +5814,7 @@ SEGV_MTEAERR	arpa/nameser.h	int	8
 SEGV_MTESERR	arpa/nameser.h	int	9
 SEGV_PKUERR	arpa/nameser.h	int	4
 SELFMAG	elf.h	int	4
+SEM_FAILED	semaphore.h	sem_t*	0
 SEM_INFO	sys/sem.h	int	19
 SEM_STAT	sys/sem.h	int	18
 SEM_STAT_ANY	sys/sem.h	int	20
@@ -5879,6 +6033,10 @@ SIG_ATOMIC_MAX	arpa/nameser.h	int	2147483647
 SIG_ATOMIC_MIN	arpa/nameser.h	int	-2147483648
 SIG_ATOMIC_WIDTH	arpa/nameser.h	int	32
 SIG_BLOCK	arpa/nameser.h	int	0
+SIG_DFL	signal.h	void (*)(int)	0
+SIG_ERR	signal.h	void (*)(int)	-1
+SIG_HOLD	signal.h	void (*)(int)	2
+SIG_IGN	signal.h	void (*)(int)	1
 SIG_SETMASK	arpa/nameser.h	int	2
 SIG_UNBLOCK	arpa/nameser.h	int	1
 SIOCADDDLCI	net/if_ppp.h	int	35200
@@ -5953,6 +6111,14 @@ SI_SIGIO	arpa/nameser.h	int	-5
 SI_TIMER	arpa/nameser.h	int	-2
 SI_TKILL	arpa/nameser.h	int	-6
 SI_USER	arpa/nameser.h	int	0
+SNAN	math.h	double	nan
+SNANF	math.h	float	nan
+SNANF128	math.h	_Float128	nan
+SNANF32	math.h	_Float32	nan
+SNANF32X	math.h	_Float32x	nan
+SNANF64	math.h	_Float64	nan
+SNANF64X	math.h	_Float64x	nan
+SNANL	math.h	long double	nan
 SOCK_CLOEXEC	arpa/inet.h	int	524288
 SOCK_DCCP	arpa/inet.h	int	6
 SOCK_DGRAM	arpa/inet.h	int	2
@@ -6755,6 +6921,22 @@ _FCNTL_H	fcntl.h	int	1
 _FEATURES_H	aio.h	int	1
 _FENV_H	fenv.h	int	1
 _FNMATCH_H	fnmatch.h	int	1
+_FPU_DEFAULT	fpu_control.h	int	895
+_FPU_DOUBLE	fpu_control.h	int	512
+_FPU_EXTENDED	fpu_control.h	int	768
+_FPU_IEEE	fpu_control.h	int	895
+_FPU_MASK_DM	fpu_control.h	int	2
+_FPU_MASK_IM	fpu_control.h	int	1
+_FPU_MASK_OM	fpu_control.h	int	8
+_FPU_MASK_PM	fpu_control.h	int	32
+_FPU_MASK_UM	fpu_control.h	int	16
+_FPU_MASK_ZM	fpu_control.h	int	4
+_FPU_RC_DOWN	fpu_control.h	int	1024
+_FPU_RC_NEAREST	fpu_control.h	int	0
+_FPU_RC_UP	fpu_control.h	int	2048
+_FPU_RC_ZERO	fpu_control.h	int	3072
+_FPU_RESERVED	fpu_control.h	int	61632
+_FPU_SINGLE	fpu_control.h	int	0
 _FSTAB_H	fstab.h	int	1
 _FTS_H	fts.h	int	1
 _FTW_H	ftw.h	int	1

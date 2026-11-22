@@ -8,32 +8,40 @@
 //!    * `niji-cc`, the linker driver rustc is given: `cc` with `niji-crt1.o` first. The start
 //!      object must lead the link: its `.eh_frame` label marks the start of the executable's
 //!      call-frame information (D-2.7), and rustc places link arguments after its own objects.
+//!    * `personality.o` from `crates/native/link/personality.c`: a weak `rust_eh_personality`
+//!      that aborts. Rust's precompiled `core` and `alloc` name it in their call-frame
+//!      information; libniji's `libc.so.6` exports none (`libc.a` defines one), so the dynamic
+//!      links need it; a panic=abort program never calls it. Their `_Unwind_Resume` comes from
+//!      the unwinder, libgcc_eh (`-lgcc_eh`), whose `dl_iterate_phdr` and `_dl_find_object`
+//!      libniji defines in both `libc.a` and `libc.so.6`.
 //!    * `nounwind.o` from `crates/native/link/nounwind.c`: weak `_Unwind_Resume` and
-//!      `rust_eh_personality` that abort. Rust's precompiled `core` and `alloc` reference them;
-//!      a panic=abort program never calls them; the unwinder that would define them (libgcc_eh)
-//!      needs `dl_iterate_phdr` and `_dl_find_object`, which arrive with phase 14.
+//!      `rust_eh_personality` that abort, the no-unwind helper of Rust ABI version lr1's
+//!      recorded link (`cargo xtask rust-dylib`, `spec/abi/rust-abi.toml`); the examples here
+//!      no longer link it.
 //! 4. The static example, linked like a product (GNU ld; rust-lld would put the end label of
 //!    `.eh_frame`, a section `.eh_frame.niji_end`, outside it):
 //!
 //!    ```text
 //!    cargo rustc -p niji-native --example native_static --features static -- \
 //!        -C linker=target/niji/native/niji-cc -C linker-features=-lld \
-//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/niji/native/nounwind.o \
+//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib \
 //!        -C relocation-model=static -C target-feature=+crt-static \
-//!        -C link-arg=target/niji/libc.a -C link-arg=-lgcc
+//!        -C link-arg=-Wl,--start-group -C link-arg=target/niji/libc.a -C link-arg=-lgcc_eh \
+//!        -C link-arg=-Wl,--end-group -C link-arg=-lgcc
 //!    ```
 //!
 //!    It is then run with an empty environment except `NIJI_NATIVE_GREETING=hello` and a POSIX
 //!    `TZ` rule, with a fresh directory and two arguments; its standard output must be exactly
 //!    [`EXPECTED`], its standard error empty and its status 0. The executable must have no
-//!    program interpreter and no dynamic section.
+//!    program interpreter and no dynamic section, and its `_Unwind_Resume` must be the
+//!    unwinder's (defined, not weak).
 //! 5. The dynamic example, linked against libniji's `libc.so.6`:
 //!
 //!    ```text
 //!    cargo rustc -p niji-native --example native_dynamic --features dynamic -- \
 //!        -C linker=target/niji/native/niji-cc -C linker-features=-lld \
-//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/niji/native/nounwind.o \
-//!        -C link-arg=target/niji/libc.so.6 -C link-arg=-lgcc
+//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/niji/native/personality.o \
+//!        -C link-arg=target/niji/libc.so.6 -C link-arg=-lgcc_eh -C link-arg=-lgcc
 //!    ```
 //!
 //!    `readelf` must show `libc.so.6` as its only `DT_NEEDED` entry and every native function
@@ -43,10 +51,12 @@
 //!    `RUNPATH` points at `target/niji`) and stop at the missing `NIJI_NATIVE_1`, never
 //!    libniji's library.
 //!
-//!    Step 5b links the dynamic example again, against a copy of `libc.so.6` named by path (its
-//!    `DT_SONAME` retagged: `ld.so` has no library search yet) with
-//!    `-Wl,--dynamic-linker=target/niji/ld-linux-x86-64.so.2`, and run as in step 4: the same
-//!    output with `linkage dynamic` in its first line (D-27.24).
+//!    Step 5b links the dynamic example again in the same way, with
+//!    `-Wl,--dynamic-linker=target/niji/ld-linux-x86-64.so.2`, so it needs `libc.so.6` by name
+//!    as a program built for libniji does; it is run as in step 4 with
+//!    `LD_LIBRARY_PATH=target/niji` added (libniji's loader finds its libraries there): the same
+//!    output with `linkage dynamic` in its first line (D-27.24), status 0, and its
+//!    `_Unwind_Resume` the unwinder's.
 //!
 //! 6. The proof that `niji_secure_zero` is never optimised away (D-X.11): the boundary's
 //!    example `secure_zero_codegen` is built with the release profile (fat LTO, one codegen
@@ -62,11 +72,9 @@
 //!    `rep stos`. In `dead_secure_zero`, which calls `niji_secure_zero` inlined, a zeroing of
 //!    0x1000 bytes must remain, followed by the call to `niji_machine_barrier`.
 //!
-//! The examples are `#![no_std]` `#![no_main]` programs: a `std` program cannot link against
-//! libniji yet. Statically, `std` and libgcc_eh need `getcwd`, `realpath`, `dl_iterate_phdr`
-//! and `_dl_find_object` from `libc.a`, which does not define them, and `libc.a`'s strong
-//! `rust_eh_personality` (csys/src/adapter/runtime.c) collides with `std`'s; dynamically,
-//! `std` needs `getcwd`, `realpath` and `dl_iterate_phdr` from `libc.so.6`.
+//! The examples are `#![no_std]` `#![no_main]` programs. A static `std` program still cannot
+//! link against libniji: `libc.a`'s strong `rust_eh_personality` (csys/src/adapter/runtime.c)
+//! collides with `std`'s.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -102,7 +110,7 @@ const STATIC_ONLY: &[&str] = &["kernel types"];
 /// The standard output the example with `linkage` (`static` or `dynamic`) must print: for
 /// `static` exactly [`EXPECTED`]; for `dynamic` that output with its own first line, without
 /// the [`STATIC_ONLY`] steps, and with a last line counting the steps left.
-fn expected(linkage: &str) -> String {
+pub(crate) fn expected(linkage: &str) -> String {
     if linkage == "static" {
         return EXPECTED.to_string();
     }
@@ -154,23 +162,36 @@ fn build(root: &Path, example: &str, feature: &str, link: &[String]) -> Result<P
     Ok(root.join("target/debug/examples").join(example))
 }
 
-/// Run an example as step 4 describes; its errors. `linkage` is the word its first line names.
-fn run_example(root: &Path, name: &str, exe: &Path, dir: &Path, linkage: &str) -> Result<Vec<String>, String> {
+/// How an example is started: `loader`, if given, is `ld.so` run as a program with the
+/// example as its first argument; `library_path`, if given, is the example's `LD_LIBRARY_PATH`.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Launch<'a> {
+    pub(crate) loader: Option<&'a Path>,
+    pub(crate) library_path: Option<&'a str>,
+}
+
+/// Run an example as step 4 describes; its errors. Its standard output must be `expected`.
+pub(crate) fn run_example(root: &Path, name: &str, exe: &Path, dir: &Path, expected: &str, launch: Launch<'_>) -> Result<Vec<String>, String> {
     let work = dir.join("run");
     let _ = fs::remove_dir_all(&work);
     fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
-    let out = Command::new(exe)
-        .current_dir(root)
-        .arg(&work)
-        .args(["alpha", "beta"])
-        .env_clear()
-        .env("NIJI_NATIVE_GREETING", "hello")
-        .env("TZ", TZ)
-        .output()
-        .map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
+    let mut cmd = match launch.loader {
+        Some(ld) => {
+            let mut c = Command::new(ld);
+            c.arg(exe);
+            c
+        }
+        None => Command::new(exe),
+    };
+    cmd.current_dir(root).arg(&work).args(["alpha", "beta"]).env_clear().env("NIJI_NATIVE_GREETING", "hello").env("TZ", TZ);
+    if let Some(path) = launch.library_path {
+        cmd.env("LD_LIBRARY_PATH", path);
+    }
+    // The `env` step counts the environment's entries: `LD_LIBRARY_PATH` is one more.
+    let expected = if launch.library_path.is_some() { expected.replace("; set, overwrite, unset; 2 entries\n", "; set, overwrite, unset; 3 entries\n") } else { expected.to_string() };
+    let out = cmd.output().map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
-    let expected = expected(linkage);
     let mut errors = Vec::new();
     if out.status.code() != Some(0) {
         errors.push(format!("{name}: status {}, expected 0", out.status));
@@ -191,29 +212,30 @@ fn run_example(root: &Path, name: &str, exe: &Path, dir: &Path, linkage: &str) -
 
 /// The static example: run it and compare its output; check it has no interpreter.
 fn check_static(root: &Path, exe: &Path, dir: &Path) -> Result<(), String> {
-    let mut errors = run_example(root, "native_static", exe, dir, "static")?;
+    let mut errors = run_example(root, "native_static", exe, dir, &expected("static"), Launch::default())?;
     let headers = output(Command::new("readelf").args(["-lW"]).arg(exe))?;
     if headers.contains("INTERP") || headers.contains("DYNAMIC") {
         errors.push("native_static: has a program interpreter or a dynamic section; a static link has neither".to_string());
     }
+    errors.extend(unwinder_linked("native_static", exe)?);
     if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
 }
 
-/// A copy of `libc_so` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
-/// linked against it names it by path: libniji's `ld.so` has no library search yet (#4537).
-pub(crate) fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
-    let mut so = fs::read(libc_so).map_err(|e| format!("{}: {e}", libc_so.display()))?;
-    let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
-    let (phoff, phentsize, phnum) = (word(&so, 0x20, 8), word(&so, 0x36, 2), word(&so, 0x38, 2));
-    // PT_DYNAMIC (2): its file offset and size.
-    let ph = (0..phnum).map(|i| phoff.wrapping_add(i.wrapping_mul(phentsize))).find(|&p| word(&so, p, 4) == 2).ok_or("libc.so.6 has no PT_DYNAMIC")?;
-    let (off, len) = (word(&so, ph.wrapping_add(8), 8), word(&so, ph.wrapping_add(32), 8));
-    // DT_SONAME (14) becomes DT_CHECKSUM (0x6ffffdf8).
-    let at = (off..off.saturating_add(len)).step_by(16).find(|&o| word(&so, o, 8) == 14).ok_or("libc.so.6 has no DT_SONAME")?;
-    so.get_mut(at..at.saturating_add(8)).ok_or("DT_SONAME entry out of the file")?.copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
-    let out = dir.join("libc-by-path.so");
-    fs::write(&out, &so).map_err(|e| format!("{}: {e}", out.display()))?;
-    Ok(out)
+/// The error if `exe`'s `_Unwind_Resume` is not the unwinder's: the symbol table must define
+/// it with a binding other than `WEAK` (an aborting weak stand-in is `WEAK`; libgcc_eh's is
+/// `GLOBAL`, or `LOCAL` once its hidden visibility is applied).
+fn unwinder_linked(name: &str, exe: &Path) -> Result<Option<String>, String> {
+    let syms = output(Command::new("readelf").args(["-sW"]).arg(exe))?;
+    let bindings: Vec<String> = syms
+        .lines()
+        .map(|l| l.split_whitespace().collect::<Vec<_>>())
+        .filter(|f| f.get(7) == Some(&"_Unwind_Resume") && f.get(6).is_some_and(|n| *n != "UND"))
+        .filter_map(|f| f.get(4).map(|b| (*b).to_string()))
+        .collect();
+    Ok(match bindings.as_slice() {
+        [b] if b != "WEAK" => None,
+        _ => Some(format!("{name}: _Unwind_Resume defined with bindings {bindings:?}, expected the unwinder's one definition (GLOBAL or LOCAL, not WEAK)")),
+    })
 }
 
 /// The dynamic example: its needed libraries and native references. The number of native
@@ -360,6 +382,24 @@ fn check_secure_zero(root: &Path) -> Result<String, String> {
     }
 }
 
+/// A copy of `libc_so` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
+/// linked against it names it by path (#4537). `cargo xtask so` ships one (`libc-by-path.so`);
+/// the examples here link `libc.so.6` by its soname.
+pub(crate) fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
+    let mut so = fs::read(libc_so).map_err(|e| format!("{}: {e}", libc_so.display()))?;
+    let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
+    let (phoff, phentsize, phnum) = (word(&so, 0x20, 8), word(&so, 0x36, 2), word(&so, 0x38, 2));
+    // PT_DYNAMIC (2): its file offset and size.
+    let ph = (0..phnum).map(|i| phoff.wrapping_add(i.wrapping_mul(phentsize))).find(|&p| word(&so, p, 4) == 2).ok_or("libc.so.6 has no PT_DYNAMIC")?;
+    let (off, len) = (word(&so, ph.wrapping_add(8), 8), word(&so, ph.wrapping_add(32), 8));
+    // DT_SONAME (14) becomes DT_CHECKSUM (0x6ffffdf8).
+    let at = (off..off.saturating_add(len)).step_by(16).find(|&o| word(&so, o, 8) == 14).ok_or("libc.so.6 has no DT_SONAME")?;
+    so.get_mut(at..at.saturating_add(8)).ok_or("DT_SONAME entry out of the file")?.copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
+    let out = dir.join("libc-by-path.so");
+    fs::write(&out, &so).map_err(|e| format!("{}: {e}", out.display()))?;
+    Ok(out)
+}
+
 /// Step 1: the products, built if `target/niji` lacks one. Their paths: `libc.a`,
 /// `libc.so.6`, `niji-crt1.o`.
 pub(crate) fn products(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), String> {
@@ -372,8 +412,8 @@ pub(crate) fn products(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), Strin
 }
 
 /// Step 3: the link helpers in `target/niji/native` (also used by `cargo xtask rust-dylib`):
-/// the directory, the driver `niji-cc` and `nounwind.o`.
-pub(crate) fn link_helpers(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), String> {
+/// the directory, the driver `niji-cc`, `nounwind.o` and `personality.o`.
+pub(crate) fn link_helpers(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf), String> {
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
     let crt1 = root.join("target/niji/niji-crt1.o");
     let dir = root.join("target/niji/native");
@@ -392,7 +432,9 @@ pub(crate) fn link_helpers(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), S
     }
     let nounwind = dir.join("nounwind.o");
     run(Command::new(&cc).args(["-c", "-O2", "-fno-asynchronous-unwind-tables"]).arg(root.join("crates/native/link/nounwind.c")).arg("-o").arg(&nounwind))?;
-    Ok((dir, driver, nounwind))
+    let personality = dir.join("personality.o");
+    run(Command::new(&cc).args(["-c", "-O2", "-fno-asynchronous-unwind-tables"]).arg(root.join("crates/native/link/personality.c")).arg("-o").arg(&personality))?;
+    Ok((dir, driver, nounwind, personality))
 }
 
 pub fn run_native(root: &Path) -> Result<(), String> {
@@ -406,7 +448,7 @@ pub fn run_native(root: &Path) -> Result<(), String> {
     }
 
     // 3. The link helpers.
-    let (dir, driver, nounwind) = link_helpers(root)?;
+    let (dir, driver, _, personality) = link_helpers(root)?;
 
     let arg = |a: &str| vec!["-C".to_string(), a.to_string()];
     let link_arg = |p: &Path| arg(&format!("link-arg={}", p.display()));
@@ -415,34 +457,39 @@ pub fn run_native(root: &Path) -> Result<(), String> {
     common.extend(arg("linker-features=-lld"));
     common.extend(arg("link-arg=-nostartfiles"));
     common.extend(arg("link-arg=-nostdlib"));
-    common.extend(link_arg(&nounwind));
 
-    // 4. The static example.
+    // 4. The static example: libgcc_eh in a group with `libc.a` (each needs the other).
     let mut link = common.clone();
     link.extend(arg("relocation-model=static"));
     link.extend(arg("target-feature=+crt-static"));
+    link.extend(arg("link-arg=-Wl,--start-group"));
     link.extend(link_arg(&libc_a));
+    link.extend(arg("link-arg=-lgcc_eh"));
+    link.extend(arg("link-arg=-Wl,--end-group"));
     link.extend(arg("link-arg=-lgcc"));
     let exe = build(root, "native_static", "static", &link)?;
     check_static(root, &exe, &dir)?;
 
     // 5. The dynamic example.
-    let mut link = common.clone();
+    let mut link = common;
+    link.extend(link_arg(&personality));
     link.extend(link_arg(&libc_so));
+    link.extend(arg("link-arg=-lgcc_eh"));
     link.extend(arg("link-arg=-lgcc"));
     let exe = build(root, "native_dynamic", "dynamic", &link)?;
     let (count, interp) = check_dynamic(root, &exe)?;
 
-    // 5b. The same example run under libniji's `ld.so` (D-27.24): linked against a by-path copy of
-    // `libc.so.6` with that loader as its interpreter, its output must be the static one's
-    // without the static-only steps (`expected("dynamic")`).
+    // 5b. The same example run under libniji's `ld.so` (D-27.24): linked the same way with that
+    // loader as its interpreter, it needs `libc.so.6` by name and the loader finds it on
+    // `LD_LIBRARY_PATH`; its output must be the static one's without the static-only steps
+    // (`expected("dynamic")`).
     let ld = root.join("target/niji/ld-linux-x86-64.so.2");
-    let mut link = common;
-    link.extend(link_arg(&libc_by_path(&libc_so, &dir)?));
-    link.extend(arg("link-arg=-lgcc"));
     link.extend(arg(&format!("link-arg=-Wl,--dynamic-linker={}", ld.display())));
     let exe = build(root, "native_dynamic", "dynamic", &link)?;
-    let errors = run_example(root, "native_dynamic", &exe, &dir, "dynamic")?;
+    let niji = root.join("target/niji");
+    let niji = niji.to_string_lossy();
+    let mut errors = run_example(root, "native_dynamic", &exe, &dir, &expected("dynamic"), Launch { loader: None, library_path: Some(&niji) })?;
+    errors.extend(unwinder_linked("native_dynamic", &exe)?);
     if !errors.is_empty() {
         return Err(errors.join("\n"));
     }
@@ -452,6 +499,6 @@ pub fn run_native(root: &Path) -> Result<(), String> {
 
     let steps = |linkage| expected(linkage).lines().filter(|l| l.starts_with("ok ")).count();
     let (stat, dynamic) = (steps("static"), steps("dynamic"));
-    println!("native: niji-native clean with each feature; static example ran ({stat} steps, output as expected); dynamic example linked (NEEDED libc.so.6, {count} native symbols at their nodes, interpreter {interp}) and ran under libniji's ld.so ({dynamic} steps, output as expected); {proof}");
+    println!("native: niji-native clean with each feature; static example ran ({stat} steps, output as expected); dynamic example linked (NEEDED libc.so.6, {count} native symbols at their nodes, interpreter {interp}) and ran under libniji's ld.so ({dynamic} steps, output as expected); both with libgcc_eh's _Unwind_Resume; {proof}");
     Ok(())
 }

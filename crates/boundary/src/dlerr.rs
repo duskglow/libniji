@@ -6,8 +6,8 @@
 //! word (0x280). Word 0 says whether a text is pending, the NUL-terminated text follows. A failure
 //! sets the text, every successful `dl*` call clears it (#5127, probe P-6; an `RTLD_NOLOAD` miss
 //! clears it too, tools/probe/dl/gaps), and `dlerror` returns it once. The returned string stays
-//! valid until the thread's next failure or its exit (longer than dlopen(3) promises). Releasing the
-//! record at thread exit is DL-15's thread-exit hook. When the mapping cannot be made the failure
+//! valid until the thread's next failure or its exit (longer than dlopen(3) promises). The thread's
+//! exit unmaps the record ([`thread_ending`], after every destructor). When the mapping cannot be made the failure
 //! has no text (`dlerror` returns NULL), the only way the record can be missing. This module names
 //! no niji-ld item (see `compose`).
 
@@ -87,6 +87,27 @@ pub fn clear() {
     let r = record(false);
     if r != 0 {
         bytes(r).get_mut(..TEXT).into_iter().for_each(|f| f.fill(0));
+    }
+}
+
+/// Unmap the calling thread's record (at its exit, after every destructor, which may still fail a
+/// `dl*` call): a thread's text goes with it, so threads that fail and exit leave nothing behind.
+/// The word is cleared first, so nothing on this thread can reach the record afterwards. A thread
+/// that never failed pays one load.
+#[inline]
+pub(crate) fn thread_ending() {
+    if tb::current().dlerror.load(Relaxed) != 0 {
+        release();
+    }
+}
+
+/// [`thread_ending`]'s rare half: clear the word, unmap the record.
+#[cold]
+#[inline(never)]
+fn release() {
+    let r = tb::current().dlerror.swap(0, Relaxed);
+    if r != 0 {
+        let _ = raw::munmap(r, RECORD);
     }
 }
 

@@ -141,6 +141,33 @@ impl Pages for FakePages {
         self.maps.borrow_mut().insert(addr, Mapping { len, slot: n, node });
         Some(addr)
     }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        // As the kernel places it: the room past the aligned address stays free (`next` skips it).
+        let start = self.map(head + len, PAGE, node)?;
+        let addr = (start + head).next_multiple_of(align);
+        let m = self.maps.borrow_mut().remove(&start).unwrap();
+        self.maps.borrow_mut().insert(addr - head, m);
+        *self.next.borrow_mut() = addr + room.max(len) + 16 * PAGE;
+        Some(addr)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        let n = *self.calls.borrow();
+        *self.calls.borrow_mut() += 1;
+        let mapped: usize = self.maps.borrow().values().map(|m| m.len).sum();
+        let taken = self.maps.borrow().range(..addr + len).next_back().is_some_and(|(&b, m)| b + m.len > addr);
+        if *self.fail_at.borrow() == Some(n) || taken || self.limit.get().is_some_and(|l| mapped + len > l) {
+            return false;
+        }
+        // The kernel merges the new pages into the mapping they extend (one VMA).
+        let below = self.maps.borrow().range(..addr).next_back().map(|(&b, m)| (b, m.len));
+        match below {
+            Some((b, l)) if b + l == addr => self.maps.borrow_mut().get_mut(&b).unwrap().len += len,
+            _ => {
+                self.maps.borrow_mut().insert(addr, Mapping { len, slot: n, node });
+            }
+        }
+        true
+    }
     fn unmap(&self, addr: usize, len: usize) {
         assert_eq!(self.maps.borrow_mut().remove(&addr).map(|m| m.len), Some(len), "unmap of exactly a mapping");
     }
@@ -368,15 +395,18 @@ fn every_page_request_can_fail_without_damage() {
 
 #[test]
 fn an_address_space_limit_sizes_the_registries() {
-    // Clauses: s3_1_c_1, s3_1_f_1 (T14). Under a limit of 20 MiB the registries are small, no
-    // 16 MiB segment is mapped (below four segments' worth), and small blocks get mappings of
-    // their own; under 1 GiB segments are used again, with small registries.
+    // Clauses: s3_1_c_1, s3_1_f_1 (T14). Under a limit of 20 MiB the registries are small and a
+    // segment maps only the slabs it hands out (HEAP-ADDRESS-SPACE: four segments' first parts
+    // fit well under the limit): 100 blocks of 7 classes take one mapping, one page of
+    // registries, the cache chunk, the segment's 256 KiB of metadata and the 16 slabs a new
+    // segment maps first, 7 of them used; no large registry. Under 1 GiB the same small
+    // registries.
     let pages = FakePages::new();
     pages.limit.set(Some(20 << 20));
     let heap = Heap::new();
     let blocks: Vec<usize> = (0..100).map(|i| heap.alloc(&CSys, &pages, 24 + i, ALIGN).unwrap().addr).collect();
-    let biggest = pages.maps.borrow().values().map(|m| m.len).max().unwrap();
-    assert!(biggest <= 1 << 20, "no segment and no large registry: largest mapping {biggest}");
+    let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
+    assert_eq!(lens, [PAGE + (64 << 10) + 17 * (256 << 10)], "small registries, a segment's first slabs: {lens:?}");
     for b in blocks {
         heap.free(&CSys, &pages, b).unwrap();
     }
@@ -386,8 +416,9 @@ fn an_address_space_limit_sizes_the_registries() {
     let heap = Heap::new();
     let a = heap.alloc(&CSys, &pages, 40, ALIGN).unwrap().addr;
     let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
-    // One mapping: the segment, one page of registries sized to 1 GiB, the first cache chunk (D-3.19).
-    assert_eq!(lens, [SEG + PAGE + (64 << 10)], "a segment and small registries: {lens:?}");
+    // One mapping: one page of registries sized to 1 GiB, the first cache chunk (D-3.19), then
+    // the segment's first part: its 256 KiB of metadata and sixteen 256 KiB slabs.
+    assert_eq!(lens, [PAGE + (64 << 10) + 17 * (256 << 10)], "small registries and a segment's first slabs: {lens:?}");
     heap.free(&CSys, &pages, a).unwrap();
 }
 
@@ -433,9 +464,11 @@ fn a_raised_address_space_limit_lets_the_heap_grow() {
 #[test]
 fn the_first_allocation_reserves_one_mapping() {
     // Clauses: s3_1_c_1 (T14, D-3.14, D-3.19). No limit (or 64 GiB and more): the first
-    // allocation maps one range, the first segment at its 16 MiB boundary, one page holding the
-    // generation-0 cache table, segment bases and segment hash, and the first cache chunk; the
-    // next hundred blocks map nothing more. The generations that follow are tested under a
+    // allocation maps one range, one page holding the generation-0 cache table, segment bases
+    // and segment hash, then the first cache chunk, then the first segment at its 16 MiB
+    // boundary, mapped as far as its first 16 slabs (HEAP-ADDRESS-SPACE); the next 99 blocks
+    // (7 classes in all) fit in them: still one mapping. Growth in place is tested by
+    // `segments_are_aligned_and_found_from_any_address`. The generations that follow are tested under a
     // raised limit (`a_raised_address_space_limit_lets_the_heap_grow`).
     for limit in [None, Some(64usize << 30)] {
         let pages = FakePages::new();
@@ -447,17 +480,18 @@ fn the_first_allocation_reserves_one_mapping() {
         let maps: Vec<(usize, usize)> = pages.maps.borrow().iter().map(|(&b, m)| (b, m.len)).collect();
         assert_eq!(maps.len(), 1, "{limit:?}: {maps:?}");
         let (base, len) = maps[0];
-        assert_eq!((base % SEG, len), (0, SEG + PAGE + (64 << 10)), "{limit:?}");
-        // The registry page after the segment holds, without overlap, the cache table (64
+        let seg = base + PAGE + (64 << 10);
+        assert_eq!((seg % SEG, len), (0, PAGE + (64 << 10) + 17 * (256 << 10)), "{limit:?}");
+        // The registry page, the mapping's first, holds without overlap the cache table (64
         // words; entry 0 is the first cache, at the chunk after the page), the segment bases
         // (128 words; entry 0 is the segment) and the segment hash (256 words; the entry
         // `key << 21 | index + 1` at the key's slot of the heap's multiplicative hash).
         let w = |x: usize| u64::try_from(x).unwrap();
-        let reg: Vec<(usize, u64)> = pages.words(base + SEG, PAGE / 8).iter().map(|v| v.load(Ordering::Relaxed)).enumerate().filter(|&(_, v)| v != 0).collect();
-        let key = w(base / SEG);
+        let reg: Vec<(usize, u64)> = pages.words(base, PAGE / 8).iter().map(|v| v.load(Ordering::Relaxed)).enumerate().filter(|&(_, v)| v != 0).collect();
+        let key = w(seg / SEG);
         let slot = usize::try_from(key.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> (64 - 21)).unwrap() & 255;
-        assert_eq!(reg, [(0, w(base + SEG + PAGE)), (64, w(base)), (192 + slot, (key << 21) | 1)], "{limit:?}: registry page");
-        assert_eq!(first / SEG, base / SEG, "{limit:?}: the block is in the first segment");
+        assert_eq!(reg, [(0, w(base + PAGE)), (64, w(seg)), (192 + slot, (key << 21) | 1)], "{limit:?}: registry page");
+        assert_eq!(first / SEG, seg / SEG, "{limit:?}: the block is in the first segment");
         heap.free(&CSys, &pages, first).unwrap();
         for b in blocks {
             heap.free(&CSys, &pages, b).unwrap();
@@ -596,7 +630,8 @@ fn secure_blocks_are_wiped_on_every_release_and_never_kept() {
 /// The node each segment (a mapping of 16 MiB or more at a 16 MiB boundary: the first one also
 /// holds registries, D-3.19) asked for, by base.
 fn segment_nodes(pages: &FakePages) -> BTreeMap<usize, Option<u32>> {
-    pages.maps.borrow().iter().filter(|(b, m)| m.len >= SEG && *b % SEG == 0).map(|(&b, m)| (b, m.node)).collect()
+    // A segment starts at a 16 MiB boundary inside a mapping (after the registries in the first).
+    pages.maps.borrow().iter().filter(|&(&b, m)| b.next_multiple_of(SEG) < b + m.len).map(|(&b, m)| (b.next_multiple_of(SEG), m.node)).collect()
 }
 
 #[test]
@@ -689,8 +724,11 @@ fn borrow_from_another_shard(donor: usize, caller: usize) {
     let heap = Heap::new();
     let pages = FakePages::new();
     // Shard 0 maps its segment; thread 1 on shard 1 gets its cache (via a large block) but no segment.
+    // A segment maps its slabs as they are used: nine classes leave seven mapped slabs free.
     pages.shard.set(donor);
-    heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
+    for size in [100, 16, 32, 48, 64, 80, 96, 128, 160] {
+        heap.alloc(&CSys, &pages, size, ALIGN).unwrap();
+    }
     pages.thread.set(1);
     pages.shard.set(caller);
     let big = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap();
@@ -736,6 +774,13 @@ fn a_thread_whose_cache_cannot_be_made_takes_a_parked_cache_of_another_shard() {
     pages.thread.set(1);
     pages.shard.set(3);
     heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
+    // A segment maps its slabs as they are used (HEAP-ADDRESS-SPACE): 60 slabs of 64 KiB blocks,
+    // freed, leave 59 empty slabs on shard 3, more than a cache chunk has caches, so the new
+    // threads below run out of cache room, not of slabs.
+    let big: Vec<usize> = (0..240).map(|_| heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr).collect();
+    for p in big {
+        heap.free(&CSys, &pages, p).unwrap();
+    }
     // No room for any further mapping. "New threads" (their cache word cleared, nothing parked) use up
     // the cache chunk and then cannot make a cache.
     let mapped: usize = pages.maps.borrow().values().map(|m| m.len).sum();
@@ -1075,7 +1120,40 @@ fn segments_are_aligned_and_found_from_any_address() {
     for &p in blocks.iter().rev() {
         heap.free(&CSys, &pages, p).unwrap();
     }
-    assert_eq!(heap.stats(&CSys, &pages).small_mapped, 4 * SEG);
+    // Three whole segments and the fourth as far as used (HEAP-ADDRESS-SPACE): 36 slabs in
+    // use, 40 mapped by growth steps of at most 8 (16, 24, 32, 40).
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, 3 * SEG + (256 << 10) + 40 * (256 << 10));
+}
+
+#[test]
+fn a_large_block_in_a_segments_unmapped_tail_is_found_as_large() {
+    // Trace: no spec clause (the heap's block lookup); D-3.10, D-3.13, HEAP-ADDRESS-SPACE.
+    // Invariant: a segment maps its 16 MiB window only as far as it is used, so another mapping
+    // (here a large block) can sit in the window's unmapped tail. An address there belongs to no
+    // slab: free, usable and realloc take it to the large-block table, which knows the block and
+    // reports any other address there as invalid.
+    let heap = Heap::new();
+    let pages = FakePages::new();
+    let small = heap.alloc(&CSys, &pages, 40, ALIGN).unwrap().addr;
+    // The first large block maps the large-block table too: keep it alive so that the next
+    // large block is a fresh mapping, not a kept one (D-3.13).
+    let warm = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap().addr;
+    let window = small / SEG * SEG;
+    let (seg_start, seg_map) = pages.mapping_of(small);
+    let tail = seg_start + seg_map.len;
+    assert!(tail + (4 << 20) < window + SEG, "the segment is mapped only as far as it is used");
+    // The kernel's next mapping goes into the window's free tail.
+    *pages.next.borrow_mut() = tail + 4 * PAGE;
+    let big = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap().addr;
+    assert!(big > tail && big + (1 << 20) <= window + SEG, "the large block {big:#x} sits in the segment's window tail");
+    assert!(heap.usable(&CSys, &pages, big).is_ok_and(|u| u >= 1 << 20), "a large block in a window tail is found: {:?}", heap.usable(&CSys, &pages, big));
+    assert_eq!(heap.free(&CSys, &pages, big + PAGE), Err(Misuse::InvalidPointer), "inside the large block: not a block");
+    let grown = heap.resize(&CSys, &pages, big, 3 << 20, |_, _, _| {});
+    assert!(matches!(grown, Ok(Some(_))), "a large block in a window tail grows");
+    let grown = grown.unwrap().unwrap();
+    assert_eq!(heap.free(&CSys, &pages, grown.addr), Ok(()), "a large block in a window tail is freed");
+    heap.free(&CSys, &pages, warm).unwrap();
+    heap.free(&CSys, &pages, small).unwrap();
 }
 
 // ------------------------------------------------------------------------------ sync

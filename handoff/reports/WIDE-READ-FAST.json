@@ -1,0 +1,22 @@
+{"task": "WIDE-READ-FAST", "model": "opus", "tokens": null,
+ "result": "wide reads decode a whole character in place from the read window (D-12.30): 3.2x-7.7x fewer instructions on every wide row, byte rows unchanged, #23 probe identical; target (reference parity) not reached: 1.2x-2.7x remain",
+ "branch": "task/wide-read-fast", "head": "faa4cd785a83335b1d469841452379e67c87f2af",
+ "gate": {"affected": "16 suites ok, 9764 passed / 0 failed (1491 ignored), conformance 15 / 0, SKIPPED 0", "peak": "13G"}, "accepted_first_attempt": null,
+ "rulings": [{"item": "fgetwc front path: use the byte path's trusted file_words (no NULL/alignment test, owner #1654) to save 13 instructions per call; fgetwc(NULL) would then fault instead of EINVAL", "recommendation": "allow, as for getc_unlocked (the reference faults on NULL as well)"}],
+ "informational": ["#7212's +3 is moot rather than removed: the fresh-fill note stays on the general path, which whole characters in the window no longer reach (2-byte rows 639 -> 119); deriving it in end_of_input from the position is not possible because the empty fill resets rpos/rend first", "Zen 1 host not measured: instruction counts on a path with no CPU dispatch"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "fgetwc_unlocked, 2-byte UTF-8 character", "before": 639, "after": 119.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fgetwc_unlocked, ASCII", "before": 362, "after": 88.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fgetwc/getwc, 2-byte UTF-8 character", "before": 649, "after": 125.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fgetwc/getwc, 4-byte UTF-8 character", "before": 1182, "after": 157.6, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "getwchar, 2-byte UTF-8 character", "before": 650, "after": 126.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fgetws, 32-character line of 2-byte characters", "before": 2213, "after": 805.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "ungetwc + fgetwc pair", "before": 327, "after": 252, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "getc / getc_unlocked / fgetc (must not get slower)", "before": 24, "after": 24, "unit": "instr/call", "measured": true},
+  {"kind": "coverage", "what": "tests (cut characters at every buffer size, stale bytes past a short refill, partial character across EAGAIN) + 31 percall rows + 3 plants", "before": 0, "after": 2, "unit": "tests", "measured": true}
+ ],
+ "improvement": "sync_role rc 4 after kill-label: kill-label ends the job's tree but conformance children of a gate can outlive it; kill-mine <role> is needed before re-syncing (cost two mis-started jobs)",
+ "next_step": "fgetws as one window loop; fold the front path's stream checks into one 'front ready' word; ruling on trusted file_words",
+ "report_file": "handoff/WIDE-READ-FAST.md",
+ "jobs": ["mei:wide-read-fast-gate2", "mei:wide-read-fast-plants2", "mei:wide-read-fast-check3", "mei:wide-read-fast-pc3", "mei:wide-read-fast-hot1"]}

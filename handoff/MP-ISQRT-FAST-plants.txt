@@ -1,0 +1,5 @@
+# MP-ISQRT-FAST plants: the oracle's Karatsuba square root, the truncated Big::sqrt operand, Karatsuba products (D-10.130).
+root-base-off-by-one | crates/mathtools/src/mp/nat.rs | lit:while s * s > n { ==> while s * s > n + 1 { | cargo test -p niji-mathtools --lib | msg:u128_root_corrects_the_float_estimate.*FAILED
+root-no-step-down | crates/mathtools/src/mp/nat.rs | lit:s = s.sub(&Nat::from_u64(1)); ==> s = s.clone(); | cargo test -p niji-mathtools --lib | msg:sqrtrem_matches_newton_on_edges_and_random_values.*FAILED
+sqrt-drop-tail | crates/mathtools/src/mp/mod.rs | lit:rem.is_zero() && !dropped) ==> rem.is_zero()) | cargo test -p niji-mathtools --test arith | msg:sqrt_of_long_operands_rounds_correctly_in_every_mode.*FAILED
+karatsuba-middle | crates/mathtools/src/mp/nat.rs | lit:.sub(&z0).sub(&z2); ==> .sub(&z0); | cargo test -p niji-mathtools --lib | msg:karatsuba_product_matches_schoolbook.*FAILED

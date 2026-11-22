@@ -1,0 +1,18 @@
+# AFFECTED-COVERAGE plants (cargo xtask plants). Each breaks one piece; the named xtask test must fail.
+# A new test set no runner selects: dlerr's unit tests moved under a product-only feature.
+unrun-test-set | crates/boundary/src/dlerr.rs | lit:#[cfg(test)] ==> #[cfg(all(test, feature = "runtime"))] | cargo test -p xtask --bin xtask -- coverage:: | msg:test code under `runtime`
+# A crate feature nobody classified (the row's own feature renamed away).
+unclassified-feature | crates/math/Cargo.toml | lit:fastpath-stats = [] ==> fastpath-statz = [] | cargo test -p xtask --bin xtask -- coverage:: | msg:feature `fastpath-statz`
+# The train drops the test sets.
+train-drops-sets | xtask/src/main.rs | lit:    t.time("test-sets", || coverage::run_all(root, &cargo))?; ==>     // dropped | cargo test -p xtask --bin xtask -- coverage:: | msg:no longer runs the test sets
+# The ld row stops covering the loader's directory.
+ld-uncovered | xtask/src/coverage.rs | lit:covers: &["crates/boundary/src/ld/", ==> covers: &[ | cargo test -p xtask --bin xtask -- coverage:: affected::tests::a_feature_test_set | msg:a_run_is_selected_by_its_files_and_names_its_command|selects niji-boundary\+ld
+# A file naming a run's cfg left out of its covers.
+cfg-file-uncovered | xtask/src/coverage.rs | lit:"crates/boundary/src/dispatch.rs", ==> "crates/boundary/src/dispatch.rs.x", | cargo test -p xtask --bin xtask -- coverage:: | msg:dispatch.rs names its feature or cfg but is not among the files it covers
+# The direct tier's pass-2 rule for niji-boundary reverted.
+pass2-boundary-rule | xtask/src/affected.rs | lit:(interpose || c == "niji-boundary" || ==> (interpose || | cargo test -p xtask --bin xtask -- affected::tests::niji_boundary_tests_get_the_second_pass | msg:niji_boundary_tests_get_the_second_pass_whatever_selected_them
+# The data-file rows dropped (both escalate to FULL again).
+iconv-header-unmapped | xtask/src/affected.rs | lit:    DataFile { path: "csys/util/iconv-names.h", ==>     DataFile { path: "csys/util/iconv-names.h.unmapped", | cargo test -p xtask --bin xtask -- affected::tests::the_iconv_names_header | msg:iconv-names.h: csys/
+encoding-reference-unmapped | xtask/src/affected.rs | lit:    DataFile { path: "spec/encoding/reference/", ==>     DataFile { path: "spec/encoding/reference-unmapped/", | cargo test -p xtask --bin xtask -- affected::tests::the_iconv_names_header | msg:BIG5.tsv: not a path the selection knows
+# The gated-test finder loses a cfg's polarity (a `not(feature)` read as required).
+negation-ignored | xtask/src/coverage.rs | lit:let required = !stack.iter().any(|s| s == "not"); ==> let required = true; | cargo test -p xtask --bin xtask -- coverage:: | msg:a_required_feature_with_test_is_test_code_and_a_negated_one_is_not

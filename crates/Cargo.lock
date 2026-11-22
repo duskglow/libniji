@@ -83,6 +83,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "niji-libresolv-so"
+version = "0.0.0"
+dependencies = [
+ "niji-boundary",
+]
+
+[[package]]
 name = "niji-math"
 version = "0.0.0"
 dependencies = [

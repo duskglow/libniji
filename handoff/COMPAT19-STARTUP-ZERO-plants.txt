@@ -1,0 +1,12 @@
+# COMPAT19-STARTUP-ZERO plants (COMPAT-19 at start: the C library's early initialisation does the stacks)
+# Results (cargo xtask plants on a Skylake-SP role): run 3 (head 0834d6584): the five test plants CAUGHT, 0 WARN;
+# flag-read-back-in-run-init SURVIVED then (fixed count threshold, wrong for the copy's ungrouped layout).
+# Run 4 (self-relative count script, same code): flag-read-back-in-run-init CAUGHT, "count-plant: pie0 grew by 4"
+# (empty main 736,960 vs 736,956 unplanted; the baseline run counted 736,956 = 736,956), 0 WARN.
+# Run 5 (the five test plants again, on the final code, so that one rc 0 job holds them): 5 CAUGHT, 0 WARN.
+libc-start-no-thread-flag | crates/boundary/src/runtime.rs | lit:crate::thread::stacks_executable(); ==> (); | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
+libc-start-no-main-stack | crates/boundary/src/runtime.rs | lit:crate::thread::exec_main_stack(top, get(AT_PAGESZ)); ==> let _ = (top, get(AT_PAGESZ)); | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
+libc-start-never-asks | crates/boundary/src/runtime.rs | lit:c_int::from(niji_ld::map::executable_stack(heads)) ==> { let _ = heads; 0 } | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
+libc-start-tunable-unread | crates/boundary/src/runtime.rs | lit:if t.exec_stack == Some(true) { ==> if t.exec_stack == Some(false) { | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
+flag-read-back-in-run-init | crates/boundary/src/ld/initfini.rs | lit:} else if EXEC_STACK.load(Relaxed) { ==> } if EXEC_STACK.load(Relaxed) { | sh ~/work/compat19-startup-zero/plantcount.sh | msg:count-plant: pie0 grew
+existing-thread-not-walked | crates/boundary/src/thread.rs | lit:if base != 0 && !d.has(DESC_USER_STACK) { ==> if false && base != 0 && !d.has(DESC_USER_STACK) { | cargo test -p niji-ld --test exec_stack | msg:exec_stack_dlopen.*(FAILED|panicked)
