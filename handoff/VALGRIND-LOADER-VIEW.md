@@ -24,5 +24,19 @@ Decisions in force: D-X.152, D-X.153 (records/decisions/D-X/).
   `cargo test -p niji-boundary --lib --features ld`. Recommend: `cargo xtask affected` adds that run when a
   file under `crates/boundary/src/ld/` changes (a tooling story).
 
+## VALGRIND-LOADER-VIEW-2 (verdict run; branch `task/valgrind-loader-view-2`, role mei `~/w/s2`, Skylake-SP)
+
+* The red `valgrind-loader-view-gate` (keke, rc 1: only `cargo xtask static`, records: D-X.152 body had a newline)
+  ran on a tree synced at 19:55, before commit 74f532495 (19:57) wrote D-X.152 in its one-line form. On the
+  inherited head c892ed421 `cargo xtask static` (records, records-gen) and clippy (`--all-features -D warnings`)
+  pass with no change; D-X.153 is one line too. No code or record changed in this run.
+* Verdict jobs on this head (mei): `valgrind-loader-view-2-gate` (`cargo xtask affected --run`, Direct tier),
+  `valgrind-loader-view-2-plants` (handoff/VALGRIND-LOADER-VIEW-plants.txt), `valgrind-loader-view-2-startup`
+  (`cargo xtask test`, full-profile so, hot_text_products; it waits for the gate). Results: gate rc 0, 16 suites
+  ok, 10261 passed, 0 failed, 1501 ignored, conformance 35/35, SKIPPED 0, peak 14G; plants 7 of 7 CAUGHT by their
+  messages, no WARN lines; start-up all green (xtask test 7019 + 4862 + 128 + 46 passed, hot_text_products 33
+  passed). Report record: handoff/reports/VALGRIND-LOADER-VIEW-2.json.
+* Ruling #7385 resolved: AFFECTED-COVERAGE runs the `ld` unit tests; the valgrind-only path is accepted.
+
 ## Next step
-None for this story beyond landing; see the report's hand-back section for the jobs.
+None for this story beyond landing.
