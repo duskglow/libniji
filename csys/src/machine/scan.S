@@ -7237,14 +7237,24 @@ niji_machine_strncmp_stepped:
 
 /* void niji_machine_strncmp_step_trap(int sig, siginfo_t *info, ucontext_t *uc): the SA_SIGINFO
  * SIGTRAP handler above. uc_mcontext.gregs lies at byte 40 of the ucontext_t, REG_RIP (16) at
- * 168, REG_EFL (17) at 176 (kernel UAPI, struct ucontext and struct sigcontext). The interrupted
- * instruction's first four bytes are read at the saved RIP (code is mapped readable). */
+ * 168, REG_EFL (17) at 176 (kernel UAPI, struct ucontext and struct sigcontext). The next
+ * instruction's bytes are read at the saved RIP (code is mapped readable), after its cs
+ * prefixes. */
 	.section .text.niji_machine_strncmp_step_trap,"ax",@progbits
 	.globl niji_machine_strncmp_step_trap
 	.type niji_machine_strncmp_step_trap, @function
 	.p2align 4
 niji_machine_strncmp_step_trap:
 	movq 168(%rdx), %rax
+	/* Skip the cs prefixes the layout pads instructions with (at most 14 in one instruction). */
+	leaq 14(%rax), %rcx
+2:
+	cmpb $0x2e, (%rax)
+	jne 3f
+	incq %rax
+	cmpq %rcx, %rax
+	jb 2b
+3:
 	cmpl $0x070cb60f, (%rax)
 	jne 1f
 	movq niji_machine_step_at(%rip), %rcx
