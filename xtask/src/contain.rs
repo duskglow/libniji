@@ -6,8 +6,8 @@
 //!
 //! * Root ([`output`]): the command runs through `crates/core/tests/oracle/contain.sh`, as the caller, in a PID
 //!   namespace that root made (so the root processes it starts, `sudo -n ...`, are in it). Its standard input is
-//!   the read end of a pipe whose write end this process holds until it exits ([`HOLD`], close-on-exec, so no
-//!   child inherits it); contain.sh's root watcher ends the namespace when that pipe ends.
+//!   one end of a socket pair whose other end this process holds until it exits ([`HOLD`], close-on-exec, so no
+//!   child inherits it); contain.sh's root watcher ends the namespace when that end closes (end of file).
 //! * User namespace ([`user`]): `setpriv --pdeathsig KILL -- unshare --user --map-current-user --pid --fork
 //!   --kill-child --mount-proc -- program`. The program keeps the caller's ids and its own `unshare -r` nests;
 //!   the `unshare` dies with the thread that spawned it (spawn and wait in one thread), and `--kill-child` takes
@@ -17,7 +17,9 @@
 //! (its own `raise`, a `kill` from a child) is ignored; a fault or a signal from outside still ends it.
 
 use std::ffi::{OsStr, OsString};
-use std::io::{self, PipeReader, PipeWriter};
+use std::io;
+use std::os::fd::OwnedFd;
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::OnceLock;
@@ -28,9 +30,9 @@ const PATH: &str = "/usr/sbin:/usr/bin:/sbin:/bin";
 /// The arguments [`user`] puts before the program.
 pub(crate) const USER: [&str; 11] = ["--pdeathsig", "KILL", "--", "unshare", "--user", "--map-current-user", "--pid", "--fork", "--kill-child", "--mount-proc", "--"];
 
-/// The pipe that ties every root run to this process: the read end is each run's standard input, the write end
+/// The socket pair that ties every root run to this process: the first end is each run's standard input, the other
 /// is never written and closes only when this process exits.
-static HOLD: OnceLock<(PipeReader, PipeWriter)> = OnceLock::new();
+static HOLD: OnceLock<(UnixStream, UnixStream)> = OnceLock::new();
 
 /// `crates/core/tests/oracle/contain.sh` of this tree.
 pub(crate) fn script() -> PathBuf {
@@ -82,11 +84,11 @@ pub(crate) fn output(cmd: &Command) -> io::Result<Output> {
     let hold = match HOLD.get() {
         Some(h) => h,
         None => {
-            let pipe = io::pipe()?;
-            HOLD.get_or_init(|| pipe)
+            let pair = UnixStream::pair()?;
+            HOLD.get_or_init(|| pair)
         }
     };
-    root(cmd).stdin(Stdio::from(hold.0.try_clone()?)).output()
+    root(cmd).stdin(Stdio::from(OwnedFd::from(hold.0.try_clone()?))).output()
 }
 
 #[cfg(test)]

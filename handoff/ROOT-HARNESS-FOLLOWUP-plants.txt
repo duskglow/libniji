@@ -3,7 +3,7 @@
 # Run with cargo xtask plants (docs/plants.md). A surviving kill-test plant leaves its probe's loops
 # behind; they end by themselves within 300 s.
 xtask-user-no-kill-child | xtask/src/contain.rs | lit:"--fork", "--kill-child", "--mount-proc", ==> "--fork", "--mount", "--mount-proc", | cargo test -p xtask contain::tests::a_killed_xtask_user_namespace_run_leaves_no_process | msg:processes of a killed user run remain
-xtask-root-no-hold | xtask/src/contain.rs | lit:root(cmd).stdin(Stdio::from(hold.0.try_clone()?)) ==> root(cmd).stdin(Stdio::from({ let _ = hold; io::pipe()?.0 })) | cargo test -p xtask contain::tests::a_killed_xtask_root_run_leaves_no_process | msg:the contained root run never started|processes of a killed root run remain
+xtask-root-no-hold | xtask/src/contain.rs | lit:Stdio::from(OwnedFd::from(hold.0.try_clone()?)) ==> Stdio::from(OwnedFd::from({ let _ = hold; UnixStream::pair()?.0 })) | cargo test -p xtask contain::tests::a_killed_xtask_root_run_leaves_no_process | msg:the contained root run never started|processes of a killed root run remain
 bench-root-route-bypass | xtask/src/bench.rs | lit:c.get_program() == "sudo" ==> c.get_program() == "sudo-never" | cargo test -p xtask bench::tests::the_root_route_alone_runs_contained | msg:the_root_route_alone_runs_contained
 sh-user-no-kill-child | tools/contained.sh | lit:--pid --fork --kill-child --mount-proc ==> --pid --fork --mount-proc | cargo test -p niji --test harness_containment a_killed_user_namespace_script_leaves_no_process | msg:processes of a killed user script remain
 sh-root-hold-leaks | tools/contained.sh | lit:<&9 8>&- 9<&- ==> <&9 9<&- | cargo test -p niji --test harness_containment a_killed_root_script_leaves_no_process | msg:processes of a killed root script remain
