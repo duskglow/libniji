@@ -7,3 +7,10 @@ root-no-watch | crates/core/tests/oracle/contain.sh | lit:kill -KILL "$ns" 2>/de
 static-direct-sudo | crates/core/tests/users_products.rs | lit:Command::new("sudo").args(["-n", "true"]) ==> Command::new("sudo").args(["-n", "id"]) | cargo xtask static | msg:uncontained harness run
 static-uncontained-script | crates/core/tests/syslog_products.rs | lit:oracle::contain::output( ==> oracle::uncontained( | cargo xtask static | msg:uncontained harness run
 static-runpath-namespace | crates/ld/tests/runpath_search.rs | lit:let mut cmd = contain::user("unshare"); ==> let mut cmd = Command::new("unshare"); | cargo xtask static | msg:spawns sudo/unshare directly
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# user-no-pdeathsig: CAUGHT, caught by harness_containment a_killed_user_namespace_run_leaves_no_process
+# user-no-pidns: CAUGHT, caught by harness_containment a_killed_user_namespace_run_leaves_no_process
+# root-no-watch: CAUGHT, caught by harness_containment a_killed_root_run_leaves_no_process
+# static-direct-sudo: CAUGHT, caught by no test the log names
+# static-uncontained-script: CAUGHT, caught by no test the log names
+# static-runpath-namespace: CAUGHT, caught by no test the log names

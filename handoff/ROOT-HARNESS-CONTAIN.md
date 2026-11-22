@@ -1,6 +1,16 @@
 # ROOT-HARNESS-CONTAIN: no test harness can leave root (or user-namespace) processes behind
 
-State: branch `task/root-harness-contain`, code head 16231c5cc (later commits: handoff/report only).
+State (ROOT-HARNESS-CONTAIN-3, merge-only continuation): branch `task/root-harness-contain-3`
+(ROOT-HARNESS-CONTAIN's head 6fad2e155 plus a merge of origin/next). The CI conflict was
+`crates/ld/tests/runpath_search.rs`: DL-RUNPATH-SECURE-TEST moved the namespace run into a shared
+`in_namespace` helper used by two secure-mode tests. Resolved by taking next's version and building
+that helper's command with `contain::user("unshare")`, so both its cases and the new caller-origin
+case run contained. Plants: `handoff/ROOT-HARNESS-CONTAIN-3-plants.txt` (the five below plus
+`static-runpath-namespace`). Jobs on keke role n4: `root-harness-contain-3-gate1` (direct tier,
+157 targets), `root-harness-contain-3-plants1`. Report: `handoff/reports/ROOT-HARNESS-CONTAIN-3.json`.
+Next step: none in this chain; ROOT-HARNESS-CONTAIN-2 (held) owns the "Open / next" tooling items.
+
+Earlier state: branch `task/root-harness-contain`, code head 16231c5cc (later commits: handoff/report only).
 
 ## Done
 - `crates/core/tests/support/contain.rs` (new; also `oracle::contain` through `support/oracle.rs`):
