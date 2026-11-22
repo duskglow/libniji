@@ -1001,6 +1001,9 @@ impl Heap {
             self.spare_seg.store(0, Relaxed);
             spare
         } else {
+            if self.held_elsewhere(pages, shard) {
+                return None;
+            }
             pages.map_room(0, SEG_MIN, SEG, SEG, self.node_for(shard))?
         };
         self.seg_mapped.fetch_add(SEG_MIN, Relaxed);
@@ -1018,6 +1021,25 @@ impl Heap {
         self.nsegs.store(n + 1, Release);
         self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
         Some(n)
+    }
+
+    /// Whether `shard`'s new segment should wait (HEAP-SPILL-COLD-2, ruling #7441): under an
+    /// address-space limit, while another shard holds a slab it has not handed out (an empty one
+    /// or a mapped, never-used one), a thread that moved to another node takes that slab
+    /// (`refill`'s `take_elsewhere`) instead of mapping its node's segment (`SEG_MIN`, 4352 KiB,
+    /// most of it idle while the first node's slabs are). Without a limit placement stays per
+    /// node: the idle part costs address space only, never a touched page. The other shards'
+    /// words are read without their locks: a hint; when the slab is gone by the time
+    /// `take_elsewhere` looks, the request gets a mapping of its own (`alloc_large`), as under a
+    /// limit that fits no segment. Cold and out of line: it runs only where a segment would be
+    /// mapped for a second node.
+    #[cold]
+    #[inline(never)]
+    fn held_elsewhere<P: Pages>(&self, pages: &P, shard: usize) -> bool {
+        let held = (1..SHARDS).map(|i| &self.shards[(shard + i) % SHARDS]).any(|sh| {
+            sh.empty.load(Relaxed) != 0 || (sh.seg.load(Relaxed) != 0 && sh.next_slab.load(Relaxed) < sh.mapped.load(Relaxed))
+        });
+        held && pages.address_limit().is_some()
     }
 
     /// The registry index and base of the segment containing `addr`. Lock-free.

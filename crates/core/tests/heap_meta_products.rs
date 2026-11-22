@@ -174,7 +174,15 @@ fn the_heap_keeps_address_space_near_its_use() {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("heap_address_space_niji");
     build("heap_address_space.c", &exe);
-    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+    // A single-node measurement: the bounds and AS_HEADROOM are the levels of a run that stays on
+    // one NUMA node, so the program runs on the first node's CPUs alone. A process the scheduler
+    // moves to another node mid-run takes that node's segment (+4360 KiB at most; Skylake-SP
+    // build host: pinned to either node or unpinned 0/20 failures each, affinity flipped between
+    // the nodes mid-run 15/20 exit 12 under start + 41296 KiB; jobs test-scratch-cleanup-4-heaprep2
+    // and test-scratch-cleanup-4-heapmig, ruling #7441). That case has its own test and bounds:
+    // `the_heap_bounds_address_space_after_a_node_change`.
+    let node0 = numa_nodes().into_iter().next().unwrap_or_default();
+    let o = with_cpus(&node0, || Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap());
     assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
     let out = String::from_utf8_lossy(&o.stdout);
     let kib = |step: &str| -> u64 {
@@ -188,12 +196,112 @@ fn the_heap_keeps_address_space_near_its_use() {
         eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
         assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
     }
-    let o = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
+    let o = with_cpus(&node0, || with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
     assert!(
         o.status.success(),
         "under RLIMIT_AS = start + {AS_HEADROOM} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
         o.status
     );
+}
+
+/// The migration case of [`AS_STEPS`] (ruling #7441): the program starts on the first node's
+/// CPUs and moves itself to a CPU of the second at point `at` (`heap_address_space.c`: 1 after
+/// malloc1, 2 halfway through alloc, 3 after alloc, 4 after refill). Per point: the VmSize growth
+/// over start of the alloc, refill and realloc steps without a limit, and the least RLIMIT_AS over
+/// start the run needs (fixed layout, 16 KiB bisection). Measured identically on the Zen 1 and
+/// Skylake-SP build hosts (3 of 3 runs each, HEAP-SPILL-COLD-2). The second node maps a segment
+/// of its own (placement per node, D-3.12): its metadata (256 KiB) at every point, and without a
+/// limit its first 16 slabs (4352 KiB with the metadata) while the first node's slabs sit idle at
+/// points 1 and 4. Under a limit a node that has no segment takes the slabs other shards hold
+/// before it maps one (`Heap::held_elsewhere`): the need was 45648, 41552, 41552 and 45648 KiB
+/// before; what is left at point 1 is the metadata and the new segment's 16 slabs against the 8
+/// of the first node's next growth (+2304 over [`AS_HEADROOM`]).
+const MOVE_STEPS: [(u32, [u64; 3], u64); 4] =
+    [(1, [33348, 43588, 45640], 43600), (2, [29252, 39492, 41544], 41552), (3, [28996, 39492, 41544], 41552), (4, [28996, 39236, 45640], 41296)];
+
+#[test]
+fn the_heap_bounds_address_space_after_a_node_change() {
+    // Clauses: s3_1_c_1 (T14: address space under a limit); GitHub issue #21, ruling #7441.
+    let nodes = numa_nodes();
+    let [first, second, ..] = nodes.as_slice() else {
+        eprintln!("skipped: the process may run on {} NUMA node(s); the migration case needs two", nodes.len());
+        return;
+    };
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("heap_address_space_move_niji");
+    build("heap_address_space.c", &exe);
+    let to = second[0].to_string();
+    for (at, bounds, need) in MOVE_STEPS {
+        let at_s = at.to_string();
+        // Fixed layout, as measured: a randomised one can end a segment's window early.
+        let o = with_cpus(first, || with_fixed_layout(|| Command::new(&exe).args(["-", &to, &at_s]).env_clear().stdin(Stdio::null()).output().unwrap()));
+        assert!(o.status.success(), "moved to CPU {to} at {at}: {} failed: {:?} (exit 5, 6: the move failed)", exe.display(), o.status);
+        let out = String::from_utf8_lossy(&o.stdout);
+        let kib = |step: &str| -> u64 {
+            out.lines()
+                .find_map(|l| l.strip_prefix(step).and_then(|v| v.strip_prefix(' ')).and_then(|v| v.parse().ok()))
+                .unwrap_or_else(|| panic!("no step {step} in {out:?}"))
+        };
+        let start = kib("start");
+        for (step, bound) in ["alloc", "refill", "realloc"].into_iter().zip(bounds) {
+            let grew = kib(step).saturating_sub(start);
+            eprintln!("moved at {at}: {step}: VmSize +{grew} KiB over start (bound {bound})");
+            assert!(grew <= bound, "moved to another node at {at}: {step} added {grew} KiB of address space > {bound}");
+        }
+        let o = with_cpus(first, || with_fixed_layout(|| Command::new(&exe).args([&need.to_string(), &to, &at_s]).env_clear().stdin(Stdio::null()).output().unwrap()));
+        assert!(
+            o.status.success(),
+            "moved to another node at {at}: under RLIMIT_AS = start + {need} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: a step; a node with no segment mapped one while other shards held slabs?)",
+            o.status
+        );
+    }
+}
+
+/// The CPUs this process may run on, per NUMA node (lowest node first; a node with none of them
+/// is left out), from `/sys/devices/system/node/node<N>/cpulist` and the affinity mask. Empty
+/// without that directory (no NUMA support in the kernel): then nothing is pinned.
+fn numa_nodes() -> Vec<Vec<usize>> {
+    let mut mask = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut mask).expect("sched_getaffinity");
+    let allowed = |c: usize| c < len * 8 && mask[c / 8] & (1 << (c % 8)) != 0;
+    let Ok(dir) = std::fs::read_dir("/sys/devices/system/node") else { return Vec::new() };
+    let mut ids: Vec<usize> = dir.filter_map(|e| e.ok()?.file_name().to_str()?.strip_prefix("node")?.parse().ok()).collect();
+    ids.sort_unstable();
+    let mut nodes = Vec::new();
+    for id in ids {
+        let list = std::fs::read_to_string(format!("/sys/devices/system/node/node{id}/cpulist")).unwrap_or_default();
+        let mut cpus = Vec::new();
+        for part in list.trim().split(',').filter(|p| !p.is_empty()) {
+            let (a, b) = part.split_once('-').unwrap_or((part, part));
+            let (a, b): (usize, usize) = (a.parse().expect("cpulist"), b.parse().expect("cpulist"));
+            cpus.extend((a..=b).filter(|&c| allowed(c)));
+        }
+        if !cpus.is_empty() {
+            nodes.push(cpus);
+        }
+    }
+    nodes
+}
+
+/// Runs `run` with the calling (test) thread's CPU affinity set to `cpus`, which the program it
+/// spawns inherits, and restores the mask afterwards. Empty `cpus`: runs it as it is.
+fn with_cpus(cpus: &[usize], run: impl FnOnce() -> Output) -> Output {
+    if cpus.is_empty() {
+        return run();
+    }
+    let mut cur = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut cur).expect("sched_getaffinity");
+    let mut want = [0u8; 1024];
+    for &c in cpus {
+        want[c / 8] |= 1 << (c % 8);
+    }
+    CSys.sched_setaffinity(0, &want[..len]).expect("sched_setaffinity");
+    let o = run();
+    CSys.sched_setaffinity(0, &cur[..len]).expect("sched_setaffinity restore");
+    o
 }
 
 /// Runs `run` with `ADDR_NO_RANDOMIZE` in the calling (test) thread's persona, which the program

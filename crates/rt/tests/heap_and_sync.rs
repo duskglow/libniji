@@ -660,6 +660,44 @@ fn shards_place_their_memory_on_their_node() {
 }
 
 #[test]
+fn under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment() {
+    // Trace: no spec clause (address space under a limit, T14; a thread that changes node mid-run,
+    // GitHub issue #21 and ruling #7441); D-3.12, D-3.22. Node 0's shard holds a never-used
+    // mapped slab (one class used of its segment's first 16) or empty slabs (a whole segment of
+    // 64 KiB blocks, freed). The thread then runs on node 1: under a limit it takes node 0's
+    // slab; without one its node gets a segment of its own (placement per node).
+    for empty in [false, true] {
+        for limit in [None, Some(1usize << 30)] {
+            let heap = Heap::new();
+            let pages = FakePages::new();
+            heap.set_numa(true);
+            pages.shard.set(0);
+            let a = heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
+            if empty {
+                // 62 slabs of four 64 KiB blocks fill the segment's other slabs (no never-used
+                // slab is left); freed, they go back to shard 0 as empty slabs.
+                let big: Vec<usize> = (0..62 * 4).map(|_| heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr).collect();
+                assert_eq!(segment_nodes(&pages).len(), 1, "the 64 KiB blocks fit the first segment");
+                for p in big {
+                    heap.free(&CSys, &pages, p).unwrap();
+                }
+            }
+            pages.limit.set(limit);
+            pages.thread.set(1);
+            pages.shard.set(1);
+            let b = heap.alloc(&CSys, &pages, 200, ALIGN).unwrap();
+            let segs = segment_nodes(&pages);
+            if limit.is_some() {
+                assert_eq!(segs.len(), 1, "empty slabs {empty}: under a limit node 1 maps no segment while node 0 holds slabs: {segs:?}");
+                assert_eq!(b.addr / SEG, a.addr / SEG, "empty slabs {empty}: the block lies in node 0's segment");
+            } else {
+                assert_eq!(segs.values().copied().collect::<Vec<_>>(), [Some(0), Some(1)], "empty slabs {empty}: without a limit node 1 gets its segment");
+            }
+        }
+    }
+}
+
+#[test]
 fn one_allowed_node_never_reads_the_node() {
     // Trace: no spec clause (NUMA placement of the heap's shards); D-3.12 as amended by D-3.20.
     // One allowed node: the set is asked once, on the first slow path; the thread's node is never
