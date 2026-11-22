@@ -247,7 +247,7 @@ fn rate_counts_ignore_other_threads() {
         stats::counts("erff").since(b)
     })
     .join()
-    .unwrap_or_else(|_| panic!("the erff thread panicked"));
+    .unwrap_or_else(|e| std::panic::resume_unwind(e));
     assert!(other.fast > 0 && other.fallback > 0, "the other thread's erff calls: {other:?}");
     let c = stats::counts("erff").since(before);
     assert_eq!(c, stats::Counts::default(), "another thread's erff calls counted in this thread's rate window");
