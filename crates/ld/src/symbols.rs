@@ -297,7 +297,9 @@ impl<'a> Object<'a> {
         Self::build(dynm, style, &t, &dynm.hashes(&t))
     }
 
-    /// [`Object::with_style`] from the object's tags `t` and hash tables `h`.
+    /// [`Object::with_style`] from the object's tags `t` and hash tables `h`. Inline for the trace's
+    /// names (see `Dynamic::tags`).
+    #[inline]
     fn build(dynm: Dynamic<'a>, style: HashStyle, t: &Tags, h: &Hashes<'a>) -> Result<Self, LookupError> {
         // Counted once for both tables (the count reads every hash bucket; DYN-START-PARITY).
         let count = h.symbol_count();

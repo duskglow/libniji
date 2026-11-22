@@ -1278,12 +1278,17 @@ impl<'a> Dynamic<'a> {
         Ok(first)
     }
 
-    /// The tags a lookup view reads, in one pass ([`Tags`]).
+    /// The tags a lookup view reads, in one pass ([`Tags`]). Inline, as [`Dynamic::hashes`]: a
+    /// crate-local function called from another code unit is emitted with a `.llvm.<hash>` suffix that
+    /// changes with unrelated code (the installation prefix), and the interpreter's hot-text trace
+    /// names must not.
+    #[inline]
     pub(crate) fn tags(&self) -> Tags {
         Tags::scan(self)
     }
 
     /// Both hash tables, each read once, from the tags `t`.
+    #[inline]
     pub(crate) fn hashes(&self, t: &Tags) -> Hashes<'a> {
         Hashes { sysv: self.sysv_hash_t(t), gnu: self.gnu_hash_t(t) }
     }
