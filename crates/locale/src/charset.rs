@@ -19,6 +19,9 @@ pub struct Charset {
     /// `WIDTH` ranges: first, last, width; sorted by first.
     widths: TryVec<(u32, u32, u8)>,
     width_default: u8,
+    /// `<mb_cur_max>` as written (the conversion parser bounds its own copy by the longest
+    /// sequence it converts; `MB_CUR_MAX` keeps the declared value: UTF-8's is 6).
+    mb_cur_max: u32,
 }
 
 impl Charset {
@@ -26,10 +29,17 @@ impl Charset {
     pub fn parse(text: &[u8]) -> Result<Charset> {
         let map = Charmap::parse(text).map_err(|_| Error::syntax(0, "the charmap has no mappings"))?;
         let utf8 = map.name() == b"UTF-8";
-        let mut cs = Charset { map, utf8, widths: TryVec::new(), width_default: 1 };
+        let mb_cur_max = u32::try_from(map.mb_cur_max()).unwrap_or(1);
+        let mut cs = Charset { map, utf8, widths: TryVec::new(), width_default: 1, mb_cur_max };
         let mut in_width = false;
         for raw in text.split(|&b| b == b'\n') {
             let line = trim(raw);
+            if let Some(rest) = line.strip_prefix(b"<mb_cur_max>") {
+                if let Some(n) = number(trim(rest)).filter(|&n| n >= 1) {
+                    cs.mb_cur_max = u32::from(n);
+                }
+                continue;
+            }
             if let Some(rest) = line.strip_prefix(b"WIDTH_DEFAULT") {
                 cs.width_default = number(trim(rest)).unwrap_or(1);
                 continue;
@@ -67,7 +77,7 @@ impl Charset {
 
     /// `<mb_cur_max>`.
     pub fn mb_cur_max(&self) -> u32 {
-        u32::try_from(self.map.mb_cur_max()).unwrap_or(1)
+        self.mb_cur_max
     }
 
     /// Whether this is the UTF-8 charmap.

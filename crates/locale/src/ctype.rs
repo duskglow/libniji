@@ -321,31 +321,29 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     let mut class32 = [0u32; 256];
     let mut toupper32 = [0u32; 256];
     let mut tolower32 = [0u32; 256];
+    // The 16-bit class mask of a code point.
+    let mask = |cp: u32| {
+        c.classes.iter().take(12).enumerate().filter(|(_, (_, set))| set.has(cp)).fold(0u16, |m, (k, _)| m | isbit(u32::try_from(k).unwrap_or(0)))
+    };
     for b in 0..256u32 {
         let ch = cs.byte_char(u8::try_from(b).unwrap_or(0));
-        let mut bits = 0u16;
-        let mut bits32 = 0u32;
-        if let Some(cp) = ch {
-            for (k, (_, set)) in c.classes.iter().take(12).enumerate() {
-                if set.has(cp) {
-                    bits |= isbit(u32::try_from(k).unwrap_or(0));
-                    bits32 |= 1 << k;
-                }
-            }
-        }
+        let bits = ch.map_or(0, mask);
         let bu = ch.and_then(|cp| byte_of(upper(cp))).map_or(b, u32::from);
         let bl = ch.and_then(|cp| byte_of(lower(cp))).map_or(b, u32::from);
         let i = usize::try_from(b).unwrap_or(0);
         class[i + 128] = bits;
         toupper[i + 128] = i32::try_from(bu).unwrap_or(0);
         tolower[i + 128] = i32::try_from(bl).unwrap_or(0);
-        class32[i] = bits32;
-        toupper32[i] = ch.map_or(b, upper);
-        tolower32[i] = ch.map_or(b, lower);
+        // The 32-bit tables are indexed by code point (U+0000…U+00FF), whatever the charmap:
+        // the mask in the high half, the maps' values.
+        class32[i] = u32::from(mask(b)) << 16;
+        toupper32[i] = upper(b);
+        tolower32[i] = lower(b);
+        // −128…−2 repeat bytes 128…254 (the mapped byte as an unsigned value).
         if b >= 128 && b != 255 {
             class[i - 128] = bits;
-            toupper[i - 128] = i32::try_from(bu).unwrap_or(0) - if bu >= 128 { 256 } else { 0 };
-            tolower[i - 128] = i32::try_from(bl).unwrap_or(0) - if bl >= 128 { 256 } else { 0 };
+            toupper[i - 128] = i32::try_from(bu).unwrap_or(0);
+            tolower[i - 128] = i32::try_from(bl).unwrap_or(0);
         }
     }
     toupper[127] = -1;
@@ -363,8 +361,9 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     for _ in 6..10 {
         f.raw(true, TryVec::new())?; // GAP3..GAP6
     }
-    f.strings(c.classes.iter().map(|(n, _)| n.as_slice()).chain(core::iter::once(&[][..])))?; // 10 CLASS_NAMES
-    f.strings(c.maps.iter().map(|(n, _)| n.as_slice()).chain(core::iter::once(&[][..])))?; // 11 MAP_NAMES
+    // 10 CLASS_NAMES, 11 MAP_NAMES: NUL-ended names, an empty name ending the list; word-aligned items.
+    f.raw(true, name_list(c.classes.iter().map(|(n, _)| n.as_slice()))?)?;
+    f.raw(true, name_list(c.maps.iter().map(|(n, _)| n.as_slice()))?)?;
     // 12 WIDTH: printable characters the charmap has; others are absent (−1).
     let print = &c.classes[6].1;
     f.raw(true, table_u8(&|cp| if print.has(cp) && cs.has(cp) { Some(cs.width(cp)) } else { None })?)?;
@@ -381,8 +380,9 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
         f.string(&mb(cs, &[u32::from(b'0') + d])?)?;
     }
     f.word(1)?; // 30 INDIGITS_WC_LEN
+    // 31..40: one wide character each, no terminator.
     for d in 0..10u32 {
-        f.wide(&[u32::from(b'0') + d])?;
+        f.word(u32::from(b'0') + d)?;
     }
     let out: [u32; 10] = core::array::from_fn(|d| c.outdigits.as_ref().and_then(|o| o.get(d).copied()).unwrap_or(u32::from(b'0') + u32::try_from(d).unwrap_or(0)));
     for &d in &out {
@@ -412,6 +412,16 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
         f.raw(true, table_i32(&|cp| m.get(&cp).map(|&t| i32::try_from(t).unwrap_or(0).wrapping_sub(i32::try_from(cp).unwrap_or(0))).filter(|&d| d != 0))?)?;
     }
     f.finish(MAGIC[0])
+}
+
+fn name_list<'a>(names: impl Iterator<Item = &'a [u8]>) -> Result<TryVec<u8>> {
+    let mut v = TryVec::new();
+    for n in names {
+        v.extend_from_slice(n)?;
+        v.push(0)?;
+    }
+    v.push(0)?;
+    Ok(v)
 }
 
 fn i32s(v: &[i32]) -> Result<TryVec<u8>> {

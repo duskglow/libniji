@@ -130,6 +130,11 @@ fn tokens(t: &[u8], chars: Chars, no: u32) -> Result<TryVec<Tok>> {
             i += 1;
             continue;
         }
+        // The comment character outside a string and a symbol starts a comment to the line's end (the
+        // installed sources end statements with `% <character name>`).
+        if c == chars.comment {
+            break;
+        }
         match c {
             b';' => {
                 out.push(Tok::Semi)?;
@@ -329,8 +334,15 @@ mod tests {
     #[test]
     fn directives_continuation_and_tokens() {
         // no spec clause: POSIX XBD 7.3 (comment_char, escape_char, continuation lines).
-        let t = toks(b"comment_char %\nescape_char /\n% a comment /\nupper <U0041>..<U005A>;/\n <U00C0>\ngrouping 3;-1\n");
-        assert_eq!(t, vec![vec![w(b"upper"), sym(b"U0041"), w(b".."), sym(b"U005A"), Tok::Semi, sym(b"U00C0")], vec![w(b"grouping"), w(b"3"), Tok::Semi, w(b"-1")]]);
+        let t = toks(b"comment_char %\nescape_char /\n% a comment /\nupper <U0041>..<U005A>;/\n <U00C0>\ngrouping 3;-1 % (a trailing comment)\nx \"%\"\n");
+        assert_eq!(
+            t,
+            vec![
+                vec![w(b"upper"), sym(b"U0041"), w(b".."), sym(b"U005A"), Tok::Semi, sym(b"U00C0")],
+                vec![w(b"grouping"), w(b"3"), Tok::Semi, w(b"-1")],
+                vec![w(b"x"), Tok::Str(TryVec::from(b"%".to_vec()))]
+            ]
+        );
     }
 
     #[test]
