@@ -14,10 +14,12 @@
 //! Frame texts name the executable by the name it was run as (`program_invocation_name`), as
 //! the reference names its main program; an address elsewhere has no object.
 
+use core::cell::Cell;
 use core::ffi::c_int;
 use core::sync::atomic::Ordering::Acquire;
 
 use niji::diag::FrameText;
+use niji_abi::layout::struct_dl_phdr_info;
 use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::fd::Fd;
 use niji_kernel::mem::IoVec;
@@ -47,6 +49,8 @@ const GREGS: [(usize, usize); 8] = [
 const WORD: usize = 8;
 /// Bytes of an ELF header.
 const EHDR_LEN: usize = 64;
+/// Frames a thread exit's handler walk looks at, at most (D-22.23).
+const EXIT_WALK_FRAMES: usize = 1 << 16;
 
 /// The executable's program headers (at `phdr`) and load bias.
 #[derive(Clone, Copy)]
@@ -167,6 +171,74 @@ pub(crate) fn caller_text(inside: &[usize], out: &mut [u8]) -> usize {
         None => niji::num::format::Sink::put(&mut b, b"??"),
     }
     b.stored()
+}
+
+/// Whether a frame of the calling thread's stack belongs to a function with unwind work
+/// (D-22.23: a personality routine and language-specific data, as `-fexceptions` cleanups and
+/// C++ destructors and handlers have), found with this library's own call-frame walker: through
+/// the executable and this library's image as for a trace, and any other object through the
+/// loader's walk over the loaded objects. Never inlined: the registers are captured in this
+/// frame (this library's, without unwind work).
+#[inline(never)]
+pub(crate) fn handler_on_stack() -> bool {
+    let mut uc = [0u64; UCONTEXT_WORDS];
+    let _ = ffi::niji_machine_getcontext(&mut uc);
+    let exe = Executable::find();
+    let objects = [exe.object(), library(&exe).unwrap_or_default()];
+    unwind::handler_above(&objects, frame_object, &own_guards(), &OwnMemory::new(&CSys), registers(&uc), EXIT_WALK_FRAMES)
+}
+
+/// The functions of this library whose frames carry a personality routine for its own undo
+/// (`pthread_once`'s routine frame, machine/once.S; the guarded calls, machine/guard.S): each also
+/// registers an old-style cleanup record that the exit without an unwinder runs, so they need
+/// no unwinder (D-22.23).
+#[allow(clippy::as_conversions)] // a function's address: the only spelling Rust has
+fn own_guards() -> [usize; 2] {
+    [ffi::niji_machine_once as extern "C" fn(usize, usize) -> i32 as usize, ffi::niji_machine_guard as extern "C" fn(usize, usize, usize) -> i64 as usize]
+}
+
+/// What [`holds_pc`] looks for and finds: the object whose loadable segments hold `pc`.
+struct Found {
+    pc: usize,
+    phdr: Cell<usize>,
+    phnum: Cell<usize>,
+    bias: Cell<usize>,
+}
+
+/// The loaded object holding `pc`, a return address in a live frame of the calling thread
+/// (D-22.23), through the loader's own walk (not the exported, interposable
+/// `dl_iterate_phdr`); `None` when no object holds it or in a program `ld.so` did not start.
+fn frame_object(pc: usize) -> Option<Object<'static>> {
+    let walk = crate::posix::s27_dynlink::LOADER_ITERATE.load(Acquire);
+    if walk == 0 {
+        return None;
+    }
+    let found = Found { pc, phdr: Cell::new(0), phnum: Cell::new(0), bias: Cell::new(0) };
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    let cb = (holds_pc as extern "C" fn(&struct_dl_phdr_info, usize, &Found) -> c_int as *const ()).expose_provenance();
+    let data = core::ptr::from_ref(&found).expose_provenance();
+    let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
+    if crate::posix::s27_dynlink::int_result(ffi::niji_machine_call3(walk, w(cb), w(data), 0)) == 0 {
+        return None;
+    }
+    let phnum = found.phnum.get();
+    let words = conv::image_program_headers(found.phdr.get(), phnum.saturating_mul(PHDR_WORDS));
+    Some(unwind::object(words, phnum, found.bias.get(), conv::loaded))
+}
+
+/// The loader walk's callback for [`frame_object`]: 1 (which ends the walk) when the object's
+/// loadable segments hold `found.pc`, its program headers and bias then stored in `found`.
+extern "C" fn holds_pc(info: &struct_dl_phdr_info, _size: usize, found: &Found) -> c_int {
+    let phnum = usize::from(info.dlpi_phnum);
+    let words = conv::image_program_headers(info.dlpi_phdr, phnum.saturating_mul(PHDR_WORDS));
+    let bias = usize::try_from(info.dlpi_addr).unwrap_or(0);
+    if !unwind::in_object(words, phnum, bias, found.pc) {
+        return 0;
+    }
+    found.phdr.set(info.dlpi_phdr);
+    found.phnum.set(phnum);
+    found.bias.set(bias);
+    1
 }
 
 /// The addresses in `array` (native words).

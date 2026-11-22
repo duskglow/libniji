@@ -208,6 +208,16 @@ def charmap_errors(man):
             got[name] = n
             if (f[0], f[1], f[2], f[5], f[6]) != ("system", "libc6", CHARMAPS + name, "0644", "none"):
                 errs.append("manifest.tsv:%d: the charmap %s is system libc6 %s%s, mode 0644, strip none" % (n, name, CHARMAPS, name))
+    # LOCALE-CHARMAPS-GEN: the charmaps generated from the built-in codecs, gzipped, in locales;
+    # never a second file for a charset libc6 already ships in the same directory.
+    for n, f in man:
+        if len(f) == 8 and f[3] == "file" and f[4].startswith("locale-charmaps/"):
+            name = f[4].split("/", 1)[1]
+            if not name.endswith(".gz") or (f[0], f[1], f[2], f[5], f[6]) != ("system", "locales", CHARMAPS + name, "0644", "none"):
+                errs.append("manifest.tsv:%d: the generated charmap %s is system locales %s%s (<name>.gz), mode 0644, strip none"
+                            % (n, name, CHARMAPS, name))
+            elif name[:-len(".gz")] in want:
+                errs.append("manifest.tsv:%d: the generated charmap %s is also %s's charmap %s" % (n, name, CHARMAP_SPEC, name[:-3]))
     for name in sorted(want - set(got)):
         errs.append("manifest.tsv: no row ships the charmap %s (%s)" % (name, CHARMAP_SPEC))
     for name in sorted(set(got) - want):
@@ -398,8 +408,12 @@ def check_package(flavour, pkg, deb, is_dbg, ndebug, fail):
             fail("%s: %s is not tools/deb/%s compressed" % (pkg, path, src))
         if kind == "changelog" and not gzip.decompress(body).startswith(b"niji ("):
             fail("%s: %s is not a niji changelog" % (pkg, path))
-        if kind == "file" and src.startswith("charmaps/"):
+        if kind == "file" and src.startswith(("charmaps/", "locale-charmaps/")):
             name = src.split("/", 1)[1]
+            if src.startswith("locale-charmaps/"):
+                # LOCALE-CHARMAPS-GEN: gzip -9n of the generated text.
+                name = name[:-len(".gz")] if name.endswith(".gz") else name
+                body = gzip.decompress(body)
             if ("<code_set_name> %s" % name).encode() not in body.splitlines():
                 fail("%s: %s does not name itself in a '<code_set_name> %s' line" % (pkg, path, name))
         if kind == "file" and strip != "none":

@@ -713,6 +713,17 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
                 Some("@@owns") | Some("@@owns-macro") | Some("@@hidden-member") => {}
+                Some("@@null") => {
+                    // `@@null NAME`: the definition of a `null` macros.tsv row, spelled per language.
+                    let n = l.split_whitespace().nth(1).unwrap_or("");
+                    match g.t.macros.get(n) {
+                        Some((ty, v)) if ty == "null" => match values::null_lines(n, v) {
+                            Ok(lines) => g.out.extend(lines),
+                            Err(e) => g.errors.push(format!("{}: {n}: {e}", g.header)),
+                        },
+                        _ => g.errors.push(format!("headers/{h}.in: @@null {n}: no macros.tsv row of type null")),
+                    }
+                }
                 Some("@@enum") => g.enumeration(&l.split_whitespace().skip(1).collect::<Vec<_>>()),
                 Some("@@if") | Some("@@when") => {
                     let n = l.split_whitespace().nth(1).unwrap_or("");

@@ -71,6 +71,33 @@ fn charmap(root: &Path, name: &str, src: &str, controls: &str, aliases: &str) ->
     Ok(t)
 }
 
+/// LOCALE-CHARMAPS-GEN: the charmaps of the charsets libniji's iconv converts with built-in codecs
+/// (UTF-8, ASCII, ISO-8859-1, EUC-JP, the CJK codecs), read off those codecs by the program of
+/// `crates/charmaps` into `out` (replacing what is there), each then compressed by `gzip -9n`
+/// (no name or time in the header, so the bytes depend on the text alone) to `<name>.gz`, as the
+/// `locales` package ships them for localedef. Returns how many.
+pub fn write_generated(root: &Path, out: &Path) -> Result<usize, String> {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let st = std::process::Command::new(&cargo)
+        .current_dir(root)
+        .args(["run", "--quiet", "-p", "niji-charmaps", "--"])
+        .arg(out)
+        .status()
+        .map_err(|e| format!("{cargo} run -p niji-charmaps: {e}"))?;
+    if !st.success() {
+        return Err(format!("{cargo} run -p niji-charmaps: {st}"));
+    }
+    let mut names: Vec<_> = fs::read_dir(out).map_err(|e| format!("{}: {e}", out.display()))?.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    names.sort();
+    for p in &names {
+        let st = std::process::Command::new("gzip").args(["-9n", "-f"]).arg(p).status().map_err(|e| format!("gzip {}: {e}", p.display()))?;
+        if !st.success() {
+            return Err(format!("gzip {}: {st}", p.display()));
+        }
+    }
+    Ok(names.len())
+}
+
 /// Write every charmap of the table into `out` (replacing what is there); returns how many.
 pub fn write(root: &Path, out: &Path) -> Result<usize, String> {
     let table = fs::read_to_string(root.join(TABLE)).map_err(|e| format!("{TABLE}: {e}"))?;

@@ -409,8 +409,9 @@ pub struct Ext {
 }
 
 /// Where a stream's `fprintf` plan cache lives (D-12.21): a [`niji::printf::PlanCache`] made
-/// on the [`PlanSlot::AFTER`]th formatted call and kept for the slot's life, across `fclose`
-/// and `freopen` (a cache keyed on the format's bytes is not state). Outside the record so a
+/// on the [`PlanSlot::AFTER`]th formatted call and kept across `freopen`; at `fclose` it goes
+/// to a pool for the next stream that makes one (D-12.31; a cache keyed on the format's bytes is
+/// not state). Outside the record so a
 /// one-shot printer pays neither its ~220 bytes in every stream's slot nor its fill: inline,
 /// the slot crossed a heap size class and cost every process ~2.7k instructions and two page
 /// faults (printf-loop, PRINTF-STAR-2).

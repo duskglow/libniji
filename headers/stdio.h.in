@@ -28,11 +28,7 @@ typedef __builtin_va_list va_list;
 
 @@if NULL
 # ifndef NULL
-#  ifdef __cplusplus
-#   define NULL __null
-#  else
-#   define NULL ((void *) 0)
-#  endif
+@@null NULL
 # endif
 #endif
 
@@ -45,6 +41,7 @@ extern FILE *stdout;
 extern FILE *stderr;
 #endif
 
+@@fortify
 __NIJI_END_C
 
 /* Under _FORTIFY_SOURCE fwrite_unlocked is also a macro (visibility.tsv); a call still references the exported

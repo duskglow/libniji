@@ -92,8 +92,8 @@ fn put_str(at: usize, s: &[u8]) {
 fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
     let tab = syms.symtab();
     let mut best: Option<(u32, Sym)> = None;
-    for k in 0..tab.count()? {
-        let Ok(s) = tab.get(k) else { break };
+    // Only the symbols whose range holds `addr` are decoded (most of a large table is not).
+    for (k, s) in tab.holding(bias, addr) {
         // The program's canonical PLT entry is its function's address in the process, so it
         // holds that address like a definition (probe-settled: only the entry's own address, its
         // size being 0).
@@ -102,10 +102,6 @@ fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
             continue;
         }
         let start = bias.wrapping_add(s.value);
-        let Some(off) = addr.checked_sub(start) else { continue };
-        if off >= s.size && off != 0 {
-            continue;
-        }
         if best.is_none_or(|(_, b)| start > bias.wrapping_add(b.value)) {
             best = Some((k, s));
         }
@@ -141,16 +137,16 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
             let (lo, hi) = v.range(i);
             lo <= addr && addr < hi
         };
-        // Up to `WALK` objects the chain walk is cheaper than the address index (counted per call,
-        // validation/percall/dl_objects.c: about 17 instructions a node); past them the program
-        // (the first node) is tried first, then the index (`crate::ld::index`), and the walk again
+        // The program (the first node) is tried first. Up to `WALK` objects the chain walk is
+        // cheaper than the address index (counted per call, validation/percall/dl_objects.c: about
+        // 17 instructions a node); past them the index (`crate::ld::index`), and the walk again
         // when the index cannot tell or its object's range is not the node's (never expected: both
         // are the `PT_LOAD` span).
         const WALK: usize = 12;
-        let i = if crate::ld::readers::published() <= WALK {
-            v.find(holds)?
-        } else if holds(0) {
+        let i = if holds(0) {
             0
+        } else if crate::ld::readers::published() <= WALK {
+            v.find(holds)?
         } else {
             match crate::ld::index::find(addr) {
                 Found::Hit(h) if holds(h.i) => h.i,

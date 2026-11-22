@@ -1,0 +1,13 @@
+# DL-READER-COSTS plants: the loader's reader costs (crates/boundary/src/ld, crates/ld/src/elf.rs)
+# a: a start-time object's entry never says it has PT_TLS, so the walk reports no TLS module for the program
+walk-tls-start | crates/boundary/src/ld/readers.rs | lit:live.store(live_word(phdr, phnum), Release); ==> live.store(LIVE, Release); | cargo xtask so && cargo test -p niji-ld --test dlopen_concurrent s27_1_c_8 | msg:s27_1_c_8_readers_see_published_objects_only.*FAILED|panicked
+# b: a dlopen'd object's entry never says it has PT_TLS, so the walk reports no TLS module for it
+walk-tls-publish | crates/boundary/src/ld/readers.rs | lit:live.store(live_word(phdr.load(Relaxed), phnum.load(Relaxed)), Release); ==> live.store(LIVE, Release); | cargo xtask so && cargo test -p niji-ld --test dlopen_concurrent s27_1_c_8 | msg:s27_1_c_8_readers_see_published_objects_only.*FAILED|panicked
+# c: dladdr's program-first test inverted: an address outside the program is reported as the program's
+dladdr-program-first | crates/boundary/src/ld/dlopen/dladdr.rs | lit:let i = if holds(0) { ==> let i = if !holds(0) { | cargo xtask affected --only conformance:s27_dladdr --with-exports --run | msg:s27_dladdr: line [0-9]+:
+# d: the symbol scan's range test admits the address one past a symbol's end
+holding-end | crates/ld/src/elf.rs | lit:if off >= w8(*s.first_chunk::<8>()?) && off != 0 { ==> if off > w8(*s.first_chunk::<8>()?) && off != 0 { | cargo xtask affected --only conformance:s27_dladdr --with-exports --run | msg:s27_dladdr: line [0-9]+: at\("s_a\+16
+# e: the dlopen environment filter keeps no LD_LIBRARY_PATH entry
+env-ld-filter | crates/boundary/src/ld/entry.rs | lit:.filter(|&p| super::io::starts_with(p, b"LD_")) ==> .filter(|&p| super::io::starts_with(p, b"LD_X")) | cargo xtask so && cargo test -p niji-ld --test runpath_search program_origin_without_lists | msg:program_origin_without_lists.*FAILED|panicked
+# f: the prefix test reads one byte past the one it compares (an entry "L" alone would be read past its NUL; here: every entry fails)
+env-prefix-byte | crates/boundary/src/ld/io.rs | lit:let b = unsafe { conv::bytes_at(addr.wrapping_add(k), 1) }; ==> let b = unsafe { conv::bytes_at(addr.wrapping_add(k + 1), 1) }; | cargo xtask so && cargo test -p niji-ld --test runpath_search program_origin_without_lists | msg:program_origin_without_lists.*FAILED|panicked

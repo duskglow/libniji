@@ -1,0 +1,11 @@
+id = "D-27.84"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "DL-READER-COSTS"
+date = "2026-11-22"
+tests = ["crates/ld/tests/dlopen_concurrent.rs::s27_1_c_8_readers_see_published_objects_only", "crates/ld/tests/runpath_search.rs::program_origin_without_lists"]
+body = '''
+**The loader's readers do per-object work once, at publication, and `dlopen` measures only the `LD_` environment entries (DL-READER-COSTS).** (1) `dl_iterate_phdr`: a published entry's `live` word is 1, or 3 when the object has a `PT_TLS` header (`readers::live_word`, written at publication and by the start-time fill); the walk looks for a TLS module only for 3, reads the fixed part of `dlpi_adds` (start-time objects and the vDSO) once per walk while still reading the `dlopen` counters at every step (the walk stays live), and looks at the vDSO only after entry 0. (2) `dladdr`: the program node is tested before the choice between the chain walk and the address index; the symbol search (`niji_ld::elf::Symtab::holding`) reads each entry's `st_value` and `st_size` and decodes only the symbols whose range holds the address, with `Symtab::get`'s bounds (below the count, within the mapped bytes) and the same range rule. (3) `dlopen`'s environment read tests each start-time entry's first three bytes (`io::starts_with`, never past its NUL) and measures and parses only the `LD_` ones; the values used (`LD_LIBRARY_PATH`, `LD_ORIGIN_PATH`) and first-entry-wins are unchanged. Counts (instructions per call, Zen 1 host, `validation/percall/dl_objects.c`, base = next ae9ea6879): walk of 104 objects 15,837 -> 6,188 (reference 3,798); `dladdr` of a program address 1,687 -> 864 (reference 301); of a libc address with 4 objects 126,992 -> 31,659 (reference 82,820); `dlopen` of an open object 22,663 -> 9,820 (reference 1,833); of a new object at 4 objects 85,344 -> 72,586 (reference 7,722). Plants: handoff/DL-READER-COSTS-plants.txt.
+'''

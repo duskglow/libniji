@@ -6,7 +6,9 @@
 #                  bash (run-* sections compared with the reference build's), perl (t/TEST summary),
 #                  python (regrtest summary), same (exit 0 and the whole output equal to the reference
 #                  build's)
-#   NAME_build     configure and build in the current directory (a fresh copy of the source); CC and CXX are set
+#   NAME_build     configure and build in the current directory (a fresh copy of the source); CC and CXX are set.
+#                  CPPFLAGS and CFLAGS from smoke.sh's environment reach both sides' builds alike (P7 with
+#                  dpkg-buildflags, plan/headers.md slice 18); a build that sets its own CFLAGS keeps the caller's
 #   NAME_test      run the program's own test suite there
 #   NAME_skip      (optional) why its test suite does not run here
 # Every build runs twice: CC=gcc (the reference: the host's C library) and CC=niji-cc (libniji). The
@@ -18,7 +20,8 @@
 
 zlib_src=zlib
 zlib_kind=rc
-zlib_build() { CFLAGS="-O2 -g" ./configure --static && make -j"$J"; }
+# The caller's CFLAGS replace "-O2 -g", and its CPPFLAGS are added to them so the defines reach every compile.
+zlib_build() { CFLAGS="${CFLAGS:--O2 -g}${CPPFLAGS:+ $CPPFLAGS}" ./configure --static && make -j"$J"; }
 zlib_test() { make test; }
 
 xz_utils_src=xz-utils

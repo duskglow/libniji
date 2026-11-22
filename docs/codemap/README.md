@@ -41,7 +41,7 @@ exactly which tests a change reaches.
 
 Differential tests (`crates/*/tests/*_products.rs`): crates/boundary/tests/failinject_products.rs, crates/core/tests/admin_products.rs, crates/core/tests/aio_products.rs, crates/core/tests/argp_products.rs, crates/core/tests/backtrace_products.rs, crates/core/tests/catalogs_products.rs, crates/core/tests/cold_bss_products.rs, crates/core/tests/crt_products.rs, crates/core/tests/cxx_throw_products.rs, crates/core/tests/deb_symbols_products.rs, crates/core/tests/diag_products.rs, crates/core/tests/digits_dots_products.rs, crates/core/tests/dns_products.rs, crates/core/tests/env_contract_products.rs, crates/core/tests/forced_unwind_products.rs, crates/core/tests/fstree_products.rs, crates/core/tests/gai_down_products.rs, crates/core/tests/gai_queue_products.rs, crates/core/tests/getopt_products.rs, crates/core/tests/gmon_products.rs, crates/core/tests/heap_meta_products.rs, crates/core/tests/hostconf_diag_products.rs, crates/core/tests/hostconf_env_products.rs, crates/core/tests/hot_text_products.rs, crates/core/tests/iconv_charmaps_products.rs, crates/core/tests/iconv_codespace_products.rs, crates/core/tests/iconv_listing_products.rs, crates/core/tests/iconv_products.rs, crates/core/tests/iconv_reloc_products.rs, crates/core/tests/langpack_products.rs, crates/core/tests/libmvec_products.rs, crates/core/tests/locale_products.rs, crates/core/tests/mallocdbg_products.rs, crates/core/tests/mntent_products.rs, crates/core/tests/monetary_products.rs, crates/core/tests/netaddr_products.rs, crates/core/tests/netdb_products.rs, crates/core/tests/noproc_products.rs, crates/core/tests/ns_parse_products.rs, crates/core/tests/nscache_products.rs, crates/core/tests/patterns_products.rs, crates/core/tests/posixipc_products.rs, crates/core/tests/printf_corpus_products.rs, crates/core/tests/printf_products.rs, crates/core/tests/process_products.rs, crates/core/tests/regex_corpus_products.rs, crates/core/tests/registry_products.rs, crates/core/tests/scanf_products.rs, crates/core/tests/sonames_products.rs, crates/core/tests/stdio_products.rs, crates/core/tests/syslog_products.rs, crates/core/tests/terminals_products.rs, crates/core/tests/timefmt_products.rs, crates/core/tests/timers_products.rs, crates/core/tests/tool_symtab_products.rs, crates/core/tests/users_products.rs, crates/core/tests/versions_products.rs, crates/core/tests/wstream_products.rs, crates/core/tests/zones_products.rs, crates/math/tests/complex_f128_products.rs, crates/math/tests/complex_ld_cr_products.rs, crates/math/tests/complex_ld_products.rs, crates/math/tests/complex_products.rs, crates/math/tests/elem_f128_products.rs, crates/math/tests/elem_ld_products.rs, crates/math/tests/elem_products.rs, crates/math/tests/exact_products.rs, crates/math/tests/special_f128_products.rs, crates/math/tests/special_ld_products.rs, crates/math/tests/special_products.rs, crates/math/tests/x87_nan_products.rs
 
-Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc-so, libm-so, libresolv-so, locale, localedef-bin, math, mathtools, mem, native, rt, spectest, thread-db
+Other crates: abi, boundary, charmaps, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc-so, libm-so, libresolv-so, locale, localedef-bin, math, mathtools, mem, native, rt, spectest, thread-db
 
 ## System files the library reads or writes
 
@@ -56,7 +56,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/dev/shm/` | crates/boundary/src/mqueue.rs:370, crates/boundary/src/nscache.rs:54 |
 | `/dev/shm/sem.` | crates/boundary/src/sync.rs:909 |
 | `/dev/shm/sem.niji-` | crates/boundary/src/sync.rs:961 |
-| `/dev/tty` | crates/boundary/src/stdio.rs:2168, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
+| `/dev/tty` | crates/boundary/src/stdio.rs:2217, crates/boundary/src/users.rs:914, crates/core/src/term.rs:503, crates/core/src/term.rs:505 |
 | `/dev/ttyS` | crates/core/src/term.rs:504 |
 | `/etc/.pwd.lock` | crates/legacy/src/accounting.rs:42 |
 | `/etc/aliases` | crates/legacy/src/nss.rs:93 |
@@ -84,13 +84,13 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/etc/ttys` | crates/legacy/src/accounting.rs:46 |
 | `/proc/loadavg` | crates/core/src/system.rs:191 |
 | `/proc/self/auxv` | crates/boundary/src/sys.rs:353 |
-| `/proc/self/exe` | crates/boundary/src/ld/link.rs:545 |
+| `/proc/self/exe` | crates/boundary/src/ld/link.rs:547 |
 | `/proc/self/fd` | crates/core/src/process.rs:453, crates/legacy/src/io_compat.rs:40 |
 | `/proc/self/fd/` | crates/core/src/term.rs:462, crates/legacy/src/fs_compat.rs:66 |
 | `/proc/self/fd/0123456789` | crates/legacy/src/accounting.rs:447 |
 | `/proc/self/fdinfo/` | crates/boundary/src/spawn.rs:439 |
 | `/proc/self/loginuid` | crates/legacy/src/accounting.rs:48 |
-| `/proc/self/maps` | crates/boundary/src/ld/image.rs:819, crates/boundary/src/ld/image.rs:850, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
+| `/proc/self/maps` | crates/boundary/src/ld/image.rs:862, crates/boundary/src/ld/image.rs:893, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
 | `/proc/self/mountinfo` | crates/core/src/system.rs:592 |
 | `/proc/self/ns/user` | crates/legacy/src/nscache.rs:321 |
 | `/proc/self/pagemap` | crates/boundary/src/classed.rs:132 |

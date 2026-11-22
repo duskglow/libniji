@@ -698,6 +698,35 @@ fn under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_seg
 }
 
 #[test]
+fn a_segment_after_the_first_maps_one_growth_step_first() {
+    // Trace: no spec clause (address space of the heap's segments, T14; GitHub issue #21); D-3.22,
+    // D-3.24. The first reservation's segment maps its metadata and 16 slabs (start-up); a segment
+    // mapped after it (here node 1's) maps its metadata and 8, the step a segment grows by, and
+    // then grows by that step. Mapping 16 there left a second node 8 slabs (2 MiB) of address
+    // space above the first node's next growth, under a limit too.
+    let (meta, slab) = (256usize << 10, 256usize << 10);
+    let heap = Heap::new();
+    let pages = FakePages::new();
+    heap.set_numa(true);
+    pages.shard.set(0);
+    let a = heap.alloc(&CSys, &pages, 100, ALIGN).unwrap().addr;
+    let first = meta + 16 * slab;
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first, "the first segment: metadata and 16 slabs");
+    pages.thread.set(1);
+    pages.shard.set(1);
+    // 64 KiB blocks, four per slab: 32 fill node 1's first 8 slabs, the 33rd takes a ninth.
+    let mut big: Vec<usize> = (0..8 * 4).map(|_| heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr).collect();
+    assert_eq!(segment_nodes(&pages).values().copied().collect::<Vec<_>>(), [Some(0), Some(1)], "node 1 has a segment of its own");
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first + meta + 8 * slab, "node 1's segment maps its metadata and 8 slabs first");
+    big.push(heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr);
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first + meta + 16 * slab, "then it grows by 8 slabs");
+    for p in big.into_iter().chain([a]) {
+        heap.free(&CSys, &pages, p).unwrap();
+    }
+    assert_eq!(heap.stats(&CSys, &pages).in_use, 0);
+}
+
+#[test]
 fn one_allowed_node_never_reads_the_node() {
     // Trace: no spec clause (NUMA placement of the heap's shards); D-3.12 as amended by D-3.20.
     // One allowed node: the set is asked once, on the first slow path; the thread's node is never

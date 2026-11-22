@@ -1,0 +1,34 @@
+{
+ "task": "SL-HEADERS-S18",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: generate done (slice 18): _FORTIFY_SOURCE 1..3 wrappers generated from headers/fortify.tsv and spec/abi/chk-prototypes.tsv into 10 templates; P3 fortify lines 171 -> 1 (a probe-input artefact); deliberate overflow aborts; P7 open",
+ "branch": "task/sl-headers-s18",
+ "head": null,
+ "jobs": [
+  "keke:sl-headers-s18-xtask4",
+  "keke:sl-headers-s18-plants3"
+ ],
+ "gate": {
+  "affected": "610 passed / 0 failed (cargo test -p xtask after cargo xtask so; FULL: the train's)",
+  "peak": "1.7G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "FULL: the train's (headers/*.in and headers/fortify.tsv are generated-table inputs); direct proof = cargo test -p xtask + precheck",
+  "P3 line left: pread64 call __pread64_chk [fortify2,fortify3]: the call probe's first form spells __off64_t, which libniji's unistd.h does not declare, so it falls back to constant 0 arguments and the wrapper provably takes the plain call; a non-constant size reaches __pread64_chk (own probe)",
+  "Devuan excalibur dpkg-buildflags: CPPFLAGS -Wdate-time -D_FORTIFY_SOURCE=2; CFLAGS -g -O2 -Werror=implicit-function-declaration -ffile-prefix-map=/=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection",
+  "job sl-headers-s18-xtask3 red only in xtask/tests/transcripts.rs: the role had target/niji-test/iconv (11:03) but no target/niji/ (its interpreter), so the test ran iconv and got ENOENT; rebuilding the products (xtask4) made it green. The test skips only when niji-test/iconv is absent, not when the products are",
+  "sync_role BUSY: a shell of DL-PROCESS-OBJECTS-3 named ~/w/n1 in its command line while waiting on its own job; resolved when it exited",
+  "HEADERS-O2-INLINES (27 names, 55 P3 rows) are not slice 18's (#7599); list in handoff/SL-HEADERS-S18.md"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "P3 fortify call rows that now bind to the *_chk export as with the reference headers (programs built with _FORTIFY_SOURCE against libniji's headers)", "before": 171, "after": 1, "unit": "P3 rows missing", "measured": true},
+  {"kind": "coverage", "what": "test headers::slices::s18 a_deliberate_overflow_aborts_and_an_exact_fit_runs + plants (wrapper removed, size off by one)", "before": 0, "after": 3, "unit": "test + plants", "measured": true}
+ ],
+ "improvement": "transcripts.rs should skip (or fail with a clear message) when target/niji-test/iconv exists but its interpreter target/niji/ld.so does not: a half-cleaned role gave a red that looked like an iconv defect",
+ "next_step": "run 2: P7 with Devuan dpkg-buildflags (needs a flag passthrough in validation/smoke, both sides), then hand back COMPLETE",
+ "report_file": "handoff/SL-HEADERS-S18.md"
+}

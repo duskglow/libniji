@@ -10,7 +10,7 @@ use niji_ld::cache::Cache;
 
 fuzz_target!(|data: &[u8]| {
     let Some(cache) = Cache::parse(data) else { return };
-    let levels: [&[&str]; 3] = [&[], &["x86-64-v2"], &["x86-64-v4", "x86-64-v3", "x86-64-v2"]];
+    let levels: [&[&[u8]]; 3] = [&[], &[&b"x86-64-v2"[..]], &[&b"x86-64-v4"[..], b"x86-64-v3", b"x86-64-v2"]];
     let tail = data.get(data.len().saturating_sub(12)..).unwrap_or(&[]);
     for name in [&b"libc.so.6"[..], b"libv.so.1", b"", tail] {
         for hw in levels {

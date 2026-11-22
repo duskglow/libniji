@@ -1,0 +1,58 @@
+{
+ "task": "DL-PROCESS-OBJECTS-3",
+ "model": "claude-opus-5-5",
+ "tokens": null,
+ "result": "Part 3 of HL-3: TLS modules, their IDs, the surplus's places and each thread's vector grow past 512 (no MODULES_MAX ceiling); __tls_get_addr's fast path and the start-up layout plan unchanged; gate 845/0, plants 14/14",
+ "branch": "task/dl-process-objects-3",
+ "head": "2465b7531",
+ "gate": {
+  "affected": "845 passed / 0 failed (13 suites, direct tier)",
+  "peak": "2.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "dtv: no header word added to the vector in place (deviation from the part-3 design, recorded in the pending record): __tls_get_addr's fast path is unchanged; vectors past 512 slots are mapped by the cold slow path and unmapped when the thread ends",
+  "Plants run 1 (c2c019770) stopped after 7 of 14: 5 caught, 2 survived (dtv-grow, dtv-grow-need: the slow path stayed correct without a grown vector); a vector-slot check (%fs:8 after one access) was added and run 2 caught 9/9 including both",
+  "Layout plan (target/product/fast/layout-bins.tsv) equal, after removing .llvm.<hash> suffixes, to a built tree that descends from next 5f07429d3 (no built tree at exactly 5f07429d3 was on the host); __tls_get_addr's source is unchanged and it tail-jumps to the #[cold] tls_slow (50 instructions in the built ld.so); a byte comparison with a base build was NOT done"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "a process can hold more than 512 TLS modules at once (dlopen of the 513th TLS module no longer fails); threads started before or after see every block",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added: dlopen_tls_modules_past_the_vectors_in_place, dlopen_waits_for_readers_past_three_quarters_of_the_table, tls_surplus_and_module_ids_past_the_in_place_room; plants 14",
+   "before": null,
+   "after": 14,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "closes audit HL-3 (MODULES_MAX), the last of the three DL-PROCESS-OBJECTS parts",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "jobrun with a label an earlier leg used reported that old run (lint1 looked like a fresh compile failure, one extra cycle); jobrun could refuse a label that already has a jobs.tsv row",
+ "next_step": "dispatcher: verify the pending startup job (cargo xtask test, then fullprof) and precheck on the final head; then the CI train; the pending record D-NEW (series D-27) gets its id at landing",
+ "report_file": "handoff/DL-PROCESS-OBJECTS-3.md",
+ "jobs": [
+  "keke:dl-process-objects-3-gate",
+  "keke:dl-process-objects-3-plants2",
+  "keke:dl-process-objects-3-lint3",
+  "keke:dl-process-objects-3-startup"
+ ],
+ "superseded": [
+  "keke:dl-process-objects-3-plants (stopped after 7 of 14 on c2c019770: 5 caught, 2 survived and fixed; the plant targets are unchanged since, only the test grew)"
+ ]
+}

@@ -151,6 +151,16 @@ fn reallocarray_by_symbol(addr: usize, k: usize, n: usize) -> KResult<usize> {
     Ok(q.expose_provenance())
 }
 
+/// `value` in a new block of the caller's allocator (`malloc(size_of::<T>())` through the
+/// symbol): an object the library makes on the program's behalf (a stream, ...), which a program
+/// that replaces `malloc` sees made and, through [`release`], freed (ruling #7583). The object, or
+/// `ENOMEM` (also when a replacement returns NULL without setting `errno`). It is never dropped:
+/// its block goes back with [`release`].
+#[inline(always)]
+pub(crate) fn new_value<T>(value: T) -> KResult<&'static mut T> {
+    conv::fresh_value(malloc(size_of::<T>()), value).ok_or(Errno::ENOMEM)
+}
+
 /// Release a caller-owned block. Obligation (on the caller of this function): `addr` is 0 or
 /// came from this allocator and is not used afterwards.
 pub(crate) fn release(addr: usize) {

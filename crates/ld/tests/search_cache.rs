@@ -20,7 +20,7 @@ use niji_ld::arch::{Arch, Native};
 use niji_ld::cache::{compare, Cache};
 use niji_ld::search::{self, Ctx, Scope, PREFIX};
 
-const V3: &[&str] = &["x86-64-v3", "x86-64-v2"];
+const V3: &[&[u8]] = &[b"x86-64-v3", b"x86-64-v2"];
 
 /// A new-format cache: entries `(flags, key, value, hwcaps index)` in file order, hwcaps names.
 fn cache_file(entries: &[(u32, &str, &str, Option<u32>)], names: &[&str]) -> Vec<u8> {
@@ -96,9 +96,9 @@ fn cache_lookup_arch_flag_and_hwcaps() {
         &["x86-64-v3", "x86-64-v2"],
     );
     let c = Cache::parse(&f).expect("well-formed cache");
-    let get = |n: &str, hw: &[&str]| c.lookup(n.as_bytes(), FLAGS, hw).map(|p| String::from_utf8(p.to_vec()).unwrap());
+    let get = |n: &str, hw: &[&[u8]]| c.lookup(n.as_bytes(), FLAGS, hw).map(|p| String::from_utf8(p.to_vec()).unwrap());
     assert_eq!(get("libv.so.1", V3).as_deref(), Some("/d/glibc-hwcaps/x86-64-v3/libv.so.1"));
-    assert_eq!(get("libv.so.1", &["x86-64-v2"]).as_deref(), Some("/d/glibc-hwcaps/x86-64-v2/libv.so.1"));
+    assert_eq!(get("libv.so.1", &[b"x86-64-v2"]).as_deref(), Some("/d/glibc-hwcaps/x86-64-v2/libv.so.1"));
     assert_eq!(get("libv.so.1", &[]).as_deref(), Some("/d/libv.so.1"), "no hwcaps supported: the plain entry, never the other arch's");
     assert_eq!(get("libonly32.so", V3), None, "an entry of another architecture is never taken");
 }
@@ -180,7 +180,7 @@ fn search_order() {
     let lib = Scope { rpath: Some(b"/r1"), runpath: None, origin: Some(b"/o/lib") };
     let prog = Scope { rpath: Some(b"/r0:$ORIGIN/$LIB"), runpath: None, origin: Some(b"/o") };
     let mut x = ctx(false, Some(b"/e1;/e2"), Some(&c));
-    x.hwcaps = &["x86-64-v2"];
+    x.hwcaps = &[b"x86-64-v2"];
     let got = candidates("libq.so.1", &[lib, prog], &x);
     let lib_dir = format!("/o/{}", Native::LIB);
     let mut want: Vec<String> = Vec::new();

@@ -1,0 +1,30 @@
+# DL-PROCESS-OBJECTS-3 plants (part 3: TLS past 512 modules; the walk guard; the three-quarters wait)
+# id | path | pattern | cmd | msg
+# a: the module table past its entries in place is never mapped
+thread-mods-past | crates/boundary/src/ld/tls.rs | lit:    len <= ltls::MODULES_MAX || THREAD_MODS_PAST.reserve(MOD_BYTES, len) ==>     len <= usize::MAX | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# b: no words for the free bits of IDs past 512 (no ID past 512 is handed out)
+ids-more-reserve | crates/boundary/src/ld/dlopen.rs | lit:    l.ids_more.reserve(ltls::ModuleIds::words_for(next)) && super::reserve_thread_mods(next) ==>     super::reserve_thread_mods(next) | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# c: the surplus's place store never grows
+places-grow | crates/boundary/src/ld/dlopen.rs | lit:    if l.surplus.is_full() && !l.surplus.store_mut().grow() { ==>     if false { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# d: a full store is not seen as full (no growth is asked for)
+places-full | crates/ld/src/tls.rs | lit:        self.len >= self.used.as_ref().len() ==>        self.len > self.used.as_ref().len() | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# e: the first growth loses the places made in place (later blocks overlap earlier ones)
+places-copy | crates/boundary/src/ld/tls.rs | lit:                w.copy_from_slice(&self.inline); ==>                 let _ = w; | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# f: a thread's vector never grows
+dtv-grow | crates/boundary/src/ld/tls.rs | lit:        dtv = grow_dtv(me, at, dtv.len(), module, n); ==>         let _ = n; | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# g: a grown vector only doubles, without room for the module asked for
+dtv-grow-need | crates/boundary/src/ld/tls.rs | lit:    while slots < need { ==>     while slots < need && false { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# h: a new thread's vector refuses a module past its slots (the old behaviour)
+fill-static-skip | crates/boundary/src/ld/tls.rs | lit:        if let Some(w) = dtv_slot(module).and_then(|s| dtv.get(s)) { ==>         if let Some(w) = Some(dtv.get(dtv_slot(module)?)?) { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# i: the vectors a thread grew are kept after it ends
+release-skip | crates/boundary/src/ld/tls.rs | lit:        release_grown(tp, at); ==>         let _ = at; | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_tls_modules_past_the_vectors_in_place | msg:TLS of modules past the vectors in place|the program failed
+# j: released IDs past 512 are never marked free
+ids-free-past | crates/ld/src/tls.rs | lit:                Some(j) => more.get_mut(j), ==>                Some(_) => None, | cargo test -p niji-ld --test tls tls_surplus_and_module_ids_past_the_in_place_room | msg:tls_surplus_and_module_ids_past_the_in_place_room.*FAILED|panicked
+# k: an ID past 512 is handed out without a word for its free bit
+ids-take-words | crates/ld/src/tls.rs | lit:        (Self::words_for(id) <= more.len()).then(|| { ==>        true.then(|| { | cargo test -p niji-ld --test tls tls_surplus_and_module_ids_past_the_in_place_room | msg:tls_surplus_and_module_ids_past_the_in_place_room.*FAILED|panicked
+# l: the reader wait past three quarters of the table is gone (DL-SLOT-REUSE #7380)
+room-three-quarters | crates/boundary/src/ld/dlopen.rs | lit:    r > RETIRED_WAIT || (r > 0 && TOP.load(Relaxed) > CAP.saturating_sub(RETIRED_WAIT) && TOP.load(Relaxed) <= CAP) ==>     r > RETIRED_WAIT | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_waits_for_readers_past_three_quarters_of_the_table | msg:no wait for the readers past three quarters
+# m: part 2's wrong node decode, now ended by the walk bound (coordinator #7267: caught by its message, not a timeout)
+view-node-addr | crates/boundary/src/ld/dlopen.rs | lit:        Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i) ==>         Gens::<CAP, OBJ_GENS>::at_in(self.node_dir(), nodes_base(), size_of::<Node>(), i % CAP) | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects
+# n: a walk bound too small for the chain
+walk-bound-half | crates/boundary/src/ld/dlopen.rs | lit:            if steps >= bound { ==>            if steps >= bound / 2 { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_past_the_old_object_tables | msg:the object tables past 512 objects

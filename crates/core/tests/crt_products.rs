@@ -399,6 +399,36 @@ fn plain_cxx_runs_static_constructors_and_destructors() {
 }
 
 #[test]
+fn plain_cc_runs_the_program_arrays_in_the_reference_order() {
+    // Clauses: s1_1_c_5, s1_1_c_6 (LIBC-INIT-ARRAY-REFS: a static program's start runs its own
+    // `.preinit_array`, `_init`, `.init_array`, and at exit `.fini_array` and `_fini`, found through
+    // the linker's markers; a dynamic program's come from its dynamic section, run by the loader).
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("arrays");
+    let src = s(&root().join("crates/core/tests/oracle/crt_arrays.c"));
+    let want = "preinit args\ninit section\nctor 101 args\nctor\nmain\natexit main\natexit ctor\ndtor\ndtor 101\nfini section\n";
+    for (opt, start) in [("-pie", "Scrt1.o"), ("-static", "crt1.o"), ("-static-pie", "rcrt1.o")] {
+        let tag = opt.trim_start_matches('-');
+        let obj = w.join(format!("arrays-{tag}.o"));
+        drive("cc", None, &["-O1".into(), "-fPIE".into(), "-c".into(), src.clone(), "-o".into(), s(&obj)]);
+        let exe = w.join(format!("arrays-{tag}"));
+        let mut args = vec![opt.to_string()];
+        if opt == "-pie" {
+            args.push(ldso());
+        }
+        args.extend([s(&obj), "-o".into(), s(&exe)]);
+        let trace = drive("cc", Some(&lib), &args);
+        assert_eq!(start_files(&trace, &lib), set(&[start, "crti.o", "crtn.o"]), "cc {opt}: start files");
+        assert_eq!(run(&exe, &w), want, "cc {opt}");
+        let host = w.join(format!("host-{tag}"));
+        drive("cc", None, &[opt.to_string(), s(&obj), "-o".into(), s(&host)]);
+        assert_eq!(run(&host, &w), want, "the reference, cc {opt}");
+    }
+}
+
+#[test]
 fn plain_cc_pg_writes_gmon_out() {
     // Clauses: s28_1_c_1, s28_1_c_2 (SL-CRT: gcrt1.o and grcrt1.o in a plain -pg link).
     if tools_missing() {

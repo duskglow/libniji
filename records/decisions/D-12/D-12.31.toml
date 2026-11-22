@@ -1,0 +1,11 @@
+id = "D-12.31"
+section = "s12"
+spec = "§12.1"
+ann = "—"
+status = "active"
+story = "STDIO-CALLER-ALLOC"
+date = "2026-11-22"
+tests = ["conformance/c/x_self_bind_stdio.c", "conformance/c/s12_printf.c"]
+body = '''
+**A stream the program opens is allocated through the program's malloc and freed through its free at fclose (story STDIO-CALLER-ALLOC, rulings #7460 and #7583; GNU C Library manual, "Replacing malloc").** fopen, fdopen, fmemopen, open_memstream, open_wmemstream, fopencookie, tmpfile and popen take their stream's slot (FILE words, lock, record and spare buffer, at most 768 bytes) from `caller_alloc::new_value`, which calls `malloc` through the symbol, so a program that replaces malloc (a leak checker, an allocation counter, a debugging allocator) sees the stream made, and fclose returns it with `free` after the stream has left the open-streams list and been closed. Its seal (D-12.19) is cleared first, so a stale `FILE *` to the slot is refused while the memory is unchanged; the list walkers (`fflush(NULL)`, `exit`) hold the list lock while they reach a stream, so none reaches a freed slot. A stream's printf plan cache (D-12.21) stays the library's: at fclose it goes to a pool under the slot lock, and the next stream that makes one takes it. The standard streams' records stay in the library's heap with its reserve (D-12.17): they are set up without the program asking for memory. Buffers already came from the caller's allocator. A replacement that returns NULL makes the open fail with NULL and `ENOMEM` (set by the library, also when the replacement leaves `errno` alone), and fopen closes the descriptor it opened. `caller_alloc::new_value` is the general helper for objects the library makes on the program's behalf (story INTERNAL-ALLOC-ROUTING reuses it). Probe-settled (black box against glibc 2.39, a program replacing the malloc family and logging each call): every open above calls the program's malloc at least once and fclose frees what the open allocated (open_memstream's buffer excepted: it is the caller's). Before this record libniji's opens made no call to the program's malloc and fclose kept the slot on a free list. No difference from the reference, so no compat flag.
+'''

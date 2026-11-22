@@ -2246,6 +2246,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // packages install for iconv_open (D-6.8's directory).
     let n = crate::charmaps::write(root, &release.join("charmaps"))?;
     println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
+    // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
+    let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
+    println!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)");
     check_placement(root, &release)?;
     phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.

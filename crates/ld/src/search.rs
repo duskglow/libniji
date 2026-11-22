@@ -131,7 +131,7 @@ pub struct Ctx<'a> {
     /// `$PLATFORM` ([`Arch::platform`]).
     pub platform: &'a str,
     /// The supported `glibc-hwcaps` subdirectories, highest first ([`Arch::hwcaps`]).
-    pub hwcaps: &'a [&'a str],
+    pub hwcaps: &'a [&'a [u8]],
     /// The cache: none, one already read, or one read when a search first reaches it.
     pub cache: CacheRef<'a>,
 }
@@ -281,7 +281,7 @@ fn in_dir(dir: &[u8], name: &[u8], ctx: &Ctx<'_>, path: &mut PathBuf, try_open: 
     };
     for h in ctx.hwcaps {
         path.clear();
-        if path.push(dir) && path.push(b"/glibc-hwcaps/") && path.push(h.as_bytes()) && path.push(b"/") && path.push(name) && try_open(path) {
+        if path.push(dir) && path.push(b"/glibc-hwcaps/") && path.push(h) && path.push(b"/") && path.push(name) && try_open(path) {
             return true;
         }
     }
