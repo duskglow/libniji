@@ -382,21 +382,21 @@ fn fold_preload(env: Option<&'static [u8]>, option: &'static [u8]) -> &'static [
 
 /// The `glibc-hwcaps` subdirectories for `--glibc-hwcaps-prepend` and `--glibc-hwcaps-mask`
 /// ([`program::hwcaps_subdirs`] of the supported ones, `builtin`), in a private mapping kept for the
-/// process and for `dlopen` (`state::program_hwcaps`). A name that is not UTF-8 names no directory
-/// libniji searches and is dropped. Cold: program mode only.
+/// process and for `dlopen` (`state::program_hwcaps`). Names are bytes, as given. Cold: program
+/// mode only.
 #[cold]
 #[inline(never)]
-fn hwcaps_list(builtin: &'static [&'static str], prepend: Option<&'static [u8]>, mask: Option<&'static [u8]>) -> &'static [&'static str] {
+fn hwcaps_list(builtin: &'static [&'static [u8]], prepend: Option<&'static [u8]>, mask: Option<&'static [u8]>) -> &'static [&'static [u8]] {
     let n = program::hwcaps_subdirs(builtin, prepend, mask).count();
-    let len = n.saturating_mul(core::mem::size_of::<&str>()).max(1);
+    let len = n.saturating_mul(core::mem::size_of::<&[u8]>()).max(1);
     let flags = super::MAP_PRIVATE_I32 | super::MAP_ANONYMOUS_I32;
     let at = crate::raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, flags, -1, 0).unwrap_or_else(|_| refuse(b"ld.so: cannot allocate memory for the glibc-hwcaps options\n"));
     // UNSAFE(slice): a fresh anonymous mapping as `n` slots for names, none read before written.
     #[allow(unsafe_code)]
-    // SAFETY: `len` >= n * size_of::<&str>() bytes from `at` were just mapped private and writable,
-    // page-aligned (so aligned for `&str`); nothing else refers to them, and they are never unmapped.
-    let slots = unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<&'static str>>(at), n) };
-    let names = program::hwcaps_subdirs(builtin, prepend, mask).filter_map(|h| core::str::from_utf8(h).ok());
+    // SAFETY: `len` >= n * size_of::<&[u8]>() bytes from `at` were just mapped private and writable,
+    // page-aligned (so aligned for `&[u8]`); nothing else refers to them, and they are never unmapped.
+    let slots = unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<&'static [u8]>>(at), n) };
+    let names = program::hwcaps_subdirs(builtin, prepend, mask);
     let mut kept = 0usize;
     for (slot, name) in slots.iter_mut().zip(names) {
         slot.write(name);
@@ -405,7 +405,7 @@ fn hwcaps_list(builtin: &'static [&'static str], prepend: Option<&'static [u8]>,
     // UNSAFE(slice): the slots just written.
     #[allow(unsafe_code)]
     // SAFETY: the first `kept` (<= n) slots from `at` were initialised above and are not written again.
-    let list: &'static [&'static str] = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static str>(at), kept) };
+    let list: &'static [&'static [u8]] = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static [u8]>(at), kept) };
     super::state::keep_program_hwcaps(list);
     list
 }
@@ -501,7 +501,7 @@ pub(super) struct List<'a> {
     preload: Option<&'static [u8]>,
     /// `$PLATFORM` and the `glibc-hwcaps` subdirectories searched (program mode's options may change these).
     platform: &'static str,
-    hwcaps: &'static [&'static str],
+    hwcaps: &'static [&'static [u8]],
     pub(super) page: u64,
     pub(super) vdso: Option<u64>,
     pub(super) base: usize,

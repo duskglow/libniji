@@ -158,7 +158,7 @@ fn write_round_trip_in_comparison_order() {
         let keys: BTreeSet<&str> = rows.iter().map(|r| r.1.as_str()).chain(["libnone.so.1", "libv.so"]).collect();
         for k in keys {
             for hw in HW_SETS {
-                let found = c.lookup(k.as_bytes(), FLAGS, hw).map(|p| String::from_utf8(p.to_vec()).unwrap());
+                let found = c.lookup(k.as_bytes(), FLAGS, &hw.iter().map(|h| h.as_bytes()).collect::<Vec<_>>()).map(|p| String::from_utf8(p.to_vec()).unwrap());
                 assert_eq!(found.as_deref(), expected(&rows, k, hw), "write_round_trip: lookup of {k} with {hw:?}");
             }
         }
@@ -270,7 +270,7 @@ fn write_hwcaps_key_other_than_the_file_name() {
         [(b"libdd.so.4".to_vec(), b"/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0".to_vec()), (b"libdd.so.4".to_vec(), b"/l/libdd.so.4".to_vec())],
         "write_hwcaps_key: entries read back"
     );
-    assert_eq!(c.lookup(b"libdd.so.4", FLAGS, &["x86-64-v3"]), Some(&b"/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0"[..]), "write_hwcaps_key: lookup with the level");
+    assert_eq!(c.lookup(b"libdd.so.4", FLAGS, &[b"x86-64-v3"]), Some(&b"/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0"[..]), "write_hwcaps_key: lookup with the level");
     assert_eq!(c.lookup(b"libdd.so.4", FLAGS, &[]), Some(&b"/l/libdd.so.4"[..]), "write_hwcaps_key: lookup without it");
 }
 
@@ -352,7 +352,7 @@ fn write_has_no_count_caps() {
         assert_eq!(c.len(), rows.len());
         for n in &names {
             let want = format!("/l/glibc-hwcaps/{n}/libz.so");
-            assert_eq!(c.lookup(b"libz.so", FLAGS, &[n.as_str()]), Some(want.as_bytes()), "write_has_no_count_caps: {count} names, {n} found");
+            assert_eq!(c.lookup(b"libz.so", FLAGS, &[n.as_bytes()]), Some(want.as_bytes()), "write_has_no_count_caps: {count} names, {n} found");
         }
         let stored: BTreeSet<Vec<u8>> = (0..c.len()).map(|i| c.get(i).unwrap().hwcaps.expect("a hwcaps entry").to_vec()).collect();
         assert_eq!(stored.len(), count, "write_has_no_count_caps: each name indexed");

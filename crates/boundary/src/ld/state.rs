@@ -99,7 +99,7 @@ pub(super) fn inhibit_rpath() -> Option<&'static [u8]> {
 }
 
 /// Keep the `glibc-hwcaps` subdirectory list program mode built ([`program_hwcaps`]).
-pub(super) fn keep_program_hwcaps(list: &'static [&'static str]) {
+pub(super) fn keep_program_hwcaps(list: &'static [&'static [u8]]) {
     let [_, _, at, len] = &PROGRAM_SEARCH;
     at.store(list.as_ptr().expose_provenance(), Relaxed);
     len.store(list.len().wrapping_add(1), Relaxed);
@@ -107,14 +107,14 @@ pub(super) fn keep_program_hwcaps(list: &'static [&'static str]) {
 
 /// The `glibc-hwcaps` subdirectories program mode's options chose, if either was given: `dlopen`
 /// searches them as the start did.
-pub(super) fn program_hwcaps() -> Option<&'static [&'static str]> {
+pub(super) fn program_hwcaps() -> Option<&'static [&'static [u8]]> {
     let [_, _, at, len] = &PROGRAM_SEARCH;
     let n = len.load(Relaxed).checked_sub(1)?;
     // UNSAFE(slice): the list `keep_program_hwcaps` kept.
     #[allow(unsafe_code)]
     // SAFETY: `keep_program_hwcaps` stored a `'static` slice's address and length; the slice lives in
     // a private mapping that is never unmapped or written again.
-    Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static str>(at.load(Relaxed)), n) })
+    Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static [u8]>(at.load(Relaxed)), n) })
 }
 
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).

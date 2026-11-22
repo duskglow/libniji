@@ -121,12 +121,12 @@ fn shown(name: &[u8]) -> bool {
 /// directories, the versions and the auxiliary vector (`auxv`, its words up to `AT_NULL`). Exits 0.
 #[cold]
 #[inline(never)]
-pub(super) fn diagnostics(hwcaps: &[&str], page: u64, platform: &str, envp: usize, auxv: &[u64]) -> ! {
+pub(super) fn diagnostics(hwcaps: &[&[u8]], page: u64, platform: &str, envp: usize, auxv: &[u64]) -> ! {
     let mut o = Out::new();
     o.put(b"dl_hwcaps_subdirs=\"");
     for (i, h) in hwcaps.iter().enumerate() {
         o.put(if i == 0 { b"" } else { b":" });
-        o.put(h.as_bytes());
+        o.put(h);
     }
     o.put(b"\"\ndl_pagesize=");
     o.num(page, true);

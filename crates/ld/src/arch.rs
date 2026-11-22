@@ -77,7 +77,7 @@ pub trait Arch {
     /// foreign-class transcripts). Others are skipped. Default: the native type only.
     const LDCONFIG_TYPES: &'static [(u8, u8, u16, u32)] = &[(Self::EI_CLASS, Self::EI_DATA, Self::E_MACHINE, Self::CACHE_FLAGS)];
     /// The `glibc-hwcaps` subdirectories `f` supports, highest priority first (design §4, #940).
-    fn hwcaps(f: &Features) -> &'static [&'static str];
+    fn hwcaps(f: &Features) -> &'static [&'static [u8]];
     /// The value of the `$PLATFORM` dynamic string token for `f` (a fixed string per CPU class).
     fn platform(f: &Features) -> &'static str;
     /// The arithmetic of one non-TLS relocation (design §0a "Relocation arithmetic", DL-10, D-27.17):
@@ -328,8 +328,8 @@ impl Arch for X86_64 {
 
     /// The x86-64 psABI micro-architecture levels (§3.1.1, "Micro-Architecture Levels"), each
     /// subdirectory only when its level and every level below it are supported.
-    fn hwcaps(f: &Features) -> &'static [&'static str] {
-        const ALL: &[&str] = &["x86-64-v4", "x86-64-v3", "x86-64-v2"];
+    fn hwcaps(f: &Features) -> &'static [&'static [u8]] {
+        const ALL: &[&[u8]] = &[b"x86-64-v4", b"x86-64-v3", b"x86-64-v2"];
         let v2 = f.cx16() && f.lahf() && f.popcnt() && f.sse3() && f.sse41() && f.sse42() && f.ssse3();
         let v3 = v2 && f.avx() && f.avx2() && f.bmi1() && f.bmi2() && f.f16c() && f.fma() && f.lzcnt() && f.movbe();
         let v4 = v3 && f.avx512_v4();
@@ -342,9 +342,11 @@ impl Arch for X86_64 {
         ALL.get(skip..).unwrap_or(&[])
     }
 
-    /// `haswell` for the x86-64-v3 class (probed on a Haswell host, dynlink.md), `x86_64` otherwise.
+    /// `haswell` for the x86-64-v3 class (probed on a Haswell host, dynlink.md), `x86_64` otherwise:
+    /// [`Arch::hwcaps`] lists x86-64-v3 (with v4 before it, or alone first) exactly when it has two or
+    /// more levels, so the length decides without comparing names.
     fn platform(f: &Features) -> &'static str {
-        if Self::hwcaps(f).first().is_some_and(|h| *h != "x86-64-v2") { "haswell" } else { "x86_64" }
+        if Self::hwcaps(f).len() >= 2 { "haswell" } else { "x86_64" }
     }
 
     /// The `R_X86_64_*` numbers of the x86-64 psABI (§4.4.1, table "Relocation Types") the loader

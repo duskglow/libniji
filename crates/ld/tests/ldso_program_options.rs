@@ -154,7 +154,7 @@ fn ldso_program_option_parsing() {
     for (list, path, named) in [("", "", true), (":", "", true), ("x:", "", false), ("x::y", "", false), ("x:/a/l.so", "/a/l.so", true), ("/a/l.so:", "/a/l.so", true), ("l.so", "/a/l.so", false), ("x /a/l.so", "/a/l.so", false), ("", "/a/l.so", false), ("/a/../a/l.so", "/a/l.so", false)] {
         assert_eq!(program::rpath_inhibited(list.as_bytes(), path.as_bytes()), named, "{list:?} names {path:?}");
     }
-    let sub = |pre: Option<&'static [u8]>, mask: Option<&'static [u8]>| program::hwcaps_subdirs(&["v3", "v2"], pre, mask).map(|h| String::from_utf8_lossy(h).into_owned()).collect::<Vec<_>>();
+    let sub = |pre: Option<&'static [u8]>, mask: Option<&'static [u8]>| program::hwcaps_subdirs(&[&b"v3"[..], b"v2"], pre, mask).map(|h| String::from_utf8_lossy(h).into_owned()).collect::<Vec<_>>();
     assert_eq!(sub(None, None), ["v3", "v2"]);
     assert_eq!(sub(Some(b"p1::p2"), None), ["p1", "p2", "v3", "v2"], "prepended first, empty names dropped");
     assert_eq!(sub(Some(b""), Some(b"v2:x")), ["v2"], "the mask keeps the supported names it lists");

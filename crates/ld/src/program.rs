@@ -171,9 +171,9 @@ pub fn rpath_inhibited(list: &[u8], path: &[u8]) -> bool {
 /// The `glibc-hwcaps` subdirectories a search tries, highest first: `--glibc-hwcaps-prepend`'s names
 /// in order, then the supported ones (`builtin`, [`Arch::hwcaps`]) that `--glibc-hwcaps-mask` names
 /// (all of them without the option). Empty names are dropped, so `''` adds or keeps none (probed).
-pub fn hwcaps_subdirs<'a>(builtin: &'a [&'a str], prepend: Option<&'a [u8]>, mask: Option<&'a [u8]>) -> impl Iterator<Item = &'a [u8]> {
+pub fn hwcaps_subdirs<'a>(builtin: &'a [&'a [u8]], prepend: Option<&'a [u8]>, mask: Option<&'a [u8]>) -> impl Iterator<Item = &'a [u8]> {
     let kept = move |h: &&[u8]| mask.is_none_or(|m| entries(m).any(|e| e == *h));
-    entries(prepend.unwrap_or_default()).filter(|e| !e.is_empty()).chain(builtin.iter().map(|h| h.as_bytes()).filter(kept))
+    entries(prepend.unwrap_or_default()).filter(|e| !e.is_empty()).chain(builtin.iter().copied().filter(kept))
 }
 
 /// `n` in decimal, or in hexadecimal with `0x` when `hex` (the forms of `--list-tunables` and
@@ -268,7 +268,7 @@ pub enum Found<'a> {
 /// working directory, `LD_LIBRARY_PATH`, `PATH` or a default directory. The cache reader takes only
 /// absolute paths (a relative one is an inconsistent entry), so a malformed cache cannot turn the
 /// lookup into a working-directory open.
-pub fn find<'a>(name: &[u8], cache: Option<&crate::cache::Cache<'a>>, flags: u32, hwcaps: &[&str]) -> Found<'a> {
+pub fn find<'a>(name: &[u8], cache: Option<&crate::cache::Cache<'a>>, flags: u32, hwcaps: &[&[u8]]) -> Found<'a> {
     if name.contains(&b'/') {
         return Found::AsGiven;
     }
