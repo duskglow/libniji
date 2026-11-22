@@ -745,7 +745,7 @@ typedef struct _IO_FILE __FILE;
 #   define __NIJI_D___fgetws_chk 1
 extern wchar_t *__fgetws_chk (wchar_t *, unsigned long, int, __FILE *);
 #  endif
-extern __typeof__ (fgetws) __niji_plain_fgetws __asm__ ("fgetws");
+extern wchar_t *__niji_plain_fgetws (wchar_t *, int, __FILE *) __asm__ ("fgetws");
 __NIJI_FORTIFY_FN wchar_t *fgetws (wchar_t *__p0, int __p1, __FILE *__p2)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -771,7 +771,7 @@ typedef struct _IO_FILE __FILE;
 #   define __NIJI_D___fgetws_unlocked_chk 1
 extern wchar_t *__fgetws_unlocked_chk (wchar_t *, unsigned long, int, __FILE *);
 #  endif
-extern __typeof__ (fgetws_unlocked) __niji_plain_fgetws_unlocked __asm__ ("fgetws_unlocked");
+extern wchar_t *__niji_plain_fgetws_unlocked (wchar_t *, int, __FILE *) __asm__ ("fgetws_unlocked");
 __NIJI_FORTIFY_FN wchar_t *fgetws_unlocked (wchar_t *__p0, int __p1, __FILE *__p2)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -810,7 +810,7 @@ __NIJI_FORTIFY_FN int fwprintf (__FILE *__p0, const wchar_t *__p1, ...)
 #   define __NIJI_D___mbsnrtowcs_chk 1
 extern unsigned long __mbsnrtowcs_chk (wchar_t *, const char **, unsigned long, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (mbsnrtowcs) __niji_plain_mbsnrtowcs __asm__ ("mbsnrtowcs");
+extern unsigned long __niji_plain_mbsnrtowcs (wchar_t *, const char **, unsigned long, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("mbsnrtowcs");
 __NIJI_FORTIFY_FN unsigned long mbsnrtowcs (wchar_t *__p0, const char **__p1, unsigned long __p2, unsigned long __p3, mbstate_t *__p4) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p3 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p3 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -826,7 +826,7 @@ __NIJI_FORTIFY_FN unsigned long mbsnrtowcs (wchar_t *__p0, const char **__p1, un
 #   define __NIJI_D___mbsrtowcs_chk 1
 extern unsigned long __mbsrtowcs_chk (wchar_t *, const char **, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (mbsrtowcs) __niji_plain_mbsrtowcs __asm__ ("mbsrtowcs");
+extern unsigned long __niji_plain_mbsrtowcs (wchar_t *, const char **, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("mbsrtowcs");
 __NIJI_FORTIFY_FN unsigned long mbsrtowcs (wchar_t *__p0, const char **__p1, unsigned long __p2, mbstate_t *__p3) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -842,7 +842,7 @@ __NIJI_FORTIFY_FN unsigned long mbsrtowcs (wchar_t *__p0, const char **__p1, uns
 #   define __NIJI_D___swprintf_chk 1
 extern int __swprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (swprintf) __niji_plain_swprintf __asm__ ("swprintf");
+extern int __niji_plain_swprintf (wchar_t *, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW __asm__ ("swprintf");
 __NIJI_FORTIFY_FN int swprintf (wchar_t *__p0, unsigned long __p1, const wchar_t *__p2, ...) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -881,7 +881,7 @@ __NIJI_FORTIFY_FN int vfwprintf (__FILE *__p0, const wchar_t *__p1, __builtin_va
 #   define __NIJI_D___vswprintf_chk 1
 extern int __vswprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, __builtin_va_list) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (vswprintf) __niji_plain_vswprintf __asm__ ("vswprintf");
+extern int __niji_plain_vswprintf (wchar_t *, unsigned long, const wchar_t *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("vswprintf");
 __NIJI_FORTIFY_FN int vswprintf (wchar_t *__p0, unsigned long __p1, const wchar_t *__p2, __builtin_va_list __p3) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -910,7 +910,7 @@ __NIJI_FORTIFY_FN int vwprintf (const wchar_t *__p0, __builtin_va_list __p1)
 #   define __NIJI_D___wcpcpy_chk 1
 extern wchar_t *__wcpcpy_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcpcpy) __niji_plain_wcpcpy __asm__ ("wcpcpy");
+extern wchar_t *__niji_plain_wcpcpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcpcpy");
 __NIJI_FORTIFY_FN wchar_t *wcpcpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
@@ -926,7 +926,7 @@ __NIJI_FORTIFY_FN wchar_t *wcpcpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NO
 #   define __NIJI_D___wcpncpy_chk 1
 extern wchar_t *__wcpncpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcpncpy) __niji_plain_wcpncpy __asm__ ("wcpncpy");
+extern wchar_t *__niji_plain_wcpncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcpncpy");
 __NIJI_FORTIFY_FN wchar_t *wcpncpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -942,7 +942,7 @@ __NIJI_FORTIFY_FN wchar_t *wcpncpy (wchar_t *__p0, const wchar_t *__p1, unsigned
 #   define __NIJI_D___wcrtomb_chk 1
 extern unsigned long __wcrtomb_chk (char *, wchar_t, mbstate_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcrtomb) __niji_plain_wcrtomb __asm__ ("wcrtomb");
+extern unsigned long __niji_plain_wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcrtomb");
 __NIJI_FORTIFY_FN unsigned long wcrtomb (char *__p0, wchar_t __p1, mbstate_t *__p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1)
@@ -958,7 +958,7 @@ __NIJI_FORTIFY_FN unsigned long wcrtomb (char *__p0, wchar_t __p1, mbstate_t *__
 #   define __NIJI_D___wcscat_chk 1
 extern wchar_t *__wcscat_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcscat) __niji_plain_wcscat __asm__ ("wcscat");
+extern wchar_t *__niji_plain_wcscat (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcscat");
 __NIJI_FORTIFY_FN wchar_t *wcscat (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
@@ -974,7 +974,7 @@ __NIJI_FORTIFY_FN wchar_t *wcscat (wchar_t *__p0, const wchar_t *__p1) __NIJI_NO
 #   define __NIJI_D___wcscpy_chk 1
 extern wchar_t *__wcscpy_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcscpy) __niji_plain_wcscpy __asm__ ("wcscpy");
+extern wchar_t *__niji_plain_wcscpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcscpy");
 __NIJI_FORTIFY_FN wchar_t *wcscpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
@@ -990,7 +990,7 @@ __NIJI_FORTIFY_FN wchar_t *wcscpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NO
 #   define __NIJI_D___wcslcat_chk 1
 extern unsigned long __wcslcat_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcslcat) __niji_plain_wcslcat __asm__ ("wcslcat");
+extern unsigned long __niji_plain_wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcslcat");
 __NIJI_FORTIFY_FN unsigned long wcslcat (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -1006,7 +1006,7 @@ __NIJI_FORTIFY_FN unsigned long wcslcat (wchar_t *__p0, const wchar_t *__p1, uns
 #   define __NIJI_D___wcslcpy_chk 1
 extern unsigned long __wcslcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcslcpy) __niji_plain_wcslcpy __asm__ ("wcslcpy");
+extern unsigned long __niji_plain_wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcslcpy");
 __NIJI_FORTIFY_FN unsigned long wcslcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -1022,7 +1022,7 @@ __NIJI_FORTIFY_FN unsigned long wcslcpy (wchar_t *__p0, const wchar_t *__p1, uns
 #   define __NIJI_D___wcsncat_chk 1
 extern wchar_t *__wcsncat_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcsncat) __niji_plain_wcsncat __asm__ ("wcsncat");
+extern wchar_t *__niji_plain_wcsncat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcsncat");
 __NIJI_FORTIFY_FN wchar_t *wcsncat (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
@@ -1038,7 +1038,7 @@ __NIJI_FORTIFY_FN wchar_t *wcsncat (wchar_t *__p0, const wchar_t *__p1, unsigned
 #   define __NIJI_D___wcsncpy_chk 1
 extern wchar_t *__wcsncpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcsncpy) __niji_plain_wcsncpy __asm__ ("wcsncpy");
+extern wchar_t *__niji_plain_wcsncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcsncpy");
 __NIJI_FORTIFY_FN wchar_t *wcsncpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
@@ -1054,7 +1054,7 @@ __NIJI_FORTIFY_FN wchar_t *wcsncpy (wchar_t *__p0, const wchar_t *__p1, unsigned
 #   define __NIJI_D___wcsnrtombs_chk 1
 extern unsigned long __wcsnrtombs_chk (char *, const wchar_t **, unsigned long, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcsnrtombs) __niji_plain_wcsnrtombs __asm__ ("wcsnrtombs");
+extern unsigned long __niji_plain_wcsnrtombs (char *, const wchar_t **, unsigned long, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcsnrtombs");
 __NIJI_FORTIFY_FN unsigned long wcsnrtombs (char *__p0, const wchar_t **__p1, unsigned long __p2, unsigned long __p3, mbstate_t *__p4) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p3 <= __NIJI_BOS (__p0, 0)) && (__p3 <= __NIJI_BOS (__p0, 0))))
@@ -1070,7 +1070,7 @@ __NIJI_FORTIFY_FN unsigned long wcsnrtombs (char *__p0, const wchar_t **__p1, un
 #   define __NIJI_D___wcsrtombs_chk 1
 extern unsigned long __wcsrtombs_chk (char *, const wchar_t **, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcsrtombs) __niji_plain_wcsrtombs __asm__ ("wcsrtombs");
+extern unsigned long __niji_plain_wcsrtombs (char *, const wchar_t **, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcsrtombs");
 __NIJI_FORTIFY_FN unsigned long wcsrtombs (char *__p0, const wchar_t **__p1, unsigned long __p2, mbstate_t *__p3) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, 0)) && (__p2 <= __NIJI_BOS (__p0, 0))))
@@ -1086,7 +1086,7 @@ __NIJI_FORTIFY_FN unsigned long wcsrtombs (char *__p0, const wchar_t **__p1, uns
 #   define __NIJI_D___wmemcpy_chk 1
 extern wchar_t *__wmemcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wmemcpy) __niji_plain_wmemcpy __asm__ ("wmemcpy");
+extern wchar_t *__niji_plain_wmemcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmemcpy");
 __NIJI_FORTIFY_FN wchar_t *wmemcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -1102,7 +1102,7 @@ __NIJI_FORTIFY_FN wchar_t *wmemcpy (wchar_t *__p0, const wchar_t *__p1, unsigned
 #   define __NIJI_D___wmemmove_chk 1
 extern wchar_t *__wmemmove_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wmemmove) __niji_plain_wmemmove __asm__ ("wmemmove");
+extern wchar_t *__niji_plain_wmemmove (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmemmove");
 __NIJI_FORTIFY_FN wchar_t *wmemmove (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -1118,7 +1118,7 @@ __NIJI_FORTIFY_FN wchar_t *wmemmove (wchar_t *__p0, const wchar_t *__p1, unsigne
 #   define __NIJI_D___wmempcpy_chk 1
 extern wchar_t *__wmempcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wmempcpy) __niji_plain_wmempcpy __asm__ ("wmempcpy");
+extern wchar_t *__niji_plain_wmempcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmempcpy");
 __NIJI_FORTIFY_FN wchar_t *wmempcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -1134,7 +1134,7 @@ __NIJI_FORTIFY_FN wchar_t *wmempcpy (wchar_t *__p0, const wchar_t *__p1, unsigne
 #   define __NIJI_D___wmemset_chk 1
 extern wchar_t *__wmemset_chk (wchar_t *, wchar_t, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wmemset) __niji_plain_wmemset __asm__ ("wmemset");
+extern wchar_t *__niji_plain_wmemset (wchar_t *, wchar_t, unsigned long) __NIJI_NOTHROW __asm__ ("wmemset");
 __NIJI_FORTIFY_FN wchar_t *wmemset (wchar_t *__p0, wchar_t __p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))

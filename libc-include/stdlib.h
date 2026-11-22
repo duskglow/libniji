@@ -1128,7 +1128,7 @@ extern int posix_openpt (int) __attribute__ ((__warn_unused_result__));
 #   define __NIJI_D___mbstowcs_chk 1
 extern unsigned long __mbstowcs_chk (wchar_t *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (mbstowcs) __niji_plain_mbstowcs __asm__ ("mbstowcs");
+extern unsigned long __niji_plain_mbstowcs (wchar_t *, const char *, unsigned long) __NIJI_NOTHROW __asm__ ("mbstowcs");
 __NIJI_FORTIFY_FN unsigned long mbstowcs (wchar_t *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -1144,7 +1144,7 @@ __NIJI_FORTIFY_FN unsigned long mbstowcs (wchar_t *__p0, const char *__p1, unsig
 #   define __NIJI_D___ptsname_r_chk 1
 extern int __ptsname_r_chk (int, char *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (ptsname_r) __niji_plain_ptsname_r __asm__ ("ptsname_r");
+extern int __niji_plain_ptsname_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("ptsname_r");
 __NIJI_FORTIFY_FN int ptsname_r (int __p0, char *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
@@ -1160,7 +1160,7 @@ __NIJI_FORTIFY_FN int ptsname_r (int __p0, char *__p1, unsigned long __p2) __NIJ
 #   define __NIJI_D___realpath_chk 1
 extern char *__realpath_chk (const char *, char *, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (realpath) __niji_plain_realpath __asm__ ("realpath");
+extern char *__niji_plain_realpath (const char *, char *) __NIJI_NOTHROW __asm__ ("realpath");
 __NIJI_FORTIFY_FN char *realpath (const char *__p0, char *__p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1)
@@ -1176,7 +1176,7 @@ __NIJI_FORTIFY_FN char *realpath (const char *__p0, char *__p1) __NIJI_NOTHROW
 #   define __NIJI_D___wcstombs_chk 1
 extern unsigned long __wcstombs_chk (char *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wcstombs) __niji_plain_wcstombs __asm__ ("wcstombs");
+extern unsigned long __niji_plain_wcstombs (char *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcstombs");
 __NIJI_FORTIFY_FN unsigned long wcstombs (char *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, 0)) && (__p2 <= __NIJI_BOS (__p0, 0))))
@@ -1192,7 +1192,7 @@ __NIJI_FORTIFY_FN unsigned long wcstombs (char *__p0, const wchar_t *__p1, unsig
 #   define __NIJI_D___wctomb_chk 1
 extern int __wctomb_chk (char *, wchar_t, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (wctomb) __niji_plain_wctomb __asm__ ("wctomb");
+extern int __niji_plain_wctomb (char *, wchar_t) __NIJI_NOTHROW __asm__ ("wctomb");
 __NIJI_FORTIFY_FN int wctomb (char *__p0, wchar_t __p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1)

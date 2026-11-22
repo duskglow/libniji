@@ -257,7 +257,8 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
         let plain = format!("__niji_plain_{name}");
         // The function's own symbol, as its declaration binds it: its 64-bit twin under `_FILE_OFFSET_BITS=64`
         // where the address probes saw one (pread -> pread64).
-        let alias = |s: &str| format!("extern __typeof__ ({name}) {plain} __asm__ (\"{s}\");");
+        // Spelled from the prototype, not `__typeof__ (name)`: that names the function, and a deprecated one (getwd) warns.
+        let alias = |s: &str| format!("extern {ret}{plain} ({}){nt} __asm__ (\"{s}\");", params.join(", "));
         let twin = g.t.lfs.get(name).cloned().or_else(|| {
             let other: Vec<&String> = g.t.addr.get(name).into_iter().flatten().map(|(_, s)| s).filter(|s| *s != name && *s != "!error" && g.t.exported.contains(*s)).collect();
             (other.len() == 1).then(|| other[0].clone())

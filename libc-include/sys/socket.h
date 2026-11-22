@@ -1388,7 +1388,7 @@ enum { SCM_SECURITY = 3 };
 #   define __NIJI_D___recv_chk 1
 extern long __recv_chk (int, void *, unsigned long, unsigned long, int);
 #  endif
-extern __typeof__ (recv) __niji_plain_recv __asm__ ("recv");
+extern long __niji_plain_recv (int, void *, unsigned long, int) __asm__ ("recv");
 __NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
 {
   if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
@@ -1432,7 +1432,7 @@ typedef union __attribute__ ((__transparent_union__)) {
 #   define __NIJI_D___recvfrom_chk 1
 extern long __recvfrom_chk (int, void *, unsigned long, unsigned long, int, __SOCKADDR_ARG, unsigned int *);
 #  endif
-extern __typeof__ (recvfrom) __niji_plain_recvfrom __asm__ ("recvfrom");
+extern long __niji_plain_recvfrom (int, void *, unsigned long, int, __SOCKADDR_ARG, unsigned int *) __asm__ ("recvfrom");
 __NIJI_FORTIFY_FN long recvfrom (int __p0, void *__p1, unsigned long __p2, int __p3, __SOCKADDR_ARG __p4, unsigned int *__p5)
 {
   if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))

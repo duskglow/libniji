@@ -875,7 +875,7 @@ __NIJI_FORTIFY_FN int dprintf (int __p0, const char *__p1, ...)
 #   define __NIJI_D___fgets_chk 1
 extern char *__fgets_chk (char *, unsigned long, int, FILE *);
 #  endif
-extern __typeof__ (fgets) __niji_plain_fgets __asm__ ("fgets");
+extern char *__niji_plain_fgets (char *, int, FILE *) __asm__ ("fgets");
 __NIJI_FORTIFY_FN char *fgets (char *__p0, int __p1, FILE *__p2)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= __NIJI_BOS (__p0, 0)) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= __NIJI_BOS (__p0, 0))))
@@ -891,7 +891,7 @@ __NIJI_FORTIFY_FN char *fgets (char *__p0, int __p1, FILE *__p2)
 #   define __NIJI_D___fgets_unlocked_chk 1
 extern char *__fgets_unlocked_chk (char *, unsigned long, int, FILE *);
 #  endif
-extern __typeof__ (fgets_unlocked) __niji_plain_fgets_unlocked __asm__ ("fgets_unlocked");
+extern char *__niji_plain_fgets_unlocked (char *, int, FILE *) __asm__ ("fgets_unlocked");
 __NIJI_FORTIFY_FN char *fgets_unlocked (char *__p0, int __p1, FILE *__p2)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= __NIJI_BOS (__p0, 0)) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= __NIJI_BOS (__p0, 0))))
@@ -920,7 +920,7 @@ __NIJI_FORTIFY_FN int fprintf (FILE *__p0, const char *__p1, ...)
 #   define __NIJI_D___fread_chk 1
 extern unsigned long __fread_chk (void *, unsigned long, unsigned long, unsigned long, FILE *);
 #  endif
-extern __typeof__ (fread) __niji_plain_fread __asm__ ("fread");
+extern unsigned long __niji_plain_fread (void *, unsigned long, unsigned long, FILE *) __asm__ ("fread");
 __NIJI_FORTIFY_FN unsigned long fread (void *__p0, unsigned long __p1, unsigned long __p2, FILE *__p3)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 != 0 && __p2 <= __NIJI_BOS (__p0, 0) / __p1) && (__p1 != 0 && __p2 <= __NIJI_BOS (__p0, 0) / __p1)))
@@ -936,7 +936,7 @@ __NIJI_FORTIFY_FN unsigned long fread (void *__p0, unsigned long __p1, unsigned 
 #   define __NIJI_D___fread_unlocked_chk 1
 extern unsigned long __fread_unlocked_chk (void *, unsigned long, unsigned long, unsigned long, FILE *);
 #  endif
-extern __typeof__ (fread_unlocked) __niji_plain_fread_unlocked __asm__ ("fread_unlocked");
+extern unsigned long __niji_plain_fread_unlocked (void *, unsigned long, unsigned long, FILE *) __asm__ ("fread_unlocked");
 __NIJI_FORTIFY_FN unsigned long fread_unlocked (void *__p0, unsigned long __p1, unsigned long __p2, FILE *__p3)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 != 0 && __p2 <= __NIJI_BOS (__p0, 0) / __p1) && (__p1 != 0 && __p2 <= __NIJI_BOS (__p0, 0) / __p1)))

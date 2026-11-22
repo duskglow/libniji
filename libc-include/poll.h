@@ -139,7 +139,7 @@ struct pollfd;
 #   define __NIJI_D___poll_chk 1
 extern int __poll_chk (struct pollfd *, unsigned long, int, long unsigned int);
 #  endif
-extern __typeof__ (poll) __niji_plain_poll __asm__ ("poll");
+extern int __niji_plain_poll (struct pollfd *, unsigned long, int) __asm__ ("poll");
 __NIJI_FORTIFY_FN int poll (struct pollfd *__p0, unsigned long __p1, int __p2)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
@@ -169,7 +169,7 @@ typedef struct {
 #   define __NIJI_D___ppoll_chk 1
 extern int __ppoll_chk (struct pollfd *, unsigned long, const struct timespec *, const __sigset_t *, long unsigned int);
 #  endif
-extern __typeof__ (ppoll) __niji_plain_ppoll __asm__ ("ppoll");
+extern int __niji_plain_ppoll (struct pollfd *, unsigned long, const struct timespec *, const __sigset_t *) __asm__ ("ppoll");
 __NIJI_FORTIFY_FN int ppoll (struct pollfd *__p0, unsigned long __p1, const struct timespec *__p2, const __sigset_t *__p3)
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))

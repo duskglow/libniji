@@ -318,7 +318,7 @@ __NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
 #   define __NIJI_D___explicit_bzero_chk 1
 extern void __explicit_bzero_chk (void *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (explicit_bzero) __niji_plain_explicit_bzero __asm__ ("explicit_bzero");
+extern void __niji_plain_explicit_bzero (void *, unsigned long) __NIJI_NOTHROW __asm__ ("explicit_bzero");
 __NIJI_FORTIFY_FN void explicit_bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
@@ -406,7 +406,7 @@ __NIJI_FORTIFY_FN char *strcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
 #   define __NIJI_D___strlcat_chk 1
 extern unsigned long __strlcat_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (strlcat) __niji_plain_strlcat __asm__ ("strlcat");
+extern unsigned long __niji_plain_strlcat (char *, const char *, unsigned long) __NIJI_NOTHROW __asm__ ("strlcat");
 __NIJI_FORTIFY_FN unsigned long strlcat (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
@@ -422,7 +422,7 @@ __NIJI_FORTIFY_FN unsigned long strlcat (char *__p0, const char *__p1, unsigned 
 #   define __NIJI_D___strlcpy_chk 1
 extern unsigned long __strlcpy_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
 #  endif
-extern __typeof__ (strlcpy) __niji_plain_strlcpy __asm__ ("strlcpy");
+extern unsigned long __niji_plain_strlcpy (char *, const char *, unsigned long) __NIJI_NOTHROW __asm__ ("strlcpy");
 __NIJI_FORTIFY_FN unsigned long strlcpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
 {
   if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
