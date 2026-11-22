@@ -13,7 +13,10 @@ into freed slots in `dlopen::settle` before `readers::publish(base, k)`, with `b
 `unpublish` still calls `index::removed(k)`, so the index sees the final object numbers and needs no change; its
 REORDERED test in `dl_iterate_phdr` is DL-SLOT-REUSE's (the coordinator's "+4 instr" note is not this story's
 change; left as is). Record `D-27.79.toml` renamed to `D-27.75.toml`, id set to match `index.rs`. Jobs on the
-merged head: see the report json / hand-back (lint1, gate1, plants1, hot1, xtest1).
+merged head `09c0a4166`, mei s4, all rc 0: `dl-find-object-fast-3-lint1` (workspace clippy -D warnings + static),
+`-gate1` (direct: 834 passed / 0 failed / 52 ignored, conformance 14/14, peak 3.3G), `-plants1` (5/5 CAUGHT, no
+WARN), `-hot1` (NIJI_FULL_PROFILE so + hot_text_products 33 passed), `-xtest1` (`cargo xtask test`: 7078 + 4870 +
+128 + 46 passed). Per-call counts not rerun (merge only; index.rs code unchanged).
 
 **DL-FIND-OBJECT-FAST-2 (rerun only, superseded by -3's jobs).** keke r2, code `d91a4174d`: lint, gate (786 passed
 / 0 failed / 52 ignored, peak 2.8G), plants 5/5 CAUGHT, per-call rows identical to the table below, hot 33 passed.
