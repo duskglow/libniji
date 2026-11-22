@@ -1,0 +1,55 @@
+{
+ "task": "THREAD-EXIT-NO-UNWINDER",
+ "model": "opus",
+ "tokens": null,
+ "result": "A thread exit with unwind work and no unwinder (-static-libgcc, no libgcc_s.so.1 loaded) now aborts with a FATAL message naming cause and fix; plain-C threads keep the clean exit",
+ "branch": "task/thread-exit-no-unwinder",
+ "head": "cbffd077c (code head; later commits are handoff prose only)",
+ "gate": {
+  "affected": "gate2 on ea95f35b8: 11172 passed / 2 failed (s23_4_c_3_3, normal and native; fixed in fe6f805ec); conformance 136/136. Final head: failing suite s23_time_clauses plus s22_threads_clauses, forced_unwind_products, rt unwind rerun in thread-exit-no-unwinder-final",
+  "peak": "12G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "No product test puts a handler frame in a shared library other than the executable; the loader-iterate object path (backtrace::frame_object) is covered through the unit test's find path only",
+  "Reference with libgcc_s.so.1 hidden aborts every thread exit through pthread_exit/cancellation, also with nothing to unwind; libniji keeps the clean exit there (differences row)",
+  "Plant own-guards-counted: WARN-NO-MSG on the msg regex only; its log shows conformance FAILED: s22_cancel: killed by signal 6 SIGABRT (status 134); regex fixed in the plants file",
+  "plants2 (ea95f35b8, superseded) was 5 CAUGHT + 1 WARN-NO-MSG; plants3 reruns the 6 plus loader-check-inverted on the final code head and was still running at hand-back"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "-static-libgcc C -fexceptions / buffers builds: exit skipped unwind cleanups silently (rc 0); now SIGABRT + message",
+   "before": 0,
+   "after": 134,
+   "unit": "exit status",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "-static-libgcc -static-libstdc++ C++ (lock_guard, std::async): hung forever; now SIGABRT + message",
+   "before": 124,
+   "after": 134,
+   "unit": "exit status (124 = timeout)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (2 product tests replacing 1, 1 walker unit test) and plants",
+   "before": null,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "The in-process test runtime compiles libniji with unwinding panics, so any check that reads LSDAs on the stack differs between test binaries and products; a note in the plants/gate docs would have saved one gate cycle",
+ "next_step": "none if the final suites are green; a product test with a handler frame in a -static-libgcc shared library would cover backtrace::frame_object",
+ "report_file": "handoff/THREAD-EXIT-NO-UNWINDER.md",
+ "jobs": [
+  "keke:thread-exit-no-unwinder-final",
+  "keke:thread-exit-no-unwinder-plants3 (pending)",
+  "keke:thread-exit-no-unwinder-probe-head2"
+ ]
+}
