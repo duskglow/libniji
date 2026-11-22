@@ -1,0 +1,25 @@
+{"task": "RELEASE-SNAPSHOT-1122B", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 302dd7c3a (snapshot-2026-11-22.2, serial 2 of 2026-11-22); start-up faults back to 21.5's level (3 libraries +1), valgrind leak stacks reach main, helgrind as stock",
+ "branch": "task/release-snapshot-1122b", "head": null,
+ "gate": {"affected": "GATE bad=0 (direct tier, clippy all-features, static, records); every .deb check same as 22.1 or on its known lines", "peak": "2.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "V1: under valgrind libniji leaves stdout's 4,104-byte buffer reachable at exit (stock 0), pre-existing; recommend a small story to release stdio buffers at exit under valgrind",
+  "V2: the asprintf frame of the valgrind leak record has no source line",
+  "P1: libc-bin .deb 602,448 -> 335,612 bytes with the same 24 files, its programs' checks unchanged; not attributed",
+  "M: mint unchanged from 22.1 (40 internal rows, 0 changed); ruling #7583 work will change them later",
+  "T2: y26 TSan-with-ASLR row varies between runs on stock and libniji alike (host mmap randomness)",
+  "HEAP-SPILL-COLD-3 is not in this head (landed after the head was fixed); next snapshot",
+  "LD-PHDR-ONCE and UTIL-12: not in this head"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "dynamic start page faults, empty main / 3 libraries / clock_gettime, both classes, vs snapshot-2026-11-22.1", "before": 56, "after": 51, "unit": "faults per start (empty main; 71->66 and 59/60->54/55 on the others)", "measured": true},
+  {"kind": "perf", "what": "empty main user instructions, Skylake-SP, vs snapshot-2026-11-22.1", "before": 324068, "after": 320731, "unit": "instr/start", "measured": true},
+  {"kind": "coverage", "what": "snapshot checks added: y13v (valgrind leak stack / helgrind / still-reachable vs stock) and startup215 (21.5 faults beside the head)", "before": null, "after": 2, "unit": "checks", "measured": true}
+ ],
+ "improvement": "a relay step between hosts (role host -> other host) is done by hand each snapshot; a host-to-host sync helper in liella-ops (sha-checked) would remove two agent round trips and the detached-ssh pitfall seen here",
+ "next_step": "coordinator announces snapshot-2026-11-22.2; next snapshot picks up HEAP-SPILL-COLD-3",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1122B.md",
+ "jobs": ["release-snapshot-1122b-gate-1", "release-snapshot-1122b-plants-1", "release-snapshot-1122b-debs-1", "release-snapshot-1122b-smoke-mei-1", "release-snapshot-1122b-startup-mei-1", "release-snapshot-1122b-startup215-mei-1", "release-snapshot-1122b-kstart-mei-1", "release-snapshot-1122b-rstart-mei-1", "release-snapshot-1122b-y13v-1", "release-snapshot-1122b-y13v-ref221-1", "release-snapshot-1122b-mint-1", "keke:release-snapshot-1122b-smoke-keke-1", "keke:release-snapshot-1122b-startup-keke-1", "keke:release-snapshot-1122b-startup215-keke-1", "keke:release-snapshot-1122b-kstart-keke-1", "keke:release-snapshot-1122b-rstart-keke-1", "keke:release-snapshot-1122b-gaimass-1", "keke:release-snapshot-1122b-pkgdiff-1", "keke:release-snapshot-1122b-stage-1", "keke:release-snapshot-1122b-install-1"]}
