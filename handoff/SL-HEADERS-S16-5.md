@@ -15,7 +15,17 @@ Branch `task/sl-headers-s16-5` (from `task/sl-headers-s16-4`). Say "slice 16" in
   `<sys/types.h>` visibility matter, not slice 16's).
 * Regenerated `libc-include/{dlfcn,link,sys/gmon,sys/profil}.h` and `appendix_c_layouts.rs` (headers-gen/abi-gen --check ok).
 
-**Proof.** `headers-gen --check`, `abi-gen --check`, `cargo xtask clippy`, `cargo xtask static` rc 0 on the merged head
+* `xtask/.../s16.rs`: `linked_elsewhere` emptied (the `la_*` names are now `headers/providers.tsv` rows); the audit-hook plant is
+  gone; the two x86 table plants run `headers-gen --check` (the x86 checker reads its index from the table).
+
+**FINAL PROOF (head e7439faf6):** gate `sl-headers-s16-5-gate3` rc 0 (18 suites, 11592 passed, 0 failed, conformance 93, peak 11G);
+plants `sl-headers-s16-5-plants4` rc 0: 15 CAUGHT, 0 SURVIVED, 0 WARN; clippy, static, headers-gen/abi-gen --check, header_check 0 failed.
+precheck: all green except slice-contract (header_check.py is shared tooling): RULING NEEDED, see the report json
+(recommendation: land, then move sys/elf.h to the `must_fail` form so header_check.py equals next's).
+Run 3 earlier plants3 run on the previous head found 3 survivors (audit-hook, x86-index, x86-register): the causes are the
+two bullets above.
+
+**Proof (earlier head).** `headers-gen --check`, `abi-gen --check`, `cargo xtask clippy`, `cargo xtask static` rc 0 on the merged head
 (before the last two small commits; header_check.py 0 failed of 13677 after them). Gate `sl-headers-s16-5-gate2`, plants
 `sl-headers-s16-5-plants3` (file `handoff/SL-HEADERS-S16-4-plants.txt`, 16 plants): results in the report json.
 Superseded runs: `-gate` (killed by me: header_check fix needed), `-plants` (refused: directory I had created),
