@@ -1,0 +1,18 @@
+{"task": "LG6-CTYPE-OBJECTS", "model": "opus", "tokens": null,
+ "result": "libc.so.6 exports __ctype_b, __ctype_tolower, __ctype_toupper, __ctype32_b/_tolower/_toupper and _obstack at GLIBC_2.2.5 only (OBJECT GLOBAL 8, as the reference); an old-style binary reads the C tables through them on both libraries",
+ "branch": "task/lg6-ctype-objects", "head": "e3a93acf6",
+ "gate": {"affected": "gate 8fb3d2f3f: all steps ok but one conformance program (s05_ctype_legacy_objects, pointer-identity checks, fixed in e3a93acf6); final head: suite rerun conformance 1 passed / 0 failed, s07_locale_symbols 43 passed / 0 failed", "peak": "gate: peak memory 12G oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "The six ctype objects stay on the C tables after setlocale; the reference moves them with the global locale (differences row, D-5.13, no compat option yet)", "recommendation": "a follow-up story that stores the new tables into the six objects in a cold setlocale path, removing the row; no binary binding these versions is known (LG-0c sweep)"}],
+ "informational": ["libniji's objects hold the accessor tables' contents at other addresses (D-5.13); the reference's pointers equal *__ctype_*_loc() in C"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "a binary bound to __ctype_b/__ctype_tolower/__ctype_toupper/__ctype32_*/_obstack@GLIBC_2.2.5 now starts and gets the C tables (was: unresolved symbol)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "cost", "what": "start-up of an empty dynamic program (ld.so --library-path, keke, instructions:u, 5 runs each, median)", "before": 309279, "after": 309465, "unit": "instr", "measured": true},
+  {"kind": "size", "what": "libc.so.6 .rodata (tables) / .data (objects); R_X86_64_RELATIVE 2219 -> 2225", "before": 1284212, "after": 1289680, "unit": "bytes", "measured": true},
+  {"kind": "coverage", "what": "tests: 2 xtask unit tests, 1 conformance program (both libraries); plants 5", "before": null, "after": 3, "unit": "tests", "measured": true}
+ ],
+ "jobs": ["keke:lg6-ctype-objects-suite", "keke:lg6-ctype-objects-plants-3", "keke:lg6-ctype-objects-startup-7"],
+ "improvement": "a conformance program written before the design decision asserted pointer identity the design ruled out; running the new conformance program once (affected --only) before the full gate would have saved a 63-minute red gate",
+ "next_step": "coordinator: ruling on following setlocale; landing",
+ "report_file": "handoff/lg6-ctype-objects.md"}

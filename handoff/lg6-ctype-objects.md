@@ -1,7 +1,8 @@
 # LG6-CTYPE-OBJECTS: the seven legacy data objects old binaries link to
 
-State: branch `task/lg6-ctype-objects` (from origin/next), HEAD: see the report json. Plan row LG-6
-(plan/06-phases/18-phase-15-legacy-tier-and.md); audit plan/reviews/CUTOVER-RESIDUE-AUDIT.md.
+State: branch `task/lg6-ctype-objects` (from origin/next), HEAD: see `handoff/reports/LG6-CTYPE-OBJECTS.json`.
+Plan row LG-6 (plan/06-phases/18-phase-15-legacy-tier-and.md); audit plan/reviews/CUTOVER-RESIDUE-AUDIT.md.
+Decision in force: D-5.13 (`records/decisions/D-5/D-5.13.toml`, id reserved with `ops reserve`).
 
 ## What was done
 
@@ -11,45 +12,43 @@ State: branch `task/lg6-ctype-objects` (from origin/next), HEAD: see the report 
   `cargo xtask compat-gen`). `spec/abi/compat-missing.tsv` shrinks by these 7 rows.
 * `crates/boundary/src/data.rs`: the unversioned `__ctype_*` and `_obstack` statics are no longer `no_mangle`
   (libc.a offered compat-only names, R15-2); they remain for the in-process tests.
-* Decision: `records/pending/LG6-CTYPE-OBJECTS-1.toml` (D-NEW, series D-5): why the tables are rendered by the
-  generator (5376 B rodata in libc.so.6 only) rather than pointing at `niji_legacy::ctype_tables` (that crate
-  forbids `unsafe`, so its statics have no linkable name).
-* Probe record: `spec/behaviour/ctype-objects.md` + `ctype-objects.glibc.txt`.
+* D-5.13: the tables are rendered by the generator (5376 B rodata, libc.so.6 only) rather than pointing at
+  `niji_legacy::ctype_tables` (that crate forbids `unsafe`, so its statics have no linkable name). So the objects
+  hold the same contents as `*__ctype_*_loc()` at other addresses.
+* Probe record: `spec/behaviour/ctype-objects.md` + `ctype-objects.glibc.txt`. Differences row (brief step 4):
+  the objects stay on "C" after `setlocale` (docs/differences-from-glibc.md, D-5.13, no compat option yet).
 * Tests: `ctype_tables_equal_the_glibc_probe`, `ctype_objects_point_at_character_zero_at_the_compat_version`
   (xtask); `conformance/c/s05_ctype_legacy_objects.c` (dynamic mode, both libraries) via
   `legacy_ctype_objects_give_an_old_binary_the_c_tables` (crates/boundary/tests/s07_locale_symbols.rs).
-* Plants: `handoff/LG6-CTYPE-OBJECTS-plants.txt` (offset, default version, class bit, negative case entries, and
-  the generated object end to end).
+* Plants: `handoff/LG6-CTYPE-OBJECTS-plants.txt`.
+
+## Gate history (keke, role n2)
+
+* `lg6-ctype-objects-gate` (head 8fb3d2f3f): RED, one program only: `s05_ctype_legacy_objects` on libniji
+  exit 3 (its pointer-identity checks against `*__ctype_*_loc()`, which D-5.13 makes false). Every other step ok
+  (peak 12G). Fixed in e3a93acf6: the program compares contents over -128..255.
+* `lg6-ctype-objects-plants` / `-plants-2`: superseded (malformed lines; then copy 1 stopped on the red program).
+* `lg6-ctype-objects-suite` (final head: `cargo xtask so`, the conformance program, `s07_locale_symbols`) and
+  `lg6-ctype-objects-plants-3`: started on the final head; results in the report json.
+
+## Counts (keke, `lg6-ctype-objects-startup-7`)
+
+Empty dynamic program, each libc.so.6 with its own build's ld.so (`ld.so --library-path`), instructions:u median
+of 5: base (merge base 279a24ee4) 309279, after 309465 (+186, +0.06%); page faults 63 both. R_X86_64_RELATIVE
+2219 -> 2225; .rodata 1183956 -> 1189376, .data 100256 -> 100304 bytes.
 
 ## Probe-settled reference behaviour (keke, glibc 2.39)
 
-All seven `OBJECT GLOBAL` size 8, `GLIBC_2.2.5` only. In "C" each pointer equals `*__ctype_*_loc()`; the 32-bit
-case pointers equal the 16-bit ones. After `setlocale` the program's copies FOLLOW the global locale (C.UTF-8 and
-en_US.UTF-8: 16-bit tables unchanged in content; `__ctype32_*` differ at 128-255). libniji's stay on "C".
+All seven `OBJECT GLOBAL` size 8, `GLIBC_2.2.5` only (libniji's rows identical). In "C" each pointer equals
+`*__ctype_*_loc()`; the 32-bit case pointers equal the 16-bit ones. After `setlocale` the program's copies FOLLOW
+the global locale. libniji's stay on "C".
 
 ## Open (RULING NEEDED)
 
-* Follow `setlocale` with these objects (the reference does; libniji keeps "C")? Recommend: a follow-up story that
-  stores the new tables into the six objects (through the GOT, so a copy-relocated program sees them) in a cold
-  setlocale path, plus a differences row/compat option only if the owner prefers to keep "C". Users: none known
-  (LG-0c sweep: 0 binaries bind compat versions).
+* Follow `setlocale` with these objects? Recommend a follow-up story storing the new tables into the six objects in
+  a cold setlocale path (removes the differences row). Users: none known (LG-0c sweep: 0 binaries bind compat versions).
 
-## Jobs (keke, role n2)
+## Next step
 
-* `lg6-ctype-objects-base-so` (origin/next baseline build): libc.so.6 has 2219 R_X86_64_RELATIVE; .rodata 1183956,
-  .data 100256 bytes. Copies in `~/work/lg6-ctype-objects/base/`.
-* `lg6-ctype-objects-gen`: compat-gen + `cargo test -p xtask compat_objects`: 6 passed (head 8fb3d2f3f's code).
-* `lg6-ctype-objects-gate` (head 8fb3d2f3f: clippy, static, `affected --base origin/next --run`): RUNNING at refresh.
-* `lg6-ctype-objects-plants`: SUPERSEDED (refused: two malformed plant lines, fixed in the plants file).
-* `lg6-ctype-objects-plants-2` (`~/work/lg6-ctype-objects/plants.txt` = the committed plants file): RUNNING.
-
-## Next step (refreshed session)
-
-1. `~/bin/jobwait lg6-ctype-objects-gate lg6-ctype-objects-plants-2` on keke; read `~/logs/<label>.log` (grep
-   CAUGHT/SURVIVED/WARN; affected summary). Fix any red (only failing suite again).
-2. After count: `readelf -r -W ~/w/n2/target/niji/libc.so.6 | grep -c R_X86_64_RELATIVE` (expect 2219 + 6 minus the
-   six dropped `__ctype_*` AtomicPtr statics if they were kept before) and `readelf --dyn-syms -W` grep of the seven
-   names (expect `OBJECT GLOBAL 8 name@GLIBC_2.2.5`).
-3. Sync the final head (this commit only adds handoff text and the plants file: no code change since the gate's
-   head), run `cargo xtask precheck --jobs lg6-ctype-objects-gate,lg6-ctype-objects-plants-2 --head <sha>` on the
-   role, write `handoff/reports/LG6-CTYPE-OBJECTS.json`, push, `ops handback-check`, hand back.
+Collect `lg6-ctype-objects-suite`, `lg6-ctype-objects-plants-3`, `lg6-ctype-objects-startup-5` on keke
+(`~/bin/jobwait <label>`; `~/logs/<label>.log`), then precheck, report json, `ops handback-check`.
