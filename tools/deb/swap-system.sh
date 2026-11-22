@@ -24,6 +24,9 @@
 # Prints "swap: PASS|FAIL|INFO ..." lines and "swap: RESULT same=N differ=M"; exit 1 when the swap
 # failed or any command differs (the differences are under LOGDIR/swap-<suite>/).
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=rootopt contained_tree=$(cd "$(dirname "$0")/../.." && pwd) CONTAINED_KEEP="KEYRING MIRROR MMDEBSTRAP SWAP_EXTRA_CMDS SWAP_EXTRA_PKGS"
+. "$contained_tree/tools/contained.sh"
 export LC_ALL=C
 [ $# -ge 1 ] || { echo "usage: tools/deb/swap-system.sh DEBDIR [SUITE] [LOGDIR]" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)

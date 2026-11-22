@@ -119,3 +119,56 @@ fn a_killed_user_namespace_run_leaves_no_process() {
     // The script's shell and its forked subshell (same command line) both run.
     kill_mid_run("a_killed_user_namespace_run_leaves_no_process", "user", |p| running(p, ": user;") >= 2);
 }
+
+/// Runs a script that sources `tools/contained.sh` with `contained_kind=<kind>` and then runs `body`
+/// (the token is its `$1`), waits until `started` holds for the processes carrying the token, SIGKILLs
+/// the script's own process (the one its caller started) and checks that none of them remains.
+fn kill_script_mid_run(kind: &str, body: &str, started: impl Fn(&[(u32, u32, Vec<String>)]) -> bool) {
+    let token = format!("niji-contained-{kind}-{}", std::process::id());
+    let dir = std::env::temp_dir().join(format!("{token}.d"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let script = dir.join("run.sh");
+    let tree = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap();
+    std::fs::write(&script, format!("contained_kind={kind} contained_tree='{}'\n. \"$contained_tree/tools/contained.sh\"\n{body}\n", tree.display())).unwrap();
+    let mut cmd = Command::new("sh");
+    cmd.arg(&script).arg(&token).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").stdin(Stdio::null()).stdout(Stdio::null());
+    if let Some(home) = std::env::var_os("HOME") {
+        cmd.env("HOME", home);
+    }
+    let mut run = cmd.spawn().unwrap();
+    let ran = wait_until(|| started(&carrying(&token)));
+    run.kill().unwrap();
+    run.wait().unwrap();
+    let gone = wait_until(|| carrying(&token).is_empty());
+    let left = carrying(&token);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(ran, "the contained {kind} script never started: {left:?}");
+    assert!(gone, "processes of a killed {kind} script remain (they end by themselves within 300 s): {left:#?}");
+}
+
+#[test]
+fn a_killed_root_script_leaves_no_process() {
+    // Trace: no spec clause (developer tooling: a script with the tools/contained.sh prologue of kind
+    // root (validation/profile*.sh, tools/deb) that is killed mid-run leaves no process behind, root
+    // ones included; ROOT-HARNESS-FOLLOWUP).
+    if !Command::new("sudo").args(["-n", "true"]).status().is_ok_and(|s| s.success()) {
+        skip_note::skipped("skipped: no passwordless sudo (the root runs it contains need it)");
+        return;
+    }
+    let body = format!("sudo -n unshare -m -n sh -c ': root; {LOOPED}' sh \"$1\" & {LOOPED}");
+    kill_script_mid_run("root", &body, |p| p.iter().any(|p| p.1 == 0 && p.2.get(2).is_some_and(|a| a.starts_with(": root;"))));
+}
+
+#[test]
+fn a_killed_user_namespace_script_leaves_no_process() {
+    // Trace: no spec clause (developer tooling: a script with the tools/contained.sh prologue of kind
+    // user (tools/probe, tools/deb/root-system.sh, the by-hand oracle scripts) that is killed mid-run leaves
+    // no process behind, its own `unshare -r` run and a forked child included; ROOT-HARNESS-FOLLOWUP).
+    if skip_note::missing("setpriv") || !Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) {
+        skip_note::skipped("skipped: no setpriv or no unprivileged user and mount namespaces (`unshare -r -m`)");
+        return;
+    }
+    let body = format!("unshare -r -m sh -c ': user; ({LOOPED}) & {LOOPED}' sh \"$1\" & {LOOPED}");
+    // The nested run's shell and its forked subshell (same command line) both run.
+    kill_script_mid_run("user", &body, |p| running(p, ": user;") >= 2);
+}

@@ -366,7 +366,8 @@ fn run_in(t: &Transcript, side: &Side<'_>, root: &Path) -> Result<Outcome, Strin
         namespaces()?;
         let unshare = tool("unshare").ok_or("no unshare(1)")?;
         let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-        let mut c = Command::new(unshare);
+        // Contained (docs/testing/harness-containment.md): a killed xtask leaves nothing of the run behind.
+        let mut c = crate::contain::user(unshare);
         c.args(["--user", "--map-root-user", "--mount", "--"]).arg(exe).arg(EXEC_HELPER);
         for (src, dst) in &t.binds {
             c.arg("--bind").arg(root.join(OsStr::from_bytes(src))).arg(OsStr::from_bytes(dst));
@@ -518,6 +519,7 @@ pub(crate) fn exec_helper(args: &[OsString]) -> ExitCode {
         m_user.push(&uid);
         let mut m_group = OsString::from("--map-group=");
         m_group.push(&gid);
+        // contain: inside(run_in started this helper through contain::user; this exec stays in that namespace)
         Command::new(unshare).arg("--user").arg(m_user).arg(m_group).arg("--").arg(exe).arg(EXEC_HELPER).arg("--").args(rest).exec()
     } else {
         Command::new(&rest[0]).arg0(&rest[1]).args(&rest[2..]).exec()

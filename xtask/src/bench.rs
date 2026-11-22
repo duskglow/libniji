@@ -255,8 +255,8 @@ fn own_id(flag: &str) -> String {
 /// no capabilities, and sees the same files on the libniji and the glibc side. Mounts made in the namespace end
 /// with it; the host's files are only read.
 fn namespace_command(binds: &[(String, String)], exe: &Path) -> Command {
-    let script = r#"while [ "$1" != -- ]; do if [ "$1" = tmpfs ]; then mount -t tmpfs -o mode=1777 tmpfs "$2"; else mount --bind "$1" "$2"; fi || exit 96; shift 2; done; shift; u=$1; g=$2; shift 2; exec unshare -U --map-user="$u" --map-group="$g" env -u PWD -u OLDPWD -u SHLVL -u _ "$@""#;
-    let mut c = Command::new("unshare");
+    let script = r#"while [ "$1" != -- ]; do if [ "$1" = tmpfs ]; then mount -t tmpfs -o mode=1777 tmpfs "$2"; else mount --bind "$1" "$2"; fi || exit 96; shift 2; done; shift; u=$1; g=$2; shift 2; unshare -U --map-user="$u" --map-group="$g" env -u PWD -u OLDPWD -u SHLVL -u _ "$@""#;
+    let mut c = crate::contain::user("unshare");
     c.args(["-r", "-m", "sh", "-c", script, "sh"]);
     for (s, d) in binds {
         c.arg(s).arg(d);
@@ -774,7 +774,7 @@ fn compare_command(name: &str, exe: &Path, rows: Option<&str>) -> Command {
 /// The rows a bench's libniji build prints with no filter (one extra run: only for globs and the unknown-row error).
 fn listed_rows(name: &str, exe: &Path) -> Result<Vec<String>, String> {
     println!("{name}: --rows: one unfiltered run of the libniji build to list its rows");
-    let out = compare_command(name, exe, None).output().map_err(|e| format!("{name}: {e}"))?;
+    let out = bench_output(&mut compare_command(name, exe, None)).map_err(|e| format!("{name}: {e}"))?;
     if !out.status.success() {
         return Err(format!("{} failed:\n{}", exe.display(), String::from_utf8_lossy(&out.stderr).trim()));
     }
@@ -905,7 +905,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         for round in 0..=runs {
             for (k, (b, _)) in builds.iter().enumerate() {
                 let Some(exe) = exes[k].clone() else { continue };
-                let out = compare_command(name, &exe, row_env.as_deref()).output().map_err(|e| format!("{name}: {e}"))?;
+                let out = bench_output(&mut compare_command(name, &exe, row_env.as_deref())).map_err(|e| format!("{name}: {e}"))?;
                 if !out.status.success() {
                     let why = String::from_utf8_lossy(&out.stderr).trim().to_string();
                     if *b == Build::HostStatic {
@@ -943,7 +943,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         if counters {
             for (k, exe) in exes.iter().enumerate() {
                 let Some(exe) = exe else { continue };
-                let out = compare_command(name, exe, row_env.as_deref()).env("CBENCH_COUNTERS", "1").output().map_err(|e| format!("{name}: {e}"))?;
+                let out = bench_output(compare_command(name, exe, row_env.as_deref()).env("CBENCH_COUNTERS", "1")).map_err(|e| format!("{name}: {e}"))?;
                 if out.status.success() {
                     ctr[k] = parse_counters(&out.stderr);
                 }
@@ -1227,7 +1227,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
         let run3 = |exe: &Path| -> Result<BTreeMap<String, CountedRow>, String> {
             let mut runs = Vec::new();
             for _ in 0..3 {
-                let out = c_command(b, exe).env("CBENCH_COUNTERS", "1").output().map_err(|e| format!("{b}: {e}"))?;
+                let out = bench_output(c_command(b, exe).env("CBENCH_COUNTERS", "1")).map_err(|e| format!("{b}: {e}"))?;
                 if !out.status.success() {
                     return Err(format!("{b} (counted run) failed"));
                 }
@@ -1342,14 +1342,69 @@ fn decide_cycles(key: (&str, &str), ns: (f64, f64), ns_lim: Option<&Limit>, cell
     }
 }
 
+/// Runs a C benchmark command and collects its output. The private-/dev/shm route (`private_shm`: root through
+/// `sudo -n`) runs contained (`contain::output`, `docs/testing/harness-containment.md`): as the first process of a
+/// PID namespace of its own that ends with it or with this process, so a killed xtask leaves no root process.
+/// It is wrapped here, not in `private_shm`, because the callers add variables (`CBENCH_COUNTERS`, `CBENCH_ROWS`)
+/// after the command is built: [`past_sudo`] carries them past `sudo` to the route's script. `NIJI_CONTAINED=none`
+/// in xtask's environment runs the route uncontained (the caller's opt-out, as for `tools/contained.sh`; used by the
+/// count check that compares both forms).
+pub(crate) fn bench_output(c: &mut Command) -> std::io::Result<std::process::Output> {
+    if !is_root_route(c) {
+        return c.output();
+    }
+    let mut c = past_sudo(c);
+    if std::env::var_os("NIJI_CONTAINED").is_some_and(|v| v == "none") { c.output() } else { crate::contain::output(&c) }
+}
+
+/// The root route with the `CBENCH_*` variables set on it carried past `sudo`, which resets the environment:
+/// `sudo -n env CBENCH_COUNTERS=1 ... unshare ...` (the route's script hands them on to the bench). Without this
+/// the bench never saw them: a `--rows` filter ran every row and a counted run printed no counters. Program, arguments, other variables and
+/// working directory are kept.
+fn past_sudo(c: &Command) -> Command {
+    let mut args = c.get_args();
+    let mut n = Command::new(c.get_program());
+    n.args(args.next());
+    let carried: Vec<std::ffi::OsString> = c
+        .get_envs()
+        .filter_map(|(k, v)| {
+            let v = v.filter(|_| k.to_string_lossy().starts_with("CBENCH_"))?;
+            let mut kv = k.to_os_string();
+            kv.push("=");
+            kv.push(v);
+            Some(kv)
+        })
+        .collect();
+    if !carried.is_empty() {
+        n.arg("env").args(carried);
+    }
+    n.args(args);
+    n.env_clear();
+    for (k, v) in c.get_envs() {
+        if let Some(v) = v {
+            n.env(k, v);
+        }
+    }
+    if let Some(d) = c.get_current_dir() {
+        n.current_dir(d);
+    }
+    n
+}
+
+/// Whether `c` is the private-/dev/shm route, which starts root processes.
+fn is_root_route(c: &Command) -> bool {
+    c.get_program() == "sudo"
+}
+
 fn private_shm(exe: &Path, tunables: Option<&str>) -> Command {
     let id = |flag: &str| Command::new("id").arg(flag).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
     let sudo = Command::new("sudo").args(["-n", "true"]).status().is_ok_and(|s| s.success());
     let setpriv = Command::new("setpriv").arg("--version").output().is_ok_and(|o| o.status.success());
     match (sudo && setpriv, id("-u"), id("-g")) {
         (true, Some(u), Some(g)) => {
+            // contain: inside(`bench_output` runs this route through contain::output, once its environment is set)
             let mut c = Command::new("sudo");
-            c.args(["-n", "unshare", "-m", "sh", "-c", "u=$1; g=$2; P=$3; H=$4; T=$5; shift 5; mount -t tmpfs -o mode=1777 tmpfs /dev/shm && exec setpriv --reuid=\"$u\" --regid=\"$g\" --init-groups env -i PATH=\"$P\" HOME=\"$H\" ${T:+GLIBC_TUNABLES=\"$T\"} ${CBENCH_ROWS:+CBENCH_ROWS=\"$CBENCH_ROWS\"} ${CBENCH_COUNTERS:+CBENCH_COUNTERS=\"$CBENCH_COUNTERS\"} \"$@\"", "sh"]).arg(u).arg(g).arg(BENCH_ENV[0].1).arg(BENCH_ENV[1].1).arg(tunables.unwrap_or("")).arg(exe);
+            c.args(["-n", "unshare", "-m", "sh", "-c", "u=$1; g=$2; P=$3; H=$4; T=$5; shift 5; mount -t tmpfs -o mode=1777 tmpfs /dev/shm && setpriv --reuid=\"$u\" --regid=\"$g\" --init-groups env -i PATH=\"$P\" HOME=\"$H\" ${T:+GLIBC_TUNABLES=\"$T\"} ${CBENCH_ROWS:+CBENCH_ROWS=\"$CBENCH_ROWS\"} ${CBENCH_COUNTERS:+CBENCH_COUNTERS=\"$CBENCH_COUNTERS\"} \"$@\"", "sh"]).arg(u).arg(g).arg(BENCH_ENV[0].1).arg(BENCH_ENV[1].1).arg(tunables.unwrap_or("")).arg(exe);
             c
         }
         _ => Command::new(exe),
@@ -1800,7 +1855,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 }
             }
             if let Some(h) = &host_exe {
-                let out = c_command(b, h).output().map_err(|e| format!("{b} (host): {e}"))?;
+                let out = bench_output(&mut c_command(b, h)).map_err(|e| format!("{b} (host): {e}"))?;
                 if !out.status.success() {
                     return Err(format!("{b} (host) failed:\n{}", String::from_utf8_lossy(&out.stderr)));
                 }
@@ -1811,7 +1866,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 }
             }
             let out = match &niji_exe {
-                Some(e) => c_command(b, e).output().map_err(|e| format!("{b}: {e}"))?,
+                Some(e) => bench_output(&mut c_command(b, e)).map_err(|e| format!("{b}: {e}"))?,
                 // A Rust bench inherits the caller's environment; `--tunables` reaches it too (D-X.39).
                 None if mode == Mode::NoBuild => with_tunables(Command::new(root.join(format!("target/release/examples/{b}")))).current_dir(root).output().map_err(|e| format!("{b}: {e}"))?,
                 None => with_tunables(Command::new(&cargo))
@@ -2012,6 +2067,36 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// A `sudo` command that the tests below only inspect.
+    fn sudo() -> std::process::Command {
+        // contain: probe(never spawned: the tests read its program, arguments and variables)
+        std::process::Command::new("sudo")
+    }
+
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): `bench_output` sends the private-/dev/shm route
+    /// (a `sudo` command, the root processes) through containment, and every other bench command runs as built.
+    #[test]
+    fn the_root_route_alone_runs_contained() {
+        assert!(super::is_root_route(&sudo()));
+        assert!(!super::is_root_route(&std::process::Command::new("target/niji/bench/cbench_netdb")));
+        assert!(!super::is_root_route(&std::process::Command::new("setpriv")));
+    }
+
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): the route's `CBENCH_*` variables pass `sudo` as
+    /// `env` arguments (sudo resets the environment), so a counted run of `cbench_netdb` prints its counters.
+    #[test]
+    fn root_route_carries_the_bench_variables_past_sudo() {
+        let mut c = sudo();
+        c.args(["-n", "unshare", "-m", "sh"]).env_clear().env("PATH", "/p").env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", "a,b");
+        let n = super::past_sudo(&c);
+        let args: Vec<String> = n.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(n.get_program(), "sudo");
+        assert_eq!(args, ["-n", "env", "CBENCH_COUNTERS=1", "CBENCH_ROWS=a,b", "unshare", "-m", "sh"]);
+        assert!(n.get_envs().any(|(k, v)| k == "PATH" && v == Some(std::ffi::OsStr::new("/p"))));
+        let plain = super::past_sudo(sudo().args(["-n", "unshare"]).env_clear());
+        assert_eq!(plain.get_args().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>(), ["-n", "unshare"]);
+    }
+
     /// Ruling #5463 (no spec clause: measurement tooling): the v3 measurement build is traced whenever the host can
     /// run v3 code, and the fallback says "UNGROUPED" in its line, never a silent ungrouped timing.
     #[test]
