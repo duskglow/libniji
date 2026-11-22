@@ -383,6 +383,9 @@ fn versym_bounded_by_the_mapping() {
     assert_eq!(with(|m| m.set(dt::VERSYM, TOTAL as u64 + 2)), ElfError::AddressNotMapped(TOTAL as u64 + 2));
 }
 
+/// One malformed image: the change made to the fixture, and the error both walks give.
+type Case = (fn(&mut Img), ElfError);
+
 /// The error [`Dynamic::versym`] alone gives for the image `f` makes.
 fn versym_err(f: fn(&mut Img)) -> ElfError {
     let mut m = image();
@@ -394,7 +397,7 @@ fn versym_err(f: fn(&mut Img)) -> ElfError {
 #[test]
 fn verdef_malformed() {
     // no spec clause: D-27.8, revision, count, truncation of definitions and their names.
-    let cases: [(fn(&mut Img), ElfError); 8] = [
+    let cases: [Case; 8] = [
         (|m| m.p16(VERDEF_AT + 28, 2), ElfError::BadVersionRevision(Table::Verdef, 2)),
         (|m| m.set(dt::VERDEFNUM, 4), ElfError::VersionCount(Table::Verdef, 56)),
         (|m| m.p16(VERDEF_AT + 56 + 6, 3), ElfError::VersionCount(Table::Verdef, 56)),
@@ -414,7 +417,7 @@ fn verdef_malformed() {
 #[test]
 fn verneed_malformed() {
     // no spec clause: D-27.8, revision, count, truncation of requirements and their versions.
-    let cases: [(fn(&mut Img), ElfError); 7] = [
+    let cases: [Case; 7] = [
         (|m| m.p16(VERNEED_AT, 0), ElfError::BadVersionRevision(Table::Verneed, 0)),
         (|m| m.set(dt::VERNEEDNUM, 2), ElfError::VersionCount(Table::Verneed, 0)),
         (|m| m.p16(VERNEED_AT + 2, 2), ElfError::VersionCount(Table::Verneed, 0)),
