@@ -1952,14 +1952,22 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // PLANTS-BUILD-2: a `step: so/<phase> <seconds>s` line per phase (the `so/cargo-*` and `so/early-cargo-*` lines are
     // parts of the phases that hold them, or beside them), so a phase that grows shows in every plants and gate log.
     let (mut phases, run_started) = (Phases(std::time::Instant::now()), std::time::Instant::now());
-    let early = EarlyBuilds::start(root, &product, profile);
     fs::create_dir_all(&release).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(release.join(".profile"));
     // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
     let _ = fs::remove_file(release.join(crate::hotlists::MARKER));
+    // CI-PRODUCTS-ONCE: the set is unfinished until its manifest is written again, at the end.
+    crate::import::remove_manifest(&release);
     // LAYOUT-TRACE-DEFAULT: every product build traces its own layout unless the switch says otherwise.
     let layout = Layout::from_env()?;
     println!("so: profile {}", profile.name());
+    // CI-PRODUCTS-ONCE: what this build is made from, compared by an import and written into the manifest.
+    let built_from = crate::import::header(root, build_tag(root), &format!("{} {}", profile.name(), layout.name()));
+    if crate::import::try_import(&release, &built_from)? {
+        println!("{}", phase_line("total", run_started.elapsed()));
+        return Ok(());
+    }
+    let early = EarlyBuilds::start(root, &product, profile);
     // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
     crate::headers::stage(root, &release)?;
     phases.mark("headers-gen");
@@ -2184,6 +2192,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     fs::write(&marker, format!("{}
 ", profile.name())).map_err(|e| e.to_string())?;
     publish(&marker, &release.join(".profile"))?;
+    // CI-PRODUCTS-ONCE: the manifest after the marker, so only a finished set has one.
+    crate::import::write_manifest(&release, &built_from)?;
+    phases.mark("manifest");
     println!("{}", phase_line("total", run_started.elapsed()));
     Ok(())
 }
