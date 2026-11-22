@@ -1,0 +1,5 @@
+# ZIV-TEST-ISOLATION plants: cargo xtask plants handoff/ZIV-TEST-ISOLATION-plants.txt --dir <RAM dir>
+# The ziv_tests read this thread's undecided counts (`mine()`); each plant puts a process-wide counter back.
+mine-all-global | crates/math/src/complex.rs | lit:[n::misses(), w::misses(), wx::misses(), wy::misses()] ==> [retries(), wide_retries(), wider_retries(), residual()] | cargo test -p niji-math --lib -- complex::ziv_tests | msg:another thread's undecided parts counted as this thread's
+mine-residual-global | crates/math/src/complex.rs | lit:wx::misses(), wy::misses()] ==> wx::misses(), residual()] | cargo test -p niji-math --lib -- complex::ziv_tests | msg:another thread's undecided parts counted as this thread's
+mine-384-global | crates/math/src/complex.rs | lit:[n::misses(), w::misses(), ==> [retries(), w::misses(), | cargo test -p niji-math --lib -- complex::ziv_tests | msg:another thread's undecided parts counted as this thread's
