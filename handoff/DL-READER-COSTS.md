@@ -45,9 +45,12 @@ No row slower. Fix-forward bases: (5) 1,565 before DL-FIND-OBJECT-FAST -> 864; (
 - walk: ~60 vs ~36 per object: `call` through `niji_machine_call3`, the entry read and info build.
 - Item (2), the name arena's reuse below the top: not started.
 
-**Proof jobs on head `9b58edf33` (keke):** `dl-reader-costs-gate1` (static + direct tier),
-`-plants1` (6 plants), `-xtest1` (`cargo xtask test`), `-hot1` (full-profile so + hot_text_products).
-Results: see the hand-back / report json. Layout-bins diff against the merge base not taken (no start-path code:
+**Proof jobs on code head `9b58edf33` (keke; later commits are records/handoff only):**
+`dl-reader-costs-gate2` (static + direct tier: 7 suites, 398 passed, 0 failed, peak 1.6G), `-plants1` (6/6 CAUGHT,
+no WARN), `-pc1` (counts above), `-xtest2` (`cargo xtask test`), `-hot2` (NIJI_FULL_PROFILE so +
+hot_text_products). Superseded: `-gate1` (red: my chained `-xtest1` started at once, not after it, and rebuilt
+`target/niji` under its `test -p niji`, so `.hot-lists` was missing; `-xtest1` stopped), `-lint0` (a clippy error,
+fixed), `-pc0` (base table only). Layout-bins diff against the merge base not taken (no start-path code:
 `fill_start` runs at the first reader).
 
 **Next step.** A follow-up for `dlopen` new-object cost (ELF read and per-loaded-object term), the arena
