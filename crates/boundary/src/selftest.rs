@@ -706,6 +706,31 @@ pub fn strcmp_clean_upper(a: &[u8], b: &[u8]) -> (i32, u64) {
     (r, upper)
 }
 
+/// `strncmp(a, b, n)` through the assembly kernel with a writer's change at a fixed point
+/// (STRNCMP-AVX2-WRITER, D-4.21): xmm3 holds `fill` in every 32-bit lane on entry (a value a
+/// caller may leave there), the call runs under the trap flag, and when the next instruction is
+/// the kernel's re-read of the deciding bytes, `to` is stored at `at` and stepping stops.
+/// Returns the result and whether the store happened (the re-read was reached); `None` on a
+/// build without the assembly kernels. Test-only contract: `a` and `b` satisfy the strncmp
+/// contract for `n` (or fault in the caller's child), `at` is writable.
+pub fn strncmp_with_writer_at_reread(a: *const u8, b: *const u8, n: usize, fill: u32, at: *mut u8, to: u8) -> KResult<Option<(i32, bool)>> {
+    #[cfg(not(niji_portable_scan))]
+    {
+        use niji_kernel::uapi::SIGTRAP;
+        let before = crate::ffi::niji_machine_strncmp_step_stores();
+        let handler = crate::ffi::niji_machine_strncmp_step_trap as usize;
+        let old = raw::install_action(SIGTRAP, handler, 0, SigSet::empty())?;
+        let r = crate::ffi::niji_machine_strncmp_stepped(a, b, n, fill, at, i32::from(to));
+        raw::restore_action(SIGTRAP, &old)?;
+        Ok(Some((r, crate::ffi::niji_machine_strncmp_step_stores() != before)))
+    }
+    #[cfg(niji_portable_scan)]
+    {
+        let _ = (a, b, n, fill, at, to);
+        Ok(None)
+    }
+}
+
 /// `niji_machine_strdiff` (D-4.37) on the strings at `a` and `b`: the first index at which
 /// they differ or `a`'s byte is the terminator. Test-only contract: both are readable
 /// NUL-terminated strings (the guard-page tests place them before an unmapped page).

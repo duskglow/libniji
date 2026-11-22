@@ -6935,15 +6935,17 @@ strncmp:
 	vzeroupper
 	cmpq %rdx, %rax
 	jae .Lsnc_zero
-	/* .Lsnc_byte inline; re-read equal and not NUL (a writer) resumes there. */
+	/* .Lsnc_byte inline; re-read equal and not NUL (a writer) resumes there through
+	 * .Lsnc_swriter, which zeroes xmm3 first: the head used only ymm1 and ymm2, so xmm3 still
+	 * holds the caller's value, and the steps compare against it as the zero vector
+	 * (STRNCMP-AVX2-WRITER). */
 	movzbl (%rdi,%rax), %ecx
 	movzbl (%rsi,%rax), %r8d
 	cmpl %r8d, %ecx
 	jne .Lsnc_order
 	testl %ecx, %ecx
 	jz .Lsnc_zero
-	movq %rax, %rcx
-	jmp .Lsnc_byte
+	jmp .Lsnc_swriter
 .Lsnc_h32:
 	/* No n <= 32 exit here: the second block lies in the same pages as the first (the 64-byte
 	 * page test), and a hit at or past n gives 0 as the first block's does (PERF-STRNCMP-ROWS). */
@@ -6964,8 +6966,7 @@ strncmp:
 	jne .Lsnc_order
 	testl %ecx, %ecx
 	jz .Lsnc_zero
-	movq %rax, %rcx
-	jmp .Lsnc_byte
+	jmp .Lsnc_swriter
 .Lsnc_h64:
 	vzeroupper
 	cmpq $64, %rdx
@@ -7206,6 +7207,85 @@ strncmp:
 	/* VALGRIND-STRING-REDIRECT: as strcmp. */
 	.size strncmp, .-strncmp
 #endif
+
+/* int niji_machine_strncmp_stepped(const char *a, const char *b, size_t n, uint32_t fill,
+ * char *at, int to) (STRNCMP-AVX2-WRITER selftest): xmm3 = fill in every 32-bit lane (a value
+ * a caller may leave there), then niji_machine_strncmp(a, b, n) with the trap flag set, so each
+ * of its instructions raises SIGTRAP. The handler niji_machine_strncmp_step_trap (installed by
+ * the selftest for the call) stores the byte `to` at `at` once, when the next instruction is the
+ * deciding re-read `movzbl (%rdi,%rax), %ecx` of either head, and clears the trap flag: a
+ * writer's change between the vector scan and the re-read, at a fixed point, with no race.
+ * The trap flag is cleared again after the call (the re-read may never come). */
+	.section .text.niji_machine_strncmp_stepped,"ax",@progbits
+	.globl niji_machine_strncmp_stepped
+	.type niji_machine_strncmp_stepped, @function
+	.p2align 4
+niji_machine_strncmp_stepped:
+	movq %r8, niji_machine_step_at(%rip)
+	movb %r9b, niji_machine_step_to(%rip)
+	movd %ecx, %xmm3
+	pshufd $0, %xmm3, %xmm3
+	pushfq
+	orq $0x100, (%rsp)
+	popfq
+	call niji_machine_strncmp
+	pushfq
+	andq $-0x101, (%rsp)
+	popfq
+	ret
+	.size niji_machine_strncmp_stepped, .-niji_machine_strncmp_stepped
+
+/* void niji_machine_strncmp_step_trap(int sig, siginfo_t *info, ucontext_t *uc): the SA_SIGINFO
+ * SIGTRAP handler above. uc_mcontext.gregs lies at byte 40 of the ucontext_t, REG_RIP (16) at
+ * 168, REG_EFL (17) at 176 (kernel UAPI, struct ucontext and struct sigcontext). The interrupted
+ * instruction's first four bytes are read at the saved RIP (code is mapped readable). */
+	.section .text.niji_machine_strncmp_step_trap,"ax",@progbits
+	.globl niji_machine_strncmp_step_trap
+	.type niji_machine_strncmp_step_trap, @function
+	.p2align 4
+niji_machine_strncmp_step_trap:
+	movq 168(%rdx), %rax
+	cmpl $0x070cb60f, (%rax)
+	jne 1f
+	movq niji_machine_step_at(%rip), %rcx
+	testq %rcx, %rcx
+	jz 1f
+	movzbl niji_machine_step_to(%rip), %eax
+	movb %al, (%rcx)
+	movq $0, niji_machine_step_at(%rip)
+	incq niji_machine_step_stores(%rip)
+	andq $-0x101, 176(%rdx)
+1:
+	ret
+	.size niji_machine_strncmp_step_trap, .-niji_machine_strncmp_step_trap
+
+/* uint64_t niji_machine_strncmp_step_stores(void): how many stores the handler made so far. */
+	.section .text.niji_machine_strncmp_step_stores,"ax",@progbits
+	.globl niji_machine_strncmp_step_stores
+	.type niji_machine_strncmp_step_stores, @function
+	.p2align 4
+niji_machine_strncmp_step_stores:
+	movq niji_machine_step_stores(%rip), %rax
+	ret
+	.size niji_machine_strncmp_step_stores, .-niji_machine_strncmp_step_stores
+
+	.bss
+	.p2align 3
+	.hidden niji_machine_step_at
+	.type niji_machine_step_at, @object
+	.size niji_machine_step_at, 8
+niji_machine_step_at:
+	.zero 8
+	.hidden niji_machine_step_stores
+	.type niji_machine_step_stores, @object
+	.size niji_machine_step_stores, 8
+niji_machine_step_stores:
+	.zero 8
+	.hidden niji_machine_step_to
+	.type niji_machine_step_to, @object
+	.size niji_machine_step_to, 1
+niji_machine_step_to:
+	.zero 1
 	.text
 
 
