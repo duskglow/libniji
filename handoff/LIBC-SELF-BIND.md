@@ -1,51 +1,64 @@
-# LIBC-SELF-BIND: handoff (end of leg 2)
+# LIBC-SELF-BIND: handoff (end of LIBC-SELF-BIND-2, the merge continuation)
 
-State: branch task/libc-self-bind, code head bb67c81b1 (the handoff/report commit follows). Role keke:~/w/n1 synced
-at bb67c81b1. Decision D-27.76 (records/decisions/D-27/D-27.76.toml). Ruling #7401 (the "keep" variant) in force.
+State: branch task/libc-self-bind-2 (continues task/libc-self-bind), code head 06e90fa37 (handoff/report commit
+follows). Role mei:~/w/s3. Decision D-27.76 (records/decisions/D-27/D-27.76.toml). Rulings in force: #7401 (the
+"keep" variant), #7460 (stream allocation: follow-up STDIO-CALLER-ALLOC, held until this lands).
 
-## Done (both legs)
-* xtask/src/so.rs: libc.so.6 (and its libc-owner.so link stub) links with `--dynamic-list` (the malloc family) and
-  `--dynamic-list-data`. `LIBC_PREEMPTIBLE` is now the static archive's `INTERPOSABLE` list (D-X.14; adds only the
-  compat cfree, which no relocation names), so the two links cannot drift. Build check `check_self_binding` + unit test.
-* conformance/c/x_self_bind.c (+ helpers/sbind_lib.c, now `_POSIX_C_SOURCE`: the harness builds helpers as
-  `-std=c17`, so `optind` was undeclared; leg 1's reference run had used plain gcc outside the harness).
-* conformance/c/x_self_bind_stdio.c (new, PENDING-NIJI): fopen/fclose through the program's malloc family.
-* crates/core/tests/hot_text_products.rs `DYN_START_INSTR` tightened to [373_000, 346_300] (both CPU rows).
+## Done
+* Legs 1-2 (task/libc-self-bind): xtask/src/so.rs links libc.so.6 with `--dynamic-list` (the malloc family,
+  `LIBC_PREEMPTIBLE` = the static archive's `INTERPOSABLE`) and `--dynamic-list-data`; build check
+  `check_self_binding` + unit test; conformance x_self_bind (+ helpers/sbind_lib.c), x_self_bind_stdio (PENDING-NIJI).
+* This run: merged origin/next c9f54d512 (LD-LOOKUP-COST; 7d8a77edb; so.rs merged cleanly, the only conflict was
+  `DYN_START_INSTR`). x_self_bind_stdio's PENDING-NIJI and D-27.76 now name STDIO-CALLER-ALLOC (#7460; a2326b06e).
+  `DYN_START_INSTR` set from the merged products measured on BOTH CPU classes (06e90fa37): Skylake-SP
+  [367_400, 338_700], Zen 1 [367_300, 338_500] (each host's level + 2%; next had [719_100, 679_100]).
 
-## Measured (Zen 1 host, user instructions, median of 101, ASLR off, empty environment)
-| program (kit form, LD_LIBRARY_PATH) | before | after | glibc 2.39 |
-|---|---|---|---|
-| empty main, fast (before = next 4f32aa946) | 754,018 | 356,120 | 98,874 |
-| 3 libraries, fast | 1,007,472 | 533,674 | 134,110 |
-| empty main, release (before = snapshot 1121E products) | 742,167 | 330,073 | |
-| 3 libraries, release | 984,891 | 493,234 | |
-hot_text_products empty main: fast 365,683, release 339,504. Symbolic relocations 288 -> 58 (fast: 55 GLOB_DAT, 3
-R_X86_64_64, no JUMP_SLOT), 55 (release, not broken down); the malloc family left only as GLOB_DAT (the heap's entry-point table). Faults unchanged (65 fast,
-59 release), kernel instructions -0.2%. Logs: keke ~/logs/libc-self-bind-measure.log (job superseded only because
-the head moved after it; the changes after it touch no code that builds into libc.so.6).
-Skylake-SP class: NOT MEASURED; it takes the Zen 1 bounds by the within-0.03% precedent in the bound's doc.
+## Method (the same products on both classes)
+Release products of next c9f54d512, the pre-merge branch c82357afe and the merged head, plus merged fast, all built on
+mei (Skylake-SP) and copied to keke (Zen 1). Scripts: mei and keke ~/work/libc-self-bind-2/{build.sh,count.sh,kit/};
+logs ~/logs/libc-self-bind-2-{measure,count-skx} (mei), ~/logs/libc-self-bind-2-count-zen (keke).
+"kit" = the release snapshots' start-up kit (execcount user / kernel instructions and faults, median of 101, ASLR
+off, LD_LIBRARY_PATH only; syscalls = lines of one strace -f run). "test" = hot_text_products' own method
+(staging, link, oracle/exec_instr.c, median of 21); on mei it equals the test's printed value exactly (332,012 /
+360,169). Check of the cross-host products: the pre-merge release products read 339,504 on keke in the test method,
+the first run's figure exactly, and 330,068 in the kit (first run 330,073).
 
-## Probe on libniji (first run, plants-2 baseline log)
-Every family reads 0 reaches, as on the reference; COPY checks (stdout, optind, sbind_lib) pass. Only fopen/fclose
-failed: libniji's stream objects do not come from the program's malloc family. Black-box check (keke
-~/work/libc-self-bind/diag/fopen_alloc.c, own bump allocator): origin/next's products and this branch both report
-`strdup mallocs 1; fopen mallocs 0; fclose frees 0`; the reference `1; 1; 1`. Not caused by this change: split into
-x_self_bind_stdio (PENDING-NIJI until a ruling) and D-27.76 corrected.
+## Start-up rows, release products (user instructions / user page faults / kernel instructions / syscalls)
+Kernel counts move by up to ~50k run to run; syscalls are exact.
 
-## Jobs (keke), all on bb67c81b1
-* libc-self-bind-gate-2 (direct tier; prints `FULL: the train's (xtask/src/so.rs ...)`: bounded set, not FULL),
-  then libc-self-bind-xtest (`cargo xtask test`), then libc-self-bind-fullprof (NIJI_FULL_PROFILE pair); one
-  after another by ~/work/libc-self-bind/final-chain.sh.
-* libc-self-bind-plants-3 (5 plants, /dev/shm/claude/libc-self-bind/plants-3).
-* SUPERSEDED: libc-self-bind-plants (refused: malloc-bound matched 2 sites), -plants-2 (baseline red: the fopen
-  checks), -gate (killed: head moved), -list (dropped: the gate prints the plan), -measure (numbers above).
+| row | class | glibc 2.39 | next (LD-LOOKUP-COST) | pre-merge branch | merged |
+|---|---|---|---|---|---|
+| empty main (pie0) | Skylake-SP | 107,175 / 49 / 686,656 / 46 | 657,748 / 57 / 741,369 / 29 | 330,277 / 56 / 736,132 / 29 | 323,388 / 56 / 735,332 / 29 |
+| 3 libraries (pie3) | Skylake-SP | 142,426 / 65 / 983,612 / 72 | 894,158 / 72 / 1,148,295 / 59 | 493,438 / 71 / 1,161,038 / 59 | 485,704 / 71 / 1,142,472 / 59 |
+| clock_gettime | Skylake-SP | 109,285 / 50 / 689,417 / 46 | 672,081 / 60 / 771,264 / 29 | 352,390 / 59 / 764,947 / 29 | 337,721 / 59 / 765,310 / 29 |
+| res0 (libresolv) | Skylake-SP | 168,614 / 55 / 817,973 / 58 | 810,823 / 62 / 935,214 / 42 | 466,578 / 61 / 931,568 / 42 | 451,115 / 61 / 930,719 / 42 |
+| empty main (pie0) | Zen 1 | 100,956 / 48 / 700,630 / 42 | 657,540 / 57 / 762,392 / 28 | 330,068 / 56 / 756,494 / 28 | 323,179 / 56 / 755,993 / 28 |
+| 3 libraries (pie3) | Zen 1 | 136,192 / 64 / 997,238 / 68 | 893,958 / 72 / 1,174,688 / 58 | 493,237 / 71 / 1,166,828 / 58 | 485,503 / 71 / 1,169,503 / 58 |
+| clock_gettime | Zen 1 | 103,095 / 50 / 707,995 / 42 | 671,901 / 61 / 796,068 / 28 | 352,210 / 60 / 790,929 / 28 | 337,541 / 60 / 790,576 / 28 |
+| res0 (libresolv) | Zen 1 | 162,210 / 54 / 842,024 / 54 | 810,432 / 62 / 958,612 / 40 | 466,186 / 61 / 951,921 / 40 | 450,723 / 61 / 952,120 / 40 |
 
-## RULING NEEDED
-* Stream allocation: a program replacing malloc sees the reference's fopen/fclose allocate and free through it;
-  libniji's do not (pre-existing). Recommend a follow-up story: allocate FILE objects through the caller
-  allocator (`boundary::caller_alloc`), then drop x_self_bind_stdio's PENDING-NIJI.
+res0 - pie0 (user): next +153,075 / +152,892, merged +127,727 / +127,544 (Skylake-SP / Zen 1).
+First run (Zen 1, kit, base = snapshot 1121E): empty main 742,167 -> 330,073, 3 libraries 984,891 -> 493,234.
+Fast merged (kit, user): pie0 351,446 / 351,233, pie3 528,891 / 528,679 (Skylake-SP / Zen 1).
+Test method, empty main: next 666,372 / 666,210; pre-merge 339,666 / 339,504; merged release 332,012 / 331,850,
+merged fast 360,169 / 360,004 (Skylake-SP / Zen 1). Symbolic relocations: next 288, merged 58 fast / 55 release.
+The whole hot_text_products file on mei, merged, both profiles: 32 passed, only `DYN_START_INSTR` red (10% under the
+old bound), before the bound commit. Not run on keke (no role there): the Zen 1 bound is this test's method by
+script, not the test binary.
 
-## Next step (exact)
-1. `~/bin/jobwait libc-self-bind-gate-2 libc-self-bind-plants-3 libc-self-bind-xtest libc-self-bind-fullprof`.
-2. Red gate: fix, rerun the failing suite only. Plants: all CAUGHT expected (msg regexes in handoff/LIBC-SELF-BIND-plants.txt).
-3. `cargo xtask precheck --jobs <those labels> --head <sha>` on the role; handback-check; hand back.
+## Jobs (mei, all on 06e90fa37)
+libc-self-bind-2-gate (direct tier: the xtask bounded set, 3 targets + 144 conformance programs, not FULL), then
+libc-self-bind-2-xtest, then libc-self-bind-2-fullprof (sequenced by ~/work/libc-self-bind-2/final-chain.sh);
+Gate: green (affected ok, conformance 144 passed, 1 of them pending on libniji: x_self_bind_stdio; peak 2.4G).
+libc-self-bind-2-plants-2: 5 plants, 5 CAUGHT, no WARN (handoff/LIBC-SELF-BIND-2-plants.txt; input
+handoff/LIBC-SELF-BIND-plants.txt). SUPERSEDED libc-self-bind-2-plants: 3 CAUGHT + 2 WARN-NO-MSG: malloc-bound and
+no-dynamic-list were caught by x_self_bind as intended, but their `msg:` regexes were wrong (the runner prints
+`conformance FAILED: x_self_bind`; and `--dynamic-list-data` alone binds the malloc family too, so the build check
+never fires there); regexes corrected, nothing in the code changed.
+Measurements: libc-self-bind-2-measure (mei), -count-skx (mei), keke:libc-self-bind-2-count-zen.
+Step 0: libc-self-bind-2-lint0 (clippy + static on the inherited head c82357afe: green).
+
+## Open / next step
+* Nothing open on this story beyond its jobs. STDIO-CALLER-ALLOC (#7460) follows once it lands.
+* Not done: a diff of layout-bins.tsv against the merge base (no fast products of next were built); start-up faults
+  read 1 under next in every kit row and the start-up layout tests pass.
