@@ -5780,8 +5780,10 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     /// The independent check of the three constructed cases: every test source that names the
     /// module with a plain text search is in the selection.
     fn reachers(repo: &Repo, module: &str) -> Vec<(String, String)> {
+        // `module::` as a path segment of its own: `niji_locale::` names the crate niji-locale, not `locale::`.
         let pat = format!("{module}::");
-        repo.targets.iter().filter(|t| t.text.contains(&pat)).map(|t| (t.krate.clone(), t.name.clone())).collect()
+        let names = |text: &str| text.match_indices(&pat).any(|(i, _)| !text[..i].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_'));
+        repo.targets.iter().filter(|t| names(&t.text)).map(|t| (t.krate.clone(), t.name.clone())).collect()
     }
 
     #[test]

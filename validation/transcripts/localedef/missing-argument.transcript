@@ -1,0 +1,9 @@
+name: -f without its argument
+clause: s31_8_i_1
+command: localedef
+arg: -f
+status: exit 4
+stdout:
+stderr:
+| localedef: option requires an argument -- 'f'
+| Try `localedef --help' or `localedef --usage' for more information.

@@ -1,0 +1,11 @@
+id = "D-31.21"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "UTIL-12"
+date = "2026-11-22"
+tests = ["crates/locale/tests/reference.rs"]
+body = '''
+**`LC_CTYPE`'s transliteration table stores each distinct list of alternatives once (UTIL-12, Appendix D.1.3).** Entries whose alternatives are the same list point at one copy, so the to-table is about half the reference's for the issue #14 locales; the reader (`niji::locale`) sees the same entries, alternatives and order. `crates/locale/tests/reference.rs` compares the table decoded (every source sequence, its alternatives in order) with the reference's; the class, map and width tables are compared by what the reader returns for every code point below 0x110000, and the fixed items byte for byte.
+'''
