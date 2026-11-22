@@ -4,3 +4,6 @@
 secure-origin-drop | crates/ld/src/search.rs | lit:(Some(o), true) if trusted::<A>(o) => o, ==> (Some(o), true) => o, | cargo test -p niji-ld --test runpath_search | msg:test secure_dlopen_caller_origin_only_trusted \.\.\. FAILED
 # Inverted: secure mode skips a trusted $ORIGIN and expands an untrusted one.
 secure-origin-invert | crates/ld/src/search.rs | lit:(Some(o), true) if trusted::<A>(o) => o, ==> (Some(o), true) if !trusted::<A>(o) => o, | cargo test -p niji-ld --test runpath_search | msg:test secure_dlopen_caller_origin_only_trusted \.\.\. FAILED
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# secure-origin-drop: CAUGHT, caught by runpath_search secure_dlopen_caller_origin_only_trusted
+# secure-origin-invert: CAUGHT, caught by runpath_search secure_dlopen_caller_origin_only_trusted
