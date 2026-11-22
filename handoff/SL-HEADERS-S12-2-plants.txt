@@ -1,0 +1,6 @@
+# Plants of slice 12, run 2 (cargo xtask plants; docs/plants.md). P10 (spec/tools/header_check.py --p10) evaluates CMSG_*,
+# IN6_IS_ADDR_*, IN6_ARE_ADDR_EQUAL and the byte-order conversions on the reference's headers and on libniji's regenerated ones.
+s12-p10-cmsg-align | headers/sys/socket.h.in | lit:sizeof (size_t) - 1) & (size_t) ~(sizeof (size_t) - 1)) ==> sizeof (int) - 1) & (size_t) ~(sizeof (int) - 1)) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --p10' | msg:FAIL P10|DIFFERENT
+s12-p10-linklocal-mask | headers/netinet/in.h.in | lit:__builtin_bswap32 (0xffc00000)) == __builtin_bswap32 (0xfe800000) ==> __builtin_bswap32 (0xff000000)) == __builtin_bswap32 (0xfe800000) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --p10' | msg:FAIL P10|DIFFERENT
+s12-p10-s6-addr | headers/netinet/in.h.in | lit:# define s6_addr __in6_u.__u6_addr8 ==> # define s6_addr __in6_u.__u6_addr16 | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --p10' | msg:FAIL P10|DIFFERENT
+s12-p10-are-equal | headers/netinet/in.h.in | lit:((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[3]) ==> ((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[2]) | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py --p10' | msg:FAIL P10|DIFFERENT

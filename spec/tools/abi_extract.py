@@ -131,7 +131,7 @@ TYPES = [
  ("struct ip", "struct ip"), ("struct iphdr", "struct iphdr"), ("struct ip6_hdr", "struct ip6_hdr"),
  ("struct tcphdr", "struct tcphdr"), ("struct tcp_info", "struct tcp_info"), ("struct udphdr", "struct udphdr"),
  ("struct icmphdr", "struct icmphdr"), ("struct icmp", "struct icmp"), ("struct icmp6_hdr", "struct icmp6_hdr"),
- ("struct ether_header", "struct ether_header"), ("struct arphdr", "struct arphdr"),
+ ("struct res_sym", "struct res_sym"), ("struct ether_header", "struct ether_header"), ("struct arphdr", "struct arphdr"),
  ("struct sockaddr_ll", "struct sockaddr_ll"), ("struct ip_mreqn", "struct ip_mreqn"),
  ("struct ipv6_mreq", "struct ipv6_mreq"), ("struct in_pktinfo", "struct in_pktinfo"),
  ("struct in6_pktinfo", "struct in6_pktinfo"),

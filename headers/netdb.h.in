@@ -1,0 +1,21 @@
+@@generated
+/* netdb.h: network database (XSH <netdb.h>) */
+#ifndef __NIJI_H_netdb_h
+#define __NIJI_H_netdb_h 1
+
+#include <features.h>
+#include <netinet/in.h>
+
+__NIJI_BEGIN_C
+
+@@needs signal.h
+@@owns-macro h_errno
+@@emit
+
+@@when h_errno
+# define h_errno (*__h_errno_location ())
+#endif
+
+__NIJI_END_C
+
+#endif
