@@ -32,6 +32,10 @@ Decision in force: D-5.13 (`records/decisions/D-5/D-5.13.toml`, id reserved with
   1 passed, `s07_locale_symbols` 43 passed). `lg6-ctype-objects-plants-3`: 5 CAUGHT, 0 SURVIVED, no WARN
   (results in handoff/LG6-CTYPE-OBJECTS-plants.txt).
 
+* Final head a7e8d87b3 only renames the placeholder in a generator comment (precheck placeholders red at
+  36a355f3e): `lg6-ctype-objects-suite-2` (adds `cargo test -p xtask compat_objects`) and
+  `lg6-ctype-objects-plants-4` started on it, PENDING at hand-back.
+
 ## Counts (keke, `lg6-ctype-objects-startup-7`)
 
 Empty dynamic program, each libc.so.6 with its own build's ld.so (`ld.so --library-path`), instructions:u median
@@ -51,5 +55,4 @@ the global locale. libniji's stay on "C".
 
 ## Next step
 
-Collect `lg6-ctype-objects-suite`, `lg6-ctype-objects-plants-3`, `lg6-ctype-objects-startup-5` on keke
-(`~/bin/jobwait <label>`; `~/logs/<label>.log`), then precheck, report json, `ops handback-check`.
+Dispatcher: verify `lg6-ctype-objects-suite-2` and `lg6-ctype-objects-plants-4` (keke) on a7e8d87b3.
