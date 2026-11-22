@@ -17,6 +17,10 @@
  "accepted_first_attempt": null,
  "rulings": [
   {
+   "item": "precheck slice-contract RED: slice 19 still needs one shared-generator edit (Tables.attrs + attr_text in headers.rs, the @@attrs inline, and the attribute text appended in extern_lines of headers/functions.rs); the generator story did not provide diagnostic attributes",
+   "recommendation": "land it as the owner-approved exception (about 60 lines, plants s19-const-* cover it), or a small generator story HEADERS-GEN-ATTRS that this slice then rebases onto; the slice itself is data only apart from that"
+  },
+  {
    "item": "run 3's probe read gcc -E output of the reference's headers to tell const from pure, against plan/headers.md 2.2 (the probe's own clean-room rule); removed here and replaced by a black-box test. Whether the earlier commit on this branch needs its history treated is the owner's call",
    "recommendation": "no action beyond the removal; the table values are unchanged except where the black-box test is the source"
   }
