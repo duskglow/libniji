@@ -313,8 +313,26 @@ pub enum Codec {
         dec: iconv::Conv,
         /// UCS-4 (little-endian) to the charset.
         enc: iconv::Conv,
+        /// How `dec` and `enc` run (`Codec::charset` sets it).
+        convert: ConvertFn,
     },
 }
+
+/// [`iconv::Conv::convert`], which a `,ccs=` stream holds rather than the wide stream functions
+/// calling it by name: only a program that opens such a stream (`Codec::charset`) links the
+/// charset codecs (the built-in CJK tables among them), not every program that writes a wide
+/// character to a stream (`perror` on a wide `stderr`, D-6.21). Every value is that one function,
+/// so it takes no part in comparing codecs (a `,ccs=` codec is its two descriptors).
+#[derive(Clone, Copy, Debug)]
+pub struct ConvertFn(pub fn(&mut iconv::Conv, &[u8], &mut [u8], &Locale) -> iconv::Outcome);
+
+impl PartialEq for ConvertFn {
+    fn eq(&self, _: &ConvertFn) -> bool {
+        true
+    }
+}
+
+impl Eq for ConvertFn {}
 
 impl Codec {
     /// The codec of a charset (`,ccs=`).
@@ -327,7 +345,7 @@ impl Codec {
             iconv::Codec::Utf32(None) => iconv::Codec::Utf32(Some(iconv::Order::Le)),
             other => other,
         };
-        Codec::Charset { dec: conv(c, ucs4, false), enc: conv(ucs4, out, true) }
+        Codec::Charset { dec: conv(c, ucs4, false), enc: conv(ucs4, out, true), convert: ConvertFn(iconv::Conv::convert) }
     }
 }
 
@@ -2403,7 +2421,7 @@ impl Wide {
         match self.codec {
             Codec::Text(enc) => text::encode(c, enc, &mut [0u8; 16]).unwrap_or(1),
             Codec::Units => 4,
-            Codec::Charset { mut enc, .. } => enc.convert(&c.to_le_bytes(), &mut [0u8; 16], &Locale::C).written,
+            Codec::Charset { mut enc, convert, .. } => (convert.0)(&mut enc, &c.to_le_bytes(), &mut [0u8; 16], &Locale::C).written,
             Codec::Unset => 0,
         }
     }
@@ -2550,7 +2568,7 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
                 }
             }
         },
-        Codec::Charset { mut dec, enc } => loop {
+        Codec::Charset { mut dec, enc, convert } => loop {
             let Some(b) = getc_raw(env, file, ext)? else { return end_of_input(env, file, ext) };
             let lead = ext.state.rpos == RESERVE + 1;
             let w = &mut ext.wide;
@@ -2565,9 +2583,9 @@ fn getwc_inner<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<
             *slot = b;
             w.pending_len += 1;
             let mut out = [0u8; 4];
-            let o = dec.convert(w.pending.get(..w.pending_len).unwrap_or(&[]), &mut out, &Locale::C);
+            let o = (convert.0)(&mut dec, w.pending.get(..w.pending_len).unwrap_or(&[]), &mut out, &Locale::C);
             // The descriptor keeps the byte order a BOM chose.
-            w.codec = Codec::Charset { dec, enc };
+            w.codec = Codec::Charset { dec, enc, convert };
             if o.written == 4 {
                 w.pending_len = 0;
                 return Ok(Some(u32::from_le_bytes(out)));
@@ -2680,10 +2698,10 @@ pub fn putwc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u32, enc: 
             }
             4
         }
-        Codec::Charset { dec, mut enc } => {
-            let o = enc.convert(&c.to_le_bytes(), &mut b, &Locale::C);
+        Codec::Charset { dec, mut enc, convert } => {
+            let o = (convert.0)(&mut enc, &c.to_le_bytes(), &mut b, &Locale::C);
             // The descriptor remembers that it wrote a BOM.
-            ext.wide.codec = Codec::Charset { dec, enc };
+            ext.wide.codec = Codec::Charset { dec, enc, convert };
             if o.result.is_err() {
                 set_error(file, ext);
                 return Err(Errno::EILSEQ);

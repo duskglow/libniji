@@ -4,7 +4,8 @@
 //! them, and no relocated word (e.g. a compiler lookup table of descriptor addresses) points into
 //! them. A pointer in one of them is one `R_X86_64_RELATIVE` per row that every dynamic program
 //! applies at start, whether it converts or not (snapshot 2026-11-21.6: 71 of them, +1,408
-//! instructions per start). Needs `cargo xtask so` and `readelf`; without either it skips.
+//! instructions per start). A static program that only writes wide characters to `stderr` links
+//! none of the CJK codecs (D-6.21). Needs `cargo xtask so` and `readelf`; without either it skips.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -74,4 +75,52 @@ fn iconv_tables_have_no_load_relocations() {
         }
     }
     assert!(bad.is_empty(), "iconv table relocations in {} ({}):\n{}", so.display(), bad.len(), bad.join("\n"));
+}
+
+/// The sections of `libc.a` a static PIE of `body` keeps (`--gc-sections` link map) whose name
+/// holds `cjk` (the built-in CJK codecs and tables, `niji::iconv::{cjk, cjk_tables}`).
+fn kept_cjk_sections(dir: &std::path::Path, name: &str, body: &str) -> Vec<String> {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let src = dir.join(format!("{name}.c"));
+    let decls = "typedef struct F F;\nextern F *stderr;\nvoid perror(const char *);\nunsigned fputwc(int, F *);\nF *fopen(const char *, const char *);\n";
+    std::fs::write(&src, format!("{decls}int main(void) {{ {body} return 0; }}\n")).unwrap();
+    let map = dir.join(format!("{name}.map"));
+    let st = Command::new("cc")
+        .args(["-std=c17", "-O2", "-nostdlib", "-fno-builtin", "-static-pie", "-fPIE", "-Wl,--gc-sections"])
+        .arg(format!("-Wl,-Map={}", map.display()))
+        .arg(root.join("target/niji/niji-rcrt1.o"))
+        .arg(&src)
+        .arg(root.join("target/niji/libc.a"))
+        .args(["-lgcc", "-o"])
+        .arg(dir.join(name))
+        .status()
+        .unwrap();
+    assert!(st.success(), "{name}: the static PIE does not link against the products");
+    let text = std::fs::read_to_string(&map).unwrap();
+    // Kept input sections start the line with ` .<kind>.<symbol>`; the discarded ones are listed
+    // before the "Linker script and memory map" heading.
+    let kept = text.split_once("\nLinker script and memory map").map_or("", |(_, k)| k);
+    kept.lines().filter(|l| l.starts_with(" .") && l.split_whitespace().next().is_some_and(|s| s.contains("cjk"))).map(|l| l.trim().to_owned()).collect()
+}
+
+/// A program that writes to `stderr` through the wide stream functions (`perror`, `fputwc`),
+/// as every static utility that reports an error does (`getconf`), links no CJK codec: the
+/// locale's charset is never a built-in CJK set, and only a `,ccs=` stream (`fopen`) can name one
+/// (D-6.21). The control, `fopen` with `,ccs=BIG5`, must keep them, so the check sees the
+/// sections when they are there. Needs `cargo xtask so` and `cc`; without either it skips.
+#[test]
+fn wide_stderr_links_no_cjk_codec() {
+    // no spec clause: what a static program links (size), not behaviour.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    if !root.join("target/niji/libc.a").exists() || !root.join("target/niji/niji-rcrt1.o").exists() || skip_note::missing("cc") {
+        skip_note::skipped("skipped: no target/niji/libc.a or niji-rcrt1.o (cargo xtask so) or no cc");
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("niji-iconv-cjk-link-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let wide = kept_cjk_sections(&dir, "wide", "perror(\"x\"); fputwc(L'x', stderr);");
+    let ccs = kept_cjk_sections(&dir, "ccs", "perror(\"x\"); return fopen(\"f\", \"w,ccs=BIG5\") != 0;");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(!ccs.is_empty(), "the `,ccs=BIG5` control keeps no `cjk` section: the check would see nothing");
+    assert!(wide.is_empty(), "perror and fputwc on stderr keep {} CJK sections:\n{}", wide.len(), wide.join("\n"));
 }
