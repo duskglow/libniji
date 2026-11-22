@@ -55,7 +55,10 @@ handoff/LIBC-SELF-BIND-plants.txt). SUPERSEDED libc-self-bind-2-plants: 3 CAUGHT
 no-dynamic-list were caught by x_self_bind as intended, but their `msg:` regexes were wrong (the runner prints
 `conformance FAILED: x_self_bind`; and `--dynamic-list-data` alone binds the malloc family too, so the build check
 never fires there); regexes corrected, nothing in the code changed.
-Measurements: libc-self-bind-2-measure (mei), -count-skx (mei), keke:libc-self-bind-2-count-zen.
+Measurements: libc-self-bind-2-count-skx (mei), keke:libc-self-bind-2-count-zen (rc 0). SUPERSEDED
+libc-self-bind-2-measure: rc 1 by design (built the measured products on 7d8a77edb and ran hot_text_products before
+the bound commit; its only red was DYN_START_INSTR 10% under next's bound). xtask test and the full-profile pair:
+green; the release empty main on the final head reads 332,012 (bound 338,700), as measured.
 Step 0: libc-self-bind-2-lint0 (clippy + static on the inherited head c82357afe: green).
 
 ## Open / next step

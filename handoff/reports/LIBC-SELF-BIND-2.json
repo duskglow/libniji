@@ -7,6 +7,7 @@
  "informational": ["the Zen 1 bound comes from this test's method run by script on the Zen 1 host (no role there), not the test binary; on the Skylake-SP host the script and the test agree to the instruction",
                    "layout-bins.tsv not diffed against the merge base (no fast products of next built); kit start-up faults read 1 under next on every row"],
  "refused": [],
+ "superseded": ["mei:libc-self-bind-2-measure (rc 1 by design: built the measured products on merge commit 7d8a77edb and ran hot_text_products before the bound commit, whose only red was DYN_START_INSTR 10% under next bound; libc.so.6 code is the same on the final head, where libc-self-bind-2-fullprof passes and the release test reads the same 332,012)", "mei:libc-self-bind-2-plants (3 CAUGHT + 2 WARN-NO-MSG: wrong msg regexes, corrected)"],
  "impact": [
   {"kind": "perf", "what": "dynamic empty main start, release, Skylake-SP, user instructions (kit)", "before": 657748, "after": 323388, "unit": "instr/start", "measured": true},
   {"kind": "perf", "what": "dynamic empty main start, release, Zen 1, user instructions (kit)", "before": 657540, "after": 323179, "unit": "instr/start", "measured": true},
@@ -21,4 +22,4 @@
  "improvement": "a story that needs counts on both CPU classes but gets a role on one should get the same products counted on the other by a standard script (count.sh here); the test-method replica matched the test to the instruction, so the tooling could own it",
  "next_step": "land; then STDIO-CALLER-ALLOC",
  "report_file": "handoff/LIBC-SELF-BIND.md",
- "jobs": ["mei:libc-self-bind-2-gate", "mei:libc-self-bind-2-plants-2", "mei:libc-self-bind-2-xtest", "mei:libc-self-bind-2-fullprof", "mei:libc-self-bind-2-measure", "mei:libc-self-bind-2-count-skx", "keke:libc-self-bind-2-count-zen"]}
+ "jobs": ["mei:libc-self-bind-2-gate", "mei:libc-self-bind-2-plants-2", "mei:libc-self-bind-2-xtest", "mei:libc-self-bind-2-fullprof", "mei:libc-self-bind-2-count-skx", "keke:libc-self-bind-2-count-zen"]}
