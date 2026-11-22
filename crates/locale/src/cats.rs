@@ -19,7 +19,7 @@ use crate::{Error, Result, TryVec};
 pub const CHAR_MAX: u8 = 127;
 
 /// One operand of a statement.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Arg {
     /// A string, as code points.
     Str(TryVec<u32>),
@@ -433,8 +433,8 @@ pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
     o.string(&date_fmt)?;
     o.f.wide(&date_fmt)?;
     o.codeset()?;
-    let alt_mon = if b.get(b"alt_mon").is_some() { list(b"alt_mon", 12)? } else { mon.try_clone()? };
-    let ab_alt_mon = if b.get(b"ab_alt_mon").is_some() { list(b"ab_alt_mon", 12)? } else { abmon.try_clone()? };
+    let alt_mon = if b.get(b"alt_mon").is_some() { list(b"alt_mon", 12)? } else { clone_list(&mon)? };
+    let ab_alt_mon = if b.get(b"ab_alt_mon").is_some() { list(b"ab_alt_mon", 12)? } else { clone_list(&abmon)? };
     for s in alt_mon.iter() {
         o.string(s)?;
     }
@@ -495,6 +495,14 @@ fn era_entries(eras: &[TryVec<u32>], cs: &Charset, no: u32) -> Result<TryVec<u8>
         for &c in f(4).iter().chain(&[0]).chain(f(5)).chain(&[0]) {
             out.extend_from_slice(&c.to_le_bytes())?;
         }
+    }
+    Ok(out)
+}
+
+fn clone_list(v: &[TryVec<u32>]) -> Result<TryVec<TryVec<u32>>> {
+    let mut out = TryVec::with_capacity(v.len())?;
+    for s in v {
+        out.push(s.try_clone()?)?;
     }
     Ok(out)
 }

@@ -469,19 +469,19 @@ fn table3(mask3: u32, block: &dyn Fn(u32) -> Result<Option<TryVec<u8>>>) -> Resu
     // Level-3 blocks per level-1 entry.
     let mut l2s: TryVec<Option<[u32; 32]>> = TryVec::new();
     let mut l3_data: TryVec<u8> = TryVec::new();
-    let mut seen: BTreeMap<TryVec<u8>, u32> = BTreeMap::new();
+    let mut seen: BTreeMap<alloc::vec::Vec<u8>, u32> = BTreeMap::new();
     for i1 in 0..nblocks1 {
         let mut l2 = [u32::MAX; 32];
         let mut any = false;
         for i2 in 0..=MASK2 {
             let base = (i1 << SHIFT1) | (i2 << SHIFT2);
             if let Some(b) = block(base)? {
-                let at = match seen.get(&b) {
+                let at = match seen.get(b.as_slice()) {
                     Some(&at) => at,
                     None => {
                         let at = u32::try_from(l3_data.len()).map_err(|_| Error::syntax(0, "a table over 4 GiB"))?;
                         l3_data.extend_from_slice(&b)?;
-                        seen.insert(b, at);
+                        seen.insert(b.into_inner(), at);
                         at
                     }
                 };

@@ -99,7 +99,7 @@ fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
                     let name = lex::decode_string(name, chars.escape, line.no)?;
                     let name = ascii_name(&name).ok_or(Error::syntax(line.no, "copy names a locale that is not ASCII"))?;
                     let text = files.read(Kind::Locale, &name)?;
-                    let mut other = parse_at(&text, files, depth + 1)?;
+                    let mut other = parse_at(&text, files, depth.saturating_add(1))?;
                     let Some(stmts) = other.cats.get_mut(c).and_then(Option::take) else {
                         return Err(Error::syntax(line.no, "copy names a locale without this category"));
                     };

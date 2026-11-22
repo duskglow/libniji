@@ -10,7 +10,7 @@
 use crate::{Error, Result, TryVec};
 
 /// One token.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Tok {
     /// A word: a keyword, a number, an ellipsis, or other bare text.
     Word(TryVec<u8>),
@@ -315,7 +315,7 @@ mod tests {
     use super::*;
 
     fn toks(src: &[u8]) -> Vec<Vec<Tok>> {
-        lines(src).map(|(l, _)| l.iter().map(|l| l.toks.to_vec()).collect()).unwrap_or_default()
+        lines(src).map(|(l, _)| l.into_inner().into_iter().map(|l| l.toks.into_inner()).collect()).unwrap_or_default()
     }
 
     fn w(s: &[u8]) -> Tok {
