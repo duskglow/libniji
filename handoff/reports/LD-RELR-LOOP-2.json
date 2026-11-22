@@ -18,4 +18,5 @@
  "improvement": "Records with a table-cell body could be checked by a cheap pre-commit TOML lint (the records check only runs inside static/gate; my newline cost one gate cycle)",
  "next_step": "Land; Skylake-SP counts and an exact PT profile of the RELR share come with the next snapshot or a build on that host",
  "report_file": "handoff/LD-RELR-LOOP-report.md",
- "jobs": ["keke:ld-relr-loop-2-gate2", "keke:ld-relr-loop-2-plants1", "keke:ld-relr-loop-2-lint2", "keke:ld-relr-loop-2-startup", "keke:ld-relr-loop-2-meas", "keke:ld-relr-loop-2-bound"]}
+ "jobs": ["keke:ld-relr-loop-2-gate2", "keke:ld-relr-loop-2-plants1", "keke:ld-relr-loop-2-lint2", "keke:ld-relr-loop-2-startup"],
+ "superseded": ["keke:ld-relr-loop-2-gate1 (static red on a newline in D-27.87's body, fixed)", "keke:ld-relr-loop-2-meas (counts on 9a96824e1, same code as the final head; no tested-content record)", "keke:ld-relr-loop-2-bound (bound levels measured before the bound edit)", "keke:ld-relr-loop-2-lint0, ld-relr-loop-2-lint1 (earlier heads)"]}

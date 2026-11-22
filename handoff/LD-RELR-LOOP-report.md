@@ -69,8 +69,12 @@ disassembly (both loops read in `~/work/ld-relr-loop-2/new2-ld.dis` on keke) and
 * ld-relr-loop-2-bound: `hot_text_products` bound test, release then fast: 238,792 / 248,446 (bounds tightened).
 * ld-relr-loop-2-plants1: handoff/LD-RELR-LOOP-2-plants.txt, 4 plants, 4 CAUGHT, no WARN (run on bb4b03995;
   the planted files are identical at the final head).
-* ld-relr-loop-2-gate2: direct gate on the final head. ld-relr-loop-2-startup: start-up checks (cargo xtask test;
-  release so + hot_text_products). Results: in the hand-back and handoff/reports/LD-RELR-LOOP-2.json.
+* ld-relr-loop-2-gate2: direct gate, final code: 13 suites ok, 1,358 passed, 0 failed, peak 2.3G.
+* ld-relr-loop-2-lint2: clippy + static on 98c31e490: rc 0.
+* ld-relr-loop-2-startup: `cargo xtask test` (7,120 + 4,875 + 128 + 46 passed), release `so`, `hot_text_products`
+  (33 passed): rc 0.
+* precheck on acd1d6840 with those four jobs: exit 0 (job notes: later commits are prose only).
+* meas and bound are measurements on earlier heads with the same code (precheck: SUPERSEDED, not JOBS).
 * Superseded: ld-relr-loop-2-gate1 (bb4b03995): 13 suites ok, 1,358 passed, 0 failed, but `cargo xtask static`
   red on a newline in D-27.87's body, which my edit added; fixed in c58063588.
 
