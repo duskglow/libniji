@@ -1,0 +1,6 @@
+# Plants of SL-HEADERS-S06-RESIDUE (cargo xtask plants; docs/plants.md): one per cause of the slice 6 P2 rows.
+# Each puts one cause back into a template; xtask's header_p2_fixed_rows generates the headers from the templates as
+# they are (headers-gen --out) and runs the P2 probe, so the difference it prints names the row.
+s06r-tolower-c-only | headers/ctype.h.in | perl:s/^(# define _tolower\(c\) .*)$/#ifndef __cplusplus\n$1\n#endif/m | cargo test -p xtask --test header_p2_fixed_rows | msg:differs ctype.h _tolower macro
+s06r-isalnum-l-undefined | headers/ctype.h.in | perl:s/^# define isalnum_l\(c, l\) .*\n//m | cargo test -p xtask --test header_p2_fixed_rows | msg:missing ctype.h isalnum_l macro
+s06r-fwrite-unlocked-undefined | headers/stdio.h.in | perl:s/^# define fwrite_unlocked\(.*\n//m | cargo test -p xtask --test header_p2_fixed_rows | msg:missing stdio.h fwrite_unlocked macro
