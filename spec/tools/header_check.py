@@ -290,7 +290,7 @@ def main():
         units = [("levels", "#include <features.h>\n" + "".join(
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
-            units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
+            units += [(f"P5 {'reject ' if r['p1'] == 'reject' else ''}{r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
@@ -302,7 +302,7 @@ def main():
                 # libniji's own header: the failure must be its #error, not a missing file or a syntax slip.
                 ok = r.returncode != 0 and "is not provided" in r.stderr
             else:
-                ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
+                ok = (r.returncode != 0) if ((rejected and what == "levels") or what.startswith("P5 reject ")) else (r.returncode == 0)
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
