@@ -503,6 +503,7 @@ fn source_hash_tag(root: &Path) -> String {
     }
     let crates = product_crates(root);
     let mut files = vec![root.join("Cargo.lock")];
+    files.extend(TAG_DATA_FILES.iter().map(|f| root.join(f)).filter(|f| f.is_file()));
     for d in ["crates", "csys", "include"] {
         walk(&root.join(d), &mut files);
     }
@@ -525,11 +526,18 @@ fn source_hash_tag(root: &Path) -> String {
 /// `cargo bench` and `cargo run --example` (CI-INSTR-REBUILDS).
 const TAG_SKIPPED_DIRS: &[&str] = &["tests", "benches", "examples"];
 
+/// The files outside `crates/`, `csys/` and `include/` that a product crate's source reads at compile time
+/// (`include_bytes!`): niji-core's iconv alias table. [`check_tag_covers`] fails a build that reads another one.
+const TAG_DATA_FILES: &[&str] = &["spec/encoding/iconv-aliases.tsv"];
+
 /// Whether [`source_hash_tag`] covers `rel` (a path relative to the workspace root, a file or a directory a build
-/// script watches): `Cargo.lock`, anything under `csys/` or `include/`, the product workspace's `crates/Cargo.toml`
-/// and `crates/Cargo.lock`, and anything in a crate of `crates` ([`product_crates`]) outside its
-/// [`TAG_SKIPPED_DIRS`].
+/// script watches): `Cargo.lock`, the [`TAG_DATA_FILES`], anything under `csys/` or `include/`, the product
+/// workspace's `crates/Cargo.toml` and `crates/Cargo.lock`, and anything in a crate of `crates` ([`product_crates`])
+/// outside its [`TAG_SKIPPED_DIRS`].
 fn tag_covers(rel: &Path, crates: &BTreeSet<String>) -> bool {
+    if TAG_DATA_FILES.iter().any(|f| rel == Path::new(f)) {
+        return true;
+    }
     let parts: Vec<&str> = rel.components().filter_map(|c| c.as_os_str().to_str()).collect();
     match parts.as_slice() {
         ["Cargo.lock"] | ["crates", "Cargo.toml" | "Cargo.lock"] => true,
@@ -3933,6 +3941,9 @@ mod tests {
             fs::create_dir_all(root.join(d)).unwrap();
             fs::write(root.join(d).join("f.rs"), "0").unwrap();
         }
+        fs::create_dir_all(root.join("spec/encoding")).unwrap();
+        fs::write(root.join("spec/encoding/iconv-aliases.tsv"), "a\tb\n").unwrap();
+        fs::write(root.join("spec/encoding/iconv-names.md"), "names").unwrap();
         fs::write(root.join("Cargo.toml"), "[workspace.dependencies]\ndep = { path = \"crates/dep\" }\ndevonly = { path = \"crates/devonly\" }\n").unwrap();
         fs::write(root.join("Cargo.lock"), "lock").unwrap();
         fs::write(root.join("crates/Cargo.lock"), "lock").unwrap();
@@ -3950,18 +3961,18 @@ mod tests {
         // no spec clause (CI-INSTR-REBUILDS, D-27.78): an edit that no product build reads (a crate's tests, benches or
         // examples, a crate the products do not depend on or only as a dev-dependency, a file outside the product
         // directories) keeps the tag, so the release libraries are not rebuilt for it; an edit to any product input
-        // (a dependency's source or manifest, a build or target dependency, csys, include, either lock) changes it
+        // (a dependency's source or manifest, a build or target dependency, csys, include, either lock, a data file a product source includes) changes it
         let root = tag_tree("tagset");
         let hash = source_hash_tag(&root);
         // the five product crates (the scratch tree has one manifest of them) and libc-so's dependencies
         let crates = ["bdep", "dep", "ld-so", "ldconfig-bin", "libc-so", "libm-so", "libresolv-so", "tdep"];
         assert_eq!(product_crates(&root), crates.map(String::from).into(), "the product crates");
-        for f in ["crates/libc-so/tests/f.rs", "crates/dep/benches/f.rs", "crates/dep/examples/f.rs", "crates/devonly/src/f.rs", "crates/tool/src/f.rs", "docs/f.rs"] {
+        for f in ["crates/libc-so/tests/f.rs", "crates/dep/benches/f.rs", "crates/dep/examples/f.rs", "crates/devonly/src/f.rs", "crates/tool/src/f.rs", "docs/f.rs", "spec/encoding/iconv-names.md"] {
             fs::write(root.join(f), "edited").unwrap();
             assert_eq!(source_hash_tag(&root), hash, "{f} is no product input");
         }
         let mut seen = BTreeSet::from([hash]);
-        for f in ["crates/dep/src/f.rs", "crates/bdep/src/f.rs", "crates/tdep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/Cargo.toml", "csys/src/f.rs", "include/f.rs", "Cargo.lock", "crates/Cargo.lock"] {
+        for f in ["crates/dep/src/f.rs", "crates/bdep/src/f.rs", "crates/tdep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/Cargo.toml", "csys/src/f.rs", "include/f.rs", "Cargo.lock", "crates/Cargo.lock", "spec/encoding/iconv-aliases.tsv"] {
             fs::write(root.join(f), format!("edited {f}")).unwrap();
             let t = source_hash_tag(&root);
             assert!(seen.insert(t), "{f} is a product input: the tag must change");
@@ -3976,13 +3987,14 @@ mod tests {
         // build's own output under target/ and files outside the workspace are not
         let root = tag_tree("tagcheck");
         let r = root.display();
-        let ok = ["crates/dep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/../dep/src/f.rs", "target/product/release/build/x/out/gen.rs", "csys"];
+        let ok = ["crates/dep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/../dep/src/f.rs", "target/product/release/build/x/out/gen.rs", "csys", "spec/encoding/iconv-aliases.tsv"];
         let mut paths: Vec<std::path::PathBuf> = ok.iter().map(|f| root.join(f)).collect();
         paths.push("/opt/rust/lib/core/src/lib.rs".into());
         assert_eq!(missed_by_tag(&root, &paths), None, "{paths:?}");
         paths.push(root.join("crates/dep/tests/f.rs"));
         paths.push(root.join("crates/tool/src/f.rs"));
-        assert_eq!(missed_by_tag(&root, &paths).as_deref(), Some("crates/dep/tests/f.rs, crates/tool/src/f.rs"));
+        paths.push(root.join("spec/encoding/iconv-names.md"));
+        assert_eq!(missed_by_tag(&root, &paths).as_deref(), Some("crates/dep/tests/f.rs, crates/tool/src/f.rs, spec/encoding/iconv-names.md"));
         let text = format!("{r}/target/product/release/libc.a: {r}/crates/dep/src/f.rs {r}/crates/a\\ b.rs\n\n{r}/crates/dep/src/f.rs:\n");
         assert_eq!(depinfo_paths(&text), vec![root.join("crates/dep/src/f.rs"), root.join("crates/a b.rs")]);
         let _ = fs::remove_dir_all(&root);

@@ -9,3 +9,5 @@ hash-unfiltered | xtask/src/so.rs | perl:s/\Q.is_ok_and(|rel| tag_covers(rel, &c
 check-silenced | xtask/src/so.rs | perl:s/\Q(!missed.is_empty()).then(\E/(false).then(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
 check-flags-target | xtask/src/so.rs | perl:s/\Q(!rel.starts_with("target") && \E/(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
 depinfo-escape-lost | xtask/src/so.rs | perl:s/=> esc = true,/=> {}/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+data-files-dropped | xtask/src/so.rs | perl:s/\Q&["spec/encoding/iconv-aliases.tsv"]\E/&[]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is a product input
+data-files-unhashed | xtask/src/so.rs | perl:s/\Qfiles.extend(TAG_DATA_FILES\E/files.truncate(1); drop(TAG_DATA_FILES/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is a product input
