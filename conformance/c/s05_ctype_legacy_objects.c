@@ -29,9 +29,13 @@ static int has(int c, unsigned short mask) { return (old_b[c] & mask) != 0; }
 
 int main(void)
 {
-    CHECK(old_b == *__ctype_b_loc(), 0);
-    CHECK(old_tolower == *__ctype_tolower_loc(), 0);
-    CHECK(old_toupper == *__ctype_toupper_loc(), 0);
+    /* The same contents as the accessors' tables over the whole index range (the addresses
+       may differ: libniji renders these tables separately, D-5.13). */
+    for (int c = -128; c < 256; c++) {
+        CHECK(old_b[c] == (*__ctype_b_loc())[c], c);
+        CHECK(old_tolower[c] == (*__ctype_tolower_loc())[c], c);
+        CHECK(old_toupper[c] == (*__ctype_toupper_loc())[c], c);
+    }
     CHECK(old_tolower32 == old_tolower && old_toupper32 == old_toupper, 0);
     CHECK(old_obstack == NULL, 0);
     for (int c = 0; c < 256; c++) {

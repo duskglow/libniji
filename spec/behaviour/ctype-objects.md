@@ -29,7 +29,7 @@ reference library and of the probe. **Record:** `ctype-objects.glibc.txt` (the `
   (the code points U+0080..U+00FF). An 8-bit locale would change the 16-bit tables too (none installed on the probe
   host).
 
-**libniji:** the seven objects point at fixed `"C"` tables (`xtask/src/compat_objects.rs`): identical to the
-reference in the `"C"` locale and, for the 16-bit tables, in every UTF-8 locale; they do not follow `setlocale`
+**libniji:** the seven objects point at fixed `"C"` tables (`xtask/src/compat_objects.rs`): the contents of `*__ctype_*_loc()`'s
+`"C"` tables at other addresses (D-5.13), identical to the reference in the `"C"` locale and, for the 16-bit tables, in every UTF-8 locale; they do not follow `setlocale`
 (a difference for an 8-bit locale's 16-bit tables and for a UTF-8 locale's `__ctype32_*` entries 128-255; ruling
-requested in the LG6-CTYPE-OBJECTS hand-back). Proof: `conformance/c/s05_ctype_legacy_objects.c` (both libraries).
+requested, D-5.13; docs/differences-from-glibc.md). Proof: `conformance/c/s05_ctype_legacy_objects.c` (both libraries).
