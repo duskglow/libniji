@@ -138,12 +138,12 @@ mod imp {
 
         pub(super) fn record(k: u64, fast: bool) {
             MINE.with_borrow_mut(|v| {
-                let i = v.iter().position(|e| e.0 == k).unwrap_or_else(|| {
+                if !v.iter().any(|e| e.0 == k) {
                     v.push((k, Counts::default()));
-                    v.len() - 1
-                });
-                let c = &mut v[i].1;
-                if fast { c.fast += 1 } else { c.fallback += 1 }
+                }
+                if let Some((_, c)) = v.iter_mut().find(|e| e.0 == k) {
+                    if fast { c.fast = c.fast.wrapping_add(1) } else { c.fallback = c.fallback.wrapping_add(1) }
+                }
             });
         }
 
