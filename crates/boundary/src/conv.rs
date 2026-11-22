@@ -244,6 +244,11 @@ pub(crate) fn fresh_value<T>(p: *mut c_void, value: T) -> Option<&'static mut T>
     // SAFETY: see the proof above.
     unsafe {
         t.write(value);
+    }
+    // UNSAFE(slice): the written value becomes a reference only through the raw pointer.
+    #[allow(unsafe_code)]
+    // SAFETY: `t` holds the `T` written above, aligned, and nothing else references it.
+    unsafe {
         Some(&mut *t)
     }
 }
