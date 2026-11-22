@@ -493,11 +493,6 @@ pub(crate) fn route_internal() {
     RESERVE_LAST.store(usize::MAX, Relaxed);
 }
 
-/// Whether [`route_internal`] ran.
-fn routed() -> bool {
-    FAST_ALIGN_END.load(Relaxed) == 0
-}
-
 /// A block for the library's own use from the replacing allocator: `malloc` or, zeroed,
 /// `calloc` through the symbols. 0 when the replacement has none: the library's fallible
 /// collections then report `ENOMEM`, so a replacement that fails a call makes the call that
