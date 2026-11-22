@@ -212,7 +212,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
     let preload = if secure { secure_preload } else { ld.preload };
-    let list_env = List { ld: &ld, secure, preload, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
+    let list_env = List { ld: &ld, secure, preload, platform: Native::platform(&features), hwcaps: Native::hwcaps(&features), page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
@@ -247,6 +247,8 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             }
             exit(0)
         }
+        Action::Tunables => super::report::tunables(ld.tunables, secure),
+        Action::Diagnostics => super::report::diagnostics(list_env.hwcaps, page, list_env.platform, envp, copy.get(..words).unwrap_or(&[])),
         Action::Program { mode, name, at, options } => {
             let start = Start { argv, argc, auxv, copy, words, invoked };
             program_mode(&start, mode, name, at, &options, &list_env)
@@ -290,7 +292,12 @@ fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize,
     // `--preload`'s names follow `LD_PRELOAD`'s under its rule: folded into its value here, so the
     // start's preload list is the exec'd start's, unchanged.
     let preload = options.preload.map_or(env.preload, |p| Some(fold_preload(env.preload, p)));
-    let env = List { ld: &ld, preload, ..*env };
+    if let Some(list) = options.inhibit_rpath {
+        super::state::keep_inhibit_rpath(list);
+    }
+    // The hwcaps options give the subdirectory list every search of the process uses.
+    let hwcaps = if options.hwcaps_prepend.is_some() || options.hwcaps_mask.is_some() { hwcaps_list(env.hwcaps, options.hwcaps_prepend, options.hwcaps_mask) } else { env.hwcaps };
+    let env = List { ld: &ld, preload, hwcaps, ..*env };
     // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the name as
     // given (or `--argv0`'s), the file's path names it in messages and gives its `$ORIGIN`.
     if mode == program::Mode::Verify {
@@ -371,6 +378,36 @@ fn fold_preload(env: Option<&'static [u8]>, option: &'static [u8]) -> &'static [
     let value = value.get(..len.saturating_sub(1)).unwrap_or(&[]);
     super::state::keep_preload_option(value.get(env.len().saturating_add(1)..).unwrap_or(&[]));
     value
+}
+
+/// The `glibc-hwcaps` subdirectories for `--glibc-hwcaps-prepend` and `--glibc-hwcaps-mask`
+/// ([`program::hwcaps_subdirs`] of the supported ones, `builtin`), in a private mapping kept for the
+/// process and for `dlopen` (`state::program_hwcaps`). A name that is not UTF-8 names no directory
+/// libniji searches and is dropped. Cold: program mode only.
+#[cold]
+#[inline(never)]
+fn hwcaps_list(builtin: &'static [&'static str], prepend: Option<&'static [u8]>, mask: Option<&'static [u8]>) -> &'static [&'static str] {
+    let n = program::hwcaps_subdirs(builtin, prepend, mask).count();
+    let len = n.saturating_mul(core::mem::size_of::<&str>()).max(1);
+    let flags = super::MAP_PRIVATE_I32 | super::MAP_ANONYMOUS_I32;
+    let at = crate::raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, flags, -1, 0).unwrap_or_else(|_| refuse(b"ld.so: cannot allocate memory for the glibc-hwcaps options\n"));
+    // UNSAFE(slice): a fresh anonymous mapping as `n` slots for names, none read before written.
+    #[allow(unsafe_code)]
+    // SAFETY: `len` >= n * size_of::<&str>() bytes from `at` were just mapped private and writable,
+    // page-aligned (so aligned for `&str`); nothing else refers to them, and they are never unmapped.
+    let slots = unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<&'static str>>(at), n) };
+    let names = program::hwcaps_subdirs(builtin, prepend, mask).filter_map(|h| core::str::from_utf8(h).ok());
+    let mut kept = 0usize;
+    for (slot, name) in slots.iter_mut().zip(names) {
+        slot.write(name);
+        kept = kept.wrapping_add(1);
+    }
+    // UNSAFE(slice): the slots just written.
+    #[allow(unsafe_code)]
+    // SAFETY: the first `kept` (<= n) slots from `at` were initialised above and are not written again.
+    let list: &'static [&'static str] = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static str>(at), kept) };
+    super::state::keep_program_hwcaps(list);
+    list
 }
 
 /// The program headers of `prog` (`AT_PHDR`, `AT_PHNUM` checked by [`start::program`] or set by [`load`]).
@@ -462,7 +499,9 @@ pub(super) struct List<'a> {
     pub(super) secure: bool,
     /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
     preload: Option<&'static [u8]>,
-    features: &'a niji_rt::cpu::Features,
+    /// `$PLATFORM` and the `glibc-hwcaps` subdirectories searched (program mode's options may change these).
+    platform: &'static str,
+    hwcaps: &'static [&'static str],
     pub(super) page: u64,
     pub(super) vdso: Option<u64>,
     pub(super) base: usize,
@@ -475,8 +514,8 @@ impl List<'_> {
             secure: self.secure,
             library_path: if self.secure { None } else { self.ld.library_path },
             origin_path: if self.secure { None } else { self.ld.origin_path },
-            platform: Native::platform(self.features),
-            hwcaps: Native::hwcaps(self.features),
+            platform: self.platform,
+            hwcaps: self.hwcaps,
             cache,
         }
     }

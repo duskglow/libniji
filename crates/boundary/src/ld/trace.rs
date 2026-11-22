@@ -8,7 +8,7 @@ use niji_ld::search::{self, PathBuf, Scope};
 use niji_ld::{elf, map};
 use super::table::{PathStore, Table, INLINE};
 use super::entry::List;
-use super::image::{SysMapper, Unusable, dir_of, dyn_string, dynamic_of, fail_program, open_candidate, open_program, open_whole, read_cache};
+use super::image::{SysMapper, Unusable, dir_of, dyn_string, dynamic_of, fail_program, open_candidate, open_program, open_whole, read_cache, search_list};
 use super::io::{exit, fail_loading, write_all};
 
 /// One object of the dependency list: the name it was needed as, its `DT_SONAME`, its file (empty
@@ -111,7 +111,10 @@ pub(super) fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: O
             let Some(slot) = chain.get_mut(depth) else { break };
             let od = dynamic_of(o.file);
             let origin = Some(dir_of(o.path));
-            *slot = Scope { rpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RPATH)), runpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RUNPATH)), origin };
+            // The path `ld.so --inhibit-rpath` matches: the one the object was loaded by (the program's: empty).
+            let loaded: &[u8] = if k == 0 { b"" } else { o.path };
+            let list = |tag| od.as_ref().and_then(|x| search_list(x, tag, loaded));
+            *slot = Scope { rpath: list(elf::dt::RPATH), runpath: list(elf::dt::RUNPATH), origin };
             depth = depth.wrapping_add(1);
             if k == 0 {
                 break;

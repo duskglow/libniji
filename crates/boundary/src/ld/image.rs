@@ -830,6 +830,18 @@ pub(super) fn dyn_string(d: &elf::Dynamic<'static>, tag: u64) -> Option<&'static
     d.get(tag).and_then(|o| d.string(o).ok())
 }
 
+/// `DT_RPATH` or `DT_RUNPATH` (`tag`) of an object for a search: none when `ld.so --inhibit-rpath`
+/// names `path`, the path the object was loaded by (the program's: empty). An object without the tag
+/// (the common case) costs no more than [`dyn_string`].
+#[inline]
+pub(super) fn search_list(d: &elf::Dynamic<'static>, tag: u64, path: &[u8]) -> Option<&'static [u8]> {
+    let s = dyn_string(d, tag)?;
+    match super::state::inhibit_rpath() {
+        Some(list) if program::rpath_inhibited(list, path) => None,
+        _ => Some(s),
+    }
+}
+
 /// The directory part of `path` (`$ORIGIN`): `.` for a bare name, `/` for a name in the root.
 pub(super) fn dir_of(path: &[u8]) -> &[u8] {
     match path.iter().rposition(|&b| b == b'/') {

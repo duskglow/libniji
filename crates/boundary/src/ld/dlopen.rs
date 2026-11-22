@@ -2125,7 +2125,7 @@ impl Env {
             library_path: if self.secure { None } else { self.library_path },
             origin_path: if self.secure { None } else { self.origin_path },
             platform: Native::platform(&self.features),
-            hwcaps: Native::hwcaps(&self.features),
+            hwcaps: super::state::program_hwcaps().unwrap_or_else(|| Native::hwcaps(&self.features)),
             cache: self.cache.as_ref().map(|(_, c)| c).into(),
         }
     }
@@ -2157,7 +2157,10 @@ fn scope_of(l: &Loader, i: usize) -> Scope<'static> {
     // is never rewritten while it is in use: a failed attempt rewinds only past its own spans, and
     // `reclaim` only past the spans of objects already unmapped; the origin is written once.
     let origin: Option<&'static [u8]> = origin.map(|s| unsafe { conv::bytes_at(s.as_ptr().expose_provenance(), s.len()) });
-    Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin }
+    // The path `ld.so --inhibit-rpath` matches: the one the object was loaded by (the program's: empty).
+    let loaded: &[u8] = if i == 0 { b"" } else { l.path(i) };
+    let list = |tag| super::image::search_list(&o.dynm, tag, loaded);
+    Scope { rpath: list(DT_RPATH), runpath: list(DT_RUNPATH), origin }
 }
 
 /// Whether a search can expand the program's `$ORIGIN`: a token in its `DT_RPATH` or `DT_RUNPATH`.

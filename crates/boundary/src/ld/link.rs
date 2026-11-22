@@ -15,7 +15,7 @@ use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
 use super::exec_stack::exec_stack_dependency;
-use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, unmap_view, views_arm, views_close};
+use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, search_list, unmap_view, views_arm, views_close};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_ORIGIN, START_PAGE, START_SPILL};
@@ -117,7 +117,9 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 loop {
                     chain.reserve(depth + 1).unwrap_or_else(|_| no_memory(name));
                     let d = &objs[k].dynm;
-                    let (rpath, runpath) = (dyn_string(d, elf::dt::RPATH), dyn_string(d, elf::dt::RUNPATH));
+                    // `ld.so --inhibit-rpath` matches the path the object was loaded by (the program's: empty).
+                    let loaded: &[u8] = if k == 0 { b"" } else { paths[k] };
+                    let (rpath, runpath) = (search_list(d, elf::dt::RPATH, loaded), search_list(d, elf::dt::RUNPATH, loaded));
                     let dir = if k == 0 {
                         // The program's is read only for a search that can expand it: a token in its
                         // own lists, in LD_LIBRARY_PATH (expanded with the program's) or in the name.
@@ -128,7 +130,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                             None
                         }
                     } else {
-                        Some(paths[k]).filter(|p| !p.is_empty()).map(dir_of)
+                        Some(loaded).filter(|p| !p.is_empty()).map(dir_of)
                     };
                     chain[depth] = Scope { rpath, runpath, origin: dir };
                     depth += 1;
