@@ -401,6 +401,28 @@ pub struct ProgramHeader {
     pub align: u64,
 }
 
+impl ProgramHeader {
+    /// Header `index` from the 56 bytes of an `Elf64_Phdr` in byte order `be`: fixed offsets of an
+    /// entry whose range was checked when the reader was made (LD-PHDR-ONCE: walks decode it often).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn decode(e: &[u8; PHDR_SIZE], be: bool, index: u16) -> ProgramHeader {
+        let w4 = |a: [u8; 4]| if be { u32::from_be_bytes(a) } else { u32::from_le_bytes(a) };
+        let w8 = |a: [u8; 8]| if be { u64::from_be_bytes(a) } else { u64::from_le_bytes(a) };
+        ProgramHeader {
+            index,
+            p_type: w4([e[0], e[1], e[2], e[3]]),
+            flags: w4([e[4], e[5], e[6], e[7]]),
+            offset: w8([e[8], e[9], e[10], e[11], e[12], e[13], e[14], e[15]]),
+            vaddr: w8([e[16], e[17], e[18], e[19], e[20], e[21], e[22], e[23]]),
+            paddr: w8([e[24], e[25], e[26], e[27], e[28], e[29], e[30], e[31]]),
+            filesz: w8([e[32], e[33], e[34], e[35], e[36], e[37], e[38], e[39]]),
+            memsz: w8([e[40], e[41], e[42], e[43], e[44], e[45], e[46], e[47]]),
+            align: w8([e[48], e[49], e[50], e[51], e[52], e[53], e[54], e[55]]),
+        }
+    }
+}
+
 /// A parsed object: the header and the program header table are checked; the contents of segments
 /// are checked when they are read (the slice may be only a prefix of the file).
 #[derive(Clone, Copy, Debug)]
@@ -628,13 +650,10 @@ impl<'a> Elf<'a> {
 
     /// Every program header checked, at most one `PT_DYNAMIC` and one `PT_INTERP`.
     fn check_table(&self) -> Result<(), ElfError> {
-        let elf = self;
-        let h = self.header;
         let mut seen_dynamic = false;
         let mut seen_interp = false;
-        for i in 0..h.phnum {
-            let ph = elf.read_phdr(i).ok_or(ElfError::OutOfRange(Part::ProgramHeaders))?;
-            elf.check_phdr(&ph)?;
+        for ph in self.program_headers() {
+            self.check_phdr(&ph)?;
             let seen = match ph.p_type {
                 pt::DYNAMIC => Some(&mut seen_dynamic),
                 pt::INTERP => Some(&mut seen_interp),
@@ -662,21 +681,17 @@ impl<'a> Elf<'a> {
         u64::from(self.header.phnum).saturating_mul(phdr_len())
     }
 
+    /// The program header table as `e_phnum` whole entries. In both modes `rd` holds it at `e_phoff`
+    /// (image mode: `rd` is the table and `e_phoff` is 0), and making the reader checked that range,
+    /// so a walk takes the slice once and reads fixed offsets of its entries (LD-PHDR-ONCE: a start
+    /// walks the tables hundreds of times). Empty only for a table of no entries.
+    fn table(&self) -> impl Iterator<Item = &'a [u8; PHDR_SIZE]> + 'a {
+        let t = sub(self.rd.b, self.header.phoff, self.table_len()).unwrap_or(&[]);
+        t.chunks_exact(PHDR_SIZE).filter_map(<[u8]>::first_chunk::<PHDR_SIZE>)
+    }
+
     fn read_phdr(&self, i: u16) -> Option<ProgramHeader> {
-        let rel = usize::from(i).checked_mul(PHDR_SIZE)?;
-        let base = usize::try_from(self.header.phoff).ok()?.checked_add(rel)?;
-        let at = |o: usize| base.checked_add(o);
-        Some(ProgramHeader {
-            index: i,
-            p_type: self.rd.u32(base)?,
-            flags: self.rd.u32(at(4)?)?,
-            offset: self.rd.u64(at(8)?)?,
-            vaddr: self.rd.u64(at(16)?)?,
-            paddr: self.rd.u64(at(24)?)?,
-            filesz: self.rd.u64(at(32)?)?,
-            memsz: self.rd.u64(at(40)?)?,
-            align: self.rd.u64(at(48)?)?,
-        })
+        self.table().nth(usize::from(i)).map(|e| ProgramHeader::decode(e, self.rd.be, i))
     }
 
     fn check_phdr(&self, ph: &ProgramHeader) -> Result<(), ElfError> {
@@ -708,8 +723,9 @@ impl<'a> Elf<'a> {
 
     /// The program headers in table order.
     pub fn program_headers(&self) -> impl Iterator<Item = ProgramHeader> + 'a {
-        let elf = *self;
-        (0..self.header.phnum).filter_map(move |i| elf.read_phdr(i))
+        let be = self.rd.be;
+        // `e_phnum` entries, fewer than `PN_XNUM`, so every index fits in a u16.
+        self.table().zip(0u16..).map(move |(e, i)| ProgramHeader::decode(e, be, i))
     }
 
     /// The first program header of type `p_type`.

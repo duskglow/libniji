@@ -1,0 +1,9 @@
+# LD-PHDR-ONCE plants: the program header table checked once, every walk reading fixed offsets of its entries.
+phdr-vaddr-offset | crates/ld/src/elf.rs | lit:vaddr: w8([e[16], e[17], ==> vaddr: w8([e[24], e[17], | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-align-offset | crates/ld/src/elf.rs | lit:align: w8([e[48], e[49], ==> align: w8([e[40], e[49], | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-flags-offset | crates/ld/src/elf.rs | lit:flags: w4([e[4], e[5], e[6], e[7]]), ==> flags: w4([e[0], e[5], e[6], e[7]]), | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-index-base | crates/ld/src/elf.rs | lit:zip(0u16..).map(move |(e, i)| ProgramHeader::decode ==> zip(1u16..).map(move |(e, i)| ProgramHeader::decode | cargo test -p niji-ld --test elf_reader | msg:panicked|FAILED
+phdr-big-endian | crates/ld/src/elf.rs | perl:s/(fn decode\(e: &\[u8; PHDR_SIZE\].*?)u64::from_be_bytes/$1u64::from_le_bytes/s | cargo test -p niji-ld --test elf_reader | msg:arch_seam.*FAILED|panicked
+phdr-check-every-entry | crates/ld/src/elf.rs | lit:for ph in self.program_headers() { ==> for ph in self.program_headers().skip(1) { | cargo test -p niji-ld --test elf_reader | msg:panicked|FAILED
+phdr-table-at | crates/ld/src/elf.rs | lit:sub(self.rd.b, self.header.phoff, self.table_len()).unwrap_or(&[]); ==> sub(self.rd.b, self.header.phoff.wrapping_add(56), self.table_len()).unwrap_or(&[]); | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity --test reloc reloc_image_reader valid_image readelf_l | msg:panicked|FAILED
+phdr-one-entry | crates/ld/src/elf.rs | lit:self.table().nth(usize::from(i)).map( ==> self.table().nth(usize::from(i) / 2).map( | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity --test reloc | msg:panicked|FAILED
