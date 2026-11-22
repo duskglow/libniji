@@ -1465,8 +1465,9 @@ const PLT_AFTER_TEXT: &str = "SECTIONS\n{\n  .plt : { *(.plt) *(.iplt) }\n  .plt
 /// preemptible as a whole (`--dynamic-list-data`): a program's COPY of `stdout`, `optind`, `__fpu_control` or
 /// any other exported object is the one the library uses. Per-family probes of the reference
 /// (conformance/c/x_self_bind.c) found no other function whose internal callers reach a program's definition.
-pub const LIBC_PREEMPTIBLE: [&str; 11] =
-    ["malloc", "free", "calloc", "realloc", "aligned_alloc", "posix_memalign", "memalign", "valloc", "pvalloc", "malloc_usable_size", "reallocarray"];
+/// It is the static archive's list ([`INTERPOSABLE`], D-X.14), so the two links cannot disagree on which
+/// functions a program replaces.
+pub const LIBC_PREEMPTIBLE: &[&str] = INTERPOSABLE;
 
 /// The `--dynamic-list` file of [`LIBC_PREEMPTIBLE`].
 fn libc_dynamic_list() -> String {
