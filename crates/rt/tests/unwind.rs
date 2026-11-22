@@ -909,3 +909,71 @@ fn ip27_program_header_edge_cases() {
     assert_eq!(unwind::bias_of(&w, 2, 0x7f00_0040_0000), Some(0x7f00_0000_0000));
     assert_eq!(unwind::bias_of(&w[..7], 1, 0x7f00_0040_0000), None);
 }
+
+/// The frames of `through_f` from `plain_start` (f at 0x1000 returns to g at 0x2000, g to h at
+/// 0x3000, the outermost frame), where `handler` = `(in, lsda)` gives one function a CIE
+/// naming a personality routine: `in` is 1 (f, the starting frame), 2 (g) or 3 (h); `lsda` is
+/// the FDE's language-specific data pointer (udata4), `None` for a CIE without `L`. Asks
+/// `handler_above` with the object in the list (`listed`) or only through `find`.
+fn handler_in(handler: Option<(usize, Option<u32>)>, listed: bool, max: usize) -> bool {
+    let mut eh = Eh::new(EH);
+    let c = eh.std_cie(false);
+    let fde = |eh: &mut Eh, n: usize, insns: &[u8]| {
+        let begin = n * 0x1000;
+        match handler.filter(|&(at, _)| at == n) {
+            None => {
+                eh.fde4(c, begin, 0x100, insns);
+            }
+            Some((_, lsda)) => {
+                let mut data = vec![0x00];
+                data.extend_from_slice(&0x4000u64.to_le_bytes());
+                let aug = if lsda.is_some() { "zPLR" } else { "zPR" };
+                if lsda.is_some() {
+                    data.push(0x03);
+                }
+                data.push(0x1b);
+                let hc = eh.cie(&cie_body(1, aug, &[], 16, &data, &[0x0c, 7, 8, 0x90, 1]));
+                eh.fde(hc, |field| {
+                    let mut t = ((begin as i64 - field as i64) as i32).to_le_bytes().to_vec();
+                    t.extend_from_slice(&0x100u32.to_le_bytes());
+                    match lsda {
+                        Some(v) => {
+                            t.push(4);
+                            t.extend_from_slice(&v.to_le_bytes());
+                        }
+                        None => t.push(0),
+                    }
+                    t.extend_from_slice(insns);
+                    t
+                });
+            }
+        }
+    };
+    fde(&mut eh, 1, &[]);
+    fde(&mut eh, 2, &[0x0c, RBX as u8, 8]);
+    fde(&mut eh, 3, &[0x07, 16]);
+    let frames = eh.finish();
+    let (start, mem) = plain_start();
+    let o = object(&frames);
+    let listed_objects = if listed { vec![o] } else { Vec::new() };
+    unwind::handler_above(&listed_objects, |pc| (!listed && o.contains(pc)).then_some(o), &words(&mem), start, max)
+}
+
+/// D-22.23 (no spec clause of its own; the thread exit of §22.1 s22_1_c_2 and §22.3 s22_3_c_4
+/// relies on it): a frame above the start whose function has a personality routine and a
+/// language-specific data pointer that is not null (or no `L` at all) needs an unwind; a null
+/// pointer, a plain CIE or a handler only in the starting frame does not; the walk follows
+/// objects `find` gives as well as listed ones, and looks at no more than `max` frames.
+#[test]
+fn d22_23_handler_frames_above_the_start() {
+    for listed in [true, false] {
+        assert!(!handler_in(None, listed, 16), "no handler anywhere ({listed})");
+        assert!(handler_in(Some((2, Some(0x5000))), listed, 16), "g has an LSDA ({listed})");
+        assert!(handler_in(Some((3, Some(0x5000))), listed, 16), "h has an LSDA ({listed})");
+        assert!(handler_in(Some((2, None)), listed, 16), "g has a personality and no L ({listed})");
+        assert!(!handler_in(Some((2, Some(0))), listed, 16), "g's LSDA is null ({listed})");
+        assert!(!handler_in(Some((1, Some(0x5000))), listed, 16), "only the starting frame ({listed})");
+    }
+    assert!(!handler_in(Some((3, Some(0x5000))), true, 1), "h lies beyond max");
+    assert!(handler_in(Some((3, Some(0x5000))), true, 2), "h within max");
+}
