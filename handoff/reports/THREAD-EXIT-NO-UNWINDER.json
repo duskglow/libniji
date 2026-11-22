@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "A thread exit with unwind work and no unwinder (-static-libgcc, no libgcc_s.so.1 loaded) now aborts with a FATAL message naming cause and fix; plain-C threads keep the clean exit",
  "branch": "task/thread-exit-no-unwinder",
- "head": "HANDBACK",
+ "head": "cbffd077c (code head; later commits are handoff prose only)",
  "gate": {
   "affected": "gate2 on ea95f35b8: 11172 passed / 2 failed (s23_4_c_3_3, normal and native; fixed in fe6f805ec); conformance 136/136. Final head: failing suite s23_time_clauses plus s22_threads_clauses, forced_unwind_products, rt unwind rerun in thread-exit-no-unwinder-final",
   "peak": "12G"
