@@ -174,17 +174,21 @@ fn the_heap_keeps_address_space_near_its_use() {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("heap_address_space_niji");
     build("heap_address_space.c", &exe);
-    // A single-node measurement (ruling #7441): both runs below are pinned to the CPUs of one
-    // NUMA node. On the two-node Skylake-SP host a process moved to the other node mid-run needs
-    // up to 4360 KiB more address space (jobs test-scratch-cleanup-4-heaprep2 and -heapmig: pinned
-    // to node 0, node 1 or unpinned 0 of 20 runs failed, with its affinity flipped between the
-    // nodes 15 of 20), and the bounds hold the single-node level with no margin for that. The
-    // node-change case is measured and tested on its own (HEAP-SPILL-COLD-2).
-    let (o, limited) = on_one_node(|| {
+    // A single-node measurement (ruling #7441): both runs below, every step of them, are pinned to
+    // the CPUs of one NUMA node (the lowest with allowed CPUs). On the two-node Skylake-SP host a
+    // process moved to the other node mid-run needs up to 4360 KiB more address space (jobs
+    // test-scratch-cleanup-4-heaprep2 and -heapmig: pinned to node 0, node 1 or unpinned 0 of 20
+    // runs failed, with its affinity flipped between the nodes 15 of 20), and the bounds hold the
+    // single-node level with no margin for that. The node-change case is measured and tested on
+    // its own (HEAP-SPILL-COLD-2). One node: nothing is pinned.
+    let nodes = numa_nodes();
+    let node: &[usize] = match nodes.as_slice() {
+        [first, _, ..] => first,
+        _ => &[],
+    };
+    let o = with_cpus(node, || {
         assert_on_one_node();
-        let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
-        let limited = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
-        (o, limited)
+        Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap()
     });
     assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
     let out = String::from_utf8_lossy(&o.stdout);
@@ -199,79 +203,66 @@ fn the_heap_keeps_address_space_near_its_use() {
         eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
         assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
     }
+    let o = with_cpus(node, || with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
     assert!(
-        limited.status.success(),
+        o.status.success(),
         "under RLIMIT_AS = start + {AS_HEADROOM} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
-        limited.status
+        o.status
     );
 }
 
-/// The CPU numbers of a sysfs cpulist (`0-11,24-35`).
-fn cpulist(s: &str) -> Vec<usize> {
-    let mut cpus = Vec::new();
-    for part in s.trim().split(',').filter(|p| !p.is_empty()) {
-        let (lo, hi) = part.split_once('-').unwrap_or((part, part));
-        let (lo, hi): (usize, usize) = (lo.parse().unwrap_or_else(|_| panic!("cpulist {s:?}")), hi.parse().unwrap_or_else(|_| panic!("cpulist {s:?}")));
-        cpus.extend(lo..=hi);
-    }
-    cpus
-}
-
-/// Checks, from the kernel's view of this thread (`/proc/thread-self/status`), that every CPU it
-/// may run on, and so every CPU its children may run on, is on one NUMA node: a pinning that was
-/// skipped or set the wrong mask would leave a measurement a node change can move.
+/// Checks that every CPU the calling thread may run on, and so every CPU the programs it spawns
+/// may run on, is on one NUMA node: a pinning that was skipped or set the wrong mask would leave
+/// the measurement open to a node change again.
 fn assert_on_one_node() {
-    let status = std::fs::read_to_string("/proc/thread-self/status").expect("/proc/thread-self/status");
-    let list = status.lines().find_map(|l| l.strip_prefix("Cpus_allowed_list:")).expect("Cpus_allowed_list");
-    let mine = cpulist(list);
-    let Ok(dir) = std::fs::read_dir("/sys/devices/system/node") else { return };
-    let nodes: Vec<Vec<usize>> = dir
-        .filter_map(Result::ok)
-        .filter(|e| e.file_name().to_str().is_some_and(|n| n.strip_prefix("node").is_some_and(|v| v.parse::<usize>().is_ok())))
-        .filter_map(|e| std::fs::read_to_string(e.path().join("cpulist")).ok())
-        .map(|s| cpulist(&s))
-        .filter(|cpus| cpus.iter().any(|c| mine.contains(c)))
-        .collect();
-    assert!(nodes.len() <= 1, "the measurement may run on CPUs {} of {} nodes, not one (pinning skipped or wrong mask)", list.trim(), nodes.len());
+    let nodes = numa_nodes();
+    assert!(nodes.len() <= 1, "the measurement may run on CPUs {nodes:?} of {} nodes, not one (pinning skipped or wrong mask)", nodes.len());
 }
 
-/// Runs `run` with the calling (test) thread's CPU affinity narrowed to the allowed CPUs of one
-/// NUMA node, the node with the most of them (the lowest such node on a tie), so that the
-/// programs it spawns inherit a mask the scheduler cannot move off that node; restores the mask
-/// afterwards. With one node (or allowed CPUs on only one) the mask is left as it is.
-fn on_one_node<T>(run: impl FnOnce() -> T) -> T {
-    let mut buf = [0u8; 1024];
-    let len = CSys.sched_getaffinity(0, &mut buf).expect("sched_getaffinity");
-    let cur = buf.get(..len).expect("sched_getaffinity size").to_vec();
-    let allowed = |c: usize| cur.get(c / 8).is_some_and(|b| b & (1 << (c % 8)) != 0);
-    let mut nodes: Vec<(usize, Vec<usize>)> = std::fs::read_dir("/sys/devices/system/node")
-        .map(|d| {
-            d.filter_map(Result::ok)
-                .filter_map(|e| {
-                    let n: usize = e.file_name().to_str()?.strip_prefix("node")?.parse().ok()?;
-                    let cpus = std::fs::read_to_string(e.path().join("cpulist")).ok()?;
-                    Some((n, cpulist(&cpus).into_iter().filter(|&c| allowed(c)).collect::<Vec<_>>()))
-                })
-                .filter(|(_, cpus)| !cpus.is_empty())
-                .collect()
-        })
-        .unwrap_or_default();
-    if nodes.len() < 2 {
+/// The CPUs this process may run on, per NUMA node (lowest node first; a node with none of them
+/// is left out), from `/sys/devices/system/node/node<N>/cpulist` and the affinity mask. Empty
+/// without that directory (no NUMA support in the kernel): then nothing is pinned.
+fn numa_nodes() -> Vec<Vec<usize>> {
+    let mut mask = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut mask).expect("sched_getaffinity");
+    let allowed = |c: usize| c / 8 < len && mask.get(c / 8).is_some_and(|b| b & (1 << (c % 8)) != 0);
+    let Ok(dir) = std::fs::read_dir("/sys/devices/system/node") else { return Vec::new() };
+    let mut ids: Vec<usize> = dir.filter_map(|e| e.ok()?.file_name().to_str()?.strip_prefix("node")?.parse().ok()).collect();
+    ids.sort_unstable();
+    let mut nodes = Vec::new();
+    for id in ids {
+        let list = std::fs::read_to_string(format!("/sys/devices/system/node/node{id}/cpulist")).unwrap_or_default();
+        let mut cpus = Vec::new();
+        for part in list.trim().split(',').filter(|p| !p.is_empty()) {
+            let (a, b) = part.split_once('-').unwrap_or((part, part));
+            let (a, b): (usize, usize) = (a.parse().expect("cpulist"), b.parse().expect("cpulist"));
+            cpus.extend((a..=b).filter(|&c| allowed(c)));
+        }
+        if !cpus.is_empty() {
+            nodes.push(cpus);
+        }
+    }
+    nodes
+}
+
+/// Runs `run` with the calling (test) thread's CPU affinity set to `cpus`, which the program it
+/// spawns inherits, and restores the mask afterwards. Empty `cpus`: runs it as it is.
+fn with_cpus(cpus: &[usize], run: impl FnOnce() -> Output) -> Output {
+    if cpus.is_empty() {
         return run();
     }
-    nodes.sort_by_key(|(n, cpus)| (std::cmp::Reverse(cpus.len()), *n));
-    let (node, cpus) = nodes.first().expect("two nodes");
-    let mut mask = vec![0u8; cur.len()];
+    let mut cur = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut cur).expect("sched_getaffinity");
+    let mut want = [0u8; 1024];
     for &c in cpus {
-        if let Some(b) = mask.get_mut(c / 8) {
+        if let Some(b) = want.get_mut(c / 8) {
             *b |= 1 << (c % 8);
         }
     }
-    CSys.sched_setaffinity(0, &mask).expect("sched_setaffinity to one node");
-    eprintln!("pinned to node {node} ({} CPUs) of {} nodes", cpus.len(), nodes.len());
-    let out = run();
-    CSys.sched_setaffinity(0, &cur).expect("sched_setaffinity restore");
-    out
+    CSys.sched_setaffinity(0, want.get(..len).expect("mask length")).expect("sched_setaffinity");
+    let o = run();
+    CSys.sched_setaffinity(0, cur.get(..len).expect("mask length")).expect("sched_setaffinity restore");
+    o
 }
 
 /// Runs `run` with `ADDR_NO_RANDOMIZE` in the calling (test) thread's persona, which the program
