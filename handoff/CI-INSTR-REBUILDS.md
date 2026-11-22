@@ -1,62 +1,39 @@
-# CI-INSTR-REBUILDS: why ci-instr rebuilds the release libraries (handoff, leg 1)
+# CI-INSTR-REBUILDS: why ci-instr rebuilds the release libraries (handoff, final)
 
-Branch `task/ci-instr-rebuilds`, base origin/next 5a9b5d0a1. Commits: 4cd8a106b (fix), 5fb6babe5 (plants file),
-then the D-27.78 record (two commits). Role: mei:~/w/s1 (Skylake-SP). ci-instr itself runs on keke (Zen 1 host,
-role ci-instr).
+State: branch `task/ci-instr-rebuilds`, base origin/next 5a9b5d0a1, code-final f579c3e7d (later commits handoff/
+only). Role mei:~/w/s1 (Skylake-SP). ci-instr runs on keke (Zen 1 host, role ci-instr). Full report:
+handoff/CI-INSTR-REBUILDS-report.md. Plants with results: handoff/CI-INSTR-REBUILDS-plants.txt.
 
-## Cause (found)
+## Decisions in force
 
-* `NIJI_BUILD_TAG` (xtask/src/so.rs `source_hash_tag`, D-27.22) was a hash over EVERY file under `crates/`, `csys/`,
-  `include/` plus `Cargo.lock`. `niji-boundary` and `niji-ld` read it with `option_env!`, and every release library
-  builds on them, so any train touching a test file, bench or non-product crate (mathtools, native, spectest...)
-  rebuilt ld, libc, ldconfig, libm and libresolv.
-* Most rebuilds are still REQUIRED: the gate logs (mei ~/logs/ci-gate-<sha>-<t>.log, "changed files:" vs base)
-  show a product source in most trains (e.g. 90390071c changes crates/abi/src/layout.rs). Per train (vs its base):
-  of 52 rebuilt runs since 11-19, 6 had no product file at all (0add1dd07, 8e34f9c72, 08084029d, 33d98c85d,
-  5a9b5d0a1, 0299fd6e1). Consecutive-tip diffs were NOT taken (git history of others' commits is off-limits), so the
-  exact count of tag-only transitions is an estimate. Scratch tables: ~/w/.scratch/CI-INSTR-REBUILDS/{runs,changed}.txt,
-  classify.py (local).
-* Not the cause: sync (rsync -c, no mtimes; checked no source file is newer than .synced after a build); role reset
-  (sync_role removes target/niji only, never target/product); toolchain (pinned 1.99.1 in both roles).
+* D-27.78 (amends D-27.22). The build tag hashes product inputs only: Cargo.lock, csys/, include/,
+  crates/Cargo.{toml,lock}, `TAG_DATA_FILES` (spec/encoding/iconv-aliases.tsv), and the crates the five product
+  manifests reach by [dependencies]/[build-dependencies] (never dev-deps), without tests/ benches/ examples/.
+  `check_tag_covers` fails any product build whose dep-info names a workspace file the tag leaves out.
 
-## Fix (done, unit-tested)
+## Done (do not redo)
 
-Tag = Cargo.lock, csys/, include/, crates/Cargo.toml, crates/Cargo.lock, and the crates the 5 product manifests reach
-by [dependencies]/[build-dependencies] (target tables too, never dev-deps), without tests/ benches/ examples/.
-`check_tag_covers` after each product cargo build: every dep-info input (and absolute build-script watched path)
-inside the workspace must be covered, else the build fails. `cargo test -p xtask so::tests` 30 passed; clippy -p xtask clean.
+* Cause found. A tag over every crates/ file made every train rebuild ld, libc and ldconfig. Most rebuilds are
+  still required by product changes; about 6 of 52 were not.
+* The fix, unit tests, plants (9 CAUGHT, 2 WARN-NO-MSG caught by the build-time check), lint3, direct gate (633 passed).
+* Replay on a copy of ci-instr (keke): a test-only edit rebuilds on the old xtask (r2) and costs 0 s on the new one (r4, r5).
+* Release archives and traced key lists are byte-identical between the hosts for 90390071c.
+* Before numbers: median 28.3 min reused, 34.4 min rebuilt.
 
-## Jobs running at the end of leg 1
+## Open questions / rulings
 
-* mei `ci-instr-rebuilds-plants` (9 plants, handoff/CI-INSTR-REBUILDS-plants.txt, dir /mnt/zram/claude/ci-instr-rebuilds/plants-1), on head 5fb6babe5 (code = final).
-* keke `ci-instr-rebuilds-exp`: waits for the live ci-instr-90390071c job, copies ~/w/ci-instr to
-  /dev/shm/claude/ci-instr-rebuilds/c1, runs ~/work/ci-instr-rebuilds/exp.sh (bind mount at ~/w/ci-instr in
-  `unshare -r -m`, NIJI_FULL_PROFILE=1, CARGO_LOG=cargo::core::compiler::fingerprint=info): r0-control (copy as is,
-  expect all cargo steps 0 s), r1-next (sync 5a9b5d0a1 content: expect abi rebuilt, file changed), r2-testonly-old
-  (append comment to crates/core/tests/hot_text_products.rs, OLD xtask: expect rebuild, boundary dirty for env
-  NIJI_BUILD_TAG), r3-newtag-first (sync branch content: one-time rebuild), r4-testonly-new (same edit: expect 0 s),
-  r5-same-tip (expect 0 s). Logs c1.logs/<name>.log; summary in ~/logs/ci-instr-rebuilds-exp.log.
-* A lint job (ci-instr-rebuilds-lint) was started on a stale sync and killed (SUPERSEDED, not a result).
+* RULING NEEDED: whether to run the train's release build first on the Skylake-SP host and import it into
+  ci-instr, through an xtask import mode that checks tag, head, toolchain and profile (a cache trust boundary).
+  Recommended as a follow-up story. It is not possible today: those products appear about 25 min after ci-instr
+  needs them.
+* Candidate story: share or avoid the traced-layout step (`so/libc-archive`, 588-804 s every run).
 
-## Exact next steps (leg 2)
+* NOT VERIFIED: cargo's own fingerprint reasons for real rebuilt runs. The brief's CARGO_LOG filter is silent on
+  cargo 1.99.1, and the replay that used cargo=info (exp2) was ruled out by the coordinator. Take the coordinator's
+  offer: CARGO_LOG=cargo=info in the live ci-instr command for a few trains. Never use a CI role path again, not
+  even inside a namespace.
 
-1. mei: `~/bin/jobwait ci-instr-rebuilds-plants`; results.txt in the plants dir: all CAUGHT (list WARN lines).
-2. Sync (rc must be 0; rc 4 = busy), then on mei one job: `cargo xtask records check && cargo clippy --workspace
-   --all-targets --all-features -- -D warnings && cargo xtask static`; then `cargo xtask affected --list` (FULL? then
-   precheck + `cargo test -p xtask` as kind test) and the direct gate `ci-instr-rebuilds-gate`.
-3. keke: `~/bin/jobwait ci-instr-rebuilds-exp`; quote the fingerprint lines (`grep -iE "dirty|stale" c1.logs/r*.log`)
-   and the step lines per run in the report.
-4. Step 3 of the brief (reuse other products): libm.a 05e5943362eb and libresolv.a 20629075c406 were byte-identical
-   on mei ci-z and keke ci-instr; keke 90390071c raw archives: libc.a 35094cf142ab, libld_so.a b39e7376f3c7,
-   libldconfig_bin.a ce2b7cc1ba45 (md5 prefixes, scratch md5-1.txt). Compare with mei:~/w/ci-z/target/product once its
-   gate for 90390071c (or any tip both built) has run its release step. Then the train's release build runs only
-   at the END of the full gate (db.py ci_gate_cmd) on the Skylake-SP host, while ci-instr runs beside the gate:
-   waiting for it would make ci-instr end later, not sooner; the traced layout is per host anyway (ci-instr
-   would still trace). Check gate wall times in mei ~/logs/jobs.tsv (ci-gate rows) against ci-instr's to confirm.
-5. Report: handoff/reports/CI-INSTR-REBUILDS.json, precheck --jobs <labels> --head <sha>, handback-check.
+## Next step
 
-## Informational
-
-* The traced layout (`so/libc-archive` step) costs ~588 s in EVERY ci-instr run, cargo reused or not: larger than
-  the rebuild; a candidate story (trace-at-build on the Zen 1 host).
-* `build_tag(root)` is computed about 8 times per `cargo xtask so` (each a full walk + read); minor.
+None on this branch. After landing: measure the median ci-instr wall time on trains with no product change
+(expected ~28 min instead of ~34 min).
