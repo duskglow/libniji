@@ -1,45 +1,52 @@
-# SL-HEADERS-S07-TAIL: slice 7's last five headers (handoff, run 1 leg 1)
+# SL-HEADERS-S07-TAIL: slice 7's last five headers (handoff, run 1 leg 2)
 
-**State.** Branch `task/sl-headers-s07-tail` from origin/next f15d8264f (no merge needed: slices 8, 14, 12, 15 and
-HEADERS-GEN-COMPLETE / REGISTRY are all on that base). Commits: 239cee028 (five headers, guard removal, sys/ioctl.h
-includes, s07.py, P10 W*), 62be0c87b (netdb.h). Role mei:~/w/s4. Data only: no file under `xtask/src/headers*`
-outside `slices/` and not `spec/tools/header_check.py` changed (slice contract).
+**State.** Branch `task/sl-headers-s07-tail` from origin/next f15d8264f, final code head **be67b5b63** (this note is
+committed on top). Role mei:~/w/s4 (synced at be67b5b63). Data only: no generator code changed.
+Commits: 239cee028 (five headers, guards removed, sys/ioctl.h includes, s07.py, P10 W*), 62be0c87b (netdb.h signal
+names), 780086986 (differences rows name the new headers, P2 accept file, p67.sh), 59764b091 + f89e764bf (s15.py:
+f_owner_ex checked; OPEN_TREE_CLOEXEC stays deferred, see Findings), be67b5b63 (diagattrs.tsv: 29 spawn.h rows by
+`attr_probe.py table`; spawn.h regenerated; plant s7t-spawn-nonnull).
 
-**Done.**
-* Templates `headers/{sys/wait,wait,sys/param,spawn,sys/ioctl}.h.in`, rows in `headers/slices/s07.tsv` (p1 1, uapi -),
-  `libc-include/` regenerated on the role and copied back (never hand-edited).
-  * `sys/wait.h`: `@@needs-if SIGABRT signal.h` = `#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450 / #include <signal.h>`:
-    exactly the configurations where visibility.tsv shows all of signal.h in sys/wait.h (scratch analysis); outside them
-    sys/wait.h shares only reserved `__x`/guard names with signal.h. W* macros: stdlib.h's text plus WIFSIGNALED,
-    WIFSTOPPED (no visibility row: the spec never names them, so the probe has no candidate), WCOREDUMP.
-  * `wait.h` = include of sys/wait.h. `sys/param.h` = plain includes of sys/types.h, limits.h, endian.h, signal.h (all
-    of each in every configuration) + its own constants. `spawn.h` = sched.h, sys/types.h + emit. `sys/ioctl.h` =
-    `<asm/ioctls.h>` (as termio.h) + emit, owns TCSETS2.
-* Ruling #6406: arpa/nameser.h includes sys/param.h plainly. netdb.h includes NOTHING for signal.h: a plain include
-  showed 1155 extra names (P2), and no configuration of netdb.h shows the whole of signal.h, so the generator declares
-  its signal names itself (P2 netdb.h 0 of 814). The guard check: `spec/tools/header_checks/s07.py` `problems()` fails on
-  any `__has_include(<H>)` in libc-include/ where `headers/H.in` exists. `@@needs` (s12.rs) now has no user.
-* Slice 15's next step done: sys/raw.h, sys/mtio.h, sys/mount.h `#include <sys/ioctl.h>`, `@@owns TCSETS2 TTYDEF_*` dropped.
-  NOT done: emptying `DEFERRED` in `spec/tools/header_checks/s15.py` (try it; keep if P1 fails).
+**Jobs on be67b5b63, started 13:5xZ on mei, NOT YET READ** (next leg: `~/bin/jobwait` them first):
+* `sl-headers-s07-tail-proof3` (proof.sh: P1/P5, P10, P2 with accept file, P3; outputs ~/work/sl-headers-s07-tail/out3)
+* `sl-headers-s07-tail-test2` (`cargo test -p xtask`: the rows test and slice 19's attribute test; test1 on f89e764bf
+  failed only diagnostic_attributes_match_the_reference on 29 spawn.h functions, fixed by be67b5b63)
+* `sl-headers-s07-tail-plants2` (8 plants, dir /mnt/zram/claude/sl-headers-s07-tail/plants-2)
+Tier: `cargo xtask affected --list` = FULL (escalated: generated headers): "FULL: the train's". Gate = precheck +
+test2. SUPERSEDED: proof2 (f89e764bf's parent tree: P1 17 failed from the first s15 change), lint1 (clippy rc 0,
+static rc 0, on 59764b091; rerun not needed for data-only changes but precheck re-checks), hc3 (P1 0 of 14067 on
+f89e764bf), test1 (red, fixed), plants1 (stopped: older head, missing the new plant), attr1 (the probe run), p67
+(P6/P7 on f89e764bf; spawn.h attributes changed since, results below still hold for P6/P7's purpose).
 
-**Proof so far (job sl-headers-s07-tail-proof1 on 239cee028, outputs mei:~/work/sl-headers-s07-tail/out1/*.out;
-script handoff/SL-HEADERS-S07-TAIL/proof.sh).** P1/P5 header_check 0 failed of 14067 (also on 62be0c87b, job gen3).
-P10 header_p10 0 failed (W* over every 16-bit status vs the reference, FD_*, major/minor). P2 (11 headers): 1197
-differences, of which 1155 netdb.h (fixed in 62be0c87b), 27 sys/mount.h MS_* (COMPAT-34, accepted by S15), 6 reserved
-`__pid_t` in sys/wait.h/wait.h (D-X.118 class), and 1 "differs" each in sys/param.h, resolv.h, arpa/nameser.h: NOT
-YET READ (`grep -v "^extra netdb" out1/p2.out`). P3: `waitid` call errors in sys/wait.h (see Open).
+**Results so far.** P1/P5 0 failed of 14067 (hc3). P10 0 failed. P2 0 unaccepted of 36 (accept file:
+`handoff/SL-HEADERS-S07-TAIL/p2-accept.txt` + S15's; siginfo_t via <signal.h> = D-X.129, reserved __pid_t etc =
+D-X.118, both rows now name these headers; MS_* = COMPAT-34). P3: 2 unaccepted = waitid (RULING 1). P6
+(`conformance/run.sh --niji-headers`): 129 passed, 9 failed, 8 not covered; 5 fail to build on other slices' names
+(PA_INT printf.h; RTLD_DI_*/RTLD_DL_LINKMAP dlfcn.h; ELFMAG elf.h), 1 pending by ruling (x_self_bind_stdio), and
+s02_assert, s02_chk_fail, s02_report, s08_strto_fenv_flags fail at run time: newly covered (they include
+<sys/wait.h>), cause NOT diagnosed; s02_report's child differs in exit status AND output text (error()/err() path),
+W* decoding is proved by P10 for every status. P7 (`smoke.sh --niji-headers`): zlib 1/1, xz-utils 19/19, sqlite3
+1/1, same as the reference build. undef-compare 28 of 175 objects differ: `_chk` pairs (slice 18), atoi/strtol,
+bcmp/memcmp, and sqlite3/fuzzcheck reference no math functions in the libniji build although configure is identical
+(-lm found, SQLITE_ENABLE_MATH_FUNCTIONS both sides): not these headers (math.h, niji-cc link), INFORMATIONAL.
 
-**Open.**
-1. `idtype_t` has no typedefs.tsv/enumerators.tsv row, so it is emitted as an opaque 4-byte struct and `waitid (P_PID,
-   ...)` does not compile (P3). Read handoff/HEADERS-TABLES-COMPLETE.md for how an enumeration typedef is a table row;
-   settle the reference's form by black-box probe (enum type? tag?) and add the rows; regenerate; rerun P3. If the
-   tables cannot express it: RULING NEEDED naming HEADERS-TABLES-COMPLETE.
-2. RULING NEEDED: sys/param.h's function-like macros (MIN MAX howmany roundup powerof2 setbit clrbit isset isclr) are in
-   no table and the spec names none; recommend a spec + table story. INFORMATIONAL: stdlib.h lacks WIFSIGNALED/WIFSTOPPED.
-3. Rulings #6377/#6378: check the getumask / bsd_signal rows (differences, COMPAT-32/33) still match (neither declared).
-4. Not run yet: P6 (`conformance/run.sh --niji-headers`), P7 (`smoke.sh --niji-headers xz_utils sqlite3`, undef-compare),
-   plants (`handoff/SL-HEADERS-S07-TAIL/plants.txt`, 7), clippy/static, gate, precheck.
+**Rulings / findings.**
+1. RULING NEEDED (HEADERS-TABLES-COMPLETE): typedefs of an unnamed enumeration cannot be tabled: `idtype_t`
+   (sys/wait.h), `ACTION`, `VISIT` (search.h) are emitted as opaque 4-byte structs, so `waitid (P_PID, ...)` and
+   `hsearch (e, FIND)` do not compile. Probe (reference, g++ -std=c++17): all three are enums, `decltype (P_PID)` is
+   idtype_t (FIND: ACTION, leaf: VISIT), no tag of that name (`enum idtype_t x;` = incomplete). Recommend an
+   enumerators.tsv tag form `typedef NAME` emitted as `typedef enum { ... } NAME;`, checked by the rows test.
+2. RULING NEEDED: sys/param.h's MIN MAX howmany roundup powerof2 setbit clrbit isset isclr are in no table and no
+   spec clause; recommend a spec + table story.
+3. Rulings #6377/#6378 hold: reserved.tsv omits getumask and bsd_signal, no libniji header declares them (these five
+   included), matching differences rows (COMPAT-32/33). INFORMATIONAL: providers.tsv's getumask row (#6715, "declared
+   as the reference does") is inert because reserved.tsv omits the name; one of the two is stale.
+4. INFORMATIONAL: sys/mount.h's OPEN_TREE_CLOEXEC does not compile in 17 strict configurations (linux/mount.h defines
+   it as O_CLOEXEC, not visible there); kept in s15.py DEFERRED with the reason. stdlib.h lacks WIFSIGNALED/WIFSTOPPED.
 
-**Next step.** Read the three P2 "differs" lines; fix Open 1; rerun proof.sh (new out dir); then clippy, static, plants
-and gate as jobs (`cargo xtask affected` first: FULL escalation = precheck + changed tests), precheck, report json
-`handoff/reports/SL-HEADERS-S07-TAIL.json`, `ops handback-check`.
+**Next step.** jobwait proof3 test2 plants2; read P1 (0 failed expected), P3 (only waitid), test2 (green expected),
+plants (8 CAUGHT expected; list WARN lines). Decide P6's four run-time failures: one look each at
+conformance/build/<name>.lh.log.stderr on the role; if not this story's headers, INFORMATIONAL with evidence.
+Then on the role `cargo xtask precheck --jobs sl-headers-s07-tail-proof3,sl-headers-s07-tail-test2,sl-headers-s07-tail-plants2
+--head <final sha>`, write handoff/reports/SL-HEADERS-S07-TAIL.json (+ "jobs"), push, `ops handback-check`. Verdict:
+INCOMPLETE if P3/P6 gaps must block, else COMPLETE with the two RULINGs (waitid is unusable until ruling 1).
