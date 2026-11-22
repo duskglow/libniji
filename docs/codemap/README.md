@@ -41,7 +41,7 @@ exactly which tests a change reaches.
 
 Differential tests (`crates/*/tests/*_products.rs`): crates/boundary/tests/failinject_products.rs, crates/core/tests/admin_products.rs, crates/core/tests/aio_products.rs, crates/core/tests/argp_products.rs, crates/core/tests/backtrace_products.rs, crates/core/tests/catalogs_products.rs, crates/core/tests/cold_bss_products.rs, crates/core/tests/crt_products.rs, crates/core/tests/cxx_throw_products.rs, crates/core/tests/deb_symbols_products.rs, crates/core/tests/diag_products.rs, crates/core/tests/digits_dots_products.rs, crates/core/tests/dns_products.rs, crates/core/tests/env_contract_products.rs, crates/core/tests/forced_unwind_products.rs, crates/core/tests/fstree_products.rs, crates/core/tests/gai_down_products.rs, crates/core/tests/gai_queue_products.rs, crates/core/tests/getopt_products.rs, crates/core/tests/gmon_products.rs, crates/core/tests/heap_meta_products.rs, crates/core/tests/hostconf_diag_products.rs, crates/core/tests/hostconf_env_products.rs, crates/core/tests/hot_text_products.rs, crates/core/tests/iconv_charmaps_products.rs, crates/core/tests/iconv_codespace_products.rs, crates/core/tests/iconv_listing_products.rs, crates/core/tests/iconv_products.rs, crates/core/tests/iconv_reloc_products.rs, crates/core/tests/langpack_products.rs, crates/core/tests/libmvec_products.rs, crates/core/tests/locale_products.rs, crates/core/tests/mallocdbg_products.rs, crates/core/tests/mntent_products.rs, crates/core/tests/monetary_products.rs, crates/core/tests/netaddr_products.rs, crates/core/tests/netdb_products.rs, crates/core/tests/noproc_products.rs, crates/core/tests/ns_parse_products.rs, crates/core/tests/nscache_products.rs, crates/core/tests/patterns_products.rs, crates/core/tests/posixipc_products.rs, crates/core/tests/printf_corpus_products.rs, crates/core/tests/printf_products.rs, crates/core/tests/process_products.rs, crates/core/tests/regex_corpus_products.rs, crates/core/tests/registry_products.rs, crates/core/tests/scanf_products.rs, crates/core/tests/sonames_products.rs, crates/core/tests/stdio_products.rs, crates/core/tests/syslog_products.rs, crates/core/tests/terminals_products.rs, crates/core/tests/timefmt_products.rs, crates/core/tests/timers_products.rs, crates/core/tests/tool_symtab_products.rs, crates/core/tests/users_products.rs, crates/core/tests/versions_products.rs, crates/core/tests/wstream_products.rs, crates/core/tests/zones_products.rs, crates/math/tests/complex_f128_products.rs, crates/math/tests/complex_ld_cr_products.rs, crates/math/tests/complex_ld_products.rs, crates/math/tests/complex_products.rs, crates/math/tests/elem_f128_products.rs, crates/math/tests/elem_ld_products.rs, crates/math/tests/elem_products.rs, crates/math/tests/exact_products.rs, crates/math/tests/special_f128_products.rs, crates/math/tests/special_ld_products.rs, crates/math/tests/special_products.rs, crates/math/tests/x87_nan_products.rs
 
-Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc-so, libm-so, libresolv-so, math, mathtools, mem, native, rt, spectest, thread-db
+Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc-so, libm-so, libresolv-so, locale, localedef-bin, math, mathtools, mem, native, rt, spectest, thread-db
 
 ## System files the library reads or writes
 
@@ -108,11 +108,13 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/usr/bin/ls` | crates/rt/src/start.rs:589 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
-| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534 |
+| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:15 |
 | `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
 | `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
+| `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:11 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:128 |
+| `/usr/share/i18n/locales` | crates/locale/src/prog.rs:13 |
 | `/usr/share/locale` | crates/legacy/src/intl.rs:62 |
 | `/usr/share/locale-langpack` | crates/legacy/src/intl.rs:66 |
 | `/usr/share/locale/locale.alias` | crates/core/src/locale/mod.rs:538 |

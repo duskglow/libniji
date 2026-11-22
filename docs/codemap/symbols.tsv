@@ -54,7 +54,7 @@ _IO_sprintf		csys/src/adapter/variadic.c:162	niji_vsnprintf6
 _IO_sputbackc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:834	
 _IO_sputbackwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:597	ret::wint_written
 _IO_sscanf		csys/src/adapter/variadic.c:197	niji_vsscanf4
-_IO_stdin_used		csys/src/machine/entry.S:224	niji_start_main_static_pie
+_IO_stdin_used		csys/src/machine/entry.S:246	niji_start_main_static_pie
 _IO_sungetc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:602	ret::byte_written
 _IO_sungetwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:657	ret::wint_written
 _IO_ungetc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:829	
@@ -98,7 +98,7 @@ __cxa_finalize	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:135	process:
 __cxa_thread_atexit_impl	GLIBC_2.18	crates/boundary/src/posix/s01_startup.rs:140	ret::registered
 __cyg_profile_func_enter	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:372	
 __cyg_profile_func_exit	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:376	
-__data_start		csys/src/machine/entry.S:216	niji_start_main_static_pie
+__data_start		csys/src/machine/entry.S:238	niji_start_main_static_pie
 __dcgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:118	ret::ptr
 __default_morecore	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:208	ret::null
 __dgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:106	ret::ptr
@@ -595,7 +595,7 @@ _pthread_cleanup_push_defer	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs
 _rpc_dtablesize	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:382	
 _seterr_reply	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:234	u64::from
 _setjmp		csys/src/machine/setjmp.S:108	niji_machine_sigsetjmp
-_start		csys/src/machine/entry.S:234	niji_start_main_static_pie
+_start		csys/src/machine/entry.S:256	niji_start_main_static_pie
 _sys_errlist	GLIBC_2.12	csys/src/machine/compat_aliases.S:3496	
 _sys_errlist	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3493	
 _sys_errlist	GLIBC_2.3	csys/src/machine/compat_aliases.S:3494	
@@ -2630,6 +2630,7 @@ niji_llroundl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3800	m
 niji_locale_decimal_point	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:21	abi::value
 niji_locale_invalidate	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:31	abi::done
 niji_locale_name	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:13	abi::value
+niji_localedef_start		crates/boundary/src/localedef.rs:53	crate::bootstrap::relocate_image
 niji_log10f128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3820	mret::elem
 niji_log10f64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3840	mret::elem
 niji_log10l_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3845	mret::elem
