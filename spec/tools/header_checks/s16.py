@@ -36,6 +36,10 @@ def units(ctx):
         if h not in SLICE16 or r["kind"] not in ("typedef", "struct"):
             continue
         n = r["name"]
+        if n.startswith("__pthread"):
+            # The pthread-internal structures reach link.h and sys/gmon.h through <sys/types.h>; the slice that owns that
+            # header checks them (layouts.tsv now lists their members), not slice 16.
+            continue
         if h in PENDING_INCLUDE and n not in PENDING_INCLUDE[h]:
             continue
         key = n if r["kind"] == "typedef" else "struct " + n
