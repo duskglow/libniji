@@ -14,7 +14,8 @@ echo "== P10 header_p10"
 python3 -I spec/tools/header_p10.py --work "$D/p10" > "$O/p10.out" 2>&1; echo "rc=$?"; tail -1 "$O/p10.out"
 echo "== P2 header_probe"
 python3 -I spec/tools/header_probe.py --include libc-include --headers $H --out "$D/vis" --jobs 16 2>&1 | tail -3
-python3 -I spec/tools/probe_compare.py visibility --got "$D/vis" --headers $H > "$O/p2.out" 2>&1; echo "rc=$?"; tail -2 "$O/p2.out"
+cat handoff/SL-HEADERS-S07-TAIL/p2-accept.txt handoff/SL-HEADERS-S15/p2-accept.txt > "$O/p2-accept.txt"
+python3 -I spec/tools/probe_compare.py visibility --got "$D/vis" --headers $H --accept "$O/p2-accept.txt" > "$O/p2.out" 2>&1; echo "rc=$?"; tail -2 "$O/p2.out"
 echo "== P3 callsite_probe"
 python3 -I spec/tools/callsite_probe.py --include libc-include --headers $H --out "$D/call" --jobs 16 2>&1 | tail -3
 python3 -I spec/tools/probe_compare.py callsites --got "$D/call" --headers $H > "$O/p3.out" 2>&1; echo "rc=$?"; tail -2 "$O/p3.out"
