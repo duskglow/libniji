@@ -3,3 +3,8 @@ later-maps-16 | crates/rt/src/heap.rs | lit:pages.map_room(0, META + SEG_STEP * 
 later-counts-16 | crates/rt/src/heap.rs | lit:(self.map_later_segment(pages, shard)?, SEG_STEP) ==> (self.map_later_segment(pages, shard)?, SEG_FIRST) | cargo test -p niji-rt --test heap_and_sync a_segment_after_the_first | msg:a_segment_after_the_first_maps_one_growth_step_first.*(FAILED|panicked)|node 1's segment maps its metadata and 8 slabs
 first-counts-8 | crates/rt/src/heap.rs | lit:            (spare, SEG_FIRST) ==>             (spare, SEG_STEP) | cargo test -p niji-rt --test heap_and_sync a_segment_after_the_first | msg:the first segment: metadata and 16 slabs
 mapped-bytes-old | crates/rt/src/heap.rs | lit:self.seg_mapped.fetch_add(META + first * SLAB, Relaxed); ==> self.seg_mapped.fetch_add(SEG_MIN, Relaxed); | cargo test -p niji-rt --test heap_and_sync a_segment_after_the_first | msg:node 1's segment maps its metadata and 8 slabs
+# cargo xtask plants results on d9502cf5d (job heap-second-node-map-plants, mei; 4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG):
+# later-maps-16: CAUGHT, caught by heap_meta_products the_heap_bounds_address_space_after_a_node_change
+# later-counts-16: CAUGHT, caught by heap_and_sync a_segment_after_the_first_maps_one_growth_step_first
+# first-counts-8: CAUGHT, caught by heap_and_sync a_segment_after_the_first_maps_one_growth_step_first
+# mapped-bytes-old: CAUGHT, caught by heap_and_sync a_segment_after_the_first_maps_one_growth_step_first
