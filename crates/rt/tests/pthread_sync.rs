@@ -518,7 +518,7 @@ impl Ctx for Refused {
 
 #[test]
 fn a_wait_the_kernel_refuses_ends_the_call_with_its_error() {
-    // No spec clause (TIMED-WAIT-PAST-DEADLINE): a wait that ends neither by a wake-up (EAGAIN,
+    // no spec clause (TIMED-WAIT-PAST-DEADLINE): a wait that ends neither by a wake-up (EAGAIN,
     // EINTR) nor by ETIMEDOUT can never succeed when retried, so every blocking and timed lock,
     // condition-variable and semaphore wait returns the kernel's error instead of looping.
     let past = Timespec { sec: 1, nsec: 0 };
