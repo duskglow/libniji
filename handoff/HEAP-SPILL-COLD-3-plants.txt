@@ -1,0 +1,12 @@
+# HEAP-SPILL-COLD-3 plants (those of HEAP-SPILL-COLD-2 on the merged head): the held-slab check before a new segment under an address-space limit; no-check-products must be caught in a slot inside one node
+no-check | crates/rt/src/heap.rs | lit:            if self.held_elsewhere(pages, shard) { ==>             if false && self.held_elsewhere(pages, shard) { | cargo test -p niji-rt --test heap_and_sync under_an_address_space_limit | msg:under_an_address_space_limit.*(FAILED|panicked)|empty slabs (false|true): under a limit
+no-check-products | crates/rt/src/heap.rs | lit:            if self.held_elsewhere(pages, shard) { ==>             if false && self.held_elsewhere(pages, shard) { | cargo xtask so && cargo test -p niji --test heap_meta_products the_heap_bounds_address_space_after_a_node_change | msg:moved to another node at [14]: under RLIMIT_AS
+no-empty-term | crates/rt/src/heap.rs | lit:            sh.empty.load(Relaxed) != 0 || (sh.seg ==>             (sh.seg | cargo test -p niji-rt --test heap_and_sync under_an_address_space_limit | msg:empty slabs true: under a limit
+no-unused-term | crates/rt/src/heap.rs | lit:sh.empty.load(Relaxed) != 0 || (sh.seg.load(Relaxed) != 0 && sh.next_slab.load(Relaxed) < sh.mapped.load(Relaxed)) ==> sh.empty.load(Relaxed) != 0 | cargo test -p niji-rt --test heap_and_sync under_an_address_space_limit | msg:empty slabs false: under a limit
+no-limit-test | crates/rt/src/heap.rs | lit:        held && pages.address_limit().is_some() ==>         held | cargo test -p niji-rt --test heap_and_sync under_an_address_space_limit | msg:without a limit node 1 gets its segment
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# no-check: CAUGHT, caught by heap_and_sync under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment
+# no-check-products: CAUGHT, caught by heap_meta_products the_heap_bounds_address_space_after_a_node_change
+# no-empty-term: CAUGHT, caught by heap_and_sync under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment
+# no-unused-term: CAUGHT, caught by heap_and_sync under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment
+# no-limit-test: CAUGHT, caught by heap_and_sync under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment
