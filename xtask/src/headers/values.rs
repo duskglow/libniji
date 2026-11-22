@@ -7,6 +7,15 @@ pub(crate) fn pointer_type(ty: &str) -> bool {
     ty.ends_with('*') || ty.contains("(*)")
 }
 
+/// The lines that define the `null` macros.tsv row `name` (a null pointer constant, value 0): `((void *) 0)` in C,
+/// the compiler's `__null` in C++ (type `long`, as a pointer-sized null). Shared by the `@@null` marker and the rows test.
+pub(crate) fn null_lines(name: &str, value: &str) -> Result<Vec<String>, String> {
+    if value != "0" {
+        return Err(format!("a null pointer constant has the value 0, not {value:?}"));
+    }
+    Ok(vec!["#  ifdef __cplusplus".into(), format!("#   define {name} __null"), "#  else".into(), format!("#   define {name} ((void *) 0)"), "#  endif".into()])
+}
+
 /// The C literal of a `macros.tsv` value of the given type.
 pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     if ty.starts_with("char[") {

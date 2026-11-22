@@ -192,6 +192,11 @@ pub fn check_tables(typedefs: &str, macros: &str, visibility: &str, layouts: &st
                 }
                 _ => errors.push(format!("{at}: `{value}` is not a value of type {ty}")),
             }
+        } else if ty == "null" {
+            // A null pointer constant, spelled per language by the generator (C `void *`, C++ `__null`): value 0.
+            if value != "0" {
+                errors.push(format!("{at}: `{value}` is not 0, the value of a null pointer constant"));
+            }
         } else if ty == "pointer" {
             // A pointer constant: its address as a signed 64-bit value (the pointer's own type is the header's).
             if value.parse::<i64>().is_err() {
@@ -335,6 +340,14 @@ mod tests {
         fails_mac(&MAC.replace("char[5]", "char[4]"), "quoted string");
         fails_mac(&MAC.replace("\"/tmp\"", "/tmp"), "quoted string");
         fails_mac(&MAC.replace("\"/tmp\"", "\"/t\"p\""), "quoted string");
+    }
+
+    #[test]
+    fn null_constants() {
+        // A null pointer constant row (`null`, value 0): no other value is a null pointer constant. No spec clause.
+        let mac = MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tnull\t0");
+        assert_eq!(errs(TD, &mac, LAY, VER, CONST), Vec::<String>::new());
+        fails_mac(&MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tnull\t1"), "null pointer constant");
     }
 
     #[test]

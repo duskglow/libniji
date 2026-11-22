@@ -6,8 +6,6 @@
 # tables); a reason starting PERMANENT names the ruling that keeps the row.
 table	name	lang	reason
 layouts	va_list	c++	PERMANENT (ruling #6721): in C++ the compiler's va_list element __va_list_tag is a builtin type, not a class, so its member offsets cannot be asked; the C unit checks them
-constants	NULL	*	a null pointer constant whose type differs by language: type_probe's pointer pass (the C++ decltype spelling) finds no pointer type in C++, and macros.tsv has one type column (C), so a template defines it (C `((void *) 0)`, C++ `__null`). Fix: a macros.tsv C++ type, or a ruling that NULL stays the templates'
-constants	TD_SIGNO_MASK	*	a null pointer constant like NULL (probe on the reference: object-like, value 0, `void *` in C, `long` in C++ as g++ __null gives): type_probe pointer pass keeps only a C++ pointer type and macros.tsv has one type column, so a template defines it. Fix: the same as NULL (a macros.tsv type for null pointer constants, C `((void *) 0)`, C++ `__null`)
 macros	M_1_PIf128	*	the generator has no literal form for a _FloatN macro type (macros.tsv types _Float32, _Float64, _Float32x, _Float64x, _Float128): math.h owns the name and leaves it undefined until HEADERS-TABLES-COMPLETE adds the form
 macros	M_1_PIf32	*	the generator has no literal form for a _FloatN macro type (macros.tsv types _Float32, _Float64, _Float32x, _Float64x, _Float128): math.h owns the name and leaves it undefined until HEADERS-TABLES-COMPLETE adds the form
 macros	M_1_PIf32x	*	the generator has no literal form for a _FloatN macro type (macros.tsv types _Float32, _Float64, _Float32x, _Float64x, _Float128): math.h owns the name and leaves it undefined until HEADERS-TABLES-COMPLETE adds the form
