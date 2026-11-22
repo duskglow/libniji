@@ -491,14 +491,15 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// bounds are those levels plus 2%. Zen 1 host not measured in this test: its fast and release levels
 /// were within 0.02% of the Skylake-SP host's (DYN-START-SPEED-2, COMPAT19-LDSO-COST), so it takes the
 /// same bounds.
-/// LD-PHDR-ONCE (D-27.81, program headers read from the once-checked table at fixed offsets): this test
-/// on the Zen 1 host, fast 634,044 and release 602,883 (both more than 10% under the old bounds, so they
-/// went red); the bounds are those levels plus 2%. Skylake-SP host not measured in this test: its fast
-/// and release levels were within 0.02% of the Zen 1 host's (DYN-START-SPEED-2, COMPAT19-LDSO-COST), so
-/// it takes the same bounds.
+/// LIBC-SELF-BIND (D-27.76, libc.so.6 binds its own function references at link time; 288 symbolic
+/// relocations left 58 fast, 55 release), before LD-LOOKUP-COST: this test on the Zen 1 host, fast
+/// 365,683 and release 339,504. Merged with LD-LOOKUP-COST (next c9f54d512), this test's method on the
+/// same products on both hosts (built on the Skylake-SP host, median of 21): Skylake-SP host fast 360,169,
+/// release 332,012 (next 666,372); Zen 1 host fast 360,004, release 331,850 (next 666,210; the pre-merge
+/// release products 339,504, as measured before). Each bound is its own host's level plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [646_800, 615_000]),
-    ("AMD EPYC 7551 32-Core Processor", [646_800, 615_000]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [367_400, 338_700]),
+    ("AMD EPYC 7551 32-Core Processor", [367_300, 338_500]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.

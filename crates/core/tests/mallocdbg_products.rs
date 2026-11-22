@@ -335,7 +335,9 @@ fn mallocdbg_equals_the_reference() {
         if let Some(m) = mode {
             cmd.arg("sh").arg(&wrap).arg(m);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(&scratch).env_clear().env("PATH", "/usr/bin:/bin").output().unwrap();
+        let cmd = cmd.arg("sh").arg(&script).arg(exe).arg(&scratch).env_clear().env("PATH", "/usr/bin:/bin");
+        // Under nscache_mode.sh the run starts root processes (sudo): contained (support/contain.rs).
+        let o = if mode.is_some() { oracle::contain::output(cmd) } else { cmd.output() }.unwrap();
         let _ = std::fs::remove_dir_all(&scratch);
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()

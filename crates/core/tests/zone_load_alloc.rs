@@ -52,8 +52,8 @@ fn a_zone_load_makes_one_allocation_per_table() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("Zone"), &f).unwrap();
     let d = dir.as_os_str().as_encoded_bytes();
-    let loaded = at_most(5, || time::load(&CSys, Some(b"Zone"), Some(d), b"/nonexistent\0"));
-    let named = time::load(&CSys, Some(b"Zone"), Some(d), b"/nonexistent\0").map(|l| l.zone.is_some() && l.file.is_some());
+    let loaded = at_most(5, || time::load(&CSys, Some(b"Zone"), Some(d), b"/nonexistent\0", false));
+    let named = time::load(&CSys, Some(b"Zone"), Some(d), b"/nonexistent\0", false).map(|l| l.zone.is_some() && l.file.is_some());
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(named, Ok(true), "the scratch file was not loaded as a zone");
     assert!(loaded, "loading a zone file took more than five allocations (path, bytes, three tables)");

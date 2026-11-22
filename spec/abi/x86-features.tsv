@@ -1,0 +1,179 @@
+# CPU_FEATURE_ACTIVE / CPU_FEATURE_PRESENT names of <sys/platform/x86.h> (spec/tools/x86_probe.py).
+# struct cpuid_feature: size 32, align 4, cpuid_array at 0, active_array at 16 (layouts.tsv);
+# both macros have type _Bool (the type probe exits 33 for _Bool and _Bool; this run: 33). index: argument of __x86_get_cpuid_feature_leaf;
+# reg/bit: the register word and bit of the CPUID result, the same in cpuid_array and active_array; active=never: the
+# macro CPU_FEATURE_ACTIVE is false for every structure; leaf_check: cpuid-match = the words of the real function for that
+# index equal the CPUID instruction at leaf/subleaf on the probe host, sdm-only = those words are zero there.
+name	index	leaf	subleaf	reg	bit	active	leaf_check	source
+FPU	0	0x1	0	edx	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+SSE3	0	0x1	0	ecx	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PCLMULQDQ	0	0x1	0	ecx	1	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+VME	0	0x1	0	edx	1	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+DE	0	0x1	0	edx	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+DTES64	0	0x1	0	ecx	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+MONITOR	0	0x1	0	ecx	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PSE	0	0x1	0	edx	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+DS_CPL	0	0x1	0	ecx	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+TSC	0	0x1	0	edx	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+MSR	0	0x1	0	edx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+VMX	0	0x1	0	ecx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PAE	0	0x1	0	edx	6	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+SMX	0	0x1	0	ecx	6	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+EIST	0	0x1	0	ecx	7	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+MCE	0	0x1	0	edx	7	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+CX8	0	0x1	0	edx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+TM2	0	0x1	0	ecx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+APIC	0	0x1	0	edx	9	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+SSSE3	0	0x1	0	ecx	9	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+CNXT_ID	0	0x1	0	ecx	10	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+SDBG	0	0x1	0	ecx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+SEP	0	0x1	0	edx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+FMA	0	0x1	0	ecx	12	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+MTRR	0	0x1	0	edx	12	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+CMPXCHG16B	0	0x1	0	ecx	13	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PGE	0	0x1	0	edx	13	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+MCA	0	0x1	0	edx	14	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+XTPRUPDCTRL	0	0x1	0	ecx	14	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+CMOV	0	0x1	0	edx	15	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+PDCM	0	0x1	0	ecx	15	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PAT	0	0x1	0	edx	16	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+PCID	0	0x1	0	ecx	17	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PSE_36	0	0x1	0	edx	17	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+DCA	0	0x1	0	ecx	18	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PSN	0	0x1	0	edx	18	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+CLFSH	0	0x1	0	edx	19	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+SSE4_1	0	0x1	0	ecx	19	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+SSE4_2	0	0x1	0	ecx	20	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+DS	0	0x1	0	edx	21	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+X2APIC	0	0x1	0	ecx	21	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+ACPI	0	0x1	0	edx	22	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+MOVBE	0	0x1	0	ecx	22	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+MMX	0	0x1	0	edx	23	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+POPCNT	0	0x1	0	ecx	23	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+FXSR	0	0x1	0	edx	24	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+TSC_DEADLINE	0	0x1	0	ecx	24	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+AES	0	0x1	0	ecx	25	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+SSE	0	0x1	0	edx	25	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+SSE2	0	0x1	0	edx	26	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+XSAVE	0	0x1	0	ecx	26	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+OSXSAVE	0	0x1	0	ecx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+SS	0	0x1	0	edx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+AVX	0	0x1	0	ecx	28	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+HTT	0	0x1	0	edx	28	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+F16C	0	0x1	0	ecx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+TM	0	0x1	0	edx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+RDRAND	0	0x1	0	ecx	30	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:ECX feature information
+PBE	0	0x1	0	edx	31	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.01H:EDX feature information
+FSGSBASE	1	0x7	0	ebx	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+PREFETCHWT1	1	0x7	0	ecx	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512_VBMI	1	0x7	0	ecx	1	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+TSC_ADJUST	1	0x7	0	ebx	1	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512_4VNNIW	1	0x7	0	edx	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+SGX	1	0x7	0	ebx	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+UMIP	1	0x7	0	ecx	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512_4FMAPS	1	0x7	0	edx	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+BMI1	1	0x7	0	ebx	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+PKU	1	0x7	0	ecx	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+FSRM	1	0x7	0	edx	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+HLE	1	0x7	0	ebx	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+OSPKE	1	0x7	0	ecx	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX2	1	0x7	0	ebx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+UINTR	1	0x7	0	edx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+WAITPKG	1	0x7	0	ecx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512_VBMI2	1	0x7	0	ecx	6	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+SMEP	1	0x7	0	ebx	7	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512_VP2INTERSECT	1	0x7	0	edx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+BMI2	1	0x7	0	ebx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+GFNI	1	0x7	0	ecx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+ERMS	1	0x7	0	ebx	9	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+VAES	1	0x7	0	ecx	9	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+INVPCID	1	0x7	0	ebx	10	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+MD_CLEAR	1	0x7	0	edx	10	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+VPCLMULQDQ	1	0x7	0	ecx	10	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512_VNNI	1	0x7	0	ecx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+RTM	1	0x7	0	ebx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+RTM_ALWAYS_ABORT	1	0x7	0	edx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+AVX512_BITALG	1	0x7	0	ecx	12	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+RDT_M	1	0x7	0	ebx	12	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+DEPR_FPU_CS_DS	1	0x7	0	ebx	13	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+RTM_FORCE_ABORT	1	0x7	0	edx	13	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+AVX512_VPOPCNTDQ	1	0x7	0	ecx	14	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+MPX	1	0x7	0	ebx	14	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+SERIALIZE	1	0x7	0	edx	14	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+HYBRID	1	0x7	0	edx	15	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+RDT_A	1	0x7	0	ebx	15	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512F	1	0x7	0	ebx	16	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+LA57	1	0x7	0	ecx	16	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+TSXLDTRK	1	0x7	0	edx	16	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+AVX512DQ	1	0x7	0	ebx	17	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+PCONFIG	1	0x7	0	edx	18	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+RDSEED	1	0x7	0	ebx	18	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+ADX	1	0x7	0	ebx	19	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+SMAP	1	0x7	0	ebx	20	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512_IFMA	1	0x7	0	ebx	21	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AMX_BF16	1	0x7	0	edx	22	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+RDPID	1	0x7	0	ecx	22	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512_FP16	1	0x7	0	edx	23	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+CLFLUSHOPT	1	0x7	0	ebx	23	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+KL	1	0x7	0	ecx	23	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AMX_TILE	1	0x7	0	edx	24	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+BUS_LOCK_DETECT	1	0x7	0	ecx	24	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+CLWB	1	0x7	0	ebx	24	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AMX_INT8	1	0x7	0	edx	25	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+CLDEMOTE	1	0x7	0	ecx	25	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+TRACE	1	0x7	0	ebx	25	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512PF	1	0x7	0	ebx	26	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+IBRS_IBPB	1	0x7	0	edx	26	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+AVX512ER	1	0x7	0	ebx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+MOVDIRI	1	0x7	0	ecx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+STIBP	1	0x7	0	edx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+AVX512CD	1	0x7	0	ebx	28	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+L1D_FLUSH	1	0x7	0	edx	28	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+MOVDIR64B	1	0x7	0	ecx	28	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+ARCH_CAPABILITIES	1	0x7	0	edx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+ENQCMD	1	0x7	0	ecx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+SHA	1	0x7	0	ebx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+AVX512BW	1	0x7	0	ebx	30	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+CORE_CAPABILITIES	1	0x7	0	edx	30	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+SGX_LC	1	0x7	0	ecx	30	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+AVX512VL	1	0x7	0	ebx	31	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EBX structured extended feature flags
+PKS	1	0x7	0	ecx	31	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+SSBD	1	0x7	0	edx	31	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags
+LAHF64_SAHF64	2	0x80000001	0	ecx	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:ECX extended feature bits
+LZCNT	2	0x80000001	0	ecx	5	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:ECX extended feature bits
+SSE4A	2	0x80000001	0	ecx	6	yes	cpuid-match	AMD APM Vol. 3, Appendix E: CPUID Fn8000_0001_ECX
+PREFETCHW	2	0x80000001	0	ecx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:ECX extended feature bits
+SYSCALL_SYSRET	2	0x80000001	0	edx	11	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:EDX extended feature bits
+XOP	2	0x80000001	0	ecx	11	yes	cpuid-match	AMD APM Vol. 3, Appendix E: CPUID Fn8000_0001_ECX
+LWP	2	0x80000001	0	ecx	15	yes	cpuid-match	AMD APM Vol. 3, Appendix E: CPUID Fn8000_0001_ECX
+FMA4	2	0x80000001	0	ecx	16	yes	cpuid-match	AMD APM Vol. 3, Appendix E: CPUID Fn8000_0001_ECX
+NX	2	0x80000001	0	edx	20	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:EDX extended feature bits
+TBM	2	0x80000001	0	ecx	21	yes	cpuid-match	AMD APM Vol. 3, Appendix E: CPUID Fn8000_0001_ECX
+PAGE1GB	2	0x80000001	0	edx	26	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:EDX extended feature bits
+RDTSCP	2	0x80000001	0	edx	27	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:EDX extended feature bits
+LM	2	0x80000001	0	edx	29	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000001H:EDX extended feature bits
+XSAVEOPT	3	0xd	1	eax	0	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=0DH,ECX=1):EAX processor extended state enumeration
+XSAVEC	3	0xd	1	eax	1	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=0DH,ECX=1):EAX processor extended state enumeration
+XGETBV_ECX_1	3	0xd	1	eax	2	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=0DH,ECX=1):EAX processor extended state enumeration
+XSAVES	3	0xd	1	eax	3	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=0DH,ECX=1):EAX processor extended state enumeration
+XFD	3	0xd	1	eax	4	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=0DH,ECX=1):EAX processor extended state enumeration
+INVARIANT_TSC	4	0x80000007	0	edx	8	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000007H:EDX invariant TSC
+WBNOINVD	5	0x80000008	0	ebx	9	yes	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.80000008H:EBX
+AVX_VNNI	6	0x7	1	eax	4	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+AVX512_BF16	6	0x7	1	eax	5	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+LASS	6	0x7	1	eax	6	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+CMPCCXADD	6	0x7	1	eax	7	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+FZLRM	6	0x7	1	eax	10	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+FSRS	6	0x7	1	eax	11	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+FSRCS	6	0x7	1	eax	12	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+WRMSRNS	6	0x7	1	eax	19	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+AMX_FP16	6	0x7	1	eax	21	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+HRESET	6	0x7	1	eax	22	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+AVX_IFMA	6	0x7	1	eax	23	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+LAM	6	0x7	1	eax	26	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+MSRLIST	6	0x7	1	eax	27	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=1):EAX structured extended feature flags
+AESKLE	7	0x19	0	ebx	0	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.19H:EBX key locker
+WIDE_KL	7	0x19	0	ebx	2	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.19H:EBX key locker
+PTWRITE	8	0x14	0	ebx	4	yes	sdm-only	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=14H,ECX=0):EBX processor trace enumeration
+SHSTK	1	0x7	0	ecx	7	never	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):ECX structured extended feature flags
+IBT	1	0x7	0	edx	20	never	cpuid-match	Intel SDM Vol. 2A, CPUID: CPUID.(EAX=07H,ECX=0):EDX structured extended feature flags

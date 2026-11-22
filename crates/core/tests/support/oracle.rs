@@ -27,6 +27,10 @@ use niji_kernel::fd::Fd;
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::LOCK_EX;
 
+/// Containment for harnesses that start processes in namespaces (`contain.rs`).
+#[path = "contain.rs"]
+pub(crate) mod contain;
+
 static SEQ: AtomicU32 = AtomicU32::new(0);
 
 /// Compile `cmd` (a compiler command line without `-o`) into `out`; the compiler's messages go

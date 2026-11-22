@@ -298,7 +298,8 @@ fn catalogs_equal_the_reference() {
         // nscache_mode.sh clears the environment: LOCPATH is passed on through `env`.
         cmd.arg("env").arg(format!("LOCPATH={}", locales.display()));
         let start = std::time::Instant::now();
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/bin:/bin").output().unwrap();
+        // The run's root processes (sudo) are contained (support/contain.rs).
+        let o = oracle::contain::output(cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/bin:/bin")).unwrap();
         let err = String::from_utf8_lossy(&o.stderr);
         // Diagnostics for a failure: how long the run took, the load, and what the probe said on stderr
         // (a child that met its watchdog is named there).
