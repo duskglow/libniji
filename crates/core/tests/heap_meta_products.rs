@@ -174,7 +174,17 @@ fn the_heap_keeps_address_space_near_its_use() {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("heap_address_space_niji");
     build("heap_address_space.c", &exe);
-    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+    // A single-node measurement (ruling #7441): both runs below are pinned to the CPUs of one
+    // NUMA node. On the two-node Skylake-SP host a process moved to the other node mid-run needs
+    // up to 4360 KiB more address space (jobs test-scratch-cleanup-4-heaprep2 and -heapmig: pinned
+    // to node 0, node 1 or unpinned 0 of 20 runs failed, with its affinity flipped between the
+    // nodes 15 of 20), and the bounds hold the single-node level with no margin for that. The
+    // node-change case is measured and tested on its own (HEAP-SPILL-COLD-2).
+    let (o, limited) = on_one_node(|| {
+        let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+        let limited = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
+        (o, limited)
+    });
     assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
     let out = String::from_utf8_lossy(&o.stdout);
     let kib = |step: &str| -> u64 {
@@ -188,12 +198,58 @@ fn the_heap_keeps_address_space_near_its_use() {
         eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
         assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
     }
-    let o = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
     assert!(
-        o.status.success(),
+        limited.status.success(),
         "under RLIMIT_AS = start + {AS_HEADROOM} KiB (ADDR_NO_RANDOMIZE) the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
-        o.status
+        limited.status
     );
+}
+
+/// The CPU numbers of a sysfs cpulist (`0-11,24-35`).
+fn cpulist(s: &str) -> Vec<usize> {
+    let mut cpus = Vec::new();
+    for part in s.trim().split(',').filter(|p| !p.is_empty()) {
+        let (lo, hi) = part.split_once('-').unwrap_or((part, part));
+        let (lo, hi): (usize, usize) = (lo.parse().unwrap_or_else(|_| panic!("cpulist {s:?}")), hi.parse().unwrap_or_else(|_| panic!("cpulist {s:?}")));
+        cpus.extend(lo..=hi);
+    }
+    cpus
+}
+
+/// Runs `run` with the calling (test) thread's CPU affinity narrowed to the allowed CPUs of one
+/// NUMA node, the node with the most of them (the lowest such node on a tie), so that the
+/// programs it spawns inherit a mask the scheduler cannot move off that node; restores the mask
+/// afterwards. With one node (or allowed CPUs on only one) the mask is left as it is.
+fn on_one_node<T>(run: impl FnOnce() -> T) -> T {
+    let mut cur = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut cur).expect("sched_getaffinity");
+    let allowed = |c: usize| c / 8 < len && cur[c / 8] & (1 << (c % 8)) != 0;
+    let mut nodes: Vec<(usize, Vec<usize>)> = std::fs::read_dir("/sys/devices/system/node")
+        .map(|d| {
+            d.filter_map(Result::ok)
+                .filter_map(|e| {
+                    let n: usize = e.file_name().to_str()?.strip_prefix("node")?.parse().ok()?;
+                    let cpus = std::fs::read_to_string(e.path().join("cpulist")).ok()?;
+                    Some((n, cpulist(&cpus).into_iter().filter(|&c| allowed(c)).collect::<Vec<_>>()))
+                })
+                .filter(|(_, cpus)| !cpus.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+    if nodes.len() < 2 {
+        return run();
+    }
+    nodes.sort_by_key(|(n, cpus)| (std::cmp::Reverse(cpus.len()), *n));
+    let (node, cpus) = &nodes[0];
+    let mut mask = [0u8; 1024];
+    for &c in cpus {
+        mask[c / 8] |= 1 << (c % 8);
+    }
+    CSys.sched_setaffinity(0, &mask[..len]).expect("sched_setaffinity to one node");
+    eprintln!("pinned to node {node} ({} CPUs) of {} nodes", cpus.len(), nodes.len());
+    let out = run();
+    CSys.sched_setaffinity(0, &cur[..len]).expect("sched_setaffinity restore");
+    out
 }
 
 /// Runs `run` with `ADDR_NO_RANDOMIZE` in the calling (test) thread's persona, which the program
