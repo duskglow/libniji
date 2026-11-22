@@ -23,7 +23,8 @@
  "informational": [
   "bench per-call instruction counts differ between two runs of the same build (72/180 rows, up to 5.5%), so 'equal row for row' is not a usable proof; checksums are",
   "layout verdict cache cannot store (an ok line holds a newline) on every release build",
-  ".synced has no dirty= line after syncing uncommitted changes, so commit_of reports such a head as clean"
+  ".synced has no dirty= line after syncing uncommitted changes, so commit_of reports such a head as clean",
+  "measurement jobs on earlier heads (evidence, not final-head proof): mei f1, h90, sa; keke kl, ki, kl2"
  ],
  "refused": [],
  "impact": [
@@ -74,11 +75,6 @@
  "jobs": [
   "mei:ci-products-once-gate3",
   "mei:ci-products-once-plants2",
-  "mei:ci-products-once-sa",
-  "mei:ci-products-once-f1",
-  "mei:ci-products-once-h90",
-  "keke:ci-products-once-kl",
-  "keke:ci-products-once-ki",
-  "keke:ci-products-once-kl2"
+  "mei:ci-products-once-precheck2"
  ]
 }
