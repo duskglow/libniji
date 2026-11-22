@@ -1,0 +1,19 @@
+{"task": "LIBC-INIT-ARRAY-REFS", "model": "opus", "tokens": null,
+ "result": "libc.so.6's 8 weak init/fini-marker references resolved at link time (hidden): 0 dynamic symbols, symbolic relocations 55 -> 47, empty-main start -6,981 user instructions (Zen 1, release); static and dynamic order unchanged and equal to the reference",
+ "branch": "task/libc-init-array-refs", "head": null,
+ "gate": {"affected": "9 suites ok; 1218 passed / 0 failed / 114 ignored (direct tier; csys escalation bounded by the tool)", "peak": "2.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The ruling's 'take the arrays from the dynamic section' was already how dynamic programs worked: libniji's loader runs DT_PREINIT_ARRAY/DT_INIT/DT_INIT_ARRAY/DT_FINI_ARRAY/DT_FINI and libc's start reads the markers only in a static program; so the change is only the references' visibility", "Skylake-SP counts not measured (budget); STARTUP-REPROFILE found the classes within 0.05% on the same products"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic start, empty main (STARTUP-REPROFILE kit n0, release, Zen 1)", "before": 268752, "after": 261771, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic start, 3 libraries (kit n3, release, Zen 1)", "before": 377987, "after": 368477, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "/bin/true under libniji (kit t, release, Zen 1)", "before": 329137, "after": 322147, "unit": "user instr/start", "measured": true},
+  {"kind": "size", "what": "libc.so.6 symbolic relocations (release)", "before": 55, "after": 47, "unit": "relocations", "measured": true},
+  {"kind": "coverage", "what": "test plain_cc_runs_the_program_arrays_in_the_reference_order (PIE, -static, -static-pie vs reference) and 4 plants", "before": 0, "after": 1, "unit": "tests", "measured": true}
+ ],
+ "improvement": "The STARTUP-REPROFILE kit's meas.sh hardcodes its own ~/work directory; a kit that takes its directory as an argument would let later stories reuse it without copying",
+ "next_step": "none; optional Skylake-SP counts with the saved base/after products",
+ "report_file": "handoff/LIBC-INIT-ARRAY-REFS.md",
+ "jobs": ["keke:libc-init-array-refs-base", "keke:libc-init-array-refs-after", "keke:libc-init-array-refs-lint", "keke:libc-init-array-refs-gate", "keke:libc-init-array-refs-plants", "keke:libc-init-array-refs-xtest"]}
