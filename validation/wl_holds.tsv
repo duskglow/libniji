@@ -29,8 +29,9 @@
 # counts of the same revision (jobs wl-levels-rerecord-m1..m5 of D-X.155), with exactly D-X.155's rule: libniji = the
 # highest of the 10 libniji columns, glibc = the lowest of the 5 glibc columns, level = ceil4 of the ratio. Every row
 # repeated exactly in all 5 counts except tar-c (libniji 465..476, glibc 389..400: 476 / 389). du (3284 / 3094 = 1.0615)
-# and every instructions:u row are at or below 1.10 there, so they have no hold. printf-loop: see its rows (a row
-# without them reports HELD-UNRECORDED). Counts now measure a long row's far-off column again (wl_stats.sh
+# and every instructions:u row are at or below 1.10 there, so they have no hold. printf-loop was not in those 5;
+# its Skylake-SP rows rest on 2 counts of their own (2026-11-22, same revision and method; jobs
+# wl-levels-rerecord-2-m-printf and -m-printf2). Counts now measure a long row's far-off column again (wl_stats.sh
 # wl_excursions), so an excursion such as tar-gz's 758 is measured away rather than held by a looser level.
 cpu	workload	metric	glibc	libniji	level	recorded	cause
 AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3112	3952	1.2700	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
@@ -76,3 +77,5 @@ Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	tar-tv	pf	232	280	1.2069	0299fd6e1 
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	gzip-d	pf	214	249	1.1636	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	pipe-mix	pf	1126	1293	1.1484	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
 Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	tar-gz	pf	520	623	1.1981	0299fd6e1 2026-11-21 (fixed env, D-X.155, D-X.157); 5 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	printf-loop	instr	5268874366	19131967207	3.6312	0299fd6e1 2026-11-22 (fixed env, D-X.155, D-X.157); 2 counts	dynamic start-up
+Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz	printf-loop	pf	1460184	1960130	1.3424	0299fd6e1 2026-11-22 (fixed env, D-X.155, D-X.157); 2 counts	dynamic start-up
