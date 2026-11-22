@@ -127,7 +127,7 @@ fn diff_ctype(theirs: Category, ours: Category, out: &mut Vec<String>) {
     let (tc, oc) = (tables(theirs, class_offset, classes.len()), tables(ours, ours.word(17) as usize, classes.len()));
     let (tm, om) = (tables(theirs, map_offset, maps.len()), tables(ours, ours.word(18) as usize, maps.len()));
     let (tw, ow) = (Table3::parse(theirs.item(12)), Table3::parse(ours.item(12)));
-    let mut report = |what: String, firsts: &mut Vec<String>| {
+    let report = |what: String, firsts: &mut Vec<String>| {
         if firsts.len() < 10 {
             firsts.push(what);
         }
@@ -170,9 +170,11 @@ fn diff_ctype(theirs: Category, ours: Category, out: &mut Vec<String>) {
         (Some(a), Some(b)) => {
             let (mut firsts, mut count) = (Vec::new(), 0u32);
             for wc in 0..0x11_0000u32 {
-                if a.value_u8(wc) != b.value_u8(wc) {
+                // What wcwidth reads: an absent entry is 0xff (−1), as a stored 0xff is.
+                let (x, y) = (a.value_u8(wc).unwrap_or(0xff), b.value_u8(wc).unwrap_or(0xff));
+                if x != y {
                     count += 1;
-                    report(format!("{wc:#06x} ref {:?} ours {:?}", a.value_u8(wc), b.value_u8(wc)), &mut firsts);
+                    report(format!("{wc:#06x} ref {x} ours {y}"), &mut firsts);
                 }
             }
             if count > 0 {
@@ -210,7 +212,19 @@ fn compare(locale: &str, charmap: &str) {
             diff_items(file, t, o, &[], &mut out);
         }
     }
-    let _ = std::fs::remove_dir_all(&dir);
+    if std::env::var_os("NIJI_LOCALE_KEEP").is_some() {
+        // Inspection: keep the reference's files and write ours beside them.
+        for (n, file) in FILES.iter().enumerate() {
+            if let (Some(file), Some(Some(mine))) = (file, ours.get(n)) {
+                let p = dir.join("ours").join(file);
+                let _ = std::fs::create_dir_all(p.parent().unwrap_or(&dir));
+                let _ = std::fs::write(&p, mine.as_slice());
+            }
+        }
+        println!("kept {}", dir.display());
+    } else {
+        let _ = std::fs::remove_dir_all(&dir);
+    }
     assert!(out.is_empty(), "{locale}.{charmap}: {} differences from the reference:\n{}", out.len(), out.join("\n"));
 }
 

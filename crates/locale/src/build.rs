@@ -53,6 +53,14 @@ impl File {
         Ok(())
     }
 
+    /// Append `data` to the last item (data that precedes the next item's start).
+    pub fn extend_last(&mut self, data: &[u8]) -> Result<()> {
+        match self.items.last_mut() {
+            Some((_, v)) => v.extend_from_slice(data).map_err(Into::into),
+            None => Err(crate::Error::syntax(0, "no item to extend")),
+        }
+    }
+
     /// A NUL-terminated multibyte string.
     pub fn string(&mut self, s: &[u8]) -> Result<()> {
         let mut v = TryVec::with_capacity(s.len() + 1)?;

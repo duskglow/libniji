@@ -117,6 +117,8 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
             b"charclass" => {
                 for t in s.args() {
                     if let Tok::Word(w) = t {
+                        // Declaration order is table order.
+                        c.class_index(w)?;
                         declared_classes.push(w.try_clone()?)?;
                     }
                 }
@@ -124,6 +126,7 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
             b"charconv" => {
                 for t in s.args() {
                     if let Tok::Word(w) = t {
+                        c.map_index(w)?;
                         declared_maps.push(w.try_clone()?)?;
                     }
                 }
@@ -366,7 +369,8 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     f.raw(true, name_list(c.maps.iter().map(|(n, _)| n.as_slice()))?)?;
     // 12 WIDTH: printable characters the charmap has; others are absent (−1).
     let print = &c.classes[6].1;
-    f.raw(true, table_u8(&|cp| if print.has(cp) && cs.has(cp) { Some(cs.width(cp)) } else { None })?)?;
+    // The null character has width 0 (POSIX wcwidth).
+    f.raw(true, table_u8(&|cp| if cp == 0 { Some(0) } else if print.has(cp) && cs.has(cp) { Some(cs.width(cp)) } else { None })?)?;
     f.word(cs.mb_cur_max())?; // 13
     f.string(cs.name())?; // 14 CODESET
     f.words(&toupper32)?; // 15
@@ -395,7 +399,7 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     let missing = c.default_missing.as_ref();
     f.word(missing.map_or(0, |m| u32::try_from(m.len()).unwrap_or(0)))?; // 66
     match missing {
-        Some(m) => f.wide(m)?, // 67
+        Some(m) => f.words(m)?, // 67: the wide characters, no terminator
         None => f.raw(true, TryVec::new())?,
     }
     f.word(0)?; // 68 TRANSLIT_IGNORE_LEN
@@ -405,7 +409,16 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     f.word(u32::from(to_nonascii))?;
     let nonascii_case = c.maps.iter().take(2).any(|(_, m)| m.iter().any(|(&a, &b)| a >= 0x80 && b < 0x80));
     f.word(u32::from(nonascii_case))?;
+    // Each class table is preceded by the class over the charmap's single bytes: 256 bits, bit b
+    // for byte b (outside every item; the reader does not use it).
     for (_, set) in c.classes.iter() {
+        let mut bytes = [0u8; 32];
+        for b in 0..=255u8 {
+            if cs.byte_char(b).is_some_and(|cp| set.has(cp)) {
+                bytes[usize::from(b >> 3)] |= 1 << (b & 7);
+            }
+        }
+        f.extend_last(&bytes)?;
         f.raw(true, table_bits(set)?)?;
     }
     for (_, m) in c.maps.iter() {
