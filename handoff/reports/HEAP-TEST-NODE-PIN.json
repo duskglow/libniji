@@ -1,0 +1,19 @@
+{"task": "HEAP-TEST-NODE-PIN", "model": "opus", "tokens": null,
+ "result": "the heap address-space test pins both runs to one NUMA node (bounds unchanged, ruling #7441); in-node flip 0/20 fail vs cross-node control 17/20, gate-style 0/20, 24-parallel 0/480",
+ "branch": "task/heap-test-node-pin", "head": null,
+ "gate": {"affected": "5 passed / 0 failed (direct, heap_meta_products)", "peak": "1.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Pinned, the test still measures exactly at its bounds (refill +39236 = bound, realloc +41288 = bound in all 20 gate20 runs on the Zen 1 host): zero margin as ruling #7441 keeps it; any future +4 KiB in the heap's single-node footprint reddens it. HEAP-SPILL-COLD-2 owns the margin.",
+   "An orphaned `xtask affected --run` process tree from a killed gate (its jobrun ended, the inner sh -c re-parented to init) kept the role BUSY for sync; kill-label did not reach it, kill-mine did."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "the_heap_keeps_address_space_near_its_use no longer fails when the scheduler moves it to another NUMA node mid-run (in-node flip under RLIMIT_AS, Skylake-SP)", "before": 17, "after": 0, "unit": "failures of 20 (before = cross-node control, the move pinning now prevents)", "measured": true},
+   {"kind": "coverage", "what": "plants on the pinning (pin-skipped, pin-all-cpus)", "before": 0, "after": 2, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["keke:heap-test-node-pin-gate2", "keke:heap-test-node-pin-plants2", "keke:heap-test-node-pin-gate20", "mei:heap-test-node-pin-mig20", "mei:heap-test-node-pin-par24b"],
+ "improvement": "kill-label leaves a gate's inner sh -c tree alive (re-parented to init) and the next sync is BUSY; jobrun should kill the whole cgroup/scope on --kill",
+ "next_step": "none in this story; the migration case and the bound margin are HEAP-SPILL-COLD-2's",
+ "report_file": "handoff/HEAP-TEST-NODE-PIN.md"}
