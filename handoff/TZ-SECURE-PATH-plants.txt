@@ -1,0 +1,9 @@
+# TZ-SECURE-PATH plants: the secure-mode TZ rule (crates/core/src/time.rs load/load_in, its wiring in
+# crates/legacy/src/time_compat.rs and crates/boundary/src/zone.rs). Run with cargo xtask plants (docs/plants.md).
+# Each mutant keeps every item used, so it compiles without new warnings.
+no-secure-check | crates/core/src/time.rs | lit:trusted.is_none_or(|dir| trusted_name(value, dir)) ==> trusted.is_none_or(|dir| trusted_name(value, dir) || !dir.is_empty()) | cargo test -p niji --test time_load | msg:s23_6_c_2_secure.*(FAILED|panicked)
+no-dotdot-check | crates/core/src/time.rs | lit:if value.split(|&b| b == b'/').any(|c| c == b"..") { ==> if value.split(|&b| b == b'/').any(|c| c == b"..") && value.is_empty() { | cargo test -p niji --test time_load | msg:s23_6_c_2_secure.*(FAILED|panicked)
+prefix-not-components | crates/core/src/time.rs | lit:components(dir).all(|d| parts.next() == Some(d)) && parts.next().is_some() ==> components(dir).all(|d| parts.next() == Some(d) || d.is_empty()) || value.starts_with(dir) | cargo test -p niji --test time_load | msg:s23_6_c_2_secure.*(FAILED|panicked)
+load-ignores-secure | crates/core/src/time.rs | lit:load_in(sys, tz, None, default, Some(ZONEINFO)) ==> load_in(sys, tz, tzdir, default, None) | cargo test -p niji --test time_load | msg:s23_6_c_2_secure.*(FAILED|panicked)
+select-not-secure | crates/legacy/src/time_compat.rs | lit:add(sys, env.tz, tzdir, env.default, (env.secure)()) ==> add(sys, env.tz, tzdir, env.default, false) | cargo xtask affected --only conformance:s23_tz_secure --with-exports --run | msg:s23_tz_secure
+glue-not-secure | crates/boundary/src/zone.rs | lit:secure: &process::secure, ==> secure: &|| false, | cargo xtask affected --only conformance:s23_tz_secure --with-exports --run | msg:s23_tz_secure

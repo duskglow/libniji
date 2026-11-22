@@ -1,0 +1,14 @@
+@@generated
+/* ar.h: the archive file format (ar(5), the System V ar archive). */
+#ifndef __NIJI_H_ar_h
+#define __NIJI_H_ar_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

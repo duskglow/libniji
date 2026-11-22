@@ -664,7 +664,8 @@ fn tz_unset_with_localtime_unreadable_is_utc() {
     }
     let run = |exe: &Path| -> String {
         let s = scratch(&dir, &format!("unset_{}", exe.file_name().unwrap().to_str().unwrap()));
-        let o = Command::new("timeout").arg(timeout::secs(120)).args(["sh", "-c", UNSET, "sh"]).arg(exe).arg(&s).env_clear().env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin").output().unwrap();
+        // UNSET runs `unshare -r`: contained (support/contain.rs).
+        let o = oracle::contain::user("timeout").arg(timeout::secs(120)).args(["sh", "-c", UNSET, "sh"]).arg(exe).arg(&s).env_clear().env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin").output().unwrap();
         let _ = std::fs::remove_dir_all(&s);
         assert!(o.status.success(), "unset runner failed: {:?}", o.status);
         String::from_utf8_lossy(&o.stdout).into_owned()

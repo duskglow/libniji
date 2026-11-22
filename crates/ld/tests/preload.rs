@@ -16,6 +16,8 @@
 
 #[path = "../../core/tests/helpers/exec_stage.rs"]
 mod exec_stage;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -268,7 +270,8 @@ fn preload_file_after_environment_names() {
     // the program gets LD_PRELOAD: `unshare`, `sh` and `mount` are the host's programs, and the
     // corpus libraries need libniji's libc.
     let pre2 = format!("{ds}/libpre2.so");
-    let mut c = Command::new("unshare");
+    // Contained (support/contain.rs).
+    let mut c = contain::user("unshare");
     let script = "mount --bind \"$0\" /etc && LD_PRELOAD=\"$2\" && export LD_PRELOAD && exec \"$1\"";
     c.args(["-r", "-m", "sh", "-c", script, etc.to_str().unwrap(), prog.to_str().unwrap(), &pre2]);
     let (out, err) = ran(&run(c, &[]), "preload file");

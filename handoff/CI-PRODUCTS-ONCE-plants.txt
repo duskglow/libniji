@@ -1,0 +1,12 @@
+# CI-PRODUCTS-ONCE plants: one per checked field of the products import, the fallback, and the trace's breakpoint pool.
+# Run: cargo xtask plants handoff/CI-PRODUCTS-ONCE-plants.txt --dir <new RAM dir> --timeout 600
+imp-tag | xtask/src/import.rs | lit:if want.tag != got.tag { ==> if false { | cargo test -p xtask --bin xtask import:: | msg:import::tests::[a-z_]+ \.\.\. FAILED
+imp-head | xtask/src/import.rs | lit:} else if want.head != got.head { ==> } else if false { | cargo test -p xtask --bin xtask import:: | msg:import::tests::[a-z_]+ \.\.\. FAILED
+imp-head-clean | xtask/src/import.rs | lit:if !clean(&want.head) || !clean(&got.head) { ==> if false { | cargo test -p xtask --bin xtask import:: | msg:import::tests::dirty_or_unknown_head_refuses \.\.\. FAILED
+imp-toolchain | xtask/src/import.rs | lit:if want.toolchain != got.toolchain { ==> if false { | cargo test -p xtask --bin xtask import:: | msg:import::tests::header_fields_each_refuse \.\.\. FAILED
+imp-profile | xtask/src/import.rs | lit:if want.profile != got.profile { ==> if false { | cargo test -p xtask --bin xtask import:: | msg:import::tests::[a-z_]+ \.\.\. FAILED
+imp-checksum | xtask/src/import.rs | lit:Some(f) if f != e => ==> Some(f) if false => | cargo test -p xtask --bin xtask import:: | msg:import::tests::[a-z_]+ \.\.\. FAILED
+imp-unlisted | xtask/src/import.rs | lit:.filter(|f| !listed.iter().any(|e| e.path() == f.path())) ==> .filter(|_| false) | cargo test -p xtask --bin xtask import:: | msg:import::tests::[a-z_]+ \.\.\. FAILED
+imp-fallback | xtask/src/import.rs | perl:s/(building here", src.display\(\), reasons.len\(\)\);\s*)Ok\(false\)/$1Ok(true)/s | cargo test -p xtask --bin xtask import:: | msg:import::tests::build_step_builds_unless_imported \.\.\. FAILED
+pool-disable | tools/hottext/trace_gdb.py | perl:s/(if bp in pool and bp.enabled:\n\s*)bp.enabled = False/$1pass/s | cargo xtask so | msg:stopped more than once in a run | layout:traced
+pool-rearm | tools/hottext/trace_gdb.py | perl:s/(if not bp.enabled:\n\s*)bp.enabled = True/$1pass/s | cargo xtask so | msg:not re-armed | layout:traced

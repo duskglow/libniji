@@ -1,0 +1,14 @@
+# Plants of slice 16, continuation (cargo xtask plants; docs/plants.md). New code: sys/platform/x86.h and x86-features.tsv
+# (spec/tools/x86_header_check.py), layout-only member aggregates and anonymous unions of the generator, link.h C++ typedefs,
+# header_check's profil.h scope (spec/tools/header_check.py).
+s16b-x86-bitshift | headers/sys/platform/x86.h.in | lit:>> (bit)) & 1u ==> >> (bit + 1)) & 1u | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86 run
+s16b-x86-array | headers/sys/platform/x86.h.in | lit:#define CPU_FEATURE_PRESENT(name) __NIJI_X86_P_##name ==> #define CPU_FEATURE_PRESENT(name) __NIJI_X86_A_##name | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86 run
+s16b-x86-index | spec/abi/x86-features.tsv | perl:s/(\nSSE2\t)0\t/${1}1\t/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86 run
+s16b-x86-register | spec/abi/x86-features.tsv | perl:s/(\nSSE3\t0\t0x1\t0\t)ecx/${1}edx/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86 run
+s16b-x86-never | xtask/src/headers.rs | lit:r["active"] == "yes")) ==> r["active"] != "no")) | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:FAIL x86 run
+s16b-x86-layout | spec/abi/layouts.tsv | perl:s/(struct cpuid_feature\tactive_array\t)16/${1}20/ | cargo xtask headers-gen && python3 -I spec/tools/x86_header_check.py | msg:headers-gen|FAIL x86
+s16b-anon-size-note | xtask/src/headers.rs | lit:!r["member_type"].ends_with(" <anon>") ==> true | cargo xtask headers-gen --check | msg:headers-gen
+s16b-layout-typedef | xtask/src/headers.rs | lit:nested.push(format!("layout {core}")); ==> nested.push(format!("layout {core}x")); | cargo xtask headers-gen --check | msg:headers-gen
+s16b-cxx-typedef | xtask/src/headers.rs | lit:NAMED_IN_CXX.contains(&name.as_str()) ==> false | cargo xtask headers-gen --check | msg:headers-gen
+s16b-whole-members | xtask/src/headers.rs | lit:self.t.layouts.contains_key(&r["member_type"])) ==> false) | cargo xtask headers-gen --check | msg:headers-gen
+s16b-profil-scope | spec/tools/header_check.py | lit:{"sys/profil.h": {"prof"}} ==> {"sys/profil.h": {"zzz"}} | python3 spec/tools/header_check.py | msg:header_check: [1-9]

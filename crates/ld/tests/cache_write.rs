@@ -11,6 +11,8 @@
 //! when `cc`, the reference ldconfig, its loader or user namespaces are absent.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -520,7 +522,8 @@ fn tie_groups(listing: &str) -> Vec<Vec<String>> {
 /// The fixture libraries the reference loader resolved for `main` with `cache` over
 /// `/etc/ld.so.cache` (`name => path`, the root prefix removed).
 fn resolved(ldso: &Path, cache: &Path, main: &Path, root: &str) -> Vec<String> {
-    let o = Command::new("unshare")
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare")
         .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" /etc/ld.so.cache && exec \"$2\" --list \"$3\"", "sh"])
         .arg(cache)
         .arg(ldso)

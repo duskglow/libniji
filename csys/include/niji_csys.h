@@ -89,6 +89,11 @@ uint64_t niji_machine_strcmp_rescan_count(void);
 void niji_machine_ymm15_dirty(void);
 int niji_machine_ymm15_dirty_cmp(const char *a, const char *b);
 uint64_t niji_machine_ymm15_upper(void);
+/* Selftest hooks (STRNCMP-AVX2-WRITER): strncmp stepped under the trap flag, its SIGTRAP
+ * handler (installed with SA_SIGINFO, never called directly) and the handler's store count. */
+int niji_machine_strncmp_stepped(const char *a, const char *b, size_t n, uint32_t fill, char *at, int to);
+void niji_machine_strncmp_step_trap(int sig, void *info, void *uc);
+uint64_t niji_machine_strncmp_step_stores(void);
 size_t niji_machine_casecmp_avx2(const char *a, const char *b, size_t n);
 size_t niji_machine_casecmp_sse2(const char *a, const char *b, size_t n);
 int niji_machine_casecmp_ord_avx2(const char *a, const char *b, size_t n, const void *loc);

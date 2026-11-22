@@ -1,0 +1,19 @@
+{"task": "STRNCMP-AVX2-WRITER", "model": "opus", "tokens": null,
+ "result": "AVX2 strncmp head's writer re-read tails now clear xmm3 (via .Lsnc_swriter); a single-step harness test reaches the path on both heads; 4/4 plants CAUGHT; hot path instruction-identical",
+ "branch": "task/strncmp-avx2-writer", "head": "c570908d1",
+ "gate": {"affected": "10789 passed / 0 failed (12 suites; conformance 145 passed)", "peak": "14G, oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Audit for the same register assumption: strcmp (both heads), casecmp_ord_avx2/sse2, casecmp_avx2/sse2, scan.S memcmp, wcspair, strchr/strchrnul, strstr, fold.S memcmp family: none other resumes onto a vector register its own head did not set"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "strncmp on the AVX2 level: a concurrent writer making the deciding bytes equal and not NUL in the first 64 bytes no longer resumes with a stale zero vector (a missed terminator and reads past the string for a large n)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests added (writer re-read on both heads, both levels) / plants added", "before": 0, "after": 5, "unit": "1 test + 4 plants", "measured": true},
+  {"kind": "perf", "what": "cbench_hot strncmp_eq16 instr/op (Skylake-SP; glibc 30); before not counted: the hot path is instruction-identical to the base (objdump of both)", "before": null, "after": 36, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "cbench_hot strncmp_diff8 instr/op (Skylake-SP; glibc 30); before not counted, unchanged as above", "before": null, "after": 35, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "cbench_hot strncmp_names64 instr/op (Skylake-SP; glibc 39); before not counted, unchanged as above", "before": null, "after": 43, "unit": "instr/call", "measured": true}
+ ],
+ "jobs": ["mei:strncmp-avx2-writer-gate", "mei:strncmp-avx2-writer-plants", "mei:strncmp-avx2-writer-counts"],
+ "improvement": "bench --base needs a git checkout, so a role directory cannot count a before; assembling the before/after .S and diffing the function's instructions was cheaper and stronger for asm-only changes, and could be an xtask helper",
+ "next_step": "land (coordinator)",
+ "report_file": "handoff/STRNCMP-AVX2-WRITER.md"}

@@ -1706,6 +1706,8 @@ fn strncmp_kernel_stays_in_the_terminators_page_from_every_offset_near_its_end()
         assert!(selftest::set_scan_avx2(avx2));
         for len in 0..=80usize {
             for mid in [false, true] {
+                // (strncmp_resumes_after_a_writers_change_with_the_zero_vector_on_both_heads
+                // below covers the heads' writer path, which this sweep cannot reach.)
                 let pa = base + PAGE - 1 - len;
                 let pb = if mid { base2 + 1024 + (len % 16) } else { base2 + PAGE - 1 - len };
                 s::memset(base as *mut c_void, c_int::from(b'x'), PAGE);
@@ -2339,4 +2341,65 @@ fn memmove_matches_a_byte_loop_around_the_rep_movsb_window_of_the_avx2_range() {
         }
     }
     niji_boundary::cpu::init();
+}
+
+/// The texts and the byte the writer changes, for [`writer_reread_child`] (set before the fork).
+static WRITER_A: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static WRITER_B: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+static WRITER_AT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// strncmp(a, b, unbounded) with xmm3 all ones on entry and b[at] made equal to a[at] just
+/// before the kernel re-reads the deciding bytes: 0 = answered 0, 1 = another answer, 2 = the
+/// re-read was never reached, 3 = no assembly kernels. A read past a's terminator page faults.
+fn writer_reread_child(_: &CSys) -> i32 {
+    use std::sync::atomic::Ordering::SeqCst;
+    let (a, b, at) = (WRITER_A.load(SeqCst), WRITER_B.load(SeqCst), WRITER_AT.load(SeqCst));
+    match selftest::strncmp_with_writer_at_reread(a as *const u8, b as *const u8, usize::MAX, u32::MAX, (b + at) as *mut u8, b'x') {
+        Ok(Some((0, true))) => 0,
+        Ok(Some((_, true))) => 1,
+        Ok(Some((_, false))) | Err(_) => 2,
+        Ok(None) => 3,
+    }
+}
+
+#[test]
+fn strncmp_resumes_after_a_writers_change_with_the_zero_vector_on_both_heads() {
+    // Clauses: s4_3_c_1 (D-4.21, D-4.45, D-4.69; STRNCMP-AVX2-WRITER). The deciding bytes of a
+    // head's hit compare equal and not NUL when re-read (a writer changed them after the vector
+    // scan, staged here at a fixed instruction by the trap flag, no race), so the scan resumes
+    // after them. The resumed steps must find the terminator whatever the caller left in the
+    // vector registers (xmm3 all ones here): each text is 50 bytes then its terminator, then
+    // equal non-NUL bytes to the end of its page and an unmapped page, so a resumed scan that
+    // misses the terminator reads into that page and faults. Hits at 5 and 37 reach the AVX2
+    // head's first and second 32-byte blocks, and the SSE2 head's first and third.
+    use std::sync::atomic::Ordering::SeqCst;
+    let (lo, hi, base) = guarded();
+    let (lo2, hi2, base2) = guarded();
+    let _g = level();
+    let (pa, pb) = (base + PAGE - 96, base2 + PAGE - 96);
+    for avx2 in paths() {
+        assert!(selftest::set_scan_avx2(avx2));
+        for at in [5usize, 37] {
+            for (page, p) in [(base, pa), (base2, pb)] {
+                s::memset(page as *mut c_void, 1, PAGE);
+                s::memset(p as *mut c_void, c_int::from(b'x'), 50);
+                s::memset((p + 50) as *mut c_void, 0, 1);
+            }
+            s::memset((pb + at) as *mut c_void, c_int::from(b'y'), 1);
+            WRITER_A.store(pa, SeqCst);
+            WRITER_B.store(pb, SeqCst);
+            WRITER_AT.store(at, SeqCst);
+            let end = selftest::in_child_quiet(writer_reread_child).unwrap();
+            if end == selftest::ChildEnd::Exited(3) {
+                println!("SKIP: strncmp writer re-read, avx2 {avx2}: this build has no assembly kernels");
+                continue;
+            }
+            assert_eq!(end, selftest::ChildEnd::Exited(0), "strncmp writer re-read: avx2 {avx2}, hit at {at} (1 = wrong answer, 2 = re-read not reached, Signaled(11) = read past the terminator)");
+        }
+    }
+    niji_boundary::cpu::init();
+    CSys.munmap(hi2).unwrap();
+    CSys.munmap(lo2).unwrap();
+    CSys.munmap(hi).unwrap();
+    CSys.munmap(lo).unwrap();
 }

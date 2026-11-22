@@ -18,6 +18,8 @@
 
 #[path = "../../core/tests/helpers/exec_stage.rs"]
 mod exec_stage;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
@@ -424,6 +426,47 @@ fn reloc_version_check_and_refusals_in_the_model() {
         "missing version refused"
     );
     assert_eq!(RelocError::Tls(36).message(), b"TLS descriptor relocations are not available in this build\n");
+}
+
+/// s27_1_f_0: the version check answers for each needed version as a walk of the provider's definitions
+/// from the start would (LD-LOOKUP-COST: one walk per requirement entry, the first 64 definitions
+/// kept). A program needs four of a library's 70 versions, two of them past the kept definitions; it is
+/// checked against that library, the same versions defined in reverse order (so which needed versions
+/// lie past the kept ones, and in which order the walk meets them, flips) and the library without one
+/// of the needed versions.
+#[test]
+fn reloc_version_check_beyond_the_kept_definitions() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("ver70");
+    let node = |k: usize| format!("V_{k} {{ global: f_{k}; {}}};\n", if k == 0 { "local: *; " } else { "" });
+    let src: String = (0..70).map(|k| format!("int f_{k}(void) {{ return {k}; }}\n")).collect();
+    let lib = |name: &str, order: &mut dyn Iterator<Item = usize>| {
+        let map = d.join(format!("{name}.map"));
+        std::fs::write(&map, order.map(node).collect::<String>()).unwrap();
+        build(&d, name, &src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())])
+    };
+    let up = lib("libup.so", &mut (0..70));
+    let down = std::fs::read(lib("libdown.so", &mut (0..70).rev())).unwrap();
+    let less = std::fs::read(lib("libless.so", &mut (0..70).filter(|&k| k != 66))).unwrap();
+    let use_src = "extern int f_0(void), f_5(void), f_66(void), f_69(void);\nvoid _start(void) { f_0(); f_5(); f_66(); f_69(); for (;;); }\n";
+    let p = std::fs::read(build(&d, "p70", use_src, &["-fPIE", "-pie", up.to_str().unwrap()])).unwrap();
+    let leak = |b: Vec<u8>| -> &'static [u8] { Box::leak(b.into_boxed_slice()) };
+    let (p, upf, down, less) = (leak(p), leak(std::fs::read(&up).unwrap()), leak(down), leak(less));
+    let name = leak(up.to_str().unwrap().as_bytes().to_vec());
+    let obj = |f: &'static [u8], name: &'static [u8]| {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: 0, name, tls: None }
+    };
+    assert_eq!(reloc::check_versions(&[obj(p, b"p70"), obj(upf, name)]), Ok(()), "versions in order");
+    assert_eq!(reloc::check_versions(&[obj(p, b"p70"), obj(down, name)]), Ok(()), "versions in reverse order");
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p70"), obj(less, name)]),
+        Err(reloc::VersionError::Missing { by: 0, file: name, version: b"V_66" }),
+        "a needed version past the kept definitions is missing"
+    );
+    std::fs::remove_dir_all(&d).ok();
 }
 
 /// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
@@ -883,7 +926,8 @@ fn reloc_ldso_kernel_started_without_proc() {
     }
     assert!(!root.join("proc").exists());
     // `unshare --root` changes the root itself: no chroot(8), which sits outside many PATHs.
-    let (code, sig, err) = run(Command::new("unshare").arg("-r").arg(format!("--root={}", root.display())).arg(&files[3]));
+    // Contained (support/contain.rs).
+    let (code, sig, err) = run(contain::user("unshare").arg("-r").arg(format!("--root={}", root.display())).arg(&files[3]));
     assert_eq!((code, sig), (Some(0), None), "kernel-started program without /proc: check number {code:?} failed; stderr: {err}");
 }
 

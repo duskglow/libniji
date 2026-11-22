@@ -246,7 +246,10 @@ fn s22_4_c_4() {
 /// §22.4 Contract: **Timeouts:** `timedlock` is absolute on `CLOCK_REALTIME`. `clocklock` (2.30) takes the clock: `CLOCK_MONOTONIC` or `CLOCK_REALTIME`.
 #[test]
 fn s22_4_c_5() {
-    conformance(&["s22_sync"]);
+    // `s22_past_deadline`: every timed wait (mutex, mtx, condition variable, cnd, rwlock read and
+    // write, semaphore, timed join) given a deadline already past, a negative tv_sec included:
+    // ETIMEDOUT at once when contended, success when free (TIMED-WAIT-PAST-DEADLINE).
+    conformance(&["s22_sync", "s22_past_deadline"]);
 }
 /// §22.4 Contract: **Static initialization:** `PTHREAD_MUTEX_INITIALIZER` (all zero bytes) and the `_NP` initializers for the other types.
 #[test]
