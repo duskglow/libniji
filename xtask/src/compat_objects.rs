@@ -15,7 +15,7 @@
 //!   the `"C"` locale's table at character 0 ([`ctype_tables`]; `spec/behaviour/ctype-objects.md`).
 //!   The tables are rendered here, in `libc.so.6` only: the library's own copies live in a crate
 //!   that cannot name a symbol (`niji_legacy`, `forbid(unsafe_code)`), and an assembled object can
-//!   only point at a named symbol (D-NEW, records/pending/LG6-CTYPE-OBJECTS-1.toml).
+//!   only point at a named symbol (D-5.13, records/decisions/D-5/D-5.13.toml).
 //!
 //! `cargo xtask so` checks that every exported object of `libc.so.6` whose row `versions.tsv`
 //! has carries the row's size ([`problems`]).
