@@ -858,6 +858,17 @@ static void *thread_a(void *x) {
     sem_post(&done_a);
     return NULL;
 }
+static long vm0;
+/* The process's mapped kilobytes (VmSize). */
+static long vm_kb(void) {
+    char buf[4096];
+    FILE *f = fopen("/proc/self/status", "r");
+    long kb = -1;
+    if (!f) return -1;
+    while (fgets(buf, sizeof buf, f)) if (sscanf(buf, "VmSize: %ld", &kb) == 1) break;
+    fclose(f);
+    return kb;
+}
 static int late_tag = 3;
 /* The modules a late thread reads: none the main thread closes meanwhile. */
 static int late_end = M;
@@ -904,8 +915,10 @@ int main(int argc, char **argv) {
         if (dlclose(h[k])) return 1;
         live[k] = 0;
         for (int i = 0; i < 4; i++) { void *b = (void *)1L; pthread_join(t[i], &b); churn += (int)(long)b != 0; }
+        if (r == 0) vm0 = vm_kb();
     }
-    printf("churn %d\nmain end %d\n", churn, mine(0, M + MORE, 0));
+    /* Each round's threads grew vectors of 16 KiB or more: kept, nine rounds would add 576 KiB. */
+    printf("churn %d\nmain end %d\ngrown kept %d\n", churn, mine(0, M + MORE, 0), vm_kb() - vm0 > 256);
     return 0;
 }
 "#;
@@ -917,7 +930,8 @@ int main(int argc, char **argv) {
 /// thread's own writes stay its own. Closing every other module and loading 200 more reuses their
 /// IDs (past 512 included): the old thread and the main thread see the new modules' images and
 /// keep the values they wrote to the others. Forty threads that grow their vectors end while
-/// modules are loaded and closed in the main thread: every block they saw was right.
+/// modules are loaded and closed in the main thread: every block they saw was right, and the
+/// vectors they grew are unmapped (the process's size does not grow by them round after round).
 #[test]
 fn dlopen_tls_modules_past_the_vectors_in_place() {
     let Some((lib, ld)) = products() else { return };
@@ -935,6 +949,6 @@ fn dlopen_tls_modules_past_the_vectors_in_place() {
     let o = run(Command::new(top.join("tlsprog")).arg(&d));
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
-    let want = "main 0\nbefore 0\nmain kept 0\nafter 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\n";
+    let want = "main 0\nbefore 0\nmain kept 0\nafter 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\ngrown kept 0\n";
     assert_eq!(out, want, "TLS of modules past the vectors in place");
 }

@@ -932,8 +932,10 @@ impl View {
         // A chain of distinct nodes holds at most the nodes the mapped generations have: a longer
         // walk decoded a wrong node and ends here, not after 2^32 steps. A generation mapped during
         // the walk raises the bound before it ends (its nodes may be on the chain now).
+        // Counted from here: `find` hands over at the first node outside generation 0, and the
+        // chain may come back to generation 0 after it.
         let mut bound = Gens::<CAP, OBJ_GENS>::mapped_in(self.node_dir());
-        let mut steps = CAP;
+        let mut steps = 0usize;
         loop {
             if steps >= bound {
                 let now = Gens::<CAP, OBJ_GENS>::mapped_in(self.node_dir());
