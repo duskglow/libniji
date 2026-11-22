@@ -31,7 +31,7 @@
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, ld_entries, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
 use super::table::{Arena, Gens, Grown, Records, Spill, Table, Wide, ZeroValid, INLINE};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_ORIGIN, START_PAGE, START_RUN_PATH};
 use crate::{conv, dlerr, raw, tb};
@@ -2093,7 +2093,9 @@ impl Env {
         let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
         let aux = Auxv::from_words(copy.get(..words).unwrap_or(&[]));
         let secure = start::secure(&aux);
-        let ld = start::ld_env(env_entries(envp));
+        // Only the `LD_` entries: the settings read here (`LD_LIBRARY_PATH`, `LD_ORIGIN_PATH`) are
+        // among them, and the others are never measured.
+        let ld = start::ld_env(ld_entries(envp));
         let features = Native::features(&aux, &crate::sys::CSys);
         let cache = if with_cache { read_cache() } else { None };
         Env { secure, library_path: ld.library_path, origin_path: ld.origin_path, features, cache }

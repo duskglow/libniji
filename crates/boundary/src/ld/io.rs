@@ -58,6 +58,21 @@ pub(crate) fn c_string(addr: usize) -> &'static [u8] {
     unsafe { conv::bytes_at(addr, len) }
 }
 
+/// Whether the NUL-terminated string at `addr` (an argv or envp element) starts with `prefix`
+/// (which holds no NUL): its bytes are read one at a time up to the first that differs, so never
+/// past the string's NUL, and the rest of the string is not measured.
+pub(crate) fn starts_with(addr: usize, prefix: &[u8]) -> bool {
+    prefix.iter().enumerate().all(|(k, &want)| {
+        // UNSAFE(slice): one byte of an argument or environment string.
+        #[allow(unsafe_code)]
+        // SAFETY: the strings are NUL-terminated in the kernel's copy on the initial stack
+        // (⚑ KERN); byte `k` is read only after bytes 0..k matched `prefix`, none of which is NUL,
+        // so it is at most the string's NUL.
+        let b = unsafe { conv::bytes_at(addr.wrapping_add(k), 1) };
+        b.first() == Some(&want)
+    })
+}
+
 /// End the process with `msg` on standard error and status 127 (design §1 "Failure").
 pub(super) fn refuse(msg: &[u8]) -> ! {
     write_all(2, msg);
