@@ -2067,11 +2067,17 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// A `sudo` command that the tests below only inspect.
+    fn sudo() -> std::process::Command {
+        // contain: probe(never spawned: the tests read its program, arguments and variables)
+        std::process::Command::new("sudo")
+    }
+
     /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): `bench_output` sends the private-/dev/shm route
     /// (a `sudo` command, the root processes) through containment, and every other bench command runs as built.
     #[test]
     fn the_root_route_alone_runs_contained() {
-        assert!(super::is_root_route(&std::process::Command::new("sudo")));
+        assert!(super::is_root_route(&sudo()));
         assert!(!super::is_root_route(&std::process::Command::new("target/niji/bench/cbench_netdb")));
         assert!(!super::is_root_route(&std::process::Command::new("setpriv")));
     }
@@ -2080,14 +2086,14 @@ mod tests {
     /// `env` arguments (sudo resets the environment), so a counted run of `cbench_netdb` prints its counters.
     #[test]
     fn root_route_carries_the_bench_variables_past_sudo() {
-        let mut c = std::process::Command::new("sudo");
+        let mut c = sudo();
         c.args(["-n", "unshare", "-m", "sh"]).env_clear().env("PATH", "/p").env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", "a,b");
         let n = super::past_sudo(&c);
         let args: Vec<String> = n.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
         assert_eq!(n.get_program(), "sudo");
         assert_eq!(args, ["-n", "env", "CBENCH_COUNTERS=1", "CBENCH_ROWS=a,b", "unshare", "-m", "sh"]);
         assert!(n.get_envs().any(|(k, v)| k == "PATH" && v == Some(std::ffi::OsStr::new("/p"))));
-        let plain = super::past_sudo(std::process::Command::new("sudo").args(["-n", "unshare"]).env_clear());
+        let plain = super::past_sudo(sudo().args(["-n", "unshare"]).env_clear());
         assert_eq!(plain.get_args().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>(), ["-n", "unshare"]);
     }
 
