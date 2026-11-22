@@ -1,30 +1,41 @@
 # HEAP-TEST-NODE-PIN handoff
 
-State: branch task/heap-test-node-pin, HEAD = latest pushed (code commit 6d72bb391 + this note). Role keke:~/w/n1.
+State: branch task/heap-test-node-pin; code commit 6d72bb391 (the test change), later commits are handoff only.
+Role keke:~/w/n1 (synced at 265d9fe03, tree identical to the final head's code).
 
-Done (code complete, not yet verified on the final head):
-- `the_heap_keeps_address_space_near_its_use` pins both runs (all four steps, unlimited and RLIMIT_AS) to the
-  lowest NUMA node with allowed CPUs via `numa_nodes` + `with_cpus`, copied verbatim from task/heap-spill-cold-2
-  (coordinator note 04:03: same names, one pair after its merge). `assert_on_one_node` (inside the pinned closure)
-  fails when the thread may run on CPUs of 2+ nodes. Bounds and AS_HEADROOM unchanged (ruling #7441).
-- Plants file: handoff/HEAP-TEST-NODE-PIN-plants.txt (pin-skipped, pin-all-cpus; msg `not one \(pinning ...`).
-- Proof scripts (local scratch ~/w/.scratch/HEAP-TEST-NODE-PIN/): heappin.sh (mei: 20 runs flip within node0
-  halves + 20 cross-node control, limit 41296), par24.sh (mei: 20 batches x 24 pinned parallel copies, coordinator
-  note 03:55), gate20.sh (keke: the target 20x as the gate runs it; installed at ~/work/heap-test-node-pin/).
+## What the branch does
+- `niji::heap_meta_products the_heap_keeps_address_space_near_its_use` pins both of its runs (unlimited, and under
+  RLIMIT_AS with a fixed layout) to the CPUs of the lowest NUMA node that has allowed CPUs, read at run time from
+  `/sys/devices/system/node` (`numa_nodes` + `with_cpus`, the same helpers as task/heap-spill-cold-2, so one pair
+  remains after both merge). On a one-node machine nothing changes. A comment names it a single-node measurement and
+  cites test-scratch-cleanup-4-heaprep2 / -heapmig and ruling #7441.
+- `assert_on_one_node` (run inside the pinned closure) fails when the thread may run on CPUs of 2+ nodes.
+- Bounds (AS_STEPS) and AS_HEADROOM (41296 KiB) unchanged (ruling #7441). The migration case is HEAP-SPILL-COLD-2's.
 
-Superseded (old heads, killed): keke heap-test-node-pin-gate, heap-test-node-pin-plants (head ddb09af42).
-Last sync to keke:~/w/n1 was BUSY (rc 4) while those were being killed: the role still holds ddb09af42.
+## Results (final code, oracle sha256 40511152a955c5f4 on both hosts)
+- keke heap-test-node-pin-gate2 (direct tier, 1 of 312 targets: heap_meta_products): 5 passed, 0 failed, rc 0, peak 1.7G.
+- keke clippy (workspace, all targets/features, -D warnings) rc 0; `cargo xtask static` rc 0 (role at 265d9fe03).
+- mei (Skylake-SP, 2 nodes) heap-test-node-pin-mig20: the oracle under RLIMIT_AS = start + 41296 KiB, fixed layout,
+  with a mover flipping its affinity until it exits. Flip within node 0 (between CPUs 0-11 and 24-35): 0 of 20
+  fail. Control, flip between the two nodes: 17 of 20 fail (exit 12), so the run reproduces the original failure.
+- mei heap-test-node-pin-par24b: 20 batches x 24 parallel copies pinned to node 0 (half unlimited with the step
+  bounds, half RLIMIT_AS fixed layout): 0 of 480 over a bound or failed.
+- keke heap-test-node-pin-plants2 (2 plants: pin-skipped, pin-all-cpus; handoff/HEAP-TEST-NODE-PIN-plants.txt) and
+  heap-test-node-pin-gate20 (the target 20 times as the gate runs it): see the hand-back (PENDING if still running).
 
-Exact next step:
-1. sync_role.sh again (check rc 0); on the role run clippy (fg) and `cargo xtask static` (last run rc=1 on the
-   stale tree mid-kill: read ~/logs/heap-test-node-pin-static.out tail; rerun after sync).
-2. Start detached: heap-test-node-pin-gate2 (affected --run), heap-test-node-pin-plants2 (--dir
-   /dev/shm/claude/heap-test-node-pin/plants-2), then heap-test-node-pin-gate20 (after gate2:
-   `sh ~/work/heap-test-node-pin/gate20.sh ~/w/n1 20`).
-3. mei: copy keke:~/w/n1/target/test-oracles/heap_address_space_niji (static; oracle and libc unchanged by this
-   story) to mei ~/work/heap-test-node-pin/, scp heappin.sh and par24.sh there, run under jobrun with outdir
-   /mnt/zram/claude/heap-test-node-pin/: labels heap-test-node-pin-mig20 (`heappin.sh <exe> 20 <dir>`),
-   heap-test-node-pin-par24 (`par24.sh <exe> 20 <dir>`).
-4. Report: the external taskset flip in -heapmig overrides any mask, so the pinned equivalent is the in-node flip
-   (the moves the scheduler can still make); say so. Write handoff/reports/HEAP-TEST-NODE-PIN.json (+jobs),
-   precheck, handback-check.
+## Why the flip test uses an in-node flip
+The -heapmig flip was an external `taskset` that sets any mask and so overrides the test's own pinning. Once the test
+pins itself, the only moves left to the scheduler are within the node; the in-node flip exercises exactly those.
+
+## Superseded
+- keke heap-test-node-pin-gate, heap-test-node-pin-plants (head ddb09af42, killed for the helper change).
+- mei heap-test-node-pin-par24: the script applied the step bounds to the RLIMIT_AS runs too, which the test does
+  not do (it only requires those runs to succeed). All 480 runs exited 0; the 240 flagged were all RLIMIT_AS
+  fixed-layout copies, 8 KiB over the unlimited-run bound. Fixed script rerun as par24b.
+
+## Leftover
+- An orphaned `xtask affected --run` / `xtask so` tree from the killed gate held keke:~/w/n1 (sync rc 4). Ended
+  with `~/bin/kill-mine n1 --kill`.
+
+## Next step
+Nothing in this story. If plants2/gate20 are named PENDING, the dispatcher checks them.
