@@ -43,6 +43,36 @@ pub(super) static START_RUN_PATH: AtomicUsize = AtomicUsize::new(0);
 /// re-read from the stack: after `ld.so PROGRAM` the start's words are rearranged (argv[0] dropped).
 pub(super) static START_ARGS: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 
+/// `ld.so --library-path PATH` (address and length + 1 of PATH; 0: not given) and `--inhibit-cache`
+/// (1), kept by program mode for `dlopen`, whose search uses them as the start's did (probed).
+static PROGRAM_OPTIONS: [AtomicUsize; 3] = [const { AtomicUsize::new(0) }; 3];
+
+/// Keep program mode's `--library-path` and `--inhibit-cache` for `dlopen` ([`program_options`]).
+pub(super) fn keep_program_options(library_path: Option<&'static [u8]>, inhibit_cache: bool) {
+    let [at, len, inhibit] = &PROGRAM_OPTIONS;
+    if let Some(p) = library_path {
+        at.store(p.as_ptr().expose_provenance(), Relaxed);
+        len.store(p.len().wrapping_add(1), Relaxed);
+    }
+    inhibit.store(usize::from(inhibit_cache), Relaxed);
+}
+
+/// Program mode's `--library-path` (`Some` when given) and whether `--inhibit-cache` was given.
+pub(super) fn program_options() -> (Option<&'static [u8]>, bool) {
+    let [at, len, inhibit] = &PROGRAM_OPTIONS;
+    let n = len.load(Relaxed);
+    let path = n.checked_sub(1).map(|n| {
+        // UNSAFE(slice): the `--library-path` value, one of the loader's own arguments.
+        #[allow(unsafe_code)]
+        // SAFETY: `keep_program_options` stored a NUL-terminated argument string of the initial
+        // stack and its length; the stack's strings live for the process's lifetime.
+        unsafe {
+            crate::conv::bytes_at(at.load(Relaxed), n)
+        }
+    });
+    (path, inhibit.load(Relaxed) != 0)
+}
+
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 pub(super) const AUXV_WORDS_MAX: usize = 256;
 /// Words per program header.

@@ -1,0 +1,17 @@
+@@generated
+/* netinet/if_ether.h: Ethernet and ARP (ethernet(7)) */
+#ifndef __NIJI_H_netinet_if_ether_h
+#define __NIJI_H_netinet_if_ether_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <net/ethernet.h>
+#include <net/if_arp.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

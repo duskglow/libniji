@@ -1,0 +1,18 @@
+@@generated
+/* netinet/ip_icmp.h: ICMP (RFC 792) */
+#ifndef __NIJI_H_netinet_ip_icmp_h
+#define __NIJI_H_netinet_ip_icmp_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

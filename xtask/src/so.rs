@@ -563,14 +563,14 @@ fn lexical(p: &Path) -> std::path::PathBuf {
 }
 
 /// The `crates/` directory names a product build compiles: the product crates (the manifests of [`LIBC_BUILD`],
-/// [`LIBM_BUILD`], [`LIBRESOLV_BUILD`], [`LD_BUILD`] and [`LDCONFIG_BUILD`]) and, transitively, each path dependency
+/// [`LIBM_BUILD`], [`LIBRESOLV_BUILD`], [`LD_BUILD`], [`LDCONFIG_BUILD`] and [`LOCALEDEF_BUILD`]) and, transitively, each path dependency
 /// of theirs in a `[dependencies]` or `[build-dependencies]` table (a target's own tables too), a `workspace = true`
 /// one looked up in the main workspace's `[workspace.dependencies]`. Never a `[dev-dependencies]` entry: a library
 /// build does not compile those. A manifest read wrongly here cannot pass unnoticed: [`check_tag_covers`] fails the
 /// build when a file it compiled lies outside the set.
 fn product_crates(root: &Path) -> BTreeSet<String> {
     let ws: BTreeMap<String, String> = manifest_deps(&fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default(), true).into_iter().filter_map(|(n, p)| Some((n, p?))).collect();
-    let mut todo: Vec<String> = [&LIBC_BUILD, &LIBM_BUILD, &LIBRESOLV_BUILD, &LD_BUILD, &LDCONFIG_BUILD].iter().filter_map(|b| Some(b.manifest.strip_prefix("crates/")?.strip_suffix("/Cargo.toml")?.to_string())).collect();
+    let mut todo: Vec<String> = [&LIBC_BUILD, &LIBM_BUILD, &LIBRESOLV_BUILD, &LD_BUILD, &LDCONFIG_BUILD, &LOCALEDEF_BUILD].iter().filter_map(|b| Some(b.manifest.strip_prefix("crates/")?.strip_suffix("/Cargo.toml")?.to_string())).collect();
     let mut seen = BTreeSet::new();
     while let Some(c) = todo.pop() {
         if !seen.insert(c.clone()) {
@@ -1275,7 +1275,7 @@ struct EarlyBuilds(Option<std::thread::JoinHandle<()>>);
 impl EarlyBuilds {
     fn start(root: &Path, product: &Path, profile: Profile) -> EarlyBuilds {
         let tag = build_tag(root);
-        let cmds: Vec<(&str, Command)> = [("early-cargo-ld", &LD_BUILD), ("early-cargo-ldconfig", &LDCONFIG_BUILD)].into_iter().map(|(n, b)| (n, b.command(root, product, profile, None, &tag))).collect();
+        let cmds: Vec<(&str, Command)> = [("early-cargo-ld", &LD_BUILD), ("early-cargo-ldconfig", &LDCONFIG_BUILD), ("early-cargo-localedef", &LOCALEDEF_BUILD)].into_iter().map(|(n, b)| (n, b.command(root, product, profile, None, &tag))).collect();
         EarlyBuilds(Some(std::thread::spawn(move || {
             for (phase, mut c) in cmds {
                 let started = std::time::Instant::now();
@@ -2232,6 +2232,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("ld");
     run_ldconfig(root, &cc, profile)?;
     phases.mark("ldconfig");
+    run_localedef(root, &cc, profile)?;
+    phases.mark("localedef");
     run_getconf(root, &cc, &release, &cdebug)?;
     run_getent(root, &cc, &cdebug)?;
     run_iconv(root, &cc, &cdebug)?;
@@ -2831,17 +2833,34 @@ fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Resu
 pub(crate) const LDCONFIG_BUILD: ProductBuild = ProductBuild { manifest: "crates/ldconfig-bin/Cargo.toml", archive: "libldconfig_bin.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
 
 fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
+    run_freestanding(root, cc, profile, &LDCONFIG_BUILD, "ldconfig", "-DNIJI_LDCONFIG")
+}
+
+/// The shipped localedef (UTIL-12, spec §31.8): `crates/localedef-bin` linked as ldconfig is, with the `localedef`
+/// variant of `machine/entry.S` (entry `niji_machine_localedef_entry`), into `target/niji/localedef`. It shares
+/// ldconfig's target directory and flags (the library crates are built once for both).
+pub(crate) const LOCALEDEF_BUILD: ProductBuild = ProductBuild { manifest: "crates/localedef-bin/Cargo.toml", archive: "liblocaledef_bin.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
+
+fn run_localedef(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
+    run_freestanding(root, cc, profile, &LOCALEDEF_BUILD, "localedef", "-DNIJI_LOCALEDEF")
+}
+
+/// A freestanding static program `target/niji/<name>` (D-31.2): the product crate `build` as a static archive,
+/// linked with `machine/entry.S` assembled with `define` into a static PIE whose entry point is
+/// `niji_machine_<name>_entry`, checked as the interpreter is (L14-1) and for no `PT_INTERP`.
+fn run_freestanding(root: &Path, cc: &str, profile: Profile, build: &ProductBuild, name: &str, define: &str) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run_timed("cargo-ldconfig", &mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    check_tag_covers(root, &LDCONFIG_BUILD, &product, profile)?;
-    let archive = LDCONFIG_BUILD.raw_archive(&product, profile);
-    let entry = product.join("ldconfig-entry.o");
-    run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg("-DNIJI_LDCONFIG").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
-    let out = release.join("ldconfig");
+    run_timed(&format!("cargo-{name}"), &mut build.command(root, &product, profile, None, &build_tag(root)))?;
+    check_tag_covers(root, build, &product, profile)?;
+    let archive = build.raw_archive(&product, profile);
+    let entry = product.join(format!("{name}-entry.o"));
+    run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(define).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
+    let out = release.join(name);
     let staged = tmp_name(&out);
     run(Command::new(cc)
-        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ldconfig_entry"])
+        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs"])
+        .arg(format!("-Wl,-e,niji_machine_{name}_entry"))
         .arg(&entry)
         .arg(&archive)
         .arg("-lgcc")
@@ -2850,7 +2869,7 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     check_interp(&staged)?;
     check_no_interp(&staged)?;
     publish(&staged, &out)?;
-    println!("so: target/niji/ldconfig (static PIE, no interpreter; L14-1 link check passed)");
+    println!("so: target/niji/{name} (static PIE, no interpreter; L14-1 link check passed)");
     Ok(())
 }
 
@@ -4392,8 +4411,8 @@ mod tests {
         // (a dependency's source or manifest, a build or target dependency, csys, include, either lock, a data file a product source includes) changes it
         let root = tag_tree("tagset");
         let hash = source_hash_tag(&root);
-        // the five product crates (the scratch tree has one manifest of them) and libc-so's dependencies
-        let crates = ["bdep", "dep", "ld-so", "ldconfig-bin", "libc-so", "libm-so", "libresolv-so", "tdep"];
+        // the six product crates (the scratch tree has one manifest of them) and libc-so's dependencies
+        let crates = ["bdep", "dep", "ld-so", "ldconfig-bin", "libc-so", "libm-so", "libresolv-so", "localedef-bin", "tdep"];
         assert_eq!(product_crates(&root), crates.map(String::from).into(), "the product crates");
         for f in ["crates/libc-so/tests/f.rs", "crates/dep/benches/f.rs", "crates/dep/examples/f.rs", "crates/devonly/src/f.rs", "crates/tool/src/f.rs", "docs/f.rs", "spec/encoding/iconv-names.md"] {
             fs::write(root.join(f), "edited").unwrap();
@@ -4442,7 +4461,7 @@ mod tests {
         let product = root.join("target/product");
         let mut by_dir: BTreeMap<String, (&str, Vec<String>)> = BTreeMap::new();
         // Every product build `run_so_as` runs.
-        for b in [&LIBC_BUILD, &LIBM_BUILD, &LD_BUILD, &LDCONFIG_BUILD] {
+        for b in [&LIBC_BUILD, &LIBM_BUILD, &LD_BUILD, &LDCONFIG_BUILD, &LOCALEDEF_BUILD] {
             for profile in [Profile::Fast, Profile::Release] {
                 let cmd = b.command(root, &product, profile, None, "src-0123456789abcdef");
                 let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).collect();

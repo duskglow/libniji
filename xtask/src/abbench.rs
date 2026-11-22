@@ -71,7 +71,7 @@ fn exe_of(root: &Path, bench: &str) -> PathBuf {
 
 fn run_one(bench: &str, root: &Path, exe: &Path) -> Result<Vec<u8>, String> {
     let mut cmd = if bench.starts_with("cbench_") { c_command(bench, exe) } else { Command::new(exe) };
-    let out = cmd.current_dir(root).output().map_err(|e| format!("{bench}: {}: {e}", exe.display()))?;
+    let out = crate::bench::bench_output(cmd.current_dir(root)).map_err(|e| format!("{bench}: {}: {e}", exe.display()))?;
     if !out.status.success() {
         return Err(format!("{bench} ({}) failed:\n{}", exe.display(), String::from_utf8_lossy(&out.stderr)));
     }
@@ -82,7 +82,7 @@ fn run_one(bench: &str, root: &Path, exe: &Path) -> Result<Vec<u8>, String> {
 fn instr_of(bench: &str, root: &Path, exe: &Path) -> BTreeMap<String, f64> {
     let mut runs: Vec<BTreeMap<String, f64>> = Vec::new();
     for _ in 0..3 {
-        let Ok(out) = c_command(bench, exe).current_dir(root).env("CBENCH_COUNTERS", "1").output() else { return BTreeMap::new() };
+        let Ok(out) = crate::bench::bench_output(c_command(bench, exe).current_dir(root).env("CBENCH_COUNTERS", "1")) else { return BTreeMap::new() };
         if !out.status.success() {
             return BTreeMap::new();
         }

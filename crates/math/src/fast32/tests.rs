@@ -180,7 +180,7 @@ fn fast_path_agrees_with_the_accurate_path() {
     // The fallback rate (at most 1 in 10^4) on operands in the functions' working ranges: a
     // grid over [-30, 30] for the exps and every 4001st positive normal `float` for the logs.
     // (Over all encodings most exp operands are tiny, e^x is next to 1 and the test refuses
-    // them by design.) Measured here, not in a test of its own: the counters are global.
+    // them by design.) The counts are this thread's (see `rate_counts_ignore_other_threads`).
     let exps = (0..1u32 << 17).map(|i| -30.0 + 60.0 * (i as f32) / 131_072.0);
     let logs = (0x0080_0000u32..0x7f80_0000).step_by(4001).map(f32::from_bits);
     // log1pf: a grid over [-0.9, 10] (the bench row's range).
@@ -227,6 +227,30 @@ fn fast_path_agrees_with_the_accurate_path() {
     let cuts = [0x3280_0000u32, 0xb280_0000, 0x4900_0000, 0xc900_0000, 0x3fc9_0fdb, 0x40c9_0fdb, 0x3d49_0fdb, 0x4b49_0fdb]
         .into_iter().flat_map(|b| (b - 0x8000..b + 0x8000).step_by(5)).map(f32::from_bits);
     assert!(agree_in(&TRIG, cuts) > 50_000);
+}
+
+/// The fallback-rate windows read this thread's counts (`stats::counts` in the unit tests): erff
+/// calls on another thread inside a window (as the erf test makes when the harness runs it beside
+/// [`fast_path_agrees_with_the_accurate_path`]), some of them falling back, leave the window's
+/// counts unchanged, so a rate means the same alone or beside any other test (no spec clause;
+/// test isolation).
+#[test]
+fn rate_counts_ignore_other_threads() {
+    let before = stats::counts("erff");
+    let other = std::thread::spawn(|| {
+        let b = stats::counts("erff");
+        for x in (0..1u32 << 17).map(|i| -5.0 + 10.0 * (i as f32) / 131_072.0) {
+            for m in MODES {
+                let _ = eval(Fast::Erf, x, m);
+            }
+        }
+        stats::counts("erff").since(b)
+    })
+    .join()
+    .unwrap_or_else(|e| std::panic::resume_unwind(e));
+    assert!(other.fast > 0 && other.fallback > 0, "the other thread's erff calls: {other:?}");
+    let c = stats::counts("erff").since(before);
+    assert_eq!(c, stats::Counts::default(), "another thread's erff calls counted in this thread's rate window");
     let exact = (-149..128).flat_map(|k| [k as f32, 2f32.powi(k)]).chain((0..11).map(|k| 10f32.powi(k)));
     agree(exact);
 }

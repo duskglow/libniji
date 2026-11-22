@@ -90,6 +90,7 @@ system	libc-bin	usr/bin/getent	file	getent	0755	debug	dynamic, over libc6's name
 system	libc-bin	usr/bin/iconv	file	iconv	0755	debug	dynamic, over libc6's iconv(3) (UTIL-7)
 system	libc-bin	usr/bin/ldd	file	ldd	0755	debug	static, runs the loader in trace mode (UTIL-4)
 system	libc-bin	usr/bin/locale	file	locale	0755	debug	dynamic, over libc6's locale data (UTIL-8)
+system	libc-bin	usr/bin/localedef	file	localedef	0755	debug	static, no interpreter; compiles locale sources (UTIL-12)
 system	libc-bin	usr/bin/zdump	file	zdump	0755	debug	dynamic, over libc6's localtime (TZ-TOOLS)
 system	libc-bin	usr/sbin/ldconfig	file	ldconfig	0755	debug	static, no interpreter (D-31.2)
 system	libc-bin	usr/sbin/zic	file	zic	0755	debug	dynamic, compiles time-zone source into TZif files (TZ-TOOLS)

@@ -2,6 +2,9 @@
 # Black-box probe of the reference loader's LD_PRELOAD and /etc/ld.so.preload behaviour.
 # usage: run.sh SCRATCH
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../../../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 d=$1
 rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 2
 lib() { # lib NAME CTOR FVAL [extra]

@@ -82,6 +82,12 @@ libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened
 `dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
 (one more callback), and `dlpi_adds` grows by one within the walk.
 
+R-5 (DL-FIND-OBJECT-FAST, probe `tools/probe/dl/span/probe.c`, same reference, x86_64): in a dynamic program
+`_dl_find_object` finds a `dlopen`'d object for **every pc in its `PT_LOAD` span**, not only in a segment: the
+object's first byte, the bytes past a segment's `p_memsz` (the rest of an executable segment's page) and the bytes
+between segments all give 0 and the same span; the byte at the span's end (highest `p_vaddr + p_memsz`) and past it
+give -1. (Object: `-nostdlib -shared`, four `PT_LOAD`s, a 14-byte executable segment.)
+
 **Exit order of `dlopen`ed objects** (record `== exit-order (DL-EXIT-ORDER-PROBE)`, probe
 `tools/probe/dl/exitorder/run.sh SCRATCH`, each scenario its own process; destructors report with
 `write`). At exit the program's destructor runs first; then the start-time objects and the `dlopen`ed
@@ -176,6 +182,31 @@ when the working directory and `LD_LIBRARY_PATH` hold another file of that name,
 cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
 working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
 is opened as given.
+
+**Program mode options** (LDSO-RUN-PROGRAM probe, Zen 1 host, 2.39; a PIE and a non-PIE program
+needing `libdep.so` from `lib/` or `lib2/`). Options are read up to the first argument not starting
+with `-`; later words are the program's, `--argv0 X` there included. A value is the next argument:
+`--library-path=lib` and `--` are unknown options; an option without its value, an unknown option and
+no program (also `--list` alone) give status 1, `<argv[0]>: unrecognized option '<opt>'` or
+`<argv[0]>: missing program name`, then `Try '<argv[0]> --help' for more information.`
+`--library-path PATH` replaces `LD_LIBRARY_PATH` for the start's search and for `dlopen`'s; the
+environment keeps `LD_LIBRARY_PATH`; the last copy wins; `nolib:lib` searches both; an empty value
+finds nothing in `lib/`. `--preload LIST` (colons or spaces): loaded after `LD_PRELOAD`'s objects
+(constructors of `a:b` run b, then a), the last copy wins, `LD_PRELOAD` is not set; a missing object:
+`ERROR: ld.so: object './nosuch.so' from --preload cannot be preloaded (cannot open shared object
+file): ignored.` and the program runs. `--argv0 S` sets `argv[0]` (empty allowed). `--inhibit-cache`:
+`dlopen` of a name only the cache lists fails; directories still searched. `--verify` writes nothing:
+0 dynamic program (also when its dependencies are missing), 2 shared library or static PIE, 1 static
+program, text file or missing file. `--audit X`: the auditor's `la_version` runs; one that cannot be
+loaded: `ERROR: ld.so: object 'X' cannot be loaded as audit interface: cannot open shared object
+file; ignored.` and the program runs. `--glibc-hwcaps-mask`, `--glibc-hwcaps-prepend` and
+`--inhibit-rpath` (the program named as given, by base name or by full path) are accepted;
+`--list-tunables` and `--list-diagnostics` print and exit 0. A static program and a static PIE run
+(their own status). A set-user-ID program runs with the caller's identity (the kernel applies no
+set-user-ID bit to a file it does not execute). Errors, 127, `<file>: error while loading shared
+libraries: <file>: <reason>`: a missing file `cannot open shared object file: No such file or
+directory`; a text file or script shorter than an ELF header `file too short`; a directory `cannot
+read file data: Error 21`.
 
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are

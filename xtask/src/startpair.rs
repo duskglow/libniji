@@ -114,7 +114,7 @@ fn measure(base: &Path, head: &Path, rows: &str, runs: usize) -> Result<Pair, St
     for r in 0..runs {
         let order = if r % 2 == 0 { [(base, 0), (head, 1)] } else { [(head, 1), (base, 0)] };
         for (exe, side) in order {
-            let out = crate::bench::c_command(BENCH, exe).env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", rows).output().map_err(|e| format!("{}: {e}", exe.display()))?;
+            let out = crate::bench::bench_output(crate::bench::c_command(BENCH, exe).env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", rows)).map_err(|e| format!("{}: {e}", exe.display()))?;
             if !out.status.success() {
                 return Err(format!("{} (counted run) failed", exe.display()));
             }

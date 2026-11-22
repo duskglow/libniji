@@ -13,6 +13,9 @@
 # timing records the machine's load (uptime) before and after. perf runs through sudo -n (the
 # host's perf_event_paranoid is left as it is).
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=root contained_tree=$(cd "$(dirname "$0")/.." && pwd) CONTAINED_KEEP="VALIDATION"
+. "$contained_tree/tools/contained.sh"
 V=${VALIDATION:-$HOME/validation}
 out=$1
 mkdir -p "$out"

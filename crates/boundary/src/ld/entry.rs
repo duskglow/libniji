@@ -16,7 +16,7 @@ use niji_legacy::search_c::CWords;
 use crate::conv;
 use super::exec_stack::{exec_stack_accepted, refuse_exec_stack_program};
 use super::image::{load, open_whole, program_file, read_image};
-use super::io::{c_string, exit, lo32, refuse, stack_word, write_all};
+use super::io::{c_string, exit, fail_loading, lo32, refuse, stack_word, write_all};
 use super::link::{Origin, Preloads, link};
 use super::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS, START_RUN_PATH};
 use super::tls::{PROVISIONAL, install_tls, map_area, program_tls};
@@ -212,7 +212,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
     let preload = if secure { secure_preload } else { ld.preload };
-    let list_env = List { ld: &ld, secure, preload, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
+    let list_env = List { ld: &ld, secure, preload, preload_option: None, inhibit_cache: false, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
@@ -247,30 +247,95 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             }
             exit(0)
         }
-        Action::Program(name) => {
-            // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the
-            // name as given, the file's path names it in messages and gives its `$ORIGIN`.
-            let file = program_file(name, &list_env);
-            if ld.trace && !secure {
-                list(&list_env, file, false, invoked)
-            }
-            // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
-            let file = file.as_ptr().expose_provenance();
-            let (prog, bias) = load(file, page, &ld, secure);
-            let mut copy = copy;
-            start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
-            store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
-            store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
-            run(argv, &prog, bias, page, file, &list_env)
+        Action::Program { mode, name, at, options } => {
+            let start = Start { argv, argc, auxv, copy, words, invoked };
+            program_mode(&start, mode, name, at, &options, &list_env)
         }
-        Action::List(name) => list(&list_env, program_file(name, &list_env), true, invoked),
         other => {
-            for part in program::refusal(other) {
+            let me = if argc == 0 { &b"ld.so"[..] } else { c_string(arg(0)) };
+            for part in program::refusal(other, me) {
                 write_all(2, part);
             }
-            exit(program::FAILURE)
+            exit(program::USAGE)
         }
     }
+}
+
+/// The initial stack of `ld.so` run as a program, as `niji_ld_start` read it.
+struct Start {
+    argv: usize,
+    argc: usize,
+    /// Where the auxiliary vector is now (after any secure-mode move), its copy and its words.
+    auxv: usize,
+    copy: [u64; AUXV_WORDS_MAX],
+    words: usize,
+    /// The path `ld.so` was run by (`AT_EXECFN`), for `--list`.
+    invoked: Option<&'static [u8]>,
+}
+
+/// `ld.so [OPTION]... PROGRAM [ARGS]` (LDSO-RUN-PROGRAM): apply the options, then list, verify or run
+/// the program. Running maps the program as the kernel would have and goes on through the same start
+/// as an exec'd program ([`run`]); a program with no `PT_INTERP` (static, or a static PIE) is entered
+/// as the kernel enters it, with nothing of the loader's start. Cold: an exec'd program never comes here.
+#[cold]
+#[inline(never)]
+fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize, options: &program::Options<'static>, env: &List<'_>) -> ! {
+    // `--library-path` replaces LD_LIBRARY_PATH for the search (the environment keeps its value);
+    // dlopen reads the same choices later (`state::program_options`).
+    let mut ld = *env.ld;
+    if options.library_path.is_some() {
+        ld.library_path = options.library_path;
+    }
+    super::state::keep_program_options(options.library_path, options.inhibit_cache);
+    let env = List { ld: &ld, preload_option: options.preload, inhibit_cache: options.inhibit_cache, ..*env };
+    // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the name as
+    // given (or `--argv0`'s), the file's path names it in messages and gives its `$ORIGIN`.
+    if mode == program::Mode::Verify {
+        // Only a path is opened (no search, never the working directory for a bare name, D-27.69):
+        // a name without `/` verifies as no program, status 1.
+        let file = Some(name).filter(|n| n.contains(&b'/')).and_then(open_whole).map(|(f, fd)| {
+            let _ = crate::ffi_sys::niji_sys_close(fd);
+            f
+        });
+        exit(program::verify_status::<Native>(file))
+    }
+    let file = program_file(name, &env);
+    if mode == program::Mode::List {
+        list(&env, file, true, st.invoked)
+    }
+    if ld.trace && !env.secure {
+        list(&env, file, false, st.invoked)
+    }
+    for a in options.audit.into_iter().flat_map(program::audit_names) {
+        program::audit_ignored(a).iter().for_each(|p| write_all(2, p));
+    }
+    let path = file.as_ptr().expose_provenance();
+    let (prog, bias) = load(path, env.page, &ld, env.secure);
+    let headers = program_headers(&prog);
+    let interp = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).any(|h| h.first().is_some_and(|w| w & 0xffff_ffff == u64::from(niji_ld::elf::pt::INTERP)));
+    let mut copy = st.copy;
+    // AT_BASE: the interpreter's base, 0 for a program the kernel would start without one.
+    start::rewrite(copy.get_mut(..st.words).unwrap_or(&mut []), &prog, if interp { env.base } else { 0 });
+    store_words(st.auxv, copy.get(..st.words.wrapping_add(2)).unwrap_or(&[]));
+    // argv[at + 1] names the program: it becomes argv[0], and the stack starts at the word before it,
+    // which takes the new argc.
+    let top = st.argv.wrapping_add(at.wrapping_mul(8));
+    store_words(top, &[u64::try_from(st.argc.wrapping_sub(at).wrapping_sub(1)).unwrap_or(0)]);
+    if let Some(a) = options.argv0 {
+        // The string is the loader's own argument, on the stack for the process's lifetime; an empty
+        // one may not point there (an empty slice's address is arbitrary), so it is the loader's "".
+        let s = if a.is_empty() { b"\0".as_slice() } else { a };
+        store_words(top.wrapping_add(8), &[u64::try_from(s.as_ptr().expose_provenance()).unwrap_or(0)]);
+    }
+    if !interp {
+        // A static program or static PIE starts itself, as from the kernel. An object with no entry
+        // point (`e_entry` 0: a shared library) is refused, never entered.
+        if prog.entry == bias {
+            fail_loading(file, file, b"the object has no entry point (a shared object, not a program)")
+        }
+        crate::arch::enter(top, prog.entry, 0)
+    }
+    run(top, &prog, bias, env.page, path, &env)
 }
 
 /// The program headers of `prog` (`AT_PHDR`, `AT_PHNUM` checked by [`start::program`] or set by [`load`]).
@@ -310,7 +375,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
         });
-        let preloads = Preloads { env: env.preload.unwrap_or(&[]), file, file_path: file_path.as_bytes() };
+        let preloads = Preloads { env: env.preload.unwrap_or(&[]), option: env.preload_option.unwrap_or(&[]), file, file_path: file_path.as_bytes() };
         if start::needs_objects(dyn_words) || preloads.names().next().is_some() {
             // The program's name in messages: its path (`ld.so PROGRAM`), else argv[0].
             let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
@@ -362,6 +427,10 @@ pub(super) struct List<'a> {
     pub(super) secure: bool,
     /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
     preload: Option<&'static [u8]>,
+    /// `ld.so --preload LIST` (program mode only).
+    preload_option: Option<&'static [u8]>,
+    /// `ld.so --inhibit-cache` (program mode only): no search reads the loader cache.
+    pub(super) inhibit_cache: bool,
     features: &'a niji_rt::cpu::Features,
     pub(super) page: u64,
     pub(super) vdso: Option<u64>,
@@ -377,7 +446,7 @@ impl List<'_> {
             origin_path: if self.secure { None } else { self.ld.origin_path },
             platform: Native::platform(self.features),
             hwcaps: Native::hwcaps(self.features),
-            cache,
+            cache: if self.inhibit_cache { CacheRef::None } else { cache },
         }
     }
 }

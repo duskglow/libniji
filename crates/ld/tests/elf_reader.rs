@@ -33,7 +33,9 @@ const NOTE4: usize = 3;
 const NOTE8: usize = 4;
 const P_TYPE: usize = 0;
 const P_OFFSET: usize = 8;
+const P_FLAGS: usize = 4;
 const P_VADDR: usize = 16;
+const P_PADDR: usize = 24;
 const P_FILESZ: usize = 32;
 const P_MEMSZ: usize = 40;
 const P_ALIGN: usize = 48;
@@ -243,6 +245,46 @@ fn valid_image_reads_back() {
     assert_eq!(d.len(), DYN_N);
     assert_eq!(d.entries().last(), Some(DynEntry { tag: dt::NULL, val: 0 }));
     assert_eq!(elf.program_header(PHNUM as u16), None);
+}
+
+#[test]
+fn program_header_fields_read_their_own_offsets() {
+    // no clause ID: threat-model rule 4 (D-27.81, headers decoded at fixed offsets). The valid image repeats
+    // p_offset in p_vaddr and p_paddr; here every p_paddr holds a value no other field has, so a field read
+    // from a neighbour's offset shows, in both byte orders, through the indexed read and the walk alike.
+    for be in [false, true] {
+        let mut m = if be { image_for(BigOther::E_MACHINE, true) } else { image() };
+        for i in 0..PHNUM {
+            m.ph(i, P_PADDR, 0x5150_0000 + i as u64);
+        }
+        let elf = if be { Elf::parse::<BigOther>(&m.b) } else { Elf::parse::<X86_64>(&m.b) }.unwrap();
+        let field = |i: usize, at: usize, n: usize| {
+            let b = &m.b[PH0 + i * 56 + at..PH0 + i * 56 + at + n];
+            let fold = |v: u64, x: &u8| (v << 8) | u64::from(*x);
+            if be { b.iter().fold(0, fold) } else { b.iter().rev().fold(0, fold) }
+        };
+        let all: Vec<_> = elf.program_headers().collect();
+        assert_eq!(all.len(), PHNUM);
+        for (i, &walked) in all.iter().enumerate() {
+            let ph = elf.program_header(i as u16).unwrap();
+            let want = (
+                i as u16,
+                field(i, P_TYPE, 4),
+                field(i, P_FLAGS, 4),
+                field(i, P_OFFSET, 8),
+                field(i, P_VADDR, 8),
+                field(i, P_PADDR, 8),
+                field(i, P_FILESZ, 8),
+                field(i, P_MEMSZ, 8),
+                field(i, P_ALIGN, 8),
+            );
+            for got in [ph, walked] {
+                let got = (got.index, u64::from(got.p_type), u64::from(got.flags), got.offset, got.vaddr, got.paddr, got.filesz, got.memsz, got.align);
+                assert_eq!(got, want, "header {i}, big-endian {be}");
+            }
+            assert_eq!(ph.paddr, 0x5150_0000 + i as u64);
+        }
+    }
 }
 
 #[test]

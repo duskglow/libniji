@@ -15,7 +15,7 @@ use crate::{conv, raw};
 use super::debug;
 use super::entry::List;
 use super::exec_stack::{exec_stack_accepted, exec_stack_candidate, refuse_exec_stack_program};
-use super::io::{c_string, exit, fail_loading, fail_with, refuse, write_all};
+use super::io::{c_string, exit, fail_loading, fail_with, write_all};
 use super::state::OWN_BASE;
 use super::table::PathStore;
 
@@ -366,7 +366,7 @@ pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8]
     if name.contains(&b'/') {
         return name;
     }
-    let cache = read_cache();
+    let cache = if env.inhibit_cache { None } else { read_cache() };
     let ctx = env.ctx(cache.as_ref().map(|(_, c)| c).into());
     let found = match program::find(name, cache.as_ref().map(|(_, c)| c), Native::CACHE_FLAGS, ctx.hwcaps) {
         // The store's copy ends in a NUL and stays mapped for the process, as `name` does.
@@ -393,19 +393,26 @@ pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8]
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left
 /// mapped on failure). The program and its load bias.
 pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::Program, usize) {
+    // `PROGRAM: error while loading shared libraries: PROGRAM: <reason>`, 127 (the reference's form
+    // and reasons for a missing file, a directory and a short file, probed; LDSO-RUN-PROGRAM).
     let fail = |msg: &[u8]| -> ! {
-        write_all(2, b"ld.so: ");
-        write_all(2, c_string(path));
-        write_all(2, b": ");
-        refuse(msg)
+        let name = c_string(path);
+        fail_loading(name, name, msg.strip_suffix(b"\n").unwrap_or(msg))
     };
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(path), i64::from(O_RDONLY | O_CLOEXEC), 0);
     if fd < 0 {
-        fail(b"cannot open the program\n");
+        fail(match fd {
+            -2 => niji_ld::dlopen::FILE_MISSING,
+            -13 => b"cannot open shared object file: Permission denied",
+            _ => b"cannot open shared object file",
+        });
+    }
+    let fd32 = i32::try_from(fd).unwrap_or(-1);
+    if file_mode(fd32) & niji_kernel::uapi::S_IFMT == niji_kernel::uapi::S_IFDIR {
+        fail(b"cannot read file data: Error 21");
     }
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
-    let len = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE).unwrap_or_else(|| fail(b"cannot read the program\n"));
-    let fd32 = i32::try_from(fd).unwrap_or(-1);
+    let len = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE).unwrap_or_else(|| fail(b"file too short"));
     let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
     // UNSAFE(slice): the program file, mapped read-only above.
     #[allow(unsafe_code)]

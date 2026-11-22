@@ -118,6 +118,7 @@ pub const PRODUCT_ONLY: &[(&str, &str, &str)] = &[
     ("niji-boundary", "libm", "the libm product"),
     ("niji-boundary", "libresolv", "the libresolv product"),
     ("niji-boundary", "ldconfig", "the ldconfig product; its tests are those of `ld`, which it implies"),
+    ("niji-boundary", "localedef", "the localedef product; its logic is niji-locale's (`prog::run`, tested there), the rest is `ldconfig`'s"),
 ];
 
 /// The train's steps that run every test binary again as libniji processes and with the exports interposed, and

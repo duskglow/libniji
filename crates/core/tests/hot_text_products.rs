@@ -497,9 +497,15 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// same products on both hosts (built on the Skylake-SP host, median of 21): Skylake-SP host fast 360,169,
 /// release 332,012 (next 666,372); Zen 1 host fast 360,004, release 331,850 (next 666,210; the pre-merge
 /// release products 339,504, as measured before). Each bound is its own host's level plus 2%.
+/// LD-PHDR-ONCE (D-27.81, program headers read from the once-checked table at fixed offsets), merged with
+/// LIBC-SELF-BIND-2 (next 5f07429d3): this test on the Zen 1 host, fast 292,531 and release 272,311 (both
+/// more than 10% under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%. The
+/// Skylake-SP host was not run in this test: the STARTUP-REPROFILE kit's empty main on the same release
+/// products (median of 101) read 117 instructions more there than on the Zen 1 host (272,251 / 272,134;
+/// next 331,768 / 331,733), so its bounds are the Zen 1 levels plus 117, plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [367_400, 338_700]),
-    ("AMD EPYC 7551 32-Core Processor", [367_300, 338_500]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [298_600, 277_900]),
+    ("AMD EPYC 7551 32-Core Processor", [298_400, 277_800]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.

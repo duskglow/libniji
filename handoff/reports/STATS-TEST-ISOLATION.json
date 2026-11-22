@@ -1,0 +1,19 @@
+{"task": "STATS-TEST-ISOLATION", "model": "opus", "tokens": null,
+ "result": "fast32 (and every niji-math unit-test) fallback-rate window reads this thread's fast-path counts under cfg(test); the train 911/912 overlap (erf test's erff calls in the erff window) cannot recur; integration binaries fast_gamma/fast_bessel left as a follow-up",
+ "branch": "task/stats-test-isolation", "head": null,
+ "gate": {"affected": "7 suites ok (1 skipped), 2075 passed / 0 failed, 520 ignored", "peak": "2.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "tests/fast_gamma.rs and tests/fast_bessel.rs: the rate window reads the process-wide stats while other tests of the same binary call the counted entries; harmless under nextest (one process per test: gate and CI), can fail under plain cargo test -p niji-math; follow-up: a binary-wide RwLock (window writes, entry-calling tests read) with a forced-overlap test and plants",
+   "checked OK: tests/fast64.rs, tests/fast_special.rs rate windows; core s07_locale_clauses FS_CALLS (read in an in_child re-executed process); regex dfa counters (thread-local); boundary tests/regex_paths.rs (only test of its binary)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "intermittent CI red fast32::tests::fast_path_agrees_with_the_accurate_path (erff fallback rate) from another test's erff calls in the window: forced overlap 0 of 200 failures after, every run before (plant counts-global)", "before": null, "after": 0, "unit": "failures/200 forced runs", "measured": true},
+   {"kind": "coverage", "what": "tests added (rate_counts_ignore_other_threads) and plants added", "before": 0, "after": 3, "unit": "1 test + 2 plants", "measured": true}
+ ],
+ "improvement": "sync_role BUSY also matches a job whose argv names the role path, not just its cwd: keep loop scripts' arguments and cwd outside the role (cost me two lint runs and a restart)",
+ "next_step": "follow-up story: exclusive rate windows in the fast_gamma and fast_bessel integration binaries",
+ "report_file": "handoff/STATS-TEST-ISOLATION.md",
+ "jobs": ["keke:stats-test-isolation-gate", "keke:stats-test-isolation-plants", "keke:stats-test-isolation-demo", "keke:stats-test-isolation-lint-6"]}

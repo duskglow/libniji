@@ -21,6 +21,9 @@
 # exit: 0 lists identical; 1 lists differ; 2 the run itself broke (build failed, no namespace, no list, same fs type).
 # Files in DIR: base.log tmpfs.log base.list tmpfs.list list.diff summary.txt
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/.." && pwd)
+. "$contained_tree/tools/contained.sh"
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPFS_RUN_OUT:-}
 base=${TMPFS_RUN_BASE:-$HOME/.cache/tmpfs-run-base}

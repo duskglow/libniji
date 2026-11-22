@@ -1,0 +1,9 @@
+# UTIL-12 plants: the localedef command (prog.rs) and the LC_COLLATE / LC_CTYPE writers must be caught by
+# crates/locale/tests/prog.rs and crates/locale/tests/reference.rs.
+gz-fallback | crates/locale/src/prog.rs | lit:CHARMAPS, b"/", name, b".gz"]) ==> CHARMAPS, b"/", name]) | cargo test -p niji-locale --test prog | msg:charmap_search_takes_the_compressed_file.*(FAILED|panicked)
+messages-dir | crates/locale/src/prog.rs | lit:join(&[base, b"/LC_MESSAGES"]) ==> join(&[base, b"/LC_MESSAGE"]) | cargo test -p niji-locale --test prog | msg:directory_form_writes_the_defined_categories.*(FAILED|panicked)
+force-ignored | crates/locale/src/prog.rs | lit:if errors && !opts.force { ==> if errors { | cargo test -p niji-locale --test prog | msg:missing_charmap_is_status_4.*(FAILED|panicked)
+no-warnings | crates/locale/src/prog.rs | lit:if file.is_none() && n != 6 && !opts.quiet { ==> if file.is_none() && n != 6 && opts.quiet { | cargo test -p niji-locale --test prog | msg:directory_form_writes_the_defined_categories.*(FAILED|panicked)
+reorder-ruleset | crates/locale/src/collate.rs | lit:(Some(_), Some(&old)) => c.order.nodes[old].ruleset, ==> (Some(_), Some(_)) => ruleset, | cargo test -p niji-locale --test reference tr_tr_utf8 | msg:tr_tr_utf8.*(FAILED|panicked)
+codes-lead | crates/locale/src/collate.rs | lit:out.push(b(2 + self.one + r / 255)?)?; ==> out.push(b(1 + self.one + r / 255)?)?; | cargo test -p niji-locale --test reference | msg:_utf8.*(FAILED|panicked)
+to-nonascii | crates/locale/src/ctype.rs | lit:f.word(u32::from(to_nonascii))?; ==> f.word(0)?; | cargo test -p niji-locale --test reference tr_tr_utf8 | msg:tr_tr_utf8.*(FAILED|panicked)

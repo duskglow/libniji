@@ -19,6 +19,9 @@
 # /usr/share/keyrings), MIRROR (default: the suite's official mirror above), PROOF_LINTIAN=0 to
 # skip lintian.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=rootopt contained_tree=$(cd "$(dirname "$0")/../.." && pwd) CONTAINED_KEEP="KEYRING MIRROR MMDEBSTRAP PROOF_LINTIAN"
+. "$contained_tree/tools/contained.sh"
 [ $# -ge 2 ] || { echo "usage: tools/deb/proof.sh DEBDIR SUITE [LOGDIR]" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)
 suite=$2

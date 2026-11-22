@@ -126,6 +126,7 @@ mod libmvec;
 mod labnames;
 mod privpaths;
 mod oldname;
+mod contain;
 mod harness_contain;
 mod kernel_index;
 mod records;

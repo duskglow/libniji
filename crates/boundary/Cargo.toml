@@ -40,6 +40,9 @@ ld = []
 # The ldconfig product (`crates/ldconfig-bin`, UTIL-3, D-31.2): a freestanding static program that
 # starts as ld.so does (`ld`'s self-relocator and memory symbols), with its own entry and arena.
 ldconfig = ["ld"]
+# The localedef product (`crates/localedef-bin`, UTIL-12, spec §31.8): freestanding and static as
+# ldconfig is (its self-relocator, arena and file layer), over `niji-locale`, with its own entry.
+localedef = ["ldconfig", "dep:niji-locale"]
 
 [dependencies]
 niji-kernel = { workspace = true }
@@ -48,6 +51,7 @@ niji-ld = { workspace = true }
 niji-abi = { workspace = true }
 niji = { workspace = true }
 niji-legacy = { workspace = true }
+niji-locale = { workspace = true, optional = true }
 niji-math = { workspace = true }
 
 [dev-dependencies]
