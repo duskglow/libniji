@@ -1,0 +1,23 @@
+{"task": "ICONV-CJK-STARTUP-4", "model": "opus", "tokens": null,
+ "result": "CI red (heap refill +256 KiB) is not this branch: 120 interleaved runs, merge base vs branch, release and fast, pinned and unpinned, identical (refill +39236 = bound) on the Zen 1 class; Zen 1 start-up counts measured (-3.4k instr, -6 faults per dynamic start vs merge base); no code change",
+ "branch": "task/iconv-cjk-startup-4", "head": null,
+ "gate": {"affected": "keke:iconv-cjk-startup-4-gate (direct tier) and keke:iconv-cjk-startup-4-st (cargo xtask test): see hand-back; hot_text_products release 33 passed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "heap_meta_products the_heap_keeps_address_space_near_its_use (refill +39492 vs bound 39236 in CI, Skylake-SP, unpinned under load): merge base 90390071c and this branch read identical step VmSize in 120 runs on the Zen 1 class (release and fast; 20 pinned to node 0 + 10 unpinned each): start, +4420, +28996, +39236, +41288. The branch changes no heap code. Refill sits exactly on its zero-margin bound; goes to the heap line. Not run on the Skylake-SP class (no role there)",
+  "DYN_TRUE_BOUND [73, 67]: Zen 1 release level is 58 on this head (non-blocking FAULT-COUNT REPORT: more than 4 under the bound); not tightened because the Skylake-SP level is unmeasured (D-X.103: higher of the two classes)",
+  "static programs linked without --gc-sections still carry cjk_tables CODES (340,096 B) + CELLS (198,212 B): they share one libc.a member (a core-crate codegen unit) with realloc; libc.a member granularity, not an iconv reference",
+  "keke ~/wl/bin/wl_prep.sh is stale: it copies products from target/liella/ (the repo's validation/wl_prep.sh does not), so WL_PROFILE=fast priming builds but fails to cache; its empty cache dir from this run was removed"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "empty main dynamic start, Zen 1, release, merge base 90390071c vs this branch (su.sh median of 101)", "before": 725801, "after": 722382, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "empty main dynamic start faults, Zen 1, release", "before": 57, "after": 51, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "3-library dynamic start faults, Zen 1, release", "before": 72, "after": 66, "unit": "faults", "measured": true},
+  {"kind": "size", "what": "libc.so.6 RELATIVE relocations, release, merge base vs branch", "before": 1606, "after": 1438, "unit": "relocations", "measured": true}
+ ],
+ "improvement": "the gate rebuilt (and re-traced, ~45 min at load 30) products that a `cargo xtask so` in the same role had just built, because the start-up alignments differ under ~/bin/gate; building the products under the same wrapper as the gate (or a gate that reuses fresh products) would save one full build per run",
+ "next_step": "measure hot_text's dynamic start-up program on the Skylake-SP class (fast + release) and tighten DYN_TRUE_BOUND; start-up data layout story for the 3-library anon page; libc.a granularity for static links",
+ "report_file": "handoff/ICONV-CJK-STARTUP.md",
+ "jobs": ["keke:iconv-cjk-startup-4-gate", "keke:iconv-cjk-startup-4-st", "keke:iconv-cjk-startup-4-hotrel", "keke:iconv-cjk-startup-4-z1"]}

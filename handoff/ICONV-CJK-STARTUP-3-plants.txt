@@ -1,0 +1,5 @@
+# ICONV-CJK-STARTUP-3 plants: putwc calling iconv::Conv::convert by name again (the static wide-stderr program then
+# links the CJK codecs: the products' link-map test must see it), and Which::set taking a CP949 descriptor index
+# other than the generated one (the codec round trip must see the wrong table).
+putwc-by-name | crates/legacy/src/stdio_compat.rs | lit:            let o = (convert.0)(&mut enc, &c.to_le_bytes(), &mut b, &Locale::C); ==>             let o = enc.convert(&c.to_le_bytes(), &mut b, &Locale::C); | cargo xtask so && cargo test -p niji --test iconv_reloc_products wide_stderr_links_no_cjk_codec | msg:wide_stderr_links_no_cjk_codec.*FAILED|panicked
+cp949-index | crates/core/src/iconv/cjk.rs | lit:            Which::Cp949 => CP949, ==>             Which::Cp949 => CP932, | cargo test -p niji --lib iconv::cjk | msg:cjk_round_trips.*FAILED|cp949_cells_and_unassigned_pair.*FAILED|panicked

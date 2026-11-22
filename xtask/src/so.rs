@@ -2610,10 +2610,12 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
         _ => return Err("usage: cargo xtask ldso-trace --prefix <absolute dir>".into()),
     };
     let profile = built_profile(root).ok_or("the products are missing or half-built: run `cargo xtask so` first")?;
+    let tag = build_tag(root);
+    products_of_this_tree(&root.join("target/niji/libc.so.6"), &tag)?;
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
     let product = root.join("target/product");
     let build = ProductBuild { subdir: "ld-prefix", ..LD_BUILD };
-    run(build.command(root, &product, profile, None, &build_tag(root)).env("NIJI_PREFIX", prefix))?;
+    run(build.command(root, &product, profile, None, &tag).env("NIJI_PREFIX", prefix))?;
     let work = build.target_dir(&product).join("work");
     let _ = fs::remove_dir_all(&work);
     let (tdir, lists) = (work.join("trace"), work.join("lists"));
@@ -2643,6 +2645,34 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
         println!("ldso-trace: prefix {prefix}: {m}: {} names, the same as the products' own trace", got.lines().count());
     }
     Ok(())
+}
+
+/// ICONV-CJK-STARTUP-2: `Ok` when the C library at `libc` carries the build tag `tag` (`TAG_PREFIX` then the tag,
+/// zero-terminated, as `niji_rt::start::private::tag` lays it out). An interpreter built now carries the tag of
+/// the tree as it is now; products left by an earlier tree carry another, and that interpreter refuses their
+/// `libc.so.6` (D-27.22) at its first symbol-version check. The prefixed trace then ended early, inside
+/// `fail_with`, and read as a different hot list (77 vs 100 names, #7438) instead of as stale products.
+fn products_of_this_tree(libc: &Path, tag: &str) -> Result<(), String> {
+    let bytes = fs::read(libc).map_err(|e| format!("{}: {e} (run `cargo xtask so` first)", libc.display()))?;
+    if carries_tag(&bytes, tag) {
+        return Ok(());
+    }
+    Err(format!(
+        "{}: not built from this tree (it carries no build tag {tag}; an interpreter built now would refuse it, D-27.22): run `cargo xtask so` first",
+        libc.display()
+    ))
+}
+
+/// ICONV-CJK-STARTUP-2: whether `bytes` hold the build tag `tag` as the products store it.
+fn carries_tag(bytes: &[u8], tag: &str) -> bool {
+    use niji_ld::start::private::{TAG_LEN, TAG_PREFIX};
+    let mut want = TAG_PREFIX.to_vec();
+    want.extend_from_slice(tag.as_bytes());
+    want.truncate(TAG_LEN);
+    if want.len() < TAG_LEN {
+        want.push(0);
+    }
+    bytes.windows(want.len()).any(|w| w == want.as_slice())
 }
 
 /// PASS2-NATIVE-RUNNER: the interpreter of the built products' profile compiled with the installation prefix
@@ -4017,6 +4047,27 @@ mod tests {
     /// directory build with the same flags and the same environment, so that none rebuilds another's dependencies
     /// when nothing changed; the interpreter's own flags give it a directory of its own; every build sets the tag;
     /// and each build's archive is read from its own directory.
+    /// ICONV-CJK-STARTUP-2 (no spec clause: the product build's own check): the prefixed trace runs only over
+    /// products of this tree. A C library holding the tree's tag passes; one holding another tree's tag, a tag
+    /// the wanted one only begins (no terminating zero), or no tag at all is reported as not built from this tree.
+    #[test]
+    fn ldso_trace_takes_only_products_of_this_tree() {
+        let lib = |t: &[u8]| [b"\x7fELF....".as_slice(), niji_ld::start::private::TAG_PREFIX, t, b"\0\0\0rest"].concat();
+        assert!(carries_tag(&lib(b"src-0123456789abcdef"), "src-0123456789abcdef"));
+        assert!(!carries_tag(&lib(b"src-fedcba9876543210"), "src-0123456789abcdef"), "another tree's tag");
+        assert!(!carries_tag(&lib(b"src-0123456789abcdef0"), "src-0123456789abcdef"), "a longer tag");
+        assert!(!carries_tag(b"\x7fELF no tag here", "src-0123456789abcdef"), "no tag");
+        let dir = std::env::temp_dir().join(format!("niji-tag-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let so = dir.join("libc.so.6");
+        fs::write(&so, lib(b"src-fedcba9876543210")).unwrap();
+        let e = products_of_this_tree(&so, "src-0123456789abcdef").unwrap_err();
+        assert!(e.contains("not built from this tree") && e.contains("cargo xtask so"), "{e}");
+        fs::write(&so, lib(b"src-0123456789abcdef")).unwrap();
+        assert_eq!(products_of_this_tree(&so, "src-0123456789abcdef"), Ok(()));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn a_fixed_tag_replaces_the_source_hash_and_only_a_fixed_one() {
         // no spec clause (PLANTS-BUILD-2): a plants run's constant tag is the tag, whatever the sources; without one (or an
