@@ -1,0 +1,121 @@
+{
+  "task": "RELEASE-SNAPSHOT-1122A",
+  "model": "opus",
+  "tokens": null,
+  "result": "COMPLETE: snapshot-ready at 9548c734e (serial 1 of 2026-11-22: 2.39+niji20261122.1-1, staged snapshot-20261122.1): every check as 21.7 (0 masked lines differ), malloc replacement 0 rows changed; empty main -402,393 user instructions (-55.4%) on both classes, -1 fault",
+  "branch": "task/release-snapshot-1122a",
+  "head": null,
+  "gate": {
+    "affected": "gate-1 GATE bad=0 (handoff-only branch); 6/6 plants CAUGHT",
+    "peak": "1.8G"
+  },
+  "accepted_first_attempt": null,
+  "rulings": [
+    {
+      "item": "libniji's internal allocations (qsort, opendir, setlocale, iconv_open, pthread_create, dlopen) do not reach an interposed malloc (21.7 and head alike; finding M)",
+      "recommendation": "rule per area whether they should; if so a story to route them through the interposable malloc"
+    }
+  ],
+  "informational": [
+    "M: brief premise 'replacement sees every malloc call the reference shows' did not hold on 21.7 either; LIBC-SELF-BIND-2 changed none of the 40 internal rows",
+    "T1: harness oracle dir renamed resolv_diff-*, dns_products 2 tests (21.7: 3); gaimass evidence grep empty",
+    "S1: head empty main +680/+650 over LIBC-SELF-BIND-2's merged-branch numbers (train also merged TZ-SECURE-PATH, ROOT-HARNESS-CONTAIN-3); not examined",
+    "K1: keke ~/bin/slots line 333 'cg: unbound variable' once; jobs unaffected",
+    "evidence-only rc 1 runs, known lines, 0 masked lines differ from 21.7: mei roots-1, yohane-1, y14-1, y14r-1, drp-1, drp-ref217-1"
+  ],
+  "refused": [],
+  "impact": [
+    {
+      "kind": "perf",
+      "what": "empty dynamic main, user instructions, Skylake-SP (snapshot 21.7 -> 22.1)",
+      "before": 726461,
+      "after": 324068,
+      "unit": "instr",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "empty dynamic main, user instructions, Zen 1",
+      "before": 726223,
+      "after": 323829,
+      "unit": "instr",
+      "measured": true
+    },
+    {
+      "kind": "perf",
+      "what": "three libraries, user instructions, Skylake-SP",
+      "before": 966077,
+      "after": 486648,
+      "unit": "instr",
+      "measured": true
+    },
+    {
+      "kind": "faults",
+      "what": "empty dynamic main page faults, both classes",
+      "before": 57,
+      "after": 56,
+      "unit": "faults",
+      "measured": true
+    },
+    {
+      "kind": "unblock",
+      "what": "Yohane Linux 'after' usage pass on snapshot-2026-11-22.1",
+      "before": null,
+      "after": null,
+      "unit": null,
+      "measured": false
+    }
+  ],
+  "improvement": "the brief's malloc-replacement premise was checkable only with a new probe (mint); keep mint.sh in the snapshot script set so the next snapshot compares row by row from the start",
+  "next_step": "coordinator: announce snapshot-2026-11-22.1 (keke ~/release-staging/snapshot-20261122.1/) to Yohane with the start-up tables; route finding M to a ruling",
+  "report_file": "handoff/RELEASE-SNAPSHOT-1122A.md",
+  "jobs": [
+    "keke:release-snapshot-1122a-smoke-keke-1",
+    "keke:release-snapshot-1122a-gate-1",
+    "keke:release-snapshot-1122a-startup-keke-1",
+    "keke:release-snapshot-1122a-kstart-keke-1",
+    "keke:release-snapshot-1122a-rstart-keke-1",
+    "keke:release-snapshot-1122a-gaimass-1",
+    "keke:release-snapshot-1122a-debs-1",
+    "keke:release-snapshot-1122a-plants-1",
+    "keke:release-snapshot-1122a-pkgdiff-1",
+    "keke:release-snapshot-1122a-stage-1",
+    "keke:release-snapshot-1122a-install-1",
+    "keke:release-snapshot-1122a-precheck-1",
+    "mei:release-snapshot-1122a-smoke-mei-1",
+    "mei:release-snapshot-1122a-startup-mei-1",
+    "mei:release-snapshot-1122a-kstart-mei-1",
+    "mei:release-snapshot-1122a-rstart-mei-1",
+    "mei:release-snapshot-1122a-sig32-1",
+    "mei:release-snapshot-1122a-y20-1",
+    "mei:release-snapshot-1122a-dpo600-1",
+    "mei:release-snapshot-1122a-lint-1",
+    "mei:release-snapshot-1122a-many-1",
+    "mei:release-snapshot-1122a-dyn22-1",
+    "mei:release-snapshot-1122a-y10-1",
+    "mei:release-snapshot-1122a-y19-1",
+    "mei:release-snapshot-1122a-y26-1",
+    "mei:release-snapshot-1122a-y26t-1",
+    "mei:release-snapshot-1122a-y23-1",
+    "mei:release-snapshot-1122a-c19-1",
+    "mei:release-snapshot-1122a-y25-1",
+    "mei:release-snapshot-1122a-y24-1",
+    "mei:release-snapshot-1122a-y28-1",
+    "mei:release-snapshot-1122a-y6-1",
+    "mei:release-snapshot-1122a-y25s-1",
+    "mei:release-snapshot-1122a-y21-1",
+    "mei:release-snapshot-1122a-yres-1",
+    "mei:release-snapshot-1122a-y23p-1",
+    "mei:release-snapshot-1122a-dlc-1",
+    "mei:release-snapshot-1122a-y27-1",
+    "mei:release-snapshot-1122a-y13-1",
+    "mei:release-snapshot-1122a-y6c-1",
+    "mei:release-snapshot-1122a-eetwet-1",
+    "mei:release-snapshot-1122a-y13s-1",
+    "mei:release-snapshot-1122a-y13s-ref217-1",
+    "mei:release-snapshot-1122a-y6r-1",
+    "mei:release-snapshot-1122a-y6r-ref217-1",
+    "mei:release-snapshot-1122a-mint-1",
+    "mei:release-snapshot-1122a-mint-ref217-2"
+  ]
+}
