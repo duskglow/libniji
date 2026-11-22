@@ -41,6 +41,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "niji-charmaps"
+version = "0.0.0"
+dependencies = [
+ "niji",
+]
+
+[[package]]
 name = "niji-kernel"
 version = "0.0.0"
 dependencies = [
@@ -72,6 +79,7 @@ name = "niji-locale"
 version = "0.0.0"
 dependencies = [
  "niji",
+ "niji-charmaps",
  "spectest",
 ]
 
