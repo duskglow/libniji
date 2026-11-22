@@ -50,7 +50,7 @@ fn fortify(g: &mut Gen<'_>, _args: &[&str]) {
             .iter()
             .filter(|c| c["name"] == name && (c["mode"] == "call" || c["mode"] == "macro"))
             .map(|c| (c["configs"].clone(), c["symbol"].split(',').next().unwrap_or("").to_string()))
-            .filter(|(_, s)| s.ends_with("_chk"))
+            .filter(|(_, s)| s.ends_with("_chk") || (r["form"] == "mode" && s.ends_with("_2")))
             .collect();
         let mut levels = [false; 4];
         let mut variants = [false; 3];
@@ -224,7 +224,7 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
     let mut out = Vec::new();
     let call = match r["form"].as_str() {
         "builtin" => expand(args, ost),
-        "va" | "chk" => {
+        "va" | "chk" | "mode" => {
             let Some(proto) = chk.get(sym) else {
                 g.errors.push(format!("{}: {name}: {sym} has no row in spec/abi/chk-prototypes.tsv", g.header));
                 return Vec::new();
@@ -243,7 +243,7 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
     };
     let ret_kw = if void { "" } else { "return " };
     let mut fn_body = Vec::new();
-    if r["form"] == "chk" {
+    if r["form"] == "chk" || r["form"] == "mode" {
         // The plain call where the destination's size is unknown or the call provably fits.
         let dest = args.split(['$']).skip(1).find(|t| t.starts_with('S') || t.starts_with('E')).map(|t| t[1..].chars().take_while(char::is_ascii_digit).collect::<String>());
         let mut tests = Vec::new();
@@ -270,12 +270,38 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
         }
         // A variadic function passes its own variable arguments on (GCC: `__builtin_va_arg_pack`).
         let pass: Vec<String> = params.iter().enumerate().map(|(i, p)| if p == "..." { "__builtin_va_arg_pack ()".to_string() } else { format!("__p{i}") }).collect();
-        if !tests.is_empty() {
+        if r["form"] == "mode" {
+            // The open family (spec 11.1): GCC's `__builtin_va_arg_pack_len` counts the variable arguments, and a
+            // call left in to a function with the `error` attribute fails the compile (GCC manual, Function Attributes).
+            let need = expand(&r["safe"], ost);
+            let fixed: Vec<&String> = pass.iter().filter(|p| !p.starts_with("__builtin")).collect();
+            let fixed = fixed.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
+            out.push("#  ifndef __NIJI_D_fortify_mode".into());
+            out.push("#   define __NIJI_D_fortify_mode 1".into());
+            out.push("extern void __niji_fortify_mode (void) __attribute__ ((__error__ (\"the flags need a mode argument (O_CREAT or O_TMPFILE)\")));".into());
+            out.push("extern void __niji_fortify_args (void) __attribute__ ((__error__ (\"too many arguments: one mode at most\")));".into());
+            out.push("#  endif".into());
+            fn_body.push("  if (__builtin_va_arg_pack_len () > 1)".into());
+            fn_body.push("    __niji_fortify_args ();".into());
+            fn_body.push("  if (__builtin_va_arg_pack_len () < 1)".into());
+            fn_body.push("    {".into());
+            fn_body.push(format!("      if (__builtin_constant_p ({need}))"));
+            fn_body.push("        {".into());
+            fn_body.push(format!("          if ({need})"));
+            fn_body.push("            __niji_fortify_mode ();".into());
+            fn_body.push(format!("          return {plain} ({fixed});"));
+            fn_body.push("        }".into());
+            fn_body.push(format!("      return {call};"));
+            fn_body.push("    }".into());
+            fn_body.push(format!("  return {plain} ({});", pass.join(", ")));
+        } else if !tests.is_empty() {
             fn_body.push(format!("  if ({})", tests.join(" || ")));
             fn_body.push(if void { format!("    {{ {plain} ({}); return; }}", pass.join(", ")) } else { format!("    return {plain} ({});", pass.join(", ")) });
         }
     }
-    fn_body.push(format!("  {ret_kw}{call};"));
+    if r["form"] != "mode" {
+        fn_body.push(format!("  {ret_kw}{call};"));
+    }
     out.push(format!("__NIJI_FORTIFY_FN {ret}{name} ({}){nt}", named.join(", ")));
     out.push("{".into());
     out.extend(fn_body);
@@ -369,6 +395,74 @@ int main (int argc, char **argv)
                 }
                 if over.status.signal() != Some(6) {
                     failures.push(format!("level {level} {how}: 9 bytes into 8 did not abort ({:?})", over.status));
+                }
+            }
+        }
+        let _ = fs::remove_dir_all(&dir);
+        assert!(failures.is_empty(), "{failures:#?}");
+    }
+
+    // Spec 11.1 (`__open_2`, `__openat_2`: fortify; the mode is required iff O_CREAT or O_TMPFILE) and
+    // callsites.tsv's open-family call rows: compiled at -O2 with _FORTIFY_SOURCE=2 against libniji's headers, a call
+    // without its mode and with run-time flags references the `_2` entry (the 64-bit one under
+    // `_FILE_OFFSET_BITS=64`), a call with a mode or with constant flags that need none references the plain
+    // function, and constant flags that need a mode, or two variable arguments, do not compile.
+    #[test]
+    fn an_open_without_its_mode_calls_the_checked_entry() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let tools = ["gcc", "nm"].iter().all(|t| Command::new(t).arg("--version").output().is_ok_and(|o| o.status.success()));
+        if !tools || !Path::new("/usr/include/x86_64-linux-gnu").is_dir() {
+            eprintln!("skipped: needs gcc, nm and the build host's kernel headers (the generated headers include them)");
+            return;
+        }
+        let (files, errors) = generate(&root).expect("generate");
+        assert!(errors.is_empty(), "{errors:?}");
+        let dir = std::env::temp_dir().join(format!("niji-fortify-open.{}", std::process::id()));
+        for (h, text) in &files {
+            let p = dir.join("inc").join(h);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, text).unwrap();
+        }
+        let gccinc = String::from_utf8(Command::new("gcc").arg("-print-file-name=include").output().unwrap().stdout).unwrap();
+        // (extra flags, call, the undefined symbol it must reference or None for a compile error, a symbol it must not)
+        let cases: &[(&str, &str, Option<&str>, &str)] = &[
+            ("", "open (p, f)", Some("__open_2"), "open"),
+            ("", "open (p, f, 0600)", Some("open"), "__open_2"),
+            ("", "open (p, O_RDONLY)", Some("open"), "__open_2"),
+            ("", "open (p, O_WRONLY | O_CREAT)", None, ""),
+            ("-D_GNU_SOURCE", "open (p, O_WRONLY | O_TMPFILE)", None, ""),
+            ("", "open (p, f, 0600, 1)", None, ""),
+            ("", "openat (d, p, f)", Some("__openat_2"), "openat"),
+            ("", "openat (d, p, f, 0600)", Some("openat"), "__openat_2"),
+            ("-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64", "open (p, f)", Some("__open64_2"), "__open_2"),
+            ("-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64", "open (p, f, 0600)", Some("open64"), "__open64_2"),
+            ("-D_GNU_SOURCE", "openat64 (d, p, f)", Some("__openat64_2"), "openat64"),
+        ];
+        let mut failures = Vec::new();
+        for (k, (extra, call, want, not)) in cases.iter().enumerate() {
+            let src = dir.join(format!("o{k}.c"));
+            let obj = dir.join(format!("o{k}.o"));
+            fs::write(&src, format!("#include <fcntl.h>\nint lp_t (int d, const char *p, int f) {{ (void) d; (void) f; return {call}; }}\n")).unwrap();
+            let out = Command::new("gcc")
+                .args(["-O2", "-D_FORTIFY_SOURCE=2", "-c", "-nostdinc", "-isystem"])
+                .arg(dir.join("inc"))
+                .args(["-isystem", gccinc.trim(), "-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"])
+                .args(extra.split_whitespace())
+                .arg("-o")
+                .arg(&obj)
+                .arg(&src)
+                .output()
+                .expect("gcc");
+            match want {
+                None if out.status.success() => failures.push(format!("{extra} {call}: compiled, wants a compile-time error")),
+                None => {}
+                Some(_) if !out.status.success() => failures.push(format!("{extra} {call}: {}", String::from_utf8_lossy(&out.stderr))),
+                Some(w) => {
+                    let nm = Command::new("nm").arg("-u").arg(&obj).output().expect("nm");
+                    let syms: Vec<String> = String::from_utf8_lossy(&nm.stdout).split_whitespace().filter(|s| *s != "U").map(String::from).collect();
+                    if !syms.iter().any(|s| s == w) || syms.iter().any(|s| s == not) {
+                        failures.push(format!("{extra} {call}: references {syms:?}, wants {w} and not {not}"));
+                    }
                 }
             }
         }

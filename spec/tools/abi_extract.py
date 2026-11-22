@@ -755,10 +755,11 @@ def main():
         # "Signatures per chk-prototypes.tsv"): the `_GNU_SOURCE` prelude compiled at -O2 with _FORTIFY_SOURCE=3,
         # the `-aux-info` lines of `__*_chk` names only, in their own table so prototypes.tsv and the tables keyed on
         # it (noexcept.tsv, callsites.tsv) keep their contents. Names GCC provides as builtins and the headers do
-        # not declare (`__memcpy_chk`) get no row.
+        # not declare (`__memcpy_chk`) get no row. The `__*_2` entries a call without its mode argument reaches
+        # (`__open_2`, `__openat64_2`; spec 11.1 and 25.3, "fortify") are declared the same way and get rows too.
         with tempfile.TemporaryDirectory() as tmp:
             got = prototypes(tmp, None, ("-std=gnu17", "-O2", "-D_FORTIFY_SOURCE=3"))
-        rows = sorted((k, *v) for k, v in got.items() if re.fullmatch(r"__\w+_chk", k))
+        rows = sorted((k, *v) for k, v in got.items() if re.fullmatch(r"__\w+_chk|__\w+_2", k))
         write("chk-prototypes.tsv", ["name", "header", "declaration"], rows)
         print(f"{ver}\nchk prototypes: {len(rows)}")
         return
