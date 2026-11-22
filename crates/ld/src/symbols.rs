@@ -14,7 +14,7 @@
 use core::cell::{Cell, OnceCell};
 
 use crate::elf::{
-    Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versions, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
+    Dynamic, ElfError, GnuHash, Hashes, Sym, Symtab, SysvHash, Tags, Versions, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
     STT_COMMON, STT_FUNC, STT_GNU_IFUNC, STT_NOTYPE, STT_OBJECT, STT_TLS, STV_HIDDEN, STV_INTERNAL, VERSYM_HIDDEN,
 };
 
@@ -278,8 +278,13 @@ impl<'a> Object<'a> {
     /// [`LookupError::NoSymtab`], [`LookupError::NoHashTable`], or the reader's errors for the symbol,
     /// hash and version tables.
     pub fn new(dynm: Dynamic<'a>) -> Result<Self, LookupError> {
-        let style = if dynm.gnu_hash()?.is_some() { HashStyle::Gnu } else { HashStyle::Sysv };
-        Self::with_style(dynm, style)
+        // One pass over the dynamic entries, and each hash table read once, for every table below
+        // (LD-OBJECT-ONCE: each request walked the entries again, and the GNU table was read six
+        // times). The answers and the order of the errors are those of the requests one by one.
+        let t = dynm.tags();
+        let h = dynm.hashes(&t);
+        let style = if h.gnu?.is_some() { HashStyle::Gnu } else { HashStyle::Sysv };
+        Self::build(dynm, style, &t, &h)
     }
 
     /// The object's lookup view, walking the hash table of style `style`.
@@ -288,17 +293,26 @@ impl<'a> Object<'a> {
     ///
     /// As [`Object::new`]; [`LookupError::NoHashTable`] when the object has no table of that style.
     pub fn with_style(dynm: Dynamic<'a>, style: HashStyle) -> Result<Self, LookupError> {
-        // Counted once for both tables (the count walks every hash bucket; DYN-START-PARITY).
-        let count = dynm.symbol_count();
-        let symtab = dynm.symtab_with(count)?.ok_or(LookupError::NoSymtab)?;
+        let t = dynm.tags();
+        Self::build(dynm, style, &t, &dynm.hashes(&t))
+    }
+
+    /// [`Object::with_style`] from the object's tags `t` and hash tables `h`.
+    fn build(dynm: Dynamic<'a>, style: HashStyle, t: &Tags, h: &Hashes<'a>) -> Result<Self, LookupError> {
+        // Counted once for both tables (the count reads every hash bucket; DYN-START-PARITY).
+        let count = h.symbol_count();
+        let symtab = dynm.symtab_with(t, h, count)?.ok_or(LookupError::NoSymtab)?;
         let hash = match style {
-            HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
-            HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
+            HashStyle::Gnu => Hash::Gnu(h.gnu?.ok_or(LookupError::NoHashTable)?),
+            HashStyle::Sysv => Hash::Sysv(h.sysv?.ok_or(LookupError::NoHashTable)?),
         };
-        let versym = dynm.versym_with(count)?;
-        // The version tables, walked whole by `versym`, kept so a lookup by index does not find
-        // them again (DYN-START-PARITY); without `DT_VERSYM` the walks below find them each time.
-        let vers = if versym.is_some() { dynm.versions()? } else { None };
+        // The version tables, walked whole for `versym`'s checks and kept so a lookup by index does
+        // not find them again (DYN-START-PARITY); without `DT_VERSYM` the walks below find them
+        // each time.
+        let (versym, vers) = match dynm.versym_with_versions(t, count)? {
+            Some((v, vers)) => (Some(v), vers),
+            None => (None, None),
+        };
         Ok(Object { dynm, symtab, hash, versym, vers })
     }
 

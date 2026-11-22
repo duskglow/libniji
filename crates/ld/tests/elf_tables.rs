@@ -433,6 +433,10 @@ fn relocation_tags_checked() {
     assert_eq!(with(|m| m.set(dt::RELRSZ, 20)), ElfError::TableSize(Table::Relr));
     assert_eq!(with(|m| m.retag(dt::RELRENT, dt::HASH, SYSV_AT as u64)), ElfError::DuplicateDynamic(dt::HASH));
     assert_eq!(with(|m| m.retag(dt::RELRENT, dt::RELASZ, 72)), ElfError::DuplicateDynamic(dt::RELASZ));
+    // The version tags are read in one pass over the entries (LD-OBJECT-ONCE); a duplicate is still
+    // refused, the same value twice included.
+    assert_eq!(with(|m| m.retag(dt::RELRENT, dt::VERSYM, VERSYM_AT as u64)), ElfError::DuplicateDynamic(dt::VERSYM));
+    assert_eq!(with(|m| m.retag(dt::RELRENT, dt::VERNEEDNUM, 1)), ElfError::DuplicateDynamic(dt::VERNEEDNUM));
 }
 
 #[test]
