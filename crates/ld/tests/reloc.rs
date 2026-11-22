@@ -575,6 +575,84 @@ fn reloc_relative_run_checks_each_entry_after_the_first() {
     }
 }
 
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): the RELR pass
+/// applies an entry's words after one range check when its lowest and highest words lie in the
+/// writable segment (LD-RELR-LOOP), and that shortcut accepts nothing the word-by-word check
+/// refuses. The library's 40 pointers are one address entry and one bitmap; the address entry is
+/// moved so the run ends on the writable segment's last word (all 40 applied), crosses its end
+/// (the words inside applied in order, then the first one past it refused), starts past it or
+/// across it, or lies in the read-only text.
+#[test]
+fn reloc_relr_entry_checks_its_whole_run() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("relrrun");
+    let src = "static long x[64];
+long *p[40] = { &x[0], &x[1], &x[2], &x[3], &x[4], &x[5], &x[6], &x[7], &x[8], &x[9], &x[10], &x[11], &x[12], &x[13],
+  &x[14], &x[15], &x[16], &x[17], &x[18], &x[19], &x[20], &x[21], &x[22], &x[23], &x[24], &x[25], &x[26], &x[27], &x[28],
+  &x[29], &x[30], &x[31], &x[32], &x[33], &x[34], &x[35], &x[36], &x[37], &x[38], &x[39] };\n";
+    let lib = std::fs::read(build(&d, "librr.so", src, &["-fPIC", "-shared", "-Wl,-z,pack-relative-relocs"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let relr = dynm.get(niji_ld::elf::dt::RELR).expect("DT_RELR");
+    let words: Vec<u64> = dynm.relr().unwrap().unwrap().map(Result::unwrap).collect();
+    assert_eq!(words.len(), 40, "the 40 pointers are RELR words");
+    assert!(words.windows(2).all(|w| w[1] == w[0] + 8), "in one run");
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELRSZ), Some(16), "one address entry and one bitmap");
+    // The address entry's file offset (the first PT_LOAD maps the file from offset 0 at address 0).
+    let at = usize::try_from(loads[0].offset + relr - loads[0].vaddr).unwrap();
+    let end = rw.vaddr + rw.memsz;
+    // (address entry, the first word refused; None: all applied).
+    let cases = [
+        (words[0], None),
+        (end - 40 * 8, None),
+        (end - 39 * 8, Some(end)),
+        (end - 8, Some(end)),
+        (end, Some(end)),
+        (end - 4, Some(end - 4)),
+        (ro.vaddr, Some(ro.vaddr)),
+        (rw.vaddr - 16, Some(rw.vaddr - 16)),
+    ];
+    for (start, refused) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&start.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            // A writable segment's words read 0x10 apart from its start, so each applied word is told apart.
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            if ph.flags & 2 != 0 {
+                for (k, w) in v.chunks_exact_mut(8).enumerate() {
+                    w.copy_from_slice(&(0x10 * k as u64).to_le_bytes());
+                }
+            }
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"librr.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        assert_eq!(r.map_err(|e| e.error), refused.map_or(Ok(()), |a| Err(RelocError::Outside(a))), "run from {start:#x}");
+        // Every word of the run before the refused one (all of them when none is) holds its value
+        // plus the bias; the rest of the writable segment is as it was.
+        let stop = refused.unwrap_or(u64::MAX);
+        for w in (rw.vaddr..end).step_by(8) {
+            let old = 0x10 * ((w - rw.vaddr) / 8);
+            let applied = (start..start + 40 * 8).contains(&w) && w < stop;
+            assert_eq!(word(&mut m, bias(0) + w), if applied { old + bias(0) } else { old }, "word {w:#x}, run from {start:#x}");
+        }
+    }
+}
+
 /// Covers no spec clause (design §6, `Relas::relative_prefix`'s contract): the prefix loop leaves
 /// the table iterator just after the run it applied, so the entries after it are yielded once,
 /// in order; a count past the run stops at the first other entry; when the callback fails, the

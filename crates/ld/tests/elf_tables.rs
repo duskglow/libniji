@@ -450,3 +450,52 @@ fn relr_malformed() {
     assert_eq!(with(high_bit), ElfError::RelrOverflow(1));
     assert_eq!(with(|m| m.set(dt::RELRSZ, 32)), ElfError::AddressNotMapped(RELR_AT as u64));
 }
+
+/// The addresses of a RELR walk, then its error, if any.
+type RelrWalk = Vec<Result<u64, ElfError>>;
+
+/// The RELR table of `m` as the iterator gives it and as `Relrs::runs` gives it (each call's bits
+/// expanded to addresses), each ending in its error, if any.
+fn relr_both(m: &Img) -> (RelrWalk, RelrWalk) {
+    let elf = Elf::parse::<X86_64>(&m.0).unwrap();
+    let d = elf.dynamic().unwrap().unwrap();
+    let iter: Vec<_> = d.relr().unwrap().unwrap().collect();
+    let mut runs = Vec::new();
+    let r = d.relr().unwrap().unwrap().runs(
+        |base, bits| {
+            assert_ne!(bits, 0, "a call names at least one word");
+            runs.extend((0..64).filter(|k| bits >> k & 1 != 0).map(|k| Ok(base.checked_add(8 * k).expect("every address a call names fits"))));
+            Ok::<(), ElfError>(())
+        },
+        |e| e,
+    );
+    runs.extend(r.err().map(Err));
+    (iter, runs)
+}
+
+#[test]
+fn relr_runs_match_the_iterator() {
+    // no spec clause: D-27.8 and LD-RELR-LOOP: the entry-at-a-time walk the loader relocates with names
+    // the iterator's addresses, in its order, and stops with its error after the same addresses (a
+    // bitmap's words that fit before one past the address space are still named).
+    let cases: [&[u64]; 9] = [
+        &[0x2000, 0b1011, 0b11],
+        &[0x2000, 1, 1 | 1 << 63],
+        &[0b1011, 0x2000, 0b11],
+        &[u64::MAX - 7, 0b11, 0b11],
+        &[u64::MAX - 0x1ff, 0b111, 0b11],
+        &[u64::MAX - 0xff, 1 << 63 | 1 << 30 | 1, 0b11],
+        &[u64::MAX - 0x2ff, 0b1, 1 << 63 | 1 << 62 | 1],
+        &[0x2000, 0x3000, 0x2008],
+        &[0x2000, 0, 0b1],
+    ];
+    for c in cases {
+        let mut m = image();
+        for (i, v) in c.iter().enumerate() {
+            m.p64(RELR_AT + 8 * i, *v);
+        }
+        let (iter, runs) = relr_both(&m);
+        assert!(!iter.is_empty(), "{c:x?}");
+        assert_eq!(runs, iter, "table {c:x?}");
+    }
+}

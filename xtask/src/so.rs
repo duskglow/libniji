@@ -2103,6 +2103,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            // LD-RELR-LOOP (ruling #7402): the relative relocations as DT_RELR words, applied an entry
+            // at a time by the loader's RELR pass, instead of 24-byte RELA entries.
+            .arg("-Wl,-z,pack-relative-relocs")
             .arg(format!("-Wl,--dynamic-list={}", dyn_list.display()))
             .arg("-Wl,--dynamic-list-data")
             .arg(format!("-Wl,-T,{}", ro_first.display()))

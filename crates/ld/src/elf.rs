@@ -2402,6 +2402,94 @@ impl Relrs<'_> {
     }
 }
 
+impl Relrs<'_> {
+    /// The addresses the iterator yields, a table entry at a time: calls `f(base, bits)` with bit `k`
+    /// of `bits` naming the word at `base + 8 * k`, in table order from where the iterator stands (an
+    /// address entry as `(address, 1)`, a bitmap entry as its 63 bits after the run). Every address
+    /// a call names is representable (no `base + 8 * k` overflows): an entry whose higher bits would
+    /// overflow gets a call with the bits that fit, then the error, as [`Iterator::next`] gives it. A
+    /// pass relocates a whole entry after one range check this way (LD-RELR-LOOP: one call per
+    /// address and a check per address were most of the loader's RELR pass).
+    ///
+    /// # Errors
+    ///
+    /// The first error of `f`, or `err` of the iterator's own error ([`ElfError::RelrNoBase`],
+    /// [`ElfError::RelrOverflow`]).
+    // Inlined into the pass that owns `f`: one call per table.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub fn runs<E>(self, f: impl FnMut(u64, u64) -> Result<(), E>, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+        if self.rd.be { self.runs_in::<true, E>(f, err) } else { self.runs_in::<false, E>(f, err) }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn runs_in<const BE: bool, E>(self, mut f: impl FnMut(u64, u64) -> Result<(), E>, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+        if self.done {
+            return Ok(());
+        }
+        // The rest of a bitmap the iterator stopped inside.
+        if self.bits != 0 {
+            match relr_fitting(self.bit_base, self.bits) {
+                Ok(()) => f(self.bit_base, self.bits)?,
+                Err(fit) => return relr_overflow(&mut f, self.bit_base, fit, self.bit_idx, err),
+            }
+        }
+        let start = self.idx.saturating_mul(RELR_SIZE);
+        let mut base = self.base;
+        for (n, e) in self.rd.b.get(start..).unwrap_or(&[]).chunks_exact(RELR_SIZE).enumerate() {
+            let Some(e) = e.first_chunk::<8>() else { break };
+            let e = if BE { u64::from_be_bytes(*e) } else { u64::from_le_bytes(*e) };
+            if e & 1 == 0 {
+                f(e, 1)?;
+                base = Some(e.checked_add(8).ok_or(ElfError::RelrOverflow(self.idx.wrapping_add(n))));
+                continue;
+            }
+            let i = self.idx.wrapping_add(n);
+            let b = match base {
+                Some(Ok(b)) => b,
+                None => return Err(err(ElfError::RelrNoBase(i))),
+                Some(Err(_)) => return Err(err(ElfError::RelrOverflow(i))),
+            };
+            let bits = e.wrapping_shr(1);
+            match relr_fitting(b, bits) {
+                Ok(()) if bits != 0 => f(b, bits)?,
+                Ok(()) => {}
+                Err(fit) => return relr_overflow(&mut f, b, fit, i, err),
+            }
+            base = Some(b.checked_add(RELR_BITMAP_SPAN).ok_or(ElfError::RelrOverflow(i)));
+        }
+        Ok(())
+    }
+}
+
+/// Whether every address of a RELR entry (`bits` after `base`, as [`Relrs::runs`] passes them) is
+/// representable; `Err(the bits that are)` otherwise.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn relr_fitting(base: u64, bits: u64) -> Result<(), u64> {
+    // The highest address the entry names is `base + 8 * top` (`top` <= 63), past the end only for a
+    // base in the last 504 bytes of the address space.
+    let top = 63u32.wrapping_sub(bits.leading_zeros());
+    if bits == 0 || base.checked_add(u64::from(top).wrapping_mul(8)).is_some() {
+        return Ok(());
+    }
+    // The words below the end: `k <= (MAX - base) / 8`, fewer than 63 here.
+    let room = u32::try_from(u64::MAX.wrapping_sub(base) / 8).unwrap_or(63);
+    Err(bits & 1u64.checked_shl(room.wrapping_add(1)).map_or(u64::MAX, |m| m.wrapping_sub(1)))
+}
+
+/// The end of a RELR table whose entry `i` runs past the address space: the addresses that fit,
+/// then the error.
+#[cold]
+#[inline(never)]
+fn relr_overflow<E>(f: &mut impl FnMut(u64, u64) -> Result<(), E>, base: u64, fit: u64, i: usize, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+    if fit != 0 {
+        f(base, fit)?;
+    }
+    Err(err(ElfError::RelrOverflow(i)))
+}
+
 impl Iterator for Relrs<'_> {
     type Item = Result<u64, ElfError>;
     fn next(&mut self) -> Option<Self::Item> {
