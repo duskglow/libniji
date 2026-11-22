@@ -58,6 +58,14 @@ impl Layout {
         }
     }
 
+    /// The layout's name in a products manifest (`import`).
+    pub fn name(self) -> &'static str {
+        match self {
+            Layout::Traced => "traced",
+            Layout::Ungrouped => "ungrouped",
+        }
+    }
+
     /// This process's layout ([`TRACE_ENV`]) for a product build.
     pub fn from_env() -> Result<Layout, String> {
         Layout::parse(std::env::var(TRACE_ENV).ok().as_deref())

@@ -93,22 +93,9 @@ fn files_below(root: &Path, dir: &str, skip: Option<&str>) -> Vec<String> {
     v
 }
 
-/// The commit the products were built from: git when the tree has it, else the `head=` line of the `.synced`
-/// file a role directory carries (it has no .git), else `unknown`. `+dirty` marks uncommitted changes.
+/// The commit the products were built from (shared with the products manifest, which the product build writes).
 fn commit_of(root: &Path) -> String {
-    let git = |args: &[&str]| Command::new("git").arg("-C").arg(root).args(args).stderr(Stdio::null()).output().ok().filter(|o| o.status.success());
-    if let Some(o) = git(&["rev-parse", "HEAD"]) {
-        let head = String::from_utf8_lossy(&o.stdout).trim().to_string();
-        let dirty = git(&["status", "--porcelain", "--untracked-files=no"]).is_some_and(|o| !o.stdout.is_empty());
-        return if dirty { format!("{head}+dirty") } else { head };
-    }
-    let synced = fs::read_to_string(root.join(".synced")).unwrap_or_default();
-    let val = |k: &str| synced.lines().find_map(|l| l.strip_prefix(k).map(|v| v.trim().to_string())).filter(|v| !v.is_empty());
-    match (val("head="), val("dirty=")) {
-        (Some(h), Some(d)) if d != "clean" => format!("{h}+dirty({d})"),
-        (Some(h), _) => h,
-        _ => "unknown".into(),
-    }
+    crate::import::commit_of(root)
 }
 
 /// Writes the staged tree of `root` to `out`: see the module comment. `rust_benches` are the Rust examples the

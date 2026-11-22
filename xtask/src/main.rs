@@ -87,6 +87,7 @@ mod binbudget;
 mod bins;
 mod hottext;
 mod hotlists;
+mod import;
 mod langinfo;
 mod math;
 mod headers;
