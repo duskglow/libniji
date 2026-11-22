@@ -58,7 +58,7 @@ typedef unsigned int Elf32_Off;
 # ifndef __NIJI_D_Elf32_Phdr
 #  define __NIJI_D_Elf32_Phdr 1
 typedef struct {
-  unsigned int __p_type;
+  unsigned int p_type;
   unsigned int p_offset;
   unsigned int p_vaddr;
   unsigned int p_paddr;
@@ -179,7 +179,7 @@ typedef unsigned long Elf64_Off;
 # ifndef __NIJI_D_Elf64_Phdr
 #  define __NIJI_D_Elf64_Phdr 1
 typedef struct {
-  unsigned int __p_type;
+  unsigned int p_type;
   unsigned int p_flags;
   unsigned long p_offset;
   unsigned long p_vaddr;

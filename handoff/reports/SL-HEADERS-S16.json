@@ -1,0 +1,24 @@
+{"task": "SL-HEADERS-S16", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: nine slice 16 headers generate (dlfcn, link, elf, ar, sys/gmon, sys/gmon_out, sys/profil, gnu/lib-names, sys/elf); header_check has 71 of 2087 failures (link.h La_x86_64 types, Dl_serinfo opaque, profil fd_set c89); thread_db, proc_service, sys/platform/x86, a.out, stab not generated; P2, P3, P6 not run",
+ "branch": "task/sl-headers-s16", "head": "68f44e83fdff965666f1d775c99f2e95aa741e02",
+ "gate": {"affected": "headers-gen --check, clippy, static: pass; affected tests not run", "peak": "2.4G"},
+ "accepted_first_attempt": null,
+ "jobs": ["sl-headers-s16-gate", "sl-headers-s16-plants"],
+ "rulings": [
+  {"item": "sys/elf.h is rejected by every configuration, so shipping it only adds an #error", "recommendation": "drop it (SL-HEADERS-15 row and compat record)"},
+  {"item": "sys/platform/x86.h: CPU_FEATURE_ACTIVE/PRESENT need a feature-name table and the struct cpuid_feature member layout; neither is in spec/abi", "recommendation": "new x86-features.tsv from the Intel SDM plus a layout probe of the type"}
+ ],
+ "informational": [
+  "a.out.h and stab.h (R-H7 ship) have no table rows at all: a probe slice for struct exec, N_* and OMAGIC is needed first",
+  "thread_db.h and proc_service.h wait for slices 8 and 9 (signal.h, pthread.h, sys/procfs.h, sys/user.h); td_* and ps_* are not libc exports",
+  "plants log lines 'caught by no test the log names' for s16-elfw-class and s16-soname-case: the products build failed on the mutant (headers-gen --check runs inside it), CAUGHT with the msg regex"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "slice 16 headers generated from tables and templates", "before": 0, "after": 9, "unit": "headers", "measured": true},
+  {"kind": "coverage", "what": "layouts.tsv rows added (struct prof, La_x86_64_*)", "before": 1909, "after": 1949, "unit": "rows", "measured": true},
+  {"kind": "unblock", "what": "next step of slice 16: thread_db.h, proc_service.h, sys/platform/x86.h, a.out.h, stab.h", "before": null, "after": null, "unit": "none", "measured": false}
+ ],
+ "improvement": "a generator unit test of members_nested on a fixture layouts table would have shown the rows shadowing and the opaque Dl_serinfo without a 100 s host build per round",
+ "next_step": "fix La_x86_64 typedef members and Dl_serinfo, then P2, P3, P6, the pending record, and the five ungenerated headers",
+ "report_file": "handoff/SL-HEADERS-S16.md"}

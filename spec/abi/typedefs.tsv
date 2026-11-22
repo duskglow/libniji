@@ -48,6 +48,10 @@ typedef	FTSENT64	fts.h	120	8	_ftsent64
 struct	FTW	ftw.h	8	4	FTW
 typedef	La_x86_64_regs	link.h	768	16	
 typedef	La_x86_64_retval	link.h	240	16	
+typedef	La_x86_64_vector	link.h	64	16	
+typedef	La_x86_64_xmm	link.h	16	16	float __vector(4)
+typedef	La_x86_64_ymm	link.h	32	16	
+typedef	La_x86_64_zmm	link.h	64	16	
 typedef	Lmid_t	dlfcn.h	8	8	long
 typedef	VISIT	search.h	4	4	VISIT
 function	_Exit	complex.h			void (int)
