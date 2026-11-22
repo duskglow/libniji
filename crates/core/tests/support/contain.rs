@@ -35,7 +35,7 @@ use std::process::{Child, Command, ExitStatus, Output, Stdio};
 const PATH: &str = "/usr/sbin:/usr/bin:/sbin:/bin";
 
 /// `oracle/contain.sh`, from any crate of the workspace.
-pub(crate) fnscript() -> PathBuf {
+pub(crate) fn script() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../core/tests/oracle/contain.sh")
 }
 
@@ -43,7 +43,7 @@ pub(crate) fnscript() -> PathBuf {
 /// `contain.sh`. `cmd` is expected to have had `env_clear()`: the command gets `PATH` and only the
 /// variables set on `cmd` (sudo would reset the rest). Run it with [`output`] or [`status`], which
 /// hold its standard input.
-pub(crate) fnroot(cmd: &Command) -> Command {
+pub(crate) fn root(cmd: &Command) -> Command {
     let mut c = Command::new("sh");
     c.arg(script()).env_clear().env("PATH", PATH);
     let mut vars: Vec<OsString> = Vec::new();
@@ -81,13 +81,13 @@ fn hold<T>(mut child: Child, wait: impl FnOnce(Child) -> io::Result<T>) -> io::R
 }
 
 /// `cmd` run contained ([`root`]), its output collected as `Command::output` does.
-pub(crate) fnoutput(cmd: &Command) -> io::Result<Output> {
+pub(crate) fn output(cmd: &Command) -> io::Result<Output> {
     let child = root(cmd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
     hold(child, Child::wait_with_output)
 }
 
 /// `cmd` run contained ([`root`]) with the given standard output and error; its exit status.
-pub(crate) fnstatus(cmd: &Command, stdout: Stdio, stderr: Stdio) -> io::Result<ExitStatus> {
+pub(crate) fn status(cmd: &Command, stdout: Stdio, stderr: Stdio) -> io::Result<ExitStatus> {
     let child = root(cmd).stdin(Stdio::piped()).stdout(stdout).stderr(stderr).spawn()?;
     hold(child, |mut c| c.wait())
 }
@@ -98,7 +98,7 @@ pub(crate) const USER: [&str; 11] = ["--pdeathsig", "KILL", "--", "unshare", "--
 /// A command that runs `program` contained in a user and PID namespace (the module comment);
 /// configure it as `Command::new(program)`: arguments, environment, working directory and
 /// standard streams pass through, and so does the exit status (a death by signal included).
-pub(crate) fnuser(program: impl AsRef<OsStr>) -> Command {
+pub(crate) fn user(program: impl AsRef<OsStr>) -> Command {
     let mut c = Command::new("setpriv");
     c.args(USER).arg(program);
     c
