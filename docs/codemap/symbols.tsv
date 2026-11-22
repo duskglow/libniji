@@ -88,9 +88,15 @@ __close	GLIBC_2.2.5	csys/src/machine/points.S:196	niji_close_rest
 __cmsg_nxthdr	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:190	ret::ptr
 __confstr_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:248	ret::size0
 __connect	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:73	ret::zero
+__ctype32_b	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4071	
+__ctype32_tolower	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4079	
+__ctype32_toupper	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4087	
+__ctype_b	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4095	
 __ctype_b_loc	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:556	ret::ptr
 __ctype_get_mb_cur_max	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:187	locale::with_current
+__ctype_tolower	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4103	
 __ctype_tolower_loc	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:561	ret::ptr
+__ctype_toupper	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:4111	
 __ctype_toupper_loc	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:566	ret::ptr
 __cxa_at_quick_exit	GLIBC_2.10	crates/boundary/src/posix/s01_startup.rs:130	ret::registered
 __cxa_atexit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:125	ret::registered
@@ -580,6 +586,7 @@ _longjmp		csys/src/machine/setjmp.S:145	niji_machine_longjmp_nomask
 _mcleanup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:358	
 _mcount		csys/src/machine/mcount.S:38	niji_mcount_save
 _null_auth	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3921	
+_obstack	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3929	
 _obstack_allocated_p	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:301	ret::must
 _obstack_begin	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:265	ret::must
 _obstack_begin_1	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:271	ret::must
@@ -1913,14 +1920,14 @@ llroundf32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:3783	mret::Soft
 llroundf64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:3789	mret::Soft::enter
 llseek	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:299	ret::off
 llseek	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:309	ret::off
-loc1	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3929	
-loc2	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3937	
+loc1	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3937	
+loc2	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3945	
 localeconv	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:64	ret::ptr
 localtime	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:258	ret::null
 localtime_r	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:253	ret::null
 lockf	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:706	ret::zero
 lockf64	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:711	ret::zero
-locs	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3945	
+locs	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3953	
 log	(math-gen)	crates/boundary/src/posix/s10_math.tsv:104	mret::elem32_onepass
 log	(math-gen)	crates/boundary/src/posix/s10_math.tsv:105	mret::elem_fast
 log	(math-gen)	crates/boundary/src/posix/s10_math.tsv:106	mret::elem
@@ -2002,7 +2009,7 @@ malloc_stats	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:177	heap::mallo
 malloc_trim	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:141	ret::truth
 malloc_usable_size	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:136	heap::checked
 mallopt	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:146	malloc_compat::mallopt
-mallwatch	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3953	
+mallwatch	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3961	
 mblen	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:118	ret::int
 mbrlen	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:108	
 mbrtoc16	GLIBC_2.16	crates/boundary/src/posix/s06_multibyte.rs:96	ret::size_or_neg1
