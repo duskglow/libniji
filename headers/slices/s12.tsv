@@ -1,0 +1,19 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it (0: spec/tools/header_checks/s12.py has its own P1 units, with member offsets); uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+header	p1	uapi
+sys/socket.h	0	-
+sys/un.h	0	-
+arpa/inet.h	0	-
+netdb.h	0	-
+ifaddrs.h	0	-
+netinet/tcp.h	0	-
+netinet/udp.h	0	-
+resolv.h	0	-
+arpa/nameser.h	0	-
+arpa/nameser_compat.h	0	-
+nss.h	0	-
+aliases.h	0	-
+rpc/netdb.h	0	-
+sys/socketvar.h	0	-
+netinet/in.h	0	linux/in.h
+net/if.h	0	linux/if.h

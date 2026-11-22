@@ -225,7 +225,9 @@ fn caller_runpath_origin_serves_its_dlopen() {
 /// The secure-mode program (`bin/secure`, `DT_RUNPATH` `$ORIGIN/sub`, every start-time need by
 /// absolute path): argv[1] `force` sets the `AT_SECURE` entry of its own auxiliary vector to 1
 /// (where `dlopen` reads the flag; no privilege needed), `keep` leaves it; it prints the flag, then
-/// what each further argument's `dlopen` gives (the link-map name or `NULL`).
+/// what each further argument's `dlopen` gives (the link-map name or `NULL`). An argument
+/// `via:PATH` opens the library `PATH` and makes its `sec_open` (a `dlopen` call in that library,
+/// [`SEC_CALLER`]) the caller of the arguments after it.
 const SECURE: &str = r#"
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -243,8 +245,15 @@ int main(int argc, char **argv, char **envp) {
             if (a->a_type == AT_SECURE) secure = a->a_un.a_val = 1;
     }
     printf("secure %lu\n", secure);
+    void *(*op)(const char *) = 0;
     for (int i = 2; i < argc; i++) {
-        void *h = dlopen(argv[i], RTLD_NOW);
+        if (!strncmp(argv[i], "via:", 4)) {
+            void *c = dlopen(argv[i] + 4, RTLD_NOW);
+            op = c ? (void *(*)(const char *))dlsym(c, "sec_open") : 0;
+            if (!op) { printf("%s: NULL\n", argv[i]); return 1; }
+            continue;
+        }
+        void *h = op ? op(argv[i]) : dlopen(argv[i], RTLD_NOW);
         struct link_map *lm = 0;
         if (h) dlinfo(h, RTLD_DI_LINKMAP, &lm);
         printf("%s: %s\n", argv[i], h ? (lm ? lm->l_name : "?") : "NULL");
@@ -253,11 +262,67 @@ int main(int argc, char **argv, char **envp) {
 }
 "#;
 
+/// The caller library `bin/libsec.so` (`DT_RUNPATH` `$ORIGIN/lib/cdep`, beside the program, so a
+/// directory bound over a trusted one holds both): its `dlopen` searches its own `$ORIGIN`.
+const SEC_CALLER: &str = "#include <dlfcn.h>\nvoid *sec_open(const char *name) { return dlopen(name, RTLD_NOW); }\n";
+
 /// Run `c` (`secure mode libB.so $ORIGIN/sub/libB.so`, its environment set); its stdout.
 fn secure_run(c: &mut Command) -> String {
     let o = c.output().unwrap();
     assert!(o.status.success(), "{c:?}: {:?}\n{}", o.status, String::from_utf8_lossy(&o.stderr));
     String::from_utf8_lossy(&o.stdout).into_owned()
+}
+
+/// The corpus with `bin/secure` ([`SECURE`], `DT_RUNPATH` `$ORIGIN/sub`) and `bin/libsec.so`
+/// ([`SEC_CALLER`]), both needing only the corpus's libc by path.
+fn secure_setup(tag: &str) -> Option<Corpus> {
+    let c = setup(tag)?;
+    let (bin, libc, crt1) = (c.dir.join("bin"), c.dir.join("libc-runpath.so"), c.ld.with_file_name("niji-crt1.o"));
+    let build = |src_name: &str, src: &str, out: &str, flags: &[&str], extra: &[&Path]| {
+        let s = c.dir.join(src_name);
+        std::fs::write(&s, src).unwrap();
+        let r = Command::new("cc")
+            .args(["-O1", "-fno-stack-protector", "-fcf-protection=none", "-nostdlib", "-fPIC"])
+            .args(flags)
+            .args(extra)
+            .arg(&s)
+            .arg(&libc)
+            .arg("-lgcc")
+            .arg("-o")
+            .arg(bin.join(out))
+            .output()
+            .unwrap();
+        assert!(r.status.success(), "{out}: {}", String::from_utf8_lossy(&r.stderr));
+    };
+    let interp = format!("-Wl,--dynamic-linker={}", c.ld.display());
+    build("secure.c", SECURE, "secure", &["-pie", &interp, "-Wl,--enable-new-dtags", "-Wl,-rpath,$ORIGIN/sub"], &[&crt1]);
+    build("libsec.c", SEC_CALLER, "libsec.so", &["-shared", "-Wl,--enable-new-dtags", "-Wl,-rpath,$ORIGIN/lib/cdep"], &[]);
+    Some(c)
+}
+
+/// A default directory that is no symbolic link, when unprivileged user and mount namespaces work
+/// (`unshare -r -m`): the trusted directory the corpus's bin/ is bound over. `None` printed a SKIP.
+fn trusted_bind_target(part: &str) -> Option<&'static str> {
+    match Native::SYSTEM_DIRS.iter().find(|t| std::fs::canonicalize(t).is_ok_and(|r| r == Path::new(t))) {
+        Some(t) if Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) => Some(t),
+        Some(_) => {
+            eprintln!("SKIP ({part}): unprivileged user and mount namespaces are not available (unshare -r -m)");
+            None
+        }
+        None => {
+            eprintln!("SKIP ({part}): no default directory that is a real directory");
+            None
+        }
+    }
+}
+
+/// Run `script` as `sh -c` in a new user and mount namespace with `$1` = the corpus's bin/,
+/// `$2` = `t`, then `args`; its stdout. Contained (support/contain.rs): nothing it starts outlives
+/// the test.
+fn in_namespace(script: &str, bin: &Path, t: &str, args: &[&str]) -> String {
+    let mut cmd = contain::user("unshare");
+    cmd.env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").args(["-r", "-m", "sh", "-c", script, "sh"]).arg(bin).arg(t).args(args);
+    secure_run(&mut cmd)
 }
 
 // Spec s27_1_c_1_1; threat model rule 2 (rulings #7094, #7190): in a secure process `dlopen` expands
@@ -267,24 +332,8 @@ fn secure_run(c: &mut Command) -> String {
 // kernel's AT_SECURE; a supplementary group of the user) must refuse the untrusted one too.
 #[test]
 fn secure_dlopen_origin_only_trusted() {
-    let Some(c) = setup("secure") else { return };
+    let Some(c) = secure_setup("secure") else { return };
     let bin = c.dir.join("bin");
-    let (libc, crt1) = (c.dir.join("libc-runpath.so"), c.ld.with_file_name("niji-crt1.o"));
-    let src = c.dir.join("secure.c");
-    std::fs::write(&src, SECURE).unwrap();
-    let r = Command::new("cc")
-        .args(["-O1", "-fno-stack-protector", "-fcf-protection=none", "-nostdlib", "-fPIC", "-pie"])
-        .arg(format!("-Wl,--dynamic-linker={}", c.ld.display()))
-        .arg(&crt1)
-        .arg(&src)
-        .args(["-Wl,--enable-new-dtags", "-Wl,-rpath,$ORIGIN/sub"])
-        .arg(&libc)
-        .arg("-lgcc")
-        .arg("-o")
-        .arg(bin.join("secure"))
-        .output()
-        .unwrap();
-    assert!(r.status.success(), "secure: {}", String::from_utf8_lossy(&r.stderr));
     let names = ["libB.so", "$ORIGIN/sub/libB.so"];
     let want = |flag: u32, found: &str| format!("secure {flag}\n{0}: {found}\n{1}: {found}\n", names[0], names[1]);
     let p = c.dir.display().to_string();
@@ -295,17 +344,9 @@ fn secure_dlopen_origin_only_trusted() {
     assert_eq!(run(&bin.join("secure"), "force"), want(1, "NULL"), "secure: $ORIGIN {p}/bin is not trusted");
 
     // Trusted: a default directory that is no symbolic link, the corpus's bin/ bound over it.
-    match Native::SYSTEM_DIRS.iter().find(|t| std::fs::canonicalize(t).is_ok_and(|r| r == Path::new(t))) {
-        Some(t) if Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) => {
-            let script = "mount --bind \"$1\" \"$2\" && exec \"$2/secure\" force \"$3\" \"$4\"";
-            // Contained (support/contain.rs).
-            let mut cmd = contain::user("unshare");
-            cmd.env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").args(["-r", "-m", "sh", "-c", script, "sh"]).arg(&bin).args([*t, names[0], names[1]]);
-            let out = secure_run(&mut cmd);
-            assert_eq!(out, want(1, &format!("{t}/sub/libB.so")), "secure: $ORIGIN {t} is trusted");
-        }
-        Some(_) => eprintln!("SKIP (trusted part): unprivileged user and mount namespaces are not available (unshare -r -m)"),
-        None => eprintln!("SKIP (trusted part): no default directory that is a real directory"),
+    if let Some(t) = trusted_bind_target("trusted part") {
+        let out = in_namespace("mount --bind \"$1\" \"$2\" && exec \"$2/secure\" force \"$3\" \"$4\"", &bin, t, &names);
+        assert_eq!(out, want(1, &format!("{t}/sub/libB.so")), "secure: $ORIGIN {t} is trusted");
     }
 
     // The kernel's flag: a set-group-ID copy beside the program (same $ORIGIN).
@@ -324,6 +365,37 @@ fn secure_dlopen_origin_only_trusted() {
         assert_eq!(out, want(1, "NULL"), "set-group-ID: $ORIGIN {p}/bin is not trusted");
     } else {
         eprintln!("SKIP (set-group-ID part): the kernel did not set AT_SECURE in {} (nosuid file system or no_new_privs)", bin.display());
+    }
+    let _ = std::fs::remove_dir_all(&c.dir);
+}
+
+// Spec s27_1_c_1_1; threat model rule 2 (rulings #7094, #7190): in a secure process a library
+// caller's own `$ORIGIN` (its DT_RUNPATH `$ORIGIN/lib/cdep` and a `$ORIGIN` name it opens) is
+// expanded only when the library's directory is trusted, whatever the program's directory is;
+// outside secure mode it is searched. The flag is forced as in secure_dlopen_origin_only_trusted;
+// in the namespace the same files are reached under the trusted directory and under the corpus.
+#[test]
+fn secure_dlopen_caller_origin_only_trusted() {
+    let Some(c) = secure_setup("secure-caller") else { return };
+    let bin = c.dir.join("bin");
+    let p = bin.display().to_string();
+    let names = ["libD.so", "$ORIGIN/lib/cdep/libD.so"];
+    // `secure <flag>`, then the program's libB.so (when asked), then the caller's two names.
+    let want = |flag: u32, prog_b: Option<&str>, found: &str| {
+        let b = prog_b.map_or_else(String::new, |r| format!("libB.so: {r}\n"));
+        format!("secure {flag}\n{b}{0}: {found}\n{1}: {found}\n", names[0], names[1])
+    };
+    let via = format!("via:{p}/libsec.so");
+    let run = |mode: &str| secure_run(Command::new(bin.join("secure")).env_clear().arg(mode).arg(&via).args(names));
+    assert_eq!(run("keep"), want(0, None, &format!("{p}/lib/cdep/libD.so")), "not secure: the caller's $ORIGIN/lib/cdep used");
+    assert_eq!(run("force"), want(1, None, "NULL"), "secure: the caller's $ORIGIN {p} is not trusted");
+
+    if let Some(t) = trusted_bind_target("trusted part") {
+        // Program trusted, caller not (its corpus path); then program not, caller trusted.
+        let script = "mount --bind \"$1\" \"$2\" && \"$2/secure\" force libB.so \"via:$1/libsec.so\" \"$3\" \"$4\" && exec \"$1/secure\" force libB.so \"via:$2/libsec.so\" \"$3\" \"$4\"";
+        let out = in_namespace(script, &bin, t, &names);
+        let (prog_trusted, caller_trusted) = (want(1, Some(&format!("{t}/sub/libB.so")), "NULL"), want(1, Some("NULL"), &format!("{t}/lib/cdep/libD.so")));
+        assert_eq!(out, format!("{prog_trusted}{caller_trusted}"), "secure: only the caller's own $ORIGIN decides ({t} trusted, {p} not)");
     }
     let _ = std::fs::remove_dir_all(&c.dir);
 }

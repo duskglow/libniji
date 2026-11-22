@@ -54,11 +54,13 @@ wenv=${WLC_ENV:-}
 etag=
 [ -n "$wenv" ] && etag=.e$(printf '%s' "$wenv" | md5sum | cut -c1-8)
 # RUN SETUP (WL-COUNT-HONEST-CHEAP, D-X.151; wl_stats.sh): every measured run (warm-up, perf, md5, strace) of every column
-# starts under $pin (setarch -R: one address layout) and a row's page faults are its LOWEST run (ff = the wl_stats field).
-# Rows measured so end .q.tsv; WLC_ASLR=1 measures as before (ASLR, the median) and reads/writes .p.tsv rows.
+# starts under $pin (env -i with the fixed WL_RUN_ENV, D-X.155, then setarch -R: one environment, one address layout)
+# and a row's page faults are its LOWEST run (ff = the wl_stats field). Rows measured so end .r.tsv (.q.tsv rows were
+# measured in the caller's environment and are never served); WLC_ASLR=1 measures as before (ASLR, the median, the
+# caller's environment) and reads/writes .p.tsv rows.
 pin=$(wl_run_prefix) || exit 2
 ff=$(wl_fault_field)
-msuf=.q.tsv
+msuf=.r.tsv
 [ "${WLC_ASLR:-0}" = 1 ] && msuf=.p.tsv
 if [ -n "$pin" ]; then
     echo "wl_count_run: run setup: $pin, page faults = the lowest of $nruns runs"

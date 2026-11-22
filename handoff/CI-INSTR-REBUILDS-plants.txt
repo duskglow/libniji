@@ -1,0 +1,28 @@
+# CI-INSTR-REBUILDS plants: the build tag's file set (xtask/src/so.rs, D-27.78). Run with
+# cargo xtask plants handoff/CI-INSTR-REBUILDS-plants.txt --dir <new RAM dir>
+tests-hashed | xtask/src/so.rs | perl:s/\Q&["tests", "benches", "examples"]\E/&["benches", "examples"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is no product input
+dev-deps-followed | xtask/src/so.rs | perl:s/\Q&["dependencies", "build-dependencies"]\E/&["dependencies", "build-dependencies", "dev-dependencies"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+build-deps-dropped | xtask/src/so.rs | perl:s/\Q&["dependencies", "build-dependencies"]\E/&["dependencies"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+target-tables-dropped | xtask/src/so.rs | perl:s/\Q.ends_with(&format!(".{k}"))\E/.ends_with(&format!(".{k}x"))/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+workspace-deps-dropped | xtask/src/so.rs | perl:s/\QSome(p) => lexical(Path::new(p)),\E/Some(_) => continue,/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+hash-unfiltered | xtask/src/so.rs | perl:s/\Q.is_ok_and(|rel| tag_covers(rel, &crates))\E/.is_ok()/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is no product input
+check-silenced | xtask/src/so.rs | perl:s/\Q(!missed.is_empty()).then(\E/(false).then(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+check-flags-target | xtask/src/so.rs | perl:s/\Q(!rel.starts_with("target") && \E/(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+depinfo-escape-lost | xtask/src/so.rs | perl:s/=> esc = true,/=> {}/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+data-files-dropped | xtask/src/so.rs | perl:s/\QTAG_DATA_FILES: &[&str] = &["spec\E/TAG_DATA_FILES: &[&str] = &["xspec/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is a product input
+data-files-unhashed | xtask/src/so.rs | perl:s/\Qfiles.extend(TAG_DATA_FILES\E/files.truncate(1); drop(TAG_DATA_FILES/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is a product input
+# cargo xtask plants results (11 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 2 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# tests-hashed: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else
+# dev-deps-followed: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else
+# build-deps-dropped: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else
+# target-tables-dropped: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else
+# workspace-deps-dropped: WARN-NO-MSG, caught by no test the log names
+# hash-unfiltered: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else
+# check-silenced: CAUGHT, caught by xtask so::tests::a_product_build_that_reads_a_file_outside_the_tag_fails
+# check-flags-target: CAUGHT, caught by xtask so::tests::a_product_build_that_reads_a_file_outside_the_tag_fails
+# depinfo-escape-lost: CAUGHT, caught by xtask so::tests::a_product_build_that_reads_a_file_outside_the_tag_fails
+# data-files-dropped: WARN-NO-MSG, caught by no test the log names
+# (both WARN-NO-MSG plants failed in the plant's own `cargo xtask so`: check_tag_covers stopped the build with
+# "... which the build tag does not cover (NIJI_BUILD_TAG, D-27.78)", before the unit tests ran; the msg: regexes
+# name only the unit tests)
+# data-files-unhashed: CAUGHT, caught by xtask so::tests::the_build_tag_follows_what_a_product_build_compiles_and_nothing_else

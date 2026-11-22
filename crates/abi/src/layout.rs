@@ -3282,3 +3282,11 @@ pub struct struct_elf_siginfo {
     pub si_errno: i32,
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_res_sym {
+    pub number: i32,
+    pub name: usize,
+    pub humanname: usize,
+}
+

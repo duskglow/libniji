@@ -66,6 +66,8 @@ asked for, `secure_dlopen_origin_only_trusted` (crates/ld/tests/runpath_search.r
 - the kernel's flag: a set-group-ID copy (a supplementary group) must also refuse the untrusted `$ORIGIN`.
 - All three parts ran on the Skylake-SP host (no SKIP lines). The plant `no-secure-rule` drops the flag from dlopen's
   search context.
+- A caller library's own `$ORIGIN` in secure mode: DL-RUNPATH-SECURE-TEST (`secure_dlopen_caller_origin_only_trusted`,
+  plants on the rule in `search::expand`, and the owner's set-user-ID probe for the caller): handoff/DL-RUNPATH-SECURE-TEST.md.
 
 Set-user-ID probe for the owner (needs root; nothing here was run as root). Build as the user, in a scratch dir D that
 is not on a nosuid file system: the SECURE program of runpath_search.rs, linked against the system C library

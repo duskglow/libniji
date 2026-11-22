@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S12-6", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: merged next, regenerated headers, clippy and static green; direct gate red only on the whole-tree header_check, which fails on origin/next too (sys/mount.h defines struct winsize twice when the host has sys/ioctl.h); plants could not run (baseline red)",
+ "branch": "task/sl-headers-s12-6", "head": "1ee1728c0",
+ "gate": {"affected": "all but 1 passed / 1 failed (headers::slices::s12::tests::network_headers_pass_header_check, inherited from next)", "peak": "15G (mei, oom_kill=0)"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "sys/mount.h (slice 15 row) emits struct winsize while the host's sys/ioctl.h, found by __has_include, defines it too: header_check P8 fails 8 cases on origin/next and blocks the slice 12 gate and plants baselines", "recommendation": "fix in the sys/mount.h template (guard the winsize emission, or generate sys/ioctl.h with slice 7's tail); then rerun slice 12 gate and plants"}],
+ "informational": ["sl-headers-s12-5-gate3 and -plants3 ran on another host and were not found on the build host; the merge changed the head so they were not valid anyway", "P5 c89/-pedantic for slice 12 headers still not run"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "merge of next into slice 12 and regenerated headers; no behaviour landed", "before": null, "after": null, "unit": "", "measured": false}],
+ "improvement": "a whole-tree check inside a slice's test makes every slice red when any other slice breaks; scope slice tests to the slice's own headers",
+ "next_step": "fix sys/mount.h winsize double definition on next, merge next, rerun gate and plants, land",
+ "report_file": "handoff/SL-HEADERS-S12.md",
+ "jobs": ["mei:sl-headers-s12-6-gate", "mei:sl-headers-s12-6-plants"]}

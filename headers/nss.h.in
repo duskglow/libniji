@@ -1,0 +1,18 @@
+@@generated
+/* nss.h: name service switch configuration (nsswitch.conf(5)) */
+#ifndef __NIJI_H_nss_h
+#define __NIJI_H_nss_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <stddef.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL max_align_t
+@@emit
+
+__NIJI_END_C
+
+#endif

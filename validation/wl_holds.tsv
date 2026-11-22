@@ -9,32 +9,42 @@
 # libniji = the recorded counts, the WORST observed so a rerun of next does not exceed the level (a level a rerun can
 # exceed is a flake), from a wl_count run whose BASE column is next: instructions:u the base column's mean and glibc's
 # mean; page faults the highest single base run and the lowest glibc run (the log's "faults min..max" line); recorded =
-# the measured next head and date.
+# the measured next head and date. `level` must equal ceil4(libniji / glibc) of its own row (wl_verdict.py holds
+# recomputes it: a level edited without its counts is refused).
 # D-X.151 (WL-COUNT-HONEST-CHEAP, 2026-11-21): a count's page faults are now the lowest of 5 runs under setarch -R. gzip-c's
-# hold is dropped (next measures 292 / 269 = 1.0855 in every count, so the 1.10 bound binds). The other levels are not
-# re-recorded yet: in one address layout the size of the environment moves a row by about one fault per process, so
-# levels come from counts in a fixed environment (handoff/WL-COUNT-HONEST-CHEAP.md, next step).
+# hold is dropped (next measures 292 / 269 = 1.0855 in every count, so the 1.10 bound binds).
+# D-X.155 (WL-LEVELS-RERECORD, 2026-11-21): every measured run now gets one fixed environment (validation/wl_stats.sh
+# WL_RUN_ENV under env -i), and every level below was re-recorded from 5 counts of next 0299fd6e1 on the Zen 1 host in
+# it, libniji (new and base columns) and glibc both measured fresh: libniji = the highest of the 10 libniji columns,
+# glibc = the lowest of the 5 glibc columns (page faults: each column the lowest of its 5 runs; printf-loop, a 25-minute
+# row, from 2 of the counts). Single-process rows repeat exactly over the 5 counts. The levels recorded before (189ab9cbc) had glibc page-fault numbers the fixed
+# environment does not reproduce (sed-s 251 against 212 measured; every row's glibc fell by 0 to 39), so rows rise or
+# fall: a rise is a CORRECTION under the owner's ruling of 2026-11-21 ("accurate results are more important"), never
+# a loosening, and is accepted only with `correction D-X.<n>` in its cause, a new `recorded` and a libniji count not
+# above the one before (libniji did not get worse; glibc's number was wrong). tar-gz (a 4 s two-process pipeline): 2
+# of its 10 libniji columns had every run 110+ faults above the rest (758, 765: positive excursions as in D-X.151);
+# its libniji is the highest of the other 8 (629..647).
 cpu	workload	metric	glibc	libniji	level	recorded	cause
-AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3129	4089	1.3069	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	md5sum	pf	147	183	1.2449	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	cut-tr-uniq	pf	483	609	1.2609	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	seq	pf	136	168	1.2353	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	printf-loop	instr	5680323909	20624302882	3.6309	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	printf-loop	pf	1482360	2035438	1.3732	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	ls-lR	pf	3148	3857	1.2253	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	du	pf	3360	4017	1.1956	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	sed-s	pf	251	304	1.2112	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	sed-utf8	pf	228	284	1.2457	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	bash-loop	pf	196	298	1.5205	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	grep-F	pf	428	499	1.1659	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	grep-E	pf	432	513	1.1875	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	grep-i-utf8	pf	456	518	1.1360	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gawk-sum	pf	251	301	1.1993	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gawk-regex	pf	251	309	1.2311	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gawk-utf8	pf	304	356	1.1711	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gawk-printf	pf	249	299	1.2009	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	tar-c	pf	408	494	1.2108	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	tar-tv	pf	235	288	1.2256	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	gzip-d	pf	215	256	1.1907	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	pipe-mix	pf	1131	1332	1.1778	189ab9cbc 2026-11-20	dynamic start-up
-AMD EPYC 7551 32-Core Processor	tar-gz	pf	531	648	1.2204	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3112	3952	1.2700	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	md5sum	pf	143	176	1.2308	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	cut-tr-uniq	pf	476	585	1.2290	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	seq	pf	133	161	1.2106	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	instr	5203469249	19142789292	3.6789	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	printf-loop	pf	1440309	1960175	1.3610	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	ls-lR	pf	3132	3732	1.1916	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	du	pf	3332	3962	1.1891	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	sed-s	pf	212	275	1.2972	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	sed-utf8	pf	224	274	1.2233	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	bash-loop	pf	196	258	1.3164	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-F	pf	419	480	1.1456	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-E	pf	427	493	1.1546	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	grep-i-utf8	pf	447	501	1.1209	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gawk-sum	pf	244	297	1.2173	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	gawk-regex	pf	246	304	1.2358	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	gawk-utf8	pf	297	348	1.1718	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	gawk-printf	pf	241	294	1.2200	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155
+AMD EPYC 7551 32-Core Processor	tar-c	pf	401	479	1.1946	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	tar-tv	pf	230	279	1.2131	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	gzip-d	pf	212	248	1.1699	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	pipe-mix	pf	1119	1288	1.1511	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up
+AMD EPYC 7551 32-Core Processor	tar-gz	pf	523	647	1.2371	0299fd6e1 2026-11-21 (fixed env, D-X.155)	dynamic start-up; correction D-X.155

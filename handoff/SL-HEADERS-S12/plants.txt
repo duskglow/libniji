@@ -1,0 +1,10 @@
+# Plants of slice 12 (cargo xtask plants; docs/plants.md). The templates, the generator and the committed libc-include/
+# output are checked by `headers-gen --check` (the committed output must equal the regenerated one, and every table
+# fact must fit). No P10 evaluation test exists yet for CMSG_* and IN6_IS_ADDR_*: their plants are caught as stale output only.
+s12-cmsg-nxthdr | headers/sys/socket.h.in | lit:# define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (mhdr, cmsg) ==> # define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (cmsg, mhdr) | cargo xtask headers-gen --check | msg:headers-gen
+s12-in6-multicast | headers/netinet/in.h.in | lit:(((const uint8_t *) (a))[0] == 0xff) ==> (((const uint8_t *) (a))[0] == 0xfe) | cargo xtask headers-gen --check | msg:headers-gen
+s12-ntohl-swap | headers/netinet/in.h.in | lit:# define ntohl(x) __builtin_bswap32 (x) ==> # define ntohl(x) __builtin_bswap16 (x) | cargo xtask headers-gen --check | msg:headers-gen
+s12-bitfield-width | xtask/src/headers.rs | lit:.map(|w| format!(" : {w}")) ==> .map(|_w| format!(" : 1")) | cargo xtask headers-gen --check | msg:headers-gen
+s12-needs-covers | xtask/src/headers.rs | lit:|| needs.contains(&r["header"]) ==> || false | cargo xtask headers-gen --check | msg:headers-gen
+s12-object-struct-keyword | xtask/src/headers.rs | lit:None => format!("extern {} {name};", self.type_words(&ty)), ==> None => format!("extern {} {name};", ty.replace('*', " *")), | cargo xtask headers-gen --check | msg:headers-gen
+s12-anon-array-member | xtask/src/headers.rs | lit:out.push(format!("{pad}}} {rel}{aarr};")); ==> out.push(format!("{pad}}} {rel};")); | cargo xtask headers-gen --check | msg:headers-gen
