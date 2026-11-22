@@ -7,10 +7,10 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <arpa/nameser_compat.h>
+#include <sys/param.h>
 
 __NIJI_BEGIN_C
 
-@@needs sys/param.h
 @@emit
 
 __NIJI_END_C

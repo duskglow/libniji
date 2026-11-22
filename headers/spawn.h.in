@@ -1,0 +1,27 @@
+@@generated
+/* spawn.h: spawning processes (XSH <spawn.h>, posix_spawn(3)), with the GNU file actions and the pidfd forms. */
+#ifndef __NIJI_H_spawn_h
+#define __NIJI_H_spawn_h 1
+
+#include <features.h>
+#include <sched.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

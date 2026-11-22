@@ -5,10 +5,10 @@
 
 #include <features.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 __NIJI_BEGIN_C
 
-@@needs signal.h
 @@owns-macro h_errno
 @@emit
 

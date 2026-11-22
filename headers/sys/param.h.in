@@ -1,0 +1,30 @@
+@@generated
+/* sys/param.h: system parameters (BSD): the limits, byte order, types and signal vocabulary, through the headers
+   that own them in every configuration, and the parameters of its own. */
+#ifndef __NIJI_H_sys_param_h
+#define __NIJI_H_sys_param_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <limits.h>
+#include <endian.h>
+#include <signal.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -5,10 +5,10 @@
 
 #include <features.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 __NIJI_BEGIN_C
 
-#include <signal.h>
 #if 1
 # ifndef __NIJI_D_struct_hostent
 #  define __NIJI_D_struct_hostent 1

@@ -25,3 +25,8 @@ paths.h	1	-
 libgen.h	1	-
 sys/xattr.h	1	-
 sys/sendfile.h	1	-
+sys/wait.h	1	-
+wait.h	1	-
+sys/param.h	1	-
+spawn.h	1	-
+sys/ioctl.h	1	-

@@ -1,0 +1,8 @@
+@@generated
+/* wait.h: another name of <sys/wait.h> (plan/headers.md section 1). */
+#ifndef __NIJI_H_wait_h
+#define __NIJI_H_wait_h 1
+
+#include <sys/wait.h>
+
+#endif
