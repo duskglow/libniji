@@ -107,24 +107,38 @@ fn directory_form_writes_the_defined_categories() {
     assert_eq!((again.status, text(&again.err)), (0, String::new()));
 }
 
-/// s31_8_f_1: a missing source is one `[error]` line and status 4, nothing written.
+/// s31_8_f_1: a missing source is one `[error]` line and status 4; only the output directory is made (first).
 #[test]
 fn missing_source_is_status_4() {
     let mut m = host();
     let o = go(&mut m, &["-i", "nosuch", "-f", "MINI", "/out/x"]);
     assert_eq!(text(&o.err), "[error] cannot open locale definition file `nosuch': No such file or directory\n");
     assert_eq!(o.status, 4);
-    assert!(m.dirs.is_empty() && m.files.len() == 2);
+    assert!(m.dirs == [b"/out/x".to_vec()] && m.files.len() == 2, "only the output directory is made");
 }
 
-/// s31_8_f_1: a missing charmap: its `[error]` line, the no-output line, status 4, nothing written.
+/// s31_8_f_1: a missing charmap: its `[error]` line and the default charmap in its place; without -c the no-output
+/// line, status 4, nothing written.
 #[test]
 fn missing_charmap_is_status_4() {
     let mut m = host();
     let o = go(&mut m, &["--inputfile=mini", "--charmap", "NOSUCH", "/out/x"]);
+    assert_eq!(
+        text(&o.err),
+        "[error] character map file `NOSUCH' not found: No such file or directory\n[error] default character map file `ANSI_X3.4-1968' not found: No such file or directory\n[error] no output file produced because errors were issued\n"
+    );
+    assert_eq!(o.status, 4);
+    assert!(m.dirs == [b"/out/x".to_vec()] && m.files.len() == 2, "only the output directory is made");
+    // The default charmap stands in: the source is compiled, but only -c writes it.
+    m.files.insert(b"/usr/share/i18n/charmaps/ANSI_X3.4-1968".to_vec(), ascii_charmap());
+    let o = go(&mut m, &["-i", "mini", "-f", "NOSUCH", "--quiet", "/out/x"]);
     assert_eq!(text(&o.err), "[error] character map file `NOSUCH' not found: No such file or directory\n[error] no output file produced because errors were issued\n");
     assert_eq!(o.status, 4);
-    assert!(m.dirs.is_empty() && m.files.len() == 2);
+    assert_eq!(m.files.len(), 3);
+    let o = go(&mut m, &["-i", "mini", "-f", "NOSUCH", "--quiet", "-c", "/out/x"]);
+    assert_eq!(text(&o.err), "[error] character map file `NOSUCH' not found: No such file or directory\n");
+    assert_eq!(o.status, 0);
+    assert!(m.files.contains_key(&b"/out/x/LC_NUMERIC"[..]));
 }
 
 /// A gzip file of one stored deflate block.

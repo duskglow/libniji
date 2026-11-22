@@ -59,6 +59,8 @@ fn niji_default(root: &Path, command: &str) -> Option<PathBuf> {
         "iconv" => Some(root.join(crate::so::ICONV_TEST)).filter(|p| p.is_file()),
         // UTIL-4: ldd compiled to run this tree's loader in trace mode.
         "ldd" => Some(root.join(crate::so::LDD_TEST)).filter(|p| p.is_file()),
+        // UTIL-12: the shipped localedef (static, no C library: the same program runs anywhere).
+        "localedef" => Some(root.join("target/niji/localedef")).filter(|p| p.is_file()),
         _ => None,
     }
 }

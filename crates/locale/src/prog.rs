@@ -137,7 +137,7 @@ Compile locale specification
 
  Output control:
   -c, --force                Create output even if warning messages were issued
-
+                           \x20
       --no-hard-links        Do not create hard links between installed
                              locales
       --no-warnings=<warnings>   Comma-separated list of warnings to disable;
@@ -181,6 +181,7 @@ struct Opts<'a> {
     input: Option<&'a [u8]>,
     prefix: Option<&'a [u8]>,
     no_archive: bool,
+    force: bool,
     big_endian: bool,
     archive_mode: Option<&'static str>,
     quiet: bool,
@@ -332,6 +333,7 @@ fn apply<'a>(opts: &mut Opts<'a>, short: u8, long: &str, value: Option<&'a [u8]>
     match (short, long) {
         (b'f', _) => opts.charmap = value,
         (b'i', _) => opts.input = value,
+        (b'c', _) => opts.force = true,
         (b'?', _) => return Some(Parsed::Done(HELP, b"", 0)),
         (b'V', _) => return Some(Parsed::Done(VERSION, b"", 0)),
         (_, "usage") => return Some(Parsed::Done(USAGE, b"", 0)),
@@ -343,8 +345,7 @@ fn apply<'a>(opts: &mut Opts<'a>, short: u8, long: &str, value: Option<&'a [u8]>
         (_, "add-to-archive") => opts.archive_mode = Some("add-to-archive"),
         (_, "delete-from-archive") => opts.archive_mode = Some("delete-from-archive"),
         (_, "list-archive") => opts.archive_mode = Some("list-archive"),
-        // Accepted, with no effect on the directory form: -c (nothing this writer warns about
-        // stops the output), -u (characters are named by the charmap), -v, -A, --no-hard-links,
+        // Accepted, with no effect on the directory form: -u (characters are named by the charmap), -v, -A, --no-hard-links,
         // --posix, --replace, --warnings, --no-warnings.
         _ => {}
     }
@@ -429,8 +430,12 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         o.status = 4;
         return Ok(());
     };
-    let charmap = opts.charmap.unwrap_or(DEFAULT_CHARMAP);
+    // The output directory is made before any input is read (probed: it is left, empty, when the run then fails);
+    // a failure here is reported when the files are written.
+    let _ = host.mkdir(dir.strip_suffix(b"/").unwrap_or(&dir));
+    let mut charmap = opts.charmap.unwrap_or(DEFAULT_CHARMAP);
     let mut inputs = Inputs { host, failed: None };
+    let mut errors = false;
     // The source is looked for first, so a missing one is reported as such whatever the charmap.
     if let Err(e) = Files::read(&mut inputs, Kind::Locale, input) {
         if e.kind == ErrorKind::NoMemory {
@@ -442,6 +447,32 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         return Ok(());
     }
     inputs.failed = None;
+    // A charmap that cannot be read is an error; the default one stands in for it (probed), so the source is
+    // still checked, and with -c compiled.
+    if let Err(e) = Files::read(&mut inputs, Kind::Charmap, charmap) {
+        if e.kind == ErrorKind::NoMemory {
+            return Err(NoMem);
+        }
+        let errno = inputs.failed.map_or(ENOENT, |f| f.1);
+        let default = if charmap == DEFAULT_CHARMAP { &b"default "[..] } else { b"" };
+        put(&mut o.err, &[b"[error] ", default, b"character map file `", charmap, b"' not found: ", inputs.host.error_text(errno), b"\n"])?;
+        errors = true;
+        inputs.failed = None;
+        if charmap != DEFAULT_CHARMAP {
+            charmap = DEFAULT_CHARMAP;
+            if let Err(e) = Files::read(&mut inputs, Kind::Charmap, charmap) {
+                if e.kind == ErrorKind::NoMemory {
+                    return Err(NoMem);
+                }
+                let errno = inputs.failed.map_or(ENOENT, |f| f.1);
+                put(&mut o.err, &[b"[error] default character map file `", charmap, b"' not found: ", inputs.host.error_text(errno), b"\n"])?;
+                put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+                o.status = 4;
+                return Ok(());
+            }
+        }
+        inputs.failed = None;
+    }
     let compiled = match crate::compile(input, charmap, &mut inputs) {
         Ok(c) => c,
         Err(e) => {
@@ -469,6 +500,11 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
             put(&mut o.err, &[b"[warning] No definition for ", NAMES.get(n).copied().unwrap_or_default(), b" category found\n"])?;
             o.status = 1;
         }
+    }
+    if errors && !opts.force {
+        put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+        o.status = 4;
+        return Ok(());
     }
     write_dir(host, &dir, &compiled, o)
 }

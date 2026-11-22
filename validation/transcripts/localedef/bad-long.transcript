@@ -1,0 +1,9 @@
+name: an unknown long option
+clause: s31_8_i_1
+command: localedef
+arg: --bogus
+status: exit 4
+stdout:
+stderr:
+| localedef: unrecognized option '--bogus'
+| Try `localedef --help' or `localedef --usage' for more information.

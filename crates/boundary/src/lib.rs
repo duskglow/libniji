@@ -101,6 +101,8 @@ mod arch;
 pub mod ld;
 #[cfg(feature = "ldconfig")]
 pub mod ldconfig;
+#[cfg(feature = "localedef")]
+pub mod localedef;
 pub mod dlerr;
 pub mod export;
 pub mod data;

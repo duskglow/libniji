@@ -98,6 +98,28 @@ niji_machine_ldconfig_entry:
 	.cfi_endproc
 	.size niji_machine_ldconfig_entry, .-niji_machine_ldconfig_entry
 #endif
+#ifdef NIJI_LOCALEDEF
+/* Assembled with -DNIJI_LD -DNIJI_LOCALEDEF it holds niji_machine_localedef_entry instead: the entry
+ * of the freestanding static localedef (UTIL-12, spec §31.8), the ldconfig entry's convention
+ * calling niji_localedef_start. */
+	.section .text.niji_machine_localedef_entry,"ax",@progbits
+	.globl niji_machine_localedef_entry
+	.hidden niji_machine_localedef_entry
+	.hidden niji_localedef_start
+	.type niji_machine_localedef_entry, @function
+	.p2align 4
+niji_machine_localedef_entry:
+	.cfi_startproc
+	.cfi_undefined %rip
+	xorl %ebp, %ebp
+	movq %rsp, %rdi
+	leaq __ehdr_start(%rip), %rsi
+	andq $-16, %rsp
+	call niji_localedef_start
+	hlt
+	.cfi_endproc
+	.size niji_machine_localedef_entry, .-niji_machine_localedef_entry
+#endif
 #else
 	/* The start-up data clusters (D-X.62, D-X.64, xtask/src/startup_ro.rs): the anchor object (below,
 	 * -DNIJI_STATIC_ANCHOR) is the first of libc.a's members a static link takes, so its empty section

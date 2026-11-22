@@ -1,0 +1,22 @@
+# Product crate for the shipped localedef (UTIL-12, spec §31.8): a freestanding static program with
+# no C library, as ldconfig (D-31.2), so it runs in a build root whatever C library is installed. In
+# the product workspace (crates/Cargo.toml); built, linked as a static PIE and checked by
+# `cargo xtask so` into target/niji/localedef.
+[package]
+name = "niji-localedef-bin"
+description = "Product crate: links the localedef entry (boundary feature `localedef`) into a static program"
+version = "0.0.0"
+edition = "2024"
+license = "LGPL-2.1-or-later"
+publish = false
+
+[lib]
+name = "localedef_bin"
+crate-type = ["staticlib"]
+test = false
+doctest = false
+
+[dependencies]
+niji-boundary = { path = "../boundary", features = ["localedef"] }
+
+# Profiles: crates/Cargo.toml (the product workspace).
