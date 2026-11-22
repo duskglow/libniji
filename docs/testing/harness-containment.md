@@ -19,12 +19,21 @@ the exit status passes through (checked on a Skylake-SP host, util-linux 2.39.3)
 
 **Proof.** `crates/core/tests/harness_containment.rs` runs one test per kind. Each test re-runs its
 own binary as a helper that starts a run (a process and a forked child), SIGKILLs the helper, and
-checks that no process of the run remains. `cargo xtask static` (`harness-contain`,
-`xtask/src/harness_contain.rs`) has two rules:
+checks that no process of the run remains. The same file has one kill test per kind of
+`tools/contained.sh` (below): a script with the prologue starts a run, the test SIGKILLs the
+script's own process, and no process of the run may remain. `xtask/src/contain.rs` has a kill test
+per kind for xtask's own runs. `cargo xtask static` (`harness-contain`,
+`xtask/src/harness_contain.rs`) has these rules:
 
 - A test line that spawns `sudo` or `unshare` directly must be a probe: it runs `true`, or it is
   marked `contain: probe(<why>)`.
 - A test file that runs an oracle script that uses `sudo` or `unshare` must use `contain::`.
+- An xtask source line (`xtask/src/**/*.rs`) that spawns `sudo` or `unshare` directly
+  (`Command::new("sudo")`, `Command::new(unshare)`, ...) is a probe, or is marked
+  `contain: inside(<why>)` when it runs inside a contained run.
+- A script under `validation/` or `tools/`, or an oracle script that no test names (run by hand),
+  whose code runs `sudo` or `unshare` sources `tools/contained.sh`, with `contained_kind=root` or
+  `rootopt` when it runs `sudo`.
 
 ## Inventory (ROOT-HARNESS-CONTAIN, 2026-11-22)
 
@@ -67,18 +76,36 @@ the test's `timeout`, which cannot signal the root processes.
 **Not contained: probes.** These are `unshare ... true`, `sudo -n true`, or a fixed mount and exit
 marked `contain: probe(...)`. Each ends by itself and waits for nothing.
 
-**Not contained yet: outside the tests.** These are not test harnesses (follow-up):
+## Outside the tests (ROOT-HARNESS-FOLLOWUP, 2026-11-22)
 
-- `xtask bench`'s `private_shm` route (`cbench_netdb`, `cbench_nscache`): `sudo -n unshare -m sh -c
-  '... exec setpriv ... bench'`. Its only root process is `sudo`, which waits for the bench, a
-  process of the caller's own. If xtask is killed, the bench runs on to its end, and `sudo` with
-  it. Containing it puts the counted bench in a PID namespace, which needs a count check of those
-  two rows first.
-- `validation/profile.sh` and `validation/profile6.sh` (`sudo -n perf stat|record ... sh -c "$c"`):
-  by-hand profiling tools. The profiled command runs under root `perf` until it ends.
-- User-namespace tooling outside the tests:
-  - `xtask bench` `namespace_command` and `xtask transcript` (`unshare -r -m`)
-  - `validation/tmpfs-run.sh`
-  - `tools/deb/*.sh` (mmdebstrap `--mode=unshare`)
-  - `tools/probe/*`
-  - `crates/core/tests/oracle/specman_dns.sh` (run by hand)
+**xtask's own runs, `xtask/src/contain.rs`.** The same two kinds as the tests' helpers:
+`contain::output(&cmd)` (root, through `oracle/contain.sh`; the pipe that ties the run to xtask
+is held for xtask's lifetime) and `contain::user(program)`.
+
+- `xtask bench`, the private-/dev/shm route of `cbench_netdb` and `cbench_nscache` (`sudo -n
+  unshare -m sh -c '... setpriv ... bench'`): every bench spawn goes through
+  `bench::bench_output`, which runs this route (and only it) through `contain::output`. It is
+  wrapped at the spawn, not where the command is built, because the callers add `CBENCH_COUNTERS`
+  and `CBENCH_ROWS` afterwards. `sudo` is process 1 of the namespace; the bench is its descendant,
+  never process 1. Count check: below.
+- `xtask bench` `namespace_command` (the `names` and `locale` stress profiles, advisory):
+  `contain::user("unshare")`.
+- `xtask transcript`, the namespaced transcripts (`getent`, `locale`, `ldconfig`):
+  `contain::user(unshare)`; the nested `unshare` exec in its helper is marked `contain:
+  inside(...)`. The transcript's program may be process 1 of the namespace; none of these
+  transcripts expects a signal outcome.
+
+**Scripts, `tools/contained.sh`.** A script sources it before it starts anything, with
+`contained_kind=root|rootopt|user` (the header of `tools/contained.sh` has the mechanism):
+
+| Script | Kind | Why |
+|---|---|---|
+| `validation/profile.sh`, `validation/profile6.sh` (`sudo -n perf ...`) | `root` | the profiled command runs under root `perf`; the script re-runs through `contain.sh` |
+| `validation/tmpfs-run.sh`, `tools/deb/root-system.sh`, `tools/probe/util_surface.sh`, `tools/probe/ldcache_loader.sh`, `tools/probe/dl/preload/run.sh` and `run2.sh`, `crates/core/tests/oracle/specman_dns.sh` | `user` | their own `unshare -r` nests in a user namespace mapping only the caller |
+| `tools/deb/proof.sh`, `lint.sh`, `swap-system.sh`, `dbg-system.sh` (mmdebstrap `--mode=unshare`), `tools/probe/dlsecure/run.sh` (`--map-users=auto`) | `rootopt` | they map subordinate id ranges (newuidmap), which a user namespace that maps one id cannot hold, so the `user` kind cannot nest them; where `sudo -n` works they run as `root` (the PID namespace is root's, the script still runs as the caller); elsewhere uncontained, with a note on stderr |
+
+`rootopt` is the one remaining uncontained case: a host without passwordless `sudo` runs those
+five tools uncontained, and they say so. They run there by hand (Debian packaging and probes),
+never under a test runner. mmdebstrap 1.4.3 keeps no parent-death tie to its namespace.
+
+**Count check (ruling #7469).** COUNTS-TO-FILL

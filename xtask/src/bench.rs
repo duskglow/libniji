@@ -2027,6 +2027,15 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): `bench_output` sends the private-/dev/shm route
+    /// (a `sudo` command, the root processes) through containment, and every other bench command runs as built.
+    #[test]
+    fn the_root_route_alone_runs_contained() {
+        assert!(super::is_root_route(&std::process::Command::new("sudo")));
+        assert!(!super::is_root_route(&std::process::Command::new("target/niji/bench/cbench_netdb")));
+        assert!(!super::is_root_route(&std::process::Command::new("setpriv")));
+    }
+
     /// Ruling #5463 (no spec clause: measurement tooling): the v3 measurement build is traced whenever the host can
     /// run v3 code, and the fallback says "UNGROUPED" in its line, never a silent ungrouped timing.
     #[test]
