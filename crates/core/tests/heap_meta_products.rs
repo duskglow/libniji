@@ -213,9 +213,12 @@ fn the_heap_keeps_address_space_near_its_use() {
 
 /// Checks that every CPU the calling thread may run on, and so every CPU the programs it spawns
 /// may run on, is on one NUMA node: a pinning that was skipped or set the wrong mask would leave
-/// the measurement open to a node change again.
+/// the measurement open to a node change again. A test process already confined to one node
+/// (a job slot inside one node) passes with or without the pinning: the check can only see the
+/// pinning when the inherited mask spans several nodes, which is how its plants run it.
 fn assert_on_one_node() {
     let nodes = numa_nodes();
+    eprintln!("the measurement may run on CPUs {nodes:?} (per NUMA node)");
     assert!(nodes.len() <= 1, "the measurement may run on CPUs {nodes:?} of {} nodes, not one (pinning skipped or wrong mask)", nodes.len());
 }
 
