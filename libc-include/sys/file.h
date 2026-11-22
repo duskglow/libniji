@@ -219,9 +219,9 @@ typedef long time_t;
 # ifndef __NIJI_D_creat
 #  define __NIJI_D_creat 1
 #  if !__NIJI_FOB64
-extern int creat (const char *, unsigned int);
+extern int creat (const char *, unsigned int) __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int creat (const char *, unsigned int) __asm__ ("creat64");
+extern int creat (const char *, unsigned int) __asm__ ("creat64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 # ifndef __NIJI_D_fcntl
@@ -239,9 +239,9 @@ extern int flock (int, int) __NIJI_NOTHROW;
 # ifndef __NIJI_D_open
 #  define __NIJI_D_open 1
 #  if !__NIJI_FOB64
-extern int open (const char *, int, ...);
+extern int open (const char *, int, ...) __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int open (const char *, int, ...) __asm__ ("open64");
+extern int open (const char *, int, ...) __asm__ ("open64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 #endif
@@ -293,7 +293,7 @@ extern long vmsplice (int, const struct iovec *, unsigned long, unsigned int);
 #if __NIJI_LFS64
 # ifndef __NIJI_D_creat64
 #  define __NIJI_D_creat64 1
-extern int creat64 (const char *, unsigned int);
+extern int creat64 (const char *, unsigned int) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fcntl64
 #  define __NIJI_D_fcntl64 1
@@ -301,15 +301,15 @@ extern int fcntl64 (int, int, ...);
 # endif
 # ifndef __NIJI_D_lockf64
 #  define __NIJI_D_lockf64 1
-extern int lockf64 (int, int, long);
+extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_open64
 #  define __NIJI_D_open64 1
-extern int open64 (const char *, int, ...);
+extern int open64 (const char *, int, ...) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_openat64
 #  define __NIJI_D_openat64 1
-extern int openat64 (int, const char *, int, ...);
+extern int openat64 (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_posix_fadvise64
 #  define __NIJI_D_posix_fadvise64 1
@@ -325,12 +325,12 @@ extern int posix_fallocate64 (int, long, long);
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64");
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #   else
-extern int lockf (int, int, long);
+extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64");
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 #endif
@@ -356,9 +356,9 @@ extern int posix_fallocate (int, long, long) __asm__ ("posix_fallocate64");
 # ifndef __NIJI_D_openat
 #  define __NIJI_D_openat 1
 #  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int openat (int, const char *, int, ...);
+extern int openat (int, const char *, int, ...) __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int openat (int, const char *, int, ...) __asm__ ("openat64");
+extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 #endif

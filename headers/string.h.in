@@ -24,23 +24,23 @@ __NIJI_BEGIN_C
 @@if strchr
 # ifdef __cplusplus
 extern "C++" {
-extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr");
-extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr");
-extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk");
-extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr");
-extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr");
-inline char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
-inline char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
-inline char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
-inline char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
-inline void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
+extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr") @@attrs(strchr);
+extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr") @@attrs(strrchr);
+extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk") @@attrs(strpbrk);
+extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr") @@attrs(strstr);
+extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr") @@attrs(memchr);
+inline @@attrs(strchr) char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
+inline @@attrs(strrchr) char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
+inline @@attrs(strpbrk) char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
+inline @@attrs(strstr) char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
+inline @@attrs(memchr) void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
 }
 # else
-extern char *strchr (const char *, int) __NIJI_NOTHROW;
-extern char *strrchr (const char *, int) __NIJI_NOTHROW;
-extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW;
-extern char *strstr (const char *, const char *) __NIJI_NOTHROW;
-extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW;
+extern char *strchr (const char *, int) __NIJI_NOTHROW @@attrs(strchr);
+extern char *strrchr (const char *, int) __NIJI_NOTHROW @@attrs(strrchr);
+extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW @@attrs(strpbrk);
+extern char *strstr (const char *, const char *) __NIJI_NOTHROW @@attrs(strstr);
+extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW @@attrs(memchr);
 # endif
 #endif
 

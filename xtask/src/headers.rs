@@ -175,6 +175,8 @@ struct Tables {
     /// The symbol a call binds to under `_FILE_OFFSET_BITS=64` where the probes saw one only with `+gnu64` (a GNU-only function).
     lfs: BTreeMap<String, String>,
     nothrow: BTreeSet<String>,
+    /// `spec/abi/diagattrs.tsv`: the ` __attribute__ ((...))` text of each function that has diagnostic attributes.
+    attrs: BTreeMap<String, String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
@@ -337,6 +339,7 @@ fn load(root: &Path) -> Result<Tables, String> {
         }
     }
     let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept").map(|r| r["name"].clone()).collect();
+    let attrs = tsv(root, "spec/abi/diagattrs.tsv")?.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
@@ -350,7 +353,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -387,6 +390,41 @@ fn load_providers(root: &Path, vis: &Rows, protos: &BTreeMap<String, String>, ty
     } else {
         Err(format!("{PROVIDERS}: {}", bad.join("; ")))
     }
+}
+
+/// The attribute list of one `diagattrs.tsv` row (plan/headers.md slice 19), in a fixed order.
+fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
+    let mut a: Vec<String> = Vec::new();
+    let f = &r["format"];
+    if !f.is_empty() {
+        let p: Vec<&str> = f.split(':').collect();
+        a.push(format!("__format__ (__{}__, {}, {})", p[0], p[1], p[2]));
+    }
+    if !r["nonnull"].is_empty() {
+        a.push(format!("__nonnull__ ({})", r["nonnull"].replace(',', ", ")));
+    }
+    if !r["sentinel"].is_empty() {
+        a.push(format!("__sentinel__ ({})", r["sentinel"]));
+    }
+    if !r["malloc"].is_empty() {
+        a.push("__malloc__".into());
+    }
+    if !r["alloc_size"].is_empty() {
+        a.push(format!("__alloc_size__ ({})", r["alloc_size"].replace(',', ", ")));
+    }
+    if !r["pure"].is_empty() {
+        a.push(if r["pure"] == "const" { "__const__" } else { "__pure__" }.into());
+    }
+    if !r["noreturn"].is_empty() {
+        a.push("__noreturn__".into());
+    }
+    if !r["deprecated"].is_empty() {
+        a.push("__deprecated__".into());
+    }
+    if !r["wur"].is_empty() {
+        a.push("__warn_unused_result__".into());
+    }
+    if a.is_empty() { None } else { Some(format!(" __attribute__ (({}))", a.join(", "))) }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -683,6 +721,15 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
                 _ => {
                     let mut line = inline.iter().fold(l.to_string(), |s, (token, value)| s.replace(token, value)).replace(" /* @@computed */", "").replace(" /* @@ */", "");
+                    while let Some(i) = line.find("@@attrs(") {
+                        let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
+                        let n = line[i + 8..end].to_string();
+                        let v = t.attrs.get(&n).cloned().unwrap_or_else(|| {
+                            errors.push(format!("headers/{h}.in: @@attrs({n}): no row in diagattrs.tsv"));
+                            String::new()
+                        });
+                        line.replace_range(i..=end.min(line.len() - 1), v.trim_start());
+                    }
                     while let Some(i) = line.find("@@value(") {
                         let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
                         let n = line[i + 8..end].to_string();

@@ -1,0 +1,16 @@
+# Plants of slice 19 (cargo xtask plants; docs/plants.md): one attribute removed from each kind in
+# spec/abi/diagattrs.tsv (columns: name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure).
+# Each command regenerates libc-include/ from the mutated table and runs the warning differential against the
+# reference headers (spec/tools/attr_probe.py check); a test line on which the two sides differ names its function.
+# The functions are not compiler builtins, so the compiler's own knowledge cannot hide the removal.
+s19-nonnull | spec/abi/diagattrs.tsv | perl:s/^(fclose\t)1(\t)/$1$2/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ fclose n
+s19-wur | spec/abi/diagattrs.tsv | perl:s/^(chdir\t1\t)1(\t)/$1$2/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ chdir r
+s19-format | spec/abi/diagattrs.tsv | perl:s/^(obstack_printf\t\t\t\t)printf:2:3/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ obstack_printf f
+s19-malloc | spec/abi/diagattrs.tsv | perl:s/^(fopen\t\t1\t\t\t)1\t/$1\t/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ fopen ma
+s19-alloc-size | spec/abi/diagattrs.tsv | perl:s/^(reallocarray\t\t1\t\t\t\t)2,3/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ reallocarray as
+s19-deprecated | spec/abi/diagattrs.tsv | perl:s/^(getwd\t1\t1\t\t\t\t\t)1/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ getwd r
+s19-noreturn | spec/abi/diagattrs.tsv | perl:s/^(quick_exit\t\t\t)1/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ quick_exit nr
+s19-pure | spec/abi/diagattrs.tsv | perl:s/^(strverscmp\t[^\n]*\t)1$/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ strverscmp r
+s19-const-table | spec/abi/diagattrs.tsv | perl:s/^(abs\t[^\n]*\t)const$/${1}1/m | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include | msg:header_check: [1-9][0-9]* failed of
+s19-const-emit | xtask/src/headers.rs | perl:s/\"__const__\" \} else/\"__pure__\" } else/ | cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include | msg:header_check: [1-9][0-9]* failed of
+s19-wchar-template | headers/wchar.h.in | perl:s/(wcsstr \(const wchar_t \*, const wchar_t \*\) __NIJI_NOTHROW) \x40\x40attrs\(wcsstr\);/$1;/ | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ wcsstr r

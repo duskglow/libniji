@@ -195,7 +195,7 @@ extern char *ctime (const long *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_difftime
 #  define __NIJI_D_difftime 1
-extern double difftime (long, long) __NIJI_NOTHROW;
+extern double difftime (long, long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 struct tm;
 # ifndef __NIJI_D_gmtime
@@ -215,7 +215,7 @@ extern long mktime (struct tm *) __NIJI_NOTHROW;
 struct tm;
 # ifndef __NIJI_D_strftime
 #  define __NIJI_D_strftime 1
-extern unsigned long strftime (char *, unsigned long, const char *, const struct tm *) __NIJI_NOTHROW;
+extern unsigned long strftime (char *, unsigned long, const char *, const struct tm *) __NIJI_NOTHROW __attribute__ ((__format__ (__strftime__, 3, 0), __nonnull__ (1, 3, 4)));
 # endif
 # ifndef __NIJI_D_time
 #  define __NIJI_D_time 1
@@ -226,7 +226,7 @@ extern long time (long *) __NIJI_NOTHROW;
 struct timex;
 # ifndef __NIJI_D_clock_adjtime
 #  define __NIJI_D_clock_adjtime 1
-extern int clock_adjtime (int, struct timex *) __NIJI_NOTHROW;
+extern int clock_adjtime (int, struct timex *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct tm;
 # ifndef __NIJI_D_getdate_r
@@ -243,7 +243,7 @@ extern char *strptime_l (const char *, const char *, struct tm *, locale_t) __NI
 struct timespec;
 # ifndef __NIJI_D_timespec_get
 #  define __NIJI_D_timespec_get 1
-extern int timespec_get (struct timespec *, int) __NIJI_NOTHROW;
+extern int timespec_get (struct timespec *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_ISOC >= 2023
@@ -256,7 +256,7 @@ extern int timespec_getres (struct timespec *, int) __NIJI_NOTHROW;
 #if __NIJI_MISC
 # ifndef __NIJI_D_dysize
 #  define __NIJI_D_dysize 1
-extern int dysize (int) __NIJI_NOTHROW;
+extern int dysize (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 struct tm;
 # ifndef __NIJI_D_timelocal
@@ -315,12 +315,12 @@ extern int clock_getres (int, struct timespec *) __NIJI_NOTHROW;
 struct timespec;
 # ifndef __NIJI_D_clock_gettime
 #  define __NIJI_D_clock_gettime 1
-extern int clock_gettime (int, struct timespec *) __NIJI_NOTHROW;
+extern int clock_gettime (int, struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_clock_settime
 #  define __NIJI_D_clock_settime 1
-extern int clock_settime (int, const struct timespec *) __NIJI_NOTHROW;
+extern int clock_settime (int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 struct timespec;

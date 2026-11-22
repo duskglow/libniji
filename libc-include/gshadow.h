@@ -65,25 +65,25 @@ struct sgrp;
 struct sgrp;
 # ifndef __NIJI_D_fgetsgent_r
 #  define __NIJI_D_fgetsgent_r 1
-extern int fgetsgent_r (FILE *, struct sgrp *, char *, unsigned long, struct sgrp **);
+extern int fgetsgent_r (FILE *, struct sgrp *, char *, unsigned long, struct sgrp **) __attribute__ ((__nonnull__ (3)));
 # endif
 struct sgrp;
 struct sgrp;
 # ifndef __NIJI_D_getsgent_r
 #  define __NIJI_D_getsgent_r 1
-extern int getsgent_r (struct sgrp *, char *, unsigned long, struct sgrp **);
+extern int getsgent_r (struct sgrp *, char *, unsigned long, struct sgrp **) __attribute__ ((__nonnull__ (2)));
 # endif
 struct sgrp;
 struct sgrp;
 # ifndef __NIJI_D_getsgnam_r
 #  define __NIJI_D_getsgnam_r 1
-extern int getsgnam_r (const char *, struct sgrp *, char *, unsigned long, struct sgrp **);
+extern int getsgnam_r (const char *, struct sgrp *, char *, unsigned long, struct sgrp **) __attribute__ ((__nonnull__ (3)));
 # endif
 struct sgrp;
 struct sgrp;
 # ifndef __NIJI_D_sgetsgent_r
 #  define __NIJI_D_sgetsgent_r 1
-extern int sgetsgent_r (const char *, struct sgrp *, char *, unsigned long, struct sgrp **);
+extern int sgetsgent_r (const char *, struct sgrp *, char *, unsigned long, struct sgrp **) __attribute__ ((__nonnull__ (3)));
 # endif
 #endif
 #if 1

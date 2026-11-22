@@ -68,24 +68,24 @@ typedef unsigned long ino_t;
 #if 1
 # ifndef __NIJI_D_closedir
 #  define __NIJI_D_closedir 1
-extern int closedir (DIR *);
+extern int closedir (DIR *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_opendir
 #  define __NIJI_D_opendir 1
-extern DIR *opendir (const char *);
+extern DIR *opendir (const char *) __attribute__ ((__nonnull__ (1), __malloc__));
 # endif
 struct dirent;
 # ifndef __NIJI_D_readdir
 #  define __NIJI_D_readdir 1
 #  if !__NIJI_FOB64
-extern struct dirent *readdir (DIR *);
+extern struct dirent *readdir (DIR *) __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern struct dirent *readdir (DIR *) __asm__ ("readdir64");
+extern struct dirent *readdir (DIR *) __asm__ ("readdir64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 # ifndef __NIJI_D_rewinddir
 #  define __NIJI_D_rewinddir 1
-extern void rewinddir (DIR *) __NIJI_NOTHROW;
+extern void rewinddir (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_DYNSTACK
@@ -99,11 +99,11 @@ struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_alphasort64
 #  define __NIJI_D_alphasort64 1
-extern int alphasort64 (const struct dirent64 **, const struct dirent64 **) __NIJI_NOTHROW;
+extern int alphasort64 (const struct dirent64 **, const struct dirent64 **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_getdents64
 #  define __NIJI_D_getdents64 1
-extern long getdents64 (int, void *, unsigned long) __NIJI_NOTHROW;
+extern long getdents64 (int, void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct dirent64;
 struct dirent64;
@@ -111,7 +111,7 @@ struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_scandir64
 #  define __NIJI_D_scandir64 1
-extern int scandir64 (const char *, struct dirent64 ***, int (*) (const struct dirent64 *), int (*) (const struct dirent64 **, const struct dirent64 **));
+extern int scandir64 (const char *, struct dirent64 ***, int (*) (const struct dirent64 *), int (*) (const struct dirent64 **, const struct dirent64 **)) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct dirent;
 struct dirent;
@@ -120,9 +120,9 @@ struct dirent;
 # ifndef __NIJI_D_scandirat
 #  define __NIJI_D_scandirat 1
 #  if __NIJI_FOB64
-extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandirat64");
+extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandirat64") __attribute__ ((__nonnull__ (2, 3)));
 #  else
-extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **));
+extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __attribute__ ((__nonnull__ (2, 3)));
 #  endif
 # endif
 struct dirent64;
@@ -131,60 +131,60 @@ struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_scandirat64
 #  define __NIJI_D_scandirat64 1
-extern int scandirat64 (int, const char *, struct dirent64 ***, int (*) (const struct dirent64 *), int (*) (const struct dirent64 **, const struct dirent64 **));
+extern int scandirat64 (int, const char *, struct dirent64 ***, int (*) (const struct dirent64 *), int (*) (const struct dirent64 **, const struct dirent64 **)) __attribute__ ((__nonnull__ (2, 3)));
 # endif
 struct dirent;
 struct dirent;
 # ifndef __NIJI_D_versionsort
 #  define __NIJI_D_versionsort 1
 #  if __NIJI_FOB64
-extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("versionsort64");
+extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("versionsort64") __attribute__ ((__nonnull__ (1, 2), __pure__));
 #  else
-extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW;
+extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 #  endif
 # endif
 struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_versionsort64
 #  define __NIJI_D_versionsort64 1
-extern int versionsort64 (const struct dirent64 **, const struct dirent64 **) __NIJI_NOTHROW;
+extern int versionsort64 (const struct dirent64 **, const struct dirent64 **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
 #if __NIJI_LFS64
 # ifndef __NIJI_D_getdirentries64
 #  define __NIJI_D_getdirentries64 1
-extern long getdirentries64 (int, char *, unsigned long, long *) __NIJI_NOTHROW;
+extern long getdirentries64 (int, char *, unsigned long, long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
 # endif
 struct dirent64;
 # ifndef __NIJI_D_readdir64
 #  define __NIJI_D_readdir64 1
-extern struct dirent64 *readdir64 (DIR *);
+extern struct dirent64 *readdir64 (DIR *) __attribute__ ((__nonnull__ (1)));
 # endif
 struct dirent64;
 struct dirent64;
 # ifndef __NIJI_D_readdir64_r
 #  define __NIJI_D_readdir64_r 1
-extern int readdir64_r (DIR *, struct dirent64 *, struct dirent64 **);
+extern int readdir64_r (DIR *, struct dirent64 *, struct dirent64 **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_getdirentries
 #  define __NIJI_D_getdirentries 1
 #  if __NIJI_MISC && !__NIJI_FOB64
-extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW;
+extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4)));
 #  elif __NIJI_FOB64
-extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW __asm__ ("getdirentries64");
+extern long getdirentries (int, char *, unsigned long, long *) __NIJI_NOTHROW __asm__ ("getdirentries64") __attribute__ ((__nonnull__ (2, 4)));
 #  endif
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400
 # ifndef __NIJI_D_seekdir
 #  define __NIJI_D_seekdir 1
-extern void seekdir (DIR *, long int) __NIJI_NOTHROW;
+extern void seekdir (DIR *, long int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_telldir
 #  define __NIJI_D_telldir 1
-extern long int telldir (DIR *) __NIJI_NOTHROW;
+extern long int telldir (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -193,9 +193,9 @@ struct dirent;
 # ifndef __NIJI_D_readdir_r
 #  define __NIJI_D_readdir_r 1
 #  if __NIJI_FOB64
-extern int readdir_r (DIR *, struct dirent *, struct dirent **) __asm__ ("readdir64_r");
+extern int readdir_r (DIR *, struct dirent *, struct dirent **) __asm__ ("readdir64_r") __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
 #  elif __NIJI_POSIX >= 1 && !__NIJI_FOB64
-extern int readdir_r (DIR *, struct dirent *, struct dirent **);
+extern int readdir_r (DIR *, struct dirent *, struct dirent **) __attribute__ ((__nonnull__ (1, 2, 3), __deprecated__));
 #  endif
 # endif
 #endif
@@ -205,18 +205,18 @@ struct dirent;
 # ifndef __NIJI_D_alphasort
 #  define __NIJI_D_alphasort 1
 #  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW;
+extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 #  elif __NIJI_FOB64
-extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("alphasort64");
+extern int alphasort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("alphasort64") __attribute__ ((__nonnull__ (1, 2), __pure__));
 #  endif
 # endif
 # ifndef __NIJI_D_dirfd
 #  define __NIJI_D_dirfd 1
-extern int dirfd (DIR *) __NIJI_NOTHROW;
+extern int dirfd (DIR *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fdopendir
 #  define __NIJI_D_fdopendir 1
-extern DIR *fdopendir (int);
+extern DIR *fdopendir (int) __attribute__ ((__malloc__));
 # endif
 struct dirent;
 struct dirent;
@@ -225,9 +225,9 @@ struct dirent;
 # ifndef __NIJI_D_scandir
 #  define __NIJI_D_scandir 1
 #  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **));
+extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __attribute__ ((__nonnull__ (1, 2)));
 #  elif __NIJI_FOB64
-extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandir64");
+extern int scandir (const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandir64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 #endif

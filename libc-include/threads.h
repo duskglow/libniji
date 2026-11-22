@@ -128,7 +128,7 @@ extern int thrd_equal (unsigned long, unsigned long);
 # endif
 # ifndef __NIJI_D_thrd_exit
 #  define __NIJI_D_thrd_exit 1
-extern void thrd_exit (int);
+extern void thrd_exit (int) __attribute__ ((__noreturn__));
 # endif
 # ifndef __NIJI_D_thrd_join
 #  define __NIJI_D_thrd_join 1

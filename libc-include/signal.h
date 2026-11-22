@@ -900,11 +900,11 @@ extern __sighandler_t signal (int, __sighandler_t) __NIJI_NOTHROW;
 #if __NIJI_DYNSTACK
 # ifndef __NIJI_D__exit
 #  define __NIJI_D__exit 1
-extern void _exit (int);
+extern void _exit (int) __attribute__ ((__noreturn__));
 # endif
 # ifndef __NIJI_D_access
 #  define __NIJI_D_access 1
-extern int access (const char *, int) __NIJI_NOTHROW;
+extern int access (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_acct
 #  define __NIJI_D_acct 1
@@ -916,19 +916,19 @@ extern unsigned int alarm (unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_brk
 #  define __NIJI_D_brk 1
-extern int brk (void *) __NIJI_NOTHROW;
+extern int brk (void *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_chdir
 #  define __NIJI_D_chdir 1
-extern int chdir (const char *) __NIJI_NOTHROW;
+extern int chdir (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_chown
 #  define __NIJI_D_chown 1
-extern int chown (const char *, unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int chown (const char *, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_chroot
 #  define __NIJI_D_chroot 1
-extern int chroot (const char *) __NIJI_NOTHROW;
+extern int chroot (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_close
 #  define __NIJI_D_close 1
@@ -944,15 +944,15 @@ extern unsigned long confstr (int, char *, unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_crypt
 #  define __NIJI_D_crypt 1
-extern char *crypt (const char *, const char *) __NIJI_NOTHROW;
+extern char *crypt (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_daemon
 #  define __NIJI_D_daemon 1
-extern int daemon (int, int) __NIJI_NOTHROW;
+extern int daemon (int, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_dup
 #  define __NIJI_D_dup 1
-extern int dup (int) __NIJI_NOTHROW;
+extern int dup (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_dup2
 #  define __NIJI_D_dup2 1
@@ -964,43 +964,43 @@ extern void endusershell (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_execl
 #  define __NIJI_D_execl 1
-extern int execl (const char *, const char *, ...) __NIJI_NOTHROW;
+extern int execl (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
 # endif
 # ifndef __NIJI_D_execle
 #  define __NIJI_D_execle 1
-extern int execle (const char *, const char *, ...) __NIJI_NOTHROW;
+extern int execle (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (1)));
 # endif
 # ifndef __NIJI_D_execlp
 #  define __NIJI_D_execlp 1
-extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW;
+extern int execlp (const char *, const char *, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __sentinel__ (0)));
 # endif
 # ifndef __NIJI_D_execv
 #  define __NIJI_D_execv 1
-extern int execv (const char *, char *const *) __NIJI_NOTHROW;
+extern int execv (const char *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execve
 #  define __NIJI_D_execve 1
-extern int execve (const char *, char *const *, char *const *) __NIJI_NOTHROW;
+extern int execve (const char *, char *const *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_execvp
 #  define __NIJI_D_execvp 1
-extern int execvp (const char *, char *const *) __NIJI_NOTHROW;
+extern int execvp (const char *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_faccessat
 #  define __NIJI_D_faccessat 1
-extern int faccessat (int, const char *, int, int) __NIJI_NOTHROW;
+extern int faccessat (int, const char *, int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_fchdir
 #  define __NIJI_D_fchdir 1
-extern int fchdir (int) __NIJI_NOTHROW;
+extern int fchdir (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_fchown
 #  define __NIJI_D_fchown 1
-extern int fchown (int, unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int fchown (int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_fchownat
 #  define __NIJI_D_fchownat 1
-extern int fchownat (int, const char *, unsigned int, unsigned int, int) __NIJI_NOTHROW;
+extern int fchownat (int, const char *, unsigned int, unsigned int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_fdatasync
 #  define __NIJI_D_fdatasync 1
@@ -1008,7 +1008,7 @@ extern int fdatasync (int);
 # endif
 # ifndef __NIJI_D_fexecve
 #  define __NIJI_D_fexecve 1
-extern int fexecve (int, char *const *, char *const *) __NIJI_NOTHROW;
+extern int fexecve (int, char *const *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_fork
 #  define __NIJI_D_fork 1
@@ -1026,21 +1026,21 @@ extern int fsync (int);
 #  define __NIJI_D_ftruncate 1
 #  if (__NIJI_POSIX >= 199309 && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64");
+extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64") __attribute__ ((__warn_unused_result__));
 #   else
-extern int ftruncate (int, long) __NIJI_NOTHROW;
+extern int ftruncate (int, long) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64");
+extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_getcwd
 #  define __NIJI_D_getcwd 1
-extern char *getcwd (char *, unsigned long) __NIJI_NOTHROW;
+extern char *getcwd (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_getdomainname
 #  define __NIJI_D_getdomainname 1
-extern int getdomainname (char *, unsigned long) __NIJI_NOTHROW;
+extern int getdomainname (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_getdtablesize
 #  define __NIJI_D_getdtablesize 1
@@ -1052,7 +1052,7 @@ extern unsigned int getegid (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getentropy
 #  define __NIJI_D_getentropy 1
-extern int getentropy (void *, unsigned long);
+extern int getentropy (void *, unsigned long) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_geteuid
 #  define __NIJI_D_geteuid 1
@@ -1064,7 +1064,7 @@ extern unsigned int getgid (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getgroups
 #  define __NIJI_D_getgroups 1
-extern int getgroups (int, unsigned int *) __NIJI_NOTHROW;
+extern int getgroups (int, unsigned int *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_gethostid
 #  define __NIJI_D_gethostid 1
@@ -1072,7 +1072,7 @@ extern long int gethostid (void);
 # endif
 # ifndef __NIJI_D_gethostname
 #  define __NIJI_D_gethostname 1
-extern int gethostname (char *, unsigned long) __NIJI_NOTHROW;
+extern int gethostname (char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_getlogin
 #  define __NIJI_D_getlogin 1
@@ -1080,19 +1080,19 @@ extern char *getlogin (void);
 # endif
 # ifndef __NIJI_D_getlogin_r
 #  define __NIJI_D_getlogin_r 1
-extern int getlogin_r (char *, unsigned long);
+extern int getlogin_r (char *, unsigned long) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_getopt
 #  define __NIJI_D_getopt 1
-extern int getopt (int, char *const *, const char *) __NIJI_NOTHROW;
+extern int getopt (int, char *const *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 # ifndef __NIJI_D_getpagesize
 #  define __NIJI_D_getpagesize 1
-extern int getpagesize (void) __NIJI_NOTHROW;
+extern int getpagesize (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_getpass
 #  define __NIJI_D_getpass 1
-extern char *getpass (const char *);
+extern char *getpass (const char *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_getpgid
 #  define __NIJI_D_getpgid 1
@@ -1124,7 +1124,7 @@ extern char *getusershell (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getwd
 #  define __NIJI_D_getwd 1
-extern char *getwd (char *) __NIJI_NOTHROW;
+extern char *getwd (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __deprecated__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_isatty
 #  define __NIJI_D_isatty 1
@@ -1132,26 +1132,26 @@ extern int isatty (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lchown
 #  define __NIJI_D_lchown 1
-extern int lchown (const char *, unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int lchown (const char *, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_link
 #  define __NIJI_D_link 1
-extern int link (const char *, const char *) __NIJI_NOTHROW;
+extern int link (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_linkat
 #  define __NIJI_D_linkat 1
-extern int linkat (int, const char *, int, const char *, int) __NIJI_NOTHROW;
+extern int linkat (int, const char *, int, const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 4), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64");
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #   else
-extern int lockf (int, int, long);
+extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64");
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_lseek
@@ -1164,11 +1164,11 @@ extern long lseek (int, long, int) __NIJI_NOTHROW __asm__ ("lseek64");
 # endif
 # ifndef __NIJI_D_nice
 #  define __NIJI_D_nice 1
-extern int nice (int) __NIJI_NOTHROW;
+extern int nice (int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pathconf
 #  define __NIJI_D_pathconf 1
-extern long int pathconf (const char *, int) __NIJI_NOTHROW;
+extern long int pathconf (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pause
 #  define __NIJI_D_pause 1
@@ -1176,51 +1176,51 @@ extern int pause (void);
 # endif
 # ifndef __NIJI_D_pipe
 #  define __NIJI_D_pipe 1
-extern int pipe (int *) __NIJI_NOTHROW;
+extern int pipe (int *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread
 #  define __NIJI_D_pread 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 500
-extern long pread (int, void *, unsigned long, long);
+extern long pread (int, void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 #  elif __NIJI_FOB64
-extern long pread (int, void *, unsigned long, long) __asm__ ("pread64");
+extern long pread (int, void *, unsigned long, long) __asm__ ("pread64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_profil
 #  define __NIJI_D_profil 1
-extern int profil (short unsigned int *, unsigned long, unsigned long, unsigned int) __NIJI_NOTHROW;
+extern int profil (short unsigned int *, unsigned long, unsigned long, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pwrite
 #  define __NIJI_D_pwrite 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 500
 #   if __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64");
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #   else
-extern long pwrite (int, const void *, unsigned long, long);
+extern long pwrite (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64");
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_read
 #  define __NIJI_D_read 1
-extern long read (int, void *, unsigned long);
+extern long read (int, void *, unsigned long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_readlink
 #  define __NIJI_D_readlink 1
-extern long readlink (const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern long readlink (const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_readlinkat
 #  define __NIJI_D_readlinkat 1
-extern long readlinkat (int, const char *, char *, unsigned long) __NIJI_NOTHROW;
+extern long readlinkat (int, const char *, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_revoke
 #  define __NIJI_D_revoke 1
-extern int revoke (const char *) __NIJI_NOTHROW;
+extern int revoke (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_rmdir
 #  define __NIJI_D_rmdir 1
-extern int rmdir (const char *) __NIJI_NOTHROW;
+extern int rmdir (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sbrk
 #  define __NIJI_D_sbrk 1
@@ -1228,31 +1228,31 @@ extern void *sbrk (long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_setdomainname
 #  define __NIJI_D_setdomainname 1
-extern int setdomainname (const char *, unsigned long) __NIJI_NOTHROW;
+extern int setdomainname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setegid
 #  define __NIJI_D_setegid 1
-extern int setegid (unsigned int) __NIJI_NOTHROW;
+extern int setegid (unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_seteuid
 #  define __NIJI_D_seteuid 1
-extern int seteuid (unsigned int) __NIJI_NOTHROW;
+extern int seteuid (unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setgid
 #  define __NIJI_D_setgid 1
-extern int setgid (unsigned int) __NIJI_NOTHROW;
+extern int setgid (unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_sethostid
 #  define __NIJI_D_sethostid 1
-extern int sethostid (long int) __NIJI_NOTHROW;
+extern int sethostid (long int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_sethostname
 #  define __NIJI_D_sethostname 1
-extern int sethostname (const char *, unsigned long) __NIJI_NOTHROW;
+extern int sethostname (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setlogin
 #  define __NIJI_D_setlogin 1
-extern int setlogin (const char *) __NIJI_NOTHROW;
+extern int setlogin (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_setpgid
 #  define __NIJI_D_setpgid 1
@@ -1264,11 +1264,11 @@ extern int setpgrp (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_setregid
 #  define __NIJI_D_setregid 1
-extern int setregid (unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int setregid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setreuid
 #  define __NIJI_D_setreuid 1
-extern int setreuid (unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int setreuid (unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setsid
 #  define __NIJI_D_setsid 1
@@ -1276,7 +1276,7 @@ extern int setsid (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_setuid
 #  define __NIJI_D_setuid 1
-extern int setuid (unsigned int) __NIJI_NOTHROW;
+extern int setuid (unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setusershell
 #  define __NIJI_D_setusershell 1
@@ -1288,11 +1288,11 @@ extern unsigned int sleep (unsigned int);
 # endif
 # ifndef __NIJI_D_symlink
 #  define __NIJI_D_symlink 1
-extern int symlink (const char *, const char *) __NIJI_NOTHROW;
+extern int symlink (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_symlinkat
 #  define __NIJI_D_symlinkat 1
-extern int symlinkat (const char *, int, const char *) __NIJI_NOTHROW;
+extern int symlinkat (const char *, int, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_sync
 #  define __NIJI_D_sync 1
@@ -1318,12 +1318,12 @@ extern int tcsetpgrp (int, int) __NIJI_NOTHROW;
 #  define __NIJI_D_truncate 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64");
+extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 #   else
-extern int truncate (const char *, long) __NIJI_NOTHROW;
+extern int truncate (const char *, long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 #   endif
 #  elif __NIJI_FOB64
-extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64");
+extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64") __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 #  endif
 # endif
 # ifndef __NIJI_D_ttyname
@@ -1332,7 +1332,7 @@ extern char *ttyname (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_ttyname_r
 #  define __NIJI_D_ttyname_r 1
-extern int ttyname_r (int, char *, unsigned long) __NIJI_NOTHROW;
+extern int ttyname_r (int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_ttyslot
 #  define __NIJI_D_ttyslot 1
@@ -1344,11 +1344,11 @@ extern unsigned int ualarm (unsigned int, unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_unlink
 #  define __NIJI_D_unlink 1
-extern int unlink (const char *) __NIJI_NOTHROW;
+extern int unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_unlinkat
 #  define __NIJI_D_unlinkat 1
-extern int unlinkat (int, const char *, int) __NIJI_NOTHROW;
+extern int unlinkat (int, const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_usleep
 #  define __NIJI_D_usleep 1
@@ -1364,7 +1364,7 @@ extern int vhangup (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_write
 #  define __NIJI_D_write 1
-extern long write (int, const void *, unsigned long);
+extern long write (int, const void *, unsigned long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 #endif
 #if __NIJI_GNU
@@ -1386,23 +1386,23 @@ extern int dup3 (int, int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_eaccess
 #  define __NIJI_D_eaccess 1
-extern int eaccess (const char *, int) __NIJI_NOTHROW;
+extern int eaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_euidaccess
 #  define __NIJI_D_euidaccess 1
-extern int euidaccess (const char *, int) __NIJI_NOTHROW;
+extern int euidaccess (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_execveat
 #  define __NIJI_D_execveat 1
-extern int execveat (int, const char *, char *const *, char *const *, int) __NIJI_NOTHROW;
+extern int execveat (int, const char *, char *const *, char *const *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 # ifndef __NIJI_D_execvpe
 #  define __NIJI_D_execvpe 1
-extern int execvpe (const char *, char *const *, char *const *) __NIJI_NOTHROW;
+extern int execvpe (const char *, char *const *, char *const *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_ftruncate64
 #  define __NIJI_D_ftruncate64 1
-extern int ftruncate64 (int, long) __NIJI_NOTHROW;
+extern int ftruncate64 (int, long) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_get_current_dir_name
 #  define __NIJI_D_get_current_dir_name 1
@@ -1426,7 +1426,7 @@ extern int group_member (unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_lockf64
 #  define __NIJI_D_lockf64 1
-extern int lockf64 (int, int, long);
+extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_lseek64
 #  define __NIJI_D_lseek64 1
@@ -1434,11 +1434,11 @@ extern long lseek64 (int, long, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pipe2
 #  define __NIJI_D_pipe2 1
-extern int pipe2 (int *, int) __NIJI_NOTHROW;
+extern int pipe2 (int *, int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pread64
 #  define __NIJI_D_pread64 1
-extern long pread64 (int, void *, unsigned long, long);
+extern long pread64 (int, void *, unsigned long, long) __attribute__ ((__warn_unused_result__));
 # endif
 union sigval;
 # ifndef __NIJI_D_pthread_sigqueue
@@ -1447,31 +1447,31 @@ extern int pthread_sigqueue (unsigned long, int, const union sigval ) __NIJI_NOT
 # endif
 # ifndef __NIJI_D_pwrite64
 #  define __NIJI_D_pwrite64 1
-extern long pwrite64 (int, const void *, unsigned long, long);
+extern long pwrite64 (int, const void *, unsigned long, long) __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setresgid
 #  define __NIJI_D_setresgid 1
-extern int setresgid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int setresgid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_setresuid
 #  define __NIJI_D_setresuid 1
-extern int setresuid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW;
+extern int setresuid (unsigned int, unsigned int, unsigned int) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_sigandset
 #  define __NIJI_D_sigandset 1
-extern int sigandset (sigset_t *, const sigset_t *, const sigset_t *) __NIJI_NOTHROW;
+extern int sigandset (sigset_t *, const sigset_t *, const sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3)));
 # endif
 # ifndef __NIJI_D_sigisemptyset
 #  define __NIJI_D_sigisemptyset 1
-extern int sigisemptyset (const sigset_t *) __NIJI_NOTHROW;
+extern int sigisemptyset (const sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigorset
 #  define __NIJI_D_sigorset 1
-extern int sigorset (sigset_t *, const sigset_t *, const sigset_t *) __NIJI_NOTHROW;
+extern int sigorset (sigset_t *, const sigset_t *, const sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3)));
 # endif
 # ifndef __NIJI_D_swab
 #  define __NIJI_D_swab 1
-extern void swab (const void *, void *, long) __NIJI_NOTHROW;
+extern void swab (const void *, void *, long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_syncfs
 #  define __NIJI_D_syncfs 1
@@ -1487,7 +1487,7 @@ extern int tgkill (int, int, int);
 # endif
 # ifndef __NIJI_D_truncate64
 #  define __NIJI_D_truncate64 1
-extern int truncate64 (const char *, long) __NIJI_NOTHROW;
+extern int truncate64 (const char *, long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 #endif
 #if __NIJI_MISC
@@ -1497,11 +1497,11 @@ extern int gsignal (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_sigblock
 #  define __NIJI_D_sigblock 1
-extern int sigblock (int) __NIJI_NOTHROW;
+extern int sigblock (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_siggetmask
 #  define __NIJI_D_siggetmask 1
-extern int siggetmask (void) __NIJI_NOTHROW;
+extern int siggetmask (void) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct sigcontext;
 # ifndef __NIJI_D_sigreturn
@@ -1510,7 +1510,7 @@ extern int sigreturn (struct sigcontext *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_sigsetmask
 #  define __NIJI_D_sigsetmask 1
-extern int sigsetmask (int) __NIJI_NOTHROW;
+extern int sigsetmask (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_ssignal
 #  define __NIJI_D_ssignal 1
@@ -1522,7 +1522,7 @@ struct sigstack;
 struct sigstack;
 # ifndef __NIJI_D_sigstack
 #  define __NIJI_D_sigstack 1
-extern int sigstack (struct sigstack *, struct sigstack *) __NIJI_NOTHROW;
+extern int sigstack (struct sigstack *, struct sigstack *) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450
@@ -1536,7 +1536,7 @@ extern int sigaltstack (const stack_t *, stack_t *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_siginterrupt
 #  define __NIJI_D_siginterrupt 1
-extern int siginterrupt (int, int) __NIJI_NOTHROW;
+extern int siginterrupt (int, int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
@@ -1552,27 +1552,27 @@ extern int sigaction (int, const struct sigaction *, struct sigaction *) __NIJI_
 # endif
 # ifndef __NIJI_D_sigaddset
 #  define __NIJI_D_sigaddset 1
-extern int sigaddset (sigset_t *, int) __NIJI_NOTHROW;
+extern int sigaddset (sigset_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigdelset
 #  define __NIJI_D_sigdelset 1
-extern int sigdelset (sigset_t *, int) __NIJI_NOTHROW;
+extern int sigdelset (sigset_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigemptyset
 #  define __NIJI_D_sigemptyset 1
-extern int sigemptyset (sigset_t *) __NIJI_NOTHROW;
+extern int sigemptyset (sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigfillset
 #  define __NIJI_D_sigfillset 1
-extern int sigfillset (sigset_t *) __NIJI_NOTHROW;
+extern int sigfillset (sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigismember
 #  define __NIJI_D_sigismember 1
-extern int sigismember (const sigset_t *, int) __NIJI_NOTHROW;
+extern int sigismember (const sigset_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigpending
 #  define __NIJI_D_sigpending 1
-extern int sigpending (sigset_t *) __NIJI_NOTHROW;
+extern int sigpending (sigset_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigprocmask
 #  define __NIJI_D_sigprocmask 1
@@ -1580,7 +1580,7 @@ extern int sigprocmask (int, const sigset_t *, sigset_t *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_sigsuspend
 #  define __NIJI_D_sigsuspend 1
-extern int sigsuspend (const sigset_t *);
+extern int sigsuspend (const sigset_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199309
@@ -1592,11 +1592,11 @@ extern int sigqueue (int, int, const union sigval ) __NIJI_NOTHROW;
 struct timespec;
 # ifndef __NIJI_D_sigtimedwait
 #  define __NIJI_D_sigtimedwait 1
-extern int sigtimedwait (const sigset_t *, siginfo_t *, const struct timespec *);
+extern int sigtimedwait (const sigset_t *, siginfo_t *, const struct timespec *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sigwaitinfo
 #  define __NIJI_D_sigwaitinfo 1
-extern int sigwaitinfo (const sigset_t *, siginfo_t *);
+extern int sigwaitinfo (const sigset_t *, siginfo_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
@@ -1622,7 +1622,7 @@ extern int pthread_sigmask (int, const __sigset_t *, __sigset_t *) __NIJI_NOTHRO
 # endif
 # ifndef __NIJI_D_sigwait
 #  define __NIJI_D_sigwait 1
-extern int sigwait (const sigset_t *, int *);
+extern int sigwait (const sigset_t *, int *) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
@@ -1638,23 +1638,23 @@ extern void psignal (int, const char *);
 #if __NIJI_XSI >= 450
 # ifndef __NIJI_D_sighold
 #  define __NIJI_D_sighold 1
-extern int sighold (int) __NIJI_NOTHROW;
+extern int sighold (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_sigignore
 #  define __NIJI_D_sigignore 1
-extern int sigignore (int) __NIJI_NOTHROW;
+extern int sigignore (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_sigpause
 #  define __NIJI_D_sigpause 1
-extern int sigpause (int) __asm__ ("__xpg_sigpause");
+extern int sigpause (int) __asm__ ("__xpg_sigpause") __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_sigrelse
 #  define __NIJI_D_sigrelse 1
-extern int sigrelse (int) __NIJI_NOTHROW;
+extern int sigrelse (int) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_sigset
 #  define __NIJI_D_sigset 1
-extern __sighandler_t sigset (int, __sighandler_t) __NIJI_NOTHROW;
+extern __sighandler_t sigset (int, __sighandler_t) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 #endif
 #if __NIJI_DYNSTACK

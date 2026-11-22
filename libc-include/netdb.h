@@ -412,7 +412,7 @@ extern void setrpcent (int) __NIJI_NOTHROW;
 #if __NIJI_MISC || __NIJI_POSIX < 200809
 # ifndef __NIJI_D___h_errno_location
 #  define __NIJI_D___h_errno_location 1
-extern int *__h_errno_location (void) __NIJI_NOTHROW;
+extern int *__h_errno_location (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

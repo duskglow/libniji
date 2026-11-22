@@ -135,7 +135,7 @@ extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_gettimeofday
 #  define __NIJI_D_gettimeofday 1
-extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW;
+extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct utmp;
 # ifndef __NIJI_D_getutent
@@ -200,7 +200,7 @@ extern void updwtmp (const char *, const struct utmp *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_utimes
 #  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_utmpname
 #  define __NIJI_D_utmpname 1
@@ -249,7 +249,7 @@ extern int getutline_r (const struct utmp *, struct utmp *, struct utmp **) __NI
 struct timeval;
 # ifndef __NIJI_D_lutimes
 #  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timeval;
 struct timezone;

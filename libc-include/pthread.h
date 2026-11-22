@@ -245,77 +245,77 @@ extern int pthread_atfork (void (*) (void), void (*) (void), void (*) (void)) __
 # endif
 # ifndef __NIJI_D_pthread_attr_destroy
 #  define __NIJI_D_pthread_attr_destroy 1
-extern int pthread_attr_destroy (pthread_attr_t *) __NIJI_NOTHROW;
+extern int pthread_attr_destroy (pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getdetachstate
 #  define __NIJI_D_pthread_attr_getdetachstate 1
-extern int pthread_attr_getdetachstate (const pthread_attr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_attr_getdetachstate (const pthread_attr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getguardsize
 #  define __NIJI_D_pthread_attr_getguardsize 1
-extern int pthread_attr_getguardsize (const pthread_attr_t *, unsigned long *) __NIJI_NOTHROW;
+extern int pthread_attr_getguardsize (const pthread_attr_t *, unsigned long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getinheritsched
 #  define __NIJI_D_pthread_attr_getinheritsched 1
-extern int pthread_attr_getinheritsched (const pthread_attr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_attr_getinheritsched (const pthread_attr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct sched_param;
 # ifndef __NIJI_D_pthread_attr_getschedparam
 #  define __NIJI_D_pthread_attr_getschedparam 1
-extern int pthread_attr_getschedparam (const pthread_attr_t *, struct sched_param *) __NIJI_NOTHROW;
+extern int pthread_attr_getschedparam (const pthread_attr_t *, struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getschedpolicy
 #  define __NIJI_D_pthread_attr_getschedpolicy 1
-extern int pthread_attr_getschedpolicy (const pthread_attr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_attr_getschedpolicy (const pthread_attr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getscope
 #  define __NIJI_D_pthread_attr_getscope 1
-extern int pthread_attr_getscope (const pthread_attr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_attr_getscope (const pthread_attr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_getstackaddr
 #  define __NIJI_D_pthread_attr_getstackaddr 1
-extern int pthread_attr_getstackaddr (const pthread_attr_t *, void **) __NIJI_NOTHROW;
+extern int pthread_attr_getstackaddr (const pthread_attr_t *, void **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __deprecated__));
 # endif
 # ifndef __NIJI_D_pthread_attr_getstacksize
 #  define __NIJI_D_pthread_attr_getstacksize 1
-extern int pthread_attr_getstacksize (const pthread_attr_t *, unsigned long *) __NIJI_NOTHROW;
+extern int pthread_attr_getstacksize (const pthread_attr_t *, unsigned long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_init
 #  define __NIJI_D_pthread_attr_init 1
-extern int pthread_attr_init (pthread_attr_t *) __NIJI_NOTHROW;
+extern int pthread_attr_init (pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setdetachstate
 #  define __NIJI_D_pthread_attr_setdetachstate 1
-extern int pthread_attr_setdetachstate (pthread_attr_t *, int) __NIJI_NOTHROW;
+extern int pthread_attr_setdetachstate (pthread_attr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setguardsize
 #  define __NIJI_D_pthread_attr_setguardsize 1
-extern int pthread_attr_setguardsize (pthread_attr_t *, unsigned long) __NIJI_NOTHROW;
+extern int pthread_attr_setguardsize (pthread_attr_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setinheritsched
 #  define __NIJI_D_pthread_attr_setinheritsched 1
-extern int pthread_attr_setinheritsched (pthread_attr_t *, int) __NIJI_NOTHROW;
+extern int pthread_attr_setinheritsched (pthread_attr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct sched_param;
 # ifndef __NIJI_D_pthread_attr_setschedparam
 #  define __NIJI_D_pthread_attr_setschedparam 1
-extern int pthread_attr_setschedparam (pthread_attr_t *, const struct sched_param *) __NIJI_NOTHROW;
+extern int pthread_attr_setschedparam (pthread_attr_t *, const struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setschedpolicy
 #  define __NIJI_D_pthread_attr_setschedpolicy 1
-extern int pthread_attr_setschedpolicy (pthread_attr_t *, int) __NIJI_NOTHROW;
+extern int pthread_attr_setschedpolicy (pthread_attr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setscope
 #  define __NIJI_D_pthread_attr_setscope 1
-extern int pthread_attr_setscope (pthread_attr_t *, int) __NIJI_NOTHROW;
+extern int pthread_attr_setscope (pthread_attr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setstackaddr
 #  define __NIJI_D_pthread_attr_setstackaddr 1
-extern int pthread_attr_setstackaddr (pthread_attr_t *, void *) __NIJI_NOTHROW;
+extern int pthread_attr_setstackaddr (pthread_attr_t *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 # ifndef __NIJI_D_pthread_attr_setstacksize
 #  define __NIJI_D_pthread_attr_setstacksize 1
-extern int pthread_attr_setstacksize (pthread_attr_t *, unsigned long) __NIJI_NOTHROW;
+extern int pthread_attr_setstacksize (pthread_attr_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_cancel
 #  define __NIJI_D_pthread_cancel 1
@@ -323,48 +323,48 @@ extern int pthread_cancel (unsigned long);
 # endif
 # ifndef __NIJI_D_pthread_cond_broadcast
 #  define __NIJI_D_pthread_cond_broadcast 1
-extern int pthread_cond_broadcast (pthread_cond_t *) __NIJI_NOTHROW;
+extern int pthread_cond_broadcast (pthread_cond_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_cond_destroy
 #  define __NIJI_D_pthread_cond_destroy 1
-extern int pthread_cond_destroy (pthread_cond_t *) __NIJI_NOTHROW;
+extern int pthread_cond_destroy (pthread_cond_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_cond_init
 #  define __NIJI_D_pthread_cond_init 1
-extern int pthread_cond_init (pthread_cond_t *, const pthread_condattr_t *) __NIJI_NOTHROW;
+extern int pthread_cond_init (pthread_cond_t *, const pthread_condattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_cond_signal
 #  define __NIJI_D_pthread_cond_signal 1
-extern int pthread_cond_signal (pthread_cond_t *) __NIJI_NOTHROW;
+extern int pthread_cond_signal (pthread_cond_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_cond_timedwait
 #  define __NIJI_D_pthread_cond_timedwait 1
-extern int pthread_cond_timedwait (pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
+extern int pthread_cond_timedwait (pthread_cond_t *, pthread_mutex_t *, const struct timespec *) __attribute__ ((__nonnull__ (1, 2, 3)));
 # endif
 # ifndef __NIJI_D_pthread_cond_wait
 #  define __NIJI_D_pthread_cond_wait 1
-extern int pthread_cond_wait (pthread_cond_t *, pthread_mutex_t *);
+extern int pthread_cond_wait (pthread_cond_t *, pthread_mutex_t *) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_destroy
 #  define __NIJI_D_pthread_condattr_destroy 1
-extern int pthread_condattr_destroy (pthread_condattr_t *) __NIJI_NOTHROW;
+extern int pthread_condattr_destroy (pthread_condattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_getpshared
 #  define __NIJI_D_pthread_condattr_getpshared 1
-extern int pthread_condattr_getpshared (const pthread_condattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_condattr_getpshared (const pthread_condattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_init
 #  define __NIJI_D_pthread_condattr_init 1
-extern int pthread_condattr_init (pthread_condattr_t *) __NIJI_NOTHROW;
+extern int pthread_condattr_init (pthread_condattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_setpshared
 #  define __NIJI_D_pthread_condattr_setpshared 1
-extern int pthread_condattr_setpshared (pthread_condattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_condattr_setpshared (pthread_condattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_create
 #  define __NIJI_D_pthread_create 1
-extern int pthread_create (unsigned long *, const pthread_attr_t *, void *(*) (void *), void *) __NIJI_NOTHROW;
+extern int pthread_create (unsigned long *, const pthread_attr_t *, void *(*) (void *), void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3, 4)));
 # endif
 # ifndef __NIJI_D_pthread_detach
 #  define __NIJI_D_pthread_detach 1
@@ -372,16 +372,16 @@ extern int pthread_detach (unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pthread_equal
 #  define __NIJI_D_pthread_equal 1
-extern int pthread_equal (unsigned long, unsigned long) __NIJI_NOTHROW;
+extern int pthread_equal (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_pthread_exit
 #  define __NIJI_D_pthread_exit 1
-extern void pthread_exit (void *);
+extern void pthread_exit (void *) __attribute__ ((__noreturn__));
 # endif
 struct sched_param;
 # ifndef __NIJI_D_pthread_getschedparam
 #  define __NIJI_D_pthread_getschedparam 1
-extern int pthread_getschedparam (unsigned long, int *, struct sched_param *) __NIJI_NOTHROW;
+extern int pthread_getschedparam (unsigned long, int *, struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 # ifndef __NIJI_D_pthread_getspecific
 #  define __NIJI_D_pthread_getspecific 1
@@ -393,7 +393,7 @@ extern int pthread_join (unsigned long, void **);
 # endif
 # ifndef __NIJI_D_pthread_key_create
 #  define __NIJI_D_pthread_key_create 1
-extern int pthread_key_create (unsigned int *, void (*) (void *)) __NIJI_NOTHROW;
+extern int pthread_key_create (unsigned int *, void (*) (void *)) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_key_delete
 #  define __NIJI_D_pthread_key_delete 1
@@ -401,71 +401,71 @@ extern int pthread_key_delete (unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pthread_mutex_destroy
 #  define __NIJI_D_pthread_mutex_destroy 1
-extern int pthread_mutex_destroy (pthread_mutex_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_destroy (pthread_mutex_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_getprioceiling
 #  define __NIJI_D_pthread_mutex_getprioceiling 1
-extern int pthread_mutex_getprioceiling (const pthread_mutex_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutex_getprioceiling (const pthread_mutex_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_init
 #  define __NIJI_D_pthread_mutex_init 1
-extern int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_init (pthread_mutex_t *, const pthread_mutexattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_lock
 #  define __NIJI_D_pthread_mutex_lock 1
-extern int pthread_mutex_lock (pthread_mutex_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_lock (pthread_mutex_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_setprioceiling
 #  define __NIJI_D_pthread_mutex_setprioceiling 1
-extern int pthread_mutex_setprioceiling (pthread_mutex_t *, int, int *) __NIJI_NOTHROW;
+extern int pthread_mutex_setprioceiling (pthread_mutex_t *, int, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_trylock
 #  define __NIJI_D_pthread_mutex_trylock 1
-extern int pthread_mutex_trylock (pthread_mutex_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_trylock (pthread_mutex_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_unlock
 #  define __NIJI_D_pthread_mutex_unlock 1
-extern int pthread_mutex_unlock (pthread_mutex_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_unlock (pthread_mutex_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_destroy
 #  define __NIJI_D_pthread_mutexattr_destroy 1
-extern int pthread_mutexattr_destroy (pthread_mutexattr_t *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_destroy (pthread_mutexattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_getprioceiling
 #  define __NIJI_D_pthread_mutexattr_getprioceiling 1
-extern int pthread_mutexattr_getprioceiling (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_getprioceiling (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_getprotocol
 #  define __NIJI_D_pthread_mutexattr_getprotocol 1
-extern int pthread_mutexattr_getprotocol (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_getprotocol (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_getpshared
 #  define __NIJI_D_pthread_mutexattr_getpshared 1
-extern int pthread_mutexattr_getpshared (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_getpshared (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_init
 #  define __NIJI_D_pthread_mutexattr_init 1
-extern int pthread_mutexattr_init (pthread_mutexattr_t *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_init (pthread_mutexattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_setprioceiling
 #  define __NIJI_D_pthread_mutexattr_setprioceiling 1
-extern int pthread_mutexattr_setprioceiling (pthread_mutexattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_mutexattr_setprioceiling (pthread_mutexattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_setprotocol
 #  define __NIJI_D_pthread_mutexattr_setprotocol 1
-extern int pthread_mutexattr_setprotocol (pthread_mutexattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_mutexattr_setprotocol (pthread_mutexattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_setpshared
 #  define __NIJI_D_pthread_mutexattr_setpshared 1
-extern int pthread_mutexattr_setpshared (pthread_mutexattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_mutexattr_setpshared (pthread_mutexattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_once
 #  define __NIJI_D_pthread_once 1
-extern int pthread_once (int *, void (*) (void));
+extern int pthread_once (int *, void (*) (void)) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_self
 #  define __NIJI_D_pthread_self 1
-extern unsigned long pthread_self (void) __NIJI_NOTHROW;
+extern unsigned long pthread_self (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_pthread_setcancelstate
 #  define __NIJI_D_pthread_setcancelstate 1
@@ -478,7 +478,7 @@ extern int pthread_setcanceltype (int, int *);
 struct sched_param;
 # ifndef __NIJI_D_pthread_setschedparam
 #  define __NIJI_D_pthread_setschedparam 1
-extern int pthread_setschedparam (unsigned long, int, const struct sched_param *) __NIJI_NOTHROW;
+extern int pthread_setschedparam (unsigned long, int, const struct sched_param *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
 # endif
 # ifndef __NIJI_D_pthread_setschedprio
 #  define __NIJI_D_pthread_setschedprio 1
@@ -504,7 +504,7 @@ extern void __pthread_unregister_cancel (__pthread_unwind_buf_t *);
 # endif
 # ifndef __NIJI_D___pthread_unwind_next
 #  define __NIJI_D___pthread_unwind_next 1
-extern void __pthread_unwind_next (__pthread_unwind_buf_t *);
+extern void __pthread_unwind_next (__pthread_unwind_buf_t *) __attribute__ ((__noreturn__));
 # endif
 #endif
 #if __NIJI_DYNSTACK || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
@@ -516,7 +516,7 @@ extern long int __sysconf (int) __NIJI_NOTHROW;
 #if __NIJI_GNU
 # ifndef __NIJI_D_pthread_attr_getaffinity_np
 #  define __NIJI_D_pthread_attr_getaffinity_np 1
-extern int pthread_attr_getaffinity_np (const pthread_attr_t *, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
+extern int pthread_attr_getaffinity_np (const pthread_attr_t *, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
@@ -530,7 +530,7 @@ extern int pthread_attr_getsigmask_np (const pthread_attr_t *, __sigset_t *);
 # endif
 # ifndef __NIJI_D_pthread_attr_setaffinity_np
 #  define __NIJI_D_pthread_attr_setaffinity_np 1
-extern int pthread_attr_setaffinity_np (pthread_attr_t *, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
+extern int pthread_attr_setaffinity_np (pthread_attr_t *, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
@@ -550,62 +550,62 @@ extern int pthread_clockjoin_np (unsigned long, void **, int, const struct times
 struct timespec;
 # ifndef __NIJI_D_pthread_cond_clockwait
 #  define __NIJI_D_pthread_cond_clockwait 1
-extern int pthread_cond_clockwait (pthread_cond_t *, pthread_mutex_t *, int, const struct timespec *);
+extern int pthread_cond_clockwait (pthread_cond_t *, pthread_mutex_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 2, 4)));
 # endif
 # ifndef __NIJI_D_pthread_getaffinity_np
 #  define __NIJI_D_pthread_getaffinity_np 1
-extern int pthread_getaffinity_np (unsigned long, unsigned long, cpu_set_t *) __NIJI_NOTHROW;
+extern int pthread_getaffinity_np (unsigned long, unsigned long, cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
 # endif
 # ifndef __NIJI_D_pthread_getattr_default_np
 #  define __NIJI_D_pthread_getattr_default_np 1
-extern int pthread_getattr_default_np (pthread_attr_t *) __NIJI_NOTHROW;
+extern int pthread_getattr_default_np (pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_getattr_np
 #  define __NIJI_D_pthread_getattr_np 1
-extern int pthread_getattr_np (unsigned long, pthread_attr_t *) __NIJI_NOTHROW;
+extern int pthread_getattr_np (unsigned long, pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_pthread_getname_np
 #  define __NIJI_D_pthread_getname_np 1
-extern int pthread_getname_np (unsigned long, char *, unsigned long) __NIJI_NOTHROW;
+extern int pthread_getname_np (unsigned long, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_mutex_clocklock
 #  define __NIJI_D_pthread_mutex_clocklock 1
-extern int pthread_mutex_clocklock (pthread_mutex_t *, int, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_mutex_clocklock (pthread_mutex_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_pthread_mutex_consistent_np
 #  define __NIJI_D_pthread_mutex_consistent_np 1
-extern int pthread_mutex_consistent_np (pthread_mutex_t *) __NIJI_NOTHROW __asm__ ("pthread_mutex_consistent");
+extern int pthread_mutex_consistent_np (pthread_mutex_t *) __NIJI_NOTHROW __asm__ ("pthread_mutex_consistent") __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_getrobust_np
 #  define __NIJI_D_pthread_mutexattr_getrobust_np 1
-extern int pthread_mutexattr_getrobust_np (pthread_mutexattr_t *, int *) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_getrobust");
+extern int pthread_mutexattr_getrobust_np (pthread_mutexattr_t *, int *) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_getrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_setrobust_np
 #  define __NIJI_D_pthread_mutexattr_setrobust_np 1
-extern int pthread_mutexattr_setrobust_np (pthread_mutexattr_t *, int) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_setrobust");
+extern int pthread_mutexattr_setrobust_np (pthread_mutexattr_t *, int) __NIJI_NOTHROW __asm__ ("pthread_mutexattr_setrobust") __attribute__ ((__nonnull__ (1), __deprecated__));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_rwlock_clockrdlock
 #  define __NIJI_D_pthread_rwlock_clockrdlock 1
-extern int pthread_rwlock_clockrdlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_rwlock_clockrdlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_rwlock_clockwrlock
 #  define __NIJI_D_pthread_rwlock_clockwrlock 1
-extern int pthread_rwlock_clockwrlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_rwlock_clockwrlock (pthread_rwlock_t *, int, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_pthread_setaffinity_np
 #  define __NIJI_D_pthread_setaffinity_np 1
-extern int pthread_setaffinity_np (unsigned long, unsigned long, const cpu_set_t *) __NIJI_NOTHROW;
+extern int pthread_setaffinity_np (unsigned long, unsigned long, const cpu_set_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (3)));
 # endif
 # ifndef __NIJI_D_pthread_setattr_default_np
 #  define __NIJI_D_pthread_setattr_default_np 1
-extern int pthread_setattr_default_np (const pthread_attr_t *) __NIJI_NOTHROW;
+extern int pthread_setattr_default_np (const pthread_attr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_setname_np
 #  define __NIJI_D_pthread_setname_np 1
-extern int pthread_setname_np (unsigned long, const char *) __NIJI_NOTHROW;
+extern int pthread_setname_np (unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_timedjoin_np
@@ -618,7 +618,7 @@ extern int pthread_tryjoin_np (unsigned long, void **) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_pthread_yield
 #  define __NIJI_D_pthread_yield 1
-extern int pthread_yield (void) __NIJI_NOTHROW __asm__ ("sched_yield");
+extern int pthread_yield (void) __NIJI_NOTHROW __asm__ ("sched_yield") __attribute__ ((__deprecated__));
 # endif
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 1
@@ -634,164 +634,164 @@ extern void __pthread_unregister_cancel_restore (__pthread_unwind_buf_t *);
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_pthread_attr_getstack
 #  define __NIJI_D_pthread_attr_getstack 1
-extern int pthread_attr_getstack (const pthread_attr_t *, void **, unsigned long *) __NIJI_NOTHROW;
+extern int pthread_attr_getstack (const pthread_attr_t *, void **, unsigned long *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2, 3)));
 # endif
 # ifndef __NIJI_D_pthread_attr_setstack
 #  define __NIJI_D_pthread_attr_setstack 1
-extern int pthread_attr_setstack (pthread_attr_t *, void *, unsigned long) __NIJI_NOTHROW;
+extern int pthread_attr_setstack (pthread_attr_t *, void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrier_destroy
 #  define __NIJI_D_pthread_barrier_destroy 1
-extern int pthread_barrier_destroy (pthread_barrier_t *) __NIJI_NOTHROW;
+extern int pthread_barrier_destroy (pthread_barrier_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrier_init
 #  define __NIJI_D_pthread_barrier_init 1
-extern int pthread_barrier_init (pthread_barrier_t *, const pthread_barrierattr_t *, unsigned int) __NIJI_NOTHROW;
+extern int pthread_barrier_init (pthread_barrier_t *, const pthread_barrierattr_t *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrier_wait
 #  define __NIJI_D_pthread_barrier_wait 1
-extern int pthread_barrier_wait (pthread_barrier_t *) __NIJI_NOTHROW;
+extern int pthread_barrier_wait (pthread_barrier_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrierattr_destroy
 #  define __NIJI_D_pthread_barrierattr_destroy 1
-extern int pthread_barrierattr_destroy (pthread_barrierattr_t *) __NIJI_NOTHROW;
+extern int pthread_barrierattr_destroy (pthread_barrierattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrierattr_getpshared
 #  define __NIJI_D_pthread_barrierattr_getpshared 1
-extern int pthread_barrierattr_getpshared (const pthread_barrierattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_barrierattr_getpshared (const pthread_barrierattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_barrierattr_init
 #  define __NIJI_D_pthread_barrierattr_init 1
-extern int pthread_barrierattr_init (pthread_barrierattr_t *) __NIJI_NOTHROW;
+extern int pthread_barrierattr_init (pthread_barrierattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_barrierattr_setpshared
 #  define __NIJI_D_pthread_barrierattr_setpshared 1
-extern int pthread_barrierattr_setpshared (pthread_barrierattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_barrierattr_setpshared (pthread_barrierattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_getclock
 #  define __NIJI_D_pthread_condattr_getclock 1
-extern int pthread_condattr_getclock (const pthread_condattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_condattr_getclock (const pthread_condattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_condattr_setclock
 #  define __NIJI_D_pthread_condattr_setclock 1
-extern int pthread_condattr_setclock (pthread_condattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_condattr_setclock (pthread_condattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_getcpuclockid
 #  define __NIJI_D_pthread_getcpuclockid 1
-extern int pthread_getcpuclockid (unsigned long, int *) __NIJI_NOTHROW;
+extern int pthread_getcpuclockid (unsigned long, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_mutex_timedlock
 #  define __NIJI_D_pthread_mutex_timedlock 1
-extern int pthread_mutex_timedlock (pthread_mutex_t *, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_mutex_timedlock (pthread_mutex_t *, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_getrobust
 #  define __NIJI_D_pthread_mutexattr_getrobust 1
-extern int pthread_mutexattr_getrobust (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_getrobust (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_setrobust
 #  define __NIJI_D_pthread_mutexattr_setrobust 1
-extern int pthread_mutexattr_setrobust (pthread_mutexattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_mutexattr_setrobust (pthread_mutexattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_rwlock_timedrdlock
 #  define __NIJI_D_pthread_rwlock_timedrdlock 1
-extern int pthread_rwlock_timedrdlock (pthread_rwlock_t *, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_rwlock_timedrdlock (pthread_rwlock_t *, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_pthread_rwlock_timedwrlock
 #  define __NIJI_D_pthread_rwlock_timedwrlock 1
-extern int pthread_rwlock_timedwrlock (pthread_rwlock_t *, const struct timespec *) __NIJI_NOTHROW;
+extern int pthread_rwlock_timedwrlock (pthread_rwlock_t *, const struct timespec *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_spin_destroy
 #  define __NIJI_D_pthread_spin_destroy 1
-extern int pthread_spin_destroy (volatile pthread_spinlock_t *) __NIJI_NOTHROW;
+extern int pthread_spin_destroy (volatile pthread_spinlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_spin_init
 #  define __NIJI_D_pthread_spin_init 1
-extern int pthread_spin_init (volatile pthread_spinlock_t *, int) __NIJI_NOTHROW;
+extern int pthread_spin_init (volatile pthread_spinlock_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_spin_lock
 #  define __NIJI_D_pthread_spin_lock 1
-extern int pthread_spin_lock (volatile pthread_spinlock_t *) __NIJI_NOTHROW;
+extern int pthread_spin_lock (volatile pthread_spinlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_spin_trylock
 #  define __NIJI_D_pthread_spin_trylock 1
-extern int pthread_spin_trylock (volatile pthread_spinlock_t *) __NIJI_NOTHROW;
+extern int pthread_spin_trylock (volatile pthread_spinlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_spin_unlock
 #  define __NIJI_D_pthread_spin_unlock 1
-extern int pthread_spin_unlock (volatile pthread_spinlock_t *) __NIJI_NOTHROW;
+extern int pthread_spin_unlock (volatile pthread_spinlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # ifndef __NIJI_D_pthread_rwlock_destroy
 #  define __NIJI_D_pthread_rwlock_destroy 1
-extern int pthread_rwlock_destroy (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_destroy (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_init
 #  define __NIJI_D_pthread_rwlock_init 1
-extern int pthread_rwlock_init (pthread_rwlock_t *, const pthread_rwlockattr_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_init (pthread_rwlock_t *, const pthread_rwlockattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_rdlock
 #  define __NIJI_D_pthread_rwlock_rdlock 1
-extern int pthread_rwlock_rdlock (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_rdlock (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_tryrdlock
 #  define __NIJI_D_pthread_rwlock_tryrdlock 1
-extern int pthread_rwlock_tryrdlock (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_tryrdlock (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_trywrlock
 #  define __NIJI_D_pthread_rwlock_trywrlock 1
-extern int pthread_rwlock_trywrlock (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_trywrlock (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_unlock
 #  define __NIJI_D_pthread_rwlock_unlock 1
-extern int pthread_rwlock_unlock (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_unlock (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlock_wrlock
 #  define __NIJI_D_pthread_rwlock_wrlock 1
-extern int pthread_rwlock_wrlock (pthread_rwlock_t *) __NIJI_NOTHROW;
+extern int pthread_rwlock_wrlock (pthread_rwlock_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_destroy
 #  define __NIJI_D_pthread_rwlockattr_destroy 1
-extern int pthread_rwlockattr_destroy (pthread_rwlockattr_t *) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_destroy (pthread_rwlockattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_getkind_np
 #  define __NIJI_D_pthread_rwlockattr_getkind_np 1
-extern int pthread_rwlockattr_getkind_np (const pthread_rwlockattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_getkind_np (const pthread_rwlockattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_getpshared
 #  define __NIJI_D_pthread_rwlockattr_getpshared 1
-extern int pthread_rwlockattr_getpshared (const pthread_rwlockattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_getpshared (const pthread_rwlockattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_init
 #  define __NIJI_D_pthread_rwlockattr_init 1
-extern int pthread_rwlockattr_init (pthread_rwlockattr_t *) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_init (pthread_rwlockattr_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_setkind_np
 #  define __NIJI_D_pthread_rwlockattr_setkind_np 1
-extern int pthread_rwlockattr_setkind_np (pthread_rwlockattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_setkind_np (pthread_rwlockattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_setpshared
 #  define __NIJI_D_pthread_rwlockattr_setpshared 1
-extern int pthread_rwlockattr_setpshared (pthread_rwlockattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_rwlockattr_setpshared (pthread_rwlockattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_pthread_mutex_consistent
 #  define __NIJI_D_pthread_mutex_consistent 1
-extern int pthread_mutex_consistent (pthread_mutex_t *) __NIJI_NOTHROW;
+extern int pthread_mutex_consistent (pthread_mutex_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
 # ifndef __NIJI_D_pthread_mutexattr_gettype
 #  define __NIJI_D_pthread_mutexattr_gettype 1
-extern int pthread_mutexattr_gettype (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW;
+extern int pthread_mutexattr_gettype (const pthread_mutexattr_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_settype
 #  define __NIJI_D_pthread_mutexattr_settype 1
-extern int pthread_mutexattr_settype (pthread_mutexattr_t *, int) __NIJI_NOTHROW;
+extern int pthread_mutexattr_settype (pthread_mutexattr_t *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_XSI >= 500

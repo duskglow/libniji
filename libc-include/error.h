@@ -22,11 +22,11 @@ extern void (*error_print_progname)(void);
 # endif
 # ifndef __NIJI_D_error
 #  define __NIJI_D_error 1
-extern void error (int, int, const char *, ...);
+extern void error (int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 3, 4), __noreturn__));
 # endif
 # ifndef __NIJI_D_error_at_line
 #  define __NIJI_D_error_at_line 1
-extern void error_at_line (int, int, const char *, unsigned int, const char *, ...);
+extern void error_at_line (int, int, const char *, unsigned int, const char *, ...) __attribute__ ((__format__ (__printf__, 5, 6), __noreturn__));
 # endif
 #endif
 

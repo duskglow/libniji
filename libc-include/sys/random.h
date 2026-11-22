@@ -21,7 +21,7 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_getentropy
 #  define __NIJI_D_getentropy 1
-extern int getentropy (void *, unsigned long);
+extern int getentropy (void *, unsigned long) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_getrandom
 #  define __NIJI_D_getrandom 1

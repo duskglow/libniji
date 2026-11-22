@@ -22,59 +22,59 @@ typedef struct __locale_struct * locale_t;
 #if 1
 # ifndef __NIJI_D_strcasecmp
 #  define __NIJI_D_strcasecmp 1
-extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW;
+extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strncasecmp
 #  define __NIJI_D_strncasecmp 1
-extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_ffsl
 #  define __NIJI_D_ffsl 1
-extern int ffsl (long int) __NIJI_NOTHROW;
+extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ffsll
 #  define __NIJI_D_ffsll 1
-extern int ffsll (long long int) __NIJI_NOTHROW;
+extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 200809
 # ifndef __NIJI_D_bcmp
 #  define __NIJI_D_bcmp 1
-extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_bcopy
 #  define __NIJI_D_bcopy 1
-extern void bcopy (const void *, void *, unsigned long) __NIJI_NOTHROW;
+extern void bcopy (const void *, void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_bzero
 #  define __NIJI_D_bzero 1
-extern void bzero (void *, unsigned long) __NIJI_NOTHROW;
+extern void bzero (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_index
 #  define __NIJI_D_index 1
-extern char *index (const char *, int);
+extern char *index (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_rindex
 #  define __NIJI_D_rindex 1
-extern char *rindex (const char *, int);
+extern char *rindex (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 200809 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_ffs
 #  define __NIJI_D_ffs 1
-extern int ffs (int) __NIJI_NOTHROW;
+extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_strcasecmp_l
 #  define __NIJI_D_strcasecmp_l 1
-extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW;
+extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strncasecmp_l
 #  define __NIJI_D_strncasecmp_l 1
-extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW;
+extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
 

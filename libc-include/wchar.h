@@ -89,7 +89,7 @@ typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws
 #  define __NIJI_D_fgetws 1
-extern wchar_t *fgetws (wchar_t *, int, __FILE *);
+extern wchar_t *fgetws (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
@@ -132,7 +132,7 @@ extern unsigned long mbrtowc (wchar_t *, const char *, unsigned long, mbstate_t 
 # endif
 # ifndef __NIJI_D_mbsinit
 #  define __NIJI_D_mbsinit 1
-extern int mbsinit (const mbstate_t *) __NIJI_NOTHROW;
+extern int mbsinit (const mbstate_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_mbsrtowcs
 #  define __NIJI_D_mbsrtowcs 1
@@ -162,15 +162,15 @@ extern unsigned int ungetwc (unsigned int, __FILE *);
 # endif
 # ifndef __NIJI_D_wcrtomb
 #  define __NIJI_D_wcrtomb 1
-extern unsigned long wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW;
+extern unsigned long wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_wcscat
 #  define __NIJI_D_wcscat 1
-extern wchar_t *wcscat (wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcscat (wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_wcscmp
 #  define __NIJI_D_wcscmp 1
-extern int wcscmp (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern int wcscmp (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_wcscoll
 #  define __NIJI_D_wcscoll 1
@@ -178,11 +178,11 @@ extern int wcscoll (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_wcscpy
 #  define __NIJI_D_wcscpy 1
-extern wchar_t *wcscpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcscpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_wcscspn
 #  define __NIJI_D_wcscspn 1
-extern unsigned long wcscspn (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern unsigned long wcscspn (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 struct tm;
 # ifndef __NIJI_D_wcsftime
@@ -191,19 +191,19 @@ extern unsigned long wcsftime (wchar_t *, unsigned long, const wchar_t *, const 
 # endif
 # ifndef __NIJI_D_wcslen
 #  define __NIJI_D_wcslen 1
-extern unsigned long wcslen (const wchar_t *) __NIJI_NOTHROW;
+extern unsigned long wcslen (const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wcsncat
 #  define __NIJI_D_wcsncat 1
-extern wchar_t *wcsncat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern wchar_t *wcsncat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_wcsncmp
 #  define __NIJI_D_wcsncmp 1
-extern int wcsncmp (const wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern int wcsncmp (const wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_wcsncpy
 #  define __NIJI_D_wcsncpy 1
-extern wchar_t *wcsncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern wchar_t *wcsncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_wcsrtombs
 #  define __NIJI_D_wcsrtombs 1
@@ -211,7 +211,7 @@ extern unsigned long wcsrtombs (char *, const wchar_t **, unsigned long, mbstate
 # endif
 # ifndef __NIJI_D_wcsspn
 #  define __NIJI_D_wcsspn 1
-extern unsigned long wcsspn (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern unsigned long wcsspn (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wcstod
 #  define __NIJI_D_wcstod 1
@@ -247,7 +247,7 @@ extern int wctob (unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_wmemcmp
 #  define __NIJI_D_wmemcmp 1
-extern int wmemcmp (const wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern int wmemcmp (const wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wmemcpy
 #  define __NIJI_D_wmemcpy 1
@@ -279,7 +279,7 @@ typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws_unlocked
 #  define __NIJI_D_fgetws_unlocked 1
-extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *);
+extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
@@ -327,7 +327,7 @@ extern unsigned int putwchar_unlocked (wchar_t);
 # endif
 # ifndef __NIJI_D_wcschrnul
 #  define __NIJI_D_wcschrnul 1
-extern wchar_t *wcschrnul (const wchar_t *, wchar_t) __NIJI_NOTHROW;
+extern wchar_t *wcschrnul (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 struct tm;
 # ifndef __NIJI_D_wcsftime_l
@@ -418,19 +418,19 @@ extern wchar_t *wmempcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTH
 #if __NIJI_ISOC < 2023 && __NIJI_XSI >= 400
 # ifndef __NIJI_D_iswalnum
 #  define __NIJI_D_iswalnum 1
-extern int iswalnum (unsigned int) __NIJI_NOTHROW;
+extern int iswalnum (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswalpha
 #  define __NIJI_D_iswalpha 1
-extern int iswalpha (unsigned int) __NIJI_NOTHROW;
+extern int iswalpha (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswblank
 #  define __NIJI_D_iswblank 1
-extern int iswblank (unsigned int) __NIJI_NOTHROW;
+extern int iswblank (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswcntrl
 #  define __NIJI_D_iswcntrl 1
-extern int iswcntrl (unsigned int) __NIJI_NOTHROW;
+extern int iswcntrl (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswctype
 #  define __NIJI_D_iswctype 1
@@ -438,43 +438,43 @@ extern int iswctype (unsigned int, unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_iswdigit
 #  define __NIJI_D_iswdigit 1
-extern int iswdigit (unsigned int) __NIJI_NOTHROW;
+extern int iswdigit (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswgraph
 #  define __NIJI_D_iswgraph 1
-extern int iswgraph (unsigned int) __NIJI_NOTHROW;
+extern int iswgraph (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswlower
 #  define __NIJI_D_iswlower 1
-extern int iswlower (unsigned int) __NIJI_NOTHROW;
+extern int iswlower (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswprint
 #  define __NIJI_D_iswprint 1
-extern int iswprint (unsigned int) __NIJI_NOTHROW;
+extern int iswprint (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswpunct
 #  define __NIJI_D_iswpunct 1
-extern int iswpunct (unsigned int) __NIJI_NOTHROW;
+extern int iswpunct (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswspace
 #  define __NIJI_D_iswspace 1
-extern int iswspace (unsigned int) __NIJI_NOTHROW;
+extern int iswspace (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswupper
 #  define __NIJI_D_iswupper 1
-extern int iswupper (unsigned int) __NIJI_NOTHROW;
+extern int iswupper (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswxdigit
 #  define __NIJI_D_iswxdigit 1
-extern int iswxdigit (unsigned int) __NIJI_NOTHROW;
+extern int iswxdigit (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_towlower
 #  define __NIJI_D_towlower 1
-extern unsigned int towlower (unsigned int) __NIJI_NOTHROW;
+extern unsigned int towlower (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_towupper
 #  define __NIJI_D_towupper 1
-extern unsigned int towupper (unsigned int) __NIJI_NOTHROW;
+extern unsigned int towupper (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wctype
 #  define __NIJI_D_wctype 1
@@ -623,11 +623,11 @@ extern int wscanf (const wchar_t *, ...);
 #if __NIJI_MISC
 # ifndef __NIJI_D_wcslcat
 #  define __NIJI_D_wcslcat 1
-extern unsigned long wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_wcslcpy
 #  define __NIJI_D_wcslcpy 1
-extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
@@ -642,7 +642,7 @@ typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_open_wmemstream
 #  define __NIJI_D_open_wmemstream 1
-extern __FILE *open_wmemstream (wchar_t **, unsigned long *) __NIJI_NOTHROW;
+extern __FILE *open_wmemstream (wchar_t **, unsigned long *) __NIJI_NOTHROW __attribute__ ((__malloc__));
 # endif
 # ifndef __NIJI_D_wcpcpy
 #  define __NIJI_D_wcpcpy 1
@@ -666,7 +666,7 @@ extern int wcscoll_l (const wchar_t *, const wchar_t *, locale_t) __NIJI_NOTHROW
 # endif
 # ifndef __NIJI_D_wcsdup
 #  define __NIJI_D_wcsdup 1
-extern wchar_t *wcsdup (const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcsdup (const wchar_t *) __NIJI_NOTHROW __attribute__ ((__malloc__));
 # endif
 # ifndef __NIJI_D_wcsncasecmp
 #  define __NIJI_D_wcsncasecmp 1
@@ -678,7 +678,7 @@ extern int wcsncasecmp_l (const wchar_t *, const wchar_t *, unsigned long, local
 # endif
 # ifndef __NIJI_D_wcsnlen
 #  define __NIJI_D_wcsnlen 1
-extern unsigned long wcsnlen (const wchar_t *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long wcsnlen (const wchar_t *, unsigned long) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wcsnrtombs
 #  define __NIJI_D_wcsnrtombs 1
@@ -737,11 +737,11 @@ typedef __builtin_va_list va_list;
 #if 1
 # ifdef __cplusplus
 extern "C++" {
-extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr");
-extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr");
-extern const wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcspbrk");
-extern const wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcsstr");
-extern const wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __asm__ ("wmemchr");
+extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr") __attribute__ ((__pure__));
+extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr") __attribute__ ((__pure__));
+extern const wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcspbrk") __attribute__ ((__pure__));
+extern const wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcsstr") __attribute__ ((__pure__));
+extern const wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __asm__ ("wmemchr") __attribute__ ((__pure__));
 inline wchar_t *wcschr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcschr (static_cast<const wchar_t *> (__s), __c)); }
 inline wchar_t *wcsrchr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcsrchr (static_cast<const wchar_t *> (__s), __c)); }
 inline wchar_t *wcspbrk (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcspbrk (static_cast<const wchar_t *> (__s), __a)); }
@@ -749,11 +749,11 @@ inline wchar_t *wcsstr (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { retur
 inline wchar_t *wmemchr (wchar_t *__s, wchar_t __c, size_t __n) __NIJI_NOTHROW { return const_cast<wchar_t *> (wmemchr (static_cast<const wchar_t *> (__s), __c, __n)); }
 }
 # else
-extern wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
-extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
-extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
-extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
-extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
+extern wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 #endif
 
@@ -761,11 +761,11 @@ extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
 /* The XSI alias of wcsstr takes the same two overloads in C++. */
 # ifdef __cplusplus
 extern "C++" {
-extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs");
+extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs") __attribute__ ((__pure__));
 inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcswcs (static_cast<const wchar_t *> (__s), __a)); }
 }
 # else
-extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 #endif
 

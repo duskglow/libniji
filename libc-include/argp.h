@@ -182,12 +182,12 @@ extern int _option_is_end (const struct argp_option *) __NIJI_NOTHROW;
 struct argp_state;
 # ifndef __NIJI_D_argp_error
 #  define __NIJI_D_argp_error 1
-extern void argp_error (const struct argp_state *, const char *, ...);
+extern void argp_error (const struct argp_state *, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3)));
 # endif
 struct argp_state;
 # ifndef __NIJI_D_argp_failure
 #  define __NIJI_D_argp_failure 1
-extern void argp_failure (const struct argp_state *, int, int, const char *, ...);
+extern void argp_failure (const struct argp_state *, int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 4, 5)));
 # endif
 struct argp;
 # ifndef __NIJI_D_argp_help

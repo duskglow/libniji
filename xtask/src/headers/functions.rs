@@ -58,16 +58,18 @@ impl Gen<'_> {
     /// `_FILE_OFFSET_BITS=64` where the call probes saw that (`lfs`); the addresses probed in no GNU configuration cannot show it.
     /// `excl`: the branch's own condition already excludes `_FILE_OFFSET_BITS=64` (a plain conjunction with `!__NIJI_FOB64`).
     pub(super) fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
+        // The attributes (slice 19) come after the assembler label (GCC's declarator order).
+        let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
         match self.t.lfs.get(name) {
             Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
                 format!("{ind}if __NIJI_FOB64"),
-                format!("extern {decl}{nt} __asm__ (\"{y}\");"),
+                format!("extern {decl}{nt} __asm__ (\"{y}\"){at};"),
                 format!("{ind}else"),
-                format!("extern {decl}{nt};"),
+                format!("extern {decl}{nt}{at};"),
                 format!("{ind}endif"),
             ],
-            _ if sym != name => vec![format!("extern {decl}{nt} __asm__ (\"{sym}\");")],
-            _ => vec![format!("extern {decl}{nt};")],
+            _ if sym != name => vec![format!("extern {decl}{nt} __asm__ (\"{sym}\"){at};")],
+            _ => vec![format!("extern {decl}{nt}{at};")],
         }
     }
 

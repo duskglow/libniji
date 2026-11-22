@@ -52,7 +52,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 #if 1
 # ifndef __NIJI_D_calloc
 #  define __NIJI_D_calloc 1
-extern void *calloc (unsigned long, unsigned long) __NIJI_NOTHROW;
+extern void *calloc (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1, 2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_free
 #  define __NIJI_D_free 1
@@ -61,7 +61,7 @@ extern void free (void *) __NIJI_NOTHROW;
 struct mallinfo;
 # ifndef __NIJI_D_mallinfo
 #  define __NIJI_D_mallinfo 1
-extern struct mallinfo mallinfo (void) __NIJI_NOTHROW;
+extern struct mallinfo mallinfo (void) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 struct mallinfo2;
 # ifndef __NIJI_D_mallinfo2
@@ -70,7 +70,7 @@ extern struct mallinfo2 mallinfo2 (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_malloc
 #  define __NIJI_D_malloc 1
-extern void *malloc (unsigned long) __NIJI_NOTHROW;
+extern void *malloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_malloc_info
 #  define __NIJI_D_malloc_info 1
@@ -94,23 +94,23 @@ extern int mallopt (int, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_memalign
 #  define __NIJI_D_memalign 1
-extern void *memalign (unsigned long, unsigned long) __NIJI_NOTHROW;
+extern void *memalign (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_pvalloc
 #  define __NIJI_D_pvalloc 1
-extern void *pvalloc (unsigned long) __NIJI_NOTHROW;
+extern void *pvalloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_realloc
 #  define __NIJI_D_realloc 1
-extern void *realloc (void *, unsigned long) __NIJI_NOTHROW;
+extern void *realloc (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__alloc_size__ (2), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_reallocarray
 #  define __NIJI_D_reallocarray 1
-extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW;
+extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ ((__alloc_size__ (2, 3), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_valloc
 #  define __NIJI_D_valloc 1
-extern void *valloc (unsigned long) __NIJI_NOTHROW;
+extern void *valloc (unsigned long) __NIJI_NOTHROW __attribute__ ((__malloc__, __alloc_size__ (1), __warn_unused_result__));
 # endif
 # ifndef M_ARENA_MAX
 #  define M_ARENA_MAX (-8)

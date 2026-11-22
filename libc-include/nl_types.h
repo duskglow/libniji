@@ -26,7 +26,7 @@ extern char *catgets (void *, int, int, const char *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_catopen
 #  define __NIJI_D_catopen 1
-extern void * catopen (const char *, int);
+extern void * catopen (const char *, int) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef NL_CAT_LOCALE
 #  define NL_CAT_LOCALE 1
