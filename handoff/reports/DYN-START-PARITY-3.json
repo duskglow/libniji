@@ -1,0 +1,55 @@
+{
+ "task": "DYN-START-PARITY-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "merged origin/next (hot_text_products conflict) and tightened DYN_TRUE_BOUND to the merged level [73, 67] (fast, release), measured identical on Skylake-SP and Zen 1, ext4 and tmpfs /tmp",
+ "branch": "task/dyn-start-parity-3",
+ "head": "50e631139",
+ "gate": {
+  "affected": "822 passed / 0 failed (direct tier, dyn-start-parity-3-gate1)",
+  "peak": "2.1G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Zen 1 levels measured with a probe built on the Skylake-SP host and copied over (no build on keke); it reproduces the test's own count on the Skylake-SP host"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "dynamic startup-only fault bound (fast) tightened from next's level",
+   "before": 82,
+   "after": 73,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "dynamic startup-only fault bound (release) tightened from next's level",
+   "before": 77,
+   "after": 67,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic startup-only program, fast, merged head vs next's bound level",
+   "before": 82,
+   "after": 73,
+   "unit": "page faults",
+   "measured": true
+  }
+ ],
+ "improvement": "a cross-host fault check needs no build role: a packed probe (same staged path lengths, setarch -R, cleared env) reproduces the test's count; a tools/ helper for it would make 'both host classes' cheap",
+ "next_step": "none for this story; DYN-START-SPEED merges the new bound [73, 67]",
+ "report_file": "handoff/DYN-START-PARITY.md",
+ "jobs": [
+  "dyn-start-parity-3-lint1",
+  "dyn-start-parity-3-gate1",
+  "dyn-start-parity-3-xtest1",
+  "dyn-start-parity-3-plants1",
+  "dyn-start-parity-3-release1",
+  "dyn-start-parity-3-precheck1"
+ ]
+}

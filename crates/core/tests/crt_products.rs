@@ -14,6 +14,9 @@
 mod skip_note;
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -67,12 +70,12 @@ fn tools_missing() -> bool {
     missing.is_some()
 }
 
-/// A fresh work directory with `lib/`: the link-time files under their installed names.
-fn work(name: &str) -> (PathBuf, PathBuf) {
+/// A fresh work directory with `lib/`: the link-time files under their installed names. Removed
+/// when the test passes, kept (path on stderr) when it fails.
+fn work(name: &str) -> (Scratch, PathBuf) {
     let p = products();
     assert!(p.join("niji-crti.o").exists(), "the products are missing: run `cargo xtask so`");
-    let w = root().join("target/crt-products").join(format!("{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&w);
+    let w = Scratch::dir_in(&root().join("target/crt-products"), name);
     let lib = w.join("lib");
     std::fs::create_dir_all(&lib).unwrap();
     for (installed, product) in START {
@@ -255,6 +258,63 @@ fn start_files_follow_the_psabi() {
     }
     assert!(syms.iter().any(|x| x[4] == "niji_start_main_static_pie" && x[3] == "UND"), "grcrt1.o does not start through the relocating start");
     assert!(sections(&g).iter().any(|x| x.0 == ".preinit_array"), "grcrt1.o has no .preinit_array");
+}
+
+/// The program headers `readelf -lW` shows for `exe`: (type, flags, alignment).
+fn segments(exe: &Path) -> Vec<(String, String, u64)> {
+    let o = Command::new("readelf").arg("-lW").arg(exe).output().unwrap();
+    String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            let align = u64::from_str_radix(f.last()?.strip_prefix("0x")?, 16).ok()?;
+            (f.len() >= 8 && f[0] == "LOAD").then(|| (f[0].to_string(), f[6..f.len() - 1].concat(), align))
+        })
+        .collect()
+}
+
+#[test]
+fn programs_get_one_executable_mapping_and_keep_their_properties() {
+    // no spec clause (x86-64 psABI program properties, LSB ABI note tag; CRT-START-FILES, GitHub #27): no
+    // start file is reported as lacking IBT or SHSTK in any link (PIE, -no-pie, -static, -static-pie; the
+    // program built with -fcf-protection); a dynamic program has one executable LOAD, no LOAD aligned above
+    // a page, IBT and SHSTK kept (every input marked), and one r-xp mapping of its own file at run time
+    // (what util-linux's lsfd `column-xmode` test reads).
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("maps");
+    let src = s(&root().join("crates/core/tests/oracle/crt_maps.c"));
+    for (opts, dynamic) in [(&[][..], true), (&["-no-pie"][..], true), (&["-static"][..], false), (&["-static-pie"][..], false)] {
+        let tag = opts.first().copied().unwrap_or("pie");
+        let pic = if tag == "-no-pie" { "-fno-pie" } else { "-fPIE" };
+        let obj = w.join(format!("maps{tag}.o"));
+        drive("cc", None, &["-std=gnu17".into(), "-O1".into(), "-fcf-protection=full".into(), pic.into(), "-c".into(), src.clone(), "-o".into(), s(&obj)]);
+        let exe = w.join(format!("maps{tag}"));
+        let mut args: Vec<String> = opts.iter().map(|x| (*x).to_string()).collect();
+        if dynamic {
+            args.push(ldso());
+        }
+        args.extend(["-Wl,-z,cet-report=warning".into(), s(&obj), "-o".into(), s(&exe)]);
+        let trace = drive("cc", Some(&lib), &args);
+        for l in trace.lines().filter(|l| l.contains("missing IBT") || l.contains("missing SHSTK")) {
+            assert!(!START.iter().any(|(installed, _)| l.contains(&format!("/{installed}"))), "cc {tag}: a start file lacks the property: {l}");
+        }
+        if !dynamic {
+            // A static program's text is libc.a's layout (its hot group starts on a 64 KiB boundary, D-X.20), not
+            // the start files': only the properties are checked above.
+            continue;
+        }
+        let loads = segments(&exe);
+        assert_eq!(loads.iter().filter(|x| x.1.contains('E')).count(), 1, "cc {tag}: executable LOADs: {loads:?}");
+        {
+            assert!(loads.iter().all(|x| x.2 <= 0x1000), "cc {tag}: a LOAD aligned above a page: {loads:?}");
+            let notes = Command::new("readelf").arg("-nW").arg(&exe).output().unwrap();
+            let notes = String::from_utf8_lossy(&notes.stdout);
+            assert!(notes.contains("x86 feature: IBT, SHSTK"), "cc {tag}: the program lost IBT/SHSTK:\n{notes}");
+        }
+        assert_eq!(run(&exe, &w), "1\n", "cc {tag}: r-xp mappings of the program's own file");
+    }
 }
 
 /// The output every build of crt_init_fini.c prints: `_init`'s contribution, main, `_fini`'s,

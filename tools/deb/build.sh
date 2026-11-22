@@ -37,7 +37,8 @@
 # file's time and the time dpkg-deb records; owners are root:root (--root-owner-group); dpkg-deb
 # writes members in sorted order; modes are fixed below. Building twice gives identical .debs.
 #
-# Version: 0.0~snapshotYYYYMMDD+<12-hex commit> (YYYYMMDD: the commit's UTC date), a native
+# Version (tools/deb/version.sh): 0.0~snapshotYYYYMMDD.<n>+<12-hex commit> (YYYYMMDD: the commit's UTC
+# date, <n>: NIJI_DEB_SERIAL, default 1, the snapshot of the day, as in the system flavour), a native
 # version that sorts below any 0.0 release.
 set -eu
 umask 022
@@ -124,11 +125,7 @@ if [ -z "$products" ]; then
         tar -x -C "$work/src" -f "$work/src.tar"
         rm -f "$work/src.tar"
     fi
-    if [ "$flavour" = coexist ]; then
-        version=0.0~snapshot$(date -u -d "@$epoch" +%Y%m%d)+$commit
-    else
-        version=$abi+niji$(date -u -d "@$epoch" +%Y%m%d).${NIJI_DEB_SERIAL:-1}-${NIJI_DEB_REVISION:-1}
-    fi
+    version=$(NIJI_DEB_ABI=$abi sh "$here/version.sh" "$flavour" "$epoch" "$commit")
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
     (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=$libdir NIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/niji

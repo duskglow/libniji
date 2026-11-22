@@ -1,0 +1,21 @@
+{"task": "REVIEW-SL-HEADERS-S07", "model": "opus", "tokens": null,
+ "result": "COMPLETE: review written; the SL-HEADERS series is not a rabbit hole in content but in integration (9 of 32 reds in the 7 tripwired chains are work failures); continue with named changes",
+ "branch": "task/review-sl-headers-s07", "head": null,
+ "gate": {"affected": "none (planning story)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "HEADERS-GEN-S07/S08/S10-HOOKS (priority 86) and the remaining series stories (85-87) sit below admit_min_priority 93, so ruling #6748's fix cannot run and S07-6, S08-6 and S10-5 wait on them", "recommendation": "if the header slices count as Yohane functionality, admit the HOOKS stories one at a time, then the data-only slices; otherwise park the series explicitly and resolve its 7 tripwire alerts as parked"},
+  {"item": "Start no new header slices (S13, S18, S20, S07-TAIL) until the HOOKS stories and the pending slices have landed; afterwards run at most two slices in parallel", "recommendation": "adopt; 8 of 32 reds in the tripwired chains were CI conflicts in shared generator files during the parallel wave of 11-17"},
+  {"item": "Five runs (S08-5, S12-4, S12-5, S16-4, S19-3) hit the 4 h wall-time limit blocked in jobwait on their own jobs: 20 agent-h with no hand-back and NULL cost in runs", "recommendation": "make jobwait (or the dispatcher) stop blocking at deadline minus 45 min, so that the run hands back PENDING JOBS; recover killed runs' calls and tokens from the transcript"}
+ ],
+ "informational": [
+  "False premise: ops/reviewer.py hard-codes 'no measured gain' and 'none' in review briefs; tripwire.chains() counts 5 measured gains for S07 and 35 across the 7 chains (none delivered: nothing landed)",
+  "tripwire_reds counts INCOMPLETE-by-design reds (14 of 52 series reds); counting them as failures overstates rabbit holes",
+  "69% of S07's 9.9 agent-h came after its content was complete (S07-3): S07-4 placed ids, S07-5 merged next; both ended in CI conflicts",
+  "S07-3's red on an unreserved compat-id placeholder in docs/ was avoidable: agents may run ops reserve --story themselves"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "review document only; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "reviewer briefs should carry the chain's real gains and its red reasons grouped by kind; this review rebuilt both from the database by hand",
+ "next_step": "coordinator/owner rule on HOOKS admission vs parking the series, then the tooling fixes in plan/reviews/REVIEW-SL-HEADERS-S07.md",
+ "report_file": "plan/reviews/REVIEW-SL-HEADERS-S07.md",
+ "jobs": []}

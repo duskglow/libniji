@@ -1,0 +1,14 @@
+# ICONV-CJK plants: a table entry (variant data, regenerated), GB18030's four-byte range (unit test and the
+# compact code-space comparison), the four-byte encodings derived from the variant data, the tag-character rule. A command that regenerates the tables restores them
+# (cat: a fresh mtime) so no later plant in the same copy sees the mutant.
+euckr-cell | spec/encoding/reference/EUC-KR.tsv | perl:s/(A2E6\tA2E6\t)20AC/${1}20AD/ | cp crates/core/src/iconv/cjk_tables.rs ../cjk_tables.keep && cargo xtask encodings-gen && cargo xtask so && cargo test -p niji --test iconv_codespace_products; r=$?; cat ../cjk_tables.keep > crates/core/src/iconv/cjk_tables.rs; exit $r | msg:EUC-KR: lines that differ
+gb-four-range-unit | crates/core/src/iconv/cjk.rs | lit:if (189_000..=1_237_575).contains(&p) { ==> if (189_001..=1_237_575).contains(&p) { | cargo test -p niji --lib iconv::cjk | msg:gb18030_four_bytes.*(FAILED|panicked)
+gb-four-range-codespace | crates/core/src/iconv/cjk.rs | lit:if (189_000..=1_237_575).contains(&p) { ==> if (189_000..=1_237_574).contains(&p) { | cargo test -p niji --test iconv_codespace_products | msg:GB18030: (line counts|lines that) differ
+gb-four-enc-derived | xtask/src/encodings_cjk.rs | lit:if !enc.contains_key(&cp) && !four_enc.iter().any(|&(c, _)| c == cp) { ==> if false { | cp crates/core/src/iconv/cjk_tables.rs ../cjk_tables.keep && cargo xtask encodings-gen && cargo test -p niji --lib iconv::cjk; r=$?; cat ../cjk_tables.keep > crates/core/src/iconv/cjk_tables.rs; exit $r | msg:gb18030_four_bytes.*(FAILED|panicked)
+tag-when-unwritable | crates/core/src/iconv/cjk.rs | lit:if n.is_none() && (0xE0000..=0xE007F).contains(&c) { ==> if (0xE0000..=0xE007F).contains(&c) { | cargo test -p niji --lib iconv::cjk | msg:gb18030_four_bytes.*(FAILED|panicked)
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# euckr-cell: CAUGHT, caught by iconv_codespace_products builtin_codecs_equal_the_reference_over_their_code_space
+# gb-four-range-unit: CAUGHT, caught by niji iconv::cjk::tests::gb18030_four_bytes
+# gb-four-range-codespace: CAUGHT, caught by iconv_codespace_products builtin_codecs_equal_the_reference_over_their_code_space
+# gb-four-enc-derived: CAUGHT, caught by niji iconv::cjk::tests::gb18030_four_bytes
+# tag-when-unwritable: CAUGHT, caught by niji iconv::cjk::tests::gb18030_four_bytes

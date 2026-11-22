@@ -15,7 +15,10 @@ typedef unsigned int Elf32_Addr;
 # endif
 # ifndef __NIJI_D_Elf32_Dyn
 #  define __NIJI_D_Elf32_Dyn 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (4))); } Elf32_Dyn;
+typedef struct {
+  int d_tag;
+  union { unsigned int d_val; unsigned int d_ptr; } d_un;
+} Elf32_Dyn;
 # endif
 # ifndef __NIJI_D_Elf32_Ehdr
 #  define __NIJI_D_Elf32_Ehdr 1
@@ -55,7 +58,7 @@ typedef unsigned int Elf32_Off;
 # ifndef __NIJI_D_Elf32_Phdr
 #  define __NIJI_D_Elf32_Phdr 1
 typedef struct {
-  unsigned int __p_type;
+  unsigned int p_type;
   unsigned int p_offset;
   unsigned int p_vaddr;
   unsigned int p_paddr;
@@ -133,7 +136,10 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_Elf64_Dyn
 #  define __NIJI_D_Elf64_Dyn 1
-typedef struct { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); } Elf64_Dyn;
+typedef struct {
+  long d_tag;
+  union { unsigned long d_val; unsigned long d_ptr; } d_un;
+} Elf64_Dyn;
 # endif
 # ifndef __NIJI_D_Elf64_Ehdr
 #  define __NIJI_D_Elf64_Ehdr 1
@@ -173,7 +179,7 @@ typedef unsigned long Elf64_Off;
 # ifndef __NIJI_D_Elf64_Phdr
 #  define __NIJI_D_Elf64_Phdr 1
 typedef struct {
-  unsigned int __p_type;
+  unsigned int p_type;
   unsigned int p_flags;
   unsigned long p_offset;
   unsigned long p_vaddr;
@@ -281,7 +287,10 @@ typedef unsigned long Elf64_Xword;
 # endif
 # ifndef __NIJI_D_Elf64_auxv_t
 #  define __NIJI_D_Elf64_auxv_t 1
-typedef struct { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); } Elf64_auxv_t;
+typedef struct {
+  unsigned long a_type;
+  union { unsigned long a_val; } a_un;
+} Elf64_auxv_t;
 # endif
 # ifndef __NIJI_D_getauxval
 #  define __NIJI_D_getauxval 1

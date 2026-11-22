@@ -11,7 +11,7 @@ __NIJI_BEGIN_C
 # ifndef __NIJI_D_struct_option
 #  define __NIJI_D_struct_option 1
 struct option {
-  char * name;
+  const char * name;
   int has_arg;
   int * flag;
   int val;

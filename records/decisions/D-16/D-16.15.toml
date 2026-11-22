@@ -1,0 +1,12 @@
+id = "D-16.15"
+section = "s16"
+spec = "§16, §17"
+ann = "ARB"
+status = "active"
+amends = ["D-16.10"]
+story = "NSCACHE-BOOTID-TMPFS"
+date = "2026-11-21"
+tests = ["crates/boundary/tests/nscache.rs::a_region_on_tmpfs_attaches_without_reading_the_boot_id", "crates/boundary/tests/nscache.rs::a_region_on_another_file_system_compares_the_boot_id"]
+body = '''
+**Boot ID on tmpfs** (owner ruling #3233, 2026-11-05; amends D-16.10's region header check). Attaching to an existing region whose `fstatfs` shows `TMPFS_MAGIC` neither reads `/proc/sys/kernel/random/boot_id` nor compares the header's boot words (the stamp takes them from the header). This is safe because a tmpfs file cannot outlive the boot it was made in, so on tmpfs that comparison can never find a stale region: it is a staleness check, not a trust check. A region made, or reinitialised under the lock, always records the boot ID read from `/proc`, so a region on any other file system is still compared and one from an earlier boot starts afresh. The owner, mode, regular-file, size, `AT_SECURE`/real-vs-effective ID, overflow-UID, initial-user-namespace, descriptor and account-stamp checks are unchanged. Cost per attach to an existing region: one `fstatfs` instead of opening, reading and closing the boot ID file; a created region pays neither.
+'''

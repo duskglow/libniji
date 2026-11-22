@@ -1,0 +1,12 @@
+id = "COMPAT-37"
+behaviour = "libniji's own sonames (`libc.so.6`, `libm.so.6`, the placeholder libraries, `libc_malloc_debug.so.0`) needed by soname from an object whose `DT_RPATH` or `DT_RUNPATH` names another directory holding that file (§27.1; R14-3 (a), threat-model rule 9; DL-RUNPATH-3, ruling #7280)"
+glibc = "The soname is searched like any other name: a `DT_RPATH` or `DT_RUNPATH` directory holding `libc.so.6` supplies it (black-box probe, both tags, DL-RUNPATH-2)"
+liella = "The soname resolves to `<prefix>/<libdir>` before any search (`search::PINNED`); `DT_RPATH`, `DT_RUNPATH`, the cache and the default directories are never searched for it. Outside secure mode `LD_LIBRARY_PATH` still comes first (for testing a libc build); naming the file by path loads that path"
+restore = "A tunable read at startup that lets a program's or library's `DT_RPATH`/`DT_RUNPATH` serve the pinned sonames in the search order of D-27.16, ignored in a secure process (threat-model rule 9). Registered only (ruling #7280): no program is known to need it, and outside secure mode `LD_LIBRARY_PATH` already selects another build of libniji's libraries"
+cost = "none expected: one flag test where the search handles a pinned soname, a cold path taken once per pinned `DT_NEEDED` or `dlopen` name"
+status = "registered"
+decisions = ["D-27.16", "D-X.95"]
+story = "DL-RUNPATH-3"
+date = "2026-11-21"
+body = '''
+'''

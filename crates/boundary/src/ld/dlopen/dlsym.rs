@@ -24,7 +24,7 @@
 //!   `dlopen` releases it before its constructors (lock order at `CALL`). Lock-free readers are
 //!   DL-16c's (plan §4, `read_section`).
 
-use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Node, Uniq, CALL, CAP, SHN_ABS, STATE};
+use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Uniq, CALL, CAP, SHN_ABS, STATE};
 use niji_ld::arch::Native;
 use niji_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
 use niji_ld::search::{self, PathBuf};
@@ -73,23 +73,21 @@ extern "C" fn entry(handle: usize, name: usize, version: usize, caller: usize) -
     at
 }
 
-/// The object record `handle` names, by one range test (D-27.32), or `None`.
+/// The object record `handle` names, by one range test per generation (D-27.32; within the first
+/// generation one), or `None`.
 pub(super) fn handle_index(l: &Loader, handle: usize) -> Option<usize> {
-    let first = l.node_addr(0);
-    let off = handle.checked_sub(first)?;
-    let size = size_of::<Node>();
-    (off.checked_rem(size)? == 0).then_some(off.checked_div(size)?).filter(|&i| i < l.n && !l.gone(i))
+    l.index_of(handle).filter(|&i| i < l.n && !l.gone(i))
 }
 
 /// The loaded object containing `caller` (the program when none does), for `dlsym` and `dlopen`.
 /// An unloaded node keeps its range until its slot is reused (D-27.50 (3)) while a later object
 /// may be mapped over that range, so `gone` ones are skipped.
 pub(super) fn caller_index(l: &Loader, caller: usize) -> usize {
-    l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&caller))).unwrap_or(0)
+    l.nodes.upto(l.n).position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&caller)).unwrap_or(0)
 }
 
 /// One lookup under the lock (module documentation); `None` after setting the text.
-// Every index is below `l.n` <= CAP and every count at most CAP.
+// Every index is below `l.n` and every count at most `l.n` (the scope's room).
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Option<Answer> {
     let fname: &'static [u8] = if version == 0 { b"dlsym" } else { b"dlvsym" };
@@ -100,23 +98,30 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let sym: &'static [u8] = if name == 0 { b"" } else { c_string(name) };
     let ver: Option<&'static [u8]> = (version != 0).then(|| c_string(version));
     // The scope, and the object a failure names.
-    let mut buf = [0usize; CAP];
-    let mut local = [0u16; CAP];
+    // Within CAP objects the stack arrays, else the scratch the growing `dlopen` reserved.
+    let (s_buf, s_local) = match super::scratch(l) {
+        Some(s) => (Some(&mut s.scope), Some(&mut s.local)),
+        None => (None, None),
+    };
+    let (mut buf0, mut local0) = ([0usize; CAP], [0u32; CAP]);
+    let buf = super::room(&mut buf0, s_buf, l.n, 0);
+    let local = super::room(&mut local0, s_local, l.n, 0);
+    let cap = buf.len();
     let (len, named) = match handle {
         RTLD_DEFAULT | RTLD_NEXT => {
             let who = caller_index(l, caller);
             let start_time = who < l.n_start;
             let len = if start_time {
                 // A start-time caller: the global scope (from the caller on, for RTLD_NEXT).
-                let g = &l.global[..l.n_global];
+                let g = l.global();
                 let from = if handle == RTLD_NEXT { g.iter().position(|&o| o == who).map_or(g.len(), |p| p + 1) } else { 0 };
                 let part = &g[from..];
                 buf[..part.len()].copy_from_slice(part);
                 part.len()
             } else {
-                let root = usize::from(l.nodes[who].root);
-                let llen = super::local_scope(l, root, &mut local);
-                let loc = local[..llen].iter().map(|&o| usize::from(o));
+                let root = super::ix(l.nodes[who].root);
+                let llen = super::local_scope(l, root, local);
+                let loc = local[..llen].iter().map(|&o| super::ix(o));
                 if handle == RTLD_NEXT {
                     let mut n = 0usize;
                     for o in loc.skip_while(|&o| o != who).skip(1) {
@@ -126,9 +131,9 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
                     n
                 } else {
                     let mut n = l.n_global;
-                    buf[..n].copy_from_slice(&l.global[..n]);
+                    buf[..n].copy_from_slice(l.global());
                     for o in loc {
-                        if !l.nodes[o].global && n < CAP {
+                        if !l.nodes[o].global && n < cap {
                             buf[n] = o;
                             n += 1;
                         }
@@ -144,12 +149,12 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
                 return None;
             };
             if i == 0 {
-                buf[..l.n_global].copy_from_slice(&l.global[..l.n_global]);
+                buf[..l.n_global].copy_from_slice(l.global());
                 (l.n_global, 0)
             } else {
-                let llen = super::local_scope(l, i, &mut local);
+                let llen = super::local_scope(l, i, local);
                 for (b, &o) in buf.iter_mut().zip(&local[..llen]) {
-                    *b = usize::from(o);
+                    *b = super::ix(o);
                 }
                 (llen, i)
             }
@@ -159,7 +164,7 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let req = Request::new(sym, want);
     let mark = l.unique.len();
     let syms = syms_of(&l.syms, l.n);
-    let start = &l.global[..l.n_start_global];
+    let start = l.global.slice(l.n_start_global).unwrap_or(&[]);
     let found = symbols::lookup(syms, Scope::global(&buf[..len]), &req, &mut Uniq { table: &mut l.unique, syms, start, binds: None });
     let Ok(Some(f)) = found else {
         let mut path = PathBuf::default();

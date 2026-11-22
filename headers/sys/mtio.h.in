@@ -1,0 +1,20 @@
+@@generated
+/* sys/mtio.h: magnetic tape ioctls (st(4)) */
+#ifndef __NIJI_H_sys_mtio_h
+#define __NIJI_H_sys_mtio_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+/* The terminal ioctl names and the descriptor-control structure, which <sys/ioctl.h> shows, are emitted below until
+   libniji generates <sys/ioctl.h> (slice 7); this header includes it then. A <sys/ioctl.h> from outside libniji's tree
+   is never included: its definitions carry no __NIJI_D_ guard, so each would be defined a second time here. */
+
+__NIJI_BEGIN_C
+
+@@owns TCSETS2 TTYDEF_CFLAG TTYDEF_IFLAG TTYDEF_LFLAG TTYDEF_OFLAG TTYDEF_SPEED
+@@emit
+
+__NIJI_END_C
+
+#endif

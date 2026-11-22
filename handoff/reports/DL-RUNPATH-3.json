@@ -1,0 +1,50 @@
+{
+ "task": "DL-RUNPATH-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Ruling #7280 applied: the soname pin (R14-3 (a)) gets its differences-from-glibc.md row and COMPAT-37 (registration only); no harness used an rpath to the products; DL-RUNPATH-2's rc-124 start-up job explained (timeout on a saturated host) and rerun on this head",
+ "branch": "task/dl-runpath-3",
+ "head": null,
+ "gate": {
+  "affected": "654 passed / 0 failed (direct tier, 9 suites)",
+  "peak": "3.1G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "records compat-ids warns COMPAT-36 is missing (reserved by another story, not yet landed); non-fatal until NIJI_PROMOTE=1",
+  "dl-runpath-2-startup2 (DL-RUNPATH-2's head, Skylake-SP host): its only failure was niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range in the native pass, the known next-wide defect HEAP-GAP-TEST-KEKE fixes"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "none",
+   "what": "docs/differences-from-glibc.md row for the pinned sonames and COMPAT-37 registered (no behaviour change)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "DL-RUNPATH-2's 13 plants rerun on this head: 12 CAUGHT, 1 EQUIVALENT",
+   "before": null,
+   "after": 13,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "jobs": [
+  "keke:dl-runpath-3-gate",
+  "keke:dl-runpath-3-plants",
+  "keke:dl-runpath-3-hottext"
+ ],
+ "improvement": "a start-up job's timeout should scale with the host's load (or queue for a less loaded host) instead of a fixed wall limit: DL-RUNPATH-2 lost a run to rc 124 at test 140 of 6993",
+ "next_step": "Land; then the owner's set-user-ID probe (handoff/DL-RUNPATH.md) and the $PLATFORM probe on a v3 Intel and an AMD host",
+ "report_file": "handoff/DL-RUNPATH.md",
+ "superseded": [
+  "keke:dl-runpath-3-startup (cargo xtask test: first pass 6993/6993; native pass only failure niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range, the known next-wide defect HEAP-GAP-TEST-KEKE fixes, per coordinator note)",
+  "mei:dl-runpath-2-startup (rc 124: timeout at test 140 of 6993 on a saturated host, older head)",
+  "mei:dl-runpath-2-startup2 (older head; same single known HEAP-GAP failure)"
+ ]
+}

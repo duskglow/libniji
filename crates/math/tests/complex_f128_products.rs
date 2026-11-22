@@ -40,6 +40,10 @@ mod verdict_programs;
 mod shard;
 use shard::Tally;
 
+#[path = "support/oracle_values.rs"]
+mod oracle_values;
+use oracle_values::Query;
+
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -124,6 +128,18 @@ fn cr(func: &str, fmt: Fmt, mode: Round, ops: &[Big], j: usize) -> Option<(u128,
     Some((v, r, exact_zero))
 }
 
+/// The oracle's answer to a value-cache query: `cr` (see [`cr`]) or `hi`, the accuracy tally's
+/// reference value of the part (`oracle_values::tally_value`).
+fn eval(q: &Query) -> Option<String> {
+    let (fmt, base) = format_of(&q.func);
+    let ops: Vec<Big> = q.ops.iter().map(|b| Big::from_bits(fmt, *b)).collect();
+    match q.kind.as_str() {
+        "cr" => cr(base, fmt, round_of(q.mode), &ops, q.part).map(|v| oracle_values::enc_cr(&v)),
+        "hi" => oracle_values::tally_value(fmt.prec, |p| part(base, &ops, q.part, p)).ok().map(|b| b.to_hex()),
+        _ => None,
+    }
+}
+
 /// The constants a special value's finite part can be: `k·π/4` and `k·π/(4 ln 10)`.
 fn constant(k: u32, ten: bool, neg: bool, p: u32) -> Approx {
     let w = p + 16;
@@ -189,10 +205,14 @@ fn complex_f128_functions(k: usize) {
     let Some(verdict) = verdict::Key::new(&format!("{}.s{k}", env!("CARGO_CRATE_NAME"))).shard(k, shard::SHARDS).file(&host).file(&ours).loaded_by(&host).begin() else {
         return;
     };
-    let run = |exe: &Path| String::from_utf8(Command::new(exe).env_clear().output().unwrap().stdout).unwrap();
-    let (want_text, got_text) = (run(&host), run(&ours));
+    // Both programs run once per test run, every shard reads their outputs (MATH-ORACLE-PROFILE).
+    let outputs = verdict::Key::new(&format!("{}.outputs", env!("CARGO_CRATE_NAME"))).file(&host).file(&ours).loaded_by(&host);
+    let [want_text, got_text]: [String; 2] = verdict_programs::shared_outputs(env!("CARGO_CRATE_NAME"), &outputs, &[&host, &ours], &dir.join("outputs")).try_into().unwrap();
     let t_oracle = t0.elapsed();
     let id = shard::run_id(&want_text, &got_text);
+    // The oracle's values of earlier runs, when the oracle has not changed (D-10.131).
+    let vname = format!("{}.s{k}", env!("CARGO_CRATE_NAME"));
+    let mut values = oracle_values::Values::open(&vname, concat!(env!("CARGO_MANIFEST_DIR"), "/tests/complex_f128_products.rs"), eval);
     let (want, got): (Vec<&str>, Vec<&str>) = (want_text.lines().collect(), got_text.lines().collect());
     assert_eq!(want.len(), got.len());
     assert!(want.len() > 70_000,"the reference printed only {} lines", want.len());
@@ -250,7 +270,7 @@ fn complex_f128_functions(k: usize) {
         let mut zeros = [false, false];
         let mut undecided = false;
         for (j, (&rw, &rg)) in lw.res.iter().zip(&lg.res).enumerate() {
-            let Some((c, rd, exact_zero)) = cr(base, fmt, mode, &ops, j) else {
+            let Some((c, rd, exact_zero)) = values.get(&Query::new("cr", lw.func, lw.mode, &lw.ops, j)).and_then(|s| oracle_values::dec_cr(&s)) else {
                 errors.push(format!("oracle undecided, part {j}: {w}"));
                 undecided = true;
                 continue;
@@ -267,14 +287,14 @@ fn complex_f128_functions(k: usize) {
             all_cr.1 &= if exact_zero { zero(rw) } else { rw == c };
             if random && !exact_zero && Big::from_bits(fmt, c).is_finite() {
                 let t = tally.entry(lw.func.to_string()).or_default();
-                let hi = part(base, &ops, j, 2 * fmt.prec + 40);
-                let u = mp::ulp_error(fmt, rw, &hi.value);
+                let hi = values.get(&Query::new("hi", lw.func, lw.mode, &lw.ops, j)).and_then(|s| Big::parse(&s)).unwrap_or_else(|| oracle_values::tally_value(fmt.prec, |p| part(base, &ops, j, p)).unwrap_or_else(|a| a));
+                let u = mp::ulp_error(fmt, rw, &hi);
                 if u.is_finite() {
                     t.glibc_max_ulp = t.glibc_max_ulp.max(u);
                 } else {
                     t.glibc_infinite += 1;
                 }
-                t.niji_max_ulp = t.niji_max_ulp.max(mp::ulp_error(fmt, rg, &hi.value));
+                t.niji_max_ulp = t.niji_max_ulp.max(mp::ulp_error(fmt, rg, &hi));
             }
         }
         if w != g {
@@ -308,6 +328,8 @@ fn complex_f128_functions(k: usize) {
             errors.push(format!("flags (want X={} U={} O={})\n  reference: {w}\n     niji: {g}", want_flags.0, want_flags.1, want_flags.2));
         }
     }
+    values.summary(&vname);
+    values.save();
     eprintln!("complex_f128 shard {k}: building and running the programs {:.1} s, checking {:.1} s", t_oracle.as_secs_f64(), (t0.elapsed() - t_oracle).as_secs_f64());
     shard::check_share("complex_f128", k, taken, want.len());
     eprintln!("{checked} lines of this shard differ from the reference; each checked");

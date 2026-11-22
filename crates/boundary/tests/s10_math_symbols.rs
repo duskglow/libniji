@@ -13,6 +13,8 @@
 
 use spectest::{family, symbol};
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 #[path = "../../math/tests/support/hypot_pairs.rs"]
 mod hypot_pairs;

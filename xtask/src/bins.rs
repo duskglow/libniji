@@ -17,7 +17,7 @@
 //! the residual fill. [`Plan::bound`] is a lower bound per mode (its bytes over [`BIN`], rounded up), so
 //! the plan's distance from optimal is printed, not assumed.
 //!
-//! LAYOUT-WINDOW-BINS-5: the last bin is filled to its boundary too, and the start file ends the group there
+//! LAYOUT-WINDOW-BINS-5: the last bin is filled to its boundary too, and libc.a's static anchor ends the group there
 //! ([`GROUP_END`]), so a program's own text after the group (the probe's `main`, compiled into `.text`)
 //! starts on a window boundary instead of wherever the last bin happens to end: a `main` across that
 //! boundary cost every mode a second fault for it (start-up 12 against 11, fast products).
@@ -27,6 +27,9 @@
 //! ([`counted`]) and charges a phase mode nothing in a bin its warm-up runs in, so the measured phase's
 //! sections join the bins the warm-up faulted when they have room. (Placing them there ahead of their
 //! turn was tried in LAYOUT-WINDOW-BINS-4: it pushed start-up and printf text out of the head bins.)
+//! HEAP-ADDRESS-SPACE-6: a group only measured phases count never joins the head bin, which can lie
+//! across two windows ([`head_may_take`]). A group that counts a measured phase besides other modes
+//! prefers a later bin to the head bin at equal cost ([`head_takes`], CRT-START-FILES-2), for the same reason.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -148,7 +151,7 @@ pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
     format!(".text.sorted.h9{bin:02}{}{place:05}.{f}", u8::from(filler))
 }
 
-/// The empty, [`BIN`]-aligned section the start file (`csys/src/machine/entry.S`) carries to end the
+/// The empty, [`BIN`]-aligned section libc.a's static anchor (`csys/src/machine/entry.S`) carries to end the
 /// group (LAYOUT-WINDOW-BINS-5): its name sorts after every [`section`] name (`z` after any digit), so GNU
 /// ld places it after the last bin and starts the program's own `.text` on the next window boundary.
 pub const GROUP_END: &str = ".text.sorted.h9z.niji_group_end";
@@ -178,6 +181,21 @@ fn added(sig: &BTreeSet<String>, modes: &BTreeSet<String>) -> usize {
     sig.difference(modes).count()
 }
 
+/// The phase modes of `items`: the modes whose warm-up ([`WARM_UP`]) some signature holds.
+fn phases(items: &[Item]) -> BTreeSet<String> {
+    items.iter().flat_map(|it| it.sig.iter()).filter_map(|m| m.strip_suffix(WARM_UP)).map(String::from).collect()
+}
+
+/// HEAP-ADDRESS-SPACE-6: whether a group of counted signature `sig` may join the head bin. Not when only
+/// measured phases count it (its sections first run inside a zero-fault measurement): the head bin is not
+/// anchored ([`HEAD_ANCHOR`]), so a program with more than [`HEAD_ROOM`] ahead of the group puts the
+/// head bin's tail, where such late sections sort, alone in a second window that nothing faulted before
+/// the phase (`page_faults` rebind with a 0x800 pad: 1 fault). A later bin starts on a boundary, so the
+/// warm-up's fault there covers them whatever precedes the group.
+fn head_may_take(sig: &BTreeSet<String>, phases: &BTreeSet<String>) -> bool {
+    sig.is_empty() || !sig.is_subset(phases)
+}
+
 /// Whether bin `n` can take the sections `rest` besides its members.
 fn fits(items: &[Item], b: &Bin, n: usize, rest: &[usize]) -> bool {
     extent(items, &[b.members.as_slice(), rest].concat()) <= capacity(n)
@@ -191,15 +209,32 @@ fn join(items: &[Item], b: &mut Bin, rest: &mut Vec<usize>) {
     b.members.append(rest);
 }
 
+/// Whether a group of counted signature `sig` takes the head bin on a tie: not when it counts a phase mode
+/// (one of `phases`, a mode with a warm-up). The head bin is the one bin that does not start on a window
+/// boundary ([`HEAD_ANCHOR`]): text a program or its start file links ahead of the group beyond
+/// [`HEAD_ROOM`] pushes a suffix of the head bin into a window of its own, and the next bin moves to the
+/// boundary after it. A section of that suffix the warm-up runs faults the window before the phase; a
+/// section only the measured phase runs, with no warm-up section after it in the bin, is the phase's first
+/// touch there: one fault the plan does not show (CRT-START-FILES-2: a start file padded by 0x800 bytes,
+/// rebind 1 fault from its 6 measured-only sections at the end of the head bin). In any later bin the
+/// warm-up's windows stay the phase's, so such a group goes to a later bin that charges it no more modes
+/// than the head bin; the plan's cost per mode is the same either way. A group only measured phases count
+/// never gets that far ([`head_may_take`]); this tie-break covers the groups other modes count too.
+fn head_takes(sig: &BTreeSet<String>, phases: &BTreeSet<String>) -> bool {
+    sig.is_disjoint(phases)
+}
+
 /// Places the group `rest` of counted signature `sig`: whole into the existing bin it charges the fewest
-/// modes (the first such), or else into fresh bins, the longest prefix (list order) that fits each.
-fn put(items: &[Item], bins: &mut Vec<Bin>, sig: &BTreeSet<String>, mut rest: Vec<usize>) {
+/// modes (the first such; a later bin before the head bin unless `tie`, [`head_takes`]), or else into
+/// fresh bins, the longest prefix (list order) that fits each. The head bin only when `head`
+/// ([`head_may_take`]).
+fn put(items: &[Item], bins: &mut Vec<Bin>, sig: &BTreeSet<String>, head: bool, tie: bool, mut rest: Vec<usize>) {
     while !rest.is_empty() {
         let best = bins
             .iter()
             .enumerate()
-            .filter(|(n, b)| fits(items, b, *n, &rest))
-            .min_by_key(|(n, b)| (added(sig, &b.modes), *n))
+            .filter(|(n, b)| (head || *n > 0) && fits(items, b, *n, &rest))
+            .min_by_key(|(n, b)| (added(sig, &b.modes), !tie && *n == 0, *n))
             .map(|(n, _)| n);
         if let Some(n) = best {
             join(items, &mut bins[n], &mut rest);
@@ -239,9 +274,11 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
         })
         .collect();
     order.sort_by_key(|(s, v)| (!s.contains(STARTUP_MODE), Reverse(s.len()), items[v[0]].pos));
+    let phases = phases(items);
     let mut bins: Vec<Bin> = Vec::new();
     for (sig, rest) in order {
-        put(items, &mut bins, &sig, rest);
+        let (head, tie) = (head_may_take(&sig, &phases), head_takes(&sig, &phases));
+        put(items, &mut bins, &sig, head, tie, rest);
     }
     for b in &mut bins {
         b.members.sort_by_key(|&i| (items[i].pos, i));
@@ -557,12 +594,38 @@ mod tests {
     }
 
     #[test]
+    fn a_section_a_measured_phase_counts_prefers_a_later_bin_on_a_tie() {
+        // CRT-START-FILES-2 (no spec clause: build tooling, D-X.144): the head bin does not start on a
+        // window boundary, so text ahead of the group beyond HEAD_ROOM pushes its tail into a window of its
+        // own. Section `p`, which phase `s` and mode `c` count and which the head bin and bin 1 (where
+        // `s.pre` runs `b`) would both take at no cost, goes to bin 1; `v` (`true` and `s`) and `q` (`e` and
+        // `s`), which only the head bin takes at no cost, stay there: the tie-break never outweighs a mode
+        // (no mode's windows change). Read as whole-process traces (no warm-ups), `s` is no phase mode and
+        // `p` takes the first bin, the head bin.
+        let items = [
+            item("t", 0x8000, 1, 0, &["true", "c", "e", "s", "s.pre"]),
+            item("b", 0x9000, 1, 1, &["c", "d", "s", "s.pre"]),
+            item("p", 0x100, 1, 2, &["c", "s"]),
+            item("v", 0x100, 1, 3, &["true", "s"]),
+            item("q", 0x100, 1, 4, &["e", "s"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["t", "v", "q"], vec!["b", "p"]]);
+        let w = p.windows();
+        assert_eq!((w["s"], w["c"], w["d"], w["e"], w["true"]), (0, 2, 1, 1, 1), "{w:?}");
+        let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| !m.ends_with(".pre")).cloned().collect(), ..it.clone() }).collect();
+        assert_eq!(names(&plan(&plain, &[]), &plain), [vec!["t", "p", "v", "q"], vec!["b"]]);
+    }
+
+    #[test]
     fn a_measured_phase_shares_its_warm_up_windows() {
         // LAYOUT-WINDOW-BINS-4 (no spec clause: build tooling, D-X.103): phase mode `s` counts only what
         // runs after its warm-up (`s.pre`). The warm-up's own section `r` is measured by no mode, so it
-        // waits; the phase's section `p` joins the head bin, which the warm-up (start-up) runs in, and
-        // `s` is charged no window. Read as whole-process traces (no `s.pre`), `r` and `p` are one group
-        // of `s` that no longer fits the head bin: two windows for `s`.
+        // waits; the phase's section `p` joins a bin the warm-up runs in, and `s` is charged no window.
+        // HEAP-ADDRESS-SPACE-6: not the head bin, though `p` fits there: only the phase counts `p`, and the
+        // head bin's tail is alone in a second window when more than HEAD_ROOM precedes the group, so `p`
+        // opens bin 1, where the warm-up's section `r` joins it. Read as whole-process traces (no `s.pre`),
+        // `r` and `p` are one group of `s` that no longer fits the head bin: two windows for `s`.
         let items = [
             item("t", 0x8000, 1, 0, &["true", "a", "s", "s.pre"]),
             item("r", 0x7000, 1, 1, &["s", "s.pre"]),
@@ -570,9 +633,12 @@ mod tests {
             item("w", 0x6000, 1, 3, &["a"]),
         ];
         let p = plan(&items, &[]);
-        assert_eq!(names(&p, &items), [vec!["t", "p"], vec!["r", "w"]]);
+        assert_eq!(names(&p, &items), [vec!["t", "w"], vec!["r", "p"]]);
         let w = p.windows();
-        assert_eq!((w["s"], w["a"], w["true"]), (0, 2, 1), "{w:?}");
+        assert_eq!((w["s"], w["a"], w["true"]), (0, 1, 1), "{w:?}");
+        // A group a non-phase mode counts too still joins the head bin when it fits.
+        let mixed: Vec<Item> = items.iter().map(|it| if it.name == "p" { item("p", 0x2000, 1, 2, &["s", "a"]) } else { it.clone() }).collect();
+        assert_eq!(names(&plan(&mixed, &[]), &mixed)[0], ["t", "p"]);
         assert!(!w.contains_key("s.pre"), "a warm-up mode is not charged");
         assert_eq!(Plan::bound(&items)["s"], 0);
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| *m != "s.pre").cloned().collect(), ..it.clone() }).collect();

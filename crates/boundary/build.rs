@@ -71,7 +71,8 @@ fn main() {
     // test executables link next to the host's own start files.
     // The compat versions' `.symver` stubs belong to libc.so.6 alone (`cargo xtask so`, LG-1,
     // R15-2): a static link cannot bind a non-default version.
-    srcs.retain(|p| !matches!(p.file_name().and_then(|n| n.to_str()), Some("entry.S" | "compat_aliases.S")));
+    // The interpreter's names for tools (`strcmp`, VALGRIND-LDSO-SYMBOLS) belong to ld.so's link alone.
+    srcs.retain(|p| !matches!(p.file_name().and_then(|n| n.to_str()), Some("entry.S" | "compat_aliases.S" | "ld_names.S")));
     let mut objs = Vec::new();
     for (i, src) in srcs.iter().enumerate() {
         // The math forwarders call Rust functions that exist only in the products that own
@@ -80,6 +81,9 @@ fn main() {
             Some("math_libc.c") => export,
             Some("math_both.c") => export || libm,
             Some("math_libm.c" | "libm_init.c") => libm,
+            // The C library product takes its unwinder entries from `cargo xtask so`: a form that
+            // returns 0 for libc.so.6, weak references for libc.a (D-22.21).
+            Some("unwinder.S") => !runtime,
             _ => true,
         };
         let obj = out.join(format!("csys_{i}.o"));

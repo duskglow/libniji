@@ -24,6 +24,7 @@ use niji_boundary::posix::s12_stdio as x;
 use niji_boundary::posix::s20_signals as sg;
 use niji_boundary::sys::CSys;
 use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
 use niji_legacy::signal_compat::CSigaction;
 
@@ -46,13 +47,17 @@ struct Hook {
     ipos: usize,
     calls: usize,
     closed: bool,
+    /// The seek hook fails with this `errno` when set; otherwise it moves `ipos`.
+    seek_errno: Option<i32>,
+    /// How many times the seek hook was called.
+    seeks: usize,
 }
 
 static HOOKS: Mutex<Vec<Hook>> = Mutex::new(Vec::new());
 
 fn hook(script: &[i64], input: &[u8]) -> usize {
     let mut v = HOOKS.lock().unwrap();
-    v.push(Hook { script: script.to_vec(), i: 0, out: Vec::new(), input: input.to_vec(), ipos: 0, calls: 0, closed: false });
+    v.push(Hook { script: script.to_vec(), i: 0, out: Vec::new(), input: input.to_vec(), ipos: 0, calls: 0, closed: false, seek_errno: None, seeks: 0 });
     v.len()
 }
 
@@ -704,4 +709,133 @@ fn fflush_on_a_full_pipe() {
     assert!(CSys.read(r, &mut b).is_err(), "nothing more arrives: the buffered line is gone");
     let _ = CSys.close(r);
     x::fclose(fp);
+}
+
+// ---------------------------------------------------------------- the seek hook at close and flush
+//
+// GitHub #20 (FCLOSE-COOKIE-SEEK). Probed on the reference library (cookie streams whose seek
+// hook works, fails with ESPIPE or EINVAL; a pipe; a regular file through a dup'ed descriptor):
+// `fclose` of a reading cookie stream calls no seek hook and returns 0; `fflush` gives the
+// read-ahead back through the hook, tolerates ESPIPE, reports another errno with EOF, and in
+// both failures keeps the read-ahead. (A failed `fflush` sets the error indicator, as
+// s12_4_f_0 and POSIX `fflush` say.)
+
+const ESPIPE: i32 = 29;
+const EINVAL: i32 = 22;
+
+/// The seek hook: counts its calls; fails with the hook's `seek_errno` when set.
+extern "C" fn h_seek(id: usize, pos: Option<&mut i64>, whence: c_int) -> c_int {
+    with(id, |c| {
+        c.seeks += 1;
+        if let Some(e) = c.seek_errno {
+            errno::set_raw(e);
+            return -1;
+        }
+        let Some(p) = pos else { return -1 };
+        let base = match whence {
+            0 => 0,
+            1 => c.ipos as i64,
+            _ => c.input.len() as i64,
+        };
+        if base + *p < 0 {
+            errno::set_raw(EINVAL);
+            return -1;
+        }
+        c.ipos = (base + *p) as usize;
+        *p = c.ipos as i64;
+        0
+    })
+}
+
+/// 100 bytes `a..z` repeated: byte `i` is `b'a' + i % 26`.
+fn alphabet() -> Vec<u8> {
+    (0..100u8).map(|i| b'a' + i % 26).collect()
+}
+
+/// A cookie stream over [`alphabet`] with a seek hook failing with `seek_errno` (if set).
+fn seeker(seek_errno: Option<i32>, mode: &str) -> (usize, *mut FILE) {
+    let id = hook(&[], &alphabet());
+    with(id, |c| c.seek_errno = seek_errno);
+    let f = cookie_io_functions_t {
+        read: h_read as *const () as usize,
+        write: h_write as *const () as usize,
+        seek: h_seek as *const () as usize,
+        close: h_close as *const () as usize,
+    };
+    let m = CString::new(mode).unwrap();
+    let fp = x::fopencookie(without_provenance_mut(id), m.as_ptr(), f);
+    assert!(!fp.is_null());
+    (id, fp)
+}
+
+/// s12_2_c_4, s12_3_c_3: closing a reading cookie stream calls no seek hook and succeeds,
+/// whether the hook works or fails (ESPIPE: the issue's reproducer; EINVAL), after a partial read
+/// or a read to the end, opened `r` or `r+`.
+#[test]
+fn cookie_close_after_read_calls_no_seek_hook() {
+    for seek_errno in [None, Some(ESPIPE), Some(EINVAL)] {
+        for mode in ["r", "r+"] {
+            for to_end in [false, true] {
+                let what = format!("seek hook {seek_errno:?}, mode {mode}, read to end {to_end}");
+                let (id, fp) = seeker(seek_errno, mode);
+                assert_eq!(read(fp, 10), &alphabet()[..10], "{what}: read");
+                if to_end {
+                    assert_eq!(read(fp, 200).len(), 90, "{what}: rest");
+                }
+                errno::set_raw(0);
+                assert_eq!(x::fclose(fp), 0, "{what}: fclose, errno {}", errno::get());
+                assert_eq!(with(id, |c| (c.seeks, c.closed)), (0, true), "{what}: seek calls, close hook");
+            }
+        }
+    }
+}
+
+/// s12_4_c_3_2, s12_4_f_0, s12_3_c_3: `fflush` of a reading cookie stream gives the read-ahead
+/// back through the seek hook. ESPIPE: 0, `ferror` clear. Another errno: EOF with the hook's
+/// errno and `ferror` set. Either failure keeps the read-ahead (the next byte is the 11th);
+/// `ftell` reports the hook's errno.
+#[test]
+fn cookie_flush_of_read_ahead_reports_the_seek_hooks_errno() {
+    for (seek_errno, flushed) in [(None, 0), (Some(ESPIPE), 0), (Some(EINVAL), EOF)] {
+        let what = format!("seek hook {seek_errno:?}");
+        let (id, fp) = seeker(seek_errno, "r");
+        assert_eq!(read(fp, 10).len(), 10, "{what}: read");
+        errno::set_raw(0);
+        let r = x::fflush(fp);
+        let e = errno::get();
+        assert_eq!(r, flushed, "{what}: fflush, errno {e}");
+        if r == EOF {
+            assert_eq!(Some(e), seek_errno, "{what}: fflush errno");
+        }
+        assert_eq!(with(id, |c| c.seeks), 1, "{what}: one give-back seek");
+        assert_eq!(err(fp), r == EOF, "{what}: ferror after fflush");
+        if seek_errno.is_none() {
+            assert_eq!(with(id, |c| c.ipos), 10, "{what}: the hook is back at the stream's position");
+        }
+        assert_eq!(x::fgetc(fp), c_int::from(b'k'), "{what}: the 11th byte comes next");
+        if let Some(want) = seek_errno {
+            errno::set_raw(0);
+            assert_eq!(x::ftell(fp), -1, "{what}: ftell");
+            assert_eq!(errno::get(), want, "{what}: ftell errno");
+        }
+        assert_eq!(x::fclose(fp), 0, "{what}: fclose");
+    }
+}
+
+/// s12_2_c_4, s12_4_c_3_2, POSIX `fclose`: closing a reading stream on a seekable descriptor still
+/// gives the read-ahead back, so a duplicate of the descriptor continues at the stream's position
+/// (a memfd: no file system involved).
+#[test]
+fn descriptor_close_after_partial_read_gives_read_ahead_back() {
+    let name = CString::new("fclose-give-back").unwrap();
+    let fd = CSys.memfd_create(KStr::from_nul_terminated(name.as_bytes_with_nul()).unwrap(), 1).unwrap();
+    assert_eq!(CSys.write(fd, &alphabet()), Ok(100));
+    assert_eq!(CSys.lseek(fd, 0, 0), Ok(0));
+    let keep = CSys.dup(fd).unwrap();
+    let fp = x::fdopen(fd.raw(), CString::new("r").unwrap().as_ptr());
+    assert!(!fp.is_null());
+    assert_eq!(read(fp, 10).len(), 10);
+    assert_eq!(x::fclose(fp), 0);
+    assert_eq!(CSys.lseek(keep, 0, 1), Ok(10), "the descriptor is at the stream's position");
+    let _ = CSys.close(keep);
 }

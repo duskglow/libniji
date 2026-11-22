@@ -1,0 +1,9 @@
+# Plants of slice 16 (cargo xtask plants; docs/plants.md). The templates, the generator and the table rows of the slice's
+# headers are checked by `headers-gen --check` (the committed libc-include/ must equal the regenerated output).
+# spec/tools/header_check.py (P1, P5) is not a plant command here: it does not pass yet (handoff/SL-HEADERS-S16.md).
+s16-rtld-next | headers/dlfcn.h.in | lit:((void *) -1l) ==> ((void *) -2l) | cargo xtask headers-gen --check | msg:headers-gen
+s16-elfw-class | headers/link.h.in | lit:Elf64_##type ==> Elf32_##type | cargo xtask headers-gen --check | msg:headers-gen
+s16-soname-case | xtask/src/headers.rs | lit:.to_uppercase().replace('-', "_"); ==> .to_lowercase().replace('-', "_"); | cargo xtask headers-gen --check | msg:headers-gen
+s16-audit-hook | xtask/src/headers.rs | lit:self.header == "link.h" && sym.starts_with("la_") ==> self.header == "link.h" && sym.starts_with("lb_") | cargo xtask headers-gen --check | msg:not exported at a default version
+s16-prof-offset | spec/abi/layouts.tsv | perl:s/(struct prof\t\t)32/${1}40/ | cargo xtask headers-gen --check | msg:headers-gen
+s16-elf-enum-width | xtask/src/headers.rs | lit:return Some("unsigned int".to_string()); ==> return Some("unsigned char".to_string()); | cargo xtask headers-gen --check | msg:headers-gen

@@ -4,7 +4,7 @@
 //! dlerror texts. The boundary driver (`crates/boundary/src/ld.rs`) opens, maps, relocates and runs.
 
 use crate::arch::Arch;
-use crate::elf::{et, Elf, ElfError};
+use crate::elf::{et, Dynamic, Elf, ElfError};
 use crate::map::{self, MapError};
 
 /// `RTLD_LAZY` (`<dlfcn.h>`). Bound eagerly, like `RTLD_NOW`, until DL-20 brings lazy binding.
@@ -135,7 +135,25 @@ pub enum Refusal {
     /// A `PT_TLS` block that does not fit in the static surplus (plan §5; dynamic blocks are
     /// DL-19's), or one that cannot have a place there (its alignment, no module slot left).
     StaticTls,
+    /// `PT_GNU_STACK` asks for an executable stack (R14-13; accepted only under COMPAT-19).
+    ExecutableStack,
 }
+
+/// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
+/// accept such an object.
+macro_rules! exec_stack_ways {
+    () => {
+        "to accept it, start the process with GLIBC_TUNABLES=niji.compat.execstack=1 (COMPAT-19; not honoured in a secure process); a system allowlist (/etc/niji/execstack.d) is planned"
+    };
+}
+
+/// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
+/// accept such an object.
+pub const EXEC_STACK_WAYS: &[u8] = exec_stack_ways!().as_bytes();
+
+/// A start-up dependency's executable-stack refusal, after the program and the object's path
+/// (`<prog>: error while loading shared libraries: <path>: `): the refusal and the ways in.
+const EXEC_STACK_AT_START: &[u8] = concat!("the object asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", exec_stack_ways!()).as_bytes();
 
 impl Refusal {
     /// The text after `<name>: ` (spec/behaviour/dynlink.md, "dlerror texts").
@@ -161,6 +179,7 @@ impl Refusal {
             Refusal::Directory => b"cannot read file data: Is a directory",
             Refusal::NoDynamic => b"object file has no dynamic section",
             Refusal::StaticTls => b"cannot allocate memory in static TLS block",
+            Refusal::ExecutableStack => b"the object asks for an executable stack (PT_GNU_STACK with PF_X); refused",
         }
     }
 
@@ -199,6 +218,7 @@ impl Refusal {
         match self {
             Refusal::Directory => (b"cannot read file data: Error 21", true),
             Refusal::Executable | Refusal::PieExecutable => (self.text(), false),
+            Refusal::ExecutableStack => (EXEC_STACK_AT_START, true),
             _ => (self.text(), true),
         }
     }
@@ -229,6 +249,7 @@ pub fn of_map_error(e: MapError) -> Refusal {
         MapError::Elf(e) => of_elf_error(e),
         MapError::NotLoadable => Refusal::Type,
         MapError::NoSegments => Refusal::NoSegments,
+        MapError::ExecutableStack => Refusal::ExecutableStack,
         _ => Refusal::Segments,
     }
 }
@@ -240,11 +261,60 @@ pub fn of_map_error(e: MapError) -> Refusal {
 ///
 /// The [`Refusal`].
 pub fn check<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
+    verdict::<A>(file, page).map(|c| c.elf)
+}
+
+/// What [`check_into`] read on the way to its verdict: the parsed file, its mapping plan and its
+/// dynamic section, for a caller that maps the file it checked ([`map::map_planned`]) without
+/// parsing and planning it again.
+#[derive(Clone, Copy, Debug)]
+pub struct Checked<'a> {
+    /// The file as [`Elf::parse`] read it.
+    pub elf: Elf<'a>,
+    /// [`map::plan`] of `elf`: an executable-stack request was refused, never accepted.
+    pub plan: map::Plan,
+    /// The dynamic section [`loadable`] required.
+    pub dynm: Dynamic<'a>,
+}
+
+/// [`check`], keeping what it read ([`Checked`]) in `out`: the same verdict in the same order;
+/// `out` is left as it was on a refusal. The record is written to the caller's slot rather than
+/// returned: a program-start search calls this a few frames deep, and a returned record was copied
+/// through each of them (one more stack page per start, D-27.71).
+///
+/// # Errors
+///
+/// The [`Refusal`].
+pub fn check_into<'a, A: Arch>(file: &'a [u8], page: u64, out: &mut Option<Checked<'a>>) -> Result<(), Refusal> {
+    *out = Some(verdict::<A>(file, page)?);
+    Ok(())
+}
+
+/// The verdict [`check`] and [`check_into`] give, with what it read.
+#[inline(always)]
+fn verdict<A: Arch>(file: &[u8], page: u64) -> Result<Checked<'_>, Refusal> {
     let elf = Elf::parse::<A>(file).map_err(of_elf_error)?;
     if elf.header().e_type == et::EXEC {
         return Err(Refusal::Executable);
     }
-    map::plan::<A>(&elf, page).map_err(of_map_error)?;
+    let plan = map::plan::<A>(&elf, page).map_err(of_map_error)?;
+    let dynm = loadable_dynamic(&elf)?;
+    Ok(Checked { elf, plan, dynm })
+}
+
+/// [`check`] for a candidate whose executable-stack request the caller has accepted (COMPAT-19):
+/// the same verdict in the same order, except that [`Refusal::ExecutableStack`] is never given.
+/// Only the caller's branch for that refusal reaches it.
+///
+/// # Errors
+///
+/// The [`Refusal`].
+pub fn check_accepting_exec_stack<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
+    let elf = Elf::parse::<A>(file).map_err(of_elf_error)?;
+    if elf.header().e_type == et::EXEC {
+        return Err(Refusal::Executable);
+    }
+    map::plan_accepting_exec_stack::<A>(&elf, page).map_err(of_map_error)?;
     loadable(&elf)?;
     Ok(elf)
 }
@@ -256,6 +326,11 @@ pub fn check<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
 ///
 /// The [`Refusal`].
 pub fn loadable(elf: &Elf<'_>) -> Result<(), Refusal> {
+    loadable_dynamic(elf).map(|_| ())
+}
+
+/// [`loadable`], giving the dynamic section it read.
+fn loadable_dynamic<'a>(elf: &Elf<'a>) -> Result<Dynamic<'a>, Refusal> {
     if elf.header().e_type == et::EXEC {
         return Err(Refusal::Executable);
     }
@@ -263,7 +338,7 @@ pub fn loadable(elf: &Elf<'_>) -> Result<(), Refusal> {
     if d.get(DT_FLAGS_1).is_some_and(|f| f & DF_1_PIE != 0) {
         return Err(Refusal::PieExecutable);
     }
-    Ok(())
+    Ok(d)
 }
 
 /// The open count after one more `dlopen` of an object opened `opens` times, and whether the object

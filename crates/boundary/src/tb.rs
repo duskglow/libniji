@@ -534,6 +534,19 @@ pub(crate) fn answers_at(p: *const niji::locale::view::Answers) -> &'static niji
     }
 }
 
+/// A spill chunk of the locale tables (`niji_legacy::global_locale`). Crate-private contract:
+/// `addr` and `len` are an address and length `global_locale` recorded for a chunk it leaked;
+/// chunks are never freed or moved.
+pub(crate) fn locale_slots_at(addr: usize, len: usize) -> &'static [niji_legacy::global_locale::Slot] {
+    // UNSAFE(slice): the contract above; every field of an entry is atomic, so shared access is
+    // sound while the module writes entries.
+    #[allow(unsafe_code)]
+    // SAFETY: a leaked slice of `len` entries that lives for the rest of the process.
+    unsafe {
+        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<niji_legacy::global_locale::Slot>(addr), len)
+    }
+}
+
 /// A loaded charmap (D-6.8). Crate-private contract: `addr` is an address
 /// `niji_legacy::global_locale` recorded for a charmap it leaked; such values are never freed
 /// or modified.

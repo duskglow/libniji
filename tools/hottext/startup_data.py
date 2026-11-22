@@ -17,7 +17,9 @@ already the union of the CPU classes, LT-4). The declared set is the data object
      ones (`objdump -d` prints the target as `# <addr> <sym>`) and the absolute ones (`$0x<addr>` or a bare
      `0x<addr>` displacement: the linker relaxes a GOT load of a static non-PIE link to `mov $<addr>, %reg`,
      so `environ`, `process::ARGC` and the CPU-classed words of csys/src/machine are reached that way);
-     every CPU class's path is in the text keys, so its data is declared on every host;
+     every CPU class's path is in the text keys, so its data is declared on every host; a `cmp` with an
+     absolute address reads nothing there and declares nothing (D-X.140: `fp == stdin` after the link relaxed
+     its GOT operand);
   2. the same operands of the probe program's own functions (the text symbols of <probe object>: `main`
      prints on `stderr`), the probe's own statics left out;
   3. one level of pointers: every aligned 8-byte word inside an object of 1 or 2 that holds the address of
@@ -139,6 +141,10 @@ def operand_targets(exe, ranges):
                 out.append(int(m.group(1), 16))
             # `   4ebcc3:\tmov    $0x866db0,%rax`: the instruction follows the address's tab.
             parts = insn.split("\t")
+            # LAYOUT-GOT-ORDER (D-X.140): a compare with an absolute address (`cmp $0x88b6f0,%rsi`, a GOT compare
+            # the link relaxed: `fp == stdin`) reads no memory at that address, so it declares no object.
+            if len(parts) >= 2 and parts[-1].split(None, 1)[:1] in (["cmp"], ["cmpq"], ["cmpl"]):
+                continue
             if len(parts) >= 2:
                 out.extend(int(t, 16) for t in ABSOLUTE.findall(parts[-1]))
     return out

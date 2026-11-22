@@ -161,8 +161,9 @@ pub fn version_script(plan: &Plan) -> String {
 const CFLAGS: [&str; 4] = ["-O2", "-fPIC", "-fno-builtin", "-fno-stack-protector"];
 
 /// Build `libmvec.so.1` (linked against `release/libm.so.6` and `release/libc.so.6`), check it,
-/// build `libmvec.a` and the `libmvec.so` link. One summary line.
-pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Result<String, String> {
+/// build `libmvec.a` and the `libmvec.so` link. One summary line. `cdebug`: the release profile's
+/// debug flags (`so::release_debug_cflags`), on both compiles.
+pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, cdebug: &[String]) -> Result<String, String> {
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
     let plan = crate::placeholders::plan(&table, SONAME)?;
@@ -175,6 +176,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
     crate::so::run(Command::new(cc)
         .args(["-shared", "-nostdlib"])
         .args(CFLAGS)
+        .args(cdebug)
         .args(["-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
         .arg(format!("-Wl,-soname,{SONAME}"))
         .arg(format!("-Wl,--version-script={}", map.display()))
@@ -198,7 +200,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
     let ac = work.join(format!("{ARCHIVE}.c"));
     let o = work.join("libmvec.o");
     fs::write(&ac, c_source(&plan, false)?).map_err(|e| e.to_string())?;
-    crate::so::run(Command::new(cc).arg("-c").args(CFLAGS).arg(&ac).arg("-o").arg(&o))?;
+    crate::so::run(Command::new(cc).arg("-c").args(CFLAGS).args(cdebug).arg(&ac).arg("-o").arg(&o))?;
     let adst = release.join(ARCHIVE);
     let atmp = crate::so::tmp_name(&adst);
     let _ = fs::remove_file(&atmp);

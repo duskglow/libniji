@@ -1,0 +1,11 @@
+id = "D-27.69"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "LDSO-PROGRAM-NO-CWD"
+date = "2026-11-21"
+tests = ["crates/ld/tests/search_cache.rs::program_find_cache_only", "crates/ld/tests/search_cache.rs::ldso_program_without_slash"]
+body = '''
+**`ld.so PROGRAM` finds a program name without `/` through the loader cache only, never the working directory (story LDSO-PROGRAM-NO-CWD; found by DL-NAME-PATH-2's probes).** libniji opened such a name relative to the working directory, so `ld.so prog` ran `./prog` without the caller writing the `/`, which the shell never does for a slash-free name. Black-box probes of the reference (recorded in spec/behaviour/dynlink.md, after "Loader exit status and messages") settle it: the name is looked up in the loader cache only (not the working directory, `LD_LIBRARY_PATH`, `--library-path`, `PATH` or a default directory); not found ends with `<name>: error while loading shared libraries: <name>: cannot open shared object file` and 127, for `--list` and `LD_TRACE_LOADED_OBJECTS` too; a listed name runs (or lists, or traces) the cache's file with `argv[0]` as given. libniji now does the same: `niji_ld::program::find` (pure) and one cold boundary function, `image.rs::program_file`, called from the `ld.so PROGRAM` and `--list` paths only (a kernel-started program never reaches it). A cache path that is not absolute is not used (loaded data is untrusted: a malformed cache cannot turn the lookup back into a working-directory open). The file's path names the program in later messages and gives its `$ORIGIN`. A name with `/` is unchanged. No difference from the reference, so no differences row or compat flag. Tests: `search_cache.rs` `program_find_cache_only`, `ldso_program_without_slash`.
+'''

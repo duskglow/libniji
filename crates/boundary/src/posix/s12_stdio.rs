@@ -515,37 +515,37 @@ pub extern "C" fn cuserid(s: *mut c_char) -> *mut c_char {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn fgetwc(fp: *mut FILE) -> wint_t {
-    ret::wint_or_weof(stdio::getwc(conv::addr(fp), Locking::Locked))
+    stdio::getwc_c(conv::addr(fp), Locking::Locked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getwc(fp: *mut FILE) -> wint_t {
-    ret::wint_or_weof(stdio::getwc(conv::addr(fp), Locking::Locked))
+    stdio::getwc_c(conv::addr(fp), Locking::Locked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn fgetwc_unlocked(fp: *mut FILE) -> wint_t {
-    ret::wint_or_weof(stdio::getwc(conv::addr(fp), Locking::Unlocked))
+    stdio::getwc_c(conv::addr(fp), Locking::Unlocked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getwc_unlocked(fp: *mut FILE) -> wint_t {
-    ret::wint_or_weof(stdio::getwc(conv::addr(fp), Locking::Unlocked))
+    stdio::getwc_c(conv::addr(fp), Locking::Unlocked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getwchar() -> wint_t {
-    ret::wint_or_weof(stdio::getwc(stdio::stdin(), Locking::Locked))
+    stdio::getwc_c(stdio::stdin(), Locking::Locked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getwchar_unlocked() -> wint_t {
-    ret::wint_or_weof(stdio::getwc(stdio::stdin(), Locking::Unlocked))
+    stdio::getwc_c(stdio::stdin(), Locking::Unlocked)
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn __wuflow(fp: *mut FILE) -> wint_t {
-    ret::wint_or_weof(stdio::getwc(conv::addr(fp), Locking::Unlocked))
+    stdio::getwc_c(conv::addr(fp), Locking::Unlocked)
 }}
 
 export! { "GLIBC_2.2.5";

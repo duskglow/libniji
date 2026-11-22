@@ -28,12 +28,16 @@
 //!    native function with a safe use referenced at its node, none newer than the version's
 //!    `native_c_abi`. And the program: `DT_NEEDED` exactly the version's file and
 //!    `libc.so.6`, its references to native functions (if rustc inlined any into it) at their
-//!    nodes, `NIJI_RUST_ABI` referenced, no allocator of its own. The program is not run:
-//!    that needs libniji's dynamic loader (phase 14).
+//!    nodes, `NIJI_RUST_ABI` referenced, no allocator of its own. The program is then run
+//!    under libniji's `ld.so` (run as a program, the program its first argument; the program's
+//!    own interpreter is the host's) with `LD_LIBRARY_PATH` naming the version's directory and
+//!    `target/niji`, as `cargo xtask native` runs its examples: its standard output must be the
+//!    dynamic example's with the step `rust abi: built against <abi>, running with <abi>`
+//!    first, its standard error empty and its status 0.
 //! 7. Coexistence, for the current version: a synthetic variant `lr999-test` (the version's
 //!    tables renamed, `opt_level` changed, the hash recomputed; written to
 //!    `target/niji/rust-test/rust-abi.toml`) is built the same way into
-//!    `target/niji/rust-test/`, with its own program, and checked the same way. Both files
+//!    `target/niji/rust-test/`, with its own program, and checked and run the same way. Both files
 //!    are then placed side by side in `target/niji/rust-test/lib`: their sonames, notes and
 //!    strings must differ, and the only dynamic symbols both define may be `NIJI_RUST_ABI`
 //!    and the toolchain's own crates (`core`, `alloc`, `compiler_builtins`, the allocator
@@ -459,6 +463,32 @@ fn build(root: &Path, rustc: &str, def: &Def, dir: &Path, libc_so: &Path, nounwi
 
 // ------------------------------------------------------------------------------ checks
 
+/// Run `built`'s program as step 6 describes (`dir` holds its scratch directory); a summary.
+fn run_program(root: &Path, id: &str, built: &Built, dir: &Path) -> Result<String, String> {
+    let dynamic = crate::native_examples::expected("dynamic");
+    let steps = dynamic.lines().filter(|l| l.starts_with("ok ")).count().saturating_add(1);
+    let mut want = String::new();
+    for line in dynamic.lines() {
+        if line.starts_with("native example: ") && line.ends_with(" steps passed") {
+            want.push_str(&format!("native example: {steps} of {steps} steps passed\n"));
+            continue;
+        }
+        want.push_str(line);
+        want.push('\n');
+        if line == "native example: linkage dynamic" {
+            want.push_str(&format!("ok rust abi: built against {id}, running with {id}\n"));
+        }
+    }
+    let ld = root.join("target/niji/ld-linux-x86-64.so.2");
+    let path = format!("{}:{}", built.dir.display(), root.join("target/niji").display());
+    let launch = crate::native_examples::Launch { loader: Some(&ld), library_path: Some(&path) };
+    let errors = crate::native_examples::run_example(root, "native_rust_dylib", &built.program, dir, &want, launch)?;
+    if !errors.is_empty() {
+        return Err(format!("{id}: {}", errors.join("\n")));
+    }
+    Ok(format!("{id}: its program ran under libniji's ld.so ({steps} steps, output as expected)"))
+}
+
 /// `DT_NEEDED` entries and the soname.
 fn dynamic(path: &Path) -> Result<(Vec<String>, Option<String>), String> {
     let text = output(Command::new("readelf").arg("-dW").arg(path))?;
@@ -725,7 +755,7 @@ pub fn run_rust_dylib(root: &Path, which: Option<&str>) -> Result<(), String> {
     let rustc = pinned_rustc(root, def)?;
     check_toolchain(root, &rustc, def)?;
     let (_, libc_so, _) = crate::native_examples::products(root)?;
-    let (_, driver, nounwind) = crate::native_examples::link_helpers(root)?;
+    let (dir, driver, nounwind, _) = crate::native_examples::link_helpers(root)?;
 
     // The crate with feature `dylib` under clippy (the dylib's own root, and its program
     // checked against the rlib).
@@ -735,6 +765,7 @@ pub fn run_rust_dylib(root: &Path, which: Option<&str>) -> Result<(), String> {
     let built = build(root, &rustc, def, &root.join("target/niji/rust").join(&def.id), &libc_so, &nounwind, &driver)?;
     let line = check(root, def, &built)?;
     println!("rust-dylib: {line}");
+    println!("rust-dylib: {}", run_program(root, &def.id, &built, &dir)?);
 
     // Coexistence, with a synthetic second version.
     if def.string("status").is_ok_and(|s| s == "current") {
@@ -749,10 +780,11 @@ pub fn run_rust_dylib(root: &Path, which: Option<&str>) -> Result<(), String> {
         v.check(root)?;
         let vbuilt = build(root, &rustc, v, &test.join(VARIANT), &libc_so, &nounwind, &driver)?;
         println!("rust-dylib: {}", check(root, v, &vbuilt)?);
+        println!("rust-dylib: {}", run_program(root, &v.id, &vbuilt, &dir)?);
         println!("rust-dylib: {}", coexist(root, (def, &built), (v, &vbuilt), &test.join("lib"))?);
     }
     println!(
-        "rust-dylib: {} built with {} rustc commands into {}; its program is linked, not run: running it needs libniji's dynamic loader (phase 14), and the host's loader must never load libniji's libc.so.6",
+        "rust-dylib: {} built with {} rustc commands into {}; its program ran under libniji's ld.so (never the host's loader, which must not load libniji's libc.so.6)",
         def.id,
         built.commands,
         built.dir.strip_prefix(root).unwrap_or(&built.dir).display()

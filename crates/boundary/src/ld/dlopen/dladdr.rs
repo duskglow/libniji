@@ -16,18 +16,20 @@
 //! * **The symbol** (probe-settled): the defined dynamic symbol, not `STT_TLS` nor `SHN_ABS`, that
 //!   holds the address (`st_value <= addr < st_value + st_size`, or `addr == st_value` for size 0)
 //!   with the highest start; at equal starts the lowest symbol index. An IFUNC is reported by its
-//!   resolver's address (its `st_value`). None holds it: `dli_sname` and `dli_saddr` NULL.
+//!   resolver's address (its `st_value`). The program's canonical PLT entries (an undefined function
+//!   with a non-zero value, DL-CANONICAL-PLT) count as defined there: each holds only its own
+//!   address (size 0). None holds it: `dli_sname` and `dli_saddr` NULL.
 //! * **`dlinfo`** answers `RTLD_DI_LMID`, `LINKMAP`, `ORIGIN`, `SERINFO`, `SERINFOSIZE`,
 //!   `TLS_MODID`, `TLS_DATA` and `PHDR`; any other request is refused with the reference's text.
 //!   A handle must be a published link map (one comparison per object, never dereferenced).
 
 use super::dlsym::start_path;
-use super::{dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
+use super::{c_string, dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
 use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
 use niji_ld::elf::{dt, pt, Sym, SHN_UNDEF, STT_TLS};
 use niji_ld::search::{self, PathBuf, Scope};
-use niji_ld::symbols::Object;
+use niji_ld::symbols::{canonical_plt, Object};
 use niji_ld::tls::Placed;
 
 /// `dladdr1` flags (`<dlfcn.h>`).
@@ -91,7 +93,11 @@ fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
     let mut best: Option<(u32, Sym)> = None;
     for k in 0..tab.count()? {
         let Ok(s) = tab.get(k) else { break };
-        if s.shndx == SHN_UNDEF || s.shndx == SHN_ABS || s.kind() == STT_TLS {
+        // The program's canonical PLT entry is its function's address in the process, so it
+        // holds that address like a definition (probe-settled: only the entry's own address, its
+        // size being 0).
+        let canonical = s.shndx == SHN_UNDEF && syms.has_canonical_plt() && canonical_plt(&s);
+        if (s.shndx == SHN_UNDEF && !canonical) || s.shndx == SHN_ABS || s.kind() == STT_TLS {
             continue;
         }
         let start = bias.wrapping_add(s.value);
@@ -134,11 +140,11 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
             let (lo, hi) = v.range(i);
             lo <= addr && addr < hi
         })?;
-        let o = v.obj(i);
+        let o = v.obj(i)?;
         let at = |x: u64| usize::try_from(x).unwrap_or(0);
         let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
         let base = v.range(i).0 & !page.wrapping_sub(1);
-        let sym = containing(v.syms(i), o.bias, u64::try_from(addr).unwrap_or(0));
+        let sym = containing(v.syms(i)?, o.bias, u64::try_from(addr).unwrap_or(0));
         let (sname, saddr, entry) = match (sym, o.dynm.get(dt::STRTAB), o.dynm.get(dt::SYMTAB)) {
             (Some((k, s)), Some(strtab), Some(symtab)) => {
                 let table = at(o.bias.wrapping_add(symtab));
@@ -161,12 +167,15 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
 
 /// Object `i`'s search scope as a reader sees it: its `DT_RPATH`, `DT_RUNPATH` and `$ORIGIN`.
 fn scope_in(v: &View, i: usize) -> Scope<'static> {
-    let o = v.obj(i);
+    let Some(o) = v.obj(i) else { return Scope::default() };
     Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin: origin(v, i) }
 }
 
 /// The directory of object `i`'s path (`$ORIGIN`), `None` when its path is unknown.
 fn origin(v: &View, i: usize) -> Option<&'static [u8]> {
+    if i == 0 {
+        return v.program_origin();
+    }
     let (at, len) = v.path(i);
     if len == 0 {
         return None;
@@ -223,7 +232,7 @@ fn serinfo(v: &View, i: usize, arg: usize, fill: bool) {
 
 /// The run-time address of object `i`'s program header table and its entry count.
 fn phdr(v: &View, i: usize) -> (usize, usize) {
-    let o = v.obj(i);
+    let Some(o) = v.obj(i) else { return (0, 0) };
     let n = o.elf.program_headers().count();
     let at = |x: u64| usize::try_from(o.bias.wrapping_add(x)).unwrap_or(0);
     if let Some(p) = o.elf.find(pt::PHDR) {
@@ -238,7 +247,7 @@ fn phdr(v: &View, i: usize) -> (usize, usize) {
 /// static area is filled from (DL-15, DL-16d), the source `dl_iterate_phdr` reads too; `None`
 /// without `PT_TLS`.
 fn tls_place(v: &View, i: usize) -> Option<Placed> {
-    let o = v.obj(i);
+    let o = v.obj(i)?;
     let image = o.bias.wrapping_add(o.elf.find(pt::TLS)?.vaddr);
     super::super::initial_place(image)
 }
@@ -302,10 +311,31 @@ pub(super) fn keep_start_paths(l: &mut Loader) {
             continue;
         }
         let mut out = PathBuf::default();
-        if start_path(l, i, &mut out) {
+        // A link map the start named keeps the path the start found the object by (DL-NAME-PATH-2;
+        // its `$ORIGIN` came from the program's, which a search again may not know).
+        let linked = l.nodes[i].l_ld != 0 && l.nodes[i].l_name != 0 && c_string(l.nodes[i].l_name).contains(&b'/');
+        if (linked && out.push(c_string(l.nodes[i].l_name))) || start_path(l, i, &mut out) {
             if let Some(span) = l.keep(out.as_bytes()) {
                 l.nodes[i].path = span;
             }
         }
+        given_name(l, i);
+    }
+}
+
+/// Start-time object `i` without `DT_SONAME`: the bare `DT_NEEDED` name it was found by (its path
+/// ends in `/` and that name), which a bare `dlopen` name matches (DL-RUNPATH, probed).
+fn given_name(l: &mut Loader, i: usize) {
+    let total = l.n_start.min(CAP);
+    let Some(o) = l.objs_upto(total).get(i).copied() else { return };
+    let path = l.path(i);
+    if super::soname(&o).is_some() || path.is_empty() {
+        return;
+    }
+    let found = l.objs_upto(total).iter().flat_map(|q| q.dynm.needed().map_while(Result::ok)).find(|n| {
+        !n.contains(&b'/') && path.strip_suffix(*n).is_some_and(|d| d.ends_with(b"/"))
+    });
+    if let Some(name) = found {
+        l.objs.set(i, super::Obj { name, ..o });
     }
 }

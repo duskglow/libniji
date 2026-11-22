@@ -11,15 +11,10 @@
 //! offset, so bitfield offsets are not tested; the members after them are).
 //!
 //! Opaque members (inner layout not checked; declared from their table extent):
-//! * `siginfo_t__sifields__sigfault._bounds (union <anon>)`
-//! * `ucontext_t__fpregs_mem._st (struct _libc_fpxreg[8])`
-//! * `ucontext_t__fpregs_mem._xmm (struct _libc_xmmreg[16])`
-//! * `pthread_cond_t__data__wseq.__value32 (struct <anon>)`
-//! * `pthread_cond_t__data__g1_start.__value32 (struct <anon>)`
-//! * `__pthread_unwind_buf_t.__cancel_jmp_buf (struct __cancel_jmp_buf_tag[1])`
 //! * `struct___res_state.sort_list (struct <anon>[10])`
-//! * `Dl_serinfo__anon_16.dls_serpath (Dl_serpath[0])`
-//! * `Dl_serinfo__anon_16.__dls_serpath_pad (Dl_serpath[1])`
+//! * `La_x86_64_regs.__glibc_unused1 (__int128[4])`
+//! * `La_x86_64_retval.__glibc_unused1 (__int128)`
+//! * `La_x86_64_retval.__glibc_unused2 (__int128)`
 //! * `struct_argp.parser (argp_parser_t)`
 //! * `struct_rlimit64.rlim_cur (rlim64_t)`
 //! * `struct_rlimit64.rlim_max (rlim64_t)`
@@ -41,7 +36,7 @@
 //! * `Elf32_Ehdr.e_shstrndx (Elf32_Half)`
 //! * `Elf64_Ehdr.e_version (Elf64_Word)`
 //! * `Elf64_Ehdr.e_flags (Elf64_Word)`
-//! * `Elf32_Phdr.__p_type (Elf32_Word)`
+//! * `Elf32_Phdr.p_type (Elf32_Word)`
 //! * `Elf32_Phdr.p_offset (Elf32_Off)`
 //! * `Elf32_Phdr.p_vaddr (Elf32_Addr)`
 //! * `Elf32_Phdr.p_paddr (Elf32_Addr)`
@@ -49,7 +44,7 @@
 //! * `Elf32_Phdr.p_memsz (Elf32_Word)`
 //! * `Elf32_Phdr.p_flags (Elf32_Word)`
 //! * `Elf32_Phdr.p_align (Elf32_Word)`
-//! * `Elf64_Phdr.__p_type (Elf64_Word)`
+//! * `Elf64_Phdr.p_type (Elf64_Word)`
 //! * `Elf64_Phdr.p_flags (Elf64_Word)`
 //! * `Elf32_Shdr.sh_name (Elf32_Word)`
 //! * `Elf32_Shdr.sh_type (Elf32_Word)`
@@ -344,10 +339,24 @@ pub struct siginfo_t__sifields__kill {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub union siginfo_t__sifields__timer__si_sigval {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct siginfo_t__sifields__timer {
     pub si_tid: i32,
     pub si_overrun: i32,
-    pub si_sigval: union_sigval,
+    pub si_sigval: siginfo_t__sifields__timer__si_sigval,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union siginfo_t__sifields__rt__si_sigval {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
 }
 
 #[repr(C)]
@@ -355,7 +364,7 @@ pub struct siginfo_t__sifields__timer {
 pub struct siginfo_t__sifields__rt {
     pub si_pid: i32,
     pub si_uid: u32,
-    pub si_sigval: union_sigval,
+    pub si_sigval: siginfo_t__sifields__rt__si_sigval,
 }
 
 #[repr(C)]
@@ -370,10 +379,24 @@ pub struct siginfo_t__sifields__sigchld {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct siginfo_t__sifields__sigfault__bounds__addr_bnd {
+    pub _lower: usize,
+    pub _upper: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union siginfo_t__sifields__sigfault__bounds {
+    pub _addr_bnd: siginfo_t__sifields__sigfault__bounds__addr_bnd,
+    pub _pkey: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct siginfo_t__sifields__sigfault {
     pub si_addr: usize,
     pub si_addr_lsb: i16,
-    pub _bounds: [u64; 12],
+    pub _bounds: siginfo_t__sifields__sigfault__bounds,
 }
 
 #[repr(C)]
@@ -451,22 +474,6 @@ pub struct struct_sigstack {
     pub ss_onstack: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ucontext_t__fpregs_mem {
-    pub cwd: u16,
-    pub swd: u16,
-    pub ftw: u16,
-    pub fop: u16,
-    pub rip: u64,
-    pub rdp: u64,
-    pub mxcsr: u32,
-    pub mxcr_mask: u32,
-    pub _st: [u64; 16],
-    pub _xmm: [u64; 32],
-    pub __glibc_reserved1: [u32; 24],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct ucontext_t {
@@ -475,7 +482,7 @@ pub struct ucontext_t {
     pub uc_stack: stack_t,
     pub uc_mcontext: mcontext_t,
     pub uc_sigmask: sigset_t,
-    pub __fpregs_mem: ucontext_t__fpregs_mem,
+    pub __fpregs_mem: struct__libc_fpstate,
     pub __ssp: [u64; 4],
 }
 
@@ -536,30 +543,10 @@ pub union pthread_attr_t {
     pub __align: i64,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_mutex_t__data__list {
-    pub __prev: usize,
-    pub __next: usize,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_mutex_t__data {
-    pub __lock: i32,
-    pub __count: u32,
-    pub __owner: i32,
-    pub __nusers: u32,
-    pub __kind: i32,
-    pub __spins: i16,
-    pub __elision: i16,
-    pub __list: pthread_mutex_t__data__list,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_mutex_t {
-    pub __data: pthread_mutex_t__data,
+    pub __data: struct___pthread_mutex_s,
     pub __size: [i8; 40],
     pub __align: i64,
 }
@@ -571,36 +558,10 @@ pub union pthread_mutexattr_t {
     pub __align: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union pthread_cond_t__data__wseq {
-    pub __value64: u64,
-    pub __value32: [u64; 1],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union pthread_cond_t__data__g1_start {
-    pub __value64: u64,
-    pub __value32: [u64; 1],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_cond_t__data {
-    pub __wseq: pthread_cond_t__data__wseq,
-    pub __g1_start: pthread_cond_t__data__g1_start,
-    pub __g_refs: [u32; 2],
-    pub __g_size: [u32; 2],
-    pub __g1_orig_size: u32,
-    pub __wrefs: u32,
-    pub __g_signals: [u32; 2],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_cond_t {
-    pub __data: pthread_cond_t__data,
+    pub __data: struct___pthread_cond_s,
     pub __size: [i8; 48],
     pub __align: i64,
 }
@@ -612,27 +573,10 @@ pub union pthread_condattr_t {
     pub __align: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_rwlock_t__data {
-    pub __readers: u32,
-    pub __writers: u32,
-    pub __wrphase_futex: u32,
-    pub __writers_futex: u32,
-    pub __pad3: u32,
-    pub __pad4: u32,
-    pub __cur_writer: i32,
-    pub __shared: i32,
-    pub __rwelision: i8,
-    pub __pad1: [u8; 7],
-    pub __pad2: u64,
-    pub __flags: u32,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_rwlock_t {
-    pub __data: pthread_rwlock_t__data,
+    pub __data: struct___pthread_rwlock_arch_t,
     pub __size: [i8; 56],
     pub __align: i64,
 }
@@ -682,8 +626,230 @@ pub struct struct__pthread_cleanup_buffer {
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct __pthread_unwind_buf_t {
-    pub __cancel_jmp_buf: [u64; 9],
+    pub __cancel_jmp_buf: [struct___cancel_jmp_buf_tag; 1],
     pub __pad: [usize; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___cancel_jmp_buf_tag {
+    pub __cancel_jmp_buf: [i64; 8],
+    pub __mask_was_saved: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union sigevent_t__sigev_value {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct sigevent_t__sigev_un__sigev_thread {
+    pub _function: usize,
+    pub _attribute: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union sigevent_t__sigev_un {
+    pub _pad: [i32; 12],
+    pub _tid: i32,
+    pub _sigev_thread: sigevent_t__sigev_un__sigev_thread,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct sigevent_t {
+    pub sigev_value: sigevent_t__sigev_value,
+    pub sigev_signo: i32,
+    pub sigev_notify: i32,
+    pub _sigev_un: sigevent_t__sigev_un,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_sigcontext__anon_184 {
+    pub fpstate: usize,
+    pub __fpstate_word: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_sigcontext {
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rbp: u64,
+    pub rbx: u64,
+    pub rdx: u64,
+    pub rax: u64,
+    pub rcx: u64,
+    pub rsp: u64,
+    pub rip: u64,
+    pub eflags: u64,
+    pub cs: u16,
+    pub gs: u16,
+    pub fs: u16,
+    pub __pad0: u16,
+    pub err: u64,
+    pub trapno: u64,
+    pub oldmask: u64,
+    pub cr2: u64,
+    pub __anon_184: struct_sigcontext__anon_184,
+    pub __reserved1: [u64; 8],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__fpstate {
+    pub cwd: u16,
+    pub swd: u16,
+    pub ftw: u16,
+    pub fop: u16,
+    pub rip: u64,
+    pub rdp: u64,
+    pub mxcsr: u32,
+    pub mxcr_mask: u32,
+    pub _st: [struct__fpxreg; 8],
+    pub _xmm: [struct__xmmreg; 16],
+    pub __glibc_reserved1: [u32; 24],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct__fpxreg {
+    pub significand: [u16; 4],
+    pub exponent: u16,
+    pub __glibc_reserved1: [u16; 3],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct__xmmreg {
+    pub element: [u32; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_fpstate {
+    pub cwd: u16,
+    pub swd: u16,
+    pub ftw: u16,
+    pub fop: u16,
+    pub rip: u64,
+    pub rdp: u64,
+    pub mxcsr: u32,
+    pub mxcr_mask: u32,
+    pub _st: [struct__libc_fpxreg; 8],
+    pub _xmm: [struct__libc_xmmreg; 16],
+    pub __glibc_reserved1: [u32; 24],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_fpxreg {
+    pub significand: [u16; 4],
+    pub exponent: u16,
+    pub __glibc_reserved1: [u16; 3],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_xmmreg {
+    pub element: [u32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_mutex_s__list {
+    pub __prev: usize,
+    pub __next: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_mutex_s {
+    pub __lock: i32,
+    pub __count: u32,
+    pub __owner: i32,
+    pub __nusers: u32,
+    pub __kind: i32,
+    pub __spins: i16,
+    pub __elision: i16,
+    pub __list: struct___pthread_mutex_s__list,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_rwlock_arch_t {
+    pub __readers: u32,
+    pub __writers: u32,
+    pub __wrphase_futex: u32,
+    pub __writers_futex: u32,
+    pub __pad3: u32,
+    pub __pad4: u32,
+    pub __cur_writer: i32,
+    pub __shared: i32,
+    pub __rwelision: i8,
+    pub __pad1: [u8; 7],
+    pub __pad2: u64,
+    pub __flags: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s__wseq__value32 {
+    pub __low: u32,
+    pub __high: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct___pthread_cond_s__wseq {
+    pub __value64: u64,
+    pub __value32: struct___pthread_cond_s__wseq__value32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s__g1_start__value32 {
+    pub __low: u32,
+    pub __high: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct___pthread_cond_s__g1_start {
+    pub __value64: u64,
+    pub __value32: struct___pthread_cond_s__g1_start__value32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s {
+    pub __wseq: struct___pthread_cond_s__wseq,
+    pub __g1_start: struct___pthread_cond_s__g1_start,
+    pub __g_refs: [u32; 2],
+    pub __g_size: [u32; 2],
+    pub __g1_orig_size: u32,
+    pub __wrefs: u32,
+    pub __g_signals: [u32; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_internal_list {
+    pub __prev: usize,
+    pub __next: usize,
 }
 
 #[repr(C, align(8))]
@@ -703,6 +869,72 @@ pub struct struct_sched_param {
 pub union sem_t {
     pub __size: [i8; 32],
     pub __align: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_float__ieee {
+    pub mantissa: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_float__ieee_nan {
+    pub mantissa: [u8; 4],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub union union_ieee754_float {
+    pub f: f32,
+    pub ieee: union_ieee754_float__ieee,
+    pub ieee_nan: union_ieee754_float__ieee_nan,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_double__ieee {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_double__ieee_nan {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union union_ieee754_double {
+    pub d: f64,
+    pub ieee: union_ieee754_double__ieee,
+    pub ieee_nan: union_ieee754_double__ieee_nan,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee854_long_double__ieee {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+    pub exponent: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee854_long_double__ieee_nan {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+    pub exponent: [u8; 4],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub union union_ieee854_long_double {
+    pub d: u128,
+    pub ieee: union_ieee854_long_double__ieee,
+    pub ieee_nan: union_ieee854_long_double__ieee_nan,
 }
 
 #[repr(transparent)]
@@ -1018,38 +1250,6 @@ pub struct struct_stat {
     pub __glibc_reserved: [i64; 3],
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_atime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_btime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_ctime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_mtime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct struct_statx {
@@ -1065,10 +1265,10 @@ pub struct struct_statx {
     pub stx_size: u64,
     pub stx_blocks: u64,
     pub stx_attributes_mask: u64,
-    pub stx_atime: struct_statx__stx_atime,
-    pub stx_btime: struct_statx__stx_btime,
-    pub stx_ctime: struct_statx__stx_ctime,
-    pub stx_mtime: struct_statx__stx_mtime,
+    pub stx_atime: struct_statx_timestamp,
+    pub stx_btime: struct_statx_timestamp,
+    pub stx_ctime: struct_statx_timestamp,
+    pub stx_mtime: struct_statx_timestamp,
     pub stx_rdev_major: u32,
     pub stx_rdev_minor: u32,
     pub stx_dev_major: u32,
@@ -1077,6 +1277,14 @@ pub struct struct_statx {
     pub stx_dio_mem_align: u32,
     pub stx_dio_offset_align: u32,
     pub __spare3: [u64; 12],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_statx_timestamp {
+    pub tv_sec: i64,
+    pub tv_nsec: u32,
+    pub __reserved: i32,
 }
 
 #[repr(C)]
@@ -1572,6 +1780,26 @@ pub struct struct_sockaddr_storage {
     pub __ss_align: u64,
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __CONST_SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct struct_sockaddr_in {
@@ -1960,8 +2188,8 @@ pub struct struct_dl_find_object {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union Dl_serinfo__anon_16 {
-    pub dls_serpath: [u64; 2],
-    pub __dls_serpath_pad: [u64; 2],
+    pub dls_serpath: [Dl_serpath; 0],
+    pub __dls_serpath_pad: [Dl_serpath; 1],
 }
 
 #[repr(C, align(8))]
@@ -1970,6 +2198,80 @@ pub struct Dl_serinfo {
     pub dls_size: u64,
     pub dls_cnt: u32,
     pub __anon_16: Dl_serinfo__anon_16,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Dl_serpath {
+    pub dls_name: usize,
+    pub dls_flags: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_cpuid_feature {
+    pub cpuid_array: [u32; 4],
+    pub active_array: [u32; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_prof {
+    pub pr_base: usize,
+    pub pr_size: u64,
+    pub pr_off: u64,
+    pub pr_scale: u64,
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_regs {
+    pub lr_rdx: u64,
+    pub lr_r8: u64,
+    pub lr_r9: u64,
+    pub lr_rcx: u64,
+    pub lr_rsi: u64,
+    pub lr_rdi: u64,
+    pub lr_rbp: u64,
+    pub lr_rsp: u64,
+    pub lr_xmm: [La_x86_64_xmm; 8],
+    pub lr_vector: [La_x86_64_vector; 8],
+    pub __glibc_unused1: [u64; 8],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_retval {
+    pub lrv_rax: u64,
+    pub lrv_rdx: u64,
+    pub lrv_xmm0: La_x86_64_xmm,
+    pub lrv_xmm1: La_x86_64_xmm,
+    pub lrv_st0: u128,
+    pub lrv_st1: u128,
+    pub lrv_vector0: La_x86_64_vector,
+    pub lrv_vector1: La_x86_64_vector,
+    pub __glibc_unused1: [u64; 2],
+    pub __glibc_unused2: [u64; 2],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_xmm(pub [u8; 16]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_ymm(pub [u8; 32]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_zmm(pub [u8; 64]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub union La_x86_64_vector {
+    pub ymm: [La_x86_64_ymm; 2],
+    pub zmm: [La_x86_64_zmm; 1],
+    pub xmm: [La_x86_64_xmm; 4],
 }
 
 #[repr(C, align(8))]
@@ -2087,6 +2389,14 @@ pub struct struct_obstack {
     pub freefun: usize,
     pub extra_arg: usize,
     pub use_extra_arg: [u8; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__obstack_chunk {
+    pub limit: usize,
+    pub prev: usize,
+    pub contents: [i8; 4],
 }
 
 #[repr(C, align(4))]
@@ -2758,7 +3068,7 @@ pub struct Elf64_Ehdr {
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct Elf32_Phdr {
-    pub __p_type: [u32; 1],
+    pub p_type: [u32; 1],
     pub p_offset: [u32; 1],
     pub p_vaddr: [u32; 1],
     pub p_paddr: [u32; 1],
@@ -2771,7 +3081,7 @@ pub struct Elf32_Phdr {
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct Elf64_Phdr {
-    pub __p_type: [u32; 1],
+    pub p_type: [u32; 1],
     pub p_flags: [u32; 1],
     pub p_offset: u64,
     pub p_vaddr: u64,
@@ -3045,5 +3355,13 @@ pub struct struct_elf_siginfo {
     pub si_signo: i32,
     pub si_code: i32,
     pub si_errno: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_res_sym {
+    pub number: i32,
+    pub name: usize,
+    pub humanname: usize,
 }
 

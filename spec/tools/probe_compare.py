@@ -26,7 +26,7 @@ def reserved_omitted():
     emit = {r["name"] for r in rows if r["policy"] == "emit"}
     omit = {r["name"] for r in rows if r["policy"] == "omit"}
     def omitted(n):
-        return n in omit or (n not in emit and (n.startswith("__") or (n.startswith("_") and n.endswith("_H"))))
+        return n in omit or (n not in emit and (n.startswith("__") or (n.startswith("_") and n.rstrip("_").endswith("_H"))))
     return omitted
 
 

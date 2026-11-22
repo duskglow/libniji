@@ -1,0 +1,24 @@
+# DL-RUNPATH-4 plants: cargo xtask plants handoff/DL-RUNPATH-4-plants.txt --dir <new dir> --timeout 600
+# DL-RUNPATH's seven (rerun after each merge of next; DL-RUNPATH-4: given_name writes through Recs::set), the secure-mode rule (ruling #7190), and
+# DL-PROCESS-OBJECTS' five arena plants (its handoff/DL-PROCESS-OBJECTS-plants.txt, unchanged).
+# The program's $ORIGIN never published to dlopen.
+no-program-origin | crates/boundary/src/ld/dlopen.rs | lit:l.origin_len.store(dir.len(), Release); ==> l.origin_len.store(0, Release); | cargo test -p niji-ld --test runpath_search | msg:program_origin_lists_serve_dlopen.*FAILED|panicked
+# A start-time object's path searched again instead of its link map's name (its $ORIGIN lost).
+no-start-link-name | crates/boundary/src/ld/dlopen/dladdr.rs | lit:if (linked && out.push(c_string(l.nodes[i].l_name))) || start_path ==> if start_path | cargo test -p niji-ld --test runpath_search | msg:caller_runpath_origin_serves_its_dlopen.*FAILED|panicked
+# A start-time object without DT_SONAME not matched by its DT_NEEDED name.
+no-given-name | crates/boundary/src/ld/dlopen/dladdr.rs | lit:l.objs.set(i, super::Obj { name, ..o }); ==> let _ = (name, o); | cargo test -p niji-ld --test runpath_search | msg:noload_finds_objects_by_their_loaded_names.*FAILED|panicked
+# ld.so not matched by its PT_INTERP path.
+no-interp-path | crates/boundary/src/ld/dlopen.rs | lit:nd.l_name != 0 && c_string(nd.l_name) == name ==> nd.l_name == 1 && c_string(nd.l_name) == name | cargo test -p niji-ld --test runpath_search | msg:noload_finds_objects_by_their_loaded_names.*FAILED|panicked
+# A program's own $ORIGIN dlopen name not looked up when its lists have no token.
+no-name-gate | crates/boundary/src/ld/dlopen.rs | lit:(who == 0 && token(Some(given))) ==> (who == 1 && token(Some(given))) | cargo test -p niji-ld --test runpath_search | msg:program_origin_without_lists.*FAILED|panicked
+# An LD_LIBRARY_PATH $ORIGIN list not looked up for dlopen.
+no-env-gate | crates/boundary/src/ld/dlopen.rs | lit:|| token(env.library_path)) { ==> || false) { | cargo test -p niji-ld --test runpath_search | msg:program_origin_without_lists.*FAILED|panicked
+# The start's look-up not published (dlopen computes its own: same directory, one more readlink).
+no-start-publish | crates/boundary/src/ld/link.rs | lit:START_ORIGIN[1].store(kept.len(), Release); ==> let _ = kept.len(); | cargo test -p niji-ld --test runpath_search | equivalent:dlopen then looks the origin up by the same rule (program_origin), which gives the same directory unless the program moved between start and dlopen; only the saved readlinkat differs
+# Ruling #7190: dlopen's search drops the secure-mode rule (an untrusted program $ORIGIN expanded).
+no-secure-rule | crates/boundary/src/ld/dlopen.rs | lit:            secure: self.secure, ==>             secure: false, | cargo test -p niji-ld --test runpath_search | msg:secure_dlopen_origin_only_trusted.*FAILED|panicked
+names-128k | crates/boundary/src/ld/dlopen.rs | lit:        let start = self.names.append(s, 0)?; ==>         let start = self.names.append(s, 0).filter(|&o| o + s.len() < NAMES)?; | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_paths_and_dependencies_past_the_old_arenas | msg:the program failed
+deps-16k | crates/boundary/src/ld/dlopen.rs | lit:        let Some(dep_start) = l.deps.open(o.dynm.needed().count()) else { ==>         let Some(dep_start) = l.deps.open(o.dynm.needed().count()).filter(|&s| s + o.dynm.needed().count() <= DEPS) else { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_paths_and_dependencies_past_the_old_arenas | msg:the program failed
+reader-gen0-decode | crates/boundary/src/ld/dlopen.rs | lit:        let at = Names::addr_in(names, usize::try_from(a).unwrap_or(usize::MAX)); ==>         let at = Names::addr_in(names, usize::try_from(a).unwrap_or(usize::MAX) % NAMES); | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_paths_and_dependencies_past_the_old_arenas | msg:every object's full path
+l-name-gen0 | crates/boundary/src/ld/dlopen.rs | lit:    let name = l.names.addr(usize::try_from(span.0).unwrap_or(usize::MAX)); ==>     let name = l.names.addr(usize::try_from(span.0).unwrap_or(usize::MAX) % NAMES); | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_paths_and_dependencies_past_the_old_arenas | msg:every object's full path
+span-crosses | crates/boundary/src/ld/table.rs | lit:            if i.checked_add(most)? <= Self::gen_len(g) { ==>             if i.checked_add(most).is_some() { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects dlopen_process_objects_paths_and_dependencies_past_the_old_arenas | msg:the program failed

@@ -364,7 +364,10 @@ pub extern "C" fn __pthread_cleanup_routine(frame: *mut [usize; 3]) {
 /// this object, so `libc.a`'s member that defines it is pulled; nothing reads it. A static named
 /// `NIJI_LINK_EDGE_*` is a link edge only (D-22.16): `cargo xtask so` marks its section
 /// `SHF_EXCLUDE` in the archive, so the linker puts the word (and its relocation) in no program
-/// and not in `libc.so.6`, while the undefined symbol still pulls the member.
+/// and not in `libc.so.6`, while the undefined symbol still pulls the member. The libresolv
+/// product (LIBRESOLV-OWN-CODE) has no such static: `#[used]` keeps the word through
+/// `--gc-sections`, and with it the once machinery and the thread state it reaches.
+#[cfg(any(feature = "runtime", not(feature = "libresolv")))]
 #[used]
 static NIJI_LINK_EDGE_PTHREAD_ONCE: extern "C" fn(usize, usize) -> i32 = crate::ffi::niji_machine_once;
 

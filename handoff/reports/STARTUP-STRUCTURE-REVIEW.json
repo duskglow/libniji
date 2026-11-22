@@ -1,0 +1,21 @@
+{"task": "STARTUP-STRUCTURE-REVIEW", "model": "opus", "tokens": null,
+ "result": "Review: 99.7% of a libniji dynamic start is ld.so; 298 symbolic relocations cost 493,648 (59%), 277 of libc.so.6's 285 names are its own; prototype binding them (malloc family kept) takes the empty main 742,449 -> 328,846; per-lookup 1,373 vs ~600 and per-object 93,819 vs 11,958 against glibc 2.39; 7 ranked briefs, target ~180k after them",
+ "branch": "task/startup-structure-review", "head": null,
+ "gate": {"affected": "n/a (planning: review and briefs only)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "LIBC-SELF-BIND: link libc.so.6 so its own function references bind locally (malloc family and probe-settled families stay preemptible, exported data stays symbolic)", "recommendation": "yes, after per-family reference probes; prototype measured -413,603 instructions per empty start with malloc replacement unchanged"},
+  {"item": "RELR for libc.so.6 (LD-RELR-LOOP)", "recommendation": "yes, after the RELR loop gets the window treatment"}],
+ "informational": [
+  "libniji's system libc6-dev (21.5, 21.6) ships no .h files: a swapped root loses /usr/include/stdio.h",
+  "start-up is ~0.03% of pass-2 CPU (challenge #7390): it matters for printf-loop and process-heavy workloads, not our gate",
+  "callgrind asserts (find_rodata) on 21.5; 21.6 works",
+  "a static glibc empty main runs 133,200 user instructions, more than its dynamic one (99,262)"],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "review and briefs only; no libniji behaviour changes", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "unblock", "what": "7 briefs: LIBC-SELF-BIND, LD-LOOKUP-COST, LD-PHDR-ONCE, LD-OBJECT-ONCE, LD-RELR-LOOP, LD-VERSIONS-ONCE, LD-START-MAPS", "before": null, "after": 7, "unit": "briefs", "measured": true},
+  {"kind": "perf", "what": "prototype (not shipped): libc self-references bound, empty dynamic main, Zen 1, user instructions", "before": 742449, "after": 328846, "unit": "instr/start", "measured": true}],
+ "improvement": "a start-up attribution kit (callgrind in a swapped root plus a like-for-like native count of valgrind's client environment) is reusable: put cg.sh/meas.sh/stcount.c in validation/ so every loader story profiles in minutes",
+ "next_step": "coordinator rules on LIBC-SELF-BIND and RELR; LD-LOOKUP-COST, LD-PHDR-ONCE and LD-VERSIONS-ONCE can start now",
+ "report_file": "plan/reviews/STARTUP-STRUCTURE-REVIEW.md",
+ "jobs": ["startup-structure-review-cg3", "startup-structure-review-proto1", "startup-structure-review-ips2"]}

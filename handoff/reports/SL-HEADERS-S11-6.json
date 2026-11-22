@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S11-6", "model": "sonnet", "tokens": null,
+ "result": "slice 11 re-ported into the per-slice registry layout (s11.tsv, header_checks/s11.py); origin/next merged; shared parts changed in separate commits",
+ "branch": "task/sl-headers-s11-6", "head": "HEAD_PLACEHOLDER",
+ "gate": {"affected": "FULL: the train's (escalated by the merge); instead: headers-gen --check, abi-gen --check, header_check.py 0 failed of 6123, cargo test -p xtask (495 passed), header_p2_fixed_rows 1 passed, clippy+static rc 0", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [], "informational": ["Run 5's merge dropped nothing, but this merge's conflict resolution lost standard_names' return in header_probe.py; header_p2_fixed_rows caught it (fixed).", "headers-gen with the math headers scanned all of visibility.tsv per emitted name (did not finish in 10 minutes); indexed in Tables, now about a minute."],
+ "refused": [],
+ "impact": [{"kind": "tooling", "what": "headers-gen with slice 11 headers: did not finish in 10 min before the dont_care index, now finishes", "before": null, "after": null, "unit": "min", "measured": true},
+            {"kind": "unblock", "what": "slice 11 lands on next's registry layout (ruling #6597)", "before": null, "after": null, "unit": "n/a", "measured": false}],
+ "improvement": "a plants run rebuilds the products per plant (about 4 minutes each): header-only plants could use a cheaper command",
+ "next_step": "cxx.sh run (item 1 of handoff/SL-HEADERS-S11.md) when the other slices' C headers land",
+ "report_file": "handoff/SL-HEADERS-S11.md"}

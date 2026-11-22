@@ -21,7 +21,7 @@ struct tm {
   int tm_yday;
   int tm_isdst;
   long tm_gmtoff;
-  char * tm_zone;
+  const char * tm_zone;
 };
 # endif
 #endif
@@ -170,7 +170,7 @@ extern long timezone;
 #if __NIJI_POSIX >= 1
 # ifndef __NIJI_D_tzname
 #  define __NIJI_D_tzname 1
-extern char *  tzname[2];
+extern char * tzname[2];
 # endif
 #endif
 #if __NIJI_XSI >= 450

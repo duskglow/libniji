@@ -8,6 +8,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -21,7 +24,7 @@ fn target() -> PathBuf {
 
 /// The scratch directory, `ld.so`, `libc.so.6` without `DT_SONAME` and the start object, or `None`
 /// with the reason printed (as crates/ld/tests/dlopen_concurrent.rs).
-fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
+fn setup(name: &str) -> Option<(Scratch, PathBuf, PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -32,9 +35,7 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
-    let d = target().join(format!("ld-dlclose-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    let d = std::fs::canonicalize(d).unwrap();
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-dlclose-{name}"));
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
     let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
@@ -478,14 +479,15 @@ static void concurrent(void) {
     walkers();
 }
 
-/* Ruling #5651: past a retired threshold (a quarter of the 512-object table) dlopen and dlclose
-   wait at entry for the readers to drain, never from inside a read section or a constructor. */
-static int fill_n = -1, fill_full, fill_close;
+/* Ruling #5651: past a retired threshold (128 retired objects) dlopen and dlclose wait at entry
+   for the readers to drain, never from inside a read section or a constructor. */
+static int fill_n = -1, fill_close;
+static char fill_err[256];
 static int fill_cb(struct dl_phdr_info *i, size_t s, void *d) {
     (void)i; (void)s; (void)d;
     for (int k = 0; k < 600; k++) {
         void *p = dlopen(P("libP.so"), RTLD_NOW);
-        if (!p) { fill_n = k; fill_full = strstr(err(), "cannot load more objects") != NULL; return 1; }
+        if (!p) { fill_n = k; snprintf(fill_err, sizeof fill_err, "%s", err()); return 1; }
         if (dlclose(p) != 0) { fill_close = k + 1; return 1; }
     }
     fill_n = 600;
@@ -562,9 +564,10 @@ static int fork_cb(struct dl_phdr_info *i, size_t s, void *d) { (void)i; (void)s
 
 static void room(void) {
     /* A callback opening and closing: each close stays retired (its own thread is the reader), the
-       threshold passes and its calls never wait on themselves; dlopen fails once the table is full. */
+       threshold passes and its calls never wait on themselves; the 600 retired objects grow the
+       object tables past their first 512 entries, and every pair succeeds. */
     dl_iterate_phdr(fill_cb, NULL);
-    CHECK(60, fill_full && fill_n > 128 && fill_n < 512 && !fill_close, "callback opens: %d (full %d, close failed at %d)", fill_n, fill_full, fill_close);
+    CHECK(60, fill_n == 600 && !fill_close, "callback opens: %d (%s; close failed at %d)", fill_n, fill_err, fill_close);
     void *p = dlopen(P("libP.so"), RTLD_NOW);
     CHECK(61, p && dlclose(p) == 0, "open after the walk: %s", err());
     /* A reader stalled inside a walk: the main thread's opens wait for it past the threshold
@@ -608,19 +611,25 @@ static void room(void) {
     pthread_join(th, NULL);
     CHECK(68, r_open && dlclose(r_open) == 0 && dlclose(k) == 0, "the reader's dlopen: %s", err());
     /* A reader always inside some walk: each reclaim frees only the round before's objects while
-       the newest stay at the top, and the freed slots below them become holes (slots are reused
-       from the top). Few are retired at a time; past three quarters of the table the opens wait. */
+       the newest stay at the top, and the freed slots below them are reused once past their grace
+       period (D-27.74): the 600 pairs get few distinct handles, where with slots reused only from
+       the top they climbed to three quarters of the table (384) and then waited. */
     progress = 0;
+    static void *cyc_h[600];
+    int cyc_distinct = 0;
     CHECK(70, pthread_create(&th, NULL, cycler, NULL) == 0, "pthread_create");
     for (int i = 0; i < 600; i++) {
         void *q = dlopen(P("libP.so"), RTLD_NOW);
+        int seen = 0;
+        for (int j = 0; j < cyc_distinct && !seen; j++) seen = cyc_h[j] == q;
+        if (!seen) cyc_h[cyc_distinct++] = q;
         CHECK(71, q && dlclose(q) == 0, "open %d behind an ever-present reader: %s", i, err());
         progress = i + 1;
         if ((i + 1) % 10 == 0) { sw_req++; while (entered != sw_req) sched_yield(); }
     }
     cyc_stop = 1;
     pthread_join(th, NULL);
-    CHECK(72, cyc_waits > 0, "never waited for the ever-present reader");
+    CHECK(72, cyc_distinct <= 128, "freed slots behind an ever-present reader not reused: %d distinct handles in 600 opens (%d waits)", cyc_distinct, cyc_waits);
 }
 
 /* `exit SCENARIO`: open objects and return from main; the destructors at exit write the order. */
@@ -862,7 +871,6 @@ fn s27_1_c_4_dlclose_unloads_finalises_and_reclaims() {
     let Some((d, ld, libc, crt1)) = setup("basic") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "basic");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_8, s27_1_c_4 (D-27.1, plan §4): three reader threads walk `dl_iterate_phdr` (reading every
@@ -878,28 +886,26 @@ fn s27_1_c_4_dlclose_concurrent_with_readers() {
     let Some((d, ld, libc, crt1)) = setup("concurrent") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "concurrent");
-    std::fs::remove_dir_all(&d).ok();
 }
 
-/// s27_1_c_4, s27_1_c_8 (ruling #5651, the D-27 dlclose record's amendment): past a quarter of the
-/// table in retired objects, `dlopen`/`dlclose` wait at entry for the readers to drain. A
-/// `dl_iterate_phdr` callback that opens and closes in a loop never waits on itself: its `dlopen`
-/// fails with `cannot load more objects` once the table is full, and the next call outside the walk
-/// reclaims everything. A reader stalled inside a walk makes the main thread's 600 open/close
+/// s27_1_c_4, s27_1_c_8 (ruling #5651, the D-27 dlclose record's amendment): past 128 retired
+/// objects, `dlopen`/`dlclose` wait at entry for the readers to drain. A `dl_iterate_phdr`
+/// callback that opens and closes 600 times never waits on itself: the retired objects grow the
+/// object tables past their first 512 entries (a handle in a later generation closes), and the
+/// next call outside the walk reclaims everything. A reader stalled inside a walk makes the main thread's 600 open/close
 /// pairs wait (seen asleep after 100..200 pairs) instead of filling the table. A constructor
 /// (holding the writer lock) that passes the threshold while a stalled reader's callback is
 /// blocked on that lock never waits (a deadlock otherwise; `alarm` is the hang guard). A child
 /// forked from inside a walk while another thread is stalled in its own runs 600 pairs: the gone
 /// thread's count is cleared and the child's own is kept until its walk ends. A reader that is
 /// always inside some walk (it re-enters every 10 pairs) leaves holes below the newest retired
-/// objects with few retired at a time: past three quarters of the table the opens wait, and all
-/// 600 pairs succeed.
+/// objects with few retired at a time: the holes are reused once past their grace period
+/// (D-27.74), so all 600 pairs succeed with at most 128 distinct handles.
 #[test]
 fn s27_1_c_4_dlopen_waits_for_readers_only_outside_them() {
     let Some((d, ld, libc, crt1)) = setup("room") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "room");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s1_2_c_6 (D-27 thread_local destructor pin record): a `thread_local` destructor registered with
@@ -921,12 +927,11 @@ fn s1_2_c_6_thread_local_destructor_keeps_its_object_loaded() {
     use std::os::unix::process::ExitStatusExt;
     for (mode, want) in [("exit", "m F "), ("threads", "a b k F c F x F ")] {
         for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
-            let o = cmd.arg(&d).arg(mode).output().unwrap();
+            let o = cmd.arg(&*d).arg(mode).output().unwrap();
             let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
             assert_eq!((o.status.code(), o.status.signal(), out.as_ref()), (Some(0), None, want), "{how}: thread_local pin {mode}: stderr: {err}");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_4 (plan/ph14/design.md §9; dynlink.md `__cxa_finalize`, P2): a C++ plugin with a static
@@ -951,10 +956,9 @@ fn s27_1_c_4_cxx_plugin_load_unload_loop() {
     let prog = build(&d, "prog_cxx", CXX_PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", "-Wl,--eh-frame-hdr", rt, &interp, crt1.to_str().unwrap(), &begin, libc.to_str().unwrap(), ld.to_str().unwrap(), "-Wl,-Bstatic", "-lsupc++", "-lgcc_eh", "-lgcc", "-Wl,-Bdynamic", libc.to_str().unwrap(), ld.to_str().unwrap(), &end]);
     use std::os::unix::process::ExitStatusExt;
     for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
-        let o = cmd.arg(&d).output().unwrap();
+        let o = cmd.arg(&*d).output().unwrap();
         assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: C++ plugin loop; stderr: {}", String::from_utf8_lossy(&o.stderr));
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s1_1_c_6, s27_1_c_1 (probe `== exit-order` E1-E30, spec/behaviour/dynlink.md "Exit order of
@@ -1004,11 +1008,10 @@ fn exit_runs_loaded_objects_as_one_sequence() {
         (&with_s, "start", "dP dN fN dM fM dS fS dV fV dY fY "),
     ] {
         for (how, mut cmd) in [("kernel-started", Command::new(p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(p); c })] {
-            let o = cmd.arg(&d).arg("exit").arg(scenario).output().unwrap();
+            let o = cmd.arg(&*d).arg("exit").arg(scenario).output().unwrap();
             let err = String::from_utf8_lossy(&o.stderr);
             assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: exit {scenario}; stderr: {err}");
             assert_eq!(String::from_utf8_lossy(&o.stdout), want, "{how}: exit order {scenario}");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }

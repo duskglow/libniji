@@ -1,0 +1,11 @@
+id = "D-27.70"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "DL-PROCESS-OBJECTS"
+date = "2026-11-21"
+tests = ["crates/ld/tests/dlopen_process_objects.rs::dlopen_process_objects_paths_and_dependencies_past_the_old_arenas", "crates/ld/tests/dlopen_process_objects.rs::dlopen_process_objects_out_of_memory_is_clean"]
+body = '''
+**The loader's path and dependency arenas grow by generations; memory is their only bound (DL-PROCESS-OBJECTS part 1, audit HL-5).** The 128 KiB path arena and the 16 Ki-entry dependency arena are `ld/table.rs` `Arena`s: generation 0 is the old array in place (a process within the old room runs the same code on the same bytes); generation g >= 1 holds `N << (g - 1)` entries in a private mapping made at its first use and never moved or unmapped, because `l_name`, `dlpi_name` and `dli_fname` hand out addresses into the path arena that readers follow without a lock (`View::path` decodes a span through the generation's directory word, loaded with Acquire). A span never crosses a generation: a path takes the first generation with room for it and its NUL; a dependency list reserves its room first (its `DT_NEEDED` count; recorded bindings are counted before they are written). Spans stay `(u32, u32)`: 4 GiB of paths or 4 Gi entries is a representation bound past the kernel's own (each object takes at least two mappings). The only failure left is a mapping's: `dlopen` returns NULL with `<name>: cannot allocate memory` (the texts "out of room for object names" and "cannot load more objects in one call" are gone); `record_binds` keeps its `nodelete` fallback, so it never fails a call. The object tables (512 objects) and TLS modules (HL-3) follow in later parts (handoff/DL-PROCESS-OBJECTS.md).
+'''

@@ -163,6 +163,20 @@ library with no entry point run through `ld.so`: SIGSEGV (139). `--verify`: 0 dy
 static program or non-ELF, 2 shared library. `--list` of a program with a missing dependency:
 127. `--version`, `--help`: 0.
 
+**`ld.so PROGRAM` with no `/` in PROGRAM** (LDSO-PROGRAM-NO-CWD probe, Zen 1 host; D-27.69). The
+name is looked up in the loader cache (`/etc/ld.so.cache`) only. A file of that name in the
+working directory, in an `LD_LIBRARY_PATH` directory (absolute, relative, `.`, empty element),
+in a `--library-path` directory, on `PATH` or in a default library directory not listed in the
+cache is not used. Not found: 127, nothing on stdout, stderr `<name>: error while loading shared
+libraries: <name>: cannot open shared object file` (no errno text); an empty name gives
+`: error while loading shared libraries: cannot open shared object file`. The same for `--list
+<name>` and with `LD_TRACE_LOADED_OBJECTS=1`. A name the cache lists runs the cache's file, even
+when the working directory and `LD_LIBRARY_PATH` hold another file of that name, and the program's
+`argv[0]` is the name as given. `--list <name>` and `LD_TRACE_LOADED_OBJECTS=1` for a name the
+cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
+working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
+is opened as given.
+
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are
 `ET_DYN`. Lazy binding is the rare case for system programs (input to R14-13 / DL-10).
@@ -184,6 +198,8 @@ with gcc 13.3 / binutils, black box: only the values the bound functions return 
 | weak `w` in `libw1.so`, strong `w` in `libw2.so` | link order w1,w2 → the weak one; w2,w1 → the strong one; `LD_DYNAMIC_WEAK=1` → unchanged |
 | undefined weak data and function references | both 0 |
 | `STB_GNU_UNIQUE` `u_obj` in two objects, each `dlopen`ed `RTLD_LOCAL` | one object for both (the first's); a plain global `u_obj` in a third object stays its own |
+| program with a canonical PLT entry for `f` (undefined `STT_FUNC`, non-zero value: non-PIE `&f`, or `.long f - .` in a PIE's data) defined in `libf.so` (DL-CANONICAL-PLT probe, Zen 1 host, glibc 2.39, gcc 13.3 / binutils 2.42; GitHub issue #10) | the program's address of `f`, the library's `GLOB_DAT` (`return f;`), the program's own `f@GOTPCREL` (`GLOB_DAT`), a library `dlopen`ed later (`GLOB_DAT`) and `dlsym(RTLD_DEFAULT, "f")` all give the entry's address; calls through the program's PLT reach `libf.so`'s `f`. The same with `libf.so` marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (`-mno-direct-extern-access`). A program built with `-mno-direct-extern-access` has no entry (`f` undefined, value 0): every reference binds `libf.so`'s `f` |
+| the same program run against a `libf.so` whose `f` is protected (swapped in after linking; binutils 2.42 refuses that link) | a warning on standard error that pointer equality may break, then the run goes on: the library's own references give its own address, the program's the entry's; with that library also marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the start is refused, a message naming `f`, the library and the property, exit 127 |
 
 libniji's lookup (D-27.11) follows every row; `crates/ld/tests/symbols.rs` checks the same corpus. The stub row is the
 loader's version check, not the lookup: libniji's lookup matches any definition of an object without `versym`, and the

@@ -1,0 +1,7 @@
+# probe_compare visibility --accept: the differences row 'siginfo_t and union sigval in <signal.h> and <sys/signal.h> under _POSIX_C_SOURCE 1 and 2 ...; __sigsetjmp in <pthread.h>' of docs/differences-from-glibc.md (D-X.129)
+extra pthread.h __sigsetjmp function [!time64only]
+differs signal.h siginfo_t typedef table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+differs signal.h sigval union table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,xopenext,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+differs sys/pidfd.h sigval union table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,xopenext,isoc99,isoc11,isoc2x,time64only] libniji [!time64only]
+differs sys/signal.h siginfo_t typedef table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+differs sys/signal.h sigval union table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,xopenext,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]

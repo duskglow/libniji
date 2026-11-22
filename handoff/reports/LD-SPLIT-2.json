@@ -1,0 +1,23 @@
+{"task": "LD-SPLIT-2", "model": "opus", "tokens": null,
+ "result": "ld.rs split into 8 modules by concern (io, state, tls, image, initfini, link, trace, entry), moves only; gate, plants, hot text green; exported symbols of 17 shared products and dynamic start-up instructions identical to base",
+ "branch": "task/ld-split-2", "head": "a9371bfd5",
+ "gate": {"affected": "630 passed / 0 failed (9 suites, direct tier)", "peak": "1.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Ruling #6193's literal check (only DL-TRACE-INTERP's lines differ from run 1's checkpoint) cannot hold: four loader stories grew ld.rs 2,087 -> 2,414 lines. Proved instead: all 127 items of next's ld.rs are in the split exactly once, byte-identical",
+   "swap root: head same=63 differ=2 (ldd-6, ldd-7: ldd -v version lines of libc.so.6 itself), base c1413a3c4 the same 63/2 and the same cases: not the split; both swap jobs exit 1 by design when any case differs, so they are not in jobs",
+   "ld.so --library-path DIR prog: 'unrecognized option' at base and head; the spec has no clause on ld.so's command-line options (a spec gap for a loader story)",
+   "Start-up counts across two trees must use product paths of equal length: the loader's path work is per byte (a 16-character difference gave a 166-586 instruction artifact)",
+   "FULL cargo xtask test not run: owner 11-19, the CI train is the FULL gate"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "loader stories on different concerns edit different files (merge-tree demo: dlclose + TLS edits merge cleanly); tools/ld_split.py reproduces the split", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "perf", "what": "dynamic start-up instructions:u, printf probe (equal: behaviour-neutral)", "before": 1076966, "after": 1076966, "unit": "instr", "measured": true},
+   {"kind": "coverage", "what": "audit paths: ldso_run_features_only_from_arch now scans every file under ld/ (dlopen.rs and children newly covered); 5 loader plants re-pointed", "before": null, "after": 5, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A start-up count comparison between two trees needs product paths of equal length; a shared base-vs-head start-up count tool (like wl_percall --base) would remove that trap and the hand-written probe scripts",
+ "next_step": "land; a later story splits crates/rt/src/start.rs (phdr, secure, private) and xtask/src/so.rs (so/ with proc, archive, exports, ldso, utils, nonshared, libm) as the report proposes",
+ "report_file": "handoff/LD-SPLIT-2-report.md",
+ "jobs": ["keke:ld-split-2-gate", "keke:ld-split-2-plants", "keke:ld-split-2-hottext", "keke:ld-split-2-compare-5", "keke:ld-split-2-lint"]}

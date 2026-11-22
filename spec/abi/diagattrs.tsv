@@ -1,3 +1,4 @@
+rc=0
 name	nonnull	wur	noreturn	format	malloc	alloc_size	deprecated	sentinel	pure
 _Exit			1						
 __ctype_b_loc									const
@@ -5,23 +6,85 @@ __ctype_get_mb_cur_max		1
 __ctype_tolower_loc									const
 __ctype_toupper_loc									const
 __errno_location									const
+__h_errno_location									const
+__pthread_unwind_next			1						
+__res_state									const
+__sched_cpualloc		1							
 _exit			1						
+_longjmp			1						
+_obstack_memory_used									1
 a64l	1	1							1
 abort			1						
 abs									const
 access	1								
+acos									const
+acosf									const
+acosf128									1
+acosf32									const
+acosf32x									const
+acosf64									const
+acosf64x									1
+acosh									const
+acoshf									const
+acoshf128									1
+acoshf32									const
+acoshf32x									const
+acoshf64									const
+acoshf64x									1
+acoshl									1
+acosl									1
 aligned_alloc		1			1	2			
 alloca					1	1			
+alphasort	1,2								1
+alphasort64	1,2								1
 arc4random		1							
 arc4random_buf	1								
 arc4random_uniform		1							
+argp_error				printf:2:3					
+argp_failure				printf:4:5					
+argz_count									1
+asin									const
+asinf									const
+asinf128									1
+asinf32									const
+asinf32x									const
+asinf64									const
+asinf64x									1
+asinh									const
+asinhf									const
+asinhf128									1
+asinhf32									const
+asinhf32x									const
+asinhf64									const
+asinhf64x									1
+asinhl									1
+asinl									1
 asprintf		1		printf:2:3					
 at_quick_exit	1								
+atan									const
+atan2									const
+atan2f									const
+atan2f128									1
+atan2f32									const
+atan2f32x									const
+atan2f64									const
+atan2f64x									1
+atan2l									1
+atanf									const
+atanf128									1
+atanf32									const
+atanf32x									const
+atanf64									const
+atanf64x									1
+atanl									1
 atexit	1								
 atof	1	1							1
 atoi	1	1							1
 atol	1	1							1
 atoll	1	1							1
+backtrace	1								
+backtrace_symbols	1								
+backtrace_symbols_fd	1								
 basename	1								
 bcmp	1,2								1
 bcopy	1,2								
@@ -30,7 +93,25 @@ bsearch	1,2	1
 bzero	1								
 calloc		1			1	1,2			
 canonicalize_file_name	1	1			1				
+catopen	1								
+cbrt									const
+cbrtf									const
+cbrtf128									1
+cbrtf32									const
+cbrtf32x									const
+cbrtf64									const
+cbrtf64x									1
+cbrtl									1
+ceil									const
+ceilf									const
+ceilf128									1
+ceilf32									const
+ceilf32x									const
+ceilf64									const
+ceilf64x									1
+ceill									1
 chdir	1	1							
+chmod	1								
 chown	1	1							
 chroot	1	1							
 clearerr	1								
@@ -38,19 +119,79 @@ clearerr_unlocked	1
 clock_adjtime	2								
 clock_gettime	2								
 clock_settime	2								
+closedir	1								
+copysign									const
+copysignf									const
+copysignf128									1
+copysignf32									const
+copysignf32x									const
+copysignf64									const
+copysignf64x									1
+copysignl									1
+cos									const
+cosf									const
+cosf128									1
+cosf32									const
+cosf32x									const
+cosf64									const
+cosf64x									1
+cosh									const
+coshf									const
+coshf128									1
+coshf32									const
+coshf32x									const
+coshf64									const
+coshf64x									1
+coshl									1
+cosl									1
+creat	1								
+creat64	1								
 crypt	1,2								
 daemon		1							
+dcgettext	2								
 difftime									const
+dirfd	1								
 div		1							const
+dladdr	2								
+dladdr1	2								
+dlclose	1								
+dlinfo	1,3								
+dlsym	2								
+dlvsym	2,3								
 dprintf				printf:2:3					
 drand48_r	1,2								
+drem									const
+dremf									const
+dreml									1
 dup		1							
 dysize									const
 eaccess	1								
 ecvt	3,4	1							
 ecvt_r	3,4,5								
+envz_entry									1
+envz_get									1
 erand48	1								
 erand48_r	1,2								
+erf									const
+erfc									const
+erfcf									const
+erfcf128									1
+erfcf32									const
+erfcf32x									const
+erfcf64									const
+erfcf64x									1
+erfcl									1
+erff									const
+erff128									1
+erff32									const
+erff32x									const
+erff64									const
+erff64x									1
+erfl									1
+err			1	printf:2:3					
+error			1	printf:3:4					
+error_at_line			1	printf:5:6					
+errx			1	printf:2:3					
 euidaccess	1								
 execl	1,2							0	
 execle	1,2							1	
@@ -61,15 +202,61 @@ execveat	2,3
 execvp	1,2								
 execvpe	1,2								
 exit			1						
+exp									const
+exp10									const
+exp10f									const
+exp10l									1
+exp2									const
+exp2f									const
+exp2f128									1
+exp2f32									const
+exp2f32x									const
+exp2f64									const
+exp2f64x									1
+exp2l									1
+expf									const
+expf128									1
+expf32									const
+expf32x									const
+expf64									const
+expf64x									1
+expl									1
 explicit_bzero	1								
+expm1									const
+expm1f									const
+expm1f128									1
+expm1f32									const
+expm1f32x									const
+expm1f64									const
+expm1f64x									1
+expm1l									1
+fabs									const
+fabsf									const
+fabsf128									1
+fabsf32									const
+fabsf32x									const
+fabsf64									const
+fabsf64x									1
+fabsl									1
 faccessat	2	1							
 fchdir		1							
+fchmodat	2	1							
 fchown		1							
 fchownat	2	1							
 fclose	1								
 fcvt	3,4	1							
 fcvt_r	3,4,5								
+fdim									const
+fdimf									const
+fdimf128									1
+fdimf32									const
+fdimf32x									const
+fdimf64									const
+fdimf64x									1
+fdiml									1
 fdopen		1			1				
+fdopendir					1				
+fegetround									1
 feof	1	1							
 feof_unlocked	1	1							
 ferror	1	1							
@@ -89,10 +276,135 @@ fgets	3	1
 fgets_unlocked	3	1							
 fgetsgent_r	3								
 fgetspent_r	3								
+fgetws		1							
+fgetws_unlocked		1							
 fileno	1	1							
 fileno_unlocked	1	1							
+finite									const
+finitef									const
+finitel									const
 flockfile	1								
+floor									const
+floorf									const
+floorf128									1
+floorf32									const
+floorf32x									const
+floorf64									const
+floorf64x									1
+floorl									1
+fma									const
+fmaf									const
+fmaf128									1
+fmaf32									const
+fmaf32x									const
+fmaf64									const
+fmaf64x									1
+fmal									1
+fmax									const
+fmaxf									const
+fmaxf128									1
+fmaxf32									const
+fmaxf32x									const
+fmaxf64									const
+fmaxf64x									1
+fmaximum									const
+fmaximum_mag									const
+fmaximum_mag_num									const
+fmaximum_mag_numf									const
+fmaximum_mag_numf128									1
+fmaximum_mag_numf32									const
+fmaximum_mag_numf32x									const
+fmaximum_mag_numf64									const
+fmaximum_mag_numf64x									1
+fmaximum_mag_numl									1
+fmaximum_magf									const
+fmaximum_magf128									1
+fmaximum_magf32									const
+fmaximum_magf32x									const
+fmaximum_magf64									const
+fmaximum_magf64x									1
+fmaximum_magl									1
+fmaximum_num									const
+fmaximum_numf									const
+fmaximum_numf128									1
+fmaximum_numf32									const
+fmaximum_numf32x									const
+fmaximum_numf64									const
+fmaximum_numf64x									1
+fmaximum_numl									1
+fmaximumf									const
+fmaximumf128									1
+fmaximumf32									const
+fmaximumf32x									const
+fmaximumf64									const
+fmaximumf64x									1
+fmaximuml									1
+fmaxl									1
+fmaxmag									const
+fmaxmagf									const
+fmaxmagf128									1
+fmaxmagf32									const
+fmaxmagf32x									const
+fmaxmagf64									const
+fmaxmagf64x									1
+fmaxmagl									1
 fmemopen		1			1				
+fmin									const
+fminf									const
+fminf128									1
+fminf32									const
+fminf32x									const
+fminf64									const
+fminf64x									1
+fminimum									const
+fminimum_mag									const
+fminimum_mag_num									const
+fminimum_mag_numf									const
+fminimum_mag_numf128									1
+fminimum_mag_numf32									const
+fminimum_mag_numf32x									const
+fminimum_mag_numf64									const
+fminimum_mag_numf64x									1
+fminimum_mag_numl									1
+fminimum_magf									const
+fminimum_magf128									1
+fminimum_magf32									const
+fminimum_magf32x									const
+fminimum_magf64									const
+fminimum_magf64x									1
+fminimum_magl									1
+fminimum_num									const
+fminimum_numf									const
+fminimum_numf128									1
+fminimum_numf32									const
+fminimum_numf32x									const
+fminimum_numf64									const
+fminimum_numf64x									1
+fminimum_numl									1
+fminimumf									const
+fminimumf128									1
+fminimumf32									const
+fminimumf32x									const
+fminimumf64									const
+fminimumf64x									1
+fminimuml									1
+fminl									1
+fminmag									const
+fminmagf									const
+fminmagf128									1
+fminmagf32									const
+fminmagf32x									const
+fminmagf64									const
+fminmagf64x									1
+fminmagl									1
+fmod									const
+fmodf									const
+fmodf128									1
+fmodf32									const
+fmodf32x									const
+fmodf64									const
+fmodf64x									1
+fmodl									1
 fopen		1			1				
 fopen64		1			1				
 fprintf	1,2			printf:2:3					
@@ -110,12 +422,18 @@ fseeko	1
 fseeko64	1								
 fsetpos	1								
 fsetpos64	1								
+fstat	2								
+fstat64	2								
+fstatat	2,3								
+fstatat64	2,3								
 ftell	1	1							
 ftello	1	1							
 ftello64	1	1							
 ftruncate		1							
 ftruncate64		1							
 ftrylockfile	1	1							
+ftw	1								
+ftw64	1								
 funlockfile	1								
 fwrite	1,4								
 gcvt	3	1							
@@ -123,6 +441,9 @@ getc	1
 getc_unlocked	1								
 getcwd		1							
 getdelim	4	1							
+getdents64	2								
+getdirentries	2,4								
+getdirentries64	2,4								
 getdomainname	1	1							
 getentropy	1	1							
 getenv	1	1							
@@ -151,28 +472,143 @@ getsubopt	1,2,3	1
 gettimeofday	1								
 getw	1								
 getwd	1	1					1		
+hypot									const
+hypotf									const
+hypotf128									1
+hypotf32									const
+hypotf32x									const
+hypotf64									const
+hypotf64x									1
+hypotl									1
+ilogb									const
+ilogbf									const
+ilogbf128									const
+ilogbf32									const
+ilogbf32x									const
+ilogbf64									const
+ilogbf64x									const
+ilogbl									const
 imaxabs									const
 imaxdiv									const
 index	1								1
 initstate	2								
 initstate_r	2,4								
+isinff									const
+isinfl									const
+isnanf									const
+isnanl									const
+iswalnum									1
+iswalpha									1
+iswblank									1
+iswcntrl									1
+iswdigit									1
+iswgraph									1
+iswlower									1
+iswprint									1
+iswpunct									1
+iswspace									1
+iswupper									1
+iswxdigit									1
+j0									const
+j0f									const
+j0l									1
+j1									const
+j1f									const
+j1l									1
+jn									const
+jnf									const
+jnl									1
 jrand48	1								
 jrand48_r	1,2								
 l64a		1							
 labs									const
+lchmod	1								
 lchown	1	1							
 lcong48	1								
 lcong48_r	1,2								
+ldexp									const
+ldexpf									const
+ldexpf128									1
+ldexpf32									const
+ldexpf32x									const
+ldexpf64									const
+ldexpf64x									1
+ldexpl									1
 ldiv		1							const
+lgamma_r									1
+lgammaf_r									1
+lgammal_r									1
 link	1,2	1							
 linkat	2,4	1							
 llabs									const
 lldiv		1							const
+llround									const
+llroundf									const
+llroundf128									const
+llroundf32									const
+llroundf32x									const
+llroundf64									const
+llroundf64x									const
+llroundl									const
 lockf		1							
 lockf64		1							
+log									const
+log10									const
+log10f									const
+log10f128									1
+log10f32									const
+log10f32x									const
+log10f64									const
+log10f64x									1
+log10l									1
+log1p									const
+log1pf									const
+log1pf128									1
+log1pf32									const
+log1pf32x									const
+log1pf64									const
+log1pf64x									1
+log1pl									1
+log2									const
+log2f									const
+log2f128									1
+log2f32									const
+log2f32x									const
+log2f64									const
+log2f64x									1
+log2l									1
+logb									const
+logbf									const
+logbf128									1
+logbf32									const
+logbf32x									const
+logbf64									const
+logbf64x									1
+logbl									1
+logf									const
+logf128									1
+logf32									const
+logf32x									const
+logf64									const
+logf64x									1
+logl									1
+longjmp			1						
 lrand48_r	1,2								
+lround									const
+lroundf									const
+lroundf128									const
+lroundf32									const
+lroundf32x									const
+lroundf64									const
+lroundf64x									const
+lroundl									const
+lstat	1,2								
+lstat64	1,2								
 lutimes	1								
+mallinfo							1		
 malloc		1			1	1			
+mbsinit									1
+memalign		1			1	2			
 memccpy	1,2								
 memchr	1								1
 memcmp	1,2								1
@@ -183,7 +619,13 @@ memmove	1,2
 mempcpy	1,2								
 memrchr	1								1
 memset	1								
+mkdir	1								
+mkdirat	2								
 mkdtemp	1	1							
+mkfifo	1								
+mkfifoat	2								
+mknod	1								
+mknodat	2								
 mkostemp	1	1							
 mkostemp64	1	1							
 mkostemps	1	1							
@@ -194,13 +636,48 @@ mkstemps	1	1
 mkstemps64	1	1							
 mktemp	1								
 mrand48_r	1,2								
+nan	1								1
+nanf	1								1
+nanf128	1								1
+nanf32	1								1
+nanf32x	1								1
+nanf64	1								1
+nanf64x	1								1
+nanl	1								1
+nearbyint									const
+nearbyintf									const
+nearbyintf128									1
+nearbyintf32									const
+nearbyintf32x									const
+nearbyintf64									const
+nearbyintf64x									1
+nearbyintl									1
+nextafter									const
+nextafterf									const
+nextafterf128									1
+nextafterf32									const
+nextafterf32x									const
+nextafterf64									const
+nextafterf64x									1
+nextafterl									1
+nexttoward									const
+nexttowardf									const
+nexttowardl									1
+nftw	1								
+nftw64	1								
 nice		1							
 nrand48	1								
 nrand48_r	1,2								
 obstack_printf				printf:2:3					
 obstack_vprintf				printf:2:0					
 on_exit	1,2								
+open	1								
+open64	1								
 open_memstream		1			1				
+open_wmemstream					1				
+openat	2								
+openat64	2								
+opendir	1				1				
 pathconf	1								
 pclose	1								
 pipe		1							
@@ -208,10 +685,124 @@ pipe2		1
 popen		1			1				
 posix_memalign	1	1							
 posix_openpt		1							
+pow									const
+powf									const
+powf128									1
+powf32									const
+powf32x									const
+powf64									const
+powf64x									1
+powl									1
 pread		1							
 pread64		1							
 printf	1			printf:1:2					
 profil	1								
+pthread_attr_destroy	1								
+pthread_attr_getaffinity_np	1,3								
+pthread_attr_getdetachstate	1,2								
+pthread_attr_getguardsize	1,2								
+pthread_attr_getinheritsched	1,2								
+pthread_attr_getschedparam	1,2								
+pthread_attr_getschedpolicy	1,2								
+pthread_attr_getscope	1,2								
+pthread_attr_getstack	1,2,3								
+pthread_attr_getstackaddr	1,2						1		
+pthread_attr_getstacksize	1,2								
+pthread_attr_init	1								
+pthread_attr_setaffinity_np	1,3								
+pthread_attr_setdetachstate	1								
+pthread_attr_setguardsize	1								
+pthread_attr_setinheritsched	1								
+pthread_attr_setschedparam	1,2								
+pthread_attr_setschedpolicy	1								
+pthread_attr_setscope	1								
+pthread_attr_setstack	1								
+pthread_attr_setstackaddr	1						1		
+pthread_attr_setstacksize	1								
+pthread_barrier_destroy	1								
+pthread_barrier_init	1								
+pthread_barrier_wait	1								
+pthread_barrierattr_destroy	1								
+pthread_barrierattr_getpshared	1,2								
+pthread_barrierattr_init	1								
+pthread_barrierattr_setpshared	1								
+pthread_cond_broadcast	1								
+pthread_cond_clockwait	1,2,4								
+pthread_cond_destroy	1								
+pthread_cond_init	1								
+pthread_cond_signal	1								
+pthread_cond_timedwait	1,2,3								
+pthread_cond_wait	1,2								
+pthread_condattr_destroy	1								
+pthread_condattr_getclock	1,2								
+pthread_condattr_getpshared	1,2								
+pthread_condattr_init	1								
+pthread_condattr_setclock	1								
+pthread_condattr_setpshared	1								
+pthread_create	1,2,3,4								
+pthread_equal									const
+pthread_exit			1						
+pthread_getaffinity_np	3								
+pthread_getattr_default_np	1								
+pthread_getattr_np	2								
+pthread_getcpuclockid	2								
+pthread_getname_np	2								
+pthread_getschedparam	2,3								
+pthread_key_create	1								
+pthread_mutex_clocklock	1,3								
+pthread_mutex_consistent	1								
+pthread_mutex_consistent_np	1						1		
+pthread_mutex_destroy	1								
+pthread_mutex_getprioceiling	1,2								
+pthread_mutex_init	1								
+pthread_mutex_lock	1								
+pthread_mutex_setprioceiling	1,3								
+pthread_mutex_timedlock	1,2								
+pthread_mutex_trylock	1								
+pthread_mutex_unlock	1								
+pthread_mutexattr_destroy	1								
+pthread_mutexattr_getprioceiling	1,2								
+pthread_mutexattr_getprotocol	1,2								
+pthread_mutexattr_getpshared	1,2								
+pthread_mutexattr_getrobust	1,2								
+pthread_mutexattr_getrobust_np	1						1		
+pthread_mutexattr_gettype	1,2								
+pthread_mutexattr_init	1								
+pthread_mutexattr_setprioceiling	1								
+pthread_mutexattr_setprotocol	1								
+pthread_mutexattr_setpshared	1								
+pthread_mutexattr_setrobust	1								
+pthread_mutexattr_setrobust_np	1						1		
+pthread_mutexattr_settype	1								
+pthread_once	1,2								
+pthread_rwlock_clockrdlock	1,3								
+pthread_rwlock_clockwrlock	1,3								
+pthread_rwlock_destroy	1								
+pthread_rwlock_init	1								
+pthread_rwlock_rdlock	1								
+pthread_rwlock_timedrdlock	1,2								
+pthread_rwlock_timedwrlock	1,2								
+pthread_rwlock_tryrdlock	1								
+pthread_rwlock_trywrlock	1								
+pthread_rwlock_unlock	1								
+pthread_rwlock_wrlock	1								
+pthread_rwlockattr_destroy	1								
+pthread_rwlockattr_getkind_np	1,2								
+pthread_rwlockattr_getpshared	1,2								
+pthread_rwlockattr_init	1								
+pthread_rwlockattr_setkind_np	1								
+pthread_rwlockattr_setpshared	1								
+pthread_self									const
+pthread_setaffinity_np	3								
+pthread_setattr_default_np	1								
+pthread_setname_np	2								
+pthread_setschedparam	3								
+pthread_spin_destroy	1								
+pthread_spin_init	1								
+pthread_spin_lock	1								
+pthread_spin_trylock	1								
+pthread_spin_unlock	1								
+pthread_yield							1		
 ptsname		1							
 ptsname_r	2								
 putc	2								
@@ -219,6 +810,7 @@ putc_unlocked	2
 putenv	1								
 puts	1								
 putw	2								
+pvalloc		1			1				
 pwrite	2	1							
 pwrite64	2	1							
 qecvt	3,4	1							
@@ -231,21 +823,100 @@ qsort_r	1
 quick_exit			1						
 random_r	1,2								
 rawmemchr	1								1
+re_compile_pattern	1								
+re_match	2								
+re_match_2	2,4								
+re_search	2								
+re_search_2	2,4								
 read		1							
+readdir	1								
+readdir64	1								
+readdir64_r	1,2,3						1		
+readdir_r	1,2,3						1		
 readlink	1,2	1							
 readlinkat	2,3	1							
 realloc		1				2			
 reallocarray		1				2,3			
 realpath		1							
+regerror	3								
+regexec	4								
+register_printf_function							1		
+register_printf_modifier		1							
+register_printf_type		1							
+remainder									const
+remainderf									const
+remainderf128									1
+remainderf32									const
+remainderf32x									const
+remainderf64									const
+remainderf64x									1
+remainderl									1
 revoke	1	1							
 rewind	1								
+rewinddir	1								
 rindex	1								1
+rint									const
+rintf									const
+rintf128									1
+rintf32									const
+rintf32x									const
+rintf64									const
+rintf64x									1
+rintl									1
 rmdir	1								
+round									const
+roundeven									const
+roundevenf									const
+roundevenf128									1
+roundevenf32									const
+roundevenf32x									const
+roundevenf64									const
+roundevenf64x									1
+roundevenl									1
+roundf									const
+roundf128									1
+roundf32									const
+roundf32x									const
+roundf64									const
+roundf64x									1
+roundl									1
 rpmatch	1	1							
+scalbln									const
+scalblnf									const
+scalblnf128									1
+scalblnf32									const
+scalblnf32x									const
+scalblnf64									const
+scalblnf64x									1
+scalblnl									1
+scalbn									const
+scalbnf									const
+scalbnf128									1
+scalbnf32									const
+scalbnf32x									const
+scalbnf64									const
+scalbnf64x									1
+scalbnl									1
+scandir	1,2								
+scandir64	1,2								
+scandirat	2,3								
+scandirat64	2,3								
 scanf	1	1		scanf:1:2					
 secure_getenv	1	1							
 seed48	1								
 seed48_r	1,2								
+seekdir	1								
+sem_clockwait	1,3								
+sem_close	1								
+sem_destroy	1								
+sem_getvalue	1,2								
+sem_init	1								
+sem_open	1								
+sem_post	1								
+sem_timedwait	1,2								
+sem_trywait	1								
+sem_unlink	1								
+sem_wait	1								
 setbuf	1								
 setbuffer	1								
 setdomainname	1	1							
@@ -267,11 +938,64 @@ setuid		1
 setvbuf	1								
 sgetsgent_r	3								
 sgetspent_r	3								
+sigaddset	1								
+sigandset	1,2,3								
+sigblock							1		
+sigdelset	1								
+sigemptyset	1								
+sigfillset	1								
+siggetmask							1		
+sighold							1		
+sigignore							1		
+siginterrupt							1		
+sigisemptyset	1								
+sigismember	1								
+siglongjmp			1						
+significand									const
+significandf									const
+significandl									1
+sigorset	1,2,3								
+sigpause							1		
+sigpending	1								
+sigrelse							1		
+sigset							1		
+sigsetmask							1		
+sigstack							1		
+sigsuspend	1								
+sigtimedwait	1								
+sigwait	1,2								
+sigwaitinfo	1								
+sin									const
+sinf									const
+sinf128									1
+sinf32									const
+sinf32x									const
+sinf64									const
+sinf64x									1
+sinh									const
+sinhf									const
+sinhf128									1
+sinhf32									const
+sinhf32x									const
+sinhf64									const
+sinhf64x									1
+sinhl									1
+sinl									1
 snprintf	3			printf:3:4					
 sprintf	1,2			printf:2:3					
+sqrt									const
+sqrtf									const
+sqrtf128									1
+sqrtf32									const
+sqrtf32x									const
+sqrtf64									const
+sqrtf64x									1
+sqrtl									1
 srand48_r	2								
 srandom_r	2								
 sscanf	2			scanf:2:3					
+stat	1,2								
+stat64	1,2								
 stpcpy	1,2								
 stpncpy	1,2								
 strcasecmp	1,2								1
@@ -287,6 +1011,8 @@ strcpy	1,2
 strcspn	1,2								1
 strdup	1	1			1				
 strerror_r	2	1							
+strfmon	1,3			strfmon:3:4					
+strfmon_l	1			strfmon:4:5					
 strfromd	3								
 strfromf	3								
 strfromf128	3								
@@ -348,23 +1074,81 @@ symlink	1,2	1
 symlinkat	1,3	1							
 syslog				printf:2:3					
 system		1							
+tan									const
+tanf									const
+tanf128									1
+tanf32									const
+tanf32x									const
+tanf64									const
+tanf64x									1
+tanh									const
+tanhf									const
+tanhf128									1
+tanhf32									const
+tanhf32x									const
+tanhf64									const
+tanhf64x									1
+tanhl									1
+tanl									1
+telldir	1								
 tempnam		1			1				
+tgamma									const
+tgammaf									const
+tgammaf128									1
+tgammaf32									const
+tgammaf32x									const
+tgammaf64									const
+tgammaf64x									1
+tgammal									1
+thrd_exit			1						
 timespec_get	1								
 tmpfile		1			1				
 tmpfile64		1			1				
 tmpnam		1							
 tmpnam_r		1							
+totalorder									1
+totalorderf									1
+totalorderf128									1
+totalorderf32									1
+totalorderf32x									1
+totalorderf64									1
+totalorderf64x									1
+totalorderl									1
+totalordermag									1
+totalordermagf									1
+totalordermagf128									1
+totalordermagf32									1
+totalordermagf32x									1
+totalordermagf64									1
+totalordermagf64x									1
+totalordermagl									1
+towlower									1
+towupper									1
+trunc									const
 truncate	1	1							
 truncate64	1	1							
+truncf									const
+truncf128									1
+truncf32									const
+truncf32x									const
+truncf64									const
+truncf64x									1
+truncl									1
 ttyname_r	2	1							
 ungetc	2								
 unlink	1								
 unlinkat	2								
 unsetenv	1								
+utime	1								
+utimensat	2								
 utimes	1								
 valloc		1			1	1			
 vasprintf		1		printf:2:0					
 vdprintf				printf:2:0					
+verr			1	printf:2:0					
+verrx			1	printf:2:0					
+versionsort	1,2								1
+versionsort64	1,2								1
 vfprintf	1,2			printf:2:0					
 vfscanf	1,2	1		scanf:2:0					
 vprintf	1			printf:1:0					
@@ -373,5 +1157,40 @@ vsnprintf	3			printf:3:0
 vsprintf	1,2			printf:2:0					
 vsscanf	2			scanf:2:0					
 vsyslog				printf:2:0					
+vwarn				printf:1:0					
+vwarnx				printf:1:0					
+warn				printf:1:2					
+warnx				printf:1:2					
+wcrtomb		1							
+wcscat	1,2								
+wcschr									1
+wcschrnul									1
+wcscmp	1,2								1
+wcscpy	1,2								
+wcscspn									1
+wcsdup					1				
+wcslcat	1,2								
+wcslcpy	1,2								
+wcslen									1
+wcsncat	1,2								
+wcsncmp	1,2								1
+wcsncpy	1,2								
+wcsnlen									1
+wcspbrk									1
+wcsrchr									1
+wcsspn									1
+wcsstr									1
+wcswcs									1
 wctomb		1							
+wmemchr									1
+wmemcmp									1
 write	2	1							
+y0									const
+y0f									const
+y0l									1
+y1									const
+y1f									const
+y1l									1
+yn									const
+ynf									const
+ynl									1

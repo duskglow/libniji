@@ -31,6 +31,8 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `s.c` a variadic F with c null pointers appended: -Wformat= (a missing sentinel) tells the attribute and
         its position (c - 1 is the position of the first that makes it quiet).
 * `nr`  F(valid arguments); mk_nr(): the marker is dropped when F is noreturn.
+* `ct`  a non-variadic F with a result: two calls with a memory clobber between them, mk_ct() when the results
+        differ: the marker is dropped when F is const (a pure F is called again; this tells pure from const).
 * `ma`  two calls p = F(..), q = F(..), stores *p = 1 and *q = 2; the marker is called when *p != 1, so it is
         dropped when the two results cannot alias (attribute malloc).
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
@@ -45,8 +47,12 @@ import argparse, csv, json, os, re, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 ABI = os.path.join(ROOT, "spec", "abi")
-SKIP_HEADERS = {"features.h", "features-time64.h", "stdc-predef.h", "gnu-versions.h", "assert.h"}
+# libgen.h: its include turns `basename` into the XPG function (a macro), so a corpus that includes it probes another function.
+SKIP_HEADERS = {"features.h", "features-time64.h", "stdc-predef.h", "gnu-versions.h", "assert.h", "libgen.h"}
 OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security"]
+# open and kin take an optional mode, not a sentinel list: the reference's checking wrappers report an error, inside a
+# header and so on no test line, for a call with extra arguments. They get no sentinel test.
+NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64"}
 
 
 def protos():
@@ -96,6 +102,10 @@ def classify(p):
 def declared(inc_dir, names):
     """Function names declared by the headers in inc_dir, and the headers."""
     heads = sorted(h for h in os.listdir(inc_dir) if h.endswith(".h") and h not in SKIP_HEADERS)
+    # A header the reference itself refuses to include (a deliberate #error, as for <regexp.h>) cannot be part of the
+    # corpus: one such line would keep the whole translation unit from building. Its functions have no row.
+    heads = [h for h in heads if subprocess.run(["gcc", "-fsyntax-only", "-x", "c", "-"], input="#define _GNU_SOURCE 1\n#include <%s>\n" % h,
+                                                capture_output=True, text=True).returncode == 0]
     found = set()
     for h in heads:
         with open(os.path.join(inc_dir, h)) as f:
@@ -110,14 +120,17 @@ def declared(inc_dir, names):
 
 
 def corpus(names, heads, pr):
-    L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in heads]
+    # unistd.h first: with fcntl.h included before it, the reference's lockf loses its warn_unused_result (the header
+    # order changes the answer), and a program that includes unistd.h alone sees it.
+    order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
+    L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in order]
     L += ["extern void *v[16]; extern char *nl; extern int ov; extern __builtin_va_list ap;"]
     meta = {}
 
     def add(fmt, key):
         """One test per line; `%(N)d` in fmt is the line's own number (it names the line's marker)."""
         n = len(L) + 1
-        mk = "extern void mk_%s_%d(void); " % (key[1], n) if key[1] in ("nr", "ma", "as") else ""
+        mk = "extern void mk_%s_%d(void); " % (key[1], n) if key[1] in ("nr", "ma", "as", "ct") else ""
         L.append(mk + fmt.replace("@N@", str(n)))
         meta[n] = key
 
@@ -162,10 +175,17 @@ def corpus(names, heads, pr):
                     add('void h_@N@(void) { %s(%s); }' % (n, args({j: '"%y"'})), (n, "h", j + 1))
                 if variadic and j == len(fixed) - 1:
                     add('void g_@N@(void) { %s(%s, "s"); }' % (n, args({j: '"%d"'})), (n, "g", j + 1))
-        if variadic:
+        if variadic and n not in NO_SENTINEL:
             for c in (1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
+        if not variadic and ret.replace("extern", "").strip() != "void" and all(k == "num" for k in fixed):
+            # Two calls with a memory clobber between them: the results are known equal only when the attribute is const.
+            # Only for numeric parameters, with literal arguments (a pointer argument reads memory, so cannot be const).
+            add("void ct_@N@(void) { __typeof__ (%s(%s)) a = %s(%s); __asm__ volatile (\"\" ::: \"memory\"); __typeof__ (a) b = %s(%s);"
+                " if (__builtin_memcmp (&a, &b, sizeof a) != 0) mk_ct_@N@(); }"
+                % (n, args(), n, args(), n, args()),
+                (n, "ct"))
         if isptr_ret:
             add("void ma_@N@(void) { char *p = (char *) %s(%s); char *q = (char *) %s(%s); *p = 1; *q = 2; if (*p != 1) mk_ma_@N@(); }"
                 % (n, args(lit=False), n, args(lit=False)), (n, "ma"))
@@ -231,7 +251,7 @@ def compile_side(text, inc, keep, tag):
     nm = subprocess.run(["nm", "-u", obj], capture_output=True, text=True, check=True).stdout.split()
     marks = set()
     for s in nm:
-        m = re.match(r"^mk_(nr|ma|as)_(\d+)$", s)
+        m = re.match(r"^mk_(nr|ma|as|ct)_(\d+)$", s)
         if m:
             marks.add(int(m.group(2)))
     return diags, marks, errs
@@ -255,7 +275,7 @@ def results(text, meta, inc, keep, tag):
     res = {}
     for ln, key in meta.items():
         flags = set(diags.get(ln, set()))
-        if key[1] in ("nr", "ma", "as"):
+        if key[1] in ("nr", "ma", "as", "ct"):
             flags.add("marker" if ln in marks else "folded")
         res[ln] = (key, flags, ln in errs)
     return res
@@ -295,28 +315,15 @@ def fmt_kind(n):
     return "printf"
 
 
+# C 7.22.6.2: div, ldiv, lldiv and imaxdiv compute from their arguments alone (the compiler does not merge two calls
+# that return a structure, so the clobber test cannot tell): const by the standard's own definition.
+CONST_BY_STANDARD = {"div", "ldiv", "lldiv", "imaxdiv"}
+
 # strndup's result size is at most n + 1: the compiler's own knowledge of the function answers the alloc_size test.
 BUILTIN_SIZE = {"strndup", "strdup"}
 
 
-def const_names(heads, names):
-    """The functions among `names` the reference's own headers declare with attribute const (the unused-value
-    warning is the same for pure and const, so the compiler's warnings cannot tell them apart; the preprocessed
-    text of the reference's headers can). A const function that is also a compiler builtin must be declared
-    const: the compiler refuses a pure declaration of it."""
-    src = "".join("#include <%s>\n" % h for h in heads if os.path.exists("/usr/include/" + h))
-    out = subprocess.run(["gcc", "-E", "-P", "-x", "c", "-D_GNU_SOURCE", "-"], input=src, capture_output=True, text=True).stdout
-    decls = re.findall(r"extern[^;{}]*;", out)
-    found = set()
-    for n in names:
-        for d in decls:
-            if re.search(r"[ *]%s \(" % re.escape(n), d) and re.search(r"__const__|__attribute_const__", d):
-                found.add(n)
-                break
-    return found
-
-
-def derive(res, pr, names, consts=frozenset()):
+def derive(res, pr, names):
     rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": ""} for n in names}
     fmt = {}
     for ln, (key, flags, err) in sorted(res.items()):
@@ -330,7 +337,7 @@ def derive(res, pr, names, consts=frozenset()):
             if "-Wdeprecated-declarations" in flags:
                 r["deprecated"] = "1"
             if "-Wunused-value" in flags:
-                r["pure"] = "const" if n in consts else "1"
+                r["pure"] = "1"
             if "-Wformat=" in flags and pr[n].rstrip().endswith("...)"):
                 r["sentinel"] = "?"
         elif kind == "n" and "-Wnonnull" in flags:
@@ -346,6 +353,8 @@ def derive(res, pr, names, consts=frozenset()):
             pass
         elif kind == "nr" and "marker" not in flags:
             r["noreturn"] = "1"
+        elif kind == "ct" and "marker" not in flags and r["pure"]:
+            r["pure"] = "const"
         elif kind == "ma" and "marker" not in flags:
             r["malloc"] = "1"
         elif kind == "as" and "marker" not in flags and n not in BUILTIN_SIZE:
@@ -358,6 +367,9 @@ def derive(res, pr, names, consts=frozenset()):
         variadic = ps[-1] == "..."
         first = len([p for p in ps if p != "..."]) + 1 if variadic else 0
         rows[n]["format"] = "%s:%d:%d" % (fmt_kind(n), j, first)
+    for n in CONST_BY_STANDARD & set(rows):
+        if rows[n]["pure"]:
+            rows[n]["pure"] = "const"
     return rows
 
 
@@ -376,7 +388,7 @@ def main():
         bad = sorted({ref[ln][0][0] for ln in ref if ref[ln][2]})
         if bad:
             print("attr_probe: %d functions have a test that did not compile on the reference side: %s" % (len(bad), " ".join(bad[:40])), file=sys.stderr)
-        rows = derive(ref, pr, names, const_names(heads, names))
+        rows = derive(ref, pr, names)
         with open(args.out, "w") as f:
             f.write("name\tnonnull\twur\tnoreturn\tformat\tmalloc\talloc_size\tdeprecated\tsentinel\tpure\n")
             for n in names:

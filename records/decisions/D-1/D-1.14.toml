@@ -1,0 +1,12 @@
+id = "D-1.14"
+section = "s01"
+spec = "§1.2"
+ann = "ARB"
+status = "active"
+amends = ["D-1.2"]
+story = "LIMITS-RUNTIME-SMALL"
+date = "2026-11-21"
+tests = ["crates/core/tests/s01_startup_clauses.rs"]
+body = '''
+**The exit-handler registry has no limit but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-12). The first 32 entries (the ISO C minimum) stay inside the registry; later ones go to chunks of `niji_rt::chunks::Chunks`: one page, then each chunk twice the one before, mapped only when its first entry is needed and never moved (so the lock-free readers stay safe), from a directory of 48 chunk addresses that together span more than any x86-64 address space. The registry's former 2^20-entry cap and the single 32 MiB address-space mapping made at the 33rd registration are gone: 100 registrations map one page, and the mapped size stays under twice the entries' size plus a page. A registration that finds no memory (for example under `RLIMIT_AS`) fails cleanly (`atexit`/`on_exit`/`__cxa_atexit` return non-zero, §1.2 failure clause 1) and the entries already registered still run, most recent first. Tests: `s1_2_i_3` (100 handlers map 4096 bytes; 3 million run once each, most recent first), `s1_2_f_1` (a three-page limit: the entry that needs a fourth page fails, the others run in order).
+'''

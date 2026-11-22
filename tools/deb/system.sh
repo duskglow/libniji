@@ -27,11 +27,11 @@
 #                 as it does on configure (an activation while libc-bin is unconfigured is not
 #                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge.
 #                 /usr/bin/getconf (UTIL-5: static, over libc.a), /usr/bin/getent (dynamic, over
-#                 libc6's name services: UTIL-6), /usr/bin/iconv (UTIL-7: dynamic, over libc6's iconv(3)), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
+#                 libc6's name services: UTIL-6), /usr/bin/iconv (UTIL-7: dynamic, over libc6's iconv(3)), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode), /usr/sbin/zic and /usr/bin/zdump (TZ-TOOLS: dynamic). Its other programs (localedef, ...) come
 #                 with SL-BIN-CORE. No /etc/bindresvport.blacklist (spec 31.14, D-31.5: not
 #                 installed) and no /etc/default/nss (libniji's name services read no such file).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libmvec.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
+#                 the libm.so script, libmvec.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
 #                 libc_malloc_debug.so. No headers yet (SL-HEADERS, R4). Depends on linux-libc-dev,
 #                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
 #                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
