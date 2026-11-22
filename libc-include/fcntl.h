@@ -914,7 +914,7 @@ __NIJI_FORTIFY_FN int open (const char *__p0, int __p1, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p1))
         {
           if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
             __niji_fortify_mode ();
@@ -941,7 +941,7 @@ __NIJI_FORTIFY_FN int open (const char *__p0, int __p1, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p1))
         {
           if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
             __niji_fortify_mode ();
@@ -973,7 +973,7 @@ __NIJI_FORTIFY_FN int open64 (const char *__p0, int __p1, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p1))
         {
           if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
             __niji_fortify_mode ();
@@ -1005,7 +1005,7 @@ __NIJI_FORTIFY_FN int openat (int __p0, const char *__p1, int __p2, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p2))
         {
           if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
             __niji_fortify_mode ();
@@ -1032,7 +1032,7 @@ __NIJI_FORTIFY_FN int openat (int __p0, const char *__p1, int __p2, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p2))
         {
           if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
             __niji_fortify_mode ();
@@ -1064,7 +1064,7 @@ __NIJI_FORTIFY_FN int openat64 (int __p0, const char *__p1, int __p2, ...)
     __niji_fortify_args ();
   if (__builtin_va_arg_pack_len () < 1)
     {
-      if (__builtin_constant_p ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000))
+      if (__builtin_constant_p (__p2))
         {
           if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
             __niji_fortify_mode ();

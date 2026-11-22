@@ -274,6 +274,10 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
             // The open family (spec 11.1): GCC's `__builtin_va_arg_pack_len` counts the variable arguments, and a
             // call left in to a function with the `error` attribute fails the compile (GCC manual, Function Attributes).
             let need = expand(&r["safe"], ost);
+            // The plain call only for flags that are themselves a constant: flags built at run time from constants
+            // (`f = O_RDONLY; if (x) f |= O_NONBLOCK;`) let GCC fold `need` while the flags stay unknown (own probe).
+            let flags = r["safe"].split('$').nth(1).map(|t| t.chars().take_while(char::is_ascii_digit).collect::<String>()).unwrap_or_default();
+            let flags = expand(&format!("${flags}"), ost);
             let fixed: Vec<&String> = pass.iter().filter(|p| !p.starts_with("__builtin")).collect();
             let fixed = fixed.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ");
             out.push("#  ifndef __NIJI_D_fortify_mode".into());
@@ -285,7 +289,7 @@ fn wrapper(g: &mut Gen<'_>, r: &BTreeMap<String, String>, sym: &str, chk: &BTree
             fn_body.push("    __niji_fortify_args ();".into());
             fn_body.push("  if (__builtin_va_arg_pack_len () < 1)".into());
             fn_body.push("    {".into());
-            fn_body.push(format!("      if (__builtin_constant_p ({need}))"));
+            fn_body.push(format!("      if (__builtin_constant_p ({flags}))"));
             fn_body.push("        {".into());
             fn_body.push(format!("          if ({need})"));
             fn_body.push("            __niji_fortify_mode ();".into());
@@ -429,6 +433,7 @@ int main (int argc, char **argv)
             ("", "open (p, f)", Some("__open_2"), "open"),
             ("", "open (p, f, 0600)", Some("open"), "__open_2"),
             ("", "open (p, O_RDONLY)", Some("open"), "__open_2"),
+            ("", "open (p, d ? O_RDONLY | O_NONBLOCK : O_RDONLY)", Some("__open_2"), "open"),
             ("", "open (p, O_WRONLY | O_CREAT)", None, ""),
             ("-D_GNU_SOURCE", "open (p, O_WRONLY | O_TMPFILE)", None, ""),
             ("", "open (p, f, 0600, 1)", None, ""),
