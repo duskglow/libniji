@@ -104,3 +104,8 @@ When `startup-reprofile-so-release` ends: copy `~/work/startup-reprofile/release
 `meas.sh <release> out-zen1-rel` (keke) and `meas.sh <release> pt-sky-rel pt` (mei) as jobrun count jobs;
 `phase.py` on pt-sky-rel; replace every table with release figures (keep a fast column only where it shows the
 split is the same); re-check the ranking; then report json, precheck, handback-check.
+Local copies of the kit and the fast PT tables: the run's scratch dir (`kit/`, `pt-sky/`). meas.sh sets
+`KEEP=1` to leave its program dir; incl.py needs `perf script --itrace=i1ig256 -F comm,ip,sym | c++filt`. Ruling
+#7560 also asked for the 55 libc names and which could be bound: answered above (only the 8 weak array references,
+and those by removing them, not binding). JOBS so far for the hand-back: keke:startup-reprofile-so-release plus the
+two release meas jobs of leg 2 (the fast jobs are evidence, not proof of a head: no code changed).
