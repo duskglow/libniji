@@ -1,0 +1,4 @@
+# ICONV-CJK-STARTUP-2 plants: the out-of-line dlopen exit sequence skipped (the exit-order test of an object
+# opened later), and the build-tag check of `xtask ldso-trace` matching a tag the wanted one only begins.
+exit-skip | crates/boundary/src/ld/dlopen.rs | lit:    fini_exit_loaded(start) ==>     start.is_empty() | cargo test -p niji-ld --test init_order | msg:init_order_exit_with_object_opened_later.*FAILED|panicked
+tag-nul | xtask/src/so.rs | lit:        want.push(0); ==>         want.reserve(0); | cargo test -p xtask ldso_trace_takes_only_products_of_this_tree | msg:ldso_trace_takes_only_products_of_this_tree.*FAILED|panicked
