@@ -4,7 +4,7 @@
  * alike; both must give the same answers.
  *
  * - Malloc replacement (manual, "Replacing malloc"): the program's malloc family serves the library's own
- *   allocations: strdup, fopen and fclose, asprintf and getline allocate and free through it.
+ *   allocations: strdup, asprintf and getline allocate and free through it (fopen and fclose: x_self_bind_stdio).
  * - Every other family libc.so.6 used to look up in the whole scope: the program defines one function of the
  *   family (counting its calls, then forwarding to the library's through RTLD_NEXT) and calls the library's
  *   other entry that reaches it in libniji: the compat version (dlvsym) of pthread, aio, sem, mq, clock,
@@ -244,13 +244,9 @@ int main(void)
     CHECK(dlsym(RTLD_DEFAULT, "malloc") == (void *)malloc);
 
     /* Malloc replacement: the library's own allocations are the program's. */
-    unsigned long m0 = mallocs, f0 = frees;
+    unsigned long m0 = mallocs;
     char *s = strdup("abc");
     CHECK(s && ours(s) && mallocs > m0);
-    m0 = mallocs;
-    FILE *n = fopen("/dev/null", "r");
-    CHECK(n && mallocs > m0);
-    CHECK(n && fclose(n) == 0 && frees > f0);
     char *as = NULL;
     CHECK(asprintf(&as, "%d-%s", 7, "x") == 3 && as && ours(as));
     FILE *mem = fmemopen((char[]){"one line\n"}, 9, "r");
