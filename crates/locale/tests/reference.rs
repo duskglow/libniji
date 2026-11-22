@@ -108,6 +108,35 @@ fn diff_items(what: &str, theirs: Category, ours: Category, skip: &[usize], out:
     }
 }
 
+fn words(b: &[u8]) -> Vec<u32> {
+    b.chunks_exact(4).map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]])).collect()
+}
+
+/// The zero-ended run of `tbl` from `at`.
+fn run(tbl: &[u32], at: usize) -> &[u32] {
+    let rest = tbl.get(at..).unwrap_or(&[]);
+    &rest[..rest.iter().position(|&c| c == 0).unwrap_or(rest.len())]
+}
+
+/// `LC_CTYPE` items 61-65 decoded: each from-string with its alternatives, in table order.
+fn translit(c: Category) -> Vec<(Vec<u32>, Vec<Vec<u32>>)> {
+    let n = c.word(61) as usize;
+    let (fi, ft, ti, tt) = (words(c.item(62)), words(c.item(63)), words(c.item(64)), words(c.item(65)));
+    (0..n)
+        .map(|k| {
+            let from = run(&ft, fi.get(k).copied().unwrap_or(u32::MAX) as usize).to_vec();
+            let mut at = ti.get(k).copied().unwrap_or(u32::MAX) as usize;
+            let mut alts = Vec::new();
+            while tt.get(at).is_some_and(|&c| c != 0) {
+                let alt = run(&tt, at).to_vec();
+                at += alt.len() + 1;
+                alts.push(alt);
+            }
+            (from, alts)
+        })
+        .collect()
+}
+
 fn names(item: &[u8]) -> Vec<Vec<u8>> {
     item.split(|&b| b == 0).take_while(|s| !s.is_empty()).map(<[u8]>::to_vec).collect()
 }
@@ -116,7 +145,14 @@ fn names(item: &[u8]) -> Vec<Vec<u8>> {
 fn diff_ctype(theirs: Category, ours: Category, out: &mut Vec<String>) {
     let class_offset = theirs.word(17) as usize;
     let map_offset = theirs.word(18) as usize;
-    diff_items("LC_CTYPE", theirs, ours, &(12..13).chain(class_offset..theirs.len()).collect::<Vec<_>>(), out);
+    // 12 (WIDTH) and the class and map tables are compared by lookups; 63-65 (the
+    // transliteration strings) decoded, since libniji stores each distinct alternative list once.
+    diff_items("LC_CTYPE", theirs, ours, &[12, 64, 65].into_iter().chain(class_offset..theirs.len()).collect::<Vec<_>>(), out);
+    if translit(theirs) != translit(ours) {
+        let (t, o) = (translit(theirs), translit(ours));
+        let first = t.iter().zip(o.iter()).find(|(a, b)| a != b);
+        out.push(format!("LC_CTYPE transliteration: {} entries vs ours {}; first difference {first:x?}", t.len(), o.len()));
+    }
     if CtypeFile::parse(theirs).is_none() || CtypeFile::parse(ours).is_none() {
         out.push("LC_CTYPE: a file the reader refuses".into());
         return;
