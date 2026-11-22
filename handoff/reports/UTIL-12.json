@@ -1,0 +1,26 @@
+{"task": "UTIL-12", "model": "opus", "tokens": null,
+ "result": "localedef ships in libc-bin (freestanding static, directory form): the issue #14 locales compile from source and read back equal to the reference's; the locale archive writer is not done",
+ "branch": "task/util-12", "head": null,
+ "gate": {"affected": null, "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+   {"item": "R5: ship the distribution's locale sources and charmaps in `locales` (they come from glibc's source package; none are in this tree)", "recommendation": "package them from the distribution's own source at build time, never commit them here"},
+   {"item": "The locale archive writer and --list-archive/--add-to-archive/--delete-from-archive are not done (NAME without / needs --no-archive)", "recommendation": "a follow-up story UTIL-12b before UTIL-13's locale-gen; bash's suite and issue #14's command need only the directory form"}
+ ],
+ "informational": [
+   "Known gaps vs the reference: categories a source lacks are not written with POSIX defaults (the reference writes all 12); no -i reads stdin in the reference, an error here; a syntax error stops the compile (the reference continues under -c); --big-endian refused",
+   "Peak RSS 218-338 MB per issue #14 locale (ldconfig's arena frees only the last block); worth a freeing allocator before UTIL-13 compiles locales in parallel",
+   "cargo xtask so gains a cargo-localedef phase (52.5 s on the Zen 1 host after a boundary change, beside ldconfig's 51 s)",
+   "The ld-feature product builds print two dead-code warnings (hyp_quick, c_malloc) for ldconfig as for localedef: not new"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "issue #14 (Yohane): localedef -i <l> -c -f UTF-8 <dir>/<l>.UTF-8 works on a libniji system; unblocks UTIL-13 (locale-gen) for the directory form", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "the 10 string/number categories of en_US/de_DE/fr_FR/ja_JP/tr_TR.UTF-8 byte-equal to the reference's; LC_CTYPE and LC_COLLATE equal by the reader (every code point; collation order over a 4341-string corpus)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "tests added: prog.rs 7, reference.rs 6 (earlier legs), transcripts 10, plants 7", "before": 0, "after": 30, "unit": "tests+transcripts+plants", "measured": true},
+   {"kind": "cost", "what": "cargo xtask so: one more freestanding product build (cargo-localedef)", "before": 0, "after": 52.5, "unit": "s on the Zen 1 host (one run)", "measured": true}
+ ],
+ "improvement": "A transcript comparator for compiled locale files (by the reader, like as-cache:) would let the directory form itself be a transcript instead of a separate Rust test",
+ "next_step": "UTIL-12b: the locale archive writer and listing, POSIX defaults for undefined categories; then UTIL-13",
+ "report_file": "handoff/UTIL-12.md",
+ "jobs": ["mei:util-12-gate", "mei:util-12-plants"]}
