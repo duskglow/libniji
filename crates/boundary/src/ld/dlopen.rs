@@ -1344,6 +1344,16 @@ pub(super) fn fini_exit(start: &[(usize, [u64; 3])]) -> bool {
     if LOADER.load(Acquire) == 0 {
         return false;
     }
+    fini_exit_loaded(start)
+}
+
+/// [`fini_exit`] once a `dlopen` loader exists. Out of line (ICONV-CJK-STARTUP-2): its frame holds
+/// [`Finis`] and [`exit_set`]'s tables (more than 24 KiB at [`CAP`] entries), and inlined into the
+/// interpreter's `fini_all` the stack probes of that frame touched four more stack pages at every
+/// exit, `dlopen` used or not (Zen 1 host, empty main: 4 of the 5 page faults start-up gained).
+#[cold]
+#[inline(never)]
+fn fini_exit_loaded(start: &[(usize, [u64; 3])]) -> bool {
     let mut f = Finis::NONE;
     STATE.lock();
     let Some(l) = loader() else {
