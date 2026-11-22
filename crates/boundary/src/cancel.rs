@@ -247,9 +247,15 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
 /// fix on standard error, then `abort` (SIGABRT). A thread with nothing to unwind (C cleanup
 /// buffers and old-style records only) goes on to the exit without an unwinder. A program that
 /// links its own unwinder hidden (`-static-libgcc`) and loads no `libgcc_s.so.1` lands here.
+/// Only in a program this library's `ld.so` started: a static program with unwind work links
+/// its unwinder (D-22.21), and a process another loader started (the in-process test runtime)
+/// has no lookup to find one.
 #[cold]
 #[inline(never)]
 fn no_unwinder() {
+    if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+        return;
+    }
     if crate::backtrace::handler_on_stack() {
         niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
     }
