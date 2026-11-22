@@ -1,7 +1,7 @@
 {"task": "TZ-SECURE-PATH", "model": "opus", "tokens": null,
  "result": "secure-mode TZ rule applied: in an AT_SECURE process a TZ value names a zone file only inside /usr/share/zoneinfo (no `..`, no absolute path outside); refused values fall back to the rule parse, matching the reference probe case for case",
- "branch": "task/tz-secure-path", "head": null,
- "gate": {"affected": "direct tier on mei:~/w/s4, see jobs", "peak": null},
+ "branch": "task/tz-secure-path", "head": "3cc69ca4b (code; later commits add only handoff files)",
+ "gate": {"affected": "9270 passed / 0 failed (direct tier, 9 suites); conformance 4 passed / 0 failed; plants 6/6 CAUGHT", "peak": "14G"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
