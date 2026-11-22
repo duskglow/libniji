@@ -38,5 +38,29 @@ Decisions in force: D-X.152, D-X.153 (records/decisions/D-X/).
   passed). Report record: handoff/reports/VALGRIND-LOADER-VIEW-2.json.
 * Ruling #7385 resolved: AFFECTED-COVERAGE runs the `ld` unit tests; the valgrind-only path is accepted.
 
+## VALGRIND-LOADER-VIEW-3 (merge run; branch `task/valgrind-loader-view-3`, role mei `~/w/s2`, Skylake-SP)
+
+* CI could not merge next (conflict in `xtask/src/so.rs` after VALGRIND-STRING-REDIRECT landed). Merged origin/next
+  9548c734e (commit 6d3bf87b4): both conflicts were adjacent additions of independent functions and their tests
+  (this branch's versioned-default aliases, next's `check_valgrind_string_names`); both kept unchanged. No design
+  decision was needed. The string-names check runs right after the link, before the aliases are added; an alias is
+  a copy of its function's `.symtab` entry (same start and size), so valgrind's view merges the names and nothing
+  moves (the acceptance below confirms it on the final product).
+* Step 0 on the inherited head 12a0d4683: clippy (`--all-features -D warnings`) and `cargo xtask static` green.
+  Same on the merged head.
+* Jobs on the merged head (mei, job scripts `~/work/VALGRIND-LOADER-VIEW-3/`):
+  `valgrind-loader-view-3-gate` (direct tier, 19 suites ok, 10408 passed, 0 failed, 1501 ignored, conformance
+  37/0, SKIPPED 0, peak 14G); `valgrind-loader-view-3-plants` (7 of 7 CAUGHT, no WARN);
+  `valgrind-loader-view-3-acc` (system debs from the head, check-system PASS 7 packages, then both swapped-root
+  acceptances with trixie's valgrind 3.24 and the whole libc6-dbg); `valgrind-loader-view-3-startup`
+  (`cargo xtask test`, full-profile so, hot_text_products).
+* Acceptance, VALGRIND-LOADER-VIEW (`vgacc`): 8 of 8 PASS. The leak record runs malloc, vasprintf (printf.rs),
+  `__vasprintf_chk`, asprintf, main (leak.c:9), no unnamed frames; helgrind thr, thr_old 0 errors, race 2 races at
+  race.c, all as on stock. Still reachable on leak: 4,104 bytes in 1 block (stock 0), the same as the pre-merge run
+  on keke: unchanged by the merge.
+* Acceptance, VALGRIND-STRING-REDIRECT (`acc`): ls /, ls -l /etc, find /etc -name passwd, sort /etc/passwd and every
+  replaced string function: 0 memcheck errors each, as on stock; the deliberate overread: 1 error in strlen, as on
+  stock.
+
 ## Next step
 None for this story beyond landing.
