@@ -158,8 +158,9 @@ pub extern "C" fn dl_iterate_phdr(cb: Callback, data: *mut c_void) -> c_int {
 }}
 
 /// The range and `PT_GNU_EH_FRAME` address of the object (headers `phdr`, `phnum`, load bias
-/// `bias`) that holds `pc`: the `PT_LOAD` segment's range, or the object's whole range when
-/// `whole`.
+/// `bias`) that holds `pc`: the `PT_LOAD` segment that holds it and that segment's range, or, when
+/// `whole`, the object's whole range (lowest to highest `PT_LOAD` address, gaps between segments
+/// included: probe R-5 in `spec/behaviour/dynlink.md`) when it holds `pc`.
 pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, whole: bool) -> Option<(usize, usize, usize)> {
     // UNSAFE(slice): program headers the kernel mapped (⚑ KERN) and that stay mapped.
     #[allow(unsafe_code)]
@@ -167,8 +168,10 @@ pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, whole: 
     let w = unsafe { conv::words_at(phdr, phnum.saturating_mul(7)) };
     let ty = |h: &[u64]| u32::try_from(h.first().copied().unwrap_or(0) & 0xffff_ffff).unwrap_or(0);
     let loads = || w.chunks_exact(7).take(phnum).filter(|h| ty(h) == PT_LOAD).map(|h| (bias.wrapping_add(word(h, 2)), bias.wrapping_add(word(h, 2)).wrapping_add(word(h, 5))));
-    let seg = loads().find(|&(lo, hi)| lo <= pc && pc < hi)?;
-    let (lo, hi) = if whole { (loads().map(|r| r.0).min().unwrap_or(seg.0), loads().map(|r| r.1).max().unwrap_or(seg.1)) } else { seg };
+    let (lo, hi) = if whole { (loads().map(|r| r.0).min()?, loads().map(|r| r.1).max()?) } else { loads().find(|&(lo, hi)| lo <= pc && pc < hi)? };
+    if !(lo..hi).contains(&pc) {
+        return None;
+    }
     let eh = w.chunks_exact(7).take(phnum).find(|h| ty(h) == PT_GNU_EH_FRAME).map_or(0, |h| bias.wrapping_add(word(h, 2)));
     Some((lo, hi, eh))
 }

@@ -1,0 +1,11 @@
+# Plants for DL-FIND-OBJECT-FAST (the loader's address index): cargo xtask plants handoff/DL-FIND-OBJECT-FAST-plants.txt
+# A stale entry: dlclose leaves the closed object's segments in the index.
+stale-after-dlclose | crates/boundary/src/ld/index.rs | lit:update(Some(k), 0..0); ==> | cargo xtask so && cargo test -p niji-ld --test dl_find_object_index | msg:check (41|42):
+# A torn read, writer side: readers are not moved to copy 1 before copy 0 is rewritten.
+torn-writer-no-odd | crates/boundary/src/ld/index.rs | lit:SEQ.store(s.wrapping_add(1), Relaxed); ==> | cargo xtask so && cargo test -p niji-ld --test dl_find_object_index | msg:check 71:
+# A torn read, reader side: the answer is not validated against SEQ.
+torn-reader-no-validate | crates/boundary/src/ld/index.rs | lit:if SEQ.load(Relaxed) == s { ==> if SEQ.load(Relaxed) == s || true { | cargo xtask so && cargo test -p niji-ld --test dl_find_object_index | msg:check 71:
+# The binary search misses an address equal to a segment's start.
+search-edge | crates/boundary/src/ld/index.rs | lit:if word(r, mid, 0) <= a { ==> if word(r, mid, 0) < a { | cargo xtask so && cargo test -p niji-ld --test dl_find_object_index | msg:check [0-9]+:
+# dlopen's objects never reach the index.
+added-missing | crates/boundary/src/ld/index.rs | lit:update(None, base..len); ==> | cargo xtask so && cargo test -p niji-ld --test dl_find_object_index | msg:check [0-9]+:

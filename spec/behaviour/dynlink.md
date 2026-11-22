@@ -82,6 +82,12 @@ libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened
 `dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
 (one more callback), and `dlpi_adds` grows by one within the walk.
 
+R-5 (DL-FIND-OBJECT-FAST, probe `tools/probe/dl/span/probe.c`, same reference, x86_64): in a dynamic program
+`_dl_find_object` finds a `dlopen`'d object for **every pc in its `PT_LOAD` span**, not only in a segment: the
+object's first byte, the bytes past a segment's `p_memsz` (the rest of an executable segment's page) and the bytes
+between segments all give 0 and the same span; the byte at the span's end (highest `p_vaddr + p_memsz`) and past it
+give -1. (Object: `-nostdlib -shared`, four `PT_LOAD`s, a 14-byte executable segment.)
+
 **Exit order of `dlopen`ed objects** (record `== exit-order (DL-EXIT-ORDER-PROBE)`, probe
 `tools/probe/dl/exitorder/run.sh SCRATCH`, each scenario its own process; destructors report with
 `write`). At exit the program's destructor runs first; then the start-time objects and the `dlopen`ed

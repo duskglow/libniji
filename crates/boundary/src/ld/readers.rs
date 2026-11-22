@@ -29,6 +29,7 @@
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
 use super::dlopen::{node_address, reader_entry, CAP};
+use super::index::Found;
 use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
@@ -74,6 +75,11 @@ fn slot(i: usize) -> Option<&'static [AtomicUsize; 5]> {
 }
 /// Entries a reader looks at (0: the start-time entries are not filled yet).
 static PUBLISHED: AtomicUsize = AtomicUsize::new(0);
+
+/// [`PUBLISHED`] now: a bound on the objects a walk visits (`dladdr` picks the walk or the index).
+pub(super) fn published() -> usize {
+    PUBLISHED.load(Relaxed)
+}
 /// The reader parity (DL-17): bit 0 says which counter of its stripe a reader entering now uses.
 static PARITY: AtomicUsize = AtomicUsize::new(0);
 /// Readers inside [`read_section`], per parity, striped by thread pointer over cache lines.
@@ -240,8 +246,20 @@ fn vdso() -> usize {
     v
 }
 
+/// The count of start-time entries, filling them first (`super::index`).
+pub(super) fn start_count() -> usize {
+    fill_start()
+}
+
+/// Entry `i` when it is live: `(load bias, program header table, header count)` (`super::index`;
+/// inside a read section, or under the loader's lock).
+pub(super) fn live(i: usize) -> Option<(usize, usize, usize)> {
+    let e = View::read(slot(i)?)?;
+    Some((e.bias, e.phdr, e.phnum))
+}
+
 /// The program headers of an object as `(p_type, p_vaddr, p_memsz, p_flags)`.
-fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64, u64)> {
+pub(super) fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64, u64)> {
     // UNSAFE(slice): a loaded object's program header table (⚑ KERN for the program, `map::load`
     // or the start's loader for the others), mapped while a reader may see its entry (DL-17: unmapped
     // only after the readers that saw it left, `read_section`).
@@ -361,6 +379,7 @@ pub(super) fn publish(base: usize, len: usize) {
         }
     }
     PUBLISHED.fetch_max(len, Release);
+    super::index::added(base, len);
 }
 
 /// `dlclose` unloads object `k` (DL-17): its entry is invisible to readers entering from now on,
@@ -369,6 +388,7 @@ pub(super) fn unpublish(k: usize) {
     if let Some(live) = slot(k).and_then(|e| e.get(4)) {
         live.store(0, Release);
     }
+    super::index::removed(k);
     SUBS.fetch_add(1, Release);
 }
 
@@ -499,6 +519,19 @@ fn report(v: &View, i: usize, e: &Entry, cb: usize, data: usize) -> Option<i64> 
     None
 }
 
+/// [`find_object`]'s walk over the table, when the index cannot answer (`super::index`).
+#[cold]
+#[inline(never)]
+fn find_walk(v: &View, pc: usize) -> Option<(usize, usize, usize, usize)> {
+    let n = v.len();
+    (0..n.min(CAP))
+        .find_map(|i| {
+            let e = v.entry(i)?;
+            find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+        })
+        .or_else(|| find_past(v, n, pc))
+}
+
 /// [`find_object`]'s walk past generation 0 (entries [`CAP`] to `n`).
 #[cold]
 #[inline(never)]
@@ -514,14 +547,10 @@ fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usiz
 /// map is 0 before the first `dlopen` makes the loader's nodes, and for the vDSO); 0, or -1 with
 /// `*result` untouched.
 extern "C" fn find_object(pc: usize, result: usize) -> i64 {
-    let found = read_section(|v| {
-        let n = v.len();
-        (0..n.min(CAP))
-            .find_map(|i| {
-                let e = v.entry(i)?;
-                find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
-            })
-            .or_else(|| find_past(v, n, pc))
+    let found = read_section(|v| match super::index::find(pc) {
+        Found::Hit(h) => Some((h.lo, h.hi, h.eh, node_address(h.i))),
+        Found::Miss => None,
+        Found::Unknown => find_walk(v, pc),
     });
     let found = found.or_else(|| {
         let vd = vdso();
