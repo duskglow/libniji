@@ -2,6 +2,8 @@
 //! (DIR is emptied first). `cargo xtask so` runs it and compresses the files for the `locales`
 //! package.
 
+#![forbid(unsafe_code)]
+
 use std::path::Path;
 use std::process::ExitCode;
 

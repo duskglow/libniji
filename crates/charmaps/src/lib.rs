@@ -21,8 +21,11 @@
 //! sequence its encoder writes (code points up to 0x7FFFFFFF). Symbolic names are `<Uxxxx>`
 //! (`<Uxxxxxxxx>` above the BMP). Consecutive characters whose sequences differ only by a last
 //! byte counting up are one `<Ua>..<Ub> /x../x..` line, the range form `niji::charmap` and
-//! localedef read. A `WIDTH` section lists the characters whose `C.UTF-8` `wcwidth`
-//! ([`niji::unicode::width`]) is 0 or 2; every other character takes the default width 1.
+//! localedef read. A `WIDTH` section lists the characters whose [`width`] is 0 or 2 (the
+//! `C.UTF-8` `wcwidth`, [`niji::unicode::width`], except that most multi-byte characters of the
+//! CJK charsets take two columns); every other character takes the default width 1.
+
+#![forbid(unsafe_code)]
 
 use std::fmt::Write as _;
 

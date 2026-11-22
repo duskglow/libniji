@@ -68,6 +68,7 @@ fn check(name: &str, codec: Codec) {
 /// s31_8_i_2: one test per charmap, so a failure names it.
 macro_rules! charset_tests {
     ($($test:ident: $k:expr;)*) => {$(
+        /// s31_8_i_2: this charmap is its codec's round-trip set, with its header and WIDTH.
         #[test]
         fn $test() {
             let (name, codec) = CHARSETS[$k];
