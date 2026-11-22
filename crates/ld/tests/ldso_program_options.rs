@@ -315,6 +315,10 @@ fn ldso_program_inhibit_rpath_hwcaps_and_lists() {
     assert!(o.lines().any(|l| l.starts_with("env_filtered[0x") && l.ends_with("]=\"ZZ_SECRET\"")) && !o.contains("hidden"), "{o}");
     assert!(o.lines().any(|l| l.starts_with("env[0x") && l.ends_with(r#"]="LD_X=a\"b\\c\011d""#)), "{o}");
     assert!(o.contains(&format!("path.rtld=\"{}\"\n", Native::INTERP)) && o.contains("dl_pagesize=0x") && o.contains("auxv[0x0].a_type=0x"), "{o}");
+    // $PLATFORM: `haswell` exactly when x86-64-v3 is among the supported subdirectories.
+    let subdirs = o.lines().find_map(|l| l.strip_prefix("dl_hwcaps_subdirs=")).unwrap_or_default();
+    let platform = if subdirs.split([':', '"']).any(|h| h == "x86-64-v3") { "haswell" } else { "x86_64" };
+    assert!(o.contains(&format!("dl_platform=\"{platform}\"\n")), "{platform} for {subdirs}:\n{o}");
 }
 
 /// (no spec clause: ld.so(8) run as a program on files that are not dynamic programs; the reference
@@ -414,4 +418,9 @@ fn ldso_program_dlopen_after_library_path_and_inhibit_cache() {
     let o = run(&ld, d, &env, &["--library-path", &path("nolib"), "./dprog"]);
     assert_eq!(o.status.code(), Some(1), "{o:?}");
     assert!(out(&o).starts_with("dlerror:libdep.so: cannot open shared object file"), "the option's directories only: {o:?}");
+    // --glibc-hwcaps-prepend: dlopen searches the prepended subdirectory as the start does (probed).
+    std::fs::create_dir_all(d.join("hw/glibc-hwcaps/myhw")).unwrap();
+    cc(d, "hw/glibc-hwcaps/myhw/libdep.so", "int dep_value(void) { return 5; }\n", &["-fPIC", "-shared", "-Wl,-soname,libdep.so"]);
+    let o = ran(&run(&ld, d, &env, &["--glibc-hwcaps-prepend", "myhw", "--library-path", &path("hw"), "./dprog"]), "dlopen after --glibc-hwcaps-prepend");
+    assert_eq!(o, "dlopen:5\n", "dlopen searches the prepended glibc-hwcaps subdirectory");
 }
