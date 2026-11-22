@@ -883,6 +883,30 @@ static int run_late(int tag) {
     if (pthread_create(&t, NULL, thread_late, (void *)(long)tag) || pthread_join(t, &r)) return 1;
     return (int)(long)r;
 }
+/* One access from a new thread to the module with the highest ID (past the vector in place): the
+   vector the thread block names afterwards (%fs:8; words: generation, count, then one slot per
+   module ID) holds that module's slot, so the next access needs no walk of the module table. */
+static int one_k;
+static size_t one_id;
+static void *thread_one(void *x) {
+    (void)x;
+    int *a = g_gd[one_k]();
+    unsigned long *dtv;
+    __asm__ volatile("movq %%fs:8, %0" : "=r"(dtv));
+    return (void *)(long)(*a != 7 || dtv[1] < one_id || dtv[one_id + 1] == 0);
+}
+static int run_one(void) {
+    for (int k = 0; k < M; k++) {
+        size_t id = 0;
+        if (dlinfo(h[k], RTLD_DI_TLS_MODID, &id)) return 3;
+        if (id > one_id) { one_id = id; one_k = k; }
+    }
+    if (one_id <= 1030) return 2;
+    pthread_t t;
+    void *r = (void *)1L;
+    if (pthread_create(&t, NULL, thread_one, NULL) || pthread_join(t, &r)) return 1;
+    return (int)(long)r;
+}
 int main(int argc, char **argv) {
     if (argc < 2) return 2;
     dir = argv[1];
@@ -895,7 +919,7 @@ int main(int argc, char **argv) {
     sem_post(&go_a);
     while (sem_wait(&done_a)) {}
     printf("before %d\nmain kept %d\n", a_bad[0], mine(0, M, 0));
-    printf("after %d\n", run_late(2));
+    printf("after %d\none slot %d\n", run_late(2), run_one());
     for (int k = 1; k < M; k += 2) { if (dlclose(h[k])) { printf("close %d: %s\n", k, dlerror()); return 1; } live[k] = 0; }
     for (int k = M; k < M + MORE; k++) if (load(k)) return 1;
     printf("main new %d kept %d\n", fresh(M, M + MORE, 0), mine(0, M, 0));
@@ -927,7 +951,9 @@ int main(int argc, char **argv) {
 /// is per thread): 1100 `dlopen`ed modules with TLS, past the 512 slots a thread's vector holds in
 /// place. In the main thread, a thread started before the loads and one started after, each
 /// module's general-dynamic and initial-exec blocks hold their images and `.tbss` zeros, and each
-/// thread's own writes stay its own. Closing every other module and loading 200 more reuses their
+/// thread's own writes stay its own. One access from a new thread to the module with the highest
+/// ID leaves that thread a vector holding the module's slot (no walk of the module table on each
+/// later access). Closing every other module and loading 200 more reuses their
 /// IDs (past 512 included): the old thread and the main thread see the new modules' images and
 /// keep the values they wrote to the others. Forty threads that grow their vectors end while
 /// modules are loaded and closed in the main thread: every block they saw was right, and the
@@ -949,6 +975,6 @@ fn dlopen_tls_modules_past_the_vectors_in_place() {
     let o = run(Command::new(top.join("tlsprog")).arg(&d));
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
-    let want = "main 0\nbefore 0\nmain kept 0\nafter 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\ngrown kept 0\n";
+    let want = "main 0\nbefore 0\nmain kept 0\nafter 0\none slot 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\ngrown kept 0\n";
     assert_eq!(out, want, "TLS of modules past the vectors in place");
 }
