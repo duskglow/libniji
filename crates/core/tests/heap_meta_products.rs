@@ -181,6 +181,7 @@ fn the_heap_keeps_address_space_near_its_use() {
     // nodes 15 of 20), and the bounds hold the single-node level with no margin for that. The
     // node-change case is measured and tested on its own (HEAP-SPILL-COLD-2).
     let (o, limited) = on_one_node(|| {
+        assert_on_one_node();
         let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
         let limited = with_fixed_layout(|| Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap());
         (o, limited)
@@ -214,6 +215,24 @@ fn cpulist(s: &str) -> Vec<usize> {
         cpus.extend(lo..=hi);
     }
     cpus
+}
+
+/// Checks, from the kernel's view of this thread (`/proc/thread-self/status`), that every CPU it
+/// may run on, and so every CPU its children may run on, is on one NUMA node: a pinning that was
+/// skipped or set the wrong mask would leave a measurement a node change can move.
+fn assert_on_one_node() {
+    let status = std::fs::read_to_string("/proc/thread-self/status").expect("/proc/thread-self/status");
+    let list = status.lines().find_map(|l| l.strip_prefix("Cpus_allowed_list:")).expect("Cpus_allowed_list");
+    let mine = cpulist(list);
+    let Ok(dir) = std::fs::read_dir("/sys/devices/system/node") else { return };
+    let nodes: Vec<Vec<usize>> = dir
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_str().is_some_and(|n| n.strip_prefix("node").is_some_and(|v| v.parse::<usize>().is_ok())))
+        .filter_map(|e| std::fs::read_to_string(e.path().join("cpulist")).ok())
+        .map(|s| cpulist(&s))
+        .filter(|cpus| cpus.iter().any(|c| mine.contains(c)))
+        .collect();
+    assert!(nodes.len() <= 1, "the measurement may run on CPUs {} of {} nodes, not one (pinning skipped or wrong mask)", list.trim(), nodes.len());
 }
 
 /// Runs `run` with the calling (test) thread's CPU affinity narrowed to the allowed CPUs of one

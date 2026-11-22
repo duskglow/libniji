@@ -1,0 +1,6 @@
+# HEAP-TEST-NODE-PIN plants (cargo xtask plants; docs/plants.md): the one-node pinning of
+# the_heap_keeps_address_space_near_its_use, caught by its assert_on_one_node check on a host with two nodes.
+# pin-skipped: a two-node host is treated as one node, so nothing is pinned.
+# pin-all-cpus: the mask set is the whole allowed mask instead of one node's CPUs.
+pin-skipped | crates/core/tests/heap_meta_products.rs | lit:if nodes.len() < 2 { ==> if nodes.len() < 3 { | cargo test -p niji --test heap_meta_products the_heap_keeps_address_space_near_its_use | msg:not one \(pinning skipped or wrong mask\)
+pin-all-cpus | crates/core/tests/heap_meta_products.rs | lit:let mut mask = vec![0u8; cur.len()]; ==> let mut mask = cur.clone(); | cargo test -p niji --test heap_meta_products the_heap_keeps_address_space_near_its_use | msg:not one \(pinning skipped or wrong mask\)
