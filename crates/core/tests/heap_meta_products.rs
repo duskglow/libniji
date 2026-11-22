@@ -233,7 +233,7 @@ fn the_heap_bounds_address_space_after_a_node_change() {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("heap_address_space_move_niji");
     build("heap_address_space.c", &exe);
-    let to = second[0].to_string();
+    let to = second.first().expect("a node in the list has a CPU").to_string();
     for (at, bounds, need) in MOVE_STEPS {
         let at_s = at.to_string();
         // Fixed layout, as measured: a randomised one can end a segment's window early.
@@ -266,7 +266,7 @@ fn the_heap_bounds_address_space_after_a_node_change() {
 fn numa_nodes() -> Vec<Vec<usize>> {
     let mut mask = [0u8; 1024];
     let len = CSys.sched_getaffinity(0, &mut mask).expect("sched_getaffinity");
-    let allowed = |c: usize| c < len * 8 && mask[c / 8] & (1 << (c % 8)) != 0;
+    let allowed = |c: usize| c / 8 < len && mask.get(c / 8).is_some_and(|b| b & (1 << (c % 8)) != 0);
     let Ok(dir) = std::fs::read_dir("/sys/devices/system/node") else { return Vec::new() };
     let mut ids: Vec<usize> = dir.filter_map(|e| e.ok()?.file_name().to_str()?.strip_prefix("node")?.parse().ok()).collect();
     ids.sort_unstable();
@@ -296,11 +296,13 @@ fn with_cpus(cpus: &[usize], run: impl FnOnce() -> Output) -> Output {
     let len = CSys.sched_getaffinity(0, &mut cur).expect("sched_getaffinity");
     let mut want = [0u8; 1024];
     for &c in cpus {
-        want[c / 8] |= 1 << (c % 8);
+        if let Some(b) = want.get_mut(c / 8) {
+            *b |= 1 << (c % 8);
+        }
     }
-    CSys.sched_setaffinity(0, &want[..len]).expect("sched_setaffinity");
+    CSys.sched_setaffinity(0, want.get(..len).expect("mask length")).expect("sched_setaffinity");
     let o = run();
-    CSys.sched_setaffinity(0, &cur[..len]).expect("sched_setaffinity restore");
+    CSys.sched_setaffinity(0, cur.get(..len).expect("mask length")).expect("sched_setaffinity restore");
     o
 }
 
