@@ -14,11 +14,7 @@ __NIJI_BEGIN_C
 
 @@if NULL
 # ifndef NULL
-#  ifdef __cplusplus
-#   define NULL __null
-#  else
-#   define NULL ((void *) 0)
-#  endif
+@@null NULL
 # endif
 #endif
 

@@ -432,6 +432,31 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         if c.lang(i) == Some("*") {
             continue;
         }
+        if ty == "null" {
+            // A null pointer constant: the generator's own definition (one per language), then its type in each
+            // language (C `void *`, C++ `long` as g++'s `__null`) and its value 0, which a run-time check reads.
+            let def = match super::values::null_lines(n, v) {
+                Ok(l) => l,
+                Err(e) => {
+                    c.fail(i, format!("generator: {e}"));
+                    continue;
+                }
+            };
+            let mut lines = vec![format!("#undef {n}")];
+            lines.extend(def.iter().cloned());
+            lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ({n}), void *), \"macros {n} is void * in C\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), long>::v, \"macros {n} is long in C++\");"));
+            c.put(&mut a, i, lines);
+            for row in [i, c.row("constants", n)] {
+                let mut l = vec![format!("#undef {n}")];
+                l.extend(def.iter().cloned());
+                l.push(format!("  if ((long) ({n}) != 0) niji_bad ({row});"));
+                l.push(format!("#undef {n}"));
+                ptr_runs.push((row, l));
+            }
+            c.put(&mut a, i, vec![format!("#undef {n}")]);
+            continue;
+        }
         let lit = g.value(n);
         for e in std::mem::take(&mut g.errors) {
             c.fail(i, format!("generator: {e}"));
