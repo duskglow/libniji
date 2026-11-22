@@ -1,0 +1,23 @@
+{"task": "LDSO-PROGRAM-OPTIONS-REST", "model": "opus", "tokens": null,
+ "result": "Program mode's options off the exec'd start (empty main -137/-138, three libraries -197, both classes); --list of missing/non-ELF files as the reference; in-tree dlopen and --inhibit-cache tests. Brief step 2 (five small options) not done: next story.",
+ "branch": "task/ldso-program-options-rest", "head": "2b416b5a7",
+ "gate": {"affected": "direct tier rc 0 (gate3); ldtests3 30 passed; startup3 rc 0 (cargo xtask test 7128+4875+128+46 passed, hot_text_products); plants3 8/8 caught", "peak": "842M"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "ld.so self-relocation costs about 50 user instructions per RELR offset (relocate_self: 20,676 steps for 415 offsets); at least 113 of the 415 are panic locations (link.rs 42, dlopen.rs 25, ld/src/init.rs 21, dlsym.rs 12, image.rs 9): each panic site in ld.so costs every start ~50 instructions. LD-RELR-LOOP and a static bound on ld.so's panic sites would both pay.",
+   "Brief step 2 (--inhibit-rpath, --glibc-hwcaps-prepend/-mask, --list-tunables, --list-diagnostics) not implemented; probe notes and a design in handoff/LDSO-PROGRAM-OPTIONS-REST.md. Differences row 337 unchanged (it covers exactly those options and --audit)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "exec'd start, empty main, user instructions (Skylake-SP)", "before": 549052, "after": 548915, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "exec'd start, three libraries, user instructions (Skylake-SP)", "before": 798034, "after": 797837, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "exec'd start, empty main, user instructions (Zen 1)", "before": 545321, "after": 545183, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "exec'd start, three libraries, user instructions (Zen 1)", "before": 794167, "after": 793970, "unit": "instr/start", "measured": true},
+   {"kind": "correctness", "what": "ld.so --list of a missing, unreadable, directory, short or non-ELF file, and running a non-ELF file: the reference's loading-error form and status 127", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "tests: --list refusals, dlopen after --library-path/--inhibit-cache (libniji-linked program), --inhibit-cache opens no cache (strace); 8 plants", "before": null, "after": 8, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A ptrace single-step profiler (per-function user-instruction counts, exact, works in VMs without PT or valgrind) found in one run what perf could not: start-up count rises from panic-location self-relocations; worth a tools/ home and a static bound on ld.so's RELR offsets.",
+ "next_step": "New story for brief step 2: the five small ld.so options (cold, panic-free), with the probe notes in the handoff note.",
+ "report_file": "handoff/LDSO-PROGRAM-OPTIONS-REST-report.md",
+ "jobs": ["ldso-program-options-rest-check3", "ldso-program-options-rest-gate3", "ldso-program-options-rest-ldtests3", "ldso-program-options-rest-startup3", "ldso-program-options-rest-plants3", "ldso-program-options-rest-count2", "keke:ldso-program-options-rest-zen-count2"]}

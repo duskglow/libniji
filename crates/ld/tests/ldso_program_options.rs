@@ -90,6 +90,7 @@ fn fixture(name: &str) -> Option<(Scratch, PathBuf)> {
     cc(&d, "static", STATIC, &["-static", "-no-pie"]);
     cc(&d, "staticpie", STATIC, &["-static-pie", "-fPIE"]);
     std::fs::write(d.join("notelf"), "not an elf file\n").unwrap();
+    std::fs::write(d.join("notelf_long"), "not an elf file, but longer than an ELF header: ".repeat(3)).unwrap();
     Some((s, ld))
 }
 
@@ -129,7 +130,7 @@ fn ldso_program_option_parsing() {
     assert_eq!(a(&[b"./p", b"--argv0", b"x"]), p(run, b"./p", 0, o), "options after the program are its arguments");
     let lp = program::Options { library_path: Some(b"lib"), ..o };
     assert_eq!(a(&[b"--library-path", b"lib2", b"--library-path", b"lib", b"./p"]), p(run, b"./p", 4, lp), "the last copy wins");
-    let all = program::Options { library_path: Some(b"l"), preload: Some(b"a:b"), argv0: Some(b"N"), audit: Some(b"x.so"), inhibit_cache: true };
+    let all = program::Options { library_path: Some(b"l"), preload: Some(b"a:b"), argv0: Some(b"N"), audit: Some(b"x.so"), inhibit_cache: true, ..o };
     let args: [&[u8]; 11] = [b"--inhibit-cache", b"--library-path", b"l", b"--preload", b"a:b", b"--argv0", b"N", b"--audit", b"x.so", b"--list", b"./p"];
     assert_eq!(a(&args), p(list, b"./p", 10, all));
     assert_eq!(a(&[b"--verify", b"./p"]), p(verify, b"./p", 1, o));
@@ -138,8 +139,33 @@ fn ldso_program_option_parsing() {
         assert_eq!(a(&[opt]), program::Action::Unknown(opt), "a value is required");
     }
     assert_eq!(a(&[b"--library-path=lib", b"./p"]), program::Action::Unknown(b"--library-path=lib"));
-    for opt in program::UNSUPPORTED {
-        assert_eq!(a(&[opt, b"x", b"./p"]), program::Action::Unsupported(opt), "never ignored");
+    let search = program::Options { inhibit_rpath: Some(b""), hwcaps_prepend: Some(b"a:b"), hwcaps_mask: Some(b"x86-64-v2"), ..o };
+    assert_eq!(a(&[b"--inhibit-rpath", b"", b"--glibc-hwcaps-prepend", b"a:b", b"--glibc-hwcaps-mask", b"x86-64-v2", b"./p"]), p(run, b"./p", 6, search));
+    for opt in [&b"--inhibit-rpath"[..], b"--glibc-hwcaps-prepend", b"--glibc-hwcaps-mask"] {
+        assert_eq!(a(&[opt]), program::Action::Unknown(opt), "a value is required");
+    }
+    // The two lists need no program and ignore one; the last mode option wins (probed).
+    assert_eq!(a(&[b"--list-tunables"]), program::Action::Tunables);
+    assert_eq!(a(&[b"--list-tunables", b"./nosuch", b"x"]), program::Action::Tunables);
+    assert_eq!(a(&[b"--list", b"--list-diagnostics", b"./p"]), program::Action::Diagnostics);
+    assert_eq!(a(&[b"--list-tunables", b"--list"]), program::Action::Missing);
+    assert_eq!(a(&[b"--list-diagnostics", b"--frob"]), program::Action::Unknown(b"--frob"));
+    // --inhibit-rpath: the path an object was loaded by, exactly; an empty first entry is the program.
+    for (list, path, named) in [("", "", true), (":", "", true), ("x:", "", false), ("x::y", "", false), ("x:/a/l.so", "/a/l.so", true), ("/a/l.so:", "/a/l.so", true), ("l.so", "/a/l.so", false), ("x /a/l.so", "/a/l.so", false), ("", "/a/l.so", false), ("/a/../a/l.so", "/a/l.so", false)] {
+        assert_eq!(program::rpath_inhibited(list.as_bytes(), path.as_bytes()), named, "{list:?} names {path:?}");
+    }
+    let sub = |pre: Option<&'static [u8]>, mask: Option<&'static [u8]>| program::hwcaps_subdirs(&[&b"v3"[..], b"v2"], pre, mask).map(|h| String::from_utf8_lossy(h).into_owned()).collect::<Vec<_>>();
+    assert_eq!(sub(None, None), ["v3", "v2"]);
+    assert_eq!(sub(Some(b"p1::p2"), None), ["p1", "p2", "v3", "v2"], "prepended first, empty names dropped");
+    assert_eq!(sub(Some(b""), Some(b"v2:x")), ["v2"], "the mask keeps the supported names it lists");
+    assert_eq!(sub(Some(b"p1"), Some(b"")), ["p1"], "an empty mask keeps none; the prepended are not masked");
+    let mut b = [0u8; 24];
+    assert_eq!(program::number(0, true, &mut b), b"0x0");
+    assert_eq!(program::number(u64::MAX, true, &mut b), b"0xffffffffffffffff");
+    assert_eq!(program::number(32767, false, &mut b), b"32767");
+    let mut q = [0u8; 4];
+    for (byte, text) in [(b'"', &br#"\""#[..]), (b'\\', br"\\"), (b'a', b"a"), (b'\t', br"\011"), (0xff, br"\377"), (0x7f, br"\177")] {
+        assert_eq!(program::quoted_byte(byte, &mut q), text, "{byte:#x}");
     }
     assert_eq!(program::audit_names(b"a.so: b.so::c.so").collect::<Vec<_>>(), [&b"a.so"[..], b"b.so", b"c.so"]);
 }
@@ -166,6 +192,31 @@ fn ldso_program_library_path() {
     assert!(o.starts_with("dep:1\n"), "{o}");
 }
 
+/// `--inhibit-cache`: a search that would reach the loader cache never opens it (a dependency found
+/// nowhere: without the option the search opens the cache once, which shows the trace sees it).
+/// (no spec clause: ld.so(8) `--inhibit-cache`; the reference probed.)
+#[test]
+fn ldso_program_inhibit_cache_opens_no_cache() {
+    let Some((s, ld)) = fixture("inhibit") else { return };
+    let d: &Path = &s;
+    if !Command::new("strace").args(["-o", "/dev/null", "true"]).status().is_ok_and(|s| s.success()) {
+        return eprintln!("SKIP: strace is absent or cannot trace here");
+    }
+    let traced = |args: &[&str], log: &str| {
+        let mut c = Command::new("timeout");
+        c.args(["20", "strace", "-qq", "-e", "trace=open,openat", "-o"]).arg(d.join(log)).arg(&ld).args(args).current_dir(d).env_clear();
+        let o = c.output().unwrap();
+        assert_eq!(o.status.code(), Some(program::FAILURE), "libdep.so is found nowhere: {o:?}");
+        let t = std::fs::read_to_string(d.join(log)).unwrap();
+        let opens = t.lines().filter(|l| l.contains("ld.so.cache")).count();
+        (opens, t)
+    };
+    let (opens, t) = traced(&["./prog"], "plain.trace");
+    assert_eq!(opens, 1, "the search reaches the cache:\n{t}");
+    let (opens, t) = traced(&["--inhibit-cache", "./prog"], "inhibit.trace");
+    assert_eq!(opens, 0, "--inhibit-cache: no cache opened:\n{t}");
+}
+
 /// (no spec clause: ld.so(8) `--preload` and `--argv0`; the reference probed.)
 #[test]
 fn ldso_program_preload_and_argv0() {
@@ -184,6 +235,10 @@ fn ldso_program_preload_and_argv0() {
     let o = with(&[], &["--preload", "./nosuch.so"]);
     assert_eq!(out(&o), "dep:1\narg:./prog\n", "{o:?}");
     assert!(err(&o).contains("ERROR: ld.so: object './nosuch.so' from --preload cannot be preloaded (cannot open shared object file): ignored."), "{o:?}");
+    // With LD_PRELOAD too, each missing name still names its own source.
+    let o = with(&[("LD_PRELOAD", "./nosuch2.so")], &["--preload", "./nosuch.so"]);
+    assert!(err(&o).contains("object './nosuch.so' from --preload cannot be preloaded"), "{o:?}");
+    assert!(err(&o).contains("object './nosuch2.so' from LD_PRELOAD cannot be preloaded"), "{o:?}");
     let o = ran(&with(&[], &["--argv0", "NAME"]), "--argv0");
     assert_eq!(o, "dep:1\narg:NAME\n");
     let o = ran(&run(&ld, d, &[], &["--argv0", "", "--library-path", "lib", "./prog", "x"]), "empty --argv0");
@@ -205,16 +260,65 @@ fn ldso_program_verify_audit_and_refusals() {
     assert_eq!(out(&o), "dep:1\narg:./prog\n", "the program runs, the auditor is not loaded: {o:?}");
     assert!(err(&o).contains("ERROR: ld.so: object './libaud.so' cannot be loaded as audit interface: "), "never silently ignored: {o:?}");
     let me = ld.to_str().unwrap();
-    for args in [&["--inhibit-rpath", "./prog", "./prog"][..], &["--glibc-hwcaps-mask", "x86-64-v2", "./prog"], &["--glibc-hwcaps-prepend", "x", "./prog"], &["--list-tunables"], &["--list-diagnostics"]] {
-        let o = run(&ld, d, &[], args);
-        assert_eq!(o.status.code(), Some(program::USAGE), "{args:?}: {o:?}");
-        assert!(o.stdout.is_empty() && err(&o).starts_with(&format!("{me}: option '{}' is not implemented", args[0])), "{args:?}: {o:?}");
-    }
     for (args, text) in [(&["--frob", "./prog"][..], "unrecognized option '--frob'"), (&["--library-path"], "unrecognized option '--library-path'"), (&[], "missing program name"), (&["--list"], "missing program name")] {
         let o = run(&ld, d, &[], args);
         assert_eq!(o.status.code(), Some(program::USAGE), "{args:?}: {o:?}");
         assert!(err(&o).starts_with(&format!("{me}: {text}")) && err(&o).contains(&format!("Try '{me} --help'")), "{args:?}: {o:?}");
     }
+}
+
+/// `--inhibit-rpath`, the `glibc-hwcaps` options and the two lists, end to end.
+/// (no spec clause: ld.so(8) `--inhibit-rpath`, `--glibc-hwcaps-prepend`, `--glibc-hwcaps-mask`,
+/// `--list-tunables`, `--list-diagnostics`; the reference probed.)
+#[test]
+fn ldso_program_inhibit_rpath_hwcaps_and_lists() {
+    let Some((s, ld)) = fixture("search") else { return };
+    let d: &Path = &s;
+    // A program whose RUNPATH finds libdep.so in lib/ (the plain one has none).
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    cc(d, "prog_rp", &format!("{RT}{PROG}"), &["-fPIE", "-pie", "-Wl,--no-as-needed", &interp, &format!("-L{}", d.join("lib").display()), "-ldep", "-Wl,--enable-new-dtags,-rpath,lib"]);
+    assert!(ran(&run(&ld, d, &[], &["./prog_rp"]), "RUNPATH").starts_with("dep:1\n"));
+    for list in ["", ":"] {
+        let o = run(&ld, d, &[], &["--inhibit-rpath", list, "./prog_rp"]);
+        assert_eq!(o.status.code(), Some(program::FAILURE), "{list:?} names the program: {o:?}");
+        assert!(err(&o).contains("libdep.so: cannot open shared object file"), "{o:?}");
+    }
+    for list in ["x:", "prog_rp", "./prog_rp"] {
+        assert!(ran(&run(&ld, d, &[], &["--inhibit-rpath", list, "./prog_rp"]), list).starts_with("dep:1\n"), "{list:?} names no object");
+    }
+    let o = run(&ld, d, &[], &["--inhibit-rpath", "", "--list", "./prog_rp"]);
+    assert_ne!(o.status.code(), Some(0), "--list searches as the start does: {o:?}");
+    // glibc-hwcaps: hw/ holds libdep.so (1), and in glibc-hwcaps/ x86-64-v2 (6) and myhw (5).
+    for (sub, v) in [("hw", 1), ("hw/glibc-hwcaps/x86-64-v2", 6), ("hw/glibc-hwcaps/myhw", 5)] {
+        std::fs::create_dir_all(d.join(sub)).unwrap();
+        cc(d, &format!("{sub}/libdep.so"), &format!("int dep_value(void) {{ return {v}; }}\n"), &["-fPIC", "-shared", "-Wl,-soname,libdep.so"]);
+    }
+    let dep = |more: &[&str]| ran(&run(&ld, d, &[], &[&["--library-path", "hw"][..], more, &["./prog"]].concat()), "hwcaps").lines().next().unwrap_or("").to_string();
+    if dep(&[]) != "dep:6" {
+        return eprintln!("SKIP: this CPU does not support x86-64-v2, the glibc-hwcaps subdirectory the test needs");
+    }
+    assert_eq!(dep(&["--glibc-hwcaps-mask", ""]), "dep:1", "an empty mask: no subdirectory");
+    assert_eq!(dep(&["--glibc-hwcaps-mask", "x:x86-64-v2"]), "dep:6");
+    assert_eq!(dep(&["--glibc-hwcaps-prepend", "myhw"]), "dep:5", "prepended first");
+    assert_eq!(dep(&["--glibc-hwcaps-prepend", "myhw", "--glibc-hwcaps-prepend", ""]), "dep:6", "the last copy wins");
+    assert_eq!(dep(&["--glibc-hwcaps-prepend", "myhw", "--glibc-hwcaps-mask", ""]), "dep:5", "the prepended are not masked");
+    // --list-tunables: libniji's tunables in the reference's form; a program after it is not opened.
+    let o = ran(&run(&ld, d, &[("GLIBC_TUNABLES", "niji.pthread.rseq=0:glibc.cpu.x86_rep_movsb_threshold=0x1000:glibc.cpu.hwcaps=-AVX2")], &["--list-tunables", "./nosuch"]), "--list-tunables");
+    for line in ["niji.pthread.rseq: 0 (min: 0, max: 1)", "niji.cpu.rep_movsb_threshold: 0x1000 (min: 0x100, max: 0xffffffffffffffff)", "niji.cpu.hwcaps: -AVX2", "niji.malloc.perturb: 0 (min: 0, max: 255)"] {
+        assert!(o.lines().any(|l| l == line), "{line:?} in\n{o}");
+    }
+    let o = ran(&run(&ld, d, &[], &["--list-tunables"]), "defaults");
+    assert!(o.lines().any(|l| l == "niji.pthread.rseq: 1 (min: 0, max: 1)") && o.lines().any(|l| l == "niji.cpu.hwcaps:"), "{o}");
+    // --list-diagnostics: key=value lines, strings quoted and escaped, numbers in hexadecimal.
+    let o = ran(&run(&ld, d, &[("ZZ_SECRET", "hidden"), ("LD_X", "a\"b\\c\td")], &["--list-diagnostics", "./nosuch"]), "--list-diagnostics");
+    assert!(o.lines().all(|l| l.split_once('=').is_some_and(|(k, _)| !k.is_empty())), "every line is key=value:\n{o}");
+    assert!(o.lines().any(|l| l.starts_with("env_filtered[0x") && l.ends_with("]=\"ZZ_SECRET\"")) && !o.contains("hidden"), "{o}");
+    assert!(o.lines().any(|l| l.starts_with("env[0x") && l.ends_with(r#"]="LD_X=a\"b\\c\011d""#)), "{o}");
+    assert!(o.contains(&format!("path.rtld=\"{}\"\n", Native::INTERP)) && o.contains("dl_pagesize=0x") && o.contains("auxv[0x0].a_type=0x"), "{o}");
+    // $PLATFORM: `haswell` exactly when x86-64-v3 is among the supported subdirectories.
+    let subdirs = o.lines().find_map(|l| l.strip_prefix("dl_hwcaps_subdirs=")).unwrap_or_default();
+    let platform = if subdirs.split([':', '"']).any(|h| h == "x86-64-v3") { "haswell" } else { "x86_64" };
+    assert!(o.contains(&format!("dl_platform=\"{platform}\"\n")), "{platform} for {subdirs}:\n{o}");
 }
 
 /// (no spec clause: ld.so(8) run as a program on files that are not dynamic programs; the reference
@@ -230,6 +334,7 @@ fn ldso_program_files_that_are_not_dynamic_programs() {
     for (file, reason) in [
         ("./nosuch", "cannot open shared object file: No such file or directory"),
         ("./notelf", "file too short"),
+        ("./notelf_long", "invalid ELF header"),
         ("./lib", "cannot read file data: Error 21"),
         ("./lib/libdep.so", "the object has no entry point"),
     ] {
@@ -237,4 +342,85 @@ fn ldso_program_files_that_are_not_dynamic_programs() {
         assert_eq!(o.status.code(), Some(program::FAILURE), "{file}: {o:?}");
         assert!(err(&o).starts_with(&format!("{file}: error while loading shared libraries: {file}: {reason}")), "{file}: {o:?}");
     }
+}
+
+/// `--list` of a file it cannot list ends as running it does: the loading-error form, status 127,
+/// nothing on standard output.
+/// (no spec clause: ld.so(8) `--list`; the reference probed, LDSO-PROGRAM-OPTIONS-REST.)
+#[test]
+fn ldso_program_list_of_files_that_cannot_be_listed() {
+    let Some((s, ld)) = fixture("listfiles") else { return };
+    let d: &Path = &s;
+    for (file, reason) in [
+        ("./nosuch", "cannot open shared object file: No such file or directory"),
+        ("./notelf", "file too short"),
+        ("./notelf_long", "invalid ELF header"),
+        ("./lib", "cannot read file data: Error 21"),
+    ] {
+        let o = run(&ld, d, &[], &["--list", file]);
+        assert_eq!(o.status.code(), Some(program::FAILURE), "--list {file}: {o:?}");
+        assert_eq!(err(&o), format!("{file}: error while loading shared libraries: {file}: {reason}\n"), "--list {file}");
+        assert!(o.stdout.is_empty(), "--list {file}: {o:?}");
+    }
+}
+
+/// A program linked with libniji's C library that `dlopen`s `libdep.so` and prints its
+/// `dep_value` (`dlopen:<n>`), or `dlerror:<text>` and status 1.
+const DLOPEN_PROG: &str = r#"
+#include <dlfcn.h>
+#include <stdio.h>
+int main(void) {
+    void *h = dlopen("libdep.so", RTLD_NOW);
+    if (!h) { printf("dlerror:%s\n", dlerror()); return 1; }
+    int (*f)(void) = (int (*)(void))dlsym(h, "dep_value");
+    printf("dlopen:%d\n", f ? f() : -1);
+    return 0;
+}
+"#;
+
+/// `dlopen` after `ld.so --library-path` searches the option's directories instead of
+/// `LD_LIBRARY_PATH`'s (the environment keeps its value), with or without `--inhibit-cache`, as the
+/// start's own search does.
+/// (no spec clause: ld.so(8) `--library-path` and `--inhibit-cache`; the reference probed: dlopen uses
+/// the option, LDSO-RUN-PROGRAM.)
+#[test]
+fn ldso_program_dlopen_after_library_path_and_inhibit_cache() {
+    let Some((s, ld)) = fixture("dlopen") else { return };
+    let d: &Path = &s;
+    let niji = std::fs::canonicalize(target().join("niji")).unwrap();
+    let (libc, crt1) = (niji.join("libc.so.6"), niji.join("niji-crt1.o"));
+    if !libc.exists() || !crt1.exists() {
+        eprintln!("SKIP: libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
+        return;
+    }
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let src = d.join("dprog.c");
+    std::fs::write(&src, DLOPEN_PROG).unwrap();
+    let o = Command::new("cc")
+        .args(["-O1", "-fno-stack-protector", "-fcf-protection=none", "-nostdlib", "-fPIE", "-pie", &interp])
+        .arg(&src)
+        .arg(&crt1)
+        .arg(&libc)
+        .arg(&ld)
+        .args(["-lgcc", "-o"])
+        .arg(d.join("dprog"))
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "cc dprog: {}", String::from_utf8_lossy(&o.stderr));
+    let path = |dirs: &str| format!("{dirs}:{}", niji.display());
+    let env = [("LD_LIBRARY_PATH", "lib2")];
+    let o = ran(&run(&ld, d, &env, &["--library-path", &path("lib"), "./dprog"]), "dlopen after --library-path");
+    assert_eq!(o, "dlopen:1\n", "dlopen searches the option's directory, not LD_LIBRARY_PATH's");
+    let o = ran(&run(&ld, d, &env, &["--inhibit-cache", "--library-path", &path("lib"), "./dprog"]), "dlopen after --inhibit-cache");
+    assert_eq!(o, "dlopen:1\n", "--inhibit-cache keeps the option's directories for dlopen");
+    let o = ran(&run(&ld, d, &[("LD_LIBRARY_PATH", &path("lib2"))], &["./dprog"]), "dlopen without the option");
+    assert_eq!(o, "dlopen:2\n", "without the option, dlopen searches LD_LIBRARY_PATH");
+    let o = run(&ld, d, &env, &["--library-path", &path("nolib"), "./dprog"]);
+    assert_eq!(o.status.code(), Some(1), "{o:?}");
+    assert!(out(&o).starts_with("dlerror:libdep.so: cannot open shared object file"), "the option's directories only: {o:?}");
+    // --glibc-hwcaps-prepend: dlopen searches the prepended subdirectory as the start does (probed).
+    std::fs::create_dir_all(d.join("hw/glibc-hwcaps/myhw")).unwrap();
+    cc(d, "hw/glibc-hwcaps/myhw/libdep.so", "int dep_value(void) { return 5; }\n", &["-fPIC", "-shared", "-Wl,-soname,libdep.so"]);
+    let o = ran(&run(&ld, d, &env, &["--glibc-hwcaps-prepend", "myhw", "--library-path", &path("hw"), "./dprog"]), "dlopen after --glibc-hwcaps-prepend");
+    assert_eq!(o, "dlopen:5\n", "dlopen searches the prepended glibc-hwcaps subdirectory");
 }

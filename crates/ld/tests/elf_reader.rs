@@ -62,7 +62,7 @@ impl Arch for BigOther {
     const LIB: &'static str = "lib";
     const SYSTEM_DIRS: &'static [&'static str] = &[];
     const CACHE_FLAGS: u32 = 0;
-    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
+    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static [u8]] {
         &[]
     }
     fn platform(_: &niji_rt::cpu::Features) -> &'static str {
@@ -349,7 +349,7 @@ fn s27_1_f_0_wrong_class() {
         const LIB: &'static str = "lib";
         const SYSTEM_DIRS: &'static [&'static str] = &[];
             const CACHE_FLAGS: u32 = 0;
-        fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
+        fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static [u8]] {
             &[]
         }
         fn platform(_: &niji_rt::cpu::Features) -> &'static str {

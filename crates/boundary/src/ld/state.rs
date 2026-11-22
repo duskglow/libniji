@@ -44,12 +44,14 @@ pub(super) static START_RUN_PATH: AtomicUsize = AtomicUsize::new(0);
 pub(super) static START_ARGS: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 
 /// `ld.so --library-path PATH` (address and length + 1 of PATH; 0: not given) and `--inhibit-cache`
-/// (1), kept by program mode for `dlopen`, whose search uses them as the start's did (probed).
-static PROGRAM_OPTIONS: [AtomicUsize; 3] = [const { AtomicUsize::new(0) }; 3];
+/// (1), kept by program mode for `dlopen`, whose search uses them as the start's did (probed), and
+/// for [`cache_inhibited`]; then where `--preload`'s names lie (address and length; 0: not given),
+/// for the preload diagnostic's source ([`preload_option`]).
+static PROGRAM_OPTIONS: [AtomicUsize; 5] = [const { AtomicUsize::new(0) }; 5];
 
 /// Keep program mode's `--library-path` and `--inhibit-cache` for `dlopen` ([`program_options`]).
 pub(super) fn keep_program_options(library_path: Option<&'static [u8]>, inhibit_cache: bool) {
-    let [at, len, inhibit] = &PROGRAM_OPTIONS;
+    let [at, len, inhibit, ..] = &PROGRAM_OPTIONS;
     if let Some(p) = library_path {
         at.store(p.as_ptr().expose_provenance(), Relaxed);
         len.store(p.len().wrapping_add(1), Relaxed);
@@ -59,7 +61,7 @@ pub(super) fn keep_program_options(library_path: Option<&'static [u8]>, inhibit_
 
 /// Program mode's `--library-path` (`Some` when given) and whether `--inhibit-cache` was given.
 pub(super) fn program_options() -> (Option<&'static [u8]>, bool) {
-    let [at, len, inhibit] = &PROGRAM_OPTIONS;
+    let [at, len, inhibit, ..] = &PROGRAM_OPTIONS;
     let n = len.load(Relaxed);
     let path = n.checked_sub(1).map(|n| {
         // UNSAFE(slice): the `--library-path` value, one of the loader's own arguments.
@@ -73,7 +75,72 @@ pub(super) fn program_options() -> (Option<&'static [u8]>, bool) {
     (path, inhibit.load(Relaxed) != 0)
 }
 
+/// `ld.so --inhibit-rpath LIST` (address and length + 1 of LIST; 0: not given), then the
+/// `glibc-hwcaps` subdirectory list program mode built for `--glibc-hwcaps-prepend` / `-mask`
+/// (address and count + 1 of its names; 0: neither given): kept for every search of the process.
+static PROGRAM_SEARCH: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
+
+/// Keep program mode's `--inhibit-rpath` value for [`inhibit_rpath`].
+pub(super) fn keep_inhibit_rpath(list: &'static [u8]) {
+    let [at, len, ..] = &PROGRAM_SEARCH;
+    at.store(list.as_ptr().expose_provenance(), Relaxed);
+    len.store(list.len().wrapping_add(1), Relaxed);
+}
+
+/// Program mode's `--inhibit-rpath` value, if it was given.
+pub(super) fn inhibit_rpath() -> Option<&'static [u8]> {
+    let [at, len, ..] = &PROGRAM_SEARCH;
+    let n = len.load(Relaxed).checked_sub(1)?;
+    // UNSAFE(slice): the `--inhibit-rpath` value, one of the loader's own arguments.
+    #[allow(unsafe_code)]
+    // SAFETY: `keep_inhibit_rpath` stored a `'static` slice's address and length (an argument
+    // string of the initial stack, which lives for the process's lifetime).
+    Some(unsafe { crate::conv::bytes_at(at.load(Relaxed), n) })
+}
+
+/// Keep the `glibc-hwcaps` subdirectory list program mode built ([`program_hwcaps`]).
+pub(super) fn keep_program_hwcaps(list: &'static [&'static [u8]]) {
+    let [_, _, at, len] = &PROGRAM_SEARCH;
+    at.store(list.as_ptr().expose_provenance(), Relaxed);
+    len.store(list.len().wrapping_add(1), Relaxed);
+}
+
+/// The `glibc-hwcaps` subdirectories program mode's options chose, if either was given: `dlopen`
+/// searches them as the start did.
+pub(super) fn program_hwcaps() -> Option<&'static [&'static [u8]]> {
+    let [_, _, at, len] = &PROGRAM_SEARCH;
+    let n = len.load(Relaxed).checked_sub(1)?;
+    // UNSAFE(slice): the list `keep_program_hwcaps` kept.
+    #[allow(unsafe_code)]
+    // SAFETY: `keep_program_hwcaps` stored a `'static` slice's address and length; the slice lives in
+    // a private mapping that is never unmapped or written again.
+    Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static [u8]>(at.load(Relaxed)), n) })
+}
+
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 pub(super) const AUXV_WORDS_MAX: usize = 256;
 /// Words per program header.
 pub(super) const PHDR_WORDS: usize = niji_rt::start::PHDR_WORDS;
+
+/// Whether `ld.so --inhibit-cache` was given: no search reads the loader cache (`image::read_cache`).
+pub(super) fn cache_inhibited() -> bool {
+    let [_, _, inhibit, ..] = &PROGRAM_OPTIONS;
+    inhibit.load(Relaxed) != 0
+}
+
+/// Keep where `ld.so --preload`'s names lie (`value`, inside the `LD_PRELOAD` value program mode
+/// folds them into), for [`preload_option`].
+pub(super) fn keep_preload_option(value: &'static [u8]) {
+    let [.., at, len] = &PROGRAM_OPTIONS;
+    at.store(value.as_ptr().expose_provenance(), Relaxed);
+    len.store(value.len(), Relaxed);
+}
+
+/// Whether `name` lies in `ld.so --preload`'s value ([`keep_preload_option`]): a name of the
+/// option, not of `LD_PRELOAD`. Only the preload diagnostic asks.
+pub(super) fn in_preload_option(name: &[u8]) -> bool {
+    let [.., at, len] = &PROGRAM_OPTIONS;
+    let (at, len) = (at.load(Relaxed), len.load(Relaxed));
+    let p = name.as_ptr().addr();
+    len != 0 && p >= at && p.wrapping_sub(at) < len
+}

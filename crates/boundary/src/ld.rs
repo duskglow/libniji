@@ -74,6 +74,7 @@ mod initfini;
 mod link;
 mod trace;
 mod entry;
+mod report;
 mod exec_stack;
 pub mod debug;
 mod dlopen;
