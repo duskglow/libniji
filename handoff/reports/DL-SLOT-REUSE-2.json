@@ -6,7 +6,8 @@
  "rulings": [],
  "informational": [
   "the merge needed no design decision: next's by_given skips gone slots (settle's vacated slots are gone), the $ORIGIN state is per process, given_name touches only start-time records below n_start, which settle never moves",
-  "XTEST_RESULT"
+  "cargo xtask test on the merged head (keke dl-slot-reuse-2-xtest1) rc 0: 7039/7039 and native 4864/4864 passed, conformance 142/0; run 1's dns_products hang did not recur",
+  "xtest1 took 101 min on a Zen 1 host at load ~22 (phase 1 alone 2605 s, its first ~150 tests, long math kernels, took ~30 min)"
  ],
  "refused": [],
  "impact": [
