@@ -198,12 +198,14 @@ def split_params(decl, name):
 
 
 def call_exprs(name, decl):
-    """The call test, then its fallback for a unit where the first does not compile: a pointer argument is
-    `(void *)` on a buffer (no type spelled); a value argument is read from `lp_v` through its spelled type,
-    and in the fallback is `0` (a constant: only used when the spelled type is not in scope)."""
+    """The call test, then its fallbacks for a unit where the one before does not compile: a pointer argument
+    is `(void *)` on a buffer (no type spelled); a value argument is read from `lp_v` through its spelled type;
+    in the first fallback through `long` (still a run-time value, for a spelled type a header does not
+    declare, such as a reserved-name typedef: a constant there would let a fortify wrapper prove a size fits
+    and skip its `_chk` call); in the last it is `0` (a constant, for a parameter no `long` converts to)."""
     ret, params, _ = split_params(decl, name)
     out = []
-    for value in (lambda p: f"*(__typeof__({p}) *)lp_v", lambda p: "0"):
+    for value in (lambda p: f"*(__typeof__({p}) *)lp_v", lambda p: "*(long *)lp_v", lambda p: "0"):
         args = [f"(void *)lp_b{k}" if "*" in p or "(" in p else value(p) for k, p in enumerate(params)]
         call = f"{name}({', '.join(args)})"
         out.append(call if ret == "void" else f"*(volatile __typeof__({call}) *)lp_out = {call}")
@@ -231,7 +233,7 @@ def probe_sites(header, cid, mode, flags_lang, items, work):
             out[n] = ",".join(got.get(n, [])) or "-"
         return out
     out, todo = {}, dict(items)
-    for alt in range(2):
+    for alt in range(max((len(e) for e in todo.values()), default=0)):
         lines = [("raw", f"#include <{header}>")] + [("raw", x) for x in CALL_HEAD]
         for n, exprs in todo.items():
             if alt < len(exprs):

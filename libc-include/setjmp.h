@@ -111,6 +111,42 @@ struct __jmp_buf_tag;
 extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+struct __jmp_buf_tag;
+#if (__NIJI_MISC || __NIJI_XSI >= 400) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F__longjmp
+#  define __NIJI_F__longjmp 1
+extern void _longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+# endif
+#endif
+struct __jmp_buf_tag;
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_longjmp
+#  define __NIJI_F_longjmp 1
+extern void longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+# endif
+#endif
+struct __jmp_buf_tag;
+#if (__NIJI_POSIX >= 1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_siglongjmp
+#  define __NIJI_F_siglongjmp 1
+extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __asm__ ("__longjmp_chk") __attribute__ ((__noreturn__));
+# endif
+#endif
 
 /* C 7.13.1.1: setjmp is a macro. The function row of the table is the name POSIX also lets a program take the
    address of; the macro is what a call reaches. */

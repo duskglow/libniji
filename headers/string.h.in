@@ -10,6 +10,7 @@ __NIJI_BEGIN_C
 
 @@owns NULL strchr strrchr strpbrk strstr memchr strdupa strndupa
 @@emit
+@@fortify
 
 @@if NULL
 # ifndef NULL

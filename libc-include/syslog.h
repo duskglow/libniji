@@ -144,6 +144,47 @@ extern void vsyslog (int, const char *, __builtin_va_list) __attribute__ ((__for
 #  define LOG_WARNING 4
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_syslog
+#  define __NIJI_F_syslog 1
+#  ifndef __NIJI_D___syslog_chk
+#   define __NIJI_D___syslog_chk 1
+extern void __syslog_chk (int, int, const char *, ...);
+#  endif
+__NIJI_FORTIFY_FN void syslog (int __p0, const char *__p1, ...)
+{
+  __syslog_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_vsyslog
+#  define __NIJI_F_vsyslog 1
+#  ifndef __NIJI_D___vsyslog_chk
+#   define __NIJI_D___vsyslog_chk 1
+extern void __vsyslog_chk (int, int, const char *, __builtin_va_list);
+#  endif
+__NIJI_FORTIFY_FN void vsyslog (int __p0, const char *__p1, __builtin_va_list __p2)
+{
+  __vsyslog_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __p2);
+}
+# endif
+#endif
 
 /* syslog(3): the mask of one priority, and of all priorities up to one. */
 #if 1

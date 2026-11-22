@@ -11,6 +11,7 @@ __NIJI_BEGIN_C
 @@hidden-member st_mtim st_mtime st_mtimensec
 @@hidden-member st_ctim st_ctime st_ctimensec
 @@emit
+@@fortify
 
 
 __NIJI_END_C

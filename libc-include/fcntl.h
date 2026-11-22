@@ -879,6 +879,203 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64") __attribute
 #  define S_IFSOCK 49152
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_open
+#  define __NIJI_F_open 1
+#  if __NIJI_FOB64
+#  ifndef __NIJI_D___open64_2
+#   define __NIJI_D___open64_2 1
+extern int __open64_2 (const char *, int);
+#  endif
+extern int __niji_plain_open (const char *, int, ...) __asm__ ("open64");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int open (const char *__p0, int __p1, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p1))
+        {
+          if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_open (__p0, __p1);
+        }
+      return __open64_2 (__p0, __p1);
+    }
+  return __niji_plain_open (__p0, __p1, __builtin_va_arg_pack ());
+}
+#  else
+#  ifndef __NIJI_D___open_2
+#   define __NIJI_D___open_2 1
+extern int __open_2 (const char *, int);
+#  endif
+extern int __niji_plain_open (const char *, int, ...) __asm__ ("open");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int open (const char *__p0, int __p1, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p1))
+        {
+          if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_open (__p0, __p1);
+        }
+      return __open_2 (__p0, __p1);
+    }
+  return __niji_plain_open (__p0, __p1, __builtin_va_arg_pack ());
+}
+#  endif
+# endif
+#endif
+#if (__NIJI_LFS64) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_open64
+#  define __NIJI_F_open64 1
+#  ifndef __NIJI_D___open64_2
+#   define __NIJI_D___open64_2 1
+extern int __open64_2 (const char *, int);
+#  endif
+extern int __niji_plain_open64 (const char *, int, ...) __asm__ ("open64");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int open64 (const char *__p0, int __p1, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p1))
+        {
+          if ((__p1 & 0100) != 0 || (__p1 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_open64 (__p0, __p1);
+        }
+      return __open64_2 (__p0, __p1);
+    }
+  return __niji_plain_open64 (__p0, __p1, __builtin_va_arg_pack ());
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_openat
+#  define __NIJI_F_openat 1
+#  if __NIJI_FOB64
+#  ifndef __NIJI_D___openat64_2
+#   define __NIJI_D___openat64_2 1
+extern int __openat64_2 (int, const char *, int);
+#  endif
+extern int __niji_plain_openat (int, const char *, int, ...) __asm__ ("openat64");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int openat (int __p0, const char *__p1, int __p2, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p2))
+        {
+          if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_openat (__p0, __p1, __p2);
+        }
+      return __openat64_2 (__p0, __p1, __p2);
+    }
+  return __niji_plain_openat (__p0, __p1, __p2, __builtin_va_arg_pack ());
+}
+#  else
+#  ifndef __NIJI_D___openat_2
+#   define __NIJI_D___openat_2 1
+extern int __openat_2 (int, const char *, int);
+#  endif
+extern int __niji_plain_openat (int, const char *, int, ...) __asm__ ("openat");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int openat (int __p0, const char *__p1, int __p2, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p2))
+        {
+          if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_openat (__p0, __p1, __p2);
+        }
+      return __openat_2 (__p0, __p1, __p2);
+    }
+  return __niji_plain_openat (__p0, __p1, __p2, __builtin_va_arg_pack ());
+}
+#  endif
+# endif
+#endif
+#if (__NIJI_LFS64) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_openat64
+#  define __NIJI_F_openat64 1
+#  ifndef __NIJI_D___openat64_2
+#   define __NIJI_D___openat64_2 1
+extern int __openat64_2 (int, const char *, int);
+#  endif
+extern int __niji_plain_openat64 (int, const char *, int, ...) __asm__ ("openat64");
+#  ifndef __NIJI_D_fortify_mode
+#   define __NIJI_D_fortify_mode 1
+extern void __niji_fortify_mode (void) __attribute__ ((__error__ ("the flags need a mode argument (O_CREAT or O_TMPFILE)")));
+extern void __niji_fortify_args (void) __attribute__ ((__error__ ("too many arguments: one mode at most")));
+#  endif
+__NIJI_FORTIFY_FN int openat64 (int __p0, const char *__p1, int __p2, ...)
+{
+  if (__builtin_va_arg_pack_len () > 1)
+    __niji_fortify_args ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p2))
+        {
+          if ((__p2 & 0100) != 0 || (__p2 & 020200000) == 020200000)
+            __niji_fortify_mode ();
+          return __niji_plain_openat64 (__p0, __p1, __p2);
+        }
+      return __openat64_2 (__p0, __p1, __p2);
+    }
+  return __niji_plain_openat64 (__p0, __p1, __p2, __builtin_va_arg_pack ());
+}
+# endif
+#endif
 
 
 __NIJI_END_C
