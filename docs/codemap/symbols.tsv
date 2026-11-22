@@ -2592,9 +2592,9 @@ niji_hypotl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3345	mre
 niji_ilogbf128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3362	mret::ret
 niji_ilogbf64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3385	mret::ret
 niji_ilogbl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3390	mret::ret
-niji_internal_memcpy		crates/boundary/src/conv.rs:822	
-niji_internal_memmove		crates/boundary/src/conv.rs:830	
-niji_internal_memset		crates/boundary/src/conv.rs:838	
+niji_internal_memcpy		crates/boundary/src/conv.rs:849	
+niji_internal_memmove		crates/boundary/src/conv.rs:857	
+niji_internal_memset		crates/boundary/src/conv.rs:865	
 niji_ioctl3	NIJI_PRIVATE	crates/boundary/src/posix/s11_lowio.rs:340	ret::int
 niji_isinfl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3405	mret::pure
 niji_isnanl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3420	mret::pure
