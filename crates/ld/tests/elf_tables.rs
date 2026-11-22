@@ -383,29 +383,51 @@ fn versym_bounded_by_the_mapping() {
     assert_eq!(with(|m| m.set(dt::VERSYM, TOTAL as u64 + 2)), ElfError::AddressNotMapped(TOTAL as u64 + 2));
 }
 
+/// The error [`Dynamic::versym`] alone gives for the image `f` makes.
+fn versym_err(f: fn(&mut Img)) -> ElfError {
+    let mut m = image();
+    f(&mut m);
+    let elf = Elf::parse::<X86_64>(&m.0).unwrap();
+    elf.dynamic().unwrap().unwrap().versym().unwrap_err()
+}
+
 #[test]
 fn verdef_malformed() {
     // no spec clause: D-27.8, revision, count, truncation of definitions and their names.
-    assert_eq!(with(|m| m.p16(VERDEF_AT + 28, 2)), ElfError::BadVersionRevision(Table::Verdef, 2));
-    assert_eq!(with(|m| m.set(dt::VERDEFNUM, 4)), ElfError::VersionCount(Table::Verdef, 56));
-    assert_eq!(with(|m| m.p16(VERDEF_AT + 56 + 6, 3)), ElfError::VersionCount(Table::Verdef, 56));
-    assert_eq!(with(|m| m.p32(VERDEF_AT + 28 + 16, 1000)), ElfError::VersionTruncated(Table::Verdef, 1028));
-    assert_eq!(with(|m| m.p32(VERDEF_AT + 12, 1000)), ElfError::VersionTruncated(Table::Verdef, 1000));
-    assert_eq!(with(|m| m.p32(VERDEF_AT + 80, u32::MAX)), ElfError::VersionTruncated(Table::Verdef, 76 + u32::MAX as usize));
-    assert_eq!(with(|m| m.p32(VERDEF_AT + 20, 99)), ElfError::StringOutOfRange(99));
-    assert_eq!(with(|m| m.set(dt::VERDEF, TOTAL as u64 + 8)), ElfError::AddressNotMapped(TOTAL as u64 + 8));
+    let cases: [(fn(&mut Img), ElfError); 8] = [
+        (|m| m.p16(VERDEF_AT + 28, 2), ElfError::BadVersionRevision(Table::Verdef, 2)),
+        (|m| m.set(dt::VERDEFNUM, 4), ElfError::VersionCount(Table::Verdef, 56)),
+        (|m| m.p16(VERDEF_AT + 56 + 6, 3), ElfError::VersionCount(Table::Verdef, 56)),
+        (|m| m.p32(VERDEF_AT + 28 + 16, 1000), ElfError::VersionTruncated(Table::Verdef, 1028)),
+        (|m| m.p32(VERDEF_AT + 12, 1000), ElfError::VersionTruncated(Table::Verdef, 1000)),
+        (|m| m.p32(VERDEF_AT + 80, u32::MAX), ElfError::VersionTruncated(Table::Verdef, 76 + u32::MAX as usize)),
+        (|m| m.p32(VERDEF_AT + 20, 99), ElfError::StringOutOfRange(99)),
+        (|m| m.set(dt::VERDEF, TOTAL as u64 + 8), ElfError::AddressNotMapped(TOTAL as u64 + 8)),
+    ];
+    for (f, want) in cases {
+        assert_eq!(with(f), want);
+        // `versym` alone makes the same checks (LD-OBJECT-ONCE: its own walk, not the iterators).
+        assert_eq!(versym_err(f), want);
+    }
 }
 
 #[test]
 fn verneed_malformed() {
     // no spec clause: D-27.8, revision, count, truncation of requirements and their versions.
-    assert_eq!(with(|m| m.p16(VERNEED_AT, 0)), ElfError::BadVersionRevision(Table::Verneed, 0));
-    assert_eq!(with(|m| m.set(dt::VERNEEDNUM, 2)), ElfError::VersionCount(Table::Verneed, 0));
-    assert_eq!(with(|m| m.p16(VERNEED_AT + 2, 2)), ElfError::VersionCount(Table::Verneed, 0));
-    assert_eq!(with(|m| m.p32(VERNEED_AT + 8, 200)), ElfError::VersionTruncated(Table::Verneed, 200));
-    assert_eq!(with(|m| m.p32(VERNEED_AT + 4, 99)), ElfError::StringOutOfRange(99));
-    assert_eq!(with(|m| m.p32(VERNEED_AT + 24, 99)), ElfError::StringOutOfRange(99));
-    assert_eq!(with(|m| m.set(dt::VERNEED, TOTAL as u64 - 8)), ElfError::VersionTruncated(Table::Verneed, 0));
+    let cases: [(fn(&mut Img), ElfError); 7] = [
+        (|m| m.p16(VERNEED_AT, 0), ElfError::BadVersionRevision(Table::Verneed, 0)),
+        (|m| m.set(dt::VERNEEDNUM, 2), ElfError::VersionCount(Table::Verneed, 0)),
+        (|m| m.p16(VERNEED_AT + 2, 2), ElfError::VersionCount(Table::Verneed, 0)),
+        (|m| m.p32(VERNEED_AT + 8, 200), ElfError::VersionTruncated(Table::Verneed, 200)),
+        (|m| m.p32(VERNEED_AT + 4, 99), ElfError::StringOutOfRange(99)),
+        (|m| m.p32(VERNEED_AT + 24, 99), ElfError::StringOutOfRange(99)),
+        (|m| m.set(dt::VERNEED, TOTAL as u64 - 8), ElfError::VersionTruncated(Table::Verneed, 0)),
+    ];
+    for (f, want) in cases {
+        assert_eq!(with(f), want);
+        // `versym` alone makes the same checks (LD-OBJECT-ONCE: its own walk, not the iterators).
+        assert_eq!(versym_err(f), want);
+    }
 }
 
 #[test]
@@ -413,6 +435,28 @@ fn version_tags_both_or_neither() {
     // no spec clause: D-27.8, an address tag without its count and the reverse.
     assert_eq!(with(|m| m.drop_tag(dt::VERDEFNUM)), ElfError::MissingDynamic(dt::VERDEFNUM));
     assert_eq!(with(|m| m.drop_tag(dt::VERNEED)), ElfError::MissingDynamic(dt::VERNEED));
+}
+
+/// no spec clause (D-27.18): in image mode a segment the relocator may store into is copied when a
+/// table the reader reads by address starts in it, and not seen otherwise, wherever that table lies
+/// (LD-OBJECT-ONCE: the table addresses are read once per object, not once per segment).
+#[test]
+fn image_span_kind_finds_each_table() {
+    use niji_ld::elf::{ProgramHeader, SpanKind};
+    let m = image();
+    let elf = Elf::parse::<X86_64>(&m.0).unwrap();
+    let dynph = elf.find(pt::DYNAMIC).unwrap();
+    let mut dynamic = elf.segment_bytes(&dynph).unwrap().to_vec();
+    // DT_RELAENT retagged DT_TEXTREL: every segment may change, so a table decides Copy or Unseen.
+    let at = dynamic.chunks_exact(16).position(|e| e[..8] == dt::RELAENT.to_le_bytes()).unwrap() * 16;
+    dynamic[at..at + 8].copy_from_slice(&dt::TEXTREL.to_le_bytes());
+    let load = elf.program_headers().find(|p| p.p_type == pt::LOAD).unwrap();
+    for at in [STR_AT, SYSV_AT, GNU_AT, VERSYM_AT, VERDEF_AT, VERNEED_AT, RELA_AT, JMPREL_AT, RELR_AT] {
+        let holds = ProgramHeader { vaddr: at as u64, filesz: 4, ..load };
+        assert_eq!(elf.image_span_kind(&holds, &dynamic), SpanKind::Copy, "the segment holding the table at {at}");
+        let past = ProgramHeader { vaddr: at as u64 + 1, filesz: 1, ..load };
+        assert_eq!(elf.image_span_kind(&past, &dynamic), SpanKind::Unseen, "a segment just past the table at {at}");
+    }
 }
 
 #[test]
