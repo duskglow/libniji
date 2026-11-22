@@ -1,4 +1,3 @@
-rc=0
 name	nonnull	wur	noreturn	format	malloc	alloc_size	deprecated	sentinel	pure
 _Exit			1						
 __ctype_b_loc									const

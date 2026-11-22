@@ -89,7 +89,7 @@ extern int _setjmp (struct __jmp_buf_tag *) __NIJI_NOTHROW;
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_longjmp
 #  define __NIJI_D_longjmp 1
-extern void longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
+extern void longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_setjmp
@@ -101,14 +101,14 @@ extern int setjmp (struct __jmp_buf_tag *) __NIJI_NOTHROW;
 struct __jmp_buf_tag;
 # ifndef __NIJI_D__longjmp
 #  define __NIJI_D__longjmp 1
-extern void _longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
+extern void _longjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
 struct __jmp_buf_tag;
 # ifndef __NIJI_D_siglongjmp
 #  define __NIJI_D_siglongjmp 1
-extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
+extern void siglongjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 #endif
 

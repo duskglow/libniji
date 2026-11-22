@@ -79,7 +79,7 @@ typedef long Lmid_t;
 #if 1
 # ifndef __NIJI_D_dlclose
 #  define __NIJI_D_dlclose 1
-extern int dlclose (void *) __NIJI_NOTHROW;
+extern int dlclose (void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_dlerror
 #  define __NIJI_D_dlerror 1
@@ -91,7 +91,7 @@ extern void *dlopen (const char *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dlsym
 #  define __NIJI_D_dlsym 1
-extern void *dlsym (void *, const char *) __NIJI_NOTHROW;
+extern void *dlsym (void *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if __NIJI_GNU
@@ -106,15 +106,15 @@ extern void _dl_mcount_wrapper_check (void *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dladdr
 #  define __NIJI_D_dladdr 1
-extern int dladdr (const void *, Dl_info *) __NIJI_NOTHROW;
+extern int dladdr (const void *, Dl_info *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_dladdr1
 #  define __NIJI_D_dladdr1 1
-extern int dladdr1 (const void *, Dl_info *, void **, int) __NIJI_NOTHROW;
+extern int dladdr1 (const void *, Dl_info *, void **, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_dlinfo
 #  define __NIJI_D_dlinfo 1
-extern int dlinfo (void *, int, void *) __NIJI_NOTHROW;
+extern int dlinfo (void *, int, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3)));
 # endif
 # ifndef __NIJI_D_dlmopen
 #  define __NIJI_D_dlmopen 1
@@ -122,7 +122,7 @@ extern void *dlmopen (long, const char *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_dlvsym
 #  define __NIJI_D_dlvsym 1
-extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW;
+extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 #endif
 #if 1

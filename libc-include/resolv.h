@@ -102,7 +102,7 @@ typedef union pthread_attr_t pthread_attr_t;
 struct __res_state;
 # ifndef __NIJI_D___res_state
 #  define __NIJI_D___res_state 1
-extern struct __res_state *__res_state (void);
+extern struct __res_state *__res_state (void) __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_dn_comp
 #  define __NIJI_D_dn_comp 1
@@ -176,31 +176,31 @@ extern int res_send (const unsigned char *, int, unsigned char *, int) __NIJI_NO
 #if __NIJI_LFS64 || __NIJI_FOB64
 # ifndef __NIJI_D_fgetpos64
 #  define __NIJI_D_fgetpos64 1
-extern int fgetpos64 (FILE *, fpos64_t *);
+extern int fgetpos64 (FILE *, fpos64_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fopen64
 #  define __NIJI_D_fopen64 1
-extern FILE *fopen64 (const char *, const char *);
+extern FILE *fopen64 (const char *, const char *) __attribute__ ((__malloc__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_freopen64
 #  define __NIJI_D_freopen64 1
-extern FILE *freopen64 (const char *, const char *, FILE *);
+extern FILE *freopen64 (const char *, const char *, FILE *) __attribute__ ((__nonnull__ (3), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_fseeko64
 #  define __NIJI_D_fseeko64 1
-extern int fseeko64 (FILE *, long, int);
+extern int fseeko64 (FILE *, long, int) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_fsetpos64
 #  define __NIJI_D_fsetpos64 1
-extern int fsetpos64 (FILE *, const fpos64_t *);
+extern int fsetpos64 (FILE *, const fpos64_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_ftello64
 #  define __NIJI_D_ftello64 1
-extern long ftello64 (FILE *);
+extern long ftello64 (FILE *) __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_tmpfile64
 #  define __NIJI_D_tmpfile64 1
-extern FILE *tmpfile64 (void);
+extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__));
 # endif
 #endif
 #if 1

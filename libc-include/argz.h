@@ -28,7 +28,7 @@ extern int argz_append (char **, unsigned long *, const char *, unsigned long) _
 # endif
 # ifndef __NIJI_D_argz_count
 #  define __NIJI_D_argz_count 1
-extern unsigned long argz_count (const char *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long argz_count (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_argz_create
 #  define __NIJI_D_argz_create 1

@@ -39,53 +39,53 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_sem_close
 #  define __NIJI_D_sem_close 1
-extern int sem_close (sem_t *) __NIJI_NOTHROW;
+extern int sem_close (sem_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_destroy
 #  define __NIJI_D_sem_destroy 1
-extern int sem_destroy (sem_t *) __NIJI_NOTHROW;
+extern int sem_destroy (sem_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_getvalue
 #  define __NIJI_D_sem_getvalue 1
-extern int sem_getvalue (sem_t *, int *) __NIJI_NOTHROW;
+extern int sem_getvalue (sem_t *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_sem_init
 #  define __NIJI_D_sem_init 1
-extern int sem_init (sem_t *, int, unsigned int) __NIJI_NOTHROW;
+extern int sem_init (sem_t *, int, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_open
 #  define __NIJI_D_sem_open 1
-extern sem_t *sem_open (const char *, int, ...) __NIJI_NOTHROW;
+extern sem_t *sem_open (const char *, int, ...) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_post
 #  define __NIJI_D_sem_post 1
-extern int sem_post (sem_t *) __NIJI_NOTHROW;
+extern int sem_post (sem_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_trywait
 #  define __NIJI_D_sem_trywait 1
-extern int sem_trywait (sem_t *) __NIJI_NOTHROW;
+extern int sem_trywait (sem_t *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_unlink
 #  define __NIJI_D_sem_unlink 1
-extern int sem_unlink (const char *) __NIJI_NOTHROW;
+extern int sem_unlink (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_sem_wait
 #  define __NIJI_D_sem_wait 1
-extern int sem_wait (sem_t *);
+extern int sem_wait (sem_t *) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_GNU
 struct timespec;
 # ifndef __NIJI_D_sem_clockwait
 #  define __NIJI_D_sem_clockwait 1
-extern int sem_clockwait (sem_t *, int, const struct timespec *);
+extern int sem_clockwait (sem_t *, int, const struct timespec *) __attribute__ ((__nonnull__ (1, 3)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
 struct timespec;
 # ifndef __NIJI_D_sem_timedwait
 #  define __NIJI_D_sem_timedwait 1
-extern int sem_timedwait (sem_t *, const struct timespec *);
+extern int sem_timedwait (sem_t *, const struct timespec *) __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 

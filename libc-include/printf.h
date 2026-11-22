@@ -108,11 +108,11 @@ extern int printf_size_info (const struct printf_info *, unsigned long, int *) _
 # endif
 # ifndef __NIJI_D_register_printf_function
 #  define __NIJI_D_register_printf_function 1
-extern int register_printf_function (int, printf_function (*), printf_arginfo_function (*)) __NIJI_NOTHROW;
+extern int register_printf_function (int, printf_function (*), printf_arginfo_function (*)) __NIJI_NOTHROW __attribute__ ((__deprecated__));
 # endif
 # ifndef __NIJI_D_register_printf_modifier
 #  define __NIJI_D_register_printf_modifier 1
-extern int register_printf_modifier (const wchar_t *) __NIJI_NOTHROW;
+extern int register_printf_modifier (const wchar_t *) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_register_printf_specifier
 #  define __NIJI_D_register_printf_specifier 1
@@ -120,7 +120,7 @@ extern int register_printf_specifier (int, printf_function (*), printf_arginfo_s
 # endif
 # ifndef __NIJI_D_register_printf_type
 #  define __NIJI_D_register_printf_type 1
-extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW;
+extern int register_printf_type (printf_va_arg_function (*)) __NIJI_NOTHROW __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef PA_FLAG_LONG
 #  define PA_FLAG_LONG 512

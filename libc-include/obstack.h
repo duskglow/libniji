@@ -60,7 +60,7 @@ extern int _obstack_begin_1 (struct obstack *, int, int, void *(*) (void *, long
 struct obstack;
 # ifndef __NIJI_D__obstack_memory_used
 #  define __NIJI_D__obstack_memory_used 1
-extern int _obstack_memory_used (struct obstack *);
+extern int _obstack_memory_used (struct obstack *) __attribute__ ((__pure__));
 # endif
 struct obstack;
 # ifndef __NIJI_D__obstack_newchunk

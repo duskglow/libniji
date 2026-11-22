@@ -64,7 +64,7 @@ extern int fegetexceptflag (unsigned short *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_fegetround
 #  define __NIJI_D_fegetround 1
-extern int fegetround (void) __NIJI_NOTHROW;
+extern int fegetround (void) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_feholdexcept
 #  define __NIJI_D_feholdexcept 1

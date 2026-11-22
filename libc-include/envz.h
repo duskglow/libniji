@@ -15,11 +15,11 @@ extern int envz_add (char **, unsigned long *, const char *, const char *) __NIJ
 # endif
 # ifndef __NIJI_D_envz_entry
 #  define __NIJI_D_envz_entry 1
-extern char *envz_entry (const char *, unsigned long, const char *) __NIJI_NOTHROW;
+extern char *envz_entry (const char *, unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_envz_get
 #  define __NIJI_D_envz_get 1
-extern char *envz_get (const char *, unsigned long, const char *) __NIJI_NOTHROW;
+extern char *envz_get (const char *, unsigned long, const char *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_envz_merge
 #  define __NIJI_D_envz_merge 1

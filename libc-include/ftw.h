@@ -125,15 +125,15 @@ typedef union pthread_attr_t pthread_attr_t;
 #if 1
 # ifndef __NIJI_D_chmod
 #  define __NIJI_D_chmod 1
-extern int chmod (const char *, unsigned int) __NIJI_NOTHROW;
+extern int chmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct stat;
 # ifndef __NIJI_D_fstat
 #  define __NIJI_D_fstat 1
 #  if !__NIJI_FOB64
-extern int fstat (int, struct stat *) __NIJI_NOTHROW;
+extern int fstat (int, struct stat *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 #  elif __NIJI_FOB64
-extern int fstat (int, struct stat *) __NIJI_NOTHROW __asm__ ("fstat64");
+extern int fstat (int, struct stat *) __NIJI_NOTHROW __asm__ ("fstat64") __attribute__ ((__nonnull__ (2)));
 #  endif
 # endif
 struct stat;
@@ -144,26 +144,26 @@ typedef int (*__ftw_func_t)(char const *, struct stat const *, int);
 # ifndef __NIJI_D_ftw
 #  define __NIJI_D_ftw 1
 #  if !__NIJI_FOB64
-extern int ftw (const char *, __ftw_func_t, int);
+extern int ftw (const char *, __ftw_func_t, int) __attribute__ ((__nonnull__ (1)));
 #  elif __NIJI_FOB64
-extern int ftw (const char *, __ftw_func_t, int) __asm__ ("ftw64");
+extern int ftw (const char *, __ftw_func_t, int) __asm__ ("ftw64") __attribute__ ((__nonnull__ (1)));
 #  endif
 # endif
 # ifndef __NIJI_D_mkdir
 #  define __NIJI_D_mkdir 1
-extern int mkdir (const char *, unsigned int) __NIJI_NOTHROW;
+extern int mkdir (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_mkfifo
 #  define __NIJI_D_mkfifo 1
-extern int mkfifo (const char *, unsigned int) __NIJI_NOTHROW;
+extern int mkfifo (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct stat;
 # ifndef __NIJI_D_stat
 #  define __NIJI_D_stat 1
 #  if !__NIJI_FOB64
-extern int stat (const char *, struct stat *) __NIJI_NOTHROW;
+extern int stat (const char *, struct stat *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 #  elif __NIJI_FOB64
-extern int stat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("stat64");
+extern int stat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("stat64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 # ifndef __NIJI_D_umask
@@ -180,19 +180,19 @@ typedef int (*__nftw64_func_t)(char const *, struct stat64 const *, int, struct 
 # endif
 # ifndef __NIJI_D_nftw64
 #  define __NIJI_D_nftw64 1
-extern int nftw64 (const char *, __nftw64_func_t, int, int);
+extern int nftw64 (const char *, __nftw64_func_t, int, int) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_LFS64
 struct stat64;
 # ifndef __NIJI_D_fstat64
 #  define __NIJI_D_fstat64 1
-extern int fstat64 (int, struct stat64 *) __NIJI_NOTHROW;
+extern int fstat64 (int, struct stat64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct stat64;
 # ifndef __NIJI_D_fstatat64
 #  define __NIJI_D_fstatat64 1
-extern int fstatat64 (int, const char *, struct stat64 *, int) __NIJI_NOTHROW;
+extern int fstatat64 (int, const char *, struct stat64 *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 struct stat64;
 # ifndef __NIJI_D___ftw64_func_t
@@ -201,35 +201,35 @@ typedef int (*__ftw64_func_t)(char const *, struct stat64 const *, int);
 # endif
 # ifndef __NIJI_D_ftw64
 #  define __NIJI_D_ftw64 1
-extern int ftw64 (const char *, __ftw64_func_t, int);
+extern int ftw64 (const char *, __ftw64_func_t, int) __attribute__ ((__nonnull__ (1)));
 # endif
 struct stat64;
 # ifndef __NIJI_D_lstat64
 #  define __NIJI_D_lstat64 1
-extern int lstat64 (const char *, struct stat64 *) __NIJI_NOTHROW;
+extern int lstat64 (const char *, struct stat64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 struct stat64;
 # ifndef __NIJI_D_stat64
 #  define __NIJI_D_stat64 1
-extern int stat64 (const char *, struct stat64 *) __NIJI_NOTHROW;
+extern int stat64 (const char *, struct stat64 *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_lchmod
 #  define __NIJI_D_lchmod 1
-extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW;
+extern int lchmod (const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450
 # ifndef __NIJI_D_mknod
 #  define __NIJI_D_mknod 1
-extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW;
+extern int mknod (const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 700
 # ifndef __NIJI_D_mknodat
 #  define __NIJI_D_mknodat 1
-extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW;
+extern int mknodat (int, const char *, unsigned int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
@@ -244,27 +244,27 @@ struct stat;
 #  define __NIJI_D_lstat 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 450
 #   if __NIJI_FOB64
-extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
+extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64") __attribute__ ((__nonnull__ (1, 2)));
 #   else
-extern int lstat (const char *, struct stat *) __NIJI_NOTHROW;
+extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 #   endif
 #  elif __NIJI_FOB64
-extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
+extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64") __attribute__ ((__nonnull__ (1, 2)));
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_fchmodat
 #  define __NIJI_D_fchmodat 1
-extern int fchmodat (int, const char *, unsigned int, int) __NIJI_NOTHROW;
+extern int fchmodat (int, const char *, unsigned int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 # endif
 struct stat;
 # ifndef __NIJI_D_fstatat
 #  define __NIJI_D_fstatat 1
 #  if __NIJI_POSIX >= 200809 && !__NIJI_FOB64
-extern int fstatat (int, const char *, struct stat *, int) __NIJI_NOTHROW;
+extern int fstatat (int, const char *, struct stat *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 #  elif __NIJI_FOB64
-extern int fstatat (int, const char *, struct stat *, int) __NIJI_NOTHROW __asm__ ("fstatat64");
+extern int fstatat (int, const char *, struct stat *, int) __NIJI_NOTHROW __asm__ ("fstatat64") __attribute__ ((__nonnull__ (2, 3)));
 #  endif
 # endif
 struct timespec;
@@ -274,16 +274,16 @@ extern int futimens (int, const struct timespec *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_mkdirat
 #  define __NIJI_D_mkdirat 1
-extern int mkdirat (int, const char *, unsigned int) __NIJI_NOTHROW;
+extern int mkdirat (int, const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_mkfifoat
 #  define __NIJI_D_mkfifoat 1
-extern int mkfifoat (int, const char *, unsigned int) __NIJI_NOTHROW;
+extern int mkfifoat (int, const char *, unsigned int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 struct timespec;
 # ifndef __NIJI_D_utimensat
 #  define __NIJI_D_utimensat 1
-extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NOTHROW;
+extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 #endif
 #if 1

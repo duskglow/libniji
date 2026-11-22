@@ -10,15 +10,15 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_backtrace
 #  define __NIJI_D_backtrace 1
-extern int backtrace (void **, int);
+extern int backtrace (void **, int) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_backtrace_symbols
 #  define __NIJI_D_backtrace_symbols 1
-extern char **backtrace_symbols (void *const *, int) __NIJI_NOTHROW;
+extern char **backtrace_symbols (void *const *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_backtrace_symbols_fd
 #  define __NIJI_D_backtrace_symbols_fd 1
-extern void backtrace_symbols_fd (void *const *, int, int) __NIJI_NOTHROW;
+extern void backtrace_symbols_fd (void *const *, int, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 

@@ -42,15 +42,15 @@ typedef struct __locale_struct * locale_t;
 #if 1
 # ifndef __NIJI_D_iswalnum
 #  define __NIJI_D_iswalnum 1
-extern int iswalnum (unsigned int) __NIJI_NOTHROW;
+extern int iswalnum (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswalpha
 #  define __NIJI_D_iswalpha 1
-extern int iswalpha (unsigned int) __NIJI_NOTHROW;
+extern int iswalpha (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswcntrl
 #  define __NIJI_D_iswcntrl 1
-extern int iswcntrl (unsigned int) __NIJI_NOTHROW;
+extern int iswcntrl (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswctype
 #  define __NIJI_D_iswctype 1
@@ -58,35 +58,35 @@ extern int iswctype (unsigned int, unsigned long) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_iswdigit
 #  define __NIJI_D_iswdigit 1
-extern int iswdigit (unsigned int) __NIJI_NOTHROW;
+extern int iswdigit (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswgraph
 #  define __NIJI_D_iswgraph 1
-extern int iswgraph (unsigned int) __NIJI_NOTHROW;
+extern int iswgraph (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswlower
 #  define __NIJI_D_iswlower 1
-extern int iswlower (unsigned int) __NIJI_NOTHROW;
+extern int iswlower (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswprint
 #  define __NIJI_D_iswprint 1
-extern int iswprint (unsigned int) __NIJI_NOTHROW;
+extern int iswprint (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswpunct
 #  define __NIJI_D_iswpunct 1
-extern int iswpunct (unsigned int) __NIJI_NOTHROW;
+extern int iswpunct (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswspace
 #  define __NIJI_D_iswspace 1
-extern int iswspace (unsigned int) __NIJI_NOTHROW;
+extern int iswspace (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswupper
 #  define __NIJI_D_iswupper 1
-extern int iswupper (unsigned int) __NIJI_NOTHROW;
+extern int iswupper (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_iswxdigit
 #  define __NIJI_D_iswxdigit 1
-extern int iswxdigit (unsigned int) __NIJI_NOTHROW;
+extern int iswxdigit (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_towctrans
 #  define __NIJI_D_towctrans 1
@@ -94,11 +94,11 @@ extern unsigned int towctrans (unsigned int, wctrans_t) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_towlower
 #  define __NIJI_D_towlower 1
-extern unsigned int towlower (unsigned int) __NIJI_NOTHROW;
+extern unsigned int towlower (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_towupper
 #  define __NIJI_D_towupper 1
-extern unsigned int towupper (unsigned int) __NIJI_NOTHROW;
+extern unsigned int towupper (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_wctrans
 #  define __NIJI_D_wctrans 1
@@ -112,7 +112,7 @@ extern unsigned long wctype (const char *) __NIJI_NOTHROW;
 #if __NIJI_ISOC >= 1999
 # ifndef __NIJI_D_iswblank
 #  define __NIJI_D_iswblank 1
-extern int iswblank (unsigned int) __NIJI_NOTHROW;
+extern int iswblank (unsigned int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809

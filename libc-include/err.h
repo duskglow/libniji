@@ -10,35 +10,35 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_err
 #  define __NIJI_D_err 1
-extern void err (int, const char *, ...);
+extern void err (int, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3), __noreturn__));
 # endif
 # ifndef __NIJI_D_errx
 #  define __NIJI_D_errx 1
-extern void errx (int, const char *, ...);
+extern void errx (int, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3), __noreturn__));
 # endif
 # ifndef __NIJI_D_verr
 #  define __NIJI_D_verr 1
-extern void verr (int, const char *, __builtin_va_list);
+extern void verr (int, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0), __noreturn__));
 # endif
 # ifndef __NIJI_D_verrx
 #  define __NIJI_D_verrx 1
-extern void verrx (int, const char *, __builtin_va_list);
+extern void verrx (int, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0), __noreturn__));
 # endif
 # ifndef __NIJI_D_vwarn
 #  define __NIJI_D_vwarn 1
-extern void vwarn (const char *, __builtin_va_list);
+extern void vwarn (const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 1, 0)));
 # endif
 # ifndef __NIJI_D_vwarnx
 #  define __NIJI_D_vwarnx 1
-extern void vwarnx (const char *, __builtin_va_list);
+extern void vwarnx (const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 1, 0)));
 # endif
 # ifndef __NIJI_D_warn
 #  define __NIJI_D_warn 1
-extern void warn (const char *, ...);
+extern void warn (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 # endif
 # ifndef __NIJI_D_warnx
 #  define __NIJI_D_warnx 1
-extern void warnx (const char *, ...);
+extern void warnx (const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 # endif
 #endif
 
