@@ -1,0 +1,22 @@
+{"task": "SL-HEADERS-S16-3", "model": "sonnet", "tokens": null,
+ "result": "slice 16 moved onto the registry layout (s16 files), header_check 0 of 5409, x86 172/0, stubs and abi-gen regenerated, P3 clean, P2 8 residual rows (4 pending slice 7, 4 candidate-list gap); gate and plants running",
+ "branch": "task/sl-headers-s16-3", "head": "cf89d4fff",
+ "gate": {"affected": "running (sl-headers-s16-3-gate2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "shared generator code changed in its own commit b98cbbf56: headers.rs members_nested (anonymous aggregates of Elf*/Dl_* typedefs, layout-only member typedefs), abi.rs (16+ byte memberless typedef as aligned byte array), header_check.py (p1 reject rows)", "recommendation": "land with the slice; the headers.rs and abi.rs changes are reviewed by the FULL gate"},
+  {"item": "Elf*_Phdr member p_type (S16-2 respell of layouts.tsv) changes slice 9's generated sys/auxv.h (real members for Elf*_Dyn, Elf64_auxv_t)", "recommendation": "accept: the same rows describe the reference's members; the FULL gate covers sys/auxv.h users"}],
+ "informational": [
+  "P2 residual 8 rows: sys/profil.h FD_CLR/FD_ISSET/FD_SET/FD_ZERO (reference includes sys/time.h, slice 7) and link.h La_x86_64_xmm/ymm/zmm/vector (no visibility.tsv row: candidate-list gap; probe the reference's link.h to add them with their C++ configurations)",
+  "P6 (conformance --niji-headers s27_dl*) not rerun: needs cargo xtask so beside the gate",
+  "cargo xtask test (6836 tests, 25+ min at 142 done on a loaded host) was killed; the FULL-tier gate runs the same tests",
+  "first plants run (killed) showed WARN caught by no test the log names for x86 plants; msg regexes widened, recheck in plants2",
+  "thread_db.h, proc_service.h, a.out.h, stab.h not generated (no tables / slices 8, 9)"],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "header_check units (slice 16 member offsets, sonames, profil P1, reject row) and 16 plants", "before": 0, "after": 16, "unit": "plants", "measured": false},
+  {"kind": "correctness", "what": "nine slice 16 headers plus sys/elf.h error header generated; Elf Dyn/auxv members real in sys/auxv.h", "before": null, "after": null, "unit": "headers", "measured": false}],
+ "improvement": "affected escalates every slice to FULL and cargo xtask test is 6836 tests: a direct tier for headers/slices, header_checks and xtask slices (as the registry handoff proposes) would save an hour per slice run",
+ "next_step": "jobwait gate2 and plants2 on mei, fix what they name, then P6 after the gate (cargo xtask so, conformance/run.sh --niji-headers s27_dl*)",
+ "report_file": "handoff/SL-HEADERS-S16-3.md",
+ "jobs": ["mei:sl-headers-s16-3-hg6", "mei:sl-headers-s16-3-lint2", "mei:sl-headers-s16-3-gate2", "mei:sl-headers-s16-3-plants2"]}

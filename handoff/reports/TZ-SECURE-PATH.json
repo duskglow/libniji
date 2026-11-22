@@ -1,0 +1,20 @@
+{"task": "TZ-SECURE-PATH", "model": "opus", "tokens": null,
+ "result": "secure-mode TZ rule applied: in an AT_SECURE process a TZ value names a zone file only inside /usr/share/zoneinfo (no `..`, no absolute path outside); refused values fall back to the rule parse, matching the reference probe case for case",
+ "branch": "task/tz-secure-path", "head": "3cc69ca4b (code; later commits add only handoff files)",
+ "gate": {"affected": "9270 passed / 0 failed (direct tier, 9 suites); conformance 4 passed / 0 failed; plants 6/6 CAUGHT", "peak": "14G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "spec/security/threat-model.md TZ row made precise from a probe: a valid rule before a `..` component stays that rule (JST-9/../x is +9 JST in the reference and libniji); 'inside' is component-wise after empty and `.` components",
+   "a kept zone is keyed by TZ and TZDIR, not the secure flag; only the hosted no-auxv fallback can change secure mode at run time (recorded in handoff, not addressed)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "a set-ID program no longer opens or parses a zone file its caller names by an absolute TZ path outside /usr/share/zoneinfo or a `..` name", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "tests added: time_load secure test, conformance s23_tz_secure", "before": 0, "after": 2, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants added, all CAUGHT", "before": 0, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a conformance program that prints every case doubles as the reference probe when built with cc and run set-group-ID: one source for the probe table and the test",
+ "next_step": "none: land through the CI train",
+ "report_file": "handoff/TZ-SECURE-PATH.md",
+ "jobs": ["tz-secure-path-gate", "tz-secure-path-plants", "tz-secure-path-probe", "tz-secure-path-unit", "tz-secure-path-lint"]}

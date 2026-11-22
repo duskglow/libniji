@@ -14,6 +14,8 @@
 use std::path::{Path, PathBuf};
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 use scratch::Scratch;
 use std::process::Command;
 
@@ -205,6 +207,7 @@ fn relative_search_and_dlopen_names_are_kept_as_given() {
 #[test]
 fn origin_without_proc_is_ld_origin_path() {
     let Some(c) = setup("noproc") else { return };
+    // contain: probe(one mount and a test, then exits)
     let probe = Command::new("unshare").args(["-r", "-m", "sh", "-c", "mount -t tmpfs none /proc && test ! -e /proc/self"]).output();
     if !probe.as_ref().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no unprivileged user and mount namespace to hide /proc ({probe:?})");
@@ -212,7 +215,8 @@ fn origin_without_proc_is_ld_origin_path() {
     }
     let script = "mount -t tmpfs none /proc && cd \"$0\" && exec \"$@\"";
     let hidden = |env: &[&str], argv: &[&str]| {
-        let o = Command::new("unshare").args(["-r", "-m", "env"]).args(env).args(["sh", "-c", script]).arg(&*c.dir).args(argv).output().unwrap();
+        // Contained (support/contain.rs).
+        let o = contain::user("unshare").args(["-r", "-m", "env"]).args(env).args(["sh", "-c", script]).arg(&*c.dir).args(argv).output().unwrap();
         (o.status.code().unwrap_or(-1), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
     };
     let stand_in = format!("LD_ORIGIN_PATH={}", c.path("bin/sub/.."));

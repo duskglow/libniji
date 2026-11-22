@@ -1,0 +1,14 @@
+# LIBC-SELF-BIND plants (D-27.76: libc.so.6 binds its own function references, but the malloc family)
+# malloc-bound and no-dynamic-list bind the malloc family too (--dynamic-list-data alone binds every function): x_self_bind
+# catches them (strdup and asprintf no longer reach the program's malloc); the build check has nothing to say there.
+malloc-bound | xtask/src/so.rs | lit:["malloc", "free", "calloc", ==> ["mallocx", "free", "calloc", | cargo xtask affected --only conformance:x_self_bind --with-exports --run | msg:conformance FAILED: x_self_bind: libniji
+no-dynamic-list | xtask/src/so.rs | lit:            .arg(format!("-Wl,--dynamic-list={}", dyn_list.display())) ==> | cargo xtask affected --only conformance:x_self_bind --with-exports --run | msg:conformance FAILED: x_self_bind: libniji
+data-bound | xtask/src/so.rs | lit:            .arg("-Wl,--dynamic-list-data") ==> | cargo xtask affected --only conformance:x_self_bind --with-exports --run | msg:no symbolic reference to the object's own data is left|conformance FAILED: x_self_bind
+check-ignores-functions | xtask/src/so.rs | lit:if !LIBC_PREEMPTIBLE.contains(&name) => { ==> if name.is_empty() => { | cargo test -p xtask -- libc_self_binding | msg:libc_self_binding_keeps_only_the_malloc_family_and_data_symbolic.*FAILED|panicked
+check-ignores-data | xtask/src/so.rs | lit:    if data == 0 { ==>     if data == usize::MAX { | cargo test -p xtask -- libc_self_binding | msg:libc_self_binding_keeps_only_the_malloc_family_and_data_symbolic.*FAILED|panicked
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# malloc-bound: CAUGHT, caught by no test the log names
+# no-dynamic-list: CAUGHT, caught by no test the log names
+# data-bound: CAUGHT, caught by no test the log names
+# check-ignores-functions: CAUGHT, caught by xtask so::tests::libc_self_binding_keeps_only_the_malloc_family_and_data_symbolic
+# check-ignores-data: CAUGHT, caught by xtask so::tests::libc_self_binding_keeps_only_the_malloc_family_and_data_symbolic

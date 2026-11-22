@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S12-7", "model": "sonnet", "tokens": null,
+ "result": "COMPLETE: merged next (HEADERS-WINSIZE-TWICE landed), headers reproduce, clippy/static/direct gate green, plants 3 caught + 1 WARN-NO-MSG, P5 c89..c2x clean for slice 12 headers",
+ "branch": "task/sl-headers-s12-7", "head": "14579f513",
+ "gate": {"affected": "18 suites ok; 11564 passed / 0 failed; conformance 93 passed", "peak": "15G (mei, oom_kill=0)"},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": ["plant s12-needs-if-include caught by the named test but its msg regex 'stale under libc-include' is not in the log (WARN-NO-MSG); fix the msg to the test name in a later run", "first plants attempt was REFUSED because I had created the --dir myself (job sl-headers-s12-7-plants); rerun as sl-headers-s12-7-plants2"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 12 headers (16) verified: gate, 4 plants, P5 c89/c99/c11/c17/c2x x16 headers", "before": 0, "after": 80, "unit": "P5 compiles", "measured": true}],
+ "improvement": "plants tool should create its own --dir (or accept an existing empty one): pre-creating it is the natural mistake and cost a run",
+ "next_step": "land slice 12; slice 13",
+ "report_file": "handoff/SL-HEADERS-S12.md",
+ "jobs": ["mei:sl-headers-s12-7-gate", "mei:sl-headers-s12-7-plants2"]}

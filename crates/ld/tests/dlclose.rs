@@ -611,19 +611,25 @@ static void room(void) {
     pthread_join(th, NULL);
     CHECK(68, r_open && dlclose(r_open) == 0 && dlclose(k) == 0, "the reader's dlopen: %s", err());
     /* A reader always inside some walk: each reclaim frees only the round before's objects while
-       the newest stay at the top, and the freed slots below them become holes (slots are reused
-       from the top). Few are retired at a time; past three quarters of the table the opens wait. */
+       the newest stay at the top, and the freed slots below them are reused once past their grace
+       period (D-27.74): the 600 pairs get few distinct handles, where with slots reused only from
+       the top they climbed to three quarters of the table (384) and then waited. */
     progress = 0;
+    static void *cyc_h[600];
+    int cyc_distinct = 0;
     CHECK(70, pthread_create(&th, NULL, cycler, NULL) == 0, "pthread_create");
     for (int i = 0; i < 600; i++) {
         void *q = dlopen(P("libP.so"), RTLD_NOW);
+        int seen = 0;
+        for (int j = 0; j < cyc_distinct && !seen; j++) seen = cyc_h[j] == q;
+        if (!seen) cyc_h[cyc_distinct++] = q;
         CHECK(71, q && dlclose(q) == 0, "open %d behind an ever-present reader: %s", i, err());
         progress = i + 1;
         if ((i + 1) % 10 == 0) { sw_req++; while (entered != sw_req) sched_yield(); }
     }
     cyc_stop = 1;
     pthread_join(th, NULL);
-    CHECK(72, cyc_waits > 0, "never waited for the ever-present reader");
+    CHECK(72, cyc_distinct <= 128, "freed slots behind an ever-present reader not reused: %d distinct handles in 600 opens (%d waits)", cyc_distinct, cyc_waits);
 }
 
 /* `exit SCENARIO`: open objects and return from main; the destructors at exit write the order. */
@@ -893,8 +899,8 @@ fn s27_1_c_4_dlclose_concurrent_with_readers() {
 /// forked from inside a walk while another thread is stalled in its own runs 600 pairs: the gone
 /// thread's count is cleared and the child's own is kept until its walk ends. A reader that is
 /// always inside some walk (it re-enters every 10 pairs) leaves holes below the newest retired
-/// objects with few retired at a time: past three quarters of the table the opens wait, and all
-/// 600 pairs succeed.
+/// objects with few retired at a time: the holes are reused once past their grace period
+/// (D-27.74), so all 600 pairs succeed with at most 128 distinct handles.
 #[test]
 fn s27_1_c_4_dlopen_waits_for_readers_only_outside_them() {
     let Some((d, ld, libc, crt1)) = setup("room") else { return };

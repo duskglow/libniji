@@ -1,0 +1,8 @@
+# ROOT-HARNESS-CONTAIN: the containment helpers (support/contain.rs, oracle/contain.sh) and the static check.
+# Run with cargo xtask plants (docs/plants.md). A surviving kill-test plant leaves its probe's loops
+# behind; they end by themselves within 300 s.
+user-no-pdeathsig | crates/core/tests/support/contain.rs | lit:"--pdeathsig", "KILL", ==> "--pdeathsig", "clear", | cargo test -p niji --test harness_containment a_killed_user_namespace_run_leaves_no_process | msg:processes of a killed user run remain
+user-no-pidns | crates/core/tests/support/contain.rs | lit:"--pid", "--fork", "--kill-child", "--mount-proc", ==> "--mount", "--fork", "--kill-child", "--uts", | cargo test -p niji --test harness_containment a_killed_user_namespace_run_leaves_no_process | msg:processes of a killed user run remain
+root-no-watch | crates/core/tests/oracle/contain.sh | lit:kill -KILL "$ns" 2>/dev/null ==> : "$ns" | cargo test -p niji --test harness_containment a_killed_root_run_leaves_no_process | msg:processes of a killed root run remain
+static-direct-sudo | crates/core/tests/users_products.rs | lit:Command::new("sudo").args(["-n", "true"]) ==> Command::new("sudo").args(["-n", "id"]) | cargo xtask static | msg:uncontained harness run
+static-uncontained-script | crates/core/tests/syslog_products.rs | lit:oracle::contain::output( ==> oracle::uncontained( | cargo xtask static | msg:uncontained harness run

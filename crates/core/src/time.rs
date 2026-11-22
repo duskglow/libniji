@@ -15,6 +15,9 @@
 //! leading `:` is dropped: the file it names (an absolute path, or a path under `TZDIR`, by
 //! default `/usr/share/zoneinfo`), if that is a regular TZif file; else the value as a POSIX
 //! rule; else UTC, abbreviated by the value's leading valid name (empty if none, as glibc).
+//! In a secure process (`AT_SECURE`; `spec/security/threat-model.md`, `TZ`) `TZDIR` is
+//! ignored and a value names a file only inside `/usr/share/zoneinfo`: one with a `..`
+//! component, or an absolute path outside it, reads no file and is taken as a rule.
 
 pub mod civil;
 pub mod fast;
@@ -157,10 +160,47 @@ fn zone_path(value: &[u8], tzdir: Option<&[u8]>) -> Result<TryVec<u8>> {
     Ok(path)
 }
 
+/// The components of `path` that name something: without the empty ones (`//`, a leading or
+/// trailing `/`) and `.`.
+fn components(path: &[u8]) -> impl Iterator<Item = &[u8]> {
+    path.split(|&b| b == b'/').filter(|c| !c.is_empty() && *c != b".")
+}
+
+/// Whether a secure selection may read the file `value` names (`spec/security/threat-model.md`,
+/// `TZ`): no `..` component anywhere, and an absolute path only strictly inside `dir`, compared
+/// component by component after empty and `.` components are dropped (`/usr//share/./zoneinfo/X`
+/// is inside `/usr/share/zoneinfo`; `/usr/share/zoneinfo2/X` is not). A relative name is joined
+/// to `dir`, so with no `..` it stays inside.
+fn trusted_name(value: &[u8], dir: &[u8]) -> bool {
+    if value.split(|&b| b == b'/').any(|c| c == b"..") {
+        return false;
+    }
+    if !value.starts_with(b"/") {
+        return true;
+    }
+    let mut parts = components(value);
+    components(dir).all(|d| parts.next() == Some(d)) && parts.next().is_some()
+}
+
 /// The zone `TZ` names (§23.6; the module documentation): `tz` is `TZ`'s value (`None`:
 /// unset), `tzdir` `TZDIR`'s, `default` the file for an unset `TZ` (NUL-terminated;
-/// [`LOCALTIME`]). Only memory exhaustion fails.
-pub fn load<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8]) -> Result<Loaded> {
+/// [`LOCALTIME`]). In a secure process (`secure`, `AT_SECURE`) `tzdir` is ignored and a value
+/// names a file only inside [`ZONEINFO`] ([`load_in`]). Only memory exhaustion fails.
+pub fn load<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8], secure: bool) -> Result<Loaded> {
+    if secure {
+        load_in(sys, tz, None, default, Some(ZONEINFO))
+    } else {
+        load_in(sys, tz, tzdir, default, None)
+    }
+}
+
+/// [`load`] with the secure selection's directory named: `trusted` `None` is the ordinary
+/// selection; `Some(dir)` the secure one (threat model, `TZ`): `tzdir` is ignored, a relative
+/// name is looked up under `dir`, and a value with a `..` component or an absolute path outside
+/// `dir` reads no file: it is taken as a rule, as a value that names no zone file (an invalid
+/// rule is UTC named by its leading valid name, empty if none). The default file of an unset
+/// `TZ` is the caller's and is read in either mode.
+pub fn load_in<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &[u8], trusted: Option<&[u8]>) -> Result<Loaded> {
     let Some(tz) = tz else {
         // Unset: the default file, watched even when it cannot be read (it may appear later).
         let (zone, id) = read_zone(sys, default)?;
@@ -172,9 +212,11 @@ pub fn load<S: Sys>(sys: &S, tz: Option<&[u8]>, tzdir: Option<&[u8]>, default: &
     if value.is_empty() {
         return Ok(Loaded { zone: None, fixed: &UNIVERSAL, file: None });
     }
-    let path = zone_path(value, tzdir)?;
-    if let (Some(zone), id) = read_zone(sys, &path)? {
-        return Ok(Loaded { zone: Some(zone), fixed: &UTC, file: Some((path, id)) });
+    if trusted.is_none_or(|dir| trusted_name(value, dir)) {
+        let path = zone_path(value, trusted.or(tzdir))?;
+        if let (Some(zone), id) = read_zone(sys, &path)? {
+            return Ok(Loaded { zone: Some(zone), fixed: &UTC, file: Some((path, id)) });
+        }
     }
     // Not a zone file: a rule (or UTC named by the value's leading name); not watched.
     Ok(Loaded { zone: Some(Zone::from_rule_text(value)?), fixed: &UTC, file: None })

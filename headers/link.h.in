@@ -1,0 +1,23 @@
+@@generated
+/* link.h: the run-time linker's interfaces (dl_iterate_phdr(3), the r_debug protocol, rtld-audit(7)). */
+#ifndef __NIJI_H_link_h
+#define __NIJI_H_link_h 1
+
+#include <features.h>
+#include <elf.h>
+#include <dlfcn.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro ElfW
+@@emit
+
+/* dl_iterate_phdr(3): ElfW(Addr) names the ELF type of the native class (x86-64: Elf64_Addr). */
+#ifndef ElfW
+# define ElfW(type) Elf64_##type
+#endif
+
+__NIJI_END_C
+
+#endif
