@@ -226,6 +226,28 @@ pub(crate) fn fresh<'a, T: Copy + Default>(p: *mut c_void, n: usize) -> Option<&
     }
 }
 
+/// `value` moved into freshly `malloc`ed memory `p` (`size_of::<T>()` bytes), or `None` for a NULL
+/// result: the library's object in memory the caller's allocator handed out (ruling #7583). The
+/// object is never dropped (`T` must not need it): its memory goes back with `free`.
+///
+/// Proof: `p` came from `malloc(size_of::<T>())` and is not NULL: aligned for any fundamental type
+/// (`align_of::<T>() <= 16`, checked at compile time), referenced by nothing else, and written
+/// whole here before the reference to it is made.
+pub(crate) fn fresh_value<T>(p: *mut c_void, value: T) -> Option<&'static mut T> {
+    const { assert!(align_of::<T>() <= 16 && !core::mem::needs_drop::<T>() && size_of::<T>() > 0) };
+    if p.is_null() {
+        return None;
+    }
+    let t = p.cast::<T>();
+    // UNSAFE(slice): fresh allocator memory becomes a value only through a raw write.
+    #[allow(unsafe_code)]
+    // SAFETY: see the proof above.
+    unsafe {
+        t.write(value);
+        Some(&mut *t)
+    }
+}
+
 /// Fill freshly `malloc`ed memory `p` (`text.len() + 1` units of `T`, not NULL) with `text` and a
 /// terminating zero unit, writing every unit (`strdup`'s copy, without `calloc`'s zeroing).
 ///
