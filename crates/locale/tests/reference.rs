@@ -312,10 +312,7 @@ fn compare(locale: &str, charmap: &str) {
             continue;
         };
         let Some(mine) = ours.get(n).and_then(Option::as_ref) else {
-            // LC_COLLATE: not written yet.
-            if n != 3 {
-                out.push(format!("{file}: ours is missing"));
-            }
+            out.push(format!("{file}: ours is missing"));
             continue;
         };
         let (Some(t), Some(o)) = (Category::parse(leak(theirs)), Category::parse(leak(mine.as_slice().to_vec()))) else {

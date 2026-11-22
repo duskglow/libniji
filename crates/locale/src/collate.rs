@@ -18,7 +18,7 @@
 //! * `..` on a line of its own orders the characters between the code points of the lines
 //!   before and after it; `..` as a weight is the character itself.
 //!
-//! The weight numbers are libniji's own (D-31.x): the order of keys equals the reference's,
+//! The weight numbers are libniji's own (D-31.20): the order of keys equals the reference's,
 //! their bytes need not.
 #![allow(clippy::arithmetic_side_effects)] // positions and offsets count items of one source (far below u32::MAX; table sizes checked when written)
 
