@@ -1,65 +1,84 @@
-# CI-PRODUCTS-ONCE: build each train's release products once; make the traced layout cheaper (handoff)
+# CI-PRODUCTS-ONCE: build each train's release products once; make the traced layout cheaper (handoff, final)
 
-State: branch `task/ci-products-once`, base origin/next fa79409c7. Role mei:~/w/s2 (Skylake-SP, 6-core slot).
-Code so far: 5c5d867d4 (tools/hottext/trace_gdb.py, the breakpoint pool). Scratch on mei: `~/work/ci-products-once/`
-(scripts tgdb.sh, exp.sh, one.sh, full.sh; outputs out.base1/, sums.*, lists.*, tgdb.*.log, regen.*.log).
+State: branch `task/ci-products-once`, base origin/next fa79409c7. Role mei:~/w/s2 (Skylake-SP, 6-core slot); the
+Zen 1 checks ran on keke in a copy at ~/work/ci-products-once/t1 (no CI role path used). Records: D-27.82 (manifest
+and import), D-27.83 (the tracer's breakpoint pool). Plants: handoff/CI-PRODUCTS-ONCE-plants.txt.
 
-## Step 1: where so/libc-archive goes (profiled on the Skylake-SP host, head fa79409c7, release)
+## Commits
 
-* libc-archive 387.5 s = cargo-libc 108.5 s + archive passes + the trace (regen.sh) + finish_archive. so/total 658 s.
-  On the Zen 1 host (ci-instr, fa79409c7): 733.5 s, of which cargo-libc 165 s.
-* The trace: 25 gdb traces of 31-69 s each, at most `nproc` (6 in the slot) at once, so the phase is bound by CPU:
-  1232 s of gdb time, 238 s regen wall (standalone, the build's own trace products; lists identical to the build's).
-* Inside one trace (`page_faults true`, 4 class runs, 4421 one-shot breakpoints, ~97 stops per run): 6-14 s to make
-  the breakpoints and 3-8 s of run loop plus teardown per class run; 58.5 s in all. gdb's cost per breakpoint grows
-  with the number it holds, and every class run made and deleted all 4421.
-* Rejected: `set breakpoint always-inserted on` (regen 580 s against 238 s; lists identical).
-* Done (5c5d867d4): the breakpoints are made once per tracer and reused (disabled at the stop that hits them, where
-  gdb deleted the temporary one; re-enabled for the next class). Two checks fail the trace if the pool misbehaves:
-  a pooled breakpoint that stops twice in a run (`check_one_shot`), a class run that does not start where the first
-  did. One trace 58.5 -> 15.9 s (same names, sha 1546933558c9); regen 238 -> 127 s wall, gdb CPU 1232 -> 531 s;
-  all five lists byte-identical (hot-text.list, startup-text.keys, probe-text.keys, hot-text.signatures,
-  startup-data.keys).
-* Left in the trace: the first class run's 10.7 s of breakpoint making; the probes are compiled one after the other
-  in regen.sh between trace starts (niji-cc, up to 44 s each under load). Candidates, not tried.
+* 5c5d867d4 tools/hottext/trace_gdb.py: one-shot breakpoints made once per tracer (pool), with two self-checks.
+* 9609ba1bc xtask: `target/niji/.products-manifest` written by every product build; `NIJI_IMPORT_PRODUCTS=<dir>`.
+* 7edb8813b, 3aef96204: the build-or-import step under test, records D-27.82/D-27.83, the plants file.
 
-## Step 2: cross-host identity (sha256 prefixes in ~/work/ci-products-once/sums.{mei,keke}.txt, from ~/wl/products)
+## Step 1: the traced layout (Skylake-SP, release, `NIJI_FULL_PROFILE=1 cargo xtask so`)
 
-Primed products of landed heads on both hosts (Skylake-SP mei, Zen 1 keke), every common file identical:
+| run | head | so/libc-archive | of it cargo-libc | regen (the 25 traces) | so/total |
+|---|---|---|---|---|---|
+| before (per-run breakpoints) | fa79409c7 | 387.5 s | 108.5 s | 238 s wall, 1232 s gdb CPU | 658.4 s |
+| after (pool), cargo warm | fa79409c7 | 114.3 s | 0.0 s | 127 s wall, 531 s gdb CPU (standalone) | 145.6 s |
 
-| head | files compared | result |
+Like for like (without cargo): 279 s -> 114 s. One trace 58.5 -> 15.9 s. Where it went: making and deleting the 4421
+one-shot breakpoints in every class run (6-14 s per run; gdb's cost per breakpoint grows with the count it holds).
+On the Zen 1 host (copy, cold, 4 cores of a loaded host) the pooled build's libc-archive was 501.8 s with 205.5 s of
+cargo (ci-instr's recent runs: 588-804 s); not a controlled comparison.
+Identity of the output with the pool: head fa79409c7, all 1256 product files and the 5 lists byte-identical to the
+per-run build (sha256 listing sums.f1 = sums.base1, digest of the listing 1e02ed63e8ec1d78; hot-text.list 4752d158931184ae,
+startup-text.keys 54a7859b7540fdb7, probe-text.keys 8acded21f2d32e4b, hot-text.signatures 0954ec032fb1c30d,
+startup-data.keys 2d9ca170f108b244). Head 90390071c: the pooled re-trace of its products gives all 5 lists identical
+to the per-run build's (the archive is a function of sources and lists).
+
+## Step 2: cross-host identity (Skylake-SP mei vs Zen 1 keke)
+
+| head | files | result |
 |---|---|---|
-| 0299fd6e1 -release + -release-dyn | 4 + 13 (libc.a, libm.a, niji-crt1.o, libc.so.6, libm.so.6, ld-linux-x86-64.so.2, crt files, libc_nonshared.a, linker scripts) | identical |
-| 34cc0ded1 -release | 4 | identical |
-| 854da9f38 -release | 4 | identical |
-| b2485a7f1 -release | 4 | identical |
-| d53c0d551 -release | 4 | identical |
+| 0299fd6e1 -release, -release-dyn (primed) | 4 + 13 | identical |
+| 34cc0ded1, 854da9f38, b2485a7f1, d53c0d551 -release (primed) | 4 each | identical |
+| 90390071c (mei cold build vs keke primed) | libc.a, libm.a, crt1/crti/crtn, libc.so.6, libm.so.6, ld.so, libc_nonshared.a | identical (cf6625752590b12a, 585ac2b4793a1e08, ... ) |
+| 9609ba1bc (mei role vs keke copy, full target/niji) | 1259 entries | 1240 identical; 19 differ |
 
-libc.a differs between each of these heads (product code changed). Not comparable: 788ae9bea (an old liella-crt1.o
-era primed set, libc.a differs: predates host-canonical tracing), saf-plants1-* (experiments, not heads).
-Running at refresh: `ci-products-once-h90` (90390071c from ~/wl/src, cold build in /mnt/zram/claude/ci-products-once/h90;
-compare its sums.h90 with keke ~/wl/products/90390071c...-release{,-dyn}: adds libc.so.6/ld.so for that head, and the
-pooled re-trace of its products is the second head for step 1) and `ci-products-once-f1` (head 1 on the role with the
-pooled tracer: compare sums.f1 / lists.f1 with out.base1, built with the old tracer).
+What differs and why: getconf, getent, iconv, ldd, locale, zdump, zic, libanl.so.1, libBrokenLocale.{a,so.1},
+libc_malloc_debug.so.0, libdl.so.2, libmvec.{a,so.1}, libnsl.so.1, libpthread.so.0, libresolv.so.2, librt.so.1,
+libutil.so.1, and the `.hot-lists` marker. Each carries the build tree's path (`~/w/s2` against the copy's path) in
+DWARF only (`.debug_line_str` / `.debug_str`: the compile directory), never in a loaded section. `.hot-lists` names
+the lists directory by path; its list hashes are equal. The primed sets agree because both hosts build them at the
+same path. libc.a, libc.so.6, libm.a, libm.so.6, ld.so, the crt files and libc_nonshared.a match on all heads.
 
-## Next steps (in order)
+## Step 3: the import (D-27.82)
 
-1. `~/bin/jobwait ci-products-once-f1 ci-products-once-h90` on mei; f1: compare `sums.f1` with a sha256 listing of
-   out.base1/niji (same file set, excluding bench/) and lists; h90: the "pooled re-trace" lines, and sums.h90 against
-   keke's primed 90390071c set (run sums.sh-style sha256 there).
-2. Step 3: import mode. Design: run_so_as writes `target/product/<profile>/products.manifest` at its end (tag =
-   build_tag, head = commit_of as benchstage.rs, toolchain = sha256 of `rustc -vV` + first lines of `cc --version`,
-   `ld --version`, `gdb --version`; profile; sha256 of every target/niji file except bench/). `NIJI_IMPORT_PRODUCTS=<dir>`
-   (dir = a copy of target/niji plus the manifest) makes run_so_as check every field and every checksum (and no file
-   unlisted) before building; all match: copy the files in (tmp + rename), print `so: imported ...`, return; any
-   mismatch: print `so: import refused: <field>: <want> vs <got>; building here` and build as today. A pure
-   `import_errors(local, manifest, hashes)` with one unit test per field; one plant per checked field.
-3. Step 4: on one head, ci-instr's bench (`cargo xtask bench`, cbench_memref, cbench_hot, cbench_startup, counters)
-   from imported products vs a local build, row for row (counters.tsv).
-4. Gate (`cargo xtask affected --run --base origin/next`), plants (trace pool: `cargo xtask so` as cmd; import fields:
-   xtask unit tests), clippy, static, precheck, report.
+Manifest: tag, head, toolchain (all `rustc -vV` lines, `cargo -V`, the first line of cc, ld, as, gdb `--version`, 8
+build variables), profile + layout (`release traced`), sha256 of every file and target of every link outside bench/.
+Written last (0.4 s). Import refusal cases, each a unit test and a CAUGHT plant: tag, head, head unknown or dirty,
+toolchain, profile, product checksum, unlisted/missing product, and the fallback (a refused import builds here).
+A missing or unreadable manifest refuses too. Zen 1 run on 9609ba1bc with the Skylake-SP products: `so: imported 1259
+products ... every field and checksum matched`, so/total 1.0 s (the local build: 840.2 s).
 
-## Informational
+## Step 4: bench rows, imported vs local (keke, `cargo xtask bench --counters-only --only cbench_memref,cbench_hot,cbench_startup`)
 
-* `layout: verdict cache: could not store .../target/layout-verdicts/<hash> (an ok line holds a newline); the check
-  passed`, printed by every release build on the role (base1).
+180 rows each, same set. Per-call counts are not exactly reproducible between runs of the same binaries:
+the glibc column (identical in both runs) differs in 91 of 180 rows, by up to 2.69% (putenv_2000).
+Local run 1 vs import, libniji column: 65 of 180 differ, max 1.69% relative; local run 2 vs import: 75 differ, max
+5.99% (startup_kinstr_c). Local 1 vs local 2 (same build, same tree): 72 differ, max 5.54% (startup_kinstr_c); glibc
+column 85 differ. So the imported products move no row beyond the noise of two local runs. Row-for-row equality, as
+the brief asked, cannot be shown with these counts: two runs of one build are not equal either. The code is equal by
+checksum (step 2: every file with loaded code is byte-identical), which is the stronger proof.
+Scripts: ~/work/ci-products-once/k.sh on keke; counters.local1/local/import.tsv beside it.
+
+## Request to the coordinator (the job that starts ci-instr; RULING NEEDED, a cache trust boundary)
+
+Build the train's release products first on the Skylake-SP host (`NIJI_FULL_PROFILE=1 cargo xtask so` in the gate
+role, before the full gate; about 2.5 min warm with the pool), then copy that role's `target/niji/` WITHOUT `bench/`
+(tar or rsync; the manifest `.products-manifest` included) to a fresh directory on the Zen 1 host and start ci-instr
+with `NIJI_IMPORT_PRODUCTS=<that dir>`. Its log then says `so: imported N products` or one `so: import refused:` line
+per reason and builds as today. Known effect: the 19 files above carry the gate role's path in their debug info.
+
+## Open / next
+
+* Fix-forward (recommend a story): path-independent debug info (a prefix map for the C and assembler steps of the
+  utilities and small libraries), so every product is byte-identical whatever the tree path.
+* The probes are compiled one after another between trace starts in regen.sh (up to 44 s each under load) and the
+  first class run still makes its breakpoints (10.7 s): candidates, not tried.
+* INFORMATIONAL: `layout: verdict cache: could not store .../target/layout-verdicts/<hash> (an ok line holds a
+  newline)` on every release build in the role.
+* INFORMATIONAL: a role's `.synced` has no `dirty=` line after a sync of uncommitted changes (tree=<sha>-<hash>),
+  so `commit_of` reports the head as clean; the tag still covers the sources, so an import of such products would
+  need the same sources anyway.
