@@ -1,0 +1,241 @@
+//! `ld.so [OPTION]... PROGRAM` (LDSO-RUN-PROGRAM, ld.so(8); the reference probed on a Zen 1 host,
+//! spec/behaviour/dynlink.md "Program mode options"): the product interpreter runs a position-independent
+//! program with a shared-object dependency under each option it implements, refuses the ones it
+//! does not, and gives the reference's statuses and messages for a missing, short, directory,
+//! static and shared-object file. Skips (with the reason) before `cargo xtask so` or without `cc`.
+
+// ARCH(x86_64): the test programs are x86-64 assembly and system call numbers; the product is x86_64's.
+#![cfg(target_arch = "x86_64")]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
+
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+use niji_ld::arch::{Arch, Native};
+use niji_ld::program;
+
+/// System calls and output, shared by the program and the objects (no libc anywhere).
+const RT: &str = r#"
+static long sys3(long n, long a, long b, long c) {
+    long r;
+    __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c) : "rcx", "r11", "memory");
+    return r;
+}
+static unsigned long len(const char *s) { unsigned long n = 0; while (s[n]) n++; return n; }
+static void put(const char *p, const char *s) { sys3(1, 1, (long)p, len(p)); sys3(1, 1, (long)s, len(s)); sys3(1, 1, (long)"\n", 1); }
+"#;
+
+/// The program: `dep:<n>` from `dep_value` in `libdep.so` (a PLT call the loader must bind), then one
+/// line per argument and per `LD_*` environment entry; exits 0.
+const PROG: &str = r#"
+int dep_value(void);
+void start_c(long *sp) {
+    long argc = sp[0];
+    char **argv = (char **)(sp + 1), **e = argv + argc + 1;
+    char d[2] = { (char)('0' + dep_value()), 0 };
+    put("dep:", d);
+    for (long i = 0; i < argc; i++) put("arg:", argv[i]);
+    for (; *e; e++) if ((*e)[0] == 'L' && (*e)[1] == 'D' && (*e)[2] == '_') put("env:", *e);
+    sys3(231, 0, 0, 0);
+}
+__asm__(".globl _start\n_start:\n\tmov %rsp, %rdi\n\tand $-16, %rsp\n\tcall start_c\n\thlt\n");
+"#;
+
+/// A static program (and, linked as one, a static PIE): exits 3 with nothing of the loader's start.
+const STATIC: &str = "__asm__(\".globl _start\\n_start:\\n\\tmov $231, %eax\\n\\tmov $3, %edi\\n\\tsyscall\\n\");\n";
+
+fn target() -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from)
+}
+
+fn cc(d: &Path, out: &str, src: &str, flags: &[&str]) {
+    let c = d.join(format!("{}.c", out.replace('/', "_")));
+    std::fs::write(&c, src).unwrap();
+    let o = Command::new("cc").args(["-O1", "-fno-builtin", "-fno-stack-protector", "-fcf-protection=none", "-nostdlib"]).args(flags).arg(&c).arg("-o").arg(d.join(out)).output().unwrap();
+    assert!(o.status.success(), "cc {out}: {}", String::from_utf8_lossy(&o.stderr));
+}
+
+/// The scratch directory with `prog`, `lib/libdep.so` (1), `lib2/libdep.so` (2), `libpre.so` and
+/// `libpre2.so` (`dep_value` 9; constructors print `preload:a` / `preload:b`), `libaud.so`,
+/// `static`, `staticpie` and `notelf`; with the interpreter. `None` (and why) when unavailable.
+fn fixture(name: &str) -> Option<(Scratch, PathBuf)> {
+    let ld = target().join("niji").join(Native::INTERP);
+    if !ld.exists() {
+        eprintln!("SKIP: {} not built (run cargo xtask so)", ld.display());
+        return None;
+    }
+    if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        eprintln!("SKIP: no cc");
+        return None;
+    }
+    let s = Scratch::dir_in(&target(), &format!("ldso-options-{name}"));
+    let d = s.to_path_buf();
+    for sub in ["lib", "lib2"] {
+        std::fs::create_dir_all(d.join(sub)).unwrap();
+    }
+    let shared = ["-fPIC", "-shared", "-Wl,-soname,libdep.so"];
+    cc(&d, "lib/libdep.so", "int dep_value(void) { return 1; }\n", &shared);
+    cc(&d, "lib2/libdep.so", "int dep_value(void) { return 2; }\n", &shared);
+    for (f, tag) in [("libpre.so", "a"), ("libpre2.so", "b")] {
+        let src = format!("{RT}int dep_value(void) {{ return 9; }}\n__attribute__((constructor)) static void hi(void) {{ put(\"preload:\", \"{tag}\"); }}\n");
+        cc(&d, f, &src, &["-fPIC", "-shared"]);
+    }
+    cc(&d, "libaud.so", &format!("{RT}unsigned int la_version(unsigned int v) {{ put(\"audit:\", \"loaded\"); return v; }}\n"), &["-fPIC", "-shared"]);
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    cc(&d, "prog", &format!("{RT}{PROG}"), &["-fPIE", "-pie", "-Wl,--no-as-needed", &interp, &format!("-L{}", d.join("lib").display()), "-ldep"]);
+    cc(&d, "static", STATIC, &["-static", "-no-pie"]);
+    cc(&d, "staticpie", STATIC, &["-static-pie", "-fPIE"]);
+    std::fs::write(d.join("notelf"), "not an elf file\n").unwrap();
+    Some((s, ld))
+}
+
+/// Run `ld args` in `d` with only `env` (plus PATH) in the environment, under a hang guard.
+fn run(ld: &Path, d: &Path, env: &[(&str, &str)], args: &[&str]) -> Output {
+    let mut c = Command::new("timeout");
+    c.arg("20").arg(ld).args(args).current_dir(d).env_clear();
+    for (k, v) in env {
+        c.env(k, v);
+    }
+    if let Some(p) = std::env::var_os("PATH") {
+        c.env("PATH", p);
+    }
+    c.output().unwrap()
+}
+
+fn out(o: &Output) -> String {
+    String::from_utf8_lossy(&o.stdout).into_owned()
+}
+
+fn err(o: &Output) -> String {
+    String::from_utf8_lossy(&o.stderr).into_owned()
+}
+
+/// Standard output of a run that exited 0.
+fn ran(o: &Output, what: &str) -> String {
+    assert_eq!(o.status.code(), Some(0), "{what}: {o:?}");
+    out(o)
+}
+
+/// (no spec clause: ld.so(8) program-mode options; the reference probed.)
+#[test]
+fn ldso_program_option_parsing() {
+    let a = |v: &[&'static [u8]]| program::action(v.iter().copied());
+    let p = |mode, name, at, options| program::Action::Program { mode, name, at, options };
+    let (run, list, verify) = (program::Mode::Run, program::Mode::List, program::Mode::Verify);
+    let o = program::Options::default();
+    assert_eq!(a(&[b"./p", b"--argv0", b"x"]), p(run, b"./p", 0, o), "options after the program are its arguments");
+    let lp = program::Options { library_path: Some(b"lib"), ..o };
+    assert_eq!(a(&[b"--library-path", b"lib2", b"--library-path", b"lib", b"./p"]), p(run, b"./p", 4, lp), "the last copy wins");
+    let all = program::Options { library_path: Some(b"l"), preload: Some(b"a:b"), argv0: Some(b"N"), audit: Some(b"x.so"), inhibit_cache: true };
+    let args: [&[u8]; 11] = [b"--inhibit-cache", b"--library-path", b"l", b"--preload", b"a:b", b"--argv0", b"N", b"--audit", b"x.so", b"--list", b"./p"];
+    assert_eq!(a(&args), p(list, b"./p", 10, all));
+    assert_eq!(a(&[b"--verify", b"./p"]), p(verify, b"./p", 1, o));
+    assert_eq!(a(&[b"--list"]), program::Action::Missing);
+    for opt in [&b"--library-path"[..], b"--preload", b"--argv0", b"--audit"] {
+        assert_eq!(a(&[opt]), program::Action::Unknown(opt), "a value is required");
+    }
+    assert_eq!(a(&[b"--library-path=lib", b"./p"]), program::Action::Unknown(b"--library-path=lib"));
+    for opt in program::UNSUPPORTED {
+        assert_eq!(a(&[opt, b"x", b"./p"]), program::Action::Unsupported(opt), "never ignored");
+    }
+    assert_eq!(program::audit_names(b"a.so: b.so::c.so").collect::<Vec<_>>(), [&b"a.so"[..], b"b.so", b"c.so"]);
+}
+
+/// (no spec clause: ld.so(8) `--library-path`, `--list` and `--inhibit-cache`; the reference probed.)
+#[test]
+fn ldso_program_library_path() {
+    let Some((s, ld)) = fixture("libpath") else { return };
+    let d: &Path = &s;
+    let o = ran(&run(&ld, d, &[], &["--library-path", "lib", "./prog", "a", "--argv0"]), "--library-path");
+    assert_eq!(o, "dep:1\narg:./prog\narg:a\narg:--argv0\n", "the dependency from the option's directory; later words are the program's");
+    let o = ran(&run(&ld, d, &[("LD_LIBRARY_PATH", "lib2")], &["--library-path", "lib", "./prog"]), "over the environment");
+    assert_eq!(o, "dep:1\narg:./prog\nenv:LD_LIBRARY_PATH=lib2\n", "the option replaces LD_LIBRARY_PATH, which stays in the environment");
+    let o = ran(&run(&ld, d, &[("LD_LIBRARY_PATH", "lib2")], &["./prog"]), "environment only");
+    assert!(o.starts_with("dep:2\n"), "{o}");
+    let o = ran(&run(&ld, d, &[], &["--library-path", "lib2", "--library-path", "nolib:lib", "./prog"]), "twice");
+    assert!(o.starts_with("dep:1\n"), "the last copy, every element searched: {o}");
+    let o = run(&ld, d, &[], &["./prog"]);
+    assert_eq!(o.status.code(), Some(program::FAILURE), "{o:?}");
+    assert!(err(&o).contains("./prog: error while loading shared libraries: libdep.so: cannot open shared object file"), "{o:?}");
+    let o = ran(&run(&ld, d, &[], &["--inhibit-cache", "--library-path", "lib", "--list", "./prog"]), "--list");
+    assert!(o.contains("libdep.so => lib/libdep.so"), "{o}");
+    let o = ran(&run(&ld, d, &[], &["--inhibit-cache", "--library-path", "lib", "./prog"]), "--inhibit-cache");
+    assert!(o.starts_with("dep:1\n"), "{o}");
+}
+
+/// (no spec clause: ld.so(8) `--preload` and `--argv0`; the reference probed.)
+#[test]
+fn ldso_program_preload_and_argv0() {
+    let Some((s, ld)) = fixture("preload") else { return };
+    let d: &Path = &s;
+    let lp = ["--library-path", "lib"];
+    let with = |env: &[(&str, &str)], more: &[&str]| run(&ld, d, env, &[&lp[..], more, &["./prog"]].concat());
+    let o = ran(&with(&[], &["--preload", "./libpre.so"]), "--preload");
+    assert_eq!(o, "preload:a\ndep:9\narg:./prog\n", "the preload's definition comes first; LD_PRELOAD is not set");
+    let o = ran(&with(&[], &["--preload", "./libpre.so:./libpre2.so"]), "a list");
+    assert!(o.starts_with("preload:b\npreload:a\ndep:9\n"), "loaded in order, initialised in reverse: {o}");
+    let o = ran(&with(&[], &["--preload", "./libpre.so", "--preload", "./libpre2.so"]), "twice");
+    assert!(o.starts_with("preload:b\ndep:9\n"), "the last copy only: {o}");
+    let o = ran(&with(&[("LD_PRELOAD", "./libpre2.so")], &["--preload", "./libpre.so"]), "with LD_PRELOAD");
+    assert!(o.starts_with("preload:a\npreload:b\ndep:9\n") && o.contains("env:LD_PRELOAD=./libpre2.so"), "LD_PRELOAD's first, then the option's: {o}");
+    let o = with(&[], &["--preload", "./nosuch.so"]);
+    assert_eq!(out(&o), "dep:1\narg:./prog\n", "{o:?}");
+    assert!(err(&o).contains("ERROR: ld.so: object './nosuch.so' from --preload cannot be preloaded (cannot open shared object file): ignored."), "{o:?}");
+    let o = ran(&with(&[], &["--argv0", "NAME"]), "--argv0");
+    assert_eq!(o, "dep:1\narg:NAME\n");
+    let o = ran(&run(&ld, d, &[], &["--argv0", "", "--library-path", "lib", "./prog", "x"]), "empty --argv0");
+    assert_eq!(o, "dep:1\narg:\narg:x\n");
+}
+
+/// (no spec clause: ld.so(8) `--verify` and `--audit`, the options libniji refuses and the usage
+/// errors; the reference probed.)
+#[test]
+fn ldso_program_verify_audit_and_refusals() {
+    let Some((s, ld)) = fixture("verify") else { return };
+    let d: &Path = &s;
+    for (file, status) in [("./prog", 0), ("lib/libdep.so", 2), ("./staticpie", 2), ("./static", 1), ("./notelf", 1), ("./nosuch", 1)] {
+        let o = run(&ld, d, &[], &["--verify", file]);
+        assert_eq!(o.status.code(), Some(status), "--verify {file}: {o:?}");
+        assert!(o.stdout.is_empty() && o.stderr.is_empty(), "--verify writes nothing: {o:?}");
+    }
+    let o = run(&ld, d, &[], &["--library-path", "lib", "--audit", "./libaud.so", "./prog"]);
+    assert_eq!(out(&o), "dep:1\narg:./prog\n", "the program runs, the auditor is not loaded: {o:?}");
+    assert!(err(&o).contains("ERROR: ld.so: object './libaud.so' cannot be loaded as audit interface: "), "never silently ignored: {o:?}");
+    let me = ld.to_str().unwrap();
+    for args in [&["--inhibit-rpath", "./prog", "./prog"][..], &["--glibc-hwcaps-mask", "x86-64-v2", "./prog"], &["--glibc-hwcaps-prepend", "x", "./prog"], &["--list-tunables"], &["--list-diagnostics"]] {
+        let o = run(&ld, d, &[], args);
+        assert_eq!(o.status.code(), Some(program::USAGE), "{args:?}: {o:?}");
+        assert!(o.stdout.is_empty() && err(&o).starts_with(&format!("{me}: option '{}' is not implemented", args[0])), "{args:?}: {o:?}");
+    }
+    for (args, text) in [(&["--frob", "./prog"][..], "unrecognized option '--frob'"), (&["--library-path"], "unrecognized option '--library-path'"), (&[], "missing program name"), (&["--list"], "missing program name")] {
+        let o = run(&ld, d, &[], args);
+        assert_eq!(o.status.code(), Some(program::USAGE), "{args:?}: {o:?}");
+        assert!(err(&o).starts_with(&format!("{me}: {text}")) && err(&o).contains(&format!("Try '{me} --help'")), "{args:?}: {o:?}");
+    }
+}
+
+/// (no spec clause: ld.so(8) run as a program on files that are not dynamic programs; the reference
+/// probed.)
+#[test]
+fn ldso_program_files_that_are_not_dynamic_programs() {
+    let Some((s, ld)) = fixture("files") else { return };
+    let d: &Path = &s;
+    for prog in ["./static", "./staticpie"] {
+        let o = run(&ld, d, &[], &[prog]);
+        assert_eq!(o.status.code(), Some(3), "{prog} starts itself, as from the kernel: {o:?}");
+    }
+    for (file, reason) in [
+        ("./nosuch", "cannot open shared object file: No such file or directory"),
+        ("./notelf", "file too short"),
+        ("./lib", "cannot read file data: Error 21"),
+        ("./lib/libdep.so", "the object has no entry point"),
+    ] {
+        let o = run(&ld, d, &[], &[file]);
+        assert_eq!(o.status.code(), Some(program::FAILURE), "{file}: {o:?}");
+        assert!(err(&o).starts_with(&format!("{file}: error while loading shared libraries: {file}: {reason}")), "{file}: {o:?}");
+    }
+}

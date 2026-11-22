@@ -566,18 +566,28 @@ pub(super) fn program_origin(path: usize, out: &mut PathBuf) -> bool {
 /// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`.
 pub(super) struct Preloads<'a> {
     pub(super) env: &'static [u8],
+    /// `ld.so --preload LIST` (program mode; empty otherwise): after `LD_PRELOAD`'s names, before the
+    /// file's (probed), under `LD_PRELOAD`'s rule (`from_env`).
+    pub(super) option: &'static [u8],
     pub(super) file: &'static [u8],
     pub(super) file_path: &'a [u8],
 }
 
 impl Preloads<'_> {
     pub(super) fn names(&self) -> impl Iterator<Item = (&'static [u8], bool)> {
-        start::preload_names(self.env).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
+        start::preload_names(self.env).chain(start::preload_names(self.option)).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
     }
 
-    /// The "cannot be preloaded" diagnostic for `name` (from `LD_PRELOAD` when `from_env`).
+    /// The "cannot be preloaded" diagnostic for `name` (from `LD_PRELOAD` or `--preload` when
+    /// `from_env`: the option's names lie inside its value).
     fn ignored(&self, name: &[u8], from_env: bool, reason: &[u8]) {
-        for part in start::preload_ignored(name, if from_env { start::PRELOAD_ENV } else { self.file_path }, reason) {
+        let in_option = self.option.as_ptr_range().contains(&name.as_ptr());
+        let source = match (from_env, in_option) {
+            (true, true) => b"--preload".as_slice(),
+            (true, false) => start::PRELOAD_ENV,
+            (false, _) => self.file_path,
+        };
+        for part in start::preload_ignored(name, source, reason) {
             write_all(2, part);
         }
     }

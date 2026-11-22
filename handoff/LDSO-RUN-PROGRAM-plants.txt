@@ -1,0 +1,19 @@
+# LDSO-RUN-PROGRAM plants (cargo xtask plants; the product tests rebuild target/niji).
+# --library-path silently ignored: the start searches LD_LIBRARY_PATH's directories only.
+libpath-ignored | crates/boundary/src/ld/entry.rs | lit:ld.library_path = options.library_path; ==> let _ = options.library_path; | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_library_path.*FAILED|panicked
+# --preload silently ignored.
+preload-ignored | crates/boundary/src/ld/link.rs | lit:.chain(start::preload_names(self.option)) ==> .chain(start::preload_names(&[])) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+# --argv0 silently ignored.
+argv0-ignored | crates/boundary/src/ld/entry.rs | lit:if let Some(a) = options.argv0 { ==> if let Some(a) = options.argv0.filter(|_| false) { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+# --audit silently ignored (no diagnostic).
+audit-silent | crates/boundary/src/ld/entry.rs | lit:program::audit_ignored(a).iter().for_each(|p| write_all(2, p)); ==> let _ = a; | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_verify_audit_and_refusals.*FAILED|panicked
+# Program mode skips linking: the program is entered with its dependency unmapped and unrelocated.
+no-dependency-relocation | crates/boundary/src/ld/entry.rs | lit:if !interp { ==> if true { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_library_path.*FAILED|panicked
+# A static program goes through the dynamic start instead of starting itself.
+static-through-start | crates/boundary/src/ld/entry.rs | lit:if !interp { ==> if false { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_files_that_are_not_dynamic_programs.*FAILED|panicked
+# --verify calls a shared object a program.
+verify-shared-as-program | crates/ld/src/program.rs | lit:(true, false) => 2, ==> (true, false) => 0, | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_verify_audit_and_refusals.*FAILED|panicked
+# An unimplemented option is taken as unknown (the parser loses the list).
+unsupported-as-unknown | crates/ld/src/program.rs | lit:_ if UNSUPPORTED.contains(&arg) => return Action::Unsupported(arg), ==> | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked
+# Usage errors keep the old status 127.
+usage-status | crates/boundary/src/ld/entry.rs | lit:exit(program::USAGE) ==> exit(program::FAILURE) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_verify_audit_and_refusals.*FAILED|panicked
