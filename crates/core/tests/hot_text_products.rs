@@ -503,9 +503,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// Skylake-SP host was not run in this test: the STARTUP-REPROFILE kit's empty main on the same release
 /// products (median of 101) read 117 instructions more there than on the Zen 1 host (272,251 / 272,134;
 /// next 331,768 / 331,733), so its bounds are the Zen 1 levels plus 117, plus 2%.
+/// LD-RELR-LOOP (D-27.87, libc.so.6's relative relocations packed as DT_RELR and applied an entry at a
+/// time; ld.so's own the same way): this test on the Zen 1 host, fast 255,972 and release 243,825 (both
+/// more than 10% under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%.
+/// Skylake-SP host not run in this test: as for LD-PHDR-ONCE, the Zen 1 levels plus 117, plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [298_600, 277_900]),
-    ("AMD EPYC 7551 32-Core Processor", [298_400, 277_800]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [261_300, 248_900]),
+    ("AMD EPYC 7551 32-Core Processor", [261_100, 248_800]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
