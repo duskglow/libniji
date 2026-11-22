@@ -1359,7 +1359,7 @@ pub(crate) fn bench_output(c: &mut Command) -> std::io::Result<std::process::Out
 
 /// The root route with the `CBENCH_*` variables set on it carried past `sudo`, which resets the environment:
 /// `sudo -n env CBENCH_COUNTERS=1 ... unshare ...` (the route's script hands them on to the bench). Without this
-/// the bench never saw them and its counted runs printed no counters. Program, arguments, other variables and
+/// the bench never saw them: a `--rows` filter ran every row and a counted run printed no counters. Program, arguments, other variables and
 /// working directory are kept.
 fn past_sudo(c: &Command) -> Command {
     let mut args = c.get_args();
