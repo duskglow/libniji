@@ -5,3 +5,7 @@
 no-route | crates/boundary/src/caller_alloc.rs | lit:    if !family_replaced() { ==>     if !family_replaced() || true { | cargo xtask affected --only conformance:x_internal_alloc --with-exports --run | msg:conformance FAILED: x_internal_alloc: libniji
 locale-query-alloc | crates/legacy/src/global_locale.rs | lit:    let leaked: &'static [u8] = if name == b"C" { ==>     let leaked: &'static [u8] = if name == b"\xff" { | cargo xtask affected --only conformance:x_internal_alloc --with-exports --run | msg:conformance FAILED: x_internal_alloc: libniji
 reserve-fallback | crates/boundary/src/heap.rs | lit:    let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) }; ==>     let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) }; let p = if p.is_null() { core::ptr::with_exposed_provenance_mut(reserve_alloc(size, ALIGN)) } else { p }; | cargo xtask affected --only conformance:x_internal_alloc --with-exports --run | msg:conformance FAILED: x_internal_alloc: libniji
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# no-route: CAUGHT, caught by no test the log names
+# locale-query-alloc: CAUGHT, caught by no test the log names
+# reserve-fallback: CAUGHT, caught by no test the log names
