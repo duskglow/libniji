@@ -1,7 +1,9 @@
 # SL-HEADERS-S18 handoff: slice 18, fortify (`_FORTIFY_SOURCE` 1..3)
 
-**State:** branch task/sl-headers-s18 (from origin/next f15d8264f), role keke:~/w/n1. Run 1, leg 2: the generator
-code, templates and generated headers are committed (36acf5afe); proof jobs named in the report.
+**State:** branch task/sl-headers-s18 (from origin/next f15d8264f), role keke:~/w/n1. Run 1 ended after leg 3:
+generate done (code 48d3c9b53, unchanged in leg 3); proofs on the final head: keke:sl-headers-s18-xtask4 (`cargo
+xtask so && cargo test -p xtask`, 610 passed, 0 failed) and keke:sl-headers-s18-plants3 (2 of 2 CAUGHT, no WARN).
+Hand-back: INCOMPLETE (generate done; P7 open) per the brief's two-run plan.
 
 **Rulings in force**
 * #7599 (coordinator, 11-22): slice 18 owns the 171 fortify rows of P3 (85 names) and every `*_chk` export reached.
@@ -40,23 +42,24 @@ code, templates and generated headers are committed (36acf5afe); proof jobs name
 
 **SUPERSEDED jobs:** sl-headers-s18-xtask (36acf5afe: s12 test red, getwd, fixed), sl-headers-s18-plants (36acf5afe,
 killed when the fix landed), sl-headers-s18-xtask2 / -plants2 (started after a sync that returned BUSY, so on an
-unsynced tree: killed). `cargo xtask affected --list` says `FULL: the train's (headers/*.in, fortify.tsv: generated
+unsynced tree: killed; leg 3 killed by PID the orphaned `cargo test -p xtask` they left in ~/w/n1),
+sl-headers-s18-xtask3 (rc 101: only `xtask/tests/transcripts.rs` failed, 2 tests, `target/niji-test/iconv` from
+11:03 is present but `target/niji/` (its ELF interpreter) was gone from the role, so iconv could not be run (ENOENT);
+not this change; xtask4 rebuilt the products first and is green). `cargo xtask affected --list` says `FULL: the train's (headers/*.in, fortify.tsv: generated
 table inputs)`: the direct gate is `cargo test -p xtask` (kind test) + precheck.
 
 **INFORMATIONAL:** sync_role BUSY at 13:5x: a shell of DL-PROCESS-OBJECTS-3 (`cd ~/work/DL-PROCESS-OBJECTS-3; diff ...
 ~/w/n1/target/product/fast/layout-bins.tsv ...; jobwait dl-process-objects-3-startup`) reads this story's role dir.
 
-**Not done / exact next step (leg 3)**
-1. `sync_role.sh --story SL-HEADERS-S18 --base origin/next <wt> keke n1` (rc 0 required; if BUSY, wait for that
-   job), then start detached `sl-headers-s18-xtask3` (test: `~/bin/gate 16G sh -c "cd ~/w/n1 && cargo test -p
-   xtask"`) and `sl-headers-s18-plants3` (`cargo xtask plants handoff/SL-HEADERS-S18-plants.txt --dir
-   /dev/shm/claude/sl-headers-s18/plants-3 --timeout 600`; keke has no /mnt/zram); jobwait both; then
-   `cargo xtask precheck --jobs sl-headers-s18-xtask3,sl-headers-s18-plants3 --head <sha>`; write
-   handoff/reports/SL-HEADERS-S18.json (+ "jobs"), push, `ops handback-check`. Hand back INCOMPLETE (generate done;
-   P7 open) per the brief's two-run plan, or COMPLETE if P7 is run.
-2. P7 (plan/headers.md: the smoke package corpus against libniji's headers) with the Devuan flags above: not run.
-3. P1/P5 `header_check.py --include libc-include` on the final head (not run separately this leg).
-4. HEADERS-O2-INLINES (not slice 18's): stdio.h feof_unlocked ferror_unlocked fgetc_unlocked fputc_unlocked
+**Not done / exact next step (run 2)**
+1. P7 (plan/headers.md: the smoke package corpus against libniji's headers) with the Devuan flags above: not run.
+   `validation/smoke` has no way to pass build flags today: `programs.sh` sets CFLAGS itself in some builds
+   (zlib `CFLAGS="-O2 -g"`), the configure builds take CFLAGS/CPPFLAGS from the environment. Both sides (reference
+   and `--niji-headers`) need the same dpkg-buildflags so `undef-compare.sh` can compare the `_chk` sets. That is a
+   shared-tooling edit (own commit, named in the hand-back, plants on it); needs `NIJI_FULL_PROFILE=1 cargo xtask so`.
+2. P1/P5 `header_check.py --include libc-include` on the final head: 0 failed of 13677 on 48d3c9b53 (fix2); the
+   code has not changed since.
+3. HEADERS-O2-INLINES (not slice 18's): stdio.h feof_unlocked ferror_unlocked fgetc_unlocked fputc_unlocked
    getc_unlocked getchar getchar_unlocked getline putc_unlocked putchar putchar_unlocked; stdlib.h abs atof atoi atol
    atoll bsearch div; string.h basename memrchr rawmemchr strcasestr strchrnul; strings.h index rindex; wchar.h
    mbrlen. Reference targets: their callsites.tsv call rows.
