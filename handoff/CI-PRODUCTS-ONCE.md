@@ -8,7 +8,12 @@ and import), D-27.83 (the tracer's breakpoint pool). Plants: handoff/CI-PRODUCTS
 
 * 5c5d867d4 tools/hottext/trace_gdb.py: one-shot breakpoints made once per tracer (pool), with two self-checks.
 * 9609ba1bc xtask: `target/niji/.products-manifest` written by every product build; `NIJI_IMPORT_PRODUCTS=<dir>`.
-* 7edb8813b, 3aef96204: the build-or-import step under test, records D-27.82/D-27.83, the plants file.
+* 7edb8813b, 3aef96204, 1d912a6c1: the build-or-import step under test, records D-27.82/D-27.83, the plants file.
+
+Proof on code head 1d912a6c1 (mei): ci-products-once-gate3 (records check, static, `cargo xtask affected --run --base
+origin/next`: 7 suites ok, 642 passed, 0 failed; the xtask bounded set, FULL: the train's) and ci-products-once-plants2
+(10 plants). SUPERSEDED: ci-products-once-gate (stale tree, records check), gate2 and plants (10/10 CAUGHT) on
+3aef96204/7edb8813b (before the D-NEW comment fix), lint (record body newline).
 
 ## Step 1: the traced layout (Skylake-SP, release, `NIJI_FULL_PROFILE=1 cargo xtask so`)
 

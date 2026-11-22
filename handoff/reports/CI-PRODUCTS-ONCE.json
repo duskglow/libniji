@@ -1,23 +1,84 @@
-{"task": "CI-PRODUCTS-ONCE", "model": "opus", "tokens": null,
+{
+ "task": "CI-PRODUCTS-ONCE",
+ "model": "opus",
+ "tokens": null,
  "result": "traced layout 279 -> 114 s per release build (byte-identical output); products manifest + checked NIJI_IMPORT_PRODUCTS import (Zen 1 took Skylake-SP products: so 840 -> 1 s); 19 non-core products differ across tree paths in DWARF only",
- "branch": "task/ci-products-once", "head": null,
- "gate": {"affected": "7 suites ok, 642 passed / 0 failed (bounded xtask set; FULL: the train's)", "peak": "3.0G"},
+ "branch": "task/ci-products-once",
+ "head": "1d912a6c1",
+ "gate": {
+  "affected": "7 suites ok, 642 passed / 0 failed (ci-products-once-gate3, bounded xtask set; FULL: the train's)",
+  "peak": "2.7G"
+ },
  "accepted_first_attempt": null,
  "rulings": [
-  {"item": "ci-instr imports the gate host's release products (cache trust boundary, D-27.82)", "recommendation": "build release products first on the Skylake-SP gate role, copy target/niji without bench/ to a fresh Zen 1 dir, start ci-instr with NIJI_IMPORT_PRODUCTS=<dir>"},
-  {"item": "19 utilities/small libraries carry the tree path in DWARF, so they differ by tree path", "recommendation": "follow-up story: path-independent debug info (prefix maps) so every product is byte-identical"}],
+  {
+   "item": "ci-instr imports the gate host's release products (cache trust boundary, D-27.82)",
+   "recommendation": "build release products first on the Skylake-SP gate role, copy target/niji without bench/ to a fresh Zen 1 dir, start ci-instr with NIJI_IMPORT_PRODUCTS=<dir>"
+  },
+  {
+   "item": "19 utilities/small libraries carry the tree path in DWARF, so they differ by tree path",
+   "recommendation": "follow-up story: path-independent debug info (prefix maps) so every product is byte-identical"
+  }
+ ],
  "informational": [
   "bench per-call instruction counts differ between two runs of the same build (72/180 rows, up to 5.5%), so 'equal row for row' is not a usable proof; checksums are",
   "layout verdict cache cannot store (an ok line holds a newline) on every release build",
-  ".synced has no dirty= line after syncing uncommitted changes, so commit_of reports such a head as clean"],
+  ".synced has no dirty= line after syncing uncommitted changes, so commit_of reports such a head as clean"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "perf", "what": "so/libc-archive without cargo, release, Skylake-SP slot (fa79409c7)", "before": 279, "after": 114, "unit": "s", "measured": true},
-  {"kind": "perf", "what": "one start-up trace (gdb)", "before": 58.5, "after": 15.9, "unit": "s", "measured": true},
-  {"kind": "tooling", "what": "ci-instr product step with imported products (Zen 1, 9609ba1bc)", "before": 840.2, "after": 1.0, "unit": "s so/total", "measured": true},
-  {"kind": "coverage", "what": "import unit tests + plants", "before": 0, "after": 18, "unit": "8 tests, 10 plants CAUGHT", "measured": true},
-  {"kind": "unblock", "what": "CI request: one release build per train (coordinator's ci-instr job)", "before": null, "after": null, "unit": null, "measured": false}],
+  {
+   "kind": "perf",
+   "what": "so/libc-archive without cargo, release, Skylake-SP slot (fa79409c7)",
+   "before": 279,
+   "after": 114,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "one start-up trace (gdb)",
+   "before": 58.5,
+   "after": 15.9,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "ci-instr product step with imported products (Zen 1, 9609ba1bc)",
+   "before": 840.2,
+   "after": 1.0,
+   "unit": "s so/total",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "import unit tests + plants",
+   "before": 0,
+   "after": 18,
+   "unit": "8 tests, 10 plants CAUGHT",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "CI request: one release build per train (coordinator's ci-instr job)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
  "improvement": "a cross-host identity check must compare the full target/niji from trees at different paths: the primed sets agreed only because both hosts build at the same path",
  "next_step": "coordinator: wire NIJI_IMPORT_PRODUCTS into the job that starts ci-instr; story for path-independent debug info",
  "report_file": "handoff/CI-PRODUCTS-ONCE.md",
- "jobs": ["mei:ci-products-once-gate2", "mei:ci-products-once-plants", "mei:ci-products-once-sa", "mei:ci-products-once-f1", "mei:ci-products-once-h90", "keke:ci-products-once-kl", "keke:ci-products-once-ki", "keke:ci-products-once-kl2"]}
+ "jobs": [
+  "mei:ci-products-once-gate3",
+  "mei:ci-products-once-plants2",
+  "mei:ci-products-once-sa",
+  "mei:ci-products-once-f1",
+  "mei:ci-products-once-h90",
+  "keke:ci-products-once-kl",
+  "keke:ci-products-once-ki",
+  "keke:ci-products-once-kl2"
+ ]
+}
