@@ -425,10 +425,7 @@ impl<'a> Mutex<'a> {
             _ => None,
         };
         while lock.swap(2, Acquire) != 0 {
-            match c.wait(lock, 2, self.scope(), deadline, false) {
-                Err(Errno::ETIMEDOUT) => return Err(Errno::ETIMEDOUT),
-                _ => continue,
-            }
+            futex::woken(c.wait(lock, 2, self.scope(), deadline, false))?;
         }
         Ok(())
     }
@@ -456,9 +453,7 @@ impl<'a> Mutex<'a> {
                         LockWait::Until(clk, t) => Some((clk, t)),
                         _ => None,
                     };
-                    if let Err(Errno::ETIMEDOUT) = c.wait(lock, want, self.scope(), deadline, false) {
-                        return Err(Errno::ETIMEDOUT);
-                    }
+                    futex::woken(c.wait(lock, want, self.scope(), deadline, false))?;
                 }
             }
         }
@@ -497,8 +492,8 @@ impl<'a> Mutex<'a> {
                 _ => None,
             };
             // Robust mutexes may be shared: the kernel's wake at the owner's death is shared.
-            if let Err(Errno::ETIMEDOUT) = c.wait(lock, v | FUTEX_WAITERS, Scope::Shared, deadline, false) {
-                break Err(Errno::ETIMEDOUT);
+            if let Err(e) = futex::woken(c.wait(lock, v | FUTEX_WAITERS, Scope::Shared, deadline, false)) {
+                break Err(e);
             }
         };
         if matches!(r, Ok(()) | Err(Errno::EOWNERDEAD)) {
@@ -861,7 +856,8 @@ impl<'a> Cond<'a> {
                 self.unlock(c);
                 break Ok(());
             }
-            if let Err(e @ (Errno::ETIMEDOUT | Errno::ECANCELED)) = r {
+            // ETIMEDOUT, ECANCELED or a kernel rejection ends the wait; a wake-up waits again.
+            if let Err(e) = futex::woken(r) {
                 w(self.words, C_WAITERS).fetch_sub(1, Relaxed);
                 self.unlock(c);
                 break Err(e);
@@ -1037,10 +1033,7 @@ impl<'a> RwLock<'a> {
         if s & WAITING == 0 && st.compare_exchange(s, s | WAITING, Relaxed, Relaxed).is_err() {
             return Ok(());
         }
-        match c.wait(st, s | WAITING, self.scope(), deadline, false) {
-            Err(Errno::ETIMEDOUT) => Err(Errno::ETIMEDOUT),
-            _ => Ok(()),
-        }
+        futex::woken(c.wait(st, s | WAITING, self.scope(), deadline, false))
     }
 
     /// `pthread_rwlock_unlock`: `EPERM` if not held.
@@ -1281,14 +1274,16 @@ impl<'a> Sem<'a> {
             if self.try_take() {
                 break Ok(());
             }
+            // Woken, or the value already moved (EAGAIN): try again. Every other result ends
+            // the wait, EINTR included (sem_wait is interruptible).
             match c.wait(w(self.words, S_VALUE), 0, self.scope(), deadline, true) {
-                Err(e @ (Errno::ETIMEDOUT | Errno::EINTR | Errno::ECANCELED)) => {
+                Ok(()) | Err(Errno::EAGAIN) => continue,
+                Err(e) => {
                     if self.try_take() {
                         break Ok(());
                     }
                     break Err(e);
                 }
-                _ => continue,
             }
         };
         w(self.words, S_WAITERS).fetch_sub(1, SeqCst);
