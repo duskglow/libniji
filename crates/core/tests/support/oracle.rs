@@ -29,7 +29,7 @@ use niji_kernel::uapi::LOCK_EX;
 
 /// Containment for harnesses that start processes in namespaces (`contain.rs`).
 #[path = "contain.rs"]
-pub mod contain;
+pub(crate) mod contain;
 
 static SEQ: AtomicU32 = AtomicU32::new(0);
 
