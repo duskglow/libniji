@@ -455,9 +455,16 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
-/// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
-/// each path then its bytes), so products built from different sources refuse each other, in a git
-/// checkout or a synced copy alike. About 13 MB read per run.
+/// FNV-1a 64 over the product sources ([`tag_covers`]: `Cargo.lock`, `csys/`, `include/`, the product workspace's
+/// manifest and lock, and the crates a product build compiles without their `tests/`, `benches/` and `examples/`;
+/// paths sorted, each path then its bytes), so products built from different sources refuse each other, in a git
+/// checkout or a synced copy alike.
+///
+/// CI-INSTR-REBUILDS (D-27.78): the hash used to cover all of `crates/`, so a change to a test file, a bench or a
+/// crate no product compiles changed the tag, and with it every release library (the tag is an input of
+/// `niji-boundary` and `niji-ld`, which everything else builds on): 7 to 8 minutes of cargo on the Zen 1 host for
+/// products that came out the same. [`check_tag_covers`] holds the narrower set to what the builds read: after each
+/// product build, every source file cargo's dep-info names must be one the hash covers, or the build fails.
 ///
 /// PLANTS-BUILD-2: a `cargo xtask plants` run sets [`PLANTS_TAG_ENV`] for every command it runs in its copy, so the
 /// baseline and every mutant of one run build with that one constant tag. The tag is an input of the two crates that
@@ -494,10 +501,13 @@ fn source_hash_tag(root: &Path) -> String {
             }
         }
     }
+    let crates = product_crates(root);
     let mut files = vec![root.join("Cargo.lock")];
+    files.extend(TAG_DATA_FILES.iter().map(|f| root.join(f)).filter(|f| f.is_file()));
     for d in ["crates", "csys", "include"] {
         walk(&root.join(d), &mut files);
     }
+    files.retain(|f| f.strip_prefix(root).is_ok_and(|rel| tag_covers(rel, &crates)));
     files.sort();
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     let mut eat = |bytes: &[u8]| {
@@ -510,6 +520,216 @@ fn source_hash_tag(root: &Path) -> String {
         eat(&fs::read(f).unwrap_or_default());
     }
     format!("src-{h:016x}")
+}
+
+/// The directories of a crate that a library build never reads: cargo compiles them only for `cargo test`,
+/// `cargo bench` and `cargo run --example` (CI-INSTR-REBUILDS).
+const TAG_SKIPPED_DIRS: &[&str] = &["tests", "benches", "examples"];
+
+/// The files outside `crates/`, `csys/` and `include/` that a product crate's source reads at compile time
+/// (`include_bytes!`): niji-core's iconv alias table. [`check_tag_covers`] fails a build that reads another one.
+const TAG_DATA_FILES: &[&str] = &["spec/encoding/iconv-aliases.tsv"];
+
+/// Whether [`source_hash_tag`] covers `rel` (a path relative to the workspace root, a file or a directory a build
+/// script watches): `Cargo.lock`, the [`TAG_DATA_FILES`], anything under `csys/` or `include/`, the product
+/// workspace's `crates/Cargo.toml` and `crates/Cargo.lock`, and anything in a crate of `crates` ([`product_crates`])
+/// outside its [`TAG_SKIPPED_DIRS`].
+fn tag_covers(rel: &Path, crates: &BTreeSet<String>) -> bool {
+    if TAG_DATA_FILES.iter().any(|f| rel == Path::new(f)) {
+        return true;
+    }
+    let parts: Vec<&str> = rel.components().filter_map(|c| c.as_os_str().to_str()).collect();
+    match parts.as_slice() {
+        ["Cargo.lock"] | ["crates", "Cargo.toml" | "Cargo.lock"] => true,
+        ["csys" | "include", ..] => true,
+        ["crates", c, rest @ ..] => crates.contains(*c) && !(rest.len() > 1 && TAG_SKIPPED_DIRS.contains(&rest[0])),
+        _ => false,
+    }
+}
+
+/// `p` with its `.` and `..` components resolved lexically (a build script names `crates/boundary/../../csys`).
+fn lexical(p: &Path) -> std::path::PathBuf {
+    let mut out = std::path::PathBuf::new();
+    for c in p.components() {
+        match c {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// The `crates/` directory names a product build compiles: the product crates (the manifests of [`LIBC_BUILD`],
+/// [`LIBM_BUILD`], [`LIBRESOLV_BUILD`], [`LD_BUILD`] and [`LDCONFIG_BUILD`]) and, transitively, each path dependency
+/// of theirs in a `[dependencies]` or `[build-dependencies]` table (a target's own tables too), a `workspace = true`
+/// one looked up in the main workspace's `[workspace.dependencies]`. Never a `[dev-dependencies]` entry: a library
+/// build does not compile those. A manifest read wrongly here cannot pass unnoticed: [`check_tag_covers`] fails the
+/// build when a file it compiled lies outside the set.
+fn product_crates(root: &Path) -> BTreeSet<String> {
+    let ws: BTreeMap<String, String> = manifest_deps(&fs::read_to_string(root.join("Cargo.toml")).unwrap_or_default(), true).into_iter().filter_map(|(n, p)| Some((n, p?))).collect();
+    let mut todo: Vec<String> = [&LIBC_BUILD, &LIBM_BUILD, &LIBRESOLV_BUILD, &LD_BUILD, &LDCONFIG_BUILD].iter().filter_map(|b| Some(b.manifest.strip_prefix("crates/")?.strip_suffix("/Cargo.toml")?.to_string())).collect();
+    let mut seen = BTreeSet::new();
+    while let Some(c) = todo.pop() {
+        if !seen.insert(c.clone()) {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(root.join("crates").join(&c).join("Cargo.toml")) else { continue };
+        for (name, path) in manifest_deps(&text, false) {
+            let target = match path {
+                Some(p) => lexical(&Path::new("crates").join(&c).join(p)),
+                None => match ws.get(&name) {
+                    Some(p) => lexical(Path::new(p)),
+                    None => continue,
+                },
+            };
+            let parts: Vec<&str> = target.components().filter_map(|x| x.as_os_str().to_str()).collect();
+            if let ["crates", dep, ..] = parts.as_slice() {
+                todo.push(dep.to_string());
+            }
+        }
+    }
+    seen
+}
+
+/// The path and workspace dependencies of a manifest: `(name, Some(path))` for `path = "..."`, `(name, None)` for
+/// `workspace = true`; registry dependencies are left out (`Cargo.lock` covers them). `workspace`: read the
+/// `[workspace.dependencies]` table (the main manifest) instead of the package's `[dependencies]`,
+/// `[build-dependencies]` and `[target.<cfg>.…]` tables; `[dev-dependencies]` never.
+fn manifest_deps(text: &str, workspace: bool) -> Vec<(String, Option<String>)> {
+    /// `Some(None)`: a table of dependencies, one per line; `Some(Some(name))`: the table of one dependency.
+    fn table(header: &str, workspace: bool) -> Option<Option<String>> {
+        let kinds: &[&str] = if workspace { &["workspace.dependencies"] } else { &["dependencies", "build-dependencies"] };
+        for k in kinds {
+            let whole = header == *k || (!workspace && header.ends_with(&format!(".{k}")));
+            if whole {
+                return Some(None);
+            }
+            if let Some(i) = header.rfind(&format!("{k}.")) {
+                let before = &header[..i];
+                if (before.is_empty() || (!workspace && before.ends_with('.'))) && !header[i + k.len() + 1..].is_empty() {
+                    return Some(Some(header[i + k.len() + 1..].trim_matches('"').to_string()));
+                }
+            }
+        }
+        None
+    }
+    /// `path = "..."` and `workspace = true` among `key = value` pairs.
+    fn fields(pairs: &str) -> (Option<String>, bool) {
+        let (mut path, mut ws) = (None, false);
+        for part in pairs.split(',') {
+            if let Some((k, v)) = part.split_once('=') {
+                match k.trim() {
+                    "path" => path = Some(v.trim().trim_matches('"').to_string()),
+                    "workspace" => ws = v.trim() == "true",
+                    _ => {}
+                }
+            }
+        }
+        (path, ws)
+    }
+    let mut out = Vec::new();
+    let mut current: Option<Option<String>> = None;
+    let mut one = (None, false);
+    let flush = |current: &Option<Option<String>>, one: &(Option<String>, bool), out: &mut Vec<(String, Option<String>)>| {
+        if let Some(Some(name)) = current {
+            if one.0.is_some() || one.1 {
+                out.push((name.clone(), one.0.clone()));
+            }
+        }
+    };
+    for raw in text.lines() {
+        let line = raw.split(" #").next().unwrap_or("").trim();
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') {
+            flush(&current, &one, &mut out);
+            one = (None, false);
+            current = table(line.trim_matches(|c| c == '[' || c == ']').trim(), workspace);
+            continue;
+        }
+        match &current {
+            Some(None) => {
+                if let Some((k, v)) = line.split_once('=') {
+                    let (path, ws) = fields(v.trim().trim_start_matches('{').trim_end_matches('}'));
+                    if path.is_some() || ws {
+                        out.push((k.trim().trim_matches('"').to_string(), path));
+                    }
+                }
+            }
+            Some(Some(_)) => {
+                let (path, ws) = fields(line);
+                one = (path.or(one.0), ws || one.1);
+            }
+            None => {}
+        }
+    }
+    flush(&current, &one, &mut out);
+    out
+}
+
+/// The paths a cargo dep-info file (`<archive stem>.d`) names as the inputs of its first rule.
+fn depinfo_paths(text: &str) -> Vec<std::path::PathBuf> {
+    let Some((_, deps)) = text.lines().next().and_then(|l| l.split_once(": ")) else { return Vec::new() };
+    let (mut out, mut cur, mut esc) = (Vec::new(), String::new(), false);
+    for ch in deps.chars() {
+        match (esc, ch) {
+            (false, '\\') => esc = true,
+            (false, ' ') => {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur).into());
+                }
+            }
+            (_, c) => {
+                cur.push(c);
+                esc = false;
+            }
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur.into());
+    }
+    out
+}
+
+/// CI-INSTR-REBUILDS (D-27.78): after `build`'s cargo run, every file inside the workspace that the build read
+/// (cargo's dep-info for the archive, and the absolute paths its build scripts watch) must be one the build tag
+/// covers ([`tag_covers`]). A product source the hash missed would let two builds from different sources carry one
+/// tag, so it fails the build, naming the files.
+fn check_tag_covers(root: &Path, build: &ProductBuild, product: &Path, profile: Profile) -> Result<(), String> {
+    let dir = build.target_dir(product).join(profile.name());
+    let info = dir.join(format!("{}.d", build.archive.strip_suffix(".a").unwrap_or(build.archive)));
+    let text = fs::read_to_string(&info).map_err(|e| format!("{}: {e} (the dep-info the build-tag check reads)", info.display()))?;
+    let mut paths = depinfo_paths(&text);
+    for e in fs::read_dir(dir.join("build")).into_iter().flatten().flatten() {
+        for l in fs::read_to_string(e.path().join("output")).unwrap_or_default().lines() {
+            if let Some(p) = l.strip_prefix("cargo:rerun-if-changed=").or_else(|| l.strip_prefix("cargo::rerun-if-changed=")) {
+                if Path::new(p).is_absolute() {
+                    paths.push(p.into());
+                }
+            }
+        }
+    }
+    missed_by_tag(root, &paths).map_or(Ok(()), |m| Err(format!("so: {} read {m}, which the build tag does not cover (NIJI_BUILD_TAG, D-27.78): extend `tag_covers` in xtask/src/so.rs", build.manifest)))
+}
+
+/// The files of `paths` inside `root` (outside `target/`) that [`tag_covers`] leaves out, comma-separated; `None`
+/// when there are none.
+fn missed_by_tag(root: &Path, paths: &[std::path::PathBuf]) -> Option<String> {
+    let crates = product_crates(root);
+    let roots = [root.to_path_buf(), root.canonicalize().unwrap_or_else(|_| root.to_path_buf())];
+    let missed: BTreeSet<String> = paths
+        .iter()
+        .filter_map(|p| {
+            let p = lexical(p);
+            let rel = roots.iter().find_map(|r| p.strip_prefix(r).ok())?;
+            (!rel.starts_with("target") && !tag_covers(rel, &crates)).then(|| rel.display().to_string())
+        })
+        .collect();
+    (!missed.is_empty()).then(|| missed.into_iter().collect::<Vec<_>>().join(", "))
 }
 
 /// Check `libc.so.6`'s dynamic symbol table: every native symbol at its node as the default
@@ -1101,6 +1321,7 @@ pub fn build_archive(root: &Path, product: &Path, out: &Path, rustflags: Option<
 fn build_archive_locked(root: &Path, product: &Path, out: &Path, rustflags: Option<&str>, profile: Profile, layout: Layout) -> Result<(std::path::PathBuf, (usize, usize), crate::copies::Stats), String> {
     // Every product crate gets the 64-byte function alignment (D-4.33), then the caller's flags.
     run_timed("cargo-libc", &mut LIBC_BUILD.command(root, product, profile, rustflags, &build_tag(root)))?;
+    check_tag_covers(root, &LIBC_BUILD, product, profile)?;
     // Cargo's archive stays as cargo built it; the steps below work on a fresh copy, so every run
     // post-processes the same input once (a killed run cannot leave a half-edited archive behind).
     let raw = LIBC_BUILD.raw_archive(product, profile);
@@ -2026,6 +2247,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     let product = root.join("target/product");
     let release = root.join("target/niji");
     run_timed("cargo-ld", &mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    check_tag_covers(root, &LD_BUILD, &product, profile)?;
     let ld =LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
     let (entry, archive) = (ld.entry.clone(), ld.archive.clone());
     let link = |entry: &Path, archive: &Path, out: &Path| ld.link(cc, entry, archive, out);
@@ -2493,6 +2715,7 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
     run_timed("cargo-ldconfig", &mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    check_tag_covers(root, &LDCONFIG_BUILD, &product, profile)?;
     let archive = LDCONFIG_BUILD.raw_archive(&product, profile);
     let entry = product.join("ldconfig-entry.o");
     run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg("-DNIJI_LDCONFIG").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
@@ -3183,6 +3406,7 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
     let _ = ar;
     let product = root.join("target/product");
     run_timed("cargo-libresolv", &mut LIBRESOLV_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    check_tag_covers(root, &LIBRESOLV_BUILD, &product, profile)?;
     let raw = LIBRESOLV_BUILD.raw_archive(&product, profile);
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     let plan = crate::placeholders::plan(&table, "libresolv.so.2")?;
@@ -3338,6 +3562,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     let product = root.join("target/product");
     let release = root.join("target/niji");
     run_timed("cargo-libm", &mut LIBM_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    check_tag_covers(root, &LIBM_BUILD, &product, profile)?;
     let raw =LIBM_BUILD.raw_archive(&product, profile);
     let (_, both, libm_only) = crate::math::owners(root)?;
     // The data objects of libm.so.6 (`signgam`, D-10.4) are not generated functions.
@@ -3692,16 +3917,86 @@ mod tests {
         // empty one) the tag is the hash of the sources, which changes with a source byte
         let root = std::env::temp_dir().join(format!("xtask-so-tag-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("crates")).unwrap();
+        fs::create_dir_all(root.join("crates/libc-so/src")).unwrap();
         fs::write(root.join("Cargo.lock"), "lock").unwrap();
-        fs::write(root.join("crates/a.rs"), "one").unwrap();
+        fs::write(root.join("crates/libc-so/Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
+        fs::write(root.join("crates/libc-so/src/a.rs"), "one").unwrap();
         let hash = tag_or_hash(&root, None);
         assert!(hash.starts_with("src-") && hash.len() == "src-".len() + 16, "{hash}");
         assert_eq!(tag_or_hash(&root, Some("")), hash, "an empty variable is no tag");
         assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7");
-        fs::write(root.join("crates/a.rs"), "two").unwrap();
+        fs::write(root.join("crates/libc-so/src/a.rs"), "two").unwrap();
         assert_ne!(tag_or_hash(&root, None), hash, "the hash follows the sources");
         assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7", "the fixed tag does not");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A scratch workspace: the main manifest maps `dep` and `devonly` to `crates/`, the product crate `libc-so`
+    /// depends on `dep` (workspace), `bdep` (path, build) and `tdep` (path, target table), `devonly` only as a
+    /// dev-dependency; `tool` is no one's dependency.
+    fn tag_tree(name: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!("xtask-so-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for d in ["crates/libc-so/src", "crates/libc-so/tests", "crates/dep/src", "crates/dep/benches", "crates/dep/examples", "crates/bdep/src", "crates/tdep/src", "crates/devonly/src", "crates/tool/src", "csys/src", "include", "docs"] {
+            fs::create_dir_all(root.join(d)).unwrap();
+            fs::write(root.join(d).join("f.rs"), "0").unwrap();
+        }
+        fs::create_dir_all(root.join("spec/encoding")).unwrap();
+        fs::write(root.join("spec/encoding/iconv-aliases.tsv"), "a\tb\n").unwrap();
+        fs::write(root.join("spec/encoding/iconv-names.md"), "names").unwrap();
+        fs::write(root.join("Cargo.toml"), "[workspace.dependencies]\ndep = { path = \"crates/dep\" }\ndevonly = { path = \"crates/devonly\" }\n").unwrap();
+        fs::write(root.join("Cargo.lock"), "lock").unwrap();
+        fs::write(root.join("crates/Cargo.lock"), "lock").unwrap();
+        fs::write(
+            root.join("crates/libc-so/Cargo.toml"),
+            "[package]\nname = \"x\"\n[dependencies]\ndep = { workspace = true }\nreg = \"1\"\n[build-dependencies.bdep]\npath = \"../bdep\"\n[target.'cfg(unix)'.dependencies]\ntdep = { path = \"../tdep\", features = [\"a\"] }\n[dev-dependencies]\ndevonly = { workspace = true }\n",
+        )
+        .unwrap();
+        fs::write(root.join("crates/dep/Cargo.toml"), "[package]\nname = \"dep\"\n[dev-dependencies]\ntool = { path = \"../tool\" }\n").unwrap();
+        root
+    }
+
+    #[test]
+    fn the_build_tag_follows_what_a_product_build_compiles_and_nothing_else() {
+        // no spec clause (CI-INSTR-REBUILDS, D-27.78): an edit that no product build reads (a crate's tests, benches or
+        // examples, a crate the products do not depend on or only as a dev-dependency, a file outside the product
+        // directories) keeps the tag, so the release libraries are not rebuilt for it; an edit to any product input
+        // (a dependency's source or manifest, a build or target dependency, csys, include, either lock, a data file a product source includes) changes it
+        let root = tag_tree("tagset");
+        let hash = source_hash_tag(&root);
+        // the five product crates (the scratch tree has one manifest of them) and libc-so's dependencies
+        let crates = ["bdep", "dep", "ld-so", "ldconfig-bin", "libc-so", "libm-so", "libresolv-so", "tdep"];
+        assert_eq!(product_crates(&root), crates.map(String::from).into(), "the product crates");
+        for f in ["crates/libc-so/tests/f.rs", "crates/dep/benches/f.rs", "crates/dep/examples/f.rs", "crates/devonly/src/f.rs", "crates/tool/src/f.rs", "docs/f.rs", "spec/encoding/iconv-names.md"] {
+            fs::write(root.join(f), "edited").unwrap();
+            assert_eq!(source_hash_tag(&root), hash, "{f} is no product input");
+        }
+        let mut seen = BTreeSet::from([hash]);
+        for f in ["crates/dep/src/f.rs", "crates/bdep/src/f.rs", "crates/tdep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/Cargo.toml", "csys/src/f.rs", "include/f.rs", "Cargo.lock", "crates/Cargo.lock", "spec/encoding/iconv-aliases.tsv"] {
+            fs::write(root.join(f), format!("edited {f}")).unwrap();
+            let t = source_hash_tag(&root);
+            assert!(seen.insert(t), "{f} is a product input: the tag must change");
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_product_build_that_reads_a_file_outside_the_tag_fails() {
+        // no spec clause (CI-INSTR-REBUILDS, D-27.78): the check that holds the tag's file set to what the builds read:
+        // a dep-info input outside the tag (a test file, a non-product crate) is named; inputs the tag covers, the
+        // build's own output under target/ and files outside the workspace are not
+        let root = tag_tree("tagcheck");
+        let r = root.display();
+        let ok = ["crates/dep/src/f.rs", "crates/libc-so/src/f.rs", "crates/dep/../dep/src/f.rs", "target/product/release/build/x/out/gen.rs", "csys", "spec/encoding/iconv-aliases.tsv"];
+        let mut paths: Vec<std::path::PathBuf> = ok.iter().map(|f| root.join(f)).collect();
+        paths.push("/opt/rust/lib/core/src/lib.rs".into());
+        assert_eq!(missed_by_tag(&root, &paths), None, "{paths:?}");
+        paths.push(root.join("crates/dep/tests/f.rs"));
+        paths.push(root.join("crates/tool/src/f.rs"));
+        paths.push(root.join("spec/encoding/iconv-names.md"));
+        assert_eq!(missed_by_tag(&root, &paths).as_deref(), Some("crates/dep/tests/f.rs, crates/tool/src/f.rs, spec/encoding/iconv-names.md"));
+        let text = format!("{r}/target/product/release/libc.a: {r}/crates/dep/src/f.rs {r}/crates/a\\ b.rs\n\n{r}/crates/dep/src/f.rs:\n");
+        assert_eq!(depinfo_paths(&text), vec![root.join("crates/dep/src/f.rs"), root.join("crates/a b.rs")]);
         let _ = fs::remove_dir_all(&root);
     }
 
