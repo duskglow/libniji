@@ -66,7 +66,41 @@ static void walk_n(long n, int want) {
     PC_CHECKING { long c = 0; dl_iterate_phdr(count_cb, &c); pc_check("%ld", c); (void)p; }
 }
 
+/* DL-READER-COSTS: one dlopen + dlclose pair per call with `want` objects loaded. `new`: the object is not loaded
+ * (libq<want+1+i%8>.so in turn, so every open maps, relocates and publishes one object and the close unmaps it;
+ * the corpus needs want + 8 libraries). `held`: libq1.so by path, already open (libc.so.6 by name at 4 objects,
+ * where no libq is loaded): a reference count up and down. */
+static void open_new_n(long n, int want) {
+    struct pick p = load(want);
+    const char *d = getenv("PC_DL_DIR");
+    char path[8][4096];
+    for (int k = 0; k < 8; k++) snprintf(path[k], sizeof path[k], "%s/libq%d.so", d, want + 1 + k);
+    for (long i = 0; i < n; i++) {
+        void *h = dlopen(path[i & 7], RTLD_NOW);
+        pc_sink += h != 0;
+        if (h) pc_sink += dlclose(h);
+    }
+    PC_CHECKING { long c = 0; void *h = dlopen(path[0], RTLD_NOW); dl_iterate_phdr(count_cb, &c);
+                  pc_check("%d %ld %d", h != 0, c, h ? dlclose(h) : -1); (void)p; }
+}
+
+static void open_held_n(long n, int want) {
+    struct pick p = load(want);
+    const char *d = getenv("PC_DL_DIR");
+    char path[4096];
+    if (p.n > 4) snprintf(path, sizeof path, "%s/libq1.so", d ? d : ".");
+    else snprintf(path, sizeof path, "libc.so.6");
+    for (long i = 0; i < n; i++) {
+        void *h = dlopen(path, RTLD_NOW);
+        pc_sink += h != 0;
+        if (h) pc_sink += dlclose(h);
+    }
+    PC_CHECKING { void *h = dlopen(path, RTLD_NOW); pc_check("%d %d %d", h != 0, h ? dlclose(h) : -1, p.n); }
+}
+
 #define ROWS(N) \
+    CASE(dlopen_new_##N, 0, 1) { (void)dir; open_new_n(n, N); } \
+    CASE(dlopen_held_##N, 0, 1) { (void)dir; open_held_n(n, N); } \
     CASE(dl_find_object_first_##N, 0, 1) { (void)dir; find_n(n, N, 0); } \
     CASE(dl_find_object_middle_##N, 0, 1) { (void)dir; find_n(n, N, 1); } \
     CASE(dl_find_object_last_##N, 0, 1) { (void)dir; find_n(n, N, 2); } \

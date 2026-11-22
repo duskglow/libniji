@@ -133,6 +133,16 @@ pub(super) fn env_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
     (0usize..).map(move |i| stack_word(envp.wrapping_add(i.wrapping_mul(8)))).take_while(|&p| p != 0).map(|p| c_string(usize::try_from(p).unwrap_or(0)))
 }
 
+/// The entries of [`env_entries`] whose name starts with `LD_` (the loader's own settings a
+/// `dlopen` reads), in order: every other entry costs a three-byte test, never a measurement.
+pub(super) fn ld_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
+    (0usize..)
+        .map(move |i| usize::try_from(stack_word(envp.wrapping_add(i.wrapping_mul(8)))).unwrap_or(0))
+        .take_while(|&p| p != 0)
+        .filter(|&p| super::io::starts_with(p, b"LD_"))
+        .map(c_string)
+}
+
 /// The entry of `ld.so` (called by `niji_machine_ld_entry` with the initial stack pointer
 /// `sp` and the run-time address `ehdr` of the image's own ELF header, which the entry takes
 /// PC-relatively: no call and no GOT slot is needed to find the image before it is relocated).
