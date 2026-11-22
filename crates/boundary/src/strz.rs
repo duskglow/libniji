@@ -157,12 +157,19 @@ unsafe fn rescan_until(p: *const u8, from: usize, c: u8) -> usize {
 // UNSAFE(slice): reading C text one unit at a time, up to the first NUL read.
 #[allow(unsafe_code)]
 unsafe fn cursor(mut p: *const u8) -> impl FnMut() -> u8 {
-    static END: u8 = 0;
+    // A flag, not a pointer to a static terminator: the address of a static in this crate, picked
+    // by a conditional move in another crate's code, is a GOT operand no link relaxes (D-X.140).
+    let mut done = false;
     move || {
-        // UNSAFE(slice) SAFETY: no byte before `p` was NUL (each one read moved `p` on; the
-        // NUL read moves it to `END`), so `p` is a byte of the string, its terminator, or `END`.
+        if done {
+            return 0;
+        }
+        // UNSAFE(slice) SAFETY: no byte before `p` was NUL (each one read moved `p` on, and the
+        // NUL read sets `done`, after which `p` is never read), so `p` is a byte of the string
+        // or its terminator.
         let x = unsafe { byte_at(p, 0) };
-        p = if x == 0 { &raw const END } else { p.wrapping_add(1) };
+        done = x == 0;
+        p = p.wrapping_add(1);
         x
     }
 }

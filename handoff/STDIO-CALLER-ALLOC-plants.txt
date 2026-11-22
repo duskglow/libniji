@@ -1,7 +1,9 @@
 # STDIO-CALLER-ALLOC plants (D-12.31: a stream the program opens comes from the program's malloc and goes back with its free)
 # library-slot: fopen's slot from the library's heap again (the bypass the brief names); x_self_bind_stdio sees no malloc at the open.
 # no-free: fclose keeps the slot; x_self_bind_stdio sees nothing the open made freed.
+# cursor-stop: strz's cursor (a flag now, no static terminator: D-X.140) ends a string early; the collation differential disagrees.
 # wrong-errno: the open fails with another errno when the replacement returns NULL; x_self_bind_stdio's failing-allocator check.
 library-slot | crates/boundary/src/stdio.rs | lit:        caller_alloc::new_value(fresh_slot())? ==>         TryBox::new(fresh_slot())?.leak() | cargo xtask affected --only conformance:x_self_bind_stdio --with-exports --run | msg:conformance FAILED: x_self_bind_stdio: libniji
 no-free | crates/boundary/src/stdio.rs | lit:        release_slot(fp, ext); ==>         let _ = (fp, ext, release_slot as fn(usize, usize)); | cargo xtask affected --only conformance:x_self_bind_stdio --with-exports --run | msg:conformance FAILED: x_self_bind_stdio: libniji
 wrong-errno | crates/boundary/src/caller_alloc.rs | lit:    conv::fresh_value(malloc(size_of::<T>()), value).ok_or(Errno::ENOMEM) ==>     conv::fresh_value(malloc(size_of::<T>()), value).ok_or(Errno::EIO) | cargo xtask affected --only conformance:x_self_bind_stdio --with-exports --run | msg:conformance FAILED: x_self_bind_stdio: libniji
+cursor-stop | crates/boundary/src/strz.rs | lit:        done = x == 0; ==>         done = x == 0 || x == b'e'; | cargo test -p niji --test collate_differential | msg:collation_agrees_with_the_reference
