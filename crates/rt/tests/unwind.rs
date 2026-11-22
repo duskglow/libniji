@@ -916,6 +916,11 @@ fn ip27_program_header_edge_cases() {
 /// the FDE's language-specific data pointer (udata4), `None` for a CIE without `L`. Asks
 /// `handler_above` with the object in the list (`listed`) or only through `find`.
 fn handler_in(handler: Option<(usize, Option<u32>)>, listed: bool, max: usize) -> bool {
+    handler_skipping(handler, listed, max, &[])
+}
+
+/// `handler_in` with the functions starting at `skip` not counted.
+fn handler_skipping(handler: Option<(usize, Option<u32>)>, listed: bool, max: usize, skip: &[usize]) -> bool {
     let mut eh = Eh::new(EH);
     let c = eh.std_cie(false);
     let fde = |eh: &mut Eh, n: usize, insns: &[u8]| {
@@ -956,13 +961,14 @@ fn handler_in(handler: Option<(usize, Option<u32>)>, listed: bool, max: usize) -
     let (start, mem) = plain_start();
     let o = object(&frames);
     let listed_objects = if listed { vec![o] } else { Vec::new() };
-    unwind::handler_above(&listed_objects, |pc| (!listed && o.contains(pc)).then_some(o), &words(&mem), start, max)
+    unwind::handler_above(&listed_objects, |pc| (!listed && o.contains(pc)).then_some(o), skip, &words(&mem), start, max)
 }
 
 /// D-22.23 (no spec clause of its own; the thread exit of §22.1 s22_1_c_2 and §22.3 s22_3_c_4
 /// relies on it): a frame above the start whose function has a personality routine and a
 /// language-specific data pointer that is not null (or no `L` at all) needs an unwind; a null
-/// pointer, a plain CIE or a handler only in the starting frame does not; the walk follows
+/// pointer, a plain CIE, a skipped function or a handler only in the starting frame does not;
+/// the walk follows
 /// objects `find` gives as well as listed ones, and looks at no more than `max` frames.
 #[test]
 fn d22_23_handler_frames_above_the_start() {
@@ -976,4 +982,6 @@ fn d22_23_handler_frames_above_the_start() {
     }
     assert!(!handler_in(Some((3, Some(0x5000))), true, 1), "h lies beyond max");
     assert!(handler_in(Some((3, Some(0x5000))), true, 2), "h within max");
+    assert!(!handler_skipping(Some((2, Some(0x5000))), true, 16, &[0x2000]), "g is skipped");
+    assert!(handler_skipping(Some((2, Some(0x5000))), true, 16, &[0x3000]), "only h is skipped");
 }

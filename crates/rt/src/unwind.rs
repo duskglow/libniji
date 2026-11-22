@@ -1172,18 +1172,20 @@ pub fn caller<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, inside: &
 
 /// Whether a frame above `start` belongs to a function with exception-handling work for an
 /// unwind (a personality routine and language-specific data: `-fexceptions` cleanups, C++
-/// destructors and handlers; D-22.23), looking at most `max` frames. The object holding an
+/// destructors and handlers; D-22.23), looking at most `max` frames. Functions starting at one
+/// of `skip` do not count (the C library's own guards, whose undo its exit runs without an
+/// unwinder). The object holding an
 /// address is the first of `objects` that holds it, else `find(address)`. A walk that ends
 /// early (an address no object describes, a row that cannot be evaluated, `max`) answers for
 /// the frames it saw.
-pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, mem: &M, start: Regs, max: usize) -> bool {
+pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, skip: &[usize], mem: &M, start: Regs, max: usize) -> bool {
     let (mut seen, mut found) = (0usize, false);
     let locate = |look: usize| match locate(objects, look) {
         Some((o, f)) => Some((*o, f)),
         None => find(look).and_then(|o| Some((o, o.fde_for(look)?))),
     };
     walk_with(locate, mem, start, |_, fde| {
-        found = fde.is_some_and(|f| f.handler);
+        found = fde.is_some_and(|f| f.handler && !skip.contains(&f.begin));
         seen = seen.saturating_add(1);
         !found && seen < max
     });

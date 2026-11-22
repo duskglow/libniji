@@ -185,7 +185,16 @@ pub(crate) fn handler_on_stack() -> bool {
     let _ = ffi::niji_machine_getcontext(&mut uc);
     let exe = Executable::find();
     let objects = [exe.object(), library(&exe).unwrap_or_default()];
-    unwind::handler_above(&objects, frame_object, &OwnMemory::new(&CSys), registers(&uc), EXIT_WALK_FRAMES)
+    unwind::handler_above(&objects, frame_object, &own_guards(), &OwnMemory::new(&CSys), registers(&uc), EXIT_WALK_FRAMES)
+}
+
+/// The functions of this library whose frames carry a personality routine for its own undo
+/// (`pthread_once`'s routine frame, machine/once.S; the guarded calls, machine/guard.S): each also
+/// registers an old-style cleanup record that the exit without an unwinder runs, so they need
+/// no unwinder (D-22.23).
+#[allow(clippy::as_conversions)] // a function's address: the only spelling Rust has
+fn own_guards() -> [usize; 2] {
+    [ffi::niji_machine_once as extern "C" fn(usize, usize) -> i32 as usize, ffi::niji_machine_guard as extern "C" fn(usize, usize, usize) -> i64 as usize]
 }
 
 /// What [`holds_pc`] looks for and finds: the object whose loadable segments hold `pc`.
