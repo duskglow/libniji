@@ -14,8 +14,11 @@ generated view by mistake; the next commit moves it to the record and leaves the
   `level-edited`.
 - db9ae78d7 test fixture no longer looks like a lab address (static lab-names / private-paths were red on it).
 - Jobs: counts keke `wl-levels-rerecord-k1..k5`, mei `wl-levels-rerecord-m1..m5` (all of next 0299fd6e1, fresh base and
-  new); gate `wl-levels-rerecord-gate`, plants `wl-levels-rerecord-plants` (mei, dir
-  `/mnt/zram/claude/wl-levels-rerecord/plants-1`). Results: report below and `handoff/reports/WL-LEVELS-RERECORD.json`.
+  new); on mei: gate `wl-levels-rerecord-gate3` (ff84047e0: 582 passed, 0 failed, peak 1.6G), xtask unit tests
+  `wl-levels-rerecord-xtask-tests2` (after `cargo xtask so`: green), plants `wl-levels-rerecord-plants` (db9ae78d7, same
+  code as the final head: 9 CAUGHT, 0 WARN; dir `/mnt/zram/claude/wl-levels-rerecord/plants-1`). Superseded: `-gate`
+  (green, before the record), `-gate2` and `-xtask-tests` (red: the role had no `target/niji` products, so
+  `target/niji-test/iconv` could not exec; not this branch's code).
 
 ## Repeatability (5 counts per class, page faults, lowest of 5 runs per column)
 
