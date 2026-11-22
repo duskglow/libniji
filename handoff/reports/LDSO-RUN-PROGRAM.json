@@ -1,17 +1,79 @@
-{"task": "LDSO-RUN-PROGRAM", "model": "opus", "tokens": null,
+{
+ "task": "LDSO-RUN-PROGRAM",
+ "model": "opus",
+ "tokens": null,
  "result": "ld.so run as a program takes --library-path, --preload, --argv0, --inhibit-cache, --list, --verify (as the reference, dlopen included) and runs static programs; --audit reported, five options refused (differences row)",
- "branch": "task/ldso-run-program", "head": "d979b8b65",
- "gate": {"affected": "running at hand-back (ldso-run-program-gate); plants 9/9 CAUGHT; named suites 37 passed / 0 failed", "peak": null}, "accepted_first_attempt": null,
- "rulings": [{"item": "exec'd start +128 user instructions (1,032,373 -> 1,032,501, +0.012%, empty main, setarch -R, perf median of 51, two runs each) from the --preload chain in Preloads::names, the --inhibit-cache test in List::ctx and two List fields", "recommendation": "accept with fix-forward: fold --preload into the LD_PRELOAD value in program_mode (cold) so names() is byte-identical, which removes the chain; not done in this run (would invalidate plants and gate)"},
-             {"item": "rtld-audit (--audit, LD_AUDIT) and --inhibit-rpath, --glibc-hwcaps-prepend/-mask, --list-tunables, --list-diagnostics are not implemented", "recommendation": "follow-up stories; --inhibit-rpath and the hwcaps options are small, audit is a phase-sized piece"}],
- "informational": ["--list of a missing or non-ELF file keeps libniji's earlier texts (reference: 127 with the loading-error form)", "dlopen after --library-path / --inhibit-cache verified by probe only (six cases match the reference); no in-tree test, the test programs have no libc"],
+ "branch": "task/ldso-run-program",
+ "head": "059b28a3d",
+ "gate": {
+  "affected": "running at hand-back (ldso-run-program-gate); plants 9/9 CAUGHT; named suites 37 passed / 0 failed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "exec'd start +128 user instructions (1,032,373 -> 1,032,501, +0.012%, empty main, setarch -R, perf median of 51, two runs each) from the --preload chain in Preloads::names, the --inhibit-cache test in List::ctx and two List fields",
+   "recommendation": "accept with fix-forward: fold --preload into the LD_PRELOAD value in program_mode (cold) so names() is byte-identical, which removes the chain; not done in this run (would invalidate plants and gate)"
+  },
+  {
+   "item": "rtld-audit (--audit, LD_AUDIT) and --inhibit-rpath, --glibc-hwcaps-prepend/-mask, --list-tunables, --list-diagnostics are not implemented",
+   "recommendation": "follow-up stories; --inhibit-rpath and the hwcaps options are small, audit is a phase-sized piece"
+  }
+ ],
+ "informational": [
+  "--list of a missing or non-ELF file keeps libniji's earlier texts (reference: 127 with the loading-error form)",
+  "dlopen after --library-path / --inhibit-cache verified by probe only (six cases match the reference); no in-tree test, the test programs have no libc"
+ ],
  "refused": [],
- "impact": [{"kind": "correctness", "what": "ld.so --library-path/--preload/--argv0/--inhibit-cache/--verify DIR PROG were refused (127); now run as the reference", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "correctness", "what": "a static program or static PIE run through ld.so crashed (SIGSEGV); now runs with its own status", "before": 139, "after": 3, "unit": "exit status", "measured": true},
-            {"kind": "coverage", "what": "tests in crates/ld/tests/ldso_program_options.rs; plants", "before": 0, "after": 5, "unit": "tests (9 plants)", "measured": true},
-            {"kind": "cost", "what": "exec'd dynamic start, empty main, user instructions", "before": 1032373, "after": 1032501, "unit": "instr/start", "measured": true},
-            {"kind": "unblock", "what": "snapshot checks and tools that run packaged programs through the loader with --library-path", "before": null, "after": null, "unit": null, "measured": false}],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "ld.so --library-path/--preload/--argv0/--inhibit-cache/--verify DIR PROG were refused (127); now run as the reference",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "a static program or static PIE run through ld.so crashed (SIGSEGV); now runs with its own status",
+   "before": 139,
+   "after": 3,
+   "unit": "exit status",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests in crates/ld/tests/ldso_program_options.rs; plants",
+   "before": 0,
+   "after": 5,
+   "unit": "tests (9 plants)",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "exec'd dynamic start, empty main, user instructions",
+   "before": 1032373,
+   "after": 1032501,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "snapshot checks and tools that run packaged programs through the loader with --library-path",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
  "improvement": "a 22-minute `cargo xtask so` per product iteration dominates loader stories; a cached base product per merge base on each build host (as wl products are) would save the base build",
  "next_step": "coordinator: land after the named jobs; follow-up for the +128 instruction fold and the unimplemented options",
  "report_file": "handoff/LDSO-RUN-PROGRAM.md",
- "jobs": ["keke:ldso-run-program-check3", "keke:ldso-run-program-plants", "keke:ldso-run-program-gate", "keke:ldso-run-program-startup"]}
+ "jobs": [
+  "keke:ldso-run-program-check3",
+  "keke:ldso-run-program-plants",
+  "keke:ldso-run-program-gate",
+  "keke:ldso-run-program-startup"
+ ]
+}
