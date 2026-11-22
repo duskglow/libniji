@@ -1878,6 +1878,11 @@ impl Heap {
         match class_for(size, align) {
             Some(c) => {
                 let k = self.cache(sys, pages);
+                if align <= ALIGN {
+                    if let Some(b) = k.as_ref().and_then(|k| self.try_spill(sys, pages, k, c)) {
+                        return Some(b);
+                    }
+                }
                 if let Some(b) = k.as_ref().and_then(|k| self.alloc_small(sys, pages, k, c)) {
                     return Some(b);
                 }
@@ -1890,6 +1895,28 @@ impl Heap {
                 self.alloc_large(sys, pages, k.as_ref(), size, align)
             }
         }
+    }
+
+    /// PROTOTYPE (HEAP-SECOND-NODE-MAP item b, not for landing): serve a class-`c` request from
+    /// a free block of a nearby larger class (at most a quarter larger) that cache `k` holds,
+    /// instead of growing the heap. Only when class `c` has no free block in its current slab and
+    /// no partial slab, and the shard holds no empty or never-used slab (the next slab would be
+    /// new address space). The request's alignment is at most `ALIGN`: every class's blocks are.
+    #[cold]
+    #[inline(never)]
+    fn try_spill<S: Sys, P: Pages>(&self, sys: &S, pages: &P, k: &Cache<'_>, c: usize) -> Option<Block> {
+        let free_in = |d: usize| {
+            k.class(d, K_PARTIAL) != 0 || (k.class(d, K_CUR) != 0 && k.free_word(d, Self::rec_at(pages, uz(k.class(d, K_REC))).local).is_some())
+        };
+        if free_in(c) {
+            return None;
+        }
+        let sh = &self.shards[self.shard_of(pages)];
+        if sh.seg.load(Relaxed) == 0 || sh.empty.load(Relaxed) != 0 || sh.next_slab.load(Relaxed) < sh.mapped.load(Relaxed) {
+            return None;
+        }
+        let d = (c + 1..CLASSES.len()).take_while(|&d| CLASSES[d] * 4 <= CLASSES[c] * 5).find(|&d| free_in(d))?;
+        self.alloc_small(sys, pages, k, d)
     }
 
     /// Where the block at `addr` would be. Lock-free: a slab's class does not change while it
