@@ -1,9 +1,41 @@
 # UTIL-12: `niji-locale` and `localedef` (issue #14's blocker)
 
-**State.** Branch `task/util-12` (from origin/next `90390071c`), role mei `~/w/s1`. Head: see `git log -1`
-(leg 1 ended at "niji-locale compiles"). `cargo clippy -p niji-locale --all-targets -D warnings` clean and
-`cargo test -p niji-locale` green on mei (2 unit tests). Nothing compared with the reference yet. NOT VERIFIED:
-every format detail below marked (guess).
+**State.** Branch `task/util-12` (from origin/next `90390071c`), role mei `~/w/s1`. Head: see `git log -1`.
+Leg 2 (refresh 1) done: `niji_locale::compile(locale, charmap, files)` (lib.rs) and
+`crates/locale/tests/reference.rs` (6 tests: en_US/de_DE/fr_FR/ja_JP/tr_TR UTF-8, en_US ISO-8859-1; spawns the
+reference `localedef -i X -c -f CS`, skips with a reason when absent; `NIJI_LOCALE_KEEP=1` keeps both trees under
+`$TMPDIR` for inspection). **All 6 green on mei**: every item of the 10 simple categories byte-equal, LC_CTYPE fixed
+items byte-equal, every class bit / map value / width (0..0x110000) equal through `niji::locale::table3`,
+transliteration equal decoded. `cargo clippy -p niji-locale --all-targets -- -D warnings` clean (job
+util-12-clippy1). LC_COLLATE is not written (compile() skips category 3; the test skips it). Workspace clippy,
+`cargo xtask static`, gate and plants NOT run yet. Probe scripts: `mei:~/work/util-12/{ct.py,tl.py}` (tl.py
+diffs translit + LC_TIME 51 of `<ref dir> <ours dir>`).
+
+## Settled by the comparison (leg 2; replaces the leg-1 guesses they name)
+
+* Lexer: the comment character outside a string/symbol starts a comment to end of line (sources end entries
+  with `% NAME`; without this the emoji translit failed and trailing words became bogus entries).
+* MB_CUR_MAX = the charmap's declared `<mb_cur_max>` (UTF-8: 6); `niji::charmap` clamps its own copy to 4, so
+  `Charset` reads the header itself.
+* Byte tables (items 0/1/3): entries −128..−2 repeat bytes 128..254 with the mapped byte stored UNSIGNED; −1 (EOF)
+  is class 0, maps −1.
+* CLASS32 (5), TOUPPER32 (15), TOLOWER32 (16) are indexed by CODE POINT 0..255 whatever the charmap; CLASS32 =
+  16-bit `__ctype_b` mask << 16. (Not tested for a single-byte charmap whose bytes are not Latin-1: guess.)
+* Items 10/11 name lists and 14 CODESET pad to 4. Items 31-40 (wide indigits) one word each, no terminator;
+  67 DEFAULT_MISSING words without terminator.
+* Each class table item is preceded by a 32-byte bitmap of that class over the charmap's single bytes, stored at
+  the end of the previous item (`File::extend_last`); the reader ignores it.
+* `charclass`/`charconv` declare table order (ja_JP: combining, combining_level3, jspace, jhira, ...).
+* WIDTH: U+0000 has width 0; absent ≡ 0xff (the test compares what wcwidth reads).
+* Item 71 NONASCII_CASE = the byte case tables differ from ASCII's (en_US.UTF-8 0, en_US.ISO-8859-1 1, tr_TR 1);
+  70 MAP_TO_NONASCII = an ASCII char maps outside ASCII (tr_TR 1).
+* Transliteration: the LAST definition of a from-string wins (statements in order, an include where it stands,
+  so a file's own entries beat its includes and a locale's own include beats the copied i18n's); alternatives
+  written as strings/words that the charmap cannot encode are dropped (an entry may keep none); symbol
+  alternatives are kept regardless. libniji stores each distinct alternative list once (to-table ~half the
+  reference's: 41k vs 80k words-bytes en_US); decoded equal. **Needs a one-line D row** (local detail,
+  reader-equal, smaller file): reserve with `ops reserve --story UTIL-12 D-31` (not done yet).
+* ERA dates: a negative year counts from 1 BC (`-0001` -> tm_year −1900).
 
 ## Design in force (leg 1)
 
@@ -44,22 +76,16 @@ Compiled into `mei:~/work/util-12/ref/{en_US,de_DE,fr_FR,ja_JP,tr_TR}.UTF-8` and
   30 =1, 31-40 wide, 41-50 OUTDIGIT MB, 51-60 OUTDIGIT words, 61 TRANSLIT_TAB_SIZE (en_US 6398), 62-65,
   66 DEFAULT_MISSING_LEN 1, 67 L"?", 68 0, 69 empty (0 bytes), 70 0, 71 word 0 (36 bytes in the file).
 
-## Guesses to settle by comparison (next leg)
+## Guesses still open (not reached by the six locales)
 
-CLASS32 bit layout (written as 1<<k), the byte tables at −1 (EOF) and −128..−2, TOUPPER32 for bytes with no
-character, which code points get a WIDTH (written: `print` and in the charmap), translit precedence for
-duplicate from-strings (written: first definition wins) and include order, MAP_TO_NONASCII/NONASCII_CASE,
-INDIGITS with `outdigit`, unencodable characters with `-c` (written: dropped), week_1stweek default (4).
+CLASS32/TOUPPER32 for a single-byte charmap that is not Latin-1 (e.g. KOI8-R: add one case to reference.rs),
+INDIGITS with `outdigit`, unencodable characters with `-c` outside translit (written: dropped),
+week_1stweek default (4). The plan row wants "all SUPPORTED locales": extend reference.rs with an
+ignored-by-default sweep over `/usr/share/i18n/SUPPORTED` later (cost: ~1 s per locale on mei, debug).
 
 ## Exact next step
 
-1. `crates/locale/tests/reference.rs`: a `Files` over `/usr/share/i18n/{locales,charmaps}` (gunzip `.gz`);
-   for en_US/de_DE/fr_FR/ja_JP/tr_TR UTF-8 and en_US ISO-8859-1: compile the reference with
-   `localedef -i X -c -f CS <tmp>/X` (skip with a printed reason when absent), compile ours in-process,
-   compare every simple category item byte for byte (via `niji::locale::file::Category::parse` on leaked
-   bytes), and LC_CTYPE semantically: fixed items 0-71 bytes (except table items 12) and, for all
-   0..0x110000, every class bit, map value and width through `niji::locale::table3::Table3`. Print the first
-   10 differences per item, then fix the writers until equal.
+1. DONE (leg 2): reference.rs green. Reserve a D-31 id and record the translit-sharing row (above).
 2. LC_COLLATE (largest piece; spec D.1.4 and `spec/tools/collate_proto.py` model the reader); compare
    strcoll/strxfrm/wcsxfrm order over a corpus via `niji::locale` (byte-equal keys reported, order required).
 3. Archive writer (D.1.6; `niji::locale::archive` reads), the `localedef` program and options (spec §31.8),
@@ -70,3 +96,5 @@ INDIGITS with `outdigit`, unencodable characters with `-c` (written: dropped), w
 ## Budget notes
 
 Leg 1: 80 calls, ~190k context (format probing and design took most). Keep probe output small.
+Leg 2: ~115 calls, ~150k context: six comparison/fix rounds (each one jobrun `cargo test -p niji-locale`
+on mei, ~10 s warm). Wall deadline 2026-11-22T08:02:37Z: leave >= 45 min for gate + plants + precheck.
