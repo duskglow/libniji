@@ -737,11 +737,11 @@ typedef __builtin_va_list va_list;
 #if 1
 # ifdef __cplusplus
 extern "C++" {
-extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr");
-extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr");
-extern const wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcspbrk");
-extern const wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcsstr");
-extern const wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __asm__ ("wmemchr");
+extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr") __attribute__ ((__pure__));
+extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr") __attribute__ ((__pure__));
+extern const wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcspbrk") __attribute__ ((__pure__));
+extern const wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcsstr") __attribute__ ((__pure__));
+extern const wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __asm__ ("wmemchr") __attribute__ ((__pure__));
 inline wchar_t *wcschr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcschr (static_cast<const wchar_t *> (__s), __c)); }
 inline wchar_t *wcsrchr (wchar_t *__s, wchar_t __c) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcsrchr (static_cast<const wchar_t *> (__s), __c)); }
 inline wchar_t *wcspbrk (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcspbrk (static_cast<const wchar_t *> (__s), __a)); }
@@ -749,11 +749,11 @@ inline wchar_t *wcsstr (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { retur
 inline wchar_t *wmemchr (wchar_t *__s, wchar_t __c, size_t __n) __NIJI_NOTHROW { return const_cast<wchar_t *> (wmemchr (static_cast<const wchar_t *> (__s), __c, __n)); }
 }
 # else
-extern wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
-extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
-extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
-extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
-extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
+extern wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 #endif
 
@@ -761,11 +761,11 @@ extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
 /* The XSI alias of wcsstr takes the same two overloads in C++. */
 # ifdef __cplusplus
 extern "C++" {
-extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs");
+extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs") __attribute__ ((__pure__));
 inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcswcs (static_cast<const wchar_t *> (__s), __a)); }
 }
 # else
-extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
+extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 #endif
 

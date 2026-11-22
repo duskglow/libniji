@@ -17,9 +17,9 @@ __NIJI_BEGIN_C
 typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
 # endif
 # if __NIJI_FOB64
-extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64");
+extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64") @@attrs(nftw);
 # else
-extern int nftw (const char *, __nftw_func_t, int, int);
+extern int nftw (const char *, __nftw_func_t, int, int) @@attrs(nftw);
 # endif
 #endif
 

@@ -179,6 +179,9 @@ def corpus(names, heads, pr):
             for c in (1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
+        # A redeclaration with attribute pure: the compiler objects when it knows the function as a const builtin
+        # (the math functions), and then the declaration must say const to compile at all.
+        add("extern __typeof__ (%s) %s __attribute__ ((__pure__));" % (n, n), (n, "bp"))
         if not variadic and ret.replace("extern", "").strip() != "void" and all(k == "num" for k in fixed):
             # Two calls with a memory clobber between them: the results are known equal only when the attribute is const.
             # Only for numeric parameters, with literal arguments (a pointer argument reads memory, so cannot be const).
@@ -290,6 +293,10 @@ DECIDED = {"-Wnonnull", "-Wunused-result", "-Wdeprecated-declarations", "-Wforma
 
 # Known differences, not slice 19's: the function (or ctype `is*` function) and why. They are printed, not counted.
 OPEN = {
+    "gettext": "the compiler's own builtin knowledge of the function adds -Wnonnull to a plain declaration",
+    "dgettext": "the compiler's own builtin knowledge of the function adds -Wnonnull to a plain declaration",
+    "btowc": "the reference's calls are merged by the compiler's own knowledge of the function; no attribute decides it",
+    "wctob": "the reference's calls are merged by the compiler's own knowledge of the function; no attribute decides it",
     "fwrite_unlocked": "libniji's declaration is the plain function, so the compiler's own builtin knowledge adds -Wnonnull",
 }
 CTYPE_OPEN = re.compile(r"^is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)$")
@@ -326,9 +333,14 @@ BUILTIN_SIZE = {"strndup", "strdup"}
 def derive(res, pr, names):
     rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": ""} for n in names}
     fmt = {}
+    conflict = set()
     for ln, (key, flags, err) in sorted(res.items()):
         n, kind = key[0], key[1]
         r = rows[n]
+        if kind == "bp":
+            if err or flags & {"-Wattributes", "error"}:
+                conflict.add(n)
+            continue
         if err:
             continue
         if kind == "r":
@@ -367,6 +379,9 @@ def derive(res, pr, names):
         variadic = ps[-1] == "..."
         first = len([p for p in ps if p != "..."]) + 1 if variadic else 0
         rows[n]["format"] = "%s:%d:%d" % (fmt_kind(n), j, first)
+    for n in conflict:
+        if rows[n]["pure"]:
+            rows[n]["pure"] = "const"
     for n in CONST_BY_STANDARD & set(rows):
         if rows[n]["pure"]:
             rows[n]["pure"] = "const"
@@ -403,6 +418,8 @@ def main():
     opened = {}
     known = {}
     for ln in sorted(ref):
+        if ref[ln][0][1] == "bp":
+            continue  # a table-only test (is the compiler's own knowledge of the function const?), not a compared line
         for f in ref[ln][1] ^ got[ln][1]:
             if f not in DECIDED and f != "note":
                 opened[f] = opened.get(f, 0) + 1

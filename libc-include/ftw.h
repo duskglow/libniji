@@ -636,9 +636,9 @@ enum { FTW_SLN = 6 };
 typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
 # endif
 # if __NIJI_FOB64
-extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64");
+extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64") __attribute__ ((__nonnull__ (1)));
 # else
-extern int nftw (const char *, __nftw_func_t, int, int);
+extern int nftw (const char *, __nftw_func_t, int, int) __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 

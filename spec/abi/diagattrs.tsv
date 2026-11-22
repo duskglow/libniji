@@ -51,12 +51,12 @@ asinf64									const
 asinf64x									1
 asinh									const
 asinhf									const
-asinhf128									1
+asinhf128									const
 asinhf32									const
 asinhf32x									const
 asinhf64									const
-asinhf64x									1
-asinhl									1
+asinhf64x									const
+asinhl									const
 asinl									1
 asprintf		1		printf:2:3					
 at_quick_exit	1								
@@ -70,12 +70,12 @@ atan2f64									const
 atan2f64x									1
 atan2l									1
 atanf									const
-atanf128									1
+atanf128									const
 atanf32									const
 atanf32x									const
 atanf64									const
-atanf64x									1
-atanl									1
+atanf64x									const
+atanl									const
 atexit	1								
 atof	1	1							1
 atoi	1	1							1
@@ -95,20 +95,20 @@ canonicalize_file_name	1	1			1
 catopen	1								
 cbrt									const
 cbrtf									const
-cbrtf128									1
+cbrtf128									const
 cbrtf32									const
 cbrtf32x									const
 cbrtf64									const
-cbrtf64x									1
-cbrtl									1
+cbrtf64x									const
+cbrtl									const
 ceil									const
 ceilf									const
-ceilf128									1
+ceilf128									const
 ceilf32									const
 ceilf32x									const
 ceilf64									const
-ceilf64x									1
-ceill									1
+ceilf64x									const
+ceill									const
 chdir	1	1							
 chmod	1								
 chown	1	1							
@@ -121,19 +121,19 @@ clock_settime	2
 closedir	1								
 copysign									const
 copysignf									const
-copysignf128									1
+copysignf128									const
 copysignf32									const
 copysignf32x									const
 copysignf64									const
-copysignf64x									1
-copysignl									1
+copysignf64x									const
+copysignl									const
 cos									const
 cosf									const
-cosf128									1
+cosf128									const
 cosf32									const
 cosf32x									const
 cosf64									const
-cosf64x									1
+cosf64x									const
 cosh									const
 coshf									const
 coshf128									1
@@ -142,7 +142,7 @@ coshf32x									const
 coshf64									const
 coshf64x									1
 coshl									1
-cosl									1
+cosl									const
 creat	1								
 creat64	1								
 crypt	1,2								
@@ -181,12 +181,12 @@ erfcf64									const
 erfcf64x									1
 erfcl									1
 erff									const
-erff128									1
+erff128									const
 erff32									const
 erff32x									const
 erff64									const
-erff64x									1
-erfl									1
+erff64x									const
+erfl									const
 err			1	printf:2:3					
 error			1	printf:3:4					
 error_at_line			1	printf:5:6					
@@ -231,12 +231,12 @@ expm1f64x									1
 expm1l									1
 fabs									const
 fabsf									const
-fabsf128									1
+fabsf128									const
 fabsf32									const
 fabsf32x									const
 fabsf64									const
-fabsf64x									1
-fabsl									1
+fabsf64x									const
+fabsl									const
 faccessat	2	1							
 fchdir		1							
 fchmodat	2	1							
@@ -285,117 +285,117 @@ finitel									const
 flockfile	1								
 floor									const
 floorf									const
-floorf128									1
+floorf128									const
 floorf32									const
 floorf32x									const
 floorf64									const
-floorf64x									1
-floorl									1
+floorf64x									const
+floorl									const
 fma									const
 fmaf									const
-fmaf128									1
+fmaf128									const
 fmaf32									const
 fmaf32x									const
 fmaf64									const
-fmaf64x									1
-fmal									1
+fmaf64x									const
+fmal									const
 fmax									const
 fmaxf									const
-fmaxf128									1
+fmaxf128									const
 fmaxf32									const
 fmaxf32x									const
 fmaxf64									const
-fmaxf64x									1
+fmaxf64x									const
 fmaximum									const
 fmaximum_mag									const
 fmaximum_mag_num									const
 fmaximum_mag_numf									const
-fmaximum_mag_numf128									1
+fmaximum_mag_numf128									const
 fmaximum_mag_numf32									const
 fmaximum_mag_numf32x									const
 fmaximum_mag_numf64									const
-fmaximum_mag_numf64x									1
-fmaximum_mag_numl									1
+fmaximum_mag_numf64x									const
+fmaximum_mag_numl									const
 fmaximum_magf									const
-fmaximum_magf128									1
+fmaximum_magf128									const
 fmaximum_magf32									const
 fmaximum_magf32x									const
 fmaximum_magf64									const
-fmaximum_magf64x									1
-fmaximum_magl									1
+fmaximum_magf64x									const
+fmaximum_magl									const
 fmaximum_num									const
 fmaximum_numf									const
-fmaximum_numf128									1
+fmaximum_numf128									const
 fmaximum_numf32									const
 fmaximum_numf32x									const
 fmaximum_numf64									const
-fmaximum_numf64x									1
-fmaximum_numl									1
+fmaximum_numf64x									const
+fmaximum_numl									const
 fmaximumf									const
-fmaximumf128									1
+fmaximumf128									const
 fmaximumf32									const
 fmaximumf32x									const
 fmaximumf64									const
-fmaximumf64x									1
-fmaximuml									1
-fmaxl									1
+fmaximumf64x									const
+fmaximuml									const
+fmaxl									const
 fmaxmag									const
 fmaxmagf									const
-fmaxmagf128									1
+fmaxmagf128									const
 fmaxmagf32									const
 fmaxmagf32x									const
 fmaxmagf64									const
-fmaxmagf64x									1
-fmaxmagl									1
+fmaxmagf64x									const
+fmaxmagl									const
 fmemopen		1			1				
 fmin									const
 fminf									const
-fminf128									1
+fminf128									const
 fminf32									const
 fminf32x									const
 fminf64									const
-fminf64x									1
+fminf64x									const
 fminimum									const
 fminimum_mag									const
 fminimum_mag_num									const
 fminimum_mag_numf									const
-fminimum_mag_numf128									1
+fminimum_mag_numf128									const
 fminimum_mag_numf32									const
 fminimum_mag_numf32x									const
 fminimum_mag_numf64									const
-fminimum_mag_numf64x									1
-fminimum_mag_numl									1
+fminimum_mag_numf64x									const
+fminimum_mag_numl									const
 fminimum_magf									const
-fminimum_magf128									1
+fminimum_magf128									const
 fminimum_magf32									const
 fminimum_magf32x									const
 fminimum_magf64									const
-fminimum_magf64x									1
-fminimum_magl									1
+fminimum_magf64x									const
+fminimum_magl									const
 fminimum_num									const
 fminimum_numf									const
-fminimum_numf128									1
+fminimum_numf128									const
 fminimum_numf32									const
 fminimum_numf32x									const
 fminimum_numf64									const
-fminimum_numf64x									1
-fminimum_numl									1
+fminimum_numf64x									const
+fminimum_numl									const
 fminimumf									const
-fminimumf128									1
+fminimumf128									const
 fminimumf32									const
 fminimumf32x									const
 fminimumf64									const
-fminimumf64x									1
-fminimuml									1
-fminl									1
+fminimumf64x									const
+fminimuml									const
+fminl									const
 fminmag									const
 fminmagf									const
-fminmagf128									1
+fminmagf128									const
 fminmagf32									const
 fminmagf32x									const
 fminmagf64									const
-fminmagf64x									1
-fminmagl									1
+fminmagf64x									const
+fminmagl									const
 fmod									const
 fmodf									const
 fmodf128									1
@@ -635,22 +635,22 @@ mkstemps	1	1
 mkstemps64	1	1							
 mktemp	1								
 mrand48_r	1,2								
-nan	1								1
-nanf	1								1
-nanf128	1								1
-nanf32	1								1
-nanf32x	1								1
-nanf64	1								1
-nanf64x	1								1
-nanl	1								1
+nan	1								const
+nanf	1								const
+nanf128	1								const
+nanf32	1								const
+nanf32x	1								const
+nanf64	1								const
+nanf64x	1								const
+nanl	1								const
 nearbyint									const
 nearbyintf									const
-nearbyintf128									1
+nearbyintf128									const
 nearbyintf32									const
 nearbyintf32x									const
 nearbyintf64									const
-nearbyintf64x									1
-nearbyintl									1
+nearbyintf64x									const
+nearbyintl									const
 nextafter									const
 nextafterf									const
 nextafterf128									1
@@ -856,29 +856,29 @@ rewinddir	1
 rindex	1								1
 rint									const
 rintf									const
-rintf128									1
+rintf128									const
 rintf32									const
 rintf32x									const
 rintf64									const
-rintf64x									1
-rintl									1
+rintf64x									const
+rintl									const
 rmdir	1								
 round									const
 roundeven									const
 roundevenf									const
-roundevenf128									1
+roundevenf128									const
 roundevenf32									const
 roundevenf32x									const
 roundevenf64									const
-roundevenf64x									1
-roundevenl									1
+roundevenf64x									const
+roundevenl									const
 roundf									const
-roundf128									1
+roundf128									const
 roundf32									const
 roundf32x									const
 roundf64									const
-roundf64x									1
-roundl									1
+roundf64x									const
+roundl									const
 rpmatch	1	1							
 scalbln									const
 scalblnf									const
@@ -966,11 +966,11 @@ sigwait	1,2
 sigwaitinfo	1								
 sin									const
 sinf									const
-sinf128									1
+sinf128									const
 sinf32									const
 sinf32x									const
 sinf64									const
-sinf64x									1
+sinf64x									const
 sinh									const
 sinhf									const
 sinhf128									1
@@ -979,7 +979,7 @@ sinhf32x									const
 sinhf64									const
 sinhf64x									1
 sinhl									1
-sinl									1
+sinl									const
 snprintf	3			printf:3:4					
 sprintf	1,2			printf:2:3					
 sqrt									const
@@ -1075,20 +1075,20 @@ syslog				printf:2:3
 system		1							
 tan									const
 tanf									const
-tanf128									1
+tanf128									const
 tanf32									const
 tanf32x									const
 tanf64									const
-tanf64x									1
+tanf64x									const
 tanh									const
 tanhf									const
-tanhf128									1
+tanhf128									const
 tanhf32									const
 tanhf32x									const
 tanhf64									const
-tanhf64x									1
-tanhl									1
-tanl									1
+tanhf64x									const
+tanhl									const
+tanl									const
 telldir	1								
 tempnam		1			1				
 tgamma									const
@@ -1127,12 +1127,12 @@ trunc									const
 truncate	1	1							
 truncate64	1	1							
 truncf									const
-truncf128									1
+truncf128									const
 truncf32									const
 truncf32x									const
 truncf64									const
-truncf64x									1
-truncl									1
+truncf64x									const
+truncl									const
 ttyname_r	2	1							
 ungetc	2								
 unlink	1								
