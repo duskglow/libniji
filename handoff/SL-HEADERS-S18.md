@@ -1,9 +1,19 @@
 # SL-HEADERS-S18 handoff: slice 18, fortify (`_FORTIFY_SOURCE` 1..3)
 
-**State:** run 2 (story SL-HEADERS-S18-2), branch task/sl-headers-s18-2 (on task/sl-headers-s18, from origin/next
-f15d8264f), role keke:~/w/n4. Code head 2c9f4b633. Proofs on that head: gate keke:sl-headers-s18-2-gate3, plants
-keke:sl-headers-s18-2-plants3 (5 plants), P7 rerun keke:sl-headers-s18-2-p7c (zlib, xz-utils); the hand-back
-gives their verdicts.
+**State:** run 3 (story SL-HEADERS-S18-3), branch task/sl-headers-s18-3 (= task/sl-headers-s18-2 + this run's
+records; from origin/next f15d8264f), role mei:~/w/s2. Code head 2c9f4b633 (unchanged in run 3). Run 3 reran every
+proof on the synced final head (tree 10083efbd, head 9c9f1269b; run 3 adds only handoff/ files):
+* lint mei:sl-headers-s18-3-lint: clippy --workspace --all-targets --all-features -D warnings and `cargo xtask
+  static` green.
+* gate mei:sl-headers-s18-3-gate2 (`affected --run --base origin/next`, bounded set): 6 suites, 611 passed, peak 1.6G.
+* plants mei:sl-headers-s18-3-plants: 5 CAUGHT, no WARN (handoff/SL-HEADERS-S18-3-plants.txt).
+* P7 mei:sl-headers-s18-3-p7 (`cargo xtask so`, then Devuan flags both sides, `--niji-headers`, zlib xz_utils):
+  both build and pass on both sides (1/1, 19/19); undef-compare 168 objects, 1 differ: xz `putchar` only on the
+  libniji side (HEADERS-O2-INLINES); `__open_2` referenced by 1 xz object on each side.
+* SUPERSEDED: mei:sl-headers-s18-3-gate (rc 1: xtask `transcripts` iconv tests: the role held a stale
+  target/niji-test/iconv whose interpreter target/niji/ld-linux-x86-64.so.2 was absent, so exec gave ENOENT;
+  `cargo xtask so` in the p7 job rebuilt target/niji and gate2 passed. Not this slice's code.)
+Run 2's proofs (keke:sl-headers-s18-2-gate3, -plants3, -p7c) are superseded by these.
 
 **Rulings in force**
 * #7599 (coordinator, 11-22): slice 18 owns the fortify rows of P3 and every `*_chk` export reached. The 55
@@ -51,6 +61,6 @@ gives their verdicts.
   getchar_unlocked getline putc_unlocked putchar putchar_unlocked; stdlib.h abs atof atoi atol atoll bsearch div;
   string.h basename memrchr rawmemchr strcasestr strchrnul; strings.h index rindex; wchar.h mbrlen.
 
-**Next step:** if the gate and plants named in the hand-back are green, the slice is ready for the train. Rerun
+**Next step:** the gate, plants and P7 above are green on the final head: the slice is ready for the train. Rerun
 P7 for the rest of the corpus when sys/wait.h, sys/ioctl.h and stdio_ext.h's GNU functions land (job script shape:
 export the Devuan CPPFLAGS/CFLAGS above, `smoke.sh --niji-headers`, then `undef-compare.sh`).
