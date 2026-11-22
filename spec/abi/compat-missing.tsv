@@ -6,12 +6,6 @@
 # Never add rows to make the check pass: build the missing compat version instead (SO-CHECK-DEFAULT-VERSION).
 symbol	version
 _IO_vfscanf	GLIBC_2.2.5
-__ctype32_b	GLIBC_2.2.5
-__ctype32_tolower	GLIBC_2.2.5
-__ctype32_toupper	GLIBC_2.2.5
-__ctype_b	GLIBC_2.2.5
-__ctype_tolower	GLIBC_2.2.5
-__ctype_toupper	GLIBC_2.2.5
 __ivaliduser	GLIBC_2.2.5
 __key_decryptsession_pk_LOCAL	GLIBC_2.2.5
 __key_encryptsession_pk_LOCAL	GLIBC_2.2.5
@@ -52,7 +46,6 @@ __strspn_c1	GLIBC_2.2.5
 __strspn_c2	GLIBC_2.2.5
 __strspn_c3	GLIBC_2.2.5
 __strtok_r_1c	GLIBC_2.2.5
-_obstack	GLIBC_2.2.5
 _pthread_cleanup_pop_restore	GLIBC_2.2.5
 _pthread_cleanup_push_defer	GLIBC_2.2.5
 _res	GLIBC_2.2.5

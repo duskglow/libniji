@@ -1,0 +1,7 @@
+# LG6-CTYPE-OBJECTS plants (cargo xtask plants): the generator's table offsets, versions and class bits, and the
+# generated object end to end through an old-style binary.
+gen-offset | xtask/src/compat_objects.rs | lit:"__ctype_b" => ("class", 2 * CTYPE_ZERO), ==> "__ctype_b" => ("class", 2 * CTYPE_ZERO + 2), | cargo test -p xtask compat_objects | msg:ctype_objects_point_at_character_zero_at_the_compat_version.*FAILED|panicked.*__ctype_b
+gen-default-version | xtask/src/compat_objects.rs | lit:        s.push_str(&format!("\t.symver {}, {}@{}\n", o.label(), o.name, o.version)); ==>         s.push_str(&format!("\t.symver {}, {}@@{}\n", o.label(), o.name, o.version)); | cargo test -p xtask compat_objects | msg:ctype_objects_point_at_character_zero_at_the_compat_version.*FAILED
+gen-blank-bit | xtask/src/compat_objects.rs | lit:        matches!(c, b' ' | b'\t'), ==>         matches!(c, b' '), | cargo test -p xtask compat_objects | msg:ctype_tables_equal_the_glibc_probe.*FAILED
+gen-case-negative | xtask/src/compat_objects.rs | lit:            _ if c < -1 => (c + 256, c + 256), ==>             _ if c < -1 => (c, c), | cargo test -p xtask compat_objects | msg:ctype_tables_equal_the_glibc_probe.*FAILED
+so-offset | csys/src/machine/compat_aliases.S | lit:.quad .Lniji_compat_ctype_class+256 ==> .quad .Lniji_compat_ctype_class+258 | cargo xtask affected --only conformance:s05_ctype_legacy_objects --with-exports --run | msg:FAIL line [0-9]+ c=
