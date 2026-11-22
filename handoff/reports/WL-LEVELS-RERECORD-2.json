@@ -14,7 +14,8 @@
  "informational": [
   "The brief says du gets no hold 'as on Zen 1'; on Zen 1 du has a hold (1.1891). On Skylake-SP du measures 1.0615, so it gets none there by the rule.",
   "An excursion on the glibc column is not re-measured (it has no pair); it can only make a count lenient, never fail it. Both new and base high at once is not seen either.",
-  "The k2 tar-gz demonstration is a replay (stub batch from the normal range of the other 8 columns) through the real loop and the real verdict; the method's effect on a live excursion shows in the next loaded count."
+  "The k2 tar-gz demonstration is a replay (stub batch from the normal range of the other 8 columns) through the real loop and the real verdict; the method's effect on a live excursion shows in the next loaded count.",
+  "Data jobs (measure next 0299fd6e1, not this head; the source of the Skylake-SP printf-loop rows): mei wl-levels-rerecord-2-m-printf and wl-levels-rerecord-2-m-printf2, rc 0."
  ],
  "refused": [],
  "impact": [
@@ -64,8 +65,6 @@
  "report_file": "handoff/WL-LEVELS-RERECORD-2-report.md",
  "jobs": [
   "mei:wl-levels-rerecord-2-gate",
-  "mei:wl-levels-rerecord-2-plants",
-  "mei:wl-levels-rerecord-2-m-printf",
-  "mei:wl-levels-rerecord-2-m-printf2"
+  "mei:wl-levels-rerecord-2-plants"
  ]
 }
