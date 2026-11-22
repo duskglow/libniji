@@ -112,7 +112,9 @@ pub fn check(root: &Path) -> Result<(), String> {
     let script = |name: &str| std::fs::read_to_string(root.join(format!("crates/core/tests/oracle/{name}.sh"))).is_ok_and(|t| script_namespaces(&t));
     let mut found = Vec::new();
     let tracked = crate::labnames::tracked_with(root, true)?;
-    let tests: Vec<String> = tracked.iter().filter(|p| p.starts_with("crates/") && p.contains("/tests/")).filter_map(|p| std::fs::read_to_string(root.join(p)).ok().map(|t| format!("{p}\n{t}"))).collect();
+    // Only the Rust test sources, where the test rule (`scan`) holds a run of the script to contain::; a C probe
+    // whose comment names the script does not run it (specman_probe.c names specman_dns.sh).
+    let tests: Vec<String> = tracked.iter().filter(|p| is_test_source(p)).filter_map(|p| std::fs::read_to_string(root.join(p)).ok().map(|t| format!("{p}\n{t}"))).collect();
     let named = |path: &str| {
         let file = path.rsplit('/').next().unwrap_or(path);
         tests.iter().any(|t| !t.starts_with(&format!("{path}\n")) && t.contains(file))
