@@ -10,3 +10,13 @@ threshold-tight | validation/wl_stats.sh | lit:-v p="${3:-${WL_XPCT:-7}}" ==> -v
 long-row-any | validation/wl_stats.sh | lit:-v l="${WL_LONG_INSTR:-4000000000}" ==> -v l="${WL_LONG_INSTR:-0}" | bash validation/wl_stats_test.sh | msg:FAIL short_row_not_remeasured
 median-method-too | validation/wl_stats.sh | lit:    [ "$(wl_fault_field)" = 5 ] || return 0 ==> | bash validation/wl_stats_test.sh | msg:FAIL aslr_not_remeasured
 skx-level-edited | validation/wl_holds.tsv | lit:1.3097 ==> 1.3100 | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# excursion-off: CAUGHT, caught by no test the log names
+# excursion-unwired: CAUGHT, caught by no test the log names
+# batch-replaces: CAUGHT, caught by no test the log names
+# regression-hidden: CAUGHT, caught by no test the log names
+# threshold-loose: CAUGHT, caught by no test the log names
+# threshold-tight: CAUGHT, caught by no test the log names
+# long-row-any: CAUGHT, caught by no test the log names
+# median-method-too: CAUGHT, caught by no test the log names
+# skx-level-edited: CAUGHT, caught by no test the log names

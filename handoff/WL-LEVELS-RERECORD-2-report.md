@@ -42,7 +42,14 @@ Zen 1 rows: `recorded` ends "; 2 counts". Skylake-SP rows: "; 2 counts" as well.
 
 ## Jobs, gate, plants
 
-Filled in at hand-back (see the JSON report).
+All on mei:~/w/s3 (Skylake-SP), head 719512dba (later commits: handoff files only).
+- Gate `wl-levels-rerecord-2-gate` (direct tier, `cargo xtask affected --run --base origin/next`): 6 suites, 619
+  passed, 0 failed; peak 1.8G, rc 0.
+- Plants `wl-levels-rerecord-2-plants` (`handoff/WL-LEVELS-RERECORD-2-plants.txt`, dir
+  /mnt/zram/claude/wl-levels-rerecord-2/plants-1): 9 CAUGHT, 0 SURVIVED, 0 WARN.
+- Counts `wl-levels-rerecord-2-m-printf`, `-m-printf2` (printf-loop, rc 0).
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo xtask static`: clean (foreground).
+- Locally: wl_stats_test 91 passed; wl_verdict_test 46 passed; `wl_verdict.py holds` against origin/next's copy: ok.
 
 ## INFORMATIONAL
 
