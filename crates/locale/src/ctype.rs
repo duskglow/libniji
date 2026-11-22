@@ -395,7 +395,7 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     for &d in &out {
         f.word(d)?;
     }
-    write_translit(&mut f, c)?; // 61..65
+    write_translit(&mut f, c, cs)?; // 61..65
     let missing = c.default_missing.as_ref();
     f.word(missing.map_or(0, |m| u32::try_from(m.len()).unwrap_or(0)))?; // 66
     match missing {
@@ -404,10 +404,16 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     }
     f.word(0)?; // 68 TRANSLIT_IGNORE_LEN
     f.raw(true, TryVec::new())?; // 69 TRANSLIT_IGNORE
-    // 70 MAP_TO_NONASCII: an ASCII character maps outside ASCII; 71 NONASCII_CASE: a non-ASCII character maps into ASCII.
+    // 70 MAP_TO_NONASCII: an ASCII character maps outside ASCII. 71 NONASCII_CASE: the byte case
+    // tables are not ASCII's (a byte above 0x7f has a case mapping, or an ASCII letter lacks its
+    // ASCII one), so ASCII-only case folding of bytes would be wrong.
     let to_nonascii = c.maps.iter().take(2).any(|(_, m)| m.iter().any(|(&a, &b)| a < 0x80 && b >= 0x80));
     f.word(u32::from(to_nonascii))?;
-    let nonascii_case = c.maps.iter().take(2).any(|(_, m)| m.iter().any(|(&a, &b)| a >= 0x80 && b < 0x80));
+    let nonascii_case = (0..256usize).any(|b| {
+        let a = u8::try_from(b).unwrap_or(0);
+        let (u, l) = (toupper[b + 128], tolower[b + 128]);
+        u != i32::from(a.to_ascii_uppercase()) || l != i32::from(a.to_ascii_lowercase())
+    });
     f.word(u32::from(nonascii_case))?;
     // Each class table is preceded by the class over the charmap's single bytes: 256 bits, bit b
     // for byte b (outside every item; the reader does not use it).
@@ -446,8 +452,10 @@ fn i32s(v: &[i32]) -> Result<TryVec<u8>> {
 }
 
 /// Items 61…65: the table size, the from-index, the from-strings, the to-index and the to-lists,
-/// sorted by the from-string (the first definition of a from-string wins).
-fn write_translit(f: &mut File, c: &Ctype) -> Result<()> {
+/// sorted by the from-string. The last definition of a from-string wins (statements in source
+/// order, an `include` where it stands: a file's own entries after its includes, a locale's after
+/// those it copies); alternatives the charmap cannot encode are left out (an entry may keep none).
+fn write_translit(f: &mut File, c: &Ctype, cs: &Charset) -> Result<()> {
     let mut order: TryVec<usize> = TryVec::new();
     for i in 0..c.translit.len() {
         order.push(i)?;
@@ -455,11 +463,22 @@ fn write_translit(f: &mut File, c: &Ctype) -> Result<()> {
     order.sort_by(|&a, &b| c.translit[a].from.as_slice().cmp(c.translit[b].from.as_slice()).then(a.cmp(&b)));
     let mut kept: TryVec<usize> = TryVec::new();
     for &i in order.iter() {
-        if kept.last().is_some_and(|&k| c.translit[k].from.as_slice() == c.translit[i].from.as_slice()) {
+        if let Some(k) = kept.last_mut().filter(|k| c.translit[**k].from.as_slice() == c.translit[i].from.as_slice()) {
+            *k = i;
             continue;
         }
         kept.push(i)?;
     }
+    let mut scratch = TryVec::new();
+    let mut encodable = |s: &[u32]| -> Result<bool> {
+        for &ch in s {
+            scratch.clear();
+            if !cs.encode(ch, &mut scratch)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    };
     let (mut from_idx, mut from_tbl, mut to_idx, mut to_tbl) = (TryVec::new(), TryVec::new(), TryVec::new(), TryVec::new());
     for &i in kept.iter() {
         let e = &c.translit[i];
@@ -468,6 +487,9 @@ fn write_translit(f: &mut File, c: &Ctype) -> Result<()> {
         from_tbl.push(0)?;
         to_idx.push(u32::try_from(to_tbl.len()).unwrap_or(0))?;
         for alt in e.to.iter() {
+            if !encodable(alt)? {
+                continue;
+            }
             to_tbl.extend_from_slice(alt)?;
             to_tbl.push(0)?;
         }

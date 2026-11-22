@@ -538,5 +538,7 @@ fn era_date(d: &[u32]) -> Option<[i32; 3]> {
     if parts.next().is_some() {
         return None;
     }
+    // A negative year counts back from 1 BC (`-0001`), which is year 0 of the `tm_year` scale.
+    let y = if y < 0 { y + 1 } else { y };
     Some([i32::try_from(y - 1900).ok()?, i32::try_from(m - 1).ok()?, i32::try_from(day).ok()?])
 }
