@@ -1,0 +1,22 @@
+{"task": "ZIV-TEST-ISOLATION", "model": "opus", "tokens": null,
+ "result": "Ziv tests assert on this thread's undecided counts: far_pow read the process-wide residual counter that forced_undecided_climbs bumps from another thread; deterministic isolation test added",
+ "branch": "task/ziv-test-isolation", "head": "3ce35974f",
+ "gate": {"affected": "751 passed / 0 failed (4 suites, direct tier)", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "complex_directed.rs prints global ladder counters per test: under parallel tests a printed count or residual-path line can include another test's parts (diagnostic only)",
+   "complex_f128_products accuracy_suite_retry_count asserts on global deltas: isolated as longsweeps runs it (--exact); a bare --include-ignored run could overlap the shards; no thread-local exists in the no_std library",
+   "stats.rs fastpath-stats is process-wide by design with a documented rule; fast32 rate checks overlap only #[ignore]d exhaustive sweeps",
+   "FS_CALLS (core s07_locale_clauses) and regex COUNTS/FALLBACKS test reads found by name, not inspected"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "cpow_integer_powers_beyond_the_exact_width no longer fails when a forcing test runs beside it (CI train 902 failure)", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "coverage", "what": "tests: counts_ignore_other_threads added; plants added", "before": 0, "after": 3, "unit": "plants caught", "measured": true},
+   {"kind": "correctness", "what": "ziv_tests module, 200 runs default threads + 200 runs --test-threads=1 on the fix", "before": null, "after": 0, "unit": "failures of 400", "measured": true}
+ ],
+ "improvement": "the one-off CI failure was decided by a deterministic spawn-and-join window, not by repeat loops (base loops 280 runs, 0 failures); a story like this can skip the base loops",
+ "next_step": "none; optional follow-up: std-only per-thread counters for the integration tests' diagnostics",
+ "report_file": "handoff/ZIV-TEST-ISOLATION.md",
+ "jobs": ["mei:ziv-test-isolation-gate", "mei:ziv-test-isolation-plants", "mei:ziv-test-isolation-repro-fix"]}
