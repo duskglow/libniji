@@ -7,7 +7,7 @@
  "informational": ["STARTUP-REPROFILE's 47.6k RELATIVE+walk phase included pass1 work that remains; RELR alone removes ~25k, not ~50k",
                    "layout-bins.tsv not diffed: no base copy on the host (it lists libc's hot group only; this change is ld.so code and libc's relocation sections)",
                    "Skylake-SP counts and a PT phase profile not taken: the copy to mei was refused"],
- "refused": [". ~/src/liella-ops/tools/vm_ssh.sh; L=/home/claude/w/.scratch/LD-RELR-LOOP/xfer; mkdir -p $L; vm_ssh_cmd keke; rsync -a -e \"$VSSH_E\" --exclude libc.a \"${VSSH[-1]}:work/ld-relr-loop/base\" \"${VSSH[-1]}:work/ld-relr-loop/new\" $L/ && ...; vm_ssh_cmd mei; ... rsync ... \"${VSSH[-1]}:work/ld-relr-loop/\" (keke -> local -> mei product copy for Skylake-SP counts / PT profile; auto-mode classifier: Unauthorized Access)"],
+ "refused": [". ~/src/liella-ops/tools/vm_ssh.sh; L=~/w/.scratch/LD-RELR-LOOP/xfer; mkdir -p $L; vm_ssh_cmd keke; rsync -a -e \"$VSSH_E\" --exclude libc.a \"${VSSH[-1]}:work/ld-relr-loop/base\" \"${VSSH[-1]}:work/ld-relr-loop/new\" $L/ && ...; vm_ssh_cmd mei; ... rsync ... \"${VSSH[-1]}:work/ld-relr-loop/\" (keke -> local -> mei product copy for Skylake-SP counts / PT profile; auto-mode classifier: Unauthorized Access)"],
  "impact": [
   {"kind": "perf", "what": "dynamic empty main, release, Zen 1 (STARTUP-REPROFILE kit, median of 101)", "before": 268837, "after": 243688, "unit": "user instr/start", "measured": true},
   {"kind": "perf", "what": "main with three libraries, release, Zen 1", "before": 378132, "after": 352952, "unit": "user instr/start", "measured": true},

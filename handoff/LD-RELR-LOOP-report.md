@@ -33,10 +33,10 @@ story's target (RELATIVE work + self-relocation <= 15k) is not reached by estima
   RELRSZ 504, RELRENT 8.
 
 ## REFUSED
-* `. ~/src/liella-ops/tools/vm_ssh.sh; L=/home/claude/w/.scratch/LD-RELR-LOOP/xfer; mkdir -p $L; vm_ssh_cmd keke;
+* `. ~/src/liella-ops/tools/vm_ssh.sh; L=~/w/.scratch/LD-RELR-LOOP/xfer; mkdir -p $L; vm_ssh_cmd keke;
   rsync -a -e "$VSSH_E" --exclude libc.a "${VSSH[-1]}:work/ld-relr-loop/base" "${VSSH[-1]}:work/ld-relr-loop/new"
   $L/ && echo pulled; du -sh $L; vm_ssh_cmd mei; "${VSSH[@]}" 'mkdir -p ~/work/ld-relr-loop' && rsync -a -e
-  "$VSSH_E" $L/base $L/new /home/claude/w/.scratch/LD-RELR-LOOP/kit/ "${VSSH[-1]}:work/ld-relr-loop/" && echo
+  "$VSSH_E" $L/base $L/new ~/w/.scratch/LD-RELR-LOOP/kit/ "${VSSH[-1]}:work/ld-relr-loop/" && echo
   pushed; ...` (copy the release products keke -> local -> mei for Skylake-SP counts and an Intel PT phase
   profile; refused by the auto-mode classifier as unauthorized access). Step dropped: no Skylake-SP counts, no
   PT profile.
