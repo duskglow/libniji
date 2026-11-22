@@ -4,6 +4,9 @@
 # Each cache is bind-mounted over /etc/ld.so.cache inside an unprivileged user+mount namespace
 # (unshare -r -m): the host's /etc is never changed. Prints one "CHECK name: result" line per check.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 OUT=${1:?usage: ldcache_loader.sh OUT}
 HERE=$(cd "$(dirname "$0")" && pwd)
 LDSO=/lib64/ld-linux-x86-64.so.2

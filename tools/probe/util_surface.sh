@@ -4,6 +4,9 @@
 # the source or the text of any libc or tzcode script (ldd, tzselect, mtrace, sotruss, locale-gen
 # and update-locale are excluded from every content scan below).
 set +e
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 unset LC_ALL LANGUAGE
 export LANG=C.UTF-8
 N=15

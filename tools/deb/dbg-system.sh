@@ -19,6 +19,9 @@
 # The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|INFO ..."
 # lines and "dbg: RESULT ..."; exit 1 when any is FAIL. The outputs are under LOGDIR/dbg-<suite>/.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=rootopt contained_tree=$(cd "$(dirname "$0")/../.." && pwd) CONTAINED_KEEP="DBG_FUNC DBG_GNAT KEYRING MIRROR MMDEBSTRAP"
+. "$contained_tree/tools/contained.sh"
 export LC_ALL=C
 [ $# -ge 1 ] || { echo "usage: tools/deb/dbg-system.sh DEBDIR [SUITE] [LOGDIR]" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)

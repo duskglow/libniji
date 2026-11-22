@@ -32,6 +32,9 @@
 #     /etc/nsswitch.conf (the administrator's file) and nothing else.
 # Prints "root: PASS|FAIL|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 export LC_ALL=C
 [ $# -eq 1 ] || { echo "usage: tools/deb/root-system.sh DEBDIR" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)

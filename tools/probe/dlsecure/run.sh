@@ -7,6 +7,9 @@
 # is a supplementary group of the caller (R14-18), or, inside a user + mount namespace, a group
 # mapped from the caller's subordinate range. Output is the record (spec/behaviour/dynlink-secure.glibc.txt).
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=rootopt contained_tree=$(cd "$(dirname "$0")/../../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 src=$(cd "$1" && pwd) || exit 2
 mkdir -p "$2" && chmod 700 "$2" || exit 2
 d=$(cd "$2" && pwd)

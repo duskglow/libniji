@@ -7,6 +7,9 @@
 # Usage: sh specman_dns.sh [static-link-objects...]  (no argument: the host C library; with
 # libniji's niji-crt1.o and libc.a: the products).
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../../../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 dir=$(mktemp -d "${TMPDIR:-/tmp}/specman-dns.XXXXXX")
 trap 'rm -rf "$dir"' EXIT
 cd "$dir"
