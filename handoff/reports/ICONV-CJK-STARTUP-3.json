@@ -1,0 +1,20 @@
+{"task": "ICONV-CJK-STARTUP-3", "model": "opus", "tokens": null,
+ "result": "next merged (CP949 holds offsets, RELATIVE 1,438 full profile, cjk_tables regenerated); static getconf no longer links the CJK codecs (text 1,486,604 -> 579,796 B fast profile; 549,396 full); 3-library +1 fault attributed to libc RW/bss layout, not fixed",
+ "branch": "task/iconv-cjk-startup-3", "head": null,
+ "gate": {"affected": "FULL escalated (xtask changed): the train's; cargo xtask test in iconv-cjk-startup-3-st; iconv_reloc_products 2 passed; plants 2 CAUGHT", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["3-library program +1 fault vs 21.5 (66 vs 65, Skylake-SP): anon page, __niji_libc_early_init and process::secure write to two pages where 21.5 used one (libc RW/bss layout); recommend a start-up data layout story", "Zen 1 class not measured (no role there in this run)"],
+ "refused": [],
+ "impact": [
+  {"kind": "size", "what": "static getconf text (fast profile, same link, merged head before/after)", "before": 1486604, "after": 579796, "unit": "bytes", "measured": true},
+  {"kind": "size", "what": "static getconf text, full profile (21.5: 903,524, -2's figure)", "before": null, "after": 549396, "unit": "bytes", "measured": true},
+  {"kind": "perf", "what": "empty main start, Skylake-SP, full profile vs 21.5 (mostly from the merge of next)", "before": 741245, "after": 722754, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "empty main start faults vs 21.6 (21.5: 51)", "before": 56, "after": 51, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "3-library start faults vs 21.6 (21.5: 65)", "before": 71, "after": 66, "unit": "faults", "measured": true},
+  {"kind": "coverage", "what": "test wide_stderr_links_no_cjk_codec; plants 2", "before": null, "after": 2, "unit": "plants", "measured": true}
+ ],
+ "improvement": "ssh-started jobs must be the bare detached command: chaining `test -s x &&` before setsid hung the local ssh (the brief says so; a jobrun --check-file option would remove the temptation)",
+ "next_step": "start-up data layout for the 3-library anon page; Zen 1 counts on this head",
+ "report_file": "handoff/ICONV-CJK-STARTUP.md",
+ "jobs": ["mei:iconv-cjk-startup-3-st", "mei:iconv-cjk-startup-3-plants", "mei:iconv-cjk-startup-3-counts", "mei:iconv-cjk-startup-3-v2"]}
