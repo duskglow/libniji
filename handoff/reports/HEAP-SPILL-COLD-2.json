@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "Migration case of ruling #7441 done: its cost measured on both CPU classes (a second node's segment, +4352 KiB at worst) and cut under RLIMIT_AS (worst need 45648 -> 43600 KiB; move before realloc 45648 -> 41296), with its own test; the single-node pin dropped (HEAP-TEST-NODE-PIN owns it; merge owed once it lands); the spill not built",
  "branch": "task/heap-spill-cold-2",
- "head": "5a662f3e6",
+ "head": "see hand-back (handoff commit after 7bd18516b)",
  "gate": {
   "affected": "final head 5a662f3e6 (heap-spill-cold-2-gate2): 16 suites ok, 2058 passed / 0 failed, 9 conformance passed; clippy and static clean",
   "peak": "11G"
@@ -25,7 +25,9 @@
   }
  ],
  "informational": [
-  "Migration cost without a limit unchanged by design (VmSize only, no touched page): +4352 KiB when a node with no segment starts allocating while the first node's slabs sit idle"
+  "Migration cost without a limit unchanged by design (VmSize only, no touched page): +4352 KiB when a node with no segment starts allocating while the first node's slabs sit idle",
+  "SUPERSEDED (ran on e69555d58, before the pin was dropped; both green): mei:heap-spill-cold-2-plants (5 CAUGHT, 0 WARN), mei:heap-spill-cold-2-startup (cargo xtask test 7039+4866 passed, hot_text_products 33 passed), mei:heap-spill-cold-2-gate (2058 passed). Measurements: mei:heap-spill-cold-2-mig-sky, -so2, -basebins; keke:heap-spill-cold-2-mig-zen, -mig-zen-head",
+  "In a slot whose cpuset spans one node the migration test skips with why (cargo xtask test passed it in 0.03 s); the plants run had both nodes and caught the removed check through it"
  ],
  "refused": [],
  "impact": [
@@ -67,12 +69,7 @@
  "report_file": "handoff/HEAP-SPILL-COLD-2.md",
  "jobs": [
   "mei:heap-spill-cold-2-gate2",
-  "mei:heap-spill-cold-2-plants",
-  "mei:heap-spill-cold-2-startup",
-  "mei:heap-spill-cold-2-so2",
-  "mei:heap-spill-cold-2-mig-sky",
-  "keke:heap-spill-cold-2-mig-zen",
-  "keke:heap-spill-cold-2-mig-zen-head",
-  "mei:heap-spill-cold-2-basebins"
+  "mei:heap-spill-cold-2-plants2",
+  "mei:heap-spill-cold-2-startup2"
  ]
 }
