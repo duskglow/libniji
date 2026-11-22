@@ -106,24 +106,15 @@ void niji_caller_free(void *p) { free(p); }
 
 extern const char __ehdr_start[] __attribute__((weak, visibility("hidden")));
 
-/* Whether the four symbols above resolve outside this object's image (ruling #7583): a program,
- * an LD_PRELOAD library or a tool replaced the family, and the library's own allocations then go
- * through it as well (`caller_alloc::decide_route`). The addresses are the ones the calls above
- * use (each through this object's GOT in libc.so.6). In a static program the image is the whole
- * program, so this is 0 there; a non-PIE program's canonical PLT stub for `malloc` counts as
- * outside, which is harmless (its calls reach this library's own family). */
+/* The addresses the four calls above reach (each through this object's GOT in libc.so.6) and the
+ * end of this object's image (`_end`; its start is `niji_link_ehdr`): `caller_alloc::decide_route`
+ * asks whether the family resolves outside the image (ruling #7583). */
 extern const char niji_image_end[] __asm__("_end") __attribute__((weak, visibility("hidden")));
-int niji_link_family_replaced(void)
-{
-    uintptr_t lo = (uintptr_t)__ehdr_start, hi = (uintptr_t)niji_image_end;
-    if (lo == 0 || hi <= lo)
-        return 0;
-    uintptr_t a[4] = {(uintptr_t)&malloc, (uintptr_t)&calloc, (uintptr_t)&realloc, (uintptr_t)&free};
-    for (int i = 0; i < 4; i++)
-        if (a[i] < lo || a[i] >= hi)
-            return 1;
-    return 0;
-}
+uintptr_t niji_link_image_end(void) { return (uintptr_t)niji_image_end; }
+uintptr_t niji_link_malloc_addr(void) { return (uintptr_t)&malloc; }
+uintptr_t niji_link_calloc_addr(void) { return (uintptr_t)&calloc; }
+uintptr_t niji_link_realloc_addr(void) { return (uintptr_t)&realloc; }
+uintptr_t niji_link_free_addr(void) { return (uintptr_t)&free; }
 
 extern const char niji_eh_frame_start[] __attribute__((weak, visibility("hidden")));
 static const uint32_t niji_eh_frame_end __attribute__((section(".eh_frame.niji_end"), aligned(4))) = 0;

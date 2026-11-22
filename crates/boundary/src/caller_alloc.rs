@@ -35,7 +35,25 @@ unsafe extern "C" {
     #[link_name = "niji_caller_free"]
     safe fn c_free(p: *mut c_void);
     pub(crate) safe fn __errno_location() -> *mut i32;
-    safe fn niji_link_family_replaced() -> core::ffi::c_int;
+    safe fn niji_link_image_end() -> usize;
+    safe fn niji_link_malloc_addr() -> usize;
+    safe fn niji_link_calloc_addr() -> usize;
+    safe fn niji_link_realloc_addr() -> usize;
+    safe fn niji_link_free_addr() -> usize;
+}
+
+/// Whether `malloc`, `calloc`, `realloc` or `free`, as this object's calls reach them, lies outside
+/// the library's image (from `__ehdr_start` to `_end`): a program, an `LD_PRELOAD` library or a
+/// tool replaced the family. In a static program the image is the whole program, so the answer
+/// there is no; a non-PIE program's canonical PLT stub for `malloc` counts as outside, which is
+/// harmless (its calls reach this library's own family).
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+fn family_replaced() -> bool {
+    let (lo, hi) = (crate::ffi::niji_link_ehdr(), niji_link_image_end());
+    if lo == 0 || hi <= lo {
+        return false;
+    }
+    [niji_link_malloc_addr(), niji_link_calloc_addr(), niji_link_realloc_addr(), niji_link_free_addr()].iter().any(|&a| a < lo || a >= hi)
 }
 
 // ------------------------------------------------------------------------------ internal routing
@@ -68,7 +86,7 @@ pub(crate) fn route() -> u8 {
 #[inline(never)]
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub(crate) fn decide_route() {
-    if niji_link_family_replaced() == 0 {
+    if !family_replaced() {
         return;
     }
     let mode = if crate::heap::HEAP.untouched() { ROUTED } else { ROUTED_CHECKED };
