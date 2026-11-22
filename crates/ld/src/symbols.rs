@@ -297,10 +297,13 @@ impl<'a> Object<'a> {
         Self::build(dynm, style, &t, &dynm.hashes(&t))
     }
 
-    /// [`Object::with_style`] from the object's tags `t` and hash tables `h`. Inline for the trace's
-    /// names (see `Dynamic::tags`).
-    #[inline]
-    fn build(dynm: Dynamic<'a>, style: HashStyle, t: &Tags, h: &Hashes<'a>) -> Result<Self, LookupError> {
+    /// [`Object::with_style`] from the object's tags `t` and hash tables `h` (public for the trace's
+    /// names: see [`Dynamic::tags`]).
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::with_style`].
+    pub fn build(dynm: Dynamic<'a>, style: HashStyle, t: &Tags, h: &Hashes<'a>) -> Result<Self, LookupError> {
         // Counted once for both tables (the count reads every hash bucket; DYN-START-PARITY).
         let count = h.symbol_count();
         let symtab = dynm.symtab_with(t, h, count)?.ok_or(LookupError::NoSymtab)?;

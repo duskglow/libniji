@@ -1213,7 +1213,7 @@ const VIEW_TAGS: [u64; 9] = [dt::HASH, dt::GNU_HASH, dt::SYMTAB, dt::SYMENT, dt:
 /// answers are [`Dynamic::once`]'s: the value of the only entry with the tag, `None` without one,
 /// [`ElfError::DuplicateDynamic`] when two entries have it.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Tags {
+pub struct Tags {
     val: [u64; VIEW_TAGS.len()],
     /// Bit `i`: an entry has tag `VIEW_TAGS[i]`.
     seen: u16,
@@ -1223,7 +1223,8 @@ pub(crate) struct Tags {
 
 impl Tags {
     /// The tags of `d`.
-    pub(crate) fn scan(d: &Dynamic<'_>) -> Tags {
+    #[must_use]
+    pub fn scan(d: &Dynamic<'_>) -> Tags {
         let mut t = Tags { val: [0; VIEW_TAGS.len()], seen: 0, dup: 0 };
         for e in d.entries() {
             let Some(i) = VIEW_TAGS.iter().position(|&v| v == e.tag) else { continue };
@@ -1252,7 +1253,7 @@ impl Tags {
 /// An object's hash tables, each read once: [`Dynamic::sysv_hash`] and [`Dynamic::gnu_hash`] as
 /// they answered (errors included), for the requests that read them again.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Hashes<'a> {
+pub struct Hashes<'a> {
     pub(crate) sysv: Result<Option<SysvHash<'a>>, ElfError>,
     pub(crate) gnu: Result<Option<GnuHash<'a>>, ElfError>,
 }
@@ -1278,18 +1279,18 @@ impl<'a> Dynamic<'a> {
         Ok(first)
     }
 
-    /// The tags a lookup view reads, in one pass ([`Tags`]). Inline, as [`Dynamic::hashes`]: a
-    /// crate-local function called from another code unit is emitted with a `.llvm.<hash>` suffix that
-    /// changes with unrelated code (the installation prefix), and the interpreter's hot-text trace
-    /// names must not.
-    #[inline]
-    pub(crate) fn tags(&self) -> Tags {
+    /// The tags a lookup view reads, in one pass ([`Tags`]). Public, as [`Dynamic::hashes`],
+    /// [`Tags::scan`] and `symbols::Object::build`: a crate-local function called from another code
+    /// unit is emitted with a `.llvm.<hash>` suffix that changes with unrelated code (the installation
+    /// prefix), and the names in the interpreter's hot-text trace must not.
+    #[must_use]
+    pub fn tags(&self) -> Tags {
         Tags::scan(self)
     }
 
     /// Both hash tables, each read once, from the tags `t`.
-    #[inline]
-    pub(crate) fn hashes(&self, t: &Tags) -> Hashes<'a> {
+    #[must_use]
+    pub fn hashes(&self, t: &Tags) -> Hashes<'a> {
         Hashes { sysv: self.sysv_hash_t(t), gnu: self.gnu_hash_t(t) }
     }
 
