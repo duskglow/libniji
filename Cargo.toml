@@ -44,6 +44,7 @@ members = [
     "crates/thread-db",
     "crates/native",
     "crates/mathtools",
+    "crates/locale",
     "xtask",
 ]
 # Product crate: a separate build (needs the phase-4 entry point, allocator and panic handler).
@@ -64,6 +65,7 @@ default-members = [
     "crates/thread-db",
     "crates/native",
     "crates/mathtools",
+    "crates/locale",
     "xtask",
 ]
 
@@ -88,6 +90,7 @@ niji-legacy = { path = "crates/legacy" }
 niji-math = { path = "crates/math" }
 niji-boundary = { path = "crates/boundary" }
 niji-mathtools = { path = "crates/mathtools" }
+niji-locale = { path = "crates/locale" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"             # only crates/boundary overrides this (to deny + audited allows)
