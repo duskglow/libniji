@@ -47,14 +47,27 @@ the locale codec dispatch (`Codec::decode/encode` match `Codec::Cjk`), so `--gc-
 ## Jobs (keke)
 
 On the final code (a5b0f172f): chk3 (clippy -D warnings, static, iconv_reloc_products on the full-profile
-products) rc 0; crates-2 (static, `cargo test -p niji`, `cargo test -p xtask`); plants-3 (the 3 plants).
+products) rc 0; plants-3 3 CAUGHT, 0 WARN; **crates-2 RED (rc 101)**: hot_text_products
+`init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace` (`xtask ldso-trace
+--prefix /usr/lib/niji`: true trace 77 names vs the products' 100, first difference at line 72,
+`niji_boundary::ld::io::fail_with`). NOT explained. The same test passed in crates (rc 0) on f4b9f1482, with the same
+role products; f4b9f1482..a5b0f172f changes only iconv_reloc_products.rs, the plants file, handoff/ and the D-6.19
+record (no ld.so or loader code). No time left in the run to rerun or diagnose it. precheck on a5b0f172f: red on
+crates-2 only (chk3 counts: prose-only difference). The role holds a5b0f172f; the final head adds only prose
+(sync BUSY while crates-2 was queued).
 SUPERSEDED: chk1 (f4b9f1482: full-profile so, hot_text_products 33 ok, iconv lib 17 ok; no tested-content record),
 crates (rc 0 on f4b9f1482, before the test edit), plants (baseline red, fixed by 6fce3b3e6), chk2 (stopped:
 mis-chained), plants-2 (desc-ptr, span-cut CAUGHT; name-off SURVIVED under a wrong cmd, fixed by a5b0f172f).
 `affected` escalates to FULL (xtask changed): FULL is the train's; `cargo xtask test` (full gate) not run for that
 reason. plants-3 and crates-2 waited ~30 min in keke's slot queue (all 24 cores busy).
 
-## Next step (follow-up stories)
+## Next step
+
+0. On keke n2 (sync the final head first): `cargo test -p niji --test hot_text_products` under jobrun; red again:
+   diagnose the prefixed ld.so trace difference (`target/product/ld-prefix/work/lists/ldso-trace.log`); green:
+   rerun the crates job (static, `cargo test -p niji`, `cargo test -p xtask`) and precheck, then hand back.
+
+Follow-up stories:
 
 1. Faults: a per-page fault trace of an empty main (`perf record -e page-faults -d`), 21.5 vs head, both classes.
 2. getconf: confirm with a link map (`-Wl,-Map`) why the static getconf keeps cjk.rs; make CJK dispatch reachable
