@@ -44,6 +44,16 @@ validate an object's tables once at `Object::new` and index inside the ranges, v
 per-object table; a (definer, index) answer for requirements computed in check_versions, which already pairs
 each requirement with its provider's definition). Design B (per-start global name index) stays rejected.
 
+## Final jobs (mei, code head 538b0970d)
+* ld-lookup-cost-gate: direct tier, 9 suites, 849 passed, 0 failed, peak 2.9G.
+* ld-lookup-cost-plants-2: 7 plants, 7 CAUGHT, no WARN (results in handoff/LD-LOOKUP-COST-plants.txt).
+* ld-lookup-cost-hot: fast and release hot_text_products, 33 passed each (704,934 / 665,711).
+* ld-lookup-cost-xtest: cargo xtask test, 7017 passed, **1 timed out**: dns_products resolv_equals_the_reference
+  (1800 s; 0 s CPU, test thread in poll on the child's pipes, the timeout wrapper exited and unreaped, no claude
+  process holding the pipe). Rerun alone (ld-lookup-cost-dns): passed in 98 s (1 passed, 0 failed): the timeout is intermittent, not chased (outside this change)
+* SUPERSEDED: ld-lookup-cost-xtest (one intermittent timeout, its test rerun green as ld-lookup-cost-dns), ld-lookup-cost-s4 (rc=1 by design: found the bounds to tighten), plants-1 (older head), hot-1 (stopped,
+  stale code).
+
 ## Kit (mei `~/work/ld-lookup-cost/`; copies in the scratch dir)
 `count.sh PRODUCTS SRC [RUNS] [pt]`, `build_count.sh TAG`, `step.sh TAG` (ld tests + build + counts + PT),
 `pt2.sh TAG [N]` (PT of n0 and n200, per-symbol difference = marginal), `pt3.sh TAG SYM...` (hottest instructions,

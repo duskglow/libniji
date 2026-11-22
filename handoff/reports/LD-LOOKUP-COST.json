@@ -1,24 +1,81 @@
-{"task": "LD-LOOKUP-COST", "model": "opus", "tokens": null,
+{
+ "task": "LD-LOOKUP-COST",
+ "model": "opus",
+ "tokens": null,
  "result": "symbol lookup 1,947 -> 1,507 instructions per lookup (glibc 674), empty dynamic main -58,755 (763,388 -> 704,633), /bin/true -73,103; brief's bound of 600 not reached; next step is structural",
- "branch": "task/ld-lookup-cost", "head": "538b0970d",
- "gate": {"affected": "849 passed / 0 failed (9 suites)", "peak": "2.9G"},
+ "branch": "task/ld-lookup-cost",
+ "head": "538b0970d",
+ "gate": {
+  "affected": "849 passed / 0 failed (9 suites)",
+  "peak": "2.9G"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "Zen 1 host not measured (no role there this run): DYN_START_INSTR's Zen 1 row takes the Skylake-SP bounds as earlier rows did (levels within 0.02%)",
-   "/bin/true -45k after LIBC-SELF-BIND: not measurable (LIBC-SELF-BIND not on next); -73k measured without it",
-   "layout-bins: no niji_ld section in any start-up bin, so the change cannot grow one; no base layout-bins.tsv on the host to diff against"
+  "Zen 1 host not measured (no role there this run): DYN_START_INSTR's Zen 1 row takes the Skylake-SP bounds as earlier rows did (levels within 0.02%)",
+  "/bin/true -45k after LIBC-SELF-BIND: not measurable (LIBC-SELF-BIND not on next); -73k measured without it",
+  "layout-bins: no niji_ld section in any start-up bin, so the change cannot grow one; no base layout-bins.tsv on the host to diff against",
+  "cargo xtask test (ld-lookup-cost-xtest): 7017 passed, 1 timed out: dns_products resolv_equals_the_reference at 1800 s. Evidence it is not a loader hang: the test process had 0 s CPU, its test thread sat in poll on the child's pipes, the program's timeout wrapper had exited and was left unreaped for 20+ min, and no process of the claude user held the pipe. Rerun alone on the same head (ld-lookup-cost-dns): passed in 98 s (1 passed, 0 failed): the timeout is intermittent, not chased (outside this change)",
+  "ld-lookup-cost-s4 (counts + the first hot_text run) ended rc=1 by design: it is the run that found DYN_START_INSTR more than 10% under; its counts are on the same products as the final head (the later commit changed only the test bound and the record)"
  ],
  "refused": [],
  "impact": [
-   {"kind": "perf", "what": "dynamic empty main, user instructions exec to exit (Skylake-SP, fast, median of 21)", "before": 763388, "after": 704633, "unit": "instr/start", "measured": true},
-   {"kind": "perf", "what": "/bin/true under the libniji loader (Skylake-SP, fast)", "before": 841599, "after": 768496, "unit": "instr/start", "measured": true},
-   {"kind": "perf", "what": "marginal cost of one symbolic lookup against libc (200-import probe, Skylake-SP, fast)", "before": 1947, "after": 1507, "unit": "instr/lookup", "measured": true},
-   {"kind": "perf", "what": "hot_text_products dynamic empty main, release (Skylake-SP)", "before": 743209, "after": 665711, "unit": "instr/start", "measured": true},
-   {"kind": "coverage", "what": "tests added (lookup fast paths vs plain, version check past 64 definitions) and plants (7, all caught)", "before": null, "after": 9, "unit": "tests+plants", "measured": true},
-   {"kind": "cost", "what": "VersionMemo stack 384 -> 1,024 bytes and a 64-entry name array in check_versions (1 KiB); no fault bound moved (hot_text_products otherwise green)", "before": 384, "after": 1024, "unit": "bytes of stack", "measured": false}
+  {
+   "kind": "perf",
+   "what": "dynamic empty main, user instructions exec to exit (Skylake-SP, fast, median of 21)",
+   "before": 763388,
+   "after": 704633,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "/bin/true under the libniji loader (Skylake-SP, fast)",
+   "before": 841599,
+   "after": 768496,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "marginal cost of one symbolic lookup against libc (200-import probe, Skylake-SP, fast)",
+   "before": 1947,
+   "after": 1507,
+   "unit": "instr/lookup",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "hot_text_products dynamic empty main, release (Skylake-SP)",
+   "before": 743209,
+   "after": 665711,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (lookup fast paths vs plain, version check past 64 definitions) and plants (7, all caught)",
+   "before": null,
+   "after": 9,
+   "unit": "tests+plants",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "VersionMemo stack 384 -> 1,024 bytes and a 64-entry name array in check_versions (1 KiB); no fault bound moved (hot_text_products otherwise green)",
+   "before": 384,
+   "after": 1024,
+   "unit": "bytes of stack",
+   "measured": false
+  }
  ],
  "improvement": "Diffing Intel PT of the 0-import and 200-import probes (pt2.sh) gave the marginal cost per function at once; profiling n200 alone mixed in the fixed start-up cost and hid that version walks were a third of a lookup",
  "next_step": "LD-LOOKUP-COST-2: decode a relocation and its symbol once, validate tables once at Object::new, versions by index (a requirement's provider index from check_versions); count on the Zen 1 host",
  "report_file": "handoff/LD-LOOKUP-COST.md",
- "jobs": ["mei:ld-lookup-cost-gate", "mei:ld-lookup-cost-plants-2", "mei:ld-lookup-cost-xtest", "mei:ld-lookup-cost-hot", "mei:ld-lookup-cost-s4"]}
+ "jobs": [
+  "mei:ld-lookup-cost-gate",
+  "mei:ld-lookup-cost-plants-2",
+  "mei:ld-lookup-cost-hot",
+  "mei:ld-lookup-cost-dns"
+ ]
+}
