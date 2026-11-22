@@ -491,9 +491,14 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// bounds are those levels plus 2%. Zen 1 host not measured in this test: its fast and release levels
 /// were within 0.02% of the Skylake-SP host's (DYN-START-SPEED-2, COMPAT19-LDSO-COST), so it takes the
 /// same bounds.
+/// LD-PHDR-ONCE (D-27.81, program headers read from the once-checked table at fixed offsets): this test
+/// on the Zen 1 host, fast 634,044 and release 602,883 (both more than 10% under the old bounds, so they
+/// went red); the bounds are those levels plus 2%. Skylake-SP host not measured in this test: its fast
+/// and release levels were within 0.02% of the Zen 1 host's (DYN-START-SPEED-2, COMPAT19-LDSO-COST), so
+/// it takes the same bounds.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [719_100, 679_100]),
-    ("AMD EPYC 7551 32-Core Processor", [719_100, 679_100]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [646_800, 615_000]),
+    ("AMD EPYC 7551 32-Core Processor", [646_800, 615_000]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
