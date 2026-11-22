@@ -493,6 +493,37 @@ pub(crate) fn route_internal() {
     RESERVE_LAST.store(usize::MAX, Relaxed);
 }
 
+/// [`FAST_ALIGN_END`] as a plain read, not an atomic load, so the fast path's compare takes it
+/// as a memory operand as it took the constant bound (owner ruling #7708).
+#[inline(always)]
+fn fast_align_end() -> usize {
+    // UNSAFE(process-flag): a write-once routing bound, read without an atomic (ruling #7708).
+    #[allow(unsafe_code)]
+    // UNSAFE(process-flag) SAFETY: `route_internal` is the only writer of `FAST_ALIGN_END`; it
+    // runs at most once, in `early_init` on the initial thread, before the runtime or the program
+    // creates any other thread; every later thread starts after that store (thread creation
+    // orders it) and a fork child copies the settled word, so no store runs concurrently with
+    // this read (no data race). The pointer is a static's, always valid and aligned for a `usize`.
+    unsafe {
+        *FAST_ALIGN_END.as_ptr()
+    }
+}
+
+/// [`RESERVE_LAST`] as a plain read (owner ruling #7708), as [`fast_align_end`].
+#[inline(always)]
+fn reserve_last() -> usize {
+    // UNSAFE(process-flag): a write-once routing bound, read without an atomic (ruling #7708).
+    #[allow(unsafe_code)]
+    // UNSAFE(process-flag) SAFETY: `route_internal` is the only writer of `RESERVE_LAST`; it runs
+    // at most once, in `early_init` on the initial thread, before the runtime or the program
+    // creates any other thread; every later thread starts after that store (thread creation
+    // orders it) and a fork child copies the settled word, so no store runs concurrently with
+    // this read (no data race). The pointer is a static's, always valid and aligned for a `usize`.
+    unsafe {
+        *RESERVE_LAST.as_ptr()
+    }
+}
+
 /// A block for the library's own use from the replacing allocator: `malloc` or, zeroed,
 /// `calloc` through the symbols. 0 when the replacement has none: the library's fallible
 /// collections then report `ENOMEM`, so a replacement that fails a call makes the call that
@@ -509,7 +540,7 @@ fn routed_alloc(size: usize, zero: bool) -> usize {
 /// of the reserve, and for every block once routed.
 #[inline(always)]
 fn reserve_or_routed(addr: usize) -> bool {
-    addr.wrapping_sub(reserve_base()) <= RESERVE_LAST.load(Relaxed)
+    addr.wrapping_sub(reserve_base()) <= reserve_last()
 }
 
 /// [`rust_dealloc`] for a block [`reserve_or_routed`] names: the reserve's own block back to the
@@ -527,7 +558,7 @@ fn release_cold(addr: usize, size: usize) {
 /// reserve; 0 without memory. Once routed, a block at most [`ALIGN`]-aligned comes from the
 /// replacement ([`routed_alloc`]).
 pub fn rust_alloc(size: usize, align: usize) -> usize {
-    match HEAP.alloc_below(&CSys, &KernelPages, size, align, FAST_ALIGN_END.load(Relaxed)) {
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, fast_align_end()) {
         Ok(b) => b.map_or_else(|| reserve_alloc(size, align), |b| b.addr),
         Err(Routed) => routed_alloc(size, false),
     }
@@ -536,7 +567,7 @@ pub fn rust_alloc(size: usize, align: usize) -> usize {
 /// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
-    match HEAP.alloc_below(&CSys, &KernelPages, size, align, FAST_ALIGN_END.load(Relaxed)) {
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, fast_align_end()) {
         Ok(Some(b)) => {
             if !b.zeroed {
                 zero_fresh(b.addr, size);
