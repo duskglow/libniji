@@ -168,8 +168,8 @@ extern void *dlvsym (void *, const char *, const char *) __NIJI_NOTHROW;
 
 /* dlsym(3): the pseudo-handles. RTLD_DEFAULT searches the global scope; RTLD_NEXT the objects after the caller. */
 #if 1
-# define RTLD_DEFAULT ((void *) 0)
-# define RTLD_NEXT ((void *) -1l)
+# define RTLD_DEFAULT ((void *) 0L)
+# define RTLD_NEXT ((void *) (-1L))
 #endif
 
 /* dl_find_object(3): the segment type that carries the exception-handling frame table (PT_GNU_EH_FRAME). */
