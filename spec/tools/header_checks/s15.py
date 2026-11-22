@@ -4,7 +4,7 @@ Both headers are `p1` 0 in headers/slices/s15.tsv: the table P1 of spec/tools/he
 they take from a header of a slice that is not generated yet (`fd_set`, `sigset_t` of <sys/select.h>, `f_owner_ex` and
 `O_CLOEXEC` of <fcntl.h>), and `MS_NOUSER`, which the kernel's linux/mount.h defines as `(1<<31)`, an expression that
 is not an integer constant expression for P1's array bound. This module runs the same P1 over the two headers without
-those names (DEFERRED); once slices 7 and 14 land the entries are removed and the rows become `p1` 1.
+those names (DEFERRED). Slices 7 and 14 have landed (SL-HEADERS-S07-TAIL): only `MS_NOUSER` is still left out.
 
 `problems` (no spec clause; HEADERS-WINSIZE-TWICE): a template of this slice includes only a header libniji generates
 (a template `headers/<name>.in`), a kernel UAPI header (`linux/`, `asm/`, `asm-generic/`) or one of the compiler's
@@ -21,7 +21,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check  # noqa: E402
 
-DEFERRED = {("sys/mount.h", "f_owner_ex"), ("sys/mount.h", "OPEN_TREE_CLOEXEC"), ("sys/mount.h", "MS_NOUSER")}
+DEFERRED = {("sys/mount.h", "MS_NOUSER")}
 HEADERS = ("sys/mount.h", "sys/timex.h")
 
 
