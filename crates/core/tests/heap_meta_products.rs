@@ -221,9 +221,10 @@ fn cpulist(s: &str) -> Vec<usize> {
 /// programs it spawns inherit a mask the scheduler cannot move off that node; restores the mask
 /// afterwards. With one node (or allowed CPUs on only one) the mask is left as it is.
 fn on_one_node<T>(run: impl FnOnce() -> T) -> T {
-    let mut cur = [0u8; 1024];
-    let len = CSys.sched_getaffinity(0, &mut cur).expect("sched_getaffinity");
-    let allowed = |c: usize| c / 8 < len && cur[c / 8] & (1 << (c % 8)) != 0;
+    let mut buf = [0u8; 1024];
+    let len = CSys.sched_getaffinity(0, &mut buf).expect("sched_getaffinity");
+    let cur = buf.get(..len).expect("sched_getaffinity size").to_vec();
+    let allowed = |c: usize| cur.get(c / 8).is_some_and(|b| b & (1 << (c % 8)) != 0);
     let mut nodes: Vec<(usize, Vec<usize>)> = std::fs::read_dir("/sys/devices/system/node")
         .map(|d| {
             d.filter_map(Result::ok)
@@ -240,15 +241,17 @@ fn on_one_node<T>(run: impl FnOnce() -> T) -> T {
         return run();
     }
     nodes.sort_by_key(|(n, cpus)| (std::cmp::Reverse(cpus.len()), *n));
-    let (node, cpus) = &nodes[0];
-    let mut mask = [0u8; 1024];
+    let (node, cpus) = nodes.first().expect("two nodes");
+    let mut mask = vec![0u8; cur.len()];
     for &c in cpus {
-        mask[c / 8] |= 1 << (c % 8);
+        if let Some(b) = mask.get_mut(c / 8) {
+            *b |= 1 << (c % 8);
+        }
     }
-    CSys.sched_setaffinity(0, &mask[..len]).expect("sched_setaffinity to one node");
+    CSys.sched_setaffinity(0, &mask).expect("sched_setaffinity to one node");
     eprintln!("pinned to node {node} ({} CPUs) of {} nodes", cpus.len(), nodes.len());
     let out = run();
-    CSys.sched_setaffinity(0, &cur[..len]).expect("sched_setaffinity restore");
+    CSys.sched_setaffinity(0, &cur).expect("sched_setaffinity restore");
     out
 }
 
