@@ -83,6 +83,28 @@ fn the_shipped_ldconfig_passes_the_transcripts() {
     assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
 }
 
+#[test]
+fn the_shipped_localedef_passes_the_transcripts() {
+    // Trace: s31_8_i_1, s31_8_f_1, s31_1_c_2. The freestanding program `cargo xtask so` links (D-31.19), run over
+    // the committed localedef transcripts (options, messages, statuses, the directory form's failures).
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root");
+    let target = std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), std::path::PathBuf::from);
+    let program = target.join("niji/localedef");
+    if !program.exists() {
+        eprintln!("SKIP: {} not built (run cargo xtask so)", program.display());
+        return;
+    }
+    let niji = format!("localedef={}", program.display());
+    let (code, text) = check(&["validation/transcripts/localedef", "--niji", &niji]);
+    println!("{text}");
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
+    for line in text.lines().filter(|l| l.starts_with("SKIPPED")) {
+        // Only a host without unprivileged user namespaces may skip, and the line says why.
+        assert!(line.contains("needs user and mount namespaces: "), "{line}");
+    }
+}
+
 /// The freestanding `ldconfig` (D-31.2), LDCONFIG-LIMITS (owner ruling: no artificial caps; running out of memory is
 /// a clean error): 5002 arguments, 4999 directories (old cap 4096, refused with `E2BIG`'s text) are all read, and a configuration that
 /// does not fit the address space an `RLIMIT_AS` allows ends in `out of memory`, exit 1, never a crash.
