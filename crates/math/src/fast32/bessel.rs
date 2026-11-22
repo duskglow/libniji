@@ -806,8 +806,8 @@ mod tests {
     #[test]
     fn jnf_ynf_low_orders_take_the_large_band() {
         use crate::special::{jn, jn_accurate, yn, yn_accurate};
-        // Other tests may count the same names at once: that can only raise a count, so the
-        // check never fails spuriously (and a plant runs this test alone).
+        // The counts are this thread's (`stats::counts` in the unit tests), so another test's
+        // calls of the same names cannot take the band for this one.
         let band = |name: &str, x: f32, call: &dyn Fn() -> (f32, Status)| {
             let before = stats::counts(name).fast;
             let r = call();

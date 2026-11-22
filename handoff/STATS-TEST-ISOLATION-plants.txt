@@ -1,0 +1,9 @@
+# STATS-TEST-ISOLATION plants: cargo xtask plants handoff/STATS-TEST-ISOLATION-plants.txt --dir <RAM dir>
+# The unit tests' rate windows read this thread's fast-path counts (stats::counts under cfg(test)).
+# counts-global: the window reads the process-wide table again (the train 911 state).
+# record-not-mine: calls stop reaching this thread's table (every window would read zero).
+counts-global | crates/math/src/stats.rs | lit:mine::counts(key(func)) ==> global(key(func)) | cargo test -p niji-math --features fastpath-stats --lib -- fast32::tests::rate_counts_ignore_other_threads stats:: | msg:another thread's erff calls counted in this thread's rate window
+record-not-mine | crates/math/src/stats.rs | lit:mine::record(k, fast); ==> let _ = (k, fast); | cargo test -p niji-math --features fastpath-stats --lib -- fast32::tests::rate_counts_ignore_other_threads stats:: | msg:the other thread's erff calls|counts_per_function
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# counts-global: CAUGHT, caught by niji_math fast32::tests::rate_counts_ignore_other_threads
+# record-not-mine: CAUGHT, caught by niji_math stats::tests::counts_per_function
