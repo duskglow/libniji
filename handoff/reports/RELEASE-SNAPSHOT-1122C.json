@@ -1,0 +1,142 @@
+{
+ "task": "RELEASE-SNAPSHOT-1122C",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 2a76723f2 (snapshot-2026-11-22.3, serial 3); every check equals 22.2's but the new ones; LD-PHDR-ONCE-2 -18.1% to -23.2% user instructions per dynamic start; #14 localedef verified from user-supplied sources; three localedef findings L1-L3 (ruling asked)",
+ "branch": "task/release-snapshot-1122c",
+ "head": null,
+ "gate": {
+  "affected": "GATE bad=0 (clippy all-features, xtask clippy, static, records, direct tier vs origin/next)",
+  "peak": "2.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "L1: localedef writes only the categories the source defines; setlocale(LC_ALL) then fails on libniji (stock writes all twelve)",
+   "recommendation": "not blocking for the snapshot; story to write the omitted categories with defaults"
+  },
+  {
+   "item": "L2: localedef refuses POSIX symbolic names in charmaps and sources (only <Uxxxx> resolved)",
+   "recommendation": "not blocking; story to resolve charmap symbolic names (XBD 7.3)"
+  },
+  {
+   "item": "L3: localedef(1)'s current-directory and I18NPATH search is absent; not in the spec",
+   "recommendation": "add the spec clause, implement with L1/L2 before LOCALE-SOURCES-GEN"
+  }
+ ],
+ "informational": [
+  "P2: lint warnings 48 -> 50, both on usr/bin/localedef (no-manual-page, shared-library-lacks-prerequisites)",
+  "K3: kernel instructions +17k..+20k on empty main / clock_gettime both classes, inside the ~50k band; syscalls and faults equal",
+  "#21 probe and find numbers equal 22.2 within one 16 KiB bisect step (the probe makes no node change); heap_meta_products node-change test 6 passed at its bounds",
+  "M: mint unchanged (40 internal rows differ from stock, 0 changed)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "dynamic start, empty main, user instructions (Skylake-SP; Zen 1 the same delta)",
+   "before": 320731,
+   "after": 260857,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic start, 3 libraries, user instructions (Skylake-SP)",
+   "before": 483296,
+   "after": 371146,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic start, clock_gettime, user instructions (Skylake-SP)",
+   "before": 335064,
+   "after": 274330,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "new snapshot check y14l (#14 localedef in a pure-libniji root, 12 judged lines) and heapnode (#21 node change)",
+   "before": 0,
+   "after": 2,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "snapshot-2026-11-22.3 staged for announcement",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "starting a detached runner as the tail of an && list over ssh keeps ssh attached (1122B's K2 again): start the runner as its own command (cd X || exit; setsid nohup ... &) so the list is not backgrounded",
+ "next_step": "coordinator announces snapshot-2026-11-22.3 and rules on L1-L3",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1122C.md",
+ "jobs": [
+  "release-snapshot-1122c-smoke-mei-1",
+  "release-snapshot-1122c-gate-1",
+  "release-snapshot-1122c-heapnode-1",
+  "release-snapshot-1122c-debs-1",
+  "release-snapshot-1122c-plants-1",
+  "release-snapshot-1122c-startup-mei-1",
+  "release-snapshot-1122c-startup215-mei-1",
+  "release-snapshot-1122c-kstart-mei-1",
+  "release-snapshot-1122c-rstart-mei-1",
+  "release-snapshot-1122c-sig32-1",
+  "release-snapshot-1122c-y20-1",
+  "release-snapshot-1122c-dpo600-1",
+  "release-snapshot-1122c-lint-1",
+  "release-snapshot-1122c-many-1",
+  "release-snapshot-1122c-dyn22-1",
+  "release-snapshot-1122c-y10-1",
+  "release-snapshot-1122c-y19-1",
+  "release-snapshot-1122c-y26-1",
+  "release-snapshot-1122c-y26t-1",
+  "release-snapshot-1122c-y23-1",
+  "release-snapshot-1122c-c19-1",
+  "release-snapshot-1122c-y25-1",
+  "release-snapshot-1122c-y24-1",
+  "release-snapshot-1122c-y28-1",
+  "release-snapshot-1122c-y6-1",
+  "release-snapshot-1122c-y25s-1",
+  "release-snapshot-1122c-yres-1",
+  "release-snapshot-1122c-y23p-1",
+  "release-snapshot-1122c-dlc-1",
+  "release-snapshot-1122c-y27-1",
+  "release-snapshot-1122c-y13-1",
+  "release-snapshot-1122c-y6c-1",
+  "release-snapshot-1122c-eetwet-1",
+  "release-snapshot-1122c-y13s-1",
+  "release-snapshot-1122c-y13s-ref222-1",
+  "release-snapshot-1122c-y6r-1",
+  "release-snapshot-1122c-y6r-ref222-1",
+  "release-snapshot-1122c-y13v-1",
+  "release-snapshot-1122c-y13v-ref222-1",
+  "release-snapshot-1122c-y21-1",
+  "release-snapshot-1122c-y21-ref222-1",
+  "release-snapshot-1122c-mint-1",
+  "release-snapshot-1122c-y14l-2",
+  "keke:release-snapshot-1122c-smoke-keke-1",
+  "keke:release-snapshot-1122c-startup-keke-1",
+  "keke:release-snapshot-1122c-startup215-keke-1",
+  "keke:release-snapshot-1122c-kstart-keke-1",
+  "keke:release-snapshot-1122c-rstart-keke-1",
+  "keke:release-snapshot-1122c-gaimass-1",
+  "keke:release-snapshot-1122c-pkgdiff-1",
+  "keke:release-snapshot-1122c-stage-1",
+  "keke:release-snapshot-1122c-install-1"
+ ],
+ "superseded": [
+  "release-snapshot-1122c-roots-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-yohane-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14r-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-drp-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-drp-ref222-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14l-1 (test judge errors, rerun as y14l-2)"
+ ]
+}
