@@ -29,6 +29,12 @@ The same test passed in the first pass of that gate.
   between nodes, and then the test fails. Leg 1's VmSize-bound failure on a loaded host (alongside plants) fits
   the same cause. This belongs to the HEAP-ADDRESS-SPACE line (HEAP-SPILL-COLD makes the need
   placement-independent), not to this story. No bound was changed here.
+- Results (mei s4):
+  - Inherited head 9a38f336f: clippy -D warnings and `cargo xtask static` clean (test-scratch-cleanup-4-lint0).
+  - Gate test-scratch-cleanup-4-gate (so + affected --run --base origin/next, direct tier) on 5ad46f9fe:
+    8393 passed, 0 failed, 776 ignored, SKIPPED lines 0, peak 4.8G.
+  - Plants test-scratch-cleanup-4-plants (handoff/TEST-SCRATCH-CLEANUP-plants.txt): 3 CAUGHT of 3, no WARN.
+  - Final head: lint and precheck as named in handoff/reports/TEST-SCRATCH-CLEANUP-4.json.
 
 ## Leg 4 (TEST-SCRATCH-CLEANUP-3): CI red E0277 fixed
 - CI red on 7bc7ac116 was a semantic conflict: next's new `map_malformed_dependency_refused_at_start`
