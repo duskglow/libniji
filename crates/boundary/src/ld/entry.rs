@@ -18,7 +18,7 @@ use super::exec_stack::{exec_stack_accepted, refuse_exec_stack_program};
 use super::image::{load, open_whole, program_file, read_image};
 use super::io::{c_string, exit, lo32, refuse, stack_word, write_all};
 use super::link::{Origin, Preloads, link};
-use super::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS};
+use super::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS, START_RUN_PATH};
 use super::tls::{PROVISIONAL, install_tls, map_area, program_tls};
 use super::trace::list;
 
@@ -317,6 +317,9 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
             // Its `$ORIGIN`: from the path it was run by (`ld.so PROGRAM`), else from the file the
             // kernel ran (threat model rule 2), looked up only when a search expands it.
             let origin = Origin { path };
+            if path != 0 {
+                START_RUN_PATH.store(path, Relaxed);
+            }
             let fini = link(prog, bias, page, if at != 0 { c_string(at) } else { b"the program" }, sp, env, origin, &preloads);
             crate::arch::enter(sp, prog.entry, fini)
         }

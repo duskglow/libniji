@@ -8,6 +8,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -21,7 +24,7 @@ fn target() -> PathBuf {
 
 /// The scratch directory, `ld.so`, `libc.so.6` without `DT_SONAME` and the start object, or `None`
 /// with the reason printed (as crates/ld/tests/dlopen_concurrent.rs).
-fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
+fn setup(name: &str) -> Option<(Scratch, PathBuf, PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -32,9 +35,7 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
-    let d = target().join(format!("ld-dlclose-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    let d = std::fs::canonicalize(d).unwrap();
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-dlclose-{name}"));
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
     let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
@@ -864,7 +865,6 @@ fn s27_1_c_4_dlclose_unloads_finalises_and_reclaims() {
     let Some((d, ld, libc, crt1)) = setup("basic") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "basic");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_8, s27_1_c_4 (D-27.1, plan §4): three reader threads walk `dl_iterate_phdr` (reading every
@@ -880,7 +880,6 @@ fn s27_1_c_4_dlclose_concurrent_with_readers() {
     let Some((d, ld, libc, crt1)) = setup("concurrent") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "concurrent");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_4, s27_1_c_8 (ruling #5651, the D-27 dlclose record's amendment): past 128 retired
@@ -901,7 +900,6 @@ fn s27_1_c_4_dlopen_waits_for_readers_only_outside_them() {
     let Some((d, ld, libc, crt1)) = setup("room") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "room");
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s1_2_c_6 (D-27 thread_local destructor pin record): a `thread_local` destructor registered with
@@ -923,12 +921,11 @@ fn s1_2_c_6_thread_local_destructor_keeps_its_object_loaded() {
     use std::os::unix::process::ExitStatusExt;
     for (mode, want) in [("exit", "m F "), ("threads", "a b k F c F x F ")] {
         for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
-            let o = cmd.arg(&d).arg(mode).output().unwrap();
+            let o = cmd.arg(&*d).arg(mode).output().unwrap();
             let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
             assert_eq!((o.status.code(), o.status.signal(), out.as_ref()), (Some(0), None, want), "{how}: thread_local pin {mode}: stderr: {err}");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s27_1_c_4 (plan/ph14/design.md §9; dynlink.md `__cxa_finalize`, P2): a C++ plugin with a static
@@ -953,10 +950,9 @@ fn s27_1_c_4_cxx_plugin_load_unload_loop() {
     let prog = build(&d, "prog_cxx", CXX_PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", "-Wl,--eh-frame-hdr", rt, &interp, crt1.to_str().unwrap(), &begin, libc.to_str().unwrap(), ld.to_str().unwrap(), "-Wl,-Bstatic", "-lsupc++", "-lgcc_eh", "-lgcc", "-Wl,-Bdynamic", libc.to_str().unwrap(), ld.to_str().unwrap(), &end]);
     use std::os::unix::process::ExitStatusExt;
     for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
-        let o = cmd.arg(&d).output().unwrap();
+        let o = cmd.arg(&*d).output().unwrap();
         assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: C++ plugin loop; stderr: {}", String::from_utf8_lossy(&o.stderr));
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// s1_1_c_6, s27_1_c_1 (probe `== exit-order` E1-E30, spec/behaviour/dynlink.md "Exit order of
@@ -1006,11 +1002,10 @@ fn exit_runs_loaded_objects_as_one_sequence() {
         (&with_s, "start", "dP dN fN dM fM dS fS dV fV dY fY "),
     ] {
         for (how, mut cmd) in [("kernel-started", Command::new(p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(p); c })] {
-            let o = cmd.arg(&d).arg("exit").arg(scenario).output().unwrap();
+            let o = cmd.arg(&*d).arg("exit").arg(scenario).output().unwrap();
             let err = String::from_utf8_lossy(&o.stderr);
             assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: exit {scenario}; stderr: {err}");
             assert_eq!(String::from_utf8_lossy(&o.stdout), want, "{how}: exit order {scenario}");
         }
     }
-    std::fs::remove_dir_all(&d).ok();
 }

@@ -4,12 +4,17 @@
 #define __NIJI_H_sys_types_h 1
 
 #include <features.h>
-#include <endian.h>
 
 __NIJI_BEGIN_C
 
 @@owns FD_CLR FD_ISSET FD_SET FD_ZERO
+@@owns-macro be16toh le64toh
 @@emit
+
+/* The byte-order conversions are <endian.h>'s, where this header exposes them. */
+@@when be16toh
+# include <endian.h>
+#endif
 
 /* select(2): the bit of a descriptor in an fd_set. */
 @@when FD_SET

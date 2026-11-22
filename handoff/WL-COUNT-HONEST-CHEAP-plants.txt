@@ -1,0 +1,14 @@
+# WL-COUNT-HONEST-CHEAP plants (cargo xtask plants): the run setup and the lowest-run statistic undone, clone flags read
+# from any trace text, the adaptive strace passes broken both ways, flags taken from too few passes, a faults re-measure
+# that drops the syscall numbers, the cache shared with the method before, and the cost summary miscounting hits.
+aslr-back | validation/wl_stats.sh | lit:echo 'setarch -R' ==> echo '' | bash validation/wl_stats_test.sh | msg:FAIL run_prefix_fixed_layout
+median-back | validation/wl_stats.sh | lit:then echo 4; else echo 5; fi; } ==> then echo 4; else echo 4; fi; } | bash validation/wl_stats_test.sh | msg:FAIL (fault_field_lowest|lowest_of_outlier_set)
+clone-any-text | validation/wl_stats.sh | lit:grep -E '^([0-9]+ +)?(clone3? ==> grep -E '(clone3? | bash validation/wl_stats_test.sh | msg:FAIL flags_text_naming_clone_is_not_a_call
+adaptive-never-third | validation/wl_stats.sh | lit:if [ "$a" = "$b" ]; then echo "$a 2" ==> if true; then echo "$a 2" | bash validation/wl_stats_test.sh | msg:FAIL adaptive_differ
+adaptive-always-third | validation/wl_stats.sh | lit:if [ "$a" = "$b" ]; then echo "$a 2" ==> if false; then echo "$a 2" | bash validation/wl_stats_test.sh | msg:FAIL adaptive_agree
+flags-two-passes | validation/wl_stats.sh | lit:wl_trace_flags "$d/strace1.txt" "$d/strace2.txt" "$d/strace3.txt") ==> wl_trace_flags "$d/strace1.txt" "$d/strace2.txt") | bash validation/wl_stats_test.sh | msg:FAIL adaptive_flags_from_all_passes
+refaults-drops-syscalls | validation/wl_stats.sh | lit:print s[1], s[2], s[3], s[ff], r[5], ==> print s[1], s[2], s[3], s[ff], s[5], | bash validation/wl_stats_test.sh | msg:FAIL row_refaults
+row-median | validation/wl_count_run.sh | lit:'{ print $1, $2, $3, $ff, sys ==> '{ print $1, $2, $3, $4, sys | bash validation/wl_stats_test.sh | msg:FAIL wl_count_run_row_fault_field
+perf-without-setup | validation/wl_count_run.sh | lit:&& $pin perf stat ==> && perf stat | bash validation/wl_stats_test.sh | msg:FAIL wl_count_run_setup_every_run
+cache-shared | validation/wl_count_run.sh | lit:msuf=.q.tsv ==> msuf=.p.tsv | bash validation/wl_stats_test.sh | msg:FAIL wl_count_run_cache_apart
+phase-hit-miss | validation/wl_stats.sh | lit:if ($6 == "hit") hit[c]++ ==> if ($6 == "miss") hit[c]++ | bash validation/wl_stats_test.sh | msg:FAIL phase_

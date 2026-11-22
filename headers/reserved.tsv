@@ -23,6 +23,10 @@ __ctype_b_loc	emit	C.9: the is* macros index (*__ctype_b_loc ())[c]
 __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
+__cmsg_nxthdr	emit	C.9: CMSG_NXTHDR is __cmsg_nxthdr (mhdr, cmsg)
+__h_errno_location	emit	the thread-local h_errno is (*__h_errno_location ())
+__res_state	emit	the thread-local _res is (*__res_state ())
+bindresvport6	omit	not exported at a default version: no program can link it
 __fpu_control	emit	§10.6, D-10.5: programs read or define __fpu_control (the x87 control word the start-up code loads); visibility.tsv lists it for fpu_control.h
 __sigsetjmp	emit	C.9: sigsetjmp(env, save) and pthread_cleanup_push call it
 __sigsetjmp_cancel	emit	C.9: the cancellation buffer form of __sigsetjmp

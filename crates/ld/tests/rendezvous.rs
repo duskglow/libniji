@@ -9,6 +9,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -129,7 +132,7 @@ const MID: &str = "extern int rdv_leaf(void);\nint rdv_mid(void) { return rdv_le
 /// What [`setup`] built in its fresh directory: the `dlopen`ed library, the program, and the
 /// start-time library a library names by path (`libmid.so` names `librdv-leaf.so` by its path).
 struct Built {
-    dir: PathBuf,
+    dir: Scratch,
     so: PathBuf,
     prog: PathBuf,
     leaf: PathBuf,
@@ -150,9 +153,7 @@ fn setup(tag: &str, pie: bool, name_ld: bool) -> Option<Built> {
     }
     let lib = std::fs::canonicalize(lib).unwrap();
     let ld = lib.join(Native::INTERP);
-    let d = target().join(format!("ld-rendezvous-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    let d = std::fs::canonicalize(d).unwrap();
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-rendezvous-{tag}"));
     let cc = |out: &Path, src: &str, flags: &[&str]| {
         let c = out.with_extension("c");
         std::fs::write(&c, src).unwrap();
@@ -220,7 +221,6 @@ fn rendezvous_pie_matches_dl_iterate_phdr() {
     assert_ne!(copied(&b.prog), Some(true), "the PIE program has a COPY of _r_debug: it no longer tests ld.so's own alone");
     let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
-    let _ = std::fs::remove_dir_all(&b.dir);
 }
 
 // Spec s27_4_c_0: a program that does not name ld.so still lists it (last, by PT_INTERP), with its
@@ -230,7 +230,6 @@ fn rendezvous_lists_ld_so_the_program_does_not_name() {
     let Some(b) = setup("nold", true, false) else { return };
     let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
-    let _ = std::fs::remove_dir_all(&b.dir);
 }
 
 // Spec s27_4_c_0: a -no-pie program's COPY of `_r_debug` reads what ld.so's own does (r_state
@@ -241,7 +240,6 @@ fn rendezvous_copy_relocation_is_kept_current() {
     assert_ne!(copied(&b.prog), Some(false), "the -no-pie program has no COPY relocation of _r_debug");
     let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
-    let _ = std::fs::remove_dir_all(&b.dir);
 }
 
 /// Reads `_r_debug` through `DT_DEBUG` (ld.so's own, version 2 with a null `r_next`) and through the
@@ -281,12 +279,8 @@ fn rendezvous_reference_sized_copy_says_version_1() {
         return;
     }
     let lib = std::fs::canonicalize(lib).unwrap();
-    let d = std::fs::canonicalize({
-        let d = target().join(format!("ld-rendezvous-refcopy-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
-        d
-    })
-    .unwrap();
+    // Removed when the test passes (or skips), kept with its path on stderr when it fails.
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-rendezvous-refcopy");
     let c = d.join("refprog.c");
     std::fs::write(&c, REF_PROG).unwrap();
     let prog = d.join("refprog");
@@ -307,14 +301,12 @@ fn rendezvous_reference_sized_copy_says_version_1() {
         let line = o.lines().find(|l| l.contains(" _r_debug")).unwrap_or("");
         if !line.split_whitespace().nth(2).is_some_and(|s| s == "40") {
             eprintln!("SKIP: the host's _r_debug is not 40 bytes in the program ({line:?})");
-            let _ = std::fs::remove_dir_all(&d);
             return;
         }
     }
     let o = Command::new(&prog).env("LD_LIBRARY_PATH", &lib).output().unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert_eq!(o.status.code(), Some(0), "failed check {:?}: {out}", o.status.code());
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 // Spec s27_4_c_0: a debugger that breaks on r_brk sees every object: gdb lists libc by path and stops
@@ -344,5 +336,4 @@ fn rendezvous_gdb_breaks_in_a_dlopened_library() {
     assert!(out.contains("Breakpoint 1, ") && out.contains("rdv_target"), "gdb did not stop in the dlopened library:\n{out}");
     let listed = |p: &Path| out.lines().any(|l| l.contains(p.to_str().unwrap_or("-")));
     assert!(listed(so) && listed(&d.join("libc-rdv.so")) && listed(&ld), "info sharedlibrary misses an object:\n{out}");
-    let _ = std::fs::remove_dir_all(d);
 }

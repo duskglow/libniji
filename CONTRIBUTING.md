@@ -73,6 +73,7 @@ cargo xtask stubs     # regenerate test stubs and spec/clauses.tsv from the spec
 cargo xtask so        # build libc.a, libc.so.6, ld.so, crt files, utilities into target/niji/
 cargo xtask test      # the full test gate (long); math sweep shards with unchanged inputs print
                       # `verdict cached` and skip (D-10.57); NIJI_NO_VERDICT_CACHE=1 runs them all
+                      # and recomputes the oracle's stored values (D-10.131; NIJI_NO_ORACLE_VALUES=1: only that)
 cargo xtask affected --list   # only the tests your change can reach (--tier direct, the default)
 cargo xtask affected --run    # run them (--list or --run is required: without either, exit 2)
 cargo xtask clippy            # must be clean (workspace, all targets, -D warnings)

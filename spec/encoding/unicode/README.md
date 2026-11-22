@@ -16,14 +16,15 @@ Unicode License v3), as each file's header states. The generated charmaps name t
 
 ## East Asian multi-byte tables
 
-The built-in codecs BIG5, EUC-KR, CP932 and CP936 (`cargo xtask encodings-gen`,
+The built-in codecs BIG5, EUC-KR, CP949, CP932 and CP936 (`cargo xtask encodings-gen`,
 `xtask/src/encodings_cjk.rs`, tables in `crates/core/src/iconv/cjk_tables.rs`) are generated from
-four more files of the same collection, copied unchanged under the same relative path, plus the
+five more files of the same collection, copied unchanged under the same relative path, plus the
 reference library's variant of each as probed (`../reference/`):
 
 | File | Table version | Date | Codec |
 | --- | --- | --- | --- |
 | `VENDORS/MICSFT/WINDOWS/CP950.TXT` | 2.01 | 1/7/2000 | BIG5 (of the published Big Five tables, the one closest to the reference's BIG5) |
 | `OBSOLETE/EASTASIA/KSC/KSC5601.TXT` | 1.1 | 2011 October 14 | EUC-KR (its KS X 1001 part) |
+| `VENDORS/MICSFT/WINDOWS/CP949.TXT` | 2.01 | 1/7/2000 | CP949 (Unified Hangul Code, also named UHC) |
 | `VENDORS/MICSFT/WINDOWS/CP932.TXT` | 2.01 | 04/15/98 | CP932 |
 | `VENDORS/MICSFT/WINDOWS/CP936.TXT` | 2.01 | 1/7/2000 | CP936 |

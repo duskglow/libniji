@@ -17,6 +17,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -80,10 +83,8 @@ fn product() -> Option<PathBuf> {
     None
 }
 
-fn dir(name: &str) -> PathBuf {
-    let d = target().join(format!("ld-map-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir(name: &str) -> Scratch {
+    Scratch::dir_in(&target(), &format!("ld-map-{name}"))
 }
 
 /// Build [`OBJECT`] as `name` with `flags` (the interpreter `ld` when given).
@@ -416,7 +417,6 @@ fn map_model_objects_from_the_linker() {
     let o = ph_at(&f, w) + 4;
     f[o..o + 4].copy_from_slice(&4u32.to_le_bytes());
     check_model("pie-readonly-bss", &f, 4096);
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause: the page size comes from `AT_PAGESZ` through the arch seam (design §0a, D-27.15).
@@ -544,7 +544,6 @@ fn map_malformed_corpus_refused() {
     }
     // A page size the PIE's segments share a page in (64 KiB pages, 4 KiB-linked): refused.
     assert!(map::plan_file::<Native>(&pie, 0x1_0000).is_err() || headers(&pie).iter().all(|h| h.ty != PT_LOAD || h.offset % 0x1_0000 == h.vaddr % 0x1_0000));
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause: `ld.so` refuses the malformed corpus with one line and status 127, no signal.
@@ -565,7 +564,6 @@ fn map_malformed_corpus_refused_by_ldso() {
         assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
         assert!(err.starts_with("ld.so: ") && err.contains(name) && err.lines().count() == 1, "{name}: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 /// no spec clause: a malformed object found by the path search for a program's `DT_NEEDED` is
@@ -580,7 +578,7 @@ fn map_malformed_dependency_refused_at_start() {
     let lib_bytes = std::fs::read(&lib).unwrap();
     let dir_flag = format!("-L{}", d.display());
     let prog = build(&d, "needs-dep", &["-fPIE", "-pie", "-Wl,--no-as-needed", &dir_flag, "-l:libdep.so"], Some(&ld));
-    let run = || Command::new("timeout").arg("60").arg(&prog).env("LD_LIBRARY_PATH", &d).output().unwrap();
+    let run = || Command::new("timeout").arg("60").arg(&prog).env("LD_LIBRARY_PATH", d.as_os_str()).output().unwrap();
     // The positive control: the unedited library is found by the search, mapped and run past.
     let o = run();
     assert_eq!(o.status.code(), Some(0), "the unedited libdep.so: {o:?}");
@@ -593,7 +591,6 @@ fn map_malformed_dependency_refused_at_start() {
         assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
         assert!(err.contains(&refusal) && err.lines().count() == 1, "{name}: not the start's refusal: {err}");
     }
-    std::fs::remove_dir_all(&d).ok();
 }
 
 // ---------------------------------------------------------------- /proc/self/maps
@@ -677,5 +674,4 @@ fn map_proc_self_maps_of_loaded_programs() {
         s <= bias + last && bias + last < e
     });
     assert!(mapped, "300 PT_LOADs: the last segment ({last:#x} + bias {bias:#x}) is not mapped: {out}");
-    std::fs::remove_dir_all(&d).ok();
 }

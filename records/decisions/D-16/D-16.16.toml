@@ -1,0 +1,12 @@
+id = "D-16.16"
+section = "s16"
+spec = "§16.2"
+ann = "ARB"
+status = "active"
+amends = ["D-16.14"]
+story = "GAI-MASS-LOSS"
+date = "2026-11-21"
+tests = ["crates/core/tests/gai_queue_products.rs", "crates/core/tests/dns_products.rs"]
+body = '''
+**`getaddrinfo_a` finds a free notification group in constant time** (GAI-MASS-LOSS, 2026-11-21; amends D-16.14). The search starts at a hint (past the last group taken, lowered to any group freed) and goes round to group 0 once before more groups are mapped, so the mapped groups stay bounded by the most lists waiting at once; before, every call scanned from group 0, a cost that grew with the lists already waiting (5000 one-request calls with a signal: 0.17 s of CPU against the reference's 0.012 s, measured on the Zen 1 host). The `gaimass` scenario now waits while requests keep completing (30 s without one ends the wait) instead of a fixed 60 s, so a loaded machine changes how long it takes, not its verdict; `gai_queue_products` checks every request's own answer and every notification once with the queue wrapped and grown at many positions and four threads submitting at once.
+'''

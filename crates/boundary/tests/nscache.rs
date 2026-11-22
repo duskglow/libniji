@@ -7,6 +7,8 @@
 
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -40,10 +42,11 @@ struct Dir(PathBuf);
 
 impl Dir {
     fn new(tag: &str) -> Dir {
-        Dir::under(std::path::Path::new(env!("CARGO_TARGET_TMPDIR")), tag).unwrap()
+        Dir::under(&crate::scratch::base(), tag).unwrap()
     }
 
-    /// A private directory under `base` (`None`: it cannot be made there).
+    /// A private directory under `base` (`None`: it cannot be made there); removed on drop when
+    /// the test passes, kept and named on stderr when it fails (`scratch::release`).
     fn under(base: &std::path::Path, tag: &str) -> Option<Dir> {
         let d = base.join(format!("nscache-test-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
@@ -64,7 +67,7 @@ impl Drop for Dir {
     fn drop(&mut self) {
         selftest::nscache_region_dir(None);
         selftest::nscache_reattach();
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -308,7 +311,7 @@ fn a_region_on_another_file_system_compares_the_boot_id() {
     // Clauses: s17_3_c_1, s16_1_g_3 (D-16.10: a region from another boot starts afresh).
     let _g = serial();
     let home = std::env::var_os("HOME").map(PathBuf::from);
-    let candidates = [Some(PathBuf::from(env!("CARGO_TARGET_TMPDIR"))), home, Some(PathBuf::from("/var/tmp"))];
+    let candidates = [Some(crate::scratch::base()), home, Some(PathBuf::from("/var/tmp"))];
     let Some(d) = candidates.iter().flatten().filter(|b| b.is_dir() && !on_tmpfs(b)).find_map(|b| Dir::under(b, "boot-disk")) else {
         println!("SKIP: every candidate directory (CARGO_TARGET_TMPDIR, HOME, /var/tmp) is on tmpfs or missing");
         return;

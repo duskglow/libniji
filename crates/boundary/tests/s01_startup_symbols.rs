@@ -39,6 +39,8 @@ use niji_boundary::sys::CSys;
 use niji_kernel::fd::Fd;
 use niji_kernel::sys::Sys;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 
 const EINVAL: i32 = 22;

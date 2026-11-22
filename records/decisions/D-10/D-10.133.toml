@@ -1,0 +1,11 @@
+id = "D-10.133"
+section = "s10"
+spec = "§10.0"
+ann = "—"
+status = "active"
+story = "MP-LN10-SERIES"
+date = "2026-11-21"
+tests = ["crates/mathtools/src/mp/consts.rs", "crates/mathtools/tests/consts.rs"]
+body = '''
+**The math oracle computes ln 10 as (10 ln 2 - ln(128/125)) / 3 by series, from the cached ln 2** (MP-LN10-SERIES; follows D-10.130). `niji_mathtools` took ln 10 from the general logarithm (`log_core(10)`: ln 2 plus the `log1p` kernel's square roots, divisions and full-width products), 9-12 % of a complex_f128 / complex_ld_cr sweep shard after D-10.130. Since 2^10 = 1000 · 128/125, ln 10 = (10 ln 2 - ln(128/125)) / 3 with ln(128/125) = 2 atanh(3/253) (z = (128-125)/(128+125)); the atanh series is summed in fixed point with single-limb operations (multiply by 9, divide by 253^2 and by 2k+1) and gains 2 log2(253/3) = 12.8 bits per term, against 3.2 for atanh(1/3) and 6.3 for the split 3 ln 2 + 2 atanh(1/9). ln 2 comes from the existing cache, which every logarithm already fills. Proved bound (comment at `compute_ln10`): relative error below 2^-(bits+6), from ln 2 at bits+8 (10 times its error is 0.028 · 2^-bits), the series within 2^-(bits+8) and the quotient by 3 truncated at bits+8 bits. Measured against an independent value (exact integer sums of two different atanh splits, and Python's `decimal` up to 4400 bits): 2^-(bits+7.0) to 2^-(bits+12) at 256 to 131072 bits; the previous `log_core` value was within its own stated 2^-(bits+8) at every one of those precisions, so neither stated bound was found wrong. At 65536 bits the series takes 0.19 s against 1.94 s. Every correctly rounded result of the complex and real-function sweeps is unchanged (handoff/MP-LN10-SERIES.md).
+'''

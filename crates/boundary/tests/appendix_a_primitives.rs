@@ -31,6 +31,8 @@
 mod kernel;
 #[path = "../../core/tests/support/sync_trap.rs"]
 mod sync_trap;
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use sync_trap::skip_note;
 
 use std::os::unix::fs::DirBuilderExt;
@@ -74,7 +76,7 @@ impl Tmp {
         // Under CARGO_TARGET_TMPDIR (the project's rule for test scratch), not /tmp: the
         // isolated gate gives /tmp its own tmpfs. Any file system works (k_preadv2 names the one
         // capability that differs, docs/testing-filesystems.md).
-        let base = std::env::var("NIJI_TEST_TMP").unwrap_or_else(|_| env!("CARGO_TARGET_TMPDIR").into());
+        let base = std::env::var("NIJI_TEST_TMP").unwrap_or_else(|_| crate::scratch::base().to_string_lossy().into_owned());
         let dir = format!("{base}/niji-{}-{tag}-{n}", std::process::id());
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -111,7 +113,7 @@ impl Tmp {
 
 impl Drop for Tmp {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -3432,7 +3434,7 @@ struct ChildPath(String);
 
 impl ChildPath {
     fn new(tag: &str) -> ChildPath {
-        let p = format!("{}/niji-child-{}-{tag}", env!("CARGO_TARGET_TMPDIR"), std::process::id());
+        let p = format!("{}/niji-child-{}-{tag}", crate::scratch::base().display(), std::process::id());
         let _ = std::fs::remove_dir_all(&p);
         ChildPath(p)
     }
@@ -3440,9 +3442,7 @@ impl ChildPath {
 
 impl Drop for ChildPath {
     fn drop(&mut self) {
-        if std::fs::remove_dir_all(&self.0).is_err() {
-            let _ = std::fs::remove_file(&self.0);
-        }
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 

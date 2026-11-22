@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S12-2", "model": "sonnet", "tokens": null,
+ "result": "slice 12: P1/P5, P2, P3, P10 clean; P8 libc-first open on IP_RECVRETOPTS spelling; record and differences row not written",
+ "branch": "task/sl-headers-s12-2", "head": "HEAD", "jobs": ["sl-headers-s12-2-lint1", "sl-headers-s12-2-gate", "sl-headers-s12-2-plants"],
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "kernel header first order (P8) fails on the reference too; make it work as an extension?", "recommendation": "not now; libc-first only, revisit with slice 13"}],
+ "informational": ["header_check.py is not selected by any cargo test, so the direct tier does not run P1/P5/P8/P10", "stdio.h fob64/time64 visibility of the *64 functions differs from the table (slice 6)"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "s6_addr, s6_addr16/32, IN6_ARE_ADDR_EQUAL defined in netinet/in.h", "before": 0, "after": 4, "unit": "names", "measured": true},
+            {"kind": "coverage", "what": "P1 offsets, P8 units, P10 program (1299 lines), 4 plants", "before": 0, "after": 4, "unit": "plants", "measured": true}],
+ "improvement": "header_check.py should be a cargo test so the direct tier selects header changes",
+ "next_step": "fix IP_RECVRETOPTS spelling for P8, write the pending record and differences row",
+ "report_file": "handoff/SL-HEADERS-S12.md"}
