@@ -4,7 +4,9 @@
 //! s31_8_c_1, s31_8_g_1: the same source and charmap compiled by both. Every item of the string,
 //! number and byte categories is compared byte for byte; `LC_CTYPE`'s fixed items byte for byte
 //! and its tables by what the C library reads from them (`niji::locale`): every class bit, map
-//! value and width of every code point below 0x110000. Both use the installed sources
+//! value and width of every code point below 0x110000; `LC_COLLATE` by the order `strcoll`,
+//! `wcscoll` and bracket ranges give over a corpus (s31_8_c_1: the key bytes are libniji's own,
+//! the order is the reference's). Both use the installed sources
 //! (`/usr/share/i18n`); a case whose source, charmap or reference program is absent is skipped
 //! with the reason printed.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
@@ -222,6 +224,83 @@ fn diff_ctype(theirs: Category, ours: Category, out: &mut Vec<String>) {
     }
 }
 
+/// The characters the collation corpus is made of: ASCII, Latin-1, Latin Extended-A, the
+/// contraction parts of the sources (L with middle dot), Turkish letters, Greek, Cyrillic,
+/// kana, Han inside and outside the sources' `..` range, and code points no source orders.
+fn alphabet(utf8: bool) -> Vec<char> {
+    let mut v: Vec<char> = (0x20..0x7f).chain(0xa0..0x180).filter(|&c| utf8 || c < 0x100).filter_map(char::from_u32).collect();
+    if utf8 {
+        for cp in [0x387, 0x391, 0x3b1, 0x3ac, 0x410, 0x430, 0x419, 0x439, 0x306, 0x301, 0x3042, 0x30a2, 0x4e00, 0x4e01, 0x9fa5, 0x3400, 0x378, 0x1f600, 0x10fffd, 0xe000, 0x2014, 0x20ac] {
+            v.extend(char::from_u32(cp));
+        }
+    }
+    v
+}
+
+/// A deterministic corpus: every character alone, then strings of 2 to 6 characters drawn from
+/// a weighted mix (letters most, then accents, spaces, punctuation and the rest).
+fn corpus(utf8: bool) -> Vec<Vec<char>> {
+    let a = alphabet(utf8);
+    let common: Vec<char> = "aAbBcCeEiIlLoOsSuUzZ  -'.0129éÉèçÇßæøåäöüÄÖÜıİğĞşŞ·".chars().filter(|c| utf8 || (*c as u32) < 0x100).collect();
+    let mut out: Vec<Vec<char>> = a.iter().map(|&c| vec![c]).collect();
+    let mut x: u64 = 0x9e37_79b9_7f4a_7c15;
+    let mut next = || {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        x
+    };
+    for _ in 0..4000 {
+        let len = 2 + (next() % 5) as usize;
+        let s = (0..len).map(|_| if next() % 4 == 0 { a[(next() % a.len() as u64) as usize] } else { common[(next() % common.len() as u64) as usize] }).collect();
+        out.push(s);
+    }
+    out
+}
+
+/// Whether two collations order `corpus` alike (sorted by the first, every adjacent pair has
+/// the same order under the second; both are total preorders, so they then agree on every
+/// pair); the first disagreements, at most 5.
+fn order_diffs<S: Clone + std::fmt::Debug>(corpus: &[S], theirs: impl Fn(&S, &S) -> std::cmp::Ordering, ours: impl Fn(&S, &S) -> std::cmp::Ordering) -> Vec<String> {
+    let mut v = corpus.to_vec();
+    v.sort_by(&theirs);
+    v.windows(2).filter(|w| theirs(&w[0], &w[1]) != ours(&w[0], &w[1])).take(5).map(|w| format!("{:?} {:?}: ref {:?}, ours {:?}", w[0], w[1], theirs(&w[0], &w[1]), ours(&w[0], &w[1]))).collect()
+}
+
+/// `LC_COLLATE` by what the C library does with it: `strcoll` (multibyte) and `wcscoll` order
+/// over [`corpus`], and the collation-sequence order of the alphabet's characters
+/// (bracket-expression ranges). Keys equal byte for byte are counted, not required.
+fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<String>) {
+    use niji::locale::collate::{compare, key_bytes, Collate, Collation};
+    let (Some(Collation::Rules(t)), Some(Collation::Rules(o))) = (Collate::parse(theirs), Collate::parse(ours)) else {
+        out.push("LC_COLLATE: the reader does not take both as rules".into());
+        return;
+    };
+    let words = corpus(utf8);
+    let mb = |s: &Vec<char>| -> Vec<u8> { if utf8 { s.iter().collect::<String>().into_bytes() } else { s.iter().map(|&c| c as u8).collect() } };
+    let bytes: Vec<Vec<u8>> = words.iter().map(mb).collect();
+    for d in order_diffs(&bytes, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
+        out.push(format!("LC_COLLATE strcoll: {d}"));
+    }
+    let wide: Vec<Vec<u32>> = words.iter().map(|s| s.iter().map(|&c| c as u32).collect()).collect();
+    for d in order_diffs(&wide, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
+        out.push(format!("LC_COLLATE wcscoll: {d}"));
+    }
+    let cps: Vec<u32> = alphabet(utf8).iter().map(|&c| c as u32).collect();
+    let seq = |c: &Collate, cp: u32| if utf8 { c.collseq_wide(cp) } else { c.collseq_byte(cp as u8) };
+    for d in order_diffs(&cps, |a, b| seq(&t, *a).cmp(&seq(&t, *b)), |a, b| seq(&o, *a).cmp(&seq(&o, *b))) {
+        out.push(format!("LC_COLLATE collseq: {d}"));
+    }
+    let key = |c: &Collate, s: &[u8]| {
+        let mut k = vec![0u8; 4096];
+        let n = key_bytes(c, s, &mut k).unwrap_or(0);
+        k.truncate(n);
+        k
+    };
+    let same = bytes.iter().filter(|s| key(&t, s) == key(&o, s)).count();
+    println!("LC_COLLATE: {} strings, {same} strxfrm keys byte-equal", bytes.len());
+}
+
 fn compare(locale: &str, charmap: &str) {
     let Some(dir) = reference(locale, charmap) else { return };
     let ours = niji_locale::compile(locale.as_bytes(), charmap.as_bytes(), &mut Disk).unwrap_or_else(|e| panic!("{locale}.{charmap}: {e:?}"));
@@ -245,6 +324,8 @@ fn compare(locale: &str, charmap: &str) {
         };
         if n == 0 {
             diff_ctype(t, o, &mut out);
+        } else if n == 3 {
+            diff_collate(t, o, charmap == "UTF-8", &mut out);
         } else {
             diff_items(file, t, o, &[], &mut out);
         }

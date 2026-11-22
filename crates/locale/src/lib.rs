@@ -7,6 +7,7 @@
 //!   `LC_MESSAGES`, `LC_PAPER`, `LC_NAME`, `LC_ADDRESS`, `LC_TELEPHONE`, `LC_MEASUREMENT`,
 //!   `LC_IDENTIFICATION`; D.1.5).
 //! * [`ctype`]: `LC_CTYPE` (D.1.3).
+//! * [`collate`]: `LC_COLLATE` (D.1.4).
 //! * [`charset`]: the charmap a locale is compiled for (code point to bytes, widths).
 //!
 //! The files this crate writes are read by `niji::locale` (the C library's reader), which the
@@ -21,6 +22,7 @@ extern crate alloc;
 pub mod build;
 pub mod cats;
 pub mod charset;
+pub mod collate;
 pub mod ctype;
 pub mod lex;
 pub mod source;
@@ -113,7 +115,7 @@ pub fn compile(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> Result<C
             10 => cats::telephone(&b, &cs)?,
             11 => cats::measurement(&b, &cs)?,
             12 => cats::identification(&b, &cs)?,
-            // LC_COLLATE: not written yet (D.1.4).
+            3 => collate::write(stmts, &cs)?,
             _ => continue,
         };
         if let Some(slot) = out.get_mut(n) {

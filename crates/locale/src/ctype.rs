@@ -596,8 +596,22 @@ fn table_bits(set: &Set) -> Result<TryVec<u8>> {
     })
 }
 
+/// A value table of `u32` (`absent` for an entry without a value in a block that has values).
+pub(crate) fn table_u32(v: &dyn Fn(u32) -> Option<u32>, absent: u32) -> Result<TryVec<u8>> {
+    table3(63, &|base| {
+        if (base..base + 64).all(|cp| v(cp).is_none()) {
+            return Ok(None);
+        }
+        let mut b = TryVec::with_capacity(256)?;
+        for cp in base..base + 64 {
+            b.extend_from_slice(&v(cp).unwrap_or(absent).to_le_bytes())?;
+        }
+        Ok(Some(b))
+    })
+}
+
 /// A value table of `i32` (absent entries 0).
-fn table_i32(v: &dyn Fn(u32) -> Option<i32>) -> Result<TryVec<u8>> {
+pub(crate) fn table_i32(v: &dyn Fn(u32) -> Option<i32>) -> Result<TryVec<u8>> {
     table3(63, &|base| {
         if (base..base + 64).all(|cp| v(cp).is_none()) {
             return Ok(None);
