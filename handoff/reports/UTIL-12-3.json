@@ -1,20 +1,53 @@
-{"task": "UTIL-12-3", "model": "opus", "tokens": null,
+{
+ "task": "UTIL-12-3",
+ "model": "opus",
+ "tokens": null,
  "result": "UTIL-12 merged with origin/next: localedef's freestanding build now runs check_tag_covers and is in the tag's product crates and the products manifest; the committed localedef transcripts now run over the shipped binary",
- "branch": "task/util-12-3", "head": null,
- "gate": {"affected": "FULL: the train's (Cargo manifests, xtask); changed crates niji-locale + xtask: 620 passed / 0 failed (util-12-3-crates); plants 3/3 CAUGHT (util-12-3-plants)", "peak": null},
+ "branch": "task/util-12-3",
+ "head": null,
+ "gate": {
+  "affected": "FULL: the train's (Cargo manifests, xtask); changed crates niji-locale + xtask with clippy and static: 620 passed / 0 failed (util-12-3-crates3); plants 3/3 CAUGHT (util-12-3-plants2)",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "Build-tag cost: crates/locale and crates/localedef-bin are product inputs of the tag now (niji-locale through boundary's `localedef` feature, as ldconfig-bin is), so an edit to them changes the tag and CI rebuilds every release library for it; a per-product tag for the freestanding programs would avoid that (not done: a design change, beyond a merge)",
-   "cargo xtask affected escalates this branch to FULL (Cargo manifests, crates/locale/src/build.rs, xtask/src/so.rs, csys/src/machine/entry.S): gated on precheck plus the changed crates' tests per the brief"
+  "Build-tag cost: crates/locale and crates/localedef-bin are product inputs of the tag now (niji-locale through boundary's `localedef` feature, as ldconfig-bin is), so an edit to them changes the tag and CI rebuilds every release library for it; a per-product tag for the freestanding programs would avoid that (not done: a design change, beyond a merge)",
+  "cargo xtask affected escalates this branch to FULL (Cargo manifests, crates/locale/src/build.rs, xtask/src/so.rs, csys/src/machine/entry.S): gated on precheck plus the changed crates' tests per the brief",
+  "UTIL-12 never committed niji-locale in the root Cargo.lock (every cargo run rewrote it in the build tree); committed here"
  ],
  "refused": [],
  "impact": [
-   {"kind": "unblock", "what": "UTIL-12's localedef (issue #14's blocker) can land: the so.rs conflict with next is resolved and the build passes check_tag_covers", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "tests added: the_shipped_localedef_passes_the_transcripts (10 transcripts over the shipped binary); plants added", "before": 0, "after": 3, "unit": "plants", "measured": true},
-   {"kind": "cost", "what": "an edit under crates/locale or crates/localedef-bin changes the build tag (release libraries rebuilt in CI), as for ldconfig-bin", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "unblock",
+   "what": "UTIL-12's localedef (issue #14's blocker) can land: the so.rs conflict with next is resolved and the build passes check_tag_covers",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added: the_shipped_localedef_passes_the_transcripts (10 transcripts over the shipped binary); plants added",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "an edit under crates/locale or crates/localedef-bin changes the build tag (release libraries rebuilt in CI), as for ldconfig-bin",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "the 10 localedef transcripts sat unexercised for a whole story: a static check that every validation/transcripts/<cmd>/ directory is named by some test would catch that",
  "next_step": "land via CI; then LOCALEDEF-ARCHIVE (archive writer, POSIX default categories, -i stdin, freeing arena)",
  "report_file": "handoff/UTIL-12.md",
- "jobs": ["keke:util-12-3-crates", "keke:util-12-3-plants"]}
+ "jobs": [
+  "keke:util-12-3-crates3",
+  "keke:util-12-3-plants2"
+ ]
+}

@@ -12,7 +12,9 @@ archive is not (LOCALEDEF-ARCHIVE, held).
   niji-locale is in the tag set through boundary's `localedef` feature. The products manifest
   (`target/niji/.products-manifest`) lists `localedef` with no change (it hashes every file of target/niji).
 * Checked on keke n2: `cargo xtask so` passes `check_tag_covers` for localedef; tag self-tests 2/2; niji-locale
-  (prog 7, reference 6 = the #14 locales) and xtask's tests 620 passed / 0 failed.
+  (prog 7, reference 6 = the #14 locales) and xtask's tests 620 passed / 0 failed (job util-12-3-crates3, with
+  clippy and static). The root Cargo.lock now names niji-locale (UTIL-12 had not committed it; cargo rewrote it on
+  every build, which made the first jobs, util-12-3-crates / -plants, test another lock than the head's).
 * New: `the_shipped_localedef_passes_the_transcripts` (xtask/tests/transcripts.rs): the 10 committed transcripts
   were never run by a test; now they run over target/niji/localedef. Plants `handoff/UTIL-12-3.plants` (3, on
   `crates/boundary/src/localedef.rs`, the glue only the binary reaches).
