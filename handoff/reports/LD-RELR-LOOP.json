@@ -1,0 +1,23 @@
+{"task": "LD-RELR-LOOP", "model": "opus", "tokens": null,
+ "result": "RELR applied an entry at a time (8 instr/word libc, 13 self) and libc.so.6 packed: dynamic start -25.1k user instructions (Zen 1 release), -1 fault, .rela.dyn -34.6 KB; target <=15k RELATIVE+self not reached by estimate (~17k)",
+ "branch": "task/ld-relr-loop", "head": null,
+ "gate": {"affected": "950 passed / 0 failed (11 suites, ld-relr-loop-gate2)", "peak": "1.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["STARTUP-REPROFILE's 47.6k RELATIVE+walk phase included pass1 work that remains; RELR alone removes ~25k, not ~50k",
+                   "layout-bins.tsv not diffed: no base copy on the host (it lists libc's hot group only; this change is ld.so code and libc's relocation sections)",
+                   "Skylake-SP counts and a PT phase profile not taken: the copy to mei was refused"],
+ "refused": [". ~/src/liella-ops/tools/vm_ssh.sh; L=/home/claude/w/.scratch/LD-RELR-LOOP/xfer; mkdir -p $L; vm_ssh_cmd keke; rsync -a -e \"$VSSH_E\" --exclude libc.a \"${VSSH[-1]}:work/ld-relr-loop/base\" \"${VSSH[-1]}:work/ld-relr-loop/new\" $L/ && ...; vm_ssh_cmd mei; ... rsync ... \"${VSSH[-1]}:work/ld-relr-loop/\" (keke -> local -> mei product copy for Skylake-SP counts / PT profile; auto-mode classifier: Unauthorized Access)"],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main, release, Zen 1 (STARTUP-REPROFILE kit, median of 101)", "before": 268837, "after": 243688, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "main with three libraries, release, Zen 1", "before": 378132, "after": 352952, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "/bin/true under libniji, release, Zen 1", "before": 329222, "after": 304186, "unit": "user instr/start", "measured": true},
+  {"kind": "faults", "what": "dynamic empty main / three libraries, release, Zen 1", "before": 58, "after": 57, "unit": "page faults/start", "measured": true},
+  {"kind": "size", "what": "libc.so.6 .rela.dyn (+504 B .relr.dyn)", "before": 35808, "after": 1224, "unit": "bytes", "measured": true},
+  {"kind": "perf", "what": "RELATIVE work + self-relocation (estimate from disassembly and tables)", "before": null, "after": 17000, "unit": "instr/start", "measured": false},
+  {"kind": "coverage", "what": "tests added (relr_runs_match_the_iterator, reloc_relr_entry_checks_its_whole_run, relr_bitmap_across_segments) and plants (4, all CAUGHT); start-up bounds tightened", "before": null, "after": 3, "unit": "tests", "measured": true}
+ ],
+ "improvement": "the STARTUP-REPROFILE kit's exact per-phase split needs Intel PT; a callgrind or a loader-side phase counter on the Zen 1 build hosts would let stories check their phase target where they build",
+ "next_step": "word-add on reloc::Image without the null branch and a self-relocation loop without the per-word slice check (~3-4k), then PT-measure on Skylake-SP",
+ "report_file": "handoff/LD-RELR-LOOP-report.md",
+ "jobs": ["ld-relr-loop-gate2", "ld-relr-loop-plants1", "ld-relr-loop-startup1", "ld-relr-loop-meas-new", "ld-relr-loop-meas-base", "ld-relr-loop-clippy3"]}
