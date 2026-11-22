@@ -59,6 +59,9 @@ impl Stmt {
 pub struct Source {
     /// The statements per category number 0…12.
     pub cats: [Option<TryVec<Stmt>>; 13],
+    /// The lines outside any category, each skipped with a syntax error (the reference goes on
+    /// past them, with or without `-c`: probe `localedef-outside`, #7534).
+    pub errors: TryVec<Error>,
 }
 
 /// Parse the source `text`, loading `copy` targets through `files`.
@@ -75,8 +78,9 @@ fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
         match cur.take() {
             None => {
                 let Some(c) = number(first) else {
-                    // Text between sections: the installed sources have none but `LC_*` lines; refuse anything else.
-                    return Err(Error::syntax(line.no, "a statement outside any category"));
+                    // Text between sections: reported and skipped.
+                    src.errors.push(Error::syntax(line.no, "syntax error: not inside a locale definition section"))?;
+                    continue;
                 };
                 cur = Some((c, TryVec::new()));
             }
@@ -100,6 +104,9 @@ fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
                     let name = ascii_name(&name).ok_or(Error::syntax(line.no, "copy names a locale that is not ASCII"))?;
                     let text = files.read(Kind::Locale, &name)?;
                     let mut other = parse_at(&text, files, depth.saturating_add(1))?;
+                    for e in other.errors.into_inner() {
+                        src.errors.push(e)?;
+                    }
                     let Some(stmts) = other.cats.get_mut(c).and_then(Option::take) else {
                         return Err(Error::syntax(line.no, "copy names a locale without this category"));
                     };
