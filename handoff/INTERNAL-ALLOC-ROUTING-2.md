@@ -58,6 +58,16 @@ in-tree `mint`), internal-alloc-routing-2-plants4 (6 plants, handoff/INTERNAL-AL
 internal-alloc-routing-2-startup4 (`cargo xtask test`, NIJI_FULL_PROFILE so + hot_text_products = DYN_START_INSTR).
 Earlier: internal-alloc-routing-2-basebench, -benchb, -builda (leg 3, start-up table above).
 
+## GATE RED (this story's code; fix first in the next run)
+internal-alloc-routing-2-gate4 (head 6beb1da01): `hot_text_products::init_static_probe_has_no_got_at_any_relro_size`
+fails at every relro pad: the static probe links a `.got` of 0x30 bytes (6 entries; D-X.140: libc.a's GOT-indirect
+operands must relax). The six are `niji_link_alloc_family`'s (csys/src/adapter/runtime.c, leg 1-2 of this story):
+`__ehdr_start`, weak `_end`, `&malloc`, `&calloc`, `&realloc`, `&free`. In libc.so.6 the GOT loads are the point
+(they see an interposed family); in libc.a they are dead weight (a static program never routes, D-X.156). csys
+has no static/shared macro (the objects are shared between libc.a and libc.so.6), so the fix needs either a
+libc.a-only stub of `niji_link_alloc_family` (all zeros: decide_route answers no) chosen at archive time, or the
+GOT words read through the dynamic section/`_DYNAMIC` at run time in the shared object only. Not tried in this run.
+
 ## INFORMATIONAL
 * swprintf(buf, 256, L"%100000d"): errno 7 (E2BIG) on the reference, 75 (EOVERFLOW) on libniji; base 279a24ee4 the
   same: pre-existing, not this branch.
