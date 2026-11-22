@@ -26,6 +26,8 @@ uint64_t niji_machine_rdtsc(void);
 /* The unwinder a static program links (machine/unwinder.S, D-22.21): its entries' addresses, or 0. */
 uintptr_t niji_machine_unwind_force(void);
 uintptr_t niji_machine_unwind_get_cfa(void);
+/* valgrind's RUNNING_ON_VALGRIND client request (machine/tool.S, D-X.152): 0 on the bare machine. */
+uint64_t niji_machine_running_on_valgrind(void);
 void niji_machine_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t out[4]);
 uint64_t niji_machine_xgetbv0(void);
 uint32_t niji_machine_mxcsr_get(void);

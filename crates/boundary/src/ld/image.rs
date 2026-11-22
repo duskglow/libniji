@@ -521,6 +521,8 @@ const MAP_FIXED_I32: i32 = 0x10;
 pub(super) const MAP_ANONYMOUS_I32: i32 = 0x20;
 const MAP_FIXED_NOREPLACE_I32: i32 = 0x10_0000;
 const MAP_NORESERVE_I32: i32 = 0x4000;
+/// `PROT_NONE` (kernel UAPI `asm-generic/mman-common.h`).
+const PROT_NONE_I32: i32 = 0;
 
 /// The alignment of a whole-file view ([`map_view`]): the kernel's default fault-around window
 /// (`fault_around_bytes`, 64 KiB), the unit in which a read of a file-backed mapping maps pages in.
@@ -534,23 +536,82 @@ const VIEW_ALIGN: usize = 0x1_0000;
 /// aligned part, and both ends are given back, so the result is one mapping of exactly `len`
 /// bytes (rounded to the page) that `munmap(at, len)` removes. Nothing stays mapped on failure.
 pub(super) fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
+    if views_hidden() {
+        return map_view_hidden(fd, len, |at, n| raw::mprotect(at, n, map::PROT_READ).map_err(|_| ()));
+    }
+    map_view_as(fd, len, map::PROT_READ)
+}
+
+/// [`map_view`] with the protection `prot`: from the start's view arena when it has room, else on
+/// its own.
+#[inline(always)]
+fn map_view_as(fd: i32, len: usize, prot: i32) -> Result<usize, ()> {
     if VIEWS_STATE.load(Relaxed) != VIEWS_NONE {
         if let Some(at) = views_take(len) {
-            return raw::mmap(at, len, map::PROT_READ, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).map_err(|_| ());
+            return raw::mmap(at, len, prot, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).map_err(|_| ());
         }
     }
-    map_view_alone(fd, len)
+    map_view_alone(fd, len, prot)
+}
+
+/// [`VIEWS_HIDDEN`]: not asked yet.
+const HIDDEN_UNKNOWN: u8 = 0;
+/// [`VIEWS_HIDDEN`]: views are mapped readable (the bare machine).
+const HIDDEN_NO: u8 = 1;
+/// [`VIEWS_HIDDEN`]: views are mapped inaccessible, then made readable ([`map_view_hidden`]).
+const HIDDEN_YES: u8 = 2;
+
+/// Whether whole-file views are hidden from valgrind ([`views_hidden`]): asked once per process.
+static VIEWS_HIDDEN: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(HIDDEN_UNKNOWN);
+
+/// Whether this process runs under valgrind, whose debug-information reader records every readable
+/// mapping of an object file made before the object's segments, as a mapping of the object, and keeps
+/// it after `munmap` (valgrind 3.24 `di_notify_mmap`, ruling #7301): a whole-file view covers every
+/// read-only segment's file range, so valgrind would take those segments' load bias (`.eh_frame`,
+/// `.rodata`) from the view, and every stack walk through the object would use unwind data read from
+/// the wrong address. A mapping made inaccessible is not recorded, and a later `mprotect` is not
+/// either. On the bare machine the views stay as they were (one `mmap` each): the client request
+/// costs a few instructions once per process, never a system call.
+#[inline]
+fn views_hidden() -> bool {
+    match VIEWS_HIDDEN.load(Relaxed) {
+        HIDDEN_UNKNOWN => views_hidden_ask(),
+        v => v == HIDDEN_YES,
+    }
+}
+
+/// [`views_hidden`]'s first call: valgrind's `RUNNING_ON_VALGRIND` client request.
+#[cold]
+#[inline(never)]
+fn views_hidden_ask() -> bool {
+    let hidden = crate::ffi::niji_machine_running_on_valgrind() != 0;
+    VIEWS_HIDDEN.store(if hidden { HIDDEN_YES } else { HIDDEN_NO }, Relaxed);
+    hidden
+}
+
+/// [`map_view`] under valgrind ([`views_hidden`]): the view is mapped inaccessible, so the tool does
+/// not take it for a mapping of the object, then made readable by `reveal(at, len)` (an `mprotect`).
+/// Nothing stays mapped on failure. One system call per view more than [`map_view_as`].
+#[cold]
+#[inline(never)]
+fn map_view_hidden(fd: i32, len: usize, reveal: impl FnOnce(usize, usize) -> Result<(), ()>) -> Result<usize, ()> {
+    let at = map_view_as(fd, len, PROT_NONE_I32)?;
+    if reveal(at, len).is_err() {
+        unmap_view(at, len);
+        return Err(());
+    }
+    Ok(at)
 }
 
 /// [`map_view`] outside the view arena: its own aligned reservation, trimmed to the view.
-fn map_view_alone(fd: i32, len: usize) -> Result<usize, ()> {
+fn map_view_alone(fd: i32, len: usize, prot: i32) -> Result<usize, ()> {
     const PAGE: usize = 0x1000;
     let mapped = len.checked_add(PAGE - 1).ok_or(())? & !(PAGE - 1);
     let span = mapped.checked_add(VIEW_ALIGN).ok_or(())?;
     let raw = raw::mmap(0, span, 0, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| ())?;
     // `raw` is page-aligned, so `at` is within the first VIEW_ALIGN - PAGE bytes and the view fits.
     let at = raw.wrapping_add(VIEW_ALIGN - 1) & !(VIEW_ALIGN - 1);
-    if raw::mmap(at, len, map::PROT_READ, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).is_err() {
+    if raw::mmap(at, len, prot, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).is_err() {
         let _ = raw::munmap(raw, span);
         return Err(());
     }
@@ -744,5 +805,49 @@ pub(super) fn dir_of(path: &[u8]) -> &[u8] {
         None => b".",
         Some(0) => b"/",
         Some(i) => path.get(..i).unwrap_or(b"."),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+mod tests {
+    use super::{map_view_hidden, raw, unmap_view, views_hidden};
+    use std::os::unix::io::AsRawFd;
+
+    /// The permissions column of `/proc/self/maps` for the mapping that starts at `at`.
+    fn perms_at(at: usize) -> String {
+        let maps = std::fs::read_to_string("/proc/self/maps").unwrap();
+        let start = format!("{at:x}-");
+        let line = maps.lines().find(|l| l.starts_with(&start)).unwrap_or_else(|| panic!("no mapping at {at:#x}"));
+        line.split_whitespace().nth(1).unwrap().to_owned()
+    }
+
+    /// VALGRIND-LOADER-VIEW (ruling #7301); no spec clause (a tool's view of the loader). The view
+    /// valgrind must not record is inaccessible when it is mapped (a readable file mapping made before
+    /// an object's segments is taken for one of the object's own) and readable once `reveal` has run;
+    /// a failed `reveal` leaves nothing mapped. Run on the bare machine, where `map_view` itself never
+    /// takes this path: the client request answers 0 there.
+    #[test]
+    fn hidden_view_is_inaccessible_until_revealed_and_the_bare_machine_does_not_hide() {
+        assert!(!views_hidden(), "the bare machine answered RUNNING_ON_VALGRIND with a nonzero depth");
+        let exe = std::fs::File::open(std::env::current_exe().unwrap()).unwrap();
+        let len = usize::try_from(exe.metadata().unwrap().len()).unwrap();
+        let mut seen = None;
+        let at = map_view_hidden(exe.as_raw_fd(), len, |at, n| {
+            seen = Some(perms_at(at));
+            raw::mprotect(at, n, niji_ld::map::PROT_READ).map_err(|_| ())
+        })
+        .expect("the hidden view maps");
+        assert_eq!(seen.as_deref(), Some("---p"), "the view was readable when it was mapped: valgrind records it as a mapping of the object");
+        assert_eq!(perms_at(at), "r--p", "the revealed view is not readable");
+        unmap_view(at, len);
+        let mut failed_at = 0;
+        let r = map_view_hidden(exe.as_raw_fd(), len, |at, _| {
+            failed_at = at;
+            Err(())
+        });
+        assert!(r.is_err(), "a failed reveal was not reported");
+        let maps = std::fs::read_to_string("/proc/self/maps").unwrap();
+        assert!(!maps.lines().any(|l| l.starts_with(&format!("{failed_at:x}-"))), "a failed reveal left the view mapped");
     }
 }
