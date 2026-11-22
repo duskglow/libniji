@@ -13,6 +13,8 @@ mod skip_note;
 #[path = "support/oracle.rs"]
 mod oracle;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -110,7 +112,7 @@ fn noproc_equals_the_reference() {
     assert!(build(&ours, true), "noproc_diff.c does not link against the products");
     // The working directory is the scratch directory (pathconf asks about it; mkstemp makes a
     // file there and removes it).
-    let work = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("noproc-{}", std::process::id()));
+    let work = crate::scratch::base().join(format!("noproc-{}", std::process::id()));
     std::fs::create_dir_all(&work).unwrap();
     let run = |exe: &Path, hidden: bool| -> String {
         let mut cmd = if hidden {

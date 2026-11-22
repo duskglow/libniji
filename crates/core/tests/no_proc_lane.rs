@@ -16,6 +16,8 @@
 #[path = "support/skip_note.rs"]
 mod skip_note;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::ffi::CString;
 use std::process::Command;
 use std::sync::OnceLock;
@@ -321,7 +323,7 @@ fn lchmod_without_proc() {
     }
     without_proc("lchmod_without_proc", &env, || {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("no_proc_lane_lchmod_{}", std::process::id()));
+        let dir = crate::scratch::base().join(format!("no_proc_lane_lchmod_{}", std::process::id()));
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let (f, l) = (dir.join("f"), dir.join("l"));
         std::fs::write(&f, b"x").map_err(|e| e.to_string())?;

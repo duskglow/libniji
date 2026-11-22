@@ -23,6 +23,10 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
+
 use niji_boundary::errno;
 use niji_boundary::posix::s12_stdio as io;
 use niji_boundary::posix::s18_processes as x;
@@ -57,12 +61,15 @@ fn base() -> String {
     std::env::var(BASE).unwrap_or_else(|_| std::process::id().to_string())
 }
 
-/// A fresh scratch directory (shared by the test process and its re-executed copy).
-fn scratch(tag: &str) -> PathBuf {
-    let p = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("eintr-{}-{tag}", base()));
+/// A fresh scratch directory, shared by the test process and its re-executed copy (named after the
+/// test process). The test process owns it (removed when the test passes, kept when it fails); the
+/// copy only makes it afresh, so it never removes the test process's directory.
+fn scratch(tag: &str) -> (Option<Scratch>, PathBuf) {
+    let p = crate::scratch::base().join(format!("eintr-{}-{tag}", base()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
-    p
+    let owner = std::env::var_os(ALONE).is_none().then(|| Scratch::adopt(p.clone()));
+    (owner, p)
 }
 
 /// Run `body` alone in a re-executed copy of this test binary; the copy exits 0 when `body`
@@ -120,11 +127,13 @@ fn disp(sig: i32) -> &'static str {
     }
 }
 
-/// A FIFO the child shell blocks on until [`interrupt_then_release`] has sent its signal.
-fn fifo(tag: &str) -> PathBuf {
-    let f = scratch(tag).join("fifo");
+/// A FIFO the child shell blocks on until [`interrupt_then_release`] has sent its signal, and its
+/// directory's owner (see [`scratch`]): keep it alive until the test ends.
+fn fifo(tag: &str) -> (Option<Scratch>, PathBuf) {
+    let (owner, d) = scratch(tag);
+    let f = d.join("fifo");
     assert!(std::process::Command::new("mkfifo").arg(&f).status().unwrap().success());
-    f
+    (owner, f)
 }
 
 /// After a short pause, send `SIGUSR1` to thread `tid` of this process (the one inside the
@@ -141,7 +150,7 @@ fn interrupt_then_release(tid: i32, fifo: PathBuf) -> std::thread::JoinHandle<()
 /// handler runs once, the wait is retried and the shell's status comes back; no child is left.
 #[test]
 fn eintr_system_retries_the_wait() {
-    let f = fifo("sys");
+    let (_dir, f) = fifo("sys");
     let out = alone_ok("eintr_system_retries_the_wait", move || {
         catch(SIGUSR1);
         let h = interrupt_then_release(x::gettid(), f.clone());
@@ -161,7 +170,7 @@ fn eintr_system_retries_the_wait() {
 /// wait status once the command ended.
 #[test]
 fn eintr_pclose_retries_the_wait() {
-    let f = fifo("pclose");
+    let (_dir, f) = fifo("pclose");
     let out = alone_ok("eintr_pclose_retries_the_wait", move || {
         catch(SIGUSR1);
         let fp = x::popen(cs(&format!("cat '{}' > /dev/null; exit 5", f.display())).as_ptr(), cs("r").as_ptr());

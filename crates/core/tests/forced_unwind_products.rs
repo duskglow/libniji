@@ -16,6 +16,9 @@
 
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -120,10 +123,9 @@ fn imports(exe: &Path, sym: &str) -> bool {
     String::from_utf8_lossy(&out.stdout).lines().filter_map(|l| l.split_whitespace().last()).any(|s| s.split('@').next() == Some(sym))
 }
 
-fn scratch(tag: &str) -> PathBuf {
-    let dir = root().join(format!("target/forced_unwind-{tag}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+/// A fresh work directory: removed when the test passes, kept (path on stderr) when it fails.
+fn scratch(tag: &str) -> Scratch {
+    Scratch::dir_in(&root().join("target"), &format!("forced_unwind-{tag}"))
 }
 
 const CXX_EXPECTED: &str = "exit-dtor: dtors=2 caught_fu=0 caught_all=0 result=42

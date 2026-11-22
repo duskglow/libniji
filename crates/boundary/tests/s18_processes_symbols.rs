@@ -29,6 +29,8 @@ use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{Rusage, SchedParam, SigInfo};
 use niji_legacy::spawn_compat::{CFileActions, CSpawnAttr};
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 mod products;
 use products::{conformance, exported};
 
