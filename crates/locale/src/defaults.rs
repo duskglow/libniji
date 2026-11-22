@@ -23,7 +23,6 @@ END LC_CTYPE
 LC_NUMERIC
 decimal_point "."
 thousands_sep ""
-grouping -1
 END LC_NUMERIC
 LC_TIME
 abday "Sun";"Mon";"Tue";"Wed";"Thu";"Fri";"Sat"
@@ -36,6 +35,7 @@ d_fmt "%m/%d/%y"
 t_fmt "%H:%M:%S"
 t_fmt_ampm "%I:%M:%S %p"
 date_fmt "%a %b %e %H:%M:%S %Z %Y"
+week 7;19971130;7
 END LC_TIME
 LC_COLLATE
 END LC_COLLATE

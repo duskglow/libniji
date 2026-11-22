@@ -68,7 +68,7 @@ const MIN_SHIFT: u32 = 4;
 /// The largest size class (2^16 bytes); a bigger block gets a mapping of its own.
 const MAX_SHIFT: u32 = 16;
 /// The number of size classes.
-const CLASSES: usize = (MAX_SHIFT - MIN_SHIFT + 1) as usize;
+const CLASSES: usize = 13; // MAX_SHIFT - MIN_SHIFT + 1
 /// The free space of the current chunk, `NEXT..END`.
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 static END: AtomicUsize = AtomicUsize::new(0);
@@ -92,8 +92,8 @@ fn class_of(size: usize, align: usize) -> Option<usize> {
 }
 
 /// The bytes of size class `c`.
-const fn class_size(c: usize) -> usize {
-    1usize << (c + MIN_SHIFT as usize)
+fn class_size(c: usize) -> usize {
+    u32::try_from(c).ok().and_then(|c| (1usize << MIN_SHIFT).checked_shl(c)).unwrap_or(0)
 }
 
 /// `len` rounded up to whole pages (`None` on overflow).
@@ -116,7 +116,7 @@ fn small_alloc(c: usize) -> usize {
         return head;
     }
     let size = class_size(c);
-    let mask = size - 1;
+    let mask = size.wrapping_sub(1);
     let next = NEXT.load(Relaxed);
     if next != 0 {
         if let Some(start) = next.checked_add(mask).map(|n| n & !mask) {

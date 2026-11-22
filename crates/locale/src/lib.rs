@@ -98,7 +98,7 @@ pub trait Files {
 pub type Compiled = [Option<TryVec<u8>>; 13];
 
 /// What one compile produced.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Output {
     /// Every category's file (`LC_ALL`, 6, is `None`). A category the source does not define,
     /// or one whose statements have a syntax error, has its POSIX default ([`defaults`]).
@@ -138,7 +138,7 @@ pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> R
 /// [`compile_output`] of the source `text` (already read) for the charset `cs`.
 pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
     let src = source::parse(text, files)?;
-    let mut out = Output { errors: src.errors, ..Output::default() };
+    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors };
     for (n, stmts) in src.cats.iter().enumerate() {
         let Some(stmts) = stmts else { continue };
         if let Some(d) = out.defined.get_mut(n) {

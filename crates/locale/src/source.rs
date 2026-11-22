@@ -55,7 +55,7 @@ impl Stmt {
 
 /// A parsed source: the statements of each category (index = category number), `None` for a
 /// category the source does not define.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Source {
     /// The statements per category number 0…12.
     pub cats: [Option<TryVec<Stmt>>; 13],
@@ -71,7 +71,7 @@ pub fn parse(text: &[u8], files: &mut dyn Files) -> Result<Source> {
 
 fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
     let (lines, chars) = lex::lines(text)?;
-    let mut src = Source::default();
+    let mut src = Source { cats: Default::default(), errors: TryVec::new() };
     let mut cur: Option<(usize, TryVec<Stmt>)> = None;
     for line in lines.into_inner() {
         let first = line.toks.first().and_then(Tok::word).unwrap_or(&[]);
