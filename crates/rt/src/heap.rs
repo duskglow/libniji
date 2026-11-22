@@ -898,6 +898,16 @@ impl Heap {
     /// any of them exists, without segments, or when the mapping fails (each part is then
     /// mapped on its own as before). Inlined into its two cold callers: out of line it took a
     /// text page fault of its own on the first allocation.
+    /// Whether the heap has never mapped anything: no segment, cache table or large block, so it
+    /// holds no live block (INTERNAL-ALLOC-ROUTING: the library's own allocations may then all go
+    /// to a replacing allocator, with nothing of this heap's to tell apart at release).
+    pub fn untouched(&self) -> bool {
+        self.nsegs.load(Acquire) == 0
+            && self.seg.ngens.load(Acquire) == 0
+            && self.cache_ngens.load(Acquire) == 0
+            && self.large_ngens.load(Acquire) == 0
+    }
+
     #[inline(always)]
     fn first_reservation<P: Pages>(&self, pages: &P, shard: usize) {
         if self.no_segments.load(Relaxed)

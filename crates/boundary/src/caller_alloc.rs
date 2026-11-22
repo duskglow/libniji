@@ -35,6 +35,44 @@ unsafe extern "C" {
     #[link_name = "niji_caller_free"]
     safe fn c_free(p: *mut c_void);
     pub(crate) safe fn __errno_location() -> *mut i32;
+    safe fn niji_link_family_replaced() -> core::ffi::c_int;
+}
+
+// ------------------------------------------------------------------------------ internal routing
+
+/// Where the library's own allocations (Rust's global allocator in the products, `heap::Niji`)
+/// go (ruling #7583, INTERNAL-ALLOC-ROUTING): [`PRIVATE`] (libniji's heap), [`ROUTED`] (every
+/// block at most [`niji_rt::heap::ALIGN`]-aligned through the symbols, as caller memory is) or
+/// [`ROUTED_CHECKED`] (the same, but the heap already held blocks of the library's own when the
+/// route was decided, so a release asks the heap whose block it is first). Decided once, by
+/// [`decide_route`], before any constructor; never changed afterwards.
+static ROUTE: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(PRIVATE);
+pub(crate) const PRIVATE: u8 = 0;
+pub(crate) const ROUTED: u8 = 1;
+pub(crate) const ROUTED_CHECKED: u8 = 2;
+
+/// [`ROUTE`]'s value: one load, [`PRIVATE`] unless the family was replaced.
+#[inline(always)]
+pub(crate) fn route() -> u8 {
+    ROUTE.load(core::sync::atomic::Ordering::Relaxed)
+}
+
+/// Decide [`ROUTE`] (libniji's `ld.so` calls `early_init` after relocation, before any
+/// constructor): when `malloc`, `calloc`, `realloc` or `free` resolves outside libc.so.6 (a
+/// program, an `LD_PRELOAD` library or a tool replaced the family, "Replacing malloc"), the
+/// library's own allocations go through the replacement from here on, as the reference's do.
+/// The loader's own data (`ld.so` keeps no heap) and the blocks of an aligned allocation above
+/// the replacement's guarantee stay private (docs/differences-from-glibc.md). Cold: a start
+/// without a replacement pays the call and one comparison loop.
+#[cold]
+#[inline(never)]
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+pub(crate) fn decide_route() {
+    if niji_link_family_replaced() == 0 {
+        return;
+    }
+    let mode = if crate::heap::HEAP.untouched() { ROUTED } else { ROUTED_CHECKED };
+    ROUTE.store(mode, core::sync::atomic::Ordering::Release);
 }
 
 

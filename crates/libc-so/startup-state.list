@@ -47,6 +47,7 @@ niji_boundary::heap::RESERVE_TOP
 niji_boundary::heap::RESERVE_LIVE
 niji_boundary::heap::RESERVE_LOCK
 niji_boundary::heap::RSEQ_NODE  # the kernel-fills-node_id answer, written by the first multi-node allocation (D-3.21)
+niji_boundary::caller_alloc::ROUTE  # where the library's own allocations go: read by each, decided before the first (ruling #7583)
 # The initial thread, its TLS image and rseq registration.
 niji_boundary::thread::HEAD
 niji_boundary::thread::LIST

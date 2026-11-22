@@ -23,6 +23,7 @@ use niji_legacy::malloc_compat::{self, Ctx};
 use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
 use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
 
+use crate::caller_alloc;
 use crate::raw;
 use crate::sys::CSys;
 
@@ -437,26 +438,65 @@ unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if caller_alloc::route() != caller_alloc::PRIVATE && layout.align() <= ALIGN {
+            return routed_alloc(layout.size(), false);
+        }
         core::ptr::with_exposed_provenance_mut(rust_alloc(layout.size(), layout.align()))
     }
 
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        if caller_alloc::route() != caller_alloc::PRIVATE && routed_block(ptr.expose_provenance(), layout.align()) {
+            return caller_alloc::free(ptr.cast());
+        }
         rust_dealloc(ptr.expose_provenance(), layout.size());
     }
 
     // UNSAFE(allocator): the trait's provided method, overridden (HEAP-CUTS C2).
     #[allow(unsafe_code)]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        if caller_alloc::route() != caller_alloc::PRIVATE && layout.align() <= ALIGN {
+            return routed_alloc(layout.size(), true);
+        }
         core::ptr::with_exposed_provenance_mut(rust_alloc_zeroed(layout.size(), layout.align()))
     }
 
     // UNSAFE(allocator): the trait's provided method, overridden (HEAP-CUTS C2).
     #[allow(unsafe_code)]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        if caller_alloc::route() != caller_alloc::PRIVATE && routed_block(ptr.expose_provenance(), layout.align()) {
+            // A block of the replacement: its `realloc` (NULL leaves the block as it was, as the
+            // trait requires).
+            return caller_alloc::realloc(ptr.cast(), new_size.max(1)).cast();
+        }
         core::ptr::with_exposed_provenance_mut(rust_realloc(ptr.expose_provenance(), layout.size(), layout.align(), new_size))
     }
+}
+
+/// A block for the library's own use from the replacing allocator (ruling #7583): `malloc` or,
+/// zeroed, `calloc` through the symbols. NULL when the replacement has none: the library's
+/// fallible collections then report `ENOMEM`, so a replacement that fails a call makes the call
+/// that needed it fail, as with the reference. The reserve is not used here: it stands in for
+/// libniji's own heap only. Out of line and cold: only a process with a replacement gets here.
+#[cold]
+#[inline(never)]
+fn routed_alloc(size: usize, zero: bool) -> *mut u8 {
+    let p = if zero { caller_alloc::calloc(size.max(1), 1) } else { caller_alloc::malloc(size.max(1)) };
+    p.cast()
+}
+
+/// Whether the library's block at `addr` (allocated at `align`) came from the replacing
+/// allocator: every block at most [`ALIGN`]-aligned once the route was decided with an untouched
+/// heap; with blocks of the heap's own already live then ([`caller_alloc::ROUTED_CHECKED`]),
+/// those of the heap and the reserve stay the heap's. Cold, as [`routed_alloc`].
+#[cold]
+#[inline(never)]
+fn routed_block(addr: usize, align: usize) -> bool {
+    if align > ALIGN {
+        return false;
+    }
+    caller_alloc::route() == caller_alloc::ROUTED || !(in_reserve(addr) || HEAP.usable(&CSys, &KernelPages, addr).is_ok())
 }
 
 /// [`libniji`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
