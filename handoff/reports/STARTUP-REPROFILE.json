@@ -1,0 +1,23 @@
+{"task": "STARTUP-REPROFILE", "model": "opus", "tokens": null,
+ "result": "Ranking (release, both classes): 1 LD-PHDR-ONCE (land; -40k..-48k empty main) - 2 LD-OBJECT-ONCE+LD-VERSIONS-ONCE merged (-50k..-70k; add GnuHash::symbol_count ~31k) - 3 LD-RELR-LOOP (-50k/-66k) - 4 new lookup story (-38k/-58k) - 5 new init/fini-array weak-reference story (~-10k est.) - 6 LD-START-MAPS (user ~0; kernel +174k, +12 faults: attribute first). Release empty main 331,895 (Skylake-SP) / 331,733 (Zen 1) vs glibc 2.39 101,855 / 96,040.",
+ "branch": "task/startup-reprofile", "head": "f1cd19656",
+ "gate": {"affected": "none (no product code changed; measurement only)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "LD-OBJECT-ONCE scope: GnuHash::symbol_count (~31k of the 83.8k Object::new, release) is not in its brief", "recommendation": "amend LD-OBJECT-ONCE to bound symbol_count from the highest bucket's chain end and merge LD-VERSIONS-ONCE into it"},
+  {"item": "symbolic lookups (70.8k of the release empty main, 1,445 vs 675 per lookup) are covered by no story", "recommendation": "brief LD-LOOKUP-COST's structural step (decode once, (definer, index) from check_versions)"},
+  {"item": "libc.so.6's 8 weak undefined init/fini-array references fail a whole-scope walk each on every start", "recommendation": "small story: take the arrays from the program's dynamic section (DT_INIT_ARRAY...) and drop the references"}],
+ "informational": [
+  "Premise correction: symbolic relocations are 70.8k (21%) of the release empty main, not ~30k: 59 relocations at 1,445 each.",
+  "Release products inline Object::with_style+symbol_count into Object::new and check_versions into link; the kit's phase.py takes both names, relphase.py reconstructs check_versions.",
+  "Release libc.so.6 has 55 symbolic relocations (fast 58: memalign, pvalloc, valloc references fold away in release).",
+  "LD-LOOKUP-COST on Zen 1 (brief step 4): empty main 763,224 -> 704,468, per lookup 1,947 -> 1,507; same as its Skylake-SP rows within 0.03%."],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "measurement and ranking only; no product code changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "empty-main dynamic start user instructions if the ranked chain lands (estimate)", "before": 331895, "after": 129000, "unit": "instr/start", "measured": false},
+  {"kind": "tooling", "what": "start-up profiling kit (counts on both classes, Intel PT phase table) committed under handoff/STARTUP-REPROFILE/kit", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "Rank performance chains on release products from the start: release shifted every fast estimate by 10-25% and inlined two named phases; a leg went to rebuilding on the shipped profile.",
+ "next_step": "Coordinator: land LD-PHDR-ONCE, amend LD-OBJECT-ONCE (merge VERSIONS, add symbol_count), brief the lookup and init/fini-array stories.",
+ "report_file": "handoff/STARTUP-REPROFILE.md",
+ "jobs": ["keke:startup-reprofile-so-release", "keke:startup-reprofile-meas-zen1-rel2", "mei:startup-reprofile-pt-sky-rel2"]}
