@@ -1,7 +1,8 @@
 # TIMED-WAIT-PAST-DEADLINE: timed waits return on a past deadline, never loop
 
-State: branch `task/timed-wait-past-deadline`, code commit 4c81d0500 (on origin/next fa79409c7); this note and
-`handoff/reports/TIMED-WAIT-PAST-DEADLINE.json` in the commit after it. Role mei:~/w/s4.
+State: branch `task/timed-wait-past-deadline` on origin/next fa79409c7: code 4c81d0500, 1967c4ff6 (trace marker),
+24da5b1b2 (substitution only at cancellation points); this note and the report JSON in the commit after it.
+Role mei:~/w/s4.
 Record: `records/pending/TIMED-WAIT-PAST-DEADLINE-1.toml` (D-NEW, series D-22; CI assigns the id).
 
 ## The timed waits (step 1)
@@ -20,8 +21,9 @@ Every wait that reaches `futex::wait_until`, `Ctx::wait` or the kernel's PI lock
 ## The fix (step 3)
 
 - `futex::past(at)`: `tv_sec < 0` is before every reading of both clocks. `futex::wait_until` returns ETIMEDOUT
-  for it without the syscall. The cancellable path (`ThreadCtx::wait`, boundary `sync.rs`) waits until {0, 0}
-  instead, so a due cancellation request is still acted on; the kernel then returns ETIMEDOUT at once.
+  for it without the syscall. Only the cancellable path (`ThreadCtx::wait` with a thread, boundary `sync.rs`:
+  cond, sem, join) waits until {0, 0} instead, so a due cancellation request is still acted on; the kernel then
+  returns ETIMEDOUT at once. The non-cancellable waits (mutex, rwlock) reach `wait_until` and make no call.
 - `futex::woken(r)` sorts every loop's result: Ok, EAGAIN, EINTR = wake-up (re-check); any other error ends the
   call with that error (ETIMEDOUT, ECANCELED, and kernel rejections EINVAL, EFAULT, ENOSYS/EPERM from a filter).
   The semaphore keeps its own match (EINTR ends `sem_wait`): Ok/EAGAIN retry, every error ends.
@@ -50,9 +52,17 @@ Every wait that reaches `futex::wait_until`, `Ctx::wait` or the kernel's PI lock
   wait returns EINVAL/ENOSYS/EFAULT, a 1000-wait budget panics on a retry loop; mutex x4 kinds, cond, rwlock rd/wr,
   sem; Block and both clocks) and `a_deadline_with_a_negative_second_has_passed`.
 
-## Jobs (mei)
+## Jobs (mei, final code head 24da5b1b2)
 
-See the report JSON (`jobs`) and the hand-back. Plants: `handoff/TIMED-WAIT-PAST-DEADLINE-plants.txt` (6).
+- timed-wait-past-deadline-lint3: clippy --all-features -D warnings, `xtask static`, `records check`: rc 0.
+- timed-wait-past-deadline-gate3: `affected --run --base origin/next` (direct tier): rc 0; 16 suites ok, 10471 passed, 0 failed, 1007 ignored; conformance 52 passed; peak 13G.
+- timed-wait-past-deadline-plants3: `handoff/TIMED-WAIT-PAST-DEADLINE-plants.txt`, 6 plants: woken-retry,
+  sem-retry (rt refused-wait test), past-precheck-rt (rt negative-deadline test), past-precheck, cancel-clamp,
+  join-loop (conformance s22_past_deadline): 6 CAUGHT, 0 SURVIVED, 0 WARN.
+- Superseded: gate1 (stubs/trace precheck: a test comment lacked the lowercase `no spec clause`), plants1 and gate2
+  (killed when the head moved), plants2 (past-precheck SURVIVED: the {0, 0} substitution also covered the
+  non-cancellable waits, masking the wait_until decision; fixed in 24da5b1b2, which limits it to cancellation
+  points). Evidence only: so0, lint1, static1 and the probe runs in mei:~/work/timed-wait-past-deadline/.
 
 ## Open / next
 
