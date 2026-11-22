@@ -528,8 +528,17 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
     };
     // Syntax errors the compile went past (#7534, probed): a line outside any category is skipped and the
     // locale still written, status 1; a category with an error needs -c (it gets its default), status 1.
-    for e in out.errors.iter() {
-        put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+    // A failed category's error names it first (probed: `<file>:2: LC_NUMERIC: syntax error`); libniji adds
+    // what was wrong.
+    let mut failed = out.failed.iter().enumerate().filter(|f| *f.1).map(|f| f.0);
+    for (k, e) in out.errors.iter().enumerate() {
+        let cat: &[&[u8]] = match (k >= out.outside).then(|| failed.next()).flatten() {
+            Some(n) => &[NAMES.get(n).copied().unwrap_or_default(), b": syntax error: "],
+            None => &[],
+        };
+        put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": "])?;
+        put(&mut o.err, cat)?;
+        put(&mut o.err, &[e.what.as_bytes(), b"\n"])?;
         o.status = 1;
     }
     let category_errors = out.errors.len() > out.outside;

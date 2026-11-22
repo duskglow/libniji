@@ -76,7 +76,11 @@ fn reference(locale: &str, charmap: &str) -> Option<PathBuf> {
         println!("skip {locale}.{charmap}: no source {}", source_path(locale).display());
         return None;
     }
-    let dir = std::env::temp_dir().join(format!("niji-locale-ref-{}-{}.{charmap}", std::process::id(), locale.replace('/', "_")));
+    // One directory per call: two tests may compile the same locale at once (they did share one,
+    // and one removed it under the other).
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("niji-locale-ref-{}-{call}-{}.{charmap}", std::process::id(), locale.replace('/', "_")));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).ok()?;
     let out = dir.join("out");
@@ -421,7 +425,7 @@ fn en_us_iso_8859_1() {
     compare("en_US", "ISO-8859-1");
 }
 
-/// s31_8_c_1, s31_8_g_1: a source that defines one category gets every other category's
+/// s31_8_c_1, s31_8_g_3: a source that defines one category gets every other category's
 /// default, equal to what the reference writes for a category a source does not define (#7534):
 /// once for a multi-byte charmap (UTF-8) and once for a single-byte one (ISO-8859-1).
 ///

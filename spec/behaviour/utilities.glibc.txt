@@ -609,6 +609,80 @@
   $ localedef --list-archive | head -n 3
   | en_US.utf8
   rc=0
+== localedef-list-missing
+  (LOCALEDEF-ARCHIVE, reference localedef on a Zen 1 host; $T a fresh directory)
+  $ localedef --prefix=$T/none --list-archive
+  rc=0
+  $ localedef --list-archive $T/nosuch extra
+  ! cannot open locale archive "$T/nosuch": No such file or directory
+  rc=1
+== localedef-archive
+  $ localedef --prefix=$T/p1 -i en_US -f UTF-8 en_US.UTF-8          (no $T/p1/usr/lib/locale)
+  ! cannot create temporary file: $T/p1/usr/lib/locale/locale-archive.XXXXXX: No such file or directory
+  rc=1
+  $ mkdir -p $T/p1/usr/lib/locale; localedef --prefix=$T/p1 -i en_US -f UTF-8 en_US.UTF-8
+  rc=0
+  $ localedef --prefix=$T/p1 -i de_DE -f UTF-8 de_DE.UTF-8; localedef --prefix=$T/p1 -i en_US -f ISO-8859-1 en_US; localedef --prefix=$T/p1 -i tr_TR -f UTF-8 tr_TR; localedef --prefix=$T/p1 --list-archive
+  | de_DE.utf8
+  | en_US
+  | en_US.iso88591
+  | en_US.utf8
+  | tr_TR
+  | tr_TR.utf8
+  rc=0
+  $ localedef --prefix=$T/p1 -i en_US -f UTF-8 en_US.UTF-8          (again: replaced silently)
+  rc=0
+  $ localedef --prefix=$T/p1 --delete-from-archive de_DE.utf8
+  rc=0
+  $ localedef --prefix=$T/p1 --delete-from-archive de_DE.UTF-8 nosuch
+  ! locale "de_DE.UTF-8" not in archive
+  ! locale "nosuch" not in archive
+  rc=0
+  $ localedef --prefix=$T/p2 -i $T/m.src -f UTF-8 zz_ZZ@euro; localedef --prefix=$T/p2 --list-archive | grep zz
+  (m.src: a few categories and a stray line; its messages and warnings omitted)
+  | zz_ZZ.utf8@euro
+  | zz_ZZ@euro
+  rc=0
+  (the two names' slots hold one record offset)
+  $ localedef -i fr_FR -f UTF-8 $T/fr_FR.UTF-8; localedef --prefix=$T/p1 --add-to-archive $T/fr_FR.UTF-8
+  | Adding $T/fr_FR.UTF-8
+  rc=0
+  $ localedef --prefix=$T/p1 --add-to-archive $T/fr_FR.UTF-8
+  | Adding $T/fr_FR.UTF-8
+  ! locale 'fr_FR.utf8' already exists
+  rc=255
+  $ localedef --prefix=$T/p1 --add-to-archive $T/missing
+  | Adding $T/missing
+  ! stat of "$T/missing" failed: No such file or directory: ignored
+  rc=0
+  $ localedef --prefix=$T/p2 --no-archive -i $T/m.src -f UTF-8 nn_NN.UTF-8; ls $T/p2/usr/lib/locale | grep nn
+  | nn_NN.utf8
+== localedef-stdin
+  $ printf 'LC_NUMERIC\ndecimal_point "."\nEND LC_NUMERIC\nstray\n' | localedef -f UTF-8 -c $T/s1
+  ! <stdin>:4: syntax error: not inside a locale definition section
+  ! [warning] No definition for LC_CTYPE category found
+  (one warning per other undefined category)
+  rc=1
+== localedef-syntax
+  $ printf 'stray\nLC_NUMERIC\ndecimal_point "."\nEND LC_NUMERIC\n' > $T/o1; localedef -i $T/o1 -f UTF-8 $T/o1d
+  ! $T/o1:1: syntax error: not inside a locale definition section
+  (warnings; all twelve files written, without -c)
+  rc=1
+  $ printf 'LC_NUMERIC\ndecimal_point "." junk junk\nEND LC_NUMERIC\n' > $T/c1; localedef -i $T/c1 -f UTF-8 $T/c1d
+  ! $T/c1:2: LC_NUMERIC: syntax error
+  (warnings)
+  ! [error] no output file produced because errors were issued
+  rc=4
+  $ localedef -i $T/c1 -f UTF-8 -c $T/c1d
+  ! $T/c1:2: LC_NUMERIC: syntax error
+  (warnings; all twelve files written)
+  rc=1
+== localedef-undefined
+  $ printf 'LC_MEASUREMENT\nmeasurement 1\nEND LC_MEASUREMENT\n' > $T/u1; localedef -i $T/u1 -f UTF-8 -c $T/u1d; ls $T/u1d | wc -l
+  ! [warning] No definition for LC_CTYPE category found
+  (one line for each of the other ten undefined categories)
+  | 12
+  rc=1
 == zic-help
   $ zic --help
   | zic: usage is zic [ --version ] [ --help ] [ -v ] \

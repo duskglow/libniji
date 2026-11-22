@@ -111,6 +111,9 @@ pub struct Output {
     pub errors: TryVec<Error>,
     /// How many of [`Output::errors`] are lines outside any category (the first ones).
     pub outside: usize,
+    /// The categories whose statements failed, by number (one error each after the outside ones,
+    /// in category order).
+    pub failed: [bool; 13],
 }
 
 /// Compile the locale source `locale` for the charmap `charmap` (both read through `files`):
@@ -142,7 +145,7 @@ pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> R
 pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
     let src = source::parse(text, files)?;
     let outside = src.errors.len();
-    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside };
+    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside, failed: [false; 13] };
     for (n, stmts) in src.cats.iter().enumerate() {
         let Some(stmts) = stmts else { continue };
         if let Some(d) = out.defined.get_mut(n) {
@@ -154,7 +157,12 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
                     *slot = file;
                 }
             }
-            Err(e) if e.kind == ErrorKind::Syntax => out.errors.push(e)?,
+            Err(e) if e.kind == ErrorKind::Syntax => {
+                out.errors.push(e)?;
+                if let Some(f) = out.failed.get_mut(n) {
+                    *f = true;
+                }
+            }
             Err(e) => return Err(e),
         }
     }
