@@ -486,9 +486,14 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// the Skylake-SP host's (DYN-START-SPEED-2), so it takes the same bound. Release: 743,209 in this test
 /// on the Skylake-SP host (execcount 721,809 and Zen 1 host 721,601, median of 101); both release
 /// bounds are that level plus 2%.
+/// LIBC-SELF-BIND (D-27.76, libc.so.6 binds its own function references at link time; 288 symbolic
+/// relocations left 58 fast, 55 release): this test on the Zen 1 host, fast 365,683 and release 339,504
+/// (more than 10% under the old bounds, so they went red); each bound is that level plus 2%. Skylake-SP
+/// host not measured: its levels were within 0.03% of the Zen 1 host's in both profiles (DYN-START-SPEED-2,
+/// COMPAT19-LDSO-COST), so it takes the same bounds.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [788_100, 758_100]),
-    ("AMD EPYC 7551 32-Core Processor", [788_100, 758_100]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [373_000, 346_300]),
+    ("AMD EPYC 7551 32-Core Processor", [373_000, 346_300]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
