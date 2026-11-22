@@ -1,8 +1,19 @@
 # DL-FIND-OBJECT-FAST: _dl_find_object and dladdr through an address index
 
-**State.** Branch `task/dl-find-object-fast` from next `d5764940d`; role keke:~/w/n4. Code head `f92f73c40`
-(record `b4cba586a`, then handoff/report commits). Decision: `records/pending/DL-FIND-OBJECT-FAST-1.toml` (D-NEW,
-series D-27; id D-27.75 reserved in leg 3 and named in `index.rs`'s module doc, a comment-only commit after the jobs).
+**State.** Branch `task/dl-find-object-fast-2` (continues `task/dl-find-object-fast`, from next `d5764940d`); role
+keke:~/w/r2. Code head `d91a4174d` (the last code commit; later commits are handoff/report only). Decision:
+`records/pending/DL-FIND-OBJECT-FAST-1.toml` (D-NEW, series D-27; id D-27.75 reserved and named in `index.rs`'s
+module doc). Ruling #7391: land with the dladdr program-address cost recorded; its fix-forward is item 5 of
+DL-READER-COSTS, not this story.
+
+**DL-FIND-OBJECT-FAST-2 (rerun only, no code change).** The last run's gate2/lint ran before `d91a4174d`. Synced
+`7a4c57899` (code = `d91a4174d`) to keke r2 and reran, all rc 0: lint `dl-find-object-fast-2-lint` (workspace
+clippy -D warnings + static), gate `dl-find-object-fast-2-gate` (direct tier: 786 passed / 0 failed / 52 ignored,
+conformance 12/12, peak 2.8G), plants `dl-find-object-fast-2-plants` (5/5 CAUGHT, no WARN-RC-ONLY/NO-MSG; one
+WARN-DEV-SHM location note), per-call `dl-find-object-fast-2-pc` (the 24 _dl_find_object/dladdr rows: identical to
+the table below, the head's self-checks agree with glibc, MISMATCH rows are base's -1). Start-up checks
+`dl-find-object-fast-2-hot`, then `dl-find-object-fast-2-xtest` (chained after the gate; see the hand-back for their
+state). The previous run's xtest3 (same code, role n4) passed: 4862 + 128 + 46 tests.
 
 **Design (in force).** `crates/boundary/src/ld/index.rs` (module doc): one entry per `PT_LOAD` segment, sorted by
 start, binary search for the last entry at or below the address, kept when its object's whole range holds it.
@@ -49,7 +60,7 @@ before/after dlopen, after dlclose (checks 41/42), reopen; churn: 3 readers x 30
 Plants `handoff/DL-FIND-OBJECT-FAST-plants.txt`: 5/5 CAUGHT on b2a8a77 (job plants: stale-after-dlclose,
 torn-writer-no-odd, torn-reader-no-validate, search-edge, added-missing); final head: plants2 5/5 CAUGHT, no WARN.
 
-**Jobs on the final head d91a4174d (keke, started 21:17Z, pending at hand-back).** `~/work/dl-find-object-fast/seq3.sh`:
+**Earlier jobs (role n4; superseded by the -2 jobs above).** `~/work/dl-find-object-fast/seq3.sh`:
 lint3 (workspace clippy + static), gate3 (direct tier), xtest3 (`cargo xtask test`), hot3 (NIJI_FULL_PROFILE so +
 hot_text_products). `par3.sh`: plants3, pc4, throw3. The numbers above are from the same code one commit earlier
 (b4cba586a: lint, gate2 786 passed / 0 failed / peak 2.4G, plants2, pc3, throw2, all rc 0); d91a4174d changes
@@ -62,7 +73,8 @@ change is not on next yet (not in this branch, base d5764940d), so there is noth
 leaves dl_iterate_phdr unchanged against next before DL-SLOT-REUSE (pc3 rows above, base = head). Whoever merges
 both takes the REORDERED test out of the per-call path.
 
-**Next step.** 1. The dladdr fix-forward above (cost rows). 2. Target not reached: `_dl_find_object` is
+**Next step.** Land (ruling #7391). Follow-ups elsewhere: 1. The dladdr fix-forward above (cost rows): item 5 of
+DL-READER-COSTS. 2. Target not reached: `_dl_find_object` is
 ~400 vs the reference's 51-197: profile the constant part (read section counters, `region()` slice, bounds-checked
 `word()`, `node_address`) with `validation/wl_trace.sh`; a first-object fast path is one option. dladdr `first` rows
 (program) stay ~5x the reference (symbol search, not the object search). `dl_iterate_phdr` walk ~4x: separate story.
