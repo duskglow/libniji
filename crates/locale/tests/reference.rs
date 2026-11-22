@@ -7,6 +7,7 @@
 //! value and width of every code point below 0x110000. Both use the installed sources
 //! (`/usr/share/i18n`); a case whose source, charmap or reference program is absent is skipped
 //! with the reason printed.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
