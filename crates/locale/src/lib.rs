@@ -86,3 +86,39 @@ pub trait Files {
     /// The contents of the file `name` of `kind` (decompressed), or `Err` when there is none.
     fn read(&mut self, kind: Kind, name: &[u8]) -> Result<TryVec<u8>>;
 }
+
+/// The compiled files of one locale, by category number (`LC_ALL`, 6, and categories the
+/// source does not define are `None`).
+pub type Compiled = [Option<TryVec<u8>>; 13];
+
+/// Compile the locale source `locale` for the charmap `charmap` (both read through `files`):
+/// each category the source defines, written as its Appendix D.1 file.
+pub fn compile(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> Result<Compiled> {
+    let cs = charset::Charset::parse(&files.read(Kind::Charmap, charmap)?)?;
+    let text = files.read(Kind::Locale, locale)?;
+    let src = source::parse(&text, files)?;
+    let mut out: Compiled = Default::default();
+    for (n, stmts) in src.cats.iter().enumerate() {
+        let Some(stmts) = stmts else { continue };
+        let b = cats::Body::new(stmts);
+        let file = match n {
+            0 => ctype::write(&ctype::parse(stmts, files)?, &cs)?,
+            1 => cats::numeric(&b, &cs)?,
+            2 => cats::time(&b, &cs)?,
+            4 => cats::monetary(&b, &cs)?,
+            5 => cats::messages(&b, &cs)?,
+            7 => cats::paper(&b, &cs)?,
+            8 => cats::name(&b, &cs)?,
+            9 => cats::address(&b, &cs)?,
+            10 => cats::telephone(&b, &cs)?,
+            11 => cats::measurement(&b, &cs)?,
+            12 => cats::identification(&b, &cs)?,
+            // LC_COLLATE: not written yet (D.1.4).
+            _ => continue,
+        };
+        if let Some(slot) = out.get_mut(n) {
+            *slot = Some(file);
+        }
+    }
+    Ok(out)
+}
