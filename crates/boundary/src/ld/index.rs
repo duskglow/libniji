@@ -1,5 +1,5 @@
-//! The loader's address index (DL-FIND-OBJECT-FAST, D-27.75, pending in
-//! `records/pending/DL-FIND-OBJECT-FAST-1.toml`): which published object holds an address, for
+//! The loader's address index (DL-FIND-OBJECT-FAST, D-27.75,
+//! `records/decisions/D-27/D-27.75.toml`): which published object holds an address, for
 //! `_dl_find_object` ([`super::readers`]) and `dladdr` (`super::dlopen::dladdr`), in a binary search
 //! instead of a walk over every object (the unwinders call `_dl_find_object` once per frame).
 //!
