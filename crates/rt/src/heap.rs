@@ -192,8 +192,13 @@ const SLABS: usize = 63;
 /// and rebind modes grew 1 to 3 times (one `mmap` each, strace on the Zen 1 build host), so the
 /// growth joined the start-up trace and its text; with 16 no start-up mode grows.
 const SEG_FIRST: usize = 16;
-/// The bytes a new segment maps: its metadata and [`SEG_FIRST`] slabs.
+/// The bytes the first reservation's segment maps: its metadata and [`SEG_FIRST`] slabs.
 const SEG_MIN: usize = META + SEG_FIRST * SLAB;
+/// Slabs a segment grows by at most (2 MiB), and the slabs every later segment maps first
+/// (HEAP-SECOND-NODE-MAP): a second node's segment, or a node's next one once its current one
+/// is spent, then grows by the same step as the first node's segment would have. Start-up
+/// (the [`SEG_FIRST`] reason) runs in the first reservation's segment only.
+const SEG_STEP: usize = 8;
 /// Generation 0 of the large-block table at most: 256 slots, one page (later generations
 /// double, T14). Was the maximum, 16 MiB of address space at the first large block.
 const FIRST_LARGE: usize = 256;
@@ -967,8 +972,8 @@ impl Heap {
 
     // ------------------------------------------------------------------------- segments
 
-    /// Map a new segment for `shard` and register it.
-    fn new_segment<S: Sys, P: Pages>(&self, sys: &S, pages: &P, shard: usize) -> Option<usize> {
+    /// Map a new segment for `shard` and register it: its registry index and the slabs mapped.
+    fn new_segment<S: Sys, P: Pages>(&self, sys: &S, pages: &P, shard: usize) -> Option<(usize, usize)> {
         let _g = self.grow.lock(sys);
         self.choose_capacities(pages);
         if self.no_segments.load(Relaxed) {
@@ -997,16 +1002,13 @@ impl Heap {
         }
         // The first reservation's segment, unless it was mapped for another node.
         let spare = self.spare_seg.load(Relaxed);
-        let base = if spare != 0 && self.node_for(self.spare_shard.load(Relaxed)) == self.node_for(shard) {
+        let (base, first) = if spare != 0 && self.node_for(self.spare_shard.load(Relaxed)) == self.node_for(shard) {
             self.spare_seg.store(0, Relaxed);
-            spare
+            (spare, SEG_FIRST)
         } else {
-            if self.held_elsewhere(pages, shard) {
-                return None;
-            }
-            pages.map_room(0, SEG_MIN, SEG, SEG, self.node_for(shard))?
+            (self.map_later_segment(pages, shard)?, SEG_STEP)
         };
-        self.seg_mapped.fetch_add(SEG_MIN, Relaxed);
+        self.seg_mapped.fetch_add(META + first * SLAB, Relaxed);
         pages.words(base, 1)[0].store(w64(shard) + 1, Release);
         pages.words(self.seg.bases[g].load(Relaxed), len)[o].store(w64(base), Release);
         let table = pages.words(self.seg.hash[g].load(Relaxed), len * 2);
@@ -1020,14 +1022,29 @@ impl Heap {
         }
         self.nsegs.store(n + 1, Release);
         self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
-        Some(n)
+        Some((n, first))
+    }
+
+    /// The base of a segment other than the first reservation's (a second node's, or a node's
+    /// next one), mapped as far as its metadata and [`SEG_STEP`] slabs (HEAP-SECOND-NODE-MAP), or
+    /// `None` when it should wait for the slabs other shards hold ([`Heap::held_elsewhere`]) or
+    /// the mapping fails. Mapping [`SEG_FIRST`] slabs here left a second node, under an
+    /// address-space limit, 2 MiB above the first node's next growth step. Cold and out of
+    /// line: it runs once per segment after the first.
+    #[cold]
+    #[inline(never)]
+    fn map_later_segment<P: Pages>(&self, pages: &P, shard: usize) -> Option<usize> {
+        if self.held_elsewhere(pages, shard) {
+            return None;
+        }
+        pages.map_room(0, META + SEG_STEP * SLAB, SEG, SEG, self.node_for(shard))
     }
 
     /// Whether `shard`'s new segment should wait (HEAP-SPILL-COLD-2, ruling #7441): under an
     /// address-space limit, while another shard holds a slab it has not handed out (an empty one
     /// or a mapped, never-used one), a thread that moved to another node takes that slab
-    /// (`refill`'s `take_elsewhere`) instead of mapping its node's segment (`SEG_MIN`, 4352 KiB,
-    /// most of it idle while the first node's slabs are). Without a limit placement stays per
+    /// (`refill`'s `take_elsewhere`) instead of mapping its node's segment (metadata and
+    /// [`SEG_STEP`] slabs, 2304 KiB, most of it idle while the first node's slabs are). Without a limit placement stays per
     /// node: the idle part costs address space only, never a touched page. The other shards'
     /// words are read without their locks: a hint; when the slab is gone by the time
     /// `take_elsewhere` looks, the request gets a mapping of its own (`alloc_large`), as under a
@@ -1079,10 +1096,10 @@ impl Heap {
                 return Some(s);
             }
         }
-        let idx = self.new_segment(sys, pages, shard)?;
+        let (idx, first) = self.new_segment(sys, pages, shard)?;
         sh.seg.store(idx + 1, Relaxed);
         sh.next_slab.store(1, Relaxed);
-        sh.mapped.store(SEG_FIRST, Relaxed);
+        sh.mapped.store(first, Relaxed);
         Some(w64(idx * SLABS))
     }
 
@@ -1096,7 +1113,7 @@ impl Heap {
     fn grow_segment<P: Pages>(&self, pages: &P, shard: usize) -> Option<u64> {
         let sh = &self.shards[shard];
         let (idx, mapped) = (sh.seg.load(Relaxed).checked_sub(1)?, sh.mapped.load(Relaxed));
-        let more = mapped.min(8).min(SLABS.checked_sub(mapped)?);
+        let more = mapped.min(SEG_STEP).min(SLABS.checked_sub(mapped)?);
         if more == 0 || !pages.grow(self.seg_base(pages, idx) + META + mapped * SLAB, more * SLAB, self.node_for(shard)) {
             return None;
         }

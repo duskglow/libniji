@@ -1,0 +1,74 @@
+{
+ "task": "HEAP-SECOND-NODE-MAP",
+ "model": "opus",
+ "tokens": null,
+ "result": "A heap segment after the first maps one growth step (8 slabs): the #21 probe's need after a node change at point 1 43600 -> 41552 KiB, single node unchanged; spill prototype measured (single node 41296 -> 34896 KiB, but +318 instr per spilled malloc and lifo_batch64 +9%): not landing",
+ "branch": "task/heap-second-node-map",
+ "head": "d9502cf5d",
+ "gate": {
+  "affected": "16 suites ok, 2090 passed / 0 failed, conformance 9 passed",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Spill into a nearby larger class (ruling #7493): prototype on task/heap-second-node-map-spill saves 6400 KiB of the #21 probe's need but costs +9.0% on lifo_batch64 and ~7x per spilled malloc; find gains nothing (one size range)",
+   "recommendation": "do not land; close #7493 unless a spill design keeps the check off the refill path"
+  }
+ ],
+ "informational": [
+  "cbench_malloc malloc_free rows read 122.2 instr/op on head against 122.1 on base; the prototype build with the same change reads 122.1, so not attributed to the change (no fast-path code changed)",
+  "The #21 formula with find on the packaged build was not run (needs branch .debs; mei's queue held the first job 47 min)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "#21 probe least RLIMIT_AS over start, moved to a second NUMA node after malloc1 (Skylake-SP)",
+   "before": 43600,
+   "after": 41552,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "#21 probe unlimited realloc step, moved to a second node after refill (Skylake-SP)",
+   "before": 45640,
+   "after": 43592,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "#21 probe least RLIMIT_AS over start, one node",
+   "before": 41296,
+   "after": 41296,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "rt test a_segment_after_the_first_maps_one_growth_step_first; node-change bounds tightened; plants",
+   "before": 0,
+   "after": 4,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "none",
+   "what": "spill prototype (not landing): per spilled malloc",
+   "before": 55.1,
+   "after": 372.9,
+   "unit": "instr/malloc",
+   "measured": true
+  }
+ ],
+ "improvement": "A combined job that builds base, prototype and head in one slot (patch -p1 in the role, ending at the branch's content) saved two queue waits of ~45 min each on a saturated mei; a jobrun option for a multi-build measurement would make that routine",
+ "next_step": "Coordinator: land task/heap-second-node-map if its jobs are green; keep task/heap-second-node-map-spill as evidence only",
+ "report_file": "handoff/HEAP-SECOND-NODE-MAP.md",
+ "jobs": [
+  "heap-second-node-map-gate",
+  "heap-second-node-map-plants",
+  "heap-second-node-map-base"
+ ]
+}
