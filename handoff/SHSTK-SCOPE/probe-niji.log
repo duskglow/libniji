@@ -1,0 +1,212 @@
+-- [X=1] ./shb status
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- [X=1] ./shb_static status
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- [X=1] ./shb ssinfo
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+thread x86_Thread_features:	
+thread x86_Thread_features_locked:	
+thread ssp=0
+   rc=0
+-- [X=1] ./shb_static ssinfo
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+thread x86_Thread_features:	
+thread x86_Thread_features_locked:	
+thread ssp=0
+   rc=0
+-- [X=1] ./shb longjmp 10
+   rc=0
+-- [X=1] ./shb_static longjmp 10
+   rc=0
+-- [X=1] ./shb deep 10
+   rc=0
+-- [X=1] ./shb_static deep 10
+   rc=0
+-- [X=1] ./shb swap 10
+   rc=0
+-- [X=1] ./shb_static swap 10
+   rc=0
+-- [X=1] ./shb signal 10
+   rc=0
+-- [X=1] ./shb_static signal 10
+   rc=0
+-- [X=1] ./shb thread 10
+   rc=0
+-- [X=1] ./shb_static thread 10
+   rc=0
+-- [X=1] ./shb vfork 3
+   rc=0
+-- [X=1] ./shb_static vfork 3
+   rc=0
+-- [X=1] ./shb mapss 3
+   rc=0
+-- [X=1] ./shb_static mapss 3
+   rc=0
+-- [X=1] ./cxx 10
+   rc=0
+-- [X=1] ./main3
+   rc=0
+-- [X=1] ./empty
+   rc=0
+-- [X=1] ./empty_static
+   rc=0
+-- [X=1] ./shb dlopen ./libunm.so
+before x86_Thread_features:	
+before x86_Thread_features_locked:	
+before ssp=0
+dlopen ./libunm.so: ok
+after x86_Thread_features:	
+after x86_Thread_features_locked:	
+after ssp=0
+   rc=0
+-- [NJSHSTK=1] ./shb status
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	
+main ssp=nonzero
+   rc=0
+-- [NJSHSTK=1] ./shb_static status
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	
+main ssp=nonzero
+   rc=0
+-- [NJSHSTK=1] ./shb ssinfo
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	
+main ssp=nonzero
+main shstk 7bf4c1200000-7bf4c1a00000 size=8192 kB rss=4 kB
+thread shstk 7bf4bf600000-7bf4bfe00000 size=8192 kB rss=4 kB
+thread shstk 7bf4c1200000-7bf4c1a00000 size=8192 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	
+thread ssp=nonzero
+   rc=0
+-- [NJSHSTK=1] ./shb_static ssinfo
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	
+main ssp=nonzero
+main shstk 7dfbfa000000-7dfbfa800000 size=8192 kB rss=4 kB
+thread shstk 7dfbf8e00000-7dfbf9600000 size=8192 kB rss=4 kB
+thread shstk 7dfbfa000000-7dfbfa800000 size=8192 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	
+thread ssp=nonzero
+   rc=0
+-- [NJSHSTK=1] ./shb longjmp 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static longjmp 10
+   rc=0
+-- [NJSHSTK=1] ./shb deep 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static deep 10
+   rc=0
+-- [NJSHSTK=1] ./shb swap 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static swap 10
+   rc=0
+-- [NJSHSTK=1] ./shb signal 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static signal 10
+   rc=0
+-- [NJSHSTK=1] ./shb thread 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static thread 10
+   rc=0
+-- [NJSHSTK=1] ./shb vfork 3
+   rc=0
+-- [NJSHSTK=1] ./shb_static vfork 3
+   rc=0
+-- [NJSHSTK=1] ./shb mapss 3
+   rc=0
+-- [NJSHSTK=1] ./shb_static mapss 3
+   rc=0
+-- [NJSHSTK=1] ./cxx 10
+   rc=0
+-- [NJSHSTK=1] ./main3
+   rc=0
+-- [NJSHSTK=1] ./empty
+   rc=0
+-- [NJSHSTK=1] ./empty_static
+   rc=0
+-- [NJSHSTK=1] ./shb dlopen ./libunm.so
+before x86_Thread_features:	shstk 
+before x86_Thread_features_locked:	
+before ssp=nonzero
+dlopen ./libunm.so: ok
+after x86_Thread_features:	shstk 
+after x86_Thread_features_locked:	
+after ssp=nonzero
+   rc=0
+-- [NJSHSTX=1] ./shb pexit 10
+   rc=0
+-- [NJSHSTX=1] ./shb_exc pexit 10
+   rc=0
+-- [NJSHSTX=1] ./shb_static pexit 10
+   rc=0
+-- [NJSHSTX=1] ./shb cancel 10
+   rc=0
+-- [NJSHSTX=1] ./shb_exc cancel 10
+   rc=0
+-- [NJSHSTX=1] ./shb_static cancel 10
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig longjmp 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig deep 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig swap 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig vfork 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig pexit 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig thread 3
+   rc=0
+-- [NJSHSTX=1] ./shb_static_orig signal 3
+   rc=0
+-- [NJSHSTK=1] ./shb pexit 10
+   rc=0
+-- [NJSHSTK=1] ./shb_exc pexit 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static pexit 10
+   rc=0
+-- [NJSHSTK=1] ./shb cancel 10
+   rc=0
+-- [NJSHSTK=1] ./shb_exc cancel 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static cancel 10
+   rc=0
+-- [NJSHSTK=1] ./shb_static_orig longjmp 3
+timeout: the monitored command dumped core
+   rc=139
+-- [NJSHSTK=1] ./shb_static_orig deep 3
+timeout: the monitored command dumped core
+   rc=139
+-- [NJSHSTK=1] ./shb_static_orig swap 3
+timeout: the monitored command dumped core
+   rc=139
+-- [NJSHSTK=1] ./shb_static_orig vfork 3
+timeout: the monitored command dumped core
+   rc=139
+-- [NJSHSTK=1] ./shb_static_orig pexit 3
+   rc=0
+-- [NJSHSTK=1] ./shb_static_orig thread 3
+   rc=0
+-- [NJSHSTK=1] ./shb_static_orig signal 3
+   rc=0
+-- g on pexit 10
+   rc=0
+-- g on exc pexit 10
+   rc=0
+-- g on cancel 10
+   rc=0
+-- g on exc cancel 10
+   rc=0
