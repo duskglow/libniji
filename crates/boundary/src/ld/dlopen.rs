@@ -2113,8 +2113,9 @@ impl Env {
         let ld = start::ld_env(env_entries(envp));
         let features = Native::features(&aux, &crate::sys::CSys);
         // `ld.so --library-path` replaces LD_LIBRARY_PATH and `--inhibit-cache` the cache, as at start.
-        let (option_path, inhibit_cache) = super::state::program_options();
-        let cache = if with_cache && !inhibit_cache { read_cache() } else { None };
+        // (`read_cache` reads none after `--inhibit-cache`.)
+        let (option_path, _) = super::state::program_options();
+        let cache = if with_cache { read_cache() } else { None };
         Env { secure, library_path: option_path.or(ld.library_path), origin_path: ld.origin_path, features, cache }
     }
 

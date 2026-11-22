@@ -366,7 +366,7 @@ pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8]
     if name.contains(&b'/') {
         return name;
     }
-    let cache = if env.inhibit_cache { None } else { read_cache() };
+    let cache = read_cache();
     let ctx = env.ctx(cache.as_ref().map(|(_, c)| c).into());
     let found = match program::find(name, cache.as_ref().map(|(_, c)| c), Native::CACHE_FLAGS, ctx.hwcaps) {
         // The store's copy ends in a NUL and stays mapped for the process, as `name` does.
@@ -393,12 +393,48 @@ pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8]
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left
 /// mapped on failure). The program and its load bias.
 pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::Program, usize) {
-    // `PROGRAM: error while loading shared libraries: PROGRAM: <reason>`, 127 (the reference's form
-    // and reasons for a missing file, a directory and a short file, probed; LDSO-RUN-PROGRAM).
-    let fail = |msg: &[u8]| -> ! {
-        let name = c_string(path);
-        fail_loading(name, name, msg.strip_suffix(b"\n").unwrap_or(msg))
+    let fail = |msg: &[u8]| -> ! { fail_program(path, msg) };
+    let (fd32, len) = open_program(path);
+    let fd = i64::from(fd32);
+    let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
+    // UNSAFE(slice): the program file, mapped read-only above.
+    #[allow(unsafe_code)]
+    // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
+    // after the last use of this slice below.
+    let file = unsafe { conv::bytes_at(file_at, len) };
+    if !file.starts_with(b"\x7fELF") {
+        fail(b"invalid ELF header");
+    }
+    let loaded = match map::load::<Native, _>(&mut StartMapper { fd: fd32 }, file, page) {
+        // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
+        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut StartMapper { fd: fd32 }, file, page),
+        Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
+        other => other,
     };
+    unmap_view(file_at, len);
+    let _ = crate::ffi_sys::niji_sys_close(fd);
+    let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
+    let at = |v: u64| usize::try_from(v).unwrap_or(0);
+    (start::Program { phdr: at(loaded.phdr), phnum: usize::from(loaded.phnum), entry: at(loaded.entry) }, at(loaded.bias))
+}
+
+/// End the start for the program file named at `path` (NUL-terminated): `PROGRAM: error while loading
+/// shared libraries: PROGRAM: <reason>`, status 127 (the reference's form, probed; LDSO-RUN-PROGRAM).
+#[cold]
+#[inline(never)]
+pub(super) fn fail_program(path: usize, msg: &[u8]) -> ! {
+    let name = c_string(path);
+    fail_loading(name, name, msg.strip_suffix(b"\n").unwrap_or(msg))
+}
+
+/// Open the program file `ld.so PROGRAM` (or `--list PROGRAM`) names at `path` (NUL-terminated):
+/// its descriptor and size, or the start ends ([`fail_program`]) with the reference's reasons for a
+/// missing or unreadable file, a directory and a file shorter than an ELF header (probed:
+/// LDSO-RUN-PROGRAM for running, LDSO-PROGRAM-OPTIONS-REST for `--list`). Cold: program mode only.
+#[cold]
+#[inline(never)]
+pub(super) fn open_program(path: usize) -> (i32, usize) {
+    let fail = |msg: &[u8]| -> ! { fail_program(path, msg) };
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(path), i64::from(O_RDONLY | O_CLOEXEC), 0);
     if fd < 0 {
         fail(match fd {
@@ -413,23 +449,7 @@ pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) 
     }
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
     let len = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE).unwrap_or_else(|| fail(b"file too short"));
-    let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
-    // UNSAFE(slice): the program file, mapped read-only above.
-    #[allow(unsafe_code)]
-    // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
-    // after the last use of this slice below.
-    let file = unsafe { conv::bytes_at(file_at, len) };
-    let loaded = match map::load::<Native, _>(&mut StartMapper { fd: fd32 }, file, page) {
-        // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
-        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut StartMapper { fd: fd32 }, file, page),
-        Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
-        other => other,
-    };
-    unmap_view(file_at, len);
-    let _ = crate::ffi_sys::niji_sys_close(fd);
-    let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
-    let at = |v: u64| usize::try_from(v).unwrap_or(0);
-    (start::Program { phdr: at(loaded.phdr), phnum: usize::from(loaded.phnum), entry: at(loaded.entry) }, at(loaded.bias))
+    (fd32, len)
 }
 
 /// The mapper's system calls ([`map::Mapper`]) on one object's file descriptor.
@@ -731,8 +751,12 @@ pub(super) fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
 
 /// The cache (R14-3 (a): `<prefix>/etc/ld.so.cache`), mapped read-only and parsed: the mapping and
 /// the reader, or `None` when it is missing, unreadable or inconsistent ("no cache", threat model
-/// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`.
+/// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`;
+/// none after `ld.so --inhibit-cache` (`state::cache_inhibited`).
 pub(super) fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
+    if super::state::cache_inhibited() {
+        return None;
+    }
     let mut path = PathBuf::default();
     let (f, fd) = if search::prefixed(search::CACHE_FILE, &mut path) { path.c_str().and_then(open_whole) } else { None }?;
     let _ = crate::ffi_sys::niji_sys_close(fd);

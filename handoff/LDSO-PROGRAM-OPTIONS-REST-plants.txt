@@ -1,0 +1,17 @@
+# LDSO-PROGRAM-OPTIONS-REST plants (cargo xtask plants; the product tests rebuild target/niji).
+# --preload folded into LD_PRELOAD's value: LD_PRELOAD's own names lost when both are given.
+fold-drops-env | crates/boundary/src/ld/entry.rs | lit:head.copy_from_slice(env); ==> head.fill(b':'); | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+# The folded value's option part misplaced: LD_PRELOAD's missing name reported as --preload's.
+fold-range-whole | crates/boundary/src/ld/entry.rs | lit:value.get(env.len().saturating_add(1)..) ==> value.get(..) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+# The diagnostic's source never --preload.
+source-never-option | crates/boundary/src/ld/state.rs | lit:len != 0 && p >= at && p.wrapping_sub(at) < len ==> false | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
+# --inhibit-cache ignored by the cache reader.
+inhibit-ignored | crates/boundary/src/ld/image.rs | lit:if super::state::cache_inhibited() { ==> if false { | cargo test -p niji-ld --test ldso_program_options | msg:FAILED|panicked
+# --list of a missing file, a directory or a short file keeps the old `ld.so: ` text.
+list-old-text | crates/boundary/src/ld/trace.rs | lit:if let Some(at) = named { ==> if let Some(at) = None::<usize> { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_list_of_files_that_cannot_be_listed.*FAILED|panicked
+# --list of a non-ELF file: no "invalid ELF header".
+list-no-magic | crates/boundary/src/ld/trace.rs | lit:if let Some(at) = named.filter( ==> if let Some(at) = None::<usize>.filter( | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_list_of_files_that_cannot_be_listed.*FAILED|panicked
+# Running a non-ELF file: no "invalid ELF header".
+run-no-magic | crates/boundary/src/ld/image.rs | lit:if !file.starts_with(b"\x7fELF") { ==> if false { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_files_that_are_not_dynamic_programs.*FAILED|panicked
+# dlopen after --library-path searches LD_LIBRARY_PATH instead.
+dlopen-option-ignored | crates/boundary/src/ld/dlopen.rs | lit:library_path: option_path.or(ld.library_path) ==> library_path: ld.library_path | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_dlopen_after_library_path_and_inhibit_cache.*FAILED|panicked

@@ -90,6 +90,7 @@ fn fixture(name: &str) -> Option<(Scratch, PathBuf)> {
     cc(&d, "static", STATIC, &["-static", "-no-pie"]);
     cc(&d, "staticpie", STATIC, &["-static-pie", "-fPIE"]);
     std::fs::write(d.join("notelf"), "not an elf file\n").unwrap();
+    std::fs::write(d.join("notelf_long"), "not an elf file, but longer than an ELF header: ".repeat(3)).unwrap();
     Some((s, ld))
 }
 
@@ -184,6 +185,10 @@ fn ldso_program_preload_and_argv0() {
     let o = with(&[], &["--preload", "./nosuch.so"]);
     assert_eq!(out(&o), "dep:1\narg:./prog\n", "{o:?}");
     assert!(err(&o).contains("ERROR: ld.so: object './nosuch.so' from --preload cannot be preloaded (cannot open shared object file): ignored."), "{o:?}");
+    // With LD_PRELOAD too, each missing name still names its own source.
+    let o = with(&[("LD_PRELOAD", "./nosuch2.so")], &["--preload", "./nosuch.so"]);
+    assert!(err(&o).contains("object './nosuch.so' from --preload cannot be preloaded"), "{o:?}");
+    assert!(err(&o).contains("object './nosuch2.so' from LD_PRELOAD cannot be preloaded"), "{o:?}");
     let o = ran(&with(&[], &["--argv0", "NAME"]), "--argv0");
     assert_eq!(o, "dep:1\narg:NAME\n");
     let o = ran(&run(&ld, d, &[], &["--argv0", "", "--library-path", "lib", "./prog", "x"]), "empty --argv0");
@@ -230,6 +235,7 @@ fn ldso_program_files_that_are_not_dynamic_programs() {
     for (file, reason) in [
         ("./nosuch", "cannot open shared object file: No such file or directory"),
         ("./notelf", "file too short"),
+        ("./notelf_long", "invalid ELF header"),
         ("./lib", "cannot read file data: Error 21"),
         ("./lib/libdep.so", "the object has no entry point"),
     ] {
@@ -237,4 +243,80 @@ fn ldso_program_files_that_are_not_dynamic_programs() {
         assert_eq!(o.status.code(), Some(program::FAILURE), "{file}: {o:?}");
         assert!(err(&o).starts_with(&format!("{file}: error while loading shared libraries: {file}: {reason}")), "{file}: {o:?}");
     }
+}
+
+/// `--list` of a file it cannot list ends as running it does: the loading-error form, status 127,
+/// nothing on standard output.
+/// (no spec clause: ld.so(8) `--list`; the reference probed, LDSO-PROGRAM-OPTIONS-REST.)
+#[test]
+fn ldso_program_list_of_files_that_cannot_be_listed() {
+    let Some((s, ld)) = fixture("listfiles") else { return };
+    let d: &Path = &s;
+    for (file, reason) in [
+        ("./nosuch", "cannot open shared object file: No such file or directory"),
+        ("./notelf", "file too short"),
+        ("./notelf_long", "invalid ELF header"),
+        ("./lib", "cannot read file data: Error 21"),
+    ] {
+        let o = run(&ld, d, &[], &["--list", file]);
+        assert_eq!(o.status.code(), Some(program::FAILURE), "--list {file}: {o:?}");
+        assert_eq!(err(&o), format!("{file}: error while loading shared libraries: {file}: {reason}\n"), "--list {file}");
+        assert!(o.stdout.is_empty(), "--list {file}: {o:?}");
+    }
+}
+
+/// A program linked with libniji's C library that `dlopen`s `libdep.so` and prints its
+/// `dep_value` (`dlopen:<n>`), or `dlerror:<text>` and status 1.
+const DLOPEN_PROG: &str = r#"
+#include <dlfcn.h>
+#include <stdio.h>
+int main(void) {
+    void *h = dlopen("libdep.so", RTLD_NOW);
+    if (!h) { printf("dlerror:%s\n", dlerror()); return 1; }
+    int (*f)(void) = (int (*)(void))dlsym(h, "dep_value");
+    printf("dlopen:%d\n", f ? f() : -1);
+    return 0;
+}
+"#;
+
+/// `dlopen` after `ld.so --library-path` searches the option's directories instead of
+/// `LD_LIBRARY_PATH`'s (the environment keeps its value), with or without `--inhibit-cache`, as the
+/// start's own search does.
+/// (no spec clause: ld.so(8) `--library-path` and `--inhibit-cache`; the reference probed: dlopen uses
+/// the option, LDSO-RUN-PROGRAM.)
+#[test]
+fn ldso_program_dlopen_after_library_path_and_inhibit_cache() {
+    let Some((s, ld)) = fixture("dlopen") else { return };
+    let d: &Path = &s;
+    let niji = std::fs::canonicalize(target().join("niji")).unwrap();
+    let (libc, crt1) = (niji.join("libc.so.6"), niji.join("niji-crt1.o"));
+    if !libc.exists() || !crt1.exists() {
+        eprintln!("SKIP: libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
+        return;
+    }
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let src = d.join("dprog.c");
+    std::fs::write(&src, DLOPEN_PROG).unwrap();
+    let o = Command::new("cc")
+        .args(["-O1", "-fno-stack-protector", "-fcf-protection=none", "-nostdlib", "-fPIE", "-pie", &interp])
+        .arg(&src)
+        .arg(&crt1)
+        .arg(&libc)
+        .arg(&ld)
+        .args(["-lgcc", "-o"])
+        .arg(d.join("dprog"))
+        .output()
+        .unwrap();
+    assert!(o.status.success(), "cc dprog: {}", String::from_utf8_lossy(&o.stderr));
+    let path = |dirs: &str| format!("{dirs}:{}", niji.display());
+    let env = [("LD_LIBRARY_PATH", "lib2")];
+    let o = ran(&run(&ld, d, &env, &["--library-path", &path("lib"), "./dprog"]), "dlopen after --library-path");
+    assert_eq!(o, "dlopen:1\n", "dlopen searches the option's directory, not LD_LIBRARY_PATH's");
+    let o = ran(&run(&ld, d, &env, &["--inhibit-cache", "--library-path", &path("lib"), "./dprog"]), "dlopen after --inhibit-cache");
+    assert_eq!(o, "dlopen:1\n", "--inhibit-cache keeps the option's directories for dlopen");
+    let o = ran(&run(&ld, d, &[("LD_LIBRARY_PATH", &path("lib2"))], &["./dprog"]), "dlopen without the option");
+    assert_eq!(o, "dlopen:2\n", "without the option, dlopen searches LD_LIBRARY_PATH");
+    let o = run(&ld, d, &env, &["--library-path", &path("nolib"), "./dprog"]);
+    assert_eq!(o.status.code(), Some(1), "{o:?}");
+    assert!(out(&o).starts_with("dlerror:libdep.so: cannot open shared object file"), "the option's directories only: {o:?}");
 }

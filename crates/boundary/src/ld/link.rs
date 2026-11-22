@@ -563,26 +563,24 @@ pub(super) fn program_origin(path: usize, out: &mut PathBuf) -> bool {
 }
 
 /// The objects program start preloads (DL-LD-PRELOAD): the `LD_PRELOAD` names, then the preload
-/// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`.
+/// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`. `ld.so --preload
+/// LIST`'s names come after `LD_PRELOAD`'s, under its rule: program mode folds them into `env`
+/// (`entry::fold_preload`), so an exec'd start pays nothing for the option.
 pub(super) struct Preloads<'a> {
     pub(super) env: &'static [u8],
-    /// `ld.so --preload LIST` (program mode; empty otherwise): after `LD_PRELOAD`'s names, before the
-    /// file's (probed), under `LD_PRELOAD`'s rule (`from_env`).
-    pub(super) option: &'static [u8],
     pub(super) file: &'static [u8],
     pub(super) file_path: &'a [u8],
 }
 
 impl Preloads<'_> {
     pub(super) fn names(&self) -> impl Iterator<Item = (&'static [u8], bool)> {
-        start::preload_names(self.env).chain(start::preload_names(self.option)).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
+        start::preload_names(self.env).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
     }
 
     /// The "cannot be preloaded" diagnostic for `name` (from `LD_PRELOAD` or `--preload` when
-    /// `from_env`: the option's names lie inside its value).
+    /// `from_env`: the option's names lie inside its part of the folded value).
     fn ignored(&self, name: &[u8], from_env: bool, reason: &[u8]) {
-        let in_option = self.option.as_ptr_range().contains(&name.as_ptr());
-        let source = match (from_env, in_option) {
+        let source = match (from_env, from_env && super::state::in_preload_option(name)) {
             (true, true) => b"--preload".as_slice(),
             (true, false) => start::PRELOAD_ENV,
             (false, _) => self.file_path,

@@ -212,7 +212,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
     let preload = if secure { secure_preload } else { ld.preload };
-    let list_env = List { ld: &ld, secure, preload, preload_option: None, inhibit_cache: false, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
+    let list_env = List { ld: &ld, secure, preload, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
@@ -287,7 +287,10 @@ fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize,
         ld.library_path = options.library_path;
     }
     super::state::keep_program_options(options.library_path, options.inhibit_cache);
-    let env = List { ld: &ld, preload_option: options.preload, inhibit_cache: options.inhibit_cache, ..*env };
+    // `--preload`'s names follow `LD_PRELOAD`'s under its rule: folded into its value here, so the
+    // start's preload list is the exec'd start's, unchanged.
+    let preload = options.preload.map_or(env.preload, |p| Some(fold_preload(env.preload, p)));
+    let env = List { ld: &ld, preload, ..*env };
     // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the name as
     // given (or `--argv0`'s), the file's path names it in messages and gives its `$ORIGIN`.
     if mode == program::Mode::Verify {
@@ -338,6 +341,39 @@ fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize,
     run(top, &prog, bias, env.page, path, &env)
 }
 
+/// The `LD_PRELOAD` value with `ld.so --preload LIST`'s names after its own (`env`, the start's value,
+/// if any): `option` itself when there is no other, else a copy of both joined by a colon, kept for the
+/// process (a kept name may become an object's name). Where `option`'s names lie is kept for the
+/// diagnostic's source (`state::in_preload_option`). Cold: program mode only.
+#[cold]
+#[inline(never)]
+fn fold_preload(env: Option<&'static [u8]>, option: &'static [u8]) -> &'static [u8] {
+    let Some(env) = env.filter(|e| !e.is_empty()) else {
+        super::state::keep_preload_option(option);
+        return option;
+    };
+    // The two values, a colon between them and a NUL after them.
+    let len = env.len().saturating_add(option.len()).saturating_add(2);
+    let flags = super::MAP_PRIVATE_I32 | super::MAP_ANONYMOUS_I32;
+    let at = crate::raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, flags, -1, 0).unwrap_or_else(|_| refuse(b"ld.so: cannot allocate memory for --preload\n"));
+    // UNSAFE(slice): a fresh anonymous mapping, owned by this value.
+    #[allow(unsafe_code)]
+    // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else refers
+    // to them, and they are never unmapped (the value lives as long as the process).
+    let buf = unsafe { conv::bytes_at_mut(at, len) };
+    let (head, rest) = buf.split_at_mut(env.len());
+    head.copy_from_slice(env);
+    let (colon, rest) = rest.split_at_mut(1);
+    colon.fill(b':');
+    let (tail, nul) = rest.split_at_mut(option.len());
+    tail.copy_from_slice(option);
+    nul.fill(0);
+    let value: &'static [u8] = buf;
+    let value = value.get(..len.saturating_sub(1)).unwrap_or(&[]);
+    super::state::keep_preload_option(value.get(env.len().saturating_add(1)..).unwrap_or(&[]));
+    value
+}
+
 /// The program headers of `prog` (`AT_PHDR`, `AT_PHNUM` checked by [`start::program`] or set by [`load`]).
 fn program_headers(prog: &start::Program) -> &'static [u64] {
     // UNSAFE(slice): the program's headers, mapped with the program.
@@ -375,7 +411,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
         });
-        let preloads = Preloads { env: env.preload.unwrap_or(&[]), option: env.preload_option.unwrap_or(&[]), file, file_path: file_path.as_bytes() };
+        let preloads = Preloads { env: env.preload.unwrap_or(&[]), file, file_path: file_path.as_bytes() };
         if start::needs_objects(dyn_words) || preloads.names().next().is_some() {
             // The program's name in messages: its path (`ld.so PROGRAM`), else argv[0].
             let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
@@ -427,10 +463,6 @@ pub(super) struct List<'a> {
     pub(super) secure: bool,
     /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
     preload: Option<&'static [u8]>,
-    /// `ld.so --preload LIST` (program mode only).
-    preload_option: Option<&'static [u8]>,
-    /// `ld.so --inhibit-cache` (program mode only): no search reads the loader cache.
-    pub(super) inhibit_cache: bool,
     features: &'a niji_rt::cpu::Features,
     pub(super) page: u64,
     pub(super) vdso: Option<u64>,
@@ -446,7 +478,7 @@ impl List<'_> {
             origin_path: if self.secure { None } else { self.ld.origin_path },
             platform: Native::platform(self.features),
             hwcaps: Native::hwcaps(self.features),
-            cache: if self.inhibit_cache { CacheRef::None } else { cache },
+            cache,
         }
     }
 }
