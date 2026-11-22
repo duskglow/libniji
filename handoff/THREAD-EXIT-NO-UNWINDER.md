@@ -42,7 +42,7 @@ libniji never loads libgcc_s.so.1 itself, so "present" and "hidden" behave alike
   buffers-only text). Dynamic-case tests unchanged.
 * `crates/rt/tests/unwind.rs::d22_23_handler_frames_above_the_start` (synthetic .eh_frame: LSDA set/null, no
   `L`, start frame only, listed vs `find` objects, `max`).
-* Plants: `handoff/THREAD-EXIT-NO-UNWINDER-plants.txt` (5).
+* Plants: `handoff/THREAD-EXIT-NO-UNWINDER-plants.txt` (7).
 
 ## Not covered / open
 * No product test puts a handler frame in a shared library other than the executable (the `frame_object`
@@ -50,7 +50,8 @@ libniji never loads libgcc_s.so.1 itself, so "present" and "hidden" behave alike
   exit then goes on (documented in D-22.23).
 * The check runs only when libniji's `ld.so` started the process (`LOADER_DLSYM` set): gate2 found
   `s23_4_c_3_3` aborting in the in-process test runtime (test-profile Rust frames carry LSDAs, no lookup).
-* Jobs (keke): probe-ref, probe-base2, probe-head (tables), gate2 on ea95f35b8 (red: s23_4_c_3_3, fixed),
+* Final head jobs: final (green), probe-head2 (same table), plants3 (7 plants, pending at hand-back).
+* Earlier jobs (keke): probe-ref, probe-base2, probe-head (tables), gate2 on ea95f35b8 (red: s23_4_c_3_3, fixed),
   plants2 (5 CAUGHT + 1 WARN-NO-MSG caught for the right reason), final (clippy, so, static, failing
   suite and the thread suites on fe6f805ec). Superseded: gate, plants (pre-guard-skip head), build1 (compile error).
 * Start-up checks (`cargo xtask test`, NIJI_FULL_PROFILE hot_text_products) not run: the change is on the
