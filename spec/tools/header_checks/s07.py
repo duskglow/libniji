@@ -11,7 +11,10 @@ system tree it would reach another C library's H.
 (the row's `header` column). Slice 7's last five headers define many macros owned by a header whose P1 does not run
 (`MAXSYMLINKS` of arpa/nameser.h, `p1` 0; `TIOCGWINSZ` of net/if_ppp.h, which no slice ships), so their values were
 asserted nowhere. These units run the same P1 over each of the five headers for the integer macros visible there that
-another header owns.
+another header owns. Left out, as the table P1 leaves them out: reserved names (`_` and a capital or a second `_`:
+emitted only where headers/reserved.tsv says, and `_POSIX_C_SOURCE` takes its value from the configuration) and the
+macros whose value is sysconf's in some configurations (DYNAMIC: `MINSIGSTKSZ` and `SIGSTKSZ` under
+`_DYNAMIC_STACK_SIZE_SOURCE` and `_GNU_SOURCE`, like header_check's NOT_CONSTANT).
 """
 import copy
 import os
@@ -23,6 +26,8 @@ import header_check  # noqa: E402
 
 HAS_INCLUDE = re.compile(r"__has_include\s*\(\s*<([^>]+)>\s*\)")
 TAIL = ("sys/wait.h", "wait.h", "sys/param.h", "spawn.h", "sys/ioctl.h")
+RESERVED = re.compile(r"_[A-Z_]")
+DYNAMIC = {"MINSIGSTKSZ", "SIGSTKSZ"}
 
 
 def units(ctx):
@@ -32,7 +37,8 @@ def units(ctx):
         sub = copy.copy(ctx)
         sub.slice_rows = [{"header": h, "p1": "1", "uapi": "-"}]
         sub.vis = [r for r in ctx.vis if r["header"] == h and r["kind"] == "macro"
-                   and r["name"] in ctx.macros and ctx.macros[r["name"]]["header"] != h]
+                   and r["name"] in ctx.macros and ctx.macros[r["name"]]["header"] != h
+                   and not RESERVED.match(r["name"]) and r["name"] not in DYNAMIC]
         sub.macros = {r["name"]: dict(ctx.macros[r["name"]], header=h) for r in sub.vis}
         for cid, us in header_check.p1_units(sub).items():
             out.extend((cid, what + " (macros another header owns)", body) for what, body in us)
