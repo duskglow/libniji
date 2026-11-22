@@ -18,4 +18,5 @@
  "next_step": "land; then the two rulings (tar-gz excursion fix-forward, Skylake-SP levels)",
  "report_file": "handoff/WL-LEVELS-RERECORD.md",
  "superseded": ["mei:wl-levels-rerecord-gate (green, on db9ae78d7 before the record moved)", "mei:wl-levels-rerecord-gate2 (red: the role had no target/niji products, so the xtask unit tests could not exec target/niji-test/iconv)", "mei:wl-levels-rerecord-xtask-tests (same cause)"],
- "jobs": ["mei:wl-levels-rerecord-gate3", "mei:wl-levels-rerecord-xtask-tests2", "mei:wl-levels-rerecord-plants", "keke:wl-levels-rerecord-k1", "keke:wl-levels-rerecord-k2", "keke:wl-levels-rerecord-k3", "keke:wl-levels-rerecord-k4", "keke:wl-levels-rerecord-k5", "mei:wl-levels-rerecord-m1", "mei:wl-levels-rerecord-m2", "mei:wl-levels-rerecord-m3", "mei:wl-levels-rerecord-m4", "mei:wl-levels-rerecord-m5"]}
+ "jobs": ["mei:wl-levels-rerecord-gate3", "mei:wl-levels-rerecord-xtask-tests2", "mei:wl-levels-rerecord-plants"],
+ "evidence_counts_of_next_0299fd6e1": ["keke:wl-levels-rerecord-k1", "keke:wl-levels-rerecord-k2", "keke:wl-levels-rerecord-k3", "keke:wl-levels-rerecord-k4", "keke:wl-levels-rerecord-k5", "mei:wl-levels-rerecord-m1", "mei:wl-levels-rerecord-m2", "mei:wl-levels-rerecord-m3", "mei:wl-levels-rerecord-m4", "mei:wl-levels-rerecord-m5"]}
