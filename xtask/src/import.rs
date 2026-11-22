@@ -333,8 +333,12 @@ pub(crate) fn import_into(src: &Path, release: &Path, want: &Header) -> Result<R
 /// The product build's import step: with [`IMPORT_ENV`] set, imports its products when they are this tree's and
 /// returns true; prints why not and returns false otherwise (the caller builds as without the variable).
 pub(crate) fn try_import(release: &Path, want: &Header) -> Result<bool, String> {
-    let Some(src) = std::env::var_os(IMPORT_ENV).filter(|v| !v.is_empty()) else { return Ok(false) };
-    let src = PathBuf::from(src);
+    import_from(std::env::var_os(IMPORT_ENV).filter(|v| !v.is_empty()).map(PathBuf::from), release, want)
+}
+
+/// [`try_import`] of `src` (`None`: the variable unset): true only when the products were moved in.
+fn import_from(src: Option<PathBuf>, release: &Path, want: &Header) -> Result<bool, String> {
+    let Some(src) = src else { return Ok(false) };
     match import_into(&src, release, want)? {
         Ok(n) => {
             println!("so: imported {n} products from {} (tag {}, head {}, profile {}: every field and checksum matched)", src.display(), want.tag, want.head, want.profile);
@@ -475,6 +479,21 @@ mod tests {
         other.tag = "src-0000000000000000".into();
         let errs = import_into(&src, &dst, &other).unwrap().unwrap_err();
         assert!(errs.len() == 1 && errs[0].starts_with("tag:"), "{errs:?}");
+        let _ = (fs::remove_dir_all(&src), fs::remove_dir_all(&dst));
+    }
+
+    // no spec clause (tooling: the build step builds here unless the import happened)
+    #[test]
+    fn build_step_builds_unless_imported() {
+        let src = products("src-step", &head());
+        let dst = scratch("dst-step");
+        assert!(!import_from(None, &dst, &head()).unwrap());
+        let mut other = head();
+        other.profile = "fast traced".into();
+        assert!(!import_from(Some(src.clone()), &dst, &other).unwrap(), "a refused import builds here");
+        assert!(listing(&dst).unwrap().is_empty());
+        assert!(import_from(Some(src.clone()), &dst, &head()).unwrap());
+        assert_eq!(listing(&dst).unwrap(), listing(&src).unwrap());
         let _ = (fs::remove_dir_all(&src), fs::remove_dir_all(&dst));
     }
 

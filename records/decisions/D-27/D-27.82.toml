@@ -1,0 +1,13 @@
+id = "D-27.82"
+section = "s26-29"
+spec = "§27"
+ann = "—"
+status = "active"
+story = "CI-PRODUCTS-ONCE"
+date = "2026-11-22"
+tests = ["xtask/src/import.rs::header_fields_each_refuse", "xtask/src/import.rs::dirty_or_unknown_head_refuses", "xtask/src/import.rs::entries_must_match_exactly", "xtask/src/import.rs::import_copies_matching_products", "xtask/src/import.rs::import_refuses_changed_or_unlisted_product", "xtask/src/import.rs::build_step_builds_unless_imported", "xtask/src/import.rs::import_refuses_without_manifest", "xtask/src/import.rs::manifest_round_trip"]
+body = '''
+**A product build writes a products manifest, and takes another tree's products only when every field and checksum matches (CI-PRODUCTS-ONCE).** Each train built its release products twice, in the gate on the Skylake-SP host and in ci-instr on the Zen 1 host, and the two sets were byte-identical on every landed head compared (six heads, every product file). `cargo xtask so` (`run_so_as`) now removes `target/niji/.products-manifest` when it starts and writes it last, after the profile marker: the build tag (D-27.22, D-27.78), the head (git, or the `.synced` line of a role directory), the toolchain (every line of `rustc -vV`, `cargo -V`, the first `--version` line of the C compiler, `ld`, `as` and `gdb`, and the build variables RUSTFLAGS, CARGO_ENCODED_RUSTFLAGS, CARGO_BUILD_RUSTFLAGS, CC, CFLAGS, LDFLAGS, RUSTC, RUSTC_WRAPPER), the profile with its layout mode (`release traced`), and the sha256 of every file and the target of every link below `target/niji` except `bench/`.
+
+`NIJI_IMPORT_PRODUCTS=<dir>` (a copy of another tree's `target/niji`, manifest included) is a cache trust boundary: a wrong import would make the bench measure code that is not the train's. The import happens only when tag, head, toolchain and profile all equal this tree's, the head is a clean 40-digit commit on both sides, and the copies made into this tree hash to the manifest with no file unlisted or missing. Any mismatch prints `so: import refused: <field>: ...` per reason and the build runs here as without the variable; nothing of the other directory stays in the tree. The copies are hashed after copying (what is checked is what is moved in), and moved into place only when all match, the profile marker and the manifest last, so an interrupted import leaves a set no reader takes as finished. Only `target/niji` is imported: `target/product/<profile>` (the archive inputs and trace lists) stays this tree's, so a tool that reads it after an import reads this tree's last local build or nothing.
+'''
