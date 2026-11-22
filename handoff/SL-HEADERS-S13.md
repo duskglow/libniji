@@ -11,7 +11,7 @@ as "ship" (`netash/ash.h`, `netatalk/at.h`, `netax25/ax25.h`, `neteconet/ec.h`, 
 
 **Proof.** `header_check.py` on the final tree: 0 failed of 16200 (P5 each header alone and twice, P1 for 33 headers by the tables,
 P1 of the other two by `header_checks/s13.py`, the slice-table check, P8 both include orders for 17 pairs). `cargo xtask static` green
-(`headers-gen --check` included). Plants (5): see the report json. The direct tier selects no test for a generated-header change
+(`headers-gen --check` included). Plants (5, mei, run 3): 4 CAUGHT, 1 SURVIVED (`s13-ip-icmp-without-ip`, listed as equivalent: no table row reads that include; the table gap below). Two plants first survived because the command was `headers-gen` alone (it regenerates); the command now runs header_check after it. The direct tier selects no test for a generated-header change
 (`affected --list`: 0 of 315), so the gate job is the empty direct tier and the train's FULL gate is the real one
 (`FULL: the train's (generated headers only)`).
 
