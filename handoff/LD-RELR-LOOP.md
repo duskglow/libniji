@@ -28,6 +28,12 @@ glibc 2.39: 96,040 / 132,771 / 122,349. Syscalls unchanged. **Target (RELATIVE +
 reached, by estimate (NOT measured; no PT on Zen 1):** libc RELR ~13.4k + self ~3.5k = ~17k. The brief's -50k
 expectation counted pass1 parts that remain (STARTUP-REPROFILE's 47.6k phase included the table walk).
 
+## Jobs on the final code (keke)
+gate2 green (950 passed, peak 1.9G); plants1 4/4 CAUGHT, no WARN; clippy3 (workspace, all features) rc 0;
+startup1: `cargo xtask test` green (7,120 + 4,875 passed), release `so` + `hot_text_products` still running at
+hand-back (PENDING). Precheck not run: the role was busy with startup1 (sync rc 4), and the wall-time limit came
+first. Next leg / coordinator: `~/bin/jobwait ld-relr-loop-startup1`, then sync and `cargo xtask precheck`.
+
 ## Not done / open
 * Skylake-SP counts and a PT phase profile: copying the products to mei was REFUSED (command in the report).
 * `layout-bins.tsv` diff against base: no base copy on the host; the file lists libc's hot group only (this
