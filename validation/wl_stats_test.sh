@@ -133,7 +133,7 @@ if command -v setarch > /dev/null; then
     # not depend on the caller. Two callers with different environments (one large, one empty but for PATH) start the
     # same measured command; it must see the same variables, values and total size, and nothing of the caller's.
     envseen() { $(wl_run_prefix) sh -c 'env | LC_ALL=C sort'; }
-    e1=$(env WL_STATS_CALLER=1 SSH_CONNECTION="10.0.0.1 2 10.0.0.3 4" JOBRUN_LABEL=a-long-job-label-0123456789 bash -c "$(declare -f wl_run_prefix envseen); WL_RUN_ENV='$WL_RUN_ENV'; envseen")
+    e1=$(env WL_STATS_CALLER=1 SSH_CONNECTION="caller-a 2 caller-b 4" JOBRUN_LABEL=a-long-job-label-0123456789 bash -c "$(declare -f wl_run_prefix envseen); WL_RUN_ENV='$WL_RUN_ENV'; envseen")
     e2=$(env -i PATH=/usr/bin:/bin bash -c "$(declare -f wl_run_prefix envseen); WL_RUN_ENV='$WL_RUN_ENV'; envseen")
     check run_env_same_for_any_caller "$e1" "$e2"
     check run_env_same_size "$(printf '%s' "$e1" | wc -c)" "$(printf '%s' "$e2" | wc -c)"
