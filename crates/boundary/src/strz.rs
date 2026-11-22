@@ -2106,3 +2106,26 @@ pub(crate) mod portable {
         order(a, b, n)
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // UNSAFE(slice): the cursor reads C text; the test hands it NUL-terminated buffers.
+    #[allow(unsafe_code)]
+    fn cursor_yields_each_byte_then_zero_for_good() {
+        // Clauses: s4_4_c_0 (strcoll's single pass reads its C strings through this cursor, D-4.37).
+        // Each byte in order, the terminator, then 0 on every later call: a cursor that stops early
+        // or runs on past the terminator orders strcoll's pairs by the wrong bytes.
+        for text in [&b"\0"[..], b"e\0", b"abex\0", b"zebra\xc3\xa9\0"] {
+            // UNSAFE(slice) SAFETY: `text` is NUL-terminated and outlives the cursor.
+            let mut next = unsafe { cursor(text.as_ptr()) };
+            let got: Vec<u8> = (0..text.len() + 3).map(|_| next()).collect();
+            let mut want = text.to_vec();
+            want.extend([0, 0, 0]);
+            assert_eq!(got, want, "{text:?}");
+        }
+    }
+}
