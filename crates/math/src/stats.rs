@@ -5,10 +5,15 @@
 //!
 //! `record(func, fast)` is called once per evaluation by a fast path. Without the test-only feature
 //! `fastpath-stats` it is an empty inline function, so the products (which never enable the feature)
-//! pay nothing. With the feature the counts are global (no `std`, no `unsafe`): a test reads
-//! `counts(func)` before and after, `Counts::since`, then `Counts::check_fallback`. Tests run in
-//! parallel, so a rate check must use a function name no concurrent test of the same binary calls
-//! (or run alone); per-thread counts would need `std`, which a no_std build with `--all-features` rejects.
+//! pay nothing. With the feature a test reads `counts(func)` before and after, `Counts::since`,
+//! then `Counts::check_fallback`. Tests run in parallel threads of one process (`cargo test`), so
+//! another test's calls of the same function can land between the two reads:
+//! - In this crate's unit tests (`cfg(test)`, which has `std`) `counts` is this thread's count,
+//!   so a test sees only its own calls whatever other tests do meanwhile.
+//! - Elsewhere (the integration tests link the no_std library: no `std`, no `unsafe`, so no
+//!   thread-locals) the counts are global, all threads together: a rate check there must run
+//!   while no other test of its binary calls the function (the `fast_*` integration tests hold a
+//!   lock for their rate windows).
 
 /// Fast-path and fallback calls of one function.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -86,6 +91,8 @@ mod imp {
 
     pub(super) fn record(func: &'static str, fast: bool) {
         let k = key(func);
+        #[cfg(test)]
+        mine::record(k, fast);
         for s in &TABLE {
             let cur = match s.key.compare_exchange(0, k, Relaxed, Relaxed) {
                 Ok(_) => k,
@@ -99,10 +106,50 @@ mod imp {
         // A full table drops the call: the function then reads as never fast and fails its check.
     }
 
-    /// The counts of `func` so far, all threads together (zero before its first call).
+    /// The counts of `func` so far on this thread (zero before its first call here): the unit
+    /// tests' view, which another test's calls on another thread cannot change.
+    #[cfg(test)]
     pub fn counts(func: &str) -> Counts {
-        let k = key(func);
+        mine::counts(key(func))
+    }
+
+    /// The counts of `func` so far, all threads together (zero before its first call).
+    #[cfg(not(test))]
+    pub fn counts(func: &str) -> Counts {
+        global(key(func))
+    }
+
+    #[cfg_attr(test, allow(dead_code))]
+    fn global(k: u64) -> Counts {
         TABLE.iter().find(|s| s.key.load(Relaxed) == k).map(|s| Counts { fast: s.fast.load(Relaxed), fallback: s.fallback.load(Relaxed) }).unwrap_or_default()
+    }
+
+    /// This thread's counts (unit tests only: `cfg(test)` builds have `std`).
+    #[cfg(test)]
+    mod mine {
+        use super::Counts;
+        use core::cell::RefCell;
+        use std::vec::Vec;
+
+        std::thread_local! {
+            /// (name hash, counts) of each function this thread called.
+            static MINE: RefCell<Vec<(u64, Counts)>> = const { RefCell::new(Vec::new()) };
+        }
+
+        pub(super) fn record(k: u64, fast: bool) {
+            MINE.with_borrow_mut(|v| {
+                let i = v.iter().position(|e| e.0 == k).unwrap_or_else(|| {
+                    v.push((k, Counts::default()));
+                    v.len() - 1
+                });
+                let c = &mut v[i].1;
+                if fast { c.fast += 1 } else { c.fallback += 1 }
+            });
+        }
+
+        pub(super) fn counts(k: u64) -> Counts {
+            MINE.with_borrow(|v| v.iter().find(|e| e.0 == k).map_or_else(Counts::default, |e| e.1))
+        }
     }
 }
 
