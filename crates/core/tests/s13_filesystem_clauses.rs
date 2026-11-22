@@ -371,7 +371,7 @@ mod p12 {
         let exe = std::env::current_exe().unwrap();
         let mut cmd = if ns {
             // Contained (support/contain.rs).
-            let mut c = contain::user("unshare");
+            let mut c = crate::contain::user("unshare");
             c.args(unshare).arg("--").arg(&exe).env(NS, "1");
             c
         } else {
