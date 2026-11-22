@@ -1,0 +1,21 @@
+{"task": "LDSO-PROGRAM-OPTIONS-REST-2", "model": "opus", "tokens": null,
+ "result": "ld.so program mode takes --inhibit-rpath, --glibc-hwcaps-prepend/-mask, --list-tunables and --list-diagnostics; differences row 337 is --audit only; no start-up cost (-3 / -159 on both classes)",
+ "branch": "task/ldso-program-options-rest-2", "head": "90b8bc61b",
+ "gate": {"affected": "1063 passed / 0 failed", "peak": "2.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [{"item": "--list-diagnostics lacks the reference's system-describing keys (uname.*, dl_hwcap*, x86.cpu_features.*; 75 key names vs 11), recorded in differences row 338", "recommendation": "a small follow-up adding uname.* and the dl_hwcap words if the list is wanted for bug reports"}],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "ld.so --inhibit-rpath, --glibc-hwcaps-prepend, --glibc-hwcaps-mask, --list-tunables, --list-diagnostics accepted as the reference (were refused, row 337)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "exec'd start, empty main, Skylake-SP (user instructions, median of 51)", "before": 548900, "after": 548897, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "exec'd start, three libraries, Skylake-SP", "before": 797794, "after": 797635, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "exec'd start, empty main, Zen 1", "before": 545083, "after": 545080, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "exec'd start, three libraries, Zen 1", "before": 793869, "after": 793710, "unit": "instr/start", "measured": true},
+  {"kind": "coverage", "what": "tests: options/lists end to end, dlopen after --glibc-hwcaps-prepend, dl_platform rule; plants", "before": null, "after": 13, "unit": "plants caught", "measured": true},
+  {"kind": "unblock", "what": "row 337 now refuses --audit alone: rtld-audit is the remaining program-mode piece", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "fuzz-check only runs in cargo xtask static, not clippy: a library signature change (leg 2) reached the hand-back stage before the fuzz target was noticed; clippy over the fuzz workspace would catch it at the first lint",
+ "next_step": "land; rtld-audit (--audit, LD_AUDIT) as its own phase-sized story",
+ "report_file": "handoff/LDSO-PROGRAM-OPTIONS-REST-2-report.md",
+ "jobs": ["mei:ldso-program-options-rest-2-gate1", "mei:ldso-program-options-rest-2-plants1", "mei:ldso-program-options-rest-2-xtest1", "mei:ldso-program-options-rest-2-fullprof1", "mei:ldso-program-options-rest-2-count4", "keke:ldso-program-options-rest-2-zen-count4"]}

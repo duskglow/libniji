@@ -553,6 +553,20 @@ impl<const N: usize, const G: usize> Gens<N, G> {
     /// Entries generations `0..=G` hold together: one more index than any.
     pub(super) const MOST: usize = N << G;
 
+    /// The empty directory (for a static).
+    pub(super) const fn new() -> Self {
+        Self { gens: [const { AtomicUsize::new(0) }; G] }
+    }
+
+    /// The entries the generations mapped now hold, generation 0 included (each later one mapped
+    /// after the one before it), for the directory at `dir`: one more index than any a published
+    /// chain can reach at this moment, which bounds a lock-free walk.
+    pub(super) fn mapped_in(dir: usize) -> usize {
+        let () = Self::FITS;
+        let g = (1..=G).find(|&g| Self::base_in(dir, g) == 0).unwrap_or(G.wrapping_add(1));
+        Arena::<u8, N, G>::gen_start(g)
+    }
+
     /// Entry `i`'s address: `zero` (generation 0's first entry) plus its offset there, else from
     /// generation `g`'s address `base(g)`; 0 when that generation is not mapped or `i` is past every
     /// generation.
@@ -746,6 +760,31 @@ impl<T: ZeroValid> Wide<T> {
         }
         (self.at, self.cap) = (at, bytes.next_multiple_of(4096).checked_div(size).unwrap_or(0));
         true
+    }
+
+    /// The entries the room holds (0 until the first [`Wide::reserve`]).
+    pub(super) fn cap(&self) -> usize {
+        self.cap
+    }
+
+    /// Every entry of the room, read-only.
+    pub(super) fn all(&self) -> &[T] {
+        if self.at == 0 {
+            return &[];
+        }
+        // UNSAFE(slice): the whole reserved buffer, shared.
+        #[allow(unsafe_code)]
+        // SAFETY: as in `slice_mut`, with `cap` entries; `&self` keeps `reserve` (which needs
+        // `&mut self`) and every writer from running while the slice lives.
+        unsafe {
+            core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(self.at), self.cap)
+        }
+    }
+
+    /// Every entry of the room.
+    pub(super) fn all_mut(&mut self) -> &mut [T] {
+        let cap = self.cap;
+        self.slice_mut(cap).unwrap_or(&mut [])
     }
 
     /// Entries `0..len`, `None` past the room reserved.

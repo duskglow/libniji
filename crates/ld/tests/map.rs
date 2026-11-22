@@ -546,7 +546,10 @@ fn map_malformed_corpus_refused() {
     assert!(map::plan_file::<Native>(&pie, 0x1_0000).is_err() || headers(&pie).iter().all(|h| h.ty != PT_LOAD || h.offset % 0x1_0000 == h.vaddr % 0x1_0000));
 }
 
-/// no spec clause: `ld.so` refuses the malformed corpus with one line and status 127, no signal.
+/// no spec clause: `ld.so PROGRAM` refuses the malformed corpus with status 127, no signal, and
+/// one line in the reference's form for a program it cannot load (probed, LDSO-RUN-PROGRAM-2):
+/// `PROGRAM: error while loading shared libraries: PROGRAM: <reason>`. Nothing of a refused object
+/// is mapped: `map_malformed_corpus_refused` proves the plan refuses before the first mapping call.
 #[test]
 fn map_malformed_corpus_refused_by_ldso() {
     let (Some(ld), true) = (product(), cc_ok()) else { return eprintln!("SKIP: no product or no cc") };
@@ -562,7 +565,9 @@ fn map_malformed_corpus_refused_by_ldso() {
         let o = Command::new("timeout").arg("60").arg(&ld).arg(&p).output().unwrap();
         let err = String::from_utf8_lossy(&o.stderr);
         assert_eq!(o.status.code(), Some(127), "{name}: {o:?}");
-        assert!(err.starts_with("ld.so: ") && err.contains(name) && err.lines().count() == 1, "{name}: {err}");
+        let refusal = format!("{p}: error while loading shared libraries: {p}: ", p = p.display());
+        let reason = err.strip_prefix(&refusal).unwrap_or_else(|| panic!("{name}: not the start's refusal: {err}"));
+        assert!(reason.trim_end().len() > 1 && err.lines().count() == 1, "{name}: {err}");
     }
 }
 

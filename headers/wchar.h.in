@@ -10,14 +10,11 @@ __NIJI_BEGIN_C
 
 @@owns NULL va_list wcschr wcsrchr wcspbrk wcsstr wmemchr wcswcs
 @@emit
+@@fortify
 
 @@if NULL
 # ifndef NULL
-#  ifdef __cplusplus
-#   define NULL __null
-#  else
-#   define NULL ((void *) 0)
-#  endif
+@@null NULL
 # endif
 #endif
 

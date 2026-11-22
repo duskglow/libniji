@@ -16,6 +16,8 @@ niji = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
+# The generated charmaps (LOCALE-CHARMAPS-GEN), compiled against the reference in tests/reference.rs.
+niji-charmaps = { workspace = true }
 
 [lints]
 workspace = true

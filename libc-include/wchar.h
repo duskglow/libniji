@@ -713,6 +713,449 @@ extern int wcwidth (wchar_t) __NIJI_NOTHROW;
 #  define _WINT_T 1
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_fgetws
+#  define __NIJI_F_fgetws 1
+#  ifndef __NIJI_D___fgetws_chk
+#   define __NIJI_D___fgetws_chk 1
+extern wchar_t *__fgetws_chk (wchar_t *, unsigned long, int, __FILE *);
+#  endif
+extern wchar_t *__niji_plain_fgetws (wchar_t *, int, __FILE *) __asm__ ("fgetws");
+__NIJI_FORTIFY_FN wchar_t *fgetws (wchar_t *__p0, int __p1, __FILE *__p2)
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_fgetws (__p0, __p1, __p2);
+  return __fgetws_chk (__p0, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)), __p1, __p2);
+}
+# endif
+#endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_fgetws_unlocked
+#  define __NIJI_F_fgetws_unlocked 1
+#  ifndef __NIJI_D___fgetws_unlocked_chk
+#   define __NIJI_D___fgetws_unlocked_chk 1
+extern wchar_t *__fgetws_unlocked_chk (wchar_t *, unsigned long, int, __FILE *);
+#  endif
+extern wchar_t *__niji_plain_fgetws_unlocked (wchar_t *, int, __FILE *) __asm__ ("fgetws_unlocked");
+__NIJI_FORTIFY_FN wchar_t *fgetws_unlocked (wchar_t *__p0, int __p1, __FILE *__p2)
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 > 0 && (__SIZE_TYPE__) __p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_fgetws_unlocked (__p0, __p1, __p2);
+  return __fgetws_unlocked_chk (__p0, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)), __p1, __p2);
+}
+# endif
+#endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
+# ifndef __NIJI_F_fwprintf
+#  define __NIJI_F_fwprintf 1
+#  ifndef __NIJI_D___fwprintf_chk
+#   define __NIJI_D___fwprintf_chk 1
+extern int __fwprintf_chk (__FILE *, int, const wchar_t *, ...);
+#  endif
+__NIJI_FORTIFY_FN int fwprintf (__FILE *__p0, const wchar_t *__p1, ...)
+{
+  return __fwprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __builtin_va_arg_pack ());
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mbsnrtowcs
+#  define __NIJI_F_mbsnrtowcs 1
+#  ifndef __NIJI_D___mbsnrtowcs_chk
+#   define __NIJI_D___mbsnrtowcs_chk 1
+extern unsigned long __mbsnrtowcs_chk (wchar_t *, const char **, unsigned long, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_mbsnrtowcs (wchar_t *, const char **, unsigned long, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("mbsnrtowcs");
+__NIJI_FORTIFY_FN unsigned long mbsnrtowcs (wchar_t *__p0, const char **__p1, unsigned long __p2, unsigned long __p3, mbstate_t *__p4) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p3 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p3 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_mbsnrtowcs (__p0, __p1, __p2, __p3, __p4);
+  return __mbsnrtowcs_chk (__p0, __p1, __p2, __p3, __p4, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mbsrtowcs
+#  define __NIJI_F_mbsrtowcs 1
+#  ifndef __NIJI_D___mbsrtowcs_chk
+#   define __NIJI_D___mbsrtowcs_chk 1
+extern unsigned long __mbsrtowcs_chk (wchar_t *, const char **, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_mbsrtowcs (wchar_t *, const char **, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("mbsrtowcs");
+__NIJI_FORTIFY_FN unsigned long mbsrtowcs (wchar_t *__p0, const char **__p1, unsigned long __p2, mbstate_t *__p3) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_mbsrtowcs (__p0, __p1, __p2, __p3);
+  return __mbsrtowcs_chk (__p0, __p1, __p2, __p3, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_swprintf
+#  define __NIJI_F_swprintf 1
+#  ifndef __NIJI_D___swprintf_chk
+#   define __NIJI_D___swprintf_chk 1
+extern int __swprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW;
+#  endif
+extern int __niji_plain_swprintf (wchar_t *, unsigned long, const wchar_t *, ...) __NIJI_NOTHROW __asm__ ("swprintf");
+__NIJI_FORTIFY_FN int swprintf (wchar_t *__p0, unsigned long __p1, const wchar_t *__p2, ...) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_swprintf (__p0, __p1, __p2, __builtin_va_arg_pack ());
+  return __swprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)), __p2, __builtin_va_arg_pack ());
+}
+# endif
+#endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+# ifndef __NIJI_D___FILE
+#  define __NIJI_D___FILE 1
+struct _IO_FILE;
+typedef struct _IO_FILE __FILE;
+# endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
+# ifndef __NIJI_F_vfwprintf
+#  define __NIJI_F_vfwprintf 1
+#  ifndef __NIJI_D___vfwprintf_chk
+#   define __NIJI_D___vfwprintf_chk 1
+extern int __vfwprintf_chk (__FILE *, int, const wchar_t *, __builtin_va_list);
+#  endif
+__NIJI_FORTIFY_FN int vfwprintf (__FILE *__p0, const wchar_t *__p1, __builtin_va_list __p2)
+{
+  return __vfwprintf_chk (__p0, __NIJI_FORTIFY_FLAG, __p1, __p2);
+}
+# endif
+#endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_vswprintf
+#  define __NIJI_F_vswprintf 1
+#  ifndef __NIJI_D___vswprintf_chk
+#   define __NIJI_D___vswprintf_chk 1
+extern int __vswprintf_chk (wchar_t *, unsigned long, int, unsigned long, const wchar_t *, __builtin_va_list) __NIJI_NOTHROW;
+#  endif
+extern int __niji_plain_vswprintf (wchar_t *, unsigned long, const wchar_t *, __builtin_va_list) __NIJI_NOTHROW __asm__ ("vswprintf");
+__NIJI_FORTIFY_FN int vswprintf (wchar_t *__p0, unsigned long __p1, const wchar_t *__p2, __builtin_va_list __p3) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_vswprintf (__p0, __p1, __p2, __p3);
+  return __vswprintf_chk (__p0, __p1, __NIJI_FORTIFY_FLAG, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)), __p2, __p3);
+}
+# endif
+#endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
+# ifndef __NIJI_F_vwprintf
+#  define __NIJI_F_vwprintf 1
+#  ifndef __NIJI_D___vwprintf_chk
+#   define __NIJI_D___vwprintf_chk 1
+extern int __vwprintf_chk (int, const wchar_t *, __builtin_va_list);
+#  endif
+__NIJI_FORTIFY_FN int vwprintf (const wchar_t *__p0, __builtin_va_list __p1)
+{
+  return __vwprintf_chk (__NIJI_FORTIFY_FLAG, __p0, __p1);
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcpcpy
+#  define __NIJI_F_wcpcpy 1
+#  ifndef __NIJI_D___wcpcpy_chk
+#   define __NIJI_D___wcpcpy_chk 1
+extern wchar_t *__wcpcpy_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcpcpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcpcpy");
+__NIJI_FORTIFY_FN wchar_t *wcpcpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wcpcpy (__p0, __p1);
+  return __wcpcpy_chk (__p0, __p1, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcpncpy
+#  define __NIJI_F_wcpncpy 1
+#  ifndef __NIJI_D___wcpncpy_chk
+#   define __NIJI_D___wcpncpy_chk 1
+extern wchar_t *__wcpncpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcpncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcpncpy");
+__NIJI_FORTIFY_FN wchar_t *wcpncpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_wcpncpy (__p0, __p1, __p2);
+  return __wcpncpy_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcrtomb
+#  define __NIJI_F_wcrtomb 1
+#  ifndef __NIJI_D___wcrtomb_chk
+#   define __NIJI_D___wcrtomb_chk 1
+extern unsigned long __wcrtomb_chk (char *, wchar_t, mbstate_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_wcrtomb (char *, wchar_t, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcrtomb");
+__NIJI_FORTIFY_FN unsigned long wcrtomb (char *__p0, wchar_t __p1, mbstate_t *__p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wcrtomb (__p0, __p1, __p2);
+  return __wcrtomb_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcscat
+#  define __NIJI_F_wcscat 1
+#  ifndef __NIJI_D___wcscat_chk
+#   define __NIJI_D___wcscat_chk 1
+extern wchar_t *__wcscat_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcscat (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcscat");
+__NIJI_FORTIFY_FN wchar_t *wcscat (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wcscat (__p0, __p1);
+  return __wcscat_chk (__p0, __p1, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcscpy
+#  define __NIJI_F_wcscpy 1
+#  ifndef __NIJI_D___wcscpy_chk
+#   define __NIJI_D___wcscpy_chk 1
+extern wchar_t *__wcscpy_chk (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcscpy (wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcscpy");
+__NIJI_FORTIFY_FN wchar_t *wcscpy (wchar_t *__p0, const wchar_t *__p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wcscpy (__p0, __p1);
+  return __wcscpy_chk (__p0, __p1, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcslcat
+#  define __NIJI_F_wcslcat 1
+#  ifndef __NIJI_D___wcslcat_chk
+#   define __NIJI_D___wcslcat_chk 1
+extern unsigned long __wcslcat_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_wcslcat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcslcat");
+__NIJI_FORTIFY_FN unsigned long wcslcat (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_wcslcat (__p0, __p1, __p2);
+  return __wcslcat_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcslcpy
+#  define __NIJI_F_wcslcpy 1
+#  ifndef __NIJI_D___wcslcpy_chk
+#   define __NIJI_D___wcslcpy_chk 1
+extern unsigned long __wcslcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcslcpy");
+__NIJI_FORTIFY_FN unsigned long wcslcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_wcslcpy (__p0, __p1, __p2);
+  return __wcslcpy_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcsncat
+#  define __NIJI_F_wcsncat 1
+#  ifndef __NIJI_D___wcsncat_chk
+#   define __NIJI_D___wcsncat_chk 1
+extern wchar_t *__wcsncat_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcsncat (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcsncat");
+__NIJI_FORTIFY_FN wchar_t *wcsncat (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1)
+    return __niji_plain_wcsncat (__p0, __p1, __p2);
+  return __wcsncat_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcsncpy
+#  define __NIJI_F_wcsncpy 1
+#  ifndef __NIJI_D___wcsncpy_chk
+#   define __NIJI_D___wcsncpy_chk 1
+extern wchar_t *__wcsncpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wcsncpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wcsncpy");
+__NIJI_FORTIFY_FN wchar_t *wcsncpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)))))
+    return __niji_plain_wcsncpy (__p0, __p1, __p2);
+  return __wcsncpy_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcsnrtombs
+#  define __NIJI_F_wcsnrtombs 1
+#  ifndef __NIJI_D___wcsnrtombs_chk
+#   define __NIJI_D___wcsnrtombs_chk 1
+extern unsigned long __wcsnrtombs_chk (char *, const wchar_t **, unsigned long, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_wcsnrtombs (char *, const wchar_t **, unsigned long, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcsnrtombs");
+__NIJI_FORTIFY_FN unsigned long wcsnrtombs (char *__p0, const wchar_t **__p1, unsigned long __p2, unsigned long __p3, mbstate_t *__p4) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p3 <= __NIJI_BOS (__p0, 0)) && (__p3 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_wcsnrtombs (__p0, __p1, __p2, __p3, __p4);
+  return __wcsnrtombs_chk (__p0, __p1, __p2, __p3, __p4, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wcsrtombs
+#  define __NIJI_F_wcsrtombs 1
+#  ifndef __NIJI_D___wcsrtombs_chk
+#   define __NIJI_D___wcsrtombs_chk 1
+extern unsigned long __wcsrtombs_chk (char *, const wchar_t **, unsigned long, mbstate_t *, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_wcsrtombs (char *, const wchar_t **, unsigned long, mbstate_t *) __NIJI_NOTHROW __asm__ ("wcsrtombs");
+__NIJI_FORTIFY_FN unsigned long wcsrtombs (char *__p0, const wchar_t **__p1, unsigned long __p2, mbstate_t *__p3) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, 0)) && (__p2 <= __NIJI_BOS (__p0, 0))))
+    return __niji_plain_wcsrtombs (__p0, __p1, __p2, __p3);
+  return __wcsrtombs_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wmemcpy
+#  define __NIJI_F_wmemcpy 1
+#  ifndef __NIJI_D___wmemcpy_chk
+#   define __NIJI_D___wmemcpy_chk 1
+extern wchar_t *__wmemcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wmemcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmemcpy");
+__NIJI_FORTIFY_FN wchar_t *wmemcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_wmemcpy (__p0, __p1, __p2);
+  return __wmemcpy_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wmemmove
+#  define __NIJI_F_wmemmove 1
+#  ifndef __NIJI_D___wmemmove_chk
+#   define __NIJI_D___wmemmove_chk 1
+extern wchar_t *__wmemmove_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wmemmove (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmemmove");
+__NIJI_FORTIFY_FN wchar_t *wmemmove (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_wmemmove (__p0, __p1, __p2);
+  return __wmemmove_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wmempcpy
+#  define __NIJI_F_wmempcpy 1
+#  ifndef __NIJI_D___wmempcpy_chk
+#   define __NIJI_D___wmempcpy_chk 1
+extern wchar_t *__wmempcpy_chk (wchar_t *, const wchar_t *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wmempcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_NOTHROW __asm__ ("wmempcpy");
+__NIJI_FORTIFY_FN wchar_t *wmempcpy (wchar_t *__p0, const wchar_t *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_wmempcpy (__p0, __p1, __p2);
+  return __wmempcpy_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_wmemset
+#  define __NIJI_F_wmemset 1
+#  ifndef __NIJI_D___wmemset_chk
+#   define __NIJI_D___wmemset_chk 1
+extern wchar_t *__wmemset_chk (wchar_t *, wchar_t, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern wchar_t *__niji_plain_wmemset (wchar_t *, wchar_t, unsigned long) __NIJI_NOTHROW __asm__ ("wmemset");
+__NIJI_FORTIFY_FN wchar_t *wmemset (wchar_t *__p0, wchar_t __p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p2 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_wmemset (__p0, __p1, __p2);
+  return __wmemset_chk (__p0, __p1, __p2, (__NIJI_BOS (__p0, 0) / sizeof (*__p0)));
+}
+# endif
+#endif
+#if (__NIJI_ISOC >= 1999) && __NIJI_FORTIFY >= 2
+# ifndef __NIJI_F_wprintf
+#  define __NIJI_F_wprintf 1
+#  ifndef __NIJI_D___wprintf_chk
+#   define __NIJI_D___wprintf_chk 1
+extern int __wprintf_chk (int, const wchar_t *, ...);
+#  endif
+__NIJI_FORTIFY_FN int wprintf (const wchar_t *__p0, ...)
+{
+  return __wprintf_chk (__NIJI_FORTIFY_FLAG, __p0, __builtin_va_arg_pack ());
+}
+# endif
+#endif
 
 #if 1
 # ifndef NULL

@@ -16,7 +16,7 @@ use niji_legacy::search_c::CWords;
 use crate::conv;
 use super::exec_stack::{exec_stack_accepted, refuse_exec_stack_program};
 use super::image::{load, open_whole, program_file, read_image};
-use super::io::{c_string, exit, lo32, refuse, stack_word, write_all};
+use super::io::{c_string, exit, fail_loading, lo32, refuse, stack_word, write_all};
 use super::link::{Origin, Preloads, link};
 use super::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS, START_RUN_PATH};
 use super::tls::{PROVISIONAL, install_tls, map_area, program_tls};
@@ -133,6 +133,16 @@ pub(super) fn env_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
     (0usize..).map(move |i| stack_word(envp.wrapping_add(i.wrapping_mul(8)))).take_while(|&p| p != 0).map(|p| c_string(usize::try_from(p).unwrap_or(0)))
 }
 
+/// The entries of [`env_entries`] whose name starts with `LD_` (the loader's own settings a
+/// `dlopen` reads), in order: every other entry costs a three-byte test, never a measurement.
+pub(super) fn ld_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
+    (0usize..)
+        .map(move |i| usize::try_from(stack_word(envp.wrapping_add(i.wrapping_mul(8)))).unwrap_or(0))
+        .take_while(|&p| p != 0)
+        .filter(|&p| super::io::starts_with(p, b"LD_"))
+        .map(c_string)
+}
+
 /// The entry of `ld.so` (called by `niji_machine_ld_entry` with the initial stack pointer
 /// `sp` and the run-time address `ehdr` of the image's own ELF header, which the entry takes
 /// PC-relatively: no call and no GOT slot is needed to find the image before it is relocated).
@@ -212,7 +222,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
     let preload = if secure { secure_preload } else { ld.preload };
-    let list_env = List { ld: &ld, secure, preload, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
+    let list_env = List { ld: &ld, secure, preload, platform: Native::platform(&features), hwcaps: Native::hwcaps(&features), page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
@@ -247,30 +257,167 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             }
             exit(0)
         }
-        Action::Program(name) => {
-            // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the
-            // name as given, the file's path names it in messages and gives its `$ORIGIN`.
-            let file = program_file(name, &list_env);
-            if ld.trace && !secure {
-                list(&list_env, file, false, invoked)
-            }
-            // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
-            let file = file.as_ptr().expose_provenance();
-            let (prog, bias) = load(file, page, &ld, secure);
-            let mut copy = copy;
-            start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
-            store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
-            store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
-            run(argv, &prog, bias, page, file, &list_env)
+        Action::Tunables => super::report::tunables(ld.tunables, secure),
+        Action::Diagnostics => super::report::diagnostics(list_env.hwcaps, page, list_env.platform, envp, copy.get(..words).unwrap_or(&[])),
+        Action::Program { mode, name, at, options } => {
+            let start = Start { argv, argc, auxv, copy, words, invoked };
+            program_mode(&start, mode, name, at, &options, &list_env)
         }
-        Action::List(name) => list(&list_env, program_file(name, &list_env), true, invoked),
         other => {
-            for part in program::refusal(other) {
+            let me = if argc == 0 { &b"ld.so"[..] } else { c_string(arg(0)) };
+            for part in program::refusal(other, me) {
                 write_all(2, part);
             }
-            exit(program::FAILURE)
+            exit(program::USAGE)
         }
     }
+}
+
+/// The initial stack of `ld.so` run as a program, as `niji_ld_start` read it.
+struct Start {
+    argv: usize,
+    argc: usize,
+    /// Where the auxiliary vector is now (after any secure-mode move), its copy and its words.
+    auxv: usize,
+    copy: [u64; AUXV_WORDS_MAX],
+    words: usize,
+    /// The path `ld.so` was run by (`AT_EXECFN`), for `--list`.
+    invoked: Option<&'static [u8]>,
+}
+
+/// `ld.so [OPTION]... PROGRAM [ARGS]` (LDSO-RUN-PROGRAM): apply the options, then list, verify or run
+/// the program. Running maps the program as the kernel would have and goes on through the same start
+/// as an exec'd program ([`run`]); a program with no `PT_INTERP` (static, or a static PIE) is entered
+/// as the kernel enters it, with nothing of the loader's start. Cold: an exec'd program never comes here.
+#[cold]
+#[inline(never)]
+fn program_mode(st: &Start, mode: program::Mode, name: &'static [u8], at: usize, options: &program::Options<'static>, env: &List<'_>) -> ! {
+    // `--library-path` replaces LD_LIBRARY_PATH for the search (the environment keeps its value);
+    // dlopen reads the same choices later (`state::program_options`).
+    let mut ld = *env.ld;
+    if options.library_path.is_some() {
+        ld.library_path = options.library_path;
+    }
+    super::state::keep_program_options(options.library_path, options.inhibit_cache);
+    // `--preload`'s names follow `LD_PRELOAD`'s under its rule: folded into its value here, so the
+    // start's preload list is the exec'd start's, unchanged.
+    let preload = options.preload.map_or(env.preload, |p| Some(fold_preload(env.preload, p)));
+    if let Some(list) = options.inhibit_rpath {
+        super::state::keep_inhibit_rpath(list);
+    }
+    // The hwcaps options give the subdirectory list every search of the process uses.
+    let hwcaps = if options.hwcaps_prepend.is_some() || options.hwcaps_mask.is_some() { hwcaps_list(env.hwcaps, options.hwcaps_prepend, options.hwcaps_mask) } else { env.hwcaps };
+    let env = List { ld: &ld, preload, hwcaps, ..*env };
+    // A name without `/` is found through the loader cache only (D-27.69); argv[0] stays the name as
+    // given (or `--argv0`'s), the file's path names it in messages and gives its `$ORIGIN`.
+    if mode == program::Mode::Verify {
+        // Only a path is opened (no search, never the working directory for a bare name, D-27.69):
+        // a name without `/` verifies as no program, status 1.
+        let file = Some(name).filter(|n| n.contains(&b'/')).and_then(open_whole).map(|(f, fd)| {
+            let _ = crate::ffi_sys::niji_sys_close(fd);
+            f
+        });
+        exit(program::verify_status::<Native>(file))
+    }
+    let file = program_file(name, &env);
+    if mode == program::Mode::List {
+        list(&env, file, true, st.invoked)
+    }
+    if ld.trace && !env.secure {
+        list(&env, file, false, st.invoked)
+    }
+    for a in options.audit.into_iter().flat_map(program::audit_names) {
+        program::audit_ignored(a).iter().for_each(|p| write_all(2, p));
+    }
+    let path = file.as_ptr().expose_provenance();
+    let (prog, bias) = load(path, env.page, &ld, env.secure);
+    let headers = program_headers(&prog);
+    let interp = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).any(|h| h.first().is_some_and(|w| w & 0xffff_ffff == u64::from(niji_ld::elf::pt::INTERP)));
+    let mut copy = st.copy;
+    // AT_BASE: the interpreter's base, 0 for a program the kernel would start without one.
+    start::rewrite(copy.get_mut(..st.words).unwrap_or(&mut []), &prog, if interp { env.base } else { 0 });
+    store_words(st.auxv, copy.get(..st.words.wrapping_add(2)).unwrap_or(&[]));
+    // argv[at + 1] names the program: it becomes argv[0], and the stack starts at the word before it,
+    // which takes the new argc.
+    let top = st.argv.wrapping_add(at.wrapping_mul(8));
+    store_words(top, &[u64::try_from(st.argc.wrapping_sub(at).wrapping_sub(1)).unwrap_or(0)]);
+    if let Some(a) = options.argv0 {
+        // The string is the loader's own argument, on the stack for the process's lifetime; an empty
+        // one may not point there (an empty slice's address is arbitrary), so it is the loader's "".
+        let s = if a.is_empty() { b"\0".as_slice() } else { a };
+        store_words(top.wrapping_add(8), &[u64::try_from(s.as_ptr().expose_provenance()).unwrap_or(0)]);
+    }
+    if !interp {
+        // A static program or static PIE starts itself, as from the kernel. An object with no entry
+        // point (`e_entry` 0: a shared library) is refused, never entered.
+        if prog.entry == bias {
+            fail_loading(file, file, b"the object has no entry point (a shared object, not a program)")
+        }
+        crate::arch::enter(top, prog.entry, 0)
+    }
+    run(top, &prog, bias, env.page, path, &env)
+}
+
+/// The `LD_PRELOAD` value with `ld.so --preload LIST`'s names after its own (`env`, the start's value,
+/// if any): `option` itself when there is no other, else a copy of both joined by a colon, kept for the
+/// process (a kept name may become an object's name). Where `option`'s names lie is kept for the
+/// diagnostic's source (`state::in_preload_option`). Cold: program mode only.
+#[cold]
+#[inline(never)]
+fn fold_preload(env: Option<&'static [u8]>, option: &'static [u8]) -> &'static [u8] {
+    let Some(env) = env.filter(|e| !e.is_empty()) else {
+        super::state::keep_preload_option(option);
+        return option;
+    };
+    // The two values, a colon between them and a NUL after them.
+    let len = env.len().saturating_add(option.len()).saturating_add(2);
+    let flags = super::MAP_PRIVATE_I32 | super::MAP_ANONYMOUS_I32;
+    let at = crate::raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, flags, -1, 0).unwrap_or_else(|_| refuse(b"ld.so: cannot allocate memory for --preload\n"));
+    // UNSAFE(slice): a fresh anonymous mapping, owned by this value.
+    #[allow(unsafe_code)]
+    // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else refers
+    // to them, and they are never unmapped (the value lives as long as the process).
+    let buf = unsafe { conv::bytes_at_mut(at, len) };
+    // The mapping is zero-filled, so the NUL is there already. Copied without an operation that can
+    // panic: each panic site's location is a self-relocation that every start of ld.so pays for.
+    let joined = env.iter().chain(b":").chain(option);
+    for (to, &from) in buf.iter_mut().zip(joined) {
+        *to = from;
+    }
+    let value: &'static [u8] = buf;
+    let value = value.get(..len.saturating_sub(1)).unwrap_or(&[]);
+    super::state::keep_preload_option(value.get(env.len().saturating_add(1)..).unwrap_or(&[]));
+    value
+}
+
+/// The `glibc-hwcaps` subdirectories for `--glibc-hwcaps-prepend` and `--glibc-hwcaps-mask`
+/// ([`program::hwcaps_subdirs`] of the supported ones, `builtin`), in a private mapping kept for the
+/// process and for `dlopen` (`state::program_hwcaps`). Names are bytes, as given. Cold: program
+/// mode only.
+#[cold]
+#[inline(never)]
+fn hwcaps_list(builtin: &'static [&'static [u8]], prepend: Option<&'static [u8]>, mask: Option<&'static [u8]>) -> &'static [&'static [u8]] {
+    let n = program::hwcaps_subdirs(builtin, prepend, mask).count();
+    let len = n.saturating_mul(core::mem::size_of::<&[u8]>()).max(1);
+    let flags = super::MAP_PRIVATE_I32 | super::MAP_ANONYMOUS_I32;
+    let at = crate::raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, flags, -1, 0).unwrap_or_else(|_| refuse(b"ld.so: cannot allocate memory for the glibc-hwcaps options\n"));
+    // UNSAFE(slice): a fresh anonymous mapping as `n` slots for names, none read before written.
+    #[allow(unsafe_code)]
+    // SAFETY: `len` >= n * size_of::<&[u8]>() bytes from `at` were just mapped private and writable,
+    // page-aligned (so aligned for `&[u8]`); nothing else refers to them, and they are never unmapped.
+    let slots = unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<core::mem::MaybeUninit<&'static [u8]>>(at), n) };
+    let names = program::hwcaps_subdirs(builtin, prepend, mask);
+    let mut kept = 0usize;
+    for (slot, name) in slots.iter_mut().zip(names) {
+        slot.write(name);
+        kept = kept.wrapping_add(1);
+    }
+    // UNSAFE(slice): the slots just written.
+    #[allow(unsafe_code)]
+    // SAFETY: the first `kept` (<= n) slots from `at` were initialised above and are not written again.
+    let list: &'static [&'static [u8]] = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<&'static [u8]>(at), kept) };
+    super::state::keep_program_hwcaps(list);
+    list
 }
 
 /// The program headers of `prog` (`AT_PHDR`, `AT_PHNUM` checked by [`start::program`] or set by [`load`]).
@@ -362,7 +509,9 @@ pub(super) struct List<'a> {
     pub(super) secure: bool,
     /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
     preload: Option<&'static [u8]>,
-    features: &'a niji_rt::cpu::Features,
+    /// `$PLATFORM` and the `glibc-hwcaps` subdirectories searched (program mode's options may change these).
+    platform: &'static str,
+    hwcaps: &'static [&'static [u8]],
     pub(super) page: u64,
     pub(super) vdso: Option<u64>,
     pub(super) base: usize,
@@ -375,8 +524,8 @@ impl List<'_> {
             secure: self.secure,
             library_path: if self.secure { None } else { self.ld.library_path },
             origin_path: if self.secure { None } else { self.ld.origin_path },
-            platform: Native::platform(self.features),
-            hwcaps: Native::hwcaps(self.features),
+            platform: self.platform,
+            hwcaps: self.hwcaps,
             cache,
         }
     }

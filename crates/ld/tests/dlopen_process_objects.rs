@@ -697,3 +697,284 @@ fn dlopen_slot_reuse_churn_with_concurrent_readers() {
     assert!(distinct <= 2 * (8 + 130), "freed slots below the top not reused under readers: {distinct} distinct handles in 3000 opens");
     std::fs::remove_dir_all(&d).ok();
 }
+
+/// The three-quarters program (`argv[1]`: the object-table corpus): 200 pairs held (over three
+/// quarters of the 512 slots in place), a reader stalled inside `dl_iterate_phdr` until the main
+/// thread is seen asleep, and 100 open/close pairs behind it. Prints `waited after <pairs>`.
+const ROOM: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <link.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <fcntl.h>
+static const char *dir;
+static sem_t in_cb;
+static volatile int progress, released_at = -1;
+static pid_t main_tid;
+/* The main thread seen asleep (state S) with its progress frozen over 20 polls: in this loop only
+   a wait for the readers puts it to sleep. */
+static int main_asleep(int p, int *last, int *still) {
+    char path[64], buf[512];
+    snprintf(path, sizeof path, "/proc/self/task/%d/stat", (int)main_tid);
+    int fd = open(path, O_RDONLY);
+    ssize_t n = fd >= 0 ? read(fd, buf, sizeof buf - 1) : -1;
+    if (fd >= 0) close(fd);
+    char st = 0;
+    if (n > 0) { buf[n] = 0; char *e = strrchr(buf, ')'); if (e && e[1] && e[2]) st = e[2]; }
+    if (p == *last && st == 'S') ++*still; else *still = 0;
+    *last = p;
+    return *still >= 20;
+}
+static int watch_cb(struct dl_phdr_info *i, size_t s, void *d) {
+    (void)i; (void)s; (void)d;
+    int last = -1, still = 0;
+    sem_post(&in_cb);
+    while (progress < 100) {
+        int p = progress;
+        if (main_asleep(p, &last, &still)) { released_at = p; break; }
+        sched_yield();
+    }
+    return 1;
+}
+static void *watcher(void *a) { (void)a; dl_iterate_phdr(watch_cb, NULL); return NULL; }
+static void *pair(int k) {
+    static char path[4096];
+    snprintf(path, sizeof path, "%s/p%d/libtop.so", dir, k);
+    return dlopen(path, RTLD_NOW);
+}
+void reg(const void *m, int k) { (void)m; (void)k; }
+void note(const void *m) { (void)m; }
+int main(int argc, char **argv) {
+    if (argc < 2) return 2;
+    dir = argv[1];
+    alarm(300);
+    for (int k = 0; k < 200; k++) if (!pair(k)) { printf("open %d: %s\n", k, dlerror()); return 1; }
+    sem_init(&in_cb, 0, 0);
+    main_tid = (pid_t)syscall(SYS_gettid);
+    pthread_t th;
+    if (pthread_create(&th, NULL, watcher, NULL)) return 2;
+    while (sem_wait(&in_cb) != 0) {}
+    for (int i = 0; i < 100; i++) {
+        void *q = pair(200 + i);
+        if (!q || dlclose(q)) { printf("pair %d: %s\n", i, dlerror()); return 1; }
+        progress = i + 1;
+    }
+    pthread_join(th, NULL);
+    printf("waited after %d\n", released_at);
+    return 0;
+}
+"#;
+
+/// no spec clause (ruling #5651's reader wait, D-27.74; DL-SLOT-REUSE #7380): with the table's top
+/// past three quarters of the 512 slots in place (200 pairs held), one retired object behind a
+/// reader stalled inside a walk is enough for the next `dlopen` to wait for the readers (the main
+/// thread is seen asleep after the first open/close pair): the wait, not the growth past 512 its
+/// tables could make, is how it goes on. Without that rule it would wait only past 128 retired.
+#[test]
+fn dlopen_waits_for_readers_past_three_quarters_of_the_table() {
+    let Some((_top, d, _prog)) = many_corpus() else { return };
+    let (lib, ld) = products().unwrap();
+    let top = d.parent().unwrap();
+    let libc = named_libc(&lib, top);
+    build_all(vec![("room".into(), cc(top, "room", ROOM, &prog_flags(&lib, &ld, &libc, &["-Wl,--export-dynamic"])))]);
+    let o = run(Command::new(top.join("room")).arg(&d));
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
+    let at: i32 = out.trim().strip_prefix("waited after ").and_then(|s| s.parse().ok()).unwrap_or(-1);
+    assert!((0..=2).contains(&at), "no wait for the readers past three quarters of the table: {out}");
+}
+
+/// Each library of the TLS corpus: a general-dynamic variable with an image, one in `.tbss`, and an
+/// initial-exec one (static TLS) with an image.
+const TLS_LIB: &str = r#"
+__thread int gd = 7;
+__thread int gz;
+static __thread int ie __attribute__((tls_model("initial-exec"))) = 9;
+int *gd_at(void) { return &gd; }
+int *gz_at(void) { return &gz; }
+int *ie_at(void) { return &ie; }
+"#;
+
+/// The TLS program (`argv[1]`: `libtls<k>.so`, k < 1310, each its own file): a thread started
+/// before any load, 1100 modules loaded, threads started after; half closed and 200 more loaded
+/// (their module IDs reused); then threads started and ended while modules are loaded and closed.
+/// Each line is `<what> <bad>`: the blocks in error that thread saw.
+const TLS_PROG: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <unistd.h>
+#define M 1100
+#define MORE 200
+#define ALL (M + MORE + 10)
+typedef int *(*get)(void);
+static const char *dir;
+static void *h[ALL];
+static get g_gd[ALL], g_gz[ALL], g_ie[ALL];
+static int live[ALL];
+static int load(int k) {
+    char path[4096];
+    snprintf(path, sizeof path, "%s/libtls%d.so", dir, k);
+    h[k] = dlopen(path, RTLD_NOW);
+    if (!h[k]) { printf("open %d: %s\n", k, dlerror()); return 1; }
+    g_gd[k] = (get)dlsym(h[k], "gd_at"); g_gz[k] = (get)dlsym(h[k], "gz_at"); g_ie[k] = (get)dlsym(h[k], "ie_at");
+    if (!g_gd[k] || !g_gz[k] || !g_ie[k]) { printf("dlsym %d\n", k); return 1; }
+    live[k] = 1;
+    return 0;
+}
+/* The live modules in [from, to): each block holds its image in this thread; then this thread's
+   own values (tag) go in. */
+static int fresh(int from, int to, int tag) {
+    int bad = 0;
+    for (int k = from; k < to; k++) {
+        if (!live[k]) continue;
+        int *a = g_gd[k](), *z = g_gz[k](), *e = g_ie[k]();
+        bad += *a != 7 || *z != 0 || *e != 9;
+        *a = tag * 100000 + k; *z = tag * 100000 + 2 * k; *e = -(tag * 100000 + k);
+    }
+    return bad;
+}
+/* The values `fresh` left in this thread: no other thread's writes are seen. */
+static int mine(int from, int to, int tag) {
+    int bad = 0;
+    for (int k = from; k < to; k++)
+        if (live[k]) bad += *g_gd[k]() != tag * 100000 + k || *g_gz[k]() != tag * 100000 + 2 * k || *g_ie[k]() != -(tag * 100000 + k);
+    return bad;
+}
+static sem_t go_a, done_a;
+static int a_bad[3];
+static void *thread_a(void *x) {
+    (void)x;
+    while (sem_wait(&go_a)) {}
+    a_bad[0] = fresh(0, M, 1) + mine(0, M, 1);
+    sem_post(&done_a);
+    while (sem_wait(&go_a)) {}
+    a_bad[1] = fresh(M, M + MORE, 1) + mine(0, M + MORE, 1);
+    sem_post(&done_a);
+    return NULL;
+}
+static long vm0;
+/* The process's mapped kilobytes (VmSize). */
+static long vm_kb(void) {
+    char buf[4096];
+    FILE *f = fopen("/proc/self/status", "r");
+    long kb = -1;
+    if (!f) return -1;
+    while (fgets(buf, sizeof buf, f)) if (sscanf(buf, "VmSize: %ld", &kb) == 1) break;
+    fclose(f);
+    return kb;
+}
+static int late_tag = 3;
+/* The modules a late thread reads: none the main thread closes meanwhile. */
+static int late_end = M;
+static void *thread_late(void *x) {
+    int tag = (int)(long)x;
+    long bad = fresh(0, late_end, tag) + mine(0, late_end, tag);
+    return (void *)bad;
+}
+static int run_late(int tag) {
+    pthread_t t;
+    void *r = (void *)1L;
+    if (pthread_create(&t, NULL, thread_late, (void *)(long)tag) || pthread_join(t, &r)) return 1;
+    return (int)(long)r;
+}
+/* One access from a new thread to the module with the highest ID (past the vector in place): the
+   vector the thread block names afterwards (%fs:8; words: generation, count, then one slot per
+   module ID) holds that module's slot, so the next access needs no walk of the module table. */
+static int one_k;
+static size_t one_id;
+static void *thread_one(void *x) {
+    (void)x;
+    int *a = g_gd[one_k]();
+    unsigned long *dtv;
+    __asm__ volatile("movq %%fs:8, %0" : "=r"(dtv));
+    return (void *)(long)(*a != 7 || dtv[1] < one_id || dtv[one_id + 1] == 0);
+}
+static int run_one(void) {
+    for (int k = 0; k < M; k++) {
+        size_t id = 0;
+        if (dlinfo(h[k], RTLD_DI_TLS_MODID, &id)) return 3;
+        if (id > one_id) { one_id = id; one_k = k; }
+    }
+    if (one_id <= 1030) return 2;
+    pthread_t t;
+    void *r = (void *)1L;
+    if (pthread_create(&t, NULL, thread_one, NULL) || pthread_join(t, &r)) return 1;
+    return (int)(long)r;
+}
+int main(int argc, char **argv) {
+    if (argc < 2) return 2;
+    dir = argv[1];
+    alarm(300);
+    sem_init(&go_a, 0, 0); sem_init(&done_a, 0, 0);
+    pthread_t a;
+    if (pthread_create(&a, NULL, thread_a, NULL)) return 2;
+    for (int k = 0; k < M; k++) if (load(k)) return 1;
+    printf("main %d\n", fresh(0, M, 0));
+    sem_post(&go_a);
+    while (sem_wait(&done_a)) {}
+    printf("before %d\nmain kept %d\n", a_bad[0], mine(0, M, 0));
+    printf("after %d\none slot %d\n", run_late(2), run_one());
+    for (int k = 1; k < M; k += 2) { if (dlclose(h[k])) { printf("close %d: %s\n", k, dlerror()); return 1; } live[k] = 0; }
+    for (int k = M; k < M + MORE; k++) if (load(k)) return 1;
+    printf("main new %d kept %d\n", fresh(M, M + MORE, 0), mine(0, M, 0));
+    sem_post(&go_a);
+    while (sem_wait(&done_a)) {}
+    pthread_join(a, NULL);
+    printf("before new %d\n", a_bad[1]);
+    /* Threads that grow their vectors and end, while modules are loaded and closed. */
+    int churn = 0;
+    late_end = M + MORE;
+    for (int r = 0; r < 10; r++) {
+        pthread_t t[4];
+        for (int i = 0; i < 4; i++) if (pthread_create(&t[i], NULL, thread_late, (void *)(long)(late_tag + i))) return 2;
+        int k = M + MORE + r;
+        if (load(k)) return 1;
+        churn += fresh(k, k + 1, 0);
+        if (dlclose(h[k])) return 1;
+        live[k] = 0;
+        for (int i = 0; i < 4; i++) { void *b = (void *)1L; pthread_join(t[i], &b); churn += (int)(long)b != 0; }
+        if (r == 0) vm0 = vm_kb();
+    }
+    /* Each round's threads grew vectors of 16 KiB or more: kept, nine rounds would add 576 KiB. */
+    printf("churn %d\nmain end %d\ngrown kept %d\n", churn, mine(0, M + MORE, 0), vm_kb() - vm0 > 256);
+    return 0;
+}
+"#;
+
+/// s27_3_c_0, s27_1_c_4 (dlopen(3) states no limit on the objects a process holds; the TLS of each
+/// is per thread): 1100 `dlopen`ed modules with TLS, past the 512 slots a thread's vector holds in
+/// place. In the main thread, a thread started before the loads and one started after, each
+/// module's general-dynamic and initial-exec blocks hold their images and `.tbss` zeros, and each
+/// thread's own writes stay its own. One access from a new thread to the module with the highest
+/// ID leaves that thread a vector holding the module's slot (no walk of the module table on each
+/// later access). Closing every other module and loading 200 more reuses their
+/// IDs (past 512 included): the old thread and the main thread see the new modules' images and
+/// keep the values they wrote to the others. Forty threads that grow their vectors end while
+/// modules are loaded and closed in the main thread: every block they saw was right, and the
+/// vectors they grew are unmapped (the process's size does not grow by them round after round).
+#[test]
+fn dlopen_tls_modules_past_the_vectors_in_place() {
+    let Some((lib, ld)) = products() else { return };
+    let guard = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-process-objects-tls");
+    let top = guard.to_path_buf();
+    let d = top.join("t");
+    std::fs::create_dir_all(&d).unwrap();
+    let flags: Vec<String> = ["-nostdlib", "-fPIC", "-shared"].iter().map(|s| s.to_string()).collect();
+    build_all(vec![("libtls.so".into(), cc(&top, "libtls.so", TLS_LIB, &flags))]);
+    for k in 0..1310 {
+        std::fs::copy(top.join("libtls.so"), d.join(format!("libtls{k}.so"))).unwrap();
+    }
+    let libc = named_libc(&lib, &top);
+    build_all(vec![("tlsprog".into(), cc(&top, "tlsprog", TLS_PROG, &prog_flags(&lib, &ld, &libc, &[])))]);
+    let o = run(Command::new(top.join("tlsprog")).arg(&d));
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(o.status.success(), "the program failed: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
+    let want = "main 0\nbefore 0\nmain kept 0\nafter 0\none slot 0\nmain new 0 kept 0\nbefore new 0\nchurn 0\nmain end 0\ngrown kept 0\n";
+    assert_eq!(out, want, "TLS of modules past the vectors in place");
+}

@@ -77,6 +77,39 @@ extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __
 extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (__NIJI_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bcopy
+#  define __NIJI_F_bcopy 1
+__NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  __builtin___memmove_chk (__p1, __p0, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC || __NIJI_POSIX < 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bzero
+#  define __NIJI_F_bzero 1
+__NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  __builtin___memset_chk (__p0, 0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
 
 __NIJI_END_C
 

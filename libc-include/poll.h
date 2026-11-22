@@ -116,6 +116,68 @@ extern int ppoll (struct pollfd *, unsigned long, const struct timespec *, const
 #  define POLLWRNORM 256
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+struct pollfd;
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_poll
+#  define __NIJI_F_poll 1
+#  ifndef __NIJI_D___poll_chk
+#   define __NIJI_D___poll_chk 1
+extern int __poll_chk (struct pollfd *, unsigned long, int, long unsigned int);
+#  endif
+extern int __niji_plain_poll (struct pollfd *, unsigned long, int) __asm__ ("poll");
+__NIJI_FORTIFY_FN int poll (struct pollfd *__p0, unsigned long __p1, int __p2)
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_poll (__p0, __p1, __p2);
+  return __poll_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct pollfd;
+struct timespec;
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+#if (__NIJI_GNU) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_ppoll
+#  define __NIJI_F_ppoll 1
+#  ifndef __NIJI_D___ppoll_chk
+#   define __NIJI_D___ppoll_chk 1
+extern int __ppoll_chk (struct pollfd *, unsigned long, const struct timespec *, const __sigset_t *, long unsigned int);
+#  endif
+extern int __niji_plain_ppoll (struct pollfd *, unsigned long, const struct timespec *, const __sigset_t *) __asm__ ("ppoll");
+__NIJI_FORTIFY_FN int ppoll (struct pollfd *__p0, unsigned long __p1, const struct timespec *__p2, const __sigset_t *__p3)
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0))) && (__p1 <= (__NIJI_BOS (__p0, 0) / sizeof (*__p0)))))
+    return __niji_plain_ppoll (__p0, __p1, __p2, __p3);
+  return __ppoll_chk (__p0, __p1, __p2, __p3, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
 
 
 __NIJI_END_C

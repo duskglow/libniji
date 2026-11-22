@@ -1,0 +1,50 @@
+{
+ "task": "SL-HEADERS-S18-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "slice 18 reproved on its final head on mei: gate2 611 passed, plants 5/5 CAUGHT, P7 (Devuan flags) zlib and xz-utils equal but for putchar (HEADERS-O2-INLINES); no code change",
+ "branch": "task/sl-headers-s18-3",
+ "head": "2c9f4b633",
+ "gate": {
+  "affected": "mei:sl-headers-s18-3-gate2 rc 0 (bounded set: 6 suites, 611 passed, 0 failed)",
+  "peak": "1.6G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "First gate (mei:sl-headers-s18-3-gate, superseded) failed 2 xtask transcripts iconv tests: role s2 held a stale target/niji-test/iconv whose interpreter target/niji/ld-linux-x86-64.so.2 was missing (exec ENOENT). iconv_test_link() skips only when the iconv file is absent; a test link whose interpreter is missing reads as a failure instead of a skip or a clear 'rebuild products' message. cargo xtask so restored it; gate2 green.",
+  "P7 still blocked for sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash by other slices' missing headers (sys/wait.h, sys/ioctl.h, stdio_ext.h GNU functions); not fortify.",
+  "xz references putchar with libniji's headers only: HEADERS-O2-INLINES (ruling #7599)."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "P3 fortify call rows on libniji headers differing from callsites.tsv (carried from runs 1-2, reproved by P7 on the final head)",
+   "before": 1,
+   "after": 0,
+   "unit": "rows",
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "P7 undefined-symbol differences with Devuan dpkg-buildflags, zlib + xz-utils (168 objects): only putchar remains (HEADERS-O2-INLINES)",
+   "before": null,
+   "after": 1,
+   "unit": "objects differing",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on slice 18 code, all caught on the final head",
+   "before": null,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "jobs": ["mei:sl-headers-s18-3-gate2", "mei:sl-headers-s18-3-plants", "mei:sl-headers-s18-3-p7", "mei:sl-headers-s18-3-lint"],
+ "improvement": "The hand-back check named a stale job only after the run ended; a run's last code commit should invalidate its earlier job labels at commit time (or precheck should run before the hand-back record is written), saving a whole rerun story.",
+ "next_step": "Land slice 18 via the train; rerun P7 for the rest of the corpus when sys/wait.h, sys/ioctl.h and stdio_ext.h's GNU functions land.",
+ "report_file": "handoff/SL-HEADERS-S18.md"
+}

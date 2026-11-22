@@ -68,7 +68,7 @@ impl Arch for OtherTable {
     const LIB: &'static str = "lib";
     const SYSTEM_DIRS: &'static [&'static str] = &[];
     const CACHE_FLAGS: u32 = 0;
-    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
+    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static [u8]] {
         &[]
     }
     fn platform(_: &niji_rt::cpu::Features) -> &'static str {

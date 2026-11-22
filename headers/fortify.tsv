@@ -1,0 +1,119 @@
+# Slice 18 (plan/headers.md section 4): libniji's _FORTIFY_SOURCE wrappers, one row per fortified name. Read by the
+# `@@fortify` marker (xtask/src/headers/slices/s18.rs). This table holds libniji's design only; the ABI facts come
+# from spec/abi: the symbol each call references and the levels it does so at (callsites.tsv, mode call/macro), the
+# wrapped function's prototype (prototypes.tsv) and the `_chk` prototype (chk-prototypes.tsv, C.9).
+#
+# form     builtin: the wrapper returns GCC's `__builtin___<x>_chk` (GCC manual, Object Size Checking), which folds
+#                   to the plain call when the size is unknown or the call provably fits; `args` lists its arguments.
+#          chk:     the wrapper calls the `_chk` symbol with `args`, except when the destination's size is unknown
+#                   (the plain call) or `safe` holds at compile time (the plain call).
+#          va:      the wrapper always calls the `_chk` symbol (no destination size: the printf family's flag).
+#          redirect: the declaration binds to the `_chk` symbol by asm label (longjmp family).
+#          macro:   a C.9 macro whose index computation calls the `_chk` symbol (FD_*: `__fdelt_chk (d)`).
+#          mode:    the open family (spec 11.1): without its mode argument the wrapper calls the `_2` symbol with
+#                   `args`, or the plain function when the flags are a compile-time constant that needs no mode; a
+#                   constant that needs one, or more than one variable argument, is a compile-time error.
+# args     the `_chk` call's arguments (C.9: the destination size appended, the printf family's flag inserted):
+#          $N the wrapper's parameter N; $SN the object size of parameter N in bytes; $EN the same in elements of
+#          parameter N's pointee; $F the flag (1 at levels 2 and 3, else 0); $V the variadic arguments
+#          (__builtin_va_arg_pack); any other word is C text (`stdout`).
+# safe     (form chk) a C condition, over the same tokens, that is true when the call cannot write past the
+#          destination; `-` for none (the `_chk` symbol is called whenever the size is known). (form mode) a C
+#          condition true when the flags need a mode: O_CREAT (0100) set, or all of O_TMPFILE's bits (020200000);
+#          the values are the x86-64 kernel UAPI's (asm-generic/fcntl.h).
+# ost      the object-size type at levels 2 and 3 (GCC: 0 the whole object, 1 the closest enclosing subobject);
+#          level 1 uses 0 throughout. 1 only for the NUL-terminated string writers.
+name	form	args	safe	ost
+FD_CLR	macro	-	-	0
+FD_ISSET	macro	-	-	0
+FD_SET	macro	-	-	0
+__asprintf	va	$0, $F, $1, $V	-	0
+_longjmp	redirect	-	-	0
+asprintf	va	$0, $F, $1, $V	-	0
+bcopy	builtin	__builtin___memmove_chk ($1, $0, $2, $S1)	-	0
+bzero	builtin	__builtin___memset_chk ($0, 0, $1, $S0)	-	0
+confstr	chk	$0, $1, $2, $S1	$2 <= $S1	0
+dprintf	va	$0, $F, $1, $V	-	0
+explicit_bzero	chk	$0, $1, $S0	$1 <= $S0	0
+fgets	chk	$0, $S0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $S0	0
+fgets_unlocked	chk	$0, $S0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $S0	0
+fgetws	chk	$0, $E0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $E0	0
+fgetws_unlocked	chk	$0, $E0, $1, $2	$1 > 0 && (__SIZE_TYPE__) $1 <= $E0	0
+fprintf	va	$0, $F, $1, $V	-	0
+fread	chk	$0, $S0, $1, $2, $3	$1 != 0 && $2 <= $S0 / $1	0
+fread_unlocked	chk	$0, $S0, $1, $2, $3	$1 != 0 && $2 <= $S0 / $1	0
+fwprintf	va	$0, $F, $1, $V	-	0
+getcwd	chk	$0, $1, $S0	$1 <= $S0	0
+getdomainname	chk	$0, $1, $S0	$1 <= $S0	0
+getgroups	chk	$0, $1, $S1	$0 >= 0 && (__SIZE_TYPE__) $0 <= $E1	0
+gethostname	chk	$0, $1, $S0	$1 <= $S0	0
+getlogin_r	chk	$0, $1, $S0	$1 <= $S0	0
+getwd	chk	$0, $S0	-	0
+longjmp	redirect	-	-	0
+mbsnrtowcs	chk	$0, $1, $2, $3, $4, $E0	$3 <= $E0	0
+mbsrtowcs	chk	$0, $1, $2, $3, $E0	$2 <= $E0	0
+mbstowcs	chk	$0, $1, $2, $E0	$2 <= $E0	0
+memcpy	builtin	__builtin___memcpy_chk ($0, $1, $2, $S0)	-	0
+memmove	builtin	__builtin___memmove_chk ($0, $1, $2, $S0)	-	0
+mempcpy	builtin	__builtin___mempcpy_chk ($0, $1, $2, $S0)	-	0
+memset	builtin	__builtin___memset_chk ($0, $1, $2, $S0)	-	0
+obstack_printf	va	$0, $F, $1, $V	-	0
+obstack_vprintf	va	$0, $F, $1, $2	-	0
+open	mode	$0, $1	($1 & 0100) != 0 || ($1 & 020200000) == 020200000	0
+open64	mode	$0, $1	($1 & 0100) != 0 || ($1 & 020200000) == 020200000	0
+openat	mode	$0, $1, $2	($2 & 0100) != 0 || ($2 & 020200000) == 020200000	0
+openat64	mode	$0, $1, $2	($2 & 0100) != 0 || ($2 & 020200000) == 020200000	0
+poll	chk	$0, $1, $2, $S0	$1 <= $E0	0
+ppoll	chk	$0, $1, $2, $3, $S0	$1 <= $E0	0
+pread	chk	$0, $1, $2, $3, $S1	$2 <= $S1	0
+pread64	chk	$0, $1, $2, $3, $S1	$2 <= $S1	0
+printf	va	$F, $0, $V	-	0
+ptsname_r	chk	$0, $1, $2, $S1	$2 <= $S1	0
+read	chk	$0, $1, $2, $S1	$2 <= $S1	0
+readlink	chk	$0, $1, $2, $S1	$2 <= $S1	0
+readlinkat	chk	$0, $1, $2, $3, $S2	$3 <= $S2	0
+realpath	chk	$0, $1, $S1	-	0
+recv	chk	$0, $1, $2, $S1, $3	$2 <= $S1	0
+recvfrom	chk	$0, $1, $2, $S1, $3, $4, $5	$2 <= $S1	0
+siglongjmp	redirect	-	-	0
+snprintf	builtin	__builtin___snprintf_chk ($0, $1, $F, $S0, $2, $V)	-	1
+sprintf	builtin	__builtin___sprintf_chk ($0, $F, $S0, $1, $V)	-	1
+stpcpy	builtin	__builtin___stpcpy_chk ($0, $1, $S0)	-	1
+stpncpy	builtin	__builtin___stpncpy_chk ($0, $1, $2, $S0)	-	1
+strcat	builtin	__builtin___strcat_chk ($0, $1, $S0)	-	1
+strcpy	builtin	__builtin___strcpy_chk ($0, $1, $S0)	-	1
+strlcat	chk	$0, $1, $2, $S0	$2 <= $S0	1
+strlcpy	chk	$0, $1, $2, $S0	$2 <= $S0	1
+strncat	builtin	__builtin___strncat_chk ($0, $1, $2, $S0)	-	1
+strncpy	builtin	__builtin___strncpy_chk ($0, $1, $2, $S0)	-	1
+swprintf	chk	$0, $1, $F, $E0, $2, $V	$1 <= $E0	1
+syslog	va	$0, $F, $1, $V	-	0
+ttyname_r	chk	$0, $1, $2, $S1	$2 <= $S1	0
+vasprintf	va	$0, $F, $1, $2	-	0
+vdprintf	va	$0, $F, $1, $2	-	0
+vfprintf	va	$0, $F, $1, $2	-	0
+vfwprintf	va	$0, $F, $1, $2	-	0
+vprintf	va	stdout, $F, $0, $1	-	0
+vsnprintf	builtin	__builtin___vsnprintf_chk ($0, $1, $F, $S0, $2, $3)	-	1
+vsprintf	builtin	__builtin___vsprintf_chk ($0, $F, $S0, $1, $2)	-	1
+vswprintf	chk	$0, $1, $F, $E0, $2, $3	$1 <= $E0	1
+vsyslog	va	$0, $F, $1, $2	-	0
+vwprintf	va	$F, $0, $1	-	0
+wcpcpy	chk	$0, $1, $E0	-	1
+wcpncpy	chk	$0, $1, $2, $E0	$2 <= $E0	1
+wcrtomb	chk	$0, $1, $2, $S0	-	0
+wcscat	chk	$0, $1, $E0	-	1
+wcscpy	chk	$0, $1, $E0	-	1
+wcslcat	chk	$0, $1, $2, $E0	$2 <= $E0	1
+wcslcpy	chk	$0, $1, $2, $E0	$2 <= $E0	1
+wcsncat	chk	$0, $1, $2, $E0	-	1
+wcsncpy	chk	$0, $1, $2, $E0	$2 <= $E0	1
+wcsnrtombs	chk	$0, $1, $2, $3, $4, $S0	$3 <= $S0	0
+wcsrtombs	chk	$0, $1, $2, $3, $S0	$2 <= $S0	0
+wcstombs	chk	$0, $1, $2, $S0	$2 <= $S0	0
+wctomb	chk	$0, $1, $S0	-	0
+wmemcpy	chk	$0, $1, $2, $E0	$2 <= $E0	0
+wmemmove	chk	$0, $1, $2, $E0	$2 <= $E0	0
+wmempcpy	chk	$0, $1, $2, $E0	$2 <= $E0	0
+wmemset	chk	$0, $1, $2, $E0	$2 <= $E0	0
+wprintf	va	$F, $0, $V	-	0

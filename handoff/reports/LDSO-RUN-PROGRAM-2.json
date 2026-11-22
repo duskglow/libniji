@@ -1,0 +1,20 @@
+{"task": "LDSO-RUN-PROGRAM-2", "model": "opus", "tokens": null,
+ "result": "start-up check red fixed: map_malformed_corpus_refused_by_ldso now expects the reference's one-line refusal form (probed); program mode unchanged (127, nothing mapped)",
+ "branch": "task/ldso-run-program-2", "head": null,
+ "gate": {"affected": "13 suites, 816 passed / 0 failed (direct tier, --base origin/next); cargo xtask test 7047 passed / 0 failed; hot_text_products 33 passed", "peak": "3.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "program mode's reason texts for a file it cannot map (MapError::message) differ from the reference's and from libniji's own dependency-path texts (Refusal::text); suggested for LDSO-PROGRAM-OPTIONS-REST"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "start-up check red (map_malformed_corpus_refused_by_ldso) cleared by testing the reference's refusal form, probed on the malformed corpus", "before": 1, "after": 0, "unit": "failing tests", "measured": true},
+   {"kind": "coverage", "what": "plants on program mode's refusal form and reason", "before": 0, "after": 2, "unit": "plants caught", "measured": true},
+   {"kind": "cost", "what": "exec'd start +128 user instructions from LDSO-RUN-PROGRAM (run 1), unchanged here; fix-forward LDSO-PROGRAM-OPTIONS-REST (#7513)", "before": 1032373, "after": 1032501, "unit": "instructions", "measured": false},
+   {"kind": "unblock", "what": "LDSO-RUN-PROGRAM's change can land (ld.so PROGRAM options, static programs); LDSO-PROGRAM-OPTIONS-REST stacks on it", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the start-up check (cargo xtask test) found a test that the direct-tier gate did not run: map.rs tests program mode's refusal text but is not in image.rs's direct tier; tests that exec the ld.so product could be reached from the loader's command path",
+ "next_step": "land; then LDSO-PROGRAM-OPTIONS-REST (fold --preload into LD_PRELOAD in program_mode, small options, --list and program-mode reason texts, in-tree dlopen test)",
+ "report_file": "handoff/LDSO-RUN-PROGRAM.md",
+ "jobs": ["ldso-run-program-2-gate", "ldso-run-program-2-plants", "ldso-run-program-2-startup", "ldso-run-program-2-final"]}

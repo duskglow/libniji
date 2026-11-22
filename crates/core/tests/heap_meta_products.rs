@@ -221,10 +221,12 @@ fn the_heap_keeps_address_space_near_its_use() {
 /// limit its first 16 slabs (4352 KiB with the metadata) while the first node's slabs sit idle at
 /// points 1 and 4. Under a limit a node that has no segment takes the slabs other shards hold
 /// before it maps one (`Heap::held_elsewhere`): the need was 45648, 41552, 41552 and 45648 KiB
-/// before; what is left at point 1 is the metadata and the new segment's 16 slabs against the 8
-/// of the first node's next growth (+2304 over [`AS_HEADROOM`]).
+/// before. A segment after the first reservation's maps its metadata and 8 slabs, one growth step
+/// (HEAP-SECOND-NODE-MAP, D-3.24; Skylake-SP build host, 3 of 3 runs): at point 1 the need fell
+/// from 43600 to 41552 and at point 4 the unlimited realloc step from 45640 to 43592; what is
+/// left over [`AS_HEADROOM`] is the second node's metadata (+256).
 const MOVE_STEPS: [(u32, [u64; 3], u64); 4] =
-    [(1, [33348, 43588, 45640], 43600), (2, [29252, 39492, 41544], 41552), (3, [28996, 39492, 41544], 41552), (4, [28996, 39236, 45640], 41296)];
+    [(1, [33348, 43588, 45640], 41552), (2, [29252, 39492, 41544], 41552), (3, [28996, 39492, 41544], 41552), (4, [28996, 39236, 43592], 41296)];
 
 #[test]
 fn the_heap_bounds_address_space_after_a_node_change() {

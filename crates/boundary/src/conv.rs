@@ -226,6 +226,33 @@ pub(crate) fn fresh<'a, T: Copy + Default>(p: *mut c_void, n: usize) -> Option<&
     }
 }
 
+/// `value` moved into freshly `malloc`ed memory `p` (`size_of::<T>()` bytes), or `None` for a NULL
+/// result: the library's object in memory the caller's allocator handed out (ruling #7583). The
+/// object is never dropped (`T` must not need it): its memory goes back with `free`.
+///
+/// Proof: `p` came from `malloc(size_of::<T>())` and is not NULL: aligned for any fundamental type
+/// (`align_of::<T>() <= 16`, checked at compile time), referenced by nothing else, and written
+/// whole here before the reference to it is made.
+pub(crate) fn fresh_value<T>(p: *mut c_void, value: T) -> Option<&'static mut T> {
+    const { assert!(align_of::<T>() <= 16 && !core::mem::needs_drop::<T>() && size_of::<T>() > 0) };
+    if p.is_null() {
+        return None;
+    }
+    let t = p.cast::<T>();
+    // UNSAFE(slice): fresh allocator memory becomes a value only through a raw write.
+    #[allow(unsafe_code)]
+    // SAFETY: see the proof above.
+    unsafe {
+        t.write(value);
+    }
+    // UNSAFE(slice): the written value becomes a reference only through the raw pointer.
+    #[allow(unsafe_code)]
+    // SAFETY: `t` holds the `T` written above, aligned, and nothing else references it.
+    unsafe {
+        Some(&mut *t)
+    }
+}
+
 /// Fill freshly `malloc`ed memory `p` (`text.len() + 1` units of `T`, not NULL) with `text` and a
 /// terminating zero unit, writing every unit (`strdup`'s copy, without `calloc`'s zeroing).
 ///
@@ -1777,6 +1804,10 @@ pub(crate) fn program_headers(addr: usize, n: usize) -> &'static [u64] {
 /// load bias applied, or are the 64 bytes at `__ehdr_start`. The kernel (the executable) or the
 /// dynamic linker (this library's own image) mapped these bytes readable when the object was
 /// loaded, and they stay mapped for the life of the process: neither object is ever unloaded.
+/// Also (`crate::backtrace::frame_object`, D-22.23): the program headers the loader's walk
+/// gives for the loaded object holding a return address of a live frame of the calling thread,
+/// used only while that frame lives (the walk of the thread's own stack): the object stays
+/// mapped while code in it is still to return to (unloading it then is undefined in the program).
 /// A segment without `PF_W`, and the ELF header in the first segment, are never written (only a
 /// C caller's `mprotect` could change that, outside safe code).
 pub(crate) fn loaded(addr: usize, len: usize) -> &'static [u8] {
@@ -1794,7 +1825,11 @@ pub(crate) fn loaded(addr: usize, len: usize) -> &'static [u8] {
 /// The program headers of the image this library is linked into: `n` words at `addr`
 /// (`__ehdr_start` plus the header's `e_phoff`). Crate-private contract (kept by
 /// `crate::backtrace`): as for [`loaded`]; the linker defines `__ehdr_start` only when the ELF
-/// header, and with it the program headers that follow it, lie in a loaded segment.
+/// header, and with it the program headers that follow it, lie in a loaded segment. Also the
+/// `dlpi_phdr`/`dlpi_phnum` the loader's walk passes for each loaded object
+/// (`crate::backtrace::holds_pc`, D-22.23), read during that callback (the object is mapped while
+/// the walk lists it) and, for the object holding a live frame's return address, as for
+/// [`loaded`].
 pub(crate) fn image_program_headers(addr: usize, n: usize) -> &'static [u64] {
     if addr == 0 || addr % 8 != 0 {
         return &[];

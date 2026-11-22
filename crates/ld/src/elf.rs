@@ -2309,6 +2309,29 @@ impl Symtab<'_> {
         let e = self.rd.b.get(at..).and_then(<[u8]>::first_chunk::<SYM_SIZE>).ok_or(bad)?;
         Ok(Sym::decode(e, self.rd.be))
     }
+
+    /// The symbols, in index order, whose range in an object loaded at `bias` holds `addr`: `start =
+    /// bias + st_value` (wrapping) with `start <= addr` and `addr - start < st_size`, or `addr ==
+    /// start`. Each entry's value and size are read first and the whole symbol is decoded only when
+    /// its range holds `addr` (`dladdr` scans every symbol of an object). The entries are those
+    /// [`Symtab::get`] reads: below [`Symtab::count`] (none when it is unknown) and within the mapped
+    /// bytes.
+    pub fn holding(&self, bias: u64, addr: u64) -> impl Iterator<Item = (u32, Sym)> + '_ {
+        let n = self.count.and_then(|c| usize::try_from(c).ok()).unwrap_or(0);
+        let bytes = self.rd.b.get(..n.saturating_mul(SYM_SIZE).min(self.rd.b.len())).unwrap_or(&[]);
+        let be = self.rd.be;
+        let w8 = move |a: [u8; 8]| if be { u64::from_be_bytes(a) } else { u64::from_le_bytes(a) };
+        bytes.chunks_exact(SYM_SIZE).zip(0u32..).filter_map(move |(e, k)| {
+            let e = e.first_chunk::<SYM_SIZE>()?;
+            let (v, s) = e.split_at(8).1.split_at(8);
+            let start = bias.wrapping_add(w8(*v.first_chunk::<8>()?));
+            let off = addr.checked_sub(start)?;
+            if off >= w8(*s.first_chunk::<8>()?) && off != 0 {
+                return None;
+            }
+            Some((k, Sym::decode(e, be)))
+        })
+    }
 }
 
 impl Sym {

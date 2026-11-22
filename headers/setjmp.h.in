@@ -11,6 +11,7 @@ __NIJI_BEGIN_C
 
 @@owns-macro setjmp sigsetjmp
 @@emit
+@@fortify
 
 /* C 7.13.1.1: setjmp is a macro. The function row of the table is the name POSIX also lets a program take the
    address of; the macro is what a call reaches. */
