@@ -26,6 +26,9 @@ pub type MutexParts<'a> = KResult<(&'a [AtomicU32], &'a [AtomicUsize], usize)>;
 /// The calling thread, as the objects see it.
 pub struct ThreadCtx;
 
+/// {0, 0}: a deadline already past on both clocks that the kernel accepts.
+static EPOCH: Timespec = Timespec { sec: 0, nsec: 0 };
+
 impl Ctx for ThreadCtx {
     type S = CSys;
     fn sys(&self) -> &CSys {
@@ -51,6 +54,10 @@ impl Ctx for ThreadCtx {
     }
     fn wait(&self, word: &AtomicU32, expected: u32, scope: Scope, deadline: Option<(Clock, &Timespec)>, cancellable: bool) -> KResult<()> {
         let private = if scope == Scope::Private { FUTEX_PRIVATE_FLAG } else { 0 };
+        // A deadline with a negative tv_sec has passed (`futex::past`), but the kernel rejects
+        // it (EINVAL): a cancellation point waits until {0, 0} instead, also past on both
+        // clocks, so the call still acts on a due request and then times out at once.
+        let deadline = deadline.map(|(c, t)| (c, if niji_rt::futex::past(t) { &EPOCH } else { t }));
         let (op, ts, mask) = match deadline {
             None => (FUTEX_WAIT | private, 0usize, 0u32),
             Some((c, t)) => {

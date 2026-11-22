@@ -1366,10 +1366,8 @@ fn wait_tid(b: &niji_rt::tls::ThreadBlock, deadline: Option<(Clock, &Timespec)>,
         }
         // The kernel's wake at exit is not process-private. `pthread_join` is a cancellation
         // point (§22.3).
-        match crate::sync::ThreadCtx.wait(&b.tid, t, Scope::Shared, deadline, cancellable) {
-            Err(e @ (Errno::ETIMEDOUT | Errno::ECANCELED)) => return Err(e),
-            _ => continue,
-        }
+        // ETIMEDOUT, ECANCELED or a kernel rejection ends the wait; a wake-up looks again.
+        niji_rt::futex::woken(crate::sync::ThreadCtx.wait(&b.tid, t, Scope::Shared, deadline, cancellable))?;
     }
 }
 
