@@ -1,9 +1,11 @@
 # SL-HEADERS-S07-TAIL plants (cargo xtask plants handoff/SL-HEADERS-S07-TAIL/plants.txt). Generated headers are planted in
 # libc-include/ so the proofs see the mutant; the templates' text equals them (headers-gen --check).
+# s7t-ioctl-value plants CQUIT (sys/ioctl.h's own text): a TIOC* value there is dead text, since <asm/ioctls.h>,
+# included first, defines every TIOC* before the header's `#ifndef` fallback.
 s7t-wifsignaled | libc-include/sys/wait.h | lit:(WTERMSIG (status) - 1) < 0x7eu) ==> (WTERMSIG (status) - 1) < 0x7fu) | python3 spec/tools/header_p10.py | msg:FAIL P10
 s7t-wifstopped | libc-include/sys/wait.h | lit:# define WIFSTOPPED(status) (((status) & 0xff) == 0x7f) ==> # define WIFSTOPPED(status) (((status) & 0x7f) == 0x7f) | python3 spec/tools/header_p10.py | msg:FAIL P10
 s7t-wcoredump | libc-include/sys/wait.h | lit:# define WCOREDUMP(status) ((status) & WCOREFLAG) ==> # define WCOREDUMP(status) ((status) & 0x40) | python3 spec/tools/header_p10.py | msg:FAIL P10
-s7t-ioctl-value | libc-include/sys/ioctl.h | lit:#  define TIOCGWINSZ 21523 ==> #  define TIOCGWINSZ 21524 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/ioctl.h
+s7t-ioctl-value | libc-include/sys/ioctl.h | lit:#  define CQUIT 28 ==> #  define CQUIT 29 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/ioctl.h
 s7t-param-value | libc-include/sys/param.h | lit:#  define MAXSYMLINKS 20 ==> #  define MAXSYMLINKS 21 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/param.h
 s7t-guarded-include | libc-include/arpa/nameser.h | lit:#include <sys/param.h> ==> #include <sys/param.h> /* __has_include(<sys/param.h>) */ | python3 spec/tools/header_check.py | msg:guards the include of <sys/param.h>
 s7t-wait-no-signal | libc-include/sys/wait.h | lit:# include <signal.h> ==> # include <stddef.h> | python3 spec/tools/header_check.py | msg:FAIL P1 sys/wait.h
