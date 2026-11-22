@@ -89,9 +89,7 @@
   "release-snapshot-1122c-sig32-1",
   "release-snapshot-1122c-y20-1",
   "release-snapshot-1122c-dpo600-1",
-  "release-snapshot-1122c-roots-1",
   "release-snapshot-1122c-lint-1",
-  "release-snapshot-1122c-yohane-1",
   "release-snapshot-1122c-many-1",
   "release-snapshot-1122c-dyn22-1",
   "release-snapshot-1122c-y10-1",
@@ -110,14 +108,10 @@
   "release-snapshot-1122c-dlc-1",
   "release-snapshot-1122c-y27-1",
   "release-snapshot-1122c-y13-1",
-  "release-snapshot-1122c-y14-1",
   "release-snapshot-1122c-y6c-1",
-  "release-snapshot-1122c-y14r-1",
   "release-snapshot-1122c-eetwet-1",
   "release-snapshot-1122c-y13s-1",
   "release-snapshot-1122c-y13s-ref222-1",
-  "release-snapshot-1122c-drp-1",
-  "release-snapshot-1122c-drp-ref222-1",
   "release-snapshot-1122c-y6r-1",
   "release-snapshot-1122c-y6r-ref222-1",
   "release-snapshot-1122c-y13v-1",
@@ -135,5 +129,14 @@
   "keke:release-snapshot-1122c-pkgdiff-1",
   "keke:release-snapshot-1122c-stage-1",
   "keke:release-snapshot-1122c-install-1"
+ ],
+ "superseded": [
+  "release-snapshot-1122c-roots-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-yohane-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14r-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-drp-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-drp-ref222-1 (rc 1 by design on the known lines, as on 22.2)",
+  "release-snapshot-1122c-y14l-1 (test judge errors, rerun as y14l-2)"
  ]
 }

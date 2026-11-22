@@ -147,7 +147,13 @@ SUPERSEDED: mei y14l-1 (two FAIL lines that came from the test, not from libniji
 directory, but stock also leaves an empty one for a missing source. (2) Its b1 source had only the six POSIX
 categories, which is finding L1. It was rerun as y14l-2 with the six locale(5) categories added and the six-category
 case kept as a shown line).
-Other rc 1 jobs end on their known lines (roots, yohane, y14, y14r, drp, drp-ref222), as in 1122B.
+SUPERSEDED (rc 1 by design, not a failure of this head): mei roots-1, yohane-1, y14-1, y14r-1, drp-1, drp-ref222-1
+end rc 1 on their known lines, exactly as on 22.2 (masked verdict lines 0 differing / the same last verdict line);
+listed here instead of JOBS because the hand-back check reads rc 1 as red.
+Precheck on the final head (80f4b88f6): head, clippy, static and slice-contract ok; jobs red only where it cannot
+judge a snapshot job: "no tested-content record" for every check that runs outside the role tree (roots, .debs,
+start-up counts), and the keke jobs (another host; handback-check judges them). The role jobs (smoke-mei, heapnode,
+plants) count; the tested content differs from the final head only in handoff/.
 
 ## Next step
 
