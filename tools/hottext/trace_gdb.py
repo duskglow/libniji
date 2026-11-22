@@ -409,22 +409,65 @@ def redirect_path():
     gdb.execute("set $%s = %d" % (r, at))
 
 
+# TRACE-BP-POOL: the one-shot breakpoints are made once per tracer process, not once per class run. gdb's cost
+# of a breakpoint grows with the number it holds, and a static program has thousands of functions: making and
+# deleting every one of them in each class run was most of a trace's time (CI-PRODUCTS-ONCE). A pooled
+# breakpoint behaves as the temporary one it replaces: it is disabled at the stop that hits it (gdb deletes a
+# temporary one there), and re-enabled for the next run. The pool is made again when the addresses differ
+# (an interpreter loaded at another base).
+POOL = {"key": None, "bps": {}}
+
+
+def on_stop(event):
+    """A hit pooled breakpoint goes out of the run, as gdb deletes a temporary breakpoint at the stop that hits it."""
+    pool = set(POOL["bps"].values())
+    for bp in getattr(event, "breakpoints", ()):
+        if bp in pool and bp.enabled:
+            bp.enabled = False
+
+
+gdb.events.stop.connect(on_stop)
+
+
+def arm(addrs):
+    """The pooled breakpoints of `addrs` (sorted), every one enabled, unhit: {address: breakpoint}."""
+    key = tuple(addrs)
+    if POOL["key"] != key:
+        for bp in POOL["bps"].values():
+            if bp.is_valid():
+                bp.delete()
+        POOL["bps"] = {}
+        for addr in addrs:
+            bp = gdb.Breakpoint("*0x%x" % addr, internal=True)
+            bp.silent = True
+            POOL["bps"][addr] = bp
+        POOL["key"] = key
+    for bp in POOL["bps"].values():
+        if bp.hit_count:
+            bp.hit_count = 0
+        if not bp.enabled:
+            bp.enabled = True
+    return dict(POOL["bps"])
+
+
+def check_one_shot():
+    """A pooled breakpoint stops at most once per run (it is disabled at the stop that hits it)."""
+    over = sorted((a, bp.hit_count) for a, bp in POOL["bps"].items() if bp.hit_count > 1)
+    if over:
+        fail("one-shot breakpoint(s) stopped more than once in a run (not disabled at their hit): %s" % " ".join("0x%x:%d" % o for o in over[:8]))
+
+
 def run_one(cls):
     """One run of the program on class `cls`: the function start addresses in first-touch order."""
-    made, once = [], {}
+    made = []
     if ldso:
         gdb.execute("starti", to_string=True)
         rebase(int(gdb.selected_frame().pc()) - LDSO_ENTRY)
     VCLOCK.clear()
     VCLOCK.update(ns=0, tsc=1 << 32)
     every = set(clocks) | set(topo) | (set(emul) if cls != "host" else set())  # entries answered at every call
-    for addr in names:
-        if addr in every:
-            continue
-        bp = gdb.Breakpoint("*0x%x" % addr, internal=True, temporary=True)
-        bp.silent = True
-        made.append(bp)
-        once[addr] = bp
+    # (in the order the per-run breakpoints were made: the order `names` holds them)
+    once = arm([addr for addr in names if addr not in every])
     for addr in sorted(every):
         bp = gdb.Breakpoint("*0x%x" % addr, internal=True)
         bp.silent = True
@@ -458,10 +501,10 @@ def run_one(cls):
             in_call.add(tid)
             redirect_path()
             bp = once.pop(pc, None)
-            if bp is not None and bp.is_valid():
+            if bp is not None and bp.enabled:
                 # gdb cannot resume a system call stop over a breakpoint at its pc (the program ended
                 # there: p_cold's first cancellable open): drop it, count the function at the return.
-                bp.delete()
+                bp.enabled = False
         elif redirect and tid in in_call:
             in_call.discard(tid)
             if pc in names and pc not in seen and pc not in once:
@@ -487,8 +530,11 @@ def run_one(cls):
     for bp in made:
         if bp.is_valid():
             bp.delete()
-    for bp in gdb.breakpoints() or ():  # the catchpoint
-        bp.delete()
+    check_one_shot()
+    pool = set(POOL["bps"].values())
+    for bp in gdb.breakpoints() or ():  # the catchpoint (not the pool: gdb lists internal breakpoints too)
+        if bp not in pool:
+            bp.delete()
     if ldso:  # offsets in the image: the same in every run, whatever the base
         hit = [a - BASE[0] for a in hit]
     return hit
@@ -511,6 +557,11 @@ def merge(runs):
 
 
 runs = [run_one(c) for c in classes]
+# TRACE-BP-POOL: every run starts where the first did (its entry); a run that does not found its one-shot
+# breakpoints still disabled from an earlier run.
+for c, r in zip(classes[1:], runs[1:]):
+    if r[:1] != runs[0][:1]:
+        fail("class %s: its run did not start at the function the first run started at (one-shot breakpoints not re-armed)" % c)
 sys.stderr.write("trace_gdb: node count answered %d times, node read %d times\n" % (TOPO_ANSWERS["count"], TOPO_ANSWERS["read"]))
 shutil.rmtree(stage, ignore_errors=True)
 if host_reads:
