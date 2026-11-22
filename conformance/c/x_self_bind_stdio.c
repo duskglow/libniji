@@ -5,10 +5,11 @@
  * allocator over a static array with call counters; it never calls the library's.
  * Split from x_self_bind so that program keeps its strict checks: on the reference fopen and fclose reach
  * the program's family; libniji's stream objects do not come from it (the same before and after
- * D-27.76's link change), which needs a ruling.
+ * D-27.76's link change). Ruling #7460: stream objects are to come from the caller's allocator
+ * (story STDIO-CALLER-ALLOC), which drops this program's PENDING-NIJI.
  * Each failed check prints FAIL and the line; the exit status is the number of failures. */
 /* LINK-HELPERS: sbind_lib */
-/* PENDING-NIJI: a ruling on where stdio allocates its stream objects (LIBC-SELF-BIND hand-back) */
+/* PENDING-NIJI: stream objects through the program's malloc family (ruling #7460, story STDIO-CALLER-ALLOC) */
 #define _POSIX_C_SOURCE 200809L
 #include <stddef.h>
 #include <stdio.h>
