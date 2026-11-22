@@ -61,6 +61,8 @@ pub struct Translit {
     pub from: TryVec<u32>,
     /// The alternatives, in order.
     pub to: TryVec<TryVec<u32>>,
+    /// Per alternative: written as a string or word (text in the charmap), not a symbol.
+    pub text: TryVec<bool>,
 }
 
 /// A parsed `LC_CTYPE`.
@@ -288,13 +290,14 @@ fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> 
         _ => {
             let Some(first) = s.toks.first() else { return Ok(()) };
             let from = side(first, s.esc, s.no)?;
-            let mut to = TryVec::new();
+            let (mut to, mut text) = (TryVec::new(), TryVec::new());
             for t in s.args() {
                 if !matches!(t, Tok::Semi) {
                     to.push(side(t, s.esc, s.no)?)?;
+                    text.push(!matches!(t, Tok::Sym(_)))?;
                 }
             }
-            c.translit.push(Translit { from, to })?;
+            c.translit.push(Translit { from, to, text })?;
             Ok(())
         }
     }
@@ -480,20 +483,33 @@ fn write_translit(f: &mut File, c: &Ctype, cs: &Charset) -> Result<()> {
         Ok(true)
     };
     let (mut from_idx, mut from_tbl, mut to_idx, mut to_tbl) = (TryVec::new(), TryVec::new(), TryVec::new(), TryVec::new());
+    let mut seen: BTreeMap<alloc::vec::Vec<u32>, u32> = BTreeMap::new();
     for &i in kept.iter() {
         let e = &c.translit[i];
         from_idx.push(u32::try_from(from_tbl.len()).unwrap_or(0))?;
         from_tbl.extend_from_slice(&e.from)?;
         from_tbl.push(0)?;
-        to_idx.push(u32::try_from(to_tbl.len()).unwrap_or(0))?;
-        for alt in e.to.iter() {
-            if !encodable(alt)? {
+        let mut one = TryVec::new();
+        for (alt, &text) in e.to.iter().zip(e.text.iter()) {
+            // A string must be text in the charmap; a symbol is kept as its code point.
+            if text && !encodable(alt)? {
                 continue;
             }
-            to_tbl.extend_from_slice(alt)?;
-            to_tbl.push(0)?;
+            one.extend_from_slice(alt)?;
+            one.push(0)?;
         }
-        to_tbl.push(0)?;
+        one.push(0)?;
+        // Identical alternative lists are stored once.
+        let at = match seen.get(one.as_slice()) {
+            Some(&at) => at,
+            None => {
+                let at = u32::try_from(to_tbl.len()).unwrap_or(0);
+                to_tbl.extend_from_slice(&one)?;
+                seen.insert(one.into_inner(), at);
+                at
+            }
+        };
+        to_idx.push(at)?;
     }
     f.word(u32::try_from(kept.len()).unwrap_or(0))?;
     f.words(&from_idx)?;
