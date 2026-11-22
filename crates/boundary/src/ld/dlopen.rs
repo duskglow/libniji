@@ -430,6 +430,12 @@ struct Loader {
     /// unpublished; [`reclaim`]).
     n_retired: usize,
     retired: Spill<(u32, bool), CAP>,
+    /// Freed slots below `n` (unloaded, unmapped, their grace period over): a new set that fits in
+    /// a run of them goes there instead of the top ([`settle`]).
+    holes: usize,
+    /// A set went below the top at least once: index order is no longer load order, so the chain's
+    /// tail is found by walking it ([`chain_tail`]).
+    reordered: bool,
     /// The program's `$ORIGIN` (DL-RUNPATH, [`program_origin`]): `origin[..origin_len]`, published
     /// once (`origin_len` 0: not known); `origin_tried` once looked up.
     origin_tried: bool,
@@ -803,6 +809,16 @@ pub(super) fn read_section<R>(f: impl FnOnce(&View) -> R) -> Option<R> {
         }
     }
     Some(super::readers::read_section(|_| f(&View { at })))
+}
+
+/// [`View::find`] for a caller already inside a read section (`dl_iterate_phdr` in chain order):
+/// `None` also when no loader state exists (nothing went below the top then).
+pub(super) fn chain_find(pred: impl FnMut(usize) -> bool) -> Option<usize> {
+    let at = LOADER.load(Acquire);
+    if at == 0 {
+        return None;
+    }
+    View { at }.find(pred)
 }
 
 impl View {
@@ -1391,8 +1407,9 @@ pub(super) fn fini_exit(start: &[(usize, [u64; 3])]) -> bool {
 
 /// Fill `f` with the exit's sequence ([`fini_exit`]). Units: `0..m` the start-time objects in
 /// `start`'s order, chained (each before the next, so their own order holds); then the `dlopen`ed
-/// objects in the constructor log, not unloaded or finalising, by index (= load order: a slot is
-/// reused only from the top). A `dlopen`ed unit runs before each unit it needs or bound to.
+/// objects in the constructor log, not unloaded or finalising, in load order (by index until a set
+/// went below the top, then along the chain). A `dlopen`ed unit runs before each unit it needs or
+/// bound to.
 fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
     const NONE: u32 = u32::MAX;
     let as32 = ix32;
@@ -1426,7 +1443,11 @@ fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
         }
     }
     let mut n = m;
-    for i in l.n_start..l.n {
+    // Load order: by index, or along the chain once a set went below the top ([`settle`]).
+    let mut cur = if l.reordered { chain_next(l, 0) } else { Some(l.n_start).filter(|&i| i < l.n) };
+    for _ in 0..l.n {
+        let Some(i) = cur else { break };
+        cur = if l.reordered { chain_next(l, i) } else { Some(i.wrapping_add(1)).filter(|&j| j < l.n) };
         let k = logged.get(i).copied().unwrap_or(NONE);
         if k == NONE || l.nodes.get(i).is_none_or(|nd| nd.gone || nd.finalising) {
             continue;
@@ -1903,6 +1924,7 @@ fn reclaim(l: &mut Loader) {
                     map::Mapper::unmap(&mut SysMapper { fd: -1 }, nd.reserve.0, nd.reserve.1);
                     let _ = raw::munmap(nd.file.0, nd.file.1);
                     nd.freed = true;
+                    l.holes = l.holes.saturating_add(1);
                 }
                 continue;
             }
@@ -1922,10 +1944,13 @@ fn reclaim(l: &mut Loader) {
         n = n.wrapping_sub(1);
     }
     if n < l.n {
+        l.holes = l.holes.saturating_sub(l.n.wrapping_sub(n));
         l.n = n;
         let end = |(a, b): (u32, u32)| usize::try_from(a).unwrap_or(0).saturating_add(usize::try_from(b).unwrap_or(0));
         let deps_top = l.nodes.upto(n).filter(|nd| !nd.gone).map(|nd| end(nd.deps).max(end(nd.binds))).max().unwrap_or(0);
-        let names_top = l.nodes.upto(n).filter(|nd| !nd.gone && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
+        // A path stays until its slot is freed: an unloaded object in its grace period may still
+        // be named to a reader standing on it (`l_name`, `dlpi_name`, `dli_fname`).
+        let names_top = l.nodes.upto(n).filter(|nd| !nd.freed && nd.path.1 > 0).map(|nd| end(nd.path).saturating_add(1)).max().unwrap_or(0);
         l.deps.set_top(deps_top);
         l.names.set_top(names_top);
     }
@@ -1947,8 +1972,9 @@ static TOP: AtomicUsize = AtomicUsize::new(0);
 /// Whether a `dlopen`/`dlclose` must make room first: more than [`RETIRED_WAIT`] objects retired,
 /// or any retired while the table's top is past three quarters. The second case is readers that
 /// are always inside some walk: each reclaim then frees only the objects retired before the
-/// previous flip while the newest stay at the top, slots are reused from the top only, and the
-/// freed slots below become holes, so the top climbs by every epoch's opens with few retired.
+/// previous flip while the newest stay at the top, and the freed slots below become holes; a set
+/// goes into the first run of them that holds it ([`settle`]), so the top climbs only when no run
+/// does (sets larger than the holes), by every epoch's opens with few retired.
 fn room_short() -> bool {
     let r = RETIRED.load(Relaxed);
     r > RETIRED_WAIT || (r > 0 && TOP.load(Relaxed) > CAP.saturating_sub(RETIRED_WAIT) && TOP.load(Relaxed) <= CAP)
@@ -1989,14 +2015,15 @@ fn room_wait() {
 /// dependencies do not list (a start-time object never unloads: left out). When the arena cannot
 /// grow (no memory) the definer becomes `nodelete` instead (it then stays, never unmapped under its
 /// user), so this never fails the call.
-fn record_binds(l: &mut Loader, base: usize, k: usize, b: &Binds) {
+/// Objects past `k` up to `end` are loaded ones above a set that went below the top.
+fn record_binds(l: &mut Loader, base: usize, k: usize, end: usize, b: &Binds) {
     for i in base..k {
         let wanted = |l: &Loader, j: usize| b.has(i, j) && !l.deps_of(i).contains(&ix32(j));
         // Room for the whole list first: one list is one span. Without it the list holds what the
         // rest of its generation takes.
-        let most = (l.n_start..k).filter(|&j| wanted(l, j)).count();
+        let most = (l.n_start..end).filter(|&j| wanted(l, j)).count();
         let start = l.deps.open(most).unwrap_or_else(|| l.deps.top());
-        for j in l.n_start..k {
+        for j in l.n_start..end {
             if !wanted(l, j) {
                 continue;
             }
@@ -2414,6 +2441,100 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
     l.deps.set_top(deps_top);
     l.unique.truncate(l.unique_mark);
     l.surplus.rollback(l.tls_mark);
+    if base < l.n {
+        // A set [`settle`] moved below the top: its slots are freed slots again.
+        for i in base..k {
+            if let Some(nd) = l.nodes.get_mut(i) {
+                free_slot(nd);
+            }
+        }
+        l.holes = l.holes.saturating_add(k.saturating_sub(base));
+    }
+}
+
+/// Mark `nd` an unused slot: unloaded and freed, matching no file.
+fn free_slot(nd: &mut Node) {
+    (nd.gone, nd.freed, nd.opens, nd.pins, nd.global) = (true, true, 0, 0, false);
+    (nd.dev, nd.ino) = (u64::MAX, u64::MAX.wrapping_sub(1));
+}
+
+/// Move the new set `t..k`, written at the top and not yet relocated or published, into the first
+/// run of freed slots below the top that holds it: its base there, or `None` (nothing changed) when
+/// no run does. Freed slots are past their grace period, so no reader can be on them, and the set's
+/// nodes, records and reader entries are not visible yet. The set's paths stay where they are; its
+/// dependency lists are renumbered. The top slots it leaves are unused again (at and past `n`).
+#[cold]
+#[inline(never)]
+fn settle(l: &mut Loader, t: usize, k: usize) -> Option<usize> {
+    let s = k.checked_sub(t).filter(|&s| s > 0)?;
+    let mut run = 0usize;
+    let mut h = None;
+    for i in l.n_start..t {
+        run = if l.nodes.get(i).is_some_and(|nd| nd.gone && nd.freed) { run.saturating_add(1) } else { 0 };
+        if run == s {
+            h = Some(i.wrapping_add(1).wrapping_sub(s));
+            break;
+        }
+    }
+    let h = h?;
+    // Everything the move reads is there before anything moves: it never stops half way.
+    let whole = |i: usize| {
+        let deps = l.nodes.get(i).map(|nd| nd.deps);
+        l.objs_upto(k).get(i).is_some() && syms_of(&l.syms, k).get(i).is_some() && deps.is_some_and(|d| d.1 == 0 || l.dep_span(d).len() == ix(d.1))
+    };
+    if !(t..k).all(whole) || !(h..h.wrapping_add(s)).all(|i| l.nodes.get(i).is_some()) {
+        return None;
+    }
+    let to = |j: u32| -> u32 {
+        let j = ix(j);
+        if (t..k).contains(&j) { ix32(j.wrapping_sub(t).wrapping_add(h)) } else { ix32(j) }
+    };
+    for m in 0..s {
+        let (src, dst) = (t.wrapping_add(m), h.wrapping_add(m));
+        let (Some(o), Some(sy)) = (l.objs_upto(k).get(src).copied(), syms_of(&l.syms, k).get(src).copied()) else { continue };
+        let Some(nd) = l.nodes.get(src) else { continue };
+        let w = (nd.l_addr, nd.l_name, nd.l_ld, nd.dev, nd.ino, nd.lo, nd.hi, nd.nodelete, nd.deps, nd.path, nd.file, nd.reserve);
+        // Checked above: the span is inside one mapped generation.
+        let _ = l.deps.rewrite(ix(w.8 .0), ix(w.8 .1), to);
+        l.objs.set(dst, o);
+        l.syms.set(dst, sy);
+        let prev = l.node_addr(dst.wrapping_sub(1));
+        let Some(d) = l.nodes.get_mut(dst) else { continue };
+        (d.l_addr, d.l_name, d.l_ld, d.dev, d.ino, d.lo, d.hi, d.nodelete, d.deps, d.path, d.file, d.reserve) = w;
+        d.l_next.store(0, Relaxed);
+        d.l_prev = prev;
+        (d.opens, d.pins, d.global, d.fini, d.binds, d.root) = (0, 0, false, [0; 3], (0, 0), 0);
+        (d.finalising, d.gone, d.freed) = (false, false, false);
+        super::readers::restage(src, dst);
+        if let Some(nd) = l.nodes.get_mut(src) {
+            free_slot(nd);
+        }
+    }
+    l.holes = l.holes.saturating_sub(s);
+    l.reordered = true;
+    super::readers::reorder();
+    Some(h)
+}
+
+/// The chain's last node once sets went below the top ([`settle`]): the walk from the program
+/// along `l_next` (the live objects, each once).
+#[cold]
+#[inline(never)]
+fn chain_tail(l: &Loader) -> usize {
+    let mut i = 0usize;
+    for _ in 0..l.n {
+        match chain_next(l, i) {
+            Some(j) => i = j,
+            None => break,
+        }
+    }
+    i
+}
+
+/// The node after node `i` in the chain (the vDSO's link map stepped over), under the lock.
+fn chain_next(l: &Loader, i: usize) -> Option<usize> {
+    let next = l.nodes.get(i).map_or(0, |nd| super::debug::past_vdso(nd.l_next.load(Relaxed)));
+    if next == 0 { None } else { l.index_of(next) }
 }
 
 /// Pin the definers of the unique-table entries recorded since mark `from`: an object whose
@@ -2592,7 +2713,7 @@ fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_lines)]
 fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Result<(usize, Ctors), Fail> {
     let page = START_PAGE.load(Relaxed);
-    let base = l.n;
+    let mut base = l.n;
     let (names_top, deps_top) = (l.names.top(), l.deps.top());
     l.unique_mark = l.unique.len();
     l.tls_mark = l.surplus.len();
@@ -2673,16 +2794,25 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps.top() - dep_start).unwrap_or(0));
         q += 1;
     }
+    // The whole set is known: when freed slots below the top can hold it, it goes to the first run
+    // that does (a process that closes objects out of order keeps its tables at what it holds).
+    if l.holes >= k - base {
+        if let Some(h) = settle(l, base, k) {
+            (base, k) = (h, h + (k - base));
+        }
+    }
+    // Every loaded object and the set: `end` is `k` unless the set went below the top.
+    let end = k.max(l.n);
     // The set's per-object tables, sized now, while the attempt can still be unwound: from here on
     // only a relocation, version or TLS failure can stop it.
-    let Some(mut set_tables) = SetTables::new(base, k - base) else {
+    let Some(mut set_tables) = SetTables::new(base, k - base, end) else {
         let t = fail_parts(&[given, NO_MEMORY]);
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
     };
     // Versions, then pass 1 over the whole set: no foreign code yet.
-    if let Err(e) = reloc::check_versions_live(l.objs_upto(k), |j| !l.gone(j)) {
-        let t = version_text(l, k, e);
+    if let Err(e) = reloc::check_versions_live(l.objs_upto(end), |j| !l.gone(j)) {
+        let t = version_text(l, end, e);
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
     }
@@ -2698,13 +2828,13 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         None => (None, None, None),
     };
     let (mut local0, mut scope0, mut seen0) = ([0u32; CAP], [0usize; CAP], [false; CAP]);
-    let local = room(&mut local0, s_local, k, 0);
+    let local = room(&mut local0, s_local, end, 0);
     let llen = local_scope(l, base, local);
     // The new set's scope (plan §2): the global scope, then the root's local scope; with
     // `RTLD_DEEPBIND` the local scope first. Each object once.
-    let scope = room(&mut scope0, s_scope, k, 0);
+    let scope = room(&mut scope0, s_scope, end, 0);
     let mut sn = 0usize;
-    let seen = room(&mut seen0, s_seen, k, false);
+    let seen = room(&mut seen0, s_seen, end, false);
     let global = l.global().iter().copied();
     let local_it = local[..llen].iter().map(|&i| ix(i));
     let mut push = |i: usize| {
@@ -2723,7 +2853,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         l.nodes[i].root = ix32(base);
     }
     let start = l.global.slice(l.n_start_global).unwrap_or(&[]);
-    let (objs, syms) = (objs_of(&l.objs, k), syms_of(&l.syms, k));
+    let (objs, syms) = (objs_of(&l.objs, end), syms_of(&l.syms, end));
     let set = Objects { objs, syms, global: &scope[..sn] };
     let SetTables { binds, deferred, order, work, ctors } = &mut set_tables;
     let mut unique = Uniq { table: &mut l.unique, syms, start, binds: Some(binds) };
@@ -2755,7 +2885,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
     }
-    record_binds(l, base, k, binds);
+    record_binds(l, base, k, end, binds);
     // Every thread gets the new modules' blocks, and later threads the table, before any code
     // can reach them (DL-16d; nothing below fails).
     if !new_tls.mods.is_empty() {
@@ -2769,10 +2899,12 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         let next = if i + 1 < k { l.node_addr(i + 1) } else { 0 };
         l.nodes[i].l_next.store(next, Relaxed);
     }
-    l.n = k;
+    // The chain's tail, after which the set goes (the chain is in load order, probe P-12): the last
+    // object below the set that is not unloaded (the program at least), or, once a set went below
+    // the top, the chain's own last node.
+    let tail = if l.reordered { chain_tail(l) } else { (0..base).rev().find(|&i| !l.nodes[i].gone).unwrap_or(0) };
+    l.n = end;
     let first = l.node_addr(base);
-    // The chain's tail: the last object below the set that is not unloaded (the program at least).
-    let tail = (0..base).rev().find(|&i| !l.nodes[i].gone).unwrap_or(0);
     l.nodes[base].l_prev = l.node_addr(tail);
     l.nodes[tail].l_next.store(first, Release);
     super::readers::publish(base, k);
@@ -2815,9 +2947,10 @@ struct SetTables {
 
 impl SetTables {
     /// The tables for `n` new objects from index `base`; `None` when one cannot grow to `n`.
-    fn new(base: usize, n: usize) -> Option<Self> {
-        // A bit per object up to the set's end, whole words (`CAP` bits within `CAP` objects).
-        let width = base.checked_add(n)?.max(CAP).div_ceil(64);
+    fn new(base: usize, n: usize, end: usize) -> Option<Self> {
+        // A bit per object up to `end` (every loaded object and the set), whole words (`CAP` bits
+        // within `CAP` objects).
+        let width = base.checked_add(n)?.max(end).max(CAP).div_ceil(64);
         let mut s = SetTables { binds: Binds { base, width, bits: Table::new(0) }, deferred: Table::new(false), order: Table::new(0), work: Table::new(init::Walk::default()), ctors: Ctors::none() };
         s.binds.bits.reserve(n.checked_mul(width)?).ok()?;
         s.deferred.reserve(n).ok()?;
