@@ -7,8 +7,8 @@ arpa/tftp.h	1	-
 net/ethernet.h	1	linux/if_ether.h
 net/if_arp.h	1	linux/if_arp.h
 net/if_packet.h	1	linux/if_packet.h
-net/if_ppp.h	0	linux/if_ppp.h
-net/if_shaper.h	0	-
+net/if_ppp.h	1	linux/if_ppp.h
+net/if_shaper.h	1	-
 net/if_slip.h	1	linux/if_slip.h
 net/ppp-comp.h	1	linux/ppp-comp.h
 net/ppp_defs.h	1	linux/ppp_defs.h
