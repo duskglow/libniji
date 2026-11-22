@@ -1,0 +1,11 @@
+id = "D-31.20"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "UTIL-12"
+date = "2026-11-22"
+tests = ["crates/locale/tests/reference.rs"]
+body = '''
+**`LC_COLLATE`'s weights are libniji's own numbering; the order they give is the reference's, the key bytes are not (UTIL-12, Appendix D.1.4).** A weight is the item's place in one order of collating symbols, characters and elements (wide-character weights are the place + 2); a multibyte weight is the per-level rank of the value written as a prefix-free code: one byte when the level has at most 254 values, otherwise one- and two-byte codes with lead bytes of 2 or more and trail bytes of 1 or more, three bytes past 64770 values. The extra multibyte and wide tables are plain lists (no range entries; `INDIRECT` empty), and the symbol hash items 13 to 15 are empty (size 1, eight zero bytes), since libniji's regex reads no collating-symbol names from them. `crates/locale/tests/reference.rs` checks the order: `strcoll` (multibyte), `wcscoll` and bracket ranges (`collseq`) over a deterministic corpus of 4341 strings for en_US, de_DE, fr_FR, ja_JP and tr_TR UTF-8 and en_US ISO-8859-1 give, for every adjacent pair of the reference's sorted list, the same order under libniji's file (both orders are total preorders, so every pair agrees). No differences row: `strxfrm` keys are specified as comparable with `strcmp`, not as particular bytes, and no program reads `LC_COLLATE`'s bytes but the C library.
+'''

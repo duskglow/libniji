@@ -343,31 +343,37 @@ fn compare(locale: &str, charmap: &str) {
     assert!(out.is_empty(), "{locale}.{charmap}: {} differences from the reference:\n{}", out.len(), out.join("\n"));
 }
 
+/// s31_8_c_1, s31_8_g_1: en_US UTF-8 compiled by both, compared as the module comment says.
 #[test]
 fn en_us_utf8() {
     compare("en_US", "UTF-8");
 }
 
+/// s31_8_c_1, s31_8_g_1: de_DE UTF-8 compiled by both, compared as the module comment says.
 #[test]
 fn de_de_utf8() {
     compare("de_DE", "UTF-8");
 }
 
+/// s31_8_c_1, s31_8_g_1: fr_FR UTF-8 compiled by both, compared as the module comment says.
 #[test]
 fn fr_fr_utf8() {
     compare("fr_FR", "UTF-8");
 }
 
+/// s31_8_c_1, s31_8_g_1: ja_JP UTF-8 compiled by both, compared as the module comment says.
 #[test]
 fn ja_jp_utf8() {
     compare("ja_JP", "UTF-8");
 }
 
+/// s31_8_c_1, s31_8_g_1: tr_TR UTF-8 compiled by both, compared as the module comment says.
 #[test]
 fn tr_tr_utf8() {
     compare("tr_TR", "UTF-8");
 }
 
+/// s31_8_c_1, s31_8_g_1: en_US ISO-8859-1 compiled by both, compared as the module comment says.
 #[test]
 fn en_us_iso_8859_1() {
     compare("en_US", "ISO-8859-1");

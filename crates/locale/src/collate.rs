@@ -21,6 +21,7 @@
 //! The weight numbers are libniji's own (D-31.20): the order of keys equals the reference's,
 //! their bytes need not.
 #![allow(clippy::arithmetic_side_effects)] // positions and offsets count items of one source (far below u32::MAX; table sizes checked when written)
+#![allow(clippy::indexing_slicing)] // node ids the order itself returned (never from the source), and byte positions checked against their length first
 
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
