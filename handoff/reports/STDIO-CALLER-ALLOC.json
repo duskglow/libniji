@@ -1,0 +1,26 @@
+{"task": "STDIO-CALLER-ALLOC", "model": "opus", "tokens": null,
+ "result": "Streams opened by the program are allocated through the program's malloc and freed at fclose (fopen, fdopen, fmemopen, open_memstream, fopencookie, tmpfile, popen); a failing replacement gives NULL/ENOMEM; x_self_bind_stdio passes without PENDING-NIJI",
+ "branch": "task/stdio-caller-alloc", "head": "46c53df32",
+ "gate": {"affected": "11237 passed / 0 failed (direct tier, 19 suites); conformance 136 passed / 0 failed", "peak": "14G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libniji's stderr first use mallocs 9 bytes through the program's malloc (reference: none); pre-existing, unchanged",
+   "libniji sets ENOMEM when a replacement malloc returns NULL without setting errno (reference leaves errno as the replacement left it); kept, POSIX lists ENOMEM for fopen",
+   "D-X.140's GOT relaxation covers arithmetic/compare forms only: a cmov of another crate's static address keeps a .got in every static program; this branch hit it in strz's cursor (fixed by removing the static), any future cmov of a cross-crate static will trip init_static_probe_has_no_got_at_any_relro_size the same way",
+   "No bench row opens or closes a stream: the fopen/fclose cost of this change (caller malloc/free of a 712-byte slot instead of a free-list pop/push) is not measured; a cbench_stdio fopen_fclose row is a follow-up",
+   "Leg 1 process slips: one sed -i edit and one here-string in git commit (no commit made); neither refused"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "a program that replaces malloc sees each stream allocated at fopen/fdopen/fmemopen/open_memstream/fopencookie/popen and freed at fclose (before: none of these reached its malloc)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "fopen and fmemopen with a replacement malloc that returns NULL: NULL + ENOMEM (before: a stream was returned)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "perf", "what": "cbench_stdio rows (fprintf_d, fputs_32, fwrite_4k, putc, snprintf_d, snprintf_mixed) and cbench_startup user-space rows", "before": null, "after": null, "unit": "instr/call, all within +-0.1% of base", "measured": true},
+   {"kind": "size", "what": "start-up layout bin 0 (target/product/fast/layout-bins.tsv)", "before": 60751, "after": 60737, "unit": "bytes", "measured": true},
+   {"kind": "coverage", "what": "x_self_bind_stdio cases (fopen, fdopen, fmemopen, open_memstream, fopencookie, failing replacement) + strz cursor unit test; plants", "before": null, "after": 4, "unit": "plants CAUGHT", "measured": true},
+   {"kind": "unblock", "what": "INTERNAL-ALLOC-ROUTING reuses caller_alloc::new_value / release", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A job chain that keeps going after a red gate runs its later steps on a head that will change; chains should stop at the first red (this run killed one by hand). Running the products-building checks (xtest, hot-text, bench) in RAM copies beside the role's gate cut the proof's wall time from ~2.5 h sequential to ~50 min.",
+ "next_step": "Land; INTERNAL-ALLOC-ROUTING reuses the helper; add a fopen_fclose bench row",
+ "report_file": "handoff/stdio-caller-alloc.md",
+ "jobs": ["mei:stdio-caller-alloc-gate3", "mei:stdio-caller-alloc-plants3", "mei:stdio-caller-alloc-xtest3", "mei:stdio-caller-alloc-bench3", "mei:stdio-caller-alloc-basebench", "mei:stdio-caller-alloc-baseso", "mei:stdio-caller-alloc-kinstr"]}
