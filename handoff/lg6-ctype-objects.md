@@ -28,8 +28,9 @@ Decision in force: D-5.13 (`records/decisions/D-5/D-5.13.toml`, id reserved with
   exit 3 (its pointer-identity checks against `*__ctype_*_loc()`, which D-5.13 makes false). Every other step ok
   (peak 12G). Fixed in e3a93acf6: the program compares contents over -128..255.
 * `lg6-ctype-objects-plants` / `-plants-2`: superseded (malformed lines; then copy 1 stopped on the red program).
-* `lg6-ctype-objects-suite` (final head: `cargo xtask so`, the conformance program, `s07_locale_symbols`) and
-  `lg6-ctype-objects-plants-3`: started on the final head; results in the report json.
+* `lg6-ctype-objects-suite` (code head e3a93acf6: `cargo xtask so`, `affected --only conformance:s05_ctype_legacy_objects`
+  1 passed, `s07_locale_symbols` 43 passed). `lg6-ctype-objects-plants-3`: 5 CAUGHT, 0 SURVIVED, no WARN
+  (results in handoff/LG6-CTYPE-OBJECTS-plants.txt).
 
 ## Counts (keke, `lg6-ctype-objects-startup-7`)
 
