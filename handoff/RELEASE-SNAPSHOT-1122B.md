@@ -129,6 +129,9 @@ niji6, niji6-dev `0.0.snapshot20261122.2+302dd7c3a311` (asset names use '.' for 
 - **K2 (INFORMATIONAL, run):** starting both runners in one ssh call left the local ssh attached; killing it let a
   second keke runner start, killed by PID within seconds (before any job of it was queued). Every job ran once.
 
+SUPERSEDED (reference side, not a job on the head): mei y13v-ref221-1, rc 1 by design (22.1's packages: 5 of 8).
+Other rc 1 jobs end on their known lines (roots, yohane, y14, y14r, drp, drp-ref221), as in 1122A.
+
 ## Next step
 
 None for this story: the coordinator announces snapshot-2026-11-22.2 to Yohane with the start-up tables above.

@@ -11,7 +11,8 @@
   "M: mint unchanged from 22.1 (40 internal rows, 0 changed); ruling #7583 work will change them later",
   "T2: y26 TSan-with-ASLR row varies between runs on stock and libniji alike (host mmap randomness)",
   "HEAP-SPILL-COLD-3 is not in this head (landed after the head was fixed); next snapshot",
-  "LD-PHDR-ONCE and UTIL-12: not in this head"
+  "LD-PHDR-ONCE and UTIL-12: not in this head",
+  "y13v-ref221-1 (rc 1) ran the valgrind acceptance on 22.1's packages as the before side (5 of 8, the failures the head fixes); reference evidence, not a job on the head"
  ],
  "refused": [],
  "impact": [
@@ -22,4 +23,4 @@
  "improvement": "a relay step between hosts (role host -> other host) is done by hand each snapshot; a host-to-host sync helper in liella-ops (sha-checked) would remove two agent round trips and the detached-ssh pitfall seen here",
  "next_step": "coordinator announces snapshot-2026-11-22.2; next snapshot picks up HEAP-SPILL-COLD-3",
  "report_file": "handoff/RELEASE-SNAPSHOT-1122B.md",
- "jobs": ["release-snapshot-1122b-gate-1", "release-snapshot-1122b-plants-1", "release-snapshot-1122b-debs-1", "release-snapshot-1122b-smoke-mei-1", "release-snapshot-1122b-startup-mei-1", "release-snapshot-1122b-startup215-mei-1", "release-snapshot-1122b-kstart-mei-1", "release-snapshot-1122b-rstart-mei-1", "release-snapshot-1122b-y13v-1", "release-snapshot-1122b-y13v-ref221-1", "release-snapshot-1122b-mint-1", "keke:release-snapshot-1122b-smoke-keke-1", "keke:release-snapshot-1122b-startup-keke-1", "keke:release-snapshot-1122b-startup215-keke-1", "keke:release-snapshot-1122b-kstart-keke-1", "keke:release-snapshot-1122b-rstart-keke-1", "keke:release-snapshot-1122b-gaimass-1", "keke:release-snapshot-1122b-pkgdiff-1", "keke:release-snapshot-1122b-stage-1", "keke:release-snapshot-1122b-install-1"]}
+ "jobs": ["release-snapshot-1122b-gate-1", "release-snapshot-1122b-plants-1", "release-snapshot-1122b-debs-1", "release-snapshot-1122b-smoke-mei-1", "release-snapshot-1122b-startup-mei-1", "release-snapshot-1122b-startup215-mei-1", "release-snapshot-1122b-kstart-mei-1", "release-snapshot-1122b-rstart-mei-1", "release-snapshot-1122b-y13v-1","release-snapshot-1122b-mint-1", "keke:release-snapshot-1122b-smoke-keke-1", "keke:release-snapshot-1122b-startup-keke-1", "keke:release-snapshot-1122b-startup215-keke-1", "keke:release-snapshot-1122b-kstart-keke-1", "keke:release-snapshot-1122b-rstart-keke-1", "keke:release-snapshot-1122b-gaimass-1", "keke:release-snapshot-1122b-pkgdiff-1", "keke:release-snapshot-1122b-stage-1", "keke:release-snapshot-1122b-install-1"]}
