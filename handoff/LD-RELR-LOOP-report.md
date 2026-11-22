@@ -45,3 +45,35 @@ story's target (RELATIVE work + self-relocation <= 15k) is not reached by estima
 * `layout-bins.tsv` not diffed against the base: no base copy on the host; it covers libc's hot group only.
 * STARTUP-REPROFILE's 47.6k "RELATIVE and table walk" phase included pass1 work that remains, so the brief's
   -50k expectation overstated what RELR alone removes.
+
+# LD-RELR-LOOP-2 (continuation, branch task/ld-relr-loop-2)
+
+**Result:** RELR bitmap words are added in place (one unaligned read-add-write per word, 6 instructions per set
+bit in both loops, from 8 in `pass1` and 13 in the self-relocation). A dynamic start is about 5,100 user
+instructions shorter than leg 2 (Zen 1, release, median of 101): empty main 243,688 -> 238,655, three libraries
+352,952 -> 347,868, `/bin/true` 304,186 -> 299,000; about 30,200 shorter than next fd973fc44 in all. Faults and
+system calls unchanged. Story target (RELATIVE + self-relocation <= 15k): about 12k by estimate from the
+disassembly (both loops read in `~/work/ld-relr-loop-2/new2-ld.dis` on keke) and the decoded tables; NOT measured
+(no Intel PT or valgrind on the Zen 1 host; Skylake-SP not built this run).
+
+## Commits
+* 9a96824e1 Add RELR bitmap words in place, one add per word (`Image::add_bits` + default `add_bits_by_word`,
+  `ProcImage` override; `boot::Memory::add_bits` + default view loop, `bootstrap::Mapped` override)
+* bb4b03995 Tighten the dynamic start-up bounds after in-place RELR adds (D-27.87 extended, plants file)
+* c58063588 Keep D-27.87's body on one line (the records check: a body is one table cell)
+
+## Jobs (keke, role n1, Zen 1)
+* ld-relr-loop-2-lint0: clippy (workspace, all targets, all features) + static on the inherited head: rc 0.
+* ld-relr-loop-2-lint1: the same after the code commit: rc 0.
+* ld-relr-loop-2-meas: release build + counts, previous head's products against this commit's (kit above).
+* ld-relr-loop-2-bound: `hot_text_products` bound test, release then fast: 238,792 / 248,446 (bounds tightened).
+* ld-relr-loop-2-plants1: handoff/LD-RELR-LOOP-2-plants.txt, 4 plants, 4 CAUGHT, no WARN (run on bb4b03995;
+  the planted files are identical at the final head).
+* ld-relr-loop-2-gate2: direct gate on the final head. ld-relr-loop-2-startup: start-up checks (cargo xtask test;
+  release so + hot_text_products). Results: in the hand-back and handoff/reports/LD-RELR-LOOP-2.json.
+* Superseded: ld-relr-loop-2-gate1 (bb4b03995): 13 suites ok, 1,358 passed, 0 failed, but `cargo xtask static`
+  red on a newline in D-27.87's body, which my edit added; fixed in c58063588.
+
+## INFORMATIONAL
+* The big-endian branch of `add_bits_by_word` (as of the earlier per-word code) has no test: no big-endian
+  target is relocated by any test image.
