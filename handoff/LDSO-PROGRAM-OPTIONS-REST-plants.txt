@@ -6,7 +6,7 @@ fold-range-whole | crates/boundary/src/ld/entry.rs | lit:value.get(env.len().sat
 # The diagnostic's source never --preload.
 source-never-option | crates/boundary/src/ld/state.rs | lit:len != 0 && p >= at && p.wrapping_sub(at) < len ==> false | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_preload_and_argv0.*FAILED|panicked
 # --inhibit-cache ignored by the cache reader.
-inhibit-ignored | crates/boundary/src/ld/image.rs | lit:if super::state::cache_inhibited() { ==> if false { | cargo test -p niji-ld --test ldso_program_options | msg:FAILED|panicked
+inhibit-ignored | crates/boundary/src/ld/image.rs | lit:if super::state::cache_inhibited() { ==> if false { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_cache_opens_no_cache.*FAILED|panicked
 # --list of a missing file, a directory or a short file keeps the old `ld.so: ` text.
 list-old-text | crates/boundary/src/ld/trace.rs | lit:if let Some(at) = named { ==> if let Some(at) = None::<usize> { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_list_of_files_that_cannot_be_listed.*FAILED|panicked
 # --list of a non-ELF file: no "invalid ELF header".

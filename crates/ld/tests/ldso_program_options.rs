@@ -167,6 +167,31 @@ fn ldso_program_library_path() {
     assert!(o.starts_with("dep:1\n"), "{o}");
 }
 
+/// `--inhibit-cache`: a search that would reach the loader cache never opens it (a dependency found
+/// nowhere: without the option the search opens the cache once, which shows the trace sees it).
+/// (no spec clause: ld.so(8) `--inhibit-cache`; the reference probed.)
+#[test]
+fn ldso_program_inhibit_cache_opens_no_cache() {
+    let Some((s, ld)) = fixture("inhibit") else { return };
+    let d: &Path = &s;
+    if !Command::new("strace").args(["-o", "/dev/null", "true"]).status().is_ok_and(|s| s.success()) {
+        return eprintln!("SKIP: strace is absent or cannot trace here");
+    }
+    let traced = |args: &[&str], log: &str| {
+        let mut c = Command::new("timeout");
+        c.args(["20", "strace", "-qq", "-e", "trace=open,openat", "-o"]).arg(d.join(log)).arg(&ld).args(args).current_dir(d).env_clear();
+        let o = c.output().unwrap();
+        assert_eq!(o.status.code(), Some(program::FAILURE), "libdep.so is found nowhere: {o:?}");
+        let t = std::fs::read_to_string(d.join(log)).unwrap();
+        let opens = t.lines().filter(|l| l.contains("ld.so.cache")).count();
+        (opens, t)
+    };
+    let (opens, t) = traced(&["./prog"], "plain.trace");
+    assert_eq!(opens, 1, "the search reaches the cache:\n{t}");
+    let (opens, t) = traced(&["--inhibit-cache", "./prog"], "inhibit.trace");
+    assert_eq!(opens, 0, "--inhibit-cache: no cache opened:\n{t}");
+}
+
 /// (no spec clause: ld.so(8) `--preload` and `--argv0`; the reference probed.)
 #[test]
 fn ldso_program_preload_and_argv0() {
