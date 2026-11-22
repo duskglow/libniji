@@ -9,6 +9,8 @@
 //! * [`ctype`]: `LC_CTYPE` (D.1.3).
 //! * [`collate`]: `LC_COLLATE` (D.1.4).
 //! * [`charset`]: the charmap a locale is compiled for (code point to bytes, widths).
+//! * [`prog`]: the `localedef` command over a [`prog::Host`] (options, search paths, the
+//!   directory form, messages).
 //!
 //! The files this crate writes are read by `niji::locale` (the C library's reader), which the
 //! tests use as the oracle. File access goes through [`Files`], so the library runs the same in
@@ -25,6 +27,7 @@ pub mod charset;
 pub mod collate;
 pub mod ctype;
 pub mod lex;
+pub mod prog;
 pub mod source;
 
 pub use niji::mem::TryVec;
