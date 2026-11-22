@@ -25,9 +25,12 @@ Decision D-31.22 (`records/decisions/D-31/D-31.22.toml`). COMPLETE: leg 1 wrote 
   on the macro-generated tests).
 * `locale-charmaps-gen-so`: `cargo xtask so` + `manifest.py lint --products`: OK (139 rows), 10 `.gz` files. Job rc
   141 is SIGPIPE from the `zcat | head` I appended to the job, after the build and lint passed.
-* Gate `locale-charmaps-gen-gate` (direct tier, head 4dc49bb2f): 10 suites ok, 882 passed / 0 failed, conformance
-  146/146, peak 2.6G. Later commits change only the D-31.22 record and handoff/.
-* Plants `locale-charmaps-gen-plants` (`handoff/LOCALE-CHARMAPS-GEN.plants`): 7 CAUGHT, 0 survived, 0 WARN.
+* Leg 1 left Cargo.lock without the niji-charmaps entry (cargo rewrote it at each build); committed in c05336e81.
+  Gate `locale-charmaps-gen-gate` and plants `locale-charmaps-gen-plants` (head 4dc49bb2f: 882 passed, 146/146
+  conformance; 7/7 caught) are SUPERSEDED by the reruns on c05336e81 for that reason.
+* Gate `locale-charmaps-gen-gate2` (direct tier, head c05336e81): 10 suites ok, 882 passed / 0 failed / 1 ignored,
+  conformance 146/146, SKIPPED 0, peak 2.2G.
+* Plants `locale-charmaps-gen-plants2` (`handoff/LOCALE-CHARMAPS-GEN.plants`): 7 CAUGHT, 0 survived, 0 WARN.
   GB18030's 4-byte width exception has no plant: no test can check it while the EAW gap below remains.
 
 ## Probe-settled (black box: both localedefs, compared by the reader)
