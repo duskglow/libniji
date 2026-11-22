@@ -8,7 +8,8 @@
 //! that a block whose `p_vaddr` is not a multiple of its alignment keeps that remainder at run time.
 //!
 //! **The dtv** (libniji's own layout, read only by libniji's `ld.so`): word 0 the generation the vector
-//! was built for, word 1 the number of module slots, word `1 + m` the address of module `m`'s block
+//! was built for, word 1 the highest module whose slot is filled (never past the slots the vector
+//! has: a reader bounds its slot reads by this word), word `1 + m` the address of module `m`'s block
 //! (0: not allocated in this thread). Module IDs start at 1, in load order over the objects that have
 //! a `PT_TLS` segment.
 
@@ -82,29 +83,52 @@ impl Area {
     }
 }
 
-/// The module slots every thread's dtv has room for when objects can be loaded later (DL-16d,
-/// plan/ph14/dl-16-dlopen.md §5): one per object the loader can hold. Address space only.
+/// The module slots every thread's dtv has room for in place when objects can be loaded later
+/// (DL-16d, plan/ph14/dl-16-dlopen.md §5), and the module IDs whose free bits [`ModuleIds`] holds in
+/// place. Not a limit (DL-PROCESS-OBJECTS part 3, audit HL-3): a module ID past a thread's vector
+/// gets that thread a larger one at its first access, and the IDs past these keep their free bits in
+/// the caller's words. Address space only.
 pub const MODULES_MAX: usize = 512;
+
+/// One place of the [`Surplus`]: `[start, end)` in bytes below the thread pointer.
+pub type Place = (u64, u64);
 
 /// The static surplus's placements for modules loaded after start (DL-16d, R14-4, plan
 /// /ph14/dl-16-dlopen.md §5): first fit nearest the thread pointer, with each block's alignment.
 /// Every thread's surplus has the same offsets, so a place is one offset from the thread pointer.
 /// All-zero is the empty value (it lives in the loader's zeroed mapping). DL-16 never frees a
-/// place; a failed `dlopen` takes its places back with [`Surplus::rollback`].
+/// place; a failed `dlopen` takes its places back with [`Surplus::rollback`]. `S` stores the places
+/// (its length the most there can be, [`Surplus::is_full`]); a caller whose store can grow
+/// (DL-PROCESS-OBJECTS part 3) grows it through [`Surplus::store_mut`] before the next place.
 #[derive(Clone, Copy, Debug)]
-pub struct Surplus<const N: usize> {
+pub struct Surplus<S> {
     len: usize,
     /// Each place's `[start, end)` in bytes below the thread pointer, in placement order.
-    used: [(u64, u64); N],
+    used: S,
 }
 
-impl<const N: usize> Default for Surplus<N> {
+impl<const N: usize> Default for Surplus<[Place; N]> {
     fn default() -> Self {
         Self { len: 0, used: [(0, 0); N] }
     }
 }
 
-impl<const N: usize> Surplus<N> {
+impl<S: AsRef<[Place]> + AsMut<[Place]>> Surplus<S> {
+    /// No place made, in `store`.
+    pub fn with_store(store: S) -> Self {
+        Self { len: 0, used: store }
+    }
+
+    /// Whether every entry of the store holds a place (the next [`Surplus::place`] fails).
+    pub fn is_full(&self) -> bool {
+        self.len >= self.used.as_ref().len()
+    }
+
+    /// The store: a caller grows it here (its first `len` entries kept) when it is full.
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.used
+    }
+
     /// The places made (a mark for [`Surplus::rollback`]).
     pub fn len(&self) -> usize {
         self.len
@@ -125,7 +149,7 @@ impl<const N: usize> Surplus<N> {
     /// is kept (a later [`Surplus::rollback`] mark stays valid). False when no place is there.
     pub fn free(&mut self, offset: i64) -> bool {
         let d = offset.unsigned_abs();
-        let Some(used) = self.used.get_mut(..self.len) else { return false };
+        let Some(used) = self.used.as_mut().get_mut(..self.len) else { return false };
         let Some(k) = used.iter().position(|&(_, b)| b == d && offset <= 0) else { return false };
         used.copy_within(k.wrapping_add(1).., k);
         self.len = self.len.wrapping_sub(1);
@@ -135,10 +159,10 @@ impl<const N: usize> Surplus<N> {
     /// A place for `m`'s block in the surplus `[lo, hi)` (bytes below a thread pointer aligned to
     /// `tp_align`): its offset from the thread pointer. The block's address keeps `p_vaddr`'s
     /// remainder modulo its alignment. `None`: no room, an alignment the thread pointer does not
-    /// have (or not a power of two), `p_filesz > p_memsz`, all `N` places taken, or variant I
-    /// (ARCH: its surplus lies above the thread block, A-4).
+    /// have (or not a power of two), `p_filesz > p_memsz`, the store full ([`Surplus::is_full`]),
+    /// or variant I (ARCH: its surplus lies above the thread block, A-4).
     pub fn place<A: Arch>(&mut self, lo: u64, hi: u64, tp_align: u64, m: &Module) -> Option<i64> {
-        if A::TLS_VARIANT != TlsVariant::II || m.filesz > m.memsz || self.len >= N {
+        if A::TLS_VARIANT != TlsVariant::II || m.filesz > m.memsz || self.is_full() {
             return None;
         }
         let align = m.align.max(1);
@@ -149,7 +173,7 @@ impl<const N: usize> Surplus<N> {
         // power of two, so `mask` reduces modulo it.
         let mask = align.wrapping_sub(1);
         let want = m.vaddr.wrapping_neg() & mask;
-        let used = self.used.get(..self.len)?;
+        let used = self.used.as_ref().get(..self.len)?;
         let free = |d: u64| used.iter().all(|&(a, b)| d <= a || d.wrapping_sub(m.memsz) >= b);
         // The nearest place starts where the surplus or a block ends (the block cannot move
         // nearer without crossing that edge).
@@ -159,7 +183,7 @@ impl<const N: usize> Surplus<N> {
             (d <= hi && free(d)).then_some(d)
         };
         let d = core::iter::once(lo).chain(used.iter().map(|&(_, b)| b)).filter(|&s| s >= lo).filter_map(at).min()?;
-        *self.used.get_mut(self.len)? = (d.wrapping_sub(m.memsz), d);
+        *self.used.as_mut().get_mut(self.len)? = (d.wrapping_sub(m.memsz), d);
         self.len = self.len.wrapping_add(1);
         0i64.checked_sub_unsigned(d)
     }
@@ -168,7 +192,10 @@ impl<const N: usize> Surplus<N> {
 /// The TLS module IDs of modules loaded after start (DL-17, design §7: "module IDs reused after
 /// dlclose with a generation bump"; probe `== close` C-4/C-5: the reference gives a re-opened module
 /// the ID its closed predecessor had). The lowest freed ID is handed out first, then the next unused
-/// one. All-zero is the empty value (it lives in the loader's zeroed mapping).
+/// one. All-zero is the empty value (it lives in the loader's zeroed mapping). The free bits of IDs
+/// up to [`MODULES_MAX`] are held here; those of later IDs (DL-PROCESS-OBJECTS part 3: no ceiling)
+/// in the caller's `more` words, bit `id - 1 - MODULES_MAX` of the set they form, which the caller
+/// grows to [`ModuleIds::words_for`] the next new ID before it asks for one.
 #[derive(Clone, Copy, Debug)]
 pub struct ModuleIds {
     /// The highest ID handed out (the start's modules included once [`ModuleIds::take`] saw them).
@@ -184,12 +211,23 @@ impl Default for ModuleIds {
 }
 
 impl ModuleIds {
+    /// The highest ID handed out so far, or `floor` when that is higher: the next new ID follows it.
+    pub fn top(&self, floor: u64) -> u64 {
+        self.top.max(floor)
+    }
+
+    /// The `more` words the free bits of IDs up to `id` need (0 up to [`MODULES_MAX`]).
+    pub fn words_for(id: u64) -> usize {
+        let past = id.saturating_sub(u64::try_from(MODULES_MAX).unwrap_or(u64::MAX));
+        usize::try_from(past.div_ceil(64)).unwrap_or(usize::MAX)
+    }
+
     /// An ID for a new module: the lowest released one, else the one after the highest handed out
-    /// (`floor`: IDs the process holds already, the start's modules and earlier ones), at most
-    /// `max`. `None` when every ID up to `max` is in use.
-    pub fn take(&mut self, floor: u64, max: u64) -> Option<u64> {
+    /// (`floor`: IDs the process holds already, the start's modules and earlier ones). `None` when
+    /// that ID's free bit would lie past `more` (the caller grows it first) or IDs overflow.
+    pub fn take(&mut self, floor: u64, more: &mut [u64]) -> Option<u64> {
         self.top = self.top.max(floor);
-        for (w, word) in self.free.iter_mut().enumerate() {
+        for (w, word) in self.free.iter_mut().chain(more.iter_mut()).enumerate() {
             if *word != 0 {
                 let bit = word.trailing_zeros();
                 let id = u64::try_from(w).ok()?.checked_mul(64)?.checked_add(u64::from(bit))?.checked_add(1)?;
@@ -200,19 +238,18 @@ impl ModuleIds {
             }
         }
         let id = self.top.checked_add(1)?;
-        let limit = max.min(u64::try_from(MODULES_MAX).ok()?);
-        (id <= limit).then(|| {
+        (Self::words_for(id) <= more.len()).then(|| {
             self.top = id;
             id
         })
     }
 
     /// Give back `id`, taken by a `dlopen` that failed before any thread saw it: no generation.
-    pub fn put_back(&mut self, id: u64) {
+    pub fn put_back(&mut self, id: u64, more: &mut [u64]) {
         if id != 0 && id == self.top {
             self.top = id.wrapping_sub(1);
         } else {
-            self.mark_free(id);
+            self.mark_free(id, more);
         }
     }
 
@@ -220,15 +257,20 @@ impl ModuleIds {
     /// dtv may still be built for: the generation the release makes, always newer, so a thread whose
     /// dtv still names the old block for `id` repairs it before a reuse of `id` is reached.
     #[must_use]
-    pub fn release(&mut self, id: u64, generation: u64) -> u64 {
-        self.mark_free(id);
+    pub fn release(&mut self, id: u64, generation: u64, more: &mut [u64]) -> u64 {
+        self.mark_free(id, more);
         generation.wrapping_add(1)
     }
 
-    fn mark_free(&mut self, id: u64) {
+    fn mark_free(&mut self, id: u64, more: &mut [u64]) {
         let Some(i) = id.checked_sub(1).and_then(|i| usize::try_from(i).ok()) else { return };
         if id <= self.top {
-            if let Some(word) = self.free.get_mut(i / 64) {
+            let at = i / 64;
+            let word = match at.checked_sub(self.free.len()) {
+                None => self.free.get_mut(at),
+                Some(j) => more.get_mut(j),
+            };
+            if let Some(word) = word {
                 *word |= 1u64 << (i % 64);
             }
         }

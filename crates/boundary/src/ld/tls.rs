@@ -8,7 +8,7 @@ use niji_ld::arch::{Arch, Native};
 use niji_ld::tls::{self as ltls, Area, Module, Placed};
 use niji_rt::tls::{ThreadBlock, FLAG_OWN};
 use crate::{conv, raw};
-use super::table::{Table, INLINE};
+use super::table::{Gens, Table, Wide, INLINE};
 use super::dlopen;
 use super::io::{lo32, refuse};
 use super::state::PHDR_WORDS;
@@ -94,6 +94,7 @@ pub(super) fn install_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Opt
     let tp64 = u64::try_from(tp).unwrap_or(0);
     record_thread_tls(mods, biases, placed, area);
     let dtv_at = base.wrapping_add(usize::try_from(area.dtv).unwrap_or(0));
+    INITIAL_DTV.store(dtv_at, Relaxed);
     // A fresh zero mapping: each block's bytes past its image are zero already (not written, so
     // a large `.tbss` costs no page until the program touches it).
     if fill_static(tp, dtv_at, false).is_none() {
@@ -138,7 +139,82 @@ pub(super) fn install_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Opt
 static THREAD_MODS: [[AtomicU64; 5]; ltls::MODULES_MAX - dlopen::MODS_HEAD] = [const { [const { AtomicU64::new(0) }; 5] }; ltls::MODULES_MAX - dlopen::MODS_HEAD];
 /// Entry `i` of the thread-local module table ([`THREAD_MODS`]), `None` past `MODULES_MAX`.
 pub(super) fn thread_mod(i: usize) -> Option<&'static [AtomicU64; 5]> {
-    dlopen::thread_mods_head().get(i).or_else(|| THREAD_MODS.get(i.wrapping_sub(dlopen::MODS_HEAD)))
+    dlopen::thread_mods_head().get(i).or_else(|| THREAD_MODS.get(i.wrapping_sub(dlopen::MODS_HEAD))).or_else(|| thread_mod_past(i))
+}
+
+/// Generations of the module table past its first [`ltls::MODULES_MAX`] entries (DL-PROCESS-OBJECTS
+/// part 3, audit HL-3): never moved, each mapped by the `dlopen` that first takes an ID in it
+/// ([`reserve_thread_mods`]) before the walk publishes the entry; read without a lock below
+/// [`THREAD_MODS_LEN`] (Acquire), like the entries in place.
+static THREAD_MODS_PAST: Gens<{ ltls::MODULES_MAX }, MODS_GENS> = Gens::new();
+/// Generations past the first: `MODULES_MAX << MODS_GENS` is 2^32 entries.
+const MODS_GENS: usize = 23;
+/// One module table entry's bytes.
+const MOD_BYTES: usize = core::mem::size_of::<[AtomicU64; 5]>();
+
+/// [`thread_mod`] past the entries in place: `None` when its generation is not mapped.
+#[cold]
+#[inline(never)]
+fn thread_mod_past(i: usize) -> Option<&'static [AtomicU64; 5]> {
+    if i < ltls::MODULES_MAX {
+        return None;
+    }
+    let at = THREAD_MODS_PAST.at(0, MOD_BYTES, i);
+    if at == 0 {
+        return None;
+    }
+    // UNSAFE(slice): one entry of a mapped generation of the module table.
+    #[allow(unsafe_code)]
+    // SAFETY: `at` is entry `i` of a generation `reserve_thread_mods` mapped read-write (page
+    // aligned, entries of 8-byte words), never unmapped; every access goes through the atomics.
+    Some(unsafe { &*core::ptr::with_exposed_provenance::<[AtomicU64; 5]>(at) })
+}
+
+/// Room in the module table for module `id` (entry `id - 1`): its generation mapped. Called by
+/// `dlopen` (loader lock held) for an ID it takes, before the walk publishes it; `false` when the
+/// mapping cannot be made.
+pub(super) fn reserve_thread_mods(id: u64) -> bool {
+    let Ok(len) = usize::try_from(id) else { return false };
+    len <= ltls::MODULES_MAX || THREAD_MODS_PAST.reserve(MOD_BYTES, len)
+}
+
+/// The static surplus's place store (DL-PROCESS-OBJECTS part 3): the first [`ltls::MODULES_MAX`]
+/// places in place in the loader, then a contiguous lock-held copy grown by `mremap`
+/// ([`Places::grow`]). All-zero is the empty store (the loader's zeroed mapping holds it).
+pub(super) struct Places {
+    inline: [ltls::Place; ltls::MODULES_MAX],
+    wide: Wide<ltls::Place>,
+}
+
+impl AsRef<[ltls::Place]> for Places {
+    fn as_ref(&self) -> &[ltls::Place] {
+        if self.wide.cap() == 0 { &self.inline } else { self.wide.all() }
+    }
+}
+
+impl AsMut<[ltls::Place]> for Places {
+    fn as_mut(&mut self) -> &mut [ltls::Place] {
+        if self.wide.cap() == 0 { &mut self.inline } else { self.wide.all_mut() }
+    }
+}
+
+impl Places {
+    /// Room for more places, the ones made kept: the first growth copies the places in place.
+    #[cold]
+    #[inline(never)]
+    pub(super) fn grow(&mut self) -> bool {
+        let first = self.wide.cap() == 0;
+        let len = self.as_ref().len();
+        if !self.wide.reserve(len.saturating_mul(2)) {
+            return false;
+        }
+        if first {
+            if let Some(w) = self.wide.slice_mut(len) {
+                w.copy_from_slice(&self.inline);
+            }
+        }
+        true
+    }
 }
 /// Entries of [`THREAD_MODS`] in use (stored last, Release).
 pub(super) static THREAD_MODS_LEN: AtomicUsize = AtomicUsize::new(0);
@@ -246,8 +322,12 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
         }
         let block = tp64.wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()));
         init_block(block, [src, filesz, memsz], zero)?;
-        dtv.get(dtv_slot(module)?)?.store(block, Relaxed);
-        count = count.max(module);
+        // A module past the vector's slots (DL-PROCESS-OBJECTS part 3) is left to `tls_slow`, which
+        // gives the thread a larger vector at its first access; the count stays within the slots.
+        if let Some(w) = dtv_slot(module).and_then(|s| dtv.get(s)) {
+            w.store(block, Relaxed);
+            count = count.max(module);
+        }
     }
     let [g, c, ..] = dtv else { return None };
     c.store(count, Relaxed);
@@ -280,12 +360,105 @@ pub(super) fn surplus() -> (u64, u64, u64) {
     (SURPLUS_LO.load(Relaxed), SURPLUS_HI.load(Relaxed), THREAD_TLS_ALIGN.load(Relaxed))
 }
 
-/// The module IDs a `dlopen` may hand out (`ltls::ModuleIds::take`): the IDs [`THREAD_MODS`]
-/// covers already (the floor), and the highest every thread's dtv has a slot for.
-pub(super) fn module_room() -> (u64, u64) {
-    let floor = u64::try_from(THREAD_MODS_LEN.load(Acquire)).unwrap_or(u64::MAX);
-    let slots = THREAD_DTV_WORDS.load(Relaxed).saturating_sub(ltls::DTV_HEADER);
-    (floor, slots.min(u64::try_from(ltls::MODULES_MAX).unwrap_or(0)))
+/// The IDs [`THREAD_MODS`] covers already: the floor of the IDs a `dlopen` may hand out
+/// (`ltls::ModuleIds::take`). No ceiling (DL-PROCESS-OBJECTS part 3): a thread whose vector lacks a
+/// module's slot gets a larger one at its first access ([`tls_slow`]).
+pub(super) fn module_floor() -> u64 {
+    u64::try_from(THREAD_MODS_LEN.load(Acquire)).unwrap_or(u64::MAX)
+}
+
+/// The initial thread's dtv (in its area; [`install_tls`]): with the vectors at `tp - THREAD_TLS_SIZE`
+/// of the threads the C library makes, the vectors in place, which hold `THREAD_DTV_WORDS` words.
+/// Any other vector a thread block names is one [`grow_dtv`] mapped.
+static INITIAL_DTV: AtomicUsize = AtomicUsize::new(0);
+/// The C library's thread walk, as the first [`publish_tls`] was given it (0: none yet).
+static WALK: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether `dtv` is the vector in place of the thread at `tp`.
+fn in_place(tp: usize, dtv: usize) -> bool {
+    dtv == INITIAL_DTV.load(Relaxed) || dtv == tp.wrapping_sub(usize::try_from(THREAD_TLS_SIZE.load(Relaxed)).unwrap_or(0))
+}
+
+/// The words of the vector `dtv` of the thread at `tp`: `THREAD_DTV_WORDS` in place, else the
+/// count [`grow_dtv`] wrote before it (the grown vector's mapping: the vector it replaced, its
+/// words, then the vector).
+fn dtv_room(tp: usize, dtv: usize) -> usize {
+    let words = if in_place(tp, dtv) {
+        THREAD_DTV_WORDS.load(Relaxed)
+    } else {
+        // UNSAFE(slice): the word before a grown vector.
+        #[allow(unsafe_code)]
+        // SAFETY: a vector not in place is one `grow_dtv` mapped (never unmapped while a thread
+        // block names it, nor before a walk that read its address ends: `release_grown`), two
+        // words after its mapping's start; the word before it was written before its address was
+        // stored (Release) in the block this address was read from (Acquire).
+        unsafe { (*core::ptr::with_exposed_provenance::<AtomicU64>(dtv.wrapping_sub(8))).load(Relaxed) }
+    };
+    usize::try_from(words).unwrap_or(0)
+}
+
+/// Give the calling thread (at `tp`, its vector `old` of `old_words` words) a vector with slots
+/// for module `need` and the `n` modules loaded now, at least twice as many (DL-PROCESS-OBJECTS
+/// part 3): a mapping of its own, `[old, words, vector...]`, named by the thread block from now on.
+/// `old` stays mapped: a `dlopen`'s walk may still write it; the vectors a thread grew are unmapped
+/// when it ends ([`thread_tls_release`]). No mapping: the process cannot go on (as a module
+/// the table does not hold).
+#[cold]
+#[inline(never)]
+fn grow_dtv(tp: usize, old: usize, old_words: usize, need: u64, n: usize) -> &'static [AtomicU64] {
+    let fail = || -> ! { refuse(b"ld.so: __tls_get_addr: cannot allocate a larger TLS vector\n") };
+    let header = usize::try_from(ltls::DTV_HEADER).unwrap_or(0);
+    let need = usize::try_from(need).unwrap_or(usize::MAX).max(n);
+    let mut slots = old_words.saturating_sub(header).max(1).saturating_mul(2);
+    while slots < need {
+        slots = slots.saturating_mul(2);
+    }
+    let words = slots.checked_add(header).unwrap_or_else(|| fail());
+    let Some(bytes) = words.checked_add(2).and_then(|w| w.checked_mul(8)) else { fail() };
+    let prot = i32::try_from(niji_kernel::uapi::PROT_READ | niji_kernel::uapi::PROT_WRITE).unwrap_or(0);
+    let flags = i32::try_from(niji_kernel::uapi::MAP_PRIVATE | niji_kernel::uapi::MAP_ANONYMOUS).unwrap_or(0);
+    let Ok(map) = raw::mmap(0, bytes, prot, flags, -1, 0) else { fail() };
+    let head = dtv_words(map, 2);
+    if let [prev, room] = head {
+        prev.store(u64::try_from(old).unwrap_or(0), Relaxed);
+        room.store(u64::try_from(words).unwrap_or(0), Relaxed);
+    }
+    let dtv = map.wrapping_add(16);
+    crate::tb::listed(tp).dtv.store(dtv, Release);
+    dtv_words(dtv, words)
+}
+
+/// A no-op step of the C library's thread walk: [`release_grown`] calls the walk only for its lock.
+extern "C" fn tls_noop(_ctx: usize, _tp: usize) -> usize {
+    0
+}
+
+/// The vectors the thread at `tp` grew (the newest `at`), unmapped as it ends: its block names its
+/// vector in place again, then an empty walk waits out any walk that read a grown vector's address
+/// before (a walk holds the thread-list lock throughout), so nothing writes them any more.
+#[cold]
+#[inline(never)]
+fn release_grown(tp: usize, at: usize) {
+    let mut v = at;
+    let mut home = at;
+    while v != 0 && !in_place(tp, v) {
+        home = dtv_words(v.wrapping_sub(16), 1).first().map_or(0, |w| usize::try_from(w.load(Relaxed)).unwrap_or(0));
+        v = home;
+    }
+    crate::tb::listed(tp).dtv.store(home, Release);
+    let walk = WALK.load(Acquire);
+    if walk != 0 {
+        #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+        let noop = (tls_noop as *const ()).expose_provenance();
+        let _ = crate::ffi::niji_machine_call3(walk, i64::from_ne_bytes(noop.to_ne_bytes()), 0, 0);
+    }
+    let mut v = at;
+    while v != 0 && v != home {
+        let map = v.wrapping_sub(16);
+        let [prev, room] = [0usize, 1].map(|i| dtv_words(map, 2).get(i).map_or(0, |w| usize::try_from(w.load(Relaxed)).unwrap_or(0)));
+        let _ = raw::munmap(map, room.saturating_add(2).saturating_mul(8));
+        v = prev;
+    }
 }
 
 /// The TLS generation now (DL-17: `ltls::ModuleIds::release` makes the next).
@@ -320,6 +493,7 @@ pub(super) fn initial_place(image: u64) -> Option<Placed> {
 /// its thread-list lock. Called by `dlopen` (loader lock held) after relocation, before publication.
 pub(super) fn publish_tls(walk: usize, new: &mut NewTls) {
     new.generation = GENERATION.load(Relaxed).wrapping_add(1);
+    WALK.store(walk, Release);
     #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
     let visit = (tls_visit as *const ()).expose_provenance();
     let ctx = core::ptr::from_ref::<NewTls>(new).expose_provenance();
@@ -350,7 +524,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
                 n = n.max(usize::try_from(m[3]).unwrap_or(0));
             }
         }
-        THREAD_MODS_LEN.store(n.min(ltls::MODULES_MAX), Release);
+        THREAD_MODS_LEN.store(n, Release);
         GENERATION.store(new.generation, Release);
         return 0;
     }
@@ -362,7 +536,10 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
     if b.flags.load(Relaxed) & FLAG_OWN == 0 {
         return 0;
     }
-    let dtv = dtv_words(b.dtv.load(Relaxed), usize::try_from(THREAD_DTV_WORDS.load(Relaxed)).unwrap_or(0));
+    // The thread's own vector, in place or grown (DL-PROCESS-OBJECTS part 3): a slot it lacks is
+    // skipped, and the thread grows its vector at its first access to that module.
+    let at = b.dtv.load(Acquire);
+    let dtv = dtv_words(at, dtv_room(tp, at));
     let mut count = None;
     for &[src, filesz, memsz, module, off] in mods {
         let block = u64::try_from(tp).unwrap_or(0).wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()));
@@ -371,7 +548,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
         }
         if let Some(w) = dtv_slot(module).and_then(|i| dtv.get(i)) {
             w.store(block, Relaxed);
-            count = Some(module);
+            count = Some(count.map_or(module, |c: u64| c.max(module)));
         }
     }
     if let (Some(c), [g, n, ..]) = (count, dtv) {
@@ -404,7 +581,12 @@ pub(super) extern "C" fn thread_tls_init(tp: usize) -> usize {
 /// `StartInfo::tls_release` (DL-15, design §7): the thread at `tp` is ending. Its static blocks and
 /// dtv lie in the C library's mapping and go with it, so nothing is left to release; the hook is the
 /// place for the loader's per-thread state that does not (dynamic blocks, DL-19).
-pub(super) extern "C" fn thread_tls_release(_tp: usize) -> usize {
+pub(super) extern "C" fn thread_tls_release(tp: usize) -> usize {
+    // The vectors the thread grew (DL-PROCESS-OBJECTS part 3) are the loader's.
+    let at = crate::tb::listed(tp).dtv.load(Relaxed);
+    if at != 0 && !in_place(tp, at) {
+        release_grown(tp, at);
+    }
     0
 }
 
@@ -451,9 +633,24 @@ pub extern "C" fn __tls_get_addr(ti: usize) -> usize {
 #[cold]
 #[inline(never)]
 fn tls_slow(dtv: &[AtomicU64], module: u64, offset: u64) -> usize {
+    // A grown vector (DL-PROCESS-OBJECTS part 3) has more words than the fast path reads: a current
+    // one answers here, else it is the vector to fill.
+    let me = crate::tb::tp();
+    let at = crate::tb::read::<crate::tb::Dtv>();
+    let mut dtv = dtv;
+    if !in_place(me, at) {
+        dtv = dtv_words(at, dtv_room(me, at));
+        let word = |i: u64| -> u64 { usize::try_from(i).ok().and_then(|i| dtv.get(i)).map_or(0, |w| w.load(Relaxed)) };
+        if let Some(a) = ltls::lookup::<Native>(word, GENERATION.load(Relaxed), module, offset).and_then(|a| usize::try_from(a).ok()) {
+            return a;
+        }
+    }
     let generation = GENERATION.load(Acquire);
     let n = THREAD_MODS_LEN.load(Acquire);
-    let tp = u64::try_from(crate::tb::tp()).unwrap_or(0);
+    if dtv_slot(module).is_some_and(|s| s >= dtv.len()) && usize::try_from(module).is_ok_and(|m| m <= n) {
+        dtv = grow_dtv(me, at, dtv.len(), module, n);
+    }
+    let tp = u64::try_from(me).unwrap_or(0);
     let mut found = None;
     let mut count = 0u64;
     // A released ID's entry (module word 0, DL-17) is skipped.
