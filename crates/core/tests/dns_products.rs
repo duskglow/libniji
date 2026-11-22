@@ -161,103 +161,16 @@ fn check(want: &str, got: &str, known: &[Entry], added: &[Entry], dropped: &[Ent
     }
 }
 
-/// Runs `args` (a command and its arguments, with only `PATH` in its environment) through
-/// `oracle/contain.sh`: in its own PID namespace, so that when the command ends, times out or this
-/// test process dies, every process it started ends too, including the root ones under `sudo` that
-/// the user cannot signal (a hung or killed run used to leave them behind for days). Output goes
-/// to files and only the child is waited for: a process holding a pipe open cannot keep the test
-/// waiting. The namespace lives while `alive`, the write end of its standard input, is open; only
-/// this process holds it (close-on-exec), so its end, by exit or by kill, ends the namespace.
+/// Runs `args` (a command and its arguments, with only `PATH` in its environment) contained
+/// (`oracle::contain`, `support/contain.rs`): in its own PID namespace, so that when the command
+/// ends, times out or this test process dies, every process it started ends too, including the
+/// root ones under `sudo` that the user cannot signal (a hung or killed run used to leave them
+/// behind for days; `harness_containment.rs` kills a run to check). Output goes to files and only
+/// the child is waited for: a process holding a pipe open cannot keep the test waiting.
 fn contained(args: &[OsString], out: &Path, err: &Path) -> ExitStatus {
-    let mut child = Command::new("sh")
-        .arg(root().join("crates/core/tests/oracle/contain.sh"))
-        .args(args)
-        .env_clear()
-        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::fs::File::create(out).unwrap())
-        .stderr(std::fs::File::create(err).unwrap())
-        .spawn()
-        .unwrap();
-    // Taken, so that `wait` does not close it first.
-    let alive = child.stdin.take();
-    let status = child.wait().unwrap();
-    drop(alive);
-    status
-}
-
-/// The processes whose command line has `token` as an argument: (pid, uid, argv).
-fn carrying(token: &str) -> Vec<(u32, u32, Vec<String>)> {
-    let mut found = Vec::new();
-    for e in std::fs::read_dir("/proc").unwrap().flatten() {
-        let Some(pid) = e.file_name().to_str().and_then(|n| n.parse::<u32>().ok()) else { continue };
-        let Ok(raw) = std::fs::read(e.path().join("cmdline")) else { continue };
-        let argv: Vec<String> = raw.split(|&b| b == 0).filter(|a| !a.is_empty()).map(|a| String::from_utf8_lossy(a).into_owned()).collect();
-        if !argv.iter().any(|a| a == token) {
-            continue;
-        }
-        let status = std::fs::read_to_string(e.path().join("status")).unwrap_or_default();
-        let uid = status.lines().find_map(|l| l.strip_prefix("Uid:")).and_then(|v| v.split_whitespace().next()).and_then(|v| v.parse().ok()).unwrap_or(u32::MAX);
-        found.push((pid, uid, argv));
-    }
-    found
-}
-
-/// Waits (a hang guard scaled by the load, `support/timeout.rs`) until `done` holds; false if it never did.
-fn wait_until(mut done: impl FnMut() -> bool) -> bool {
-    let end = timeout::deadline(std::time::Duration::from_secs(10));
-    while !done() {
-        if std::time::Instant::now() > end {
-            return false;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
-    true
-}
-
-/// Set (to the token) in the child that `a_killed_run_leaves_no_process` runs and kills: there
-/// the test is the helper, an oracle-like run (a user process and a
-/// root one under `sudo -n unshare -m -n`, both carrying the token; each ends by itself after
-/// 300 s so that a run that does leave them behind cleans up after itself), waited for until this
-/// process is killed.
-const HELPER: &str = "NIJI_CONTAIN_HELPER";
-
-#[test]
-fn a_killed_run_leaves_no_process() {
-    // Trace: no spec clause (test harness: an oracle run whose test process is killed mid-run
-    // leaves no process behind, root ones included; GAI-MASS-LOSS).
-    let looped = "i=0; while [ $i -lt 300 ]; do sleep 1; i=$((i + 1)); done";
-    if let Ok(token) = std::env::var(HELPER) {
-        let dir = root().join("target/test-oracles");
-        std::fs::create_dir_all(&dir).unwrap();
-        let body = format!("sudo -n unshare -m -n sh -c ': root; {looped}' sh \"$1\" & {looped}");
-        let args: Vec<OsString> = ["sh", "-c", &body, "sh", &token].iter().map(OsString::from).collect();
-        contained(&args, &dir.join(format!("{token}.out")), &dir.join(format!("{token}.err")));
-        return;
-    }
-    if !Command::new("sudo").args(["-n", "true"]).status().is_ok_and(|s| s.success()) {
-        skip_note::skipped("skipped: no passwordless sudo (the oracle runs it contains need it)");
-        return;
-    }
-    let token = format!("niji-contain-{}", std::process::id());
-    // reexec-guard: allow(the child is killed mid-run, so it never prints its summary; that it ran the test is
-    // shown by `started`: its root process appears only from this test's helper side)
-    let mut helper = Command::new(std::env::current_exe().unwrap())
-        .args(["a_killed_run_leaves_no_process", "--exact", "--include-ignored", "--test-threads=1"])
-        .env_clear()
-        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-        .env(HELPER, &token)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .spawn()
-        .unwrap();
-    let root_loop = |p: &(u32, u32, Vec<String>)| p.1 == 0 && p.2.get(2).is_some_and(|a| a.starts_with(": root;"));
-    let started = wait_until(|| carrying(&token).iter().any(root_loop));
-    helper.kill().unwrap();
-    helper.wait().unwrap();
-    assert!(started, "the contained run never started its root process: {:?}", carrying(&token));
-    let gone = wait_until(|| carrying(&token).is_empty());
-    assert!(gone, "processes of a killed run remain (they end by themselves within 300 s): {:#?}", carrying(&token));
+    let mut cmd = Command::new(&args[0]);
+    cmd.args(&args[1..]).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
+    oracle::contain::status(&cmd, std::fs::File::create(out).unwrap().into(), std::fs::File::create(err).unwrap().into()).unwrap()
 }
 
 /// Runs of both probes when they disagree: the probes print what their own DNS servers logged

@@ -13,6 +13,8 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -315,9 +317,10 @@ fn trusted_bind_target(part: &str) -> Option<&'static str> {
 }
 
 /// Run `script` as `sh -c` in a new user and mount namespace with `$1` = the corpus's bin/,
-/// `$2` = `t`, then `args`; its stdout.
+/// `$2` = `t`, then `args`; its stdout. Contained (support/contain.rs): nothing it starts outlives
+/// the test.
 fn in_namespace(script: &str, bin: &Path, t: &str, args: &[&str]) -> String {
-    let mut cmd = Command::new("unshare");
+    let mut cmd = contain::user("unshare");
     cmd.env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").args(["-r", "-m", "sh", "-c", script, "sh"]).arg(bin).arg(t).args(args);
     secure_run(&mut cmd)
 }

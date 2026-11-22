@@ -11,6 +11,8 @@
 use std::path::{Path, PathBuf};
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 use scratch::Scratch;
 use std::process::Command;
 
@@ -592,7 +594,8 @@ fn ldso_program_without_slash() {
     // `trace` exports `LD_TRACE_LOADED_OBJECTS=1` just before the loader starts (not to `unshare`
     // or `sh`, which would list themselves).
     let in_ns_with = |trace: bool, args: &[&str]| {
-        let o = Command::new("unshare")
+        // Contained (support/contain.rs).
+        let o = contain::user("unshare")
             .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && t=$3 && shift 3 && if [ \"$t\" = 1 ]; then export LD_TRACE_LOADED_OBJECTS=1; fi && exec \"$@\"", "sh"])
             .arg(d.join("ld.so.cache"))
             .arg(&system_cache)

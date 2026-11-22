@@ -101,6 +101,7 @@ fn noproc_equals_the_reference() {
         return;
     }
     let ns = ["-r", "-m", "--propagation", "private"];
+    // contain: probe(one mount, then exits)
     if !Command::new("unshare").args(ns).args(["sh", "-c", "mount -t tmpfs none /proc"]).output().is_ok_and(|o| o.status.success()) {
         skip_note::skipped("skipped: no user and mount namespaces here");
         return;
@@ -116,7 +117,8 @@ fn noproc_equals_the_reference() {
     std::fs::create_dir_all(&work).unwrap();
     let run = |exe: &Path, hidden: bool| -> String {
         let mut cmd = if hidden {
-            let mut c = Command::new("unshare");
+            // Contained (support/contain.rs).
+            let mut c = oracle::contain::user("unshare");
             c.args(ns).args(["sh", "-c", "mount -t tmpfs none /proc && mount -t tmpfs none /sys && exec \"$0\""]).arg(exe);
             c
         } else {

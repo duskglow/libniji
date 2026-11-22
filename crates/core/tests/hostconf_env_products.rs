@@ -36,7 +36,8 @@ fn build(out: &Path, niji: bool) -> bool {
 /// The program's output with `RESOLV_HOST_CONF` set to `conf` (`None`: not set).
 fn run(exe: &Path, dir: &Path, conf: Option<&str>) -> String {
     let script = r#"mount --bind "$1/hosts" /etc/hosts && mount --bind "$1/nsswitch.conf" /etc/nsswitch.conf && shift && exec "$@""#;
-    let mut cmd = Command::new("timeout");
+    // Contained (support/contain.rs).
+    let mut cmd = oracle::contain::user("timeout");
     cmd.arg(timeout::secs(60)).args(["unshare", "-r", "-m", "sh", "-c", script, "sh"]).arg(dir).arg(exe).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
     if let Some(c) = conf {
         cmd.env("RESOLV_HOST_CONF", c);

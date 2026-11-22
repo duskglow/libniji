@@ -54,7 +54,8 @@ const DIR: &str = "/usr/share/i18n/charmaps";
 /// Run `exe args` on the host (`charmaps` none) or with the directory `charmaps` mounted over [`DIR`].
 fn run(exe: &Path, args: &[String], charmaps: Option<&Path>) -> String {
     let o = if let Some(charmaps) = charmaps {
-        Command::new("unshare")
+        // Contained (support/contain.rs).
+        oracle::contain::user("unshare")
             .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
             .arg(charmaps)
             .arg(DIR)

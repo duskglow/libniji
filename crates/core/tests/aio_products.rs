@@ -202,7 +202,8 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         if let Some(e) = refuse {
             cmd.arg(&noring).arg(e);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(&*scratch).env_clear().env("PATH", "/usr/bin:/bin").output().unwrap();
+        // The run's root processes (sudo) are contained (support/contain.rs).
+        let o = oracle::contain::output(cmd.arg("sh").arg(&script).arg(exe).arg(&*scratch).env_clear().env("PATH", "/usr/bin:/bin")).unwrap();
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
