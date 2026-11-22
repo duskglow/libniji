@@ -1,0 +1,19 @@
+{"task": "HEAP-SPILL-COLD-3", "model": "opus", "tokens": null,
+ "result": "Merged origin/next (one pair of NUMA helpers, ruling #7492); the node-change products test now reaches a second node in any job slot (nodes from the machine, not the mask); no-check-products CAUGHT in a one-node slot (cpus 0-5) and a two-node slot",
+ "branch": "task/heap-spill-cold-3", "head": "5a853a4a9",
+ "gate": {"affected": "16 suites ok, 2071 passed / 0 failed, conformance 9 passed", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "several_nodes_read_the_node_from_rseq (heap_meta_products) has the same slot dependence: oracle/rseq_node.c skips in a slot inside one node; the same fix would apply (short follow-up recommended)",
+   "Rulings #7493 (spill prototype) and #7494 (smaller first mapping of a non-first node's segment under a limit) remain owed as one follow-up, not done here per the brief"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "the_heap_bounds_address_space_after_a_node_change runs in every job slot on a two-node machine (before: skipped in a slot inside one node); plants caught 5/5 in two runs, one in a one-node slot", "before": 0, "after": 1, "unit": "one-node slots covered (plants runs catching no-check-products in cpus 0-5)", "measured": true},
+   {"kind": "unblock", "what": "HEAP-SPILL-COLD-2's migration change (D-3.23) is landable: its verify red (plants2 SURVIVED) fixed at the cause; merge owed by ruling #7492 done", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "Tests that need a second NUMA node should take nodes from the machine, not the affinity mask: job slots are taskset masks, often inside one node, so mask-derived tests silently skip in most slots",
+ "next_step": "Coordinator: land; then brief the #7493/#7494 follow-up and the rseq-node test's slot fix",
+ "report_file": "handoff/HEAP-SPILL-COLD-3.md",
+ "jobs": ["mei:heap-spill-cold-3-gate", "mei:heap-spill-cold-3-plants1", "mei:heap-spill-cold-3-plants2", "mei:heap-spill-cold-3-startup", "mei:heap-spill-cold-3-lint"]}
