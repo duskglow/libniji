@@ -7,5 +7,5 @@ verdef-revision | crates/ld/src/elf.rs | perl:s/(fn check_verdefs.*?)!= VER_CURR
 verneed-max | crates/ld/src/elf.rs | lit:max = max.max(h(e, 6) & !VERSYM_HIDDEN); ==> max = max.max(h(e, 6) & 1); | cargo test -p niji-ld --test elf_tables | msg:panicked|FAILED
 hashed-name-unchecked | crates/ld/src/elf.rs | lit:.is_ok_and(|s| s == name) ==> .is_ok() | cargo test -p niji-ld --test reloc | msg:reloc_version_check_hashes_never_change_the_answer
 hashed-revision-unchecked | crates/ld/src/elf.rs | perl:s/(fn has_hashed.*?)!= VER_CURRENT/$1== 0/s | cargo test -p niji-ld --test reloc | msg:reloc_version_check_hashes_never_change_the_answer
-image-table-address | crates/ld/src/elf.rs | lit:*slot = val; ==> *slot = 0; | cargo test -p niji-ld --test reloc | msg:panicked|FAILED
+image-table-address | crates/ld/src/elf.rs | lit:*slot = val; ==> *slot = 0; | cargo test -p niji-ld --test elf_tables --test reloc | msg:image_span_kind_finds_each_table
 view-style-swapped | crates/ld/src/symbols.rs | lit:if h.gnu?.is_some() { HashStyle::Gnu } else { HashStyle::Sysv } ==> if h.gnu?.is_some() { HashStyle::Sysv } else { HashStyle::Gnu } | cargo test -p niji-ld --test symbols --test reloc | msg:panicked|FAILED

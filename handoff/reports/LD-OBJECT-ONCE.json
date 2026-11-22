@@ -16,7 +16,8 @@
   "check_versions' own count not isolated (inlined into link in release): LD-VERSIONS-ONCE's <= 5k / <= 10k NOT VERIFIED",
   "Skylake-SP counts and Intel PT not run this run",
   "xtask ldso-trace compares raw trace names; a crate-local start-up function ThinLTO emits with a .llvm.<hash> suffix makes the coexist-prefix trace differ (hottext keys already strip the suffix); here the four new functions are pub (external names); the comparison could strip the suffix instead",
-  "rule slip: sed -i used twice (the D-27.85 record's tests list, a scratch job script) instead of the Edit tool; both edits checked"
+  "rule slip: sed -i used twice (the D-27.85 record's tests list, a scratch job script) instead of the Edit tool; both edits checked",
+  "plants5: image-table-address SURVIVED because its plants line ran only --test reloc; the catching test image_span_kind_finds_each_table is in elf_tables. Plants line fixed; plants6 reruns that one plant with both suites (pending at hand-back)"
  ],
  "refused": [
   "local: for p in $(ps -eo pid,cmd | awk '$2==\"python3\" && $3==\"-\" {print $1}'); do kill $p; echo killed $p; done (a stray python3 - of mine; the harness stopped it at its time limit)"
@@ -77,6 +78,7 @@
  "jobs": [
   "keke:ld-object-once-gate5",
   "keke:ld-object-once-plants5",
+  "keke:ld-object-once-plants6",
   "keke:ld-object-once-startup3",
   "keke:ld-object-once-levels",
   "keke:ld-object-once-base-count"

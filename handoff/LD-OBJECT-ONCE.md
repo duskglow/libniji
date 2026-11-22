@@ -41,7 +41,10 @@ Counts: ld-object-once-base-count (next), ld-object-once-head1-count (view chang
 change tests, bounds, the record and this note only).
 Final code head c6f3f05a5: clippy (workspace, all targets, all features) clean; ld-object-once-gate5 (direct
 tier), ld-object-once-plants5, ld-object-once-startup3 (`cargo xtask test`, release products, release
-hot_text_products; starts when gate5 ends). `Tags::scan`, `Dynamic::tags`, `Dynamic::hashes` and `Object::build`
+hot_text_products; started when gate5 ended), ld-object-once-plants6 (image-table-address alone, with
+elf_tables: plants5 ran that plant with --test reloc only and it SURVIVED there; the plants line is fixed).
+gate5: direct tier, 13 suites, 1,017 passed / 0 failed, peak 2.4G. At hand-back startup3, plants5 and plants6
+were still running. `Tags::scan`, `Dynamic::tags`, `Dynamic::hashes` and `Object::build`
 are `pub` (with `Tags`, `Hashes`): as crate-local functions ThinLTO emitted them with `.llvm.<hash>` suffixes that
 differ between the products build and the coexist-prefix build, and hot_text_products
 `init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace` compares the two traces'
