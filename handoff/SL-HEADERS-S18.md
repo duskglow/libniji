@@ -1,70 +1,64 @@
 # SL-HEADERS-S18 handoff: slice 18, fortify (`_FORTIFY_SOURCE` 1..3)
 
-**State:** branch task/sl-headers-s18 (from origin/next f15d8264f), role keke:~/w/n1. Leg 1 of run 1 (generate) done up to
-the tables; no generator code or template change yet.
+**State:** branch task/sl-headers-s18 (from origin/next f15d8264f), role keke:~/w/n1. Run 1, leg 2: the generator
+code, templates and generated headers are committed (36acf5afe); proof jobs named in the report.
 
 **Rulings in force**
 * #7599 (coordinator, 11-22): slice 18 owns the 171 fortify rows of P3 (85 names) and every `*_chk` export reached.
-  The 55 other -O2 rows (27 names; list below) are NOT slice 18's: hand-back lists them with their reference targets;
-  they become HEADERS-O2-INLINES. Adding `*_chk` prototype rows by probe is fine (table data).
-* Slice contract (plan/headers.md 4.1): no edit of `xtask/src/headers.rs`, `xtask/src/headers/*.rs` outside `slices/`,
-  `spec/tools/header_check.py`. Slice files: `xtask/src/headers/slices/s18.rs` (marker), `headers/slices/s18.tsv`
-  only if a new template, `spec/tools/header_checks/s18.py` (own units), template lines `@@fortify`.
+  The 55 other -O2 rows (27 names, below) are HEADERS-O2-INLINES. `*_chk` prototype rows by probe are table data.
+* Slice contract (plan/headers.md 4.1): slice files only (`xtask/src/headers/slices/s18.rs`, `headers/fortify.tsv`,
+  template `@@fortify` lines). No edit of headers.rs, headers/*.rs outside slices/, header_check.py.
 
-**Done (commits on the branch)**
-* `spec/tools/abi_extract.py --prototypes-fortify` -> `spec/abi/chk-prototypes.tsv` (71 rows; run on keke, the
-  reference system, job sl-headers-s18-chkprotos). A table of its own, not prototypes.tsv, so noexcept.tsv /
-  callsites.tsv / the rows test keyed on prototypes.tsv keep their contents (ruling allowed prototypes.tsv; this is
-  the narrower choice: say so in the hand-back). The 10 str/mem builtins and `__longjmp_chk` get no row (GCC
-  builtins; longjmp is a redirect).
-* `headers/fortify.tsv`: libniji's wrapper design per name (form builtin/chk/va/redirect/macro, `_chk` args with
-  $N/$SN/$EN/$F/$V tokens, `safe` condition, object-size type). Header comment documents the tokens. Units
-  checked against libniji's own `_chk` implementations (crates/boundary/src/posix/s04,s06,s11,s12,s17: destlen in
-  wchar_t units for wide string/mem fns, bytes for poll/ppoll/wcrtomb/wcs*tombs; getgroups listlen: confirm bytes
-  in `conv::groups_chk`).
+**Done**
+* `spec/abi/chk-prototypes.tsv` (71 rows, abi_extract `--prototypes-fortify`) and `headers/fortify.tsv` (leg 1).
+* `xtask/src/headers/slices/s18.rs`: marker `@@fortify` (after `@@emit`; in stdio.h at the end, after `stdout`).
+  Per function `@@emit` declared here and fortify.tsv lists: `#if (<its condition>)[ && __NIJI_GNU] &&
+  __NIJI_FORTIFY >= L` (L and the GNU-only case from the callsites.tsv `_chk` rows; their configs are the call
+  probes' own ids fortifyL[+gnu|+gnu64], not ftm-configs ids); `_chk` declaration from chk-prototypes.tsv;
+  gnu_inline always_inline wrapper; plain call through `__niji_plain_<name>` asm alias (a self-call in the inline
+  body compiled to an endless loop at -O2: own probe); pread picks `__pread64_chk`/pread64 under `__NIJI_FOB64`;
+  longjmp/_longjmp/siglongjmp redirect to `__longjmp_chk`. `__NIJI_BOS` = dynamic object size at level 3.
+  FD_* (sys/select.h) already call `__fdelt_chk` at every level: no marker there.
+* Templates with `@@fortify`: string, strings, stdio, wchar, unistd, stdlib, sys/socket, poll, syslog, setjmp.
+* Checks (keke): all 13 headers compile alone at levels 1-3 x C/C++ x plain/GNU/GNU+FOB64 with -Werror (job
+  sl-headers-s18-p3c, 0 failed). P3 (`~/work/sl-headers-s18/p3.sh p3c`): 226 -> 58 lines; fortify lines 171 -> 1.
+  The one left: `pread64 call __pread64_chk [!fortify1,fortify2,fortify3]` missing. Cause: the call probe's first
+  form spells `__off64_t`, which libniji's unistd.h does not declare, so it falls back to constant `0` arguments; a
+  constant size 0 provably fits, and the wrapper takes the plain call. A non-constant size reaches `__pread64_chk`
+  (own probe `~/work/sl-headers-s18/pr.sh`). Probe-input artefact: INFORMATIONAL, not a header defect.
+* Test `headers::slices::s18::tests::a_deliberate_overflow_aborts_and_an_exact_fit_runs` (read, memcpy, level-3
+  heap memset: 8 into 8 runs, 9 aborts with SIGABRT) green; plants file `handoff/SL-HEADERS-S18-plants.txt`.
+* Devuan excalibur dpkg-buildflags (job sl-headers-s18-buildflags4; the fix: the keyring is staged in a 0755
+  mktemp dir, as tools/deb/proof.sh does; the namespace root cannot enter the 0750 home): vendor Devuan, dpkg
+  1.22.22, CPPFLAGS `-Wdate-time -D_FORTIFY_SOURCE=2`, CFLAGS `-g -O2 -Werror=implicit-function-declaration
+  -ffile-prefix-map=/=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security
+  -fcf-protection`; hardening fortify=yes. (Ubuntu 24.04 on the build host gives level 3: not Devuan's.)
 
-**Exact next step: write `xtask/src/headers/slices/s18.rs`**, marker `@@fortify` (no args: the header's own rows):
-1. Rows of fortify.tsv whose name the header declares (callsites.tsv `header` column == g.header; also aliases:
-   sys/poll.h vs poll.h, sys/syslog.h vs syslog.h: the callsites header is sys/poll.h, sys/syslog.h).
-2. Levels and symbol from callsites.tsv call/macro rows with `_chk` in symbol: config ids `fortifyN[+gnu|+gnu64]`
-   -> set of N (expect contiguous to 3: `#if __NIJI_FORTIFY >= Lmin`); pread: `__pread64_chk` under
-   `__NIJI_FOB64`, else `__pread_chk`. vprintf -> `__vfprintf_chk` (+stdout).
-3. Once per header, guarded `#ifndef __NIJI_FORTIFY_DEFS`: `__NIJI_FORTIFY_FN` = `extern __inline __attribute__
-   ((__always_inline__, __gnu_inline__, __artificial__))`; `__NIJI_BOS(p, t)` = level 3
-   `__builtin_dynamic_object_size (p, t)` else `__builtin_object_size (p, t)`; `__NIJI_FORTIFY_FLAG` =
-   `(__NIJI_FORTIFY > 1)`. $SN = `__NIJI_BOS ($N, T)` with T = 0 at level 1, `ost` at levels 2+; $EN = $SN /
-   sizeof (*$N).
-4. `_chk` declaration: from chk-prototypes.tsv, resolved like `Gen::declaration` (resolve(), typedef(); helpers
-   are visible to the slice module as a descendant of `headers`). `__NIJI_NOTHROW` iff the wrapped name has it.
-5. Wrapper: params named `__p0..` from `g.declaration(name)` (split on top-level commas); same exception spec as
-   the declaration (C++ redeclaration). chk form: `if (S == (size_t) -1 || (__builtin_constant_p (safe) && (safe)))
-   return name (params); return __x_chk (args);` va form uses `__builtin_va_arg_pack ()`; builtin form returns
-   the builtin. Under `#if __NIJI_FORTIFY >= L` after the declarations (marker line placed after `@@emit`).
-   redirect: `extern void longjmp (...) __asm__ ("__longjmp_chk")` under fortify (declaration order: check the
-   function emitter's guard `__NIJI_D_<name>`; the redirect may need to be a second declaration with asm label
-   before first use: GCC rejects an asm label after use; put it in place of the plain one if needed).
-   macro: sys/select.h FD_* index through `__fdelt_chk (d)` under fortify (template edit in sys/select.h.in).
-6. Template lines: `@@fortify` in string.h, strings.h, stdio.h, wchar.h, unistd.h, stdlib.h, sys/socket.h,
-   sys/poll.h, sys/syslog.h, setjmp.h, sys/select.h templates; `cargo xtask headers-gen`.
-7. P3: `~/work/sl-headers-s18/p3.sh <dir>` on keke (callsite_probe --include libc-include on those headers +
-   probe_compare): fortify lines must be 0 (`python3 cat.py` in scratch splits fortify vs other; baseline
-   `base`: 171 fortify / 55 other). Then P1/P5 (`header_check.py --include libc-include`), headers-gen --check,
-   deliberate-overflow test (abort through `__chk_fail`, P10-style test in s18.rs or header_checks/s18.py),
-   plants (docs/plants.md: one wrapper removed; one size argument off by one), P7 with dpkg-buildflags flags.
+* 48d3c9b53: the plain alias is spelled from the prototype (`__typeof__ (getwd)` warned: getwd is deprecated, and
+  header_check P1/P5 failed under -Werror, seen as the s12 test red in job sl-headers-s18-xtask). After the fix
+  (job sl-headers-s18-fix2, keke): header_check.py 0 failed of 13677, s18 test, clippy -D warnings, static green.
 
-**dpkg-buildflags (brief: record Debian's default level):** keke (Ubuntu 24.04) gives `-D_FORTIFY_SOURCE=3`
-(CPPFLAGS) and `-O2 ... -fstack-protector-strong`; that is Ubuntu's, not Devuan's. The excalibur chroot
-(`~/work/sl-headers-s18/buildflags.sh`, mmdebstrap --mode=unshare from the LAN mirror) failed 3 times with the same
-"InRelease is not signed / NO_PUBKEY B3982868D104092C" (keyrings tried: ~/keyrings/devuan-archive-keyring.gpg, the
-.asc, a dearmored copy of the .asc). Next: read how tools/deb/lint.sh/proof.sh stage KEYRING (`$stage/keyring.gpg`)
-and the mirror path (MIRRORS.md: maybe `.../devuan/merged`); do not retry blind.
+**SUPERSEDED jobs:** sl-headers-s18-xtask (36acf5afe: s12 test red, getwd, fixed), sl-headers-s18-plants (36acf5afe,
+killed when the fix landed), sl-headers-s18-xtask2 / -plants2 (started after a sync that returned BUSY, so on an
+unsynced tree: killed). `cargo xtask affected --list` says `FULL: the train's (headers/*.in, fortify.tsv: generated
+table inputs)`: the direct gate is `cargo test -p xtask` (kind test) + precheck.
 
-**Non-fortify -O2 rows (HEADERS-O2-INLINES, 55 lines, 27 names)** from baseline compare (keke
-~/work/sl-headers-s18/base/compare.txt): stdio.h feof_unlocked ferror_unlocked fgetc_unlocked fputc_unlocked
-getc_unlocked getchar getchar_unlocked getline putc_unlocked putchar putchar_unlocked; stdlib.h abs atof atoi atol
-atoll bsearch div; string.h basename memrchr rawmemchr strcasestr strchrnul; strings.h index rindex; wchar.h mbrlen.
-Reference targets: callsites.tsv call rows of those names (e.g. getc_unlocked -> __uflow, getchar -> getc,stdin,
-getline -> __getdelim (gnu), atoi -> strtol, atof -> strtod, bsearch -> -).
+**INFORMATIONAL:** sync_role BUSY at 13:5x: a shell of DL-PROCESS-OBJECTS-3 (`cd ~/work/DL-PROCESS-OBJECTS-3; diff ...
+~/w/n1/target/product/fast/layout-bins.tsv ...; jobwait dl-process-objects-3-startup`) reads this story's role dir.
 
-**Jobs so far (keke):** sl-headers-s18-p3base (baseline P3), sl-headers-s18-chkprotos (table), buildflags 1-3
-(failed, see above). None prove the final head.
+**Not done / exact next step (leg 3)**
+1. `sync_role.sh --story SL-HEADERS-S18 --base origin/next <wt> keke n1` (rc 0 required; if BUSY, wait for that
+   job), then start detached `sl-headers-s18-xtask3` (test: `~/bin/gate 16G sh -c "cd ~/w/n1 && cargo test -p
+   xtask"`) and `sl-headers-s18-plants3` (`cargo xtask plants handoff/SL-HEADERS-S18-plants.txt --dir
+   /dev/shm/claude/sl-headers-s18/plants-3 --timeout 600`; keke has no /mnt/zram); jobwait both; then
+   `cargo xtask precheck --jobs sl-headers-s18-xtask3,sl-headers-s18-plants3 --head <sha>`; write
+   handoff/reports/SL-HEADERS-S18.json (+ "jobs"), push, `ops handback-check`. Hand back INCOMPLETE (generate done;
+   P7 open) per the brief's two-run plan, or COMPLETE if P7 is run.
+2. P7 (plan/headers.md: the smoke package corpus against libniji's headers) with the Devuan flags above: not run.
+3. P1/P5 `header_check.py --include libc-include` on the final head (not run separately this leg).
+4. HEADERS-O2-INLINES (not slice 18's): stdio.h feof_unlocked ferror_unlocked fgetc_unlocked fputc_unlocked
+   getc_unlocked getchar getchar_unlocked getline putc_unlocked putchar putchar_unlocked; stdlib.h abs atof atoi atol
+   atoll bsearch div; string.h basename memrchr rawmemchr strcasestr strchrnul; strings.h index rindex; wchar.h
+   mbrlen. Reference targets: their callsites.tsv call rows.
+
+Full report: handoff/SL-HEADERS-S18-report.md is not written; this page and handoff/reports/SL-HEADERS-S18.json are it.
