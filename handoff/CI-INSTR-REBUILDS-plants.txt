@@ -1,0 +1,11 @@
+# CI-INSTR-REBUILDS plants: the build tag's file set (xtask/src/so.rs, D-27.78). Run with
+# cargo xtask plants handoff/CI-INSTR-REBUILDS-plants.txt --dir <new RAM dir>
+tests-hashed | xtask/src/so.rs | perl:s/\Q&["tests", "benches", "examples"]\E/&["benches", "examples"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is no product input
+dev-deps-followed | xtask/src/so.rs | perl:s/\Q&["dependencies", "build-dependencies"]\E/&["dependencies", "build-dependencies", "dev-dependencies"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+build-deps-dropped | xtask/src/so.rs | perl:s/\Q&["dependencies", "build-dependencies"]\E/&["dependencies"]/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+target-tables-dropped | xtask/src/so.rs | perl:s/\Q.ends_with(&format!(".{k}"))\E/.ends_with(&format!(".{k}x"))/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+workspace-deps-dropped | xtask/src/so.rs | perl:s/\QSome(p) => lexical(Path::new(p)),\E/Some(_) => continue,/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|the product crates
+hash-unfiltered | xtask/src/so.rs | perl:s/\Q.is_ok_and(|rel| tag_covers(rel, &crates))\E/.is_ok()/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:the_build_tag_follows.*FAILED|is no product input
+check-silenced | xtask/src/so.rs | perl:s/\Q(!missed.is_empty()).then(\E/(false).then(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+check-flags-target | xtask/src/so.rs | perl:s/\Q(!rel.starts_with("target") && \E/(/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
+depinfo-escape-lost | xtask/src/so.rs | perl:s/=> esc = true,/=> {}/ | cargo test -p xtask -- so::tests::the_build_tag so::tests::a_product_build | msg:a_product_build_that_reads.*FAILED
