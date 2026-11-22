@@ -261,18 +261,41 @@ __NIJI_END_C
 #if __NIJI_ISOC >= 1999 && __NIJI_CXX < 1
 #  define isblank(c) __isctype ((c), _ISblank)
 #endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-#  define _tolower(c) ((int) (*__ctype_tolower_loc ())[(int) (c)])
-#  define _toupper(c) ((int) (*__ctype_toupper_loc ())[(int) (c)])
-#endif
-#if __NIJI_MISC || __NIJI_XSI >= 400
-#  define isascii(c) ((((c) & ~0x7f)) == 0)
-#  define toascii(c) ((c) & 0x7f)
-#endif
 #if __NIJI_FORTIFY >= 1
 #  define tolower(c) (__extension__ ({ int __c = (c); __c >= -128 && __c < 256 ? (*__ctype_tolower_loc ())[__c] : __c; }))
 #  define toupper(c) (__extension__ ({ int __c = (c); __c >= -128 && __c < 256 ? (*__ctype_toupper_loc ())[__c] : __c; }))
 #endif
+#endif
+
+/* The macros below are macros in C and in C++ (visibility.tsv). */
+#if __NIJI_MISC || __NIJI_XSI >= 400
+# define _tolower(c) ((int) (*__ctype_tolower_loc ())[(int) (c)])
+# define _toupper(c) ((int) (*__ctype_toupper_loc ())[(int) (c)])
+#endif
+#if __NIJI_MISC || __NIJI_XSI >= 400
+# define isascii(c) ((((c) & ~0x7f)) == 0)
+# define toascii(c) ((c) & 0x7f)
+#endif
+/* The locale_t forms (POSIX.1-2008) are macros that call the exported functions of the same name (a macro does not
+   expand inside its own replacement), so a call behaves exactly as the function does for every locale argument. */
+#if __NIJI_POSIX >= 200809
+# define isalnum_l(c, l) isalnum_l ((c), (l))
+# define isalpha_l(c, l) isalpha_l ((c), (l))
+# define isblank_l(c, l) isblank_l ((c), (l))
+# define iscntrl_l(c, l) iscntrl_l ((c), (l))
+# define isdigit_l(c, l) isdigit_l ((c), (l))
+# define isgraph_l(c, l) isgraph_l ((c), (l))
+# define islower_l(c, l) islower_l ((c), (l))
+# define isprint_l(c, l) isprint_l ((c), (l))
+# define ispunct_l(c, l) ispunct_l ((c), (l))
+# define isspace_l(c, l) isspace_l ((c), (l))
+# define isupper_l(c, l) isupper_l ((c), (l))
+# define isxdigit_l(c, l) isxdigit_l ((c), (l))
+#endif
+/* Under _FORTIFY_SOURCE a call to tolower_l or toupper_l references __tolower_l or __toupper_l (callsites.tsv). */
+#if __NIJI_FORTIFY >= 1
+# define tolower_l(c, l) __tolower_l ((c), (l))
+# define toupper_l(c, l) __toupper_l ((c), (l))
 #endif
 
 #endif
