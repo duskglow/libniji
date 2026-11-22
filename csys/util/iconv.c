@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "iconv-names.h"
+#include "iconv-aliases.h"
 
 #define CHARMAP_DIR "/usr/share/i18n/charmaps"
 
@@ -254,7 +255,8 @@ static int by_name(const void *a, const void *b) {
     return strcasecmp(*(const char *const *)a, *(const char *const *)b);
 }
 
-/* `-l`: the built-in names and every installed charmap iconv_open accepts, sorted, each once, as `NAME//`
+/* `-l`: the built-in names, every installed charmap iconv_open accepts and the listed names that stand
+ * for one of those charmaps, sorted, each once, as `NAME//`
  * (a name that holds a `/` ends in one `/`, as the reference lists `ISO-10646/UCS4/`). */
 static _Noreturn void list(void) {
     size_t n = 0, cap = 512;
@@ -290,6 +292,56 @@ static _Noreturn void list(void) {
     }
     if (dir != NULL)
         closedir(dir);
+    /* The listed names that stand for a charmap (iconv-aliases.h): each one whose charmap file
+     * opened above, or whose charmap iconv_open accepts under another file's name (CP874 as an
+     * alias in IBM874's header), and that iconv_open then accepts; such a charmap name is listed
+     * too. A charmap that is no installed file is tried once (a failed open scans every charmap's
+     * header), a row whose charmap does not open is never opened. */
+    enum { ROWS = sizeof ALIAS_ROWS / sizeof ALIAS_ROWS[0] };
+    static const char *tried[ROWS];
+    static int opened[ROWS];
+    size_t stems = n, ntried = 0;
+    for (size_t k = 0; k < ROWS; k++) {
+        const char *target = ALIAS_ROWS[k][1];
+        int installed = 0;
+        for (size_t s = sizeof BUILTIN_NAMES / sizeof BUILTIN_NAMES[0]; s < stems && !installed; s++)
+            installed = strcasecmp(names[s], target) == 0;
+        for (size_t t = 0; t < ntried && !installed; t++)
+            if (strcmp(tried[t], target) == 0)
+                installed = opened[t] ? 1 : -1;
+        if (installed == 0) {
+            iconv_t tcd = iconv_open("UTF-8", target);
+            installed = tcd == (iconv_t)-1 ? -1 : 1;
+            if (installed > 0)
+                iconv_close(tcd);
+            tried[ntried] = target;
+            opened[ntried++] = installed > 0;
+            if (installed > 0) {
+                if (n == cap) {
+                    cap *= 2;
+                    const char **p = realloc(names, cap * sizeof *names);
+                    if (p == NULL)
+                        fail_memory();
+                    names = p;
+                }
+                names[n++] = target;
+            }
+        }
+        if (installed < 0)
+            continue;
+        iconv_t cd = iconv_open("UTF-8", ALIAS_ROWS[k][0]);
+        if (cd == (iconv_t)-1)
+            continue;
+        iconv_close(cd);
+        if (n == cap) {
+            cap *= 2;
+            const char **p = realloc(names, cap * sizeof *names);
+            if (p == NULL)
+                fail_memory();
+            names = p;
+        }
+        names[n++] = ALIAS_ROWS[k][0];
+    }
     qsort(names, n, sizeof *names, by_name);
     for (size_t k = 0; k < n; k++) {
         if (k > 0 && strcasecmp(names[k], names[k - 1]) == 0)

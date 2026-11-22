@@ -11,6 +11,8 @@
 
 #[path = "support/scratch.rs"]
 mod scratch;
+#[path = "support/contain.rs"]
+mod contain;
 
 use core::ptr::null_mut;
 
@@ -700,7 +702,8 @@ fn s24_5_c_3() {
         println!("SKIP {NAME}: no unprivileged user+UTS namespace (`unshare -r -u true`: {probe:?})");
         return;
     }
-    let o = std::process::Command::new("unshare")
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare")
         .args(["-r", "-u"])
         .arg(std::env::current_exe().unwrap())
         .args([NAME, "--exact", "--include-ignored", "--test-threads=1"])

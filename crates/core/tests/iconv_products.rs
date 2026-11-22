@@ -39,12 +39,10 @@ fn build(out: &Path, niji: bool) -> bool {
 
 /// Lines that differ from the reference by decision: the start of the line, the locale it is
 /// under (`*` any), and why. A recorded line that no longer differs fails the test.
-const KNOWN: [(&str, &str, &str); 3] = [
+const KNOWN: [(&str, &str, &str); 2] = [
     // Stateful encodings, which only the reference library's modules implement (D-6.8).
     ("ISO-2022-JP <- ", "*", "stateful"),
     ("UTF-7 <- ", "*", "stateful"),
-    // An alias the reference library's module list has and no installed charmap gives.
-    ("WINDOWS-1252 <- ", "*", "alias not in the charmaps"),
 ];
 
 #[test]

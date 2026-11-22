@@ -1,0 +1,12 @@
+# COMPAT19-LDSO-COST plants (D-27.71: a start dependency is mapped by the plan its search check made)
+check-planned-accepts-exec-stack | crates/ld/src/dlopen.rs | lit:let plan = map::plan::<A>(&elf, page).map_err(of_map_error)?; ==> let plan = map::plan_accepting_exec_stack::<A>(&elf, page).map_err(of_map_error)?; | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(dependency|dlopen).*(FAILED|panicked)
+check-planned-ignores-bad-segments | crates/ld/src/dlopen.rs | lit:let plan = map::plan::<A>(&elf, page).map_err(of_map_error)?; ==> let plan = map::plan::<A>(&elf, page).or_else(|_| map::plan_accepting_exec_stack::<A>(&elf, page)).unwrap_or(map::Plan { span: 0, align: page, first: 0, fixed: false, phdr: 0, phnum: 0, entry: 0, relro: None, page }); | cargo test -p niji-ld --test map | msg:map_malformed_dependency_refused_at_start.*(FAILED|panicked)
+map-planned-skips-writable | crates/ld/src/map.rs | perl:s/(pub fn map_planned.*?p\.memsz != 0)\)/$1 && p.flags & 2 == 0)/s | cargo test -p niji-ld --test ldso_run | msg:ldso_run\S*.*(FAILED|panicked)
+link-fold-zero-bias | crates/boundary/src/ld/link.rs | lit:Some(c) => niji_ld::reloc::Obj { elf: c.elf, dynm: c.dynm, bias: loaded.bias, name, tls: None }, ==> Some(c) => niji_ld::reloc::Obj { elf: c.elf, dynm: c.dynm, bias: 0, name, tls: None }, | cargo test -p niji-ld --test ldso_search | msg:ldso_search\S*.*(FAILED|panicked)
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT),
+# the same in the first run (compat19-ldso-cost-plants4, Skylake-SP host) and on the merge with next cd1bbabdb
+# (compat19-ldso-cost-2-plants, Zen 1 host; one WARN-DEV-SHM note for the RAM directory, no WARN-RC-ONLY/WARN-NO-MSG):
+# check-planned-accepts-exec-stack: CAUGHT, caught by exec_stack exec_stack_dlopen
+# check-planned-ignores-bad-segments: CAUGHT, caught by map map_malformed_dependency_refused_at_start
+# map-planned-skips-writable: CAUGHT, caught by ldso_run ldso_run_as_program_at_random_bases
+# link-fold-zero-bias: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path

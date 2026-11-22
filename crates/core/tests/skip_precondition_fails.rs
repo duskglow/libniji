@@ -8,17 +8,17 @@
 mod exec_stage;
 #[path = "support/oracle.rs"]
 mod oracle;
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use std::path::PathBuf;
 use std::process::Command;
 
 const CHILD: &str = "NIJI_SKIP_PRECOND_CHILD";
 
-fn scratch(tag: &str) -> PathBuf {
-    let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("skip-precond-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn scratch(tag: &str) -> Scratch {
+    Scratch::dir(&format!("skip-precond-{tag}"))
 }
 
 /// The child side: does nothing unless the parent set `CHILD` (`locale` or `cc`). Prints `returned false` when the

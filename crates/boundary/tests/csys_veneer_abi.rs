@@ -14,6 +14,8 @@
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -24,7 +26,7 @@ struct Scratch(PathBuf);
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -75,7 +77,7 @@ fn veneer_wrappers_issue_the_kernels_call_and_return_its_result() {
     let (header, rows) = rows_header(&tsv);
     assert!(rows >= 90, "the six areas lost wrappers: {rows}");
 
-    let dir = Scratch(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("niji-veneer-abi-{}", std::process::id())));
+    let dir = Scratch(crate::scratch::base().join(format!("niji-veneer-abi-{}", std::process::id())));
     std::fs::create_dir_all(&dir.0).unwrap();
     std::fs::write(dir.0.join("rows.h"), header).unwrap();
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".to_string());

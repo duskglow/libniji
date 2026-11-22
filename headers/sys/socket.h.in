@@ -1,0 +1,26 @@
+@@generated
+/* sys/socket.h: sockets (XSH <sys/socket.h>). Appendix C.9: CMSG_NXTHDR is __cmsg_nxthdr (mhdr, cmsg); the other CMSG_*
+   macros follow cmsg(3): the data of a control message follows its header, and lengths round up to size_t. */
+#ifndef __NIJI_H_sys_socket_h
+#define __NIJI_H_sys_socket_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns CMSG_NXTHDR
+@@emit
+
+@@if CMSG_NXTHDR
+# define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (mhdr, cmsg)
+# define CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) & (size_t) ~(sizeof (size_t) - 1))
+# define CMSG_FIRSTHDR(mhdr) ((size_t) (mhdr)->msg_controllen >= sizeof (struct cmsghdr) ? (struct cmsghdr *) (mhdr)->msg_control : (struct cmsghdr *) 0)
+# define CMSG_DATA(cmsg) ((unsigned char *) ((struct cmsghdr *) (cmsg) + 1))
+# define CMSG_SPACE(len) (CMSG_ALIGN (len) + CMSG_ALIGN (sizeof (struct cmsghdr)))
+# define CMSG_LEN(len) (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+#endif
+
+__NIJI_END_C
+
+#endif

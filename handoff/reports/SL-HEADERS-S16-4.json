@@ -1,0 +1,24 @@
+{"task": "SL-HEADERS-S16-4", "model": "sonnet", "tokens": null,
+ "result": "surviving plant s16c-vector-newtype explained (it named headers-gen --check, which does not read abi-gen's output; abi-gen --check, a static step, catches the mutant) and fixed; origin/next merged (generator moved to xtask/src/headers/*.rs), slice 16 re-expressed as table rows, plants 16 CAUGHT 0 SURVIVED, direct gate green",
+ "branch": "task/sl-headers-s16-4", "head": "c2781bf42",
+ "gate": {"affected": "11268 passed / 0 failed (15 suites ok, conformance 91 passed)", "peak": "16G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "HEADERS-TABLES-COMPLETE: La_x86_64_ymm (32 bytes) and La_x86_64_zmm (64) are vectors aligned to 16 in the reference; typedefs.tsv cannot spell an aligned vector, so their rows are memberless (an aligned structure of the right size and alignment); layouts hold, the type kind differs", "recommendation": "add an aligned-vector form to typedefs.tsv and the generator's vector path"},
+  {"item": "next's generator replaced the shared changes of b98cbbf56 (members_nested, NAMED_IN_CXX): next's headers.rs was taken whole at the merge; the slice needs none of them any more (twelve la_* names in the slice's linked_elsewhere, typedefs and visibility rows for the four La_x86_64 vector types)", "recommendation": "land; the FULL gate reviews dlfcn.h (Dl_info members gain const from next's generator) and link.h"}
+ ],
+ "informational": [
+  "headers-gen --check is headers-only on purpose; abi-gen --check is its own static step, so a plant on xtask/src/abi.rs must name that command",
+  "plants whose mutant makes the products build report stale headers are CAUGHT by cargo xtask so (x86-array's msg now names that text); results file shows 'caught by no test the log names' for every plant (the checks are xtask steps, not cargo tests)",
+  "P6 (conformance run.sh --niji-headers s27_dl*) and the P2 probe_compare visibility rerun were not done (cargo xtask so beside the gate; the four sys/profil.h FD_* rows wait for slice 7)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "slice 16 plants: 16 plants, all CAUGHT (abi-gen vector newtype now checked by abi-gen --check; 3 new row plants)", "before": 15, "after": 16, "unit": "plants caught", "measured": true},
+  {"kind": "correctness", "what": "link.h La_x86_64_regs/retval have their members again on the new generator (header_check 0 failed)", "before": 39, "after": 0, "unit": "header_check failures", "measured": true}
+ ],
+ "improvement": "plants.txt rows should name the product command that reads the mutated file's output (a coverage map from generator file to check would have shown abi.rs is read by abi-gen --check only); jobwait blocks about 10 minutes per call, so a plants run of 2 hours costs ten calls",
+ "next_step": "land with the train; then HEADERS-TABLES-COMPLETE for aligned vector typedefs; slice 7 for sys/profil.h FD_*",
+ "report_file": "handoff/SL-HEADERS-S16-4.md",
+ "jobs": ["mei:sl-headers-s16-4-hg3", "mei:sl-headers-s16-4-lint", "mei:sl-headers-s16-4-gate", "mei:sl-headers-s16-4-plants2"]
+}

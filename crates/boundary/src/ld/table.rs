@@ -458,6 +458,31 @@ impl<T: Plain, const N: usize, const G: usize> Arena<T, N, G> {
         Some(unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(at).wrapping_add(i), len) })
     }
 
+    /// Replace each of the `len` entries at `off` by `f` of it: a span the current attempt wrote
+    /// and nothing has published (no reader reads it). `false` (nothing changed) when the entries
+    /// are not all inside one mapped generation.
+    pub(super) fn rewrite(&mut self, off: usize, len: usize, f: impl Fn(T) -> T) -> bool {
+        let (g, i) = Self::gen_of(off);
+        if g == 0 {
+            let Some(span) = i.checked_add(len).and_then(|e| self.inline.get_mut(i..e)) else { return false };
+            span.iter_mut().for_each(|v| *v = f(*v));
+            return true;
+        }
+        let at = self.base(g);
+        if at == 0 || g > G || i.checked_add(len).is_none_or(|e| e > Self::gen_len(g)) {
+            return false;
+        }
+        // UNSAFE(slice): a span inside one mapped generation, written in place.
+        #[allow(unsafe_code)]
+        // SAFETY: as in `get`: `at` is generation `g`'s mapping of `gen_len(g)` entries (made by
+        // `map`, page aligned, never unmapped) and the `len` entries from `i` lie inside it; every
+        // bit pattern is a valid `T` (`Plain`). `&mut self` excludes every other writer and every
+        // slice `get` handed out, and the caller's span is read by no reader (not published).
+        let span = unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<T>(at).wrapping_add(i), len) };
+        span.iter_mut().for_each(|v| *v = f(*v));
+        true
+    }
+
     /// The address of entry `off` (a span's first entry, for its readers), 0 when its generation is
     /// not mapped.
     pub(super) fn addr(&self, off: usize) -> usize {

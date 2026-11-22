@@ -25,7 +25,11 @@
 
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/contain.rs"]
+mod contain;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use core::ffi::c_void;
 use core::ptr::{null, null_mut, with_exposed_provenance_mut, without_provenance_mut};
 use std::ffi::CString;
@@ -86,9 +90,7 @@ struct Tmp(String);
 
 impl Drop for Tmp {
     fn drop(&mut self) {
-        if std::fs::remove_file(&self.0).is_err() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -104,7 +106,7 @@ impl Tmp {
 
 fn tmp(tag: &str) -> Tmp {
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let p = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c12-{}-{tag}-{n}", std::process::id()));
+    let p = crate::scratch::base().join(format!("c12-{}-{tag}-{n}", std::process::id()));
     let t = Tmp(p.to_str().unwrap().to_owned());
     let _ = std::fs::remove_file(&t.0);
     let _ = std::fs::remove_dir_all(&t.0);
@@ -1018,7 +1020,7 @@ fn s12_2_f_0() {
     assert!(x::fopen(missing.c().as_ptr(), cs("r").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::ENOENT.get());
     errno::set_raw(0);
-    let dir = cs(env!("CARGO_TARGET_TMPDIR"));
+    let dir = cs(&crate::scratch::base().to_string_lossy());
     assert!(x::fopen(dir.as_ptr(), cs("w").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EISDIR.get());
     errno::set_raw(0);
@@ -2547,7 +2549,8 @@ fn s12_12_c_4() {
         eprintln!("note: no user namespace; the nameless case was not checked");
         return;
     }
-    let o = std::process::Command::new("unshare").args(ns).arg(std::env::current_exe().unwrap()).args(["s12_12_c_4", "--exact", "--include-ignored", "--test-threads=1"]).env(VAR, "1").output().unwrap();
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare").args(ns).arg(std::env::current_exe().unwrap()).args(["s12_12_c_4", "--exact", "--include-ignored", "--test-threads=1"]).env(VAR, "1").output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success(), "a user without a name: {:?}", o.status);
 }

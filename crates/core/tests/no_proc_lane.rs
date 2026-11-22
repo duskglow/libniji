@@ -15,7 +15,11 @@
 
 #[path = "support/skip_note.rs"]
 mod skip_note;
+#[path = "support/contain.rs"]
+mod contain;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::ffi::CString;
 use std::process::Command;
 use std::sync::OnceLock;
@@ -47,6 +51,7 @@ const AT_PAGESZ: u64 = 6;
 /// Whether unprivileged user and mount namespaces work here (asked once).
 fn userns() -> bool {
     static OK: OnceLock<bool> = OnceLock::new();
+    // contain: probe(two mounts, then exits)
     *OK.get_or_init(|| Command::new("unshare").args(["-r", "-m", "sh", "-c", "mount -t tmpfs none /proc && mount -t tmpfs none /sys"]).output().is_ok_and(|o| o.status.success()))
 }
 
@@ -71,7 +76,8 @@ fn without_proc(test: &str, env: &[(&str, String)], body: impl FnOnce() -> Resul
         return;
     }
     let exe = std::env::current_exe().unwrap();
-    let o = Command::new("unshare")
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare")
         .args(["-r", "-m", "sh", "-c", "mount -t tmpfs none /proc && mount -t tmpfs none /sys && exec \"$0\" \"$@\""])
         .arg(exe)
         .args([test, "--exact", "--test-threads=1", "--nocapture"])
@@ -321,7 +327,7 @@ fn lchmod_without_proc() {
     }
     without_proc("lchmod_without_proc", &env, || {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("no_proc_lane_lchmod_{}", std::process::id()));
+        let dir = crate::scratch::base().join(format!("no_proc_lane_lchmod_{}", std::process::id()));
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let (f, l) = (dir.join("f"), dir.join("l"));
         std::fs::write(&f, b"x").map_err(|e| e.to_string())?;

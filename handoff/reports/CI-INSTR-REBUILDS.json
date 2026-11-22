@@ -1,0 +1,70 @@
+{
+ "task": "CI-INSTR-REBUILDS",
+ "model": "opus",
+ "tokens": null,
+ "result": "Cause found: the build tag hashed every crates/ file, so test-only trains rebuilt ld/libc/ldconfig. Fixed: the tag covers product inputs only, and a build-time check fails any uncovered input. Most rebuilds (46/52) are still required by product changes; cross-host products are byte-identical but arrive ~25 min too late to reuse",
+ "branch": "task/ci-instr-rebuilds",
+ "head": "f579c3e7d",
+ "gate": {
+  "affected": "633 passed / 0 failed (7 suites)",
+  "peak": "2.7G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Build the train's release products first on the Skylake-SP host and import them into ci-instr (xtask import mode that checks tag, head, toolchain and profile; a cache trust boundary)",
+   "recommendation": "a follow-up story; first prove the final libraries byte-identical across hosts, then consider sharing the traced-layout step too (588-804 s per run)"
+  }
+ ],
+ "informational": [
+  "so/libc-archive (traced layout) costs 588-804 s in every ci-instr run, more than the rebuild",
+  "CARGO_LOG=cargo::core::compiler::fingerprint=info prints nothing on cargo 1.99.1; CARGO_LOG=cargo=info works",
+  "the replay's trace-at-build step fails inside unshare -r -m (perf script: Map missing from maps), after the cargo steps",
+  "build_tag walks the tree about 8 times per cargo xtask so",
+  "both keke replays bind-mounted a copy at the ci-instr role path inside unshare -r -m, which made the role look busy to the CI (train 899 instr check delayed); exp2 was ended by the coordinator and is not used as proof"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "ci-instr cargo wait for an edit no product compiles (replay on a copy of ci-instr, Zen 1 host): ld/libc/ldconfig",
+   "before": 466,
+   "after": 0,
+   "unit": "s (sum of the three step waits, r2 vs r4)",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "ci-instr median wall time, rebuilt vs reused runs since 11-19 (the saving per train whose change has no product input, ~6 of 52)",
+   "before": 34.4,
+   "after": 28.3,
+   "unit": "min",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "the build tag now covers spec/encoding/iconv-aliases.tsv (a niji-core compile-time input the old tag missed), and a product build fails if the tag misses any input",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "unit tests for the tag set and the check, plus plants",
+   "before": 0,
+   "after": 11,
+   "unit": "plants (9 caught by the tests, 2 by the build-time check)",
+   "measured": true
+  }
+ ],
+ "improvement": "the brief told me to run on a copy of the ci-instr tree, and I bind-mounted it at the live path to keep the absolute paths, which blocked a train: briefs should say a CI role path is never used, even in a namespace, and offer the live job fingerprint logs (the coordinator now does). The brief CARGO_LOG filter is silent on cargo 1.99.1 (use cargo=info)",
+ "next_step": "coordinator: turn on CARGO_LOG=cargo=info in the live ci-instr command for a few trains to get cargo own reasons for real rebuilt runs; after landing, measure ci-instr on trains with no product change",
+ "report_file": "handoff/CI-INSTR-REBUILDS-report.md",
+ "jobs": [
+  "mei:ci-instr-rebuilds-gate",
+  "mei:ci-instr-rebuilds-plants-3",
+  "mei:ci-instr-rebuilds-lint3",
+  "keke:ci-instr-rebuilds-exp"
+ ]
+}

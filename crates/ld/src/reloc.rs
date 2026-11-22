@@ -426,13 +426,14 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
         return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size });
     }
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
-    let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
-    let want = me.reference_want_with(sym, Some(memo)).map_err(RelocError::Lookup)?;
+    // The name's end and its hash in one pass (LD-LOOKUP-COST).
+    let (name, gnu) = dynm.hashed_string(st.name).map_err(RelocError::Elf)?;
+    let (want, origin) = me.reference_want_origin(sym, memo).map_err(RelocError::Lookup)?;
     let mut scope = Scope::global(set.global);
     if copy {
         scope = scope.excluding(0);
     }
-    match symbols::resolve(set.syms, scope, &Request::new(name, want).with_memo(memo), st.bind() == STB_WEAK, unique) {
+    match symbols::resolve(set.syms, scope, &Request::of_table(name, gnu, want, origin).with_memo(memo), st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
             Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size })
@@ -819,20 +820,50 @@ pub fn check_versions_live<'a>(objs: &[Obj<'a>], live: impl Fn(usize) -> bool) -
             let vn = vn.map_err(|e| VersionError::Elf(by, e))?;
             let Some(p) = provider(objs, vn.file, &live).and_then(|j| objs.get(j)) else { continue };
             let defs = p.dynm.verdef().map_err(|e| VersionError::Elf(by, e))?;
+            // The provider's definitions are walked once for the whole entry (LD-LOOKUP-COST: a
+            // program needing a few dozen versions walked the C library's few dozen definitions
+            // once per version): the walk so far is kept as `names`, and an answer is the one a
+            // walk from the start would give (a name already seen; else the end the walk meets;
+            // the walk's first error ends the check).
+            let mut walk = defs.clone();
+            let mut names: [Option<&'a [u8]>; DEF_NAMES] = [None; DEF_NAMES];
+            let (mut seen, mut overflow, mut ended) = (0usize, false, false);
             for aux in vn.auxes() {
                 let aux = aux.map_err(|e| VersionError::Elf(by, e))?;
                 if aux.flags & VER_FLG_WEAK != 0 {
                     continue;
                 }
-                let Some(defs) = defs.clone() else {
+                let (Some(defs), Some(rest)) = (defs.clone(), walk.as_mut()) else {
                     return Err(VersionError::NoVersions { by, file: vn.file, version: aux.name });
                 };
+                if names.get(..seen).is_some_and(|s| s.contains(&Some(aux.name))) {
+                    continue;
+                }
+                if overflow {
+                    if !version_defined(defs, aux.name).map_err(|e| VersionError::Elf(by, e))? {
+                        return Err(VersionError::Missing { by, file: vn.file, version: aux.name });
+                    }
+                    continue;
+                }
                 let mut found = false;
-                for d in defs {
-                    let d = d.map_err(|e| VersionError::Elf(by, e))?;
-                    if d.names().next().and_then(Result::ok).is_some_and(|n| n.name == aux.name) {
-                        found = true;
-                        break;
+                while !ended {
+                    match rest.next() {
+                        None => ended = true,
+                        Some(Err(e)) => return Err(VersionError::Elf(by, e)),
+                        Some(Ok(d)) => {
+                            let n = d.names().next().and_then(Result::ok).map(|n| n.name);
+                            match names.get_mut(seen) {
+                                Some(slot) => {
+                                    *slot = n;
+                                    seen = seen.wrapping_add(1);
+                                }
+                                None => overflow = true,
+                            }
+                            if n == Some(aux.name) {
+                                found = true;
+                                break;
+                            }
+                        }
                     }
                 }
                 if !found {
@@ -842,6 +873,23 @@ pub fn check_versions_live<'a>(objs: &[Obj<'a>], live: impl Fn(usize) -> bool) -
         }
     }
     Ok(())
+}
+
+/// The definitions [`check_versions_live`] keeps per requirement entry; beyond them a version is
+/// looked for by a walk from the start ([`version_defined`]).
+const DEF_NAMES: usize = 64;
+
+/// Whether one of `defs` has `name` as its first name, walking from the start (the walk's first
+/// error ends it).
+#[cold]
+#[inline(never)]
+fn version_defined(defs: crate::elf::Verdefs<'_>, name: &[u8]) -> Result<bool, ElfError> {
+    for d in defs {
+        if d?.names().next().and_then(Result::ok).is_some_and(|n| n.name == name) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// The `PT_GNU_PROPERTY` properties of `elf` this architecture knows (L14-12: parsed, then ignored by

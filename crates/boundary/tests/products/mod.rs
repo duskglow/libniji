@@ -120,7 +120,7 @@ pub(crate) fn compat_versioned(name: &str, ver: &str) {
     let defined = defined_in("libc.a");
     assert!(!defined.contains(&format!("{name}@{ver}")), "libc.a archives the compat version {name}@{ver} (R15-2)");
     assert!(!defined.contains(name), "libc.a offers {name}: a new program could link it");
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("compat-{name}-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("compat-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch");
     let src = dir.join("t.c");
     std::fs::write(&src, format!("extern int {name}(const long *);
@@ -380,7 +380,7 @@ pub(crate) fn nonshared_two_way() {
     let script = std::fs::read_to_string(niji.join("libc.so")).expect("target/niji/libc.so is missing: run `cargo xtask so`");
     let group = script.lines().find(|l| l.starts_with("GROUP")).expect("the libc.so script has a GROUP");
     assert!(!group.contains('/'), "the installed libc.so names a path: {group}");
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("nonshared-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("nonshared-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch");
     for (file, text) in [("lib.c", NONSHARED_LIB), ("main.c", NONSHARED_MAIN), ("prog.c", NONSHARED_PROG)] {
         std::fs::write(dir.join(file), text).expect("source");
@@ -437,7 +437,7 @@ pub(crate) fn owner_opt_in() {
     let script = std::fs::read_to_string(owner.join("libc.so")).expect("target/niji/niji-owner/libc.so is missing: run `cargo xtask so`");
     let group = script.lines().find(|l| l.starts_with("GROUP")).expect("the opt-in's libc.so script has a GROUP");
     assert!(!group.contains('/') && !group.contains("nonshared"), "the opt-in's libc.so names a path or the archive: {group}");
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("owner-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("owner-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch");
     for (file, text) in [("lib.c", NONSHARED_LIB), ("prog.c", NONSHARED_PROG)] {
         std::fs::write(dir.join(file), text).expect("source");
@@ -485,7 +485,7 @@ pub(crate) fn nonshared_notice() {
     let o = std::process::Command::new("readelf").arg("-SW").arg(&nonshared).output().expect("readelf");
     let sections = String::from_utf8_lossy(&o.stdout).to_string();
     assert!(o.status.success() && !sections.contains(".note.niji.nonshared") && !sections.contains(".gnu.warning."), "the default libc_nonshared.a carries a notice section");
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("notice-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("notice-{}", std::process::id()));
     let notice = dir.join("notice");
     std::fs::create_dir_all(&notice).expect("scratch");
     let src = root().join("csys/nonshared");
@@ -579,7 +579,7 @@ pub(crate) fn niji_link_script(dir: &std::path::Path) -> (PathBuf, PathBuf) {
 /// refused, so a program that needs one is never run here without it.
 pub(crate) fn conformance_dynamic(names: &[&str]) {
     require_products();
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("dynamic-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("dynamic-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch");
     let (ld, libc) = niji_link_script(&dir);
     let nonshared = niji_nonshared();

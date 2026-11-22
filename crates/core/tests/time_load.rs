@@ -56,7 +56,7 @@ fn s23_6_c_0() {
     let d = scratch();
     let dir = d.to_str().unwrap().as_bytes();
     let missing = z(&d.join("absent"));
-    let load = |tz: Option<&[u8]>, default: &[u8]| time::load(&CSys, tz, Some(dir), default).unwrap();
+    let load = |tz: Option<&[u8]>, default: &[u8]| time::load(&CSys, tz, Some(dir), default, false).unwrap();
     // Unset: the default file, kept with its identity; unreadable: UTC, still watched.
     let l = load(None, &z(&d.join("Area/Nine")));
     assert_eq!((offset(&l), abbr(&l)), (32_400, b"NST".to_vec()));
@@ -93,7 +93,7 @@ fn s23_6_c_0() {
         assert!(l.file.is_none(), "{tz:?}: not watched");
     }
     // TZDIR unset: the system directory (a name that cannot be there).
-    let l = time::load(&CSys, Some(b"libniji/No/Such/Zone"), None, &missing).unwrap();
+    let l = time::load(&CSys, Some(b"libniji/No/Such/Zone"), None, &missing, false).unwrap();
     assert_eq!((offset(&l), abbr(&l)), (0, b"libniji".to_vec()));
     assert_eq!(time::ZONEINFO, b"/usr/share/zoneinfo");
     assert_eq!(time::LOCALTIME, b"/etc/localtime\0");
@@ -109,4 +109,70 @@ fn s23_6_c_0() {
     let l = load(Some(b"Big"), &missing);
     assert_eq!((offset(&l), abbr(&l)), (0, b"Big".to_vec()), "a file over the limit is not a zone");
     let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The secure selection (`spec/security/threat-model.md`, the `TZ` row): with `trusted` the
+/// scratch directory standing in for the system one, a value names a file only inside it.
+#[test]
+fn s23_6_c_2_secure_names_files_only_inside_the_zone_directory() {
+    // Clauses: s23_6_c_0, s23_6_c_2 (secure mode: the threat model's TZ row; spec/behaviour/dynlink-secure.md).
+    let base = std::env::temp_dir().join(format!("niji-time-secure-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let (inside, out, sibling) = (base.join("zi"), base.join("out"), base.join("zi2"));
+    for dir in [inside.join("Area"), out.clone(), sibling.clone()] {
+        std::fs::create_dir_all(dir).unwrap();
+    }
+    for f in [inside.join("Area/Nine"), out.join("Nine"), sibling.join("Nine")] {
+        std::fs::write(f, tzif(32_400, b"NST")).unwrap();
+    }
+    let s = |p: &std::path::Path| p.to_str().unwrap().as_bytes().to_vec();
+    let dir = s(&inside);
+    let missing = z(&base.join("absent"));
+    let load_in = |tz: &[u8], tzdir: Option<&[u8]>, trusted: Option<&[u8]>| time::load_in(&CSys, Some(tz), tzdir, &missing, trusted).unwrap();
+    let cat = |a: &[u8], b: &[u8]| [a, b].concat();
+    let abs_in = s(&inside.join("Area/Nine"));
+    let abs_out = s(&out.join("Nine"));
+    // Read: a name, a rule, an absolute path inside (also with `//` and `.` components).
+    let read = [b"Area/Nine".to_vec(), b":Area/Nine".to_vec(), abs_in.clone(), cat(b":", &abs_in), cat(&dir, b"//Area/./Nine")];
+    // Refused: outside (also a sibling sharing the prefix), through `..`, the value then a rule.
+    let up = cat(b"../../../../../../../..", &abs_out);
+    let dotdot_abs = cat(&dir, &cat(b"/../zi/", b"Area/Nine"));
+    let refused: [(Vec<u8>, &[u8]); 6] = [
+        (abs_out.clone(), b""),
+        (cat(b":", &abs_out), b""),
+        (s(&sibling.join("Nine")), b""),
+        (up, b""),
+        (b"Area/../Area/Nine".to_vec(), b"Area"),
+        (dotdot_abs, b""),
+    ];
+    for tz in &read {
+        let l = load_in(tz, None, Some(&dir));
+        assert_eq!((offset(&l), abbr(&l)), (32_400, b"NST".to_vec()), "secure {:?}", String::from_utf8_lossy(tz));
+        assert!(l.file.is_some(), "a file zone is watched");
+    }
+    for (tz, name) in &refused {
+        let l = load_in(tz, None, Some(&dir));
+        assert_eq!((offset(&l), abbr(&l)), (0, name.to_vec()), "secure {:?} is refused", String::from_utf8_lossy(tz));
+        assert!(l.file.is_none(), "refused: no file");
+        // Outside secure mode the same value names the same file (`..` resolved under TZDIR).
+        let l = load_in(tz, Some(&dir), None);
+        assert_eq!(offset(&l), 32_400, "plain {:?} is read", String::from_utf8_lossy(tz));
+    }
+    // A rule is still a rule, also when a `..` component follows it (no file read).
+    assert_eq!((offset(&load_in(b"JST-9", None, Some(&dir))), abbr(&load_in(b"JST-9", None, Some(&dir)))), (32_400, b"JST".to_vec()));
+    let l = load_in(b"JST-9/../x", None, Some(&dir));
+    assert_eq!((offset(&l), abbr(&l), l.file.is_none()), (32_400, b"JST".to_vec(), true));
+    // TZDIR is ignored in secure mode: a relative name resolves under the trusted directory only.
+    let l = load_in(b"Nine", Some(&s(&out)), Some(&dir));
+    assert_eq!((offset(&l), abbr(&l)), (0, b"Nine".to_vec()), "secure: TZDIR ignored");
+    assert_eq!(offset(&load_in(b"Nine", Some(&s(&out)), None)), 32_400, "plain: TZDIR honoured");
+    // `load` with the process's flag: secure trusts only the system directory, which the scratch
+    // directory is not; plain reads the same values.
+    for secure in [true, false] {
+        let l = time::load(&CSys, Some(&abs_out), None, &missing, secure).unwrap();
+        assert_eq!(offset(&l), if secure { 0 } else { 32_400 }, "load secure={secure}: absolute path outside");
+        let l = time::load(&CSys, Some(b"Nine"), Some(&s(&out)), &missing, secure).unwrap();
+        assert_eq!(offset(&l), if secure { 0 } else { 32_400 }, "load secure={secure}: TZDIR");
+    }
+    let _ = std::fs::remove_dir_all(&base);
 }

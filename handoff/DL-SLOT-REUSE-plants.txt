@@ -1,0 +1,13 @@
+# DL-SLOT-REUSE plants: reuse of freed loader slots below the top (crates/boundary/src/ld)
+# a: a slot retired but still in its grace period counts as free, so it is reused before readers are done with it
+reuse-before-grace | crates/boundary/src/ld/dlopen.rs | lit:run = if l.nodes.get(i).is_some_and(|nd| nd.gone && nd.freed) ==> run = if l.nodes.get(i).is_some_and(|nd| nd.gone) | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:dlopen_slot_reuse_churn_with_concurrent_readers.*FAILED|under readers
+# b: freed slots below the top are never reused (the growth this story removes)
+never-reuse | crates/boundary/src/ld/dlopen.rs | lit:if l.holes >= k - base { ==> if false && l.holes >= k - base { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:freed slots below the top not reused
+# c: the new set is linked after the last live slot below it, not after the chain's tail
+chain-tail-by-index | crates/boundary/src/ld/dlopen.rs | lit:let tail = if l.reordered { ==> let tail = if false { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:order( count)? [0-9]+|dlopen_slot_reuse_.*FAILED
+# d: dl_iterate_phdr lists objects in index order after a set moved below the top
+iterate-by-index | crates/boundary/src/ld/readers.rs | lit:if REORDERED.load(Acquire) { ==> if false { | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:order( count)? [0-9]+
+# e: exit finalisers step by index after the first, not along the chain
+exit-by-index | crates/boundary/src/ld/dlopen.rs | lit:cur = if l.reordered { chain_next(l, i) } ==> cur = if false { chain_next(l, i) } | cargo xtask so && cargo test -p niji-ld --test dlopen_process_objects | msg:exit finalisers
+# f: the room test's ever-present reader (s27_1_c_4 check 72) with freed slots never reused
+never-reuse-room | crates/boundary/src/ld/dlopen.rs | lit:if l.holes >= k - base { ==> if false && l.holes >= k - base { | cargo xtask so && cargo test -p niji-ld --test dlclose s27_1_c_4_dlopen_waits | msg:behind an ever-present reader not reused

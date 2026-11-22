@@ -14,6 +14,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -148,13 +151,13 @@ fn prog_flags(lib: &Path, ld: &Path, libc: &str, extra: &[&str]) -> Vec<String> 
 }
 
 /// The corpus in a new scratch directory of its own (`tag`: each test builds its own): (the
-/// long-named library directory, the program), or `None` with the reason printed.
-fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
+/// long-named library directory, the program), or `None` with the reason printed. The scratch
+/// guard is removed when the test passes and kept (path on stderr) when it fails.
+fn corpus(tag: &str) -> Option<(Scratch, PathBuf, PathBuf)> {
     let (lib, ld) = products()?;
-    let top = target().join(format!("ld-process-objects-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&top);
+    let top = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), &format!("ld-process-objects-{tag}"));
     // Five components of 200 bytes: every library path is over 1000 bytes.
-    let d = ["a", "b", "c", "d", "e"].iter().fold(top.clone(), |p, c| p.join(c.repeat(200)));
+    let d = ["a", "b", "c", "d", "e"].iter().fold(top.to_path_buf(), |p, c| p.join(c.repeat(200)));
     std::fs::create_dir_all(d.join("stub")).unwrap();
     let d = std::fs::canonicalize(d).unwrap();
     let stub = d.join("stub");
@@ -187,7 +190,8 @@ fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
     build_all(jobs);
     let flags = prog_flags(&lib, &ld, &libc_s, &[&format!("-DN={N}")]);
     build_all(vec![("prog".to_string(), cc(&top, "prog", PROG, &flags))]);
-    Some((d, top.join("prog")))
+    let prog = top.join("prog");
+    Some((top, d, prog))
 }
 
 /// Run `cmd` with an empty environment.
@@ -199,17 +203,13 @@ fn run(cmd: &mut Command) -> Output {
     cmd.output().unwrap()
 }
 
-fn top_of(d: &Path) -> PathBuf {
-    d.ancestors().nth(5).unwrap().to_path_buf()
-}
-
 /// s27_1_c_1 (`dlopen` loads an object and its dependencies): one call adds `N` + 1 objects whose
 /// paths and dependency lists pass the arenas' old room several times over; every object reports
 /// its full path (`dladdr`, `dl_iterate_phdr`, `l_name`), and closing and opening the set again
 /// works the same.
 #[test]
 fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
-    let Some((d, prog)) = corpus("arenas") else { return };
+    let Some((_top, d, prog)) = corpus("arenas") else { return };
     let path_bytes: usize = (1..=N).map(|k| d.join(format!("libp{k}.so")).as_os_str().len() + 1).sum();
     assert!(path_bytes > 2 * 128 * 1024 && N * (N - 1) / 2 > 2 * 16 * 1024, "the corpus passes both old arenas twice");
     let o = run(Command::new(&prog).arg(&d));
@@ -219,7 +219,6 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
     // (`libc-dl.so`, in the same directory).
     let want: String = ["first", "again"].iter().map(|r| format!("{r} sum {SUM}\n{r} dladdr {N}\n{r} phdr {}\n{r} lmap {}\n", N + 2, N + 2)).collect();
     assert_eq!(out, want, "every object's full path, in both loads");
-    std::fs::remove_dir_all(top_of(&d)).ok();
 }
 
 /// no spec clause (the arenas grow, so the only limit is memory): under a sweep of address-space
@@ -229,7 +228,7 @@ fn dlopen_process_objects_paths_and_dependencies_past_the_old_arenas() {
 /// runs in a row complete (a larger limit only adds room no growth path lacks).
 #[test]
 fn dlopen_process_objects_out_of_memory_is_clean() {
-    let Some((d, prog)) = corpus("oom") else { return };
+    let Some((_top, d, prog)) = corpus("oom") else { return };
     let (mut ran, mut refused, mut in_row) = (0, 0, 0);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (2048..=96 * 1024).step_by(2048) {
@@ -261,7 +260,6 @@ fn dlopen_process_objects_out_of_memory_is_clean() {
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
     eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran");
-    std::fs::remove_dir_all(top_of(&d)).ok();
 }
 
 /// Each library of the object-table corpus (DL-PROCESS-OBJECTS part 2): `KIND` `t` (a top, needing
@@ -458,14 +456,14 @@ int main(int argc, char **argv) {
 
 /// The object-table corpus in a new scratch directory: (the object directory, the program), or
 /// `None` with the reason printed. One top, base and hub dependency are built, then copied (each
-/// copy its own file, so its own object).
-fn many_corpus() -> Option<(PathBuf, PathBuf)> {
+/// copy its own file, so its own object). The scratch guard is removed when the test passes and
+/// kept (path on stderr) when it fails.
+fn many_corpus() -> Option<(Scratch, PathBuf, PathBuf)> {
     let (lib, ld) = products()?;
-    let top = target().join(format!("ld-process-objects-many-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&top);
-    std::fs::create_dir_all(top.join("o/h")).unwrap();
-    std::fs::create_dir_all(top.join("build")).unwrap();
-    let top = std::fs::canonicalize(top).unwrap();
+    let guard = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "ld-process-objects-many");
+    std::fs::create_dir_all(guard.join("o/h")).unwrap();
+    std::fs::create_dir_all(guard.join("build")).unwrap();
+    let top = guard.to_path_buf();
     let (d, b, h) = (top.join("o"), top.join("build"), top.join("o/h"));
     let libc = named_libc(&lib, &top);
     let flags = |more: &[&str]| -> Vec<String> { ["-nostdlib", "-fPIC", "-shared"].iter().chain(more).map(|s| s.to_string()).collect() };
@@ -504,7 +502,7 @@ fn many_corpus() -> Option<(PathBuf, PathBuf)> {
     std::fs::copy(b.join("libhub.so"), h.join("libhub.so")).unwrap();
     let flags = prog_flags(&lib, &ld, &libc, &["-Wl,--export-dynamic"]);
     build_all(vec![("prog".into(), cc(&top, "prog", MANY, &flags))]);
-    Some((d, top.join("prog")))
+    Some((guard, d, top.join("prog")))
 }
 
 /// s27_1_c_1, s27_1_c_4, s27_1_c_6, s27_1_c_8, s27_1_c_9 (dlopen(3) states no limit on the objects
@@ -519,7 +517,7 @@ fn many_corpus() -> Option<(PathBuf, PathBuf)> {
 /// as under the reference (probe of this program, DL-PROCESS-OBJECTS-2 handoff).
 #[test]
 fn dlopen_process_objects_past_the_old_object_tables() {
-    let Some((d, prog)) = many_corpus() else { return };
+    let Some((_top, d, prog)) = many_corpus() else { return };
     let o = run(Command::new(&prog).arg(&d));
     let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     assert!(o.status.success(), "the program failed: {:?}\n{out}{err}", o.status);
@@ -550,5 +548,152 @@ fn dlopen_process_objects_past_the_old_object_tables() {
     // holes below the top stay unused (DL-PROCESS-OBJECTS-2 handoff, a later story's).
     let reused: usize = err.split("reused ").nth(1).and_then(|s| s.split(' ').next()).and_then(|s| s.parse().ok()).unwrap_or(0);
     assert!(reused >= 2, "slot reuse at the top: {err}");
-    std::fs::remove_dir_all(d.parent().unwrap()).ok();
+}
+
+/// The churn program (DL-SLOT-REUSE): `argv` = the directory, `K`, `N`, readers (0 or 1). `N`
+/// opens of `libq<i % M>.so` (each needs its own `libd<i % M>.so`: a set of two), keeping the last
+/// `K` open and closing the oldest (first in, first out: every close leaves a hole below the
+/// top). Each open checks its function, `dladdr`'s path and, without readers, every 97th open,
+/// that `dl_iterate_phdr` lists the plugins in load order. With readers, a thread walks
+/// `dl_iterate_phdr` (every name well formed, headers readable) and `dladdr` of an address in no
+/// object (the whole chain) until the churn ends. Prints `distinct <handles>` and `ok`.
+const CHURN: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <link.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static const char *dir;
+static size_t dlen;
+static int K, N, M;
+static void *held[4096], *seen_h[8192];
+static int nseen, order[64], norder, wrong;
+static char bad[256];
+static volatile int stop;
+static int parse(const char *p, char *kind) {
+    if (strncmp(p, dir, dlen) || p[dlen] != '/') return -1;
+    p += dlen + 1;
+    if (!strcmp(p, "libc-dl.so")) return -1;
+    if (strncmp(p, "lib", 3) || (p[3] != 'q' && p[3] != 'd')) return -2;
+    char *e;
+    long v = strtol(p + 4, &e, 10);
+    if (e == p + 4 || strcmp(e, ".so") || v < 0 || v >= M) return -2;
+    *kind = p[3];
+    return (int)v;
+}
+static int walk(struct dl_phdr_info *i, size_t size, void *data) {
+    char kind = 0;
+    int v = i->dlpi_name[0] == '/' ? parse(i->dlpi_name, &kind) : -1;
+    int loads = 0;
+    for (int h = 0; h < i->dlpi_phnum && h < 64; h++) loads += i->dlpi_phdr[h].p_type == PT_LOAD;
+    if ((v == -2 || i->dlpi_phnum == 0 || i->dlpi_phnum > 64 || !loads) && !__atomic_exchange_n(&wrong, 1, __ATOMIC_RELAXED))
+        snprintf(bad, sizeof bad, "%.200s phnum %d loads %d", i->dlpi_name, (int)i->dlpi_phnum, loads);
+    if (data && v >= 0 && norder < 64) order[norder++] = kind == 'q' ? v : -1 - v;
+    return 0;
+}
+static void *reader(void *x) {
+    int local;
+    while (!stop) {
+        dl_iterate_phdr(walk, 0);
+        Dl_info info;
+        if (dladdr(&local, &info)) __atomic_store_n(&wrong, 2, __ATOMIC_RELAXED);
+    }
+    return x;
+}
+int main(int argc, char **argv) {
+    if (argc < 5) return 2;
+    dir = argv[1], dlen = strlen(dir), K = atoi(argv[2]), N = atoi(argv[3]), M = K + 2;
+    pthread_t t;
+    int readers = atoi(argv[4]);
+    if (readers && pthread_create(&t, 0, reader, 0)) return 2;
+    char path[4096];
+    for (int i = 0; i < N; i++) {
+        int k = i % M;
+        snprintf(path, sizeof path, "%s/libq%d.so", dir, k);
+        void *h = dlopen(path, RTLD_NOW);
+        if (!h) { printf("open %d: %s\n", i, dlerror()); return 1; }
+        int (*id)(void) = (int (*)(void))dlsym(h, "id");
+        Dl_info info;
+        if (!id || id() != 1001 * k) { printf("id %d\n", i); return 1; }
+        if (!dladdr((void *)id, &info) || strcmp(info.dli_fname, path)) { printf("dladdr %d\n", i); return 1; }
+        int s = 0;
+        while (s < nseen && seen_h[s] != h) s++;
+        if (s == nseen && nseen < 8192) seen_h[nseen++] = h;
+        held[i % 4096] = h;
+        if (i >= K && dlclose(held[(i - K) % 4096])) { printf("close %d: %s\n", i, dlerror()); return 1; }
+        if (!readers && i % 97 == 0) {
+            norder = 0;
+            dl_iterate_phdr(walk, order);
+            int want = 0, from = i >= K ? i - K + 1 : 0;
+            for (int j = from; j <= i; j++) {
+                if (want + 1 >= 64 || order[want] != j % M || order[want + 1] != -1 - j % M) { printf("order %d\n", i); return 1; }
+                want += 2;
+            }
+            if (norder != want) { printf("order count %d\n", i); return 1; }
+        }
+        if (wrong) { printf("reader %d: %s\n", wrong, bad); return 1; }
+    }
+    stop = 1;
+    if (readers) pthread_join(t, 0);
+    if (wrong) { printf("reader %d: %s\n", wrong, bad); return 1; }
+    printf("distinct %d\nok\n", nseen);
+    return 0;
+}
+"#;
+
+/// The churn corpus: `m` pairs `libq<k>.so` (needs `libd<k>.so`; `id` returns `1001 k`) and
+/// the program, or `None` with the reason printed.
+fn churn_corpus(tag: &str, m: usize) -> Option<(PathBuf, PathBuf)> {
+    let (lib, ld) = products()?;
+    let top = target().join(format!("ld-slot-reuse-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&top);
+    std::fs::create_dir_all(&top).unwrap();
+    let d = std::fs::canonicalize(&top).unwrap();
+    let libc_s = named_libc(&lib, &d);
+    let flags = |name: &str, more: &[String]| -> Vec<String> {
+        let mut f: Vec<String> = ["-nostdlib", "-fPIC", "-shared", "-Wl,--no-as-needed"].map(String::from).to_vec();
+        f.extend([format!("-Wl,-soname,{name}"), format!("-Wl,-rpath,{}", d.display()), format!("-L{}", d.display())]);
+        f.extend(more.iter().cloned());
+        f
+    };
+    build_all((0..m).map(|k| (format!("libd{k}.so"), cc(&d, &format!("libd{k}.so"), &format!("int d{k}(void) {{ return {}; }}\n", 1000 * k), &flags(&format!("libd{k}.so"), &[])))).collect());
+    build_all((0..m).map(|k| (format!("libq{k}.so"), cc(&d, &format!("libq{k}.so"), &format!("int d{k}(void);\nint id(void) {{ return {k} + d{k}(); }}\n"), &flags(&format!("libq{k}.so"), &[format!("-l:libd{k}.so")])))).collect());
+    let pf = prog_flags(&lib, &ld, &libc_s, &[]);
+    build_all(vec![("churn".to_string(), cc(&d, "churn", CHURN, &pf))]);
+    Some((d.clone(), d.join("churn")))
+}
+
+/// Run the churn program: its distinct handles; the run must end with `ok`.
+fn churn(d: &Path, prog: &Path, k: usize, n: usize, readers: bool) -> usize {
+    let o = run(Command::new(prog).arg(d).arg(k.to_string()).arg(n.to_string()).arg(if readers { "1" } else { "0" }));
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(o.status.success() && out.ends_with("ok\n"), "churn K={k} N={n} readers={readers}: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));
+    out.split("distinct ").nth(1).and_then(|s| s.lines().next()).and_then(|s| s.parse().ok()).unwrap()
+}
+
+/// s27_1_c_1 (`dlopen` loads an object; probe P-12: the chain lists the `dlopen`'d objects in load
+/// order): FIFO churn of 3000 two-object sets with 8 held leaves a hole below the top at every
+/// close; the freed slots are reused (the handles, which are the link maps, stay at about the 8
+/// held plus the one being opened, not one per open) while `dl_iterate_phdr` keeps listing the
+/// plugins in load order and `dladdr` names each one's path.
+#[test]
+fn dlopen_slot_reuse_fifo_churn_stays_bounded() {
+    let Some((d, prog)) = churn_corpus("fifo", 10) else { return };
+    let distinct = churn(&d, &prog, 8, 3000, false);
+    assert!(distinct <= 8 + 2, "freed slots below the top not reused: {distinct} distinct handles in 3000 opens");
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// s27_1_c_1 with D-27.1's lock-free readers: the same churn while another thread walks
+/// `dl_iterate_phdr` and `dladdr` (a walk of the whole chain) without pause, so slots wait out
+/// their grace period before reuse: every name the walks see is well formed, every header table
+/// readable, and the handles stay bounded by the held sets plus the retired ones (128 objects
+/// before a `dlopen` waits for the readers), not one per open.
+#[test]
+fn dlopen_slot_reuse_churn_with_concurrent_readers() {
+    let Some((d, prog)) = churn_corpus("readers", 10) else { return };
+    let distinct = churn(&d, &prog, 8, 3000, true);
+    assert!(distinct <= 2 * (8 + 130), "freed slots below the top not reused under readers: {distinct} distinct handles in 3000 opens");
+    std::fs::remove_dir_all(&d).ok();
 }

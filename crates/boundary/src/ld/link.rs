@@ -18,7 +18,7 @@ use super::exec_stack::exec_stack_dependency;
 use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, unmap_view, views_arm, views_close};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
-use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_PAGE, START_SPILL};
+use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_ORIGIN, START_PAGE, START_SPILL};
 use super::tls::{INITIAL_TAIL, install_tls, map_area};
 
 /// Load the program's dependencies, check their versions, relocate everything and protect the RELRO
@@ -108,6 +108,8 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 no_memory(name);
             }
             let mut found = None;
+            // What the search's check read of `found` (`None` for a file found by path).
+            let mut checked = None;
             if (bare || pre.is_some()) && !is_interp {
                 // The requester chain: this object, then each first requester up to the program.
                 let mut chain: Table<Scope<'_>, INLINE> = Table::new(Scope::default());
@@ -142,12 +144,13 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
                 let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
-                    match open_candidate(c, page, env) {
+                    match open_candidate(c, page, env, &mut checked) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
                         Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
                             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
                             unmap_view(at, file.len());
+                            checked = None;
                             return false;
                         }
                         Ok(hit) => found = Some(hit),
@@ -187,13 +190,19 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
             } else {
-                let (fd, at, file, id) = found.unwrap_or_else(|| {
-                    // The string table entry is NUL-terminated in the mapped file.
-                    open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING))
-                });
+                let (fd, at, file, id) = match found {
+                    Some(f) => f,
+                    None => {
+                        // Not checked here (`map::load` checks it).
+                        checked = None;
+                        // The string table entry is NUL-terminated in the mapped file.
+                        open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING))
+                    }
+                };
                 found = Some((fd, at, file, id));
                 // `ld.so` by any name it was found by is the start-time `ld.so` (ruling #5126).
-                is_interp = bare && dynamic_of(file).and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
+                let dynm = checked.map(|c| c.dynm).or_else(|| dynamic_of(file));
+                is_interp = bare && dynm.and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
                 id
             };
             // Another path to an object already loaded (L14-4): the same object, loaded once.
@@ -226,16 +235,24 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 // released below.
                 paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
-            let loaded = match map::load::<Native, _>(&mut StartMapper { fd }, file, page) {
-                Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
-                other => other,
+            // A candidate the search checked is mapped by the plan its check made (the same bytes,
+            // planned once); one found by path, or asking for an executable stack, is checked here.
+            let loaded = match checked {
+                Some(c) => map::map_planned(&mut StartMapper { fd }, &c.elf, &c.plan, file, page),
+                None => match map::load::<Native, _>(&mut StartMapper { fd }, file, page) {
+                    Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
+                    other => other,
+                },
             };
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
             let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
             maps[n] = (at, file.len());
             ids[n] = id;
             phdrs[n] = (usize::try_from(loaded.phdr).unwrap_or(0), usize::from(loaded.phnum));
-            objs[n] = parse(file, name, loaded.bias);
+            objs[n] = match checked {
+                Some(c) => niji_ld::reloc::Obj { elf: c.elf, dynm: c.dynm, bias: loaded.bias, name, tls: None },
+                None => parse(file, name, loaded.bias),
+            };
             parent[n] = q;
             if pre.is_none() {
                 edge(q, n, name);
@@ -502,28 +519,47 @@ impl Origin {
     #[cold]
     #[inline(never)]
     fn dir(self, store: &mut PathStore) -> Option<&'static [u8]> {
-        let mut buf = [0u8; search::PATH_MAX];
-        let cap = i64::try_from(buf.len()).unwrap_or(0);
-        if self.path == 0 {
-            let n = niji_sys_readlinkat(AT_FDCWD, c"/proc/self/exe".as_ptr().cast(), buf.as_mut_ptr().cast(), cap);
-            // A full buffer may be a cut path; a relative one is not the kernel's.
-            let exe = usize::try_from(n).ok().filter(|&n| n < buf.len()).and_then(|n| buf.get(..n)).filter(|p| p.first() == Some(&b'/'))?;
-            return store.keep(dir_of(exe)).ok();
+        let mut out = PathBuf::default();
+        if !program_origin(self.path, &mut out) {
+            return None;
         }
-        let given = c_string(self.path);
-        let mut joined = PathBuf::default();
-        if given.first() != Some(&b'/') {
-            // The getcwd system call's length counts the NUL; a directory it cannot reach is not absolute.
-            let n = niji_sys_getcwd(buf.as_mut_ptr().cast(), cap);
-            if let Some(cwd) = usize::try_from(n).ok().and_then(|n| buf.get(..n.checked_sub(1)?)).filter(|c| c.first() == Some(&b'/')) {
-                let cwd = if cwd == b"/" { &[][..] } else { cwd };
-                if joined.push(cwd) && joined.push(b"/") && joined.push(dir_of(given)) {
-                    return store.keep(joined.as_bytes()).ok();
-                }
-            }
-        }
-        Some(dir_of(given))
+        let kept = store.keep(out.as_bytes()).ok()?;
+        // `dlopen` and `dlinfo` read the same directory (DL-RUNPATH): the store is never released.
+        START_ORIGIN[0].store(kept.as_ptr().expose_provenance(), Relaxed);
+        START_ORIGIN[1].store(kept.len(), Release);
+        Some(kept)
     }
+}
+
+/// The program's `$ORIGIN` ([`Origin::dir`]'s rule) into `out` for a program run by the path at
+/// `path` (`ld.so PROGRAM`; 0: started by the kernel). False when it is unknown. Shared by the
+/// start and by `dlopen`'s and `dlinfo`'s first look at the program's scope (DL-RUNPATH), so both
+/// see one directory.
+#[cold]
+#[inline(never)]
+pub(super) fn program_origin(path: usize, out: &mut PathBuf) -> bool {
+    let mut buf = [0u8; search::PATH_MAX];
+    let cap = i64::try_from(buf.len()).unwrap_or(0);
+    out.clear();
+    if path == 0 {
+        let n = niji_sys_readlinkat(AT_FDCWD, c"/proc/self/exe".as_ptr().cast(), buf.as_mut_ptr().cast(), cap);
+        // A full buffer may be a cut path; a relative one is not the kernel's.
+        let exe = usize::try_from(n).ok().filter(|&n| n < buf.len()).and_then(|n| buf.get(..n)).filter(|p| p.first() == Some(&b'/'));
+        return exe.is_some_and(|exe| out.push(dir_of(exe)));
+    }
+    let given = c_string(path);
+    if given.first() != Some(&b'/') {
+        // The getcwd system call's length counts the NUL; a directory it cannot reach is not absolute.
+        let n = niji_sys_getcwd(buf.as_mut_ptr().cast(), cap);
+        if let Some(cwd) = usize::try_from(n).ok().and_then(|n| buf.get(..n.checked_sub(1)?)).filter(|c| c.first() == Some(&b'/')) {
+            let cwd = if cwd == b"/" { &[][..] } else { cwd };
+            if out.push(cwd) && out.push(b"/") && out.push(dir_of(given)) {
+                return true;
+            }
+            out.clear();
+        }
+    }
+    out.push(dir_of(given))
 }
 
 /// The objects program start preloads (DL-LD-PRELOAD): the `LD_PRELOAD` names, then the preload

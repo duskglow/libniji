@@ -17,6 +17,8 @@
 mod skip_note;
 mod products;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -29,7 +31,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(what: &str) -> Scratch {
-        let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("{what}-{}", std::process::id()));
+        let d = crate::scratch::base().join(format!("{what}-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
         Scratch(d)
     }
@@ -37,7 +39,7 @@ impl Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 

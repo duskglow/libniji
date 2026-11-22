@@ -12,7 +12,9 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use niji_ld::arch::{RelocKind, X86_64};
 use niji_ld::elf::{dt, pt, Elf};
@@ -34,58 +36,54 @@ fn run(tool: &str, args: &[&str]) -> String {
     String::from_utf8(o.stdout).unwrap()
 }
 
-fn corpus() -> Option<&'static [Member]> {
-    static CORPUS: OnceLock<Option<Vec<Member>>> = OnceLock::new();
-    CORPUS
-        .get_or_init(|| {
-            for t in ["cc", "readelf", "objcopy"] {
-                if !tool_ok(t) {
-                    println!("SKIP: `{t}` is not available, the readelf parity corpus cannot be built");
-                    return None;
-                }
-            }
-            let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("elf_readelf_parity_{}", std::process::id()));
-            std::fs::create_dir_all(&dir).unwrap();
-            let main = dir.join("main.c");
-            let lib = dir.join("lib.c");
-            std::fs::write(&main, "int main(void) { return 0; }\n").unwrap();
-            std::fs::write(&lib, "int corpus_f(void) { return 1; }\n").unwrap();
-            // A versioned library: definitions with a parent, a hidden old version, data pointers (RELR or
-            // RELATIVE), PLT calls, TLS (DTPMOD64/DTPOFF64) and a needed version from the C library.
-            let vlib = dir.join("vlib.c");
-            let vmap = dir.join("v.map");
-            std::fs::write(&vmap, "VER_1 { global: f1; g; local: *; };\nVER_2 { global: f2; t; } VER_1;\n").unwrap();
-            std::fs::write(
-                &vlib,
-                "#include <stdio.h>\nint f1(void) { return 1; }\nint f2(void) { return 2; }\nint g_old(void) { return 3; }\n__asm__(\".symver g_old,g@VER_1\");\nint g_new(void) { return 4; }\n__asm__(\".symver g_new,g@@VER_2\");\n__thread int t;\nstatic int x; int *px = &x; int *py[3] = {&x, &x, &x};\nint use(void) { printf(\"%d\\n\", f1() + t); return puts(\"x\"); }\n",
-            )
-            .unwrap();
-            let (main, lib) = (main.to_str().unwrap().to_string(), lib.to_str().unwrap().to_string());
-            let (vlib, vscript) = (vlib.to_str().unwrap().to_string(), format!("-Wl,--version-script={}", vmap.to_str().unwrap()));
-            let members: [(&'static str, Vec<&str>); 8] = [
-                ("static", vec!["-static", &main]),
-                ("pie", vec!["-fPIE", "-pie", "-Wl,-z,pack-relative-relocs", "-Wl,--hash-style=both", &main]),
-                ("nopie-rpath", vec!["-fno-PIE", "-no-pie", "-Wl,--disable-new-dtags,-rpath,/opt/corpus-r", &main]),
-                ("shared", vec!["-shared", "-fPIC", "-Wl,-soname,libcorpus.so.1", "-Wl,--enable-new-dtags,-rpath,/opt/corpus-run", &lib]),
-                ("shared-nonotes", vec!["-shared", "-fPIC", "-nostdlib", "-fcf-protection=none", "-Wl,--build-id=none", &lib]),
-                ("versioned-relr", vec!["-shared", "-fPIC", &vscript, "-Wl,-z,pack-relative-relocs", "-Wl,--hash-style=both", &vlib]),
-                ("versioned-sysv", vec!["-shared", "-fPIC", &vscript, "-Wl,-z,nopack-relative-relocs", "-Wl,--hash-style=sysv", &vlib]),
-                ("versioned-gnu", vec!["-shared", "-fPIC", &vscript, "-Wl,--hash-style=gnu", "-Wl,-z,now", &vlib]),
-            ];
-            let mut out = Vec::new();
-            for (name, args) in members {
-                let path = dir.join(name);
-                let stripped = dir.join(format!("{name}.nosh"));
-                let p = path.to_str().unwrap();
-                let mut a = vec!["-o", p];
-                a.extend(args);
-                run("cc", &a);
-                run("objcopy", &["--strip-section-headers", p, stripped.to_str().unwrap()]);
-                out.push(Member { name, path, stripped });
-            }
-            Some(out)
-        })
-        .as_deref()
+/// The corpus, built in a scratch directory each test holds while it runs (nextest runs each test
+/// in its own process, so a process-wide corpus was built per test anyway and never removed).
+fn corpus() -> Option<(Scratch, Vec<Member>)> {
+    for t in ["cc", "readelf", "objcopy"] {
+        if !tool_ok(t) {
+            println!("SKIP: `{t}` is not available, the readelf parity corpus cannot be built");
+            return None;
+        }
+    }
+    let dir = Scratch::dir("elf-readelf-parity");
+    let main = dir.join("main.c");
+    let lib = dir.join("lib.c");
+    std::fs::write(&main, "int main(void) { return 0; }\n").unwrap();
+    std::fs::write(&lib, "int corpus_f(void) { return 1; }\n").unwrap();
+    // A versioned library: definitions with a parent, a hidden old version, data pointers (RELR or
+    // RELATIVE), PLT calls, TLS (DTPMOD64/DTPOFF64) and a needed version from the C library.
+    let vlib = dir.join("vlib.c");
+    let vmap = dir.join("v.map");
+    std::fs::write(&vmap, "VER_1 { global: f1; g; local: *; };\nVER_2 { global: f2; t; } VER_1;\n").unwrap();
+    std::fs::write(
+        &vlib,
+        "#include <stdio.h>\nint f1(void) { return 1; }\nint f2(void) { return 2; }\nint g_old(void) { return 3; }\n__asm__(\".symver g_old,g@VER_1\");\nint g_new(void) { return 4; }\n__asm__(\".symver g_new,g@@VER_2\");\n__thread int t;\nstatic int x; int *px = &x; int *py[3] = {&x, &x, &x};\nint use(void) { printf(\"%d\\n\", f1() + t); return puts(\"x\"); }\n",
+    )
+    .unwrap();
+    let (main, lib) = (main.to_str().unwrap().to_string(), lib.to_str().unwrap().to_string());
+    let (vlib, vscript) = (vlib.to_str().unwrap().to_string(), format!("-Wl,--version-script={}", vmap.to_str().unwrap()));
+    let members: [(&'static str, Vec<&str>); 8] = [
+        ("static", vec!["-static", &main]),
+        ("pie", vec!["-fPIE", "-pie", "-Wl,-z,pack-relative-relocs", "-Wl,--hash-style=both", &main]),
+        ("nopie-rpath", vec!["-fno-PIE", "-no-pie", "-Wl,--disable-new-dtags,-rpath,/opt/corpus-r", &main]),
+        ("shared", vec!["-shared", "-fPIC", "-Wl,-soname,libcorpus.so.1", "-Wl,--enable-new-dtags,-rpath,/opt/corpus-run", &lib]),
+        ("shared-nonotes", vec!["-shared", "-fPIC", "-nostdlib", "-fcf-protection=none", "-Wl,--build-id=none", &lib]),
+        ("versioned-relr", vec!["-shared", "-fPIC", &vscript, "-Wl,-z,pack-relative-relocs", "-Wl,--hash-style=both", &vlib]),
+        ("versioned-sysv", vec!["-shared", "-fPIC", &vscript, "-Wl,-z,nopack-relative-relocs", "-Wl,--hash-style=sysv", &vlib]),
+        ("versioned-gnu", vec!["-shared", "-fPIC", &vscript, "-Wl,--hash-style=gnu", "-Wl,-z,now", &vlib]),
+    ];
+    let mut out = Vec::new();
+    for (name, args) in members {
+        let path = dir.join(name);
+        let stripped = dir.join(format!("{name}.nosh"));
+        let p = path.to_str().unwrap();
+        let mut a = vec!["-o", p];
+        a.extend(args);
+        run("cc", &a);
+        run("objcopy", &["--strip-section-headers", p, stripped.to_str().unwrap()]);
+        out.push(Member { name, path, stripped });
+    }
+    Some((dir, out))
 }
 
 fn readelf(opt: &str, p: &Path) -> String {
@@ -101,7 +99,8 @@ fn num(s: &str) -> u64 {
 #[test]
 fn readelf_h_parity() {
     // no spec clause: readelf -h parity (see the file comment).
-    let Some(c) = corpus() else { return };
+    let Some((_dir, c)) = corpus() else { return };
+    let c = &c[..];
     for m in c {
         let bytes = std::fs::read(&m.path).unwrap();
         let h = *Elf::parse::<X86_64>(&bytes).unwrap().header();
@@ -163,7 +162,8 @@ fn type_name(t: u32) -> &'static str {
 #[test]
 fn readelf_l_parity() {
     // no spec clause: readelf -l parity (see the file comment).
-    let Some(c) = corpus() else { return };
+    let Some((_dir, c)) = corpus() else { return };
+    let c = &c[..];
     for m in c {
         let bytes = std::fs::read(&m.path).unwrap();
         let elf = Elf::parse::<X86_64>(&bytes).unwrap();
@@ -200,7 +200,8 @@ fn readelf_l_parity() {
 #[test]
 fn readelf_d_parity() {
     // no spec clause: readelf -d parity (see the file comment).
-    let Some(c) = corpus() else { return };
+    let Some((_dir, c)) = corpus() else { return };
+    let c = &c[..];
     for m in c {
         let bytes = std::fs::read(&m.path).unwrap();
         let elf = Elf::parse::<X86_64>(&bytes).unwrap();
@@ -257,7 +258,8 @@ fn note_type(name: &[u8], t: u32) -> &'static str {
 #[test]
 fn readelf_n_parity() {
     // no spec clause: readelf -n parity (see the file comment).
-    let Some(c) = corpus() else { return };
+    let Some((_dir, c)) = corpus() else { return };
+    let c = &c[..];
     for m in c {
         let bytes = std::fs::read(&m.stripped).unwrap();
         let elf = Elf::parse::<X86_64>(&bytes).unwrap();
@@ -342,7 +344,8 @@ fn blocks(text: &str, start: &str) -> Vec<(String, Vec<String>)> {
 #[test]
 fn readelf_r_parity() {
     // no spec clause: readelf -r parity of the RELA, PLT and RELR iterators (see the file comment).
-    let Some(corpus) = corpus() else { return };
+    let Some((_dir, corpus)) = corpus() else { return };
+    let corpus = &corpus[..];
     let mut seen_relr = 0;
     for m in corpus {
         let bytes = std::fs::read(&m.path).unwrap();
@@ -385,7 +388,8 @@ fn readelf_r_parity() {
 fn readelf_v_and_dyn_syms_parity() {
     // no spec clause: readelf -V parity of versym/verdef/verneed and --dyn-syms parity of the hash-table
     // symbol counts (see the file comment).
-    let Some(corpus) = corpus() else { return };
+    let Some((_dir, corpus)) = corpus() else { return };
+    let corpus = &corpus[..];
     let mut seen = 0;
     for m in corpus {
         let bytes = std::fs::read(&m.path).unwrap();

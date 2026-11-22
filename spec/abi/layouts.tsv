@@ -1360,6 +1360,53 @@ Dl_serinfo	dls_serpath.dls_flags	24		unsigned int
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
 Dl_serinfo	__dls_serpath_pad.dls_name	16		char *	
 Dl_serinfo	__dls_serpath_pad.dls_flags	24		unsigned int	
+Dl_serpath		16	8		
+Dl_serpath	dls_name	0		char *	
+Dl_serpath	dls_flags	8		unsigned int	
+struct cpuid_feature		32	4		
+struct cpuid_feature	cpuid_array	0		unsigned int[4]	
+struct cpuid_feature	active_array	16		unsigned int[4]	
+struct prof		32	8		
+struct prof	pr_base	0		void *	
+struct prof	pr_size	8		size_t	
+struct prof	pr_off	16		size_t	
+struct prof	pr_scale	24		long unsigned int	
+La_x86_64_regs		768	16		
+La_x86_64_regs	lr_rdx	0		uint64_t	
+La_x86_64_regs	lr_r8	8		uint64_t	
+La_x86_64_regs	lr_r9	16		uint64_t	
+La_x86_64_regs	lr_rcx	24		uint64_t	
+La_x86_64_regs	lr_rsi	32		uint64_t	
+La_x86_64_regs	lr_rdi	40		uint64_t	
+La_x86_64_regs	lr_rbp	48		uint64_t	
+La_x86_64_regs	lr_rsp	56		uint64_t	
+La_x86_64_regs	lr_xmm	64		La_x86_64_xmm[8]	
+La_x86_64_regs	lr_vector	192		La_x86_64_vector[8]	
+La_x86_64_regs	__glibc_unused1	704		__int128[4]	
+La_x86_64_retval		240	16		
+La_x86_64_retval	lrv_rax	0		uint64_t	
+La_x86_64_retval	lrv_rdx	8		uint64_t	
+La_x86_64_retval	lrv_xmm0	16		La_x86_64_xmm	
+La_x86_64_retval	lrv_xmm1	32		La_x86_64_xmm	
+La_x86_64_retval	lrv_st0	48		long double	
+La_x86_64_retval	lrv_st1	64		long double	
+La_x86_64_retval	lrv_vector0	80		La_x86_64_vector	
+La_x86_64_retval	lrv_vector0.ymm	80		La_x86_64_ymm[2]	
+La_x86_64_retval	lrv_vector0.zmm	80		La_x86_64_zmm[1]	
+La_x86_64_retval	lrv_vector0.xmm	80		La_x86_64_xmm[4]	
+La_x86_64_retval	lrv_vector1	144		La_x86_64_vector	
+La_x86_64_retval	lrv_vector1.ymm	144		La_x86_64_ymm[2]	
+La_x86_64_retval	lrv_vector1.zmm	144		La_x86_64_zmm[1]	
+La_x86_64_retval	lrv_vector1.xmm	144		La_x86_64_xmm[4]	
+La_x86_64_retval	__glibc_unused1	208		__int128	
+La_x86_64_retval	__glibc_unused2	224		__int128	
+La_x86_64_xmm		16	16		
+La_x86_64_ymm		32	16		
+La_x86_64_zmm		64	16		
+La_x86_64_vector		64	16		
+La_x86_64_vector	ymm	0		La_x86_64_ymm[2]	
+La_x86_64_vector	zmm	0		La_x86_64_zmm[1]	
+La_x86_64_vector	xmm	0		La_x86_64_xmm[4]	
 struct mntent		40	8		
 struct mntent	mnt_fsname	0		char *	
 struct mntent	mnt_dir	8		char *	
@@ -1921,7 +1968,7 @@ Elf64_Ehdr	e_shentsize	58		Elf64_Half
 Elf64_Ehdr	e_shnum	60		Elf64_Half	
 Elf64_Ehdr	e_shstrndx	62		Elf64_Half	
 Elf32_Phdr		32	4		
-Elf32_Phdr	__p_type	0		Elf32_Word	
+Elf32_Phdr	p_type	0		Elf32_Word	
 Elf32_Phdr	p_offset	4		Elf32_Off	
 Elf32_Phdr	p_vaddr	8		Elf32_Addr	
 Elf32_Phdr	p_paddr	12		Elf32_Addr	
@@ -1930,7 +1977,7 @@ Elf32_Phdr	p_memsz	20		Elf32_Word
 Elf32_Phdr	p_flags	24		Elf32_Word	
 Elf32_Phdr	p_align	28		Elf32_Word	
 Elf64_Phdr		56	8		
-Elf64_Phdr	__p_type	0		Elf64_Word	
+Elf64_Phdr	p_type	0		Elf64_Word	
 Elf64_Phdr	p_flags	4		Elf64_Word	
 Elf64_Phdr	p_offset	8		Elf64_Off	
 Elf64_Phdr	p_vaddr	16		Elf64_Addr	
@@ -2140,3 +2187,7 @@ struct elf_siginfo		12	4
 struct elf_siginfo	si_signo	0		int	
 struct elf_siginfo	si_code	4		int	
 struct elf_siginfo	si_errno	8		int	
+struct res_sym		24	8		
+struct res_sym	number	0		int	
+struct res_sym	name	8		char *	
+struct res_sym	humanname	16		char *	

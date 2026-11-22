@@ -12,6 +12,8 @@ mod skip_note;
 #[path = "support/oracle.rs"]
 mod oracle;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -71,7 +73,7 @@ fn secure_processes_ignore_the_resolver_environment() {
         skip_note::skipped("skipped: this user has no supplementary group for a set-group-ID copy");
         return;
     };
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("secure-env-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("secure-env-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
