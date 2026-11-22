@@ -37,6 +37,7 @@ fn build(out: &Path, niji: bool) -> bool {
 }
 
 fn namespaces() -> bool {
+    // contain: probe(brings lo up and mounts, then exits)
     Command::new("unshare").args(["-r", "-m", "-n", "sh", "-c", "ip link set lo up && mount -t tmpfs tmpfs /dev/shm"]).env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").status().is_ok_and(|s| s.success())
 }
 
@@ -60,7 +61,8 @@ fn lookups_without_a_server_equal_the_reference() {
     assert!(build(&ours, true), "gai_down.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/gai_down_run.sh");
     let run = |exe: &Path, scratch: &str| -> String {
-        let o = Command::new("timeout")
+        // gai_down_run.sh runs `unshare -r`: contained (support/contain.rs).
+        let o = oracle::contain::user("timeout")
             .arg(timeout::secs(600))
             .arg("sh")
             .arg(&script)

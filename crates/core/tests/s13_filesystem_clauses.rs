@@ -13,6 +13,8 @@
 
 #[path = "support/kernel.rs"]
 mod kernel;
+#[path = "support/contain.rs"]
+mod contain;
 
 #[path = "support/scratch.rs"]
 mod scratch;
@@ -368,7 +370,8 @@ mod p12 {
         let ns = ns && std::process::Command::new("unshare").args(unshare).arg("true").output().is_ok_and(|o| o.status.success());
         let exe = std::env::current_exe().unwrap();
         let mut cmd = if ns {
-            let mut c = std::process::Command::new("unshare");
+            // Contained (support/contain.rs).
+            let mut c = contain::user("unshare");
             c.args(unshare).arg("--").arg(&exe).env(NS, "1");
             c
         } else {

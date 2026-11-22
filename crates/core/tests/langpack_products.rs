@@ -46,7 +46,8 @@ fn langpack_equals_the_reference() {
     assert!(build(&host, false) && build(&ours, true), "the oracle does not build");
     let script = r.join("crates/core/tests/oracle/langpack_run.sh");
     let run = |exe: &Path, scratch: &str| -> Option<String> {
-        let o = Command::new("timeout").arg(timeout::secs(60)).arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").output().unwrap();
+        // langpack_run.sh runs `unshare -r`: contained (support/contain.rs).
+        let o = oracle::contain::user("timeout").arg(timeout::secs(60)).arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").output().unwrap();
         if o.status.code() == Some(77) {
             return None;
         }

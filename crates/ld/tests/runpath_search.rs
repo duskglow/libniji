@@ -13,6 +13,8 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -296,7 +298,8 @@ fn secure_dlopen_origin_only_trusted() {
     match Native::SYSTEM_DIRS.iter().find(|t| std::fs::canonicalize(t).is_ok_and(|r| r == Path::new(t))) {
         Some(t) if Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) => {
             let script = "mount --bind \"$1\" \"$2\" && exec \"$2/secure\" force \"$3\" \"$4\"";
-            let mut cmd = Command::new("unshare");
+            // Contained (support/contain.rs).
+            let mut cmd = contain::user("unshare");
             cmd.env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").args(["-r", "-m", "sh", "-c", script, "sh"]).arg(&bin).args([*t, names[0], names[1]]);
             let out = secure_run(&mut cmd);
             assert_eq!(out, want(1, &format!("{t}/sub/libB.so")), "secure: $ORIGIN {t} is trusted");

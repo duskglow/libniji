@@ -68,7 +68,8 @@ fn users_equal_the_reference() {
         if let Some(m) = mode {
             cmd.arg("sh").arg(&wrap).arg(m);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin").output().unwrap();
+        // The run's root processes (sudo) are contained (support/contain.rs).
+        let o = oracle::contain::output(cmd.arg("sh").arg(&script).arg(exe).arg(dir.join(scratch)).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")).unwrap();
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     };

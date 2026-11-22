@@ -18,6 +18,8 @@
 
 #[path = "../../core/tests/helpers/exec_stage.rs"]
 mod exec_stage;
+#[path = "../../core/tests/support/contain.rs"]
+mod contain;
 
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
@@ -883,7 +885,8 @@ fn reloc_ldso_kernel_started_without_proc() {
     }
     assert!(!root.join("proc").exists());
     // `unshare --root` changes the root itself: no chroot(8), which sits outside many PATHs.
-    let (code, sig, err) = run(Command::new("unshare").arg("-r").arg(format!("--root={}", root.display())).arg(&files[3]));
+    // Contained (support/contain.rs).
+    let (code, sig, err) = run(contain::user("unshare").arg("-r").arg(format!("--root={}", root.display())).arg(&files[3]));
     assert_eq!((code, sig), (Some(0), None), "kernel-started program without /proc: check number {code:?} failed; stderr: {err}");
 }
 
