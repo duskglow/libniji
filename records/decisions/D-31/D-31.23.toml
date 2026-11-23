@@ -1,0 +1,11 @@
+id = "D-31.23"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "LOCALEDEF-ARCHIVE"
+date = "2026-11-22"
+tests = ["crates/boundary/src/ldconfig.rs", "crates/locale/tests/prog.rs"]
+body = '''
+**The tool arena localedef and ldconfig share frees what they free** (#7535). It was a bump arena that gave back only its last block, so a localedef run's peak was the sum of every temporary table (218-338 MB per #14 locale), which matters once locale-gen compiles locales in parallel. Now: requests up to 64 KiB are rounded to a power-of-two class (16 B upwards) and served from 1 MiB chunks, each class with an intrusive free list, so a freed block is reused by the next request of its class; a larger block is its own anonymous mapping, unmapped on free and grown with `mremap`, so the big tables (collation and ctype) give their pages back to the kernel as soon as they are dropped. Peak RSS of `localedef -i <locale> -f UTF-8 <dir>` (Zen 1 host, `/usr/bin/time -f %M`, KiB, base origin/next 8e1837914 -> this change): en_US 224640 -> 109552, de_DE 344160 -> 111576, fr_FR 344160 -> 111560, ja_JP 234240 -> 49936, tr_TR 283680 -> 112540; the output files are unchanged (the reference comparison tests). Chunks are never returned (the small classes' total is a few MB); a size-class allocator was chosen over a general-purpose heap because the tools are single-threaded, short-lived and freestanding (no libc malloc to call).
+'''

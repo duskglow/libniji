@@ -1,0 +1,9 @@
+# LD-RELR-LOOP-2 plants (cargo xtask plants; docs/plants.md format)
+# The process image adds the bias to each word of a RELR bitmap in place: libc.so.6's packed relative relocations.
+proc-add-bits | crates/boundary/src/ld/image.rs | lit:unsafe { w.write_unaligned(v.wrapping_add(bias)) }; ==> unsafe { w.write_unaligned(v) }; | cargo test -p niji-ld --test start_objects start_objects_past_every_old_bound | msg:a start of [0-9]+ libraries failed
+# The mapped self-image adds the bias in place: ld.so's own packed relative relocations at its start.
+self-add-bits | crates/boundary/src/bootstrap.rs | lit:unsafe { w.write_unaligned(v.wrapping_add(bias)) }; ==> unsafe { w.write_unaligned(v) }; | cargo test -p niji-ld --test ldso_run ldso_run_by_interp_at_random_bases | msg:ldso_run_by_interp_at_random_bases.*(FAILED|panicked)|panicked.*ldso_run_by_interp_at_random_bases
+# boot::Memory's default adds each bitmap word through the segment view, at offset off + 8 * k.
+boot-default-word | crates/ld/src/boot.rs | lit:let Some(w) = view.get_mut(at..at.wrapping_add(8)) ==> let Some(w) = view.get_mut(at.wrapping_add(8)..at.wrapping_add(16)) | cargo test -p niji-ld --lib relr_bitmap_across_segments | msg:relr_bitmap_across_segments.*(FAILED|panicked)|panicked.*relr_bitmap_across_segments
+# Image's default (add_bits_by_word) reads and writes the word at at + 8 * k for each set bit k.
+image-default-word | crates/ld/src/reloc.rs | lit:let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8)); ==> let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(16)); | cargo test -p niji-ld --test reloc reloc_relr | msg:reloc_relr[a-z_]*.*(FAILED|panicked)|panicked.*reloc_relr

@@ -1,0 +1,12 @@
+id = "D-27.89"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+amends = ["D-27.75"]
+story = "LD-TABLES-LAYOUT"
+date = "2026-11-23"
+tests = ["crates/ld/tests/address_holes.rs::s27_1_c_9_library_inside_program_hole_found_itself", "crates/ld/tests/address_holes.rs::s27_1_c_9_address_lookups_hold_across_layouts", "crates/ld/tests/dl_find_object_index.rs::s27_1_c_9_find_object_index_matches_the_program_headers"]
+body = '''
+**The program the kernel started and `ld.so` own only their segment runs in address lookups (story LD-TABLES-LAYOUT; amends D-27.75's whole-span rule for those two objects).** The kernel maps those two and leaves the pages between their segment runs unmapped, so a `dlopen`'d object or any other mapping may lie there; every object libniji maps keeps its gaps reserved, so it keeps the whole span of D-27.75 (probe R-5). Matching the kernel-mapped two by their whole span named the wrong object for a library mapped into their hole: `_dl_find_object` and `dladdr` gave `ld.so` for code of a library placed in `ld.so`'s text-to-rodata hole, so the opted-in `atexit` owner (D-27.29) and the unwinder's `PT_GNU_EH_FRAME` were `ld.so`'s, and whether it happened depended on `ld.so`'s text size and the order of mappings (the CI train reds of 2026-11-22). Probe R-6 (`tools/probe/dl/holes/probe.c`, `spec/behaviour/dynlink.md`) settles the reference: a library in the program's hole is found as itself, `main` as the program with the run holding it as its range, an anonymous page in the hole as no object. A run is the segments whose pages touch, grown from a segment whose pages hold the address, lowest to highest segment address (the bytes between two segments of a run count, as before). `readers::extent` chooses it (entry 0 when the kernel started the program, `ld.so`'s own entry); the index's segment entries carry the run as their range, `dladdr` checks it after its range test, and the walk computes it in one `#[cold]` function, so objects libniji maps take the same path as before and nothing runs at start-up (the index is built at the first reader). `dladdr`'s `dli_fbase` stays the object's lowest page. The static program keeps its per-segment answer.
+'''

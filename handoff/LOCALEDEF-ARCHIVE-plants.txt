@@ -1,0 +1,19 @@
+# LOCALEDEF-ARCHIVE plants (docs/plants.md): the archive (D-31.25), defaults (D-31.24), stdin and -c (D-31.26), the
+# freeing tool arena (D-31.23) and setlocale's archive reader.
+archive-hash-rotate | crates/locale/src/archive.rs | lit:h.rotate_left(9) ==> h.rotate_left(8) | cargo test -p niji-locale --lib archive | msg:hash_and_slots.*(FAILED|panicked)
+archive-remove-noop | crates/locale/src/archive.rs | lit:    pub fn remove(&mut self, name: &[u8]) -> bool { ==>     pub fn remove(&mut self, name: &[u8]) -> bool { if name.len() < 1000 { return true; } | cargo test -p niji-locale --test prog | msg:delete_from_archive.*(FAILED|panicked)
+archive-no-codeset-alias | crates/locale/src/prog.rs | lit:if parts.codeset.is_none() && !cs.name().is_empty() { ==> if false { | cargo test -p niji-locale --test prog | msg:archive_names_take_the_charmaps_codeset.*(FAILED|panicked)
+defaults-not-filled | crates/locale/src/lib.rs | lit:            if slot.is_none() { ==>             if slot.is_none() && n == 99 { | cargo test -p niji-locale --test prog | msg:directory_form_writes_the_defined_categories.*(FAILED|panicked)
+stdin-name | crates/locale/src/prog.rs | lit:opts.input.unwrap_or(b"<stdin>") ==> opts.input.unwrap_or(b"stdin") | cargo test -p niji-locale --test prog | msg:source_from_stdin_and_lines_outside_a_category.*(FAILED|panicked)
+force-ignores-category-errors | crates/locale/src/prog.rs | lit:if (errors || category_errors) && !opts.force { ==> if errors && !opts.force { | cargo test -p niji-locale --test prog | msg:category_error_needs_force.*(FAILED|panicked)
+reader-deleted-name | crates/core/src/locale/archive.rs | lit:r != 0)? ==> r != 1)? | cargo test -p niji --lib locale::archive | msg:lookup_skips_a_deleted_name.*(FAILED|panicked)
+arena-free-list-pop | crates/boundary/src/ldconfig.rs | lit:list.store(unsafe { p.read() }, Relaxed); ==> list.store(head, Relaxed); | cargo xtask so && cargo test -p niji-locale --test reference products_localedef | msg:products_localedef_writes_the_library_compile.*(FAILED|panicked)
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# archive-hash-rotate: CAUGHT, caught by niji_locale archive::tests::hash_and_slots
+# archive-remove-noop: CAUGHT, caught by timeout: `cargo test -p niji-locale --test prog` timed out after 1200 s
+# archive-no-codeset-alias: CAUGHT, caught by prog archive_names_take_the_charmaps_codeset
+# defaults-not-filled: CAUGHT, caught by prog category_error_needs_force
+# stdin-name: CAUGHT, caught by prog source_from_stdin_and_lines_outside_a_category
+# force-ignores-category-errors: CAUGHT, caught by prog category_error_needs_force
+# reader-deleted-name: CAUGHT, caught by niji locale::archive::tests::lookup_skips_a_deleted_name
+# arena-free-list-pop: CAUGHT, caught by reference products_localedef_writes_the_library_compile

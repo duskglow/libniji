@@ -63,7 +63,8 @@ impl Archive {
         if self.data.get(off..end)? != name || self.data.get(end) != Some(&0) {
             return None;
         }
-        let rec = usize::try_from(u32_at(e, 8)?).ok()?;
+        // A record offset of 0 (the header) marks a deleted name whose slot is kept (D.1.6).
+        let rec = usize::try_from(u32_at(e, 8)?).ok().filter(|&r| r != 0)?;
         Some(Record { data: self.data, at: rec })
     }
 }
@@ -166,6 +167,23 @@ mod tests {
             let a = Archive::parse(image(size, &names)).unwrap();
             assert_eq!(found(&a, b"en_US.utf8"), (size > 1).then_some(size - 1), "size {size}");
         }
+    }
+
+    /// Appendix D.1.6: a deleted name (its slot kept, record offset 0) is not found, and the scan goes on to a later
+    /// slot holding the same name.
+    #[test]
+    fn lookup_skips_a_deleted_name() {
+        let names: [(usize, Option<&[u8]>); 2] = [(1, Some(b"en_US.utf8")), (6, Some(b"en_US.utf8"))];
+        let d = image(8, &names).to_vec();
+        let mut gone = d.clone();
+        gone[64 + 12 + 8..64 + 12 + 12].copy_from_slice(&0u32.to_le_bytes());
+        let a = Archive::parse(Box::leak(d.into_boxed_slice())).unwrap();
+        assert_eq!(found(&a, b"en_US.utf8"), Some(1));
+        let a = Archive::parse(Box::leak(gone.into_boxed_slice())).unwrap();
+        assert_eq!(found(&a, b"en_US.utf8"), Some(6));
+        let mut only = image(2, &[(0, Some(b"C.utf8"))]).to_vec();
+        only[64 + 8..64 + 12].copy_from_slice(&0u32.to_le_bytes());
+        assert_eq!(found(&Archive::parse(Box::leak(only.into_boxed_slice())).unwrap(), b"C.utf8"), None);
     }
 
     #[test]

@@ -2,9 +2,10 @@
 //! form of the output, and its messages and statuses.
 //!
 //! [`run`] does all of it over a [`Host`] (the file system as the program sees it), so the
-//! shipped program (`niji_boundary::localedef`) and the tests run the same code. The locale
-//! archive (D.1.6) is not written yet: a NAME without `/` needs `--no-archive`.
+//! shipped program (`niji_boundary::localedef`) and the tests run the same code. A NAME without
+//! `/` goes into the locale archive ([`crate::archive`], D.1.6) unless `--no-archive`.
 
+use crate::archive::{self, Archive, ArchiveError};
 use crate::{Error, ErrorKind, Files, Kind, TryVec};
 
 /// The input directories (spec §31.8, probe `localedef-help-paths`).
@@ -26,8 +27,18 @@ pub trait Host {
     fn mkdir(&mut self, path: &[u8]) -> core::result::Result<(), i32>;
     /// Write `data` as the file `path`, replacing any file there.
     fn write(&mut self, path: &[u8], data: &[u8]) -> core::result::Result<(), i32>;
+    /// The standard input, to its end (at most `max` bytes): the source when `-i` is not given.
+    fn read_stdin(&mut self, max: usize) -> core::result::Result<TryVec<u8>, i32>;
+    /// Hold an exclusive lock on the directory `dir` until the program exits (the archive's
+    /// directory, while the archive is read, changed and replaced).
+    fn lock(&mut self, dir: &[u8]) -> core::result::Result<(), i32>;
     /// The description of `errno` (`strerror`'s text).
     fn error_text(&self, errno: i32) -> &'static [u8];
+    /// The value of the environment variable `I18NPATH`, when set: the directories searched
+    /// for `-i`, `-f` and `copy` names after the working directory (spec §31.8).
+    fn i18npath(&self) -> Option<&[u8]> {
+        None
+    }
 }
 
 /// What a run printed and its exit status.
@@ -181,6 +192,7 @@ struct Opts<'a> {
     input: Option<&'a [u8]>,
     prefix: Option<&'a [u8]>,
     no_archive: bool,
+    replace: bool,
     force: bool,
     big_endian: bool,
     archive_mode: Option<&'static str>,
@@ -339,6 +351,7 @@ fn apply<'a>(opts: &mut Opts<'a>, short: u8, long: &str, value: Option<&'a [u8]>
         (_, "usage") => return Some(Parsed::Done(USAGE, b"", 0)),
         (_, "prefix") => opts.prefix = value,
         (_, "no-archive") => opts.no_archive = true,
+        (_, "replace") => opts.replace = true,
         (_, "big-endian") => opts.big_endian = true,
         (_, "little-endian") => opts.big_endian = false,
         (_, "quiet") => opts.quiet = true,
@@ -373,19 +386,52 @@ impl Files for Inputs<'_> {
     fn read(&mut self, kind: Kind, name: &[u8]) -> crate::Result<TryVec<u8>> {
         let missing = |e: i32| if e == ENOMEM { Error::from(niji::error::Errno::ENOMEM) } else { Error::missing("an input file cannot be read") };
         let has_slash = name.contains(&b'/');
-        match kind {
-            Kind::Locale if has_slash => self.read_path(kind, &[name]).map_err(missing),
-            Kind::Locale => self.read_path(kind, &[LOCALES, b"/", name]).map_err(missing),
-            Kind::Charmap if has_slash => self.read_path(kind, &[name]).map_err(missing),
-            Kind::Charmap => match self.read_path(kind, &[CHARMAPS, b"/", name]) {
-                Ok(t) => Ok(t),
-                Err(first) => {
-                    let gz = self.read_path(kind, &[CHARMAPS, b"/", name, b".gz"]).map_err(|_| missing(first))?;
-                    self.failed = None;
-                    niji::charmap::inflate::gunzip(&gz, MAX_INPUT).map_err(|_| Error::syntax(0, "the compressed charmap is damaged"))
-                }
-            },
+        // An absolute name, or a charmap name with a slash, is the file's path (localedef(1)).
+        if name.first() == Some(&b'/') || (kind == Kind::Charmap && has_slash) {
+            return self.read_path(kind, &[name]).map_err(missing);
         }
+        // The search (spec §31.8): the name from the working directory, then for each
+        // non-empty `I18NPATH` entry `<entry>/locales/<name>` (`charmaps/` for a charmap) and
+        // `<entry>/<name>`, then the default directory (only for a name without a slash).
+        // In I18NPATH and the default directory a charmap may also be `<name>.gz`.
+        let (sub, default): (&[u8], &[u8]) = match kind {
+            Kind::Locale => (b"/locales/", LOCALES),
+            Kind::Charmap => (b"/charmaps/", CHARMAPS),
+        };
+        let first = match self.read_path(kind, &[name]) {
+            Ok(t) => return Ok(t),
+            Err(e) => missing(e),
+        };
+        if first.kind == ErrorKind::NoMemory {
+            return Err(first);
+        }
+        let mut dirs: TryVec<TryVec<u8>> = TryVec::new();
+        if let Some(path) = self.host.i18npath() {
+            for entry in path.split(|&c| c == b':').filter(|e| !e.is_empty()) {
+                dirs.push(join(&[entry, sub]).map_err(|_| missing(ENOMEM))?)?;
+                dirs.push(join(&[entry, b"/"]).map_err(|_| missing(ENOMEM))?)?;
+            }
+        }
+        if !has_slash {
+            dirs.push(join(&[default, b"/"]).map_err(|_| missing(ENOMEM))?)?;
+        }
+        for dir in dirs.iter() {
+            match self.read_path(kind, &[dir, name]) {
+                Ok(t) => {
+                    self.failed = None;
+                    return Ok(t);
+                }
+                Err(ENOMEM) => return Err(missing(ENOMEM)),
+                Err(_) if kind == Kind::Charmap => {
+                    if let Ok(gz) = self.read_path(kind, &[dir, name, b".gz"]) {
+                        self.failed = None;
+                        return niji::charmap::inflate::gunzip(&gz, MAX_INPUT).map_err(|_| Error::syntax(0, "the compressed charmap is damaged"));
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+        Err(first)
     }
 }
 
@@ -401,9 +447,7 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         Some(Parsed::Run(opts)) => opts,
     };
     if let Some(mode) = opts.archive_mode {
-        put(&mut o.err, &[b"[error] --", mode.as_bytes(), b": libniji's localedef does not handle the locale archive yet\n"])?;
-        o.status = 4;
-        return Ok(());
+        return archive_command(mode, &opts, host, o);
     }
     let [name] = opts.names.as_slice() else {
         put(&mut o.out, &[TRY])?;
@@ -416,40 +460,56 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         o.status = 4;
         return Ok(());
     }
+    // Where the locale goes: the directory NAME (with `/`), a directory under the locale path named with the
+    // codeset normalized (--no-archive), or the archive.
+    let parts = niji::locale::name::parse(name);
+    let stored = niji::locale::name::archive_form(&parts);
     let dir = if name.contains(&b'/') {
-        join(&[name])?
+        Some(join(&[name])?)
     } else if opts.no_archive {
-        join(&[opts.prefix.unwrap_or_default(), LOCALE_PATH, b"/", name])?
+        Some(join(&[opts.prefix.unwrap_or_default(), LOCALE_PATH, b"/", stored.as_bytes()])?)
     } else {
-        put(&mut o.err, &[b"[error] libniji's localedef does not write the locale archive yet: name the output directory (a NAME with `/') or give --no-archive\n"])?;
-        o.status = 4;
-        return Ok(());
+        None
     };
-    let Some(input) = opts.input else {
-        put(&mut o.err, &[b"[error] no locale definition file given (-i)\n"])?;
-        o.status = 4;
-        return Ok(());
-    };
+    let shown: &[u8] = opts.input.unwrap_or(b"<stdin>");
     // The output directory is made before any input is read (probed: it is left, empty, when the run then fails);
     // a failure here is reported when the files are written.
-    let _ = host.mkdir(dir.strip_suffix(b"/").unwrap_or(&dir));
+    if let Some(dir) = &dir {
+        let _ = host.mkdir(dir.strip_suffix(b"/").unwrap_or(dir));
+    }
     let mut charmap = opts.charmap.unwrap_or(DEFAULT_CHARMAP);
     let mut inputs = Inputs { host, failed: None };
     let mut errors = false;
-    // The source is looked for first, so a missing one is reported as such whatever the charmap.
-    if let Err(e) = Files::read(&mut inputs, Kind::Locale, input) {
-        if e.kind == ErrorKind::NoMemory {
-            return Err(NoMem);
-        }
-        let errno = inputs.failed.map_or(ENOENT, |f| f.1);
-        put(&mut o.err, &[b"[error] cannot open locale definition file `", input, b"': ", inputs.host.error_text(errno), b"\n"])?;
-        o.status = 4;
-        return Ok(());
-    }
+    // The source is read first, so a missing one is reported as such whatever the charmap; without -i it is
+    // the standard input.
+    let text = match opts.input {
+        Some(input) => match Files::read(&mut inputs, Kind::Locale, input) {
+            Ok(t) => t,
+            Err(e) => {
+                if e.kind == ErrorKind::NoMemory {
+                    return Err(NoMem);
+                }
+                let errno = inputs.failed.map_or(ENOENT, |f| f.1);
+                put(&mut o.err, &[b"[error] cannot open locale definition file `", input, b"': ", inputs.host.error_text(errno), b"\n"])?;
+                o.status = 4;
+                return Ok(());
+            }
+        },
+        None => match inputs.host.read_stdin(MAX_INPUT) {
+            Ok(t) => t,
+            Err(ENOMEM) => return Err(NoMem),
+            Err(errno) => {
+                put(&mut o.err, &[b"[error] cannot read the locale definition from standard input: ", inputs.host.error_text(errno), b"\n"])?;
+                o.status = 4;
+                return Ok(());
+            }
+        },
+    };
     inputs.failed = None;
     // A charmap that cannot be read is an error; the default one stands in for it (probed), so the source is
     // still checked, and with -c compiled.
-    if let Err(e) = Files::read(&mut inputs, Kind::Charmap, charmap) {
+    let mut map = Files::read(&mut inputs, Kind::Charmap, charmap);
+    if let Err(e) = &map {
         if e.kind == ErrorKind::NoMemory {
             return Err(NoMem);
         }
@@ -460,33 +520,43 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         inputs.failed = None;
         if charmap != DEFAULT_CHARMAP {
             charmap = DEFAULT_CHARMAP;
-            if let Err(e) = Files::read(&mut inputs, Kind::Charmap, charmap) {
+            map = Files::read(&mut inputs, Kind::Charmap, charmap);
+            if let Err(e) = &map {
                 if e.kind == ErrorKind::NoMemory {
                     return Err(NoMem);
                 }
                 let errno = inputs.failed.map_or(ENOENT, |f| f.1);
                 put(&mut o.err, &[b"[error] default character map file `", charmap, b"' not found: ", inputs.host.error_text(errno), b"\n"])?;
-                put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
-                o.status = 4;
-                return Ok(());
             }
         }
         inputs.failed = None;
     }
-    let compiled = match crate::compile(input, charmap, &mut inputs) {
-        Ok(c) => c,
+    let mut line = [0u8; 10];
+    let Ok(map) = map else {
+        put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+        o.status = 4;
+        return Ok(());
+    };
+    let cs = match crate::charset::Charset::parse(&map) {
+        Ok(cs) => cs,
+        Err(e) if e.kind == ErrorKind::NoMemory => return Err(NoMem),
+        Err(e) => {
+            put(&mut o.err, &[charmap, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+            put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+            o.status = 4;
+            return Ok(());
+        }
+    };
+    let out = match crate::compile_text(&text, &cs, &mut inputs) {
+        Ok(out) => out,
         Err(e) => {
             match (e.kind, inputs.failed) {
                 (ErrorKind::NoMemory, _) => return Err(NoMem),
-                (ErrorKind::Missing, Some((Kind::Charmap, errno))) => {
-                    put(&mut o.err, &[b"[error] character map file `", charmap, b"' not found: ", inputs.host.error_text(errno), b"\n"])?;
-                }
                 (ErrorKind::Missing, Some((Kind::Locale, errno))) => {
                     put(&mut o.err, &[b"[error] cannot open a locale definition file the source names (copy or include): ", inputs.host.error_text(errno), b"\n"])?;
                 }
                 _ => {
-                    let mut line = [0u8; 10];
-                    put(&mut o.err, &[input, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+                    put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
                 }
             }
             put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
@@ -494,19 +564,184 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
             return Ok(());
         }
     };
+    // Syntax errors the compile went past (#7534, probed): a line outside any category is skipped and the
+    // locale still written, status 1; a category with an error needs -c (it gets its default), status 1.
+    // A failed category's error names it first (probed: `<file>:2: LC_NUMERIC: syntax error`); libniji adds
+    // what was wrong.
+    let mut failed = out.failed.iter().enumerate().filter(|f| *f.1).map(|f| f.0);
+    for (k, e) in out.errors.iter().enumerate() {
+        let cat: &[&[u8]] = match (k >= out.outside).then(|| failed.next()).flatten() {
+            Some(n) => &[NAMES.get(n).copied().unwrap_or_default(), b": syntax error: "],
+            None => &[],
+        };
+        put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": "])?;
+        put(&mut o.err, cat)?;
+        put(&mut o.err, &[e.what.as_bytes(), b"\n"])?;
+        o.status = 1;
+    }
+    let category_errors = out.errors.len() > out.outside;
     let host = inputs.host;
-    for (n, file) in compiled.iter().enumerate() {
-        if file.is_none() && n != 6 && !opts.quiet {
+    for (n, defined) in out.defined.iter().enumerate() {
+        if !defined && n != 6 && !opts.quiet {
             put(&mut o.err, &[b"[warning] No definition for ", NAMES.get(n).copied().unwrap_or_default(), b" category found\n"])?;
             o.status = 1;
         }
     }
-    if errors && !opts.force {
+    if (errors || category_errors) && !opts.force {
         put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
         o.status = 4;
         return Ok(());
     }
-    write_dir(host, &dir, &compiled, o)
+    match dir {
+        Some(dir) => write_dir(host, &dir, &out.files, o),
+        None => {
+            // A NAME without a codeset is stored under the charmap's too (probed: `en_US` with ISO-8859-1 is
+            // `en_US` and `en_US.iso88591`, one locale).
+            let with_codeset = niji::locale::name::archive_form(&niji::locale::name::Parts { codeset: Some(cs.name()), ..parts });
+            let mut names: TryVec<&[u8]> = TryVec::new();
+            names.push(stored.as_bytes()).map_err(|_| NoMem)?;
+            if parts.codeset.is_none() && !cs.name().is_empty() {
+                names.push(with_codeset.as_bytes()).map_err(|_| NoMem)?;
+            }
+            let mut images: archive::Images = Default::default();
+            for (img, file) in images.iter_mut().zip(out.files) {
+                if let Some(f) = file {
+                    *img = f;
+                }
+            }
+            let path = archive_path(&opts)?;
+            let _ = host.lock(&path_dir(&opts)?);
+            let Some(mut a) = load_for_change(host, &path, o)? else { return Ok(()) };
+            a.add(&names, images).map_err(|_| NoMem)?;
+            store(host, &path, &a, o)
+        }
+    }
+}
+
+/// The largest archive read.
+const ARCHIVE_MAX: usize = 1 << 30;
+
+/// The archive's directory: the locale path after `--prefix`.
+fn path_dir(opts: &Opts<'_>) -> core::result::Result<TryVec<u8>, NoMem> {
+    join(&[opts.prefix.unwrap_or_default(), LOCALE_PATH])
+}
+
+/// The archive's file.
+fn archive_path(opts: &Opts<'_>) -> core::result::Result<TryVec<u8>, NoMem> {
+    join(&[opts.prefix.unwrap_or_default(), LOCALE_PATH, b"/locale-archive"])
+}
+
+/// The archive at `path` to change: a missing one is empty; one that cannot be read or is damaged
+/// is an `[error]` line, status 4, `None`.
+fn load_for_change(host: &mut dyn Host, path: &[u8], o: &mut Outcome) -> core::result::Result<Option<Archive>, NoMem> {
+    let why: &[u8] = match host.read(path, ARCHIVE_MAX) {
+        Err(ENOENT) => return Ok(Some(Archive::default())),
+        Err(ENOMEM) => return Err(NoMem),
+        Err(e) => host.error_text(e),
+        Ok(d) => match Archive::parse(&d) {
+            Ok(a) => return Ok(Some(a)),
+            Err(ArchiveError::NoMemory) => return Err(NoMem),
+            Err(ArchiveError::Damaged) => b"the file is damaged",
+        },
+    };
+    put(&mut o.err, &[b"[error] cannot open locale archive \"", path, b"\": ", why, b"\n"])?;
+    o.status = 4;
+    Ok(None)
+}
+
+/// Replace the archive at `path` with `a` (probed message when its directory is missing: status 1).
+fn store(host: &mut dyn Host, path: &[u8], a: &Archive, o: &mut Outcome) -> core::result::Result<(), NoMem> {
+    let data = a.write().map_err(|_| NoMem)?;
+    if let Err(e) = host.write(path, &data) {
+        put(&mut o.err, &[b"cannot create temporary file: ", path, b".XXXXXX: ", host.error_text(e), b"\n"])?;
+        o.status = 1;
+    }
+    Ok(())
+}
+
+/// `--list-archive`, `--add-to-archive`, `--delete-from-archive` (probed statuses and messages).
+fn archive_command(mode: &str, opts: &Opts<'_>, host: &mut dyn Host, o: &mut Outcome) -> core::result::Result<(), NoMem> {
+    let path = archive_path(opts)?;
+    if mode == "list-archive" {
+        // An operand names the archive (the rest are ignored); a missing default archive lists nothing.
+        let (file, named) = match opts.names.first() {
+            Some(f) => (join(&[f])?, true),
+            None => (path, false),
+        };
+        let why: &[u8] = match host.read(&file, ARCHIVE_MAX) {
+            Err(ENOENT) if !named => return Ok(()),
+            Err(ENOMEM) => return Err(NoMem),
+            Err(e) => host.error_text(e),
+            Ok(d) => match Archive::parse(&d) {
+                Ok(a) => {
+                    for n in a.names().map_err(|_| NoMem)?.iter() {
+                        put(&mut o.out, &[n, b"\n"])?;
+                    }
+                    return Ok(());
+                }
+                Err(ArchiveError::NoMemory) => return Err(NoMem),
+                Err(ArchiveError::Damaged) => b"the file is damaged",
+            },
+        };
+        put(&mut o.err, &[b"cannot open locale archive \"", &file, b"\": ", why, b"\n"])?;
+        o.status = 1;
+        return Ok(());
+    }
+    if opts.names.is_empty() {
+        return Ok(());
+    }
+    let _ = host.lock(&path_dir(opts)?);
+    let Some(mut a) = load_for_change(host, &path, o)? else { return Ok(()) };
+    let mut changed = false;
+    for &operand in opts.names.iter() {
+        if mode == "delete-from-archive" {
+            // Exact names (no normalization); a missing one is a message, status unchanged.
+            if a.remove(operand) {
+                changed = true;
+            } else {
+                put(&mut o.err, &[b"locale \"", operand, b"\" not in archive\n"])?;
+            }
+            continue;
+        }
+        put(&mut o.out, &[b"Adding ", operand, b"\n"])?;
+        let base = operand.strip_suffix(b"/").unwrap_or(operand);
+        let last = base.rsplit(|&b| b == b'/').next().unwrap_or(base);
+        let stored = niji::locale::name::archive_form(&niji::locale::name::parse(last));
+        if a.contains(stored.as_bytes()) && !opts.replace {
+            put(&mut o.err, &[b"locale '", stored.as_bytes(), b"' already exists\n"])?;
+            o.status = 255;
+            continue;
+        }
+        let mut images: archive::Images = Default::default();
+        let mut first_error = None;
+        let mut found = false;
+        for (img, file) in images.iter_mut().zip(FILES) {
+            if file.is_empty() {
+                continue;
+            }
+            match host.read(&join(&[base, b"/", file])?, MAX_INPUT) {
+                Ok(d) => {
+                    *img = d;
+                    found = true;
+                }
+                Err(ENOMEM) => return Err(NoMem),
+                Err(e) => {
+                    first_error.get_or_insert(e);
+                }
+            }
+        }
+        if !found {
+            let e = first_error.unwrap_or(ENOENT);
+            put(&mut o.err, &[b"stat of \"", operand, b"\" failed: ", host.error_text(e), b": ignored\n"])?;
+            continue;
+        }
+        a.add(&[stored.as_bytes()], images).map_err(|_| NoMem)?;
+        changed = true;
+    }
+    if changed {
+        store(host, &path, &a, o)?;
+    }
+    Ok(())
 }
 
 /// Write the directory form: `dir` itself (one level: its parent must exist) and a file per category.
