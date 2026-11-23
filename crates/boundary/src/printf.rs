@@ -1012,7 +1012,7 @@ pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&
 }
 
 /// Wide characters into a caller's buffer of `max` units (`vswprintf`): `-1` (`E2BIG`, as
-/// observed of the reference at every size; D-NEW) when the result does not fit, as the
+/// observed of the reference at every size; D-12.33) when the result does not fit, as the
 /// contract requires.
 struct ToWideBuffer {
     addr: usize,
