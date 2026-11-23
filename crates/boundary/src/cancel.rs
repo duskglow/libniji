@@ -203,12 +203,7 @@ fn unwinder() -> Option<(usize, usize)> {
 #[inline(never)]
 fn forced_unwind(first: bool) {
     let Ok(d) = thread::desc() else { return };
-    let Some((force, get_cfa)) = unwinder() else {
-        if first {
-            no_unwinder();
-        }
-        return;
-    };
+    let Some((force, get_cfa)) = unwinder().or_else(|| no_unwinder(d, first)) else { return };
     let w = &d.unwind.words;
     set(w, niji_rt::thread::UNWIND_CLASS, usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes()));
     set(w, niji_rt::thread::UNWIND_CLEANUP, swallowed_addr());
@@ -250,15 +245,48 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
 /// Only in a program this library's `ld.so` started: a static program with unwind work links
 /// its unwinder (D-22.21), and a process another loader started (the in-process test runtime)
 /// has no lookup to find one.
+///
+/// Before the message, the program's own unwinder (D-22.24): a program linked by niji-gcc or
+/// niji-g++ exports `__niji_program_unwinder` (csys/start/unwinder.S), which returns the hidden
+/// copy the program links; the exit then unwinds with it. Looked up only when there is unwind
+/// work (the first step) or when this exit already started an unwind (a later step, after a
+/// cleanup buffer: the exception's class is this exit's), so a thread with nothing to unwind
+/// costs what it did. Returns the unwinder to use, or `None` for the exit without one.
 #[cold]
 #[inline(never)]
-fn no_unwinder() {
+fn no_unwinder(d: &niji_rt::thread::Thread, first: bool) -> Option<(usize, usize)> {
     if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
-        return;
+        return None;
     }
-    if crate::backtrace::handler_on_stack() {
-        niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
+    if !first {
+        let started = word(&d.unwind.words, niji_rt::thread::UNWIND_CLASS) == usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes());
+        return if started { program_unwinder() } else { None };
     }
+    if !crate::backtrace::handler_on_stack() {
+        return None;
+    }
+    match program_unwinder() {
+        Some(u) => Some(u),
+        None => niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap),
+    }
+}
+
+/// The unwinder the program links, through the entry it exports (`__niji_program_unwinder(0)`:
+/// `_Unwind_ForcedUnwind`, `(1)`: `_Unwind_GetCFA`; D-22.24), looked up with the loader's `dlsym`
+/// as [`unwinder`] does; `None` when the program exports no entry or links no unwinder.
+fn program_unwinder() -> Option<(usize, usize)> {
+    let entry = crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire);
+    if entry == 0 {
+        return None;
+    }
+    let name = b"__niji_program_unwinder\0";
+    let program = usize::from_ne_bytes(ffi::niji_machine_call4(entry, 0, as_i64(name.as_ptr().expose_provenance()), 0, 0).to_ne_bytes());
+    if program == 0 {
+        return None;
+    }
+    let get = |which: i64| usize::from_ne_bytes(ffi::niji_machine_call3(program, which, 0, 0).to_ne_bytes());
+    let (force, cfa) = (get(0), get(1));
+    (force != 0 && cfa != 0).then_some((force, cfa))
 }
 
 /// [`no_unwinder`]'s message.

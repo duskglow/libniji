@@ -76,6 +76,7 @@ coexist	niji6-dev	usr/bin/niji-g++	link	niji-gcc	-	none	the C++ driver: the wrap
 coexist	niji6-dev	usr/bin/niji-gcc	text	niji-gcc	0755	none	the compiler wrapper (links with --sysroot=/usr/lib/niji)
 coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so	text	coexist/libc-so.ld	0644	none	the linker script; its paths are inside the sysroot
 coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libm.so	text	coexist/libm-so.ld	0644	none	-lm: libm.so.6, and libmvec.so.1 AS_NEEDED (issue #28); its paths are inside the sysroot
+coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/niji-unwinder.o	file	niji-unwinder.o	0644	archive	the program's own unwinder offered to the C library; niji-gcc links it into dynamic programs (D-22.24)
 coexist	niji6-dev	usr/share/doc/niji6-dev/changelog.gz	changelog	-	0644	none	-
 coexist	niji6-dev	usr/share/doc/niji6-dev/copyright	text	copyright	0644	none	-
 coexist	niji6-dev	usr/share/man/man1/niji-g++.1.gz	link	niji-gcc.1.gz	-	none	-
