@@ -178,7 +178,7 @@ fn span_slots(bytes: &'static mut [u8], n: usize, name: &[u8]) -> &'static mut [
 /// header table and `PT_DYNAMIC` copied into one anonymous mapping, each `PT_LOAD` whose bytes cannot
 /// change during loading sliced in place, and each that can change and holds a table copied into a
 /// second one, all before the first relocation store. The span list lives in the first mapping, after
-/// the table. Returns the table and the spans; each buffer's (address, length to unmap: 0 when it
+/// the table. Returns the reader of the table (checked once) with the spans; each buffer's (address, length to unmap: 0 when it
 /// is in the scratch arena, [`scratch`]) is stored in `maps`. `published`:
 /// the object's dynamic array may already hold run-time addresses (DL-DYNAMIC-RELOC: `ld.so`'s own
 /// from its start, every start-time object's once `link` ended); the copies are turned back into
@@ -191,7 +191,7 @@ pub(super) fn image_view(
     name: &[u8],
     maps: &mut [(usize, usize)],
     published: bool,
-) -> (&'static [u8], &'static [niji_ld::elf::Span<'static>]) {
+) -> niji_ld::elf::Elf<'static> {
     use niji_ld::elf::{pt, Elf, Span, SpanKind, PHDR_SIZE};
     let bad = |what: &[u8]| -> ! { fail_with(&[name, what], program::FAILURE) };
     let table = prog.phnum.saturating_mul(PHDR_SIZE);
@@ -272,7 +272,8 @@ pub(super) fn image_view(
         }
     }
     let spans: &'static [Span<'static>] = spans;
-    (head, &spans[..k])
+    // The table was checked once, as `probe` (D-27.97).
+    probe.with_spans(&spans[..k]).unwrap_or_else(|| bad(b": malformed program headers\n"))
 }
 
 /// A dependency's mapped `file` as the relocator sees it (load bias `bias`). Its `name` may come from
@@ -294,8 +295,7 @@ pub(super) fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> ni
     read_image(base, &mut header);
     let Some((phoff, phnum)) = boot::own_headers(&header) else { fail_with(&[name, b": malformed program headers\n"], program::FAILURE) };
     let me = start::Program { phdr: base.wrapping_add(usize::try_from(phoff).unwrap_or(usize::MAX)), phnum, entry: 0 };
-    let (head, view) = image_view(&me, base, name, maps, true);
-    let elf = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
+    let elf = image_view(&me, base, name, maps, true);
     let dynm = elf.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     niji_ld::reloc::Obj { elf, dynm, bias: u64::try_from(base).unwrap_or(0), name, tls: None }
 }

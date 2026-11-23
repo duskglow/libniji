@@ -1012,7 +1012,8 @@ fn reader_view(elf: &Elf<'_>) -> String {
 /// no spec clause (ruling #4229, #4323, D-27.18): the image-mode reader slices in place only `PT_LOAD`s
 /// whose bytes cannot change during loading (never a writable one, never any of a text-relocated
 /// program), copies the others that hold tables, and reads exactly what the file reader reads, for a
-/// program with a GOT and for a text-relocated one.
+/// program with a GOT and for a text-relocated one; so does a reader checked without spans and given
+/// them afterwards (D-27.97).
 #[test]
 fn reloc_image_reader_slices_only_unchanging_segments() {
     if !cc_ok() {
@@ -1047,6 +1048,11 @@ fn reloc_image_reader_slices_only_unchanging_segments() {
         let phdrs = &file[h.phoff as usize..h.phoff as usize + usize::from(h.phnum) * 56];
         let image = Elf::from_image::<Native>(phdrs, &spans).unwrap();
         assert_eq!(reader_view(&image), reader_view(&elf), "{}: the image reader reads what the file reader reads", prog.display());
+        // D-27.97: the loader checks a table once, as a reader without spans, then gives it the spans.
+        let probe = Elf::from_image::<Native>(phdrs, &[]).unwrap();
+        let later = probe.with_spans(&spans).expect("an image reader takes spans");
+        assert_eq!(reader_view(&later), reader_view(&elf), "{}: the image reader given its spans later reads what the file reader reads", prog.display());
+        assert!(elf.with_spans(&spans).is_none(), "{}: a file reader does not become an image reader", prog.display());
     }
 }
 

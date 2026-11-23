@@ -639,6 +639,15 @@ impl<'a> Elf<'a> {
         Ok(elf)
     }
 
+    /// This image-mode reader ([`Elf::from_image`]) with the spans `spans` in place of its own. The
+    /// table is the same bytes, and the image-mode checks do not read the spans, so it is not
+    /// checked again (D-27.97: a start built its image readers twice, checking each table twice).
+    /// `None` for a reader of a file.
+    #[must_use]
+    pub fn with_spans(self, spans: &'a [Span<'a>]) -> Option<Self> {
+        self.spans.map(|_| Elf { spans: Some(spans), ..self })
+    }
+
     /// Image mode: how the reader may see `PT_LOAD` `ph` of an object whose dynamic entries are
     /// `dynamic` (a copy of its `PT_DYNAMIC` bytes, up to its `DT_NULL` or the end). The rule
     /// (D-27.18): a segment whose bytes cannot change while the object is loaded and relocated is
