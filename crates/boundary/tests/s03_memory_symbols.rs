@@ -1046,14 +1046,35 @@ fn kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken() {
             let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
             (got == at).then_some(got)
         };
-        let mut pins = [0usize; 64];
+        // Below `top`, the largest range of 4 * SEG, 2 * SEG, ... down to LATER bytes that is free
+        // (MAP_FIXED_NOREPLACE): a higher gap is covered in a few calls whatever its size (a page
+        // per split took 57 for the 64 MiB the loader leaves when the process is libniji's).
+        let cover = |top: usize| -> Option<(usize, usize)> {
+            let mut size = 4 * SEG;
+            loop {
+                if let Some(at) = top.checked_sub(size) {
+                    if let Ok(m) = CSys.mmap(at, size, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0) {
+                        if m.addr() == at {
+                            return Some((at, size));
+                        }
+                        KernelPages.unmap(m.addr(), size);
+                    }
+                }
+                if size == LATER {
+                    return None;
+                }
+                size = (size / 2).max(LATER);
+            }
+        };
+        let mut pins = [(0usize, 0usize); 64];
         let mut held = 0;
-        let mut keep = |p: Option<usize>| {
+        let mut keep = |p: Option<(usize, usize)>| {
             if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
                 *slot = p;
                 held += 1;
             }
         };
+        let pin = |at: usize| pin(at).map(|p| (p, PAGE));
         let probe = |len: usize| -> usize {
             let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
             assert_ne!(p, 0, "a mapping before any limit");
@@ -1073,8 +1094,8 @@ fn kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken() {
         keep(pin(down + SEG));
         keep(pin(gap - PAGE));
         keep(pin(gap + LATER + PAD));
-        // Higher gaps that fit LATER bytes are split by a page until the gap is the kernel's
-        // first choice for LATER bytes.
+        // Higher gaps that fit LATER bytes are covered (from the probe's end down) until the gap
+        // is the kernel's first choice for LATER bytes.
         let mut first = false;
         for _ in 0..48 {
             let q = probe(LATER);
@@ -1082,9 +1103,9 @@ fn kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken() {
                 first = true;
                 break;
             }
-            keep(pin(q + LATER / 2));
+            keep(cover(q + LATER).or_else(|| pin(q)));
         }
-        assert!(first, "precondition: the gap is the kernel's first choice for LATER bytes within 48 splits");
+        assert!(first, "precondition: the gap is the kernel's first choice for LATER bytes within 48 covers");
         // Room for LATER bytes, the call's page blockers and the whole gap, never for the
         // over-mapping (SEG + LATER and more).
         let limit = vm_size() + (LATER + PAD) as u64;
@@ -1099,8 +1120,8 @@ fn kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken() {
         let back = CSys.mmap(gap, LATER + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr());
         assert_eq!(back, Ok(gap), "map_room: the pinned gap is whole again (no blocker left in it)");
         pages.unmap(gap, LATER + PAD);
-        for &p in pins.get(..held).unwrap_or(&[]) {
-            pages.unmap(p, PAGE);
+        for &(p, len) in pins.get(..held).unwrap_or(&[]) {
+            pages.unmap(p, len);
         }
     });
 }
