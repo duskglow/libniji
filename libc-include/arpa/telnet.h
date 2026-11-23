@@ -7,6 +7,461 @@
 
 __NIJI_BEGIN_C
 
+#if 1
+# ifndef ABORT
+#  define ABORT 238
+# endif
+# ifndef AO
+#  define AO 245
+# endif
+# ifndef AUTHTYPE_CNT
+#  define AUTHTYPE_CNT 5
+# endif
+# ifndef AUTHTYPE_KERBEROS_V4
+#  define AUTHTYPE_KERBEROS_V4 1
+# endif
+# ifndef AUTHTYPE_KERBEROS_V5
+#  define AUTHTYPE_KERBEROS_V5 2
+# endif
+# ifndef AUTHTYPE_MINK
+#  define AUTHTYPE_MINK 4
+# endif
+# ifndef AUTHTYPE_NULL
+#  define AUTHTYPE_NULL 0
+# endif
+# ifndef AUTHTYPE_SPX
+#  define AUTHTYPE_SPX 3
+# endif
+# ifndef AUTHTYPE_TEST
+#  define AUTHTYPE_TEST 99
+# endif
+# ifndef AUTH_HOW_MASK
+#  define AUTH_HOW_MASK 2
+# endif
+# ifndef AUTH_HOW_MUTUAL
+#  define AUTH_HOW_MUTUAL 2
+# endif
+# ifndef AUTH_HOW_ONE_WAY
+#  define AUTH_HOW_ONE_WAY 0
+# endif
+# ifndef AUTH_WHO_CLIENT
+#  define AUTH_WHO_CLIENT 0
+# endif
+# ifndef AUTH_WHO_MASK
+#  define AUTH_WHO_MASK 1
+# endif
+# ifndef AUTH_WHO_SERVER
+#  define AUTH_WHO_SERVER 1
+# endif
+# ifndef AYT
+#  define AYT 246
+# endif
+# ifndef BREAK
+#  define BREAK 243
+# endif
+# ifndef DM
+#  define DM 242
+# endif
+# ifndef DO
+#  define DO 253
+# endif
+# ifndef DONT
+#  define DONT 254
+# endif
+# ifndef EC
+#  define EC 247
+# endif
+# ifndef EL
+#  define EL 248
+# endif
+# ifndef ENCRYPT_CNT
+#  define ENCRYPT_CNT 9
+# endif
+# ifndef ENCRYPT_DEC_KEYID
+#  define ENCRYPT_DEC_KEYID 8
+# endif
+# ifndef ENCRYPT_ENC_KEYID
+#  define ENCRYPT_ENC_KEYID 7
+# endif
+# ifndef ENCRYPT_END
+#  define ENCRYPT_END 4
+# endif
+# ifndef ENCRYPT_IS
+#  define ENCRYPT_IS 0
+# endif
+# ifndef ENCRYPT_REPLY
+#  define ENCRYPT_REPLY 2
+# endif
+# ifndef ENCRYPT_REQEND
+#  define ENCRYPT_REQEND 6
+# endif
+# ifndef ENCRYPT_REQSTART
+#  define ENCRYPT_REQSTART 5
+# endif
+# ifndef ENCRYPT_START
+#  define ENCRYPT_START 3
+# endif
+# ifndef ENCRYPT_SUPPORT
+#  define ENCRYPT_SUPPORT 1
+# endif
+# ifndef ENCTYPE_ANY
+#  define ENCTYPE_ANY 0
+# endif
+# ifndef ENCTYPE_CNT
+#  define ENCTYPE_CNT 3
+# endif
+# ifndef ENCTYPE_DES_CFB64
+#  define ENCTYPE_DES_CFB64 1
+# endif
+# ifndef ENCTYPE_DES_OFB64
+#  define ENCTYPE_DES_OFB64 2
+# endif
+# ifndef ENV_ESC
+#  define ENV_ESC 2
+# endif
+# ifndef ENV_USERVAR
+#  define ENV_USERVAR 3
+# endif
+# ifndef EOR
+#  define EOR 239
+# endif
+# ifndef GA
+#  define GA 249
+# endif
+# ifndef IAC
+#  define IAC 255
+# endif
+# ifndef IP
+#  define IP 244
+# endif
+# ifndef LFLOW_OFF
+#  define LFLOW_OFF 0
+# endif
+# ifndef LFLOW_ON
+#  define LFLOW_ON 1
+# endif
+# ifndef LFLOW_RESTART_ANY
+#  define LFLOW_RESTART_ANY 2
+# endif
+# ifndef LFLOW_RESTART_XON
+#  define LFLOW_RESTART_XON 3
+# endif
+# ifndef LM_FORWARDMASK
+#  define LM_FORWARDMASK 2
+# endif
+# ifndef LM_MODE
+#  define LM_MODE 1
+# endif
+# ifndef LM_SLC
+#  define LM_SLC 3
+# endif
+# ifndef MODE_ACK
+#  define MODE_ACK 4
+# endif
+# ifndef MODE_ECHO
+#  define MODE_ECHO 512
+# endif
+# ifndef MODE_EDIT
+#  define MODE_EDIT 1
+# endif
+# ifndef MODE_FLOW
+#  define MODE_FLOW 256
+# endif
+# ifndef MODE_FORCE
+#  define MODE_FORCE 4096
+# endif
+# ifndef MODE_INBIN
+#  define MODE_INBIN 1024
+# endif
+# ifndef MODE_LIT_ECHO
+#  define MODE_LIT_ECHO 16
+# endif
+# ifndef MODE_MASK
+#  define MODE_MASK 31
+# endif
+# ifndef MODE_OUTBIN
+#  define MODE_OUTBIN 2048
+# endif
+# ifndef MODE_SOFT_TAB
+#  define MODE_SOFT_TAB 8
+# endif
+# ifndef MODE_TRAPSIG
+#  define MODE_TRAPSIG 2
+# endif
+# ifndef NEW_ENV_VALUE
+#  define NEW_ENV_VALUE 1
+# endif
+# ifndef NEW_ENV_VAR
+#  define NEW_ENV_VAR 0
+# endif
+# ifndef NOP
+#  define NOP 241
+# endif
+# ifndef NSLC
+#  define NSLC 18
+# endif
+# ifndef NTELOPTS
+#  define NTELOPTS 40
+# endif
+# ifndef OLD_ENV_VALUE
+#  define OLD_ENV_VALUE 0
+# endif
+# ifndef OLD_ENV_VAR
+#  define OLD_ENV_VAR 1
+# endif
+# ifndef SB
+#  define SB 250
+# endif
+# ifndef SE
+#  define SE 240
+# endif
+# ifndef SLC_ABORT
+#  define SLC_ABORT 7
+# endif
+# ifndef SLC_ACK
+#  define SLC_ACK 128
+# endif
+# ifndef SLC_AO
+#  define SLC_AO 4
+# endif
+# ifndef SLC_AYT
+#  define SLC_AYT 5
+# endif
+# ifndef SLC_BRK
+#  define SLC_BRK 2
+# endif
+# ifndef SLC_CANTCHANGE
+#  define SLC_CANTCHANGE 1
+# endif
+# ifndef SLC_DEFAULT
+#  define SLC_DEFAULT 3
+# endif
+# ifndef SLC_EC
+#  define SLC_EC 10
+# endif
+# ifndef SLC_EL
+#  define SLC_EL 11
+# endif
+# ifndef SLC_EOF
+#  define SLC_EOF 8
+# endif
+# ifndef SLC_EOR
+#  define SLC_EOR 6
+# endif
+# ifndef SLC_EW
+#  define SLC_EW 12
+# endif
+# ifndef SLC_FLAGS
+#  define SLC_FLAGS 1
+# endif
+# ifndef SLC_FLUSHIN
+#  define SLC_FLUSHIN 64
+# endif
+# ifndef SLC_FLUSHOUT
+#  define SLC_FLUSHOUT 32
+# endif
+# ifndef SLC_FORW1
+#  define SLC_FORW1 17
+# endif
+# ifndef SLC_FORW2
+#  define SLC_FORW2 18
+# endif
+# ifndef SLC_FUNC
+#  define SLC_FUNC 0
+# endif
+# ifndef SLC_IP
+#  define SLC_IP 3
+# endif
+# ifndef SLC_LEVELBITS
+#  define SLC_LEVELBITS 3
+# endif
+# ifndef SLC_LNEXT
+#  define SLC_LNEXT 14
+# endif
+# ifndef SLC_NOSUPPORT
+#  define SLC_NOSUPPORT 0
+# endif
+# ifndef SLC_RP
+#  define SLC_RP 13
+# endif
+# ifndef SLC_SUSP
+#  define SLC_SUSP 9
+# endif
+# ifndef SLC_SYNCH
+#  define SLC_SYNCH 1
+# endif
+# ifndef SLC_VALUE
+#  define SLC_VALUE 2
+# endif
+# ifndef SLC_VARIABLE
+#  define SLC_VARIABLE 2
+# endif
+# ifndef SLC_XOFF
+#  define SLC_XOFF 16
+# endif
+# ifndef SLC_XON
+#  define SLC_XON 15
+# endif
+# ifndef SUSP
+#  define SUSP 237
+# endif
+# ifndef SYNCH
+#  define SYNCH 242
+# endif
+# ifndef TELCMD_FIRST
+#  define TELCMD_FIRST 236
+# endif
+# ifndef TELCMD_LAST
+#  define TELCMD_LAST 255
+# endif
+# ifndef TELOPT_3270REGIME
+#  define TELOPT_3270REGIME 29
+# endif
+# ifndef TELOPT_AUTHENTICATION
+#  define TELOPT_AUTHENTICATION 37
+# endif
+# ifndef TELOPT_BINARY
+#  define TELOPT_BINARY 0
+# endif
+# ifndef TELOPT_BM
+#  define TELOPT_BM 19
+# endif
+# ifndef TELOPT_DET
+#  define TELOPT_DET 20
+# endif
+# ifndef TELOPT_ECHO
+#  define TELOPT_ECHO 1
+# endif
+# ifndef TELOPT_ENCRYPT
+#  define TELOPT_ENCRYPT 38
+# endif
+# ifndef TELOPT_EOR
+#  define TELOPT_EOR 25
+# endif
+# ifndef TELOPT_EXOPL
+#  define TELOPT_EXOPL 255
+# endif
+# ifndef TELOPT_LFLOW
+#  define TELOPT_LFLOW 33
+# endif
+# ifndef TELOPT_LINEMODE
+#  define TELOPT_LINEMODE 34
+# endif
+# ifndef TELOPT_LOGOUT
+#  define TELOPT_LOGOUT 18
+# endif
+# ifndef TELOPT_NAMS
+#  define TELOPT_NAMS 4
+# endif
+# ifndef TELOPT_NAOCRD
+#  define TELOPT_NAOCRD 10
+# endif
+# ifndef TELOPT_NAOFFD
+#  define TELOPT_NAOFFD 13
+# endif
+# ifndef TELOPT_NAOHTD
+#  define TELOPT_NAOHTD 12
+# endif
+# ifndef TELOPT_NAOHTS
+#  define TELOPT_NAOHTS 11
+# endif
+# ifndef TELOPT_NAOL
+#  define TELOPT_NAOL 8
+# endif
+# ifndef TELOPT_NAOLFD
+#  define TELOPT_NAOLFD 16
+# endif
+# ifndef TELOPT_NAOP
+#  define TELOPT_NAOP 9
+# endif
+# ifndef TELOPT_NAOVTD
+#  define TELOPT_NAOVTD 15
+# endif
+# ifndef TELOPT_NAOVTS
+#  define TELOPT_NAOVTS 14
+# endif
+# ifndef TELOPT_NAWS
+#  define TELOPT_NAWS 31
+# endif
+# ifndef TELOPT_NEW_ENVIRON
+#  define TELOPT_NEW_ENVIRON 39
+# endif
+# ifndef TELOPT_OLD_ENVIRON
+#  define TELOPT_OLD_ENVIRON 36
+# endif
+# ifndef TELOPT_OUTMRK
+#  define TELOPT_OUTMRK 27
+# endif
+# ifndef TELOPT_RCP
+#  define TELOPT_RCP 2
+# endif
+# ifndef TELOPT_RCTE
+#  define TELOPT_RCTE 7
+# endif
+# ifndef TELOPT_SGA
+#  define TELOPT_SGA 3
+# endif
+# ifndef TELOPT_SNDLOC
+#  define TELOPT_SNDLOC 23
+# endif
+# ifndef TELOPT_STATUS
+#  define TELOPT_STATUS 5
+# endif
+# ifndef TELOPT_SUPDUP
+#  define TELOPT_SUPDUP 21
+# endif
+# ifndef TELOPT_SUPDUPOUTPUT
+#  define TELOPT_SUPDUPOUTPUT 22
+# endif
+# ifndef TELOPT_TM
+#  define TELOPT_TM 6
+# endif
+# ifndef TELOPT_TSPEED
+#  define TELOPT_TSPEED 32
+# endif
+# ifndef TELOPT_TTYLOC
+#  define TELOPT_TTYLOC 28
+# endif
+# ifndef TELOPT_TTYPE
+#  define TELOPT_TTYPE 24
+# endif
+# ifndef TELOPT_TUID
+#  define TELOPT_TUID 26
+# endif
+# ifndef TELOPT_X3PAD
+#  define TELOPT_X3PAD 30
+# endif
+# ifndef TELOPT_XASCII
+#  define TELOPT_XASCII 17
+# endif
+# ifndef TELOPT_XDISPLOC
+#  define TELOPT_XDISPLOC 35
+# endif
+# ifndef TELQUAL_INFO
+#  define TELQUAL_INFO 2
+# endif
+# ifndef TELQUAL_IS
+#  define TELQUAL_IS 0
+# endif
+# ifndef TELQUAL_NAME
+#  define TELQUAL_NAME 3
+# endif
+# ifndef TELQUAL_REPLY
+#  define TELQUAL_REPLY 2
+# endif
+# ifndef TELQUAL_SEND
+#  define TELQUAL_SEND 1
+# endif
+# ifndef WILL
+#  define WILL 251
+# endif
+# ifndef WONT
+#  define WONT 252
+# endif
+# ifndef xEOF
+#  define xEOF 236
+# endif
+#endif
 
 __NIJI_END_C
 
