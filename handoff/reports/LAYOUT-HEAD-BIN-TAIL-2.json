@@ -1,0 +1,20 @@
+{"task": "LAYOUT-HEAD-BIN-TAIL-2", "model": "opus", "tokens": null,
+ "result": "Hand-back fix only: train-owned decisions view restored to the merge base, D-X.162 kept in its record; code unchanged since 78527098f (head bin links measured-phase sections ahead of the warm-up cover)",
+ "branch": "task/layout-head-bin-tail-2", "head": null,
+ "gate": {"affected": "627 passed / 0 failed (direct tier on 78527098f; later commits are prose only, precheck counts the job)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The jobs come from the first run (code head 78527098f). precheck reports the tested content differs from 3263d7cbe only in prose and counts them"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "strings phase faults at text pads ahead of the group, release plan with pair_s inlined away (evaluator, 4096 pads; first run)", "before": 60, "after": 0, "unit": "pads with 1 fault over plan", "measured": true},
+   {"kind": "faults", "what": "float phase faults over plan at text pads, fast plan of next (evaluator, 4096 pads; first run)", "before": 97, "after": 0, "unit": "pads with 1 fault over plan", "measured": true},
+   {"kind": "cost", "what": "probe true mode over plan at pre text pads (not a contract), fast plan (evaluator; first run)", "before": 3517, "after": 3619, "unit": "pads (fast)", "measured": true},
+   {"kind": "unblock", "what": "PRINTF-NO-HEAP-3 (#7886): inlining pair_s no longer exposes resolve_fold_slow", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "precheck's train-owned check catches a changed generated view; a hand-back-check failure that only needs a file restored could be fixed by the dispatcher, without a second agent run",
+ "next_step": "Land",
+ "report_file": "handoff/LAYOUT-HEAD-BIN-TAIL.md",
+ "jobs": ["shiki:layout-head-bin-tail-gate", "shiki:layout-head-bin-tail-plants", "shiki:layout-head-bin-tail-full", "shiki:layout-head-bin-tail-xtest"]}
