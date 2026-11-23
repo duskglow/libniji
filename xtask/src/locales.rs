@@ -1,8 +1,11 @@
 //! The generated locale sources (LOCALE-SOURCES-GEN, D-31.27; owner ruling #7532: libniji makes
 //! its locale data itself). `cargo xtask locale-sources <dir>` (and `cargo xtask so`, into
 //! `target/niji/locale-sources`) writes one POSIX locale definition (POSIX.1-2017 XBD 7.3, the
-//! form `localedef` reads) for each name of `spec/cldr/locale-names.tsv` that Unicode CLDR
-//! covers, the shared files they copy, and `SUPPORTED` (the list `locale-gen` reads).
+//! form `localedef` reads) for each name of `spec/cldr/locale-names.tsv`, the shared files they
+//! copy, and `SUPPORTED` (the list `locale-gen` reads). A name Unicode CLDR covers takes its values
+//! from CLDR, except `LC_NAME`, `LC_ADDRESS` and `LC_TELEPHONE`, which CLDR has no source for: those
+//! come from the black-box probe of the reference's compiled locales (`crate::locale_probe`,
+//! LOCALE-PROBE-GEN, ruling #7791), as does every category of a name CLDR does not cover.
 //!
 //! Inputs, all in the tree (nothing is fetched at build time):
 //! * `spec/cldr/<v>/locales.tsv` and `territories.tsv`: the CLDR values, already resolved through
@@ -455,10 +458,11 @@ fn probed_kw(w: &mut String, p: &Probe, pn: &str, cat: &str, kw: &str) -> Result
 }
 
 /// A string-list keyword (`abday`, `alt_digits`, ...): `"a";"b"`, checked to have `n` items when
-/// given; nothing when the probe printed an empty list.
+/// given; nothing when the probe printed an empty list. `locale -k` prints a fixed-length list as
+/// one string (`"a;b"`) and `era` / `alt_digits` as quoted items (`"a";"b"`).
 fn probed_list(w: &mut String, p: &Probe, pn: &str, cat: &str, kw: &str, n: Option<usize>) -> Result<(), String> {
     let Some(Val::Str(s)) = p.get(pn, cat, kw)? else { return Ok(()) };
-    let items: Vec<&str> = s.split(';').collect();
+    let items: Vec<&str> = s.split(if n.is_none() { "\";\"" } else { ";" }).collect();
     if n.is_some_and(|n| n != items.len()) {
         return Err(format!("{pn} {cat} {kw}: {} items, not {n:?}", items.len()));
     }
@@ -815,7 +819,8 @@ pub fn write(root: &Path, out: &Path) -> Result<usize, String> {
     let mut done = BTreeSet::new();
     let mut supported = String::new();
     for (src, entry, cs) in &d.names {
-        if src.contains('_') && !done.contains(src) {
+        // `C` waits for a compact code point order in localedef (D-31.27).
+        if src != "C" && !done.contains(src) {
             let text = match source(&d, Some(&p), src)? {
                 Some(t) => Some(t),
                 None => probe_source(&p, src)?,
@@ -841,7 +846,7 @@ pub fn write(root: &Path, out: &Path) -> Result<usize, String> {
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let [dir] = args else { return Err("usage: cargo xtask locale-sources <output directory>".into()) };
     let n = write(root, Path::new(dir))?;
-    println!("locale-sources: {n} locale sources from Unicode CLDR {CLDR} in {dir}");
+    println!("locale-sources: {n} locale sources from Unicode CLDR {CLDR} and the probe (spec/locale-probe) in {dir}");
     Ok(())
 }
 
@@ -976,6 +981,7 @@ mod tests {
                 ("LC_TIME", "abday", "\"Su;Mo;Tu;We;Th;Fr;Sa\""),
                 ("LC_TIME", "mon", "\"J\\xc3\\xa4n;F;M;A;M;J;J;A;S;O;N;D\""),
                 ("LC_TIME", "era", ""),
+                ("LC_TIME", "alt_digits", "\"o\";\"i\";\"ii\""),
                 ("LC_TIME", "week-ndays", "7"),
                 ("LC_TIME", "week-1stday", "19971130"),
                 ("LC_TIME", "week-1stweek", "4"),
@@ -1027,6 +1033,7 @@ mod tests {
             "abday \"Su\";\"Mo\";\"Tu\";\"We\";\"Th\";\"Fr\";\"Sa\"",
             "mon \"J<U00E4>n\";\"F\";\"M\";\"A\";\"M\";\"J\";\"J\";\"A\";\"S\";\"O\";\"N\";\"D\"",
             "week 7;19971130;4",
+            "alt_digits \"o\";\"i\";\"ii\"",
             "first_weekday 2",
             "yesexpr \"<U005E><U005B>yY<U005D>\"",
             "height 297",

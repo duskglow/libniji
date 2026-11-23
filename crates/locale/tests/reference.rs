@@ -628,6 +628,81 @@ fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
     }
 }
 
+/// The values the reference's `locale -k` printed for one locale (`spec/locale-probe/locales.tsv`,
+/// LOCALE-PROBE-GEN): (category, keyword) -> the bytes, a string without its quotes.
+fn probed(name: &str) -> std::collections::BTreeMap<(String, String), Vec<u8>> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dump = std::fs::read_to_string(root.join("spec/locale-probe/locales.tsv")).unwrap();
+    let rows = |n: &str| -> Vec<Vec<String>> { dump.lines().filter(|l| l.starts_with(&format!("{n}\t"))).map(|l| l.split('\t').map(String::from).collect()).collect() };
+    let own = rows(name);
+    assert!(!own.is_empty(), "{name}: not in the probe");
+    let mut out = std::collections::BTreeMap::new();
+    let same = own.iter().find(|r| r[2] == "same-as").map(|r| r[3].clone());
+    for r in same.map(|s| rows(&s)).unwrap_or_default().iter().chain(&own).filter(|r| r[1] != "-") {
+        let mut b = Vec::new();
+        let v = r[3].as_bytes();
+        let mut i = 0;
+        while i < v.len() {
+            if v[i] == b'\\' {
+                b.push(u8::from_str_radix(&r[3][i + 2..i + 4], 16).unwrap());
+                i += 4;
+            } else {
+                b.push(v[i]);
+                i += 1;
+            }
+        }
+        let b = if b.len() >= 2 && b[0] == b'"' && b[b.len() - 1] == b'"' { b[1..b.len() - 1].to_vec() } else { b };
+        out.insert((r[1].clone(), r[2].clone()), b);
+    }
+    out
+}
+
+/// s31_8_c_1 (D-31.27, ruling #7791): `LC_NAME`, `LC_ADDRESS` and `LC_TELEPHONE` of the generated
+/// sources, compiled for UTF-8, hold what the reference's `locale -k` printed for every keyword
+/// (the probe dump), for a sample across scripts and regions: names Unicode CLDR covers (Latin,
+/// Cyrillic, Arabic, Devanagari, Han, Kana, Ethiopic) and names it does not, generated from the
+/// probe alone (Afar, Inuktitut syllabics, Tagalog, Crimean Tatar, Ge'ez, Min Nan in Latin).
+#[test]
+fn generated_sources_carry_the_probed_name_address_and_telephone() {
+    let src = sources();
+    let mut out = Vec::new();
+    for (locale, probe) in [
+        ("en_US", "en_US.utf8"),
+        ("de_DE", "de_DE.utf8"),
+        ("pt_BR", "pt_BR.utf8"),
+        ("ru_RU", "ru_RU.utf8"),
+        ("ar_EG", "ar_EG.utf8"),
+        ("hi_IN", "hi_IN"),
+        ("zh_CN", "zh_CN.utf8"),
+        ("ja_JP", "ja_JP.utf8"),
+        ("am_ET", "am_ET"),
+        ("aa_DJ", "aa_DJ.utf8"),
+        ("iu_CA", "iu_CA"),
+        ("tl_PH", "tl_PH.utf8"),
+        ("crh_UA", "crh_UA"),
+        ("gez_ER@abegede", "gez_ER@abegede"),
+        ("nan_TW@latin", "nan_TW@latin"),
+    ] {
+        let want = probed(probe);
+        let ours = niji_locale::compile(locale.as_bytes(), b"UTF-8", &mut Sources(src.clone())).unwrap_or_else(|e| panic!("{locale}: the generated source does not compile: {e:?}"));
+        for (n, cat, kws) in [
+            (8, "LC_NAME", &["name_fmt", "name_gen", "name_mr", "name_mrs", "name_miss", "name_ms"][..]),
+            (9, "LC_ADDRESS", &["postal_fmt", "country_name", "country_post", "country_ab2", "country_ab3", "country_car", "country_num", "country_isbn", "lang_name", "lang_ab", "lang_term", "lang_lib"]),
+            (10, "LC_TELEPHONE", &["tel_int_fmt", "tel_dom_fmt", "int_select", "int_prefix"]),
+        ] {
+            let c = Category::parse(leak(ours[n].as_ref().unwrap().as_slice().to_vec())).unwrap();
+            for (i, kw) in kws.iter().enumerate() {
+                let got = if *kw == "country_num" { c.word(i).to_string().into_bytes() } else { c.string(i).to_vec() };
+                let w = want.get(&(cat.to_string(), kw.to_string())).unwrap_or_else(|| panic!("{probe}: no {cat} {kw} in the probe"));
+                if &got != w {
+                    out.push(format!("{locale} {cat} {kw}: ours {:?}, the reference's {:?}", String::from_utf8_lossy(&got), String::from_utf8_lossy(w)));
+                }
+            }
+        }
+    }
+    assert!(out.is_empty(), "{} differences from the probe:\n{}", out.len(), out.join("\n"));
+}
+
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).

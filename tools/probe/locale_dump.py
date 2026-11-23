@@ -9,6 +9,10 @@ writes the dump to stdout:
     cc -O2 -o fp tools/probe/locale_fingerprint.c
     python3 tools/probe/locale_dump.py --fingerprints ./fp > spec/locale-probe/fingerprints.tsv
 
+`--names <name>...` dumps those names instead of `locale -a`'s, and `LOCPATH` is passed on: so
+the same `locale` program reads locales another localedef compiled (libniji's generated sources,
+compiled into a directory), for a comparison with the dump.
+
 For every name `locale -a` lists (sorted, so the output does not depend on its order), it runs
 `LC_ALL=<name> locale charmap` and `LC_ALL=<name> locale -ck <categories>` (the reference's own
 `locale` program: a black box) and writes one row per keyword:
@@ -42,6 +46,8 @@ def escape(b):
 
 def run(name, args):
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": name}
+    if "LOCPATH" in os.environ:
+        env["LOCPATH"] = os.environ["LOCPATH"]
     r = subprocess.run(["locale"] + args, env=env, capture_output=True, timeout=60, check=False)
     if r.returncode != 0 or r.stderr:
         sys.exit("locale %s under %s: rc %d %r" % (" ".join(args), name, r.returncode, r.stderr[:200]))
@@ -83,8 +89,8 @@ def sibling(name, data):
     return with_mod if with_mod in data else base + ".utf8"
 
 
-def main():
-    names = sorted(run("C", ["-a"]).decode("ascii").split())
+def main(only=None):
+    names = sorted(only or run("C", ["-a"]).decode("ascii").split())
     data = {n: dump(n) for n in names}
     host = subprocess.run(["dpkg-query", "-W", "-f", "${Package} ${Version}\\n", "libc6", "locales-all"],
                           capture_output=True, text=True, check=False).stdout.split("\n")
@@ -131,5 +137,7 @@ def fingerprints(binary):
 if __name__ == "__main__":
     if sys.argv[1:2] == ["--fingerprints"]:
         fingerprints(sys.argv[2])
+    elif sys.argv[1:2] == ["--names"]:
+        main(sys.argv[2:])
     else:
         main()
