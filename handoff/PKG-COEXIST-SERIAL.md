@@ -33,3 +33,7 @@ run only verified it.
 
 ## Next
 Nothing for this story.
+
+## PKG-COEXIST-SERIAL-2 (continuation)
+The CI red (deb_manifest tables_are_sorted_well_formed_and_name_built_products, 757258c50) said: product gencat is in the CI role's target/niji and no file row ships it. No source on next builds gencat (xtask/src/so.rs builds no gencat; the only gencat mentions are tests, probes and records), so the CI role's product directory held a leftover from another story's build, not an output of this branch. On a fresh `cargo xtask so` of this head all 6 deb_manifest tests pass (shiki, label pkg-coexist-serial-2-debtest). No code change was needed or made. When a utilities story starts building gencat it must add its libc-dev-bin file row and drop the placeholder text in tools/deb/description/libc-dev-bin.
+Informational: the lint reads whatever is in target/niji, so a stale product from an earlier build on the same role turns this test red; xtask so does not remove products it no longer builds.
