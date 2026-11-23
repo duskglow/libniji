@@ -269,6 +269,16 @@ fn format<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<
     format_routed(fmt, flag, ap, pf::Planned::Unknown, None, out)
 }
 
+/// [`format_at`] of the caller's own format, for [`format_routed`]: a cold call there, so the
+/// simple formats' paths keep their registers and layout (as a plain call, `%s` alone took two
+/// more instructions per call; PRINTF-NO-HEAP-2). `format_at` itself is not cold: its own
+/// inlining is unchanged.
+#[cold]
+#[inline(never)]
+fn format_general<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out)
+}
+
 /// [`format`] when a stream's plan cache (D-12.21) may already know `fmt`: `kept` is its plan
 /// (lent by the cache, not copied; TAR-TV) when `route` is [`pf::Planned::Simple`];
 /// [`pf::Planned::General`] is a format known not to be simple; otherwise the format is planned here.
@@ -284,7 +294,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
     }
     match route {
         pf::Planned::Simple => {}
-        pf::Planned::General => return format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out),
+        pf::Planned::General => return format_general(fmt, flag, ap, out),
         pf::Planned::Unknown => {
             // A format that is exactly `%s` (the commonest one for a string copy) has nothing to parse or
             // pad: one argument, `(null)` for a null pointer, written as is. Same bytes as the general path.
@@ -302,7 +312,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
     // The plan is filled in place: returned by value it would be copied.
     let mut plan = pf::SimpleFormat::new();
     if reg::active() || !pf::simple_into(fmt, &mut plan) {
-        return format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out);
+        return format_general(fmt, flag, ap, out);
     }
     // One conversion and its text (gawk's `"*.*%c"`, `"%lu"`): the pieces written directly, as
     // for a kept plan, without render_simple's loop (SPRINTF-RENDER).
