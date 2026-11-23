@@ -75,7 +75,26 @@ for name, a in targets:
         func = name
 gdb.execute("delete", to_string=True)
 
-sp0 = int(gdb.parse_and_eval("$sp"))
+
+
+def entry_sp():
+    """The stack pointer at the function's entry (the return address on top): the caller's unwound stack pointer
+    minus 8. In a dynamic link the name is not in the program's own symbol table, gdb breaks after the prologue's
+    pushes, and the current stack pointer is below the entry value: the first epilogue pop before a tail jump would
+    then read as the return (PATTERN-NESTING-3: 32 of ~3900 instructions traced)."""
+    try:
+        f = gdb.selected_frame()
+        while f is not None and f.type() == gdb.INLINE_FRAME:
+            f = f.older()
+        caller = f.older() if f is not None else None
+        if caller is not None:
+            return int(caller.read_register("sp")) - 8
+    except gdb.error:
+        pass
+    return int(gdb.parse_and_eval("$sp"))
+
+
+sp0 = entry_sp()
 counts = collections.Counter()
 order = []
 n = 0
