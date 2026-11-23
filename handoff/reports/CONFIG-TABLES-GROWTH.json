@@ -1,0 +1,18 @@
+{"task": "CONFIG-TABLES-GROWTH", "model": "opus", "tokens": null,
+ "result": "nsswitch lines, [...] action groups and gai.conf tables have no limit but memory (HL-16, HL-17; D-16.17); 9/9 plants caught; getaddrinfo localhost -8.6% instructions",
+ "branch": "task/config-tables-growth", "head": null,
+ "gate": {"affected": "direct tier: red only on the locale-archive tests of the mei host change #7846 (locale_data, catalogs_products, locale_products, printf_corpus_products, s07_locale_clauses s7_2_f_0); s16_nameservices_clauses and the rest green", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "ENOMEM while holding an nsswitch line: the brief says both 'falls back to the defaults' and 'exactly as when that entry fails to parse'; a line that does not parse has no source (observed reference behaviour), so the line is taken as unparsed (lookups unavailable), not as the default", "recommendation": "keep (fail closed, same as a bad line); switching to the default is a one-line change in legacy nss.rs without_long/Config::parse"}],
+ "informational": ["Gate reds are #7846 (mei has no /usr/lib/locale/locale-archive), coordinator note on #7938", "No allocation-failure test: the spill allocations are small heap blocks an address-space limit does not reach reliably", "No start-up rows counted: no start-up code touched (the switch is read on the first lookup)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "nsswitch.conf line with more than 16 sources, or a [...] group over 256 bytes, now parses (was: no source)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "gai.conf table rows past 32 now used (were ignored)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "getaddrinfo(\"localhost\") per call (wl_percall, base 0495c4684)", "before": 16864.9, "after": 15422.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "getpwnam_r(\"root\") per call (wl_percall, base 0495c4684)", "before": 4808.8, "after": 4807.8, "unit": "instr/call", "measured": true},
+  {"kind": "coverage", "what": "plants added (all caught)", "before": 0, "after": 9, "unit": "plants", "measured": true}],
+ "improvement": "sync_role BUSY while a plants job runs from the role (it copies the tree first): the plants could release the role once the copy is checked",
+ "next_step": "Land after LOCALE-PER-DIR-LOAD fixes #7846",
+ "report_file": "handoff/CONFIG-TABLES-GROWTH.md",
+ "jobs": ["config-tables-growth-gate2", "config-tables-growth-plants1", "config-tables-growth-percall1"]}
