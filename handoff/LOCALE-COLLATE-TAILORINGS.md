@@ -1,58 +1,47 @@
-# LOCALE-COLLATE-TAILORINGS (handoff, 2026-11-23): run -2, the shared root (leg 1 done)
+# LOCALE-COLLATE-TAILORINGS (handoff, 2026-11-23): run -2 done, the shared root
 
-State: branch `task/locale-collate-tailorings-2` (on top of run 1's `task/locale-collate-tailorings`, cut from
-origin/next 0495c4684); head = the commit carrying this note. Role mei:~/w/s3. Scope (coordinator #7998, #8003,
-#8008): the shared root only, per ruling #7958; per-locale tailorings and wiring into the generated sources wait for
-a run stacked on LOCALE-PROBE-GEN-2 and LOCALE-SOURCES-GEN-2 (neither on next).
+State: branch `task/locale-collate-tailorings-2`, on top of run 1's `task/locale-collate-tailorings`, cut from
+origin/next 0495c4684. Head: the commit carrying this note. Role: mei:~/w/s3. Scope (coordinator #7998, #8003,
+#8008): the shared root only, per ruling #7958. Per-locale tailorings and their wiring into the generated sources
+wait for a run stacked on LOCALE-PROBE-GEN-2 and LOCALE-SOURCES-GEN-2, neither of which is on next.
 
-## Done (leg 1)
+## Decisions in force
 
-* #7958 condition 1 (tie-break probe), answered by the coordinator: code point order holds except for explicit rules.
-  Fresh probe on mei: `collorder en_US.UTF-8` over U+0001-U+D7FF and U+E000-U+10FFFF (8 s; the std range reproduces
-  run 1's counts exactly). Findings: listing the reference order with DUCET 15.1 shifted weights reproduces the level
-  of all adjacent pairs but 45 of 50,708 (23 are the known "level 5" expansion artifact). The shifted-ignorable group
-  (7,361 cps) is in CODE POINT order at level 4, not DUCET primary order. Two class rules explain almost everything:
-  han-variant-block (1,508 CJK radicals/compat/enclosed/kanbun ideographs form a block before U+4E00, in DUCET order)
-  and format-first (Cc/Cf/Variation_Selector with all-zero DUCET weights first, cp order). Reference defines only
-  U+4E00-U+9FA5 of the unified ideographs (ext A, B... undefined).
-* `crates/collate-root` (niji-collate-root, lib + bin `niji-collate-root REPO OUT`): builds the root LC_COLLATE
-  source from spec/unicode/15.1.0/{allkeys,PropList,UnicodeData}.txt + `spec/locale/collate-root.txt` (2 class
-  rules, 127 undefined ranges, 22 `after`, 1 `same`, 3 `expand`, 2 `contract`, each class with its evidence).
-  Workspace member + dev-dependency of niji-locale.
-* Test `crates/locale/tests/reference.rs::generated_root_collation_is_the_references_en_us`: compiles the root with
-  libniji's localedef library in-process and compares with the reference's compiled en_US: all 1,112,063 code points
-  in reference strxfrm order, order + level (collorder's filler test) of each adjacent pair, plus the corpus (strcoll,
-  wcscoll). GREEN on mei (job lct2-t5, 89 s): 0 pairs differ, corpus clean.
-* Scratch (same run, $S = ~/w/.scratch/LOCALE-COLLATE-TAILORINGS-2/): derive.py (+ tiebreak2.py helpers, emit_rules.py)
-  derived the rules from en_US.all.tsv; the expand/same/contract lines were then settled by the test (header says so).
+* D-31.32 (`records/decisions/D-31/D-31.32.toml`): the root is generated from DUCET 15.1 plus
+  `spec/locale/collate-root.txt`. Levels 1-3 are DUCET shifted, level 4 is code point order. There are two class
+  rules, and every placement carries its probe evidence. The proof is the generated_root test against the
+  reference's en_US.
+* Coordinator #7958 (generate from DUCET), #7890 and owner #7791 (locale data by black-box probe).
 
-## Open (record in the report, not fixed here)
+## Done (do not redo)
 
-* collseq (bracket-range order) differs: reference puts U+03B1 before U+0041 though strcoll orders A first; the test
-  prints the count and does not assert it. Needs its own probe (fnmatch/regex ranges) in the stacked run.
-* Root contractions beyond l·/L· (DUCET has many: Cyrillic, Tibetan...) are not probed; the corpus found only l·.
-* run 1's open items (expansion levels, 3-char contractions, per-locale fillers for da/fo/is/kl/lt/lv/nb/nn/se) stand.
+* Probes and the survey (run 1): results/locale-collate-2026-11-23.md sections 1-6, with tools/probe/collate/.
+* Root probe: the en_US order over all of Unicode. Results section 7 has the findings: the level-4 tie-break is
+  code point order, there are two class rules, and 127 undefined ranges.
+* `crates/collate-root` (niji-collate-root): the generator, lib plus bin `niji-collate-root REPO OUT`.
+* `spec/locale/collate-root.txt`, 228 lines: 2 class, 127 undefined, 33 after, 1 same, 3 expand, 2 contract.
+* `tools/probe/collate/root_rules.py` derives the file from the probe output. It reproduces the file byte for
+  byte, and its simulation leaves 0 order and 0 level mismatches, so it exits 0.
+* Test `crates/locale/tests/reference.rs::generated_root_collation_is_the_references_en_us`: green.
+* Plants: `handoff/LOCALE-COLLATE-TAILORINGS-2.plants` (11), run as job lct2-plants.
+* Gate: escalates to FULL (Cargo.toml and the new rules path), so it is the train's. The changed crates' tests ran
+  as lct2-tests (`cargo xtask so` + `cargo test -p niji-collate-root -p niji-locale`), and precheck ran too.
 
-## Exact next steps (leg 2)
+## Open (for the stacked run)
 
-1. Commit the derivation as `tools/probe/collate/root_rules.py` (merge $S/derive.py + the helpers it imports from
-   $S/tiebreak2.py + $S/emit_rules.py into one file; the rules file header names it) and add it to
-   tools/probe/collate/README.md. Add section 7 to results/locale-collate-2026-11-23.md (the findings above; the
-   rules file header cites "section 7").
-2. Decision row: `python3 ~/src/liella-ops/bin/ops reserve --story LOCALE-COLLATE-TAILORINGS-2 D-31` and record the
-   root design (DUCET shifted L1-3, cp L4, class rules, probe-backed test) citing #7958; read §10 of the
-   developer-flow reference first.
-3. On mei:~/w/s3: `cargo xtask clippy` and `cargo xtask static` (new crate: watch for codemap/traceability checks;
-   the test's doc says `no spec clause`). Fix, commit.
-4. Plants file `handoff/LOCALE-COLLATE-TAILORINGS-2.plants` (docs/plants.md format), e.g. drop
-   `class format-first`, drop `class han-variant-block`, change one `after` level, make `shifted` keep variable
-   weights; cmd `cargo test -p niji-locale --test reference generated_root`, msg
-   `generated_root_collation_is_the_references_en_us.*(FAILED|panicked)`. Run with jobrun label lct2-plants,
-   `--dir /mnt/zram/claude/locale-collate-tailorings-2/plants-1`.
-5. Gate: jobrun lct2-gate, `cargo xtask affected --run` (direct tier; if FULL-escalated, follow the brief).
-6. Rewrite this note, report JSON (`handoff/reports/LOCALE-COLLATE-TAILORINGS-2.json`, with "jobs"), push, precheck,
-   `ops handback-check`, hand back. Remaining-work size for the stacked run: tailorings for 320 locales (16,151
-   rules) + 6 own-order tables + collseq probe: size L (estimate in results section 6 still holds).
+* collseq (bracket-range order) differs: the reference puts U+03B1 before U+0041 although strcoll orders A first.
+  The test prints the count without asserting it. It needs a probe of fnmatch and regex ranges.
+* Root contractions beyond l·/L· are not probed. DUCET has more (Cyrillic, Tibetan and others).
+* Run 1's open items still stand: expansion levels, 3-character contractions, and per-locale fillers for
+  da/fo/is/kl/lt/lv/nb/nn/se.
 
-Jobs so far (mei): lct2-lint0 (clippy+static on the inherited head, rc 0), lct2-probe-root, lct2-so, lct2-t1..t5
-(t5 = the green test run; t1-t4 superseded: compile errors and earlier rule versions).
+## Exact next step (new story, stacked on LOCALE-PROBE-GEN-2 and LOCALE-SOURCES-GEN-2; size L)
+
+1. Emit the root as the shared `LC_COLLATE` of the generated locale sources, through niji-collate-root.
+2. Apply the per-locale tailorings: 16,151 rules over 320 locales (`results/locale-collate-2026-11-23/rules/`).
+   Re-derive them against this root rather than the probed en_US; they should mostly be unchanged, because the
+   root equals en_US.
+3. Add the 6 own-order tables (ja_JP, ko_KR, zh_CN, cmn_TW, lo_LA, km_KH), the collseq probe, and a probe-backed
+   test per locale group, extending the generated_root test pattern.
+
+Plan rows to read: D-31.32, D-31.29 (localedef defaults). The full report is in handoff/LOCALE-COLLATE-TAILORINGS-2-report.md.
