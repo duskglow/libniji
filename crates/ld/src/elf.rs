@@ -2019,30 +2019,24 @@ impl<'a> GnuHash<'a> {
         GnuChain { h: *self, next: start, done: start == 0 }
     }
 
-    /// The symbols a lookup of the name hashing to `hash` must look at: nothing when the Bloom word
-    /// rejects the hash, else each entry of its chain whose hash matches (bit 0 aside), in order, given
-    /// to `f` until it answers true. The same entries and errors as testing the Bloom word, then
-    /// [`GnuHash::chain`] filtered by hash: a Bloom word past the table is
-    /// [`ElfError::BadHashHeader`], a chain word past the mapped bytes [`ElfError::HashIndex`]. One
-    /// loop over the chain's bytes, without the iterator's state (LD-LOOKUP-COST: every object ahead
-    /// of the definer in the scope pays this walk on every lookup).
+    /// The Bloom test of a lookup of the name hashing to `hash` ([`GnuHash::bloom`]), with its error.
+    /// A lookup in a GNU table looks at nothing when the Bloom word rejects the hash, else at each
+    /// entry of its chain whose hash matches (bit 0 aside), in order ([`GnuHash::chain_candidates`]:
+    /// the entries of [`GnuHash::chain`] filtered by hash). LD-LOOKUP-RETHINK split the two halves so
+    /// the scope walk tests the Bloom word before it enters an object (a rejected object then costs
+    /// no call) and the chain walk has one instance.
     ///
     /// # Errors
     ///
-    /// Those above, and the first error of `f`.
-    #[inline]
-    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
-        match self.bloom(hash) {
-            Some(false) => Ok(()),
-            Some(true) => self.chain_candidates(hash, f),
-            None => Err(ElfError::BadHashHeader(Table::GnuHash).into()),
-        }
+    /// [`ElfError::BadHashHeader`] for a Bloom word past the table.
+    #[inline(always)]
+    pub(crate) fn bloom_checked(&self, hash: u32) -> Result<bool, ElfError> {
+        self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash))
     }
 
     /// The Bloom test of a lookup of the name hashing to `hash`: `Some(false)` when the Bloom word
     /// rejects the hash (no symbol of the table has it), `Some(true)` when it passes, `None` when the
-    /// word cannot be read (a header past the table: [`GnuHash::candidates`]' error). The scope walk
-    /// runs it before it enters an object (LD-LOOKUP-RETHINK: a rejected object then costs no call).
+    /// word cannot be read (a header past the table: [`GnuHash::bloom_checked`]'s error).
     #[inline(always)]
     #[must_use]
     pub(crate) fn bloom(&self, hash: u32) -> Option<bool> {
@@ -2053,8 +2047,9 @@ impl<'a> GnuHash<'a> {
         Some(word & mask == mask)
     }
 
-    /// [`GnuHash::candidates`] after a [`GnuHash::bloom`] test that passed: the chain's entries
-    /// whose hash matches, in order, given to `f` until it answers true (the same entries and errors).
+    /// The chain walk after a [`GnuHash::bloom`] test that passed: the chain's entries whose hash
+    /// matches, in order, given to `f` until it answers true. One loop over the chain's bytes,
+    /// without the iterator's state (LD-LOOKUP-COST).
     ///
     /// # Errors
     ///

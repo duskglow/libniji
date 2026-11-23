@@ -1,0 +1,6 @@
+# LD-LOOKUP-RETHINK plants: the scope walk's Bloom test (symbols::lookup), Object::lookup_in's own test, GnuHash::bloom.
+walk-skips-pass | crates/ld/src/symbols.rs | lit:Some(true) => true, ==> Some(true) => continue, | cargo test -p niji-ld --test symbols | msg:scope_walk_answers_as_each_object_in_order.*FAILED|panicked
+walk-skips-sysv | crates/ld/src/symbols.rs | perl:s/None => false,(\s+\};\s+let Some\(def\) = obj\.lookup_in)/None => continue,$1/s | cargo test -p niji-ld --test symbols | msg:scope_walk_answers_as_each_object_in_order.*FAILED|panicked
+lookup-bloom-inverted | crates/ld/src/symbols.rs | lit:if !g.bloom_checked(req.gnu)? { ==> if g.bloom_checked(req.gnu)? { | cargo test -p niji-ld --test symbols | msg:FAILED|panicked
+bloom-inverted | crates/ld/src/elf.rs | lit:Some(word & mask == mask) ==> Some(word & mask != mask) | cargo test -p niji-ld --test symbols | msg:FAILED|panicked
+bloom-unread-dropped | crates/ld/src/elf.rs | lit:self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash)) ==> Ok(self.bloom(hash).unwrap_or(false)) | cargo test -p niji-ld --test symbols | equivalent:unreachable for a parsed table: gnu_hash_at refuses bloom_size 0 and maps the Bloom words and buckets (bytes_at 16 + bloom + buckets), so bloom_word(wi) with wi < bloom_size always reads

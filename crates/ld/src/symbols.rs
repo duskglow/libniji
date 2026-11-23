@@ -548,12 +548,11 @@ impl<'a> Object<'a> {
         }
     }
 
-    /// The candidates for `req` in the hash chain, as symbol indices (one error ends the walk).
-    /// `chain_only`: the caller ran the GNU table's Bloom test and it passed ([`Object::bloom`]).
-    fn for_each_candidate(&self, req: &Request<'_>, chain_only: bool, mut f: impl FnMut(u32) -> Result<bool, LookupError>) -> Result<(), LookupError> {
+    /// The candidates for `req` in the hash chain, as symbol indices (one error ends the walk); a GNU
+    /// table's Bloom test has passed ([`Object::lookup_in`]).
+    fn for_each_candidate(&self, req: &Request<'_>, mut f: impl FnMut(u32) -> Result<bool, LookupError>) -> Result<(), LookupError> {
         match self.hash {
-            Hash::Gnu(g) if chain_only => g.chain_candidates(req.gnu, f)?,
-            Hash::Gnu(g) => g.candidates(req.gnu, f)?,
+            Hash::Gnu(g) => g.chain_candidates(req.gnu, f)?,
             Hash::Sysv(s) => {
                 for i in s.chain(req.sysv()) {
                     if f(i?)? {
@@ -578,8 +577,15 @@ impl<'a> Object<'a> {
     /// [`Object::lookup`]; `chain_only`: the scope walk ran the Bloom test and it passed, so the walk
     /// starts at the hash chain ([`Object::bloom`]).
     fn lookup_in(&self, req: &Request<'_>, chain_only: bool) -> Result<Option<Def>, LookupError> {
+        if !chain_only {
+            if let Hash::Gnu(g) = &self.hash {
+                if !g.bloom_checked(req.gnu)? {
+                    return Ok(None);
+                }
+            }
+        }
         let mut best: Option<Def> = None;
-        self.for_each_candidate(req, chain_only, |i| {
+        self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
             if !(exported(&st) || self.canonical_entry(i)) {
                 return Ok(false);

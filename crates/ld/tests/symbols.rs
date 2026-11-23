@@ -292,6 +292,50 @@ fn gnu_and_sysv_give_the_same_answers() {
     }
 }
 
+#[test]
+fn scope_walk_answers_as_each_object_in_order() {
+    // Trace: s27_1_g_0 (global scope order: the first object that defines the name). LD-LOOKUP-RETHINK:
+    // the walk runs each GNU table's Bloom test itself and enters an object only when it passes, at
+    // the hash chain; a SysV view takes the whole lookup. Every name of every object, in three scope
+    // orders over GNU and SysV views, must give what asking each object's own lookup in order gives.
+    let Some(c) = corpus() else { return };
+    let mut keys: Vec<&str> = c.keys().copied().collect();
+    keys.sort_unstable();
+    let mut objs: Vec<Object<'static>> = keys.iter().filter_map(|k| Object::with_style(dynm(&c[k]).ok()?, HashStyle::Gnu).ok()).collect();
+    objs.push(obj(&c["vs/libv.so"], HashStyle::Sysv));
+    objs.push(obj(&c["vb/libv.so"], HashStyle::Sysv));
+    assert!(objs.len() > 4, "corpus objects: {}", objs.len());
+    let mut names: Vec<Vec<u8>> = vec![b"no_such_name".to_vec(), b"f_".to_vec()];
+    for o in &objs {
+        let st = o.symtab();
+        for i in 1..st.count().unwrap() {
+            names.push(o.dynamic().string(u64::from(st.get(i).unwrap().name)).unwrap().to_vec());
+        }
+    }
+    names.sort_unstable();
+    names.dedup();
+    let fwd: Vec<usize> = (0..objs.len()).collect();
+    let rev: Vec<usize> = fwd.iter().rev().copied().collect();
+    let sysv_first: Vec<usize> = [objs.len() - 1, objs.len() - 2].into_iter().chain(0..objs.len() - 2).collect();
+    let mut checked = 0;
+    for name in &names {
+        for want in [Want::Oldest, Want::Default, Want::Version(b"VER_1"), Want::Reference(b"VER_2")] {
+            let req = Request::new(name, want);
+            for order in [&fwd, &rev, &sysv_first] {
+                let each = order.iter().find_map(|&o| match objs[o].lookup(&req) {
+                    Ok(None) => None,
+                    Ok(Some(def)) => Some(Ok(Some(Found { obj: o, def }))),
+                    Err(e) => Some(Err(e)),
+                });
+                let walk = lookup(&objs, Scope::global(order), &req, &mut Reg::default());
+                assert_eq!(walk, each.unwrap_or(Ok(None)), "{} {want:?} {order:?}", String::from_utf8_lossy(name));
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 100, "lookups compared: {checked}");
+}
+
 /// (name, version found) for every undefined reference of program `prog` named in `names`, against `lib`.
 fn bind_program(prog: &[u8], lib: &[u8], names: &[&str]) -> Vec<(String, String)> {
     let (p, l) = (obj(prog, HashStyle::Gnu), Object::new(dynm(lib).unwrap()).unwrap());
