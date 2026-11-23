@@ -123,6 +123,10 @@ NOT for publication while B1 stands): libc-bin, libc-dev-bin, libc-l10n, libc6-d
 (`2.39+niji20261122.4-1_amd64`, l10n `_all`), locales (`_all`), niji6 and niji6-dev
 (`0.0.snapshot20261122.4+8e1837914bb9_amd64`, '.' for '~'). libc6 sha256 43c60b67...; niji6 99774322....
 
+**Jobs.** Every job of this run is in the reports json's `jobs` (rc 0) or `superseded` (rc 1, listed there with
+why: roots, yohane, y14, y14r, drp, drp-ref223 by design as on 22.3; dlc-1/dlc-2 = B1; y14l-1 = F3; y25n-ref223-1 by
+design). B1's diagnostic runs (dlcdiag-1, dlcd-1, dlcd-2 on mei) are described above, not listed.
+
 ## Procedure (for the next snapshot)
 
 1122C's scripts copied on both hosts to `~/work/RELEASE-SNAPSHOT-1122D/` (copy.sh, subst.sed: head, epoch, serial 4,
