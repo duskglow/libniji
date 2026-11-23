@@ -460,14 +460,15 @@ fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
         };
         let mut out = Vec::new();
         diff_ctype(cat(0, true), cat(0, false), &mut out);
-        // The POSIX classes and libniji's two combining classes; ja_JP's own classes of the
-        // reference (jkanji, ...) are a differences-row item.
+        // The POSIX classes and libniji's two combining classes, and the case maps; ja_JP's own
+        // classes and maps of the reference (jkanji, tojhira, ...) are a differences-row item.
         let standard = |l: &str| {
             l.strip_prefix("LC_CTYPE class ").and_then(|r| r.split(':').next()).is_some_and(|c| {
                 ["upper", "lower", "alpha", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum", "combining", "combining_level3"].contains(&c.trim())
             })
         };
-        out.retain(|l| standard(l) || l.starts_with("LC_CTYPE map") || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
+        let case_map = |l: &str| ["toupper:", "tolower:", "totitle:"].iter().any(|m| l.strip_prefix("LC_CTYPE map ").is_some_and(|r| r.starts_with(m)));
+        out.retain(|l| standard(l) || case_map(l) || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
         if matches!(locale, "en_US" | "de_DE" | "fr_FR") {
             diff_items("LC_NUMERIC", cat(1, true), cat(1, false), &[], &mut out);
             // Left out, each a differences-row item: UCA's implicit weights order every unified
