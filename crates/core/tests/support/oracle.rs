@@ -154,16 +154,16 @@ pub(crate) fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)],
     let mut seen = vec![false; list.len()];
     let mut out = Vec::new();
     for (h, l) in lines {
-        match list.iter().enumerate().position(|(i, (case, needle, _))| !seen[i] && h.starts_with(case) && l.starts_with(needle)) {
-            Some(i) => {
-                seen[i] = true;
-                eprintln!("recorded line only {who} prints ({}):\n  {l}", list[i].2);
+        match list.iter().zip(seen.iter_mut()).find(|((case, needle, _), taken)| !**taken && h.starts_with(case) && l.starts_with(needle)) {
+            Some(((_, _, why), taken)) => {
+                *taken = true;
+                eprintln!("recorded line only {who} prints ({why}):\n  {l}");
             }
             None => out.push((h, l)),
         }
     }
-    for (i, s) in seen.iter().enumerate() {
-        assert!(s, "recorded line no longer printed by {who}: {:?}", list[i]);
+    for (entry, taken) in list.iter().zip(&seen) {
+        assert!(*taken, "recorded line no longer printed by {who}: {entry:?}");
     }
     out
 }
