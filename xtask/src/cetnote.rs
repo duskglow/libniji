@@ -427,7 +427,8 @@ mod tests {
     #[test]
     fn the_check_reads_the_products_the_manifest_ships() {
         let manifest = "# comment\n\nboth\tlibc6\tusr/lib/a.so\tfile\ta.so\t0644\tunneeded\t-\n\
-                        both\tlibc6\tusr/lib/a.so.1\tlink\ta.so\t-\tnone\t-\n\
+                        both\tlibc6\tusr/lib/a.so.1\tlink\tlink-target.so\t-\tnone\t-\n\
+                        both\tlibc6\tusr/share/t\ttext\tt.txt\t0644\tnone\t-\n\
                         system\tlibc-bin\tusr/bin/s\tfile\ts\t0755\tnone\t-\n\
                         both\tlibc6\tusr/lib/b/a.so\tfile\ta.so\t0644\tunneeded\t-\n";
         assert_eq!(shipped_products(manifest).unwrap(), vec!["a.so".to_string(), "s".to_string()]);
