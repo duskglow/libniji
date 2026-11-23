@@ -12,8 +12,10 @@
 //!   [`crate::so::publish`]): a `.note.gnu.property` section holding FEATURE_1_AND = SHSTK only
 //!   (IBT is not claimed: Rust code has no `endbr64` at its indirect-branch targets);
 //! * the linked products are linked with `-z shstk` ([`LINK_FLAG`]);
-//! * [`check_release`] runs after the last product: every ELF file and every archive member in
-//!   the release directory has the bit, or the build fails.
+//! * [`check_release`] runs after the last product: every ELF file and every archive member the
+//!   packages ship (the `file` rows of [`SHIPPED_MANIFEST`], `tools/deb/manifest.tsv`) has the
+//!   bit, or the build fails. What else lands in `target/niji` (test programs, the Rust dylibs of
+//!   `cargo xtask rust-dylib`, the by-path copy of libc.so.6) is not shipped and not checked.
 //!
 //! What makes the claim true is the audit of the hand-written assembly (D-21.5: setjmp/longjmp,
 //! the context functions and vfork handle the shadow stack; the rest keeps call and return
@@ -275,35 +277,61 @@ pub fn unmarked(data: &[u8]) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// The build check: every ELF file and archive member under `release` (recursively; links and
-/// other files skipped) has SHSTK. Returns the number of objects checked.
-pub fn check_release(release: &Path) -> Result<usize, String> {
+/// The packages' manifest: every file they ship is a row, and a `file` row names its product.
+pub const SHIPPED_MANIFEST: &str = "tools/deb/manifest.tsv";
+
+/// The products the packages ship, read from the manifest's text: the source (column 5) of every
+/// `file` row (column 4), each once, sorted. Comment and blank lines are skipped; a row with fewer
+/// than five columns is an error (the manifest's own lint refuses it too).
+pub fn shipped_products(manifest: &str) -> Result<Vec<String>, String> {
+    let mut out = std::collections::BTreeSet::new();
+    for (n, line) in manifest.lines().enumerate() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() < 5 {
+            return Err(format!("{SHIPPED_MANIFEST}:{}: {} columns, at least 5 expected", n + 1, cols.len()));
+        }
+        if cols[3] == "file" {
+            out.insert(cols[4].to_string());
+        }
+    }
+    Ok(out.into_iter().collect())
+}
+
+/// The build check: every product the packages ship ([`SHIPPED_MANIFEST`]'s `file` rows), when it
+/// is an ELF file or an archive, has SHSTK in the file or in every member. A listed product that
+/// is missing from `release` is an error (the check cannot vouch for it). Files the packages do
+/// not ship (test programs, the Rust dylibs, the by-path copy of libc.so.6) are not read. Returns
+/// the number of ELF files and archives checked.
+pub fn check_release(root: &Path, release: &Path) -> Result<usize, String> {
+    let manifest = root.join(SHIPPED_MANIFEST);
+    let text = fs::read_to_string(&manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    check_products(release, &shipped_products(&text)?)
+}
+
+/// [`check_release`] over the named products of `release`.
+fn check_products(release: &Path, products: &[String]) -> Result<usize, String> {
     let (mut checked, mut bad) = (0usize, Vec::new());
-    let mut dirs = vec![release.to_path_buf()];
-    while let Some(d) = dirs.pop() {
-        let mut entries: Vec<_> = fs::read_dir(&d).map_err(|e| format!("{}: {e}", d.display()))?.filter_map(Result::ok).collect();
-        entries.sort_by_key(std::fs::DirEntry::file_name);
-        for e in entries {
-            let (p, t) = (e.path(), e.file_type().map_err(|e| e.to_string())?);
-            if t.is_dir() {
-                dirs.push(p);
+    for rel in products {
+        let p = release.join(rel);
+        let data = match fs::read(&p) {
+            Ok(d) => d,
+            Err(e) => {
+                bad.push(format!("{rel}: {e}"));
                 continue;
             }
-            if !t.is_file() {
-                continue;
+        };
+        if !(data.starts_with(b"\x7fELF") || data.starts_with(b"!<arch>\n")) {
+            continue;
+        }
+        match unmarked(&data) {
+            Ok(v) => {
+                checked += 1;
+                bad.extend(v.into_iter().map(|m| if m.is_empty() { rel.clone() } else { format!("{rel}({m})") }));
             }
-            let data = fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
-            if !(data.starts_with(b"\x7fELF") || data.starts_with(b"!<arch>\n")) {
-                continue;
-            }
-            let rel = p.strip_prefix(release).unwrap_or(&p).display().to_string();
-            match unmarked(&data) {
-                Ok(v) => {
-                    checked += 1;
-                    bad.extend(v.into_iter().map(|m| if m.is_empty() { rel.clone() } else { format!("{rel}({m})") }));
-                }
-                Err(e) => bad.push(format!("{rel}: {e}")),
-            }
+            Err(e) => bad.push(format!("{rel}: {e}")),
         }
     }
     if bad.is_empty() {
@@ -391,5 +419,34 @@ mod tests {
         assert_eq!(feature_bits(&ibt_only).unwrap(), Some(1));
         let e = mark_archive_bytes(&archive(&[("ibt.o", &ibt_only)])).unwrap_err();
         assert!(e.contains("ibt.o") && e.contains("without SHSTK"), "{e}");
+    }
+
+    /// no spec clause (build check, D-X.164): the check reads exactly the products the packages'
+    /// manifest ships: an unmarked file it does not list (a test product) passes, an unmarked
+    /// listed one fails, a listed one that is missing fails, a non-ELF listed one is skipped.
+    #[test]
+    fn the_check_reads_the_products_the_manifest_ships() {
+        let manifest = "# comment\n\nboth\tlibc6\tusr/lib/a.so\tfile\ta.so\t0644\tunneeded\t-\n\
+                        both\tlibc6\tusr/lib/a.so.1\tlink\ta.so\t-\tnone\t-\n\
+                        system\tlibc-bin\tusr/bin/s\tfile\ts\t0755\tnone\t-\n\
+                        both\tlibc6\tusr/lib/b/a.so\tfile\ta.so\t0644\tunneeded\t-\n";
+        assert_eq!(shipped_products(manifest).unwrap(), vec!["a.so".to_string(), "s".to_string()]);
+        assert!(shipped_products("both\tlibc6\tx\tfile\n").unwrap_err().contains("4 columns"));
+        let dir = std::env::temp_dir().join(format!("niji-cetnote-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("rust-test")).unwrap();
+        let o = object();
+        fs::write(dir.join("a.so"), add_note(&o).unwrap()).unwrap();
+        fs::write(dir.join("s"), b"#!/bin/sh\n").unwrap();
+        fs::write(dir.join("rust-test/unshipped.so"), &o).unwrap();
+        let products = shipped_products(manifest).unwrap();
+        assert_eq!(check_products(&dir, &products).unwrap(), 1);
+        fs::write(dir.join("a.so"), &o).unwrap();
+        let e = check_products(&dir, &products).unwrap_err();
+        assert!(e.contains("1 shipped objects") && e.contains("a.so"), "{e}");
+        fs::remove_file(dir.join("a.so")).unwrap();
+        let e = check_products(&dir, &products).unwrap_err();
+        assert!(e.contains("a.so:"), "{e}");
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -2283,9 +2283,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         r => r?,
     }
     phases.mark("layout");
-    // D-X.164: every shipped object (each ELF file, each archive member) has the SHSTK property.
-    let cet = crate::cetnote::check_release(&release)?;
-    println!("so: {cet} shipped ELF files and archives carry the SHSTK property (D-X.164)");
+    // D-X.164: every shipped object (each ELF file, each archive member of a product named by a `file` row of
+    // tools/deb/manifest.tsv) has the SHSTK property.
+    let cet = crate::cetnote::check_release(root, &release)?;
+    println!("so: {cet} shipped ELF files and archives carry the SHSTK property (D-X.164, {})", crate::cetnote::SHIPPED_MANIFEST);
     // The marker last, so a set that was not finished has none.
     let marker = tmp_name(&release.join(".profile"));
     fs::write(&marker, format!("{}
