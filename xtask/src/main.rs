@@ -444,9 +444,9 @@ fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::St
         return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra).envs(env)));
     }
     let mut args = vec!["--workspace".to_string()];
-    // As the interposed pass did: the pure-Rust sweeps run in the first pass only
-    // (`nextest::PASS0_ONLY`, #889), the heavy math products sweeps shard 0 only
-    // (`nextest::PASS1_SHARD0`, D-X.36), and binaries without niji-boundary code once (CI-GATE-DIET).
+    // The pure-Rust sweeps (`nextest::PASS0_ONLY`, #889), the products targets but
+    // `nextest::PASS2_PRODUCTS` (D-X.161) and binaries without niji-boundary code (CI-GATE-DIET)
+    // run in the first pass only.
     let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &[])) } else { Vec::new() };
     args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
     args.extend(extra.iter().cloned());

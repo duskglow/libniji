@@ -1,0 +1,11 @@
+id = "D-X.161"
+section = "x"
+status = "active"
+supersedes = ["D-X.36"]
+amends = ["D-X.135"]
+story = "PASS2-PRODUCTS-ONCE"
+date = "2026-11-23"
+tests = ["xtask/src/nextest.rs::products_targets_run_in_the_second_pass_only_when_listed", "xtask/src/affected.rs::the_native_pass_runs_only_the_listed_products_targets"]
+body = '''
+**The gate's second (native) pass runs no `*_products` target but `heap_meta_products`, `hot_text_products` and `timers_products`** (PASS2-PRODUCTS-ONCE, TEST-REDUNDANCY-AUDIT H1; owner ruling 2026-11-23 accepting the audit's test recommendations). A products target's subject is a child: a C program built against `target/niji/libc.a` and the same program against the host library, run and compared. The second pass rewrites only the harness's `PT_INTERP` (D-X.135), sets nothing the children read, and most harnesses clear the children's environment, so a second run compares the same programs' output again and adds only the harness's spawn and pipe reads on libniji, which every other second-pass test that starts a child also makes. Rule: `nextest::products_once` (a target named `*_products` not in `nextest::PASS2_PRODUCTS`) runs in the first pass only, with `PASS0_ONLY` (`nextest::first_pass_only`): in `cargo xtask test` the filterset term `binary_id(/_products$/) & not (<the kept ids>)`, in `affected`'s native and interposed passes `pass_targets`. A new products target runs once unless it is listed. Kept: the three targets that failed in the second pass only at least once (hot_text 12, heap_meta 4, timers 1 over 608 CI gates and 90 developer gates since 2026-10-21); of the 39 second-pass-only failures there, in 11 binaries, none was in a products target this leaves out. Supersedes D-X.36 (shard 0 of five math products sweeps in the second pass): those targets now run once, so `PASS1_SHARD0` and its filter are gone. Amends D-X.135's "the second pass keeps the first-pass-only and shard-0 filters". Expected saving (audit, T1 method): 965 of the second pass's 2,839 test-s (median of five CI gates), about 91 s of its 268 s nextest wall, estimated; measured from the next CI gates' second-pass `Summary` lines. Coverage given up: a libniji spawn or pipe defect that only one products harness's child handling would meet; the kept targets and every second-pass test that starts a child still meet spawn and pipe reads.
+'''

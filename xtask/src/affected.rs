@@ -4071,10 +4071,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 if pass > 0 && !second(c, ts) {
                     continue;
                 }
-                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889); the
-                // interposed pass runs the suite's targets only. A pass left with no target and no
-                // unit tests is not run (no `--test` would run all).
-                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect();
+                // A pass left with no target and no unit tests is not run (no `--test` would run all).
+                let ts = pass_targets(pass, c, ts);
                 let lib = sel.libs.contains_key(*c) && (pass < 2 || crate::nextest::interposed(c, ""));
                 if pass > 0 && ts.is_empty() && !lib {
                     continue;
@@ -4117,11 +4115,6 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 }
                 if pass == 2 {
                     cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
-                }
-                // The heavy products sweeps run shard 0 only in the second pass
-                // (`nextest::PASS1_SHARD0`, D-X.36); `cargo test` has no filter for it and runs all.
-                if pass > 0 && nextest {
-                    cmd.args(crate::nextest::pass1_shard_filter(c, &ts).unwrap_or_default());
                 }
                 let label = format!("test -p {c}{}", match pass {
                     0 => "",
@@ -4303,6 +4296,13 @@ fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, 
 fn second_pass(interpose: bool, c: &str, ts: &[&str]) -> bool {
     let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
     (interpose || c == "niji-boundary" || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c)
+}
+
+/// The selected test targets `ts` of crate `c` that pass `pass` runs (0: the first, 1: native, 2: exports
+/// interposed): the pure-Rust sweeps (`nextest::PASS0_ONLY`, #889) and the products targets but
+/// `nextest::PASS2_PRODUCTS` (D-X.161) run in the first pass only; the interposed pass runs the suite's targets only.
+fn pass_targets<'a>(pass: usize, c: &str, ts: &[&'a str]) -> Vec<&'a str> {
+    ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::first_pass_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect()
 }
 
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
@@ -6985,5 +6985,15 @@ fn plain() {}", &aliases);
         assert!(second_pass(false, "niji-boundary", &["s03_memory_symbols"]) && second_pass(false, "niji-boundary", &[]));
         assert!(!second_pass(false, "niji", &["printf_rules"]) && second_pass(false, "niji", &["s07_stdio_clauses"]));
         assert!(second_pass(true, "niji-math", &[]) && !second_pass(true, "niji-legacy", &[]) && !second_pass(false, "niji-math", &[]));
+    }
+
+    #[test]
+    fn the_native_pass_runs_only_the_listed_products_targets() {
+        // no spec clause: gate tooling (PASS2-PRODUCTS-ONCE, D-X.161), not libc behaviour.
+        let ts = ["aio_products", "hot_text_products", "heap_meta_products", "timers_products", "s03_memory_clauses", "printf_rules"];
+        assert_eq!(pass_targets(0, "niji", &ts), ts, "the first pass runs every selected target");
+        assert_eq!(pass_targets(1, "niji", &ts), ["hot_text_products", "heap_meta_products", "timers_products", "s03_memory_clauses", "printf_rules"]);
+        assert_eq!(pass_targets(2, "niji", &ts), ["s03_memory_clauses"], "the interposed pass runs the suite's targets only");
+        assert_eq!(pass_targets(1, "niji-math", &["special_cr", "complex_products", "fast64"]), ["fast64"]);
     }
 }
