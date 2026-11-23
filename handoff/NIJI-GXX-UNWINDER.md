@@ -59,7 +59,8 @@ after a cleanup buffer: a measured cost, recorded in the report.
   33 passed), -gate5 (direct gate, rc 1: every suite green but hot_text_products, whose 10 failures all read
   `target/niji/.hot-lists: No such file`: kill-mine had ended gate4's `cargo xtask so` midway), -hotfix (that
   suite after `cargo xtask so`: 33 passed, 0 failed).
-* niji-gxx-unwinder-gate6: the direct gate rerun on the final head (precheck names gate5 red; gate5 is SUPERSEDED).
+* niji-gxx-unwinder-gate6: the direct gate rerun on the final head, rc 0: 15 of 15 suites, 5859 passed, 0 failed,
+  216 ignored, conformance 39 passed, peak 4.7G (gate5 is SUPERSEDED).
 * Superseded: gate2 (rc 0, 5859 passed) and plants2 (refused .S plant) on 09f147ceb; plants3, startup, gate3,
   plants4, gate4, plants5, startup2 killed when a count fix changed the code; percall/percall2/percall3 are the
   earlier columns above; lint/lint2 earlier heads (lint2 ran on 10f220ea1: the sync was BUSY).
@@ -69,6 +70,5 @@ after a cleanup buffer: a measured cost, recorded in the report.
   libgcc_s first and the exit unwinds with it beside the program's static copy. Not tested.
 
 ## Exact next step
-If this run did not finish: `~/bin/jobwait niji-gxx-unwinder-gate5 niji-gxx-unwinder-plants6
-niji-gxx-unwinder-startup3` on mei, then `cargo xtask precheck --jobs <those + percall4> --head <sha>` on the role,
+Done in run 1 (landing is the coordinator's). For the record: `cargo xtask precheck --jobs <those + percall4> --head <sha>` on the role,
 report json, `ops handback-check`.
