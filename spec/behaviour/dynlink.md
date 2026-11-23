@@ -91,7 +91,8 @@ give -1. (Object: `-nostdlib -shared`, four `PT_LOAD`s, a 14-byte executable seg
 R-6 (LD-TABLES-LAYOUT, probe `tools/probe/dl/holes/probe.c`, glibc 2.39 on the Zen 1 host, x86_64): a program the
 kernel started, linked with `-z max-page-size=0x200000` (holes of about 2 MiB between its segments, left unmapped
 by the kernel). With the free address space above its highest hole filled, a `dlopen`'d object lands in that hole:
-`_dl_find_object` and `dladdr` of the object's code name the object (its own range and handle), and of `main`
+`_dl_find_object`, `dladdr` and `dladdr1` (`RTLD_DL_LINKMAP`) of the object's code name the object (its own
+range, handle and `PT_GNU_EH_FRAME`), and of `main`
 the program, whose `_dl_find_object` range is the run of segments holding `main` (here its executable segment,
 not the lowest to highest `PT_LOAD` address) and whose `dli_fbase` is its lowest page. An anonymous page mapped at
 the bottom of the hole gives -1 and 0: the pages between a kernel-mapped object's segment runs are no part of it.
