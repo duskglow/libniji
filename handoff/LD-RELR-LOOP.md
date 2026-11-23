@@ -1,35 +1,28 @@
 # LD-RELR-LOOP: RELR applied a run at a time, words added in place; libc.so.6 packed
 
-**State (LD-RELR-LOOP-3):** branch `task/ld-relr-loop-3` = `task/ld-relr-loop-2` (2b2645b6b) with origin/next
-8e1837914 merged in (clean merge, no conflict, no code change of mine this run). Role mei `~/w/s2`.
-Decision in force: D-27.87 (both earlier runs), ruling #7402. Full report: handoff/LD-RELR-LOOP-report.md
-("LD-RELR-LOOP-3").
+**State (LD-RELR-LOOP-4):** branch `task/ld-relr-loop-4` = LD-RELR-LOOP-3's head (1a5ef34d1) with origin/next
+3e668ecce merged in (conflict only in `hot_text_products.rs`' `DYN_START_INSTR`: both records kept, the bound
+re-set from the merged level). Role mei `~/w/s4`. Decisions in force: D-27.87 (RELR), D-27.85 (LD-OBJECT-ONCE,
+landed), ruling #7402, ruling #7740 (the train-932 loader failures are not RELR's; LD-TABLES-LAYOUT is separate).
+Full report: handoff/LD-RELR-LOOP-report.md ("LD-RELR-LOOP-4"); plants: handoff/LD-RELR-LOOP-4-plants.txt.
 
 ## The change (unchanged since LD-RELR-LOOP-2)
 * `elf.rs` `Relrs::runs`; `reloc.rs` `pass1` -> `relr_entry` / cold `relr_checked`; `Image::add_bits` (default
   `add_bits_by_word`, niji-boundary `ProcImage` adds in place); `boot.rs` `Writer::add_bits` -> `Memory::add_bits`
-  (`bootstrap::Mapped` adds in place); `xtask/src/so.rs` links libc.so.6 with `-z pack-relative-relocs`;
-  `hot_text_products` `DYN_START_INSTR` tightened.
+  (`bootstrap::Mapped` adds in place); `xtask/src/so.rs` links libc.so.6 with `-z pack-relative-relocs`.
 
-## The CI red of LD-RELR-LOOP-2 (train 932, 11 loader tests: the program missing from the address tables)
-* On this branch merged with origin/next 8e1837914: all ten failing niji-ld tests (atexit_owner, dlclose,
-  dl_find_object_index, dlopen_concurrent, dlopen_process_objects, runpath_search suites, 27 tests) and the
-  `s27_dladdr` conformance program pass (jobs ld-relr-loop-3-repro2, -repro3).
-* Reproduced on a scratch merge of `task/ld-relr-loop-2` into next d258cd270 (next just before
-  LDSO-PROGRAM-OPTIONS-REST-2 landed, 22:17Z): atexit_owner fails as in CI, `got 'dA aX', want 'dA mainH aX mainC'`
-  (ld-relr-loop-3-repro4).
-* Same scratch merge with libc.so.6 NOT packed (so.rs flag removed): still fails (ld-relr-loop-3-repro5). So the
-  packed libc is not the trigger.
-* In that failing build: every one of ld.so's 415 RELR words holds file value + bias at run time (probe, 0
-  mismatches); the test program has no DT_RELR (readelf); the helper libraries are built by the system compiler
-  without it. The only RELR code that runs in the failing test is ld.so's self-relocation, verified correct.
-* A probe (dladdr / _dl_find_object of `main` after dlopens, libc named by path as the tests do) finds the program
-  in that build. Not reduced further (budget).
-* Conclusion (evidence above, cause NOT found): the branch changes only ld.so's code layout on the failing path;
-  a layout-sensitive defect in the loader's program/address tables on next d258cd270 shows with it (and with
-  LD-OBJECT-ONCE-2's change), and is masked again on next 8e1837914. It may still be latent on next.
+## Measured on the merged head (Skylake-SP, release, STARTUP-REPROFILE kit, median of 101)
+* empty main 159,047 (next 3e668ecce 189,818: -30,771; next fd973fc44, before LD-OBJECT-ONCE and RELR,
+  268,959: -109,912). Three libraries 250,528 (-30,853 / -127,681), `/bin/true` 216,900 (-30,811 / -112,435),
+  200 imports 448,709 (-30,971 / -106,159). glibc 2.39: 101,855 / 138,761 / 128,175 / 236,773.
+* hot_text_products' own count: fast 170,176, release 159,226; bounds now Skylake-SP [173,600, 162,500], Zen 1
+  [173,500, 162,300] (Zen 1 derived as Skylake-SP - 117, not measured).
+
+## Do not redo
+* The train-932 loader failures (ruling #7740: LD-TABLES-LAYOUT's, not this branch's).
+* The earlier legs' plants: all 8 re-run on the merged code this leg.
 
 ## Next step
-Land (CI train). If the eleven tests fail again in some later combination: rebuild the failing merge (recipe in
-the report), and debug ld.so in the atexit_owner `net` run (gdb on our own ld.so is allowed) to find what
-overwrites or misreads the program's entry; that is a loader-tables defect, not RELR.
+Land (CI train). If the train conflicts on `DYN_START_INSTR` again: merge next, keep both records, re-measure
+with the kit (handoff/STARTUP-REPROFILE/kit, `meas.sh`) and this test on the merged head, set level + 2%.
+Remaining cost after RELR (estimate in the report's first section): ld.so self-relocation ~3.5k, libc RELR ~10k.

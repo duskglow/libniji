@@ -122,3 +122,52 @@ d258cd270 even with libc.so.6 left unpacked, so the RELR change is not their cau
 * Plants: none new (no code change this run; LD-RELR-LOOP-2's 4 plants, all CAUGHT, cover the code unchanged).
 * Start-up counts: not re-measured this run (the STARTUP-REPROFILE kit is on the Zen 1 host); LD-RELR-LOOP-2's
   numbers stand (the merge changes no RELR code); `hot_text_products`' bound holds (startup job).
+
+# LD-RELR-LOOP-4 (continuation, branch task/ld-relr-loop-4)
+
+**Result:** origin/next 3e668ecce (LD-OBJECT-ONCE-3 landed) merged in; the one conflict, `DYN_START_INSTR` in
+`crates/core/tests/hot_text_products.rs`, kept both records and the bound was re-set from the merged level.
+On top of next the RELR change saves about 30,800 user instructions per dynamic start; with LD-OBJECT-ONCE
+the two take an empty main from 268,959 to 159,047 (-40.9%) against next fd973fc44.
+
+## Commits
+* 39c32dd1a merge of origin/next 3e668ecce (conflict in hot_text_products.rs only; elf.rs, reloc.rs and their
+  tests auto-merged)
+* 70c0eb152 `DYN_START_INSTR` tightened to the merged level; handoff/LD-RELR-LOOP-4-plants.txt (the earlier
+  legs' 8 plants re-run on the merged code)
+
+## Counts (STARTUP-REPROFILE kit meas.sh, release products, Skylake-SP, median of 101, ASLR off; user instructions)
+| row | fd973fc44 (before both; LD-OBJECT-ONCE's record) | next 3e668ecce | this head | vs next | vs fd973fc44 | glibc 2.39 |
+|---|---|---|---|---|---|---|
+| n0 empty main | 268,959 | 189,818 | **159,047** | -30,771 | -109,912 | 101,855 |
+| n3 three libraries | 378,209 | 281,381 | **250,528** | -30,853 | -127,681 | 138,761 |
+| t `/bin/true` | 329,335 | 247,711 | **216,900** | -30,811 | -112,435 | 128,175 |
+| n200 200 GLOB_DAT imports | 554,868 | 479,680 | **448,709** | -30,971 | -106,159 | 236,773 |
+* min/max spread 1 instruction. Faults (58 / 70) and system calls (29 / 59) unchanged; kernel instructions n0
+  745k -> 724k (not attributed; they vary between runs). libc.so.6: 1,450 RELATIVE (RELA) on next, none on this
+  head (one `.relr.dyn`).
+* "vs fd973fc44" is the whole of next's movement plus RELR: LD-OBJECT-ONCE measured -72,329 on n0 by itself; the
+  other landings between fd973fc44 and 3e668ecce account for -6,812; RELR for -30,771.
+* Both product sets built on the Skylake-SP host this run (base in the shared wl cache's tree, release profile
+  checked); job ld-relr-loop-4-base, -meas, -kit. Zen 1: not measured (no role there this run); the two classes
+  differed by 117-162 instructions in every earlier kit run.
+
+## The bound (hot_text_products, its own counter, median of 21, Skylake-SP)
+* fast 170,176, release 159,226 (the LD-OBJECT-ONCE bounds [223,700, 200,800] red as "more than 10% under").
+  New bounds: Skylake-SP level + 2% = [173,600, 162,500]; Zen 1 [173,500, 162,300] = (Skylake-SP level - 117) +
+  2%, derived, not measured.
+
+## Jobs (mei, role s4)
+* ld-relr-loop-4-lint0: clippy + static on the inherited head 1a5ef34d1: rc 0.
+* ld-relr-loop-4-meas: release and fast products of the merged head, the bound test's own count (above).
+* ld-relr-loop-4-base: release products of next 3e668ecce (wl_prep, WL_PROGS=seq).
+* ld-relr-loop-4-kit: the counts above.
+* ld-relr-loop-4-lint1: clippy + static + `affected --list` on 70c0eb152: rc 0; direct tier, 42 targets.
+* ld-relr-loop-4-gate: direct gate on 70c0eb152: 13 suites ok, 1,393 passed, 0 failed, 0 SKIPPED lines; peak 3.0G.
+* ld-relr-loop-4-plants: handoff/LD-RELR-LOOP-4-plants.txt, 8 plants: 8 CAUGHT, 0 SURVIVED, no WARN (the
+  link-flag plant against the new bound: caught by `instructions > <bound>`).
+* ld-relr-loop-4-startup: `cargo xtask test` (nextest 7,158 + 4,878 + 129 + 46 passed, 0 failed), then
+  `NIJI_FULL_PROFILE=1 cargo xtask so` and `hot_text_products` (33 passed, the new release bound among them);
+  release `layout-bins.tsv` against the merge base's (`.llvm.<hash>` suffixes stripped): 0 differing lines.
+* meas, base and kit ran on 39c32dd1a (the merge; the code is identical at 70c0eb152, which changes only the
+  test's constant and adds the plants file): measurements, not JOBS.

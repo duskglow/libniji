@@ -16,3 +16,12 @@ self-add-bits | crates/boundary/src/bootstrap.rs | lit:unsafe { w.write_unaligne
 boot-default-word | crates/ld/src/boot.rs | lit:let Some(w) = view.get_mut(at..at.wrapping_add(8)) ==> let Some(w) = view.get_mut(at.wrapping_add(8)..at.wrapping_add(16)) | cargo test -p niji-ld --lib relr_bitmap_across_segments | msg:relr_bitmap_across_segments.*(FAILED|panicked)|panicked.*relr_bitmap_across_segments
 # Image's default (add_bits_by_word) reads and writes the word at at + 8 * k for each set bit k.
 image-default-word | crates/ld/src/reloc.rs | lit:let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8)); ==> let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(16)); | cargo test -p niji-ld --test reloc reloc_relr | msg:reloc_relr[a-z_]*.*(FAILED|panicked)|panicked.*reloc_relr
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# relr-entry-last: CAUGHT, caught by reloc reloc_relr_entry_checks_its_whole_run
+# add-bits-last: CAUGHT, caught by niji_ld boot::tests::relr_bitmap_across_segments
+# relr-fitting-ok: CAUGHT, caught by elf_tables relr_runs_match_the_iterator
+# link-flag: CAUGHT, caught by hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound
+# proc-add-bits: CAUGHT, caught by start_objects start_objects_past_every_old_bound
+# self-add-bits: CAUGHT, caught by ldso_run ldso_run_by_interp_at_random_bases
+# boot-default-word: CAUGHT, caught by niji_ld boot::tests::relr_bitmap_across_segments
+# image-default-word: CAUGHT, caught by reloc reloc_relr_entry_checks_its_whole_run
