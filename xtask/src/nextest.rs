@@ -97,6 +97,50 @@ pub fn first_pass_only(krate: &str, target: &str) -> bool {
     pass0_only(krate, target) || products_once(krate, target)
 }
 
+/// A sharded test family of which the second pass runs the first shard only (D-X.167):
+/// `(crate, target, family, first shard, later shards)`; a test's name is the family then the shard.
+pub type ShardFamily = (&'static str, &'static str, &'static str, &'static str, &'static [&'static str]);
+
+/// strstr_find's later needle-length shards (`M_SHARDS` there: 0..16 is the first).
+const STRSTR_LATER: &[&str] = &["m_16_to_31", "m_32_to_47", "m_48_to_70"];
+
+/// Sharded families of niji-boundary kernel sweeps that run every shard in the first pass and only
+/// the first in the second (PASS2-KERNEL-SHARD0, TEST-REDUNDANCY-AUDIT M1, D-X.167). The tests call
+/// niji-boundary's Rust functions in the test binary itself, the same code in both passes; what the
+/// second pass changes for that code is the thread block, the heap and the locale reached through
+/// the thread block, and a shard (a needle-length or size range) varies none of them, so the first
+/// shard meets them as every later one would. A shard added later runs in both passes until listed.
+pub const PASS2_SHARD0: &[ShardFamily] = &[
+    ("niji-boundary", "strstr_find", "strstr_matches_a_naive_search_at_every_length_position_and_alignment::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "strstr_find", "strcasestr_matches_a_naive_search_in_the_c_locale::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "strstr_find", "strcasestr_matches_a_naive_search_in_a_utf8_locale::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "small_compare", "compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_", "0", &["1", "2", "3", "4"]),
+];
+
+/// The filterset term of the later shards of the [`PASS2_SHARD0`] families whose `(crate,
+/// target)` `keep` accepts, one `binary_id(..) & (test(=..) | ..)` group per target in list order;
+/// `None` when it accepts none.
+fn later_shards_term(keep: impl Fn(&str, &str) -> bool) -> Option<String> {
+    let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+    for &(c, t, family, _, later) in PASS2_SHARD0.iter().filter(|f| keep(f.0, f.1)) {
+        let id = format!("{c}::{t}");
+        let tests = later.iter().map(|s| format!("test(={family}{s})"));
+        match groups.iter_mut().find(|(b, _)| *b == id) {
+            Some((_, v)) => v.extend(tests),
+            None => groups.push((id, tests.collect())),
+        }
+    }
+    let terms: Vec<String> = groups.iter().map(|(b, v)| format!("(binary_id({b}) & ({}))", v.join(" | "))).collect();
+    (!terms.is_empty()).then(|| terms.join(" | "))
+}
+
+/// The nextest arguments that leave the later [`PASS2_SHARD0`] shards out of a second (native)
+/// pass over crate `krate`'s targets `targets` (`affected`'s native pass); empty when none of
+/// them has a listed family.
+pub fn later_shards_filter(krate: &str, targets: &[&str]) -> Vec<String> {
+    later_shards_term(|c, t| c == krate && targets.contains(&t)).map(|e| vec!["-E".to_string(), format!("not ({e})")]).unwrap_or_default()
+}
+
 /// The features of the exports-interposed suite (D-4.13): libniji's C symbols defined in the test
 /// binary itself, so a process the host started runs libniji's heap and string functions on the
 /// foreign path, and the test builds' `#[cfg(feature = "export")]` code is compiled in.
@@ -167,7 +211,8 @@ fn products_once_term() -> String {
 }
 
 /// The nextest filter of the second pass: every test but those of the targets that run in the
-/// first pass only (`PASS0_ONLY`, the products targets of [`products_once`]).
+/// first pass only (`PASS0_ONLY`, the products targets of [`products_once`]) and the later shards
+/// of the [`PASS2_SHARD0`] families.
 /// `None` when `extra` brings its own filter expression (nextest ORs several `-E`s, so adding one
 /// would widen the caller's selection): the pass then runs as the caller asked.
 /// `once` adds the binary ids `unchanged_binaries` found (CI-GATE-DIET); one already left out by
@@ -178,6 +223,7 @@ pub fn pass1_filter(extra: &[String], once: &[String]) -> Option<Vec<String>> {
     }
     let mut ids: Vec<String> = PASS0_ONLY.iter().map(|(c, t)| format!("binary_id({c}::{t})")).collect();
     ids.push(products_once_term());
+    ids.extend(later_shards_term(|_, _| true));
     ids.extend(once.iter().filter(|b| !b.split_once("::").is_some_and(|(c, t)| first_pass_only(c, t))).map(|b| format!("binary_id({b})")));
     Some(vec!["-E".to_string(), format!("not ({})", ids.join(" | "))])
 }
@@ -603,12 +649,51 @@ mod tests {
             assert!(!products_once(c, t) && !first_pass_only(c, t), "{c}::{t} is not a products target");
         }
         assert!(first_pass_only("niji-math", "special_cr") && !products_once("niji-math", "special_cr"));
-        let base = "binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | (binary_id(/_products$/) & not (binary_id(niji::heap_meta_products) | binary_id(niji::hot_text_products) | binary_id(niji::timers_products)))";
+        let products = "binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | (binary_id(/_products$/) & not (binary_id(niji::heap_meta_products) | binary_id(niji::hot_text_products) | binary_id(niji::timers_products)))";
+        let base = format!("{products} | {}", later_shards_term(|_, _| true).unwrap_or_default());
         assert_eq!(pass1_filter(&[], &[]).unwrap_or_default(), ["-E".to_string(), format!("not ({base})")]);
         assert_eq!(pass1_filter(&["-E".to_string(), "test(x)".to_string()], &[]), None);
         // A run-once binary already left out by a rule is not repeated; a kept products target is.
         let once = ["niji-math::special_cr", "niji::aio_products", "niji-math::fast64", "niji::hot_text_products"].map(str::to_string);
         assert_eq!(pass1_filter(&[], &once).unwrap_or_default()[1], format!("not ({base} | binary_id(niji-math::fast64) | binary_id(niji::hot_text_products))"));
+    }
+
+    #[test]
+    fn the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps() {
+        // no spec clause: gate tooling (PASS2-KERNEL-SHARD0, D-X.167), not libc behaviour.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        // Every listed name is a test of its target, the first shard included (a renamed shard
+        // would leave the filter matching nothing), and the first shard is never left out.
+        for &(c, t, family, first, later) in PASS2_SHARD0 {
+            let dir = c.strip_prefix("niji-").unwrap_or(c);
+            let src = std::fs::read_to_string(root.join(format!("crates/{dir}/tests/{t}.rs"))).unwrap_or_default();
+            assert!(!later.is_empty() && !later.contains(&first), "{c}::{t} {family}: the first shard {first} must stay in the second pass");
+            for s in std::iter::once(&first).chain(later) {
+                let found = match family.strip_suffix("::") {
+                    Some(module) => src.contains(&format!("shards!({module},")) && src.contains(&format!("fn {s}()")),
+                    None => src.contains(&format!("fn {family}{s}()")),
+                };
+                assert!(found, "{c}::{t}: no test {family}{s}");
+            }
+        }
+        // The exact term: per target, its later shards by full name; the first shards are not in it.
+        let names = |f: &str, ss: &[&str]| ss.iter().map(|s| format!("test(={f}{s})")).collect::<Vec<_>>();
+        let mut strstr = Vec::new();
+        for f in ["strstr_matches_a_naive_search_at_every_length_position_and_alignment::", "strcasestr_matches_a_naive_search_in_the_c_locale::", "strcasestr_matches_a_naive_search_in_a_utf8_locale::"] {
+            strstr.extend(names(f, &["m_16_to_31", "m_32_to_47", "m_48_to_70"]));
+        }
+        let compare = names("compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_", &["1", "2", "3", "4"]);
+        let strstr = format!("(binary_id(niji-boundary::strstr_find) & ({}))", strstr.join(" | "));
+        let compare = format!("(binary_id(niji-boundary::small_compare) & ({}))", compare.join(" | "));
+        assert_eq!(later_shards_term(|_, _| true), Some(format!("{strstr} | {compare}")));
+        let term = later_shards_term(|_, _| true).unwrap_or_default();
+        assert!(!term.contains("m_0_to_15") && !term.contains("difference_in_each_build_0)"), "{term}");
+        // The second pass's filter leaves them out; affected's native pass only for the selected targets.
+        assert!(pass1_filter(&[], &[]).unwrap_or_default()[1].contains(&format!(" | {strstr} | {compare})")));
+        assert_eq!(later_shards_filter("niji-boundary", &["small_compare", "heap_threads"]), ["-E".to_string(), format!("not ({compare})")]);
+        assert_eq!(later_shards_filter("niji-boundary", &["strstr_find", "small_compare"]), ["-E".to_string(), format!("not ({strstr} | {compare})")]);
+        assert!(later_shards_filter("niji-boundary", &["heap_threads"]).is_empty());
+        assert!(later_shards_filter("niji", &["strstr_find", "small_compare"]).is_empty());
     }
 
     #[test]
