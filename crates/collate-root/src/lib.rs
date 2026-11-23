@@ -273,8 +273,9 @@ pub fn source(repo: &Path) -> Result<String, String> {
         defined.insert(cp, key);
     }
 
-    let mut order: Vec<u32> = defined.keys().copied().collect();
-    order.sort_by_key(|cp| (&defined[cp], !first.contains(cp), *cp));
+    let mut keyed: Vec<_> = defined.iter().map(|(cp, key)| (key, !first.contains(cp), *cp)).collect();
+    keyed.sort();
+    let mut order: Vec<u32> = keyed.into_iter().map(|(_, _, cp)| cp).collect();
     for (cp, anchor) in moves {
         order.retain(|&c| c != cp);
         let at = order.iter().position(|&c| c == anchor).ok_or("a moved anchor")?;
@@ -310,7 +311,8 @@ pub fn source(repo: &Path) -> Result<String, String> {
     for cp in order {
         let n = name(cp);
         let _ = write!(out, "{n} ");
-        for (level, ws) in defined[&cp].iter().enumerate() {
+        let key = defined.get(&cp).ok_or("an ordered code point without weights")?;
+        for (level, ws) in key.iter().enumerate() {
             match ws.as_slice() {
                 [] => out.push_str("IGNORE"),
                 [w] => out.push_str(&symbol(level, *w)),
