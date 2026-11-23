@@ -1,9 +1,12 @@
 # LOCALEDEF-COLLATE-GAPS: compact code point order in LC_COLLATE, refuse an empty LC_COLLATE
 
 **State.** Branch `task/localedef-collate-gaps` (from origin/next 0495c4684), role keke `~/w/r2`. Code, tests,
-records and plants committed (two legs). Jobs on keke: `localedef-collate-gaps-gate` (direct tier, 276 tests),
-`localedef-collate-gaps-plants` (9 plants, `/dev/shm/claude/localedef-collate-gaps/plants-1`), lint jobs
-`localedef-collate-gaps-lint3` (records check, clippy, static: green). Report: handoff/reports/LOCALEDEF-COLLATE-GAPS.json.
+records and plants committed (two legs). Code head 7eba3dfdb, proven by keke jobs `localedef-collate-gaps-gate2`
+(direct tier: 12 suites, 7445 passed, 0 failed; conformance 147/0; peak 11G), `localedef-collate-gaps-plants2` (8 of 8
+CAUGHT, results in handoff/LOCALEDEF-COLLATE-GAPS-plants.txt), `localedef-collate-gaps-lint5` (records check, clippy
+-D warnings, static: green); `cargo xtask precheck` exit 0. Superseded: `-gate` (killed: code changed), `-plants`
+(run-inside-off SURVIVED: the check was redundant and was removed), `-lint`..`-lint4` (fixes / unsynced tree).
+Report: handoff/reports/LOCALEDEF-COLLATE-GAPS.json.
 
 **Decisions in force.** D-31.31 (this story: code point order without rules; lazy `..` runs; empty LC_COLLATE
 refused), D-31.29 (defaults for undefined categories; the 92-byte LC_COLLATE). Spec clause added: s31_8_f_3.
