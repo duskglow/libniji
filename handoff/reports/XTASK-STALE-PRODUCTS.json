@@ -1,18 +1,64 @@
-{"task": "XTASK-STALE-PRODUCTS", "model": "opus", "tokens": null,
+{
+ "task": "XTASK-STALE-PRODUCTS",
+ "model": "opus",
+ "tokens": null,
  "result": "xtask so clears target/niji (but the other commands' dirs) before building or importing, naming stale products it removed; xtask tests skip leftover test links whose loader or library is gone",
- "branch": "task/xtask-stale-products", "head": "86e299f64",
- "gate": {"affected": "direct tier + deb_manifest: rc 0 (xtask-stale-products-gate)", "peak": "1.9G"},
+ "branch": "task/xtask-stale-products",
+ "head": "86e299f64",
+ "gate": {
+  "affected": "direct tier + deb_manifest: rc 0 (xtask-stale-products-gate)",
+  "peak": "1.9G"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
- "informational": ["xtask/src/transcript/mod.rs niji_default still takes a leftover getent/locale/iconv test link as built (cargo xtask transcript check by hand fails with ENOENT); the xtask tests now skip before reaching it. Follow-up: move test_link::usable into xtask and use it there."],
+ "informational": [
+  "xtask/src/transcript/mod.rs niji_default still takes a leftover getent/locale/iconv test link as built (cargo xtask transcript check by hand fails with ENOENT); the xtask tests now skip before reaching it. Follow-up: move test_link::usable into xtask and use it there."
+ ],
  "refused": [],
  "impact": [
-  {"kind": "correctness", "what": "a product left in target/niji by an earlier tree (gencat, CI train 948) no longer fails the manifest lint or enters an import: xtask so removes it", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "correctness", "what": "a leftover iconv/zic/zdump test link whose loader is gone is skipped with the missing path instead of failing with ENOENT", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "coverage", "what": "tests added (so unit test, transcripts leftover-link test) and plants", "before": 0, "after": 2, "unit": "tests", "measured": true},
-  {"kind": "tooling", "what": "no-change cargo xtask so wall time on the Zen 1 host (no rebuild added)", "before": 338.9, "after": 339.6, "unit": "s", "measured": true}
+  {
+   "kind": "correctness",
+   "what": "a product left in target/niji by an earlier tree (gencat, CI train 948) no longer fails the manifest lint or enters an import: xtask so removes it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "a leftover iconv/zic/zdump test link whose loader is gone is skipped with the missing path instead of failing with ENOENT",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (so unit test, transcripts leftover-link test) and plants",
+   "before": 0,
+   "after": 2,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "no-change cargo xtask so wall time on the Zen 1 host (no rebuild added)",
+   "before": 338.9,
+   "after": 339.6,
+   "unit": "s",
+   "measured": true
+  }
  ],
  "improvement": "products ownership was decided per step (placeholders had its own stale record); one owner of the directory is simpler; tests reading target/niji-test should share one usable() check",
  "next_step": "land; optional follow-up for the transcript runner's niji_default",
  "report_file": "handoff/XTASK-STALE-PRODUCTS.md",
- "jobs": ["keke:xtask-stale-products-gate", "keke:xtask-stale-products-plants", "keke:xtask-stale-products-test3", "keke:xtask-stale-products-so-after", "keke:xtask-stale-products-so-base"]}
+ "jobs": [
+  "keke:xtask-stale-products-gate",
+  "keke:xtask-stale-products-plants",
+  "keke:xtask-stale-products-test3"
+ ],
+ "superseded": [
+  "keke:xtask-stale-products-so-after (proved the stale gencat removal and the 339.6 s no-change build; ended rc 101 only on a wrong trailing cargo --manifest-path call; deb_manifest ran in the gate)",
+  "keke:xtask-stale-products-so-base (the before measurement, 338.9 s, on the base head)"
+ ]
+}

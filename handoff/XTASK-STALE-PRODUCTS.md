@@ -37,7 +37,7 @@ now checked), affected_mode.rs, probe_client.rs, header_p2_fixed_rows.rs (use no
   interpreter renamed to a missing `no-linux-x86-64.so.2`: skipped with that path). Job xtask-stale-products-test3:
   clippy -D warnings clean, so unit test ok, transcripts 8/8, tz_tools 10/10.
 * Real build (job xtask-stale-products-so-after): `cp getent target/niji/gencat; cargo xtask so` printed
-  `so: removed 1 earlier product(s) no step of this tree makes: gencat`; gencat gone afterwards.
+  `so: removed 1 earlier product(s) no step of this tree makes: gencat`; gencat gone afterwards. (That job ended rc 101 afterwards on a wrong `cargo test --manifest-path` call I added; SUPERSEDED, the deb_manifest test ran in the gate.)
 * Incremental build, nothing changed: before 338.9 s (job xtask-stale-products-so-base, second run), after 339.6 s
   (so-after): no rebuild added (difference within run-to-run noise; wall time on a shared host).
 * Plants (handoff/XTASK-STALE-PRODUCTS-plants.txt): (a) cleanup skipped -> lint names gencat; (b) link-loads check
