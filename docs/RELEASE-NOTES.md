@@ -14,6 +14,55 @@ libniji was called Liella until November 2026.
   `GLIBC_TUNABLES=niji.compat.execstack=1` accepts them and makes the main stack and the thread stacks executable, as
   glibc does; a set-user-ID or set-group-ID program ignores it. A root-owned per-object allowlist is planned.
 
+## libniji: seventh pre-release, 2026-11-17 (`snapshot-2026-11-17.3`)
+
+The day's third snapshot: `main` at commit `20dbed16`, tagged `snapshot-2026-11-17.3`. A snapshot of a work in progress,
+not an alpha or a release candidate, and not for production. Changes since
+[`snapshot-2026-11-17.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-17.2):
+
+- **`ldconfig` and development symlinks ([#16](https://github.com/duskglow/libniji/issues/16)):** when a library's `.so`
+  development link is an alias of its soname (libcmocka's `libcmockery.so`), `ldconfig` leaves the soname link on the
+  real file instead of creating a loop; its links and output match Debian's own `ldconfig` in a trixie root.
+- **`ldd` and `ld.so --list`** print the same paths and interpreter line as the reference; `ldd -v` still differs in the
+  version lists it prints, as documented.
+- **Symbol-less version nodes** (`GLIBC_ABI_DT_RELR` and others) are exported, so programs whose binaries require them load.
+- **`/usr/bin/iconv`** is part of `libc-bin`, with libniji's own converters; more character sets follow (#6).
+- `pthread_rwlock_tryrdlock` and `pthread_rwlock_trywrlock` return `EBUSY` when the lock is held.
+
+Packages: the same two flavours (beside glibc: `niji6`, `niji6-dev`, version `0.0~snapshot20261117+20dbed16c07e`; as the
+system C library, experimental: `2.39+niji20261117.3-1`, including `libc6-dbg`). Checks: empty root 19 pass, none fail;
+trixie root with libniji swapped in 65 commands, 63 identical to stock glibc, 2 known differences (`ldd -v`), none
+unexpected; lintian 10 errors (unchanged) and 59 warnings per suite (both new ones on `/usr/bin/iconv`).
+
+Known gaps specific to this snapshot: the system flavour has no C headers yet (its `libc6-dev` replaces Debian's, so
+compile with the flavour beside glibc); `libc6-dbg` has no debug file for `/usr/bin/iconv` (17 of 18 objects resolve).
+Other limitations are as in the previous snapshot (#9, #19, 512 objects per process, no `dlmopen`, lazy binding,
+`LD_AUDIT` or `libthread_db`, no security audit, Linux x86-64 only). Next: more `iconv` character sets, the loader
+queue (#9, #10, #19), fixes for Yohane Linux (#17, #20, #21, #18), and the generated C headers.
+
+## libniji: sixth pre-release, 2026-11-17 (`snapshot-2026-11-17.2`)
+
+The day's second snapshot: `main` at commit `e4010743`, tagged `snapshot-2026-11-17.2`. Changes since
+[`snapshot-2026-11-17`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-17). Snapshots now follow the
+fixes for [Yohane Linux](https://github.com/duskglow/aqours) as they land, so several may appear in a day; the later ones
+carry a `.N` suffix.
+
+- **The vector math library, `libmvec.so.1`**, ships in `libc6` and `niji6`, with `libmvec.a` and `libmvec.so` in the
+  development packages, so programs built against glibc's vector math entry points (Debian's graphviz) load and run.
+  Each lane is computed by libniji's scalar `libm` function, so results match the scalar functions exactly; the vector
+  entry points are not yet faster than the scalar ones.
+- **A debug package, `libc6-dbg`** (system flavour, optional): the debug files of the shared objects, which ship
+  stripped. Debuggers find each by build-id (all 17 objects resolve); full debug information is present for some objects
+  so far and completing the rest is queued.
+- `pow` special cases follow IEEE 754 and C23: a signalling-NaN operand gives a quiet NaN and raises invalid, and
+  `pow(-1, y)` for a huge even or odd integer `y` returns ±1.
+
+Packages: beside glibc `0.0~snapshot20261117+e4010743214e`; system flavour `2.39+niji20261117.2-1` (experimental).
+Checks: empty root 19 pass; trixie root with libniji swapped in 63 commands, 56 identical, 7 known differences (the
+`ldd` output), none unexpected; lintian 10 errors and 57 warnings per suite. The system flavour has no C headers yet.
+Known gaps: #9 (more than 63 shared libraries at start), #19 (no `_r_debug` rendezvous). The `ldconfig` fix (#16) and the
+`ldd` trace output came in the next snapshot.
+
 ## libniji: fifth pre-release, 2026-11-17 (`snapshot-2026-11-17`)
 
 This is the fifth public pre-release, and the first under the project's new name, **libniji**. `main` is promoted to
@@ -204,7 +253,7 @@ that `LD_PRELOAD` is now provided:
 - **The rename to libniji.**
 - **[Yohane Linux](https://github.com/duskglow/aqours)** (formerly Aqours), the Linux distribution built on Liella,
   starts its first stage from this snapshot.
-- **More utilities:** `ldd` is next, then `iconv`, `locale`, `localedef` and the time-zone tools.
+- **More utilities:** `locale`, `localedef` and the time-zone tools.
 - **The loader's trace output** (`ld.so --list`, `LD_TRACE_LOADED_OBJECTS`) is being made to match the reference
   exactly.
 - **The header generator** and the first generated C headers.

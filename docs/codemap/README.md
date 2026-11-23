@@ -90,7 +90,7 @@ Other crates: abi, boundary, charmaps, core, kernel, ld, ld-so, ldconfig-bin, le
 | `/proc/self/fd/0123456789` | crates/legacy/src/accounting.rs:447 |
 | `/proc/self/fdinfo/` | crates/boundary/src/spawn.rs:439 |
 | `/proc/self/loginuid` | crates/legacy/src/accounting.rs:48 |
-| `/proc/self/maps` | crates/boundary/src/ld/image.rs:864, crates/boundary/src/ld/image.rs:895, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
+| `/proc/self/maps` | crates/boundary/src/ld/image.rs:890, crates/boundary/src/ld/image.rs:921, crates/boundary/src/pthread.rs:299, crates/mathtools/src/check_cache.rs:192 |
 | `/proc/self/mountinfo` | crates/core/src/system.rs:592 |
 | `/proc/self/ns/user` | crates/legacy/src/nscache.rs:321 |
 | `/proc/self/pagemap` | crates/boundary/src/classed.rs:132 |
@@ -108,13 +108,13 @@ Other crates: abi, boundary, charmaps, core, kernel, ld, ld-so, ldconfig-bin, le
 | `/usr/bin/ls` | crates/rt/src/start.rs:589 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
-| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:15 |
+| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:16 |
 | `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
 | `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
-| `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:11 |
+| `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:12 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:128 |
-| `/usr/share/i18n/locales` | crates/locale/src/prog.rs:13 |
+| `/usr/share/i18n/locales` | crates/locale/src/prog.rs:14 |
 | `/usr/share/locale` | crates/legacy/src/intl.rs:62 |
 | `/usr/share/locale-langpack` | crates/legacy/src/intl.rs:66 |
 | `/usr/share/locale/locale.alias` | crates/core/src/locale/mod.rs:538 |

@@ -5338,6 +5338,18 @@ decided differently from the reference; each has a row in `docs/differences-from
   `-?`/`--help`, `--usage`, `-V`/`--version` (probe `localedef-help`).
 * Search paths (probe `localedef-help-paths`): charmaps `/usr/share/i18n/charmaps`, repertoire maps
   `/usr/share/i18n/repertoiremaps`, locale sources `/usr/lib/locale:/usr/share/i18n`.
+* Without `-i` the source is read from standard input, named `<stdin>` in messages (probe `localedef-stdin`).
+* File search (localedef(1); probe `localedef-search`): a `-i` name or `copy` name not starting with `/` is tried
+  as given from the working directory, then for each non-empty `I18NPATH` entry (`:`-separated, in order) as
+  `<entry>/locales/<name>` and `<entry>/<name>`, then (a name without `/` only) in the default source directory;
+  a `-f` name without `/` likewise with `charmaps/`, where in an `I18NPATH` entry or the default directory
+  `<name>.gz` follows `<name>`; a `-f` name with `/` is a path. The first readable file is used; none: the
+  missing-input failure below.
+* Symbolic names (POSIX XBD 6.4, 7.3; probe `localedef-posix-names`): a charmap line names its character by
+  `<Uxxxx>`, or by another name whose code point is the `<Uxxxx>` after the bytes or, for a name of the portable
+  character set (XBD 6.1), that character's; a source may name characters by any of these, in statements and
+  strings. A name in a character class, range or map pair that the charmap does not define is skipped without a
+  diagnostic and without changing the exit status, and so is a collation order line whose item is such a name.
 
 **Guarantees.**
 
@@ -5345,12 +5357,29 @@ decided differently from the reference; each has a row in `docs/differences-from
   `LC_MEASUREMENT`, `LC_MESSAGES/SYS_LC_MESSAGES`, `LC_MONETARY`, `LC_NAME`, `LC_NUMERIC`, `LC_PAPER`,
   `LC_TELEPHONE`, `LC_TIME` (probe `localedef-dir`), in the D.1 format (pending `UTIL-SPEC-3`); otherwise the
   locale goes into the archive unless `--no-archive` (localedef(1)).
-* `--list-archive` prints one locale name per line (probe `localedef-list`).
+* `--list-archive` prints one locale name per line (probe `localedef-list`), sorted; a FILE operand names the
+  archive read (`cannot open locale archive "FILE": ...` and exit 1 when it cannot be opened); a missing default
+  archive lists nothing, exit 0 (probe `localedef-list-missing`).
+* Every category file is written: a category the source does not define gives `[warning] No definition for
+  <CATEGORY> category found` and exit 1, and its file holds the reference's default for an undefined category
+  (POSIX XBD 7.3 leaves the behaviour of a category missing from the source unspecified; values probe-settled,
+  D-31.24) (probe `localedef-undefined`).
+* The archive: a stored name has its codeset normalized (`de_DE.UTF-8` is `de_DE.utf8`); a NAME without a codeset
+  is stored as given and also with the charmap's normalized codeset before any `@modifier`, one locale under both;
+  compiling a stored name replaces it. `--add-to-archive DIR...` prints `Adding DIR` and stores DIR's files under
+  its last component normalized; an existing name is `locale 'NAME' already exists` and exit 255 unless
+  `--replace`; a missing DIR is `stat of "DIR" failed: ...: ignored`, exit 0. `--delete-from-archive NAME...`
+  removes exact names; a name not stored is `locale "NAME" not in archive`, exit 0. `--no-archive` writes the
+  directory `<prefix>/usr/lib/locale/NAME` with NAME's codeset normalized (probe `localedef-archive`).
 
 **Failure.**
 
 * A missing source or charmap: `[error] ...` lines and exit 4, no output produced (probe `localedef-nosource`,
   `localedef-nocharmap`; POSIX `localedef` exit status 4: errors, no output created).
+* A source line outside any category: `<file>:<line>: syntax error: not inside a locale definition section`, the
+  line skipped, output written, exit 1. An error inside a category: `<file>:<line>: <CATEGORY>: syntax error`;
+  without `-c` exit 4 and no output; with `-c` output written (that category with its default) and exit 1 (POSIX
+  `localedef` exit status 1: warnings or errors, output created) (probe `localedef-syntax`).
 
 ### 31.9 zic
 

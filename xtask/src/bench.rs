@@ -1193,8 +1193,30 @@ fn instr_cells(niji: Option<&[f64; 6]>, glibc: Option<&[f64; 6]>) -> String {
     format!("{} | {} | {ratio}", f(l), f(g))
 }
 
-/// Median counters of one row, the spread over the counted runs, and the median ns/op of those runs.
-type CountedRow = ([f64; 6], f64, f64);
+/// Median counters of one row, the spread over the counted runs, the median ns/op of those runs, and the lowest and
+/// highest instructions per call over the runs (`COUNT-SPREAD`).
+type CountedRow = ([f64; 6], f64, f64, (f64, f64));
+
+/// How many counted runs each side gets (`--count-runs N`; default 3, TOOLS-6). More runs make `COUNT-SPREAD` a
+/// repeat test of the instruction counts (BUILD-REPRODUCIBLE-PATHS).
+static COUNT_RUNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(3);
+
+/// BUILD-REPRODUCIBLE-PATHS (#7550): a row with an instruction limit whose libniji count moved, over the counted runs,
+/// by more than the limits' tolerance (max(2 instructions, 2%) of its lowest count, `bench/instr_limits.tsv`). Its
+/// limit check would pass or fail by chance, so the run fails and names it (the counted runs execute with address
+/// randomisation off, `bench/c/cbench_counters.h`; what is left is the kernel's share: interrupts taken while the row
+/// runs count in its user+kernel instructions).
+fn check_count_spread(limits: &[InstrLimit], cpu: &str, range: &BTreeMap<(String, String), (f64, f64)>, selected: &std::collections::BTreeSet<(String, String)>) -> Vec<String> {
+    let mut out = Vec::new();
+    for l in limits.iter().filter(|l| l.applies(cpu) && selected.contains(&(l.bench.clone(), l.row.clone()))) {
+        let Some(&(lo, hi)) = range.get(&(l.bench.clone(), l.row.clone())) else { continue };
+        let tol = (0.02 * lo).max(2.0);
+        if hi - lo > tol {
+            out.push(format!("{}/{}: instructions per call moved {lo:.1} to {hi:.1} over the counted runs, more than the tolerance {tol:.1} of its limit (COUNT-SPREAD): the count is not deterministic", l.bench, l.row));
+        }
+    }
+    out
+}
 
 /// One counted run (`CBENCH_COUNTERS=1`) of the libniji build and of the host C library per benchmark, outside
 /// the timed rounds, and a compact table per row: libniji/glibc ratios of ns (the timing rounds' median, when
@@ -1211,10 +1233,11 @@ fn counted_table(root: &Path, names: &[&str], no_build: bool, ns_ratio: &BTreeMa
 /// The counted runs of `counted_table`; each table line goes to `lines` (bench, line), each bench it starts to `started`.
 fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTreeMap<(String, String), f64>, lines: &mut Vec<(String, String)>, started: &mut Vec<&'a str>) -> Result<Counted, String> {
     let mut instr: BTreeMap<(String, String), f64> = BTreeMap::new();
+    let mut instr_range: BTreeMap<(String, String), (f64, f64)> = BTreeMap::new();
     let mut cyc: BTreeMap<(String, String), CycleCell> = BTreeMap::new();
     let mut printed = 0usize;
     NO_BUILD.store(no_build, std::sync::atomic::Ordering::Relaxed);
-    println!("\ncounters per operation (median of 3 counted runs per side; ratio = libniji / glibc dynamic; `-` = event not available):");
+    println!("\ncounters per operation (median of {} counted runs per side; ratio = libniji / glibc dynamic; `-` = event not available):", COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed));
     println!("{:<14} {:<26} {:>7} {:>7} {:>7} {:>7}  {:>9} {:>9} {:>9}", "bench", "row", "ns", "cycles", "uops", "instr", "cyc/op L", "cyc/op G", "spread L/G");
     let q = |a: f64, b: f64| if a > 0.0 && b > 0.0 { Some(a / b) } else { None };
     let cell = |x: Option<f64>| x.map_or("-".to_string(), |v| format!("{v:.3}"));
@@ -1226,7 +1249,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
         // TOOLS-6: three counted runs per side; per row the MEDIAN of every column, a spread column, and sanity flags.
         let run3 = |exe: &Path| -> Result<BTreeMap<String, CountedRow>, String> {
             let mut runs = Vec::new();
-            for _ in 0..3 {
+            for _ in 0..COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed) {
                 let out = bench_output(c_command(b, exe).env("CBENCH_COUNTERS", "1")).map_err(|e| format!("{b}: {e}"))?;
                 if !out.status.success() {
                     return Err(format!("{b} (counted run) failed"));
@@ -1252,16 +1275,18 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
                     if m > 0.0 { (hi - lo) / m } else { 0.0 }
                 };
                 let ns: Vec<f64> = runs.iter().filter_map(|r| r.1.get(row).copied()).collect();
-                res.insert(row.clone(), (med, spread(1).max(spread(0)), if ns.is_empty() { 0.0 } else { stats(&ns).0 }));
+                let (_, ilo, ihi) = stats(&all.iter().map(|x| x[0]).collect::<Vec<f64>>());
+                res.insert(row.clone(), (med, spread(1).max(spread(0)), if ns.is_empty() { 0.0 } else { stats(&ns).0 }, (ilo, ihi)));
             }
             Ok(res)
         };
         let (l, g) = (run3(&niji)?, run3(&host)?);
-        for (row, (lv, lsp, lns)) in &l {
+        for (row, (lv, lsp, lns, irange)) in &l {
             if lv[0] > 0.0 {
                 instr.insert((b.to_string(), row.clone()), lv[0]);
+                instr_range.insert((b.to_string(), row.clone()), *irange);
             }
-            let Some((gv, gsp, gns)) = g.get(row) else { continue };
+            let Some((gv, gsp, gns, _)) = g.get(row) else { continue };
             let ns = ns_ratio.get(&(b.to_string(), row.clone())).copied();
             let (cy, up, ins) = (q(lv[1], gv[1]), q(lv[5], gv[5]), q(lv[0], gv[0]));
             // FALLBACK-CYCLES: the clock each side ran at in its counted runs (cycles per ns = GHz).
@@ -1287,7 +1312,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
             lines.push((b.to_string(), counters_line(b, row, ns, lv, gv, &sp, flags.trim())));
         }
     }
-    Ok(Counted { instr, cyc, rows: printed })
+    Ok(Counted { instr, instr_range, cyc, rows: printed })
 }
 
 /// What the counted runs measured: instructions per call of libniji (the instruction limits) and, per row, the
@@ -1296,6 +1321,8 @@ struct Counted {
     /// How many rows the table printed (both sides counted).
     rows: usize,
     instr: BTreeMap<(String, String), f64>,
+    /// The lowest and highest libniji instructions per call over the counted runs (`check_count_spread`).
+    instr_range: BTreeMap<(String, String), (f64, f64)>,
     cyc: BTreeMap<(String, String), CycleCell>,
 }
 
@@ -1608,6 +1635,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 counters = true;
                 counters_only = true;
             }
+            "--count-runs" => {
+                let n: usize = it.next().and_then(|v| v.parse().ok()).filter(|&n| n >= 2).ok_or("--count-runs needs a number of counted runs, 2 or more")?;
+                COUNT_RUNS.store(n, std::sync::atomic::Ordering::Relaxed);
+            }
             "--runs" => {
                 runs = it.next().and_then(|v| v.parse().ok()).filter(|&n| n > 0).ok_or("--runs needs a positive number")?;
                 fixed = true;
@@ -1821,7 +1852,17 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         // TOOLS-5: no timing rounds; the counted runs only (the baseline job runs this right after its timing run).
         let names = counted_benches(&benches, &host_capable);
         let c = counted_table(root, &names, mode == Mode::NoBuild, &BTreeMap::new())?;
-        return check_counted(c.rows, &filter);
+        check_counted(c.rows, &filter)?;
+        // The repeat test of the counts (`--counters-only --count-runs N`, BUILD-REPRODUCIBLE-PATHS): every counted
+        // row with an instruction limit for this CPU must repeat within its tolerance.
+        let counted: std::collections::BTreeSet<(String, String)> = c.instr_range.keys().cloned().collect();
+        let spread = check_count_spread(&instr_limits, &cpu, &c.instr_range, &counted);
+        let limited = instr_limits.iter().filter(|l| l.applies(&cpu) && counted.contains(&(l.bench.clone(), l.row.clone()))).count();
+        if !spread.is_empty() {
+            return Err(format!("bench --counters-only: {} of {limited} limited rows moved beyond their tolerance:\n  {}", spread.len(), spread.join("\n  ")));
+        }
+        println!("bench: COUNT-SPREAD ok: {limited} rows with an instruction limit repeated within max(2, 2%) over {} counted runs", COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed));
+        return Ok(());
     }
     let settle = settle_secs(std::env::var("BENCH_SETTLE_SECS").ok().as_deref());
     if settle > 0 {
@@ -2021,6 +2062,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                     }
                 }
                 failures.extend(check_instr_limits(&instr_limits, &cpu, &c.instr, &selected, &names));
+                failures.extend(check_count_spread(&instr_limits, &cpu, &c.instr_range, &selected));
                 cells = c.cyc;
             }
             Err(e) if instr_gated => failures.push(format!("instruction limits ({INSTR_LIMITS}) could not be checked: counters table failed: {e}")),
@@ -2265,6 +2307,31 @@ ctr	short	1
         assert!(limit_for(&l, "CPU A", "b2", "r1").is_none());
         // The host name plays no part: only the exact CPU string matches.
         assert!(limit_for(&l, "cpu a", "b1", "r1").is_none());
+    }
+
+    /// no spec clause (tooling, BUILD-REPRODUCIBLE-PATHS #7550): a limited row whose count moved over the counted runs
+    /// by more than max(2 instructions, 2%) fails as COUNT-SPREAD; a move within it, an unlimited or unselected row,
+    /// and another CPU's limit do not.
+    #[test]
+    fn count_spread_fails_a_limited_row_that_moves_beyond_its_tolerance() {
+        let lim = parse_instr_limits("*\tb1\tsmall\t20\n*\tb1\tbig\t1000\nCPU A\tb1\tcpu\t50\n*\tb1\tunsel\t20\n").unwrap();
+        let sel: std::collections::BTreeSet<(String, String)> = [("b1", "small"), ("b1", "big"), ("b1", "cpu")].iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
+        let k = |r: &str| ("b1".to_string(), r.to_string());
+        let mut r = BTreeMap::new();
+        // 16 to 18: 2 instructions, the floor of the tolerance: deterministic enough.
+        r.insert(k("small"), (16.0, 18.0));
+        // 900 to 917.9: within 2% (18); the unselected row and the unlimited one move far, unchecked.
+        r.insert(k("big"), (900.0, 917.9));
+        r.insert(k("unsel"), (10.0, 90.0));
+        r.insert(k("free"), (10.0, 90.0));
+        r.insert(k("cpu"), (40.0, 43.0));
+        assert!(check_count_spread(&lim, "CPU B", &r, &sel).is_empty());
+        let f = check_count_spread(&lim, "CPU A", &r, &sel);
+        assert!(f.len() == 1 && f[0].starts_with("b1/cpu") && f[0].contains("COUNT-SPREAD"), "{f:?}");
+        // the strstr shape measured with address randomisation on: 71 or 135 per call
+        r.insert(k("small"), (71.0, 135.0));
+        r.insert(k("big"), (900.0, 918.1));
+        assert_eq!(check_count_spread(&lim, "CPU B", &r, &sel).len(), 2);
     }
 
     #[test]
