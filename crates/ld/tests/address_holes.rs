@@ -99,7 +99,7 @@ fn run(d: &Path, prog: &Path, ld: &Path, via_ld: bool, mode: &str) -> String {
 /// `dladdr1` name L for L's code and the program (its run of segments) for `main`; an anonymous
 /// page in the hole belongs to no object; L's `atexit` handler runs at L's `dlclose`.
 #[test]
-fn s27_1_c_9_object_in_the_program_hole_is_found_as_itself() {
+fn s27_1_c_9_library_inside_program_hole_found_itself() {
     let Some((d, prog, ld)) = corpus("hole", &["-Wl,-z,max-page-size=0x200000"]) else { return };
     let out = run(&d, &prog, &ld, false, "hole");
     let anon = out.lines().find(|l| l.starts_with("anon page")).unwrap_or_else(|| panic!("no anonymous page in the hole: {out}"));
@@ -111,7 +111,7 @@ fn s27_1_c_9_object_in_the_program_hole_is_found_as_itself() {
 /// and keeps its holes reserved), the default layout and the layout with the program headers in
 /// the text segment (`-z noseparate-code`): every lookup gives the same answers wherever L lands.
 #[test]
-fn s27_1_c_9_address_lookups_hold_in_every_layout() {
+fn s27_1_c_9_address_lookups_hold_across_layouts() {
     let variants: [(&str, &[&str], bool); 3] =
         [("ldso", &["-Wl,-z,max-page-size=0x200000"], true), ("default", &[], false), ("noseparate", &["-Wl,-z,noseparate-code"], false)];
     for (name, layout, via_ld) in variants {
