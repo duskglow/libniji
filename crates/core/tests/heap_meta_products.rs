@@ -244,7 +244,7 @@ const FIND_PHASES: [u64; 8] = [0, 2048, 4096, 6144, 8192, 10240, 12288, 14336];
 fn find_need(find: &Path, dir: &Path, phase: u64) -> u64 {
     let r = root().join("target/niji");
     let ld = ["ld-linux-x86-64.so.2", "ld.so"].iter().map(|n| r.join(n)).find(|p| p.exists()).expect("the products' dynamic loader");
-    let stack = 131_072 + phase;
+    let stack = 131_072_u64.saturating_add(phase);
     let run = |kib: u64| {
         // The loader's own --library-path: LD_LIBRARY_PATH would reach the shell too.
         let cmd = format!("ulimit -s {stack} || exit 99; ulimit -v {kib}; exec \"$0\" --library-path \"$1\" \"$2\" \"$3\" > /dev/null");
@@ -298,7 +298,7 @@ fn find_over_200000_entries_bounds_its_address_space() {
         return;
     }
     // The phases are set through the stack limit (see `find_need`).
-    let top = 131_072 + FIND_PHASES[FIND_PHASES.len() - 1];
+    let top = 131_072_u64.saturating_add(FIND_PHASES.iter().copied().max().unwrap_or(0));
     if !Command::new("sh").arg("-c").arg(format!("ulimit -s {top}")).status().is_ok_and(|s| s.success()) {
         eprintln!("skipped: the stack hard limit is below {top} KiB, so the layout phase cannot be set");
         return;
@@ -327,10 +327,10 @@ fn find_over_200000_entries_bounds_its_address_space() {
         })
     });
     for &(phase, n3, n200k) in &needs {
-        eprintln!("phase {phase} KiB: find needs {n3} KiB for 3 entries, {n200k} for 200000: {} over", n200k - n3);
+        eprintln!("phase {phase} KiB: find needs {n3} KiB for 3 entries, {n200k} for 200000: {} over", n200k.saturating_sub(n3));
     }
-    let (phase, n3, n200k) = needs.into_iter().max_by_key(|&(_, n3, n200k)| n200k - n3).expect("phases");
-    let over = n200k - n3;
+    let (phase, n3, n200k) = needs.into_iter().max_by_key(|&(_, n3, n200k)| n200k.saturating_sub(n3)).expect("phases");
+    let over = n200k.saturating_sub(n3);
     eprintln!("highest: {over} KiB over 3 entries at phase {phase} KiB (bound {FIND_200K_OVER_3})");
     assert!(over <= FIND_200K_OVER_3, "find over 200000 entries needs {over} KiB over 3 entries at layout phase {phase} KiB > {FIND_200K_OVER_3}: a later heap segment not placed under the limit?");
 }
