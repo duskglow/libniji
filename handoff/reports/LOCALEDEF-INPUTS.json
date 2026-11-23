@@ -1,0 +1,23 @@
+{"task": "LOCALEDEF-INPUTS", "model": "opus", "tokens": null,
+ "result": "localedef reads POSIX symbolic names (s31_8_i_5), searches the working directory and I18NPATH (s31_8_i_4), and writes the reference's defaults for an undefined category (D-31.24 settled by the three-way rule: XBD 7.3 leaves it unspecified; differences row removed)",
+ "branch": "task/localedef-inputs", "head": "f9e8bcfb9",
+ "gate": {"affected": "9555 passed / 0 failed (direct tier, shiki localedef-inputs-gate3, 147 conformance passed)", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "For POSIX-name charmaps the reference adds its own diagnostics (not ASCII compatible; <SP> not in class space): status 1 vs libniji 0, 4 vs 1 without -c, toupper(a) stays a there. libniji has no such checks (pre-existing); recommend keeping libniji's and a differences row if the coordinator agrees.",
+   "--big-endian is not small (about 30 little-endian write sites in crates/locale plus core's table builders): refusal kept, D-31.26 reason worded 'libniji currently supports only little-endian x86-64'; roadmap: one byte-order writer helper, every to_le_bytes routed there, a byte-swapping reader in the test, then --big-endian/--little-endian as probed.",
+   "cargo xtask affected says FULL (spec/clauses.tsv is a generated table's input): FULL is the train's; the direct tier ran."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "charmaps and sources using POSIX symbolic names (<a>, <space>) compile instead of being refused", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "localedef -i/-f names found in the working directory and I18NPATH as the reference does (52-case probe table matches in status and file chosen)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "a locale built from a partial source: the omitted categories' files equal the reference's item for item (UTF-8, ISO-8859-1); before, ASCII punct/cntrl classes and widths, LC_TIME wide strings, monetary not-available bytes and country codes differed", "before": 142, "after": 0, "unit": "differing items vs reference (UTF-8)", "measured": true},
+   {"kind": "coverage", "what": "tests added (4 prog, 1 products, 5 per-category defaults; the defaults comparison made strict)", "before": null, "after": 10, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants, all caught", "before": null, "after": 22, "unit": "plants", "measured": true}
+ ],
+ "improvement": "cargo xtask plants refuses a two-site pattern only after starting the job: a quick `--check` (pattern counts only) before jobrun would save a cycle; and the plants rebuild the products for crate-only mutants (2-4 min each) where the test needs only the crate.",
+ "next_step": "none: story complete; land via the train (FULL gate there).",
+ "report_file": "handoff/LOCALEDEF-INPUTS.md",
+ "jobs": ["shiki:localedef-inputs-gate3", "shiki:localedef-inputs-plants4", "shiki:localedef-inputs-plants5"]}

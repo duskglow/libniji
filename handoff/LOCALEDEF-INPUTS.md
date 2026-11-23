@@ -26,8 +26,8 @@ Probe scripts and outputs (L2/L3): shiki `~/work/localedef-inputs/` (`probe.sh`/
   (now strict: every item of every file vs the reference, UTF-8 and ISO-8859-1, no exceptions) and five per-category
   tests without the reference (`undefined_{ctype,time,monetary,address,other_categories}...`).
 * Plants: `handoff/LOCALEDEF-INPUTS.plants` (13, L2/L3) and `handoff/LOCALEDEF-INPUTS-defaults.plants` (9, D-31.24),
-  results `handoff/LOCALEDEF-INPUTS-plants.txt` (shiki jobs `localedef-inputs-plants4` and `-plants3`, head e87311c6).
-* Gate: shiki `localedef-inputs-gate3` (direct tier, head e87311c6). Superseded: gate2 (c54e9deb, green: 9550 passed,
+  results `handoff/LOCALEDEF-INPUTS-plants.txt` (13/13 CAUGHT, shiki `localedef-inputs-plants4`, e87311c6) and `handoff/LOCALEDEF-INPUTS-defaults-plants.txt` (9/9 CAUGHT, `localedef-inputs-plants5`, f9e8bcfb; plants3 refused a two-site pattern, superseded). No WARN.
+* Gate: shiki `localedef-inputs-gate3` (direct tier, head e87311c6): 9555 passed, 0 failed, 147 conformance. Superseded: gate2 (c54e9deb, green: 9550 passed,
   0 failed), plants2 (c54e9deb, 13/13), gate1/plants1, t1..t5, d1..d3 (development runs), lint3 (stubs + clippy +
   static on the pre-commit tree, all clean). `cargo xtask affected` says FULL (spec/clauses.tsv is a generated
   table's input): FULL is the train's.
