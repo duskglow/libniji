@@ -1,8 +1,10 @@
 # UTIL-14: gencat in libc-dev-bin (GitHub issue #12)
 
-**State.** Branch `task/util-14` from origin/next `b04f71229`, HEAD `d43bf38a0` (+ this note). Role keke:~/w/n2. Leg 2: built,
-38 transcripts recorded and ALL EQUAL to the reference (byte comparison of every catalog), catgets test written. Leg 3
-starts at "Next step (leg 3)".
+**State.** Branch `task/util-14` from origin/next `b04f71229`, code head `cd937d5ad` (lint + D-31.28 test paths;
+later commits are handoff/ only). Role keke:~/w/n2. DONE (leg 3): clippy + static clean, changed crates' tests
+green (`util-14-tests`; affected escalates to FULL, the train's), plants `util-14-plants2`, packages `util-14-pkg`.
+Full report: handoff/UTIL-14-report.md (RULING NEEDED: spec D.2.2 pool-order bullet). Decision: D-31.28.
+Next step: none on this branch beyond the ruling; the "Next step (leg 3)" section below is history.
 
 ## On the branch (leg 1)
 
