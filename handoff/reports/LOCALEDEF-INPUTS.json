@@ -1,6 +1,6 @@
 {"task": "LOCALEDEF-INPUTS", "model": "opus", "tokens": null,
  "result": "localedef reads POSIX symbolic names (s31_8_i_5), searches the working directory and I18NPATH (s31_8_i_4), and writes the reference's defaults for an undefined category (D-31.24 settled by the three-way rule: XBD 7.3 leaves it unspecified; differences row removed)",
- "branch": "task/localedef-inputs", "head": "f9e8bcfb9",
+ "branch": "task/localedef-inputs", "head": "1fe7d4aa9",
  "gate": {"affected": "9555 passed / 0 failed (direct tier, shiki localedef-inputs-gate3, 147 conformance passed)", "peak": "12G"},
  "accepted_first_attempt": null,
  "rulings": [],
@@ -18,6 +18,6 @@
    {"kind": "coverage", "what": "plants, all caught", "before": null, "after": 22, "unit": "plants", "measured": true}
  ],
  "improvement": "cargo xtask plants refuses a two-site pattern only after starting the job: a quick `--check` (pattern counts only) before jobrun would save a cycle; and the plants rebuild the products for crate-only mutants (2-4 min each) where the test needs only the crate.",
- "next_step": "none: story complete; land via the train (FULL gate there).",
+ "next_step": "none: story complete; land via the train (FULL gate there). Records: D-31.29 (reserved) supersedes D-31.24; D-31.26 corrected in its record.",
  "report_file": "handoff/LOCALEDEF-INPUTS.md",
  "jobs": ["shiki:localedef-inputs-gate3", "shiki:localedef-inputs-plants4", "shiki:localedef-inputs-plants5"]}
