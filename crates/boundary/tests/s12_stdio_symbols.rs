@@ -253,7 +253,8 @@ fn alone(test: &str, name: &str, body: impl FnOnce() -> bool) {
 /// the other tests run beside it, and input from an unbuffered or line-buffered stream flushes
 /// every line-buffered stream (ISO C 7.21.3p3), which may write the held bytes before the check.
 fn lbf_alone(name: &str, body: impl FnOnce()) {
-    let test = std::thread::current().name().expect("a libtest thread is named after its test").to_owned();
+    // libtest runs every test on a thread named after it.
+    let test = std::thread::current().name().unwrap().to_owned();
     alone(&test, name, || {
         body();
         true
