@@ -228,8 +228,9 @@ pub fn start_object_errors(readelf: &str) -> Result<(), String> {
 }
 
 /// SL-CRT: the start files with no `_start`, each `csys/start/<name>.S` assembled alone into
-/// `target/niji/niji-<name>.o` (installed as `<name>.o`).
-const START_FILES: [&str; 3] = ["crti", "crtn", "Mcrt1"];
+/// `target/niji/niji-<name>.o` (installed as `<name>.o`), and niji-gcc's `niji-unwinder.o`
+/// (the program's own unwinder offered to the C library, D-22.24; installed under that name).
+const START_FILES: [&str; 4] = ["crti", "crtn", "Mcrt1", "unwinder"];
 
 /// The relocating start that `niji-rcrt1.o`'s `_start` calls (D-27.10).
 const STATIC_PIE_START: &str = "niji_start_main_static_pie";

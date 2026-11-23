@@ -277,3 +277,71 @@ fn coexist_lm_brings_in_libmvec_only_for_a_vector_call() {
     assert_eq!(run(&nomvec), "nomvec: sin(1) 0.8415\n", "nomvec's output");
     let _ = std::fs::remove_dir_all(&work);
 }
+
+#[test]
+fn coexist_niji_gcc_threads_unwind_with_the_programs_own_unwinder() {
+    // s22_1_c_2, s22_3_c_4 (D-22.19, D-22.24): with the coexist packages unpacked as a sysroot, a
+    // program niji-g++ links (libstdc++ and the unwinder static, no libgcc_s.so.1) whose threads
+    // call pthread_exit or are cancelled runs every destructor and enters `catch
+    // (abi::__forced_unwind &)` (which rethrows) through the unwinder it links: its output is the
+    // output of the same source built with g++'s defaults on the reference. So for niji-gcc's C
+    // builds with `-fexceptions` cleanups, also with jump-buffer handlers between them (the
+    // unwind continues after each buffer). A plain C program links no unwinder for it.
+    if tools_missing(&["sh", "python3", "readelf", "nm", "strip", "dpkg-deb", "gcc", "g++", "timeout"]) {
+        return;
+    }
+    let work = root().join("target/deb-gxx-unwind").join(std::process::id().to_string());
+    let out = build_coexist(&products(), &work);
+    let sysroot_parent = work.join("root");
+    let mut debs: Vec<PathBuf> = std::fs::read_dir(&out).unwrap().map(|e| e.unwrap().path()).filter(|p| p.extension().is_some_and(|e| e == "deb")).collect();
+    debs.sort();
+    for deb in &debs {
+        let o = Command::new("dpkg-deb").arg("-x").arg(deb).arg(&sysroot_parent).output().unwrap();
+        assert!(o.status.success(), "dpkg-deb -x {}: {}", deb.display(), String::from_utf8_lossy(&o.stderr));
+    }
+    let sysroot = sysroot_parent.join("usr/lib/niji");
+    let lib = sysroot.join("usr/lib/x86_64-linux-gnu");
+    let loader = lib.join("ld-linux-x86-64.so.2");
+    let oracle = root().join("crates/core/tests/oracle");
+    // run(exe, niji): status, stdout and stderr; on libniji, started by the packaged loader with
+    // the packaged libraries (`env` inside the watchdog sets LD_LIBRARY_PATH).
+    let run = |exe: &std::path::Path, niji: bool| {
+        let mut c = Command::new("timeout");
+        c.arg(timeout::secs(60));
+        if niji {
+            let mut path = std::ffi::OsString::from("LD_LIBRARY_PATH=");
+            path.push(&lib);
+            c.arg("env").arg(path).arg(&loader);
+        }
+        let o = c.arg(exe).output().unwrap();
+        (o.status, String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned())
+    };
+    let defines = |exe: &std::path::Path, sym: &str| {
+        let o = Command::new("nm").arg("--defined-only").arg(exe).output().unwrap();
+        String::from_utf8_lossy(&o.stdout).lines().any(|l| l.split_whitespace().last() == Some(sym))
+    };
+    for (name, driver, compiler, src, flags) in [
+        ("cxx", "niji-g++", "g++", "forced_unwind.cc", &["-std=c++17"][..]),
+        ("fexceptions", "niji-gcc", "gcc", "forced_unwind.c", &["-fexceptions"][..]),
+        ("buffers", "niji-gcc", "gcc", "forced_unwind.c", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline"][..]),
+    ] {
+        let reference = work.join(format!("{name}.ref"));
+        let o = Command::new(compiler).args(["-O1", "-pthread"]).args(flags).arg(oracle.join(src)).arg("-o").arg(&reference).output().unwrap();
+        assert!(o.status.success(), "{compiler} {src} {flags:?}: {}", String::from_utf8_lossy(&o.stderr));
+        let exe = work.join(format!("{name}.niji"));
+        let o = Command::new(sysroot_parent.join("usr/bin").join(driver)).env("NIJI_SYSROOT", &sysroot).args(["-O1", "-pthread"]).args(flags).arg(oracle.join(src)).arg("-o").arg(&exe).output().unwrap();
+        assert!(o.status.success(), "{driver} {src} {flags:?}: {}", String::from_utf8_lossy(&o.stderr));
+        let n = needed(&exe);
+        assert!(!n.iter().any(|s| s.starts_with("libgcc_s")) && defines(&exe, "_Unwind_ForcedUnwind"), "{name}: {driver} links the unwinder statically (DT_NEEDED {n:?})");
+        let (rs, want, _) = run(&reference, false);
+        assert!(rs.success(), "{name}: the reference exits {rs:?}");
+        let (s, got, err) = run(&exe, true);
+        assert!(s.success(), "{name}: {driver}'s build exits {s:?}\nstdout:\n{got}\nstderr:\n{err}");
+        assert_eq!(got, want, "{name}: {driver}'s build differs from the reference (g++/gcc defaults)");
+    }
+    let plain = work.join("plain.niji");
+    let o = Command::new(sysroot_parent.join("usr/bin/niji-gcc")).env("NIJI_SYSROOT", &sysroot).args(["-O1", "-pthread"]).arg(oracle.join("forced_unwind.c")).arg("-o").arg(&plain).output().unwrap();
+    assert!(o.status.success(), "niji-gcc forced_unwind.c: {}", String::from_utf8_lossy(&o.stderr));
+    assert!(defines(&plain, "__niji_program_unwinder") && !defines(&plain, "_Unwind_ForcedUnwind"), "plain C: the entry is linked, the unwinder is not");
+    let _ = std::fs::remove_dir_all(&work);
+}

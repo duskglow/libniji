@@ -14,7 +14,10 @@
 #   -shared            a shared object linked against libniji's libc.so (for dlopen or linking)
 #
 # C++ (niji-g++) links libstdc++ and the unwinder statically, so the program's run-time library
-# search never leaves the sysroot. Other libraries (-lz, ...) are the program's choice: the loader's
+# search never leaves the sysroot. A dynamic program (C or C++) also links niji-unwinder.o and
+# exports its entry __niji_program_unwinder: a thread that exits or is cancelled with destructors,
+# catch handlers or -fexceptions cleanups on its stack unwinds with the program's own unwinder
+# when no libgcc_s.so.1 is loaded (D-22.24); a program without unwind code links no unwinder for it. Other libraries (-lz, ...) are the program's choice: the loader's
 # default search is the sysroot only, so a program that needs a system library names its directory
 # (-Wl,-rpath,DIR). Not supported: -static-pie, -pg (no profiling start file is packaged).
 #
@@ -79,7 +82,8 @@ fi
 case $mode in
     dynamic)
         exec "$cc" -nostartfiles -nodefaultlibs "-Wl,--sysroot=$sysroot" "-Wl,--dynamic-linker=$interp" -L"$lib" \
-            -x none "$lib/Scrt1.o" "$begin" "$@" -x none $cxxlibs -lc -lgcc -lgcc_eh "$end" ;;
+            -Wl,--export-dynamic-symbol=__niji_program_unwinder \
+            -x none "$lib/Scrt1.o" "$begin" "$@" -x none $cxxlibs -lc -lgcc -lgcc_eh "$lib/niji-unwinder.o" "$end" ;;
     shared)
         exec "$cc" -shared -nostartfiles -nodefaultlibs "-Wl,--sysroot=$sysroot" -L"$lib" \
             -x none "$begin" "$@" -x none $cxxlibs -lc -lgcc "$end" ;;
