@@ -212,15 +212,18 @@ fn the_heap_keeps_address_space_near_its_use() {
 }
 
 /// GitHub issue #21's real workload: findutils' `find` over one directory of 200000 files, run by
-/// the products' dynamic loader and libc (the system's `find`), fixed layout, one node. The bound
-/// is on the least `ulimit -v` (KiB) the walk needs over the least `find` needs for 3 files (the
-/// issue's formula allows 35000). The walk fills several segments of one shard; a segment after
-/// the first reservation's (metadata and 8 slabs, 2304 KiB) needs 9 blockers to be placed aligned
-/// once the over-mapping does not fit under the limit. With 8 (before HEAP-FIND-DEPTH-NEED,
-/// D-3.25) none was placed and the heap mapped per request: 37344 KiB with snapshot 22.4
-/// against 34784 with 22.3 (Zen 1 build host, find 4.9.0, tmpfs). The bound is the measured level after (Zen 1 build host, bisected to 16 KiB,
-/// identical over 2 runs; the find of another host or release may differ: run it there first). Fixed layout, so
-/// the need is the same run to run (2 of 2, and 2 of 2 by the test itself).
+/// the products' dynamic loader and libc (the system's `find`), fixed layout, one node, in the
+/// `en_US.UTF-8` locale. The bound is on the least `ulimit -v` (KiB) the walk needs over the least
+/// `find` needs for 3 files (the issue's formula allows 35000). The walk fills several segments
+/// of one shard; a segment after the first reservation's (metadata and 8 slabs, 2304 KiB) needs 9
+/// blockers to be placed aligned once the over-mapping does not fit under the limit. With 8
+/// (before HEAP-FIND-DEPTH-NEED, D-3.25) none was placed and the heap mapped per request: 37344
+/// KiB with snapshot 22.4 against 34784 with 22.3 (Zen 1 build host, find 4.9.0, tmpfs). The
+/// locale matters: its mappings take the aligned neighbours of a later segment; with an empty
+/// environment the same walk needed 30080 (22.4) and 31792 (22.3), and 8 blockers were enough.
+/// The bound is the measured level after (Zen 1 build host, bisected to 16 KiB; the find of
+/// another host or release may differ: run it there first). Fixed layout, so the need is the
+/// same run to run.
 const FIND_200K_OVER_3: u64 = 33296;
 
 /// Least `ulimit -v` (KiB, 16 KiB steps) under which `find dir` succeeds with the products.
@@ -230,7 +233,7 @@ fn find_need(find: &Path, dir: &Path, lo: u64) -> u64 {
     let run = |kib: u64| {
         // The loader's own --library-path: LD_LIBRARY_PATH would reach the shell too.
         let cmd = format!("ulimit -v {kib}; exec \"$0\" --library-path \"$1\" \"$2\" \"$3\" > /dev/null");
-        let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(&r).arg(find).arg(dir).env_clear().stdin(Stdio::null()).output().unwrap();
+        let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(&r).arg(find).arg(dir).env_clear().env("LANG", "en_US.UTF-8").stdin(Stdio::null()).output().unwrap();
         o.status.success()
     };
     let (mut lo, mut hi) = (lo, 1 << 20);
@@ -270,6 +273,12 @@ fn find_over_200000_entries_bounds_its_address_space() {
     let shm = Path::new("/dev/shm");
     if !shm.is_dir() {
         eprintln!("skipped: no /dev/shm (tmpfs) on this host");
+        return;
+    }
+    // The workload's locale (the bound was measured in it): without the archive `find` runs in
+    // the C locale, where the case does not arise.
+    if !Path::new("/usr/lib/locale/locale-archive").exists() {
+        eprintln!("skipped: no /usr/lib/locale/locale-archive (the en_US.UTF-8 locale) on this host");
         return;
     }
     let base = Dirs(shm.join(format!("niji-find-entries-{}", std::process::id())));
