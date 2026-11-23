@@ -205,7 +205,7 @@ fn forced_unwind(first: bool) {
     let Ok(d) = thread::desc() else { return };
     let Some((force, get_cfa)) = unwinder() else {
         if first {
-            no_unwinder(d);
+            no_unwinder();
         } else {
             later_step(d);
         }
@@ -264,14 +264,15 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
 /// niji-g++ exports `__niji_program_unwinder` (csys/start/unwinder.S), which returns the hidden
 /// copy the program links; the exit then unwinds with it ([`with_program_unwinder`], called
 /// only once the walk found work, so this frame stays as small as before: every frame the walk
-/// passes costs it, and a plain-C `pthread_exit` walks this one).
+/// passes costs it, and a plain-C `pthread_exit` walks this one: no argument, no register to
+/// keep across the walk).
 #[cold]
 #[inline(never)]
-fn no_unwinder(d: &niji_rt::thread::Thread) {
+fn no_unwinder() {
     if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
         return;
     }
-    if crate::backtrace::handler_on_stack() && !with_program_unwinder(d) {
+    if crate::backtrace::handler_on_stack() && !with_program_unwinder() {
         niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
     }
 }
@@ -284,7 +285,7 @@ fn no_unwinder(d: &niji_rt::thread::Thread) {
 fn later_step(d: &niji_rt::thread::Thread) {
     let started = word(&d.unwind.words, niji_rt::thread::UNWIND_CLASS) == usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes());
     if started {
-        with_program_unwinder(d);
+        with_program_unwinder();
     }
 }
 
@@ -292,7 +293,8 @@ fn later_step(d: &niji_rt::thread::Thread) {
 /// the unwind could not start: the exit then goes on without it, as with a loaded one).
 #[cold]
 #[inline(never)]
-fn with_program_unwinder(d: &niji_rt::thread::Thread) -> bool {
+fn with_program_unwinder() -> bool {
+    let Ok(d) = thread::desc() else { return false };
     let Some((force, get_cfa)) = program_unwinder() else { return false };
     start_unwind(d, force, get_cfa);
     true
