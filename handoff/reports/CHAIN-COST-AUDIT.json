@@ -20,4 +20,4 @@
  "improvement": "record impact on every landed story and count session legs as continuations; a chain's realized gain is invisible when only unlanded continuations record it",
  "next_step": "coordinator builds the tripwire in liella-ops from results/chain-cost-audit/README.md",
  "report_file": "handoff/CHAIN-COST-AUDIT.md",
- "jobs": ["keke:chain-cost-audit-gate", "keke:chain-cost-audit-precheck"]}
+ "jobs": ["keke:chain-cost-audit-gate2", "keke:chain-cost-audit-precheck"]}
