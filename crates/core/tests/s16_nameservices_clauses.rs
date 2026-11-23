@@ -607,7 +607,7 @@ fn s16_2_c_3() {
     // More than the 32 rows a table held before (CONFIG-TABLES-GROWTH): 40 precedence rows and
     // 40 label rows, the deciding ones last, through the process-wide table.
     let rows: String = (0..39).map(|i| format!("precedence 2001:db8:{i:x}::/48 {i}\nlabel 2001:db8:{i:x}::/48 {i}\n")).collect();
-    let text = format!("{rows}precedence ::ffff:0:0/96 100\nlabel ::/0 77\nscopev4 ::ffff:10.0.0.0/104 3\n");
+    let text = format!("{rows}precedence ::ffff:0:0/96 100\nlabel ::/0 77\nscopev4 ::ffff:198.51.100.0/120 3\n");
     let fx = Fx::new("gai_rows");
     std::fs::write(fx.dir.join("gai.conf"), &text).unwrap();
     let held = gai::GaiConf::new().policy(&CSys, &niji_boundary::heap::KernelPages, fx.paths.gai_conf);
@@ -616,7 +616,7 @@ fn s16_2_c_3() {
         assert_eq!(q.precedence.lookup(&a("::ffff:192.0.2.1")), Some(100), "{what}: the 40th row");
         assert_eq!(q.label.lookup(&a("2001:db9::1")), Some(77), "{what}: the 40th label row");
         assert_eq!(q.label.lookup(&a("2001:db8:26::1")), Some(38), "{what}: a row past the 32nd");
-        assert_eq!(q.scope(&a("::ffff:10.1.2.3")), 3, "{what}");
+        assert_eq!(q.scope(&a("::ffff:198.51.100.7")), 3, "{what}");
         assert_eq!(q, Policy::parse(text.as_bytes()), "{what}");
     }
     // getaddrinfo sorts: the loopback addresses (both routed through `lo`) put ::1 first.
