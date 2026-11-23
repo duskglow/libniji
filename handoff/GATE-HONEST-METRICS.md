@@ -41,15 +41,15 @@ ratio count the same locale layout. On the Skylake-SP host the per-locale-direct
 (e.g. static tool 58/53) no longer occur in the fault probes. The bounds (highest ratio of three classes) are
 unchanged and hold.
 
-## Jobs, leg 2 (mei, role s1; final code head 57aac469c)
+## Jobs, leg 2 (mei, role s1; final code head 12f1f42ee, all green)
 
-- gate-honest-metrics-2-lint0: clippy + static on the inherited head ee996a26c, green (step 0).
-- gate-honest-metrics-2-lint1: clippy + static + affected list on 57aac469c, green.
-- gate-honest-metrics-2-gate1: direct tier, 7 suites, 660 passed / 0 failed.
-- gate-honest-metrics-2-plants1: 3 plants, 3 CAUGHT, no WARN.
-- gate-honest-metrics-2-xtest1: `cargo xtask so && cargo xtask test`: see the report.
-- gate-honest-metrics-2-htp-release1: release products + hot_text_products: see the report.
-- gate-honest-metrics-2-lint2: clippy + static + `cargo test -p xtask` on the final head (record edit).
+- gate-honest-metrics-2-lint2: clippy + static + `cargo test -p xtask`.
+- gate-honest-metrics-2-gate2: direct tier, 7 suites, 660 passed / 0 failed.
+- gate-honest-metrics-2-plants2: 3 plants, 3 CAUGHT, no WARN.
+- gate-honest-metrics-2-xtest2: `cargo xtask test`. Pass 1 7191 passed; native 4879; interposed 129 + 46; 0 failed.
+- gate-honest-metrics-2-htp-release2: release products + hot_text_products, 33 passed.
+- Superseded (head 57aac469c or older): lint0, lint1, gate1, plants1 and xtest1, all green. htp-release1 was red:
+  the reference_probe link race under plain `cargo test`, fixed in 12f1f42ee (see the report).
 
 ## Open / next
 
