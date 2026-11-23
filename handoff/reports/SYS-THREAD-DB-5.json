@@ -1,6 +1,6 @@
 {"task": "SYS-THREAD-DB-5", "model": "sonnet", "tokens": null,
  "result": "Merged origin/next; resolved the docs/RELEASE-NOTES.md conflict (next moved its Unreleased entries, COMPAT-19 included, into snapshot-2026-11-22.3; only the libthread_db.so.1 entry stays Unreleased); clippy, static, direct gate (19 suites ok, 11347 passed) and 8/8 plants green on the merged head",
- "branch": "task/sys-thread-db-5", "head": "HEADSHA",
+ "branch": "task/sys-thread-db-5", "head": "f413d470a",
  "gate": {"affected": "11347 passed / 0 failed (19 suites ok; conformance 58 passed)", "peak": "15G"},
  "accepted_first_attempt": null,
  "rulings": [],
