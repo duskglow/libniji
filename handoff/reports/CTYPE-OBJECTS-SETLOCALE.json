@@ -1,0 +1,17 @@
+{"task": "CTYPE-OBJECTS-SETLOCALE", "model": "claude-opus-5-5", "tokens": null,
+ "result": "the six legacy ctype objects follow the global LC_CTYPE after setlocale; addresses resolved lazily so start-up holds no new symbol relocations (jobs pending)",
+ "branch": "task/ctype-objects-setlocale", "head": "35d66059a",
+ "gate": {"affected": "pending (ctype-objects-setlocale-gate-3); gate-2 on e5fd864b1 red: dynamic empty main 178292 > 173500, fixed in 0651a9714", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [{"item": "built-in C.UTF-8 has no 32-bit ctype tables, so __ctype32_* hold the C tables there (last residual of D-5.13)", "recommendation": "follow-up story: give C.UTF-8 its own 32-bit tables (about 3 KiB rodata)"}],
+ "informational": ["a GOT reference from libc.so.6 to its own exported data costs a symbol lookup in every start-up; hot_text_products caught it"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "__ctype_b/_tolower/_toupper and __ctype32_* follow setlocale(LC_CTYPE/LC_ALL) as the reference's do (D-5.13 shrunk to two residuals)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "conformance s05_ctype_legacy_objects setlocale rows; 2 plants", "before": null, "after": 2, "unit": "plants", "measured": true},
+   {"kind": "perf", "what": "dynamic empty main start-up, expected unchanged vs base (pending counts-3)", "before": null, "after": null, "unit": "instr", "measured": false}
+ ],
+ "improvement": "the leg-2 design was only checked by the gate's start-up bound after a 40-minute build; a static check that libc.so.6 gains no symbol relocations vs base would catch this in seconds",
+ "next_step": "collect plants-3, gate-3, checks-3, counts-3 on 35d66059a; precheck; handback-check",
+ "report_file": "handoff/ctype-objects-setlocale.md",
+ "jobs": ["keke:ctype-objects-setlocale-plants-3", "keke:ctype-objects-setlocale-gate-3", "keke:ctype-objects-setlocale-checks-3", "keke:ctype-objects-setlocale-counts-3"]}
