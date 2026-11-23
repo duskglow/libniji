@@ -123,6 +123,9 @@ pub mod dt {
     pub const FLAGS: u64 = 30;
     /// `DF_TEXTREL` in `DT_FLAGS` (gABI).
     pub const DF_TEXTREL: u64 = 4;
+    /// `DF_STATIC_TLS` in `DT_FLAGS` (gABI): the object uses the static TLS model (initial-exec), so
+    /// its block needs a place in every thread's static area.
+    pub const DF_STATIC_TLS: u64 = 0x10;
     /// Address of the PLT relocations.
     pub const JMPREL: u64 = 23;
     /// Library search path (string table offset).
