@@ -144,7 +144,8 @@ type Todo = TryVec<(usize, usize, usize)>;
 /// A text decoded into characters: the characters and the byte offset of each (and of the end).
 struct Units {
     chars: TryVec<u32>,
-    offs: TryVec<usize>,
+    /// `None` when not asked for (the matcher's strings): nothing to make or drop.
+    offs: Option<TryVec<usize>>,
 }
 
 /// `text` as characters in `mode`; `None` if it is not valid text there. The byte offsets are
@@ -152,11 +153,11 @@ struct Units {
 fn decode(mode: Mode, bytes: &[u8], with_offs: bool) -> Result<Option<Units>> {
     // At most one character per byte: one allocation each.
     let mut chars = TryVec::with_capacity(bytes.len())?;
-    let mut offs = if with_offs { TryVec::with_capacity(bytes.len() + 1)? } else { TryVec::new() };
+    let mut offs = if with_offs { Some(TryVec::with_capacity(bytes.len() + 1)?) } else { None };
     let mut i = 0;
     loop {
-        if with_offs {
-            offs.push(i)?;
+        if let Some(o) = offs.as_mut() {
+            o.push(i)?;
         }
         match text::unit_at(mode, bytes, i) {
             Unit::Char(c, n) => {
@@ -201,7 +202,7 @@ impl Parser<'_> {
 
     /// The bytes of characters `a..b`.
     fn bytes_of(&self, a: usize, b: usize) -> &[u8] {
-        let (Some(&x), Some(&y)) = (self.u.offs.get(a), self.u.offs.get(b)) else { return &[] };
+        let (Some(&x), Some(&y)) = (self.u.offs.as_deref().and_then(|o| o.get(a)), self.u.offs.as_deref().and_then(|o| o.get(b))) else { return &[] };
         self.bytes.get(x..y).unwrap_or(&[])
     }
 
@@ -1043,7 +1044,7 @@ impl Pattern {
         }
         let c = self.items(loc)?;
         let mode = Mode::of(loc);
-        let as_bytes = || -> Result<Units> { Ok(decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: TryVec::new() })) };
+        let as_bytes = || -> Result<Units> { Ok(decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: None })) };
         let (items, s, m) = match (&c.multi, mode.multibyte()) {
             (Some(items), true) => match decode(mode, string, false)? {
                 Some(u) => (items, u, mode),
@@ -1101,7 +1102,7 @@ impl Pattern {
         // Prefixes that are not valid text (all of them without text items): bytes.
         let first_bytes = if text_items.is_some() { valid_to + 1 } else { 0 };
         if first_bytes <= len {
-            let s = decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: TryVec::new() });
+            let s = decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: None });
             let mt = Matcher { s: &s.chars, flags: self.flags, mode: Mode::Bytes, loc, work: &self.work };
             let mut start = Bits::new(len)?;
             start.set(0);
@@ -1117,7 +1118,7 @@ impl Pattern {
                 let mut start = Bits::new(u.chars.len())?;
                 start.set(0);
                 let end = mt.run_prog(items, start)?;
-                for (i, &off) in u.offs.iter().enumerate() {
+                for (i, &off) in u.offs.as_deref().unwrap_or(&[]).iter().enumerate() {
                     if let Some(slot) = out.as_mut_slice().get_mut(off) {
                         *slot = end.get(i);
                     }
@@ -1169,7 +1170,7 @@ impl Pattern {
             }
         }
         if text_from > 0 {
-            let s = decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: TryVec::new() });
+            let s = decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: None });
             let mt = Matcher { s: &s.chars, flags: self.flags, mode: Mode::Bytes, loc, work: &self.work };
             let mut end = Bits::new(len)?;
             end.set(len);
@@ -1185,7 +1186,7 @@ impl Pattern {
                 let mut end = Bits::new(u.chars.len())?;
                 end.set(u.chars.len());
                 let Some(start) = mt.run_back(items.root(), end)? else { return Ok(None) };
-                for (i, &off) in u.offs.iter().enumerate() {
+                for (i, &off) in u.offs.as_deref().unwrap_or(&[]).iter().enumerate() {
                     if let Some(slot) = out.as_mut_slice().get_mut(text_from + off) {
                         *slot = start.get(i);
                     }
