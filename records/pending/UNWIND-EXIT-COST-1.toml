@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-22"
+section = "s22"
+spec = "§22.1, §22.3"
+ann = "PERF"
+status = "active"
+story = "UNWIND-EXIT-COST"
+date = "2026-11-23"
+tests = ["crates/rt/tests/unwind.rs::ip27_finds_fdes_through_the_header_and_by_scanning", "crates/rt/tests/unwind.rs::ip27_signal_frames", "crates/rt/tests/unwind.rs::ip27_register_rules"]
+body = '''
+**The exit's own call-frame walk (D-22.23) reads the frame tables without per-frame copies or generic decoding.** Measured on a Zen 1 host (user instructions per exit, a returning thread's cost subtracted): a dynamic plain-C `pthread_exit` 57,115 -> 30,980 at depth 0, 97,321 -> 52,340 at depth 10, `pthread_cancel` at depth 3 70,106 -> 38,161; C++ exits and throws (the shared unwinder's path) and static exits unchanged. Four changes, all in `crates/rt/src/unwind.rs`: (1) a `.eh_frame_hdr` table in the encoding linkers write (signed 4-byte, header-relative) is taken once as a slice that must fit in its segment (loaded data is untrusted: a count running past it finds nothing) and its fields read straight from it, the generic per-field decode staying for the other encodings; (2) remembered rows are stored only when an instruction remembers one, not four copies of the row on every run; (3) the walk borrows the objects its caller holds and builds each row and register set in place, swapping two register buffers by reference, instead of copying an object, two rows and a register set (a few hundred bytes each) per frame; (4) the CIE parsed last is kept for the next frame of the same walk, keyed by its address (fixed while its frames are live). The table was already searched by binary search, so a per-object index (the first candidate) would not change the search order. Skipping the walk when no frame can have a handler needs a per-object "has a personality CIE" answer kept across `dlopen`/`dlclose` (this library's own `.eh_frame` has personality routines for its guards and is about 5,000 records): left to a follow-up with its own measurement.
+'''
