@@ -484,8 +484,10 @@ fn reloc_requirement_pairs_bind_as_names_do() {
     }
     let d = dir("needpairs");
     let map = d.join("libv.map");
-    std::fs::write(&map, "V0 { global: f0; local: *; };\nV1 { global: f1; } V0;\nV2 { global: f2; } V1;\n").unwrap();
-    let src = "int f0(void) { return 0; }\nint f1(void) { return 1; }\nint f2(void) { return 2; }\n";
+    // Two versions the program does not need come first: libv's indices for V1 and V2 (4, 5) are
+    // then above any index the program gives its two requirements (2, 3).
+    std::fs::write(&map, "VA { global: fa; local: *; };\nVB { global: fb; } VA;\nV1 { global: f1; } VB;\nV2 { global: f2; } V1;\n").unwrap();
+    let src = "int fa(void) { return 0; }\nint fb(void) { return 0; }\nint f1(void) { return 1; }\nint f2(void) { return 2; }\n";
     let libv = build(&d, "libv.so", src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())]);
     let pre = build(&d, "libpre.so", "int f2(void) { return 9; }\n", &["-fPIC", "-shared"]);
     let use_src = "extern int f1(void), f2(void);\nvoid _start(void) { f1(); f2(); for (;;); }\n";
