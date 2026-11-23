@@ -26,6 +26,13 @@ the stacked run.
   order and levels are identical. It is now declared `equivalent:` with that reason, and the level placement is
   proved on `after 1DE3 A75B 3` → 2 instead. lct2-plants2 (plants-2, the 12-plant file, rc 0): 11 CAUGHT, 1
   EQUIVALENT, 0 SURVIVED, no WARN lines.
+* Final head (with `Cargo.lock` now recording niji-collate-root): lct2-tests2 ran clippy (`--workspace
+  --all-targets --all-features -D warnings`), `cargo xtask static`, `cargo xtask so` and the changed crates' tests,
+  and lct2-plants3 re-ran the 12 plants (plants-3). lct2-tests2 passed (rc 0, every suite green). lct2-plants3 passed (rc 0): 11
+  CAUGHT, 1 EQUIVALENT, 0 SURVIVED, no WARN lines. Superseded:
+  * lct2-tests, lct2-plants and lct2-plants2: precheck found they tested a different `Cargo.lock`. Leg 1 had not
+    committed the lock update for the new crate, and cargo rewrote the lock on the role.
+  * lct2-lint1 and lct2-lint3: lint1 was before the clippy fix; lint3 was before the lock commit.
 * Derivation check (local, no job): `root_rules.py` on the en_US probe writes the committed rules file byte for
   byte. Its simulation leaves 0 order and 0 level mismatches; the one model-level difference is U+A784, which the
   `same` line settles. Exit 0.
