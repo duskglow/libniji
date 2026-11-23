@@ -106,7 +106,7 @@ __cyg_profile_func_enter	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:
 __cyg_profile_func_exit	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:376	
 __data_start		csys/src/machine/entry.S:238	niji_start_main_static_pie
 __dcgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:118	ret::ptr
-__default_morecore	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:208	ret::null
+__default_morecore	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:216	ret::null
 __dgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:106	ret::ptr
 __dn_comp	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:18	dn_comp
 __dn_count_labels	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:745	resolv::count_labels
@@ -253,7 +253,7 @@ __libc_calloc	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:55	ret::null
 __libc_current_sigrtmax	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:30	signal_compat::current_rtmax
 __libc_current_sigrtmin	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:25	signal_compat::current_rtmin
 __libc_free	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:40	heap::free_entry
-__libc_freeres	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:187	malloc_compat::inert
+__libc_freeres	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:187	crate::stdio::release_buffers
 __libc_init_first	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:77	niji_legacy::stubs::nothing
 __libc_mallinfo	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:167	malloc_compat::mallinfo
 __libc_malloc	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:30	heap::malloc_entry
@@ -411,7 +411,7 @@ __res_randomid	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:553	res
 __res_state	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:526	core::ptr::with_exposed_provenance_mut
 __rpc_thread_createerr	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:205	ptr::with_exposed_provenance_mut
 __rpc_thread_svc_fdset	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:227	
-__sbrk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:260	ret::addr_or_neg1
+__sbrk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:268	ret::addr_or_neg1
 __sched_cpualloc	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:211	s03_memory::malloc
 __sched_cpucount	GLIBC_2.6	crates/boundary/src/posix/s24_system.rs:205	ret::int
 __sched_cpufree	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:216	s03_memory::free
@@ -587,12 +587,12 @@ _mcleanup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:358
 _mcount		csys/src/machine/mcount.S:38	niji_mcount_save
 _null_auth	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3921	
 _obstack	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3929	
-_obstack_allocated_p	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:301	ret::must
-_obstack_begin	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:265	ret::must
-_obstack_begin_1	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:271	ret::must
-_obstack_free	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:283	ret::unit
-_obstack_memory_used	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:295	ret::must
-_obstack_newchunk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:277	ret::unit
+_obstack_allocated_p	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:309	ret::must
+_obstack_begin	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:273	ret::must
+_obstack_begin_1	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:279	ret::must
+_obstack_free	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:291	ret::unit
+_obstack_memory_used	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:303	ret::must
+_obstack_newchunk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:285	ret::unit
 _pthread_cleanup_pop	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs:333	cancel::pop_old
 _pthread_cleanup_pop	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:333	cancel::pop_old
 _pthread_cleanup_pop_restore	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs:345	cancel::pop_old_restore
@@ -764,7 +764,7 @@ bdflush	GLIBC_2.2.5	crates/boundary/src/posix/s29_legacy.rs:537	ret::zero
 bind	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:44	ret::zero
 bind_textdomain_codeset	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:154	ret::ptr
 bindtextdomain	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:148	ret::ptr
-brk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:250	ret::zero
+brk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:258	ret::zero
 bsd_signal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:55	ret::handler
 bsearch	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:154	ret::found
 btowc	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:172	locale::with_current
@@ -2002,9 +2002,9 @@ makecontext		csys/src/adapter/variadic.c:67
 mallinfo	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:162	malloc_compat::mallinfo
 mallinfo2	GLIBC_2.33	crates/boundary/src/posix/s03_memory.rs:172	malloc_compat::mallinfo2
 malloc	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:25	heap::malloc_entry
-malloc_get_state	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:192	ret::null
+malloc_get_state	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:200	ret::null
 malloc_info	GLIBC_2.10	crates/boundary/src/posix/s03_memory.rs:182	ret::zero
-malloc_set_state	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:197	ret::int
+malloc_set_state	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:205	ret::int
 malloc_stats	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:177	heap::malloc_stats
 malloc_trim	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:141	ret::truth
 malloc_usable_size	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:136	heap::checked
@@ -2021,9 +2021,9 @@ mbsnrtowcs	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:209	ret::size_
 mbsrtowcs	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:203	ret::size_or_neg1
 mbstowcs	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:227	ret::size_or_neg1
 mbtowc	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:124	ret::int
-mcheck	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:213	heap::mcheck
-mcheck_check_all	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:223	heap::check_all
-mcheck_pedantic	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:218	heap::mcheck
+mcheck	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:221	heap::mcheck
+mcheck_check_all	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:231	heap::check_all
+mcheck_pedantic	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:226	heap::mcheck
 mcount		csys/src/machine/mcount.S:37	niji_mcount_save
 memalign	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:101	ret::null
 memccpy	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:161	ret::found
@@ -2073,7 +2073,7 @@ monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:198	Text::new
 mount	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:554	ret::zero
 mount_setattr	GLIBC_2.36	crates/boundary/src/posix/s13_filesystem.rs:613	ret::zero
 move_mount	GLIBC_2.36	crates/boundary/src/posix/s13_filesystem.rs:607	ret::zero
-mprobe	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:245	heap::mprobe
+mprobe	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:253	heap::mprobe
 mprotect	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:539	ret::zero
 mq_close	GLIBC_2.3.4	crates/boundary/src/posix/s25_ipc.rs:140	ret::zero
 mq_close	GLIBC_2.34	crates/boundary/src/posix/s25_ipc.rs:140	ret::zero
@@ -2103,7 +2103,7 @@ msgget	GLIBC_2.2.5	crates/boundary/src/posix/s25_ipc.rs:59	ret::int32
 msgrcv	GLIBC_2.2.5	crates/boundary/src/posix/s25_ipc.rs:70	ret::ssize
 msgsnd	GLIBC_2.2.5	crates/boundary/src/posix/s25_ipc.rs:64	ret::zero
 msync	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:600	ret::zero
-mtrace	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:228	heap::mtrace
+mtrace	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:236	heap::mtrace
 mtx_destroy	GLIBC_2.28	crates/boundary/src/posix/s22_threads.rs:1278	sync::mtx_destroy
 mtx_destroy	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:1278	sync::mtx_destroy
 mtx_init	GLIBC_2.28	crates/boundary/src/posix/s22_threads.rs:1248	sync::mtx_init
@@ -2119,7 +2119,7 @@ mtx_unlock	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:1272	sync::c11
 munlock	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:621	ret::zero
 munlockall	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:631	ret::zero
 munmap	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:534	ret::zero
-muntrace	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:233	heap::muntrace
+muntrace	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:241	heap::muntrace
 name_to_handle_at	GLIBC_2.14	crates/boundary/src/posix/s11_lowio.rs:78	ret::zero
 nan	(math-gen)	crates/boundary/src/posix/s10_math.tsv:64	
 nan	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4145	mret::pure
@@ -2252,7 +2252,7 @@ niji_clogf128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1116	m
 niji_clogf64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1136	mret::cplx
 niji_clogl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:1141	mret::cplx
 niji_clone7	NIJI_PRIVATE	crates/boundary/src/posix/s18_processes.rs:79	ret::int32
-niji_compat___default_morecore		crates/boundary/src/posix/s03_memory.rs:208	ret::null
+niji_compat___default_morecore		crates/boundary/src/posix/s03_memory.rs:216	ret::null
 niji_compat___nss_database_lookup		crates/boundary/src/posix/s16_nameservices.rs:41	
 niji_compat___nss_group_lookup		crates/boundary/src/posix/s16_nameservices.rs:57	ret::zero
 niji_compat___nss_hosts_lookup		crates/boundary/src/posix/s16_nameservices.rs:63	ret::zero
@@ -2368,7 +2368,7 @@ niji_compat_svcudp_enablecache		crates/boundary/src/posix/s29_rpc_svc.rs:118
 niji_compat_svcunix_create		crates/boundary/src/posix/s29_rpc_svc.rs:106	
 niji_compat_svcunixfd_create		crates/boundary/src/posix/s29_rpc_svc.rs:112	
 niji_compat_sysctl		crates/boundary/src/posix/s29_legacy.rs:549	ret::zero
-niji_compat_tr_break		crates/boundary/src/posix/s03_memory.rs:240	malloc_compat::inert
+niji_compat_tr_break		crates/boundary/src/posix/s03_memory.rs:248	malloc_compat::inert
 niji_compat_uselib		crates/boundary/src/posix/s24_system.rs:481	ret::zero
 niji_compat_user2netname		crates/boundary/src/posix/s29_rpc_auth.rs:183	
 niji_compat_xdecrypt		crates/boundary/src/posix/s29_rpc_auth.rs:76	
@@ -2850,7 +2850,7 @@ ntohs	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:293	u16::from_be
 ntp_adjtime	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:126	ret::int32
 ntp_gettime	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:136	ret::state_store
 ntp_gettimex	GLIBC_2.12	crates/boundary/src/posix/s23_time.rs:141	ret::state_store
-obstack_free	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:289	ret::unit
+obstack_free	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:297	ret::unit
 obstack_printf		csys/src/adapter/variadic.c:166	niji_obstack_vprintf4
 obstack_vprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1213	ret::count
 on_exit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:120	ret::registered
@@ -3325,7 +3325,7 @@ rtime	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:314
 ruserok	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:565	
 ruserok_af	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:571	
 ruserpass	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:589	
-sbrk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:255	ret::addr_or_neg1
+sbrk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:263	ret::addr_or_neg1
 scalb	(math-gen)	crates/boundary/src/posix/s10_math.tsv:53	mret::ret
 scalb	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4655	mret::Soft::enter
 scalbf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4661	mret::Soft::enter
@@ -3870,7 +3870,7 @@ towlower	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:430	locale::wtrans
 towlower_l	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:440	locale::view_of
 towupper	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:465	locale::wtrans
 towupper_l	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:475	locale::view_of
-tr_break	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:240	malloc_compat::inert
+tr_break	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:248	malloc_compat::inert
 trunc	(math-gen)	crates/boundary/src/posix/s10_math.tsv:31	mret::ret
 trunc	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:5219	mret::Soft::enter
 truncate	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:49	ret::zero
