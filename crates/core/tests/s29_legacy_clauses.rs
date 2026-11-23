@@ -281,6 +281,23 @@ fn s29_4_c_1() {
     assert!(!q.is_null());
     m::__libc_free(q);
 }
+/// s29_4_c_1 (counted): after the library has allocated for a `getpwuid` result and a stream's
+/// buffer, `__libc_freeres` as the last call leaves none of the library's own blocks: this thread's
+/// count of blocks the library took from the C `malloc` family (`selftest::caller_blocks`; the
+/// program's own `malloc` calls and other threads never move it) is back where it started.
+#[test]
+fn s29_4_c_1_counted() {
+    let before = niji_boundary::selftest::caller_blocks();
+    let fp = io::tmpfile();
+    assert!(!fp.is_null());
+    assert!(io::fputs(c"abc".as_ptr(), fp) >= 0);
+    assert!(!niji_boundary::posix::s17_users::getpwuid(0).is_null(), "uid 0 has an entry");
+    assert!(niji_boundary::selftest::caller_blocks() > before, "the library holds blocks of its own");
+    m::__libc_freeres();
+    assert_eq!(io::__fbufsize(fp), 0, "the stream's buffer is released");
+    assert_eq!(io::fclose(fp), 0);
+    assert_eq!(niji_boundary::selftest::caller_blocks(), before, "none of the library's blocks is left");
+}
 /// s29_4_c_2: `__libc_malloc` and friends are aliases of `malloc` (the same heap and contracts)
 /// that cannot be interposed: each is its own export that calls the heap directly, never through
 /// the `malloc` name (`crates/boundary/src/posix/s03_memory.rs`), so a program's own `malloc`
