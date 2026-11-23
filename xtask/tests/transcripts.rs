@@ -4,6 +4,7 @@
 //!
 //! Trace: s31_2_g_6 (`ldconfig -p` listing), s31_2_f_1 (a cache that cannot be opened); the harness itself has no
 //! spec clause (test-harness tooling).
+#![allow(clippy::disallowed_methods)] // a host tool's test: S8 governs the library crates only
 
 use std::path::Path;
 use std::process::Command;
@@ -15,14 +16,46 @@ fn check(operands: &[&str]) -> (Option<i32>, String) {
     (out.status.code(), text)
 }
 
-/// The test link of iconv (`cargo xtask so`, UTIL-7), if built.
+mod test_link;
+
+/// The test link of iconv (`cargo xtask so`, UTIL-7), if built and its loader and library are there.
 fn iconv_test_link() -> Option<std::path::PathBuf> {
     let p = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root").join("target/niji-test/iconv");
-    if p.is_file() {
-        return Some(p);
+    test_link::usable(&p).map_err(|why| println!("SKIPPED: {why}")).ok()
+}
+
+#[test]
+fn a_leftover_iconv_link_whose_loader_is_gone_is_skipped() {
+    // No spec clause (test-harness tooling; XTASK-STALE-PRODUCTS): a copy of the iconv test link whose interpreter
+    // names a loader that is not there (as a link left after its products were removed, or its role directory
+    // moved) is skipped with that loader's path, never run (running it fails with ENOENT).
+    let Some(iconv) = iconv_test_link() else { return };
+    let mut elf = std::fs::read(&iconv).expect("read the iconv link");
+    let interp = test_link::loads(&elf).expect("the iconv link is ELF").into_iter().next().expect("the iconv link has an interpreter");
+    let name = interp.file_name().expect("interpreter file name").to_string_lossy().into_owned();
+    let gone = name.replacen("ld-", "no-", 1);
+    assert_ne!(gone, name, "the interpreter {} is an ld-* loader", interp.display());
+    let at = elf.windows(name.len() + 1).position(|w| w[..name.len()] == *name.as_bytes() && w[name.len()] == 0).expect("the interpreter path in the file");
+    elf[at..at + gone.len()].copy_from_slice(gone.as_bytes());
+    let gone_path = interp.with_file_name(&gone);
+    assert!(!gone_path.exists(), "{} exists", gone_path.display());
+    let dir = std::env::temp_dir().join(format!("xtask-leftover-link-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    let stale = dir.join("iconv");
+    std::fs::write(&stale, &elf).expect("write the leftover link");
+    std::fs::set_permissions(&stale, std::fs::metadata(&iconv).expect("stat").permissions()).expect("chmod");
+    let r = test_link::usable(&stale);
+    if let Ok(p) = &r {
+        // What a test that took the link as built would do.
+        let run = Command::new(p).arg("-l").env_clear().output();
+        let _ = std::fs::remove_dir_all(&dir);
+        run.expect("run the leftover iconv link");
+        panic!("the leftover link ran although its loader {} is gone", gone_path.display());
     }
-    println!("SKIPPED: target/niji-test/iconv is not built (run `cargo xtask so` first)");
-    None
+    let _ = std::fs::remove_dir_all(&dir);
+    let why = r.expect_err("checked above");
+    println!("SKIPPED (as wanted): {why}");
+    assert!(why.contains(&gone_path.display().to_string()) && why.contains("is gone"), "the reason names the missing loader: {why}");
 }
 
 #[test]
