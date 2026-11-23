@@ -35,6 +35,14 @@ report are committed on top). Role keke:~/w/r1, synced at 3a5ea1858. Decision in
   still running its old `xtask test` and was ended).
 * NOT VERIFIED: start-up instruction count head vs base (counts-4 never ran); not re-run in this leg.
 
+## Leg 6 (CTYPE-OBJECTS-SETLOCALE-3): keke:n1, head = merge of origin/next (LOCALE-PER-DIR-LOAD) into the branch
+
+* Merged origin/next (clean merge, no conflicts); clippy and static clean.
+* ctype-objects-setlocale-3-gate (direct tier, --base origin/next): rc 0, all suites ok incl. conformance 54 programs. The four earlier locale-environment reds are gone with the merge.
+* ctype-objects-setlocale-3-plants2: 2 CAUGHT, 0 survived, no WARN (first attempt refused: my own mkdir made the dir; superseded).
+* ctype-objects-setlocale-3-checks: xtask test + NIJI_FULL_PROFILE so + hot_text_products (see report json for the result).
+* NOT VERIFIED: start-up instruction count head vs base.
+
 ## Open
 
 * RULING NEEDED: give the built-in "C.UTF-8" its own 32-bit tables (3 KiB rodata) to remove the last part of
