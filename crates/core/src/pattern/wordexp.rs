@@ -356,6 +356,10 @@ impl Parser<'_> {
 
     /// Parse until every open context is closed, one step of the innermost at a time: a context
     /// opened inside another is a frame pushed, not a call, so nesting costs no thread stack.
+    ///
+    /// Out of line: only a word with an open context gets here, and inlined into
+    /// [`Parser::word`] the frame machine's registers cost the plain word's loop spills.
+    #[inline(never)]
     fn nested(&mut self, segs: &mut Segs) -> Wr<()> {
         loop {
             match self.frames.as_slice().last().copied() {
@@ -403,13 +407,6 @@ impl Parser<'_> {
             self.word(segs)?;
             self.ends.push(segs.len())?;
         }
-    }
-
-    /// A finished nested word into the arena: its range.
-    fn stash(&mut self, segs: &Segs) -> Wr<Range> {
-        let start = self.arena.len();
-        self.arena.extend_from_slice(segs.as_slice())?;
-        Ok((start, self.arena.len()))
     }
 
     /// A tilde prefix at the current `~`: the user name and the offset after it, when the
@@ -504,6 +501,9 @@ impl Parser<'_> {
     /// segments go to the word's list, as from a [`Frame::DQuote`] with nothing under it. An
     /// expansion that opens a context (`${name<op>word}`, `$((...))`) gets the double quotes'
     /// frame under it, and [`Parser::nested`] reads the rest.
+    ///
+    /// Out of line, as [`Parser::nested`]: the plain word's loop keeps its registers.
+    #[inline(never)]
     fn dquote_word(&mut self, segs: &mut Segs) -> Wr<()> {
         loop {
             let Some(b) = self.peek() else { return Err(WordError::Syntax) };
@@ -665,9 +665,9 @@ impl Parser<'_> {
     }
 
     /// The text of an arithmetic expansion when it is plain (no `\`, `$` or backquote) and
-    /// well-formed: read whole, into the arena (`None`: the frame's steps read it).
+    /// well-formed: read whole, into the arena as one range of the input, not copied (`None`:
+    /// the frame's steps read it).
     fn arith_plain(&mut self, square: bool) -> Wr<Option<Range>> {
-        let mut segs = Segs::new();
         // The usual expression is plain text: one scan finds its end and it is one piece of text.
         // Anything that needs handling of its own (`\`, `$`, a backquote) takes the frame's
         // steps from the start; so does a malformed end (the steps give the error).
@@ -684,14 +684,11 @@ impl Parser<'_> {
             } else if c == close {
                 if depth > 0 {
                     depth -= 1;
-                } else if square {
-                    push_text(&mut segs, 0, &mut self.text, self.floor, rest.get(..k).unwrap_or(&[]), true)?;
-                    self.i += k + 1;
-                    return self.stash(&segs).map(Some);
-                } else if rest.get(k + 1) == Some(&b')') {
-                    push_text(&mut segs, 0, &mut self.text, self.floor, rest.get(..k).unwrap_or(&[]), true)?;
-                    self.i += k + 2;
-                    return self.stash(&segs).map(Some);
+                } else if square || rest.get(k + 1) == Some(&b')') {
+                    let start = self.arena.len();
+                    self.arena.push(Seg::Text { at: (self.i, self.i + k), quoted: true, input: true })?;
+                    self.i += k + if square { 1 } else { 2 };
+                    return Ok(Some((start, self.arena.len())));
                 } else {
                     break;
                 }
@@ -1549,6 +1546,7 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
     }
 
     /// [`Self::segs`] from a nested word `next` on, `rest` after it: the stack of jobs.
+    #[inline(never)]
     fn segs_deep<'s>(&mut self, rest: Job<'s>, next: Nested<'s>, p: &mut Pieces, mut vals: TryVec<u8>) -> Wr<()>
     where
         'a: 's,
@@ -1640,7 +1638,9 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
     }
 
     /// One segment expanded into `p` (`quoted`, `in_word` as for [`Self::segs`]); `Some`: a
-    /// nested word to expand first.
+    /// nested word to expand first. Inlined into the usual list's loop of [`Self::segs`] (a
+    /// call per segment is the usual word's measured cost); [`Self::segs_deep`] has its own copy.
+    #[inline(always)]
     fn seg(&mut self, s: &Seg, quoted: bool, in_word: bool, p: &mut Pieces, vals: &mut TryVec<u8>) -> Wr<Option<Nested<'a>>> {
         {
             match s {
@@ -2302,6 +2302,7 @@ pub mod arith {
     /// the heap, so an expression nests as deep as its text allows.
     struct Stack {
         inline: [Wait; INLINE],
+        /// The number of entries: the first [`INLINE`] in `inline`, the rest in `heap`.
         len: usize,
         /// The entries above the inline ones.
         heap: TryVec<Wait>,
@@ -2315,29 +2316,29 @@ pub mod arith {
 
         #[inline(always)]
         fn push(&mut self, w: Wait) -> Result<()> {
-            if self.heap.is_empty() {
-                if let Some(slot) = self.inline.get_mut(self.len) {
-                    *slot = w;
-                    self.len = self.len.wrapping_add(1);
-                    return Ok(());
-                }
+            match self.inline.get_mut(self.len) {
+                Some(slot) => *slot = w,
+                None => self.heap.push(w)?,
             }
-            self.heap.push(w)
+            self.len = self.len.wrapping_add(1);
+            Ok(())
         }
 
         /// Drop the top entry.
         #[inline(always)]
         fn pop(&mut self) {
-            if self.heap.pop().is_none() {
-                self.len = self.len.saturating_sub(1);
+            if self.len > INLINE {
+                self.heap.pop();
             }
+            self.len = self.len.saturating_sub(1);
         }
 
         #[inline(always)]
         fn top(&self) -> Option<Wait> {
-            match self.heap.last() {
+            let n = self.len.checked_sub(1)?;
+            match self.inline.get(n) {
                 Some(w) => Some(*w),
-                None => self.inline.get(self.len.checked_sub(1)?).copied(),
+                None => self.heap.last().copied(),
             }
         }
     }
