@@ -1,52 +1,48 @@
-# LOCALEDEF-INPUTS: POSIX symbolic names and the I18NPATH / working-directory search (handoff, leg 2)
+# LOCALEDEF-INPUTS: POSIX symbolic names, the I18NPATH / working-directory search, undefined-category defaults
 
-**State.** Branch `task/localedef-inputs` (from origin/next 3db4c4009), role shiki `~/w/sh1`. L2 and L3 are done,
-compiled, tested and planted. Code head c54e9deb (+ a docs/record commit for D-31.26 on top). Probe scripts and
-outputs: shiki `~/work/localedef-inputs/` (`probe.sh`/`probe2.sh <localedef>`; `stock*.txt`, `niji*.txt`,
-`table.txt`).
+**State.** Branch `task/localedef-inputs` (from origin/next 3db4c4009), role shiki `~/w/sh1`. Code head e87311c6
+(the hand-back commit with this note and the report sits on top). All three parts done, tested and planted.
+Probe scripts and outputs (L2/L3): shiki `~/work/localedef-inputs/` (`probe.sh`/`probe2.sh <localedef>`,
+`stock*.txt`, `niji*.txt`, `table.txt`).
 
 ## Done (do not redo)
 
 * L2 (s31_8_i_5): charmap lines named without `<Uxxxx>` take the `<Uxxxx>` after the bytes or the portable-set code
   point; source names resolved in statements and strings; undefined names skipped in LC_CTYPE lists, ranges, map
-  pairs and (leg 2) LC_COLLATE order lines (the probe showed stock status 0 where libniji gave "an unknown collating
-  symbol", status 1; fixed in `collate.rs`).
+  pairs and LC_COLLATE order lines (stock status 0 there).
 * L3 (s31_8_i_4): the search (cwd, I18NPATH `<e>/locales|charmaps/<n>`, `<e>/<n>`, `.gz` for charmaps outside cwd,
   default dir only without `/`, `-f` with `/` a path). Boundary reads I18NPATH from envp.
+* D-31.24 (leg 3, ruling #7754 by the three-way rule): POSIX.1-2017 XBD 7.3 ("In the event that some of the
+  information for a locale category ... is missing from the locale source definition, the behavior of that category,
+  if it is referenced, is unspecified"; a file holds "one or more" category definitions); the XCU localedef page,
+  localedef(1) and locale(5) say nothing more. So the reference's values: `defaults.rs` rewritten (ASCII classes
+  without punct/cntrl, print/graph = alnum (+space), monetary 255s, empty alt months, country codes of spaces), and
+  a `defaults` flag in `cats::Body` / `ctype::write` for what a source cannot state (empty wide LC_TIME strings up to
+  `t_fmt`, no wide input digits, one-byte `mon_grouping` 0x7f, CRNCYSTR `-`). D-31.24 rewritten; its differences row
+  removed; spec clause s31_8_g_3 reworded; stubs regenerated.
 * Tests: `crates/locale/tests/prog.rs` (`source_search_order`, `charmap_search_order`, `posix_symbolic_names`,
-  `undefined_names_are_skipped`), `crates/locale/tests/reference.rs`
-  `products_localedef_searches_i18npath_and_the_working_directory` (real binary, env I18NPATH + cwd).
-* Plants: `handoff/LOCALEDEF-INPUTS.plants`, results `handoff/LOCALEDEF-INPUTS-plants.txt`: 13/13 CAUGHT, no WARN
-  (shiki job `localedef-inputs-plants2`, head c54e9deb).
-* Direct gate: shiki `localedef-inputs-gate2` (head c54e9deb), STILL RUNNING at the leg-2 refresh (started 04:16Z):
-  collect it first with `~/bin/jobwait localedef-inputs-gate2` and `~/bin/test-summary ~/logs/localedef-inputs-gate2.log`
-  (fix any red in the direct tests; a later code change needs a new gate). Superseded: gate1/plants1 (killed, older
-  head), t1..t5 (development runs). `cargo xtask affected`
-  says `FULL: the train's (spec/clauses.tsv: generated table or its input)`; the direct tier ran.
-* Clippy (workspace, all targets) clean on c54e9deb; `cargo xtask static` ran clean on the leg-1 head (re-run on final).
-* `--big-endian` assessed: NOT small (about 30 little-endian write sites across cats/build/ctype/collate/archive in
-  `crates/locale/src` plus core's table builders; no reader to test against). Refusal kept; D-31.26 record and its
-  differences row reworded to "libniji currently supports only little-endian x86-64 ... on the roadmap".
-  Roadmap: choose byte order at output in one writer helper, route every `to_le_bytes` there, test by a byte-swapping
-  reader in the test, then implement `--big-endian`/`--little-endian` as probed.
+  `undefined_names_are_skipped`); `crates/locale/tests/reference.rs`
+  `products_localedef_searches_i18npath_and_the_working_directory`, `undefined_categories_get_the_references_defaults`
+  (now strict: every item of every file vs the reference, UTF-8 and ISO-8859-1, no exceptions) and five per-category
+  tests without the reference (`undefined_{ctype,time,monetary,address,other_categories}...`).
+* Plants: `handoff/LOCALEDEF-INPUTS.plants` (13, L2/L3) and `handoff/LOCALEDEF-INPUTS-defaults.plants` (9, D-31.24),
+  results `handoff/LOCALEDEF-INPUTS-plants.txt` (shiki jobs `localedef-inputs-plants4` and `-plants3`, head e87311c6).
+* Gate: shiki `localedef-inputs-gate3` (direct tier, head e87311c6). Superseded: gate2 (c54e9deb, green: 9550 passed,
+  0 failed), plants2 (c54e9deb, 13/13), gate1/plants1, t1..t5, d1..d3 (development runs), lint3 (stubs + clippy +
+  static on the pre-commit tree, all clean). `cargo xtask affected` says FULL (spec/clauses.tsv is a generated
+  table's input): FULL is the train's.
+* `--big-endian`: NOT small (about 30 little-endian write sites across cats/build/ctype/collate/archive plus core's
+  table builders). Refusal kept; D-31.26 reason "libniji currently supports only little-endian x86-64 ... on the
+  roadmap". Roadmap: one writer helper choosing byte order at output, every `to_le_bytes` routed there, a
+  byte-swapping reader in the test, then `--big-endian`/`--little-endian` as probed.
 
-## Probe table (stock 2.39 vs libniji, shiki; 52 cases)
+## Open (INFORMATIONAL)
 
-All I18NPATH/cwd cases (i1..i12, f1..f13, fi) match stock in status and the file chosen. Name cases match except
-where stock emits its own extra diagnostics for POSIX-name charmaps (`[warning] character map ... not ASCII
-compatible`, `[error] <SP> character not in class space`): stock status 1 vs libniji 0 (probe2 s-posix-posix,
-s-ucs-posix, s-posix-unames), stock 4 vs libniji 1 without -c (s-posix-posix-noc, s-ucs-posix-noc), and in those
-error states stock's toupper(a) stays `a` where libniji maps it to `A`. libniji has no such checks (pre-existing).
-INFORMATIONAL / possible RULING: recommend keep libniji's (no false error), record as a differences row in the
-next leg if the coordinator agrees.
+For POSIX-name charmaps the reference adds its own diagnostics (`not ASCII compatible`, `<SP> character not in class
+space`): status 1 vs libniji 0, 4 vs 1 without -c, and toupper(a) stays `a` there. libniji has no such checks
+(pre-existing); recommend keeping libniji's (no false error) and a differences row if the coordinator agrees.
 
-## Next step (exact)
+## Next step
 
-1. D-31.24 (undefined-category defaults, brief's second coordinator note): three-way rule. POSIX XBD 7.3 / localedef
-   (cite the clause on categories absent from the source), man pages, black-box probe (compile a source that omits
-   each category with stock and libniji and read back through the locale functions). Then keep + sharpen the row,
-   or match the reference's values and remove the row; tests per category; plants.
-2. Re-run `cargo xtask static`, direct gate and plants for any new code; `cargo xtask precheck --jobs ... --head`;
-   report json; `ops handback-check`.
-
+Collect gate3/plants3/plants4 if the hand-back said PENDING JOBS; otherwise none (story complete).
 Plan rows: D-31.24, D-31.26 in `plan/07-decisions/s31-utilities.md`.
