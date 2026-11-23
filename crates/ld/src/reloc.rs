@@ -79,6 +79,14 @@ pub trait Image {
     fn tlsdesc_static(&mut self) -> Option<u64> {
         None
     }
+    /// The two words of a TLS descriptor for offset `offset` (the `DtpOff` value) in the block of
+    /// module `module`, which has no static place (DL-19: each thread gets it on demand): the
+    /// loader's dynamic descriptor function and its argument. `None` (the default): this image
+    /// has none, and the relocation is refused ([`RelocError::Tls`]).
+    fn tlsdesc_dynamic(&mut self, module: u64, offset: u64) -> Option<[u64; 2]> {
+        let _ = (module, offset);
+        None
+    }
     /// Report a warning that does not stop the load: `parts` make one line. Nothing by default.
     fn warn(&mut self, _parts: &[&[u8]]) {}
     /// Add `bias` to the 8-byte word at `at + 8 * k` for each set bit `k` of `bits`, each word in
@@ -117,6 +125,9 @@ pub enum RelocError<'a> {
     Tls(u32),
     /// A TLS relocation whose defining object has no TLS block (the field's offset).
     TlsModule(u64),
+    /// An initial-exec (`TpOff`) relocation against a block that has no static place (DL-19: a
+    /// `dlopen`ed object without `DF_STATIC_TLS`; the field's offset).
+    NoStaticPlace(u64),
     /// A text-field relocation in an object without `DT_TEXTREL` (design §6).
     TextRel(u32),
     /// A strong reference without a definition (the symbol's name).
@@ -157,6 +168,7 @@ impl<'a> RelocError<'a> {
             RelocError::Unsupported(_) => b"unsupported relocation type\n",
             RelocError::Tls(_) => b"TLS descriptor relocations are not available in this build\n",
             RelocError::TlsModule(_) => b"a thread-local storage relocation refers to an object without a TLS segment\n",
+            RelocError::NoStaticPlace(_) => b"cannot allocate memory in static TLS block\n",
             RelocError::TextRel(_) => b"relocation of a text field in an object not marked DT_TEXTREL\n",
             RelocError::Undefined(_) => b"undefined symbol: ",
             RelocError::IndirectExternAccess(_) => b"the program's PLT address of a protected function of an object that needs indirect extern access: ",
@@ -562,14 +574,26 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
             };
             let placed = def.and_then(|d| set.objs.get(d)).and_then(|d| d.tls).ok_or(RelocError::TlsModule(r.offset))?;
             let ops = TlsOperands { s, a: r.addend, module: placed.module, tp_offset: placed.tp_offset };
+            let dynamic = placed.tp_offset == crate::tls::NO_STATIC;
+            if dynamic && r.kind == RelocKind::TpOff {
+                // An initial-exec access to a block that has no static place (DL-19).
+                return Err(RelocError::NoStaticPlace(r.offset));
+            }
             if r.kind != RelocKind::TlsDesc {
                 let f = A::apply_tls(r.kind, ops).map_err(|_| RelocError::Unsupported(r.r_type))?;
                 return put(img, Some(f), text).map(|()| false);
             }
             // A descriptor (DL-15): every initially loaded module's block is in the static area, so
             // its function is the image's static one and its argument the TP offset.
-            let resolver = img.tlsdesc_static().ok_or(RelocError::Tls(r.r_type))?;
-            let words = A::tls_descriptor(resolver, ops).map_err(|_| RelocError::Unsupported(r.r_type))?;
+            // A block without a static place (DL-19): the dynamic function, its argument naming
+            // the module and the offset.
+            let words = if dynamic {
+                let offset = A::apply_tls(RelocKind::DtpOff, ops).map_err(|_| RelocError::Unsupported(r.r_type))?.value;
+                img.tlsdesc_dynamic(placed.module, offset).ok_or(RelocError::Tls(r.r_type))?
+            } else {
+                let resolver = img.tlsdesc_static().ok_or(RelocError::Tls(r.r_type))?;
+                A::tls_descriptor(resolver, ops).map_err(|_| RelocError::Unsupported(r.r_type))?
+            };
             if !loads.inside(&o.elf, r.offset, 16, text) {
                 return Err(RelocError::Outside(r.offset));
             }

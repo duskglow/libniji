@@ -206,7 +206,7 @@ pub fn sysconf(name: i32) -> Option<Fixed> {
 }
 
 /// `confstr(name)`'s text, `None` for an unknown name (`EINVAL`).
-pub fn confstr(name: i32) -> Option<&'static [u8]> {
+pub fn confstr_value(name: i32) -> Option<&'static [u8]> {
     Some(match name {
         0 => b"/bin:/usr/bin", // _CS_PATH
         1 => b"POSIX_V6_LP64_OFF64", // _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS

@@ -172,7 +172,8 @@ def uapi_flags():
 # P8 (plan/headers.md section 3): a libniji header and a kernel UAPI header that defines the same names (the `uapi` cell
 # of its slice row). Both include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose
 # kernel header is not installed is skipped.
-P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE")]
+P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE"),
+            ("c++", "-std=gnu++17")]
 
 
 def p8_pairs(slice_rows):

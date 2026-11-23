@@ -2,13 +2,272 @@
 
 libniji was called Liella until November 2026.
 
+Each section's known limitations are those of its own snapshot; later sections say what was fixed. The newest
+snapshot's list is in `snapshot-2026-11-22.3` below.
+
 ## Unreleased (on `next`, for the next snapshot)
 
-- **Executable stacks, opt-in (COMPAT-19):** programs, start-up dependencies and `dlopen`ed libraries whose
-  `PT_GNU_STACK` asks for an executable stack (`-z execstack`, or a GCC nested function taken by address) are still
-  refused by default, now with a message naming the object, the program or the `dlopen` caller, and the ways in.
-  `GLIBC_TUNABLES=niji.compat.execstack=1` accepts them and makes the main stack and the thread stacks executable, as
-  glibc does; a set-user-ID or set-group-ID program ignores it. A root-owned per-object allowlist is planned.
+Nothing recorded yet; every change up to `snapshot-2026-11-22.3` is in the sections below.
+
+## libniji: twenty-sixth pre-release, 2026-11-22 (`snapshot-2026-11-22.3`)
+
+`main` at commit `2a76723f`, tagged `snapshot-2026-11-22.3`. Changes since
+[`snapshot-2026-11-22.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-22.2).
+
+- **`localedef` ([#14](https://github.com/duskglow/libniji/issues/14)):** `libc-bin` ships `localedef`. It compiles a
+  locale from a source and a charmap into the directory form, and the result reads back as stock glibc's locale of the
+  same definition. The `locales` package ships no locale sources or charmaps yet, so they must be supplied.
+- **Dynamic start-up costs another fifth less:** 18% to 23% fewer user instructions per dynamic start than 22.2 (an
+  empty `main`: 320,731 -> 260,857; glibc 107,752), from reading each object's program headers once.
+- **[#21](https://github.com/duskglow/libniji/issues/21), heap:** a thread that moves to another NUMA node costs at
+  most 4,352 KiB more address space; under an address-space limit the worst case falls from 45,648 to 43,600 KiB.
+
+Packages: beside glibc `0.0~snapshot20261122.3+2a76723f2ed4`. Known limitations: no locale sources or charmaps in
+`locales`; `localedef` writes only the categories a source defines, takes only `<Uxxxx>` names, does not search the
+current directory or `I18NPATH`, and has no locale archive; under valgrind stdout's buffer is still reachable at exit;
+allocations the library keeps to itself do not go through a replaced `malloc`; [#6](https://github.com/duskglow/libniji/issues/6):
+35 character-set names convert differently from stock and 222 have no converter; `$ORIGIN` in set-user-ID and
+set-group-ID programs is expanded only for the default system library directories (deliberate); `ld.so` run as a
+program runs only position-independent programs that need no shared objects; #21: the start-up address space is larger
+than stock's; `-static-libgcc` without `libgcc_s`: a C++ thread exit hangs; the system flavour ships no C headers.
+
+## libniji: twenty-fifth pre-release, 2026-11-22 (`snapshot-2026-11-22.2`)
+
+`main` at commit `302dd7c3`, tagged `snapshot-2026-11-22.2`. Changes since
+[`snapshot-2026-11-22.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-22.1).
+
+- **The start-up page-fault regression is fixed:** 21.6 to 22.1 took 5 or 6 more page faults per dynamic program than
+  21.5; this snapshot takes 5 fewer than 22.1 (a program with three libraries is still 1 above 21.5), because the
+  character-set tables hold offsets instead of addresses. User instructions per start fall by another ~3,340.
+- **valgrind leak records reach your code ([#13](https://github.com/duskglow/libniji/issues/13)):** with the whole
+  `libc6-dbg`, a leak record's stack runs down to `main`, as on stock glibc; helgrind gives stock's results on threaded
+  programs.
+- **Timed waits with a deadline in the past** (`pthread_rwlock_timedwrlock`, `pthread_mutex_timedlock`, `sem_timedwait`
+  and the others) return `ETIMEDOUT` when the deadline's seconds are negative, instead of never returning.
+- **`strncmp`** on AVX2 machines no longer risks reading past the end of a string when another thread changes the
+  strings during the call.
+
+## libniji: twenty-fourth pre-release, 2026-11-22 (`snapshot-2026-11-22.1`)
+
+`main` at commit `9548c734`, tagged `snapshot-2026-11-22.1`. Changes since
+[`snapshot-2026-11-21.7`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.7).
+
+- **Dynamic start-up costs about half what it did:** about 55% fewer user instructions than 21.7 (an empty `main`:
+  324,068 instead of 726,461 on Skylake-SP), one page fault fewer. The C library binds its calls to its own functions
+  at build time (symbolic relocations in `libc.so.6`: 288 down to 55). Still about three times glibc's start-up.
+- **Replacing `malloc` still works:** the `malloc` family and the library's data (`stdin`, `environ`, `optarg`, ...)
+  stay replaceable; a replacement gets every allocation of memory the C library hands to the caller. Allocations the
+  library keeps to itself are a known limitation.
+- **`dlopen` in set-user-ID programs:** the secure-mode `$ORIGIN` rule now has its own tests (behaviour unchanged).
+
+## libniji: twenty-third pre-release, 2026-11-21 (`snapshot-2026-11-21.7`)
+
+`main` at commit `2c64fde8`, tagged `snapshot-2026-11-21.7`. Changes since
+[`snapshot-2026-11-21.6`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.6).
+
+- **valgrind on everyday programs ([#13](https://github.com/duskglow/libniji/issues/13)):** `memcheck` replaces
+  libniji's string functions with its own, as on stock glibc; `ls /`, `find`, `sort` and a program calling every
+  replaced string function report 0 errors with the whole `libc6-dbg` installed (the last snapshot: 12, 71, 12 and
+  others). A real read past the end of a string is still reported.
+- **More character sets ([#6](https://github.com/duskglow/libniji/issues/6)):** `iconv` converts CP949 and UHC (built
+  in) and opens `WINDOWS-1252`, `windows-1251`, `KOI8R` and `ISO885915`; `iconv -l` lists 984 names (stock 1,180).
+- **`dlopen` and `$ORIGIN`:** a library that calls `dlopen` with a bare name has its own `DT_RUNPATH` searched,
+  including `$ORIGIN` elements, as on stock glibc.
+- **Start-up:** about 16,500 fewer user instructions per dynamic program.
+- **Correction to 21.6's notes:** `getaddrinfo_a` does not lose requests under heavy load; the loss reported there was
+  the test's fixed deadline running out on a loaded machine.
+
+## libniji: twenty-second pre-release, 2026-11-21 (`snapshot-2026-11-21.6`)
+
+`main` at commit `97bf3542`, tagged `snapshot-2026-11-21.6`. Changes since
+[`snapshot-2026-11-21.5`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.5).
+
+- **CJK character sets ([#6](https://github.com/duskglow/libniji/issues/6)):** `iconv` converts BIG5, EUC-KR, CP932,
+  CP936 and GB18030, built into the C library, byte for byte as stock for each set's whole code space.
+- **valgrind with the whole debug package ([#13](https://github.com/duskglow/libniji/issues/13)):** with `libc6-dbg`
+  installed, `memcheck` runs programs and reports the same error summaries as stock for `/bin/true`, C, C++ and a
+  leaking program. Leak records do not yet show the program's frames below the C library.
+- **More shared objects per process:** 600 libraries load (the last snapshot stopped at 510).
+- **Fewer fixed limits:** exit handlers, `addseverity` levels and `getaddrinfo_a`'s request queue are limited only by
+  memory.
+
+## libniji: twenty-first pre-release, 2026-11-21 (`snapshot-2026-11-21.5`)
+
+`main` at commit `cd1bbabd`, tagged `snapshot-2026-11-21.5`. Changes since
+[`snapshot-2026-11-21.4`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.4).
+
+- **`zic` and `zdump` ([#14](https://github.com/duskglow/libniji/issues/14), partly):** `libc-bin` ships both; against
+  glibc 2.39's `zic` the compiled files decode the same for 591 of 598 zones, the other seven give the same readings,
+  and `zdump -v` over the installed zones is identical. `zic` refuses names that would write outside its output
+  directory. Not yet: `localedef`.
+- **Closing, flushing and seeking stdio streams ([#20](https://github.com/duskglow/libniji/issues/20)):** `fclose` of a
+  partly read seekable stream gives the unread input back; a failed flush sets the error indicator; a custom stream
+  without a seek function reports `ESPIPE`. These follow POSIX and are recorded as differences.
+- **Faster wide-character reads:** `fgetwc_unlocked` of a 2-byte character takes about 120 instructions instead of 640.
+- **The debugger interface:** `_r_debug` is now the extended 48-byte structure with `r_version` 2.
+
+## libniji: twentieth pre-release, 2026-11-21 (`snapshot-2026-11-21.4`)
+
+`main` at commit `e4d7011e`, tagged `snapshot-2026-11-21.4`. Changes since
+[`snapshot-2026-11-21.3`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.3).
+
+- **Start files ([#27](https://github.com/duskglow/libniji/issues/27)):** `crt1.o` and its variants, `crti.o` and
+  `crtn.o` carry the CET properties (IBT and shadow stack) and no longer add a second executable segment or 64 KiB of
+  padding to every program.
+- **valgrind ([#13](https://github.com/duskglow/libniji/issues/13), partly):** the loader's debug file has the local
+  `strcmp` and `strlen` symbols valgrind needs, so `memcheck` starts for C and C++ programs. Not yet with the whole
+  `libc6-dbg` installed (fixed in the next snapshot but one).
+- **Fewer kernel transitions at start-up:** 8 fewer system calls per start, 7% to 11% fewer kernel instructions.
+
+## libniji: nineteenth pre-release, 2026-11-21 (`snapshot-2026-11-21.3`)
+
+`main` at commit `fe0899b7`, tagged `snapshot-2026-11-21.3`. Changes since
+[`snapshot-2026-11-21.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.2).
+
+- **A character cut short by end of input ([#23](https://github.com/duskglow/libniji/issues/23)):** a wide read cut
+  short by end of input fails with `EILSEQ` and consumes the pending bytes, as on stock glibc. The other two kinds in
+  #23 stay as recorded differences (a byte read right after a wide read on a wide-oriented stream, and sequences above
+  U+10FFFF, which libniji rejects as RFC 3629 requires).
+- **More shared objects per process:** the loader's tables for object paths and dependency lists grow with use; a
+  process opening 300 libraries with long paths now works as on stock glibc.
+
+## libniji: eighteenth pre-release, 2026-11-21 (`snapshot-2026-11-21.2`)
+
+`main` at commit `71597d2a`, tagged `snapshot-2026-11-21.2`. Changes since
+[`snapshot-2026-11-21.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-21.1).
+
+- **malloc under an address-space limit ([#21](https://github.com/duskglow/libniji/issues/21), partly):** the heap's
+  reservations grow with use; 56,021 KiB of 100-byte blocks fit within a 65,536 KiB margin (stock 58,456; the last
+  snapshot 43,575), and `find` over 200,000 entries passes the issue's `ulimit -v` test 5 times out of 5.
+- **Faster dynamic start-up:** about 5,500 fewer user instructions, 5 fewer page faults, 6 fewer system calls.
+- **libresolv carries its own code:** code only `libresolv.so.2` uses is no longer in `libc.so.6`.
+- **Complete debug files:** `libc6-dbg` carries debug information for every object, `iconv` and `locale` included.
+
+## libniji: seventeenth pre-release, 2026-11-21 (`snapshot-2026-11-21.1`)
+
+`main` at commit `15a2d648`, tagged `snapshot-2026-11-21.1`. Changes since
+[`snapshot-2026-11-20.5`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-20.5).
+
+- **`libm.so` and `libmvec` ([#28](https://github.com/duskglow/libniji/issues/28)):** `libm.so` in `libc6-dev` is a
+  linker script, as on stock glibc, so `-lm` links `libmvec.so.1` only when a program uses a vector math function.
+- **Character set names ([#6](https://github.com/duskglow/libniji/issues/6)):** `iconv_open` and `iconv` accept and
+  refuse the same spellings as stock for 79 of the 81 we check (20.5: 67).
+- **Thread cancellation in static programs ([#25](https://github.com/duskglow/libniji/issues/25)):** a thread
+  cancelled or exited in a `-static` program runs its cleanups and destructors in stock's order (the C++ case hung).
+- **Cut-short multibyte sequences ([#23](https://github.com/duskglow/libniji/issues/23)):** all 13 cases of the issue's
+  check match stock (20.5: 11).
+- The `niji6` package version carries the snapshot's serial, so same-day snapshots sort in order.
+
+## libniji: sixteenth pre-release, 2026-11-20 (`snapshot-2026-11-20.5`)
+
+`main` at commit `305065b0`, tagged `snapshot-2026-11-20.5`. Changes since
+[`snapshot-2026-11-20.4`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-20.4).
+
+- **Full library paths ([#24](https://github.com/duskglow/libniji/issues/24)):** a library found at start through the
+  program's `$ORIGIN` is named by its full path in `dl_iterate_phdr`, `dladdr`, `dlinfo(RTLD_DI_LINKMAP)` and
+  `_r_debug`, as on stock glibc.
+- **Faster dynamic start-up:** about 42,000 fewer instructions per start (about 5%), one system call fewer.
+- **Secure-mode `$ORIGIN`:** in a setuid or otherwise secure process, `$ORIGIN` comes from `/proc/self/exe`; if that
+  cannot be read, it expands to nothing.
+
+## libniji: fifteenth pre-release, 2026-11-20 (`snapshot-2026-11-20.4`)
+
+`main` at commit `0e5a87e9`, tagged `snapshot-2026-11-20.4`. Changes since
+[`snapshot-2026-11-20.3`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-20.3).
+
+- **Thread exit and cancellation unwind C++ frames ([#25](https://github.com/duskglow/libniji/issues/25)):** on
+  `pthread_exit` or cancellation, destructors of C++ locals run, `catch (abi::__forced_unwind &)` and `catch (...)`
+  handlers are entered, and a held `std::lock_guard` is released; all ten cases checked behave as on stock glibc.
+- **Start-up:** one page fault fewer per program start.
+
+## libniji: fourteenth pre-release, 2026-11-20 (`snapshot-2026-11-20.3`)
+
+`main` at commit `b732d9b4`, tagged `snapshot-2026-11-20.3`. Changes since
+[`snapshot-2026-11-20.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-20.2).
+
+- **Byte reads on a wide-oriented stream ([#23](https://github.com/duskglow/libniji/issues/23)):** `getc`, `fread`,
+  `fgets`, `getdelim`, `ungetc` and `fputc` on a stream used for wide characters work on its bytes in order; util-linux
+  `col` passes the issue's input through byte for byte. A multibyte sequence cut short by a byte that cannot continue
+  it still lost its bytes (fixed in 21.1).
+- **Executable stacks can be allowed (COMPAT-19):** programs, start-up libraries and `dlopen`ed libraries that ask for
+  an executable stack are still refused by default, now with a message naming the object and how to allow it.
+  `GLIBC_TUNABLES=niji.compat.execstack=1` accepts them and makes the stacks executable (not honoured in a secure
+  process). See `docs/tunables.md`. A per-object allowlist is planned.
+
+## libniji: thirteenth pre-release, 2026-11-20 (`snapshot-2026-11-20.2`)
+
+`main` at commit `3f2a8452`, tagged `snapshot-2026-11-20.2`. Changes since
+[`snapshot-2026-11-20.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-20.1).
+
+- **Complete AddressSanitizer reports ([#26](https://github.com/duskglow/libniji/issues/26)):** ASan reports the main
+  thread as `thread T0` and prints the allocation stack and the `SUMMARY` line, with exit status 1; 20 of 20 sampled
+  gcc 14 ASan tests pass (14 of 20 on 20.1). LSan, TSan (ASLR off) and UBSan behave as on stock glibc.
+- A sanitizer stack shows one more C library frame between `main` and `__libc_start_main` than on glibc.
+
+## libniji: twelfth pre-release, 2026-11-20 (`snapshot-2026-11-20.1`)
+
+`main` at commit `50abc44e`, tagged `snapshot-2026-11-20.1`. Changes since
+[`snapshot-2026-11-19.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-19.2).
+
+- **Sanitizers start ([#26](https://github.com/duskglow/libniji/issues/26)):** `ld.so` provides the private loader
+  function GCC's sanitizer runtimes look up (`_dl_get_tls_static_info@@NIJI_PRIVATE`); programs built with
+  `-fsanitize=address`, `leak` or `thread` reach `main`. ASan's report was incomplete (fixed in 20.2).
+- **Dynamic sections readable ([#22](https://github.com/duskglow/libniji/issues/22)):** the dynamic sections of the
+  program's libraries and of `dlopen`'d libraries can be read through the addresses the loader reports.
+- **Dynamic start-up much faster:** an empty dynamically linked `main` runs in about 0.78 million instructions and 59
+  page faults, down from 8.15 million and 76 (glibc 2.39: about 0.11 million and 49).
+
+## libniji: eleventh pre-release, 2026-11-19 (`snapshot-2026-11-19.2`)
+
+`main` at commit `d496d4c2`, tagged `snapshot-2026-11-19.2`. Changes since
+[`snapshot-2026-11-19.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-19.1).
+
+- **Debugger rendezvous: `_r_debug` exported ([#19](https://github.com/duskglow/libniji/issues/19)):** `ld.so`
+  exports `_r_debug@GLIBC_2.2.5` (40 bytes) and keeps a program's copy current. Programs that copy it, such as Debian's
+  `gnat1`, start; `gdb` lists shared libraries at `main` and stops at a breakpoint in a `dlopen`'d library. Keeping the
+  program's copy current is a recorded difference with a compatibility entry (`COMPAT-35`).
+- **`dl_iterate_phdr` names, in part ([#24](https://github.com/duskglow/libniji/issues/24)):** the loader and the C
+  library are reported by full path, and a start-time library found through `$ORIGIN` is reported.
+- C headers in progress: the build's headers are generated from libniji's ABI tables (not yet shipped).
+
+## libniji: tenth pre-release, 2026-11-19 (`snapshot-2026-11-19.1`)
+
+`main` at commit `fb63eeec`, tagged `snapshot-2026-11-19.1`. Changes since
+[`snapshot-2026-11-18.2`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-18.2).
+
+- **Canonical PLT entries honoured ([#10](https://github.com/duskglow/libniji/issues/10)):** the loader binds every
+  library's references to a non-PIE executable's canonical PLT entry, so `&f` is the same address everywhere, as on
+  glibc.
+- **`strptime` number conversions take no sign ([#18](https://github.com/duskglow/libniji/issues/18)):** `%F`, `%Y`,
+  `%s` and the others no longer accept a leading `+` or `-`; `%z` keeps its sign.
+- C headers in progress (build only).
+
+## libniji: ninth pre-release, 2026-11-18 (`snapshot-2026-11-18.2`)
+
+`main` at commit `557dfdaa`, tagged `snapshot-2026-11-18.2`. Changes since
+[`snapshot-2026-11-18.1`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-18.1).
+
+- **Dynamic-section addresses relocated ([#22](https://github.com/duskglow/libniji/issues/22)):** the `d_ptr` entries
+  (`DT_STRTAB`, `DT_SYMTAB`, `DT_GNU_HASH` and others) hold run-time addresses, as on glibc, for the program read
+  through `_DYNAMIC` and for every object reached through `dl_iterate_phdr`; a PIE reading `DT_RUNPATH` through
+  `DT_STRTAB` finds `$ORIGIN/`.
+- More generated C headers in `niji6-dev`, with fixes to which declarations a header makes visible.
+
+## libniji: eighth pre-release, 2026-11-18 (`snapshot-2026-11-18.1`)
+
+`main` at commit `923df67e`, tagged `snapshot-2026-11-18.1`. Changes since
+[`snapshot-2026-11-17.3`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-17.3).
+
+- **More than 63 shared libraries ([#9](https://github.com/duskglow/libniji/issues/9)):** the loader no longer stops at
+  a fixed number of start-time objects; programs needing 70 and 200 libraries start and run, directly and through
+  `dlopen`, with output identical to stock glibc.
+- **`getsockopt` and `setsockopt` with a NULL buffer ([#17](https://github.com/duskglow/libniji/issues/17)):** a NULL
+  option buffer is passed to the kernel, which decides the result.
+- **Character sets for `iconv` ([#6](https://github.com/duskglow/libniji/issues/6)):** `libc6` ships 43 charmaps in
+  `/usr/share/i18n/charmaps/`; charmaps load without a fixed cap.
+- **`/usr/bin/locale`** is part of `libc-bin`; `ldconfig` no longer caps its inputs; the named-semaphore table grows
+  with use.
+- `sigprocmask` with a null set follows POSIX.
 
 ## libniji: seventh pre-release, 2026-11-17 (`snapshot-2026-11-17.3`)
 
@@ -128,7 +387,8 @@ library version of at least 2.41 and libniji presents 2.39.
 - **[#9](https://github.com/duskglow/libniji/issues/9):** a program that needs more than 63 shared libraries at start
   fails before `main` with "too many objects". A fix (no fixed limit) is queued at high priority.
 - at most 512 loaded objects per process in all (start-time objects plus `dlopen`);
-- no `dlmopen`, no lazy binding, no `LD_AUDIT`, and no debugger rendezvous (`_r_debug`) or `libthread_db` yet, so
+- no `dlmopen`, no lazy binding, no `LD_AUDIT`, and no debugger rendezvous (`_r_debug`; it landed in
+  `snapshot-2026-11-19.2`, [#19](https://github.com/duskglow/libniji/issues/19)) or `libthread_db` yet, so
   debuggers cannot follow shared libraries or threads in a running program;
 - no vector math library (`libmvec.so.1`) in this snapshot (it has landed since);
 - no C headers of libniji's own yet;

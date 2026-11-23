@@ -11,6 +11,12 @@ wrapper are scripts; they are run, never opened), and no libc or tzcode source i
   `libc-bin`, `libc-dev-bin` and `locales` 2.39-0ubuntu8.9, `tzdata` 2026e, `dpkg` 1.22.6. Each case is `== <case>`,
   the command (`  $ `), standard output (`  | `), standard error (`  ! `) and `  rc=<status of the command line>`.
   Masks: the scratch directory is `<dir>`, addresses `0xADDR`, process ids `<pid>`, tzselect's clock lines `<now>`.
+* Rechecked 2026-11-23 (REF-DEVTOOLS-RECHECK) on a Skylake-SP host, same `libc-bin`, `libc-dev-bin`, `locales`,
+  `tzdata` and `dpkg` versions, `libc-devtools` 2.39-0ubuntu8.12 (the probe runs none of its programs). Every
+  difference is that host's own state, not a utility's behaviour: its `ld.so.cache` entries, one more
+  `/etc/ld.so.conf.d` file, root's group list (`getent-initgroups`), its compiled locales (`locale-a-v`) and an
+  empty locale archive (`localedef-list`). The cases `localedef-list-missing` through `localedef-undefined` were
+  added to the record by LOCALEDEF-ARCHIVE from that story's own probe; `util_spec.sh` does not produce them.
 * The clauses cite the cases as `probe <case>`; this table maps them.
 
 | Cases | Clauses |

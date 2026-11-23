@@ -98,7 +98,7 @@ impl Fx {
 
     /// A lookup context: the fixture's files and the configuration `conf` (an nsswitch.conf text).
     fn ctx(&self, conf: &str) -> Ctx<'_, CSys> {
-        Ctx { sys: &CSys, paths: &self.paths, config: Config::parse(conf.as_bytes()), multi: false, hconf: None, dns: None, locale: None, cache: None }
+        Ctx { sys: &CSys, pages: &niji_boundary::heap::KernelPages, paths: &self.paths, config: Config::parse(conf.as_bytes()), multi: false, hconf: None, dns: None, locale: None, cache: None }
     }
 }
 
@@ -224,6 +224,7 @@ fn s16_1_c_1() {
 #[test]
 fn s16_1_c_2() {
     use nss::{Action, Status};
+    long_lines();
     let s = Spec::parse(b"dns [!UNAVAIL=return] files [NOTFOUND=RETURN tryagain = continue] x [SUCCESS=merge]").unwrap();
     let st = s.steps();
     assert_eq!(st.len(), 3);
@@ -250,13 +251,13 @@ fn s16_1_c_2() {
     }
     let sw = Switch::new();
     let fx = Fx::new("configure");
-    assert_eq!(sw.configure(&CSys, b"hosts", b"x [UNAVAIL=return] files"), Ok(()));
-    let mut c = sw.config(&CSys, fx.paths.nsswitch);
+    assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"hosts", b"x [UNAVAIL=return] files"), Ok(()));
+    let mut c = sw.config(&CSys, &niji_boundary::heap::KernelPages, fx.paths.nsswitch);
     assert_eq!(c.spec(Database::Hosts).steps().len(), 2, "the override replaces the file's line");
     assert_eq!(c.spec(Database::Networks).steps().len(), 1, "other databases keep the file's");
-    assert_eq!(sw.configure(&CSys, b"nosuchdb", b"files"), Err(Errno::EINVAL));
-    assert_eq!(sw.configure(&CSys, b"hosts", b"files [NOTFOUND=return"), Err(Errno::EINVAL));
-    c = sw.config(&CSys, fx.paths.nsswitch);
+    assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"nosuchdb", b"files"), Err(Errno::EINVAL));
+    assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"hosts", b"files [NOTFOUND=return"), Err(Errno::EINVAL));
+    c = sw.config(&CSys, &niji_boundary::heap::KernelPages, fx.paths.nsswitch);
     assert_eq!(c.spec(Database::Hosts).steps().len(), 2, "a refused override changes nothing");
     // Through the export: the process's switch.
     use niji_boundary::posix::s16_nameservices as x;
@@ -289,12 +290,48 @@ fn s16_1_g_2() {
     let fx = Fx::new("reload");
     let sw = Switch::new();
     let path = fx.paths.nsswitch;
-    assert_eq!(sw.config(&CSys, path).spec(Database::Hosts).steps().len(), 1);
+    assert_eq!(sw.config(&CSys, &niji_boundary::heap::KernelPages, path).spec(Database::Hosts).steps().len(), 1);
     std::fs::write(fx.dir.join("nsswitch.conf"), "hosts: x files [NOTFOUND=return] y\n").unwrap();
-    assert_eq!(sw.config(&CSys, path).spec(Database::Hosts).steps().len(), 3, "a changed file is read again");
+    assert_eq!(sw.config(&CSys, &niji_boundary::heap::KernelPages, path).spec(Database::Hosts).steps().len(), 3, "a changed file is read again");
     std::fs::remove_file(fx.dir.join("nsswitch.conf")).unwrap();
-    assert_eq!(sw.config(&CSys, path).spec(Database::Hosts), nss::default_spec(Database::Hosts), "without the file, the defaults (files dns)");
-    assert_eq!(sw.config(&CSys, path).spec(Database::Passwd).steps()[0].service, Service::Files);
+    assert_eq!(sw.config(&CSys, &niji_boundary::heap::KernelPages, path).spec(Database::Hosts), nss::default_spec(Database::Hosts), "without the file, the defaults (files dns)");
+    assert_eq!(sw.config(&CSys, &niji_boundary::heap::KernelPages, path).spec(Database::Passwd).steps()[0].service, Service::Files);
+}
+
+/// s16_1_c_2: more than the 16 sources a line held before (CONFIG-TABLES-GROWTH), and an action
+/// group of more than 256 bytes: no limit but memory, through the process-wide table (file and
+/// override).
+fn long_lines() {
+    use nss::{Action, Status};
+    // 40 sources; the last two with groups of 300 and 600 bytes (padded items, white space).
+    let names: String = (0..38).map(|i| format!("m{i} ")).collect();
+    let pad = " ".repeat(280);
+    let group = format!("[{pad}NOTFOUND = return{pad}]");
+    let many = "success=continue ".repeat(36);
+    let line = format!("{names}files {group} dns [{many}TRYAGAIN=return]");
+    let check = |spec: &Spec, what: &str| {
+        let st = spec.steps();
+        assert_eq!(st.len(), 40, "{what}: every source");
+        assert_eq!(st[0].service, Service::Module, "{what}");
+        assert_eq!((st[38].service, st[38].action(Status::NotFound)), (Service::Files, Action::Return), "{what}: the long group");
+        assert_eq!((st[39].service, st[39].action(Status::Success), st[39].action(Status::TryAgain)), (Service::Dns, Action::Continue, Action::Return), "{what}: the 600-byte group");
+    };
+    check(&Spec::parse(line.as_bytes()).unwrap(), "parsed");
+    let fx = Fx::new("long_lines");
+    std::fs::write(fx.dir.join("nsswitch.conf"), format!("hosts: {line}\npasswd: m40 {line}\ngroup: files\n")).unwrap();
+    let sw = Switch::new();
+    let c = sw.config(&CSys, &niji_boundary::heap::KernelPages, fx.paths.nsswitch);
+    check(c.spec(Database::Hosts), "the file's first line");
+    assert_eq!(c.spec(Database::Passwd).steps().len(), 41, "the second long line, after the first's sources");
+    let pw = c.spec(Database::Passwd).steps();
+    assert_eq!((pw[39].service, pw[39].action(Status::NotFound), pw[40].service), (Service::Files, Action::Return, Service::Dns), "its own sources past the inline ones");
+    assert_eq!(c.spec(Database::Group).steps().len(), 1, "a short line after the long ones");
+    assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"networks", line.as_bytes()), Ok(()));
+    assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"shadow", b"files"), Ok(()));
+    let c = sw.config(&CSys, &niji_boundary::heap::KernelPages, fx.paths.nsswitch);
+    check(c.spec(Database::Networks), "an override");
+    check(c.spec(Database::Hosts), "the file's line beside an override");
+    assert_eq!(c.spec(Database::Shadow).steps().len(), 1);
 }
 
 // ------------------------------------------------------------------------------ __nss_hostname_digits_dots
@@ -535,7 +572,7 @@ fn s16_2_c_2_6() {
     let f = gai::getaddrinfo(&ctx, Some("bücher.test".as_bytes()), None, Some(hints(gai::AI_IDN | gai::AI_CANONNAME, 2, 1, 0))).unwrap();
     assert_eq!(f.canon.as_deref(), Some(&b"xn--bcher-kva.test"[..]), "without AI_CANONIDN: the ASCII name");
     assert_eq!(gai::getaddrinfo(&ctx, Some("bücher.test".as_bytes()), None, Some(hints(0, 2, 1, 0))).err(), Some(GaiError::Code(gai::EAI_NONAME)), "without AI_IDN the bytes are no host name");
-    let ascii_only = Ctx { locale: None, ..ctx };
+    let ascii_only = Ctx { locale: None, config: ctx.config.try_clone().unwrap(), ..ctx };
     assert_eq!(gai::getaddrinfo(&ascii_only, Some("bücher.test".as_bytes()), None, Some(hints(gai::AI_IDN, 2, 1, 0))).err(), Some(GaiError::Code(gai::EAI_IDN_ENCODE)), "not in the locale's character set");
     let mut sa = [0u8; 16];
     sa[..2].copy_from_slice(&2u16.to_ne_bytes());
@@ -567,7 +604,21 @@ fn s16_2_c_3() {
     let mut v = [c("2001:db8::1", None), c("::ffff:192.0.2.1", None)];
     sort::sort(&p, &mut v, |x| *x);
     assert_eq!(v[0].dest, a("::ffff:192.0.2.1"), "IPv4 preferred by the configured table");
-    assert_eq!(Policy::decode(&p.encode()), Some(p));
+    // More than the 32 rows a table held before (CONFIG-TABLES-GROWTH): 40 precedence rows and
+    // 40 label rows, the deciding ones last, through the process-wide table.
+    let rows: String = (0..39).map(|i| format!("precedence 2001:db8:{i:x}::/48 {i}\nlabel 2001:db8:{i:x}::/48 {i}\n")).collect();
+    let text = format!("{rows}precedence ::ffff:0:0/96 100\nlabel ::/0 77\nscopev4 ::ffff:198.51.100.0/120 3\n");
+    let fx = Fx::new("gai_rows");
+    std::fs::write(fx.dir.join("gai.conf"), &text).unwrap();
+    let held = gai::GaiConf::new().policy(&CSys, &niji_boundary::heap::KernelPages, fx.paths.gai_conf);
+    for (what, q) in [("parsed", Policy::parse(text.as_bytes())), ("held", held)] {
+        assert_eq!(q.precedence.entries().len(), 40, "{what}");
+        assert_eq!(q.precedence.lookup(&a("::ffff:192.0.2.1")), Some(100), "{what}: the 40th row");
+        assert_eq!(q.label.lookup(&a("2001:db9::1")), Some(77), "{what}: the 40th label row");
+        assert_eq!(q.label.lookup(&a("2001:db8:26::1")), Some(38), "{what}: a row past the 32nd");
+        assert_eq!(q.scope(&a("::ffff:198.51.100.7")), 3, "{what}");
+        assert_eq!(q, Policy::parse(text.as_bytes()), "{what}");
+    }
     // getaddrinfo sorts: the loopback addresses (both routed through `lo`) put ::1 first.
     let fx = Fx::new("sort");
     let r = gai(&fx, None, Some("80"), hints(0, 0, 1, 0)).unwrap();
@@ -798,7 +849,7 @@ fn s16_3_c_0() {
     assert_eq!(host(netdb::host_by_name(&c, b"", Family::V4)), Err(LookupError::NotFound), "an empty name");
     assert_eq!(host(netdb::host_by_name(&c, b"0x7f.1", Family::V4)), ok("0x7f.1 [] 127.0.0.1"), "inet_aton's forms, answered without the file");
     assert_eq!(host(netdb::host_by_name(&c, b"::1", Family::V4)), Err(LookupError::NotFound));
-    let multi = Ctx { multi: true, ..c };
+    let multi = Ctx { multi: true, config: c.config.try_clone().unwrap(), ..c };
     assert_eq!(host(netdb::host_by_name(&multi, b"beta", Family::V4)), ok("beta [b3] 192.0.2.2,192.0.2.3"), "multi on: every line");
     assert_eq!(host(netdb::host_by_name(&multi, b"gamma", Family::Any)), ok("gamma [gamma6] 2001:db8::10,192.0.2.4"));
     assert!(niji_legacy::nss::multi_of(b"order hosts,bind\nmulti on\n") && !niji_legacy::nss::multi_of(b"multi off\n"));
