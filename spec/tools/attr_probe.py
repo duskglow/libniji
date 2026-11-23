@@ -486,6 +486,11 @@ def main():
         for f in ref[ln][1] ^ got[ln][1]:
             if f not in DECIDED and f != "note":
                 opened[f] = opened.get(f, 0) + 1
+        # `nz`/`nv` judge only whether control returns (the marker): a warning their 0 or opaque argument draws from
+        # another attribute (nonnull on a parameter whose typedef hides the pointer, qsort's comparator) is the
+        # question of that attribute's own tests.
+        if ref[ln][0][1] in ("nz", "nv") and ("marker" in ref[ln][1]) == ("marker" in got[ln][1]) and ref[ln][2] == got[ln][2]:
+            continue
         if decided(ref[ln][1]) != decided(got[ln][1]) or ref[ln][2] != got[ln][2]:
             why = open_reason(ref[ln][0][0])
             n, kind = ref[ln][0][0], ref[ln][0][1]
