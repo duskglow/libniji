@@ -1,53 +1,69 @@
-# BUILD-REPRODUCIBLE-PATHS: handoff (leg 1 of the run; refresh)
+# BUILD-REPRODUCIBLE-PATHS: handoff (after leg 2 of run 1; refresh)
 
-Branch `task/build-reproducible-paths`, HEAD f9d03aedc (code commit, NOT YET COMPILED OR TESTED). Role mei:~/w/s1
-(the role is physically `/mnt/zram/claude/w/s1`; `~/w/s1` is the logical spelling through a symlink).
-Base origin/next 9d12e7ee3. Wall-time deadline 2026-11-23T04:40Z.
+Branch `task/build-reproducible-paths`. Commits: f9d03aedc (item 1, path fix), 565671f9e (item 2, count fix), then
+this note. Role mei:~/w/s1 (physically `/mnt/zram/claude/w/s1`, `~/w/s1` is the logical spelling through a symlink).
+Base origin/next 9d12e7ee3. Wall-time deadline 2026-11-23T04:40Z. Scripts and data: mei and keke
+`~/work/build-reproducible-paths/` (repcount.sh, spread.py, build-scan.sh, gdbprobe/run.sh, *.tsv, manifest-*).
 
-## Item 1: cause found and fixed (code committed, unverified)
+## Item 1: path fix VERIFIED on mei (one host)
 
-* Before (role build `build-reproducible-paths-so1`, head 9d12e7ee3, release traced): a scan of all 1313 files of
-  target/niji (bench/ excluded) for the home and zram paths found exactly the 19 files of CI-PRODUCTS-ONCE plus
-  `.hot-lists`. In each ELF the ONLY leak is `DW_AT_comp_dir` / line-table directory 0 = the logical root
-  (`~/w/s1`); source names were already `/niji/...`.
-* Cause (logging CC wrapper, job `build-reproducible-paths-ccdiag`, ~/work/build-reproducible-paths/cc.log on mei):
-  xtask's root = getcwd = canonical `/mnt/zram/claude/w/s1`; the C compiles run with `PWD=~/w/s1`; GCC takes
-  the compile directory from `$PWD` when it names the cwd; the map covered only the canonical root. By hand:
-  `-fdebug-prefix-map=<logical>=/niji` maps comp_dir; a trailing-slash map does not.
-* Fix (f9d03aedc): `align::root_spellings(root, pwd)` (given, canonical, the `$PWD` ancestor that is the root);
-  `so::release_debug_cflags` -> `so::debug_prefix_flags(root, pwd)` maps each; `remap::needles` uses the same
-  spellings and `remap::check_dir` now scans every top-level file of the products (before: only libc/libm/crt +
-  placeholder lists, so the utilities/libmvec/BrokenLocale leak was never seen). `.hot-lists` line 1 is now
-  relative to the products (`../product/release`, `hotlists::relative_dir`); `marked_dir` joins a relative line
-  to the products dir, absolute (old) markers still work. Rust flags unchanged (rustc uses getcwd).
-* Test: `remap::tests::c_debug_info_is_the_same_in_two_tree_paths` (two trees, symlinked, top and subdir PWD).
-  Test changed: `hotlists::tests::marker_names_the_lists_and_hashes_them` (relative line, old absolute form).
+* f9d03aedc: every spelling of the root (given, canonical, the logical `$PWD` ancestor) is mapped to `/niji` for the
+  C compiles (`so::debug_prefix_flags`, `align::root_spellings`); `remap::check_dir` scans every top-level product
+  file; `.hot-lists` line 1 relative. Before: 19 utilities/small libraries + `.hot-lists` carried the logical root
+  (only `DW_AT_comp_dir`; cause: GCC records `$PWD`).
+* Verified (jobs `build-reproducible-paths-lint1` clippy ok, static ok after the handoff home-path fix,
+  `-ut1` 11 xtask tests ok incl. `remap::tests::c_debug_info_is_the_same_in_two_tree_paths`, `-so2` product
+  build in ~/w/s1: layout `PRODUCT-PATH-REMAP ok: 47 products`, scan of every file under target/niji (bench/
+  excluded) for the home path, both root spellings and /mnt/zram: 0 hits; manifest copied to
+  ~/work/build-reproducible-paths/manifest-s1, profile `release traced`).
+* gdb (job `-gdb3`, s1 products, program linked with the products' loader and LD_LIBRARY_PATH, gdb
+  `startup-with-shell off`): `bt` from a qsort comparator shows 15 libniji frames with file:line
+  (`boundary/src/posix/s14_search.rs:119`, `core/src/search.rs:355`, ..., `qsort () at ...s14_search.rs:80`), compile
+  dir `/niji/crates`; after `set substitute-path /niji <tree>` `list` prints the source. (RUNPATH is not used for
+  libc.so.6 by design: differences row, COMPAT-37.)
+* Cross host NOT DONE: keke build (job `build-reproducible-paths-kk-so`, tree in keke
+  /dev/shm/claude/build-reproducible-paths/kk/tree-c, same .synced head 96f0f1b2a) passed its remap contract with 0
+  hits, but it built profile `fast traced` (keke's environment), mei `release traced`: manifests differ in 94 lines
+  for that reason only, not comparable. Find what picks the profile (grep `traced\|NIJI_FULL_PROFILE\|Profile::` in
+  xtask/src/so.rs, and keke's env) and rebuild keke with the release profile.
+* Second path on mei NOT BUILT yet: tree copied to /mnt/zram/claude/build-reproducible-paths/t/second/tree-b (head
+  96f0f1b2a .synced; plain path, no symlink).
 
-## Item 2: partial
+## Item 2: cause found, fixed, verified on mei
 
-* `bench/c/cbench_counters.h`: user-mode instructions (event 4) joined the pinned group (leader event 0). NOT YET
-  CHECKED that the 4-event group schedules on both hosts (if not, every column reads -1: check a ctr line).
-* The gated column is event 0 (`instructions`, user+kernel; `bench.rs` `check_instr_limits` reads `v[0]`, median
-  of 3 runs, limits `bench/instr_limits.tsv`, tolerance max(2 instr, 2%)). Hypotheses for its spread, unmeasured:
-  kernel instructions (interrupts/preemption on a loaded host count in a per-task counter with exclude_kernel=0),
-  and stack ASLR moving stack-buffer alignment (user instructions of string rows). The rows use a fixed op count
-  (7*iters), BENCH_ENV is fixed (PATH, HOME), so ops/env are not the cause.
-* Baseline job `build-reproducible-paths-cnt-before1` (`cargo xtask bench --counters-only --only
-  cbench_memref,cbench_hot,cbench_startup` on the old head) was running at refresh; its table is in its log.
+* Lead confirmed: event 4 (user instructions) was multiplexed (values 0.001 to 110 for one row); f9d03aedc pins it.
+* Before (old head, 20 runs memref + 8 runs gated hot; files before-*.tsv): event 0 moves in every row; beyond
+  max(2,2%) only memset_64k 6.7%, memcpy_64k 5.2% (ungated). After pinning (after-*.tsv, 233 rows incl. opt):
+  user column exact except 28 rows; ASLR: strstr_hit_64/strstr_miss_64 (GATED) 71 or 135 user instr/call (90%),
+  strcasestr_hit_64 3.7% (GATED); all exact under setarch -R. Kernel share: event 0 moves 0.1-0.3 instr/call in every
+  row with ASLR off (interrupts in the task's user+kernel count).
+* Fix 565671f9e: cbench_counters.h constructor sets ADDR_NO_RANDOMIZE and re-execs (/proc/self/cmdline, environ)
+  when CBENCH_COUNTERS is on; bench.rs `--count-runs N` (default 3) and `check_count_spread` (COUNT-SPREAD failure
+  for a limited row moving more than max(2, 2%) over the runs) + unit test
+  `count_spread_fails_a_limited_row_that_moves_beyond_its_tolerance`.
+* After fix (job `build-reproducible-paths-check2`, plain runs, 20 memref + 6 opt): clippy ok, 11 tests ok; user
+  column exact on every memref row (strstr 0); gated rows beyond tolerance: 0. Not deterministic, ungated:
+  gettext_language_steady 14.6% user, gettext_language_alternating 4.2% user, ngettext_found 0.5%, re_mt4_* (threads),
+  memcpy_64k 7.3% / memset_64k 2.7% (kernel share). Not yet measured after the fix: cbench_hot (gated 32 rows), and the
+  other gated benches (locale 8, malloc 7, stdio 4, time 3, patterns 2, unmeasured 3; startup 4 does not include the
+  counter header).
 
-## Exact next steps
+## Exact next steps (about 2 h 50 min of wall time were left at 01:50Z)
 
-1. Sync (`sync_role.sh --story BUILD-REPRODUCIBLE-PATHS --base origin/next <wt> mei s1`), then on s1 one job:
-   `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask static`, `cargo test -p xtask
-   -- remap:: hotlists::`. Fix anything.
-2. `NIJI_FULL_PROFILE=1 cargo xtask so` on s1 (job); it must pass its layout contract (now scanning all files with
-   the logical root as a needle). Rescan target/niji for the home and zram paths (expect none).
-3. Second path on mei: copy the tree (no target/, no .git) to e.g. ~/work/build-reproducible-paths/t/second/tree-b,
-   build there (`cd` into it; job), `diff` the two `target/niji/.products-manifest` (expect identical except
-   nothing: head/tag equal). Cross host: same on keke (Zen 1) in ~/work/build-reproducible-paths/, diff manifests.
-4. gdb backtrace through libc with the products (debug info usable: `set substitute-path /niji <tree>`).
-5. Item 2: a repeat-count script in ~/work/build-reproducible-paths/ (5+ runs of the cbench binaries with
-   CBENCH_COUNTERS=1, env PATH/HOME only), columns 0 and 4 per row, with and without `setarch -R`; decide; make the
-   CI check skip rows whose measured spread exceeds tolerance (or count user-only) - likely RULING NEEDED if the
-   gated column changes.
-6. Plants in docs/plants.md format (scratch file), gate (`cargo xtask affected --run`), precheck, report json.
+1. Rebuild on keke with the release profile; diff its `.products-manifest` against manifest-s1 (expect identical).
+   Build tree-b on mei (`build-scan.sh <tree-b> treeb`, job), diff manifests, run gdbprobe/run.sh against tree-b.
+   Both builds were from head 96f0f1b2a: the s1 manifest is from that head too (rebuild s1 for the final head only if
+   a product input changed: 565671f9e changes only bench/ and xtask).
+2. The repeat test on the final head: `cargo xtask bench --counters-only --count-runs 10 --only
+   cbench_memref,cbench_hot,cbench_opt,cbench_locale,cbench_malloc,cbench_stdio,cbench_time` (job, label
+   `build-reproducible-paths-repeat`); it must end with no COUNT-SPREAD. cbench_hot takes ~66 s per run.
+3. D-row: reserve with `python3 ~/src/liella-ops/bin/ops reserve --story BUILD-REPRODUCIBLE-PATHS D-X` for the count
+   rule (counted runs ASLR off; COUNT-SPREAD), cite the measurements above; docs/benchmarks.md one paragraph.
+4. Plants (scratch file, `cargo xtask plants`): drop the logical spelling in `align::root_spellings`
+   (msg:c_debug_info_is_the_same), drop the `hi - lo > tol` check (msg:count_spread_fails), all-files scan in
+   `remap::check_dir` (msg:check_dir_names). Gate `cargo xtask affected --run --base origin/next`, precheck, report
+   json, handback-check.
+
+## Not to redo
+
+Cause analysis of both items; before/after counts; gdb on s1; s1 build and scan; the lint of 565671f9e.
