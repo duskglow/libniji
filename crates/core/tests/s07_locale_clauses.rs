@@ -331,7 +331,8 @@ fn s7_2_f_0() {
     // strerror(errno) when setlocale fails): ENOENT when a name's data is not available, on every
     // attempt (a repeated name too, whatever errno held), as newlocale (D-7.18); EINVAL for a
     // category number that names none; a successful call leaves errno alone.
-    for (cat, name) in [(LC_ALL, "zh_HK.big5hkscs"), (LC_ALL, "zh_HK.big5hkscs"), (LC_CTYPE, "xx_YY"), (LC_ALL, "a/b"), (LC_ALL, "LC_CTYPE=C;LC_NUMERIC=nope")] {
+    // `qq` is in ISO 639's range reserved for local use: no installed locale has it.
+    for (cat, name) in [(LC_ALL, "qq_QQ.big5hkscs"), (LC_ALL, "qq_QQ.big5hkscs"), (LC_CTYPE, "xx_YY"), (LC_ALL, "a/b"), (LC_ALL, "LC_CTYPE=C;LC_NUMERIC=nope")] {
         for pre in [0, 1234] {
             errno::set_raw(pre);
             assert!(x::setlocale(cat, c(name).as_ptr()).is_null(), "{name}");

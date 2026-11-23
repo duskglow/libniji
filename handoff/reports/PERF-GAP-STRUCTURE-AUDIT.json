@@ -1,0 +1,32 @@
+{
+  "task": "PERF-GAP-STRUCTURE-AUDIT",
+  "model": "opus",
+  "tokens": null,
+  "result": "Gaps attributed by structure: dynamic start-up = loader per-symbol cost (1,510 vs 643 instr/symbol) + fixed loader work + written pages (anon/stack/rw), with ~+160k kernel instr/process unattributed; thread create = 4,096-key scan; strcoll/towupper = collation and case-map structure. Paths 1-4 reach user-instruction parity by estimate; total-cycle parity not demonstrated (kernel residual).",
+  "branch": "task/perf-gap-structure-audit",
+  "head": "de87aa260",
+  "gate": {"affected": "no product change: probes 1-8 rc 0; lint (clippy + static) and precheck jobs on the final head", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "Read-only root on one build host to copy kallsyms for a kernel-symbol profile of dynamic start-up (the ~+160k kernel-instruction residual per process)", "recommendation": "approve; it decides between fewer mappings, path 4 (written pages) and smaller reservations"},
+    {"item": "Dynamic start-up direction: a RETHINK of the loader's symbol lookup (validate tables once at map time, version index per object pair; target <= 300 instructions per symbol) before further layout or relocation-loop stories on dynamic start-up", "recommendation": "brief the RETHINK; pause text-layout work aimed at static start-up, which is already 52x cheaper than the reference"},
+    {"item": "Metric frame: start-up rows and the workload gate count user instructions and faults only; kernel cycles are ~80% of a dynamic start-up", "recommendation": "add instructions:k (deterministic enough) or cycles:u+cycles:k to the start-up rows the gate watches"}
+  ],
+  "informational": [
+    "Sampled perf profiles of start-up are throttle-biased on the build VMs (env scan 15.8% sampled vs ~4% by slope); exact gdb single-step (probes/trace_start.py) agrees with perf stat within 1%",
+    "Distribution binaries and their libraries are BIND_NOW, so lazy binding would not close the loader gap; libniji binds eagerly even under -z lazy (1,513 vs 37 instr per never-called import)",
+    "CI bound init_dynamic_empty_main_stays_within_its_instruction_bound clears the environment; guess: its churn follows libc.so.6 table contents (~1,150 per symbolic relocation, ~9 per RELR word)",
+    "TEST-BOUNDS-AUDIT had no results file or branch at 16:58Z; not cross-referenced",
+    "Probes 2 and 3 fault sections failed to parse (perf script field layout); superseded by probe 4; their other sections are used"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "none", "what": "audit; no product change", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "unblock", "what": "briefs ranked in README section 5: THREAD-KEY-WATERMARK, loader lookup RETHINK, lazy per-object tables, written-page reduction, kernel-residual profile, strcoll redesign, towupper trace", "before": null, "after": null, "unit": null, "measured": false},
+    {"kind": "perf", "what": "dynamic empty main user instructions (estimate if paths 2-3 land; reference 105,281 with a two-variable environment)", "before": 159940, "after": 90000, "unit": "instr", "measured": false}
+  ],
+  "improvement": "Use exact single-step traces (probes/trace_start.py) for start-up attribution on the VMs, and count kernel instructions/cycles next to user instructions: the user-only metric hid ~95% of the dynamic start-up cycle gap.",
+  "next_step": "Brief THREAD-KEY-WATERMARK and a loader symbol-lookup RETHINK; get the kernel-symbol profile of dynamic start-up (ruling a).",
+  "report_file": "results/perf-gap-structure/README.md",
+  "jobs": ["mei:perf-gap-structure-audit-probe1", "mei:perf-gap-structure-audit-probe2", "mei:perf-gap-structure-audit-probe3", "mei:perf-gap-structure-audit-probe4", "mei:perf-gap-structure-audit-probe5", "mei:perf-gap-structure-audit-probe6", "mei:perf-gap-structure-audit-probe7", "mei:perf-gap-structure-audit-probe8", "mei:perf-gap-structure-audit-lint", "mei:perf-gap-structure-audit-precheck"]
+}

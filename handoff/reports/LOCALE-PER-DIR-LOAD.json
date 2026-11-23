@@ -1,0 +1,74 @@
+{
+ "task": "LOCALE-PER-DIR-LOAD",
+ "model": "opus",
+ "tokens": null,
+ "result": "setlocale searches the archive, LOCPATH directories and /usr/lib/locale in the reference's order (D-7.21): every probed name agrees with the reference on per-locale directories and archive+directory layouts; locale tests build their own layouts; start-up fault probes run on a test-made archive like the trace",
+ "branch": "task/locale-per-dir-load",
+ "head": "5ab4d3876",
+ "gate": {
+  "affected": "6529 passed / 0 failed (15 suites, direct tier, mei)",
+  "peak": "3.6G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "WL gate start-up counts on mei now see per-locale directories (about 14 more faults per en_US.UTF-8 program than with an archive): host data, not libniji",
+  "Hosts with per-locale directories run name::candidates / in_dir at start-up, which the hot-text trace (canonical archive data) never records: a second trace data model with directories would group that path (layout follow-up, coordinator note #7884)",
+  "Dynamic start-up probe reads 65 against DYN_TRUE_BOUND 73 with or without this change: a bound to tighten",
+  "Errno-only differences: failed name reference 0 vs libniji ENOENT (existing D-7.18); successful load after a missed location: reference leaves ENOENT, libniji leaves errno untouched (unspecified on success)",
+  "Coordinator note #7885 (LOCPATH without the locale falls back to /usr/lib/locale): already fixed by D-7.21; loc.c of PRINTF-NO-HEAP-3 run on this head: 20 rows, 0 result differences",
+  "kill-label on a gate job waiting in slots did not end the inner command, which later ran the gate on an unsynced head (sync_role reported BUSY)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "setlocale on per-locale directories: en_US.utf8 / en_US / de_DE@euro load, de_DE.UTF-8@euro refused, LOCPATH falls back to /usr/lib/locale, later LOCPATH dir's more specific name wins: probe rows differing from the reference",
+   "before": 18,
+   "after": 0,
+   "unit": "rows of 111",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "the 7 tests red on every mei gate since locales-all (challenge #7846): CI trains",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: search_order_follows_the_reference added; plants added (5 CAUGHT)",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "traced start-up locale text in the hot group (fast profile, layout-bins.tsv vs merge base)",
+   "before": 9408,
+   "after": 3326,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "release build tool-mode start-up text windows (WINDOW-BIN-BYTES budget tightened to the new level)",
+   "before": 3,
+   "after": 2,
+   "unit": "64 KiB windows",
+   "measured": true
+  }
+ ],
+ "improvement": "kill-label should end the whole job tree, including a command still waiting for a slot",
+ "next_step": "land; follow-up: a directory-layout trace data model so per-locale-directory hosts get the search path grouped",
+ "report_file": "handoff/LOCALE-PER-DIR-LOAD-report.md",
+ "jobs": [
+  "mei:locale-per-dir-load-gate3",
+  "mei:locale-per-dir-load-plants2",
+  "mei:locale-per-dir-load-xtask-test3",
+  "mei:locale-per-dir-load-fullprof3"
+ ]
+}
