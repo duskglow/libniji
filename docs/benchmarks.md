@@ -76,6 +76,16 @@ prints limit lines in this format from a counted run (limit = count + max(2 inst
 diffs them against the current file (LOOSE = more than 5% above the proposal, WOULD-FAIL, NEW, NO-ROW) and edits nothing.
 The owner still edits the limit files.
 
+**The counted runs repeat exactly (D-X.159).** Every counted run executes with address randomisation off (the
+counter header `bench/c/cbench_counters.h` sets `ADDR_NO_RANDOMIZE` and re-executes the program when
+`CBENCH_COUNTERS` is set), and the user-only instructions event is part of the pinned counter group, so the kernel
+never multiplexes it. With randomisation on, a row's path could depend on where the stack or a mapping landed
+(`strstr_hit_64` counted 71 or 135 user instructions per call from run to run). What is left is the kernel's share of
+the user+kernel count (interrupts taken while the row runs: 0.1 to 0.3 instructions per call on most rows, a few
+percent on 64 KiB copies). `cargo xtask bench --count-runs N` (default 3) sets the number of counted runs per side;
+a row with an instruction limit whose libniji count moves over them by more than the limits' tolerance,
+max(2 instructions, 2%), fails the run as `COUNT-SPREAD`, so the limit check never passes or fails by chance.
+
 **Bands used on this page:** faster (< 0.95), at parity (0.95 to 1.05), slower (> 1.05).
 
 ### What the numbers do not show
