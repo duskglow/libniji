@@ -4,7 +4,9 @@
  * DF_STATIC_TLS do not need static TLS room:
  *  1. 64 copies of a 16 KiB object (1 MiB, far beyond any static surplus) open at once; the main
  *     thread, a thread created before the opens and one created after them each see the initial
- *     image then zeros in blocks of their own, and their writes stay their own.
+ *     image then zeros in blocks of their own, and their writes stay their own. In the late
+ *     thread, dlinfo's RTLD_DI_TLS_DATA and dl_iterate_phdr's dlpi_tls_data are NULL before its
+ *     first access (the block does not exist yet) and the block after it.
  *  2. A small initial-exec object (DF_STATIC_TLS) still opens after them: they took no static room.
  *  3. 200 cycles of open, touch (the main thread and a new thread, which ends before or after the
  *     dlclose), close: the address space does not grow (dlclose and thread exit free the blocks).
@@ -18,6 +20,7 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <link.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdatomic.h>
@@ -102,10 +105,39 @@ static void *early(void *arg)
     return NULL;
 }
 
+static void *h[N];
+
+struct seek { size_t modid; void *data; int found; };
+static int seek_one(struct dl_phdr_info *i, size_t size, void *arg)
+{
+    struct seek *s = arg;
+    (void)size;
+    if (i->dlpi_tls_modid == s->modid) {
+        s->data = i->dlpi_tls_data;
+        s->found++;
+    }
+    return 0;
+}
+
+/* dlinfo's RTLD_DI_TLS_DATA and dl_iterate_phdr's dlpi_tls_data for copy `i` in the calling thread
+ * are `want` (NULL before the thread's first access: the block does not exist yet). */
+static void block_seen(const char *who, int i, void *want)
+{
+    size_t modid = 0;
+    void *data = (void *)1;
+    CHECK(who, h[i] != NULL && dlinfo(h[i], RTLD_DI_TLS_MODID, &modid) == 0 && modid != 0);
+    CHECK(who, dlinfo(h[i], RTLD_DI_TLS_DATA, &data) == 0 && data == want);
+    struct seek s = {modid, (void *)1, 0};
+    dl_iterate_phdr(seek_one, &s);
+    CHECK(who, s.found == 1 && s.data == want);
+}
+
 static void *late(void *arg)
 {
     (void)arg;
+    block_seen("late thread", 5, NULL);
     fresh("late thread", 3);
+    block_seen("late thread", 5, get[5] ? get[5]() : NULL);
     kept("late thread", 3, 1);
     return NULL;
 }
@@ -257,7 +289,6 @@ int main(int argc, char **argv)
     pthread_t t0, t1;
     CHECK("main", sem_init(&go, 0, 0) == 0 && sem_init(&done, 0, 0) == 0);
     CHECK("main", pthread_create(&t0, NULL, early, NULL) == 0);
-    void *h[N];
     char path[4096];
     for (int i = 0; i < N; i++) {
         snprintf(path, sizeof path, "%s/copy%d.so", tmp, i);

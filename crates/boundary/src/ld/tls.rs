@@ -538,9 +538,14 @@ pub(super) fn release_tls(walk: usize, gone: &mut NewTls, generation: u64) {
 }
 
 /// The place of the module whose image starts at `image` (its object's bias + `p_vaddr`): an
-/// initially loaded one, or (for `dlinfo`) a `dlopen`ed one [`tls_visit`] has appended.
+/// initially loaded one, or (for `dlinfo`) a `dlopen`ed one [`tls_visit`] has appended. A module
+/// with on-demand blocks (DL-19; its offset word is `ltls::DYNAMIC | align`) has `ltls::NO_STATIC`.
 pub(super) fn initial_place(image: u64) -> Option<Placed> {
-    (0..THREAD_MODS_LEN.load(Acquire)).filter_map(module_words).find(|w| w[0] == image).map(|w| Placed { module: w[3], tp_offset: i64::from_ne_bytes(w[4].to_ne_bytes()) })
+    let place = |w: [u64; 5]| {
+        let tp_offset = if ltls::dynamic_align(w[4]).is_some() { ltls::NO_STATIC } else { i64::from_ne_bytes(w[4].to_ne_bytes()) };
+        Placed { module: w[3], tp_offset }
+    };
+    (0..THREAD_MODS_LEN.load(Acquire)).filter_map(module_words).find(|w| w[0] == image).map(place)
 }
 
 /// Give `new`'s modules to every thread (DL-16d, plan/ph14/dl-16-dlopen.md §5 points 1 and 3):
