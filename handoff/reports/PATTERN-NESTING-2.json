@@ -1,0 +1,98 @@
+{
+ "task": "PATTERN-NESTING-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: HL-13 and HL-14 nesting limits removed and tested; wordexp rows still slower than base (arith +10%, quoted +6.9%, plain_8 +3.7%) and fnmatch_names_ch 784 above its Zen 1 limit 761 (next not yet counted); plants2 pending",
+ "branch": "task/pattern-nesting-2",
+ "head": "11b46b216",
+ "gate": {
+  "affected": "not run on 11b46b216 (role held by plants2; code will change)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "If a second tuning pass cannot bring the wordexp rows back to base: accept a per-call cost for removing the 128/512 nesting limits, or keep the old cheap path for shallow words and use the heap stacks only past it",
+   "recommendation": "tune first (evaluator stack init and push calls are measured costs); ask only if that pass gains little"
+  }
+ ],
+ "informational": [
+  "bench/instr_limits.tsv cbench_opt fnmatch_names_ch (AMD EPYC 7551) max 761; measured 784.4 with HL-13 in; origin/next not counted yet",
+  "a cargo xtask bench --compare --counters run with --rows \"cbench_opt/fnmatch*,...\" printed no instruction-limit verdict and ended rc 0 although fnmatch_names_ch counted 784.2 over its limit 761; cause not investigated",
+  "pattern removal/assignment/arithmetic text with expansions now allocates the nested word's pieces on the heap (one malloc per such call); no bench row covers it"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "fnmatch FNM_EXTMATCH groups and wordexp words/arithmetic nest as deep as the text, on heap stacks (caps removed: fnmatch 64 groups, wordexp 128 levels, 512 parentheses in one arithmetic text)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants (6 HL-13, 6 HL-14) and the deep-nesting tests fnmatch_deep_nesting.rs, wordexp_deep_nesting.rs",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt wordexp_arith (Zen 1) per call, fix-forward: evaluator stack tuning",
+   "before": 4141.1,
+   "after": 4556.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt wordexp_quoted",
+   "before": 3784.4,
+   "after": 4043.8,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt wordexp_plain_8",
+   "before": 3782.9,
+   "after": 3921.9,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt wordexp_tilde_var",
+   "before": 4104.1,
+   "after": 4199.9,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt wordexp_split_var",
+   "before": 3798.5,
+   "after": 3847.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_param_forms",
+   "before": 6245.6,
+   "after": 5940.9,
+   "unit": "instr/call",
+   "measured": true
+  }
+ ],
+ "improvement": "a counts job over an instruction limit ended green with no limit line (rows chosen by --rows wildcards); the bench should print the limit verdict for every counted limited row, or say it checked none",
+ "next_step": "count origin/next's fnmatch_names_ch (exact rows) to see whether HL-13 moved it; then tune the wordexp evaluator stack (InlineVec::new fills all slots, push out of line); recount, plants-3, gate",
+ "report_file": "handoff/PATTERN-NESTING.md",
+ "jobs": [
+  "keke:pattern-nesting-2-counts-after2",
+  "keke:pattern-nesting-2-plants2"
+ ]
+}
