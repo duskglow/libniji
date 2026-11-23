@@ -1401,75 +1401,75 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
     /// The end of a pattern removal (`op`): the value `v` without the part that the pattern of
     /// the expanded word `w` matches, into `p` as `kind`.
     fn trim(&mut self, op: Op, kind: Kind, v: &[u8], w: &Pieces, p: &mut Pieces) -> Wr<()> {
-                        let pat = Pattern::new(&w.pattern()?, 0, self.loc)?;
-                        let bounds = self.char_bounds(v)?;
-                        let n = bounds.len();
-                        let mut cut: Option<(usize, usize)> = None;
-                        let loc = self.loc;
-                        let mut try_cut = |a: usize, b: usize| -> Result<bool> {
-                            if pat.matches(v.get(a..b).unwrap_or(&[]), loc)? {
-                                cut = Some((a, b));
-                                return Ok(true);
-                            }
-                            Ok(false)
-                        };
-                        let len = v.len();
-                        // Prefix removal: one pass over the value tells which prefixes match
-                        // (a match per prefix was quadratic in the value's length).
-                        let prefix_ends = if matches!(op, Op::PrefixShort | Op::PrefixLong) { pat.prefix_matches(v, loc)? } else { None };
-                        // Suffix removal likewise: one backward pass for all suffixes.
-                        let suffix_starts = if matches!(op, Op::SuffixShort | Op::SuffixLong) { pat.suffix_matches(v, loc)? } else { None };
-                        match op {
-                            Op::PrefixShort | Op::PrefixLong if prefix_ends.is_some() => {
-                                let hit = |&e: &usize| prefix_ends.as_ref().and_then(|m| m.get(e)).copied().unwrap_or(false);
-                                let found = if matches!(op, Op::PrefixShort) { bounds.iter().find(|&e| hit(e)) } else { bounds.iter().rev().find(|&e| hit(e)) };
-                                if let Some(&e) = found {
-                                    cut = Some((0, e));
-                                }
-                            }
-                            Op::SuffixShort | Op::SuffixLong if suffix_starts.is_some() => {
-                                let hit = |&s: &usize| suffix_starts.as_ref().and_then(|m| m.get(s)).copied().unwrap_or(false);
-                                // Shortest = the latest start, longest = the earliest.
-                                let found = if matches!(op, Op::SuffixShort) { bounds.iter().rev().find(|&s| hit(s)) } else { bounds.iter().find(|&s| hit(s)) };
-                                if let Some(&s) = found {
-                                    cut = Some((s, len));
-                                }
-                            }
-                            Op::PrefixShort => {
-                                for &e in bounds.iter() {
-                                    if try_cut(0, e)? {
-                                        break;
-                                    }
-                                }
-                            }
-                            Op::PrefixLong => {
-                                for k in (0..n).rev() {
-                                    if try_cut(0, bounds.get(k).copied().unwrap_or(0))? {
-                                        break;
-                                    }
-                                }
-                            }
-                            Op::SuffixShort => {
-                                for k in (0..n).rev() {
-                                    if try_cut(bounds.get(k).copied().unwrap_or(0), len)? {
-                                        break;
-                                    }
-                                }
-                            }
-                            _ => {
-                                for &s in bounds.iter() {
-                                    if try_cut(s, len)? {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        let rest: &[u8] = match cut {
-                            Some((0, b)) if matches!(op, Op::PrefixShort | Op::PrefixLong) => v.get(b..).unwrap_or(&[]),
-                            Some((a, _)) if matches!(op, Op::SuffixShort | Op::SuffixLong) => v.get(..a).unwrap_or(&[]),
-                            _ => v,
-                        };
-                        p.push(rest, kind)?;
+        let pat = Pattern::new(&w.pattern()?, 0, self.loc)?;
+        let bounds = self.char_bounds(v)?;
+        let n = bounds.len();
+        let mut cut: Option<(usize, usize)> = None;
+        let loc = self.loc;
+        let mut try_cut = |a: usize, b: usize| -> Result<bool> {
+            if pat.matches(v.get(a..b).unwrap_or(&[]), loc)? {
+                cut = Some((a, b));
+                return Ok(true);
+            }
+            Ok(false)
+        };
+        let len = v.len();
+        // Prefix removal: one pass over the value tells which prefixes match
+        // (a match per prefix was quadratic in the value's length).
+        let prefix_ends = if matches!(op, Op::PrefixShort | Op::PrefixLong) { pat.prefix_matches(v, loc)? } else { None };
+        // Suffix removal likewise: one backward pass for all suffixes.
+        let suffix_starts = if matches!(op, Op::SuffixShort | Op::SuffixLong) { pat.suffix_matches(v, loc)? } else { None };
+        match op {
+            Op::PrefixShort | Op::PrefixLong if prefix_ends.is_some() => {
+                let hit = |&e: &usize| prefix_ends.as_ref().and_then(|m| m.get(e)).copied().unwrap_or(false);
+                let found = if matches!(op, Op::PrefixShort) { bounds.iter().find(|&e| hit(e)) } else { bounds.iter().rev().find(|&e| hit(e)) };
+                if let Some(&e) = found {
+                    cut = Some((0, e));
+                }
+            }
+            Op::SuffixShort | Op::SuffixLong if suffix_starts.is_some() => {
+                let hit = |&s: &usize| suffix_starts.as_ref().and_then(|m| m.get(s)).copied().unwrap_or(false);
+                // Shortest = the latest start, longest = the earliest.
+                let found = if matches!(op, Op::SuffixShort) { bounds.iter().rev().find(|&s| hit(s)) } else { bounds.iter().find(|&s| hit(s)) };
+                if let Some(&s) = found {
+                    cut = Some((s, len));
+                }
+            }
+            Op::PrefixShort => {
+                for &e in bounds.iter() {
+                    if try_cut(0, e)? {
+                        break;
+                    }
+                }
+            }
+            Op::PrefixLong => {
+                for k in (0..n).rev() {
+                    if try_cut(0, bounds.get(k).copied().unwrap_or(0))? {
+                        break;
+                    }
+                }
+            }
+            Op::SuffixShort => {
+                for k in (0..n).rev() {
+                    if try_cut(bounds.get(k).copied().unwrap_or(0), len)? {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                for &s in bounds.iter() {
+                    if try_cut(s, len)? {
+                        break;
+                    }
+                }
+            }
+        }
+        let rest: &[u8] = match cut {
+            Some((0, b)) if matches!(op, Op::PrefixShort | Op::PrefixLong) => v.get(b..).unwrap_or(&[]),
+            Some((a, _)) if matches!(op, Op::SuffixShort | Op::SuffixLong) => v.get(..a).unwrap_or(&[]),
+            _ => v,
+        };
+        p.push(rest, kind)?;
         Ok(())
     }
 
@@ -2207,7 +2207,6 @@ pub mod arith {
                 _ => NO_LEVEL,
             }
         }
-
     }
 
     /// What reads an operand next in [`P::run`].
@@ -2242,35 +2241,35 @@ pub mod arith {
     /// zero and a bad shift.
     fn combine(op: Code, lhs: i64, rhs: i64) -> core::result::Result<i64, WordError> {
         Ok(match op {
-                    OR => i64::from(lhs != 0 || rhs != 0),
-                    AND => i64::from(lhs != 0 && rhs != 0),
-                    BIT_OR => lhs | rhs,
-                    BIT_XOR => lhs ^ rhs,
-                    BIT_AND => lhs & rhs,
-                    EQ => i64::from(lhs == rhs),
-                    NE => i64::from(lhs != rhs),
-                    LT => i64::from(lhs < rhs),
-                    LE => i64::from(lhs <= rhs),
-                    GT => i64::from(lhs > rhs),
-                    GE => i64::from(lhs >= rhs),
-                    SHL | SHR => {
-                        let n = u32::try_from(rhs).ok().filter(|n| *n < 64).ok_or(WordError::Syntax)?;
-                        if op == SHR {
-                            lhs >> n
-                        } else {
-                            let r = lhs << n;
-                            if r >> n != lhs {
-                                return Err(WordError::Syntax);
-                            }
-                            r
-                        }
+            OR => i64::from(lhs != 0 || rhs != 0),
+            AND => i64::from(lhs != 0 && rhs != 0),
+            BIT_OR => lhs | rhs,
+            BIT_XOR => lhs ^ rhs,
+            BIT_AND => lhs & rhs,
+            EQ => i64::from(lhs == rhs),
+            NE => i64::from(lhs != rhs),
+            LT => i64::from(lhs < rhs),
+            LE => i64::from(lhs <= rhs),
+            GT => i64::from(lhs > rhs),
+            GE => i64::from(lhs >= rhs),
+            SHL | SHR => {
+                let n = u32::try_from(rhs).ok().filter(|n| *n < 64).ok_or(WordError::Syntax)?;
+                if op == SHR {
+                    lhs >> n
+                } else {
+                    let r = lhs << n;
+                    if r >> n != lhs {
+                        return Err(WordError::Syntax);
                     }
-                    ADD => lhs.checked_add(rhs).ok_or(WordError::Syntax)?,
-                    SUB => lhs.checked_sub(rhs).ok_or(WordError::Syntax)?,
-                    MUL => lhs.checked_mul(rhs).ok_or(WordError::Syntax)?,
-                    DIV => lhs.checked_div(rhs).ok_or(WordError::Syntax)?,
-                    REM => lhs.checked_rem(rhs).ok_or(WordError::Syntax)?,
-                    _ => return Err(WordError::Syntax),
+                    r
+                }
+            }
+            ADD => lhs.checked_add(rhs).ok_or(WordError::Syntax)?,
+            SUB => lhs.checked_sub(rhs).ok_or(WordError::Syntax)?,
+            MUL => lhs.checked_mul(rhs).ok_or(WordError::Syntax)?,
+            DIV => lhs.checked_div(rhs).ok_or(WordError::Syntax)?,
+            REM => lhs.checked_rem(rhs).ok_or(WordError::Syntax)?,
+            _ => return Err(WordError::Syntax),
         })
     }
 
