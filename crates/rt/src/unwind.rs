@@ -28,6 +28,7 @@
 //! async-signal-safe. Working storage is on the stack and bounded (a row is 17 rules of 16
 //! bytes; at most [`REMEMBER_DEPTH`] remembered rows; an expression stack of [`EXPR_STACK`]).
 
+use core::borrow::Borrow;
 use core::cell::Cell;
 
 use niji_kernel::mem::{IoVecMut, RemoteIoVec};
@@ -66,6 +67,8 @@ const LINE: usize = 64;
 
 /// `DW_EH_PE_omit`.
 const PE_OMIT: u8 = 0xff;
+/// The pointer encoding of signed 4-byte values relative to the `.eh_frame_hdr`.
+const PE_DATAREL_SDATA4: u8 = 0x3b;
 
 // ------------------------------------------------------------------------------ numbers
 
@@ -239,21 +242,24 @@ impl<'a> Object<'a> {
         };
         let count = c.pointer(count_enc, Some(hdr))?;
         let table = c.addr();
-        let row = |i: usize| -> Option<(usize, usize)> {
-            let mut r = self.at(table.checked_add(i.checked_mul(entry)?)?)?;
-            Some((r.pointer(table_enc, Some(hdr))?, r.pointer(table_enc, Some(hdr))?))
+        let fde = if table_enc == PE_DATAREL_SDATA4 {
+            // The encoding linkers write: the whole table taken once as a slice (it must fit in
+            // its segment), its fields read straight from it.
+            let rows = self.bytes(table)?.get(..count.checked_mul(8)?)?;
+            let field = |at: usize| -> Option<usize> {
+                let b = rows.get(at..at.checked_add(4)?)?.try_into().ok()?;
+                Some(hdr.wrapping_add_signed(isize::try_from(i32::from_le_bytes(b)).ok()?))
+            };
+            let i = last_at_or_below(count, pc, |i| field(i.checked_mul(8)?))?;
+            field(i.checked_mul(8)?.checked_add(4)?)?
+        } else {
+            let row = |i: usize| -> Option<(usize, usize)> {
+                let mut r = self.at(table.checked_add(i.checked_mul(entry)?)?)?;
+                Some((r.pointer(table_enc, Some(hdr))?, r.pointer(table_enc, Some(hdr))?))
+            };
+            let i = last_at_or_below(count, pc, |i| Some(row(i)?.0))?;
+            row(i)?.1
         };
-        // The last entry whose start is at or below pc.
-        let (mut lo, mut hi) = (0usize, count);
-        while lo < hi {
-            let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-            if row(mid)?.0 <= pc {
-                lo = mid.wrapping_add(1);
-            } else {
-                hi = mid;
-            }
-        }
-        let (_, fde) = row(lo.checked_sub(1)?)?;
         self.fde(fde, None).filter(|f| f.covers(pc))
     }
 
@@ -555,6 +561,20 @@ impl<'a> Cursor<'a> {
     }
 }
 
+/// The last of `count` entries sorted by start (`start(i)`) whose start is at or below `pc`.
+fn last_at_or_below(count: usize, pc: usize, start: impl Fn(usize) -> Option<usize>) -> Option<usize> {
+    let (mut lo, mut hi) = (0usize, count);
+    while lo < hi {
+        let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
+        if start(mid)? <= pc {
+            lo = mid.wrapping_add(1);
+        } else {
+            hi = mid;
+        }
+    }
+    lo.checked_sub(1)
+}
+
 /// The size of a fixed-size pointer encoding.
 fn fixed_size(enc: u8) -> Option<usize> {
     match enc & 0x0f {
@@ -768,11 +788,16 @@ impl Row {
 /// `target` or the instructions end. `initial` is the CIE's row (for `DW_CFA_restore`), `None`
 /// while running the CIE's own instructions.
 fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, mut loc: usize, target: usize) -> Option<()> {
-    let mut saved = [*row; REMEMBER_DEPTH];
+    // Remembered rows are written only when an instruction remembers one: most runs never do,
+    // and a row is a few hundred bytes.
+    let mut saved: [Option<Row>; REMEMBER_DEPTH] = [None; REMEMBER_DEPTH];
     let mut depth = 0usize;
     let factored = |n: u64| i64::try_from(n).ok()?.checked_mul(cie.data_align);
     let factored_sf = |n: i64| n.checked_mul(cie.data_align);
-    let restore = |reg: u64| initial.map_or(Row::new(cie.ra).rule(reg), |r| r.rule(reg));
+    let restore = |reg: u64| match initial {
+        Some(r) => r.rule(reg),
+        None => Row::new(cie.ra).rule(reg),
+    };
     while !c.done() {
         let op = c.u8()?;
         let low = u64::from(op & 0x3f);
@@ -823,13 +848,13 @@ fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, m
                     None
                 }
                 0x0a => {
-                    *saved.get_mut(depth)? = *row;
+                    *saved.get_mut(depth)? = Some(*row);
                     depth = depth.saturating_add(1);
                     None
                 }
                 0x0b => {
                     depth = depth.checked_sub(1)?;
-                    *row = *saved.get(depth)?;
+                    *row = (*saved.get(depth)?)?;
                     None
                 }
                 0x0c => {
@@ -1104,12 +1129,13 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
 /// with the start of the function covering it (`None` where no object describes it, which
 /// ends the walk); it returns whether to go on.
 fn walk<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<usize>) -> bool) {
-    walk_with(|look| locate(objects, look).map(|(o, f)| (*o, f)), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
+    walk_with(|look| locate(objects, look), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
 }
 
 /// [`walk`] with the object holding an address and the FDE covering it found by `locate`, and
-/// the FDE itself passed to `visit` (the object is copied: a few hundred bytes per frame).
-fn walk_with<'a, M: Memory>(mut locate: impl FnMut(usize) -> Option<(Object<'a>, Fde<'a>)>, mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<&Fde<'a>>) -> bool) {
+/// the FDE itself passed to `visit`. The object is borrowed where the caller holds it (an
+/// object is a few hundred bytes: no copy per frame).
+fn walk_with<'a, O: Borrow<Object<'a>>, M: Memory>(mut locate: impl FnMut(usize) -> Option<(O, Fde<'a>)>, mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<&Fde<'a>>) -> bool) {
     let mut regs = start;
     let mut exact = false;
     let mut first = true;
@@ -1122,7 +1148,7 @@ fn walk_with<'a, M: Memory>(mut locate: impl FnMut(usize) -> Option<(Object<'a>,
         }
         first = false;
         let Some((obj, fde)) = found else { return };
-        let Some(next) = step(&obj, &fde, &regs, mem, look) else { return };
+        let Some(next) = step(obj.borrow(), &fde, &regs, mem, look) else { return };
         if next.get(RA) == regs.get(RA) && next.get(RSP) == regs.get(RSP) {
             return; // no progress
         }
@@ -1181,8 +1207,8 @@ pub fn caller<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, inside: &
 pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, skip: &[usize], mem: &M, start: Regs, max: usize) -> bool {
     let (mut seen, mut found) = (0usize, false);
     let locate = |look: usize| match locate(objects, look) {
-        Some((o, f)) => Some((*o, f)),
-        None => find(look).and_then(|o| Some((o, o.fde_for(look)?))),
+        Some((o, f)) => Some((Held::Listed(o), f)),
+        None => find(look).and_then(|o| Some((Held::Found(o), o.fde_for(look)?))),
     };
     walk_with(locate, mem, start, |_, fde| {
         found = fde.is_some_and(|f| f.handler && !skip.contains(&f.begin));
@@ -1190,6 +1216,21 @@ pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut
         !found && seen < max
     });
     found
+}
+
+/// An object a walk uses: one of the caller's (borrowed) or one found for a frame (owned).
+enum Held<'o, 'a> {
+    Listed(&'o Object<'a>),
+    Found(Object<'a>),
+}
+
+impl<'a> Borrow<Object<'a>> for Held<'_, 'a> {
+    fn borrow(&self) -> &Object<'a> {
+        match self {
+            Held::Listed(o) => o,
+            Held::Found(o) => o,
+        }
+    }
 }
 
 #[cfg(test)]
