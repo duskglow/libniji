@@ -235,8 +235,8 @@ fn find_need(find: &Path, dir: &Path, lo: u64) -> u64 {
     };
     let (mut lo, mut hi) = (lo, 1 << 20);
     assert!(run(hi), "find {} fails under ulimit -v {hi} with the products", dir.display());
-    while hi - lo > 16 {
-        let mid = (lo + hi) / 2;
+    while hi.saturating_sub(lo) > 16 {
+        let mid = lo.midpoint(hi);
         if run(mid) {
             hi = mid;
         } else {
