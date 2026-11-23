@@ -75,6 +75,9 @@ mod tests {
         }
     }
 
+    /// (flags, header, body of the test function, symbols it must reference, symbols it must not)
+    type Shape = (&'static str, &'static str, &'static str, &'static [&'static str], &'static [&'static str]);
+
     // Spec 12.5 (s12_5_c_1 getchar, s12_5_c_5 getline/getdelim, s12_5_c_9 the _unlocked forms), 6.2 (s6_2_c_3 mbrlen
     // is mbrtowc), C 7.22.1.1-2 (atof/atoi/atol/atoll are the strtod/strtol/strtoll calls) and C 7.22.5.1 (bsearch);
     // callsites.tsv's rows for these names. Compiled against libniji's headers, a call references what the
@@ -87,7 +90,7 @@ mod tests {
         let Some(h) = Headers::new("shape", &["gcc", "nm"]) else { return };
         // (flags, headers, body of `long f (FILE *fp, const char *s, char **lp, size_t *np, mbstate_t *ps)`,
         //  symbols it must reference, symbols it must not)
-        let cases: &[(&str, &str, &str, &[&str], &[&str])] = &[
+        let cases: &[Shape] = &[
             ("-O2", "stdio.h", "return getchar ();", &["getc", "stdin"], &["getchar"]),
             ("-O0", "stdio.h", "return getchar ();", &["getchar"], &["getc"]),
             ("-Os", "stdio.h", "return getchar ();", &["getchar"], &["getc"]),
