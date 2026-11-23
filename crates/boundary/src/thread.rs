@@ -1405,7 +1405,17 @@ pub(crate) fn join(tp: usize, how: JoinWait<'_>) -> KResult<usize> {
         JoinWait::Try => {
             if b.tid.load(Acquire) == 0 { Ok(()) } else { Err(Errno::EBUSY) }
         }
-        JoinWait::Until(c, t) => wait_tid(b, Some((c, t)), true),
+        // A thread that has ended is joined whatever the deadline; one that still runs makes
+        // an invalid tv_nsec EINVAL, whatever tv_sec (§22.1; D-22.26).
+        JoinWait::Until(c, t) => {
+            if b.tid.load(Acquire) == 0 {
+                Ok(())
+            } else if !(0..1_000_000_000).contains(&t.nsec) {
+                Err(Errno::EINVAL)
+            } else {
+                wait_tid(b, Some((c, t)), true)
+            }
+        }
     };
     me.joining.store(0, Release);
     if let Err(e) = waited {

@@ -269,6 +269,11 @@ pub fn mutex_getprioceiling(m: MutexParts<'_>) -> KResult<c_int> {
 
 /// `pthread_mutex_setprioceiling`: the old ceiling.
 pub fn mutex_setprioceiling(m: MutexParts<'_>, ceiling: c_int) -> KResult<c_int> {
+    // The same range as `pthread_mutexattr_setprioceiling` (§22.4: EINVAL "out of range").
+    let (lo, hi) = (CSys.sched_get_priority_min(SCHED_FIFO)?, CSys.sched_get_priority_max(SCHED_FIFO)?);
+    if ceiling < lo || ceiling > hi {
+        return Err(Errno::EINVAL);
+    }
     let c = u32::try_from(ceiling).map_err(|_| Errno::EINVAL)?;
     Ok(c_int::try_from(mutex_of(m)?.set_prioceiling(&ThreadCtx, c)?).unwrap_or(0))
 }
