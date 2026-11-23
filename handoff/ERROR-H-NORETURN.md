@@ -38,10 +38,12 @@ non-git role dir, so it never ran).
   workspace clippy -D warnings clean.
 * error-h-noreturn-plants2: 3 plants, 3 CAUGHT, 0 WARN (header noreturn back; error_at_line wrapper always noreturn;
   table nonzero:1 -> 1 caught by headers-gen --check).
-* Superseded: error-h-noreturn-gate (trace red: clause-prefixed test name), error-h-noreturn-plants (killed, older
+* FINAL (content of d57798fdf): error-h-noreturn-gate3 direct gate 716 passed, 0 failed, conformance 148 passed,
+  peak 1.8G; error-h-noreturn-plants3 3/3 CAUGHT, 0 WARN; precheck GREEN (34 checks).
+* Superseded: error-h-noreturn-gate2, error-h-noreturn-s19, error-h-noreturn-plants2 (older content), error-h-noreturn-gate (trace red: clause-prefixed test name), error-h-noreturn-plants (killed, older
   head), error-h-noreturn-hgen (header regeneration only).
 
 ## Next step
-If gate2/plants2 are green: done (report handoff/reports/ERROR-H-NORETURN.json). Optional follow-up: rerun
+Done (report handoff/reports/ERROR-H-NORETURN.json). Optional follow-up: rerun
 `python3 spec/tools/attr_probe.py table` and diff against spec/abi/diagattrs.tsv on a build host; clang matrix
 when a host has clang.

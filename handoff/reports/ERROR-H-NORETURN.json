@@ -4,10 +4,10 @@
  "tokens": null,
  "result": "error.h declares error/error_at_line noreturn only for a nonzero constant status (GCC wrapper); status-0 and run-time-status calls return; -O2 conformance test against libniji's headers; 3/3 plants caught",
  "branch": "task/error-h-noreturn",
- "head": null,
+ "head": "d57798fdf",
  "gate": {
-  "affected": "gate2: 709 passed / 1 failed (s19 probe test, fixed in b2286ec01; rerun error-h-noreturn-s19 ok)",
-  "peak": "3.3G"
+  "affected": "716 passed / 0 failed (8 suites), conformance 148 passed",
+  "peak": "1.8G"
  },
  "accepted_first_attempt": null,
  "rulings": [],
@@ -46,8 +46,7 @@
  "next_step": "land; optionally rerun attr_probe.py table diff and a clang matrix when a host has clang",
  "report_file": "handoff/ERROR-H-NORETURN.md",
  "jobs": [
-  "keke:error-h-noreturn-gate2",
-  "keke:error-h-noreturn-s19",
-  "keke:error-h-noreturn-plants2"
+  "keke:error-h-noreturn-gate3",
+  "keke:error-h-noreturn-plants3"
  ]
 }
