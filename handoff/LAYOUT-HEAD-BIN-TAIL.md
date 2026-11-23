@@ -1,8 +1,8 @@
 # LAYOUT-HEAD-BIN-TAIL: the head window bin no longer depends on which function sorts last
 
 State: branch `task/layout-head-bin-tail`, code commit `78527098f` (on origin/next `0495c4684`); this note and
-`handoff/reports/LAYOUT-HEAD-BIN-TAIL.json` in the commit after it. Decision in force: **D-X.162** (row in
-`plan/07-decisions/x-implementation-decisions.md`), on top of D-X.103 / D-X.144 (window bins, phase tie-break).
+`handoff/reports/LAYOUT-HEAD-BIN-TAIL.json` in the commit after it. Decision in force: **D-X.162** (record
+`records/decisions/D-X/D-X.162.toml`; the train regenerates the view), on top of D-X.103 / D-X.144 (window bins, phase tie-break).
 
 ## Cause (reduced, no printf needed)
 
