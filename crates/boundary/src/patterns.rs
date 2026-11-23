@@ -474,7 +474,9 @@ impl Words for Collected {
     }
 }
 
-/// `wordexp(words, we, flags)`: 0 or a `WRDE_*` failure.
+/// `wordexp(words, we, flags)`: 0 or a `WRDE_*` failure. Inlined into its one caller, the
+/// export: one call level, one prologue (about 30 instructions a call otherwise).
+#[inline]
 pub fn wordexp(words: KResult<&[u8]>, we: Option<&mut wordexp_t>, flags: c_int) -> c_int {
     let (Ok(text), Some(w)) = (words, we) else {
         errno::set(Errno::EFAULT);
