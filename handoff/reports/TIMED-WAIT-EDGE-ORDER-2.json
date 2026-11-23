@@ -1,0 +1,22 @@
+{"task": "TIMED-WAIT-EDGE-ORDER-2", "model": "opus", "tokens": null,
+ "result": "Timed waits check an invalid tv_nsec only when they would block (free mutexes of every kind and ended threads taken, semaphores EINVAL as the reference); PP lock kept POSIX (differences row); setprioceiling range checked",
+ "branch": "task/timed-wait-edge-order-2", "head": "7d6d6207d",
+ "gate": {"affected": "15 suites (13 ok, 2 failed): 10275 passed, 14 failed (7 tests x2, the 7 mei host locale failures of #7846, none in this change's tests), 1018 ignored; conformance 59 passed; plants2 6 CAUGHT", "peak": "8.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Ruling text said a free object is taken without a timeout check 'as the reference'; for semaphores and rwlocks the reference checks first (EINVAL when free): libniji matches the reference there (POSIX allows both), per the brief's acceptance rule (every cell equals the reference or is the ruled EINVAL case)",
+   "Pre-existing, not changed: a fresh mutex attribute's ceiling, and a PP mutex's never-set ceiling, read 0 in libniji and 1 (SCHED_FIFO minimum) in the reference",
+   "libniji's PP lock does not raise the caller's priority to the ceiling (spec 22.4 names sched_setscheduler); not testable unprivileged",
+   "Rule slip: one `sed -i` edit of records/decisions/D-22/D-22.26.toml (host class wording); it ran, not refused"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "timed lock of a free robust or PI mutex with an invalid tv_nsec (was EINVAL), timed join of an ended thread with an invalid tv_nsec (was EINVAL), sem_timedwait on a free semaphore with an invalid tv_nsec (took it): now as the reference; 22 of 46 probe cells", "before": 46, "after": 24, "unit": "differing probe cells (remaining 24 = ruled difference, row + COMPAT-42)", "measured": true},
+   {"kind": "correctness", "what": "pthread_mutex_setprioceiling with a ceiling outside SCHED_FIFO's range stored it; now EINVAL", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "s22_past_deadline checked cells (free invalid-deadline cells and the 24 prio-protect cells back in the check), 1 rt test, 1 s22_more check, 6 plants", "before": 136, "after": 204, "unit": "cells", "measured": true}
+ ],
+ "improvement": "The plants file splits on ' | ': a lit: pattern containing ' | ' (Rust bit-or with spaces) breaks a baseline after a 7-minute copy build; the plants tool could validate field counts before building",
+ "next_step": "Land; then a small story for the default PP ceiling (0 vs 1)",
+ "report_file": "handoff/TIMED-WAIT-EDGE-ORDER.md",
+ "jobs": ["mei:timed-wait-edge-order-2-gate1", "mei:timed-wait-edge-order-2-plants2"]}
