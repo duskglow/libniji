@@ -868,6 +868,27 @@ int main(int argc, char **argv)
             fail(fns[k].name);
         MEASURE(fns[k].name, 250000, fnmatch_fn(fns[k].pat, fns[k].paths ? paths[i % NAMES] : names[i % NAMES], fns[k].flags) == 0);
     }
+    /* Non-ASCII (UTF-8) names alone, under the name patterns above (one call per pattern/name pair,
+     * all 56 pairs in turn): the rows above average over names that are almost all ASCII, so a
+     * per-call cost that only UTF-8 names pay is visible here. validation/percall/fnmatch_utf8.c
+     * counts the same calls per call. */
+    {
+        static const char *const u8_names[8] = {
+            "r\xc3\xa9sum\xc3\xa9.pdf", "Gr\xc3\xbc\xc3\x9f" "e.txt", "na\xc3\xafve.c", "\xc3\x9c" "bersicht.ods",
+            "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e.txt", "\xce\x95\xce\xbb\xce\xbb\xce\xb7\xce\xbd\xce\xb9\xce\xba\xce\xac.c",
+            "caf\xc3\xa9.h", "\xd0\x9e\xd1\x82\xd1\x87\xd1\x91\xd1\x82.txt",
+        };
+        static const struct { const char *pat; int flags; } u8_pats[7] = {
+            {"*.c", 0}, {"*.[ch]", 0}, {"lib*.so*", 0}, {"*", FNM_PERIOD}, {"????.txt", 0}, {"[[:upper:]]*", 0},
+            {"*.txt", FNM_CASEFOLD},
+        };
+        long hits = 0;
+        for (long j = 0; j < 56; j++)
+            hits += fnmatch_fn(u8_pats[j % 7].pat, u8_names[j % 8], u8_pats[j % 7].flags) == 0;
+        if (hits == 0)
+            fail("fnmatch_names_utf8");
+        MEASURE("fnmatch_names_utf8", 250000, fnmatch_fn(u8_pats[i % 7].pat, u8_names[i % 8], u8_pats[i % 7].flags) == 0);
+    }
 
     /* ---- wordexp (WRDE_NOCMD: nothing runs a shell) */
     static const struct { const char *name, *text; size_t want; } wes[] = {
