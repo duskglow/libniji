@@ -530,6 +530,14 @@ fn s7_4_c_2() {
     assert_eq!(text(x::__nl_langinfo_l(DAY_1, l)), "Sunday");
     assert_eq!(langinfo(0x7FFF_0000), "", "an unknown item: the empty string");
     x::freelocale(l);
+    // "C" LC_IDENTIFICATION (D-7.22): the reference's TERRITORY (perl's Langinfo.t checks it),
+    // and the contact fields of an individual (items 2..6) empty (D-7.10). The other items are
+    // compared with the host's by locale_products.
+    let ident = |i: i32| langinfo((12 << 16) | i);
+    assert_eq!(ident(8), "ISO", "_NL_IDENTIFICATION_TERRITORY");
+    for i in 2..=6 {
+        assert_eq!(ident(i), "", "contact field {i} is empty");
+    }
 }
 
 #[test]
