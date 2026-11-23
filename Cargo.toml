@@ -46,6 +46,7 @@ members = [
     "crates/mathtools",
     "crates/locale",
     "crates/charmaps",
+    "crates/collate-root",
     "xtask",
 ]
 # Product crate: a separate build (needs the phase-4 entry point, allocator and panic handler).
@@ -68,6 +69,7 @@ default-members = [
     "crates/mathtools",
     "crates/locale",
     "crates/charmaps",
+    "crates/collate-root",
     "xtask",
 ]
 
@@ -94,6 +96,7 @@ niji-boundary = { path = "crates/boundary" }
 niji-mathtools = { path = "crates/mathtools" }
 niji-locale = { path = "crates/locale" }
 niji-charmaps = { path = "crates/charmaps" }
+niji-collate-root = { path = "crates/collate-root" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"             # only crates/boundary overrides this (to deny + audited allows)
