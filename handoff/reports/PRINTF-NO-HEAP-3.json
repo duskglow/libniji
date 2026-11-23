@@ -1,5 +1,5 @@
 {"task": "PRINTF-NO-HEAP-3", "model": "opus", "tokens": null,
- "result": "PENDING JOBS: printf_no_heap.rs folded into s12_stdio_symbols (one test binary fewer) with a registered-conversion case that now catches the planned-path plant; plants 3/3; gate-4 red only on mei's six #7846 locale tests; every printf row at or below base (cbench-3, printf code unchanged since)",
+ "result": "INCOMPLETE: HOST-CHANGE: printf_no_heap.rs folded into s12_stdio_symbols (one test binary fewer) with a registered-conversion case that now catches the planned-path plant; plants 3/3; gate-4 and hot-text-4 red only through mei's #7846 (no locale archive), as in leg 3; every printf row at or below base (cbench-3, printf code unchanged since)",
  "branch": "task/printf-no-heap-3", "head": "eb197a9be",
  "gate": {"affected": "11863 passed / 12 failed (the six #7846 locale-dependent tests in both passes: catalogs_products, locale_data x2, locale_products, s7_2_f_0, printf_corpus_products)", "peak": "12G"},
  "accepted_first_attempt": null,
@@ -18,6 +18,6 @@
   {"kind": "coverage", "what": "test binaries in crates/boundary/tests (printf_no_heap folded into s12_stdio_symbols)", "before": 1, "after": 0, "unit": "separate no-heap test binaries", "measured": true},
   {"kind": "coverage", "what": "plant nh3-planned-skips-hooks caught by a Rust test (no_heap::registered_conversion_is_written_by_its_handler), before only by conformance s12_registry; 3/3 plants caught", "before": null, "after": 3, "unit": "plants", "measured": true}],
  "improvement": "kill-label ended the jobrun row (rc 124) but not the job's inner command once it held its slot; it ran on as an orphan of PID 1 in the role and blocked the next sync: kill the job's whole scope or cgroup",
- "next_step": "collect printf-no-heap-3-hot-text-4 and printf-no-heap-3-xtask-test-4 on mei (red expected only through #7846); land condition otherwise met",
+ "next_step": "coordinator: restore mei's locale archive (#7846) or rule the build hosts' locale set, then rerun gate, hot-text and cargo xtask test on eb197a9be; printf-no-heap-3-xtask-test-4 was still running at hand-back",
  "report_file": "handoff/PRINTF-NO-HEAP-3.md",
  "jobs": ["printf-no-heap-3-lint-4", "printf-no-heap-3-plants-4", "printf-no-heap-3-gate-4", "printf-no-heap-3-hot-text-4", "printf-no-heap-3-xtask-test-4"]}

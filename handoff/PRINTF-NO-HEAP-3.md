@@ -26,8 +26,10 @@ land bar). Report: handoff/reports/PRINTF-NO-HEAP-3.json.
   tests below in both passes (catalogs_equal_the_reference, find_cached_answers_every_category_as_find,
   locale_name_found_before_its_alias, locale_behaviour_equals_the_reference, s7_2_f_0,
   printf_corpus_equals_the_reference); s12_stdio_symbols (with `no_heap`) green; conformance 137/137.
-- chain4.sh (mei ~/work/printf-no-heap-3/), after the gate: `printf-no-heap-3-hot-text-4`, then
-  `printf-no-heap-3-xtask-test-4` (pending at hand-back, 09:25Z). Expected red only through host change #7846
+- `printf-no-heap-3-hot-text-4` (chain4.sh): rc 1, 32 passed, 1 failed: init_data_clusters_hold_at_every_text_phase,
+  tool 59/60/59/59 at cold 0x800/0x2000/0x8000/0xF000, the same as leg 3's branch numbers (#7846, below).
+- `printf-no-heap-3-xtask-test-4` (chain4.sh, mei ~/work/printf-no-heap-3/): still running at hand-back (09:33Z).
+  Expected red only through host change #7846
   (leg 3's gate-3: locale_data (2), s07_locale_clauses s7_2_f_0, locale_products, printf_corpus_products,
   catalogs_products; hot_text `init_data_clusters_hold_at_every_text_phase`, tool 60 at cold 0x2000). Any other red
   is this story's.
