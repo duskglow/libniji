@@ -1,74 +1,68 @@
 # PATTERN-NESTING handoff (HL-13 fnmatch, HL-14 wordexp nesting)
 
-State: branch `task/pattern-nesting-2` (PATTERN-NESTING-2, cut from `task/pattern-nesting`), role
-keke:~/w/n1 (Zen 1 build host). Plants file: `handoff/PATTERN-NESTING-2-plants.txt` (12 plants:
-6 HL-13, 6 HL-14). Scratch: `~/w/.scratch/PATTERN-NESTING-2/`; on the host `~/work/pattern-nesting-2/`.
-Code head: 11b46b216 (unchanged in leg 3; leg 3 only measured and wrote this note and the report).
+State: branch `task/pattern-nesting-3` (PATTERN-NESTING-3, continues `task/pattern-nesting-2`), role
+shiki:~/w/sh2 (Haswell-EP build host, E5-2697 v3; role dir on /mnt/zram). Code head 7d27069b3.
+Plants file: `handoff/PATTERN-NESTING-3-plants.txt` (17: the 12 of PATTERN-NESTING-2, `we-short-circuit` and
+`we-eval-cap` re-aimed at the new evaluator, plus 5 new). Scratch: `~/w/.scratch/PATTERN-NESTING-3/` (cmp.py,
+cmp_trace.py, trace.sh, counters-*.tsv, traces); on the host `~/work/pattern-nesting-3/`.
 
-## Verdict at the end of run PATTERN-NESTING-2: INCOMPLETE (do not land yet)
+## Ruling in force
 
-Both limits are removed and tested, but wordexp bench rows are still slower than base, and one fnmatch
-row is above its Zen 1 instruction limit (owner rule: rows must not move, bounds not loosened).
+#8034 (coordinator): inline-then-heap, no per-call cost accepted, no nesting limit. Target: wordexp rows and
+fnmatch_names_ch back to origin/next's counts. #7900/#7901: land neutrally; the arithmetic limit is in HL-14.
 
-## Done
+## Done (run PATTERN-NESTING-3, leg 1)
 
-- HL-13 (fnmatch, FNM_EXTMATCH nesting): 6e92bc806; plants 1a1b2911b.
-- HL-14 (wordexp): parser frames + `nest`, expander job stack, evaluator `Wait` stack; 128 and
-  512 limits removed (792e6f763); tests + 6 plants 15f98b743; fast paths 11b46b216 (`segs` direct walk,
-  `braced` plain word, cheap `InlineVec::pop`).
-- Counts (cbench_opt/cbench_patterns, rows `wordexp_*`, `fnmatch*`; niji_instr per call). Base
-  = 1a1b2911b (HL-13 in, wordexp as on next) `counters-base.tsv`; after2 = 11b46b216 (job
-  `pattern-nesting-2-counts-after2`, `counters-after2.tsv`; compare `python3 cmp.py BASE AFTER` in
-  `~/work/pattern-nesting-2/`):
-  | row (cbench_opt) | base | after (792e6f763) | after2 (11b46b216) | glibc |
-  | wordexp_arith | 4141.1 | 4799 | 4556.5 (+10.0%) | 3538.8 |
-  | wordexp_param_forms | 6245.6 | 7066 | 5940.9 (-4.9%) | 5248.4 |
-  | wordexp_quoted | 3784.4 | +9.9% | 4043.8 (+6.9%) | 2560.7 |
-  | wordexp_plain_8 | 3782.9 | +2.7% | 3921.9 (+3.7%) | 6386.9 |
-  | wordexp_tilde_var | 4104.1 | +8.8% | 4199.9 (+2.3%) | 3056.0 |
-  | wordexp_split_var | 3798.5 | +5.1% | 3847.2 (+1.3%) | 3504.4 |
-  cbench_patterns: wordexp_arith 4170.8 -> 4588.4 (+10.0%), wordexp_tilde_var 4089.6 -> 4186.9 (+2.4%).
-  fnmatch rows: base -> after2 within -1.8..+0.04% (wordexp work does not touch them).
-- LIMIT FINDING: `bench/instr_limits.tsv` (AMD EPYC 7551) `cbench_opt fnmatch_names_ch` max 761;
-  measured 784.4 (base, HL-13 in) and 784.2 (after2). Not yet known whether origin/next is also over
-  (no next count of that row exists on the host: the CI instr counts do not include fnmatch rows), i.e.
-  whether HL-13 (6e92bc806, it changes `Pattern` and the matcher) moved it. OBSERVED: the counts jobs
-  (rows chosen with `--rows "cbench_opt/fnmatch*,..."`) printed no instruction-limit verdict and ended
-  rc 0 although 784.2 > 761. Cause NOT investigated (xtask bench.rs `check_instr_limits` checks only
-  rows in its `selected` set, built from the bench table's rows; whether `--rows` selections reach it
-  is unverified). Do not treat a green counts job as "within limits": compare against the tsv.
+- Step 0: clippy was red on the inherited head (`derivable_impls` on `Frame`'s Default): fixed (derive + `#[default]`).
+- 7d27069b3: arithmetic evaluator rewritten as operator precedence (shunting-yard): one `Wait` per binary or
+  unary operator, `(`, `?`, `:` (was: a Test plus ten Binary-level entries per operand); a local `Stack` with
+  6 inline entries that spills to a `TryVec` (no limit). `Wait` is 16 bytes. New test
+  `wordexp_arith_lexer::precedence_conditionals_and_short_circuit` (precedence, `?:` right-assoc, short-circuit,
+  errors, 40-deep mixes past the inline part). fnmatch: `Prog.root` (the pattern's own sequence first, straight onto
+  `items`); `seqs` and the parse queue only allocate once there is a group (2 allocations fewer per plain compile).
+- Unit tests green on shiki (job `pattern-nesting-3-t1` on the pre-test tree; the new test passed in
+  `pattern-nesting-3-trace-head`). clippy + static clean (`pattern-nesting-3-lint2`, before the test was added).
+- Counts, shiki, niji_instr per call, `cargo xtask bench --compare --counters cbench_opt cbench_patterns --rows
+  "wordexp_*,fnmatch_*"` (origin/next 0495c4684 = job `pattern-nesting-3-counts-next`; head 7d27069b3 =
+  `pattern-nesting-3-counts-head`; compare `python3 cmp.py counters-next.tsv counters-head.tsv` in the scratch):
+  | row (cbench_opt) | next | head | delta | (PN-2 after2 on Zen 1, vs its base) |
+  | wordexp_arith | 4137.3 | 4305.5 | +4.07% | +10.0% |
+  | wordexp_quoted | 3782.0 | 4037.8 | +6.76% | +6.9% |
+  | wordexp_plain_8 | 3778.9 | 3919.2 | +3.71% | +3.7% |
+  | wordexp_tilde_var | 4100.9 | 4193.5 | +2.26% | +2.3% |
+  | wordexp_split_var | 3795.4 | 3846.1 | +1.34% | +1.3% |
+  | wordexp_param_forms | 6240.6 | 5933.1 | -4.93% | -4.9% |
+  | fnmatch_names_ch | 755.9 | 763.3 | +0.98% | (784 vs 761 limit on Zen 1) |
+  Other fnmatch cbench_opt rows +0.35..+1.99%; cbench_patterns fnmatch rows +-0.03%.
+  The Zen 1 limit 761 is a Zen 1 number: shiki's next is 755.9, so recount on Zen 1 or compare deltas only.
 
-## Running at hand-back
+## Running at the end of leg 1
 
-- `pattern-nesting-2-plants2` (all 12 plants on 11b46b216, /dev/shm/claude/pattern-nesting-2/plants-2):
-  5 of 12 CAUGHT at 14:10Z (no-memo, depth-cap, ...), ends about 14:50Z. Read verdicts:
-  `grep -E ": CAUGHT|SURVIV|WARN-RC|WARN-NO" ~/logs/pattern-nesting-2-plants2.log`.
-  Not run: the direct-tier gate on 11b46b216 (the role was held by plants2; code will change anyway).
+- `pattern-nesting-3-plants` (17 plants on 7d27069b3, `/mnt/zram/claude/pattern-nesting-3/plants-1`), started ~16:05Z.
+  Verdicts: `grep -E ": CAUGHT|SURVIV|WARN-RC|WARN-NO|EQUIV" ~/logs/pattern-nesting-3-plants.log` on shiki.
+  If later code changes touch a planted line, re-run plants on the final head (new dir plants-2).
 
 ## Next steps, in order
 
-1. Count origin/next's rows on the role, exact rows so the limit is checked:
-   `cargo xtask bench --compare --counters cbench_opt cbench_patterns --rows "cbench_opt/fnmatch_names_ch,..."`
-   on an origin/next tree (git worktree of origin/next synced with sync_role.sh --story; then re-sync the
-   branch). If next is <= 761 and HL-13 is 784: profile fnmatch_names_ch (a non-extmatch pattern) and
-   keep the non-EXTMATCH path as it is on next (the flat program only for extended patterns).
-2. wordexp rows (profile of 792e6f763 in `~/logs/pattern-nesting-2-trace-new.log`, arith split):
-   evaluator `run` 448, `push<Wait,8>` 93 (an out-of-line call per push), `copied/last/as_slice<Wait>`
-   ~146, `default` 56 + `new<Seg,12>` 60 (`InlineVec::new` fills all N slots with `T::default()`:
-   8 x 24-byte `Wait` and 12 `Seg` per call), `checked_sub` 158, `saturating_add` 105.
-   Candidates: a `MaybeUninit` inline area or a smaller N for the evaluator stack (only the used slots
-   are written); `#[inline]` on `InlineVec::push` (measure: shared type); merge `Wait::Test` into the
-   level-0 `Binary` (one push fewer per expression); for plain_8/quoted the per-word cost (`Seg` list
-   init, job stack set-up): trace after2 first. RUT RULE: this is the second tuning pass; if it gains
-   little, RULING NEEDED (accept the cost for the removed limits, or keep a cheap common path).
-3. Then plants (all 12, new dir plants-3), gate (`cargo xtask affected --run` under ~/bin/gate 16G),
-   clippy + static, precheck, report, handback-check.
+1. Find the remaining per-word cost (plain_8, quoted, tilde_var, split_var: the same deltas as PN-2, so it is the
+   parser/expander, not the evaluator; and the ~7 instructions left on plain fnmatch rows). The head trace
+   (`pattern-nesting-3-trace-head2`, `~/work/pattern-nesting-3/trace.sh ~/w/sh2 head` under jobrun) shows only
+   27-32 instructions in `wordexp`, so it traced an early exit or a different build than the next trace (3672..4264):
+   find out why first (wl_trace on a role synced clean at a commit; the role had just run `bench --compare`).
+   Then `python3 cmp_trace.py pattern-nesting-3-trace-next.log <head trace>` in the scratch.
+   Suspects from the diff: `InlineVec::new` filling all slots with `T::default()` for `frames` (2 x Frame),
+   `nest` (4 x Seg), `jobs` (4 x Job) per call; `nest_first()` on every `put_*`; `push<Seg,12>` out of line.
+   Apply the #8034 design to them: keep the per-word path as cheap as next (no new stacks initialised for a
+   word with no nesting; create them lazily or reuse one buffer).
+2. fnmatch plain rows: compare `Matcher::run` / `run_prog` / `Memo::new` against next in a trace of
+   fnmatch_names_ch (the extra parameters and the `nested` branch).
+3. Recount (same command, job `pattern-nesting-3-counts-head2`), plants on the final head if code moved,
+   direct-tier gate (`cargo xtask affected --run` under `~/bin/gate 16G`), clippy + static, precheck, report
+   `handoff/reports/PATTERN-NESTING-3.json`, handback-check.
 
 ## Not to redo
 
-HL-13 code and tests; HL-14 code; the leg-2 profile. Plan rows: `plan/hardcoded-limits.md` HL-13,
-HL-14 (no status column). No D-row needed so far (no spec deviation; limits removed per the owner's
-11-17 ruling and the coordinator's #7901 decision).
-INFORMATIONAL: a pattern removal/assignment/arithmetic text with expansions now allocates the nested
+HL-13 code and tests; HL-14 parser/expander code; the evaluator rewrite (7d27069b3). Plan rows:
+`plan/hardcoded-limits.md` HL-13, HL-14. No D-row needed (no spec deviation).
+INFORMATIONAL (from PN-2): a pattern removal/assignment/arithmetic text with expansions allocates the nested
 word's pieces on the heap (`fresh`, one malloc per call that has one); no bench row covers it.
-Full report: `handoff/reports/PATTERN-NESTING-2.json`.
