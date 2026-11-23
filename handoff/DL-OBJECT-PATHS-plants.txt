@@ -7,3 +7,8 @@ vdso-fallback-off | crates/boundary/src/ld/dlopen/dladdr.rs | lit:found.flatten(
 vdso-symbol-bias | crates/boundary/src/ld/dlopen/dladdr.rs | lit:containing(&Object::new(dynm).ok()?, b, ==> containing(&Object::new(dynm).ok()?, 0, | cargo test -p niji-ld --test object_names every_object_is_named_by_the_path_it_was_opened_by | msg:every_object_is_named_by_the_path_it_was_opened_by.*FAILED|panicked
 # RTLD_DL_LINKMAP for an address in the vDSO gives no link map.
 vdso-linkmap | crates/boundary/src/ld/dlopen/dladdr.rs | lit:RTLD_DL_LINKMAP => put(extra, crate::ld::debug::vdso_map()), ==> RTLD_DL_LINKMAP => put(extra, 0usize), | cargo test -p niji-ld --test object_names every_object_is_named_by_the_path_it_was_opened_by | msg:every_object_is_named_by_the_path_it_was_opened_by.*FAILED|panicked
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bare-search-name: CAUGHT, caught by object_names every_object_is_named_by_the_path_it_was_opened_by
+# vdso-fallback-off: CAUGHT, caught by object_names every_object_is_named_by_the_path_it_was_opened_by
+# vdso-symbol-bias: CAUGHT, caught by object_names every_object_is_named_by_the_path_it_was_opened_by
+# vdso-linkmap: CAUGHT, caught by object_names every_object_is_named_by_the_path_it_was_opened_by

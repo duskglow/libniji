@@ -50,21 +50,19 @@ noted. libniji before this change = origin/next 0495c4684.
 No start-up code changed: `dladdr` runs only when called, and the new function is out of line in ld.so. libc.so.6
 is untouched. No start-up counts were taken: the change adds no start-time code (brief's cost clause holds trivially).
 
-## Run state (leg 1 ended at a REFRESH, 09:21Z)
+## Run state (leg 2)
 
-- Code head ed5783e23 (synced to keke:~/w/n4, tree 1444396a). Also changed: `crates/ld/tests/dl_find_object_index.rs`,
+- Code head ed5783e23 (synced to keke:~/w/n4). Also changed: `crates/ld/tests/dl_find_object_index.rs`,
   whose dladdr oracle left out the vDSO (it encoded the old miss); now `span_owner` for both lookups.
-- Done on keke: clippy `--workspace --all-targets --all-features -D warnings` green, `cargo xtask so`, object_names
-  5/5 green (job dl-object-paths-t1, head d59d55295, same code); `records check` and `cargo xtask static` green
-  (dl-object-paths-static, head 5e3e34cf2). Affected: Direct tier (no FULL).
-- Running on ed5783e23: `dl-object-paths-plants3` (dir /dev/shm/claude/dl-object-paths/plants-3) and
-  `dl-object-paths-gate3` (direct-tier gate).
-- SUPERSEDED (stopped by me; started on older heads or an unsynced tree): dl-object-paths-gate, -plants, -gate2, -plants2.
-- Exact next steps: (1) `~/bin/jobwait dl-object-paths-plants3 dl-object-paths-gate3`, fix anything red; (2) §9 start-up
-  checks as one job `dl-object-paths-startup` (`cargo xtask test && NIJI_FULL_PROFILE=1 cargo xtask so &&
-  NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`), after the gate (one build per role); (3)
-  foreground clippy + `cargo xtask static` on the role, then `cargo xtask precheck --jobs <labels> --head <sha>`;
-  (4) handoff/reports/DL-OBJECT-PATHS.json (with "jobs"), push, `ops handback-check`, hand back.
+- On ed5783e23 (keke): `dl-object-paths-gate3` direct-tier gate green, 742 passed / 0 failed (11 suites), peak 1.9G;
+  `dl-object-paths-plants3` 4/4 CAUGHT, 0 WARN (results in handoff/DL-OBJECT-PATHS-plants.txt);
+  `dl-object-paths-startup` (`cargo xtask test`, full-profile `so` and `hot_text_products`): see the hand-back.
+- Earlier: clippy and `cargo xtask so`, object_names 5/5 (dl-object-paths-t1, head d59d55295, same code); `records
+  check` and `cargo xtask static` (dl-object-paths-static, head 5e3e34cf2). Affected: Direct tier (no FULL).
+- SUPERSEDED (stopped; older heads or an unsynced tree): dl-object-paths-gate, -plants, -gate2, -plants2.
+- Commits after ed5783e23 touch handoff/ only.
+- Next step: land (nothing left in this story).
+
 
 ## Open / next
 
