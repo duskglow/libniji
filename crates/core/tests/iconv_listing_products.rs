@@ -69,13 +69,16 @@ const DIR: &str = "/usr/share/i18n/charmaps";
 /// A private charmap directory's files: (file stem, gzip-compressed, header lines, the byte `é` maps to). Their
 /// `<code_set_name>` and alias names are carried by no file name, built-in name or alias row. The plain one
 /// sets `<comment_char> %`; the first gzip one keeps the default `#` and spells its alias in lower case; the
-/// second puts its names after 3 KiB of comment lines (several deflate blocks' worth of back-references).
+/// second puts its names after 5 KiB of comment text (past 4096 bytes of text, within 4096 compressed bytes).
+/// The fourth, plain, gives one alias after 5 KiB, past the 4096 bytes of a plain file iconv_open's header scan
+/// reads: it is listed exactly when a fresh process converts it.
 fn private_charmaps() -> Vec<(&'static str, bool, String, u8)> {
-    let long: String = (0..60).map(|i| format!("% comment line {i} before the names of the third charmap\n")).collect();
+    let long: String = (0..100).map(|i| format!("% comment line {i} before the names of this charmap: padding\n")).collect();
     vec![
         ("LISTP", false, "<comment_char> %\n<escape_char> /\n<code_set_name> LISTP-SET\n% alias LISTP-ALIAS\n".to_string(), 0xc1),
         ("LISTG", true, "<code_set_name> LISTG-SET\n<mb_cur_max> 1\n# alias listg-alias\n".to_string(), 0xc2),
         ("LISTD", true, format!("<comment_char> %\n{long}<code_set_name> LISTD-SET\n%  alias   LISTD-ALIAS  \n"), 0xc3),
+        ("LISTF", false, format!("<comment_char> %\n<code_set_name> LISTF-SET\n% alias LISTF-ALIAS\n{long}% alias LISTF-FAR\n"), 0xc4),
     ]
 }
 
@@ -83,14 +86,14 @@ fn private_charmaps() -> Vec<(&'static str, bool, String, u8)> {
 /// namespace (contained: support/contain.rs).
 fn iconv_private(niji: &Path, charmaps: &Path, args: &[&str]) -> std::process::Output {
     oracle::contain::user("unshare")
-        .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
+        .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && LD_LIBRARY_PATH=\"$3\" && export LD_LIBRARY_PATH && shift 3 && exec \"$@\"", "sh"])
         .arg(charmaps)
         .arg(DIR)
+        .arg(niji)
         .arg(niji.join("ld-linux-x86-64.so.2"))
         .arg(niji.join("iconv"))
         .args(args)
         .env_clear()
-        .env("LD_LIBRARY_PATH", niji)
         .stdin(Stdio::null())
         .output()
         .unwrap()
@@ -147,6 +150,9 @@ fn iconv_listing_holds_the_names_charmap_headers_give() {
             assert_eq!(back.as_deref(), Some("Aé".as_bytes()), "{name} to UTF-8");
         }
     }
+    // A header name past the scanned prefix is listed exactly when a fresh process converts it.
+    let far = convert(&niji, &charmaps, &work, "UTF-8", "LISTF-FAR", b"A").is_some();
+    assert_eq!(listed.contains(&"LISTF-FAR"), far, "LISTF-FAR: listed and converts differ:\n{text}");
     // Every listed name converts: a one-byte round trip of `A`.
     for name in &listed {
         let bytes = convert(&niji, &charmaps, &work, "UTF-8", name, b"A").unwrap_or_else(|| panic!("{name} is listed but UTF-8 to it fails"));

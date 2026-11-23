@@ -87,14 +87,14 @@ static const unsigned short dist_base[30] = {1,   2,   3,   4,   5,   7,    9,  
 static const unsigned char dist_extra[30] = {0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6,
                                              6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13};
 
-/* One compressed block into out[*n..HEADER_MAX): 0 at its end-of-block code, -1 when it stops early. */
+/* One compressed block into out[*n..cap): 0 at its end-of-block code, -1 when it stops early. */
 static int block(struct bits *b, const struct huffman *lit, const struct huffman *dist, unsigned char *out,
-                 size_t *n) {
+                 size_t *n, size_t cap) {
     for (;;) {
         int sym = decode(lit, b);
         if (sym < 0) return -1;
         if (sym < 256) {
-            if (*n >= HEADER_MAX) return -1;
+            if (*n >= cap) return -1;
             out[(*n)++] = (unsigned char)sym;
             continue;
         }
@@ -111,7 +111,7 @@ static int block(struct bits *b, const struct huffman *lit, const struct huffman
         size_t back = dist_base[d] + (size_t)dextra;
         if (back > *n) return -1;
         for (size_t k = 0; k < len; k++) {
-            if (*n >= HEADER_MAX) return -1;
+            if (*n >= cap) return -1;
             out[*n] = out[*n - back];
             (*n)++;
         }
@@ -152,8 +152,8 @@ static int dynamic(struct bits *b, struct huffman *lit, struct huffman *dist) {
     return huffman(dist, lengths + hlit, (unsigned)hdist);
 }
 
-/* The text at the start of a gzip file `data`, into out (HEADER_MAX bytes); returns its length. */
-static size_t gunzip_prefix(const unsigned char *data, size_t size, unsigned char *out) {
+/* The text at the start of a gzip file `data`, at most cap bytes (cap <= HEADER_MAX) into out; returns its length. */
+static size_t gunzip_prefix(const unsigned char *data, size_t size, unsigned char *out, size_t cap) {
     if (size < 10 || data[0] != 0x1f || data[1] != 0x8b || data[2] != 8) return 0;
     unsigned flags = data[3];
     size_t p = 10, n = 0;
@@ -182,7 +182,7 @@ static size_t gunzip_prefix(const unsigned char *data, size_t size, unsigned cha
             if (len != (~nlen & 0xffffu)) return n;
             b.pos += 4;
             for (unsigned k = 0; k < len; k++) {
-                if (b.pos >= b.n || n >= HEADER_MAX) return n;
+                if (b.pos >= b.n || n >= cap) return n;
                 out[n++] = b.p[b.pos++];
             }
         } else if (type == 1) {
@@ -191,10 +191,10 @@ static size_t gunzip_prefix(const unsigned char *data, size_t size, unsigned cha
             memset(l + 288, 5, 30);
             struct huffman lit, dist;
             huffman(&lit, l, 288), huffman(&dist, l + 288, 30);
-            if (block(&b, &lit, &dist, out, &n) < 0) return n;
+            if (block(&b, &lit, &dist, out, &n, cap) < 0) return n;
         } else if (type == 2) {
             struct huffman lit, dist;
-            if (dynamic(&b, &lit, &dist) < 0 || block(&b, &lit, &dist, out, &n) < 0) return n;
+            if (dynamic(&b, &lit, &dist) < 0 || block(&b, &lit, &dist, out, &n, cap) < 0) return n;
         } else
             return n;
         if (last) return n;
@@ -227,8 +227,7 @@ static size_t charmap_header(const char *file, int gz, unsigned char *out, size_
         void *m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (m != MAP_FAILED) {
             size_t size = (size_t)st.st_size < in_max ? (size_t)st.st_size : in_max;
-            n = gunzip_prefix(m, size, out);
-            if (n > out_max) n = out_max;
+            n = gunzip_prefix(m, size, out, out_max);
             munmap(m, (size_t)st.st_size);
         }
     }

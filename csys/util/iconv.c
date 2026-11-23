@@ -320,8 +320,9 @@ static void keep_header_name(struct listing *l, const unsigned char *s, size_t l
 
 /* The names a charmap's header gives, as iconv_open reads them: the `<code_set_name>` and each comment line
  * `alias NAME` (the comment character is `<comment_char>`'s, `#` until one is given), each line trimmed of
- * ASCII white space, up to the `CHARMAP` line. */
-static void header_names(struct listing *l, const unsigned char *text, size_t len) {
+ * ASCII white space, up to the `CHARMAP` line. Kept in l, or with l NULL only looked for. Returns 1 when a
+ * whole `CHARMAP` line (its newline included) ends the header within text. */
+static int header_names(struct listing *l, const unsigned char *text, size_t len) {
     unsigned char comment = '#';
     for (size_t at = 0; at < len;) {
         const unsigned char *nl = memchr(text + at, '\n', len - at);
@@ -334,7 +335,9 @@ static void header_names(struct listing *l, const unsigned char *text, size_t le
         const unsigned char *s = text + b;
         size_t n = e - b;
         if (n == 7 && memcmp(s, "CHARMAP", 7) == 0)
-            return;
+            return nl != NULL;
+        if (l == NULL)
+            continue;
         if (n >= 15 && memcmp(s, "<code_set_name>", 15) == 0) {
             keep_header_name(l, s + 15, n - 15);
         } else if (n >= 14 && memcmp(s, "<comment_char>", 14) == 0) {
@@ -351,6 +354,20 @@ static void header_names(struct listing *l, const unsigned char *text, size_t le
                 keep_header_name(l, s + c + 5, n - c - 5);
         }
     }
+    return 0;
+}
+
+/* The header text of a charmap file as iconv_open's scan reads it, into text (HEADER_MAX bytes). A gzip file is
+ * decoded to its first SCAN_HEAD bytes, and on to SCAN_TEXT only when its `CHARMAP` line is not among them: no
+ * name comes after that line, and most headers end well before SCAN_HEAD. */
+#define SCAN_HEAD 2048
+static size_t scan_header(const char *file, int gz, unsigned char *text) {
+    if (!gz)
+        return charmap_header(file, gz, text, SCAN_FILE, SCAN_FILE);
+    size_t n = charmap_header(file, gz, text, SCAN_FILE, SCAN_HEAD);
+    if (n < SCAN_HEAD || header_names(NULL, text, n))
+        return n;
+    return charmap_header(file, gz, text, SCAN_FILE, SCAN_TEXT);
 }
 
 /* `-l`: the built-in names, every installed charmap iconv_open accepts with the names its header gives, and
@@ -380,7 +397,7 @@ static _Noreturn void list(void) {
         iconv_close(cd);
         keep(&l, name);
         /* The charmap is loaded now, so iconv_open finds its header names without a scan. */
-        header_names(&l, text, charmap_header(e->d_name, gz, text, SCAN_FILE, gz ? SCAN_TEXT : SCAN_FILE));
+        header_names(&l, text, scan_header(e->d_name, gz, text));
     }
     if (dir != NULL)
         closedir(dir);
