@@ -1,6 +1,7 @@
 # LD-LOOKUP-RETHINK: where a symbol lookup's instructions go, and the walk-level Bloom filter
 
-**State:** branch `task/ld-lookup-rethink` from origin/next 099566cb9; code head c5e3ff2dc (D1b ae0361b3b, then leg
+**State (2026-11-23):** continued as `task/ld-lookup-rethink-2` (merge of next 0495c4684; see the last two sections).
+Originally branch `task/ld-lookup-rethink` from origin/next 099566cb9; code head c5e3ff2dc (D1b ae0361b3b, then leg
 2's fix of the prefixed-trace check; records, handoff and kit commits on top). Role shiki `~/w/sh2` (Haswell-EP, 26 vCPU). Decision D-27.91 (records/decisions/D-27/). Brief:
 ~/state/briefs/LD-LOOKUP-RETHINK.md. Kit: handoff/LD-LOOKUP-RETHINK/kit/ (installed as shiki `~/work/ld-lookup-rethink/`).
 **Verdict:** design D1 lands (beats next on every row measured here); target 675 per lookup not reached (1,400).
@@ -93,7 +94,25 @@ plants on ae0361b3b: 4 CAUGHT, 1 EQUIVALENT), -gate (red: the trace check above)
 waited behind the red gate on a superseded tree). Evidence on base: ld-lookup-rethink-so-base, -meas-base2 (counts;
 its trace step failed on a kit bug), -trace-base. Superseded earlier: -meas-base (kit bug), -d1 (first form).
 
+## LD-LOOKUP-RETHINK-2 (2026-11-23): train 946's seven reds are a host change on mei, not this branch
+Branch `task/ld-lookup-rethink-2` = f8aece540 + a merge of origin/next 0495c4684 (clean, no code change). Role
+mei `~/w/s1`. Job ld-lookup-rethink-2-seven (clippy, static, `cargo xtask so`, the seven tests): clippy and static
+green; all seven FAIL on mei, all from its locale layout:
+- `apt install locales-all` ran on mei at 2026-11-23 06:32:42 (dpkg log, apt history); `/usr/lib/locale/locale-archive`
+  is gone, per-locale directories (`en_US.utf8/`, ...) replace it.
+- CI on next 0495c4684 (started 06:03, before it) passed all seven; train 946 (started 06:50) failed them;
+  PRINTF-NO-HEAP-3's gate (07:12; its branch lacks this story's commits) failed the same six.
+- locale_data x2 assert "the gate machines have a locale archive"; locale_data and s07_locale_clauses run niji code
+  identical to next's (this branch changes only crates/ld and xtask's trace comparison; niji does not depend on niji-ld).
+- hot_text_products init_data_clusters_hold_at_every_text_phase links `libc.a` statically (no loader); its "tool" mode
+  runs setlocale with `LANG=en_US.UTF-8`; one phase reads 59 faults against 58 (passed on next at 06:03).
+- Product gap shown by the products tests (not this story's): with per-locale directories and no archive, libniji's
+  `setlocale` returns NULL for `en_US.utf8` and `en_US` (the reference loads them) and accepts `de_DE.UTF-8@euro`
+  (the reference: NULL); printf_corpus lines 6701-6704 skip for `locale en_US.utf8`; catalogs line 91 differs.
+Flag #7846 (challenge) raised.
+
 ## Next step
-Nothing left in this story: leg 2 fixed the first gate's red and every final-head job above is green (precheck and
-handback-check on the final head: see the hand-back). Coordinator: land D1b with the trace-check fix; brief
-LD-VERSION-INDEX and LD-RELOC-FLAT (files above); count D1b on Zen 1 / Skylake-SP.
+No code change here. Coordinator / owner: decide mei's locale layout (restore the archive, or keep locales-all and
+brief a libniji story for loading per-locale directories with the reference's name matching); then re-train this
+branch. Unchanged from leg 2: land D1b with the trace-check fix; brief LD-VERSION-INDEX and LD-RELOC-FLAT; count D1b on
+Zen 1 / Skylake-SP.
