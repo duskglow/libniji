@@ -1,4 +1,8 @@
-# SYS-THREAD-DB: libthread_db.so.1 (handoff after SYS-THREAD-DB-4)
+# SYS-THREAD-DB: libthread_db.so.1 (handoff after SYS-THREAD-DB-5)
+
+Run 5 (branch `task/sys-thread-db-5`, role mei:~/w/s2): merged origin/next, resolved the docs/RELEASE-NOTES.md
+conflict (only the libthread_db entry stays under Unreleased; next's snapshot section already has COMPAT-19).
+Clippy, static, direct gate and 8/8 plants green on the merged head. No code changed. The text below is run 4's.
 
 State: branch `task/sys-thread-db-4` (continues `task/sys-thread-db-3`; origin/next `b04f71229` merged in, the
 merge base). Role keke:~/w/r1. Code head 842d7dd3f (later commits: handoff/ only). Report:
