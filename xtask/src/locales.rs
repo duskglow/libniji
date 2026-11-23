@@ -569,9 +569,7 @@ pub fn probe_source(p: &Probe, name: &str) -> Result<Option<String>, String> {
     for kw in ["first_weekday", "first_workday", "cal_direction"] {
         writeln!(w, "{kw} {}", num(kw)?).ok();
     }
-    for kw in ["date_fmt"] {
-        probed_kw(w, p, pn, "LC_TIME", kw)?;
-    }
+    probed_kw(w, p, pn, "LC_TIME", "date_fmt")?;
     for kw in ["alt_mon", "ab_alt_mon"] {
         probed_list(w, p, pn, "LC_TIME", kw, Some(12))?;
     }
