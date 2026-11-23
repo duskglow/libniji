@@ -12,13 +12,13 @@ Probe scripts and outputs (L2/L3): shiki `~/work/localedef-inputs/` (`probe.sh`/
   pairs and LC_COLLATE order lines (stock status 0 there).
 * L3 (s31_8_i_4): the search (cwd, I18NPATH `<e>/locales|charmaps/<n>`, `<e>/<n>`, `.gz` for charmaps outside cwd,
   default dir only without `/`, `-f` with `/` a path). Boundary reads I18NPATH from envp.
-* D-31.24 (leg 3, ruling #7754 by the three-way rule): POSIX.1-2017 XBD 7.3 ("In the event that some of the
+* D-31.29 superseding D-31.24 (leg 3, ruling #7754 by the three-way rule): POSIX.1-2017 XBD 7.3 ("In the event that some of the
   information for a locale category ... is missing from the locale source definition, the behavior of that category,
   if it is referenced, is unspecified"; a file holds "one or more" category definitions); the XCU localedef page,
   localedef(1) and locale(5) say nothing more. So the reference's values: `defaults.rs` rewritten (ASCII classes
   without punct/cntrl, print/graph = alnum (+space), monetary 255s, empty alt months, country codes of spaces), and
   a `defaults` flag in `cats::Body` / `ctype::write` for what a source cannot state (empty wide LC_TIME strings up to
-  `t_fmt`, no wide input digits, one-byte `mon_grouping` 0x7f, CRNCYSTR `-`). D-31.24 rewritten; its differences row
+  `t_fmt`, no wide input digits, one-byte `mon_grouping` 0x7f, CRNCYSTR `-`). New record D-31.29 (reserved) supersedes D-31.24 (record edits go to records/, never the plan view: leg 3 restored it after a precheck red); D-31.26 record corrected; its differences row
   removed; spec clause s31_8_g_3 reworded; stubs regenerated.
 * Tests: `crates/locale/tests/prog.rs` (`source_search_order`, `charmap_search_order`, `posix_symbolic_names`,
   `undefined_names_are_skipped`); `crates/locale/tests/reference.rs`
@@ -45,4 +45,4 @@ space`): status 1 vs libniji 0, 4 vs 1 without -c, and toupper(a) stays `a` ther
 ## Next step
 
 Collect gate3/plants3/plants4 if the hand-back said PENDING JOBS; otherwise none (story complete).
-Plan rows: D-31.24, D-31.26 in `plan/07-decisions/s31-utilities.md`.
+Records: D-31.29, D-31.24, D-31.26 (records/decisions/D-31/); code and spec comments cite D-31.24, which D-31.29 supersedes (left so the gate and plants stay on the tested code).

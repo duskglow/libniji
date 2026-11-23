@@ -1,0 +1,12 @@
+id = "D-31.29"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "LOCALEDEF-INPUTS"
+date = "2026-11-23"
+supersedes = ["D-31.24"]
+tests = ["crates/locale/tests/reference.rs", "crates/locale/tests/prog.rs"]
+body = '''
+**localedef writes all twelve category files; a category the source does not define (or, under `-c`, one whose statements failed) gets the reference's defaults** (#7534; RELEASE-SNAPSHOT-1122C finding L1: a source of the six POSIX categories gave six files and `setlocale(LC_ALL, ...)` failed). Supersedes D-31.24 (which wrote the POSIX locale's values). Settled by the three-way rule (ruling #7754, LOCALEDEF-INPUTS): POSIX.1-2017 XBD 7.3 says a locale definition file holds "one or more" category definitions and "In the event that some of the information for a locale category ... is missing from the locale source definition, the behavior of that category, if it is referenced, is unspecified"; the localedef utility page (XCU) and localedef(1)/locale(5) say nothing more, so the values are the implementation's and libniji writes the reference's, settled black box: `crates/locale/tests/reference.rs` `undefined_categories_get_the_references_defaults` compares every item of every file with the reference's for a one-category source (UTF-8 and ISO-8859-1), none excepted, and five per-category tests check the values without the reference. The values: `LC_CTYPE`'s ASCII letters and digits in `alpha`/`upper`/`lower`/`digit`/`xdigit`/`print`/`graph`, white space in `space`/`blank` (space also `print`), punctuation and controls in no class and width -1, no wide input digits; `LC_TIME`'s English names and formats, wide forms empty up to `t_fmt`, alternative month names empty; `LC_MONETARY`'s "not available" numbers 0xff, `mon_grouping` the one byte 0x7f, CRNCYSTR `-`; `LC_ADDRESS`'s country codes of spaces; `LC_NUMERIC` `.` without grouping, `week 7;19971130;7`, the code-point collation, `LC_PAPER` 297x210, `LC_MEASUREMENT` 1, `LC_TELEPHONE`'s `+%c %a%t%l`. One built-in source (`crates/locale/src/defaults.rs`) compiled for the run's charmap through the same writers as any source; the four items a source cannot state (the empty wide `LC_TIME` strings, no wide input digits, the unterminated `mon_grouping`, CRNCYSTR) the writers give when told they compile the defaults. No differences row (replaces the earlier POSIX-locale values and their row).
+'''
