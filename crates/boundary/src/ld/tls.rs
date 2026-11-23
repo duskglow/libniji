@@ -924,18 +924,22 @@ pub(super) fn thread_address(p: Placed, offset: u64, make: bool) -> usize {
     if block == 0 { 0 } else { usize::try_from(block.wrapping_add(offset)).unwrap_or(0) }
 }
 
-/// The records of the dynamic TLS descriptor function (DL-19, tlsdesc.S): three words each,
-/// `[resolver, module ID, offset]` (the last two a `tls_index`), in pages the loader maps, never
-/// unmapped: a descriptor's argument points at one. Word 0 of a page links the next page. A free
-/// record is `[0, 0, next free]`. Changed only with the loader lock held; the resolver reads a
+/// The records of the on-demand TLS descriptor function (DL-19, tlsdesc.S
+/// `niji_machine_ld_tlsdesc_ondemand`): four words each, `[resolver, module ID, offset, address of
+/// GENERATION]` (words 1 and 2 a `tls_index`; the fast path compares the thread's vector against
+/// word 3's generation as `__tls_get_addr` does), in pages the loader maps, never unmapped: a
+/// descriptor's argument points at one. Word 0 of a page links the next page. A free record is
+/// `[0, 0, next free, _]`. Changed only with the loader lock held; the descriptor function reads a
 /// record a relocation wrote before its object was published.
 static DESC_PAGES: AtomicUsize = AtomicUsize::new(0);
 /// The first free record (0: none).
 static DESC_FREE: AtomicUsize = AtomicUsize::new(0);
+/// Bytes of one record.
+const DESC_BYTES: usize = 32;
 /// Records in one page after its link word.
-const DESC_PER_PAGE: usize = (4096 - 8) / 24;
+const DESC_PER_PAGE: usize = (4096 - 8) / DESC_BYTES;
 
-/// The three words of the record at `at` (or the link word of a page at `at`, as its first).
+/// The four words of the record at `at` (or the link word of a page at `at`, as its first).
 fn desc_words(at: usize) -> &'static [AtomicU64] {
     if at == 0 || at % 8 != 0 {
         return &[];
@@ -943,10 +947,10 @@ fn desc_words(at: usize) -> &'static [AtomicU64] {
     // UNSAFE(slice): a record of the dynamic TLS descriptor function, as atomic words.
     #[allow(unsafe_code)]
     // SAFETY: `at` is a page [`desc_record`] mapped read-write (never unmapped) or a record in one
-    // (8 + 24 k bytes in, k < DESC_PER_PAGE: three words inside the page); every access goes
+    // (8 + 32 k bytes in, k < DESC_PER_PAGE: four words inside the page); every access goes
     // through these atomics.
     unsafe {
-        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU64>(at), 3)
+        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU64>(at), 4)
     }
 }
 
@@ -960,18 +964,19 @@ pub(super) fn desc_record(module: u64, offset: u64) -> Option<usize> {
         desc_words(page).first()?.store(u64::try_from(DESC_PAGES.load(Relaxed)).ok()?, Relaxed);
         DESC_PAGES.store(page, Relaxed);
         for k in (0..DESC_PER_PAGE).rev() {
-            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(24));
+            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(DESC_BYTES));
             desc_words(at).get(2)?.store(u64::try_from(DESC_FREE.load(Relaxed)).ok()?, Relaxed);
             DESC_FREE.store(at, Relaxed);
         }
     }
     let at = DESC_FREE.load(Relaxed);
-    let [f, m, o] = desc_words(at) else { return None };
+    let [f, m, o, g] = desc_words(at) else { return None };
     DESC_FREE.store(usize::try_from(o.load(Relaxed)).ok()?, Relaxed);
     #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
     let resolver = (tlsdesc_resolve as *const ()).expose_provenance();
     o.store(offset, Relaxed);
     m.store(module, Relaxed);
+    g.store(u64::try_from(GENERATION.as_ptr().expose_provenance()).ok()?, Relaxed);
     f.store(u64::try_from(resolver).ok()?, Release);
     Some(at)
 }
@@ -982,8 +987,8 @@ pub(super) fn desc_release(module: u64) {
     let mut page = DESC_PAGES.load(Relaxed);
     while page != 0 {
         for k in 0..DESC_PER_PAGE {
-            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(24));
-            let [f, m, o] = desc_words(at) else { continue };
+            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(DESC_BYTES));
+            let [f, m, o, _] = desc_words(at) else { continue };
             if f.load(Relaxed) != 0 && m.load(Relaxed) == module {
                 f.store(0, Relaxed);
                 m.store(0, Relaxed);
