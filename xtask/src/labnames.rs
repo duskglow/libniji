@@ -20,7 +20,7 @@ use std::process::Command;
 const NAMES: [&str; 13] = ["keke", "shiki", "kanon", "mei", "sumire", "nico", "kotori", "nozomi", "natsumi", "chisato", "alma", "nijika", "hayase"];
 
 /// Whole files exempt from the scan: `(path or directory prefix, reason)`.
-const ALLOW: [(&str, &str); 16] = [
+const ALLOW: [(&str, &str); 17] = [
     ("spec/cldr/", "vendored Unicode CLDR data (D-31.27): words of its languages (`mei`, a month name) are not host names"),
     ("spec/locale-probe/", "probed locale data (D-31.30): words of its languages are not host names"),
     ("xtask/src/labnames.rs", "this check's own name list and its tests"),
