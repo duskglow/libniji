@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "Merged origin/next (RELEASE-NOTES.md conflict: kept the gencat entry under Unreleased; the execstack entry is already in its snapshot section); gate and 7 gencat plants green",
  "branch": "task/util-14-3",
- "head": "HEADSHA",
+ "head": "536f465af",
  "gate": {
   "affected": "util-14-3-gate: 15 suites ok, 1853 passed, 0 failed (direct tier)",
   "peak": "6.4G"
