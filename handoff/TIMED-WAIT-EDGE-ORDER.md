@@ -44,8 +44,8 @@ Records: D-22.26 (edge order), D-22.27 (prio-protect), COMPAT-42 (registered); t
   locale_data x2, locale_behaviour_equals_the_reference, printf_corpus_equals_the_reference, s7_2_f_0,
   hot_text init_data_clusters_hold_at_every_text_phase, which printf-no-heap-3's mei gate also failed today);
   conformance 59 passed; rt pthread_sync green. Peak 8.1G.
-- timed-wait-edge-order-2-plants2 (`handoff/TIMED-WAIT-EDGE-ORDER-2-plants.txt`): 6 CAUGHT, 0 SURVIVED, 0 WARN.
-  Superseded: plants1 (baseline aborted: a `lit:` pattern containing ` | ` split the line; plant rewritten).
+- timed-wait-edge-order-2-plants3 (`handoff/TIMED-WAIT-EDGE-ORDER-2-plants.txt`, head 106928a36): 6 CAUGHT, 0 SURVIVED,
+  0 WARN. Superseded: plants2 (same 6 CAUGHT, run before the plants file was committed), plants1 (baseline aborted: a `lit:` pattern containing ` | ` split the line; plant rewritten).
 
 ## Next step
 
