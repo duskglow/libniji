@@ -280,6 +280,12 @@ fn order_diffs<S: Clone + std::fmt::Debug>(corpus: &[S], theirs: impl Fn(&S, &S)
 /// over [`corpus`], and the collation-sequence order of the alphabet's characters
 /// (bracket-expression ranges). Keys equal byte for byte are counted, not required.
 fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<String>) {
+    diff_collate_of(theirs, ours, utf8, |_| true, out);
+}
+
+/// [`diff_collate`] over the strings of the corpus and the characters of the alphabet that
+/// `keep` accepts.
+fn diff_collate_of(theirs: Category, ours: Category, utf8: bool, keep: fn(char) -> bool, out: &mut Vec<String>) {
     use niji::locale::collate::{compare, key_bytes, Collate, Collation};
     let (t, o) = match (Collate::parse(theirs), Collate::parse(ours)) {
         (Some(Collation::Rules(t)), Some(Collation::Rules(o))) => (t, o),
@@ -295,7 +301,7 @@ fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<Stri
             return;
         }
     };
-    let words = corpus(utf8);
+    let words: Vec<Vec<char>> = corpus(utf8).into_iter().filter(|s| s.iter().all(|&c| keep(c))).collect();
     let mb = |s: &Vec<char>| -> Vec<u8> { if utf8 { s.iter().collect::<String>().into_bytes() } else { s.iter().map(|&c| c as u8).collect() } };
     let bytes: Vec<Vec<u8>> = words.iter().map(mb).collect();
     for d in order_diffs(&bytes, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
@@ -305,7 +311,7 @@ fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<Stri
     for d in order_diffs(&wide, |a, b| compare(&t, a.as_slice(), b.as_slice()), |a, b| compare(&o, a.as_slice(), b.as_slice())) {
         out.push(format!("LC_COLLATE wcscoll: {d}"));
     }
-    let cps: Vec<u32> = alphabet(utf8).iter().map(|&c| c as u32).collect();
+    let cps: Vec<u32> = alphabet(utf8).into_iter().filter(|&c| keep(c)).map(|c| c as u32).collect();
     let seq = |c: &Collate, cp: u32| if utf8 { c.collseq_wide(cp) } else { c.collseq_byte(cp as u8) };
     for d in order_diffs(&cps, |a, b| seq(&t, *a).cmp(&seq(&t, *b)), |a, b| seq(&o, *a).cmp(&seq(&o, *b))) {
         out.push(format!("LC_COLLATE collseq: {d}"));
@@ -547,6 +553,78 @@ fn undefined_other_categories_have_the_references_defaults() {
 fn generated_charmaps_compile_like_the_reference() {
     for (locale, charmap) in [("en_US", "UTF-8"), ("de_DE", "UTF-8"), ("fr_FR", "UTF-8"), ("ja_JP", "UTF-8"), ("tr_TR", "UTF-8"), ("en_US", "ISO-8859-1")] {
         compare_with(locale, charmap, &mut Generated, false);
+    }
+}
+
+/// The generated locale sources (LOCALE-SOURCES-GEN, D-31.27: `cargo xtask so` writes them to
+/// `target/niji/locale-sources`, or `$NIJI_PRODUCTS/locale-sources`) with the generated charmaps:
+/// what localedef reads on a system with libniji's `locales` and no file of the reference's.
+struct Sources(PathBuf);
+
+impl Files for Sources {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        match kind {
+            Kind::Locale => {
+                let data = std::fs::read(self.0.join(String::from_utf8_lossy(name).as_ref())).map_err(|_| niji_locale::Error::missing("no such file"))?;
+                TryVec::from_slice(&data).map_err(Into::into)
+            }
+            Kind::Charmap => Generated.read(kind, name),
+        }
+    }
+}
+
+fn sources() -> PathBuf {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root.join("target/niji"), PathBuf::from);
+    let dir = products.join("locale-sources");
+    assert!(dir.join("SUPPORTED").exists(), "the generated locale sources are missing: run `cargo xtask so`");
+    dir
+}
+
+/// s31_8_c_1: the #14 locales compiled from libniji's generated sources (Unicode CLDR, D-31.27)
+/// keep what the comparison with the reference found equal: every `LC_CTYPE` class bit, case
+/// map value and width of every code point, the `LC_NUMERIC` items (en_US, de_DE, fr_FR: the
+/// decimal point, grouping and thousands separator printf uses) and, for the locales the
+/// reference does not tailor (en_US, de_DE, fr_FR), the collation order of the corpus
+/// (CLDR's root collation with UTS #10 shifted variable weighting). The parts that differ by
+/// design (transliteration, dates, the tailored orders) are docs/differences-from-glibc.md rows.
+#[test]
+fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
+    let src = sources();
+    for locale in ["en_US", "de_DE", "fr_FR", "ja_JP", "tr_TR"] {
+        let Some(dir) = reference(locale, "UTF-8") else { continue };
+        let ours = niji_locale::compile(locale.as_bytes(), b"UTF-8", &mut Sources(src.clone())).unwrap_or_else(|e| panic!("{locale}: the generated source does not compile: {e:?}"));
+        let cat = |n: usize, theirs: bool| -> Category {
+            let bytes = if theirs { std::fs::read(dir.join("out").join(FILES[n].unwrap())).unwrap() } else { ours[n].as_ref().unwrap().as_slice().to_vec() };
+            Category::parse(leak(bytes)).unwrap_or_else(|| panic!("{locale}: category {n}: a header the reader refuses"))
+        };
+        let mut out = Vec::new();
+        diff_ctype(cat(0, true), cat(0, false), &mut out);
+        // The POSIX classes and libniji's two combining classes, and the case maps; ja_JP's own
+        // classes and maps of the reference (jkanji, tojhira, ...) are a differences-row item.
+        let standard = |l: &str| {
+            l.strip_prefix("LC_CTYPE class ").and_then(|r| r.split(':').next()).is_some_and(|c| {
+                ["upper", "lower", "alpha", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum", "combining", "combining_level3"].contains(&c.trim())
+            })
+        };
+        let case_map = |l: &str| ["toupper:", "tolower:", "totitle:"].iter().any(|m| l.strip_prefix("LC_CTYPE map ").is_some_and(|r| r.starts_with(m)));
+        out.retain(|l| standard(l) || case_map(l) || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
+        if matches!(locale, "en_US" | "de_DE" | "fr_FR") {
+            diff_items("LC_NUMERIC", cat(1, true), cat(1, false), &[], &mut out);
+            // Left out, each a differences-row item: UCA's implicit weights order every unified
+            // ideograph, where the reference leaves CJK Extension A and the supplementary-plane
+            // ideographs undefined; the reference ties U+013F/U+0140 with L/l and MIDDLE DOT at
+            // every level. The collation-sequence order (bracket ranges) is compared for ASCII
+            // only: beyond it the reference's sequence is its table's line order (Greek, U+0149
+            // and U+00FE before Latin A), which a weight order need not follow.
+            diff_collate_of(cat(3, true), cat(3, false), true, |c| !matches!(c as u32, 0x3400..=0x4DBF | 0x9FA6..=0x9FFF | 0x20000..=0x323AF | 0x13F | 0x140), &mut out);
+            out.retain(|l| {
+                let Some(rest) = l.strip_prefix("LC_COLLATE collseq: ") else { return true };
+                rest.split([' ', ':']).take(2).all(|n| n.parse::<u32>().is_ok_and(|n| n < 0x80))
+            });
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(out.is_empty(), "{locale}: {} differences from the reference:\n{}", out.len(), out.join("\n"));
     }
 }
 
