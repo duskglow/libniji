@@ -26,9 +26,14 @@ Sync: `bash ~/src/liella-ops/tools/sync_role.sh --story LOCALEDEF-ARCHIVE --base
   conformance 146 passed; peak 12G, rc 0.
 * Plants `localedef-archive-plants` (`handoff/LOCALEDEF-ARCHIVE.plants`): 8 of 8 CAUGHT, no WARN-RC-ONLY/NO-MSG
   (one WARN-DEV-SHM, informational); results `handoff/LOCALEDEF-ARCHIVE-plants.txt`.
-* Start-up checks: `localedef-archive-test` (`cargo xtask test`) and `localedef-archive-hot` (NIJI_FULL_PROFILE so +
-  hot_text_products), started 01:06Z by `~/work/localedef-archive/startup.sh` (sequential). Result: see the report
-  json / hand-back. `layout-bins.tsv` was NOT diffed against the merge base (no base products on keke; a base
+* Start-up checks, PENDING at hand-back (02:10Z): `localedef-archive-test` (`cargo xtask test`, started 01:06Z; first
+  nextest pass 7161 of 7162 passed, 0 failed so far, native pass running) and `localedef-archive-hot`
+  (NIJI_FULL_PROFILE so + hot_text_products), started by `~/work/localedef-archive/hot_after_test.sh` once the test
+  job ends. Re-attach: `~/bin/jobwait localedef-archive-test localedef-archive-hot`.
+* Precheck (02:00Z, role holding 8a94dbea6 = code 3cc67e6ff + plant results): static, placeholders, train-owned,
+  every gen check and clippy ok; jobs WAIT (test, hot); head RED only because that sync (01:06Z) came from a worktree
+  with the uncommitted report json (prose); the role was BUSY for a clean re-sync. The final head adds only
+  `handoff/` prose to the tested code. `layout-bins.tsv` was NOT diffed against the merge base (no base products on keke; a base
   build costs a full products build); the only start-up-path change is one `filter` in the archive reader.
 * E2E (leg 3, `localedef-archive-e2e`): the reference's `localedef --list-archive` lists libniji's archive; libniji
   `locale -a`/`locale -k` read it byte-identically to the directory form for 6 locales.

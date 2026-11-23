@@ -83,7 +83,7 @@
   }
  ],
  "improvement": "the plants file splits fields on ' | ', which Rust closures (|&r|) trip easily; an escape or a different separator would avoid a silent mis-split",
- "next_step": "land; UTIL-13 locale-gen can use the archive",
+ "next_step": "collect localedef-archive-test and localedef-archive-hot (keke, ~/bin/jobwait localedef-archive-test localedef-archive-hot); green -> land; UTIL-13 locale-gen can use the archive",
  "report_file": "handoff/LOCALEDEF-ARCHIVE.md",
  "jobs": [
   "localedef-archive-gate",
