@@ -1937,6 +1937,278 @@ struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr8	0		uint8_t[16]
 struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr16	0		uint16_t[8]	
 struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr32	0		uint32_t[4]	
 struct in6_pktinfo	ipi6_ifindex	16		unsigned int	
+struct ip_timestamp		40	4		
+struct ip_timestamp	ipt_code	0		uint8_t	
+struct ip_timestamp	ipt_len	1		uint8_t	
+struct ip_timestamp	ipt_ptr	2		uint8_t	
+struct ip_timestamp	ipt_flg	0		unsigned int	bits 4@24
+struct ip_timestamp	ipt_oflw	0		unsigned int	bits 4@28
+struct ip_timestamp	data	4		uint32_t[9]	
+struct rtentry		120	8		
+struct rtentry	rt_pad1	0		long unsigned int	
+struct rtentry	rt_dst	8		struct sockaddr	
+struct rtentry	rt_dst.sa_family	8		sa_family_t	
+struct rtentry	rt_dst.sa_data	10		char[14]	
+struct rtentry	rt_gateway	24		struct sockaddr	
+struct rtentry	rt_gateway.sa_family	24		sa_family_t	
+struct rtentry	rt_gateway.sa_data	26		char[14]	
+struct rtentry	rt_genmask	40		struct sockaddr	
+struct rtentry	rt_genmask.sa_family	40		sa_family_t	
+struct rtentry	rt_genmask.sa_data	42		char[14]	
+struct rtentry	rt_flags	56		short unsigned int	
+struct rtentry	rt_pad2	58		short int	
+struct rtentry	rt_pad3	64		long unsigned int	
+struct rtentry	rt_tos	72		unsigned char	
+struct rtentry	rt_class	73		unsigned char	
+struct rtentry	rt_pad4	74		short int[3]	
+struct rtentry	rt_metric	80		short int	
+struct rtentry	rt_dev	88		char *	
+struct rtentry	rt_mtu	96		long unsigned int	
+struct rtentry	rt_window	104		long unsigned int	
+struct rtentry	rt_irtt	112		short unsigned int	
+struct in6_rtmsg		80	8		
+struct in6_rtmsg	rtmsg_dst	0		struct in6_addr	
+struct in6_rtmsg	rtmsg_dst.__in6_u	0		union <anon>	
+struct in6_rtmsg	rtmsg_dst.__in6_u.__u6_addr8	0		uint8_t[16]	
+struct in6_rtmsg	rtmsg_dst.__in6_u.__u6_addr16	0		uint16_t[8]	
+struct in6_rtmsg	rtmsg_dst.__in6_u.__u6_addr32	0		uint32_t[4]	
+struct in6_rtmsg	rtmsg_src	16		struct in6_addr	
+struct in6_rtmsg	rtmsg_src.__in6_u	16		union <anon>	
+struct in6_rtmsg	rtmsg_src.__in6_u.__u6_addr8	16		uint8_t[16]	
+struct in6_rtmsg	rtmsg_src.__in6_u.__u6_addr16	16		uint16_t[8]	
+struct in6_rtmsg	rtmsg_src.__in6_u.__u6_addr32	16		uint32_t[4]	
+struct in6_rtmsg	rtmsg_gateway	32		struct in6_addr	
+struct in6_rtmsg	rtmsg_gateway.__in6_u	32		union <anon>	
+struct in6_rtmsg	rtmsg_gateway.__in6_u.__u6_addr8	32		uint8_t[16]	
+struct in6_rtmsg	rtmsg_gateway.__in6_u.__u6_addr16	32		uint16_t[8]	
+struct in6_rtmsg	rtmsg_gateway.__in6_u.__u6_addr32	32		uint32_t[4]	
+struct in6_rtmsg	rtmsg_type	48		uint32_t	
+struct in6_rtmsg	rtmsg_dst_len	52		uint16_t	
+struct in6_rtmsg	rtmsg_src_len	54		uint16_t	
+struct in6_rtmsg	rtmsg_metric	56		uint32_t	
+struct in6_rtmsg	rtmsg_info	64		long unsigned int	
+struct in6_rtmsg	rtmsg_flags	72		uint32_t	
+struct in6_rtmsg	rtmsg_ifindex	76		int	
+struct arpreq		68	4		
+struct arpreq	arp_pa	0		struct sockaddr	
+struct arpreq	arp_pa.sa_family	0		sa_family_t	
+struct arpreq	arp_pa.sa_data	2		char[14]	
+struct arpreq	arp_ha	16		struct sockaddr	
+struct arpreq	arp_ha.sa_family	16		sa_family_t	
+struct arpreq	arp_ha.sa_data	18		char[14]	
+struct arpreq	arp_flags	32		int	
+struct arpreq	arp_netmask	36		struct sockaddr	
+struct arpreq	arp_netmask.sa_family	36		sa_family_t	
+struct arpreq	arp_netmask.sa_data	38		char[14]	
+struct arpreq	arp_dev	52		char[16]	
+struct arpreq_old		52	4		
+struct arpreq_old	arp_pa	0		struct sockaddr	
+struct arpreq_old	arp_pa.sa_family	0		sa_family_t	
+struct arpreq_old	arp_pa.sa_data	2		char[14]	
+struct arpreq_old	arp_ha	16		struct sockaddr	
+struct arpreq_old	arp_ha.sa_family	16		sa_family_t	
+struct arpreq_old	arp_ha.sa_data	18		char[14]	
+struct arpreq_old	arp_flags	32		int	
+struct arpreq_old	arp_netmask	36		struct sockaddr	
+struct arpreq_old	arp_netmask.sa_family	36		sa_family_t	
+struct arpreq_old	arp_netmask.sa_data	38		char[14]	
+struct arpd_request		40	8		
+struct arpd_request	req	0		short unsigned int	
+struct arpd_request	ip	4		uint32_t	
+struct arpd_request	dev	8		long unsigned int	
+struct arpd_request	stamp	16		long unsigned int	
+struct arpd_request	updated	24		long unsigned int	
+struct arpd_request	ha	32		unsigned char[7]	
+struct ether_arp		28	2		
+struct ether_arp	ea_hdr	0		struct arphdr	
+struct ether_arp	ea_hdr.ar_hrd	0		short unsigned int	
+struct ether_arp	ea_hdr.ar_pro	2		short unsigned int	
+struct ether_arp	ea_hdr.ar_hln	4		unsigned char	
+struct ether_arp	ea_hdr.ar_pln	5		unsigned char	
+struct ether_arp	ea_hdr.ar_op	6		short unsigned int	
+struct ether_arp	arp_sha	8		uint8_t[6]	
+struct ether_arp	arp_spa	14		uint8_t[4]	
+struct ether_arp	arp_tha	18		uint8_t[6]	
+struct ether_arp	arp_tpa	24		uint8_t[4]	
+struct icmp6_filter		32	4		
+struct icmp6_filter	icmp6_filt	0		uint32_t[8]	
+struct nd_router_solicit		8	4		
+struct nd_router_solicit	nd_rs_hdr	0		struct icmp6_hdr	
+struct nd_router_solicit	nd_rs_hdr.icmp6_type	0		uint8_t	
+struct nd_router_solicit	nd_rs_hdr.icmp6_code	1		uint8_t	
+struct nd_router_solicit	nd_rs_hdr.icmp6_cksum	2		uint16_t	
+struct nd_router_solicit	nd_rs_hdr.icmp6_dataun	4		union <anon>	
+struct nd_router_solicit	nd_rs_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct nd_router_solicit	nd_rs_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct nd_router_solicit	nd_rs_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct nd_router_advert		16	4		
+struct nd_router_advert	nd_ra_hdr	0		struct icmp6_hdr	
+struct nd_router_advert	nd_ra_hdr.icmp6_type	0		uint8_t	
+struct nd_router_advert	nd_ra_hdr.icmp6_code	1		uint8_t	
+struct nd_router_advert	nd_ra_hdr.icmp6_cksum	2		uint16_t	
+struct nd_router_advert	nd_ra_hdr.icmp6_dataun	4		union <anon>	
+struct nd_router_advert	nd_ra_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct nd_router_advert	nd_ra_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct nd_router_advert	nd_ra_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct nd_router_advert	nd_ra_reachable	8		uint32_t	
+struct nd_router_advert	nd_ra_retransmit	12		uint32_t	
+struct nd_neighbor_solicit		24	4		
+struct nd_neighbor_solicit	nd_ns_hdr	0		struct icmp6_hdr	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_type	0		uint8_t	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_code	1		uint8_t	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_cksum	2		uint16_t	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_dataun	4		union <anon>	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct nd_neighbor_solicit	nd_ns_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct nd_neighbor_solicit	nd_ns_target	8		struct in6_addr	
+struct nd_neighbor_solicit	nd_ns_target.__in6_u	8		union <anon>	
+struct nd_neighbor_solicit	nd_ns_target.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct nd_neighbor_solicit	nd_ns_target.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct nd_neighbor_solicit	nd_ns_target.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct nd_neighbor_advert		24	4		
+struct nd_neighbor_advert	nd_na_hdr	0		struct icmp6_hdr	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_type	0		uint8_t	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_code	1		uint8_t	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_cksum	2		uint16_t	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_dataun	4		union <anon>	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct nd_neighbor_advert	nd_na_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct nd_neighbor_advert	nd_na_target	8		struct in6_addr	
+struct nd_neighbor_advert	nd_na_target.__in6_u	8		union <anon>	
+struct nd_neighbor_advert	nd_na_target.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct nd_neighbor_advert	nd_na_target.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct nd_neighbor_advert	nd_na_target.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct nd_redirect		40	4		
+struct nd_redirect	nd_rd_hdr	0		struct icmp6_hdr	
+struct nd_redirect	nd_rd_hdr.icmp6_type	0		uint8_t	
+struct nd_redirect	nd_rd_hdr.icmp6_code	1		uint8_t	
+struct nd_redirect	nd_rd_hdr.icmp6_cksum	2		uint16_t	
+struct nd_redirect	nd_rd_hdr.icmp6_dataun	4		union <anon>	
+struct nd_redirect	nd_rd_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct nd_redirect	nd_rd_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct nd_redirect	nd_rd_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct nd_redirect	nd_rd_target	8		struct in6_addr	
+struct nd_redirect	nd_rd_target.__in6_u	8		union <anon>	
+struct nd_redirect	nd_rd_target.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct nd_redirect	nd_rd_target.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct nd_redirect	nd_rd_target.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct nd_redirect	nd_rd_dst	24		struct in6_addr	
+struct nd_redirect	nd_rd_dst.__in6_u	24		union <anon>	
+struct nd_redirect	nd_rd_dst.__in6_u.__u6_addr8	24		uint8_t[16]	
+struct nd_redirect	nd_rd_dst.__in6_u.__u6_addr16	24		uint16_t[8]	
+struct nd_redirect	nd_rd_dst.__in6_u.__u6_addr32	24		uint32_t[4]	
+struct nd_opt_hdr		2	1		
+struct nd_opt_hdr	nd_opt_type	0		uint8_t	
+struct nd_opt_hdr	nd_opt_len	1		uint8_t	
+struct nd_opt_prefix_info		32	4		
+struct nd_opt_prefix_info	nd_opt_pi_type	0		uint8_t	
+struct nd_opt_prefix_info	nd_opt_pi_len	1		uint8_t	
+struct nd_opt_prefix_info	nd_opt_pi_prefix_len	2		uint8_t	
+struct nd_opt_prefix_info	nd_opt_pi_flags_reserved	3		uint8_t	
+struct nd_opt_prefix_info	nd_opt_pi_valid_time	4		uint32_t	
+struct nd_opt_prefix_info	nd_opt_pi_preferred_time	8		uint32_t	
+struct nd_opt_prefix_info	nd_opt_pi_reserved2	12		uint32_t	
+struct nd_opt_prefix_info	nd_opt_pi_prefix	16		struct in6_addr	
+struct nd_opt_prefix_info	nd_opt_pi_prefix.__in6_u	16		union <anon>	
+struct nd_opt_prefix_info	nd_opt_pi_prefix.__in6_u.__u6_addr8	16		uint8_t[16]	
+struct nd_opt_prefix_info	nd_opt_pi_prefix.__in6_u.__u6_addr16	16		uint16_t[8]	
+struct nd_opt_prefix_info	nd_opt_pi_prefix.__in6_u.__u6_addr32	16		uint32_t[4]	
+struct nd_opt_rd_hdr		8	4		
+struct nd_opt_rd_hdr	nd_opt_rh_type	0		uint8_t	
+struct nd_opt_rd_hdr	nd_opt_rh_len	1		uint8_t	
+struct nd_opt_rd_hdr	nd_opt_rh_reserved1	2		uint16_t	
+struct nd_opt_rd_hdr	nd_opt_rh_reserved2	4		uint32_t	
+struct nd_opt_mtu		8	4		
+struct nd_opt_mtu	nd_opt_mtu_type	0		uint8_t	
+struct nd_opt_mtu	nd_opt_mtu_len	1		uint8_t	
+struct nd_opt_mtu	nd_opt_mtu_reserved	2		uint16_t	
+struct nd_opt_mtu	nd_opt_mtu_mtu	4		uint32_t	
+struct nd_opt_adv_interval		8	4		
+struct nd_opt_adv_interval	nd_opt_adv_interval_type	0		uint8_t	
+struct nd_opt_adv_interval	nd_opt_adv_interval_len	1		uint8_t	
+struct nd_opt_adv_interval	nd_opt_adv_interval_reserved	2		uint16_t	
+struct nd_opt_adv_interval	nd_opt_adv_interval_ival	4		uint32_t	
+struct nd_opt_home_agent_info		8	2		
+struct nd_opt_home_agent_info	nd_opt_home_agent_info_type	0		uint8_t	
+struct nd_opt_home_agent_info	nd_opt_home_agent_info_len	1		uint8_t	
+struct nd_opt_home_agent_info	nd_opt_home_agent_info_reserved	2		uint16_t	
+struct nd_opt_home_agent_info	nd_opt_home_agent_info_preference	4		uint16_t	
+struct nd_opt_home_agent_info	nd_opt_home_agent_info_lifetime	6		uint16_t	
+struct mld_hdr		24	4		
+struct mld_hdr	mld_icmp6_hdr	0		struct icmp6_hdr	
+struct mld_hdr	mld_icmp6_hdr.icmp6_type	0		uint8_t	
+struct mld_hdr	mld_icmp6_hdr.icmp6_code	1		uint8_t	
+struct mld_hdr	mld_icmp6_hdr.icmp6_cksum	2		uint16_t	
+struct mld_hdr	mld_icmp6_hdr.icmp6_dataun	4		union <anon>	
+struct mld_hdr	mld_icmp6_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct mld_hdr	mld_icmp6_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct mld_hdr	mld_icmp6_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct mld_hdr	mld_addr	8		struct in6_addr	
+struct mld_hdr	mld_addr.__in6_u	8		union <anon>	
+struct mld_hdr	mld_addr.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct mld_hdr	mld_addr.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct mld_hdr	mld_addr.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct icmp6_router_renum		16	4		
+struct icmp6_router_renum	rr_hdr	0		struct icmp6_hdr	
+struct icmp6_router_renum	rr_hdr.icmp6_type	0		uint8_t	
+struct icmp6_router_renum	rr_hdr.icmp6_code	1		uint8_t	
+struct icmp6_router_renum	rr_hdr.icmp6_cksum	2		uint16_t	
+struct icmp6_router_renum	rr_hdr.icmp6_dataun	4		union <anon>	
+struct icmp6_router_renum	rr_hdr.icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct icmp6_router_renum	rr_hdr.icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct icmp6_router_renum	rr_hdr.icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct icmp6_router_renum	rr_segnum	8		uint8_t	
+struct icmp6_router_renum	rr_flags	9		uint8_t	
+struct icmp6_router_renum	rr_maxdelay	10		uint16_t	
+struct icmp6_router_renum	rr_reserved	12		uint32_t	
+struct rr_pco_match		24	4		
+struct rr_pco_match	rpm_code	0		uint8_t	
+struct rr_pco_match	rpm_len	1		uint8_t	
+struct rr_pco_match	rpm_ordinal	2		uint8_t	
+struct rr_pco_match	rpm_matchlen	3		uint8_t	
+struct rr_pco_match	rpm_minlen	4		uint8_t	
+struct rr_pco_match	rpm_maxlen	5		uint8_t	
+struct rr_pco_match	rpm_reserved	6		uint16_t	
+struct rr_pco_match	rpm_prefix	8		struct in6_addr	
+struct rr_pco_match	rpm_prefix.__in6_u	8		union <anon>	
+struct rr_pco_match	rpm_prefix.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct rr_pco_match	rpm_prefix.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct rr_pco_match	rpm_prefix.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct rr_pco_use		32	4		
+struct rr_pco_use	rpu_uselen	0		uint8_t	
+struct rr_pco_use	rpu_keeplen	1		uint8_t	
+struct rr_pco_use	rpu_ramask	2		uint8_t	
+struct rr_pco_use	rpu_raflags	3		uint8_t	
+struct rr_pco_use	rpu_vltime	4		uint32_t	
+struct rr_pco_use	rpu_pltime	8		uint32_t	
+struct rr_pco_use	rpu_flags	12		uint32_t	
+struct rr_pco_use	rpu_prefix	16		struct in6_addr	
+struct rr_pco_use	rpu_prefix.__in6_u	16		union <anon>	
+struct rr_pco_use	rpu_prefix.__in6_u.__u6_addr8	16		uint8_t[16]	
+struct rr_pco_use	rpu_prefix.__in6_u.__u6_addr16	16		uint16_t[8]	
+struct rr_pco_use	rpu_prefix.__in6_u.__u6_addr32	16		uint32_t[4]	
+struct rr_result		24	4		
+struct rr_result	rrr_flags	0		uint16_t	
+struct rr_result	rrr_ordinal	2		uint8_t	
+struct rr_result	rrr_matchedlen	3		uint8_t	
+struct rr_result	rrr_ifid	4		uint32_t	
+struct rr_result	rrr_prefix	8		struct in6_addr	
+struct rr_result	rrr_prefix.__in6_u	8		union <anon>	
+struct rr_result	rrr_prefix.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct rr_result	rrr_prefix.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct rr_result	rrr_prefix.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct tftphdr		5	1		
+struct tftphdr	th_opcode	0		short int	
+struct tftphdr	th_u1	2		union <anon>	
+struct tftphdr	th_u1.tu_padding	2		char[3]	
+struct tftphdr	th_u1.th_u2	2		struct <anon>	
+struct tftphdr	th_u1.th_u2.th_u3	2		union <anon>	
+struct tftphdr	th_u1.th_u2.th_u3.tu_block	2		short unsigned int	
+struct tftphdr	th_u1.th_u2.th_u3.tu_code	2		short int	
+struct tftphdr	th_u1.th_u2.tu_data	4		char[0]	
+struct tftphdr	th_u1.tu_stuff	2		char[0]	
 Elf32_Ehdr		52	4		
 Elf32_Ehdr	e_ident	0		unsigned char[16]	
 Elf32_Ehdr	e_type	16		Elf32_Half	
