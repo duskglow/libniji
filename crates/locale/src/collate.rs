@@ -704,7 +704,7 @@ fn code_point_order(c: &Collation, cs: &Charset) -> bool {
     };
     let forward = |r: u8| c.rulesets.get(usize::from(r)).and_then(|r| r.first()).is_some_and(|&r| r & BACKWARD == 0);
     // The code points placed, as increasing inclusive ranges.
-    let mut covered: Vec<(u32, u32)> = Vec::new();
+    let mut covered: TryVec<(u32, u32)> = TryVec::new();
     let mut i = c.order.nodes[0].next;
     while i != usize::MAX {
         let node = &c.order.nodes[i];
@@ -724,13 +724,19 @@ fn code_point_order(c: &Collation, cs: &Charset) -> bool {
             }
             _ => return false,
         };
-        if !forward(node.ruleset) || covered.last().is_some_and(|l| l.1 >= lo) {
+        if !forward(node.ruleset) {
             return false;
         }
-        if covered.try_reserve(1).is_err() {
-            return false;
+        // Adjacent ranges merge (an order written line by line is one range).
+        match covered.last_mut() {
+            Some(l) if l.1 >= lo => return false,
+            Some(l) if l.1.checked_add(1) == Some(lo) => l.1 = hi,
+            _ => {
+                if covered.push((lo, hi)).is_err() {
+                    return false;
+                }
+            }
         }
-        covered.push((lo, hi));
     }
     // Every character of the charmap is in a range (a run's range holds every character between
     // its ends that the charmap has, none being placed elsewhere), and the charmap's byte order
