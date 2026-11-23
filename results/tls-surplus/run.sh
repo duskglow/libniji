@@ -40,7 +40,9 @@ run() {
     local envs=(env -u GLIBC_TUNABLES)
     [ "$tun" != "-" ] && envs+=(GLIBC_TUNABLES="$tun")
     if [ "$libc" = niji ]; then
-        "${envs[@]}" LD_LIBRARY_PATH="$NIJI" timeout 30 "$W/probe-niji" "$thr" "$@" 2>&1
+        # No LD_LIBRARY_PATH: it would reach env and timeout (host programs) too. probe-niji finds
+        # libniji's libc.so.6 by its RUNPATH, and its libc= field shows which one it mapped.
+        "${envs[@]}" timeout 30 "$W/probe-niji" "$thr" "$@" 2>&1
     else
         "${envs[@]}" timeout 30 "$W/probe-ref" "$thr" "$@" 2>&1
     fi
