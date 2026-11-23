@@ -11,3 +11,14 @@ uapi-compat-only | headers/netinet/in.h.in | lit:#if defined _LINUX_IN6_H && def
 igmp-in-always | headers/netinet/igmp.h.in | lit:@@needs-if in_addr netinet/in.h ==> #include <netinet/in.h> | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL P8 linux/in\.h then netinet/igmp\.h
 ip-icmp-in-always | headers/netinet/ip_icmp.h.in | lit:@@needs-if in_addr netinet/in.h ==> #include <netinet/in.h> | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL P8 linux/in\.h then netinet/ip_icmp\.h
 ip-icmp-ip-always | headers/netinet/ip_icmp.h.in | lit:@@needs-if iphdr netinet/ip.h ==> #include <netinet/ip.h> | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL P8 linux/in\.h then netinet/ip_icmp\.h
+# cargo xtask plants results (10 plants: 10 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# uapi-in6-addr-kept: CAUGHT, caught by no test the log names
+# uapi-sockaddr-in6-kept: CAUGHT, caught by no test the log names
+# uapi-ipv6-mreq-kept: CAUGHT, caught by no test the log names
+# uapi-in6-pktinfo-kept: CAUGHT, caught by no test the log names
+# uapi-ip6-mtuinfo-kept: CAUGHT, caught by no test the log names
+# uapi-s6-addr-libc: CAUGHT, caught by no test the log names
+# uapi-compat-only: CAUGHT, caught by no test the log names
+# igmp-in-always: CAUGHT, caught by no test the log names
+# ip-icmp-in-always: CAUGHT, caught by no test the log names
+# ip-icmp-ip-always: CAUGHT, caught by no test the log names
