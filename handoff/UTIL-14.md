@@ -1,5 +1,7 @@
 # UTIL-14: gencat in libc-dev-bin (GitHub issue #12)
 
+**State (UTIL-14-3, 2026-11-23).** Branch task/util-14-3 = UTIL-14-2 head + merge of origin/next (RELEASE-NOTES.md: gencat entry kept under Unreleased; execstack entry already in a snapshot section) + plants file repointed to catalogs_products. Role shiki:~/w/sh2. Direct gate util-14-3-gate green (1853 passed), plants util-14-3-plants 7/7 CAUGHT (handoff/UTIL-14-3-plants.txt). Next step: none; land.
+
 **State (UTIL-14-2, 2026-11-23).** Branch `task/util-14-2` = UTIL-14's head `2e25f9305` + merge of origin/next
 `0495c4684` (merge commit `bd99cec16`; gencat code unchanged since `4809e2d1f`). Role keke:~/w/n3. Train 946's seven
 reds were a host change on the CI host (#7846, LOCALE-PER-DIR-LOAD fixes it), not this branch: on the merged head on
