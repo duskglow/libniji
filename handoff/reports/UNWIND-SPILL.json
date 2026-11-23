@@ -1,7 +1,7 @@
 {"task": "UNWIND-SPILL", "model": "opus", "tokens": null,
  "result": "HL-20 removed: the unwinder keeps 4 remembered rows / 32 expression entries inline and spills deeper ones to mmap'd pages (async-signal-safe); a mapping that cannot be had fails only that row, as the caps did (D-2.14)",
  "branch": "task/unwind-spill", "head": null,
- "gate": {"affected": "13 suites, 985 passed / 0 failed; conformance 1 passed (mei:unwind-spill-gate1)", "peak": "3.2G"},
+ "gate": {"affected": "13 suites, 985 passed / 0 failed; conformance 1 passed (mei:unwind-spill-gate3)", "peak": "3.2G"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": ["Premise: libniji exports no _Unwind_* (D-2.11); _Unwind_Backtrace and C++ throws run libgcc's unwinder, not this code. Tests drive backtrace (conformance s02_backtrace) and the walker's layers (rt unit tests) instead.",
@@ -13,4 +13,4 @@
  "improvement": "The brief's test premise (_Unwind_Backtrace, C++ throw) did not match the code's callers (D-2.11 says no _Unwind_*); a brief generator that reads the codemap's callers of the audited file would catch that.",
  "next_step": "none for HL-20; the train regenerates the D-2.14 view",
  "report_file": "handoff/UNWIND-SPILL.md",
- "jobs": ["mei:unwind-spill-gate1", "mei:unwind-spill-plants1"]}
+ "jobs": ["mei:unwind-spill-gate3", "mei:unwind-spill-plants3"]}

@@ -1,6 +1,9 @@
 # UNWIND-SPILL (audit HL-20): the unwinder's remember-state and expression stacks spill
 
-State: branch `task/unwind-spill`, code at ce47d164a (this note and the report are committed on top).
+State: branch `task/unwind-spill`, code at 5130039dd (this note and the report are committed on top).
+Jobs on the code head (mei): gate `unwind-spill-gate3`, plants `unwind-spill-plants3` (all 8 plants). Superseded: gate1 and
+plants1 (older head; plants1 had `reg-cell` SURVIVED: the every-kind test restored its spilled row first, fixed in
+31ff864df), gate2 and plants2 (that fix compared expression rules at different block addresses, fixed in 5130039dd).
 Decision in force: **D-2.14** (amends D-2.11 (2) and (8)); HL-26's 1024-operation budget (D-2.11 (8)) kept.
 
 ## What changed
