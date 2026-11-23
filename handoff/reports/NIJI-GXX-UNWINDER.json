@@ -1,0 +1,23 @@
+{"task": "NIJI-GXX-UNWINDER", "model": "opus", "tokens": null,
+ "result": "niji-gcc/niji-g++ programs unwind exiting and cancelled threads with the unwinder they link (exported entry __niji_program_unwinder, D-22.24); #25's rows match g++/gcc builds on the reference; plain-C pthread_exit and create/join counts unchanged",
+ "branch": "task/niji-gxx-unwinder", "head": "9675a622e",
+ "gate": {"affected": "gate5: all suites green but hot_text_products (10 red on a missing target/niji/.hot-lists after a killed product build); that suite rerun after cargo xtask so: 33 passed / 0 failed (hotfix), and 33 passed on full-profile products (startup3)", "peak": "gate5 2.9G"},
+ "accepted_first_attempt": null,
+ "jobs": ["mei:niji-gxx-unwinder-gate5", "mei:niji-gxx-unwinder-hotfix", "mei:niji-gxx-unwinder-plants6", "mei:niji-gxx-unwinder-percall4", "mei:niji-gxx-unwinder-startup3", "mei:niji-gxx-unwinder-lint3"],
+ "rulings": [],
+ "informational": [
+   "The D-22.23 walk costs thousands of instructions per walked frame (plain-C pthread_exit 89942.6 instr/call vs the reference's 9529.3); its cost follows the shape of the frames it passes, so any change to forced_unwind/no_unwinder moves the plain-C exit count (first try +8044/call). A cheaper walk is a separate story.",
+   "xtask plants refuses any .S plant without a niji_machine_ label; csys/start/*.S entries have none, so a start-file plant must be written from the library side.",
+   "kill-mine during a gate's `cargo xtask so` left the role's target/niji without .hot-lists; the next gate's so did not restore it (10 hot_text_products tests red on a missing marker)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "threaded C++ built with niji-g++ (and -fexceptions C built with niji-gcc): pthread_exit / cancellation unwind (destructors run, catch of abi::__forced_unwind entered and rethrown, join gets PTHREAD_CANCELED) instead of the D-22.23 FATAL + abort (134)", "before": 134, "after": 0, "unit": "exit status", "measured": true},
+   {"kind": "perf", "what": "thread_exit_join (plain-C pthread_exit), dynamic kit", "before": 89942.6, "after": 89942.6, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "thread_create_join, dynamic kit", "before": 36092.1, "after": 36092.1, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "thread_cleanup_exit_join (pthread_exit with a C cleanup buffer): later_step's class-word check, needed for C++ after a cleanup buffer", "before": 93411.6, "after": 93417.6, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "1 test (deb_manifest coexist_niji_gcc_threads_unwind_with_the_programs_own_unwinder, 3 builds vs the reference), 5 plants all caught", "before": null, "after": 5, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A per-call count of the plain-C path belongs right after the first code commit: the 'unchanged by construction' claim was wrong by 8044 instr/call and cost two gate/plant cycles to fix.",
+ "next_step": "land; then (separate story) a cheaper D-22.23 walk (89942 vs 9529 instr per plain-C pthread_exit).",
+ "report_file": "handoff/NIJI-GXX-UNWINDER.md"}
