@@ -13,6 +13,7 @@ Results and findings: `results/locale-collate-2026-11-23.md`.
 | `collcontr.c` | `collcontr <locale> <cp>...`: two-character contractions among the candidates: for each first character x, the strings x+y must sort as the y do; the ones out of order (not on a longest increasing subsequence) are printed. |
 | `colldiff.py` | Expresses one `collorder` output as rules against a root output: moved elements (`&anchor level cp`) off a longest common subsequence, and level changes of kept elements. |
 | `ducet_order.py` | Orders the probed code point set by the DUCET (`spec/unicode/15.1.0/allkeys.txt`, UTS #10, implicit Han weights per UTS #10 section 10.1) for comparison with the probed root. |
+| `root_rules.py` | `root_rules.py <allkeys.txt> <UnicodeData.txt> <en_US.all.tsv> <out>`: derives `spec/locale/collate-root.txt` (the shared root's class rules, undefined ranges and placements, coordinator decision #7958) from `collorder`'s en_US output over U+0001-U+D7FF and U+E000-U+10FFFF. It simulates the generator, prints the order and level mismatches left, and exits 1 if any remain. The `expand`, `same` and `contract` lines that the test settled are listed in the script as `SETTLED`. Results section 7. |
 | `eqruns.py` | Summarises runs of `strcoll`-equal elements (the undefined classes). |
 | `build_locs.sh` | Builds named locales with the reference `localedef` into a private `LOCPATH` directory. |
 | `survey_all.sh`, `survey_one.sh` | The survey: every UTF-8 locale the reference lists as supported, built in a RAM directory, probed with `collorder` over U+0020-U+D7FF, U+F900-U+FFFD, U+10000-U+1FFFF, built locale removed; records `localedef` time and the compiled `LC_COLLATE` size. `LDTIMEOUT` (seconds, default 300) bounds `localedef`. |
@@ -26,6 +27,9 @@ programs, `<ram>` a new RAM directory):
     sh <w>/survey_all.sh <w> <ram>/survey 12          # ~8.5 min on a 60-vCPU Zen 1 host under load
     sh <w>/diff_all.sh <w> en_US 10
     LDTIMEOUT=1800 xargs -P 12 -n 1 sh <w>/contr_one.sh <w> <ram>/contr < <w>/locales.txt
+    <w>/collorder en_US.UTF-8 1 D7FF E000 10FFFF > <w>/en_US.all.tsv            # the root probe, ~8 s
+    python3 root_rules.py <repo>/spec/unicode/15.1.0/allkeys.txt <repo>/spec/unicode/15.1.0/UnicodeData.txt \
+        <w>/en_US.all.tsv <repo>/spec/locale/collate-root.txt
 
 The probes are deterministic for a given reference build; there is no spec clause behind them (`no spec clause`):
 they are evidence for the derivation, not tests.
