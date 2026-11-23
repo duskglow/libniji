@@ -106,7 +106,7 @@ use niji_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// (`pre`, ahead of the head bin) reads one more in each mode from 0x4000 (fast: from 0x800, start-up only
 /// from 0x4000), the head bin's room for what precedes the group being 0x400. TRUE_BOUND 11 -> 11 / 10,
 /// LOCALE_BOUND 47 -> 43 / 43, TOOL_BOUND 50 -> 44 / 45.
-/// GATE-HONEST-METRICS (owner ruling #8135, D-X.NEW-RATIO): the absolute counts above were a function of the
+/// GATE-HONEST-METRICS (owner ruling #8135, D-X.165): the absolute counts above were a function of the
 /// host's environment as much as of the products (a host without locale-archive reads 13 more in `locale` and
 /// `tool`, the reference 14 more), so they fired on every run on one host class or the other and guarded
 /// nothing. Every runtime fault metric is now the ratio libniji / reference: the same `page_faults.c`, the same
@@ -131,9 +131,14 @@ const LOCALE_RATIO: [u64; 2] = [1103, 1103];
 /// GATE-HONEST-METRICS: a ratio to the reference (see [`TRUE_RATIO`]).
 const TOOL_RATIO: [u64; 2] = [1154, 1154];
 /// The host classes [`TRUE_RATIO`] and the other ratio bounds were measured on (GATE-HONEST-METRICS, next
-/// 0495c4684 plus this change, warm-up + 5 runs, every run identical): the Skylake-SP host (per-locale
-/// directories, no locale-archive) and the Haswell-EP host (locale-archive).
-const RATIO_HOSTS: &str = "Skylake-SP (per-locale directories), Haswell-EP (locale-archive)";
+/// 0495c4684's fast products, warm-up + 5 runs, every run identical), libniji / reference, static probe: Skylake-SP
+/// host (per-locale directories, no locale-archive) true 10 / 29, locale 56 / 53, tool 58 / 53, fork 5 / 7,
+/// localtime and localtime + mktime 36 / 32, float 4 / 1; Haswell-EP and Zen 1 hosts (locale-archive) the same
+/// but locale 43 / 39, tool 45 / 39. Dynamic probe: Skylake-SP true 65 / 49, locale 107 / 81, tool 109 / 81;
+/// Haswell-EP and Zen 1 65 / 48, 93 / 66, 95 / 66. Each bound is the highest ratio, rounded up to a thousandth.
+/// The release profile takes the same bounds until it is measured the same way (the absolute release counts
+/// were at or under the fast ones: TRUE_BOUND 10 against 11, TOOL_BOUND 45 against 44).
+const RATIO_HOSTS: &str = "Skylake-SP (per-locale directories), Haswell-EP and Zen 1 (locale-archive)";
 const RUNS: usize = 5;
 /// Every mode of `page_faults.c` whose first-call state is start-up state (the bounds below count each).
 const STARTUP_PROBE_MODES: [&str; 10] = ["true", "locale", "tool", "fork", "mktime", "localtime", "localtime_mktime", "float", "strings", "rebind"];
@@ -338,7 +343,7 @@ fn reference_probe(dynamic: bool) -> Option<PathBuf> {
     Some(exe)
 }
 
-/// GATE-HONEST-METRICS (#8135, D-X.NEW-RATIO): `niji` page faults of a probe mode against `reference`, the same
+/// GATE-HONEST-METRICS (#8135, D-X.165): `niji` page faults of a probe mode against `reference`, the same
 /// mode of [`reference_probe`] on this host. Fails (through [`fault_bound`]: a report unless enforced) when the
 /// ratio exceeds `bounds[profile]` thousandths; the absolute counts are printed and do not gate.
 fn check_ratio(what: &str, niji: u64, reference: u64, bounds: [u64; 2], hint: &str) {
@@ -400,7 +405,7 @@ fn check_ratio(what: &str, niji: u64, reference: u64, bounds: [u64; 2], hint: &s
 /// GATE-HONEST-METRICS (#8135, #8136): the absolute bound (last 73 / 67) became [`DYN_RATIO`]'s first row, a
 /// ratio to the reference's dynamic probe on the same host, and the probe's `locale` and `tool` modes joined it.
 /// The ratio bounds of [`DYN_PROBE_MODES`], in thousandths, per profile (see [`TRUE_RATIO`]).
-const DYN_RATIO: [[u64; 2]; 3] = [[1490, 1490], [1400, 1400], [1400, 1400]];
+const DYN_RATIO: [[u64; 2]; 3] = [[1355, 1355], [1410, 1410], [1440, 1440]];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
@@ -592,7 +597,7 @@ fn dyn_startup_faults(lib: &Path, modes: &[&str]) -> Vec<u64> {
 /// 170,176 and release 159,226 (both more than 10% under the LD-OBJECT-ONCE bounds, so they went red); the
 /// Skylake-SP bounds are those levels plus 2%. Zen 1 host not run in this test: its levels are taken as the
 /// Skylake-SP levels minus 117 (the reverse of the rule above), plus 2%.
-/// GATE-HONEST-METRICS (owner rulings #8135, #8158, D-X.NEW-RATIO): the absolute bounds (last 173,600 / 162,500
+/// GATE-HONEST-METRICS (owner rulings #8135, #8158, D-X.165): the absolute bounds (last 173,600 / 162,500
 /// Skylake-SP, 173,500 / 162,300 Zen 1) became ratios to the reference's count of the same program on the same
 /// host, in ten-thousandths, so a CPU class with no row is no longer skipped ([`DYN_START_RATIO_OTHER`]). Each row
 /// is its old absolute bound divided by the reference's count on that host (deterministic: every one of 21 runs
@@ -601,19 +606,28 @@ fn dyn_startup_faults(lib: &Path, modes: &[&str]) -> Vec<u64> {
 /// 11-16 (#8158) were trains and stories whose loader or libc.so.6 start-up grew past it; the reds were real
 /// growth of what users pay, the host never moved the count (user instructions are identical run to run on both
 /// classes), so re-expressing the bound changes no verdict and raising it would loosen the ratchet (ALWAYS
-/// FORWARD). The 11-23 red (173,794 > 173,600, fast, Skylake-SP) stays red: ratio 17,060 > 17,041.
+/// FORWARD). The 11-23 red (173,794 > 173,600, fast, Skylake-SP) stays red: ratio 17,060 > 17,040.
 const DYN_START_RATIO: [(&str, [u64; 2]); 3] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [17_041, 15_951]),
-    ("AMD EPYC 7551 32-Core Processor", [18_073, 16_906]),
-    ("Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", [17_041, 15_951]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [17_040, 15_951]),
+    ("AMD EPYC 7551 32-Core Processor", [18_070, 16_904]),
+    ("Intel(R) Xeon(R) CPU E5-2697 v3 @ 2.60GHz", [17_652, 16_524]),
 ];
 /// The ratio bounds on a CPU model [`DYN_START_RATIO`] has no row for: the highest row.
-const DYN_START_RATIO_OTHER: [u64; 2] = [18_073, 16_906];
+const DYN_START_RATIO_OTHER: [u64; 2] = [18_070, 16_904];
+// GATE-HONEST-METRICS: the measurements behind [`DYN_START_RATIO`] (next 0495c4684's fast products, the test's
+// counter, median of 20, three series, every user count identical): the reference 101,873 (Skylake-SP), 96,012
+// (Zen 1), 98,341 (Haswell-EP); libniji 170,965, 170,771, 170,769. Rows: the old absolute bound / the reference,
+// rounded down (Skylake-SP 173,600 and 162,500; Zen 1 173,500 and 162,300). Haswell-EP had no row (skipped): libniji
+// counts the same on every class to 0.12%, so it takes the Skylake-SP absolute bounds over its own reference.
 /// GATE-HONEST-METRICS (#8144): the run-to-run spread of the kernel's instructions for the dynamic empty main, 20
 /// runs, three series per host, measured before deciding whether to gate them: Skylake-SP host, libniji min 759,876
 /// to max 841,719 (max - min up to 10.6% of the median), the reference 578,365 to 655,440 (up to 12%); medians of
 /// the three series within 0.8%. Over 1%: reported, not gated (the owner's rule for #8144).
-const DYN_KERNEL_SPREAD: &str = "run-to-run spread up to 10.6% (Skylake-SP) and SPREAD_HASWELL (Haswell-EP), over 1%";
+/// Haswell-EP: libniji 748,348 to 825,081 (up to 10.2%), the reference 564,651 to 653,838 (up to 15.5%); Zen 1:
+/// libniji 769,648 to 890,224 (up to 15.4%), the reference 582,292 to 702,423 (up to 20%). The minimum of 20 is
+/// steadier (within 0.4% across series for libniji, 1.1% for the reference); median ratio libniji / reference
+/// 1.30 to 1.32 on the three classes.
+const DYN_KERNEL_SPREAD: &str = "run-to-run spread of 20 runs up to 10.6% (Skylake-SP), 10.2% (Haswell-EP), 15.4% (Zen 1): over 1%";
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
 const DYN_INSTR_RUNS: &str = "21";
@@ -837,7 +851,12 @@ fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
             m.saturating_mul(10_000) / rm.max(1),
             (niji + m).saturating_mul(10_000) / (host + rm).max(1)
         ),
-        _ => eprintln!("dynamic empty main: no kernel instruction counter here (perf_event_paranoid 2 or more)"),
+        _ => {
+            // Reported, so it must be there where the host lets this user count kernel events.
+            let paranoid = std::fs::read_to_string("/proc/sys/kernel/perf_event_paranoid").ok().and_then(|v| v.trim().parse::<i64>().ok());
+            assert!(paranoid.is_none_or(|v| v >= 2), "dynamic empty main: no kernel instruction count, but perf_event_paranoid is {paranoid:?} (exec_instr.c's kinstr counter lost?)");
+            eprintln!("dynamic empty main: no kernel instruction counter here (perf_event_paranoid {paranoid:?})");
+        }
     }
     let bound = DYN_START_RATIO.iter().find(|(m, _)| *m == model).map_or(DYN_START_RATIO_OTHER[p], |(_, b)| b[p]);
     assert!(
