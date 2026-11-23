@@ -43,7 +43,7 @@ fn source() -> (String, Vec<(u32, u32, String)>) {
             used.insert(1 + next(500));
         }
         for &m in &used {
-            let pad = "z".repeat(next(12) as usize);
+            let pad = "z".repeat(usize::try_from(next(12)).unwrap());
             match m % 7 {
                 0 => {
                     writeln!(src, "{m} tab\\there\\101 {pad}").unwrap();
