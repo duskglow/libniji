@@ -83,7 +83,7 @@ static void setlocale_rows(void)
     if (!mkdtemp(dir)) { printf("FAIL: mkdtemp\n"); exit(1); }
     atexit(cleanup);
     char cmd[400];
-    snprintf(cmd, sizeof cmd, "localedef -i de_DE -f ISO-8859-1 '%s/" DE "' >/dev/null 2>&1", dir);
+    snprintf(cmd, sizeof cmd, "localedef -i de_DE -f ISO-8859-1 '%s/" DE "' >/dev/null 2>&1; cd '%s' && ln -s " DE " de_DE.iso88591", dir, dir);
     if (system(cmd) == -1 || setenv("LOCPATH", dir, 1) != 0 || !setlocale(LC_ALL, DE)) {
         printf("FAIL: compiling and loading " DE " (localedef from the locales package)\n");
         exit(1);
