@@ -389,14 +389,17 @@ impl Parser<'_> {
 
     /// Parse the sequence `from..to` onto `prog.items`, queueing its groups' alternatives.
     fn seq(&self, from: usize, to: usize, prog: &mut Prog, todo: &mut Todo) -> Result<()> {
+        // The items are pushed onto a local vector (held in registers, not reloaded through
+        // `prog` after every push) and handed back at the end; on an error `prog` is dropped.
+        let mut items = core::mem::replace(&mut prog.items, TryVec::new());
         let mut i = from;
         while i < to {
             let Some(c) = self.at(i) else { break };
             if c == BACKSLASH && self.escapes() {
                 match self.at(i + 1).filter(|_| i + 1 < to) {
-                    Some(e) => prog.items.push(Item::Lit(e))?,
+                    Some(e) => items.push(Item::Lit(e))?,
                     None => {
-                        prog.items.push(Item::Never)?;
+                        items.push(Item::Never)?;
                         break;
                     }
                 }
@@ -417,29 +420,29 @@ impl Parser<'_> {
                         let alts = self.alternatives(i + 2, close, prog, todo)?;
                         let id = prog.groups;
                         prog.groups += 1;
-                        prog.items.push(Item::Group { op, alts, id })?;
+                        items.push(Item::Group { op, alts, id })?;
                         i = close + 1;
                         continue;
                     }
                 }
             }
-            let item = if c == ch(b'?') {
-                Item::Any
+            if c == ch(b'?') {
+                items.push(Item::Any)?;
             } else if c == ch(b'*') {
-                Item::Star
+                items.push(Item::Star)?;
             } else if c == ch(b'[') {
                 if let Some((set, after)) = self.bracket(i + 1, to, true)? {
-                    prog.items.push(Item::Set(set))?;
+                    items.push(Item::Set(set))?;
                     i = after;
                     continue;
                 }
-                Item::Lit(c)
+                items.push(Item::Lit(c))?;
             } else {
-                Item::Lit(c)
-            };
-            prog.items.push(item)?;
+                items.push(Item::Lit(c))?;
+            }
             i += 1;
         }
+        prog.items = items;
         Ok(())
     }
 }
@@ -791,6 +794,7 @@ impl Matcher<'_> {
     }
 
     /// A group nested in another, from `from`: the entries it needs are computed first.
+    #[inline(never)]
     fn nested(&self, prog: &Prog, g: &Item, from: &Bits, memo: &mut Memo) -> Result<Bits> {
         loop {
             match self.recall(g, from, memo)? {
@@ -858,11 +862,14 @@ impl Matcher<'_> {
         Ok(())
     }
 
+    /// One item's step. Inlined into its two loops ([`Matcher::run`], [`Matcher::fill`]): a call
+    /// per item costs the plain (group-free) match a frame and a copy of the result each.
+    #[inline(always)]
     fn item(&self, prog: &Prog, it: &Item, from: &Bits, memo: &mut Memo, nested: bool) -> Result<Bits> {
         let n = self.n();
         self.count(n / 64 + 1);
-        if nested && matches!(it, Item::Group { .. }) {
-            return self.nested(prog, it, from, memo);
+        if let Item::Group { op, alts, .. } = it {
+            return if nested { self.nested(prog, it, from, memo) } else { self.group(prog, *op, alts, from, memo) };
         }
         let mut out = Bits::new(n)?;
         match it {
@@ -903,35 +910,40 @@ impl Matcher<'_> {
                     }
                 }
             }
-            Item::Never => {}
-            // A group of the pattern's own sequence: on whole sets of positions.
-            Item::Group { op, alts, .. } => {
-                out = match op {
-                    Op::One => self.one_of(prog, alts, from, memo)?,
-                    Op::Optional => {
-                        let mut r = self.one_of(prog, alts, from, memo)?;
-                        r.or(from);
-                        r
-                    }
-                    Op::Many => self.closure(prog, alts, from.try_clone()?, memo)?,
-                    Op::Some => {
-                        let first = self.one_of(prog, alts, from, memo)?;
-                        self.closure(prog, alts, first, memo)?
-                    }
-                    Op::Not => {
-                        for p in (0..=n).filter(|&p| from.get(p)) {
-                            let single = Bits::single(n, p)?;
-                            let ends = self.one_of(prog, alts, &single, memo)?;
-                            for q in (p..=n).filter(|&q| !ends.get(q)) {
-                                out.set(q);
-                            }
-                        }
-                        out
-                    }
-                };
-            }
+            Item::Never | Item::Group { .. } => {}
         }
         Ok(out)
+    }
+
+    /// A group of the pattern's own sequence, on whole sets of positions. Kept out of
+    /// [`Matcher::item`] so that the per-item step stays small enough to inline into its loops.
+    #[inline(never)]
+    fn group(&self, prog: &Prog, op: Op, alts: &core::ops::Range<usize>, from: &Bits, memo: &mut Memo) -> Result<Bits> {
+        let n = self.n();
+        Ok(match op {
+            Op::One => self.one_of(prog, alts, from, memo)?,
+            Op::Optional => {
+                let mut r = self.one_of(prog, alts, from, memo)?;
+                r.or(from);
+                r
+            }
+            Op::Many => self.closure(prog, alts, from.try_clone()?, memo)?,
+            Op::Some => {
+                let first = self.one_of(prog, alts, from, memo)?;
+                self.closure(prog, alts, first, memo)?
+            }
+            Op::Not => {
+                let mut out = Bits::new(n)?;
+                for p in (0..=n).filter(|&p| from.get(p)) {
+                    let single = Bits::single(n, p)?;
+                    let ends = self.one_of(prog, alts, &single, memo)?;
+                    for q in (p..=n).filter(|&q| !ends.get(q)) {
+                        out.set(q);
+                    }
+                }
+                out
+            }
+        })
     }
 }
 
@@ -980,7 +992,7 @@ impl Pattern {
         };
         let multi = if mode.multibyte() { compile(mode)? } else { None };
         // Every byte string is valid text byte by byte.
-        let bytes = compile(Mode::Bytes)?.unwrap_or(Prog { items: TryVec::new(), root: 0, seqs: TryVec::new(), groups: 0 });
+        let bytes = compile(Mode::Bytes)?.unwrap_or_else(|| Prog { items: TryVec::new(), root: 0, seqs: TryVec::new(), groups: 0 });
         Ok(self.compiled.get_or_init(|| Compiled { multi, bytes }))
     }
 
