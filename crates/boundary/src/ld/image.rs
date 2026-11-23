@@ -229,7 +229,7 @@ pub(super) fn image_view(
     let spans = span_slots(tail, prog.phnum, name);
     maps[0] = (at, unmap);
     let (_, rest) = maps.split_at_mut(1);
-    match image_spans(head, spans, bias, name, rest, published) {
+    match image_spans(None, head, spans, bias, name, rest, published) {
         Ok(spans) => (head, spans),
         Err(what) => fail_with(&[name, what], program::FAILURE),
     }
@@ -239,10 +239,14 @@ pub(super) fn image_view(
 /// already: the spans, in `spans` (one slot per header), for load bias `bias`; the scratch
 /// mappings of the dynamic array's copy and the segment copies go to `maps[0]` and `maps[1]`.
 /// `Err` is the message's text after the object's name: the headers do not describe a readable
-/// dynamic array in the mapped image.
+/// dynamic array in the mapped image. `file`: the descriptor the object was just mapped from
+/// ([`open_start`]), whose bytes the private mapping still shows; the dynamic array's copy is then
+/// read from it with one `pread` at the offset its `PT_LOAD` maps, so the loader does not touch
+/// that page before the relocator writes it (a read fault and a copy-on-write fault become one).
 // The span index stays below `spans.len()` (checked before each store).
 #[allow(clippy::indexing_slicing)]
 fn image_spans(
+    file: Option<i32>,
     head: &'static [u8],
     spans: &'static mut [niji_ld::elf::Span<'static>],
     bias: usize,
@@ -266,7 +270,18 @@ fn image_spans(
         return Err(no_dynamic);
     }
     let (at, unmap, buf) = scratch(dlen, name, !published);
-    read_image(run_at(dynph.vaddr), buf);
+    match file {
+        None => read_image(run_at(dynph.vaddr), buf),
+        Some(fd) => {
+            // The PT_LOAD whose file-backed part holds the array (`mapped` found one).
+            let p = loads().find(|p| p.flags & 4 != 0 && p.vaddr <= dynph.vaddr && dynph.vaddr.checked_add(dynph.filesz).is_some_and(|e| p.vaddr.checked_add(p.filesz).is_some_and(|f| e <= f))).ok_or(no_dynamic)?;
+            let off = dynph.vaddr.wrapping_sub(p.vaddr).checked_add(p.offset).and_then(|o| i64::try_from(o).ok()).ok_or(no_dynamic)?;
+            let n = i64::try_from(dlen).map_err(|_| no_dynamic)?;
+            if crate::ffi_sys::niji_sys_pread64(i64::from(fd), buf.as_mut_ptr().cast::<c_void>(), n, off) != n {
+                return Err(no_dynamic);
+            }
+        }
+    }
     // A published array (DL-DYNAMIC-RELOC) back to link-time values: the reader's one view.
     let unpublish = published && probe.published_dynamic().is_some();
     let link_time = u64::try_from(bias).unwrap_or(0).wrapping_neg();
@@ -1023,7 +1038,7 @@ pub(super) fn open_start(path: &[u8], page: u64, env: &List<'_>, checked: &mut O
         Err(e) => return Ok(Found::Unmapped(fd32, id, e)),
     };
     let mut maps = [(0usize, 0usize); 3];
-    match image_object(head, &elf, loaded.bias, path, &mut maps) {
+    match image_object(fd32, head, &elf, loaded.bias, path, &mut maps) {
         Ok((elf, dynm)) => {
             *checked = Some(Checked { elf, plan, dynm });
             Ok(Found::Mapped(Mapped { fd: fd32, id, loaded, maps }))
@@ -1093,7 +1108,7 @@ fn start_by_view(fd32: i32, len: usize, id: FileId, page: u64, env: &List<'_>, c
 /// `head`, read from its image ([`image_spans`]): the object in image mode and its dynamic section,
 /// with [`niji_ld::dlopen::loadable_dynamic`]'s verdict. The scratch mappings go to `maps` (span
 /// list, dynamic array, segment copies), also on a refusal.
-fn image_object(head: &'static [u8], elf: &elf::Elf<'static>, bias: u64, name: &[u8], maps: &mut [(usize, usize); 3]) -> Result<(elf::Elf<'static>, elf::Dynamic<'static>), Refusal> {
+fn image_object(fd: i32, head: &'static [u8], elf: &elf::Elf<'static>, bias: u64, name: &[u8], maps: &mut [(usize, usize); 3]) -> Result<(elf::Elf<'static>, elf::Dynamic<'static>), Refusal> {
     let h = elf.header();
     let phnum = usize::from(h.phnum);
     let from = usize::try_from(h.phoff).unwrap_or(usize::MAX);
@@ -1103,7 +1118,7 @@ fn image_object(head: &'static [u8], elf: &elf::Elf<'static>, bias: u64, name: &
     maps[0] = (at, unmap);
     let spans = span_slots(slots, phnum, name);
     let (_, rest) = maps.split_at_mut(1);
-    let spans = image_spans(table, spans, usize::try_from(bias).unwrap_or(0), name, rest, false).map_err(|what| if what.starts_with(b": no valid dynamic") { Refusal::NoDynamic } else { Refusal::Malformed })?;
+    let spans = image_spans(Some(fd), table, spans, usize::try_from(bias).unwrap_or(0), name, rest, false).map_err(|what| if what.starts_with(b": no valid dynamic") { Refusal::NoDynamic } else { Refusal::Malformed })?;
     let img = elf::Elf::from_image::<Native>(table, spans).map_err(niji_ld::dlopen::of_elf_error)?;
     let dynm = niji_ld::dlopen::loadable_dynamic(&img)?;
     Ok((img, dynm))
