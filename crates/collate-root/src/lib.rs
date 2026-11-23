@@ -43,7 +43,7 @@ type W = (u32, u32);
 type Key = [Vec<W>; 3];
 
 /// How a rule line places a code point.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Place {
     /// `after cp anchor level`.
     After(usize),
@@ -201,11 +201,12 @@ pub fn source(repo: &Path) -> Result<String, String> {
                 placements.push((hex(cp, "same")?, hex(anchor, "same")?, Place::Same(n), bad()));
             }
             ["expand", cp, first, rest @ ..] => {
-                let mut cps = vec![hex(first, "expand")?];
+                let head = hex(first, "expand")?;
+                let mut cps = vec![head];
                 for c in rest {
                     cps.push(hex(c, "expand")?);
                 }
-                placements.push((hex(cp, "expand")?, cps[0], Place::Expand(cps), bad()));
+                placements.push((hex(cp, "expand")?, head, Place::Expand(cps), bad()));
             }
             ["contract", a, b, like] => contractions.push((hex(a, "contract")?, hex(b, "contract")?, hex(like, "contract")?)),
             _ => return Err(bad()),
