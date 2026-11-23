@@ -1,0 +1,4 @@
+# HEAP-FIND-DEPTH-NEED-2 plants: the find bound now takes the worst of 8 layout phases (one 16 MiB period), page-exact.
+# blockers-8-find: the cause put back, against the workload test itself (at the one default layout it survived: HEAP-FIND-DEPTH-NEED plants-1/2).
+blockers-8-find | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji --test heap_meta_products find_over_200000_entries_bounds_its_address_space | msg:find over 200000 entries needs \d+ KiB over 3 entries at layout phase
+blockers-8 | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken | msg:an aligned later segment from another gap fits under the limit
