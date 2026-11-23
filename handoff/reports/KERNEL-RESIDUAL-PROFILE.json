@@ -1,0 +1,13 @@
+{"task": "KERNEL-RESIDUAL-PROFILE", "model": "opus", "tokens": null,
+ "result": "Kernel residual of dynamic start-up attributed: about half is a measurement effect (libniji's pages mapped by no other process: +63k to +187k); the real excess (+100k/+146k/+283k/+393k empty/true/ls/sed) is whole-file views, written pages and extra mapping calls; empty and true reach parity by estimate, ls and sed keep +0..100k / +60..180k",
+ "branch": "task/kernel-residual-profile", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "Start-up comparisons against the reference measure libniji's ld.so/libc.so.6 pages as mapped by no other process (first-map/last-unmap accounting the reference skips): +63k to +187k kernel instructions per process", "recommendation": "run benchmark and workload-gate start-up comparisons with a holder process keeping libniji's ld.so and libc.so.6 mapped (probes/krp.py --only shared); re-baseline the affected bounds"}],
+ "informational": ["Replay of the exact mapping calls: removing whole-file views saves 33k/59k/92k/119k (lower bound), trimmed over-size 2k/27k/26k/36k, per-object reservation 3k-10k", "F-04: loader stack faults are 48% of the empty main's written-page excess (about 31k kernel instructions)", "ls/sed under libniji issue 14 gettid + getpid via thread::foreign_words during libselinux's constructor (before the initial thread is adopted, D-22.20)", "Kernel cycles on the unbooked VM moved up to 30% between identical runs: instructions used, cycles advisory"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "investigation: attribution of the kernel-side start-up excess and per-cause fix estimates", "before": null, "after": null, "unit": null, "measured": true},
+            {"kind": "unblock", "what": "view-free loader (est. -33k..-209k kernel instr/process), exact-size heap first region (-2k..-36k), measurement-method ruling", "before": null, "after": null, "unit": "instr:k/process", "measured": false}],
+ "improvement": "Every start-up comparison should equalise page sharing (holder or unshared reference copies); without it about half of libniji's measured kernel excess is the test setup",
+ "next_step": "Call-chain census of ls/sed anonymous written pages (+28/+35 faults), then brief the view-free loader",
+ "report_file": "results/kernel-residual/README.md",
+ "jobs": ["mei:kernel-residual-profile-probe1", "mei:kernel-residual-profile-probe3", "mei:kernel-residual-profile-probe4", "mei:kernel-residual-profile-probe5"]}
