@@ -1,6 +1,6 @@
 {"task": "HEADERS-S16-FOLLOWUP", "model": "opus", "tokens": null,
  "result": "sys/elf.h in must_fail form (shared header_check.py loses the reject unit); La_x86_64_ymm/zmm are aligned vectors matching the reference; P2/P6 run, their slice-16 findings reported, not fixed",
- "branch": "task/headers-s16-followup", "head": "a6dca838a",
+ "branch": "task/headers-s16-followup", "head": "e04516e6a",
  "gate": {"affected": "6 suites, 626 passed / 0 failed", "peak": "1.8G"},
  "accepted_first_attempt": null,
  "rulings": [],
@@ -8,7 +8,7 @@
    "P6 run.sh --niji-headers s27_dl*: 6 passed, 2 do not build: s27_dladdr (RTLD_DL_LINKMAP, RTLD_DI_LINKMAP, ELFMAG) and s27_dlinfo (RTLD_DI_LINKMAP, RTLD_DI_PHDR, RTLD_DI_SERINFOSIZE): dlfcn.h/elf.h rows of slice 16, not fixed here (budget)",
    "P2 visibility, 10 slice-16 headers: 5 differences of 6825 rows: link.h La_x86_64_vector typedef also visible in C++ (table: C only); sys/profil.h FD_CLR/FD_ISSET/FD_SET/FD_ZERO missing at strict C/POSIX levels (likely via sys/time.h/sys/select.h, slice 7)",
    "#7521 recorded in plan/headers.md for the sys/types.h slice"],
- "refused": [],
+ "refused": [], "superseded": ["shiki:headers-s16-followup-checks (diagnostic: clippy/static/records rc 0; rc 1 from the P2/P6 findings reported here)"],
  "impact": [
    {"kind": "correctness", "what": "La_x86_64_ymm/zmm were structures: different C++ linkage names and argument passing from the reference; now float/double __vector(8) aligned 16, identical size, alignment and linkage names", "before": null, "after": null, "unit": null, "measured": true},
    {"kind": "tooling", "what": "shared spec/tools/header_check.py loses slice 16's p1=reject form (one must_fail mechanism)", "before": null, "after": null, "unit": null, "measured": true},
@@ -16,4 +16,4 @@
  "improvement": "a run that reruns P2/P6 for a landed slice should be its own S story before the fixes: the checks alone used a third of this budget, leaving no room to fix what they found",
  "next_step": "follow-up: add the RTLD_DI_*/RTLD_DL_* values to dlfcn.h and ELFMAG to elf.h, rerun P6 for s27_dladdr/s27_dlinfo; decide La_x86_64_vector's C++ visibility",
  "report_file": "handoff/HEADERS-S16-FOLLOWUP.md",
- "jobs": ["shiki:headers-s16-followup-gate", "shiki:headers-s16-followup-plants", "shiki:headers-s16-followup-checks"]}
+ "jobs": ["shiki:headers-s16-followup-gate", "shiki:headers-s16-followup-plants"]}
