@@ -575,46 +575,45 @@ fn codeset_matches(ctype: Option<&'static [u8]>, codeset: Option<&[u8]>) -> bool
     name::same_codeset(f.codeset(), cs)
 }
 
-/// The most archive candidates of a name [`FindCache`] keeps (a name has at most a dozen).
-const CACHED_CANDIDATES: usize = 16;
-
 /// What [`find_cached`] keeps between the categories of one selection (`setlocale` or
 /// `newlocale` asks for every category of the same name): the parsed archive, the archive's
-/// answer for each candidate of the name, and, once a category was not found under the name,
-/// the name's alias and the same answers for the alias's candidates. The alias file is scanned
-/// and the archive searched once per name instead of once per category. It lives on the
-/// caller's stack for one selection: nothing is kept across calls.
+/// record for the name, and, once a category was not found under the name, the name's alias and
+/// the archive's record for it. The alias file is scanned and the archive searched once per name
+/// instead of once per category. It lives on the caller's stack for one selection: nothing is
+/// kept across calls.
 #[derive(Default)]
 pub struct FindCache {
     /// The name the rest belongs to.
     name: Option<&'static [u8]>,
     archive: Option<Option<archive::Archive>>,
-    /// The archive's answers for the name's own candidates.
-    named: Walk,
+    /// The archive's answer for the name.
+    named: Looked,
     /// The alias's value, once looked up (`Some(None)`: the name has none, or its value is the
-    /// name itself), and the archive's answers for the value's candidates.
+    /// name itself), and the archive's answer for the value.
     alias: Option<Option<&'static [u8]>>,
-    aliased: Walk,
+    aliased: Looked,
 }
 
-/// The archive's answers for the candidates of one name (part of [`FindCache`]).
+/// The archive's answer for one name (part of [`FindCache`]): once looked up, the record of the
+/// name's archive form, and whether its `LC_CTYPE` names the requested codeset (worked out at the
+/// first category that needs it).
 #[derive(Default)]
-struct Walk {
-    /// Per candidate, in search order: looked up, the record, and whether its `LC_CTYPE`
-    /// names the requested codeset (worked out at the first category that needs it).
-    records: [(bool, Option<archive::Record>, Option<bool>); CACHED_CANDIDATES],
-    /// The record of the first candidate whose answer no longer depends on the category: every
-    /// earlier candidate has no record or the wrong codeset, and this one has the right codeset
-    /// (SETLOCALE-START). A later category it holds answers from it without walking the names.
-    live: Option<archive::Record>,
+struct Looked {
+    record: Option<(Option<archive::Record>, Option<bool>)>,
+}
+
+impl Looked {
+    /// Whether the archive holds the name with the requested codeset.
+    fn held(&self) -> bool {
+        matches!(self.record, Some((Some(_), Some(true))))
+    }
 }
 
 impl FindCache {
-    /// Whether later categories are answered from one record without walking the names
-    /// (for the tests).
+    /// Whether the archive's record answers the name's categories (for the tests).
     #[doc(hidden)]
     pub fn settled(&self) -> bool {
-        self.named.live.is_some() || self.aliased.live.is_some()
+        self.named.held() || self.aliased.held()
     }
 
     /// Whether the alias file was consulted for the current name (for the tests).
@@ -624,24 +623,13 @@ impl FindCache {
     }
 }
 
-impl Walk {
-    /// The record whose categories answer every later lookup that it holds ([`Walk::live`]).
-    fn settle(&mut self) {
-        for r in &self.records {
-            match r {
-                (true, None, _) | (true, Some(_), Some(false)) => continue,
-                (true, Some(rec), Some(true)) => self.live = Some(*rec),
-                _ => {}
-            }
-            return;
-        }
-    }
-}
-
-/// Find category `cat` of the locale named `requested` (Appendix D.1, D-7.7): built-ins, then
-/// each `LOCPATH` directory, or, when `LOCPATH` is unset, the archive and then the default
-/// directory. Only when the name is not found there is it looked up in the alias file, and its
-/// value searched the same way (owner ruling 2026-10-11: as the reference does).
+/// Find category `cat` of the locale named `requested` (Appendix D.1, D-7.7, D-7.21): built-ins,
+/// then, when `LOCPATH` is unset, the archive under the name's archive form; then the name's
+/// candidates, most specific first, each in every `LOCPATH` directory and then the default
+/// directory. The first place that holds the category decides: its codeset must be the requested
+/// one, or the category is not found. Only when the name is not found is it looked up in the
+/// alias file, and its value searched the same way (owner ruling 2026-10-11: as the reference
+/// does).
 pub fn find(src: &impl Source, cat: Cat, requested: &'static [u8]) -> Option<Data> {
     find_cached(src, cat, requested, &mut FindCache::default())
 }
@@ -671,63 +659,56 @@ pub fn find_cached(src: &impl Source, cat: Cat, requested: &'static [u8], cache:
     find_named(src, cat, alias?, &mut cache.archive, &mut cache.aliased)
 }
 
-/// Category `cat` of the locale named `target` (no alias), with the archive's answers for
-/// `target`'s candidates kept in `walk`. `target` is [`name::acceptable`] (the caller checks it
-/// once per selection, SETLOCALE-5).
+/// Category `cat` of the locale named `target` (no alias), with the archive's answer for `target`
+/// kept in `looked`. `target` is [`name::acceptable`] (the caller checks it once per selection,
+/// SETLOCALE-5).
 fn find_named(
     src: &impl Source,
     cat: Cat,
     target: &'static [u8],
     archive_slot: &mut Option<Option<archive::Archive>>,
-    walk: &mut Walk,
+    looked: &mut Looked,
 ) -> Option<Data> {
     let parts = name::parse(target);
-    let in_dir = |dir: &[u8]| -> Option<Data> {
-        name::candidates(&parts, |cand| {
-            let mut buf = [0u8; 3 * name::MAX_NAME];
-            let data = src.file(path(&mut buf, &[dir, b"/", cand, b"/", cat.file_name()])?)?;
-            let f = Category::parse(data)?;
-            let ctype = if cat == Cat::Ctype { Some(data) } else { src.file(path(&mut buf, &[dir, b"/", cand, b"/LC_CTYPE"])?) };
-            codeset_matches(ctype, parts.codeset).then_some(Data::File(f))
-        })
-    };
-    if let Some(lp) = src.locpath() {
-        return lp.split(|&b| b == b':').filter(|d| !d.is_empty()).find_map(in_dir);
+    let locpath = src.locpath();
+    if locpath.is_none() {
+        if let Some(answer) = in_archive(src, cat, &parts, archive_slot, looked) {
+            return answer;
+        }
     }
-    let archive = *archive_slot.get_or_insert_with(|| src.file(ARCHIVE).and_then(archive::Archive::parse));
-    // The name walk below would skip every candidate before the live one whatever the category,
-    // and answer from the live one when it holds the category.
-    if let Some(f) = walk.live.and_then(|rec| rec.category(cat)).and_then(Category::parse) {
-        return Some(Data::File(f));
-    }
-    let records = &mut walk.records;
-    let archived = archive.and_then(|a| {
-        let mut k = 0usize;
-        name::candidates(&parts, |cand| {
-            let mut slot = records.get_mut(k);
-            k = k.saturating_add(1);
-            let rec = match slot.as_deref_mut() {
-                Some((true, r, _)) => *r,
-                Some(s) => {
-                    let r = a.lookup(name::archive_form(&name::parse(cand)).as_bytes());
-                    *s = (true, r, None);
-                    r
-                }
-                None => a.lookup(name::archive_form(&name::parse(cand)).as_bytes()),
-            }?;
-            let f = Category::parse(rec.category(cat)?)?;
-            let matches = match slot {
-                Some((_, _, Some(m))) => *m,
-                Some((_, _, m)) => *m.insert(codeset_matches(rec.category(Cat::Ctype), parts.codeset)),
-                None => codeset_matches(rec.category(Cat::Ctype), parts.codeset),
-            };
-            matches.then_some(Data::File(f))
-        })
-    });
-    if archived.is_some() && walk.live.is_none() {
-        walk.settle();
-    }
-    archived.or_else(|| in_dir(LOCALE_DIR))
+    // Candidate by candidate, each in every directory (D-7.21): a more specific name in a later
+    // directory comes before a less specific one in an earlier directory.
+    let dirs = || locpath.into_iter().flat_map(|lp| lp.split(|&b| b == b':')).filter(|d| !d.is_empty()).chain(core::iter::once(LOCALE_DIR));
+    name::candidates(&parts, |cand| dirs().find_map(|dir| in_dir(src, cat, dir, cand, parts.codeset))).flatten()
+}
+
+/// The archive's answer for category `cat` of the name `parts`: `None` when the archive does not
+/// hold the category under the name's archive form (the directories are searched next);
+/// otherwise the answer, which is no locale when the record's codeset is not the requested one.
+fn in_archive(
+    src: &impl Source,
+    cat: Cat,
+    parts: &name::Parts<'_>,
+    archive_slot: &mut Option<Option<archive::Archive>>,
+    looked: &mut Looked,
+) -> Option<Option<Data>> {
+    let archive = (*archive_slot.get_or_insert_with(|| src.file(ARCHIVE).and_then(archive::Archive::parse)))?;
+    let (record, matches) = looked.record.get_or_insert_with(|| (archive.lookup(name::archive_form(parts).as_bytes()), None));
+    let record = (*record)?;
+    let f = Category::parse(record.category(cat)?)?;
+    let matches = *matches.get_or_insert_with(|| codeset_matches(record.category(Cat::Ctype), parts.codeset));
+    Some(matches.then_some(Data::File(f)))
+}
+
+/// Category `cat` of candidate `cand` in directory `dir`: `None` when the directory holds no
+/// usable file for it (the search goes on); otherwise the answer, which is no locale when the
+/// candidate's codeset is not the requested one.
+fn in_dir(src: &impl Source, cat: Cat, dir: &[u8], cand: &[u8], codeset: Option<&[u8]>) -> Option<Option<Data>> {
+    let mut buf = [0u8; 3 * name::MAX_NAME];
+    let data = src.file(path(&mut buf, &[dir, b"/", cand, b"/", cat.file_name()])?)?;
+    let f = Category::parse(data)?;
+    let ctype = if cat == Cat::Ctype { Some(data) } else { src.file(path(&mut buf, &[dir, b"/", cand, b"/LC_CTYPE"])?) };
+    Some(codeset_matches(ctype, codeset).then_some(Data::File(f)))
 }
 
 /// `l` with its `LC_CTYPE` charmap attached when the codeset needs one; `None` when that

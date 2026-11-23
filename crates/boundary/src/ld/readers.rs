@@ -256,7 +256,7 @@ impl View {
 }
 
 /// The vDSO's address from the start's auxiliary vector (0: none).
-fn vdso() -> usize {
+pub(super) fn vdso() -> usize {
     let v = VDSO.load(Relaxed);
     if v != usize::MAX {
         return v;

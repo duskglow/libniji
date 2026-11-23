@@ -185,7 +185,15 @@ pub extern "C" fn malloc_info(options: c_int, fp: *mut FILE) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn __libc_freeres() {
-    malloc_compat::inert()
+    // §29.4, D-29.7: what the library allocated for itself goes back, each part left as before its
+    // first use (the next use allocates again), so a second call finds nothing to release.
+    // Streams first: writing their pending output must not find the per-thread state gone.
+    crate::stdio::release_buffers();
+    // The calling thread's getpw*/netdb result table, resolver state and dlerror record, as
+    // at a thread's exit.
+    crate::users::thread_ending();
+    crate::resolv::thread_ending();
+    crate::dlerr::thread_ending();
 }}
 
 export! { "GLIBC_2.2.5";

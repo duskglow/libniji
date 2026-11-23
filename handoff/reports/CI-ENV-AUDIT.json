@@ -1,0 +1,72 @@
+{
+ "task": "CI-ENV-AUDIT",
+ "model": "opus",
+ "tokens": null,
+ "result": "CI environment audited: 25 inputs classified (17 ambient, 2 checked, 6 hermetic), 49 reds of 300 gates classified, cold/incremental cost measured, host drift manifest specified with a working prototype, 8 proposals ranked",
+ "branch": "task/ci-env-audit",
+ "head": "b2f8f57c1",
+ "gate": {
+  "affected": "direct tier, docs only: 0 of 321 test targets selected; stubs, policy checks and static (job ci-env-audit-gate on the final head; result in the hand-back)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Start-up bounds judged against the same gate's base build (proposal 6)",
+   "recommendation": "yes: keep the absolute bound; a red whose base is equally over is a base red, not the train's"
+  },
+  {
+   "item": "CI host package holds and host changes only through a host-change story (proposal 2; root)",
+   "recommendation": "yes, owner applies apt-mark hold and turns unattended upgrades off on the CI host"
+  }
+ ],
+ "informational": [
+  "CI workspace holds 631 leftover per-process test directories (2.4 GB since 11-10); runpath_search, object_names and search_cache leave about 27 MB per train under target/",
+  "target/test-locales is never rebuilt (existence of one probe file is its key); oracle stamps do not hash the host compiler or reference libc",
+  "CI host alone has locales-all 2.39-0ubuntu8.12 beside libc6 2.39-0ubuntu8.9; developer hosts have 4 locales, so no developer gate can reproduce a CI locale red",
+  "cargo-nextest differs across the four build hosts (0.9.146/148/149); ~/.cargo/config.toml differs (incremental off on the Zen 1 host only)",
+  "11 of the last 20 non-story reds (heap_meta 5, dns_products 3, aio_engine 3) recurred across consecutive trains and were not settled: next or host"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "none",
+   "what": "audit: no behaviour changed",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "from-scratch build cost over a one-file change (Zen 1 host, 4-core slot)",
+   "before": 926,
+   "after": 1179,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "products step with target/niji removed vs no change (the CI's 11-23 clean is free)",
+   "before": 303,
+   "after": 302,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "proposals 1 (workspace allow-list) and 3 (host drift manifest) for the coordinator; would have prevented or named 6 of the last 20 non-story reds",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the CI has no record of the host it ran on: a per-gate manifest line in the log would have named the locales-all change at once",
+ "next_step": "coordinator builds the workspace allow-list and the host drift manifest in liella-ops; stories for host-keyed test caches and the test scratch left under target/",
+ "report_file": "results/ci-env-audit/README.md",
+ "jobs": [
+  "keke:ci-env-audit-gate",
+  "keke:ci-env-audit-precheck"
+ ]
+}

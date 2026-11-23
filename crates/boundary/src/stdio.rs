@@ -742,6 +742,14 @@ pub fn flush_at_exit() {
     let _ = sc::flush_all(&Glue);
 }
 
+/// `__libc_freeres`: the buffers the library allocated for streams go back when they hold
+/// nothing (`sc::release_buffers`).
+#[cold]
+#[inline(never)]
+pub(crate) fn release_buffers() {
+    sc::release_buffers(&Glue);
+}
+
 /// In a `fork` child: stream locks held by threads that are gone become free.
 pub fn after_fork_in_child() {
     sc::reset_locks_in_child(&Glue);
