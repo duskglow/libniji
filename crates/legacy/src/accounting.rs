@@ -502,12 +502,12 @@ pub const SYSTEM_LOGIN: LoginFiles<'static> = LoginFiles { loginuid: LOGINUID, p
 /// when it is set and the user database knows it; otherwise the user of the login record of
 /// the session's terminal `tty` (below `/dev`). `ENXIO` without a terminal, `ENOENT` when no
 /// record names a user for it.
-pub fn login_name<S: Sys, T>(sys: &S, files: LoginFiles<'_>, tty: Option<&[u8]>, f: impl FnOnce(&[u8]) -> T) -> Result<T> {
+pub fn login_name<S: Sys, T>(sys: &S, pages: &dyn niji_rt::chunks::ChunkPages, files: LoginFiles<'_>, tty: Option<&[u8]>, f: impl FnOnce(&[u8]) -> T) -> Result<T> {
     let uid = niji::system::read_file(sys, files.loginuid).ok().and_then(|t| core::str::from_utf8(t.trim_ascii()).ok()?.parse::<u32>().ok());
     let mut name: TryVec<u8> = TryVec::new();
     if let Some(uid) = uid.filter(|&u| u != u32::MAX) {
         let paths = Paths { passwd: files.passwd, ..nss::SYSTEM };
-        if let Ok(Some(n)) = nss::found(nss::passwd(&Ctx::with_paths(sys, &paths), Key::Id(uid), |p| TryVec::from_slice(p.name))) {
+        if let Ok(Some(n)) = nss::found(nss::passwd(&Ctx::with_paths(sys, pages, &paths), Key::Id(uid), |p| TryVec::from_slice(p.name))) {
             name = n?;
         }
     }
