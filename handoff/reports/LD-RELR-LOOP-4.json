@@ -1,0 +1,21 @@
+{"task": "LD-RELR-LOOP-4", "model": "opus", "tokens": null,
+ "result": "origin/next 3e668ecce merged (DYN_START_INSTR conflict: both records kept, bound re-set from the merged level); RELR on top of next: empty main 189,818 -> 159,047 (-30,771); with LD-OBJECT-ONCE from fd973fc44: 268,959 -> 159,047 (-109,912, -40.9%), Skylake-SP release",
+ "branch": "task/ld-relr-loop-4", "head": null,
+ "gate": {"affected": "13 suites, 1393 passed / 0 failed (direct tier, 42 targets)", "peak": "3.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Zen 1 not measured this leg (role on the Skylake-SP host only); its DYN_START_INSTR row is the Skylake-SP level minus 117 (the class difference every earlier kit run measured, 117-162) plus 2%",
+                   "The shared wl products cache keeps only the static products (libc.a, libm.a, niji-crt1.o); the base's libc.so.6 and ld.so were taken from its build tree (release profile checked)"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main start (kit n0), Skylake-SP release, RELR on top of next 3e668ecce", "before": 189818, "after": 159047, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "three-library start (kit n3), Skylake-SP release, vs next 3e668ecce", "before": 281381, "after": 250528, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "/bin/true start (kit t), Skylake-SP release, vs next 3e668ecce", "before": 247711, "after": 216900, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "200 GLOB_DAT imports start (kit n200), Skylake-SP release, vs next 3e668ecce", "before": 479680, "after": 448709, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main start, LD-OBJECT-ONCE + RELR combined (next fd973fc44 from LD-OBJECT-ONCE's record -> this head), Skylake-SP release", "before": 268959, "after": 159047, "unit": "instr/start", "measured": true},
+  {"kind": "coverage", "what": "hot_text_products DYN_START_INSTR tightened to the merged level (release bound 200,800 -> 162,500 Skylake-SP)", "before": 200800, "after": 162500, "unit": "instr bound", "measured": true}
+ ],
+ "improvement": "The wl products cache drops libc.so.6 and ld.so, so a start-up story cannot take a base's shared products from it; keeping them (a few MB) would save a base rebuild per start-up measurement",
+ "next_step": "Land via the CI train; on another DYN_START_INSTR conflict, merge, re-measure with the kit and the test, set level + 2%",
+ "report_file": "handoff/LD-RELR-LOOP-report.md",
+ "jobs": ["mei:ld-relr-loop-4-gate", "mei:ld-relr-loop-4-plants", "mei:ld-relr-loop-4-startup", "mei:ld-relr-loop-4-lint1"]}

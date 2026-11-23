@@ -1,0 +1,9 @@
+# LD-RELR-LOOP plants (cargo xtask plants; docs/plants.md format)
+# relr_entry applies an entry with no per-word check only when its highest word is inside the window too.
+relr-entry-last | crates/ld/src/reloc.rs | lit:if !(window.0 <= first && last <= window.1) { ==> if !(window.0 <= first) { | cargo test -p niji-ld --test reloc reloc_relr_entry_checks_its_whole_run | msg:reloc_relr_entry_checks_its_whole_run.*(FAILED|panicked)|panicked.*reloc_relr_entry_checks_its_whole_run
+# The boot writer takes one segment view only when the bitmap's highest word is in that segment.
+add-bits-last | crates/ld/src/boot.rs | lit:if !holds(self.last, last) { ==> if false { | cargo test -p niji-ld --lib relr_bitmap_across_segments | msg:relr_bitmap_across_segments.*(FAILED|panicked)|panicked.*relr_bitmap_across_segments
+# Relrs::runs hands out an entry whole only when its highest address does not wrap past the address space.
+relr-fitting-ok | crates/ld/src/elf.rs | lit:if bits == 0 || base.checked_add( ==> if true || bits == 0 || base.checked_add( | cargo test -p niji-ld --test elf_tables relr_runs_match_the_iterator | msg:relr_runs_match_the_iterator.*(FAILED|panicked)|panicked.*relr_runs_match_the_iterator
+# libc.so.6 linked without packed relative relocations: the empty main's start-up instruction bound catches the cost.
+link-flag | xtask/src/so.rs | lit:.arg("-Wl,-z,pack-relative-relocs") ==> | cargo test -p niji --test hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound | msg:instructions > [0-9]+: the interpreter's or libc.so.6's start-up grew

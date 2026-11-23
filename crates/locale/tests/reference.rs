@@ -427,14 +427,9 @@ fn en_us_iso_8859_1() {
 
 /// s31_8_c_1, s31_8_g_3: a source that defines one category gets every other category's
 /// default, equal to what the reference writes for a category a source does not define (#7534):
-/// once for a multi-byte charmap (UTF-8) and once for a single-byte one (ISO-8859-1).
-///
-/// Except where libniji writes the POSIX locale's value (XBD 7.3) and the reference another
-/// (D-31.24, docs/differences-from-glibc.md): `LC_CTYPE`'s `print`, `graph`, `cntrl` and `punct`
-/// classes, widths and `outdigit`s (checked against XBD 7.3.1 here instead), `LC_TIME`'s wide
-/// strings and alternative month names (ours: the narrow names), `LC_MONETARY`'s "not available"
-/// numbers (ours `CHAR_MAX`, as `localeconv` of the POSIX locale) and `mon_grouping`, and
-/// `LC_ADDRESS`'s country codes (ours empty).
+/// once for a multi-byte charmap (UTF-8) and once for a single-byte one (ISO-8859-1). Every item
+/// of every file is compared, none excepted: XBD 7.3 leaves a category the source omits
+/// unspecified, so libniji writes the reference's defaults (D-31.24).
 #[test]
 fn undefined_categories_get_the_references_defaults() {
     let dir = std::env::temp_dir().join(format!("niji-locale-defaults-{}", std::process::id()));
@@ -442,14 +437,6 @@ fn undefined_categories_get_the_references_defaults() {
     let src = dir.join("only_measurement");
     std::fs::write(&src, "LC_MEASUREMENT\nmeasurement 2\nEND LC_MEASUREMENT\n").unwrap();
     let src = src.to_str().unwrap();
-    let skip = |n: usize| -> Vec<usize> {
-        match n {
-            2 => (52..=94).chain(111..=158).collect(),
-            4 => (4..=37).collect(),
-            9 => vec![3, 4, 5],
-            _ => vec![],
-        }
-    };
     for charmap in ["UTF-8", "ISO-8859-1"] {
         let Some(rdir) = reference(src, charmap) else { continue };
         let ours = niji_locale::compile_output(src.as_bytes(), charmap.as_bytes(), &mut Disk).unwrap().files;
@@ -460,16 +447,9 @@ fn undefined_categories_get_the_references_defaults() {
             let mine = ours[n].as_ref().unwrap_or_else(|| panic!("{charmap}: ours has no {file}"));
             let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(mine.as_slice().to_vec())).unwrap());
             match n {
-                0 => {
-                    let mut d = Vec::new();
-                    diff_ctype(t, o, &mut d);
-                    let posix = ["LC_CTYPE class print:", "LC_CTYPE class graph:", "LC_CTYPE class cntrl:", "LC_CTYPE class punct:", "LC_CTYPE width:"];
-                    let items: Vec<String> = [0, 5].into_iter().chain(30..=40).map(|i| format!("LC_CTYPE item {i}:")).collect();
-                    out.extend(d.into_iter().filter(|l| !posix.iter().any(|p| l.starts_with(p)) && !items.iter().any(|p| l.starts_with(p.as_str()))));
-                    posix_ctype(o, &mut out);
-                }
+                0 => diff_ctype(t, o, &mut out),
                 3 => diff_collate(t, o, charmap == "UTF-8", &mut out),
-                _ => diff_items(file, t, o, &skip(n), &mut out),
+                _ => diff_items(file, t, o, &[], &mut out),
             }
         }
         let _ = std::fs::remove_dir_all(&rdir);
@@ -478,24 +458,86 @@ fn undefined_categories_get_the_references_defaults() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The ASCII classes and widths of the POSIX locale (XBD 7.3.1) in the `LC_CTYPE` file `c`.
-fn posix_ctype(c: Category, out: &mut Vec<String>) {
-    let names = names(c.item(10));
-    let at = c.word(17) as usize;
-    let class = |name: &str| names.iter().position(|n| n == name.as_bytes()).and_then(|k| Table3::parse(c.item(at + k))).unwrap();
-    let (print, graph, cntrl, punct) = (class("print"), class("graph"), class("cntrl"), class("punct"));
-    let width = Table3::parse(c.item(12)).unwrap();
-    for wc in 0..0x80u32 {
-        let ch = char::from_u32(wc).unwrap();
-        let want = [(0x20..0x7f).contains(&wc), (0x21..0x7f).contains(&wc), wc < 0x20 || wc == 0x7f, ch.is_ascii_punctuation()];
-        let got = [print.bit(wc), graph.bit(wc), cntrl.bit(wc), punct.bit(wc)];
-        if want != got {
-            out.push(format!("LC_CTYPE {wc:#04x}: print/graph/cntrl/punct {got:?}, POSIX {want:?}"));
+/// The category files written for a source that defines only `LC_MEASUREMENT`, compiled with
+/// libniji's generated `charmap` (no installed data or reference needed), read as the C library
+/// reads them (`niji::locale`).
+fn undefined(charmap: &str) -> Vec<Option<Category>> {
+    static RUN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let dir = std::env::temp_dir().join(format!("niji-locale-undef-{}-{}", std::process::id(), RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("only_measurement");
+    std::fs::write(&src, "LC_MEASUREMENT\nmeasurement 2\nEND LC_MEASUREMENT\n").unwrap();
+    let files = niji_locale::compile_output(src.to_str().unwrap().as_bytes(), charmap.as_bytes(), &mut Generated).unwrap().files;
+    let _ = std::fs::remove_dir_all(&dir);
+    FILES.iter().enumerate().map(|(n, f)| f.map(|f| Category::parse(leak(files[n].as_ref().unwrap_or_else(|| panic!("no {f}")).as_slice().to_vec())).unwrap())).collect()
+}
+
+/// s31_8_g_3 (D-31.24): an undefined `LC_CTYPE` classes the ASCII letters and digits (`alpha`,
+/// `upper`, `lower`, `digit`, `xdigit`, `print`, `graph`) and the white space (`space`, `blank`,
+/// space also `print`), and nothing else: punctuation and control characters are in no class and
+/// have no width; `toupper` maps the ASCII letters; no wide input digits.
+#[test]
+fn undefined_ctype_has_the_references_defaults() {
+    for charmap in ["UTF-8", "ISO-8859-1"] {
+        let c = CtypeFile::parse(undefined(charmap)[0].unwrap()).unwrap();
+        let k = |n: &str| c.class_index(n.as_bytes()).unwrap();
+        for (wc, classes, width) in [('A', &["alpha", "upper", "xdigit", "print", "graph"][..], 1), ('z', &["alpha", "lower", "print", "graph"], 1), ('7', &["digit", "xdigit", "print", "graph"], 1), (' ', &["space", "blank", "print"], 1), ('!', &[], -1), ('~', &[], -1), ('\u{1}', &[], -1), ('\u{7f}', &[], -1), ('\t', &["space", "blank"], -1)] {
+            for name in ["alpha", "upper", "lower", "digit", "xdigit", "space", "blank", "print", "graph", "punct", "cntrl", "alnum"] {
+                let want = classes.contains(&name) || (name == "alnum" && (classes.contains(&"alpha") || classes.contains(&"digit")));
+                assert_eq!(c.in_class(k(name), wc as u32), want, "{charmap}: {wc:?} in {name}");
+            }
+            assert_eq!(c.width(wc as u32), width, "{charmap}: width of {wc:?}");
         }
-        if want[0] && width.value_u8(wc) != Some(1) {
-            out.push(format!("LC_CTYPE {wc:#04x}: width {:?}, POSIX printable 1", width.value_u8(wc)));
-        }
+        assert_eq!(c.map(c.map_index(b"toupper").unwrap(), 'q' as u32), 'Q' as u32, "{charmap}");
+        assert_eq!(c.category().word(30), 0, "{charmap}: INDIGITS_WC_LEN");
+        assert!((31..=40).all(|i| c.category().item(i).is_empty()), "{charmap}: wide input digits");
     }
+}
+
+/// s31_8_g_3 (D-31.24): an undefined `LC_TIME` has the English names and formats as multibyte
+/// strings, their wide forms empty up to `t_fmt` (`t_fmt_ampm`'s and `date_fmt`'s kept), and empty
+/// alternative month names.
+#[test]
+fn undefined_time_has_the_references_defaults() {
+    let t = undefined("UTF-8")[2].unwrap();
+    assert_eq!((t.string(0), t.string(7 + 7 + 12 + 11), t.string(43)), (&b"Sun"[..], &b"December"[..], &b"%I:%M:%S %p"[..]));
+    assert!((52..=94).all(|i| t.item(i) == [0u8; 4]), "wide names and formats up to t_fmt are empty");
+    let wide: Vec<u8> = "%I:%M:%S %p\0".chars().flat_map(|c| (c as u32).to_le_bytes()).collect();
+    assert_eq!(t.item(95), wide.as_slice(), "wide t_fmt_ampm");
+    assert!((111..=158).all(|i| t.item(i).iter().all(|&b| b == 0)), "alternative month names are empty");
+}
+
+/// s31_8_g_3 (D-31.24): an undefined `LC_MONETARY` has empty symbols, `.` as the radix, every
+/// "not available" number 0xff, `mon_grouping` the one byte 0x7f and CRNCYSTR `-`.
+#[test]
+fn undefined_monetary_has_the_references_defaults() {
+    let m = undefined("UTF-8")[4].unwrap();
+    assert_eq!((m.item(0), m.item(1), m.item(2)), (&b"\0"[..], &b"\0"[..], &b".\0"[..]));
+    assert_eq!(m.item(4), [0x7f], "mon_grouping");
+    assert!((7..=14).chain(16..=21).all(|i| m.item(i) == [0xff]), "not-available numbers");
+    assert_eq!(m.item(15), b"-\0", "CRNCYSTR");
+}
+
+/// s31_8_g_3 (D-31.24): an undefined `LC_ADDRESS` has the default `postal_fmt` and country codes
+/// of spaces (two and three).
+#[test]
+fn undefined_address_has_the_references_defaults() {
+    let a = undefined("UTF-8")[9].unwrap();
+    assert_eq!(a.string(0), b"%a%N%f%N%d%N%b%N%s %h %e %r%N%C-%z %T%N%c%N");
+    assert_eq!((a.item(3), a.item(4)), (&b"  \0"[..], &b"   \0"[..]));
+}
+
+/// s31_8_g_3 (D-31.24): the other undefined categories: `LC_NUMERIC` `.` without grouping,
+/// `LC_MESSAGES` `^[yY]`/`^[nN]`, `LC_PAPER` 297 x 210, `LC_NAME`'s and `LC_TELEPHONE`'s formats.
+#[test]
+fn undefined_other_categories_have_the_references_defaults() {
+    let all = undefined("ISO-8859-1");
+    let c = |n: usize| all[n].unwrap();
+    assert_eq!((c(1).string(0), c(1).string(1), c(1).string(2)), (&b"."[..], &b""[..], &b""[..]), "LC_NUMERIC");
+    assert_eq!((c(5).string(0), c(5).string(1)), (&b"^[yY]"[..], &b"^[nN]"[..]), "LC_MESSAGES");
+    assert_eq!((c(7).word(0), c(7).word(1)), (297, 210), "LC_PAPER");
+    assert_eq!(c(8).string(0), b"%p%t%g%t%m%t%f", "LC_NAME");
+    assert_eq!(c(10).string(0), b"+%c %a%t%l", "LC_TELEPHONE");
 }
 
 /// s31_8_c_1, s31_8_i_2: the #14 locales compiled with libniji's generated charmaps
@@ -550,5 +592,47 @@ fn products_localedef_writes_the_library_compile() {
     let archive = std::fs::read(dir.join("p/usr/lib/locale/locale-archive")).unwrap();
     let a = niji_locale::archive::Archive::parse(&archive).unwrap();
     assert_eq!(a.names().unwrap().iter().map(|n| n.to_vec()).collect::<Vec<_>>(), [b"de_DE.utf8".to_vec(), b"en_US.utf8".to_vec()]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// s31_8_i_4, s31_8_i_5: the products' `localedef` reads `I18NPATH` from its environment and the working directory
+/// first: a `-i` / `-f` name found in an `I18NPATH` entry's `locales/` / `charmaps/`, and the same `-i` name in the
+/// working directory taking its place; the charmap names characters by POSIX names only. Files the test writes;
+/// needs only the products (`cargo xtask so`), else it says so and skips.
+#[test]
+fn products_localedef_searches_i18npath_and_the_working_directory() {
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() {
+        println!("skip: needs {} (cargo xtask so)", bin.display());
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("niji-locale-i18npath-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    for d in ["e/locales", "e/charmaps", "cwd"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    let mut charmap = String::from("<code_set_name> TCM\n<mb_cur_max> 1\n<mb_cur_min> 1\nCHARMAP\n<NUL> /x00\n");
+    for c in b'A'..=b'Z' {
+        charmap.push_str(&format!("<{}> /x{c:02x}\n", c as char));
+    }
+    charmap.push_str("END CHARMAP\n");
+    std::fs::write(dir.join("e/charmaps/TCM"), charmap).unwrap();
+    let source = |c: char| format!("LC_NUMERIC\ndecimal_point \"<{c}>\"\nthousands_sep \"\"\ngrouping -1\nEND LC_NUMERIC\n");
+    std::fs::write(dir.join("e/locales/tsrc"), source('Q')).unwrap();
+    let path = format!(":{}", dir.join("e").display());
+    let point = |out: &str| -> Option<u8> {
+        let f = std::fs::read(dir.join(out).join("LC_NUMERIC")).ok()?;
+        b"QW".iter().copied().find(|&c| f.windows(2).any(|w| w == [c, 0]))
+    };
+    let run = |out: &str| {
+        let mut c = Command::new(&bin);
+        c.args(["-c", "--quiet", "-i", "tsrc", "-f", "TCM"]).arg(dir.join(out)).current_dir(dir.join("cwd"));
+        c.env_clear().env("I18NPATH", &path).output().unwrap()
+    };
+    let o = run("o1");
+    assert_eq!((o.status.code(), point("o1")), (Some(0), Some(b'Q')), "{}", String::from_utf8_lossy(&o.stderr));
+    std::fs::write(dir.join("cwd/tsrc"), source('W')).unwrap();
+    let o = run("o2");
+    assert_eq!((o.status.code(), point("o2")), (Some(0), Some(b'W')), "{}", String::from_utf8_lossy(&o.stderr));
     let _ = std::fs::remove_dir_all(&dir);
 }
