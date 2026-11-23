@@ -46,20 +46,29 @@ fn every_name_iconv_lists_converts() {
     let text = String::from_utf8(out.stdout).expect("UTF-8 listing");
     let names: Vec<&str> = text.lines().map(|l| l.strip_suffix("//").or_else(|| l.strip_suffix('/')).expect("NAME// form")).collect();
     assert!(names.len() >= 63, "only {} names", names.len());
-    // Each name converts both ways: `A` from UTF-8 to it and back, each in a fresh process (the names of the
-    // charmaps' headers included: a fresh process finds them by its own header scan).
-    let convert = |from: &str, to: &str, input: &[u8]| -> std::process::Output {
+    // Each name converts both ways, each step in a fresh process (the names of the charmaps' headers included: a
+    // fresh process finds them by its own header scan): one character from UTF-8 to it and back. The character is
+    // `A`, or for a set without `A` (Katakana, Cyrillic, OCR and add-on sets) the first character the set itself
+    // gives for its bytes 0x21-0x7e and 0xa1-0xfe, decoded with `-c`.
+    let convert = |args: &[&str], input: &[u8]| -> std::process::Output {
         use std::io::Write;
-        let mut child = Command::new(&iconv).args(["-f", from, "-t", to]).env_clear().stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().expect("run iconv");
+        let mut child = Command::new(&iconv).args(args).env_clear().stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().expect("run iconv");
         child.stdin.take().expect("stdin").write_all(input).expect("write the input");
         child.wait_with_output().expect("wait for iconv")
     };
+    let bytes: Vec<u8> = (0x21..=0x7e).chain(0xa1..=0xfe).collect();
     for name in names {
-        let to = convert("UTF-8", name, b"A");
-        assert_eq!(to.status.code(), Some(0), "{name} is listed but UTF-8 to it fails: {}", String::from_utf8_lossy(&to.stderr));
-        let back = convert(name, "UTF-8", &to.stdout);
+        let mut ch = String::from("A");
+        if convert(&["-f", "UTF-8", "-t", name], b"A").status.code() != Some(0) {
+            let own = convert(&["-c", "-f", name, "-t", "UTF-8"], &bytes);
+            let own = String::from_utf8(own.stdout).unwrap_or_default();
+            ch = own.chars().next().map(String::from).unwrap_or_else(|| panic!("{name} is listed but decodes none of its bytes"));
+        }
+        let to = convert(&["-f", "UTF-8", "-t", name], ch.as_bytes());
+        assert_eq!(to.status.code(), Some(0), "{name} is listed but UTF-8 to it fails for {ch:?}: {}", String::from_utf8_lossy(&to.stderr));
+        let back = convert(&["-f", name, "-t", "UTF-8"], &to.stdout);
         assert_eq!(back.status.code(), Some(0), "{name} is listed but it to UTF-8 fails: {}", String::from_utf8_lossy(&back.stderr));
-        assert_eq!(back.stdout, b"A", "{name} is listed but does not round-trip `A`");
+        assert_eq!(back.stdout, ch.as_bytes(), "{name} is listed but does not round-trip {ch:?}");
     }
 }
 
