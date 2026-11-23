@@ -6,14 +6,15 @@
  "branch": "task/heap-find-depth-need",
  "head": null,
  "gate": {
-  "affected": "gate3 on 2820cf6b3: 9836 passed / 1 failed (the new layout test, native pass only: precondition, fixed in 7b15cf4a1); s03b on 7b15cf4a1: s03_memory_symbols host+native+interposed 198 passed / 0 failed, clippy and static clean",
+  "affected": "gate4 (affected --run, cargo xtask test, full-profile so + hot_text_products) on 21eb1f619: PENDING at hand-back; gate3 on 2820cf6b3: 9836 passed / 1 failed (the new layout test, native pass only: precondition, fixed in 7b15cf4a1); s03b on 7b15cf4a1: s03_memory_symbols host+native+interposed 198 passed / 0 failed, clippy and static clean",
   "peak": "gate: peak memory 11G (page cache included) oom_kill=0"
  },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
   "plants-1 and plants-2 SURVIVED on the find bound (C locale, then next's layout leaves the aligned slot free); the plant now runs the layout test kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken: plants-3 (2820cf6b3) and plants-4 (7b15cf4a1) CAUGHT, no WARN lines",
-  "the role build's d3 need is 1984 KiB above the 22.3/22.4 debs' (different build; not investigated, the metric is the need over d3)"
+  "the role build's d3 need is 1984 KiB above the 22.3/22.4 debs' (different build; not investigated, the metric is the need over d3)",
+  "D-3.25 moved from plan/07-decisions/s03-memory-allocation.md (train-owned, precheck red) to records/decisions/D-3/D-3.25.toml; records check ok"
  ],
  "refused": [],
  "impact": [
@@ -46,7 +47,7 @@
  "next_step": "coordinator landing (FULL gate)",
  "report_file": "handoff/HEAP-FIND-DEPTH-NEED.md",
  "jobs": [
-  "heap-find-depth-need-gate3",
+  "heap-find-depth-need-gate4",
   "heap-find-depth-need-s03b",
   "heap-find-depth-need-plants4"
  ]

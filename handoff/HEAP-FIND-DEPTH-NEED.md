@@ -58,6 +58,9 @@ handoff/HEAP-FIND-DEPTH-NEED-plants.txt.
   --only niji-boundary::s03_memory_symbols --run`: host, native and interposed passes, 198 passed, 0 failed) and
   `heap-find-depth-need-plants4` (plants-4; plants-3 on `2820cf6b3` CAUGHT blockers-8 too). The rest of gate3 is
   unaffected by a change to one test (the red-gate rule: rerun only the failing suite).
+- Final: `heap-find-depth-need-gate4` (`affected --run`, `cargo xtask test`, full-profile `so` +
+  hot_text_products) on `21eb1f619` (gate3 is red, so it cannot be named), started 05:25Z, PENDING at hand-back.
+- D-3.25 is now `records/decisions/D-3/D-3.25.toml` (precheck: plan/07-decisions/*.md is train-generated).
 - Superseded: `-gate` (clippy red: arithmetic in the bisection), `-plants` (SURVIVED: C locale), `-plants2`
   (SURVIVED: layout, see above), `-gate2` (stopped: older tree).
 - Diagnostics: `-meas2` (the test's own number, 2 runs), `-env`, `-env2` (locale probe), `-mut`, `-strace3`
@@ -71,5 +74,6 @@ constant is read only in `map_aligned_exactly`, reached after an mmap failed und
 
 ## Exact next step
 
-Done (leg 3): hand-back. Next: the coordinator's landing (FULL gate). A red in the layout test's precondition
+Done (leg 3): hand-back PENDING JOBS (gate4). Next: `~/bin/jobwait heap-find-depth-need-gate4` on keke (the
+dispatcher verifies it), then the coordinator's landing (FULL gate). A red in the layout test's precondition
 (`within 48 covers`) on another host: read the native child's strace for holes above the gap.
