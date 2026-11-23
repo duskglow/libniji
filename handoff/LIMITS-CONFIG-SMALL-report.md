@@ -18,7 +18,7 @@ growth with use; a clean error when memory runs out). Nothing that landed since 
 - Reference probe (limits-config-small-refprobe): conformance/c/s02_report.c built against the host C
   library passes every clause, including the 8 KiB-name case of s2_3_c_3. getpass's reference: the
   removed differences row recorded that the reference returned a 3 MiB line whole.
-- Gate: direct tier (limits-config-small-gate); see the hand-back for its result.
+- Gate: direct tier. The first run (limits-config-small-gate) went red only on cargo xtask native and rust-dylib: the demo transcript in xtask/src/native_examples.rs still expected the 1 MiB line. Fixed; limits-config-small-gate2 on the final content: 16 suites ok, 5761 passed, conformance 32/0, rc 0. Plants rerun as limits-config-small-plants2 (4/4 CAUGHT), probe as limits-config-small-refprobe2 (rc 0).
 - Start-up counters: not run. No start-up path changed: `report.rs` repeats() runs only in
   error_at_line with error_one_per_line set, and getpass is not on a start-up path. The 4096-byte
   table is kept as it was, so .bss does not change; the new `Chunks` static adds 384 bytes of .bss
