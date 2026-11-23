@@ -252,7 +252,8 @@ fn is_name(b: u8) -> bool {
 /// first copied to its end) and of the current context (at or after `first` in `segs`), else
 /// as a new segment.
 fn push_text<const N: usize>(segs: &mut InlineVec<Seg, N>, first: usize, text: &mut InlineVec<u8, 128>, floor: usize, b: &[u8], quoted: bool) -> Wr<()> {
-    let ours = segs.len() > first;
+    // With `first` 0 (a word's own list) any last segment is ours: no length read.
+    let ours = first == 0 || segs.len() > first;
     if let Some(Seg::Text { at, quoted: q, input: false }) = segs.as_mut_slice().last_mut() {
         if ours && *q == quoted && at.0 >= floor {
             if at.1 != text.len() {
@@ -280,7 +281,7 @@ fn push_text<const N: usize>(segs: &mut InlineVec<Seg, N>, first: usize, text: &
 /// (Merging is not needed for the result: a word's text is the concatenation of its segments
 /// either way.)
 fn push_input<const N: usize>(segs: &mut InlineVec<Seg, N>, first: usize, at: Span, quoted: bool) -> Wr<()> {
-    let ours = segs.len() > first;
+    let ours = first == 0 || segs.len() > first;
     if let Some(Seg::Text { at: last, quoted: q, input: true }) = segs.as_mut_slice().last_mut() {
         if ours && *q == quoted && last.1 == at.0 {
             last.1 = at.1;
@@ -456,8 +457,7 @@ impl Parser<'_> {
                     self.i += 1;
                     // A quoted piece even when empty.
                     push_input(segs, 0, (self.i, self.i), true)?;
-                    self.frames.push(Frame::DQuote)?;
-                    self.nested(segs)?;
+                    self.dquote_word(segs)?;
                 }
                 b'$' => {
                     self.dollar(segs, false)?;
@@ -494,6 +494,43 @@ impl Parser<'_> {
         }
     }
 
+    /// Where the run of plain bytes inside double quotes that starts at `start` ends.
+    fn dquote_run(&self, start: usize) -> usize {
+        self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'"' | b'\\' | b'$' | b'`'))).map_or(self.s.len(), |k| start + 1 + k)
+    }
+
+    /// Double quotes in the word's own context (no frame open; the opening `"` read), up to
+    /// and including the closing `"`: the usual case, read here without a frame. Their
+    /// segments go to the word's list, as from a [`Frame::DQuote`] with nothing under it. An
+    /// expansion that opens a context (`${name<op>word}`, `$((...))`) gets the double quotes'
+    /// frame under it, and [`Parser::nested`] reads the rest.
+    fn dquote_word(&mut self, segs: &mut Segs) -> Wr<()> {
+        loop {
+            let Some(b) = self.peek() else { return Err(WordError::Syntax) };
+            match b {
+                b'"' => {
+                    self.i += 1;
+                    return Ok(());
+                }
+                b'$' => {
+                    self.dollar(segs, true)?;
+                    if let Some(opened) = self.frames.pop() {
+                        self.frames.push(Frame::DQuote)?;
+                        self.frames.push(opened)?;
+                        return self.nested(segs);
+                    }
+                }
+                b'\\' | b'`' => self.dquote_step(segs)?,
+                _ => {
+                    let start = self.i;
+                    let run = self.dquote_run(start);
+                    push_input(segs, 0, (start, run), true)?;
+                    self.i = run;
+                }
+            }
+        }
+    }
+
     /// One step inside double quotes (the innermost frame): a run of text, an escape, an
     /// expansion, or the closing `"` (the frame ends).
     fn dquote_step(&mut self, segs: &mut Segs) -> Wr<()> {
@@ -523,7 +560,7 @@ impl Parser<'_> {
             _ => {
                 // This byte and the plain bytes after it, as one piece of text.
                 let start = self.i;
-                let run = self.s.get(start + 1..).and_then(|r| r.iter().position(|&c| matches!(c, b'"' | b'\\' | b'$' | b'`'))).map_or(self.s.len(), |k| start + 1 + k);
+                let run = self.dquote_run(start);
                 self.put_input(segs, (start, run), true)?;
                 self.i = run;
             }
