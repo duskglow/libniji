@@ -34,6 +34,12 @@ lines in saturation/01..05, 07 (generated views: missing handoff/*.md and crates
 gate-1 (first head d3a76af93): records check OK; static red on trace: two new rows named no clause ID; fixed
 (cookie row: s12_3_c_3, s12_8_f_0; fclose row: `no clause ID`, none exists). gate-2 on the final head: see hand-back.
 
+## Continuation DOCS-CATCHUP-1121-2
+Merged origin/next. RELEASE-NOTES conflict: next now has a section per snapshot to 22.3 covering the 12 entries, so
+next's structure was kept; Unreleased holds one entry, the loud failure of a thread exit without an unwinder (COMPAT-38,
+landed after 22.3). Differences rows (D-12.34, COMPAT-39..41) merged cleanly. clippy, static green; affected gate green
+(first gate red only because `target/niji` was missing for the iconv transcript tests; `cargo xtask so` fixed it).
+
 ## Next step
-If gate-2 is green, land. Later snapshots (1121C..1122D: LOCALEDEF-*, LG6-CTYPE-OBJECTS, HEADERS-O2-INLINES, ...) are
+Land. Later snapshots (1121C..1122D: LOCALEDEF-*, LG6-CTYPE-OBJECTS, HEADERS-O2-INLINES, ...) are
 not in these notes: a follow-up docs story.
