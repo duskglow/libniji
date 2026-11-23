@@ -10,6 +10,6 @@ overshoot-closed | xtask/src/affected.rs | lit:i == toks.len() ==> i >= toks.len
 # The support files' references are left out of a target's.
 support-refs-dropped | xtask/src/affected.rs | lit:refs.extend(r.iter().cloned()); ==> let _ = r; | cargo test -p xtask --bin xtask a_target_s_references | msg:a_target_s_references_are_those_of_its_whole_text.*(FAILED|panicked)|references differ from its whole text
 # A target with a part that is not closed keeps the union instead of reading its whole text.
-open-target-not-reread | xtask/src/affected.rs | lit:if !closed { ==> if false && !closed { | cargo test -p xtask --bin xtask a_target_s_references | msg:a_target_s_references_are_those_of_its_whole_text.*(FAILED|panicked)|references differ from its whole text
+open-target-not-reread | xtask/src/affected.rs | lit:if !closed { ==> if false && !closed { | cargo test -p xtask --bin xtask a_small_tree_reads | msg:a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs.*(FAILED|panicked)|references are not those of its whole text
 # The hub counts read `(None, m)` as a module of no crate: `stdio`, `conv`, ... are no longer hubs, and the selection widens.
-hub-own-crate | xtask/src/affected.rs | lit:c.as_deref().unwrap_or(krate) ==> c.as_deref().unwrap_or("") | cargo test -p xtask --bin xtask affected::tests | msg:affected::tests::\S+.*(FAILED|panicked)
+hub-own-crate | xtask/src/affected.rs | lit:c.as_deref().unwrap_or(krate) ==> c.as_deref().unwrap_or("") | cargo test -p xtask --bin xtask a_small_tree_reads | msg:a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs.*(FAILED|panicked)|hubs

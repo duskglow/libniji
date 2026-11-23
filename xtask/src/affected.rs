@@ -6694,6 +6694,42 @@ fn plain() {}", &aliases);
         assert!(checked >= 2, "only {checked} targets with support directories: the check reads nothing");
     }
 
+    // AFFECTED-TESTS-ONE-LOAD, D-X.160: a support file that is not closed (a `use` cut off by its end, which the next
+    // file's tokens end) makes `Repo::load` read the target's whole text, as before: here the joined text names `m`
+    // and not `z`, while the union of the parts would name `z` and not `m`. No target of the tree has such a part.
+    // Trace: no spec clause (test-harness tooling; AFFECTED-TESTS-ONE-LOAD, D-X.160).
+    #[test]
+    fn a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs() {
+        let root = std::env::temp_dir().join(format!("xtask-oneload-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for (f, text) in [
+            ("Cargo.toml", "[workspace]\nmembers = [\"crates/a\"]\n"),
+            ("crates/a/Cargo.toml", "[package]\nname = \"a\"\n"),
+            ("crates/a/src/lib.rs", "pub mod m;\npub mod n;\nmod p;\nmod q;\n"),
+            ("crates/a/src/m.rs", "pub fn f() {}\n"),
+            ("crates/a/src/n.rs", "pub fn f() {}\n"),
+            ("crates/a/src/p.rs", "use crate::m;\npub extern \"C\" fn e() { crate::m::f(); }\n"),
+            ("crates/a/src/q.rs", "fn k() { a::n::f(); }\n"),
+            ("crates/a/tests/t.rs", "mod sup;\n#[test]\nfn x() {}\n"),
+            ("crates/a/tests/sup/one.rs", "pub fn g() {}\nuse crate::m"),
+            ("crates/a/tests/sup/two.rs", "z::w;\n"),
+        ] {
+            let p = root.join(f);
+            fs::create_dir_all(p.parent().expect("parent")).expect("mkdir");
+            fs::write(&p, text).expect("write");
+        }
+        let repo = Repo::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        let t = repo.targets.iter().find(|t| t.name == "t").expect("target t");
+        assert_eq!(t.support, BTreeSet::from(["sup".to_string()]), "support of t");
+        assert_eq!(t.refs, BTreeSet::from([(None, "m".to_string())]), "t's references are not those of its whole text (the union of its parts names z)");
+        // The hub counts (named by a sixth of the nodes or entries): `m` only through `crate::m` (its own crate), `n`
+        // only through `a::n`; the one entry, `e`, names `m`.
+        let names = |xs: &BTreeSet<usize>| xs.iter().map(|&x| repo.nodes[x].name.clone()).collect::<BTreeSet<_>>();
+        assert_eq!(names(&repo.hubs), BTreeSet::from(["m".to_string(), "n".to_string()]), "hubs");
+        assert_eq!(names(&repo.entry_hubs), BTreeSet::from(["m".to_string()]), "entry hubs");
+    }
+
     #[test]
     fn summary_matches_the_test_summary_format() {
         let log = "test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.1s\ntest result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out\n---- foo::bar stdout ----\nconformance: 5 passed, 0 failed\n";
