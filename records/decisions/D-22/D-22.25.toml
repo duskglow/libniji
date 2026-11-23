@@ -1,0 +1,8 @@
+id = "D-22.25"
+section = "s22"
+spec = "§22.1, §22.6"
+ann = "ARB"
+status = "active"
+body = '''
+**What a thread's creation and exit touch (THREAD-CREATE-COST).** (1) The key table keeps its scan bound: `pthread_key_create` raises a high-water mark (one past the highest slot it tries to claim) before it claims the slot, and the exit-time destructor scan and the key-area clear of a reused mapping read it in O(1); before, each searched all 4096 key numbers, twice per thread (about 34,800 of the 36,000 user instructions of one create + return + join on the Zen 1 host, gdb single-step attribution). The bound never shrinks; a racing create can only raise it early, which lengthens a scan and changes nothing else. (2) Under libniji's `ld.so` the static TLS area below a reused mapping's thread pointer (the initial modules' blocks, the 64 KiB surplus, the dtv) is the loader's to write: the C library clears only its own parts (thread block, descriptor, used key entries), the loader's `tls_init` writes each block in full (image and zeros to `p_memsz`) and every dtv slot up to the count it sets (a released module ID's slot reads 0), and the free surplus is written by the `dlopen` that places a block there, before any read (D-27 DL-16d's walk, under the thread-list lock a creation also holds). It saved 3,886 instructions and 64 KiB of stores per thread creation. A static program's TLS block is still cleared, then the image copied.
+'''
