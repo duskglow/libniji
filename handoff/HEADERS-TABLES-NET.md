@@ -28,7 +28,12 @@ did the rest.
 **Proof.** header_check.py on the final tables (job htn-hgen3): 0 failed of 16348 (the first run, htn-hgen1, failed 39:
 all P1 sizeof(struct tftphdr), fixed above). appendix_c_layouts 277 passed and `cargo xtask clippy` clean (htn-abi2;
 htn-abi1 failed abi_struct_ip_timestamp, fixed above). `cargo xtask static` green (htn-static1). Plants
-`handoff/HEADERS-TABLES-NET-plants.txt` (htn-plants1) and direct gate (htn-gate1): see the hand-back.
+`handoff/HEADERS-TABLES-NET-plants.txt`, run htn-plants1: 6 CAUGHT (never-packed C and Rust, attribute dropped,
+natural size unrounded, bit-field byte order, macros/constants cross-check), 1 SURVIVED: htn-nested-always-packed
+(pack every nested aggregate): no recorded offset or size moves and no table records a nested member's alignment, so
+it is now `equivalent:` with that reason; htn-plants2 reruns the file on the final head. Direct gate: htn-gate1.
+**Check gap (INFORMATIONAL):** header_check/P1 and appendix_c_layouts cannot see the alignment of a nested member;
+an over-packed nested aggregate whose offsets happen not to move passes every check.
 
 **Brief step 3: spec names the reference does not define** (probe negatives: in no header in any configuration).
 99 of 598 macro candidates: AUTHTYPE_RSA/SRA/SSL, AUTH_ENCRYPT_MASK/OFF, COMP_PROTO_LEN, ENV_VALUE, ENV_VAR, EOPTNEG,
