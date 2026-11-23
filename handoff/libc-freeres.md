@@ -29,7 +29,8 @@ docs row. Role mei:~/w/s3. Scratch: local `~/w/.scratch/LIBC-FREERES{,-2}/`, mei
 
 Errors 0 and lost 0 in every cell. libniji columns run with libniji's libc6-dbg installed; without it valgrind stops
 at start-up (no `strcmp` in ld.so's symbols) before and after alike: known, tracked by the VALGRIND-LDSO-SYMBOLS line.
-Jobs: libc-freeres-vg-before, libc-freeres-vg-after (1578c120b), libc-freeres-2-vg-after (final code head, see report).
+Jobs: libc-freeres-vg-before, libc-freeres-vg-after (1578c120b), libc-freeres-2-vg-after-2 (final code head; the same table
+as libc-freeres-2-vg-after, which left no tested-content record because its command named no `w/<role>`).
 
 ## Gate and start-up checks
 

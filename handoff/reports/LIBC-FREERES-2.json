@@ -12,4 +12,4 @@
  "improvement": "a gate whose only reds are a known host incident has no way to say so: a host-incident list (test names + incident id) the verifier subtracts would stop such stories going red and needing a continuation",
  "next_step": "land once mei's locale incident #7846 is fixed (LOCALE-PER-DIR-LOAD) or gate on another host; nothing left in the story",
  "report_file": "handoff/libc-freeres.md",
- "jobs": ["mei:libc-freeres-2-gate", "mei:libc-freeres-plants-3", "mei:libc-freeres-hottext", "mei:libc-freeres-xtest", "mei:libc-freeres-2-vg-after"]}
+ "jobs": ["mei:libc-freeres-2-gate", "mei:libc-freeres-plants-3", "mei:libc-freeres-hottext", "mei:libc-freeres-xtest", "mei:libc-freeres-2-vg-after-2"]}
