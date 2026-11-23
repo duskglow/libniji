@@ -30,7 +30,7 @@ impl Files for Disk {
         let name = String::from_utf8_lossy(name).into_owned();
         let missing = niji_locale::Error::missing("no such file");
         let data = match kind {
-            Kind::Locale => std::fs::read(format!("{I18N}/locales/{name}")).map_err(|_| missing)?,
+            Kind::Locale => std::fs::read(source_path(&name)).map_err(|_| missing)?,
             Kind::Charmap => match std::fs::read(format!("{I18N}/charmaps/{name}")) {
                 Ok(d) => d,
                 Err(_) => {
@@ -64,14 +64,23 @@ fn leak(v: Vec<u8>) -> &'static [u8] {
     Box::leak(v.into_boxed_slice())
 }
 
+/// The file of the locale source `locale`: an absolute path as given, else an installed source.
+fn source_path(locale: &str) -> PathBuf {
+    if locale.starts_with('/') { PathBuf::from(locale) } else { Path::new(I18N).join("locales").join(locale) }
+}
+
 /// Compile `locale` for `charmap` with the reference into a fresh directory; `None` (reason
 /// printed) when it cannot run.
 fn reference(locale: &str, charmap: &str) -> Option<PathBuf> {
-    if !Path::new(&format!("{I18N}/locales/{locale}")).exists() {
-        println!("skip {locale}.{charmap}: no source {I18N}/locales/{locale}");
+    if !source_path(locale).exists() {
+        println!("skip {locale}.{charmap}: no source {}", source_path(locale).display());
         return None;
     }
-    let dir = std::env::temp_dir().join(format!("niji-locale-ref-{}-{locale}.{charmap}", std::process::id()));
+    // One directory per call: two tests may compile the same locale at once (they did share one,
+    // and one removed it under the other).
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("niji-locale-ref-{}-{call}-{}.{charmap}", std::process::id(), locale.replace('/', "_")));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).ok()?;
     let out = dir.join("out");
@@ -272,9 +281,19 @@ fn order_diffs<S: Clone + std::fmt::Debug>(corpus: &[S], theirs: impl Fn(&S, &S)
 /// (bracket-expression ranges). Keys equal byte for byte are counted, not required.
 fn diff_collate(theirs: Category, ours: Category, utf8: bool, out: &mut Vec<String>) {
     use niji::locale::collate::{compare, key_bytes, Collate, Collation};
-    let (Some(Collation::Rules(t)), Some(Collation::Rules(o))) = (Collate::parse(theirs), Collate::parse(ours)) else {
-        out.push("LC_COLLATE: the reader does not take both as rules".into());
-        return;
+    let (t, o) = match (Collate::parse(theirs), Collate::parse(ours)) {
+        (Some(Collation::Rules(t)), Some(Collation::Rules(o))) => (t, o),
+        // Both without rules: both order by code point.
+        (Some(Collation::CodePoint), Some(Collation::CodePoint)) => return,
+        (t, o) => {
+            let form = |c: &Option<Collation>| match c {
+                Some(Collation::Rules(_)) => "rules",
+                Some(Collation::CodePoint) => "code point",
+                None => "refused",
+            };
+            out.push(format!("LC_COLLATE: the reference's is {}, ours {}", form(&t), form(&o)));
+            return;
+        }
     };
     let words = corpus(utf8);
     let mb = |s: &Vec<char>| -> Vec<u8> { if utf8 { s.iter().collect::<String>().into_bytes() } else { s.iter().map(|&c| c as u8).collect() } };
@@ -324,7 +343,13 @@ fn compare(locale: &str, charmap: &str) {
 /// `ctype_only`: compare `LC_CTYPE` alone (what a charmap decides: classes, maps, widths).
 fn compare_with(locale: &str, charmap: &str, files: &mut dyn Files, ctype_only: bool) {
     let Some(dir) = reference(locale, charmap) else { return };
-    let ours = niji_locale::compile(locale.as_bytes(), charmap.as_bytes(), files).unwrap_or_else(|e| panic!("{locale}.{charmap}: {e:?}"));
+    // A source given by path is a test's own, compiled as the program does (defaults included).
+    let ours = if locale.starts_with('/') {
+        niji_locale::compile_output(locale.as_bytes(), charmap.as_bytes(), files).map(|o| o.files)
+    } else {
+        niji_locale::compile(locale.as_bytes(), charmap.as_bytes(), files)
+    };
+    let ours = ours.unwrap_or_else(|e| panic!("{locale}.{charmap}: {e:?}"));
     let mut out = Vec::new();
     for (n, file) in FILES.iter().enumerate() {
         let Some(file) = file.filter(|_| n == 0 || !ctype_only) else { continue };
@@ -400,6 +425,79 @@ fn en_us_iso_8859_1() {
     compare("en_US", "ISO-8859-1");
 }
 
+/// s31_8_c_1, s31_8_g_3: a source that defines one category gets every other category's
+/// default, equal to what the reference writes for a category a source does not define (#7534):
+/// once for a multi-byte charmap (UTF-8) and once for a single-byte one (ISO-8859-1).
+///
+/// Except where libniji writes the POSIX locale's value (XBD 7.3) and the reference another
+/// (D-31.24, docs/differences-from-glibc.md): `LC_CTYPE`'s `print`, `graph`, `cntrl` and `punct`
+/// classes, widths and `outdigit`s (checked against XBD 7.3.1 here instead), `LC_TIME`'s wide
+/// strings and alternative month names (ours: the narrow names), `LC_MONETARY`'s "not available"
+/// numbers (ours `CHAR_MAX`, as `localeconv` of the POSIX locale) and `mon_grouping`, and
+/// `LC_ADDRESS`'s country codes (ours empty).
+#[test]
+fn undefined_categories_get_the_references_defaults() {
+    let dir = std::env::temp_dir().join(format!("niji-locale-defaults-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("only_measurement");
+    std::fs::write(&src, "LC_MEASUREMENT\nmeasurement 2\nEND LC_MEASUREMENT\n").unwrap();
+    let src = src.to_str().unwrap();
+    let skip = |n: usize| -> Vec<usize> {
+        match n {
+            2 => (52..=94).chain(111..=158).collect(),
+            4 => (4..=37).collect(),
+            9 => vec![3, 4, 5],
+            _ => vec![],
+        }
+    };
+    for charmap in ["UTF-8", "ISO-8859-1"] {
+        let Some(rdir) = reference(src, charmap) else { continue };
+        let ours = niji_locale::compile_output(src.as_bytes(), charmap.as_bytes(), &mut Disk).unwrap().files;
+        let mut out = Vec::new();
+        for (n, file) in FILES.iter().enumerate() {
+            let Some(file) = file else { continue };
+            let theirs = std::fs::read(rdir.join("out").join(file)).unwrap_or_else(|_| panic!("{charmap}: the reference wrote no {file}"));
+            let mine = ours[n].as_ref().unwrap_or_else(|| panic!("{charmap}: ours has no {file}"));
+            let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(mine.as_slice().to_vec())).unwrap());
+            match n {
+                0 => {
+                    let mut d = Vec::new();
+                    diff_ctype(t, o, &mut d);
+                    let posix = ["LC_CTYPE class print:", "LC_CTYPE class graph:", "LC_CTYPE class cntrl:", "LC_CTYPE class punct:", "LC_CTYPE width:"];
+                    let items: Vec<String> = [0, 5].into_iter().chain(30..=40).map(|i| format!("LC_CTYPE item {i}:")).collect();
+                    out.extend(d.into_iter().filter(|l| !posix.iter().any(|p| l.starts_with(p)) && !items.iter().any(|p| l.starts_with(p.as_str()))));
+                    posix_ctype(o, &mut out);
+                }
+                3 => diff_collate(t, o, charmap == "UTF-8", &mut out),
+                _ => diff_items(file, t, o, &skip(n), &mut out),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&rdir);
+        assert!(out.is_empty(), "{charmap}: {} differences:\n{}", out.len(), out.join("\n"));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The ASCII classes and widths of the POSIX locale (XBD 7.3.1) in the `LC_CTYPE` file `c`.
+fn posix_ctype(c: Category, out: &mut Vec<String>) {
+    let names = names(c.item(10));
+    let at = c.word(17) as usize;
+    let class = |name: &str| names.iter().position(|n| n == name.as_bytes()).and_then(|k| Table3::parse(c.item(at + k))).unwrap();
+    let (print, graph, cntrl, punct) = (class("print"), class("graph"), class("cntrl"), class("punct"));
+    let width = Table3::parse(c.item(12)).unwrap();
+    for wc in 0..0x80u32 {
+        let ch = char::from_u32(wc).unwrap();
+        let want = [(0x20..0x7f).contains(&wc), (0x21..0x7f).contains(&wc), wc < 0x20 || wc == 0x7f, ch.is_ascii_punctuation()];
+        let got = [print.bit(wc), graph.bit(wc), cntrl.bit(wc), punct.bit(wc)];
+        if want != got {
+            out.push(format!("LC_CTYPE {wc:#04x}: print/graph/cntrl/punct {got:?}, POSIX {want:?}"));
+        }
+        if want[0] && width.value_u8(wc) != Some(1) {
+            out.push(format!("LC_CTYPE {wc:#04x}: width {:?}, POSIX printable 1", width.value_u8(wc)));
+        }
+    }
+}
+
 /// s31_8_c_1, s31_8_i_2: the #14 locales compiled with libniji's generated charmaps
 /// (LOCALE-CHARMAPS-GEN) equal the reference's compile with its own, compared as the module
 /// comment says.
@@ -418,4 +516,39 @@ fn generated_cjk_charmaps_give_the_reference_ctype() {
     for (locale, charmap) in [("ja_JP", "EUC-JP"), ("ja_JP", "WINDOWS-31J"), ("ko_KR", "EUC-KR"), ("ko_KR", "CP949")] {
         compare_with(locale, charmap, &mut Generated, true);
     }
+}
+
+/// s31_8_g_1, s31_8_g_4: the products' `localedef` (the freestanding program, its tool arena
+/// reusing and unmapping freed blocks, D-31.23) writes exactly the library's compile of en_US and
+/// de_DE for UTF-8, as directories and into an archive under `--prefix`. Needs the products
+/// (`cargo xtask so`) and the locale sources; without them it says so and skips.
+#[test]
+fn products_localedef_writes_the_library_compile() {
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() || !source_path("en_US").exists() {
+        println!("skip: needs {} (cargo xtask so) and {}", bin.display(), source_path("en_US").display());
+        return;
+    }
+    static RUN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let dir = std::env::temp_dir().join(format!("niji-locale-products-{}-{}", std::process::id(), RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("p/usr/lib/locale")).unwrap();
+    for locale in ["en_US", "de_DE"] {
+        let out = dir.join(format!("{locale}.UTF-8"));
+        let run = Command::new(&bin).args(["-i", locale, "-f", "UTF-8"]).arg(&out).env_clear().output().unwrap();
+        assert_eq!(run.status.code(), Some(0), "{locale}: {}", String::from_utf8_lossy(&run.stderr));
+        let lib = niji_locale::compile_output(locale.as_bytes(), b"UTF-8", &mut Disk).unwrap();
+        for (n, file) in FILES.iter().enumerate() {
+            let (Some(file), Some(Some(want))) = (file, lib.files.get(n)) else { continue };
+            let got = std::fs::read(out.join(file)).unwrap_or_default();
+            assert!(got == want.as_slice(), "{locale} {file}: the program's file differs from the library's");
+        }
+        let prefix = format!("--prefix={}", dir.join("p").display());
+        let run = Command::new(&bin).args([prefix.as_str(), "-i", locale, "-f", "UTF-8", &format!("{locale}.UTF-8")]).env_clear().output().unwrap();
+        assert_eq!(run.status.code(), Some(0), "{locale} archive: {}", String::from_utf8_lossy(&run.stderr));
+    }
+    let archive = std::fs::read(dir.join("p/usr/lib/locale/locale-archive")).unwrap();
+    let a = niji_locale::archive::Archive::parse(&archive).unwrap();
+    assert_eq!(a.names().unwrap().iter().map(|n| n.to_vec()).collect::<Vec<_>>(), [b"de_DE.utf8".to_vec(), b"en_US.utf8".to_vec()]);
+    let _ = std::fs::remove_dir_all(&dir);
 }

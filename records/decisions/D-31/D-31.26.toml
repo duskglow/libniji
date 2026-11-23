@@ -1,0 +1,11 @@
+id = "D-31.26"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "LOCALEDEF-ARCHIVE"
+date = "2026-11-22"
+tests = ["crates/locale/tests/prog.rs"]
+body = '''
+**localedef reads the source from standard input without `-i`, goes past syntax errors as the reference does, and refuses `--big-endian`** (#7534; statuses and messages from black-box probes of the reference). Standard input is read whole (up to the input limit) and named `<stdin>` in messages. The source parser records a line outside any category (`<file>:<line>: syntax error: not inside a locale definition section`), skips it and goes on; the locale is written with or without `-c`, status 1. A category whose statements fail is reported as `<file>:<line>: <CATEGORY>: syntax error: <what>` (the reference stops after `syntax error`; libniji says what was wrong) and gets its default (D-31.24); without `-c` that is status 4 and no output (`[error] no output file produced because errors were issued`), with `-c` the locale is written, status 1. An error that leaves the source unreadable as a whole (a category without `END`, a `copy` that cannot be resolved) still stops the compile, status 4. `--big-endian` is refused (`[error] big-endian output is not supported`, status 4): libniji is x86-64 only and no libniji program reads big-endian locale files, so writing them would be untested output for no reader; the reference writes them, status 0. Recorded in docs/differences-from-glibc.md; RULING NEEDED in the story's hand-back on whether a compat option is wanted (recommended: no).
+'''

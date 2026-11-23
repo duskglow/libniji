@@ -13,6 +13,10 @@ struct Mem {
     files: BTreeMap<Vec<u8>, Vec<u8>>,
     dirs: Vec<Vec<u8>>,
     fail_mkdir: Option<i32>,
+    /// The standard input (`None`: reading it fails with EBADF).
+    stdin: Option<Vec<u8>>,
+    /// The directories locked, in order.
+    locked: Vec<Vec<u8>>,
 }
 
 impl Host for Mem {
@@ -31,6 +35,13 @@ impl Host for Mem {
     }
     fn write(&mut self, path: &[u8], data: &[u8]) -> Result<(), i32> {
         self.files.insert(path.to_vec(), data.to_vec());
+        Ok(())
+    }
+    fn read_stdin(&mut self, _max: usize) -> Result<TryVec<u8>, i32> {
+        self.stdin.take().map(|d| TryVec::from_slice(&d).unwrap()).ok_or(9)
+    }
+    fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
+        self.locked.push(dir.to_vec());
         Ok(())
     }
     fn error_text(&self, errno: i32) -> &'static [u8] {
@@ -83,9 +94,9 @@ impl Files for Plain<'_> {
     }
 }
 
-/// s31_8_g_1: a NAME with `/` gets the directory form: the directory, `LC_MESSAGES/`, and one file per category
-/// the source defines, each the library's compiled file; a category the source lacks is a warning and status 1
-/// (s31_8_c_1).
+/// s31_8_g_1, s31_8_g_3: a NAME with `/` gets the directory form: the directory, `LC_MESSAGES/`, and all twelve
+/// category files, a defined one the library's compiled file; a category the source lacks is a warning, status 1,
+/// and its file holds the default.
 #[test]
 fn directory_form_writes_the_defined_categories() {
     let mut m = host();
@@ -101,7 +112,10 @@ fn directory_form_writes_the_defined_categories() {
     assert_eq!(numeric.as_slice(), compiled[1].as_ref().unwrap().as_slice());
     let messages = m.files.get(&b"/out/mini.MINI/LC_MESSAGES/SYS_LC_MESSAGES"[..]).expect("SYS_LC_MESSAGES written");
     assert_eq!(messages.as_slice(), compiled[5].as_ref().unwrap().as_slice());
-    assert_eq!(m.files.len(), 4, "only the two category files are added");
+    assert_eq!(m.files.len(), 14, "all twelve category files are added");
+    let defaults = niji_locale::compile_output(b"mini", b"MINI", &mut Plain(&host())).unwrap();
+    let time = m.files.get(&b"/out/mini.MINI/LC_TIME"[..]).expect("LC_TIME written with its default");
+    assert_eq!(time.as_slice(), defaults.files[2].as_ref().unwrap().as_slice());
     // A second run over the existing directory replaces the files (an existing directory is no error).
     let again = go(&mut m, &["-i", "mini", "-fMINI", "--quiet", "/out/mini.MINI/"]);
     assert_eq!((again.status, text(&again.err)), (0, String::new()));
@@ -167,19 +181,142 @@ fn charmap_search_takes_the_compressed_file() {
     assert!(m.files.contains_key(&b"/out/gz/LC_NUMERIC"[..]));
 }
 
-/// s31_8_g_1: a NAME without `/` with `--no-archive` goes under the locale path (after `--prefix`); without it the
-/// archive is asked for, which this localedef does not write yet: status 4, nothing written.
+/// s31_8_g_1, s31_8_g_4: a NAME without `/` with `--no-archive` goes under the locale path (after `--prefix`) with its codeset
+/// normalized; without it the locale goes into the archive there, under the lock of its directory.
 #[test]
 fn name_without_slash() {
     let mut m = host();
     let o = go(&mut m, &["-i", "mini", "-f", "MINI", "--no-archive", "--prefix=/root", "--quiet", "mini.MINI"]);
     assert_eq!((o.status, text(&o.err)), (0, String::new()));
-    assert!(m.files.contains_key(&b"/root/usr/lib/locale/mini.MINI/LC_NUMERIC"[..]));
+    assert!(m.files.contains_key(&b"/root/usr/lib/locale/mini.mini/LC_NUMERIC"[..]));
     let mut m = host();
-    let o = go(&mut m, &["-i", "mini", "-f", "MINI", "mini.MINI"]);
+    let o = go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", "mini.MINI"]);
+    assert_eq!((o.status, text(&o.err)), (0, String::new()));
+    assert!(m.dirs.is_empty(), "no directory is made for the archive form");
+    assert_eq!(m.locked, [b"/usr/lib/locale".to_vec()]);
+    assert!(m.files.contains_key(&b"/usr/lib/locale/locale-archive"[..]));
+    assert_eq!(text(&go(&mut m, &["--list-archive"]).out), "mini.mini\n");
+}
+
+/// The archive named `path` in `m`, parsed.
+fn archive_at(m: &Mem, path: &str) -> niji_locale::archive::Archive {
+    niji_locale::archive::Archive::parse(m.files.get(path.as_bytes()).expect("archive written")).unwrap()
+}
+
+/// s31_8_g_4: a NAME without a codeset is stored as given and with the charmap's codeset (normalized) before any
+/// `@modifier`, the two names one locale; a second compile of a stored name replaces it without a message.
+#[test]
+fn archive_names_take_the_charmaps_codeset() {
+    let mut m = host();
+    let o = go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", "--prefix=/p", "zz_ZZ@euro"]);
+    assert_eq!((o.status, text(&o.err)), (0, String::new()));
+    assert_eq!(text(&go(&mut m, &["--prefix=/p", "--list-archive"]).out), "zz_ZZ.mini@euro\nzz_ZZ@euro\n");
+    let first = m.files.get(&b"/p/usr/lib/locale/locale-archive"[..]).unwrap().clone();
+    let o = go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", "--prefix=/p", "zz_ZZ@euro"]);
+    assert_eq!((o.status, text(&o.err), text(&o.out)), (0, String::new(), String::new()));
+    assert_eq!(m.files.get(&b"/p/usr/lib/locale/locale-archive"[..]).unwrap(), &first, "a replaced locale leaves the same archive");
+    assert_eq!(archive_at(&m, "/p/usr/lib/locale/locale-archive").names().unwrap().len(), 2);
+}
+
+/// s31_8_g_2: `--list-archive` lists the names sorted; a FILE operand names the archive, and a missing one is a
+/// message and status 1; a missing default archive lists nothing, status 0.
+#[test]
+fn list_archive() {
+    let mut m = host();
+    let o = go(&mut m, &["--list-archive"]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (0, String::new(), String::new()));
+    let o = go(&mut m, &["--list-archive", "/nosuch/archive", "ignored"]);
+    assert_eq!((o.status, text(&o.err)), (1, "cannot open locale archive \"/nosuch/archive\": No such file or directory\n".to_string()));
+    for name in ["b_B.MINI", "a_A.MINI", "c_C.MINI"] {
+        assert_eq!(go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", name]).status, 0);
+    }
+    let o = go(&mut m, &["--list-archive", "/usr/lib/locale/locale-archive"]);
+    assert_eq!((o.status, text(&o.out)), (0, "a_A.mini\nb_B.mini\nc_C.mini\n".to_string()));
+}
+
+/// s31_8_g_4: `--delete-from-archive` removes exact names; a name not there is a message and status 0; the other
+/// locales stay readable.
+#[test]
+fn delete_from_archive() {
+    let mut m = host();
+    for name in ["a_A.MINI", "b_B.MINI"] {
+        assert_eq!(go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", name]).status, 0);
+    }
+    let o = go(&mut m, &["--delete-from-archive", "a_A.MINI", "a_A.mini"]);
+    assert_eq!((o.status, text(&o.err)), (0, "locale \"a_A.MINI\" not in archive\n".to_string()));
+    assert_eq!(text(&go(&mut m, &["--list-archive"]).out), "b_B.mini\n");
+    let a = archive_at(&m, "/usr/lib/locale/locale-archive");
+    assert!(a.contains(b"b_B.mini") && !a.contains(b"a_A.mini"));
+    assert_eq!(go(&mut m, &["--delete-from-archive"]).status, 0);
+}
+
+/// s31_8_g_4: `--add-to-archive` stores a directory-form locale under its last component, normalized, with an
+/// `Adding` line; an existing name is a message and status 255 unless `--replace`; a missing directory is a
+/// message and is skipped (status 0).
+#[test]
+fn add_to_archive() {
+    let mut m = host();
+    assert_eq!(go(&mut m, &["-i", "mini", "-f", "MINI", "--quiet", "/out/fr_FR.UTF-8"]).status, 0);
+    let o = go(&mut m, &["--add-to-archive", "/out/fr_FR.UTF-8/"]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (0, "Adding /out/fr_FR.UTF-8/\n".to_string(), String::new()));
+    assert_eq!(text(&go(&mut m, &["--list-archive"]).out), "fr_FR.utf8\n");
+    let o = go(&mut m, &["--add-to-archive", "/out/fr_FR.UTF-8"]);
+    assert_eq!((o.status, text(&o.err)), (255, "locale 'fr_FR.utf8' already exists\n".to_string()));
+    assert_eq!(go(&mut m, &["--add-to-archive", "--replace", "/out/fr_FR.UTF-8"]).status, 0);
+    let o = go(&mut m, &["--add-to-archive", "/out/none"]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (0, "Adding /out/none\n".to_string(), "stat of \"/out/none\" failed: No such file or directory: ignored\n".to_string()));
+    // The added locale is the directory's files: the same archive as compiling into it.
+    let added = m.files.get(&b"/usr/lib/locale/locale-archive"[..]).unwrap().clone();
+    let mut direct = host();
+    assert_eq!(go(&mut direct, &["-i", "mini", "-f", "MINI", "--quiet", "fr_FR.UTF-8"]).status, 0);
+    assert_eq!(direct.files.get(&b"/usr/lib/locale/locale-archive"[..]).unwrap(), &added);
+}
+
+/// s31_8_i_3, s31_8_f_2: without `-i` the source is the standard input, named `<stdin>` in messages; a line outside any
+/// category is an error the compile goes past (status 1, the locale written, with or without -c).
+#[test]
+fn source_from_stdin_and_lines_outside_a_category() {
+    let mut m = host();
+    m.stdin = Some(MINI.to_vec());
+    let o = go(&mut m, &["-f", "MINI", "--quiet", "/out/s"]);
+    assert_eq!((o.status, text(&o.err)), (0, String::new()));
+    assert!(m.files.contains_key(&b"/out/s/LC_NUMERIC"[..]));
+    m.stdin = Some([&b"stray line\n"[..], MINI].concat());
+    let o = go(&mut m, &["-f", "MINI", "--quiet", "/out/t"]);
+    assert_eq!((o.status, text(&o.err)), (1, "<stdin>:1: syntax error: not inside a locale definition section\n".to_string()));
+    assert_eq!(m.files.get(&b"/out/t/LC_NUMERIC"[..]), m.files.get(&b"/out/s/LC_NUMERIC"[..]));
+    // No standard input: an error, status 4.
+    let o = go(&mut m, &["-f", "MINI", "/out/u"]);
     assert_eq!(o.status, 4);
-    assert!(text(&o.err).starts_with("[error] "), "{}", text(&o.err));
-    assert!(m.dirs.is_empty());
+    assert!(!m.files.contains_key(&b"/out/u/LC_NUMERIC"[..]));
+}
+
+/// s31_8_f_2: an error inside a category names the category; without -c nothing is written (status 4); with -c the
+/// locale is written, that category with its default, status 1.
+#[test]
+fn category_error_needs_force() {
+    let messages = MINI.windows(11).position(|w| w == b"LC_MESSAGES").unwrap();
+    let bad = [&b"LC_NUMERIC\ndecimal_point \"<U002E>\" junk junk\nEND LC_NUMERIC\n"[..], &MINI[messages..]].concat();
+    let mut m = host();
+    m.files.insert(b"/usr/share/i18n/locales/bad".to_vec(), bad);
+    let o = go(&mut m, &["-i", "bad", "-f", "MINI", "--quiet", "/out/b"]);
+    let err = text(&o.err);
+    assert_eq!(o.status, 4, "{err}");
+    assert!(err.starts_with("bad:2: LC_NUMERIC: syntax error") && err.ends_with("[error] no output file produced because errors were issued\n"), "{err}");
+    assert!(!m.files.contains_key(&b"/out/b/LC_NUMERIC"[..]));
+    let o = go(&mut m, &["-i", "bad", "-f", "MINI", "--quiet", "-c", "/out/b"]);
+    assert_eq!(o.status, 1, "{}", text(&o.err));
+    let defaults = niji_locale::compile_output(b"mini", b"MINI", &mut Plain(&host())).unwrap();
+    let numeric = m.files.get(&b"/out/b/LC_NUMERIC"[..]).expect("LC_NUMERIC written under -c");
+    let posix = niji_locale::compile_output(b"none", b"MINI", &mut Plain(&{
+        let mut h = host();
+        h.files.insert(b"/usr/share/i18n/locales/none".to_vec(), b"LC_MESSAGES\nEND LC_MESSAGES\n".to_vec());
+        h
+    }))
+    .unwrap();
+    assert_eq!(numeric.as_slice(), posix.files[1].as_ref().unwrap().as_slice(), "the failed category has its default");
+    assert_ne!(numeric.as_slice(), defaults.files[1].as_ref().unwrap().as_slice());
+    assert!(m.files.contains_key(&b"/out/b/LC_MESSAGES/SYS_LC_MESSAGES"[..]));
 }
 
 /// s31_8_g_1: an output directory that cannot be made is an `[error]` line naming it, status 4.
