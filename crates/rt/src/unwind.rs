@@ -1584,7 +1584,8 @@ mod tests {
         kinds.push(0x0b);
         let mut row = Row::new(RA);
         let mut want = Row::new(RA);
-        assert!(run(&mut want, None, cursor(&rules), &cie, 0, usize::MAX, &mem).is_some());
+        // The same bytes up to the spilled remember: expression rules keep their block's address.
+        assert!(run(&mut want, None, cursor(&kinds[..REMEMBER_DEPTH + rules.len()]), &cie, 0, usize::MAX, &mem).is_some());
         assert!(run(&mut row, None, cursor(&kinds), &cie, 0, usize::MAX, &mem).is_some());
         assert_eq!((row.cfa, row.rules), (want.cfa, want.rules));
         assert!(matches!(row.cfa, Cfa::Expr(_)) && matches!(row.rule(14), Rule::ValExpr { .. }) && row.rule(1) == Rule::At(-8));
