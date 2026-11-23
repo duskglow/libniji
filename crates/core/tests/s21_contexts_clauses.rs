@@ -50,6 +50,61 @@ fn s21_1_g_0() {
     // The shadow stack (D-21.5): s21_shadow_stack enables it and jumps, switches contexts, vforks
     // and runs threads under it; SKIPPED (printed by the program) where the CPU or kernel has none.
     conformance(&["s22_more", "s21_shadow_stack"]);
+    shadow_stack_instructions();
+}
+
+/// The shadow-stack handling is in the shipped `libc.a` (D-21.5), checked on any host: the
+/// program above SKIPS where the CPU or kernel has no shadow stack, so a routine that lost its
+/// `incssp` (and would fault once the shadow stack is on) still passes there. Each routine that
+/// records, pops or switches the shadow stack must contain the instructions D-21.5 gives it.
+/// Needs `objdump`; without it the check says so and passes.
+fn shadow_stack_instructions() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let o = match std::process::Command::new("objdump").args(["-d", "--no-show-raw-insn"]).arg(root.join("target/niji/libc.a")).output() {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("SKIP: shadow-stack instruction check: no objdump ({e})");
+            return;
+        }
+    };
+    assert!(o.status.success(), "objdump -d libc.a: {}", String::from_utf8_lossy(&o.stderr));
+    let text = String::from_utf8_lossy(&o.stdout);
+    // Function name -> its instruction mnemonics (objdump starts each symbol with `<name>:`).
+    let mut bodies: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
+    let mut cur: Option<&str> = None;
+    for line in text.lines() {
+        if let Some(name) = line.strip_suffix(">:").and_then(|l| l.split_once(" <")).map(|(_, n)| n) {
+            cur = Some(name);
+            bodies.entry(name).or_default();
+        } else if let (Some(f), Some((_, insn))) = (cur, line.split_once(":\t")) {
+            if let Some(m) = insn.split_whitespace().next() {
+                bodies.entry(f).or_default().push(m);
+            }
+        }
+    }
+    // (names the routine may be listed under, instructions it must contain)
+    let want: [(&[&str], &[&str]); 6] = [
+        (&["niji_machine_sigsetjmp"], &["rdsspq"]),
+        (&["niji_machine_longjmp_nomask"], &["rdsspq", "incsspq"]),
+        (&["niji_machine_getcontext"], &["rdsspq"]),
+        (&["niji_machine_swapcontext"], &["rdsspq"]),
+        (&["niji_machine_setcontext"], &["rdsspq", "incsspq", "rstorssp", "saveprevssp"]),
+        (&["vfork", "__vfork"], &["rdsspq", "incsspq"]),
+    ];
+    let mut missing = Vec::new();
+    for (names, insns) in want {
+        let body = names.iter().find_map(|n| bodies.get(n));
+        let Some(body) = body else {
+            missing.push(format!("{}: not in libc.a", names.join("/")));
+            continue;
+        };
+        for i in insns {
+            if !body.contains(i) {
+                missing.push(format!("{}: no {i}", names.join("/")));
+            }
+        }
+    }
+    assert!(missing.is_empty(), "libc.a routines without their shadow-stack handling (D-21.5): {missing:?}");
 }
 /// §21.2 Contract: **`getcontext(&uc)`** saves the full user context (registers, signal mask, stack description).
 #[test]

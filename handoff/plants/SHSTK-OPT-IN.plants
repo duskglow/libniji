@@ -1,0 +1,3 @@
+# SHSTK-OPT-IN (D-21.5, D-X.164): one assembly routine's shadow-stack handling removed, one shipped object unmarked.
+vfork-no-incssp | csys/src/machine/vfork.S | perl:s/(vfork:.*?)\tincsspq %rcx\n/$1/s | cargo test -p niji --test s21_contexts_clauses s21_1_g_0 | msg:vfork/__vfork: no incsspq
+libm-unmarked | xtask/src/so.rs | perl:s/(let so_final = release\.join\("libm\.so\.6"\);.*?)\.arg\(crate::cetnote::LINK_FLAG\)/$1/s | cargo xtask so | msg:shipped objects lack the SHSTK property.*libm\.so\.6
