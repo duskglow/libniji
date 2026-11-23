@@ -1,77 +1,65 @@
 # TLS-DYNAMIC-BLOCKS: on-demand TLS blocks for dlopened objects without DF_STATIC_TLS (DL-19)
 
-State: branch `task/tls-dynamic-blocks`, WIP head ce7c8901c (code written, NOT COMPILED, nothing
-run). Brief: ~/state/briefs/TLS-DYNAMIC-BLOCKS.md. Role: mei:~/w/s1. Leg 1 used 89 harness calls.
+State: branch `task/tls-dynamic-blocks`, head bfce16483 (all pushed). Brief:
+~/state/briefs/TLS-DYNAMIC-BLOCKS.md. Role: mei:~/w/s1. Leg 1: 89 calls; leg 2: ~115 calls.
 
-## Probe-settled (leg 1; job `tls-dynamic-blocks-oom` on mei, reference only)
+## Done (do not redo)
 
-A failed on-demand block allocation on the reference (RLIMIT_AS 512 MiB, 1 GiB global-dynamic
-`.tbss`, dlopen ok): stderr `cannot allocate memory for thread-local data: ABORT`, exit status 127,
-no signal. The same in the main thread, a new thread, a TLSDESC (gnu2) object and `dlsym` of the
-TLS symbol. Probe sources: scratch `oom.c`, `oom_obj.c`, `oom_run.sh` (on mei:
-~/work/tls-dynamic-blocks/oom/). Reference `--list-tunables`: `glibc.rtld.optional_static_tls`
-0x200, min 0, max 0xffffffffffffffff.
-
-## Design in the WIP commit (D-27.39 to be updated; no record edited yet)
-
-* `niji_ld::tls`: `NO_STATIC` (`Placed::tp_offset` of a block without a static place), `DYNAMIC`
-  (module-table offset word = `DYNAMIC | p_align`), `dynamic_align(word)`. `elf::dt::DF_STATIC_TLS`.
-* `place_tls` (dlopen.rs): `DF_STATIC_TLS` objects keep a surplus place; others get an ID, word
-  `DYNAMIC|align`, `tp_offset = NO_STATIC`. Non-power-of-two align: Malformed.
-* reloc.rs: `TpOff` against a `NO_STATIC` block -> new `RelocError::NoStaticPlace` ("cannot allocate
-  memory in static TLS block"); `TlsDesc` against one -> new `Image::tlsdesc_dynamic(module,
-  offset)` (boundary: `[niji_machine_ld_tlsdesc_dynamic, record]`).
-* boundary `ld/tls.rs`: `fill_static` and the publish walk store 0 in on-demand slots; `tls_slow`
-  keeps on-demand slots and maps the asked module's block (`block_alloc`: mmap, page-rounded,
-  over-map+trim for align > 4 KiB; failure = the probed text, `refuse` exits 127); release walk
-  (`tls_visit`, `new.release`) swaps each thread's slot to 0 and unmaps; thread exit
-  (`thread_tls_release` -> `release_blocks`, only when `DYNAMIC_SEEN`) does the same swap, so
-  exactly one side frees. `grow_dtv` moves slots to the new vector under the walk lock
-  (`grow_visit`) when a walk exists. TLSDESC records `[resolver, module, offset]` in loader pages
-  with a free list (`desc_record`, `desc_release` at unload/unwind); `tlsdesc_resolve(record)` =
-  `__tls_get_addr(record + 8)`. `thread_address(p, off, make)` serves dlsym (make) and dlinfo
-  TLS_DATA (no make: 0 when not made yet, as dlinfo(3) documents).
-* Surplus tunable: `Tunables::optional_static_tls` (config.rs, key `glibc.rtld.optional_static_tls`
-  only); entry.rs step 5 calls cold `tls::ask_surplus`; `tls::surplus_bytes()` = max(64 KiB, value)
-  used by link.rs layout and dlopen.rs `adopt_tls` (must match).
+* Code compiles, clippy and static clean (on 73c8f7af6; bfce16483 adds only report.rs + records
+  + docs and is NOT yet synced/clippied: two syncs returned rc 4 BUSY while plants ran).
+* Leg 2 fixes: `block_image` copies the image byte-wise through atomics (the TLSDESC dynamic
+  trampoline saves only FXSAVE state; ld.so's memcpy dispatches to AVX2 kernels: disassembly of
+  block_alloc/block_image now shows only mmap/munmap; libc's `__niji_thread_walk` reaches only the
+  lock and callbacks). `initial_place` and readers.rs `tls_module` now map the `DYNAMIC|align`
+  word to `NO_STATIC` (dlinfo TLS_DATA and dlpi_tls_data gave garbage: s27_dlinfo failed).
+* Tests: `conformance/c/s27_dlopen_tls_dynamic.c` (test fn `s27_3_f_0`, replaces the clause stub;
+  helpers dld_gd, dld_desc (gnu2), dld_ie, dld_huge, dlt_big): 64 x 16 KiB with an early and a late
+  thread, dlinfo/dl_iterate_phdr NULL before first access, IE object after, 200 open/close cycles
+  (statm growth <= 64 pages), OOM child exit 127 + text, tunable 262144 re-exec opens dlt_big.
+  dlt_leak is now initial-exec. s27_dlinfo now requires NULL before first use. s01 `s1_8_c_0` gets
+  the new field and a parse check. Job `tls-dynamic-blocks-check3` (73c8f7af6 tree): s27_dlopen_
+  tls_dynamic, _tls_surplus, s27_dlinfo, s27_dl_iterate_phdr: 4 passed on reference and libniji.
+* Table D re-run (job `tls-dynamic-blocks-tabled`, results/tls-surplus/run.sh): libniji loaded=64
+  ok with threads=0 and 1 (was 4), the reference 64. (That job's trailing s27_dlinfo FAIL was the
+  pre-fix code; fixed since.)
+* Records: D-27.94 (amends D-27.39), D-27.95 (amends D-27.49) (ids reserved), differences rows
+  (dlinfo row narrowed to DF_STATIC_TLS objects; new surplus row, no-compat reason),
+  docs/tunables.md row, `--list-tunables` line (report.rs). `records check` ok.
+* Plants file mei:~/work/tls-dynamic-blocks/plants.txt (copy: scratch plants.txt): old-rule-surplus,
+  no-free-thread-exit, no-free-dlclose, no-image, tunable-ignored, all on
+  `cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run`.
+  Job `tls-dynamic-blocks-plants2` RUNNING (started on 73c8f7af6; the planted files are the same at
+  bfce16483 except report.rs, not planted). SUPERSEDED: `tls-dynamic-blocks-plants` (killed: stale code).
 
 ## Exact next steps
 
-1. Sync (`sync_role.sh --story TLS-DYNAMIC-BLOCKS --base origin/next <wt> mei s1`), then on mei
-   `cargo xtask clippy` + `cargo xtask static`; fix compile errors (a `Tunables { .. }` literal
-   elsewhere may need the new field; unused imports).
-2. Check ld.so's memcpy/mmap path used by `block_alloc` from the TLSDESC resolver has no AVX
-   (trampoline saves only FXSAVE state): `objdump -d target/niji/ld-linux-x86-64.so.2 | grep -c ymm`.
-3. Test `conformance/c/s27_dlopen_tls_dynamic.c` (new; DLOPEN-HELPERS a 16 KiB GD helper `= {7}` and
-   a gnu2 copy, a tiny IE helper): copy the helper .so to 64 paths in a mkdtemp dir; open all 64
-   with and without a thread created first; each thread: own block, image then zeros, write/read;
-   an IE object still opens after them (table E); 200 open/touch/close cycles + thread create/join:
-   /proc/self/statm size not growing; OOM case in a forked child (RLIMIT_AS, 1 GiB tbss): exit 127.
-   Register in crates/core/tests/s27_dynlink_clauses.rs like `s27_dlopen_tls_surplus`. Tunable
-   test: `GLIBC_TUNABLES=glibc.rtld.optional_static_tls=131072` lets dlt_big (128 KiB IE) open.
-   Existing `s27_dlopen_tls_surplus`: dlt_desc/dlt_leak are now dynamic (still pass; dlt_leak's
-   "80 opens need more than the surplus" no longer proves place rollback: give it an IE model).
-4. Plant in docs/plants.md (`cargo xtask plants`): place_tls `static_tls` forced true -> the new
-   test fails (`msg:` its line). Plus a plant on the release swap.
-5. Records: D-27.39 (records/decisions/D-27/D-27.39.toml; read developer-flow-reference §10
-   first), D-27.49 (dlinfo answer now 0 before first access), differences row for the 64 KiB
-   default (reserve COMPAT via `ops reserve` or record the no-compat reason), docs/tunables.md,
-   `--list-tunables` (report.rs) if it lists honoured tunables.
-6. Bench rows: `cargo xtask bench --compare --counters` for `__tls_get_addr`/TLSDESC (find the
-   bench names: `grep -rn tls benchmarks/ | head`); fast path code is unchanged.
-7. Gate (`cargo xtask affected --run` under jobrun), start-up checks (`cargo xtask test`,
-   NIJI_FULL_PROFILE hot_text_products), precheck, report JSON, handback-check.
+1. `~/bin/jobwait tls-dynamic-blocks-plants2` on mei; all 5 must be CAUGHT (list any WARN).
+2. Sync (check rc != 4), clippy + static on bfce16483+.
+3. COORDINATOR NOTE 15:06Z (owner #8009, replaces brief step 3): decide the surplus default by
+   measurement, 64 KiB vs the reference's 1712 bytes: pthread_create+join instructions per call
+   (THREAD-CREATE-COST: 36,092 libniji vs 2,266 reference; say whether the surplus is part of the
+   gap), RSS per thread with 100 idle threads, usable stack left in a thread created with
+   PTHREAD_STACK_MIN and with a 64 KiB stack, start-up rows. Rule: 64 KiB costs effectively nothing
+   per thread -> keep it with the differences row; otherwise match the reference (1712 bytes, no
+   row; tunable = value + 1200 as the reference). Report the table and which branch applied. Idea:
+   build a scratch variant with `ltls::SURPLUS` = 1712 (crates/ld/src/tls.rs:21) in a copy dir and
+   compare (wl_percall thread_create_join; a small probe for RSS/stack). If over budget:
+   `ops extend-budget` once.
+4. Bench rows (brief 2): `__tls_get_addr`/TLSDESC per-access before/after (`grep -rn tls benchmarks/`);
+   fast path unchanged by design.
+5. Gate: `cargo xtask affected --run` (63 targets, 148 conformance programs selected: a new helper
+   counts for every program) under jobrun; start-up checks (`cargo xtask test`,
+   `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test
+   hot_text_products`); layout-bins diff vs merge base; precheck; report JSON; handback-check.
 
 ## Open questions / rulings
 
-* IE (`TPOFF`) from one dlopened object into another's block without `DF_STATIC_TLS` now fails
-  `cannot allocate memory in static TLS block`; before, every block had a surplus place. Rare;
-  INFORMATIONAL unless a late-placement fallback is wanted.
-* Brief chose lazy blocks (the probe story recommended eager); a failed allocation exits as the
-  reference does (no error path in an access).
+* IE (`TPOFF`) from one dlopened object into another's on-demand block fails `cannot allocate memory
+  in static TLS block` (before, every block had a surplus place). Rare; INFORMATIONAL.
+* Lazy blocks (brief) vs eager (probe story's recommendation); a failed allocation exits 127 as the
+  reference does.
 
-## Leg-1 rule slip (report in hand-back)
+## Rule slips (report in hand-back)
 
-One `sed -i` on crates/boundary/src/ld/entry.rs (a comment) and one python in-place rewrite of
-crates/ld/src/reloc.rs (the `NoStaticPlace` variant); both should have been Edit-tool edits. Not
-refused. Content verified.
+Leg 1: one `sed -i` (entry.rs comment) and one python in-place rewrite (reloc.rs); should have been
+Edit-tool edits; not refused, content verified. Leg 2: none.
