@@ -1,7 +1,8 @@
 # UTIL-14: gencat in libc-dev-bin (GitHub issue #12)
 
-**State.** Branch `task/util-14` from origin/next `b04f71229`. Role keke:~/w/n2. Leg 1 wrote the program and the
-wiring; nothing is built or tested yet. Leg 2 starts at "Next step".
+**State.** Branch `task/util-14` from origin/next `b04f71229`, HEAD `d43bf38a0` (+ this note). Role keke:~/w/n2. Leg 2: built,
+38 transcripts recorded and ALL EQUAL to the reference (byte comparison of every catalog), catgets test written. Leg 3
+starts at "Next step (leg 3)".
 
 ## On the branch (leg 1)
 
@@ -47,18 +48,33 @@ Probe scripts: local `~/w/.scratch/UTIL-14/` (`pd_probe.py`, `syn_probe.py`, res
   operand is the output; `-` is stdin/stdout. Not probed: the file name in diagnostics for stdin (a transcript will
   show it), `$set` with only an empty set, the header to `-`.
 
-## Next step (leg 2)
+## Leg 2 (done; do not redo)
 
-1. Sync (`sync_role.sh --story UTIL-14 --base origin/next ~/w/UTIL-14 keke n2`), then on the role `cargo xtask so`
-   (jobrun kind build) and fix compile errors (-Wall -Wextra -Werror).
-2. Transcripts `validation/transcripts/gencat/*.transcript` (record on keke with `cargo xtask transcript record`,
-   `--niji gencat=target/niji-test/gencat` if needed): help, usage, version (normalise identity), bad option,
-   ambiguous, compile (written-file sha256 = byte comparison), symbolic+header, merge, escapes/quote, errors,
-   C-locale invalid char, nofile, empty, a large catalog (>= 200 messages, several sets, reverse-named order).
-   Clauses s31_12_*, s31_1_c_2, s31_1_c_r3.
-3. `catgets` equality: extend `crates/core/tests/catalogs_products.rs` or a new test running both gencats on one source
-   and catgets over every (set,msg) on libniji (see how catalogs_products builds the fixture).
-4. Spec D.2.2 pool-order wording; `tools/deb/system.sh` line 39 and `docs/install-packages.md` line 150 still say
-   libc-dev-bin is a placeholder; RELEASE-NOTES; record D-NEW (the C front end choice) via ops reserve.
-5. Plants (docs/plants.md format, `handoff/UTIL-14-plants.txt`): plane start n/5 -> n/4, pool order, octal limit,
-   merge skip, header blank rule. Then clippy, static, gate (`cargo xtask affected --run`), precheck, report json.
+* Fixed from transcripts (probes `~/w/.scratch/UTIL-14/setorder.py, edge.py, edge2.py`, results `setorder.txt`, `edge.txt`):
+  the default set 1 always counts as named FIRST (so last in pool and header), whenever first used; messages sort
+  SIGNED int32; symbolic `$set Name` = 1 + signed max (from 0) over sets named by `$set` lines only (the implicit
+  default set does not count; Name may take number 1 = the default set, which then gets the name and its line);
+  symbolic message = 1 + signed max (from 0) in the set; a numeric message hitting a symbolic message's number moves the
+  symbolic one to the set's signed max + 1 (no diagnostic); the -H header has NO final newline (leg 1's "final \n"
+  was a display artefact). The pool-order bullet above is superseded by these.
+* `validation/transcripts/gencat/` (38, generator `~/w/.scratch/UTIL-14/gen_transcripts.py <dir>`, then record on
+  keke and rsync back; help/version use `normalise:` for the identity lines); `xtask/tests/transcripts.rs`
+  `the_committed_gencat_transcripts_hold` (green, job util-14-tr4); `crates/core/tests/gencat_products.rs` +
+  `oracle/gencat_lookup.c` (catgets on libniji and host libc over both catalogs + byte equality; tr4 failed on MY
+  expected-text typo "continued" -> fixed to "contnued" in d43bf38a0, re-run as job util-14-t5).
+* D-31.28 record written by hand (no local cargo): `records/decisions/D-31/D-31.28.toml` -- run `cargo xtask records
+  check` on keke. Docs: tools/deb/system.sh, docs/install-packages.md, RELEASE-NOTES.
+* Spec D.2.2 NOT edited: CONTRIBUTING's three-way rule (spec vs probe, docs silent -> change nothing and ask): hand back
+  RULING NEEDED: correct D.2.2's gencat-output bullet to the rules above (recommend yes).
+* Mistake in leg 2: one Bash call used a here-string (`git commit -F /dev/stdin <<< ""`); it committed nothing. Report it.
+
+## Next step (leg 3)
+
+1. `~/bin/jobwait util-14-t5 util-14-plants` on keke (plants started 04:20Z, 7 plants x ~11 min `cargo xtask so`
+   each; file handoff/UTIL-14-plants.txt; dir /dev/shm/claude/util-14/plants-1). t5 must pass; every plant CAUGHT
+   (plane-start may be EQUIVALENT if no transcript changes P: then add a source that does, or declare with reason).
+2. On the role: `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask static`,
+   `cargo xtask records check`; then the gate: `cargo xtask affected --run` as util-14-gate (jobrun gate, ~/bin/gate 16G).
+   Check `cargo xtask affected --list` selects gencat_products and the transcripts test for csys/util/gencat.c.
+3. Both package flavours build + check-system lists /usr/bin/gencat (brief Proof); precheck --jobs <labels> --head <sha>.
+4. Report: handoff/UTIL-14-report.md + handoff/reports/UTIL-14.json (+ "jobs"), handback-check, hand back.
