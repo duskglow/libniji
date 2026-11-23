@@ -27,7 +27,7 @@
 //! parameter, taken from `AT_PAGESZ` through [`Arch::page_size`](crate::arch::Arch::page_size).
 
 use crate::arch::Arch;
-use crate::elf::{pt, Elf, ElfError, ProgramHeader};
+use crate::elf::{pt, Elf, ElfError, Part, ProgramHeader};
 
 /// `ET_EXEC`, `ET_DYN` (ELF gABI).
 const ET_EXEC: u16 = 2;
@@ -148,6 +148,14 @@ pub trait Mapper {
     /// Store `bytes` at `at` (any address and length; the range is mapped writable), or zeroes when
     /// `bytes` is `None` (`len` of them).
     fn store(&mut self, at: u64, len: u64, bytes: Option<&[u8]>);
+    /// Store `len` bytes of the object's file from `offset` at `at` (inside a page this mapper
+    /// mapped writable), for a caller whose `file` slice holds only the file's first bytes
+    /// ([`plan_headers`]). The default has no file to read from and fails.
+    #[allow(clippy::result_unit_err)]
+    fn store_file(&mut self, at: u64, len: u64, offset: u64) -> Result<(), ()> {
+        let _ = (at, len, offset);
+        Err(())
+    }
     /// Change the protection of `len` bytes at `at` to `prot`.
     #[allow(clippy::result_unit_err)]
     fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()>;
@@ -243,7 +251,19 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
 ///
 /// [`MapError`] for anything but a well-formed loadable object.
 pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
-    plan_with::<A>(elf, page, false)
+    plan_with::<A>(elf, page, false, None)
+}
+
+/// [`plan`] for `elf` parsed from the first bytes of a file of `file_len` bytes (the ELF header
+/// and the program header table, LD-START-MAPS): each `PT_LOAD`'s file range is checked against
+/// `file_len` instead of being read, with the error [`plan`] gives for a range past the file's end
+/// ([`ElfError::OutOfRange`] of the segment). Every other check is [`plan`]'s, in its order.
+///
+/// # Errors
+///
+/// As [`plan`].
+pub fn plan_headers<A: Arch>(elf: &Elf<'_>, page: u64, file_len: u64) -> Result<Plan, MapError> {
+    plan_with::<A>(elf, page, false, Some(file_len))
 }
 
 /// [`plan`] for an object whose executable-stack request the caller has accepted (COMPAT-19, the
@@ -254,11 +274,13 @@ pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
 ///
 /// As [`plan`], never [`MapError::ExecutableStack`].
 pub fn plan_accepting_exec_stack<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
-    plan_with::<A>(elf, page, true)
+    plan_with::<A>(elf, page, true, None)
 }
 
+/// `file_len`: `None` when `elf` holds the whole file (its segments' bytes are read), else the
+/// length of the file whose first bytes `elf` holds ([`plan_headers`]).
 #[inline(always)]
-fn plan_with<A: Arch>(elf: &Elf<'_>, page: u64, exec_stack_accepted: bool) -> Result<Plan, MapError> {
+fn plan_with<A: Arch>(elf: &Elf<'_>, page: u64, exec_stack_accepted: bool, file_len: Option<u64>) -> Result<Plan, MapError> {
     let h = elf.header();
     if h.e_type != ET_DYN && h.e_type != ET_EXEC {
         return Err(MapError::NotLoadable);
@@ -274,7 +296,17 @@ fn plan_with<A: Arch>(elf: &Elf<'_>, page: u64, exec_stack_accepted: bool) -> Re
     let phend = h.phoff.saturating_add(u64::from(h.phnum).saturating_mul(PHENT));
     for ph in elf.program_headers().filter(|p| p.p_type == pt::LOAD && p.memsz != 0) {
         let s = segment(&ph, page)?;
-        elf.segment_bytes(&ph).map_err(MapError::Elf)?;
+        match file_len {
+            None => {
+                elf.segment_bytes(&ph).map_err(MapError::Elf)?;
+            }
+            // `segment_bytes`' range check on a file of `len` bytes.
+            Some(len) => {
+                if ph.offset.checked_add(ph.filesz).is_none_or(|end| end > len) {
+                    return Err(MapError::Elf(ElfError::OutOfRange(Part::Segment(ph.index))));
+                }
+            }
+        }
         if count == 0 {
             first = s.start;
         } else if s.start < last {
@@ -360,7 +392,7 @@ pub fn load_accepting_exec_stack<A: Arch, M: Mapper>(m: &mut M, file: &[u8], pag
 #[inline(always)]
 fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_accepted: bool) -> Result<Loaded, MapError> {
     let elf = Elf::parse::<A>(file).map_err(MapError::Elf)?;
-    let plan = plan_with::<A>(&elf, page, exec_stack_accepted)?;
+    let plan = plan_with::<A>(&elf, page, exec_stack_accepted, None)?;
     map_planned(m, &elf, &plan, file, page)
 }
 
@@ -416,6 +448,15 @@ fn reserve<M: Mapper>(m: &mut M, plan: &Plan) -> Result<(u64, u64), MapError> {
     Ok((base, base.wrapping_sub(plan.first)))
 }
 
+/// The file bytes of a read-only segment's last, partial page, read through the mapper
+/// ([`Mapper::store_file`]) when the caller holds only the file's headers: rare (a read-only
+/// segment with zero fill), so kept out of [`map_segment`].
+#[cold]
+#[inline(never)]
+fn tail_from_file<M: Mapper>(m: &mut M, at: u64, len: u64, offset: u64) -> Result<(), MapError> {
+    m.store_file(at, len, offset).map_err(|()| MapError::BadSegments)
+}
+
 /// Map one segment inside the reservation (bias `bias`).
 fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: u64) -> Result<(), MapError> {
     let at = |v: u64| v.wrapping_add(bias);
@@ -441,9 +482,12 @@ fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: 
             m.map_zero(tail_page, page, PROT_READ | PROT_WRITE).map_err(sys)?;
             let from = usize::try_from(s.offset.wrapping_add(full)).map_err(|_| MapError::BadSegments)?;
             let n = usize::try_from(file_end.wrapping_sub(tail_page)).map_err(|_| MapError::BadSegments)?;
-            let bytes = file.get(from..from.wrapping_add(n)).ok_or(MapError::BadSegments)?;
             m.store(tail_page, page, None);
-            m.store(tail_page, file_end.wrapping_sub(tail_page), Some(bytes));
+            match file.get(from..from.wrapping_add(n)) {
+                Some(bytes) => m.store(tail_page, file_end.wrapping_sub(tail_page), Some(bytes)),
+                // Past the bytes the caller read (only its headers, `plan_headers`): from the file.
+                None => tail_from_file(m, tail_page, file_end.wrapping_sub(tail_page), s.offset.wrapping_add(full))?,
+            }
             m.protect(tail_page, page, s.prot).map_err(sys)?;
         } else {
             m.map_file(at(s.start), whole, s.prot, s.offset).map_err(sys)?;

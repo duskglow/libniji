@@ -69,9 +69,12 @@ pub(super) fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileI
     Some((fd32, at, unsafe { conv::bytes_at(at, len) }, (st.dev, st.ino)))
 }
 
-/// Bytes of the scratch arena ([`scratch`]): one page, which holds a start's image views (the
-/// program's header table, span list and dynamic array: about 1.4 KiB for a typical program).
-const ARENA_LEN: usize = 4096;
+/// Bytes of the scratch arena ([`scratch`]): the start's image views (each object's header table,
+/// span list and dynamic array: about 1.4 KiB for a typical object) and each start dependency's
+/// headers as read from its file ([`open_start`], about 0.8 KiB). Four pages, untouched (so
+/// costing nothing) past what a start uses: room for about eight objects before the views fall
+/// back to their own mappings.
+const ARENA_LEN: usize = 16384;
 
 /// The scratch arena: zero-filled loader data, page-aligned so it costs at most one page. Atomic
 /// words, so the bytes may be written through the address ([`scratch`] hands each range out once).
@@ -80,8 +83,26 @@ struct Arena([core::sync::atomic::AtomicU64; ARENA_LEN / 8]);
 
 static ARENA: Arena = Arena([const { core::sync::atomic::AtomicU64::new(0) }; ARENA_LEN / 8]);
 
-/// Bytes of [`ARENA`] handed out: only grows, so no range is handed out twice.
+/// Bytes of [`ARENA`] handed out: grows, except that [`arena_give_back`] returns the unused end of
+/// the last range, zeroed; so no range in use is handed out twice, and every byte not handed out
+/// is zero.
 static ARENA_USED: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// Give back `tail`, the last bytes of the range [`arena_take`] handed out last (zeroed here first,
+/// so the bytes not handed out stay zero), when nothing was taken after that range; otherwise it
+/// stays handed out, unused.
+fn arena_give_back(tail: &'static mut [u8]) {
+    tail.fill(0);
+    let base = ARENA.0.as_ptr().expose_provenance();
+    let from = tail.as_ptr().expose_provenance().wrapping_sub(base);
+    let end = from.wrapping_add(tail.len());
+    // `arena_take` ends every range on a 16-byte boundary; bytes before `from`'s are still in use.
+    if let (Some(keep), Some(end)) = (from.checked_next_multiple_of(16), end.checked_next_multiple_of(16)) {
+        if keep <= end {
+            let _ = ARENA_USED.compare_exchange(end, keep, Relaxed, Relaxed);
+        }
+    }
+}
 
 /// `len` bytes of [`ARENA`] not handed out before (16-byte aligned), or `None` when they do not fit.
 fn arena_take(len: usize) -> Option<usize> {
@@ -110,8 +131,9 @@ fn scratch(len: usize, name: &[u8], arena: bool) -> (usize, usize, &'static mut 
         #[allow(unsafe_code)]
         // SAFETY: [at, at + len) lies inside `ARENA` (`arena_take` checked the end), a static of atomic
         // words (interior mutability: writes through its address are allowed) that nothing reads or
-        // writes as words; `ARENA_USED` only grows, so no other slice covers these bytes; they are
-        // zero (never handed out before) and live for the process.
+        // writes as words; `ARENA_USED` moves back only over bytes whose slice was given up
+        // (`arena_give_back`), so no other slice in use covers these bytes; they are zero (not handed
+        // out, or zeroed when given back) and live for the process.
         return (at, 0, unsafe { conv::bytes_at_mut(at, len) });
     }
     let Ok(at) = raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0) else {
@@ -192,8 +214,7 @@ pub(super) fn image_view(
     maps: &mut [(usize, usize)],
     published: bool,
 ) -> (&'static [u8], &'static [niji_ld::elf::Span<'static>]) {
-    use niji_ld::elf::{pt, Elf, Span, SpanKind, PHDR_SIZE};
-    let bad = |what: &[u8]| -> ! { fail_with(&[name, what], program::FAILURE) };
+    use niji_ld::elf::{Span, PHDR_SIZE};
     let table = prog.phnum.saturating_mul(PHDR_SIZE);
     // Pass 1: the header table alone, to find PT_DYNAMIC and size the first mapping. One span per
     // PT_LOAD and one for PT_DYNAMIC's copy: at most phnum (PT_DYNAMIC, required below, is a header
@@ -206,19 +227,44 @@ pub(super) fn image_view(
     read_image(prog.phdr, buf);
     let head: &'static [u8] = buf;
     let spans = span_slots(tail, prog.phnum, name);
-    let probe = Elf::from_image::<Native>(head, &[]).unwrap_or_else(|_| bad(b": malformed program headers\n"));
+    maps[0] = (at, unmap);
+    let (_, rest) = maps.split_at_mut(1);
+    match image_spans(head, spans, bias, name, rest, published) {
+        Ok(spans) => (head, spans),
+        Err(what) => fail_with(&[name, what], program::FAILURE),
+    }
+}
+
+/// [`image_view`]'s reading of a mapped object whose program header table `head` has been copied
+/// already: the spans, in `spans` (one slot per header), for load bias `bias`; the scratch
+/// mappings of the dynamic array's copy and the segment copies go to `maps[0]` and `maps[1]`.
+/// `Err` is the message's text after the object's name: the headers do not describe a readable
+/// dynamic array in the mapped image.
+// The span index stays below `spans.len()` (checked before each store).
+#[allow(clippy::indexing_slicing)]
+fn image_spans(
+    head: &'static [u8],
+    spans: &'static mut [niji_ld::elf::Span<'static>],
+    bias: usize,
+    name: &[u8],
+    maps: &mut [(usize, usize)],
+    published: bool,
+) -> Result<&'static [niji_ld::elf::Span<'static>], &'static [u8]> {
+    use niji_ld::elf::{pt, Elf, Span, SpanKind};
+    let probe = Elf::from_image::<Native>(head, &[]).map_err(|_| &b": malformed program headers\n"[..])?;
     let loads = || probe.program_headers().filter(|p| p.p_type == pt::LOAD);
     let run_at = |vaddr: u64| bias.wrapping_add(usize::try_from(vaddr).unwrap_or(usize::MAX));
     // A range is read from memory only when it lies in the file-backed part of one readable PT_LOAD.
     let mapped = |vaddr: u64, len: u64| {
         loads().any(|p| p.flags & 4 != 0 && p.vaddr <= vaddr && vaddr.checked_add(len).is_some_and(|e| p.vaddr.checked_add(p.filesz).is_some_and(|f| e <= f)))
     };
-    let dynph = probe.find(pt::DYNAMIC).unwrap_or_else(|| bad(b": no valid dynamic section\n"));
+    let no_dynamic: &'static [u8] = b": no valid dynamic section\n";
+    let malformed: &'static [u8] = b": malformed program headers\n";
+    let dynph = probe.find(pt::DYNAMIC).ok_or(no_dynamic)?;
     let dlen = usize::try_from(dynph.filesz).unwrap_or(usize::MAX);
     if !mapped(dynph.vaddr, dynph.filesz) || dlen == 0 {
-        bad(b": no valid dynamic section\n");
+        return Err(no_dynamic);
     }
-    maps[0] = (at, unmap);
     let (at, unmap, buf) = scratch(dlen, name, !published);
     read_image(run_at(dynph.vaddr), buf);
     // A published array (DL-DYNAMIC-RELOC) back to link-time values: the reader's one view.
@@ -227,7 +273,7 @@ pub(super) fn image_view(
     if unpublish {
         niji_ld::elf::shift_address_entries(buf, link_time);
     }
-    maps[1] = (at, unmap);
+    maps[0] = (at, unmap);
     let dynamic: &'static [u8] = buf;
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
     // The entries the segments' kinds read, read once (LD-OBJECT-ONCE).
@@ -236,7 +282,7 @@ pub(super) fn image_view(
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
         let (at, unmap, buf) = scratch(copy_len, name, !published);
-        maps[2] = (at, unmap);
+        maps[1] = (at, unmap);
         copies = buf;
     }
     let mut k = 0usize;
@@ -244,7 +290,7 @@ pub(super) fn image_view(
         for p in loads().filter(|p| probe.image_span_kind_with(p, &tables) == kind) {
             let len = usize::try_from(p.filesz).unwrap_or(usize::MAX);
             if !mapped(p.vaddr, p.filesz) || k == spans.len() {
-                bad(b": malformed program headers\n");
+                return Err(malformed);
             }
             let bytes: &'static [u8] = if kind == SpanKind::Copy {
                 let (now, rest) = core::mem::take(&mut copies).split_at_mut(len);
@@ -265,14 +311,14 @@ pub(super) fn image_view(
         if kind == SpanKind::Copy {
             // After the whole-segment copies, before the live slices: PT_DYNAMIC's own copy.
             if k == spans.len() {
-                bad(b": malformed program headers\n");
+                return Err(malformed);
             }
             spans[k] = Span { vaddr: dynph.vaddr, bytes: dynamic };
             k = k.saturating_add(1);
         }
     }
     let spans: &'static [Span<'static>] = spans;
-    (head, &spans[..k])
+    Ok(&spans[..k])
 }
 
 /// A dependency's mapped `file` as the relocator sees it (load bias `bias`). Its `name` may come from
@@ -550,6 +596,14 @@ impl map::Mapper for StartMapper {
 
     fn store(&mut self, at: u64, len: u64, bytes: Option<&[u8]>) {
         SysMapper { fd: self.fd }.store(at, len, bytes);
+    }
+
+    /// One `pread` from the object's descriptor into the page `map_segment` just mapped writable
+    /// ([`open_start`] holds only the file's headers).
+    fn store_file(&mut self, at: u64, len: u64, offset: u64) -> Result<(), ()> {
+        let (n, off) = (i64::try_from(len).map_err(|_| ())?, i64::try_from(offset).map_err(|_| ())?);
+        let got = crate::ffi_sys::niji_sys_pread64(i64::from(self.fd), core::ptr::with_exposed_provenance_mut::<c_void>(word(at)?), n, off);
+        if got == n { Ok(()) } else { Err(()) }
     }
 
     fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
@@ -830,6 +884,17 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>, checked: &m
     }
     let size = file_size(fd, &st);
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
+    view_candidate(fd32, len, (st.dev, st.ino), page, env, checked)
+}
+
+/// [`open_candidate`] after its `fstat`: the open regular file `fd` of `len` bytes (at least an
+/// ELF header's), identity `id`, mapped whole read-only and checked.
+fn view_candidate(fd32: i32, len: usize, id: FileId, page: u64, env: &List<'_>, checked: &mut Option<Checked<'static>>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+    let fd = i64::from(fd32);
+    let refuse = |r: Refusal| {
+        let _ = crate::ffi_sys::niji_sys_close(fd);
+        if r.skipped_at_start() { Unusable::Skip } else { Unusable::Refused(r) }
+    };
     let Ok(at) = map_view(fd32, len) else { return Err(refuse(Refusal::Truncated)) };
     // UNSAFE(slice): a candidate file, mapped read-only above.
     #[allow(unsafe_code)]
@@ -845,7 +910,203 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>, checked: &m
         unmap_view(at, len);
         return Err(refuse(r));
     }
-    Ok((fd32, at, file, (st.dev, st.ino)))
+    Ok((fd32, at, file, id))
+}
+
+/// Bytes of a start candidate read first ([`open_start`]): its ELF header and, in an object linked
+/// the usual way (a dozen headers after the ELF header), its whole program header table.
+const HEAD_READ: usize = 1024;
+
+/// A start candidate the search accepted ([`open_start`]).
+pub(super) enum Found {
+    /// Checked through its whole-file view, as [`open_candidate`] gives it (an executable-stack
+    /// request, headers longer than [`HEAD_READ`], or a name opened by path).
+    View(i32, usize, &'static [u8], FileId),
+    /// Mapped by the plan its headers gave, and read from its image.
+    Mapped(Mapped),
+    /// Its headers passed, but mapping it failed (nothing stays mapped): (descriptor, identity, why).
+    Unmapped(i32, FileId, map::MapError),
+}
+
+/// A start dependency mapped from its headers alone and read from its mapped image (LD-START-MAPS).
+pub(super) struct Mapped {
+    pub(super) fd: i32,
+    pub(super) id: FileId,
+    pub(super) loaded: map::Loaded,
+    /// The image view's scratch mappings (length 0: in the scratch arena), unmapped after the start.
+    pub(super) maps: [(usize, usize); 3],
+}
+
+impl Found {
+    /// The open descriptor.
+    pub(super) fn fd(&self) -> i32 {
+        match self {
+            Found::View(fd, ..) | Found::Unmapped(fd, ..) => *fd,
+            Found::Mapped(m) => m.fd,
+        }
+    }
+
+    /// The file's identity.
+    pub(super) fn id(&self) -> FileId {
+        match self {
+            Found::View(_, _, _, id) | Found::Unmapped(_, id, _) => *id,
+            Found::Mapped(m) => m.id,
+        }
+    }
+
+    /// The candidate not used after all: its descriptor closed, its view or its mapping and the
+    /// image view's scratch mappings released.
+    pub(super) fn release(self) {
+        let _ = crate::ffi_sys::niji_sys_close(i64::from(self.fd()));
+        match self {
+            Found::View(_, at, file, _) => unmap_view(at, file.len()),
+            Found::Mapped(m) => release_mapped(&m.loaded, m.fd, &m.maps),
+            Found::Unmapped(..) => {}
+        }
+    }
+}
+
+/// Unmap an object mapped from its headers and its image view's scratch mappings `maps` (the
+/// descriptor `fd` stays open).
+fn release_mapped(loaded: &map::Loaded, fd: i32, maps: &[(usize, usize); 3]) {
+    loaded.unmap(&mut StartMapper { fd });
+    for &(at, len) in maps.iter().filter(|x| x.1 != 0) {
+        let _ = raw::munmap(at, len);
+    }
+}
+
+/// [`open_candidate`] for a program start's dependency (LD-START-MAPS): the same verdict in the
+/// same order (the headers, `ET_EXEC`, the plan, then the dynamic section), without a whole-file
+/// view. The ELF header and program header table are read with one `pread` into the scratch arena;
+/// the plan is made from them against the file's length ([`map::plan_headers`]); the object is
+/// mapped by that plan and its dynamic section read from its mapped image, as the program's is
+/// ([`image_spans`], D-27.18). A refusal at that last step unmaps the object again. An
+/// executable-stack request, headers past [`HEAD_READ`] or a full arena take [`open_candidate`]'s
+/// path ([`Found::View`]); so does nothing else. For [`Found::Mapped`], `checked` receives the
+/// object in image mode (the reader the relocator uses), its plan and its dynamic section; for
+/// [`Found::View`], what [`open_candidate`] gives it.
+pub(super) fn open_start(path: &[u8], page: u64, env: &List<'_>, checked: &mut Option<Checked<'static>>) -> Result<Found, Unusable> {
+    *checked = None;
+    let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, path.as_ptr().cast(), i64::from(O_RDONLY | O_CLOEXEC), 0);
+    let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0).ok_or(Unusable::Skip)?;
+    let refuse = |r: Refusal| {
+        let _ = crate::ffi_sys::niji_sys_close(fd);
+        if r.skipped_at_start() { Unusable::Skip } else { Unusable::Refused(r) }
+    };
+    let mut st = niji_kernel::uapi::Stat::default();
+    if crate::ffi_sys::niji_sys_fstat(fd, core::ptr::from_mut(&mut st).cast::<c_void>()) != 0 {
+        let _ = crate::ffi_sys::niji_sys_close(fd);
+        return Err(Unusable::Skip);
+    }
+    if st.mode & niji_kernel::uapi::S_IFMT == niji_kernel::uapi::S_IFDIR {
+        return Err(refuse(Refusal::Directory));
+    }
+    let size = file_size(fd, &st);
+    let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
+    let id = (st.dev, st.ino);
+    let head = match read_headers(fd32, len) {
+        Ok(Some(head)) => head,
+        Ok(None) => return start_by_view(fd32, len, id, page, env, checked),
+        Err(r) => return Err(refuse(r)),
+    };
+    let elf = elf::Elf::parse::<Native>(head).map_err(|e| refuse(niji_ld::dlopen::of_elf_error(e)))?;
+    if elf.header().e_type == elf::et::EXEC {
+        return Err(refuse(Refusal::Executable));
+    }
+    let plan = match map::plan_headers::<Native>(&elf, page, u64::try_from(len).unwrap_or(u64::MAX)) {
+        Ok(plan) => plan,
+        Err(map::MapError::ExecutableStack) => return start_by_view(fd32, len, id, page, env, checked),
+        Err(e) => return Err(refuse(niji_ld::dlopen::of_map_error(e))),
+    };
+    let loaded = match map::map_planned(&mut StartMapper { fd: fd32 }, &elf, &plan, head, page) {
+        Ok(l) => l,
+        Err(e) => return Ok(Found::Unmapped(fd32, id, e)),
+    };
+    let mut maps = [(0usize, 0usize); 3];
+    match image_object(head, &elf, loaded.bias, path, &mut maps) {
+        Ok((elf, dynm)) => {
+            *checked = Some(Checked { elf, plan, dynm });
+            Ok(Found::Mapped(Mapped { fd: fd32, id, loaded, maps }))
+        }
+        Err(r) => {
+            release_mapped(&loaded, fd32, &maps);
+            Err(refuse(r))
+        }
+    }
+}
+
+/// The first bytes of the open file `fd` (`len` bytes, at least an ELF header's), read with one
+/// `pread` into the scratch arena: through the end of the program header table its ELF header
+/// names, or the whole of the first [`HEAD_READ`] bytes when that table does not lie in the file.
+/// [`elf::Elf::parse`] gives the same verdict on these bytes as on the whole file: it reads only the
+/// ELF header and that table, and checks the table's range against the bytes it is given (here a
+/// range past them is past the file). `Ok(None)` when the table ends past [`HEAD_READ`] or the arena
+/// is full: the caller reads the file whole.
+fn read_headers(fd: i32, len: usize) -> Result<Option<&'static [u8]>, Refusal> {
+    let first = len.min(HEAD_READ);
+    let Some(at) = arena_take(first) else { return Ok(None) };
+    // UNSAFE(slice): a range of the scratch arena, handed out once.
+    #[allow(unsafe_code)]
+    // SAFETY: [at, at + first) lies inside `ARENA` (`arena_take` checked the end), a static of atomic
+    // words that nothing reads or writes as words; no other slice in use covers these bytes
+    // (`ARENA_USED` moves back only over given-up bytes); they live for the process.
+    let buf = unsafe { conv::bytes_at_mut(at, first) };
+    let got = crate::ffi_sys::niji_sys_pread64(i64::from(fd), buf.as_mut_ptr().cast::<c_void>(), i64::try_from(first).unwrap_or(0), 0);
+    if usize::try_from(got).ok() != Some(first) {
+        // Shorter than its `fstat` size: the file changed under the search.
+        arena_give_back(buf);
+        return Err(Refusal::Truncated);
+    }
+    // `e_phoff` (offset 32) and `e_phnum` (offset 56) in the file's byte order (`EI_DATA`, 2: big).
+    let big = buf.get(5) == Some(&2);
+    let field = |at: usize, n: usize| {
+        let b = buf.get(at..at.wrapping_add(n)).unwrap_or(&[]);
+        let fold = |a: u64, x: &u8| (a << 8) | u64::from(*x);
+        if big { b.iter().fold(0, fold) } else { b.iter().rev().fold(0, fold) }
+    };
+    let (phoff, phnum) = (field(32, 8), field(56, 2));
+    let end = phnum.checked_mul(u64::try_from(niji_ld::elf::PHDR_SIZE).unwrap_or(u64::MAX)).and_then(|t| t.checked_add(phoff));
+    let keep = match end.and_then(|e| usize::try_from(e).ok()) {
+        Some(e) if e <= first => e.max(niji_ld::elf::EHDR_SIZE),
+        Some(e) if e <= len => {
+            arena_give_back(buf);
+            return Ok(None);
+        }
+        _ => first,
+    };
+    let (head, tail) = buf.split_at_mut(keep);
+    if !tail.is_empty() {
+        arena_give_back(tail);
+    }
+    Ok(Some(head))
+}
+
+/// [`open_start`] for a candidate it does not read from its headers alone: [`open_candidate`]'s
+/// path, which maps the file whole (rare: an executable-stack request, very long headers).
+#[cold]
+#[inline(never)]
+fn start_by_view(fd32: i32, len: usize, id: FileId, page: u64, env: &List<'_>, checked: &mut Option<Checked<'static>>) -> Result<Found, Unusable> {
+    view_candidate(fd32, len, id, page, env, checked).map(|(fd, at, file, id)| Found::View(fd, at, file, id))
+}
+
+/// The dependency mapped at load bias `bias` by the plan of `elf`, the parse of its first bytes
+/// `head`, read from its image ([`image_spans`]): the object in image mode and its dynamic section,
+/// with [`niji_ld::dlopen::loadable_dynamic`]'s verdict. The scratch mappings go to `maps` (span
+/// list, dynamic array, segment copies), also on a refusal.
+fn image_object(head: &'static [u8], elf: &elf::Elf<'static>, bias: u64, name: &[u8], maps: &mut [(usize, usize); 3]) -> Result<(elf::Elf<'static>, elf::Dynamic<'static>), Refusal> {
+    let h = elf.header();
+    let phnum = usize::from(h.phnum);
+    let from = usize::try_from(h.phoff).unwrap_or(usize::MAX);
+    // `Elf::parse` checked the table lies in `head`.
+    let table = head.get(from..from.saturating_add(phnum.saturating_mul(niji_ld::elf::PHDR_SIZE))).ok_or(Refusal::Malformed)?;
+    let (at, unmap, slots) = scratch(phnum.saturating_mul(size_of::<niji_ld::elf::Span<'static>>()), name, true);
+    maps[0] = (at, unmap);
+    let spans = span_slots(slots, phnum, name);
+    let (_, rest) = maps.split_at_mut(1);
+    let spans = image_spans(table, spans, usize::try_from(bias).unwrap_or(0), name, rest, false).map_err(|what| if what.starts_with(b": no valid dynamic") { Refusal::NoDynamic } else { Refusal::Malformed })?;
+    let img = elf::Elf::from_image::<Native>(table, spans).map_err(niji_ld::dlopen::of_elf_error)?;
+    let dynm = niji_ld::dlopen::loadable_dynamic(&img)?;
+    Ok((img, dynm))
 }
 
 /// The dynamic section of the object file `file`, when it is one of this architecture's.
