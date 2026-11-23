@@ -96,8 +96,15 @@ while n < limit:
     else:
         order.append([name, 1])
     n += 1
-    gdb.execute("stepi", to_string=True)
-    if int(gdb.parse_and_eval("$sp")) > sp0:
+    # A function that never returns (a thread's entry, its exit sequence) ends with its thread: the step that
+    # exits leaves no live selected thread, and the trace ends there.
+    try:
+        gdb.execute("stepi", to_string=True)
+        if int(gdb.parse_and_eval("$sp")) > sp0:
+            break
+    except gdb.error as e:
+        ended = str(e)
+        print("wl_trace: the traced thread ended (%s)" % ended.splitlines()[0][:100] if ended else "wl_trace: the traced thread ended")
         break
 print("TOTAL %d instructions in call %d of %s%s" % (n, skip + 1, func, " (STEP LIMIT REACHED)" if n >= limit else ""))
 for name, c in counts.most_common(40):
