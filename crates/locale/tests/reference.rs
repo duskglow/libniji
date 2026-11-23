@@ -460,14 +460,27 @@ fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
         };
         let mut out = Vec::new();
         diff_ctype(cat(0, true), cat(0, false), &mut out);
-        out.retain(|l| l.starts_with("LC_CTYPE class") || l.starts_with("LC_CTYPE map") || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
+        // The POSIX classes and libniji's two combining classes; ja_JP's own classes of the
+        // reference (jkanji, ...) are a differences-row item.
+        let standard = |l: &str| {
+            l.strip_prefix("LC_CTYPE class ").and_then(|r| r.split(':').next()).is_some_and(|c| {
+                ["upper", "lower", "alpha", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum", "combining", "combining_level3"].contains(&c.trim())
+            })
+        };
+        out.retain(|l| standard(l) || l.starts_with("LC_CTYPE map") || l.starts_with("LC_CTYPE width") || l.contains("refuses"));
         if matches!(locale, "en_US" | "de_DE" | "fr_FR") {
             diff_items("LC_NUMERIC", cat(1, true), cat(1, false), &[], &mut out);
             // Left out, each a differences-row item: UCA's implicit weights order every unified
             // ideograph, where the reference leaves CJK Extension A and the supplementary-plane
-            // ideographs undefined; the reference's order lists Greek and U+0149 before Latin A
-            // (bracket ranges) and ties U+013F/U+0140 with L/l and MIDDLE DOT at every level.
-            diff_collate_of(cat(3, true), cat(3, false), true, |c| !matches!(c as u32, 0x3400..=0x4DBF | 0x9FA6..=0x9FFF | 0x20000..=0x323AF | 0x370..=0x3FF | 0x13F | 0x140 | 0x149), &mut out);
+            // ideographs undefined; the reference ties U+013F/U+0140 with L/l and MIDDLE DOT at
+            // every level. The collation-sequence order (bracket ranges) is compared for ASCII
+            // only: beyond it the reference's sequence is its table's line order (Greek, U+0149
+            // and U+00FE before Latin A), which a weight order need not follow.
+            diff_collate_of(cat(3, true), cat(3, false), true, |c| !matches!(c as u32, 0x3400..=0x4DBF | 0x9FA6..=0x9FFF | 0x20000..=0x323AF | 0x13F | 0x140), &mut out);
+            out.retain(|l| {
+                let Some(rest) = l.strip_prefix("LC_COLLATE collseq: ") else { return true };
+                rest.split([' ', ':']).take(2).all(|n| n.parse::<u32>().is_ok_and(|n| n < 0x80))
+            });
         }
         let _ = std::fs::remove_dir_all(&dir);
         assert!(out.is_empty(), "{locale}: {} differences from the reference:\n{}", out.len(), out.join("\n"));

@@ -457,7 +457,8 @@ pub fn i18n_ctype(root: &Path) -> Result<String, String> {
         let cps: Vec<u32> = (0u32..).zip(&props).filter(|(_, p)| p.extra & bit != 0).map(|(c, _)| c).collect();
         writeln!(w, "class {};/\n   {}\n", quote(name), runs(&cps)).ok();
     }
-    let maps: [(&str, fn(&crate::unicode::CtypeProps) -> u32); 3] = [("toupper", |p| p.upper), ("tolower", |p| p.lower), ("map \"totitle\";", |p| p.title)];
+    type Map = fn(&crate::unicode::CtypeProps) -> u32;
+    let maps: [(&str, Map); 3] = [("toupper", |p| p.upper), ("tolower", |p| p.lower), ("map \"totitle\";", |p| p.title)];
     for (name, to) in maps {
         let pairs: Vec<String> = (0u32..).zip(&props).filter(|&(c, p)| to(p) != c).map(|(c, p)| format!("({},{})", uname(c), uname(to(p)))).collect();
         let lines: Vec<String> = pairs.chunks(6).map(|c| c.join(";")).collect();
