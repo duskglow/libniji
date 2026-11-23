@@ -503,13 +503,23 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// Skylake-SP host was not run in this test: the STARTUP-REPROFILE kit's empty main on the same release
 /// products (median of 101) read 117 instructions more there than on the Zen 1 host (272,251 / 272,134;
 /// next 331,768 / 331,733), so its bounds are the Zen 1 levels plus 117, plus 2%.
+/// LD-RELR-LOOP (D-27.87, libc.so.6's relative relocations packed as DT_RELR and applied an entry at a
+/// time; ld.so's own the same way): this test on the Zen 1 host, fast 255,972 and release 243,825 (both
+/// more than 10% under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%.
+/// Skylake-SP host not run in this test: as for LD-PHDR-ONCE, the Zen 1 levels plus 117, plus 2%.
+/// LD-RELR-LOOP-2 (D-27.87, RELR bitmap words added in place, one add per word): this test on the Zen 1
+/// host, fast 248,446 and release 238,792; the bounds are those levels plus 2% (Skylake-SP as above).
 /// LD-OBJECT-ONCE (D-27.85, each object's view tables read in one pass, the version checks hash-first),
 /// on next fd973fc44: this test on the Zen 1 host, fast 219,145 and release 196,663 (both more than 10%
 /// under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%, the Skylake-SP
 /// host's (not run in this test) the Zen 1 levels plus 117 (as above), plus 2%.
+/// LD-RELR-LOOP-4 (D-27.87 merged with D-27.85, next 3e668ecce): this test on the Skylake-SP host, fast
+/// 170,176 and release 159,226 (both more than 10% under the LD-OBJECT-ONCE bounds, so they went red); the
+/// Skylake-SP bounds are those levels plus 2%. Zen 1 host not run in this test: its levels are taken as the
+/// Skylake-SP levels minus 117 (the reverse of the rule above), plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [223_700, 200_800]),
-    ("AMD EPYC 7551 32-Core Processor", [223_600, 200_600]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [173_600, 162_500]),
+    ("AMD EPYC 7551 32-Core Processor", [173_500, 162_300]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
