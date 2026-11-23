@@ -4111,4 +4111,36 @@ niji_compat___ctype_tolower_GLIBC_2_2_5:
 niji_compat___ctype_toupper_GLIBC_2_2_5:
 	.quad .Lniji_compat_ctype_toupper+512
 	.symver niji_compat___ctype_toupper_GLIBC_2_2_5, __ctype_toupper@GLIBC_2.2.5
+	.section .text.niji_compat_ctype_store,"ax",@progbits
+	.globl niji_compat_ctype_store
+	.hidden niji_compat_ctype_store
+	.type niji_compat_ctype_store, @function
+	.p2align 4
+niji_compat_ctype_store:
+	movq 0(%rdi), %rax
+	movq niji_compat___ctype_b_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	movq 8(%rdi), %rax
+	movq niji_compat___ctype_tolower_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	movq 16(%rdi), %rax
+	movq niji_compat___ctype_toupper_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	movq 24(%rdi), %rax
+	movq niji_compat___ctype32_b_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	movq 32(%rdi), %rax
+	movq niji_compat___ctype32_tolower_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	movq 40(%rdi), %rax
+	movq niji_compat___ctype32_toupper_store_ref@GOTPCREL(%rip), %rcx
+	movq %rax, (%rcx)
+	ret
+	.size niji_compat_ctype_store, .-niji_compat_ctype_store
+	.symver niji_compat___ctype_b_store_ref, __ctype_b@GLIBC_2.2.5
+	.symver niji_compat___ctype_tolower_store_ref, __ctype_tolower@GLIBC_2.2.5
+	.symver niji_compat___ctype_toupper_store_ref, __ctype_toupper@GLIBC_2.2.5
+	.symver niji_compat___ctype32_b_store_ref, __ctype32_b@GLIBC_2.2.5
+	.symver niji_compat___ctype32_tolower_store_ref, __ctype32_tolower@GLIBC_2.2.5
+	.symver niji_compat___ctype32_toupper_store_ref, __ctype32_toupper@GLIBC_2.2.5
 	.section .note.GNU-stack,"",@progbits
