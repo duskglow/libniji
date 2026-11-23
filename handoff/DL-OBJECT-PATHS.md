@@ -56,7 +56,9 @@ is untouched. No start-up counts were taken: the change adds no start-time code 
   whose dladdr oracle left out the vDSO (it encoded the old miss); now `span_owner` for both lookups.
 - On ed5783e23 (keke): `dl-object-paths-gate3` direct-tier gate green, 742 passed / 0 failed (11 suites), peak 1.9G;
   `dl-object-paths-plants3` 4/4 CAUGHT, 0 WARN (results in handoff/DL-OBJECT-PATHS-plants.txt);
-  `dl-object-paths-startup` (`cargo xtask test`, full-profile `so` and `hot_text_products`): see the hand-back.
+  `dl-object-paths-startup` green: `cargo xtask test` (nextest 7188 + 4878 passed, conformance, native-examples,
+  rust-dylib), `NIJI_FULL_PROFILE=1` `so` and `hot_text_products` 33 passed. On the synced final head: clippy
+  `-D warnings`, `cargo xtask static`, `cargo xtask precheck --jobs <the three>` GREEN (34 checks).
 - Earlier: clippy and `cargo xtask so`, object_names 5/5 (dl-object-paths-t1, head d59d55295, same code); `records
   check` and `cargo xtask static` (dl-object-paths-static, head 5e3e34cf2). Affected: Direct tier (no FULL).
 - SUPERSEDED (stopped; older heads or an unsynced tree): dl-object-paths-gate, -plants, -gate2, -plants2.
