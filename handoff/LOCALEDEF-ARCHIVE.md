@@ -1,10 +1,31 @@
 # LOCALEDEF-ARCHIVE: locale archive writer, the #7534 gaps, a freeing arena
 
-**State.** Branch `task/localedef-archive` (from origin/next), role keke `~/w/n2`. Leg 2 ended in a REFRESH at
-~150k context (93 calls). Workspace clippy (`--all-targets --all-features -D warnings`) is CLEAN on the leg-2 head.
-Reserved ids: D-31.23 (arena), D-31.24 (defaults), D-31.25 (archive), D-31.26 (spare: -c / stdin / big-endian).
-No COMPAT reserved. Probe scripts and logs: `~/work/localedef-archive/` on keke. Leg-2 helper (local scratch):
-`bash ~/w/.scratch/LOCALEDEF-ARCHIVE/sc.sh '<cmd>'` syncs the worktree to keke n2 and runs `<cmd>` there.
+**State.** Branch `task/localedef-archive` (from origin/next), role keke `~/w/n2`. Leg 3 ended in a REFRESH (last
+one of the run) at ~145k context / 110 calls, with the plants and gate jobs started (below). Records D-31.23..26 are
+written (`records/decisions/D-31/`); no COMPAT (two RULING NEEDED, below). Probe scripts and logs:
+`~/work/localedef-archive/` on keke (`e2e.sh`, `rss.sh`). Sync: `bash ~/src/liella-ops/tools/sync_role.sh --story
+LOCALEDEF-ARCHIVE --base origin/next ~/w/LOCALEDEF-ARCHIVE keke n2` (rc 0 = synced).
+
+## Done in leg 3
+
+* Commit `e8c2bcbca`: prog tests (13, all pass: archive default/lock, names + charmap codeset alias, list, delete,
+  add/--replace/missing, stdin, outside-section line, category error with/without -c); category error message now
+  `<file>:<line>: <CAT>: syntax error: <what>` (`Output::failed`); core reader: locrec 0 = absent
+  (`crates/core/src/locale/archive.rs`, unit test `lookup_skips_a_deleted_name`, 4 pass); reference.rs temp-dir
+  race fixed (en_us_utf8 and generated_charmaps both used pid+en_US.UTF-8 and removed each other's dir: a FLAKE on
+  next too, INFORMATIONAL); spec §31.8 i_3/g_2/g_3/g_4/f_2 + stubs regenerated; probe transcripts in
+  `spec/behaviour/utilities.glibc.txt`; D-31.24/25/26; three differences rows. `cargo xtask records check` ok.
+* Next commit (leg-3 end): D-31.23 with RSS; `products_localedef_writes_the_library_compile` in reference.rs (runs
+  `target/niji/localedef`: en_US/de_DE dir files == library compile, archive names); unsafe-audit fix in
+  ldconfig.rs (UNSAFE line directly above the allow); `handoff/LOCALEDEF-ARCHIVE.plants` (8 plants).
+* E2E (job `localedef-archive-e2e`, keke, rc 0): libniji localedef wrote en_US de_DE fr_FR ja_JP tr_TR + a
+  six-POSIX-category source (`copy "en_US"` x6, the RELEASE-SNAPSHOT-1122C L1 case) into an archive (`--prefix`) and
+  as directories: six -> 12 files, rc 1 (warnings). The reference `localedef --list-archive` lists our archive
+  (same 6 names). Under `unshare -r -m` with the archive bind-mounted on /usr/lib/locale, libniji `locale -a` lists
+  the 6 and `LC_ALL=<loc>.UTF-8 locale -k <12 categories>` gives 180 lines, no stderr, byte-identical to the
+  directory form via LOCPATH, for all 6 (setlocale(LC_ALL) non-NULL for the six-category case).
+* RSS after (same script, KiB): en_US 109552, de_DE 111576, fr_FR 111560, ja_JP 49936, tr_TR 112540 (before 224640,
+  344160, 344160, 234240, 283680): -51 % to -79 %.
 
 ## Done in leg 2
 
@@ -77,26 +98,30 @@ Gaps:
 
 ## Exact next steps (leg 3)
 
-1. Fix the 2 failing prog tests (expected changes): `directory_form_writes_the_defined_categories` (now 12 files:
-   `m.files.len()` 14, the defaults are written) and `name_without_slash` (dir is `mini.mini`, archive default now
-   works: assert archive written at `/usr/lib/locale/locale-archive` and `--list-archive` lists `mini.mini`).
-   Add prog tests: stdin source (`m.stdin = Some(MINI)`, no -i), outside-section line (status 1, written without -c),
-   category syntax error (status 4 without -c, 1 with -c), list (missing default: nothing/0; missing FILE: message/1),
-   delete (missing name message, status 0), add (`Adding DIR`, exists -> 255, `--replace`, missing DIR -> stat msg).
-   Check the exact error texts our `Error.what` gives vs the probed ones (`syntax error: not inside a locale
-   definition section`, `LC_NUMERIC: syntax error`); align if cheap.
-2. Core reader fix: `crates/core/src/locale/archive.rs` `entry`: locrec offset 0 = absent (+ unit test).
-3. End-to-end on keke: `cargo xtask so`, then target/niji/localedef into a `--prefix` archive for the 5 #14 locales
-   and setlocale through libniji reading it (find how the existing prog/conformance tests run setlocale over a
-   directory; mei `~/work/RELEASE-SNAPSHOT-1122C/y14l/` has the six-POSIX-category case from the coordinator's
-   note: it must now give all 12 files and setlocale(LC_ALL) non-NULL). Reference `localedef --list-archive F` on our
-   archive is a cheap interop check.
-4. Records: D-31.23..26 rows in `plan/07-decisions/s31-utilities.md`, spec §31.8 lines (archive, stdin, -c, defaults),
-   `docs/differences-from-glibc.md` rows (defaults' POSIX values; --big-endian refused), `cargo xtask stubs` if the
-   spec changes. RULING NEEDED: big-endian, defaults.
-5. RSS after: `sh ~/work/localedef-archive/rss.sh target/niji/localedef <outdir>` (before: en_US 224640 KiB, de_DE
-   344160, fr_FR 344160, ja_JP 234240, tr_TR 283680).
-6. Plants file `handoff/LOCALEDEF-ARCHIVE.plants` (arena free list, defaults fill, archive hash/locrec, stdin, -c
-   status, reader locrec 0), `cargo xtask plants` (brief step 6), direct gate (`cargo xtask affected --run`),
-   `cargo xtask static`, precheck, report json, handback-check. Wall deadline 2026-11-23T02:58Z.
+Code, tests, records, E2E and RSS are DONE (leg 3); do not redo them. Head `3cc67e6ff` + this handoff commit.
+Jobs started on keke at 00:15Z on head 3cc67e6ff (role n2): `localedef-archive-plants` (8 plants, dir
+`/dev/shm/claude/localedef-archive/plants-1`; the arena plant runs `cargo xtask so`, ~10 min) and
+`localedef-archive-gate` (direct tier). Clippy (workspace, all targets/features, -D warnings) and `cargo xtask
+static` passed on the role at that code (static after the last code edit; job localedef-archive-lint2).
+
+1. `~/bin/jobwait localedef-archive-plants localedef-archive-gate` (one call, timeout 600000; exit 3 = call again).
+   Check the gate log head for `FULL (escalated` (then brief step 4's rule). Plants: every one CAUGHT; list any
+   WARN line. A red: fix, rerun only the failing suite.
+2. Start-up checks (core `locale/archive.rs` `entry` changed: one `filter(r != 0)`), AFTER the gate (one build per
+   role): job `localedef-archive-test` = `cargo xtask test`; job `localedef-archive-hot` =
+   `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`. Diff
+   `target/product/fast/layout-bins.tsv` against origin/next's if cheap (state it if not done).
+3. `cargo xtask precheck --jobs localedef-archive-gate,localedef-archive-plants,localedef-archive-test,localedef-archive-hot --head <sha>`
+   on the synced final head; report `handoff/reports/LOCALEDEF-ARCHIVE.json` (+ `"jobs"`), handoff rewrite,
+   push, `ops handback-check`. Wall deadline 2026-11-23T02:58Z: if ~45 min remain with only jobs left, hand back
+   PENDING JOBS.
+
+Hand-back material:
+* RULING NEEDED: (a) D-31.24 undefined-category defaults are POSIX values where the reference's differ, no compat
+  option (recommend: keep, no option). (b) D-31.26 `--big-endian` refused, no compat option (recommend: keep).
+* INFORMATIONAL: reference.rs tests `en_us_utf8` and `generated_charmaps_compile_like_the_reference` shared one
+  temp dir (pid + locale) and could remove each other's output: a flake on next, fixed here.
+* IMPACT: correctness (archive writer + 3 options; 12 files always; stdin; -c; setlocale(LC_ALL) on a six-category
+  source), perf/size (RSS -51..-79 %, measured), coverage (8 prog tests + 1 products + 1 core unit, 8 plants).
+* IMPROVEMENT idea: the plants file format splits on ` | `, which is easy to trip with Rust closures (`|&r|`).
 
