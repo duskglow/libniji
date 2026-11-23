@@ -500,7 +500,10 @@ fn render_plan<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
 }
 
 /// [`format`] of a copy of the caller's format, which lies at `origin` (the fortified `%n` rule
-/// asks where the caller's format is, not the copy).
+/// asks where the caller's format is, not the copy). Kept out of line: inlined into
+/// [`format_routed`] it changed the simple formats' code there (`%s:%d: %s` +14 instructions
+/// per call; PRINTF-NO-HEAP-2), and the general path's own cost dwarfs a call.
+#[inline(never)]
 fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
     let mut parsed: Parsed = Parsed::new();
     if reg::active() {
