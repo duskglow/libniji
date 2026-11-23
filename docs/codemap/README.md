@@ -108,13 +108,13 @@ Other crates: abi, boundary, charmaps, core, kernel, ld, ld-so, ldconfig-bin, le
 | `/usr/bin/ls` | crates/rt/src/start.rs:589 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
-| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:15 |
+| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:16 |
 | `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
 | `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
-| `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:11 |
+| `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:12 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:128 |
-| `/usr/share/i18n/locales` | crates/locale/src/prog.rs:13 |
+| `/usr/share/i18n/locales` | crates/locale/src/prog.rs:14 |
 | `/usr/share/locale` | crates/legacy/src/intl.rs:62 |
 | `/usr/share/locale-langpack` | crates/legacy/src/intl.rs:66 |
 | `/usr/share/locale/locale.alias` | crates/core/src/locale/mod.rs:538 |
