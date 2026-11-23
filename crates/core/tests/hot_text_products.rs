@@ -849,7 +849,7 @@ fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
         (Some([a, m, z]), Some([ra, rm, rz])) => eprintln!(
             "dynamic empty main ({profile}): kernel instructions min / median / max of {DYN_INSTR_RUNS}: {a} / {m} / {z}, the host's C library {ra} / {rm} / {rz}; median ratio {}/10000; user + kernel median ratio {}/10000 (reported, not gated: {DYN_KERNEL_SPREAD})",
             m.saturating_mul(10_000) / rm.max(1),
-            (niji + m).saturating_mul(10_000) / (host + rm).max(1)
+            niji.saturating_add(m).saturating_mul(10_000) / host.saturating_add(rm).max(1)
         ),
         _ => {
             // Reported, so it must be there where the host lets this user count kernel events.
@@ -1924,11 +1924,11 @@ fn startup_text_outside_the_hot_group(exe: &Path, map: &str) -> Vec<String> {
     }
     let (mut outside, mut library) = (Vec::new(), 0usize);
     for (&a, mode) in &ran {
-        let Some(s) = inputs.iter().find(|s| s.2 > 0 && (s.1..s.1 + s.2).contains(&a)) else { continue };
+        let Some(s) = inputs.iter().find(|s| s.2 > 0 && (s.1..s.1.saturating_add(s.2)).contains(&a)) else { continue };
         if !s.3.contains("libc.a(") {
             continue; // the program's own functions and the start file's `_start` (`.text.startup`)
         }
-        library += 1;
+        library = library.saturating_add(1);
         if !(lo..hi).contains(&a) {
             outside.push(format!("{mode}: {} at {a:#x} ({}, {}) runs outside the hot group {lo:#x}..{hi:#x}", names.get(&a).map_or("?".into(), |n| n.join("/")), s.0, s.3));
         }
