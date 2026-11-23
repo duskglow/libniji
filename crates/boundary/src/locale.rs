@@ -485,7 +485,7 @@ fn publish_global() {
 
 /// The six legacy ctype objects' versioned names (`CTYPE_STORE_ORDER` of
 /// `xtask/src/compat_objects.rs`), NUL-terminated for the loader.
-const COMPAT_CTYPE_NAMES: [&[u8]; 6] = [b"__ctype_b\0", b"__ctype_tolower\0", b"__ctype_toupper\0", b"__ctype32_b\0", b"__ctype32_tolower\0", b"__ctype32_toupper\0"];
+const COMPAT_CTYPE_NAMES: [&core::ffi::CStr; 6] = [c"__ctype_b", c"__ctype_tolower", c"__ctype_toupper", c"__ctype32_b", c"__ctype32_tolower", c"__ctype32_toupper"];
 
 /// The addresses [`compat_ctype_objects`] found (written once, before `COMPAT_CTYPE_FOUND`).
 static COMPAT_CTYPE_AT: [AtomicUsize; 6] = [const { AtomicUsize::new(0) }; 6];
@@ -506,7 +506,7 @@ fn compat_ctype_objects() -> [usize; 6] {
             return [0; 6];
         }
         for (slot, name) in COMPAT_CTYPE_AT.iter().zip(COMPAT_CTYPE_NAMES) {
-            let at = crate::dlerr::keeping(|| crate::posix::s27_dynlink::niji_dl_sym(core::ptr::null_mut(), name.as_ptr().cast(), b"GLIBC_2.2.5\0".as_ptr().cast(), 0));
+            let at = crate::dlerr::keeping(|| crate::posix::s27_dynlink::niji_dl_sym(core::ptr::null_mut(), name.as_ptr(), c"GLIBC_2.2.5".as_ptr(), 0));
             slot.store(at.expose_provenance(), Relaxed);
         }
         COMPAT_CTYPE_FOUND.store(1, Release);
