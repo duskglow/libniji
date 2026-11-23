@@ -9,10 +9,10 @@
  "impact": [
   {"kind": "correctness", "what": "nsswitch.conf line with more than 16 sources, or a [...] group over 256 bytes, now parses (was: no source)", "before": null, "after": null, "unit": null, "measured": true},
   {"kind": "correctness", "what": "gai.conf table rows past 32 now used (were ignored)", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "perf", "what": "getaddrinfo(\"localhost\") per call (wl_percall, base 0495c4684)", "before": 16864.9, "after": 15422.1, "unit": "instr/call", "measured": true},
-  {"kind": "perf", "what": "getpwnam_r(\"root\") per call (wl_percall, base 0495c4684)", "before": 4808.8, "after": 4807.8, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "getaddrinfo(\"localhost\") per call (wl_percall percall1, base 0495c4684)", "before": 16864.9, "after": 15422.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "getpwnam_r(\"root\") per call (wl_percall percall1, base 0495c4684)", "before": 4808.8, "after": 4807.8, "unit": "instr/call", "measured": true},
   {"kind": "coverage", "what": "plants added (all caught)", "before": 0, "after": 9, "unit": "plants", "measured": true}],
  "improvement": "sync_role BUSY while a plants job runs from the role (it copies the tree first): the plants could release the role once the copy is checked",
  "next_step": "Land after LOCALE-PER-DIR-LOAD fixes #7846",
  "report_file": "handoff/CONFIG-TABLES-GROWTH.md",
- "jobs": ["config-tables-growth-gate2", "config-tables-growth-plants1", "config-tables-growth-percall1"]}
+ "jobs": ["config-tables-growth-gate2", "config-tables-growth-plants2", "config-tables-growth-percall2"], "superseded": ["config-tables-growth-gate1 (earlier head)", "config-tables-growth-plants1 (9/9 caught on the same code, before the probe file was added)", "config-tables-growth-percall1 (same numbers source, before the handoff commit)"]}

@@ -41,13 +41,13 @@ Done. Decision D-16.17 (record `records/decisions/D-16/D-16.17.toml`).
   them. TESTS: no new test file; the existing s16 binary was extended. No allocation-failure test: the switch's
   spill allocations are a few hundred bytes from the heap's existing arenas, so an address-space limit does not
   reach them reliably.
-- Plants: `handoff/CONFIG-TABLES-GROWTH-plants.txt`, 9 of 9 CAUGHT (job config-tables-growth-plants1).
+- Plants: `handoff/CONFIG-TABLES-GROWTH-plants.txt`, 9 of 9 CAUGHT (job config-tables-growth-plants1; rerun on the final head as config-tables-growth-plants2).
 - Direct gate (config-tables-growth-gate1, and gate2 on the final head): red only on locale-archive tests
   (locale_data, catalogs_products, locale_products, printf_corpus_products, s07 s7_2_f_0). mei has no
   `/usr/lib/locale/locale-archive`; this is the host change #7846, to be fixed by LOCALE-PER-DIR-LOAD (coordinator
   note on #7938).
 - Counts: `validation/percall/nss_config.c` (getaddrinfo "localhost", getpwnam_r "root"), job
-  config-tables-growth-percall1, base = the merge base 0495c4684 (instructions per call, glibc / base / new):
+  config-tables-growth-percall1 (rerun on the final head as config-tables-growth-percall2), base = the merge base 0495c4684 (instructions per call, glibc / base / new):
   getaddrinfo_localhost 12190 / 16865 / 15422 (-8.6%: one decode of the gai.conf tables, where the old code did
   two full decodes); getpwnam_r_root 3163 / 4809 / 4808. No row is slower.
 
