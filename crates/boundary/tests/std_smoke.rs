@@ -117,7 +117,8 @@ fn files_and_env() -> Vec<String> {
     f.write_all(b"appended\n").unwrap();
     drop(f);
     let back = std::fs::read_to_string(&path).unwrap();
-    let names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
     std::fs::remove_file(&path).unwrap();
     let greeting = std::env::var("STD_SMOKE_GREETING").unwrap_or_default();
     let listed = std::env::vars().any(|(k, v)| k == "STD_SMOKE_GREETING" && v == greeting);
