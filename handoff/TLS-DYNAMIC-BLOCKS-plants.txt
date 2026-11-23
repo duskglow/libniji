@@ -1,0 +1,18 @@
+# TLS-DYNAMIC-BLOCKS plants (DL-19, D-27.94): s27_dlopen_tls_dynamic must catch each.
+old-rule-surplus | crates/boundary/src/ld/dlopen.rs | lit:DF_STATIC_TLS != 0); ==> DF_STATIC_TLS != 0) || true; | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:cannot allocate memory in static TLS block
+no-free-thread-exit | crates/boundary/src/ld/tls.rs | perl:s/(fn release_blocks.*?)block_free\(s\.swap\(0, AcqRel\), w\[2\]\);/$1let _ = s;/s | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:address space grew
+no-free-dlclose | crates/boundary/src/ld/tls.rs | perl:s/(fn tls_visit.*?)block_free\(s\.swap\(0, AcqRel\), w\[2\]\);/$1let _ = s;/s | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:s27_dlopen_tls_dynamic: (cycle|address space grew)
+no-image | crates/boundary/src/ld/tls.rs | lit:d.store(s.load(Relaxed), Relaxed); ==> | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:b\[0\] == 7
+tunable-ignored | crates/boundary/src/ld/tls.rs | lit:SURPLUS_ASKED.store(bytes.saturating_add(ltls::SURPLUS_FIXED), Relaxed); ==> | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:tunable
+tunable-raise-only | crates/boundary/src/ld/tls.rs | lit:bytes.saturating_add(ltls::SURPLUS_FIXED) ==> bytes.max(ltls::SURPLUS) | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:tunable
+default-64k | crates/ld/src/tls.rs | lit:pub const SURPLUS: u64 = SURPLUS_FIXED + OPTIONAL_STATIC_TLS; ==> pub const SURPLUS: u64 = 64 * 1024; | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:2 KiB initial-exec object opened
+tlsdesc-fast-wrong-slot | csys/src/machine/tlsdesc.S | perl:s/(niji_machine_ld_tlsdesc_ondemand:.*?)movq 8\(%rdx,%rcx,8\), %rdx/$1movq 16(%rdx,%rcx,8), %rdx/s | cargo xtask affected --only conformance:s27_dlopen_tls_dynamic --with-exports --run | msg:s27_dlopen_tls_dynamic: 
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# old-rule-surplus: CAUGHT, caught by no test the log names
+# no-free-thread-exit: CAUGHT, caught by no test the log names
+# no-free-dlclose: CAUGHT, caught by no test the log names
+# no-image: CAUGHT, caught by no test the log names
+# tunable-ignored: CAUGHT, caught by no test the log names
+# tunable-raise-only: CAUGHT, caught by no test the log names
+# default-64k: CAUGHT, caught by no test the log names
+# tlsdesc-fast-wrong-slot: CAUGHT, caught by no test the log names

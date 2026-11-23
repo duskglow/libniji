@@ -45,12 +45,84 @@ PLACED(07) int g3(void) { raise(SIGUSR1); return count + 1; }
 PLACED(08) int g2(void) { return g3() + 1; }
 PLACED(09) int g1(void) { return g2() + 1; }
 PLACED(10) int sig_driver(void) { return g1() + 1; }
+/* Two functions with hand-written call-frame information. deep_remember nests
+ * DW_CFA_remember_state ten deep, each level with its own CFA offset, and restores all ten
+ * before its call (the row at the call is CFA = rbp + 16 only if every level comes back in
+ * order). deep_expr computes its CFA, rsp + 16, with an expression whose stack holds 100
+ * entries (breg7 16; constu 1 .. 99; 99 plus; constu 4950; minus). A frame an unwinder cannot
+ * evaluate ends the trace there. */
+void deep_remember(void);
+void deep_expr(void);
+__attribute__((visibility("hidden"))) int in_remember(void);
+__attribute__((visibility("hidden"))) int in_expr(void);
+__asm__(
+    ".pushsection .text.sorted.niji_bt_10a,\"ax\",@progbits\n"
+    ".p2align 4\n"
+    ".type deep_remember,@function\n"
+    "deep_remember:\n"
+    ".cfi_startproc\n"
+    "push %rbp\n"
+    ".cfi_def_cfa_offset 16\n"
+    ".cfi_offset %rbp, -16\n"
+    "mov %rsp, %rbp\n"
+    ".cfi_def_cfa_register %rbp\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 24\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 32\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 40\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 48\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 56\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 64\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 72\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 80\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 88\n"
+    ".cfi_remember_state\n.cfi_def_cfa_offset 96\n"
+    ".rept 10\n.cfi_restore_state\n.endr\n"
+    "call in_remember\n"
+    "pop %rbp\n"
+    ".cfi_def_cfa %rsp, 8\n"
+    "ret\n"
+    ".cfi_endproc\n"
+    ".size deep_remember, .-deep_remember\n"
+    ".popsection\n"
+    ".pushsection .text.sorted.niji_bt_10b,\"ax\",@progbits\n"
+    ".p2align 4\n"
+    ".type deep_expr,@function\n"
+    "deep_expr:\n"
+    ".cfi_startproc\n"
+    "push %rbp\n"
+    ".cfi_def_cfa_offset 16\n"
+    ".cfi_offset %rbp, -16\n"
+    ".cfi_escape 0x0f, 0xaf, 0x02, 0x77, 0x10, 0x10, 0x01, 0x10, 0x02, 0x10, 0x03, 0x10, 0x04, 0x10, 0x05, 0x10, 0x06, 0x10, 0x07, 0x10, 0x08, 0x10, 0x09, 0x10\n"
+    ".cfi_escape 0x0a, 0x10, 0x0b, 0x10, 0x0c, 0x10, 0x0d, 0x10, 0x0e, 0x10, 0x0f, 0x10, 0x10, 0x10, 0x11, 0x10, 0x12, 0x10, 0x13, 0x10, 0x14, 0x10, 0x15, 0x10\n"
+    ".cfi_escape 0x16, 0x10, 0x17, 0x10, 0x18, 0x10, 0x19, 0x10, 0x1a, 0x10, 0x1b, 0x10, 0x1c, 0x10, 0x1d, 0x10, 0x1e, 0x10, 0x1f, 0x10, 0x20, 0x10, 0x21, 0x10\n"
+    ".cfi_escape 0x22, 0x10, 0x23, 0x10, 0x24, 0x10, 0x25, 0x10, 0x26, 0x10, 0x27, 0x10, 0x28, 0x10, 0x29, 0x10, 0x2a, 0x10, 0x2b, 0x10, 0x2c, 0x10, 0x2d, 0x10\n"
+    ".cfi_escape 0x2e, 0x10, 0x2f, 0x10, 0x30, 0x10, 0x31, 0x10, 0x32, 0x10, 0x33, 0x10, 0x34, 0x10, 0x35, 0x10, 0x36, 0x10, 0x37, 0x10, 0x38, 0x10, 0x39, 0x10\n"
+    ".cfi_escape 0x3a, 0x10, 0x3b, 0x10, 0x3c, 0x10, 0x3d, 0x10, 0x3e, 0x10, 0x3f, 0x10, 0x40, 0x10, 0x41, 0x10, 0x42, 0x10, 0x43, 0x10, 0x44, 0x10, 0x45, 0x10\n"
+    ".cfi_escape 0x46, 0x10, 0x47, 0x10, 0x48, 0x10, 0x49, 0x10, 0x4a, 0x10, 0x4b, 0x10, 0x4c, 0x10, 0x4d, 0x10, 0x4e, 0x10, 0x4f, 0x10, 0x50, 0x10, 0x51, 0x10\n"
+    ".cfi_escape 0x52, 0x10, 0x53, 0x10, 0x54, 0x10, 0x55, 0x10, 0x56, 0x10, 0x57, 0x10, 0x58, 0x10, 0x59, 0x10, 0x5a, 0x10, 0x5b, 0x10, 0x5c, 0x10, 0x5d, 0x10\n"
+    ".cfi_escape 0x5e, 0x10, 0x5f, 0x10, 0x60, 0x10, 0x61, 0x10, 0x62, 0x10, 0x63, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22\n"
+    ".cfi_escape 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22\n"
+    ".cfi_escape 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22\n"
+    ".cfi_escape 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22\n"
+    ".cfi_escape 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x10, 0xd6, 0x26, 0x1c\n"
+    "call in_expr\n"
+    "pop %rbp\n"
+    ".cfi_def_cfa %rsp, 8\n"
+    "ret\n"
+    ".cfi_endproc\n"
+    ".size deep_expr, .-deep_expr\n"
+    ".popsection\n");
+PLACED(10c) int in_remember(void) { return leaf() + 1; }
+PLACED(10d) int in_expr(void) { return leaf() + 1; }
+PLACED(10e) int rem_driver(void) { deep_remember(); return count + 1; }
+PLACED(10f) int expr_driver(void) { deep_expr(); return count + 1; }
 PLACED(11) int placed_end(void) { return 0; }
 
 static void *const order[] = { (void *)leaf, (void *)f2, (void *)f1, (void *)driver, (void *)sig_leaf,
-    (void *)on_signal, (void *)g3, (void *)g2, (void *)g1, (void *)sig_driver, (void *)placed_end };
+    (void *)on_signal, (void *)g3, (void *)g2, (void *)g1, (void *)sig_driver, (void *)deep_remember, (void *)deep_expr,
+    (void *)in_remember, (void *)in_expr, (void *)rem_driver, (void *)expr_driver, (void *)placed_end };
 static const char *const names[] = { "leaf", "f2", "f1", "driver", "sig_leaf", "on_signal", "g3", "g2", "g1",
-    "sig_driver" };
+    "sig_driver", "deep_remember", "deep_expr", "in_remember", "in_expr", "rem_driver", "expr_driver" };
 
 /* The program function containing `a` (`main` included), or "~". */
 static const char *name_of(void *a)
@@ -195,6 +267,14 @@ int main(int argc, char **argv)
     }
     limit = 64;
     CHECK(backtrace(trace, -1) == 0);
+    /* Through frames whose rows need remember-state nesting ten deep and an expression stack
+     * of 100 entries (HL-20): every frame is reported, and the ones above them. */
+    rem_driver();
+    names_of(trace, count, seq, sizeof seq);
+    CHECK(has(seq, "leaf in_remember deep_remember rem_driver "));
+    expr_driver();
+    names_of(trace, count, seq, sizeof seq);
+    CHECK(has(seq, "leaf in_expr deep_expr expr_driver "));
     end();
 
     begin("s2_7_c_2");

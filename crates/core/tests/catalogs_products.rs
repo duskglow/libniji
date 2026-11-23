@@ -3,7 +3,9 @@
 //! libniji's products, each run by `tests/oracle/catalogs_run.sh` (fixture catalogs built with
 //! `msgfmt` and `gencat`, every other catalog written by the probe below a scratch directory under
 //! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on and
-//! off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
+//! off (`nscache_mode.sh`, D-16.10); every run, the reference's included, with the system's locale
+//! directory hidden but for `C.utf8`, so the host's installed locales never decide a case
+//! (`setlocale` searches that directory after `LOCPATH`; D-7.23). The outputs must be identical line by line, except the
 //! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
 //! [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to: the
 //! text of the last `== ` or `-- ` header line before it starts with the entry's first string, so a
@@ -117,7 +119,45 @@ const HEADERS: &[&str] = &["== ", "-- "];
 
 /// A line diff of `want` (glibc) and `got` (libniji) by longest common subsequence: each run of
 /// differing lines under the header of its case, `-` for glibc and `+` for libniji, at most 200 lines.
+/// A run that only replaces lines recorded in [`KNOWN`] is marked `(recorded)` and comes after the
+/// others: a log that keeps only the start of the message shows a difference nobody recorded.
 fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
+    struct Run {
+        header: String,
+        at: usize,
+        lines: Vec<String>,
+        dropped: Vec<(String, String)>,
+        added: usize,
+    }
+    let mut runs: Vec<Run> = Vec::new();
+    let shown = lcs_walk(want, got, |h, line, at, dropped| {
+        if runs.last().is_none_or(|r| r.header != h) {
+            runs.push(Run { header: h.to_string(), at, lines: Vec::new(), dropped: Vec::new(), added: 0 });
+        }
+        let r = runs.last_mut().unwrap();
+        r.lines.push(line);
+        match dropped {
+            Some(d) => r.dropped.push(d.clone()),
+            None => r.added += 1,
+        }
+    });
+    let known = |(h, w): &(String, String)| KNOWN.iter().any(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle));
+    let recorded = |r: &Run| !r.dropped.is_empty() && r.dropped.len() == r.added && r.dropped.iter().all(known);
+    let mut out = Vec::new();
+    for r in runs.iter().filter(|r| !recorded(r)).chain(runs.iter().filter(|r| recorded(r))) {
+        out.push(format!("@ line {} in {}{}", r.at + 1, r.header.trim_end(), if recorded(r) { " (recorded)" } else { "" }));
+        out.extend(r.lines.iter().cloned());
+    }
+    if shown == 200 {
+        out.push("(diff cut at 200 lines)".to_string());
+    }
+    out.join("\n")
+}
+
+/// Walk `want` and `got` by longest common subsequence, calling `emit` with the header, the
+/// `+`/`-` line, the line number in `want` and (for a `-` line) the reference line, for at most
+/// 200 differing lines; returns how many were emitted.
+fn lcs_walk(want: &[(String, String)], got: &[(String, String)], mut emit: impl FnMut(&str, String, usize, Option<&(String, String)>)) -> usize {
     let (n, m) = (want.len(), got.len());
     // lcs[i][j]: the common subsequence length of want[i..] and got[j..].
     let mut lcs = vec![vec![0u32; m + 1]; n + 1];
@@ -126,32 +166,22 @@ fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
             lcs[i][j] = if want[i].1 == got[j].1 { lcs[i + 1][j + 1] + 1 } else { lcs[i + 1][j].max(lcs[i][j + 1]) };
         }
     }
-    let (mut i, mut j, mut out, mut shown, mut last) = (0, 0, Vec::new(), 0usize, None);
-    let mut emit = |out: &mut Vec<String>, h: &str, line: String, at: usize| {
-        if last != Some(h.to_string()) {
-            out.push(format!("@ line {} in {}", at + 1, h.trim_end()));
-            last = Some(h.to_string());
-        }
-        out.push(line);
-    };
+    let (mut i, mut j, mut shown) = (0, 0, 0usize);
     while (i < n || j < m) && shown < 200 {
         if i < n && j < m && want[i].1 == got[j].1 {
             i += 1;
             j += 1;
         } else if j < m && (i == n || lcs[i][j + 1] >= lcs[i + 1][j]) {
-            emit(&mut out, &got[j].0, format!("+ {}", got[j].1), i);
+            emit(&got[j].0, format!("+ {}", got[j].1), i, None);
             j += 1;
             shown += 1;
         } else {
-            emit(&mut out, &want[i].0, format!("- {}", want[i].1), i);
+            emit(&want[i].0, format!("- {}", want[i].1), i, Some(&want[i]));
             i += 1;
             shown += 1;
         }
     }
-    if shown == 200 {
-        out.push("(diff cut at 200 lines)".to_string());
-    }
-    out.join("\n")
+    shown
 }
 
 /// The damaged catalogs the record leaves out (offsets and sizes outside the file;
@@ -248,12 +278,14 @@ fn catalogs_equal_the_reference() {
     assert!(build(&ours, true), "catalogs_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/catalogs_run.sh");
     let wrap = r.join("crates/core/tests/oracle/nscache_mode.sh");
-    let run = |exe: &Path, scratch: &str, mode: Option<&str>| -> String {
+    // Every run, the reference's included, sees only C.utf8 (installed with the C library) in the
+    // system locale directory: setlocale searches it after LOCPATH, so otherwise the host's
+    // installed locales decide cases such as `LC_ALL=de_DE.UTF-8@euro` (catalogs_run.sh refuses
+    // to run without it).
+    let run = |exe: &Path, scratch: &str, mode: &str| -> String {
         let mut cmd = Command::new("timeout");
         cmd.arg(timeout::secs(1200));
-        if let Some(m) = mode {
-            cmd.arg("sh").arg(&wrap).arg(m);
-        }
+        cmd.arg("sh").arg(&wrap).arg("--hide-system-locales").arg(mode);
         // nscache_mode.sh clears the environment: LOCPATH is passed on through `env`.
         cmd.arg("env").arg(format!("LOCPATH={}", locales.display()));
         let start = std::time::Instant::now();
@@ -276,7 +308,7 @@ fn catalogs_equal_the_reference() {
         }
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
-    let reference = run(&host, "catalogs-host", None);
+    let reference = run(&host, "catalogs-host", "plain");
     let record = std::fs::read_to_string(r.join("spec/behaviour/catalogs.glibc.txt")).unwrap();
     if reference == record {
         eprintln!("the reference equals the record");
@@ -285,7 +317,7 @@ fn catalogs_equal_the_reference() {
     }
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("catalogs-niji-{mode}"), Some(mode));
+        let got = run(&ours, &format!("catalogs-niji-{mode}"), mode);
         let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
         let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
         let mut diffs = 0;

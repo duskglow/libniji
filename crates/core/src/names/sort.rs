@@ -16,6 +16,8 @@
 //! it changes (the default is to read it once).
 
 use super::is_space;
+use crate::error::Result;
+use crate::mem::TryVec;
 use crate::net::addr;
 
 /// One policy entry: a prefix and its value.
@@ -26,15 +28,46 @@ pub struct Entry {
     value: i32,
 }
 
-/// The most entries one table holds (more lines are ignored).
-pub const MAX_ENTRIES: usize = 32;
+/// The bytes of an encoded [`Entry`] ([`Entry::encode`]).
+pub const ENTRY_BYTES: usize = 21;
+
+impl Entry {
+    /// The bytes of the entry, for process-wide storage in atomics.
+    pub fn encode(&self) -> [u8; ENTRY_BYTES] {
+        let mut out = [0u8; ENTRY_BYTES];
+        for (d, s) in out.iter_mut().zip(self.prefix.iter().chain([&self.len]).chain(self.value.to_ne_bytes().iter())) {
+            *d = *s;
+        }
+        out
+    }
+
+    /// The entry [`Entry::encode`] gave `bytes`.
+    pub fn decode(bytes: &[u8]) -> Option<Entry> {
+        Some(e(bytes.get(..16)?.try_into().ok()?, *bytes.get(16)?, i32::from_ne_bytes(bytes.get(17..21)?.try_into().ok()?)))
+    }
+}
+
+/// The entries a [`Table`] holds without an allocation (a table of more takes one: no limit
+/// but memory, CONFIG-TABLES-GROWTH).
+pub const INLINE_ENTRIES: usize = 32;
 
 /// A policy table (longest prefix wins).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub struct Table {
-    entries: [Entry; MAX_ENTRIES],
+    /// The entries while there are at most [`INLINE_ENTRIES`] (then `more` is empty).
+    inline: [Entry; INLINE_ENTRIES],
     n: usize,
+    /// Every entry, once there are more than [`INLINE_ENTRIES`] (then `inline` is unused).
+    more: TryVec<Entry>,
 }
+
+impl PartialEq for Table {
+    fn eq(&self, other: &Table) -> bool {
+        self.entries() == other.entries()
+    }
+}
+
+impl Eq for Table {}
 
 const fn e(prefix: [u8; 16], len: u8, value: i32) -> Entry {
     Entry { prefix, len, value }
@@ -51,10 +84,10 @@ const fn p(a: u8, b: u8) -> [u8; 16] {
 // A `const fn` loop: `i` stays below both lengths.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 const fn table(list: &[Entry]) -> Table {
-    let mut t = Table { entries: [e(Z, 0, 0); MAX_ENTRIES], n: 0 };
+    let mut t = Table { inline: [e(Z, 0, 0); INLINE_ENTRIES], n: 0, more: TryVec::new() };
     let mut i = 0;
-    while i < list.len() && i < MAX_ENTRIES {
-        t.entries[i] = list[i];
+    while i < list.len() && i < INLINE_ENTRIES {
+        t.inline[i] = list[i];
         i += 1;
     }
     t.n = i;
@@ -96,44 +129,59 @@ const fn v4(a: u8, b: u8) -> [u8; 16] {
 pub const SCOPEV4: Table = table(&[e(v4(127, 0), 104, 2), e(v4(169, 254), 112, 2), e(MAPPED, 96, 14)]);
 
 impl Table {
+    /// No entry.
+    pub const EMPTY: Table = table(&[]);
+
+    /// The entries.
+    pub fn entries(&self) -> &[Entry] {
+        if self.more.is_empty() {
+            self.inline.get(..self.n).unwrap_or(&[])
+        } else {
+            self.more.as_slice()
+        }
+    }
+
     /// The value of the longest prefix covering `a`.
     pub fn lookup(&self, a: &[u8; 16]) -> Option<i32> {
-        self.entries.get(..self.n)?.iter().filter(|x| common_prefix(&x.prefix, a) >= usize::from(x.len)).max_by_key(|x| x.len).map(|x| x.value)
+        self.entries().iter().filter(|x| common_prefix(&x.prefix, a) >= usize::from(x.len)).max_by_key(|x| x.len).map(|x| x.value)
     }
 
-    fn push(&mut self, x: Entry) {
-        if let Some(slot) = self.entries.get_mut(self.n) {
-            *slot = x;
-            self.n = self.n.saturating_add(1);
-        }
-    }
-
-    fn encode(&self, out: &mut [u8]) {
-        if let Some((n, rest)) = out.split_first_mut() {
-            *n = u8::try_from(self.n).unwrap_or(0);
-            for (chunk, x) in rest.chunks_exact_mut(ENTRY_BYTES).zip(self.entries.get(..self.n).unwrap_or(&[])) {
-                let v = x.value.to_ne_bytes();
-                for (d, s) in chunk.iter_mut().zip(x.prefix.iter().chain([&x.len]).chain(v.iter())) {
-                    *d = *s;
-                }
+    /// Append `x`: in place while there is room, else ([`Table::spill`]) in an allocation.
+    /// `ENOMEM` without memory (the table is unchanged then).
+    pub fn push(&mut self, x: Entry) -> Result<()> {
+        if self.more.is_empty() {
+            if let Some(slot) = self.inline.get_mut(self.n) {
+                *slot = x;
+                self.n = self.n.saturating_add(1);
+                return Ok(());
             }
         }
+        self.spill(x)
     }
 
-    fn decode(bytes: &[u8]) -> Option<Table> {
-        let (&n, rest) = bytes.split_first()?;
-        let mut t = table(&[]);
-        for chunk in rest.chunks_exact(ENTRY_BYTES).take(usize::from(n)) {
-            t.push(e(chunk.get(..16)?.try_into().ok()?, *chunk.get(16)?, i32::from_ne_bytes(chunk.get(17..21)?.try_into().ok()?)));
+    /// [`Table::push`] past the inline entries: rare (more than [`INLINE_ENTRIES`] lines).
+    #[cold]
+    #[inline(never)]
+    fn spill(&mut self, x: Entry) -> Result<()> {
+        if self.more.is_empty() {
+            let mut all = TryVec::with_capacity(INLINE_ENTRIES.saturating_mul(2))?;
+            all.extend_from_slice(self.inline.get(..self.n).unwrap_or(&[]))?;
+            all.push(x)?;
+            self.more = all;
+            return Ok(());
         }
-        (t.n == usize::from(n)).then_some(t)
+        self.more.push(x)
+    }
+
+    /// A copy (`ENOMEM`: a table past the inline entries, and no memory).
+    pub fn try_clone(&self) -> Result<Table> {
+        let mut t = Table::EMPTY;
+        for &x in self.entries() {
+            t.push(x)?;
+        }
+        Ok(t)
     }
 }
-
-const ENTRY_BYTES: usize = 21;
-const TABLE_BYTES: usize = 1 + MAX_ENTRIES * ENTRY_BYTES;
-/// The bytes of an encoded [`Policy`].
-pub const POLICY_BYTES: usize = 3 * TABLE_BYTES + 1;
 
 /// The leading bits two addresses share.
 pub fn common_prefix(a: &[u8; 16], b: &[u8; 16]) -> usize {
@@ -149,7 +197,7 @@ pub fn common_prefix(a: &[u8; 16], b: &[u8; 16]) -> usize {
 }
 
 /// The policy `gai.conf` gives.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Policy {
     /// The precedence table.
     pub precedence: Table,
@@ -201,10 +249,11 @@ impl Policy {
     /// RFC 6724's tables, read once.
     pub const DEFAULT: Policy = Policy { precedence: PRECEDENCE, label: LABEL, scopev4: SCOPEV4, reload: false };
 
-    /// The policy a `gai.conf` text gives (lines that do not parse are ignored).
+    /// The policy a `gai.conf` text gives (lines that do not parse are ignored). A table that
+    /// cannot be held (more than [`INLINE_ENTRIES`] lines and no memory) is the default one,
+    /// never part of the file's.
     pub fn parse(text: &[u8]) -> Policy {
-        let empty = table(&[]);
-        let (mut prec, mut label, mut scope) = (empty, empty, empty);
+        let (mut prec, mut label, mut scope) = (Some(Table::EMPTY), Some(Table::EMPTY), Some(Table::EMPTY));
         let mut reload = false;
         for line in text.split(|&c| c == b'\n') {
             let line = line.get(..line.iter().position(|&c| c == b'#').unwrap_or(line.len())).unwrap_or(&[]);
@@ -214,32 +263,24 @@ impl Policy {
                 let (p, len) = prefix(arg?)?;
                 Some(e(p, len, value(v?)?))
             };
+            // A table that could not take an entry is `None`: the default stands for it.
+            let add = |t: &mut Option<Table>, x: Option<Entry>| {
+                if let (Some(tab), Some(x)) = (t.as_mut(), x) {
+                    if tab.push(x).is_err() {
+                        *t = None;
+                    }
+                }
+            };
             match key {
-                b"precedence" => {
-                    if let Some(x) = entry(arg, w.next()) {
-                        prec.push(x);
-                    }
-                }
-                b"label" => {
-                    if let Some(x) = entry(arg, w.next()) {
-                        label.push(x);
-                    }
-                }
-                b"scopev4" => {
-                    if let Some(x) = entry(arg, w.next()) {
-                        scope.push(x);
-                    }
-                }
+                b"precedence" => add(&mut prec, entry(arg, w.next())),
+                b"label" => add(&mut label, entry(arg, w.next())),
+                b"scopev4" => add(&mut scope, entry(arg, w.next())),
                 b"reload" => reload = arg == Some(b"yes"),
                 _ => {}
             }
         }
-        Policy {
-            precedence: if prec.n > 0 { prec } else { PRECEDENCE },
-            label: if label.n > 0 { label } else { LABEL },
-            scopev4: if scope.n > 0 { scope } else { SCOPEV4 },
-            reload,
-        }
+        let or = |t: Option<Table>, d: Table| t.filter(|t| !t.entries().is_empty()).unwrap_or(d);
+        Policy { precedence: or(prec, PRECEDENCE), label: or(label, LABEL), scopev4: or(scope, SCOPEV4), reload }
     }
 
     /// The scope of `a` (RFC 6724 §3.1, §3.2): multicast by its scope field; link-local
@@ -253,24 +294,6 @@ impl Policy {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, ..] => self.scopev4.lookup(a).unwrap_or(14),
             _ => 14,
         }
-    }
-
-    /// The bytes of the policy, for process-wide storage in atomics.
-    pub fn encode(&self) -> [u8; POLICY_BYTES] {
-        let mut out = [0u8; POLICY_BYTES];
-        for (chunk, t) in out.chunks_exact_mut(TABLE_BYTES).zip([&self.precedence, &self.label, &self.scopev4]) {
-            t.encode(chunk);
-        }
-        if let Some(r) = out.last_mut() {
-            *r = u8::from(self.reload);
-        }
-        out
-    }
-
-    /// The policy [`Policy::encode`] gave `bytes`.
-    pub fn decode(bytes: &[u8]) -> Option<Policy> {
-        let mut t = bytes.chunks_exact(TABLE_BYTES);
-        Some(Policy { precedence: Table::decode(t.next()?)?, label: Table::decode(t.next()?)?, scopev4: Table::decode(t.next()?)?, reload: bytes.get(POLICY_BYTES.checked_sub(1)?) == Some(&1) })
     }
 
     fn precedence_of(&self, a: &[u8; 16]) -> i32 {

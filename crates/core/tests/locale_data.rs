@@ -601,62 +601,45 @@ fn ascii_case_flag_and_fast_folding_match_the_tables() {
     }
 }
 
-/// The system's locale files, read once and leaked (no `LOCPATH`).
-struct SystemFiles;
-
-impl niji::locale::Source for SystemFiles {
-    fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
-        leak(Path::new(std::str::from_utf8(path).ok()?))
-    }
-    fn locpath(&self) -> Option<&[u8]> {
-        None
-    }
-    fn charmap(&self, _: &[u8]) -> Option<&'static niji::charmap::Charmap> {
-        None
-    }
-}
-
-#[test]
-fn find_cached_answers_every_category_as_find() {
-    // Clauses: s7_1_c_0 (SETLOCALE-START): one cache shared by the twelve categories of a name, in
-    // either order, gives `find`'s answer for each, and settles on the archive's record for a name
-    // the archive holds (the later categories skip the name walk).
-    use niji::locale::file::Cat;
-    use niji::locale::{find, find_cached, Data, FindCache};
-    assert!(Path::new("/usr/lib/locale/locale-archive").exists(), "the gate machines have a locale archive");
-    let same = |a: &Option<Data>, b: &Option<Data>| match (a, b) {
-        (Some(Data::File(x)), Some(Data::File(y))) => x.bytes().as_ptr() == y.bytes().as_ptr(),
-        (None, None) | (Some(Data::C), Some(Data::C)) | (Some(Data::CUtf8), Some(Data::CUtf8)) => true,
-        _ => false,
-    };
-    let names: [&'static [u8]; 7] = [b"en_US.UTF-8", b"en_US.utf8", b"en_US", b"de_DE.ISO-8859-1", b"en_US.ISO-8859-15", b"xx_YY.UTF-8", b"C.UTF-8"];
-    let mut settled = false;
-    for name in names {
-        for reverse in [false, true] {
-            let mut cache = FindCache::default();
-            let order: Vec<Cat> = if reverse { Cat::ALL.iter().rev().copied().collect() } else { Cat::ALL.to_vec() };
-            for cat in order {
-                let (a, b) = (find_cached(&SystemFiles, cat, name, &mut cache), find(&SystemFiles, cat, name));
-                assert!(same(&a, &b), "{}: {cat:?}", String::from_utf8_lossy(name));
-            }
-            settled |= name == b"en_US.UTF-8" && cache.settled();
-        }
-    }
-    assert!(settled, "en_US.UTF-8 settles on its archive record");
-}
-
-/// The system's locale files with a private alias file (and optionally a `LOCPATH`).
-struct AliasFiles {
-    alias: &'static [u8],
+/// Locale files in memory: path -> bytes and an optional `LOCPATH`. The tests of the search order
+/// build the layout they need here, so they do not depend on what the host has installed.
+#[derive(Clone, Default)]
+struct MemFiles {
+    files: BTreeMap<Vec<u8>, &'static [u8]>,
     locpath: Option<&'static [u8]>,
 }
 
-impl niji::locale::Source for AliasFiles {
-    fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
-        if path == niji::locale::ALIAS_FILE {
-            return Some(self.alias);
+impl MemFiles {
+    /// The categories of compiled test locale `src` as `dir/name/` (`only`: just those), each a
+    /// copy of its own, so that an answer's address tells which directory gave it.
+    fn dir(&mut self, test_locales: &Path, dir: &str, name: &str, src: &str, only: Option<&[niji::locale::file::Cat]>) {
+        for cat in niji::locale::file::Cat::ALL {
+            if only.is_some_and(|o| !o.contains(&cat)) {
+                continue;
+            }
+            let file = std::str::from_utf8(cat.file_name()).unwrap();
+            let bytes = std::fs::read(test_locales.join(src).join(file)).unwrap();
+            self.files.insert(format!("{dir}/{name}/{file}").into_bytes(), Box::leak(bytes.into_boxed_slice()));
         }
-        SystemFiles.file(path)
+    }
+
+    /// Where an answer came from: `archive`, the `dir/name` that holds it, or `none`.
+    fn origin(&self, d: Option<niji::locale::Data>) -> String {
+        let Some(niji::locale::Data::File(f)) = d else { return "none".into() };
+        let p = f.bytes().as_ptr();
+        if let Some(a) = self.files.get(niji::locale::ARCHIVE) {
+            if a.as_ptr_range().contains(&p) {
+                return "archive".into();
+            }
+        }
+        let key = self.files.iter().find(|(_, v)| v.as_ptr() == p).map(|(k, _)| String::from_utf8_lossy(k).into_owned()).unwrap();
+        key.rsplit_once("/LC_").map(|(d, _)| d.trim_end_matches("/LC_MESSAGES").to_string()).unwrap()
+    }
+}
+
+impl niji::locale::Source for MemFiles {
+    fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
+        self.files.get(path).copied()
     }
     fn locpath(&self) -> Option<&[u8]> {
         self.locpath
@@ -664,6 +647,116 @@ impl niji::locale::Source for AliasFiles {
     fn charmap(&self, _: &[u8]) -> Option<&'static niji::charmap::Charmap> {
         None
     }
+}
+
+/// A locale archive holding `en_US.utf8` only, made by the host's `localedef` from the compiled
+/// test locale into a directory of the tests' own (`--prefix`), once; `None` without `localedef`.
+fn private_archive(test_locales: &Path) -> Option<&'static [u8]> {
+    static ARCHIVE: Mutex<Option<&'static [u8]>> = Mutex::new(None);
+    let mut slot = ARCHIVE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(a) = *slot {
+        return Some(a);
+    }
+    let root = test_locales.join(format!("archive-{}-{:?}", std::process::id(), std::thread::current().id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("usr/lib/locale")).unwrap();
+    let o = Command::new("localedef").arg(format!("--prefix={}", root.display())).args(["--add-to-archive", "--replace"]).arg(test_locales.join("en_US.UTF-8")).output().ok()?;
+    let file = root.join("usr/lib/locale/locale-archive");
+    assert!(o.status.success() && file.exists(), "localedef is present but did not write the archive: {}", String::from_utf8_lossy(&o.stderr));
+    let a: &'static [u8] = Box::leak(std::fs::read(&file).unwrap().into_boxed_slice());
+    let _ = std::fs::remove_dir_all(&root);
+    *slot = Some(a);
+    Some(a)
+}
+
+/// The layout of the reference probes (D-7.21; the setlocale name table of LOCALE-PER-DIR-LOAD):
+/// an archive holding `en_US.utf8`, and directories in the default path and in two others.
+fn probe_layout() -> Option<MemFiles> {
+    use niji::locale::file::Cat;
+    for n in ["en_US.UTF-8", "de_DE.UTF-8", "de_DE.ISO-8859-1"] {
+        locale(n)?;
+    }
+    let t = root().join("target/test-locales");
+    let mut fs = MemFiles::default();
+    fs.files.insert(niji::locale::ARCHIVE.to_vec(), private_archive(&t)?);
+    let d = "/usr/lib/locale";
+    fs.dir(&t, d, "en_US.utf8", "de_DE.UTF-8", None);
+    fs.dir(&t, d, "en_US@m", "de_DE.ISO-8859-1", None);
+    fs.dir(&t, d, "xj_XJ@m", "de_DE.ISO-8859-1", Some(&[Cat::Ctype]));
+    fs.dir(&t, d, "xj_XJ.utf8", "de_DE.UTF-8", None);
+    fs.dir(&t, "/lp1", "xh_XH", "en_US.UTF-8", None);
+    fs.dir(&t, "/lp1", "en_US.utf8", "en_US.UTF-8", None);
+    fs.dir(&t, "/lp1", "en_US.UTF-8", "en_US.UTF-8", None);
+    fs.dir(&t, "/lp2", "xh_XH@m", "de_DE.UTF-8", None);
+    Some(fs)
+}
+
+#[test]
+fn search_order_follows_the_reference() {
+    // Clauses: s7_1_c_0, s7_2_c_0 (D-7.21, D-7.7): the archive is searched only when LOCPATH is
+    // unset, and only under the name's archive form; the directories (LOCPATH's, then the default
+    // one) candidate by candidate; the first place holding a category decides, and a codeset that is
+    // not the requested one there means no locale. Each row is a probe of the reference.
+    use niji::locale::file::Cat;
+    use niji::locale::{find, find_cached, FindCache};
+    let Some(base) = probe_layout() else { return skip("no localedef") };
+    let check = |fs: &MemFiles, name: &'static str, cats: &[Cat], want: &str| {
+        let mut cache = FindCache::default();
+        for &cat in cats {
+            assert_eq!(fs.origin(find(fs, cat, name.as_bytes())), want, "{name} {cat:?} (LOCPATH {:?})", fs.locpath.map(String::from_utf8_lossy));
+            assert_eq!(fs.origin(find_cached(fs, cat, name.as_bytes(), &mut cache)), want, "{name} {cat:?} cached");
+        }
+    };
+    let d = "/usr/lib/locale";
+    for (name, want) in [
+        ("en_US.UTF-8", "archive".to_string()),
+        ("en_US.utf8", "archive".into()),
+        ("en_US.UTF-8@zz", format!("{d}/en_US.utf8")),
+        ("en_US.UTF-8@m", "none".into()),
+        ("en_US@m", format!("{d}/en_US@m")),
+        ("xh_XH@m", "none".into()),
+    ] {
+        check(&base, name, &Cat::ALL, &want);
+    }
+    check(&base, "xj_XJ.UTF-8@m", &[Cat::Ctype], "none");
+    check(&base, "xj_XJ.UTF-8@m", &[Cat::Time, Cat::Messages], &format!("{d}/xj_XJ.utf8"));
+    check(&base, "xj_XJ@m", &[Cat::Ctype], &format!("{d}/xj_XJ@m"));
+    check(&base, "xj_XJ@m", &[Cat::Time], "none");
+    let with = |lp: &'static str| MemFiles { locpath: Some(lp.as_bytes()), ..base.clone() };
+    for lp in ["/lp1:/lp2", "/lp2:/lp1"] {
+        let fs = with(lp);
+        check(&fs, "xh_XH@m", &Cat::ALL, "/lp2/xh_XH@m");
+        check(&fs, "xh_XH", &Cat::ALL, "/lp1/xh_XH");
+        check(&fs, "en_US.utf8", &Cat::ALL, "/lp1/en_US.utf8");
+        check(&fs, "en_US@m", &Cat::ALL, &format!("{d}/en_US@m"));
+        check(&fs, "en_US.UTF-8@m", &Cat::ALL, "none");
+    }
+    check(&with("/lp2"), "en_US.UTF-8", &Cat::ALL, &format!("{d}/en_US.utf8"));
+    check(&with("/nonexistent"), "en_US.utf8", &Cat::ALL, &format!("{d}/en_US.utf8"));
+}
+
+#[test]
+fn find_cached_answers_every_category_as_find() {
+    // Clauses: s7_1_c_0 (SETLOCALE-START): one cache shared by the twelve categories of a name, in
+    // either order, gives `find`'s answer for each, and settles on the archive's record for a name
+    // the archive holds.
+    use niji::locale::file::Cat;
+    use niji::locale::{find, find_cached, FindCache};
+    let Some(fs) = probe_layout() else { return skip("no localedef") };
+    let names: [&'static [u8]; 9] = [b"en_US.UTF-8", b"en_US.utf8", b"en_US", b"en_US.UTF-8@zz", b"en_US.UTF-8@m", b"xj_XJ.UTF-8@m", b"en_US.ISO-8859-15", b"xx_YY.UTF-8", b"C.UTF-8"];
+    let mut settled = false;
+    for name in names {
+        for reverse in [false, true] {
+            let mut cache = FindCache::default();
+            let order: Vec<Cat> = if reverse { Cat::ALL.iter().rev().copied().collect() } else { Cat::ALL.to_vec() };
+            for cat in order {
+                let (a, b) = (fs.origin(find_cached(&fs, cat, name, &mut cache)), fs.origin(find(&fs, cat, name)));
+                assert_eq!(a, b, "{}: {cat:?}", String::from_utf8_lossy(name));
+            }
+            settled |= name == b"en_US.UTF-8" && cache.settled();
+        }
+    }
+    assert!(settled, "en_US.UTF-8 settles on its archive record");
 }
 
 #[test]
@@ -674,37 +767,29 @@ fn locale_name_found_before_its_alias() {
     // it elsewhere, and the alias file is not consulted; a name found nowhere resolves through its
     // alias, in every category, with or without a shared cache.
     use niji::locale::file::Cat;
-    use niji::locale::{find, find_cached, Data, FindCache};
-    assert!(Path::new("/usr/lib/locale/locale-archive").exists(), "the gate machines have a locale archive");
-    let ptr = |d: Option<Data>| match d {
-        Some(Data::File(f)) => Some(f.bytes().as_ptr()),
-        _ => None,
-    };
+    use niji::locale::{find, find_cached, FindCache, ALIAS_FILE};
+    let Some(base) = probe_layout() else { return skip("no localedef") };
     let alias: &'static [u8] = b"# private\nen_US.UTF-8 xx_YY.UTF-8\nAliasOnly en_US.UTF-8\nselfish selfish\n";
-    let check = |src: &AliasFiles, plain: &dyn Fn(Cat) -> Option<Data>, what: &str| {
+    let check = |plain: &MemFiles, what: &str| {
+        let mut src = plain.clone();
+        src.files.insert(ALIAS_FILE.to_vec(), alias);
         for cat in Cat::ALL {
-            let want = ptr(plain(cat));
-            assert!(want.is_some(), "{what}: en_US.UTF-8 {cat:?} is installed");
-            assert_eq!(ptr(find(src, cat, b"en_US.UTF-8")), want, "{what}: the name itself, not its alias ({cat:?})");
-            assert_eq!(ptr(find(src, cat, b"aliasonly")), want, "{what}: a name only the alias file knows ({cat:?})");
-            assert_eq!(ptr(find(src, cat, b"selfish")), None, "{what}: an alias to itself ({cat:?})");
+            let want = plain.origin(find(plain, cat, b"en_US.UTF-8"));
+            assert_ne!(want, "none", "{what}: en_US.UTF-8 {cat:?} is installed");
+            assert_eq!(src.origin(find(&src, cat, b"en_US.UTF-8")), want, "{what}: the name itself, not its alias ({cat:?})");
+            assert_eq!(src.origin(find(&src, cat, b"aliasonly")), want, "{what}: a name only the alias file knows ({cat:?})");
+            assert_eq!(src.origin(find(&src, cat, b"selfish")), "none", "{what}: an alias to itself ({cat:?})");
         }
         for (name, consulted) in [(&b"en_US.UTF-8"[..], false), (b"aliasonly", true)] {
             let mut cache = FindCache::default();
             for cat in Cat::ALL {
-                assert_eq!(ptr(find_cached(src, cat, name, &mut cache)), ptr(plain(cat)), "{what}: cached {cat:?}");
+                assert_eq!(src.origin(find_cached(&src, cat, name, &mut cache)), plain.origin(find(plain, cat, b"en_US.UTF-8")), "{what}: cached {cat:?}");
             }
             assert_eq!(cache.alias_consulted(), consulted, "{what}: {}", String::from_utf8_lossy(name));
         }
     };
-    let archive = AliasFiles { alias, locpath: None };
-    check(&archive, &|cat| find(&SystemFiles, cat, b"en_US.UTF-8"), "archive");
-    // The same order with LOCPATH: a compiled en_US.UTF-8 directory.
-    let Some(dir) = locale("en_US.UTF-8") else { return skip("no localedef") };
-    let lp: &'static [u8] = Box::leak(dir.to_str().unwrap().as_bytes().to_vec().into_boxed_slice());
-    let in_dir = AliasFiles { alias, locpath: Some(lp) };
-    let plain = AliasFiles { alias: b"", locpath: Some(lp) };
-    check(&in_dir, &|cat| find(&plain, cat, b"en_US.UTF-8"), "LOCPATH");
+    check(&base, "archive");
+    check(&MemFiles { locpath: Some(b"/lp1"), ..base.clone() }, "LOCPATH");
 }
 
 #[test]

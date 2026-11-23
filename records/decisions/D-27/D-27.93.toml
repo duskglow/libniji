@@ -1,0 +1,12 @@
+id = "D-27.93"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+amends = ["D-27.45"]
+story = "DL-OBJECT-PATHS"
+date = "2026-11-23"
+tests = ["crates/ld/tests/object_names.rs::every_object_is_named_by_the_path_it_was_opened_by"]
+body = '''
+**Every object is named alike by `dl_iterate_phdr`, `dladdr`, `_r_debug` and `dlinfo`, and `dladdr` knows the vDSO (story DL-OBJECT-PATHS, GitHub #24; amends D-27.45's "an address no object holds returns 0").** Probe-settled (black box, handoff/DL-OBJECT-PATHS.md): each object has one name, the path it was opened by: a bare name the search found (DT_NEEDED, LD_PRELOAD, `dlopen`) is the searched directory as written plus `/` and the name; a name with `/` (DT_NEEDED, LD_PRELOAD, `dlopen`) is kept as given; `ld.so` is the program's PT_INTERP; the vDSO is `linux-vdso.so.1`; the program is `""` in the lists and `argv[0]` for `dladdr` (D-27.45). An address inside the vDSO's `PT_LOAD` range (lowest to highest address, unrounded) is held by the vDSO: `dladdr` returns 1 with `dli_fname` `linux-vdso.so.1`, `dli_fbase` its lowest `PT_LOAD` page, the symbol by D-27.45's rule over its dynamic symbols (NULL when none holds the address), and `dladdr1` gives the vDSO's link map for `RTLD_DL_LINKMAP` and its `Elf64_Sym` (or NULL) for `RTLD_DL_SYMENT`. The vDSO is tried only after no loaded object holds the address, in one out-of-line function that reads the image with the validating ELF reader, so the objects' lookup is unchanged. Code: `crates/boundary/src/ld/dlopen/dladdr.rs` (`vdso_dladdr`).
+'''

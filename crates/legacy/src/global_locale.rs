@@ -1280,7 +1280,7 @@ fn same_name(a: &[u8], b: &[u8]) -> bool {
 /// The answer's name is read here only from the static table. A name in a spill chunk goes to
 /// [`setlocale_spilled`] by a tail call: a call here that returned would make every call set up
 /// a frame and save registers (+8 to +9 instructions per call; ruling #6981).
-pub fn setlocale<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Request<'_>) -> Option<&'static [u8]> {
+pub fn global_setlocale_request<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Request<'_>) -> Option<&'static [u8]> {
     if !matches!(req, Request::Environment(_))
         && let Some(i) = query_slot(cat)
     {

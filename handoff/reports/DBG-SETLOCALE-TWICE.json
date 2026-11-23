@@ -1,0 +1,24 @@
+{
+ "task": "DBG-SETLOCALE-TWICE",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "break setlocale (and argz_delete, argz_insert, asctime, confstr, ecvt, envz_add, fcvt, time, wctob, wctype) now has one location in libc6-dbg; dbg-system.sh strict check passes on trixie and excalibur; only break read still has extra std-inlined locations",
+ "branch": "task/dbg-setlocale-twice",
+ "head": "b85fe6f19",
+ "gate": {"affected": "direct tier green (conformance 121 passed, 0 failed), static ok; cargo xtask test + hot_text_products green", "peak": "15G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "break read still has 28 locations, mostly core::ptr::read / atomic read inlined from the Rust standard library, which cannot be renamed; no dbg check uses read",
+  "no plants: pure renames the compiler checks; a guard needs a built libc6-dbg (about 15 min) so it is not a unit test; recommend a train check listing exported names defined twice in the debug info"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "gdb break NAME stops once, not twice, for setlocale and ten other exports (11 names had a second location)", "before": 11, "after": 1, "unit": "names with extra breakpoint locations (only read remains)", "measured": true},
+  {"kind": "tooling", "what": "tools/deb/dbg-system.sh strict ^Breakpoint 1, check passes on trixie and excalibur", "before": null, "after": null, "unit": "pass=9 fail=0 each", "measured": true}
+ ],
+ "improvement": "none",
+ "next_step": "optional train check: exported names defined twice in a built libc6-dbg, with std-inlined names allow-listed",
+ "report_file": "handoff/DBG-SETLOCALE-TWICE.md",
+ "jobs": ["mei:dbg-setlocale-twice-gate", "mei:dbg-setlocale-twice-pkg3", "mei:dbg-setlocale-twice-startup"]
+}

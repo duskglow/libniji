@@ -250,9 +250,31 @@ static void objects(void) {
     str("newlocale bad mask "); str(badmask ? "ok" : "fail"); nl();
 }
 
+/* Every LC_IDENTIFICATION item of the built-ins (D-7.22); CATEGORY is one string per category, all
+ * 12 compared. In "C" and "POSIX" the contact fields of an individual (address, contact, e-mail,
+ * telephone, fax: items 2..6) are left out by design (D-7.10) and not compared. */
+static void identification(void) {
+    static const char *names[] = { "C", "POSIX", "C.UTF-8" };
+    for (unsigned n = 0; n < 3; n++) {
+        locale_t l = newlocale(LC_ALL_MASK, names[n], (locale_t)0);
+        str("identification "); str(names[n]); str(l ? "" : " fail"); nl();
+        if (!l) continue;
+        for (int i = 0; i <= 16; i++) {
+            str("  item "); num(i); str(" = ");
+            const char *v = nl_langinfo_l((nl_item)((LC_IDENTIFICATION << 16) | i), l);
+            if (n < 2 && i >= 2 && i <= 6) str("(contact field, D-7.10)");
+            else if (i == 14) for (int k = 0; k < 12; k++) { hexs(v); ch(';'); while (*v) v++; v++; }
+            else hexs(v);
+            nl();
+        }
+        freelocale(l);
+    }
+}
+
 int main(int argc, char **argv) {
     setlocale_names();
     objects();
+    identification();
     for (int i = 1; i < argc; i++) {
         setlocale(LC_ALL, "C");
         const char *r = setlocale(LC_ALL, argv[i]);
