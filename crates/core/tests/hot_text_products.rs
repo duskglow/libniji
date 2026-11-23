@@ -138,7 +138,14 @@ fn root() -> PathBuf {
 fn generated_list(name: &str) -> PathBuf {
     let m = std::fs::read_to_string(root().join("target/niji/.hot-lists"))
         .unwrap_or_else(|e| panic!("target/niji/.hot-lists: {e}: no start-up lists (every product build writes them from a trace of itself: run `cargo xtask so`)"));
-    PathBuf::from(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
+    hot_lists_dir(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
+}
+
+/// The lists' directory as the marker's first line names it: relative to `target/niji` (BUILD-REPRODUCIBLE-PATHS:
+/// the products name no tree path), or absolute in a marker an older build wrote.
+fn hot_lists_dir(line: &str) -> PathBuf {
+    let p = PathBuf::from(line);
+    if p.is_relative() { root().join("target/niji").join(p) } else { p }
 }
 
 /// LAYOUT-TRACE-DEFAULT (rulings #5190-#5194): a product build traces its own start-up layout by default, so the
@@ -153,7 +160,7 @@ fn init_products_are_grouped_from_a_trace_of_their_own_build() {
         panic!("TRACE-AT-BUILD: target/niji/.hot-lists: {e}: the products carry no lists of their own trace; a product build traces its own layout (run `cargo xtask so`)")
     });
     let mut lines = marker.lines();
-    let dir = PathBuf::from(lines.next().expect("TRACE-AT-BUILD: empty marker"));
+    let dir = hot_lists_dir(lines.next().expect("TRACE-AT-BUILD: empty marker"));
     let mut named = 0;
     for l in lines {
         let (name, want) = l.split_once(' ').unwrap_or_else(|| panic!("TRACE-AT-BUILD: marker line {l:?}"));
