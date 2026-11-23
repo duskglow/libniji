@@ -1,8 +1,19 @@
-# LOCALE-SOURCES-GEN: locale sources generated from Unicode CLDR (leg 2 done)
+# LOCALE-SOURCES-GEN: locale sources generated from Unicode CLDR (leg 2 done; LOCALE-SOURCES-GEN-2 re-verified)
 
-**State.** Branch `task/locale-sources-gen` (from origin/next `1c70414bd`), role keke `~/w/r5`. Head: `git log -1`.
+**State.** Branch `task/locale-sources-gen-2` (leg 2's `task/locale-sources-gen` 7cf43e7c2 + a merge of origin/next
+`0495c4684` = 1121a870c), role shiki `~/w/sh1`. Head: `git log -1`.
 Decision **D-31.27** (`records/decisions/D-31/D-31.27.toml`, updated in leg 2). Coordinator ruling #7767: generate
-the CLDR-covered names, omit the names CLDR lacks (differences row). Report: `handoff/reports/LOCALE-SOURCES-GEN.json`.
+the CLDR-covered names, omit the names CLDR lacks (differences row). Ruling #7791: LC_TELEPHONE / LC_ADDRESS postal /
+LC_NAME come from black-box probes (story LOCALE-PROBE-GEN), not from this generator.
+Reports: `handoff/reports/LOCALE-SOURCES-GEN.json`, `handoff/reports/LOCALE-SOURCES-GEN-2.json`.
+
+**LOCALE-SOURCES-GEN-2 (this run).** CI train 946 went red on 7 locale tests; settled by the coordinator (#7846) as a
+host change on the CI host (the system locale archive was replaced by per-locale directories; LOCALE-PER-DIR-LOAD
+fixes the loader), not this branch. This run changed no code: clippy + static clean on the inherited head (shiki
+`locale-sources-gen-2-lint0`), merged origin/next (clean, no conflicts), direct gate on 1121a870c GREEN
+(`locale-sources-gen-2-gate`: 8 suites, 700 passed / 0 failed, peak 5.1G; includes niji-locale::reference and the
+deb manifest / products tests), plants rerun on the merged head (`locale-sources-gen-2-plants`; results in
+`handoff/LOCALE-SOURCES-GEN-2-plants.txt`). The 7 train tests were not investigated (coordinator: do not).
 
 ## Done (do not redo)
 

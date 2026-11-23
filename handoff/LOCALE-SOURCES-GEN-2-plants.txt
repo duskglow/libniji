@@ -1,0 +1,17 @@
+shift-symbol | xtask/src/locales.rs | lit:if var || (ce[0] != 0 && ce[0] <= max_variable) || (after_variable && ce[0] == 0) { ==> if var || (after_variable && ce[0] == 0) { | cargo test -p xtask locales:: | msg:shifted_out_of_levels_1_to_3.*FAILED|panicked
+shift-after-variable | xtask/src/locales.rs | lit:|| (after_variable && ce[0] == 0) { ==> { | cargo test -p xtask locales:: | msg:shifted_out_of_levels_1_to_3.*FAILED|panicked
+zero-element | xtask/src/locales.rs | lit:if ce == [0, 0, 0] { ==> if false { | cargo test -p xtask locales:: | equivalent:a kept all-zero element has no non-zero weight, so the level-by-level sort key and the written weights (non-zero weights only) are the same; after a variable element it is shifted out either way
+ignorable-first | xtask/src/locales.rs | lit:.then_with(|| a.2.cmp(&b.2)) ==> | cargo test -p xtask locales:: | msg:the_root_table_shifts_punctuation.*FAILED|panicked
+currency-bound | xtask/src/locales.rs | lit:shifted(&ces, first_currency - 1) ==> shifted(&ces, 0) | cargo test -p xtask locales:: | msg:the_root_table_shifts_punctuation.*FAILED|panicked
+han-groups | xtask/src/unicode.rs | lit:uni.iter().copied().filter(|c| !core(c)).collect(), ==> uni.iter().copied().filter(core).collect(), | cargo test -p xtask locales:: | msg:the_root_table_shifts_punctuation.*FAILED|panicked
+translit-marks | xtask/src/locales.rs | lit:.filter(|x| !marks.contains(x)).collect(); ==> .collect(); | cargo test -p xtask locales:: | msg:transliteration_drops_marks.*FAILED|panicked
+translit-compat-only | xtask/src/locales.rs | lit:if is_compat != compat || to.is_empty() ==> if to.is_empty() | cargo test -p xtask locales:: | msg:transliteration_drops_marks.*FAILED|panicked
+# cargo xtask plants results (8 plants: 7 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# shift-symbol: CAUGHT, caught by xtask locales::tests::variable_elements_and_the_marks_after_them_are_shifted_out_of_levels_1_to_3
+# shift-after-variable: CAUGHT, caught by xtask locales::tests::variable_elements_and_the_marks_after_them_are_shifted_out_of_levels_1_to_3
+# zero-element: EQUIVALENT
+# ignorable-first: CAUGHT, caught by xtask locales::tests::the_root_table_shifts_punctuation_and_orders_han_after_every_listed_item
+# currency-bound: CAUGHT, caught by xtask locales::tests::the_root_table_shifts_punctuation_and_orders_han_after_every_listed_item
+# han-groups: CAUGHT, caught by xtask locales::tests::the_root_table_shifts_punctuation_and_orders_han_after_every_listed_item
+# translit-marks: CAUGHT, caught by xtask locales::tests::transliteration_drops_marks_and_spells_out_compatibility_forms
+# translit-compat-only: CAUGHT, caught by xtask locales::tests::transliteration_drops_marks_and_spells_out_compatibility_forms
