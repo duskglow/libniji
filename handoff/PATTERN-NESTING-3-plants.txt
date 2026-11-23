@@ -1,5 +1,5 @@
 depth-cap | crates/core/src/pattern/fnmatch.rs | lit:let mut todo = Todo::new(); ==> if to > 400 { return Err(crate::error::Errno::ENOMEM); } let mut todo = Todo::new(); | cargo test -p niji --test fnmatch_deep_nesting | msg:groups_nest_past_the_old_depth.*FAILED|panicked
-no-memo | crates/core/src/pattern/fnmatch.rs | lit:if nested && matches!(it, Item::Group { .. }) { ==> if false && nested && matches!(it, Item::Group { .. }) { | cargo test -p niji --test fnmatch_deep_nesting nested_complements | msg:4 nested complements
+no-memo | crates/core/src/pattern/fnmatch.rs | lit:return if nested { self.nested( ==> return if false && nested { self.nested( | cargo test -p niji --test fnmatch_deep_nesting nested_complements | msg:4 nested complements
 not-end | crates/core/src/pattern/fnmatch.rs | lit:for q in p..=n { ==> for q in p..n { | cargo test -p niji --test fnmatch_deep_nesting groups_nest | msg:nested !\(
 many-no-closure | crates/core/src/pattern/fnmatch.rs | perl:s/Op::Many \| Op::Some\)/Op::Some)/ | cargo test -p niji --test fnmatch_deep_nesting groups_nest | msg:nested \*\(
 memo-key | crates/core/src/pattern/fnmatch.rs | lit:self.slots.as_slice().get(id)? ==> self.slots.as_slice().get(0)? | cargo test -p niji --test fnmatch_deep_nesting groups_nest | msg:groups_nest_past_the_old_depth.*FAILED|panicked
