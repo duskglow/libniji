@@ -1,8 +1,8 @@
-# LD-OOM-SWEEP-STOP plants: the two loader out-of-memory sweeps now stop once two runs in a row complete. A growth
-# path that fails dirty (a table's mapping that cannot grow hands back a bad address instead of failing the call)
-# must still be caught below the stop, in each sweep.
+# LD-OOM-SWEEP-STOP plants: the two loader out-of-memory sweeps now stop once two runs in a row complete. Every
+# refusal happens below the stop (measured: none above it), so a refusal that is no longer clean must still be caught.
+# Each plant makes an out-of-memory refusal text the sweep observed malformed (a second line).
 # Run: cargo xtask plants handoff/LD-OOM-SWEEP-STOP-plants.txt --dir <new RAM dir>
-first-map-dirty-dlopen | crates/boundary/src/ld/table.rs | lit:        return map_zeroed(new); ==>         return map_zeroed(new).max(16); | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean | msg:dlopen_new_objects_out_of_memory_is_clean.*FAILED|not a clean failure
-remap-dirty-dlopen | crates/boundary/src/ld/table.rs | lit:    raw::mremap(at, old, new).unwrap_or(0) ==>     raw::mremap(at, old, new).unwrap_or(16) | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean | msg:dlopen_new_objects_out_of_memory_is_clean.*FAILED|not a clean failure
-first-map-dirty-start | crates/boundary/src/ld/table.rs | lit:        return map_zeroed(new); ==>         return map_zeroed(new).max(16); | cargo test -p niji-ld --test start_objects -- start_objects_out_of_memory_is_clean | msg:start_objects_out_of_memory_is_clean.*FAILED|not the loader's clean failure|one loader line expected
-remap-dirty-start | crates/boundary/src/ld/table.rs | lit:    raw::mremap(at, old, new).unwrap_or(0) ==>     raw::mremap(at, old, new).unwrap_or(16) | cargo test -p niji-ld --test start_objects -- start_objects_out_of_memory_is_clean | msg:start_objects_out_of_memory_is_clean.*FAILED|not the loader's clean failure|one loader line expected
+# Superseded first set (all SURVIVED, run ld-oom-sweep-stop-plants): mutants of the table growth primitive (`grow_map`,
+# crates/boundary/src/ld/table.rs); neither sweep's refusals come from a table growth, so they were the wrong site.
+dlopen-no-memory-two-lines | crates/boundary/src/ld/dlopen.rs | perl:s/(const NO_MEMORY: &\[u8\] = b": cannot allocate memory)(";\n.*?\nconst NO_ROOM: &\[u8\] = b"cannot allocate memory)";/$1\\nopen: planted$2\\nopen: planted";/s | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean | msg:one dlopen failure with its text
+start-map-failure-two-lines | crates/ld/src/map.rs | lit:MapError::System => b"cannot map the object (out of memory or address space)\n", ==> MapError::System => b"cannot map the object (out of memory or address space)\nplanted\n", | cargo test -p niji-ld --test start_objects -- start_objects_out_of_memory_is_clean | msg:one loader line expected
