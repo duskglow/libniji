@@ -469,6 +469,76 @@ fn reloc_version_check_beyond_the_kept_definitions() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// s27_1_f_0: the version check compares the stored hashes (`vd_hash`, `vna_hash`) before the names
+/// (LD-OBJECT-ONCE), and answers as the walk by name does whatever the hashes say: a definition whose
+/// hash is wrong is still found by its name, a definition with the required hash but another name is
+/// not the required version, and a malformed definition ahead of the required one is still refused.
+#[test]
+fn reloc_version_check_hashes_never_change_the_answer() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("verhash");
+    let node = |k: usize| format!("V_{k} {{ global: f_{k}; {}}};\n", if k == 0 { "local: *; " } else { "" });
+    let src: String = (0..8).map(|k| format!("int f_{k}(void) {{ return {k}; }}\n")).collect();
+    let lib = |name: &str, keep: &dyn Fn(usize) -> bool| {
+        let map = d.join(format!("{name}.map"));
+        std::fs::write(&map, (0..8).filter(|&k| keep(k)).map(node).collect::<String>()).unwrap();
+        build(&d, name, &src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())])
+    };
+    let full = lib("libfull.so", &|_| true);
+    let less = std::fs::read(lib("libless6.so", &|k| k != 6)).unwrap();
+    let use_src = "extern int f_0(void), f_6(void);\nvoid _start(void) { f_0(); f_6(); for (;;); }\n";
+    let p = std::fs::read(build(&d, "p8", use_src, &["-fPIE", "-pie", full.to_str().unwrap()])).unwrap();
+    let full = std::fs::read(&full).unwrap();
+    // Each definition's file offset (the first segment maps the file at its own address), index,
+    // hash and name.
+    let defs = |f: &[u8]| -> Vec<(usize, u16, u32, Vec<u8>)> {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        let dynm = elf.dynamic().unwrap().unwrap();
+        let base = usize::try_from(dynm.get(niji_ld::elf::dt::VERDEF).unwrap()).unwrap();
+        let out: Vec<_> = dynm.verdef().unwrap().unwrap().map(|v| v.unwrap()).map(|v| (base + v.offset, v.ndx, v.hash, v.names().next().unwrap().unwrap().name.to_vec())).collect();
+        for (at, _, hash, _) in &out {
+            assert_eq!(f[at + 8..at + 12], hash.to_le_bytes(), "definition read at its file offset");
+        }
+        out
+    };
+    let at_of = |f: &[u8], name: &[u8]| defs(f).into_iter().find(|e| e.3 == name).unwrap();
+    let hash_of = |name: &[u8]| at_of(&full, name).2;
+    let leak = |b: Vec<u8>| -> &'static [u8] { Box::leak(b.into_boxed_slice()) };
+    let pname = leak(d.join("libfull.so").to_str().unwrap().as_bytes().to_vec());
+    let p = leak(p);
+    let obj = |f: &'static [u8], name: &'static [u8]| {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: 0, name, tls: None }
+    };
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(full.clone()), pname)]), Ok(()), "as linked");
+    // V_6's stored hash is wrong: found by its name.
+    let mut wrong = full.clone();
+    let (at, ..) = at_of(&full, b"V_6");
+    wrong[at + 8..at + 12].copy_from_slice(&(hash_of(b"V_6") ^ 0x10).to_le_bytes());
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(wrong), pname)]), Ok(()), "a wrong vd_hash");
+    // Without V_6, V_7 given V_6's hash: still missing.
+    let mut collide = less.clone();
+    let (at, ..) = at_of(&less, b"V_7");
+    collide[at + 8..at + 12].copy_from_slice(&hash_of(b"V_6").to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(collide), pname)]),
+        Err(reloc::VersionError::Missing { by: 0, file: pname, version: b"V_6" }),
+        "another name with the required hash"
+    );
+    // V_3's revision is bad: V_0 lies ahead of it and is found, V_6 lies past it and is refused.
+    let mut bad = full.clone();
+    let (at, ..) = at_of(&full, b"V_3");
+    bad[at..at + 2].copy_from_slice(&2u16.to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(bad), pname)]),
+        Err(reloc::VersionError::Elf(0, niji_ld::elf::ElfError::BadVersionRevision(niji_ld::elf::Table::Verdef, 2))),
+        "a malformed definition ahead of the required one"
+    );
+    std::fs::remove_dir_all(&d).ok();
+}
+
 /// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
 /// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
 /// built object, moved: into the read-only text, past every segment, across the end of the writable

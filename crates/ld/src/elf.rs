@@ -441,6 +441,33 @@ const PF_R: u32 = 4;
 /// The dynamic tags whose value is the link-time address of a table the reader reads.
 const IMAGE_TABLES: [u64; 10] = [dt::STRTAB, dt::SYMTAB, dt::HASH, dt::GNU_HASH, dt::VERSYM, dt::VERDEF, dt::VERNEED, dt::RELA, dt::JMPREL, dt::RELR];
 
+/// The table addresses an [`ImageTables`] keeps: one per [`IMAGE_TABLES`] tag and room for a few
+/// repeated ones; beyond them the entries are walked.
+const IMAGE_TABLE_SLOTS: usize = 16;
+
+/// What [`Elf::image_span_kind`] reads of an object's dynamic entries ([`Elf::image_tables`]): whether
+/// it is text-relocated, and the addresses of the tables the reader reads by address.
+#[derive(Clone, Copy, Debug)]
+pub struct ImageTables<'d> {
+    dynamic: &'d [u8],
+    be: bool,
+    text: bool,
+    /// The number of [`IMAGE_TABLES`] entries; past [`IMAGE_TABLE_SLOTS`] only `dynamic` has them.
+    n: usize,
+    at: [u64; IMAGE_TABLE_SLOTS],
+}
+
+/// The (tag, value) entries of the dynamic bytes `dynamic` up to its `DT_NULL` or its end.
+fn image_entries(dynamic: &[u8], be: bool) -> impl Iterator<Item = (u64, u64)> + '_ {
+    let rd = Rd { b: dynamic, be };
+    (0..dynamic.len().checked_div(DYN_SIZE).unwrap_or(0))
+        .map_while(move |i| {
+            let off = i.checked_mul(DYN_SIZE)?;
+            Some((rd.u64(off)?, rd.u64(off.checked_add(8)?)?))
+        })
+        .take_while(|&(tag, _)| tag != dt::NULL)
+}
+
 /// The dynamic tags whose entries a loaded object's dynamic array holds as run-time addresses
 /// (load bias added) once the loader has relocated it (DL-DYNAMIC-RELOC, probe
 /// `tools/probe/dl/dynreloc`): programs read these through `_DYNAMIC`, `dl_iterate_phdr` and `l_ld`
@@ -620,20 +647,38 @@ impl<'a> Elf<'a> {
     /// table the reader reads by address starts in it, and not seen at all otherwise.
     #[must_use]
     pub fn image_span_kind(&self, ph: &ProgramHeader, dynamic: &[u8]) -> SpanKind {
-        let rd = Rd { b: dynamic, be: self.rd.be };
-        let entries = (0..dynamic.len().checked_div(DYN_SIZE).unwrap_or(0))
-            .map_while(|i| {
-                let off = i.checked_mul(DYN_SIZE)?;
-                Some((rd.u64(off)?, rd.u64(off.checked_add(8)?)?))
-            })
-            .take_while(|&(tag, _)| tag != dt::NULL);
-        let mut text = false;
-        let mut holds_table = false;
-        let file_end = ph.vaddr.saturating_add(ph.filesz);
-        for (tag, val) in entries {
-            text |= tag == dt::TEXTREL || (tag == dt::FLAGS && val & dt::DF_TEXTREL != 0);
-            holds_table |= IMAGE_TABLES.contains(&tag) && ph.vaddr <= val && val < file_end;
+        self.image_span_kind_with(ph, &self.image_tables(dynamic))
+    }
+
+    /// What [`Elf::image_span_kind`] reads of the dynamic entries `dynamic`, read once for all of an
+    /// object's segments (LD-OBJECT-ONCE: each segment's kind, asked three times per segment, walked
+    /// every entry).
+    #[must_use]
+    pub fn image_tables<'d>(&self, dynamic: &'d [u8]) -> ImageTables<'d> {
+        let mut t = ImageTables { dynamic, be: self.rd.be, text: false, n: 0, at: [0; IMAGE_TABLE_SLOTS] };
+        for (tag, val) in image_entries(dynamic, self.rd.be) {
+            t.text |= tag == dt::TEXTREL || (tag == dt::FLAGS && val & dt::DF_TEXTREL != 0);
+            if IMAGE_TABLES.contains(&tag) {
+                if let Some(slot) = t.at.get_mut(t.n) {
+                    *slot = val;
+                }
+                t.n = t.n.saturating_add(1);
+            }
         }
+        t
+    }
+
+    /// [`Elf::image_span_kind`] from the entries' [`Elf::image_tables`].
+    #[must_use]
+    pub fn image_span_kind_with(&self, ph: &ProgramHeader, tables: &ImageTables<'_>) -> SpanKind {
+        let text = tables.text;
+        let file_end = ph.vaddr.saturating_add(ph.filesz);
+        let holds = |val: u64| ph.vaddr <= val && val < file_end;
+        let holds_table = match tables.at.get(..tables.n) {
+            Some(at) => at.iter().any(|&v| holds(v)),
+            // More table entries than the slots (repeated tags): every entry, as they come.
+            None => image_entries(tables.dynamic, tables.be).any(|(tag, val)| IMAGE_TABLES.contains(&tag) && holds(val)),
+        };
         // The relocator stores into PF_W segments, and into every segment of a text-relocated object.
         let changes = |p: &ProgramHeader| p.p_type == pt::LOAD && (text || p.flags & PF_W != 0);
         let aliased = self.program_headers().any(|p| changes(&p) && overlaps(p.vaddr, p.memsz, ph.vaddr, ph.filesz));
@@ -1160,6 +1205,69 @@ fn bytes_for(n: u64, size: usize) -> Option<u64> {
     n.checked_mul(u64::try_from(size).ok()?)
 }
 
+/// The tags an object's lookup view reads ([`Tags`]), each with its bit in [`Tags::seen`].
+const VIEW_TAGS: [u64; 9] = [dt::HASH, dt::GNU_HASH, dt::SYMTAB, dt::SYMENT, dt::VERSYM, dt::VERDEF, dt::VERDEFNUM, dt::VERNEED, dt::VERNEEDNUM];
+
+/// The values of the [`VIEW_TAGS`] in one dynamic section, found in one pass over its entries
+/// (LD-OBJECT-ONCE: a lookup view asked for a dozen tags, and each request walked every entry). The
+/// answers are [`Dynamic::once`]'s: the value of the only entry with the tag, `None` without one,
+/// [`ElfError::DuplicateDynamic`] when two entries have it.
+#[derive(Clone, Copy, Debug)]
+pub struct Tags {
+    val: [u64; VIEW_TAGS.len()],
+    /// Bit `i`: an entry has tag `VIEW_TAGS[i]`.
+    seen: u16,
+    /// Bit `i`: two or more entries have it.
+    dup: u16,
+}
+
+impl Tags {
+    /// The tags of `d`.
+    #[must_use]
+    pub fn scan(d: &Dynamic<'_>) -> Tags {
+        let mut t = Tags { val: [0; VIEW_TAGS.len()], seen: 0, dup: 0 };
+        for e in d.entries() {
+            let Some(i) = VIEW_TAGS.iter().position(|&v| v == e.tag) else { continue };
+            let bit = 1u16.checked_shl(u32::try_from(i).unwrap_or(16)).unwrap_or(0);
+            if t.seen & bit != 0 {
+                t.dup |= bit;
+            } else if let Some(v) = t.val.get_mut(i) {
+                t.seen |= bit;
+                *v = e.val;
+            }
+        }
+        t
+    }
+
+    /// [`Dynamic::once`] for `tag`, one of the [`VIEW_TAGS`] (another tag is looked for in `d`).
+    fn once(&self, d: &Dynamic<'_>, tag: u64) -> Result<Option<u64>, ElfError> {
+        let Some(i) = VIEW_TAGS.iter().position(|&v| v == tag) else { return d.once(tag) };
+        let bit = 1u16.checked_shl(u32::try_from(i).unwrap_or(16)).unwrap_or(0);
+        if self.dup & bit != 0 {
+            return Err(ElfError::DuplicateDynamic(tag));
+        }
+        Ok(if self.seen & bit != 0 { self.val.get(i).copied() } else { None })
+    }
+}
+
+/// An object's hash tables, each read once: [`Dynamic::sysv_hash`] and [`Dynamic::gnu_hash`] as
+/// they answered (errors included), for the requests that read them again.
+#[derive(Clone, Copy, Debug)]
+pub struct Hashes<'a> {
+    pub(crate) sysv: Result<Option<SysvHash<'a>>, ElfError>,
+    pub(crate) gnu: Result<Option<GnuHash<'a>>, ElfError>,
+}
+
+impl<'a> Hashes<'a> {
+    /// [`Dynamic::symbol_count`] from these tables.
+    pub(crate) fn symbol_count(&self) -> Result<Option<u32>, ElfError> {
+        if let Some(h) = self.sysv? {
+            return Ok(Some(h.nchain()));
+        }
+        self.gnu?.map(|g| g.symbol_count()).transpose()
+    }
+}
+
 impl<'a> Dynamic<'a> {
     /// The value of tag `tag`, which may occur at most once.
     fn once(&self, tag: u64) -> Result<Option<u64>, ElfError> {
@@ -1171,16 +1279,43 @@ impl<'a> Dynamic<'a> {
         Ok(first)
     }
 
-    /// An (address, size or count) pair of tags: both or neither.
-    fn pair(&self, addr: u64, size: u64) -> Result<Option<(u64, u64)>, ElfError> {
-        match (self.once(addr)?, self.once(size)?) {
-            (Some(a), Some(s)) => Ok(Some((a, s))),
-            (None, None) => Ok(None),
-            (Some(_), None) => Err(ElfError::MissingDynamic(size)),
-            (None, Some(_)) => Err(ElfError::MissingDynamic(addr)),
-        }
+    /// The tags a lookup view reads, in one pass ([`Tags`]). Public, as [`Dynamic::hashes`],
+    /// [`Tags::scan`] and `symbols::Object::build`: a crate-local function called from another code
+    /// unit is emitted with a `.llvm.<hash>` suffix that changes with unrelated code (the installation
+    /// prefix), and the names in the interpreter's hot-text trace must not.
+    #[must_use]
+    pub fn tags(&self) -> Tags {
+        Tags::scan(self)
     }
 
+    /// Both hash tables, each read once, from the tags `t`.
+    #[must_use]
+    pub fn hashes(&self, t: &Tags) -> Hashes<'a> {
+        Hashes { sysv: self.sysv_hash_t(t), gnu: self.gnu_hash_t(t) }
+    }
+
+    /// An (address, size or count) pair of tags: both or neither.
+    fn pair(&self, addr: u64, size: u64) -> Result<Option<(u64, u64)>, ElfError> {
+        both(addr, size, self.once(addr)?, self.once(size)?)
+    }
+
+    /// [`Dynamic::pair`] from the tags `t`.
+    fn pair_t(&self, t: &Tags, addr: u64, size: u64) -> Result<Option<(u64, u64)>, ElfError> {
+        both(addr, size, t.once(self, addr)?, t.once(self, size)?)
+    }
+}
+
+/// The values `a` and `s` of the tags `addr` and `size` as a pair ([`Dynamic::pair`]).
+fn both(addr: u64, size: u64, a: Option<u64>, s: Option<u64>) -> Result<Option<(u64, u64)>, ElfError> {
+    match (a, s) {
+        (Some(a), Some(s)) => Ok(Some((a, s))),
+        (None, None) => Ok(None),
+        (Some(_), None) => Err(ElfError::MissingDynamic(size)),
+        (None, Some(_)) => Err(ElfError::MissingDynamic(addr)),
+    }
+}
+
+impl<'a> Dynamic<'a> {
     /// The SysV hash table (`DT_HASH`): `nbucket`, `nchain`, then the buckets and chains (32-bit words).
     ///
     /// # Errors
@@ -1188,7 +1323,17 @@ impl<'a> Dynamic<'a> {
     /// [`ElfError::DuplicateDynamic`], or the [`Elf::bytes_at`] errors when the header or the
     /// `nbucket + nchain` words are not wholly mapped.
     pub fn sysv_hash(&self) -> Result<Option<SysvHash<'a>>, ElfError> {
-        let Some(addr) = self.once(dt::HASH)? else { return Ok(None) };
+        self.sysv_hash_at(self.once(dt::HASH)?)
+    }
+
+    /// [`Dynamic::sysv_hash`] from the tags `t`.
+    fn sysv_hash_t(&self, t: &Tags) -> Result<Option<SysvHash<'a>>, ElfError> {
+        self.sysv_hash_at(t.once(self, dt::HASH)?)
+    }
+
+    /// [`Dynamic::sysv_hash`] given its `DT_HASH` value.
+    fn sysv_hash_at(&self, addr: Option<u64>) -> Result<Option<SysvHash<'a>>, ElfError> {
+        let Some(addr) = addr else { return Ok(None) };
         let be = self.rd.be;
         let head = Rd { b: self.elf.bytes_at(addr, 8)?, be };
         let (Some(nbucket), Some(nchain)) = (head.u32(0), head.u32(4)) else { return Err(ElfError::AddressNotMapped(addr)) };
@@ -1207,7 +1352,17 @@ impl<'a> Dynamic<'a> {
     /// [`ElfError::DuplicateDynamic`], [`ElfError::BadHashHeader`] (no Bloom words, or a shift of 64
     /// or more), or the [`Elf::bytes_at`] errors when the header, Bloom words or buckets are not mapped.
     pub fn gnu_hash(&self) -> Result<Option<GnuHash<'a>>, ElfError> {
-        let Some(addr) = self.once(dt::GNU_HASH)? else { return Ok(None) };
+        self.gnu_hash_at(self.once(dt::GNU_HASH)?)
+    }
+
+    /// [`Dynamic::gnu_hash`] from the tags `t`.
+    fn gnu_hash_t(&self, t: &Tags) -> Result<Option<GnuHash<'a>>, ElfError> {
+        self.gnu_hash_at(t.once(self, dt::GNU_HASH)?)
+    }
+
+    /// [`Dynamic::gnu_hash`] given its `DT_GNU_HASH` value.
+    fn gnu_hash_at(&self, addr: Option<u64>) -> Result<Option<GnuHash<'a>>, ElfError> {
+        let Some(addr) = addr else { return Ok(None) };
         let be = self.rd.be;
         let head = Rd { b: self.elf.bytes_at(addr, 16)?, be };
         let field = |o| head.u32(o).ok_or(ElfError::AddressNotMapped(addr));
@@ -1243,10 +1398,7 @@ impl<'a> Dynamic<'a> {
     ///
     /// The errors of [`Dynamic::sysv_hash`], [`Dynamic::gnu_hash`] and [`GnuHash::symbol_count`].
     pub fn symbol_count(&self) -> Result<Option<u32>, ElfError> {
-        if let Some(h) = self.sysv_hash()? {
-            return Ok(Some(h.nchain()));
-        }
-        self.gnu_hash()?.map(|g| g.symbol_count()).transpose()
+        self.hashes(&self.tags()).symbol_count()
     }
 
     /// The dynamic symbol table (`DT_SYMTAB`; `DT_SYMENT`, when present, must be 24). Its length is not
@@ -1258,20 +1410,23 @@ impl<'a> Dynamic<'a> {
     /// [`ElfError::DuplicateDynamic`], [`ElfError::BadDynamicValue`]`(DT_SYMENT)`, the [`Elf::bytes_from`]
     /// errors for the address and the [`Dynamic::symbol_count`] errors.
     pub fn symtab(&self) -> Result<Option<Symtab<'a>>, ElfError> {
-        self.symtab_with(self.symbol_count())
+        let t = self.tags();
+        let h = self.hashes(&t);
+        self.symtab_with(&t, &h, h.symbol_count())
     }
 
-    /// [`Dynamic::symtab`] given the [`Dynamic::symbol_count`] result its caller already has (a
-    /// lookup view reads the symbol and version tables together and counts once: the count walks
-    /// every bucket). The count's error is met where [`Dynamic::symtab`] meets it, after the tags.
-    pub(crate) fn symtab_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Symtab<'a>>, ElfError> {
-        let Some(addr) = self.once(dt::SYMTAB)? else { return Ok(None) };
-        if let Some(e) = self.once(dt::SYMENT)? {
+    /// [`Dynamic::symtab`] from the tags `t` and hash tables `h`, given the [`Dynamic::symbol_count`]
+    /// result its caller already has (a lookup view reads the symbol and version tables together and
+    /// counts once: the count reads every bucket). The count's error is met where
+    /// [`Dynamic::symtab`] meets it, after the tags.
+    pub(crate) fn symtab_with(&self, t: &Tags, h: &Hashes<'a>, count: Result<Option<u32>, ElfError>) -> Result<Option<Symtab<'a>>, ElfError> {
+        let Some(addr) = t.once(self, dt::SYMTAB)? else { return Ok(None) };
+        if let Some(e) = t.once(self, dt::SYMENT)? {
             if usize::try_from(e).ok() != Some(SYM_SIZE) {
                 return Err(ElfError::BadDynamicValue(dt::SYMENT));
             }
         }
-        let count = self.symtab_count(count?)?;
+        let count = self.symtab_count(h, count?)?;
         let b = self.elf.bytes_from(addr)?;
         Ok(Some(Symtab { rd: Rd { b, be: self.rd.be }, count }))
     }
@@ -1281,8 +1436,8 @@ impl<'a> Dynamic<'a> {
     /// hashes no symbol, and its unhashed symbols need not end at `symoffset`, as linkers emit for a
     /// program that exports nothing). Then it is raised to cover every symbol a RELA or `JMPREL` entry
     /// names, the only indices read past the hashed ones. Objects that hash a symbol pay nothing.
-    fn symtab_count(&self, count: Option<u32>) -> Result<Option<u32>, ElfError> {
-        let lower_bound = self.sysv_hash()?.is_none() && self.gnu_hash()?.is_some_and(|g| (0..g.nbuckets()).all(|i| g.bucket(i) == Some(0)));
+    fn symtab_count(&self, h: &Hashes<'a>, count: Option<u32>) -> Result<Option<u32>, ElfError> {
+        let lower_bound = h.sysv?.is_none() && h.gnu?.is_some_and(|g| (0..g.nbuckets()).all(|i| g.bucket(i) == Some(0)));
         let Some(mut count) = count.filter(|_| lower_bound) else { return Ok(count) };
         for (addr, size) in [(dt::RELA, dt::RELASZ), (dt::JMPREL, dt::PLTRELSZ)] {
             let Some((at, len)) = self.pair(addr, size)? else { continue };
@@ -1307,32 +1462,138 @@ impl<'a> Dynamic<'a> {
     /// The [`Elf::bytes_from`] errors for the address, the [`Dynamic::symbol_count`] errors, and the
     /// errors of the version walks.
     pub fn versym(&self) -> Result<Option<Versym<'a>>, ElfError> {
-        self.versym_with(self.symbol_count())
+        let t = self.tags();
+        self.versym_with(&t, self.hashes(&t).symbol_count())
     }
 
-    /// [`Dynamic::versym`] given the [`Dynamic::symbol_count`] result (see [`Dynamic::symtab_with`]).
-    pub(crate) fn versym_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Versym<'a>>, ElfError> {
-        let Some(addr) = self.once(dt::VERSYM)? else { return Ok(None) };
+    /// [`Dynamic::versym`] from the tags `t`, given the [`Dynamic::symbol_count`] result (see
+    /// [`Dynamic::symtab_with`]).
+    pub(crate) fn versym_with(&self, t: &Tags, count: Result<Option<u32>, ElfError>) -> Result<Option<Versym<'a>>, ElfError> {
+        let Some(addr) = t.once(self, dt::VERSYM)? else { return Ok(None) };
         let count = count?;
         let tab = self.elf.bytes_from(addr)?;
+        Ok(self.versym_versions(t, tab, count)?.map(|(v, _)| v))
+    }
+
+    /// [`Dynamic::versym`] from the tags `t` and the table's bytes `tab`, and the object's
+    /// [`Dynamic::versions`] (`None` when a count does not fit 32 bits), read in the same walk
+    /// (LD-OBJECT-ONCE: the lookup view found the two tables twice).
+    pub(crate) fn versym_versions(&self, t: &Tags, tab: &'a [u8], count: Option<u32>) -> Result<Option<(Versym<'a>, Option<Versions<'a>>)>, ElfError> {
+        let mut v = Some(Versions { def: &[], need: &[], ndef: 0, nneed: 0 });
         let mut max = 1u16;
-        if let Some(defs) = self.verdef()? {
-            for d in defs {
-                let d = d?;
-                for a in d.names() {
-                    a?;
+        if let Some((addr, num)) = self.pair_t(t, dt::VERDEF, dt::VERDEFNUM)? {
+            let b = self.elf.bytes_from(addr)?;
+            max = max.max(self.check_verdefs(b, num)?);
+            v = v.zip(u32::try_from(num).ok()).map(|(v, n)| Versions { def: b, ndef: n, ..v });
+        }
+        if let Some((addr, num)) = self.pair_t(t, dt::VERNEED, dt::VERNEEDNUM)? {
+            let b = self.elf.bytes_from(addr)?;
+            max = max.max(self.check_verneeds(b, num)?);
+            v = v.zip(u32::try_from(num).ok()).map(|(v, n)| Versions { need: b, nneed: n, ..v });
+        }
+        Ok(Some((Versym { rd: Rd { b: tab, be: self.rd.be }, count, max }, v)))
+    }
+
+    /// [`Dynamic::versym_versions`] for the tags `t` and the count `count`; `None` without `DT_VERSYM`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Dynamic::versym`].
+    pub(crate) fn versym_with_versions(&self, t: &Tags, count: Result<Option<u32>, ElfError>) -> Result<Option<(Versym<'a>, Option<Versions<'a>>)>, ElfError> {
+        let Some(addr) = t.once(self, dt::VERSYM)? else { return Ok(None) };
+        let count = count?;
+        let tab = self.elf.bytes_from(addr)?;
+        self.versym_versions(t, tab, count)
+    }
+
+    /// Every check a walk of [`Verdefs`] and each definition's [`Verdef::names`] makes over `num`
+    /// definitions in `b`, in the same order with the same errors, without making the entries; the
+    /// highest index (hidden bit cleared) the definitions give, at least 1.
+    fn check_verdefs(&self, b: &'a [u8], num: u64) -> Result<u16, ElfError> {
+        let be = self.rd.be;
+        let (h, w) = (|e: &[u8], o: usize| field16(e, o, be), |e: &[u8], o: usize| field32(e, o, be));
+        let (mut at, mut left, mut max) = (0usize, num, 1u16);
+        while left != 0 {
+            let bad = ElfError::VersionTruncated(Table::Verdef, at);
+            let e = b.get(at..).and_then(<[u8]>::first_chunk::<VERDEF_SIZE>).ok_or(bad)?;
+            if h(e, 0) != VER_CURRENT {
+                return Err(ElfError::BadVersionRevision(Table::Verdef, h(e, 0)));
+            }
+            let (ndx, cnt, aux, next) = (h(e, 4), h(e, 6), w(e, 12), w(e, 16));
+            left = left.saturating_sub(1);
+            let def = at;
+            if left > 0 {
+                if next == 0 {
+                    return Err(ElfError::VersionCount(Table::Verdef, def));
                 }
-                max = max.max(d.ndx & !VERSYM_HIDDEN);
+                at = advance(def, next).ok_or(bad)?;
+            }
+            let mut a = advance(def, aux);
+            for k in (0..cnt).rev() {
+                let n = a.ok_or(ElfError::VersionTruncated(Table::Verdef, def))?;
+                let bad = ElfError::VersionTruncated(Table::Verdef, n);
+                let e = b.get(n..).and_then(<[u8]>::first_chunk::<8>).ok_or(bad)?;
+                if k > 0 {
+                    if w(e, 4) == 0 {
+                        return Err(ElfError::VersionCount(Table::Verdef, def));
+                    }
+                    a = Some(advance(n, w(e, 4)).ok_or(bad)?);
+                }
+                self.check_string(u64::from(w(e, 0)))?;
+            }
+            max = max.max(ndx & !VERSYM_HIDDEN);
+        }
+        Ok(max)
+    }
+
+    /// [`Dynamic::check_verdefs`] for [`Verneeds`] and each requirement's [`Verneed::auxes`]: the
+    /// highest `vna_other` (hidden bit cleared), at least 1.
+    fn check_verneeds(&self, b: &'a [u8], num: u64) -> Result<u16, ElfError> {
+        let be = self.rd.be;
+        let (h, w) = (|e: &[u8], o: usize| field16(e, o, be), |e: &[u8], o: usize| field32(e, o, be));
+        let (mut at, mut left, mut max) = (0usize, num, 1u16);
+        while left != 0 {
+            let bad = ElfError::VersionTruncated(Table::Verneed, at);
+            let e = b.get(at..).and_then(<[u8]>::first_chunk::<16>).ok_or(bad)?;
+            if h(e, 0) != VER_CURRENT {
+                return Err(ElfError::BadVersionRevision(Table::Verneed, h(e, 0)));
+            }
+            let (cnt, file, aux, next) = (h(e, 2), w(e, 4), w(e, 8), w(e, 12));
+            left = left.saturating_sub(1);
+            let need = at;
+            if left > 0 {
+                if next == 0 {
+                    return Err(ElfError::VersionCount(Table::Verneed, need));
+                }
+                at = advance(need, next).ok_or(bad)?;
+            }
+            self.check_string(u64::from(file))?;
+            let mut a = advance(need, aux);
+            for k in (0..cnt).rev() {
+                let n = a.ok_or(ElfError::VersionTruncated(Table::Verneed, need))?;
+                let bad = ElfError::VersionTruncated(Table::Verneed, n);
+                let e = b.get(n..).and_then(<[u8]>::first_chunk::<16>).ok_or(bad)?;
+                if k > 0 {
+                    if w(e, 12) == 0 {
+                        return Err(ElfError::VersionCount(Table::Verneed, need));
+                    }
+                    a = Some(advance(n, w(e, 12)).ok_or(bad)?);
+                }
+                self.check_string(u64::from(w(e, 8)))?;
+                max = max.max(h(e, 6) & !VERSYM_HIDDEN);
             }
         }
-        if let Some(needs) = self.verneed()? {
-            for n in needs {
-                for a in n?.auxes() {
-                    max = max.max(a?.other & !VERSYM_HIDDEN);
-                }
-            }
+        Ok(max)
+    }
+
+    /// The checks of [`Dynamic::string`] at `off`, without finding the string's end when the table's
+    /// last byte is a NUL (then every offset in it starts a terminated string).
+    fn check_string(&self, off: u64) -> Result<(), ElfError> {
+        let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
+        if tab.last() == Some(&0) && usize::try_from(off).is_ok_and(|o| o < tab.len()) {
+            return Ok(());
         }
-        Ok(Some(Versym { rd: Rd { b: tab, be: self.rd.be }, count, max }))
+        self.string(off).map(|_| ())
     }
 
     /// The version definitions (`DT_VERDEF`, `DT_VERDEFNUM` entries).
@@ -1377,6 +1638,18 @@ impl<'a> Dynamic<'a> {
         }
         Ok(Some(v))
     }
+}
+
+/// The 16-bit field at `o` of the record `e` (0 past its end), byte order big-endian when `be`.
+fn field16(e: &[u8], o: usize, be: bool) -> u16 {
+    let b = e.get(o..).and_then(<[u8]>::first_chunk::<2>).copied().unwrap_or_default();
+    if be { u16::from_be_bytes(b) } else { u16::from_le_bytes(b) }
+}
+
+/// The 32-bit field at `o` of the record `e` (0 past its end), as [`field16`].
+fn field32(e: &[u8], o: usize, be: bool) -> u32 {
+    let b = e.get(o..).and_then(<[u8]>::first_chunk::<4>).copied().unwrap_or_default();
+    if be { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) }
 }
 
 /// An object's version definitions and requirements ([`Dynamic::versions`]), read by index with the
@@ -1798,14 +2071,19 @@ impl<'a> GnuHash<'a> {
     ///
     /// [`ElfError::HashIndex`] for a bucket below `symoffset` or a chain that runs past the mapped bytes.
     pub fn symbol_count(&self) -> Result<u32, ElfError> {
-        let mut top = 0u32;
-        for i in 0..self.nbuckets {
-            let b = self.bucket(i).ok_or(ElfError::HashIndex(Table::GnuHash, i))?;
-            if b != 0 && b < self.symoffset {
-                return Err(ElfError::HashIndex(Table::GnuHash, b));
-            }
-            top = top.max(b);
-        }
+        // The buckets as one slice, scanned in one branch-free pass for the highest bucket and the
+        // lowest non-empty one (LD-OBJECT-ONCE: the per-bucket reads, each with its own range
+        // checks, were a tenth of a dynamic start for the C library's table). A bucket below
+        // `symoffset` is found again by the checked walk, which names the first one in order.
+        let top = match self.bucket_bytes() {
+            Some(b) if self.be => bucket_range::<true>(b, self.symoffset),
+            Some(b) => bucket_range::<false>(b, self.symoffset),
+            None => None,
+        };
+        let top = match top {
+            Some(top) => top,
+            None => self.bucket_top_checked()?,
+        };
         if top == 0 {
             return Ok(self.symoffset);
         }
@@ -1815,6 +2093,47 @@ impl<'a> GnuHash<'a> {
         }
         last.checked_add(1).ok_or(ElfError::HashIndex(Table::GnuHash, last))
     }
+
+    /// The bucket words' bytes (`nbuckets` 4-byte words past the Bloom words); `None` when they do
+    /// not fit `tab` (never for a table [`Dynamic::gnu_hash`] made).
+    fn bucket_bytes(&self) -> Option<&'a [u8]> {
+        let start = self.bloom_size().checked_mul(8)?;
+        let len = usize::try_from(self.nbuckets).ok()?.checked_mul(4)?;
+        self.tab.get(start..start.checked_add(len)?)
+    }
+
+    /// The highest bucket, bucket by bucket: the first bucket below `symoffset` (not empty) is
+    /// [`ElfError::HashIndex`].
+    #[cold]
+    #[inline(never)]
+    fn bucket_top_checked(&self) -> Result<u32, ElfError> {
+        let mut top = 0u32;
+        for i in 0..self.nbuckets {
+            let b = self.bucket(i).ok_or(ElfError::HashIndex(Table::GnuHash, i))?;
+            if b != 0 && b < self.symoffset {
+                return Err(ElfError::HashIndex(Table::GnuHash, b));
+            }
+            top = top.max(b);
+        }
+        Ok(top)
+    }
+}
+
+/// The highest of the bucket words in `b` (byte order `BE`), or `None` when a non-empty bucket lies
+/// below `symoffset` (the caller's checked walk then names it). One pass with no branch per bucket:
+/// the highest word, and the lowest non-empty one (an empty bucket, 0, wraps to the largest value
+/// when one is subtracted, so it never is the lowest).
+fn bucket_range<const BE: bool>(b: &[u8], symoffset: u32) -> Option<u32> {
+    let (mut top, mut low) = (0u32, u32::MAX);
+    for w in b.chunks_exact(4) {
+        let w: [u8; 4] = w.try_into().unwrap_or_default();
+        let v = if BE { u32::from_be_bytes(w) } else { u32::from_le_bytes(w) };
+        top = top.max(v);
+        low = low.min(v.wrapping_sub(1));
+    }
+    // `low` is (lowest non-empty bucket) - 1, or u32::MAX when every bucket is empty; a non-empty
+    // bucket below `symoffset` is one with `low < symoffset - 1`.
+    (low >= symoffset.saturating_sub(1)).then_some(top)
 }
 
 /// The entries of one GNU hash chain.
@@ -2089,6 +2408,50 @@ impl<'a> Verdefs<'a> {
             self.off = advance(at, next).ok_or(bad)?;
         }
         Ok(Verdef { offset: at, flags, ndx, cnt, hash, aux, dynm: self.dynm, rd: self.rd })
+    }
+}
+
+impl Verdefs<'_> {
+    /// Whether a walk of these definitions from the start meets no error before it reaches one
+    /// whose `vd_hash` is `hash` and whose first name is `name`: true only when walking them
+    /// ([`Iterator::next`], [`Verdef::names`]) would find a definition named `name` with no error
+    /// first. False tells nothing (no such entry, or a malformed one ahead of it): the caller walks.
+    /// The hash is compared first, so the names of the other definitions are never read
+    /// (LD-OBJECT-ONCE: the walk read every definition's name up to the one required).
+    #[must_use]
+    pub fn has_hashed(&self, hash: u32, name: &[u8]) -> bool {
+        let be = self.rd.be;
+        let b = self.rd.b;
+        let (mut at, mut left) = (self.off, self.left);
+        while left != 0 {
+            let Some(e) = b.get(at..).and_then(<[u8]>::first_chunk::<VERDEF_SIZE>) else { return false };
+            if field16(e, 0, be) != VER_CURRENT {
+                return false;
+            }
+            left = left.saturating_sub(1);
+            let def = at;
+            if left > 0 {
+                let next = field32(e, 16, be);
+                let Some(n) = advance(def, next).filter(|_| next != 0) else { return false };
+                at = n;
+            }
+            if field32(e, 8, be) == hash && field16(e, 6, be) != 0 && self.first_name_is(def, e, name) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Whether the first name of the definition at `def` (entry `e`) reads without error and is
+    /// `name` ([`Verdauxes`]' first step).
+    fn first_name_is(&self, def: usize, e: &[u8; VERDEF_SIZE], name: &[u8]) -> bool {
+        let be = self.rd.be;
+        let Some(a) = advance(def, field32(e, 12, be)) else { return false };
+        let Some(x) = self.rd.b.get(a..).and_then(<[u8]>::first_chunk::<8>) else { return false };
+        if field16(e, 6, be) > 1 && (field32(x, 4, be) == 0 || advance(a, field32(x, 4, be)).is_none()) {
+            return false;
+        }
+        self.dynm.string(u64::from(field32(x, 0, be))).is_ok_and(|s| s == name)
     }
 }
 

@@ -839,6 +839,12 @@ pub fn check_versions_live<'a>(objs: &[Obj<'a>], live: impl Fn(usize) -> bool) -
                 if names.get(..seen).is_some_and(|s| s.contains(&Some(aux.name))) {
                     continue;
                 }
+                // The stored hashes first (LD-OBJECT-ONCE): a definition found that way is the
+                // answer the walk below gives; otherwise (none has the hash, or a malformed entry
+                // comes first) the walk answers, errors included.
+                if defs.has_hashed(aux.hash, aux.name) {
+                    continue;
+                }
                 if overflow {
                     if !version_defined(defs, aux.name).map_err(|e| VersionError::Elf(by, e))? {
                         return Err(VersionError::Missing { by, file: vn.file, version: aux.name });
