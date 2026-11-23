@@ -323,6 +323,16 @@ fn long_fields_have_their_full_text() {
         ("%0400f", vec![A::D(-1e300)], "-".to_string() + &z(399 - format!("{:.6}", 1e300f64).len()) + &format!("{:.6}", 1e300f64)),
         ("%+500.0f", vec![A::D(1e300)], sp(499 - format!("{:.0}", 1e300f64).len()) + "+" + &format!("{:.0}", 1e300f64)),
         ("%Lf", vec![pow2l(1000)], format!("{:.6}", 2f64.powi(1000))),
+        // A text past the inline room with a width within it goes out in the pass that makes
+        // it (no padding: the text is longer); a wider field is padded. Simple formats (`%f`)
+        // and general ones (`%Lf`), with text after the field.
+        ("%f|", vec![A::D(1e300)], format!("{:.6}|", 1e300f64)),
+        ("%-120f|", vec![A::D(-1e300)], format!("{:.6}|", -1e300f64)),
+        ("%200.2f|", vec![A::D(1e300)], format!("{:.2}|", 1e300f64)),
+        ("%320f|", vec![A::D(1e300)], sp(320 - format!("{:.6}", 1e300f64).len()) + &format!("{:.6}|", 1e300f64)),
+        ("%250Lf|", vec![pow2l(1000)], format!("{:.6}|", 2f64.powi(1000))),
+        ("%-320Lf|", vec![pow2l(1000)], format!("{:.6}", 2f64.powi(1000)) + &sp(320 - format!("{:.6}", 2f64.powi(1000)).len()) + "|"),
+        ("%2$s%1$.300Lf|", vec![pow2l(1000), A::I(c"ab".as_ptr() as u64)], "ab".to_string() + &format!("{:.300}|", 2f64.powi(1000))),
         ("%.5000a", vec![A::D(1.0)], "0x1.".to_string() + &z(5000) + "p+0"),
         ("%-300.3s|", vec![A::I(c"abcdef".as_ptr() as u64)], "abc".to_string() + &sp(297) + "|"),
     ];

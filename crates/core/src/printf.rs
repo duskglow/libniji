@@ -178,8 +178,9 @@ impl<U: Copy> Units<U> for TryVec<U> {
 }
 
 /// A formatted field before padding: its first [`INLINE_FIELD`] units, inline. It never
-/// allocates (PRINTF-NO-HEAP): past its room it only counts, and [`render`] produces such a
-/// field a second time straight to the output ([`Stream`]).
+/// allocates (PRINTF-NO-HEAP): past its room it only counts; [`render`] writes such a field
+/// straight to the output as it is made when its width is within the room ([`Building`]),
+/// and otherwise a second time ([`Stream`]).
 #[derive(Debug)]
 pub struct Field<U> {
     inline: [U; INLINE_FIELD],
@@ -249,6 +250,52 @@ impl<U: Copy> Units<U> for Field<U> {
         }
         // Past the room: counted only (the kept units stop at the last whole piece).
         self.total = self.total.saturating_add(s.len());
+        Ok(())
+    }
+}
+
+/// A [`Field`] while [`render_from`] builds a conversion into it. Past the field's room, a
+/// conversion whose width is within that room gets no padding (its text is longer than the
+/// width), so the kept units and the rest go straight to `out` in this one pass (`spilled`,
+/// the units counted in the field's total); a wider one is only counted, as [`Field`] does,
+/// and produced again ([`long_field`]).
+struct Building<'a, U: Unit, O: Out<U>> {
+    body: &'a mut Field<U>,
+    out: &'a mut O,
+    width: usize,
+    spilled: bool,
+}
+
+impl<U: Unit, O: Out<U>> Building<'_, U, O> {
+    /// A piece past the field's room.
+    #[cold]
+    #[inline(never)]
+    fn past(&mut self, s: &[U]) {
+        let f = &mut *self.body;
+        if !self.spilled && f.kept == f.total && self.width <= INLINE_FIELD {
+            self.spilled = true;
+            self.out.put(f.inline.get(..f.kept).unwrap_or(&[]));
+        }
+        if self.spilled {
+            self.out.put(s);
+        }
+        f.total = f.total.saturating_add(s.len());
+    }
+}
+
+impl<U: Unit, O: Out<U>> Units<U> for Building<'_, U, O> {
+    #[inline]
+    fn extend_from_slice(&mut self, s: &[U]) -> Result<()> {
+        let f = &mut *self.body;
+        if f.kept == f.total {
+            if let Some(dst) = f.kept.checked_add(s.len()).and_then(|end| f.inline.get_mut(f.kept..end)) {
+                crate::mem::copy_inline(dst, s);
+                f.kept = f.kept.wrapping_add(s.len());
+                f.total = f.kept;
+                return Ok(());
+            }
+        }
+        self.past(s);
         Ok(())
     }
 }
@@ -1156,9 +1203,17 @@ pub fn render_from<U: Unit, O: Out<U>, const N: usize>(fmt: &[U], parsed: &Parse
                         continue;
                     }
                 }
-                let prefix_len = field(&c, letter, prec, args, env, &mut body, &mut zero_ok)?;
+                let mut b = Building { body: &mut body, out, width, spilled: false };
+                let prefix_len = field(&c, letter, prec, args, env, &mut b, &mut zero_ok)?;
+                let spilled = b.spilled;
                 if !body.complete() {
-                    // Longer than the inline field: produced again, straight to the output.
+                    if spilled {
+                        // Longer than the inline field and its width: already output.
+                        total = total.saturating_add(body.len());
+                        continue;
+                    }
+                    // Longer than the inline field and wider: produced again, straight to the
+                    // output.
                     let n = long_field(&c, letter, prec, args, env, out, Long { width, left, zero_ok, prefix: prefix_len, len: body.len() })?;
                     total = total.saturating_add(n);
                     continue;
@@ -2278,9 +2333,14 @@ fn simple_float<O: Out<u8>>(c: SimpleConv, width: usize, precision: Option<usize
         }
     }
     let prefix = ft.len().saturating_add(usize::from(x.neg));
-    let mut b = Capped(&mut ft, false);
+    // A text that outgrows the inline room is longer than a width within it: no padding, so
+    // such a field goes straight to the output in this one pass.
+    let mut b = Capped { text: &mut ft, out, spill: width <= INLINE_TEXT, over: false, n: 0 };
     nf::format_float(&mut b, x, Format::F64, nf::Spec { style, case, precision, alternate: c.has(F_ALT) }, env.radix(), env.rounding());
-    if b.1 {
+    if b.over {
+        if b.spill {
+            return Ok(b.n);
+        }
         return simple_float_long(c, flags, width, precision, raw, env, out);
     }
     let finite = !matches!(x.value, crate::num::float::Value::Inf | crate::num::float::Value::Nan { .. });
@@ -2304,21 +2364,50 @@ fn simple_float<O: Out<u8>>(c: SimpleConv, width: usize, precision: Option<usize
     Ok(total)
 }
 
-/// A byte sink over a number's text that keeps it inline: `.1` is set (and the rest dropped)
-/// once a piece does not fit.
-struct Capped<'a>(&'a mut Text, bool);
+/// A byte sink over a simple float's text that keeps it inline while it fits. Once a piece
+/// does not fit, `over` is set and then, with `spill`, the kept text and every later piece go
+/// straight to `out` (`n` bytes in all); without it the rest is dropped (the caller produces
+/// the field again: [`simple_float_long`]).
+struct Capped<'a, O: Out<u8>> {
+    text: &'a mut Text,
+    out: &'a mut O,
+    spill: bool,
+    over: bool,
+    n: usize,
+}
 
-impl Sink for Capped<'_> {
-    #[inline]
-    fn put(&mut self, b: &[u8]) {
-        if !self.0.extend_inline(b) {
-            self.1 = true;
+impl<O: Out<u8>> Capped<'_, O> {
+    /// The first piece that does not fit.
+    #[cold]
+    #[inline(never)]
+    fn overflow(&mut self, b: &[u8]) {
+        self.over = true;
+        if self.spill {
+            let kept: &[u8] = self.text;
+            self.out.put(kept);
+            self.out.put(b);
+            self.n = kept.len().saturating_add(b.len());
         }
     }
 }
 
-/// [`simple_float`] of a text longer than its inline room: the general path's field, produced
-/// straight to the output ([`long_field`]), so that no length needs memory (PRINTF-NO-HEAP).
+impl<O: Out<u8>> Sink for Capped<'_, O> {
+    #[inline]
+    fn put(&mut self, b: &[u8]) {
+        if !self.over {
+            if !self.text.extend_inline(b) {
+                self.overflow(b);
+            }
+        } else if self.spill {
+            self.out.put(b);
+            self.n = self.n.saturating_add(b.len());
+        }
+    }
+}
+
+/// [`simple_float`] of a text longer than its inline room and a width beyond it: the general
+/// path's field, produced straight to the output ([`long_field`]), so that no length needs
+/// memory (PRINTF-NO-HEAP).
 #[cold]
 #[inline(never)]
 fn simple_float_long<O: Out<u8>>(c: SimpleConv, flags: Flags, width: usize, precision: Option<usize>, raw: u64, env: &mut dyn Env, out: &mut O) -> Result<usize> {
