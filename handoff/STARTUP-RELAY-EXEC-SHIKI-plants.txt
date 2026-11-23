@@ -1,7 +1,7 @@
 # STARTUP-RELAY-EXEC-SHIKI plants: the page_faults relay names a failed exec and its errno (crates/core/tests/oracle/page_faults.c,
 # crates/core/tests/hot_text_products.rs `run_failure`).
 # Run: cargo xtask plants handoff/STARTUP-RELAY-EXEC-SHIKI-plants.txt --dir <new RAM dir> --timeout 600
-relay-exec-missing | crates/core/tests/oracle/page_faults.c | lit:long p = relay_spawn(self, cargv, envp, &xerr); ==> long p = relay_spawn("/nonexistent/page_faults", cargv, envp, &xerr); | cargo test -p niji --test hot_text_products init_short_programs_stay_within_their_page_fault_bounds | msg:execve /nonexistent/page_faults failed: errno 2.*errno 2: No such file or directory
+relay-exec-missing | crates/core/tests/oracle/page_faults.c | lit:self = (const char *)a[1]; ==> self = "/nonexistent/page_faults"; | cargo test -p niji --test hot_text_products init_short_programs_stay_within_their_page_fault_bounds | msg:execve /nonexistent/page_faults failed: errno 2.*errno 2: No such file or directory
 relay-errno-store | crates/core/tests/oracle/page_faults.c | lit:"mov %%rax, (%4)\n\t" /* only reached when execve failed: rax = -errno */ ==> | cargo test -p niji --test hot_text_products harness_relay_names_a_failed_exec_and_its_errno | msg:does not name its failed exec
 relay-errno-clobber | crates/core/tests/oracle/page_faults.c | lit:: "=&a"(r) ==> : "=a"(r) | cargo test -p niji --test hot_text_products harness_relay_names_a_failed_exec_and_its_errno | msg:relay true failed: exit status: 6
 errno-name | crates/core/tests/hot_text_products.rs | lit:why.push_str(&format!("; errno {n}: {}", std::io::Error::from_raw_os_error(n))); ==> let _ = n; | cargo test -p niji --test hot_text_products harness_failed_run_reports_its_stderr | msg:the relay's errno is not named
