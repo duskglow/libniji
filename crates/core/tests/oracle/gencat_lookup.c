@@ -1,4 +1,4 @@
-/* gencat_products.rs: open the catalog named by argv[1] (a path with '/', so no NLSPATH search) and, for every
+/* catalogs_products.rs (mod gencat): open the catalog named by argv[1] (a path with '/', so no NLSPATH search) and, for every
  * "set msg" line on stdin, print "set msg " and the text catgets returns, bytes below 0x20 and above 0x7e as \ooo,
  * or "(default)" when catgets returns the default string. Built against the reference and statically against
  * libniji's products. */
