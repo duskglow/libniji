@@ -258,9 +258,12 @@ fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>)
 /// Gaps [`map_aligned_exactly`] asks the kernel for before it gives up.
 const EXACT_ROUNDS: usize = 8;
 /// Bound on a round's blockers: `(align + head + len) / (head + len)` rounded up (one more than
-/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`]; a gap needing
-/// more is not blocked.
-const EXACT_BLOCKERS: usize = 8;
+/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`], 9 for a later
+/// segment's (metadata and 8 slabs, 2304 KiB, HEAP-SECOND-NODE-MAP); a gap needing more is not
+/// blocked. At 8 a later segment found no aligned range under an address-space limit, and the
+/// heap fell back to mapping per request: find over 200000 entries needed 2560 KiB more
+/// (HEAP-FIND-DEPTH-NEED, D-3.25).
+const EXACT_BLOCKERS: usize = 9;
 
 /// `len` bytes mapped with `prot` at exactly `start`, never replacing a mapping.
 fn map_fixed_noreplace(start: usize, len: usize, prot: u32) -> Option<usize> {

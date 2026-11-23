@@ -211,6 +211,38 @@ fn the_heap_keeps_address_space_near_its_use() {
     );
 }
 
+/// RLIMIT_AS over the VmSize at start under which `tests/oracle/heap_find_entries.c` (200000
+/// blocks of 264 bytes held at once: find over one directory of 200000 entries, issue #21's real
+/// workload) must still succeed, fixed layout, one node. The walk fills several segments of one
+/// shard, and a segment after the first reservation's (metadata and 8 slabs) needs 9 blockers to
+/// be placed aligned when the over-mapping does not fit under the limit. With 8 (before
+/// HEAP-FIND-DEPTH-NEED, D-3.25) the need was FIND_BEFORE KiB (the heap mapped per request once
+/// no later segment could be placed); this is the measured need after (bisected to 16 KiB, Zen 1
+/// build host, identical over 3 runs).
+const FIND_HEADROOM: u64 = 0;
+
+#[test]
+fn the_heap_places_later_segments_under_a_limit() {
+    // Clauses: s3_1_c_1 (T14: address space under a limit); GitHub issue #21, D-3.25.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("heap_find_entries_niji");
+    build("heap_find_entries.c", &exe);
+    let nodes = numa_nodes();
+    let node: &[usize] = match nodes.as_slice() {
+        [first, _, ..] => first,
+        _ => &[],
+    };
+    let o = with_cpus(node, || with_fixed_layout(|| Command::new(&exe).arg(FIND_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
+    assert!(
+        o.status.success(),
+        "under RLIMIT_AS = start + {FIND_HEADROOM} KiB (ADDR_NO_RANDOMIZE) 200000 blocks of 264 bytes did not fit: {:?} (exit 10: a malloc failed; a later segment not placed under the limit?)",
+        o.status
+    );
+}
+
 /// The migration case of [`AS_STEPS`] (ruling #7441): the program starts on the first node's
 /// CPUs and moves itself to a CPU of the second at point `at` (`heap_address_space.c`: 1 after
 /// malloc1, 2 halfway through alloc, 3 after alloc, 4 after refill). Per point: the VmSize growth
