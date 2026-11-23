@@ -1,6 +1,6 @@
 {"task": "REVIEW-20261123-1", "model": "opus", "tokens": null,
  "result": "COMPLETE: periodic review written; continue with named changes (no content rabbit hole; E4 gain test and E8 pacing need fixes)",
- "branch": "task/review-20261123-1", "head": null,
+ "branch": "task/review-20261123-1", "head": "5da2a5f70",
  "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
  "rulings": [
   {"item": "Token governor off: no gov_week_usd setting (default 0 = off); owner paused dispatch by hand at 97% weekly usage on 11-22T20:41Z", "recommendation": "owner sets the weekly plan so the governor paces admission"},
