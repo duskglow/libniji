@@ -129,11 +129,10 @@ fn scratch(len: usize, name: &[u8], arena: bool) -> (usize, usize, &'static mut 
     if let Some(at) = arena.then(|| arena_take(len)).flatten() {
         // UNSAFE(slice): a range of the scratch arena, handed out once.
         #[allow(unsafe_code)]
-        // SAFETY: [at, at + len) lies inside `ARENA` (`arena_take` checked the end), a static of atomic
-        // words (interior mutability: writes through its address are allowed) that nothing reads or
-        // writes as words; `ARENA_USED` moves back only over bytes whose slice was given up
-        // (`arena_give_back`), so no other slice in use covers these bytes; they are zero (not handed
-        // out, or zeroed when given back) and live for the process.
+        // SAFETY: [at, at + len) lies inside `ARENA` (`arena_take` checked the end), a static of atomic words
+        // (writes through its address allowed) never read or written as words; `ARENA_USED` moves back only
+        // over given-up bytes (`arena_give_back`), so no slice in use covers these; they are zero (never
+        // handed out, or zeroed when given back) and live for the process.
         return (at, 0, unsafe { conv::bytes_at_mut(at, len) });
     }
     let Ok(at) = raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0) else {
