@@ -4,13 +4,16 @@
 //! instead of a walk over every object (the unwinders call `_dl_find_object` once per frame).
 //!
 //! * **Entries.** One per `PT_LOAD` segment of a published object, sorted by segment start:
-//!   `[segment start, segment end, object low, object high, PT_GNU_EH_FRAME, object index]`, the
-//!   object's range being its lowest to highest `PT_LOAD` address (what `_dl_find_object` reports
-//!   and `dladdr` matches). Segments of one object that overlap are merged into one entry. Both
-//!   callers ask for the object whose range holds the address, gaps between its segments included
-//!   (`_dl_find_object`: probe R-5 in `spec/behaviour/dynlink.md`): the last entry starting at or
-//!   below the address, when its object's range holds it.
-//! * **Flag.** [`NESTED`]: the ranges of two objects overlap, so the last entry below an address
+//!   `[segment start, segment end, extent low, extent high, PT_GNU_EH_FRAME, object index]`, the
+//!   extent being what `_dl_find_object` reports and `dladdr` matches (`readers::extent`): an
+//!   object the loader mapped, its lowest to highest `PT_LOAD` address, gaps between its segments
+//!   included (probe R-5 in `spec/behaviour/dynlink.md`: its reservation keeps them); the program the
+//!   kernel started and `ld.so`, the run of segments that holds the segment (the kernel leaves the
+//!   pages between runs unmapped and another object may be mapped there: probe R-6). Segments of
+//!   one object that overlap are merged into one entry. Both callers ask for the object whose
+//!   extent holds the address: the last entry starting at or below the address, when its extent
+//!   holds it.
+//! * **Flag.** [`NESTED`]: the extents of two objects overlap, so the last entry below an address
 //!   need not be the object that holds it; the callers walk instead (`dladdr` takes the first
 //!   object in chain order). It never happens when every object is mapped by its own reservation;
 //!   it keeps the walk's result exact when a malformed or unusual layout does it.
@@ -35,6 +38,7 @@
 //!   answer, as before).
 
 use super::readers;
+use crate::posix::s27_dynlink::{find_in, Extent};
 use crate::raw;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use core::sync::atomic::{fence, AtomicUsize};
@@ -231,9 +235,16 @@ fn fill(r: &[AtomicUsize], from: usize, objs: core::ops::Range<usize>) -> usize 
         let lo = loads().map(|h| at(h.1)).min().unwrap_or(0);
         let hi = loads().map(|h| at(h.1).wrapping_add(usize::try_from(h.2).unwrap_or(0))).max().unwrap_or(0);
         let eh = readers::headers(phdr, phnum).find(|h| h.0 == PT_GNU_EH_FRAME).map_or(0, |h| at(h.1));
+        let extent = readers::extent(i);
         for h in loads() {
             let s = at(h.1);
-            put(r, k, [s, s.wrapping_add(usize::try_from(h.2).unwrap_or(0)), lo, hi, eh, i]);
+            let e = s.wrapping_add(usize::try_from(h.2).unwrap_or(0));
+            // A kernel-mapped object's entry carries the run that holds its segment.
+            let (o_lo, o_hi) = match extent {
+                Extent::Whole => (lo, hi),
+                x => find_in(phdr, phnum, bias, s, x).map_or((s, e), |(a, b, _)| (a, b)),
+            };
+            put(r, k, [s, e, o_lo, o_hi, eh, i]);
             k = k.wrapping_add(1);
         }
     }
