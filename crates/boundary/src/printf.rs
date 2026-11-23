@@ -1032,7 +1032,10 @@ impl ToBuffer {
 pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&[u8]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
     let mut out = ToBuffer { addr: s, max: maxlen, slen, pos: 0 };
-    let r = format(fmt, flag, ap, &mut out);
+    // The dispatcher itself, not [`format`]: called from every C entry, `format::<ToBuffer>`
+    // stayed a function of its own between the entry and `format_planned` (15 instructions per
+    // `snprintf("%d")`).
+    let r = format_routed(fmt, flag, ap, pf::Planned::Unknown, None, &mut out);
     // The output so far is terminated, on an error too.
     if maxlen > 0 {
         if out.pos >= slen {
