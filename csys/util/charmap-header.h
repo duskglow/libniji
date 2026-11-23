@@ -216,13 +216,14 @@ static size_t charmap_header(const char *file, int gz, unsigned char *out, size_
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
         /* nothing to read */
     } else if (!gz) {
-        size_t cap = in_max < out_max ? in_max : out_max;
-        while (n < cap) {
-            ssize_t r = read(fd, out + n, cap - n);
+        unsigned char *p = out, *end = out + (in_max < out_max ? in_max : out_max);
+        while (p < end) {
+            ssize_t r = read(fd, p, (size_t)(end - p));
             if (r < 0 && errno == EINTR) continue;
-            if (r <= 0) break;
-            n += (size_t)r;
+            if (r <= 0 || r > end - p) break;
+            p += r;
         }
+        n = (size_t)(p - out);
     } else if (st.st_size > 0) {
         void *m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
         if (m != MAP_FAILED) {
