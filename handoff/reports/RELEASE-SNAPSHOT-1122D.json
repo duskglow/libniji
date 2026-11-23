@@ -1,0 +1,143 @@
+{
+ "task": "RELEASE-SNAPSHOT-1122D",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: NOT snapshot-ready at 8e1837914 (serial 4, niji6 sorts above 22.3's): blocking B1, dladdr and _dl_find_object name the loader for an address inside a dlopen'd library mapped in ld.so's 60 KiB segment hole (dlc 299/300, 22.3 300); #25 rows as stock plus FATAL for the no-unwinder build; start-up -7,005 user instructions per empty main on both classes",
+ "branch": "task/release-snapshot-1122d",
+ "head": null,
+ "gate": {
+  "affected": "GATE bad=0 (clippy all-features, xtask clippy, static, records, direct tier)",
+  "peak": "1.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "B1: dladdr/_dl_find_object match an object by its whole span; ld.so's text-to-rodata hole grew 16 -> 60 KiB and a dlopen'd library mapped there is reported as the loader (with the loader's eh_frame)",
+   "recommendation": "blocking: do not publish 22.4; fix story to match within PT_LOAD segments (or reserve the hole) with a test mapping an object into the hole; new snapshot after it lands"
+  },
+  {
+   "item": "F1: niji-g++ builds (static unwinder) of threaded C++ now abort with the FATAL message on pthread_exit/cancel; the message's fix cannot be applied through niji-g++ (22.3: exit 0, destructors skipped)",
+   "recommendation": "not blocking; niji-g++ links libgcc_s dynamically, or docs/install-packages.md says to build such programs with g++"
+  }
+ ],
+ "informational": [
+  "F2: #21 find at depth 200k needs 4,720 KiB more than 22.3 (32,368 vs 27,648 KiB over depth 3; allowance 35,000); formula 5/5 on both",
+  "F3: y14l's two FAIL lines are 22.3-era expectations; the generated charmaps now resolve (-f UTF-8 rc 0)",
+  "D1: docs/install-packages.md:150 and the locales Description still say placeholder; D2: no docs sentence for HEAP-SECOND-NODE-MAP",
+  "lintian warnings 50 -> 49 (locales no longer empty); mint internal rows differing from stock 40 -> 30",
+  "cmp4.sh's mask did not cover 2026-11-22 serials; cmp5.sh used"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "B1 found: dladdr/_dl_find_object misattribute an address in a library mapped in ld.so's segment hole (dlc k=127)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "empty main user instructions per start, Zen 1 (22.3 -> head)",
+   "before": 260618,
+   "after": 253613,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "empty main user instructions per start, Skylake-SP (22.3 -> head)",
+   "before": 260857,
+   "after": 253852,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "#21 find at depth 200k, KiB over depth 3 (22.3 -> head; allowance 35000)",
+   "before": 27648,
+   "after": 32368,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "new release checks: y25n, y25c, dlc diagnostic (dlcd), cmp5.sh",
+   "before": null,
+   "after": 4,
+   "unit": "checks",
+   "measured": true
+  }
+ ],
+ "improvement": "snapshot comparison masks hard-code dates/story ids (cmp4.sh missed 22.x); derive the mask from the two versions under comparison, and keep dlc's per-object miss print in the check itself",
+ "next_step": "coordinator rules on B1 (fix story, 22.4 not published) and F1; new snapshot run after B1's fix",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1122D.md",
+ "jobs": [
+  "release-snapshot-1122d-smoke-keke-1",
+  "release-snapshot-1122d-startup-keke-1",
+  "release-snapshot-1122d-startup215-keke-1",
+  "release-snapshot-1122d-kstart-keke-1",
+  "release-snapshot-1122d-rstart-keke-1",
+  "release-snapshot-1122d-gate-1",
+  "release-snapshot-1122d-heapnode-1",
+  "release-snapshot-1122d-debs-1",
+  "release-snapshot-1122d-pkgdiff-1",
+  "release-snapshot-1122d-stage-1",
+  "release-snapshot-1122d-install-1",
+  "release-snapshot-1122d-gaimass-1",
+  "release-snapshot-1122d-plants-1",
+  "mei:release-snapshot-1122d-y14l-ref223-1",
+  "mei:release-snapshot-1122d-smoke-mei-1",
+  "mei:release-snapshot-1122d-startup-mei-1",
+  "mei:release-snapshot-1122d-kstart-mei-1",
+  "mei:release-snapshot-1122d-startup215-mei-1",
+  "mei:release-snapshot-1122d-rstart-mei-1",
+  "mei:release-snapshot-1122d-sig32-1",
+  "mei:release-snapshot-1122d-y20-1",
+  "mei:release-snapshot-1122d-dpo600-1",
+  "mei:release-snapshot-1122d-drp-1",
+  "mei:release-snapshot-1122d-y6-1",
+  "mei:release-snapshot-1122d-y24-1",
+  "mei:release-snapshot-1122d-yres-1",
+  "mei:release-snapshot-1122d-y25s-1",
+  "mei:release-snapshot-1122d-many-1",
+  "mei:release-snapshot-1122d-y13v-1",
+  "mei:release-snapshot-1122d-yohane-1",
+  "mei:release-snapshot-1122d-c19-1",
+  "mei:release-snapshot-1122d-y28-1",
+  "mei:release-snapshot-1122d-y14-1",
+  "mei:release-snapshot-1122d-drp-ref223-1",
+  "mei:release-snapshot-1122d-y23p-1",
+  "mei:release-snapshot-1122d-y13s-ref223-1",
+  "mei:release-snapshot-1122d-y27-1",
+  "mei:release-snapshot-1122d-y21-ref223-1",
+  "mei:release-snapshot-1122d-y26t-1",
+  "mei:release-snapshot-1122d-y6r-ref223-1",
+  "mei:release-snapshot-1122d-y13-1",
+  "mei:release-snapshot-1122d-y13v-ref223-1",
+  "mei:release-snapshot-1122d-y6c-1",
+  "mei:release-snapshot-1122d-y6r-1",
+  "mei:release-snapshot-1122d-roots-1",
+  "mei:release-snapshot-1122d-y13s-1",
+  "mei:release-snapshot-1122d-y21-1",
+  "mei:release-snapshot-1122d-y26-1",
+  "mei:release-snapshot-1122d-y25-1",
+  "mei:release-snapshot-1122d-y25n-1",
+  "mei:release-snapshot-1122d-y19-1",
+  "mei:release-snapshot-1122d-y14r-1",
+  "mei:release-snapshot-1122d-y10-1",
+  "mei:release-snapshot-1122d-y14l-1",
+  "mei:release-snapshot-1122d-dyn22-1",
+  "mei:release-snapshot-1122d-mint-1",
+  "mei:release-snapshot-1122d-dlc-1",
+  "mei:release-snapshot-1122d-y25n-ref223-1",
+  "mei:release-snapshot-1122d-y23-1",
+  "mei:release-snapshot-1122d-eetwet-1",
+  "mei:release-snapshot-1122d-y25-ref223-1",
+  "mei:release-snapshot-1122d-y25c-1",
+  "mei:release-snapshot-1122d-lint-1",
+  "mei:release-snapshot-1122d-dlc-2",
+  "mei:release-snapshot-1122d-y25c-ref223-1"
+ ]
+}

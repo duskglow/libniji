@@ -1,87 +1,138 @@
-WIP (leg 1 of RELEASE-SNAPSHOT-1122D; jobs running unattended on keke and mei)
+BLOCKING: not snapshot-ready at 8e1837914 (serial 4, niji6 sorts above 22.3's): B1 dladdr and _dl_find_object name the loader for an address inside a dlopen'd library (dlc, new since 22.3)
 
 # RELEASE-SNAPSHOT-1122D: snapshot validation of 8e1837914 (HEAP-SECOND-NODE-MAP #21, THREAD-EXIT-NO-UNWINDER #25)
 
-**State.** Head under validation `8e1837914bb99339e2ea4da6dd2893382c1c9782` (origin/next at the start, 23:06 UTC,
-"Regenerate train-owned views"; commit time 2026-11-22T22:18:37Z, epoch 1795385917). Contains 2786f94e5
-(heap-second-node-map) and d258cd270 (thread-exit-no-unwinder). Commit date 2026-11-22; 22.3 was serial 3, so this is
-**serial 4**: `NIJI_DEB_SERIAL=4`, `2.39+niji20261122.4-1` (coexist `0.0~snapshot20261122.4+8e1837914bb9`; the
-`dpkg --compare-versions` check against 22.3's niji6 is still to do). Branch `task/release-snapshot-1122d` = head +
-handoff/ only. Role **keke `~/w/n4` (Zen 1)**; mei = Skylake-SP (products and .debs relayed from keke through the
-local machine, sha256 checked on arrival). 22.3 = 2a76723f2 (RELEASE-SNAPSHOT-1122C; its .debs in mei and keke
-`~/work/RELEASE-SNAPSHOT-1122C/debs/system`). Nothing to GitHub, no tag.
+**State.** Head under validation `8e1837914bb99339e2ea4da6dd2893382c1c9782` (origin/next at the start, 2026-11-22 23:06
+UTC, "Regenerate train-owned views"; commit time 2026-11-22T22:18:37Z, epoch 1795385917); contains 2786f94e5
+(heap-second-node-map) and d258cd270 (thread-exit-no-unwinder). Commit date 2026-11-22, 22.3 was serial 3, so
+**serial 4**: system `2.39+niji20261122.4-1`, coexist `0.0~snapshot20261122.4+8e1837914bb9`.
+`dpkg --compare-versions`: `0.0~snapshot20261122.4+8e1837914bb9 gt 0.0~snapshot20261122.3+2a76723f2ed4` yes;
+`2.39+niji20261122.4-1 gt 2.39+niji20261122.3-1` yes. Branch `task/release-snapshot-1122d` = head + handoff/ only.
+Role keke `~/w/n4` (Zen 1, AMD EPYC 7551); root checks and Skylake-SP counts on mei (products and .debs relayed through
+the local machine, sha256 checked on arrival: 9 of 9 .debs OK). Nothing to GitHub, no tag.
 
-**Landed since 22.3** (`git log --oneline --first-parent 2a76723f2..8e1837914`): f1a02c7a0 release-snapshot-1122c,
-fd973fc44 sl-headers-s06-residue, 3230573ce dl-process-objects-3, views, ab62095bf ldso-run-program-2, views,
-621a75e43 dl-reader-costs, views, c344cce34 headers-null-type, 84e8f1972 stdio-caller-alloc, views, 87ddb01e8
-locale-charmaps-gen, views, b69d50e78 libc-init-array-refs, 6251d16c9 sl-headers-s18-3, 2786f94e5
-heap-second-node-map, views, d258cd270 thread-exit-no-unwinder, 4382ecae5 ldso-program-options-rest-2, 8e1837914 views.
+**Landed since 22.3** (first-parent, 2a76723f2..8e1837914): release-snapshot-1122c, sl-headers-s06-residue,
+dl-process-objects-3, ldso-run-program-2, dl-reader-costs, headers-null-type, stdio-caller-alloc, locale-charmaps-gen,
+libc-init-array-refs, sl-headers-s18-3, heap-second-node-map, thread-exit-no-unwinder, ldso-program-options-rest-2,
+plus the train's view regenerations.
 
-**Procedure.** 1122C's scripts copied on both hosts to `~/work/RELEASE-SNAPSHOT-1122D/` by 1122C's `copy.sh`
-(args `~/work/RELEASE-SNAPSHOT-1122C ~/work/RELEASE-SNAPSHOT-1122D`) with a new `subst.sed` (head, epoch, serial 4,
-22.2 -> 22.3 as the comparison side, `-ref222` -> `-ref223`, p220 -> p221 (head) / p219 -> p220 (22.3), role
-`w/s2` -> `w/n4`, labels). tree.tgz = `git archive 8e1837914` (sha256 3aa98be9...). Plants file
-`handoff/RELEASE-SNAPSHOT-1122D-plants.txt` (1122C's six; each pattern checked present once in the head).
-* keke `run-keke.sh` (new, 1122C's run-mei.sh role part with hosts swapped): smoke-keke-1 (build) -> products.tgz
-  (sha256 6248f7f7...) -> Zen 1 startup/startup215/kstart/rstart (background) -> gate-1 -> heapnode-1 -> debs-1 ->
-  debs.sha -> plants-1 (dir /dev/shm/claude/release-snapshot-1122d/plants-1) + gaimass-1 + chain-keke-debs.sh
-  (pkgdiff-1 vs staged 22.3, then stage-1, install-1). Output in `run-keke.out`.
-* mei `run-mei.sh` (new): waits for products.sha / debs.sha (until-loops), then chain-mei-pre.sh (smoke-mei,
-  startup-mei, kstart-mei), startup215-mei, rstart-mei, sig32, y20, dpo600; after the .debs: chain-mei-debs.sh
-  (roots lint yohane many dyn22 y10 y19 y26 y26t y23 c19 y25), y24 y28 y6 y25s yres y23p dlc y27 y13 y14 y6c y14l,
-  y14r -> eetwet, y25n, y25-ref223, y25n-ref223, y13s/drp/y6r/y13v/y21 each + -ref223, mint (prev = 1122C's logs-mint).
-  Started separately: y14l-ref223-1 (done: pass 12 fail 0, 22.3's .debs).
-* New checks (mei): **y25n** (`y25n.sh`, `y25n/`: fu.cc built `-static-libgcc` (fug) and `-static-libgcc
-  -static-libstdc++` (fus, no libgcc_s loaded), plain-C `pc.c` thread calling pthread_exit; post.sh judges pc/fug
-  = stock bytes+rc, fus = rc 134 + FATAL message + no dtor line). **y25c** (`y25c.sh`, `y25c/in.sh`): coexist
-  niji6 + niji6-dev installed in a trixie root, fu.cc built with **niji-g++** (links libstdc++ and libgcc_eh
-  statically, tools/deb/niji-gcc:16,71,82) and with g++ as control; rows exit-dtor/exit-fu/cancel-dtor. NOT
-  STARTED YET: start it after the .debs reach mei.
+## Blocking finding
 
-## Results so far
+**B1 (correctness, new since 22.3): dladdr and _dl_find_object attribute an address inside a dlopen'd library to
+the dynamic loader.** dlc (DL-PROCESS-OBJECTS' 300-library corpus, swapped trixie root, Skylake-SP): `dladdr(dlsym(h,
+"fK"))` names `libpK.so` for 299 of 300 objects (stock 300, 22.3 300), in both rounds and both link modes; dlc-2
+reproduces it. Diagnostic (dlcd-1/-2: dlc with a probe printing each miss): the one miss is k=127; `dladdr` returns
+`/lib64/ld-linux-x86-64.so.2`, the loader's base, no symbol; `_dl_find_object` returns the loader's link map, map
+[base, base+1 MiB) and **the loader's eh_frame** (the lookup the C++ unwinder uses). libp127.so's own base (from
+dl_iterate_phdr) is base+0x62000, i.e. inside the loader's span. Cause, from the products' program headers: this
+head's ld.so has a 60 KiB hole between its text segment (vaddr 0x1000, memsz 0x60ea7) and its read-only segment
+(vaddr 0x71000); 22.3's hole was 16 KiB (text ends 0x5c2e7, read-only at 0x61000). The kernel maps the loader and
+leaves the hole free; libp127.so is mapped into it (base+0x62000, the hole's first page), and both lookups match by the loader's whole
+span [first PT_LOAD, last PT_LOAD end) instead of its segments. So the lookup defect predates this head (22.3's 16 KiB
+hole could take a smaller mapping); the larger hole makes it reachable by an ordinary library, and any mapping placed
+there (an anonymous JIT region too) would be misattributed. Outside a root (`ld.so --library-path`, the program
+mapped by the loader) the same corpus gives 0 misses, so this is layout-dependent. Recommend a story (ruling asked):
+the address lookups (dladdr, dladdr1, _dl_find_object, and any other span-based reader) match an object only
+within its PT_LOAD segments, with a test that maps an object into the loader's hole (or the hole reserved
+PROT_NONE at start-up, if measured cheaper); then rerun dlc.
 
-| check | job | result |
+## Findings (non-blocking)
+
+* **F1 (#25, niji-g++, confirms D3):** a C++ program built with the coexist flavour's niji-g++ (which links
+  libstdc++ and the unwinder statically: tools/deb/niji-gcc) whose thread calls pthread_exit or is cancelled with
+  destructors on its stack now aborts (status 134) with `FATAL: an exiting or cancelled thread has frames to unwind
+  (cleanups, destructors or handlers) and no unwinder can be found; link libgcc_s dynamically (not -static-libgcc) in
+  a program whose threads exit or are cancelled`. On 22.3 the same build exited 0 without running a destructor (y25c
+  ref223: `join: 7`, no dtor lines). g++ controls unwind on both. The new behaviour is the accepted D-22.23 design and
+  better than a silent skip, but the fix the message names cannot be applied through niji-g++, and
+  docs/install-packages.md:70 does not say so. Recommend (ruling asked): niji-g++ links libgcc_s dynamically for
+  threaded C++ (or the docs say to use g++ with -L/-rpath for such programs); not blocking.
+* **F2 (#21, address space, find at depth 200k):** the find formula holds on both (5 of 5 under `ulimit -v`
+  need3 + 35000), but at depth 200k this head needs 53,968 KiB (22.3 49,296; stock 31,616), 32,368 KiB over depth 3
+  (22.3 27,648; stock 26,976; allowance 35,000): 4,720 KiB more than 22.3, margin 2,632 KiB. Single-node rows equal
+  22.3 (the change targets the second node). Recommend the #21 owner look at the second-node growth step's share.
+* **F3 (#14 check out of date):** y14l's two FAIL lines are its 22.3 expectations (no charmap shipped); with
+  LOCALE-CHARMAPS-GEN they now read: UTF-8 charmap present, and a supplied source compiles with `-f UTF-8` (rc 0).
+  Update y14l for the next snapshot.
+* **D1 (stale):** docs/install-packages.md:150 and the `locales` package Description ("locale support
+  (placeholder)") still call locales a placeholder; it now ships 10 generated charmaps.
+* **D2 (missing):** no docs sentence for HEAP-SECOND-NODE-MAP's address-space behaviour.
+* lintian: errors 10 (as 22.3), warnings 50 -> 49: `locales: empty-binary-package` is gone (the charmaps).
+* gaimass prints six `cannot open target/test-oracles/.../gaimass.timing` lines, as 1122B's and 1122C's runs did
+  (not new); `GAIMASS bad=0`.
+
+## Results
+
+| check | job(s) | result vs 22.3 |
 |---|---|---|
-| smoke Zen 1 (build) | keke smoke-keke-1 | `SMOKE: RESULT bad=0` |
-| smoke Skylake-SP | mei smoke-mei-1 | `SMOKE: RESULT bad=0` |
-| gate | keke gate-1 | `GATE bad=0`, peak 1.8G (clippy all-features, xtask clippy, static, records check, direct tier) |
-| #14 on 22.3 | mei y14l-ref223-1 | pass 12 fail 0 |
+| build + smoke, Zen 1 / Skylake-SP | keke smoke-keke-1, mei smoke-mei-1 | `SMOKE: RESULT bad=0` both (mei differs only in layout-verdict cache lines) |
+| gate | keke gate-1 | `GATE bad=0`, peak 1.8G (clippy all-features, xtask clippy, static, records, direct tier) |
+| #21 heap products test | keke heapnode-1 | 6 passed |
+| .debs, check, check-symbols | keke debs-1 | `DEBS bad=0`; check PASS 7 + 2 packages; check-symbols PASS (4440 lines, 13 libraries) |
+| package diff vs 22.3 | keke pkgdiff-1 | versions; build-ids; locales 7 -> 19 files (10 charmaps); libc6 +28 KiB installed |
+| staging, install steps (docs/install-packages.md) | keke stage-1, install-1 | 9 assets; `inst: RESULT fails=0` |
+| plants (6 release-check plants) | keke plants-1 | 6 CAUGHT, 0 WARN |
+| getaddrinfo_a | keke gaimass-1 | `GAIMASS bad=0` |
+| roots, lint, yohane, many, dyn22, y10, y19, y26, y26t, y23, c19, y24, y28, y6, y25s, yres, y23p, y27, y13, y14, y6c, y14r, eetwet, sig32, y20, dpo600, drp, y13s, y13v, y6r, y21 | mei (-1 each) | masked verdict lines equal to 22.3's (cmp5.sh); rc 1 by design as on 22.3: roots, yohane, y14, y14r, drp |
+| dlc | mei dlc-1, dlc-2 | **FAIL 2 (B1)**; 22.3 PASS |
+| mint | mei mint-1 | `MINT fail=0`; internal rows differing from stock 40 -> 30 (STDIO-CALLER-ALLOC) |
+| #14 | mei y14l-1, y14l-ref223-1 | see F3 and the #14 table |
+| #25 | mei y25-1, y25-ref223-1, y25n-1, y25n-ref223-1, y25c-1, y25c-ref223-1 | see the #25 table |
+| side-by-side 22.3 | mei drp-ref223, y13s/y6r/y13v/y21-ref223 | equal to the head's except y21 (F2) |
 
-Start-up, Skylake-SP (mei startup-mei-1 / rstart-mei-1, user instructions / faults; p220 = 22.3, p221 = head):
-empty main 260,857/51 -> 253,852/51 (-7,005); 3 libraries 371,146/66 -> 361,533/66 (-9,613); clock_gettime
-274,330/54 -> 267,329/54 (-7,001); res0 374,316/56 -> 366,330/56 (-7,986); glibc 107,752/49, 143,094/65,
-109,862/50, 169,020/55 (equal to 1122C's record). Kernel/syscall columns: read the KCOUNT lines of kstart/rstart.
+**#25** (fu.cc, the issue's rows; trixie root, libniji swapped in; stock = trixie's C library):
 
-## Docs currency (step 7, done in leg 1)
+| row | stock | 22.3 | head |
+|---|---|---|---|
+| destructor in a frame calling pthread_exit (exit-dtor) | rc 0, dtors run | same as stock | same as stock |
+| catch abi::__forced_unwind and rethrow (exit-fu) | rc 0 | same | same |
+| cancelled thread blocked in pause() (cancel-dtor) | rc 0, dtors run | same | same |
+| y25's other rows (cancel-fu, exit-all, cancel-all, exit-lock, ptask, async) | | same, `RESULT fail=0` | same, `RESULT fail=0` |
+| -static-libgcc, libstdc++ dynamic (fug, 3 rows) | rc 0, dtors | same | same |
+| -static-libgcc -static-libstdc++, no libgcc_s loaded (fus, 3 rows) | rc 134, stderr 8 B, no dtor line | **rc 0**, no dtor line (`join: 7`) | rc 134, FATAL message (229 B, cause and fix), no dtor line |
+| plain-C thread calling pthread_exit (pc) | rc 0, 19 B | same | same |
+| niji-g++ build (coexist, y25c, 3 rows) | (g++ control: rc 0, dtors) | rc 0, no dtor lines | rc 134 + FATAL (F1) |
 
-`doccheck.py` (scratch) over README, RELEASE-CRITERIA, CONTRIBUTING, AI_POLICY, SECURITY, docs/*.md (31 files):
-223 links, 265 repo paths, 173 `cargo xtask` names: 2 misses, both benign (`cargo xtask help` is xtask's default
-command, main.rs:158; `csys/include/x86_64/` in docs/arch-syscalls.md:47 is named as a hypothetical). Findings:
-* **D1 (stale, non-blocking):** docs/install-packages.md:150 says `locales` is a placeholder (documentation only);
-  LOCALE-CHARMAPS-GEN now ships generated charmaps in it (confirm from pkgdiff-1's file list).
-* **D2 (missing, non-blocking):** no docs sentence for #21's heap address-space behaviour (HEAP-SECOND-NODE-MAP).
-* **D3 (to confirm with y25c):** docs/install-packages.md:70 documents niji-g++ as linking libstdc++ and the
-  unwinder statically; D-22.23 (differences row at docs/differences-from-glibc.md:189) makes a thread exit with C++
-  frames abort with a FATAL message whose fix ("link libgcc_s dynamically") niji-g++ users cannot apply.
-* docs/RELEASE-NOTES.md "Unreleased" holds only COMPAT-19; THREAD-EXIT-NO-UNWINDER has its differences row and
-  COMPAT-38; ld.so options have row 339. STDIO-CALLER-ALLOC matches the reference (no row needed).
+**#21** (y21, issue probe and find formula under `ulimit -v`): no-limit steps pass; malloc to the limit: room left
+0 / 0 / 48 / 696 / 11,960 KiB for 100 B / 4 KiB / 128 KiB / 1 MiB / 16 MiB (head = 22.3; stock 64 / 48 / 64 / 640 /
+16,240); probe need 40,816 KiB (stock 29,568), under 35,000 the probe's malloc returns NULL (its exit 11), under 41,296
+rc 0, head = 22.3; find need depth 3: 21,600 (22.3 21,648, stock 4,640); depth 200k: F2; find formula 5 of 5 on all.
 
-## Exact next step (leg 2)
+**#14 delta** (y14l, bash's exact command in the swapped root with only libniji's packages): head and 22.3 both
+status 4, `[error] cannot open locale definition file 'en_US': No such file or directory`, no file written (stock's
+status for a missing source). Still missing: the en_US source (LOCALE-SOURCES-GEN). New: with a source supplied,
+`-f UTF-8` resolves the generated charmap (rc 0; 22.3 rc 4 `character map file 'UTF-8' not found` plus a default
+ANSI_X3.4-1968 line); the missing-charmap stderr now equals stock's. The test's own en_US + UTF-8 compile still reads
+back equal to stock (37 lines). L1 (six POSIX categories only) unchanged.
 
-1. keke: `~/bin/jobwait --max 560 release-snapshot-1122d-heapnode-1 release-snapshot-1122d-debs-1` (heapnode starts
-   after gate-1). Read `=== DEBS bad=` and check-symbols PASS lines.
-2. Relay .debs: scp keke `work/RELEASE-SNAPSHOT-1122D/debs.sha` and `debs/system/*.deb`, `debs/coexist/*.deb` to
-   local scratch `relay/debs/`, `sha256sum -c`, then to mei `work/RELEASE-SNAPSHOT-1122D/debs/{system,coexist}/` and
-   `debs.sha` LAST (run-mei.sh starts the debs part when `sha256sum -c ../debs.sha` passes). Then start
-   `release-snapshot-1122d-y25c-1` on mei (`setsid nohup ~/bin/jobrun ... test -- sh $W/y25c.sh ... &`).
-3. dpkg --compare-versions of the coexist niji6 version against 22.3's (`0.0~snapshot20261122.3+2a76723f2ed4`).
-4. Wait for everything (keke: plants-1, gaimass-1, pkgdiff-1, stage-1, install-1, startup*-keke-1; mei: all labels
-   above), compare with 1122C: `cmp4.sh` (masked verdict lines, -1 logs vs 1122C's) and last verdict line of each
-   other job. Known rc 1 by design on 22.3 too: roots, yohane, y14, y14r, drp, drp-ref223 (SUPERSEDED list).
-5. Tables: start-up both classes (keke startup/kstart/rstart/startup215 logs), #21 (y21 vs y21-ref223, stock in
-   pre), #25 (y25, y25-ref223, y25n, y25n-ref223, y25c), #14 delta (y14l vs y14l-ref223: step 4(a) line, now with
-   generated charmaps: is the UTF-8 charmap error gone, only the en_US source missing?).
-6. Staged list from keke `~/release-staging/snapshot-20261122.4/` (MANIFEST, SHA256SUMS).
-7. Final report here (first line `COMPLETE: snapshot-ready at 8e1837914` or blocking findings), reports json,
-   push, sync role, `cargo xtask precheck --jobs <labels> --head <sha>` on keke n4, handback-check, hand-back.
-   Precheck caveat (1122C): jobs outside the role tree read "no tested-content record"; keke/mei split.
+**Start-up** (user instructions / page faults per start, medians; p220 = 22.3, p221 = head):
+
+| row | Zen 1: glibc | 22.3 | head | change | Skylake-SP: glibc | 22.3 | head | change |
+|---|---|---|---|---|---|---|---|---|
+| empty main | 101,533 / 48 | 260,618 / 51 | 253,613 / 51 | -7,005 | 107,752 / 49 | 260,857 / 51 | 253,852 / 51 | -7,005 |
+| 3 libraries | 136,734 / 64 | 370,892 / 66 | 361,279 / 66 | -9,613 | 143,094 / 65 | 371,146 / 66 | 361,533 / 66 | -9,613 |
+| clock_gettime | 103,672 / 50 | 274,120 / 55 | 267,119 / 55 | -7,001 | 109,862 / 50 | 274,330 / 54 | 267,329 / 54 | -7,001 |
+| libresolv pair (res0) | 162,716 / 54 | 373,764 / 56 | 365,778 / 56 | -7,986 | 169,020 / 55 | 374,316 / 56 | 366,330 / 56 | -7,986 |
+
+Headline: LIBC-INIT-ARRAY-REFS's ~7,000 fewer user instructions per start on every row and both classes (its own
+claim -6,981 on Zen 1); faults unchanged. Kernel-side counts (kstart/rstart KCOUNT lines) are noisy run to run
+(min-max spread ~100k) and not compared.
+
+**Staged** (keke `~/release-staging/snapshot-20261122.4/`, MANIFEST + SHA256SUMS, `sha256sum -c` 9 of 9 OK; staged,
+NOT for publication while B1 stands): libc-bin, libc-dev-bin, libc-l10n, libc6-dbg, libc6-dev, libc6
+(`2.39+niji20261122.4-1_amd64`, l10n `_all`), locales (`_all`), niji6 and niji6-dev
+(`0.0.snapshot20261122.4+8e1837914bb9_amd64`, '.' for '~'). libc6 sha256 43c60b67...; niji6 99774322....
+
+## Procedure (for the next snapshot)
+
+1122C's scripts copied on both hosts to `~/work/RELEASE-SNAPSHOT-1122D/` (copy.sh, subst.sed: head, epoch, serial 4,
+22.3 as the comparison side, `-ref223`, role keke n4). keke `run-keke.sh` (role jobs in sequence, then plants,
+gaimass, pkgdiff/stage/install); mei `run-mei.sh` (waits for products.sha / debs.sha, then every root check).
+New this run: y25n (`-static-libgcc` and `-static-libgcc -static-libstdc++` builds, plain-C pthread_exit), y25c
+(niji-g++ in a trixie root with niji6/niji6-dev), cmp5.sh (cmp4.sh's mask widened to the 22nd and 1122x ids;
+cmp4.sh compared 22.x version strings as differences), dlcdiag/ and dlcd.sh (B1's diagnostic: diag.c prints each
+dladdr / _dl_find_object miss). Next run: update y14l (F3), keep dlcd beside dlc until B1 is fixed.
+
+## Exact next step
+
+Coordinator: rule on B1 (fix story; snapshot 22.4 not published) and F1; after B1's fix lands, a new snapshot run.
