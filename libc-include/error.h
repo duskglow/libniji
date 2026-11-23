@@ -22,11 +22,33 @@ extern void (*error_print_progname)(void);
 # endif
 # ifndef __NIJI_D_error
 #  define __NIJI_D_error 1
-extern void error (int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 3, 4), __noreturn__));
+extern void error (int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
+#  if defined __OPTIMIZE__ && defined __GNUC__ && !defined __clang__ && !defined __cplusplus
+extern void __niji_nr_error (int, int, const char *, ...) __asm__ ("error") __attribute__ ((__format__ (__printf__, 3, 4), __noreturn__));
+extern void __niji_rt_error (int, int, const char *, ...) __asm__ ("error") __attribute__ ((__format__ (__printf__, 3, 4)));
+extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__)) void error (int __p0, int __p1, const char *__p2, ...)
+{
+  if (__builtin_constant_p (__p0) && __p0 != 0)
+    __niji_nr_error (__p0, __p1, __p2, __builtin_va_arg_pack ());
+  else
+    __niji_rt_error (__p0, __p1, __p2, __builtin_va_arg_pack ());
+}
+#  endif
 # endif
 # ifndef __NIJI_D_error_at_line
 #  define __NIJI_D_error_at_line 1
-extern void error_at_line (int, int, const char *, unsigned int, const char *, ...) __attribute__ ((__format__ (__printf__, 5, 6), __noreturn__));
+extern void error_at_line (int, int, const char *, unsigned int, const char *, ...) __attribute__ ((__format__ (__printf__, 5, 6)));
+#  if defined __OPTIMIZE__ && defined __GNUC__ && !defined __clang__ && !defined __cplusplus
+extern void __niji_nr_error_at_line (int, int, const char *, unsigned int, const char *, ...) __asm__ ("error_at_line") __attribute__ ((__format__ (__printf__, 5, 6), __noreturn__));
+extern void __niji_rt_error_at_line (int, int, const char *, unsigned int, const char *, ...) __asm__ ("error_at_line") __attribute__ ((__format__ (__printf__, 5, 6)));
+extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__)) void error_at_line (int __p0, int __p1, const char *__p2, unsigned int __p3, const char *__p4, ...)
+{
+  if (__builtin_constant_p (__p0) && __p0 != 0)
+    __niji_nr_error_at_line (__p0, __p1, __p2, __p3, __p4, __builtin_va_arg_pack ());
+  else
+    __niji_rt_error_at_line (__p0, __p1, __p2, __p3, __p4, __builtin_va_arg_pack ());
+}
+#  endif
 # endif
 #endif
 

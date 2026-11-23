@@ -75,7 +75,7 @@ impl Gen<'_> {
 
     /// diagattrs.tsv noreturn `nonzero:K` (error, error_at_line: error(3) returns when the status is 0): the declaration
     /// carries no noreturn; when GCC optimizes, an always-inline wrapper calls a noreturn alias of the same symbol only
-    /// for a nonzero constant argument K, so a status-0 or variable call is compiled as returning (D-NEW, ERROR-H-NORETURN).
+    /// for a nonzero constant argument K, so a status-0 or variable call is compiled as returning (D-2.13, ERROR-H-NORETURN).
     /// Clang and C++ (no `__builtin_va_arg_pack` in clang) get the plain declaration.
     fn nonzero_wrapper(&mut self, name: &str, decl: &str, nt: &str, sym: &str, k: usize) -> Vec<String> {
         let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
