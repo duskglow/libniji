@@ -21,7 +21,7 @@ const TEST: &str = "a_std_program_runs_threads_unwinds_forks_reexecs_and_exits";
 const ROLE: &str = "STD_SMOKE_ROLE";
 const PROGRAM_STATUS: i32 = 7;
 const FORKED_STATUS: i32 = 3;
-const THREADS: u64 = 8;
+const THREADS: usize = 8;
 
 /// Runs this test binary again, only this test, as `role`.
 fn again(role: &str) -> Command {
@@ -58,7 +58,7 @@ impl Drop for Dropped {
 }
 
 fn threads() -> String {
-    let barrier = Arc::new(Barrier::new(THREADS as usize));
+    let barrier = Arc::new(Barrier::new(THREADS));
     let counter = Arc::new(Mutex::new(0u64));
     let (tx, rx) = mpsc::channel();
     let handles: Vec<_> = (0..THREADS)
@@ -67,8 +67,9 @@ fn threads() -> String {
             std::thread::spawn(move || {
                 barrier.wait();
                 for _ in 0..1000 {
-                    OWN.with(|c| c.set(c.get() + 1));
-                    *counter.lock().unwrap() += 1;
+                    OWN.with(|c| c.set(c.get().saturating_add(1)));
+                    let mut n = counter.lock().unwrap();
+                    *n = n.saturating_add(1);
                 }
                 tx.send((0..100_000u64).sum::<u64>()).unwrap();
                 OWN.with(Cell::get)
@@ -157,9 +158,8 @@ fn a_std_program_runs_threads_unwinds_forks_reexecs_and_exits() {
     let _ = std::fs::remove_dir(&dir);
     let native = std::env::var("NIJI_TEST_PASS").as_deref() == Ok("native");
     let expect_loader = if native { "libniji" } else { "other" };
-    let sum = THREADS * (0..100_000u64).sum::<u64>();
     let want = vec![
-        format!("smoke: threads {THREADS} sum {sum} counter {} tls per-thread", THREADS * 1000),
+        "smoke: threads 8 sum 39999600000 counter 8000 tls per-thread".to_owned(),
         "smoke: panic payload smoke-panic destructor-ran true thread-panic-seen true".to_owned(),
         format!("smoke: fork status Some({FORKED_STATUS}) other-pid true child-loader {expect_loader}"),
         r#"smoke: file 24 bytes ["written by std", "appended"] entries ["note.txt"] removed true"#.to_owned(),
