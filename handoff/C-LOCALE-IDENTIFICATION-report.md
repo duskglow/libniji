@@ -14,9 +14,11 @@ Commits (all on task/c-locale-identification, base origin/next 0495c4684):
   except the five contact fields of C and POSIX (empty by design, D-7.10). C.UTF-8 equal on all 17.
 - Gate (c-locale-identification-gate2, final head): rc 0; 15 suites ok, 6527 passed, 0 failed, 76 ignored; conformance 2/2; static ok; `gate: peak memory 2.2G (page cache included; reclaimed under the limit) oom_kill=0 rc=0`. affected said `FULL: the train's` in its bounded-set form (generated table and its input), not escalated.
 - Plants (c-locale-identification-plants2, final head): 4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT.
-- Start-up checks (§9): c-locale-identification-startup (`cargo xtask test`, then NIJI_FULL_PROFILE so + hot_text_products): its layout check (STARTUP-DATA-WINDOWS) passed; the 7187-test run was still going at hand-back (see the hand-back for its state). The change is data only (the built-in string pool), no code on a start-up path, so no layout-bins diff was taken.
+- Start-up checks (§9): c-locale-identification-startup (`cargo xtask test`, then NIJI_FULL_PROFILE so + hot_text_products): rc 0 (layout check STARTUP-DATA-WINDOWS passed, every test green, hot_text_products green). The change is data only (the built-in string pool), no code on a start-up path, so no layout-bins diff was taken.
 
 ## Superseded
+
+- c-locale-identification-lint: ran on dce808f7f; the final gate (gate2) ran clippy and static on the final head.
 
 - c-locale-identification-gate: older head dce808f7f; stopped by me when the test changed (its products and xtask
   steps had passed).
