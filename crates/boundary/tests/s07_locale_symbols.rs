@@ -700,6 +700,16 @@ fn ctype_words_follow_uselocale_and_setlocale() {
     conformance(&["s05_ctype_words"]);
 }
 
+#[test]
+fn legacy_ctype_objects_give_an_old_binary_the_c_tables() {
+    // LG-6 (spec/behaviour/ctype-objects.md): a program bound to `__ctype_b`, `__ctype_tolower`,
+    // `__ctype_toupper`, `__ctype32_*` and `_obstack` at GLIBC_2.2.5 (COPY relocations, as a binary
+    // linked before the `__ctype_*_loc` accessors) reads the "C" tables through them, on the
+    // reference and on libniji alike. Needs libc.so.6's compat versions, hence a C program.
+    // Clauses: s0_6_c0_6_0, s5_1_c_0.
+    conformance(&["s05_ctype_legacy_objects"]);
+}
+
 /// Compile locale `lang`.`charset` into `dest` with the host's `localedef`, atomically: it is built
 /// in a private sibling directory and renamed into place, so that concurrent tests and test
 /// binaries never see (or write into) a half-built locale. True when `dest/<probe>` exists after.

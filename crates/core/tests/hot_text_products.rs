@@ -509,9 +509,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// Skylake-SP host not run in this test: as for LD-PHDR-ONCE, the Zen 1 levels plus 117, plus 2%.
 /// LD-RELR-LOOP-2 (D-27.87, RELR bitmap words added in place, one add per word): this test on the Zen 1
 /// host, fast 248,446 and release 238,792; the bounds are those levels plus 2% (Skylake-SP as above).
+/// LD-OBJECT-ONCE (D-27.85, each object's view tables read in one pass, the version checks hash-first),
+/// on next fd973fc44: this test on the Zen 1 host, fast 219,145 and release 196,663 (both more than 10%
+/// under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%, the Skylake-SP
+/// host's (not run in this test) the Zen 1 levels plus 117 (as above), plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [253_600, 243_700]),
-    ("AMD EPYC 7551 32-Core Processor", [253_500, 243_600]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [223_700, 200_800]),
+    ("AMD EPYC 7551 32-Core Processor", [223_600, 200_600]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.

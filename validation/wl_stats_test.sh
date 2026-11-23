@@ -199,5 +199,64 @@ check phase_glibc_hit "wl_cost: column glibc: 1 rows, 1 cached (hit), 0 measured
 check phase_new_miss "wl_cost: column new: 1 rows, 0 cached (hit), 1 measured (miss); 300 s (perf 100, md5 20, strace 180 in 3 passes); faults re-measured 1 rows, 12 s" "$(sed -n 4p "$t/phase.out")"
 check phase_slowest "wl_cost: slowest: printf-loop new  300 s, seq base  40 s, seq new (faults re-measure) 12 s, seq glibc  0 s" "$(sed -n 5p "$t/phase.out")"
 
+# EXCURSION RE-MEASURE (D-X.157; no spec clause: lab tooling). Rows as wl_count_run.sh stores them (11 fields).
+xrow() { printf '%s\t0.00\t%s\t%s\t81201\tabcdef123456\t%s\t%s\t0\t0\t16125' "$@"; }   # instr_u instr_k pf min max
+# the Zen 1 count k2's tar-gz rows after its 2 % faults re-measure: new 758..786 (every run of both batches high),
+# base 629..921, glibc 523..814
+k2n=$(xrow 9178315593 416678362 758 758 786)
+k2b=$(xrow 9178316180 402169277 629 629 921)
+checkrc long_row_tar_gz 0 wl_long_row "$k2n" "$k2b"
+checkrc long_row_short_pipeline 1 wl_long_row "$(xrow 61769826 5 476 476 480)" "$(xrow 61495127 5 465 465 470)"
+checkrc long_row_either_column 0 wl_long_row "$(xrow 2475742619 5 276 276 276)" "$(xrow 5689349866 5 276 276 276)"
+check excursion_new_high new "$(wl_excursion_side "$k2n" "$k2b")"
+check excursion_base_high base "$(wl_excursion_side "$(xrow 9178315593 5 637 637 782)" "$(xrow 9178316180 5 765 765 877)")"
+check excursion_normal_spread "" "$(wl_excursion_side "$(xrow 9 5 648 648 917)" "$(xrow 9 5 629 629 629)")"
+check excursion_edge_7pct "" "$(wl_excursion_side "$(xrow 9 5 107 107 107)" "$(xrow 9 5 100 100 100)")"
+check excursion_over_7pct new "$(wl_excursion_side "$(xrow 9 5 108 108 108)" "$(xrow 9 5 100 100 100)")"
+check excursion_not_a_number "" "$(wl_excursion_side "$(xrow 9 5 - - -)" "$(xrow 9 5 100 100 100)")"
+check row_lowest_joins "$(xrow 9178315593 416678362 631 631 786)" "$(wl_row_lowest "$k2n" "9178315000 0.00 416000000 640 631 655")"
+check row_lowest_keeps_lower "$(xrow 9178315593 416678362 758 758 801)" "$(wl_row_lowest "$k2n" "9178315000 0.00 416000000 790 770 801")"
+# replay: MEASURE is a stub printing XBATCH (a wl_stats line) and logging the column it was asked for
+xstub() { echo "$1" >> "$t/xcalls"; echo "$XBATCH"; }
+xverdict() { # new_row base_row -> wl_verdict check of a tar-gz table against the recorded Zen 1 levels
+    { echo "== tar-gz   (new a, base b)"
+      echo "instructions:u $(echo "$1" | cut -f1) $(echo "$2" | cut -f1) 9177796840"
+      echo "page-faults $(echo "$1" | cut -f4) $(echo "$2" | cut -f4) 523"
+      echo "faults min..max $(echo "$1" | cut -f7)..$(echo "$1" | cut -f8) $(echo "$2" | cut -f7)..$(echo "$2" | cut -f8) 523..814"; } > "$t/x.log"
+    python3 "$here/wl_verdict.py" check "$t/x.log" --holds "$here/wl_holds.tsv" --cpu "AMD EPYC 7551 32-Core Processor" > "$t/x.out"
+}
+# (a) k2 as recorded: without a further batch the row fails its unchanged level 1.2371 (758 / 523 = 1.4493)
+checkrc k2_tar_gz_fails_as_recorded 1 xverdict "$k2n" "$k2b"
+# (b) the column measured again finds its own number (a batch in the 629..647 range of the other 8 columns): the new
+# column becomes 631 and the row passes the same level, one batch, nothing else moved
+: > "$t/xcalls"; WL_RN=$k2n WL_RB=$k2b XBATCH="9178315000 0.00 416000000 640 631 655"
+wl_excursions xstub
+check k2_excursion_one_batch new "$(paste -sd' ' "$t/xcalls")"
+check k2_excursion_new_lowest 631 "$(echo "$WL_RN" | cut -f4)"
+check k2_excursion_base_kept "$k2b" "$WL_RB"
+check k2_excursion_note "excursion re-measure (D-X.157): round 1: new 758, batch 631..655 -> 631; within 7 %" "$WL_XNOTE"
+checkrc k2_tar_gz_passes_after_remeasure 0 xverdict "$WL_RN" "$WL_RB"
+check k2_level_unchanged 1 "$(grep -c "^AMD EPYC 7551 32-Core Processor	tar-gz	pf	523	647	1.2371	" "$here/wl_holds.tsv")"
+# (c) PLANTED REGRESSION of that size: the new column faults 758..786 in every run (as both of k2's batches did), so no
+# batch can lower it: 3 batches, still over, and the verdict fails exactly as before
+: > "$t/xcalls"; WL_RN=$k2n WL_RB=$k2b XBATCH="9178315000 0.00 416000000 770 758 786"
+wl_excursions xstub
+check regression_three_batches "new new new" "$(paste -sd' ' "$t/xcalls")"
+check regression_stays 758 "$(echo "$WL_RN" | cut -f4)"
+check regression_note_says_real 1 "$(echo "$WL_XNOTE" | grep -c 'new still over 7 % after 3 batches: reported as measured')"
+checkrc regression_still_fails 1 xverdict "$WL_RN" "$WL_RB"
+check regression_failure_named 1 "$(grep -c 'FAIL tar-gz pf: 758 is 1.449' "$t/x.out")"
+# a short row and the ASLR (median) method are never measured again; a pair within 7 % is not either
+: > "$t/xcalls"; WL_RN=$(xrow 61769826 5 560 560 560) WL_RB=$(xrow 61495127 5 465 465 470)
+wl_excursions xstub
+check short_row_not_remeasured "0 " "$(wc -l < "$t/xcalls") $WL_XNOTE"
+WL_RN=$k2n WL_RB=$k2b
+WLC_ASLR=1 wl_excursions xstub
+check aslr_not_remeasured "0 " "$(wc -l < "$t/xcalls") $WL_XNOTE"
+WL_RN=$(xrow 9178315593 5 647 647 650) WL_RB=$k2b
+wl_excursions xstub
+check within_threshold_not_remeasured "0 " "$(wc -l < "$t/xcalls") $WL_XNOTE"
+check wl_count_run_calls_excursions 1 "$(grep -c '^        wl_excursions xmeasure || ' "$here/wl_count_run.sh")"
+
 echo "wl_stats_test: $pass passed, $fail failed"
 [ $fail = 0 ]

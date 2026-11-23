@@ -1,0 +1,31 @@
+{
+  "task": "LD-OBJECT-ONCE-2",
+  "model": "opus",
+  "tokens": null,
+  "result": "LD-OBJECT-ONCE finished on the Skylake-SP host: gate, plants (10/10), start-up checks green on the final code head; empty main -26.9%, per object 36,417 -> 31,356 (target 25,000 not reached; remaining split by PT)",
+  "branch": "task/ld-object-once-2",
+  "head": null,
+  "gate": {"affected": "1017 passed / 0 failed (13 suites, direct tier)", "peak": "1.8G"},
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "Skylake-SP hot_text_products levels on the final head: fast 219,314, release 196,807; the bounds run 1 estimated (223,700 / 200,800) are each level + 2.0%, no change; the comment above DYN_START_INSTR still says they were not run there",
+    "Remaining 31,356 per object (PT, Skylake-SP): symbol binding in relocate_first ~17.3k (symbols::lookup 9.5k, Object::lookup 6.6k), Dynamic::once 3.3k (reloc's tag reads), link own 3.3k, Elf::parse 2.8k (check_table 2.1k), Object::new 1.4k, Elf::dynamic 1.3k, map_planned 1.3k",
+    "check_versions' own count not isolated (inlined into link); NOT VERIFIED against LD-VERSIONS-ONCE's bounds"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "perf", "what": "dynamic empty main, release, Skylake-SP host (kit n0)", "before": 268959, "after": 196630, "unit": "user instr/start", "measured": true},
+    {"kind": "perf", "what": "three one-function libraries, release, Skylake-SP host (kit n3)", "before": 378209, "after": 290698, "unit": "user instr/start", "measured": true},
+    {"kind": "perf", "what": "per extra loaded object, release, Skylake-SP host ((n3-n0)/3)", "before": 36417, "after": 31356, "unit": "user instr/object", "measured": true},
+    {"kind": "perf", "what": "/bin/true, release, Skylake-SP host (kit t)", "before": 329335, "after": 254510, "unit": "user instr/start", "measured": true},
+    {"kind": "perf", "what": "200 GLOB_DAT imports, release, Skylake-SP host (kit n200)", "before": 554868, "after": 486461, "unit": "user instr/start", "measured": true},
+    {"kind": "perf", "what": "dynamic empty main, release, Zen 1 host (kit n0, run 1, before the pub commits)", "before": 268797, "after": 196486, "unit": "user instr/start", "measured": true},
+    {"kind": "faults", "what": "page faults n0 / n3, Skylake-SP", "before": 58, "after": 58, "unit": "faults/start (n3: 70 -> 70)", "measured": true},
+    {"kind": "coverage", "what": "plants on the change (all caught)", "before": null, "after": 10, "unit": "plants", "measured": true}
+  ],
+  "improvement": "the gate's direct tier does not run hot_text_products although the branch changes its bound table; a bound change should pull that test (and both profiles) into the direct tier",
+  "next_step": "land; per-object cost next: symbol lookup (~17k, LD-LOOKUP-STRUCTURE / LD-RELR-LOOP), reloc's Dynamic::once tag reads (~3.3k), check_table (~2k)",
+  "report_file": "handoff/LD-OBJECT-ONCE.md",
+  "jobs": ["mei:ld-object-once-2-gate", "mei:ld-object-once-2-plants", "mei:ld-object-once-2-startup", "mei:ld-object-once-2-fastbound", "mei:ld-object-once-2-base-pt", "mei:ld-object-once-2-head-pt"]
+}
