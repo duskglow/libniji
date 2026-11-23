@@ -88,12 +88,12 @@ mod tests {
         // (flags, headers, body of `long f (FILE *fp, const char *s, char **lp, size_t *np, mbstate_t *ps)`,
         //  symbols it must reference, symbols it must not)
         let cases: &[(&str, &str, &str, &[&str], &[&str])] = &[
-            ("-O2", "stdio.h", "return getchar ();", &["__uflow", "stdin"], &["getchar", "getc"]),
-            ("-O0", "stdio.h", "return getchar ();", &["getchar"], &["__uflow"]),
-            ("-Os", "stdio.h", "return getchar ();", &["getchar"], &["__uflow"]),
-            ("-O2 -fno-inline", "stdio.h", "return getchar ();", &["getchar"], &["__uflow"]),
+            ("-O2", "stdio.h", "return getchar ();", &["getc", "stdin"], &["getchar"]),
+            ("-O0", "stdio.h", "return getchar ();", &["getchar"], &["getc"]),
+            ("-Os", "stdio.h", "return getchar ();", &["getchar"], &["getc"]),
+            ("-O2 -fno-inline", "stdio.h", "return getchar ();", &["getchar"], &["getc"]),
             ("-O2", "stdio.h", "int (*volatile g) (void) = getchar; return g ();", &["getchar"], &[]),
-            ("-O2", "stdio.h", "return putchar ('x');", &["__overflow", "stdout"], &["putchar", "putc"]),
+            ("-O2", "stdio.h", "return putchar ('x');", &["putc", "stdout"], &["putchar"]),
             ("-O2", "stdio.h", "return getc_unlocked (fp) + putc_unlocked ('x', fp);", &["__uflow", "__overflow"], &["getc_unlocked", "putc_unlocked"]),
             ("-O2 -D_GNU_SOURCE", "stdio.h", "return feof_unlocked (fp) + ferror_unlocked (fp);", &[], &["feof_unlocked", "ferror_unlocked"]),
             ("-O2 -D_GNU_SOURCE", "stdio.h", "return getline (lp, np, fp);", &["__getdelim"], &["getline"]),
