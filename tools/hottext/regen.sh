@@ -134,6 +134,13 @@ stdin=/dev/null trace tool en_US.UTF-8 ./page_faults tool
 # these add only what no earlier probe ran (tier fork for the child, extra for the rest).
 stdin=/dev/null follow=child trace fork en_US.UTF-8 ./page_faults fork
 for m in strings float mktime rebind; do stdin=/dev/null trace extra en_US.UTF-8 ./page_faults "$m"; done
+# GATE-HONEST-METRICS (#8134): the `locale` and `tool` modes again with the locale loaded from its per-locale
+# directory (no archive: canon_host.sh's perdir.redirect), the form a host without locale-archive runs. Its
+# names are appended to the archive trace's names of the same mode after traces_done, so the functions only that
+# load path runs join the same tier, after the archive path's, and the same mode signature (the window bins).
+for m in locale tool; do
+    hot_redirect=$hot_redirect_perdir run_traced "$work/dir.$m.names" "$work/gdb.dir.$m.log" LANG=en_US.UTF-8 HOT_TEXT_STDIN=/dev/null HOT_TEXT_FOLLOW_FORK= -- ./page_faults "$m"
+done
 # TRACE-TIME-PIN: the trace follows the virtual clock (trace_gdb.py), never how long the trace took. The
 # mktime mode again, its tracer sleeping 2 s at every time read (HOT_TEXT_SLOW), past the library's
 # one-second file-check interval: a time source the tracer does not answer then runs the zone file's
@@ -152,6 +159,15 @@ run_traced "$work/numa1.names" "$work/gdb.numa1.log" HOT_TEXT_HOST_NODES=1 LANG=
 probe_text_trace() { local rc=0; bash "$here/probe_text.sh" "$T" --products "$P" --trace-only "$work/probe" > "$work/probe.log" 2>&1 || rc=$?; echo $rc > "$work/probe.log.rc"; }
 probe_text_trace &
 traces_done
+for m in locale tool; do
+    f=$(sed -n "s/^$m=//p" "$work/modes")
+    if [ -z "$f" ] || [ "$(printf '%s\n' "$f" | wc -l)" -ne 1 ] || [ ! -s "$work/dir.$m.names" ]; then
+        echo "regen: page_faults $m: want one archive trace and one per-locale-directory trace, got '$f' and $(wc -l < "$work/dir.$m.names" 2>/dev/null || echo none) names" >&2
+        exit 1
+    fi
+    echo "regen: page_faults $m with the locale from its directory: $(grep -cvxF -f "$f" "$work/dir.$m.names" || true) functions the archive trace did not run"
+    cat "$work/dir.$m.names" >> "$f"
+done
 mk=$(sed -n 's/^mktime=//p' "$work/modes")
 if ! cmp -s "$mk" "$work/slow.names"; then
     echo "regen: page_faults mktime traced with 2 s between time reads differs from its trace (a time source trace_gdb.py's virtual clock does not answer):" \

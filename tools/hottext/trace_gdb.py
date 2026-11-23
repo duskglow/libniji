@@ -357,13 +357,32 @@ def answer_time(kind, args):
 # A file `@run/<name>` is <name> in a directory the tracer empties before every run of the program
 # (ruling #5223: the name-service cache region, so every run creates it, whatever the host's
 # /dev/shm holds).
+#
+# GATE-HONEST-METRICS (#8134): a host path ending in `/` redirects every path below it (`/usr/lib/locale/=<dir>/`:
+# the per-locale-directory trace, canon_host.sh, where each category file of a locale is its own path). An exact
+# entry wins over a prefix; of two prefixes the longer wins.
 redirect = {}
+redirect_dirs = []
 run_dir = os.path.join(stage, "run")  # same length on every host: stage is mkdtemp's fixed-length name
 for item in filter(None, os.environ.get("HOT_TEXT_REDIRECT", "").split(":")):
     k, _, v = item.partition("=")
     if v.startswith("@run/"):
         v = os.path.join(run_dir, v[len("@run/"):])
+    if k.endswith("/"):
+        redirect_dirs.append((k.encode(), v.encode()))
+    # A prefix's own path is its directory (and keeps `redirect` non-empty: the system call stops below follow it).
     redirect[k.encode()] = v.encode() + b"\0"
+redirect_dirs.sort(key=lambda kv: -len(kv[0]))
+
+
+def redirected(p):
+    """The tree's file for host path p (NUL-terminated), or None."""
+    if p in redirect:
+        return redirect[p]
+    for k, v in redirect_dirs:
+        if p.startswith(k):
+            return v + p[len(k):] + b"\0"
+    return None
 # open stat lstat access unlink openat newfstatat unlinkat faccessat statx faccessat2: the path argument's
 # register (unlink too, so no failure path removes a host file the redirected open did not create).
 PATH_ARG = {2: "rdi", 4: "rdi", 6: "rdi", 21: "rdi", 87: "rdi", 257: "rsi", 262: "rsi", 263: "rsi", 269: "rsi", 332: "rsi", 439: "rsi"}
@@ -398,12 +417,12 @@ def redirect_path():
         return
     inf = gdb.selected_inferior()
     p = read_path(reg(r))
-    if p not in redirect:
+    new = redirected(p)
+    if new is None:
         full = p if p.startswith(b"/") else b"/" + p  # cwd is /
         if not full.startswith(HOST_OK):
             host_reads.add(full.decode(errors="replace"))
         return
-    new = redirect[p]
     at = (reg("rsp") - 4096 - len(new)) & ~15  # below the red zone, in the mapped stack
     inf.write_memory(at, new)
     gdb.execute("set $%s = %d" % (r, at))
@@ -581,3 +600,10 @@ with open(out_path, "w") as f:
     for addr in merge(runs):
         for n in out_names.get(addr, []):
             f.write(n + "\n")
+# GATE-HONEST-METRICS (#8133): HOT_TEXT_ADDRS=<file> also writes the entry address of every function that ran
+# (hex, one per line, the order above), so a test can check where each lies in the traced program's link map
+# without mapping names back (a local name can be defined twice).
+if os.environ.get("HOT_TEXT_ADDRS"):
+    with open(os.environ["HOT_TEXT_ADDRS"], "w") as f:
+        for addr in merge(runs):
+            f.write("%x\n" % addr)

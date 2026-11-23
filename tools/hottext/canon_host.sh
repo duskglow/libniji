@@ -42,4 +42,14 @@ echo "canon_host: host inputs left: kernel $(uname -r); $(localedef --version | 
      "/usr/share/locale-langpack names $( (find /usr/share/locale-langpack 2>/dev/null || true) | LC_ALL=C sort | sha256sum | cut -c1-16)"
 r=
 for f in $etc; do r="$r/etc/$f=$D/$f:"; done
+# GATE-HONEST-METRICS (#8134): distributions ship either the archive or one directory per locale
+# (`/usr/lib/locale/en_US.utf8/LC_*`, no archive); the two load paths run different code, so the build traces
+# both. The per-directory form of the same locale, and its redirections in <data dir>/perdir.redirect: every path
+# below /usr/lib/locale/ goes to the tree's directory, which holds no archive.
+pd=$D/perdir/usr/lib/locale
+mkdir -p "$pd"
+rc=0
+localedef --no-archive -c -i en_US -f UTF-8 --prefix="$D/perdir" en_US.utf8 > "$D/localedef-perdir.log" 2>&1 || rc=$?
+if [ "$rc" -gt 1 ] || [ ! -s "$pd/en_US.utf8/LC_CTYPE" ]; then echo "canon_host: localedef --no-archive en_US.utf8 failed (rc $rc): $(tail -2 "$D/localedef-perdir.log")" >&2; exit 1; fi
+echo "${r}/usr/lib/locale/=$pd/:/dev/shm/niji-nscache-$u=@run/nscache" > "$D/perdir.redirect"
 echo "${r}/usr/lib/locale/locale-archive=$a:/dev/shm/niji-nscache-$u=@run/nscache"
