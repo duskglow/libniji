@@ -1,0 +1,53 @@
+{
+ "task": "HEAP-FIND-DEPTH-NEED",
+ "model": "opus",
+ "tokens": null,
+ "result": "find over 200000 entries (en_US.UTF-8) needs +2560 KiB over 22.3 on 22.4: map_aligned_exactly gave up on later 2304 KiB segments (8 blockers per round, 9 needed); EXACT_BLOCKERS 9 (D-3.25), the need is now 33296 KiB over d3 (-1488 vs 22.3)",
+ "branch": "task/heap-find-depth-need",
+ "head": null,
+ "gate": {
+  "affected": "gate3 on 2820cf6b3: 9836 passed / 1 failed (the new layout test, native pass only: precondition, fixed in 7b15cf4a1); s03b on 7b15cf4a1: s03_memory_symbols host+native+interposed 198 passed / 0 failed, clippy and static clean",
+  "peak": "gate: peak memory 11G (page cache included) oom_kill=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "plants-1 and plants-2 SURVIVED on the find bound (C locale, then next's layout leaves the aligned slot free); the plant now runs the layout test kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken: plants-3 (2820cf6b3) and plants-4 (7b15cf4a1) CAUGHT, no WARN lines",
+  "the role build's d3 need is 1984 KiB above the 22.3/22.4 debs' (different build; not investigated, the metric is the need over d3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "size",
+   "what": "find over 200000 entries, least ulimit -v over d3 (en_US.UTF-8, keke)",
+   "before": 37344,
+   "after": 33296,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "under RLIMIT_AS a later heap segment is placed past taken aligned slots instead of the heap mapping per request",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: find_over_200000_entries_bounds_its_address_space, kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken; plant blockers-8",
+   "before": 0,
+   "after": 3,
+   "unit": "tests+plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a new address-space layout test should be run once in the native pass (the libniji loader leaves large holes the host loader does not) before the gate: one gate cycle went to a precondition only that pass hit",
+ "next_step": "coordinator landing (FULL gate)",
+ "report_file": "handoff/HEAP-FIND-DEPTH-NEED.md",
+ "jobs": [
+  "heap-find-depth-need-gate3",
+  "heap-find-depth-need-s03b",
+  "heap-find-depth-need-plants4"
+ ]
+}

@@ -1,7 +1,8 @@
 # HEAP-FIND-DEPTH-NEED: handoff
 
-State: branch `task/heap-find-depth-need` (base origin/next `3e668ecce`), code head `92dd7b303` (fix `adb8aae13`,
-clippy fix `85ac05b59`, locale in the test `92dd7b303`); later commits are prose (D-row, handoff, report). Role keke
+State: branch `task/heap-find-depth-need` (base origin/next `3e668ecce`), code head `7b15cf4a1` (fix `adb8aae13`,
+clippy fix `85ac05b59`, locale in the test `92dd7b303`, layout test `2820cf6b3`, its native-pass fix `7b15cf4a1`);
+later commits are prose (handoff, report). Role keke
 `~/w/n3` (Zen 1). Decision D-3.25 (reserved id).
 
 ## Cause (attributed)
@@ -47,9 +48,16 @@ handoff/HEAP-FIND-DEPTH-NEED-plants.txt.
 
 ## Jobs (keke) and results: see handoff/reports/HEAP-FIND-DEPTH-NEED.json
 
-- Final: `heap-find-depth-need-gate3` (clippy, static, `affected --run`, s03_memory_symbols, heap_meta_products,
-  `cargo xtask test`, full-profile `so` + hot_text_products) and `heap-find-depth-need-plants3` (plants-3), on
-  `2820cf6b3` (started 04:07Z).
+- `heap-find-depth-need-gate3` (clippy, static, `affected --run`, s03_memory_symbols, heap_meta_products,
+  `cargo xtask test`, full-profile `so` + hot_text_products) on `2820cf6b3`: 9836 passed, **1 failed**: the new
+  layout test in the NATIVE pass only (host and interposed passes green). Cause (strace of the native child, jobs
+  `-nat`, `-nat2`): its precondition, before any limit; the libniji loader leaves a 64 MiB and a 23 MiB hole above
+  the gap, and a page pin per split (`q + LATER / 2`) removes 1.1 MiB a split, about 57 > 48. Fixed in `7b15cf4a1`:
+  each higher gap is covered from the probe's end down by the largest free range (4 * SEG halving to LATER).
+- After the fix (code head `7b15cf4a1`, test-only change): `heap-find-depth-need-s03b` (clippy, static, `affected
+  --only niji-boundary::s03_memory_symbols --run`: host, native and interposed passes, 198 passed, 0 failed) and
+  `heap-find-depth-need-plants4` (plants-4; plants-3 on `2820cf6b3` CAUGHT blockers-8 too). The rest of gate3 is
+  unaffected by a change to one test (the red-gate rule: rerun only the failing suite).
 - Superseded: `-gate` (clippy red: arithmetic in the bisection), `-plants` (SURVIVED: C locale), `-plants2`
   (SURVIVED: layout, see above), `-gate2` (stopped: older tree).
 - Diagnostics: `-meas2` (the test's own number, 2 runs), `-env`, `-env2` (locale probe), `-mut`, `-strace3`
@@ -63,6 +71,5 @@ constant is read only in `map_aligned_exactly`, reached after an mmap failed und
 
 ## Exact next step
 
-`~/bin/jobwait heap-find-depth-need-gate3 heap-find-depth-need-plants3` on keke; green: precheck, handback-check,
-hand back COMPLETE. Red in the new test's precondition (`within 48 splits`): read its message, the layout needs more
-splits on that host.
+Done (leg 3): hand-back. Next: the coordinator's landing (FULL gate). A red in the layout test's precondition
+(`within 48 covers`) on another host: read the native child's strace for holes above the gap.
