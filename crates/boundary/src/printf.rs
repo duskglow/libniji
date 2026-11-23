@@ -282,7 +282,14 @@ fn format_general<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> 
 /// [`format`] when a stream's plan cache (D-12.21) may already know `fmt`: `kept` is its plan
 /// (lent by the cache, not copied; TAR-TV) when `route` is [`pf::Planned::Simple`];
 /// [`pf::Planned::General`] is a format known not to be simple; otherwise the format is planned here.
-#[inline]
+///
+/// The hot dispatcher, inlined into each caller (PRINTF-NO-HEAP-3): a bare `%s` and a kept plan
+/// of one conversion are written here; every other path is an out-of-line call
+/// ([`format_planned`], [`render_kept`], [`format_general`]). When the render_simple instances
+/// shared one function with these paths, its prologue (six saved registers, a 0x138-byte frame)
+/// ran for a bare `%s` too, and each change to any path moved the others' registers
+/// (PRINTF-NO-HEAP-2).
+#[inline(always)]
 fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planned, kept: Option<&pf::SimpleFormat>, out: &mut O) -> KResult<usize> {
     if let Some(plan) = kept {
         if plan.is_lone() {
@@ -290,7 +297,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
                 return r;
             }
         }
-        return render_plan(fmt, plan, ap, out);
+        return render_kept(fmt, plan, ap, out);
     }
     match route {
         pf::Planned::Simple => {}
@@ -309,6 +316,22 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
             }
         }
     }
+    format_planned(fmt, flag, ap, out)
+}
+
+/// [`render_plan`] of a stream's kept plan of more than one conversion, out of line: the
+/// render_simple instances stay out of [`format_routed`]'s callers (the call replaces the one
+/// those callers made to `format_routed` itself).
+#[inline(never)]
+fn render_kept<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: &mut O) -> KResult<usize> {
+    render_plan(fmt, plan, ap, out)
+}
+
+/// The rest of [`format_routed`] for a format no plan cache holds: plan it, then write a plan of
+/// one conversion or of two strings piece by piece, any other through render_simple; a format
+/// that is not simple, or any while conversions are registered, takes the general path.
+#[inline(never)]
+fn format_planned<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
     // The plan is filled in place: returned by value it would be copied.
     let mut plan = pf::SimpleFormat::new();
     if reg::active() || !pf::simple_into(fmt, &mut plan) {
