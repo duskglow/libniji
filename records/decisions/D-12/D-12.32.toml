@@ -5,7 +5,7 @@ ann = "—"
 status = "active"
 story = "PRINTF-NO-HEAP"
 date = "2026-11-23"
-tests = ["crates/boundary/tests/printf_no_heap.rs"]
+tests = ["crates/boundary/tests/s12_stdio_symbols.rs"]
 body = '''
 **Formatted output needs no memory for any field length, float, or sequential format; a positional format needs none up to 24 arguments (story PRINTF-NO-HEAP, rulings #7583 and #7725; black-box probe of the reference with a counting and a refusing malloc replacement, recorded in the test).** With internal allocations routed through a replaced malloc, any allocation printf makes can fail with `ENOMEM` under a replacement that refuses. A field is built in a fixed inline buffer (256 units) that counts past its room; a longer field (an integer precision or width of any size, a long string, a float of any magnitude or precision) is produced a second time straight to the output with its padding, on a cold path. Floating text reaches the field through a fixed 128-byte buffer flushed as it fills (a multibyte radix is never split). A format whose parse does not fit inline (16 pieces) is, when sequential, parsed and rendered a part at a time, its arguments read in turn from the caller's `va_list`, after a first pass that makes the checks done before any output (`%n` in a writable format, a count past `INT_MAX`); a positional format is parsed into a 48-piece inline parse (the reference itself allocates from 16 positional arguments). The wide functions read the format in place. Remaining allocations: registered conversions (`register_printf_specifier`), positional formats past 48 pieces, and `'` grouping or `I` digits of a long float in a locale with separators or other digits.
 '''
