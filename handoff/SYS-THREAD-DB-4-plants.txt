@@ -9,3 +9,12 @@ lwp-is-pid | crates/libc-so/placeholders/libthread_db.c | lit:info->ti_lid = (in
 desc-next-offset | crates/rt/src/thread.rs | lit:desc_next: offset_of!(Thread, next), ==> desc_next: offset_of!(Thread, prev), | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
 used-everywhere | crates/boundary/src/data.rs | lit:#[cfg_attr(feature = "runtime", used)] ==> #[used] | cargo xtask so | msg:writable data of its own
 used-nowhere | crates/boundary/src/data.rs | lit:#[cfg_attr(feature = "runtime", used)] ==> | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# fs-base-index: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# iter-state-filter: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# tlsbase-direction: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# magic-mismatch: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# lwp-is-pid: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# desc-next-offset: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# used-everywhere: CAUGHT, caught by no test the log names
+# used-nowhere: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
