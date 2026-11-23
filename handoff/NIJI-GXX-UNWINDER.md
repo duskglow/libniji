@@ -30,9 +30,27 @@ State: branch `task/niji-gxx-unwinder` (from origin/next b04f71229), role mei:~/
   libgcc_s NEEDED; plain niji-gcc C links the entry but no unwinder.
 * Plants: `handoff/NIJI-GXX-UNWINDER-plants.txt` (5).
 
-## Jobs
-(filled at hand-back; see the reports json)
+## Jobs (mei)
+* build1 (rc 0, head 4f73d7636's code; record/docs commits not yet synced then): cargo xtask clippy, so,
+  `deb_manifest` 6 passed (the new test ran, not skipped), `forced_unwind_products` 6 passed.
+* Running on the synced head (record + docs + handoff included): `niji-gxx-unwinder-gate2` (direct gate,
+  `affected --run --base origin/next`), `niji-gxx-unwinder-plants2` (5 plants, dir plants-2).
+* Superseded: niji-gxx-unwinder-gate, niji-gxx-unwinder-plants (killed seconds after start: role tree lacked
+  the record/docs commits). probe-ref is a diagnostic probe (rc 1 = the script's last grep), described above.
 
-## Exact next step
-Wait for build1 (clippy, so, deb_manifest, forced_unwind_products); then plants, gate (`cargo xtask
-affected --run`), plain-C counts, precheck, report json, handback-check.
+## Open / not covered
+* A niji-g++ program that also has libgcc_s.so.1 loaded (a dlopen'd plugin needing it): the loader lookup
+  finds libgcc_s first and the exit unwinds with it beside the program's static copy. Not tested.
+* #25's rows "before" for niji-g++ are RELEASE-SNAPSHOT-1122D's (134 + FATAL); the plant
+  no-program-unwinder reproduces that state on this head.
+
+## Exact next step (next leg)
+1. `~/bin/jobwait niji-gxx-unwinder-gate2 niji-gxx-unwinder-plants2` on mei (one call, timeout 600 s); read
+   `~/bin/test-summary ~/logs/niji-gxx-unwinder-gate2.log` and the plants log's CAUGHT/WARN lines; fix reds.
+2. Plain-C cost: the path for a thread with nothing to unwind is unchanged by construction (no_unwinder returns
+   None after `handler_on_stack()` false, as before; later steps add one load+compare). If a pthread_exit /
+   create-join bench row exists (`grep -n "pthread_exit\|thread_create" benchmarks/*.tsv docs/benchmarks.md`),
+   run `cargo xtask bench --compare --counters <row>` as a jobrun job and record before/after.
+3. On mei: `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask static`, then
+   `cargo xtask precheck --jobs niji-gxx-unwinder-gate2,niji-gxx-unwinder-plants2 --head <sha>`.
+4. Write handoff/reports/NIJI-GXX-UNWINDER.json (with "jobs"), push, `ops handback-check`.
