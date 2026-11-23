@@ -1,0 +1,22 @@
+{"task": "SPEC-ABI-ADDITIONS-2", "model": "opus", "tokens": null,
+ "result": "CI conflict resolved: origin/next merged keeping both the versions additions and SYS-ABI-DT-RELR-2's empty-versions table; versions.sha256 regenerated for next's libmvec rows; a full regeneration reproduces versions.tsv, versions-aarch64.tsv, empty-versions.tsv and both digests byte for byte",
+ "branch": "task/spec-abi-additions-2", "head": "d02ba9bbd",
+ "gate": {"affected": "FULL (escalated: spec/abi tables): the train's. Instead: static green, clippy green, spec-abi-additions-2-test2 (cargo xtask so + cargo test -p xtask)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "exports-diff-aarch64.tsv is stale on next: a regeneration adds 216 rows (libmvec.so.1 x86_64-only exports added to versions.tsv by SYS-LIBMVEC without rerunning the aarch64 extraction).",
+   "Additions and empty-versions do not share one mechanism cleanly: empty-versions.tsv is reference data regenerated wholesale, versions-additions.tsv is libniji data tied to decisions. A libniji-added version node with no symbol would belong in an additions-style file, not empty-versions.tsv.",
+   "cargo test -p xtask in a role without built products fails xtask/tests/transcripts.rs (target/niji-test/iconv missing): the test needs cargo xtask so first (job spec-abi-additions-2-test, superseded by test2 which builds them).",
+   "prototypes.tsv still carries the two sched_*attr rows by hand; a full native rerun also rewrites constants.tsv (454 lines), layouts.tsv (25) and PROVENANCE: regenerate versions with --versions-only until reconciled."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "a full regeneration of versions.tsv / versions-aarch64.tsv keeps sched_getattr/sched_setattr@GLIBC_2.41 and also writes empty-versions.tsv, on top of current next", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "static check abi-versions in static_list + 8 xtask unit tests; plants caught", "before": 0, "after": 7, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "SPEC-ABI-ADDITIONS can land (its CI conflict resolved)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["spec-abi-additions-2-test2", "spec-abi-additions-2-plants", "spec-abi-additions-2-regen-final"],
+ "improvement": "cargo xtask affected escalates to FULL for spec/abi files read only by the extractor and one static check; and xtask's transcripts test silently depends on cargo xtask so having run in the role.",
+ "next_step": "Land.",
+ "report_file": "handoff/SPEC-ABI-ADDITIONS.md"}
