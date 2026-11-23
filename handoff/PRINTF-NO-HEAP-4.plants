@@ -1,7 +1,8 @@
 # PRINTF-NO-HEAP-4: every plant of the story, run against the folded no-heap tests
 # (crates/boundary/tests/s12_stdio_symbols.rs, module no_heap) on the head merged with next.
 # Lines 1-15: handoff/PRINTF-NO-HEAP-2.plants with --test printf_no_heap -> --test s12_stdio_symbols no_heap;
-# lines 16-18: handoff/PRINTF-NO-HEAP-3.plants unchanged.
+# lines 16-18: handoff/PRINTF-NO-HEAP-3.plants unchanged; lines 19-20: the line-buffered checks now run in a child
+# (lbf_alone) still catch a stream that does not hold its output to the newline.
 nh-simple-float-spill | crates/core/src/printf.rs | lit:if !self.text.extend_inline(b) { ==> if self.text.extend_from_slice(b).is_err() { | cargo test -p niji-boundary --test s12_stdio_symbols no_heap | msg:rows that allocate where the reference does not
 nh-spill-drops-kept | crates/core/src/printf.rs | lit:self.out.put(kept); ==> let _ = kept; | cargo test -p niji-boundary --test s12_stdio_symbols no_heap | msg:long_fields_have_their_full_text.*FAILED|panicked at.*s12_stdio_symbols
 nh-spill-any-width | crates/core/src/printf.rs | lit:spill: width <= INLINE_TEXT ==> spill: true | cargo test -p niji-boundary --test s12_stdio_symbols no_heap | msg:long_fields_have_their_full_text.*FAILED|panicked at.*s12_stdio_symbols
@@ -20,3 +21,5 @@ nh-swprintf-errno | crates/boundary/src/printf.rs | lit:return Err(Errno::E2BIG)
 nh3-kept-count | crates/boundary/src/printf.rs | lit:render_plan(fmt, plan, ap, out) ==> render_plan(fmt, plan, ap, out).map(|n| n.saturating_add(1)) | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked
 nh3-planned-skips-hooks | crates/boundary/src/printf.rs | lit:    if reg::active() || !pf::simple_into(fmt, &mut plan) { ==>     if !pf::simple_into(fmt, &mut plan) { | cargo test -p niji-boundary --test s12_stdio_symbols registered_conversion | msg:registered_conversion_is_written_by_its_handler.*FAILED
 nh3-bare-s-count | crates/boundary/src/printf.rs | lit:return Ok(body.len()); ==> return Ok(body.len().saturating_sub(1)); | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked
+lbf-drain-all | crates/core/src/stream.rs | lit:if let Err(e) = self.drain_to(buf, back, RESERVE + i + 1) { ==> if let Err(e) = { let _ = i; self.drain_to(buf, back, self.wpos) } { | cargo test -p niji-boundary --test s12_stdio_symbols sym_fputs | msg:fputs-lbf failed in its child
+lbf-setvbuf-unbuffered | crates/legacy/src/stdio_compat.rs | lit:        1 => Policy::Line, ==>         1 => Policy::Unbuffered, | cargo test -p niji-boundary --test s12_stdio_symbols sym_fputs | msg:front-lbf failed in its child

@@ -248,6 +248,18 @@ fn alone(test: &str, name: &str, body: impl FnOnce() -> bool) {
     }
 }
 
+/// Checks that a line-buffered stream holds its output until the newline, run by [`alone`] in a
+/// child of the calling test (libtest names the test's thread after the test). In this process
+/// the other tests run beside it, and input from an unbuffered or line-buffered stream flushes
+/// every line-buffered stream (ISO C 7.21.3p3), which may write the held bytes before the check.
+fn lbf_alone(name: &str, body: impl FnOnce()) {
+    let test = std::thread::current().name().expect("a libtest thread is named after its test").to_owned();
+    alone(&test, name, || {
+        body();
+        true
+    });
+}
+
 /// Run C conformance programs (conformance/c/<name>.c) against the products. A program that
 /// passed once in this process is not run again (many symbols share one program).
 fn conformance(names: &[&str]) {
@@ -1032,7 +1044,7 @@ fn fputs_forms(f: Fputs, locked: bool) {
         front_lock_pins(&tmp("fputs-front-lock"), |fp, s| f(s.as_ptr(), fp) >= 0);
     }
     front_corners(|fp, s| f(CString::new(s).unwrap().as_ptr(), fp) >= 0, false);
-    fputs_fuse_corners(f);
+    lbf_alone("fputs-lbf", || fputs_fuse_corners(f));
     let fp = open(&t, "r");
     assert_eq!(f(c"x".as_ptr(), fp), EOF);
     assert!(x::ferror(fp) != 0);
@@ -1397,13 +1409,15 @@ fn front_corners(put: impl Fn(*mut FILE, &[u8]) -> bool, trusted: bool) {
     assert_eq!(errno::get(), if wrote { 0 } else { EINVAL }, "byte output on a wide stream");
     assert_eq!(x::fclose(fp), 0);
     assert_eq!(t.read(), if wrote { &b"ax"[..] } else { &b"a"[..] }, "stored in order, or nothing stored");
-    let fp = open(&t, "w");
-    assert_eq!(x::setvbuf(fp, null_mut(), IOLBF, 0), 0);
-    assert!(put(fp, b"ab"));
-    assert!(window_full(fp) && t.read().is_empty(), "line-buffered: no window, held to the newline");
-    assert!(put(fp, b"\n"));
-    assert_eq!(t.read(), b"ab\n", "written at the newline");
-    assert_eq!(x::fclose(fp), 0);
+    lbf_alone("front-lbf", || {
+        let fp = open(&t, "w");
+        assert_eq!(x::setvbuf(fp, null_mut(), IOLBF, 0), 0);
+        assert!(put(fp, b"ab"));
+        assert!(window_full(fp) && t.read().is_empty(), "line-buffered: no window, held to the newline");
+        assert!(put(fp, b"\n"));
+        assert_eq!(t.read(), b"ab\n", "written at the newline");
+        assert_eq!(x::fclose(fp), 0);
+    });
     let fp = open(&t, "w");
     assert!(put(fp, b"cd") && put(fp, b"\n"));
     assert!(!window_full(fp) && t.read().is_empty(), "fully buffered: in the window");
