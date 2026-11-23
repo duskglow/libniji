@@ -73,6 +73,45 @@ impl Gen<'_> {
         }
     }
 
+    /// diagattrs.tsv noreturn `nonzero:K` (error, error_at_line: error(3) returns when the status is 0): the declaration
+    /// carries no noreturn; when GCC optimizes, an always-inline wrapper calls a noreturn alias of the same symbol only
+    /// for a nonzero constant argument K, so a status-0 or variable call is compiled as returning (D-NEW, ERROR-H-NORETURN).
+    /// Clang and C++ (no `__builtin_va_arg_pack` in clang) get the plain declaration.
+    fn nonzero_wrapper(&mut self, name: &str, decl: &str, nt: &str, sym: &str, k: usize) -> Vec<String> {
+        let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
+        let parsed = decl.strip_prefix("void ").and_then(|d| d.strip_prefix(&format!("{name} ("))).and_then(|p| p.strip_suffix(')'));
+        let Some(params) = parsed.map(|p| p.split(", ").collect::<Vec<_>>()).filter(|ps| ps.len() >= k && ps.iter().all(|p| !p.contains('('))) else {
+            self.errors.push(format!("{}: {name}: noreturn nonzero:{k} needs a void function of simple parameters, not `{decl}`", self.header));
+            return Vec::new();
+        };
+        let fixed: Vec<&str> = params.iter().copied().filter(|p| *p != "...").collect();
+        let variadic = fixed.len() < params.len();
+        let named: Vec<String> = fixed.iter().enumerate().map(|(i, p)| if p.ends_with('*') { format!("{p}__p{i}") } else { format!("{p} __p{i}") }).collect();
+        let mut args: Vec<String> = (0..fixed.len()).map(|i| format!("__p{i}")).collect();
+        if variadic {
+            args.push("__builtin_va_arg_pack ()".into());
+        }
+        let (named, args, params) = (named.join(", ") + if variadic { ", ..." } else { "" }, args.join(", "), params.join(", "));
+        let at_nr = match at.strip_suffix("))") {
+            Some(a) => format!("{a}, __noreturn__))"),
+            None => " __attribute__ ((__noreturn__))".into(),
+        };
+        let p = format!("__p{}", k - 1);
+        vec![
+            "#  if defined __OPTIMIZE__ && defined __GNUC__ && !defined __clang__ && !defined __cplusplus".into(),
+            format!("extern void __niji_nr_{name} ({params}){nt} __asm__ (\"{sym}\"){at_nr};"),
+            format!("extern void __niji_rt_{name} ({params}){nt} __asm__ (\"{sym}\"){at};"),
+            format!("extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__)) void {name} ({named}){nt}"),
+            "{".into(),
+            format!("  if (__builtin_constant_p ({p}) && {p} != 0)"),
+            format!("    __niji_nr_{name} ({args});"),
+            "  else".into(),
+            format!("    __niji_rt_{name} ({args});"),
+            "}".into(),
+            "#  endif".into(),
+        ]
+    }
+
     pub(super) fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
@@ -90,6 +129,11 @@ impl Gen<'_> {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
             body.extend(self.extern_lines(name, &decl, nt, &sym, "#  ", false));
+            if let Some(&k) = self.t.nonzero_noreturn.get(name) {
+                body.extend(self.nonzero_wrapper(name, &decl, nt, &sym, k));
+            }
+        } else if self.t.nonzero_noreturn.contains_key(name) {
+            self.errors.push(format!("{}: {name}: noreturn nonzero:K with more than one symbol is not supported", self.header));
         } else {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
             // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
