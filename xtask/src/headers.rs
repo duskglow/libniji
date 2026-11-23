@@ -177,6 +177,8 @@ struct Tables {
     nothrow: BTreeSet<String>,
     /// `spec/abi/diagattrs.tsv`: the ` __attribute__ ((...))` text of each function that has diagnostic attributes.
     attrs: BTreeMap<String, String>,
+    /// `diagattrs.tsv` rows with noreturn `nonzero:K`: the function and K (1-based), for the GCC wrapper (functions.rs).
+    nonzero_noreturn: BTreeMap<String, usize>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
@@ -339,7 +341,20 @@ fn load(root: &Path) -> Result<Tables, String> {
         }
     }
     let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept").map(|r| r["name"].clone()).collect();
-    let attrs = tsv(root, "spec/abi/diagattrs.tsv")?.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
+    let diag = tsv(root, "spec/abi/diagattrs.tsv")?;
+    let mut nonzero_noreturn = BTreeMap::new();
+    for r in &diag {
+        match r["noreturn"].as_str() {
+            "" | "1" => {}
+            v => match v.strip_prefix("nonzero:").and_then(|k| k.parse::<usize>().ok()).filter(|&k| k > 0) {
+                Some(k) => {
+                    nonzero_noreturn.insert(r["name"].clone(), k);
+                }
+                None => return Err(format!("spec/abi/diagattrs.tsv: {}: noreturn {v:?} is neither 1 nor nonzero:K", r["name"])),
+            },
+        }
+    }
+    let attrs = diag.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
@@ -353,7 +368,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -415,7 +430,9 @@ fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
     if !r["pure"].is_empty() {
         a.push(if r["pure"] == "const" { "__const__" } else { "__pure__" }.into());
     }
-    if !r["noreturn"].is_empty() {
+    // `nonzero:K` (the call returns unless parameter K is a nonzero constant, error(3)): no attribute on the declaration;
+    // functions.rs adds the wrapper that applies noreturn only to such a call.
+    if r["noreturn"] == "1" {
         a.push("__noreturn__".into());
     }
     if !r["deprecated"].is_empty() {
