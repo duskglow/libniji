@@ -645,7 +645,7 @@ const CODE_POINT_ORDER: &str = "LC_COLLATE\norder_start forward\n<U00000000>\n..
 
 /// s31_8_c_1 (D-31.31): all of Unicode in code point order compiles to the reference's own C.UTF-8 `LC_COLLATE`
 /// (no rules; the collation-sequence values of the bytes and of every code point; the codeset), item for item; the
-/// products' `localedef` compiles it within a 256 MiB address space (tables for every code point need far more) to
+/// products' `localedef` compiles it within a 64 MiB address space (it needs under 16 MiB; placing every code point needs far more) to
 /// the library's file, which the reference's `locale` loads without a message. Skips without the reference's
 /// compiled C.UTF-8, the UTF-8 charmap or the products (`cargo xtask so`).
 #[test]
@@ -681,7 +681,7 @@ fn code_point_order_compiles_like_the_reference_c_utf8() {
         return;
     }
     let run = Command::new("sh")
-        .args(["-c", "ulimit -v 262144 && exec \"$0\" \"$@\"", bin.to_str().unwrap(), "-c", "--quiet", "-i"])
+        .args(["-c", "ulimit -v 65536 && exec \"$0\" \"$@\"", bin.to_str().unwrap(), "-c", "--quiet", "-i"])
         .arg(&src)
         .args(["-f", "UTF-8"])
         .arg(dir.join("cpo.utf8"))
