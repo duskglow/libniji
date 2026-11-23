@@ -379,10 +379,6 @@ const FREE_VIEW: [[u64; 3]; 64] = {
 };
 const _: () = assert!(CLASSES.len() <= 64);
 
-/// [`Heap::alloc_below`]'s answer for an allocation its caller sends elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Routed;
-
 /// A block handed out.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Block {
@@ -596,6 +592,28 @@ pub fn class_for(size: usize, align: usize) -> Option<usize> {
         8 + (e - 7) * 4 + ((s >> (e - 2)) - 4)
     };
     // A power of two: a mask, not a division.
+    let mask = align.max(ALIGN) - 1;
+    (first..CLASSES.len()).find(|&c| CLASSES[c] & mask == 0)
+}
+
+/// [`class_for`] with its two size bounds given (OPTION 2, measurement only): `fast_end` for
+/// `1025`, `small_end` for `MAX_SMALL + 1`.
+#[inline]
+pub fn class_for_below(size: usize, align: usize, fast_end: usize, small_end: usize) -> Option<usize> {
+    if align <= ALIGN && size < fast_end {
+        return SMALL_CLASS.get((size + 15) >> 4).map(|&c| usize::from(c));
+    }
+    let size = size.max(1);
+    if size >= small_end || align > PAGE {
+        return None;
+    }
+    let first = if size <= 128 {
+        size.div_ceil(16) - 1
+    } else {
+        let s = size - 1;
+        let e = uz(u64::from(s.ilog2()));
+        8 + (e - 7) * 4 + ((s >> (e - 2)) - 4)
+    };
     let mask = align.max(ALIGN) - 1;
     (first..CLASSES.len()).find(|&c| CLASSES[c] & mask == 0)
 }
@@ -1767,27 +1785,48 @@ impl Heap {
     /// [`Heap::alloc`]'s, and an allocation at most [`ALIGN`]-aligned makes the same number of
     /// compares (one bound read from the caller's word in place of an immediate).
     #[inline(always)]
-    pub fn alloc_below<S: Sys, P: Pages>(&self, sys: &S, pages: &P, size: usize, align: usize, end: usize) -> Result<Option<Block>, Routed> {
-        let c = if align < end {
-            if size <= FORECAST_CAP {
-                // As in `alloc_fast`: the class is below 32 and the index inside `SMALL_CLASS`.
-                Some(usize::from(SMALL_CLASS[(size + 15) >> 4]) & 31)
-            } else {
-                class_for(size, align)
-            }
-        } else if align > ALIGN {
-            class_for(size, align)
-        } else {
-            return Err(Routed);
-        };
-        if let Some(c) = c {
+    pub fn alloc_below<S: Sys, P: Pages>(&self, sys: &S, pages: &P, size: usize, align: usize, ends: [usize; 3]) -> Option<Block> {
+        // OPTION 2 (measurement only, not for landing): the size bounds are the caller's words
+        // `[fast, small, request]` (FORECAST_CAP + 1, MAX_SMALL + 1, MAX_REQUEST + 1; all 0 once
+        // routed), so a routed allocation fails every compare and the caller's cold fallback
+        // decides.
+        let [fast_end, small_end, request_end] = ends;
+        if align <= ALIGN && size < fast_end {
+            let c = usize::from(SMALL_CLASS[(size + 15) >> 4]) & 31;
             if let Some(k) = Self::own_cache(pages) {
                 if let Some(b) = Self::alloc_hint(pages, &k, c) {
-                    return Ok(Some(b));
+                    return Some(b);
+                }
+            }
+        } else if let Some(c) = class_for_below(size, align, fast_end, small_end) {
+            if let Some(k) = Self::own_cache(pages) {
+                if let Some(b) = Self::alloc_hint(pages, &k, c) {
+                    return Some(b);
                 }
             }
         }
-        Ok(self.alloc_slow(sys, pages.general(), size, align))
+        self.alloc_slow_below(sys, pages.general(), size, align, request_end)
+    }
+
+    /// [`Heap::alloc_slow`] with the request bound given (OPTION 2, measurement only).
+    #[inline(never)]
+    pub fn alloc_slow_below<S: Sys, P: Pages>(&self, sys: &S, pages: &P, size: usize, align: usize, request_end: usize) -> Option<Block> {
+        if size >= request_end || !align.is_power_of_two() {
+            return None;
+        }
+        match class_for(size, align) {
+            Some(c) => {
+                let k = self.cache(sys, pages);
+                if let Some(b) = k.as_ref().and_then(|k| self.alloc_small(sys, pages, k, c)) {
+                    return Some(b);
+                }
+                self.alloc_large(sys, pages, k.as_ref(), size, align)
+            }
+            None => {
+                let k = self.cache(sys, pages);
+                self.alloc_large(sys, pages, k.as_ref(), size, align)
+            }
+        }
     }
 
     /// [`Heap::alloc`]'s fast path alone: a block from the current slab's hint word, or `None`

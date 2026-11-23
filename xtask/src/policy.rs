@@ -102,7 +102,7 @@ const CATEGORIES: [&str; 8] = ["extern", "export", "slice", "allocator", "tb-fie
 /// ownership word in thread.rs, and heap.rs's two write-once internal-routing bounds.
 const PROCESS_FLAG_READS: [(&str, &str); 3] = [
     ("src/thread.rs", "*OWNED_HERE.as_ptr()"),
-    ("src/heap.rs", "*FAST_ALIGN_END.as_ptr()"),
+    ("src/heap.rs", "[*SIZE_ENDS[0].as_ptr(),*SIZE_ENDS[1].as_ptr(),*SIZE_ENDS[2].as_ptr()]"),
     ("src/heap.rs", "*RESERVE_LAST.as_ptr()"),
 ];
 /// The files of [`PROCESS_FLAG_READS`].

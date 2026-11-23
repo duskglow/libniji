@@ -21,7 +21,7 @@ use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 use niji_legacy::malloc_compat::{self, Ctx};
 use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
-use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, Routed, ALIGN, PAGE};
+use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
 
 use crate::caller_alloc;
 use crate::raw;
@@ -481,7 +481,8 @@ unsafe impl GlobalAlloc for Niji {
 //   replacement's `free` (the reserve's own blocks stay the reserve's).
 
 /// The fast path's alignment bound: `ALIGN + 1`, or 0 once the library's own allocations are routed.
-static FAST_ALIGN_END: AtomicUsize = AtomicUsize::new(ALIGN + 1);
+static SIZE_ENDS: [AtomicUsize; 3] =
+    [AtomicUsize::new(niji_rt::heap::FORECAST_CAP + 1), AtomicUsize::new(niji_rt::heap::MAX_SMALL + 1), AtomicUsize::new(niji_rt::heap::MAX_REQUEST + 1)];
 /// The largest offset from the reserve's base that the release path sends to the reserve's
 /// branch: `RESERVE - 1`, or `usize::MAX` once routed.
 static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE - 1);
@@ -489,24 +490,47 @@ static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE - 1);
 /// Route the library's own allocations through the replacing malloc family from here on
 /// (`caller_alloc::decide_route`, once, in `early_init`, before any thread exists).
 pub(crate) fn route_internal() {
-    FAST_ALIGN_END.store(0, Relaxed);
+    for w in &SIZE_ENDS {
+        w.store(0, Relaxed);
+    }
     RESERVE_LAST.store(usize::MAX, Relaxed);
 }
 
 /// [`FAST_ALIGN_END`] as a plain read, not an atomic load, so the fast path's compare takes it
 /// as a memory operand as it took the constant bound (owner ruling #7708).
 #[inline(always)]
-fn fast_align_end() -> usize {
-    // UNSAFE(process-flag): a write-once routing bound, read without an atomic (ruling #7708).
+fn size_ends() -> [usize; 3] {
+    // OPTION 2, measurement only: three more process-flag words (needs a ruling beyond #7708).
+    // UNSAFE(process-flag): write-once routing bounds, read without an atomic.
     #[allow(unsafe_code)]
-    // UNSAFE(process-flag) SAFETY: `route_internal` is the only writer of `FAST_ALIGN_END`; it
-    // runs at most once, in `early_init` on the initial thread, before the runtime or the program
-    // creates any other thread; every later thread starts after that store (thread creation
-    // orders it) and a fork child copies the settled word, so no store runs concurrently with
-    // this read (no data race). The pointer is a static's, always valid and aligned for a `usize`.
+    // UNSAFE(process-flag) SAFETY: as `reserve_last`: `route_internal` is the only writer.
     unsafe {
-        *FAST_ALIGN_END.as_ptr()
+        [*SIZE_ENDS[0].as_ptr(), *SIZE_ENDS[1].as_ptr(), *SIZE_ENDS[2].as_ptr()]
     }
+}
+
+/// OPTION 2's cold fallback: the heap answered `None` (out of memory, or every bound 0 because
+/// routed): the replacement for a routed allocation at most `ALIGN`-aligned, the heap with its
+/// constant bounds for a routed one above, else the reserve.
+#[cold]
+#[inline(never)]
+fn alloc_none(size: usize, align: usize, zero: bool) -> usize {
+    if reserve_last() == usize::MAX {
+        if align <= ALIGN {
+            return routed_alloc(size, zero);
+        }
+        if let Some(b) = HEAP.alloc(&CSys, &KernelPages, size, align) {
+            if zero && !b.zeroed {
+                zero_fresh(b.addr, size);
+            }
+            return b.addr;
+        }
+    }
+    let a = reserve_alloc(size, align);
+    if zero && a != 0 {
+        zero_fresh(a, size);
+    }
+    a
 }
 
 /// [`RESERVE_LAST`] as a plain read (owner ruling #7708), as [`fast_align_end`].
@@ -558,30 +582,23 @@ fn release_cold(addr: usize, size: usize) {
 /// reserve; 0 without memory. Once routed, a block at most [`ALIGN`]-aligned comes from the
 /// replacement ([`routed_alloc`]).
 pub fn rust_alloc(size: usize, align: usize) -> usize {
-    match HEAP.alloc_below(&CSys, &KernelPages, size, align, fast_align_end()) {
-        Ok(b) => b.map_or_else(|| reserve_alloc(size, align), |b| b.addr),
-        Err(Routed) => routed_alloc(size, false),
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, size_ends()) {
+        Some(b) => b.addr,
+        None => alloc_none(size, align, false),
     }
 }
 
 /// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
-    match HEAP.alloc_below(&CSys, &KernelPages, size, align, fast_align_end()) {
-        Ok(Some(b)) => {
+    match HEAP.alloc_below(&CSys, &KernelPages, size, align, size_ends()) {
+        Some(b) => {
             if !b.zeroed {
                 zero_fresh(b.addr, size);
             }
             b.addr
         }
-        Ok(None) => {
-            let a = reserve_alloc(size, align);
-            if a != 0 {
-                zero_fresh(a, size);
-            }
-            a
-        }
-        Err(Routed) => routed_alloc(size, true),
+        None => alloc_none(size, align, true),
     }
 }
 

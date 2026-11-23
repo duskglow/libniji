@@ -47,7 +47,7 @@ niji_boundary::heap::RESERVE_TOP
 niji_boundary::heap::RESERVE_LIVE
 niji_boundary::heap::RESERVE_LOCK
 niji_boundary::heap::RSEQ_NODE  # the kernel-fills-node_id answer, written by the first multi-node allocation (D-3.21)
-niji_boundary::heap::FAST_ALIGN_END  # the allocation fast path's alignment bound, changed only when routed (ruling #7583)
+niji_boundary::heap::SIZE_ENDS  # OPTION 2 (measurement only): the allocation paths' size bounds, 0 when routed
 niji_boundary::heap::RESERVE_LAST  # the release path's reserve bound, changed only when routed (ruling #7583)
 # The initial thread, its TLS image and rseq registration.
 niji_boundary::thread::HEAD
