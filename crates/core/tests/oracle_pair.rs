@@ -104,7 +104,6 @@ fn with_headers_gives_each_line_the_last_header_above_it() {
 fn without_takes_one_line_per_entry_and_only_in_its_case() {
     // Trace: no spec clause (test-harness behaviour: the known-differences filter, PRODUCTS-HARNESS-SHARED).
     let lines = with_headers(OUT, &["== ", "-- "]);
-    let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>();
     // One entry takes the first `same` of its case only: the second, and the one in `== close`, stay.
     let left = without(lines.clone(), &[("-- twice", "same", "one")], "libniji");
     assert_eq!(text(&left), ["== open", "ok 1", "-- twice", "same", "== close", "same", "ok 2"]);
