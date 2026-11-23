@@ -625,6 +625,16 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
         Tunables::parse(text, secure)
     });
     let cpu_state = cpu::init_with(&tunables);
+    // D-21.6: the shadow stack, asked for by the tunables, for a static program whose image is
+    // marked; before its constructors. `start` never returns, as the enable requires.
+    if static_program {
+        if let Some(m) = tunables.shstk_wanted() {
+            let at = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
+            if let Some(lock) = crate::shstk::static_start(m, at(niji_kernel::uapi::AT_PHDR), at(niji_kernel::uapi::AT_PHNUM)) {
+                let _ = ffi::niji_machine_shstk_enter(lock);
+            }
+        }
+    }
     // The classed entries (D-4.53): on the AVX2 class, the AVX2 page moves over the SSE2 page,
     // here, with one thread and before the program's IFUNC resolvers and constructors. A program
     // started by another `ld.so` keeps the SSE2 page (other objects' code may have run). The

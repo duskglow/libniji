@@ -18,6 +18,7 @@ pub mod search;
 pub mod cache;
 pub mod ldconfig;
 pub mod reloc;
+pub mod shstk;
 pub mod init;
 pub mod dlopen;
 pub mod symbols;

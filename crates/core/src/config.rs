@@ -64,11 +64,40 @@ pub struct Tunables {
     /// then make the main stack and the C library's thread stacks executable. Read by the loader
     /// only on its refusal branch for such an object; never honoured in secure mode.
     pub exec_stack: Option<bool>,
+    /// The user shadow stack asked for (`glibc.cpu.hwcaps` item `SHSTK`, `-SHSTK` withdraws it;
+    /// D-21.6). Only the last `hwcaps` entry counts, and in it the last of these items.
+    pub shstk: Option<bool>,
+    /// `glibc.cpu.x86_shstk`: how the shadow stack, once asked for, treats unmarked objects.
+    pub x86_shstk: ShstkMode,
+}
+
+/// The values of `glibc.cpu.x86_shstk` (D-21.6, probe-settled: exact lower-case spellings; any
+/// other value, or none, is [`ShstkMode::Default`]; the last entry counts).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ShstkMode {
+    /// Enable for an all-marked start, lock, and refuse a `dlopen` of an unmarked object.
+    #[default]
+    Default,
+    /// Enable and lock; a `dlopen` of an unmarked object is accepted and the shadow stack stays on.
+    On,
+    /// Never enable.
+    Off,
+    /// Enable without locking; a `dlopen` of an unmarked object turns the shadow stack off.
+    Permissive,
+}
+
+impl Tunables {
+    /// The shadow-stack mode the start enables in when its objects are all marked, or `None` when
+    /// the tunables do not ask for the shadow stack (the default) or veto it (D-21.6).
+    pub fn shstk_wanted(&self) -> Option<ShstkMode> {
+        (self.shstk == Some(true) && self.x86_shstk != ShstkMode::Off).then_some(self.x86_shstk)
+    }
 }
 
 /// Which tunable a name denotes (its `niji.*` name or the `glibc.*` alias).
 #[derive(Clone, Copy)]
 enum Key {
+    Shstk,
     Hwcaps,
     MovsbThreshold,
     StosbThreshold,
@@ -82,6 +111,7 @@ enum Key {
 fn key_of(name: &[u8]) -> Option<Key> {
     Some(match name {
         b"niji.cpu.hwcaps" | b"glibc.cpu.hwcaps" => Key::Hwcaps,
+        b"niji.cpu.x86_shstk" | b"glibc.cpu.x86_shstk" => Key::Shstk,
         b"niji.cpu.rep_movsb_threshold" | b"glibc.cpu.x86_rep_movsb_threshold" => Key::MovsbThreshold,
         b"niji.cpu.rep_stosb_threshold" | b"glibc.cpu.x86_rep_stosb_threshold" => Key::StosbThreshold,
         b"niji.pthread.rseq" | b"glibc.pthread.rseq" => Key::Rseq,
@@ -267,7 +297,15 @@ impl Tunables {
         for (key, value) in entries(text) {
             match key {
                 Key::Hwcaps => {
+                    // A later `hwcaps` entry replaces an earlier one for SHSTK (probe-settled).
+                    t.shstk = None;
                     for item in value.split(|&b| b == b',') {
+                        // Exact spelling only, no `_Usable` (probe-settled).
+                        match item {
+                            b"SHSTK" => t.shstk = Some(true),
+                            b"-SHSTK" => t.shstk = Some(false),
+                            _ => {}
+                        }
                         let (on, name) = match item {
                             [b'-', rest @ ..] => (false, rest),
                             _ => (true, item),
@@ -292,6 +330,14 @@ impl Tunables {
                 Key::Perturb => {} // read on its own by `malloc_perturb`
                 Key::NoClassedSwap => t.no_classed_swap = ranged(value, 0, 1).map(|n| n != 0).or(t.no_classed_swap),
                 Key::ExecStack => t.exec_stack = ranged(value, 0, 1).map(|n| n != 0).or(t.exec_stack),
+                Key::Shstk => {
+                    t.x86_shstk = match value {
+                        b"on" => ShstkMode::On,
+                        b"off" => ShstkMode::Off,
+                        b"permissive" => ShstkMode::Permissive,
+                        _ => ShstkMode::Default,
+                    }
+                }
             }
         }
         t
@@ -338,7 +384,7 @@ pub fn fields(line: &[u8]) -> impl Iterator<Item = &[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::Tunables;
+    use super::{ShstkMode, Tunables};
 
     #[test]
     fn no_classed_swap() {
@@ -347,6 +393,33 @@ mod tests {
         assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=0", false).no_classed_swap, Some(false));
         assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=2", false).no_classed_swap, None);
         assert_eq!(Tunables::parse(b"", false).no_classed_swap, None);
+    }
+
+    // D-21.6 (no spec clause: the reference's tunables, probe-settled on the N100 class): which
+    // strings ask for the shadow stack, and in which mode.
+    #[test]
+    fn shstk_tunables() {
+        let w = |s: &[u8]| Tunables::parse(s, false).shstk_wanted();
+        assert_eq!(w(b""), None);
+        assert_eq!(w(b"glibc.cpu.hwcaps=SHSTK"), Some(ShstkMode::Default));
+        assert_eq!(w(b"niji.cpu.hwcaps=IBT,SHSTK"), Some(ShstkMode::Default));
+        // Exact spelling, last item and last entry win.
+        for no in [&b"glibc.cpu.hwcaps=shstk"[..], b"glibc.cpu.hwcaps=SHSTK_Usable", b"glibc.cpu.hwcaps=SHSTK,-SHSTK", b"glibc.cpu.hwcaps=SHSTK:glibc.cpu.hwcaps=AVX2"] {
+            assert_eq!(w(no), None, "{}", String::from_utf8_lossy(no));
+        }
+        assert_eq!(w(b"glibc.cpu.hwcaps=-SHSTK,SHSTK"), Some(ShstkMode::Default));
+        // x86_shstk alone asks for nothing; off vetoes in either order; unknown spellings are the default.
+        assert_eq!(w(b"glibc.cpu.x86_shstk=on"), None);
+        assert_eq!(w(b"glibc.cpu.x86_shstk=off:glibc.cpu.hwcaps=SHSTK"), None);
+        assert_eq!(w(b"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=on"), Some(ShstkMode::On));
+        assert_eq!(w(b"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=permissive"), Some(ShstkMode::Permissive));
+        assert_eq!(w(b"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=off:glibc.cpu.x86_shstk=on"), Some(ShstkMode::On));
+        for odd in [&b"OFF"[..], b"On", b"PERMISSIVE", b"bogus"] {
+            let s = [&b"glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk="[..], odd].concat();
+            assert_eq!(w(&s), Some(ShstkMode::Default));
+        }
+        // Secure mode honours nothing.
+        assert_eq!(Tunables::parse(b"glibc.cpu.hwcaps=SHSTK", true).shstk_wanted(), None);
     }
 
     #[test]

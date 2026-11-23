@@ -174,6 +174,7 @@ int niji_machine_setcontext(const void *uc);
 int niji_machine_swapcontext(void *save, const void *to);
 void niji_machine_start_context(void);
 uintptr_t niji_machine_ssp(void);
+long niji_machine_shstk_enter(unsigned long lock);
 /* Class adapter: va_arg accessor (src/adapter/variadic.c). */
 long niji_va_long(void *ap);
 double niji_va_double(void *ap);

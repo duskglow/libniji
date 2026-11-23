@@ -35,6 +35,11 @@ unsafe extern "C" {
     /// `fini` (0 = none). Never returns.
     // ARCH(x86_64): x86-64 psABI process entry (%rsp, %rdx = fini); aarch64 has its own (A-4).
     pub(crate) safe fn niji_machine_ld_enter(sp: usize, entry: usize, fini: usize) -> !;
+    /// `csys/src/machine/entry.S` assembled with `-DNIJI_LD`: turn on the calling thread's shadow
+    /// stack and lock its features with mask `lock` (0: no lock); 0 or -errno (D-21.6). Returns by a
+    /// jump: the caller is a frame that never returns (the loader's start, `link`).
+    // ARCH(x86_64): arch_prctl(ARCH_SHSTK_*); aarch64's guarded control stack is another interface (A-12).
+    pub(crate) safe fn niji_machine_ld_shstk_enter(lock: u64) -> i64;
     /// `csys/src/machine/tlsdesc.S`: the TLS descriptor function of a block in the static area
     /// (DL-15, R14-8). Never called from Rust: its address goes in a descriptor's first word.
     // ARCH(x86_64): the %rax-only descriptor convention (tlsdesc.S header); aarch64's is AAELF64's (A-12).

@@ -226,6 +226,37 @@ niji_machine_ssp:
 	ret
 	.size niji_machine_ssp, .-niji_machine_ssp
 
+/* long niji_machine_shstk_enter(unsigned long lock) (D-21.6): turn on the calling thread's
+ * shadow stack (arch_prctl ARCH_SHSTK_ENABLE 0x5001, ARCH_SHSTK_SHSTK 1) and, when that succeeded
+ * and `lock` is not 0, lock those features (ARCH_SHSTK_LOCK 0x5003, mask `lock`). Returns the
+ * enable's result (0 or -errno) by a jump: the new shadow stack has no entry for this call, and
+ * the caller must be a frame that never returns (the static start). ld.so has its own copy
+ * (machine/entry.S, niji_machine_ld_shstk_enter). */
+	.section .text.niji_machine_shstk_enter,"ax",@progbits
+	.globl niji_machine_shstk_enter
+	.hidden niji_machine_shstk_enter
+	.type niji_machine_shstk_enter, @function
+	.p2align 4
+niji_machine_shstk_enter:
+	movq %rdi, %rdx
+	movl $0x5001, %edi
+	movl $1, %esi
+	movl $158, %eax			/* SYS_arch_prctl */
+	syscall
+	testq %rax, %rax
+	jnz 1f
+	testq %rdx, %rdx
+	jz 1f
+	movl $0x5003, %edi
+	movq %rdx, %rsi
+	movl $158, %eax
+	syscall
+	xorl %eax, %eax
+1:	popq %r11
+	jmpq *%r11
+	.size niji_machine_shstk_enter, .-niji_machine_shstk_enter
+	.text
+
 #ifdef NIJI_EXPORT
 	.globl getcontext
 	.type getcontext, @function
