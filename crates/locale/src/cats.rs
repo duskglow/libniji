@@ -204,6 +204,13 @@ impl Out<'_> {
         self.f.string(&b)
     }
 
+    /// A string's wide form: empty when its multibyte form is (probed, LOCALEDEF-TRANSLIT: a
+    /// string the charmap cannot take is written empty in both forms).
+    fn wide(&mut self, s: &[u32]) -> Result<()> {
+        let ok = self.cs.convert(s)?.is_some();
+        self.f.wide(if ok { s } else { &[] })
+    }
+
     fn opt(&mut self, s: Option<&TryVec<u32>>) -> Result<()> {
         self.string(s.map_or(&[][..], |v| v))
     }
@@ -472,13 +479,13 @@ pub fn time(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     // The defaults write these wide strings empty up to `t_fmt` (`t_fmt_ampm`'s is kept; D-31.24).
     let names = abday.len() + day.len() + abmon.len() + mon.len() + am_pm.len() + 3;
     for (i, s) in abday.iter().chain(day.iter()).chain(abmon.iter()).chain(mon.iter()).chain(am_pm.iter()).chain(fmts.iter()).enumerate() {
-        o.f.wide(if b.defaults && i < names { &[] } else { s })?;
+        o.wide(if b.defaults && i < names { &[] } else { s })?;
     }
-    o.f.wide(&era_year)?;
-    o.f.wide(&era_d_fmt)?;
+    o.wide(&era_year)?;
+    o.wide(&era_d_fmt)?;
     o.f.wides(alt.iter().map(|v| v.as_slice()))?;
-    o.f.wide(&era_d_t_fmt)?;
-    o.f.wide(&era_t_fmt)?;
+    o.wide(&era_d_t_fmt)?;
+    o.wide(&era_t_fmt)?;
     // week: ndays; 1stday (a date, a word); 1stweek.
     let week = b.numbers(b"week")?;
     let wk = |i: usize, d: i64| week.get(i).copied().unwrap_or(d);
@@ -492,7 +499,7 @@ pub fn time(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     o.string(&text_or_empty(b, b"timezone")?)?;
     let date_fmt = text_or_empty(b, b"date_fmt")?;
     o.string(&date_fmt)?;
-    o.f.wide(&date_fmt)?;
+    o.wide(&date_fmt)?;
     o.codeset()?;
     let alt_mon = if b.get(b"alt_mon").is_some() { list(b"alt_mon", 12)? } else { clone_list(&mon)? };
     let ab_alt_mon = if b.get(b"ab_alt_mon").is_some() { list(b"ab_alt_mon", 12)? } else { clone_list(&abmon)? };
@@ -500,13 +507,13 @@ pub fn time(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
         o.string(s)?;
     }
     for s in alt_mon.iter() {
-        o.f.wide(s)?;
+        o.wide(s)?;
     }
     for s in ab_alt_mon.iter() {
         o.string(s)?;
     }
     for s in ab_alt_mon.iter() {
-        o.f.wide(s)?;
+        o.wide(s)?;
     }
     o.f.finish(MAGIC[2])
 }

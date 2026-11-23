@@ -677,11 +677,11 @@ LC_MONETARY\nint_curr_symbol {}\ncurrency_symbol {}\nmon_decimal_point {}\nmon_t
 int_frac_digits 2\nfrac_digits 2\np_cs_precedes 1\np_sep_by_space 1\nn_cs_precedes 1\nn_sep_by_space 1\np_sign_posn 1\nn_sign_posn 1\nEND LC_MONETARY\n\
 LC_NUMERIC\ndecimal_point {}\nthousands_sep {}\ngrouping 3\nEND LC_NUMERIC\n\
 LC_MESSAGES\nyesexpr {}\nnoexpr {}\nyesstr {}\nnostr {}\nEND LC_MESSAGES\n\
-LC_ADDRESS\npostal_fmt {}\ncountry_name {}\nlang_name {}\nEND LC_ADDRESS\n\
+LC_ADDRESS\npostal_fmt {}\ncountry_name {}\nlang_name {}\ncountry_ab2 \"DE\"\ncountry_ab3 \"DEU\"\ncountry_num 276\nEND LC_ADDRESS\n\
 LC_TELEPHONE\ntel_int_fmt {}\nint_prefix {}\nEND LC_TELEPHONE\n\
 LC_NAME\nname_fmt {}\nname_mr {}\nEND LC_NAME\n\
 LC_IDENTIFICATION\ntitle {}\nsource {}\nEND LC_IDENTIFICATION\n\
-LC_TIME\nabday {}\nday {}\nabmon {}\nmon {}\nd_t_fmt {}\nd_fmt \"%x\"\nt_fmt \"%X\"\nam_pm {}\nt_fmt_ampm \"%r\"\nEND LC_TIME\n",
+LC_TIME\nabday {}\nday {}\nabmon {}\nmon {}\nd_t_fmt {}\nd_fmt \"%x\"\nt_fmt \"%X\"\nam_pm {}\nt_fmt_ampm \"%r\"\nweek 7;19971130;4\ndate_fmt \"%a\"\nEND LC_TIME\n",
         ctype(format!("include \"tra\";\"\"\ninclude \"trb\";\"\"\n{own}")),
         q("EUR "), q("\u{20ac}"), q("\u{2030}"), q("\u{202f}"), q("-\u{4e00}"),
         q("\u{4e01}"), q("\u{4e02}"),
