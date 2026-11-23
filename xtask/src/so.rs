@@ -116,12 +116,18 @@ pub(crate) fn tmp_name(path: &Path) -> std::path::PathBuf {
 }
 
 /// Rename the finished `tmp` over `dst`: a reader sees the old product or the new one, never a
-/// half-written file.
+/// half-written file. An archive the build made gets the shadow-stack property on each member first.
 pub(crate) fn publish(tmp: &Path, dst: &Path) -> Result<(), String> {
     // D-X.164: every archive libniji ships has the shadow-stack property on each member.
     if dst.extension().is_some_and(|e| e == "a") {
         crate::cetnote::mark_archive(tmp)?;
     }
+    publish_verbatim(tmp, dst)
+}
+
+/// [`publish`] without touching the bytes: for files copied from an earlier build (`import`),
+/// which must stay identical to the manifest they were checked against.
+pub(crate) fn publish_verbatim(tmp: &Path, dst: &Path) -> Result<(), String> {
     fs::rename(tmp, dst).map_err(|e| format!("rename {} -> {}: {e}", tmp.display(), dst.display()))
 }
 
@@ -4872,10 +4878,11 @@ mod tests {
         let dst = dir.0.join("libx.a");
         let tmp = tmp_name(&dst);
         assert_eq!(tmp.file_name().unwrap(), ".libx.a.tmp");
+        // An archive is marked before it is published (D-X.164): an empty one is left as it is.
         fs::write(&dst, "old").unwrap();
-        fs::write(&tmp, "new").unwrap();
+        fs::write(&tmp, "!<arch>\n").unwrap();
         publish(&tmp, &dst).unwrap();
-        assert_eq!(fs::read_to_string(&dst).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&dst).unwrap(), "!<arch>\n");
         assert!(!tmp.exists());
     }
 
