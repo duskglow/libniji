@@ -46,9 +46,20 @@ fn every_name_iconv_lists_converts() {
     let text = String::from_utf8(out.stdout).expect("UTF-8 listing");
     let names: Vec<&str> = text.lines().map(|l| l.strip_suffix("//").or_else(|| l.strip_suffix('/')).expect("NAME// form")).collect();
     assert!(names.len() >= 63, "only {} names", names.len());
+    // Each name converts both ways: `A` from UTF-8 to it and back, each in a fresh process (the names of the
+    // charmaps' headers included: a fresh process finds them by its own header scan).
+    let convert = |from: &str, to: &str, input: &[u8]| -> std::process::Output {
+        use std::io::Write;
+        let mut child = Command::new(&iconv).args(["-f", from, "-t", to]).env_clear().stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().expect("run iconv");
+        child.stdin.take().expect("stdin").write_all(input).expect("write the input");
+        child.wait_with_output().expect("wait for iconv")
+    };
     for name in names {
-        let r = Command::new(&iconv).args(["-f", name, "-t", "UTF-8", "/dev/null"]).env_clear().output().expect("run iconv");
-        assert_eq!(r.status.code(), Some(0), "{name} is listed but does not convert: {}", String::from_utf8_lossy(&r.stderr));
+        let to = convert("UTF-8", name, b"A");
+        assert_eq!(to.status.code(), Some(0), "{name} is listed but UTF-8 to it fails: {}", String::from_utf8_lossy(&to.stderr));
+        let back = convert(name, "UTF-8", &to.stdout);
+        assert_eq!(back.status.code(), Some(0), "{name} is listed but it to UTF-8 fails: {}", String::from_utf8_lossy(&back.stderr));
+        assert_eq!(back.stdout, b"A", "{name} is listed but does not round-trip `A`");
     }
 }
 
