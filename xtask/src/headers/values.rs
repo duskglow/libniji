@@ -16,24 +16,111 @@ pub(crate) fn null_lines(name: &str, value: &str) -> Result<Vec<String>, String>
     Ok(vec!["#  ifdef __cplusplus".into(), format!("#   define {name} __null"), "#  else".into(), format!("#   define {name} ((void *) 0)"), "#  endif".into()])
 }
 
+/// The floating types of macros.tsv: (type, builtin suffix of `__builtin_inf`/`__builtin_nan`, literal suffix, the
+/// decimal digits that carry every value of the type exactly: C11 5.2.4.2.2's `*_DECIMAL_DIG` of binary32 (9), binary64
+/// (17), the x87 80-bit format (21) and binary128 (36)). The `_FloatN` suffixes are TS 18661-3's (C2X 6.4.4.2), which
+/// the reference toolchain's gcc and g++ take in every language mode (black-box probe, HEADERS-TABLES-COMPLETE-2).
+pub(crate) const FLOATS: &[(&str, &str, &str, usize)] = &[
+    ("float", "f", "f", 9),
+    ("double", "", "", 17),
+    ("long double", "l", "L", 21),
+    ("_Float32", "f32", "f32", 9),
+    ("_Float64", "f64", "f64", 17),
+    ("_Float32x", "f32x", "f32x", 17),
+    ("_Float64x", "f64x", "f64x", 21),
+    ("_Float128", "f128", "f128", 36),
+];
+
+/// The decimal spelling (`d.ddde+N`) of the hexadecimal floating constant `hex` (`[-]0xH[.H]p[+-]N`), rounded to
+/// `digits` significant digits, half to even. A hexadecimal floating constant is no token in C89 and in C++98 to C++14
+/// (C99 6.4.4.2, C++17 [lex.fcon]); the decimal one is a token in every mode, and with the type's `*_DECIMAL_DIG`
+/// digits the compiler reads back the same value (C11 5.2.4.2.2).
+pub(crate) fn decimal(hex: &str, digits: usize) -> Result<String, String> {
+    let bad = || format!("bad hexadecimal floating constant {hex:?}");
+    let (neg, h) = match hex.strip_prefix('-') {
+        Some(h) => (true, h),
+        None => (false, hex),
+    };
+    let (mant, exp) = h.strip_prefix("0x").and_then(|h| h.split_once('p')).ok_or_else(bad)?;
+    let (ip, fp) = mant.split_once('.').unwrap_or((mant, ""));
+    let m = u128::from_str_radix(&format!("{ip}{fp}"), 16).map_err(|_| bad())?;
+    let e = exp.parse::<i64>().map_err(|_| bad())? - 4 * fp.len() as i64;
+    if digits == 0 || m == 0 {
+        return if m == 0 { Ok(format!("{}0.0e+0", if neg { "-" } else { "" })) } else { Err(bad()) };
+    }
+    // The exact value is N * 10^dexp with N = m * 2^e (e >= 0) or m * 5^-e (e < 0): N in base-1e9 limbs, low first.
+    const BASE: u64 = 1_000_000_000;
+    let mut n: Vec<u64> = Vec::new();
+    let mut x = m;
+    while x > 0 {
+        n.push((x % BASE as u128) as u64);
+        x /= BASE as u128;
+    }
+    let (mut left, step, unit, dexp) = if e >= 0 { (e, 30, 2u64, 0) } else { (-e, 13, 5u64, e) };
+    while left > 0 {
+        let k = left.min(step);
+        left -= k;
+        let mul = unit.pow(k as u32);
+        let mut carry = 0u64;
+        for l in n.iter_mut() {
+            let v = *l * mul + carry;
+            *l = v % BASE;
+            carry = v / BASE;
+        }
+        while carry > 0 {
+            n.push(carry % BASE);
+            carry /= BASE;
+        }
+    }
+    let mut s = n.iter().rev().enumerate().map(|(i, l)| if i == 0 { l.to_string() } else { format!("{l:09}") }).collect::<String>().into_bytes();
+    let mut exp10 = s.len() as i64 - 1 + dexp;
+    if s.len() > digits {
+        let rest = &s[digits..];
+        let half = rest[0].cmp(&b'5').then_with(|| if rest[1..].iter().any(|&d| d != b'0') { std::cmp::Ordering::Greater } else { std::cmp::Ordering::Equal });
+        let odd = (s[digits - 1] - b'0') % 2 == 1;
+        s.truncate(digits);
+        if half == std::cmp::Ordering::Greater || (half == std::cmp::Ordering::Equal && odd) {
+            let mut i = digits;
+            loop {
+                if i == 0 {
+                    s.insert(0, b'1');
+                    s.truncate(digits);
+                    exp10 += 1;
+                    break;
+                }
+                i -= 1;
+                if s[i] == b'9' {
+                    s[i] = b'0';
+                } else {
+                    s[i] += 1;
+                    break;
+                }
+            }
+        }
+    }
+    while s.len() > 1 && s.last() == Some(&b'0') {
+        s.pop();
+    }
+    let s = String::from_utf8(s).map_err(|_| bad())?;
+    let frac = if s.len() > 1 { &s[1..] } else { "0" };
+    Ok(format!("{}{}.{frac}e{}{}", if neg { "-" } else { "" }, &s[..1], if exp10 < 0 { "-" } else { "+" }, exp10.abs()))
+}
+
 /// The C literal of a `macros.tsv` value of the given type.
 pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     if ty.starts_with("char[") {
         return Ok(value.to_string());
     }
-    // A floating constant: an infinity or a NaN has no literal, the compiler's builtin of the type gives it; a
-    // hexadecimal value is written as it is, with the type's suffix (C99 6.4.4.2, exact in its type).
-    if let Some((f, sfx)) = match ty {
-        "float" => Some(("f", "f")),
-        "double" => Some(("", "")),
-        "long double" => Some(("l", "L")),
-        _ => None,
-    } {
+    // A floating constant: an infinity or a NaN (quiet `nan`, signaling `snan`) has no literal, the compiler's builtin
+    // of the type gives it; a finite
+    // value is its decimal spelling with the type's suffix (exact in its type, a token in every language mode).
+    if let Some(&(_, f, sfx, digits)) = FLOATS.iter().find(|r| r.0 == ty) {
         return match value {
             "inf" => Ok(format!("(__builtin_inf{f} ())")),
             "-inf" => Ok(format!("(-__builtin_inf{f} ())")),
             "nan" => Ok(format!("(__builtin_nan{f} (\"\"))")),
-            v if v.trim_start_matches('-').starts_with("0x") && v.contains('p') => Ok(format!("({v}{sfx})")),
+            "snan" => Ok(format!("(__builtin_nans{f} (\"\"))")),
+            v if v.trim_start_matches('-').starts_with("0x") && v.contains('p') => Ok(format!("({}{sfx})", decimal(v, digits)?)),
             v => Err(format!("no literal form for the {ty} value {v:?}")),
         };
     }
