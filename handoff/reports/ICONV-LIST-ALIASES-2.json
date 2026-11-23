@@ -18,4 +18,4 @@
  "improvement": "A run that dies before writing its handoff leaves only commit bodies; writing the handoff skeleton right after the first commit would have saved this run its reconstruction.",
  "next_step": "Land; optional fix-forward story for the libc alias match on loaded charmaps (iconv -l and iconv -f <alias> cost).",
  "report_file": "handoff/ICONV-LIST-ALIASES.md",
- "jobs": ["shiki:iconv-list-aliases-2-gate2", "shiki:iconv-list-aliases-2-plants1", "shiki:iconv-list-aliases-2-next", "shiki:iconv-list-aliases-2-counts2"]}
+ "jobs": ["shiki:iconv-list-aliases-2-gate2", "shiki:iconv-list-aliases-2-plants2"]}

@@ -26,9 +26,10 @@ fixed by ea1b5ee87).
   `every_name_iconv_lists_converts`: every name the products list round-trips one character in fresh processes,
   `A`, or for a set without `A` the first character the set decodes from its bytes 0x21-0x7e/0xa1-0xfe with `-c`
   (run 2 fix: ARABIC7, KATAKANA, ISO_5427, INIS, NATS and JIS OCR add-on sets have no `A`; the gate failed there).
-- Plants: `handoff/ICONV-LIST-ALIASES-plants.txt`, 8 plants, 8 CAUGHT (shiki `iconv-list-aliases-2-plants1`).
+- Plants: `handoff/ICONV-LIST-ALIASES-plants.txt`, 8 plants, 8 CAUGHT on 53ced61 (shiki `iconv-list-aliases-2-plants1`); rerun on the final head as
+  `iconv-list-aliases-2-plants2` (precheck: plants1 predates the test fix).
 
-## Measured (Haswell build host, 233 gzip charmaps installed; not a timing host)
+## Measured (measurement jobs `iconv-list-aliases-2-counts2`, `-prof`, `-scan`, `-probe` on shiki; Haswell build host, 233 gzip charmaps installed; not a timing host)
 
 | | origin/next 0495c46 | branch |
 |---|---|---|
