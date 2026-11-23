@@ -51,12 +51,20 @@ pub fn args(s: &Stmt) -> Result<TryVec<Arg>> {
 /// definition after `copy` replaces the copied one).
 pub struct Body<'a> {
     stmts: &'a [Stmt],
+    /// The built-in defaults of a category the source does not define (`defaults.rs`, D-31.24):
+    /// the few items a source cannot state are written as the reference writes them.
+    defaults: bool,
 }
 
 impl<'a> Body<'a> {
     /// The category's statements.
     pub fn new(stmts: &'a [Stmt]) -> Body<'a> {
-        Body { stmts }
+        Body { stmts, defaults: false }
+    }
+
+    /// The statements of `defaults.rs` for a category the source does not define.
+    pub fn defaults(stmts: &'a [Stmt]) -> Body<'a> {
+        Body { stmts, defaults: true }
     }
 
     /// The last statement with this keyword.
@@ -202,7 +210,14 @@ pub fn monetary(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
     o.string(&curr)?;
     o.string(&dp)?;
     o.string(&ts)?;
-    o.f.string(&grouping(&b.numbers(b"mon_grouping")?)?)?;
+    if b.defaults {
+        // The defaults' `mon_grouping`: one `CHAR_MAX` byte, no terminator (D-31.24).
+        let mut g = TryVec::new();
+        g.push(CHAR_MAX)?;
+        o.f.raw(false, g)?;
+    } else {
+        o.f.string(&grouping(&b.numbers(b"mon_grouping")?)?)?;
+    }
     o.string(&text_or_empty(b, b"positive_sign")?)?;
     o.string(&text_or_empty(b, b"negative_sign")?)?;
     let num = |kw: &[u8]| -> Result<u8> { Ok(b.number(kw)?.map_or(CHAR_MAX, byte_of)) };
@@ -221,6 +236,9 @@ pub fn monetary(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
         if !crncy.is_empty() {
             crncy.extend_from_slice(&curr)?;
         }
+    } else if b.defaults {
+        // The defaults' CRNCYSTR: `-` alone (D-31.24).
+        crncy.push(u32::from(b'-'))?;
     }
     o.string(&crncy)?;
     // The international forms default to the national ones.
@@ -410,8 +428,10 @@ pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
     o.string(&era_t_fmt)?;
     o.f.word(u32::try_from(eras.len()).unwrap_or(0))?;
     o.f.raw(true, era_entries(&eras, cs, b.get(b"era").map_or(0, |s| s.no))?)?;
-    for s in abday.iter().chain(day.iter()).chain(abmon.iter()).chain(mon.iter()).chain(am_pm.iter()).chain(fmts.iter()) {
-        o.f.wide(s)?;
+    // The defaults write these wide strings empty up to `t_fmt` (`t_fmt_ampm`'s is kept; D-31.24).
+    let names = abday.len() + day.len() + abmon.len() + mon.len() + am_pm.len() + 3;
+    for (i, s) in abday.iter().chain(day.iter()).chain(abmon.iter()).chain(mon.iter()).chain(am_pm.iter()).chain(fmts.iter()).enumerate() {
+        o.f.wide(if b.defaults && i < names { &[] } else { s })?;
     }
     o.f.wide(&era_year)?;
     o.f.wide(&era_d_fmt)?;

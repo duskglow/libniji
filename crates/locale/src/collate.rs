@@ -418,7 +418,9 @@ fn parse(stmts: &[Stmt], cs: &Charset) -> Result<Collation> {
                         c.order.place(Key::Undef, Some(ws), ruleset, after)?
                     }
                     Some(Tok::Sym(name)) => {
-                        let k = n.key(name, no)?;
+                        // An item that is no character of the charmap and no declared symbol or
+                        // element: its line is skipped, like an undefined name in LC_CTYPE (spec §31.8).
+                        let Ok(k) = n.key(name, no) else { continue };
                         let mut after = after;
                         if let Some((from, ws, lo)) = ellipsis.take() {
                             let Key::Char(hi) = k else { return Err(Error::syntax(no, "an ellipsis not before a character")) };
