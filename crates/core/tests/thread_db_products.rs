@@ -1,4 +1,4 @@
-//! `libthread_db.so.1` end to end (spec §22.10, decision record SYS-THREAD-DB-2-1): gdb loads the
+//! `libthread_db.so.1` end to end (spec §22.10, D-22.17): gdb loads the
 //! products' library into its own process and debugs `tests/oracle/thread_db_target.c`, linked
 //! statically against the products, stopped with four threads (the initial thread and three it
 //! created, each with its own value of the thread-local `tv`): `info threads` lists all four as

@@ -12,7 +12,7 @@ use niji_ld::boot::{self, BootError, Memory, Writer};
 use crate::conv;
 use crate::ffi;
 
-/// `__niji_thread_db` (`data.rs`, decision record SYS-THREAD-DB-2-1) tells a debugger how many dtv
+/// `__niji_thread_db` (`data.rs`, D-22.17) tells a debugger how many dtv
 /// words come before the first module slot; that must be the loader's layout. Checked here, in a
 /// module only the products compile and that already uses the loader crate: naming `niji_ld` in
 /// `data.rs` would make every test build of this crate (niji-math's `selftest` among them) depend
