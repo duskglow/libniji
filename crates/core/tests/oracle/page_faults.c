@@ -66,7 +66,7 @@ static int write_mo(const char *path) {
  * one block: the child runs no code and touches no memory before exec, and the program links no
  * library function beyond what its modes already use (vfork, execve, waitpid and getauxval from
  * libc.a moved the program's library layout: setlocale + printf and tool +2). Returns the child's
- * pid or -errno. STARTUP-RELAY-EXEC-SHIKI: a child whose execve fails stores execve's -errno in
+ * pid or -errno. STARTUP-RELAY-EXEC: a child whose execve fails stores execve's -errno in
  * *exec_err (vfork: the child shares this program's memory, and the parent is suspended until the
  * child exits) before it exits 127, so the parent can name the failure; the exec never happened,
  * so nothing counted ran. */
@@ -108,7 +108,7 @@ int main(int argc, char **argv, char **envp) {
         for (unsigned long *a = (unsigned long *)(e + 1); a[0] != 0; a += 2)
             if (a[0] == 31)
                 self = (const char *)a[1];
-        /* STARTUP-RELAY-EXEC-SHIKI: every failure of the relay itself names its step and errno on
+        /* STARTUP-RELAY-EXEC: every failure of the relay itself names its step and errno on
          * stderr (the harness puts stderr in its failure message); an exit status alone did not say
          * which program of the chain failed, or why. */
         if (self == NULL) {

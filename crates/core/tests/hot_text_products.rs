@@ -285,7 +285,7 @@ fn harness_fault_call_dirs_are_never_shared() {
 
 /// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
 /// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
-/// STARTUP-RELAY-EXEC-SHIKI: the `page_faults` relay reports a failed exec as `errno <n>`; the failure adds
+/// STARTUP-RELAY-EXEC: the `page_faults` relay reports a failed exec as `errno <n>`; the failure adds
 /// that errno's name (`errno 2 (No such file or directory ...)`).
 fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
     (!o.status.success()).then(|| {
@@ -306,7 +306,7 @@ fn harness_failed_run_reports_its_stderr() {
     assert!(why.contains("127") && why.contains("page_faults: not found"), "the failure does not carry the status and stderr: {why}");
     let ok = Command::new("sh").args(["-c", "echo minflt 1 >&2"]).stdin(Stdio::null()).output().expect("sh");
     assert_eq!(run_failure("probe", &ok), None);
-    // STARTUP-RELAY-EXEC-SHIKI: the relay's `errno <n>` is named.
+    // STARTUP-RELAY-EXEC: the relay's `errno <n>` is named.
     let o = Command::new("sh").args(["-c", "echo 'page_faults relay: execve /x/page_faults failed: errno 2' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
     let why = run_failure("probe", &o).expect("a failed run must read as a failure");
     assert!(why.contains(&format!("errno 2: {}", std::io::Error::from_raw_os_error(2))), "the relay's errno is not named: {why}");
@@ -314,7 +314,7 @@ fn harness_failed_run_reports_its_stderr() {
 
 #[test]
 fn harness_relay_names_a_failed_exec_and_its_errno() {
-    // STARTUP-RELAY-EXEC-SHIKI: no spec clause (this file's harness, `page_faults.c` relay). The relay's
+    // STARTUP-RELAY-EXEC: no spec clause (this file's harness, `page_faults.c` relay). The relay's
     // child execs the path the relay was exec'd by (AT_EXECFN). Exec'd as `/proc/self/fd/<n>` with <n>
     // close-on-exec, the relay itself starts (the kernel opens the path before it closes the descriptor),
     // and its child's exec of that path finds no descriptor <n>: the relay must name the path and the
