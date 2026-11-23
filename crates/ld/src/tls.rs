@@ -16,9 +16,19 @@
 use crate::arch::{Arch, TlsVariant};
 use crate::elf::ProgramHeader;
 
-/// The static TLS surplus (R14-4): 64 KiB of address space after the initial modules' blocks, for
-/// objects loaded later that need static TLS. Anonymous memory: no page is touched until used.
-pub const SURPLUS: u64 = 64 * 1024;
+/// The fixed part of the static TLS surplus (D-27.94): the surplus is this plus the
+/// `glibc.rtld.optional_static_tls` value, as on the reference (black-box probe
+/// `results/tls-surplus/`).
+pub const SURPLUS_FIXED: u64 = 1200;
+
+/// The `glibc.rtld.optional_static_tls` value when `GLIBC_TUNABLES` does not name it (the
+/// reference's `--list-tunables` default, 0x200).
+pub const OPTIONAL_STATIC_TLS: u64 = 512;
+
+/// The static TLS surplus by default (R14-4, D-27.94): 1712 bytes after the initial modules'
+/// blocks, for objects loaded later that need static TLS (`DF_STATIC_TLS`, initial-exec). Objects
+/// without that flag take none: their blocks are made per thread on first access (DL-19).
+pub const SURPLUS: u64 = SURPLUS_FIXED + OPTIONAL_STATIC_TLS;
 
 /// The dtv words before the first module slot (generation, slot count).
 pub const DTV_HEADER: u64 = 2;

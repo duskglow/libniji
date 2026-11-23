@@ -1001,18 +1001,23 @@ extern "C" fn tlsdesc_resolve(record: usize) -> usize {
     __tls_get_addr(record.wrapping_add(8))
 }
 
-/// Bytes of the static surplus asked by `glibc.rtld.optional_static_tls` (0: none; D-27.39).
+/// Bytes of the static surplus set by `glibc.rtld.optional_static_tls` (0: not named; never 0
+/// once named, the fixed part is added; D-27.94).
 static SURPLUS_ASKED: AtomicU64 = AtomicU64::new(0);
 
-/// The static surplus every thread's area has (D-27.39): `ltls::SURPLUS`, or the
-/// `glibc.rtld.optional_static_tls` value when that is larger (raise-only).
+/// The static surplus every thread's area has (D-27.94): `ltls::SURPLUS` (1712 bytes), or
+/// `ltls::SURPLUS_FIXED` plus the `glibc.rtld.optional_static_tls` value when that is named.
 pub(super) fn surplus_bytes() -> u64 {
-    ltls::SURPLUS.max(SURPLUS_ASKED.load(Relaxed))
+    match SURPLUS_ASKED.load(Relaxed) {
+        0 => ltls::SURPLUS,
+        asked => asked,
+    }
 }
 
-/// Record the start's `glibc.rtld.optional_static_tls` (read only when `GLIBC_TUNABLES` names it).
+/// Record the start's `glibc.rtld.optional_static_tls` (read only when `GLIBC_TUNABLES` names it):
+/// the surplus becomes the value plus `ltls::SURPLUS_FIXED`, lower or higher than the default.
 #[cold]
 #[inline(never)]
 pub(super) fn ask_surplus(bytes: u64) {
-    SURPLUS_ASKED.store(bytes, Relaxed);
+    SURPLUS_ASKED.store(bytes.saturating_add(ltls::SURPLUS_FIXED), Relaxed);
 }

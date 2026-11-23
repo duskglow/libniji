@@ -7,15 +7,17 @@
  *     image then zeros in blocks of their own, and their writes stay their own. In the late
  *     thread, dlinfo's RTLD_DI_TLS_DATA and dl_iterate_phdr's dlpi_tls_data are NULL before its
  *     first access (the block does not exist yet) and the block after it.
- *  2. A small initial-exec object (DF_STATIC_TLS) still opens after them: they took no static room.
+ *  2. A small initial-exec object (DF_STATIC_TLS) still opens after them: they took no static room;
+ *     a 2 KiB one does not (the default room is 1712 bytes, the tunable's 512 plus 1200).
  *  3. 200 cycles of open, touch (the main thread and a new thread, which ends before or after the
  *     dlclose), close: the address space does not grow (dlclose and thread exit free the blocks).
  *  4. A 1 GiB block under a 512 MiB address-space limit: the first access ends the process with
  *     status 127 and "cannot allocate memory for thread-local data" (a forked child).
- *  5. GLIBC_TUNABLES=glibc.rtld.optional_static_tls=262144 lets a 128 KiB initial-exec object open
- *     (a re-executed child; without the tunable it fails, s27_dlopen_tls_surplus).
+ *  5. GLIBC_TUNABLES=glibc.rtld.optional_static_tls=130048 lets a 128 KiB initial-exec object open
+ *     (a re-executed child; without the tunable it fails, s27_dlopen_tls_surplus): the room is the
+ *     value plus 1200 bytes (131248), so a room of only the value (130048) would refuse it.
  * Each failed check prints its line; the exit status is the number of failed checks. */
-/* DLOPEN-HELPERS: dld_gd dld_desc dld_ie dld_huge dlt_big */
+/* DLOPEN-HELPERS: dld_gd dld_desc dld_ie dld_ie2k dld_huge dlt_big */
 /* HELPER-FLAGS: dld_desc -mtls-dialect=gnu2 */
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -262,7 +264,7 @@ static void raised(void)
     fflush(NULL);
     pid_t pid = fork();
     if (pid == 0) {
-        setenv("GLIBC_TUNABLES", "glibc.rtld.optional_static_tls=262144", 1);
+        setenv("GLIBC_TUNABLES", "glibc.rtld.optional_static_tls=130048", 1);
         char *argv[] = {"s27_dlopen_tls_dynamic", "tunable", NULL};
         execv("/proc/self/exe", argv);
         _exit(95);
@@ -321,6 +323,14 @@ int main(int argc, char **argv)
     CHECK("main", ie != NULL && *ie() == 5);
     if (hie != NULL)
         CHECK("main", dlclose(hie) == 0);
+    /* The default room is 1712 bytes (512 + 1200): a 2 KiB initial-exec block does not fit. */
+    void *h2k = dlopen(at(dir, "libdld_ie2k.so"), RTLD_NOW);
+    const char *e2k = h2k == NULL ? dlerror() : NULL;
+    if (h2k != NULL)
+        fprintf(stderr, "s27_dlopen_tls_dynamic: 2 KiB initial-exec object opened with the default room\n");
+    CHECK("main", h2k == NULL && e2k != NULL && strstr(e2k, "cannot allocate memory in static TLS block") != NULL);
+    if (h2k != NULL)
+        dlclose(h2k);
     for (int i = 0; i < N; i++)
         if (h[i] != NULL)
             CHECK("main", dlclose(h[i]) == 0);

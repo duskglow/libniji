@@ -144,7 +144,8 @@ fn s27_3_c_0() {
 /// and TLS descriptors) open at once, each thread's block its own (image, then zeros); an
 /// initial-exec object still finds static room after them; 200 open/touch/close cycles with a
 /// thread ending before or after the dlclose do not grow the address space; and
-/// `glibc.rtld.optional_static_tls` raises the static surplus. Checked on the reference and on
+/// `glibc.rtld.optional_static_tls` sets the static surplus to its value plus 1200 bytes (D-27.94).
+/// Checked on the reference and on
 /// libniji's loader.
 #[test]
 fn s27_3_f_0() {

@@ -65,8 +65,7 @@ pub struct Tunables {
     /// only on its refusal branch for such an object; never honoured in secure mode.
     pub exec_stack: Option<bool>,
     /// `glibc.rtld.optional_static_tls`: bytes of static TLS room for objects loaded by `dlopen`
-    /// that need it (D-27.39). The loader's surplus is the larger of this and its 64 KiB default
-    /// (raise-only).
+    /// that need it (D-27.94). The loader's surplus is this plus 1200 bytes (default 512 + 1200).
     pub optional_static_tls: Option<u64>,
 }
 

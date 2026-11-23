@@ -86,9 +86,9 @@ pub(super) fn tunables(text: Option<&[u8]>, secure: bool) -> ! {
     let flag = |v: Option<bool>, default: bool| u64::from(v.unwrap_or(default));
     let size = |v: Option<usize>| v.and_then(|v| u64::try_from(v).ok()).unwrap_or(0);
     let mut o = Out::new();
-    // The value given, or the default surplus (D-27.94: the surplus is the larger of the two).
-    let surplus = t.optional_static_tls.unwrap_or(niji_ld::tls::SURPLUS);
-    tunable(&mut o, b"glibc.rtld.optional_static_tls", surplus, (0, u64::MAX), true);
+    // The value given, or its default (D-27.94: the surplus is the value plus a fixed 1200 bytes).
+    let optional = t.optional_static_tls.unwrap_or(niji_ld::tls::OPTIONAL_STATIC_TLS);
+    tunable(&mut o, b"glibc.rtld.optional_static_tls", optional, (0, u64::MAX), true);
     tunable(&mut o, b"niji.compat.execstack", flag(t.exec_stack, false), (0, 1), false);
     tunable(&mut o, b"niji.compat.no_classed_swap", flag(t.no_classed_swap, true), (0, 1), false);
     // A string tunable: the choices made, in the tunable's own syntax (`-` disables).
