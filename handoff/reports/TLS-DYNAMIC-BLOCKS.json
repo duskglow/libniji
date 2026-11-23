@@ -1,0 +1,33 @@
+{
+ "task": "TLS-DYNAMIC-BLOCKS",
+ "model": "opus",
+ "tokens": null,
+ "result": "DL-19 done: dlopened objects without DF_STATIC_TLS get per-thread TLS blocks on first access (table D: 64 of 64 x 16 KiB open, was 4); static surplus sized as the reference (tunable + 1200, 1712 default; owner ruling on #8009); on-demand TLS descriptors have an asm fast path (38 instr/access)",
+ "branch": "task/tls-dynamic-blocks",
+ "head": "fbf847e2b",
+ "gate": {"affected": "gate4: conformance 148 passed / 0 failed; 3 failed tests, all mei-environment (locale_data x2, hot_text_products init_data_clusters), also failing in other stories' mei gates", "peak": "3.1G"},
+ "accepted_first_attempt": null,
+ "jobs": ["tls-dynamic-blocks-gate4", "tls-dynamic-blocks-plants4", "tls-dynamic-blocks-final-counts", "tls-dynamic-blocks-base-so", "tls-dynamic-blocks-startup2"],
+ "rulings": [],
+ "informational": [
+  "TLS descriptor access into a dlopened global-dynamic object: 16 instr/access on next (block in the static surplus), 38 now (thread vector lookup; 84 before the fast path); reference 17. Fix-forward: a shorter descriptor path",
+  "__tls_get_addr fast path 55 instr/access (incl. 10 loop+call) vs reference 27: next's, unchanged here",
+  "libniji's static room is the reference's + 16 bytes in every optional_static_tls row (1728 vs 1712): layout slack; glibc.rtld.nns not read (no dlmopen, DL-22)",
+  "IE (TPOFF) access from one dlopened object into another's on-demand block fails the open (cannot allocate memory in static TLS block)",
+  "mei-environment failures seen in this run and in other stories' mei gates: locale_data (no locale archive), hot_text_products init_data_clusters_hold_at_every_text_phase, catalogs_products catalogs_equal_the_reference (shstk-enable-xtest3/4, shstk-opt-in-test1)",
+  "the ~/wl -release-dyn products are another build flavour than cargo xtask so (36,026 vs 40,228 instr per create+join on next): before/after compares only like-built products"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "dlopen of 16 KiB global-dynamic TLS objects: 64 of 64 open (results/tls-surplus table D), was 4; survey sizes 46,148 and 30,400 bytes open", "before": 4, "after": 64, "unit": "objects", "measured": true},
+  {"kind": "perf", "what": "pthread_create+join creator user cycles per call (surplus zeroed on stack reuse 64 KiB -> 1712 B; indicative, loaded host)", "before": 17554, "after": 10631, "unit": "cycles/call (min of 3)", "measured": true},
+  {"kind": "perf", "what": "pthread_create+join instructions, all threads", "before": 40228, "after": 40231, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "start-up, empty main (ld.so run as a program)", "before": 190257, "after": 189510, "unit": "instr", "measured": true},
+  {"kind": "size", "what": "static TLS surplus per thread (address space)", "before": 65536, "after": 1712, "unit": "bytes", "measured": true},
+  {"kind": "cost", "what": "TLS descriptor access into a dlopened GD object (no longer static); fix-forward: shorter descriptor path", "before": 16, "after": 38, "unit": "instr/access incl. 10 loop+call", "measured": true},
+  {"kind": "coverage", "what": "plants on the change (all caught)", "before": null, "after": 8, "unit": "plants", "measured": true}
+ ],
+ "improvement": "Measuring before/after against the ~/wl -release-dyn products compared two build flavours (+4k instr, +10k start-up phantom regression); a 'products built like cargo xtask so for base' helper in wl would avoid an ad-hoc base build",
+ "next_step": "landing (coordinator); fix-forward: shorter on-demand TLS descriptor path",
+ "report_file": "handoff/TLS-DYNAMIC-BLOCKS-report.md"
+}

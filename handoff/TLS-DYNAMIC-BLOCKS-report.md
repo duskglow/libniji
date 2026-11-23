@@ -86,11 +86,31 @@ start-up; not comparable with a `cargo xtask so` build, so not used.)
   (only under value + 1200).
 * `dlopen_tls_modules_past_the_vectors_in_place` (niji-ld): 1100 objects with initial-exec variables
   need ~17 KB of static room; the run now sets `optional_static_tls=32768`.
-* Plants (`cargo xtask plants`): PLANTS_RESULT
+* Plants (`cargo xtask plants`, job `tls-dynamic-blocks-plants4` on 57f6c425d): 8 plants, 8 CAUGHT,
+  0 SURVIVED, 0 WARN (old-rule-surplus, no-free-thread-exit, no-free-dlclose, no-image,
+  tunable-ignored, tunable-raise-only, default-64k, tlsdesc-fast-wrong-slot); file with results:
+  handoff/TLS-DYNAMIC-BLOCKS-plants.txt. Superseded: plants2 (5, older code), plants3 (7, before
+  the fast path), all caught.
 
 ## Gate
 
-GATE_RESULT
+`tls-dynamic-blocks-gate4` (57f6c425d, direct tier: 63 targets, 148 conformance programs):
+conformance 148 passed, 0 failed; niji-ld green. Three failures, all environment of the Zen 1 build
+host, the same panics in other stories' gates there (ci-gate-6f9fd5047, timed-wait-edge-order-2-gate1,
+shstk-opt-in-test1): `locale_data` find_cached_answers_every_category_as_find and
+locale_name_found_before_its_alias ("the gate machines have a locale archive"; the host has none),
+`hot_text_products` init_data_clusters_hold_at_every_text_phase (fault count 58/59 across text
+phases). Superseded: gate3 (fb651e019): the same three plus `dlopen_tls_modules_past_the_vectors_in_place`
+(fixed in 6b57b5d8f; `tls-dynamic-blocks-ldtest` green).
+
+Start-up checks `tls-dynamic-blocks-startup2` (`cargo xtask test`, then `NIJI_FULL_PROFILE=1` so and
+hot_text_products): red on locale and catalog tests that fail the same way in other stories' runs on
+that host (`catalogs_equal_the_reference` in shstk-enable-xtest3/4 and shstk-opt-in-test1; the locale
+archive tests); no TLS or loader test among them. Layout bins (`target/product/fast/layout-bins.tsv`, next built
+with plain `cargo xtask so` against this branch's `NIJI_FULL_PROFILE=1` build, so not quite
+like-for-like): two sizes differ, `runtime::start` 5658 -> 5674 bytes and `cpu::init` 50 -> 59,
+the rest only in LLVM hash suffixes; not chased (this branch does not touch either function). The
+measured start-up rows (like-built) are flat: 190,257 -> 189,510 instructions, 66 -> 66 faults.
 
 ## Rule slips
 
