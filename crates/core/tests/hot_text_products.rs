@@ -327,19 +327,25 @@ fn reference_probe(dynamic: bool) -> Option<PathBuf> {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join(if dynamic { "page_faults_reference_dyn" } else { "page_faults_reference" });
     let link: &[&str] = if dynamic { &["-fPIE", "-pie"] } else { &["-static"] };
+    // Several tests (separate processes under nextest) build it at once: each links a file of its own and renames
+    // it into place, so a test staging the program ([`stage`]) never copies one another test is still writing (a
+    // shared output read ENOEXEC once).
+    let part = dir.join(format!("{}.{}.part", exe.file_name().and_then(|n| n.to_str()).unwrap_or("ref"), std::process::id()));
     let o = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-fno-builtin"])
         .args(link)
         .arg(root().join("crates/core/tests/oracle/page_faults.c"))
         .arg("-o")
-        .arg(&exe)
+        .arg(&part)
         .stdin(Stdio::null())
         .output()
         .expect("cc");
     if !o.status.success() {
         eprintln!("SKIP: page_faults.c does not link against the host's C library ({}): {}", if dynamic { "dynamic" } else { "static" }, String::from_utf8_lossy(&o.stderr).trim());
+        let _ = std::fs::remove_file(&part);
         return None;
     }
+    std::fs::rename(&part, &exe).expect("rename the reference probe into place");
     Some(exe)
 }
 

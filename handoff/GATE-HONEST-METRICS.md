@@ -42,7 +42,29 @@ Kernel instructions, dynamic empty main, 20 runs x 3 series: (max - min) / media
 10.2% (Haswell-EP), 15.4% (Zen 1); the reference up to 20%. Min of 20 steadier (libniji within 0.4% across
 series, the reference 1.1%). Median ratio 1.30-1.32. Verdict: over 1%, reported, not gated.
 
-## Open questions / next step
+## Jobs so far (mei unless named) and the exact next step
+
+- Done, green, on the head BEFORE the last commit: gate-honest-metrics-gate (direct tier, 659 passed / 0
+  failed), gate-honest-metrics-plants2 (2 CAUGHT: setlocale-keys-dropped, kinstr-lost), gate-honest-metrics-lint3.
+  Counts: gate-honest-metrics-measure-mei2, shiki:/keke: gate-honest-metrics-measure-next (scratch script, products
+  of next; `~/work/gate-honest-metrics/measure.sh` on each host).
+- SUPERSEDED: gate-honest-metrics-plants (perdir-trace-dropped SURVIVED: the mutant build still grouped the
+  per-directory functions, route not identified; plant replaced), lint/lint2 (clippy arithmetic, fixed),
+  gate-honest-metrics-xtest (red: see below).
+- gate-honest-metrics-xtest (cargo xtask test) was red on 4 tests. One was this branch's defect, fixed in the last
+  commit: `reference_probe` raced between nextest processes (a test staged the reference while another was
+  linking it: ENOEXEC in init_first_localtime_r_and_mktime...); it now links a per-process file and renames it.
+  The other three are NOT yet attributed: catalogs_products catalogs_equal_the_reference (catalog reload line,
+  "lookup 1.1 s after the file was replaced"), locale_products locale_behaviour_equals_the_reference (3 lines
+  differ), printf_corpus_products printf_corpus_equals_the_reference. This branch changes no library code (only
+  the hot-text grouping of the products); check them on origin/next's products on mei before calling them
+  INFORMATIONAL.
+- NEXT: sync; clippy + static; re-run the direct gate (the test file changed); re-run plants (same file) or name
+  plants2 with the reason; `cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo
+  test -p niji --test hot_text_products` (release ratios: print with --nocapture and compare with the fast bounds);
+  precheck; update handoff/reports/GATE-HONEST-METRICS.json (head, jobs); handback-check.
+
+## Open questions
 
 - RULING NEEDED: gate the kernel count on the min of 20 (ratio), which held within 0.4% / 1.1%? Recommend a
   follow-up story to measure min-of-N stability on more programs before gating.
