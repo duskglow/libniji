@@ -6,3 +6,11 @@ htn-abi-nested-never-packed | xtask/src/abi.rs | lit:let packed = self.natural(c
 htn-abi-natural-align | xtask/src/abi.rs | lit:Some((end.div_ceil(align) * align, align)) ==> Some((end, align)) | sh -c 'cargo xtask headers-gen && cargo test -p niji-abi --test appendix_c_layouts' | msg:abi_struct_tftphdr.*FAILED|panicked.*tftphdr
 htn-abi-bitfield-byte | xtask/src/abi.rs | lit:sorted.sort_by_key(|c| c.offset + if c.bitfield { c.pos / 8 } else { 0 }); ==> sorted.sort_by_key(|c| c.offset); | sh -c 'cargo xtask headers-gen && cargo test -p niji-abi --test appendix_c_layouts' | msg:abi_struct_ip_timestamp.*FAILED|ip_timestamp.ipt_len
 htn-macro-value | spec/abi/macros.tsv | lit:RTF_UP	net/route.h	int	1 ==> RTF_UP	net/route.h	int	3 | cargo xtask abi-types | msg:RTF_UP.*in constants.tsv
+# cargo xtask plants results (7 plants: 6 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# htn-nested-never-packed: CAUGHT, caught by no test the log names
+# htn-nested-always-packed: EQUIVALENT
+# htn-nested-attr-dropped: CAUGHT, caught by no test the log names
+# htn-abi-nested-never-packed: CAUGHT, caught by appendix_c_layouts abi_struct_tftphdr
+# htn-abi-natural-align: CAUGHT, caught by appendix_c_layouts abi_struct_tftphdr
+# htn-abi-bitfield-byte: CAUGHT, caught by appendix_c_layouts abi_struct_ip_timestamp
+# htn-macro-value: CAUGHT, caught by no test the log names

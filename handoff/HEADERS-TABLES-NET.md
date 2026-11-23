@@ -31,7 +31,10 @@ htn-abi1 failed abi_struct_ip_timestamp, fixed above). `cargo xtask static` gree
 `handoff/HEADERS-TABLES-NET-plants.txt`, run htn-plants1: 6 CAUGHT (never-packed C and Rust, attribute dropped,
 natural size unrounded, bit-field byte order, macros/constants cross-check), 1 SURVIVED: htn-nested-always-packed
 (pack every nested aggregate): no recorded offset or size moves and no table records a nested member's alignment, so
-it is now `equivalent:` with that reason; htn-plants2 reruns the file on the final head. Direct gate: htn-gate1.
+it is now `equivalent:` with that reason. htn-plants2 (final tree, keke, rc 0): 6 CAUGHT, 0 SURVIVED, 1 EQUIVALENT,
+no WARN-RC-ONLY / WARN-NO-MSG (one WARN-DEV-SHM: the copy is under /dev/shm; no plant here mounts its own /dev).
+Direct gate htn-gate1 (keke, rc 0): `affected: ok`, every direct suite ok (niji native and interposed, niji-abi,
+niji-boundary, niji-legacy, niji-math, niji-rt, conformance 97 programs, fuzz-check, static); peak 12G, oom_kill=0.
 **Check gap (INFORMATIONAL):** header_check/P1 and appendix_c_layouts cannot see the alignment of a nested member;
 an over-packed nested aggregate whose offsets happen not to move passes every check.
 
@@ -59,13 +62,7 @@ hand-respelled Elf*_Phdr p_type rows): left as they are; only the new types' row
 **Not to redo.** The probes and splices (all additions verified). Scratch scripts: `~/w/.scratch/HEADERS-TABLES-NET/`
 (tpdiff.py, splice_lay.py, dropvis.py, negatives.py).
 
-**Next step (leg 3; leg 2 ended at 13:35Z by REFRESH with the role busy).** All work is pushed; code head afe915972,
-later commits are handoff/ only. 1. `~/bin/jobwait htn-gate1 htn-plants1` on keke (htn-plants1's last plant,
-htn-macro-value, was still running; its 6 settled results are above). If htn-gate1 fails, fix and rerun only the
-failing suite. 2. Sync (`sync_role.sh ... keke n2`; rc 4 = BUSY, wait for the jobs), then start
-`htn-plants2` exactly like htn-plants1 (`cargo xtask plants handoff/HEADERS-TABLES-NET-plants.txt --dir
-/dev/shm/claude/headers-tables-net/plants-2 --timeout 900`, kind plants; about 45 min, `cargo xtask so` alone takes
-830 s). 3. Then `cargo xtask precheck --jobs htn-gate1,htn-plants2 --head <sha>` on the role, update the json `head`
-and gate line, push, `ops handback-check HEADERS-TABLES-NET --head <sha> --jobs "keke:htn-gate1, keke:htn-plants2"`.
-If time is short (deadline 15:53Z), hand back `PENDING JOBS:` naming htn-plants2. SUPERSEDED: htn-plants1 (the
-plants file changed after it: one plant marked equivalent). Leg 2 left nothing running locally.
+**Status (leg 3, done).** Code head afe915972; later commits are handoff/ only. JOBS: keke:htn-gate1,
+keke:htn-plants2 (both rc 0). SUPERSEDED: htn-plants1 (the plants file changed after it: one plant marked
+equivalent). The plants results are committed in `handoff/HEADERS-TABLES-NET-plants.txt`. Nothing left running.
+**Next step:** landing (coordinator); then a follow-up story for the template definitions listed under Open gaps.

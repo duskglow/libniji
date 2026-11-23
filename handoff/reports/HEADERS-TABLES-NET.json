@@ -6,8 +6,8 @@
  "branch": "task/headers-tables-net",
  "head": "afe915972",
  "gate": {
-  "affected": "see hand-back (htn-gate1)",
-  "peak": null
+  "affected": "affected: ok (htn-gate1 on keke: every direct suite ok, conformance 97 programs, fuzz-check, static)",
+  "peak": "12G (oom_kill=0)"
  },
  "accepted_first_attempt": null,
  "rulings": [],
@@ -15,7 +15,7 @@
   "abi_extract.py --layouts-only does not reproduce the committed layouts.tsv outside the new types (_fpstate, _libc_fpstate, __sigset_t, La_x86_64_regs members, struct res_sym order, hand-respelled p_type); left unchanged",
   "function-like and member-access macros of these headers, ICMP_TSLEN and six SIOC* names of net/if_slip.h need template definitions: follow-up story",
   "99 of 598 spec candidate macros and 4 of 30 tags are not defined by the reference (handoff/HEADERS-TABLES-NET.md)",
-  "header_check P1 and appendix_c_layouts cannot see the alignment of a nested member: an over-packing mutant of the new rule survived (htn-plants1), marked equivalent with that reason"
+  "header_check P1 and appendix_c_layouts cannot see the alignment of a nested member: an over-packing mutant of the new rule survived (htn-plants1), marked equivalent with that reason; htn-plants2: 6 CAUGHT, 1 EQUIVALENT, 0 SURVIVED"
  ],
  "refused": [],
  "impact": [
