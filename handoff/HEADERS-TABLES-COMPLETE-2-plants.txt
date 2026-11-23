@@ -5,3 +5,10 @@ htc2-round-up | xtask/src/headers/values.rs | lit:if half == std::cmp::Ordering:
 htc2-float-suffix | xtask/src/headers/values.rs | lit:("_Float32x", "f32x", "f32x", 17), ==> ("_Float32x", "f32x", "f64", 17), | cargo test -p xtask --bin xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:every_table_row_is_emitted_and_matches_the_tables.*FAILED|panicked
 htc2-snan-quiet | xtask/src/headers/values.rs | lit:"snan" => Ok(format!("(__builtin_nans{f} (\"\"))")), ==> "snan" => Ok(format!("(__builtin_nan{f} (\"\"))")), | cargo test -p xtask --bin xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:every_table_row_is_emitted_and_matches_the_tables.*FAILED|panicked
 htc2-s11-value | spec/tools/header_checks/s11.py | lit:tests.append(f"F:(({n}) == {decimal_literal(v)}{suffix})") ==> tests.append(f"F:(({n}) != {decimal_literal(v)}{suffix})") | python3 spec/tools/header_check.py | msg:FAIL P1 (values|math)\.h c89
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# htc2-hex-back: CAUGHT, caught by no test the log names
+# htc2-hex-unit: CAUGHT, caught by xtask headers::tests::floating_literals_are_decimal_and_exact
+# htc2-round-up: CAUGHT, caught by xtask headers::tests::floating_literals_are_decimal_and_exact
+# htc2-float-suffix: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables
+# htc2-snan-quiet: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables
+# htc2-s11-value: CAUGHT, caught by no test the log names
