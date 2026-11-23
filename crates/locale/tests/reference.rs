@@ -690,7 +690,7 @@ fn generated_root_collation_is_the_references_en_us() {
             Ordering::Less => {}
         }
         for (l, (f1, f2)) in [("a", "b"), ("a", "\u{e1}"), ("a", "A")].into_iter().enumerate() {
-            if compare(c, &[a, f2.as_bytes()].concat(), &[b, f1.as_bytes()].concat()) == Ordering::Less {
+            if compare(c, [a, f2.as_bytes()].concat().as_slice(), [b, f1.as_bytes()].concat().as_slice()) == Ordering::Less {
                 return l as u8 + 1;
             }
         }
