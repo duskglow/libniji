@@ -1,48 +1,47 @@
 # CTYPE-OBJECTS-SETLOCALE: the six ctype objects follow the global locale
 
-State: branch `task/ctype-objects-setlocale` (from origin/next 0495c4684), HEAD: the last commit on the branch
-(leg 1 ended at the "WIP: record the setlocale probe..." commit). Role keke:~/w/r1. Decision in force: D-5.13
-(amended in `records/decisions/D-5/D-5.13.toml`).
+State: branch `task/ctype-objects-setlocale` (from origin/next 0495c4684). Code head at the end of leg 2: e5fd864b1
+(this note is committed on top). Role keke:~/w/r1, synced at e5fd864b1. Decision in force: D-5.13 (amended in
+`records/decisions/D-5/D-5.13.toml`).
 
-## Done (leg 1)
+## Done (legs 1 and 2)
 
-* Reference probe (black box, keke, glibc 2.39): table in `spec/behaviour/ctype-objects.md` ("setlocale probe").
+* Reference probe (black box, glibc 2.39, Zen 1 host): table in `spec/behaviour/ctype-objects.md` ("setlocale probe").
   The six objects follow the global LC_CTYPE only (LC_ALL, LC_CTYPE, ""), not LC_NUMERIC and not uselocale; 16-bit =
-  `*__ctype_*_loc()`, 32-bit = `nl_langinfo` items 5/16/15 (CLASS32/TOLOWER32/TOUPPER32, by code point), "C" = the
-  start pointers. Probe sources: scratch `~/work/ctype-objects-setlocale/probe.{c,sh}` on keke.
-* Code: `xtask/src/compat_objects.rs` emits hidden `niji_compat_ctype_store(words[6])` (stores through the GOT of
-  `niji_compat_<name>_store_ref` bound `.symver` to `<name>@GLIBC_2.2.5`; order `CTYPE_STORE_ORDER`);
-  `csys/src/adapter/runtime.c` section 4 + `niji_csys.h`: `niji_csys_compat_ctype_store`, weak hook (0 in libc.a);
-  `crates/boundary/src/ffi.rs` declares it as `compat_ctype_store`; `crates/boundary/src/locale.rs` `publish_global`
-  (cold, only on a global change) calls it with `compat_ctype_words`; `crates/core/src/locale/ctype.rs` gains
-  `toupper32_table`/`tolower32_table`.
-* Test: `conformance/c/s05_ctype_legacy_objects.c` `setlocale_rows()` (de ISO-8859-1 via host localedef + LOCPATH).
+  `*__ctype_*_loc()`, 32-bit = `nl_langinfo` items 5/16/15 (CLASS32/TOLOWER32/TOUPPER32), "C" = the start pointers.
+* Code: `xtask/src/compat_objects.rs` emits hidden `niji_compat_ctype_store(words[6])` into the generated
+  `csys/src/machine/compat_aliases.S` (regenerated and committed in leg 2); `csys/src/adapter/runtime.c` section 4: a
+  WEAK empty `niji_compat_ctype_store` (libc.a keeps it; libc.so.6's generated strong one replaces it) and the
+  one-call wrapper `niji_csys_compat_ctype_store` (leg 2: the earlier `if` on a weak reference broke csys-audit:
+  the C layer holds single-statement wrappers only); `crates/boundary/src/locale.rs` `publish_global` (cold) calls it.
+* Test `conformance/c/s05_ctype_legacy_objects.c` `setlocale_rows()`; leg 2: it unsets LD_LIBRARY_PATH before its
+  first `system()` (dynamic-link mode names libniji's directory there; the host sh/localedef inherited it).
+* Plants file `handoff/plants/CTYPE-OBJECTS-SETLOCALE.plants` (store-dropped in runtime.c; upper32-not-stored in
+  locale.rs), msg `FAIL line N (file`.
 * Docs: differences row D-5.13 shrunk to two residuals (pristine-start addresses; built-in C.UTF-8 32-bit tables).
 
-## NOT yet done / exact next steps
+## Jobs (keke)
 
-1. `csys/src/machine/compat_aliases.S` is @generated and NOT yet regenerated in the worktree (no local cargo): on keke
-   the suite runs `cargo xtask compat-gen` first; copy the regenerated file back
-   (`ssh keke cat ~/w/r1/csys/src/machine/compat_aliases.S > <worktree>/csys/src/machine/compat_aliases.S`), commit it.
-   Without it `compat-gen --check` (static) is red.
-2. Re-sync, rerun `sh ~/work/ctype-objects-setlocale/suite.sh` as job `ctype-objects-setlocale-suite-3` (kind test).
-   suite-2 result: reference passed; libniji failed only at "compiling and loading de_DE.ISO-8859-1" (missing
-   `de_DE.iso88591` symlink, fixed in the last commit). If a `follows` row fails on libniji, check whether libniji's
-   `nl_langinfo(5/15/16)` returns the item pointer.
-3. Plants: add to `docs/plants.md` (a) drop the `crate::ffi::compat_ctype_store(...)` call in `publish_global`;
-   (b) `compat_ctype_words` returning `lower` for upper32. cmd: `cargo xtask affected --only
-   conformance:s05_ctype_legacy_objects --with-exports --run`, msg `s05_ctype_legacy_objects`. Results to
-   `handoff/CTYPE-OBJECTS-SETLOCALE-plants.txt`.
-4. Counts: empty main start-up (instructions:u) and isalpha/toupper per call, base vs head (brief step 2); the change
-   touches no start-up or ctype hot code (publish_global is cold), expect unchanged.
-5. Direct gate (`cargo xtask affected --run` under `~/bin/gate 16G`), clippy (foreground), `cargo xtask static`,
-   start-up checks (`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji
-   --test hot_text_products`), precheck, report json `handoff/reports/CTYPE-OBJECTS-SETLOCALE.json`, handback-check.
+* `ctype-objects-setlocale-suite-4`: GREEN on 03bab77+test fix (compat-gen, so, s05_ctype_legacy_objects on reference
+  and libniji, `cargo test -p xtask compat_objects`, `-p niji-boundary --test s07_locale_symbols`). Before the
+  runtime.c change; the change only replaces the `if` with a weak default.
+* SUPERSEDED: suite, suite-2, suite-3 (test locale/env fixes), gate (csys-audit red: the `if`), plants and checks
+  (killed: old head).
+* RUNNING on e5fd864b1, started 15:11Z: `ctype-objects-setlocale-plants-2` (plants, own /dev/shm dir) and the
+  driver `sh ~/work/ctype-objects-setlocale/final.sh -2`, which runs in order `ctype-objects-setlocale-gate-2`
+  (direct gate; FULL items are "the train's"), `ctype-objects-setlocale-checks-2` (clippy -D warnings, static,
+  `cargo xtask test`, full-profile so + hot_text_products), `ctype-objects-setlocale-counts-2` (counts.sh:
+  cbench_startup at head and at base 0495c46 in a scratch copy, wl_percall isalpha_c/ctype_b_loc/toupper_ascii
+  with --base). Outputs `~/logs/<label>.log`, start-up tables in `~/work/ctype-objects-setlocale/startup-*.txt`.
 
-## Jobs so far (keke)
+## Exact next step (leg 3)
 
-* `ctype-objects-setlocale-suite`: SUPERSEDED (xtask borrow error, fixed).
-* `ctype-objects-setlocale-suite-2`: SUPERSEDED (test locale symlink missing, fixed).
+1. `ssh keke '~/bin/jobwait ctype-objects-setlocale-plants-2 ctype-objects-setlocale-gate-2'` (repeat on rc 3);
+   then checks-2 and counts-2. Plants results: copy the summary into `handoff/CTYPE-OBJECTS-SETLOCALE-plants.txt`.
+2. A red: fix, rerun only that job with a `-3` label.
+3. Precheck on the role: `cargo xtask precheck --jobs <labels> --head <sha>` (job kind test), report
+   `handoff/reports/CTYPE-OBJECTS-SETLOCALE.json` (+ "jobs"), push, `ops handback-check`.
+4. Expect start-up and ctype per-call counts unchanged (publish_global is cold; no hot code touched).
 
 ## Open
 
