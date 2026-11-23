@@ -6,8 +6,8 @@
  "branch": "task/locale-sources-gen",
  "head": "bfa45e6bd",
  "gate": {
-  "affected": "PENDING (gate2 on bfa45e6bd); superseded gate on a087da3f1: 689 passed / 1 failed (ja_JP tojhira/tojkata maps, fixed)",
-  "peak": "2.1G (superseded run)"
+  "affected": "690 passed / 0 failed (8 suites ok, incl. clippy, static, products) on bfa45e6bd, job locale-sources-gen-gate2; plants2 PENDING",
+  "peak": "2.0G"
  },
  "accepted_first_attempt": null,
  "jobs": [
