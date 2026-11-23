@@ -123,10 +123,13 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("libc.so.6"), b"clean /niji/x.rs").unwrap();
         fs::write(dir.join("libm.so.6"), b"dirty /srv/build/w/r3/crates/x.rs").unwrap();
+        // A file no list names (a utility, as the C-built ones carried the root in DW_AT_comp_dir) is scanned too.
+        fs::write(dir.join("getent"), b"comp dir /srv/build/w/r3/crates").unwrap();
         let n = vec!["/srv/build/w/r3".to_string()];
         let err = check_dir(&dir, &n).unwrap_err();
         let _ = fs::remove_dir_all(&dir);
         assert!(err.contains("libm.so.6 has") && !err.contains("libc.so.6 has"), "{err}");
+        assert!(err.contains("getent has"), "an unlisted product file was not scanned: {err}");
     }
 
     #[test]
