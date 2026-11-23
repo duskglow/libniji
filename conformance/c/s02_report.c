@@ -11,6 +11,7 @@
 #include <err.h>
 #include <errno.h>
 #include <error.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,6 +126,29 @@ static void c3_at_line(void)
     printf("[count %u]\n", error_message_count);
 }
 
+/* A file name twice the 4096 bytes libniji once kept (no limit now): the messages go to
+ * /dev/null, the count to standard output. Names that differ only in their last byte are
+ * different locations; the same name at another address repeats. */
+static void c3_long_name(void)
+{
+    enum { N = 8192 };
+    static char a[N + 1], same[N + 1], other[N + 1];
+    memset(a, 'd', N);
+    memcpy(a + N - 4, "/a.c", 4);
+    memcpy(same, a, N + 1);
+    memcpy(other, a, N + 1);
+    other[N - 1] = 'h';
+    int null = open("/dev/null", O_WRONLY);
+    dup2(null, 2);
+    error_one_per_line = 1;
+    error_at_line(0, 0, a, 3, "first");
+    error_at_line(0, 0, same, 3, "repeated");
+    error_at_line(0, 0, other, 3, "last byte differs");
+    error_at_line(0, 0, other, 3, "repeated");
+    error_at_line(0, 0, a, 3, "back");
+    printf("[count %u]\n", error_message_count);
+}
+
 static void hook(void) { fputs("HOOK|", stderr); }
 
 static void c4_hook(void)
@@ -182,6 +206,8 @@ int main(void)
                                       "/usr/bin/prog:a.c:8: other file\n"
                                       "/usr/bin/prog:b.c:8: back to b.c\n"
                                       "[count 6]\n"));
+    run(&r, c3_long_name);
+    CHECK(r.status == 77 && eq(r.out, "[count 3]\n"));
     end();
 
     begin("s2_3_c_4");

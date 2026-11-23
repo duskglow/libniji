@@ -55,7 +55,7 @@ const	NIJI_NSCACHE_REASON_NO_REGION	NIJI_NATIVE_1	uint32_t	1	niji_nscache_info.r
 const	NIJI_NSCACHE_REASON_SECURE	NIJI_NATIVE_1	uint32_t	2	niji_nscache_info.reason: AT_SECURE, or real and effective user or group IDs differ.
 const	NIJI_NSCACHE_REASON_REFUSED	NIJI_NATIVE_1	uint32_t	3	niji_nscache_info.reason: the region file is not trusted (owner, mode, type, size, symbolic link); it is left untouched.
 const	NIJI_NSCACHE_REASON_UNAVAILABLE	NIJI_NATIVE_1	uint32_t	4	niji_nscache_info.reason: the region could not be opened, created, sized, locked or mapped.
-const	NIJI_GETPASS_DEFAULT_LIMIT	NIJI_NATIVE_1	size_t	1048576	getpass's default bound: the most bytes of input before the newline (1 MiB).
+const	NIJI_GETPASS_DEFAULT_LIMIT	NIJI_NATIVE_1	size_t	0	getpass's default bound: 0, no bound (the line grows with use, memory permitting; D-17.9, D-17.10).
 struct	niji_timespec	NIJI_NATIVE_1	16	8	An instant (seconds and nanoseconds since 1970-01-01 00:00:00 UTC) or a clock reading.
 field	niji_timespec.sec	NIJI_NATIVE_1	int64_t	0	Seconds.
 field	niji_timespec.nsec	NIJI_NATIVE_1	int64_t	8	Nanoseconds, 0 to 999999999.
@@ -142,4 +142,4 @@ fn	niji_nscache_category	NIJI_NATIVE_1	int64_t	uint32_t category, uint32_t on	En
 fn	niji_nscache_invalidate	NIJI_NATIVE_1	int64_t	uint32_t category	Invalidate one category, or every one (NIJI_NSCACHE_ALL), in this process's table and the user's shared region (every process of the user drops those answers); the next lookup validates the watched files at once. 0, or -EINVAL.
 fn	niji_nscache_status	NIJI_NATIVE_1	int64_t	struct niji_nscache_info *out	The cache's state into *out.
 fn	niji_aio_use_threads	NIJI_NATIVE_1	int64_t	void	Run this process's POSIX AIO requests on worker threads, never on io_uring: 0, or -EBUSY once a request has started io_uring (call it before the first request). It holds for the life of the process and in its fork children. The workers are also chosen without this call in secure-execution mode, under a seccomp filter, or with NIJI_AIO_URING=0 in the environment at the first request.
-fn	niji_getpass_set_limit	NIJI_NATIVE_1	int64_t	size_t bytes	Set the process's bound on getpass's line to bytes (0: NIJI_GETPASS_DEFAULT_LIMIT again): the bound that was in force, or -EINVAL above PTRDIFF_MAX. A longer line is read to its end and discarded, every library buffer that held it zeroed, and getpass fails with EOVERFLOW (never a truncated password). It holds for the life of the process and in its fork children.
+fn	niji_getpass_set_limit	NIJI_NATIVE_1	int64_t	size_t bytes	Set the process's bound on getpass's line to bytes (0: no bound, NIJI_GETPASS_DEFAULT_LIMIT, the default): the bound that was in force (0 for none), or -EINVAL above PTRDIFF_MAX. A longer line is read to its end and discarded, every library buffer that held it zeroed, and getpass fails with EOVERFLOW (never a truncated password). It holds for the life of the process and in its fork children.
