@@ -1,0 +1,6 @@
+# STD-SMOKE plants: `cargo xtask plants handoff/STD-SMOKE-plants.txt --dir <new RAM dir> --timeout 600`
+std-smoke-not-native | crates/boundary/tests/std_smoke.rs | lit:let native = std::env::var("NIJI_TEST_PASS").as_deref() == Ok("native"); ==> let native = false; | cargo xtask affected --only niji-boundary::std_smoke --with-exports --run | msg:the std program's output differs
+std-smoke-no-destructor | crates/boundary/tests/std_smoke.rs | lit:*self.0.lock().unwrap() = true; ==> *self.0.lock().unwrap() = false; | cargo xtask affected --only niji-boundary::std_smoke --with-exports --run | msg:the std program's output differs
+std-smoke-short-append | crates/boundary/tests/std_smoke.rs | lit:f.write_all(b"appended\n") ==> f.write_all(b"append\n") | cargo xtask affected --only niji-boundary::std_smoke --with-exports --run | msg:the std program's output differs
+std-smoke-exit-zero | crates/boundary/tests/std_smoke.rs | lit:std::process::exit(PROGRAM_STATUS) ==> std::process::exit(0) | cargo xtask affected --only niji-boundary::std_smoke --with-exports --run | msg:the std program's exit status
+std-smoke-forked-exit-zero | crates/boundary/tests/std_smoke.rs | lit:std::process::exit(FORKED_STATUS) ==> std::process::exit(0) | cargo xtask affected --only niji-boundary::std_smoke --with-exports --run | msg:the std program's output differs
