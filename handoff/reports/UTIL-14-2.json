@@ -1,18 +1,66 @@
-{"task": "UTIL-14-2", "model": "opus", "tokens": null,
- "result": "NOT MINE (host change, #7846): merged origin/next; the seven train-946 reds pass on keke on the merged head; gencat test folded into catalogs_products; gate, plants and both package flavours green",
- "branch": "task/util-14-2", "head": "611826752",
- "gate": {"affected": "util-14-2-gate2 (611826752, direct tier): 15 suites ok, 1852 passed, 0 failed, peak 3.4G; util-14-2-gate (bd99cec16): 15 suites ok, 1848 passed, 0 failed", "peak": "4.1G"},
+{
+ "task": "UTIL-14-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "NOT MINE (host change, #7846): merged origin/next; train 946s seven reds pass on keke on the merged head; gencat test folded into catalogs_products; gate2 green, plants2 pending",
+ "branch": "task/util-14-2",
+ "head": "611826752",
+ "gate": {
+  "affected": "util-14-2-gate2 (611826752, direct tier): 15 suites ok, 1852 passed, 0 failed, peak 3.4G; util-14-2-gate (bd99cec16): 15 suites ok, 1848 passed, 0 failed",
+  "peak": "4.1G"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
- "informational": ["Train 946's seven reds pass on keke on the merged head (util-14-2-tests2); per #7846 they fail on the CI host until LOCALE-PER-DIR-LOAD lands", "Spec D.2.2 pool-order bullet correction (#7814, accepted) is still owed, with or after UTIL-SPEC-3; not done on this branch", "docs/install-packages.md libc6-dbg row now names libc-dev-bin's gencat (its debug file passes check-system's DWARF checks)", "Coordinator note 10:27Z applied: gencat_products.rs folded into catalogs_products.rs (mod gencat); no new test binary remains", "Superseded: util-14-2-tests and util-14-2-pkg (green on bd99cec16) left no tested-content record because their command lines did not name the role path; util-14-2-gate, util-14-2-plants, util-14-2-final green on 033a496fa, superseded by the fold", "WARN-DEV-SHM from cargo xtask plants (RAM dir under /dev/shm per the brief, Zen 1 host)"],
+ "informational": [
+  "Train 946's seven reds pass on keke on the merged head (util-14-2-tests2); per #7846 they fail on the CI host until LOCALE-PER-DIR-LOAD lands",
+  "Spec D.2.2 pool-order bullet correction (#7814, accepted) is still owed, with or after UTIL-SPEC-3; not done on this branch",
+  "docs/install-packages.md libc6-dbg row now names libc-dev-bin's gencat (its debug file passes check-system's DWARF checks)",
+  "Coordinator note 10:27Z applied: gencat_products.rs folded into catalogs_products.rs (mod gencat); no new test binary remains",
+  "Superseded: util-14-2-tests and util-14-2-pkg (green on bd99cec16) left no tested-content record because their command lines did not name the role path; util-14-2-gate, util-14-2-plants, util-14-2-final green on 033a496fa, superseded by the fold",
+  "WARN-DEV-SHM from cargo xtask plants (RAM dir under /dev/shm per the brief, Zen 1 host)",
+  "util-14-2-tests2 and util-14-2-pkg2 (green on 033a496fa) are SUPERSEDED by the test fold (611826752 touched only crates/core/tests files; gate2 ran the moved test); kept as the evidence for the seven train reds and the packages"
+ ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "/usr/bin/gencat in the system flavour's libc-dev-bin (GitHub issue #12), now on current next", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "gencat plants re-proved on the final head", "before": null, "after": 7, "unit": "plants caught", "measured": true},
-   {"kind": "tooling", "what": "test binaries added by UTIL-14", "before": 1, "after": 0, "unit": "new test binaries", "measured": true},
-   {"kind": "unblock", "what": "UTIL-14 can ride a train again (merged with next 0495c4684)", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "/usr/bin/gencat in the system flavour's libc-dev-bin (GitHub issue #12), now on current next",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "gencat plants re-proved on the final head",
+   "before": null,
+   "after": 7,
+   "unit": "plants caught",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "test binaries added by UTIL-14",
+   "before": 1,
+   "after": 0,
+   "unit": "new test binaries",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "UTIL-14 can ride a train again (merged with next 0495c4684)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "jobrun records what a job tested only when its command line names w/<role>; a script job (sh ~/work/x.sh) silently gets no record and precheck reds it an hour later: jobrun could warn at start, or take the role from the cwd",
  "next_step": "Land with the next train after LOCALE-PER-DIR-LOAD; then the owed D.2.2 spec bullet (#7814)",
  "report_file": "handoff/UTIL-14-report.md",
- "jobs": ["keke:util-14-2-gate2", "keke:util-14-2-plants2", "keke:util-14-2-final2", "keke:util-14-2-tests2", "keke:util-14-2-pkg2"]}
+ "jobs": [
+  "keke:util-14-2-gate2",
+  "keke:util-14-2-final2",
+  "keke:util-14-2-plants2 (PENDING)"
+ ]
+}
