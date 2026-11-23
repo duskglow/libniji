@@ -174,11 +174,13 @@ struct Space<'f> {
     file_reads: usize,
     /// Where an anywhere-reservation lands: page-aligned, deliberately not 2 MiB-aligned.
     raw: u64,
+    /// [`Mapper::maps_span`]: the reservation made by mapping the file over the span (the start's mapper).
+    spans: bool,
 }
 
 impl<'f> Space<'f> {
     fn new(file: &'f [u8], page: u64) -> Self {
-        Space { file, page, pages: BTreeMap::new(), stored: BTreeMap::new(), calls: 0, fail_at: None, file_reads: 0, raw: 0x5555_0000_0000 + 3 * page }
+        Space { file, page, pages: BTreeMap::new(), stored: BTreeMap::new(), calls: 0, fail_at: None, file_reads: 0, raw: 0x5555_0000_0000 + 3 * page, spans: false }
     }
 
     fn call(&mut self) -> Result<(), ()> {
@@ -274,6 +276,22 @@ impl Mapper for Space<'_> {
             self.pages.remove(&p);
             self.stored.retain(|&a, _| a < p || a >= p + self.page);
         }
+    }
+
+    fn maps_span(&self) -> bool {
+        self.spans
+    }
+
+    fn map_span(&mut self, len: u64, prot: i32, offset: u64) -> Result<u64, ()> {
+        self.call()?;
+        assert!(self.spans, "map_span on a mapper that reserves apart");
+        assert_eq!(offset % self.page, 0);
+        let start = self.raw;
+        assert!(!self.range(start, len).any(|p| self.pages.contains_key(&p)), "span over an existing mapping");
+        for p in self.range(start, len).collect::<Vec<_>>() {
+            self.pages.insert(p, (prot, Backing::File(offset + p - start)));
+        }
+        Ok(start)
     }
 }
 
@@ -460,6 +478,19 @@ fn map_from_headers_as_from_the_whole_file() {
     let o = ph_at(&f, w) + 4;
     f[o..o + 4].copy_from_slice(&4u32.to_le_bytes());
     objs.push(("pie-readonly-bss", f, 4096));
+    // The shared object with a one-page gap before its last PT_LOAD (every header from that segment's
+    // address on moved one page up, in the file too): its reservation is made apart, the gap stays
+    // inaccessible.
+    let mut f = objs[1].1.clone();
+    let hs = headers(&f);
+    let from = hs[*loads(&f).last().unwrap()].vaddr;
+    for (i, h) in hs.iter().enumerate().filter(|(_, h)| h.vaddr >= from) {
+        let o = ph_at(&f, i);
+        put64(&mut f, o + 8, h.offset + 4096);
+        put64(&mut f, o + 16, h.vaddr + 4096);
+    }
+    objs.push(("shared-gap", f, 4096));
+    let mut folded = 0usize;
     for (name, f, page) in &objs {
         let head = header_prefix(f);
         let elf = Elf::parse::<Native>(head).unwrap_or_else(|e| panic!("{name}: {e:?}"));
@@ -472,7 +503,26 @@ fn map_from_headers_as_from_the_whole_file() {
         assert_eq!(part.pages, whole.pages, "{name}: pages");
         assert_eq!(part.stored, whole.stored, "{name}: stored bytes");
         assert_eq!(part.file_reads, usize::from(*name == "pie-readonly-bss"), "{name}: reads from the file");
+        // The start's mapper (LD-START-MAPS): the file mapped over the span as the reservation gives the
+        // same address space, one call fewer where the segments leave no gap and the bias needs no
+        // alignment past the page; a 2 MiB-aligned object reserves apart.
+        let mut spanned = Space::new(f, *page);
+        spanned.spans = true;
+        let c = map::map_planned(&mut spanned, &elf, &plan, head, *page).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        assert_eq!((c.base, c.bias, c.span), (b.base, b.bias, b.span), "{name}: placement, spanned");
+        assert_eq!(spanned.pages, whole.pages, "{name}: pages, spanned");
+        assert_eq!(spanned.stored, whole.stored, "{name}: stored bytes, spanned");
+        // No gap: each PT_LOAD's first page is the page after the previous one's last (none of these
+        // objects has a read-only first segment with zero fill).
+        let hs = headers(f);
+        let pages: Vec<(u64, u64)> = loads(f).iter().map(|&i| (hs[i].vaddr / page * page, (hs[i].vaddr + hs[i].memsz).div_ceil(*page) * page)).collect();
+        let gapless = pages.windows(2).all(|w| w[1].0 == w[0].1);
+        let folds = plan.align == *page && gapless;
+        assert!(*name != "shared-gap" || (plan.align == *page && !gapless), "shared-gap: not a page-aligned object with a gap");
+        folded += usize::from(folds);
+        assert_eq!(spanned.calls + usize::from(folds), part.calls, "{name}: calls, spanned (gapless {gapless}, align {:#x})", plan.align);
     }
+    assert!(folded > 0, "no object here takes the spanned reservation");
     // The file's length bounds every PT_LOAD's file range, the last byte included.
     let pie = &objs[0].1;
     let elf = Elf::parse::<Native>(header_prefix(pie)).unwrap();

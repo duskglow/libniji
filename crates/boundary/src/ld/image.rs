@@ -649,6 +649,17 @@ impl map::Mapper for StartMapper {
     fn keeps_slack(&self) -> bool {
         true
     }
+
+    fn maps_span(&self) -> bool {
+        true
+    }
+
+    /// The file mapped anywhere: the reservation and the first segment in one `mmap`.
+    fn map_span(&mut self, len: u64, prot: i32, offset: u64) -> Result<u64, ()> {
+        let off = i64::try_from(offset).map_err(|_| ())?;
+        let r = raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off).map_err(|_| ())?;
+        u64::try_from(r).map_err(|_| ())
+    }
 }
 
 /// An address or length as a machine word.

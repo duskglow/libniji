@@ -16,7 +16,10 @@
 //!    multiple of the largest `p_align` (honoured above the page size, L14-5), or at the fixed
 //!    address without replacing anything there; then maps each segment inside it with exactly the
 //!    protection its `p_flags` ask for, zeroes the `.bss` bytes that share the last file page and
-//!    maps zero pages for the rest. Gaps between segments stay reserved and inaccessible.
+//!    maps zero pages for the rest. Gaps between segments stay reserved and inaccessible. The
+//!    start's mapper makes the reservation of a page-aligned object without gaps by mapping its file
+//!    over the span with the first segment's protection ([`Mapper::map_span`], LD-START-MAPS): one
+//!    system call fewer, every later segment mapped over its own part.
 //! 3. On any failure everything mapped so far is unmapped (the whole reservation) before the error
 //!    returns.
 //! 4. The RELRO range is recorded in [`Loaded`]; [`Loaded::protect_relro`] applies it after
@@ -166,6 +169,20 @@ pub trait Mapper {
     /// for an object that is never unmapped (the start's, DYN-START-RING), saving two system calls.
     fn keeps_slack(&self) -> bool {
         false
+    }
+    /// Whether [`Mapper::map_span`] makes the reservation (the start's mapper only): asked before
+    /// [`map_planned`] looks at the segments for it, so other mappers pay nothing.
+    fn maps_span(&self) -> bool {
+        false
+    }
+    /// Map `len` bytes of the object's file from `offset`, anywhere, private, with `prot`: the
+    /// reservation and the first segment's file pages in one call (LD-START-MAPS), for an object
+    /// whose segments follow each other without a gap, each later one then mapped over its part.
+    /// The default has none and fails.
+    #[allow(clippy::result_unit_err)]
+    fn map_span(&mut self, len: u64, prot: i32, offset: u64) -> Result<u64, ()> {
+        let _ = (len, prot, offset);
+        Err(())
     }
 }
 
@@ -405,10 +422,15 @@ fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_a
 ///
 /// [`MapError::Placement`], [`MapError::System`], or a segment's [`MapError`] as [`load`] gives it.
 pub fn map_planned<M: Mapper>(m: &mut M, elf: &Elf<'_>, plan: &Plan, file: &[u8], page: u64) -> Result<Loaded, MapError> {
-    let (base, bias) = reserve(m, plan)?;
+    let loads = || elf.program_headers().filter(|p| p.p_type == pt::LOAD && p.memsz != 0);
+    let spanned = if m.maps_span() { span_first(m, plan, loads(), page)? } else { None };
+    let (base, bias) = match spanned {
+        Some(base) => (base, base.wrapping_sub(plan.first)),
+        None => reserve(m, plan)?,
+    };
     let at = |v: u64| v.wrapping_add(bias);
-    for ph in elf.program_headers().filter(|p| p.p_type == pt::LOAD && p.memsz != 0) {
-        let mapped = segment(&ph, page).and_then(|s| map_segment(m, file, &s, bias, page));
+    for (i, ph) in loads().enumerate() {
+        let mapped = segment(&ph, page).and_then(|s| map_segment(m, file, &s, bias, page, i == 0 && spanned.is_some()));
         if let Err(e) = mapped {
             m.unmap(base, plan.span);
             return Err(e);
@@ -448,6 +470,38 @@ fn reserve<M: Mapper>(m: &mut M, plan: &Plan) -> Result<(u64, u64), MapError> {
     Ok((base, base.wrapping_sub(plan.first)))
 }
 
+/// The reservation for `plan` made by [`Mapper::map_span`] (LD-START-MAPS): `Some(start)` when the
+/// object is movable, aligned to the page only, and its segments (`loads`, in address order) cover
+/// the span from `plan.first` to its end without a gap, the first with file bytes mapped as whole
+/// pages (not a read-only segment's zero-filled last page). The file is mapped over the span from the
+/// first segment's page with its protection; [`map_segment`] keeps that mapping for the first
+/// segment's file pages and maps every later segment over its own part, so no file byte stays mapped
+/// outside a segment. `None`: [`reserve`] apart (one system call more).
+#[inline(never)]
+fn span_first<M: Mapper>(m: &mut M, plan: &Plan, mut loads: impl Iterator<Item = ProgramHeader>, page: u64) -> Result<Option<u64>, MapError> {
+    if plan.fixed || plan.align != plan.page {
+        return Ok(None);
+    }
+    let Some(first) = loads.next() else { return Ok(None) };
+    let s = segment(&first, page)?;
+    let zero_filled_tail = page_down(s.file_end, page) != s.file_end && s.mem_end > s.file_end;
+    if s.start != plan.first || s.file_len == 0 || (zero_filled_tail && s.prot & PROT_WRITE == 0) {
+        return Ok(None);
+    }
+    let mut end = s.zero_end;
+    for ph in loads {
+        let next = segment(&ph, page)?;
+        if next.start != end {
+            return Ok(None);
+        }
+        end = next.zero_end;
+    }
+    if end.wrapping_sub(plan.first) != plan.span {
+        return Ok(None);
+    }
+    m.map_span(plan.span, s.prot, s.offset).map(Some).map_err(|()| MapError::System)
+}
+
 /// The file bytes of a read-only segment's last, partial page, read through the mapper
 /// ([`Mapper::store_file`]) when the caller holds only the file's headers: rare (a read-only
 /// segment with zero fill), so kept out of [`map_segment`].
@@ -458,7 +512,8 @@ fn tail_from_file<M: Mapper>(m: &mut M, at: u64, len: u64, offset: u64) -> Resul
 }
 
 /// Map one segment inside the reservation (bias `bias`).
-fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: u64) -> Result<(), MapError> {
+/// `in_place`: its file pages are mapped already ([`span_first`]).
+fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: u64, in_place: bool) -> Result<(), MapError> {
     let at = |v: u64| v.wrapping_add(bias);
     let sys = |()| MapError::System;
     let file_end = at(s.file_end);
@@ -490,7 +545,9 @@ fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: 
             }
             m.protect(tail_page, page, s.prot).map_err(sys)?;
         } else {
-            m.map_file(at(s.start), whole, s.prot, s.offset).map_err(sys)?;
+            if !in_place {
+                m.map_file(at(s.start), whole, s.prot, s.offset).map_err(sys)?;
+            }
             if partial {
                 // The rest of the page holding the last file byte is `.bss`: zero it.
                 m.store(file_end, page.wrapping_sub(file_end.wrapping_sub(tail_page)), None);
