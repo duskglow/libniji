@@ -71,7 +71,12 @@ On the final code (aea01b407; 0898cf520 and later add only records/ and handoff/
 * `ld-symbol-validate-once-plants`: version-index-skip CAUGHT, validation-skip CAUGHT, quick-bloom (see hand-back).
 * `ld-symbol-validate-once-lint`: `cargo clippy --workspace --all-targets --all-features -D warnings`,
   `cargo xtask static`, `cargo xtask records check`: clean.
-* `ld-symbol-validate-once-xtasktest`: `cargo xtask test` (start-up check, §9).
+* `ld-symbol-validate-once-xtasktest`: `cargo xtask test` (start-up check, §9): products step and layout contracts
+  passed; first test set 7,189 run, 7,189 passed (2,920 s); the second set (4,878 product tests) was still running
+  at hand-back (PENDING JOBS).
+* In-loop check: `cargo xtask precheck` (job `-precheck`, on 0898cf520 because the role was busy with the job
+  above; e8d2302ed and later add only handoff/): WAIT, no red (static, placeholders, head, clippy ok; `-after` and
+  `-hot1` count, prose-only difference). `ops handback-check` on e8d2302ed: ok.
 * `ld-symbol-validate-once-hot1`: `cargo xtask so` + `hot_text_products` (fast) and `NIJI_FULL_PROFILE=1` the same
   (release): 33 passed each.
 * `ld-symbol-validate-once-after`: niji-ld tests (6 targets, 71 tests), release products, probe 5 and the nine
