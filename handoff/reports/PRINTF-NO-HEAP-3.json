@@ -1,0 +1,22 @@
+{"task": "PRINTF-NO-HEAP-3", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: HOST-CHANGE: every printf row at or below base, plants 3/3; gate-3 and hot-text-3 red only through mei's locale change at 06:32Z (no locale archive); under an archive both base and branch tool = 45 at every cold pad",
+ "branch": "task/printf-no-heap-3", "head": "32b6f8490",
+ "gate": {"affected": "red: 6 locale-dependent tests (locale_data x2, s7_2_f_0, locale_products, printf_corpus_products, catalogs_products); see handoff", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "mei lost its locale archive (locales-all, 2026-11-23 06:32Z, flagged #7860): hot_text and locale tests assume one; CI on mei red on the same tests", "recommendation": "restore the archive on the build hosts (or rule their locale set), then rerun hot-text, gate and cargo xtask test on 32b6f8490"},
+  {"item": "layout tracer never records niji::locale::name::candidates::<Data, in_dir>, run by tool/locale when there is no archive; its placement is chance (branch: straddles 0x580000 at cold 0x2000)", "recommendation": "layout story: trace with the measured modes' locale source or key start-up generic instances"},
+  {"item": "LOCPATH naming a directory without the locale: the reference loads it from /usr/lib/locale/<name>/, libniji returns NULL (ENOENT)", "recommendation": "story to settle the spec and match (probe mei ~/work/printf-no-heap-3/loc.c)"},
+  {"item": "layout planner head-bin tail (leg 1)", "recommendation": "layout story: end the head bin with a section every mode runs, or keep measured-phase sections out of it"}],
+ "informational": ["catalogs_products and locale_products red on mei: locale-dependent, cause not verified"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "snprintf_f_large (%f of 1e300) per call vs base", "before": 18478.1, "after": 17813.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_s_path (bare %s) per call vs base", "before": 229.2, "after": 201.2, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_chk_ls_nlink per call vs base", "before": 761.5, "after": 698.6, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "fprintf_d per call vs base", "before": 633.7, "after": 630.5, "unit": "instr/call", "measured": true},
+  {"kind": "coverage", "what": "conformance s12_registry: handler registered for a built-in letter; 3 plants", "before": null, "after": 3, "unit": "plants", "measured": true}],
+ "improvement": "Build hosts' system state (locale archive) changes silently break gates: a host-state fingerprint (locale archive present, locale set) in each gate log would point at the cause in minutes",
+ "next_step": "coordinator: restore mei's locale archive or rule the locale set, then rerun hot-text, gate and cargo xtask test on 32b6f8490",
+ "report_file": "handoff/PRINTF-NO-HEAP-3.md",
+ "jobs": ["printf-no-heap-3-cbench-3", "printf-no-heap-3-plants-3", "printf-no-heap-3-gate-3", "printf-no-heap-3-hot-text-3", "printf-no-heap-3-xtask-test-3"]}
