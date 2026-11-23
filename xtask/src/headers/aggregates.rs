@@ -211,6 +211,16 @@ impl Gen<'_> {
         let own_tag = core.split_once(' ').is_some_and(|(k, t)| matches!(k, "struct" | "union") && t != "<anon>" && !self.tag_known(k, t)) && !kids.is_empty();
         if let Some(kw) = core.strip_suffix(" <anon>").or(own_tag.then_some(core)).filter(|k| stars.is_empty() && (own_tag || matches!(*k, "struct" | "union"))) {
             let inner = self.level(key, kids, &format!("{}.", r["member"]), off, nested)?;
+            // The rows give a nested aggregate no size of its own. Rounded up to its members' alignment it may run
+            // past the end of the outermost aggregate (`struct tftphdr`, 5 bytes: the union at offset 2 holds a
+            // `char[3]` and a two-byte structure): such a member can only be packed, its size the bytes its members
+            // cover.
+            let total = self.t.layouts.get(key).and_then(|rs| rs.iter().find(|q| q["member"].is_empty())).and_then(|q| q["offset_or_size"].parse::<u64>().ok());
+            let natural = inner.end.zip(inner.align).map(|(e, a)| (e - off).div_ceil(a) * a);
+            let packed = arr.is_empty() && natural.zip(total).is_some_and(|(s, t)| off + s > t);
+            let attr = if packed { " __attribute__ ((__packed__))" } else { "" };
+            // The attribute follows the keyword, before a tag (`struct __attribute__ ((__packed__)) t {`).
+            let kw = kw.split_once(' ').map_or(format!("{kw}{attr}"), |(k, t)| format!("{k}{attr} {t}"));
             if inner.plain() {
                 let ms: Vec<&str> = inner.lines.iter().map(|l| l.trim_start()).collect();
                 lv.lines.push(format!("  {kw} {{ {} }} {name}{arr};", ms.join(" ")));
@@ -219,8 +229,8 @@ impl Gen<'_> {
                 lv.lines.extend(inner.lines);
                 lv.lines.push(format!("  }} {name}{arr};"));
             }
-            let size = inner.end.zip(inner.align).map(|(e, a)| (e - off).div_ceil(a) * a).zip(n).map(|(s, n)| s * n);
-            lv.add(off, size, inner.align);
+            let (size, align) = if packed { (inner.end.map(|e| e - off), Some(1)) } else { (natural.zip(n).map(|(s, n)| s * n), inner.align) };
+            lv.add(off, size, align);
             return Some(());
         }
         let (qual, bare) = quals(core);
