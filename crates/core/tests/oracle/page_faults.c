@@ -66,8 +66,11 @@ static int write_mo(const char *path) {
  * one block: the child runs no code and touches no memory before exec, and the program links no
  * library function beyond what its modes already use (vfork, execve, waitpid and getauxval from
  * libc.a moved the program's library layout: setlocale + printf and tool +2). Returns the child's
- * pid or -errno. */
-static long relay_spawn(const char *path, char **argv, char **envp) {
+ * pid or -errno. STARTUP-RELAY-EXEC-SHIKI: a child whose execve fails stores execve's -errno in
+ * *exec_err (vfork: the child shares this program's memory, and the parent is suspended until the
+ * child exits) before it exits 127, so the parent can name the failure; the exec never happened,
+ * so nothing counted ran. */
+static long relay_spawn(const char *path, char **argv, char **envp, long *exec_err) {
     long r;
     __asm__ volatile("mov $58, %%eax\n\t" /* SYS_vfork */
                      "syscall\n\t"
@@ -75,12 +78,13 @@ static long relay_spawn(const char *path, char **argv, char **envp) {
                      "jnz 1f\n\t"
                      "mov $59, %%eax\n\t" /* SYS_execve; rdi, rsi, rdx survive syscall */
                      "syscall\n\t"
+                     "mov %%rax, (%4)\n\t" /* only reached when execve failed: rax = -errno */
                      "mov $127, %%edi\n\t"
                      "mov $60, %%eax\n\t" /* SYS_exit */
                      "syscall\n"
                      "1:"
                      : "=a"(r)
-                     : "D"(path), "S"(argv), "d"(envp)
+                     : "D"(path), "S"(argv), "d"(envp), "r"(exec_err)
                      : "rcx", "r11", "memory");
     return r;
 }
@@ -103,13 +107,29 @@ int main(int argc, char **argv, char **envp) {
         for (unsigned long *a = (unsigned long *)(e + 1); a[0] != 0; a += 2)
             if (a[0] == 31)
                 self = (const char *)a[1];
-        if (self == NULL)
+        /* STARTUP-RELAY-EXEC-SHIKI: every failure of the relay itself names its step and errno on
+         * stderr (the harness puts stderr in its failure message); an exit status alone did not say
+         * which program of the chain failed, or why. */
+        if (self == NULL) {
+            fprintf(stderr, "page_faults relay: no AT_EXECFN in the auxiliary vector\n");
             return 7;
-        long p = relay_spawn(self, cargv, envp);
+        }
+        long xerr = 0;
+        long p = relay_spawn(self, cargv, envp, &xerr);
+        if (p < 0) {
+            fprintf(stderr, "page_faults relay: vfork failed: errno %ld\n", -p);
+            return 5;
+        }
         struct rusage ru;
         int st;
-        if (p < 0 || wait4((pid_t)p, &st, 0, &ru) != p)
+        if (wait4((pid_t)p, &st, 0, &ru) != p) {
+            fprintf(stderr, "page_faults relay: wait4 failed\n");
             return 5;
+        }
+        if (xerr < 0) {
+            fprintf(stderr, "page_faults relay: execve %s failed: errno %ld\n", self, -xerr);
+            return 127;
+        }
         return WIFEXITED(st) ? WEXITSTATUS(st) : 6;
     }
     if (argc > 1 && strcmp(argv[1], "fork") == 0) {

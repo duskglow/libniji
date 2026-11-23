@@ -285,8 +285,17 @@ fn harness_fault_call_dirs_are_never_shared() {
 
 /// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
 /// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
+/// STARTUP-RELAY-EXEC-SHIKI: the `page_faults` relay reports a failed exec as `errno <n>`; the failure adds
+/// that errno's name (`errno 2 (No such file or directory ...)`).
 fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
-    (!o.status.success()).then(|| format!("{what} failed: {}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()))
+    (!o.status.success()).then(|| {
+        let err = String::from_utf8_lossy(&o.stderr);
+        let mut why = format!("{what} failed: {}; stderr: {:?}", o.status, err.trim());
+        for n in err.split("errno ").skip(1).filter_map(|t| t.split(|c: char| !c.is_ascii_digit()).next()?.parse::<i32>().ok()) {
+            why.push_str(&format!("; errno {n}: {}", std::io::Error::from_raw_os_error(n)));
+        }
+        why
+    })
 }
 
 #[test]
@@ -297,6 +306,38 @@ fn harness_failed_run_reports_its_stderr() {
     assert!(why.contains("127") && why.contains("page_faults: not found"), "the failure does not carry the status and stderr: {why}");
     let ok = Command::new("sh").args(["-c", "echo minflt 1 >&2"]).stdin(Stdio::null()).output().expect("sh");
     assert_eq!(run_failure("probe", &ok), None);
+    // STARTUP-RELAY-EXEC-SHIKI: the relay's `errno <n>` is named.
+    let o = Command::new("sh").args(["-c", "echo 'page_faults relay: execve /x/page_faults failed: errno 2' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains(&format!("errno 2: {}", std::io::Error::from_raw_os_error(2))), "the relay's errno is not named: {why}");
+}
+
+#[test]
+fn harness_relay_names_a_failed_exec_and_its_errno() {
+    // STARTUP-RELAY-EXEC-SHIKI: no spec clause (this file's harness, `page_faults.c` relay). The relay's
+    // child execs the path the relay was exec'd by (AT_EXECFN). Exec'd as `/proc/self/fd/<n>` with <n>
+    // close-on-exec, the relay itself starts (the kernel opens the path before it closes the descriptor),
+    // and its child's exec of that path finds no descriptor <n>: the relay must name the path and the
+    // errno (ENOENT), not exit 127 alone.
+    use std::os::fd::AsRawFd;
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    if !Path::new("/proc/self/fd").is_dir() {
+        eprintln!("SKIP harness_relay_names_a_failed_exec_and_its_errno: no /proc/self/fd (proc is not mounted)");
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_relay_exec");
+    build(&exe);
+    let file = std::fs::File::open(&exe).unwrap(); // std opens it close-on-exec
+    let via = format!("/proc/self/fd/{}", file.as_raw_fd());
+    let o = Command::new(&via).arg0("page_faults").args(["relay", "true"]).current_dir("/").env_clear().stdin(Stdio::null()).output().expect("the relay");
+    drop(file);
+    let why = run_failure("relay true", &o).expect("the relay's exec of a closed descriptor's path succeeded");
+    assert_eq!(o.status.code(), Some(127), "{why}");
+    let named = format!("execve {via} failed: errno {}", 2);
+    assert!(why.contains(&named) && why.contains(&std::io::Error::from_raw_os_error(2).to_string()), "the relay does not name its failed exec ({named}): {why}");
 }
 
 /// LOCALE-PER-DIR-LOAD (D-7.21): the locale data the probes count. Where `/usr/lib/locale` held a locale
@@ -395,9 +436,11 @@ fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
                 c
             }
         };
-        let o = cmd.current_dir("/").stdin(Stdio::null()).output().unwrap();
+        let first = cmd.get_program().to_owned();
+        let o = cmd.current_dir("/").stdin(Stdio::null()).output().unwrap_or_else(|e| panic!("{} cannot be run: {e}", Path::new(&first).display()));
         // A failure of the namespace script (99: the bind mount; 127: `unshare`, `setpriv` or the probe could
-        // not be executed) names itself on stderr: the run's status alone does not say which step failed.
+        // not be executed; the relay's own exec of the counted run) names itself on stderr: the run's status
+        // alone does not say which step failed.
         if let Some(why) = run_failure(&format!("{} {mode}", exe.display()), &o) {
             panic!("{why}");
         }
