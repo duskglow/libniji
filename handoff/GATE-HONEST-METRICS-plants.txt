@@ -1,2 +1,2 @@
-perdir-trace-dropped | tools/hottext/regen.sh | lit:cat "$work/dir.$m.names" >> "$f" ==> true | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:runs outside the hot group
+setlocale-keys-dropped | tools/hottext/regen.sh | lit:next } $1 in lib' "$work/lib.keys" ==> next } $1 in lib && $1 !~ /setlocale/' "$work/lib.keys" | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:runs outside the hot group
 kinstr-lost | crates/core/tests/oracle/exec_instr.c | lit:if (kerr != 0) { ==> if (1) { | cargo test -p niji --test hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound | msg:kinstr counter lost
