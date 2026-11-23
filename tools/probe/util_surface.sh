@@ -15,7 +15,7 @@ sec() { echo; echo "### $1"; }
 T=$(mktemp -d /tmp/lud-probe.XXXXXX)
 
 sec system
-N=12 p bash -c 'grep -E "^(PRETTY_NAME|VERSION_CODENAME)=" /etc/os-release; dpkg-query -W -f="\${Package} \${Version}\n" libc-bin libc-dev-bin locales tzdata dpkg debhelper libtool 2>&1'
+N=12 p bash -c 'grep -E "^(PRETTY_NAME|VERSION_CODENAME)=" /etc/os-release; dpkg-query -W -f="\${Package} \${Version}\n" libc6 libc-bin libc-dev-bin libc-devtools locales tzdata dpkg debhelper libtool 2>&1'
 N=30 p bash -c 'for m in ldconfig ldd getent getconf iconv locale localedef zic zdump tzselect tzfile locale-gen ld.so; do printf "%s: " $m; man -w $m 2>/dev/null | tr "\n" " "; echo; done; ls /usr/share/man/man8 2>/dev/null | wc -l'
 
 sec owners
