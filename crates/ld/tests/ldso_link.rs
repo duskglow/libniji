@@ -159,7 +159,7 @@ fn ldso_program_arguments() {
     assert_eq!(a(&[b"--help", b"--version"]), Action::Help);
     assert_eq!(a(&[]), Action::Missing);
     assert_eq!(a(&[b"--frob"]), Action::Unknown(b"--frob"));
-    assert_eq!(a(&[b"/bin/true", b"--version"]), Action::Program(b"/bin/true"));
+    assert_eq!(a(&[b"/bin/true", b"--version"]), Action::Program { mode: program::Mode::Run, name: b"/bin/true", at: 0, options: program::Options::default() });
     assert!(program::version::<Native>("1").concat().contains(Native::INTERP));
     assert!(program::help::<Native>().concat().contains("--version"));
 }
@@ -211,9 +211,9 @@ fn ldso_product_runs_at_random_bases() {
     let o = Command::new(&p).arg("--help").output().unwrap();
     assert_eq!(o.status.code(), Some(0));
     assert!(String::from_utf8_lossy(&o.stdout).contains("--version"));
-    for args in [&["--frob"][..], &[][..], &["/bin/true"][..]] {
+    for (args, status) in [(&["--frob"][..], program::USAGE), (&[][..], program::USAGE), (&["/bin/true"][..], program::FAILURE)] {
         let o = Command::new(&p).args(args).output().unwrap();
-        assert_eq!(o.status.code(), Some(program::FAILURE), "{args:?}: {o:?}");
+        assert_eq!(o.status.code(), Some(status), "{args:?}: {o:?}");
         assert!(o.stdout.is_empty() && !o.stderr.is_empty(), "{args:?}: {o:?}");
     }
 }

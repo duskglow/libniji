@@ -1,6 +1,9 @@
 //! Scratch paths for the tests: under the target directory (`CARGO_TARGET_TMPDIR`) unless a test
-//! names another base, and removed with whatever they hold when dropped, so a test leaves nothing
-//! behind whether it passes or fails. Included with `#[path]` by the test files that need it.
+//! names another base. This is the one way a test makes a per-process file or directory: a
+//! passing test removes it with whatever it holds when it is dropped, so repeated runs do not
+//! grow `target/`; a failing test (the thread is unwinding from a panic) keeps it and prints its
+//! path on stderr, so the failure can be inspected. Included with `#[path]` by the test files
+//! that need it.
 #![allow(dead_code)]
 
 use std::ffi::CString;
@@ -21,6 +24,9 @@ impl Scratch {
 
     /// The same under `base` (for example `/tmp` for a Unix socket, whose path must be short).
     pub(crate) fn path_in(base: &Path, tag: &str) -> Scratch {
+        // The base may not exist (a CI role removes `target/tmp` before the run): make it, as `dir` does.
+        let made = std::fs::create_dir_all(base);
+        assert!(made.is_ok(), "scratch base {}: {made:?}", base.display());
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
         let p = base.join(format!("niji-{tag}-{}-{n}", std::process::id()));
         remove(&p);
@@ -44,10 +50,22 @@ impl Scratch {
 
     /// A fresh, empty directory under the target directory.
     pub(crate) fn dir(tag: &str) -> Scratch {
-        let s = Scratch::path(tag);
+        Scratch::dir_in(Path::new(env!("CARGO_TARGET_TMPDIR")), tag)
+    }
+
+    /// A fresh, empty directory under `base` (for example the target directory itself, when a
+    /// test needs its corpus outside `target/tmp`).
+    pub(crate) fn dir_in(base: &Path, tag: &str) -> Scratch {
+        let s = Scratch::path_in(base, tag);
         let made = std::fs::create_dir_all(&s.0);
         assert!(made.is_ok(), "scratch directory {}: {made:?}", s.0.display());
         s
+    }
+
+    /// Take charge of `p`, a path the caller chose (for example one a re-executed copy of the test
+    /// shares, so its name cannot be per-process): removed on drop like any other scratch path.
+    pub(crate) fn adopt(p: PathBuf) -> Scratch {
+        Scratch(p)
     }
 
     /// The path as a C string.
@@ -76,8 +94,30 @@ impl AsRef<Path> for Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        remove(&self.0);
+        release(&self.0);
     }
+}
+
+/// The target directory's scratch base (`CARGO_TARGET_TMPDIR`), made if it does not exist (a CI
+/// role removes `target/tmp` before the run). The one place a test takes that base from.
+pub(crate) fn base() -> PathBuf {
+    let base = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+    let made = std::fs::create_dir_all(&base);
+    assert!(made.is_ok(), "scratch base {}: {made:?}", base.display());
+    base
+}
+
+/// What a scratch guard does when it goes out of scope, for the test files' own guard types too:
+/// a passing test removes `p` with whatever it holds; a failing test (the thread is unwinding from
+/// a panic) keeps it for inspection and says where it is.
+pub(crate) fn release(p: &Path) {
+    if std::thread::panicking() {
+        if std::fs::symlink_metadata(p).is_ok() {
+            eprintln!("scratch kept (the test failed): {}", p.display());
+        }
+        return;
+    }
+    remove(p);
 }
 
 /// Remove `p`, a file, link or directory tree; a directory a test made unreadable or unwritable

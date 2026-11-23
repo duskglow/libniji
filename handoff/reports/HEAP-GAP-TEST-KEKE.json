@@ -1,0 +1,21 @@
+{"task": "HEAP-GAP-TEST-KEKE", "model": "opus", "tokens": null,
+ "result": "Gap test failed in every libniji process (pass 2), both hosts, never as a glibc process: its RLIMIT_AS figure was read before vm_size()'s own allocation, which maps 2 MiB of libniji heap on the thread's first malloc (ENOMEM, 3 pages short). Test fixed (non-allocating figure taken at the pin, limit exactly SEG + PAD); no heap defect.",
+ "branch": "task/heap-gap-test-keke", "head": "111418a7e",
+ "gate": {"affected": "3 suites ok, 195 passed / 0 failed (keke:heap-gap-test-keke-gate3)", "peak": "1.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Cause is the process kind, not load/NUMA/host: next fails 0/20 as a libniji process even pinned to one cpu or node; passes 20/20 native + 20/20 interposed as a glibc process (keke) and 60/60 (Skylake-SP); Skylake-SP xtask test fails it in pass 2 only.",
+   "HEAP-ADDRESS-SPACE-10 never ran the test in pass 2 (its 20/20 and plants were cargo test; its xtask test stopped at products). Recommend: plants on heap/address-space code run through affected --run (pass 2); s03 RLIMIT/gap tests in the train's pass 2 for heap changes.",
+   "affected --run runs pass 2 only for changes in mem/rt/kernel/abi/boundary; other branches never run this test in pass 2 in CI. Whether HEAP-10's CI pass 2 ran it was not checked.",
+   "libniji heap maps 2 MiB of address space on a new thread's first small allocation (structure not identified); ordinary growth, not a defect.",
+   "Not run: 1509aeb3 tree and bisect; the fix in pass 2 on Skylake-SP; heap_meta_products NUMA sensitivity."],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "s03 gap test red in every libniji process (pass 2 of xtask test) on both hosts -> green in the gate's pass 2", "before": 0, "after": null, "unit": "passes of 20 (libniji process)", "measured": true},
+   {"kind": "coverage", "what": "plants on the gap test's limit, run through pass 2", "before": 0, "after": 2, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "COMPAT19-LDSO-COST and any branch whose xtask test runs pass 2", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "Plants and repeat runs for heap/address-space tests must go through affected --run (pass 2): cargo test runs them as glibc processes and hid this for a landing; and hand-built pass-2 invocations are easy to get wrong (stale prefixed loader).",
+ "next_step": "Land; then examine heap_meta_products node-migration sensitivity separately.",
+ "jobs": ["keke:heap-gap-test-keke-lint3", "keke:heap-gap-test-keke-gate3", "keke:heap-gap-test-keke-plants4", "keke:heap-gap-test-keke-repeat5"],
+ "report_file": "handoff/HEAP-GAP-TEST-KEKE-report.md"}

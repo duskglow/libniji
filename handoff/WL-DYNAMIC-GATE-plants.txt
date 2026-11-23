@@ -1,0 +1,7 @@
+# WL-DYNAMIC-GATE plants (cargo xtask plants): the gate pointed back at the static kit, a held row made worse by one
+# instruction, a held row loosened (in the holds file, and in the ratchet's code).
+gate-static | validation/wl_lock.sh | lit:static|dynamic) echo "${WL_LINK:-dynamic}" ;; ==> static|dynamic) echo "${WL_LINK:-static}" ;; | bash validation/wl_lock_test.sh | msg:FAIL default link is dynamic
+held-plus-one | validation/wl_verdict.py | lit:if r > lv: ==> if r > lv + 0.001: | bash validation/wl_verdict_test.sh | msg:FAIL held row one instruction over its level fails
+held-loosened-file | validation/wl_holds.tsv | perl:s/(printf-loop\tinstr\t\d+\t\d+\t\d+\.\d+)/${1}9/ | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv (consistent|against the merge base)
+held-loosened-check | validation/wl_verdict.py | lit:if g <= 0 or lv > ceil4(n / g): ==> if g <= 0: | bash validation/wl_verdict_test.sh | msg:FAIL level above its measurement refused
+pf-release-median | validation/wl_verdict.py | lit:if h and wr and wr[1] > 0 and wr[0] / wr[1] > BOUND: ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL held pf row with a worst run over keeps its hold

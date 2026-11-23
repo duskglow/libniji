@@ -24,7 +24,7 @@ const HEADER: [&str; 6] = ["id", "kind", "subjects", "rule", "reason", "decision
 /// Kinds whose contract is held by a directive in the source (alignment attribute, `.p2align`, `.org`): a row of one
 /// of them needs a `LAYOUT(<ID>)` tag at that directive.
 const SITE_KINDS: &[&str] = &["classed-xref", "object-window", "object-align", "section-offset", "label-align"];
-const KINDS: &[&str] = &["fn-align", "classed-xref", "jcc", "section-rename", "object-window", "object-align", "section-offset", "label-align", "remap", "startup-text-windows", "startup-data-windows"];
+const KINDS: &[&str] = &["fn-align", "classed-xref", "jcc", "section-rename", "object-window", "object-align", "section-offset", "label-align", "remap", "startup-text-windows", "startup-data-windows", "window-bin-bytes"];
 const DIRECTIVES: &[&str] = &[".p2align", ".balign", ".align ", ".org ", "align("];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -405,6 +405,7 @@ fn check_one(c: &Contract, pr: &mut Products) -> Result<String, Vec<String>> {
         }
         "startup-text-windows" => check_startup_windows(c, &p, pr),
         "startup-data-windows" => check_startup_data(c, &p, pr),
+        "window-bin-bytes" => check_window_bins(c, &p, pr),
         k => Err(one(format!("layout: {}: unknown kind `{k}` (known: {})", c.id, KINDS.join(", ")))),
     }
 }
@@ -600,6 +601,12 @@ fn startup_text(keys: &[String], fns: &BTreeMap<String, Vec<Func>>, sections: &[
         };
         for f in list {
             if !seen.insert((f.start, f.name.clone())) {
+                continue;
+            }
+            // CRT-START-FILES (D-X.144): a static anchor's start symbol, a jump run once from the group end's
+            // boundary (the window of the program's own text, which every program runs), is start code like the
+            // start object's, not a library function the trace groups: it adds no start-up window of libc's.
+            if sections.iter().any(|s| (s.start..s.end).contains(&f.start) && crate::so::static_anchor_member(&s.file)) {
                 continue;
             }
             for w in window_of(f.start, window)..=window_of(f.end - 1, window) {
@@ -820,6 +827,10 @@ struct StartupData {
     pages: BTreeMap<u64, Vec<DataObj>>,
     /// Keys with no object in this link.
     missing: Vec<String>,
+    /// Every start-up object counted, once.
+    objects: Vec<DataObj>,
+    /// The keys looked for.
+    keys: usize,
 }
 
 /// The RIP-relative targets (`# <addr>` in `objdump -d`) of the functions whose key is in `fns`: `(address, function)`.
@@ -861,7 +872,7 @@ fn target_objects(targets: &[(u64, String)], objs: &BTreeMap<String, Vec<DataObj
 /// Count the objects of `keys` and the `operands` objects of the start-up functions in windows (read-only) and pages
 /// (written).
 fn startup_data(keys: &[String], objs: &BTreeMap<String, Vec<DataObj>>, operands: &[DataObj], window: u64, page: u64) -> StartupData {
-    let mut d = StartupData::default();
+    let mut d = StartupData { keys: keys.len(), ..StartupData::default() };
     let mut seen = BTreeSet::new();
     let mut found: Vec<&DataObj> = Vec::new();
     for k in keys {
@@ -882,14 +893,20 @@ fn startup_data(keys: &[String], objs: &BTreeMap<String, Vec<DataObj>>, operands
             for u in window_of(o.start, unit)..=window_of(o.end.min(o.start + unit) - 1, unit) {
                 map.entry(u).or_default().push(o.clone());
             }
+            d.objects.push(o.clone());
         }
     }
     d
 }
 
-/// The verdict on `d`: `Ok(summary)` or `Err(lines)` listing every window or page of an over-budget class and naming,
-/// as BROKEN, each object that sits alone in one.
-fn startup_data_verdict(c: &Contract, d: &StartupData, (window, page): (u64, u64), (ro_budget, rw_budget): (u64, u64), profile: &str) -> Result<String, Vec<String>> {
+/// The switch that makes the start-up data counts blocking: `NIJI_FAULT_BOUNDS=enforce` (the release ratchet, as for
+/// the runtime fault bounds of `hot_text_products`; D-X.138).
+const COUNT_BOUNDS_ENV: &str = "NIJI_FAULT_BOUNDS";
+
+/// The verdict on `d`. Every window and page is listed with its class and address. Within the budgets, or over them
+/// without `enforce` (the per-story gate: the count is a release metric, D-X.138), `Ok` with the report, an over-budget
+/// class marked as such; over them with `enforce`, `Err(lines)` naming, as BROKEN, each object that sits alone in one.
+fn startup_data_verdict(c: &Contract, d: &StartupData, (window, page): (u64, u64), (ro_budget, rw_budget): (u64, u64), profile: &str, enforce: bool) -> Result<String, Vec<String>> {
     let (nro, nrw) = (d.windows.len() as u64, d.pages.len() as u64);
     let mut summary = format!(
         "{nro} read-only start-up data windows of {window} bytes (ro-budget-{profile} {ro_budget}), {nrw} written start-up data pages of {page} bytes (rw-budget-{profile} {rw_budget})"
@@ -898,17 +915,20 @@ fn startup_data_verdict(c: &Contract, d: &StartupData, (window, page): (u64, u64
         summary += &format!("; not in this link: {}", d.missing.join(" "));
     }
     let mut lines = vec![format!("layout: {}: {summary}", c.id)];
+    let mut report = Vec::new();
     let mut bad = Vec::new();
     for (what, units, unit, n, budget, class) in
         [("window", &d.windows, window, nro, ro_budget, "ro"), ("page", &d.pages, page, nrw, rw_budget, "rw")]
     {
+        for (u, objs) in units {
+            let names: Vec<String> = objs.iter().map(|o| format!("{} 0x{:x}-0x{:x}", o.name, o.start, o.end)).collect();
+            report.push(format!("layout: {}:   {class} {what} 0x{:x}: {}", c.id, u * unit, names.join(", ")));
+        }
         if n <= budget {
             continue;
         }
         let alone = bad.len();
         for (u, objs) in units {
-            let names: Vec<String> = objs.iter().map(|o| format!("{} 0x{:x}-0x{:x}", o.name, o.start, o.end)).collect();
-            lines.push(format!("layout: {}:   {what} 0x{:x}: {}", c.id, u * unit, names.join(", ")));
             if let [o] = objs.as_slice() {
                 bad.push(c.broken(&o.name, &format!("sits alone in the {unit}-byte {what} 0x{:x}: {n} {what}s > {class}-budget-{profile} {budget}", u * unit)));
             }
@@ -917,9 +937,20 @@ fn startup_data_verdict(c: &Contract, d: &StartupData, (window, page): (u64, u64
             bad.push(c.broken(&format!("{n} {what}s"), &format!("start-up {class} data spans {n} {what}s of {unit} bytes > {class}-budget-{profile} {budget}")));
         }
     }
+    let found = format!("; {} of {} start-up objects found", d.keys - d.missing.len(), d.keys);
     if bad.is_empty() {
-        return Ok(summary);
+        return Ok(format!("{summary}{found}\n{}", report.join("\n")));
     }
+    if !enforce {
+        let over: Vec<String> = bad.iter().map(|l| l.replacen(&format!("{} BROKEN: ", c.id), &format!("{}:   over its budget: ", c.id), 1)).collect();
+        return Ok(format!(
+            "{summary}{found}\nlayout: {}:   PAGE-COUNT REPORT (non-blocking, D-X.138: the per-story gate is WINDOW-BIN-BYTES's data bins in bytes; the count is a release metric the train ratchets, {COUNT_BOUNDS_ENV}=enforce blocks)\n{}\n{}",
+            c.id,
+            report.join("\n"),
+            over.join("\n")
+        ));
+    }
+    lines.extend(report);
     lines.extend(bad);
     Err(lines)
 }
@@ -933,19 +964,29 @@ fn check_startup_data(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Produ
     let profile = pr.profile.clone().ok_or_else(|| one(format!("layout: {}: the products' profile is unknown (no {}/.profile)", c.id, pr.dir.display())))?;
     let ro_budget = param_num(p, c, &format!("ro-budget-{profile}")).map_err(one)?;
     let rw_budget = param_num(p, c, &format!("rw-budget-{profile}")).map_err(one)?;
-    let path = param(p, c, "keys").map_err(one)?;
-    let text = std::fs::read_to_string(crate::hotlists::rel(pr.root, path).map_err(one)?).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
-    let keys = startup_keys(&text, &profile).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
-    if keys.is_empty() {
-        return Err(one(format!("layout: {}: {path}: no start-up object traced in profile {profile} (rebuild: cargo xtask so traces the layout)", c.id)));
-    }
     for f in &c.subjects {
         pr.file(f).map_err(|e| one(c.broken(f, &e)))?;
     }
-    let tpath = param(p, c, "text-keys").map_err(one)?;
-    let ttext = std::fs::read_to_string(crate::hotlists::rel(pr.root, tpath).map_err(one)?).map_err(|e| one(format!("layout: {}: {tpath}: {e}", c.id)))?;
-    let fns: BTreeSet<String> = startup_keys(&ttext, &profile).map_err(|e| one(format!("layout: {}: {tpath}: {e}", c.id)))?.into_iter().collect();
     let probe = link_startup_probe(pr, true).map_err(|e| one(format!("layout: {}: {e}", c.id)))?;
+    let (d, _) = startup_objects(c, p, pr.root, &probe, &profile, (window, page))?;
+    let enforce = std::env::var(COUNT_BOUNDS_ENV).is_ok_and(|v| v == "enforce");
+    startup_data_verdict(c, &d, (window, page), (ro_budget, rw_budget), &profile, enforce)
+}
+
+/// The start-up data of the linked `probe` (D-X.50, D-X.62): the objects of the row's `keys=` and the RIP-relative
+/// operands of its `text-keys=` functions, counted in `window`s (read-only) and `page`s (written); and the probe's
+/// allocated sections.
+fn startup_objects(c: &Contract, p: &BTreeMap<String, String>, root: &Path, probe: &Probe, profile: &str, (window, page): (u64, u64)) -> Result<(StartupData, Vec<ExeSection>), Vec<String>> {
+    let one = |e: String| vec![e];
+    let path = param(p, c, "keys").map_err(one)?;
+    let text = std::fs::read_to_string(crate::hotlists::rel(root, path).map_err(one)?).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    let keys = startup_keys(&text, profile).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    if keys.is_empty() {
+        return Err(one(format!("layout: {}: {path}: no start-up object traced in profile {profile} (rebuild: cargo xtask so traces the layout)", c.id)));
+    }
+    let tpath = param(p, c, "text-keys").map_err(one)?;
+    let ttext = std::fs::read_to_string(crate::hotlists::rel(root, tpath).map_err(one)?).map_err(|e| one(format!("layout: {}: {tpath}: {e}", c.id)))?;
+    let fns: BTreeSet<String> = startup_keys(&ttext, profile).map_err(|e| one(format!("layout: {}: {tpath}: {e}", c.id)))?.into_iter().collect();
     let secs = parse_exe_sections(&probe.sections);
     let objs = parse_nm_data(&probe.nm, &secs);
     let operands = target_objects(&operand_targets(&probe.disasm, &fns), &objs, &secs);
@@ -953,7 +994,79 @@ fn check_startup_data(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Produ
     if d.missing.len() == keys.len() {
         return Err(one(c.broken("start-up objects", &format!("none of the {} keys of {path} names an object of the probe", keys.len()))));
     }
-    startup_data_verdict(c, &d, (window, page), (ro_budget, rw_budget), &profile).map(|s| format!("{s}; {} of {} start-up objects found", keys.len() - d.missing.len(), keys.len()))
+    Ok((d, secs))
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// WINDOW-BIN-BYTES (D-X.136, owner ruling R2 of plan/layout-budget-rethink.md): the per-story start-up layout gate in
+// bytes and windows from the probe's link map (`crate::binbudget`).
+
+/// D-X.145: whether `profile`'s windows per mode block: `windows-block` lists the profiles (the shipped `release`),
+/// each with its own `windows-<profile>` budget; in the others they are a non-blocking report.
+fn window_counts_block(p: &BTreeMap<String, String>, c: &Contract, profile: &str) -> Result<bool, String> {
+    let block: Vec<&str> = param(p, c, "windows-block")?.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if block.is_empty() {
+        return Err(format!("layout: {}: windows-block names no profile: the windows per mode would block nowhere", c.id));
+    }
+    if let Some(x) = block.iter().find(|x| !p.contains_key(&format!("windows-{x}"))) {
+        return Err(format!("layout: {}: windows-block names {x}, which has no windows-{x} budget", c.id));
+    }
+    Ok(block.contains(&profile))
+}
+
+fn check_window_bins(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Products) -> Result<String, Vec<String>> {
+    use crate::binbudget::{Budgets, DataObject, Linked};
+    let one = |e: String| vec![e];
+    let window = param_num(p, c, "window").map_err(one)?;
+    same(c, "window", window, crate::bins::BIN).map_err(one)?;
+    let page = param_num(p, c, "page").map_err(one)?;
+    same(c, "page", page, STARTUP_PAGE).map_err(one)?;
+    let head_room = param_num(p, c, "head-room").map_err(one)?;
+    same(c, "head-room", head_room, crate::bins::HEAD_ROOM).map_err(one)?;
+    let profile = pr.profile.clone().ok_or_else(|| one(format!("layout: {}: the products' profile is unknown (no {}/.profile)", c.id, pr.dir.display())))?;
+    let modes = crate::binbudget::parse_budgets(param(p, c, &format!("windows-{profile}")).map_err(one)?).map_err(|e| one(format!("layout: {}: windows-{profile}: {e}", c.id)))?;
+    let counts_block = window_counts_block(p, c, &profile).map_err(one)?;
+    let rodata1 = param_num(p, c, "rodata1-windows").map_err(one)?;
+    let data1 = param_num(p, c, &format!("data1-pages-{profile}")).map_err(one)?;
+    let path = param(p, c, "signatures").map_err(one)?;
+    let text = std::fs::read_to_string(crate::hotlists::rel(pr.root, path).map_err(one)?).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    let sigs = crate::bins::parse_signatures(&text).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    for f in &c.subjects {
+        pr.file(f).map_err(|e| one(c.broken(f, &e)))?;
+    }
+    let base = match std::env::var_os(crate::binbudget::BASE_ENV) {
+        Some(b) if !b.is_empty() => {
+            let t = std::fs::read_to_string(&b).map_err(|e| one(format!("layout: {}: {}={}: {e}", c.id, crate::binbudget::BASE_ENV, b.to_string_lossy())))?;
+            let key = |s: &str| crate::hottext::key(crate::hottext::function_of(s).unwrap_or(s));
+            Some(crate::binbudget::parse_base(&t, key).map_err(|e| one(format!("layout: {}: {}: {e}", c.id, b.to_string_lossy())))?)
+        }
+        _ => None,
+    };
+    let data_budgets = crate::binbudget::parse_budgets(param(p, c, &format!("data-bins-{profile}")).map_err(one)?).map_err(|e| one(format!("layout: {}: data-bins-{profile}: {e}", c.id)))?;
+    let probe = link_startup_probe(pr, true).map_err(|e| one(format!("layout: {}: {e}", c.id)))?;
+    let secs: Vec<Linked> = parse_map(&probe.map).into_iter().map(|s| Linked { start: s.start, end: s.end, name: s.name }).collect();
+    let a = crate::binbudget::analyse(&secs, &sigs, crate::hottext::key, window).map_err(|e| one(c.broken("window bins", &e)))?;
+    // D-X.138: every section holding the start-up data STARTUP-DATA-WINDOWS counts is a data bin in bytes.
+    let (d, out) = startup_objects(c, p, pr.root, &probe, &profile, (STARTUP_WINDOW, page))?;
+    let mut data = Vec::new();
+    for o in &d.objects {
+        let s = out.iter().find(|s| (s.start..s.end).contains(&o.start)).ok_or_else(|| one(c.broken(&o.name, "a start-up object outside every allocated section")))?;
+        data.push(DataObject { obj: Linked { start: o.start, end: o.end, name: o.name.clone() }, section: Linked { start: s.start, end: s.end, name: s.name.clone() }, rw: o.rw });
+    }
+    let find = |n: &str| out.iter().find(|s| s.name == n).map(|s| Linked { start: s.start, end: s.end, name: s.name.clone() });
+    let dbins = crate::binbudget::data_bins(&data, STARTUP_WINDOW, page, &data_budgets);
+    let (data_report, data_broken) = crate::binbudget::data_verdict(&dbins, &data_budgets, &profile);
+    let b = Budgets { window, page, head_room, profile, modes, counts_block, rodata1: find(".rodata1").map(|s| (s, rodata1)), data1: find(".data1").map(|s| (s, data1)) };
+    let (mut report, mut broken) = crate::binbudget::verdict(&a, &b, base.as_ref());
+    report.extend(data_report);
+    broken.extend(data_broken);
+    let lines: Vec<String> = report.iter().map(|l| format!("layout: {}:   {l}", c.id)).collect();
+    if broken.is_empty() {
+        return Ok(format!("{} window bins, {} start-up data bins and the start-up data clusters within their budgets\n{}", a.bins.len(), dbins.len(), lines.join("\n")));
+    }
+    let mut out = lines;
+    out.extend(broken.iter().map(|l| if l.starts_with("  ") { format!("layout: {}: {l}", c.id) } else { c.broken("window bins", l) }));
+    Err(out)
 }
 
 /// The profile recorded in `<dir>/.profile` (written last by `cargo xtask so`).
@@ -1198,6 +1311,20 @@ mod tests {
     }
 
     #[test]
+    fn window_counts_block_in_the_shipped_profile_only() {
+        // no spec clause: tooling (D-X.145).
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let c = load(root).unwrap().into_iter().find(|c| c.id == "WINDOW-BIN-BYTES").unwrap();
+        let p = c.params().unwrap();
+        assert_eq!(window_counts_block(&p, &c, "release"), Ok(true), "the shipped products' windows per mode block");
+        assert_eq!(window_counts_block(&p, &c, "fast"), Ok(false), "the tool profile's partition moves with unrelated edits: it reports");
+        let bad = |rule: &str| window_counts_block(&row("W", rule).params().unwrap(), &row("W", rule), "release").unwrap_err();
+        assert!(bad("windows-release=true:1; windows-block=").contains("names no profile"));
+        assert!(bad("windows-release=true:1; windows-block=relaese").contains("windows-block names relaese, which has no windows-relaese budget"));
+        assert!(bad("windows-release=true:1").contains("windows-block"));
+    }
+
+    #[test]
     fn the_manifest_parses_and_names_known_kinds() {
         // no spec clause: tooling (D-X.48).
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -1375,6 +1502,13 @@ mod tests {
         assert!(t.straddling.is_empty());
         let names: Vec<&str> = t.ungrouped.iter().map(|f| f.name.as_str()).collect();
         assert_eq!(names, ["cold_b"], "crt1's _start is not a libc.a function");
+        // CRT-START-FILES (D-X.144): the static anchor's `__libc_start_main` jump, at the group end's boundary in a
+        // window of its own here, is not either, and adds no window.
+        let anchored = map.replace(" .text.cold_b", " .text.sorted.h9z.niji_group_end 0x00000000006e0000 0x10 /x/libc.a(niji_static_anchor.o)\n .text.cold_b");
+        let anchored_nm = nm.replace("0000000000401000 0000000000000200 T __libc_start_main", "00000000006e0000 0000000000000005 W __libc_start_main");
+        let a = startup_text(&keys(), &parse_nm(&anchored_nm), &parse_map(&anchored), STARTUP_WINDOW).unwrap();
+        assert_eq!(a.ungrouped.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["cold_b"], "the static anchor's start symbol");
+        assert_eq!(a.windows.keys().copied().collect::<Vec<_>>(), [0x40, 0x41, 0x6f], "the static anchor's start symbol takes no window");
         let c = startup_row("window=65536; budget-fast=3; grouped=warn; keys=k");
         let ok = startup_verdict(&c, &t, STARTUP_WINDOW, 3, false, "fast").unwrap();
         assert!(ok.contains("3 start-up text windows") && ok.contains("outside it: 0x6f0000"), "{ok}");
@@ -1463,15 +1597,20 @@ mod tests {
         let c = data_row();
         let packed = startup_data(&data_keys(), &parse_nm_data(&data_nm(0x600100), &secs), &[], STARTUP_WINDOW, STARTUP_PAGE);
         assert_eq!(packed.pages.keys().copied().collect::<Vec<_>>(), [0x600, 0x603]);
-        let ok = startup_data_verdict(&c, &packed, (STARTUP_WINDOW, STARTUP_PAGE), (2, 2), "fast").unwrap();
+        let ok = startup_data_verdict(&c, &packed, (STARTUP_WINDOW, STARTUP_PAGE), (2, 2), "fast", true).unwrap();
         assert!(ok.contains("2 read-only start-up data windows") && ok.contains("2 written start-up data pages"), "{ok}");
+        assert!(ok.contains("; 5 of 8 start-up objects found\n") && ok.contains("\nlayout: STARTUP-DATA-WINDOWS:   rw page 0x603000: HEAP 0x603100-0x603120"), "every page is listed with its class: {ok}");
         let alone = startup_data(&data_keys(), &parse_nm_data(&data_nm(0x601800), &secs), &[], STARTUP_WINDOW, STARTUP_PAGE);
-        let e = startup_data_verdict(&c, &alone, (STARTUP_WINDOW, STARTUP_PAGE), (2, 2), "fast").unwrap_err().join("\n");
+        let e = startup_data_verdict(&c, &alone, (STARTUP_WINDOW, STARTUP_PAGE), (2, 2), "fast", true).unwrap_err().join("\n");
         assert!(e.contains("STARTUP-DATA-WINDOWS BROKEN: NSCACHE: sits alone in the 4096-byte page 0x601000: 3 pages > rw-budget-fast 2"), "{e}");
         assert!(e.contains("BROKEN: HEAP: sits alone"), "{e}");
         assert!(e.contains("BROKEN: AUXV: sits alone"), "every lone object of the over-budget class is named: {e}");
-        assert!(e.contains("page 0x601000: NSCACHE 0x601800-0x601a00"), "{e}");
-        let w = startup_data_verdict(&c, &packed, (STARTUP_WINDOW, STARTUP_PAGE), (1, 2), "fast").unwrap_err().join("\n");
+        assert!(e.contains("rw page 0x601000: NSCACHE 0x601800-0x601a00"), "{e}");
+        // D-X.138: per story the count is a report; only the release ratchet (enforce) blocks on it.
+        let r = startup_data_verdict(&c, &alone, (STARTUP_WINDOW, STARTUP_PAGE), (2, 2), "fast", false).unwrap();
+        assert!(r.contains("PAGE-COUNT REPORT (non-blocking, D-X.138") && !r.contains("BROKEN"), "{r}");
+        assert!(r.contains("STARTUP-DATA-WINDOWS:   over its budget: NSCACHE: sits alone in the 4096-byte page 0x601000: 3 pages > rw-budget-fast 2"), "{r}");
+        let w = startup_data_verdict(&c, &packed, (STARTUP_WINDOW, STARTUP_PAGE), (1, 2), "fast", true).unwrap_err().join("\n");
         assert!(w.contains("BROKEN: _ZN13niji_boundary13startup_names13STARTUP_NAMES17h0123456789abcdefE: sits alone in the 65536-byte window 0x520000: 2 windows > ro-budget-fast 1"), "{w}");
         assert!(!w.contains("pages >"), "the rw class is within its budget: {w}");
     }

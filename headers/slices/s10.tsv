@@ -1,0 +1,24 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+# regexp.h ships to fail in every configuration (header_checks/s10.py must_fail), so p1 is 0 there.
+header	p1	uapi
+locale.h	1	-
+langinfo.h	1	-
+nl_types.h	1	-
+libintl.h	1	-
+monetary.h	1	-
+wchar.h	1	-
+wctype.h	1	-
+uchar.h	1	-
+iconv.h	1	-
+gconv.h	1	-
+stdbit.h	1	-
+regex.h	1	-
+re_comp.h	1	-
+regexp.h	0	-
+fnmatch.h	1	-
+glob.h	1	-
+wordexp.h	1	-
+search.h	1	-
+fts.h	1	-
+ftw.h	1	-

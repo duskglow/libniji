@@ -1,0 +1,12 @@
+id = "D-4.71"
+section = "s04"
+spec = "§4.1–4.2"
+ann = "—"
+status = "active"
+amends = ["D-4.22"]
+story = "DYN-START-RING"
+date = "2026-11-21"
+tests = ["crates/core/tests/hot_text_products.rs::init_dynamic_empty_main_makes_no_removable_start_system_call"]
+body = '''
+**The loader decides NULL folding without reading `vm.mmap_min_addr`** (DYN-START-RING; amends D-4.22's startup guard for the `ld` build without `export`: ld.so and ldconfig). Those builds export no copy, fill, compare or scan entry (ld.so's dynamic symbol table has none), so every caller is their own Rust code, which never passes NULL with a nonzero size; the explicit NULL tests cannot fire and folding changes no outcome. Folding is taken as on: the same paths as with the read on a host that allows it, and 3 system calls (openat, read, close) fewer per dynamic start. Taking it as off instead cost about 33k user instructions per start (DYN-START-QUICK). libc.so.6 and libc.a keep the read, lazily, for their C callers.
+'''

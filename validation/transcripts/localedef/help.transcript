@@ -1,0 +1,54 @@
+name: localedef --help
+clause: s31_1_c_2 s31_8_i_1 s31_8_i_2
+command: localedef
+# The reference's bug-report address (D-31.4): libniji prints none.
+normalise: locale path    : /usr/lib/locale:/usr/share/i18n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => locale path    : /usr/lib/locale:/usr/share/i18n\n
+arg: --help
+status: exit 0
+stdout:
+| Usage: localedef [OPTION...] NAME
+| \x20 or:  localedef [OPTION...] [--add-to-archive|--delete-from-archive] FILE...
+| \x20 or:  localedef [OPTION...] --list-archive [FILE]
+| Compile locale specification
+|
+| \x20Input Files:
+| \x20 -f, --charmap=FILE         Symbolic character names defined in FILE
+| \x20 -i, --inputfile=FILE       Source definitions are found in FILE
+| \x20 -u, --repertoire-map=FILE  FILE contains mapping from symbolic names to UCS4
+| \x20                            values
+|
+| \x20Output control:
+| \x20 -c, --force                Create output even if warning messages were issued
+| \x20                          \x20
+| \x20     --no-hard-links        Do not create hard links between installed
+| \x20                            locales
+| \x20     --no-warnings=<warnings>   Comma-separated list of warnings to disable;
+| \x20                            supported warnings are: ascii, intcurrsym
+| \x20     --posix                Strictly conform to POSIX
+| \x20     --prefix=PATH          Optional output file prefix
+| \x20     --quiet                Suppress warnings and information messages
+| \x20 -v, --verbose              Print more messages
+| \x20     --warnings=<warnings>  Comma-separated list of warnings to enable;
+| \x20                            supported warnings are: ascii, intcurrsym
+|
+| \x20Archive control:
+| \x20     --add-to-archive       Add locales named by parameters to archive
+| \x20 -A, --alias-file=FILE      locale.alias file to consult when making archive
+| \x20     --big-endian           Generate big-endian output
+| \x20     --delete-from-archive  Remove locales named by parameters from archive
+| \x20     --list-archive         List content of archive
+| \x20     --little-endian        Generate little-endian output
+| \x20     --no-archive           Don't add new data to archive
+| \x20     --replace              Replace existing archive content
+|
+| \x20 -?, --help                 Give this help list
+| \x20     --usage                Give a short usage message
+| \x20 -V, --version              Print program version
+|
+| Mandatory or optional arguments to long options are also mandatory or optional
+| for any corresponding short options.
+|
+| System's directory for character maps : /usr/share/i18n/charmaps
+| \t\t       repertoire maps: /usr/share/i18n/repertoiremaps
+| \t\t       locale path    : /usr/lib/locale:/usr/share/i18n
+stderr:

@@ -1,0 +1,94 @@
+{
+ "task": "LOCALEDEF-ARCHIVE",
+ "model": "claude-opus-5-5",
+ "tokens": null,
+ "result": "localedef writes and edits the locale archive (default output, --list-archive, --add-to-archive, --delete-from-archive, --replace), always writes all 12 categories (defaults for undefined ones), reads stdin without -i, continues under -c; a freeing tool arena halves-to-quarters peak RSS",
+ "branch": "task/localedef-archive",
+ "head": "3cc67e6ff",
+ "gate": {
+  "affected": "10074 passed / 0 failed (direct tier, 16 suites; conformance 146 passed / 0 failed)",
+  "peak": "12G (page cache included), oom_kill=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "D-31.24: undefined categories are written with POSIX values where the reference's built-in defaults differ (ASCII print/graph/cntrl/punct and widths, LC_TIME wide/alt strings, monetary not-available 0xff vs -1, country_ab2/ab3 spaces); differences row, no compat option",
+   "recommendation": "keep, no compat option: a degenerate default has no use"
+  },
+  {
+   "item": "D-31.26: --big-endian is refused (libniji is x86-64 only and no libniji reader takes big-endian files); differences row, no compat option",
+   "recommendation": "keep, no compat option"
+  }
+ ],
+ "informational": [
+  "crates/locale/tests/reference.rs: en_us_utf8 and generated_charmaps_compile_like_the_reference used the same temp dir (pid + locale name) and could remove each other's output; a flake on next, fixed on this branch"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "localedef archive writer and --list-archive/--add-to-archive/--delete-from-archive/--replace; NAME without / goes to the archive; the reference's localedef --list-archive and libniji locale -a/-k read the archive (E2E: 6 locales, 180 locale -k lines each, byte-identical to the directory form)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "all 12 category files written for a source that lacks categories (setlocale(LC_ALL) succeeds on a six-category source); -i omitted reads stdin; -c continues past a category syntax error (status 1)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "peak RSS of localedef -i de_DE -f UTF-8 (freeing tool arena, D-31.23)",
+   "before": 344160,
+   "after": 111576,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "peak RSS of localedef -i en_US -f UTF-8",
+   "before": 224640,
+   "after": 109552,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "peak RSS of localedef -i ja_JP -f UTF-8",
+   "before": 234240,
+   "after": 49936,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added: 6 new prog tests (13 prog tests pass), 1 defaults reference test, 1 products test, 3 locale archive unit tests, 1 core reader unit test; 8 plants",
+   "before": null,
+   "after": 8,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "UTIL-13 locale-gen (needs the archive; parallel compiles need the lower RSS)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the plants file splits fields on ' | ', which Rust closures (|&r|) trip easily; an escape or a different separator would avoid a silent mis-split",
+ "next_step": "collect localedef-archive-test and localedef-archive-hot (keke, ~/bin/jobwait localedef-archive-test localedef-archive-hot); green -> land; UTIL-13 locale-gen can use the archive",
+ "report_file": "handoff/LOCALEDEF-ARCHIVE.md",
+ "jobs": [
+  "localedef-archive-gate",
+  "localedef-archive-plants",
+  "localedef-archive-test",
+  "localedef-archive-hot"
+ ]
+}

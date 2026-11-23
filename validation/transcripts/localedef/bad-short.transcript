@@ -1,0 +1,9 @@
+name: an unknown short option
+clause: s31_8_i_1
+command: localedef
+arg: -x
+status: exit 4
+stdout:
+stderr:
+| localedef: invalid option -- 'x'
+| Try `localedef --help' or `localedef --usage' for more information.

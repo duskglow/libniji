@@ -120,16 +120,18 @@ fn the_cache_meets_d_16_10() {
         .arg("-lgcc");
     let built = oracle::build(cc, &exe);
     assert!(built, "nscache_check.c does not link against the products");
-    let o = Command::new("timeout")
-        .arg(timeout::secs(400))
-        .arg("sh")
-        .arg(r.join("crates/core/tests/oracle/nscache_run.sh"))
-        .arg(&exe)
-        .arg(dir.join("nscache"))
-        .env_clear()
-        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-        .output()
-        .unwrap();
+    // The run's root processes (sudo) are contained (support/contain.rs).
+    let o = oracle::contain::output(
+        Command::new("timeout")
+            .arg(timeout::secs(400))
+            .arg("sh")
+            .arg(r.join("crates/core/tests/oracle/nscache_run.sh"))
+            .arg(&exe)
+            .arg(dir.join("nscache"))
+            .env_clear()
+            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"),
+    )
+    .unwrap();
     let out = String::from_utf8_lossy(&o.stdout);
     eprintln!("{out}{}", String::from_utf8_lossy(&o.stderr));
     let failed: Vec<&str> = out.lines().filter(|l| l.starts_with("FAIL")).collect();

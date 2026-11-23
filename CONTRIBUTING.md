@@ -73,6 +73,7 @@ cargo xtask stubs     # regenerate test stubs and spec/clauses.tsv from the spec
 cargo xtask so        # build libc.a, libc.so.6, ld.so, crt files, utilities into target/niji/
 cargo xtask test      # the full test gate (long); math sweep shards with unchanged inputs print
                       # `verdict cached` and skip (D-10.57); NIJI_NO_VERDICT_CACHE=1 runs them all
+                      # and recomputes the oracle's stored values (D-10.131; NIJI_NO_ORACLE_VALUES=1: only that)
 cargo xtask affected --list   # only the tests your change can reach (--tier direct, the default)
 cargo xtask affected --run    # run them (--list or --run is required: without either, exit 2)
 cargo xtask clippy            # must be clean (workspace, all targets, -D warnings)
@@ -96,8 +97,11 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
 1. **Branch** from `origin/next` (the integration branch), one story per branch.
 2. **Direct-tier gate.** `cargo xtask clippy`, `cargo xtask static`, then
    `cargo xtask affected --run` (default `--tier direct`: the changed module, its one-hop users, the
-   test targets naming either and the spec sections of those modules; anything the selector is
-   unsure of escalates to the full run). Pass `--base origin/next` when the branch was cut from
+   test targets naming either and the spec sections of those modules). A file that would need the
+   whole gate (xtask code, generated tables, `csys/`, `crates/abi`, product crates and linker
+   inputs, build configuration, unknown paths) never makes a developer's run FULL: the run takes
+   that file's bounded set instead and prints `FULL: the train's (<file>: <reason>)`, since the
+   CI train runs the FULL gate on the merged tree. Pass `--base origin/next` when the branch was cut from
    `next`. `--tier wide` and `--tier full` exist; the header of `xtask/src/affected.rs` has the
    rules. A developer proves their own change; whole-tree runs are the merge queue's job.
 3. **Plants** (mutation checks). For a code change, deliberately break the new code in a
@@ -109,10 +113,21 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
    system calls of whole workloads, new versus base versus glibc, with an output check) and
    `validation/wl_percall.sh` (instructions per call of single functions). Counts are
    deterministic; wall time is advisory. See [validation/README.md](validation/README.md).
-5. **Merge queue.** A green, pushed branch is queued. A dedicated CI host composes queued
+5. **Precheck before you hand back.** On the tree you synced from your final commit, run
+   `cargo xtask precheck --jobs <the labels you will name> --head <sha>` (about 75 s on a warm
+   Skylake-SP build host). It runs the seconds-long steps of the FULL gate (`stubs`, the
+   policy audits, `trace`, every `*-gen --check`, the validation self-tests), the rest of
+   `cargo xtask static`, the hand-back's record checks (placeholder ids, train-owned views),
+   checks that each named job ended rc 0 on the content you hand back, and clippy. It prints one line
+   per check and exits 0 (green), 1 (a red: the hand-back is NOT READY; the line names the fix)
+   or 3 (a named job is still queued or running: wait for it, or hand back with the jobs
+   pending). The module doc of `xtask/src/precheck.rs` lists each rule and where it comes from.
+   The direct-tier gate runs the generator checks of the files you changed first, and every
+   cheap FULL step first when a file is left to the train, so a stale generated file stops the gate in seconds.
+6. **Merge queue.** A green, pushed branch is queued. A dedicated CI host composes queued
    branches onto `next`, runs the FULL gate (`cargo xtask test` with the conformance programs),
    bisects a red train and lands the green branches on `next`.
-6. **Promotion.** The release manager promotes `next` to `main`; release candidates get one
+7. **Promotion.** The release manager promotes `next` to `main`; release candidates get one
    timing run of old versus new `main` per host.
 
 **Owner ruling 2026-10-11, partly implemented:** a change to a `.S` kernel selects the tests

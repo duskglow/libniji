@@ -1,0 +1,25 @@
+# Plants of slice 11, run 3 (cargo xtask plants; docs/plants.md): run 2's plants again on the final head, then ieee754.h:
+# the committed header, the table rows it is generated from, the generator's allocation check and the P6 field proof.
+s11-ieee-float-width | libc-include/ieee754.h | lit:    unsigned int mantissa : 23; ==>     unsigned int mantissa : 22; | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-ieee-double-size | libc-include/ieee754.h | lit:    unsigned int mantissa0 : 20; ==>     unsigned int mantissa0 : 21; | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-ieee-x87-one | libc-include/ieee754.h | lit:    unsigned int one : 1; ==>     unsigned int one : 2; | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-ieee-table-offset | spec/abi/layouts.tsv | perl:s/(union ieee754_float\tieee\.exponent\t0\t\tunsigned int\tbits 8\x4023)/union ieee754_float\tieee.exponent\t0\t\tunsigned int\tbits 8\x4024/ | cargo xtask headers-gen --check | msg:does not fit the allocation
+s11-ieee-gen-advance | xtask/src/headers.rs | lit:                    at = k + w; ==>                     at = k + w + 1; | cargo xtask headers-gen --check | msg:does not fit the allocation
+s11-ieee-gen-unit | xtask/src/headers.rs | lit:|| (at % 32) + w > 32 { ==> || (at % 32) + w > 31 { | cargo xtask headers-gen --check | msg:does not fit the allocation
+s11-ieee-proof-float | spec/tools/ieee754_fields.c | lit:.f == 1.5f, ==> .f == 1.25f, | python3 spec/tools/header_check.py | msg:FAIL P6 ieee754 fields
+s11-ieee-proof-x87 | spec/tools/ieee754_fields.c | lit:.d == 0x1.0000000000000002p0L, ==> .d == 0x1.0000000000000004p0L, | python3 spec/tools/header_check.py | msg:FAIL P6 ieee754 fields
+s11-float-digits | xtask/src/headers.rs | lit:_ => 36, ==> _ => 35, | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:headers-gen: stale under|panicked at
+s11-float-pow5 | xtask/src/headers.rs | lit:dec_mul(&mut d, 5u64.pow(s as u32)); ==> dec_mul(&mut d, 4u64.pow(s as u32)); | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:headers-gen: stale under|panicked at
+s11-float-round | xtask/src/headers.rs | lit:let up = ds[digits] >= 5; ==> let up = ds[digits] > 8; | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:headers-gen: stale under|panicked at
+s11-float-carry | xtask/src/headers.rs | lit:ds.insert(0, 1); ==> ds.insert(0, 2); | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:panicked at
+s11-p1-maxfloat | libc-include/math.h | lit:#  define MAXFLOAT 3.40282347e38f ==> #  define MAXFLOAT 3.40282346e38f | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-p1-maxfloat-size | libc-include/math.h | lit:#  define M_PIl 3.14159265358979323851e0L ==> #  define M_PIl 3.14159265358979323851e0 | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-p1-decimal-prec | spec/tools/header_check.py | lit:ctx.prec = 60 ==> ctx.prec = 8 | python3 spec/tools/header_check.py | msg:FAIL P1 [mv][a-z]+\.h
+s11-p1-emit-c-filter | spec/tools/header_check.py | lit:if h in emit_c and (h, n) not in c_names: ==> if False and (h, n) not in c_names: | python3 spec/tools/header_check.py | msg:FAIL P1 complex.h cxx11
+s11-p5-fenv-pragma | libc-include/fenv.h | lit:# pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch" ==> # pragma GCC diagnostic ignored "-Wunused-macros" | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-p6-tgmath-order | libc-include/tgmath.h | lit:__builtin_tgmath (fmaf, fma, fmal, fmaf32, ==> __builtin_tgmath (fmaf, fmal, fma, fmaf32, | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-p6-tgmath-single | libc-include/tgmath.h | lit:# define dadd(x, y) daddl (x, y) ==> # define dadd(x, y) faddl (x, y) | python3 spec/tools/header_check.py | msg:headers-gen: stale under
+s11-ifmacro-template | headers/math.h.in | lit:@@if-macro isinf ==> @@if isinf | cargo xtask headers-gen --check | msg:headers-gen: stale under
+s11-ifmacro-owner | xtask/src/headers.rs | lit:if let Some(rest) = l.strip_prefix("@@if-macro ") { ==> if let Some(rest) = l.strip_prefix("@@if-macroX ") { | cargo xtask headers-gen --check | msg:headers-gen
+s11-ifmacro-cond | xtask/src/headers.rs | lit:then_some("macro")); ==> then_some("function")); | cargo xtask headers-gen --check | msg:headers-gen: stale under
+s11-fpu-control-reserved | headers/reserved.tsv | perl:s/^(__fpu_control\t)emit/${1}omit/m | cargo xtask headers-gen --check | msg:headers-gen

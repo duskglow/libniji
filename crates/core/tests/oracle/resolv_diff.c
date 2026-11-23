@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -84,6 +85,7 @@ static const struct {
     {"modify", "nameserver 127.0.0.1\noptions timeout:1 attempts:1\n", "hosts: dns\n", NULL},
     {"idn", "nameserver 127.0.0.1\noptions timeout:1 attempts:1\n", "hosts: dns\n", NULL},
     {"gaia", "nameserver 127.0.0.1\noptions timeout:3 attempts:1\n", "hosts: dns\n", NULL},
+    {"gaimass", "nameserver 127.0.0.1\noptions timeout:5 attempts:1\n", "hosts: dns\n", NULL},
 };
 static const int NSCEN = sizeof SCENARIOS / sizeof SCENARIOS[0];
 
@@ -517,8 +519,14 @@ static void start(const char *ip, int port, int idx, int mode)
     int p[2];
     if (pipe(p))
         exit(1);
+    pid_t parent = getpid();
     pid_t pid = fork();
     if (pid == 0) {
+        /* The server ends with the program, also when a time limit ends the program: a server
+         * left behind would keep the program's output open. */
+        syscall(SYS_prctl, PR_SET_PDEATHSIG, SIGKILL, 0L, 0L, 0L);
+        if (getppid() != parent)
+            _exit(0);
         close(p[0]);
         serve(p[1], ip, port, idx, mode);
         _exit(0);
@@ -926,6 +934,145 @@ static void gaia(void)
     show_gaicb("w", &w);
 }
 
+/* Many requests pending at once (getaddrinfo_a(3) sets no limit on them): the server holds slow.test
+ * for 1.5 s and answers one query at a time, so every request submitted in that window is still
+ * pending when the submission ends. One call of MASS_ONE requests, then MASS_GROUPS calls of one
+ * request each, every call notified by a queued real-time signal. */
+enum { MASS_ONE = 20000, MASS_GROUPS = 5000 };
+static volatile sig_atomic_t mass_signals;
+
+static void on_mass(int s, siginfo_t *si, void *u)
+{
+    (void)s, (void)si, (void)u;
+    mass_signals++;
+}
+
+static double mono_s(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+/* CPU time of the whole process (every thread). */
+static double cpu_s(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+static void gaimass(void)
+{
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_sigaction = on_mass;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sigaction(SIGRTMIN, &sa, NULL);
+
+    struct gaicb slow = {"slow.test", NULL, &hints, NULL};
+    struct gaicb *sl[] = {&slow};
+    int r = getaddrinfo_a(GAI_NOWAIT, sl, 1, NULL);
+    printf("slow submitted: %d\n", r);
+    usleep(100000);
+
+    int n = MASS_ONE + MASS_GROUPS;
+    double t_start = mono_s(), c_start = cpu_s();
+    struct gaicb *g = calloc(n, sizeof *g);
+    struct gaicb **list = calloc(n, sizeof *list);
+    for (int i = 0; i < n; i++) {
+        g[i].ar_name = "a.test";
+        g[i].ar_request = &hints;
+        list[i] = &g[i];
+    }
+    r = getaddrinfo_a(GAI_NOWAIT, list, MASS_ONE, NULL);
+    printf("one call of %d requests: %d\n", MASS_ONE, r);
+    struct sigevent ev;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_SIGNAL;
+    ev.sigev_signo = SIGRTMIN;
+    int calls_ok = 0;
+    for (int i = 0; i < MASS_GROUPS; i++) {
+        ev.sigev_value.sival_int = i;
+        if (getaddrinfo_a(GAI_NOWAIT, &list[MASS_ONE + i], 1, &ev) == 0)
+            calls_ok++;
+    }
+    printf("calls of one request with a signal: %d of %d returned 0\n", calls_ok, MASS_GROUPS);
+    int pending = 0;
+    for (int i = 0; i < n; i++)
+        if (gai_error(&g[i]) == EAI_INPROGRESS)
+            pending++;
+    printf("pending right after submission: %s\n", pending >= n - 1000 ? "nearly all" : "fewer");
+
+    /* Every request completes and every signal comes, however long a loaded machine makes them
+     * take (one server answers 25000 queries one at a time): wait while they keep completing; 30 s
+     * in which none completes ends the wait (a lost request), then the same for the signals (10 s
+     * without one). The verdict is the results, not how long they took. */
+    double t_sub = mono_s(), c_sub = cpu_s();
+    for (int left = n + 2, idle = 0; idle < 600;) {
+        int now = gai_error(&slow) == EAI_INPROGRESS;
+        for (int i = 0; i < n; i++)
+            now += gai_error(&g[i]) == EAI_INPROGRESS;
+        if (now == 0)
+            break;
+        idle = now < left ? 0 : idle + 1;
+        left = now;
+        usleep(50000);
+    }
+    double t_done = mono_s(), c_done = cpu_s();
+    for (int last = -1, idle = 0; mass_signals < MASS_GROUPS && idle < 200;) {
+        int s = mass_signals;
+        idle = s > last ? 0 : idle + 1;
+        last = s;
+        usleep(50000);
+    }
+    /* How long it took, for the record (gaimass.timing in the scratch directory; not compared). */
+    int codes[8] = {0}, count[8] = {0}, kinds = 0;
+    for (int i = 0; i < n; i++) {
+        int e = gai_error(&g[i]), j = 0;
+        if (e == 0)
+            continue;
+        while (j < kinds && codes[j] != e)
+            j++;
+        if (j == kinds && kinds < 8)
+            codes[kinds++] = e;
+        if (j < 8)
+            count[j]++;
+    }
+    char tp[600];
+    snprintf(tp, sizeof tp, "%s/gaimass.timing", dir);
+    FILE *tf = fopen(tp, "w");
+    if (tf) {
+        fprintf(tf, "submit_s %.3f\ndrain_s %.3f\ncpu_submit_s %.3f\ncpu_drain_s %.3f\ncpu_per_request_us %.1f\nsignals %d\n", t_sub - t_start, t_done - t_sub,
+                c_sub - c_start, c_done - c_sub, (c_done - c_start) * 1e6 / n, (int)mass_signals);
+        for (int j = 0; j < kinds; j++)
+            fprintf(tf, "not_ok %d: %d\n", codes[j], count[j]);
+        fclose(tf);
+    }
+    int ok = 0, other = 0, same = 0;
+    for (int i = 0; i < n; i++) {
+        if (gai_error(&g[i]) != 0) {
+            other++;
+            continue;
+        }
+        ok++;
+        const struct addrinfo *a = g[i].ar_result;
+        if (a && a->ai_family == AF_INET && !a->ai_next &&
+            ((const struct sockaddr_in *)a->ai_addr)->sin_addr.s_addr == htonl(0xc000020a))
+            same++;
+        freeaddrinfo(g[i].ar_result);
+    }
+    printf("done: ok=%d other=%d answer 192.0.2.10 only=%d\n", ok, other, same);
+    printf("signals: %d\n", (int)mass_signals);
+    show_gaicb("slow", &slow);
+    free(list);
+    free(g);
+}
+
 /* ------------------------------------------------------------------ the scenarios' actions */
 
 /* The environment is set before the first resolver call of the process: the reference keeps
@@ -1305,6 +1452,8 @@ static void lookups(const char *scen)
     } else if (strcmp(scen, "gaia") == 0) {
         gaia();
         show_log(1);
+    } else if (strcmp(scen, "gaimass") == 0) {
+        gaimass();
     }
     fflush(stdout);
     for (int i = 0; i < nservers; i++)

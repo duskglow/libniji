@@ -1,0 +1,25 @@
+{"task": "RELEASE-SNAPSHOT-1121C", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at e4d7011e6 (serial 4, staged snapshot-20261121.4): no regression vs 21.3; #27 fixed (lsfd column-xmode 18/18 as stock); #13 partly (memcheck starts with the loader's debug file, aborts with the whole libc6-dbg: recorded open item); signal 32 as ruling #7075; 8 syscalls fewer per start",
+ "branch": "task/release-snapshot-1121c", "head": "5bf120e6e",
+ "gate": {"affected": "gate-1 GATE bad=0 (handoff-only branch); 31 snapshot checks same as 21.3", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "#13: with libniji's whole libc6-dbg installed (trixie's valgrind pulls it in) every memcheck run aborts in find_rodata (libc.so.6's .rodata1/.rodata pair; VALGRIND-LDSO-SYMBOLS 'Not fixed' 1); tell Yohane #13 holds with the loader's debug file only",
+  "start-up: empty main +384/+385 user instructions (+0.05%) vs 21.3 on both classes; 3 libraries and clock_gettime -1.2%; not chased",
+  "package sizes: static-pie getconf +94,448 B (.text +57,600), ldd +33,008 B, libc.a +134,390 B vs 21.3, not explained; start files and dynamic libc-bin programs lose their 64 KiB padding",
+  "docs: release notes 'Unreleased' has nothing for #27, #13 or the lazy signal-32 handler (DOCS-CATCHUP-1121 queued); doccheck same 23 lines as 21.3"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "#27 in the package: util-linux lsfd column-xmode MODE-x-bit/XMODE-x-bit (r-x row printed twice under 21.3) now 18/18 as stock", "before": 16, "after": 18, "unit": "sub-tests passed", "measured": true},
+  {"kind": "perf", "what": "start-up syscalls per start, clock_gettime program, Skylake-SP (21.3 -> head)", "before": 37, "after": 29, "unit": "syscalls", "measured": true},
+  {"kind": "perf", "what": "start-up user instructions, 3-library program, Skylake-SP (21.3 -> head)", "before": 996715, "after": 984518, "unit": "instr/start", "measured": true},
+  {"kind": "cost", "what": "start-up user instructions, empty main, Skylake-SP (21.3 -> head); not chased", "before": 741148, "after": 741532, "unit": "instr/start", "measured": true},
+  {"kind": "size", "what": "libc-bin static-pie getconf file size (21.3 -> head)", "before": 926056, "after": 1020504, "unit": "bytes", "measured": true}
+ ],
+ "improvement": "a new release check's first run should be its own smoke step: four of this run's slips (library path, missing xz-utils, build-id parse, .rodata section) were probe bugs a one-minute dry run on 21.3's debs would have shown before the chain",
+ "next_step": "coordinator: tag snapshot-2026-11-21.4 at e4d7011e6 from keke staging when the owner says so; tell Yohane #27 fixed, #13 partial; route the .rodata1/libc6-dbg item to a story",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1121C.md",
+ "jobs": ["mei:release-snapshot-1121c-smoke-mei-1", "mei:release-snapshot-1121c-gate-1", "mei:release-snapshot-1121c-startup-mei-1", "mei:release-snapshot-1121c-kstart-mei-1", "mei:release-snapshot-1121c-rstart-mei-1", "mei:release-snapshot-1121c-debs-1", "mei:release-snapshot-1121c-plants-1", "mei:release-snapshot-1121c-lint-2", "mei:release-snapshot-1121c-many-1", "mei:release-snapshot-1121c-dyn22-1", "mei:release-snapshot-1121c-y19-1", "mei:release-snapshot-1121c-y26-1", "mei:release-snapshot-1121c-y26t-1", "mei:release-snapshot-1121c-y23-1", "mei:release-snapshot-1121c-c19-1", "mei:release-snapshot-1121c-y25-1", "mei:release-snapshot-1121c-y24-1", "mei:release-snapshot-1121c-y28-1", "mei:release-snapshot-1121c-y25s-1", "mei:release-snapshot-1121c-y21-1", "mei:release-snapshot-1121c-yres-1", "mei:release-snapshot-1121c-y23p-1", "mei:release-snapshot-1121c-dlc-1", "mei:release-snapshot-1121c-y27-2", "mei:release-snapshot-1121c-sig32-2", "mei:release-snapshot-1121c-precheck-1", "keke:release-snapshot-1121c-smoke-keke-1", "keke:release-snapshot-1121c-startup-keke-1", "keke:release-snapshot-1121c-kstart-keke-1", "keke:release-snapshot-1121c-rstart-keke-1", "keke:release-snapshot-1121c-pkgdiff-1", "keke:release-snapshot-1121c-stage-1", "keke:release-snapshot-1121c-install-1"]
+}

@@ -1,0 +1,13 @@
+name: //TRANSLIT
+clause: s31_6_g_2
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII//TRANSLIT
+stdin:
+|~ a\xe2\x82\xacb\xe2\x9c\x93\n
+status: exit 0
+stdout:
+| aEURb?
+stderr:

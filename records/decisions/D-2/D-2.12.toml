@@ -1,0 +1,12 @@
+id = "D-2.12"
+section = "s02"
+spec = "§2.6"
+ann = "ARB"
+status = "active"
+amends = ["D-2.6", "D-2.10"]
+story = "LIMITS-RUNTIME-SMALL"
+date = "2026-11-21"
+tests = ["crates/core/tests/s02_diagnostics_clauses.rs"]
+body = '''
+**Added severities have no limit but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-8; replaces D-2.6's "the table holds 256 added severities" and D-2.10 (F3)'s fixed 256-entry table). The table is `niji_rt::chunks::Chunks` of three-word entries (level, string address, length): nothing is mapped until the first added severity (one page, 170 entries), then chunks twice the size of the one before, never moved. Removed entries (level 0) are used again before a new one is taken. The table is still read and written under its one `RawMutex`; chunks that never move keep a string read under it valid afterwards. `addseverity` returns `MM_NOTOK` for a full table only when no memory is left for the next chunk (or for the string's copy). Test: `s2_6_c_3_table` (2000 levels added, each printed by `fmtmsg`, replaced, removed and the freed entries used again).
+'''

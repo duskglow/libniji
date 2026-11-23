@@ -32,6 +32,8 @@
 	.p2align 6
 __gmon_start__:
 	.cfi_startproc
+	/* IBT (notes.inc): called through .preinit_array (and a crti.o's indirect call). */
+	endbr64
 	cmpb $0, niji_gmon_started(%rip)
 	jne 1f
 	movb $1, niji_gmon_started(%rip)

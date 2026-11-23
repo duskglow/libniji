@@ -1,0 +1,20 @@
+@@generated
+/* libgen.h: pathname manipulation (XSH <libgen.h>, basename(3)). */
+#ifndef __NIJI_H_libgen_h
+#define __NIJI_H_libgen_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns basename
+@@emit
+
+/* basename(3): the XPG form is the one this header declares, under its exported name. */
+@@if basename
+# define basename __xpg_basename
+#endif
+
+__NIJI_END_C
+
+#endif

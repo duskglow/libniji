@@ -1,0 +1,16 @@
+name: localedef --usage
+clause: s31_1_c_2
+command: localedef
+arg: --usage
+status: exit 0
+stdout:
+| Usage: localedef [-cv?V] [-f FILE] [-i FILE] [-u FILE] [-A FILE]
+| \x20           [--charmap=FILE] [--inputfile=FILE] [--repertoire-map=FILE]
+| \x20           [--force] [--no-hard-links] [--no-warnings=<warnings>] [--posix]
+| \x20           [--prefix=PATH] [--quiet] [--verbose] [--warnings=<warnings>]
+| \x20           [--add-to-archive] [--alias-file=FILE] [--big-endian]
+| \x20           [--delete-from-archive] [--list-archive] [--little-endian]
+| \x20           [--no-archive] [--replace] [--help] [--usage] [--version] NAME
+| \x20 or:  localedef [OPTION...] [--add-to-archive|--delete-from-archive] FILE...
+| \x20 or:  localedef [OPTION...] --list-archive [FILE]
+stderr:

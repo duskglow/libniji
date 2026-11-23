@@ -193,6 +193,23 @@ pub trait Memory {
     /// The bytes of the writable segment linked at `vaddr` with memory size `memsz`, from its
     /// first byte. Asked for only after [`Writer`] found the target inside that segment.
     fn segment(&mut self, vaddr: u64, memsz: u64) -> &mut [u8];
+
+    /// Add `bias` to the native-order word at offset `off + 8 * k` of the writable segment linked
+    /// at `vaddr` (memory size `memsz`) for each set bit `k` of `bits`; false if one lies outside
+    /// [`Memory::segment`]'s view. Asked for only after [`Writer`] found the lowest and highest of
+    /// them inside that segment, so every one is. By default each word is written through the
+    /// view, bounds-checked; a memory that is the running image may add in place (LD-RELR-LOOP-2).
+    fn add_bits(&mut self, vaddr: u64, memsz: u64, off: u64, bits: u64, bias: u64) -> bool {
+        let view = self.segment(vaddr, memsz);
+        let mut rest = bits;
+        while rest != 0 {
+            let at = usize::try_from(off.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8))).unwrap_or(usize::MAX);
+            rest &= rest.wrapping_sub(1);
+            let Some(w) = view.get_mut(at..at.wrapping_add(8)).and_then(|b| <&mut [u8; 8]>::try_from(b).ok()) else { return false };
+            *w = u64::from_ne_bytes(*w).wrapping_add(bias).to_ne_bytes();
+        }
+        true
+    }
 }
 
 /// The writable segments as the relocator sees them: each target is found in the segment that
@@ -267,18 +284,63 @@ fn relr<M: Memory>(table: &[u8], seg: &mut Writer<'_, M>, bias: u64) -> Result<(
             base = Some(w.checked_add(8).ok_or(BootError::Outside(w))?);
         } else {
             let start = base.ok_or(BootError::RelrNoBase)?;
-            let (mut bits, mut at) = (w >> 1, start);
-            while bits != 0 {
-                if bits & 1 != 0 {
-                    seg.add(at, bias)?;
-                }
-                bits >>= 1;
-                at = at.checked_add(8).ok_or(BootError::Outside(at))?;
-            }
+            seg.add_bits(start, w >> 1, bias)?;
             base = Some(start.checked_add(RELR_SPAN).ok_or(BootError::Outside(start))?);
         }
     }
     Ok(())
+}
+
+impl<M: Memory> Writer<'_, M> {
+    /// Add `bias` to each word a RELR bitmap names: bit `k` of `bits` is the word at `start + 8 * k`.
+    /// When the lowest and highest of them lie in the segment of the last target (or of the lowest),
+    /// so does every one between, and they are written through one view with no further check
+    /// (LD-RELR-LOOP: a segment check and a view per word, and a step per bit, were most of the
+    /// pass); otherwise [`Writer::add_bits_checked`] adds them one by one.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn add_bits(&mut self, start: u64, bits: u64, bias: u64) -> Result<(), BootError> {
+        if bits == 0 {
+            return Ok(());
+        }
+        let first = start.wrapping_add(u64::from(bits.trailing_zeros()).wrapping_mul(8));
+        // `bits` has at most 63 bits, so the top one is at most 62.
+        let Some(last) = start.checked_add(u64::from(63u32.wrapping_sub(bits.leading_zeros())).wrapping_mul(8)) else {
+            return self.add_bits_checked(start, bits, bias);
+        };
+        if !holds(self.last, first) {
+            match self.img.writable().find(|&s| holds(s, first)) {
+                Some(s) => self.last = s,
+                None => return self.add_bits_checked(start, bits, bias),
+            }
+        }
+        let (vaddr, memsz) = self.last;
+        if !holds(self.last, last) {
+            return self.add_bits_checked(start, bits, bias);
+        }
+        // `vaddr <= first <= last` and `last + 8 <= vaddr + memsz`: every word named is in the segment.
+        if self.mem.add_bits(vaddr, memsz, first.wrapping_sub(vaddr), bits.wrapping_shr(bits.trailing_zeros()), bias) {
+            Ok(())
+        } else {
+            Err(BootError::Outside(first))
+        }
+    }
+
+    /// [`Writer::add_bits`] word by word, for a bitmap that leaves one segment: each word found in
+    /// its own segment, the first outside every one (or past the address space) refused.
+    #[cold]
+    #[inline(never)]
+    fn add_bits_checked(&mut self, start: u64, bits: u64, bias: u64) -> Result<(), BootError> {
+        let (mut rest, mut at) = (bits, start);
+        while rest != 0 {
+            if rest & 1 != 0 {
+                self.add(at, bias)?;
+            }
+            rest >>= 1;
+            at = at.checked_add(8).ok_or(BootError::Outside(at))?;
+        }
+        Ok(())
+    }
 }
 
 /// Pass 1: the `Relative` entries of `rela` then `jmprel`, then every RELR address, each word in
@@ -287,6 +349,36 @@ pub fn relocate<A: Arch, M: Memory>(rela: &[u8], jmprel: &[u8], relr_table: &[u8
     relative::<A, M>(rela, seg, bias)?;
     relative::<A, M>(jmprel, seg, bias)?;
     relr(relr_table, seg, bias)
+}
+
+/// The image's own dynamic array as run-time addresses (DL-DYNAMIC-RELOC): `bias` added in place to
+/// each [`crate::elf::RUNTIME_ADDRESS_TAGS`] entry up to `DT_NULL`, through `mem`, when the array lies
+/// in a writable segment ([`crate::elf::dynamic_published`]); nothing otherwise. Once, after pass 1
+/// and before the RELRO pages are protected.
+///
+/// # Errors
+///
+/// [`BootError::Outside`] for an entry outside the writable segment (not reached once the check
+/// above holds).
+pub fn publish_dynamic<M: Memory>(img: Image<'_>, mem: M, bias: u64) -> Result<(), BootError> {
+    let (vaddr, size) = img.dynamic;
+    if !crate::elf::dynamic_published(vaddr, size, img.writable()) {
+        return Ok(());
+    }
+    let end = vaddr.saturating_add(size);
+    let mut seg = Writer::new(img, mem);
+    let mut at = vaddr;
+    while at.saturating_add(16) <= end {
+        let tag = u64::from_ne_bytes(*seg.word(at)?);
+        if tag == dt::NULL {
+            break;
+        }
+        if crate::elf::RUNTIME_ADDRESS_TAGS.contains(&tag) {
+            seg.add(at.wrapping_add(8), bias)?;
+        }
+        at = at.wrapping_add(16);
+    }
+    Ok(())
 }
 
 /// Pass 2's work list: the (`r_offset`, `r_addend`) of each `Irelative` entry of `table`, in order.
@@ -307,6 +399,26 @@ mod tests {
     }
     fn words(ws: &[u64]) -> alloc::vec::Vec<u8> {
         ws.iter().copied().flat_map(u64::to_ne_bytes).collect()
+    }
+    #[test]
+    fn relr_bitmap_across_segments() {
+        // LD-RELR-LOOP: a bitmap is written through one view only when its lowest and highest
+        // words lie in one segment. Two adjacent segments, 0x1000..0x1100 and 0x1100..0x1200, then
+        // nothing: a bitmap that crosses from the first into the second is applied word by word
+        // in both; one that runs past the second's end writes the words before it, then is refused
+        // at 0x1200, the first word outside (the views run past the segments: only the check can).
+        let hs = headers(&[(0x1000, 0x100), (0x1100, 0x100)]);
+        let img = image(&hs, 4).unwrap();
+        let mut mem = alloc::vec![0u8; 0x2000];
+        relocate::<X86_64, _>(&[], &[], &words(&[0x10f0, 0b1111, 0x1140, 0b111]), &mut Writer::new(img, Flat(&mut mem)), 0x100).unwrap();
+        let written: alloc::vec::Vec<u64> = (0..0x2000).step_by(8).filter(|&i| at(&mem, i) != 0).collect();
+        assert_eq!(written, [0x10f0, 0x10f8, 0x1100, 0x1108, 0x1140, 0x1148, 0x1150], "words written");
+        assert!(written.iter().all(|&a| at(&mem, a) == 0x100), "each word += bias once");
+        let mut mem = alloc::vec![0u8; 0x2000];
+        let r = relocate::<X86_64, _>(&[], &[], &words(&[0x10e0, u64::MAX]), &mut Writer::new(img, Flat(&mut mem)), 0x100);
+        assert_eq!(r, Err(BootError::Outside(0x1200)));
+        let written: alloc::vec::Vec<u64> = (0..0x2000).step_by(8).filter(|&i| at(&mem, i) != 0).collect();
+        assert_eq!(written, (0x10e0..0x1200).step_by(8).collect::<alloc::vec::Vec<u64>>(), "the words before 0x1200, in both segments");
     }
     fn at(mem: &[u8], addr: u64) -> u64 {
         let i = usize::try_from(addr).unwrap();
@@ -464,5 +576,27 @@ mod tests {
         e[16..18].copy_from_slice(&1u16.to_ne_bytes());
         assert!(!position_independent(&e), "only ET_DYN is position-independent (ET_REL is not)");
         assert!(!position_independent(&e[..17]), "a short header is not position-independent");
+    }
+
+    /// DL-DYNAMIC-RELOC (no spec clause: `ld.so`'s own dynamic array, probe `tools/probe/dl/dynreloc`):
+    /// the address tags get the bias, every other entry and everything after `DT_NULL` is left alone;
+    /// an array outside every writable segment is not written.
+    #[test]
+    fn publish_dynamic_adds_bias_to_address_tags() {
+        let hs: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x1000, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let img = image(&hs, 3).unwrap();
+        let mut mem = alloc::vec![0u8; 0x2000];
+        // STRTAB, INIT (kept), GNU_HASH, STRSZ (kept), NULL, then a STRTAB past the end (kept).
+        let d = words(&[dt::STRTAB, 0x300, dt::INIT, 0x400, dt::GNU_HASH, 0x200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        mem[0x1000..0x1000 + d.len()].copy_from_slice(&d);
+        publish_dynamic(img, Flat(&mut mem), 0x7000_0000).unwrap();
+        let got: alloc::vec::Vec<u64> = (0..12).map(|i| at(&mem, 0x1000 + 8 * i)).collect();
+        assert_eq!(got, [dt::STRTAB, 0x7000_0300, dt::INIT, 0x400, dt::GNU_HASH, 0x7000_0200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        // The same array in the read-only segment: nothing written.
+        let ro: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x40, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let mut mem2 = alloc::vec![0u8; 0x2000];
+        mem2[0x40..0x40 + d.len()].copy_from_slice(&d);
+        publish_dynamic(image(&ro, 3).unwrap(), Flat(&mut mem2), 0x7000_0000).unwrap();
+        assert_eq!(&mem2[0x40..0x40 + d.len()], &d[..]);
     }
 }

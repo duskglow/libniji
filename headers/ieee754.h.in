@@ -1,0 +1,16 @@
+@@generated
+/* ieee754.h: the bit-field views of the IEEE 754 binary32 and binary64 formats and of the x87 80-bit extended format
+   (IEEE 754-2019 3.4; System V psABI x86-64, "Fundamental types"). Each union holds the value and its fields; the field
+   widths and positions are the table's, and the generator checks them against the allocation of bit-fields. */
+#ifndef __NIJI_H_ieee754_h
+#define __NIJI_H_ieee754_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

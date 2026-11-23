@@ -5,20 +5,24 @@
 #
 #   validation/profile.sh OUT_DIR
 #
-# Uses the validation builds in $VALIDATION/build/{glibc,niji-w}/{coreutils,sed,bash}. Each
+# Uses the validation builds in $VALIDATION/build/{glibc,niji}/{coreutils,sed,bash} (libniji as
+# is; the recorded profiles.md used the retired niji-w build). Each
 # workload runs under `perf stat -r 5` (one warm-up run first, discarded) for both builds, and
 # once under `perf record` for each; the report lists the hottest symbols and how
 # much of the time is libniji's (symbols defined in libc.a) or, for glibc, libc.so.6's. Each
 # timing records the machine's load (uptime) before and after. perf runs through sudo -n (the
 # host's perf_event_paranoid is left as it is).
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=root contained_tree=$(cd "$(dirname "$0")/.." && pwd) CONTAINED_KEEP="VALIDATION"
+. "$contained_tree/tools/contained.sh"
 V=${VALIDATION:-$HOME/validation}
 out=$1
 mkdir -p "$out"
 work=$V/work
 mkdir -p "$work"
 G=$V/build/glibc
-L=$V/build/niji-w
+L=$V/build/niji
 cu=coreutils/coreutils-9.12/src
 se=sed/sed-4.10/sed/sed
 ba=bash/bash-5.3/bash

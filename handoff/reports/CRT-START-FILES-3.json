@@ -1,0 +1,56 @@
+{
+  "task": "CRT-START-FILES-3",
+  "model": "opus",
+  "tokens": null,
+  "result": "Merged next e4777a6ba (xtask/src/bins.rs conflict): next's head_may_take plus this chain's head-bin tie-break kept; tie-break test moved to mixed groups (plant survivor fixed); fast dynamic empty-main bound tightened to the merged level",
+  "branch": "task/crt-start-files-3",
+  "head": "7ce12fe26",
+  "gate": {
+    "affected": "FULL: the train's (csys start sources); test3 (xtask, niji-rt, niji-boundary, crt_products, hot_text_products) green, xtest3 (cargo xtask test: 6979+4854+128+46 passed) green, fullprof3 (32 passed) green; plants3 9/9 CAUGHT",
+    "peak": null
+  },
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "The fast-profile DYN_START_INSTR bounds were not re-measured after DYN-START-LINK-SHAPE (-38k): next e4777a6ba measures 790,290 against a floor of 784,350 (871,500 - 10%) on the Skylake-SP host, so any change that saves ~6k on the dynamic start goes red there.",
+    "Zen 1 fast bound set to the Skylake-SP level by the file's existing reasoning (levels matched within 0.02%), not re-measured on a Zen 1 host this run.",
+    "Rule slip: one stray `sed -i` aimed at /dev/null inside a command (failed, changed nothing)."
+  ],
+  "refused": [],
+  "impact": [
+    {
+      "kind": "perf",
+      "what": "dynamic empty main, fast products, hot_text_products median of 21 (Skylake-SP host), next e4777a6ba vs this branch",
+      "before": 790290,
+      "after": 778859,
+      "unit": "instructions/start",
+      "measured": true
+    },
+    {
+      "kind": "coverage",
+      "what": "head-bin tie-break test covers mixed groups and cost-over-tie order (plant tie-break-over-cost now CAUGHT)",
+      "before": 8,
+      "after": 9,
+      "unit": "plants caught",
+      "measured": true
+    },
+    {
+      "kind": "unblock",
+      "what": "CRT-START-FILES chain (GitHub #27) can land again: CI merge conflict resolved",
+      "before": null,
+      "after": null,
+      "unit": null,
+      "measured": false
+    }
+  ],
+  "jobs": [
+    "mei:crt-start-files-3-test3",
+    "mei:crt-start-files-3-xtest3",
+    "mei:crt-start-files-3-fullprof3",
+    "mei:crt-start-files-3-plants3",
+    "mei:crt-start-files-3-lint2"
+  ],
+  "improvement": "Instruction bounds checked from both sides need every profile re-measured when one moves; DYN-START-LINK-SHAPE lowered only the release bounds and left the fast floor 6k from red for the next start-up gain.",
+  "next_step": "Land; follow-ups unchanged (head-bin tail condition in general; per-header dynamic start cost is DYN-START-RING's).",
+  "report_file": "handoff/CRT-START-FILES.md"
+}

@@ -1,0 +1,17 @@
+@@generated
+/* protocols/timed.h: time daemon */
+#ifndef __NIJI_H_protocols_timed_h
+#define __NIJI_H_protocols_timed_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

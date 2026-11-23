@@ -1,6 +1,8 @@
 # libniji
 
-libniji was called Liella until November 2026.
+libniji was called Liella until November 2026. The old package, path, library, macro and variable names
+have no compatibility aliases; the table of old and new names is in
+[docs/install-packages.md](docs/install-packages.md#names-before-libniji).
 
 libniji is a clean-room implementation of the GNU C library (glibc) 2.39 ABI for x86-64 Linux,
 written in Rust. The goal is a library that exports glibc's symbols with glibc's calling
@@ -30,10 +32,11 @@ here should be used in production. In particular:
 * **It is under active development.** Interfaces, behaviour, file layout and the build change
   without notice, and there are no release branches or compatibility promises between commits.
 
-What changed in this pre-release (2026-11-15, tagged `snapshot-2026-11-15`, `main` at `bade54e0`) is in
-[docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). In short: the dynamic loader loads shared objects and provides `dlopen`,
-`dlsym` and `dlclose`; experimental system packages (`libc6`, `libc-bin`, `libc6-dev` and friends) let libniji replace
-glibc as the system C library; and the median `libm` time ratio fell from 6.19 to 1.98 on a Zen 3 host.
+What changed in the latest pre-release (2026-11-17, tagged `snapshot-2026-11-17`, `main` at `30d07e74`, the first
+under the name libniji) is in [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). In short: Debian binaries that bind the
+old `GLIBC_2.2.5` versions of some `libm` and `libc` functions start, the system packages ship `libresolv.so.2`,
+`getaddrinfo` reports an unreachable nameserver as `EAI_AGAIN`, `iconv` converts EUC-JP (character-set coverage is
+still partial), and `ldd` ships in `libc-bin`.
 
 Its full development history is kept in a separate historical repository; references of the
 form `liella-historic:<path>` point into it.

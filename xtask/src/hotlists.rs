@@ -58,6 +58,14 @@ impl Layout {
         }
     }
 
+    /// The layout's name in a products manifest (`import`).
+    pub fn name(self) -> &'static str {
+        match self {
+            Layout::Traced => "traced",
+            Layout::Ungrouped => "ungrouped",
+        }
+    }
+
     /// This process's layout ([`TRACE_ENV`]) for a product build.
     pub fn from_env() -> Result<Layout, String> {
         Layout::parse(std::env::var(TRACE_ENV).ok().as_deref())
@@ -76,7 +84,35 @@ pub fn force_dir(dir: &Path) {
 /// The lists directory named by the [`MARKER`] of the products in `products` (`None`: no marker).
 pub fn marked_dir(products: &Path) -> Option<PathBuf> {
     let text = fs::read_to_string(products.join(MARKER)).ok()?;
-    text.lines().next().filter(|l| !l.is_empty()).map(PathBuf::from)
+    let line = text.lines().next().filter(|l| !l.is_empty())?;
+    let p = PathBuf::from(line);
+    // A relative directory is relative to the products (BUILD-REPRODUCIBLE-PATHS); older markers name it absolutely.
+    Some(if p.is_relative() { products.join(p) } else { p })
+}
+
+/// `dir` spelled relative to `products` (`../product/release` for `target/niji`), when both are absolute and the
+/// relative spelling reaches the same directory (a symlinked `products` would not); otherwise `dir` itself.
+pub fn relative_dir(products: &Path, dir: &Path) -> PathBuf {
+    if !products.is_absolute() || !dir.is_absolute() {
+        return dir.to_path_buf();
+    }
+    let (a, b): (Vec<_>, Vec<_>) = (products.components().collect(), dir.components().collect());
+    let common = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
+    if common < 2 {
+        return dir.to_path_buf();
+    }
+    let mut rel = PathBuf::new();
+    for _ in common..a.len() {
+        rel.push("..");
+    }
+    rel.extend(&b[common..]);
+    if rel.as_os_str().is_empty() {
+        rel.push(".");
+    }
+    match (products.join(&rel).canonicalize(), dir.canonicalize()) {
+        (Ok(x), Ok(y)) if x == y => rel,
+        _ => dir.to_path_buf(),
+    }
 }
 
 /// A checker of built products (`layout-check`) reads the lists the products in `products` were grouped from (the
@@ -89,9 +125,11 @@ pub fn follow_products(products: &Path) {
     }
 }
 
-/// The text of the [`MARKER`] for lists in `dir`: the directory, then each [`GENERATED`] list's FNV-1a hash.
-pub fn marker_text(dir: &Path) -> String {
-    let mut out = format!("{}\n", dir.display());
+/// The text of the [`MARKER`] in `products` for lists in `dir`: the directory, then each [`GENERATED`] list's
+/// FNV-1a hash. The directory is written relative to `products` when that names it ([`relative_dir`]), so the
+/// marker, a file of the products, is the same whatever tree path built them (BUILD-REPRODUCIBLE-PATHS).
+pub fn marker_text(products: &Path, dir: &Path) -> String {
+    let mut out = format!("{}\n", relative_dir(products, dir).display());
     for g in GENERATED {
         let mut h: u64 = 0xcbf2_9ce4_8422_2325;
         for &b in &fs::read(dir.join(g)).unwrap_or_default() {
@@ -196,12 +234,18 @@ mod tests {
         for g in GENERATED {
             fs::write(lists.join(g), "# empty\n").unwrap();
         }
-        let first = marker_text(&lists);
+        let first = marker_text(&products, &lists);
         fs::write(products.join(MARKER), &first).unwrap();
-        assert_eq!(marked_dir(&products), Some(lists.clone()));
+        // BUILD-REPRODUCIBLE-PATHS: the lists are named relative to the products, never by the tree's path.
+        assert_eq!(first.lines().next(), Some("../lists"), "{first}");
+        let marked = marked_dir(&products).expect("a marker names the lists");
+        assert_eq!(marked.canonicalize().unwrap(), lists.canonicalize().unwrap());
         fs::write(lists.join("hot-text.list"), "# empty\nkey_a\tstartup\tfast\n").unwrap();
-        assert_ne!(marker_text(&lists), first, "a list change changes the marker");
-        assert_eq!(marker_text(&lists).lines().count(), 1 + GENERATED.len());
+        assert_ne!(marker_text(&products, &lists), first, "a list change changes the marker");
+        assert_eq!(marker_text(&products, &lists).lines().count(), 1 + GENERATED.len());
+        // An older marker naming the lists absolutely is still followed.
+        fs::write(products.join(MARKER), format!("{}\n", lists.display())).unwrap();
+        assert_eq!(marked_dir(&products), Some(lists.clone()));
         let _ = fs::remove_dir_all(&root);
     }
 }

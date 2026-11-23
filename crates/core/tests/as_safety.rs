@@ -17,6 +17,8 @@
 
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/scratch.rs"]
+mod scratch;
 use core::ptr::{null, null_mut};
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 
@@ -332,7 +334,7 @@ struct Scratch(std::path::PathBuf);
 impl Scratch {
     fn new(tag: &str) -> Scratch {
         let shm = std::path::Path::new("/dev/shm");
-        let base = if shm.is_dir() { shm.to_path_buf() } else { std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")) };
+        let base = if shm.is_dir() { shm.to_path_buf() } else { crate::scratch::base() };
         let d = base.join(format!("niji-as-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
@@ -342,7 +344,7 @@ impl Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 

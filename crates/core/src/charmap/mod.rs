@@ -97,6 +97,8 @@ pub struct Charmap {
     prefixes: TryVec<([u8; MAX_BYTES], u8)>,
     /// Direct tables when every sequence is one byte (built at load, P8).
     single: Option<SingleByte>,
+    /// The symbolic names other than `<U…>` and their code points, sorted by name.
+    names: TryVec<(TryVec<u8>, u32)>,
 }
 
 /// The tables of a single-byte charset, once per loaded charmap (about 3.3 KiB, immutable;
@@ -204,6 +206,96 @@ fn trim(s: &[u8]) -> &[u8] {
     s.trim_ascii()
 }
 
+/// A symbolic name's text with the escape character's quoting removed (`D//` is `D/`); `None`
+/// for a name longer than any portable one (64 bytes).
+fn unescape_name(s: &[u8], esc: u8) -> Option<TryVec<u8>> {
+    let mut out = TryVec::new();
+    let mut i = 0;
+    while let Some(&c) = s.get(i) {
+        let c = if c == esc { *s.get(i + 1)? } else { c };
+        i += if s.get(i) == Some(&esc) { 2 } else { 1 };
+        if out.len() >= 64 {
+            return None;
+        }
+        out.push(c).ok()?;
+    }
+    Some(out)
+}
+
+/// The names of the portable character set (POSIX.1-2017 XBD 6.1, Table 6-1) and their code
+/// points, sorted by name. The single letters `A`-`Z` and `a`-`z` name themselves and are not
+/// listed.
+const PORTABLE: &[(&[u8], u8)] = &[
+    (b"NUL", 0x00),
+    (b"alert", 0x07),
+    (b"ampersand", 0x26),
+    (b"apostrophe", 0x27),
+    (b"asterisk", 0x2a),
+    (b"backslash", 0x5c),
+    (b"backspace", 0x08),
+    (b"carriage-return", 0x0d),
+    (b"circumflex", 0x5e),
+    (b"circumflex-accent", 0x5e),
+    (b"colon", 0x3a),
+    (b"comma", 0x2c),
+    (b"commercial-at", 0x40),
+    (b"dollar-sign", 0x24),
+    (b"eight", 0x38),
+    (b"equals-sign", 0x3d),
+    (b"exclamation-mark", 0x21),
+    (b"five", 0x35),
+    (b"form-feed", 0x0c),
+    (b"four", 0x34),
+    (b"full-stop", 0x2e),
+    (b"grave-accent", 0x60),
+    (b"greater-than-sign", 0x3e),
+    (b"hyphen", 0x2d),
+    (b"hyphen-minus", 0x2d),
+    (b"left-brace", 0x7b),
+    (b"left-curly-bracket", 0x7b),
+    (b"left-parenthesis", 0x28),
+    (b"left-square-bracket", 0x5b),
+    (b"less-than-sign", 0x3c),
+    (b"low-line", 0x5f),
+    (b"newline", 0x0a),
+    (b"nine", 0x39),
+    (b"number-sign", 0x23),
+    (b"one", 0x31),
+    (b"percent-sign", 0x25),
+    (b"period", 0x2e),
+    (b"plus-sign", 0x2b),
+    (b"question-mark", 0x3f),
+    (b"quotation-mark", 0x22),
+    (b"reverse-solidus", 0x5c),
+    (b"right-brace", 0x7d),
+    (b"right-curly-bracket", 0x7d),
+    (b"right-parenthesis", 0x29),
+    (b"right-square-bracket", 0x5d),
+    (b"semicolon", 0x3b),
+    (b"seven", 0x37),
+    (b"six", 0x36),
+    (b"slash", 0x2f),
+    (b"solidus", 0x2f),
+    (b"space", 0x20),
+    (b"tab", 0x09),
+    (b"three", 0x33),
+    (b"tilde", 0x7e),
+    (b"two", 0x32),
+    (b"underscore", 0x5f),
+    (b"vertical-line", 0x7c),
+    (b"vertical-tab", 0x0b),
+    (b"zero", 0x30),
+];
+
+/// The code point of a portable character set name (XBD 6.1): `space`, `zero`, `A`, `a`, …
+pub fn portable(name: &[u8]) -> Option<u32> {
+    if let [c] = name {
+        return c.is_ascii_alphabetic().then_some(u32::from(*c));
+    }
+    let i = PORTABLE.binary_search_by(|(n, _)| (*n).cmp(name)).ok()?;
+    PORTABLE.get(i).map(|&(_, cp)| u32::from(cp))
+}
+
 /// The names a charmap's header gives (`<code_set_name>` and the `alias` comment lines),
 /// read from the text before its `CHARMAP` line; `f` sees each. For finding a charmap by an
 /// alias without parsing every file.
@@ -241,6 +333,7 @@ impl Charmap {
             ascii: false,
             prefixes: TryVec::new(),
             single: None,
+            names: TryVec::new(),
         };
         // The escape character defaults to '/', the glibc charmaps' convention (POSIX says '\\';
         // the charmaps that rely on a default write '/').
@@ -292,7 +385,12 @@ impl Charmap {
                     while let Some((_, used)) = byte_value(p, esc) {
                         p = p.get(used..).unwrap_or(&[]);
                     }
-                    let Some((cp, _)) = symbol(trim(p)) else { continue };
+                    // The code point after the bytes, else the portable character set's (XBD 6.1).
+                    let name = unescape_name(line.get(1..close - 1).unwrap_or(&[]), esc);
+                    let Some(cp) = symbol(trim(p)).map(|s| s.0).or_else(|| portable(name.as_deref()?)) else { continue };
+                    if let Some(name) = name {
+                        cm.names.push((name, cp))?;
+                    }
                     (cp, close, true)
                 }
             };
@@ -421,6 +519,7 @@ impl Charmap {
             }
             cm.single = Some(t);
         }
+        cm.names.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         Ok(cm)
     }
 
@@ -429,7 +528,14 @@ impl Charmap {
         self.single.as_ref()
     }
 
-    /// The charset's name (`<code_set_name>`).
+    /// The code point of a symbolic name other than `<U…>` (without its brackets): the
+    /// `<Uxxxx>` its line gives after the bytes, else the portable character set's (XBD 6.1).
+    pub fn named(&self, name: &[u8]) -> Option<u32> {
+        let i = self.names.binary_search_by(|(n, _)| n.as_slice().cmp(name)).ok()?;
+        self.names.get(i).map(|e| e.1)
+    }
+
+    /// The `<code_set_name>`.
     pub fn name(&self) -> &[u8] {
         &self.name
     }

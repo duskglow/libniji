@@ -74,6 +74,13 @@ Removed: `LD_BIND_NOW`, `LD_BIND_NOT`, `LD_DYNAMIC_WEAK`, `LD_WARN`, `LD_VERBOSE
 So the reference honours a zone name, a POSIX rule and an absolute path inside the default zone
 directory, and in a secure program does not read a file outside it or through `..`.
 
+Later cases (TZ-SECURE-PATH, 2026-11-22, Skylake-SP host, the same reference release): the program
+`conformance/c/s23_tz_secure.c` built by the host compiler and run as a set-group-ID copy prints, in
+secure mode, `/usr/share/zoneinfo//Asia/./Tokyo` JST (inside after empty and `.` components),
+`/usr/share/zoneinfo/../zoneinfo/Asia/Tokyo` offset 0 with an empty zone name, and `JST-9/../x`
+`+9 JST` (no file read; the value is still a rule); every case of the table above again as recorded.
+In a plain program all of them are JST.
+
 ## Clauses covered
 
 Each section of this record bears on these clauses of `spec/clauses.tsv`; the record is a fact

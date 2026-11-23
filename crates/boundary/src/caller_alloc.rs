@@ -151,8 +151,85 @@ fn reallocarray_by_symbol(addr: usize, k: usize, n: usize) -> KResult<usize> {
     Ok(q.expose_provenance())
 }
 
+/// `value` in a new block of the caller's allocator (`malloc(size_of::<T>())` through the
+/// symbol): an object the library makes on the program's behalf (a stream, ...), which a program
+/// that replaces `malloc` sees made and, through [`release`], freed (ruling #7583). The object, or
+/// `ENOMEM` (also when a replacement returns NULL without setting `errno`). It is never dropped:
+/// its block goes back with [`release`].
+#[inline(always)]
+pub(crate) fn new_value<T>(value: T) -> KResult<&'static mut T> {
+    conv::fresh_value(malloc(size_of::<T>()), value).ok_or(Errno::ENOMEM)
+}
+
 /// Release a caller-owned block. Obligation (on the caller of this function): `addr` is 0 or
 /// came from this allocator and is not used afterwards.
 pub(crate) fn release(addr: usize) {
     free(core::ptr::with_exposed_provenance_mut(addr));
+}
+
+// ------------------------------------------------------------------------------ libresolv.so.2
+//
+// The libresolv product (LIBRESOLV-OWN-CODE) reaches the C library's state only through
+// libc.so.6's exports: `fwrite`, `stdout`, `strlen` and `strnlen` (the standard interface), and
+// two private entries (`NIJI_PRIVATE`) for what has no standard one: the thread's result blocks
+// and `_res.pfcode`. The calls that need `unsafe` are made where the category allows them:
+// `strz::byte_len` (the length scanners), `posix::s16_nameservices` (`fwrite`, `stdout`); the
+// product's global allocator is `heap::LibresolvAlloc`.
+
+// Soundness: `__niji_resolv_block` and `__niji_resolv_pfcode` are sound for every argument (a
+// block address or 0; a number). `fwrite` reads `n` bytes at `p` and takes a stream the C caller
+// vouches for; `strlen`/`strnlen` read a string the caller vouches for; `stdout` is the C
+// library's object, written only by the C library (a pointer-sized word).
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+// UNSAFE(extern): Rust cannot call C library functions or read its objects without declaring them.
+#[allow(unsafe_code)]
+unsafe extern "C" {
+    safe fn __niji_resolv_block(kind: usize, need: usize) -> usize;
+    safe fn __niji_resolv_pfcode() -> u64;
+    /// Obligation: `p` holds `size * n` readable bytes; `fp` is a valid stream.
+    pub(crate) fn fwrite(p: *const c_void, size: usize, n: usize, fp: *mut c_void) -> usize;
+    /// Written only by the C library.
+    pub(crate) static stdout: usize;
+    /// Obligation: `s` is readable up to and including a NUL.
+    pub(crate) fn strlen(s: *const u8) -> usize;
+    /// Obligation: `s` is readable up to a NUL or `max` bytes.
+    pub(crate) fn strnlen(s: *const u8, max: usize) -> usize;
+}
+
+/// The calling thread's result block of `kind` (`need` bytes): its address, 0 without memory.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn libc_block(kind: usize, need: usize) -> usize {
+    __niji_resolv_block(kind, need)
+}
+
+/// The calling thread's `_res.pfcode`.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+pub(crate) fn libc_pfcode() -> u64 {
+    __niji_resolv_pfcode()
+}
+
+/// `malloc(n)` for the libresolv product's global allocator (`heap::LibresolvAlloc`): through the symbol.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_malloc(n: usize) -> *mut c_void {
+    c_malloc(n)
+}
+
+/// `calloc(n, size)` for `heap::LibresolvAlloc`.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_calloc(n: usize, size: usize) -> *mut c_void {
+    c_calloc(n, size)
+}
+
+/// `realloc(p, n)` for `heap::LibresolvAlloc`. Obligation: `p` is NULL or came from this allocator and is
+/// not used afterwards.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_realloc(p: *mut c_void, n: usize) -> *mut c_void {
+    c_realloc(p, n)
+}
+
+/// `free(p)` for `heap::LibresolvAlloc`. Obligation: `p` is NULL or came from this allocator and is not
+/// used afterwards.
+#[cfg(feature = "libresolv")]
+pub(crate) fn caller_free(p: *mut c_void) {
+    c_free(p);
 }

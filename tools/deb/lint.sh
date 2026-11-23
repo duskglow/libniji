@@ -8,6 +8,9 @@
 # by a key in KEYRING). Prints "lint: TAG ..." lines (lintian's own lines), the suite's base-files
 # version, and "lint: RESULT errors=E warnings=W"; exit 1 when lintian could not run.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=rootopt contained_tree=$(cd "$(dirname "$0")/../.." && pwd) CONTAINED_KEEP="KEYRING MIRROR MMDEBSTRAP V"
+. "$contained_tree/tools/contained.sh"
 [ $# -ge 2 ] || { echo "usage: tools/deb/lint.sh DEBDIR SUITE [LOGDIR]" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)
 suite=$2

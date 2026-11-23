@@ -321,9 +321,21 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
         Ok(())
     }
 
-    /// Points `<dir>/<soname>` at `winner` unless it already does; true when it changed.
+    /// Points `<dir>/<soname>` at `winner` unless it already reaches the same file; true when it changed.
+    ///
+    /// A soname path that already resolves to the winner's file (same device and inode) is left as it is, silently,
+    /// whatever its text, and also when it is that file itself (`libtcl8.6.so` with `libtcl8.6.so.0 ->
+    /// libtcl8.6.so`) (probe: r-dev-alias-cache.transcript, GitHub issue #16). The winner can be a `.so` alias whose
+    /// chain runs through the soname link itself (`libcmockery.so -> libcmocka.so -> libcmocka.so.0`); such a winner
+    /// resolves to whatever the soname link resolves to, so the link is never pointed back into its own chain.
     fn link(&mut self, dir: &[u8], soname: &[u8], winner: &[u8], r: &mut Outcome) -> Result<bool, Oom> {
         let path = join(dir, soname)?;
+        let target = join(dir, winner)?;
+        if let (Ok(cur), Ok(win)) = (self.fs.stat(&path), self.fs.stat(&target)) {
+            if (cur.dev, cur.ino) == (win.dev, win.ino) {
+                return Ok(false);
+            }
+        }
         self.link_at(&path, winner, r)
     }
 
@@ -536,7 +548,7 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
     }
     let bytes = match cache::encoded_len(&entries, generator).and_then(|len| {
         let mut out = Vec::new();
-        out.try_reserve_exact(len).map_err(|_| cache::WriteError::Buffer(len))?;
+        out.try_reserve_exact(len).map_err(|_| cache::WriteError::Oom)?;
         #[allow(clippy::disallowed_methods)] // capacity reserved on the line above, so this cannot allocate
         out.resize(len, 0);
         cache::write(&mut entries, generator, &mut out).map(|n| {
@@ -545,11 +557,11 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
         })
     }) {
         Ok(b) => b,
+        // Memory ran out: the run's own `out of memory` report (`run`), exit 1.
+        Err(cache::WriteError::Oom) => return Err(Oom),
         Err(e) => {
             r.err.bytes(me).bytes(b": the cache was not written: ");
             let why: &[u8] = match e {
-                cache::WriteError::TooManyEntries => b"too many libraries",
-                cache::WriteError::TooManyHwcaps => b"too many glibc-hwcaps subdirectories",
                 cache::WriteError::TooLarge | cache::WriteError::Buffer(_) => b"too large",
                 _ => b"an entry the format cannot hold",
             };

@@ -1,0 +1,16 @@
+# Plants for slice 17 (SL-HEADERS-S17): the generator and the templates. Header-alone and value checks are
+# spec/tools/header_check.py (P5, P1); the macro behaviour is validation/headers_p10_s17.sh (P10).
+# No spec clause: header generation (plan/headers.md section 3).
+# The generator's code is in xtask/src/headers/ (objects.rs, types.rs, enums.rs, aggregates.rs); mcheck.h's enumeration
+# comes from enumerators.tsv through enums.rs, not from its template; dropping every explicit enumerator value is
+# caught by the P1 value check on sys/ptrace.h (PTRACE_GETREGSET). A mutant TAILQ_REMOVE assigns a pointer of the
+# wrong type: the P10 program then fails to compile, which is the P10 check catching it.
+s17-queue-tailq-remove | headers/sys/queue.h.in | lit:*(elm)->field.tqe_prev = (elm)->field.tqe_next; } while (0) ==> *(elm)->field.tqe_prev = (elm)->field.tqe_prev; } while (0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT|incompatible-pointer-types
+s17-obstack-finish-align | headers/obstack.h.in | lit:& ~ (__PTRDIFF_TYPE__) __o->alignment_mask) ==> & ~ (__PTRDIFF_TYPE__) 0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT
+s17-member-bitfield-width | xtask/src/headers/aggregates.rs | lit:lv.lines.push(format!("  {ty} {name} : {w};")); ==> lv.lines.push(format!("  {ty} {name};")); | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:obstack|printf_info
+s17-member-scalar-pointer | xtask/src/headers/aggregates.rs | lit:format!("{qual}{b}{pointer}") ==> format!("{qual}{b}") | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:obstack|tempptr
+s17-object-fnptr-name | xtask/src/headers/objects.rs | lit:format!("extern {} (*{name}){args};", ret.trim_end()) ==> format!("extern {} (*){args} {name};", ret.trim_end()) | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P5 (obstack|error)\.h
+s17-tag-forward-decl | xtask/src/headers/types.rs | lit:self.out.push(format!("{tag};")); ==> let _ = &tag; | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P5 (argp|printf)\.h
+s17-enum-value | xtask/src/headers/enums.rs | lit:format!("  {n} = {v},") ==> format!("  {n},") | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P1 sys/ptrace\.h
+s17-printf-va-list | headers/printf.h.in | lit:typedef __builtin_va_list va_list; ==> typedef int va_list; | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P1 printf\.h
+s17-p1-int64-min | spec/tools/header_check.py | lit:v in (-2**63, -2**31) ==> v in (-2**31,) | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P1 argp\.h .*integer constant is so large

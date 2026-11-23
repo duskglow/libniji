@@ -1,0 +1,6 @@
+# LAYOUT-RO-STABLE plants (D-X.143): libc.so.6's read-only layout. The fragment dropped from the libc links (the build check
+# refuses the product), the fragment placing the group after .rodata (the 16-size link test), and the check's two conditions.
+ro-no-fragment | xtask/src/so.rs | lit:.arg(format!("-Wl,-T,{}", ro_first.display())) ==> .args(Vec::<String>::new()) | cargo xtask so | msg:read-only PT_LOAD
+ro-fragment-after | xtask/src/so.rs | lit:*(.rodata1) }\n}\nINSERT BEFORE .rodata; ==> *(.rodata1) }\n}\nINSERT AFTER .rodata; | cargo test -p xtask --bin xtask startup_group_first_keeps_one_read_only_segment | msg:startup_group_first_keeps_one_read_only_segment_at_every_text_size.*(FAILED|panicked)
+ro-count | xtask/src/so.rs | lit:if ro.len() != 1 { ==> if ro.len() > 2 { | cargo test -p xtask --bin xtask libc_so_read_only_data_is_one_segment | msg:libc_so_read_only_data_is_one_segment_led_by_the_startup_group.*(FAILED|panicked)
+ro-leads | xtask/src/so.rs | lit:if at != ro[0] { ==> if at != ro[0] && at == 0 { | cargo test -p xtask --bin xtask libc_so_read_only_data_is_one_segment | msg:libc_so_read_only_data_is_one_segment_led_by_the_startup_group.*(FAILED|panicked)

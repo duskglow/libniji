@@ -1,0 +1,12 @@
+id = "D-20.9"
+section = "s20"
+spec = "§20.1"
+ann = "—"
+status = "active"
+amends = ["D-20.1"]
+story = "DYN-START-RING"
+date = "2026-11-21"
+tests = ["crates/core/tests/s20_signals_clauses.rs::s20_1_c_2", "crates/core/tests/hot_text_products.rs::init_dynamic_empty_main_makes_no_removable_start_system_call"]
+body = '''
+**The internal signal's handler is installed lazily, by the first thread creation** (owner ruling #7075, 2026-11-20: "Make it lazy is fine"; amends D-20.1 and OD-8's install-at-start). The library sends signal 32 only to a thread it created (a cancellation request to another thread, the setxid broadcast), so thread creation installs the handler before its first clone, once per process (a fork child inherits handler and flag); a start, static or dynamic, makes no `rt_sigaction`. The reservation is unchanged and fixed from start-up (OD-8): no mask blocks or reports 32 and `sigaction` on 32 is `EINVAL`. The one behaviour change: a raw 32 sent to the process before its first thread ends it (the default action). `conformance/c/s20_internal_signal.c` checks the default action at start, the handler after the first `pthread_create`, and the absorb cases after it.
+'''

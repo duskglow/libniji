@@ -54,6 +54,8 @@
 #[path = "../../core/tests/support/timeout.rs"]
 mod timeout;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use core::ffi::c_void;
 use core::ptr::{null, null_mut, with_exposed_provenance, with_exposed_provenance_mut, without_provenance_mut};
 use std::ffi::CString;
@@ -111,9 +113,7 @@ struct Tmp(String);
 
 impl Drop for Tmp {
     fn drop(&mut self) {
-        if std::fs::remove_file(&self.0).is_err() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -130,7 +130,7 @@ impl Tmp {
 /// A fresh scratch name: in a re-executed child, in the directory its parent made for it.
 fn tmp(tag: &str) -> Tmp {
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let base = std::env::var_os(CHILD_TMP).map_or_else(|| std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")), std::path::PathBuf::from);
+    let base = std::env::var_os(CHILD_TMP).map_or_else(crate::scratch::base, std::path::PathBuf::from);
     let p = base.join(format!("s12-{}-{tag}-{n}", std::process::id()));
     let t = Tmp(p.to_str().unwrap().to_owned());
     let _ = std::fs::remove_file(&t.0);
@@ -666,8 +666,9 @@ fn read_front(f: GetC, locked: bool) {
     assert_eq!(x::fgetwc(fp), wi('a'));
     let (rp, re) = (field(fp, core::mem::offset_of!(FILE, _IO_read_ptr)), field(fp, core::mem::offset_of!(FILE, _IO_read_end)));
     assert!(rp >= re, "a wide stream keeps its byte read window closed (GETC-PUTC-FASTPATH, D-12.19)");
-    assert_eq!(f(fp), EOF, "byte input on a wide stream (D-12.14)");
-    assert_eq!(x::fgetwc(fp), wi('b'), "nothing consumed");
+    assert_eq!(f(fp), ch(b'b'), "byte input on a wide stream reads its next byte (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "the stream stays wide-oriented");
+    assert_eq!(x::fgetwc(fp), wint_t::MAX, "the byte was consumed: WEOF at end of input");
     assert_eq!(x::fclose(fp), 0);
     // An unbuffered stream reads one byte per refill: its window never holds a byte ahead
     // (GETC-PUTC-FASTPATH; spec §12.5 setvbuf `_IONBF`).
@@ -886,7 +887,8 @@ fn fgets_pieces(f: Fgets) {
     assert_eq!(x::fclose(fp), 0);
     let fp = open(&t, "r");
     assert!(x::fwide(fp, 1) > 0);
-    assert!(f(p, 100, fp).is_null(), "a wide stream");
+    assert!(!f(p, 100, fp).is_null(), "a wide stream: its bytes (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "still wide-oriented");
     assert_eq!(x::fclose(fp), 0);
 }
 
@@ -1386,10 +1388,12 @@ fn front_corners(put: impl Fn(*mut FILE, &[u8]) -> bool, trusted: bool) {
     assert_eq!(x::fputwc(wchar_t::from(b'a'), fp), u32::from(b'a'));
     assert!(window_full(fp), "a wide stream keeps its byte window closed (D-12.19)");
     errno::set_raw(0);
-    assert!(!put(fp, b"x"), "byte output on a wide stream");
-    assert_eq!(errno::get(), EINVAL);
+    // D-12.27: the fputc family writes the byte after the wide output; fputs and fwrite refuse
+    // (`EINVAL`, nothing stored). `put` is either, so each outcome is checked in full.
+    let wrote = put(fp, b"x");
+    assert_eq!(errno::get(), if wrote { 0 } else { EINVAL }, "byte output on a wide stream");
     assert_eq!(x::fclose(fp), 0);
-    assert_eq!(t.read(), b"a", "nothing stored");
+    assert_eq!(t.read(), if wrote { &b"ax"[..] } else { &b"a"[..] }, "stored in order, or nothing stored");
     let fp = open(&t, "w");
     assert_eq!(x::setvbuf(fp, null_mut(), IOLBF, 0), 0);
     assert!(put(fp, b"ab"));
@@ -2982,8 +2986,8 @@ fn sym_fwide() {
     puts("a", fp);
     assert!(x::fwide(fp, 0) < 0, "fixed by the first byte operation");
     assert_eq!(x::fclose(fp), 0);
-    // A recycled stream slot starts clean whichever stream used it before: undecided, no
-    // indicators (STDIO-3: `new_slot` clears the words of a reused slot).
+    // A stream in memory an earlier stream used starts clean: undecided, no indicators (STDIO-3;
+    // since D-12.31 a closed stream's memory goes back to the allocator, which hands it out again).
     for _ in 0..8 {
         let fp = x::tmpfile();
         assert_eq!((x::fwide(fp, 0), x::feof(fp), x::ferror(fp)), (0, 0, 0), "a fresh stream");

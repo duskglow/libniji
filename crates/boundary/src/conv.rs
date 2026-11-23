@@ -226,6 +226,33 @@ pub(crate) fn fresh<'a, T: Copy + Default>(p: *mut c_void, n: usize) -> Option<&
     }
 }
 
+/// `value` moved into freshly `malloc`ed memory `p` (`size_of::<T>()` bytes), or `None` for a NULL
+/// result: the library's object in memory the caller's allocator handed out (ruling #7583). The
+/// object is never dropped (`T` must not need it): its memory goes back with `free`.
+///
+/// Proof: `p` came from `malloc(size_of::<T>())` and is not NULL: aligned for any fundamental type
+/// (`align_of::<T>() <= 16`, checked at compile time), referenced by nothing else, and written
+/// whole here before the reference to it is made.
+pub(crate) fn fresh_value<T>(p: *mut c_void, value: T) -> Option<&'static mut T> {
+    const { assert!(align_of::<T>() <= 16 && !core::mem::needs_drop::<T>() && size_of::<T>() > 0) };
+    if p.is_null() {
+        return None;
+    }
+    let t = p.cast::<T>();
+    // UNSAFE(slice): fresh allocator memory becomes a value only through a raw write.
+    #[allow(unsafe_code)]
+    // SAFETY: see the proof above.
+    unsafe {
+        t.write(value);
+    }
+    // UNSAFE(slice): the written value becomes a reference only through the raw pointer.
+    #[allow(unsafe_code)]
+    // SAFETY: `t` holds the `T` written above, aligned, and nothing else references it.
+    unsafe {
+        Some(&mut *t)
+    }
+}
+
 /// Fill freshly `malloc`ed memory `p` (`text.len() + 1` units of `T`, not NULL) with `text` and a
 /// terminating zero unit, writing every unit (`strdup`'s copy, without `calloc`'s zeroing).
 ///
@@ -1735,6 +1762,26 @@ pub(crate) fn session_text<'a>(addr: usize) -> &'a [u8] {
     unsafe { crate::strz::strz(core::ptr::with_exposed_provenance(addr)) }.unwrap_or(&[])
 }
 
+/// The `n` program headers at `addr` as whole headers (`Elf64_Phdr`, `PHDR_WORDS` words each),
+/// which live for the rest of the process: the start's one walk over them has a single bound.
+///
+/// # Safety
+/// `addr` is 8-aligned and `n` headers there are readable and never unmapped.
+// UNSAFE(slice): memory the kernel set up at `execve` becomes a slice.
+#[allow(unsafe_code)]
+#[cfg(feature = "runtime")]
+pub(crate) unsafe fn headers_at(addr: usize, n: usize) -> &'static [[u64; niji_rt::start::PHDR_WORDS]] {
+    if n == 0 || addr == 0 {
+        return &[];
+    }
+    // UNSAFE(slice): see the function's contract.
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract; a header is 8-aligned like its words.
+    unsafe {
+        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<[u64; niji_rt::start::PHDR_WORDS]>(addr), n)
+    }
+}
+
 /// The executable's program headers (`AT_PHDR`, `AT_PHNUM`), mapped by the kernel with it for
 /// the life of the process: `n` words at `addr`.
 pub(crate) fn program_headers(addr: usize, n: usize) -> &'static [u64] {
@@ -1757,6 +1804,10 @@ pub(crate) fn program_headers(addr: usize, n: usize) -> &'static [u64] {
 /// load bias applied, or are the 64 bytes at `__ehdr_start`. The kernel (the executable) or the
 /// dynamic linker (this library's own image) mapped these bytes readable when the object was
 /// loaded, and they stay mapped for the life of the process: neither object is ever unloaded.
+/// Also (`crate::backtrace::frame_object`, D-22.23): the program headers the loader's walk
+/// gives for the loaded object holding a return address of a live frame of the calling thread,
+/// used only while that frame lives (the walk of the thread's own stack): the object stays
+/// mapped while code in it is still to return to (unloading it then is undefined in the program).
 /// A segment without `PF_W`, and the ELF header in the first segment, are never written (only a
 /// C caller's `mprotect` could change that, outside safe code).
 pub(crate) fn loaded(addr: usize, len: usize) -> &'static [u8] {
@@ -1774,7 +1825,11 @@ pub(crate) fn loaded(addr: usize, len: usize) -> &'static [u8] {
 /// The program headers of the image this library is linked into: `n` words at `addr`
 /// (`__ehdr_start` plus the header's `e_phoff`). Crate-private contract (kept by
 /// `crate::backtrace`): as for [`loaded`]; the linker defines `__ehdr_start` only when the ELF
-/// header, and with it the program headers that follow it, lie in a loaded segment.
+/// header, and with it the program headers that follow it, lie in a loaded segment. Also the
+/// `dlpi_phdr`/`dlpi_phnum` the loader's walk passes for each loaded object
+/// (`crate::backtrace::holds_pc`, D-22.23), read during that callback (the object is mapped while
+/// the walk lists it) and, for the object holding a live frame's return address, as for
+/// [`loaded`].
 pub(crate) fn image_program_headers(addr: usize, n: usize) -> &'static [u64] {
     if addr == 0 || addr % 8 != 0 {
         return &[];
@@ -2174,9 +2229,8 @@ pub(crate) unsafe fn opt_sockaddr<'a>(p: *const c_void, len: u32) -> KResult<Opt
     unsafe { sockaddr(p, len) }.map(Some)
 }
 
-/// A result buffer with its in-out `socklen_t` (`accept`, `getsockname`, `recvfrom`,
-/// `getsockopt`): `*len` bytes at `p`. NULL `p` means no result wanted; a buffer without a
-/// length cell is `EFAULT`.
+/// A result buffer with its in-out `socklen_t` (`accept`, `recvfrom`): `*len` bytes at `p`.
+/// NULL `p` means no result wanted; a buffer without a length cell is `EFAULT`.
 ///
 /// # Safety
 /// `p` is NULL or points to `*len` writable bytes referenced by nothing else.
@@ -2193,6 +2247,24 @@ pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> K
     // SAFETY: the caller's contract.
     let b = unsafe { buf_mut(p, n) }?;
     Ok(Some(niji_legacy::net_compat::AddrOut { buf: b, len }))
+}
+
+/// The result buffer of `getsockname`/`getpeername`: `*len` bytes at `p`, where NULL with
+/// `*len` 0 is an empty buffer (a length query), as the kernel treats it. A missing length cell
+/// or NULL with room claimed is `EFAULT`, a length beyond `INT_MAX` `EINVAL`.
+///
+/// # Safety
+/// `p` is NULL or points to `*len` writable bytes referenced by nothing else.
+// UNSAFE(slice): the caller's result buffer becomes a slice.
+#[allow(unsafe_code)]
+pub(crate) unsafe fn name_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> KResult<niji_legacy::net_compat::AddrOut<'a>> {
+    let len = len.ok_or(Errno::EFAULT)?;
+    let n = socklen(*len)?;
+    // UNSAFE(slice): see the function's contract.
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract; `buf_mut` refuses NULL with n > 0.
+    let b = unsafe { buf_mut(p, n) }?;
+    Ok(niji_legacy::net_compat::AddrOut { buf: b, len })
 }
 
 /// A C `struct msghdr` for sending, viewed in place: its layout is the kernel's, and the

@@ -73,6 +73,12 @@ run python3-1 python3 -c 'import math, json, struct; print(math.sqrt(2), math.lg
 run python3-2 python3 -c 'import os, sys, time, hashlib; print(sys.getfilesystemencoding(), sys.stdout.encoding, os.getcwd()); print(time.strftime("%Y %j %a %b", time.gmtime(10 ** 9))); print(hashlib.sha256(b"niji").hexdigest()); print(sorted(os.listdir("/tmp/t/sub")))'
 run python3-3 python3 -c 'import subprocess; r = subprocess.run(["sort", "-r", "/tmp/t/in.txt"], capture_output=True, text=True); print(r.returncode, r.stdout, end="")'
 run python3-4 python3 -c 'import threading; out = []; ts = [threading.Thread(target=lambda i=i: out.append(i * i)) for i in range(8)]; [t.start() for t in ts]; [t.join() for t in ts]; print(sorted(out))'
+# The distribution's own locale and zdump (libc-bin, kept before the swap: the swap replaces libc-bin),
+# linked with packed relative relocations: each requires libc.so.6's version node GLIBC_ABI_DT_RELR,
+# which no symbol carries (spec/abi/empty-versions.tsv, SYS-ABI-DT-RELR). Not iconv, getent or pldd:
+# they also import GLIBC_PRIVATE names, a version libniji never defines (R14-12).
+run relr-locale /tmp/swap/keep/locale --version
+run relr-zdump /tmp/swap/keep/zdump --version
 run python3-5 python3 -c 'import pwd, locale; print(pwd.getpwuid(0).pw_name, locale.setlocale(locale.LC_ALL, "")); raise SystemExit(4)'
 run python3-6 python3 -c '1/0'
 # ldd (UTIL-4) on the distribution's own libc-linked programs and libraries. A load address changes from
@@ -130,6 +136,12 @@ chmod 1777 /tmp/fr
 drop='$) = "65534 65534"; $( = 65534; $< = $> = 65534; exec @ARGV or die "exec: $!\n"'
 run fakeroot-1 perl -e "$drop" -- sh -c 'cd /tmp/fr && fakeroot sh -c "touch f && chown 0:0 f && echo inside \$(id -u) \$(id -g) \$(stat -c %u:%g f)" && echo outside $(id -u) $(id -g) $(stat -c %u:%g f)'
 run fakeroot-2 perl -e "$drop" -- sh -c 'cd /tmp/fr && mkdir d && echo x > d/a && fakeroot sh -c "chown -R 0:0 d && tar --numeric-owner -cf a.tar d" && tar --numeric-owner -tvf a.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}" && tar --numeric-owner -cf b.tar d && tar --numeric-owner -tvf b.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}"'
+
+# The caller's extra commands (swap-system.sh's SWAP_EXTRA_CMDS), next to this script.
+extra=$(dirname "$0")/extra.sh
+if [ -f "$extra" ]; then
+    . "$extra"
+fi
 
 {
     echo "libc6 $(dpkg-query -W -f '${Version}' libc6 2>&1)"

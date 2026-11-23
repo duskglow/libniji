@@ -1,0 +1,12 @@
+id = "COMPAT-38"
+behaviour = "A thread exit (`pthread_exit`, acting on cancellation) whose frames have unwind work when no unwinder can be found (a `-static-libgcc` program that loads no `libgcc_s.so.1`; §22.1, §22.3; THREAD-EXIT-NO-UNWINDER)"
+glibc = "Ends the process with SIGABRT, no message with `libgcc_s.so.1` installed (black-box probe, glibc 2.39)"
+liella = "Ends the process with SIGABRT after a message naming the cause and the fix (D-22.23)"
+restore = "An option that restores the earlier exit without the unwind work: the cleanup buffers and key destructors run, `-fexceptions` cleanups and C++ destructors do not, and the process goes on. Registered only (THREAD-EXIT-NO-UNWINDER brief), not implemented."
+cost = "none expected: one flag test on the failure path, after the stack walk found unwind work"
+status = "registered"
+decisions = ["D-22.23"]
+story = "THREAD-EXIT-NO-UNWINDER"
+date = "2026-11-22"
+body = '''
+'''

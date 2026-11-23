@@ -17,8 +17,24 @@ use crate::cache::Cache;
 /// default ones).
 pub const PREFIX: &str = match option_env!("NIJI_PREFIX") {
     Some(p) => p,
-    None => "/",
+    None => DEFAULT_PREFIX,
 };
+
+/// The prefix of a build that does not set `NIJI_PREFIX` ([`PREFIX`]); the product build's
+/// interpreter trace reads it too (xtask/src/so.rs, LDSO-TRACE-PREFIX).
+pub const DEFAULT_PREFIX: &str = "/";
+
+/// The preload file below the prefix ([`prefixed`]): `<prefix>/etc/ld.so.preload`.
+pub const PRELOAD_FILE: &[u8] = b"etc/ld.so.preload";
+
+/// The cache below the prefix ([`prefixed`], R14-3 (a)): `<prefix>/etc/ld.so.cache`.
+pub const CACHE_FILE: &[u8] = b"etc/ld.so.cache";
+
+/// Every configuration file the interpreter reads below its prefix. The product build's interpreter
+/// trace (`tools/hottext/ldso_trace.sh`, LDSO-TRACE-PREFIX) points each of these paths of the build's
+/// prefix at a file that does not exist, so no trace reads the host's: a file the loader opens below
+/// the prefix belongs in this list.
+pub const CONFIG_FILES: &[&[u8]] = &[PRELOAD_FILE, CACHE_FILE];
 
 /// The directory below the prefix that holds libniji's libraries (R14-3 (a)): `NIJI_LIBDIR` when
 /// the build sets it, else `lib`. The reference packages set `usr/lib/x86_64-linux-gnu`, the
@@ -115,7 +131,7 @@ pub struct Ctx<'a> {
     /// `$PLATFORM` ([`Arch::platform`]).
     pub platform: &'a str,
     /// The supported `glibc-hwcaps` subdirectories, highest first ([`Arch::hwcaps`]).
-    pub hwcaps: &'a [&'a str],
+    pub hwcaps: &'a [&'a [u8]],
     /// The cache: none, one already read, or one read when a search first reaches it.
     pub cache: CacheRef<'a>,
 }
@@ -138,8 +154,12 @@ pub enum CacheRef<'a> {
 }
 
 /// The cell behind [`CacheRef::Lazy`]: empty until a search first reaches the cache step, then the
-/// cache read (its bytes, kept so the caller can release them, and its reader) or `None`.
-pub type LazyCache<'a> = core::cell::OnceCell<Option<(&'a [u8], Cache<'a>)>>;
+/// cache read: its bytes, kept so the caller can release them (empty when there is no cache), and its
+/// reader. A pair rather than an `Option` of one: the empty cell is then the bytes' null address, a
+/// word `OnceCell::new` writes, so code reading the bytes of an empty cell never branches on memory
+/// left unwritten (valgrind's memcheck reported the speculated read of a nested `Option`'s payload at
+/// every program start, VALGRIND-DBG-RODATA).
+pub type LazyCache<'a> = core::cell::OnceCell<(&'a [u8], Option<Cache<'a>>)>;
 
 impl<'a> CacheRef<'a> {
     /// The cache, reading it now for [`CacheRef::Lazy`] (at most once per cell).
@@ -147,7 +167,7 @@ impl<'a> CacheRef<'a> {
         match self {
             CacheRef::None => None,
             CacheRef::Read(c) => Some(c),
-            CacheRef::Lazy(cell, read) => cell.get_or_init(read).as_ref().map(|(_, c)| c),
+            CacheRef::Lazy(cell, read) => cell.get_or_init(|| read().map_or((&[], None), |(f, c)| (f, Some(c)))).1.as_ref(),
         }
     }
 }
@@ -261,7 +281,7 @@ fn in_dir(dir: &[u8], name: &[u8], ctx: &Ctx<'_>, path: &mut PathBuf, try_open: 
     };
     for h in ctx.hwcaps {
         path.clear();
-        if path.push(dir) && path.push(b"/glibc-hwcaps/") && path.push(h.as_bytes()) && path.push(b"/") && path.push(name) && try_open(path) {
+        if path.push(dir) && path.push(b"/glibc-hwcaps/") && path.push(h) && path.push(b"/") && path.push(name) && try_open(path) {
             return true;
         }
     }

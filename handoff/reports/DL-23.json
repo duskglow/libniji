@@ -1,0 +1,101 @@
+{
+ "task": "DL-23",
+ "model": "opus",
+ "tokens": null,
+ "result": "ld.so exports _r_debug@GLIBC_2.2.5 (40 bytes, kept current, program's COPY honoured) and _dl_debug_state (NIJI_PRIVATE), DT_DEBUG filled, link maps from start == dl_iterate_phdr; gdb and Debian gnat1 work in the trixie root; +4.9k instr / +2 faults per dynamic start",
+ "branch": "task/dl-23",
+ "head": "377ca800c",
+ "gate": {
+  "affected": "FULL escalated (xtask/src/so.rs): the train's; changed-crate tests in dl-23-tests5 pending at hand-back",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "A program's COPY of _r_debug is kept current by libniji (the reference's copy is a start-time snapshot): differences row + D-27.62",
+   "recommendation": "no compat option: a stale copy only misleads readers"
+  },
+  {
+   "item": "Dynamic start-up cost of the rendezvous: +4879 instr (+0.05%) and +2 page faults per dynamic start (pie0); no dynamic start-up bound exists",
+   "recommendation": "accept; fix-forward: put the vDSO link map's l_ld read and the start nodes in pages the start already touches"
+  }
+ ],
+ "informational": [
+  "spec clause s27_4_c_0 says r_version is 2 since 2.35; the reference probe shows 1 without dlmopen (spec gap)",
+  "libc6-dbg gives gdb no line table for setlocale in the trixie root (2 dbg checks FAIL on it; the rendezvous checks pass)",
+  "the loader searches neither DT_RUNPATH nor DT_RPATH of the program (pre-existing on base)",
+  "dlopen(<ld.so path>, RTLD_NOLOAD) returns NULL with no error; the soname works",
+  "mei:dl-23-debs5 (final head) ended rc 1 on 2 libc6-dbg line-table checks only; listed SUPERSEDED, its rendezvous checks (gdb stop, info sharedlibrary, dlopen breakpoint, gnat1) PASS"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "GitHub #19: Debian gnat1 (COPY of _r_debug) failed with undefined symbol _r_debug; now runs and gcc-14 compiles an Ada unit",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "gdb finds the loader's breakpoint, stops in libc and in a dlopened library, info sharedlibrary lists every object",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dynamic start pie0 user instructions (fix-forward: see rulings)",
+   "before": 8959098,
+   "after": 8963977,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dynamic start pie0 page faults",
+   "before": 79,
+   "after": 81,
+   "unit": "faults/start",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dynamic start pie3 user instructions",
+   "before": 9189015,
+   "after": 9196763,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "rendezvous tests (PIE, non-PIE COPY, gdb dlopen breakpoint) and plants",
+   "before": 0,
+   "after": 9,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "gcc-14 Ada build on Yohane Linux (#19); SYS-DBG-PACKAGE-2; M14-9 rendezvous half; DL-22 extends it with r_debug v2",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "a refresh leg should list which jobs can escalate to FULL before starting them: gate5 lost 50 min escalating on an xtask change; and the jobs ran on 3 heads because the deb symbols check came last - run debs first when xtask/so.rs or exports change",
+ "next_step": "jobwait dl-23-plants5 dl-23-tests5 dl-23-xtest5 dl-23-fullprof5 on mei; green -> precheck; red -> fix and rerun only that job",
+ "report_file": "handoff/DL-23.md",
+ "jobs": [
+  "mei:dl-23-lint5",
+  "mei:dl-23-count5",
+  "mei:dl-23-faults5",
+  "mei:dl-23-plants5",
+  "mei:dl-23-tests5",
+  "mei:dl-23-xtest5",
+  "mei:dl-23-fullprof5"
+ ]
+}

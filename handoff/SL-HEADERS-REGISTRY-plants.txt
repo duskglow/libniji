@@ -1,0 +1,28 @@
+# Plants of SL-HEADERS-REGISTRY (cargo xtask plants; docs/plants.md): the slice tables, the slice module registry of
+# headers-gen (xtask/build.rs, xtask/src/headers/slices/) and the slice check modules of header_check.py.
+reg-missing-row-gen | headers/slices/s09.tsv | perl:s/^(sys\/reg\.h\t1\t-)$/$1\nsys\/nonexistent.h\t1\t-/m | cargo xtask headers-gen --check | msg:headers/slices/s09\.tsv:[0-9]+: sys/nonexistent\.h: no template
+reg-missing-row-check | headers/slices/s09.tsv | perl:s/^(sys\/reg\.h\t1\t-)$/$1\nsys\/nonexistent.h\t1\t-/m | python3 spec/tools/header_check.py --include libc-include | msg:FAIL headers/slices/s09\.tsv:[0-9]+: sys/nonexistent\.h: no template
+reg-duplicate-row | headers/slices/s06.tsv | perl:s/^(stdio\.h\t1\t-)$/$1\npwd.h\t1\t-/m | cargo xtask headers-gen --check | msg:headers/slices/s14\.tsv:[0-9]+: pwd\.h is also in headers/slices/s06\.tsv
+reg-unlisted-template | headers/slices/s05.tsv | lit:alloca.h	0	- ==> | cargo xtask headers-gen --check | msg:alloca\.h is in no headers/slices
+reg-marker-twice | xtask/src/headers/slices/s09.rs | lit:Marker { name: "@@syscalls", run: syscalls } ==> Marker { name: "@@intc", run: syscalls } | cargo xtask headers-gen --check | msg:marker @@intc is also defined
+reg-marker-dispatch | xtask/src/headers.rs | lit:(m.run)(&mut g, &words.collect::<Vec<_>>()); ==> let _ = (m, &words); | cargo xtask headers-gen --check | msg:stale under libc-include
+reg-inline-token | xtask/src/headers.rs | lit:s.replace(token, value)) ==> s.replace(token, &value[..0])) | cargo xtask headers-gen --check | msg:stale under libc-include
+reg-linked-elsewhere | xtask/src/headers/slices/s06.rs | lit:"pthread_atfork", "crypt"] ==> "pthread_atfork"] | cargo xtask headers-gen --check | msg:references crypt, not exported
+reg-module-order | xtask/build.rs | lit:names.sort(); ==> names.sort(); names.reverse(); | cargo test -p xtask --bin xtask headers::tests::slice_modules_are_listed | msg:slice_modules_are_listed_and_markers_unique.*FAILED|panicked
+reg-s09-units | spec/tools/header_checks/s09.py | lit:== {r['number']}) ? 1 : -1 ==> == {r['number']} + 1) ? 1 : -1 | python3 spec/tools/header_check.py --include libc-include | msg:FAIL P1 sys/syscall\.h
+reg-s05-units | spec/tools/header_checks/s05.py | lit:_Alignof({name}) == {r['align']} ==> _Alignof({name}) == {r['align']} + 1 | python3 spec/tools/header_check.py --include libc-include | msg:FAIL P1 stdint
+# cargo xtask plants results (11 plants: 10 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# reg-missing-row-gen: CAUGHT, caught by no test the log names
+# reg-missing-row-check: WARN-NO-MSG, caught by no test the log names
+# reg-duplicate-row: CAUGHT, caught by no test the log names
+# reg-unlisted-template: CAUGHT, caught by no test the log names
+# reg-marker-twice: CAUGHT, caught by no test the log names
+# reg-marker-dispatch: CAUGHT, caught by no test the log names
+# reg-inline-token: CAUGHT, caught by no test the log names
+# reg-linked-elsewhere: CAUGHT, caught by no test the log names
+# reg-module-order: CAUGHT, caught by xtask headers::tests::slice_modules_are_listed_and_markers_unique
+# reg-s09-units: CAUGHT, caught by no test the log names
+# reg-s05-units: CAUGHT, caught by no test the log names
+# reg-missing-row-check WARN-NO-MSG: rc 1 came from the products build the plants tool runs first (`cargo xtask so` stages
+# the headers through headers-gen, which refuses the row as in reg-missing-row-gen), so header_check.py never ran on the
+# mutant; its own copy of the row check is not proven by a plant (the tests of a later run cannot reach it either).

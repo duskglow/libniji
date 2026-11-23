@@ -255,8 +255,8 @@ fn own_id(flag: &str) -> String {
 /// no capabilities, and sees the same files on the libniji and the glibc side. Mounts made in the namespace end
 /// with it; the host's files are only read.
 fn namespace_command(binds: &[(String, String)], exe: &Path) -> Command {
-    let script = r#"while [ "$1" != -- ]; do if [ "$1" = tmpfs ]; then mount -t tmpfs -o mode=1777 tmpfs "$2"; else mount --bind "$1" "$2"; fi || exit 96; shift 2; done; shift; u=$1; g=$2; shift 2; exec unshare -U --map-user="$u" --map-group="$g" env -u PWD -u OLDPWD -u SHLVL -u _ "$@""#;
-    let mut c = Command::new("unshare");
+    let script = r#"while [ "$1" != -- ]; do if [ "$1" = tmpfs ]; then mount -t tmpfs -o mode=1777 tmpfs "$2"; else mount --bind "$1" "$2"; fi || exit 96; shift 2; done; shift; u=$1; g=$2; shift 2; unshare -U --map-user="$u" --map-group="$g" env -u PWD -u OLDPWD -u SHLVL -u _ "$@""#;
+    let mut c = crate::contain::user("unshare");
     c.args(["-r", "-m", "sh", "-c", script, "sh"]);
     for (s, d) in binds {
         c.arg(s).arg(d);
@@ -774,7 +774,7 @@ fn compare_command(name: &str, exe: &Path, rows: Option<&str>) -> Command {
 /// The rows a bench's libniji build prints with no filter (one extra run: only for globs and the unknown-row error).
 fn listed_rows(name: &str, exe: &Path) -> Result<Vec<String>, String> {
     println!("{name}: --rows: one unfiltered run of the libniji build to list its rows");
-    let out = compare_command(name, exe, None).output().map_err(|e| format!("{name}: {e}"))?;
+    let out = bench_output(&mut compare_command(name, exe, None)).map_err(|e| format!("{name}: {e}"))?;
     if !out.status.success() {
         return Err(format!("{} failed:\n{}", exe.display(), String::from_utf8_lossy(&out.stderr).trim()));
     }
@@ -905,7 +905,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         for round in 0..=runs {
             for (k, (b, _)) in builds.iter().enumerate() {
                 let Some(exe) = exes[k].clone() else { continue };
-                let out = compare_command(name, &exe, row_env.as_deref()).output().map_err(|e| format!("{name}: {e}"))?;
+                let out = bench_output(&mut compare_command(name, &exe, row_env.as_deref())).map_err(|e| format!("{name}: {e}"))?;
                 if !out.status.success() {
                     let why = String::from_utf8_lossy(&out.stderr).trim().to_string();
                     if *b == Build::HostStatic {
@@ -943,7 +943,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         if counters {
             for (k, exe) in exes.iter().enumerate() {
                 let Some(exe) = exe else { continue };
-                let out = compare_command(name, exe, row_env.as_deref()).env("CBENCH_COUNTERS", "1").output().map_err(|e| format!("{name}: {e}"))?;
+                let out = bench_output(compare_command(name, exe, row_env.as_deref()).env("CBENCH_COUNTERS", "1")).map_err(|e| format!("{name}: {e}"))?;
                 if out.status.success() {
                     ctr[k] = parse_counters(&out.stderr);
                 }
@@ -1193,8 +1193,30 @@ fn instr_cells(niji: Option<&[f64; 6]>, glibc: Option<&[f64; 6]>) -> String {
     format!("{} | {} | {ratio}", f(l), f(g))
 }
 
-/// Median counters of one row, the spread over the counted runs, and the median ns/op of those runs.
-type CountedRow = ([f64; 6], f64, f64);
+/// Median counters of one row, the spread over the counted runs, the median ns/op of those runs, and the lowest and
+/// highest instructions per call over the runs (`COUNT-SPREAD`).
+type CountedRow = ([f64; 6], f64, f64, (f64, f64));
+
+/// How many counted runs each side gets (`--count-runs N`; default 3, TOOLS-6). More runs make `COUNT-SPREAD` a
+/// repeat test of the instruction counts (BUILD-REPRODUCIBLE-PATHS).
+static COUNT_RUNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(3);
+
+/// BUILD-REPRODUCIBLE-PATHS (#7550): a row with an instruction limit whose libniji count moved, over the counted runs,
+/// by more than the limits' tolerance (max(2 instructions, 2%) of its lowest count, `bench/instr_limits.tsv`). Its
+/// limit check would pass or fail by chance, so the run fails and names it (the counted runs execute with address
+/// randomisation off, `bench/c/cbench_counters.h`; what is left is the kernel's share: interrupts taken while the row
+/// runs count in its user+kernel instructions).
+fn check_count_spread(limits: &[InstrLimit], cpu: &str, range: &BTreeMap<(String, String), (f64, f64)>, selected: &std::collections::BTreeSet<(String, String)>) -> Vec<String> {
+    let mut out = Vec::new();
+    for l in limits.iter().filter(|l| l.applies(cpu) && selected.contains(&(l.bench.clone(), l.row.clone()))) {
+        let Some(&(lo, hi)) = range.get(&(l.bench.clone(), l.row.clone())) else { continue };
+        let tol = (0.02 * lo).max(2.0);
+        if hi - lo > tol {
+            out.push(format!("{}/{}: instructions per call moved {lo:.1} to {hi:.1} over the counted runs, more than the tolerance {tol:.1} of its limit (COUNT-SPREAD): the count is not deterministic", l.bench, l.row));
+        }
+    }
+    out
+}
 
 /// One counted run (`CBENCH_COUNTERS=1`) of the libniji build and of the host C library per benchmark, outside
 /// the timed rounds, and a compact table per row: libniji/glibc ratios of ns (the timing rounds' median, when
@@ -1211,10 +1233,11 @@ fn counted_table(root: &Path, names: &[&str], no_build: bool, ns_ratio: &BTreeMa
 /// The counted runs of `counted_table`; each table line goes to `lines` (bench, line), each bench it starts to `started`.
 fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTreeMap<(String, String), f64>, lines: &mut Vec<(String, String)>, started: &mut Vec<&'a str>) -> Result<Counted, String> {
     let mut instr: BTreeMap<(String, String), f64> = BTreeMap::new();
+    let mut instr_range: BTreeMap<(String, String), (f64, f64)> = BTreeMap::new();
     let mut cyc: BTreeMap<(String, String), CycleCell> = BTreeMap::new();
     let mut printed = 0usize;
     NO_BUILD.store(no_build, std::sync::atomic::Ordering::Relaxed);
-    println!("\ncounters per operation (median of 3 counted runs per side; ratio = libniji / glibc dynamic; `-` = event not available):");
+    println!("\ncounters per operation (median of {} counted runs per side; ratio = libniji / glibc dynamic; `-` = event not available):", COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed));
     println!("{:<14} {:<26} {:>7} {:>7} {:>7} {:>7}  {:>9} {:>9} {:>9}", "bench", "row", "ns", "cycles", "uops", "instr", "cyc/op L", "cyc/op G", "spread L/G");
     let q = |a: f64, b: f64| if a > 0.0 && b > 0.0 { Some(a / b) } else { None };
     let cell = |x: Option<f64>| x.map_or("-".to_string(), |v| format!("{v:.3}"));
@@ -1226,8 +1249,8 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
         // TOOLS-6: three counted runs per side; per row the MEDIAN of every column, a spread column, and sanity flags.
         let run3 = |exe: &Path| -> Result<BTreeMap<String, CountedRow>, String> {
             let mut runs = Vec::new();
-            for _ in 0..3 {
-                let out = c_command(b, exe).env("CBENCH_COUNTERS", "1").output().map_err(|e| format!("{b}: {e}"))?;
+            for _ in 0..COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed) {
+                let out = bench_output(c_command(b, exe).env("CBENCH_COUNTERS", "1")).map_err(|e| format!("{b}: {e}"))?;
                 if !out.status.success() {
                     return Err(format!("{b} (counted run) failed"));
                 }
@@ -1252,16 +1275,18 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
                     if m > 0.0 { (hi - lo) / m } else { 0.0 }
                 };
                 let ns: Vec<f64> = runs.iter().filter_map(|r| r.1.get(row).copied()).collect();
-                res.insert(row.clone(), (med, spread(1).max(spread(0)), if ns.is_empty() { 0.0 } else { stats(&ns).0 }));
+                let (_, ilo, ihi) = stats(&all.iter().map(|x| x[0]).collect::<Vec<f64>>());
+                res.insert(row.clone(), (med, spread(1).max(spread(0)), if ns.is_empty() { 0.0 } else { stats(&ns).0 }, (ilo, ihi)));
             }
             Ok(res)
         };
         let (l, g) = (run3(&niji)?, run3(&host)?);
-        for (row, (lv, lsp, lns)) in &l {
+        for (row, (lv, lsp, lns, irange)) in &l {
             if lv[0] > 0.0 {
                 instr.insert((b.to_string(), row.clone()), lv[0]);
+                instr_range.insert((b.to_string(), row.clone()), *irange);
             }
-            let Some((gv, gsp, gns)) = g.get(row) else { continue };
+            let Some((gv, gsp, gns, _)) = g.get(row) else { continue };
             let ns = ns_ratio.get(&(b.to_string(), row.clone())).copied();
             let (cy, up, ins) = (q(lv[1], gv[1]), q(lv[5], gv[5]), q(lv[0], gv[0]));
             // FALLBACK-CYCLES: the clock each side ran at in its counted runs (cycles per ns = GHz).
@@ -1287,7 +1312,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
             lines.push((b.to_string(), counters_line(b, row, ns, lv, gv, &sp, flags.trim())));
         }
     }
-    Ok(Counted { instr, cyc, rows: printed })
+    Ok(Counted { instr, instr_range, cyc, rows: printed })
 }
 
 /// What the counted runs measured: instructions per call of libniji (the instruction limits) and, per row, the
@@ -1296,6 +1321,8 @@ struct Counted {
     /// How many rows the table printed (both sides counted).
     rows: usize,
     instr: BTreeMap<(String, String), f64>,
+    /// The lowest and highest libniji instructions per call over the counted runs (`check_count_spread`).
+    instr_range: BTreeMap<(String, String), (f64, f64)>,
     cyc: BTreeMap<(String, String), CycleCell>,
 }
 
@@ -1342,14 +1369,69 @@ fn decide_cycles(key: (&str, &str), ns: (f64, f64), ns_lim: Option<&Limit>, cell
     }
 }
 
+/// Runs a C benchmark command and collects its output. The private-/dev/shm route (`private_shm`: root through
+/// `sudo -n`) runs contained (`contain::output`, `docs/testing/harness-containment.md`): as the first process of a
+/// PID namespace of its own that ends with it or with this process, so a killed xtask leaves no root process.
+/// It is wrapped here, not in `private_shm`, because the callers add variables (`CBENCH_COUNTERS`, `CBENCH_ROWS`)
+/// after the command is built: [`past_sudo`] carries them past `sudo` to the route's script. `NIJI_CONTAINED=none`
+/// in xtask's environment runs the route uncontained (the caller's opt-out, as for `tools/contained.sh`; used by the
+/// count check that compares both forms).
+pub(crate) fn bench_output(c: &mut Command) -> std::io::Result<std::process::Output> {
+    if !is_root_route(c) {
+        return c.output();
+    }
+    let mut c = past_sudo(c);
+    if std::env::var_os("NIJI_CONTAINED").is_some_and(|v| v == "none") { c.output() } else { crate::contain::output(&c) }
+}
+
+/// The root route with the `CBENCH_*` variables set on it carried past `sudo`, which resets the environment:
+/// `sudo -n env CBENCH_COUNTERS=1 ... unshare ...` (the route's script hands them on to the bench). Without this
+/// the bench never saw them: a `--rows` filter ran every row and a counted run printed no counters. Program, arguments, other variables and
+/// working directory are kept.
+fn past_sudo(c: &Command) -> Command {
+    let mut args = c.get_args();
+    let mut n = Command::new(c.get_program());
+    n.args(args.next());
+    let carried: Vec<std::ffi::OsString> = c
+        .get_envs()
+        .filter_map(|(k, v)| {
+            let v = v.filter(|_| k.to_string_lossy().starts_with("CBENCH_"))?;
+            let mut kv = k.to_os_string();
+            kv.push("=");
+            kv.push(v);
+            Some(kv)
+        })
+        .collect();
+    if !carried.is_empty() {
+        n.arg("env").args(carried);
+    }
+    n.args(args);
+    n.env_clear();
+    for (k, v) in c.get_envs() {
+        if let Some(v) = v {
+            n.env(k, v);
+        }
+    }
+    if let Some(d) = c.get_current_dir() {
+        n.current_dir(d);
+    }
+    n
+}
+
+/// Whether `c` is the private-/dev/shm route, which starts root processes.
+fn is_root_route(c: &Command) -> bool {
+    c.get_program() == "sudo"
+}
+
 fn private_shm(exe: &Path, tunables: Option<&str>) -> Command {
     let id = |flag: &str| Command::new("id").arg(flag).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
     let sudo = Command::new("sudo").args(["-n", "true"]).status().is_ok_and(|s| s.success());
     let setpriv = Command::new("setpriv").arg("--version").output().is_ok_and(|o| o.status.success());
     match (sudo && setpriv, id("-u"), id("-g")) {
         (true, Some(u), Some(g)) => {
+            // contain: inside(`bench_output` runs this route through contain::output, once its environment is set)
             let mut c = Command::new("sudo");
-            c.args(["-n", "unshare", "-m", "sh", "-c", "u=$1; g=$2; P=$3; H=$4; T=$5; shift 5; mount -t tmpfs -o mode=1777 tmpfs /dev/shm && exec setpriv --reuid=\"$u\" --regid=\"$g\" --init-groups env -i PATH=\"$P\" HOME=\"$H\" ${T:+GLIBC_TUNABLES=\"$T\"} ${CBENCH_ROWS:+CBENCH_ROWS=\"$CBENCH_ROWS\"} ${CBENCH_COUNTERS:+CBENCH_COUNTERS=\"$CBENCH_COUNTERS\"} \"$@\"", "sh"]).arg(u).arg(g).arg(BENCH_ENV[0].1).arg(BENCH_ENV[1].1).arg(tunables.unwrap_or("")).arg(exe);
+            c.args(["-n", "unshare", "-m", "sh", "-c", "u=$1; g=$2; P=$3; H=$4; T=$5; shift 5; mount -t tmpfs -o mode=1777 tmpfs /dev/shm && setpriv --reuid=\"$u\" --regid=\"$g\" --init-groups env -i PATH=\"$P\" HOME=\"$H\" ${T:+GLIBC_TUNABLES=\"$T\"} ${CBENCH_ROWS:+CBENCH_ROWS=\"$CBENCH_ROWS\"} ${CBENCH_COUNTERS:+CBENCH_COUNTERS=\"$CBENCH_COUNTERS\"} \"$@\"", "sh"]).arg(u).arg(g).arg(BENCH_ENV[0].1).arg(BENCH_ENV[1].1).arg(tunables.unwrap_or("")).arg(exe);
             c
         }
         _ => Command::new(exe),
@@ -1552,6 +1634,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             "--counters-only" => {
                 counters = true;
                 counters_only = true;
+            }
+            "--count-runs" => {
+                let n: usize = it.next().and_then(|v| v.parse().ok()).filter(|&n| n >= 2).ok_or("--count-runs needs a number of counted runs, 2 or more")?;
+                COUNT_RUNS.store(n, std::sync::atomic::Ordering::Relaxed);
             }
             "--runs" => {
                 runs = it.next().and_then(|v| v.parse().ok()).filter(|&n| n > 0).ok_or("--runs needs a positive number")?;
@@ -1766,7 +1852,17 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         // TOOLS-5: no timing rounds; the counted runs only (the baseline job runs this right after its timing run).
         let names = counted_benches(&benches, &host_capable);
         let c = counted_table(root, &names, mode == Mode::NoBuild, &BTreeMap::new())?;
-        return check_counted(c.rows, &filter);
+        check_counted(c.rows, &filter)?;
+        // The repeat test of the counts (`--counters-only --count-runs N`, BUILD-REPRODUCIBLE-PATHS): every counted
+        // row with an instruction limit for this CPU must repeat within its tolerance.
+        let counted: std::collections::BTreeSet<(String, String)> = c.instr_range.keys().cloned().collect();
+        let spread = check_count_spread(&instr_limits, &cpu, &c.instr_range, &counted);
+        let limited = instr_limits.iter().filter(|l| l.applies(&cpu) && counted.contains(&(l.bench.clone(), l.row.clone()))).count();
+        if !spread.is_empty() {
+            return Err(format!("bench --counters-only: {} of {limited} limited rows moved beyond their tolerance:\n  {}", spread.len(), spread.join("\n  ")));
+        }
+        println!("bench: COUNT-SPREAD ok: {limited} rows with an instruction limit repeated within max(2, 2%) over {} counted runs", COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed));
+        return Ok(());
     }
     let settle = settle_secs(std::env::var("BENCH_SETTLE_SECS").ok().as_deref());
     if settle > 0 {
@@ -1800,7 +1896,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 }
             }
             if let Some(h) = &host_exe {
-                let out = c_command(b, h).output().map_err(|e| format!("{b} (host): {e}"))?;
+                let out = bench_output(&mut c_command(b, h)).map_err(|e| format!("{b} (host): {e}"))?;
                 if !out.status.success() {
                     return Err(format!("{b} (host) failed:\n{}", String::from_utf8_lossy(&out.stderr)));
                 }
@@ -1811,7 +1907,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 }
             }
             let out = match &niji_exe {
-                Some(e) => c_command(b, e).output().map_err(|e| format!("{b}: {e}"))?,
+                Some(e) => bench_output(&mut c_command(b, e)).map_err(|e| format!("{b}: {e}"))?,
                 // A Rust bench inherits the caller's environment; `--tunables` reaches it too (D-X.39).
                 None if mode == Mode::NoBuild => with_tunables(Command::new(root.join(format!("target/release/examples/{b}")))).current_dir(root).output().map_err(|e| format!("{b}: {e}"))?,
                 None => with_tunables(Command::new(&cargo))
@@ -1966,6 +2062,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                     }
                 }
                 failures.extend(check_instr_limits(&instr_limits, &cpu, &c.instr, &selected, &names));
+                failures.extend(check_count_spread(&instr_limits, &cpu, &c.instr_range, &selected));
                 cells = c.cyc;
             }
             Err(e) if instr_gated => failures.push(format!("instruction limits ({INSTR_LIMITS}) could not be checked: counters table failed: {e}")),
@@ -2012,6 +2109,36 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// A `sudo` command that the tests below only inspect.
+    fn sudo() -> std::process::Command {
+        // contain: probe(never spawned: the tests read its program, arguments and variables)
+        std::process::Command::new("sudo")
+    }
+
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): `bench_output` sends the private-/dev/shm route
+    /// (a `sudo` command, the root processes) through containment, and every other bench command runs as built.
+    #[test]
+    fn the_root_route_alone_runs_contained() {
+        assert!(super::is_root_route(&sudo()));
+        assert!(!super::is_root_route(&std::process::Command::new("target/niji/bench/cbench_netdb")));
+        assert!(!super::is_root_route(&std::process::Command::new("setpriv")));
+    }
+
+    /// ROOT-HARNESS-FOLLOWUP (no spec clause: measurement tooling): the route's `CBENCH_*` variables pass `sudo` as
+    /// `env` arguments (sudo resets the environment), so a counted run of `cbench_netdb` prints its counters.
+    #[test]
+    fn root_route_carries_the_bench_variables_past_sudo() {
+        let mut c = sudo();
+        c.args(["-n", "unshare", "-m", "sh"]).env_clear().env("PATH", "/p").env("CBENCH_COUNTERS", "1").env("CBENCH_ROWS", "a,b");
+        let n = super::past_sudo(&c);
+        let args: Vec<String> = n.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(n.get_program(), "sudo");
+        assert_eq!(args, ["-n", "env", "CBENCH_COUNTERS=1", "CBENCH_ROWS=a,b", "unshare", "-m", "sh"]);
+        assert!(n.get_envs().any(|(k, v)| k == "PATH" && v == Some(std::ffi::OsStr::new("/p"))));
+        let plain = super::past_sudo(sudo().args(["-n", "unshare"]).env_clear());
+        assert_eq!(plain.get_args().map(|a| a.to_string_lossy().into_owned()).collect::<Vec<_>>(), ["-n", "unshare"]);
+    }
+
     /// Ruling #5463 (no spec clause: measurement tooling): the v3 measurement build is traced whenever the host can
     /// run v3 code, and the fallback says "UNGROUPED" in its line, never a silent ungrouped timing.
     #[test]
@@ -2180,6 +2307,31 @@ ctr	short	1
         assert!(limit_for(&l, "CPU A", "b2", "r1").is_none());
         // The host name plays no part: only the exact CPU string matches.
         assert!(limit_for(&l, "cpu a", "b1", "r1").is_none());
+    }
+
+    /// no spec clause (tooling, BUILD-REPRODUCIBLE-PATHS #7550): a limited row whose count moved over the counted runs
+    /// by more than max(2 instructions, 2%) fails as COUNT-SPREAD; a move within it, an unlimited or unselected row,
+    /// and another CPU's limit do not.
+    #[test]
+    fn count_spread_fails_a_limited_row_that_moves_beyond_its_tolerance() {
+        let lim = parse_instr_limits("*\tb1\tsmall\t20\n*\tb1\tbig\t1000\nCPU A\tb1\tcpu\t50\n*\tb1\tunsel\t20\n").unwrap();
+        let sel: std::collections::BTreeSet<(String, String)> = [("b1", "small"), ("b1", "big"), ("b1", "cpu")].iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
+        let k = |r: &str| ("b1".to_string(), r.to_string());
+        let mut r = BTreeMap::new();
+        // 16 to 18: 2 instructions, the floor of the tolerance: deterministic enough.
+        r.insert(k("small"), (16.0, 18.0));
+        // 900 to 917.9: within 2% (18); the unselected row and the unlimited one move far, unchecked.
+        r.insert(k("big"), (900.0, 917.9));
+        r.insert(k("unsel"), (10.0, 90.0));
+        r.insert(k("free"), (10.0, 90.0));
+        r.insert(k("cpu"), (40.0, 43.0));
+        assert!(check_count_spread(&lim, "CPU B", &r, &sel).is_empty());
+        let f = check_count_spread(&lim, "CPU A", &r, &sel);
+        assert!(f.len() == 1 && f[0].starts_with("b1/cpu") && f[0].contains("COUNT-SPREAD"), "{f:?}");
+        // the strstr shape measured with address randomisation on: 71 or 135 per call
+        r.insert(k("small"), (71.0, 135.0));
+        r.insert(k("big"), (900.0, 918.1));
+        assert_eq!(check_count_spread(&lim, "CPU B", &r, &sel).len(), 2);
     }
 
     #[test]

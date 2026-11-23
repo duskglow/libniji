@@ -1,0 +1,25 @@
+{"task": "ICONV-CJK-STARTUP-2", "model": "opus", "tokens": null,
+ "result": "crates-2 red explained (stale products vs a new build tag, now refused up front); start-up faults back to 21.5 on empty main and clock_gettime (ld.so fini_all stack probes, -4); 3 libraries +1 and getconf not fixed (cause verified: perror -> putwc -> iconv convert)",
+ "branch": "task/iconv-cjk-startup-2", "head": null,
+ "gate": {"affected": "FULL escalated (xtask changed): changed crates' tests instead: v1 rc 0 (xtask unit, niji-ld dlclose/dlopen_process_objects/init_order 18 ok, iconv_reloc_products ok), htp hot_text_products 33 ok", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "#7438 is deterministic: products built before a crates/ test edit carry the old source-hash tag; the prefixed ld.so built with the new tag refuses them (D-27.22) and its trace ends in fail_with. ldso-trace now says so; build_native_ld has the same gap (not changed).",
+  "21.6's +5 start-up faults: stack +4 from dlopen::fini_exit's frame inlined into ld.so fini_all (stack probes at every exit), anon +1 at __niji_libc_early_init (not attributed further). None from the CJK tables.",
+  "static getconf keeps the CJK codecs through perror -> report::emit -> stdio_compat::write_text -> putwc -> iconv::Conv::convert -> cjk (link map + section reference chains), not printf's wide conversions.",
+  "v1's hot_text_products section was cut short by its own `| head -80` pipe; rerun as job htp (33 ok)."
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "empty main start-up page faults (Zen 1, full profile, su.sh)", "before": 55, "after": 51, "unit": "faults/process", "measured": true},
+  {"kind": "faults", "what": "clock_gettime program start-up page faults", "before": 59, "after": 55, "unit": "faults/process", "measured": true},
+  {"kind": "faults", "what": "3-library program start-up page faults (21.5: 65)", "before": 70, "after": 66, "unit": "faults/process", "measured": true},
+  {"kind": "perf", "what": "empty main user instructions (21.5: 740,923)", "before": 739630, "after": 739574, "unit": "instr/process", "measured": true},
+  {"kind": "tooling", "what": "ldso-trace over stale products fails with 'not built from this tree' instead of a 77-vs-100 hot-list difference", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "unit test + plants (2 CAUGHT)", "before": null, "after": 2, "unit": "plants", "measured": true}
+ ],
+ "improvement": "Job scripts that pipe a test run through `head` kill it by SIGPIPE and hide the tail; v1 lost its hot_text_products verdict that way. Log whole runs and summarise afterwards (test-summary).",
+ "next_step": "getconf: dispatch CJK codecs through a pointer installed by iconv_open / a CJK setlocale so putwc's convert stops reaching them; then attribute the 3-library +1 anon fault; measure the Skylake-SP class",
+ "report_file": "handoff/ICONV-CJK-STARTUP.md",
+ "jobs": ["keke:iconv-cjk-startup-2-v1", "keke:iconv-cjk-startup-2-htp", "keke:iconv-cjk-startup-2-plants-2", "keke:iconv-cjk-startup-2-precheck"]}

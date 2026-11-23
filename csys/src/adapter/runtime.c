@@ -57,14 +57,19 @@ void rust_eh_personality(void);
 __attribute__((weak)) void rust_eh_personality(void) { return; }
 #endif
 
-extern void (*__preinit_array_start[])(void) __attribute__((weak));
-extern void (*__preinit_array_end[])(void) __attribute__((weak));
-extern void (*__init_array_start[])(void) __attribute__((weak));
-extern void (*__init_array_end[])(void) __attribute__((weak));
-extern void (*__fini_array_start[])(void) __attribute__((weak));
-extern void (*__fini_array_end[])(void) __attribute__((weak));
-extern void _init(void) __attribute__((weak));
-extern void _fini(void) __attribute__((weak));
+/* A static program's constructor and destructor arrays and its `_init`/`_fini` (crti.o), which only
+ * a static program's start runs (a dynamic program's come from its dynamic section, DT_PREINIT_ARRAY,
+ * DT_INIT_ARRAY, DT_FINI_ARRAY, DT_INIT and DT_FINI, run by the loader). Hidden, so they are resolved
+ * when the object is linked: to the program's markers in a static link, to 0 in libc.so.6, which then
+ * carries no dynamic symbol, relocation or start-up lookup for them (LIBC-INIT-ARRAY-REFS). */
+extern void (*__preinit_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__preinit_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__init_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__init_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__fini_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__fini_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void _init(void) __attribute__((weak, visibility("hidden")));
+extern void _fini(void) __attribute__((weak, visibility("hidden")));
 
 uintptr_t niji_link_preinit_start(void) { return (uintptr_t)__preinit_array_start; }
 uintptr_t niji_link_preinit_end(void) { return (uintptr_t)__preinit_array_end; }

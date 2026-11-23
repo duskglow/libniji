@@ -1,0 +1,23 @@
+[package]
+name = "niji-locale"
+description = "localedef's library (UTIL-12, spec §31.8): the locale source parser and the Appendix D.1 writers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "niji_locale"
+
+[dependencies]
+# The reader of the format this crate writes (round trips by construction) and the charmap parser.
+niji = { workspace = true }
+
+[dev-dependencies]
+spectest = { workspace = true }
+# The generated charmaps (LOCALE-CHARMAPS-GEN), compiled against the reference in tests/reference.rs.
+niji-charmaps = { workspace = true }
+
+[lints]
+workspace = true

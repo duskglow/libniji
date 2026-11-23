@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_types_h 1
 
 #include <features.h>
-#include <endian.h>
 
 __NIJI_BEGIN_C
 
@@ -25,6 +24,18 @@ struct timeval {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
@@ -113,7 +124,9 @@ typedef struct {
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
@@ -127,9 +140,47 @@ typedef int key_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D_struct___pthread_cond_s
+#  define __NIJI_D_struct___pthread_cond_s 1
+struct __pthread_cond_s {
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
+  unsigned int __g_refs[2];
+  unsigned int __g_size[2];
+  unsigned int __g1_orig_size;
+  unsigned int __wrefs;
+  unsigned int __g_signals[2];
+};
+# endif
 # ifndef __NIJI_D_pthread_cond_t
 #  define __NIJI_D_pthread_cond_t 1
-typedef struct { char __niji_opaque[48] __attribute__ ((__aligned__ (8))); } pthread_cond_t;
+typedef union {
+  struct __pthread_cond_s __data;
+  char __size[48];
+  long long __align;
+} pthread_cond_t;
 # endif
 # ifndef __NIJI_D_pthread_condattr_t
 #  define __NIJI_D_pthread_condattr_t 1
@@ -142,9 +193,37 @@ typedef union {
 #  define __NIJI_D_pthread_key_t 1
 typedef unsigned int pthread_key_t;
 # endif
+# ifndef __NIJI_D_struct___pthread_internal_list
+#  define __NIJI_D_struct___pthread_internal_list 1
+struct __pthread_internal_list {
+  struct __pthread_internal_list * __prev;
+  struct __pthread_internal_list * __next;
+};
+# endif
+# ifndef __NIJI_D___pthread_list_t
+#  define __NIJI_D___pthread_list_t 1
+typedef struct __pthread_internal_list __pthread_list_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_mutex_s
+#  define __NIJI_D_struct___pthread_mutex_s 1
+struct __pthread_mutex_s {
+  int __lock;
+  unsigned int __count;
+  int __owner;
+  unsigned int __nusers;
+  int __kind;
+  short __spins;
+  short __elision;
+  __pthread_list_t __list;
+};
+# endif
 # ifndef __NIJI_D_pthread_mutex_t
 #  define __NIJI_D_pthread_mutex_t 1
-typedef struct { char __niji_opaque[40] __attribute__ ((__aligned__ (8))); } pthread_mutex_t;
+typedef union {
+  struct __pthread_mutex_s __data;
+  char __size[40];
+  long __align;
+} pthread_mutex_t;
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_t
 #  define __NIJI_D_pthread_mutexattr_t 1
@@ -160,12 +239,6 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199506 && !__NIJI_CXX
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef struct  pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
@@ -189,9 +262,31 @@ typedef int volatile pthread_spinlock_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
+# ifndef __NIJI_D_struct___pthread_rwlock_arch_t
+#  define __NIJI_D_struct___pthread_rwlock_arch_t 1
+struct __pthread_rwlock_arch_t {
+  unsigned int __readers;
+  unsigned int __writers;
+  unsigned int __wrphase_futex;
+  unsigned int __writers_futex;
+  unsigned int __pad3;
+  unsigned int __pad4;
+  int __cur_writer;
+  int __shared;
+  signed char __rwelision;
+  unsigned char __pad1[7];
+  unsigned long __pad2;
+  unsigned int __flags;
+  int : 32;
+};
+# endif
 # ifndef __NIJI_D_pthread_rwlock_t
 #  define __NIJI_D_pthread_rwlock_t 1
-typedef struct { char __niji_opaque[56] __attribute__ ((__aligned__ (8))); } pthread_rwlock_t;
+typedef union {
+  struct __pthread_rwlock_arch_t __data;
+  char __size[56];
+  long __align;
+} pthread_rwlock_t;
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_t
 #  define __NIJI_D_pthread_rwlockattr_t 1
@@ -214,7 +309,9 @@ typedef unsigned int id_t;
 #if __NIJI_MISC
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct timespec;
 # ifndef __NIJI_D_pselect
@@ -226,20 +323,39 @@ struct timeval;
 #  define __NIJI_D_select 1
 extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# ifndef BYTE_ORDER
+#  define BYTE_ORDER 1234
+# endif
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
+# endif
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
 # endif
 # ifndef NFDBITS
 #  define NFDBITS 64
 # endif
+# ifndef PDP_ENDIAN
+#  define PDP_ENDIAN 3412
+# endif
+#endif
+
+/* The byte-order conversions are <endian.h>'s, where this header exposes them. */
+#if __NIJI_MISC
+# include <endian.h>
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set. */
 #if __NIJI_MISC
+/* The word index goes through the library's range check (an out-of-range descriptor aborts instead of writing outside the set). */
+extern long int __fdelt_chk (long int) __NIJI_NOTHROW;
 # define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
-# define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
-# define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
-# define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+# define FD_SET(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+# define FD_CLR(fd, s) ((void) ((s)->fds_bits[__fdelt_chk (fd)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+# define FD_ISSET(fd, s) (((s)->fds_bits[__fdelt_chk (fd)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 # define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 #endif
 

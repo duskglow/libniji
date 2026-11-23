@@ -6,7 +6,8 @@
 #
 # The root starts as the merged-/usr skeleton base-files lays down (bin, lib, lib64, sbin links into
 # /usr) and an empty dpkg database, nothing else: no shell, no libraries. dpkg --root installs all
-# six packages with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
+# the packages (seven; tools/deb/manifest.py packages system), and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
+# dependencies from other sources), with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
 # has no shell to run it). Then, in the root (chroot inside the namespace):
 #   - every package is "install ok installed" (the ldconfig trigger was processed), the conffiles
 #     are registered, /etc/nsswitch.conf came from the template, dpkg --verify is clean;
@@ -16,7 +17,8 @@
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
 #   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
 #     (configure; the ldconfig trigger after later library installs);
-#   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
+#   - the smoke programs hello, threads, devlinks (C; devlinks with -lanl -lBrokenLocale -lmcheck
+#     -lg through libc6-dev's development links: SYS-DEV-LINKS) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
 #     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
 #   - iostream and throwmain (an exception thrown in the shared libthrowlib.so, caught in the
@@ -30,6 +32,9 @@
 #     /etc/nsswitch.conf (the administrator's file) and nothing else.
 # Prints "root: PASS|FAIL|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
 set -eu
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 export LC_ALL=C
 [ $# -eq 1 ] || { echo "usage: tools/deb/root-system.sh DEBDIR" >&2; exit 2; }
 debdir=$(cd "$1" && pwd)
@@ -55,24 +60,39 @@ chmod 1777 "$r/tmp"
 set -- "$debdir"/*.deb
 [ -e "$1" ] || { echo "root: FAIL no .deb in $debdir"; exit 1; }
 info "installing $(echo "$@" | tr ' ' '\n' | sed 's|.*/||' | tr '\n' ' ')into an empty root"
+# libc6-dev depends on packages the distribution builds from other sources (kernel headers,
+# libcrypt, rpcgen). The empty root has no archive: empty stand-ins of those names meet the
+# relations, so dpkg configures libc6-dev without --force-depends.
+standins="linux-libc-dev libcrypt-dev rpcsvc-proto"
+for s in $standins; do
+    mkdir -p "$tmp/standin/$s/DEBIAN"
+    printf 'Package: %s\nVersion: 0~niji-standin\nArchitecture: all\nMaintainer: niji root check <root@localhost>\nDescription: empty stand-in (tools/deb/root-system.sh)\n' "$s" \
+        > "$tmp/standin/$s/DEBIAN/control"
+    dpkg-deb --root-owner-group --build "$tmp/standin/$s" "$tmp/standin/$s.deb" > /dev/null
+    set -- "$@" "$tmp/standin/$s.deb"
+done
 
 dpkg_r() { ns dpkg --root="$r" --force-script-chrootless --log=/dev/null "$@"; }
+# The packages and their conffiles: tools/deb/manifest.tsv (PKG-MANIFEST).
+pkgs=$(python3 "$here/manifest.py" packages system)
+npkgs=$(echo "$pkgs" | wc -w)
+want_cf=$(for p in $pkgs; do python3 "$here/manifest.py" member system "$p" conffiles; done | sort | tr '\n' ' ')
 if dpkg_r -i "$@" > "$tmp/install.log" 2>&1; then
-    pass "dpkg --root installs the six packages into the empty root"
+    pass "dpkg --root installs the $npkgs packages into the empty root"
 else
     fail "dpkg --root -i: $(tail -5 "$tmp/install.log" | tr '\n' ' ')"
 fi
 q() { dpkg-query --admindir="$r/var/lib/dpkg" "$@"; }
 bad=$(q -W -f '${Package} ${Status}\n' | grep -v ' install ok installed$' || true)
 n=$(q -W -f '${Package} ${Status}\n' | grep -c ' install ok installed$' || true)
-if [ -z "$bad" ] && [ "$n" -eq 6 ]; then
-    pass "all six packages are installed, no trigger pending"
+if [ -z "$bad" ] && [ "$n" -eq $((npkgs + 3)) ]; then
+    pass "all $npkgs packages (and the three stand-ins) are installed, no trigger pending"
 else
     fail "package states: $(q -W -f '${Package}=${Status}; ' 2>&1)"
 fi
-cf=$(q -W -f '${Conffiles}\n' libc6 libc-bin | awk 'NF { print $1 }' | sort | tr '\n' ' ')
-[ "$cf" = "/etc/gai.conf /etc/ld.so.conf /etc/ld.so.conf.d/libc.conf /etc/ld.so.conf.d/$ma.conf " ] &&
-    pass "conffiles registered: $cf" || fail "conffiles registered: '$cf'"
+cf=$(q -W -f '${Conffiles}\n' $pkgs | awk 'NF { print $1 }' | sort | tr '\n' ' ')
+[ -n "$want_cf" ] && [ "$cf" = "$want_cf" ] &&
+    pass "conffiles registered: $cf" || fail "conffiles registered: '$cf', not the manifest's '$want_cf'"
 cmp -s "$r/etc/nsswitch.conf" "$r/usr/share/libc-bin/nsswitch.conf" &&
     pass "libc-bin's postinst installed /etc/nsswitch.conf from its template" || fail "no /etc/nsswitch.conf from the template"
 v=$(ns dpkg --root="$r" --verify 2>&1 || true)
@@ -86,6 +106,10 @@ b=$("$cc" -print-file-name=crtbeginS.o); e=$("$cc" -print-file-name=crtendS.o)
     fail "dynamic hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/threads.c" -lc -lgcc "$e" -o "$r/tmp/threads" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic threads does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# SYS-DEV-LINKS: -lanl -lBrokenLocale -lmcheck -lg through libc6-dev's development links and archives;
+# the program needs libanl.so.1 and libBrokenLocale.so.1, whose MB_CUR_MAX override it prints.
+"$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/devlinks.c" -Wl,--no-as-needed -lanl -lBrokenLocale -lmcheck -lg -lc -lgcc "$e" -o "$r/tmp/devlinks" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic devlinks does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 # C++ as niji-g++ links it: libstdc++ and the unwinder static (the root has no libstdc++.so.6), the C
 # library and libm.so.6 the root's.
 cxx=${CXX:-g++}
@@ -129,6 +153,19 @@ cxxlibs="$cxxlibs libthrowlib.so"
 # libresolv.so.2 symbols against the root's.
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/resolv.c" -lresolv -lc -lgcc "$e" -o "$r/tmp/resolv" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic resolv (-lresolv) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# -lm (issue #28): smoke/mvec.c (-O3 -ffast-math: a loop vectorised into libmvec calls, built only
+# when the compiler's headers declare sinf's simd variants) and smoke/nomvec.c (one scalar call),
+# both linked with plain -lm through libc6-dev's libm.so script.
+mvec=
+if "$cc" -O3 -ffast-math -S -o - "$here/smoke/mvec.c" 2>/dev/null | grep -q _ZGVbN4v_sinf; then
+    mvec=1
+    "$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/mvec.c" -lm -lc -lgcc "$e" -o "$r/tmp/mvec" > "$tmp/cc.log" 2>&1 ||
+        fail "dynamic mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+else
+    info "skip mvec: the compiler's headers declare no simd variant of sinf"
+fi
+"$cc" -O3 -ffast-math -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/nomvec.c" -Wl,--no-as-needed -lm -lc -lgcc "$e" -o "$r/tmp/nomvec" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic nomvec (-lm) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 krbdir=/usr/lib/$ma
 krblibs=
 for f in libgssapi_krb5.so.2 libkrb5.so.3 libk5crypto.so.3 libkrb5support.so.0 libcom_err.so.2 libkeyutils.so.1; do
@@ -151,7 +188,10 @@ out=$(in_root /tmp/hello-static 2>&1) && case $out in *"hello from niji"*) true 
     pass "static hello runs in the root: $out" || fail "static hello in the root: $out"
 out=$(in_root /lib64/ld-linux-x86-64.so.2 --list /tmp/hello 2>&1) || true
 case $out in
-    *"libc.so.6 => /usr/lib/$ma/libc.so.6 "*) pass "ld.so --list in the root resolves libc.so.6 to /usr/lib/$ma/libc.so.6" ;;
+    # /lib is the merged-/usr link to /usr/lib: either spelling is the packaged file (the system
+    # build's loader prints /lib/$ma, the directory its search list names).
+    *"libc.so.6 => /lib/$ma/libc.so.6 "* | *"libc.so.6 => /usr/lib/$ma/libc.so.6 "*)
+        pass "ld.so --list in the root resolves libc.so.6 to the packaged /usr/lib/$ma/libc.so.6" ;;
     *) fail "ld.so --list in the root: $(echo "$out" | tr '\n' ' ')" ;;
 esac
 out=$(in_root /usr/sbin/ldconfig -p 2>&1) || true
@@ -160,9 +200,9 @@ case $out in
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
 # The seven dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
-# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2) by soname
-# at start (DL-START-SEARCH), and prints its line.
-for pe in "hello:hello from niji" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42" \
+# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2,
+# libanl.so.1, libBrokenLocale.so.1) by soname at start (DL-START-SEARCH), and prints its line.
+for pe in "hello:hello from niji" "threads:threads: total 40000" "devlinks:devlinks: MB_CUR_MAX 4" "except:except: caught" "iostream:iostream: 42" \
     "iostream-so:iostream: 42" "throwmain:throwmain: caught: throwlib: value 3 (throwlib)" \
     "resolv:resolv: a.test A 192.0.2.1 ttl 3600; cut header -1 EMSGSIZE"; do
     p=${pe%%:*}; want=${pe#*:}
@@ -171,6 +211,21 @@ for pe in "hello:hello from niji" "threads:threads: total 40000" "except:except:
         0:*"$want"*) pass "dynamic $p runs in the root: $(echo "$out" | head -1)" ;;
         *) fail "dynamic $p in the root exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
     esac
+done
+# -lm (issue #28): mvec needs libmvec.so.1 (the libm.so script's AS_NEEDED entry), which the loader
+# finds in the root, and prints sinf(1.0); nomvec needs libm.so.6 and not libmvec.so.1.
+for pe in ${mvec:+"mvec:0.8415:libmvec.so.1"} "nomvec:nomvec: sin(1) 0.8415:-"; do
+    p=${pe%%:*}; want=${pe#*:}; want=${want%:*}; lv=${pe##*:}
+    n=" $(readelf -dW "$r/tmp/$p" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+    case $lv:$n in
+        libmvec.so.1:*" libmvec.so.1 "*) ;;
+        -:*" libmvec.so.1 "*) fail "$p needs libmvec.so.1 ('$n'): -lm must add it only as needed" ;;
+        -:*" libm.so.6 "*) ;;
+        *) fail "$p needs '$n'" ;;
+    esac
+    out=$(in_root "/tmp/$p" 2>&1) && rc=0 || rc=$?
+    [ "$rc:$out" = "0:$want" ] && pass "dynamic $p (-lm) runs in the root: $out (needs$n)" ||
+        fail "dynamic $p (-lm) in the root exits $rc: '$(echo "$out" | head -3 | tr '\n' ' ')', not '$want'"
 done
 # krb5: the loader finds libresolv.so.2 in the root for libkrb5.so.3, and with LD_BIND_NOW every
 # symbol of every library (libkrb5.so.3's ns_initparse@GLIBC_2.9 among them) resolves before main.
@@ -191,7 +246,7 @@ fi
 for f in $cxxlibs $krblibs; do rm -f "$lib/$f"; done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
-if dpkg_r --force-remove-essential --force-depends -P libc6-dev libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
+if dpkg_r --force-remove-essential --force-depends -P libc6-dbg libc6-dev $standins libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
     (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
     left=$(comm -13 "$tmp/before" "$tmp/after" | tr '\n' ' ')
     [ -z "$left" ] && pass "purge leaves the empty root (and /etc/nsswitch.conf)" || fail "left after purge: $left"

@@ -1,0 +1,49 @@
+@@generated
+/* sys/sysmacros.h: device numbers: major, minor, makedev (makedev(3)). */
+#ifndef __NIJI_H_sys_sysmacros_h
+#define __NIJI_H_sys_sysmacros_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns major minor makedev
+@@emit
+
+/* makedev(3): the macros are the functions. A call is expanded in place (the Linux 64-bit dev_t encoding: 12 bits of
+   major and 8 of minor in the low word, the rest above bit 32 and bit 12), so a program that uses them binds to no
+   library symbol; taking the address of a function binds to the library's. */
+@@if major
+extern __inline __attribute__ ((__always_inline__, __gnu_inline__)) unsigned int
+gnu_dev_major (unsigned long int __dev)
+#ifdef __cplusplus
+  __NIJI_NOTHROW
+#endif
+{
+  return (unsigned int) (((__dev >> 8) & 0xfffUL) | ((__dev >> 32) & ~0xfffUL));
+}
+extern __inline __attribute__ ((__always_inline__, __gnu_inline__)) unsigned int
+gnu_dev_minor (unsigned long int __dev)
+#ifdef __cplusplus
+  __NIJI_NOTHROW
+#endif
+{
+  return (unsigned int) ((__dev & 0xffUL) | ((__dev >> 12) & ~0xffUL));
+}
+extern __inline __attribute__ ((__always_inline__, __gnu_inline__)) unsigned long int
+gnu_dev_makedev (unsigned int __major, unsigned int __minor)
+#ifdef __cplusplus
+  __NIJI_NOTHROW
+#endif
+{
+  return (((unsigned long int) (__major & 0xfffU) << 8) | ((unsigned long int) (__major & ~0xfffU) << 32)
+          | (__minor & 0xffU) | ((unsigned long int) (__minor & ~0xffU) << 12));
+}
+# define major(dev) gnu_dev_major (dev)
+# define minor(dev) gnu_dev_minor (dev)
+# define makedev(maj, min) gnu_dev_makedev (maj, min)
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -406,14 +406,16 @@ fn render(root: &Path, arch: Arch) -> Result<(String, String), String> {
         let name = rust_name(&t.name);
         if nodes.is_empty() {
             // Scalar or pointer typedef (pthread_t, pthread_key_t, ...): a transparent newtype.
-            let inner = match (t.size, t.align) {
-                (8, 8) => "u64",
-                (4, 4) => "u32",
-                (2, 2) => "u16",
-                (1, 1) => "u8",
+            let (repr, inner) = match (t.size, t.align) {
+                (8, 8) => ("transparent".to_string(), "u64".to_string()),
+                (4, 4) => ("transparent".to_string(), "u32".to_string()),
+                (2, 2) => ("transparent".to_string(), "u16".to_string()),
+                (1, 1) => ("transparent".to_string(), "u8".to_string()),
+                // A vector register type (`La_x86_64_xmm`: 16 bytes, aligned to 16): bytes of its size and alignment.
+                (s, a) if a.is_power_of_two() && s % a == 0 && s > 8 => (format!("C, align({a})"), format!("[u8; {s}]")),
                 _ => return Err(format!("{}: no members and no scalar of size {} align {}", t.name, t.size, t.align)),
             };
-            let _ = writeln!(g.out, "#[repr(transparent)]\n#[derive(Clone, Copy)]\npub struct {name}(pub {inner});\n");
+            let _ = writeln!(g.out, "#[repr({repr})]\n#[derive(Clone, Copy)]\npub struct {name}(pub {inner});\n");
             continue;
         }
         let union = t.name.starts_with("union ") || is_union("", &nodes);

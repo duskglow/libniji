@@ -1,0 +1,10 @@
+@@generated
+/* sys/elf.h: not an interface. Every configuration rejects it (spec/abi/visibility.tsv); the ELF definitions are <elf.h>. */
+#ifndef __NIJI_H_sys_elf_h
+#define __NIJI_H_sys_elf_h 1
+
+#include <features.h>
+
+#error "<sys/elf.h> declares nothing: include <elf.h> for the ELF definitions"
+
+#endif

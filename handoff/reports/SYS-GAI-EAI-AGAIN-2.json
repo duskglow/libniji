@@ -1,0 +1,20 @@
+{"task": "SYS-GAI-EAI-AGAIN-2", "model": "opus", "tokens": null,
+ "result": "getaddrinfo EAI_AGAIN / TRY_AGAIN when no DNS server answers (issue #8): gethostbyname_r errno fixed, clause test corrected, address-lookup cache rule now probed; offline reproduction equals the reference",
+ "branch": "task/sys-gai-eai-again-2", "head": "cabe069de",
+ "gate": {"affected": "6051 passed / 0 failed (direct tier, 7 suites ok)", "peak": null}, "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+   "networks database dns source (getnetbyname/getnetbyaddr and _r) with no server reachable: not probed, still Unavailable (out of scope, #6124); probe described in handoff/SYS-GAI-EAI-AGAIN.md",
+   "gnulib test-getaddrinfo not built (no gnutls28 source on the build host); the issue's offline reproduction was run instead (job sys-gai-eai-again-2-repro2)",
+   "s16_4_g_1 (existing test, not changed here) asserts elapsed-time windows around resolver timeouts"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "getaddrinfo with no reachable nameserver: EAI_AGAIN instead of EAI_SYSTEM/EAI_FAIL; gethostbyname/_r TRY_AGAIN with errno EAGAIN; getnameinfo EAI_AGAIN; gethostbyaddr TRY_AGAIN", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "name-service cache keeps nothing found by a lookup that got no DNS response (name and address lookups)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "gai_down differential scenarios (18 incl. recover_dnsfirst) and plants", "before": 6, "after": 12, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a plants run on a probe-only test showed a survivor that a single extra fixture scenario fixed; plant every site before trusting a differential probe's coverage",
+ "next_step": "none for this story; networks dns no-server probe if briefed (#6124)",
+ "report_file": "handoff/SYS-GAI-EAI-AGAIN.md",
+ "jobs": ["sys-gai-eai-again-2-gate2", "sys-gai-eai-again-2-plants2", "sys-gai-eai-again-2-repro2"]}

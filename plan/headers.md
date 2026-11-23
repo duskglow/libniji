@@ -225,9 +225,33 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
     declared;
   * a table name assigned to a header is missing or emitted twice;
   * a template defines a name that a table owns.
+* **Emitters (HEADERS-GEN-COMPLETE).** One module per construct family under `xtask/src/headers/`:
+  `aggregates.rs` (one recursive member emitter: anonymous and named nested aggregates at any depth,
+  bit-fields, packed and over-aligned layouts, tag members), `typedefs.rs` (scalar, qualified, vector,
+  array, function and incomplete types, C++ keyword character types), `functions.rs`, `objects.rs`,
+  `values.rs` (macro values, `@@init` initializers), `enums.rs` (enumerations from `enumerators.tsv`,
+  `@@enum TAG`), `types.rs` (type spelling)
+  and `cond.rs` (feature conditions); `headers.rs` keeps the tables, the dispatcher `Gen::item` and the
+  markers. The generator is complete for the tables: a construct a new row needs is added here, once.
 * **Generated tests.** For each header, a C TU and a C++ TU of `_Static_assert`s cover sizes,
   alignments, offsets, constant values and types, and prototype identity
   (`__builtin_types_compatible_p` against the typedef-resolved form). The gate compiles them.
+  The placement-independent rows test (`cargo xtask headers-gen --rows DIR`, `xtask/src/headers/rows.rs`,
+  unit test `every_table_row_is_emitted_and_matches_the_tables`) emits every table row through the
+  emitters in no header placement and checks it in C (gnu17) and C++ (gnu++17): sizes, alignments,
+  offsets and member types, bit-fields (their recorded `bits W@P` positions) and initializers at run time,
+  the enumerators and C++ enumerator types of each declared enumeration,
+  macro and constant values and types, typedef identity (vector typedefs in both languages), prototype
+  identity with `noexcept`, and per configuration family the symbols call sites reference. A row the
+  generator cannot emit fails unless `headers/rows-exceptions.tsv` lists it with a reason; each new
+  exception is a RULING NEEDED of the change that adds it. Ratchet (HEADERS-TABLES-COMPLETE): the
+  exception list only shrinks; a missing table datum is added to the table, not excepted.
+* **Table formats the generator reads (HEADERS-TABLES-COMPLETE).** `enumerators.tsv` (`tag`, `name`,
+  `value`): every named enumeration of the extraction's DWARF probe, enumerators in declaration order.
+  `layouts.tsv` lists members at every depth, an array of aggregates by its first element
+  (`sort_list.addr`); an `<anon>` row's `size N rows K` counts its K member rows at its own level (the
+  rows below each follow it); a bit-field's `bits W@P` is its width and its first bit counted from the low
+  bit of the storage unit at the row's byte offset (psABI little-endian).
 * **Staging.** `cargo xtask so` stages `target/niji/include`. Tests compile with `-nostdinc`,
   `-isystem` on libniji's headers, the compiler's include directory, and a staging of the build
   host's `linux-libc-dev` directories (`linux`, `asm`, `asm-generic`, ...).
@@ -293,6 +317,34 @@ depend only on 6 and may run in parallel.
 | 18 | fortify | M | 4, 6, 7, 10, 12 | `_FORTIFY_SOURCE` 1..3 from GCC's object-size builtins and C.9's `_chk` shapes | P3 at -O2 with every `*_chk` export reached; deliberate overflows abort as the spec says; P7 with `dpkg-buildflags` |
 | 19 | diagnostic attributes | S | 6 | `format`, `nonnull`, `warn_unused_result`, `malloc`/`alloc_size`, `deprecated`, `noreturn`, from the standards and a warning differential | the same warnings (code and line) as the reference headers on a probe corpus with `-Wall -Wextra -Wformat=2` |
 | 20 | switch and package | M | all | the full C++ check (P4); `niji-gcc`/`niji-cc` default to libniji's headers; `niji6-dev` installs them (`/usr/lib/niji/include`; SL-FLAVOUR gets `/usr/include` and the multiarch directory) | P4; P6 for all 154 programs; P7 for the whole smoke corpus; differences rows for anything accepted |
+
+### 4.1 Adding a slice (SL-HEADERS-REGISTRY)
+
+Slices run in parallel, so a slice **adds files and edits no shared list or function** of the tools.
+Slice `N` (two digits, `s07`) adds:
+
+* its templates `headers/<path>.h.in` (one file per header);
+* `headers/slices/sNN.tsv`: one row per header it ships, columns `header`, `p1` (`1`: the table P1
+  units of `spec/tools/header_check.py` cover it) and `uapi` (the kernel UAPI headers P8 pairs it with,
+  comma-separated, `-` for none). P5 runs on every row. `headers-gen --check` and `header_check.py`
+  refuse a row whose header has no template, a header in two rows and a template in no row, naming
+  the row (`headers/slices/s09.tsv:7`);
+* only if it has checks of its own: `spec/tools/header_checks/sNN.py` with `units(ctx)` (a list of
+  `(configuration id, label, unit text)`) and optionally `problems(ctx)` (FAIL messages). `ctx` holds the
+  tables header_check loads once (`cfgs`, `ids`, `vis`, `macros`, `typedefs`, `layouts`, `slice_rows`,
+  `rows()`, `hp`). header_check lists the directory;
+* only if its templates need a marker of their own: `xtask/src/headers/slices/sNN.rs` with
+  `pub(super) const SLICE: Slice` (line markers, inline tokens, names linked from elsewhere).
+  `xtask/build.rs` lists the directory, so there is no `mod` line to add; a marker defined twice is a
+  `headers-gen` error.
+
+**The slice contract (owner, 11-19; HEADERS-GEN-COMPLETE).** A slice adds data only: the four kinds of
+file above. It never changes the emitter modules (`xtask/src/headers.rs`, `xtask/src/headers/*.rs`
+outside `slices/`) or `spec/tools/header_check.py`. `cargo xtask precheck` enforces it: its check
+`slice-contract` is red for an `SL-HEADERS-*` story whose branch changes any of them and prints a
+`RULING NEEDED` line naming the files, so the change is ruled on (and made once, in the generator, by a
+story of its own) instead of merged as a conflict. A construct the generator lacks is a generator story;
+a row it cannot emit yet is a `headers/rows-exceptions.tsv` row with a reason.
 
 `plan/system-libc.md` §6 item 7 becomes these slices. Its item 11 (SL-BOOTSTRAP-ESSENTIAL) needs
 slice 20 and, under R-H6, slice 18.

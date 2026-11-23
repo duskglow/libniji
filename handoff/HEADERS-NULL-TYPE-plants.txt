@@ -1,0 +1,4 @@
+# HEADERS-NULL-TYPE plants: the per-language `null` macro type; the rows test must fail a wrong spelling in either language.
+null-cxx-spelling | xtask/src/headers/values.rs | lit:format!("#   define {name} __null") ==> format!("#   define {name} ((void *) 0)") | cargo test -p xtask --bin xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:every_table_row_is_emitted_and_matches_the_tables.*FAILED|panicked
+null-c-type | xtask/src/headers/values.rs | lit:format!("#   define {name} ((void *) 0)") ==> format!("#   define {name} ((char *) 0)") | cargo test -p xtask --bin xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables | msg:every_table_row_is_emitted_and_matches_the_tables.*FAILED|panicked
+null-value-check | xtask/src/abi_types.rs | lit:if value != "0" { ==> if false { | cargo test -p xtask --bin xtask abi_types::tests::null_constants | msg:null_constants.*FAILED|panicked

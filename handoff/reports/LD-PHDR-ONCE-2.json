@@ -1,0 +1,96 @@
+{
+ "task": "LD-PHDR-ONCE-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "LD-PHDR-ONCE merged with next (LIBC-SELF-BIND-2): empty dynamic main 331,733 -> 272,134 instructions (-18.0%), 3 libraries 492,864 -> 381,399 (release products, Zen 1; Skylake-SP 331,768 -> 272,251); DYN_START_INSTR re-set from the merged level",
+ "branch": "task/ld-phdr-once-2",
+ "head": "93231ffa0",
+ "gate": {
+  "affected": "932 passed / 0 failed (11 suites, direct tier, job ld-phdr-once-2-gate)",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "read_phdr-class work <= 10k on the empty main: NOT VERIFIED as such; Intel PT (Skylake-SP): read_phdr's own 47,847 instructions are gone (its reads inline into the walks, so the walks are no longer separable by symbol); the 13 functions holding them went 95,700 -> 35,942 exclusive",
+  "Skylake-SP DYN_START_INSTR row: hot_text_products not run there; bound = Zen 1 test level + the kit's measured +117 cross-host offset on the same release products, + 2%",
+  "the STARTUP-REPROFILE kit is on task/startup-reprofile, not on next yet; the copies on both hosts match it (sha256)",
+  "base and cross-host counts, not on the head so not in jobs: ld-phdr-once-2-base-count (keke, next 5f07429d3 release products), mei:ld-phdr-once-2-base-sky, mei:ld-phdr-once-2-head-sky, mei:ld-phdr-once-2-base-pt (the same product files counted on the Skylake-SP host), all rc 0; ld-phdr-once-2-levels ran on 67c3ff429, the same code as the head before the bounds were set"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "empty dynamic main, exec to exit, release products, Zen 1 host (merged with next 5f07429d3)",
+   "before": 331733,
+   "after": 272134,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "empty dynamic main, exec to exit, release products, Skylake-SP host",
+   "before": 331768,
+   "after": 272251,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "main calling three one-function libraries, release products, Zen 1 host",
+   "before": 492864,
+   "after": 381399,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "/bin/true under the libniji interpreter, release products, Zen 1 host",
+   "before": 393199,
+   "after": 332509,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "marginal cost of one more loaded object, release products, Zen 1 host",
+   "before": 53710,
+   "after": 36422,
+   "unit": "instr/object",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "ld.so .text, release products",
+   "before": 369639,
+   "after": 363751,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants rerun on the merged head (8, all CAUGHT, no WARN)",
+   "before": null,
+   "after": 8,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "LD-OBJECT-ONCE, LD-RELR-LOOP, LIBC-INIT-ARRAY-REFS start after this lands",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the coordinator's note pointed to a kit 'on next' that is only on task/startup-reprofile; a brief that names a kit could carry its branch and sha so a run does not search for it",
+ "next_step": "land (the CI train runs the FULL gate)",
+ "report_file": "handoff/LD-PHDR-ONCE.md",
+ "jobs": [
+  "ld-phdr-once-2-gate",
+  "ld-phdr-once-2-plants",
+  "ld-phdr-once-2-startup",
+  "ld-phdr-once-2-levels"
+ ]
+}

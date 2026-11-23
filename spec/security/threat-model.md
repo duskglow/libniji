@@ -72,7 +72,7 @@ absent from the candidate list could not be observed: the list covers what docum
 | `PWD` | `get_current_dir_name` | **kept**; ignored on read (the physical path is returned) | D-13.14 (owner ruling) |
 | `NIJI_NSCACHE` | the name-service cache | kept; ignored on read (the cache stays private in secure mode anyway) | D-16.10 |
 | `NIJI_AIO_URING` | AIO engine (`0` forces worker threads) | kept; ignored on read (secure processes use threads anyway) | D-11.11 (owner ruling) |
-| `TZ` | time-zone selection | kept; a zone name or a POSIX rule is honoured; a path (absolute, or `:path`) is honoured only when it lies inside the default zone directory `/usr/share/zoneinfo`; a path outside it, or any value with a `..` component, reads no file and gives offset 0 (abbreviated, as any value that is neither a zone nor a rule, by its leading valid name, empty if none: the DL-0a table); `TZDIR` is cleared, so a relative name always resolves under the default directory | owner approval #2661 (2026-11-04, DL-0d section A); DL-0a probe (`spec/behaviour/dynlink-secure.md`): the reference does the same, so no differences row |
+| `TZ` | time-zone selection | kept; a zone name or a POSIX rule is honoured; a path (absolute, or `:path`) is honoured only when it lies inside the default zone directory `/usr/share/zoneinfo`; a path outside it, or any value with a `..` component, reads no file and is taken as a rule, as a value that names no zone file: a path gives offset 0 (abbreviated, as any value that is neither a zone nor a rule, by its leading valid name, empty if none: the DL-0a table), while a valid rule before a `..` stays that rule (`JST-9/../x` is `+9 JST`); "inside" is compared component by component after empty and `.` components are dropped (`/usr/share/zoneinfo//Asia/./Tokyo` is inside); `TZDIR` is cleared and ignored, so a relative name always resolves under the default directory (`crates/core/src/time.rs` `load`; tests `time_load` and `conformance/c/s23_tz_secure.c`) | owner approval #2661 (2026-11-04, DL-0d section A); DL-0a probe (`spec/behaviour/dynlink-secure.md`): the reference does the same, so no differences row |
 | `LD_ASSUME_KERNEL`, `LD_PROFILE_OUTPUT`, `LD_TRACE_LOADED_OBJECTS` | the dynamic loader (phase 14) | kept in the environment (not on the reference's list); the loader does not act on them in a secure process (loader rule 1): with `LD_TRACE_LOADED_OBJECTS` set, even empty, the program runs normally | ld.so(8); DL-0a probe: the reference keeps them and does not act on them |
 | `MALLOC_CHECK_`, `LD_USE_LOAD_BIAS`, other names | not read | kept (the reference keeps them too) | probe |
 
@@ -181,13 +181,20 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
    containing a token is refused (probe: `dlopen("$ORIGIN/lib/x.so")` fails with `cannot open
    shared object file`, no expansion); any element that is relative after expansion, or empty, is
    skipped. Outside secure mode `$ORIGIN` is the directory of the requesting object's resolved
-   path (for the program the kernel's `AT_EXECFN`, not `/proc/self/exe`), or `LD_ORIGIN_PATH`
-   when that cannot be determined.
+   path, or `LD_ORIGIN_PATH` when that cannot be determined. For a kernel-started program it is
+   the directory of the file the kernel ran, read from `/proc/self/exe` only when a search expands
+   the token (probe, DL-NAME-PATH-2: absolute with links resolved, a link to the program's file
+   included; with `/proc` hidden the origin is unknown and `LD_ORIGIN_PATH` is used as given);
+   for `ld.so PROGRAM` it is the directory of the path as given, after the working directory
+   when relative, or of the path the loader cache gives for a name without `/` (rule 3).
 3. **No search path may silently mean the current directory in a secure process.** An empty
    element and a relative element of any search list are skipped. Outside secure mode they mean
    the current directory, as documented. A `dlopen` name with a `/` that does not start with `/`
    is opened relative to the current directory in both modes (documented behaviour, and the
-   program chose it; probe: the reference does the same in both modes).
+   program chose it; probe: the reference does the same in both modes). `ld.so PROGRAM` (and
+   `--list PROGRAM`) with no `/` in PROGRAM never opens it from the current directory: the name is
+   looked up in the loader cache only, and a cache path that is not absolute is not used (D-27.69;
+   probe: the reference uses neither the current directory nor `LD_LIBRARY_PATH` for it).
 4. **Parsing never trusts lengths, offsets or counts:** every program header, segment, dynamic
    entry, relocation, symbol, version and hash table access is bounds-checked against the mapped
    file, before mapping anything executable; a malformed object is refused with a diagnostic, never
@@ -259,7 +266,7 @@ the executed file). Every rule needs its test before DL-29 closes:
 | Rule | Test it needs |
 |---|---|
 | 1 | Set-group-ID program with `LD_LIBRARY_PATH` (absolute, empty and relative elements), `LD_PRELOAD` and `LD_AUDIT` (absolute path, untrusted and trusted directory; bare name without a set-ID bit) and `GLIBC_TUNABLES`: no listed object is loaded, the `LD_PRELOAD` bare-name message is printed and the program runs; a private `/etc/ld.so.preload` (user and mount namespace) is honoured. The set-ID-bit case stays untested until the root probe is ruled |
-| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` follows `AT_EXECFN` |
+| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` is the directory of `/proc/self/exe` (links resolved), `LD_ORIGIN_PATH` when `/proc` is hidden |
 | 3 | Empty and relative `DT_RUNPATH`/`LD_LIBRARY_PATH` elements with the library in the current directory: skipped in secure mode, found in plain mode; `dlopen("lib/x.so")` loads from the current directory in both modes |
 | 4 | Malformed ELF corpus (truncated headers, out-of-range offsets and counts, overlapping segments, a writable and executable `PT_LOAD`): refused with a diagnostic, no crash; fuzz target `elf` in the security pass; mapped permissions read back from `/proc/self/maps`, `PT_GNU_RELRO` read-only after relocation |
 | 5 | Cache corpus (missing, empty, garbage, cut to 16 bytes, cut to half, out-of-range string offsets): the program starts and falls back to the default directories; fuzz target `cache`; an `ld.so.conf` directory does not count as trusted for rules 1 and 2 |

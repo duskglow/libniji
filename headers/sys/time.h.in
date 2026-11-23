@@ -1,0 +1,33 @@
+@@generated
+/* sys/time.h: time types (XSH <sys/time.h>); the timeval operations are BSD. */
+#ifndef __NIJI_H_sys_time_h
+#define __NIJI_H_sys_time_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns FD_CLR FD_ISSET FD_SET FD_ZERO
+@@emit
+
+# if __NIJI_MISC
+#  define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
+#  define timerclear(tvp) ((tvp)->tv_sec = (tvp)->tv_usec = 0)
+#  define timercmp(a, b, CMP) (((a)->tv_sec == (b)->tv_sec) ? ((a)->tv_usec CMP (b)->tv_usec) : ((a)->tv_sec CMP (b)->tv_sec))
+#  define timeradd(a, b, result) do { (result)->tv_sec = (a)->tv_sec + (b)->tv_sec; (result)->tv_usec = (a)->tv_usec + (b)->tv_usec; if ((result)->tv_usec >= 1000000) { ++(result)->tv_sec; (result)->tv_usec -= 1000000; } } while (0)
+#  define timersub(a, b, result) do { (result)->tv_sec = (a)->tv_sec - (b)->tv_sec; (result)->tv_usec = (a)->tv_usec - (b)->tv_usec; if ((result)->tv_usec < 0) { --(result)->tv_sec; (result)->tv_usec += 1000000; } } while (0)
+# endif
+/* select(2): the bit of a descriptor in an fd_set (the same text as <sys/types.h>). */
+@@when FD_SET
+# ifndef FD_SET
+#  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

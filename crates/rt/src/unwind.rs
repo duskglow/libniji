@@ -597,6 +597,10 @@ struct Cie<'a> {
     ptr_enc: u8,
     augmented: bool,
     signal: bool,
+    /// The augmentation names a personality routine (`P`).
+    personality: bool,
+    /// The encoding of the FDEs' language-specific data pointer (`L`), if they carry one.
+    lsda_enc: Option<u8>,
     insns: Cursor<'a>,
 }
 
@@ -619,7 +623,7 @@ impl<'a> Cie<'a> {
         let data_align = c.sleb()?;
         let ra = if version == 1 { u64::from(c.u8()?) } else { c.uleb()? };
         let ra = addr_of(ra).filter(|&r| r < REGS)?;
-        let mut cie = Cie { code_align, data_align, ra, ptr_enc: 0, augmented: false, signal: false, insns: c };
+        let mut cie = Cie { code_align, data_align, ra, ptr_enc: 0, augmented: false, signal: false, personality: false, lsda_enc: None, insns: c };
         if let Some((&b'z', letters)) = aug.split_first() {
             cie.augmented = true;
             let n = c.len()?;
@@ -627,12 +631,11 @@ impl<'a> Cie<'a> {
             for &l in letters {
                 match l {
                     b'R' => cie.ptr_enc = data.u8()?,
-                    b'L' => {
-                        data.u8()?;
-                    }
+                    b'L' => cie.lsda_enc = Some(data.u8()?),
                     b'P' => {
                         let enc = data.u8()?;
                         data.value(enc)?;
+                        cie.personality = true;
                     }
                     b'S' => cie.signal = true,
                     b'B' | b'G' => {}
@@ -653,6 +656,10 @@ struct Fde<'a> {
     begin: usize,
     end: usize,
     cie: Cie<'a>,
+    /// The function has exception-handling work for an unwind (D-22.23): its CIE names a
+    /// personality routine and its language-specific data pointer is not null (or cannot be
+    /// read, or the CIE gives none: the personality still runs).
+    handler: bool,
     insns: Cursor<'a>,
 }
 
@@ -662,11 +669,13 @@ impl<'a> Fde<'a> {
         let begin = c.pointer(cie.ptr_enc, None)?;
         let len = addr_of(c.value(cie.ptr_enc)?)?;
         let end = begin.checked_add(len)?;
+        let mut handler = false;
         if cie.augmented {
             let n = c.len()?;
-            c.take(n)?;
+            let mut data = c.sub(n)?;
+            handler = cie.personality && cie.lsda_enc.is_none_or(|enc| data.pointer(enc, None) != Some(0));
         }
-        Some(Fde { begin, end, cie, insns: c })
+        Some(Fde { begin, end, cie, handler, insns: c })
     }
 
     fn covers(&self, pc: usize) -> bool {
@@ -1095,19 +1104,25 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
 /// with the start of the function covering it (`None` where no object describes it, which
 /// ends the walk); it returns whether to go on.
 fn walk<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<usize>) -> bool) {
+    walk_with(|look| locate(objects, look).map(|(o, f)| (*o, f)), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
+}
+
+/// [`walk`] with the object holding an address and the FDE covering it found by `locate`, and
+/// the FDE itself passed to `visit` (the object is copied: a few hundred bytes per frame).
+fn walk_with<'a, M: Memory>(mut locate: impl FnMut(usize) -> Option<(Object<'a>, Fde<'a>)>, mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<&Fde<'a>>) -> bool) {
     let mut regs = start;
     let mut exact = false;
     let mut first = true;
     loop {
         let Some(pc) = regs.get(RA).filter(|&p| p != 0).and_then(addr_of) else { return };
         let look = if exact { pc } else { pc.wrapping_sub(1) };
-        let found = locate(objects, look);
-        if !first && !visit(pc, found.map(|(_, f)| f.begin)) {
+        let found = locate(look);
+        if !first && !visit(pc, found.as_ref().map(|(_, f)| f)) {
             return;
         }
         first = false;
         let Some((obj, fde)) = found else { return };
-        let Some(next) = step(obj, &fde, &regs, mem, look) else { return };
+        let Some(next) = step(&obj, &fde, &regs, mem, look) else { return };
         if next.get(RA) == regs.get(RA) && next.get(RSP) == regs.get(RSP) {
             return; // no progress
         }
@@ -1151,6 +1166,28 @@ pub fn caller<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, inside: &
         }
         found = Some(pc);
         false
+    });
+    found
+}
+
+/// Whether a frame above `start` belongs to a function with exception-handling work for an
+/// unwind (a personality routine and language-specific data: `-fexceptions` cleanups, C++
+/// destructors and handlers; D-22.23), looking at most `max` frames. Functions starting at one
+/// of `skip` do not count (the C library's own guards, whose undo its exit runs without an
+/// unwinder). The object holding an
+/// address is the first of `objects` that holds it, else `find(address)`. A walk that ends
+/// early (an address no object describes, a row that cannot be evaluated, `max`) answers for
+/// the frames it saw.
+pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, skip: &[usize], mem: &M, start: Regs, max: usize) -> bool {
+    let (mut seen, mut found) = (0usize, false);
+    let locate = |look: usize| match locate(objects, look) {
+        Some((o, f)) => Some((*o, f)),
+        None => find(look).and_then(|o| Some((o, o.fde_for(look)?))),
+    };
+    walk_with(locate, mem, start, |_, fde| {
+        found = fde.is_some_and(|f| f.handler && !skip.contains(&f.begin));
+        seen = seen.saturating_add(1);
+        !found && seen < max
     });
     found
 }
@@ -1225,7 +1262,7 @@ mod tests {
 
     #[test]
     fn remember_depth_is_bounded() {
-        let cie = Cie { code_align: 1, data_align: -8, ra: RA, ptr_enc: 0x1b, augmented: true, signal: false, insns: cursor(&[]) };
+        let cie = Cie { code_align: 1, data_align: -8, ra: RA, ptr_enc: 0x1b, augmented: true, signal: false, personality: false, lsda_enc: None, insns: cursor(&[]) };
         let mut row = Row::new(RA);
         let deep = [0x0a; REMEMBER_DEPTH + 1];
         assert!(run(&mut row, None, cursor(&deep[..REMEMBER_DEPTH]), &cie, 0, 10).is_some());
@@ -1240,7 +1277,7 @@ mod tests {
     /// A CIE for row tests: code factor 1, data factor `data`, return address column 16,
     /// absolute 8-byte pointers (for `DW_CFA_set_loc`).
     fn row_cie(data: i64) -> Cie<'static> {
-        Cie { code_align: 1, data_align: data, ra: RA, ptr_enc: 0x00, augmented: true, signal: false, insns: cursor(&[]) }
+        Cie { code_align: 1, data_align: data, ra: RA, ptr_enc: 0x00, augmented: true, signal: false, personality: false, lsda_enc: None, insns: cursor(&[]) }
     }
 
     /// The row at `target` after the CIE instructions `initial` and the FDE instructions `fde`

@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use niji_boundary::sys::CSys;
-use niji_kernel::errno::Errno;
+use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::Timespec;
-use niji_rt::futex::Clock;
+use niji_rt::futex::{Clock, Scope};
 use niji_rt::pthread_sync::{self as ps, Barrier, Cond, Ctx, LockWait, Mutex, RwLock, Sem};
 
 struct T;
@@ -369,6 +369,9 @@ fn rwlocks_share_readers_exclude_writers_and_detect_self_deadlock() {
         r.write(&T, LockWait::Block).unwrap();
         assert_eq!(r.write(&T, LockWait::Block), Err(Errno::EDEADLK));
         assert_eq!(r.read(&T, LockWait::Block), Err(Errno::EDEADLK));
+        // The try forms report a lock the caller holds for writing as busy (issue #15).
+        assert_eq!(r.read(&T, LockWait::Try), Err(Errno::EBUSY));
+        assert_eq!(r.write(&T, LockWait::Try), Err(Errno::EBUSY));
         assert_eq!(r.destroy(), Err(Errno::EBUSY));
         r.unlock(&T).unwrap();
         assert_eq!(r.unlock(&T), Err(Errno::EPERM));
@@ -480,4 +483,103 @@ fn a_priority_inheritance_mutex_never_takes_the_plain_fast_path() {
     assert_eq!(p.w[0].load(SeqCst), T.tid(), "PI lock word");
     p.mutex().unlock(&T).unwrap();
     assert_eq!(p.w[0].load(SeqCst), 0);
+}
+
+/// A thread whose every futex wait the kernel refuses with one error (a rejected argument, a
+/// seccomp filter), counting the waits. Its TID (1) is no other holder's.
+struct Refused {
+    err: Errno,
+    waits: AtomicU32,
+}
+
+/// Refused waits a call may make before it is retrying forever (one is enough for every loop).
+const RETRIES: u32 = 1000;
+
+impl Ctx for Refused {
+    type S = CSys;
+    fn sys(&self) -> &CSys {
+        &CSys
+    }
+    fn tid(&self) -> u32 {
+        1
+    }
+    fn robust(&self) -> Option<&[AtomicUsize; 3]> {
+        None
+    }
+    fn links(&self, _: usize) -> Option<&[AtomicUsize]> {
+        None
+    }
+    fn wait(&self, _: &AtomicU32, _: u32, _: Scope, _: Option<(Clock, &Timespec)>, _: bool) -> KResult<()> {
+        let n = self.waits.fetch_add(1, SeqCst) + 1;
+        assert!(n <= RETRIES, "a refused wait ({:?}) was retried {n} times", self.err);
+        Err(self.err)
+    }
+}
+
+#[test]
+fn a_wait_the_kernel_refuses_ends_the_call_with_its_error() {
+    // no spec clause (TIMED-WAIT-PAST-DEADLINE): a wait that ends neither by a wake-up (EAGAIN,
+    // EINTR) nor by ETIMEDOUT can never succeed when retried, so every blocking and timed lock,
+    // condition-variable and semaphore wait returns the kernel's error instead of looping.
+    let past = Timespec { sec: 1, nsec: 0 };
+    for err in [Errno::EINVAL, Errno::ENOSYS, Errno::EFAULT] {
+        for how in [LockWait::Block, LockWait::Until(Clock::Monotonic, &past), LockWait::Until(Clock::Realtime, &past)] {
+            let r = Refused { err, waits: AtomicU32::new(0) };
+            let deadline = match how {
+                LockWait::Until(c, t) => Some((c, t)),
+                _ => None,
+            };
+            // Mutexes another thread holds: plain, adaptive, priority-protected, robust.
+            for kind in [ps::MUTEX_NORMAL, ps::MUTEX_ADAPTIVE, ps::KIND_PP, ps::KIND_ROBUST] {
+                let m = Obj::new(10);
+                m.mutex().init(kind, 0);
+                m.mutex().lock(&T, LockWait::Block).unwrap();
+                assert_eq!(m.mutex().lock(&r, how), Err(err), "mutex kind {kind}");
+                m.mutex().unlock(&T).unwrap();
+            }
+            // A condition-variable wait, which returns with the mutex held.
+            let (m, c) = (Obj::new(10), Obj::new(12));
+            m.mutex().init(ps::MUTEX_NORMAL, 0);
+            Cond::new(&c.w).init(0);
+            m.mutex().lock(&r, LockWait::Block).unwrap();
+            assert_eq!(Cond::new(&c.w).wait(&r, &m.mutex(), deadline), Err(err), "cond");
+            m.mutex().unlock(&r).unwrap();
+            // Read and write locks of a read-write lock held the other way.
+            let l = Obj::new(14);
+            RwLock::new(&l.w).init(ps::RW_PREFER_READER, false);
+            RwLock::new(&l.w).write(&T, LockWait::Block).unwrap();
+            assert_eq!(RwLock::new(&l.w).read(&r, how), Err(err), "rwlock read");
+            RwLock::new(&l.w).unlock(&T).unwrap();
+            RwLock::new(&l.w).read(&T, LockWait::Block).unwrap();
+            assert_eq!(RwLock::new(&l.w).write(&r, how), Err(err), "rwlock write");
+            RwLock::new(&l.w).unlock(&T).unwrap();
+            // A semaphore at 0.
+            let s = Obj::new(8);
+            Sem::new(&s.w).init(0, false).unwrap();
+            assert_eq!(Sem::new(&s.w).wait(&r, how), Err(err), "semaphore");
+        }
+    }
+}
+
+#[test]
+fn a_deadline_with_a_negative_second_has_passed() {
+    // Clauses: s22_4_c_5, s22_7_c_2 (TIMED-WAIT-PAST-DEADLINE): a negative tv_sec is before every
+    // reading of either clock; the wait times out at once, where the kernel would refuse it.
+    for clock in [Clock::Realtime, Clock::Monotonic] {
+        for sec in [-1, i64::MIN] {
+            let at = Timespec { sec, nsec: 0 };
+            let m = Obj::new(10);
+            m.mutex().init(ps::MUTEX_NORMAL, 0);
+            m.mutex().lock(&T, LockWait::Block).unwrap();
+            let m2 = Arc::clone(&m);
+            let r = std::thread::spawn(move || m2.mutex().lock(&T, LockWait::Until(clock, &at))).join().unwrap();
+            assert_eq!(r, Err(Errno::ETIMEDOUT), "contended mutex, {clock:?} {sec}");
+            m.mutex().unlock(&T).unwrap();
+            assert_eq!(m.mutex().lock(&T, LockWait::Until(clock, &at)), Ok(()), "a free mutex is taken");
+            m.mutex().unlock(&T).unwrap();
+            let s = Obj::new(8);
+            Sem::new(&s.w).init(0, false).unwrap();
+            assert_eq!(Sem::new(&s.w).wait(&T, LockWait::Until(clock, &at)), Err(Errno::ETIMEDOUT), "semaphore at 0, {clock:?} {sec}");
+        }
+    }
 }

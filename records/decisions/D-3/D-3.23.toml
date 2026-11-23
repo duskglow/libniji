@@ -1,0 +1,12 @@
+id = "D-3.23"
+section = "s03"
+spec = "§3.1"
+ann = "—"
+status = "active"
+amends = ["D-3.12", "D-3.22"]
+story = "HEAP-SPILL-COLD-2"
+date = "2026-11-22"
+tests = ["crates/rt/tests/heap_and_sync.rs", "crates/core/tests/heap_meta_products.rs"]
+body = '''
+**Under an address-space limit, a shard about to map a new segment first takes the slabs other shards hold** (HEAP-SPILL-COLD-2, ruling #7441). A thread that changes NUMA node mid-run refills from its new node's shard; with no segment there, that shard mapped one (`SEG_MIN`: 256 KiB of metadata and 16 slabs, 4352 KiB of address space) even while the first node's shard held never-used or empty slabs. Now, when the process has an `RLIMIT_AS` and another shard holds such a slab (its `empty` list or its segment's mapped, never-used part, read without that shard's lock as a hint), `new_segment` maps nothing and `refill` takes the slab through `take_elsewhere`, one shard lock at a time as before; the slab keeps its segment's home shard, so frees return it there. When the hinted slab is gone by then, the request gets a mapping of its own (`alloc_large`), as under a limit that fits no segment. Without a limit placement stays per node (D-3.12): the idle part of the second node's segment is address space only, never a touched page, and the slabs stay local to the node that uses them. The check is one cold, out-of-line function (`held_elsewhere`) called only where a segment would be mapped for a node other than the first reservation's. Measured with `oracle/heap_address_space.c` moved from the first node's CPUs to a CPU of the second at four points (the least `RLIMIT_AS` over start, KiB, fixed layout, identical on the Zen 1 and Skylake-SP build hosts, 3 of 3 runs): after malloc1 45648 -> 43600, halfway through alloc 41552 -> 41552, after alloc 41552 -> 41552, after refill 45648 -> 41296 (one node throughout: 41296 both). What is left: the second node's metadata (256 KiB, per-node segments) and, after malloc1, its new segment's 16 slabs against the 8 of the first node's next growth (+2048). Tests: `under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_segment` (rt), `the_heap_bounds_address_space_after_a_node_change` (core, per move point, beside the single-node `the_heap_keeps_address_space_near_its_use`; skipped with why when the process's CPUs span one node).
+'''

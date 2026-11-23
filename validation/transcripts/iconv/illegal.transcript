@@ -1,0 +1,14 @@
+name: invalid input: output up to it, position, exit 1
+clause: s31_6_f_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1
+stdin:
+|~ ab\xffcd\n
+status: exit 1
+stdout:
+|~ ab
+stderr:
+| iconv: illegal input sequence at position 2

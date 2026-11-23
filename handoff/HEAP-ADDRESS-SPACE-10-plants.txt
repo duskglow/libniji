@@ -1,0 +1,22 @@
+# HEAP-ADDRESS-SPACE-10 plants (cargo xtask plants; docs/plants.md): map_aligned_exactly's gap blocking (the exact
+# placement under an address-space limit) against kernel_pages_map_aligned_past_a_gap_without_an_aligned_range, and
+# the -9 test against the reshaped candidate code.
+# exact-no-block: a gap without an aligned range is never blocked, so every round probes the same gap.
+# exact-one-round: one probe only (EXACT_ROUNDS 1), the code before this run.
+# exact-step-wide: blockers two steps apart, so a whole segment's gap keeps a free piece that fits.
+# exact-start-high: blocking starts a step too high (none placed for a whole segment).
+# exact-blockers-left: the blockers are never removed (the pinned gap stays taken).
+# room-head-unmapped: (-9's plant, re-anchored) the candidates are mapped from the aligned address, not `head` before it.
+exact-no-block | crates/boundary/src/heap.rs | lit:if to.saturating_sub(from).div_ceil(step) > EXACT_BLOCKERS { ==> if true { | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:an aligned SEG range from another gap
+exact-one-round | crates/boundary/src/heap.rs | lit:const EXACT_ROUNDS: usize = 8; ==> const EXACT_ROUNDS: usize = 1; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:an aligned SEG range from another gap
+exact-step-wide | crates/boundary/src/heap.rs | lit:let step = (total & !(PAGE - 1)).max(PAGE); ==> let step = (total & !(PAGE - 1)).max(PAGE).saturating_mul(2); | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:an aligned SEG range from another gap
+exact-start-high | crates/boundary/src/heap.rs | lit:let mut at = from.saturating_add(step); ==> let mut at = from.saturating_add(step).saturating_add(step); | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:an aligned SEG range from another gap
+exact-blockers-left | crates/boundary/src/heap.rs | lit:let _ = raw::munmap(b, PAGE); ==> let _ = b; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:the pinned gap is whole again
+room-head-unmapped | crates/boundary/src/heap.rs | lit:map_fixed_noreplace(a.checked_sub(head)?, total ==> map_fixed_noreplace(a, total | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:kernel_pages_map_aligned_under_an_address_space_limit.*FAILED|in isolation
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# exact-no-block: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range
+# exact-one-round: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range
+# exact-step-wide: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range
+# exact-start-high: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range
+# exact-blockers-left: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range
+# room-head-unmapped: CAUGHT, caught by s03_memory_symbols kernel_pages_map_aligned_under_an_address_space_limit

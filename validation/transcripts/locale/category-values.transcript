@@ -1,0 +1,59 @@
+name: locale LC_MONETARY: the values only
+clause: s31_7_g_4
+command: locale
+namespace: user
+# The installed C.utf8 (part of the C library package on every system; the reference has no built-in C.UTF-8).
+dir: i18n
+dir: i18n/charmaps
+bind: i18n /usr/share/i18n
+env: LC_ALL=C.UTF-8
+arg: LC_MONETARY
+status: exit 0
+stdout:
+|
+|
+|
+|
+| -1
+|
+|
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+|
+|
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| -1
+| 10101
+| 99991231
+| 10101
+| 99991231
+| 1;1
+| 0
+| 0
+| UTF-8
+stderr:

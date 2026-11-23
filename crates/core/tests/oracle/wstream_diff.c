@@ -149,6 +149,7 @@ static void orientation(void) {
     FILE *f = tmpfile();
     num(fwide(f, 0)); ch(' '); num(fwide(f, 5)); ch(' '); num(fwide(f, -3)); ch(' '); num(fwide(f, 0)); ch('\n');
     str("fgetc on wide: "); num(fgetc(f)); state(f);
+    clearerr(f); /* the indicators of the line above differ by D-12.27; the lines below compare */
     str("fputs on wide: "); num(fputs("bc", f)); state(f);
     str("fwrite on wide: "); num((long)fwrite("de", 1, 2, f)); state(f);
     str("fprintf on wide: "); num(fprintf(f, "x")); state(f);

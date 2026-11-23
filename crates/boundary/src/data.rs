@@ -13,8 +13,10 @@ pub static DOT: [u8; 2] = *b".\0";
 // The table pointers the classification macros index (from -128). glibc keeps them per thread
 // and repoints them on `uselocale`; until the thread blocks of phase 4 they are process-wide
 // and fixed at the "C" tables (the only locale before phase 7). `__ctype_b_loc` and its
-// siblings return the address of these variables; the `__ctype_*` names are also exported
-// as the compat data objects of the same names.
+// siblings return the address of these variables. The compat-only data objects of the same
+// names (`__ctype_b@GLIBC_2.2.5`, ...) are not exported from here: `libc.a` must not offer them
+// (R15-2); `libc.so.6` gets them from the generated `csys/src/machine/compat_aliases.S` (LG-6,
+// `xtask/src/compat_objects.rs`). These statics keep the in-process tests of the tables.
 
 use core::sync::atomic::AtomicPtr;
 
@@ -23,11 +25,6 @@ use niji_legacy::ctype_tables::{C_CLASS, C_CLASS32, C_TOLOWER, C_TOUPPER, ZERO};
 macro_rules! table_ptr {
     ($(#[$m:meta])* $name:ident: $t:ty = $table:ident) => {
         $(#[$m])*
-        // UNSAFE(export): a C data symbol needs an unmangled name; the attribute is unsafe
-        // because two symbols of one name would conflict at link time. Names are unique per
-        // version node (spec Appendix B).
-        #[cfg_attr(feature = "export", unsafe(no_mangle))]
-        #[allow(unsafe_code)]
         #[allow(non_upper_case_globals)]
         pub static $name: AtomicPtr<$t> = AtomicPtr::new($table.as_ptr().wrapping_add(ZERO).cast_mut());
     };
@@ -122,8 +119,9 @@ compat_word!(
     /// `mallwatch` (compat, inert).
     mallwatch: AtomicUsize = AtomicUsize::new(0)
 );
-data_word!(
-    /// `_obstack` (compat pointer, inert).
+compat_word!(
+    /// `_obstack` (compat pointer, inert; `libc.so.6` exports it at GLIBC_2.2.5 from the
+    /// generated compat objects).
     _obstack: AtomicUsize = AtomicUsize::new(0)
 );
 data_word!(
@@ -245,6 +243,20 @@ macro_rules! product_data {
         // UNSAFE(export): a C data symbol needs an unmangled name; names are unique per
         // version node (spec Appendix B).
         #[cfg_attr(feature = "runtime", unsafe(no_mangle))]
+        #[allow(unsafe_code)]
+        #[allow(non_upper_case_globals)]
+        pub static $name: $t = $init;
+    };
+}
+
+/// A libresolv.so.2 data object (LIBRESOLV-OWN-CODE): a C symbol of libc.a (feature `runtime`,
+/// a static `-lresolv` link) and of the libresolv product (feature `libresolv`).
+macro_rules! libresolv_data {
+    ($(#[$m:meta])* $name:ident: $t:ty = $init:expr) => {
+        $(#[$m])*
+        // UNSAFE(export): a C data symbol needs an unmangled name; names are unique per
+        // version node (spec Appendix B).
+        #[cfg_attr(any(feature = "runtime", feature = "libresolv"), unsafe(no_mangle))]
         #[allow(unsafe_code)]
         #[allow(non_upper_case_globals)]
         pub static $name: $t = $init;
@@ -499,15 +511,15 @@ const fn opcode_table() -> [AtomicPtr<u8>; 16] {
     out
 }
 
-product_data!(
+libresolv_data!(
     /// `__p_type_syms` (§16.4).
     __p_type_syms: [ResSym; 45] = sym_table(&TYPE_SYMS)
 );
-product_data!(
+libresolv_data!(
     /// `__p_class_syms` (§16.4).
     __p_class_syms: [ResSym; 7] = sym_table(&CLASS_SYMS)
 );
-product_data!(
+libresolv_data!(
     /// `_res_opcodes` (§16.4): the opcode names.
     _res_opcodes: [AtomicPtr<u8>; 16] = opcode_table()
 );

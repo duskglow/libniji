@@ -1,0 +1,19 @@
+@@generated
+/* fcntl.h: file control (XSH <fcntl.h>). */
+#ifndef __NIJI_H_fcntl_h
+#define __NIJI_H_fcntl_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@hidden-member st_atim st_atime st_atimensec
+@@hidden-member st_mtim st_mtime st_mtimensec
+@@hidden-member st_ctim st_ctime st_ctimensec
+@@emit
+@@fortify
+
+
+__NIJI_END_C
+
+#endif

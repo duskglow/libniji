@@ -51,7 +51,20 @@ fn s27_1_c_3() {
     assert_not_pending(&out, "s27_dlsym_handles");
 }
 clause!(s27_1_c_4, "27.1", "Contract", r##"**`dlclose`** decrements the reference count. At zero, it runs destructors and unmaps the object, unless the object is `NODELETE` or has unique symbols or TLS in use."##);
-clause!(s27_1_c_5, "27.1", "Contract", r##"**`dlerror()`** returns a Text describing the last failure on this thread, and clears it. It returns `NULL` if there was no error. ⚑ HIST: this is yet another error channel. `dlsym` returning `NULL` is ambiguous for symbols whose value is 0, so callers must check `dlerror`."##);
+/// §27.1 Contract: **`dlerror()`** returns a Text describing the last failure on this thread, and clears it. It returns `NULL` if there was no error. ⚑ HIST: this is yet another error channel. `dlsym` returning `NULL` is ambiguous for symbols whose value is 0, so callers must check `dlerror`.
+///
+/// `s27_dlerror_threads` (spec/behaviour/dynlink.md probe P-6): the text once, then NULL; a
+/// successful `dlsym` clears it; 1000 lock-step rounds of two threads, each reading only its own
+/// failure (never the other's), a thread created while another's text is pending reading NULL, the
+/// main thread's text kept across both; and 2000 threads that fail and exit adding less than
+/// 2 MiB to the address space (a thread's text goes with it). Checked on the reference and on
+/// libniji's loader.
+#[test]
+fn s27_1_c_5() {
+    let out = conformance(&["s27_dlerror_threads"]);
+    assert_not_pending(&out, "s27_dlerror_threads");
+    assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dlerror_threads did not pass on both:\n{out}");
+}
 /// §27.1 Contract: **`dladdr(addr, &info)`** / **`dladdr1`** map an address to its object and nearest symbol.
 ///
 /// `s27_dladdr`: a helper with a fixed symbol layout (gaps, a size-0 symbol, equal starts,
@@ -76,7 +89,20 @@ fn s27_1_c_7() {
     assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dlinfo did not pass on both:\n{out}");
     assert_not_pending(&out, "s27_dlinfo");
 }
-clause!(s27_1_c_8, "27.1", "Contract", r##"**`dl_iterate_phdr(cb, data)`** calls `cb` for each loaded object, with its load address and program headers. The loader lock is held during the callback."##);
+/// §27.1 Contract: **`dl_iterate_phdr(cb, data)`** calls `cb` for each loaded object, with its load address and program headers. The loader lock is held during the callback.
+///
+/// `s27_dynamic_address_entries` (DL-DYNAMIC-RELOC): the dynamic array the listed program
+/// headers lead to, for the program, a start-time library, a `dlopen`ed one and every other
+/// listed object but the vDSO: its address entries (`DT_STRTAB`, `DT_SYMTAB`, the hash tables,
+/// ...) are run-time addresses inside the object, already in constructors, the same array as
+/// `_DYNAMIC` and `l_ld`, and `DT_RUNPATH` / `DT_NEEDED` strings read through `DT_STRTAB`. The
+/// lock and the concurrent readers: `crates/ld/tests/dlopen_concurrent.rs`, `dlclose.rs`.
+#[test]
+fn s27_1_c_8() {
+    let out = conformance(&["s27_dynamic_address_entries"]);
+    assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dynamic_address_entries did not pass on both:\n{out}");
+    assert_not_pending(&out, "s27_dynamic_address_entries");
+}
 clause!(s27_1_c_9, "27.1", "Contract", r##"**`_dl_find_object(pc, &res)`** (2.35) finds an object and its `PT_GNU_EH_FRAME` for a program counter without taking locks. It exists for unwinders."##);
 clause!(s27_1_g_0, "27.1", "Guarantees", r##"Symbol resolution follows ELF rules (global scope order, symbol versioning, `STB_GNU_UNIQUE`, IFUNC resolvers run at bind time). Constructors run in dependency order."##);
 /// §27.1 Failure: `NULL` plus `dlerror` text: file not found, wrong ELF class, undefined symbol (with `RTLD_NOW`), static TLS exhaustion, or a version mismatch.

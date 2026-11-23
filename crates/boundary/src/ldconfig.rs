@@ -17,9 +17,6 @@ use niji_ld::ldconfig::{self, sysfs::SysFs};
 use crate::ld::{c_string, exit, stack_word, write_all};
 use crate::sys::CSys;
 
-/// Arguments read from the initial stack at most (more is refused: `E2BIG`'s text).
-const ARGS_MAX: usize = 4096;
-
 /// The entry of `ldconfig` (called by `niji_machine_ldconfig_entry` with the initial stack pointer
 /// `sp` and the run-time address `ehdr` of the image's own ELF header).
 // UNSAFE(export): the Rust side of the ldconfig entry primitive; the program's only entry.
@@ -30,11 +27,9 @@ pub extern "C" fn niji_ldconfig_start(sp: usize, ehdr: usize) -> ! {
         write_all(2, b"ldconfig: cannot relocate the program\n");
         exit(1)
     }
+    // Every argument the kernel passed is read (its own limits bound them); a list that does not fit in memory is
+    // the out-of-memory report below.
     let argc = usize::try_from(stack_word(sp)).unwrap_or(0);
-    if argc > ARGS_MAX {
-        write_all(2, b"ldconfig: Argument list too long\n");
-        exit(1)
-    }
     let mut args: alloc::vec::Vec<&'static [u8]> = alloc::vec::Vec::new();
     if args.try_reserve_exact(argc).is_err() {
         write_all(2, b"ldconfig: out of memory\n");
@@ -64,87 +59,169 @@ pub fn panicked(_info: &core::panic::PanicInfo<'_>) -> ! {
     exit(127)
 }
 
-/// Bytes the arena asks the kernel for at once (bigger requests get a mapping of their own size).
+/// Bytes the arena asks the kernel for at once for small blocks.
 const CHUNK: usize = 1 << 20;
 /// The page size the mappings are rounded to.
 const PAGE: usize = 4096;
-
-/// The free space of the current mapping, `NEXT..END`, and the start of the block handed out last
-/// (the only one that can grow in place or be given back).
+/// The smallest size class (2^4 bytes: room for the free-list link, and malloc's alignment).
+const MIN_SHIFT: u32 = 4;
+/// The largest size class (2^16 bytes); a bigger block gets a mapping of its own.
+const MAX_SHIFT: u32 = 16;
+/// The number of size classes.
+const CLASSES: usize = 13; // MAX_SHIFT - MIN_SHIFT + 1
+/// The free space of the current chunk, `NEXT..END`.
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 static END: AtomicUsize = AtomicUsize::new(0);
-static LAST: AtomicUsize = AtomicUsize::new(0);
+/// Per size class, the first freed block (0: none); each freed block holds the address of the next.
+static FREE: [AtomicUsize; CLASSES] = [const { AtomicUsize::new(0) }; CLASSES];
 
-/// The global allocator of `ldconfig`: a bump arena over anonymous mappings. The last block grows
-/// and shrinks in place and is returned when freed; other freed blocks stay until the process ends
-/// (ldconfig runs once and exits; a run over a full system's libraries stays within a few MB).
+/// The global allocator of `ldconfig` and `localedef` (D-31.23): a block of at most 64 KiB is
+/// rounded up to a power of two, taken from that size's free list or cut from a 1 MiB chunk at
+/// its own alignment, and put back on the list when freed; a bigger block is a mapping of its own,
+/// grown with `mremap` and unmapped when freed. One thread. (A bump arena that kept every freed
+/// block but the last made localedef's peak RSS 218 to 338 MB per locale, #7535.)
 pub struct Arena;
 
-/// `size` bytes at `align` (a power of two), 0 without memory.
-fn arena_alloc(size: usize, align: usize) -> usize {
-    let mask = align.wrapping_sub(1);
+/// The size class of a block of `size` bytes at `align`, `None` for a block that gets its own mapping.
+fn class_of(size: usize, align: usize) -> Option<usize> {
+    let s = size.max(align).max(1 << MIN_SHIFT);
+    if s > 1 << MAX_SHIFT {
+        return None;
+    }
+    usize::try_from(s.next_power_of_two().trailing_zeros().saturating_sub(MIN_SHIFT)).ok()
+}
+
+/// The bytes of size class `c`.
+fn class_size(c: usize) -> usize {
+    u32::try_from(c).ok().and_then(|c| (1usize << MIN_SHIFT).checked_shl(c)).unwrap_or(0)
+}
+
+/// `len` rounded up to whole pages (`None` on overflow).
+fn pages(len: usize) -> Option<usize> {
+    len.checked_add(PAGE - 1).map(|n| n & !(PAGE - 1))
+}
+
+/// A block of size class `c`, aligned to its size; 0 without memory.
+// UNSAFE(allocator): pops the free list, whose link lives in the freed block.
+#[allow(unsafe_code)]
+fn small_alloc(c: usize) -> usize {
+    let Some(list) = FREE.get(c) else { return 0 };
+    let head = list.load(Relaxed);
+    if head != 0 {
+        let p: *const usize = core::ptr::with_exposed_provenance(head);
+        // UNSAFE(allocator): reading the free-list link stored in a freed block.
+        // SAFETY: `head` is a block of at least 16 bytes, aligned to its size, that `dealloc` put on
+        // this list after writing the next block's address in its first word; nothing else uses it.
+        list.store(unsafe { p.read() }, Relaxed);
+        return head;
+    }
+    let size = class_size(c);
+    let mask = size.wrapping_sub(1);
     let next = NEXT.load(Relaxed);
-    if let Some(start) = next.checked_add(mask).map(|n| n & !mask) {
-        if start.checked_add(size).is_some_and(|e| e <= END.load(Relaxed)) && next != 0 {
-            LAST.store(start, Relaxed);
-            NEXT.store(start.wrapping_add(size), Relaxed);
-            return start;
+    if next != 0 {
+        if let Some(start) = next.checked_add(mask).map(|n| n & !mask) {
+            if start.checked_add(size).is_some_and(|e| e <= END.load(Relaxed)) {
+                NEXT.store(start.wrapping_add(size), Relaxed);
+                return start;
+            }
         }
     }
-    let Some(need) = size.checked_add(mask).and_then(|n| n.checked_add(PAGE - 1)).map(|n| n & !(PAGE - 1)) else { return 0 };
-    let len = need.max(CHUNK);
-    let Ok(region) = CSys.mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0) else { return 0 };
+    // A new chunk; what is left of the old one (less than the largest class) is not used again.
+    let Ok(region) = CSys.mmap(0, CHUNK, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0) else { return 0 };
     let base = region.addr();
     let start = base.wrapping_add(mask) & !mask;
-    // A request bigger than a chunk gets a mapping of its own; the current one keeps serving the small ones.
-    if len == CHUNK {
-        NEXT.store(start.wrapping_add(size), Relaxed);
-        END.store(base.wrapping_add(len), Relaxed);
-        LAST.store(start, Relaxed);
-    }
+    NEXT.store(start.wrapping_add(size), Relaxed);
+    END.store(base.wrapping_add(CHUNK), Relaxed);
     start
 }
 
+/// A block of `size` bytes at `align` in a mapping of its own; 0 without memory. Alignments up to a
+/// page are the mapping's own; a bigger one maps the slack too (kept until the process ends).
+fn large_alloc(size: usize, align: usize) -> usize {
+    let slack = if align > PAGE { align } else { 0 };
+    let Some(len) = size.checked_add(slack).and_then(pages) else { return 0 };
+    let Ok(region) = CSys.mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0) else { return 0 };
+    let mask = align.wrapping_sub(1);
+    region.addr().wrapping_add(mask) & !mask
+}
+
+/// Give back the block at `a` of `size` bytes at `align`.
+// UNSAFE(allocator): pushes on the free list, whose link lives in the freed block.
+#[allow(unsafe_code)]
+fn free_block(a: usize, size: usize, align: usize) {
+    match class_of(size, align) {
+        Some(c) => {
+            let Some(list) = FREE.get(c) else { return };
+            let p: *mut usize = core::ptr::with_exposed_provenance_mut(a);
+            // UNSAFE(allocator): storing the free-list link in the block being freed.
+            // SAFETY: `a` is a live block of class `c` (at least 16 bytes, aligned to its size) that
+            // its owner gives back now and never uses again.
+            unsafe { p.write(list.load(Relaxed)) };
+            list.store(a, Relaxed);
+        }
+        None => {
+            if let Some(len) = pages(size) {
+                // The block's own pages (for an alignment above a page, the slack before it stays mapped).
+                let _ = crate::raw::munmap(a, len);
+            }
+        }
+    }
+}
+
+// SAFETY: a small block is handed out once from a chunk or a free list and is on a list only while
+// freed; a large block is a mapping no other block shares; sizes and alignments are honoured
+// (class blocks are aligned to their size, which is at least the alignment); exhaustion is null;
+// one thread.
 // UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
-// SAFETY: blocks lie in never-unmapped private mappings and never overlap (only the last block, once freed or
-// resized by its owner, is reused); sizes and alignments are honoured, exhaustion is null; one thread.
 #[allow(unsafe_code)]
 unsafe impl GlobalAlloc for Arena {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        core::ptr::with_exposed_provenance_mut(arena_alloc(layout.size(), layout.align()))
+        let a = match class_of(layout.size(), layout.align()) {
+            Some(c) => small_alloc(c),
+            None => large_alloc(layout.size(), layout.align()),
+        };
+        core::ptr::with_exposed_provenance_mut(a)
     }
-
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let a = ptr.expose_provenance();
-        if a == LAST.load(Relaxed) && a.wrapping_add(layout.size()) == NEXT.load(Relaxed) {
-            NEXT.store(a, Relaxed);
-        }
+        free_block(ptr.expose_provenance(), layout.size(), layout.align());
     }
-
-    // UNSAFE(allocator): the trait's provided method, overridden to grow the last block in place.
+    // UNSAFE(allocator): the trait's provided method, overridden: a block that stays in its class
+    // stays put, and a large one grows or shrinks with `mremap`.
     #[allow(unsafe_code)]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let a = ptr.expose_provenance();
-        let in_place = a == LAST.load(Relaxed)
-            && a.wrapping_add(layout.size()) == NEXT.load(Relaxed)
-            && a.checked_add(new_size).is_some_and(|e| e <= END.load(Relaxed));
-        if in_place {
-            NEXT.store(a.wrapping_add(new_size), Relaxed);
-            return ptr;
+        let (old, new) = (class_of(layout.size(), layout.align()), class_of(new_size, layout.align()));
+        match (old, new) {
+            (Some(o), Some(n)) if o == n => return ptr,
+            (None, None) if layout.align() <= PAGE => {
+                let (Some(old_len), Some(new_len)) = (pages(layout.size()), pages(new_size)) else { return core::ptr::null_mut() };
+                if old_len == new_len {
+                    return ptr;
+                }
+                return match crate::raw::mremap(a, old_len, new_len) {
+                    Ok(moved) => core::ptr::with_exposed_provenance_mut(moved),
+                    Err(_) => core::ptr::null_mut(),
+                };
+            }
+            _ => {}
         }
-        let new = arena_alloc(new_size, layout.align());
-        if new == 0 {
+        let fresh = match new {
+            Some(c) => small_alloc(c),
+            None => large_alloc(new_size, layout.align()),
+        };
+        if fresh == 0 {
             return core::ptr::null_mut();
         }
-        let dst: *mut u8 = core::ptr::with_exposed_provenance_mut(new);
+        let dst: *mut u8 = core::ptr::with_exposed_provenance_mut(fresh);
         // UNSAFE(allocator): moving a block's bytes to its new place.
         // SAFETY: `ptr` is a live block of `layout.size()` bytes (the trait's contract) and `dst` a
         // fresh block of `new_size` bytes that overlaps no live block; the copy is the smaller size.
         unsafe { core::ptr::copy_nonoverlapping(ptr, dst, layout.size().min(new_size)) };
+        free_block(a, layout.size(), layout.align());
         dst
     }
 }

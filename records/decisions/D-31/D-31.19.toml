@@ -1,0 +1,11 @@
+id = "D-31.19"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "UTIL-12"
+date = "2026-11-22"
+tests = ["crates/locale/tests/prog.rs", "crates/locale/tests/reference.rs"]
+body = '''
+**localedef's compiler is its own crate, `niji-locale` (`crates/locale`), and the shipped `localedef` is a freestanding static program like ldconfig (UTIL-12).** The crate holds the source parser, the Appendix D.1 writers and the command itself (`prog::run` over a `Host` file system), so the program and the tests run the same code; it depends on `niji` and uses the C library's reader (`niji::locale`) as its test oracle, which a writer placed beside the reader in `niji-core` could not use independently, and a change to it reaches only its own tests and the program. The program is `crates/localedef-bin` over the boundary feature `localedef` (ldconfig's self-relocator, arena and file layer, its own entry `niji_machine_localedef_entry`), linked by `cargo xtask so` into `target/niji/localedef` with no interpreter and no shared object (D-31.2's checks), so it runs in a build root whatever C library is installed there and needs no allocator over `malloc`. Rejected: a C front end over a Rust archive inside a dynamic program (a second copy of the library crates beside `libc.so.6`'s exports, and a global allocator over `malloc` in a `no_std` archive).
+'''

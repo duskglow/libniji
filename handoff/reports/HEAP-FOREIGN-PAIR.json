@@ -1,0 +1,66 @@
+{
+ "task": "HEAP-FOREIGN-PAIR",
+ "model": "opus",
+ "tokens": null,
+ "result": "step 1 done: a foreign thread release malloc/free pair 395 -> 348 user instructions (runtime-made 122.2); 1.5x target not reached; step 2 needs a ruling; step 3 not measured",
+ "branch": "task/heap-foreign-pair",
+ "head": "69e15b572",
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Step 2: per-thread storage for foreign threads (D-X.58 option 4, PT_TLS in libc.so.6) to bring the foreign pair from 348 toward 183 (1.5x of 122)",
+   "recommendation": "rule first whether a PT_TLS segment in libc.so.6 is acceptable: it adds one static TLS module to every libniji-started dynamic process; measure that start-up cost with DYN-START-PARITY's execcount scripts before building"
+  }
+ ],
+ "informational": [
+  "heap_foreign_pair_cost PAIR_BOUND (2100) not tightened: its comment's gate counts (1911/2063) differ from plain cargo test here (1662/1672 before, 1591/1602 after); needs the gate's own printed count",
+  "an ad-hoc program linked with --dynamic-linker=target/niji/ld-linux-x86-64.so.2 and DT_RPATH/RUNPATH to target/niji does not find libc.so.6 under libniji's loader",
+  "gate2 RED on WINDOW-BIN-BYTES with the route inlined into debug_alloc (a start-up function via VIRGIN); fixed by moving it out of line (cost: 325 -> 348 per pair)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "foreign thread malloc(64)/free pair, release, export,selftest (heap_foreign_pair_cost)",
+   "before": 395,
+   "after": 348,
+   "unit": "instr/pair",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "foreign thread malloc(64)/free pair, release, no features",
+   "before": 389,
+   "after": 341,
+   "unit": "instr/pair",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "foreign pair, test profile, export,selftest",
+   "before": 1672,
+   "after": 1641,
+   "unit": "instr/pair",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "heap_foreign_plain test (1) and plants (4)",
+   "before": 0,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a plant that leaks (free dropped) survives every instruction-count bound; correctness plants for heap routes need a reuse assertion, not a cost bound",
+ "next_step": "step 2 ruling (PT_TLS in libc.so.6), then step 3: measure foreign_words() gettid calls with strace -c on pass-2 tests",
+ "report_file": "handoff/HEAP-FOREIGN-PAIR.md",
+ "jobs": [
+  "keke:heap-foreign-pair-gate4",
+  "keke:heap-foreign-pair-plants4"
+ ]
+}

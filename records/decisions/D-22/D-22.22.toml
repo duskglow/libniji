@@ -1,0 +1,10 @@
+id = "D-22.22"
+section = "s22"
+spec = "§22.4 (s22_4_c_5), §22.5, §22.7 (s22_7_c_2)"
+ann = "KERN"
+status = "active"
+story = "TIMED-WAIT-PAST-DEADLINE"
+date = "2026-11-22"
+body = '''
+**A timed wait never retries a wait the kernel refused; a negative `tv_sec` is a passed deadline** (TIMED-WAIT-PAST-DEADLINE, 2026-11-22). Every futex wait loop (mutex plain, adaptive, priority-protected and robust; condition variable; read-write lock read and write; semaphore; timed and clock join) sorts the wait's result with `futex::woken`: woken, `EAGAIN` and `EINTR` are wake-ups (the loop re-checks its condition; the semaphore alone ends on `EINTR`, being interruptible), and every other result ends the call with that error: `ETIMEDOUT`, `ECANCELED`, or a kernel rejection (`EINVAL`, `EFAULT`, `ENOSYS` from a filter), which a retry could never get past. A deadline whose `tv_sec` is negative is before every reading of `CLOCK_REALTIME` and `CLOCK_MONOTONIC` (neither is ever negative), and the kernel rejects it with `EINVAL`: `futex::wait_until` returns `ETIMEDOUT` for it without the call, and a cancellation point waits until {0, 0} instead (also past on both clocks, so a due cancellation request is still acted on). A free object is still taken first, so such a deadline is no error when the call need not wait. The priority-inheritance mutex keeps handing its deadline to the kernel's lock call: `EINVAL` for a negative `tv_sec` while contended, as the reference reports. Settled by a black-box probe of the reference (`conformance/c/s22_past_deadline.c --probe`, 38 call forms x 7 deadlines x contended and free); before this change 108 of libniji's cells never returned.
+'''

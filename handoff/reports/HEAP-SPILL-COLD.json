@@ -1,0 +1,15 @@
+{"task": "HEAP-SPILL-COLD", "model": "opus", "tokens": null,
+ "result": "No spill built (coordinator note on challenge #7189): issue #21's find gap is size-class rounding (257..272-byte FTSENTs in class 320, +6164 KiB), not nearby-size reuse; per-cause numbers for find, the issue probe and a class-shift workload in the handoff",
+ "branch": "task/heap-spill-cold", "head": null,
+ "gate": {"affected": "not run: no code change", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "find under issue #21's formula needs a size class for 257..272 bytes (find 4.11 allocates 200003 FTSENTs of that size; class 320 costs +6164 KiB; libniji is 3496..4552 KiB over the formula)", "recommendation": "new story HEAP-CLASS-272: add a 272 (or 288) class between 256 and 320; up to 4688 KiB less by arithmetic, which brings find under the formula"},
+  {"item": "the spill still matters for the probe's refill step (+9668 KiB over the reference; target 33092) and class-shifting programs (+22272 KiB VmSize in phase 2 against the reference's 5412)", "recommendation": "keep HEAP-SPILL-COLD open after HEAP-CLASS-272; build it with refill returning the class (release bins within budget) and the lowbit alignment rule; 128->160 needs the request alignment, for which no cheap carrier was found"}],
+ "informational": ["target/niji/ld-linux-x86-64.so.2 runs only self-contained PIE programs; system binaries are measured by relinking their objects statically (the workload kit's method)",
+                   "issue probe RLIMIT_AS need on next: fixed layout 41296 KiB, randomised 41296..43440 over 20 runs"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "measurement study only: per-cause split of issue #21's address-space gap; no behaviour change", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "the brief rested on a premise (spill inside the cold grow function with byte-identical hot functions) that a 10-minute read of the call chain disproves; a brief for a heap change should name the return path its new logic needs",
+ "next_step": "coordinator rules on HEAP-CLASS-272 and on keeping HEAP-SPILL-COLD open",
+ "report_file": "handoff/HEAP-SPILL-COLD.md",
+ "jobs": ["keke:heap-spill-cold-so-base", "keke:heap-spill-cold-measure-base2"]}

@@ -1,0 +1,39 @@
+# Functions the public headers declare that libc does not provide (HEADERS-TABLES-COMPLETE, rulings #6714, #6715).
+# The header generator declares every other function only when the shared library exports it at a default version
+# (spec/abi/versions.tsv); a row here names who provides the function instead, and `cargo xtask headers-gen` refuses a
+# row whose name is exported at a default version (stale) or that no table declares as a function.
+# provider: `program` (the program, or a library it supplies, defines it), `debugger` (the debugger defines it for
+# libthread_db), `none` (the reference declares it and exports no default version: a call fails to link, as there),
+# `generic` (ruling #6720: the C++ function form of a type-generic macro, an overload set with no single prototype;
+# visibility.tsv shows the name as a macro in C and a function in C++; the generator declares no prototype for it and
+# refuses a `generic` row that a prototype row declares or that no header shows both ways). Probe (reference, g++
+# -std=c++17, <math.h>): `&N` does not compile, calls with float, double and long double do, N is no macro.
+name	provider	source
+la_activity	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_objclose	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_objopen	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_objsearch	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_preinit	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_symbind32	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_symbind64	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_version	program	rtld-audit(7): an audit library (LD_AUDIT) defines it
+la_x32_gnu_pltenter	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltenter, x32)
+la_x32_gnu_pltexit	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltexit, x32)
+la_x86_64_gnu_pltenter	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltenter, x86-64)
+la_x86_64_gnu_pltexit	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltexit, x86-64)
+ps_lgetregs	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_pdread	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_pdwrite	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_pglobal_lookup	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+bindresvport6	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
+getumask	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
+fpclassify	generic	ISO C++ [c.math]: <cmath> declares std::fpclassify as overloaded functions; probe: using std::fpclassify compiles
+isfinite	generic	ISO C++ [c.math]: <cmath> declares std::isfinite as overloaded functions; probe: using std::isfinite compiles
+isgreater	generic	ISO C++ [c.math]: <cmath> declares std::isgreater as overloaded functions; probe: using std::isgreater compiles
+isnormal	generic	ISO C++ [c.math]: <cmath> declares std::isnormal as overloaded functions; probe: using std::isnormal compiles
+isunordered	generic	ISO C++ [c.math]: <cmath> declares std::isunordered as overloaded functions; probe: using std::isunordered compiles
+signbit	generic	ISO C++ [c.math]: <cmath> declares std::signbit as overloaded functions; probe: using std::signbit compiles
+iscanonical	generic	ISO/IEC TS 18661-1 macro; probe: no std::iscanonical, the header declares the C++ overloads
+iseqsig	generic	ISO/IEC TS 18661-1 macro; probe: no std::iseqsig, the header declares the C++ overloads
+issignaling	generic	ISO/IEC TS 18661-1 macro; probe: no std::issignaling, the header declares the C++ overloads
+iszero	generic	ISO/IEC TS 18661-1 macro; probe: no std::iszero, the header declares the C++ overloads

@@ -1,0 +1,17 @@
+@@generated
+/* net/route.h: routing table interface */
+#ifndef __NIJI_H_net_route_h
+#define __NIJI_H_net_route_h 1
+
+#include <features.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

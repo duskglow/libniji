@@ -1,0 +1,22 @@
+{"task": "LD-RELR-LOOP-2", "model": "opus", "tokens": null,
+ "result": "RELR bitmap words added in place (6 instructions per word in pass1 and the self-relocation): dynamic start -5.0k to -5.2k user instructions vs the previous head, -30.2k vs next (Zen 1, release); bounds tightened",
+ "branch": "task/ld-relr-loop-2", "head": null,
+ "gate": {"affected": "1358 passed / 0 failed", "peak": "2.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Story target (RELATIVE + self-relocation <= 15k) met by estimate only (~12k from disassembly and decoded tables); no Intel PT or valgrind on the Zen 1 host, Skylake-SP not built this run", "add_bits_by_word's big-endian branch has no test (no big-endian image is relocated by any test)", "next moved 44 commits past the branch base; crates/ld/src/elf.rs changed on both sides (the landing's merge)"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main start, Zen 1 release, user instructions (previous head bdbdf3c85 -> this)", "before": 243688, "after": 238655, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic start with three libraries, Zen 1 release", "before": 352952, "after": 347868, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "/bin/true dynamic start, Zen 1 release", "before": 304186, "after": 299000, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "dynamic empty main start, Zen 1 release, whole story (next fd973fc44 -> this)", "before": 268837, "after": 238655, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "hot_text_products empty main, Zen 1 fast products", "before": 255972, "after": 248446, "unit": "instr/start", "measured": true},
+  {"kind": "perf", "what": "RELATIVE work + self-relocation per start (estimate from disassembly)", "before": 17000, "after": 12000, "unit": "instr/start", "measured": false},
+  {"kind": "coverage", "what": "plants on the in-place loops and both default per-word paths", "before": 0, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "improvement": "Records with a table-cell body could be checked by a cheap pre-commit TOML lint (the records check only runs inside static/gate; my newline cost one gate cycle)",
+ "next_step": "Land; Skylake-SP counts and an exact PT profile of the RELR share come with the next snapshot or a build on that host",
+ "report_file": "handoff/LD-RELR-LOOP-report.md",
+ "jobs": ["keke:ld-relr-loop-2-gate2", "keke:ld-relr-loop-2-plants1", "keke:ld-relr-loop-2-lint2", "keke:ld-relr-loop-2-startup"],
+ "superseded": ["keke:ld-relr-loop-2-gate1 (static red on a newline in D-27.87's body, fixed)", "keke:ld-relr-loop-2-meas (counts on 9a96824e1, same code as the final head; no tested-content record)", "keke:ld-relr-loop-2-bound (bound levels measured before the bound edit)", "keke:ld-relr-loop-2-lint0, ld-relr-loop-2-lint1 (earlier heads)"]}

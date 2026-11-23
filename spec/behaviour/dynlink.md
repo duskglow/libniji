@@ -82,6 +82,22 @@ libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened
 `dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
 (one more callback), and `dlpi_adds` grows by one within the walk.
 
+R-5 (DL-FIND-OBJECT-FAST, probe `tools/probe/dl/span/probe.c`, same reference, x86_64): in a dynamic program
+`_dl_find_object` finds a `dlopen`'d object for **every pc in its `PT_LOAD` span**, not only in a segment: the
+object's first byte, the bytes past a segment's `p_memsz` (the rest of an executable segment's page) and the bytes
+between segments all give 0 and the same span; the byte at the span's end (highest `p_vaddr + p_memsz`) and past it
+give -1. (Object: `-nostdlib -shared`, four `PT_LOAD`s, a 14-byte executable segment.)
+
+R-6 (LD-TABLES-LAYOUT, probe `tools/probe/dl/holes/probe.c`, glibc 2.39 on the Zen 1 host, x86_64): a program the
+kernel started, linked with `-z max-page-size=0x200000` (holes of about 2 MiB between its segments, left unmapped
+by the kernel). With the free address space above its highest hole filled, a `dlopen`'d object lands in that hole:
+`_dl_find_object`, `dladdr` and `dladdr1` (`RTLD_DL_LINKMAP`) of the object's code name the object (its own
+range, handle and `PT_GNU_EH_FRAME`), and of `main`
+the program, whose `_dl_find_object` range is the run of segments holding `main` (here its executable segment,
+not the lowest to highest `PT_LOAD` address) and whose `dli_fbase` is its lowest page. An anonymous page mapped at
+the bottom of the hole gives -1 and 0: the pages between a kernel-mapped object's segment runs are no part of it.
+An `atexit` handler of the program registered by the object runs at the object's `dlclose`.
+
 **Exit order of `dlopen`ed objects** (record `== exit-order (DL-EXIT-ORDER-PROBE)`, probe
 `tools/probe/dl/exitorder/run.sh SCRATCH`, each scenario its own process; destructors report with
 `write`). At exit the program's destructor runs first; then the start-time objects and the `dlopen`ed
@@ -145,8 +161,7 @@ program's preinit array but not its constructors or `init_array` (its C library'
 does not run a shared object's `DT_PREINIT_ARRAY` (made by retagging `DT_INIT_ARRAY`). Start order:
 `main -> R, Q, P; P -> R`: R, P, Q. `main -> L, K; L -> N; N -> K; K -> M`: M, K, N, L. A cycle at
 start, `main -> H; H <-> I`: H, I. `main -> X; X -> Y; Y -> Z, W; Z -> X`: W, Y, X, Z. The
-reference's termination function cannot be called without its C library (an internal assertion,
-status 127), so the exit order comes from the same programs linked with it: the program's
+reference's termination function needs its C library, so the exit order comes from the same programs linked with it: the program's
 `fini_array` and destructor, then the objects in the reverse of the start order (H <-> I: I, H;
 cycle of three: Z, X, Y, W). Rule that fits every case here and DL-0b's: a depth-first walk over the
 objects in reverse load order, each after the objects it needs, a cycle member already being walked
@@ -163,6 +178,45 @@ symbol version exits 1, not 127** (`<prog>: <lib>: version `VER_2' not found (re
 library with no entry point run through `ld.so`: SIGSEGV (139). `--verify`: 0 dynamic program, 1
 static program or non-ELF, 2 shared library. `--list` of a program with a missing dependency:
 127. `--version`, `--help`: 0.
+
+**`ld.so PROGRAM` with no `/` in PROGRAM** (LDSO-PROGRAM-NO-CWD probe, Zen 1 host; D-27.69). The
+name is looked up in the loader cache (`/etc/ld.so.cache`) only. A file of that name in the
+working directory, in an `LD_LIBRARY_PATH` directory (absolute, relative, `.`, empty element),
+in a `--library-path` directory, on `PATH` or in a default library directory not listed in the
+cache is not used. Not found: 127, nothing on stdout, stderr `<name>: error while loading shared
+libraries: <name>: cannot open shared object file` (no errno text); an empty name gives
+`: error while loading shared libraries: cannot open shared object file`. The same for `--list
+<name>` and with `LD_TRACE_LOADED_OBJECTS=1`. A name the cache lists runs the cache's file, even
+when the working directory and `LD_LIBRARY_PATH` hold another file of that name, and the program's
+`argv[0]` is the name as given. `--list <name>` and `LD_TRACE_LOADED_OBJECTS=1` for a name the
+cache lists read the cache's file too (a static PIE: `\tstatically linked`, status 0), also when the
+working directory's file of that name is not an object. A name with a `/` (`./prog`, `lib/prog`)
+is opened as given.
+
+**Program mode options** (LDSO-RUN-PROGRAM probe, Zen 1 host, 2.39; a PIE and a non-PIE program
+needing `libdep.so` from `lib/` or `lib2/`). Options are read up to the first argument not starting
+with `-`; later words are the program's, `--argv0 X` there included. A value is the next argument:
+`--library-path=lib` and `--` are unknown options; an option without its value, an unknown option and
+no program (also `--list` alone) give status 1, `<argv[0]>: unrecognized option '<opt>'` or
+`<argv[0]>: missing program name`, then `Try '<argv[0]> --help' for more information.`
+`--library-path PATH` replaces `LD_LIBRARY_PATH` for the start's search and for `dlopen`'s; the
+environment keeps `LD_LIBRARY_PATH`; the last copy wins; `nolib:lib` searches both; an empty value
+finds nothing in `lib/`. `--preload LIST` (colons or spaces): loaded after `LD_PRELOAD`'s objects
+(constructors of `a:b` run b, then a), the last copy wins, `LD_PRELOAD` is not set; a missing object:
+`ERROR: ld.so: object './nosuch.so' from --preload cannot be preloaded (cannot open shared object
+file): ignored.` and the program runs. `--argv0 S` sets `argv[0]` (empty allowed). `--inhibit-cache`:
+`dlopen` of a name only the cache lists fails; directories still searched. `--verify` writes nothing:
+0 dynamic program (also when its dependencies are missing), 2 shared library or static PIE, 1 static
+program, text file or missing file. `--audit X`: the auditor's `la_version` runs; one that cannot be
+loaded: `ERROR: ld.so: object 'X' cannot be loaded as audit interface: cannot open shared object
+file; ignored.` and the program runs. `--glibc-hwcaps-mask`, `--glibc-hwcaps-prepend` and
+`--inhibit-rpath` (the program named as given, by base name or by full path) are accepted;
+`--list-tunables` and `--list-diagnostics` print and exit 0. A static program and a static PIE run
+(their own status). A set-user-ID program runs with the caller's identity (the kernel applies no
+set-user-ID bit to a file it does not execute). Errors, 127, `<file>: error while loading shared
+libraries: <file>: <reason>`: a missing file `cannot open shared object file: No such file or
+directory`; a text file or script shorter than an ELF header `file too short`; a directory `cannot
+read file data: Error 21`.
 
 **BIND_NOW share** (record `== bindnow`): of 681 regular ELF64 files in Haswell-EP host's `/usr/bin`, 1 is
 static, 666 dynamic with BIND_NOW (DT_FLAGS `BIND_NOW` or DT_FLAGS_1 `NOW`), 14 lazy; 667 are
@@ -185,6 +239,8 @@ with gcc 13.3 / binutils, black box: only the values the bound functions return 
 | weak `w` in `libw1.so`, strong `w` in `libw2.so` | link order w1,w2 → the weak one; w2,w1 → the strong one; `LD_DYNAMIC_WEAK=1` → unchanged |
 | undefined weak data and function references | both 0 |
 | `STB_GNU_UNIQUE` `u_obj` in two objects, each `dlopen`ed `RTLD_LOCAL` | one object for both (the first's); a plain global `u_obj` in a third object stays its own |
+| program with a canonical PLT entry for `f` (undefined `STT_FUNC`, non-zero value: non-PIE `&f`, or `.long f - .` in a PIE's data) defined in `libf.so` (DL-CANONICAL-PLT probe, Zen 1 host, glibc 2.39, gcc 13.3 / binutils 2.42; GitHub issue #10) | the program's address of `f`, the library's `GLOB_DAT` (`return f;`), the program's own `f@GOTPCREL` (`GLOB_DAT`), a library `dlopen`ed later (`GLOB_DAT`) and `dlsym(RTLD_DEFAULT, "f")` all give the entry's address; calls through the program's PLT reach `libf.so`'s `f`. The same with `libf.so` marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (`-mno-direct-extern-access`). A program built with `-mno-direct-extern-access` has no entry (`f` undefined, value 0): every reference binds `libf.so`'s `f` |
+| the same program run against a `libf.so` whose `f` is protected (swapped in after linking; binutils 2.42 refuses that link) | a warning on standard error that pointer equality may break, then the run goes on: the library's own references give its own address, the program's the entry's; with that library also marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the start is refused, a message naming `f`, the library and the property, exit 127 |
 
 libniji's lookup (D-27.11) follows every row; `crates/ld/tests/symbols.rs` checks the same corpus. The stub row is the
 loader's version check, not the lookup: libniji's lookup matches any definition of an object without `versym`, and the
@@ -296,6 +352,59 @@ returns 0; libniji's `dl_iterate_phdr` lists the program and the vDSO only until
 
 - DL-16: the texts above are the targets; the `e_machine` case reports a file-missing text for
   an existing file (follow it, or record a difference with its gain).
-- DL-17: `dlclose(NULL)` and an unknown handle: the reference crashes; returning non-zero with a
-  dlerror text costs nothing and gains robustness (a difference row is needed).
+- DL-17: `dlclose(NULL)` and an unknown handle: returning non-zero with a dlerror text costs
+  nothing and gives a defined result (a difference row is needed).
 - DL-30/R14-16: the version-not-found status 1 differs from every other load failure (127).
+
+## Trace lists: the interpreter's line (DL-TRACE-INTERP probe, x86-64, glibc 2.39)
+
+Black-box probes of the reference loader (`/lib64/ld-linux-x86-64.so.2`), the same in all three entry points
+(kernel start with `LD_TRACE_LOADED_OBJECTS=1`, `ld.so PROGRAM` with the variable, `ld.so --list PROGRAM`):
+
+| Case | Reference list (addresses omitted) |
+| --- | --- |
+| needs `libfoo.so.1` only (no C library) | `linux-vdso.so.1`, `libfoo.so.1 => …`: no interpreter line |
+| `DT_NEEDED` `ld-linux-x86-64.so.2`, then `libfoo.so.1` | the interpreter, `linux-vdso.so.1`, `libfoo.so.1 => …` |
+| `libfoo.so.1`, then the interpreter | `linux-vdso.so.1`, `libfoo.so.1 => …`, the interpreter |
+| needs `libni.so.1` (which needs the interpreter) and `libfoo.so.1` | vDSO, `libni`, `libfoo`, the interpreter |
+| `DT_NEEDED` `/lib64/ld-linux-x86-64.so.2` (a path) | the interpreter, `linux-vdso.so.1` |
+| `libfoo2.so.1` (needs `libbar.so.1`), `libc.so.6` | vDSO, `libfoo2`, `libc`, `libbar`, the interpreter |
+| `libm.so.6`, `libfoo2.so.1` | vDSO, `libm`, `libfoo2`, `libc`, the interpreter, `libbar` |
+| no `DT_NEEDED` (static PIE, a library needing nothing) | `\tstatically linked`, status 0 (`ld.so` forms) |
+
+Rule: the list is breadth first in `DT_NEEDED` order, each object once; the interpreter is listed only when an
+object names it (by soname or by path), at that breadth-first place; the vDSO's line comes first, after the
+interpreter's when the interpreter is the first object. The reference's `libc.so.6` names the interpreter, and its
+`libm.so.6` names `libc.so.6` then the interpreter (the `libm` row). The line is `\tNAME (0x…)`, or `\tNAME => PATH
+(0x…)` when they differ: NAME is the program's `PT_INTERP` (else the loader's path as run), PATH the loader's path
+as run (at kernel start, the `PT_INTERP`). Run as `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 --list` on a
+program whose `PT_INTERP` is `/lib64/ld-linux-x86-64.so.2`: `/lib64/ld-linux-x86-64.so.2 =>
+/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`; on a library operand: `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`.
+The reference prints its libraries as `/lib/x86_64-linux-gnu/…` (its cache lists that directory first; `/lib` is a
+link to `usr/lib`).
+
+libniji (D-27.16 as amended by D-27.56): the same rule, with libniji's own libraries
+(`search::PINNED`) naming the interpreter after their own `DT_NEEDED` entries, so lists of libc-linked programs
+keep the line consumers such as initramfs-tools' `copy_exec` read. Test: `list_interpreter_line_matches_reference`
+(crates/ld/tests/search_cache.rs).
+
+## The loaded dynamic array (DL-DYNAMIC-RELOC probe, x86-64, glibc 2.39)
+
+Probe: `tools/probe/dl/dynreloc/run.sh` (Zen 1 build host). For each object `dl_iterate_phdr` lists (from the
+program's constructor, from `main`, after a `dlopen`), each entry of its dynamic array in memory is compared with the
+same entry of its file: **A** = differs by exactly the load base, **=** = unchanged.
+
+| Entries | Program (PIE), start-time library, libc, `ld.so`, `dlopen`ed library |
+| --- | --- |
+| `DT_PLTGOT`, `DT_HASH`, `DT_STRTAB`, `DT_SYMTAB`, `DT_RELA`, `DT_JMPREL`, `DT_RELR`, `DT_GNU_HASH`, `DT_VERSYM` | A |
+| `DT_INIT`, `DT_FINI`, `DT_PREINIT_ARRAY`, `DT_INIT_ARRAY`, `DT_FINI_ARRAY`, `DT_VERDEF`, `DT_VERNEED`, `DT_TLSDESC_PLT`, `DT_TLSDESC_GOT`, sizes, flags, `DT_NEEDED` / `DT_SONAME` / `DT_RUNPATH` offsets | = |
+
+Already A in the program's first constructor; `_DYNAMIC` and `l_ld` are the same array, so
+`DT_STRTAB` + the `DT_RUNPATH` value is the run-path string. The vDSO's array is the kernel's, never written.
+`DT_REL` is not observable on x86-64 (GNU ld emits RELA only). A static-pie program's own array is A as well (not
+yet in libniji: its self-relocation leaves it link-time), and the program's `DT_DEBUG` is set by the loader (not in
+libniji).
+
+libniji (D-27.60): the same entries become run-time addresses for every object whose `PT_DYNAMIC` lies wholly inside
+one writable `PT_LOAD` (an array elsewhere is never written), before any constructor; the loader's own readers keep
+reading link-time values. Test: `s27_1_c_8` (`conformance/c/s27_dynamic_address_entries.c`).

@@ -1,0 +1,21 @@
+{"task": "TEST-SCRATCH-CLEANUP", "model": "opus", "tokens": null,
+ "result": "Tests' per-process scratch under target/ is removed when the test passes and kept (path on stderr) when it fails: crt-products, loader, profiling, eintr and owed #17 sites all go through crates/core/tests/support/scratch.rs; two full cargo xtask test runs add no pid-named entry (31 -> 31 -> 31, all from older runs)",
+ "branch": "task/test-scratch-cleanup", "head": null,
+ "gate": {"affected": "8379 passed / 0 failed", "peak": "4.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "leg 1 gate: heap_meta_products the_heap_keeps_address_space_near_its_use failed once beside the plants job (VmSize bound); 5 passed alone; gate2 green; not chased",
+   "du target over two full cargo xtask test runs: 7491 -> 10566 -> 10638 MiB; run 1's jump is cargo build state for builds the gate does not make; run 2's +72 MiB is in cargo's own directories (not attributed file by file: NOT VERIFIED)",
+   "optional follow-up: products/mod.rs x5, exec_stage, noproc_products, oracle_freshness, secure_env, no_proc_lane still remove at the end of the success path (base now from scratch::base(); failure keeps the dir without the stderr line)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "size", "what": "pid-named directories left in target/ per passing test process (crt-products 15-24 MB each, dl-search, ld-names, ld_symbols, elf_readelf_parity, sym_*, skip-precond, forced_unwind, eintr)", "before": null, "after": 0, "unit": "new entries per full cargo xtask test run", "measured": true},
+   {"kind": "correctness", "what": "owed #17: ~30 inline CARGO_TARGET_TMPDIR sites now take a base that is made if target/tmp is missing; the test files' own guards keep and name their directory when the test fails", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "coverage", "what": "plants on the scratch rule (handoff/TEST-SCRATCH-CLEANUP-plants.txt)", "before": 0, "after": 3, "unit": "plants CAUGHT", "measured": true}
+ ],
+ "improvement": "`cargo xtask test --help` runs the whole test command instead of printing usage (caught and nothing left running); a usage line for xtask test would avoid that",
+ "next_step": "land; optional follow-up: convert the success-path-removal sites listed in the handoff to Scratch",
+ "report_file": "handoff/TEST-SCRATCH-CLEANUP.md",
+ "jobs": ["mei:test-scratch-cleanup-gate2", "mei:test-scratch-cleanup-plants2", "mei:test-scratch-cleanup-xtest", "mei:test-scratch-cleanup-clippy4"]}

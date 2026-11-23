@@ -1,0 +1,20 @@
+name: input split across two files after byte 2
+clause: s31_6_f_1
+command: iconv
+namespace: none
+file: p1
+|~ h\xc3
+file: p2
+|~ \xa9\xe2\x82\xacb
+arg: -f
+arg: UTF-8
+arg: -t
+arg: UTF-16LE
+arg: p1
+arg: p2
+stdin:
+status: exit 1
+stdout:
+|~ h\x00
+stderr:
+| iconv: incomplete character or shift sequence at end of buffer

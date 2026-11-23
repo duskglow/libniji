@@ -1,0 +1,21 @@
+{"task": "SYS-DEV-LINKS", "model": "opus", "tokens": null,
+ "result": "System libc6 ships libBrokenLocale.so.1; libc6-dev ships libanl.so, libBrokenLocale.so, libc_malloc_debug.so links and libBrokenLocale.a, libg.a, libmcheck.a, libpthread_nonshared.a; niji6-dev gains the libanl.so and libc_malloc_debug.so links; -lanl -lBrokenLocale -lmcheck -lg link dynamically and statically and run (check-system, root-system, check.sh)",
+ "branch": "task/sys-dev-links", "head": "f4e129cc9",
+ "gate": {"affected": "sys-dev-links-gate-3 rc 0 (niji::deb_symbols_products, xtask unit tests, static); packaging proof sys-dev-links-pkg-3 rc 0 (check-system PASS, check-symbols PASS, root-system 16/0, check.sh PASS); plants 6/6 CAUGHT", "peak": "1.4G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libnss_compat.so and libnss_hesiod.so dev links not shipped: libnss_compat.so.2 / libnss_hesiod.so.2 are not built (audit gap 16, SL-NSS), a link would dangle; add the compat link with SL-NSS",
+   "parity rerun = parity.py inventory+compare of the new system packages against the committed reference inventory (no network fetch or ranking scan): 11 gap rows closed, only new row is the ours-only shlibs line for libBrokenLocale (>= 2.39 vs reference 2.41, same shape as every library's) and the symbols count",
+   "libm-2.41.a (audit row 13, not in the brief) not shipped"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "-lBrokenLocale links (failed before) and -lanl / -lc_malloc_debug take the shared library in a dynamic link with the system packages", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "package parity gap rows closed (8 files, 1 soname, 2 control)", "before": 0, "after": 11, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "plants added", "before": 0, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["sys-dev-links-gate-3", "sys-dev-links-plants-2", "sys-dev-links-pkg-3", "sys-dev-links-clippy"],
+ "improvement": "plants on packaging scripts can reuse a pkg job's products via build.sh --products, so each plant costs a repackage (~1 min) instead of a release build; docs/plants.md could say lit: is one field (my first run was refused for two fields)",
+ "next_step": "none for this story; SL-NSS adds libnss_compat.so.2 and its dev link",
+ "report_file": "handoff/SYS-DEV-LINKS.md"}

@@ -1,0 +1,172 @@
+diff --git a/csys/src/machine/context.S b/csys/src/machine/context.S
+index c608550b5..e79bd4c8e 100644
+--- a/csys/src/machine/context.S
++++ b/csys/src/machine/context.S
+@@ -83,16 +83,15 @@ niji_machine_setcontext:
+ 	movq 0x50(%rdx), %r13
+ 	movq 0x58(%rdx), %r14
+ 	movq 0x60(%rdx), %r15
+-	movq 0xa8(%rdx), %rcx
+-	pushq %rcx			/* resume at RIP */
+-	movq 0x68(%rdx), %rdi
++	movq 0xa8(%rdx), %r11		/* PROTOTYPE (SHSTK-SCOPE): resume at RIP by a jump, not */
++	movq 0x68(%rdx), %rdi		/* push and ret (no shadow-stack entry matches it) */
+ 	movq 0x70(%rdx), %rsi
+ 	movq 0x98(%rdx), %rcx
+ 	movq 0x28(%rdx), %r8
+ 	movq 0x30(%rdx), %r9
+ 	movq 0x88(%rdx), %rdx
+ 	xorl %eax, %eax
+-	ret
++	jmpq *%r11
+ 	.size niji_machine_setcontext, .-niji_machine_setcontext
+ 
+ /* int niji_machine_swapcontext(ucontext_t *save, const ucontext_t *to): saves the caller's
+@@ -125,7 +124,28 @@ niji_machine_swapcontext:
+ 	fnstenv (%rcx)
+ 	fldenv (%rcx)
+ 	stmxcsr 0x1c0(%rdi)
+-	pushq %rsi
++	/* PROTOTYPE (SHSTK-SCOPE): with a shadow stack and a target that names one (to->__ssp[0] =
++	 * the address of a restore token, 936), switch to it: rstorssp takes the target's token,
++	 * saveprevssp leaves a token for this one at SSP - 8, recorded in save->__ssp[0] with
++	 * __ssp[1] = 1 (the resumed save pops this call's own entry: it resumes by a jump). A
++	 * makecontext stack (token at its top, __ssp[1] = 0) is entered empty. */
++	xorl %eax, %eax
++	rdsspq %rax
++	testq %rax, %rax
++	jz 7f
++	movq 936(%rsi), %rcx
++	testq %rcx, %rcx
++	jz 7f
++	subq $8, %rax
++	movq %rax, 936(%rdi)
++	movq $1, 944(%rdi)
++	rstorssp (%rcx)
++	saveprevssp
++	cmpq $0, 944(%rsi)
++	je 7f
++	movl $1, %eax
++	incsspq %rax
++7:	pushq %rsi
+ 	movq 0x128(%rsi), %rax		/* to's mask without signal 32 (as setcontext) */
+ 	btrq $31, %rax
+ 	pushq %rax
+diff --git a/csys/src/machine/entry.S b/csys/src/machine/entry.S
+index f0c8c4b17..f366a4c1e 100644
+--- a/csys/src/machine/entry.S
++++ b/csys/src/machine/entry.S
+@@ -25,6 +25,35 @@
+  * at link time, so the start of every other program tests nothing. A static PIE runs this code
+  * before its relocation: every reference here is PC-relative (no GOT slot, which would still
+  * hold a link-time address); `cargo xtask so` refuses a GOT-typed relocation in the object. */
++
++/* PROTOTYPE (SHSTK-SCOPE, not for landing): when the environment holds a string beginning
++ * "NJSHSTK=", enable the user shadow stack (arch_prctl(ARCH_SHSTK_ENABLE 0x5001,
++ * ARCH_SHSTK_SHSTK 1)) here, in an entry that never returns: the new shadow stack is empty, so
++ * no frame older than this one may `ret`. Skipped when one is already enabled (rdssp reads a
++ * nonzero SSP: a dynamic program's _start after ld.so enabled it). Uses rax, rcx, rsi, rdi, r11
++ * only (rdx is the loader's fini argument). The 8-byte compare may read up to 7 bytes past a
++ * short string: the strings sit inside the initial stack, which ends with 8 zero bytes. */
++.macro NIJI_PROTO_SHSTK
++	xorl %eax, %eax
++	rdsspq %rax
++	testq %rax, %rax
++	jnz 93f
++	movq (%rsp), %rcx
++	leaq 16(%rsp,%rcx,8), %rcx
++	movabsq $0x3d4b545348534a4e, %r11
++91:	movq (%rcx), %rax
++	testq %rax, %rax
++	jz 93f
++	cmpq %r11, (%rax)
++	je 92f
++	addq $8, %rcx
++	jmp 91b
++92:	movl $158, %eax
++	movl $0x5001, %edi
++	movl $1, %esi
++	syscall
++93:
++.endm
+ #ifdef NIJI_LD
+ /* Assembled with -DNIJI_LD it is the entry of ld.so (phase 14 DL-5, R14-8 "program entry", D-27.13),
+  * niji_machine_ld_entry, the product's ELF entry point. Register convention: the kernel enters
+@@ -44,6 +73,7 @@
+ niji_machine_ld_entry:
+ 	.cfi_startproc
+ 	.cfi_undefined %rip
++	NIJI_PROTO_SHSTK
+ 	xorl %ebp, %ebp
+ 	movq %rsp, %rdi
+ 	leaq __ehdr_start(%rip), %rsi
+@@ -258,6 +288,7 @@ _start:
+ 	.cfi_undefined %rip
+ 	/* IBT (notes.inc): the loader enters here by an indirect jump. */
+ 	endbr64
++	NIJI_PROTO_SHSTK
+ 	xorl %ebp, %ebp
+ 	movq %rdx, %r9
+ 	popq %rsi
+diff --git a/csys/src/machine/setjmp.S b/csys/src/machine/setjmp.S
+index 9ee475dba..a5e4b55fc 100644
+--- a/csys/src/machine/setjmp.S
++++ b/csys/src/machine/setjmp.S
+@@ -35,6 +35,12 @@ niji_machine_sigsetjmp:
+ 	xorq %fs:0x30, %rax
+ 	rolq $0x11, %rax
+ 	movq %rax, 56(%rdi)
++	xorl %eax, %eax			/* PROTOTYPE (SHSTK-SCOPE): the SSP once this returns, at 80 */
++	rdsspq %rax			/* (0 when no shadow stack: rdssp is then a no-op) */
++	testq %rax, %rax
++	jz 3f
++	addq $8, %rax
++3:	movq %rax, 80(%rdi)
+ 	xorl %eax, %eax
+ 	testl %esi, %esi
+ 	setne %al
+@@ -75,7 +81,22 @@ niji_machine_siglongjmp:
+ 	popq %rsi
+ 	popq %rdi
+ niji_machine_longjmp_nomask:
+-	movq 48(%rdi), %r8
++	xorl %ecx, %ecx			/* PROTOTYPE (SHSTK-SCOPE): pop the shadow stack to setjmp's SSP */
++	rdsspq %rcx
++	testq %rcx, %rcx
++	jz 5f
++	movq 80(%rdi), %rax
++	subq %rcx, %rax
++	jbe 5f
++	shrq $3, %rax			/* entries to pop; incssp takes at most 255 */
++	movl $255, %ecx
++4:	cmpq %rcx, %rax
++	jbe 6f
++	incsspq %rcx
++	subq %rcx, %rax
++	jmp 4b
++6:	incsspq %rax
++5:	movq 48(%rdi), %r8
+ 	movq 8(%rdi), %r9
+ 	movq 56(%rdi), %rdx
+ 	rorq $0x11, %r8
+diff --git a/csys/src/machine/vfork.S b/csys/src/machine/vfork.S
+index 072af4792..3ef5f199b 100644
+--- a/csys/src/machine/vfork.S
++++ b/csys/src/machine/vfork.S
+@@ -25,7 +25,15 @@ vfork:
+ 	pushq %rdi
+ 	cmpq $-4095, %rax
+ 	jae 1f
+-	ret
++	xorl %ecx, %ecx			/* PROTOTYPE (SHSTK-SCOPE): with a shadow stack, both returns */
++	rdsspq %rcx			/* skip its shared entry (the child's calls overwrite it) and */
++	testq %rcx, %rcx		/* jump, so neither reads the slot back */
++	jz 2f
++	popq %rdi
++	movl $1, %ecx
++	incsspq %rcx
++	jmp *%rdi
++2:	ret
+ 1:	movq %rax, %rdi			/* the parent, no child: errno from the raw result */
+ 	jmp niji_vfork_fail
+ 	.size vfork, .-vfork

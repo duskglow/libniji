@@ -1,0 +1,115 @@
+@@generated
+/* stdio.h: input/output (C 7.21, XSH <stdio.h>). Appendix C.9: stdin, stdout and stderr are the exported FILE *
+   variables, read on every use (they are assignable). */
+#ifndef __NIJI_H_stdio_h
+#define __NIJI_H_stdio_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL va_list stdin stdout stderr gets
+@@owns-macro fwrite_unlocked
+@@emit
+
+@@if gets
+extern char *gets (char *__s);
+#endif
+
+@@if va_list
+# ifndef __NIJI_D_va_list
+#  define __NIJI_D_va_list 1
+#  ifndef _VA_LIST_DEFINED
+#   define _VA_LIST_DEFINED
+typedef __builtin_va_list va_list;
+#  endif
+# endif
+#endif
+
+@@if NULL
+# ifndef NULL
+@@null NULL
+# endif
+#endif
+
+@@if stdin
+# define stdin stdin
+# define stdout stdout
+# define stderr stderr
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+#endif
+
+/* Inline bodies when optimizing (features.h, __NIJI_INLINES). The byte functions are Appendix C.9's protocols over
+   the FILE window and _flags bits; getchar and putchar are getc and putc on stdin and stdout (C 7.21.7.6, 7.21.7.8);
+   getline is getdelim with '\n' (POSIX getdelim), whose GNU entry __getdelim it calls. */
+#if __NIJI_INLINES
+@@when getc_unlocked
+__NIJI_INLINE_FN int getc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int getchar_unlocked (void)
+{
+  return getc_unlocked (stdin);
+}
+__NIJI_INLINE_FN int putc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int putchar_unlocked (int __c)
+{
+  return putc_unlocked (__c, stdout);
+}
+#endif
+@@when fgetc_unlocked
+__NIJI_INLINE_FN int fgetc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int fputc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int feof_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0010) != 0;
+}
+__NIJI_INLINE_FN int ferror_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0020) != 0;
+}
+#endif
+@@when getchar
+__NIJI_INLINE_FN int getchar (void)
+{
+  return getc (stdin);
+}
+__NIJI_INLINE_FN int putchar (int __c)
+{
+  return putc (__c, stdout);
+}
+#endif
+@@when getline
+# if __NIJI_GNU
+__NIJI_INLINE_FN ssize_t getline (char **__lineptr, size_t *__n, FILE *__stream)
+{
+  return __getdelim (__lineptr, __n, '\n', __stream);
+}
+# endif
+#endif
+#endif
+
+@@fortify
+__NIJI_END_C
+
+/* Under _FORTIFY_SOURCE fwrite_unlocked is also a macro (visibility.tsv); a call still references the exported
+   fwrite_unlocked (callsites.tsv), which this one calls (a macro does not expand inside its own replacement). */
+@@when fwrite_unlocked
+# define fwrite_unlocked(ptr, size, n, stream) fwrite_unlocked ((ptr), (size), (n), (stream))
+#endif
+
+#endif

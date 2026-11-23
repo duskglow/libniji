@@ -1,0 +1,22 @@
+# WL-LEVELS-RERECORD plants (cargo xtask plants): the fixed run environment undone or leaky, rows of the fixed
+# environment cached with the method before, a level edited without a re-count, and a raised level accepted without
+# each condition of a correction (D-X.155).
+env-inherit | validation/wl_stats.sh | lit:echo "env -i $WL_RUN_ENV setarch -R" ==> echo "setarch -R" | bash validation/wl_stats_test.sh | msg:FAIL run_env_same_for_any_caller
+env-leaky | validation/wl_stats.sh | lit:echo "env -i $WL_RUN_ENV setarch -R" ==> echo "env $WL_RUN_ENV setarch -R" | bash validation/wl_stats_test.sh | msg:FAIL run_env_no_caller_vars
+env-caller-value | validation/wl_stats.sh | lit:echo "env -i $WL_RUN_ENV setarch -R" ==> echo "env -i $WL_RUN_ENV JOB=${JOBRUN_LABEL:-} setarch -R" | bash validation/wl_stats_test.sh | msg:FAIL run_env_same_for_any_caller
+cache-shared | validation/wl_count_run.sh | lit:msuf=.r.tsv ==> msuf=.q.tsv | bash validation/wl_stats_test.sh | msg:FAIL wl_count_run_cache_apart
+level-no-recompute | validation/wl_verdict.py | lit:elif lv != ceil4(n / g): ==> elif False: | bash validation/wl_verdict_test.sh | msg:FAIL level lowered without a re-count refused
+raise-no-decision | validation/wl_verdict.py | lit:if not CORRECTION.search(r["cause"]): ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction without a named decision refused
+raise-not-recounted | validation/wl_verdict.py | lit:if r["recorded"] == b["recorded"]: ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction not recorded again refused
+raise-libniji-worse | validation/wl_verdict.py | lit:if float(r["libniji"]) > float(b["libniji"]): ==> if False: | bash validation/wl_verdict_test.sh | msg:FAIL correction with libniji's count risen refused
+level-edited | validation/wl_holds.tsv | lit:1.2972 ==> 1.2980 | bash validation/wl_verdict_test.sh | msg:FAIL wl_holds.tsv
+# cargo xtask plants results (9 plants: 9 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# env-inherit: CAUGHT, caught by no test the log names
+# env-leaky: CAUGHT, caught by no test the log names
+# env-caller-value: CAUGHT, caught by no test the log names
+# cache-shared: CAUGHT, caught by no test the log names
+# level-no-recompute: CAUGHT, caught by no test the log names
+# raise-no-decision: CAUGHT, caught by no test the log names
+# raise-not-recounted: CAUGHT, caught by no test the log names
+# raise-libniji-worse: CAUGHT, caught by no test the log names
+# level-edited: CAUGHT, caught by no test the log names

@@ -1,0 +1,21 @@
+{"task": "SYS-DEV-LINKS-2", "model": "opus", "tokens": null,
+ "result": "Merged origin/next (libresolv.so.2/libresolv.so, control-field parity, lintian override) into SYS-DEV-LINKS keeping both sides; both package flavours, check-system, check-symbols, root-system, check.sh and the parity compare green on the merged head",
+ "branch": "task/sys-dev-links-2", "head": "13ce1bc06",
+ "gate": {"affected": "sys-dev-links-2-gate rc 0: 4 suites, 463 passed / 0 failed; sys-dev-links-2-pkg rc 0 (check-system PASS, check-symbols PASS 4214 lines, root-system all PASS, check.sh PASS, parity compare); plants 6/6 CAUGHT, 0 WARN; clippy --all-features and static rc 0", "peak": "2.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "version question: libm-2.41.a (audit row 13) is the reference's versioned static libm name; libniji is the 2.39 ABI, so no 2.41-named file is shipped",
+   "libnss_compat.so / libnss_hesiod.so dev links stay out until their libraries exist (SL-NSS)",
+   "parity compare on the merged head: new rows are next's libresolv.so.2 rows (__ns_get16, __ns_get32 GLIBC_PRIVATE, _res_opcodes, shlibs line), not this story's; this story's only new row is the expected shlibs: libBrokenLocale 1 libc6 (>= 2.39)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "-lBrokenLocale links and -lanl / -lc_malloc_debug take the shared library with the system packages, now together with next's -lresolv", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "package parity gap rows closed by SYS-DEV-LINKS (8 files, 1 soname, 2 control), kept after the merge", "before": 0, "after": 11, "unit": "rows", "measured": true},
+   {"kind": "unblock", "what": "clears the CI conflict on SYS-DEV-LINKS so it can land", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "jobs": ["sys-dev-links-2-gate", "sys-dev-links-2-plants", "sys-dev-links-2-pkg", "sys-dev-links-2-lint"],
+ "improvement": "a plants file whose lit: patterns name list text breaks on any merge that extends the list; anchoring plants on the item being planted (e.g. ' libBrokenLocale.so.1; do') would survive such merges",
+ "next_step": "none for this story; SL-NSS adds libnss_compat.so.2 and its dev link",
+ "report_file": "handoff/SYS-DEV-LINKS.md"}

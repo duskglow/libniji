@@ -1,0 +1,23 @@
+{"task": "REVIEW-HEAP-ADDRESS-SPACE", "model": "opus", "tokens": null,
+ "result": "COMPLETE: review written; HEAP-ADDRESS-SPACE is not a heap rabbit hole (content converged by run 6: probe 67652 -> 41296 KiB) but about 5 of 12.6 agent-h went on start-up counts R2 has made report-only; run 8 is chasing such a count and the chain would not close Yohane #21 alone; continue with named changes",
+ "branch": "task/review-heap-address-space", "head": null,
+ "gate": {"affected": "none (planning story)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "HEAP-ADDRESS-SPACE-8 (live until 14:19Z) follows its 11-18 brief: find the +1 dynamic start-up fault (90 > 89), 'fix the cause, never the bound'; on next (merged into its branch at 10:23Z) that bound and STARTUP-DATA-WINDOWS are report-only (D-X.136, NIJI_FAULT_BOUNDS=enforce); #6949/#6950 told LOCALE-SLOTS-GROWTH-6 at 10:20Z, 48 s after run 8 was admitted, and run 8 got no note", "recommendation": "tell run 8 through its inbox now: record the +1 fault as a cost, do not hunt it; the zero-fault phase checks still gate"},
+  {"item": "The heap branch carries a layout change that is not heap work: .got aligned to 256 in entry.S (pending record HEAP-ADDRESS-SPACE-3-2), added only to fix STARTUP-DATA-WINDOWS 8 > 7 (now report-only), and run 7's lead for its +1 fault", "recommendation": "drop it on run 8's head unless measured as needed; a straddle-only residue falls under #6949 (finished, CI holds for LAYOUT-GOT-ORDER); the window-bin planner change (-6-1) stays only if it stands on its own plants and records"},
+  {"item": "By the chain's own numbers the findutils case still fails (RLIMIT_AS need 41296..43088 KiB vs the formula's 35152 headroom, estimate); the spill that closes it was removed in run 5 for start-up counts and HEAP-SPILL-COLD is held until run 8 lands", "recommendation": "land run 8 as a partial fix for #21 (issue stays open, Yohane told the numbers); stack HEAP-SPILL-COLD on run 8 once it verifies, with the findutils run under the issue's formula as its acceptance and D-X.136 stated in its brief"}
+ ],
+ "informational": [
+  "Run 8's 'Why it keeps going red' says run 7's cause differs from runs 1-6; 3 of 4 failure reds (runs 4, 5, 7) and run 2's blocker are zero-margin start-up counts, the SYSTEMIC alert's cause",
+  "Of the '13 measured gains', about 5 are distinct against next; run 2 repeats run 1's number, run 3's 8 -> 7 pages undoes the branch's own +1, run 1's 34888 KiB was given back in run 5; nothing has landed (adds to owed #32)",
+  "Original proof items open after 8 runs: findutils find under the issue's ulimit -v formula, cbench_malloc / cbench_startup before and after (INVIOLABLE needs the latter before landing)",
+  "Run 6a (0 calls) was the 11-18 login expiry, requeued by the coordinator; not the story's cost",
+  "A ruling that changes a gate's meaning reached one live run; grep live and queued briefs for the old gate's wording when such a ruling lands",
+  "The tripwire's 0 gains in the last 24 h reflect a 38 h hold on STARTUP-GOT-PAGE-4 (closed without landing), not churn"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "independent review: no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "when a ruling changes what a gate means (D-X.136), push it to every live and queued brief that cites the old gate, not only the story whose review raised it",
+ "next_step": "the coordinator sends run 8 the R2 rule and the .got-alignment drop through its inbox before it hands back; HEAP-SPILL-COLD restacked on run 8",
+ "report_file": "plan/reviews/REVIEW-HEAP-ADDRESS-SPACE.md",
+ "jobs": []}

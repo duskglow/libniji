@@ -1,0 +1,5 @@
+wrapper-removed | headers/fortify.tsv | perl:s/memcpy\tbuiltin/memcpy_gone\tbuiltin/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort
+size-off-by-one | xtask/src/headers/slices/s18.rs | perl:s/\Q"__NIJI_BOS (__p{digits}, {t})"\E/"(__NIJI_BOS (__p{digits}, {t}) + 1)"/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort
+open-row-removed | headers/fortify.tsv | perl:s/^open\tmode/open_gone\tmode/m | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants __open_2
+flags-fold | xtask/src/headers/slices/s18.rs | perl:s/\Q__builtin_constant_p ({flags})\E/__builtin_constant_p ({need})/ | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants __open_2
+mode-error-dropped | xtask/src/headers/slices/s18.rs | perl:s/\Q"            __niji_fortify_mode ();"\E/"            ;"/ | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants a compile-time error

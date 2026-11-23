@@ -20,78 +20,82 @@
 
 use crate::elf::{dt, Dynamic};
 
-/// The most objects one order covers.
-pub const OBJECTS_MAX: usize = 64;
-
 /// Why an order cannot be computed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OrderError {
-    /// More than [`OBJECTS_MAX`] objects.
+    /// More objects than the caller's storage holds (`out`, `rank` or `work` shorter than `n`).
     TooMany,
     /// An edge names an object outside `0..n`.
     BadEdge,
 }
 
 /// Walk state of one object.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum Mark {
+    #[default]
     New,
     Active,
     Done,
 }
 
+/// The working storage of one [`init_order`] walk, one entry per object (the caller's, so the
+/// number of objects has no bound but the caller's memory, DL-STARTUP-OBJECTS): the object's walk
+/// state and one frame of the walk's stack, (object, index of the next edge to look at).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Walk {
+    mark: Mark,
+    frame: (usize, usize),
+}
+
 /// The initialisation order of objects `0..n` (see the module documentation) into `out`; returns
-/// the number of entries (`n`).
+/// the number of entries (`n`). `edges` are `(dependent, dependency)` indices of any width;
+/// `work` is the walk's storage (its contents on entry do not matter).
 ///
 /// # Errors
 ///
-/// [`OrderError`] for more than [`OBJECTS_MAX`] objects or an edge outside `0..n`.
-pub fn init_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> Result<usize, OrderError> {
-    if n > OBJECTS_MAX {
-        return Err(OrderError::TooMany);
-    }
-    if edges.iter().any(|&(a, b)| usize::from(a) >= n || usize::from(b) >= n) {
+/// [`OrderError`] for `out` or `work` shorter than `n` or an edge outside `0..n`.
+pub fn init_order<E: Copy + Into<usize>>(n: usize, edges: &[(E, E)], out: &mut [usize], work: &mut [Walk]) -> Result<usize, OrderError> {
+    let (Some(out), Some(work)) = (out.get_mut(..n), work.get_mut(..n)) else { return Err(OrderError::TooMany) };
+    if edges.iter().any(|&(a, b)| a.into() >= n || b.into() >= n) {
         return Err(OrderError::BadEdge);
     }
-    let mut mark = [Mark::New; OBJECTS_MAX];
     if n == 0 {
         return Ok(0);
     }
+    work.fill(Walk::default());
     // The root is held back: never entered through an edge, placed last.
-    if let Some(m) = mark.first_mut() {
-        *m = Mark::Active;
+    if let Some(w) = work.first_mut() {
+        w.mark = Mark::Active;
     }
     let mut len = 0usize;
-    let mut emit = |v: u8, out: &mut [u8; OBJECTS_MAX]| {
+    let mut emit = |v: usize, out: &mut [usize]| {
         if let Some(slot) = out.get_mut(len) {
             *slot = v;
             len = len.saturating_add(1);
         }
     };
-    // The walk's stack: (object, index of the next edge to look at).
-    let mut stack = [(0u8, 0usize); OBJECTS_MAX];
     for start in (1..n).rev() {
-        let Ok(start) = u8::try_from(start) else { return Err(OrderError::TooMany) };
-        if mark.get(usize::from(start)) != Some(&Mark::New) {
+        if work.get(start).map(|w| w.mark) != Some(Mark::New) {
             continue;
         }
         let mut depth = 0usize;
-        push(&mut stack, &mut depth, &mut mark, start);
-        while let Some(&(v, from)) = depth.checked_sub(1).and_then(|t| stack.get(t)) {
-            let next = edges.iter().enumerate().skip(from).find(|(_, e)| e.0 == v);
+        push(work, &mut depth, start);
+        while let Some((v, from)) = depth.checked_sub(1).and_then(|t| work.get(t)).map(|w| w.frame) {
+            let next = edges.iter().enumerate().skip(from).find(|(_, e)| e.0.into() == v);
             match next {
                 Some((k, &(_, w))) => {
-                    if let Some(top) = depth.checked_sub(1).and_then(|t| stack.get_mut(t)) {
-                        top.1 = k.saturating_add(1);
+                    if let Some(top) = depth.checked_sub(1).and_then(|t| work.get_mut(t)) {
+                        top.frame.1 = k.saturating_add(1);
                     }
-                    if mark.get(usize::from(w)) == Some(&Mark::New) {
-                        push(&mut stack, &mut depth, &mut mark, w);
+                    let w = w.into();
+                    if work.get(w).map(|x| x.mark) == Some(Mark::New) {
+                        push(work, &mut depth, w);
                     }
                 }
                 None => {
                     depth = depth.saturating_sub(1);
-                    if let Some(m) = mark.get_mut(usize::from(v)) {
-                        *m = Mark::Done;
+                    if let Some(x) = work.get_mut(v) {
+                        x.mark = Mark::Done;
                     }
                     emit(v, out);
                 }
@@ -102,14 +106,15 @@ pub fn init_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> 
     Ok(len)
 }
 
-/// Push `v` on the walk's stack and mark it active.
-fn push(stack: &mut [(u8, usize); OBJECTS_MAX], depth: &mut usize, mark: &mut [Mark; OBJECTS_MAX], v: u8) {
-    if let Some(slot) = stack.get_mut(*depth) {
-        *slot = (v, 0);
+/// Push `v` on the walk's stack and mark it active. The stack never holds more than `n` frames:
+/// each object is pushed once (it leaves state [`Mark::New`] here).
+fn push(work: &mut [Walk], depth: &mut usize, v: usize) {
+    if let Some(slot) = work.get_mut(*depth) {
+        slot.frame = (v, 0);
         *depth = depth.saturating_add(1);
     }
-    if let Some(m) = mark.get_mut(usize::from(v)) {
-        *m = Mark::Active;
+    if let Some(x) = work.get_mut(v) {
+        x.mark = Mark::Active;
     }
 }
 
@@ -118,8 +123,8 @@ fn push(stack: &mut [(u8, usize); OBJECTS_MAX], depth: &mut usize, mark: &mut [M
 /// # Errors
 ///
 /// As [`init_order`].
-pub fn fini_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> Result<usize, OrderError> {
-    let len = init_order(n, edges, out)?;
+pub fn fini_order<E: Copy + Into<usize>>(n: usize, edges: &[(E, E)], out: &mut [usize], work: &mut [Walk]) -> Result<usize, OrderError> {
+    let len = init_order(n, edges, out, work)?;
     if let Some(s) = out.get_mut(..len) {
         s.reverse();
     }
@@ -176,8 +181,20 @@ fn callable(f: u64) -> bool {
     f != 0 && f != u64::MAX
 }
 
-/// The most objects [`exit_order`] covers (the loader's object table).
-pub const EXIT_MAX: usize = 512;
+/// One unit's working state in [`exit_order`] (the caller's slice, one per unit: no count of units is
+/// too many). All-zero is a valid value; [`exit_order`] sets every field it reads.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExitWalk {
+    index: u32,
+    low: u32,
+    comp: u32,
+    stack: u32,
+    call: (u32, u32),
+    first: u32,
+    waits: u32,
+    on: bool,
+    done: bool,
+}
 /// The exit-time finalisation order (story DL-EXIT-ORDER-PROBE, probe tools/probe/dl/exitorder):
 /// units `0..n` are given in sequence order (the start-time objects in [`fini_order`], then the
 /// `dlopen`ed objects in load order); `succ(v, e)` is the `e`-th unit that `v` runs before (an
@@ -189,69 +206,72 @@ pub const EXIT_MAX: usize = 512;
 ///
 /// # Errors
 ///
-/// [`OrderError::TooMany`] for more than [`EXIT_MAX`] units, or `out` or `rank` shorter than
-/// `n`; [`OrderError::BadEdge`] for a successor outside `0..n`.
-// Every index is below n <= EXIT_MAX (checked), counts stay below n or the number of successors.
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
-pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: &[u32], out: &mut [u16]) -> Result<usize, OrderError> {
-    const NONE: u16 = u16::MAX;
-    if n > EXIT_MAX || out.len() < n || rank.len() < n {
+/// [`OrderError::TooMany`] when `out`, `rank` or `work` is shorter than `n` or `n` does not fit 32
+/// bits; [`OrderError::BadEdge`] for a successor outside `0..n`.
+// Every index is below n <= work.len() (checked), counts stay below n or the number of successors.
+// One slice holds every per-unit and per-group field, so the loops index it by unit and by group.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::needless_range_loop)]
+pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: &[u32], out: &mut [u32], work: &mut [ExitWalk]) -> Result<usize, OrderError> {
+    const NONE: u32 = u32::MAX;
+    if out.len() < n || rank.len() < n || work.len() < n || u32::try_from(n).map_or(true, |n| n == NONE) {
         return Err(OrderError::TooMany);
     }
-    let unit = |v: usize| u16::try_from(v).unwrap_or(NONE);
+    let unit = |v: usize| u32::try_from(v).unwrap_or(NONE);
+    let at = |v: u32| usize::try_from(v).unwrap_or(usize::MAX);
+    let w = &mut work[..n];
+    w.fill(ExitWalk { index: NONE, low: 0, comp: NONE, stack: 0, call: (0, 0), first: NONE, waits: 0, on: false, done: false });
     for v in 0..n {
         if (0..).map_while(|e| succ(v, e)).any(|w| w >= n) {
             return Err(OrderError::BadEdge);
         }
     }
-    // Groups: strongly connected components (Tarjan, iterative), `comp[v]`.
-    let (mut index, mut low, mut comp) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [NONE; EXIT_MAX]);
-    let (mut stack, mut on) = ([0u16; EXIT_MAX], [false; EXIT_MAX]);
-    let (mut call, mut sp, mut next, mut ncomp) = ([(0u16, 0u16); EXIT_MAX], 0usize, 0u16, 0u16);
+    // Groups: strongly connected components (Tarjan, iterative), `w[v].comp`; `w[d].call` and
+    // `w[d].stack` are the call and unit stacks at depth `d`.
+    let (mut sp, mut next, mut ncomp) = (0usize, 0u32, 0u32);
     for root in 0..n {
-        if index[root] != NONE {
+        if w[root].index != NONE {
             continue;
         }
-        call[0] = (unit(root), 0);
+        w[0].call = (unit(root), 0);
         let mut cp = 1usize;
-        index[root] = next;
-        low[root] = next;
+        w[root].index = next;
+        w[root].low = next;
         next += 1;
-        stack[sp] = unit(root);
+        w[sp].stack = unit(root);
         sp += 1;
-        on[root] = true;
+        w[root].on = true;
         while cp > 0 {
-            let (v, e) = call[cp - 1];
-            let vu = usize::from(v);
-            if let Some(wu) = succ(vu, usize::from(e)) {
-                call[cp - 1].1 += 1;
-                let w = unit(wu);
-                if index[wu] == NONE {
-                    index[wu] = next;
-                    low[wu] = next;
+            let (v, e) = w[cp - 1].call;
+            let vu = at(v);
+            if let Some(wu) = succ(vu, at(e)) {
+                w[cp - 1].call.1 += 1;
+                let x = unit(wu);
+                if w[wu].index == NONE {
+                    w[wu].index = next;
+                    w[wu].low = next;
                     next += 1;
-                    stack[sp] = w;
+                    w[sp].stack = x;
                     sp += 1;
-                    on[wu] = true;
-                    call[cp] = (w, 0);
+                    w[wu].on = true;
+                    w[cp].call = (x, 0);
                     cp += 1;
-                } else if on[wu] {
-                    low[vu] = low[vu].min(index[wu]);
+                } else if w[wu].on {
+                    w[vu].low = w[vu].low.min(w[wu].index);
                 }
                 continue;
             }
             cp -= 1;
             if cp > 0 {
-                let p = usize::from(call[cp - 1].0);
-                low[p] = low[p].min(low[vu]);
+                let p = at(w[cp - 1].call.0);
+                w[p].low = w[p].low.min(w[vu].low);
             }
-            if low[vu] == index[vu] {
+            if w[vu].low == w[vu].index {
                 loop {
                     sp -= 1;
-                    let w = usize::from(stack[sp]);
-                    on[w] = false;
-                    comp[w] = ncomp;
-                    if w == vu {
+                    let x = at(w[sp].stack);
+                    w[x].on = false;
+                    w[x].comp = ncomp;
+                    if x == vu {
                         break;
                     }
                 }
@@ -259,38 +279,39 @@ pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: 
             }
         }
     }
-    // Each group's earliest unit and the pairs from other groups it waits for.
-    let nc = usize::from(ncomp);
-    let (mut first, mut waits, mut done) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [false; EXIT_MAX]);
-    for (v, &c) in comp.iter().enumerate().take(n) {
-        let c = usize::from(c);
-        first[c] = first[c].min(unit(v));
+    // Each group's earliest unit and the pairs from other groups it waits for (`w[c].first`,
+    // `w[c].waits`, `w[c].done` for group `c`).
+    let nc = at(ncomp);
+    for v in 0..n {
+        let c = at(w[v].comp);
+        w[c].first = w[c].first.min(unit(v));
     }
     for a in 0..n {
         for b in (0..).map_while(|e| succ(a, e)) {
-            if comp[a] != comp[b] {
-                waits[usize::from(comp[b])] += 1;
+            if w[a].comp != w[b].comp {
+                let cb = at(w[b].comp);
+                w[cb].waits += 1;
             }
         }
     }
     let mut len = 0usize;
     for _ in 0..nc {
         // The free group with the earliest unit (a cycle-free graph of groups always has one).
-        let Some(c) = (0..nc).filter(|&c| !done[c] && waits[c] == 0).min_by_key(|&c| first[c]) else { break };
-        done[c] = true;
+        let Some(c) = (0..nc).filter(|&c| !w[c].done && w[c].waits == 0).min_by_key(|&c| w[c].first) else { break };
+        w[c].done = true;
         let start = len;
-        for (v, &cv) in comp.iter().enumerate().take(n) {
-            if usize::from(cv) == c {
+        for v in 0..n {
+            if at(w[v].comp) == c {
                 out[len] = unit(v);
                 len += 1;
             }
         }
-        out[start..len].sort_unstable_by_key(|&v| core::cmp::Reverse(rank[usize::from(v)]));
+        out[start..len].sort_unstable_by_key(|&v| core::cmp::Reverse(rank[at(v)]));
         for &v in &out[start..len] {
-            for w in (0..).map_while(|e| succ(usize::from(v), e)) {
-                let cw = usize::from(comp[w]);
-                if cw != c {
-                    waits[cw] -= 1;
+            for x in (0..).map_while(|e| succ(at(v), e)) {
+                let cx = at(w[x].comp);
+                if cx != c {
+                    w[cx].waits -= 1;
                 }
             }
         }

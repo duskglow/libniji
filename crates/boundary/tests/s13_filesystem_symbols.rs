@@ -18,6 +18,8 @@
 #[path = "../../core/tests/support/kernel.rs"]
 mod kernel;
 
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
 use core::ptr::{null, null_mut};
 use std::ffi::{CStr, CString};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -70,7 +72,7 @@ struct Dir(std::path::PathBuf);
 impl Dir {
     fn new(tag: &str) -> Dir {
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
-        let p = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("s13d-{}-{tag}-{n}", std::process::id()));
+        let p = crate::scratch::base().join(format!("s13d-{}-{tag}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir(&p).unwrap();
         Dir(p)
@@ -94,7 +96,7 @@ impl Dir {
 }
 impl Drop for Dir {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -2663,7 +2665,7 @@ mod p12 {
                 }
             }
             let n = super::SEQ.fetch_add(1, Ordering::Relaxed);
-            let p = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("s13-{}-{tag}-{n}", std::process::id()));
+            let p = crate::scratch::base().join(format!("s13-{}-{tag}-{n}", std::process::id()));
             let _ = std::fs::remove_dir_all(&p);
             std::fs::create_dir_all(&p).unwrap();
             Tmp { path: std::fs::canonicalize(&p).unwrap(), owned: true }
@@ -2682,7 +2684,7 @@ mod p12 {
     impl Drop for Tmp {
         fn drop(&mut self) {
             if self.owned {
-                let _ = std::fs::remove_dir_all(&self.path);
+                crate::scratch::release(std::path::Path::new(&self.path));
             }
         }
     }

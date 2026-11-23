@@ -20,7 +20,7 @@
 //! piece when memory allows (piece by piece otherwise). `fmtmsg` reports through its result
 //! only: `errno` is as it was.
 
-use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
+use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
 use niji::error::Errno;
 use niji::mem::TryVec;
@@ -31,8 +31,10 @@ use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_WRONLY};
 use niji_legacy::stdio_compat as sc;
+use niji_rt::chunks::Chunks;
 use niji_rt::sync::RawMutex;
 
+use crate::heap::KernelPages;
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
 use crate::{conv, errno, locale, process, strz};
@@ -71,19 +73,16 @@ const STANDARD: [&[u8]; 5] = [b"", b"HALT", b"ERROR", b"WARNING", b"INFO"];
 /// The highest standard level: added severities are above it.
 const LAST_STANDARD: i32 = 4;
 
-/// How many added severities the table holds (D-2.6).
-const CAPACITY: usize = 256;
+/// The words of an added severity: its level (0: a free entry), then the address and length of
+/// its print string, a copy kept for the rest of the process (a string read under [`LOCK`]
+/// stays valid after it).
+const WORDS: usize = 3;
 
-/// One added severity: its level (0: a free entry) and its print string, a copy kept for the
-/// rest of the process (a string read under [`LOCK`] stays valid after it).
-struct Added {
-    level: AtomicI32,
-    addr: AtomicUsize,
-    len: AtomicUsize,
-}
-
-/// The added severities (`addseverity` and `SEV_LEVEL`).
-static ADDED: [Added; CAPACITY] = [const { Added { level: AtomicI32::new(0), addr: AtomicUsize::new(0), len: AtomicUsize::new(0) } }; CAPACITY];
+/// The added severities (`addseverity` and `SEV_LEVEL`), as many as memory allows (D-2.6):
+/// chunks mapped as they are needed, the first at the first added severity.
+static ADDED: Chunks = Chunks::new();
+/// Entries of [`ADDED`] handed out so far (free ones among them are used again first).
+static USED: AtomicUsize = AtomicUsize::new(0);
 /// Serialises [`ADDED`] and the reading of the environment.
 static LOCK: RawMutex = RawMutex::new();
 /// Whether the environment was read (at the first `fmtmsg`).
@@ -91,26 +90,59 @@ static ENV_READ: AtomicBool = AtomicBool::new(false);
 /// The fields `MSGVERB` selects.
 static SELECTED: AtomicU32 = AtomicU32::new(ALL);
 
+/// Entry `i` of [`ADDED`].
+fn at(i: usize) -> Option<&'static [AtomicU64]> {
+    ADDED.get(&KernelPages, i, WORDS)
+}
+
+/// Word `k` of an entry.
+fn word(a: &[AtomicU64], k: usize) -> usize {
+    a.get(k).map_or(0, |w| usize::try_from(w.load(Relaxed)).unwrap_or(0))
+}
+
+/// Set word `k` of an entry.
+fn set_word(a: &[AtomicU64], k: usize, v: usize) {
+    if let Some(w) = a.get(k) {
+        w.store(u64::try_from(v).unwrap_or(0), Relaxed);
+    }
+}
+
+/// A level as an entry's first word (its bit pattern; 0 stays 0).
+fn level_word(level: i32) -> usize {
+    usize::try_from(u32::from_ne_bytes(level.to_ne_bytes())).unwrap_or(0)
+}
+
 /// Under [`LOCK`]: the entry holding `level` (0: a free entry).
-fn entry(level: i32) -> Option<&'static Added> {
-    ADDED.iter().find(|a| a.level.load(Relaxed) == level)
+fn entry(level: i32) -> Option<&'static [AtomicU64]> {
+    (0..USED.load(Relaxed)).filter_map(at).find(|a| word(a, 0) == level_word(level))
+}
+
+/// Under [`LOCK`]: a new entry (free), past the ones handed out; `None` without memory.
+fn new_entry() -> Option<&'static [AtomicU64]> {
+    let i = USED.load(Relaxed);
+    if !ADDED.reserve(&KernelPages, i, WORDS) {
+        return None;
+    }
+    let a = at(i)?;
+    USED.store(i.checked_add(1)?, Relaxed);
+    Some(a)
 }
 
 /// Under [`LOCK`]: the print string of an entry.
-fn print_string(a: &Added) -> &'static [u8] {
-    match a.len.load(Relaxed) {
+fn print_string(a: &[AtomicU64]) -> &'static [u8] {
+    match word(a, 2) {
         0 => b"",
-        len => conv::mapped_bytes(a.addr.load(Relaxed), len),
+        len => conv::mapped_bytes(word(a, 1), len),
     }
 }
 
 /// Under [`LOCK`]: make `level` (above 4) print a copy of `text`, or remove it for `None`.
-/// False when there is nothing to remove, no free entry, or no memory for the copy.
+/// False when there is nothing to remove, or no memory for the entry or the copy.
 fn define(level: i32, text: Option<&[u8]>) -> bool {
     let Some(text) = text else {
-        return entry(level).map(|a| a.level.store(0, Relaxed)).is_some();
+        return entry(level).map(|a| set_word(a, 0, 0)).is_some();
     };
-    let Some(slot) = entry(level).or_else(|| entry(0)) else {
+    let Some(slot) = entry(level).or_else(|| entry(0)).or_else(new_entry) else {
         return false;
     };
     let mut copy = TryVec::new();
@@ -118,9 +150,9 @@ fn define(level: i32, text: Option<&[u8]>) -> bool {
         return false;
     }
     let kept: &'static [u8] = copy.leak();
-    slot.addr.store(kept.as_ptr().expose_provenance(), Relaxed);
-    slot.len.store(kept.len(), Relaxed);
-    slot.level.store(level, Relaxed);
+    set_word(slot, 1, kept.as_ptr().expose_provenance());
+    set_word(slot, 2, kept.len());
+    set_word(slot, 0, level_word(level));
     true
 }
 

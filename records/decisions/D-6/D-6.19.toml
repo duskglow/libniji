@@ -1,0 +1,12 @@
+id = "D-6.19"
+section = "s06"
+spec = "§6.4"
+ann = "ARB"
+status = "active"
+amends = ["D-6.18"]
+story = "ICONV-CJK-STARTUP"
+date = "2026-11-21"
+tests = ["crates/core/tests/iconv_reloc_products.rs", "crates/core/src/iconv/cjk.rs"]
+body = '''
+**The built-in iconv tables hold offsets, never addresses, so they cost no load-time relocation.** Snapshot 2026-11-21.6 measured +1,408 user instructions per dynamic start against 21.5 from 71 new `R_X86_64_RELATIVE` relocations, all ICONV-CJK's: 40 slices in the five CJK descriptors, 10 in compiler lookup tables of the descriptors' addresses and 21 in the new name rows (one `&[u8]` each). `cargo xtask encodings-gen` now writes every set's tables concatenated per kind (`ROWS`, `CELLS`, ...) and a descriptor of (start, count) spans (`SETS`, indexed, not matched by address); the built-in name table keeps its rows as build-time constants and the program holds the names back to back (`NAME_BYTES`) with (offset, length, codec) rows (`NAME_ROWS`). `iconv_reloc_products` fails on a relocated word inside these tables or pointing into them. Cost: one bounds check per table part a conversion step reads.
+'''

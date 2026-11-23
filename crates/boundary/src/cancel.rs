@@ -3,15 +3,17 @@
 //!
 //! `pthread_cleanup_push` (C, glibc's headers) fills a `__pthread_unwind_buf_t` with
 //! `__sigsetjmp(buf, 0)` and registers it (`__pthread_register_cancel`). When the thread exits
-//! (`pthread_exit`) or acts on cancellation, the newest buffer is jumped to; the handler code
-//! there runs the routine and calls `__pthread_unwind_next(buf)`, which jumps to the next
-//! buffer or, after the last, runs the old-style records (`_pthread_cleanup_push`) and the
-//! thread's exit sequence (`crate::thread::finish`). No Rust frame is unwound: each jump
-//! leaves only this module's frames, which hold nothing to drop (S11).
-//!
-//! **Interim until phase 14 (D-22.11):** glibc unwinds with `_Unwind_ForcedUnwind` from
-//! `libgcc_s`, which also runs C++ destructors; until libniji can load it, only the registered
-//! C buffers run.
+//! (`pthread_exit`) or acts on cancellation, its stack is unwound with the program's unwinder
+//! (`_Unwind_ForcedUnwind`, D-22.19): C++ destructors and `catch` handlers (which rethrow) and
+//! `-fexceptions` cleanups run frame by frame, and when the unwind reaches the frame holding the
+//! newest buffer, that buffer is jumped to; the handler code there runs the routine and calls
+//! `__pthread_unwind_next(buf)`, which unwinds on from there. After the outermost frame, the
+//! old-style records still registered (`_pthread_cleanup_push`) and the thread's exit sequence
+//! (`crate::thread::finish`) run. A static program unwinds with the unwinder it links (D-22.21).
+//! A process without an unwinder (a C program that loaded or linked none) skips the unwind: the
+//! buffers are jumped to in turn, newest first. No Rust
+//! frame is unwound: each jump, landing pad or exit leaves only this module's frames and the
+//! exports', which hold nothing to drop (S11).
 
 use core::sync::atomic::{AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
@@ -91,7 +93,7 @@ pub fn unwind_next(buf: KResult<&[AtomicUsize]>) -> ! {
         d.cleanup_jmp.store(next, Release);
         d.result.load(Acquire)
     });
-    continue_unwind(next, result)
+    continue_unwind(next, result, false)
 }
 
 /// The thread exits with `result` (`pthread_exit`, `thrd_exit`, or acting on cancellation with
@@ -102,10 +104,21 @@ pub fn unwind(result: usize) -> ! {
         d.cancel.fetch_or(CANCEL_ACTING, AcqRel);
         d.cleanup_jmp.load(Acquire)
     });
-    continue_unwind(head, result)
+    continue_unwind(head, result, true)
 }
 
-fn continue_unwind(buf: usize, result: usize) -> ! {
+/// `first`: the exit's first step (from [`unwind`]), where a process without an unwinder checks
+/// that the thread's frames need none (D-22.23); a later step (from a cleanup buffer's handler)
+/// comes after that check passed.
+fn continue_unwind(buf: usize, result: usize, first: bool) -> ! {
+    // Returns only when the process has no unwinder or the unwind could not start.
+    forced_unwind(first);
+    fallback(buf, result)
+}
+
+/// The exit without an unwinder: the newest cleanup buffer, or (after the last) the old-style
+/// records and the exit sequence.
+fn fallback(buf: usize, result: usize) -> ! {
     if buf != 0 {
         // The buffer was filled by `__sigsetjmp(buf, 0)` in a live frame of this thread.
         ffi::niji_machine_siglongjmp(buf, 1);
@@ -126,6 +139,148 @@ fn run_old_records() {
         d.cleanup_old.store(word(w, O_PREV), Release);
         call(word(w, O_ROUTINE), word(w, O_ARG));
     }
+}
+
+/// The old-style records registered in frames the forced unwind has left: those below `limit`
+/// (a canonical frame address the stop function passed), newest first.
+fn run_old_records_below(d: &niji_rt::thread::Thread, limit: usize) {
+    loop {
+        let rec = d.cleanup_old.load(Acquire);
+        if rec == 0 || rec >= limit {
+            return;
+        }
+        let w = tb::registered(rec, 4);
+        d.cleanup_old.store(word(w, O_PREV), Release);
+        call(word(w, O_ROUTINE), word(w, O_ARG));
+    }
+}
+
+// ------------------------------------------------------------------------------ forced unwind
+
+/// `_UA_END_OF_STACK` (Itanium C++ ABI §1.3): the stop function's last call.
+const UA_END_OF_STACK: c_int = 16;
+/// The exception class of a thread's exit (vendor `NIJI`, language `EXIT`; ABI §1.2: the high
+/// four bytes name the vendor).
+const EXIT_CLASS: u64 = u64::from_be_bytes(*b"NIJIEXIT");
+
+fn as_i64(v: usize) -> i64 {
+    i64::from_ne_bytes(v.to_ne_bytes())
+}
+
+/// The process's unwinder: in a static program, `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` as
+/// it links them (machine/unwinder.S, D-22.21: libc.a's weak references; 0 everywhere else);
+/// otherwise as the program's own references resolve them (D-22.19, `dlsym(RTLD_DEFAULT, ..)`:
+/// `libgcc_s.so.1`, or another unwinder the program loaded), looked up now and never cached (a
+/// later `dlopen` or `dlclose` changes the answer). `None` in a process without an unwinder.
+fn unwinder() -> Option<(usize, usize)> {
+    let force = ffi::niji_machine_unwind_force();
+    if force != 0 {
+        let cfa = ffi::niji_machine_unwind_get_cfa();
+        return (cfa != 0).then_some((force, cfa));
+    }
+    // The loader's `dlsym` entry, as `niji_dl_sym` calls it: RTLD_DEFAULT (0), no version, the
+    // program as the requester (0).
+    let entry = crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire);
+    if entry == 0 {
+        return None;
+    }
+    let find = |name: &[u8]| usize::from_ne_bytes(ffi::niji_machine_call4(entry, 0, as_i64(name.as_ptr().expose_provenance()), 0, 0).to_ne_bytes());
+    let force = find(b"_Unwind_ForcedUnwind\0");
+    if force == 0 {
+        return None;
+    }
+    let cfa = find(b"_Unwind_GetCFA\0");
+    (cfa != 0).then_some((force, cfa))
+}
+
+/// Unwind the calling thread's stack with the program's unwinder (D-22.19, Itanium C++ ABI §1.3
+/// `_Unwind_ForcedUnwind`): every frame's cleanups run (C++ destructors, `catch` handlers that
+/// rethrow, `-fexceptions` cleanups), the C cleanup buffers in their frames' turn
+/// ([`stop`]), and the exit sequence after the outermost frame. Returns only when there is no
+/// unwinder or the unwind could not start; the caller then exits without it. Without an
+/// unwinder, on the exit's `first` step, [`no_unwinder`] decides whether it may.
+#[cold]
+#[inline(never)]
+fn forced_unwind(first: bool) {
+    let Ok(d) = thread::desc() else { return };
+    let Some((force, get_cfa)) = unwinder() else {
+        if first {
+            no_unwinder();
+        }
+        return;
+    };
+    let w = &d.unwind.words;
+    set(w, niji_rt::thread::UNWIND_CLASS, usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes()));
+    set(w, niji_rt::thread::UNWIND_CLEANUP, swallowed_addr());
+    set(w, niji_rt::thread::UNWIND_PRIVATE1, 0);
+    set(w, niji_rt::thread::UNWIND_PRIVATE2, 0);
+    set(w, niji_rt::thread::UNWIND_LAST_CFA, 0);
+    let _ = ffi::niji_machine_call3(force, as_i64(addr(w)), as_i64(stop_addr()), as_i64(get_cfa));
+}
+
+/// The stop function (`_Unwind_Stop_Fn`) of [`forced_unwind`], called for each frame before its
+/// cleanups run, with `_Unwind_GetCFA` as its parameter. The old-style records of the frames
+/// already left run first; then, if the newest cleanup buffer lies in this frame (below its
+/// canonical frame address), the unwind continues there (its handler calls
+/// `__pthread_unwind_next`, which starts a new unwind). After the outermost frame the exit goes
+/// on as without an unwinder. Its own frames hold nothing to drop (S11).
+extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ctx: usize, get_cfa: usize) -> c_int {
+    let Ok(d) = thread::desc() else { return 0 };
+    if actions & UA_END_OF_STACK != 0 {
+        fallback(d.cleanup_jmp.load(Acquire), d.result.load(Acquire));
+    }
+    let cfa = usize::from_ne_bytes(ffi::niji_machine_call3(get_cfa, as_i64(ctx), 0, 0).to_ne_bytes());
+    run_old_records_below(d, word(&d.unwind.words, niji_rt::thread::UNWIND_LAST_CFA));
+    let head = d.cleanup_jmp.load(Acquire);
+    if head != 0 && head < cfa {
+        // The buffer was filled by `__sigsetjmp(buf, 0)` in this frame, which is still live.
+        ffi::niji_machine_siglongjmp(head, 1);
+    }
+    set(&d.unwind.words, niji_rt::thread::UNWIND_LAST_CFA, cfa);
+    0
+}
+
+/// The exit without an unwinder (D-22.23, rulings #7118 and #7119): when a frame of the thread's
+/// stack has unwind work (`-fexceptions` cleanups, C++ destructors or handlers, found by this
+/// library's own call-frame walker), going on would skip it (a mutex a destructor owns stays
+/// locked, a promise is never broken), so the process ends: a message naming the cause and the
+/// fix on standard error, then `abort` (SIGABRT). A thread with nothing to unwind (C cleanup
+/// buffers and old-style records only) goes on to the exit without an unwinder. A program that
+/// links its own unwinder hidden (`-static-libgcc`) and loads no `libgcc_s.so.1` lands here.
+/// Only in a program this library's `ld.so` started: a static program with unwind work links
+/// its unwinder (D-22.21), and a process another loader started (the in-process test runtime)
+/// has no lookup to find one.
+#[cold]
+#[inline(never)]
+fn no_unwinder() {
+    if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+        return;
+    }
+    if crate::backtrace::handler_on_stack() {
+        niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
+    }
+}
+
+/// [`no_unwinder`]'s message.
+const NO_UNWINDER: &[u8] = b"FATAL: an exiting or cancelled thread has frames to unwind (cleanups, destructors or handlers) and no unwinder can be found; link libgcc_s dynamically (not -static-libgcc) in a program whose threads exit or are cancelled\n";
+
+/// The exception's cleanup function: a handler caught the thread's exit and ended without
+/// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither
+/// go on (it was told to exit) nor exit from here (the frames outside the handler would not
+/// unwind), so the process ends: a fatal diagnostic, then `abort` (D-22.19, ruling #6884).
+#[cold]
+extern "C" fn swallowed(_reason: c_int, _exc: usize) {
+    niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap)
+}
+
+#[allow(clippy::as_conversions)] // a function pointer's address: the only spelling Rust has
+fn stop_addr() -> usize {
+    stop as extern "C" fn(c_int, c_int, u64, usize, usize, usize) -> c_int as usize
+}
+
+#[allow(clippy::as_conversions)] // a function pointer's address: the only spelling Rust has
+fn swallowed_addr() -> usize {
+    swallowed as extern "C" fn(c_int, usize) as usize
 }
 
 /// A foreign exception (C++) unwound out of the frame that pushed the newest old-style record
@@ -322,11 +477,30 @@ fn internal_addr() -> usize {
     internal as extern "C" fn(i32, usize, usize) as usize
 }
 
-/// Install the internal signal's handler (the products' startup): every signal blocked while
-/// it runs, restarting interrupted calls, on the alternate stack if one is set.
+/// Whether the internal signal's handler is installed ([`install`]). A fork child inherits both
+/// the handler and this word, so it never installs again.
+static INSTALLED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+/// Install the internal signal's handler, once per process: every signal blocked while it runs,
+/// restarting interrupted calls, on the alternate stack if one is set. Lazy (owner ruling #7075,
+/// D-20.1): the library sends the signal only to a thread it created (a cancellation request,
+/// the setxid broadcast), so thread creation installs it before its first clone and a start
+/// makes no `rt_sigaction`. The reservation itself is fixed from the start (OD-8). Racing
+/// creators both install the same action, which is harmless.
+#[inline]
 pub fn install() {
+    if !INSTALLED.load(Relaxed) {
+        install_now();
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn install_now() {
     use niji_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
-    let _ = raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0));
+    if raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0)).is_ok() {
+        INSTALLED.store(true, Relaxed);
+    }
 }
 
 /// `pthread_cancel`: mark the request; a thread that can act is interrupted with the internal

@@ -1,0 +1,6 @@
+# STDIO-WIDE-BYTE-READS-3 plants: each loses bytes of an invalid or cut-short sequence again.
+cut-last-only | crates/legacy/src/stdio_compat.rs | perl:s/(fn invalid_sequence<E: Env>.*?)seq\.get\(\.\.n\)/$1seq.get(n.saturating_sub(1)..n)/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+partial-unstored | crates/legacy/src/stdio_compat.rs | perl:s/(Decoded::Incomplete => \{.*?)\*slot = b;/$1/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+charset-drop | crates/legacy/src/stdio_compat.rs | lit:return invalid_sequence(env, file, ext, n); ==> return invalid_sequence(env, file, ext, 0); | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+eof-keep | crates/legacy/src/stdio_compat.rs | perl:s/(fn end_of_input<E: Env>.*?)if n == 0 \{/$1if n < 9 {/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
+eof-cleared | crates/legacy/src/stdio_compat.rs | perl:s/(fn end_of_input<E: Env>.*?)ext\.state\.eof = true;/$1/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads

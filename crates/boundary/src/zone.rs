@@ -52,7 +52,7 @@ fn value(addr: usize) -> Option<&'static [u8]> {
 /// when `TZ` changed (glibc reads it only when it loads a zone file) and by the explicit `tzset`.
 fn env() -> Env<'static> {
     let tz = process::getenv(b"TZ").unwrap_or(0);
-    Env { tz: value(tz), tzdir: &tzdir, default: time::LOCALTIME }
+    Env { tz: value(tz), tzdir: &tzdir, secure: &process::secure, default: time::LOCALTIME }
 }
 
 fn tzdir() -> Option<&'static [u8]> {

@@ -1,0 +1,12 @@
+id = "D-3.24"
+section = "s03"
+spec = "§3.1"
+ann = "—"
+status = "active"
+amends = ["D-3.22", "D-3.23"]
+story = "HEAP-SECOND-NODE-MAP"
+date = "2026-11-22"
+tests = ["crates/rt/tests/heap_and_sync.rs", "crates/core/tests/heap_meta_products.rs"]
+body = '''
+**A segment after the first reservation's maps its metadata and one growth step** (HEAP-SECOND-NODE-MAP, ruling #7494). The first reservation's segment keeps `SEG_FIRST` (16 slabs, the start-up reason in D-3.22); every later segment (a second NUMA node's, or a node's next one once its current one is spent) maps its metadata and `SEG_STEP` (8 slabs, 2304 KiB of address space with the metadata, was 4352) and grows by the same step after it, so it never holds more mapped, never-used slabs than a growing segment does. Under an address-space limit a thread that moved to a second node had needed 2048 KiB more than the first node's next growth would have taken (D-3.23's remainder). The mapping is one cold, out-of-line function (`map_later_segment`, which also makes D-3.23's `held_elsewhere` check); `take_slab` stores the slab count `new_segment` returns. Applied with and without a limit: the cost is at most one more `Pages::grow` (one system call) per later segment, which touches no page. Measured with `oracle/heap_address_space.c` on the Skylake-SP build host (two nodes; fixed layout, 3 of 3 runs, 16 KiB bisection; KiB over the start of `main`): least `RLIMIT_AS` with a move to the second node after malloc1 43600 -> 41552, halfway through alloc 41552 -> 41552, after alloc 41552 -> 41552, after refill 41296 -> 41296; one node throughout 41296 -> 41296 (the single-node bound keeps no margin); without a limit the realloc step after a move after refill 45640 -> 43592, every other step unchanged. What is left after a node change: the second node's metadata (256 KiB, per-node segments). cbench_malloc instructions per operation (base -> head, same host): the malloc_free rows 122.1 -> 122.2, lifo_batch64 8339.2 -> 8343.6, realloc_grow_16step 5722.3 -> 5725.5, the others within 0.2; layout bin 0: `refill` 3922 -> 3899 B, `alloc_slow` 1280 -> 1299 B. Tests: `a_segment_after_the_first_maps_one_growth_step_first` (rt), `the_heap_bounds_address_space_after_a_node_change` (core; its point-1 need and point-4 realloc bound tightened to the measured levels).
+'''

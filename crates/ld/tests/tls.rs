@@ -17,6 +17,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/helpers/exec_stage.rs"]
+mod exec_stage;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -92,8 +95,8 @@ fn tls_layout_variant_ii_offsets_alignment_and_surplus() {
 fn tls_surplus_first_fit_alignment_gap_reuse_and_rollback() {
     let m = |memsz, align, vaddr| Module { vaddr, filesz: 0, memsz, align };
     let (lo, hi, tpa) = (100u64, 1100u64, 64u64);
-    let mut s = tls::Surplus::<8>::default();
-    let put = |s: &mut tls::Surplus<8>, md: Module| s.place::<Native>(lo, hi, tpa, &md);
+    let mut s = tls::Surplus::<[tls::Place; 8]>::default();
+    let put = |s: &mut tls::Surplus<[tls::Place; 8]>, md: Module| s.place::<Native>(lo, hi, tpa, &md);
     assert!(s.is_empty());
     assert_eq!(put(&mut s, m(10, 1, 0)), Some(-110), "at the surplus's start");
     // Remainder 8 modulo 64: TP - d == 8 (mod 64) for the nearest d >= 110 + 8, d = 120.
@@ -109,22 +112,81 @@ fn tls_surplus_first_fit_alignment_gap_reuse_and_rollback() {
     s.rollback(mark);
     assert_eq!(s.len(), 3);
     assert_eq!(put(&mut s, m(500, 1, 0)), Some(-620), "a place taken back is used again");
-    let mut two = tls::Surplus::<2>::default();
+    let mut two = tls::Surplus::<[tls::Place; 2]>::default();
     assert!(two.place::<Native>(lo, hi, tpa, &m(1, 1, 0)).is_some() && two.place::<Native>(lo, hi, tpa, &m(1, 1, 0)).is_some());
+    assert!(two.is_full());
     assert_eq!(two.place::<Native>(lo, hi, tpa, &m(1, 1, 0)), None, "every place taken");
+}
+
+/// A store that grows (DL-PROCESS-OBJECTS part 3): the first places are kept and later ones go past
+/// its first length.
+struct GrowStore(Vec<tls::Place>);
+impl AsRef<[tls::Place]> for GrowStore {
+    fn as_ref(&self) -> &[tls::Place] {
+        &self.0
+    }
+}
+impl AsMut<[tls::Place]> for GrowStore {
+    fn as_mut(&mut self) -> &mut [tls::Place] {
+        &mut self.0
+    }
+}
+
+/// no spec clause (DL-PROCESS-OBJECTS part 3, audit HL-3: no fixed count of modules loaded later):
+/// a surplus whose store is full takes no place until the store grows, then places past the first
+/// length first fit as before, the earlier ones kept; module IDs past 512 are handed out only when
+/// the caller's words hold their free bits, released IDs past 512 are taken again lowest first, and
+/// an ID given back past 512 is reused.
+#[test]
+fn tls_surplus_and_module_ids_past_the_in_place_room() {
+    let m = Module { vaddr: 0, filesz: 0, memsz: 1, align: 1 };
+    let (lo, hi, tpa) = (0u64, 4096u64, 64u64);
+    let mut s = tls::Surplus::with_store(GrowStore(vec![(0, 0); 3]));
+    for k in 1..=3 {
+        assert_eq!(s.place::<Native>(lo, hi, tpa, &m), Some(-k));
+    }
+    assert!(s.is_full());
+    assert_eq!(s.place::<Native>(lo, hi, tpa, &m), None, "a full store takes no place");
+    s.store_mut().0.resize(6, (0, 0));
+    assert_eq!(s.place::<Native>(lo, hi, tpa, &m), Some(-4), "the grown store, after the kept places");
+    assert!(s.free(-2) && s.len() == 3);
+    assert_eq!(s.place::<Native>(lo, hi, tpa, &m), Some(-2), "a freed place first fit");
+
+    let mut ids = tls::ModuleIds::default();
+    let mut more: Vec<u64> = Vec::new();
+    assert_eq!(ids.take(511, &mut more), Some(512), "the last ID in place needs no word");
+    assert_eq!(tls::ModuleIds::words_for(513), 1);
+    assert_eq!(ids.take(511, &mut more), None, "ID 513's bit has no word yet");
+    more.resize(tls::ModuleIds::words_for(ids.top(511) + 1), 0);
+    assert_eq!(ids.take(511, &mut more), Some(513));
+    assert_eq!(tls::ModuleIds::words_for(576), 1);
+    for want in 514..=576 {
+        assert_eq!(ids.take(511, &mut more), Some(want));
+    }
+    assert_eq!(ids.take(511, &mut more), None, "no word for 577's bit");
+    let g = ids.release(570, 1, &mut more);
+    let g = ids.release(520, g, &mut more);
+    let _ = ids.release(3, g, &mut more);
+    assert_eq!(ids.take(511, &mut more), Some(3), "the lowest released ID, in place");
+    assert_eq!(ids.take(511, &mut more), Some(520), "then past the in-place bits");
+    assert_eq!(ids.take(511, &mut more), Some(570));
+    assert_eq!(ids.take(511, &mut more), None);
+    ids.put_back(530, &mut more);
+    assert_eq!(ids.take(511, &mut more), Some(530), "an ID past 512 given back below the top");
+    ids.put_back(576, &mut more);
+    assert_eq!(ids.take(511, &mut more), Some(576), "the top given back");
 }
 
 /// s27_1_c_4 (plan/ph14/design.md §7 "module IDs reused after dlclose with a generation bump"; probe
 /// `== close` C-4/C-5; DL-17): an unloaded module's surplus place is freed and placed again, the
 /// other places keep their order (a rollback mark stays valid), and freeing a place that is not there
 /// changes nothing; a released module ID is the next one taken (the lowest first), its release moves
-/// the generation on, an ID a failed `dlopen` gives back is taken again without a generation, and IDs
-/// stop at the limit.
+/// the generation on, and an ID a failed `dlopen` gives back is taken again without a generation.
 #[test]
 fn tls_surplus_free_and_module_id_reuse_with_generation() {
     let m = |memsz, align| Module { vaddr: 0, filesz: 0, memsz, align };
     let (lo, hi, tpa) = (100u64, 1100u64, 64u64);
-    let mut s = tls::Surplus::<8>::default();
+    let mut s = tls::Surplus::<[tls::Place; 8]>::default();
     let a = s.place::<Native>(lo, hi, tpa, &m(10, 1)).unwrap();
     let b = s.place::<Native>(lo, hi, tpa, &m(20, 1)).unwrap();
     assert_eq!((a, b), (-110, -130));
@@ -138,23 +200,22 @@ fn tls_surplus_free_and_module_id_reuse_with_generation() {
     assert_eq!(s.place::<Native>(lo, hi, tpa, &m(20, 1)), Some(-130), "they hold 20");
 
     let mut ids = tls::ModuleIds::default();
+    let none: &mut [u64] = &mut [];
     // The start's modules hold IDs 1 and 2.
-    assert_eq!(ids.take(2, 512), Some(3));
-    assert_eq!(ids.take(2, 512), Some(4));
-    assert_eq!(ids.take(2, 512), Some(5));
-    let g = ids.release(4, 7);
+    assert_eq!(ids.take(2, none), Some(3));
+    assert_eq!(ids.take(2, none), Some(4));
+    assert_eq!(ids.take(2, none), Some(5));
+    let g = ids.release(4, 7, none);
     assert!(g > 7, "a release moves the generation on ({g})");
-    let g2 = ids.release(3, g);
+    let g2 = ids.release(3, g, none);
     assert!(g2 > g, "every release does ({g2})");
-    assert_eq!(ids.take(2, 512), Some(3), "the lowest released ID first");
-    assert_eq!(ids.take(2, 512), Some(4));
-    assert_eq!(ids.take(2, 512), Some(6), "then the next unused one");
-    ids.put_back(6);
-    assert_eq!(ids.take(2, 512), Some(6), "an ID a failed open gave back");
-    ids.put_back(4);
-    assert_eq!(ids.take(2, 512), Some(4));
-    assert_eq!(ids.take(2, 7), Some(7));
-    assert_eq!(ids.take(2, 7), None, "no ID above the limit");
+    assert_eq!(ids.take(2, none), Some(3), "the lowest released ID first");
+    assert_eq!(ids.take(2, none), Some(4));
+    assert_eq!(ids.take(2, none), Some(6), "then the next unused one");
+    ids.put_back(6, none);
+    assert_eq!(ids.take(2, none), Some(6), "an ID a failed open gave back");
+    ids.put_back(4, none);
+    assert_eq!(ids.take(2, none), Some(4));
 }
 
 /// no spec clause (x86-64 psABI §4.4.1): `TPOFF64` is S + A + the block's (negative) offset from TP,
@@ -302,7 +363,7 @@ fn tls_interpreter_scope_entry_without_reading_its_file() {
     let d = target().join(format!("ld-tls-noread-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     let own = d.join(Native::INTERP);
-    std::fs::copy(&ld, &own).unwrap();
+    exec_stage::copy_for_exec(&ld, &own);
     std::fs::set_permissions(&own, std::fs::Permissions::from_mode(0o111)).unwrap();
     if std::fs::File::open(&own).is_ok() {
         eprintln!("SKIP: an execute-only file is still readable here (the tests run with file-permission override)");

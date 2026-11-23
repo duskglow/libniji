@@ -1,0 +1,100 @@
+@@generated
+/* string.h: string handling (C 7.24, XSH <string.h>). In C++ the search functions are overloaded on the constness
+   of their argument ([cstring.syn]): the const overload is the C function, the other one calls it. */
+#ifndef __NIJI_H_string_h
+#define __NIJI_H_string_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL strchr strrchr strpbrk strstr memchr strdupa strndupa strchrnul strcasestr basename memrchr rawmemchr index rindex
+@@emit
+@@fortify
+
+@@if NULL
+# ifndef NULL
+@@null NULL
+# endif
+#endif
+
+@@if strchr
+# ifdef __cplusplus
+extern "C++" {
+extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr") @@attrs(strchr);
+extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr") @@attrs(strrchr);
+extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk") @@attrs(strpbrk);
+extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr") @@attrs(strstr);
+extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr") @@attrs(memchr);
+inline @@attrs(strchr) char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
+inline @@attrs(strrchr) char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
+inline @@attrs(strpbrk) char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
+inline @@attrs(strstr) char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
+inline @@attrs(memchr) void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
+}
+# else
+extern char *strchr (const char *, int) __NIJI_NOTHROW @@attrs(strchr);
+extern char *strrchr (const char *, int) __NIJI_NOTHROW @@attrs(strrchr);
+extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW @@attrs(strpbrk);
+extern char *strstr (const char *, const char *) __NIJI_NOTHROW @@attrs(strstr);
+extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW @@attrs(memchr);
+# endif
+#endif
+
+/* The GNU and BSD search functions take the same two overloads in C++ (black-box probe of the reference: `&F` is
+   ambiguous, and a const argument gives a const result). index and rindex are <strings.h>'s too, under one guard. */
+@@if strchrnul
+# ifdef __cplusplus
+extern "C++" {
+extern const char *strchrnul (const char *, int) __NIJI_NOTHROW __asm__ ("strchrnul") @@attrs(strchrnul);
+extern const char *strcasestr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strcasestr") @@attrs(strcasestr);
+inline @@attrs(strchrnul) char *strchrnul (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchrnul (static_cast<const char *> (__s), __c)); }
+inline @@attrs(strcasestr) char *strcasestr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strcasestr (static_cast<const char *> (__s), __a)); }
+}
+# else
+extern char *strchrnul (const char *, int) __NIJI_NOTHROW @@attrs(strchrnul);
+extern char *strcasestr (const char *, const char *) __NIJI_NOTHROW @@attrs(strcasestr);
+# endif
+#endif
+@@if memrchr
+# ifdef __cplusplus
+extern "C++" {
+extern const char *basename (const char *) __NIJI_NOTHROW __asm__ ("basename") @@attrs(basename);
+extern const void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memrchr") @@attrs(memrchr);
+extern const void *rawmemchr (const void *, int) __NIJI_NOTHROW __asm__ ("rawmemchr") @@attrs(rawmemchr);
+inline @@attrs(basename) char *basename (char *__s) __NIJI_NOTHROW { return const_cast<char *> (basename (static_cast<const char *> (__s))); }
+inline @@attrs(memrchr) void *memrchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memrchr (static_cast<const void *> (__s), __c, __n)); }
+inline @@attrs(rawmemchr) void *rawmemchr (void *__s, int __c) __NIJI_NOTHROW { return const_cast<void *> (rawmemchr (static_cast<const void *> (__s), __c)); }
+}
+# else
+extern char *basename (const char *) __NIJI_NOTHROW @@attrs(basename);
+extern void *memrchr (const void *, int, size_t) __NIJI_NOTHROW @@attrs(memrchr);
+extern void *rawmemchr (const void *, int) __NIJI_NOTHROW @@attrs(rawmemchr);
+# endif
+#endif
+@@if index
+# ifndef __NIJI_D_index
+#  define __NIJI_D_index 1
+#  ifdef __cplusplus
+extern "C++" {
+extern const char *index (const char *, int) __NIJI_NOTHROW __asm__ ("index") @@attrs(index);
+extern const char *rindex (const char *, int) __NIJI_NOTHROW __asm__ ("rindex") @@attrs(rindex);
+inline @@attrs(index) char *index (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (index (static_cast<const char *> (__s), __c)); }
+inline @@attrs(rindex) char *rindex (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (rindex (static_cast<const char *> (__s), __c)); }
+}
+#  else
+extern char *index (const char *, int) __NIJI_NOTHROW @@attrs(index);
+extern char *rindex (const char *, int) __NIJI_NOTHROW @@attrs(rindex);
+#  endif
+# endif
+#endif
+
+/* GNU: a copy on the caller's stack, as long as the calling function runs. */
+@@when strdupa
+# define strdupa(s) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strlen (__old) + 1; char *__new = (char *) __builtin_alloca (__len); (char *) __builtin_memcpy (__new, __old, __len); }))
+# define strndupa(s, n) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strnlen (__old, (n)); char *__new = (char *) __builtin_alloca (__len + 1); __new[__len] = '\0'; (char *) __builtin_memcpy (__new, __old, __len); }))
+#endif
+
+__NIJI_END_C
+
+#endif

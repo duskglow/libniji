@@ -35,6 +35,26 @@ pub fn caller_blocks() -> i64 {
     CALLER_BLOCKS.with(core::cell::Cell::get)
 }
 
+/// The byte every one of the `n` bytes of a fresh block of the C `malloc` family holds
+/// (`caller_alloc::malloc`: whichever allocator serves the C symbols), `None` when they differ, `n`
+/// is 0 or the allocation fails. A perturbing heap (`M_PERTURB`, §3.2) fills a new block with the
+/// complement of its byte: the gate's native pass checks with it that its C family is poisoned as
+/// the interposed suite's is (PASS2-NATIVE-POISON, D-X.137).
+pub fn c_family_fresh_fill(n: usize) -> Option<u8> {
+    let p = crate::caller_alloc::malloc(n);
+    if p.is_null() || n == 0 {
+        crate::caller_alloc::release(p.expose_provenance());
+        return None;
+    }
+    let addr = p.expose_provenance();
+    let bytes = crate::conv::out_bytes(addr, n);
+    let first = bytes.first().copied();
+    let same = bytes.iter().all(|&b| Some(b) == first);
+    // The block goes back; `bytes` is not used again.
+    crate::caller_alloc::release(addr);
+    first.filter(|_| same)
+}
+
 /// [`caller_blocks`] moves by `d` (the `caller_alloc` wrappers).
 pub(crate) fn count_caller(d: i64) {
     // Not during the thread's teardown (a `free` from a destructor): nothing reads it then.
@@ -377,6 +397,27 @@ pub fn in_child_thread_exit(code: i32) -> KResult<ChildEnd> {
     Ok(decode_status(status))
 }
 
+/// The child's end code from [`in_child_no_syscalls`] when the kernel refused strict mode.
+pub const NO_STRICT_MODE: i32 = 98;
+
+/// A child that runs `body` under strict secure computing mode (`prctl(PR_SET_SECCOMP,
+/// SECCOMP_MODE_STRICT)`): any system call but `read`, `write`, `exit` and `sigreturn` kills it
+/// with `SIGKILL`, so `Exited(code)` proves `body` made none. It ends with the raw thread `exit`
+/// (the child has one thread; `exit_group` is not allowed there). [`NO_STRICT_MODE`] when the
+/// kernel has no strict mode. `body` must not panic (unwinding makes system calls).
+pub fn in_child_no_syscalls(body: fn() -> i32) -> KResult<ChildEnd> {
+    // PR_SET_SECCOMP (22), SECCOMP_MODE_STRICT (1).
+    let pid = child_fork()?;
+    if pid == 0 {
+        if raw::prctl(22, [1, 0, 0, 0]).is_err() {
+            raw::exit_thread(NO_STRICT_MODE);
+        }
+        raw::exit_thread(body());
+    }
+    let (_, status) = CSys.wait4(pid, 0, None)?;
+    Ok(decode_status(status))
+}
+
 /// Fork a child that exits with `code` at once, **without** waiting for it. Returns the PID,
 /// for tests of `wait4`, `waitid` and pidfds; the caller must reap it.
 pub fn spawn_exiting(code: i32) -> KResult<i32> {
@@ -663,6 +704,31 @@ pub fn strcmp_clean_upper(a: &[u8], b: &[u8]) -> (i32, u64) {
     let f = crate::ffi::niji_machine_strcmp;
     let upper = crate::ffi::niji_machine_clean_upper_call(f, a.as_ptr(), b.as_ptr(), &mut r);
     (r, upper)
+}
+
+/// `strncmp(a, b, n)` through the assembly kernel with a writer's change at a fixed point
+/// (STRNCMP-AVX2-WRITER, D-4.21): xmm3 holds `fill` in every 32-bit lane on entry (a value a
+/// caller may leave there), the call runs under the trap flag, and when the next instruction is
+/// the kernel's re-read of the deciding bytes, `to` is stored at `at` and stepping stops.
+/// Returns the result and whether the store happened (the re-read was reached); `None` on a
+/// build without the assembly kernels. Test-only contract: `a` and `b` satisfy the strncmp
+/// contract for `n` (or fault in the caller's child), `at` is writable.
+pub fn strncmp_with_writer_at_reread(a: *const u8, b: *const u8, n: usize, fill: u32, at: *mut u8, to: u8) -> KResult<Option<(i32, bool)>> {
+    #[cfg(not(niji_portable_scan))]
+    {
+        use niji_kernel::uapi::SIGTRAP;
+        let before = crate::ffi::niji_machine_strncmp_step_stores();
+        let handler = crate::ffi::niji_machine_strncmp_step_trap as usize;
+        let old = raw::install_action(SIGTRAP, handler, 0, SigSet::empty())?;
+        let r = crate::ffi::niji_machine_strncmp_stepped(a, b, n, fill, at, i32::from(to));
+        raw::restore_action(SIGTRAP, &old)?;
+        Ok(Some((r, crate::ffi::niji_machine_strncmp_step_stores() != before)))
+    }
+    #[cfg(niji_portable_scan)]
+    {
+        let _ = (a, b, n, fill, at, to);
+        Ok(None)
+    }
 }
 
 /// `niji_machine_strdiff` (D-4.37) on the strings at `a` and `b`: the first index at which

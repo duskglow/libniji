@@ -24,6 +24,11 @@ mod verdict_programs;
 #[path = "support/shard.rs"]
 mod shard;
 
+#[path = "support/oracle_values.rs"]
+mod oracle_values;
+use oracle_values::Query;
+use std::sync::{Mutex, PoisonError};
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -77,6 +82,15 @@ fn base(func: &str) -> &str {
     if stem == "gamma" { "lgamma" } else { stem }
 }
 
+/// The oracle's answer to a value-cache query (`cr`: [`oracle`]'s result and flags).
+fn eval(q: &Query) -> Option<String> {
+    let mode = cmp::round(q.mode)?;
+    match q.kind.as_str() {
+        "cr" => oracle(base(&q.func), mode, &q.ops).map(|(v, r)| oracle_values::enc_cr(&(v, r, false))),
+        _ => None,
+    }
+}
+
 /// The correctly rounded result and its flags, by the oracle.
 fn oracle(func: &str, mode: Round, ops: &[u128]) -> Option<(u128, mp::Rounded)> {
     let eval = |p: u32| -> Approx {
@@ -97,12 +111,11 @@ type Checked = (Vec<String>, bool, bool);
 
 /// Check one line where libniji differs from the reference: the problems, whether only the
 /// reference is not correctly rounded, whether the results agree (flags or errno differ).
-fn check_line(w: &str, g: &str) -> Checked {
+fn check_line(w: &str, g: &str, values: &Mutex<oracle_values::Values<oracle_values::Eval>>) -> Checked {
     let mut errors = Vec::new();
     let mut reference_wrong = false;
     let (lw, lg) = (parse(w), parse(g));
-    let mode = cmp::round(lw.mode).unwrap();
-    let Some((cr, rd)) = oracle(base(lw.func), mode, &lw.ops) else {
+    let Some((cr, rd)) = oracle_values::get_shared(values, &Query::new("cr", lw.func, lw.mode, &lw.ops, 0)).and_then(|s| oracle_values::dec_cr(&s)).map(|(v, r, _)| (v, r)) else {
         errors.push(format!("oracle undecided: {w}"));
         return (errors, false, false);
     };
@@ -168,8 +181,9 @@ fn long_double_special_functions(k: usize) {
     let Some(verdict) = verdict::Key::new(&format!("{}.s{k}", env!("CARGO_CRATE_NAME"))).shard(k, shard::SHARDS).file(&host).file(&ours).loaded_by(&host).begin() else {
         return;
     };
-    let run = |exe: &Path| String::from_utf8(Command::new(exe).env_clear().output().unwrap().stdout).unwrap();
-    let (want, got) = (run(&host), run(&ours));
+    // Both programs run once per test run, every shard reads their outputs (MATH-ORACLE-PROFILE).
+    let outputs = verdict::Key::new(&format!("{}.outputs", env!("CARGO_CRATE_NAME"))).file(&host).file(&ours).loaded_by(&host);
+    let [want, got]: [String; 2] = verdict_programs::shared_outputs(env!("CARGO_CRATE_NAME"), &outputs, &[&host, &ours], &dir.join("outputs")).try_into().unwrap();
     let (want, got): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
     assert_eq!(want.len(), got.len());
     assert!(want.len() > 10_000, "the reference printed only {} lines", want.len());
@@ -182,6 +196,10 @@ fn long_double_special_functions(k: usize) {
     let checked = lines.len();
     let workers = shard::workers();
     let next = std::sync::atomic::AtomicUsize::new(0);
+    // The oracle's values of earlier runs, when the oracle has not changed (D-10.131).
+    let vname = format!("{}.s{k}", env!("CARGO_CRATE_NAME"));
+    let oracle_eval: oracle_values::Eval = eval;
+    let values = Mutex::new(oracle_values::Values::open(&vname, concat!(env!("CARGO_MANIFEST_DIR"), "/tests/special_ld_products.rs"), oracle_eval));
     let results: Vec<(usize, Checked)> = std::thread::scope(|sc| {
         let handles: Vec<_> = (0..workers)
             .map(|_| {
@@ -190,7 +208,7 @@ fn long_double_special_functions(k: usize) {
                     loop {
                         let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         let Some(&(w, g)) = lines.get(i) else { break };
-                        out.push((i, check_line(w, g)));
+                        out.push((i, check_line(w, g, &values)));
                     }
                     out
                 })
@@ -207,6 +225,9 @@ fn long_double_special_functions(k: usize) {
         reference_wrong += usize::from(wrong);
         flags_only += usize::from(same);
     }
+    let values = values.into_inner().unwrap_or_else(PoisonError::into_inner);
+    values.summary(&vname);
+    values.save();
     eprintln!("special_ld shard {k}: building and running the programs {:.1} s, checking {:.1} s", t_oracle.as_secs_f64(), (t0.elapsed() - t_oracle).as_secs_f64());
     eprintln!("shard {k} of {} lines: {checked} differ from the reference ({reference_wrong} results where only the reference is not correctly rounded, {flags_only} lines differing in flags or errno only); each checked against the oracle", want.len());
     // Every problem, for study: target/test-oracles/special_ld_problems.s<k>.txt.

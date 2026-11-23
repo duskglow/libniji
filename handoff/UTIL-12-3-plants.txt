@@ -1,0 +1,9 @@
+# UTIL-12-3 plants: the shipped localedef's program glue (crates/boundary/src/localedef.rs), which only the shipped
+# binary reaches, must be caught by xtask/tests/transcripts.rs the_shipped_localedef_passes_the_transcripts.
+err-to-stdout | crates/boundary/src/localedef.rs | lit:write_all(2, r.err.as_slice()); ==> write_all(1, r.err.as_slice()); | cargo test -p xtask --test transcripts the_shipped_localedef | msg:the_shipped_localedef_passes_the_transcripts.*(FAILED|panicked)
+status-lost | crates/boundary/src/localedef.rs | lit:exit(i32::from(r.status)) ==> exit(0) | cargo test -p xtask --test transcripts the_shipped_localedef | msg:the_shipped_localedef_passes_the_transcripts.*(FAILED|panicked)
+errno-text | crates/boundary/src/localedef.rs | lit:niji::diag::description(errno) ==> niji::diag::description(0) | cargo test -p xtask --test transcripts the_shipped_localedef | msg:the_shipped_localedef_passes_the_transcripts.*(FAILED|panicked)
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# err-to-stdout: CAUGHT, caught by transcripts the_shipped_localedef_passes_the_transcripts
+# status-lost: CAUGHT, caught by transcripts the_shipped_localedef_passes_the_transcripts
+# errno-text: CAUGHT, caught by transcripts the_shipped_localedef_passes_the_transcripts

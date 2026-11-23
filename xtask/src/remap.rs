@@ -16,10 +16,9 @@ pub(crate) const PRODUCTS: &[&str] = &["libc.so.6", "libm.so.6", "libc.a", "libm
 /// canonical), `$CARGO_HOME` and `$HOME`'s `.cargo` and `.rustup`. Never shorter than 4 bytes
 /// (a root of `/` would match everything).
 pub fn needles(root: &Path) -> Vec<String> {
-    let mut v = vec![root.display().to_string()];
-    if let Ok(c) = root.canonicalize() {
-        v.push(c.display().to_string());
-    }
+    // Every spelling of the root, the logical one through `$PWD` included (BUILD-REPRODUCIBLE-PATHS).
+    let pwd = std::env::var_os("PWD").map(std::path::PathBuf::from);
+    let mut v = crate::align::root_spellings(root, pwd.as_deref());
     if let Ok(h) = std::env::var("CARGO_HOME") {
         v.push(h);
     }
@@ -45,11 +44,16 @@ pub fn find_paths(bytes: &[u8], needles: &[String]) -> Vec<(String, usize)> {
     found
 }
 
-/// Fails when a built product under `dir` contains one of `needles`.
+/// Fails when a built product under `dir` contains one of `needles`: the listed products and every other file at
+/// the top of `dir` (the utilities, libmvec, libBrokenLocale and the markers carried the root too: BUILD-REPRODUCIBLE-PATHS).
 pub fn check_dir(dir: &Path, needles: &[String]) -> Result<usize, String> {
     let mut bad = Vec::new();
     let mut scanned = 0;
-    for p in PRODUCTS.iter().chain(&crate::placeholders::LIBRARIES).chain(&crate::placeholders::ARCHIVES) {
+    let mut names: std::collections::BTreeSet<String> = PRODUCTS.iter().chain(&crate::placeholders::LIBRARIES).chain(&crate::placeholders::ARCHIVES).map(|p| (*p).to_string()).collect();
+    if let Ok(rd) = fs::read_dir(dir) {
+        names.extend(rd.flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_file())).map(|e| e.file_name().to_string_lossy().into_owned()));
+    }
+    for p in &names {
         let path = dir.join(p);
         let Ok(bytes) = fs::read(&path) else { continue };
         scanned += 1;
@@ -119,10 +123,13 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("libc.so.6"), b"clean /niji/x.rs").unwrap();
         fs::write(dir.join("libm.so.6"), b"dirty /srv/build/w/r3/crates/x.rs").unwrap();
+        // A file no list names (a utility, as the C-built ones carried the root in DW_AT_comp_dir) is scanned too.
+        fs::write(dir.join("getent"), b"comp dir /srv/build/w/r3/crates").unwrap();
         let n = vec!["/srv/build/w/r3".to_string()];
         let err = check_dir(&dir, &n).unwrap_err();
         let _ = fs::remove_dir_all(&dir);
         assert!(err.contains("libm.so.6 has") && !err.contains("libc.so.6 has"), "{err}");
+        assert!(err.contains("getent has"), "an unlisted product file was not scanned: {err}");
     }
 
     #[test]
@@ -140,6 +147,56 @@ mod tests {
         assert!(config_problems(root, &flags, bypass)[0].starts_with("so.rs:2"));
     }
 
+    /// no spec clause (tooling, BUILD-REPRODUCIBLE-PATHS): a C product compiled with the release debug flags is
+    /// byte-identical in two trees of different paths and depths, each reached through a symlink as a role is
+    /// (`~/w/<role>` -> `/mnt/.../w/<role>`; the compiler records `$PWD`, the logical path, as the compile
+    /// directory) and built from the tree's top or a subdirectory; neither object names its tree.
+    #[test]
+    fn c_debug_info_is_the_same_in_two_tree_paths() {
+        let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+        if !std::process::Command::new(&cc).arg("--version").output().is_ok_and(|o| o.status.success()) {
+            eprintln!("c_debug_info_is_the_same_in_two_tree_paths: no C compiler `{cc}` here; NOT TESTED");
+            return;
+        }
+        let base = std::env::temp_dir().join(format!("niji-remap-two-paths-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let src = "#include <errno.h>\nint niji_ph_placeholder(int x) { if (x < 0) { errno = EINVAL; return -1; } return x * 3; }\n";
+        for sub in ["", "csys"] {
+            let mut objs = Vec::new();
+            let mut paths = Vec::new();
+            for (i, (real, link)) in [("real/a", "la"), ("real/second/tree-b", "lb")].into_iter().enumerate() {
+                let real = base.join(real);
+                let link = base.join(link);
+                if !real.is_dir() {
+                    fs::create_dir_all(real.join("csys")).unwrap();
+                    fs::write(real.join("csys/p.c"), src).unwrap();
+                    std::os::unix::fs::symlink(&real, &link).unwrap();
+                }
+                // xtask's root is what getcwd gives (canonical); the build runs with the logical `$PWD`.
+                let root = real.canonicalize().unwrap();
+                let pwd = link.join(sub);
+                let obj = base.join(format!("p-{i}.o"));
+                let st = std::process::Command::new(&cc)
+                    .current_dir(&pwd)
+                    .env("PWD", &pwd)
+                    .args(["-c", "-O2", "-fPIC", "-g1"])
+                    .args(crate::so::debug_prefix_flags(&root, Some(&pwd)))
+                    .arg(root.join("csys/p.c"))
+                    .arg("-o")
+                    .arg(&obj)
+                    .status()
+                    .unwrap();
+                assert!(st.success(), "{cc} failed in {}", pwd.display());
+                objs.push(fs::read(&obj).unwrap());
+                paths.extend([link.display().to_string(), root.display().to_string()]);
+            }
+            let leaks = find_paths(&objs[0], &paths).into_iter().chain(find_paths(&objs[1], &paths)).collect::<Vec<_>>();
+            assert!(leaks.is_empty(), "built from {sub:?}: an object names its tree: {leaks:?}");
+            assert!(objs[0] == objs[1], "built from {sub:?}: the objects of the two trees differ");
+        }
+        let _ = fs::remove_dir_all(&base);
+    }
+
     #[test]
     fn needles_ignore_a_bare_root() {
         assert!(needles(Path::new("/")).iter().all(|n| n.len() >= 4));
@@ -155,7 +212,7 @@ mod tests {
         let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates");
         let ws = std::fs::read_to_string(crates.join("Cargo.toml")).expect("crates/Cargo.toml");
         assert!(ws.lines().any(|l| l.trim() == "[workspace]"), "crates/Cargo.toml is the product workspace");
-        for member in ["libc-so", "libm-so"] {
+        for member in ["libc-so", "libm-so", "libresolv-so"] {
             assert!(ws.contains(&format!("\"{member}\"")), "{member} is a member of the product workspace");
             let m = std::fs::read_to_string(crates.join(member).join("Cargo.toml")).expect("product manifest");
             assert!(!m.lines().any(|l| l.trim() == "[workspace]"), "{member}/Cargo.toml declares its own workspace: its path dependencies then lie outside the workspace root and their absolute paths enter -C metadata (BUILD-PATH-HASH)");

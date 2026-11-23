@@ -1,0 +1,18 @@
+{"task": "LD-TABLES-LAYOUT", "model": "opus", "tokens": null,
+ "result": "Cause found (B1): a library mapped into ld.so's text-to-rodata hole was attributed to ld.so because lookups matched kernel-mapped objects by whole span; fixed by matching the program and ld.so by segment run (D-27.89), layout-varying test and 4/4 plants",
+ "branch": "task/ld-tables-layout", "head": null,
+ "gate": {"affected": "15 suites, 860 passed / 0 failed; conformance 14 passed", "peak": "2.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["ld.so has a 60 KiB hole between its text (ends 0x61227) and rodata (0x71000); closing it is a layout matter (LAYOUT-LDSO-*), no longer a correctness one", "Start-up counts taken on the Skylake-SP class only; the start-up bin is byte-identical"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "_dl_find_object, dladdr, dladdr1 and the opted-in atexit owner name a library mapped into a hole of the program or ld.so as itself (was: the program or ld.so); the train 929/932 loader reds (atexit_owner, dlopen_process_objects, s27_dladdr)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests: address_holes.rs (2 tests, 4 layouts), dl_find_object_index model; plants", "before": 0, "after": 4, "unit": "plants caught", "measured": true},
+  {"kind": "perf", "what": "STARTUP-REPROFILE empty main, release, user instructions (Skylake-SP)", "before": 262101, "after": 262101, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "STARTUP-REPROFILE empty main, release, page faults (Skylake-SP)", "before": 58, "after": 58, "unit": "faults", "measured": true}
+ ],
+ "improvement": "Clause-tag rule of the trace check (suffix words of 3+ letters) cost a lint cycle; the stubs or the test template could state it",
+ "next_step": "Land through the train",
+ "report_file": "handoff/LD-TABLES-LAYOUT-report.md",
+ "jobs": ["mei:ld-tables-layout-gate1", "mei:ld-tables-layout-plants1", "mei:ld-tables-layout-xtest", "mei:ld-tables-layout-hottext", "mei:ld-tables-layout-startup"]}

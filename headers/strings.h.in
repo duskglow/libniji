@@ -1,0 +1,34 @@
+@@generated
+/* strings.h: string operations (XSH <strings.h>). In C++ index and rindex are overloaded on the constness of their
+   argument, as <string.h> declares them too (one guard for both headers). */
+#ifndef __NIJI_H_strings_h
+#define __NIJI_H_strings_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns index rindex
+@@emit
+@@fortify
+
+@@if index
+# ifndef __NIJI_D_index
+#  define __NIJI_D_index 1
+#  ifdef __cplusplus
+extern "C++" {
+extern const char *index (const char *, int) __NIJI_NOTHROW __asm__ ("index") @@attrs(index);
+extern const char *rindex (const char *, int) __NIJI_NOTHROW __asm__ ("rindex") @@attrs(rindex);
+inline @@attrs(index) char *index (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (index (static_cast<const char *> (__s), __c)); }
+inline @@attrs(rindex) char *rindex (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (rindex (static_cast<const char *> (__s), __c)); }
+}
+#  else
+extern char *index (const char *, int) __NIJI_NOTHROW @@attrs(index);
+extern char *rindex (const char *, int) __NIJI_NOTHROW @@attrs(rindex);
+#  endif
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif
