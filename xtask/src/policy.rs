@@ -99,10 +99,10 @@ const CATEGORIES: [&str; 8] = ["extern", "export", "slice", "allocator", "tb-fie
 /// #7708, 2026-11-22, D-X.156): a non-atomic read of a word written only before the first thread
 /// starts. Exactly these (crate-relative file, block body with whitespace removed) pairs and
 /// nothing else, so the category cannot grow into other reads, other files or any write: the
-/// ownership word in thread.rs, and heap.rs's two write-once internal-routing bounds.
+/// ownership word in thread.rs, and heap.rs's two write-once internal-routing words.
 const PROCESS_FLAG_READS: [(&str, &str); 3] = [
     ("src/thread.rs", "*OWNED_HERE.as_ptr()"),
-    ("src/heap.rs", "*FAST_ALIGN_END.as_ptr()"),
+    ("src/heap.rs", "*OWN_FAST_OFF.as_ptr()"),
     ("src/heap.rs", "*RESERVE_LAST.as_ptr()"),
 ];
 /// The files of [`PROCESS_FLAG_READS`].

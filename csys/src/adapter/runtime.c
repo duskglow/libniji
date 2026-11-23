@@ -108,9 +108,14 @@ extern const char __ehdr_start[] __attribute__((weak, visibility("hidden")));
 
 /* The start (`__ehdr_start`) and end (`_end`) of this object's image and the addresses the four
  * calls above reach (each through this object's GOT in libc.so.6), in one call:
- * `caller_alloc::decide_route` asks whether the family resolves outside the image (ruling #7583). */
+ * `caller_alloc::decide_route` asks whether the family resolves outside the image (ruling #7583).
+ * `volatile`: each store takes its address from a general register, loaded by a `mov` from the
+ * GOT that the linker relaxes to a `lea` in a static program (D-X.140: libc.a leaves no `.got`).
+ * Plain stores let the compiler pair the six addresses into vector loads straight from the GOT
+ * (`movq`/`movhps`), which have no relaxable form, and kept six GOT entries in every static
+ * program. */
 extern const char niji_image_end[] __asm__("_end") __attribute__((weak, visibility("hidden")));
-void niji_link_alloc_family(uintptr_t w[6]) {
+void niji_link_alloc_family(volatile uintptr_t w[6]) {
     w[0] = (uintptr_t)__ehdr_start;
     w[1] = (uintptr_t)niji_image_end;
     w[2] = (uintptr_t)&malloc;
