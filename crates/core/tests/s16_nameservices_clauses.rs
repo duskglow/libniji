@@ -318,12 +318,13 @@ fn long_lines() {
     };
     check(&Spec::parse(line.as_bytes()).unwrap(), "parsed");
     let fx = Fx::new("long_lines");
-    std::fs::write(fx.dir.join("nsswitch.conf"), format!("hosts: {line}\npasswd: {line} m40\ngroup: files\n")).unwrap();
+    std::fs::write(fx.dir.join("nsswitch.conf"), format!("hosts: {line}\npasswd: m40 {line}\ngroup: files\n")).unwrap();
     let sw = Switch::new();
     let c = sw.config(&CSys, &niji_boundary::heap::KernelPages, fx.paths.nsswitch);
     check(c.spec(Database::Hosts), "the file's first line");
     assert_eq!(c.spec(Database::Passwd).steps().len(), 41, "the second long line, after the first's sources");
-    assert_eq!(c.spec(Database::Passwd).steps()[40].service, Service::Module);
+    let pw = c.spec(Database::Passwd).steps();
+    assert_eq!((pw[39].service, pw[39].action(Status::NotFound), pw[40].service), (Service::Files, Action::Return, Service::Dns), "its own sources past the inline ones");
     assert_eq!(c.spec(Database::Group).steps().len(), 1, "a short line after the long ones");
     assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"networks", line.as_bytes()), Ok(()));
     assert_eq!(sw.configure(&CSys, &niji_boundary::heap::KernelPages, b"shadow", b"files"), Ok(()));
