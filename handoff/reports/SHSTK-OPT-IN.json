@@ -1,6 +1,6 @@
 {"task": "SHSTK-OPT-IN", "model": "opus", "tokens": null,
  "result": "Part 1 (accepted scope #7946): every shipped object carries SHSTK with a build check; setjmp/longjmp, get/set/swapcontext, makecontext and vfork are shadow-stack-correct; N100 run passes with the shadow stack on, both negative controls SIGSEGV",
- "branch": "task/shstk-opt-in", "head": "c57e08264",
+ "branch": "task/shstk-opt-in", "head": "46b80c66a",
  "gate": {"affected": "FULL: the train's (csys header, setjmp.S exported C ABI, xtask); cargo xtask test 7178 passed / 11 failed on 38b6aba58 (4 this branch's, fixed and re-run green in shstk-opt-in-fix1; 7 host locale archive or pre-existing in CI logs)", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
@@ -23,4 +23,4 @@
  "improvement": "The plants tool could accept any global label defined in the .S file as an anchor (vfork.S cannot be planted today); and an xtask-test known-host-failures list for mei would save each story re-proving the locale failures are environmental",
  "next_step": "Land part 1 through the train; brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios and costs, signal-ucontext rule, clone3 shadow-stack size)",
  "report_file": "handoff/SHSTK-OPT-IN.md",
- "jobs": ["shstk-opt-in-fix1", "shstk-opt-in-hottext1", "shstk-opt-in-plants3", "shstk-opt-in-percall1", "nozomi:shstk-opt-in-n100", "shstk-opt-in-n100build2"]}
+ "jobs": ["shstk-opt-in-fix1", "shstk-opt-in-hottext1", "shstk-opt-in-plants3", "shstk-opt-in-percall2", "nozomi:shstk-opt-in-n100"]}

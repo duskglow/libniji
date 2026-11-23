@@ -31,7 +31,7 @@ D-X.164 (marking + check), both written as records. No differences row (nothing 
 * N100 functional (`nozomi:shstk-opt-in-n100`, static, built on mei): pos = exit 0 "shadow stack on: all steps
   passed"; neg_setjmp (pre-change setjmp.S object ahead of libc.a) = SIGSEGV; neg_vfork (pre-change vfork.S) = SIGSEGV.
   Build script needs `-DNIJI_EXPORT` for the old objects (without it they assemble empty).
-* Per-call instructions, no shadow stack (`shstk-opt-in-percall1`, base 0495c4684, glibc dynamic): thread_create_join
+* Per-call instructions, no shadow stack (`shstk-opt-in-percall2` on 46b80c66a, same as percall1 on 38b6aba58; base 0495c4684, glibc dynamic): thread_create_join
   36092.1 = 36092.1 (glibc 2266); setjmp_longjmp 103 -> 110 (glibc 135); getcontext 40 -> 45 (glibc 44);
   swapcontext 64 -> 72 per call (glibc 62). Cost of the rdssp test on the off path.
 * `cargo xtask test` (test1, head 38b6aba58): 7178 passed, 11 failed. 4 were this branch's (so publish test, 2 import
