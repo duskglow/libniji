@@ -538,9 +538,21 @@ impl<'a> Object<'a> {
         }
     }
 
+    /// The GNU table's Bloom test for `req` ([`GnuHash::bloom`]): `Some(false)` when it rejects the
+    /// name, `Some(true)` when it passes; `None` for a SysV table or a Bloom word that cannot be read.
+    #[inline(always)]
+    fn bloom(&self, req: &Request<'_>) -> Option<bool> {
+        match &self.hash {
+            Hash::Gnu(g) => g.bloom(req.gnu),
+            Hash::Sysv(_) => None,
+        }
+    }
+
     /// The candidates for `req` in the hash chain, as symbol indices (one error ends the walk).
-    fn for_each_candidate(&self, req: &Request<'_>, mut f: impl FnMut(u32) -> Result<bool, LookupError>) -> Result<(), LookupError> {
+    /// `chain_only`: the caller ran the GNU table's Bloom test and it passed ([`Object::bloom`]).
+    fn for_each_candidate(&self, req: &Request<'_>, chain_only: bool, mut f: impl FnMut(u32) -> Result<bool, LookupError>) -> Result<(), LookupError> {
         match self.hash {
+            Hash::Gnu(g) if chain_only => g.chain_candidates(req.gnu, f)?,
             Hash::Gnu(g) => g.candidates(req.gnu, f)?,
             Hash::Sysv(s) => {
                 for i in s.chain(req.sysv()) {
@@ -560,8 +572,14 @@ impl<'a> Object<'a> {
     /// The reader's errors for the hash chain, symbol, string and version tables, and
     /// [`LookupError::UnknownVersion`] for a definition whose version index no definition gives.
     pub fn lookup(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
+        self.lookup_in(req, false)
+    }
+
+    /// [`Object::lookup`]; `chain_only`: the scope walk ran the Bloom test and it passed, so the walk
+    /// starts at the hash chain ([`Object::bloom`]).
+    fn lookup_in(&self, req: &Request<'_>, chain_only: bool) -> Result<Option<Def>, LookupError> {
         let mut best: Option<Def> = None;
-        self.for_each_candidate(req, |i| {
+        self.for_each_candidate(req, chain_only, |i| {
             let st = self.symtab.get(i)?;
             if !(exported(&st) || self.canonical_entry(i)) {
                 return Ok(false);
@@ -728,7 +746,15 @@ impl UniqueRegistry for ScopeOrder {
 pub fn lookup(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
     for o in scope.iter() {
         let obj = objects.get(o).ok_or(LookupError::NoObject(o))?;
-        let Some(def) = obj.lookup(req)? else { continue };
+        // The Bloom test here in the walk, so an object whose GNU table rejects the name costs no
+        // call (LD-LOOKUP-RETHINK: entering the object was about 60 of the 106 instructions of each
+        // object walked past); a SysV table or an unreadable Bloom word takes the whole lookup.
+        let chain_only = match obj.bloom(req) {
+            Some(false) => continue,
+            Some(true) => true,
+            None => false,
+        };
+        let Some(def) = obj.lookup_in(req, chain_only)? else { continue };
         let found = Found { obj: o, def };
         if def.st.bind() == STB_GNU_UNIQUE {
             let version = obj.def_version_name(def.version)?.unwrap_or(&[]);

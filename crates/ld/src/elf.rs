@@ -2031,14 +2031,36 @@ impl<'a> GnuHash<'a> {
     ///
     /// Those above, and the first error of `f`.
     #[inline]
-    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+        match self.bloom(hash) {
+            Some(false) => Ok(()),
+            Some(true) => self.chain_candidates(hash, f),
+            None => Err(ElfError::BadHashHeader(Table::GnuHash).into()),
+        }
+    }
+
+    /// The Bloom test of a lookup of the name hashing to `hash`: `Some(false)` when the Bloom word
+    /// rejects the hash (no symbol of the table has it), `Some(true)` when it passes, `None` when the
+    /// word cannot be read (a header past the table: [`GnuHash::candidates`]' error). The scope walk
+    /// runs it before it enters an object (LD-LOOKUP-RETHINK: a rejected object then costs no call).
+    #[inline(always)]
+    #[must_use]
+    pub(crate) fn bloom(&self, hash: u32) -> Option<bool> {
         let wi = usize::try_from(hash.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(self.bloom_size())).unwrap_or(0);
-        let word = self.bloom_word(wi).ok_or(ElfError::BadHashHeader(Table::GnuHash))?;
+        let word = self.bloom_word(wi)?;
         let second = u64::from(hash).checked_shr(self.bloom_shift).unwrap_or(0) & 63;
         let mask = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
-        if word & mask != mask {
-            return Ok(());
-        }
+        Some(word & mask == mask)
+    }
+
+    /// [`GnuHash::candidates`] after a [`GnuHash::bloom`] test that passed: the chain's entries
+    /// whose hash matches, in order, given to `f` until it answers true (the same entries and errors).
+    ///
+    /// # Errors
+    ///
+    /// A chain word past the mapped bytes ([`ElfError::HashIndex`]), and the first error of `f`.
+    #[inline]
+    pub(crate) fn chain_candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
         let mut sym = hash.checked_rem(self.nbuckets).and_then(|b| self.bucket(b)).unwrap_or(0);
         if sym == 0 {
             return Ok(());
