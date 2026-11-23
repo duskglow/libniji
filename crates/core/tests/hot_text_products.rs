@@ -7,6 +7,8 @@
 //! program runs without address-space randomisation, so a build gives the same count every run.
 //! Faults are deterministic counters (WL gate rule), not timing.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
+#[path = "support/contain.rs"]
+mod contain;
 
 use std::path::{Path, PathBuf};
 use std::os::unix::process::CommandExt;
@@ -281,7 +283,7 @@ fn make_probe_locale_archive() -> Result<Vec<u8>, String> {
         .output();
     let archive = std::fs::read(dir.join("locale-archive"));
     // The namespace runs the same script as `faults_env`, with `env` in place of the probe.
-    let ns = Command::new("unshare")
+    let ns = contain::user("unshare")
         .args(["-r", "-m", "sh", "-c", r#"mount --bind "$1" /usr/lib/locale || exit 99; unset PWD; exec env"#, "sh"])
         .arg(&dir)
         .current_dir("/")
@@ -327,7 +329,7 @@ fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
     for _ in 0..=RUNS {
         let mut cmd = match &locale {
             Some(l) => {
-                let mut c = Command::new("unshare");
+                let mut c = contain::user("unshare");
                 c.env_clear()
                     .env("LANG", "en_US.UTF-8")
                     .args(["-r", "-m", "sh", "-c"])
