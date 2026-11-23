@@ -39,4 +39,6 @@ report are committed on top). Role keke:~/w/r1, synced at 3a5ea1858. Decision in
 
 * RULING NEEDED: give the built-in "C.UTF-8" its own 32-bit tables (3 KiB rodata) to remove the last part of
   D-5.13; recommend a follow-up story.
-* NOT VERIFIED at hand-back: start-up count and the gate on 3a5ea1858 (jobs above).
+* Seen in checks-4 before hand-back (17:05Z): the default-profile `cargo test -p niji --test hot_text_products` on
+  3a5ea1858 passed 33/33 (the gate-3 red test included); plants-4 baselines ok.
+* NOT VERIFIED at hand-back: the rest of checks-4, the start-up count and the gate on 3a5ea1858 (jobs above).
