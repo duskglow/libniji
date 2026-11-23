@@ -247,12 +247,58 @@ fn faults(exe: &Path, mode: &str) -> u64 {
     faults_env(exe, mode, &[])
 }
 
+/// The length of every [`call_dir`] path: the exec path (`<dir>/p`) and so the start-up stack's strings keep
+/// one length whatever the call (HOTTEXT-FAULT-ENV above).
+const CALL_DIR_LEN: usize = "/tmp/niji-hot-text-0000000000-0".len();
+
+/// RELEASE-STEP-EXEC-FAIL: the private directory of one [`faults_env`] call, never another call's in this
+/// process. Each call removes its directory at its start and its end. Under `cargo test` (the CI release step),
+/// every test of this file runs in one process (one pid) on parallel threads, and the directory used to be
+/// `<pid>-<call % 10>`: a call that ten later calls outlived had its staged program removed under it. (Measured
+/// on the Skylake-SP host, release products, load up to 42: at most 5 later calls started during any call, so this
+/// was a latent race, not shown to have fired.) nextest runs each test in a process of its own. The number is the
+/// call's own count, at a fixed width, so the name keeps [`CALL_DIR_LEN`].
+fn call_dir() -> PathBuf {
+    static CALL: AtomicUsize = AtomicUsize::new(0);
+    let n = CALL.fetch_add(1, Ordering::Relaxed);
+    assert!(n < 10_000, "call_dir: {n} calls in one process; widen the number (and keep CALL_DIR_LEN)");
+    PathBuf::from(format!("/tmp/niji-hot-t-{:010}-{n:04}", std::process::id()))
+}
+
+#[test]
+fn harness_fault_call_dirs_are_never_shared() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `call_dir`). More calls than the
+    // ten slots the directories used to rotate through: every call's directory differs, and all have
+    // one length (the count must not move with which call it was).
+    let dirs: Vec<PathBuf> = (0..32).map(|_| call_dir()).collect();
+    for d in &dirs {
+        assert_eq!(d.as_os_str().len(), CALL_DIR_LEN, "{} is not {CALL_DIR_LEN} bytes long", d.display());
+    }
+    let mut unique = dirs.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), dirs.len(), "two calls of call_dir share a directory: {dirs:?}");
+}
+
+/// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
+/// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
+fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
+    (!o.status.success()).then(|| format!("{what} failed: {:?}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()))
+}
+
+#[test]
+fn harness_failed_run_reports_its_stderr() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `run_failure`).
+    let o = Command::new("sh").args(["-c", "echo 'page_faults: not found' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains("127") && why.contains("page_faults: not found"), "the failure does not carry the status and stderr: {why}");
+    let ok = Command::new("sh").args(["-c", "echo minflt 1 >&2"]).stdin(Stdio::null()).output().expect("sh");
+    assert_eq!(run_failure("probe", &ok), None);
+}
+
 /// [`faults`] with `env` added to the program's fixed environment (a dynamic program's `LD_LIBRARY_PATH`).
 fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
-    // One directory per call (the tests run in parallel); the name always has the same length.
-    static CALL: AtomicUsize = AtomicUsize::new(0);
-    let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
-    let dir = PathBuf::from(format!("/tmp/niji-hot-text-{:010}-{n}", std::process::id()));
+    let dir = call_dir();
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let run = dir.join("p");
@@ -271,7 +317,9 @@ fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
             .stdin(Stdio::null())
             .output()
             .unwrap();
-        assert!(o.status.success(), "{} {mode} failed: {:?}", exe.display(), o.status);
+        if let Some(why) = run_failure(&format!("{} {mode}", exe.display()), &o) {
+            panic!("{why}");
+        }
         let err = String::from_utf8_lossy(&o.stderr);
         let n: u64 = err.trim().strip_prefix("minflt ").and_then(|v| v.parse().ok()).unwrap_or_else(|| panic!("unexpected output {err:?}"));
         seen.push(n);
