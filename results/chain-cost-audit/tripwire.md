@@ -4,7 +4,7 @@ Depth trigger, all chains in the window: chains that reached N stories, and what
 |---|---|---|---|---|---|
 | 2 | 327 | 293 | 95 | 2496 | 190 |
 | 3 | 197 | 180 | 63 | 1633 | 84 |
-| 4 | 129 | 117 | 35 | 1144 | 34 |
+| 4 | 129 | 117 | 35 | 1145 | 34 |
 | 5 | 77 | 70 | 17 | 874 | 20 |
 | 6 | 55 | 52 | 11 | 724 | 14 |
 | 7 | 45 | 41 | 9 | 611 | 9 |
@@ -27,7 +27,7 @@ Cost trigger (chains whose first run is on or after 2026-11-13, when every hand-
 
 | X $ | chains crossing | later landed anything | later landed a gain | cost after crossing $ | of it in chains never landed $ |
 |---|---|---|---|---|---|
-| 8 | 110 | 93 | 76 | 780 | 147 |
+| 8 | 111 | 93 | 76 | 780 | 148 |
 | 10 | 73 | 61 | 49 | 570 | 122 |
 | 15 | 35 | 26 | 25 | 289 | 70 |
 | 20 | 17 | 12 | 12 | 163 | 40 |

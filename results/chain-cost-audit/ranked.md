@@ -1,10 +1,10 @@
-Window: runs started on or after 2026-10-24, as of 2026-11-23T17:30:00Z. Chains: 689; cost $4665; realized gain items 516; overall $9 per realized gain item. Cost estimated from tokens: $953. Hubs not used as chain edges: 21.
+Window: runs started on or after 2026-10-24, as of 2026-11-23T17:30:00Z. Chains: 689; cost $4679; realized gain items 516; overall $9 per realized gain item. Cost estimated from tokens: $954. Hubs not used as chain edges: 21.
 
 By size (stories in chain):
 
 | stories | chains | cost $ | $/chain | landed % | realized gain/chain | $/realized gain |
 |---|---|---|---|---|---|---|
-| 1-1 | 362 | 1108 | 3.1 | 83 | 0.67 | 5 |
+| 1-1 | 362 | 1122 | 3.1 | 83 | 0.67 | 5 |
 | 2-2 | 130 | 671 | 5.2 | 89 | 0.59 | 9 |
 | 3-3 | 68 | 724 | 10.6 | 90 | 1.25 | 9 |
 | 4-5 | 74 | 846 | 11.4 | 95 | 0.91 | 13 |
@@ -20,7 +20,7 @@ Runs in chains of 6+ stories: 604; hand-back result mentions merging next: 67 (1
 
 Most frequent failing tests named in reds since 2026-11-16: release start 14; niji::deb_manifest tables_are_sorted_well_formed_and_name_built_products 11; niji::hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound 11; niji::heap_meta_products the_heap_keeps_address_space_near_its_use 7; niji::aio_engine environment_selects_threads 3; niji::aio_engine kernel_refusal_selects_threads 3
 
-Cost per run (recorded cost only): 11-10..11-16: 550 runs, $3.03/run; 11-17..11-23: 453 runs, $4.51/run
+Cost per run (recorded cost only): 11-10..11-16: 550 runs, $3.03/run; 11-17..11-23: 453 runs, $4.54/run
 
 | rank | chain | stories | continuations | depth | pending | runs | legs | cost_usd | cost_estimated_usd | agent_hours | reds | red_own | red_incomplete | red_env | red_ci_shared | red_ci_conflict | red_coordinator | landed_stories | impact_recorded | gain_items | gain_realized | cost_rows | usd_per_realized_gain | first_run | last_run |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|

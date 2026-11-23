@@ -162,13 +162,17 @@ def main():
         s = (s or "").replace("\n", " ").replace("|", "/")
         if host_re:
             s = host_re.sub("<host>", s)
+        # quoted hand-back text may name a pending record id; the
+        # placeholder check would read it as a record of this tree
+        s = re.sub(r"\b(D|COMPAT|SR|SAT)(-[A-Z0-9.]+)?-NEW\b",
+                   "<pending id>", s)
         return home_re.sub("~/", s)
 
     stories = {r[0]: r for r in q(
         "select id, state, stacked_on, created, title from stories")}
     runs = q("select story, run_no, model, started, ended, result, tokens, "
-             "cost_usd, impact, state from runs where started >= ? "
-             "order by started", args.since)
+             "cost_usd, impact, state from runs where started >= ? and "
+             "started < ? order by started", args.since, args.now)
     active = {r[0] for r in runs}
 
     # cost estimate for runs without cost_usd
@@ -227,13 +231,15 @@ def main():
     # session legs (a refresh starts a new leg inside one run)
     legs = collections.Counter(dict(q(
         "select r.story, count(*) from run_legs l join runs r on l.run = "
-        "r.id where r.started >= ? group by r.story", args.since)))
+        "r.id where r.started >= ? and r.started < ? group by r.story",
+        args.since, args.now)))
 
     reds = collections.defaultdict(list)
     for s, actor, fr, reason, t in q(
             "select story, actor, from_state, reason, time from events "
             "where to_state = 'red' and (from_state is null or from_state "
-            "!= 'red') and time >= ? order by time", args.since):
+            "!= 'red') and time >= ? and time < ? order by time",
+            args.since, args.now):
         reds[s].append((t, classify_red(actor, fr, reason), clean(reason)))
 
     chains = collections.defaultdict(lambda: {

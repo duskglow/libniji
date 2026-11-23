@@ -190,5 +190,8 @@ Proposal (the coordinator builds it in liella-ops; numbers from the table above)
   `depth` gives the longest single-stem run.
 * Gains are counted, not weighted: a 1-instruction cut and a 40% cut count the same. Ranking by realized-gain
   count is a floor on value, not a measure of it.
+* Runs live at 17:30 record their cost when they end, so a re-run with the same `--now` gives slightly higher
+  costs (the committed tsv/md files, regenerated at 17:40, total $4,679 against the $4,665 quoted above; the
+  ranking and the tripwire tables do not change beyond one chain at the $8 row).
 * Chains still running (PRINTF-NO-HEAP, INTERNAL-ALLOC-ROUTING, SHSTK-OPT-IN, LOCALE-PROBE-GEN) show `inf`
   partly because they have not landed yet.
