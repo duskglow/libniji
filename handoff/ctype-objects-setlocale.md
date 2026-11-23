@@ -20,25 +20,23 @@ report are committed on top). Role keke:~/w/r1, synced at 3a5ea1858. Decision in
   LOADER_DLSYM every-process, beside LOADER_PIN, since each dynamic start writes it). gate-3 was killed after the red
   (it had run 42 min; its orphaned xtask was ended with kill-mine).
 
-## Jobs (keke) on 3a5ea1858, started 16:45Z
 
-* Driver `sh ~/work/ctype-objects-setlocale/final4.sh` (setsid) runs in order `ctype-objects-setlocale-checks-4`
-  (clippy, static, `xtask so` + hot_text_products, the full-profile pair, `xtask test`), `-counts-4`
-  (`~/work/ctype-objects-setlocale/counts.sh`: cbench_startup head vs base, ctype percall), `-gate-4` (direct tier).
-* `ctype-objects-setlocale-plants-4` (/dev/shm/claude/ctype-objects-setlocale/plants-4).
-* SUPERSEDED: plants-3 (2/2 CAUGHT, 35d66059a), gate-3 (red, fixed above), checks-3/counts-3 (never started), and
-  all leg-2 jobs.
+## Leg 5 (CTYPE-OBJECTS-SETLOCALE-2): jobs on mei:s4, head e813bd4c1 (code identical to 3a5ea1858)
 
-## Exact next step
-
-1. `~/bin/jobwait ctype-objects-setlocale-checks-4 ctype-objects-setlocale-plants-4 ctype-objects-setlocale-counts-4
-   ctype-objects-setlocale-gate-4`. Expect CHECKS-OK, 2/2 CAUGHT, startup head = base.
-2. Precheck with those labels on 3a5ea1858+; handback-check.
+* Restored the train-owned s05 decisions view to its merge-base version (e813bd4c1); clippy and `cargo xtask static` clean.
+* `ctype-objects-setlocale-2-plants`: 2 CAUGHT, 0 survived, no WARN lines.
+* `ctype-objects-setlocale-2-full`: `NIJI_FULL_PROFILE=1 cargo xtask so` + hot_text_products 33/33, CHECKS-OK.
+* `ctype-objects-setlocale-2-checks` (`xtask test`): rc 1, 7181 passed, 6 failed, all locale-environment reds of the host
+  (the locale archive is absent on the gate machine: `locale_data` x2, `locale_products`, `catalogs_products`,
+  `printf_corpus_products`, `s07_locale_clauses s7_2_f_0`; the known #7846 class, none in ctype code).
+* `ctype-objects-setlocale-2-gate` (direct tier): rc 1, only 4 of the same reds (`locale_behaviour`, `catalogs`,
+  `printf_corpus`, `s7_2_f_0`); conformance 54/54 passed, including `s05_ctype_legacy_objects`.
+* SUPERSEDED: the earlier keke jobs `ctype-objects-setlocale-*-4` (gate-4 and counts-4 never started; checks-4 was
+  still running its old `xtask test` and was ended).
+* NOT VERIFIED: start-up instruction count head vs base (counts-4 never ran); not re-run in this leg.
 
 ## Open
 
 * RULING NEEDED: give the built-in "C.UTF-8" its own 32-bit tables (3 KiB rodata) to remove the last part of
   D-5.13; recommend a follow-up story.
-* Seen in checks-4 before hand-back (17:05Z): the default-profile `cargo test -p niji --test hot_text_products` on
-  3a5ea1858 passed 33/33 (the gate-3 red test included); plants-4 baselines ok.
-* NOT VERIFIED at hand-back: the rest of checks-4, the start-up count and the gate on 3a5ea1858 (jobs above).
+* Exact next step: the train decides on the locale-environment reds; nothing else is pending in code.
