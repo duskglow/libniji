@@ -60,11 +60,18 @@ series, the reference 1.1%). Median ratio 1.30-1.32. Verdict: over 1%, reported,
 - gate-honest-metrics-xpass2: `cargo xtask so && cargo xtask test-pass2` (the first pass's reds stop `cargo xtask
   test` before its second pass): native pass 4874 passed / 4 failed (the same 4 of next), interposed 129 + 46
   passed.
+- layout-bins.tsv (fast) against the base 0495c4684, by section name: bins 0 and 1 unchanged; bin 2 63,498 ->
+  63,357 B (added: locale::name::candidates 2,820, system::find_line 1,984, hot::mem::equal_rest 492,
+  global_locale::note_failure 10, niji_hot_equal_big 6; left: printf::parse_into filler 5,445).
 - Counts (earlier leg, products of next): gate-honest-metrics-measure-mei2, shiki:/keke:
   gate-honest-metrics-measure-next (`~/work/gate-honest-metrics/measure.sh` on each host).
 - SUPERSEDED: gate-honest-metrics-plants (perdir-trace-dropped SURVIVED; plant replaced), lint/lint2 (clippy
   arithmetic, fixed), gate-honest-metrics-gate, -plants2, -lint3, -xtest (head before the reference_probe fix).
-- NEXT (if this leg did not hand back): precheck on the synced head, handback-check.
+- Diagnostic (not a JOBS entry): gate-honest-metrics-next81-diag ran the same 4 binaries on origin/next 81bdd4b45
+  (own copy, own products, same host): 46 passed / 0 failed. Next has fixed them since this branch's base.
+- Precheck on 02076325c: red only on xtest2 / xpass2 (those 4 tests); the other jobs count (prose-only commit since).
+- NEXT: RULING NEEDED: merge origin/next into this branch (the brief allows no merge), then re-run `cargo xtask
+  test` (and the direct gate, plants, the release hot_text_products run on the merged head), precheck, handback-check.
 
 ## Open questions
 
