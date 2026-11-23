@@ -8,6 +8,8 @@
 # second line. The unplanted sweep reaches that text at one limit of its 189 (18688 KiB, before the stop as with the
 # full sweep), so whether a rebuilt mutant reaches it depends on its layout: a gap of the sweep's 256 KiB step, not of
 # the stop (see handoff/LD-OOM-SWEEP-STOP.md).
-dlopen-read-failure-two-lines | crates/ld/src/dlopen.rs | lit:Refusal::Truncated => b"cannot read file data", ==> Refusal::Truncated => b"cannot read file data\nopen: planted", | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean --nocapture | msg:one dlopen failure with its text
+# The dlopen sweep's `cannot read file data` is the candidate file's view mapping failing (not Refusal::Truncated:
+# planted in run ld-oom-sweep-stop-plants-3, SURVIVED, the text came out unchanged).
+dlopen-view-map-failure-two-lines | crates/boundary/src/ld/dlopen.rs | lit:return Some(Found::Full(b"cannot read file data")); ==> return Some(Found::Full(b"cannot read file data\nopen: planted")); | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean --nocapture | msg:one dlopen failure with its text
 dlopen-start-map-failure-two-lines | crates/ld/src/map.rs | lit:MapError::System => b"cannot map the object (out of memory or address space)\n", ==> MapError::System => b"cannot map the object (out of memory or address space)\nplanted\n", | cargo test -p niji-ld --test dlopen_new_objects -- dlopen_new_objects_out_of_memory_is_clean --nocapture | msg:one loader line expected
 start-map-failure-two-lines | crates/ld/src/map.rs | lit:MapError::System => b"cannot map the object (out of memory or address space)\n", ==> MapError::System => b"cannot map the object (out of memory or address space)\nplanted\n", | cargo test -p niji-ld --test start_objects -- start_objects_out_of_memory_is_clean --nocapture | msg:one loader line expected
