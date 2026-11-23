@@ -470,77 +470,75 @@ unsafe impl GlobalAlloc for Niji {
 //
 // Ruling #7583 (D-X.156): when a program, an `LD_PRELOAD` library or a tool replaces the malloc
 // family, the library's own allocations at most `ALIGN`-aligned go through the replacement.
-// INTERNAL-ALLOC-ROUTING-3: the ordinary path makes no test of its own for it. Two words carry
-// it, each read where the paths already made a test:
-// * `OWN_FAST_OFF` gates the allocation fast path's read of the thread's heap cache word, in
-//   place of the test of whose thread block it is (`thread::heap_cache_word`, D-X.60): 0 once
-//   `open_own_fast` ran in a process the runtime started and nothing was routed, so the fast path
-//   reads the word directly (`OwnPages`, as `malloc`'s); otherwise the cache word is withheld
-//   from the library's own allocations and they take `rust_alloc_gated`, where the routing test
-//   is;
-// * `RESERVE_LAST` replaces the reserve's bound in the release and resize paths: `usize::MAX`
-//   sends every block they name into the reserve's branch, where `release_cold` hands it to the
-//   replacement's `free` (the reserve's own blocks stay the reserve's).
-// `route_internal` (in `early_init`) and `open_own_fast` (in `thread::init_initial`) are the only
-// writers; both run once, on the initial thread, before any other thread exists.
+// INTERNAL-ALLOC-ROUTING-3: the ordinary path makes no test of its own for it. One word,
+// `RESERVE_LAST`, carries it, read only where the paths already made a test:
+// * in the release and resize paths it is the reserve's bound: the largest offset from the
+//   reserve's base sent to the reserve's branch. `usize::MAX` (routed) sends every block they
+//   name there, where `release_cold` hands it to the replacement's `free` (the reserve's own
+//   blocks stay the reserve's);
+// * in the allocation paths it gates the fast path's read of the thread's heap cache word, in
+//   place of the test of whose thread block it is (`thread::heap_cache_word`, D-X.60): at
+//   `RESERVE_OPEN`, set once `open_own_fast` ran in a process the runtime started and nothing was
+//   routed, the fast path reads the word directly (`OwnPages`, as `malloc`'s); at any other value
+//   the cache word is withheld from the library's own allocations and they take
+//   `rust_alloc_gated`, where the routing test is.
+// Its three states: `RESERVE_OPEN + 1` (closed: before `thread::init_initial`, and for good in a
+// process another library started), `RESERVE_OPEN` (open), at least `usize::MAX - 1` (routed).
+// Both bounds below the routed state cover every block the reserve hands out (`reserve_alloc`
+// starts each at a multiple of 8 from its page-aligned base, so at an offset of at most
+// `RESERVE - 8`) and no byte past it. `route_internal` (in `early_init`) and `open_own_fast` (in
+// `thread::init_initial`) are the only writers; both run at most once, on the initial thread,
+// before any other thread exists.
 
-/// Nonzero: the library's own allocations take [`rust_alloc_gated`], not the fast path through
-/// the thread block's cache word (before `thread::init_initial`, in a process another library
-/// started, and for good once routed); 0: the fast path.
-static OWN_FAST_OFF: AtomicUsize = AtomicUsize::new(1);
+/// [`RESERVE_LAST`] with the allocation fast path open: the offset of the last 8-byte slot of the
+/// reserve.
+const RESERVE_OPEN: usize = RESERVE - 8;
 /// The largest offset from the reserve's base that the release path sends to the reserve's
-/// branch: `RESERVE - 1`, or `usize::MAX` once routed.
-static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE - 1);
+/// branch, and the allocation fast path's gate (the states above).
+static RESERVE_LAST: AtomicUsize = AtomicUsize::new(RESERVE_OPEN + 1);
 
 /// Route the library's own allocations through the replacing malloc family from here on
 /// (`caller_alloc::decide_route`, once, in `early_init`, before any thread exists).
 pub(crate) fn route_internal() {
-    OWN_FAST_OFF.store(1, Relaxed);
     RESERVE_LAST.store(usize::MAX, Relaxed);
 }
 
-/// Open the fast path of the library's own allocations ([`OWN_FAST_OFF`]) unless they are
-/// routed: `thread::init_initial`, once, when the runtime owns the initial thread's block.
+/// Open the fast path of the library's own allocations unless they are routed:
+/// `thread::init_initial`, once, when the runtime owns the initial thread's block. One
+/// subtraction whatever the state: closed becomes [`RESERVE_OPEN`], routed stays above the
+/// reserve (`usize::MAX - 1`). At most once per process (each `runtime::start` instance calls
+/// `init_initial` once): a second call would close the fast path and cut the reserve's last slot
+/// from the release bound.
 #[inline(always)]
 pub(crate) fn open_own_fast() {
-    if !routed() {
-        OWN_FAST_OFF.store(0, Relaxed);
-    }
+    RESERVE_LAST.fetch_sub(1, Relaxed);
 }
 
 /// Whether the library's own allocations are routed ([`route_internal`] ran).
 #[inline(always)]
 fn routed() -> bool {
-    reserve_last() == usize::MAX
+    reserve_last() > RESERVE
 }
 
-/// [`OWN_FAST_OFF`] as a plain read, not an atomic load, so the fast path's test takes it as a
-/// memory operand (owner ruling #7708).
+/// Whether the library's own allocations take the fast path through the thread block's cache
+/// word ([`open_own_fast`] ran and nothing is routed).
 #[inline(always)]
-fn own_fast_off() -> usize {
-    // UNSAFE(process-flag): a write-once routing gate, read without an atomic (ruling #7708).
+fn own_fast_open() -> bool {
+    reserve_last() == RESERVE_OPEN
+}
+
+/// [`RESERVE_LAST`] as a plain read, not an atomic load, so the paths' tests take it as a memory
+/// operand (owner ruling #7708).
+#[inline(always)]
+fn reserve_last() -> usize {
+    // UNSAFE(process-flag): a write-once routing bound and gate, read without an atomic (#7708).
     #[allow(unsafe_code)]
     // UNSAFE(process-flag) SAFETY: `route_internal` and `open_own_fast` are the only writers of
-    // `OWN_FAST_OFF`; each runs at most once, on the initial thread (`early_init`,
+    // `RESERVE_LAST`; each runs at most once, on the initial thread (`early_init`,
     // `thread::init_initial`), before the runtime or the program creates any other thread; every
     // later thread starts after those stores (thread creation orders them) and a fork child copies
     // the settled word, so no store runs concurrently with this read (no data race). The pointer
     // is a static's, always valid and aligned for a `usize`.
-    unsafe {
-        *OWN_FAST_OFF.as_ptr()
-    }
-}
-
-/// [`RESERVE_LAST`] as a plain read (owner ruling #7708), as [`own_fast_off`].
-#[inline(always)]
-fn reserve_last() -> usize {
-    // UNSAFE(process-flag): a write-once routing bound, read without an atomic (ruling #7708).
-    #[allow(unsafe_code)]
-    // UNSAFE(process-flag) SAFETY: `route_internal` is the only writer of `RESERVE_LAST`; it runs
-    // at most once, in `early_init` on the initial thread, before the runtime or the program
-    // creates any other thread; every later thread starts after that store (thread creation
-    // orders it) and a fork child copies the settled word, so no store runs concurrently with
-    // this read (no data race). The pointer is a static's, always valid and aligned for a `usize`.
     unsafe {
         *RESERVE_LAST.as_ptr()
     }
@@ -580,7 +578,7 @@ fn release_cold(addr: usize, size: usize) {
 /// reserve; 0 without memory. Once routed, a block at most [`ALIGN`]-aligned comes from the
 /// replacement ([`routed_alloc`]).
 pub fn rust_alloc(size: usize, align: usize) -> usize {
-    if own_fast_off() == 0 {
+    if own_fast_open() {
         if let Some(b) = Heap::alloc_fast(&OwnPages, size, align) {
             return b.addr;
         }
@@ -599,7 +597,7 @@ fn rust_alloc_slow(size: usize, align: usize) -> usize {
 /// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
-    if own_fast_off() == 0 {
+    if own_fast_open() {
         if let Some(b) = Heap::alloc_fast(&OwnPages, size, align) {
             zero_fresh(b.addr, size);
             return b.addr;
@@ -615,7 +613,7 @@ fn rust_alloc_zeroed_slow(size: usize, align: usize) -> usize {
     zeroed_or_reserve(HEAP.alloc_slow(&CSys, &KernelPages, size, align), size, align)
 }
 
-/// [`rust_alloc`] and [`rust_alloc_zeroed`] while [`OWN_FAST_OFF`] is set: through the
+/// [`rust_alloc`] and [`rust_alloc_zeroed`] while their fast path is closed: through the
 /// replacement once routed (at most [`ALIGN`]-aligned), else the heap with the cache word read
 /// as the general paths read it (whose thread block it is, D-X.60).
 #[inline(never)]
