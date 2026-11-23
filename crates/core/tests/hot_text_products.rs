@@ -250,13 +250,13 @@ fn faults(exe: &Path, mode: &str) -> u64 {
 }
 
 /// LOCALE-PER-DIR-LOAD (D-7.21): the locale data the probes count. Where `/usr/lib/locale` held a locale
-/// archive, `LANG=en_US.UTF-8` mapped one file; a host with per-locale directories instead (a Zen 1 host
-/// after locales-all) maps about 13 (tool 58 and setlocale + printf 57 faults against 44 and 43, and the
+/// archive, `LANG=en_US.UTF-8` mapped one file; a host with per-locale directories instead (a Skylake-SP
+/// host after locales-all) maps about 13 (tool 58 and setlocale + printf 57 faults against 44 and 43, and the
 /// tool count read 58 or 59 by text pad, failing `init_data_clusters_hold_at_every_text_phase`). The
 /// probes therefore run with an archive of their own, holding only en_US.utf8 (host `localedef
 /// --prefix`), bind-mounted on `/usr/lib/locale` in a user and mount namespace (`unshare -r -m`): the
-/// counts then do not depend on the host's locale layout. Measured with one static probe: Zen 1 host
-/// (directories) 10 / 43 / 44 (start-up, setlocale + printf, tool) with this archive, the Skylake-SP
+/// counts then do not depend on the host's locale layout. Measured with one static probe: Skylake-SP host
+/// (directories) 10 / 43 / 44 (start-up, setlocale + printf, tool) with this archive, the Zen 1
 /// host 10 / 43 / 44 with its own archive and with this one. `Err` (no localedef, no user namespaces,
 /// or a `sh` that adds environment strings) names why the host's own layout is counted instead.
 fn probe_locale_archive() -> Result<&'static [u8], &'static str> {
