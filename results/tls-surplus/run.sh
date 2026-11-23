@@ -22,7 +22,7 @@ $CC -O2 -o "$W/probe-ref" "$HERE/probe.c" -pthread -ldl || exit 2
 # libniji: the same source and the host's headers, run under libniji's loader and C library
 # (a program built for the reference, run unchanged).
 $CC -O2 -o "$W/probe-niji" "$HERE/probe.c" -pthread -ldl \
-    -Wl,--dynamic-linker="$NIJI/ld-linux-x86-64.so.2" -Wl,-rpath,"$NIJI" || exit 2
+    -Wl,--dynamic-linker="$NIJI/ld-linux-x86-64.so.2" || exit 2
 
 # obj <model> <size> <copy>: print the path of a TLS object (built once).
 obj() {
@@ -40,9 +40,10 @@ run() {
     local envs=(env -u GLIBC_TUNABLES)
     [ "$tun" != "-" ] && envs+=(GLIBC_TUNABLES="$tun")
     if [ "$libc" = niji ]; then
-        # No LD_LIBRARY_PATH: it would reach env and timeout (host programs) too. probe-niji finds
-        # libniji's libc.so.6 by its RUNPATH, and its libc= field shows which one it mapped.
-        "${envs[@]}" timeout 30 "$W/probe-niji" "$thr" "$@" 2>&1
+        # LD_LIBRARY_PATH for probe-niji only (set by the exec, after env and timeout, host
+        # programs, have started): libniji's loader takes libc.so.6 from its own libdir or from
+        # LD_LIBRARY_PATH, never from RUNPATH (COMPAT-37). The libc= field shows which one mapped.
+        "${envs[@]}" timeout 30 bash -c 'LD_LIBRARY_PATH="$0" exec "$@"' "$NIJI" "$W/probe-niji" "$thr" "$@" 2>&1
     else
         "${envs[@]}" timeout 30 "$W/probe-ref" "$thr" "$@" 2>&1
     fi
