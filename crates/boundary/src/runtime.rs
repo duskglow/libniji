@@ -523,16 +523,19 @@ fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: 
     process::exit(status)
 }
 
-/// The static start's decision (D-21.6): the lock mask to enable with when `wanted` asks for the
-/// shadow stack and the program's own image (program headers at `phdr`, `phnum` of them, its
+/// The static start's decision (D-21.6): the lock mask to enable with when `tunables` ask for the
+/// shadow stack and the program's own image (program headers at AT_PHDR, AT_PHNUM of them, its
 /// `PT_GNU_PROPERTY` holding the AND of every linked input) is marked; `None` otherwise. Cold: a
 /// start reaches it only when `GLIBC_TUNABLES` asks.
 #[cold]
 #[inline(never)]
-fn shstk_static_start(wanted: niji::config::ShstkMode, phdr: usize, phnum: usize) -> Option<u64> {
+fn shstk_static_start(tunables: &Tunables, aux: &Auxv<'_>) -> Option<u64> {
     use niji_ld::arch::Native;
     use niji_ld::elf::{pt, Elf, Span};
     const PHDR_SIZE: usize = 56;
+    let wanted = tunables.shstk_wanted()?;
+    let at = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
+    let (phdr, phnum) = (at(niji_kernel::uapi::AT_PHDR), at(niji_kernel::uapi::AT_PHNUM));
     if phdr == 0 || phnum == 0 {
         return None;
     }
@@ -677,12 +680,10 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     let cpu_state = cpu::init_with(&tunables);
     // D-21.6: the shadow stack, asked for by the tunables, for a static program whose image is
     // marked; before its constructors. `start` never returns, as the enable requires.
-    if static_program {
-        if let Some(m) = tunables.shstk_wanted() {
-            let at = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
-            if let Some(lock) = shstk_static_start(m, at(niji_kernel::uapi::AT_PHDR), at(niji_kernel::uapi::AT_PHNUM)) {
-                let _ = ffi::niji_machine_shstk_enter(lock);
-            }
+    // The decision is cold; only the enable stays here, in the frame that never returns.
+    if static_program && tunables.shstk == Some(true) {
+        if let Some(lock) = shstk_static_start(&tunables, &aux) {
+            let _ = ffi::niji_machine_shstk_enter(lock);
         }
     }
     // The classed entries (D-4.53): on the AVX2 class, the AVX2 page moves over the SSE2 page,
