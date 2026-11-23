@@ -1,129 +1,79 @@
 # LD-START-MAPS: the start's mappings at or below the reference's kernel cost
 
-## Leg 2 (2026-11-23): design steps 1-5 implemented and measured; NOT yet gated, no tests or plants
+## State after leg 3 (2026-11-23)
 
-Commits (on 5d1cebfea): a765f4a7b (read start dependencies from headers + mapped image; D-27.92 record),
-ee10b271d (dynamic array copy by `pread`, removing +1 fault per library). Clippy of niji-boundary + niji-ld
-clean on mei:~/w/s4. Code: `image.rs` `open_start` / `read_headers` / `image_object` / `Found` / `Mapped` /
-`arena_give_back` / `image_spans` (split out of `image_view`; `file: Option<fd>`), `StartMapper::store_file`;
-`map.rs` `plan_headers`, `Mapper::store_file` (default Err), cold `tail_from_file`; `dlopen.rs`
-`loadable_dynamic` now pub; `link.rs` uses `open_start` in the search and for path names (falls back to the old
-`open_file` path via cold `by_path` on any refusal), flat `maps` list (`keep_map`). ARENA 4 -> 16 KiB.
+Branch `task/ld-start-maps`, base origin/next e3b0caf60, HEAD 1616cd635 (plus this note). Role mei:~/w/s4
+(Skylake-SP). Decision in force: D-27.92 (records/decisions/D-27/D-27.92.toml). Code: `image.rs` `open_start` /
+`read_headers` / `image_object` / `image_spans` / `arena_give_back` / `StartMapper::store_file`; `map.rs`
+`plan_headers`, `Mapper::store_file`, cold `tail_from_file`; `link.rs` start search via `open_start`.
 
-After (kit, release, Skylake-SP, median of 101; jobs `ld-start-maps-meas-new3` vs `ld-start-maps-meas-base`):
+Leg 3 commits: 5238cc7f2 (each PT_LOAD's image-span kind worked out once per object: the attributed +7.2k
+user/object), 09768b1b8 (tests; D-27.92 corrected: a dynamic-step refusal ENDS the search with
+`<path>: object file has no dynamic section`, status 127, as the whole-file check's refusal does; it is not
+skipped), 1616cd635 (SAFETY comment shortened: the unsafe audit reads a fixed distance up).
+
+### Jobs started on HEAD 1616cd635 (mei), not yet collected
+
+- `ld-start-maps-gate` (direct tier, 14 targets, `cargo xtask affected --run --base origin/next`; not FULL)
+- `ld-start-maps-plants` (9 plants, `~/work/ld-start-maps/plants.txt`, dir `/mnt/zram/claude/ld-start-maps/plants-1`;
+  copy in the scratch dir `plants.txt`). Commit `<dir>/results.txt` as `handoff/LD-START-MAPS-plants.txt`.
+- `ld-start-maps-startup` (waits for the gate, then `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so`,
+  `hot_text_products`, copies `target/product/fast/layout-bins.tsv` to `~/work/ld-start-maps/layout-bins-head.tsv`)
+
+Clippy (`cargo xtask clippy`) and `cargo xtask static` clean on the role at 1616cd635. New tests passed in
+job `ld-start-maps-newtests` (on 09768b1b8's tree before the comment-only commit): map 7/7, ldso_search 4/4, no skips.
+
+### Measured (kit, release, Skylake-SP, median of 101; `ld-start-maps-meas-base` vs `ld-start-maps-meas-new4`)
 
 | program | user | kernel | faults | syscalls | maps |
 |---|---|---|---|---|---|
-| n0 | 159,047 -> 166,208 | 730,939 -> 628,650 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
-| n3 | 250,528 -> 274,189 | 1,122,981 -> 921,688 | 70 -> 70 | 59 -> 61 | 35 -> 29 |
-| t | 216,900 -> 224,056 | 730,456 -> 629,441 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
-| glibc 2.39 g0 / g3 / true | 101,855 / 138,761 / 128,175 | 588,762 / 925,983 / 592,143 | 51 / 67 / 51 | 30 / 64 / 30 | |
+| n0 | 159,047 -> 161,463 | 730,939 -> 628,434 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
+| n3 | 250,528 -> 262,973 | 1,122,981 -> 920,475 | 70 -> 70 | 59 -> 61 | 35 -> 29 |
+| t | 216,900 -> 219,260 | 730,456 -> 632,543 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
+| glibc 2.39 g0 / g3 / true (this run) | 101,855 / 138,675 / 128,175 | 592,425 / 940,487 / 587,565 | 51 / 67 / 51 | 30 / 64 / 30 | 12 / 27 / 12 |
 
-n3's kernel count is now below glibc's; n0 is +40k over it (was +142k). Open cost: user +7.2k per object
-(n3 +24k), not yet attributed (candidates: `image_spans` + `from_image` per object, image-mode `span_bytes`
-lookups in symbol/reloc reading, the `pread` copy; use the kit's callgrind/PT tables, `meas.sh ... pt`).
-Net instructions per start still fall (n0 -95k, n3 -177k), but a cost row must go in the report.
+Per start: kernel -102k (n0) and -203k (n3); n3's kernel count is now below glibc's (920k vs 940k), n0 is +36k
+over glibc's. User cost +2.4k (n0) and +12.4k (n3), about +3.3k per extra library (was +7.2k before 5238cc7f2):
+image-mode reading (`image_spans` 1.4k, `image_tables` 0.75k, `open_start` 0.6k per object, PT tables in
+`~/work/ld-start-maps/pt-base`, `pt-new3`). This goes in the report as a `cost` row. Faults: -1 (n0), level (n3);
+the +6 fault gap to glibc is the stack and anonymous areas (leg 1 attribution), not this story's mappings.
+Target "kernel and faults <= the reference" is NOT reached for n0 (kernel +36k, faults +6): COMPLETE with
+"target not reached", next: the stack inline tables (`link`'s `Table<_, INLINE>`) and the anonymous areas.
 
-Next steps, in order:
-1. Attribute the +7.2k user instructions per object and cut what is cheap (ALWAYS FORWARD).
-2. Tests (name the clause, §27.1): (a) `crates/ld/tests/map.rs`: `plan_headers` on a header prefix gives
-   `plan`'s result and errors on the whole file (segment past the end -> OutOfRange(Segment(i))); (b) a start
-   whose dependency has a read-only segment with zero fill (`store_file` path) runs and sees its bytes; (c) a
-   search candidate refused at the dynamic step (PT_DYNAMIC outside every PT_LOAD) is skipped and the next
-   directory's copy is loaded; (d) headers past 1 KiB (many PT_NOTEs) still load (view fallback).
-3. Plants (`docs/plants.md` via `cargo xtask plants`): `read_headers` keep computation, `plan_headers` range
-   check, `tail_from_file`/`store_file`, the `image_object` refusal mapping, `arena_give_back` zeroing,
-   `image_spans` pread offset.
-4. Gate (`cargo xtask affected --run`, base origin/next), `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so
-   && ... hot_text_products` (DYN_TRUE_BOUND may tighten: re-measure, tighten, never loosen), layout-bins diff,
-   static, precheck, report JSON, handback-check. Mention in hand-back first line: per-start numbers (owner 11-21).
+Kit note: `meas.sh` needs an ABSOLUTE output dir (it `cd /`s before writing); a relative one fails at the first row.
 
-## Leg 1
+### Not planted, with reasons
 
-**State (leg 1 of the run, attribution done, no product code changed yet):** branch `task/ld-start-maps` from
-origin/next e3b0caf60. Role mei:~/w/s4 (Skylake-SP). Release products (`NIJI_FULL_PROFILE=1`) of that base are in
-`~/work/ld-start-maps/base` on the role's host; the kit is installed in `~/work/ld-start-maps/kit` there
-(STARTUP-REPROFILE's kit plus this story's files in `handoff/LD-START-MAPS/kit/`: `attr.sh`, `ki.py`, `pfclass.py`,
-`build.sh`; `meas.sh` reads `K` from the environment).
+`arena_give_back`'s zeroing: every consumer of a scratch range writes it before reading (span_slots, read_image,
+pread), so a delete-zeroing plant would be equivalent; the zeroing keeps `scratch`'s documented invariant.
+`kind_of`'s past-32 fallback: only objects with more than 32 PT_LOADs reach it (map.rs's 300-load program), whose
+extra pages hold nothing read by address, so a plant there would survive for that reason.
 
-## Before counts (release, kit form, ASLR off, median of 101; Skylake-SP; job `ld-start-maps-meas-base`)
+## Exact next step
 
-| program | libniji user / kernel / faults / syscalls / maps | glibc 2.39 |
-|---|---|---|
-| empty main (n0 / g0) | 159,047 / 730,939 / 58 / 29 / 14 | 101,855 / 588,762 / 51 / 30 / 12 |
-| 3 libraries (n3 / g3) | 250,528 / 1,122,981 / 70 / 59 / 35 | 138,761 / 925,983 / 67 / 64 / 27 |
-| `/bin/true` (t / true) | 216,900 / 730,456 / 58 / 29 / 14 | 128,175 / 592,143 / 51 / 30 / 12 |
+1. `~/bin/jobwait ld-start-maps-gate ld-start-maps-plants ld-start-maps-startup` (mei). Red gate: fix, rerun
+   only the failing suite. A SURVIVED plant: strengthen the test, not the plant.
+2. Layout-bins: compare `~/work/ld-start-maps/layout-bins-head.tsv` with the merge base's (e3b0caf60; build it
+   only if no copy exists) and say what moved; tighten DYN_TRUE_BOUND if hot_text_products shows room (never loosen).
+3. `cargo xtask precheck --jobs ld-start-maps-gate,ld-start-maps-plants,ld-start-maps-startup,ld-start-maps-meas-new4 --head <sha>`.
+4. `handoff/reports/LD-START-MAPS.json` (impact: perf kernel n0 730,939 -> 628,434 and n3 1,122,981 -> 920,475;
+   faults n0 58 -> 57; cost user n0 +2.4k / n3 +12.4k; coverage 2 tests, 9 plants; correctness: a dependency
+   whose PT_DYNAMIC is outside every PT_LOAD is refused, its `_DYNAMIC` would not be mapped), push,
+   `ops handback-check`, hand back with the per-start numbers in the first line (owner 11-21).
+   INFORMATIONAL: `cargo clippy -p niji-boundary --all-targets` alone fails in ffi.rs/selftest.rs (feature set;
+   `cargo xtask clippy` is clean); `jobrun ... measure` kind failed in 1 s for the kit (used `bench`).
 
-The kernel gap is +142k per empty start (+197k with three libraries), and the fault gap +7 (+3).
+## Before counts and attribution (leg 1, kept for reference)
 
-## Attribution (job `ld-start-maps-attr-base4`; `attr.sh base OUT 600` with `PERIOD=50000`)
-
-Kernel instructions are sampled every 50,000 with the user registers at kernel entry, 600 starts, and each sample is
-charged to the user instruction that entered the kernel (`ki.py`; system calls split by length argument). Faults
-are every fault with its data address, classified by mapping (`pfclass.py`). Kernel symbols are hidden from the
-`claude` user (kptr_restrict 1), so the kernel side is attributed by entry site. The finer periods are throttled
-(the host's perf_event_max_sample_rate is 26000), which is why the period is 50,000.
-
-Per empty start, libniji (kernel instructions, ±~1.5k each):
-
-| what | kernel instr | faults |
-|---|---|---|
-| `munmap` of the 64 MiB view arena (with libc's view in it) | 37,900 | - |
-| `mmap` of libc.so.6's whole-file view (18 MB release file) over the arena | 22,200 | - |
-| `mmap` of the 64 MiB PROT_NONE arena | 8,700 | - |
-| faults on the view: header page (`Elf::parse`), `_DYNAMIC` (`Elf::dynamic`), a string in `link` | ~6k + ~21k + part of `link` | 3 |
-| **whole-file view, total** | **about 70k syscalls + about 30k faults** | **3** |
-| main stack: `link`'s frame (5 pages, stack probes over its 16-entry inline tables), `search::search` (2), `entry::run` (1) | about 33k in `link` + search | 8 (glibc 2.39: 1) |
-| libc.so.6 RELRO pages written by `reloc::pass1` | 37k | 7 (glibc 2.39: 5) |
-| libc.so.6 writable data | | 5 (glibc 2.39: 2) |
-| path store (16 KiB anonymous, `PathStore`, first search hit) | 6,500 mmap + 1 fault | 1 |
-| thread block and TLS (70,736 B, `map_area`) | 5,800 mmap; `rseq` registration faults 13,600 | 2 |
-| main thread's descriptor area (69,632 B, MAP_STACK, `start_under_niji_ld`) | 4,200 + 1 fault | 1 |
-| libc text faults | | 5 (glibc 2.39: 15) |
-
-Conclusion: the whole-file view is about 100k of the 142k kernel gap and 3 faults. The stack is the other
-large fault item (+7); it comes from `link`'s inline per-object tables (`Table<_, INLINE>`, INLINE 16, entries of
-`Obj`, `symbols::Object`, ...), touched page by page by the stack probes whether or not entries are used.
-
-## Design for the view (the next step)
-
-The candidate check (`dlopen::check_into`: `Elf::parse`, `map::plan`, `loadable_dynamic`) reads the whole file:
-`map::plan` asks `segment_bytes` for each PT_LOAD (a range check against the file), and `Elf::dynamic` reads
-`.dynamic` and `.dynstr` (via `bytes_at(DT_STRTAB)`). So a pread of the headers alone cannot feed it. The order that
-works, with no check dropped (owner 11-17: move or fold, never drop):
-
-1. `open_candidate` / `open_file` (crates/boundary/src/ld/image.rs): `pread` ehdr plus the program header table
-   into the start arena (one `pread` of the first 1 KiB, a second only when `e_phoff + table` lies beyond it).
-2. A header-mode reader: `Elf::parse_headers::<A>(prefix, file_len)` doing exactly `Elf::parse`'s checks, with
-   `segment_bytes`' file-range check replaced by `offset + filesz <= file_len` for `map::plan` (same
-   `ElfError::OutOfRange(Part::Segment(i))`).
-3. Plan and map the segments (`map::map_planned`). `map_segment` reads file bytes only for a read-only segment's
-   partial tail page: `pread` there (the `StartMapper` has the fd).
-4. Read the object from its image as the program and ld.so already are (`image_view` + `Elf::from_image`,
-   D-27.18): the header table at `loaded.phdr`, `.dynamic` copied, the read-only segments sliced in place. Then
-   `loadable_dynamic` (PIE refusal) and the SONAME test for ld.so (`link.rs` line ~207) run on that; a refusal now
-   unmaps the mapping and skips as before (the search's verdict order is unchanged: header errors, EXEC, plan,
-   dynamic).
-5. The start arena (`ARENA`, 4 KiB in ld.so's .bss) must hold each object's header copy, spans and `.dynamic` copy
-   (~2 KiB per object): enlarge it (untouched .bss pages cost nothing), or a start with 3+ libraries falls back to
-   anonymous scratch mappings and gets worse.
-6. Keep `ld.so --list`, `dlopen` and the exec-stack paths (`exec_stack_candidate`, `exec_stack_dependency`) on
-   the view path unless they move with the same reader; DYN-START-PARITY-2's file-system dependence goes only when
-   the start path maps no view.
-
-Expected: -3 syscalls (arena mmap, view mmap, arena munmap) and about -70k kernel instructions per object loaded;
-the view's 3 faults move to the segments (2 fault-around windows of the first segment, 1 read of `.dynamic` in the
-RELRO page that `pass1` writes anyway), so faults stay about level. That alone leaves about +70k and +7 faults:
-the stack (inline tables), the path store mapping and the descriptor area are the rest.
+Base (release, kit form, median of 101; job `ld-start-maps-meas-base`): n0 159,047 user / 730,939 kernel / 58
+faults / 29 syscalls / 14 maps; glibc g0 101,855 / 588,762 / 51 / 30 / 12. Leg 1 attribution (job
+`ld-start-maps-attr-base4`, logs `~/work/ld-start-maps/attr-base/`): the whole-file view was about 100k of the
+142k kernel gap (arena munmap 37.9k, view mmap 22.2k, arena mmap 8.7k, view faults ~30k); the rest is `link`'s
+stack frame (inline per-object tables, +7 faults), libc RELRO/data faults, the path store (16 KiB), the thread
+block and TLS (70,736 B) and the main thread's descriptor area (69,632 B).
 
 ## Do not redo
 
-- The attribution above (kit and logs on the role's host: `~/work/ld-start-maps/attr-base/`).
-- Fault-around tricks on the view (`MADV_RANDOM`): each touched page then faults alone (rela.dyn alone is ~10
-  pages), more faults, rejected by reasoning, not measured.
-- Mapping the view without the arena (`map_view_alone`): brings back DYN-START-SPEED-2's alignment dependence.
-
-## Next step
-
-Implement the design steps 1-5 on the start path only, measure with `meas.sh` (n0, n3, t) against
-`~/work/ld-start-maps/base`, then the gate, plants, `cargo xtask test` and the release hot_text_products check.
+- Leg 1's attribution; leg 3's PT attribution of the user cost (above).
+- `MADV_RANDOM` on the view (more faults, rejected by reasoning); mapping the view without the arena (brings
+  back DYN-START-SPEED-2's alignment dependence).
