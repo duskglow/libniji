@@ -1,0 +1,27 @@
+# LD-RELR-LOOP-4 plants: LD-RELR-LOOP's and LD-RELR-LOOP-2's plants re-run on the head merged with origin/next
+# (LD-OBJECT-ONCE's elf.rs/reloc.rs changes merged around the RELR code; DYN_START_INSTR re-set from the merged level).
+# relr_entry applies an entry with no per-word check only when its highest word is inside the window too.
+relr-entry-last | crates/ld/src/reloc.rs | lit:if !(window.0 <= first && last <= window.1) { ==> if !(window.0 <= first) { | cargo test -p niji-ld --test reloc reloc_relr_entry_checks_its_whole_run | msg:reloc_relr_entry_checks_its_whole_run.*(FAILED|panicked)|panicked.*reloc_relr_entry_checks_its_whole_run
+# The boot writer takes one segment view only when the bitmap's highest word is in that segment.
+add-bits-last | crates/ld/src/boot.rs | lit:if !holds(self.last, last) { ==> if false { | cargo test -p niji-ld --lib relr_bitmap_across_segments | msg:relr_bitmap_across_segments.*(FAILED|panicked)|panicked.*relr_bitmap_across_segments
+# Relrs::runs hands out an entry whole only when its highest address does not wrap past the address space.
+relr-fitting-ok | crates/ld/src/elf.rs | lit:if bits == 0 || base.checked_add( ==> if true || bits == 0 || base.checked_add( | cargo test -p niji-ld --test elf_tables relr_runs_match_the_iterator | msg:relr_runs_match_the_iterator.*(FAILED|panicked)|panicked.*relr_runs_match_the_iterator
+# libc.so.6 linked without packed relative relocations: the empty main's start-up instruction bound catches the cost.
+link-flag | xtask/src/so.rs | lit:.arg("-Wl,-z,pack-relative-relocs") ==> | cargo test -p niji --test hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound | msg:instructions > [0-9]+: the interpreter's or libc.so.6's start-up grew
+# The process image adds the bias to each word of a RELR bitmap in place: libc.so.6's packed relative relocations.
+proc-add-bits | crates/boundary/src/ld/image.rs | lit:unsafe { w.write_unaligned(v.wrapping_add(bias)) }; ==> unsafe { w.write_unaligned(v) }; | cargo test -p niji-ld --test start_objects start_objects_past_every_old_bound | msg:a start of [0-9]+ libraries failed
+# The mapped self-image adds the bias in place: ld.so's own packed relative relocations at its start.
+self-add-bits | crates/boundary/src/bootstrap.rs | lit:unsafe { w.write_unaligned(v.wrapping_add(bias)) }; ==> unsafe { w.write_unaligned(v) }; | cargo test -p niji-ld --test ldso_run ldso_run_by_interp_at_random_bases | msg:ldso_run_by_interp_at_random_bases.*(FAILED|panicked)|panicked.*ldso_run_by_interp_at_random_bases
+# boot::Memory's default adds each bitmap word through the segment view, at offset off + 8 * k.
+boot-default-word | crates/ld/src/boot.rs | lit:let Some(w) = view.get_mut(at..at.wrapping_add(8)) ==> let Some(w) = view.get_mut(at.wrapping_add(8)..at.wrapping_add(16)) | cargo test -p niji-ld --lib relr_bitmap_across_segments | msg:relr_bitmap_across_segments.*(FAILED|panicked)|panicked.*relr_bitmap_across_segments
+# Image's default (add_bits_by_word) reads and writes the word at at + 8 * k for each set bit k.
+image-default-word | crates/ld/src/reloc.rs | lit:let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(8)); ==> let p = at.wrapping_add(u64::from(rest.trailing_zeros()).wrapping_mul(16)); | cargo test -p niji-ld --test reloc reloc_relr | msg:reloc_relr[a-z_]*.*(FAILED|panicked)|panicked.*reloc_relr
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# relr-entry-last: CAUGHT, caught by reloc reloc_relr_entry_checks_its_whole_run
+# add-bits-last: CAUGHT, caught by niji_ld boot::tests::relr_bitmap_across_segments
+# relr-fitting-ok: CAUGHT, caught by elf_tables relr_runs_match_the_iterator
+# link-flag: CAUGHT, caught by hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound
+# proc-add-bits: CAUGHT, caught by start_objects start_objects_past_every_old_bound
+# self-add-bits: CAUGHT, caught by ldso_run ldso_run_by_interp_at_random_bases
+# boot-default-word: CAUGHT, caught by niji_ld boot::tests::relr_bitmap_across_segments
+# image-default-word: CAUGHT, caught by reloc reloc_relr_entry_checks_its_whole_run

@@ -352,6 +352,32 @@ impl niji_ld::reloc::Image for ProcImage {
         write_all(2, b"ld.so: ");
         parts.iter().for_each(|p| write_all(2, p));
     }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn add_bits(&mut self, at: u64, bits: u64, bias: u64, little: bool) {
+        // The words are in the process's own byte order unless `little` says otherwise.
+        let Ok(base) = word(at) else { return };
+        if little != cfg!(target_endian = "little") {
+            return niji_ld::reloc::add_bits_by_word(self, at, bits, bias, little);
+        }
+        let mut rest = bits;
+        while rest != 0 {
+            let w = core::ptr::with_exposed_provenance_mut::<u64>(base.wrapping_add(usize::try_from(rest.trailing_zeros()).unwrap_or(0).wrapping_mul(8)));
+            rest &= rest.wrapping_sub(1);
+            // UNSAFE(slice): one relocated word of a loaded object, read.
+            #[allow(unsafe_code)]
+            // SAFETY: the relocator checked each word `at + 8 * k` of the bitmap lies in a
+            // segment of the object mapped readable and writable at this moment. RELR does not
+            // promise alignment: the access is unaligned.
+            let v = unsafe { w.read_unaligned() };
+            // UNSAFE(slice): the same word, written back with the bias added.
+            #[allow(unsafe_code)]
+            // SAFETY: as for the read; nothing else of the process runs yet, so no other
+            // reference to the word exists.
+            unsafe { w.write_unaligned(v.wrapping_add(bias)) };
+        }
+    }
 }
 
 /// `AT_FDCWD` (kernel UAPI `linux/fcntl.h`): a relative path is taken from the current directory.
