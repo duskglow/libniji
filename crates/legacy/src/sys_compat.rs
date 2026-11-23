@@ -62,8 +62,8 @@ pub fn sysconf<S: Sys, M: Machine, A: Aux>(sys: &S, m: &M, aux: &A, name: i32) -
 /// `confstr(name, buf, len)` (§24.4): the full length of the text including its terminator;
 /// the text is copied into `buf`, truncated and terminated, when `buf` is not empty. An
 /// unknown name is `EINVAL`.
-pub fn confstr(name: i32, buf: &mut [u8]) -> Result<usize> {
-    let text = sysconf_table::confstr(name).ok_or(Errno::EINVAL)?;
+pub fn confstr_into(name: i32, buf: &mut [u8]) -> Result<usize> {
+    let text = sysconf_table::confstr_value(name).ok_or(Errno::EINVAL)?;
     if let Some(room) = buf.len().checked_sub(1) {
         let n = room.min(text.len());
         for (d, s) in buf.iter_mut().zip(text.get(..n).unwrap_or(&[]).iter().chain(&[0u8])) {
