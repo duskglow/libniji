@@ -37,14 +37,23 @@ over d3). Static oracle (200000 x malloc(264), held) does not reach the case (63
 `find_over_200000_entries_bounds_its_address_space` (crates/core/tests/heap_meta_products.rs): system `find`
 through the products' ld.so `--library-path`, `LANG=en_US.UTF-8` only, dirs under `/dev/shm/niji-find-entries-<pid>`
 (removed on drop), bound 33296 over d3. Skips (printed) without /usr/bin/find, /dev/shm or the locale archive.
-Plant `blockers-8` (EXACT_BLOCKERS back to 8): handoff/HEAP-FIND-DEPTH-NEED-plants.txt.
+It does NOT catch the plant on next's current layout: plants-2's mutant products (EXACT_BLOCKERS 8) need 48592
+KiB like the fix (probe `-mut`), and strace (`-strace3`) shows the mutant placing its 2304 KiB later segments on the
+exact path with no blocker (aligned slot free), while 22.4 fails the over-mapping 641 times. So the plant runs
+`kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken` (crates/boundary/tests/s03_memory_symbols.rs):
+both aligned candidates pinned, the probe's gap made the kernel's first choice, `map_room(0, 2304 KiB, SEG, SEG)`
+under a limit refusing the over-mapping: 9 blockers are needed, every run. Plant `blockers-8` in
+handoff/HEAP-FIND-DEPTH-NEED-plants.txt.
 
 ## Jobs (keke) and results: see handoff/reports/HEAP-FIND-DEPTH-NEED.json
 
-- Final: `heap-find-depth-need-gate2` (clippy, static, `affected --run`, heap_meta_products, `cargo xtask test`,
-  full-profile `so` + hot_text_products) and `heap-find-depth-need-plants2` (plants-2), on `92dd7b303`.
-- Superseded: `-gate` (clippy red: arithmetic in the bisection), `-plants` (blockers-8 SURVIVED: C locale).
-- Diagnostics: `-meas2` (the test's own number, 2 runs), `-env`, `-env2` (locale probe), `-meas`, `-cmp`, `-t2`.
+- Final: `heap-find-depth-need-gate3` (clippy, static, `affected --run`, s03_memory_symbols, heap_meta_products,
+  `cargo xtask test`, full-profile `so` + hot_text_products) and `heap-find-depth-need-plants3` (plants-3), on
+  `2820cf6b3` (started 04:07Z).
+- Superseded: `-gate` (clippy red: arithmetic in the bisection), `-plants` (SURVIVED: C locale), `-plants2`
+  (SURVIVED: layout, see above), `-gate2` (stopped: older tree).
+- Diagnostics: `-meas2` (the test's own number, 2 runs), `-env`, `-env2` (locale probe), `-mut`, `-strace3`
+  (mutant), `-meas`, `-cmp`, `-t2`.
 
 ## Not measured
 
@@ -54,5 +63,6 @@ constant is read only in `map_aligned_exactly`, reached after an mmap failed und
 
 ## Exact next step
 
-None if gate2 and plants2 are green (hand back COMPLETE). If plants2 survives again: the locale archive on the host
-may lack en_US.UTF-8; read the plant log's `find needs` line.
+`~/bin/jobwait heap-find-depth-need-gate3 heap-find-depth-need-plants3` on keke; green: precheck, handback-check,
+hand back COMPLETE. Red in the new test's precondition (`within 48 splits`): read its message, the layout needs more
+splits on that host.
