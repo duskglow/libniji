@@ -1,7 +1,7 @@
 {"task": "LOCALEDEF-TRANSLIT", "model": "opus", "tokens": null,
  "result": "localedef transliterates strings the charmap lacks at compile time through the locale's LC_CTYPE table, as probed (s31_8_g_5); untransliterable strings empty with the reference's warning",
- "branch": "task/localedef-translit", "head": "3aac89895",
- "gate": {"affected": "pending: localedef-translit-gate2", "peak": null}, "accepted_first_attempt": null,
+ "branch": "task/localedef-translit", "head": "4a6dc12cb",
+ "gate": {"affected": "7443 passed / 0 failed (147 conformance passed; plants 7/7 CAUGHT)", "peak": "14G"}, "accepted_first_attempt": null,
  "rulings": [],
  "informational": ["a defined LC_CTYPE with only a translit section gets no ASCII classes/maps/widths (reference does)",
                    "runtime translit table: \"\";\"A<U2035>\";\"B\" stored as an empty first alternative; reference stores [B]",
@@ -12,6 +12,6 @@
             {"kind": "coverage", "what": "tests added (prog in-memory, reference comparison) and plants", "before": 0, "after": 9, "unit": "2 tests + 7 plants", "measured": true},
             {"kind": "unblock", "what": "LOCALE-PROBE-GEN-2 follow-up: the 251 legacy values (EUR, U+00A0, apostrophe) once the generator emits the translit table", "before": null, "after": null, "unit": null, "measured": false}],
  "improvement": "sync_role BUSY (rc 4) after a kill-label: the ~/bin/gate child survives kill-label; kill-mine was needed, and jobs started after a BUSY sync ran on the old tree",
- "next_step": "collect gate2/plants3, precheck, handback-check; follow-up story on LOCALE-PROBE-GEN-2 for steps 3-4",
+ "next_step": "follow-up story on LOCALE-PROBE-GEN-2 for steps 3-4 (generator translit table, 251-value test, differences row)",
  "report_file": "handoff/LOCALEDEF-TRANSLIT.md",
- "jobs": ["localedef-translit-gate2", "localedef-translit-plants3"]}
+ "jobs": ["localedef-translit-gate3", "localedef-translit-plants4"]}

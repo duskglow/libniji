@@ -1,7 +1,7 @@
 # LOCALEDEF-TRANSLIT: localedef transliterates strings the target charmap lacks (compile time)
 
-**State.** Branch `task/localedef-translit` (from origin/next 0495c4684), role shiki `~/w/sh1`. Code head 3aac89895
-(the commit with this note sits on top; it changes no code). Scope per coordinator note on #7957: step 2 only
+**State.** Branch `task/localedef-translit` (from origin/next 0495c4684), role shiki `~/w/sh1`. Code head 4a6dc12cb
+(the commit with this note's final form sits on top; it changes no code). Story complete. Scope per coordinator note on #7957: step 2 only
 (compile-time transliteration on hand-written sources); steps 3-4 (generator emits the shared translit table,
 the 251-value test, the Locale sources differences row) are a follow-up stacked on LOCALE-PROBE-GEN-2 (not landed,
 not merged here by ruling).
@@ -22,10 +22,12 @@ not merged here by ruling).
   reference needed); `crates/locale/tests/reference.rs`
   `strings_the_charmap_lacks_are_transliterated_as_the_reference_does` (every item of the nine string categories vs
   the reference). Plants: `handoff/LOCALEDEF-TRANSLIT.plants` (7).
-* Jobs: `localedef-translit-gate2` (reference+prog tests, clippy -D warnings, static, `affected --run --base
-  origin/next`, direct tier: 94 targets + 147 conformance, not FULL) and `localedef-translit-plants3`, both on
-  3aac89895, started 13:5xZ. SUPERSEDED: t1, t2, lint1 (development; lint1 found the wide-form rule), plants1
-  (killed, older head), gate1/plants2 (killed: started while the role was BUSY, old tree).
+* Jobs on code head 4a6dc12cb (shiki): `localedef-translit-gate3` (clippy -D warnings, static, `affected --run
+  --base origin/next`, direct tier, not FULL): 12 suites ok, 7443 passed, 0 failed, 147 conformance passed, peak
+  14G; `localedef-translit-plants4`: 7 CAUGHT, 0 SURVIVED, 0 WARN. SUPERSEDED: t1, t2, lint1 (development; lint1
+  found the wide-form rule), plants1 (killed, older head), gate1/plants2 (killed: started while the role was BUSY,
+  old tree), gate2 (red: clippy redundant_pattern_matching in the new test, fixed in 4a6dc12cb), plants3 (killed,
+  older head).
 
 ## Open (INFORMATIONAL, outside this story)
 
@@ -39,7 +41,6 @@ not merged here by ruling).
 
 ## Next step
 
-`~/bin/jobwait localedef-translit-gate2 localedef-translit-plants3` on shiki; on green: precheck
-`cargo xtask precheck --jobs localedef-translit-gate2,localedef-translit-plants3 --head <sha>` on the synced
-final head, update `handoff/reports/LOCALEDEF-TRANSLIT.json` (gate line), push, `ops handback-check`, hand back.
-On red: fix, run only the failing test, rerun.
+None for this story. Follow-up (coordinator, #7957), stacked on LOCALE-PROBE-GEN-2: the generator emits the shared
+translit table the probes establish, the 251 legacy values tested equal to the reference after regeneration, and
+the Locale sources differences row loses the gap.
