@@ -79,6 +79,10 @@ static void *in_thread(void *a)
 static void setlocale_rows(void)
 {
     const char *tmp = getenv("TMPDIR");
+    /* Dynamic-link mode names libniji's directory in LD_LIBRARY_PATH; the host's sh, localedef and rm that
+     * system() starts must load the host's own C library, so the variable goes before the first of them (the
+     * helper this program links is already loaded). */
+    unsetenv("LD_LIBRARY_PATH");
     snprintf(dir, sizeof dir, "%s/s05-legacy-objects-XXXXXX", tmp && *tmp ? tmp : "/tmp");
     if (!mkdtemp(dir)) { printf("FAIL: mkdtemp\n"); exit(1); }
     atexit(cleanup);
