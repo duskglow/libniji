@@ -1,27 +1,50 @@
-# PRINTF-NO-HEAP-2 (handoff; run 1, end of leg 1: REFRESH, code done, proofs running/pending)
+# PRINTF-NO-HEAP-2 (handoff; run 1, end of leg 2)
 
-State: branch `task/printf-no-heap-2` (stacks on task/printf-no-heap; base origin/next 28843dea1), HEAD = the commit
-that adds this note (code head `db111d295`). Role mei:~/w/s3 (Skylake-SP). Predecessor note: handoff/PRINTF-NO-HEAP.md.
-Decisions in force: D-12.32 (no-heap printf design), D-12.33 (swprintf truncation is E2BIG). No new record needed
-(the one-pass spill is an implementation detail of D-12.32; it changes no behaviour).
+State: branch `task/printf-no-heap-2` (stacks on task/printf-no-heap; base origin/next 28843dea1). Code head
+`ef49de906`; HEAD = the commit that adds this note and the report. Role mei:~/w/s3 (Skylake-SP).
+Predecessor note: handoff/PRINTF-NO-HEAP.md. Decisions in force: D-12.32 (no-heap printf design), D-12.33
+(swprintf truncation is E2BIG). No new record (the one-pass spill and the cold call are implementation details).
 
-## Done this leg (do not redo)
-- `1dc188f9a` step 1: long fields in one pass. Simple floats: `Capped` (crates/core/src/printf.rs) spills the kept
-  text and every later piece to `out` once a piece overflows, when `width <= INLINE_TEXT` (an overflowing text is then
-  longer than the width: no padding); a wider field still takes `simple_float_long`. General path: `render_from` builds
-  each conversion through `Building` (wraps `Field` + `out`; same fast copy; cold `past()` spills when
-  `width <= INLINE_FIELD`); a spilled field just adds `body.len()` to the total. `%Lf` of 2^1000 is one pass now.
-  Test rows added to `long_fields_have_their_full_text` (crates/boundary/tests/printf_no_heap.rs): `%f|`, `%-120f|`,
-  `%200.2f|`, `%320f|` of +-1e300; `%250Lf|`, `%-320Lf|` of 2^1000; `%2$s%1$.300Lf|`. Tests green on mei
-  (printf-no-heap-2-t1: printf_no_heap 3 passed; printf-no-heap-2-t2: `cargo test -p niji --lib printf` 14 passed).
-- `db111d295` step 2: `format_at` `#[inline(never)]`. Cause found with nm on the cbench_opt binary: no
-  `format_at<ToBuffer>` symbol, the whole general path was inlined into `format_routed<ToBuffer>` (0xab25 bytes),
-  which also holds render_simple's loop; perf (instructions:u) of snprintf_s_d_colon: 52% in format_routed<ToBuffer>.
-  NOT YET MEASURED: `printf-no-heap-2-cbench-2` (started ~03:47Z on db111d295) is that measurement.
-- Plants file `handoff/PRINTF-NO-HEAP-2.plants`: 15 plants (inherited 9, nh-simple-float-spill retargeted to the new
-  sink; 6 new on the spill logic). NOT YET RUN.
-- #7764 probe (step 3), mei ~/work/printf-no-heap-2/pfnh2.c, ref.txt (counting malloc replacement; each row run
-  with allocation allowed, then with every allocation refused):
+## Commits (this story)
+- `1dc188f9a` long fields in one pass: `Capped` (simple floats) and `Building` (general path) spill to `out` once a
+  piece overflows, when the width fits the inline room; `%f`/`%Lf` of 1e300 / 2^1000 is one pass.
+- `918d47cdf` plants file `handoff/PRINTF-NO-HEAP-2.plants` (15: 9 inherited, 6 on the spill logic).
+- `db111d295` `format_at` `#[inline(never)]` (gained little: s_d_colon 975 -> 972.7, `%d` 490.8 -> 491.7).
+- `ef49de906` `format_routed` calls the general path through `format_general` (`#[cold] #[inline(never)]`).
+  Cause, from disassembly of base and branch cbench_opt (`~/work/printf-no-heap-2/dis-*.s`, script dis.sh):
+  the only source change reaching `format_routed<ToBuffer>` (40 KB: four render_simple instantiations inlined)
+  is the general path; as a plain call LLVM kept the sret pointer in `%rdi` for it and saved it late on the
+  other paths and merged exits (bare `"%s"`: +1 mov, +1 jmp). Callee lists of both builds otherwise identical.
+
+## cbench instructions/call (`cargo xtask bench --compare --counters --runs 3 cbench_opt cbench_stdio`)
+before = 28843dea1 (predecessor's measure-before.tsv; a fresh base rerun `printf-no-heap-2-basebench`, cbench_opt
+--runs 1 in RAM, agrees within 0.3), prev = PRINTF-NO-HEAP 91091cabf, after = ef49de906 (`printf-no-heap-2-cbench-3`,
+~/work/printf-no-heap-2/measure-3.tsv).
+
+| row | before | prev | after | vs before |
+|---|---|---|---|---|
+| snprintf_d / ld_large / x08 | 489.5 / 549.4 / 530.5 | 490.5 / 550.5 / 531.4 | 487.5 / 547.5 / 527.6 | -0.4 / -0.35 / -0.55% |
+| snprintf_s_path (`"%s"`) | 229.2 | 229.2 | 231.2 | **+0.87%** |
+| snprintf_s_d_colon | 961.0 | 974.2 | 941.2 | -2.06% |
+| snprintf_ls_line | 2420.9 | 2455.2 | 2379.4 | -1.71% |
+| sprintf_chk_ls_nlink | 760.6 | 762.8 | 699.6 | -8.02% |
+| snprintf_mixed / f2 / g / e | 1997.6 / 1110.3 / 1286.3 / 1582.3 | | 1924.7 / 1060.3 / 1237.3 / 1532.3 | -3.2 .. -4.5% |
+| snprintf_f_large (`%f` 1e300) | 18443.6 | 52845.4 | 17812.5 | -3.42% |
+| fprintf_ls_line / du_line | 1877.2 / 842.4 | | 1877.2 / 842.3 | 0.00% |
+| stdio snprintf_d / mixed | 489.5 / 2014.2 | | 487.5 / 1941.3 | -0.4 / -3.6% |
+| stdio fprintf_d | 633.7 | 633.9 | 639.5 | **+0.92%** |
+| stdio fputs_32 / putc | 125.0 / 23.2 | | 125.0 / 23.2 | 0.00% |
+| stdio fwrite_4k | 1087.7 | 1089.1 | 1088.1 | +0.04% (no printf code on it) |
+
+OPEN (RULING NEEDED): `"%s"` +2.0 and fprintf_d +5.8 instructions per call. Both are register-allocation and
+layout effects in `format_routed` (ToBuffer, ToStream), not added work; each attribute change moved them between
+rows (fprintf_d was 634.2 before ef49de906). A third attribute tweak is a rut (RUT RULE); the robust fix is
+structural: a small hot dispatcher with the render_simple instantiations out of line, so the simple paths no
+longer share one 40 KB function with the rest (follow-up story; measure with
+`cargo xtask bench --compare --counters --rows snprintf_s_path,fprintf_d,... cbench_opt cbench_stdio`).
+
+## #7764 probe (mei ~/work/printf-no-heap-2/pfnh2.c, ref.txt; counting malloc replacement, each row run with
+allocation allowed and again with every allocation refused)
 
 | row (reference, glibc 2.39) | allocator calls | refused: same result |
 |---|---|---|
@@ -32,46 +55,24 @@ Decisions in force: D-12.32 (no-heap printf design), D-12.33 (swprintf truncatio
 | register_printf_specifier('W') itself | 1 | (registration, not a call) |
 | after registration: `%W`, `%W %d`, `%d`, `%f` 1e300 | 0 | yes |
 
-  So libniji still allocates where the reference does not: (a) grouped or `I` floats whose text passes 128 bytes
-  (`float_text_general` builds `grouped`/`text` in `InlineVec<u8, 128>`, which grows to the heap); (b) any call while
-  a conversion is registered (unbounded parse with Hooks; `Custom` outputs are `TryVec<u32>`; vfwprintf collects into
-  `CollectWide(TryVec)`). Both need a streaming redesign (grouping into a `Units` sink; handler output straight to
-  `out`): FOLLOW-UP, not this run. Routing is right for `%.100000f/e/g` and positional past 48 pieces (reference
-  allocates, predecessor probe).
+FOLLOW-UP: libniji still allocates where the reference does not: (a) grouped or `I` floats whose text passes 128
+bytes (`float_text_general` builds in `InlineVec<u8, 128>`, which grows); (b) any call while a conversion is
+registered (unbounded parse with Hooks; `Custom` outputs `TryVec<u32>`; vfwprintf collects in `CollectWide`).
+Both need streaming (grouping into a `Units` sink; handler output straight to `out`). Routing is right for
+`%.100000f/e/g` and positional past 48 pieces (the reference allocates, predecessor probe).
+INFORMATIONAL: the reference's `%If` of 1e300 in the C locale returned 1 (en_US: 308); libniji not compared.
 
-## cbench instructions/call (`cargo xtask bench --compare --counters --runs 3 cbench_opt cbench_stdio`)
-before = 28843dea1 (~/work/printf-no-heap/measure-before.tsv), prev = PRINTF-NO-HEAP 91091cabf, after-1 = 1dc188f9a
-(printf-no-heap-2-cbench-1, ~/work/printf-no-heap-2/measure-1.tsv). Compare: `python3 ~/work/printf-no-heap-2/cmp.py
-~/work/printf-no-heap/measure-before.tsv ~/work/printf-no-heap/measure-after.tsv ~/work/printf-no-heap-2/measure-2.tsv`
+## Proofs on ef49de906
+- Plants `printf-no-heap-2-plants`: 15 CAUGHT, 0 SURVIVED, 0 WARN (handoff/PRINTF-NO-HEAP-2-plants.txt).
+- Bench `printf-no-heap-2-cbench-3` (table above).
+- Direct gate `printf-no-heap-2-gate`: 20 suites ok, 11873 passed, 0 failed; conformance 137/0; peak 15G.
+- Start-up checks `printf-no-heap-2-xtask-test`, `printf-no-heap-2-hot-text`; clippy, static, precheck: see the
+  hand-back (run after this note was written).
+- SUPERSEDED (older heads or diagnostics): printf-no-heap-2-cbench-1 (1dc188f9a), printf-no-heap-2-cbench-2
+  (db111d295), printf-no-heap-2-basebench (the base revision, diagnostic), printf-no-heap-2-t1/t2 (1dc188f9a).
 
-| row | before | prev | after-1 |
-|---|---|---|---|
-| snprintf_f_large | 18443.6 | 52845.4 | 17829.8 (-3.3%) |
-| snprintf_s_d_colon | 961.0 | 974.2 | 975.0 (+1.46%) |
-| snprintf_ls_line | 2420.9 | 2455.2 | 2457.4 (+1.51%) |
-| sprintf_chk_ls_nlink | 760.6 | 762.8 | 764.1 |
-| snprintf_d / ld_large / x08 | 489.5 / 549.4 / 530.5 | 490.5 / 550.5 / 531.4 | 490.8 / 550.7 / 531.5 |
-| snprintf_e / f2 / g / mixed | 1582.3 / 1110.3 / 1286.3 / 1997.6 | | 1540.3 / 1067.7 / 1244.9 / 1960.0 |
-| fprintf_* / stdio rows | | | within +0.1% (fwrite_4k 1087.7 -> 1088.4) |
-
-## Exact next step (leg 2)
-1. `~/bin/jobwait printf-no-heap-2-cbench-2`; run the cmp.py line above. If every printf/stdio row is at or below
-   before: go on. If s_d_colon/ls_line are still above: `nm -S --size-sort ~/w/s3/target/niji/bench/cbench_opt | grep
-   format_routed` and compare with 0xab25; look for what else got inlined (render_from/format_long are separate
-   symbols already).
-2. Start plants (role busy until the bench ends): `setsid nohup ~/bin/jobrun printf-no-heap-2-plants plants -- sh -c
-   '. ~/.cargo/env; cd ~/w/s3 && cargo xtask plants handoff/PRINTF-NO-HEAP-2.plants --dir
-   /mnt/zram/claude/printf-no-heap-2/plants-1 --timeout 600' </dev/null >/dev/null 2>&1 &` (nothing chained before
-   setsid over ssh: a chained `mkdir` made the ssh call hang this leg).
-3. Direct gate `printf-no-heap-2-gate` (`cargo xtask affected --run` under ~/bin/gate 16G), then start-up checks
-   (`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test
-   hot_text_products`), one build at a time on s3; foreground clippy (`cargo clippy --workspace --all-targets
-   --all-features -- -D warnings`) and `cargo xtask static`; `cargo xtask precheck --jobs <labels> --head <sha>`.
-4. Report handoff/reports/PRINTF-NO-HEAP-2.json (+ "jobs"), push, `ops handback-check`.
-
-## Open / gaps
-- FOLLOW-UP (#7764): (a) and (b) above, with the probe rows.
-- INFORMATIONAL: the reference's `%If` of 1e300 in the C locale returned 1 (en_US: 308); libniji not compared.
+## Next step
+Ruling on the two rows; then the structural follow-up above and the #7764 follow-ups (a), (b).
 
 ## Refused
-None this leg.
+None.
