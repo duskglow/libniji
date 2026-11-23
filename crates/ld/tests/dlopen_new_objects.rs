@@ -269,7 +269,9 @@ fn dlopen_new_objects_past_every_old_bound() {
 fn dlopen_new_objects_out_of_memory_is_clean() {
     let Some((d, prog)) = corpus("oom") else { return };
     let (mut ran, mut refused, mut in_row, mut first_ran) = (0, 0, 0, None);
-    let mut reasons = std::collections::BTreeSet::new();
+    // Each refusal text with how many limits gave it and the first of them, so a run shows which
+    // failure sites the sweep reaches.
+    let mut reasons = std::collections::BTreeMap::<String, (u32, u32)>::new();
     for kb in (1024..=48 * 1024).step_by(256) {
         if in_row == 2 {
             break;
@@ -293,12 +295,12 @@ fn dlopen_new_objects_out_of_memory_is_clean() {
         let opens: Vec<&str> = out.lines().filter(|l| l.starts_with("open: ")).collect();
         if code == Some(1) {
             assert_eq!(opens.len(), 1, "limit {kb} KiB: one dlopen failure with its text:\n{out}");
-            reasons.insert(opens[0].rsplit(": ").next().unwrap_or_default().to_string());
+            reasons.entry(opens[0].rsplit(": ").next().unwrap_or_default().to_string()).or_insert((0, kb)).0 += 1;
         } else {
             assert!(err.lines().count() == 1, "limit {kb} KiB: one loader line expected:\n{err}");
         }
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
-    eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran, the first at {first_ran:?} KiB");
+    eprintln!("dlopen under limits: {refused} refused ({reasons:?}: text -> (limits, the first in KiB)), {ran} ran, the first at {first_ran:?} KiB");
     std::fs::remove_dir_all(&d).ok();
 }
