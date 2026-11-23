@@ -127,7 +127,7 @@ fn file_name(v: &View, i: usize) -> usize {
 
 /// `dladdr(addr, info)` (`flags` 0) and `dladdr1(addr, info, extra, flags)`: 1 with `*info` filled
 /// (and `*extra` for `RTLD_DL_SYMENT`/`RTLD_DL_LINKMAP`), or 0 with both untouched when no object
-/// holds `addr`. The dlerror state is not touched.
+/// (nor the vDSO, [`vdso_dladdr`]) holds `addr`. The dlerror state is not touched.
 extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -> i32 {
     if info == 0 {
         return 0;
@@ -178,7 +178,48 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         }
         Some(())
     });
-    i32::from(found.flatten().is_some())
+    i32::from(found.flatten().is_some() || vdso_dladdr(addr, info, extra, flags))
+}
+
+/// [`dladdr_entry`] for an address no loaded object holds: the vDSO's when its `PT_LOAD` range
+/// (lowest to highest address) holds it (DL-OBJECT-PATHS, D-27.93; probed): `dli_fname`
+/// `linux-vdso.so.1`, the symbol by the module's rule over its dynamic symbols, and its link map
+/// for `RTLD_DL_LINKMAP`. Out of line: a lookup in the vDSO is rare, and the objects' path stays
+/// as it was.
+#[cold]
+#[inline(never)]
+fn vdso_dladdr(addr: usize, info: usize, extra: usize, flags: i32) -> bool {
+    use crate::posix::s27_dynlink::{find_in, vdso_headers, Extent};
+    use niji_kernel::vdso::{image_len, HEADER_LEN};
+    let vd = crate::ld::readers::vdso();
+    if vd == 0 {
+        return false;
+    }
+    let (phdr, phnum, bias) = vdso_headers(vd);
+    let Some((lo, _, _)) = find_in(phdr, phnum, bias, addr, Extent::Whole) else { return false };
+    let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
+    let at = |x: u64| usize::try_from(x).unwrap_or(0);
+    let b = u64::try_from(bias).unwrap_or(0);
+    // The image as the kernel mapped it, its length from its own header (`crate::conv::kernel_image`'s
+    // obligation), read by the validating file reader: its file offsets are its image's.
+    let sym = image_len(crate::conv::kernel_image(vd, HEADER_LEN)).and_then(|len| {
+        let elf = niji_ld::elf::Elf::parse::<Native>(crate::conv::kernel_image(vd, len)).ok()?;
+        let dynm = elf.dynamic().ok().flatten()?;
+        let (k, s) = containing(&Object::new(dynm).ok()?, b, u64::try_from(addr).unwrap_or(0))?;
+        let (strtab, symtab) = (dynm.get(dt::STRTAB)?, dynm.get(dt::SYMTAB)?);
+        let entry = at(b.wrapping_add(symtab)).wrapping_add(usize::try_from(k).unwrap_or(0).wrapping_mul(SYM_SIZE));
+        Some((at(b.wrapping_add(strtab).wrapping_add(u64::from(s.name))), at(b.wrapping_add(s.value)), entry))
+    });
+    let (sname, saddr, entry) = sym.unwrap_or((0, 0, 0));
+    put(info, [c"linux-vdso.so.1".as_ptr().expose_provenance(), lo & !page.wrapping_sub(1), sname, saddr]);
+    if extra != 0 {
+        match flags {
+            RTLD_DL_SYMENT => put(extra, entry),
+            RTLD_DL_LINKMAP => put(extra, crate::ld::debug::vdso_map()),
+            _ => {}
+        }
+    }
+    true
 }
 
 /// Object `i`'s search scope as a reader sees it: its `DT_RPATH`, `DT_RUNPATH` and `$ORIGIN`.
