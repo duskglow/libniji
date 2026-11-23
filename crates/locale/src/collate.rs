@@ -715,11 +715,9 @@ fn code_point_order(c: &Collation, cs: &Charset) -> bool {
             Key::Char(cp) if !cs.has(cp) => continue,
             Key::Char(cp) if me(&node.weights, Some(cp)) => (cp, cp),
             Key::Run(id) if me(&node.weights, None) => {
+                // A character of the run's range placed by its own line is before the run (its code
+                // point at least the run's first) or after it (at most the run's last): out of order.
                 let Some(&(lo, hi)) = c.runs.get(usize::try_from(id).unwrap_or(usize::MAX)) else { return false };
-                // A character placed by its own line inside the run is out of code point order.
-                if c.order.at.range(Key::Char(lo + 1)..Key::Char(hi)).next().is_some() {
-                    return false;
-                }
                 (lo + 1, hi - 1)
             }
             _ => return false,
