@@ -1,0 +1,16 @@
+{"task": "UTIL-14-2", "model": "opus", "tokens": null,
+ "result": "NOT MINE (host change, #7846): merged origin/next; the seven train-946 reds pass on keke on the merged head, gencat tests, direct gate and both package flavours green",
+ "branch": "task/util-14-2", "head": "573030317",
+ "gate": {"affected": "util-14-2-gate: 15 suites ok, 1848 passed, 0 failed (direct tier)", "peak": "4.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Train 946's seven reds pass on keke on the merged head (util-14-2-tests); per #7846 they fail on the CI host until LOCALE-PER-DIR-LOAD lands", "Spec D.2.2 pool-order bullet correction (#7814, accepted) is still owed, with or after UTIL-SPEC-3; not done on this branch", "Plants util-14-plants3 ran on 4809e2d1f; gencat.c and its tests are unchanged on this head"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "/usr/bin/gencat in the system flavour's libc-dev-bin (GitHub issue #12), now on current next", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "unblock", "what": "UTIL-14 can ride a train again (merged with next 0495c4684)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "The CI attribution for a host-wide change cost a full continuation run; a host-change check (locale data layout, package versions) before attributing train reds to branches would skip it",
+ "next_step": "Land with the next train after LOCALE-PER-DIR-LOAD; then the owed D.2.2 spec bullet (#7814)",
+ "report_file": "handoff/UTIL-14-report.md",
+ "jobs": ["keke:util-14-2-gate", "keke:util-14-2-tests", "keke:util-14-2-pkg", "keke:util-14-plants3", "keke:util-14-2-final"]}

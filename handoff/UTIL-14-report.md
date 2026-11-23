@@ -2,6 +2,22 @@
 
 Branch `task/util-14` from origin/next `b04f71229`. Code head `4809e2d1f` (the commits after it are handoff/ only).
 
+## UTIL-14-2 (continuation, 2026-11-23): branch `task/util-14-2`
+
+CI red on `2e25f9305` (train 946: seven locale/products tests) was settled by the coordinator as a host change on the
+CI host (#7846; LOCALE-PER-DIR-LOAD fixes it). This run: merged origin/next `0495c4684` (`bd99cec16`; one conflict in
+docs/install-packages.md, next's rows kept plus this branch's libc-dev-bin row), and `573030317` names libc-dev-bin's
+gencat in the libc6-dbg row. No gencat code change. Proof on keke (Zen 1 host), role n3:
+* `util-14-2-lint0` (inherited head 2e25f9305): full clippy -D warnings + `cargo xtask static`: rc 0.
+* `util-14-2-gate` (bd99cec16): `cargo xtask affected --run --base origin/next` (direct tier, 6 test targets incl.
+  gencat_products, hot_text_products, deb_manifest): 15 suites ok, 1848 passed, 0 failed; peak 4.1G; 2 SKIPPED lines.
+* `util-14-2-tests` (bd99cec16): the seven train reds all pass on this host (locale_data x2, s07 s7_2_f_0,
+  locale_products, catalogs_products, printf_corpus_products, hot_text_products init_data_clusters...), plus
+  gencat_products and `the_committed_gencat_transcripts_hold`.
+* `util-14-2-pkg` (bd99cec16): both flavours build; check.sh PASS (2), check-system.sh PASS (7 packages, the libc6-dbg
+  DWARF checks next added included); libc-dev-bin ships ./usr/bin/gencat.
+* Plants: `util-14-plants3` (4809e2d1f, gencat.c and its tests unchanged since): 7 CAUGHT.
+
 ## Commits
 
 * `88fce63ef` WIP: Add gencat to libc-dev-bin: `csys/util/gencat.c` (C front end, dynamic over libc.so.6, the zic

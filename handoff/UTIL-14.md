@@ -1,10 +1,16 @@
 # UTIL-14: gencat in libc-dev-bin (GitHub issue #12)
 
-**State.** Branch `task/util-14` from origin/next `b04f71229`, code head `cd937d5ad` (lint + D-31.28 test paths;
-later commits are handoff/ only). Role keke:~/w/n2. DONE (leg 3): clippy + static clean, changed crates' tests
-green (`util-14-tests`; affected escalates to FULL, the train's), plants `util-14-plants2`, packages `util-14-pkg`.
-Full report: handoff/UTIL-14-report.md (RULING NEEDED: spec D.2.2 pool-order bullet). Decision: D-31.28.
-Next step: none on this branch beyond the ruling; the "Next step (leg 3)" section below is history.
+**State (UTIL-14-2, 2026-11-23).** Branch `task/util-14-2` = UTIL-14's head `2e25f9305` + merge of origin/next
+`0495c4684` (merge commit `bd99cec16`; gencat code unchanged since `4809e2d1f`). Role keke:~/w/n3. Train 946's seven
+reds were a host change on the CI host (#7846, LOCALE-PER-DIR-LOAD fixes it), not this branch: on the merged head on
+keke all seven pass (`util-14-2-tests`), as do gencat_products and the gencat transcripts; direct-tier gate
+`util-14-2-gate` green (15 suites, 1848 passed); packages `util-14-2-pkg`. Plants: `util-14-plants3` (keke, on
+`4809e2d1f`, same gencat.c): 7 CAUGHT. Ruling #7814 resolved: spec D.2.2's pool-order bullet follows the transcripts
+(owed, with or after UTIL-SPEC-3; not this branch). Full report: handoff/UTIL-14-report.md. Decision: D-31.28.
+Next step: none; land. The "Next step (leg 3)" section below is history.
+
+**Merge note.** docs/install-packages.md conflicted (next reworded the package rows and kept libc-dev-bin among the
+placeholders): next's rows kept, this branch's libc-dev-bin row added, locales/libc-l10n stay placeholders.
 
 ## On the branch (leg 1)
 
