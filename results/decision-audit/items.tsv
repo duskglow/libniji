@@ -59,25 +59,25 @@ a	record	D-X.70	records/decisions/D-X/D-X.70.toml	Y	-	-	none	-	**The `.data1` cl
 a	record	D-X.76	records/decisions/D-X/D-X.76.toml	Y	-	-	none	-	**The start-up data access check names every declarable object outside the clusters, not a fault count** (LAYOUT-SINGLE-FAULT-TEST, 2026-11-
 a	record	D-X.89	records/decisions/D-X/D-X.89.toml	Y	-	-	none	-	**A function on a 0-fault path that has no hot-text key of its own is `#[inline(always)]` into the keyed function that calls it** (HOTTEXT-T
 a	record	D-X.94	records/decisions/D-X/D-X.94.toml	Y	-	-	none	-	**Reference Debian packages that coexist with glibc (owner ruling RELEASE PACKAGING, 2026-11-13; docs/install-packages.md).** Sysroot `/usr/
-a	ruling	RUL:305	PH14-OWNER-RULINGS.md:305 (OPEN for the owner (11-05 ~17:05): per-CPU-class entry for t)	Y	-	-	none	-	OPEN for the owner (11-05 ~17:05): per-CPU-class entry for the small string functions (#3069) - PARITY-MEMSET-SMALL-AVX2 found that on the A
-a	ruling	RUL:348	PH14-OWNER-RULINGS.md:348 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	PROV	none	-	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - RULED 11-06 (owner, #3304, replaces the 
-a	ruling	RUL:377	PH14-OWNER-RULINGS.md:377 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	-	none	-	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - INFORMATIONAL (coordinator ruling 11-06 
-a	ruling	RUL:470	PH14-OWNER-RULINGS.md:470 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - ALWAYS FORWARD, NEVER BACK (OWNER PRINCIPLE 2026
-a	ruling	RUL:483	PH14-OWNER-RULINGS.md:483 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #4079 (OWNER 2026-11-07, YES to both): (1) the h
-a	ruling	RUL:548	PH14-OWNER-RULINGS.md:548 (LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/)	Y	-	-	none	-	LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/layout-rethink.md on task/layout-rethink) - #5191 yes: LT-4 (host-canonical trac
-a	ruling	RUL:551	PH14-OWNER-RULINGS.md:551 (LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/)	Y	-	-	none	-	LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/layout-rethink.md on task/layout-rethink) - #5193 yes, with the owner's scope: "
-a	ruling	RUL:555	PH14-OWNER-RULINGS.md:555 (LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/)	Y	-	-	none	-	LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/layout-rethink.md on task/layout-rethink) - #4347 amended (OWNER 11-13, "Agree")
-a	ruling	RUL:556	PH14-OWNER-RULINGS.md:556 (LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/)	Y	-	-	none	-	LAYOUT-RETHINK (OWNER 2026-11-13, rulings #5190-#5194; plan/layout-rethink.md on task/layout-rethink) - #5222 amended (OWNER 11-13): "Gettin
-a	ruling	RUL:587	PH14-OWNER-RULINGS.md:587 (DLOPEN INTERNAL MODE BITS (OWNER 2026-11-13))	Y	-	-	none	-	DLOPEN INTERNAL MODE BITS (OWNER 2026-11-13) - Amended (OWNER 2026-11-13): "We have the option of using those flags if necessary. I can thin
-a	ruling	RUL:669	PH14-OWNER-RULINGS.md:669 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) Owner: "structural fix first. This flapping implies
-a	ruling	RUL:673	PH14-OWNER-RULINGS.md:673 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - #5729 (coordinator, within "structural fix first"
-a	ruling	RUL:683	PH14-OWNER-RULINGS.md:683 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - Owner on co-use clustering (2026-11-14): "It won'
-a	ruling	RUL:696	PH14-OWNER-RULINGS.md:696 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - LAYOUT-BUDGET-RETHINK design (plan/layout-budget-
-a	ruling	RUL:703	PH14-OWNER-RULINGS.md:703 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - Superseded and closed the same day: LAYOUT-CLUSTE
-a	ruling	RUL:706	PH14-OWNER-RULINGS.md:706 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - R4 standing rule until LAYOUT-BYTE-BUDGETS lands:
-a	ruling	RUL:709	PH14-OWNER-RULINGS.md:709 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	none	-	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - Also for that design: what blocks a landing (per-
-a	ruling	RUL:778	PH14-OWNER-RULINGS.md:778 (Maintenance and draining (OWNER 2026-11-15))	Y	-	-	none	-	Maintenance and draining (OWNER 2026-11-15) "I'll go through channels whenever I can, and let things drain out... but for emergencies I'll g
-a	ruling	RUL:846	PH14-OWNER-RULINGS.md:846 (Reference crashes on foreign data (OWNER 2026-11-17))	Y	-	-	none	-	Reference crashes on foreign data (OWNER 2026-11-17) **libniji's trust boundary differs (OWNER 2026-11-17, after the maintainers' reply).** 
+a	ruling	RUL:305	PH14-OWNER-RULINGS.md:305	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:348	PH14-OWNER-RULINGS.md:348	Y	-	PROV	none	-	(see the rulings file)
+a	ruling	RUL:377	PH14-OWNER-RULINGS.md:377	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:470	PH14-OWNER-RULINGS.md:470	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:483	PH14-OWNER-RULINGS.md:483	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:548	PH14-OWNER-RULINGS.md:548	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:551	PH14-OWNER-RULINGS.md:551	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:555	PH14-OWNER-RULINGS.md:555	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:556	PH14-OWNER-RULINGS.md:556	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:587	PH14-OWNER-RULINGS.md:587	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:669	PH14-OWNER-RULINGS.md:669	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:673	PH14-OWNER-RULINGS.md:673	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:683	PH14-OWNER-RULINGS.md:683	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:696	PH14-OWNER-RULINGS.md:696	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:703	PH14-OWNER-RULINGS.md:703	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:706	PH14-OWNER-RULINGS.md:706	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:709	PH14-OWNER-RULINGS.md:709	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:778	PH14-OWNER-RULINGS.md:778	Y	-	-	none	-	(see the rulings file)
+a	ruling	RUL:846	PH14-OWNER-RULINGS.md:846	Y	-	-	none	-	(see the rulings file)
 a	difference	DIFF:140	docs/differences-from-glibc.md:140 (Behaviour)	Y	Y	-	spec	spec	| `getpass` length | At most 1 MiB before the newline (per process: `niji_getpass_set_limit`); a longer line is read to its end, discarded a
 a	difference	DIFF:142	docs/differences-from-glibc.md:142 (Behaviour)	Y	Y	-	spec	spec	| A change to `/etc/hosts`, `/etc/passwd`, `nsswitch.conf` and the other name-service files | Seen within about one second while the cache i
 a	difference	DIFF:284	docs/differences-from-glibc.md:284 (Behaviour)	Y	Y	-	spec	spec	| `malloc_stats`, `malloc_info` | One `Arena 0` / one `<heap nr="0">` for the whole heap, an empty `<sizes>`, neutral numbers. | One per are
@@ -354,32 +354,32 @@ a	record	D-X.90	records/decisions/D-X/D-X.90.toml	Y	-	-	measured	probe,measure	*
 a	record	D-X.92	records/decisions/D-X/D-X.92.toml	Y	-	-	measured	probe,measure,results	**Trace-at-build is the default of every product build** (LAYOUT-TRACE-DEFAULT, the default-switch step of `plan/layout-rethink.md`, rulings
 a	record	D-X.96	records/decisions/D-X/D-X.96.toml	Y	-	-	measured	probe,measure,results	**The committed start-up lists and their machinery are deleted; every build, measurement builds included, groups from a trace of itself** (L
 a	record	D-X.97	records/decisions/D-X/D-X.97.toml	Y	-	-	measured	probe	**A plants step leaves no process of its group alive** (PLANTS-KILL-TREE). `cargo xtask plants` starts each step (`timeout <limit> <cmd>`) a
-a	ruling	RUL:1003	PH14-OWNER-RULINGS.md:1003 (Static TLS surplus size decided by measurement (#8009, 2026-)	Y	-	-	measured	measure	Static TLS surplus size decided by measurement (#8009, 2026-11-23) - Settled the same day by Yohane's survey of a desktop-like package set (
-a	ruling	RUL:102	PH14-OWNER-RULINGS.md:102 (For the owner's safety-vs-speed review (coordinator, 10-23 2)	Y	-	PROV	measured	measure	For the owner's safety-vs-speed review (coordinator, 10-23 22:01 UTC): getc/putc trims (#1654, N2-9 PERF-GETC-PUTC-TRIMS) getc_unlocked/putc
-a	ruling	RUL:18	PH14-OWNER-RULINGS.md:18 (Proceeding provisionally (coordinator, revisit at the review)	Y	-	PROV	measured	probe,measure	Proceeding provisionally (coordinator, revisit at the review) R14-4 (64 KiB virtual static-TLS surplus), R14-5 (loader's own arena for dynam
-a	ruling	RUL:262	PH14-OWNER-RULINGS.md:262 (11-05 OWNER PRINCIPLE: invest for results; root-cause repeat)	Y	-	-	measured	measure	11-05 OWNER PRINCIPLE: invest for results; root-cause repeating failures "We were solving for raw token cost, but that actually ended up bei
-a	ruling	RUL:352	PH14-OWNER-RULINGS.md:352 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	-	measured	measure	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - RULED 11-06 (owner): memset gets the sam
-a	ruling	RUL:357	PH14-OWNER-RULINGS.md:357 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	-	measured	measure	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - RULED 11-06 (owner: "yeah that's fine, s
-a	ruling	RUL:384	PH14-OWNER-RULINGS.md:384 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	-	measured	measure	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - INFORMATIONAL (NULL-folding standing rul
-a	ruling	RUL:432	PH14-OWNER-RULINGS.md:432 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3693 DL-BOOT-RELOC-5 (coordinator, INFORMATIONA
-a	ruling	RUL:437	PH14-OWNER-RULINGS.md:437 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3741 STATIC-CXX-THROW-PTHREAD-ONCE (coordinator
-a	ruling	RUL:443	PH14-OWNER-RULINGS.md:443 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - RUT-RULE (OWNER 2026-11-07, TRIAL: "we will cons
-a	ruling	RUL:449	PH14-OWNER-RULINGS.md:449 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3938/#3939/#4004 LIBM ENVELOPE ASM (OWNER 2026-
-a	ruling	RUL:454	PH14-OWNER-RULINGS.md:454 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3994 COMPARE CLASSED SWAP (OWNER 2026-11-07: "a
-a	ruling	RUL:507	PH14-OWNER-RULINGS.md:507 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	measured	measure	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - SLOT-PLAN (OWNER 2026-11-08): keep pinning (per-
-a	ruling	RUL:675	PH14-OWNER-RULINGS.md:675 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	measured	probe	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - Owner question (2026-11-14), REQUIRED in LAYOUT-B
-a	ruling	RUL:68	PH14-OWNER-RULINGS.md:68 (Saturation review: safety vs speed (for the owner's pre-phas)	Y	-	-	measured	measure	Saturation review: safety vs speed (for the owner's pre-phase-14 review) | #1239 (a, b, c) + D-12.19 | getc/putc parity: glibc ~12 instructi
-a	ruling	RUL:687	PH14-OWNER-RULINGS.md:687 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	measured	probe,measure	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - #5735 OWNER (b) (HEAP-FIRST-USE-8): lazy start-up
-a	ruling	RUL:691	PH14-OWNER-RULINGS.md:691 (START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SH)	Y	-	-	measured	measure	START-UP BOUND CHURN (OWNER 2026-11-14; LAYOUT-TOOL-BOUND-SHARED, LAYOUT-BUDGET-RETHINK) - OWNER (2026-11-14, TB-FOREIGN-WORDS-LOW-12 CI red
-a	ruling	RUL:819	PH14-OWNER-RULINGS.md:819 (Hardcoded limits (OWNER 2026-11-17))	Y	-	-	measured	measure	Hardcoded limits (OWNER 2026-11-17) After the iconv 32-charmap cap and ld.so's 64-object start cap (GitHub #9): "this is the second we've en
-a	ruling	RUL:866	PH14-OWNER-RULINGS.md:866 (Hardcoded-limits audit table (OWNER 2026-11-17))	Y	-	-	measured	probe	Hardcoded-limits audit table (OWNER 2026-11-17) AUDIT-HARDCODED-LIMITS (plan/hardcoded-limits.md) ruling table, owner: "Yes, as recommended.
-a	ruling	RUL:898	PH14-OWNER-RULINGS.md:898 (Internal allocations go through a replaced malloc (OWNER 202)	Y	Y	-	measured	measure	Internal allocations go through a replaced malloc (OWNER 2026-11-22, ruling #7583) When a program, an LD_PRELOAD library or a tool replaces 
-a	ruling	RUL:914	PH14-OWNER-RULINGS.md:914 (Process-flag reads extended to two heap words (#7708, 2026-1)	Y	-	-	measured	measure	Process-flag reads extended to two heap words (#7708, 2026-11-22) Owner: "I think a is better... but its a close thing." Ruling #4888 restri
-a	ruling	RUL:924	PH14-OWNER-RULINGS.md:924 (Shadow stack: opt-in as the reference, PROVISIONAL (#7728, 2)	Y	-	PROV	measured	measure	Shadow stack: opt-in as the reference, PROVISIONAL (#7728, 2026-11-22) Owner: "2, but this is not a final decision until we have better data
-a	ruling	RUL:988	PH14-OWNER-RULINGS.md:988 (Static TLS surplus size decided by measurement (#8009, 2026-)	Y	-	PROV	measured	probe,measure	Static TLS surplus size decided by measurement (#8009, 2026-11-23) Question (TLS-SURPLUS-PROBE): keep libniji's 64 KiB static TLS surplus, o
-a	ruling	RUL:993	PH14-OWNER-RULINGS.md:993 (Static TLS surplus size decided by measurement (#8009, 2026-)	Y	-	-	measured	measure	Static TLS surplus size decided by measurement (#8009, 2026-11-23) - TLS-DYNAMIC-BLOCKS measures the surplus at 64 KiB vs 1712 bytes: pthrea
-a	ruling	RUL:995	PH14-OWNER-RULINGS.md:995 (Static TLS surplus size decided by measurement (#8009, 2026-)	Y	Y	-	measured	measure	Static TLS surplus size decided by measurement (#8009, 2026-11-23) - Rule: effectively zero per-thread cost -> keep 64 KiB (differences row)
-a	ruling	RUL:997	PH14-OWNER-RULINGS.md:997 (Static TLS surplus size decided by measurement (#8009, 2026-)	Y	Y	-	measured	measure	Static TLS surplus size decided by measurement (#8009, 2026-11-23) - Revised the same day, after a survey of <host> (1,210 shared objects: 8
+a	ruling	RUL:1003	PH14-OWNER-RULINGS.md:1003	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:102	PH14-OWNER-RULINGS.md:102	Y	-	PROV	measured	measure	(see the rulings file)
+a	ruling	RUL:18	PH14-OWNER-RULINGS.md:18	Y	-	PROV	measured	probe,measure	(see the rulings file)
+a	ruling	RUL:262	PH14-OWNER-RULINGS.md:262	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:352	PH14-OWNER-RULINGS.md:352	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:357	PH14-OWNER-RULINGS.md:357	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:384	PH14-OWNER-RULINGS.md:384	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:432	PH14-OWNER-RULINGS.md:432	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:437	PH14-OWNER-RULINGS.md:437	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:443	PH14-OWNER-RULINGS.md:443	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:449	PH14-OWNER-RULINGS.md:449	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:454	PH14-OWNER-RULINGS.md:454	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:507	PH14-OWNER-RULINGS.md:507	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:675	PH14-OWNER-RULINGS.md:675	Y	-	-	measured	probe	(see the rulings file)
+a	ruling	RUL:68	PH14-OWNER-RULINGS.md:68	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:687	PH14-OWNER-RULINGS.md:687	Y	-	-	measured	probe,measure	(see the rulings file)
+a	ruling	RUL:691	PH14-OWNER-RULINGS.md:691	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:819	PH14-OWNER-RULINGS.md:819	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:866	PH14-OWNER-RULINGS.md:866	Y	-	-	measured	probe	(see the rulings file)
+a	ruling	RUL:898	PH14-OWNER-RULINGS.md:898	Y	Y	-	measured	measure	(see the rulings file)
+a	ruling	RUL:914	PH14-OWNER-RULINGS.md:914	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:924	PH14-OWNER-RULINGS.md:924	Y	-	PROV	measured	measure	(see the rulings file)
+a	ruling	RUL:988	PH14-OWNER-RULINGS.md:988	Y	-	PROV	measured	probe,measure	(see the rulings file)
+a	ruling	RUL:993	PH14-OWNER-RULINGS.md:993	Y	-	-	measured	measure	(see the rulings file)
+a	ruling	RUL:995	PH14-OWNER-RULINGS.md:995	Y	Y	-	measured	measure	(see the rulings file)
+a	ruling	RUL:997	PH14-OWNER-RULINGS.md:997	Y	Y	-	measured	measure	(see the rulings file)
 b	difference	DIFF:312	docs/differences-from-glibc.md:312 (Behaviour)	-	Y	-	none	-	| `getumask` declaration (`<sys/stat.h>` under `_GNU_SOURCE`; slice 7; ruling #6377) | Not declared: libniji declares only what it exports a
 b	difference	DIFF:315	docs/differences-from-glibc.md:315 (Behaviour)	-	Y	-	none	-	| `pidfd_getfd`, `pidfd_getpid`, `pidfd_open`, `pidfd_send_signal` (`<sys/pidfd.h>`) and the `td_*`/`ps_*` functions of `<thread_db.h>` call
 b	difference	DIFF:316	docs/differences-from-glibc.md:316 (Behaviour)	-	Y	-	none	-	| `La_x86_64_regs`, `La_x86_64_retval` (`<link.h>`) in C++ (headers slice 16) | Declared in C++ as well as in C, because the C++ declaration
@@ -401,28 +401,28 @@ b	record	D-29.3	records/decisions/D-29/D-29.3.toml	-	Y	-	none	-	**`<regexp.h>` `
 b	record	D-29.4	records/decisions/D-29/D-29.4.toml	-	Y	-	none	-	**Secure-RPC authentication, the key server client and the DES API are failing stubs** (owner ruling 2026-10-27; supersedes the LG-16 DES/ne
 b	record	D-29.5	records/decisions/D-29/D-29.5.toml	-	Y	-	none	-	**The ONC RPC client, port mapper calls and server are failing stubs** (owner rulings R13 and 2026-10-27; the client/server item of D-29.4; 
 b	record	D-31.20	records/decisions/D-31/D-31.20.toml	Y	Y	-	none	-	**`LC_COLLATE`'s weights are libniji's own numbering; the order they give is the reference's, the key bytes are not (UTIL-12, Appendix D.1.4
-b	ruling	RUL:13	PH14-OWNER-RULINGS.md:13 (Held (owner decides))	-	Y	-	none	-	Held (owner decides) | R14-13 | Executable-stack objects (PT_GNU_STACK X) | (a) refuse with dlerror; differences row if glibc accepts | secu
-b	ruling	RUL:134	PH14-OWNER-RULINGS.md:134 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	-	Y	PROV	none	-	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Provisional (coordinator, 10-24 1
-b	ruling	RUL:138	PH14-OWNER-RULINGS.md:138 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	-	Y	PROV	none	-	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 13:12 UTC) #20
-b	ruling	RUL:145	PH14-OWNER-RULINGS.md:145 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	-	Y	PROV	none	-	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 13:45 UTC) #20
-b	ruling	RUL:176	PH14-OWNER-RULINGS.md:176 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - R0: COMPAT-ONLY = symbol and version kept, Liella's headers do not de
-b	ruling	RUL:184	PH14-OWNER-RULINGS.md:184 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - R6 <regexp.h> step/advance: STUB (no match) + differences row; LG-10 
-b	ruling	RUL:187	PH14-OWNER-RULINGS.md:187 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - R10 rexec/rexec_af: STUB (ENOSYS) + differences row + COMPAT flag.
-b	ruling	RUL:201	PH14-OWNER-RULINGS.md:201 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - 11-04 coordinator (decide-or-ask: no public interface changes now, ch
-b	ruling	RUL:206	PH14-OWNER-RULINGS.md:206 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - 11-04 coordinator: R6 step/advance stubs get NO restore flag (restori
-b	ruling	RUL:207	PH14-OWNER-RULINGS.md:207 (2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view i)	-	Y	-	none	-	2026-11-04: SCOPE-REVIEW-LEGACY rulings (owner: "your view is fine") - 11-04 OWNER: R10 amended: rexec/rexec_af stubs get NO restore flag (c
-b	ruling	RUL:224	PH14-OWNER-RULINGS.md:224 (Provisional (coordinator, 11-04 ~09:10 UTC): GLOB_BRACE expa)	Y	Y	PROV	none	-	Provisional (coordinator, 11-04 ~09:10 UTC): GLOB_BRACE expansion bound (#2401, GLOB-BRACE-EXPANSION-BOUND) A fuzz time-out: brace groups mu
-b	ruling	RUL:392	PH14-OWNER-RULINGS.md:392 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #939 DL-8 cache key matching: BYTE-EXACT ("accep
-b	ruling	RUL:395	PH14-OWNER-RULINGS.md:395 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #940 DL-8 hwcaps choice: the highest-priority SU
-b	ruling	RUL:397	PH14-OWNER-RULINGS.md:397 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #941 DL-8 cache formats: read the NEW format (an
-b	ruling	RUL:429	PH14-OWNER-RULINGS.md:429 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	Y	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3655 DL-SYMBOLS (coordinator, INFORMATIONAL): a
-b	ruling	RUL:532	PH14-OWNER-RULINGS.md:532 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - DL-16 DEVIATIONS (OWNER 2026-11-12, "Accept both
-b	ruling	RUL:599	PH14-OWNER-RULINGS.md:599 (LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13))	-	Y	-	none	-	LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13) Owner: "with aquors I don't want to install glibc at all." Then: "aquors is probably
-b	ruling	RUL:62	PH14-OWNER-RULINGS.md:62 (Phase 15 (IO-VTABLES, 10-23) - held for the owner (clean roo)	-	Y	-	none	-	Phase 15 (IO-VTABLES, 10-23) - held for the owner (clean room) | #1064 | 69 libio internals + _IO_proc_open/_IO_proc_close: signatures only 
-b	ruling	RUL:72	PH14-OWNER-RULINGS.md:72 (Provisional differences to mention at the review (cheap to r)	-	Y	PROV	none	-	Provisional differences to mention at the review (cheap to reverse) - #1317 __libc_freeres inert (MALLOC-COMPAT-2): leak checkers may report
-b	ruling	RUL:721	PH14-OWNER-RULINGS.md:721 (ABI COMPATIBLE, NOT SOURCE-IDENTICAL (OWNER PRINCIPLE 2026-1)	-	Y	-	none	-	ABI COMPATIBLE, NOT SOURCE-IDENTICAL (OWNER PRINCIPLE 2026-11-14) - Header rulings R-H0..R-H7 (#5794-#5801, SL-HEADERS-PLAN), owner "Accept 
-b	ruling	RUL:80	PH14-OWNER-RULINGS.md:80 (Provisional (coordinator, 10-23): RPC-SERVER #1466)	Y	Y	PROV	none	-	Provisional (coordinator, 10-23): RPC-SERVER #1466 TCP record cap 4 MiB (connection dropped beyond); the reference streams records. Differen
-b	ruling	RUL:872	PH14-OWNER-RULINGS.md:872 (Hardcoded-limits audit table (OWNER 2026-11-17))	Y	Y	-	none	-	Hardcoded-limits audit table (OWNER 2026-11-17) - OWNER 2026-11-20 (COMPAT-19 system-wide setting): raised "Not offering a system-wide defau
+b	ruling	RUL:13	PH14-OWNER-RULINGS.md:13	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:134	PH14-OWNER-RULINGS.md:134	-	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:138	PH14-OWNER-RULINGS.md:138	-	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:145	PH14-OWNER-RULINGS.md:145	-	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:176	PH14-OWNER-RULINGS.md:176	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:184	PH14-OWNER-RULINGS.md:184	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:187	PH14-OWNER-RULINGS.md:187	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:201	PH14-OWNER-RULINGS.md:201	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:206	PH14-OWNER-RULINGS.md:206	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:207	PH14-OWNER-RULINGS.md:207	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:224	PH14-OWNER-RULINGS.md:224	Y	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:392	PH14-OWNER-RULINGS.md:392	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:395	PH14-OWNER-RULINGS.md:395	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:397	PH14-OWNER-RULINGS.md:397	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:429	PH14-OWNER-RULINGS.md:429	Y	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:532	PH14-OWNER-RULINGS.md:532	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:599	PH14-OWNER-RULINGS.md:599	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:62	PH14-OWNER-RULINGS.md:62	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:72	PH14-OWNER-RULINGS.md:72	-	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:721	PH14-OWNER-RULINGS.md:721	-	Y	-	none	-	(see the rulings file)
+b	ruling	RUL:80	PH14-OWNER-RULINGS.md:80	Y	Y	PROV	none	-	(see the rulings file)
+b	ruling	RUL:872	PH14-OWNER-RULINGS.md:872	Y	Y	-	none	-	(see the rulings file)
 b	difference	DIFF:100	docs/differences-from-glibc.md:100 (Behaviour)	Y	Y	-	spec	spec	| Out-of-range `TZ` rule dates (`M13.1.0`, `M3.6.0`, `J0`, `366`) and offsets beyond 24 h | Invalid: the default date; UTC for an offset. | 
 b	difference	DIFF:101	docs/differences-from-glibc.md:101 (Behaviour)	-	Y	-	spec	spec	| `asctime` of fields wider than the fixed layout | `EOVERFLOW`, as `asctime_r`. | Prints the wider text. | D-23.5 | `s23_5_c_5`, `s23_5_f_3
 b	difference	DIFF:102	docs/differences-from-glibc.md:102 (Behaviour)	-	Y	-	spec	spec	| `mktime` succeeding for year `INT_MAX` in some zones | `errno` untouched. | Sets `EOVERFLOW` on a successful return. | D-23.5 | `s23_5_f_1
@@ -732,7 +732,7 @@ b	record	D-4.43	records/decisions/D-4/D-4.43.toml	-	Y	-	spec	spec	**`bcmp` uses 
 b	record	D-7.2	records/decisions/D-7/D-7.2.toml	-	Y	-	spec	spec	**Locale data: compiled data only** (owner ruling 2026-10-01, phase 7; revises the plan's "archive and locale sources"). Named locales come 
 b	record	D-7.9	records/decisions/D-7/D-7.9.toml	-	Y	-	spec	spec	**`rpmatch` moves to phase 12** (phase 7 deviation; it was then left out of phase 12 and added in the validation stage, 2026-10-05, validati
 b	record	D-X.107	records/decisions/D-X/D-X.107.toml	-	Y	-	spec	spec	**Liella's own C header set** (SL-HEADERS-PLAN, plan/headers.md; owner ruling R4 of 2026-11-14; rulings R-H0 to R-H7 answered by the owner o
-b	ruling	RUL:140	PH14-OWNER-RULINGS.md:140 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	-	Y	PROV	spec	spec	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 13:32 UTC) #20
+b	ruling	RUL:140	PH14-OWNER-RULINGS.md:140	-	Y	PROV	spec	spec	(see the rulings file)
 b	difference	DIFF:136	docs/differences-from-glibc.md:136 (Behaviour)	-	Y	-	measured	probe,spec	| End of a non-`_r` enumeration (`getpwent`, `getgrent`, `getspent`, `getsgent`, `getservent`, `getprotoent`, `getrpcent`, `getaliasent`, `g
 b	difference	DIFF:185	docs/differences-from-glibc.md:185 (Behaviour)	-	Y	-	measured	measure,spec	| Regex counted repetition of a group that can match empty (`(a*){2}` on `aa`) | The longest subexpression, `(0,2)`. | An empty last iterati
 b	difference	DIFF:187	docs/differences-from-glibc.md:187 (Behaviour)	-	Y	-	measured	measure,spec	| Regex back-reference to a group of a counted empty repetition (`(){2}\1` on an empty string, `(a*){2}\1` on `aa`) | The match is found (§1
@@ -825,17 +825,17 @@ b	record	D-8.11	records/decisions/D-8/D-8.11.toml	Y	Y	-	measured	probe,spec	**Nu
 b	record	D-X.119	records/decisions/D-X/D-X.119.toml	-	Y	-	measured	results,spec	Slice 9 headers (plan/headers.md section 4): generator additions in xtask/src/headers.rs. A typedef used as a member type with no layout row
 b	record	D-X.126	records/decisions/D-X/D-X.126.toml	-	Y	-	measured	results,spec	**Ruling #6435 (coordinator, 2026-11-17), recorded.** `<sys/mount.h>` includes the kernel's `<linux/mount.h>` first and defines the `MS_*` n
 b	record	D-X.14	records/decisions/D-X/D-X.14.toml	-	Y	-	measured	measure	**Overridable static library** (owner ruling 2026-10-05). `libc.a` exports its definitions as weak symbols, so a program's own strong defini
-b	ruling	RUL:126	PH14-OWNER-RULINGS.md:126 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	-	Y	PROV	measured	probe	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Provisional (coordinator, 10-24 0
-b	ruling	RUL:250	PH14-OWNER-RULINGS.md:250 (OWNER 11-04 ~21:40 UTC: rulings)	-	Y	-	measured	probe	OWNER 11-04 ~21:40 UTC: rulings - #2549 R14-15 APPROVED: threat-model-draft.md sections B and C, as recommended. Rule 10 (refuse executable-
-b	ruling	RUL:259	PH14-OWNER-RULINGS.md:259 (OWNER 11-04 ~21:40 UTC: rulings)	-	Y	-	measured	probe	OWNER 11-04 ~21:40 UTC: rulings - #2661 OWNER 11-04: threat-model-draft section A (environment additions, TZ row) APPROVED as drafted (DL-0a
-b	ruling	RUL:378	PH14-OWNER-RULINGS.md:378 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	-	Y	-	measured	probe	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - INFORMATIONAL (coordinator ruling 11-06 
-b	ruling	RUL:401	PH14-OWNER-RULINGS.md:401 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	measured	probe	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #955 set-ID library admission in secure mode: "d
-b	ruling	RUL:431	PH14-OWNER-RULINGS.md:431 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	-	Y	-	measured	results	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - #3679/#3680 LEGACY-RPC-CLNT-SVC-STUBS (coordinat
-b	ruling	RUL:581	PH14-OWNER-RULINGS.md:581 (DLOPEN INTERNAL MODE BITS (OWNER 2026-11-13))	-	Y	-	measured	probe	DLOPEN INTERNAL MODE BITS (OWNER 2026-11-13) glibc's maintainers answered the owner's report: the eight high dlopen mode bits 0x01000000, 0x
-b	ruling	RUL:641	PH14-OWNER-RULINGS.md:641 (LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13))	-	Y	-	measured	measure,spec	LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13) - Utilities design (LIELLA-UTILITIES-DESIGN, plan/utilities.md; OWNER 2026-11-14: "A
-b	ruling	RUL:83	PH14-OWNER-RULINGS.md:83 (Provisional (coordinator, 10-23): libm under the caller's DA)	-	Y	PROV	measured	measure	Provisional (coordinator, 10-23): libm under the caller's DAZ/FTZ (MATH-M6-SQRT-FTZ-6) The envelope rule (results independent of the caller'
-b	ruling	RUL:876	PH14-OWNER-RULINGS.md:876 (CET marking on the start files (OWNER 2026-11-21, relayed by)	-	Y	-	measured	probe	CET marking on the start files (OWNER 2026-11-21, relayed by Yohane, Yohane decision 23) - Keep D-X.144 as it is: the C start files (crt1.o 
-b	ruling	RUL:934	PH14-OWNER-RULINGS.md:934 (Small net-positive trades are the coordinator's (#7769, 2026)	-	Y	-	measured	measure	Small net-positive trades are the coordinator's (#7769, 2026-11-23) Owner: "That's fine. the standing rule, I believe, is 'invest to get big
+b	ruling	RUL:126	PH14-OWNER-RULINGS.md:126	-	Y	PROV	measured	probe	(see the rulings file)
+b	ruling	RUL:250	PH14-OWNER-RULINGS.md:250	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:259	PH14-OWNER-RULINGS.md:259	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:378	PH14-OWNER-RULINGS.md:378	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:401	PH14-OWNER-RULINGS.md:401	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:431	PH14-OWNER-RULINGS.md:431	-	Y	-	measured	results	(see the rulings file)
+b	ruling	RUL:581	PH14-OWNER-RULINGS.md:581	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:641	PH14-OWNER-RULINGS.md:641	-	Y	-	measured	measure,spec	(see the rulings file)
+b	ruling	RUL:83	PH14-OWNER-RULINGS.md:83	-	Y	PROV	measured	measure	(see the rulings file)
+b	ruling	RUL:876	PH14-OWNER-RULINGS.md:876	-	Y	-	measured	probe	(see the rulings file)
+b	ruling	RUL:934	PH14-OWNER-RULINGS.md:934	-	Y	-	measured	measure	(see the rulings file)
 c	record	D-10.130	records/decisions/D-10/D-10.130.toml	Y	-	-	none	-	**The math oracle's square root is Zimmermann's Karatsuba square root on the bits the rounding needs, and its products use Karatsuba's metho
 c	record	D-10.23	records/decisions/D-10/D-10.23.toml	Y	-	-	none	-	**cpow integer powers beyond the exact width** (MATH-M5-CPOW-EXACT, #1720). When the exact `z^n` (`0 < \|n\| <= 64`) does not fit the width 
 c	record	D-10.57	records/decisions/D-10/D-10.57.toml	Y	-	-	none	-	**Verdict cache of the math accuracy sweeps** (TVA-MATH-VERDICT-CACHE, owner ruling #3820). A sweep shard (the C-oracle sweeps complex_ld_cr
@@ -882,25 +882,25 @@ c	record	D-X.154	records/decisions/D-X/D-X.154.toml	Y	-	-	none	-	**Every string 
 c	record	D-X.75	records/decisions/D-X/D-X.75.toml	Y	-	-	none	-	**Hardware math operations reach `liella_math` through a trait** (owner ruling 2026-11-12, #4967; LIBM-HYPOT-DIRECTED): a kernel that needs 
 c	record	D-X.8	records/decisions/D-X/D-X.8.toml	Y	-	-	none	-	**Fixed-size C objects cross the boundary as `Option<&T>`/`Option<&mut T>` export parameters**, safe Rust with NULL handled by type (S6). Ca
 c	record	D-X.95	records/decisions/D-X/D-X.95.toml	Y	-	-	none	-	**The loader's library directory below its prefix is a build-time setting (RELEASE-PACKAGING-DEB; R14-3 (a); amends D-27.16).** `LIELLA_LIBD
-c	ruling	RUL:1012	PH14-OWNER-RULINGS.md:1012 (When we don't know, more data; defaults need evidence (owner)	Y	-	-	none	-	When we don't know, more data; defaults need evidence (owner principles, 2026-11-23) From #8009. Owner: "I think there's a larger principle 
-c	ruling	RUL:116	PH14-OWNER-RULINGS.md:116 (RULED by the owner 10-23 (supersede the provisional entries )	Y	-	PROV	none	-	RULED by the owner 10-23 (supersede the provisional entries above) - RPC-SERVER #1466: NO buffering/cap. TCP records stream through xdrrec l
-c	ruling	RUL:130	PH14-OWNER-RULINGS.md:130 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	Y	-	PROV	none	-	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 08:55 UTC) #19
-c	ruling	RUL:141	PH14-OWNER-RULINGS.md:141 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	Y	-	PROV	none	-	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 13:45 UTC) #20
-c	ruling	RUL:299	PH14-OWNER-RULINGS.md:299 (OWNER 11-05 ~13:10 UTC: phase 14 review recommendations acce)	Y	-	-	none	-	OWNER 11-05 ~13:10 UTC: phase 14 review recommendations accepted; TIMING is the final arbiter - PRINCIPLE - qsort compare-by-offset: bounded
-c	ruling	RUL:438	PH14-OWNER-RULINGS.md:438 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - CI-PREGATED (OWNER 2026-11-07): CI does not repe
-c	ruling	RUL:439	PH14-OWNER-RULINGS.md:439 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - CLEAN-ROOM-PAPERS (OWNER 2026-11-07): research p
-c	ruling	RUL:459	PH14-OWNER-RULINGS.md:459 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - FABLE (OWNER 2026-11-07, relaxes the 10-05 absol
-c	ruling	RUL:49	PH14-OWNER-RULINGS.md:49 (Batch math (BATCH-MATH-DESIGN, 10-23) - held for the owner)	Y	-	PROV	none	-	Batch math (BATCH-MATH-DESIGN, 10-23) - held for the owner Provisional (coordinator): BQ-1 (no_std liella-batch, no dependencies; GPU backen
-c	ruling	RUL:493	PH14-OWNER-RULINGS.md:493 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - PARK-TIMEBOUND (OWNER 2026-11-08): parked sessio
-c	ruling	RUL:511	PH14-OWNER-RULINGS.md:511 (RULED by the owner 11-06 (morning; #939/#940/#941/#955 remov)	Y	-	-	none	-	RULED by the owner 11-06 (morning; #939/#940/#941/#955 removed from the Held table above) - A_MAX-GOVERNOR (OWNER 2026-11-08): A_max stays a
-c	ruling	RUL:560	PH14-OWNER-RULINGS.md:560 (RELEASE PACKAGING (OWNER 2026-11-13, before the spin-down))	Y	-	-	none	-	RELEASE PACKAGING (OWNER 2026-11-13, before the spin-down) Owner: "Before we do the spindown, let's add a release packaging step. Aquors wil
-c	ruling	RUL:571	PH14-OWNER-RULINGS.md:571 (RELEASE PACKAGING (OWNER 2026-11-13, before the spin-down))	Y	-	-	none	-	RELEASE PACKAGING (OWNER 2026-11-13, before the spin-down) - Maintainer (OWNER 2026-11-13, ruling #5409): "liella@koiren.ai is the maintaine
-c	ruling	RUL:605	PH14-OWNER-RULINGS.md:605 (LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13))	Y	-	-	none	-	LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13) - ABI target: 2.39 was chosen only because the original host (Ubuntu) shipped it; it
-c	ruling	RUL:612	PH14-OWNER-RULINGS.md:612 (LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13))	Y	-	-	none	-	LIELLA AS THE SYSTEM LIBC FOR AQOURS (OWNER 2026-11-13) - R2 #5536 yes ("that works"): <abi>+liella<YYYYMMDD>.<n>-<rev>, no epoch; symbols m
-c	ruling	RUL:655	PH14-OWNER-RULINGS.md:655 (PROTECT FROM MALICE, NOT FROM THEMSELVES (OWNER PRINCIPLE 20)	Y	-	-	none	-	PROTECT FROM MALICE, NOT FROM THEMSELVES (OWNER PRINCIPLE 2026-11-14) Owner: "we are protecting the user from malicious code and security is
-c	ruling	RUL:659	PH14-OWNER-RULINGS.md:659 (PROTECT FROM MALICE, NOT FROM THEMSELVES (OWNER PRINCIPLE 20)	Y	-	-	none	-	PROTECT FROM MALICE, NOT FROM THEMSELVES (OWNER PRINCIPLE 2026-11-14) - First application, ruling #5594 (REGCOMP-SCOPE-COST; owner: "OK I ac
-c	ruling	RUL:858	PH14-OWNER-RULINGS.md:858 (No-progress watchdog replaces the fixed slot cap (OWNER 2026)	Y	-	-	none	-	No-progress watchdog replaces the fixed slot cap (OWNER 2026-11-17) Proposal: end a shared job only when its output has stopped, not at a fi
-c	ruling	RUL:882	PH14-OWNER-RULINGS.md:882 (CET marking on the start files (OWNER 2026-11-21, relayed by)	Y	-	-	none	-	CET marking on the start files (OWNER 2026-11-21, relayed by Yohane, Yohane decision 23) - Owner context (2026-11-21, in this session): "the
+c	ruling	RUL:1012	PH14-OWNER-RULINGS.md:1012	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:116	PH14-OWNER-RULINGS.md:116	Y	-	PROV	none	-	(see the rulings file)
+c	ruling	RUL:130	PH14-OWNER-RULINGS.md:130	Y	-	PROV	none	-	(see the rulings file)
+c	ruling	RUL:141	PH14-OWNER-RULINGS.md:141	Y	-	PROV	none	-	(see the rulings file)
+c	ruling	RUL:299	PH14-OWNER-RULINGS.md:299	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:438	PH14-OWNER-RULINGS.md:438	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:439	PH14-OWNER-RULINGS.md:439	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:459	PH14-OWNER-RULINGS.md:459	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:49	PH14-OWNER-RULINGS.md:49	Y	-	PROV	none	-	(see the rulings file)
+c	ruling	RUL:493	PH14-OWNER-RULINGS.md:493	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:511	PH14-OWNER-RULINGS.md:511	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:560	PH14-OWNER-RULINGS.md:560	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:571	PH14-OWNER-RULINGS.md:571	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:605	PH14-OWNER-RULINGS.md:605	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:612	PH14-OWNER-RULINGS.md:612	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:655	PH14-OWNER-RULINGS.md:655	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:659	PH14-OWNER-RULINGS.md:659	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:858	PH14-OWNER-RULINGS.md:858	Y	-	-	none	-	(see the rulings file)
+c	ruling	RUL:882	PH14-OWNER-RULINGS.md:882	Y	-	-	none	-	(see the rulings file)
 c	record	D-1.14	records/decisions/D-1/D-1.14.toml	Y	-	-	spec	spec	**The exit-handler registry has no limit but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-12). The first 32 entries (
 c	record	D-10.119	records/decisions/D-10/D-10.119.toml	Y	-	-	spec	spec	**`csinh`, `csin`, `csinhf`, `csinf` get a quick tier in front of the 384-bit route** (LIBM-CPLX-SINCOS, under D-10.53; every decline reache
 c	record	D-10.16	records/decisions/D-10/D-10.16.toml	Y	-	-	spec	spec	**Conventions of the special functions follow glibc** (`spec/behaviour/libm-special.md`): positive domain NaNs for `tgamma`, `y0`, `y1`, `yn
@@ -997,13 +997,13 @@ c	record	D-X.29	records/decisions/D-X/D-X.29.toml	Y	-	-	measured	results	**A fai
 c	record	D-X.42	records/decisions/D-X/D-X.42.toml	Y	-	-	measured	measure,spec	**A re-executed test case that reads what a handler of a process-directed signal set runs its body in a single-threaded `fork` child** (SIGN
 c	record	D-X.66	records/decisions/D-X/D-X.66.toml	Y	-	-	measured	results	**The code map (`docs/codemap/README.md`, `docs/codemap/symbols.tsv`) is train-owned** (CODEMAP-TRAIN-OWNED), like the decision views and `c
 c	record	D-X.98	records/decisions/D-X/D-X.98.toml	Y	-	-	measured	results,spec	**How the system-libc scan counts what a distribution needs from the C library (`plan/system-libc.md`, `results/system-libc-scan-2026-11-14.
-c	ruling	RUL:127	PH14-OWNER-RULINGS.md:127 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	Y	-	PROV	measured	measure	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Provisional (coordinator, 10-24 0
-c	ruling	RUL:129	PH14-OWNER-RULINGS.md:129 (Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeo)	Y	-	PROV	measured	measure	Provisional (coordinator, 10-24 03:25 UTC): regex fuzz-timeout fixes (#1782, #1783, FUZZ-REGEX-TIMEOUTS) - Coordinator (10-24 08:05 UTC) #19
-c	ruling	RUL:269	PH14-OWNER-RULINGS.md:269 (OWNER 11-05 ~03:30 UTC: #2686 strstr adaptive filter)	Y	-	-	measured	measure	OWNER 11-05 ~03:30 UTC: #2686 strstr adaptive filter Land it: the gains are significant (strstr_scan_4k 0.88x glibc, bench strstr_hit_4k 1.2
-c	ruling	RUL:284	PH14-OWNER-RULINGS.md:284 (OWNER 11-05 ~04:00 UTC: libm accuracy contract (#2760) and x)	Y	-	-	measured	measure	OWNER 11-05 ~04:00 UTC: libm accuracy contract (#2760) and x87 yardstick (#2761) - PRINCIPLE - #2760 APPROVED option A: keep correct roundin
-c	ruling	RUL:340	PH14-OWNER-RULINGS.md:340 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	PROV	measured	measure	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - FOR THE OWNER (morning 11-06), #3304 TIM
-c	ruling	RUL:376	PH14-OWNER-RULINGS.md:376 (OPEN for the owner (11-05 ~22:15): name-service cache attach)	Y	-	PROV	measured	measure,results	OPEN for the owner (11-05 ~22:15): name-service cache attach check (#3233, NSCACHE-SECOND-LOOKUP) - INFORMATIONAL (coordinator ruling 11-06 
-c	ruling	RUL:87	PH14-OWNER-RULINGS.md:87 (Provisional (coordinator, 10-23 19:22 UTC): powf proof scope)	Y	-	PROV	measured	measure	Provisional (coordinator, 10-23 19:22 UTC): powf proof scope (#1567, MATH-M6-F32-POWF) An exhaustive sweep of powf's 2^64 input pairs is inf
-c	ruling	RUL:889	PH14-OWNER-RULINGS.md:889 (Accuracy over the ratchet (OWNER 2026-11-21))	Y	-	-	measured	measure	Accuracy over the ratchet (OWNER 2026-11-21) - So: a recorded bound or held level that came from a wrong measurement (noise, a wrong referen
-c	ruling	RUL:93	PH14-OWNER-RULINGS.md:93 (Provisional (coordinator, 10-23 20:21 UTC): SSE2 strnlen 100)	Y	-	PROV	measured	measure	Provisional (coordinator, 10-23 20:21 UTC): SSE2 strnlen 100-300 B below the glibc bar (#1601, PERF-STRNLEN-BODY-4) Landing the net improvem
-c	ruling	RUL:99	PH14-OWNER-RULINGS.md:99 (Provisional (coordinator, 10-23 21:48 UTC): wordexp option-A)	Y	-	PROV	measured	measure	Provisional (coordinator, 10-23 21:48 UTC): wordexp option-A rewrite deferred (#1649, PERF-WORDEXP) quoted/tilde_var/arith_only stay 1.3-1.5
+c	ruling	RUL:127	PH14-OWNER-RULINGS.md:127	Y	-	PROV	measured	measure	(see the rulings file)
+c	ruling	RUL:129	PH14-OWNER-RULINGS.md:129	Y	-	PROV	measured	measure	(see the rulings file)
+c	ruling	RUL:269	PH14-OWNER-RULINGS.md:269	Y	-	-	measured	measure	(see the rulings file)
+c	ruling	RUL:284	PH14-OWNER-RULINGS.md:284	Y	-	-	measured	measure	(see the rulings file)
+c	ruling	RUL:340	PH14-OWNER-RULINGS.md:340	Y	-	PROV	measured	measure	(see the rulings file)
+c	ruling	RUL:376	PH14-OWNER-RULINGS.md:376	Y	-	PROV	measured	measure,results	(see the rulings file)
+c	ruling	RUL:87	PH14-OWNER-RULINGS.md:87	Y	-	PROV	measured	measure	(see the rulings file)
+c	ruling	RUL:889	PH14-OWNER-RULINGS.md:889	Y	-	-	measured	measure	(see the rulings file)
+c	ruling	RUL:93	PH14-OWNER-RULINGS.md:93	Y	-	PROV	measured	measure	(see the rulings file)
+c	ruling	RUL:99	PH14-OWNER-RULINGS.md:99	Y	-	PROV	measured	measure	(see the rulings file)

@@ -69,8 +69,6 @@ COST = re.compile(
     re.I,
 )
 PROV = re.compile(r"provisional", re.I)
-# Lab host names never reach the tree: excerpts of the rulings file are scrubbed.
-HOSTS = re.compile(r"\b(keke|mei|shiki|kanon|nico|kotori|nozomi|margarete|sumire)\b", re.I)
 
 
 def evidence_kinds(text):
@@ -78,8 +76,9 @@ def evidence_kinds(text):
 
 
 def excerpt(text, n=140):
-    t = re.sub(r"\s+", " ", text).strip()
-    t = HOSTS.sub("<host>", t).replace("\t", " ")
+    """The first `n` characters of `text` on one line. The rulings file lives outside the tree and may name lab
+    hosts, so its items get no excerpt (their line number locates them); `cargo xtask static` checks the output."""
+    t = re.sub(r"\s+", " ", text).strip().replace("\t", " ")
     t = re.sub(r"/home/[\w.-]+", "~", t)
     t = re.sub(r"\b\d{1,3}(\.\d{1,3}){3}\b", "<address>", t)
     return t[:n]
@@ -157,7 +156,7 @@ def rulings(path):
                 {
                     "source": "ruling",
                     "id": "RUL:%d" % para_start,
-                    "where": "PH14-OWNER-RULINGS.md:%d (%s)" % (para_start, excerpt(heading, 60)),
+                    "where": "PH14-OWNER-RULINGS.md:%d" % para_start,
                     "text": heading + " " + text,
                     "departs_always": False,
                 }
@@ -231,7 +230,8 @@ def main():
             c["prov"] += 1
         rows.append(
             (cls, src, it["id"], it["where"], "Y" if sets else "-", "Y" if departs else "-",
-             "PROV" if prov else "-", level, ",".join(ev) if ev else "-", excerpt(t))
+             "PROV" if prov else "-", level, ",".join(ev) if ev else "-",
+             "(see the rulings file)" if src == "ruling" else excerpt(t))
         )
 
     order = {"a": 0, "b": 1, "c": 2}
