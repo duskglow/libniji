@@ -1,0 +1,4 @@
+# LD-LOOKUP-STRUCTURE plants (cargo xtask plants)
+need-def-index | crates/ld/src/reloc.rs | lit:Some((view.dynamic().strtab()?.as_ptr().addr(), d)) ==> Some((view.dynamic().strtab()?.as_ptr().addr(), aux.other & !VERSYM_HIDDEN)) | cargo test -p niji-ld --test reloc reloc_requirement_pairs | msg:reloc_requirement_pairs_bind_as_names_do.*FAILED|panicked
+find-hashed-field | crates/ld/src/elf.rs | lit:return Some(field16(e, 4, be) & !VERSYM_HIDDEN); ==> return Some(field16(e, 6, be) & !VERSYM_HIDDEN); | cargo test -p niji-ld --test reloc reloc_requirement_pairs | msg:reloc_requirement_pairs_bind_as_names_do.*FAILED|panicked
+need-interposition | crates/ld/src/symbols.rs | lit:return Ok((Want::Reference(n.name), ==> return Ok((Want::Version(n.name), | cargo test -p niji-ld --test reloc reloc_requirement_pairs | msg:reloc_requirement_pairs_bind_as_names_do.*FAILED|panicked

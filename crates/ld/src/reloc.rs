@@ -606,6 +606,10 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
     first
 }
 
+/// The requirement table of a pass that records none ([`relocate_deferred`]: its few lookups answer
+/// through the memo). A static: an empty table built per entry cost a 256-byte store per relocation.
+static NO_NEEDS: Needs<'static> = Needs::empty();
+
 /// Pass 2 of object `i`: the IFUNC entries [`relocate_first`] deferred, each calling its resolver.
 /// After a successful pass 1 of the same set it meets no new error (pass 1 resolved the same
 /// symbols and checked the same fields).
@@ -620,7 +624,7 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
     let memo = VersionMemo::default();
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo, &Needs::empty())?;
+            one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo, &NO_NEEDS)?;
         }
     }
     if set.syms.first().is_some_and(Object::has_canonical_plt) {

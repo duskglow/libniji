@@ -216,7 +216,7 @@ impl Default for VersionMemo {
 }
 
 /// Slots of a [`Needs`] table: the requirement indices from its base on.
-const NEED_SLOTS: usize = 16;
+const NEED_SLOTS: usize = 8;
 
 /// One requirement of a [`Needs`] table: its version name and, when found, where it is defined
 /// (the defining object's string table address, 0 for none, and the definition's version index).
@@ -248,7 +248,7 @@ impl<'a> Needs<'a> {
         Needs { base: 0, slots: [NeedSlot { name: &[], definer: 0, index: 0, used: false }; NEED_SLOTS] }
     }
 
-    /// An empty table for the indices `base` to `base + 15`.
+    /// An empty table for the indices `base` to `base + 7`.
     #[must_use]
     pub const fn from(base: u16) -> Self {
         Needs { base, ..Self::empty() }
