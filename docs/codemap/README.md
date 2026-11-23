@@ -109,7 +109,7 @@ Other crates: abi, boundary, charmaps, core, kernel, ld, ld-so, ldconfig-bin, le
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
 | `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:16 |
-| `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
+| `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:940 |
 | `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
 | `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:12 |
