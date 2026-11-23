@@ -1117,7 +1117,8 @@ impl Repo {
             let subdirs: Vec<(String, PathBuf)> = entries.iter().filter(|p| p.is_dir()).map(|p| (p.file_name().and_then(|s| s.to_str()).unwrap_or_default().to_string(), p.clone())).collect();
             // AFFECTED-TESTS-ONE-LOAD, D-X.160: each support directory's files (path, text, references, closed), read once for
             // every target of the crate that names it (core's `oracle/` is named by about a hundred).
-            let mut support_files: BTreeMap<String, Vec<(String, String, BTreeSet<Ref>, bool)>> = BTreeMap::new();
+            type SupportFile = (String, String, BTreeSet<Ref>, bool);
+            let mut support_files: BTreeMap<String, Vec<SupportFile>> = BTreeMap::new();
             for p in &entries {
                 let (name, file) = if p.is_dir() {
                     if !p.join("main.rs").exists() {
