@@ -66,6 +66,15 @@ All on shiki, role sh2, code head `78527098f`:
 - The scratch evaluator (`~/work/layout-head-bin-tail/` on shiki: `main.rs`, `run.sh`, `bins-{base,A,B,A2}.rs`,
   `eval-*.txt`) produced the option table above.
 
+## LAYOUT-HEAD-BIN-TAIL-2 (continuation, 2026-11-23)
+
+The first run's handback-check failed only on the train-owned view `plan/07-decisions/x-implementation-decisions.md`.
+Commit `3263d7cbe` restores that view to the merge base and keeps D-X.162 in its record
+(`records/decisions/D-X/D-X.162.toml`). No code changed after `78527098f`. Branch `task/layout-head-bin-tail-2`. On
+shiki sh2, at `3263d7cbe`: clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static`
+are clean. `cargo xtask precheck` is GREEN with 34 checks. The four jobs above count, because the tested content
+differs from the head only in prose.
+
 ## Next step
 
 None for this story if the jobs are green. Open: the evaluator could become an xtask check over the real plan
