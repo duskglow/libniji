@@ -24030,12 +24030,6 @@ net/if_shaper.h	uint_least8_t	typedef	!time64only
 net/if_shaper.h	uintmax_t	typedef	!time64only
 net/if_shaper.h	uintptr_t	typedef	!time64only
 net/if_shaper.h	winsize	struct	!time64only
-net/if_slip.h	SIOCGKEEPALIVE	macro	*
-net/if_slip.h	SIOCGLEASE	macro	*
-net/if_slip.h	SIOCGOUTFILL	macro	*
-net/if_slip.h	SIOCSKEEPALIVE	macro	*
-net/if_slip.h	SIOCSLEASE	macro	*
-net/if_slip.h	SIOCSOUTFILL	macro	*
 net/if_slip.h	SL_MODE_CSLIP	macro	*
 net/if_slip.h	SL_MODE_KISS	macro	*
 net/if_slip.h	SL_MODE_SLIP	macro	*
@@ -26523,7 +26517,6 @@ netinet/ether.h	ETHERTYPE_VLAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob6
 netinet/ether.h	ETHER_ADDR_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	ETHER_CRC_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	ETHER_HDR_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-netinet/ether.h	ETHER_MAP_IP_MULTICAST	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	ETHER_MAX_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	ETHER_MIN_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ether.h	ETHER_TYPE_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -28559,7 +28552,6 @@ netinet/if_ether.h	ETHERTYPE_VLAN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,f
 netinet/if_ether.h	ETHER_ADDR_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	ETHER_CRC_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	ETHER_HDR_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-netinet/if_ether.h	ETHER_MAP_IP_MULTICAST	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	ETHER_MAX_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	ETHER_MIN_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/if_ether.h	ETHER_TYPE_LEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -33552,7 +33544,6 @@ netinet/ip_icmp.h	ICMP_TIME_EXCEEDED	macro	!time64only
 netinet/ip_icmp.h	ICMP_TIMXCEED	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_TIMXCEED_INTRANS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_TIMXCEED_REASS	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-netinet/ip_icmp.h	ICMP_TSLEN	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_TSTAMP	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_TSTAMPREPLY	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/ip_icmp.h	ICMP_UNREACH	macro	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23

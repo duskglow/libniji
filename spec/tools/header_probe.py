@@ -210,7 +210,11 @@ def net_names():
       the block-mode descriptors of RFC 959 3.4.2. TFTP (arpa/tftp.h): the opcodes and error codes of RFC 1350 and
       RFC 2347, its segment size.
     * SLIP (net/if_slip.h) and PPP compression (net/ppp-comp.h): the kernel UAPI headers linux/if_slip.h and
-      linux/ppp-comp.h."""
+      linux/ppp-comp.h.
+    Not candidates: names the reference shows that are no integer constant in a unit including their header alone
+    (type_probe.py finds no value; the generator needs one for every macro row): ETHER_MAP_IP_MULTICAST (a
+    function-like macro), ICMP_TSLEN, and SIOCSKEEPALIVE, SIOCGKEEPALIVE, SIOCSOUTFILL, SIOCGOUTFILL, SIOCSLEASE,
+    SIOCGLEASE of net/if_slip.h. They wait for a template definition (handoff/HEADERS-TABLES-NET.md)."""
     n = []
     tos = ["LOWDELAY", "THROUGHPUT", "RELIABILITY", "MINCOST", "LOWCOST", "TOS_MASK", "PREC_MASK", "ECN_MASK", "DSCP_MASK",
            "CLASS_MASK", "ECN_NOT_ECT", "ECN_ECT0", "ECN_ECT1", "ECN_CE", "CE", "ECT", "DSCP_EF", "DSCP_LE", "CLASS_DEFAULT"]
@@ -231,7 +235,7 @@ def net_names():
             "ADDRESSREPLY", "MASKREPLY", "ALTHOSTADDR", "MAXTYPE", "NET_UNREACH", "HOST_UNREACH", "PROT_UNREACH",
             "PORT_UNREACH", "FRAG_NEEDED", "SR_FAILED", "NET_UNKNOWN", "HOST_UNKNOWN", "HOST_ISOLATED", "NET_ANO",
             "HOST_ANO", "NET_UNR_TOS", "HOST_UNR_TOS", "PKT_FILTERED", "PREC_VIOLATION", "PREC_CUTOFF", "REDIR_NET",
-            "REDIR_HOST", "REDIR_NETTOS", "REDIR_HOSTTOS", "EXC_TTL", "EXC_FRAGTIME", "MINLEN", "TSLEN", "MASKLEN",
+            "REDIR_HOST", "REDIR_NETTOS", "REDIR_HOSTTOS", "EXC_TTL", "EXC_FRAGTIME", "MINLEN", "MASKLEN",
             "ADVLENMIN", "FILTER", "EXT_ECHO", "EXT_ECHOREPLY", "ROUTERADVERT_NORMAL", "ROUTERADVERT_NOROUTE_COMMON"]
     icmp += [f"UNREACH_{c}" for c in ("NET", "HOST", "PROTOCOL", "PORT", "NEEDFRAG", "SRCFAIL", "NET_UNKNOWN",
                                       "HOST_UNKNOWN", "ISOLATED", "NET_PROHIB", "HOST_PROHIB", "TOSNET", "TOSHOST",
@@ -271,7 +275,7 @@ def net_names():
     n += ["RTMSG_NEWDEVICE", "RTMSG_DELDEVICE", "RTMSG_NEWROUTE", "RTMSG_DELROUTE", "IP6_RT_PRIO_USER",
           "IP6_RT_PRIO_ADDRCONF", "IP6_RT_PRIO_KERN"]
     n += ["ATF_" + c for c in ("COM", "PERM", "PUBL", "USETRAILERS", "NETMASK", "DONTPUB", "MAGIC")]
-    n += ["MAX_ADDR_LEN", "ETHER_MAP_IP_MULTICAST"]
+    n += ["MAX_ADDR_LEN"]
     tel = ["IAC", "DONT", "DO", "WONT", "WILL", "SB", "GA", "EL", "EC", "AYT", "AO", "IP", "BREAK", "DM", "NOP", "SE",
            "EOR", "ABORT", "SUSP", "xEOF", "SYNCH", "TELCMD_FIRST", "TELCMD_LAST", "NTELOPTS", "TELOPT_FIRST", "TELOPT_LAST"]
     tel += ["TELOPT_" + o for o in ("BINARY", "ECHO", "RCP", "SGA", "NAMS", "STATUS", "TM", "RCTE", "NAOL", "NAOP",
@@ -304,8 +308,7 @@ def net_names():
     n += ["SEGSIZE", "RRQ", "WRQ", "DATA", "ACK", "OACK", "EUNDEF", "ENOTFOUND", "EACCESS", "ENOSPACE", "EBADOP", "EBADID",
           "EEXISTS", "ENOUSER", "EOPTNEG"]
     n += ["SL_MODE_SLIP", "SL_MODE_CSLIP", "SL_MODE_KISS", "SL_MODE_SLIP6", "SL_MODE_CSLIP6", "SL_MODE_AX25",
-          "SL_MODE_ADAPTIVE", "SL_OPT_SIXBIT", "SL_OPT_ADAPTIVE", "SIOCSKEEPALIVE", "SIOCGKEEPALIVE", "SIOCSOUTFILL",
-          "SIOCGOUTFILL", "SIOCSLEASE", "SIOCGLEASE"]
+          "SL_MODE_ADAPTIVE", "SL_OPT_SIXBIT", "SL_OPT_ADAPTIVE"]
     n += ["CCP_CONFREQ", "CCP_CONFACK", "CCP_TERMREQ", "CCP_TERMACK", "CCP_RESETREQ", "CCP_RESETACK",
           "CCP_MAX_OPTION_LENGTH", "CCP_HDRLEN", "CCP_OPT_MINLEN", "CI_BSD_COMPRESS", "CILEN_BSD_COMPRESS",
           "BSD_CURRENT_VERSION", "BSD_MIN_BITS", "BSD_MAX_BITS", "CI_DEFLATE", "CI_DEFLATE_DRAFT", "CILEN_DEFLATE",
