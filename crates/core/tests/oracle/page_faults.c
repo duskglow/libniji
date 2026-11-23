@@ -83,7 +83,8 @@ static long relay_spawn(const char *path, char **argv, char **envp, long *exec_e
                      "mov $60, %%eax\n\t" /* SYS_exit */
                      "syscall\n"
                      "1:"
-                     : "=a"(r)
+                     /* early clobber: exec_err must not share rax, which vfork overwrites */
+                     : "=&a"(r)
                      : "D"(path), "S"(argv), "d"(envp), "r"(exec_err)
                      : "rcx", "r11", "memory");
     return r;
