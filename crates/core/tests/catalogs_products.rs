@@ -4,8 +4,8 @@
 //! `msgfmt` and `gencat`, every other catalog written by the probe below a scratch directory under
 //! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on and
 //! off (`nscache_mode.sh`, D-16.10); every run, the reference's included, with the system's locale
-//! directory hidden, so the host's installed locales never decide a case (`setlocale` searches that
-//! directory after `LOCPATH`). The outputs must be identical line by line, except the
+//! directory hidden but for `C.utf8`, so the host's installed locales never decide a case
+//! (`setlocale` searches that directory after `LOCPATH`; D-7.23). The outputs must be identical line by line, except the
 //! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
 //! [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to: the
 //! text of the last `== ` or `-- ` header line before it starts with the entry's first string, so a
@@ -319,9 +319,10 @@ fn catalogs_equal_the_reference() {
     assert!(build(&ours, true), "catalogs_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/catalogs_run.sh");
     let wrap = r.join("crates/core/tests/oracle/nscache_mode.sh");
-    // Every run, the reference's included, sees an empty system locale directory: setlocale
-    // searches it after LOCPATH, so otherwise the host's installed locales decide cases such as
-    // `LC_ALL=de_DE.UTF-8@euro` (catalogs_run.sh refuses to run without it).
+    // Every run, the reference's included, sees only C.utf8 (installed with the C library) in the
+    // system locale directory: setlocale searches it after LOCPATH, so otherwise the host's
+    // installed locales decide cases such as `LC_ALL=de_DE.UTF-8@euro` (catalogs_run.sh refuses
+    // to run without it).
     let run = |exe: &Path, scratch: &str, mode: &str| -> String {
         let mut cmd = Command::new("timeout");
         cmd.arg(timeout::secs(1200));
