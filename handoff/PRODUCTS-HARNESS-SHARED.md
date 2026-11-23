@@ -1,7 +1,20 @@
 # PRODUCTS-HARNESS-SHARED (audit item M5): one link line and one filter for the products tests
 
-State: branch `task/products-harness-shared`, cut from origin/next 0495c4684; head: see the report json.
-Build role: shiki `~/w/sh2` (Haswell, 56 threads).
+State: branch `task/products-harness-shared-2` (continues `task/products-harness-shared` 52dc11c45, cut from
+origin/next 0495c4684, then merged origin/next 997a3a8c3); head: see `handoff/reports/PRODUCTS-HARNESS-SHARED-2.json`.
+Build roles: run 1 shiki `~/w/sh2` (Haswell, 56 threads); run 2 keke `~/w/n1` (Zen 1, 60 vCPU).
+
+## Run 2 (PRODUCTS-HARNESS-SHARED-2): the CI merge conflict
+
+CI's merge of next stopped on `crates/core/tests/catalogs_products.rs`. Next had changed the `run` closure's mode
+argument from `Option<&str>` to `&str` (the reference now runs under `nscache_mode.sh plain`). This branch had
+moved the header filter to `oracle::with_headers(text, HEADERS)`. The resolved lines use next's call shape and the
+branch's shared filter. No other products file next changed since the base adds a `build`/`root` copy or a filter.
+Step 0 (clippy + static on the inherited head 52dc11c45) was green. The merged head has clippy (workspace,
+all features, -D warnings, plus `cargo xtask clippy`) and static green (`products-harness-shared-2-lint1`). On it, the
+direct gate (164 of 323 targets, both passes) passed 3549 tests with 0 failures and peaked at 4.5G
+(`products-harness-shared-2-gate`). The plants file had 10 plants, all CAUGHT, with no WARN lines
+(`products-harness-shared-2-plants`). Next step: land.
 
 ## What changed
 
