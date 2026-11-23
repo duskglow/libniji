@@ -9,6 +9,42 @@ libniji was called Liella until November 2026.
   refused by default, now with a message naming the object, the program or the `dlopen` caller, and the ways in.
   `GLIBC_TUNABLES=niji.compat.execstack=1` accepts them and makes the main stack and the thread stacks executable, as
   glibc does; a set-user-ID or set-group-ID program ignores it. A root-owned per-object allowlist is planned.
+- **`-lm` and libmvec ([#28](https://github.com/duskglow/libniji/issues/28)):** `libm.so` in `libc6-dev` is a linker
+  script, `GROUP ( libm.so.6 AS_NEEDED ( libmvec.so.1 ) )`, so a program GCC vectorises (`-O3 -ffast-math`) links with
+  plain `-lm` and needs `libmvec.so.1` only when it calls a vector function.
+- **`iconv` name spellings ([#6](https://github.com/duskglow/libniji/issues/6)):** `iconv_open` and `/usr/bin/iconv`
+  accept or refuse the same spellings of a character-set name as the reference in 79 of 81 checks (`UTF_8`,
+  `UTF-8.`, `latin-1`, `cp-1252` and others). `WINDOWS-1252` and `WINDOWS-1251` do not open yet (`CP1252`
+  and `CP1251` do), nor EUC-CN, UHC and the ISO-2022 family.
+- **Thread exits in static and `-static-libgcc` programs ([#25](https://github.com/duskglow/libniji/issues/25)):**
+  `pthread_exit` and cancellation run C++ destructors, `-fexceptions` cleanups and cleanup buffers in order in `-static`
+  programs and in `-static-libgcc` programs that load `libgcc_s.so.1`. When a thread with such unwind work exits and no
+  unwinder can be found (`-static-libgcc` without `libgcc_s.so.1`), the process stops with a message naming the cause
+  and the fix instead of going on (D-22.23; registered compatibility option COMPAT-38).
+- **Wide reads of input cut short ([#23](https://github.com/duskglow/libniji/issues/23)):** a wide read
+  (`fgetwc`, `fgetws`, a `ccs=UTF-8` stream) that meets end of input inside a multibyte character gives the result and
+  `errno` the reference gives. Byte reads after wide reads on one stream and UTF-8 above `U+10FFFF`
+  differ on purpose (rows in [differences-from-glibc.md](differences-from-glibc.md)).
+- **Full paths for `$ORIGIN` libraries ([#24](https://github.com/duskglow/libniji/issues/24), part):** a library
+  found at start through the program's `$ORIGIN` (`DT_RUNPATH`, `DT_RPATH` or `LD_LIBRARY_PATH`) is named by its full
+  path, links resolved, in `dl_iterate_phdr`, `dladdr`, `dlinfo(RTLD_DI_LINKMAP)` and `_r_debug`.
+- **Heap under `ulimit -v` ([#21](https://github.com/duskglow/libniji/issues/21)):** heap reservations grow with use,
+  so `malloc` obtains nearly as much of a `ulimit -v` limit as the reference (100-byte blocks: 56,021 KiB of a limit
+  where it used to stop at 43,575), and findutils' `find` over 200,000 entries runs under the issue's limit.
+- **The loader's tables grow:** the loader's tables of object names, paths and dependencies grow as objects are
+  loaded, so a process can `dlopen` a set of 300 libraries with 44,850 dependency entries, which used to fail with
+  "out of room for object names". A thread's `dlerror` record is unmapped when the thread exits.
+- **`libresolv.so.2`** carries its own code: loading it costs about 179,000 instructions at start, down from 246,000.
+- **Start-up:** `libc.so.6`'s read-only data after its text is one `PT_LOAD` (one mapping fewer per process), and a
+  dynamic program's start takes about 47,500 fewer user instructions, 4 fewer page faults and 8 fewer system calls
+  (empty `main`, Skylake-SP: 788,679 instructions, 56 faults and 45 system calls on 2026-11-20; 741,148, 52 and 37 now).
+- **`fclose` and `fflush` on cookie streams ([#20](https://github.com/duskglow/libniji/issues/20)):** `fclose` of a
+  reading `fopencookie` stream drops its read-ahead and calls no seek hook, so it no longer fails when the hook cannot
+  seek; a failing seek hook's own `errno` is reported (it was `EINVAL`), and `fflush` treats `ESPIPE` from the hook as
+  a stream that cannot seek. The deliberate differences are rows in [differences-from-glibc.md](differences-from-glibc.md).
+- **Packages:** `libc6-dbg` has a debug file for every object (19 of 19, `/usr/bin/iconv` and `/usr/bin/locale`
+  included). The packages beside glibc (`niji6`, `niji6-dev`) carry the snapshot's serial in their version
+  (`0.0~snapshot20261121.3+<commit>`), so two snapshots of one day upgrade in order.
 
 ## libniji: seventh pre-release, 2026-11-17 (`snapshot-2026-11-17.3`)
 

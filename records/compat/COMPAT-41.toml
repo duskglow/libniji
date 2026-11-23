@@ -1,0 +1,12 @@
+id = "COMPAT-41"
+behaviour = "A `fopencookie` stream with no seek hook, after a read: `fflush`, `ftell` and `fseek` (§12.3, §12.4, §12.8; FCLOSE-COOKIE-SEEK, ruling #7288)"
+glibc = "`fflush` returns -1 with `errno` unchanged, `ftell` -1 with `EIO`, `fseek` -1 with `errno` unchanged (black-box probe, glibc 2.39)"
+liella = "As a pipe: `fflush` returns 0, `ftell` and `fseek` return -1 with `errno` `ESPIPE` (D-12.34)"
+restore = "An option that gives the earlier results for a cookie stream without a seek hook. Registered only (DOCS-CATCHUP-1121 brief), not implemented."
+cost = "none expected: one flag test where the missing seek hook is found"
+status = "registered"
+decisions = ["D-12.34"]
+story = "DOCS-CATCHUP-1121"
+date = "2026-11-23"
+body = '''
+'''

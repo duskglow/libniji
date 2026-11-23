@@ -1,0 +1,11 @@
+id = "D-12.34"
+section = "s12"
+spec = "§12.3, §12.4"
+ann = "—"
+status = "active"
+story = "DOCS-CATCHUP-1121"
+date = "2026-11-23"
+tests = ["crates/core/tests/stdio_short_io.rs::descriptor_close_after_partial_read_gives_read_ahead_back", "crates/core/tests/stdio_short_io.rs::cookie_flush_of_read_ahead_reports_the_seek_hooks_errno", "crates/core/tests/stdio_short_io.rs::cookie_close_after_read_calls_no_seek_hook", "crates/core/tests/s12_stdio_clauses.rs::s12_4_f_0"]
+body = '''
+**Read-ahead given back at `fclose` and `fflush`, and cookie streams that cannot seek** (FCLOSE-COOKIE-SEEK, GitHub #20; rulings #7286, #7287 and #7288; recorded by DOCS-CATCHUP-1121). (1) `fclose` of a seekable input stream on a descriptor gives the unread read-ahead back, so the descriptor's offset is the stream's position, as POSIX `fclose` says; a reading cookie stream drops its read-ahead and calls no seek hook. (2) When `fflush` gives read-ahead back and the seek fails with an `errno` other than `ESPIPE`, it returns `EOF` with that `errno` and sets the stream's error indicator (POSIX `fflush`: a failing `fflush` sets the error indicator; clause test `s12_4_f_0`); `ESPIPE` means the stream cannot seek and `fflush` returns 0. (3) A cookie stream whose `cookie_io_functions_t` has no seek hook behaves as a pipe: `fflush` of a reading stream returns 0, `ftell` and `fseek` return -1 with `errno` `ESPIPE` (POSIX: `ESPIPE` for a stream that cannot seek). Compatibility options COMPAT-39, COMPAT-40 and COMPAT-41 are registered, not implemented.
+'''
