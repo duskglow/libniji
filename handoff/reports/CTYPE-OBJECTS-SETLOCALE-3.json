@@ -1,6 +1,6 @@
 {"task": "CTYPE-OBJECTS-SETLOCALE-3", "model": "sonnet", "tokens": null,
  "result": "merged next (LOCALE-PER-DIR-LOAD); the earlier locale-environment reds are gone: direct gate green, plants 2/2 CAUGHT",
- "branch": "task/ctype-objects-setlocale-3", "head": "HEADSHA",
+ "branch": "task/ctype-objects-setlocale-3", "head": "7da2fa033",
  "gate": {"affected": "all suites ok, conformance 54 programs ok, 0 failed", "peak": null},
  "accepted_first_attempt": false,
  "rulings": [{"item": "built-in C.UTF-8 has no 32-bit ctype tables, so __ctype32_* hold the C tables there (last residual of D-5.13)", "recommendation": "follow-up story: give C.UTF-8 its own 32-bit tables (about 3 KiB rodata)"}],
