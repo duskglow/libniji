@@ -218,18 +218,18 @@ impl<'a> Object<'a> {
         Some(Cursor { bytes: self.bytes(addr)?, pos: 0, base: addr })
     }
 
-    /// The FDE covering `pc`.
-    fn fde_for(&self, pc: usize) -> Option<Fde<'a>> {
+    /// The FDE covering `pc` (`last`: the CIE parsed last, kept for the next lookup).
+    fn fde_for(&self, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         match (self.hdr, self.frames) {
-            (Some(hdr), _) => self.search(hdr, pc),
-            (None, Some((start, end))) => self.scan(start, end, pc),
+            (Some(hdr), _) => self.search(hdr, pc, last),
+            (None, Some((start, end))) => self.scan(start, end, pc, last),
             (None, None) => None,
         }
     }
 
     /// Look `pc` up through the `.eh_frame_hdr` at `hdr`: binary search of its table when it
     /// has one in a fixed-size encoding, otherwise a scan from the `.eh_frame` it points to.
-    fn search(&self, hdr: usize, pc: usize) -> Option<Fde<'a>> {
+    fn search(&self, hdr: usize, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let mut c = self.at(hdr)?;
         let [version, frames_enc, count_enc, table_enc] = c.array::<4>()?;
         if version != 1 {
@@ -238,7 +238,7 @@ impl<'a> Object<'a> {
         let frames = c.pointer(frames_enc, Some(hdr))?;
         let entry = fixed_size(table_enc).and_then(|n| n.checked_mul(2));
         let (Some(entry), false) = (entry, count_enc == PE_OMIT) else {
-            return self.scan(frames, usize::MAX, pc);
+            return self.scan(frames, usize::MAX, pc, last);
         };
         let count = c.pointer(count_enc, Some(hdr))?;
         let table = c.addr();
@@ -260,27 +260,18 @@ impl<'a> Object<'a> {
             let i = last_at_or_below(count, pc, |i| Some(row(i)?.0))?;
             row(i)?.1
         };
-        self.fde(fde, None).filter(|f| f.covers(pc))
+        self.fde(fde, last).filter(|f| f.covers(pc))
     }
 
     /// Scan the `.eh_frame` records from `start` (to `end`, the terminator, or the end of the
-    /// segment) for the FDE covering `pc`. The last CIE parsed is kept: FDEs share a few.
-    fn scan(&self, start: usize, end: usize, pc: usize) -> Option<Fde<'a>> {
+    /// segment) for the FDE covering `pc`.
+    fn scan(&self, start: usize, end: usize, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let mut at = start;
-        let mut last: Option<(usize, Cie<'a>)> = None;
         while at < end {
             let r = self.record(at)?;
-            if let Some(cie_at) = r.cie_at() {
-                let cie = match last {
-                    Some((addr, cie)) if addr == cie_at => Some(cie),
-                    _ => self.cie(cie_at),
-                };
-                if let Some(cie) = cie {
-                    last = Some((cie_at, cie));
-                    if let Some(f) = Fde::parse(r, cie).filter(|f| f.covers(pc)) {
-                        return Some(f);
-                    }
-                }
+            let cie = r.cie_at().and_then(|cie_at| self.cie_kept(cie_at, last));
+            if let Some(f) = cie.and_then(|cie| Fde::parse(r, cie)).filter(|f| f.covers(pc)) {
+                return Some(f);
             }
             at = r.next;
         }
@@ -311,16 +302,30 @@ impl<'a> Object<'a> {
         Cie::parse(r.body)
     }
 
-    /// The FDE at `addr` (`cie`: its CIE when the caller already has it).
-    fn fde(&self, addr: usize, cie: Option<Cie<'a>>) -> Option<Fde<'a>> {
+    /// The CIE at `addr`: `last` when it is the one there, else parsed (and kept in `last`).
+    fn cie_kept(&self, addr: usize, last: &mut LastCie<'a>) -> Option<Cie<'a>> {
+        match *last {
+            Some((at, cie)) if at == addr => Some(cie),
+            _ => {
+                let cie = self.cie(addr)?;
+                *last = Some((addr, cie));
+                Some(cie)
+            }
+        }
+    }
+
+    /// The FDE at `addr`.
+    fn fde(&self, addr: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let r = self.record(addr)?;
-        let cie = match cie {
-            Some(c) => c,
-            None => self.cie(r.cie_at()?)?,
-        };
+        let cie = self.cie_kept(r.cie_at()?, last)?;
         Fde::parse(r, cie)
     }
 }
+
+/// The CIE a walk parsed last and its address: an object's FDEs share a few CIEs, so
+/// consecutive frames mostly need the same one. An address names one CIE for the length of a
+/// walk (the objects it reads stay loaded while their frames are live).
+type LastCie<'a> = Option<(usize, Cie<'a>)>;
 
 /// Register values (DWARF numbering); `None` where a value is unknown.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -704,8 +709,8 @@ impl<'a> Fde<'a> {
 }
 
 /// The object holding `pc` and the FDE covering it.
-fn locate<'o, 'a>(objects: &'o [Object<'a>], pc: usize) -> Option<(&'o Object<'a>, Fde<'a>)> {
-    objects.iter().filter(|o| o.contains(pc)).find_map(|o| Some((o, o.fde_for(pc)?)))
+fn locate<'o, 'a>(objects: &'o [Object<'a>], pc: usize, last: &mut LastCie<'a>) -> Option<(&'o Object<'a>, Fde<'a>)> {
+    objects.iter().filter(|o| o.contains(pc)).find_map(|o| Some((o, o.fde_for(pc, last)?)))
 }
 
 // ------------------------------------------------------------------------------ rows
@@ -929,13 +934,12 @@ fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, m
     Some(())
 }
 
-/// The row of `fde` at `target`.
-fn row_at(fde: &Fde<'_>, target: usize) -> Option<Row> {
-    let mut row = Row::new(fde.cie.ra);
-    run(&mut row, None, fde.cie.insns, &fde.cie, fde.begin, usize::MAX)?;
-    let initial = row;
-    run(&mut row, Some(&initial), fde.insns, &fde.cie, fde.begin, target)?;
-    Some(row)
+/// Set `row` to the row of `fde` at `target` (written in place: a row is a few hundred bytes).
+fn row_at(fde: &Fde<'_>, target: usize, row: &mut Row) -> Option<()> {
+    let mut initial = Row::new(fde.cie.ra);
+    run(&mut initial, None, fde.cie.insns, &fde.cie, fde.begin, usize::MAX)?;
+    *row = initial;
+    run(row, Some(&initial), fde.insns, &fde.cie, fde.begin, target)
 }
 
 // ------------------------------------------------------------------------------ expressions
@@ -1097,15 +1101,15 @@ fn eval<M: Memory>(obj: &Object<'_>, b: Block, regs: &Regs, mem: &M, cfa: Option
 // ------------------------------------------------------------------------------ frames
 
 /// The caller's registers from the frame whose registers are `regs`, described by `fde` at
-/// `look` (in `obj`): the caller's return address in `RA`.
-fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: usize) -> Option<Regs> {
-    let row = row_at(fde, look)?;
+/// `look` (in `obj`), written to `next` (every register): the caller's return address in `RA`.
+fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: usize, next: &mut Regs) -> Option<()> {
+    let mut row = Row::new(fde.cie.ra);
+    row_at(fde, look, &mut row)?;
     let cfa = match row.cfa {
         Cfa::Unset => return None,
         Cfa::Reg(reg, off) => regs.get(usize::from(reg))?.checked_add_signed(off)?,
         Cfa::Expr(b) => eval(obj, b, regs, mem, None)?,
     };
-    let mut next = Regs::new();
     for (r, rule) in row.rules.iter().enumerate() {
         let v = match *rule {
             Rule::Same => regs.get(r),
@@ -1121,7 +1125,7 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
     if fde.cie.ra != RA {
         next.set(RA, next.get(fde.cie.ra));
     }
-    Some(next)
+    Some(())
 }
 
 /// Walk the frames above the one `start` describes (its `RA` is its own address, which is not
@@ -1129,14 +1133,17 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
 /// with the start of the function covering it (`None` where no object describes it, which
 /// ends the walk); it returns whether to go on.
 fn walk<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<usize>) -> bool) {
-    walk_with(|look| locate(objects, look), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
+    let mut last = None;
+    walk_with(|look| locate(objects, look, &mut last), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
 }
 
 /// [`walk`] with the object holding an address and the FDE covering it found by `locate`, and
 /// the FDE itself passed to `visit`. The object is borrowed where the caller holds it (an
 /// object is a few hundred bytes: no copy per frame).
 fn walk_with<'a, O: Borrow<Object<'a>>, M: Memory>(mut locate: impl FnMut(usize) -> Option<(O, Fde<'a>)>, mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<&Fde<'a>>) -> bool) {
-    let mut regs = start;
+    // A frame's registers and its caller's, swapped by reference from one frame to the next.
+    let (mut a, mut b) = (start, Regs::new());
+    let (mut regs, mut next) = (&mut a, &mut b);
     let mut exact = false;
     let mut first = true;
     loop {
@@ -1148,12 +1155,14 @@ fn walk_with<'a, O: Borrow<Object<'a>>, M: Memory>(mut locate: impl FnMut(usize)
         }
         first = false;
         let Some((obj, fde)) = found else { return };
-        let Some(next) = step(obj.borrow(), &fde, &regs, mem, look) else { return };
+        if step(obj.borrow(), &fde, regs, mem, look, next).is_none() {
+            return;
+        }
         if next.get(RA) == regs.get(RA) && next.get(RSP) == regs.get(RSP) {
             return; // no progress
         }
         exact = fde.cie.signal;
-        regs = next;
+        core::mem::swap(&mut regs, &mut next);
     }
 }
 
@@ -1206,9 +1215,13 @@ pub fn caller<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, inside: &
 /// the frames it saw.
 pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, skip: &[usize], mem: &M, start: Regs, max: usize) -> bool {
     let (mut seen, mut found) = (0usize, false);
-    let locate = |look: usize| match locate(objects, look) {
+    let mut last = None;
+    let locate = |look: usize| match locate(objects, look, &mut last) {
         Some((o, f)) => Some((Held::Listed(o), f)),
-        None => find(look).and_then(|o| Some((Held::Found(o), o.fde_for(look)?))),
+        None => find(look).and_then(|o| {
+            let f = o.fde_for(look, &mut last)?;
+            Some((Held::Found(o), f))
+        }),
     };
     walk_with(locate, mem, start, |_, fde| {
         found = fde.is_some_and(|f| f.handler && !skip.contains(&f.begin));
