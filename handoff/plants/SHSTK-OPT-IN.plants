@@ -1,3 +1,5 @@
-# SHSTK-OPT-IN (D-21.5, D-X.164): one assembly routine's shadow-stack handling removed, one shipped object unmarked.
-vfork-no-incssp | csys/src/machine/vfork.S | perl:s/(vfork:.*?)\tincsspq %rcx\n/$1/s | cargo test -p niji --test s21_contexts_clauses s21_1_g_0 | msg:vfork/__vfork: no incsspq
+# SHSTK-OPT-IN (D-21.5, D-X.164): an assembly routine's shadow-stack handling removed, one shipped object unmarked.
+# vfork.S has no niji_machine_<fn>: label, which the tool's anchor rule requires, so the asm plants are on setjmp.S and context.S.
+sigsetjmp-no-rdssp | csys/src/machine/setjmp.S | perl:s/(niji_machine_sigsetjmp:.*?)\trdsspq %rax\n/$1/s | cargo test -p niji --test s21_contexts_clauses s21_1_g_0 | msg:niji_machine_sigsetjmp: no rdsspq
+setcontext-no-saveprevssp | csys/src/machine/context.S | perl:s/(niji_machine_setcontext:.*?)\tsaveprevssp[^\n]*\n/$1/s | cargo test -p niji --test s21_contexts_clauses s21_1_g_0 | msg:niji_machine_setcontext: no saveprevssp
 libm-unmarked | xtask/src/so.rs | perl:s/(let so_final = release\.join\("libm\.so\.6"\);.*?)\.arg\(crate::cetnote::LINK_FLAG\)/$1/s | cargo xtask so | msg:shipped objects lack the SHSTK property.*libm\.so\.6

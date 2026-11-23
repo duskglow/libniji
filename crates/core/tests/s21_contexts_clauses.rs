@@ -89,7 +89,7 @@ fn shadow_stack_instructions() {
     for line in String::from_utf8_lossy(&nm.stdout).lines() {
         let (Some(head), Some(sym)) = (line.split_whitespace().next(), line.split_whitespace().last()) else { continue };
         if want.iter().any(|(names, _)| names.contains(&plain(sym).as_str())) {
-            if let Some(m) = head.rsplitn(3, ':').nth(1) {
+            if let Some(m) = head.rsplit(':').nth(1) {
                 members.insert(m.to_string());
             }
         }
