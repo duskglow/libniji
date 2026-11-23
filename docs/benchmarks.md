@@ -84,7 +84,8 @@ never multiplexes it. With randomisation on, a row's path could depend on where 
 the user+kernel count (interrupts taken while the row runs: 0.1 to 0.3 instructions per call on most rows, a few
 percent on 64 KiB copies). `cargo xtask bench --count-runs N` (default 3) sets the number of counted runs per side;
 a row with an instruction limit whose libniji count moves over them by more than the limits' tolerance,
-max(2 instructions, 2%), fails the run as `COUNT-SPREAD`, so the limit check never passes or fails by chance.
+max(2 instructions, 2%), fails the run as `COUNT-SPREAD`, so the limit check never passes or fails by chance. `--counters-only` checks it
+too, so `cargo xtask bench --counters-only --count-runs 5 --only <benches>` is a repeat test of their counts.
 
 **Bands used on this page:** faster (< 0.95), at parity (0.95 to 1.05), slower (> 1.05).
 

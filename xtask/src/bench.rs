@@ -1852,7 +1852,17 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         // TOOLS-5: no timing rounds; the counted runs only (the baseline job runs this right after its timing run).
         let names = counted_benches(&benches, &host_capable);
         let c = counted_table(root, &names, mode == Mode::NoBuild, &BTreeMap::new())?;
-        return check_counted(c.rows, &filter);
+        check_counted(c.rows, &filter)?;
+        // The repeat test of the counts (`--counters-only --count-runs N`, BUILD-REPRODUCIBLE-PATHS): every counted
+        // row with an instruction limit for this CPU must repeat within its tolerance.
+        let counted: std::collections::BTreeSet<(String, String)> = c.instr_range.keys().cloned().collect();
+        let spread = check_count_spread(&instr_limits, &cpu, &c.instr_range, &counted);
+        let limited = instr_limits.iter().filter(|l| l.applies(&cpu) && counted.contains(&(l.bench.clone(), l.row.clone()))).count();
+        if !spread.is_empty() {
+            return Err(format!("bench --counters-only: {} of {limited} limited rows moved beyond their tolerance:\n  {}", spread.len(), spread.join("\n  ")));
+        }
+        println!("bench: COUNT-SPREAD ok: {limited} rows with an instruction limit repeated within max(2, 2%) over {} counted runs", COUNT_RUNS.load(std::sync::atomic::Ordering::Relaxed));
+        return Ok(());
     }
     let settle = settle_secs(std::env::var("BENCH_SETTLE_SECS").ok().as_deref());
     if settle > 0 {
