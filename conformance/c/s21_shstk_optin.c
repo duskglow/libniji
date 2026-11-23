@@ -48,7 +48,7 @@ static int self_marked(void)
         while (p + 12 <= end) {
             Elf64_Nhdr h;
             memcpy(&h, p, sizeof h);
-            const unsigned char *d = p + 12 + ((h.n_namesz + 7) & ~7u), *dend = d + h.n_descsz;
+            const unsigned char *d = p + ((12 + h.n_namesz + 7) & ~7u), *dend = d + h.n_descsz;
             if (dend > end)
                 return 0;
             if (h.n_type == 5) /* NT_GNU_PROPERTY_TYPE_0 */
