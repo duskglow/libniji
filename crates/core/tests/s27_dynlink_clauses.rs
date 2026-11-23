@@ -125,14 +125,31 @@ clause!(s27_2_c_0, "27.2", "Contract", r##"Libraries named in `LD_AUDIT` (or `DT
 /// local-dynamic, initial-exec and TLS-descriptor accesses), from the main thread, a thread
 /// created before the `dlopen`, one created after it and 32 created while it runs: each sees the
 /// initial image, zeros past it, the alignment and a block of its own. Also the static TLS
-/// exhaustion text (s27_1_f_0) and 80 failed opens that each give their TLS place back. libniji
-/// places such blocks in the static surplus at `dlopen` (DL-16d); dynamic blocks are DL-19's.
+/// exhaustion text (s27_1_f_0) and 80 failed opens of an initial-exec object that each give their
+/// static TLS place back. libniji places blocks of objects with `DF_STATIC_TLS` in the static
+/// surplus at `dlopen` (DL-16d) and makes the others per thread on first access (DL-19,
+/// `s27_dlopen_tls_dynamic`, s27_3_f_0).
 /// Checked on the reference and on libniji's loader.
 #[test]
 fn s27_3_c_0() {
     let out = conformance(&["s27_dlopen_tls_surplus"]);
     assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dlopen_tls_surplus did not pass on both:\n{out}");
 }
-clause!(s27_3_f_0, "27.3", "Failure", r##"None. Allocation failure aborts the process. ⚑ ARB: there is no error channel for a lazy allocation."##);
+/// §27.3 Failure: None. Allocation failure aborts the process. ⚑ ARB: there is no error channel for a lazy allocation.
+///
+/// `s27_dlopen_tls_dynamic`: a 1 GiB global-dynamic block under a 512 MiB address-space limit
+/// ends a forked child at its first access with status 127 and "cannot allocate memory for
+/// thread-local data". The same program proves s27_3_c_0's "allocated on first access" for
+/// objects without DF_STATIC_TLS (DL-19, D-27.39): 64 copies of a 16 KiB object (global-dynamic
+/// and TLS descriptors) open at once, each thread's block its own (image, then zeros); an
+/// initial-exec object still finds static room after them; 200 open/touch/close cycles with a
+/// thread ending before or after the dlclose do not grow the address space; and
+/// `glibc.rtld.optional_static_tls` raises the static surplus. Checked on the reference and on
+/// libniji's loader.
+#[test]
+fn s27_3_f_0() {
+    let out = conformance(&["s27_dlopen_tls_dynamic"]);
+    assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dlopen_tls_dynamic did not pass on both:\n{out}");
+}
 clause!(s27_4_c_0, "27.4", "Contract", r##"`_r_debug` and `_dl_debug_state` implement the debugger rendezvous. The debugger sets a breakpoint on `_dl_debug_state` and walks the `r_debug.r_map` list after each change. Since 2.35 `r_version` is 2, which adds a linked list of namespaces."##);
 clause!(s27_5_c_0, "27.5", "Contract", r##"Report CPU features as detected by the dynamic linker (CPUID plus OS support via XCR0, masked by `glibc.cpu.hwcaps` tunables): "present" means the CPU supports the feature, and "active" means it is also usable."##);
