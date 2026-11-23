@@ -2897,6 +2897,9 @@ pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 /// `/usr/sbin/zic`), `target/niji/zdump` (`/usr/bin/zdump`) and the test links under `target/niji-test`.
 pub(crate) const ZIC_TEST: &str = "target/niji-test/zic";
 pub(crate) const ZDUMP_TEST: &str = "target/niji-test/zdump";
+/// gencat (UTIL-14, spec §31.12): `csys/util/gencat.c` (the catalog source compiler and D.2.2 writer), linked as
+/// getent is: `target/niji/gencat` (libc-dev-bin's `/usr/bin/gencat`) and the test link `target/niji-test/gencat`.
+pub(crate) const GENCAT_TEST: &str = "target/niji-test/gencat";
 
 fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
@@ -2906,7 +2909,8 @@ fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
 fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)?;
     run_dynamic_util(root, cc, "zic", ZIC_TEST, cdebug)?;
-    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)
+    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "gencat", GENCAT_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).

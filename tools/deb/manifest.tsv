@@ -97,6 +97,7 @@ system	libc-bin	usr/sbin/zic	file	zic	0755	debug	dynamic, compiles time-zone sou
 system	libc-bin	usr/share/doc/libc-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-bin	usr/share/doc/libc-bin/copyright	text	copyright	0644	none	-
 system	libc-bin	usr/share/libc-bin/nsswitch.conf	text	system/nsswitch.conf	0644	none	the template the postinst installs when the root has no /etc/nsswitch.conf
+system	libc-dev-bin	usr/bin/gencat	file	gencat	0755	debug	dynamic, compiles message-catalog sources into D.2.2 catalogs (UTIL-14)
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/copyright	text	copyright	0644	none	-
 system	libc-l10n	usr/share/doc/libc-l10n/changelog.Debian.gz	changelog	-	0644	none	-
