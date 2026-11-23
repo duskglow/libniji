@@ -452,7 +452,18 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
+/// `__niji_thread_db` is read by no part of libniji: a debugger's `libthread_db.so.1` finds it by
+/// name (spec §22.10, D-22.17).
+const LIBC_PRIVATE: &[&str] = &[
+    "__niji_build_tag",
+    "__niji_libc_early_init",
+    "__niji_owner_unload",
+    "__niji_resolv_block",
+    "__niji_resolv_pfcode",
+    "__niji_stack_exec",
+    "__niji_thread_db",
+    "__niji_thread_walk",
+];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources ([`tag_covers`]: `Cargo.lock`, `csys/`, `include/`, the product workspace's

@@ -9,7 +9,7 @@
 [workspace]
 resolver = "3"
 members = ["libc-so", "libm-so", "libresolv-so", "ld-so", "ldconfig-bin", "localedef-bin"]
-exclude = ["abi", "boundary", "core", "kernel", "ld", "legacy", "locale", "math", "mathtools", "mem", "native", "rt", "spectest", "thread-db"]
+exclude = ["abi", "boundary", "core", "kernel", "ld", "legacy", "locale", "math", "mathtools", "mem", "native", "rt", "spectest"]
 
 [profile.dev]
 panic = "abort"
