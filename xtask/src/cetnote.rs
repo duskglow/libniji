@@ -331,7 +331,7 @@ mod tests {
         let names_size = o.len() - names;
         o.resize((o.len() + 7) & !7, 0);
         let shoff = o.len();
-        let mut sh = |name: u32, ty: u32, off: usize, size: usize| {
+        let sh = |name: u32, ty: u32, off: usize, size: usize| {
             let mut h = [0u8; 64];
             h[0..4].copy_from_slice(&name.to_le_bytes());
             h[4..8].copy_from_slice(&ty.to_le_bytes());
