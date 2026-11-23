@@ -42,34 +42,37 @@ Kernel instructions, dynamic empty main, 20 runs x 3 series: (max - min) / media
 10.2% (Haswell-EP), 15.4% (Zen 1); the reference up to 20%. Min of 20 steadier (libniji within 0.4% across
 series, the reference 1.1%). Median ratio 1.30-1.32. Verdict: over 1%, reported, not gated.
 
-## Jobs so far (mei unless named) and the exact next step
+## Jobs on the final code head 499f8f05a (mei, role s1) and what is left
 
-- Done, green, on the head BEFORE the last commit: gate-honest-metrics-gate (direct tier, 659 passed / 0
-  failed), gate-honest-metrics-plants2 (2 CAUGHT: setlocale-keys-dropped, kinstr-lost), gate-honest-metrics-lint3.
-  Counts: gate-honest-metrics-measure-mei2, shiki:/keke: gate-honest-metrics-measure-next (scratch script, products
-  of next; `~/work/gate-honest-metrics/measure.sh` on each host).
-- SUPERSEDED: gate-honest-metrics-plants (perdir-trace-dropped SURVIVED: the mutant build still grouped the
-  per-directory functions, route not identified; plant replaced), lint/lint2 (clippy arithmetic, fixed),
-  gate-honest-metrics-xtest (red: see below).
-- gate-honest-metrics-xtest (cargo xtask test) was red on 4 tests. One was this branch's defect, fixed in the last
-  commit: `reference_probe` raced between nextest processes (a test staged the reference while another was
-  linking it: ENOEXEC in init_first_localtime_r_and_mktime...); it now links a per-process file and renames it.
-  The other three are NOT yet attributed: catalogs_products catalogs_equal_the_reference (catalog reload line,
-  "lookup 1.1 s after the file was replaced"), locale_products locale_behaviour_equals_the_reference (3 lines
-  differ), printf_corpus_products printf_corpus_equals_the_reference. This branch changes no library code (only
-  the hot-text grouping of the products); check them on origin/next's products on mei before calling them
-  INFORMATIONAL.
-- NEXT: sync; clippy + static; re-run the direct gate (the test file changed); re-run plants (same file) or name
-  plants2 with the reason; `cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo
-  test -p niji --test hot_text_products` (release ratios: print with --nocapture and compare with the fast bounds);
-  precheck; update handoff/reports/GATE-HONEST-METRICS.json (head, jobs); handback-check.
+- gate-honest-metrics-lint4: clippy (workspace, all targets and features, -D warnings) + `cargo xtask static`, green.
+- gate-honest-metrics-gate2: direct tier, 7 suites, 659 passed / 0 failed.
+- gate-honest-metrics-plants3: 2 plants, 2 CAUGHT (setlocale-keys-dropped, kinstr-lost), no WARN.
+- gate-honest-metrics-htp-release: `NIJI_FULL_PROFILE=1 cargo xtask so` + hot_text_products, 33 passed. Release
+  ratios (Skylake-SP): dynamic true / locale / tool 58/49, 86/67, 89/67 (bounds 1355, 1410, 1440 thousandths);
+  static tool 45/39, localtime(+mktime) 36/32, fork 5/7, true 10/29, setlocale+printf 43/39, float 3/1; dyn empty
+  main user 159,676 / 101,863; kernel median 718,687 / 580,953 (1.237). Every release count is at or under fast.
+- gate-honest-metrics-xtest2 (`cargo xtask test`): 7183 passed, 4 failed, all next's: s07_locale_clauses s7_2_f_0
+  (zh_HK.big5hkscs), locale_products locale_behaviour_equals_the_reference (3 lines), printf_corpus_products
+  printf_corpus_equals_the_reference (4 lines), catalogs_products catalogs_equal_the_reference (catalog reload and
+  LANGUAGE lines). gate-honest-metrics-nextbase ran those 4 binaries on origin/next's base 0495c4684 (own copy, own
+  products, same host): the same 4 fail with the same lines. The host has no locale-archive; LOCALE-PER-DIR-LOAD
+  landed on next after this branch's base. The reference_probe race (the 5th red of the first xtest) is gone.
+- gate-honest-metrics-xpass2: `cargo xtask so && cargo xtask test-pass2` (the first pass's reds stop `cargo xtask
+  test` before its second pass): native pass 4874 passed / 4 failed (the same 4 of next), interposed 129 + 46
+  passed.
+- Counts (earlier leg, products of next): gate-honest-metrics-measure-mei2, shiki:/keke:
+  gate-honest-metrics-measure-next (`~/work/gate-honest-metrics/measure.sh` on each host).
+- SUPERSEDED: gate-honest-metrics-plants (perdir-trace-dropped SURVIVED; plant replaced), lint/lint2 (clippy
+  arithmetic, fixed), gate-honest-metrics-gate, -plants2, -lint3, -xtest (head before the reference_probe fix).
+- NEXT (if this leg did not hand back): precheck on the synced head, handback-check.
 
 ## Open questions
 
 - RULING NEEDED: gate the kernel count on the min of 20 (ratio), which held within 0.4% / 1.1%? Recommend a
   follow-up story to measure min-of-N stability on more programs before gating.
-- Release-profile ratios take the fast bounds (release absolute counts were at or under fast); measure release on
-  the three classes in a follow-up and tighten.
+- Release-profile ratios take the fast bounds (release counts at or under fast on Skylake-SP, htp-release above);
+  measure release on the other two classes in a follow-up and tighten.
+- INFORMATIONAL: next's 4 xtask-test reds on the Skylake-SP host (see Jobs); not this branch's.
 - Not done: the cross-host run of the whole test on Haswell-EP / Zen 1 (no role there); the counts were measured
   there with the same probe and harness (scratch script), not with this test binary.
 - Full report: handoff/reports/GATE-HONEST-METRICS.json.
