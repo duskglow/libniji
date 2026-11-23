@@ -91,6 +91,9 @@ fn every_kind(n: usize) {
     assert_eq!(one(&nest("${u:-\"", "a b", "\"}", n)), ["a b"], "{n} nested ${{u:-\"...\"}}");
     // Alternatives of a set variable, the innermost a value.
     assert_eq!(one(&nest("${y:+", "$x", "}", n)), ["abc"], "{n} nested ${{y:+...}}");
+    // Text before a nested word stays in its own word at every level: the word of a set
+    // variable's `${y:-b}` is not used, so its `b` must not join the enclosing word's `a`.
+    assert_eq!(one(&format!("{}m{}", "${u:-a${y:-b}".repeat(n), "}".repeat(n))), ["a1".repeat(n) + "m"], "{n} nested words after text");
     // A pattern removal whose pattern is a nested word.
     assert_eq!(one(&format!("${{x%{}}}", nest("${u:-", "c", "}", n))), ["ab"], "{n} deep %");
     // Arithmetic with an expansion at every level: n additions of 1.
