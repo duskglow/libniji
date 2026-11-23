@@ -1,0 +1,27 @@
+{"task": "TEST-REDUNDANCY-AUDIT", "model": "opus", "tokens": null,
+ "result": "Report plan/reviews/TEST-REDUNDANCY-AUDIT.md: high-confidence items save ~100 s per full gate run/train (pass 2 -965 test-s, pass 1 -140 test-s), 0 binaries, ~20 lines; all items ~215 s, 70 of 321 binaries, ~1,100 lines (est.)",
+ "branch": "task/test-redundancy-audit", "head": "e59939818",
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "H1 PASS2-PRODUCTS-ONCE: run 58 *_products binaries in pass 1 only (keep hot_text, heap_meta, timers in pass 2); -965 test-s pass 2", "recommendation": "yes (no pass-2-only failure in those binaries over 698 gate runs; D-X.36 precedent)"},
+  {"item": "H2/H3 NSCACHE-MODE-SCOPE: amend D-16.10's test clause to differential programs that reach the cache; -140 test-s pass 1", "recommendation": "yes, with a static test of the cache's callers"},
+  {"item": "M1 PASS2-KERNEL-SHARD0 and M6 LD-OOM-SWEEP-STOP reduce coverage/repeat counts", "recommendation": "yes after each story measures its saving"}
+ ],
+ "informational": [
+  "Premise moved: the long-double special-function shards cost ~3 s in the gate now (verdict cache); dlopen_process_objects OOM is 46 s median",
+  "Pass-2-only failures seen (catch or flake not decided): hot_text_products 12, search_nomem 8, heap_meta_products 4 in CI; s03_memory_symbols 7 in developer gates",
+  "nextest.rs may_hold_boundary_code comment still describes the interposed pass; the run-once premise deserves a re-check under the native runner",
+  "Cold build critical path: xtask's unit-test binary 309 s of 440 s"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit and plan; no behaviour or test changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "tooling", "what": "high-confidence follow-ups: full CI gate run time per train", "before": 1505, "after": 1405, "unit": "s", "measured": false},
+  {"kind": "tooling", "what": "all follow-ups: full CI gate run time per train", "before": 1505, "after": 1290, "unit": "s", "measured": false},
+  {"kind": "tooling", "what": "AFFECTED-TESTS-ONE-LOAD: affected::tests cost (nextest test-s vs one process CPU-s)", "before": 1403, "after": 243, "unit": "s", "measured": true},
+  {"kind": "unblock", "what": "8 follow-up briefs in handoff/TEST-REDUNDANCY-AUDIT/", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "nextest's process-per-test silently defeats OnceLock fixtures (affected::tests: ~1,160 test-s per gate); a static check for OnceLock/LazyLock fixtures in nextest-run tests would catch the next one",
+ "next_step": "coordinator: rulings on H1 and D-16.10, then submit PASS2-PRODUCTS-ONCE, NSCACHE-MODE-SCOPE, AFFECTED-TESTS-ONE-LOAD",
+ "report_file": "plan/reviews/TEST-REDUNDANCY-AUDIT.md",
+ "jobs": ["test-redundancy-audit-timings", "test-redundancy-audit-affected-once"]}
