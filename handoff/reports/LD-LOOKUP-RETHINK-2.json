@@ -1,0 +1,13 @@
+{"task": "LD-LOOKUP-RETHINK-2", "model": "opus", "tokens": null,
+ "result": "NOT MINE: train 946's seven reds come from mei's 06:32 'apt install locales-all' (locale archive removed), not this branch; no code change",
+ "branch": "task/ld-lookup-rethink-2", "head": null,
+ "gate": {"affected": "seven named tests on mei after merging next 0495c4684: 7 of 7 named tests FAILED (host locale layout); clippy and static green", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "mei's locale layout: locales-all (06:32 today) removed /usr/lib/locale/locale-archive, which the gate's locale tests require; every locale/products gate on mei is red until it changes", "recommendation": "owner: restore the archive on the gate hosts (or keep locales-all and brief a libniji story for per-locale directories), then re-train this branch"}],
+ "informational": ["With per-locale directories and no archive, libniji setlocale returns NULL for en_US.utf8 and en_US (the reference loads them) and accepts de_DE.UTF-8@euro (the reference returns NULL): a libniji gap for systems that ship locales-all; suggested story", "PRINTF-NO-HEAP-3's gate on mei (07:12) failed the same six tests for the same cause"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "attribution of train 946's reds to a host change; no code changed", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "CI could flag host package changes (dpkg log newer than the last green train) next to a red train, so a host-wide red is attributed in minutes, not by a story run",
+ "next_step": "owner decides mei's locale layout; then re-train task/ld-lookup-rethink-2 (D1b + trace-check fix) unchanged",
+ "report_file": "handoff/LD-LOOKUP-RETHINK.md",
+ "jobs": ["mei:ld-lookup-rethink-2-seven"]}
