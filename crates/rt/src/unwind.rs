@@ -1404,7 +1404,7 @@ pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 mod tests {
     use super::*;
 
