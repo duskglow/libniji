@@ -120,6 +120,7 @@ uintptr_t niji_link_eh_frame_end(void) { return (uintptr_t)&niji_eh_frame_end; }
 /* 4. The global LC_CTYPE's tables for an old binary's legacy ctype objects (spec/behaviour/ctype-objects.md,
  *    D-5.13): setlocale passes the six words here when the global LC_CTYPE changes. libc.so.6's generated
  *    compat_aliases.S defines the store (through the GOT of the GLIBC_2.2.5 names, so a program's COPY of each
- *    object is the one written); libc.a has no such objects, and the weak reference is 0 there. */
-extern void niji_compat_ctype_store(const uintptr_t words[6]) __attribute__((weak, visibility("hidden")));
-void niji_csys_compat_ctype_store(const uintptr_t words[6]) { if (niji_compat_ctype_store) niji_compat_ctype_store(words); }
+ *    object is the one written) and its strong definition replaces the weak empty one here in libc.so.6; libc.a
+ *    has no such objects and keeps the empty one. */
+__attribute__((weak, visibility("hidden"))) void niji_compat_ctype_store(const uintptr_t w[6]) { (void)w; }
+void niji_csys_compat_ctype_store(const uintptr_t words[6]) { niji_compat_ctype_store(words); }

@@ -1,3 +1,3 @@
 # CTYPE-OBJECTS-SETLOCALE: plants for the setlocale rows of s05_ctype_legacy_objects (run with cargo xtask plants)
-store-dropped | csys/src/adapter/runtime.c | lit:{ if (niji_compat_ctype_store) niji_compat_ctype_store(words); } ==> { (void)words; } | cargo xtask affected --only conformance:s05_ctype_legacy_objects --with-exports --run | msg:FAIL line [0-9]+ \(file
+store-dropped | csys/src/adapter/runtime.c | lit:{ niji_compat_ctype_store(words); } ==> { (void)words; } | cargo xtask affected --only conformance:s05_ctype_legacy_objects --with-exports --run | msg:FAIL line [0-9]+ \(file
 upper32-not-stored | crates/boundary/src/locale.rs | lit:[class, lower, upper, class32, lower32, upper32] ==> [class, lower, upper, class32, lower32, lower32 + (upper32 & 0)] | cargo xtask affected --only conformance:s05_ctype_legacy_objects --with-exports --run | msg:FAIL line [0-9]+ \(file
