@@ -4,7 +4,8 @@
  * exit by signal). main enables it for this thread (arch_prctl(ARCH_SHSTK_ENABLE), inline, so
  * main itself never returns: no frame older than the enable has an entry), then runs: longjmp
  * out of nested frames, siglongjmp out of a signal handler, setcontext to a getcontext point
- * from a deeper frame, swapcontext between main and a makecontext context (eight arguments, on
+ * from a deeper frame, setcontext from a signal handler to the kernel's ucontext (D-21.7),
+ * swapcontext between main and a makecontext context (eight arguments, on
  * its own shadow stack) and back, a context function returning to uc_link, vfork returning in
  * the parent after the child's calls, posix_spawn, and threads (their own shadow stacks: create,
  * join, pthread_exit through cleanup handlers, cancellation). Each step returns through the
@@ -81,6 +82,31 @@ static __attribute__((noinline)) void set_from_deeper(int n, ucontext_t *uc)
     if (n == 0)
         setcontext(uc);
     set_from_deeper(n - 1, uc);
+}
+
+/* setcontext on the kernel's ucontext (a handler's third argument) from frames inside the
+ * handler: the interrupted code resumes, and its frames return (D-21.7). */
+static volatile int handled;
+static __attribute__((noinline)) void set_kernel_uc(int n, void *uc)
+{
+    if (n == 0)
+        setcontext((ucontext_t *)uc);
+    set_kernel_uc(n - 1, uc);
+}
+
+static void on_usr2(int sig, siginfo_t *si, void *uc)
+{
+    (void)sig;
+    (void)si;
+    handled++;
+    set_kernel_uc(5, uc);
+}
+
+static __attribute__((noinline)) int raise_deep(int n)
+{
+    if (n == 0)
+        return raise(SIGUSR2);
+    return raise_deep(n - 1) + 1;
 }
 
 static __attribute__((noinline)) pid_t vfork_and_return(void)
@@ -173,6 +199,15 @@ int main(void)
         set_from_deeper(20, &back_uc);
     }
     CHECK(resumed == 1);
+
+    /* setcontext from a handler to the ucontext it was given, from 5 frames inside it; the
+     * signal arrived 10 frames down in main. */
+    struct sigaction sa = {0};
+    sa.sa_sigaction = on_usr2;
+    sa.sa_flags = SA_SIGINFO;
+    CHECK(sigaction(SIGUSR2, &sa, NULL) == 0);
+    CHECK(raise_deep(10) == 10);
+    CHECK(handled == 1);
 
     /* swapcontext with a makecontext context and back, three times; then it ends in main_uc. */
     getcontext(&co_uc);

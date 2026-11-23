@@ -531,7 +531,9 @@ unsafe extern "C" {
     pub(crate) safe fn niji_machine_ssp() -> usize;
     /// Turn on the calling thread's shadow stack and lock its features with mask `lock` (0: no
     /// lock); 0 or -errno (D-21.6). Returns by a jump, so the caller is a frame that never returns
-    /// (the static start); the obligation is that, which a `-> !` caller meets.
+    /// (the static start); the obligation is that, which a `-> !` caller meets. Its caller is the
+    /// runtime's start, so it is declared only with that feature.
+    #[cfg(feature = "runtime")]
     pub(crate) safe fn niji_machine_shstk_enter(lock: u64) -> i64;
     /// The next argument of a `va_list` as a register-sized value (`va_arg(*ap, long)`).
     /// Proof obligation: `ap` is the `va_list *` a C adapter passed for this call (it lives
