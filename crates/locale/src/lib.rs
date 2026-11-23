@@ -152,7 +152,7 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
         if let Some(d) = out.defined.get_mut(n) {
             *d = true;
         }
-        match category(n, stmts, cs, files) {
+        match category(n, stmts, cs, files, false) {
             Ok(file) => {
                 if let Some(slot) = out.files.get_mut(n) {
                     *slot = file;
@@ -172,7 +172,7 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
         for (n, stmts) in defaults.cats.iter().enumerate() {
             let (Some(stmts), Some(slot)) = (stmts, out.files.get_mut(n)) else { continue };
             if slot.is_none() {
-                *slot = category(n, stmts, cs, files)?;
+                *slot = category(n, stmts, cs, files, true)?;
             }
         }
     }
@@ -206,11 +206,12 @@ fn resolve_names(src: &mut source::Source, cs: &charset::Charset) -> Result<()> 
     Ok(())
 }
 
-/// The file of category `n` from its statements (`None` for `LC_ALL`).
-fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut dyn Files) -> Result<Option<TryVec<u8>>> {
-    let b = cats::Body::new(stmts);
+/// The file of category `n` from its statements (`None` for `LC_ALL`); `defaults`: the
+/// statements are `defaults.rs`'s, for a category the source does not define (D-31.24).
+fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut dyn Files, defaults: bool) -> Result<Option<TryVec<u8>>> {
+    let b = if defaults { cats::Body::defaults(stmts) } else { cats::Body::new(stmts) };
     Ok(Some(match n {
-        0 => ctype::write(&ctype::parse(stmts, files)?, cs)?,
+        0 => ctype::write(&ctype::parse(stmts, files)?, cs, defaults)?,
         1 => cats::numeric(&b, cs)?,
         2 => cats::time(&b, cs)?,
         4 => cats::monetary(&b, cs)?,

@@ -5361,8 +5361,9 @@ decided differently from the reference; each has a row in `docs/differences-from
   archive read (`cannot open locale archive "FILE": ...` and exit 1 when it cannot be opened); a missing default
   archive lists nothing, exit 0 (probe `localedef-list-missing`).
 * Every category file is written: a category the source does not define gives `[warning] No definition for
-  <CATEGORY> category found` and exit 1, and its file holds a default (POSIX `localedef`: the POSIX locale's
-  values; libniji differences: `docs/differences-from-glibc.md`) (probe `localedef-undefined`).
+  <CATEGORY> category found` and exit 1, and its file holds the reference's default for an undefined category
+  (POSIX XBD 7.3 leaves the behaviour of a category missing from the source unspecified; values probe-settled,
+  D-31.24) (probe `localedef-undefined`).
 * The archive: a stored name has its codeset normalized (`de_DE.UTF-8` is `de_DE.utf8`); a NAME without a codeset
   is stored as given and also with the charmap's normalized codeset before any `@modifier`, one locale under both;
   compiling a stored name replaces it. `--add-to-archive DIR...` prints `Adding DIR` and stores DIR's files under
