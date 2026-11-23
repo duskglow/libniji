@@ -1574,14 +1574,17 @@ mod tests {
                 assert_eq!(mem.live.get(), 0, "every spill region is unmapped");
             }
         }
-        // Spilled rows keep every kind of rule.
-        let mut kinds = vec![0x0f, 2, 0x77, 8, 0x09, 3, 5, 0x07, 4, 0x08, 6, 0x14, 12, 2, 0x10, 13, 1, 0x30, 0x16, 14, 1, 0x31, 0x81, 1];
-        kinds.extend_from_slice(&[0x0a; REMEMBER_DEPTH + 1]);
-        kinds.extend_from_slice(&[0x0c, 7, 8, 0x07, 3, 0x07, 12, 0x07, 13, 0x07, 14, 0x07, 16]);
-        kinds.extend_from_slice(&[0x0b; REMEMBER_DEPTH + 1]);
+        // A spilled row keeps every kind of rule: the inline rows are taken first, so the one
+        // restored last comes from the spill.
+        let rules = [0x0f, 2, 0x77, 8, 0x09, 3, 5, 0x07, 4, 0x08, 6, 0x14, 12, 2, 0x10, 13, 1, 0x30, 0x16, 14, 1, 0x31, 0x81, 1];
+        let mut kinds = vec![0x0a; REMEMBER_DEPTH];
+        kinds.extend_from_slice(&rules);
+        kinds.push(0x0a);
+        kinds.extend_from_slice(&[0x0c, 7, 8, 0x07, 1, 0x07, 3, 0x07, 4, 0x07, 6, 0x07, 12, 0x07, 13, 0x07, 14, 0x07, 16]);
+        kinds.push(0x0b);
         let mut row = Row::new(RA);
         let mut want = Row::new(RA);
-        assert!(run(&mut want, None, cursor(&kinds[..24]), &cie, 0, usize::MAX, &mem).is_some());
+        assert!(run(&mut want, None, cursor(&rules), &cie, 0, usize::MAX, &mem).is_some());
         assert!(run(&mut row, None, cursor(&kinds), &cie, 0, usize::MAX, &mem).is_some());
         assert_eq!((row.cfa, row.rules), (want.cfa, want.rules));
         assert!(matches!(row.cfa, Cfa::Expr(_)) && matches!(row.rule(14), Rule::ValExpr { .. }) && row.rule(1) == Rule::At(-8));
