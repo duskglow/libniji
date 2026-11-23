@@ -19,7 +19,8 @@
   {"kind": "perf", "what": "cbench_opt snprintf_g per call", "before": 1286.3, "after": 1239.2, "unit": "instr/call", "measured": true},
   {"kind": "faults", "what": "release start-up float mode hot-text windows (WINDOW-BIN-BYTES budget tightened)", "before": 2, "after": 1, "unit": "windows", "measured": true}
  ],
- "jobs": ["mei:printf-no-heap-gate-2", "mei:printf-no-heap-plants-2", "mei:printf-no-heap-cbench-before", "mei:printf-no-heap-cbench-after-2"],
+ "jobs": ["mei:printf-no-heap-cbench-after-2", "mei:printf-no-heap-cbench-before"],
+ "superseded": ["mei:printf-no-heap-gate-2 (green, on eae929a22: before the layout/contracts.tsv budget edit)", "mei:printf-no-heap-plants-2 (9/9 caught, on eae929a22: same)"],
  "improvement": "the gate's direct tier does not count cbench rows, so a 3x slowdown on a long %f surfaced only at the manual bench step; a counted printf-row check in precheck for stories touching printf would catch it at the first gate",
  "next_step": "make long simple floats one pass (spill sink when width <= INLINE_TEXT), find the +13/+34 on the %s rows, then rerun plants, gate, bench and the start-up checks",
  "report_file": "handoff/PRINTF-NO-HEAP.md"}
