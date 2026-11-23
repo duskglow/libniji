@@ -28,9 +28,11 @@
  * through the Skylake family, where the JCC-erratum microcode drops 32-byte windows from the uop cache). Read it
  * only on those cores; the column is still named uops in the ctr line. Run the bench program directly (the xtask
  * --counters run sets CBENCH_COUNTERS=1). */
-/* Events 0 (instructions), 1 (cycles) and 5 (uops) form ONE pinned group: they are always counted together over the
- * whole row. Without it, 6 events on a CPU with 3-4 programmable counters were multiplexed and the scaled values of
- * short rows were wrong (Ivy Bridge host A, Ivy Bridge: memcmp_16 showed 0.4 cycles/op). The other three events may multiplex. */
+/* Events 0 (instructions), 1 (cycles), 4 (user-mode instructions) and 5 (uops) form ONE pinned group: they are always
+ * counted together over the whole row. Without it, 6 events on a CPU with 3-4 programmable counters were multiplexed
+ * and the scaled values of short rows were wrong (Ivy Bridge host A, Ivy Bridge: memcmp_16 showed 0.4 cycles/op).
+ * The user-mode count joined the group with BUILD-REPRODUCIBLE-PATHS: multiplexed, one row read 926 to 7221 across
+ * runs of one build. Branch and L1d misses may multiplex (scaled by time enabled / time running). */
 #define CTR_N 6
 static int ctr_fd[CTR_N] = {-1, -1, -1, -1, -1, -1};
 static int ctr_on = -1;
@@ -65,11 +67,11 @@ static void ctr_open(void)
         a.type = ev[i].type;
         a.config = i == 5 && v[0] == 'm' ? 0x0479 : ev[i].config;
         a.disabled = 1;
-        a.pinned = i == 0; /* instructions + cycles + uops: one pinned group, never multiplexed out */
+        a.pinned = i == 0; /* instructions + cycles + user instructions + uops: one pinned group, never multiplexed out */
         a.exclude_hv = 1;
         a.exclude_kernel = (unsigned)ev[i].user_only;
         a.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
-        ctr_fd[i] = (int)syscall(SYS_perf_event_open, &a, 0, -1, (i == 1 || i == 5) ? ctr_fd[0] : -1, 0UL);
+        ctr_fd[i] = (int)syscall(SYS_perf_event_open, &a, 0, -1, (i == 1 || i == 4 || i == 5) ? ctr_fd[0] : -1, 0UL);
     }
 }
 
