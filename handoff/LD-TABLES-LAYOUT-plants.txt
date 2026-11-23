@@ -5,3 +5,8 @@ extent-always-whole | crates/boundary/src/ld/readers.rs | lit:let kernel = n != 
 dladdr-span-only | crates/boundary/src/ld/dlopen/dladdr.rs | lit:lo <= addr && addr < hi && crate::ld::readers::extent_holds(i, addr) ==> lo <= addr && addr < hi && (crate::ld::readers::extent_holds(i, addr) || addr != 0) | cargo test -p niji-ld --test address_holes --test dl_find_object_index | msg:FAIL dladdr\(l_func\)
 index-entry-span | crates/boundary/src/ld/index.rs | lit:x => find_in(phdr, phnum, bias, s, x).map_or((s, e), |(a, b, _)| (a, b)), ==> x => find_in(phdr, phnum, bias, s, x).map_or((lo, hi), |_| (lo, hi)), | cargo test -p niji-ld --test address_holes --test dl_find_object_index | msg:test s27_1_c_9_find_object_index_matches_the_program_headers \.\.\. FAILED
 run-from-segment-only | crates/boundary/src/posix/s27_dynlink.rs | lit:let (mut lo, mut hi) = loads().find(|&(l, h)| l < h && down(l) <= pc && pc < up(h))?; ==> let (mut lo, mut hi) = loads().find(|&(l, h)| l < h && down(l) <= pc && pc < h)?; | cargo test -p niji-ld --test address_holes --test dl_find_object_index | msg:test s27_1_c_9_find_object_index_matches_the_program_headers \.\.\. FAILED
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# extent-always-whole: CAUGHT, caught by address_holes s27_1_c_9_library_inside_program_hole_found_itself
+# dladdr-span-only: CAUGHT, caught by address_holes s27_1_c_9_library_inside_program_hole_found_itself
+# index-entry-span: CAUGHT, caught by dl_find_object_index s27_1_c_9_find_object_index_matches_the_program_headers
+# run-from-segment-only: CAUGHT, caught by dl_find_object_index s27_1_c_9_find_object_index_matches_the_program_headers
