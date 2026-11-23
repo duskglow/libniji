@@ -11,12 +11,17 @@ gencat in the libc6-dbg row. No gencat code change. Proof on keke (Zen 1 host), 
 * `util-14-2-lint0` (inherited head 2e25f9305): full clippy -D warnings + `cargo xtask static`: rc 0.
 * `util-14-2-gate` (bd99cec16): `cargo xtask affected --run --base origin/next` (direct tier, 6 test targets incl.
   gencat_products, hot_text_products, deb_manifest): 15 suites ok, 1848 passed, 0 failed; peak 4.1G; 2 SKIPPED lines.
-* `util-14-2-tests` (bd99cec16): the seven train reds all pass on this host (locale_data x2, s07 s7_2_f_0,
-  locale_products, catalogs_products, printf_corpus_products, hot_text_products init_data_clusters...), plus
-  gencat_products and `the_committed_gencat_transcripts_hold`.
-* `util-14-2-pkg` (bd99cec16): both flavours build; check.sh PASS (2), check-system.sh PASS (7 packages, the libc6-dbg
-  DWARF checks next added included); libc-dev-bin ships ./usr/bin/gencat.
-* Plants: `util-14-plants3` (4809e2d1f, gencat.c and its tests unchanged since): 7 CAUGHT.
+* `util-14-2-tests2` (final head 033a496fa): the seven train reds all pass on this host (locale_data x2, s07
+  s7_2_f_0, locale_products, catalogs_products, printf_corpus_products, hot_text_products
+  init_data_clusters_hold_at_every_text_phase), plus gencat_products and `the_committed_gencat_transcripts_hold`.
+* `util-14-2-pkg2` (033a496fa): both flavours build; check.sh PASS (2), check-system.sh PASS (7 packages, the
+  libc6-dbg DWARF checks next added included); libc-dev-bin ships ./usr/bin/gencat.
+* `util-14-2-final` (033a496fa): full clippy -D warnings + `cargo xtask static`: rc 0.
+* Plants `util-14-2-plants` (033a496fa, handoff/UTIL-14-plants.txt): 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG (one WARN-DEV-SHM: the RAM dir is under
+  /dev/shm, as the brief says for a Zen 1 host; no gencat test mounts its own /dev/shm). Results file:
+  handoff/UTIL-14-2-plants.txt. (`util-14-plants3` on 4809e2d1f: 7 CAUGHT.)
+* SUPERSEDED: `util-14-2-tests` and `util-14-2-pkg` (bd99cec16, both green) left no tested-content record (their
+  command lines did not name the role path, so jobrun could not tell what they tested); re-run as tests2/pkg2.
 
 ## Commits
 

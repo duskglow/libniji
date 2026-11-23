@@ -3,9 +3,9 @@
 **State (UTIL-14-2, 2026-11-23).** Branch `task/util-14-2` = UTIL-14's head `2e25f9305` + merge of origin/next
 `0495c4684` (merge commit `bd99cec16`; gencat code unchanged since `4809e2d1f`). Role keke:~/w/n3. Train 946's seven
 reds were a host change on the CI host (#7846, LOCALE-PER-DIR-LOAD fixes it), not this branch: on the merged head on
-keke all seven pass (`util-14-2-tests`), as do gencat_products and the gencat transcripts; direct-tier gate
-`util-14-2-gate` green (15 suites, 1848 passed); packages `util-14-2-pkg`. Plants: `util-14-plants3` (keke, on
-`4809e2d1f`, same gencat.c): 7 CAUGHT. Ruling #7814 resolved: spec D.2.2's pool-order bullet follows the transcripts
+keke all seven pass (`util-14-2-tests2`, final head `033a496fa`), as do gencat_products and the gencat transcripts;
+direct-tier gate `util-14-2-gate` green (15 suites, 1848 passed; on `bd99cec16`, prose-only since); packages
+`util-14-2-pkg2` PASS; plants `util-14-2-plants` on the final head (results: handoff/UTIL-14-2-plants.txt). Ruling #7814 resolved: spec D.2.2's pool-order bullet follows the transcripts
 (owed, with or after UTIL-SPEC-3; not this branch). Full report: handoff/UTIL-14-report.md. Decision: D-31.28.
 Next step: none; land. The "Next step (leg 3)" section below is history.
 
