@@ -270,12 +270,16 @@ fn more_store(rest: &[u8]) -> bool {
     true
 }
 
+/// A file name's bytes for [`LAST_NAME`] and those past it.
+fn split(f: &[u8]) -> (&[u8], &[u8]) {
+    (f.get(..LAST_FIXED).unwrap_or(f), f.get(LAST_FIXED..).unwrap_or(&[]))
+}
+
 /// Whether `file`:`line` repeats the remembered location; it becomes the remembered one (a
 /// NULL file name leaves none, and so does a long one when there is no memory to keep it: the
 /// next message for it is then printed again).
 fn repeats(file: Option<&[u8]>, line: u32) -> bool {
     let _g = LAST_LOCK.lock(&CSys);
-    let split = |f: &'_ [u8]| -> (&'_ [u8], &'_ [u8]) { (f.get(..LAST_FIXED).unwrap_or(f), f.get(LAST_FIXED..).unwrap_or(&[])) };
     let same = file.is_some_and(|f| {
         let (head, rest) = split(f);
         LAST_LEN.load(Relaxed) == f.len() && LAST_LINE.load(Relaxed) == line && LAST_NAME.iter().zip(head).all(|(a, &b)| a.load(Relaxed) == b) && more_equal(rest)
