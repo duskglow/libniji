@@ -24,8 +24,10 @@
 //! all-zero DUCET weights come first among the characters equal at levels 1-3. `after cp anchor
 //! level` places `cp` directly after `anchor`: at level 4 with the anchor's weights; at levels
 //! 1-3 with a weight of its own just after the anchor's last one at that level, and the anchor's
-//! weights at the other levels. The undefined characters sort first (`UNDEFINED` before every
-//! character).
+//! weights at the other levels; `level+` appends a weight below every other to the anchor's at
+//! that level instead (it sorts before what extends the anchor). `same cp anchor` gives `cp` the
+//! anchor's weights at levels 1-3. The undefined characters sort first (`UNDEFINED` before every
+//! character, ignorable at levels 1-3).
 
 #![forbid(unsafe_code)]
 #![allow(clippy::arithmetic_side_effects)] // sub-weight counters bounded by the rule count (far below u32::MAX)
@@ -39,6 +41,19 @@ type W = (u32, u32);
 
 /// A character's weights at levels 1-3.
 type Key = [Vec<W>; 3];
+
+/// How a rule line places a code point.
+#[derive(Clone, Copy)]
+enum Place {
+    /// `after cp anchor level` (`level+`: appended below every other weight).
+    After(usize, bool),
+    /// `same cp anchor`.
+    Same,
+}
+
+/// The sub-steps of weights appended by `level+` rules (below every DUCET weight, apart from the
+/// ones minted after an anchor without weights at that level).
+const APPENDED: u32 = 1 << 30;
 
 /// One DUCET collation element: variable, primary, secondary, tertiary.
 type Ce = (bool, u32, u32, u32);
@@ -173,12 +188,14 @@ pub fn source(repo: &Path) -> Result<String, String> {
                 defined.retain(|&cp, _| !(lo..=hi).contains(&cp));
             }
             ["after", cp, anchor, level] => {
+                let (level, append) = level.strip_suffix('+').map_or((*level, false), |l| (l, true));
                 let level: usize = level.parse().map_err(|_| bad())?;
-                if !(1..=4).contains(&level) {
+                if !(1..=4).contains(&level) || (append && level == 4) {
                     return Err(bad());
                 }
-                placements.push((hex(cp, "after")?, hex(anchor, "after")?, level, bad()));
+                placements.push((hex(cp, "after")?, hex(anchor, "after")?, Place::After(level, append), bad()));
             }
+            ["same", cp, anchor] => placements.push((hex(cp, "same")?, hex(anchor, "same")?, Place::Same, bad())),
             _ => return Err(bad()),
         }
     }
@@ -203,20 +220,31 @@ pub fn source(repo: &Path) -> Result<String, String> {
     // Placements at levels 1-3 change weights; level 4 ones move a character in the order.
     let mut minted: BTreeSet<(usize, W)> = BTreeSet::new();
     let mut moves = Vec::new();
-    for (cp, anchor, level, at) in placements {
+    let mut appended = 0;
+    for (cp, anchor, place, at) in placements {
         let mut key = defined.get(&anchor).cloned().ok_or_else(|| format!("{at}: the anchor is not defined"))?;
         if !defined.contains_key(&cp) {
             return Err(format!("{at}: the code point is not defined"));
         }
-        if let Some(l) = level.checked_sub(1).and_then(|l| key.get_mut(l)) {
-            let last = l.pop().unwrap_or((0, 0));
-            let new = (last.0, last.1 + 1);
-            if !minted.insert((level, new)) {
-                return Err(format!("{at}: two placements after one weight"));
+        match place {
+            Place::Same => {}
+            Place::After(4, _) => moves.push((cp, anchor)),
+            Place::After(level, append) => {
+                let l = key.get_mut(level - 1).ok_or_else(|| format!("{at}: no such level"))?;
+                // A weight of its own: after the anchor's last one at this level, or (append)
+                // below every DUCET weight, after the anchor's whole string.
+                let new = if append {
+                    appended += 1;
+                    (0, APPENDED + appended)
+                } else {
+                    let last = l.pop().unwrap_or((0, 0));
+                    (last.0, last.1 + 1)
+                };
+                if !minted.insert((level, new)) {
+                    return Err(format!("{at}: two placements after one weight"));
+                }
+                l.push(new);
             }
-            l.push(new);
-        } else {
-            moves.push((cp, anchor));
         }
         defined.insert(cp, key);
     }
@@ -251,7 +279,7 @@ pub fn source(repo: &Path) -> Result<String, String> {
             let _ = writeln!(out, "{}", symbol(level, w));
         }
     }
-    out.push_str("UNDEFINED\n");
+    out.push_str("UNDEFINED IGNORE;IGNORE;IGNORE\n");
     for cp in order {
         let n = name(cp);
         let _ = write!(out, "{n} ");

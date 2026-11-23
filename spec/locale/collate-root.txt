@@ -10,7 +10,7 @@
 #
 # Every rule was derived from, and is checked against, one probe of the reference:
 # probe: tools/probe/collate/collorder.c over U+0001-U+D7FF and U+E000-U+10FFFF in the reference's en_US.UTF-8 (Zen 1 host, 2026-11-23; results/locale-collate-2026-11-23.md section 7).
-# tools/probe/collate/root_rules.py re-derives this file from that probe's output.
+# tools/probe/collate/root_rules.py derives the undefined ranges and placements from that output.
 #
 # Formats:
 #   class <name>                 a class rule the generator implements (described above it)
@@ -18,7 +18,15 @@
 #                                leaves undefined (they collate as UNDEFINED: first)
 #   after <cp> <anchor> <level>  <cp> sorts directly after <anchor>, differing from it at
 #                                <level> (1-3: a weight of its own just after the anchor's at that
-#                                level, the anchor's below it; 4: the anchor's weights at 1-3)
+#                                level, the anchor's below it; 4: the anchor's weights at 1-3;
+#                                1+ to 3+: the anchor's weights at that level followed by one
+#                                below every other, so it sorts before what extends the anchor)
+#   same <cp> <anchor>           <cp> has the anchor's weights at levels 1-3 (level 4 keeps it in
+#                                code point order)
+#
+# The lines with 1+ and the same line were settled by the generated_root test (strings against
+# the reference's compiled en_US: the ligature after U+0675, U+0676 and U+0678 sorts after them;
+# U+1DE5 differs from U+A784 at level 3 only), not by the single code point order alone.
 
 # Class han-variant-block. Evidence: the probe orders every CJK radical, Kangxi radical, CJK
 # compatibility ideograph (U+F900-U+FAFF, U+2F800-U+2FA1F), parenthesized, circled, squared and
@@ -168,11 +176,11 @@ undefined 30000 323AF
 after FFFD 2FA1D 1
 
 # Placements: Arabic letters with a high hamza and their presentation forms: one letter each, after the letter named (DUCET 15.1 expands them). Evidence: the probe's order and level for each line.
-after 0675 FD3D 1
-after 0676 FEED 1
+after 0675 FD3D 1+
+after 0676 FEED 1+
 after 0677 FBD7 1
 after FBDD 0677 3
-after 0678 FEF1 1
+after 0678 FEF1 1+
 
 # Placements: Latin letters and the peseta sign whose DUCET 15.1 weights differ from the reference's (r rotunda, insular s, long s with dot, r with palatal hook, peseta sign as one currency symbol). Evidence: the probe's order and level for each line.
 after 20A7 20A6 1
@@ -182,7 +190,7 @@ after A75A 1DE3 3
 after 1D89 027A 1
 after 1E9B A784 2
 after 1D98 0285 1
-after A785 1DE5 4
+same 1DE5 A785
 
 # Placements: Combining marks the reference weights differently from DUCET 15.1 (level 4: same weights as the anchor; level 2: a secondary of their own). Evidence: the probe's order and level for each line.
 after 0F82 0F3F 4
