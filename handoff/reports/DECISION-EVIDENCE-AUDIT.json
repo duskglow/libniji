@@ -1,7 +1,7 @@
 {"task": "DECISION-EVIDENCE-AUDIT", "model": "opus", "tokens": null,
  "result": "Audit done: 1,008 of 1,474 items flagged, 554 without a measurement; the 4096-key scan causes about 34,700 of 36,026 instructions per pthread_create+join; the start-up data budget charges a page no process faults",
  "branch": "task/decision-evidence-audit", "head": "87b60f1a6",
- "gate": {"affected": "no product change: clippy and static on the role (decision-evidence-audit-lint)", "peak": null},
+ "gate": {"affected": "no product change: affected selects 0 of 321 targets; clippy and static green (decision-evidence-audit-lint2); precheck green", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [
   {"item": "Static TLS surplus 64 KiB (R14-4, D-22.6): the record says sized by tunable, the code is a const and glibc.rtld.optional_static_tls is unused; a reused thread stack zeroes the surplus every time", "recommendation": "the reference's default surplus, honour optional_static_tls for the rare case (with #8009), and correct D-22.6"}
@@ -21,4 +21,4 @@
  "improvement": "A record whose text claims a mechanism (D-22.6: sized by tunable) should be checked against the code by a static check; the filter could flag records naming a tunable that config.rs parses but nothing reads",
  "next_step": "Brief a story for the key-scan watermark (measure on the create+join percall row); give finding 2 to #8009; check the start-up data budget members by fault address on both profiles",
  "report_file": "handoff/DECISION-EVIDENCE-AUDIT.md",
- "jobs": ["shiki:decision-evidence-audit-probe1", "shiki:decision-evidence-audit-probe2", "shiki:decision-evidence-audit-probe3", "shiki:decision-evidence-audit-lint"]}
+ "jobs": ["shiki:decision-evidence-audit-probe1", "shiki:decision-evidence-audit-probe2", "shiki:decision-evidence-audit-probe3", "shiki:decision-evidence-audit-lint2"]}
