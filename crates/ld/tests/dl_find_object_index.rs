@@ -134,17 +134,11 @@ static int range_of(const struct obj *o, unsigned long a, unsigned long *lo, uns
     }
     return *lo <= a && a < *hi;
 }
-/* The object whose range holds a (-1: none), and the first non-vDSO object whose range holds it. */
+/* The object whose range holds a (-1: none); the vDSO's included, for dladdr too (D-27.93). */
 static int span_owner(unsigned long a) {
     unsigned long lo, hi;
     for (int j = 0; j < nobj; j++)
         if (range_of(&objs[j], a, &lo, &hi)) return j;
-    return -1;
-}
-static int range_owner(unsigned long a) {
-    unsigned long lo, hi;
-    for (int j = 0; j < nobj; j++)
-        if (!objs[j].vdso && range_of(&objs[j], a, &lo, &hi)) return j;
     return -1;
 }
 static void probe(int base, unsigned long a) {
@@ -159,7 +153,7 @@ static void probe(int base, unsigned long a) {
         fail(base + 3, "_dl_find_object: wrong range or PT_GNU_EH_FRAME", a);
     Dl_info info;
     memset(&info, 0, sizeof info);
-    int o = range_owner(a), d = dladdr((void *)a, &info);
+    int o = span_owner(a), d = dladdr((void *)a, &info);
     if (o < 0 && d != 0) fail(base + 4, "dladdr found an object where none is", a);
     if (o >= 0 && (d == 0 || (unsigned long)info.dli_fbase != (objs[o].lo & -page))) fail(base + 5, "dladdr: wrong or no object", a);
 }
