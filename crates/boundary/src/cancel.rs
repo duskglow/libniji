@@ -203,16 +203,21 @@ fn unwinder() -> Option<(usize, usize)> {
 #[inline(never)]
 fn forced_unwind(first: bool) {
     let Ok(d) = thread::desc() else { return };
-    let found = match unwinder() {
-        Some(u) => Some(u),
-        None if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 => None,
-        // The walk starts from this frame, with no frame of [`no_unwinder`]'s below it: each
-        // walked frame costs thousands of instructions, and a thread with nothing to unwind
-        // walks what it did before D-22.24 (plain-C `pthread_exit` counts unchanged).
-        None if first => crate::backtrace::handler_on_stack().then(no_unwinder),
-        None => later_step(d),
+    let Some((force, get_cfa)) = unwinder() else {
+        if first {
+            no_unwinder(d);
+        } else {
+            later_step(d);
+        }
+        return;
     };
-    let Some((force, get_cfa)) = found else { return };
+    start_unwind(d, force, get_cfa);
+}
+
+/// Start the exit's unwind with `force` (`_Unwind_ForcedUnwind`) and `get_cfa`; returns only
+/// when it could not start.
+#[inline]
+fn start_unwind(d: &niji_rt::thread::Thread, force: usize, get_cfa: usize) {
     let w = &d.unwind.words;
     set(w, niji_rt::thread::UNWIND_CLASS, usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes()));
     set(w, niji_rt::thread::UNWIND_CLEANUP, swallowed_addr());
@@ -257,16 +262,17 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
 ///
 /// Before the message, the program's own unwinder (D-22.24): a program linked by niji-gcc or
 /// niji-g++ exports `__niji_program_unwinder` (csys/start/unwinder.S), which returns the hidden
-/// copy the program links; the exit then unwinds with it. [`forced_unwind`] calls this only
-/// after its walk found unwind work on the first step (a lookup and the walk only when there is
-/// a loader); a later step (after a cleanup buffer) asks [`later_step`]. Returns the unwinder to
-/// use; without one, the message.
+/// copy the program links; the exit then unwinds with it ([`with_program_unwinder`], called
+/// only once the walk found work, so this frame stays as small as before: every frame the walk
+/// passes costs it, and a plain-C `pthread_exit` walks this one).
 #[cold]
 #[inline(never)]
-fn no_unwinder() -> (usize, usize) {
-    match program_unwinder() {
-        Some(u) => u,
-        None => niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap),
+fn no_unwinder(d: &niji_rt::thread::Thread) {
+    if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+        return;
+    }
+    if crate::backtrace::handler_on_stack() && !with_program_unwinder(d) {
+        niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
     }
 }
 
@@ -275,9 +281,21 @@ fn no_unwinder() -> (usize, usize) {
 /// class is this exit's), so a thread with nothing to unwind looks nothing up.
 #[cold]
 #[inline(never)]
-fn later_step(d: &niji_rt::thread::Thread) -> Option<(usize, usize)> {
+fn later_step(d: &niji_rt::thread::Thread) {
     let started = word(&d.unwind.words, niji_rt::thread::UNWIND_CLASS) == usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes());
-    if started { program_unwinder() } else { None }
+    if started {
+        with_program_unwinder(d);
+    }
+}
+
+/// Unwind with the program's own unwinder; `false` when it has none (returns `true` also when
+/// the unwind could not start: the exit then goes on without it, as with a loaded one).
+#[cold]
+#[inline(never)]
+fn with_program_unwinder(d: &niji_rt::thread::Thread) -> bool {
+    let Some((force, get_cfa)) = program_unwinder() else { return false };
+    start_unwind(d, force, get_cfa);
+    true
 }
 
 /// The unwinder the program links, through the entry it exports (`__niji_program_unwinder(0)`:
