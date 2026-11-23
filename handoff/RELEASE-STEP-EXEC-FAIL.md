@@ -4,6 +4,27 @@ State: branch `task/release-step-exec-fail`, HEAD = the commit that adds this no
 Kind: investigate. Verdict: **cause NOT established**; the branch makes the next failure name its cause and removes a
 latent race. Decisions in force: none new (test-harness change only).
 
+## LEG 1 END (refresh, 17:08Z): state and exact next step
+
+* Done: clippy (workspace, all targets/features) rc 0 and `cargo xtask static` rc 0 on the role at 155df8005.
+* Plants run 1 (`release-step-exec-fail-plants`, rc 2) is SUPERSEDED: its baseline failed on my own test
+  (`{:?}` printed `unix_wait_status(32512)`, not 127); fixed in e01b84ea0 (`{}`).
+* `release-step-exec-fail-plants-2` (155df8005, dir /mnt/zram/claude/release-step-exec-fail/plants-2) was still
+  running at the refresh: jobwait it.
+* **Gate `release-step-exec-fail-gate` (155df8005) is RED** in the direct tier (nextest, run beside plants-2 and
+  static): `init_data_clusters_hold_at_every_text_phase`: `tool` reads 59 faults at `cold 0x2000`, 58 at the
+  other nine phases. That test counts through `faults_env`, whose directory name this branch changed
+  (`/tmp/niji-hot-text-<pid>-<call%10>` -> `/tmp/niji-hot-t-<pid>-<nnnn>`, both 31 bytes). Not yet known whether the
+  change or jitter/load causes it. The release pair in that job did not run (the `&&` chain stopped).
+* NEXT: on mei s3 (synced at 155df8005, fast products built), run alone (no plants beside it)
+  `cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase` 2x on the branch, then
+  with `crates/core/tests/hot_text_products.rs` of origin/next 2x. If only the branch reads the step, its path
+  content matters (e.g. the `tool` mode reads its directory): restore a name whose bytes match the old one where
+  they can (e.g. keep `niji-hot-text-` and widen only the number, shortening elsewhere), re-gate. If both read it,
+  it is next's: LAYOUT-JITTER per ruling #4347 (INCOMPLETE: LAYOUT-JITTER with next's numbers). Then re-run the
+  gate job (it includes the release pair), precheck `--jobs release-step-exec-fail-gate,release-step-exec-fail-plants-2`
+  on the final head, handback-check, hand back.
+
 ## What the CI logs say (trains 951 tip 0fabf6a8f, 952 tip 6f9fd5047)
 
 * Both trains contain `task/locale-per-dir-load` (LOCALE-PER-DIR-LOAD), not on next. It changed `faults_env` in
