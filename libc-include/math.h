@@ -3378,91 +3378,301 @@ enum { FP_INT_UPWARD = 0 };
 #endif
 #if __NIJI_GNU
 # ifndef M_1_PIf
-#  define M_1_PIf (0x1.45f306p-2f)
+#  define M_1_PIf (3.18309873e-1f)
+# endif
+# ifndef M_1_PIf128
+#  define M_1_PIf128 (3.18309886183790671537767526745028737e-1f128)
+# endif
+# ifndef M_1_PIf32
+#  define M_1_PIf32 (3.18309873e-1f32)
+# endif
+# ifndef M_1_PIf32x
+#  define M_1_PIf32x (3.1830988618379069e-1f32x)
+# endif
+# ifndef M_1_PIf64
+#  define M_1_PIf64 (3.1830988618379069e-1f64)
+# endif
+# ifndef M_1_PIf64x
+#  define M_1_PIf64x (3.18309886183790671538e-1f64x)
 # endif
 # ifndef M_1_PIl
-#  define M_1_PIl (0x1.45f306dc9c882a54p-2L)
+#  define M_1_PIl (3.18309886183790671538e-1L)
 # endif
 # ifndef M_2_PIf
-#  define M_2_PIf (0x1.45f306p-1f)
+#  define M_2_PIf (6.36619747e-1f)
+# endif
+# ifndef M_2_PIf128
+#  define M_2_PIf128 (6.36619772367581343075535053490057474e-1f128)
+# endif
+# ifndef M_2_PIf32
+#  define M_2_PIf32 (6.36619747e-1f32)
+# endif
+# ifndef M_2_PIf32x
+#  define M_2_PIf32x (6.3661977236758138e-1f32x)
+# endif
+# ifndef M_2_PIf64
+#  define M_2_PIf64 (6.3661977236758138e-1f64)
+# endif
+# ifndef M_2_PIf64x
+#  define M_2_PIf64x (6.36619772367581343076e-1f64x)
 # endif
 # ifndef M_2_PIl
-#  define M_2_PIl (0x1.45f306dc9c882a54p-1L)
+#  define M_2_PIl (6.36619772367581343076e-1L)
 # endif
 # ifndef M_2_SQRTPIf
-#  define M_2_SQRTPIf (0x1.20dd76p+0f)
+#  define M_2_SQRTPIf (1.12837923e+0f)
+# endif
+# ifndef M_2_SQRTPIf128
+#  define M_2_SQRTPIf128 (1.12837916709551257389615890312154526e+0f128)
+# endif
+# ifndef M_2_SQRTPIf32
+#  define M_2_SQRTPIf32 (1.12837923e+0f32)
+# endif
+# ifndef M_2_SQRTPIf32x
+#  define M_2_SQRTPIf32x (1.1283791670955126e+0f32x)
+# endif
+# ifndef M_2_SQRTPIf64
+#  define M_2_SQRTPIf64 (1.1283791670955126e+0f64)
+# endif
+# ifndef M_2_SQRTPIf64x
+#  define M_2_SQRTPIf64x (1.12837916709551257385e+0f64x)
 # endif
 # ifndef M_2_SQRTPIl
-#  define M_2_SQRTPIl (0x1.20dd750429b6d11ap+0L)
+#  define M_2_SQRTPIl (1.12837916709551257385e+0L)
 # endif
 # ifndef M_Ef
-#  define M_Ef (0x1.5bf0a8p+1f)
+#  define M_Ef (2.71828175e+0f)
+# endif
+# ifndef M_Ef128
+#  define M_Ef128 (2.71828182845904523536028747135266231e+0f128)
+# endif
+# ifndef M_Ef32
+#  define M_Ef32 (2.71828175e+0f32)
+# endif
+# ifndef M_Ef32x
+#  define M_Ef32x (2.7182818284590451e+0f32x)
+# endif
+# ifndef M_Ef64
+#  define M_Ef64 (2.7182818284590451e+0f64)
+# endif
+# ifndef M_Ef64x
+#  define M_Ef64x (2.71828182845904523543e+0f64x)
 # endif
 # ifndef M_El
-#  define M_El (0x1.5bf0a8b145769536p+1L)
+#  define M_El (2.71828182845904523543e+0L)
 # endif
 # ifndef M_LN10f
-#  define M_LN10f (0x1.26bb1cp+1f)
+#  define M_LN10f (2.30258512e+0f)
+# endif
+# ifndef M_LN10f128
+#  define M_LN10f128 (2.30258509299404568401799145468436418e+0f128)
+# endif
+# ifndef M_LN10f32
+#  define M_LN10f32 (2.30258512e+0f32)
+# endif
+# ifndef M_LN10f32x
+#  define M_LN10f32x (2.3025850929940459e+0f32x)
+# endif
+# ifndef M_LN10f64
+#  define M_LN10f64 (2.3025850929940459e+0f64)
+# endif
+# ifndef M_LN10f64x
+#  define M_LN10f64x (2.30258509299404568404e+0f64x)
 # endif
 # ifndef M_LN10l
-#  define M_LN10l (0x1.26bb1bbb5551582ep+1L)
+#  define M_LN10l (2.30258509299404568404e+0L)
 # endif
 # ifndef M_LN2f
-#  define M_LN2f (0x1.62e43p-1f)
+#  define M_LN2f (6.93147182e-1f)
+# endif
+# ifndef M_LN2f128
+#  define M_LN2f128 (6.93147180559945309417232121458176575e-1f128)
+# endif
+# ifndef M_LN2f32
+#  define M_LN2f32 (6.93147182e-1f32)
+# endif
+# ifndef M_LN2f32x
+#  define M_LN2f32x (6.9314718055994529e-1f32x)
+# endif
+# ifndef M_LN2f64
+#  define M_LN2f64 (6.9314718055994529e-1f64)
+# endif
+# ifndef M_LN2f64x
+#  define M_LN2f64x (6.93147180559945309429e-1f64x)
 # endif
 # ifndef M_LN2l
-#  define M_LN2l (0x1.62e42fefa39ef358p-1L)
+#  define M_LN2l (6.93147180559945309429e-1L)
 # endif
 # ifndef M_LOG10Ef
-#  define M_LOG10Ef (0x1.bcb7b2p-2f)
+#  define M_LOG10Ef (4.34294492e-1f)
+# endif
+# ifndef M_LOG10Ef128
+#  define M_LOG10Ef128 (4.34294481903251827651128918916605096e-1f128)
+# endif
+# ifndef M_LOG10Ef32
+#  define M_LOG10Ef32 (4.34294492e-1f32)
+# endif
+# ifndef M_LOG10Ef32x
+#  define M_LOG10Ef32x (4.3429448190325182e-1f32x)
+# endif
+# ifndef M_LOG10Ef64
+#  define M_LOG10Ef64 (4.3429448190325182e-1f64)
+# endif
+# ifndef M_LOG10Ef64x
+#  define M_LOG10Ef64x (4.34294481903251827645e-1f64x)
 # endif
 # ifndef M_LOG10El
-#  define M_LOG10El (0x1.bcb7b1526e50e32ap-2L)
+#  define M_LOG10El (4.34294481903251827645e-1L)
 # endif
 # ifndef M_LOG2Ef
-#  define M_LOG2Ef (0x1.715476p+0f)
+#  define M_LOG2Ef (1.44269502e+0f)
+# endif
+# ifndef M_LOG2Ef128
+#  define M_LOG2Ef128 (1.44269504088896340735992468100189204e+0f128)
+# endif
+# ifndef M_LOG2Ef32
+#  define M_LOG2Ef32 (1.44269502e+0f32)
+# endif
+# ifndef M_LOG2Ef32x
+#  define M_LOG2Ef32x (1.4426950408889634e+0f32x)
+# endif
+# ifndef M_LOG2Ef64
+#  define M_LOG2Ef64 (1.4426950408889634e+0f64)
+# endif
+# ifndef M_LOG2Ef64x
+#  define M_LOG2Ef64x (1.44269504088896340739e+0f64x)
 # endif
 # ifndef M_LOG2El
-#  define M_LOG2El (0x1.71547652b82fe178p+0L)
+#  define M_LOG2El (1.44269504088896340739e+0L)
 # endif
 # ifndef M_PI_2f
-#  define M_PI_2f (0x1.921fb6p+0f)
+#  define M_PI_2f (1.57079637e+0f)
+# endif
+# ifndef M_PI_2f128
+#  define M_PI_2f128 (1.5707963267948966192313216916397514e+0f128)
+# endif
+# ifndef M_PI_2f32
+#  define M_PI_2f32 (1.57079637e+0f32)
+# endif
+# ifndef M_PI_2f32x
+#  define M_PI_2f32x (1.5707963267948966e+0f32x)
+# endif
+# ifndef M_PI_2f64
+#  define M_PI_2f64 (1.5707963267948966e+0f64)
+# endif
+# ifndef M_PI_2f64x
+#  define M_PI_2f64x (1.57079632679489661926e+0f64x)
 # endif
 # ifndef M_PI_2l
-#  define M_PI_2l (0x1.921fb54442d1846ap+0L)
+#  define M_PI_2l (1.57079632679489661926e+0L)
 # endif
 # ifndef M_PI_4f
-#  define M_PI_4f (0x1.921fb6p-1f)
+#  define M_PI_4f (7.85398185e-1f)
+# endif
+# ifndef M_PI_4f128
+#  define M_PI_4f128 (7.85398163397448309615660845819875699e-1f128)
+# endif
+# ifndef M_PI_4f32
+#  define M_PI_4f32 (7.85398185e-1f32)
+# endif
+# ifndef M_PI_4f32x
+#  define M_PI_4f32x (7.8539816339744828e-1f32x)
+# endif
+# ifndef M_PI_4f64
+#  define M_PI_4f64 (7.8539816339744828e-1f64)
+# endif
+# ifndef M_PI_4f64x
+#  define M_PI_4f64x (7.85398163397448309628e-1f64x)
 # endif
 # ifndef M_PI_4l
-#  define M_PI_4l (0x1.921fb54442d1846ap-1L)
+#  define M_PI_4l (7.85398163397448309628e-1L)
 # endif
 # ifndef M_PIf
-#  define M_PIf (0x1.921fb6p+1f)
+#  define M_PIf (3.14159274e+0f)
+# endif
+# ifndef M_PIf128
+#  define M_PIf128 (3.1415926535897932384626433832795028e+0f128)
+# endif
+# ifndef M_PIf32
+#  define M_PIf32 (3.14159274e+0f32)
+# endif
+# ifndef M_PIf32x
+#  define M_PIf32x (3.1415926535897931e+0f32x)
+# endif
+# ifndef M_PIf64
+#  define M_PIf64 (3.1415926535897931e+0f64)
+# endif
+# ifndef M_PIf64x
+#  define M_PIf64x (3.14159265358979323851e+0f64x)
 # endif
 # ifndef M_PIl
-#  define M_PIl (0x1.921fb54442d1846ap+1L)
+#  define M_PIl (3.14159265358979323851e+0L)
 # endif
 # ifndef M_SQRT1_2f
-#  define M_SQRT1_2f (0x1.6a09e6p-1f)
+#  define M_SQRT1_2f (7.07106769e-1f)
+# endif
+# ifndef M_SQRT1_2f128
+#  define M_SQRT1_2f128 (7.07106781186547524400844362104848992e-1f128)
+# endif
+# ifndef M_SQRT1_2f32
+#  define M_SQRT1_2f32 (7.07106769e-1f32)
+# endif
+# ifndef M_SQRT1_2f32x
+#  define M_SQRT1_2f32x (7.0710678118654757e-1f32x)
+# endif
+# ifndef M_SQRT1_2f64
+#  define M_SQRT1_2f64 (7.0710678118654757e-1f64)
+# endif
+# ifndef M_SQRT1_2f64x
+#  define M_SQRT1_2f64x (7.07106781186547524382e-1f64x)
 # endif
 # ifndef M_SQRT1_2l
-#  define M_SQRT1_2l (0x1.6a09e667f3bcc908p-1L)
+#  define M_SQRT1_2l (7.07106781186547524382e-1L)
 # endif
 # ifndef M_SQRT2f
-#  define M_SQRT2f (0x1.6a09e6p+0f)
+#  define M_SQRT2f (1.41421354e+0f)
+# endif
+# ifndef M_SQRT2f128
+#  define M_SQRT2f128 (1.41421356237309504880168872420969798e+0f128)
+# endif
+# ifndef M_SQRT2f32
+#  define M_SQRT2f32 (1.41421354e+0f32)
+# endif
+# ifndef M_SQRT2f32x
+#  define M_SQRT2f32x (1.4142135623730951e+0f32x)
+# endif
+# ifndef M_SQRT2f64
+#  define M_SQRT2f64 (1.4142135623730951e+0f64)
+# endif
+# ifndef M_SQRT2f64x
+#  define M_SQRT2f64x (1.41421356237309504876e+0f64x)
 # endif
 # ifndef M_SQRT2l
-#  define M_SQRT2l (0x1.6a09e667f3bcc908p+0L)
+#  define M_SQRT2l (1.41421356237309504876e+0L)
 # endif
 # ifndef SNAN
-#  define SNAN (__builtin_nan (""))
+#  define SNAN (__builtin_nans (""))
 # endif
 # ifndef SNANF
-#  define SNANF (__builtin_nanf (""))
+#  define SNANF (__builtin_nansf (""))
+# endif
+# ifndef SNANF128
+#  define SNANF128 (__builtin_nansf128 (""))
+# endif
+# ifndef SNANF32
+#  define SNANF32 (__builtin_nansf32 (""))
+# endif
+# ifndef SNANF32X
+#  define SNANF32X (__builtin_nansf32x (""))
+# endif
+# ifndef SNANF64
+#  define SNANF64 (__builtin_nansf64 (""))
+# endif
+# ifndef SNANF64X
+#  define SNANF64X (__builtin_nansf64x (""))
 # endif
 # ifndef SNANL
-#  define SNANL (__builtin_nanl (""))
+#  define SNANL (__builtin_nansl (""))
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
@@ -3534,48 +3744,48 @@ enum { FP_INT_UPWARD = 0 };
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400
 # ifndef M_1_PI
-#  define M_1_PI (0x1.45f306dc9c883p-2)
+#  define M_1_PI (3.1830988618379069e-1)
 # endif
 # ifndef M_2_PI
-#  define M_2_PI (0x1.45f306dc9c883p-1)
+#  define M_2_PI (6.3661977236758138e-1)
 # endif
 # ifndef M_2_SQRTPI
-#  define M_2_SQRTPI (0x1.20dd750429b6dp+0)
+#  define M_2_SQRTPI (1.1283791670955126e+0)
 # endif
 # ifndef M_E
-#  define M_E (0x1.5bf0a8b145769p+1)
+#  define M_E (2.7182818284590451e+0)
 # endif
 # ifndef M_LN10
-#  define M_LN10 (0x1.26bb1bbb55516p+1)
+#  define M_LN10 (2.3025850929940459e+0)
 # endif
 # ifndef M_LN2
-#  define M_LN2 (0x1.62e42fefa39efp-1)
+#  define M_LN2 (6.9314718055994529e-1)
 # endif
 # ifndef M_LOG10E
-#  define M_LOG10E (0x1.bcb7b1526e50ep-2)
+#  define M_LOG10E (4.3429448190325182e-1)
 # endif
 # ifndef M_LOG2E
-#  define M_LOG2E (0x1.71547652b82fep+0)
+#  define M_LOG2E (1.4426950408889634e+0)
 # endif
 # ifndef M_PI
-#  define M_PI (0x1.921fb54442d18p+1)
+#  define M_PI (3.1415926535897931e+0)
 # endif
 # ifndef M_PI_2
-#  define M_PI_2 (0x1.921fb54442d18p+0)
+#  define M_PI_2 (1.5707963267948966e+0)
 # endif
 # ifndef M_PI_4
-#  define M_PI_4 (0x1.921fb54442d18p-1)
+#  define M_PI_4 (7.8539816339744828e-1)
 # endif
 # ifndef M_SQRT1_2
-#  define M_SQRT1_2 (0x1.6a09e667f3bcdp-1)
+#  define M_SQRT1_2 (7.0710678118654757e-1)
 # endif
 # ifndef M_SQRT2
-#  define M_SQRT2 (0x1.6a09e667f3bcdp+0)
+#  define M_SQRT2 (1.4142135623730951e+0)
 # endif
 #endif
 #if __NIJI_XSI >= 400
 # ifndef MAXFLOAT
-#  define MAXFLOAT (0x1.fffffep+127f)
+#  define MAXFLOAT (3.40282347e+38f)
 # endif
 #endif
 

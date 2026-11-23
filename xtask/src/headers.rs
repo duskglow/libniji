@@ -918,6 +918,33 @@ mod tests {
         assert!(literal("double", "1.0").is_err());
     }
 
+    // C11 5.2.4.2.2 (*_DECIMAL_DIG), C99 6.4.4.2 and C++17 [lex.fcon]: a floating value is spelled in decimal, which
+    // every language mode lexes, rounded half to even to the digits that carry the type's values exactly. Expected
+    // strings from an independent exact-decimal computation (Python's decimal module), not from this code.
+    #[test]
+    fn floating_literals_are_decimal_and_exact() {
+        for (hex, n, want) in [
+            ("0x1.921fb54442d18p+1", 17, "3.1415926535897931e+0"),
+            ("0x1p-126", 9, "1.17549435e-38"),
+            ("0x1.fffffffffffffp+1023", 17, "1.7976931348623157e+308"),
+            ("0x1.fffffep+127", 9, "3.40282347e+38"),
+            ("0x1.921fb54442d1846ap+1", 21, "3.14159265358979323851e+0"),
+            ("0x1.921fb54442d18469898cc51701b8p+1", 36, "3.1415926535897932384626433832795028e+0"),
+            ("0x1.8p+0", 1, "2.0e+0"),
+            ("0x1.4p+1", 1, "2.0e+0"),
+            ("0x1.3ep+3", 1, "1.0e+1"),
+            ("0x1.3ep+3", 2, "9.9e+0"),
+            ("-0x1.8p-3", 5, "-1.875e-1"),
+            ("0x1p-1022", 17, "2.2250738585072014e-308"),
+        ] {
+            assert_eq!(super::values::decimal(hex, n).unwrap(), want, "{hex} to {n} digits");
+        }
+        assert_eq!(literal("float", "0x1.fffffep+127").unwrap(), "(3.40282347e+38f)");
+        assert_eq!(literal("_Float128", "0x1.921fb54442d18469898cc51701b8p+1").unwrap(), "(3.1415926535897932384626433832795028e+0f128)");
+        assert_eq!(literal("_Float32x", "0x1p-1022").unwrap(), "(2.2250738585072014e-308f32x)");
+        assert!(literal("_Float64", "1.5").is_err());
+    }
+
     // no spec clause: owner rulings R-H2, R-H3 (reserved names stay out unless listed).
     #[test]
     fn stage_tree_copies_and_refuses_a_path_from_two_trees() {
