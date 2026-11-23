@@ -51,9 +51,10 @@ niji_machine_clone_thread:
 	movl $56, %eax			/* SYS_clone: flags, newsp, parent_tid, child_tid, tls */
 	syscall
 	testq %rax, %rax
-	jz 1f
+	jz .Lthread_child
 	ret
-1:	xorl %ebp, %ebp
+.Lthread_child:
+	xorl %ebp, %ebp
 	popq %rax			/* entry */
 	popq %rdi			/* arg */
 	callq *%rax
@@ -63,6 +64,22 @@ niji_machine_clone_thread:
 	hlt
 	.size niji_machine_clone_thread, .-niji_machine_clone_thread
 	.size niji_machine_clone_raw, .-niji_machine_clone_raw
+
+/* long niji_machine_clone3_thread(const void *args, long size)
+ * clone3(2) for a thread while the caller's shadow stack is on (D-22.29): `args` gives the stack
+ * as its low end and its size, so the kernel sizes the new thread's shadow stack from the thread's
+ * stack rather than from RLIMIT_STACK. The child starts at `stack + stack_size`, the top holding
+ * the two words of niji_machine_clone_thread, and continues as that child does. */
+	.globl niji_machine_clone3_thread
+	.hidden niji_machine_clone3_thread
+	.type niji_machine_clone3_thread, @function
+niji_machine_clone3_thread:
+	movl $435, %eax			/* SYS_clone3: args in rdi, size in rsi */
+	syscall
+	testq %rax, %rax
+	jz .Lthread_child
+	ret
+	.size niji_machine_clone3_thread, .-niji_machine_clone3_thread
 
 /* long niji_machine_syscall_cancel(const uint32_t *word, long nr, long a, long b, long c,
  *                                    long d, long e, long f)

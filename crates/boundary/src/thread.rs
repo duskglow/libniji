@@ -19,7 +19,7 @@ use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, AtomicUsize, Ordering:
 use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{
-    SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
+    CloneArgs, SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
     CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
 };
 use niji_rt::futex::{self, Clock, Scope};
@@ -1212,7 +1212,11 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         link_locked(d);
     }
     LIVE.fetch_add(1, AcqRel);
-    let r = ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp);
+    let r = if ffi::niji_machine_ssp() == 0 {
+        ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp)
+    } else {
+        clone3_thread(sp, lo, &b.tid, tp)
+    };
     // The creator's own mask again (unchanged if blocking failed).
     if let Ok(old) = blocked {
         let _ = CSys.sigprocmask(SIG_SETMASK, Some(&old));
@@ -1243,6 +1247,31 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         }
     }
     Ok(tp)
+}
+
+/// The thread's `clone` while the creator's shadow stack is on (D-22.29): `clone3` with the stack
+/// as `lo` and `sp - lo`, so the kernel gives the new thread a shadow stack the size of its stack
+/// rather than of RLIMIT_STACK (the size `clone` without a size gets). Where `clone3` is refused
+/// (`ENOSYS`), the plain `clone`.
+#[cold]
+#[inline(never)]
+#[allow(clippy::as_conversions)] // addresses and sizes into the kernel's u64 fields (x86-64: lossless)
+fn clone3_thread(sp: usize, lo: usize, tid: &AtomicU32, tp: usize) -> i64 {
+    let word = core::ptr::from_ref(tid).expose_provenance() as u64;
+    let args = CloneArgs {
+        flags: CLONE_FLAGS,
+        parent_tid: word,
+        child_tid: word,
+        stack: lo as u64,
+        stack_size: sp.saturating_sub(lo) as u64,
+        tls: tp as u64,
+        ..CloneArgs::default()
+    };
+    let r = ffi::niji_machine_clone3_thread(core::ptr::from_ref(&args).cast(), size_of::<CloneArgs>() as i64);
+    if matches!(Errno::decode(r), Err(Errno::ENOSYS)) {
+        return ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, tid, tid, tp);
+    }
+    r
 }
 
 /// The address of [`entry`].

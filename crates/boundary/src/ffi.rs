@@ -469,6 +469,12 @@ unsafe extern "C" {
     /// them); `tls` is the new thread's block, set up for it; `ptid` and `ctid` are its TID
     /// word, which outlives the thread (the mapping is reused only once the kernel cleared it).
     pub(crate) safe fn niji_machine_clone_thread(flags: u64, stack: usize, ptid: &core::sync::atomic::AtomicU32, ctid: &core::sync::atomic::AtomicU32, tls: usize) -> i64;
+    /// `clone3(2)` for a thread (machine/thread_start.S, D-22.29): the same child as
+    /// `niji_machine_clone_thread`, the stack given as low end and size. Proof obligation
+    /// (`crate::thread::clone3_thread`): `args` is a `clone3` argument block of `size` bytes whose
+    /// `stack + stack_size` is the 16-aligned top `niji_machine_clone_thread` would get, with the
+    /// same flags, TID word and thread block.
+    pub(crate) safe fn niji_machine_clone3_thread(args: *const c_void, size: i64) -> i64;
     /// `clone(2)` for `clone(3)` (the same code as `niji_machine_clone_thread`). Proof
     /// obligation: `stack` holds the function and argument words (`crate::fork::clone` wrote
     /// them) in the C caller's stack; `ptid`, `ctid` and `tls` are the C caller's values, which
