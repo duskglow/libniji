@@ -5371,6 +5371,15 @@ decided differently from the reference; each has a row in `docs/differences-from
   `--replace`; a missing DIR is `stat of "DIR" failed: ...: ignored`, exit 0. `--delete-from-archive NAME...`
   removes exact names; a name not stored is `locale "NAME" not in archive`, exit 0. `--no-archive` writes the
   directory `<prefix>/usr/lib/locale/NAME` with NAME's codeset normalized (probe `localedef-archive`).
+* A string of a category other than `LC_CTYPE` and `LC_COLLATE` with a character the charmap lacks takes, for
+  that character, the locale's `LC_CTYPE` transliteration (`translit_start` ... `translit_end`, wherever the
+  category stands in the source): the entry of the locale's own (the later of two for one character), else of its
+  `include`s in order (the first that has one), an included file resolved the same way; of that entry's
+  alternatives, the first that is not empty and that the charmap encodes whole. An alternative is not
+  transliterated again, `default_missing` is not used, and nothing applies without such an entry. A string
+  with a character neither encoded nor so transliterated is written empty, whole, with `<file>:<line>:
+  <CATEGORY>: unknown character in field `<keyword>'` (one line per string, also under `--quiet`) and exit 1,
+  output written without `-c` (probe `localedef-translit`).
 
 **Failure.**
 
@@ -6876,12 +6885,17 @@ both forms.
 * **Directory form:** `<dir>/<name>/LC_CTYPE`, `LC_NUMERIC`, `LC_TIME`, `LC_COLLATE`,
   `LC_MONETARY`, `LC_PAPER`, `LC_NAME`, `LC_ADDRESS`, `LC_TELEPHONE`, `LC_MEASUREMENT`,
   `LC_IDENTIFICATION`, and `LC_MESSAGES/SYS_LC_MESSAGES`. `<dir>` is each directory of
-  `LOCPATH` (colon-separated, ignored in secure mode), or `/usr/lib/locale` when `LOCPATH` is
-  unset.
-* **Archive form:** `/usr/lib/locale/locale-archive` (D.1.6). The reference system used for
-  this inspection has no archive, so the precedence between archive and directories could not
-  be observed; libniji consults the archive only when `LOCPATH` is unset, and then before
-  `/usr/lib/locale` directories (implementation-plan.md D-7.7).
+  `LOCPATH` (colon-separated, ignored in secure mode), then `/usr/lib/locale`, which is
+  searched whether or not `LOCPATH` is set.
+* **Archive form:** `/usr/lib/locale/locale-archive` (D.1.6), consulted only when `LOCPATH` is
+  unset, and then first, under the name's archive form only (the codeset normalized, every
+  component kept: `en_US.UTF-8@zz` does not find an archived `en_US.utf8`). Observed on the
+  reference (D-7.21, 2026-11-23).
+* **Order** (observed, D-7.21): each candidate (below) is tried in every directory before the
+  next candidate. The first place that holds a category's file decides that category: when its
+  codeset is not the requested one, the category is not found and no later candidate is tried
+  (`de_DE.UTF-8@euro` is not found where `de_DE@euro` is installed in ISO-8859-15, even with
+  `de_DE.utf8` installed). A directory without the category's file is passed over.
 
 **Name resolution** (observed). A name has the form
 `language[_territory][.codeset][@modifier]`.
@@ -6902,7 +6916,7 @@ both forms.
   `kk_KK.UTF-8` to `kk_KK.utf8`. `aa_AA` does not find `aa_AA.utf8`, and `cc_CC.utf8` does not
   find `cc_CC.UTF-8`.
 * When the name carries a codeset, the found locale's own codeset (`LC_CTYPE` item
-  `CODESET`), normalized, must equal it; otherwise the candidate is rejected.
+  `CODESET`), normalized, must equal it; otherwise the category is not found (Order, above).
 * The name `setlocale` reports is the name as requested, even when a less specific candidate
   supplied the data.
 * Names containing `/` are rejected.

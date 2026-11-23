@@ -579,6 +579,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         put(&mut o.err, &[e.what.as_bytes(), b"\n"])?;
         o.status = 1;
     }
+    // A value written empty because a character is neither in the charmap nor transliterable
+    // (probed, LOCALEDEF-TRANSLIT): one line per value, also under --quiet; a warning (status 1,
+    // the locale written without -c).
+    for (no, n, kw) in out.unknown.iter() {
+        put(&mut o.err, &[shown, b":", decimal(*no, &mut line), b": ", NAMES.get(*n).copied().unwrap_or_default(), b": unknown character in field `", kw, b"'\n"])?;
+        o.status = 1;
+    }
     let category_errors = out.errors.len() > out.outside;
     let host = inputs.host;
     for (n, defined) in out.defined.iter().enumerate() {

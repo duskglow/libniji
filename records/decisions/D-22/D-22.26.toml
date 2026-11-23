@@ -1,0 +1,11 @@
+id = "D-22.26"
+section = "s22"
+spec = "§22.1, §22.4, §22.7"
+ann = "ARB, COMPAT"
+status = "active"
+story = "TIMED-WAIT-EDGE-ORDER-2"
+date = "2026-11-23"
+tests = ["crates/rt/tests/pthread_sync.rs::an_invalid_deadline_is_an_error_only_when_the_mutex_would_block", "conformance/c/s22_past_deadline.c"]
+body = '''
+**An invalid tv_nsec in a timed wait is an error only when the call would block** (coordinator ruling on #7554, by POSIX: the timed lock and wait functions "shall fail" with EINVAL for a tv_nsec outside 0..999999999 when the call would block, and the timeout "need not be checked" when the object can be taken at once). - Mutexes (`pthread_mutex_timedlock`/`clocklock`, `mtx_timedlock`), every kind: a free mutex, an owner-died robust one included, is taken through the kind's own try path without a look at the deadline; a held one gives EINVAL (C11: `thrd_error`) whatever tv_sec. `pthread_timedjoin_np`/`clockjoin_np`: a thread that has ended is joined; one that still runs gives EINVAL. A PI mutex's kernel try-lock reports a lock held by another thread as EAGAIN; libniji reports EBUSY. - Semaphores (`sem_timedwait`/`clockwait`) and read-write locks: EINVAL even when the object could be taken (POSIX allows the check there), as the reference does (black-box probe 2026-11-23); the semaphore keeps its value. - Difference (row in `docs/differences-from-glibc.md`, COMPAT-42 registered): a held mutex or a running thread with an invalid tv_nsec beside a negative tv_sec gives EINVAL, where the reference decides the past deadline first and reports ETIMEDOUT (`thrd_timedout`). Reason: POSIX's "shall fail" for a call that would block. Probe (`conformance/c/s22_past_deadline.c --probe`, reference glibc 2.39 vs libniji, Skylake-SP host): of the 46 cells with an invalid tv_nsec beside a negative tv_sec that differed, 22 now equal the reference (robust and PI mutexes free: 0; semaphores free: EINVAL; joins of an ended thread: 0) and 24 are the ruled EINVAL case above (plain mutex kinds and `mtx_timedlock` held, joins of a running thread).
+'''

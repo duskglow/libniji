@@ -452,7 +452,18 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
+/// `__niji_thread_db` is read by no part of libniji: a debugger's `libthread_db.so.1` finds it by
+/// name (spec §22.10, D-22.17).
+const LIBC_PRIVATE: &[&str] = &[
+    "__niji_build_tag",
+    "__niji_libc_early_init",
+    "__niji_owner_unload",
+    "__niji_resolv_block",
+    "__niji_resolv_pfcode",
+    "__niji_stack_exec",
+    "__niji_thread_db",
+    "__niji_thread_walk",
+];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources ([`tag_covers`]: `Cargo.lock`, `csys/`, `include/`, the product workspace's
@@ -2249,6 +2260,16 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
     let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
     println!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)");
+    // LOCALE-SOURCES-GEN (D-31.27): the locale sources generated from Unicode CLDR, which
+    // `locales` ships in /usr/share/i18n/locales. Written afresh, so a name the generator no
+    // longer writes leaves no stale product behind.
+    let sources = release.join("locale-sources");
+    match std::fs::remove_dir_all(&sources) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", sources.display())),
+        _ => {}
+    }
+    let n = crate::locales::write(root, &sources)?;
+    println!("so: target/niji/locale-sources ({n} locale sources from Unicode CLDR {})", crate::locales::CLDR);
     check_placement(root, &release)?;
     phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
@@ -2644,21 +2665,34 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
         let f = format!("ldso.{m}.names");
         let want = fs::read_to_string(own.join(&f)).map_err(|e| format!("{}: {e} (products built without their trace? run `cargo xtask so`)", own.join(&f).display()))?;
         let got = fs::read_to_string(lists.join(&f)).map_err(|e| format!("{}: {e}", lists.join(&f).display()))?;
-        if got != want {
-            let (w, g): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
-            let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
-            return Err(format!(
-                "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
-                g.len(),
-                w.len(),
-                at + 1,
-                g.get(at),
-                w.get(at)
-            ));
+        if let Some(e) = trace_difference(m, prefix, &want, &got) {
+            return Err(e);
         }
         println!("ldso-trace: prefix {prefix}: {m}: {} names, the same as the products' own trace", got.lines().count());
     }
     Ok(())
+}
+
+/// LDSO-TRACE-PREFIX: why the `m` trace `got` of the interpreter compiled with `prefix` is not the products' own
+/// `want`, or `None` when both run the same functions in the same order. Names are compared without ThinLTO's
+/// `.llvm.<n>` suffix: `<n>` is a hash of the contents of the module the promoted function came from, and the prefix
+/// is compiled into niji_ld, so a niji_ld function that ThinLTO promotes carries another suffix in each flavour
+/// (`Object::lookup_in`, D-27.91). The hot list drops that suffix too ([`crate::hottext::key`]); every other byte of
+/// a name must match, and a difference is reported with the names as traced.
+fn trace_difference(m: &str, prefix: &str, want: &str, got: &str) -> Option<String> {
+    let (w, g): (Vec<String>, Vec<String>) = (want.lines().map(crate::hottext::strip_llvm).collect(), got.lines().map(crate::hottext::strip_llvm).collect());
+    if g == w {
+        return None;
+    }
+    let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
+    Some(format!(
+        "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
+        g.len(),
+        w.len(),
+        at + 1,
+        got.lines().nth(at),
+        want.lines().nth(at)
+    ))
 }
 
 /// ICONV-CJK-STARTUP-2: `Ok` when the C library at `libc` carries the build tag `tag` (`TAG_PREFIX` then the tag,
@@ -4341,6 +4375,24 @@ mod tests {
         }
         assert_eq!(ldso_config_paths("/"), ["/etc/ld.so.preload", "/etc/ld.so.cache"]);
         assert_eq!(ldso_config_paths("/usr/lib/niji/"), ["/usr/lib/niji/etc/ld.so.preload", "/usr/lib/niji/etc/ld.so.cache"]);
+    }
+
+    /// No spec clause (product build tooling, LDSO-TRACE-PREFIX): the prefixed trace matches the products' own when
+    /// both run the same functions in the same order, whatever ThinLTO's `.llvm.<n>` suffix on a promoted function
+    /// (a hash of its module, which the compiled-in prefix changes). Another function, another order, a missing
+    /// name, another crate disambiguator or a `.llvm.` without digits is a difference, reported as traced.
+    #[test]
+    fn ldso_trace_compares_functions_not_thinlto_suffixes() {
+        let f = |name: &str| format!("_start\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9{name}\nexit\n");
+        let own = f("lookup_in.llvm.18142375468484170381");
+        assert_eq!(trace_difference("true", "/usr/lib/niji", &own, &f("lookup_in.llvm.2663032009440432103")), None);
+        let e = trace_difference("true", "/usr/lib/niji", &own, &f("lookup_at.llvm.2663032009440432103")).unwrap();
+        assert!(e.contains("first difference at line 2") && e.contains("lookup_at.llvm.2663032009440432103"), "{e}");
+        let swapped = "_start\nexit\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9lookup_in.llvm.1\n";
+        assert!(trace_difference("true", "/p", &own, swapped).is_some(), "another order");
+        assert!(trace_difference("true", "/p", &own, "_start\n").is_some(), "missing names");
+        assert!(trace_difference("true", "/p", &own, &own.replace("Cs6LFamp2kJN_", "Cs7LFamp2kJN_")).is_some(), "another crate");
+        assert!(trace_difference("true", "/p", "f.llvm.x\n", "f.llvm.y\n").is_some(), "a `.llvm.` without digits is part of the name");
     }
 
     /// No spec clause (product build tooling, XTASK-SO-NOCHANGE-PROFILE): the product builds that share a cargo target

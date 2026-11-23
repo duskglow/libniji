@@ -8,6 +8,8 @@
  *     rejects the deadline; the reference reports the same).
  *   - Uncontended (a free lock, a semaphore of 1, a thread that has ended): the call succeeds;
  *     a past deadline is no error when the call need not wait.
+ *   - An invalid tv_nsec beside a negative tv_sec, uncontended (D-22.26): a mutex of any kind, a
+ *     C11 mutex and an ended thread are taken; a semaphore or read-write lock reports EINVAL.
  * Every cell was settled by a black-box probe of the reference library (2026-11-22; run with
  * --probe, it prints the whole matrix, invalid tv_nsec beside a negative tv_sec included), and
  * this program passes against it. Failing cells are listed on stderr; the exit status is their
@@ -86,7 +88,9 @@ static const struct timespec deadlines[] = {
 static const char *const deadline_name[] = {
     "{-1, 0}", "{LONG_MIN, 0}", "{1, 0}", "{-1, 999999999}", "{0, 0}", "{-1, 1000000000}", "{-1, -1}",
 };
-enum { NDL = sizeof deadlines / sizeof deadlines[0], NDL_CHECK = 3 };
+/* Checked: the first NDL_CHECK deadlines (valid), and the invalid ones from DL_BAD on when the
+ * object is free. */
+enum { NDL = sizeof deadlines / sizeof deadlines[0], NDL_CHECK = 3, DL_BAD = 5 };
 
 /* Child exit codes: an errno value (0 = success), or one of these. */
 enum { C11_BASE = 200, SETUP = 250, BLOCKS = 251, NOT_RUN = 252, SKIP = 253 };
@@ -151,9 +155,20 @@ static int join_call(pthread_t th, const struct op *o, const struct timespec *t)
 }
 
 /* The other thread: take the object (or just run, for a join), report, hold until released. */
+/* A priority-protected mutex: one lock attempt (released if taken) before the measured call, in
+ * each thread that locks it. The reference refuses a thread's first lock of such a mutex
+ * (EINVAL, probe 2026-11-23) and takes it afterwards; that case is a documented difference
+ * (D-22.27), not what this program measures. */
+static void pp_settle(const struct op *o)
+{
+    if (o->kind == MUTEX && o->attr == A_PP && pthread_mutex_lock(&mu) == 0)
+        pthread_mutex_unlock(&mu);
+}
+
 static void *holder(void *p)
 {
     const struct op *o = p;
+    pp_settle(o);
     switch (o->kind) {
     case MUTEX: hold_result = pthread_mutex_lock(&mu); break;
     case MTX: hold_result = mtx_lock(&mx) == thrd_success ? 0 : SETUP; break;
@@ -215,6 +230,7 @@ static int call(const struct op *o, const struct timespec *t, int contended)
     case MUTEX:
         if (mutex_setup(o->attr) != 0)
             return SETUP;
+        pp_settle(o);
         if (contended && start_holder(&th, o) != 0)
             return SETUP;
         r = mutex_call(o, t);
@@ -308,8 +324,10 @@ static int call(const struct op *o, const struct timespec *t, int contended)
         }
         if (pthread_create(&th, NULL, quick, NULL) != 0)
             return SETUP;
-        /* The thread ends at once; until it has, the call may report it running. */
-        while ((r = join_call(th, o, t)) == ETIMEDOUT)
+        /* The thread ends at once; until it has, the call may report it running (ETIMEDOUT,
+         * or EINVAL for an invalid tv_nsec: libniji checks it while the thread runs, D-22.26).
+         * Once it has ended, the join succeeds whatever the deadline. */
+        while ((r = join_call(th, o, t)) == ETIMEDOUT || (r == EINVAL && (t->tv_nsec < 0 || t->tv_nsec >= 1000000000)))
             sched_yield();
         if (r != 0)
             pthread_join(th, NULL);
@@ -339,6 +357,14 @@ static const char *code_name(int c, char *buf, size_t n)
 static int expected(const struct op *o, int contended, const struct timespec *t)
 {
     int c11k = o->kind == MTX || o->kind == CND;
+    /* An invalid tv_nsec, the object free: a mutex, C11 mutex or ended thread is taken without
+     * a look at the deadline; a semaphore or read-write lock reports EINVAL (both allowed by
+     * POSIX: the deadline "need not be checked" when the call would not block). */
+    if (t->tv_nsec < 0 || t->tv_nsec >= 1000000000) {
+        if (o->kind == SEM || o->kind == RWRD || o->kind == RWWR)
+            return EINVAL;
+        return c11k ? C11_BASE + thrd_success : 0;
+    }
     /* A priority-inheritance mutex hands the deadline to the kernel's lock call, which rejects
      * a negative tv_sec: EINVAL, as the reference reports it. */
     if (o->kind == MUTEX && o->attr == A_PI && contended && t->tv_sec < 0)
@@ -361,16 +387,15 @@ int main(int argc, char **argv)
     static pid_t pids[MAXCELLS];
     int n = 0;
     for (int o = 0; o < NOPS; o++)
-        for (int d = 0; d < (probe ? NDL : NDL_CHECK); d++)
+        for (int d = 0; d < NDL; d++)
             for (int k = 1; k >= 0; k--) {
-                /* Checked: every deadline contended; the uncontended success with {-1, 0}. */
-                if (!probe && !k && d != 0)
+                /* Checked: every valid deadline contended; the uncontended success with
+                 * {-1, 0}; the invalid tv_nsec beside a negative tv_sec uncontended. (Held, an
+                 * invalid tv_nsec is EINVAL from libniji whatever tv_sec, D-22.26, where the
+                 * reference decides some past deadlines first; crates/rt tests cover it.) */
+                if (!probe && !(d < NDL_CHECK ? k || d == 0 : !k && d >= DL_BAD && deadlines[d].tv_sec < 0))
                     continue;
                 if (!k && (ops[o].kind == COND || ops[o].kind == CND || ops[o].kind == RWWR_SELF))
-                    continue;
-                /* Probe only: an unprivileged caller cannot take a priority-protected mutex
-                 * from the reference (EINVAL even when free), so nothing is compared there. */
-                if (!probe && ops[o].attr == A_PP)
                     continue;
                 cells[n++] = (struct cell){o, d, k, NOT_RUN};
             }

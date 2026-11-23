@@ -426,6 +426,11 @@ int main(void)
     int oldc;
     if (pthread_mutex_getprioceiling(&pm, &pc) != 0 || pc != 10 || pthread_mutex_setprioceiling(&pm, 20, &oldc) != 0 || oldc != 10)
         return 29;
+    /* A ceiling outside SCHED_FIFO's range is EINVAL and leaves the ceiling (D-22.27). */
+    if (pthread_mutex_setprioceiling(&pm, sched_get_priority_min(SCHED_FIFO) - 1, &oldc) != EINVAL ||
+        pthread_mutex_setprioceiling(&pm, sched_get_priority_max(SCHED_FIFO) + 1, &oldc) != EINVAL ||
+        pthread_mutex_getprioceiling(&pm, &pc) != 0 || pc != 20)
+        return 29;
     if (pthread_mutex_lock(&pm) != 0 || pthread_mutex_unlock(&pm) != 0)
         return 30;
 

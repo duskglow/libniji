@@ -1,0 +1,11 @@
+id = "D-22.27"
+section = "s22"
+spec = "§22.4"
+ann = "ARB"
+status = "active"
+story = "TIMED-WAIT-EDGE-ORDER-2"
+date = "2026-11-23"
+tests = ["conformance/c/s22_past_deadline.c", "crates/rt/tests/pthread_sync.rs::an_invalid_deadline_is_an_error_only_when_the_mutex_would_block"]
+body = '''
+**A priority-protected mutex is locked by an unprivileged `SCHED_OTHER` thread on its first attempt** (#7555). POSIX lists one EINVAL for locking a `PTHREAD_PRIO_PROTECT` mutex: the calling thread's priority is higher than the mutex's ceiling. A `SCHED_OTHER` thread's priority (0) is never above a ceiling, which lies in `SCHED_FIFO`'s range (1..99), so libniji takes a free mutex. Black-box probe (2026-11-23, unprivileged, `RLIMIT_RTPRIO` 0, ceiling 1): the reference refuses a thread's first lock of such a mutex with EINVAL (main thread and a new thread alike, every lock form) and takes it on the next attempt; the result depends on the thread's earlier attempts, which POSIX does not allow for, so libniji does not follow it (row in `docs/differences-from-glibc.md`). No compatibility option: a program cannot use a refusal that a retry undoes, and restoring it would need per-thread history on the lock path. `conformance/c/s22_past_deadline.c` puts its 24 priority-protected cells back in the check, each locking thread making one attempt first so both libraries are compared on the deadline handling. Also `pthread_mutex_setprioceiling` now rejects a ceiling outside `SCHED_FIFO`'s range with EINVAL (POSIX: "out of range"; before, 0 and 100 were stored), the range `pthread_mutexattr_setprioceiling` already checked; the reference agrees (probe). Not changed (pre-existing, open): the ceiling of a fresh attribute, and of a PP mutex whose ceiling was never set, reads 0 in libniji and 1 (the `SCHED_FIFO` minimum) in the reference.
+'''

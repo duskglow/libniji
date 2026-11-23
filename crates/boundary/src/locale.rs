@@ -782,7 +782,7 @@ pub fn uselocale(loc: usize) -> usize {
     if prev == 0 { GLOBAL } else { prev }
 }
 
-/// The variables `setlocale(cat, "")` reads (`global_locale::setlocale`: `LC_ALL`, the
+/// The variables `setlocale(cat, "")` reads (`global_locale::global_setlocale_request`: `LC_ALL`, the
 /// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS). Their order is
 /// `gl::ENV_LC_ALL`'s numbering: `LC_ALL`, the categories in `Cat::ALL` order, `LANG`.
 const ENV_KEYS: [&[u8]; 14] = {
@@ -794,11 +794,11 @@ const ENV_KEYS: [&[u8]; 14] = {
 };
 
 /// `setlocale(category, name)`: the name (`'static`, NUL-terminated), or `None`.
-pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
+pub fn locale_set_name(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let cat = if category == 6 { None } else { Some(Cat::from_number(category)?) };
     // NO-ROW: a query changes nothing, so it skips the environment table and the change check.
     let Some(name) = name else {
-        return gl::setlocale(&CSys, &Glue, cat, gl::Request::Query);
+        return gl::global_setlocale_request(&CSys, &Glue, cat, gl::Request::Query);
     };
     // `""` is out of line (SETLOCALE-CTYPE-ENV): its lookups would otherwise set up a frame and
     // locals on every named call too (+7 per call on the "C" and "POSIX" rows when inline).
@@ -806,7 +806,7 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
         return setlocale_env(cat);
     }
     let before = gl::global_handle();
-    let r = gl::setlocale(&CSys, &Glue, cat, gl::Request::Name(name));
+    let r = gl::global_setlocale_request(&CSys, &Glue, cat, gl::Request::Name(name));
     // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
     if gl::global_handle() != before {
         publish_global();
@@ -995,7 +995,7 @@ fn lconv_words(l: &Locale) -> [usize; 12] {
 /// `setlocale` for C: the name's address, or 0.
 pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> usize {
     match name {
-        Ok(n) => setlocale(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
+        Ok(n) => locale_set_name(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
         Err(_) => 0,
     }
 }

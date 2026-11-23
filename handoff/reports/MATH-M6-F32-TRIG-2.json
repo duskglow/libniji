@@ -1,0 +1,18 @@
+{"task": "MATH-M6-F32-TRIG-2", "model": "opus", "tokens": null,
+ "result": "superseded: the float trig fast paths are already on next (INTEGRATE-MATH-4/-5, LIBM-F32-SINF-SHRINK-4, LIBM-SINF-IVB-RATCHET-4, LIBM-TINY-FASTPATHS-2); per-call counts vs glibc recorded, no code change",
+ "branch": "task/math-m6-f32-trig-2", "head": null,
+ "gate": {"affected": "not run (no library change; coordinator #8016: percall only)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["sinf/cosf/sincosf typical rows are 2.25-2.30x glibc in instructions on next 0495c4684; tanf is 0.90-1.00x; a separate performance story if wanted"],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit only: premise check and per-call measurement of the float trig rows; no behaviour change", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "sinf_typ per call on next (libniji; glibc 43.2)", "before": null, "after": 97.9, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "sincosf_typ per call on next (libniji; glibc 59.1)", "before": null, "after": 136.1, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "tanf_typ per call on next (libniji; glibc 106.5)", "before": null, "after": 105.9, "unit": "instr/call", "measured": true}
+ ],
+ "improvement": "the red-triage continuation was drafted for a story whose code had landed through other stories; checking 'symbols/feature already on next' before drafting a continuation would have saved this run",
+ "next_step": "none: the coordinator closes MATH-M6-F32-TRIG and -2 as superseded",
+ "report_file": "handoff/math-m6-f32-trig-2.md",
+ "jobs": ["shiki:math-m6-f32-trig-2-percall", "shiki:math-m6-f32-trig-2-lint"]}

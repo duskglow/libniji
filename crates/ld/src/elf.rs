@@ -123,6 +123,9 @@ pub mod dt {
     pub const FLAGS: u64 = 30;
     /// `DF_TEXTREL` in `DT_FLAGS` (gABI).
     pub const DF_TEXTREL: u64 = 4;
+    /// `DF_STATIC_TLS` in `DT_FLAGS` (gABI): the object uses the static TLS model (initial-exec), so
+    /// its block needs a place in every thread's static area.
+    pub const DF_STATIC_TLS: u64 = 0x10;
     /// Address of the PLT relocations.
     pub const JMPREL: u64 = 23;
     /// Library search path (string table offset).
@@ -2019,26 +2022,43 @@ impl<'a> GnuHash<'a> {
         GnuChain { h: *self, next: start, done: start == 0 }
     }
 
-    /// The symbols a lookup of the name hashing to `hash` must look at: nothing when the Bloom word
-    /// rejects the hash, else each entry of its chain whose hash matches (bit 0 aside), in order, given
-    /// to `f` until it answers true. The same entries and errors as testing the Bloom word, then
-    /// [`GnuHash::chain`] filtered by hash: a Bloom word past the table is
-    /// [`ElfError::BadHashHeader`], a chain word past the mapped bytes [`ElfError::HashIndex`]. One
-    /// loop over the chain's bytes, without the iterator's state (LD-LOOKUP-COST: every object ahead
-    /// of the definer in the scope pays this walk on every lookup).
+    /// The Bloom test of a lookup of the name hashing to `hash` ([`GnuHash::bloom`]), with its error.
+    /// A lookup in a GNU table looks at nothing when the Bloom word rejects the hash, else at each
+    /// entry of its chain whose hash matches (bit 0 aside), in order ([`GnuHash::chain_candidates`]:
+    /// the entries of [`GnuHash::chain`] filtered by hash). LD-LOOKUP-RETHINK split the two halves so
+    /// the scope walk tests the Bloom word before it enters an object (a rejected object then costs
+    /// no call) and the chain walk has one instance.
     ///
     /// # Errors
     ///
-    /// Those above, and the first error of `f`.
-    #[inline]
-    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+    /// [`ElfError::BadHashHeader`] for a Bloom word past the table.
+    #[inline(always)]
+    pub(crate) fn bloom_checked(&self, hash: u32) -> Result<bool, ElfError> {
+        self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash))
+    }
+
+    /// The Bloom test of a lookup of the name hashing to `hash`: `Some(false)` when the Bloom word
+    /// rejects the hash (no symbol of the table has it), `Some(true)` when it passes, `None` when the
+    /// word cannot be read (a header past the table: [`GnuHash::bloom_checked`]'s error).
+    #[inline(always)]
+    #[must_use]
+    pub(crate) fn bloom(&self, hash: u32) -> Option<bool> {
         let wi = usize::try_from(hash.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(self.bloom_size())).unwrap_or(0);
-        let word = self.bloom_word(wi).ok_or(ElfError::BadHashHeader(Table::GnuHash))?;
+        let word = self.bloom_word(wi)?;
         let second = u64::from(hash).checked_shr(self.bloom_shift).unwrap_or(0) & 63;
         let mask = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
-        if word & mask != mask {
-            return Ok(());
-        }
+        Some(word & mask == mask)
+    }
+
+    /// The chain walk after a [`GnuHash::bloom`] test that passed: the chain's entries whose hash
+    /// matches, in order, given to `f` until it answers true. One loop over the chain's bytes,
+    /// without the iterator's state (LD-LOOKUP-COST).
+    ///
+    /// # Errors
+    ///
+    /// A chain word past the mapped bytes ([`ElfError::HashIndex`]), and the first error of `f`.
+    #[inline]
+    pub(crate) fn chain_candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
         let mut sym = hash.checked_rem(self.nbuckets).and_then(|b| self.bucket(b)).unwrap_or(0);
         if sym == 0 {
             return Ok(());

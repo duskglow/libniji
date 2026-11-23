@@ -17,6 +17,10 @@ loader `<pid>` prefixes and addresses as `<hex>`. The probe prints `AT_SECURE`, 
 effective IDs match, the loaded objects other than the vDSO, the loader and libc (from
 `dl_iterate_phdr`), and its whole environment; test libraries write `ctor <name>` to stderr when
 loaded, the audit module writes `audit la_version`.
+Rechecked 2026-11-23 (REF-DEVTOOLS-RECHECK) on a Skylake-SP host (`libc6` and `libc-bin`
+2.39-0ubuntu8.9, `libc-devtools` 2.39-0ubuntu8.12, kernel 6.8.0-149-generic): every case is
+identical to the record; only the header's kernel release differs (`-149` for `-146`). The probe
+runs no `libc-devtools` program (`MALLOC_TRACE` is only one of the variables passed).
 
 ## How secure mode is made without root (R14-18: confirmed)
 

@@ -84,6 +84,27 @@ fn tables_are_sorted_well_formed_and_name_built_products() {
     assert!(out.starts_with("manifest: OK"), "manifest lint printed: {out}");
 }
 
+#[test]
+fn a_package_that_ships_programs_lists_them_in_its_description() {
+    // no spec clause (packaging; PKG-COEXIST-SERIAL): a description naming programs by hand went stale
+    // (libc-bin shipped locale and localedef while its text said otherwise); `$programs` is filled from
+    // the manifest's usr/bin and usr/sbin file rows, so it cannot.
+    let manifest = std::fs::read_to_string(root().join("tools/deb/manifest.tsv")).unwrap();
+    let mut with_programs = std::collections::BTreeSet::new();
+    for line in manifest.lines().filter(|l| !l.starts_with('#')) {
+        let f: Vec<&str> = line.split('\t').collect();
+        // The system flavour's packages (niji6-dev's description is prose about its two wrappers).
+        if f.len() >= 4 && f[0] == "system" && f[3] == "file" && (f[2].starts_with("usr/bin/") || f[2].starts_with("usr/sbin/")) {
+            with_programs.insert(f[1].to_string());
+        }
+    }
+    assert!(with_programs.contains("libc-bin"), "the manifest has no programs for libc-bin");
+    for pkg in &with_programs {
+        let text = std::fs::read_to_string(root().join("tools/deb/description").join(pkg)).unwrap();
+        assert!(text.contains("$programs"), "tools/deb/description/{pkg} ships programs but does not name them with $programs");
+    }
+}
+
 // FS-ORDER: each listed entry is linked into the fixture once; the order of the links is never observed.
 #[test]
 fn an_unshipped_file_in_a_shipped_product_directory_fails_lint() {
