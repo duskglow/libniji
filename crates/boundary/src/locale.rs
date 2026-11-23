@@ -480,7 +480,38 @@ fn publish_global() {
             store_words(b, view_of(GLOBAL));
         }
     });
-    crate::ffi::compat_ctype_store(&compat_ctype_words(view_of(GLOBAL).locale()));
+    crate::ffi::compat_ctype_store(&compat_ctype_objects(), &compat_ctype_words(view_of(GLOBAL).locale()));
+}
+
+/// The six legacy ctype objects' versioned names (`CTYPE_STORE_ORDER` of
+/// `xtask/src/compat_objects.rs`), NUL-terminated for the loader.
+const COMPAT_CTYPE_NAMES: [&[u8]; 6] = [b"__ctype_b\0", b"__ctype_tolower\0", b"__ctype_toupper\0", b"__ctype32_b\0", b"__ctype32_tolower\0", b"__ctype32_toupper\0"];
+
+/// The addresses [`compat_ctype_objects`] found (written once, before `COMPAT_CTYPE_FOUND`).
+static COMPAT_CTYPE_AT: [AtomicUsize; 6] = [const { AtomicUsize::new(0) }; 6];
+/// Whether [`COMPAT_CTYPE_AT`] holds the loader's answers.
+static COMPAT_CTYPE_FOUND: AtomicUsize = AtomicUsize::new(0);
+
+/// The addresses of the six legacy ctype objects as the loader resolves `<name>@GLIBC_2.2.5` from
+/// the program's scope (an old binary's COPY of an object, else libc.so.6's own), looked up on the
+/// first `setlocale` that changes the global `LC_CTYPE`, never at start-up: libc.so.6 holds no
+/// symbol relocation for them, which the loader would resolve in every program's start-up. All 0
+/// in a program `ld.so` did not start (libc.a has no such objects). The lookup leaves the calling
+/// thread's dlerror state as it was ([`crate::dlerr::keeping`]).
+#[cold]
+#[inline(never)]
+fn compat_ctype_objects() -> [usize; 6] {
+    if COMPAT_CTYPE_FOUND.load(Acquire) == 0 {
+        if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+            return [0; 6];
+        }
+        for (slot, name) in COMPAT_CTYPE_AT.iter().zip(COMPAT_CTYPE_NAMES) {
+            let at = crate::dlerr::keeping(|| crate::posix::s27_dynlink::niji_dl_sym(core::ptr::null_mut(), name.as_ptr().cast(), b"GLIBC_2.2.5\0".as_ptr().cast(), 0));
+            slot.store(at.expose_provenance(), Relaxed);
+        }
+        COMPAT_CTYPE_FOUND.store(1, Release);
+    }
+    COMPAT_CTYPE_AT.each_ref().map(|a| a.load(Relaxed))
 }
 
 /// The six words of the legacy ctype objects for the global locale `l` (CTYPE-OBJECTS-SETLOCALE,
