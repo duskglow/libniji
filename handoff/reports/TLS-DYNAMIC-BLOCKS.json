@@ -8,7 +8,9 @@
  "gate": {"affected": "gate4: conformance 148 passed / 0 failed; 3 failed tests, all mei-environment (locale_data x2, hot_text_products init_data_clusters), also failing in other stories' mei gates", "peak": "3.1G"},
  "accepted_first_attempt": null,
  "jobs": ["tls-dynamic-blocks-gate4", "tls-dynamic-blocks-plants4", "tls-dynamic-blocks-final-counts", "tls-dynamic-blocks-base-so", "tls-dynamic-blocks-startup2"],
- "rulings": [],
+ "rulings": [
+  {"item": "gate4 and startup2 end rc=1 only on mei-environment tests (locale_data x2, hot_text_products init_data_clusters [passes under NIJI_FULL_PROFILE], catalogs_equal_the_reference, locale_behaviour_equals_the_reference, printf_corpus_equals_the_reference, s7_2_f_0); the same tests fail in ci-gate-c07243b9d, ci-gate-6f9fd5047, shstk-enable-xtest3/4, shstk-opt-in-test1, timed-wait-edge-order-2-gate1 on mei; mei has no /usr/lib/locale/locale-archive", "recommendation": "accept the branch on its green conformance (148/148), niji-ld and plants (8/8), or rerun its direct gate on a build host with a locale archive; route the mei environment to its owner"}
+ ],
  "informational": [
   "TLS descriptor access into a dlopened global-dynamic object: 16 instr/access on next (block in the static surplus), 38 now (thread vector lookup; 84 before the fast path); reference 17. Fix-forward: a shorter descriptor path",
   "__tls_get_addr fast path 55 instr/access (incl. 10 loop+call) vs reference 27: next's, unchanged here",
