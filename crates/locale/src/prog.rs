@@ -555,7 +555,7 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
                 // An empty LC_COLLATE (probed): no file even with -c, and status 1, not 4.
                 (ErrorKind::Refused, _) => {
                     put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
-                    put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+                    put(&mut o.err, &[b"[error] too many errors; giving up\n"])?;
                     o.status = 1;
                     return Ok(());
                 }

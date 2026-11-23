@@ -694,7 +694,7 @@ pub fn write(stmts: &[Stmt], cs: &Charset, defaults: bool) -> Result<TryVec<u8>>
 /// increasing code point order, each weighted by itself at every level, the first level not
 /// backward, no collating element and no `UNDEFINED` line. Such an order compares strings as
 /// their code points do, which a file without rules states in 1.4 KB where the tables for all of
-/// Unicode take megabytes (D-31.NEW). Open runs are checked as ranges, never expanded.
+/// Unicode take megabytes (D-31.31). Open runs are checked as ranges, never expanded.
 fn code_point_order(c: &Collation, cs: &Charset) -> bool {
     if c.explicit_undef {
         return false;
@@ -733,10 +733,15 @@ fn code_point_order(c: &Collation, cs: &Charset) -> bool {
         covered.push((lo, hi));
     }
     // Every character of the charmap is in a range (a run's range holds every character between
-    // its ends that the charmap has, none being placed elsewhere).
+    // its ends that the charmap has, none being placed elsewhere), and the charmap's byte order
+    // is its code point order: a file without rules compares the bytes (strcoll) and the code
+    // points (wcscoll), which agree only then (UTF-8 and ISO-8859-1 yes, KOI8-R no).
+    let mut last: Option<u32> = None;
     cs.map().mappings().all(|(cp, _, _)| {
         let k = covered.partition_point(|r| r.1 < cp);
-        covered.get(k).is_some_and(|r| r.0 <= cp)
+        let rising = last.is_none_or(|l| l < cp);
+        last = Some(cp);
+        rising && covered.get(k).is_some_and(|r| r.0 <= cp)
     })
 }
 

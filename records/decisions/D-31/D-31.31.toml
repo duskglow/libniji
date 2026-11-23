@@ -1,0 +1,13 @@
+id = "D-31.31"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "LOCALEDEF-COLLATE-GAPS"
+date = "2026-11-23"
+tests = ["crates/locale/tests/prog.rs", "crates/locale/tests/reference.rs"]
+body = '''
+**localedef writes a code point order as an `LC_COLLATE` without rules, and keeps a `..` run as one item until a line names a character inside it** (LOCALE-SOURCES-GEN #7792: the C.UTF-8 source, all of Unicode as one `..` run, took 31 MB of `LC_COLLATE` and 1.2 GB of memory). An order is plain code point order when every character of the charmap is placed in increasing code point order (by `..` runs or line by line), each weighted by itself at every level, with no collating element, no `UNDEFINED` line and a forward first level, and the charmap's byte order is its code point order (so `strcoll`, which compares bytes without rules, and `wcscoll`, which compares code points, agree with the order). Such an order is written as the reference's own compiled C.UTF-8 is (probed: 1406 bytes, `_NL_COLLATE_NRULES` 0, the collating-symbol hash size word 0, the collation-sequence values of the 256 bytes and of the first 256 code points, the codeset name), item for item. Any other order keeps the tables; a run is placed character by character the moment a line names one of its characters (an order line or `reorder-after`), and all remaining runs before the tables are written, so the file of such an order is the one the eager form gave. The reference's localedef compiles the same source to tables (7.2 MB, 177 MB of memory, probed): with libniji's file a byte that is no character compares by its byte value rather than with the undefined characters, and `strxfrm` returns the string itself, as with the reference's C.UTF-8; a source wanting the tables adds any weight that is not the character itself.
+
+An `LC_COLLATE` section without an `order_start` (empty, or `collating-symbol` lines only) is refused as the reference refuses it (probe `localedef-empty-collate`, spec §31.8 Failure): `<file>:<END line>: LC_COLLATE: empty category description not allowed`, `[error] too many errors; giving up`, status 1 with or without `-c`, no category file written; the 88-byte file libniji wrote before had no rules and no hash size word, and the reference's `setlocale` refused it. The default `LC_COLLATE` (a category the source does not define, D-31.29) is the reference's 92-byte file, item for item.
+'''

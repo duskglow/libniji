@@ -448,7 +448,10 @@ fn undefined_categories_get_the_references_defaults() {
             let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(mine.as_slice().to_vec())).unwrap());
             match n {
                 0 => diff_ctype(t, o, &mut out),
-                3 => diff_collate(t, o, charmap == "UTF-8", &mut out),
+                3 => {
+                    diff_collate(t, o, charmap == "UTF-8", &mut out);
+                    diff_items(file, t, o, &[], &mut out);
+                }
                 _ => diff_items(file, t, o, &[], &mut out),
             }
         }
@@ -634,5 +637,62 @@ fn products_localedef_searches_i18npath_and_the_working_directory() {
     std::fs::write(dir.join("cwd/tsrc"), source('W')).unwrap();
     let o = run("o2");
     assert_eq!((o.status.code(), point("o2")), (Some(0), Some(b'W')), "{}", String::from_utf8_lossy(&o.stderr));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The C locale's collation over UTF-8: all of Unicode in code point order, one `..` run (equal-width names).
+const CODE_POINT_ORDER: &str = "LC_COLLATE\norder_start forward\n<U00000000>\n..\n<U0010FFFF>\norder_end\nEND LC_COLLATE\n";
+
+/// s31_8_c_1 (D-31.31): all of Unicode in code point order compiles to the reference's own C.UTF-8 `LC_COLLATE`
+/// (no rules; the collation-sequence values of the bytes and of every code point; the codeset), item for item; the
+/// products' `localedef` compiles it within a 256 MiB address space (tables for every code point need far more) to
+/// the library's file, which the reference's `locale` loads without a message. Skips without the reference's
+/// compiled C.UTF-8, the UTF-8 charmap or the products (`cargo xtask so`).
+#[test]
+fn code_point_order_compiles_like_the_reference_c_utf8() {
+    let theirs = Path::new("/usr/lib/locale/C.utf8/LC_COLLATE");
+    let (Ok(theirs), Ok(_)) = (std::fs::read(theirs), Disk.read(Kind::Charmap, b"UTF-8")) else {
+        println!("skip: needs {} and the UTF-8 charmap", theirs.display());
+        return;
+    };
+    let dir = std::env::temp_dir().join(format!("niji-locale-cpo-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("cpo");
+    std::fs::write(&src, CODE_POINT_ORDER).unwrap();
+    let lib = niji_locale::compile_output(src.to_str().unwrap().as_bytes(), b"UTF-8", &mut Disk).unwrap();
+    let ours = lib.files[3].as_ref().expect("LC_COLLATE").as_slice().to_vec();
+    let (t, o) = (Category::parse(leak(theirs)).unwrap(), Category::parse(leak(ours.clone())).unwrap());
+    let mut out = Vec::new();
+    diff_collate(t, o, true, &mut out);
+    // Item 17 (the code points' collation-sequence values) is a table whose layout is the writer's own: compared by
+    // value over every code point.
+    diff_items("LC_COLLATE", t, o, &[17], &mut out);
+    let (tt, ot) = (Table3::parse(t.item(17)).expect("their item 17"), Table3::parse(o.item(17)).expect("our item 17"));
+    let bad: Vec<u32> = (0..0x11_0000u32).filter(|&c| tt.value_u32(c) != ot.value_u32(c)).take(8).collect();
+    if !bad.is_empty() {
+        out.push(format!("LC_COLLATE item 17 differs at {bad:x?}"));
+    }
+    assert!(out.is_empty(), "{} differences:\n{}", out.len(), out.join("\n"));
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() {
+        println!("skip the program: needs {} (cargo xtask so)", bin.display());
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let run = Command::new("sh")
+        .args(["-c", "ulimit -v 262144 && exec \"$0\" \"$@\"", bin.to_str().unwrap(), "-c", "--quiet", "-i"])
+        .arg(&src)
+        .args(["-f", "UTF-8"])
+        .arg(dir.join("cpo.utf8"))
+        .env_clear()
+        .output()
+        .unwrap();
+    let got = std::fs::read(dir.join("cpo.utf8/LC_COLLATE")).unwrap_or_default();
+    assert!(got == ours, "status {:?}, {} bytes, not the library's: {}", run.status.code(), got.len(), String::from_utf8_lossy(&run.stderr));
+    match Command::new("locale").env_clear().env("LOCPATH", &dir).env("LC_COLLATE", "cpo.utf8").output() {
+        Ok(o) => assert!(o.status.success() && o.stderr.is_empty(), "the reference's locale: {}", String::from_utf8_lossy(&o.stderr)),
+        Err(e) => println!("skip the load: the reference's locale cannot run: {e}"),
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
