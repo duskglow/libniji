@@ -53,16 +53,20 @@ the selection side the same way, but every reader of `text` would need checking.
 ## Tests and plants
 
 New: `closed_texts_join_by_the_union_of_their_references` (a table of closed and cut-off fragments: the union
-equals the joined text for every closed pair; each cut-off kind is not closed, and five pairs where the union would
-be wrong) and `a_target_s_references_are_those_of_its_whole_text` (on the tree, one target per distinct support set).
-Plants: 7 (see the plants file); results in the report json.
+equals the joined text for every closed pair; each cut-off kind is not closed, and six pairs where the union would
+be wrong), `a_target_s_references_are_those_of_its_whole_text` (on the tree, one target per distinct support set)
+and `a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs` (a temporary tree: the whole-text fallback,
+and the hub / entry-hub sets through unqualified and qualified paths). Plants: 7, all CAUGHT on the final head (job
+affected-tests-one-load-plants2). The first plants run (affected-tests-one-load-plants, older head) had 2 SURVIVED:
+the fallback and the hub counts had no test that reached them; the third test was added for them.
 
 ## Gate
 
-Direct tier (xtask unit tests + static). First run red only in `xtask --test transcripts` (two iconv tests): the
-role held a `target/niji-test/iconv` linked against an interpreter under the role's former path
-(`/mnt/zram/.../target/niji/ld-linux-x86-64.so.2`, absent; `target/niji` absent), so exec gave ENOENT although
-the test's skip check (`is_file`) passed. Not this change; rerun after `cargo xtask so` (job
+Direct tier (xtask unit tests + static), final head: green (affected-tests-one-load-gate2, peak 1.8G). The first
+run (affected-tests-one-load-gate, older head) was red only in `xtask --test transcripts` (two iconv tests): the role
+held a `target/niji-test/iconv` linked against an interpreter under the role's former path
+(`/mnt/zram/.../target/niji/ld-linux-x86-64.so.2`, absent; `target/niji` absent), so exec gave ENOENT although the
+test's skip check (`is_file`) passed. Not this change: after `cargo xtask so` the suite passed (7/7, job
 affected-tests-one-load-transcripts).
 
 ## Exact next step
