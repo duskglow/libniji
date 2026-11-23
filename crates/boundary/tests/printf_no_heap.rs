@@ -310,6 +310,9 @@ fn long_fields_have_their_full_text() {
         ("%+0600.500d", vec![A::I(-7i64 as u64)], sp(99) + "-" + &z(499) + "7"),
         ("%0100000d", vec![A::I(-7i64 as u64)], "-".to_string() + &z(99_998) + "7"),
         ("%-100000d", vec![A::I(7)], "7".to_string() + &sp(99_999)),
+        // Left-justified fields whose own text is long: the padding follows the long text.
+        ("%-600.500d|", vec![A::I(7)], z(499) + "7" + &sp(100) + "|"),
+        ("%-400.300f|", vec![A::D(1.0)], "1.".to_string() + &z(300) + &sp(98) + "|"),
         ("%100000d", vec![A::I(7)], sp(99_999) + "7"),
         ("%#0300x", vec![A::I(255)], "0x".to_string() + &z(296) + "ff"),
         ("%.10000f", vec![A::D(1.0)], "1.".to_string() + &z(10_000)),
