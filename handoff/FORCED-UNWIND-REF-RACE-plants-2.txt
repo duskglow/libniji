@@ -1,0 +1,4 @@
+# FORCED-UNWIND-REF-RACE plants, second file. Since THREAD-FORCED-UNWIND-STATIC-2, `cargo xtask so` refuses a libc.a in
+# which no member refers to niji_machine_unwind_force, so the skip-unwind plant (first file) stops at the product
+# build and never reaches the tests. This variant keeps the reference and never calls the unwind, so it reaches them.
+skip-unwind-kept | crates/boundary/src/cancel.rs | lit:forced_unwind(); ==> if core::hint::black_box(false) { forced_unwind(); } | cargo test -p niji --test forced_unwind_products | msg:(cxx_frames_unwind|c_cleanups_run).*(FAILED|panicked)

@@ -46,7 +46,8 @@ const KNOWN: [(&str, &str); 2] = [("modify_ldt(7): ", LDT), ("modify_ldt(write, 
 /// Runs `exe mode` under `wrap` (none, or an `unshare` command line): its output and how it ended.
 fn run(exe: &Path, mode: &str, wrap: &[&str]) -> String {
     let limit = timeout::secs(60);
-    let mut cmd = Command::new("timeout");
+    // A namespaced run (`wrap`: unshare) is contained (support/contain.rs).
+    let mut cmd = if wrap.is_empty() { Command::new("timeout") } else { oracle::contain::user("timeout") };
     cmd.arg(&limit).args(wrap).arg(exe).arg(mode).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
     let o = cmd.output().unwrap();
     let end = match (o.status.code(), o.status.signal()) {

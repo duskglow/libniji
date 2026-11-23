@@ -1,0 +1,20 @@
+# Product crate for libresolv.so.2's own code (LIBRESOLV-OWN-CODE). In the product workspace
+# (crates/Cargo.toml), built by `cargo xtask so` as a static library and linked into libresolv.so.2.
+[package]
+name = "niji-libresolv-so"
+description = "Product crate: links libresolv.so.2's own code (the resolver texts, messages and names)"
+version = "0.0.0"
+edition = "2024"
+license = "LGPL-2.1-or-later"
+publish = false
+
+[lib]
+name = "resolv"
+crate-type = ["staticlib"]
+test = false
+doctest = false
+
+[dependencies]
+niji-boundary = { path = "../boundary", default-features = false, features = ["libresolv"] }
+
+# Profiles: crates/Cargo.toml (the product workspace, BUILD-PATH-HASH).

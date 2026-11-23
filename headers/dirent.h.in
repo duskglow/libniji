@@ -1,0 +1,15 @@
+@@generated
+/* dirent.h: format of directory entries (XSH <dirent.h>). */
+#ifndef __NIJI_H_dirent_h
+#define __NIJI_H_dirent_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+
+__NIJI_END_C
+
+#endif

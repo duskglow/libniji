@@ -355,7 +355,7 @@ libc.so.6	pthread_setconcurrency	GLIBC_2.2.5	alias	LG-1	-
 libc.so.6	pthread_setname_np	GLIBC_2.12	alias	LG-1	-	
 libc.so.6	pthread_setschedprio	GLIBC_2.3.4	alias	LG-1	-	
 libc.so.6	pthread_setspecific	GLIBC_2.2.5	alias	LG-1	-	
-libc.so.6	pthread_sigmask	GLIBC_2.2.5	behaviour	LG-2	-	LG-0b probe
+libc.so.6	pthread_sigmask	GLIBC_2.2.5	alias	LG-2	-	LG-0b probe: identical to the default (spec/behaviour/pthread-sigmask-compat.md)
 libc.so.6	pthread_sigqueue	GLIBC_2.11	alias	LG-1	-	
 libc.so.6	pthread_spin_destroy	GLIBC_2.2.5	alias	LG-1	-	
 libc.so.6	pthread_spin_init	GLIBC_2.2.5	alias	LG-1	-	
@@ -683,8 +683,8 @@ libm.so.6	hypotf	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to hypotf@@GLIBC
 libm.so.6	lgamma	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	lgammaf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	lgammal	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	log	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	log2	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
+libm.so.6	log	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); LG-0b probe: a negative argument gives +NaN, so own entry niji_compat_log (spec/behaviour/libm-compat.md)
+libm.so.6	log2	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); LG-0b probe: a negative argument gives +NaN, so own entry niji_compat_log2 (spec/behaviour/libm-compat.md)
 libm.so.6	log2f	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	logf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	matherr	GLIBC_2.2.5	stub	LG-4	D-10.2	the library default handler: returns 0

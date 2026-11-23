@@ -1,0 +1,11 @@
+id = "D-12.30"
+section = "s12"
+spec = "§12.10"
+ann = "PERF"
+status = "active"
+story = "WIDE-READ-FAST"
+date = "2026-11-21"
+tests = ["crates/core/tests/s12_stdio_clauses.rs"]
+body = '''
+**Wide reads decode a whole character in place from the read window** (WIDE-READ-FAST). `fgetwc`, `getwc`, their `_unlocked` forms, `getwchar` and `fgetws` (and every other reader of the wide layer) first try a front path, which also returns a character given back: a stream already wide-oriented on the locale's encoding when that is UTF-8, ASCII or ISO-8859-1, reading, with no character given back (`ungetwc`) and no partial character held, whose read window holds the whole next character, gets that character decoded straight from the window and its bytes consumed (`_IO_read_ptr` and `_IO_read_end` moved together, so the published window of a wide stream stays closed, D-12.19); the locale is not consulted. Anything else goes the general path unchanged: a character cut by the window's end, an invalid sequence, an empty window (a refill or end of input), a charmap encoding, `,ccs=` and `open_wmemstream` streams. The result is the general path's by construction: the window's bytes are the ones the engine hands out one at a time, a byte in the window never refills, flushes the line-buffered streams or changes an indicator, the conversion state is the initial one whenever no partial character is held, and the decoder gives the same answer for the bytes at once. The exports (`fgetwc` and its forms, `getwchar`) take the front path before the stream plumbing when no lock is to be taken (the `_unlocked` forms, the only thread, `__fsetlocking`), and it also returns a character given back. Measured (wl_percall `validation/percall/stdio_wide.c`, Skylake-SP, instructions per call, before / after): `fgetwc_unlocked` on a two-byte UTF-8 character 639 / 119, on ASCII 362 / 88; `fgetwc` 649 / 125; `fgetws` on a 32-character line of two-byte characters 2213 / 805; `ungetwc` and `fgetwc` 327 / 252; the byte reads unchanged. The fresh-fill note of D-12.29 stays on the general path, which only a character cut by the window's end or end of input now reaches.
+'''

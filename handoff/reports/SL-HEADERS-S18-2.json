@@ -1,0 +1,74 @@
+{
+ "task": "SL-HEADERS-S18-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "slice 18 proved: P3 fortify rows all equal (pread64 probe fixed; fcntl.h open family added: __open_2/__open64_2/__openat_2/__openat64_2), P7 with Devuan dpkg-buildflags: zlib and xz-utils equal but for putchar (HEADERS-O2-INLINES); 8 packages blocked by other slices missing headers",
+ "branch": "task/sl-headers-s18-2",
+ "head": "2c9f4b633",
+ "gate": {
+  "affected": "keke:sl-headers-s18-2-gate3 rc 0 (bounded set: cargo test -p xtask, static, checks)",
+  "peak": "1.5G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "P7 with Devuan flags: sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash do not build against libniji's headers: sys/wait.h and sys/ioctl.h are not generated; __fwriting/__fpurge not declared in stdio_ext.h; grep's gnulib localename uses _NL_ITEM/struct __locale_struct (Aqours patch case). Not fortify; their P7 waits for those slices.",
+  "mq_open -> __mq_open_2: chk-prototypes.tsv row added; mqueue.h is not generated yet, so its fortify.tsv mode row and @@fortify marker go with that header.",
+  "xz references putchar with libniji's headers and not with the reference's: HEADERS-O2-INLINES (ruling #7599).",
+  "plants WARN-DEV-SHM: plants dir under /dev/shm as the brief prescribes for a Zen 1 host; the planted tests do not mount /dev."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "P3 fortify call rows on libniji headers differing from callsites.tsv (13 fortified headers + fcntl.h; the open family was 6 more rows not in run 1 count)",
+   "before": 1,
+   "after": 0,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "open/open64/openat/openat64 without a mode under _FORTIFY_SOURCE reference the _2 entries; constant O_CREAT/O_TMPFILE without a mode fails to compile",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests and plants added",
+   "before": 0,
+   "after": 4,
+   "unit": "1 test + 3 plants",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "callsite probe: run-time long fallback before constant 0 (reference tables byte-identical); smoke zlib build honours caller CPPFLAGS/CFLAGS",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "P7 xz undefined set: __open_2 referenced on both sides now",
+   "before": 1,
+   "after": 0,
+   "unit": "differing fortify symbols",
+   "measured": true
+  }
+ ],
+ "improvement": "Run 1's P3 scope list of 'fortified headers' was hand-picked and missed fcntl.h; deriving it from callsites.tsv rows whose call symbol differs from the name would have caught the open family in run 1.",
+ "next_step": "train; rerun P7 for the rest of the corpus when sys/wait.h, sys/ioctl.h and stdio_ext.h's GNU functions land",
+ "report_file": "handoff/SL-HEADERS-S18.md",
+ "jobs": [
+  "keke:sl-headers-s18-2-gate3",
+  "keke:sl-headers-s18-2-plants3",
+  "keke:sl-headers-s18-2-p7c",
+  "keke:sl-headers-s18-2-regen3",
+  "keke:sl-headers-s18-2-p3",
+  "keke:sl-headers-s18-2-p7"
+ ]
+}

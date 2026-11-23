@@ -1,0 +1,14 @@
+@@generated
+/* gnu/libc-version.h: library version queries (gnu_get_libc_version(3)) */
+#ifndef __NIJI_H_gnu_libc_version_h
+#define __NIJI_H_gnu_libc_version_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

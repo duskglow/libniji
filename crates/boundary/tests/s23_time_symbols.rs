@@ -558,9 +558,12 @@ fn tz_period_words_per_thread_and_fork() {
             (o.tm_hour, o.tm_isdst)
         }
         set_tz("EST5EDT,M3.2.0,M11.1.0");
-        if tb::current().flags.load(Relaxed) & niji_rt::tls::FLAG_OWN == 0 {
+        if !niji_boundary::selftest::runtime_started() {
             // D-5.11: a process the runtime did not start (this test process, its blocks made
-            // by the system's `ld.so`) keeps its cache words untouched; the answers stay right.
+            // by the system's `ld.so`, or by libniji's own `libc.so.6` when libniji's loader
+            // started it: this binary's copy of the code still did not start it) keeps its cache
+            // words untouched; the answers stay right. D-X.58: the process-level fact decides,
+            // never the block's own flags word, which the other runtime's start-up may have set.
             let before = words();
             assert_eq!(kind_at(SUMMER), (5, 1));
             assert_eq!(kind_at(WINTER), (17, 0));
@@ -791,7 +794,7 @@ fn sym_timer_create() {
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_SIGNAL, 0, 0, 0))), Err(EINVAL));
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_SIGNAL, 65, 0, 0))), Err(EINVAL));
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_THREAD_ID, SIGUSR1, 0, 1))), Err(EINVAL), "a thread of another process");
-    // SIGEV_THREAD: a function is required (glibc accepts NULL and crashes at the expiry); a
+    // SIGEV_THREAD: a function is required (nothing could be notified at the expiry); a
     // timerfd measures neither the CPU-time clocks nor CLOCK_TAI (ENOTSUP; glibc accepts them);
     // the clock errors are the kernel timers'; the attributes must be an object.
     assert_eq!(create(1, Some(&SigEvent::thread(0, 0, 0))), Err(EINVAL));
@@ -801,7 +804,7 @@ fn sym_timer_create() {
     assert_eq!(create(4, Some(&thread_event(0))), Err(EOPNOTSUPP));
     assert_eq!(create(99, Some(&thread_event(0))), Err(EINVAL));
     assert_eq!(create(1, Some(&thread_event(0x1003))), Err(EINVAL), "misaligned attributes");
-    // NULL for the id: EFAULT (glibc crashes).
+    // NULL for the id: EFAULT (S6: the contract's error channel).
     errno::set_raw(0);
     assert_eq!(s::timer_create(1, Some(&none()), None), -1);
     assert_eq!(errno::get(), EFAULT);

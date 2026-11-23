@@ -1,0 +1,26 @@
+@@generated
+/* dlfcn.h: dynamic linking (POSIX XSH <dlfcn.h>, dlopen(3), dlinfo(3), dladdr(3), dl_find_object(3)). */
+#ifndef __NIJI_H_dlfcn_h
+#define __NIJI_H_dlfcn_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns RTLD_DEFAULT RTLD_NEXT DLFO_EH_SEGMENT_TYPE
+@@emit
+
+/* dlsym(3): the pseudo-handles. RTLD_DEFAULT searches the global scope; RTLD_NEXT the objects after the caller. */
+@@if RTLD_DEFAULT
+# define RTLD_DEFAULT @@value(RTLD_DEFAULT)
+# define RTLD_NEXT @@value(RTLD_NEXT)
+#endif
+
+/* dl_find_object(3): the segment type that carries the exception-handling frame table (PT_GNU_EH_FRAME). */
+@@if DLFO_EH_SEGMENT_TYPE
+# define DLFO_EH_SEGMENT_TYPE @@value(PT_GNU_EH_FRAME)
+#endif
+
+__NIJI_END_C
+
+#endif

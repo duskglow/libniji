@@ -1,0 +1,51 @@
+{
+ "task": "RELEASE-SNAPSHOT-NIJI1-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 30d07e74b; run 1's red was swap-system.sh's raw exit on the 7 expected ldd differences, now judged by UTIL-LDD-3's verdict (63 commands, 56 same, 7 known, 0 bad); lint, plants, staging and 4(b) green; #6 partly fixed (ruled not blocking)",
+ "branch": "task/release-snapshot-niji1-2",
+ "head": "30d07e74b",
+ "gate": {
+  "affected": "release-snapshot-niji1-gate-1 rc 0 (affected --base origin/next, clippy, static, records on 30d07e74b); release-snapshot-niji1-2-lint-0 rc 0",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "#6199: #6 partly fixed: 58 of 1180 iconv -l names open both ways (list in handoff/RELEASE-SNAPSHOT-NIJI1.md), EUC-JP round-trips byte-identical, ISO-8859-15 does not open; Debian's iconv program needs the GLIBC_ABI_DT_RELR version node",
+  "#6201 docs story: docs/install-packages.md:124 (libc6-dev row) 'No headers yet: plain `gcc` compiles with the system's glibc headers' is false on a system-flavour root (libniji's libc6-dev replaces Debian's; no /usr/include/stdio.h)",
+  "docs story: no old-to-new name table where a package user looks (README.md:3 one sentence; install-packages.md none)",
+  "docs story: no user-facing sentence for #8 (EAI_AGAIN when no nameserver answers), #7 (libm/libc GLIBC_2.2.5 versions: fmod, fmodf, exp, exp10, pow, hypot, hypotf, log, log2, pthread_sigmask), #6 (EUC-JP iconv)",
+  "docs story: differences-from-glibc.md:307 names records/pending/SL-HEADERS-S05-3-1.toml, now an assigned record",
+  "lintian 10 E / 40 W per suite vs 11-16's 7 E / 48 W: +3 E no-code-sections (new empty archives libg.a, libmcheck.a, libpthread_nonshared.a), -2 W unversioned links (added), -8 W undeclared-elf-prerequisites (libc6 override df340a23b), +2 W libc-bin /usr/bin/ldd (static-pie: no-manual-page, shared-library-lacks-prerequisites)",
+  "tools/deb/swap-system.sh exits 1 on the known ldd-1..7 differences until DL-TRACE-INTERP lands; a release run needs the verdict script (UTIL-LDD-3's swap.sh) for a green job"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "none",
+   "what": "release validation of 30d07e74b; 8 assets staged (keke ~/release-staging/snapshot-20261117), no product or packaging change",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "jobs": [
+  "keke:release-snapshot-niji1-debs-1",
+  "keke:release-snapshot-niji1-pkgdiff-1",
+  "keke:release-snapshot-niji1-gate-1",
+  "keke:release-snapshot-niji1-yohane-2",
+  "keke:release-snapshot-niji1-smoke-keke-1",
+  "mei:release-snapshot-niji1-smoke-mei-1",
+  "keke:release-snapshot-niji1-lint-1",
+  "keke:release-snapshot-niji1-2-roots-1",
+  "keke:release-snapshot-niji1-2-stage-1",
+  "keke:release-snapshot-niji1-2-install-1",
+  "mei:release-snapshot-niji1-2-lint-0",
+  "mei:release-snapshot-niji1-2-plants-1"
+ ],
+ "improvement": "swap-system.sh's exit status cannot be a release verdict while a documented difference exists: give it an expected-differences option (the (a)-(c) normalisation) so release and plant runs need no wrapper",
+ "next_step": "coordinator tags 30d07e74b and publishes the staged assets; docs story takes the INFORMATIONAL sentences",
+ "report_file": "handoff/RELEASE-SNAPSHOT-NIJI1.md"
+}

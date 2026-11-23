@@ -1,0 +1,22 @@
+@@generated
+/* sys/shm.h: System V shared memory (XSH <sys/shm.h>). */
+#ifndef __NIJI_H_sys_shm_h
+#define __NIJI_H_sys_shm_h 1
+
+#include <features.h>
+#include <sys/ipc.h>
+
+__NIJI_BEGIN_C
+
+@@owns SHMLBA
+@@emit
+
+/* shmat(2): the attach address multiple is the page size. */
+extern int __niji_getpagesize (void) __NIJI_NOTHROW __asm__ ("getpagesize");
+@@when SHMLBA
+# define SHMLBA (__niji_getpagesize ())
+#endif
+
+__NIJI_END_C
+
+#endif

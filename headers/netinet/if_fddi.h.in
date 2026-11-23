@@ -1,0 +1,16 @@
+@@generated
+/* netinet/if_fddi.h: FDDI */
+#ifndef __NIJI_H_netinet_if_fddi_h
+#define __NIJI_H_netinet_if_fddi_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

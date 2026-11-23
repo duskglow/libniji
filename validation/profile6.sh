@@ -11,6 +11,9 @@
 # warm-up run first, discarded) for both builds, and once under `perf record` for each; each
 # timing records the load before and after. perf runs through sudo -n.
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=root contained_tree=$(cd "$(dirname "$0")/.." && pwd) CONTAINED_KEEP="VALIDATION CHECK ONLY"
+. "$contained_tree/tools/contained.sh"
 V=${VALIDATION:-$HOME/validation}
 out=$1
 mkdir -p "$out"

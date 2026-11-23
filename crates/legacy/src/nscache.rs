@@ -60,7 +60,9 @@
 //! mapping after it is gone. Writers hold the process's lock and, for the region, an OFD lock
 //! on its file (released by the kernel if the writer dies); a writer that cannot get it soon
 //! does not write. A region whose header is not this account's (layout, size, owner, boot ID,
-//! account stamp) or that a writer left half-changed is reinitialised under that lock.
+//! account stamp) or that a writer left half-changed is reinitialised under that lock. The boot
+//! ID is not compared for a region on tmpfs (`fstatfs`), which cannot outlive a boot; a region
+//! made or reinitialised always records the boot ID from `/proc`.
 //!
 //! **Switches.** [`NsCache::enable`] (the native `niji_nscache_enable`; `NIJI_NSCACHE=0`
 //! at start, ignored under `AT_SECURE`): disabled, a lookup costs one relaxed atomic load and
@@ -79,7 +81,7 @@ use niji_kernel::fd::Fd;
 use niji_kernel::ops::FcntlLock;
 use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
-use niji_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_EXCL, O_NOCTTY, O_NOFOLLOW, O_NONBLOCK, O_RDWR, SEEK_SET, S_IFMT, S_IFREG};
+use niji_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_EXCL, O_NOCTTY, O_NOFOLLOW, O_NONBLOCK, O_RDWR, SEEK_SET, S_IFMT, S_IFREG, TMPFS_MAGIC};
 use niji_rt::sync::RawMutex;
 
 use crate::nss::{Ctx, SYSTEM};
@@ -720,7 +722,14 @@ impl NsCache {
         }
         let addr = mem.map_shared(fd, size).ok_or(REASON_UNAVAILABLE)?;
         let words = size >> 3;
-        let boot = boot_id(sys);
+        // A file on tmpfs cannot outlive the boot it was made in, so there the header's boot ID
+        // is taken as it is and `/proc` is not read (D-16.10); a region made or reinitialised
+        // records the boot ID read from `/proc`, so one on another file system is still checked.
+        // `fstatfs` is asked on creation too (once per region): the build's layout trace always
+        // creates its region (ruling #5223), so only then does it run, and group, the call every
+        // later attach makes (without it, a process's first attach took one more text fault).
+        let on_tmpfs = sys.fstatfs(fd).is_ok_and(|f| f.ftype == TMPFS_MAGIC);
+        let tmpfs = !created && on_tmpfs;
         // The files the account stamp rests on, as they are now (the first validation reuses
         // these `stat`s).
         let files = [(File::Passwd, identity(sys, path_of(File::Passwd))), (File::Nsswitch, identity(sys, path_of(File::Nsswitch)))];
@@ -729,6 +738,8 @@ impl NsCache {
         let owner = u64::from(euid);
         let ok = match Table::new(mem.words(addr, words)) {
             Some(t) => {
+                let held = if tmpfs { t.boot() } else { None };
+                let boot = held.unwrap_or_else(|| boot_id(sys));
                 // The stamp the table holds is this account's without a lookup when it was
                 // verified against these very files (a user database edited since, an account
                 // deleted and its UID reused, changes their identity) and only `files` answers
@@ -750,9 +761,13 @@ impl NsCache {
                     if locked {
                         let ok = t.valid(&stamp);
                         let consistent = t.begin();
-                        if !ok || !consistent {
+                        let stamp = if !ok || !consistent {
+                            let stamp = if held.is_some() { Stamp { boot: boot_id(sys), ..stamp } } else { stamp };
                             t.init(&stamp, !created);
-                        }
+                            stamp
+                        } else {
+                            stamp
+                        };
                         t.set_stamp_files(&[files[0].1, files[1].1]);
                         t.end();
                         unlock_region(sys, fd);

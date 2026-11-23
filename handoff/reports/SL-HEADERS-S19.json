@@ -1,0 +1,18 @@
+{"task": "SL-HEADERS-S19", "model": "sonnet", "tokens": null,
+ "result": "slice 19: diagnostic attributes (format, nonnull, warn_unused_result, noreturn, malloc, alloc_size, deprecated, sentinel, pure) from spec/abi/diagattrs.tsv; 0 differences from the reference headers on 2232 probe tests (option and line)",
+ "branch": "task/sl-headers-s19", "head": "2879b4e0a",
+ "gate": {"affected": "see jobs sl-headers-s19-gate-2", "peak": null},
+ "jobs": ["mei:sl-headers-s19-gate-2", "mei:sl-headers-s19-plants-2"],
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "slice 6 defect: isalpha(1) and the other ctype is* macros do not compile against libc-include/ctype.h (_IS* enumerators undeclared); attr_probe check lists them as known",
+  "-Wformat-overflow=, -Wformat-truncation=, -Wstringop-*, -Warray-bounds, -Wrestrict read access/restrict information: not compared, counted (slice 18)",
+  "pure is applied to the functions on which the reference gives -Wunused-value; it also lets the optimizer drop unused calls"
+ ],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "warning differential tests (option+line) against the reference headers", "before": 0, "after": 2232, "unit": "tests", "measured": true},
+            {"kind": "coverage", "what": "plants, one per attribute kind", "before": 0, "after": 8, "unit": "plants", "measured": true}],
+ "improvement": "plants judged through cargo xtask so's stale-header check look caught but name no test: a generator-driven check needs a named cargo test target (docs/plants.md could say so)",
+ "next_step": "slice 6 fix for the ctype is* macros; slice 18 for the middle-end warnings; rerun attr_probe.py table/check when a slice adds headers",
+ "report_file": "handoff/SL-HEADERS-S19.md"}

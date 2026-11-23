@@ -1,0 +1,21 @@
+{"task": "LIBC-SELF-BIND", "model": "opus", "tokens": null,
+ "result": "libc.so.6 binds its own function references at link time (malloc family and data stay symbolic): kit empty main 742,167 -> 330,073, 3 libraries 984,891 -> 493,234 user instructions (release, Zen 1); gate and plants pending on bb67c81b1",
+ "branch": "task/libc-self-bind", "head": "bb67c81b1",
+ "gate": {"affected": "pending (libc-self-bind-gate-2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "a program replacing malloc: the reference's fopen/fclose allocate and free the stream through it, libniji's do not (pre-existing, same on next; x_self_bind_stdio PENDING-NIJI)", "recommendation": "follow-up story: allocate FILE objects through the caller allocator (boundary::caller_alloc), then drop the PENDING-NIJI mark"}],
+ "informational": ["Skylake-SP class not measured: DYN_START_INSTR takes the Zen 1 bounds by the within-0.03% precedent", "every bound family probe (pthread, aio, sem, mq, clock, timer, C11, dl, ns, dn, llseek, pthread_yield, __secure_getenv, _IO_fputs, openpty, memcmp/bcmp users, XDR stdio) reads 0 reaches on libniji, as on the reference; COPY of stdout and optind seen by libc and a preceding library"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "kit empty main (release, Zen 1; before = snapshot 1121E products)", "before": 742167, "after": 330073, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "kit 3 libraries (release, Zen 1; before = snapshot 1121E products)", "before": 984891, "after": 493234, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "kit empty main (fast, Zen 1; before = next 4f32aa946)", "before": 754018, "after": 356120, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "kit 3 libraries (fast, Zen 1; before = next 4f32aa946)", "before": 1007472, "after": 533674, "unit": "user instr/start", "measured": true},
+  {"kind": "perf", "what": "libc.so.6 symbolic relocations (fast)", "before": 288, "after": 58, "unit": "relocations", "measured": true},
+  {"kind": "faults", "what": "kit empty main page faults (fast; release 59 -> 59)", "before": 65, "after": 65, "unit": "faults", "measured": true},
+  {"kind": "coverage", "what": "conformance x_self_bind + x_self_bind_stdio, build check unit test, 5 plants", "before": null, "after": 3, "unit": "tests", "measured": true}
+ ],
+ "jobs": ["keke:libc-self-bind-gate-2", "keke:libc-self-bind-plants-3", "keke:libc-self-bind-xtest", "keke:libc-self-bind-fullprof"],
+ "improvement": "the harness compiles helpers as -std=c17: a probe validated on the reference outside conformance/run.sh can still fail to build in it; run the reference side through run.sh from the start",
+ "next_step": "collect gate-2, plants-3, xtest, fullprof on bb67c81b1; precheck; land; brief the stream-allocation follow-up after the ruling",
+ "report_file": "handoff/LIBC-SELF-BIND.md"}

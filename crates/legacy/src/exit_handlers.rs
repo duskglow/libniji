@@ -3,8 +3,9 @@
 //!
 //! **Registries.** An entry is four words: kind, function, argument, owning object (DSO). The
 //! first 32 entries are inside the registry itself, so the ISO C minimum of 32 registrations
-//! never needs memory. Later ones go to an extension mapped on first use through `Pages` (up
-//! to [`MAX_ENTRIES`]). Entries run LIFO, each exactly once: an entry is taken (its kind
+//! never needs memory. Later ones go to chunks mapped as they are needed (one page, then each
+//! twice the one before: [`Chunks`]), with no limit but memory (LIMITS-RUNTIME-SMALL): a
+//! registration that finds no memory fails (spec §1.2 failure clause 1). Entries run LIFO, each exactly once: an entry is taken (its kind
 //! cleared) under the lock before it is called, and the lock is not held during the call, so a
 //! handler may register more handlers (which then run next) or call `exit` again (which then
 //! runs the remaining ones, spec §1.2 failure clause 2).
@@ -15,7 +16,8 @@
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
 use niji_kernel::sys::Sys;
-use niji_rt::heap::{Pages, PAGE};
+use niji_rt::chunks::Chunks;
+use niji_rt::heap::Pages;
 use niji_rt::sync::RawMutex;
 
 use crate::obstack::CCall;
@@ -35,8 +37,8 @@ pub const OPTED_QUICK: u64 = 6;
 
 /// Entries held in the registry itself (the ISO C minimum).
 pub const FIXED: usize = 32;
-/// The most entries one registry holds.
-pub const MAX_ENTRIES: usize = 1 << 20;
+/// Words in an entry.
+const WORDS: usize = 4;
 
 /// An entry: kind, function, argument, owning object.
 pub type Entry = [u64; 4];
@@ -46,7 +48,7 @@ pub struct Registry {
     lock: RawMutex,
     len: AtomicUsize,
     fixed: [AtomicU64; 4 * FIXED],
-    ext: AtomicUsize,
+    ext: Chunks,
 }
 
 impl Default for Registry {
@@ -72,16 +74,13 @@ impl Registry {
 
     /// An empty registry.
     pub const fn new() -> Registry {
-        Registry { lock: RawMutex::new(), len: AtomicUsize::new(0), fixed: [const { AtomicU64::new(0) }; 4 * FIXED], ext: AtomicUsize::new(0) }
+        Registry { lock: RawMutex::new(), len: AtomicUsize::new(0), fixed: [const { AtomicU64::new(0) }; 4 * FIXED], ext: Chunks::new() }
     }
 
     fn slot<'a, P: Pages>(&'a self, pages: &'a P, i: usize) -> Option<&'a [AtomicU64]> {
         match i.checked_sub(FIXED) {
             None => self.fixed.get(i.checked_mul(4)?..i.checked_mul(4)?.checked_add(4)?),
-            Some(j) => match self.ext.load(Acquire) {
-                0 => None,
-                base => Some(pages.words(base.checked_add(j.checked_mul(32)?)?, 4)),
-            },
+            Some(j) => self.ext.get(pages, j, WORDS),
         }
     }
 
@@ -91,13 +90,9 @@ impl Registry {
     pub fn register<S: Sys, P: Pages>(&self, sys: &S, pages: &P, e: Entry) -> bool {
         let _g = self.lock.lock(sys);
         let i = self.len.load(Relaxed);
-        if i >= MAX_ENTRIES {
-            return false;
-        }
-        if i >= FIXED && self.ext.load(Relaxed) == 0 {
-            match pages.map((MAX_ENTRIES - FIXED) * 32, PAGE, None) {
-                Some(base) => self.ext.store(base, Release),
-                None => return false,
+        if let Some(j) = i.checked_sub(FIXED) {
+            if !self.ext.reserve(pages, j, WORDS) {
+                return false;
             }
         }
         let Some(s) = self.slot(pages, i) else { return false };
@@ -146,6 +141,17 @@ impl Registry {
         let mut e = Self::read(s);
         e[0] = s.first()?.swap(0, AcqRel);
         (e[0] != 0).then_some(e)
+    }
+
+    /// Bytes of memory mapped for entries past the fixed ones (for tests and statistics).
+    pub fn mapped(&self) -> usize {
+        self.ext.mapped()
+    }
+
+    /// Unmap the entries past the fixed ones of a registry that goes away (a registry in a
+    /// test); it must not be used afterwards.
+    pub fn unmap<P: Pages>(&self, pages: &P) {
+        self.ext.unmap_all(pages);
     }
 
     /// Live entries (for tests and statistics).

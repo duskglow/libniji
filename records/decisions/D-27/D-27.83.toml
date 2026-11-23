@@ -1,0 +1,10 @@
+id = "D-27.83"
+section = "s26-29"
+spec = "§27"
+ann = "—"
+status = "active"
+story = "CI-PRODUCTS-ONCE"
+date = "2026-11-22"
+body = '''
+**The start-up trace makes its one-shot breakpoints once per tracer, not once per class run (CI-PRODUCTS-ONCE).** Profiled on the Skylake-SP host: `so/libc-archive` of a release build took 387.5 s, of which the traced layout (25 gdb traces, at most `nproc` at once, so bound by CPU) took 238 s of wall and 1232 s of gdb time. One trace (four class runs, 4421 one-shot breakpoints) spent 6-14 s per class run making the breakpoints and deleting them again, because gdb's cost per breakpoint grows with the number it holds. `tools/hottext/trace_gdb.py` now keeps the one-shot breakpoints in a pool made at the first class run: a pooled breakpoint is disabled at the stop that hits it (where gdb deleted the temporary one) and re-enabled, its hit count cleared, for the next run; the pool is made again when the addresses change. Two checks fail the trace if the pool misbehaves: a pooled breakpoint that stops more than once in a run, and a class run that does not start at the function the first run started at. One trace 58.5 -> 15.9 s, the regeneration 238 -> 127 s wall and 1232 -> 531 s of gdb time; every product and the five traced lists byte-identical to the per-run breakpoints' for two heads. Rejected: `set breakpoint always-inserted on` (580 s against 238 s, the same lists).
+'''

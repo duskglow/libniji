@@ -1,0 +1,18 @@
+{"task": "DL-PROCESS-OBJECTS", "model": "opus", "tokens": null,
+ "result": "part 1 of 3: the loader's path (128 KiB) and dependency (16 Ki) arenas grow by never-moved generations; memory is their only bound (HL-5); parts 2 (object tables) and 3 (TLS) designed, not done",
+ "branch": "task/dl-process-objects", "head": "cbada8da4",
+ "gate": {"affected": "6955 passed / 0 failed (direct tier; xtask test 4846+126 passed; hot_text_products 32 passed)", "peak": "16G (page cache included), oom_kill 0"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["No bench row covers dladdr, dl_iterate_phdr or dlopen (bench/instr_limits.tsv): the reader's extra work (one compare per path decode) is code-read, not counted",
+  "dlopen_process_objects_out_of_memory_is_clean took 474 s in the gate (48 limits x the 301-object set), the last test to finish: part 2 should stop the sweep after the first completed runs",
+  "Slip: a stray heredoc (python3 - <<'X' ... X) was denied by the no-heredocs hook, which says the denial does not count; nothing depended on it"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "dlopen past 128 KiB of object paths (failed with 'out of room for object names' at libp117 of a 1066-byte directory) and past 16 Ki dependency entries ('cannot load more objects in one call'): 301 objects, 320,292 path bytes, 44,850 entries now load, as on the reference", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests added (paths and dependencies past the old arenas; address-space sweep) and plants added (5, all caught)", "before": 0, "after": 7, "unit": "tests+plants", "measured": true},
+  {"kind": "unblock", "what": "DL-PROCESS-OBJECTS parts 2 and 3 (HL-3): the Arena type and the design for the object tables and TLS", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["mei:dl-process-objects-gate", "mei:dl-process-objects-plants", "mei:dl-process-objects-refprobe2"],
+ "improvement": "a plants run shares one product build per copy; the per-plant cost here was the test's 600-library corpus, built again for every plant: a corpus cache keyed by its sources would cut each plant to the run",
+ "next_step": "part 2: the object tables (handoff/DL-PROCESS-OBJECTS.md design sections 3-7: nodes, object records, lock-held lists and scratch, readers' table, exit order, u32 indices), then part 3 (TLS)",
+ "report_file": "handoff/DL-PROCESS-OBJECTS-report.md"}

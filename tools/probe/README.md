@@ -9,12 +9,15 @@ State: done. `tools/probe/probe` (python3 stdlib) is installed on Zen 1 as `~/bi
 runs it from the Windows host. Self-test passes on Zen 1 (7 checks). Not part of `cargo xtask test`.
 
 ### For agents (copy 3-4 lines into thread_common)
-    tools/probe/remote.sh my_probe.c [--niji '~/w/b'] [--args a b] [--stdin F] [--env K=V] [--timeout S]
+    tools/probe/remote.sh my_probe.c --niji '~/w/<role>' [--args a b] [--stdin F] [--env K=V] [--timeout S]
       -> compiles once, runs vs glibc and vs libniji (static, conformance/run.sh link line), prints SAME/DIFFERENT
-         with exit/signal/stdout/stderr and cache HIT/miss. Exit 0 SAME, 1 DIFFERENT, 2 error. Repeats are free.
+         with exit/signal/stdout/stderr, cache HIT/miss, and the libniji tree, commit and products hash it compared.
+         Exit 0 SAME, 1 DIFFERENT, 2 error. Repeats are free.
     tools/probe/remote.sh --find <words>    search past probes (title = first comment line of the source, functions called)
     tools/probe/remote.sh --show <hash>     a stored result;  --record <hash>  ready-to-paste spec/behaviour block (glibc side)
-    Put `--args` last. Default tree is ~/w/nightly; pass your own role tree (`--niji '~/w/b'`; quote the ~).
+    Put `--args` last. `--niji` is required for a probe and for `--selftest` (there is no default tree; without it the
+    client exits 2): pass your own role tree (`--niji '~/w/<role>'`; quote the ~). `--find`, `--show` and `--record` need no tree.
+    Why required: a default tree is one nobody keeps current, so a probe without `--niji` measured an old libniji unseen.
 
 ### How it works (decisions, DECIDE OR ASK)
 - Cache `~/probe-cache/<key>/` (machine state, not committed). key = sha256(source, flags, args, stdin, env, timeout).
@@ -25,7 +28,8 @@ runs it from the Windows host. Self-test passes on Zen 1 (7 checks). Not part of
   libniji: the run.sh line (`-static -nostdlib -I include crt1 probe.c libc.a -lgcc`); only if that does not link, it retries
   with libm.a and libpthread.a. A compile/link failure is a result (status compile-error/link-error, text in stderr).
 - Products are built with `cargo xtask so` only if missing or any crates/csys/include/Cargo file is newer than libc.a.
-  ~/w/nightly has NO target/niji yet: the first probe against it runs `cargo xtask so` (slow, once).
+- The result names what libniji it measured: the `niji:` line (`--json`: `tree`, `commit`, `products_hash`) gives the
+  tree, its commit and the sha256 of the four products; `meta.json` keeps them, so `--show` prints them too.
 - Safety: refuses root; cache misses re-exec under `~/bin/shared` (hits skip the queue); each run has a timeout (default
   20 s, kills the process group), RLIMIT_AS 2 GiB (`--mem`), no core, 64 MiB max file; cwd and HOME/TMPDIR are a scratch dir
   `~/probe-tmp/<key16>/wd` (same path both sides, so printed paths compare equal), removed afterwards; env is only
@@ -36,7 +40,8 @@ runs it from the Windows host. Self-test passes on Zen 1 (7 checks). Not part of
 ### Open / not done
 - A `--niji` path with `~` must be quoted so Zen 1, not the Windows shell, expands it (remote.sh passes `~/..` through).
 - Programs that print the stack/ASLR values differ run to run; use `--no-cache` sparingly (it also reruns glibc).
-- Next step: coordinator copies the usage lines into thread_common; optionally pre-build ~/w/nightly products.
+- Next step: coordinator copies the usage lines into thread_common.
+- Tested by xtask/tests/probe_client.rs (no `--niji`: exit 2 naming the option); the full self-test is `--selftest --niji <tree>`.
 Full report: this file; record: liella-historic:handoff/reports/PR-8.json.
 
 Affected run: `cargo xtask affected --files ... --run` on Zen 1 ~/w/b escalated to FULL (tools/ is an unknown path): 9257 passed, 0 failed, 80 conformance, 2813 s; summary reported "340 suites (339 ok, 1 failed)" with 0 failed tests, exit ok (not investigated). Suggest affected.rs treat tools/ as policy-only.

@@ -1,0 +1,15 @@
+@@generated
+/* netinet/ether.h: Ethernet address conversion */
+#ifndef __NIJI_H_netinet_ether_h
+#define __NIJI_H_netinet_ether_h 1
+
+#include <features.h>
+#include <netinet/if_ether.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

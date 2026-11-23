@@ -67,6 +67,14 @@ unsafe extern "C" {
     /// that disabled the counter with `prctl(PR_SET_TSC)` (a debugger or replay tool; the kernel default allows it).
     #[cfg(target_arch = "x86_64")]
     pub(crate) safe fn niji_machine_rdtsc() -> u64;
+    /// The addresses of `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` a static program links
+    /// (machine/unwinder.S, D-22.21), or 0 (always 0 outside libc.a). No arguments, no memory access.
+    pub(crate) safe fn niji_machine_unwind_force() -> usize;
+    pub(crate) safe fn niji_machine_unwind_get_cfa() -> usize;
+    /// valgrind's `RUNNING_ON_VALGRIND` client request (machine/tool.S, VALGRIND-LOADER-VIEW): 0 on the
+    /// bare machine, the tool's nesting depth under valgrind. No arguments, no system call; touches only
+    /// its own stack block.
+    pub(crate) safe fn niji_machine_running_on_valgrind() -> u64;
     /// `cpuid`; writes exactly the four words of `out`.
     pub(crate) safe fn niji_machine_cpuid(leaf: u32, subleaf: u32, out: &mut [u32; 4]);
     /// `xgetbv(0)`. Faults (`#UD`) unless CPUID.1:ECX.OSXSAVE: callers check first.
@@ -263,6 +271,20 @@ unsafe extern "C" {
     /// `niji_machine_clean_upper_call`; reads nothing).
     #[cfg(feature = "selftest")]
     pub(crate) safe fn niji_machine_ymm15_dirty_cmp(a: *const u8, b: *const u8) -> i32;
+    /// Selftest (STRNCMP-AVX2-WRITER): `niji_machine_strncmp(a, b, n)` with xmm3 = `fill` in
+    /// every 32-bit lane and the trap flag set; the SIGTRAP handler below stores `to` at `at`
+    /// once, just before the kernel's re-read of the deciding bytes. Proof obligation: the
+    /// strncmp contract for `a`, `b`, `n`; `at` writable; the handler installed for SIGTRAP
+    /// with `SA_SIGINFO` on this thread for the call (`crate::selftest`).
+    #[cfg(all(feature = "selftest", not(niji_portable_scan)))]
+    pub(crate) safe fn niji_machine_strncmp_stepped(a: *const u8, b: *const u8, n: usize, fill: u32, at: *mut u8, to: i32) -> i32;
+    /// The SIGTRAP handler for `niji_machine_strncmp_stepped`. Proof obligation: never called;
+    /// only its address is installed, as an `SA_SIGINFO` action (`crate::selftest`).
+    #[cfg(all(feature = "selftest", not(niji_portable_scan)))]
+    pub(crate) safe fn niji_machine_strncmp_step_trap(sig: i32, info: usize, uc: usize);
+    /// How many stores the handler above made so far. No obligation.
+    #[cfg(all(feature = "selftest", not(niji_portable_scan)))]
+    pub(crate) safe fn niji_machine_strncmp_step_stores() -> u64;
     /// The order of the first `n` bytes of `a` and `b` after folding `A`-`Z` (STRCASECMP-SHORT,
     /// STRCASECMP-SHORT-2): -1, 0 or 1, for the locale `loc` (a `&Locale` whose case map below 128
     /// is ASCII). One AVX2 kernel (the caller checks `cpu::casecmp_kernel`); when the deciding bytes

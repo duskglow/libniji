@@ -1,0 +1,16 @@
+{"task": "LOADER-FOLDED-VERIFY", "model": "opus", "tokens": null,
+ "result": "dlerror per-thread state verified (new s27_1_c_5 test passes on both) and its thread-exit leak fixed (8 KiB per failing thread); late-module TLS already covered by s27_dlopen_tls_surplus (passes on both)",
+ "branch": "task/loader-folded-verify", "head": "b041c6931",
+ "gate": {"affected": "direct tier: every suite ok, rc 0 (keke:loader-folded-verify-gate); plants 4 CAUGHT / 0 SURVIVED", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["TLS-GET-ADDR-LATE-MODULE needs no new test: s27_dlopen_tls_surplus (DL-16d) checks threads before, after and during the dlopen, initial values and per-thread blocks, with plants in handoff/DL-DLOPEN-TLS-SURPLUS-plants.txt; libniji places the blocks at dlopen (static surplus, D-27.39), not on first access"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "a thread that fails a dl* call and exits no longer leaves its 8 KiB dlerror mapping behind (2000 such threads: VmSize +16000 kB before; under the 2 MiB bound after, the plants baseline)", "before": 16000, "after": null, "unit": "kB VmSize growth over 2000 threads", "measured": true},
+  {"kind": "coverage", "what": "s27_1_c_5 stub replaced by a real test (s27_dlerror_threads, reference and libniji); 4 plants", "before": 0, "after": 1, "unit": "tests", "measured": true},
+  {"kind": "unblock", "what": "closes DLERROR-THREAD-STATE and TLS-GET-ADDR-LATE-MODULE", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["keke:loader-folded-verify-lint2", "keke:loader-folded-verify-plants", "keke:loader-folded-verify-gate", "keke:loader-folded-verify-xtest", "keke:loader-folded-verify-hottext"],
+ "improvement": "a story folded into another (11-04) left a plan item ('released by DL-15's thread-exit hook') with no owner; a fold should copy the folded story's acceptance checks into the receiving story's brief",
+ "next_step": "land; coordinator closes DLERROR-THREAD-STATE and TLS-GET-ADDR-LATE-MODULE",
+ "report_file": "handoff/loader-folded-verify.md"}

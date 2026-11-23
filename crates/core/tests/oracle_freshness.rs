@@ -12,6 +12,8 @@ mod skip_note;
 #[path = "support/oracle.rs"]
 mod oracle;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::process::Command;
@@ -50,7 +52,7 @@ fn freshness_follows_content(include_dir: bool, tag: &str) {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
-    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("{tag}-{}", std::process::id()));
+    let dir = crate::scratch::base().join(format!("{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("main.c"), "#include \"v.h\"\nint main(void) { return V; }\n").unwrap();

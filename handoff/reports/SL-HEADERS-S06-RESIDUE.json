@@ -1,0 +1,21 @@
+{"task": "SL-HEADERS-S06-RESIDUE", "model": "opus", "tokens": null,
+ "result": "slice 6 P2 residue fixed in the ctype.h/stdio.h templates: 40 of 1195 P2 rows -> 0 of 1195 (5 headers), P3 86 -> 82 (none new), header_check 0 failed of 13677",
+ "branch": "task/sl-headers-s06-residue", "head": null,
+ "gate": {"affected": "gate2 direct tier (FULL is the train's); first gate 597 passed / 2 failed (stale iconv test link, env), transcripts rerun 6 passed / 0 failed", "peak": "1.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "P3: the 12 isX_l fortify call rows still reference isX_l (table: no symbol, an inline read); slice 18 or a perf story, keeping null/LC_GLOBAL_LOCALE safe",
+   "xtask/tests/transcripts.rs iconv_test_link() treats a test link whose ELF interpreter is gone as built (role mei s2 had target/niji-test/iconv without target/niji/): skip with a reason or have so remove it",
+   "brief premise: S17-3's rows print for ctype.h and stdio.h alone too; the cause is the templates, not the include path"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "P2 differences in ctype.h, stdio.h, argp.h, malloc.h, stdio_ext.h (C++ _tolower/_toupper/isascii/toascii macros, isX_l macros, fortify tolower_l/toupper_l/fwrite_unlocked macros)", "before": 40, "after": 0, "unit": "P2 rows differing", "measured": true},
+   {"kind": "correctness", "what": "P3 call rows of ctype.h/stdio.h (tolower_l/toupper_l under fortify now reference __tolower_l/__toupper_l)", "before": 86, "after": 82, "unit": "P3 rows differing", "measured": true},
+   {"kind": "coverage", "what": "header_p2_fixed_rows probes ctype.h and stdio.h from the templates; plants added", "before": 0, "after": 3, "unit": "plants (all CAUGHT)", "measured": true}
+ ],
+ "improvement": "the generator's rows test only counts template-owned macros; a rows-test check that each @@owns-macro name is a macro where visibility.tsv says would catch this class for every slice without a P2 run",
+ "next_step": "land (FULL gate is the train's)",
+ "report_file": "handoff/SL-HEADERS-S06-RESIDUE.md",
+ "jobs": ["sl-headers-s06-residue-gate2", "sl-headers-s06-residue-plants", "sl-headers-s06-residue-lint", "sl-headers-s06-residue-p23b", "sl-headers-s06-residue-transcripts"]}

@@ -14,7 +14,7 @@
 use core::cmp::Ordering;
 
 mod writer;
-pub use writer::{encoded_len, order, write, Entry, WriteError, ENTRIES_MAX, GENERATOR_MAX, HWCAPS_MAX, NAME_MAX, PATH_MAX};
+pub use writer::{encoded_len, order, write, Entry, WriteError, NAMES_INLINE, NAME_MAX, PATH_MAX};
 
 /// The magic and version at offset 0 (no NUL).
 pub const MAGIC: &[u8; 20] = b"glibc-ld.so.cache1.1";
@@ -244,7 +244,7 @@ impl<'a> Cache<'a> {
     /// earliest in `hwcaps` (the supported list, highest priority first) among those before the
     /// first plain entry, else that plain entry (Appendix D.3.3; owner #940). `None` when there is
     /// no such entry or an entry on the way is inconsistent.
-    pub fn lookup(&self, name: &[u8], flags: u32, hwcaps: &[&str]) -> Option<&'a [u8]> {
+    pub fn lookup(&self, name: &[u8], flags: u32, hwcaps: &[&[u8]]) -> Option<&'a [u8]> {
         // Sorted descending: the first entry whose key is not greater than `name`.
         let (mut lo, mut hi) = (0usize, self.nlibs);
         while lo < hi {
@@ -272,7 +272,7 @@ impl<'a> Cache<'a> {
             }
             let index = usize::try_from(hwcap & 0xffff_ffff).ok()?;
             let Some(sub) = self.hwcaps_name(index) else { continue };
-            if let Some(rank) = hwcaps.iter().position(|h| h.as_bytes() == sub) {
+            if let Some(rank) = hwcaps.iter().position(|h| *h == sub) {
                 if best.is_none_or(|b| rank < b.0) {
                     best = Some((rank, value));
                 }

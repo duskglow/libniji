@@ -1,7 +1,8 @@
 //! Shape and cross-check of the type and value tables (Appendix C.13, plan/headers.md slice 3).
 //!
 //! `spec/abi/typedefs.tsv` gives the size, alignment and resolved C++ spelling of each typedef, tag, data object
-//! and function; `spec/abi/macros.tsv` the C type and value of each integer, floating and string constant. Both
+//! and function; `spec/abi/macros.tsv` the C type and value of each integer, floating, string and pointer constant
+//! (a pointer row: the C++ spelling of its type, the address it holds as an integer). Both
 //! are written by `spec/tools/type_probe.py` on the reference system. The check (part of `cargo xtask static`)
 //! fails on a wrong shape (columns, kinds, an unsorted or repeated row, a name the visibility table does not show
 //! in that header with that kind, a size that is not a multiple of a power-of-two alignment, a value that does
@@ -191,6 +192,16 @@ pub fn check_tables(typedefs: &str, macros: &str, visibility: &str, layouts: &st
                 }
                 _ => errors.push(format!("{at}: `{value}` is not a value of type {ty}")),
             }
+        } else if ty == "null" {
+            // A null pointer constant, spelled per language by the generator (C `void *`, C++ `__null`): value 0.
+            if value != "0" {
+                errors.push(format!("{at}: `{value}` is not 0, the value of a null pointer constant"));
+            }
+        } else if ty == "pointer" {
+            // A pointer constant: its address as a signed 64-bit value (the pointer's own type is the header's).
+            if value.parse::<i64>().is_err() {
+                errors.push(format!("{at}: `{value}` is not an address of a pointer constant"));
+            }
         } else if FLOATS.contains(&ty) {
             if !is_hexfloat(value) {
                 errors.push(format!("{at}: `{value}` is not a normalised hexadecimal floating value"));
@@ -199,11 +210,36 @@ pub fn check_tables(typedefs: &str, macros: &str, visibility: &str, layouts: &st
             if string_len(value).is_none_or(|l| l + 1 != len) {
                 errors.push(format!("{at}: `{value}` is not a quoted string of {} bytes", len.saturating_sub(1)));
             }
+        } else if is_pointer(ty) {
+            // An address constant (NULL-like, SIG_*, MAP_FAILED, ...): the integer the pointer holds, as
+            // constants.tsv gives it (signed), compared modulo 2^64 like the unsigned integers.
+            match value.parse::<i128>() {
+                Ok(v) if (i64::MIN as i128..=u64::MAX as i128).contains(&v) => {
+                    if let Some(c) = constant.get(name).and_then(|c| c.parse::<i128>().ok()) {
+                        if c.rem_euclid(1 << 64) != v.rem_euclid(1 << 64) {
+                            errors.push(format!("{at}: `{name}` is {value} here but {c} in constants.tsv"));
+                        }
+                    }
+                }
+                _ => errors.push(format!("{at}: `{value}` is not an address of type {ty}")),
+            }
         } else {
             errors.push(format!("{at}: unknown type `{ty}`"));
         }
     }
     errors
+}
+
+/// A pointer type in the probe's C++ spelling: an object pointer `T*` (`char*`, `fenv_t const*`) or a function
+/// pointer `R (*)(A)` (`void (*)(int)`).
+fn is_pointer(ty: &str) -> bool {
+    if let Some((ret, args)) = ty.split_once(" (*)(") {
+        return !ret.is_empty() && args.ends_with(')') && !args.contains("(*)");
+    }
+    ty.strip_suffix('*').is_some_and(|p| {
+        let p = p.trim_end_matches('*');
+        !p.is_empty() && !p.ends_with(' ') && p.split(' ').all(|w| w == "const" || w == "volatile" || is_ident(w))
+    })
 }
 
 fn read(root: &Path, rel: &str) -> Result<String, String> {
@@ -298,11 +334,33 @@ mod tests {
         fails_mac(&MAC.replace("\tint\t1", "\tunsigned int\t-1"), "not a value of type unsigned int");
         fails_mac(&MAC.replace("long\t9223372036854775807", "long\t9223372036854775806"), "in constants.tsv");
         fails_mac(&MAC.replace("p+1", "p1"), "hexadecimal floating");
+        fails_mac(&MAC.replace("linux\t-\tint\t1", "linux\t-\tpointer\tx"), "address of a pointer");
         fails_mac(&MAC.replace("42d18p", "42d10p"), "hexadecimal floating");
         fails_mac(&MAC.replace("0x1.9", "0x3.9"), "hexadecimal floating");
         fails_mac(&MAC.replace("char[5]", "char[4]"), "quoted string");
         fails_mac(&MAC.replace("\"/tmp\"", "/tmp"), "quoted string");
         fails_mac(&MAC.replace("\"/tmp\"", "\"/t\"p\""), "quoted string");
+    }
+
+    #[test]
+    fn null_constants() {
+        // A null pointer constant row (`null`, value 0): no other value is a null pointer constant. No spec clause.
+        let mac = MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tnull\t0");
+        assert_eq!(errs(TD, &mac, LAY, VER, CONST), Vec::<String>::new());
+        fails_mac(&MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tnull\t1"), "null pointer constant");
+    }
+
+    #[test]
+    fn pointer_constants() {
+        // Pointer rows (the value emitter spells their cast): the probe's C++ spelling, the address as an integer.
+        assert!(is_pointer("void*") && is_pointer("fenv_t const*") && is_pointer("__locale_struct*") && is_pointer("char**"));
+        assert!(is_pointer("void (*)(int)"));
+        assert!(!is_pointer("*") && !is_pointer("void") && !is_pointer("void (*)") && !is_pointer("fenv_t const *") && !is_pointer("a-b*"));
+        let mac = MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tvoid (*)(int)\t-1");
+        assert_eq!(errs(TD, &mac, LAY, VER, CONST.replace("FP_NAN\t0", "FP_NAN\t-1").as_str()), Vec::<String>::new());
+        fails_mac(&mac, "in constants.tsv");
+        fails_mac(&MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tvoid*\t0x0"), "not an address");
+        fails_mac(&MAC.replace("FP_NAN\tmath.h\tint\t0", "FP_NAN\tmath.h\tvoid*\t18446744073709551616"), "not an address");
     }
 
     #[test]

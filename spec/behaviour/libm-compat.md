@@ -31,7 +31,12 @@ reference never called it.
 * `log`, `log2`, `logf`, `log2f`: identical except for a negative argument (finite or -infinity):
   the old version returns a NaN with the sign bit clear (`7ff8000000000000`, `7fc00000`), the default
   version one with the sign bit set (`fff8000000000000`, `ffc00000`); `errno` (`EDOM`) and the flags
-  (`FE_INVALID`) are the same. Not exported yet: an alias would give the default version's NaN.
+  (`FE_INVALID`) are the same. A NaN argument of either sign (quiet or signalling; the logarithms
+  take these two extra inputs, SYS-COMPAT-VERSIONS-REST, 2026-11-17) gives the default's result.
+  libniji exports `log` and `log2` (the old versions Debian trixie's programs bind: drc, libfreefem0,
+  mgen, pluto-lunar, ries, tandem-mass; cbootimage) as their own entries, `niji_compat_log` and
+  `niji_compat_log2` (crates/boundary/src/posix/s10_math.rs): the default's result, its sign bit
+  cleared for a negative argument. `logf` and `log2f` (no users) stay on compat-missing-libm.tsv.
 
 Test: `old_libm_versions_bind_and_match_the_reference` (crates/core/tests/crt_products.rs) links the
 probe (without `-DPROBE_ALL`) against libniji's `libm.so.6` and the reference's and requires the same

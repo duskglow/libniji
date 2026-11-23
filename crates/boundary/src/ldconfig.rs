@@ -17,9 +17,6 @@ use niji_ld::ldconfig::{self, sysfs::SysFs};
 use crate::ld::{c_string, exit, stack_word, write_all};
 use crate::sys::CSys;
 
-/// Arguments read from the initial stack at most (more is refused: `E2BIG`'s text).
-const ARGS_MAX: usize = 4096;
-
 /// The entry of `ldconfig` (called by `niji_machine_ldconfig_entry` with the initial stack pointer
 /// `sp` and the run-time address `ehdr` of the image's own ELF header).
 // UNSAFE(export): the Rust side of the ldconfig entry primitive; the program's only entry.
@@ -30,11 +27,9 @@ pub extern "C" fn niji_ldconfig_start(sp: usize, ehdr: usize) -> ! {
         write_all(2, b"ldconfig: cannot relocate the program\n");
         exit(1)
     }
+    // Every argument the kernel passed is read (its own limits bound them); a list that does not fit in memory is
+    // the out-of-memory report below.
     let argc = usize::try_from(stack_word(sp)).unwrap_or(0);
-    if argc > ARGS_MAX {
-        write_all(2, b"ldconfig: Argument list too long\n");
-        exit(1)
-    }
     let mut args: alloc::vec::Vec<&'static [u8]> = alloc::vec::Vec::new();
     if args.try_reserve_exact(argc).is_err() {
         write_all(2, b"ldconfig: out of memory\n");

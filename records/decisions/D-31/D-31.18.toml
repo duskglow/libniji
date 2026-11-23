@@ -1,0 +1,11 @@
+id = "D-31.18"
+section = "s31"
+spec = "§31.9"
+ann = "—"
+status = "active"
+story = "TZ-TOOLS-2"
+date = "2026-11-21"
+tests = ["xtask/tests/tz_tools.rs"]
+body = '''
+**`zic` makes every file a source names below its output directory, and follows no symbolic link below it (TZ-TOOLS-2; loaded data is untrusted, owner 2026-11-17).** The `-d` directory is the caller's: its path is followed as given and made when missing. Below it, each zone or link name is walked one component at a time from a descriptor of that directory (`mkdirat`, then `openat` with `O_NOFOLLOW`), the file is written under a short private name in its directory and renamed over the name, and a link's old entry is removed with `unlinkat`; a symbolic link anywhere below `-d`, whether this run, an earlier run or someone else made it, is never followed for a write, and a component that is one stops that name with `Can't create directory <name up to it>: Too many levels of symbolic links`. Names are checked as the source is read (empty, leading `/`, a `.`, `..` or empty component, trailing `/`, with the reference's messages, probed), and the walk refuses those components again on its own. A link target that cannot be hard-linked with `EPERM`, such as a directory, is an error (`link from <path> failed`), not a symbolic link (probed). The path length limit applies to the name as resolved from the directory (4095 bytes; probed), and a final component over `NAME_MAX` is refused before anything is removed. Links named by options (`-l`, `-p`, `-t`) are the caller's own paths and are made as given. Rejected: checking resolved paths with `realpath` before each write (a check, then a use: a link made between the two still escapes); following only links that resolve inside `-d` (the same race, and every link must be resolved).
+'''

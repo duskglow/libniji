@@ -43,6 +43,8 @@ members = [
     "crates/ld",
     "crates/native",
     "crates/mathtools",
+    "crates/locale",
+    "crates/charmaps",
     "xtask",
 ]
 # Product crate: a separate build (needs the phase-4 entry point, allocator and panic handler).
@@ -62,6 +64,8 @@ default-members = [
     "crates/ld",
     "crates/native",
     "crates/mathtools",
+    "crates/locale",
+    "crates/charmaps",
     "xtask",
 ]
 
@@ -86,6 +90,8 @@ niji-legacy = { path = "crates/legacy" }
 niji-math = { path = "crates/math" }
 niji-boundary = { path = "crates/boundary" }
 niji-mathtools = { path = "crates/mathtools" }
+niji-locale = { path = "crates/locale" }
+niji-charmaps = { path = "crates/charmaps" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"             # only crates/boundary overrides this (to deny + audited allows)
@@ -125,6 +131,11 @@ opt-level = 3
 # seconds rather than minutes.
 [profile.dev.package.niji-mathtools]
 opt-level = 3
+
+# LOCALE-CHARMAPS-GEN: `cargo xtask so` runs the charmap generator in the dev profile (sharing the
+# test build of niji); its loop probes every byte sequence of each codec's code space.
+[profile.dev.package.niji-charmaps]
+opt-level = 2
 
 # GATE-SPEED (2026-10-10): the test builds of the three product crates are optimised; o0/o2/o0 back to
 # back on Zen 1 ran the two test passes in 399/371 s at opt-level 2 against 709/756 and 690/732 s at 0.

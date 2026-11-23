@@ -18,11 +18,15 @@
 #define __GLIBC_MINOR__ 39
 #define __GLIBC_PREREQ(maj, min) ((__GLIBC__ << 16) + __GLIBC_MINOR__ >= ((maj) << 16) + (min))
 
-/* C++ or C. */
-#ifdef __cplusplus
-# define __NIJI_CXX 1
-#else
+/* C++ or C: 0 in C, 1 in C++98 and C++03, 2 in C++11, 3 in C++14 and later. */
+#ifndef __cplusplus
 # define __NIJI_CXX 0
+#elif __cplusplus >= 201402L
+# define __NIJI_CXX 3
+#elif __cplusplus >= 201103L
+# define __NIJI_CXX 2
+#else
+# define __NIJI_CXX 1
 #endif
 
 /* GNU: everything (feature_test_macros(7), _GNU_SOURCE). g++ predefines _GNU_SOURCE. */
@@ -107,7 +111,7 @@
 #endif
 #if defined _TIME_BITS && _TIME_BITS - 0 == 64
 # define __NIJI_TIME64 1
-# if !__NIJI_FOB64
+# if !__NIJI_FOB64 && !defined __NIJI_TIME_BITS_UNCHECKED
 #  error "_TIME_BITS=64 is allowed only with _FILE_OFFSET_BITS=64"
 # endif
 #else
@@ -132,6 +136,17 @@
 # endif
 #else
 # define __NIJI_FORTIFY 0
+#endif
+
+/* Header-inline bodies (Appendix C.9 protocols, and calls a function is specified to be equivalent to): in effect when
+   optimizing for speed, as GCC's predefined macros say (-O1 and up, -Og), not at -O0, -Os or -fno-inline (black-box
+   probe of the reference's objects, HEADERS-O2-INLINES). The body is GNU inline: taking the function's address, or
+   a call GCC does not inline, binds to the library's definition. */
+#if defined __OPTIMIZE__ && !defined __OPTIMIZE_SIZE__ && !defined __NO_INLINE__
+# define __NIJI_INLINES 1
+# define __NIJI_INLINE_FN extern __inline __attribute__ ((__gnu_inline__))
+#else
+# define __NIJI_INLINES 0
 #endif
 
 /* The two glibc-internal level names other software tests (owner ruling R-H2), with the same meaning. */

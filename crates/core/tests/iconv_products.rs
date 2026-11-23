@@ -39,15 +39,10 @@ fn build(out: &Path, niji: bool) -> bool {
 
 /// Lines that differ from the reference by decision: the start of the line, the locale it is
 /// under (`*` any), and why. A recorded line that no longer differs fails the test.
-const KNOWN: [(&str, &str, &str); 4] = [
+const KNOWN: [(&str, &str, &str); 2] = [
     // Stateful encodings, which only the reference library's modules implement (D-6.8).
     ("ISO-2022-JP <- ", "*", "stateful"),
     ("UTF-7 <- ", "*", "stateful"),
-    // An alias the reference library's module list has and no installed charmap gives.
-    ("WINDOWS-1252 <- ", "*", "alias not in the charmaps"),
-    // CP932 is WINDOWS-31J's charmap, which maps 0x815C from U+2015 only; the reference
-    // module also takes U+2014 (D-6.8: the charmap is followed).
-    ("CP932 <- UTF-8 [61e38182", "*", "U+2014 not in the charmap"),
 ];
 
 #[test]

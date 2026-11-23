@@ -3222,8 +3222,8 @@ list of *sources* (services), with rules for what to do on each outcome. The dat
   `NSS_STATUS_NOTFOUND` (0); `*result` is not written. `*h_errnop` is 0 or `HOST_NOT_FOUND`.
 * **Failure.** A caller buffer too small: 1, `*status` `NSS_STATUS_TRYAGAIN` (-2), `*h_errnop`
   `NETDB_INTERNAL` (-1), `errno` `ERANGE`. No memory in the allocating form: 1, `*result` NULL,
-  `NETDB_INTERNAL`, `ENOMEM`. A NULL `status` or `h_errnop` is not written (the reference
-  dereferences it; S6). `errno` is not otherwise written. (Written 2026-10-05, owner ruling:
+  `NETDB_INTERNAL`, `ENOMEM`. A NULL `status` or `h_errnop` is not written (S6). `errno`
+  is not otherwise written. (Written 2026-10-05, owner ruling:
   observed black-box, `spec/behaviour/digits-dots.md`.)
 
 The switch is configured by `/etc/nsswitch.conf`, and each source is a shared object
@@ -5708,7 +5708,7 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 
 | File | Contents | Rows |
 |---|---|---|
-| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4602 (4600 + 2 R3 additions) |
+| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4818 (4600 + 2 R3 additions + 216 `libmvec.so.1` rows) |
 | `spec/abi/layouts.tsv` | per type: size and alignment, then each member's offset, type and bit-field position | 1372 (161 types) |
 | `spec/abi/initializers.tsv` | static initializer bit patterns | 10 |
 | `spec/abi/prototypes.tsv` | C declaration of every function the public headers declare, with its header | 3780 (3778 + 2 R3 additions) |

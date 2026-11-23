@@ -1,0 +1,66 @@
+# UTIL-12: `niji-locale` and `localedef` (issue #14's blocker)
+
+**State.** Branch `task/util-12-3` (UTIL-12's `task/util-12` plus a merge of origin/next `c3dcf1880`), role keke
+`~/w/n2`. Head: see `git log -1`. The directory form of `localedef` is done and shipped in libc-bin; the locale
+archive is not (LOCALEDEF-ARCHIVE, held).
+
+## UTIL-12-3 (merge continuation, 11-22)
+
+* Merged origin/next (CI-INSTR-REBUILDS, LIBC-SELF-BIND-2, CI-PRODUCTS-ONCE). One conflict, `run_freestanding`
+  in `xtask/src/so.rs`: kept UTIL-12's general freestanding link step and next's `check_tag_covers`, now run for
+  each freestanding product (ldconfig and localedef). `product_crates` names `LOCALEDEF_BUILD` (crates/localedef-bin);
+  niji-locale is in the tag set through boundary's `localedef` feature. The products manifest
+  (`target/niji/.products-manifest`) lists `localedef` with no change (it hashes every file of target/niji).
+* Checked on keke n2: `cargo xtask so` passes `check_tag_covers` for localedef; tag self-tests 2/2; niji-locale
+  (prog 7, reference 6 = the #14 locales) and xtask's tests 620 passed / 0 failed (job util-12-3-crates3, with
+  clippy and static). The root Cargo.lock now names niji-locale (UTIL-12 had not committed it; cargo rewrote it on
+  every build, which made the first jobs, util-12-3-crates / -plants, test another lock than the head's).
+* New: `the_shipped_localedef_passes_the_transcripts` (xtask/tests/transcripts.rs): the 10 committed transcripts
+  were never run by a test; now they run over target/niji/localedef. Plants `handoff/UTIL-12-3.plants` (3, on
+  `crates/boundary/src/localedef.rs`, the glue only the binary reaches).
+* Cost to know: an edit to `crates/locale/src` or `crates/localedef-bin` now changes the build tag (as
+  ldconfig-bin's does), so CI rebuilds every release library for it (D-27.78's 7 to 8 min class).
+
+## Done (do not redo)
+
+* `crates/locale` (niji-locale): source parser, all 12 Appendix D.1 category writers, and the command
+  (`prog.rs`: options, search paths, `.gz` charmaps inflated in-process, the default-charmap fallback,
+  directory form for a NAME with `/` or `--no-archive` (+ `--prefix`), the reference's messages/statuses).
+* Shipped program: `crates/localedef-bin` over boundary feature `localedef` (`crates/boundary/src/localedef.rs`),
+  entry `niji_machine_localedef_entry` (`csys/src/machine/entry.S`, `-DNIJI_LOCALEDEF`), built by
+  `run_localedef` in `xtask/src/so.rs` into `target/niji/localedef` (static PIE, no interpreter, D-31.2 checks).
+  Manifest row `system libc-bin usr/bin/localedef`. Transcript harness knows `localedef`.
+* Decisions D-31.19 (crate + freestanding program), D-31.20 (collation weights: order equal, bytes own),
+  D-31.21 (shared transliteration lists).
+* Tests: `crates/locale/tests/reference.rs` (6 locales vs the reference, by the reader), `tests/prog.rs`
+  (7 command tests), `validation/transcripts/localedef/` (10 transcripts, recorded on the Zen 1 host).
+* Plants: `handoff/UTIL-12.plants` (7: prog.rs x4, collate.rs x2, ctype.rs x1).
+
+## Probe-settled (reference localedef, Zen 1 host)
+
+* Missing source: one `[error] cannot open locale definition file ...` line, status 4. Missing charmap: its
+  line, then the default `ANSI_X3.4-1968` is used; without `-c` the no-output line and status 4, with `-c`
+  output and status 0. The output directory is made before any input is read (left empty on failure); a
+  parent that is missing is reported at write time (`cannot write output files to ...`).
+* Categories the source lacks: `[warning] No definition for <cat> category found`, status 1, but the
+  reference still writes all 12 files (POSIX defaults). libniji writes only the defined ones (gap below).
+* The reference reads the charmap before the source; `-f path.gz` is not inflated (only the search is).
+* Measured: libniji's localedef compiles each of en_US/de_DE/fr_FR/ja_JP/tr_TR.UTF-8 in 0.6 to 0.84 s
+  (wall, one run, Zen 1 host), peak RSS 218 to 338 MB (the ldconfig arena never frees non-last blocks);
+  10 of 12 files byte-equal to the reference's, LC_COLLATE and LC_CTYPE by design (D-31.20/21); libniji's
+  `locale -k` over our de_DE equals the same over the reference's.
+
+## Open (owner 11-22: items 1, 2-5 are LOCALEDEF-ARCHIVE; item 6 is LOCALE-CHARMAPS-GEN / LOCALE-SOURCES-GEN, generated, never glibc files)
+
+1. The locale archive writer and `--list-archive` / `--add-to-archive` / `--delete-from-archive` (D.1.6;
+   `niji::locale::archive` reads). Today a NAME without `/` and without `--no-archive` is status 4.
+2. POSIX default files for categories a source does not define (the reference writes them).
+3. No `-i`: the reference reads the source from stdin; libniji reports an error.
+4. A syntax error stops the compile (the reference continues under `-c`); `--big-endian` is refused.
+5. Peak RSS: a freeing allocator (or arena reuse) before UTIL-13 runs compiles in parallel.
+6. Locale sources and charmaps (R5, resolved by the owner 11-22, #7532): generated by libniji itself
+   (LOCALE-CHARMAPS-GEN, then LOCALE-SOURCES-GEN), never the distribution's glibc files.
+
+## Rows to read
+
+D-31.2, D-31.4, D-31.19..21; plan/utilities.md §4 "Locale" and the UTIL-12 row; spec §31.8.

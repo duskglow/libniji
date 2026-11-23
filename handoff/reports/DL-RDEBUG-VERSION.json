@@ -1,0 +1,20 @@
+{"task": "DL-RDEBUG-VERSION", "model": "sonnet", "tokens": null,
+ "result": "ld.so's _r_debug is now r_debug_extended (48 bytes, r_version 2, r_next null); a 40-byte program copy says version 1; nothing found relies on 1",
+ "branch": "task/dl-rdebug-version", "head": "bcb84e09468f",
+ "gate": {"affected": "742 passed / 0 failed", "peak": "2.4G"},
+ "jobs": ["mei:dl-rdebug-version-gate2", "mei:dl-rdebug-version-plants2", "mei:dl-rdebug-version-hot"],
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "valgrind in a trixie root with libniji swapped in stops on 'm_debuginfo/readelf.c:3013 (find_rodata): Assertion di->rodata_size == sh_size failed' while reading a debug file; identical with r_version 1 and 2 (not the rendezvous)",
+  "tools/deb/dbg-system.sh reports one FAIL ('gdb in a running /usr/bin/true') under both versions: its regex wants 'at FILE:LINE' on the #5 frame line while gdb prints '#0  setlocale () at boundary/src/posix/s07_locale.rs:18'; same before the change",
+  "cargo xtask test: kernel_pages_map_aligned_past_a_gap_without_an_aligned_range (niji-boundary s03_memory_symbols) failed once in the full run, passes alone; memory code untouched by this change",
+  "Not exercised: other root files naming _r_debug (libgnat, sanitizer runtimes, cc1, lto1, libpython3.13, gprofng-display-html)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "r_version 2 with r_next (spec s27_4_c_0); a program's copy made at 40 bytes says 1 so no reader reads past it", "before": 1, "after": 2, "unit": "r_version of ld.so's own _r_debug", "measured": true},
+  {"kind": "coverage", "what": "rendezvous test (40-byte copy built with the host C library) and 4 plants, all caught", "before": 0, "after": 5, "unit": "tests+plants added (1 test, 4 plants)", "measured": true},
+  {"kind": "size", "what": "ld.so's _r_debug object", "before": 40, "after": 48, "unit": "bytes", "measured": true}],
+ "improvement": "tools/deb/dbg-system.sh could take its include list and cmds file as arguments (I copied and sed-edited it); and a valgrind check could join it",
+ "next_step": "land; DL-22's dlmopen links further namespaces through r_next; a story for the valgrind assertion",
+ "report_file": "handoff/DL-RDEBUG-VERSION.md"}

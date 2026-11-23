@@ -11,7 +11,7 @@
 //! entry point is an adapter forwarding to `niji_mq_open4`, which reads the attributes only
 //! with `O_CREAT`. Sending and receiving are cancellation points (§25.3). `__mq_open_2`, the
 //! fortified form for a call without the optional arguments, refuses `O_CREAT` with `EINVAL`
-//! (it creates nothing; the reference aborts).
+//! (it creates nothing; S6).
 
 use niji::ipc;
 use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void, size_t, ssize_t};

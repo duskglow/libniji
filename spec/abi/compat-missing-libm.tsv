@@ -13,8 +13,6 @@ expf	GLIBC_2.2.5
 lgamma	GLIBC_2.2.5
 lgammaf	GLIBC_2.2.5
 lgammal	GLIBC_2.2.5
-log	GLIBC_2.2.5
-log2	GLIBC_2.2.5
 log2f	GLIBC_2.2.5
 logf	GLIBC_2.2.5
 matherr	GLIBC_2.2.5

@@ -1,0 +1,27 @@
+# LDSO-PROGRAM-OPTIONS-REST-2 plants (cargo xtask plants; the ldso_program_options tests use the built ld.so).
+# --inhibit-rpath: an empty first entry no longer names the program.
+rpath-first-entry | crates/ld/src/program.rs | lit:each.next().is_some_and(|first| first == path) || ==> false || | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked
+# --inhibit-rpath: a later empty entry names the program ('x:' would).
+rpath-later-empty | crates/ld/src/program.rs | lit:(!path.is_empty() && each.any( ==> (each.any( | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked
+# The search ignores --inhibit-rpath.
+search-list-ignored | crates/boundary/src/ld/image.rs | lit:Some(list) if program::rpath_inhibited(list, path) => None, ==> Some(list) if false && program::rpath_inhibited(list, path) => None, | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# --glibc-hwcaps-mask ignored.
+mask-ignored | crates/ld/src/program.rs | lit:mask.is_none_or(|m| entries(m).any(|e| e == *h)) ==> mask.is_none_or(|m| entries(m).any(|e| e == *h) || true) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_(option_parsing|inhibit_rpath_hwcaps_and_lists).*FAILED|panicked
+# --glibc-hwcaps-prepend keeps empty names.
+prepend-keeps-empty | crates/ld/src/program.rs | lit:.filter(|e| !e.is_empty()) ==> | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked
+# The start's hwcaps list drops its first name (the prepended one).
+hwcaps-list-drops-first | crates/boundary/src/ld/entry.rs | lit:for (slot, name) in slots.iter_mut().zip(names) { ==> for (slot, name) in slots.iter_mut().zip(names.skip(1)) { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# dlopen forgets program mode's hwcaps list.
+dlopen-hwcaps-lost | crates/boundary/src/ld/dlopen.rs | lit:super::state::program_hwcaps().unwrap_or_else( ==> None::<&'static [&'static [u8]]>.unwrap_or_else( | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_dlopen_after_library_path_and_inhibit_cache.*FAILED|panicked
+# $PLATFORM inverted.
+platform-inverted | crates/ld/src/arch.rs | lit:if Self::hwcaps(f).len() >= 2 { "haswell" } else { "x86_64" } ==> if Self::hwcaps(f).len() >= 2 { "x86_64" } else { "haswell" } | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# --list-tunables: a disabled hwcaps choice printed as enabled.
+tunables-sign | crates/boundary/src/ld/report.rs | lit:o.put(if on { b"" } else { b"-" }); ==> o.put(if on { b"-" } else { b"" }); | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# --list-tunables: a wrong default value.
+tunables-default | crates/boundary/src/ld/report.rs | lit:flag(t.rseq, true) ==> flag(t.rseq, false) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# --list-diagnostics: every environment value shown.
+diag-env-unfiltered | crates/boundary/src/ld/report.rs | lit:if shown(name) { ==> if true { | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_inhibit_rpath_hwcaps_and_lists.*FAILED|panicked
+# --list-diagnostics: a high byte's first octal digit wrong.
+quoted-octal | crates/ld/src/program.rs | lit:b'0'.wrapping_add(b >> 6) ==> b'0'.wrapping_add(b >> 5) | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked
+# The first of two mode options wins instead of the last.
+ask-first-wins | crates/ld/src/program.rs | lit:ask = Ask::Diagnostics; ==> ask = if matches!(ask, Ask::Program(Mode::List)) { ask } else { Ask::Diagnostics }; | cargo test -p niji-ld --test ldso_program_options | msg:ldso_program_option_parsing.*FAILED|panicked

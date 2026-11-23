@@ -1,0 +1,13 @@
+name: to SHIFT_JIS (charmap)
+clause: s31_6_i_2
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: SHIFT_JIS
+stdin:
+|~ \xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\n
+status: exit 0
+stdout:
+| \x93\xfa\x96{\x8c\xea
+stderr:

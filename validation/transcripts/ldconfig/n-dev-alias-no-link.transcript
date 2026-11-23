@@ -1,0 +1,19 @@
+# -n DIR (GitHub issue #16), the same layout as n-dev-alias.transcript but without the soname link before the run:
+# both development names dangle during the scan and are kept (names ending in `.so`), and the soname link is made
+# to the real file. No -v, so the two `Cannot stat` lines (in the reference's listing order) are not compared.
+name: ldconfig -n DIR links the soname to the real file when the .so development names dangle
+clause: s31_2_g_4
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -n
+arg: @ROOT@/lib
+elf: lib/libcmocka.so.0.8.0 soname=libcmocka.so.0
+link: lib/libcmocka.so -> libcmocka.so.0
+link: lib/libcmockery.so -> libcmocka.so
+status: exit 0
+stdout:
+stderr:
+written-link: lib/libcmocka.so.0 -> libcmocka.so.0.8.0

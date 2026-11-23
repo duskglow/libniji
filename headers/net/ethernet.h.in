@@ -1,0 +1,16 @@
+@@generated
+/* net/ethernet.h: Ethernet definitions (ethernet(7)) */
+#ifndef __NIJI_H_net_ethernet_h
+#define __NIJI_H_net_ethernet_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

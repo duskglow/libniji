@@ -1,0 +1,55 @@
+{
+ "task": "SL-HEADERS-S15",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "INCOMPLETE: 27 slice 15 headers generated, P5/P1 0 failed of 3101, P3 0 differences, gate and static and clippy green; P2 has 352 differences (other slices' headers, MS_* kind, sys/types.h extras), no R-H7 drop to land",
+ "branch": "task/sl-headers-s15",
+ "head": "9a6304ad2",
+ "jobs": [
+  "SL-HEADERS-S15-gate",
+  "SL-HEADERS-S15-plants2"
+ ],
+ "gate": {
+  "affected": "affected: ok (rc 0)",
+  "peak": "16G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Names that sys/mount.h, sys/mtio.h, sys/raw.h, sys/timex.h get through sys/ioctl.h, fcntl.h, sys/select.h (slices 7, 14) are owned here with an optional __has_include include; P2 is green only after those slices land",
+   "recommendation": "land slice 7 and 14 first or accept the temporary P2 gap, then switch to plain includes"
+  },
+  {
+   "item": "MS_* of sys/mount.h are enumerators in the tables but macros here (kernel linux/mount.h first): needs a differences row and compat id",
+   "recommendation": "accept, row plus COMPAT-NEW in a follow-up"
+  }
+ ],
+ "informational": [
+  "no R-H7 drop: plan/headers.md 5.1 ships all five legacy headers of the slice",
+  "P2: 352 differences of 2049 rows, not accepted; P8 reverse order, P6, P10 not run",
+  "generator enumerator guard changed ctype.h and unistd.h by guard lines only",
+  "plants: 12 CAUGHT, 0 SURVIVED (plants2); first run had 3 WARN-NO-MSG, message fixed"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "slice 15 headers generated and checked (P5, P1, P3)",
+   "before": 0,
+   "after": 27,
+   "unit": "headers",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "the plants tool runs the products build, whose headers-gen staleness check catches any mutation of libc-include/ before the real check runs: plants on generated output need the stale message",
+ "next_step": "land slices 7 and 14, plain includes, rerun P2, write differences rows and compat ids, P8 reverse order",
+ "report_file": "handoff/SL-HEADERS-S15.md"
+}

@@ -184,7 +184,8 @@ fn build(src: &Path, out: &Path, niji: bool) -> bool {
 
 fn run(exe: &Path, mode: &str, wrap: &[&str]) -> String {
     let limit = timeout::secs(60);
-    let mut cmd = Command::new("timeout");
+    // A namespaced run (`wrap`: unshare) is contained (support/contain.rs).
+    let mut cmd = if wrap.is_empty() { Command::new("timeout") } else { oracle::contain::user("timeout") };
     cmd.arg(&limit).args(wrap).arg(exe).arg(mode).env_clear().env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin");
     let o = cmd.output().unwrap();
     format!("{}ended: {:?}\n", String::from_utf8_lossy(&o.stdout), o.status.code())

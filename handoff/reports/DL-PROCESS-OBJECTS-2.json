@@ -1,0 +1,105 @@
+{
+ "task": "DL-PROCESS-OBJECTS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: part 2 (loader object tables grow past 512 objects) written, gate 747/0, plants 18/18, fullprof green, within-512 reader counts at or below next; cargo xtask test has one native-pass red (heap gap test) whose cause is not established; part 3 (TLS) not started",
+ "branch": "task/dl-process-objects-2",
+ "head": "9601fcc70",
+ "gate": {
+  "affected": "747 passed / 0 failed (11 suites, direct tier, 6 targets)",
+  "peak": "2.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Freed loader slots are reused only from the top, so out-of-order dlclose (FIFO plugin churn) leaves holes; past 512 the tables now grow per hole and dlclose/live_set walk up to the top (before part 2 such a process failed at 512)",
+   "recommendation": "a follow-up story: reuse a run of freed slots below the top (first fit for the set's size)"
+  },
+  {
+   "item": "cargo xtask test red: niji-boundary::s03_memory_symbols kernel_pages_map_aligned_past_a_gap_without_an_aligned_range fails in the native pass only (100/100 on this branch through the role runner; 0/100 plain); heap code untouched but the native pass runs under this branch ld.so; one strace run passed and showed only KernelPages calls in the window. A next comparison was attempted but was invalid (no native copies on that tree) and is withdrawn",
+   "recommendation": "run that test in the native pass on a next role N times; same rate there: land this branch and open a heap/test story; branch-only: the next run of this story finds the mapping"
+  }
+ ],
+ "informational": [
+  "A program linked with -Wl,-rpath,<products> naming libc.so.6 by soname did not find it at start ('cannot open shared object file'); tests and count.sh name libc by path, not chased",
+  "libniji's _dl_find_object is linear in the objects (18462 instructions for the last of 104 objects; the reference 167) and dladdr about 3x the reference: separate performance stories",
+  "Plant view-node-addr was caught by the 600 s timeout, not its message: a wrong decode makes the chain loop and the lock-free walk guard is 2^32 steps; a tighter guard (the published count) would turn such a defect into a clean failure"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "dlopen past 512 objects: 'cannot load more objects' at the 510th library is gone (2000-object test, output equal to the reference's)",
+   "before": 512,
+   "after": null,
+   "unit": "objects per process (memory bound after)",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr, last of 104 objects (Skylake-SP, user instructions per call)",
+   "before": 2441,
+   "after": 2239,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr, own object (104 objects)",
+   "before": 1002,
+   "after": 928,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "_dl_find_object, last of 104 objects",
+   "before": 18464,
+   "after": 18462,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dl_iterate_phdr full walk of 104 objects: +3 per walk (the final generation compare)",
+   "before": 16021,
+   "after": 16024,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "dlopen_process_objects_out_of_memory_is_clean: 48 limits -> 11 (sweep stops after two completed runs in a row); 474 s for that test in part 1's gate, 20.9 s for the whole 3-test binary now",
+   "before": 474,
+   "after": 20.9,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the table bounds, the later-generation decodes and the readers' cold continuations",
+   "before": null,
+   "after": 18,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "DL-PROCESS-OBJECTS part 3 (TLS modules, MODULES_MAX)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "a tool to run one test binary in the native pass on a given revision (here: next) would have settled an inherited-or-mine question in minutes; the hand-written runner loop silently measured runner refusals as failures on a tree without native copies",
+ "next_step": "settle the xtask test red against next (native pass, same test, N runs); then precheck and land; part 3 (TLS) as a new story",
+ "report_file": "handoff/DL-PROCESS-OBJECTS-2.md",
+ "jobs": [
+  "mei:dl-process-objects-2-gate",
+  "mei:dl-process-objects-2-plants2",
+  "mei:dl-process-objects-2-counts3",
+  "mei:dl-process-objects-2-xtest",
+  "mei:dl-process-objects-2-fullprof"
+ ]
+}

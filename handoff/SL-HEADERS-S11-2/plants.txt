@@ -1,0 +1,13 @@
+# Plants of slice 11, run 2 (cargo xtask plants; docs/plants.md). Floating literals (generator unit test), the committed
+# headers (header_check P1/P5/P6) and header_check's own new filters.
+s11-float-digits | xtask/src/headers.rs | lit:_ => 36, ==> _ => 35, | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:panicked at
+s11-float-pow5 | xtask/src/headers.rs | lit:dec_mul(&mut d, 5u64.pow(s as u32)); ==> dec_mul(&mut d, 4u64.pow(s as u32)); | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:panicked at
+s11-float-round | xtask/src/headers.rs | lit:let up = ds[digits] >= 5; ==> let up = ds[digits] > 8; | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:panicked at
+s11-float-carry | xtask/src/headers.rs | lit:ds.insert(0, 1); ==> ds.insert(0, 2); | cargo test -p xtask floating_literals_are_decimal_and_exact | msg:panicked at
+s11-p1-maxfloat | libc-include/math.h | lit:#  define MAXFLOAT 3.40282347e38f ==> #  define MAXFLOAT 3.40282346e38f | python3 spec/tools/header_check.py | msg:FAIL P1 math.h
+s11-p1-maxfloat-size | libc-include/math.h | lit:#  define M_PIl 3.14159265358979323851e0L ==> #  define M_PIl 3.14159265358979323851e0 | python3 spec/tools/header_check.py | msg:FAIL P1 math.h
+s11-p1-decimal-prec | spec/tools/header_check.py | lit:ctx.prec = 60 ==> ctx.prec = 8 | python3 spec/tools/header_check.py | msg:FAIL P1 [mv][a-z]+\.h
+s11-p1-emit-c-filter | spec/tools/header_check.py | lit:if h in emit_c and (h, n) not in c_names: ==> if False and (h, n) not in c_names: | python3 spec/tools/header_check.py | msg:FAIL P1 complex.h cxx11
+s11-p5-fenv-pragma | libc-include/fenv.h | lit:# pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch" ==> # pragma GCC diagnostic ignored "-Wunused-macros" | python3 spec/tools/header_check.py | msg:FAIL P5 fenv.h cxx
+s11-p6-tgmath-order | libc-include/tgmath.h | lit:__builtin_tgmath (fmaf, fma, fmal, fmaf32, ==> __builtin_tgmath (fmaf, fmal, fma, fmaf32, | python3 spec/tools/header_check.py | msg:FAIL P6 tgmath
+s11-p6-tgmath-single | libc-include/tgmath.h | lit:# define dadd(x, y) daddl (x, y) ==> # define dadd(x, y) faddl (x, y) | python3 spec/tools/header_check.py | msg:FAIL P6 tgmath

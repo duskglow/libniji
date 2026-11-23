@@ -1,0 +1,16 @@
+{"task": "ICONV-NAME-MATCH", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (checkpoint): iconv_open name rule probed (32,915 spellings), specified and implemented; gate, plants and after-counts started, not yet read",
+ "branch": "task/iconv-name-match", "head": "1bbbafb1d",
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Suffix spelling: the reference takes '//translit ' (trailing space) as TRANSLIT, not '// TRANSLIT'; libniji takes neither; outside this story"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "iconv_open spellings that open/fail as on the reference (generated charmaps, 9719 probed)", "before": 5328, "after": null, "unit": "spellings", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 to/from UTF-8 (instructions:u, static probe)", "before": 1697344, "after": null, "unit": "instructions", "measured": true},
+  {"kind": "coverage", "what": "tests added (core clause test, products spelling test) and plants", "before": 0, "after": 11, "unit": "tests+plants", "measured": false}
+ ],
+ "improvement": "The issue's stated rule (drop punctuation) was wrong; a one-byte sweep plus the listing settled the real rule cheaply. Briefs quoting a user's rule should say 'claimed'.",
+ "next_step": "Read iconv-name-match-counts/gate/plants on keke; record after-counts and after-table; handback-check",
+ "report_file": "handoff/ICONV-NAME-MATCH.md",
+ "jobs": ["iconv-name-match-counts", "iconv-name-match-gate", "iconv-name-match-plants"]}

@@ -1,0 +1,12 @@
+id = "D-6.21"
+section = "s06"
+spec = "§6.4"
+ann = "ARB"
+status = "active"
+amends = ["D-6.18"]
+story = "ICONV-CJK-STARTUP-3"
+date = "2026-11-22"
+tests = ["crates/core/tests/iconv_reloc_products.rs"]
+body = '''
+**A wide stream reaches the iconv codecs only through the stream's own codec value.** A `,ccs=` stream (`fopen`, `Codec::charset` in `crates/legacy/src/stdio_compat.rs`) holds `iconv::Conv::convert` as a function value next to its two descriptors, and the wide stream functions (`fputwc`/`putwc`, `fgetwc`, the byte count of characters given back) call that value, never `Conv::convert` by name. Reason: `Conv::convert` dispatches to every built-in codec, the CJK tables among them (about 0.5 MB, D-6.18), so a by-name call kept them in every static program that writes a wide character to a stream: `perror` writes through the wide path when `stderr` is wide-oriented, which put the CJK codecs into the static `getconf` (ICONV-CJK-STARTUP-2: link map and section reference chains `perror` -> `report::emit` -> `write_text` -> `putwc` -> `Conv::convert` -> `cjk`). A stream that is not `,ccs=` uses the locale's charset (`Codec::Text`, `text::encode`/`decode`), which is never a built-in CJK set (`iconv::of_locale` yields ASCII, UTF-8, ISO-8859-1 or a charmap). Only a program that links `fopen`'s `,ccs=` path links the codecs now. No behaviour changes: the value is always `Conv::convert`. Alternatives not taken: a const-generic locale-only `convert` (the `,ccs=` arm still needs the full one, so the by-name reference stays in `putwc`); a process-wide hook installed by `iconv_open`/`fopen` (needs a mutable function pointer, so `unsafe` outside `niji-boundary`). Test: `wide_stderr_links_no_cjk_codec` links a static PIE of `perror` plus `fputwc(stderr)` against `libc.a` with `--gc-sections` and requires no kept `cjk` section, with a `fopen(..., "w,ccs=BIG5")` control that must keep them.
+'''

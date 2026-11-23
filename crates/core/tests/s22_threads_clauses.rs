@@ -207,7 +207,8 @@ fn s22_3_c_3() {
 /// §22.3 Contract: **Acting on cancellation** runs the cleanup handlers in LIFO order and TLS destructors. In C++, it unwinds the stack with a forced unwind (`abi::__forced_unwind`). The thread then exits with `PTHREAD_
 #[test]
 fn s22_3_c_4() {
-    // C cleanup handlers and TLS destructors; the C++ forced unwind (libgcc_s through dlopen) is interim until phase 14 (D-22.11).
+    // C cleanup handlers and TLS destructors in a static program; the C++ forced unwind of a
+    // dynamic program is tests/forced_unwind_products.rs (D-22.19).
     conformance(&["s22_cancel"]);
 }
 /// §22.3 Guarantees: If a cancellation point is cancelled *before* the underlying syscall had a side effect, the side effect did not happen. For `close`, the descriptor is still closed (⚑ KERN). For `read`/`write` cancell
@@ -245,7 +246,10 @@ fn s22_4_c_4() {
 /// §22.4 Contract: **Timeouts:** `timedlock` is absolute on `CLOCK_REALTIME`. `clocklock` (2.30) takes the clock: `CLOCK_MONOTONIC` or `CLOCK_REALTIME`.
 #[test]
 fn s22_4_c_5() {
-    conformance(&["s22_sync"]);
+    // `s22_past_deadline`: every timed wait (mutex, mtx, condition variable, cnd, rwlock read and
+    // write, semaphore, timed join) given a deadline already past, a negative tv_sec included:
+    // ETIMEDOUT at once when contended, success when free (TIMED-WAIT-PAST-DEADLINE).
+    conformance(&["s22_sync", "s22_past_deadline"]);
 }
 /// §22.4 Contract: **Static initialization:** `PTHREAD_MUTEX_INITIALIZER` (all zero bytes) and the `_NP` initializers for the other types.
 #[test]
@@ -282,9 +286,13 @@ fn s22_5_c_1_2() {
     conformance(&["s22_compat_condvar"]);
 }
 /// §22.5 Contract: **Read-write locks.** Many readers or one writer. The preference is set by `kind_np`: `PREFER_READER` (the default; ⚑ HIST: writer starvation is possible), `PREFER_WRITER_NONRECURSIVE`. A recursive re
+///
+/// `conformance/c/s22_rwlock_self.c` pins what each call form returns when the caller already
+/// holds the lock, in every lock configuration: the try forms `EBUSY` for a write-held lock
+/// (issue #15), the blocking and timed forms `EDEADLK`, and a bad deadline `EINVAL` first.
 #[test]
 fn s22_5_c_2() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_rwlock_self"]);
 }
 /// §22.5 Contract: **Spin locks.** Busy-waiting mutual exclusion with no blocking. **Kernel:** none.
 #[test]
@@ -363,7 +371,7 @@ fn s22_7_c_4() {
 /// §22.7 Contract: **Named semaphores** (`sem_open(name, O_CREAT|O_EXCL, mode, value)`) are files in `/dev/shm` named `sem.<name>`. Opening the same name twice in one process returns the same address.
 #[test]
 fn s22_7_c_5() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_sem_named_many"]);
 }
 /// §22.7 Failure: Returns -1 with `errno`: `EAGAIN` (trywait), `ETIMEDOUT`, `EINTR`, `EINVAL`, `EOVERFLOW` (`SEM_VALUE_MAX` = `INT_MAX`), `ENOENT`, `EEXIST`, `EACCES`.
 #[test]

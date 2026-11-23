@@ -1,0 +1,62 @@
+{
+ "task": "DL-RUNPATH-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "origin/next 97bf3542f merged into the DL-RUNPATH chain: the dlopen.rs conflict with DL-PROCESS-OBJECTS-2 resolved keeping both sides, given_name writes through Recs::set; direct gate, plants, y10, process-objects corpus and hot_text_products green; cargo xtask test 7019/7020 (one dns_products harness hang, outside this story; native pass not run)",
+ "branch": "task/dl-runpath-4",
+ "head": "9d3b0f530",
+ "gate": {
+  "affected": "665 passed / 0 failed (direct tier, 10 suites)",
+  "peak": "2.3G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "start-up check blocked by the dns_products harness hang (not loader code)",
+   "recommendation": "accept 7019/7020 plus hot_text_products 33/33 for this merge-only change, or rerun cargo xtask test on a Zen 1 role; open a harness story for the orphaned oracle children"
+  }
+ ],
+ "informational": [
+  "dl-runpath-4-startup (cargo xtask test, first pass): 7019/7020 passed; niji::dns_products resolv_equals_the_reference timed out at 1800 s because orphaned oracle children (root-owned, under resolv_run.sh sudo unshare) hold the test stdout pipe open; the native pass did not run. Older orphans of the same kind sit in roles s3 (4 days) and s4 (11 days) on the Skylake-SP host. Needs a harness fix and a root clean-up."
+ ],
+ "refused": [
+  "kill 1780288 1780289 1780290 1780291 1780292 1780293 1780294 1780295 (on the Skylake-SP host: Operation not permitted; root-owned orphaned dns oracle children)"
+ ],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "DL-RUNPATH (dlopen $ORIGIN search, RTLD_NOLOAD by loaded names, secure-mode rule #7190, COMPAT-37 row) mergeable onto next again; the queued loader stories serialised behind it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "Yohane y10 #10/#18 probe lines (dl-nopie, dl-pie bare-name $ORIGIN dlopen) on this head's system packages",
+   "before": null,
+   "after": "20 PASS / 0 FAIL",
+   "unit": "y10 probe lines",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "DL-RUNPATH-4 plants rerun after the merge",
+   "before": null,
+   "after": 13,
+   "unit": "plants (12 CAUGHT, 1 EQUIVALENT)",
+   "measured": true
+  }
+ ],
+ "improvement": "CI's merge_next could report which of the branch's own lines stopped compiling after a clean textual merge (here one direct index into a table next had turned into a type); a pre-train 'merge next and build' check per queued loader story would catch it before the train",
+ "next_step": "Land. Then the owner's set-user-ID probe (handoff/DL-RUNPATH.md) and the $PLATFORM probe on a v3 Intel host and an AMD host",
+ "report_file": "handoff/DL-RUNPATH.md",
+ "jobs": [
+  "mei:dl-runpath-4-gate",
+  "mei:dl-runpath-4-plants",
+  "mei:dl-runpath-4-check2",
+  "mei:dl-runpath-4-y10",
+  "mei:dl-runpath-4-hottext",
+  "mei:dl-runpath-4-startup"
+ ]
+}

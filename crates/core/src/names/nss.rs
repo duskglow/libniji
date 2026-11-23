@@ -507,6 +507,10 @@ pub enum LookupError {
     TryAgain,
     /// The source cannot be used (`unavail`): not built in, not reachable.
     Unavailable,
+    /// A network source reached none of its servers (the network unreachable, the connection
+    /// refused): `unavail` for the rules, temporarily unavailable for the caller (`TRY_AGAIN`,
+    /// `EAI_AGAIN`; observed, getaddrinfo(3) "try again later").
+    Unreachable,
     /// The source failed with a system error, typically its file could not be read (`unavail`
     /// for the rules; the error is reported to the caller).
     Os(Errno),
@@ -518,7 +522,7 @@ impl LookupError {
         match self {
             LookupError::NotFound | LookupError::NoData => Status::NotFound,
             LookupError::TryAgain => Status::TryAgain,
-            LookupError::Unavailable | LookupError::Os(_) => Status::Unavail,
+            LookupError::Unavailable | LookupError::Unreachable | LookupError::Os(_) => Status::Unavail,
         }
     }
 }

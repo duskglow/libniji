@@ -7,12 +7,16 @@
 //! checked against the x86-64 psABI's `.init`/`.fini` layout. Needs the products
 //! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf`, `objcopy` and `nm`; without the tools the test
 //! says so and passes. The same plain link also builds a program that binds `libm.so.6`'s old
-//! versions (`fmod@GLIBC_2.2.5`, SYS-COMPAT-VERSIONS) and compares it with the reference.
+//! versions (`fmod@GLIBC_2.2.5`, SYS-COMPAT-VERSIONS; `log`, `log2`) and one that binds `libc.so.6`'s
+//! `pthread_sigmask@GLIBC_2.2.5` (SYS-COMPAT-VERSIONS-REST), and compares each with the reference.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -66,12 +70,12 @@ fn tools_missing() -> bool {
     missing.is_some()
 }
 
-/// A fresh work directory with `lib/`: the link-time files under their installed names.
-fn work(name: &str) -> (PathBuf, PathBuf) {
+/// A fresh work directory with `lib/`: the link-time files under their installed names. Removed
+/// when the test passes, kept (path on stderr) when it fails.
+fn work(name: &str) -> (Scratch, PathBuf) {
     let p = products();
     assert!(p.join("niji-crti.o").exists(), "the products are missing: run `cargo xtask so`");
-    let w = root().join("target/crt-products").join(format!("{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&w);
+    let w = Scratch::dir_in(&root().join("target/crt-products"), name);
     let lib = w.join("lib");
     std::fs::create_dir_all(&lib).unwrap();
     for (installed, product) in START {
@@ -256,6 +260,63 @@ fn start_files_follow_the_psabi() {
     assert!(sections(&g).iter().any(|x| x.0 == ".preinit_array"), "grcrt1.o has no .preinit_array");
 }
 
+/// The program headers `readelf -lW` shows for `exe`: (type, flags, alignment).
+fn segments(exe: &Path) -> Vec<(String, String, u64)> {
+    let o = Command::new("readelf").arg("-lW").arg(exe).output().unwrap();
+    String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            let align = u64::from_str_radix(f.last()?.strip_prefix("0x")?, 16).ok()?;
+            (f.len() >= 8 && f[0] == "LOAD").then(|| (f[0].to_string(), f[6..f.len() - 1].concat(), align))
+        })
+        .collect()
+}
+
+#[test]
+fn programs_get_one_executable_mapping_and_keep_their_properties() {
+    // no spec clause (x86-64 psABI program properties, LSB ABI note tag; CRT-START-FILES, GitHub #27): no
+    // start file is reported as lacking IBT or SHSTK in any link (PIE, -no-pie, -static, -static-pie; the
+    // program built with -fcf-protection); a dynamic program has one executable LOAD, no LOAD aligned above
+    // a page, IBT and SHSTK kept (every input marked), and one r-xp mapping of its own file at run time
+    // (what util-linux's lsfd `column-xmode` test reads).
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("maps");
+    let src = s(&root().join("crates/core/tests/oracle/crt_maps.c"));
+    for (opts, dynamic) in [(&[][..], true), (&["-no-pie"][..], true), (&["-static"][..], false), (&["-static-pie"][..], false)] {
+        let tag = opts.first().copied().unwrap_or("pie");
+        let pic = if tag == "-no-pie" { "-fno-pie" } else { "-fPIE" };
+        let obj = w.join(format!("maps{tag}.o"));
+        drive("cc", None, &["-std=gnu17".into(), "-O1".into(), "-fcf-protection=full".into(), pic.into(), "-c".into(), src.clone(), "-o".into(), s(&obj)]);
+        let exe = w.join(format!("maps{tag}"));
+        let mut args: Vec<String> = opts.iter().map(|x| (*x).to_string()).collect();
+        if dynamic {
+            args.push(ldso());
+        }
+        args.extend(["-Wl,-z,cet-report=warning".into(), s(&obj), "-o".into(), s(&exe)]);
+        let trace = drive("cc", Some(&lib), &args);
+        for l in trace.lines().filter(|l| l.contains("missing IBT") || l.contains("missing SHSTK")) {
+            assert!(!START.iter().any(|(installed, _)| l.contains(&format!("/{installed}"))), "cc {tag}: a start file lacks the property: {l}");
+        }
+        if !dynamic {
+            // A static program's text is libc.a's layout (its hot group starts on a 64 KiB boundary, D-X.20), not
+            // the start files': only the properties are checked above.
+            continue;
+        }
+        let loads = segments(&exe);
+        assert_eq!(loads.iter().filter(|x| x.1.contains('E')).count(), 1, "cc {tag}: executable LOADs: {loads:?}");
+        {
+            assert!(loads.iter().all(|x| x.2 <= 0x1000), "cc {tag}: a LOAD aligned above a page: {loads:?}");
+            let notes = Command::new("readelf").arg("-nW").arg(&exe).output().unwrap();
+            let notes = String::from_utf8_lossy(&notes.stdout);
+            assert!(notes.contains("x86 feature: IBT, SHSTK"), "cc {tag}: the program lost IBT/SHSTK:\n{notes}");
+        }
+        assert_eq!(run(&exe, &w), "1\n", "cc {tag}: r-xp mappings of the program's own file");
+    }
+}
+
 /// The output every build of crt_init_fini.c prints: `_init`'s contribution, main, `_fini`'s,
 /// with the stack aligned at each contribution's call.
 const HELLO: &str = "prog init sp%16=0\nhello, world\nprog fini sp%16=0\n";
@@ -338,6 +399,36 @@ fn plain_cxx_runs_static_constructors_and_destructors() {
 }
 
 #[test]
+fn plain_cc_runs_the_program_arrays_in_the_reference_order() {
+    // Clauses: s1_1_c_5, s1_1_c_6 (LIBC-INIT-ARRAY-REFS: a static program's start runs its own
+    // `.preinit_array`, `_init`, `.init_array`, and at exit `.fini_array` and `_fini`, found through
+    // the linker's markers; a dynamic program's come from its dynamic section, run by the loader).
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("arrays");
+    let src = s(&root().join("crates/core/tests/oracle/crt_arrays.c"));
+    let want = "preinit args\ninit section\nctor 101 args\nctor\nmain\natexit main\natexit ctor\ndtor\ndtor 101\nfini section\n";
+    for (opt, start) in [("-pie", "Scrt1.o"), ("-static", "crt1.o"), ("-static-pie", "rcrt1.o")] {
+        let tag = opt.trim_start_matches('-');
+        let obj = w.join(format!("arrays-{tag}.o"));
+        drive("cc", None, &["-O1".into(), "-fPIE".into(), "-c".into(), src.clone(), "-o".into(), s(&obj)]);
+        let exe = w.join(format!("arrays-{tag}"));
+        let mut args = vec![opt.to_string()];
+        if opt == "-pie" {
+            args.push(ldso());
+        }
+        args.extend([s(&obj), "-o".into(), s(&exe)]);
+        let trace = drive("cc", Some(&lib), &args);
+        assert_eq!(start_files(&trace, &lib), set(&[start, "crti.o", "crtn.o"]), "cc {opt}: start files");
+        assert_eq!(run(&exe, &w), want, "cc {opt}");
+        let host = w.join(format!("host-{tag}"));
+        drive("cc", None, &[opt.to_string(), s(&obj), "-o".into(), s(&host)]);
+        assert_eq!(run(&host, &w), want, "the reference, cc {opt}");
+    }
+}
+
+#[test]
 fn plain_cc_pg_writes_gmon_out() {
     // Clauses: s28_1_c_1, s28_1_c_2 (SL-CRT: gcrt1.o and grcrt1.o in a plain -pg link).
     if tools_missing() {
@@ -392,7 +483,8 @@ fn old_libm_versions_bind_and_match_the_reference() {
     // Clauses: s0_6_c0_6_0 (a name's old version stays exported for old binaries), s10_2_t_r12
     // (fmod). The program binds each name's GLIBC_2.2.5 version with `.symver` (Debian's gawk binds
     // fmod's) and prints every edge case's result bits, errno and flags; libniji's libm.so.6 must
-    // give the reference's text, case for case, and the default version's result.
+    // give the reference's text, case for case: the default version's result, but for the old
+    // logarithms' NaN sign on a negative argument (spec/behaviour/libm-compat.md).
     if tools_missing() {
         return;
     }
@@ -413,9 +505,21 @@ fn old_libm_versions_bind_and_match_the_reference() {
     std::fs::write(soname.join("libm.so"), format!("GROUP ( \"{}\" )\n", s(&p.join("libm.so.6")))).unwrap();
     drive("cc", Some(&lib), &[ldso(), format!("-L{}", s(&soname)), format!("-Wl,-rpath-link={}", s(&p)), s(&obj), "-lm".into(), "-o".into(), s(&exe)]);
     let bound = bound_versions(&exe);
-    // (name, default version, cases): the old versions Debian trixie's programs bind.
-    let names = [("fmod", "GLIBC_2.38", 484), ("fmodf", "GLIBC_2.38", 484), ("exp", "GLIBC_2.29", 22), ("exp10", "GLIBC_2.39", 22), ("pow", "GLIBC_2.29", 484), ("hypot", "GLIBC_2.35", 484), ("hypotf", "GLIBC_2.35", 484)];
-    for (name, default, _) in names {
+    // (name, default version, cases, cases where the old version differs from the default): the old
+    // versions Debian trixie's programs bind. The old logarithms give a NaN with the sign bit clear for
+    // a negative argument (8 cases; a NaN argument, of either sign, is not one of them).
+    let names = [
+        ("fmod", "GLIBC_2.38", 484, 0),
+        ("fmodf", "GLIBC_2.38", 484, 0),
+        ("exp", "GLIBC_2.29", 22, 0),
+        ("exp10", "GLIBC_2.39", 22, 0),
+        ("pow", "GLIBC_2.29", 484, 0),
+        ("hypot", "GLIBC_2.35", 484, 0),
+        ("hypotf", "GLIBC_2.35", 484, 0),
+        ("log", "GLIBC_2.29", 24, 8),
+        ("log2", "GLIBC_2.29", 24, 8),
+    ];
+    for (name, default, ..) in names {
         for pair in [format!("{name}@GLIBC_2.2.5"), format!("{name}@{default}")] {
             assert!(bound.contains(&pair), "the program binds {pair}: {bound:?}");
         }
@@ -435,22 +539,16 @@ fn old_libm_versions_bind_and_match_the_reference() {
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
     let want = run_v(&host, None);
-    for (name, _, cases) in names {
-        assert!(want.contains(&format!("\n{name}@GLIBC_2.2.5: {cases} cases, 0 differ from the default\n")), "the reference, {name}:\n{want}");
+    for (name, _, cases, diffs) in names {
+        assert!(want.contains(&format!("\n{name}@GLIBC_2.2.5: {cases} cases, {diffs} differ from the default\n")), "the reference, {name}:\n{want}");
     }
     let got = run_v(&exe, Some(&p));
     // Cases where libniji's DEFAULT pow differs from the reference's (both libraries print "same as
-    // default" for them, so the old version is still the default's alias): pow(-1, +-1e308) is 0
-    // with ERANGE in libniji, 1 in the reference (a defect of the default pow, reported by
-    // SYS-COMPAT-VERSIONS for its own story); a signalling NaN with a zero exponent or base 1 gives 1
-    // and FE_INVALID in libniji, a quiet NaN in the reference; an exact subnormal result raises
-    // FE_UNDERFLOW in the reference only (IEEE 754 7.5: underflow needs an inexact tiny result).
-    const DEFAULT_POW: [&str; 8] = [
-        "pow@GLIBC_2.2.5(-0x1p+0, 0x1.1ccf385ebc8ap+1023)",
-        "pow@GLIBC_2.2.5(-0x1p+0, -0x1.1ccf385ebc8ap+1023)",
-        "pow@GLIBC_2.2.5(0x1p+0, nan)",
-        "pow@GLIBC_2.2.5(nan, 0x0p+0)",
-        "pow@GLIBC_2.2.5(nan, -0x0p+0)",
+    // default" for them, so the old version is still the default's alias): an exact subnormal
+    // result raises FE_UNDERFLOW in the reference only (IEEE 754 7.5: underflow needs an inexact
+    // tiny result). pow(-1, +-1e308) = 1 and the signalling-NaN cases (sNaN^+-0, 1^sNaN: a quiet
+    // NaN with FE_INVALID) are compared like every other case (MATH-POW-EDGES).
+    const DEFAULT_POW: [&str; 3] = [
         "pow@GLIBC_2.2.5(0x1p-1, 0x1p+10)",
         "pow@GLIBC_2.2.5(0x0.012688b70e62bp-1022, 0x1p+0)",
         "pow@GLIBC_2.2.5(-0x0.012688b70e62bp-1022, 0x1p+0)",
@@ -466,4 +564,104 @@ fn old_libm_versions_bind_and_match_the_reference() {
         .collect();
     assert!(differ.is_empty(), "libniji's old version against the reference's, {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
     assert_eq!(got.lines().count(), want.lines().count(), "the same cases");
+}
+
+#[test]
+fn old_pthread_sigmask_binds_and_matches_the_reference() {
+    // Clauses: s0_6_c0_6_0 (a name's old version stays exported for old binaries), s20_3_c_1
+    // (pthread_sigmask). Debian trixie's btscanner, pbzip2 and wavemon bind
+    // pthread_sigmask@GLIBC_2.2.5; the reference's old version equals its default on every probed case
+    // (spec/behaviour/pthread-sigmask-compat.md), so libniji's is an alias of its default. The program
+    // binds both versions and prints, per case, the return value, errno, the old set and the kernel
+    // mask afterwards; libniji must print the reference's text, case for case.
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("sigmask-compat");
+    let src = s(&root().join("crates/core/tests/oracle/pthread_sigmask_compat.c"));
+    let obj = w.join("pthread_sigmask_compat.o");
+    drive("cc", None, &["-std=gnu17".into(), "-O1".into(), "-fPIE".into(), "-c".into(), src, "-o".into(), s(&obj)]);
+    let exe = w.join("pthread_sigmask_compat");
+    drive("cc", Some(&lib), &[ldso(), s(&obj), "-o".into(), s(&exe)]);
+    let bound = bound_versions(&exe);
+    for pair in ["pthread_sigmask@GLIBC_2.2.5", "pthread_sigmask@GLIBC_2.32"] {
+        assert!(bound.contains(pair), "the program binds {pair}: {bound:?}");
+    }
+    let host = w.join("host-pthread_sigmask_compat");
+    drive("cc", None, &[s(&obj), "-o".into(), s(&host)]);
+    let want = run(&host, &w);
+    assert!(want.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "the reference:\n{want}");
+    let got = run(&exe, &w);
+    assert!(got.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "libniji's old version is its default's alias:\n{got}");
+    // The default versions against the reference, sigprocmask's 140 cases and pthread_sigmask's 140
+    // (SIGMASK-DEFAULT; spec/behaviour/pthread-sigmask-compat.md). Equal on every case: the return
+    // value, errno, the old set's first 8 bytes and the other 120 left as they were ("+0"; a valid
+    // call writes only the kernel's 64 signals), and with a null set any `how` succeeds (POSIX: `how`
+    // is not significant then). The old set and the mask afterwards are also equal but for decision
+    // D-20.1, asserted here: libniji reserves one real-time signal (32), so a reported old set never
+    // shows 32 (the reference shows a 32 the kernel has blocked), and 33 is an ordinary signal a set
+    // blocks, unblocks and installs like any other (the reference leaves 33 out of every set). No
+    // caller's set ever blocks 32, in either library.
+    const S32: u64 = 1 << 31;
+    const S33: u64 = 1 << 32;
+    const UNWRITTEN: u64 = 0xa5a5_a5a5_a5a5_a5a5;
+    struct Case<'a> {
+        case: &'a str,
+        start: u64,
+        how: i64,
+        set: Option<u64>,
+        ret: i64,
+        err: i64,
+        old: u64,
+        tail: &'a str,
+        after: u64,
+        rest: &'a str,
+    }
+    fn parse(l: &str) -> Option<Case<'_>> {
+        let (case, out) = l.split_once(") = ")?;
+        let field = |key: &str| case.split_once(key).and_then(|(_, v)| v.split([',', ' ']).next());
+        let hex = |t: &str| u64::from_str_radix(t, 16).ok();
+        let mut w = out.splitn(8, ' ');
+        let ret = w.next()?.parse().ok()?;
+        (w.next()? == "errno").then_some(())?;
+        let err = w.next()?.parse().ok()?;
+        (w.next()? == "old").then_some(())?;
+        let old = hex(w.next()?)?;
+        let tail = w.next()?;
+        (w.next()? == "after").then_some(())?;
+        let last = w.next()?;
+        let (after, rest) = last.split_at(16.min(last.len()));
+        let set = if case.ends_with("(null), old") || case.ends_with("(null), null") { None } else { Some(hex(field(", set ")?)?) };
+        Some(Case { case, start: hex(field("(start ")?)?, how: field(", how ")?.parse().ok()?, set, ret, err, old, tail, after: hex(after)?, rest })
+    }
+    let (glines, rlines): (Vec<&str>, Vec<&str>) = (got.lines().collect(), want.lines().collect());
+    assert_eq!(glines.len(), rlines.len(), "the same cases");
+    let mut cases = 0;
+    let mut differ = Vec::new();
+    for (g, r) in glines.iter().zip(&rlines) {
+        let (Some(gc), Some(rc)) = (parse(g), parse(r)) else {
+            assert_eq!(g, r, "libniji's line against the reference's");
+            continue;
+        };
+        cases += 1;
+        let same = gc.case == rc.case && gc.ret == rc.ret && gc.err == rc.err && gc.tail == rc.tail && gc.rest == rc.rest;
+        // D-20.1: the old set is the reference's without 32.
+        let old = gc.old == if rc.old == UNWRITTEN { rc.old } else { rc.old & !S32 };
+        // D-20.1: 33 follows the caller's set as SIG_BLOCK, SIG_UNBLOCK and SIG_SETMASK say; every
+        // other signal, 32 included, ends as the reference's.
+        let s33 = gc.set.unwrap_or(0) & S33;
+        let want33 = match (gc.ret, gc.set, gc.how) {
+            (0, Some(_), 0) => (gc.start & S33) | s33,
+            (0, Some(_), 1) => gc.start & S33 & !s33,
+            (0, Some(_), 2) => s33,
+            _ => gc.start & S33,
+        };
+        let after = gc.after & !S33 == rc.after & !S33 && gc.after & S33 == want33;
+        let never32 = gc.start & S32 != 0 || gc.after & S32 == 0;
+        if !(same && old && after && never32) {
+            differ.push(format!("libniji:   {g}\nreference: {r}"));
+        }
+    }
+    assert!(differ.is_empty(), "libniji against the reference (D-20.1 applied to 32 and 33), {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
+    assert_eq!(cases, 280, "sigprocmask's and pthread_sigmask's cases all compared");
 }

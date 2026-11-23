@@ -60,7 +60,7 @@ const SAT: &str = "D-3.4: mallinfo saturates at INT_MAX instead of wrapping to t
 const ARENAS: &str = "D-3.4: the heap has no arenas: malloc_stats prints one Arena 0 block and malloc_info one heap for the small-block segments of every thread; the reference prints one per arena";
 const SIZES: &str = "D-3.4: libniji's heap keeps no free-chunk lists by size, so malloc_info's <sizes> is empty and its byte count differs";
 const INFO_OPTIONS: &str = "spec §3.2 is silent; malloc_info(3): -1 with errno EINVAL for nonzero options; the reference returns 22 (EINVAL itself) and leaves errno alone (reported to the owner)";
-const INFO_NULL: &str = "S6: a NULL stream is an error (-1, EINVAL); the reference crashes";
+const INFO_NULL: &str = "S6: a NULL stream is an error (-1, EINVAL)";
 const INFO_FAIL: &str = "malloc_info(3): -1 when the text cannot be written (errno from the stream); the reference returns 0 although the write failed";
 const TRIM: &str = "spec §3.2 and malloc_trim(3): 1 only if memory was released; the reference returns 1 when nothing was (live blocks only, a second call, a pad larger than the heap), and libniji's trim ignores the pad (D-3.4)";
 const STATIC: &str = "a static program: libc.a defines every name the probe refers to weakly (the compat-only hook symbols and malloc_get_state/malloc_set_state too), and there is no dlopen/dlvsym until phase 14, so the symbol lookups are skipped";
@@ -335,7 +335,9 @@ fn mallocdbg_equals_the_reference() {
         if let Some(m) = mode {
             cmd.arg("sh").arg(&wrap).arg(m);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).arg(&scratch).env_clear().env("PATH", "/usr/bin:/bin").output().unwrap();
+        let cmd = cmd.arg("sh").arg(&script).arg(exe).arg(&scratch).env_clear().env("PATH", "/usr/bin:/bin");
+        // Under nscache_mode.sh the run starts root processes (sudo): contained (support/contain.rs).
+        let o = if mode.is_some() { oracle::contain::output(cmd) } else { cmd.output() }.unwrap();
         let _ = std::fs::remove_dir_all(&scratch);
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()

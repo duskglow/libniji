@@ -95,8 +95,11 @@ pub struct Segment {
     pub offset: u64,
     /// Bytes from `start` that come from the file (0 when the segment has no file bytes).
     pub file_len: u64,
-    /// End of the file bytes (`p_vaddr + p_filesz`); from here to `zero_end` is zero.
+    /// End of the file bytes (`p_vaddr + p_filesz`); from here to `mem_end` is zero.
     pub file_end: u64,
+    /// End of the segment's bytes (`p_vaddr + p_memsz`, not rounded). Past it, in the page holding it,
+    /// nothing is defined (gABI): with no zero fill (`mem_end == file_end`) that page stays the file's.
+    pub mem_end: u64,
     /// End of the whole segment, rounded up to the page.
     pub zero_end: u64,
     /// `PROT_*` bits, exactly as `p_flags` asks.
@@ -150,6 +153,12 @@ pub trait Mapper {
     fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()>;
     /// Unmap `len` bytes at `at` (never fails on a range this mapper mapped).
     fn unmap(&mut self, at: u64, len: u64);
+    /// Whether an aligned reservation's slack (the inaccessible bytes before and after the object
+    /// that over-reserving for its alignment left) may stay reserved rather than be unmapped: only
+    /// for an object that is never unmapped (the start's, DYN-START-RING), saving two system calls.
+    fn keeps_slack(&self) -> bool {
+        false
+    }
 }
 
 /// A mapped object.
@@ -215,7 +224,8 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
     let start = page_down(ph.vaddr, page);
     let lead = ph.vaddr.wrapping_sub(start);
     let file_end = ph.vaddr.checked_add(ph.filesz).ok_or(MapError::BadSegments)?;
-    let end = ph.vaddr.checked_add(ph.memsz).and_then(|e| page_up(e, page)).ok_or(MapError::BadSegments)?;
+    let mem_end = ph.vaddr.checked_add(ph.memsz).ok_or(MapError::BadSegments)?;
+    let end = page_up(mem_end, page).ok_or(MapError::BadSegments)?;
     let file_len = if ph.filesz == 0 { 0 } else { lead.checked_add(ph.filesz).ok_or(MapError::BadSegments)? };
     let mut prot = 0;
     for (f, p) in [(PF_R, PROT_READ), (PF_W, PROT_WRITE), (PF_X, PROT_EXEC)] {
@@ -223,7 +233,7 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
             prot |= p;
         }
     }
-    Ok(Segment { start, offset: ph.offset & !mask, file_len, file_end, zero_end: end, prot })
+    Ok(Segment { start, offset: ph.offset & !mask, file_len, file_end, mem_end, zero_end: end, prot })
 }
 
 /// The plan for the object in `elf` (the whole file), with pages of `page` bytes (a power of two;
@@ -233,6 +243,22 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
 ///
 /// [`MapError`] for anything but a well-formed loadable object.
 pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
+    plan_with::<A>(elf, page, false)
+}
+
+/// [`plan`] for an object whose executable-stack request the caller has accepted (COMPAT-19, the
+/// tunable `niji.compat.execstack`): `PT_GNU_STACK` with `PF_X` is not refused; every other check
+/// is [`plan`]'s. Only the refusal branch of a caller reaches it.
+///
+/// # Errors
+///
+/// As [`plan`], never [`MapError::ExecutableStack`].
+pub fn plan_accepting_exec_stack<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
+    plan_with::<A>(elf, page, true)
+}
+
+#[inline(always)]
+fn plan_with<A: Arch>(elf: &Elf<'_>, page: u64, exec_stack_accepted: bool) -> Result<Plan, MapError> {
     let h = elf.header();
     if h.e_type != ET_DYN && h.e_type != ET_EXEC {
         return Err(MapError::NotLoadable);
@@ -240,7 +266,7 @@ pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
     if !page.is_power_of_two() {
         return Err(MapError::BadSegments);
     }
-    if executable_stack(elf.program_headers().map(|p| (p.p_type, p.flags))) {
+    if executable_stack(elf.program_headers().map(|p| (p.p_type, p.flags))) && !exec_stack_accepted {
         return Err(MapError::ExecutableStack);
     }
     let (mut first, mut last, mut align, mut count) = (0u64, 0u64, page, 0usize);
@@ -318,11 +344,39 @@ pub fn segments<'a, A: Arch>(file: &'a [u8], page: u64) -> impl Iterator<Item = 
 /// As [`plan_file`] (nothing mapped yet), [`MapError::Placement`] when a fixed-address program's
 /// range is taken, [`MapError::System`] when a mapping call fails.
 pub fn load<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64) -> Result<Loaded, MapError> {
-    let plan = plan_file::<A>(file, page)?;
-    let (base, bias) = reserve(m, &plan)?;
+    load_with::<A, M>(m, file, page, false)
+}
+
+/// [`load`] for an object whose executable-stack request the caller has accepted (COMPAT-19; see
+/// [`plan_accepting_exec_stack`]). Making the stacks executable is the caller's.
+///
+/// # Errors
+///
+/// As [`load`], never [`MapError::ExecutableStack`].
+pub fn load_accepting_exec_stack<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64) -> Result<Loaded, MapError> {
+    load_with::<A, M>(m, file, page, true)
+}
+
+#[inline(always)]
+fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_accepted: bool) -> Result<Loaded, MapError> {
+    let elf = Elf::parse::<A>(file).map_err(MapError::Elf)?;
+    let plan = plan_with::<A>(&elf, page, exec_stack_accepted)?;
+    map_planned(m, &elf, &plan, file, page)
+}
+
+/// Map the object `file` by `plan`, the [`plan`] (or [`plan_accepting_exec_stack`]) the caller made
+/// of `elf`, `file` as parsed, with the same `page`: reserve, map each segment, zero the `.bss`, as
+/// [`load`] does after planning. Nothing stays mapped on failure. For a caller that has already
+/// checked the file (`crate::dlopen::check_into`): the plan is not made a second time.
+///
+/// # Errors
+///
+/// [`MapError::Placement`], [`MapError::System`], or a segment's [`MapError`] as [`load`] gives it.
+pub fn map_planned<M: Mapper>(m: &mut M, elf: &Elf<'_>, plan: &Plan, file: &[u8], page: u64) -> Result<Loaded, MapError> {
+    let (base, bias) = reserve(m, plan)?;
     let at = |v: u64| v.wrapping_add(bias);
-    for seg in segments::<A>(file, page) {
-        let mapped = seg.and_then(|s| map_segment(m, file, &s, bias, page));
+    for ph in elf.program_headers().filter(|p| p.p_type == pt::LOAD && p.memsz != 0) {
+        let mapped = segment(&ph, page).and_then(|s| map_segment(m, file, &s, bias, page));
         if let Err(e) = mapped {
             m.unmap(base, plan.span);
             return Err(e);
@@ -348,6 +402,9 @@ fn reserve<M: Mapper>(m: &mut M, plan: &Plan) -> Result<(u64, u64), MapError> {
     let raw = m.reserve(None, len).map_err(|()| MapError::System)?;
     // The start congruent to `first` modulo `align`, so `base - first` (the bias) is a multiple of it.
     let base = raw.wrapping_add(plan.first.wrapping_sub(raw) & plan.align.wrapping_sub(1));
+    if m.keeps_slack() {
+        return Ok((base, base.wrapping_sub(plan.first)));
+    }
     if base > raw {
         m.unmap(raw, base.wrapping_sub(raw));
     }
@@ -365,7 +422,11 @@ fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: 
     let sys = |()| MapError::System;
     let file_end = at(s.file_end);
     let tail_page = page_down(file_end, page);
-    let partial = s.file_len != 0 && tail_page != file_end && s.zero_end > s.file_end;
+    // LAYOUT-DYN-PHASE (D-X.133): partial only with real zero fill (`p_memsz > p_filesz`). A segment
+    // whose file bytes end inside a page but that has no `.bss` (every read-only segment of a linked
+    // library) maps that page from the file like the others: no copy read through the caller's view of
+    // the file (a page fault there whose 64 KiB window moved with the library's size) and no private page.
+    let partial = s.file_len != 0 && tail_page != file_end && s.mem_end > s.file_end;
     let mut anon_from = at(s.start);
     if s.file_len != 0 {
         let whole = page_up(s.file_len, page).ok_or(MapError::BadSegments)?;

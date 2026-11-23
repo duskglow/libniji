@@ -1,0 +1,12 @@
+id = "COMPAT-36"
+behaviour = "`_r_debug`'s `r_version` and size (§27.4; DL-RDEBUG-VERSION, owner ruling 2026-11-19: follow the spec unless a program relies on the other behaviour)"
+glibc = "`r_version` is 1 and `_r_debug` is 40 bytes while the program has no `dlmopen` namespace (black-box probe P-DL23-1; `readelf` of the reference `ld.so`)"
+liella = "`ld.so`'s `_r_debug` is the extended structure: 48 bytes, `r_version` 2, `r_next` at offset 40 null while there is one namespace; a program's copy made at 40 bytes says version 1"
+restore = "A tunable read at startup that makes `ld.so`'s own `r_version` 1 (the structure's first 40 bytes are unchanged, so a reader of version 1 never looks at `r_next`). Registered only: no program is known to need version 1 (gdb, Debian's gnat1, perl's dlopen, and a 40-byte COPY reader behave the same under both)"
+cost = "none expected: the flag would be read once, in the start's rendezvous fill (`ld::debug::start`, a cold function)"
+status = "registered"
+decisions = ["D-27.62"]
+story = "DL-RDEBUG-VERSION"
+date = "2026-11-21"
+body = '''
+'''

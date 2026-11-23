@@ -701,14 +701,51 @@ fn plan_cache(slot: &mut PlanSlot) -> Option<&'static mut pf::PlanCache> {
             slot.calls = slot.calls.saturating_add(1);
             return None;
         }
-        // Never freed: the cache stays with the stream's slot (tb::leaked_at).
-        slot.addr = niji::mem::TryBox::new(pf::PlanCache::new()).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance());
+        slot.addr = make_plans();
         if slot.addr == 0 {
             slot.calls = 0;
             return None;
         }
     }
-    Some(tb::leaked_at::<pf::PlanCache>(slot.addr))
+    Some(&mut tb::leaked_at::<KeptPlans>(slot.addr).cache)
+}
+
+/// A stream's plan cache, and the link that holds it in [`SPARE_PLANS`] while no stream has it.
+struct KeptPlans {
+    cache: pf::PlanCache,
+    next: usize,
+}
+
+/// Plan caches given back by closed streams (their slots are freed, D-12.31), linked through
+/// `next`, under the slot lock: the next stream to make a cache takes one (a cache keyed on the
+/// format's bytes is not state, D-12.21). Never freed (tb::leaked_at).
+static SPARE_PLANS: AtomicUsize = AtomicUsize::new(0);
+
+/// A plan cache for a stream: a given-back one, or a new one (0: no memory).
+#[cold]
+#[inline(never)]
+fn make_plans() -> usize {
+    let spare = stdio::under_slot_lock(|| {
+        let a = SPARE_PLANS.load(Relaxed);
+        if a != 0 {
+            SPARE_PLANS.store(tb::leaked_at::<KeptPlans>(a).next, Relaxed);
+        }
+        a
+    });
+    if spare != 0 {
+        return spare;
+    }
+    niji::mem::TryBox::new(KeptPlans { cache: pf::PlanCache::new(), next: 0 }).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance())
+}
+
+/// Keep a closing stream's plan cache (if it made one) for the next stream (D-12.31).
+pub(crate) fn give_back_plans(plans: PlanSlot) {
+    if plans.addr != 0 {
+        stdio::under_slot_lock(|| {
+            tb::leaked_at::<KeptPlans>(plans.addr).next = SPARE_PLANS.load(Relaxed);
+            SPARE_PLANS.store(plans.addr, Relaxed);
+        });
+    }
 }
 
 /// [`vfprintf`] into `out`, under the stream's lock (`route` and `kept`: [`format_routed`]).

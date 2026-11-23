@@ -25,7 +25,11 @@
 
 #[path = "support/timeout.rs"]
 mod timeout;
+#[path = "support/contain.rs"]
+mod contain;
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use core::ffi::c_void;
 use core::ptr::{null, null_mut, with_exposed_provenance_mut, without_provenance_mut};
 use std::ffi::CString;
@@ -86,9 +90,7 @@ struct Tmp(String);
 
 impl Drop for Tmp {
     fn drop(&mut self) {
-        if std::fs::remove_file(&self.0).is_err() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        crate::scratch::release(std::path::Path::new(&self.0));
     }
 }
 
@@ -104,7 +106,7 @@ impl Tmp {
 
 fn tmp(tag: &str) -> Tmp {
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let p = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c12-{}-{tag}-{n}", std::process::id()));
+    let p = crate::scratch::base().join(format!("c12-{}-{tag}-{n}", std::process::id()));
     let t = Tmp(p.to_str().unwrap().to_owned());
     let _ = std::fs::remove_file(&t.0);
     let _ = std::fs::remove_dir_all(&t.0);
@@ -1018,7 +1020,7 @@ fn s12_2_f_0() {
     assert!(x::fopen(missing.c().as_ptr(), cs("r").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::ENOENT.get());
     errno::set_raw(0);
-    let dir = cs(env!("CARGO_TARGET_TMPDIR"));
+    let dir = cs(&crate::scratch::base().to_string_lossy());
     assert!(x::fopen(dir.as_ptr(), cs("w").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EISDIR.get());
     errno::set_raw(0);
@@ -2226,7 +2228,8 @@ fn s12_8_c_6() {
     let fp = x::tmpfile();
     assert!(x::fwide(fp, 5) > 0);
     assert!(x::fwide(fp, -1) > 0, "wide stays wide");
-    assert_eq!(x::fputc(c_int::from(b'b'), fp), EOF, "a byte operation on a wide stream fails (D-12.14)");
+    assert_eq!(x::fputc(c_int::from(b'b'), fp), c_int::from(b'b'), "a byte write on a wide stream writes the byte (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "and the stream stays wide-oriented");
     x::fclose(fp);
 }
 
@@ -2332,6 +2335,75 @@ fn s12_10_c_0() {
     assert_eq!(x::fgetwc(fp), WEOF, "an error");
     assert_ne!(x::ferror(fp), 0);
     x::fclose(fp);
+}
+
+/// §12.10 (D-12.30 WIDE-READ-FAST): characters in the locale's encoding that the read window
+/// holds only in part are read across the refill, whatever the buffer size; the bytes a shorter
+/// later fill leaves past the window's end are never part of a character.
+#[test]
+fn wide_read_characters_cut_by_the_window_end() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let text = "a\u{e9}\u{3042}\u{1F600}z\u{e9}";
+    let want: Vec<(wint_t, i64)> = vec![(0x61, 1), (0xE9, 3), (0x3042, 6), (0x1F600, 10), (0x7A, 11), (0xE9, 13)];
+    let t = tmp_with("c100cut", text.as_bytes());
+    for size in 1..=6 {
+        let fp = fopen(&t, "r");
+        assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, size), 0);
+        for &(c, at) in &want {
+            assert_eq!(x::fgetwc(fp), c, "buffer {size}: the character ending at {at}");
+            assert_eq!(x::ftell(fp), at, "buffer {size}: its bytes consumed");
+        }
+        assert_eq!(x::fgetwc(fp), WEOF);
+        assert!(x::feof(fp) != 0 && x::ferror(fp) == 0, "buffer {size}: end of file");
+        x::fclose(fp);
+    }
+    // A 4-byte buffer: the fills are `e3 81 82 61` and `62 e3`; past the second one's end the
+    // buffer still holds `81 82`. The `e3` cut short at end of input is D-12.28's (its byte
+    // goes back, end of file), not U+3042.
+    let s = tmp_with("c100stale", b"\xe3\x81\x82ab\xe3");
+    let fp = fopen(&s, "r");
+    assert_eq!(x::setvbuf(fp, null_mut(), IOFBF, 4), 0);
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp), x::fgetwc(fp)), (0x3042, 0x61, 0x62));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "a character cut short by end of input");
+    assert!(errno::get() == 0 && x::feof(fp) != 0 && x::ferror(fp) == 0, "end of file, errno {}", errno::get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xE3, EOF), "its byte came back (D-12.28)");
+    x::fclose(fp);
+}
+
+/// §12.10 (D-12.30 WIDE-READ-FAST): a character begun before a read error (`EAGAIN` from an
+/// empty non-blocking pipe) is continued by the next wide read, whatever the read window holds
+/// then: a byte given back with `ungetc` that cannot continue it makes the sequence invalid,
+/// both bytes coming back (D-12.28); bytes that arrive later complete it.
+#[test]
+fn wide_read_partial_character_is_continued() {
+    // Clauses: s12_10_c_0 (D-12.30).
+    let _l = utf8();
+    let begun = || {
+        let [r, wr] = CSys.pipe2(O_CLOEXEC | O_NONBLOCK).unwrap();
+        let fp = x::fdopen(r.raw(), cs("r").as_ptr());
+        assert!(!fp.is_null());
+        assert_eq!(CSys.write(wr, b"\xc3"), Ok(1));
+        errno::set_raw(0);
+        assert_eq!(x::fgetwc(fp), WEOF, "no byte after the lead byte yet");
+        assert_eq!(errno::get(), Errno::EAGAIN.get());
+        x::clearerr(fp);
+        (fp, wr)
+    };
+    let (fp, wr) = begun();
+    assert_eq!(x::ungetc(c_int::from(b'b'), fp), c_int::from(b'b'));
+    errno::set_raw(0);
+    assert_eq!(x::fgetwc(fp), WEOF, "the lead byte held, then 'b': no character");
+    assert_eq!(errno::get(), Errno::EILSEQ.get());
+    assert_eq!((x::fgetc(fp), x::fgetc(fp)), (0xC3, c_int::from(b'b')), "both bytes come back");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
+    let (fp, wr) = begun();
+    assert_eq!(CSys.write(wr, b"\xa9b"), Ok(2));
+    assert_eq!((x::fgetwc(fp), x::fgetwc(fp)), (0xE9, 0x62), "the held lead byte completed");
+    x::fclose(fp);
+    CSys.close(wr).unwrap();
 }
 
 // ------------------------------------------------------------------------------ §12.11
@@ -2477,7 +2549,8 @@ fn s12_12_c_4() {
         eprintln!("note: no user namespace; the nameless case was not checked");
         return;
     }
-    let o = std::process::Command::new("unshare").args(ns).arg(std::env::current_exe().unwrap()).args(["s12_12_c_4", "--exact", "--include-ignored", "--test-threads=1"]).env(VAR, "1").output().unwrap();
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare").args(ns).arg(std::env::current_exe().unwrap()).args(["s12_12_c_4", "--exact", "--include-ignored", "--test-threads=1"]).env(VAR, "1").output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success(), "a user without a name: {:?}", o.status);
 }

@@ -28,6 +28,7 @@ dependencies = [
  "niji-kernel",
  "niji-ld",
  "niji-legacy",
+ "niji-locale",
  "niji-math",
  "niji-rt",
 ]
@@ -77,6 +78,27 @@ dependencies = [
 
 [[package]]
 name = "niji-libm-so"
+version = "0.0.0"
+dependencies = [
+ "niji-boundary",
+]
+
+[[package]]
+name = "niji-libresolv-so"
+version = "0.0.0"
+dependencies = [
+ "niji-boundary",
+]
+
+[[package]]
+name = "niji-locale"
+version = "0.0.0"
+dependencies = [
+ "niji",
+]
+
+[[package]]
+name = "niji-localedef-bin"
 version = "0.0.0"
 dependencies = [
  "niji-boundary",

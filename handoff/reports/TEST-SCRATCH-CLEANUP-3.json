@@ -1,0 +1,16 @@
+{"task": "TEST-SCRATCH-CLEANUP-3", "model": "opus", "tokens": null,
+ "result": "CI red E0277 fixed: origin/next merged again; next's map_malformed_dependency_refused_at_start passes the Scratch guard's path and lets the guard remove its directory; full --tests build, clippy, static, gate and plants green, pid-named entries 0 -> 0",
+ "branch": "task/test-scratch-cleanup-3", "head": "ddb0699d5",
+ "gate": {"affected": "8393 passed / 0 failed", "peak": "5.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "build-host RAM disk growth: per-process scratch left in the role's target/, target/tmp, target/crt-products by a full --tests build and the direct gate", "before": 0, "after": 0, "unit": "entries", "measured": true},
+   {"kind": "unblock", "what": "TEST-SCRATCH-CLEANUP's CI landing (semantic conflict with next's new map test resolved)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the CI red was a compile-only semantic conflict that a `cargo build --tests --workspace` on the merged head catches in 7 minutes; running it after every merge of next before hand-back would have saved a CI cycle",
+ "next_step": "land; optional follow-up: success-path-removal sites and tz_tools scratch() to Scratch",
+ "report_file": "handoff/TEST-SCRATCH-CLEANUP.md",
+ "jobs": ["test-scratch-cleanup-3-gate", "test-scratch-cleanup-3-plants", "test-scratch-cleanup-3-lint1"]}

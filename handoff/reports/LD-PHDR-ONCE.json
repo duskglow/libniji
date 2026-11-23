@@ -1,0 +1,72 @@
+{
+ "task": "LD-PHDR-ONCE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Program headers read from the once-checked table at fixed offsets: empty dynamic start 705,569 -> 634,146 instructions (-10.1%), 3-library start 956,034 -> 819,961, per extra object 83,488 -> 61,938 (Zen 1 host, fast products)",
+ "branch": "task/ld-phdr-once",
+ "head": "a959f7b65",
+ "gate": {
+  "affected": "920 passed / 0 failed (11 suites, direct tier, job ld-phdr-once-gate2)",
+  "peak": "1.7G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "read_phdr-class work <= 10k on the empty main: NOT VERIFIED (no valgrind on the Zen 1 host; perf sampling capped at 2,000/s there; sampled share of phdr-walk symbols 33/485 -> 18/458 of the kit ld.so's samples)",
+  "Skylake-SP host not measured: its DYN_START_INSTR row takes the Zen 1 bounds (earlier levels within 0.02%)",
+  "plant phdr-table-at WARN-NO-MSG: caught by the products build (cargo xtask so's own read of the mutant-linked ld.so fails BadAlign(8)), before any test runs",
+  "counts (jobs ld-phdr-once-base-count, ld-phdr-once-t3, ld-phdr-once-levels) ran on b709cab98/82423d536: the same loader and libc code as the head; only tests and the bound changed since, so they are not in jobs",
+  "ld-phdr-once-startup2 (cargo xtask test + release hot_text_products) was started after the gate and is left running: PENDING"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "empty dynamic main, exec to exit, fast products, Zen 1 host",
+   "before": 705569,
+   "after": 634146,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "main + 3 one-function libraries, exec to exit, fast products, Zen 1 host",
+   "before": 956034,
+   "after": 819961,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "marginal start-up cost of one more loaded object, Zen 1 host",
+   "before": 83488,
+   "after": 61938,
+   "unit": "instr/object",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "ld.so (fast products)",
+   "before": 512560,
+   "after": 508688,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the program header decode (8) and a test reading every header field at its own offset in both byte orders",
+   "before": 0,
+   "after": 9,
+   "unit": "plants+tests",
+   "measured": true
+  }
+ ],
+ "improvement": "jobrun silently refuses a reused label (the rerun's chain went straight to its next job); a printed refusal, or a --rerun suffix, would have saved a reorder",
+ "next_step": "land; the Skylake-SP level of DYN_START_INSTR is re-measured by the next start-up story on that host",
+ "report_file": "handoff/LD-PHDR-ONCE.md",
+ "jobs": [
+  "keke:ld-phdr-once-gate2",
+  "keke:ld-phdr-once-plants2",
+  "keke:ld-phdr-once-startup2"
+ ]
+}

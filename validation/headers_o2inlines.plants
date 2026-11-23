@@ -1,0 +1,6 @@
+# Plants for HEADERS-O2-INLINES (D-X.158): the header-inline bodies, their level condition, the C++ overloads and the
+# errno veto. The tests generate the headers in memory from the templates and tables, so no headers-gen step.
+o2inl-getchar-body-dropped | headers/stdio.h.in | perl:s/__NIJI_INLINE_FN int getchar \(void\)\n\{\n  return getc \(stdin\);\n\}\n// | cargo test -p xtask o2inlines | msg:return getchar \(\);: references.*missing
+o2inl-inline-at-os | headers/features.h.in | lit:#if defined __OPTIMIZE__ && !defined __OPTIMIZE_SIZE__ && !defined __NO_INLINE__ ==> #if defined __OPTIMIZE__ && !defined __NO_INLINE__ | cargo test -p xtask o2inlines | msg:-Os return getchar \(\);: references
+o2inl-atof-pure | spec/abi/diagattrs.tsv | perl:s/^atof\t1\t1\t\t\t\t\t\t\t$/atof\t1\t1\t\t\t\t\t\t\t1/m | cargo test -p xtask o2inlines | msg:-Os atof \(s\): the errno test was dropped
+o2inl-strchrnul-const-overload | headers/string.h.in | lit:extern const char *strchrnul (const char *, int) __NIJI_NOTHROW ==> extern char *strchrnul (const char *, int) __NIJI_NOTHROW | cargo test -p xtask o2inlines | msg:strchrnul \(s, 'a'\); \}: compiled, wants a compile-time error

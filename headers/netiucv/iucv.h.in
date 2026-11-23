@@ -1,0 +1,14 @@
+@@generated
+/* netiucv/iucv.h: IUCV */
+#ifndef __NIJI_H_netiucv_iucv_h
+#define __NIJI_H_netiucv_iucv_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

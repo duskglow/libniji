@@ -1,0 +1,21 @@
+# LD-PHDR-ONCE plants: the program header table checked once, every walk reading fixed offsets of its entries.
+phdr-vaddr-offset | crates/ld/src/elf.rs | lit:vaddr: w8([e[16], e[17], ==> vaddr: w8([e[24], e[17], | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-align-offset | crates/ld/src/elf.rs | lit:align: w8([e[48], e[49], ==> align: w8([e[40], e[49], | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-flags-offset | crates/ld/src/elf.rs | lit:flags: w4([e[4], e[5], e[6], e[7]]), ==> flags: w4([e[0], e[5], e[6], e[7]]), | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity | msg:panicked|FAILED
+phdr-index-base | crates/ld/src/elf.rs | lit:zip(0u16..).map(move |(e, i)| ProgramHeader::decode ==> zip(1u16..).map(move |(e, i)| ProgramHeader::decode | cargo test -p niji-ld --test elf_reader | msg:panicked|FAILED
+phdr-big-endian | crates/ld/src/elf.rs | perl:s/(fn decode\(e: &\[u8; PHDR_SIZE\].*?)u64::from_be_bytes/$1u64::from_le_bytes/s | cargo test -p niji-ld --test elf_reader | msg:arch_seam.*FAILED|panicked
+phdr-check-every-entry | crates/ld/src/elf.rs | lit:for ph in self.program_headers() { ==> for ph in self.program_headers().skip(1) { | cargo test -p niji-ld --test elf_reader | msg:panicked|FAILED
+phdr-table-at | crates/ld/src/elf.rs | lit:sub(self.rd.b, self.header.phoff, self.table_len()).unwrap_or(&[]); ==> sub(self.rd.b, self.header.phoff.wrapping_add(56), self.table_len()).unwrap_or(&[]); | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity --test reloc | msg:panicked|FAILED
+phdr-one-entry | crates/ld/src/elf.rs | lit:self.table().nth(usize::from(i)).map( ==> self.table().nth(usize::from(i) / 2).map( | cargo test -p niji-ld --test elf_reader --test elf_readelf_parity --test reloc | msg:panicked|FAILED
+# cargo xtask plants results (8 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# phdr-vaddr-offset: CAUGHT, caught by elf_reader program_header_fields_read_their_own_offsets
+# phdr-align-offset: CAUGHT, caught by elf_readelf_parity readelf_h_parity
+# phdr-flags-offset: CAUGHT, caught by elf_readelf_parity readelf_l_parity
+# phdr-index-base: CAUGHT, caught by elf_reader bad_align
+# phdr-big-endian: CAUGHT, caught by elf_reader arch_seam_machine_and_byte_order
+# phdr-check-every-entry: CAUGHT, caught by elf_reader bad_align
+# phdr-table-at: WARN-NO-MSG, caught by no test the log names
+# phdr-one-entry: CAUGHT, caught by elf_reader program_header_fields_read_their_own_offsets
+# (job ld-phdr-once-plants2, head a959f7b65.) phdr-table-at failed the products build itself: `cargo xtask so`
+# reads the ld.so it just linked with the mutant reader, which takes the table one entry late and rejects it
+# (`BadAlign(8)`), so the plant is caught before the tests run; no test name is in that log.

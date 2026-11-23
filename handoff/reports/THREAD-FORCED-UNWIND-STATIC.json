@@ -1,0 +1,65 @@
+{
+ "task": "THREAD-FORCED-UNWIND-STATIC",
+ "model": "opus",
+ "tokens": null,
+ "result": "Static programs unwind exiting and cancelled threads with the unwinder they link (libc.a-only weak references, D-22.21); -static-libgcc C++ tested",
+ "branch": "task/thread-forced-unwind-static",
+ "head": "3d7735e86",
+ "gate": {
+  "affected": "gate on f248de28a: 12385 passed / 2 failed (hot_text_products TEXT-PREFIX, fixed in 711cc86eb); recheck on the final code: hot_text_products 31/31, forced_unwind_products 4/4, cargo xtask test, NIJI_FULL_PROFILE so + hot_text_products",
+  "peak": "14G (gate)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "A -static-libgcc program that loads no libgcc_s.so.1 (C -fexceptions; C++ with -static-libstdc++) keeps the buffers-only exit: its hidden unwinder cannot be found",
+   "recommendation": "keep the buffers-only exit (loading libgcc_s.so.1 at exit and mixing it with the program's copy contradicts D-22.19)"
+  }
+ ],
+ "informational": [
+  "cargo xtask affected escalated unwinder.S to FULL (it names _Unwind_ForcedUnwind, read as an export); the direct run used its bounded set; FULL is the train's"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "static C++ and -fexceptions C programs: pthread_exit and cancellation now run destructors, catch(abi::__forced_unwind&) handlers and unwind cleanups (forced_unwind.cc and 3 forced_unwind.c builds linked -static against libc.a)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (static link modes, -static-libgcc C++)",
+   "before": 0,
+   "after": 2,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added, all CAUGHT (2 by the new build checks, 2 by the tests)",
+   "before": 0,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "libc.so.6: two 3-byte functions in .text (16-byte aligned), no symbol or relocation; libc.a: one 2-function member with two weak references",
+   "before": null,
+   "after": null,
+   "unit": "bytes",
+   "measured": false
+  }
+ ],
+ "improvement": "cargo xtask affected reads a .S file that only references _Unwind_ForcedUnwind as defining it (FULL escalation); the reader could tell .weak references from definitions",
+ "next_step": "None on this branch; the train lands it. Ruling on the -static-libgcc case without libgcc_s.so.1.",
+ "report_file": "handoff/THREAD-FORCED-UNWIND-STATIC.md",
+ "jobs": [
+  "mei:thread-forced-unwind-static-recheck",
+  "mei:thread-forced-unwind-static-plants3",
+  "mei:thread-forced-unwind-static-precheck"
+ ]
+}

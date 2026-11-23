@@ -1,0 +1,36 @@
+{
+ "task": "SL-HEADERS-S07-5",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged origin/next into the slice 7 branch keeping both sides; header_check 0 failed of 7359, header_s07 0 of 56, header_p10 0 failed; generated files regenerated; PENDING JOBS: gate2 and plants (cargo xtask plants on rewritten plants.txt) still running at the deadline",
+ "branch": "task/sl-headers-s07-5",
+ "head": "c3c4a479f",
+ "gate": {
+  "affected": "gate2 running: clippy, static, xtask unit tests, products, test -p niji/abi/boundary/legacy ok; rest pending",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "jobs": [
+  "keke:sl-headers-s07-5-gate2",
+  "keke:sl-headers-s07-5-plants"
+ ],
+ "rulings": [],
+ "informational": [
+  "shared generator change named: xtask/src/headers/functions.rs (+gnu64 redirects, extern_lines), xtask/src/headers.rs (lfs table), xtask/src/headers/aggregates.rs (no packed attribute on an all-char structure)",
+  "jobwait returns 'still running' after a few minutes whatever its timeout; a stale own gate job blocked a sync (rc 4) and wasted one 17 minute run"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "slice 7 branch merges with origin/next again",
+   "before": null,
+   "after": null,
+   "unit": "branch",
+   "measured": false
+  }
+ ],
+ "improvement": "sync_role BUSY while an own job runs should name the label so a chained gen job fails fast instead of running a stale tree",
+ "next_step": "SL-HEADERS-S07-TAIL after slices 8 and 14",
+ "report_file": "handoff/SL-HEADERS-S07.md"
+}

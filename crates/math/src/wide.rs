@@ -366,12 +366,12 @@ pub fn log1p<F: Float>(x: F, mode: Rounding) -> (F, Status) {
 pub fn pow<F: Float>(x: F, y: F, mode: Rounding) -> (F, Status) {
     let (a, b) = (float::decode(x), float::decode(y));
     let x_is_one = a.kind == Kind::Finite && !a.neg && odd_part(&a) == (1, 0);
-    // x^±0 = 1 and 1^y = 1, even for a quiet NaN. A signalling x^±0 in the x87 format is its
-    // quiet NaN with invalid, as IEEE 754 and glibc's `powl` have it (X87-NAN-RULE-AUDIT-2).
-    let snan_x87 = F::PREC == 64 && a.kind == Kind::SNan;
-    if (b.kind == Kind::Zero && !snan_x87) || x_is_one {
-        let st = if a.kind == Kind::SNan || b.kind == Kind::SNan { Status::INVALID } else { Status::OK };
-        return (one(false), st);
+    // x^±0 = 1 and 1^y = 1, even for a quiet NaN (IEEE 754-2019 9.2.1, C23 F.10.4.5). A signalling
+    // NaN operand takes the general rule instead (IEEE 754-2019 6.2): invalid and a quiet NaN, from
+    // `nan_operands` below, in both formats (X87-NAN-RULE-AUDIT-2, MATH-POW-EDGES).
+    let snan = a.kind == Kind::SNan || b.kind == Kind::SNan;
+    if !snan && (b.kind == Kind::Zero || x_is_one) {
+        return (one(false), Status::OK);
     }
     if let Some(r) = fused::nan_operands::<F, F>(&[a, b]) {
         return r;

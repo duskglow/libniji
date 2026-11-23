@@ -1,0 +1,26 @@
+{"task": "LIBRESOLV-OWN-CODE", "model": "opus", "tokens": null,
+ "result": "libresolv.so.2 builds its own code (54 of 67 names); libc.so.6 -282 RELATIVE, -56 KB text, -5.58k user instructions per dynamic start on Zen 1 and Skylake-SP; 13 names still forwarded",
+ "branch": "task/libresolv-own-code", "head": "956eb65b6",
+ "gate": {"affected": "FULL escalated (build configuration): changed crates' tests (niji-boundary, xtask, 9 libresolv/ABI targets) all passed on 3555b0c4^ code; final-head run pending", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libniji's ld.so costs ~85k user instructions per tiny loaded library (3 libraries - empty main = 255.3k on Zen 1) against glibc's ~11.7k: a loader follow-up, not libresolv-specific",
+   "13 libresolv names stay forwarded to libc.so.6 (STILL_FORWARDED): they need seams for _res, the hosts-file cursor and h_errno; follow-up story",
+   "package flavours (liella6 / libc6 debs) not built here; both ship this libresolv.so.2",
+   "no D-row written for the libresolv product design (record pending: D-NEW, section 16)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "dynamic empty main / 3 libraries / clock_gettime start, user instructions (Zen 1 execcount)", "before": 745899, "after": 740320, "unit": "instr/start", "measured": true},
+   {"kind": "faults", "what": "dynamic empty main start page faults (Zen 1)", "before": 56, "after": 52, "unit": "faults", "measured": true},
+   {"kind": "size", "what": "libc.so.6 .text (release)", "before": 3019657, "after": 2963593, "unit": "bytes", "measured": true},
+   {"kind": "perf", "what": "libc.so.6 RELATIVE relocations (release)", "before": 1778, "after": 1496, "unit": "relocs", "measured": true},
+   {"kind": "perf", "what": "-lresolv program start (res_mkquery + ns_* + p_type), user instructions (Zen 1)", "before": 1050594, "after": 975857, "unit": "instr/start", "measured": true},
+   {"kind": "cost", "what": "-lresolv program start: page faults 91 -> 94 and ~+60k kernel instructions (libresolv's code now faulted in from libresolv.so.2)", "before": 91, "after": 94, "unit": "faults", "measured": true},
+   {"kind": "coverage", "what": "dlopen(libresolv.so.2) test against the glibc-probed output, generator unit test, 5 plants", "before": null, "after": 7, "unit": "tests+plants", "measured": true}
+ ],
+ "improvement": "the unsafe audit and clippy run in seconds but were first run after four 23-minute product builds; running cargo xtask static right after the first code commit would have saved a rebuild cycle",
+ "next_step": "collect libresolv-own-code-tests2, -plants2, -fullhot2 on keke; then follow-ups: the 13 forwarded names, ld.so per-library load cost",
+ "report_file": "handoff/LIBRESOLV-OWN-CODE.md",
+ "jobs": ["keke:libresolv-own-code-tests2", "keke:libresolv-own-code-plants2", "keke:libresolv-own-code-fullhot2"]}

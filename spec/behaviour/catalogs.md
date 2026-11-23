@@ -514,9 +514,8 @@ The implementer may decide these differently (and record the difference).
   gettext code").
 * The full syntax of system-dependent strings (other `<PRI...>` macros, the `I` flag) and the
   minor-1 header with zero system-dependent strings: only one msgfmt file was probed.
-* The unstable cases (offsets and sizes outside the file): the reference library crashes or
-  reads foreign memory; the record leaves them out, and libniji should not crash (to be recorded
-  as a deliberate difference).
+* The unstable cases (offsets and sizes outside the file): the record leaves them out; in
+  libniji a damaged catalog is absent (D-7.5, D-7.6; `catalogs_products.rs`).
 * Lookups concurrent with `setlocale`, `textdomain`, `bindtextdomain` or `LANGUAGE` changes in
   other threads; `catgets` from several threads.
 * `ENOMEM` paths of `textdomain`, `bindtextdomain`, `bind_textdomain_codeset` and `catopen`.

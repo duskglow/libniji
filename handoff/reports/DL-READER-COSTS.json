@@ -1,0 +1,88 @@
+{
+ "task": "DL-READER-COSTS",
+ "model": "opus",
+ "tokens": null,
+ "result": "dl_iterate_phdr walk -61%, dladdr program -49% and libc -75%, dlopen -12.8k per call; fix-forwards (5) and (6) beat their bases; no row slower; arena reuse (item 2) and most of dlopen's gap remain",
+ "branch": "task/dl-reader-costs",
+ "head": "6021b4a7e",
+ "gate": {
+  "affected": "398 passed / 0 failed (7 suites, keke dl-reader-costs-gate2)",
+  "peak": "1.6G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "dlopen new-object cost still ~9x the reference at 4 objects (72.6k vs 7.7k) and ~2,000 instr per loaded object vs ~480: ELF reading and per-object name/scope matching (trace in handoff); not done in this run",
+  "Item (2), the name arena's reuse below the top: not started",
+  "dladdr's symbol search stays linear (864 vs 301 for the program); an address-sorted symbol index per object is the next step"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "dl_iterate_phdr walk, 104 objects",
+   "before": 15837,
+   "after": 6188,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dl_iterate_phdr walk, 600 objects",
+   "before": 95174,
+   "after": 38552,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr of a program address (fix-forward 5)",
+   "before": 1687,
+   "after": 864,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dladdr of a libc address, 4 objects",
+   "before": 126992,
+   "after": 31659,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dlopen + dlclose of an open object, 104 objects",
+   "before": 22663,
+   "after": 9820,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dlopen + dlclose of a new object, 4 objects",
+   "before": 85344,
+   "after": 72586,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "per-call rows dlopen_new/dlopen_held at 4/32/104/600 objects; 6 plants",
+   "before": 0,
+   "after": 8,
+   "unit": "rows",
+   "measured": true
+  }
+ ],
+ "improvement": "A chained `jobwait <label>; jobrun ...` started its second job at once (the first was still running), so two product builds shared the role; run dependent jobs from one script that calls jobrun in sequence.",
+ "next_step": "A follow-up story: dlopen's new-object cost (ELF read, per-loaded-object matching, Env invariants once), the name arena's reuse below the top, and an address-sorted symbol index for dladdr.",
+ "report_file": "handoff/DL-READER-COSTS.md",
+ "jobs": [
+  "keke:dl-reader-costs-gate2",
+  "keke:dl-reader-costs-plants1",
+  "keke:dl-reader-costs-pc1",
+  "keke:dl-reader-costs-xtest2",
+  "keke:dl-reader-costs-hot2"
+ ]
+}

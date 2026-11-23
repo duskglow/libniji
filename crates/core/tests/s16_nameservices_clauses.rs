@@ -12,6 +12,8 @@
 #![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
+#[path = "support/scratch.rs"]
+mod scratch;
 use niji::error::Errno;
 use niji::names::nss::{self, Config, Database, LookupError, Service, Spec};
 use niji::names::sort::{self, Candidate, Policy};
@@ -52,7 +54,7 @@ impl Fx {
     fn new(tag: &str) -> Fx {
         static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("c16-{}-{tag}-{n}", std::process::id()));
+        let dir = crate::scratch::base().join(format!("c16-{}-{tag}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let files: [(&str, &str); 13] = [
@@ -102,7 +104,7 @@ impl Fx {
 
 impl Drop for Fx {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dir);
+        crate::scratch::release(std::path::Path::new(&self.dir));
     }
 }
 
@@ -922,7 +924,11 @@ fn s16_4_c_0() {
     assert_eq!(host(netdb::host_lookup_addr(&ctx, Ip::V4([192, 0, 2, 10]))), Ok("a.test [] 192.0.2.10".into()));
     let unreachable = Resolver { conf: rconf(dns_server::closed_port()), aliases: None };
     let ctx = Ctx { dns: Some(&unreachable), ..fx.ctx("hosts: dns\n") };
-    assert_eq!(host(netdb::host_lookup(&ctx, b"a.test", Family::V4)), Err(LookupError::Unavailable), "no server reachable: UNAVAIL");
+    // No server reachable: `unavail` for the rules, TRY_AGAIN / EAI_AGAIN for the caller
+    // (observed, spec/behaviour/gai-down.md).
+    let e = host(netdb::host_lookup(&ctx, b"a.test", Family::V4));
+    assert_eq!(e, Err(LookupError::Unreachable), "no server reachable");
+    assert_eq!(LookupError::Unreachable.status(), nss::Status::Unavail, "unavail for the rules");
 }
 
 #[test]

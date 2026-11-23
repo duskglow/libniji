@@ -89,6 +89,7 @@ const FULL_TRIGGERS: &[(&str, &str)] = &[
     ("crates/boundary/src/export.rs", "the export machinery"),
     ("crates/libc-so/", "the shared-object product"),
     ("crates/libm-so/", "the shared-object product"),
+    ("crates/libresolv-so/", "the shared-object product"),
     ("xtask/src/bench.rs", "the bench runner"),
     ("xtask/src/benchrows.rs", "the bench row selector"),
     ("xtask/src/so.rs", "the product build"),

@@ -1,0 +1,24 @@
+{"task": "DL-DYNAMIC-RELOC", "model": "opus", "tokens": null,
+ "result": "ld.so publishes the address entries (PLTGOT HASH STRTAB SYMTAB RELA JMPREL RELR GNU_HASH VERSYM) of each loaded object's writable dynamic array as run-time addresses before user code (ld.so, program, start-time objects, dlopen), as the reference does; readers keep one rule",
+ "branch": "task/dl-dynamic-reloc", "head": "de5ad7856",
+ "gate": {"affected": "1134 passed / 0 failed (9 suites), conformance 140 passed / 0 failed", "peak": "2.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "dynamic startup-only program faults 87 -> 89 (bound 89, unchanged): +1 ld.so text page (ld.so text +9.6 KB, mostly inlining churn) and +1 ld.so bss page (cpu::STATE placed after readers::TABLE); the array writes add none (.dynamic inside RELRO everywhere); ld.so has no traced layout until LAYOUT-LDSO-ORDER",
+   "a program with no objects run through ld.so (run's no-dependency path) publishes its array too but no test reaches that path, so it has no plant",
+   "not this story: a static-pie's own array is not adjusted (the reference adjusts it); DT_DEBUG not set; dlpi_name of start-time objects is the SONAME (reference: the path)"
+ ],
+ "refused": [],
+ "pending_jobs": ["mei:dl-dynamic-reloc-xtest (cargo xtask test, running)", "mei:dl-dynamic-reloc-fullhtp (NIJI_FULL_PROFILE so + hot_text_products, chained after xtest)"],
+ "counts_job": "mei:dl-dynamic-reloc-counts1 (diagnostic measurement script, base vs head; no tested-content record)",
+ "impact": [
+   {"kind": "correctness", "what": "_DYNAMIC / dl_iterate_phdr d_ptr entries are absolute addresses (systemd test-build-path SIGSEGV, Yohane #22)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "conformance s27_dynamic_address_entries + 2 unit tests + 6 plants", "before": 0, "after": 9, "unit": "tests+plants", "measured": true},
+   {"kind": "cost", "what": "dynamic startup-only program instructions:u (page_faults_dyn true); fix-forward: one-pass Elf::published_dynamic", "before": 85811, "after": 88306, "unit": "instr/process", "measured": true},
+   {"kind": "cost", "what": "dynamic startup-only program page faults (hot_text_products, bound 89 held)", "before": 87, "after": 89, "unit": "faults", "measured": true}
+ ],
+ "improvement": "the plants msg should match the test log, not the C program's stderr file: s27 conformance helpers could print the failing program's stderr into the test log so plants and humans see the line",
+ "next_step": "land; optional: measure a one-pass Elf::published_dynamic to win back the +2.5K start-up instructions",
+ "report_file": "handoff/DL-DYNAMIC-RELOC.md",
+ "jobs": ["mei:dl-dynamic-reloc-lint", "mei:dl-dynamic-reloc-gate", "mei:dl-dynamic-reloc-xtest", "mei:dl-dynamic-reloc-fullhtp", "mei:dl-dynamic-reloc-plants4"]}

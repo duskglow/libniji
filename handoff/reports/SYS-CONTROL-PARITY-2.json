@@ -1,0 +1,17 @@
+{"task": "SYS-CONTROL-PARITY-2", "model": "opus", "tokens": null,
+ "result": "merged origin/next into SYS-CONTROL-PARITY (one comment conflict in tools/deb/system.sh, both sides kept); gate, pkg (both flavours, check-system, root 18/0, parity 3028 -> 2998), plants 9/9 and lint green on the merged head",
+ "branch": "task/sys-control-parity-2", "head": "36f66cd98 (merge; later commits handoff/ only)",
+ "gate": {"affected": "affected: ok (direct tier, base origin/next), 0 SKIPPED", "peak": "2.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["parity rerun on the merged head: 2998 gap rows (3012 before the merge, from SYS-CONTROL-PARITY; the extra drop is next's libresolv shipping)"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "libc6-dev pulls linux-libc-dev, libcrypt-dev, rpcsvc-proto; Provides libc-dev (= version); libc-l10n Multi-Arch foreign; Priority as the reference (SYS-CONTROL-PARITY's change, now mergeable)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "package-parity gap rows on the merged head (inventory + compare)", "before": 3028, "after": 2998, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "plants on tools/deb/system.sh control fields, rerun on the merged head", "before": 0, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a conflict-only continuation could reuse the previous run's job scripts if they lived in the repo (pkg.sh had to be fetched from the old host and repointed)",
+ "next_step": "none; land",
+ "jobs": ["sys-control-parity-2-gate", "sys-control-parity-2-pkg", "sys-control-parity-2-plants", "sys-control-parity-2-lint"],
+ "report_file": "handoff/SYS-CONTROL-PARITY-2.md"}

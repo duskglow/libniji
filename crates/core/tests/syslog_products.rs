@@ -42,7 +42,7 @@ fn build(out: &Path, niji: bool) -> bool {
 }
 
 const ERRNO: &str = "X3 and §26.1 (it never reports failure): syslog leaves errno as it was, whatever became of the message; the reference leaves a failed send's error (ECONNREFUSED, EMSGSIZE, EPIPE) in errno";
-const NULL_FMT: &str = "a NULL format logs nothing and syslog returns; the reference crashes (SIGSEGV)";
+const NULL_FMT: &str = "a NULL format logs nothing and syslog returns";
 const FORTIFY: &str = "the fortify abort message has the library's one form, `*** ... ***: terminated` (as printf's checks); the reference's syslog omits `: terminated`";
 const BUSY: &str = "D-26.1: a receiver that does not read is waited for at most a second per message, which then counts as not delivered (never blocking forever); the reference blocks until the alarm, so every call that returned had queued its datagram";
 const STREAM_NUL: &str = "D-26.1: over a stream socket the text ends at its first NUL, keeping the NUL framing unambiguous; the reference sends the NUL and the bytes after it, which a receiver reads as a second record without a header";
@@ -172,7 +172,8 @@ fn syslog_equals_the_reference() {
         if let Some(m) = mode {
             cmd.arg("sh").arg(&wrap).arg(m);
         }
-        let o = cmd.arg("sh").arg(&script).arg(exe).env_clear().env("PATH", "/usr/bin:/bin").output().unwrap();
+        // The run's root processes (sudo) are contained (support/contain.rs).
+        let o = oracle::contain::output(cmd.arg("sh").arg(&script).arg(exe).env_clear().env("PATH", "/usr/bin:/bin")).unwrap();
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     };

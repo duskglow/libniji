@@ -925,6 +925,34 @@ fn s10_3_c_r2() {
     assert_eq!(exp_log::log10(1e22f64, n), (22.0, Status::OK));
 }
 
+/// [`s10_3_c_r3`]'s signalling-NaN and (−1)^huge cases in the format `F`.
+fn pow_edges<F: Float + Real>(n: Rounding) {
+    let p = i32::try_from(F::PREC).unwrap();
+    let w = F::PREC - u32::from(!F::EXPLICIT); // stored significand bits
+    let e = (1u128 << F::EXP_BITS) - 1;
+    let snan = |neg: bool| F::from_bits((u128::from(neg) << (w + F::EXP_BITS)) | (e << w) | (u128::from(F::EXPLICIT) << (w - 1)) | 1);
+    let one = fl::pack::<F>(false, 1, 0);
+    let m_one = fl::pack::<F>(true, 1, 0);
+    let quiet_invalid = |(r, st): (F, Status), what: &str| {
+        assert!(fl::decode(r).kind == fl::Kind::QNan && st == Status::INVALID, "{what}: {r:?} {st:?}");
+    };
+    for neg in [false, true] {
+        for z in [false, true] {
+            quiet_invalid(snan(neg).pow(fl::zero::<F>(z), n), &format!("pow(sNaN neg={neg}, zero neg={z}) prec {p}"));
+        }
+        quiet_invalid(one.pow(snan(neg), n), &format!("pow(1, sNaN neg={neg}) prec {p}"));
+    }
+    for mode in MODES {
+        for neg in [false, true] {
+            for y in [fl::pack::<F>(neg, 1, p), fl::pack::<F>(neg, 1, p + 7) , fl::pack::<F>(neg, 3, p), fl::max_finite::<F>(neg)] {
+                assert_eq!(m_one.pow(y, mode), (one, Status::OK), "pow(-1, {y:?}) prec {p} {mode:?}");
+            }
+            let odd = fl::pack::<F>(neg, (1u128 << (p - 1)) + 1, 0); // 2^(PREC-1) + 1
+            assert_eq!(m_one.pow(odd, mode), (m_one, Status::OK), "pow(-1, {odd:?}) prec {p} {mode:?}");
+        }
+    }
+}
+
 #[test]
 fn s10_3_c_r3() {
     let n = Rounding::Nearest;
@@ -938,6 +966,13 @@ fn s10_3_c_r3() {
     assert_eq!(pw::pow(1.0, f64::NAN, n), (1.0, Status::OK));
     assert_eq!(pw::pow(1.0f32, f32::INFINITY, n), (1.0, Status::OK));
     assert!(pw::pow(1.0, snan, n).1.flags.any(Flags::INVALID));
+    // Every format (IEEE 754-2019 9.2.1 and 6.2; C23 F.10.4.5): a signalling NaN with a zero
+    // exponent or base 1 is invalid with a quiet NaN, and (−1)^y for a huge finite y (every one of
+    // magnitude 2^PREC or more is even) is exactly ±1 with no range error.
+    pow_edges::<f32>(n);
+    pow_edges::<f64>(n);
+    pow_edges::<F80>(n);
+    pow_edges::<F128>(n);
     // pow(−∞, y) by the parity of y.
     assert_eq!(pw::pow(f64::NEG_INFINITY, 3.0, n).0, f64::NEG_INFINITY);
     assert_eq!(pw::pow(f64::NEG_INFINITY, 2.0, n).0, f64::INFINITY);

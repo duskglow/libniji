@@ -1,6 +1,9 @@
 #!/bin/sh
 # Second probe: /etc/ld.so.preload comment and separator details. usage: run2.sh PROBE1DIR
 set -u
+# Contained (docs/testing/harness-containment.md): nothing this script starts outlives it.
+contained_kind=user contained_tree=$(cd "$(dirname "$0")/../../../.." && pwd)
+. "$contained_tree/tools/contained.sh"
 d=$1
 cd "$d" || exit 2
 nscase() { # nscase TITLE CONTENT

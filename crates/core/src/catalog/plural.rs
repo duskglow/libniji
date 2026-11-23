@@ -10,7 +10,7 @@
 //! can keep it anywhere bytes can be kept, and evaluated with an explicit stack ([`evaluate`]):
 //! neither step recurses, so 4000 nested parentheses cost no machine stack.
 //!
-//! **Never trapping** (decision; the reference library is killed by `SIGFPE`): a division or
+//! **Never trapping** (decision; §7.7 never fails visibly): a division or
 //! remainder by zero gives no value, and neither does any operation on no value; `&&`, `||` and
 //! `?:` discard such a value where C would not have evaluated it (`n != 0 && 10 / n`, `n ? 10 / n :
 //! 0`). An evaluation that ends without a value uses the default rule `n != 1`, the rule of a

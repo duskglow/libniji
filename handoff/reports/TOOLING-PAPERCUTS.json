@@ -1,0 +1,75 @@
+{
+ "task": "TOOLING-PAPERCUTS",
+ "model": "opus",
+ "tokens": null,
+ "result": "5 tooling defects handled: jobwait (fix staged for liella-ops vm/), plants timeout messages, probe (deploy only), headers check out of the build path, escalated FULL cheap steps once",
+ "branch": "task/tooling-papercuts",
+ "head": "4db04d4ba",
+ "gate": {
+  "affected": "tooling-papercuts-gate rc 0 (xtask bounded set; FULL: the train's)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "brief says six defects but lists five; all five handled",
+  "jobwait lives in liella-ops vm/ (read-only to runs): fixed script, test and diff in handoff/TOOLING-PAPERCUTS-jobwait/; coordinator deploys",
+  "installed ~/bin/probe on the Zen 1 build host is a pre-rename copy (target/liella); the tree's tools/probe/probe already uses target/niji; coordinator redeploys",
+  "validation/headers_s17.plants: 3 plants (object-fnptr-name, tag-forward-decl, mcheck-enum-value) no longer match the tree; queue-tailq-remove's msg should also accept incompatible-pointer-types",
+  "whether the jobwait defect shortened a wait a run treated as finished: NOT VERIFIED (findings not readable via ops)"
+ ],
+ "refused": [
+  "cd ~/w/TOOLING-PAPERCUTS; ls -d vm tools 2>&1; ls tools; wc -l ~/src/liella-ops/vm/jobwait; cat -n ~/src/liella-ops/vm/jobwait; cd ~/src/liella-ops && git status -sb | head -2; touch ~/src/liella-ops/vm/.wtest 2>&1; rm -f ~/src/liella-ops/vm/.wtest"
+ ],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "header generator --check removed from every cargo xtask so (plants mutants included)",
+   "before": 0.66,
+   "after": 0,
+   "unit": "s/build",
+   "measured": false
+  },
+  {
+   "kind": "tooling",
+   "what": "escalated FULL run: cheap steps and stubs run once instead of twice",
+   "before": null,
+   "after": null,
+   "unit": "s",
+   "measured": false
+  },
+  {
+   "kind": "tooling",
+   "what": "jobwait: --help, --max after labels, dead/unknown labels end at once (exit 4) instead of waiting --max",
+   "before": 570,
+   "after": 30,
+   "unit": "s for a dead label",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "xtask unit tests added",
+   "before": 0,
+   "after": 2,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants: S17 template plants now judged by their own command",
+   "before": 0,
+   "after": 3,
+   "unit": "plants reaching their command",
+   "measured": true
+  }
+ ],
+ "improvement": "the brief's jobwait fix lives in read-only liella-ops: tooling briefs should say where a run may write a fix for an ops-side tool",
+ "next_step": "coordinator: deploy handoff/TOOLING-PAPERCUTS-jobwait/jobwait to liella-ops vm/ and hosts, redeploy ~/bin/probe from the tree; land the branch",
+ "report_file": "handoff/TOOLING-PAPERCUTS.md",
+ "jobs": [
+  "mei:tooling-papercuts-gate",
+  "mei:tooling-papercuts-plants",
+  "mei:tooling-papercuts-lint",
+  "mei:tooling-papercuts-jobwait-test"
+ ]
+}

@@ -1,0 +1,74 @@
+{
+ "task": "SL-HEADERS-S08-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "PENDING JOBS: slice 8 headers: headers-gen 0 problems, header_check 0 failed of 5382, P6 45 of 47 (2 not slice 8), plants 9 of 9 caught; gate2 (escalated to FULL: cargo xtask test) still running",
+ "branch": "task/sl-headers-s08-4",
+ "head": "see git",
+ "gate": {
+  "affected": "gate2 running (escalated to FULL: stubs ok, clippy-workspace ok, cargo xtask test in progress, no failure in the log at hand-back)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Shared generator code: xtask/src/headers.rs member emitter reconciled by hand with slice 9's additions (merge commit 9bc3aeb89); spec/tools/header_probe.py gained standard_names() and abi_extract.py three TYPES entries (own commits)",
+   "recommendation": "accept"
+  }
+ ],
+ "informational": [
+  "P2 over utmpx.h lists 35 sys/types.h names the reference's utmpx.h does not show; stdio.h fwrite_unlocked under fortify and stdlib.h WIFCONTINUED at XSI differ: slices 6 and 9",
+  "P6 s02_assert fails in --niji-headers mode because the program name carries the .lh suffix; s02_chk_fail is fortify (slice 18)",
+  "P3: longjmp/_longjmp/siglongjmp -> __longjmp_chk in fortify configurations are slice 18's",
+  "abi_extract.py TYPES lists __sigset_t but layouts.tsv has no such rows (removed in leg 1 because abi_sigset_t collided with slice 9's sigset_t): a full layouts regeneration would re-add them",
+  "macros.tsv has five TTYDEF_* rows in pty.h that type_probe.py does not reproduce",
+  "Plants: 9 plants, 9 CAUGHT, 0 SURVIVED (each caught by the products build running headers-gen --check); results in handoff/SL-HEADERS-S08-4-plants.txt",
+  "SUPERSEDED: lint2 (cancelled for the table work), leg-1 plants and gate (never started)"
+ ],
+ "refused": [
+  "python3 bin/ops extend-budget SL-HEADERS-S08-4 (leg 1; denied by the auto-mode classifier)"
+ ],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "slice 8 headers (signal, setjmp, ucontext, pthread, semaphore, threads, sched, sys/*): generated tree, header_check units",
+   "before": 0,
+   "after": 11,
+   "unit": "headers",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "header_check P1/P5 failures on slice 8 headers",
+   "before": 49,
+   "after": 0,
+   "unit": "failures",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "conformance programs building against libniji's headers (P6 --niji-headers)",
+   "before": 42,
+   "after": 45,
+   "unit": "programs passed",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "P2 visibility differences on slice 8 headers (627 at run 2, 21 at run 3, 5 accepted now)",
+   "before": 21,
+   "after": 5,
+   "unit": "differences",
+   "measured": true
+  }
+ ],
+ "improvement": "The name tables have no source for enumeration constants and typedefs the standards name but no table spells; a generated list from the man pages' SYNOPSIS sections would close this class once instead of per slice",
+ "next_step": "collect sl-headers-s08-4-gate2 (jobwait on the build host); then slice 8 waits only for slice 18 (fortify rows) and the union_tag unit test",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": [
+  "mei:sl-headers-s08-4-gate2",
+  "mei:sl-headers-s08-4-plants2",
+  "mei:sl-headers-s08-4-lint3",
+  "mei:sl-headers-s08-4-p6b"
+ ]
+}

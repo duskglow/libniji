@@ -2,7 +2,11 @@
 """Probe which symbol a compiled program references for each function, and each function's C++ exception
 specification (plan/headers.md slice 4, Appendix C.13).
 
-    python3 spec/tools/callsite_probe.py [--jobs N] [--names a,b] [--out DIR]
+    python3 spec/tools/callsite_probe.py [--jobs N] [--names a,b] [--out DIR] [--include DIR] [--headers a.h,b.h]
+
+`--include DIR` probes libniji's headers (P3 of plan/headers.md section 3): every compile gets `-nostdinc -isystem DIR`,
+and a C++ compile also g++'s C++ library directories ahead of DIR (as a C++ build sees them: libstdc++'s <stdlib.h>
+adds std:: overloads, so `&abs` is ambiguous on both sides); `--headers` keeps the functions probed through those headers.
 
 Run on the reference system (Appendix C.0), like header_probe.py, after it: the function list is
 prototypes.tsv, and the header and configurations each function is probed in come from visibility.tsv
@@ -56,6 +60,9 @@ ABI = os.path.join(ROOT, "spec", "abi")
 COMPILER = {"c": "gcc", "c++": "g++"}
 DIAG = ["-fmax-errors=0", "-fno-diagnostics-show-caret", "-fdiagnostics-plain-output", "-fno-diagnostics-show-option",
         "-fdiagnostics-color=never", "-w"]
+# --include mode, C++ units only: `-isystem` for g++'s own C++ library directories, ahead of libniji's, so a C++ unit
+# sees the libstdc++ wrapper headers (<stdlib.h>'s std:: overloads of abs and div) a real C++ build sees.
+CXX_INC = []
 OBJ = ["-c", "-fno-asynchronous-unwind-tables", "-fno-stack-protector", "-fno-ipa-icf", "-fcf-protection=none"]
 OVERLAYS = [("", ""), ("+gnu", "-D_GNU_SOURCE"), ("+gnu64", "-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64")]
 # The C.9 macros that expand to a `_chk` call: (macro, header, expression).
@@ -134,7 +141,7 @@ def compile_unit(lang, flags, path, lines, tests, extra, obj=None):
                 text.append(payload)
         with open(path, "w") as f:
             f.write("\n".join(text) + "\n")
-        cmd = [COMPILER[lang]] + flags.split() + extra + DIAG + ["-x", "c" if lang == "c" else "c++", path]
+        cmd = [COMPILER[lang]] + flags.split() + extra + (CXX_INC if lang != "c" else []) + DIAG + ["-x", "c" if lang == "c" else "c++", path]
         cmd += ["-o", obj] if obj else ["-fsyntax-only"]
         p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         if p.returncode == 0:
@@ -195,12 +202,14 @@ def split_params(decl, name):
 
 
 def call_exprs(name, decl):
-    """The call test, then its fallback for a unit where the first does not compile: a pointer argument is
-    `(void *)` on a buffer (no type spelled); a value argument is read from `lp_v` through its spelled type,
-    and in the fallback is `0` (a constant: only used when the spelled type is not in scope)."""
+    """The call test, then its fallbacks for a unit where the one before does not compile: a pointer argument
+    is `(void *)` on a buffer (no type spelled); a value argument is read from `lp_v` through its spelled type;
+    in the first fallback through `long` (still a run-time value, for a spelled type a header does not
+    declare, such as a reserved-name typedef: a constant there would let a fortify wrapper prove a size fits
+    and skip its `_chk` call); in the last it is `0` (a constant, for a parameter no `long` converts to)."""
     ret, params, _ = split_params(decl, name)
     out = []
-    for value in (lambda p: f"*(__typeof__({p}) *)lp_v", lambda p: "0"):
+    for value in (lambda p: f"*(__typeof__({p}) *)lp_v", lambda p: "*(long *)lp_v", lambda p: "0"):
         args = [f"(void *)lp_b{k}" if "*" in p or "(" in p else value(p) for k, p in enumerate(params)]
         call = f"{name}({', '.join(args)})"
         out.append(call if ret == "void" else f"*(volatile __typeof__({call}) *)lp_out = {call}")
@@ -228,7 +237,7 @@ def probe_sites(header, cid, mode, flags_lang, items, work):
             out[n] = ",".join(got.get(n, [])) or "-"
         return out
     out, todo = {}, dict(items)
-    for alt in range(2):
+    for alt in range(max((len(e) for e in todo.values()), default=0)):
         lines = [("raw", f"#include <{header}>")] + [("raw", x) for x in CALL_HEAD]
         for n, exprs in todo.items():
             if alt < len(exprs):
@@ -342,12 +351,47 @@ def probe_cxx98(header, names, flags_lang, plain_inc, functions, work):
     return out
 
 
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) that slice 9 headers include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include directories,
+    placed after libniji's tree so the host's libc headers stay out of reach."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
+
+
+def cxx_library_dirs():
+    """g++'s C++ library include directories, in its search order: the entries with a `/c++/` component of the search
+    list g++ reports (`-v`) for an empty C++ input. The probe reads the directory list only, never a header."""
+    p = subprocess.run(["g++", "-x", "c++", "-E", "-v", "-o", os.devnull, os.devnull], stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=True)
+    lines = p.stderr.splitlines()
+    try:
+        first = next(i for i, x in enumerate(lines) if x.startswith("#include <...> search starts here"))
+    except StopIteration:
+        sys.exit("callsite_probe: g++ -v printed no include search list")
+    dirs = []
+    for x in lines[first + 1:]:
+        if x.startswith("End of search list"):
+            break
+        d = os.path.normpath(x.strip())
+        if "/c++/" in d + "/" and os.path.isdir(d):
+            dirs.append(d)
+    if not dirs:
+        sys.exit("callsite_probe: no C++ library include directory in g++'s search list")
+    return dirs
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--names", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
+    ap.add_argument("--headers", default="", help="only the functions probed through these headers (a.h,b.h)")
     args = ap.parse_args()
+    only = set(args.headers.split(",")) if args.headers else set()
+    inc = os.path.abspath(args.include) if args.include else ""
     names_filter = set(args.names.split(",")) if args.names else set()
     all_ids, cfg = configs()
     protos = {r["name"]: r["declaration"] for r in tsv("prototypes.tsv") if not names_filter or r["name"] in names_filter}
@@ -363,12 +407,16 @@ def main():
     gccinc = subprocess.run(["g++", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
+    if inc:
+        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
+        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, *uapi_flags()])
+        CXX_INC.extend(x for d in cxx_library_dirs() for x in ("-isystem", d))
     # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
     all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []
     by_header = {}
     for n, (h, cs) in sorted(fns.items()):
-        if n in protos:
+        if n in protos and (not only or h in only):
             by_header.setdefault(h, []).append((n, cs))
     for h, items in sorted(by_header.items()):
         for c in addr_ids:
@@ -384,7 +432,7 @@ def main():
             if names:
                 jobs.append((label, h, std, cfg[std], names))
     # One unit per (header, configuration) for the macros too: every job writes its own file names.
-    for h in sorted({m[1] for m in MACROS}):
+    for h in sorted({m[1] for m in MACROS if not only or m[1] in only}):
         items = [(m, [e]) for m, mh, e in MACROS if mh == h and (not names_filter or m in names_filter)]
         if items:
             for c in call_ids:

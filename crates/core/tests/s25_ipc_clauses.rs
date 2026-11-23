@@ -17,6 +17,8 @@
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
+#[path = "support/contain.rs"]
+mod contain;
 
 #[path = "support/scratch.rs"]
 mod scratch;
@@ -370,7 +372,8 @@ fn in_ipc_ns(test: &str, body: impl FnOnce()) {
         skip_note::skipped("skipped: no private IPC namespace (unshare --user --ipc --map-current-user)");
         return;
     }
-    let o = Command::new("unshare").args(ns).arg(std::env::current_exe().unwrap()).args([test, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"]).env(IPCNS, test).output().unwrap();
+    // Contained (support/contain.rs).
+    let o = contain::user("unshare").args(ns).arg(std::env::current_exe().unwrap()).args([test, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"]).env(IPCNS, test).output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success() && out.contains("1 passed"), "{test} in its namespace: {:?}\n{out}{}", o.status, String::from_utf8_lossy(&o.stderr));

@@ -1,0 +1,15 @@
+# HEAP-FOREIGN-PAIR plants: the plain route of a foreign thread's heap calls (D-X.139). These test processes are
+# started by another C library, so the heap's debugging word holds FOREIGN and every call takes debug_alloc/debug_free.
+# The route's calloc no longer zeroes: a reused dirty block comes back dirty.
+calloc-zero-dropped | crates/boundary/src/heap.rs | lit:        zero_fresh(b.addr, n); ==>         let _ = (b.addr, n); | cargo test -p niji-boundary --test heap_foreign_plain | msg:calloc\(1, [0-9]+\) returned a block that is not zero
+# The route taken whenever FOREIGN is among the flags: M_PERTURB's fill is skipped.
+route-widened | crates/boundary/src/heap.rs | lit:        return foreign_alloc(n, align, zero); ==>         return foreign_alloc(n, align, zero); } if f & malloc_debug::FOREIGN != 0 { return foreign_alloc(n, align, zero); | cargo test -p niji-boundary --test heap_foreign_plain | msg:was not filled with 0xA5
+# The found cache word not used: every operation goes to the heap's slow paths.
+cache-word-unused | crates/boundary/src/heap.rs | lit:            self.0.load(Relaxed) ==>             0 | cargo test -p niji-boundary --test heap_foreign_pair_cost | msg:more than the bound
+# The route's free drops the block (a leak): the freed block is not handed out again.
+free-dropped | crates/boundary/src/heap.rs | lit:        Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p), ==>         Some(_) => Ok(()), | cargo test -p niji-boundary --test heap_foreign_plain | msg:was not reused by the next calloc
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# calloc-zero-dropped: CAUGHT, caught by heap_foreign_plain foreign_plain_route_zeroes_calloc_and_yields_to_perturb
+# route-widened: CAUGHT, caught by heap_foreign_plain foreign_plain_route_zeroes_calloc_and_yields_to_perturb
+# cache-word-unused: CAUGHT, caught by heap_foreign_pair_cost foreign_malloc_free_pair_cost
+# free-dropped: CAUGHT, caught by heap_foreign_plain foreign_plain_route_zeroes_calloc_and_yields_to_perturb

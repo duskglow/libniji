@@ -1,0 +1,6 @@
+# LDCONFIG-DEV-ALIAS plants (GitHub issue #16): ldconfig keeps a soname link that already resolves to the winner's file.
+# Run with cargo xtask plants (docs/plants.md).
+fix-reverted | crates/ld/src/ldconfig/scan.rs | lit:if (cur.dev, cur.ino) == (win.dev, win.ino) { ==> if false && (cur.dev, cur.ino) == (win.dev, win.ino) { | cargo test -p niji-ld --test ldconfig a_soname_link_reaching_the_winner | msg:a_soname_link_reaching_the_winner_is_kept.*FAILED|panicked
+same-dev-only | crates/ld/src/ldconfig/scan.rs | lit:if (cur.dev, cur.ino) == (win.dev, win.ino) { ==> if cur.dev == win.dev { | cargo test -p niji-ld --test ldconfig a_soname_link_reaching_the_winner | msg:a_soname_link_reaching_the_winner_is_kept.*FAILED|panicked
+links-only | crates/ld/src/ldconfig/scan.rs | lit:let target = join(dir, winner)?; ==> let target = join(dir, winner)?; if self.fs.lstat(&path).is_ok_and(|m| m.kind != Kind::Link) { return self.link_at(&path, winner, r); } | cargo test -p niji-ld --test ldconfig a_soname_link_reaching_the_winner | msg:a_soname_link_reaching_the_winner_is_kept.*FAILED|panicked
+stat-own-link | crates/ld/src/ldconfig/scan.rs | lit:(self.fs.stat(&path), self.fs.stat(&target)) ==> (self.fs.stat(&path), self.fs.stat(&path)) | cargo test -p niji-ld --test ldconfig a_soname_link_reaching_the_winner | msg:a_soname_link_reaching_the_winner_is_kept.*FAILED|panicked

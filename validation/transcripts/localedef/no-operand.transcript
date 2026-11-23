@@ -1,0 +1,9 @@
+name: no NAME
+clause: s31_8_i_1
+command: localedef
+arg: -i
+arg: mini
+status: exit 4
+stdout:
+| Try `localedef --help' or `localedef --usage' for more information.
+stderr:

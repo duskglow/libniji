@@ -1,0 +1,10 @@
+name: no -f/-t: the locale codeset both ways
+clause: s31_6_i_1
+command: iconv
+env: LANG=C.UTF-8
+stdin:
+|~ h\xc3\xa9\n
+status: exit 0
+stdout:
+| h\xc3\xa9
+stderr:

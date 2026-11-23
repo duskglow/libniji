@@ -1,0 +1,11 @@
+id = "D-27.63"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "DYN-START-PARITY"
+date = "2026-11-19"
+tests = ["crates/ld/tests/symbols.rs::version_names_by_index_match_the_table_walk", "crates/ld/tests/reloc.rs::reloc_field_must_lie_in_a_writable_segment", "crates/core/tests/hot_text_products.rs::init_dynamic_empty_main_stays_within_its_instruction_bound"]
+body = '''
+**The loader's lookup view and relocation pass read each table once (DYN-START-PARITY).** A dynamic empty main executed 8.15M user instructions at start-up (the reference: about 0.1M), nearly all of them relocating libc.so.6. **Rule:** a lookup view (`symbols::Object`) keeps the version tables that `versym` walked whole and answers a version name by index from them; it counts the dynamic symbols once for its symbol and version tables; the GNU hash table is one slice (Bloom words, buckets, chain), so the view keeps its 0x128 bytes, and a table whose chain does not continue its buckets is refused as malformed (only overlapping or unsorted `PT_LOAD`s can give one). A relocation pass reads the object's `PT_LOAD` ranges once, tries the segment it last accepted first, and writes `RELATIVE` entries itself (B + A, the same writable-segment check, one word store). No program-visible behaviour changes: the same entries are written with the same values and the same errors in the same order. Measured (release, Skylake-SP, median of 101, no randomisation): 8,151,153 -> 1,576,900 instructions with D-27.64. Open: the version-name walk per lookup is still linear in the definitions (an index needs storage outside the view, which may not grow).
+'''

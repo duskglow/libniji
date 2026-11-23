@@ -1,0 +1,125 @@
+{
+ "task": "DYN-START-LINK-SHAPE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Intel PT attribution: the shipped link's 13,321 extra start-up instructions are 318 libresolv RELATIVE entries at 42 instructions each in ld.so reloc::pass1; the loop is now 20 per entry: -38,167..-38,182 instructions per dynamic start on every row, Skylake-SP and Zen 1, faults unchanged",
+ "branch": "task/dyn-start-link-shape",
+ "head": "adc1365ce",
+ "gate": {
+  "affected": "806 passed / 0 failed (gate2, direct tier, final code head adc1365ce)",
+  "peak": "1.7G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The 67 NIJI_PRIVATE forwarding defsyms are ABI-needed (libresolv.so.2 forwards to them); they keep 67,712 B of libresolv text, +318 RELATIVE relocations, +1 RELRO page, 5 faults; none of the code runs at start-up. Moving that code is LIBRESOLV-OWN-CODE: upper bound 6,360 instructions and 5 faults per start after this fix.",
+  "DT_RELR for libc.so.6 (-z pack-relative-relocs, 1,777 entries -> 75 words) measured +113,355 instructions with today's RELR loop (Loads::inside per address +78,144, Relrs::next out of line +51,031); worth it only after that loop gets the window treatment.",
+  "Elf::read_phdr runs 58-63k instructions per dynamic start and +~2.5k per extra PT_LOAD: 20.1 -> 20.2's +3,487 is mostly it (+2,460) with plan/check_table/protect_relro/load; the .rodata1-first link is -3,780 on all three rows on Skylake-SP (not the +2,638 Zen 1 saw last run, NOT VERIFIED why): for LAYOUT-RO-STABLE.",
+  "The fast-profile DYN_START_INSTR bounds were not re-measured and stay; the release bounds moved down by 38,000."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "dynamic empty main start-up, release, Skylake-SP (execcount median of 101)",
+   "before": 788080,
+   "after": 749900,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic 3-library start-up, release, Skylake-SP",
+   "before": 1043427,
+   "after": 1005260,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic clock_gettime start-up, release, Skylake-SP",
+   "before": 822083,
+   "after": 783901,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic empty main start-up, release, Zen 1 (same binaries)",
+   "before": 787722,
+   "after": 749542,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic 3-library start-up, release, Zen 1",
+   "before": 1042972,
+   "after": 1004805,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic clock_gettime start-up, release, Zen 1",
+   "before": 821754,
+   "after": 783572,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "ld.so RELATIVE prefix loop per entry (Intel PT)",
+   "before": 42,
+   "after": 20,
+   "unit": "instr/entry",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic start-up page faults, all rows, both CPU classes",
+   "before": 57,
+   "after": 57,
+   "unit": "faults (empty main)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (second-entry window check, prefix position) and plants",
+   "before": 0,
+   "after": 2,
+   "unit": "tests (+6 plants)",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "exact per-function start-up attribution with Intel PT (pt.sh, profdiff.py, annot.sh on the Skylake-SP host)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "LIBRESOLV-OWN-CODE and LAYOUT-RO-STABLE get the attribution tables and numbers",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "Intel PT on the Skylake-SP host gives exact per-instruction start-up attribution in seconds; it should replace sampled perf and ablation for every start-up story (put pt.sh/profdiff.py into validation/).",
+ "next_step": "Land; then the RELR loop and the remaining 3-5 instructions of the RELATIVE loop, and Elf::read_phdr (58-63k per start), each measured with pt.sh.",
+ "report_file": "handoff/DYN-START-LINK-SHAPE.md",
+ "jobs": [
+  "mei:dyn-start-link-shape-gate2",
+  "mei:dyn-start-link-shape-plants2",
+  "mei:dyn-start-link-shape-lint2",
+  "mei:dyn-start-link-shape-startup2",
+  "mei:dyn-start-link-shape-fix1",
+  "keke:dyn-start-link-shape-zen1",
+  "mei:dyn-start-link-shape-relr",
+  "mei:dyn-start-link-shape-run1",
+  "mei:dyn-start-link-shape-pt2"
+ ]
+}

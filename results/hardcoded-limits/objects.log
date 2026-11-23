@@ -1,0 +1,19 @@
+ahl-objects	probe	2026-11-17T07:44:09Z	2026-11-17T07:44:39Z	0
+start-time objects (ldd closure + loader), files examined: 1504
+  over 64: 7; over 256: 0
+  80 /usr/lib/x86_64-linux-gnu/libvte-2.91.so.0.7600.0
+  77 /usr/bin/fwupdtool
+  68 /usr/bin/gtk-query-settings
+  68 /usr/bin/gtk-launch
+  68 /usr/bin/gtk-builder-tool
+  67 /usr/lib/x86_64-linux-gnu/libgtk-3.so.0.2409.32
+  67 /usr/bin/fwupdmgr
+  64 /usr/bin/dbxtool
+  56 /usr/bin/gtk-encode-symbolic-svg
+  55 /usr/lib/x86_64-linux-gnu/libgdk-3.so.0.2409.32
+  55 /usr/bin/appstreamcli
+  54 /usr/lib/x86_64-linux-gnu/libappstream.so.1.0.2
+  51 /usr/bin/gdb
+  49 /usr/lib/x86_64-linux-gnu/librsvg-2.so.2.50.0
+  48 /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0.3000.0
+python3 3.12.3: imported 47 of 47 stdlib extension modules; shared objects mapped: 65

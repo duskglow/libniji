@@ -620,8 +620,8 @@ fn sym_catclose() {
 }
 
 /// The C locale's answers (`YESEXPR` `^[yY]`, `NOEXPR` `^[nN]`), as the host's glibc gives them
-/// (probed 2026-10-04), globally and as a thread's own locale (D-7.9); NULL is -1 (the
-/// reference crashes).
+/// (probed 2026-10-04), globally and as a thread's own locale (D-7.9); NULL is -1 (no
+/// response: neither yes nor no).
 #[test]
 fn sym_rpmatch() {
     let _g = global();
@@ -698,6 +698,16 @@ fn ctype_words_follow_uselocale_and_setlocale() {
     // the runtime lists, hence a C program.
     // Clauses: s5_1_c_0, s7_1_c_p1, s7_2_t_0 (D-5.5, D-7.8).
     conformance(&["s05_ctype_words"]);
+}
+
+#[test]
+fn legacy_ctype_objects_give_an_old_binary_the_c_tables() {
+    // LG-6 (spec/behaviour/ctype-objects.md): a program bound to `__ctype_b`, `__ctype_tolower`,
+    // `__ctype_toupper`, `__ctype32_*` and `_obstack` at GLIBC_2.2.5 (COPY relocations, as a binary
+    // linked before the `__ctype_*_loc` accessors) reads the "C" tables through them, on the
+    // reference and on libniji alike. Needs libc.so.6's compat versions, hence a C program.
+    // Clauses: s0_6_c0_6_0, s5_1_c_0.
+    conformance(&["s05_ctype_legacy_objects"]);
 }
 
 /// Compile locale `lang`.`charset` into `dest` with the host's `localedef`, atomically: it is built

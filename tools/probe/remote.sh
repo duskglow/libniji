@@ -1,11 +1,11 @@
 #!/bin/bash
 # LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # remote.sh <file.c> [probe options...]   - run ~/bin/probe on keke for one probe source.
-#   tools/probe/remote.sh my_probe.c --niji ~/w/b --args a b
+#   tools/probe/remote.sh my_probe.c --niji '~/w/<role>' --args a b     (--niji is required: no default tree)
 # The source (and the file named by --stdin, if any) is copied to ~/probe-in/ on keke, then
 # `~/bin/probe` runs there; its output and exit status (0 SAME, 1 DIFFERENT, 2 error) come back.
 # `remote.sh --install` copies tools/probe/probe to keke as ~/bin/probe.
-# Other probe modes need no file: `remote.sh --find word...`, `--show HASH`, `--record HASH`, `--selftest`.
+# Other probe modes need no file: `remote.sh --find word...`, `--show HASH`, `--record HASH`, `--selftest --niji TREE`.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/../../validation/lab_host.sh"
@@ -16,7 +16,7 @@ if [ "${1:-}" = "--install" ]; then
     $SSH 'chmod 755 ~/bin/probe.new && mv ~/bin/probe.new ~/bin/probe && mkdir -p ~/probe-in && echo installed ~/bin/probe'
     exit 0
 fi
-[ $# -ge 1 ] || { echo "usage: remote.sh <file.c> [probe options]  |  --install | --find W.. | --show H | --record H | --selftest" >&2; exit 2; }
+[ $# -ge 1 ] || { echo "usage: remote.sh <file.c> --niji '~/w/<role>' [probe options]  |  --install | --find W.. | --show H | --record H | --selftest --niji '~/w/<role>'" >&2; exit 2; }
 $SSH 'mkdir -p ~/probe-in'
 cmd='~/bin/probe'
 file=

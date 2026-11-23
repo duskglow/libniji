@@ -1,0 +1,17 @@
+@@generated
+/* protocols/talkd.h: talk daemon */
+#ifndef __NIJI_H_protocols_talkd_h
+#define __NIJI_H_protocols_talkd_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <sys/socket.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

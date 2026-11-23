@@ -34,7 +34,7 @@ stubs), D-27.9 (placeholder machinery), D-15.7 (rcmd family stubs); rulings R10,
 - The dynamic path of libnsl.so.1 (an old program loading it) still waits for Liella's ld.so (DL-14).
 
 ## Things not to redo
-- Probing the reference's NIS+ calls with a NULL object pointer crashes the probe (caller error).
+- Probe the reference's NIS+ calls with valid object pointers only (a NULL object is a caller error).
 - A test that measures the heap must make stdio allocate the stream buffers first.
 - Compat entries in libc.so.6 need `crate::internal_entry!` and `cargo xtask compat-gen`.
 

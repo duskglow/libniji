@@ -1,0 +1,14 @@
+@@generated
+/* arpa/tftp.h: TFTP packet layout (RFC 1350) */
+#ifndef __NIJI_H_arpa_tftp_h
+#define __NIJI_H_arpa_tftp_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

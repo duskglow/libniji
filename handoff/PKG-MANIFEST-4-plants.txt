@@ -1,0 +1,14 @@
+# PKG-MANIFEST-4 plants (cargo xtask plants; docs/plants.md format): the manifest rows and checks
+# that replaced next's system.sh / check-system.sh lines (ruling #6370). The system-flavour command
+# reads keke ~/work/PKG-MANIFEST-4/proof/d-system-base (next's scripts, next's products).
+pm4-charmap-row-dropped | tools/deb/manifest.tsv | perl:s{^system\tlibc6\tusr/share/i18n/charmaps/CP1250\t[^\n]*\n}{}m | cargo test -p niji --test deb_manifest | msg:no row ships the charmap CP1250
+pm4-charmap-mode | tools/deb/manifest.tsv | perl:s{^(system\tlibc6\tusr/share/i18n/charmaps/ISO-8859-15\tfile\tcharmaps/ISO-8859-15\t)0644}{${1}0755}m | cargo test -p niji --test deb_manifest | msg:the charmap ISO-8859-15 is system libc6
+pm4-locale-row-dropped | tools/deb/manifest.tsv | perl:s{^system\tlibc-bin\tusr/bin/locale\t[^\n]*\n}{}m | cargo test -p niji --test deb_manifest | msg:product locale is in .* no file row ships it
+pm4-dir-lint-off | tools/deb/manifest.py | perl:s{dirs = \[""\] \+ sorted}{dirs = [""] or sorted} | cargo test -p niji --test deb_manifest | msg:lint should refuse exactly the unshipped charmaps/NOT-A-ROW
+pm4-charmap-header-check | tools/deb/manifest.py | perl:s{\("<code_set_name> %s" % name\)}{("<code_set_name>  %s" % name)} | python3 tools/deb/manifest.py check system $HOME/work/PKG-MANIFEST-4/proof/d-system-base | msg:charmaps/CP1250 does not name itself
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pm4-charmap-row-dropped: CAUGHT, caught by deb_manifest tables_are_sorted_well_formed_and_name_built_products
+# pm4-charmap-mode: CAUGHT, caught by deb_manifest tables_are_sorted_well_formed_and_name_built_products
+# pm4-locale-row-dropped: CAUGHT, caught by deb_manifest tables_are_sorted_well_formed_and_name_built_products
+# pm4-dir-lint-off: CAUGHT, caught by deb_manifest an_unshipped_file_in_a_shipped_product_directory_fails_lint
+# pm4-charmap-header-check: CAUGHT, caught by no test the log names

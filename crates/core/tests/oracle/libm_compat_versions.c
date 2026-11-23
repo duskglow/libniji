@@ -28,10 +28,10 @@ OLD(exp10, double, (double)) NEW(exp10, "GLIBC_2.39", double, (double))
 OLD(pow, double, (double, double)) NEW(pow, "GLIBC_2.29", double, (double, double))
 OLD(hypot, double, (double, double)) NEW(hypot, "GLIBC_2.35", double, (double, double))
 OLD(hypotf, float, (float, float)) NEW(hypotf, "GLIBC_2.35", float, (float, float))
-#ifdef PROBE_ALL
-OLD(exp2, double, (double)) NEW(exp2, "GLIBC_2.29", double, (double))
 OLD(log, double, (double)) NEW(log, "GLIBC_2.29", double, (double))
 OLD(log2, double, (double)) NEW(log2, "GLIBC_2.29", double, (double))
+#ifdef PROBE_ALL
+OLD(exp2, double, (double)) NEW(exp2, "GLIBC_2.29", double, (double))
 OLD(lgamma, double, (double)) NEW(lgamma, "GLIBC_2.23", double, (double))
 OLD(expf, float, (float)) NEW(expf, "GLIBC_2.27", float, (float))
 OLD(exp2f, float, (float)) NEW(exp2f, "GLIBC_2.27", float, (float))
@@ -48,6 +48,9 @@ OLD(lgammal, long double, (long double)) NEW(lgammal, "GLIBC_2.23", long double,
 #define FLAGS (FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW)
 #define N 22
 #define SNAN_AT 19
+/* The logarithms also take a quiet and a signalling NaN with the sign bit set (indices N, N + 1):
+ * their old version differs from the default in a NaN's sign (spec/behaviour/libm-compat.md). */
+#define NLOG (N + 2)
 
 struct obs {
     char bits[48];
@@ -58,20 +61,20 @@ static double dval(int i)
 {
     static const double v[N] = {0.0, -0.0, 1.0, -1.0, 0.5, 2.5, 7.5, -3.0, -2.0, 710.0, -746.0, 1e-310, -1e-310,
                                 1e308, -1e308, 1e-5, 1024.0, -1075.0, NAN, 0, INFINITY, -INFINITY};
-    uint64_t s = 0x7ff4000000000000ull;
+    uint64_t s = i == N ? 0xfff8000000000000ull : i == N + 1 ? 0xfff4000000000000ull : 0x7ff4000000000000ull;
     double d;
     memcpy(&d, &s, sizeof d);
-    return i == SNAN_AT ? d : v[i];
+    return i == SNAN_AT || i >= N ? d : v[i];
 }
 
 static float fval(int i)
 {
     static const float v[N] = {0.0f, -0.0f, 1.0f, -1.0f, 0.5f, 2.5f, 7.5f, -3.0f, -2.0f, 89.0f, -104.0f, 1e-40f, -1e-40f,
                                3e38f, -3e38f, 1e-5f, 128.0f, -150.0f, NAN, 0, INFINITY, -INFINITY};
-    uint32_t s = 0x7fa00000u;
+    uint32_t s = i == N ? 0xffc00000u : i == N + 1 ? 0xffa00000u : 0x7fa00000u;
     float f;
     memcpy(&f, &s, sizeof f);
-    return i == SNAN_AT ? f : v[i];
+    return i == SNAN_AT || i >= N ? f : v[i];
 }
 
 static int verbose, cases, diffs;
@@ -157,9 +160,9 @@ static void run_f2(const char *name, f2 old, f2 def)
     summary(name);
 }
 
-static void run_d1(const char *name, d1 old, d1 def)
+static void run_d1(const char *name, d1 old, d1 def, int n)
 {
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < n; i++) {
         volatile double x = dval(i);
         struct obs a, b;
         char in[40];
@@ -172,9 +175,9 @@ static void run_d1(const char *name, d1 old, d1 def)
 }
 
 #ifdef PROBE_ALL
-static void run_f1(const char *name, f1 old, f1 def)
+static void run_f1(const char *name, f1 old, f1 def, int n)
 {
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < n; i++) {
         volatile float x = fval(i);
         struct obs a, b;
         char in[40];
@@ -206,22 +209,22 @@ int main(int argc, char **argv)
     verbose = argc > 1 && !strcmp(argv[1], "-v");
     run_d2("fmod", fmod_old, fmod_new);
     run_f2("fmodf", fmodf_old, fmodf_new);
-    run_d1("exp", exp_old, exp_new);
-    run_d1("exp10", exp10_old, exp10_new);
+    run_d1("exp", exp_old, exp_new, N);
+    run_d1("exp10", exp10_old, exp10_new, N);
     run_d2("pow", pow_old, pow_new);
     run_d2("hypot", hypot_old, hypot_new);
     run_f2("hypotf", hypotf_old, hypotf_new);
+    run_d1("log", log_old, log_new, NLOG);
+    run_d1("log2", log2_old, log2_new, NLOG);
 #ifdef PROBE_ALL
-    run_d1("exp2", exp2_old, exp2_new);
-    run_d1("log", log_old, log_new);
-    run_d1("log2", log2_old, log2_new);
-    run_d1("lgamma", lgamma_old, lgamma_new);
-    run_f1("expf", expf_old, expf_new);
-    run_f1("exp2f", exp2f_old, exp2f_new);
-    run_f1("exp10f", exp10f_old, exp10f_new);
-    run_f1("logf", logf_old, logf_new);
-    run_f1("log2f", log2f_old, log2f_new);
-    run_f1("lgammaf", lgammaf_old, lgammaf_new);
+    run_d1("exp2", exp2_old, exp2_new, N);
+    run_d1("lgamma", lgamma_old, lgamma_new, N);
+    run_f1("expf", expf_old, expf_new, N);
+    run_f1("exp2f", exp2f_old, exp2f_new, N);
+    run_f1("exp10f", exp10f_old, exp10f_new, N);
+    run_f1("logf", logf_old, logf_new, NLOG);
+    run_f1("log2f", log2f_old, log2f_new, NLOG);
+    run_f1("lgammaf", lgammaf_old, lgammaf_new, N);
     run_f2("powf", powf_old, powf_new);
     run_l1("lgammal");
 #endif

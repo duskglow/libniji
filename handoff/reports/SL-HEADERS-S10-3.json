@@ -1,0 +1,57 @@
+{
+ "task": "SL-HEADERS-S10-3",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "COMPLETE: slice 10 moved onto the header registry; P2 10 / P3 60 rows left, each owned by slice 7 or 18; P6 35 passed, 5 failed outside slice 10; P7 not runnable until slices 7 and 8 land",
+ "branch": "task/sl-headers-s10-3",
+ "head": "7c841d1fd",
+ "gate": {
+  "affected": "32 suites ok, 12168 passed / 0 failed (conformance 140 passed / 0 failed)",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "P6 (conformance/run.sh --niji-headers, job sl-headers-s10-3-p6): 35 passed, 5 failed, 100 not covered; none involves a slice 10 header: s01_streams, s04_casecmp_locales, s07_setlocale_first_case fail to build because libc-include/ctype.h (slice 6) expands isalpha/islower to __isctype(c, _ISalpha) and never declares _ISalpha/_ISlower; s02_assert expects the program name without the .lh suffix of the --niji-headers build; s02_chk_fail expects the fortify abort text (slice 18)",
+  "P7 cannot run: grep, sed, diffutils, findutils, gawk include fcntl.h, sys/stat.h, dirent.h, signal.h (slices 7 and 8, not on next)",
+  "Shared generator change: the FILE tag-only rule is data driven, so pwd.h, grp.h, shadow.h, gshadow.h (slice 14) are regenerated with an incomplete struct _IO_FILE as visibility.tsv has them (header_check.py P1 leaves out FILE there)",
+  "plants: 16 plants, 15 CAUGHT, 1 WARN-NO-MSG: s10-regexp-must-fail mutates the generated libc-include/regexp.h, so the products build of the plants tool stops at headers-gen --check before header_check.py runs (caught, by the generator check)",
+  "jobs run foreground without jobrun: two ad-hoc cargo xtask headers-gen calls over ssh at the start (before I switched to jobrun); their results were repeated under sl-headers-s10-3-hc2",
+  "not named in JOBS, run info only: sl-headers-s10-3-hc2 (generated the libc-include tree, committed afterwards; header_check 0 failed of 6048 on it), sl-headers-s10-3-probes (P2/P3: 10 and 60 unaccepted rows, classified in records/pending/SL-HEADERS-S10-3-1.toml; no tested-content record because it ran a script), sl-headers-s10-3-p6 (rc 1: the 5 P6 failures above, none in a slice 10 header)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "slice 10 plants (16) and header_checks/s10.py units on regexp.h must-fail",
+   "before": 12,
+   "after": 16,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "P2 differences of slice 10 headers (merged next fixed the endian/types family)",
+   "before": 38,
+   "after": 10,
+   "unit": "P2 rows",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "slice 10 can land on the registry layout; after slice 7: ftw.h/fts.h include sys/stat.h and p1_skip empties; after slice 18: libintl/wchar fortify rows",
+   "before": null,
+   "after": null,
+   "unit": "",
+   "measured": false
+  }
+ ],
+ "improvement": "the plants tool runs the full product build per header plant before the headers-gen check; a header-only plants mode that runs just headers-gen --check and header_check.py would cut a 2.3 h run to minutes",
+ "next_step": "land; after slice 7 add the sys/stat.h include to ftw.h/fts.h, empty p1_skip, run P7; after slice 18 the fortify rows",
+ "report_file": "handoff/SL-HEADERS-S10.md",
+ "jobs": [
+  "sl-headers-s10-3-lint",
+  "sl-headers-s10-3-gate",
+  "sl-headers-s10-3-plants"
+ ]
+}

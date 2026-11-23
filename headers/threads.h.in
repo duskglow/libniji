@@ -1,0 +1,43 @@
+@@generated
+/* threads.h: C11 threads (C 7.26). */
+#ifndef __NIJI_H_threads_h
+#define __NIJI_H_threads_h 1
+
+#include <features.h>
+#include <time.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL thread_local
+@@owns-macro ONCE_FLAG_INIT
+@@emit
+
+@@if NULL
+# ifndef NULL
+@@null NULL
+# endif
+#endif
+
+/* C 7.26.1: thread_local is a macro for the storage-class specifier before C23 (a keyword in C23 and C++). */
+/* The probe shows it in C by the compiler's language version (a keyword from C23: -std=c2x and gnu2x set
+   __STDC_VERSION__ above 201710L, 202000L in the reference compiler) and in no C++ standard. */
+#if !defined __cplusplus && (!defined __STDC_VERSION__ || __STDC_VERSION__ <= 201710L)
+# define thread_local _Thread_local
+#endif
+
+@@if ONCE_FLAG_INIT
+# define ONCE_FLAG_INIT @@init(ONCE_FLAG_INIT)
+#endif
+
+/* Optimised code compares two thread ids in place (the call-site table: no symbol is referenced); the exported
+   function stays for programs that take its address. */
+#if defined __OPTIMIZE__ && !defined __NO_INLINE__
+extern __inline __attribute__ ((__gnu_inline__)) int thrd_equal (unsigned long __a, unsigned long __b)
+{
+  return __a == __b;
+}
+#endif
+
+__NIJI_END_C
+
+#endif

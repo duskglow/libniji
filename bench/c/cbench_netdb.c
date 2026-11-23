@@ -66,12 +66,16 @@ static void fail(const char *what)
 }
 
 #include "cbench_rows.h"
+/* The counted mode (`--compare --counters`), as the other C benchmarks: the counters start and stop
+ * once per row, outside the timed rounds. */
+#include "cbench_counters.h"
 
 #define MEASURE(name, iters, expr)                         \
     do {                                                   \
         if (cb_skip(name))                                 \
             break;                                         \
         double best = 1e300;                               \
+        ctr_begin();                                       \
         for (int round = 0; round < 7; round++) {          \
             double t0 = now();                             \
             long acc = 0;                                  \
@@ -82,6 +86,7 @@ static void fail(const char *what)
             if (per < best)                                \
                 best = per;                                \
         }                                                  \
+        ctr_end(name, 7.0 * (double)(iters));              \
         put(name, best);                                   \
     } while (0)
 
