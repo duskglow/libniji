@@ -3,7 +3,8 @@
 State: branch `task/release-step-exec-fail`, HEAD = the commit that adds this note (code: bc886b1ac + e01b84ea0),
 base origin/next 0495c4684. Kind: investigate. Decisions in force: none new (test-harness change only).
 Verdict: the release-step exits (127, 99) are **not established**. The **gate red on the direct tier IS established**:
-it is next's, caused by a host change, and fixed by LOCALE-PER-DIR-LOAD (not by this branch).
+it was next's, caused by a host change (fixed by LOCALE-PER-DIR-LOAD; the owner also restored the host's archive at
+18:10Z, after which this branch's gate is green).
 
 ## Established (leg 2): next fails `init_data_clusters_hold_at_every_text_phase` on the Skylake-SP CI host since 06:32Z
 
@@ -37,22 +38,29 @@ it is next's, caused by a host change, and fixed by LOCALE-PER-DIR-LOAD (not by 
 * `call_dir`: every `faults_env` call gets its own directory, same 31-byte length (test
   `harness_fault_call_dirs_are_never_shared`). Plants: `handoff/RELEASE-STEP-EXEC-FAIL-plants.txt`, 3/3 CAUGHT.
 
-## Jobs (mei, role s3)
+## Host change at 18:10Z (coordinator note on flag #8169)
 
-* `release-step-exec-fail-gate2` (47546f1f2, code = final): direct tier 34 passed, 1 failed = the test above (next's,
-  host locale form); unsafe-audit, csys-audit, clippy, static ok; peak 1.6G.
-* `release-step-exec-fail-plants-2` (155df8005, code = final): 3/3 CAUGHT.
-* `release-step-exec-fail-release2`: the CI release pair exactly (`NIJI_FULL_PROFILE=1 cargo xtask so && ... cargo test
-  -p niji --test hot_text_products`) on the final code.
-* Superseded: `-gate` (first run, ran beside plants), `-plants` (baseline bug fixed in e01b84ea0), `-release` (script rc
-  = its namespace arm, where `perf` records nothing: `init_startup_data_accesses_are_in_the_data1_cluster`; host arm 35/35).
-  Diagnostics, not proof: `-iso`, `-loc`, `-tipslow`, `-instr` (leg 1).
+The owner restored mei's `/usr/lib/locale/locale-archive` (en_US.utf8 only) at 18:10Z: the gate red above is gone on
+the host (gate3 green). The per-directory measurements above were taken before 18:10Z.
+
+## Jobs (mei, role s3; final code = bc886b1ac + e01b84ea0, later commits are handoff/ only)
+
+* `release-step-exec-fail-gate3` (after 18:10Z): direct tier 35 passed, 0 failed; peak 2.0G.
+* `release-step-exec-fail-plants-3`: 3/3 CAUGHT, no WARN.
+* `release-step-exec-fail-release3` (after 18:10Z): the CI release pair exactly (`NIJI_FULL_PROFILE=1 cargo xtask so &&
+  NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`). `-release2` (before 18:10Z, per-directory host):
+  35/35 ok.
+* Superseded: `-gate` (ran beside plants), `-gate2` (34/1: the host-locale red above, before 18:10Z), `-plants` (baseline
+  bug fixed in e01b84ea0), `-plants-2` (recorded tree content differs from this head), `-release` (script rc = its
+  namespace arm, where `perf` records nothing; host arm 35/35). Diagnostics only: `-iso`, `-loc`, `-tipslow`, `-instr`.
 
 ## Exact next step (coordinator)
 
-Land LOCALE-PER-DIR-LOAD and this branch in one train (this branch alone fails the fast pass on mei like every train
-without LOCALE-PER-DIR-LOAD); LOCALE-PER-DIR-LOAD keeps `call_dir` + `run_failure` when it merges (fixed-length name,
-e.g. `/tmp/n-<pid:010>-<n:03>`, tested as leg 1's `fixed.rs`: 8/8 + 2/2 green). The next 127/99 then prints its stderr.
+Land this branch; LOCALE-PER-DIR-LOAD (re-gating solo since 18:10Z) keeps `call_dir` + `run_failure` when it merges
+next (fixed-length name, e.g. `/tmp/n-<pid:010>-<n:03>`, tested as leg 1's `fixed.rs`: 8/8 + 2/2 green), so any further
+127/99 prints its stderr. Note: on the tip each counted run goes through `setpriv --pdeathsig KILL -- unshare --user
+--map-current-user --pid --fork --kill-child --mount-proc -- unshare -r -m sh -c ...`; `setpriv` and `unshare` also
+exit 127 when they cannot exec the next program, so 127 alone does not mean `page_faults` was missing.
 Earlier coordinator scope (train 953 empty-main bound): LD-START-MAPS +2422 of next's 2972 headroom (leg 1 table, report).
 
 Scratch (mei ~/work/release-step-exec-fail/): iso.sh, loc.sh, rel.sh, tip.sh, slowbin/, orig/fixed/next .rs, logs.
