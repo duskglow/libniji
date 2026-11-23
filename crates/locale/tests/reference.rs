@@ -517,3 +517,38 @@ fn generated_cjk_charmaps_give_the_reference_ctype() {
         compare_with(locale, charmap, &mut Generated, true);
     }
 }
+
+/// s31_8_g_1, s31_8_g_4: the products' `localedef` (the freestanding program, its tool arena
+/// reusing and unmapping freed blocks, D-31.23) writes exactly the library's compile of en_US and
+/// de_DE for UTF-8, as directories and into an archive under `--prefix`. Needs the products
+/// (`cargo xtask so`) and the locale sources; without them it says so and skips.
+#[test]
+fn products_localedef_writes_the_library_compile() {
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() || !source_path("en_US").exists() {
+        println!("skip: needs {} (cargo xtask so) and {}", bin.display(), source_path("en_US").display());
+        return;
+    }
+    static RUN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let dir = std::env::temp_dir().join(format!("niji-locale-products-{}-{}", std::process::id(), RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("p/usr/lib/locale")).unwrap();
+    for locale in ["en_US", "de_DE"] {
+        let out = dir.join(format!("{locale}.UTF-8"));
+        let run = Command::new(&bin).args(["-i", locale, "-f", "UTF-8"]).arg(&out).env_clear().output().unwrap();
+        assert_eq!(run.status.code(), Some(0), "{locale}: {}", String::from_utf8_lossy(&run.stderr));
+        let lib = niji_locale::compile_output(locale.as_bytes(), b"UTF-8", &mut Disk).unwrap();
+        for (n, file) in FILES.iter().enumerate() {
+            let (Some(file), Some(Some(want))) = (file, lib.files.get(n)) else { continue };
+            let got = std::fs::read(out.join(file)).unwrap_or_default();
+            assert!(got == want.as_slice(), "{locale} {file}: the program's file differs from the library's");
+        }
+        let prefix = format!("--prefix={}", dir.join("p").display());
+        let run = Command::new(&bin).args([prefix.as_str(), "-i", locale, "-f", "UTF-8", &format!("{locale}.UTF-8")]).env_clear().output().unwrap();
+        assert_eq!(run.status.code(), Some(0), "{locale} archive: {}", String::from_utf8_lossy(&run.stderr));
+    }
+    let archive = std::fs::read(dir.join("p/usr/lib/locale/locale-archive")).unwrap();
+    let a = niji_locale::archive::Archive::parse(&archive).unwrap();
+    assert_eq!(a.names().unwrap().iter().map(|n| n.to_vec()).collect::<Vec<_>>(), [b"de_DE.utf8".to_vec(), b"en_US.utf8".to_vec()]);
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -168,11 +168,11 @@ fn free_block(a: usize, size: usize, align: usize) {
     }
 }
 
-// UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
 // SAFETY: a small block is handed out once from a chunk or a free list and is on a list only while
 // freed; a large block is a mapping no other block shares; sizes and alignments are honoured
 // (class blocks are aligned to their size, which is at least the alignment); exhaustion is null;
 // one thread.
+// UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
 #[allow(unsafe_code)]
 unsafe impl GlobalAlloc for Arena {
     // UNSAFE(allocator): the trait's required method.
