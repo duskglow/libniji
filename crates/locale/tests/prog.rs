@@ -378,7 +378,7 @@ fn marker(m: &Mem, dir: &str) -> Option<u8> {
 
 /// s31_8_i_4: a `-i` or `copy` name is tried from the working directory, then for each non-empty `I18NPATH` entry
 /// in order as `<entry>/locales/<name>` and `<entry>/<name>`, then in the default directory; a relative name
-/// with `/` skips the default directory; none readable: status 4.
+/// with `/` skips the default directory; none readable: status 4. (`--quiet` keeps the partial sources at status 0.)
 #[test]
 fn source_search_order() {
     let mut m = host();
@@ -389,24 +389,24 @@ fn source_search_order() {
     for (gone, want) in [("", b'A'), ("tsrc", b'B'), ("/e1/locales/tsrc", b'C'), ("/e1/tsrc", b'D')] {
         m.files.remove(gone.as_bytes());
         let o = go(&mut m, &["-c", "-i", "tsrc", "-f", "MINI", "--quiet", "/out/s"]);
-        assert_eq!((o.status, marker(&m, "/out/s")), (1, Some(want)), "after removing {gone:?}: {}", text(&o.err));
+        assert_eq!((o.status, marker(&m, "/out/s")), (0, Some(want)), "after removing {gone:?}: {}", text(&o.err));
     }
     // The entries in order, each with both of its places before the next entry.
     m.files.insert(b"/e1/locales/tsrc".to_vec(), marked('B'));
     m.files.insert(b"/e0/tsrc".to_vec(), marked('E'));
     let o = go(&mut m, &["-c", "-i", "tsrc", "-f", "MINI", "--quiet", "/out/e"]);
-    assert_eq!((o.status, marker(&m, "/out/e")), (1, Some(b'E')), "{}", text(&o.err));
+    assert_eq!((o.status, marker(&m, "/out/e")), (0, Some(b'E')), "{}", text(&o.err));
     // copy names search the same way.
     m.files.insert(b"/e1/locales/cp".to_vec(), b"LC_NUMERIC\ncopy \"tsrc\"\nEND LC_NUMERIC\n".to_vec());
     let o = go(&mut m, &["-c", "-i", "cp", "-f", "MINI", "--quiet", "/out/c"]);
-    assert_eq!((o.status, marker(&m, "/out/c")), (1, Some(b'E')), "{}", text(&o.err));
+    assert_eq!((o.status, marker(&m, "/out/c")), (0, Some(b'E')), "{}", text(&o.err));
     // A relative name with '/': I18NPATH, not the default directory.
     m.files.insert(b"/usr/share/i18n/locales/sub/x".to_vec(), marked('F'));
     let o = go(&mut m, &["-c", "-i", "sub/x", "-f", "MINI", "--quiet", "/out/r"]);
     assert_eq!((o.status, marker(&m, "/out/r")), (4, None), "{}", text(&o.err));
     m.files.insert(b"/e1/locales/sub/x".to_vec(), marked('G'));
     let o = go(&mut m, &["-c", "-i", "sub/x", "-f", "MINI", "--quiet", "/out/r"]);
-    assert_eq!((o.status, marker(&m, "/out/r")), (1, Some(b'G')), "{}", text(&o.err));
+    assert_eq!((o.status, marker(&m, "/out/r")), (0, Some(b'G')), "{}", text(&o.err));
     // Nothing anywhere: the missing-source failure.
     let o = go(&mut m, &["-c", "-i", "nosuch", "-f", "MINI", "/out/n"]);
     assert_eq!((o.status, text(&o.err)), (4, "[error] cannot open locale definition file `nosuch': No such file or directory\n".to_string()));
@@ -452,7 +452,7 @@ const POSIX_NAMES: &[(&str, u32)] = &[
 ];
 
 fn posix_name(cp: u32) -> Option<String> {
-    if (b'A'..=b'Z').contains(&(cp as u8)) && cp < 0x80 || (b'a'..=b'z').contains(&(cp as u8)) && cp < 0x80 {
+    if cp < 0x80 && (cp as u8).is_ascii_alphabetic() {
         return Some(char::from(cp as u8).to_string());
     }
     POSIX_NAMES.iter().find(|p| p.1 == cp).map(|p| p.0.to_string())

@@ -552,3 +552,45 @@ fn products_localedef_writes_the_library_compile() {
     assert_eq!(a.names().unwrap().iter().map(|n| n.to_vec()).collect::<Vec<_>>(), [b"de_DE.utf8".to_vec(), b"en_US.utf8".to_vec()]);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// s31_8_i_4, s31_8_i_5: the products' `localedef` reads `I18NPATH` from its environment and the working directory
+/// first: a `-i` / `-f` name found in an `I18NPATH` entry's `locales/` / `charmaps/`, and the same `-i` name in the
+/// working directory taking its place; the charmap names characters by POSIX names only. Files the test writes;
+/// needs only the products (`cargo xtask so`), else it says so and skips.
+#[test]
+fn products_localedef_searches_i18npath_and_the_working_directory() {
+    let bin = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/niji/localedef");
+    if !bin.exists() {
+        println!("skip: needs {} (cargo xtask so)", bin.display());
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("niji-locale-i18npath-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    for d in ["e/locales", "e/charmaps", "cwd"] {
+        std::fs::create_dir_all(dir.join(d)).unwrap();
+    }
+    let mut charmap = String::from("<code_set_name> TCM\n<mb_cur_max> 1\n<mb_cur_min> 1\nCHARMAP\n<NUL> /x00\n");
+    for c in b'A'..=b'Z' {
+        charmap.push_str(&format!("<{}> /x{c:02x}\n", c as char));
+    }
+    charmap.push_str("END CHARMAP\n");
+    std::fs::write(dir.join("e/charmaps/TCM"), charmap).unwrap();
+    let source = |c: char| format!("LC_NUMERIC\ndecimal_point \"<{c}>\"\nthousands_sep \"\"\ngrouping -1\nEND LC_NUMERIC\n");
+    std::fs::write(dir.join("e/locales/tsrc"), source('Q')).unwrap();
+    let path = format!(":{}", dir.join("e").display());
+    let point = |out: &str| -> Option<u8> {
+        let f = std::fs::read(dir.join(out).join("LC_NUMERIC")).ok()?;
+        [b'Q', b'W'].into_iter().find(|&c| f.windows(2).any(|w| w == [c, 0]))
+    };
+    let run = |out: &str| {
+        let mut c = Command::new(&bin);
+        c.args(["-c", "--quiet", "-i", "tsrc", "-f", "TCM"]).arg(dir.join(out)).current_dir(dir.join("cwd"));
+        c.env_clear().env("I18NPATH", &path).output().unwrap()
+    };
+    let o = run("o1");
+    assert_eq!((o.status.code(), point("o1")), (Some(0), Some(b'Q')), "{}", String::from_utf8_lossy(&o.stderr));
+    std::fs::write(dir.join("cwd/tsrc"), source('W')).unwrap();
+    let o = run("o2");
+    assert_eq!((o.status.code(), point("o2")), (Some(0), Some(b'W')), "{}", String::from_utf8_lossy(&o.stderr));
+    let _ = std::fs::remove_dir_all(&dir);
+}
