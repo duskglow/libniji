@@ -867,6 +867,21 @@ impl Parser<'_> {
             _ => return Err(WordError::Syntax),
         };
         self.i += len;
+        // The usual word, plain bytes up to its `}` (nothing the steps below treat apart: no
+        // quote, escape, brace, expansion or leading `~`): one text segment, without a frame.
+        let rest = self.s.get(self.i..).unwrap_or(&[]);
+        if let Some(n) = rest.iter().position(|&b| matches!(b, b'}' | b'{' | b'\\' | b'\'' | b'"' | b'$' | b'`')) {
+            if rest.get(n) == Some(&b'}') && rest.first() != Some(&b'~') {
+                let start = self.arena.len();
+                if n > 0 {
+                    let at = self.text.len();
+                    self.text.extend_from_slice(rest.get(..n).unwrap_or(&[]))?;
+                    self.arena.push(Seg::Text { at: (at, self.text.len()), quoted, input: false })?;
+                }
+                self.i += n + 1;
+                return Ok(Some(Seg::Param { name, form: Form::Op { op, colon, word: (start, self.arena.len()) }, quoted }));
+            }
+        }
         let first = self.nest.len();
         self.frames.push(Frame::Brace { name, op, colon, quoted, depth: 0, at_start: true, first })?;
         Ok(None)
@@ -1484,12 +1499,44 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
     where
         'a: 's,
     {
-        let mut jobs: InlineVec<Job<'s>, 4> = InlineVec::new();
-        let mut fresh: TryVec<Pieces> = TryVec::new();
         // The values pattern removals keep while their words are expanded.
         let mut vals: TryVec<u8> = TryVec::new();
-        jobs.push(Job::Segs { segs, quoted, in_word })?;
-        while let Some(job) = jobs.pop() {
+        let (mut rest, mut quoted, mut in_word) = (segs, quoted, in_word);
+        // The usual list: its segments in order, a nested word that ends it expanded in its
+        // place; only a word with more to do after it needs the stack.
+        while let Some((s, tail)) = rest.split_first() {
+            rest = tail;
+            let Some(next) = self.seg(s, quoted, in_word, p, &mut vals)? else { continue };
+            if next.then.is_none() && rest.is_empty() {
+                (rest, quoted, in_word) = (next.word, next.quoted, next.in_word);
+                continue;
+            }
+            return self.segs_deep(Job::Segs { segs: rest, quoted, in_word }, next, p, vals);
+        }
+        Ok(())
+    }
+
+    /// [`Self::segs`] from a nested word `next` on, `rest` after it: the stack of jobs.
+    fn segs_deep<'s>(&mut self, rest: Job<'s>, next: Nested<'s>, p: &mut Pieces, mut vals: TryVec<u8>) -> Wr<()>
+    where
+        'a: 's,
+    {
+        let mut jobs: InlineVec<Job<'s>, 4> = InlineVec::new();
+        let mut fresh: TryVec<Pieces> = TryVec::new();
+        if matches!(rest, Job::Segs { segs, .. } if !segs.is_empty()) {
+            jobs.push(rest)?;
+        }
+        // The nested word to schedule: its word first, then what finishes it.
+        let mut next = Some(next);
+        loop {
+            if let Some(next) = next.take() {
+                if let Some(then) = next.then {
+                    fresh.push(Pieces::new())?;
+                    jobs.push(then)?;
+                }
+                jobs.push(Job::Segs { segs: next.word, quoted: next.quoted, in_word: next.in_word })?;
+            }
+            let Some(job) = jobs.pop() else { return Ok(()) };
             let Job::Segs { segs, quoted, in_word } = job else {
                 let w = fresh.pop().ok_or(WordError::Syntax)?;
                 let target = match fresh.as_mut_slice().last_mut() {
@@ -1506,19 +1553,14 @@ impl<'a, S: Shell, W: Words> Expander<'a, S, W> {
                     Some(f) => f,
                     None => &mut *p,
                 };
-                let Some(next) = self.seg(s, quoted, in_word, target, &mut vals)? else { continue };
+                let Some(n) = self.seg(s, quoted, in_word, target, &mut vals)? else { continue };
                 if !rest.is_empty() {
                     jobs.push(Job::Segs { segs: rest, quoted, in_word })?;
                 }
-                if let Some(then) = next.then {
-                    fresh.push(Pieces::new())?;
-                    jobs.push(then)?;
-                }
-                jobs.push(Job::Segs { segs: next.word, quoted: next.quoted, in_word: next.in_word })?;
+                next = Some(n);
                 break;
             }
         }
-        Ok(())
     }
 
     /// The end of a nested word's job: `w` is the word expanded; the result into `p`.

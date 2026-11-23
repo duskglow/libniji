@@ -255,10 +255,16 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
     }
 
     /// Remove the last element and return it (`None` when empty).
+    #[inline]
     pub fn pop(&mut self) -> Option<T> {
-        let last = self.as_slice().last().copied()?;
-        self.truncate(self.len().saturating_sub(1));
-        Some(last)
+        match &mut self.heap {
+            Some(h) => h.pop(),
+            None => {
+                let n = self.len.checked_sub(1)?;
+                self.len = n;
+                self.inline.get(n).copied()
+            }
+        }
     }
 
     /// The elements.
