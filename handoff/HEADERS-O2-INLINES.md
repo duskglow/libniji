@@ -1,7 +1,7 @@
 # HEADERS-O2-INLINES handoff (run 1, leg 3: complete)
 
-**State.** Branch `task/headers-o2-inlines` from origin/next e0110e274; role keke:~/w/n3. Code head 3c3c57eda; this
-note and the report json are on top. Decisions in force: **D-X.158** (header-inline design, errno veto, P3 C++
+**State.** Branch `task/headers-o2-inlines` from origin/next e0110e274; role keke:~/w/n3. Head ed3bae0f4 (code 3c3c57eda;
+D-X.158 is ); the report json update is on top. precheck green on ed3bae0f4. Decisions in force: **D-X.158** (header-inline design, errno veto, P3 C++
 include dirs); differences row "atof, atoi, atol, atoll" (no compat option, reason in the row).
 
 **Commits.** c11e52e34 inline bodies (`__NIJI_INLINES` in features.h.in; stdio/stdlib/wchar bodies; string/strings C++

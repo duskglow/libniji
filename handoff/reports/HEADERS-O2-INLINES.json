@@ -1,6 +1,6 @@
 {"task": "HEADERS-O2-INLINES", "model": "opus", "tokens": null,
  "result": "libniji's headers give -O2 objects the reference's references (P3 55 -> 0 rows, P7 zlib+xz 0 differ) and atof/atoi/atol/atoll are no longer pure (s08_strto_fenv_flags passes with libniji's headers)",
- "branch": "task/headers-o2-inlines", "head": "3c3c57eda",
+ "branch": "task/headers-o2-inlines", "head": "ed3bae0f4",
  "gate": {"affected": "FULL (train's: header templates are generator inputs); cargo test -p xtask on the final head (headers-o2-inlines-xtask2), o2inlines 3/3", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [{"item": "No compatibility option restoring pure on atof/atoi/atol/atoll", "recommendation": "none: the attribute lets a compiler drop an errno the call sets; reason recorded in the differences row"}],
