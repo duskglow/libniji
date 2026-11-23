@@ -45,15 +45,13 @@ type Key = [Vec<W>; 3];
 /// How a rule line places a code point.
 #[derive(Clone, Copy)]
 enum Place {
-    /// `after cp anchor level` (`level+`: appended below every other weight).
-    After(usize, bool),
-    /// `same cp anchor`.
-    Same,
+    /// `after cp anchor level`.
+    After(usize),
+    /// `same cp anchor n`: the anchor's weights at levels 1 to n.
+    Same(usize),
+    /// `expand cp cp1 cp2...`: the weights of the string (the anchor is `cp1`).
+    Expand(Vec<u32>),
 }
-
-/// The sub-steps of weights appended by `level+` rules (below every DUCET weight, apart from the
-/// ones minted after an anchor without weights at that level).
-const APPENDED: u32 = 1 << 30;
 
 /// One DUCET collation element: variable, primary, secondary, tertiary.
 type Ce = (bool, u32, u32, u32);
@@ -175,6 +173,7 @@ pub fn source(repo: &Path) -> Result<String, String> {
 
     let (mut variant_block, mut format_first) = (false, false);
     let mut placements = Vec::new();
+    let mut contractions = Vec::new();
     for (no, line) in rules.lines().enumerate() {
         let line = line.split('#').next().unwrap_or("").trim();
         let f: Vec<&str> = line.split_whitespace().collect();
@@ -188,14 +187,27 @@ pub fn source(repo: &Path) -> Result<String, String> {
                 defined.retain(|&cp, _| !(lo..=hi).contains(&cp));
             }
             ["after", cp, anchor, level] => {
-                let (level, append) = level.strip_suffix('+').map_or((*level, false), |l| (l, true));
                 let level: usize = level.parse().map_err(|_| bad())?;
-                if !(1..=4).contains(&level) || (append && level == 4) {
+                if !(1..=4).contains(&level) {
                     return Err(bad());
                 }
-                placements.push((hex(cp, "after")?, hex(anchor, "after")?, Place::After(level, append), bad()));
+                placements.push((hex(cp, "after")?, hex(anchor, "after")?, Place::After(level), bad()));
             }
-            ["same", cp, anchor] => placements.push((hex(cp, "same")?, hex(anchor, "same")?, Place::Same, bad())),
+            ["same", cp, anchor, n] => {
+                let n: usize = n.parse().map_err(|_| bad())?;
+                if !(1..=3).contains(&n) {
+                    return Err(bad());
+                }
+                placements.push((hex(cp, "same")?, hex(anchor, "same")?, Place::Same(n), bad()));
+            }
+            ["expand", cp, first, rest @ ..] => {
+                let mut cps = vec![hex(first, "expand")?];
+                for c in rest {
+                    cps.push(hex(c, "expand")?);
+                }
+                placements.push((hex(cp, "expand")?, cps[0], Place::Expand(cps), bad()));
+            }
+            ["contract", a, b, like] => contractions.push((hex(a, "contract")?, hex(b, "contract")?, hex(like, "contract")?)),
             _ => return Err(bad()),
         }
     }
@@ -220,23 +232,34 @@ pub fn source(repo: &Path) -> Result<String, String> {
     // Placements at levels 1-3 change weights; level 4 ones move a character in the order.
     let mut minted: BTreeSet<(usize, W)> = BTreeSet::new();
     let mut moves = Vec::new();
-    let mut appended = 0;
     for (cp, anchor, place, at) in placements {
         let mut key = defined.get(&anchor).cloned().ok_or_else(|| format!("{at}: the anchor is not defined"))?;
         if !defined.contains_key(&cp) {
             return Err(format!("{at}: the code point is not defined"));
         }
         match place {
-            Place::Same => {}
-            Place::After(4, _) => moves.push((cp, anchor)),
-            Place::After(level, append) => {
+            Place::Same(n) => {
+                let own = defined.get(&cp).cloned().unwrap_or_default();
+                for (level, (mine, theirs)) in key.iter_mut().zip(own).enumerate() {
+                    if level >= n {
+                        *mine = theirs;
+                    }
+                }
+            }
+            Place::Expand(cps) => {
+                key = Key::default();
+                for c in cps {
+                    let part = defined.get(&c).ok_or_else(|| format!("{at}: U+{c:04X} is not defined"))?;
+                    for (mine, theirs) in key.iter_mut().zip(part) {
+                        mine.extend(theirs.iter().copied());
+                    }
+                }
+            }
+            Place::After(4) => moves.push((cp, anchor)),
+            Place::After(level) => {
                 let l = key.get_mut(level - 1).ok_or_else(|| format!("{at}: no such level"))?;
-                // A weight of its own: after the anchor's last one at this level, or (append)
-                // below every DUCET weight, after the anchor's whole string.
-                let new = if append {
-                    appended += 1;
-                    (0, APPENDED + appended)
-                } else {
+                // A weight of its own, after the anchor's last one at this level.
+                let new = {
                     let last = l.pop().unwrap_or((0, 0));
                     (last.0, last.1 + 1)
                 };
@@ -273,6 +296,9 @@ pub fn source(repo: &Path) -> Result<String, String> {
             let _ = writeln!(out, "collating-symbol {}", symbol(level, w));
         }
     }
+    for &(a, b, _) in &contractions {
+        let _ = writeln!(out, "collating-element <c{a:04X}-{b:04X}> from \"{}{}\"", name(a), name(b));
+    }
     out.push_str("order_start forward;forward;forward;forward\n");
     for (level, set) in symbols.iter().enumerate() {
         for &w in set {
@@ -298,6 +324,12 @@ pub fn source(repo: &Path) -> Result<String, String> {
             out.push(';');
         }
         let _ = writeln!(out, "{n}");
+        for &(a, b, _) in contractions.iter().filter(|c| c.2 == cp) {
+            // The element weighs as its model at levels 1-3 (the line above) and level 4.
+            let line = out.lines().last().unwrap_or("").to_owned();
+            let weights = line.split_once(' ').map_or("", |w| w.1);
+            let _ = writeln!(out, "<c{a:04X}-{b:04X}> {weights}");
+        }
     }
     out.push_str("order_end\nEND LC_COLLATE\n");
     Ok(out)

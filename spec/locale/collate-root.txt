@@ -18,15 +18,16 @@
 #                                leaves undefined (they collate as UNDEFINED: first)
 #   after <cp> <anchor> <level>  <cp> sorts directly after <anchor>, differing from it at
 #                                <level> (1-3: a weight of its own just after the anchor's at that
-#                                level, the anchor's below it; 4: the anchor's weights at 1-3;
-#                                1+ to 3+: the anchor's weights at that level followed by one
-#                                below every other, so it sorts before what extends the anchor)
-#   same <cp> <anchor>           <cp> has the anchor's weights at levels 1-3 (level 4 keeps it in
-#                                code point order)
+#                                level, the anchor's below it; 4: the anchor's weights at 1-3)
+#   same <cp> <anchor> <n>       <cp> has the anchor's weights at levels 1 to <n>
+#   expand <cp> <cp1> <cp2>...   <cp> has the weights of the string <cp1><cp2>... at levels 1-3
+#   contract <cp1> <cp2> <as>    the string <cp1><cp2> is one element weighing as <as> at all
+#                                four levels
 #
-# The lines with 1+ and the same line were settled by the generated_root test (strings against
-# the reference's compiled en_US: the ligature after U+0675, U+0676 and U+0678 sorts after them;
-# U+1DE5 differs from U+A784 at level 3 only), not by the single code point order alone.
+# The expand, same and contract lines were settled by the generated_root test (strings and
+# fillers against the reference's compiled en_US: U+0675, U+0676 and U+0678 weigh as the letter
+# and U+0621; U+017F, U+1DE5 and U+A785 are equal at levels 1-3 and U+A784 differs from them at
+# level 3 only), not by the single code point order alone.
 
 # Class han-variant-block. Evidence: the probe orders every CJK radical, Kangxi radical, CJK
 # compatibility ideograph (U+F900-U+FAFF, U+2F800-U+2FA1F), parenthesized, circled, squared and
@@ -176,11 +177,11 @@ undefined 30000 323AF
 after FFFD 2FA1D 1
 
 # Placements: Arabic letters with a high hamza and their presentation forms: one letter each, after the letter named (DUCET 15.1 expands them). Evidence: the probe's order and level for each line.
-after 0675 FD3D 1+
-after 0676 FEED 1+
+expand 0675 0627 0621
+expand 0676 0648 0621
 after 0677 FBD7 1
 after FBDD 0677 3
-after 0678 FEF1 1+
+expand 0678 064A 0621
 
 # Placements: Latin letters and the peseta sign whose DUCET 15.1 weights differ from the reference's (r rotunda, insular s, long s with dot, r with palatal hook, peseta sign as one currency symbol). Evidence: the probe's order and level for each line.
 after 20A7 20A6 1
@@ -190,7 +191,13 @@ after A75A 1DE3 3
 after 1D89 027A 1
 after 1E9B A784 2
 after 1D98 0285 1
-same 1DE5 A785
+after A785 1DE5 4
+same A784 A785 2
+
+# Contractions. Evidence: the generated_root test: the reference compares l+U+00B7 and L+U+00B7
+# equal to U+0140 and U+013F (strcoll 0), and orders them so in words.
+contract 006C 00B7 0140
+contract 004C 00B7 013F
 
 # Placements: Combining marks the reference weights differently from DUCET 15.1 (level 4: same weights as the anchor; level 2: a secondary of their own). Evidence: the probe's order and level for each line.
 after 0F82 0F3F 4
