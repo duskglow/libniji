@@ -1,8 +1,14 @@
-# LOCALE-COLLATE-TAILORINGS (handoff, 2026-11-23): run -2 done, the shared root
+# LOCALE-COLLATE-TAILORINGS (handoff, 2026-11-23): runs -2 and -3 done, the shared root
 
-State: branch `task/locale-collate-tailorings-2`, on top of run 1's `task/locale-collate-tailorings`, cut from
-origin/next 0495c4684. Head: the commit carrying this note. Role: mei:~/w/s3. Scope (coordinator #7998, #8003,
-#8008): the shared root only, per ruling #7958. Per-locale tailorings and their wiring into the generated sources
+State: branch `task/locale-collate-tailorings-3` = run -2's `task/locale-collate-tailorings-2` (on run 1's
+`task/locale-collate-tailorings`, cut from origin/next 0495c4684) plus a merge of origin/next c4a2b6934 (run -3).
+Head: the commit carrying this note. Role: mei:~/w/s2. Scope (coordinator #7998, #8003,
+#8008): the shared root only, per ruling #7958.
+
+Run -3 (CI conflict fix only): the train could not merge -2 because next appended a transliteration test
+(`strings_the_charmap_lacks_are_transliterated_as_the_reference_does`) at the end of
+`crates/locale/tests/reference.rs`, where -2 appended `generated_root_collation_is_the_references_en_us`. The
+merge keeps both tests; nothing else conflicted. Results: handoff/LOCALE-COLLATE-TAILORINGS-3-report.md. Per-locale tailorings and their wiring into the generated sources
 wait for a run stacked on LOCALE-PROBE-GEN-2 and LOCALE-SOURCES-GEN-2, neither of which is on next.
 
 ## Decisions in force
@@ -23,7 +29,8 @@ wait for a run stacked on LOCALE-PROBE-GEN-2 and LOCALE-SOURCES-GEN-2, neither o
 * `tools/probe/collate/root_rules.py` derives the file from the probe output. It reproduces the file byte for
   byte, and its simulation leaves 0 order and 0 level mismatches, so it exits 0.
 * Test `crates/locale/tests/reference.rs::generated_root_collation_is_the_references_en_us`: green.
-* Plants: `handoff/LOCALE-COLLATE-TAILORINGS-2.plants` (11), run as job lct2-plants.
+* Plants: `handoff/LOCALE-COLLATE-TAILORINGS-2.plants` (12: 11 caught, 1 equivalent); re-run on run -3's
+  merged head (report -3).
 * Gate: escalates to FULL (Cargo.toml and the new rules path), so it is the train's. The changed crates' tests ran
   as lct2-tests (`cargo xtask so` + `cargo test -p niji-collate-root -p niji-locale`), and precheck ran too.
 
