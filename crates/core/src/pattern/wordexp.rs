@@ -203,9 +203,10 @@ type Segs = InlineVec<Seg, 12>;
 /// A context the parser is inside (one per open `"..."`, `${name<op>word}` or arithmetic
 /// expansion), on [`Parser::frames`]: nesting is a stack on the heap, not recursion, so it is
 /// bounded by the text's length (the caller's memory), never by the thread stack.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 enum Frame {
     /// Inside double quotes: the segments go to the enclosing context's list.
+    #[default]
     DQuote,
     /// The word of `${name<op>word}` (`quoted`: the expansion is inside double quotes): its
     /// segments are `nest[first..]`; `depth` counts unmatched `{`; `at_start`: nothing of the word
@@ -214,12 +215,6 @@ enum Frame {
     /// The text of `$((...))` (`$[...]`: `square`): its segments are `nest[first..]`; `depth`
     /// counts unmatched opening brackets; `quoted`: the expansion is inside double quotes.
     Arith { square: bool, quoted: bool, depth: usize, first: usize },
-}
-
-impl Default for Frame {
-    fn default() -> Frame {
-        Frame::DQuote
-    }
 }
 
 struct Parser<'a> {
@@ -1925,7 +1920,7 @@ pub mod arith {
 
     use super::WordError;
     use crate::error::Result;
-    use crate::mem::InlineVec;
+    use crate::mem::TryVec;
 
     /// An operator's spelling as a number (its bytes, little-endian), so that operators are
     /// compared as integers, not as text.
@@ -2101,10 +2096,6 @@ pub mod arith {
             Ok(())
         }
 
-        fn is(&self, op: Code) -> bool {
-            self.tok == Tok::Op(op)
-        }
-
         fn value_of(&mut self, a: usize, n: usize, eval: bool) -> core::result::Result<i64, WordError> {
             if !eval {
                 return Ok(0);
@@ -2124,109 +2115,102 @@ pub mod arith {
         }
 
         /// The whole expression's value: a conditional expression (`?:`, right-associative)
-        /// over the binary operators by precedence climbing (each level's operators applied
-        /// left to right, a tighter one's operands first), unary operators and parentheses.
-        /// What waits for an operand's value is a [`Wait`] on a stack (inline for a usual
-        /// expression, on the heap beyond), never a call: parentheses and operators nest as
-        /// deep as the text allows. `eval` false: the operand is parsed, not evaluated (the
+        /// over the binary operators by precedence (each level's operators applied left to
+        /// right, a tighter one's operands first), unary operators and parentheses. An operator
+        /// waits on a stack ([`Wait`]) until the token after its right operand binds no
+        /// tighter; only operators, `(`, `?` and `:` take an entry ([`Stack`]: inline for a
+        /// usual expression, on the heap beyond), never a call: parentheses and operators nest
+        /// as deep as the text allows. `eval` false: the operand is parsed, not evaluated (the
         /// side of `&&`, `||` or `?:` that is not taken).
         fn run(&mut self) -> core::result::Result<i64, WordError> {
-            let mut stack: InlineVec<Wait, 8> = InlineVec::new();
-            // The next operand to read: a conditional expression, the binary operators from a
-            // level up (10: a unary expression alone), or a unary expression; and its `eval`.
-            let mut next = (Read::Cond, true);
+            let mut stack = Stack::new();
+            let mut eval = true;
             loop {
-                let (mut read, eval) = next;
-                // Down to a constant or a name: what reading it opens waits on the stack.
+                // An operand: a constant or a name; the unary operators and `(` before it wait.
                 let mut v = loop {
-                    match read {
-                        Read::Cond => {
-                            stack.push(Wait::Test { eval })?;
-                            read = Read::Binary(0);
+                    match self.tok {
+                        Tok::Num(x) => {
+                            self.advance()?;
+                            break x;
                         }
-                        Read::Binary(level) if level < 10 => {
-                            stack.push(Wait::Binary { level, eval, pending: None })?;
-                            read = Read::Unary;
+                        Tok::Name(a, n) => {
+                            self.advance()?;
+                            break self.value_of(a, n, eval)?;
                         }
-                        _ => match self.tok {
-                            Tok::Op(op @ (ADD | SUB | INVERT | NOT)) => {
-                                self.advance()?;
-                                stack.push(Wait::Unary { op, eval })?;
-                            }
-                            Tok::Num(x) => {
-                                self.advance()?;
-                                break x;
-                            }
-                            Tok::Name(a, n) => {
-                                self.advance()?;
-                                break self.value_of(a, n, eval)?;
-                            }
-                            Tok::Op(OPEN) => {
-                                self.advance()?;
-                                stack.push(Wait::Close)?;
-                                read = Read::Cond;
-                            }
-                            _ => return Err(WordError::Syntax),
-                        },
+                        Tok::Op(op @ (ADD | SUB | INVERT | NOT)) => {
+                            self.advance()?;
+                            stack.push(Wait::Unary { op, eval })?;
+                        }
+                        Tok::Op(OPEN) => {
+                            self.advance()?;
+                            stack.push(Wait::Close)?;
+                        }
+                        _ => return Err(WordError::Syntax),
                     }
                 };
-                // Up: the value to what waits for it, until one needs another operand.
-                next = loop {
-                    let Some(w) = stack.pop() else { return Ok(v) };
-                    match w {
-                        Wait::Unary { op, eval } => {
-                            v = match op {
-                                ADD => v,
-                                SUB if eval => v.checked_neg().ok_or(WordError::Syntax)?,
-                                SUB => 0,
-                                INVERT => !v,
-                                _ => i64::from(v == 0),
+                // The token after it, until one takes another operand (its `eval`).
+                eval = loop {
+                    let prec = match self.tok {
+                        Tok::Op(_) if self.lvl != NO_LEVEL => self.lvl.saturating_add(AT_BINARY),
+                        Tok::Op(QUESTION) => AT_QUESTION,
+                        Tok::Op(COLON) => AT_COLON,
+                        _ => AT_END,
+                    };
+                    // Apply what binds at least as tight: a `?:` only at a `:` or the end (it
+                    // groups to the right).
+                    while let Some(w) = stack.top() {
+                        match w {
+                            Wait::Unary { op, eval: e } => {
+                                v = match op {
+                                    ADD => v,
+                                    SUB if e => v.checked_neg().ok_or(WordError::Syntax)?,
+                                    SUB => 0,
+                                    INVERT => !v,
+                                    _ => i64::from(v == 0),
+                                };
+                            }
+                            Wait::Binary { op, prec: p, lhs, eval: e } if p >= prec => {
+                                v = if e { combine(op, lhs, v)? } else { 0 };
+                                eval = e;
+                            }
+                            Wait::Else { eval: e, take, a } if prec <= AT_COLON => {
+                                v = if !e { 0 } else if take { a } else { v };
+                                eval = e;
+                            }
+                            _ => break,
+                        }
+                        stack.pop();
+                    }
+                    match (self.tok, stack.top()) {
+                        (Tok::Op(op), _) if prec >= AT_BINARY => {
+                            self.advance()?;
+                            stack.push(Wait::Binary { op, prec, lhs: v, eval })?;
+                            // Short-circuit: the right side of `&&`/`||` is evaluated only when needed.
+                            break match op {
+                                AND => eval && v != 0,
+                                OR => eval && v == 0,
+                                _ => eval,
                             };
                         }
-                        Wait::Close => {
-                            if !self.is(CLOSE) {
-                                return Err(WordError::Syntax);
-                            }
+                        _ if prec == AT_QUESTION => {
                             self.advance()?;
+                            stack.push(Wait::Then { eval, c: v != 0 })?;
+                            break eval && v != 0;
                         }
-                        Wait::Binary { level, eval, pending } => {
-                            let lhs = match pending {
-                                None => v,
-                                Some(_) if !eval => 0,
-                                Some((op, lhs)) => combine(op, lhs, v)?,
-                            };
-                            if let Tok::Op(op) = self.tok {
-                                if self.lvl != NO_LEVEL && self.lvl >= level {
-                                    let l = self.lvl;
-                                    self.advance()?;
-                                    // Short-circuit: the right side of `&&`/`||` is evaluated only when needed.
-                                    let rhs_eval = match op {
-                                        AND => eval && lhs != 0,
-                                        OR => eval && lhs == 0,
-                                        _ => eval,
-                                    };
-                                    stack.push(Wait::Binary { level, eval, pending: Some((op, lhs)) })?;
-                                    break (Read::Binary(l.saturating_add(1)), rhs_eval);
-                                }
-                            }
-                            v = lhs;
-                        }
-                        Wait::Test { eval } => {
-                            if self.is(QUESTION) {
-                                self.advance()?;
-                                stack.push(Wait::Then { eval, c: v })?;
-                                break (Read::Cond, eval && v != 0);
-                            }
-                        }
-                        Wait::Then { eval, c } => {
-                            if !self.is(COLON) {
-                                return Err(WordError::Syntax);
-                            }
+                        (_, Some(Wait::Then { eval: e, c })) if prec == AT_COLON => {
                             self.advance()?;
-                            stack.push(Wait::Else { eval, c, a: v })?;
-                            break (Read::Cond, eval && c == 0);
+                            stack.pop();
+                            stack.push(Wait::Else { eval: e, take: c, a: v })?;
+                            break e && !c;
                         }
-                        Wait::Else { eval, c, a } => v = if !eval { 0 } else if c != 0 { a } else { v },
+                        (Tok::Op(CLOSE), Some(Wait::Close)) => {
+                            // `( ... )` is an operand: the token after it is looked at next.
+                            self.advance()?;
+                            stack.pop();
+                        }
+                        (_, None) if prec == AT_END => return Ok(v),
+                        // A `:` without its `?`, an unclosed `(` or `?`, a `)` too many.
+                        _ => return Err(WordError::Syntax),
                     }
                 };
             }
@@ -2251,32 +2235,74 @@ pub mod arith {
         }
     }
 
-    /// What reads an operand next in [`P::run`].
-    #[derive(Clone, Copy)]
-    enum Read {
-        Cond,
-        /// The binary operators of this precedence level and above (10: a unary expression).
-        Binary(u8),
-        Unary,
-    }
+    /// How tightly the token after an operand binds in [`P::run`]: the end of the expression
+    /// (or of a parenthesised one) loosest, then `:`, `?`, and the binary operators by level
+    /// from `AT_BINARY` up.
+    const AT_END: u8 = 0;
+    const AT_COLON: u8 = 1;
+    const AT_QUESTION: u8 = 2;
+    const AT_BINARY: u8 = 3;
 
     /// What waits for an operand's value in [`P::run`] (`eval` as there).
-    #[derive(Clone, Copy, Debug, Default)]
+    #[derive(Clone, Copy, Debug)]
     enum Wait {
         /// A unary operator to apply.
         Unary { op: Code, eval: bool },
         /// The `)` of a parenthesised expression.
-        #[default]
         Close,
-        /// The binary operators of `level` and above: the value is the left operand (`pending`
-        /// none), else the right operand of `pending`'s operator.
-        Binary { level: u8, eval: bool, pending: Option<(Code, i64)> },
-        /// A conditional expression's condition (a `?` may follow).
-        Test { eval: bool },
-        /// Its middle operand (`c`: the condition's value).
-        Then { eval: bool, c: i64 },
-        /// Its last operand (`a`: the middle one's value).
-        Else { eval: bool, c: i64, a: i64 },
+        /// A binary operator (binding `prec`) and its left operand.
+        Binary { op: Code, prec: u8, lhs: i64, eval: bool },
+        /// A conditional expression's middle operand (`c`: whether the condition is true).
+        Then { eval: bool, c: bool },
+        /// Its last operand (`take`: the condition was true, the value is the middle one, `a`).
+        Else { eval: bool, take: bool, a: i64 },
+    }
+
+    /// How many [`Wait`]s [`Stack`] keeps inline: a usual expression needs no more.
+    const INLINE: usize = 6;
+
+    /// [`P::run`]'s stack: its first [`INLINE`] entries in place (no allocation), the rest on
+    /// the heap, so an expression nests as deep as its text allows.
+    struct Stack {
+        inline: [Wait; INLINE],
+        len: usize,
+        /// The entries above the inline ones.
+        heap: TryVec<Wait>,
+    }
+
+    impl Stack {
+        #[inline(always)]
+        fn new() -> Stack {
+            Stack { inline: [Wait::Close; INLINE], len: 0, heap: TryVec::new() }
+        }
+
+        #[inline(always)]
+        fn push(&mut self, w: Wait) -> Result<()> {
+            if self.heap.is_empty() {
+                if let Some(slot) = self.inline.get_mut(self.len) {
+                    *slot = w;
+                    self.len = self.len.wrapping_add(1);
+                    return Ok(());
+                }
+            }
+            self.heap.push(w)
+        }
+
+        /// Drop the top entry.
+        #[inline(always)]
+        fn pop(&mut self) {
+            if self.heap.pop().is_none() {
+                self.len = self.len.saturating_sub(1);
+            }
+        }
+
+        #[inline(always)]
+        fn top(&self) -> Option<Wait> {
+            match self.heap.last() {
+                Some(w) => Some(*w),
+                None => self.inline.get(self.len.checked_sub(1)?).copied(),
+            }
+        }
     }
 
     /// `lhs op rhs` for a binary operator, evaluated: `WRDE_SYNTAX` for overflow, division by

@@ -114,8 +114,11 @@ enum Item {
 /// thread stack).
 #[derive(Debug)]
 struct Prog {
+    /// The pattern's own sequence first (`root` items), then the groups' alternatives.
     items: TryVec<Item>,
-    /// Each sequence's items, a range of `items`; the pattern itself is the first.
+    root: usize,
+    /// Each alternative's items, a range of `items` (empty for a pattern without groups: no
+    /// allocation but the items).
     seqs: TryVec<core::ops::Range<usize>>,
     /// How many groups there are.
     groups: usize,
@@ -127,7 +130,7 @@ impl Prog {
     }
 
     fn root(&self) -> &[Item] {
-        self.seq(0)
+        self.items.as_slice().get(..self.root).unwrap_or(&[])
     }
 }
 
@@ -336,10 +339,11 @@ impl Parser<'_> {
     /// once per group around it: the work is at most the pattern's length times its nesting depth.
     fn program(&self, to: usize) -> Result<Prog> {
         // At most one item per character.
-        let mut prog = Prog { items: TryVec::with_capacity(to)?, seqs: TryVec::new(), groups: 0 };
+        let mut prog = Prog { items: TryVec::with_capacity(to)?, root: 0, seqs: TryVec::new(), groups: 0 };
+        // The queue and the alternatives' ranges allocate only once there is a group.
         let mut todo = Todo::new();
-        prog.seqs.push(0..0)?;
-        todo.push((0, 0, to))?;
+        self.seq(0, to, &mut prog, &mut todo)?;
+        prog.root = prog.items.len();
         while let Some((k, from, to)) = todo.pop() {
             let start = prog.items.len();
             self.seq(from, to, &mut prog, &mut todo)?;
@@ -976,7 +980,7 @@ impl Pattern {
         };
         let multi = if mode.multibyte() { compile(mode)? } else { None };
         // Every byte string is valid text byte by byte.
-        let bytes = compile(Mode::Bytes)?.unwrap_or(Prog { items: TryVec::new(), seqs: TryVec::new(), groups: 0 });
+        let bytes = compile(Mode::Bytes)?.unwrap_or(Prog { items: TryVec::new(), root: 0, seqs: TryVec::new(), groups: 0 });
         Ok(self.compiled.get_or_init(|| Compiled { multi, bytes }))
     }
 
