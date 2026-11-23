@@ -59,6 +59,7 @@ after a cleanup buffer: a measured cost, recorded in the report.
   33 passed), -gate5 (direct gate, rc 1: every suite green but hot_text_products, whose 10 failures all read
   `target/niji/.hot-lists: No such file`: kill-mine had ended gate4's `cargo xtask so` midway), -hotfix (that
   suite after `cargo xtask so`: 33 passed, 0 failed).
+* niji-gxx-unwinder-gate6: the direct gate rerun on the final head (precheck names gate5 red; gate5 is SUPERSEDED).
 * Superseded: gate2 (rc 0, 5859 passed) and plants2 (refused .S plant) on 09f147ceb; plants3, startup, gate3,
   plants4, gate4, plants5, startup2 killed when a count fix changed the code; percall/percall2/percall3 are the
   earlier columns above; lint/lint2 earlier heads (lint2 ran on 10f220ea1: the sync was BUSY).

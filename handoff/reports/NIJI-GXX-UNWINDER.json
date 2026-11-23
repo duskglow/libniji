@@ -1,9 +1,9 @@
 {"task": "NIJI-GXX-UNWINDER", "model": "opus", "tokens": null,
  "result": "niji-gcc/niji-g++ programs unwind exiting and cancelled threads with the unwinder they link (exported entry __niji_program_unwinder, D-22.24); #25's rows match g++/gcc builds on the reference; plain-C pthread_exit and create/join counts unchanged",
  "branch": "task/niji-gxx-unwinder", "head": "9675a622e",
- "gate": {"affected": "gate5: all suites green but hot_text_products (10 red on a missing target/niji/.hot-lists after a killed product build); that suite rerun after cargo xtask so: 33 passed / 0 failed (hotfix), and 33 passed on full-profile products (startup3)", "peak": "gate5 2.9G"},
+ "gate": {"affected": "gate6 (final head): see the hand-back; gate5 (superseded): all suites green but hot_text_products (10 red on a missing target/niji/.hot-lists after a killed product build); that suite rerun after cargo xtask so: 33 passed / 0 failed (hotfix), and 33 passed on full-profile products (startup3)", "peak": "gate5 2.9G"},
  "accepted_first_attempt": null,
- "jobs": ["mei:niji-gxx-unwinder-gate5", "mei:niji-gxx-unwinder-hotfix", "mei:niji-gxx-unwinder-plants6", "mei:niji-gxx-unwinder-percall4", "mei:niji-gxx-unwinder-startup3", "mei:niji-gxx-unwinder-lint3"],
+ "jobs": ["mei:niji-gxx-unwinder-gate6", "mei:niji-gxx-unwinder-hotfix", "mei:niji-gxx-unwinder-plants6", "mei:niji-gxx-unwinder-percall4", "mei:niji-gxx-unwinder-startup3", "mei:niji-gxx-unwinder-lint3"],
  "rulings": [],
  "informational": [
    "The D-22.23 walk costs thousands of instructions per walked frame (plain-C pthread_exit 89942.6 instr/call vs the reference's 9529.3); its cost follows the shape of the frames it passes, so any change to forced_unwind/no_unwinder moves the plain-C exit count (first try +8044/call). A cheaper walk is a separate story.",
