@@ -1,0 +1,9 @@
+id = "D-X.160"
+section = "x"
+status = "active"
+story = "AFFECTED-TESTS-ONE-LOAD"
+date = "2026-11-23"
+tests = ["xtask/src/affected.rs::closed_texts_join_by_the_union_of_their_references", "xtask/src/affected.rs::a_target_s_references_are_those_of_its_whole_text"]
+body = '''
+**`cargo xtask affected` reads a test support file's references once per load, not once per test target that names it** (AFFECTED-TESTS-ONE-LOAD, 2026-11-23; tooling only, no library code, no test removed). Profile first (`perf` on a Zen 1 host): `Repo::load` spent ~80 % of its instructions reading module references, because each test target's text has the whole of every support directory it names appended (core's `tests/oracle/` goes to about a hundred targets: 137 MB of target text from 7 MB of the targets' own), and the reading allocated a string per identifier. Now: (1) the tokens borrow from the text; (2) `refs_closed` says whether a text is CLOSED (no `use`, `mod`, `as` or path cut off by its end, no `::` at either end), and the references of closed texts joined with `\n` are the union of each one's, so a support file is read once per load and its references reused, and a target with any part that is not closed is read whole, as before (the selection is the same either way: no cache, nothing kept between runs); (3) the csys symbol scan looks words up in a hash set; (4) the hub counts go from each text's references to the nodes they name, not every text against every node. `cargo xtask affected --list --files README.md` on that host: 34.97 G instructions before, 10.65 G after.
+'''
