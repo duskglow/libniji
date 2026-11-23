@@ -231,6 +231,10 @@ fn s29_3_c_0() {
     assert!(fails(l::niji_compat_fdetach(null()), Errno::ENOSYS));
 }
 clause!(s29_4_c_0, "29.4", "Contract", r##"Each keeps the contract it had when it was removed. Most are aliases of current functions, or stubs that fail with `ENOSYS`. Three are special:"##);
+/// The tests that use streams and `__libc_freeres` run one at a time: a call on one test's thread
+/// releases every stream's buffer, so another test's stream would lose its buffer (and the block
+/// count of the thread that allocated it would never see the release) mid-check.
+static FREERES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// s29_4_c_1: `__libc_freeres()` releases libc's internal allocations so that leak checkers report
 /// cleanly. A stream's library-allocated buffer is released once its output is written; a stream
 /// with bytes read ahead keeps its buffer and loses none; a released stream allocates again on
@@ -238,6 +242,7 @@ clause!(s29_4_c_0, "29.4", "Contract", r##"Each keeps the contract it had when i
 /// harmless.
 #[test]
 fn s29_4_c_1() {
+    let _one = FREERES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let fp = io::tmpfile();
     assert!(!fp.is_null());
     assert!(io::fputs(c"abc".as_ptr(), fp) >= 0);
@@ -287,6 +292,7 @@ fn s29_4_c_1() {
 /// program's own `malloc` calls and other threads never move it) is back where it started.
 #[test]
 fn s29_4_c_1_counted() {
+    let _one = FREERES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let before = niji_boundary::selftest::caller_blocks();
     let fp = io::tmpfile();
     assert!(!fp.is_null());
