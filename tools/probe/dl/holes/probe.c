@@ -7,8 +7,9 @@
  * MODE "hole": L must land in the program's highest hole; "any": wherever it lands.
  * The program's own PT_LOAD span has holes (linked with a large max-page-size); the free address
  * space above its highest hole is filled with PROT_NONE so the next mapping the kernel places
- * top-down lands in that hole; then L is dlopen'd. Checks: _dl_find_object and dladdr name L for L's
- * code and the program for main; an anonymous page at the bottom of the hole is printed (the
+ * top-down lands in that hole; then L is dlopen'd. Checks: _dl_find_object (link map, range,
+ * PT_GNU_EH_FRAME), dladdr and dladdr1 (RTLD_DL_LINKMAP) name L for L's code and the program for
+ * main; an anonymous page at the bottom of the hole is printed (the
  * reference: -1 and 0); an atexit handler of the program registered by L runs at L's dlclose.
  * Prints "ok ..." / "FAIL ..." lines, exit 0 when every check passed. No malloc after the fill. */
 #define _GNU_SOURCE
@@ -97,24 +98,50 @@ static unsigned long stack_start(void) {
     return s;
 }
 
-static void find(const char *what, void *p, void *want_map) {
+/* The PT_GNU_EH_FRAME address of the object loaded at bias `bias` (0: none). */
+static unsigned long eh_want, eh_bias;
+static int eh_of_cb(struct dl_phdr_info *i, size_t s, void *d) {
+    (void)s; (void)d;
+    if (i->dlpi_addr != eh_bias) return 0;
+    for (int k = 0; k < i->dlpi_phnum; k++)
+        if (i->dlpi_phdr[k].p_type == PT_GNU_EH_FRAME) eh_want = i->dlpi_addr + i->dlpi_phdr[k].p_vaddr;
+    return 1;
+}
+static unsigned long eh_of(unsigned long bias) {
+    eh_want = 0;
+    eh_bias = bias;
+    dl_iterate_phdr(eh_of_cb, 0);
+    return eh_want;
+}
+
+/* _dl_find_object of p: the object's link map, a range holding p and the object's PT_GNU_EH_FRAME
+ * (the unwinder's lookup). */
+static void find(const char *what, void *p, void *want_map, unsigned long want_eh) {
     struct dl_find_object r;
     memset(&r, 0, sizeof r);
     int rc = _dl_find_object(p, &r);
-    char t[200];
+    char t[240];
     unsigned long a = (unsigned long)p;
-    snprintf(t, sizeof t, "_dl_find_object(%s) rc %d [%#lx, %#lx) map %p want %p", what, rc, (unsigned long)r.dlfo_map_start,
-             (unsigned long)r.dlfo_map_end, (void *)r.dlfo_link_map, want_map);
-    check(rc == 0 && (void *)r.dlfo_link_map == want_map && (unsigned long)r.dlfo_map_start <= a && a < (unsigned long)r.dlfo_map_end, t);
+    snprintf(t, sizeof t, "_dl_find_object(%s) rc %d [%#lx, %#lx) map %p want %p eh %#lx want %#lx", what, rc, (unsigned long)r.dlfo_map_start,
+             (unsigned long)r.dlfo_map_end, (void *)r.dlfo_link_map, want_map, (unsigned long)r.dlfo_eh_frame, want_eh);
+    check(rc == 0 && (void *)r.dlfo_link_map == want_map && (unsigned long)r.dlfo_map_start <= a && a < (unsigned long)r.dlfo_map_end &&
+              (unsigned long)r.dlfo_eh_frame == want_eh,
+          t);
 }
 
-static void addr(const char *what, void *p, unsigned long want_base) {
+/* dladdr and dladdr1 (RTLD_DL_LINKMAP) of p: the object's base and link map. */
+static void addr(const char *what, void *p, unsigned long want_base, void *want_map) {
     Dl_info d;
     memset(&d, 0, sizeof d);
     int rc = dladdr(p, &d);
-    char t[160];
+    char t[200];
     snprintf(t, sizeof t, "dladdr(%s) rc %d base %#lx want %#lx", what, rc, (unsigned long)d.dli_fbase, want_base);
     check(rc != 0 && (unsigned long)d.dli_fbase == want_base, t);
+    struct link_map *m = 0;
+    memset(&d, 0, sizeof d);
+    rc = dladdr1(p, &d, (void **)&m, RTLD_DL_LINKMAP);
+    snprintf(t, sizeof t, "dladdr1(%s) rc %d base %#lx map %p want %p", what, rc, (unsigned long)d.dli_fbase, (void *)m, want_map);
+    check(rc != 0 && (unsigned long)d.dli_fbase == want_base && (void *)m == want_map, t);
 }
 
 int main(int argc, char **argv) {
@@ -155,10 +182,12 @@ int main(int argc, char **argv) {
     check(lf && reg, "dlsym");
     if (!lf || !reg) return 92;
     void *self = dlopen(0, RTLD_NOW);
-    find("main", (void *)main, self);
-    addr("main", (void *)main, lo);
-    find("l_func", lf, h);
-    addr("l_func", lf, l_lo);
+    struct link_map *pm = self;
+    unsigned long main_eh = eh_of(pm->l_addr), l_eh = eh_of(l_lo);
+    find("main", (void *)main, self, main_eh);
+    addr("main", (void *)main, lo, self);
+    find("l_func", lf, h, l_eh);
+    addr("l_func", lf, l_lo, h);
     if (anon) {
         struct dl_find_object r;
         Dl_info d;
@@ -172,8 +201,8 @@ int main(int argc, char **argv) {
     check(reg(main_handler) == 0, "L registers a handler of the program");
     check(dlclose(h) == 0, "dlclose(L)");
     check(ran == 1, "the handler L registered ran at L's dlclose");
-    find("main after dlclose", (void *)main, self);
-    addr("main after dlclose", (void *)main, lo);
+    find("main after dlclose", (void *)main, self, main_eh);
+    addr("main after dlclose", (void *)main, lo, self);
     say("%s\n", fails ? "FAILED" : "PASSED");
     return fails ? 1 : 0;
 }

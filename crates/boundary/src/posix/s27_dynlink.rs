@@ -194,16 +194,18 @@ pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, extent:
     Some((lo, hi, eh))
 }
 
-/// The run of segments (`loads`: their ranges, in any order) that holds `pc`, grown from the
-/// segment that holds it by every segment whose pages touch the run's; `None` when no segment
-/// holds `pc`. At most `phnum` passes (each pass that grows the run adds a segment).
+/// The run of segments (`loads`: their ranges, in any order) whose pages hold `pc`: grown from a
+/// segment whose pages hold it by every segment whose pages touch the run's, lowest to highest
+/// segment address (the caller checks `pc` lies inside: the bytes between two segments of a run
+/// count, as the index's entries do, `crate::ld::index`); `None` when no segment's pages hold
+/// `pc`. At most `phnum` passes (each pass that grows the run adds a segment).
 #[cold]
 #[inline(never)]
 fn run<I: Iterator<Item = (usize, usize)>>(loads: impl Fn() -> I, phnum: usize, page: usize, pc: usize) -> Option<(usize, usize)> {
     let mask = page.max(1).wrapping_sub(1);
     let down = |a: usize| a & !mask;
     let up = |a: usize| a.checked_add(mask).map_or(usize::MAX, |b| b & !mask);
-    let (mut lo, mut hi) = loads().find(|&(l, h)| l <= pc && pc < h)?;
+    let (mut lo, mut hi) = loads().find(|&(l, h)| l < h && down(l) <= pc && pc < up(h))?;
     for _ in 0..phnum {
         let mut grew = false;
         let (top, bottom) = (up(hi), down(lo));
