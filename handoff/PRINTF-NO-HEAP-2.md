@@ -66,8 +66,16 @@ INFORMATIONAL: the reference's `%If` of 1e300 in the C locale returned 1 (en_US:
 - Plants `printf-no-heap-2-plants`: 15 CAUGHT, 0 SURVIVED, 0 WARN (handoff/PRINTF-NO-HEAP-2-plants.txt).
 - Bench `printf-no-heap-2-cbench-3` (table above).
 - Direct gate `printf-no-heap-2-gate`: 20 suites ok, 11873 passed, 0 failed; conformance 137/0; peak 15G.
-- Start-up checks `printf-no-heap-2-xtask-test`, `printf-no-heap-2-hot-text`; clippy, static, precheck: see the
-  hand-back (run after this note was written).
+- `printf-no-heap-2-xtask-test`: 28 suites ok, 12572 passed, 0 failed; conformance 147/0.
+- clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static`: clean on ef49de906.
+- **RED** `printf-no-heap-2-hot-text` (NIJI_FULL_PROFILE so + hot_text_products): 32 passed, 1 failed:
+  `init_zero_fault_calls_hold_at_every_text_phase`: "pre 0x2000: strings 1 faults, want 0". The base 28843dea1
+  passes the same command (`printf-no-heap-2-base-hot-text`, RAM copy: 33/33), so this branch causes it (start-up
+  text layout: the bigger printf code shifts what shares the `strings` window's pages). Not chased (wall time).
+  Next: diff `target/product/fast/layout-bins.tsv` and the release hot-text windows against the base; look for
+  new printf functions placed in or next to the start-up text (cold paths such as `format_long`, `render_from`,
+  `Capped::overflow`, `simple_float_long`, `format_general` should be in the cold text).
+- precheck on ca72b43db: RED only for printf-no-heap-2-hot-text (other jobs count: prose-only difference).
 - SUPERSEDED (older heads or diagnostics): printf-no-heap-2-cbench-1 (1dc188f9a), printf-no-heap-2-cbench-2
   (db111d295), printf-no-heap-2-basebench (the base revision, diagnostic), printf-no-heap-2-t1/t2 (1dc188f9a).
 

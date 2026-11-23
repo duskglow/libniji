@@ -1,26 +1,103 @@
-{"task": "PRINTF-NO-HEAP-2", "model": "opus", "tokens": null,
- "result": "INCOMPLETE: long %f one pass (18,444 -> 17,813 instr/call), s_d_colon/ls_line/chk_ls_nlink now -2..-8%; two rows still above before: bare \"%s\" +2.0 (+0.87%), fprintf_d +5.8 (+0.92%) (register allocation in format_routed; ruling needed)",
- "branch": "task/printf-no-heap-2", "head": "ef49de906",
- "gate": {"affected": "11873 passed / 0 failed (20 suites; conformance 137/0)", "peak": "15G"},
+{
+ "task": "PRINTF-NO-HEAP-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: long %f one pass (18,444 -> 17,813 instr/call), s_d_colon/ls_line/chk_ls_nlink -2..-8%; still open: bare \"%s\" +2.0 and fprintf_d +5.8 instr/call above base, and hot_text_products red (pre 0x2000 strings 1 fault; base passes)",
+ "branch": "task/printf-no-heap-2",
+ "head": "ef49de906",
+ "gate": {
+  "affected": "11873 passed / 0 failed (20 suites; conformance 137/0)",
+  "peak": "15G"
+ },
  "accepted_first_attempt": null,
  "rulings": [
-  {"item": "snprintf_s_path (\"%s\") 229.2 -> 231.2 and fprintf_d 633.7 -> 639.5 instr/call above before; every other printf row at or below (s_d_colon -2.1%, ls_line -1.7%, chk_ls_nlink -8.0%, %d/%x/%ld -0.4%, floats -3..-4.5%, f_large -3.4%)",
-   "recommendation": "do not tune attributes a third time (each moved the cost between rows); a follow-up that restructures format_routed into a small hot dispatcher with render_simple out of line, measured on these rows, then land both together"}],
+  {
+   "item": "snprintf_s_path (\"%s\") 229.2 -> 231.2 and fprintf_d 633.7 -> 639.5 instr/call above before; every other printf row at or below (s_d_colon -2.1%, ls_line -1.7%, chk_ls_nlink -8.0%, %d/%x/%ld -0.4%, floats -3..-4.5%, f_large -3.4%)",
+   "recommendation": "do not tune attributes a third time (each moved the cost between rows); a follow-up that restructures format_routed into a small hot dispatcher with render_simple out of line, measured on these rows, then land both together"
+  }
+ ],
  "informational": [
   "#7764 probe: libniji still allocates where the reference does not for grouped/I floats past 128 bytes and for any call while a conversion is registered; follow-up (streaming), probe rows in handoff/PRINTF-NO-HEAP-2.md",
   "the reference's %If of 1e300 in the C locale returned 1 (en_US: 308); libniji not compared",
-  "stdio fwrite_4k 1087.7 -> 1088.1 (+0.04%): no printf code on that row"],
+  "stdio fwrite_4k 1087.7 -> 1088.1 (+0.04%): no printf code on that row",
+  "hot_text_products init_zero_fault_calls_hold_at_every_text_phase: pre 0x2000 strings 1 fault on this branch; base 28843dea1 passes 33/33 (printf-no-heap-2-base-hot-text)"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "perf", "what": "cbench_opt snprintf_f_large (%f of 1e300) per call vs PRINTF-NO-HEAP", "before": 52845.4, "after": 17812.5, "unit": "instr/call", "measured": true},
-  {"kind": "perf", "what": "cbench_opt snprintf_f_large vs base 28843dea1", "before": 18443.6, "after": 17812.5, "unit": "instr/call", "measured": true},
-  {"kind": "perf", "what": "cbench_opt snprintf_s_d_colon vs base", "before": 961.0, "after": 941.2, "unit": "instr/call", "measured": true},
-  {"kind": "perf", "what": "cbench_opt sprintf_chk_ls_nlink vs base", "before": 760.6, "after": 699.6, "unit": "instr/call", "measured": true},
-  {"kind": "perf", "what": "cbench_opt snprintf_ls_line vs base", "before": 2420.9, "after": 2379.4, "unit": "instr/call", "measured": true},
-  {"kind": "cost", "what": "cbench_opt snprintf_s_path (\"%s\") vs base; fix-forward: format_routed restructure", "before": 229.2, "after": 231.2, "unit": "instr/call", "measured": true},
-  {"kind": "cost", "what": "cbench_stdio fprintf_d vs base; fix-forward: format_routed restructure", "before": 633.7, "after": 639.5, "unit": "instr/call", "measured": true},
-  {"kind": "coverage", "what": "plants on the one-pass spill logic (15 total, all CAUGHT)", "before": 9, "after": 15, "unit": "plants", "measured": true}],
+  {
+   "kind": "perf",
+   "what": "cbench_opt snprintf_f_large (%f of 1e300) per call vs PRINTF-NO-HEAP",
+   "before": 52845.4,
+   "after": 17812.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt snprintf_f_large vs base 28843dea1",
+   "before": 18443.6,
+   "after": 17812.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt snprintf_s_d_colon vs base",
+   "before": 961.0,
+   "after": 941.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt sprintf_chk_ls_nlink vs base",
+   "before": 760.6,
+   "after": 699.6,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt snprintf_ls_line vs base",
+   "before": 2420.9,
+   "after": 2379.4,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_opt snprintf_s_path (\"%s\") vs base; fix-forward: format_routed restructure",
+   "before": 229.2,
+   "after": 231.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_stdio fprintf_d vs base; fix-forward: format_routed restructure",
+   "before": 633.7,
+   "after": 639.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the one-pass spill logic (15 total, all CAUGHT)",
+   "before": 9,
+   "after": 15,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
  "improvement": "an instruction diff of one hot function (base vs branch disassembly, symbol-relative) found the cause in minutes where whole-row benches cost 20 min each; a bench --rows build-and-count loop would make such codegen experiments cheap",
- "next_step": "ruling on the two rows; follow-up: format_routed small hot dispatcher (render_simple out of line), and #7764 streaming for grouped floats and registered conversions",
+ "next_step": "fix the strings-window fault (layout-bins diff vs base; new cold printf code out of the start-up text), then the ruling on the two rows and the format_routed restructure",
  "report_file": "handoff/PRINTF-NO-HEAP-2.md",
- "jobs": ["mei:printf-no-heap-2-gate", "mei:printf-no-heap-2-plants", "mei:printf-no-heap-2-cbench-3", "mei:printf-no-heap-2-xtask-test", "mei:printf-no-heap-2-hot-text"]}
+ "jobs": [
+  "mei:printf-no-heap-2-gate",
+  "mei:printf-no-heap-2-plants",
+  "mei:printf-no-heap-2-cbench-3",
+  "mei:printf-no-heap-2-xtask-test",
+  "mei:printf-no-heap-2-hot-text",
+  "mei:printf-no-heap-2-base-hot-text"
+ ]
+}
