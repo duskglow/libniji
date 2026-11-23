@@ -1,7 +1,7 @@
 # SHSTK-ENABLE handoff (leg 1 -> leg 2)
 
 **State.** Branch `task/shstk-enable` (stacked on SHSTK-OPT-IN, merge base with next 0495c4684), WIP head
-`754e672f6`. Role mei:~/w/s2 (synced at 754e672f6). Reserved ids: **D-21.6** (tunables + start decision + dlopen
+`f080f4c26`. Role mei:~/w/s2 (synced at f080f4c26; clippy --all-features and `cargo xtask static` clean there). Reserved ids: **D-21.6** (tunables + start decision + dlopen
 policy), **D-21.7** (context rules: signal ucontext, makecontext shadow stacks, raw SSP), **D-22.29** (clone3
 stack_size). No records written yet (`cargo xtask records new decision D-21.6`, then `records check`).
 
@@ -19,7 +19,10 @@ stack_size). No records written yet (`cargo xtask records new decision D-21.6`, 
 * B dynamic: `ld/entry.rs` keeps `SHSTK_WANTED` (code via `crate::shstk::code`) only when tunables ask;
   `ld/link.rs` `shstk_decide` (cold) before views unmap; enable via `crate::arch::niji_machine_ld_shstk_enter(lock)`
   (entry.S NIJI_LD; returns by pop+jmp) right before `run_init`; `link` is now `-> !` and ends in `arch::enter`.
-* B static: `runtime.rs` after `cpu::init_with`: `crate::shstk::static_start` (cold; reads PT_GNU_PROPERTY via
+* (f080f4c26) no `boundary/src/shstk.rs` (static refused its unsafe slices and feature cfgs): pure helpers
+  `lock_mask`, `code`, `mode_of` are in `niji_ld::shstk`; the permissive broadcast is
+  `runtime::shstk_off_everywhere`.
+* B static: `runtime.rs` after `cpu::init_with`: `shstk_static_start` (cold; reads PT_GNU_PROPERTY via
   AT_PHDR) then `ffi::niji_machine_shstk_enter(lock)` (context.S copy) directly from `start` (never returns).
 * C: `ld/dlopen.rs` after the dynamic check: `niji_machine_ssp() != 0 && !marked` -> `shstk_unmarked` (cold):
   refuse / load / call libc `__niji_shstk_off` (NIJI_PRIVATE, s01_startup.rs -> `shstk::off_everywhere`, setxid
@@ -27,8 +30,9 @@ stack_size). No records written yet (`cargo xtask records new decision D-21.6`, 
 
 ## Next (leg 2), in order
 
-1. `~/bin/jobwait shstk-enable-so1` (static + `cargo xtask so` on 754e672f6): fix what it names (asm assembles only
-   here; a NIJI_PRIVATE list/ABI table may need `__niji_shstk_off`).
+1. `~/bin/jobwait shstk-enable-so2` (`cargo xtask so` on f080f4c26, mei; log ~/logs/shstk-enable-so2.log): fix what
+   it names (asm assembles only here; a NIJI_PRIVATE list/ABI table may need `__niji_shstk_off`). (so1 was an
+   earlier attempt: rc 1 from `cargo xtask static`, fixed in f080f4c26; SUPERSEDED.)
 2. Test for B on any host: an ld test (pattern `crates/ld/tests/canonical_plt.rs` `cc` helper) building a marked
    (`-fcf-protection=full -Wl,-z,shstk`... any flags giving the note) and an unmarked (`-fcf-protection=none`) .so,
    asserting `niji_ld::shstk::marked` and `start_allowed` false with one unmarked in the list. Plants file
