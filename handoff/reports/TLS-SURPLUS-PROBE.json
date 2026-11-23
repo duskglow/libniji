@@ -1,0 +1,22 @@
+{"task": "TLS-SURPLUS-PROBE", "model": "opus", "tokens": null,
+ "result": "Probe done: libniji's 64 KiB static TLS surplus is 38x the reference's default initial-exec room (65536 vs 1712 bytes, threads first or not); the reference exceeds it only with glibc.rtld.optional_static_tls above 64336; but on libniji the 64 KiB also bounds global-dynamic TLS of dlopened objects (4 of 16 KiB open vs 64 on the reference)",
+ "branch": "task/tls-surplus-probe", "head": null,
+ "gate": {"affected": "see jobs (results/ and handoff/ only: no code changed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+   {"item": "HL-33 size of libniji's static TLS surplus (64 KiB) against the reference (1712 bytes default, N+1200 with glibc.rtld.optional_static_tls=N)", "recommendation": "keep 64 KiB; honour glibc.rtld.optional_static_tls raise-only (surplus = max(64 KiB, value)), read cold only when GLIBC_TUNABLES names it, owner's call"},
+   {"item": "the 64 KiB bounds ALL TLS of dlopened objects (D-27.39 puts every model in the surplus; dynamic blocks are plan row DL-19's): 4 x 16 KiB global-dynamic objects open on libniji, 64 (1 MiB) on the reference (flag #7999)", "recommendation": "schedule DL-19 dynamic blocks for objects without DF_STATIC_TLS, keeping the surplus for those that need it; meanwhile a known-limitation / differences row"}
+ ],
+ "informational": [
+   "libniji does not read glibc.rtld.optional_static_tls or glibc.rtld.nns (no effect in any row)",
+   "a glibc-built program run on libniji needs LD_LIBRARY_PATH for libc.so.6 (RUNPATH never supplies it, COMPAT-37); runs 1 and 2 of the probe measured nothing on libniji for that and a script error, run 3 is valid"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "none", "what": "evidence only: probe table for audit row HL-33 (results/tls-surplus/)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "unblock", "what": "owner rulings on the HL-33 tunable and on DL-19 dynamic blocks (flag #7999)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the role scripts could offer a 'run a glibc-built program on libniji' helper (PT_INTERP + LD_LIBRARY_PATH on the program only): two of three probe runs here were lost to the env/timeout and RUNPATH traps",
+ "next_step": "owner rulings on the two items; if the second is accepted, brief DL-19 (dynamic TLS blocks for objects without DF_STATIC_TLS)",
+ "report_file": "handoff/TLS-SURPLUS-PROBE.md",
+ "jobs": ["mei:tls-surplus-probe-so", "mei:tls-surplus-probe-run3", "mei:tls-surplus-probe-lint", "mei:tls-surplus-probe-gate"]}
