@@ -34,6 +34,20 @@ const BLANK: u16 = isbit(8);
 const CNTRL: u16 = isbit(9);
 const PUNCT: u16 = isbit(10);
 const ALNUM: u16 = isbit(11);
+/// The class keywords of an `LC_CTYPE` source and their bits (`alnum` is derived, never listed).
+pub(crate) const CLASS_KEYWORDS: [(&str, u16); 11] = [
+    ("upper", UPPER),
+    ("lower", LOWER),
+    ("alpha", ALPHA),
+    ("digit", DIGIT),
+    ("xdigit", XDIGIT),
+    ("space", SPACE),
+    ("print", PRINT),
+    ("graph", GRAPH),
+    ("blank", BLANK),
+    ("cntrl", CNTRL),
+    ("punct", PUNCT),
+];
 
 struct Record {
     cat: String,
@@ -750,6 +764,29 @@ fn generate_class_words(dir: &Path) -> Result<String, String> {
     }
     writeln!(w, "];").ok();
     Ok(s)
+}
+
+/// For each code point below 0x110000: the `C.UTF-8` class word (D-5.4), whether it is in the
+/// `combining` and `combining_level3` classes (bits 0 and 1), and its simple upper, lower and
+/// title case mappings (the code point itself when it has none). Read by the generated locale sources'
+/// `i18n_ctype` (`xtask/src/locales.rs`, D-31.27), so the locales classify as `C.UTF-8` does.
+pub(crate) fn ctype_props(root: &Path) -> Result<Vec<CtypeProps>, String> {
+    let dir = root.join("spec/unicode/15.1.0");
+    let ud = unicode_data(&dir)?;
+    let map = |c: u32, d: i32| c.checked_add_signed(d).ok_or_else(|| format!("U+{c:04X}: case delta {d}"));
+    (0..MAX)
+        .zip(props(&dir, &ud)?)
+        .map(|(c, p)| Ok(CtypeProps { class: p.class, extra: p.extra, upper: map(c, p.upper)?, lower: map(c, p.lower)?, title: map(c, p.title)? }))
+        .collect()
+}
+
+/// One code point's `C.UTF-8` class word, `combining` bits and simple case mappings.
+pub(crate) struct CtypeProps {
+    pub class: u16,
+    pub extra: u8,
+    pub upper: u32,
+    pub lower: u32,
+    pub title: u32,
 }
 
 fn write_out(root: &Path, out: &str, text: &str, check: bool) -> Result<(), String> {
