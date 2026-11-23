@@ -4,9 +4,12 @@
 origin/next 997a3a8c3 merged in at 2434ce53b), role shiki `~/w/sh1`. The code is unchanged since 7eba3dfdb. Leg 3
 (LOCALEDEF-COLLATE-GAPS-2) fixed the CI merge conflict (next added transliteration tests at the end of
 `crates/locale/tests/prog.rs` and `reference.rs`; both sides kept) and cited ruling #7942 in the D-31.31 row and
-record. Proven on the merged head by shiki jobs `localedef-collate-gaps-2-gate` (direct tier: 12 suites, 7454 passed,
-0 failed; conformance 148/0; peak 14G), `localedef-collate-gaps-2-plants` (8 of 8 CAUGHT, results in
-handoff/LOCALEDEF-COLLATE-GAPS-plants.txt), `localedef-collate-gaps-2-lint` (clippy, static: green).
+record, and committed the stub header `cargo xtask stubs` writes after the merge (both sides added a §31 clause: 115).
+Proven on head 25ed17cb5 by shiki jobs `localedef-collate-gaps-2-gate2` (direct tier: 12 suites, 7454 passed, 0 failed; conformance 148/0; peak 11G),
+`localedef-collate-gaps-2-plants2` (8 of 8 CAUGHT, results in handoff/LOCALEDEF-COLLATE-GAPS-plants.txt),
+`localedef-collate-gaps-2-lint2` (clippy --all-features -D warnings, xtask clippy, static: green). Superseded:
+`-gate` (7454/0, conformance 148/0), `-plants` (8/8 CAUGHT), `-lint` (green): all on the merge head before the stub
+header commit (precheck: other content than the head).
 Earlier legs' jobs (keke `localedef-collate-gaps-gate2`, `-plants2`, `-lint5`) proved 7eba3dfdb before the merge.
 Report: handoff/reports/LOCALEDEF-COLLATE-GAPS-2.json (leg 3), handoff/reports/LOCALEDEF-COLLATE-GAPS.json (legs 1-2).
 
