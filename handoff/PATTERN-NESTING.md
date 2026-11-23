@@ -1,13 +1,16 @@
 # PATTERN-NESTING handoff (HL-13 fnmatch, HL-14 wordexp nesting)
 
 State: branch `task/pattern-nesting-3` (PATTERN-NESTING-3, continues `task/pattern-nesting-2`), role
-shiki:~/w/sh2 (Haswell-EP build host, E5-2697 v3; role dir on /mnt/zram). Code head e67086c87 (leg 2).
-Plants file: `handoff/PATTERN-NESTING-3-plants.txt` (18: the 12 of PATTERN-NESTING-2, `we-short-circuit` and
-`we-eval-cap` re-aimed at the evaluator, 5 from leg 1, `we-dquote-handover` from leg 2; `we-first-guard`
-re-aimed at the new `first == 0 ||` check). Scratch: `~/w/.scratch/PATTERN-NESTING-3/` (cmp.py, cmp_trace.py,
-counters-*.tsv, traces head3.log/head4.log, cmp3.txt/cmp4.txt); on the host `~/work/pattern-nesting-3/`
-(trace3.sh: per-function traces with the fixed tracer; trace4.sh: full instruction listing to
-`list-<tag>-<case>.txt`; ck.sh: clippy, static, tests, counts).
+shiki:~/w/sh2 (Haswell-EP build host, E5-2697 v3; role dir on /mnt/zram). Code head 3f50f55c0 (leg 3).
+Plants file: `handoff/PATTERN-NESTING-3-plants.txt` (21: the 18 of leg 2, `we-stack-top` re-aimed at the new
+`Stack::top`, plus `we-stack-pop`, `we-arith-range`, `we-square-end` from leg 3). Scratch:
+`~/w/.scratch/PATTERN-NESTING-3/` (cmp.py BASE AFTER: count diff; cond.py LISTING: one line per executed
+instruction with its source function; counters-next.tsv / counters-head4.tsv; c-list-*.txt condensed listings).
+On the host `~/work/pattern-nesting-3/`: ck3.sh <tag> (clippy, static, the 7 wordexp/fnmatch test targets,
+counts to counters-<tag>.tsv); trace_any.sh <role|next> <tag> <spec|utf8> <case> <function> (full listing to
+`list-<tag>-<case>.txt`; `next` = `nextsrc/`, a copy of origin/next's cached source with a .synced naming
+0495c4684, so wl_percall uses next's cached products and never mislabels the role); fn_utf8.c (scratch spec:
+fnmatch on UTF-8 names in en_US.UTF-8).
 
 ## Ruling in force
 
@@ -16,55 +19,58 @@ fnmatch_names_ch back to origin/next's counts. #7900/#7901: land neutrally; the 
 
 ## Done
 
-- Leg 1 (7d27069b3): clippy fix; arithmetic evaluator as operator precedence on a 6-inline stack; fnmatch
-  `Prog.root`, lazy `seqs`/parse queue. Test `wordexp_arith_lexer::precedence_conditionals_and_short_circuit`.
-- Leg 2, 1d554b1ee: `validation/wl_trace.py` entry stack pointer from the caller frame. In a dynamic link
-  gdb broke after the prologue, so the first epilogue pop before a tail jump ended the trace (the 32-instruction
-  "early exit" of leg 1). Traces are whole calls now. NOTE for trace runs: wl_percall prints only the last 60
-  lines unless `WLP_TAIL=0` (a `--list` listing needs it; trace4.sh sets it).
-- Leg 2, e67086c87: `push_text`/`push_input` skip the length read when `first == 0`; boundary `patterns::wordexp`
-  `#[inline]` (the extra call level was +30/call); double quotes in a word's own context read by
-  `Parser::dquote_word` without a frame (an expansion opening a context gets the DQuote frame put under it, then
-  `nested`). Job `pattern-nesting-3-check2` (on e67086c87): clippy clean, static tail clean, the 7 wordexp/fnmatch
-  test targets green, counts:
-  | row (cbench_opt, niji_instr) | next | 7d27069b3 | e67086c87 |
-  | wordexp_arith | 4137.3 | +4.07% | 4269.3 +3.19% |
-  | wordexp_quoted | 3782.0 | +6.76% | 3835.2 +1.41% |
-  | wordexp_plain_8 | 3778.9 | +3.71% | 3850.2 +1.89% |
-  | wordexp_tilde_var | 4100.9 | +2.26% | 4162.8 +1.51% |
-  | wordexp_split_var | 3795.4 | +1.34% | 3825.0 +0.78% |
-  | wordexp_param_forms | 6240.6 | -4.93% | 5911.6 -5.27% |
-  | fnmatch_names_ch | 755.9 | +0.98% | 763.3 +0.98% (fnmatch unchanged; others +0.3..+2.1%) |
-  cbench_patterns fnmatch rows +-0.02%.
+- Legs 1-2 (7d27069b3, 1d554b1ee, e67086c87): see the commits; evaluator on a 6-inline stack, tracer fix,
+  per-word fixes.
+- Leg 3, 3f50f55c0 (from listings of one call, head vs next, `c-list-*.txt`): `nested` and `dquote_word`
+  `#[inline(never)]` (inlined into `word` they cost the plain loop spills/reloads); `seg` `#[inline(always)]`,
+  `segs_deep` `#[inline(never)]` (seg had become a call per segment); `arith_plain` pushes one input range to
+  the arena (was a default-filled 12-entry Segs + a byte copy; `stash` removed); evaluator `Stack` keeps one
+  total `len` (top/pop never read the heap vector below INLINE). Job `pattern-nesting-3-check4` (on 3f50f55c0):
+  clippy rc 0, static tail clean, 7 test targets green, counts (niji_instr, Haswell-EP):
+  | row | next | 3f50f55c0 |
+  | cbench_opt wordexp_arith | 4137.3 | 3962.8 -4.22% |
+  | wordexp_param_forms | 6240.6 | 5953.0 -4.61% |
+  | wordexp_plain_8 | 3778.9 | 3821.4 +1.12% |
+  | wordexp_quoted | 3782.0 | 3832.1 +1.32% |
+  | wordexp_split_var | 3795.4 | 3841.1 +1.20% |
+  | wordexp_tilde_var | 4100.9 | 4147.3 +1.13% |
+  | fnmatch_names_* (cbench_opt) | | +0.32..+2.07% (names_ch 755.9 -> 763.3) |
+  | cbench_patterns fnmatch_* | | +0.00..+0.02% |
+- Finding: cbench_patterns' fnmatch rows (ASCII, byte path `direct`) are unchanged; the cbench_opt fnmatch
+  rows rise because 4 of the ~100 names are UTF-8 and take the compiled matcher (`Pattern::new` + `matches`),
+  which this branch changed (Prog/Memo/run_prog): ~+185 instructions per such call.
 
-## Running at the end of leg 2
+## Running at the end of leg 3 (started ~17:23Z)
 
-- `pattern-nesting-3-plants2`: 18 plants on e67086c87, `/mnt/zram/claude/pattern-nesting-3/plants-2`, started
-  ~16:45Z (~45-60 min). Verdicts: `grep -E ": CAUGHT|SURVIV|WARN-RC|WARN-NO|EQUIV" ~/logs/pattern-nesting-3-plants2.log`.
-  It holds the role (sync_role rc 4 while it runs). If the code moves again, re-run on the final head (plants-3).
-- SUPERSEDED: `pattern-nesting-3-plants` (leg 1, on 7d27069b3; stopped at 7 of 17 caught, all CAUGHT so far, when
-  e67086c87 changed a planted line).
+- `pattern-nesting-3-fntrace`: listings of fnmatch on `na\xc3\xafve.c` / `*.[ch]` and `Gr\xc3\xbc\xc3\x9fe.txt` /
+  `????.txt`, next and head: `~/work/pattern-nesting-3/list-fnnext-fn_utf8_{ch,q}.txt`,
+  `list-fnhead-fn_utf8_{ch,q}.txt` (head builds 3f50f55c0's products first, ~7 min).
+- `pattern-nesting-3-plants3`: 21 plants on 3f50f55c0, `/mnt/zram/claude/pattern-nesting-3/plants-3`
+  (~60 min). Verdicts: `grep -E ": CAUGHT|SURVIV|WARN-RC|WARN-NO|EQUIV" ~/logs/pattern-nesting-3-plants3.log`.
+  It holds the role (sync_role rc 4 while it runs).
+- SUPERSEDED: `pattern-nesting-3-plants2` (on e67086c87; stopped at 6/18, all CAUGHT, when 3f50f55c0 changed
+  planted lines), `pattern-nesting-3-check3` (clippy red: unused `stash`, fixed in 3f50f55c0).
 
 ## Next steps, in order
 
-1. Remaining wordexp cost (trace head4 vs next, `cmp4.txt`): plain_8 3672 -> 3748 instructions, all in the
-   `word` + `push_input` + `push<Seg,12>` frames (next 338, head 409: ~9/word); quoted +59 (`seg` in the
-   expander +69); tilde_var +67 (`seg` +105, `segs` -104, `word` +64); arith +137 (evaluator `run`
-   +262, `arith_plain` +155). The frame names are inline attributions, so diff the instruction LISTINGS of
-   one word: `trace4.sh ~/w/sh2 head we_plain_8` (role at head) and the same with the role synced to
-   origin/next (as leg 1 did: a checkout of next in the scratch synced with sync_role). Suspects: register
-   pressure or spills in `word` since `dollar`/`nested`/`dquote_word` are reachable from it (try
-   `#[inline(never)]` on the rare arms: `dquote_word`, the `$` arm's `nested`); `InlineVec::new` filling
-   `frames`/`nest` once per call (create them only when a word nests).
-2. fnmatch plain rows (+0.3..2%): trace `fnmatch_names_ch` the same way (`Matcher::run`/`run_prog`/`Memo::new`).
-3. Recount (ck.sh, new label), plants on the final head, direct-tier gate (`cargo xtask affected --run` under
-   `~/bin/gate 16G`), foreground clippy + static, precheck, report `handoff/reports/PATTERN-NESTING-3.json`,
-   handback-check. RUT RULE: if step 1 gains little, hand back with RULING NEEDED (accept the remaining
-   ~1.5-3% on these rows for the unlimited nesting, or keep tuning).
+1. fnmatch compiled path: scp the 4 listings, `python3 cond.py <listing>`, per-function sums
+   (`awk '{print $3}' | sed 's/@.*//' | sort | uniq -c | sort -rn`), find the ~185 extra (suspects:
+   `Memo::new` per match, `Prog` root/seqs setup in `Pattern::new`, `run` taking prog/memo/nested). If a fix
+   is small: kill plants3 (`~/bin/kill-label pattern-nesting-3-plants3 --kill`), commit, sync, recount with
+   `ck3.sh head5` under jobrun (label pattern-nesting-3-check5), plants on the final head (plants-4).
+   If none: keep 3f50f55c0 and plants3.
+2. wordexp plain/quoted/tilde/split still +1.1..1.3% (~45 instr/call; ~5/word plus setup: the Parser's
+   `frames`/`nest` InlineVec::new default fill, +19 per call in leg 2's trace). RUT RULE applies: three passes
+   done; hand back with RULING NEEDED (accept ~1.2% on these 4 rows for unlimited nesting, with arith -4.2% and
+   param_forms -4.6%, or keep tuning) unless step 1 leaves time.
+3. Direct-tier gate (`cargo xtask affected --run` under `~/bin/gate 16G`, label pattern-nesting-3-gate) after
+   plants, foreground clippy + static on the role, precheck --jobs, report
+   `handoff/reports/PATTERN-NESTING-3.json`, handback-check. Wall-time deadline 19:20Z: if ~45 min remain with
+   only jobs left, push and hand back PENDING JOBS.
 
 ## Not to redo
 
-HL-13 code and tests; HL-14 parser/expander code; the evaluator rewrite (7d27069b3); the tracer fix and the
-leg-2 per-word fixes. Plan rows: `plan/hardcoded-limits.md` HL-13, HL-14. No D-row needed (no spec deviation).
+HL-13 code and tests; HL-14 parser/expander code; the evaluator rewrite (7d27069b3); the tracer fix; the leg-2
+and leg-3 per-word fixes. Plan rows: `plan/hardcoded-limits.md` HL-13, HL-14. No D-row needed (no spec deviation).
 INFORMATIONAL (from PN-2): a pattern removal/assignment/arithmetic text with expansions allocates the nested
 word's pieces on the heap (`fresh`, one malloc per call that has one); no bench row covers it.
