@@ -11,6 +11,15 @@
 set -eu
 prog=$1
 dir=$2
+# Every locale the probe selects comes from LOCPATH. setlocale also searches the system's locale
+# directory after LOCPATH (setlocale(3)), so the locales a host has installed there would decide
+# what a name such as de_DE.UTF-8@euro selects; the comparison with the reference runs with that
+# directory hidden (nscache_mode.sh --hide-system-locales). The unstable cases are not compared
+# with the reference and select only de_DE.UTF-8, which LOCPATH holds.
+if [ $# -lt 3 ] && [ -n "$(ls -A /usr/lib/locale 2>/dev/null)" ]; then
+    echo "catalogs_run.sh: /usr/lib/locale is not empty; run under nscache_mode.sh --hide-system-locales" >&2
+    exit 3
+fi
 rm -rf "$dir"
 mkdir -p "$dir"
 dir=$(cd "$dir" && pwd -P)
