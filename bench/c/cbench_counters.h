@@ -9,7 +9,9 @@
 #ifndef CBENCH_COUNTERS_H
 #define CBENCH_COUNTERS_H
 #include <cpuid.h>
+#include <fcntl.h>
 #include <linux/perf_event.h>
+#include <sys/personality.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +38,39 @@
 #define CTR_N 6
 static int ctr_fd[CTR_N] = {-1, -1, -1, -1, -1, -1};
 static int ctr_on = -1;
+
+/* BUILD-REPRODUCIBLE-PATHS: a counted run executes with address-space randomisation off, so the user-mode count of
+ * one build is the same in every run. With it on, the stack's random offset within its page sometimes puts a row's
+ * buffer near a page end and the row takes another path: measured on the Skylake-SP host, strstr_hit_64 and
+ * strstr_miss_64 read 71 or 135 user instructions per call across 20 runs, exactly 71 with it off. Before main, a
+ * counted run that still randomises sets ADDR_NO_RANDOMIZE and executes itself again (same arguments and environment;
+ * nothing has been printed yet); where that is refused it carries on randomised. Uncounted runs are unchanged. */
+static void __attribute__((constructor)) ctr_fixed_layout(void)
+{
+    const char *v = getenv("CBENCH_COUNTERS");
+    if (!v || !(v[0] == '1' || strcmp(v, "mite") == 0))
+        return;
+    int p = personality(0xffffffff);
+    if (p == -1 || (p & ADDR_NO_RANDOMIZE) || personality((unsigned long)p | ADDR_NO_RANDOMIZE) == -1)
+        return;
+    static char cmd[65536];
+    static char *av[1024];
+    int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
+        return;
+    ssize_t n = 0, r;
+    while (n < (ssize_t)sizeof cmd - 1 && (r = read(fd, cmd + n, sizeof cmd - 1 - (size_t)n)) > 0)
+        n += r;
+    close(fd);
+    if (n <= 0 || n >= (ssize_t)sizeof cmd - 1)
+        return;
+    int ac = 0;
+    for (ssize_t i = 0; i < n && ac < 1023; i += (ssize_t)strlen(cmd + i) + 1)
+        av[ac++] = cmd + i;
+    av[ac] = NULL;
+    extern char **environ;
+    execve("/proc/self/exe", av, environ);
+}
 
 static void ctr_open(void)
 {

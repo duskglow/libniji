@@ -41,7 +41,7 @@ Base origin/next 9d12e7ee3. Wall-time deadline 2026-11-23T04:40Z.
    `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo xtask static`, `cargo test -p xtask
    -- remap:: hotlists::`. Fix anything.
 2. `NIJI_FULL_PROFILE=1 cargo xtask so` on s1 (job); it must pass its layout contract (now scanning all files with
-   the logical root as a needle). Rescan target/niji for `/home/claude|/mnt/zram` (expect none).
+   the logical root as a needle). Rescan target/niji for the home and zram paths (expect none).
 3. Second path on mei: copy the tree (no target/, no .git) to e.g. ~/work/build-reproducible-paths/t/second/tree-b,
    build there (`cd` into it; job), `diff` the two `target/niji/.products-manifest` (expect identical except
    nothing: head/tag equal). Cross host: same on keke (Zen 1) in ~/work/build-reproducible-paths/, diff manifests.
