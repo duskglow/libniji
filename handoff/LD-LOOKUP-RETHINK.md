@@ -78,4 +78,11 @@ ld-lookup-rethink-so-base, -meas-base2 (counts; its trace step failed on a kit b
 -meas-base (kit bug), -d1 (first form). Results of gate/startup: see the report json.
 
 ## Next step
-Land D1b. Coordinator: brief LD-VERSION-INDEX and LD-RELOC-FLAT (files above); count D1b on Zen 1 / Skylake-SP.
+Leg 2 (refresh, nothing to change in code): on shiki `~/bin/jobwait ld-lookup-rethink-gate ld-lookup-rethink-startup`
+(the startup job waits for the gate, then runs `cargo xtask test` and `NIJI_FULL_PROFILE=1 cargo xtask so` +
+`hot_text_products`; logs `~/logs/<label>.log`, read with `~/bin/test-summary`). Green: sync the final head
+(sync_role.sh), `cargo xtask static` on the role, `cargo xtask precheck --jobs ld-lookup-rethink-d1b,
+ld-lookup-rethink-plants,ld-lookup-rethink-gate,ld-lookup-rethink-startup --head <sha>`, fill the gate field of
+handoff/reports/LD-LOOKUP-RETHINK.json and this note's Jobs line, commit, push, `ops handback-check`, hand back
+COMPLETE with the REFUSED line (the report's `refused` entry). Red: fix only the failing suite, rerun it.
+Then: land D1b. Coordinator: brief LD-VERSION-INDEX and LD-RELOC-FLAT (files above); count D1b on Zen 1 / Skylake-SP.
