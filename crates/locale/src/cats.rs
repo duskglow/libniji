@@ -11,6 +11,8 @@
 
 use crate::build::{File, MAGIC};
 use crate::charset::Charset;
+use crate::ctype::Ctype;
+use core::ops::Deref;
 use crate::lex::{self, Tok};
 use crate::source::Stmt;
 use crate::{Error, Result, TryVec};
@@ -138,13 +140,52 @@ fn decimal(n: i64) -> Result<TryVec<u32>> {
     Ok(digits)
 }
 
-/// The multibyte form of `s` in the charmap; characters it lacks are left out (`-c`).
+/// The multibyte form of `s` in the charmap; characters it lacks are left out (`LC_CTYPE`'s own
+/// digit strings).
 pub fn mb(cs: &Charset, s: &[u32]) -> Result<TryVec<u8>> {
     let mut out = TryVec::new();
     for &c in s {
         cs.encode(c, &mut out)?;
     }
     Ok(out)
+}
+
+/// The charmap with the locale's `LC_CTYPE` (its transliteration table): how a value of every
+/// other category becomes bytes. Probed (LOCALEDEF-TRANSLIT): a character the charmap lacks is
+/// transliterated at compile time ([`Ctype::transliterate`]); a value with a character neither
+/// encodes is written empty, whole, and reported ([`Enc::convert`]).
+pub struct Enc<'c> {
+    /// The target charmap.
+    pub cs: &'c Charset,
+    /// The locale's parsed `LC_CTYPE`, when it defines one that parsed.
+    pub ctype: Option<&'c Ctype>,
+}
+
+impl Deref for Enc<'_> {
+    type Target = Charset;
+
+    fn deref(&self) -> &Charset {
+        self.cs
+    }
+}
+
+impl Enc<'_> {
+    /// The bytes of `s`; `None` when one of its characters is neither in the charmap nor
+    /// transliterable.
+    pub fn convert(&self, s: &[u32]) -> Result<Option<TryVec<u8>>> {
+        let mut out = TryVec::new();
+        for &c in s {
+            if !self.cs.encode(c, &mut out)? && !self.ctype.map_or(Ok(false), |t| t.transliterate(self.cs, c, &mut out))? {
+                return Ok(None);
+            }
+        }
+        Ok(Some(out))
+    }
+
+    /// The bytes of a value: [`Enc::convert`], or empty when it fails.
+    pub fn mb(&self, s: &[u32]) -> Result<TryVec<u8>> {
+        Ok(self.convert(s)?.unwrap_or_else(TryVec::new))
+    }
 }
 
 /// A byte item's value: `-1` is `CHAR_MAX`; other values are taken modulo 256.
@@ -154,12 +195,12 @@ fn byte_of(n: i64) -> u8 {
 
 struct Out<'c> {
     f: File,
-    cs: &'c Charset,
+    cs: &'c Enc<'c>,
 }
 
 impl Out<'_> {
     fn string(&mut self, s: &[u32]) -> Result<()> {
-        let b = mb(self.cs, s)?;
+        let b = self.cs.mb(s)?;
         self.f.string(&b)
     }
 
@@ -177,7 +218,7 @@ fn text_or_empty(b: &Body<'_>, kw: &[u8]) -> Result<TryVec<u32>> {
 }
 
 /// `LC_NUMERIC` (6 items).
-pub fn numeric(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn numeric(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     let dp = text_or_empty(b, b"decimal_point")?;
     let ts = text_or_empty(b, b"thousands_sep")?;
@@ -200,7 +241,7 @@ fn grouping(ns: &[i64]) -> Result<TryVec<u8>> {
 }
 
 /// `LC_MONETARY` (46 items).
-pub fn monetary(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn monetary(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     let int_curr = text_or_empty(b, b"int_curr_symbol")?;
     let curr = text_or_empty(b, b"currency_symbol")?;
@@ -293,7 +334,7 @@ pub fn monetary(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_MESSAGES` (5 items).
-pub fn messages(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn messages(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [&b"yesexpr"[..], b"noexpr", b"yesstr", b"nostr"] {
         o.opt(b.text(kw)?.as_ref())?;
@@ -303,7 +344,7 @@ pub fn messages(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_PAPER` (3 items).
-pub fn paper(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn paper(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [&b"height"[..], b"width"] {
         o.f.word(b.number(kw)?.and_then(|n| u32::try_from(n).ok()).unwrap_or(0))?;
@@ -313,7 +354,7 @@ pub fn paper(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_NAME` (7 items).
-pub fn name(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn name(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [&b"name_fmt"[..], b"name_gen", b"name_mr", b"name_mrs", b"name_miss", b"name_ms"] {
         o.opt(b.text(kw)?.as_ref())?;
@@ -323,7 +364,7 @@ pub fn name(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_ADDRESS` (13 items).
-pub fn address(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn address(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [&b"postal_fmt"[..], b"country_name", b"country_post", b"country_ab2", b"country_ab3", b"country_car"] {
         o.opt(b.text(kw)?.as_ref())?;
@@ -337,7 +378,7 @@ pub fn address(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_TELEPHONE` (5 items).
-pub fn telephone(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn telephone(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [&b"tel_int_fmt"[..], b"tel_dom_fmt", b"int_select", b"int_prefix"] {
         o.opt(b.text(kw)?.as_ref())?;
@@ -347,7 +388,7 @@ pub fn telephone(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 }
 
 /// `LC_MEASUREMENT` (2 items).
-pub fn measurement(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn measurement(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     o.f.byte(b.number(b"measurement")?.map_or(CHAR_MAX, byte_of))?;
     o.codeset()?;
@@ -356,7 +397,7 @@ pub fn measurement(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 
 /// `LC_IDENTIFICATION` (16 items). `category` lines are `"<standard>";LC_<NAME>`: the
 /// standards are stored in category-number order, one string per category but `LC_ALL`.
-pub fn identification(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn identification(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     for kw in [
         &b"title"[..], b"source", b"address", b"contact", b"email", b"tel", b"fax", b"language", b"territory", b"audience", b"application", b"abbreviation", b"revision", b"date",
@@ -371,7 +412,7 @@ pub fn identification(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
         let c = crate::source::number(cat).ok_or(Error::syntax(s.no, "category names no category"))?;
         let text = lex::decode_string(raw, s.esc, s.no)?;
         if let Some(slot) = per.get_mut(c) {
-            *slot = Some(mb(cs, &text)?);
+            *slot = Some(cs.mb(&text)?);
         }
     }
     o.f.strings(per.iter().enumerate().filter(|&(c, _)| c != 6).map(|(_, v)| v.as_deref().unwrap_or(&[])))?;
@@ -383,7 +424,7 @@ pub fn identification(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 pub const ALT_DIGITS: usize = 100;
 
 /// `LC_TIME` (159 items).
-pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
+pub fn time(b: &Body<'_>, cs: &Enc<'_>) -> Result<TryVec<u8>> {
     let mut o = Out { f: File::new(), cs };
     let list = |kw: &[u8], n: usize| -> Result<TryVec<TryVec<u32>>> {
         let mut v = b.strings(kw)?;
@@ -405,7 +446,7 @@ pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
     let eras = b.strings(b"era")?;
     let mut era_mb = TryVec::new();
     for e in eras.iter() {
-        era_mb.push(mb(cs, e)?)?;
+        era_mb.push(cs.mb(e)?)?;
     }
     o.f.strings(era_mb.iter().map(|v| v.as_slice()))?;
     let era_year = text_or_empty(b, b"era_year")?;
@@ -419,7 +460,7 @@ pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
     }
     let mut alt_mb = TryVec::new();
     for a in alt.iter() {
-        alt_mb.push(mb(cs, a)?)?;
+        alt_mb.push(cs.mb(a)?)?;
     }
     o.f.strings(alt_mb.iter().map(|v| v.as_slice()))?;
     let era_d_t_fmt = text_or_empty(b, b"era_d_t_fmt")?;
@@ -475,7 +516,7 @@ pub fn time(b: &Body<'_>, cs: &Charset) -> Result<TryVec<u8>> {
 /// (`+*` and `-*` as `i32::MAX` and `i32::MIN` in all three), then the name and the format as
 /// multibyte strings, zero bytes to a multiple of 4, and both again as wide strings (layout
 /// from format inspection of the reference localedef's output, UTIL-12).
-fn era_entries(eras: &[TryVec<u32>], cs: &Charset, no: u32) -> Result<TryVec<u8>> {
+fn era_entries(eras: &[TryVec<u32>], cs: &Enc<'_>, no: u32) -> Result<TryVec<u8>> {
     let mut out = TryVec::new();
     for e in eras {
         let fields: TryVec<&[u32]> = {
@@ -505,9 +546,9 @@ fn era_entries(eras: &[TryVec<u32>], cs: &Charset, no: u32) -> Result<TryVec<u8>
         for w in words.iter() {
             out.extend_from_slice(&w.to_le_bytes())?;
         }
-        out.extend_from_slice(&mb(cs, f(4))?)?;
+        out.extend_from_slice(&cs.mb(f(4))?)?;
         out.push(0)?;
-        out.extend_from_slice(&mb(cs, f(5))?)?;
+        out.extend_from_slice(&cs.mb(f(5))?)?;
         out.push(0)?;
         while out.len() % 4 != 0 {
             out.push(0)?;

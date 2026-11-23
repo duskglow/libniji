@@ -636,3 +636,80 @@ fn products_localedef_searches_i18npath_and_the_working_directory() {
     assert_eq!((o.status.code(), point("o2")), (Some(0), Some(b'W')), "{}", String::from_utf8_lossy(&o.stderr));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Sources by name from one directory (an absolute name as given), charmaps installed.
+struct Under(PathBuf);
+
+impl Files for Under {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        if kind == Kind::Charmap {
+            return Disk.read(kind, name);
+        }
+        let name = String::from_utf8_lossy(name).into_owned();
+        let p = if name.starts_with('/') { PathBuf::from(&name) } else { self.0.join(&name) };
+        TryVec::from_slice(&std::fs::read(p).map_err(|_| niji_locale::Error::missing("no such file"))?).map_err(Into::into)
+    }
+}
+
+/// s31_8_g_5: strings of every string category with characters ISO-8859-1 lacks, a test's own
+/// source with an `include` chain (found through `I18NPATH`), compiled by both: every item of
+/// every category file that holds such strings equal. Transliterated (own entry before an include's, the first include
+/// before the second, the first alternative that fits whole), and not (no entry, an alternative
+/// that does not fit, a string's single character): the string empty.
+#[test]
+fn strings_the_charmap_lacks_are_transliterated_as_the_reference_does() {
+    let u = |s: &str| s.chars().map(|c| format!("<U{:04X}>", c as u32)).collect::<String>();
+    let q = |s: &str| format!("\"{}\"", u(s));
+    let tl = |e: &[(&str, &[&str])]| e.iter().map(|(f, to)| format!("{} {}\n", u(f), to.iter().map(|t| q(t)).collect::<Vec<_>>().join(";"))).collect::<String>();
+    let ctype = |body: String| format!("LC_CTYPE\ntranslit_start\n{body}translit_end\nEND LC_CTYPE\n");
+    let dir = std::env::temp_dir().join(format!("niji-locale-translit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("tra"), ctype(format!("include \"trc\";\"\"\n{}", tl(&[("\u{20ac}", &["A1"]), ("\u{4e01}", &["Z"])])))).unwrap();
+    std::fs::write(dir.join("trb"), ctype(tl(&[("\u{4e01}", &["Y"]), ("\u{4e02}", &["W"])]))).unwrap();
+    std::fs::write(dir.join("trc"), ctype(tl(&[("\u{4e03}", &["V"]), ("\u{4e01}", &["U"])]))).unwrap();
+    let own = tl(&[("\u{20ac}", &["EUR"]), ("\u{202f}", &[" "]), ("\u{2030}", &["\u{2031}", "%0"]), ("\u{2032}", &["\u{2033}"]), ("\u{2033}", &["\""]), ("\u{2034}", &["", "A\u{2035}", "B"])]);
+    let list = |v: &[&str]| v.iter().map(|s| q(s)).collect::<Vec<_>>().join(";");
+    let mon: Vec<&str> = ["\u{20ac}", "a\u{4e00}b", "\u{4e01}", "\u{4e02}", "\u{4e03}", "x\u{2030}", "\u{2032}", "\u{2034}", "\u{e9}", "m", "m", "m"].into();
+    let src = format!(
+        "comment_char %\nescape_char /\n{}\
+LC_MONETARY\nint_curr_symbol {}\ncurrency_symbol {}\nmon_decimal_point {}\nmon_thousands_sep {}\nmon_grouping 3\npositive_sign \"\"\nnegative_sign {}\n\
+int_frac_digits 2\nfrac_digits 2\np_cs_precedes 1\np_sep_by_space 1\nn_cs_precedes 1\nn_sep_by_space 1\np_sign_posn 1\nn_sign_posn 1\nEND LC_MONETARY\n\
+LC_NUMERIC\ndecimal_point {}\nthousands_sep {}\ngrouping 3\nEND LC_NUMERIC\n\
+LC_MESSAGES\nyesexpr {}\nnoexpr {}\nyesstr {}\nnostr {}\nEND LC_MESSAGES\n\
+LC_ADDRESS\npostal_fmt {}\ncountry_name {}\nlang_name {}\nEND LC_ADDRESS\n\
+LC_TELEPHONE\ntel_int_fmt {}\nint_prefix {}\nEND LC_TELEPHONE\n\
+LC_NAME\nname_fmt {}\nname_mr {}\nEND LC_NAME\n\
+LC_IDENTIFICATION\ntitle {}\nsource {}\nEND LC_IDENTIFICATION\n\
+LC_TIME\nabday {}\nday {}\nabmon {}\nmon {}\nd_t_fmt {}\nd_fmt \"%x\"\nt_fmt \"%X\"\nam_pm {}\nt_fmt_ampm \"%r\"\nEND LC_TIME\n",
+        ctype(format!("include \"tra\";\"\"\ninclude \"trb\";\"\"\n{own}")),
+        q("EUR "), q("\u{20ac}"), q("\u{2030}"), q("\u{202f}"), q("-\u{4e00}"),
+        q("\u{4e01}"), q("\u{4e02}"),
+        q("^[yY\u{20ac}]"), q("^[nN\u{4e00}]"), q("y\u{20ac}s"), q("n\u{2032}"),
+        q("%a%N\u{20ac}"), q("\u{4e00}"), q("x\u{202f}y"),
+        q("+%c \u{20ac}"), q("49"),
+        q("%d%t\u{20ac}"), q("M\u{4e03}"),
+        q("T \u{20ac}"), q("S\u{4e00}"),
+        list(&["a"; 7]), list(&["d"; 7]), list(&["m"; 12]), list(&mon), q("%c\u{20ac}"), list(&["AM\u{4e00}", "PM\u{20ac}"]),
+    );
+    let path = dir.join("trsrc");
+    std::fs::write(&path, src).unwrap();
+    let out = dir.join("out");
+    let run = Command::new("localedef").args(["-c", "-f", "ISO-8859-1", "-i"]).arg(&path).arg(&out).env("LC_ALL", "C").env("I18NPATH", &dir).current_dir(&dir).output();
+    if !matches!(&run, Ok(_) if out.join("LC_TIME").exists()) {
+        println!("skip: the reference localedef wrote nothing: {run:?}");
+        return;
+    }
+    let ours = niji_locale::compile_output(path.to_str().unwrap().as_bytes(), b"ISO-8859-1", &mut Under(dir.clone())).unwrap_or_else(|e| panic!("{e:?}"));
+    let mut diffs = Vec::new();
+    // The categories whose strings are converted (LC_CTYPE, which converts none, is the table's
+    // own; LC_COLLATE converts none).
+    for (n, file) in FILES.iter().enumerate() {
+        let (Some(file), false) = (file, n == 0 || n == 3) else { continue };
+        let theirs = Category::parse(leak(std::fs::read(out.join(file)).unwrap())).unwrap();
+        let mine = Category::parse(leak(ours.files[n].as_ref().unwrap().as_slice().to_vec())).unwrap();
+        diff_items(file, theirs, mine, &[], &mut diffs);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(diffs.is_empty(), "{} differences from the reference:\n{}", diffs.len(), diffs.join("\n"));
+}

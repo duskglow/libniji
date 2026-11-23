@@ -526,3 +526,42 @@ fn undefined_names_are_skipped() {
     assert_eq!((got.0, &got.1), (want.0, &want.1));
     assert!(got.2 == want.2, "an undefined name changed the files");
 }
+
+/// A locale whose strings hold characters the ASCII charmap `MINI` lacks, with a transliteration
+/// table that includes `tra`, which includes `trb` (see the test below for what each line probes).
+const TR: &str = "LC_CTYPE\ntranslit_start\ninclude \"tra\";\"\"\n<U20AC> \"<U0045><U0055><U0052>\"\n\
+<U2030> \"<U2031>\";\"<U0025><U0030>\"\n<U2032> \"<U2033>\"\n<U2033> \"<U0022>\"\n\
+<U2034> \"\";\"<U0041><U2035>\";\"<U0042>\"\ntranslit_end\nEND LC_CTYPE\n\
+LC_NUMERIC\ndecimal_point \"<U4E01>\"\nthousands_sep \"<U4E02>\"\ngrouping -1\nEND LC_NUMERIC\n\
+LC_MESSAGES\nyesexpr \"<U005E>[yY<U20AC>]\"\nnoexpr \"<U005E>[nN<U4E00>]\"\nyesstr \"<U2030><U2034>\"\nnostr \"<U2032>\"\nEND LC_MESSAGES\n";
+const TRA: &str = "LC_CTYPE\ntranslit_start\ninclude \"trb\";\"\"\n<U20AC> \"<U0058>\"\n<U4E01> \"<U0031>\"\ntranslit_end\nEND LC_CTYPE\n";
+const TRB: &str = "LC_CTYPE\ntranslit_start\n<U4E01> \"<U0032>\"\n<U4E02> \"<U0033>\"\ntranslit_end\nEND LC_CTYPE\n";
+
+/// Item `i` of the category file at `path` in `m`, without its NUL.
+fn item(m: &Mem, path: &str, i: usize) -> String {
+    let data = m.files.get(path.as_bytes()).unwrap_or_else(|| panic!("{path} written"));
+    let c = niji::locale::file::Category::parse(Box::leak(data.clone().into_boxed_slice())).expect("a category file");
+    text(c.item(i).split(|&b| b == 0).next().unwrap_or_default())
+}
+
+/// s31_8_g_5: a string with a character the charmap lacks takes the locale's transliteration at
+/// compile time: the locale's own entry before an include's (U+20AC: `EUR`, not `tra`'s `X`), an
+/// include's own entry before its include's (U+4E01: `1`, not `trb`'s `2`), an include of an
+/// include (U+4E02: `3`); the first alternative the charmap encodes whole (U+2030: `%0`), an empty
+/// one passed over (U+2034: `B`); no second transliteration (U+2032 to U+2033 fails). A string
+/// with a character neither encoded nor transliterated is empty, one line each (under --quiet too),
+/// status 1, the locale written without -c.
+#[test]
+fn unencodable_strings_take_the_locales_transliteration() {
+    let mut m = host();
+    for (name, src) in [("tr", TR), ("tra", TRA), ("trb", TRB)] {
+        m.files.insert(format!("/usr/share/i18n/locales/{name}").into_bytes(), src.as_bytes().to_vec());
+    }
+    let o = go(&mut m, &["-i", "tr", "-f", "MINI", "--quiet", "/out/tr"]);
+    let err = text(&o.err);
+    assert_eq!(o.status, 1, "{err}");
+    assert_eq!(err, "tr:18: LC_MESSAGES: unknown character in field `noexpr'\ntr:20: LC_MESSAGES: unknown character in field `nostr'\n");
+    assert_eq!((item(&m, "/out/tr/LC_NUMERIC", 0), item(&m, "/out/tr/LC_NUMERIC", 1)), ("1".into(), "3".into()));
+    let msgs: Vec<String> = (0..4).map(|i| item(&m, "/out/tr/LC_MESSAGES/SYS_LC_MESSAGES", i)).collect();
+    assert_eq!(msgs, ["^[yYEUR]", "", "%0B", ""]);
+}
