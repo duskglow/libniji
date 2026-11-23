@@ -20,6 +20,7 @@ use core::ptr::{null, null_mut};
 use niji::error::Errno;
 use niji_boundary::errno;
 use niji_boundary::posix::s29_legacy as l;
+use niji_boundary::posix::s12_stdio as io;
 use spectest::clause;
 
 /// -1 with `errno` `e`.
@@ -231,20 +232,43 @@ fn s29_3_c_0() {
 }
 clause!(s29_4_c_0, "29.4", "Contract", r##"Each keeps the contract it had when it was removed. Most are aliases of current functions, or stubs that fail with `ENOSYS`. Three are special:"##);
 /// s29_4_c_1: `__libc_freeres()` releases libc's internal allocations so that leak checkers report
-/// cleanly. libniji's `__libc_freeres` is inert (coordinator ruling #1317, differences row
-/// `__libc_freeres`, compat flag COMPAT-11 registered): it releases nothing, so the call returns,
-/// may be repeated, and leaves the library working (no state is torn down that a later call could
-/// touch). A leak checker may report libniji's internal allocations as still reachable.
+/// cleanly. A stream's library-allocated buffer is released once its output is written; a stream
+/// with bytes read ahead keeps its buffer and loses none; a released stream allocates again on
+/// its next use; a block the program holds is untouched; errno is left alone; a second call is
+/// harmless.
 #[test]
 fn s29_4_c_1() {
+    let fp = io::tmpfile();
+    assert!(!fp.is_null());
+    assert!(io::fputs(c"abc".as_ptr(), fp) >= 0);
+    assert_eq!(io::__fpending(fp), 3);
+    assert!(io::__fbufsize(fp) > 0, "the first write allocates the buffer");
+    m::__libc_freeres();
+    assert_eq!(io::__fpending(fp), 0, "pending output is written before the buffer goes");
+    assert_eq!(io::__fbufsize(fp), 0, "a writing stream's buffer is released");
+    assert!(io::fputs(c"def".as_ptr(), fp) >= 0);
+    assert!(io::__fbufsize(fp) > 0, "the next write allocates again");
+    io::rewind(fp);
+    assert_eq!(io::fgetc(fp), i32::from(b'a'));
+    m::__libc_freeres();
+    assert!(io::__fbufsize(fp) > 0, "a stream with bytes read ahead keeps its buffer");
+    for want in *b"bcdef" {
+        assert_eq!(io::fgetc(fp), i32::from(want), "no byte read ahead is lost");
+    }
+    assert_eq!(io::fgetc(fp), -1);
+    m::__libc_freeres();
+    assert_eq!(io::__fbufsize(fp), 0, "a stream with nothing read ahead gives its buffer back");
+    assert_eq!(io::ungetc(i32::from(b'x'), fp), i32::from(b'x'));
+    assert_eq!(io::fgetc(fp), i32::from(b'x'), "pushback works after the release");
+    assert_eq!(io::fclose(fp), 0);
     let live = m::malloc(48);
     assert!(!live.is_null());
     st::memset(live, 0x33, 48);
     errno::set_raw(12345);
     m::__libc_freeres();
     m::__libc_freeres();
-    assert_eq!(errno::get(), 12345, "an inert __libc_freeres leaves errno alone");
-    // a block live across the call is untouched: nothing is released
+    assert_eq!(errno::get(), 12345, "__libc_freeres leaves errno alone");
+    // a block the program holds across the call is untouched
     let want = [0x33u8; 48];
     assert_eq!(st::memcmp(live, want.as_ptr().cast::<c_void>(), 48), 0, "a live block survives __libc_freeres");
     let p = m::malloc(64);
