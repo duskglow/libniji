@@ -1,5 +1,5 @@
 # RELEASE-STEP-EXEC-FAIL plants: the per-call fault-count directory of crates/core/tests/hot_text_products.rs (`call_dir`).
 # Run: cargo xtask plants handoff/RELEASE-STEP-EXEC-FAIL-plants.txt --dir <new RAM dir> --timeout 600
 calldir-rotate | crates/core/tests/hot_text_products.rs | lit:let n = CALL.fetch_add(1, Ordering::Relaxed); ==> let n = CALL.fetch_add(1, Ordering::Relaxed) % 10; | cargo test -p niji --test hot_text_products harness_fault_call_dirs_are_never_shared | msg:share a directory
-failure-stderr | crates/core/tests/hot_text_products.rs | lit:failed: {:?}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()) ==> failed: {:?}", o.status) | cargo test -p niji --test hot_text_products harness_failed_run_reports_its_stderr | msg:does not carry the status and stderr
+failure-stderr | crates/core/tests/hot_text_products.rs | lit:failed: {}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()) ==> failed: {}", o.status) | cargo test -p niji --test hot_text_products harness_failed_run_reports_its_stderr | msg:does not carry the status and stderr
 calldir-width | crates/core/tests/hot_text_products.rs | lit:/tmp/niji-hot-t-{:010}-{n:04} ==> /tmp/niji-hot-t-{:010}-{n} | cargo test -p niji --test hot_text_products harness_fault_call_dirs_are_never_shared | msg:is not 31 bytes long

@@ -283,7 +283,7 @@ fn harness_fault_call_dirs_are_never_shared() {
 /// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
 /// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
 fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
-    (!o.status.success()).then(|| format!("{what} failed: {:?}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()))
+    (!o.status.success()).then(|| format!("{what} failed: {}; stderr: {:?}", o.status, String::from_utf8_lossy(&o.stderr).trim()))
 }
 
 #[test]
