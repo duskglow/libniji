@@ -7,6 +7,7 @@
 #include <printf.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -91,6 +92,28 @@ int main(void)
     FMT("[<7:0>|8]", "[%V|%d]", 7, 8);
     errno = 0;
     CHECK(register_printf_specifier(256, handler, arginfo) == -1 && errno == EINVAL);
+    {
+        /* A built-in letter redefined (the manual: built-in conversions can be redefined; no
+         * later check here converts `x`): its handler writes every later `%x`, through a
+         * buffer and through a stream that kept the format's plan before the registration.
+         * The text only: the count is not checked here. */
+        char *m = NULL;
+        size_t ml = 0;
+        FILE *f = open_memstream(&m, &ml);
+        CHECK(f != NULL);
+        for (int i = 0; f && i < 9; i++)
+            fprintf(f, "%x;", 255);
+        CHECK(register_printf_specifier('x', handler, arginfo) == 0);
+        char b[64] = "";
+        snprintf(b, sizeof b, "[%x]", 255);
+        CHECK(eq(b, "[<255:0>]"));
+        if (f) {
+            fprintf(f, "%x;", 255);
+            fclose(f);
+            CHECK(ml == 35 && strncmp(m, "ff;", 3) == 0 && eq(m + 27, "<255:0>;"));
+            free(m);
+        }
+    }
     end();
 
     begin("s12_11_c_2");
