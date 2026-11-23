@@ -440,7 +440,7 @@ impl<R: CPod + Copy + 'static> Db<R> {
     /// The next record of the enumeration, `f` stepping over the lines: the `files` source's,
     /// when the database's line names it (D-16.1), else none.
     fn step<T>(&self, f: impl FnMut(&[u8]) -> Step<T>) -> KResult<Option<T>> {
-        if !Ctx::system(&CSys).enumerates(self.db) {
+        if !Ctx::system(&CSys, &crate::heap::KernelPages).enumerates(self.db) {
             return Ok(None);
         }
         self.cursor.next(&CSys, self.file, f)
@@ -516,22 +516,22 @@ pub fn gr_by_r(key: KResult<Key<'_>>, out: Option<&mut struct_group>, buf: KResu
 
 /// `getspnam(name)`.
 pub fn sp_by(name: KResult<&[u8]>) -> KResult<usize> {
-    found(nss::found(nss::shadow(&Ctx::system(&CSys), name?, |s| own(SP, |k| pack::spwd(s, k)))))
+    found(nss::found(nss::shadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |s| own(SP, |k| pack::spwd(s, k)))))
 }
 
 /// `getspnam_r`.
 pub fn sp_by_r(name: KResult<&[u8]>, out: Option<&mut struct_spwd>, buf: KResult<&mut [u8]>, result: Option<&mut usize>) -> i32 {
-    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::shadow(&Ctx::system(&CSys), name?, |s| pack::spwd(s, &mut Packer::new(buf, base))))))
+    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::shadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |s| pack::spwd(s, &mut Packer::new(buf, base))))))
 }
 
 /// `getsgnam(name)`.
 pub fn sg_by(name: KResult<&[u8]>) -> KResult<usize> {
-    found(nss::found(nss::gshadow(&Ctx::system(&CSys), name?, |g| own(SG, |k| pack::sgrp(g, k)))))
+    found(nss::found(nss::gshadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |g| own(SG, |k| pack::sgrp(g, k)))))
 }
 
 /// `getsgnam_r`.
 pub fn sg_by_r(name: KResult<&[u8]>, out: Option<&mut struct_sgrp>, buf: KResult<&mut [u8]>, result: Option<&mut usize>) -> i32 {
-    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::gshadow(&Ctx::system(&CSys), name?, |g| pack::sgrp(g, &mut Packer::new(buf, base))))))
+    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::gshadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |g| pack::sgrp(g, &mut Packer::new(buf, base))))))
 }
 
 // ------------------------------------------------------------------------------ writing records
@@ -701,7 +701,7 @@ pub fn ttyslot() -> i32 {
 fn login_name<T>(f: impl FnOnce(&[u8]) -> T) -> KResult<T> {
     let mut line = [0u8; 256];
     let tty = acct::session_tty(&CSys, &mut line).and_then(|n| line.get(..n));
-    acct::login_name(&CSys, acct::SYSTEM_LOGIN, tty, f)
+    acct::login_name(&CSys, &crate::heap::KernelPages, acct::SYSTEM_LOGIN, tty, f)
 }
 
 /// `getlogin()`: the name in the calling thread's block.
