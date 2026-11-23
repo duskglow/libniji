@@ -319,8 +319,7 @@ pub fn info_options(options: i32) -> Result<()> {
     if options == 0 { Ok(()) } else { Err(Errno::EINVAL) }
 }
 
-/// `__libc_freeres` and `tr_break`: nothing to do; the heap holds nothing that must be freed
-/// at exit, and `mallwatch` is inert compat data (D-3.5).
+/// `tr_break`: nothing to do; `mallwatch` is inert compat data (D-3.5).
 pub fn inert() {}
 
 /// `mprobe` while checking is off.
