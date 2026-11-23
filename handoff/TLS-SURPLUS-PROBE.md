@@ -37,6 +37,43 @@ Threads created first change nothing on either side, in any row.
    record the limit as a known limitation / differences row (neutral wording). No grep hit in
    docs/differences-from-glibc.md or the release notes describes it today.
 
+## The fix for item 2 (coordinator note on #7999: state it here, do not build it)
+
+* **What moves off the surplus:** the block of every `dlopen`ed object WITHOUT `DF_STATIC_TLS`
+  (accessed only through global-dynamic, local-dynamic or TLS descriptors). Each such block becomes
+  a dynamic block, one allocation per thread per module, found through the dtv slot. Objects with
+  `DF_STATIC_TLS` (initial-exec relocations) keep a surplus place as today, and their `TPOFF`
+  relocations need one. Start-time objects are unchanged (all static, D-27.20).
+* **Accesses:** `__tls_get_addr` reads the dtv slot as today. A `TLSDESC` relocation against a
+  dynamic block uses the existing `liella_machine_ld_tlsdesc_dynamic` trampoline (D-27.36) with a
+  resolver that returns the block's address for the calling thread. The static descriptor stays for
+  surplus blocks.
+* **Release:** at thread exit (`tls_release`, D-27.36's hook, which exists for this) and at
+  `dlclose` of the module (DL-17). Freeing at `dlclose` walks the threads under the thread-list
+  lock, as D-27.39's walk does.
+* **D-27.39 then says:** "a `dlopen`ed object with `DF_STATIC_TLS` gets a surplus place (as now);
+  one without gets dynamic blocks". The exhaustion text stays only for `DF_STATIC_TLS` objects.
+  **DL-19** becomes "dynamic blocks for objects without `DF_STATIC_TLS`" and drops "surplus
+  placement" (done by D-27.39). **D-27.49** (`RTLD_DI_TLS_DATA`) keeps its answer if blocks are
+  eager (choice b).
+* **Choices that need a ruling:**
+  (a) **May non-static objects still take surplus room while it lasts?** That would keep today's
+  static descriptor and the absence of any allocation. The cost is that the room fills, and a later
+  initial-exec object then fails where it would have fitted (probe E: the reference kept its whole
+  initial-exec room after 64 KiB of global-dynamic objects). Recommend no: the surplus is for
+  `DF_STATIC_TLS` only.
+  (b) **Eager or lazy dynamic blocks?** Eager means: allocate for every live thread at `dlopen`, in
+  D-27.39's walk, and for a new thread in `tls_init`. Running out is then a clean failure:
+  `dlopen` fails, or `pthread_create` returns `EAGAIN`. Its cost is memory for threads that never
+  touch the module. Lazy means: allocate on first access in `__tls_get_addr` or the descriptor
+  resolver. That uses no memory for threads that never touch the module, but it has no error path,
+  so running out could only abort. Recommend eager: ruling #5594 says "a clean error, never a
+  crash", and it keeps D-27.49's answer. A lazy variant only for very large blocks could follow
+  with numbers.
+  (c) **Where blocks come from:** the loader's own arena (the DL-19 row's wording), not the
+  program's `malloc`. That keeps interposed allocators out of the loader's lock order. Recommend as
+  the DL-19 row says.
+
 ## Things not to redo / notes
 
 * libniji's loader never takes `libc.so.6` from a program's `RUNPATH` (COMPAT-37, a recorded
