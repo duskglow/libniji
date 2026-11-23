@@ -580,7 +580,7 @@ fn products_localedef_searches_i18npath_and_the_working_directory() {
     let path = format!(":{}", dir.join("e").display());
     let point = |out: &str| -> Option<u8> {
         let f = std::fs::read(dir.join(out).join("LC_NUMERIC")).ok()?;
-        [b'Q', b'W'].into_iter().find(|&c| f.windows(2).any(|w| w == [c, 0]))
+        b"QW".iter().copied().find(|&c| f.windows(2).any(|w| w == [c, 0]))
     };
     let run = |out: &str| {
         let mut c = Command::new(&bin);

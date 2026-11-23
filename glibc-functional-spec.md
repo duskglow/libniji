@@ -5349,7 +5349,7 @@ decided differently from the reference; each has a row in `docs/differences-from
   `<Uxxxx>`, or by another name whose code point is the `<Uxxxx>` after the bytes or, for a name of the portable
   character set (XBD 6.1), that character's; a source may name characters by any of these, in statements and
   strings. A name in a character class, range or map pair that the charmap does not define is skipped without a
-  diagnostic and without changing the exit status.
+  diagnostic and without changing the exit status, and so is a collation order line whose item is such a name.
 
 **Guarantees.**
 

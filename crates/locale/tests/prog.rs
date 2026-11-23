@@ -511,13 +511,16 @@ fn posix_symbolic_names() {
     assert_eq!(compile_pair(only.as_bytes(), &by_posix).0, want.0);
 }
 
-/// s31_8_i_5: a name the charmap does not define, in a class list, a range end or a map pair, is skipped: the
+/// s31_8_i_5: a name the charmap does not define, in a class list, a range end, a map pair or as a collation order
+/// line's item, is skipped: the
 /// files and the status are those of the source without it.
 #[test]
 fn undefined_names_are_skipped() {
     let cm = ascii_charmap();
-    let base = "LC_CTYPE\nupper <U0041>\nlower <U0061>\ntoupper (<U0061>,<U0041>)\nEND LC_CTYPE\n";
-    let with = "LC_CTYPE\nupper <U0041>;<no-such>\nlower <no-such>;<U0061>;<U0062>..<no-such>\ntoupper (<U0061>,<U0041>);(<no-such>,<U0042>)\nEND LC_CTYPE\n";
+    let collate = |extra: &str| format!("LC_COLLATE\norder_start forward\n<U0041>\n{extra}<U0061>\nUNDEFINED\norder_end\nEND LC_COLLATE\n");
+    let base = "LC_CTYPE\nupper <U0041>\nlower <U0061>\ntoupper (<U0061>,<U0041>)\nEND LC_CTYPE\n".to_string() + &collate("");
+    let with = "LC_CTYPE\nupper <U0041>;<no-such>\nlower <no-such>;<U0061>;<U0062>..<no-such>\ntoupper (<U0061>,<U0041>);(<no-such>,<U0042>)\nEND LC_CTYPE\n".to_string()
+        + &collate("<no-such> <no-such>\n");
     let want = compile_pair(&cm, base.as_bytes());
     let got = compile_pair(&cm, with.as_bytes());
     assert_eq!((got.0, &got.1), (want.0, &want.1));
