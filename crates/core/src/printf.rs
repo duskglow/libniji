@@ -143,17 +143,22 @@ pub enum Class {
     },
 }
 
-/// The pieces and argument classes a format keeps inline (most formats have fewer).
-const INLINE_PIECES: usize = 16;
+/// The pieces and argument classes a format keeps inline (most formats have fewer; a bounded
+/// parse stops at the room, see [`Parsed::more`]).
+pub const INLINE_PIECES: usize = 16;
 
 /// The bytes of a converted number or a short text kept inline while it is built.
 const INLINE_TEXT: usize = 128;
 
-/// The units of one formatted field kept inline (longer fields move to the heap).
+/// The units of one formatted field kept inline (a longer field is produced again, straight to
+/// the output).
 const INLINE_FIELD: usize = 256;
 
 /// A number's text while it is built.
 type Text = InlineVec<u8, INLINE_TEXT>;
+
+/// The text of `%m` (an error description; they fit inline).
+pub type ErrorText = InlineVec<u8, INLINE_TEXT>;
 
 /// Where a conversion's units go while its field is built: a [`Field`] (kept inline, counted
 /// past its room), a [`Stream`] straight to the output, or a [`TryVec`].
@@ -178,8 +183,8 @@ impl<U: Copy> Units<U> for TryVec<U> {
 #[derive(Debug)]
 pub struct Field<U> {
     inline: [U; INLINE_FIELD],
-    /// Units kept (all of them while `len == total`).
-    len: usize,
+    /// Units kept (all of them while `kept == total`).
+    kept: usize,
     /// Units appended.
     total: usize,
 }
@@ -188,12 +193,12 @@ impl<U: Copy + Default> Field<U> {
     /// An empty field.
     #[inline(always)]
     pub fn new() -> Self {
-        Field { inline: [U::default(); INLINE_FIELD], len: 0, total: 0 }
+        Field { inline: [U::default(); INLINE_FIELD], kept: 0, total: 0 }
     }
 
     /// Remove every unit.
     pub fn clear(&mut self) {
-        self.len = 0;
+        self.kept = 0;
         self.total = 0;
     }
 
@@ -209,12 +214,12 @@ impl<U: Copy + Default> Field<U> {
 
     /// Whether every unit appended is kept.
     pub fn complete(&self) -> bool {
-        self.len == self.total
+        self.kept == self.total
     }
 
     /// The units kept.
     pub fn as_slice(&self) -> &[U] {
-        self.inline.get(..self.len).unwrap_or(&[])
+        self.inline.get(..self.kept).unwrap_or(&[])
     }
 }
 
@@ -234,11 +239,11 @@ impl<U: Copy + Default> core::ops::Deref for Field<U> {
 impl<U: Copy> Units<U> for Field<U> {
     #[inline]
     fn extend_from_slice(&mut self, s: &[U]) -> Result<()> {
-        if self.len == self.total {
-            if let Some(dst) = self.len.checked_add(s.len()).and_then(|end| self.inline.get_mut(self.len..end)) {
+        if self.kept == self.total {
+            if let Some(dst) = self.kept.checked_add(s.len()).and_then(|end| self.inline.get_mut(self.kept..end)) {
                 crate::mem::copy_inline(dst, s);
-                self.len = self.len.wrapping_add(s.len());
-                self.total = self.len;
+                self.kept = self.kept.wrapping_add(s.len());
+                self.total = self.kept;
                 return Ok(());
             }
         }
@@ -310,16 +315,26 @@ fn zeros<U: Unit, S: Units<U>>(out: &mut S, n: usize) -> Result<()> {
     Ok(())
 }
 
-/// A parsed format.
+/// A parsed format, `N` pieces and argument classes inline.
 #[derive(Debug)]
-pub struct Parsed {
+pub struct Parsed<const N: usize = INLINE_PIECES> {
     /// The pieces in order.
-    pub pieces: InlineVec<Piece, INLINE_PIECES>,
+    pub pieces: InlineVec<Piece, N>,
     /// The class of each argument, by index.
-    pub classes: InlineVec<Class, INLINE_PIECES>,
+    pub classes: InlineVec<Class, N>,
     /// A width or precision written in the format exceeds `INT_MAX`: rendering fails with
     /// `EOVERFLOW` before anything is output (owner ruling R3, 2026-10-05).
     pub overflow: bool,
+    /// A bounded parse ([`Parsed::bounded`]) stopped where its pieces or classes would no
+    /// longer fit inline: the index in the format where the rest begins (the pieces before it
+    /// are complete). `None`: the whole format was parsed.
+    pub more: Option<usize>,
+    /// An argument is named by position (`%n$`, `*m$`) in what was parsed.
+    pub positional: bool,
+    /// Stop (setting `more`) rather than grow past the inline room: such a parse never
+    /// allocates (PRINTF-NO-HEAP). Only without registered conversions (they may take any
+    /// number of arguments).
+    pub bounded: bool,
 }
 
 /// An argument's value as read.
@@ -415,24 +430,43 @@ pub fn parse<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry) -> Result<P
 
 impl Parsed {
     /// An empty parse, to be filled by [`parse_into`].
-    pub fn new() -> Parsed {
-        Parsed { pieces: InlineVec::new(), classes: InlineVec::new(), overflow: false }
+    pub fn new() -> Self {
+        Self::with_room()
+    }
+
+    /// An empty parse that stops where its room ends instead of allocating (see `more`).
+    pub fn bounded() -> Self {
+        Parsed { bounded: true, ..Self::with_room() }
     }
 }
 
-impl Default for Parsed {
-    fn default() -> Parsed {
-        Parsed::new()
+impl<const N: usize> Parsed<N> {
+    /// An empty parse with room for `N` pieces and classes inline.
+    pub fn with_room() -> Self {
+        Parsed { pieces: InlineVec::new(), classes: InlineVec::new(), overflow: false, more: None, positional: false, bounded: false }
+    }
+}
+
+impl<const N: usize> Default for Parsed<N> {
+    fn default() -> Self {
+        Self::with_room()
     }
 }
 
 /// [`parse`] into `p` (an empty parse), which the caller keeps in place: the parse is kept
 /// inline and is not moved.
-pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mut Parsed) -> Result<()> {
+pub fn parse_into<U: Copy + Into<u32>, const N: usize>(fmt: &[U], reg: &mut dyn Registry, p: &mut Parsed<N>) -> Result<()> {
+    parse_from(fmt, reg, p, 0)
+}
+
+/// [`parse_into`] of the format from index `start` on (a directive's `%` or literal text),
+/// its first sequential argument numbered 0: the rest of a format whose bounded parse stopped
+/// there ([`Parsed::more`]).
+pub fn parse_from<U: Copy + Into<u32>, const N: usize>(fmt: &[U], reg: &mut dyn Registry, p: &mut Parsed<N>, start: usize) -> Result<()> {
     let at = |i: usize| fmt.get(i).map_or(0, |&u| u.into());
     let mut next = 0usize; // the next sequential argument
-    let mut i = 0usize;
-    let mut lit = 0usize;
+    let mut i = start;
+    let mut lit = start;
     let pct = u32::from(b'%');
     // Read a decimal number at `j`: its value and the index after it.
     let number = |mut j: usize| -> (Option<usize>, usize) {
@@ -443,7 +477,7 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
         }
         (v, j)
     };
-    let set_class = |idx: usize, c: Class, classes: &mut InlineVec<Class, INLINE_PIECES>| -> Result<()> {
+    let set_class = |idx: usize, c: Class, classes: &mut InlineVec<Class, N>| -> Result<()> {
         while classes.len() <= idx {
             classes.push(Class::Int)?;
         }
@@ -456,6 +490,12 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
         if at(i) != pct {
             i += 1;
             continue;
+        }
+        // A bounded parse stops before a directive that might not fit: a directive adds at
+        // most two pieces (the text before it and itself).
+        if p.bounded && p.pieces.len() + 2 > N {
+            p.more = Some(lit);
+            return Ok(());
         }
         if lit < i {
             p.pieces.push(Piece::Text(lit, i))?;
@@ -477,6 +517,7 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
                     return Err(Errno::EINVAL);
                 }
                 positional = Some(n - 1);
+                p.positional = true;
                 i = j + 1;
             }
         }
@@ -495,13 +536,14 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
             i += 1;
         }
         // A `*` count: positional (`*m$`) or the next argument.
-        let star = |i: &mut usize, next: &mut usize| -> Result<Count> {
+        let star = |i: &mut usize, next: &mut usize, named: &mut bool| -> Result<Count> {
             if let (Some(m), j) = number(*i) {
                 if at(j) == u32::from(b'$') && m > 0 {
                     if m > NL_ARGMAX {
                         return Err(Errno::EINVAL);
                     }
                     *i = j + 1;
+                    *named = true;
                     return Ok(Count::Arg(m - 1));
                 }
             }
@@ -512,7 +554,7 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
         // Width.
         if at(i) == u32::from(b'*') {
             i += 1;
-            c.width = star(&mut i, &mut next)?;
+            c.width = star(&mut i, &mut next, &mut p.positional)?;
         } else if let (Some(w), j) = number(i) {
             c.width = Count::Fixed(w);
             p.overflow |= w > INT_MAX;
@@ -523,7 +565,7 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
             i += 1;
             if at(i) == u32::from(b'*') {
                 i += 1;
-                c.prec = star(&mut i, &mut next)?;
+                c.prec = star(&mut i, &mut next, &mut p.positional)?;
             } else {
                 let (v, j) = number(i);
                 c.prec = Count::Fixed(v.unwrap_or(0));
@@ -600,6 +642,13 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
         }
         let builtin = is_conversion(c.letter);
         let first = positional.unwrap_or(next);
+        // A bounded parse (only without registered conversions: one argument at most) stops
+        // at a directive whose argument positions lie past its room.
+        let last = [c.width, c.prec].iter().fold(first + 1, |m, count| if let Count::Arg(a) = *count { m.max(a + 1) } else { m });
+        if p.bounded && last > N {
+            p.more = Some(start);
+            return Ok(());
+        }
         let registered = reg.conversion(&c, first)?;
         if !builtin && matches!(registered, Registered::No) {
             // Not a conversion: the text from `%` on is output as it is.
@@ -638,6 +687,10 @@ pub fn parse_into<U: Copy + Into<u32>>(fmt: &[U], reg: &mut dyn Registry, p: &mu
         lit = i;
     }
     if lit < fmt.len() {
+        if p.bounded && p.pieces.len() >= N {
+            p.more = Some(lit);
+            return Ok(());
+        }
         p.pieces.push(Piece::Text(lit, fmt.len()))?;
     }
     Ok(())
@@ -654,8 +707,8 @@ pub trait Env {
     fn wide(&mut self, addr: usize, max: Option<usize>) -> &'static [i32];
     /// Store the count of units output so far for `%n` (`len` gives the pointee's size).
     fn store_count(&mut self, addr: usize, len: Len, count: usize);
-    /// Append the text of `errno` as it was when the call began (`%m`).
-    fn error_text(&mut self, out: &mut TryVec<u8>) -> Result<()>;
+    /// Append the text of `errno` as it was when the call began (`%m`), inline (it fits).
+    fn error_text(&mut self, out: &mut ErrorText) -> Result<()>;
     /// The decimal point (`LC_NUMERIC`).
     fn radix(&self) -> &[u8];
     /// The thousands separator (`LC_NUMERIC`).
@@ -1038,15 +1091,22 @@ pub fn float_text_general(env: &dyn Env, x: Float, kind: Format, spec: nf::Spec,
 }
 
 /// Render `parsed` (of the format `fmt`) with `args` into `out`: the units output.
-pub fn render<U: Unit, O: Out<U>>(fmt: &[U], parsed: &Parsed, args: &[Arg], env: &mut dyn Env, out: &mut O) -> Result<usize> {
+pub fn render<U: Unit, O: Out<U>, const N: usize>(fmt: &[U], parsed: &Parsed<N>, args: &[Arg], env: &mut dyn Env, out: &mut O) -> Result<usize> {
+    render_from(fmt, parsed, args, env, out, 0)
+}
+
+/// [`render`] of a part of a format after `before` units were output for the parts before it
+/// (what `%n` counts from): the units output, those before included.
+#[inline]
+pub fn render_from<U: Unit, O: Out<U>, const N: usize>(fmt: &[U], parsed: &Parsed<N>, args: &[Arg], env: &mut dyn Env, out: &mut O, before: usize) -> Result<usize> {
     // A width or a precision beyond INT_MAX in the format fails the call with EOVERFLOW (owner
     // ruling R3, 2026-10-05: as the reference does, consistent with the rule for a result beyond
     // INT_MAX), before anything is output; `*` counts are `int`s and cannot exceed it.
     if parsed.overflow {
         return Err(Errno::EOVERFLOW);
     }
-    let mut total = 0usize;
-    let mut body: Field<U> = InlineVec::new();
+    let mut total = before;
+    let mut body: Field<U> = Field::new();
     let emit = |s: &[U], out: &mut O, total: &mut usize| {
         out.put(s);
         *total += s.len();
@@ -1060,9 +1120,7 @@ pub fn render<U: Unit, O: Out<U>>(fmt: &[U], parsed: &Parsed, args: &[Arg], env:
                 let mut left = c.flags.left;
                 let width = count(c.width, args, true, &mut left).unwrap_or(0);
                 let prec = count(c.prec, args, false, &mut left);
-                // The prefix that zero padding goes after (sign, `0x`), and whether zero padding
-                // applies.
-                let mut prefix_len = 0usize;
+                // Whether zero padding applies.
                 let mut zero_ok = c.flags.zero && !left;
                 if c.custom {
                     // A registered handler's output is the whole field; what it wrote stays
@@ -1085,152 +1143,12 @@ pub fn render<U: Unit, O: Out<U>>(fmt: &[U], parsed: &Parsed, args: &[Arg], env:
                 }
                 let letter = u8::try_from(c.letter).unwrap_or(0);
                 match letter {
-                    b'd' | b'i' | b'u' | b'o' | b'x' | b'X' | b'b' | b'B' => {
-                        let bits = int_bits(c.len);
-                        let raw = int_arg(args, c.arg);
-                        let (neg, mag) = if matches!(letter, b'd' | b'i') {
-                            let v = signed(raw, bits);
-                            (v < 0, u64::try_from(v.unsigned_abs()).unwrap_or(u64::MAX))
-                        } else {
-                            (false, unsigned(raw, bits))
-                        };
-                        let radix = match letter {
-                            b'o' => 8,
-                            b'x' | b'X' => 16,
-                            b'b' | b'B' => 2,
-                            _ => 10,
-                        };
-                        let case = if matches!(letter, b'X' | b'B') { Case::Upper } else { Case::Lower };
-                        let mut dbuf = [0u8; 64];
-                        let digits: &[u8] = if mag == 0 && prec == Some(0) { &[] } else { nf::u64_digits(&mut dbuf, mag, radix, case) };
-                        // Precision: the minimum number of digits.
-                        let mut min = prec.unwrap_or(0);
-                        if letter == b'o' && c.flags.alt && digits.first() != Some(&b'0') {
-                            min = min.max(digits.len() + 1);
-                        }
-                        let mut text: InlineVec<u8, 8> = InlineVec::new();
-                        if neg {
-                            text.push(b'-')?;
-                        } else if matches!(letter, b'd' | b'i') && c.flags.plus {
-                            text.push(b'+')?;
-                        } else if matches!(letter, b'd' | b'i') && c.flags.space {
-                            text.push(b' ')?;
-                        }
-                        if c.flags.alt && mag != 0 {
-                            match letter {
-                                b'x' => text.extend_from_slice(b"0x")?,
-                                b'X' => text.extend_from_slice(b"0X")?,
-                                b'b' => text.extend_from_slice(b"0b")?,
-                                b'B' => text.extend_from_slice(b"0B")?,
-                                _ => {}
-                            }
-                        }
-                        prefix_len = text.len();
-                        U::from_text(env, &text, None, &mut body)?;
-                        for _ in digits.len()..min {
-                            U::from_text(env, b"0", None, &mut body)?;
-                        }
-                        if (c.flags.group || c.flags.i18n) && radix == 10 {
-                            let mut grouped = Text::new();
-                            if c.flags.group {
-                                group(env, digits, &mut grouped)?;
-                            } else {
-                                grouped.extend_from_slice(digits)?;
-                            }
-                            let mut local = Text::new();
-                            if c.flags.i18n {
-                                localize_digits(env, &grouped, &mut local)?;
-                            } else {
-                                local.extend_from_slice(&grouped)?;
-                            }
-                            U::from_text(env, &local, None, &mut body)?;
-                        } else {
-                            U::from_text(env, digits, None, &mut body)?;
-                        }
-                        if prec.is_some() {
-                            zero_ok = false;
-                        }
-                    }
-                    b'f' | b'F' | b'e' | b'E' | b'g' | b'G' | b'a' | b'A' => {
-                        let (x, kind) = match args.get(c.arg) {
-                            Some(Arg::Double(b)) => (Float::unpack(u128::from(*b), Format::F64), Format::F64),
-                            Some(Arg::LongDouble(b)) => (Float::unpack(*b, Format::F80), Format::F80),
-                            _ => (Float::unpack(0, Format::F64), Format::F64),
-                        };
-                        let style = match letter {
-                            b'f' | b'F' => Style::Fixed,
-                            b'e' | b'E' => Style::Exp,
-                            b'g' | b'G' => Style::General,
-                            _ => Style::Hex,
-                        };
-                        let case = if letter.is_ascii_uppercase() { Case::Upper } else { Case::Lower };
-                        let t = float_text(env, x, kind, nf::Spec { style, case, precision: prec, alternate: c.flags.alt }, c.flags)?;
-                        prefix_len = t.prefix;
-                        if !t.finite {
-                            zero_ok = false;
-                        }
-                        U::from_text(env, &t.text, None, &mut body)?;
-                    }
-                    b'c' | b'C' => {
-                        zero_ok = false;
-                        let v = int_arg(args, c.arg);
-                        if letter == b'C' || c.len == Len::Long {
-                            let w = [i32::from_ne_bytes(u32::try_from(v & 0xFFFF_FFFF).unwrap_or(0).to_ne_bytes())];
-                            U::from_wide(env, &w, None, &mut body)?;
-                        } else {
-                            U::from_byte(env, u8::try_from(v & 0xFF).unwrap_or(0), &mut body)?;
-                        }
-                    }
-                    b's' | b'S' => {
-                        zero_ok = false;
-                        let addr = usize::try_from(int_arg(args, c.arg)).unwrap_or(0);
-                        if addr == 0 {
-                            // `(null)` (GNU), unless the precision is too short to hold it.
-                            if prec.is_none_or(|p| p >= 6) {
-                                U::from_text(env, b"(null)", None, &mut body)?;
-                            }
-                        } else if letter == b'S' || c.len == Len::Long {
-                            // A precision bounds the read in both cases: N bytes hold at most N
-                            // characters, and the array need not be terminated (C17 7.21.6.1).
-                            let wide = env.wide(addr, prec);
-                            U::from_wide(env, wide, prec, &mut body)?;
-                        } else {
-                            let text = if core::mem::size_of::<U>() == 1 { env.text(addr, prec) } else { env.text(addr, None) };
-                            U::from_text(env, text, prec, &mut body)?;
-                        }
-                    }
-                    b'p' => {
-                        zero_ok = false;
-                        let v = int_arg(args, c.arg);
-                        let mut text = Text::new();
-                        if v == 0 {
-                            text.extend_from_slice(b"(nil)")?;
-                        } else {
-                            if c.flags.plus {
-                                text.push(b'+')?;
-                            } else if c.flags.space {
-                                text.push(b' ')?;
-                            }
-                            text.extend_from_slice(b"0x")?;
-                            let mut b = Bytes(&mut text, None);
-                            nf::format_u64(&mut b, v, 16, Case::Lower);
-                            if let Some(e) = b.1 {
-                                return Err(e);
-                            }
-                        }
-                        U::from_text(env, &text, None, &mut body)?;
-                    }
                     b'n' => {
                         let addr = usize::try_from(int_arg(args, c.arg)).unwrap_or(0);
                         env.store_count(addr, c.len, total);
                         continue;
                     }
-                    b'm' => {
-                        zero_ok = false;
-                        let mut t: TryVec<u8> = TryVec::new();
-                        env.error_text(&mut t)?;
-                        U::from_text(env, &t, prec, &mut body)?;
-                    }
+                    b'd' | b'i' | b'u' | b'o' | b'x' | b'X' | b'b' | b'B' | b'f' | b'F' | b'e' | b'E' | b'g' | b'G' | b'a' | b'A' | b'c' | b'C' | b's' | b'S' | b'p' | b'm' => {}
                     _ => {
                         // Not reached: only conversions and registered letters are parsed as
                         // conversions, and a declined registered letter is output above.
@@ -1238,32 +1156,292 @@ pub fn render<U: Unit, O: Out<U>>(fmt: &[U], parsed: &Parsed, args: &[Arg], env:
                         continue;
                     }
                 }
+                let prefix_len = field(&c, letter, prec, args, env, &mut body, &mut zero_ok)?;
+                if !body.complete() {
+                    // Longer than the inline field: produced again, straight to the output.
+                    let n = long_field(&c, letter, prec, args, env, out, Long { width, left, zero_ok, prefix: prefix_len, len: body.len() })?;
+                    total = total.saturating_add(n);
+                    continue;
+                }
                 // Padding.
                 let pad = width.saturating_sub(body.len());
                 if pad == 0 {
                     emit(&body, out, &mut total);
                 } else if left {
                     emit(&body, out, &mut total);
-                    for _ in 0..pad {
-                        emit(&[U::ascii(b' ')], out, &mut total);
-                    }
+                    fill(out, U::ascii(b' '), pad);
+                    total += pad;
                 } else if zero_ok {
                     let split = prefix_len.min(body.len());
                     emit(body.get(..split).unwrap_or(&[]), out, &mut total);
-                    for _ in 0..pad {
-                        emit(&[U::ascii(b'0')], out, &mut total);
-                    }
+                    fill(out, U::ascii(b'0'), pad);
+                    total += pad;
                     emit(body.get(split..).unwrap_or(&[]), out, &mut total);
                 } else {
-                    for _ in 0..pad {
-                        emit(&[U::ascii(b' ')], out, &mut total);
-                    }
+                    fill(out, U::ascii(b' '), pad);
+                    total += pad;
                     emit(&body, out, &mut total);
                 }
             }
         }
     }
     Ok(total)
+}
+
+/// Conversion `c` (of `letter`, one [`render`] produces) with precision `prec`, before padding,
+/// appended to `body`: the length of the prefix that zero padding goes after (the sign, `0x`).
+/// Clears `zero_ok` where zero padding does not apply. Produces the same units every time it
+/// runs on the same arguments ([`long_field`] relies on it).
+#[inline(always)]
+fn field<U: Unit, S: Units<U>>(c: &Conv, letter: u8, prec: Option<usize>, args: &[Arg], env: &mut dyn Env, body: &mut S, zero_ok: &mut bool) -> Result<usize> {
+    let mut prefix = 0usize;
+    match letter {
+        b'd' | b'i' | b'u' | b'o' | b'x' | b'X' | b'b' | b'B' => {
+            let bits = int_bits(c.len);
+            let raw = int_arg(args, c.arg);
+            let (neg, mag) = if matches!(letter, b'd' | b'i') {
+                let v = signed(raw, bits);
+                (v < 0, u64::try_from(v.unsigned_abs()).unwrap_or(u64::MAX))
+            } else {
+                (false, unsigned(raw, bits))
+            };
+            let radix = match letter {
+                b'o' => 8,
+                b'x' | b'X' => 16,
+                b'b' | b'B' => 2,
+                _ => 10,
+            };
+            let case = if matches!(letter, b'X' | b'B') { Case::Upper } else { Case::Lower };
+            let mut dbuf = [0u8; 64];
+            let digits: &[u8] = if mag == 0 && prec == Some(0) { &[] } else { nf::u64_digits(&mut dbuf, mag, radix, case) };
+            // Precision: the minimum number of digits.
+            let mut min = prec.unwrap_or(0);
+            if letter == b'o' && c.flags.alt && digits.first() != Some(&b'0') {
+                min = min.max(digits.len() + 1);
+            }
+            let mut text: InlineVec<u8, 8> = InlineVec::new();
+            if neg {
+                text.push(b'-')?;
+            } else if matches!(letter, b'd' | b'i') && c.flags.plus {
+                text.push(b'+')?;
+            } else if matches!(letter, b'd' | b'i') && c.flags.space {
+                text.push(b' ')?;
+            }
+            if c.flags.alt && mag != 0 {
+                match letter {
+                    b'x' => text.extend_from_slice(b"0x")?,
+                    b'X' => text.extend_from_slice(b"0X")?,
+                    b'b' => text.extend_from_slice(b"0b")?,
+                    b'B' => text.extend_from_slice(b"0B")?,
+                    _ => {}
+                }
+            }
+            prefix = text.len();
+            U::from_text(env, &text, None, body)?;
+            zeros(body, min.saturating_sub(digits.len()))?;
+            if (c.flags.group || c.flags.i18n) && radix == 10 {
+                let mut grouped = Text::new();
+                if c.flags.group {
+                    group(env, digits, &mut grouped)?;
+                } else {
+                    grouped.extend_from_slice(digits)?;
+                }
+                let mut local = Text::new();
+                if c.flags.i18n {
+                    localize_digits(env, &grouped, &mut local)?;
+                } else {
+                    local.extend_from_slice(&grouped)?;
+                }
+                U::from_text(env, &local, None, body)?;
+            } else {
+                U::from_text(env, digits, None, body)?;
+            }
+            if prec.is_some() {
+                *zero_ok = false;
+            }
+        }
+        b'f' | b'F' | b'e' | b'E' | b'g' | b'G' | b'a' | b'A' => {
+            let (x, kind) = match args.get(c.arg) {
+                Some(Arg::Double(b)) => (Float::unpack(u128::from(*b), Format::F64), Format::F64),
+                Some(Arg::LongDouble(b)) => (Float::unpack(*b, Format::F80), Format::F80),
+                _ => (Float::unpack(0, Format::F64), Format::F64),
+            };
+            let style = match letter {
+                b'f' | b'F' => Style::Fixed,
+                b'e' | b'E' => Style::Exp,
+                b'g' | b'G' => Style::General,
+                _ => Style::Hex,
+            };
+            let case = if letter.is_ascii_uppercase() { Case::Upper } else { Case::Lower };
+            let spec = nf::Spec { style, case, precision: prec, alternate: c.flags.alt };
+            if matches!(x.value, crate::num::float::Value::Inf | crate::num::float::Value::Nan { .. }) {
+                *zero_ok = false;
+            }
+            let general = c.flags.i18n || c.flags.group && style != Style::Hex && grouping_active(env);
+            if general {
+                let t = float_text_general(env, x, kind, spec, c.flags)?;
+                prefix = t.prefix;
+                U::from_text(env, &t.text, None, body)?;
+            } else {
+                prefix = float_units(env, x, kind, spec, c.flags, body)?;
+            }
+        }
+        b'c' | b'C' => {
+            *zero_ok = false;
+            let v = int_arg(args, c.arg);
+            if letter == b'C' || c.len == Len::Long {
+                let w = [i32::from_ne_bytes(u32::try_from(v & 0xFFFF_FFFF).unwrap_or(0).to_ne_bytes())];
+                U::from_wide(env, &w, None, body)?;
+            } else {
+                U::from_byte(env, u8::try_from(v & 0xFF).unwrap_or(0), body)?;
+            }
+        }
+        b's' | b'S' => {
+            *zero_ok = false;
+            let addr = usize::try_from(int_arg(args, c.arg)).unwrap_or(0);
+            if addr == 0 {
+                // `(null)` (GNU), unless the precision is too short to hold it.
+                if prec.is_none_or(|p| p >= 6) {
+                    U::from_text(env, b"(null)", None, body)?;
+                }
+            } else if letter == b'S' || c.len == Len::Long {
+                // A precision bounds the read in both cases: N bytes hold at most N
+                // characters, and the array need not be terminated (C17 7.21.6.1).
+                let wide = env.wide(addr, prec);
+                U::from_wide(env, wide, prec, body)?;
+            } else {
+                let text = if core::mem::size_of::<U>() == 1 { env.text(addr, prec) } else { env.text(addr, None) };
+                U::from_text(env, text, prec, body)?;
+            }
+        }
+        b'p' => {
+            *zero_ok = false;
+            let v = int_arg(args, c.arg);
+            let mut text = Text::new();
+            if v == 0 {
+                text.extend_from_slice(b"(nil)")?;
+            } else {
+                if c.flags.plus {
+                    text.push(b'+')?;
+                } else if c.flags.space {
+                    text.push(b' ')?;
+                }
+                text.extend_from_slice(b"0x")?;
+                let mut b = Bytes(&mut text, None);
+                nf::format_u64(&mut b, v, 16, Case::Lower);
+                if let Some(e) = b.1 {
+                    return Err(e);
+                }
+            }
+            U::from_text(env, &text, None, body)?;
+        }
+        b'm' => {
+            *zero_ok = false;
+            let mut t = ErrorText::new();
+            env.error_text(&mut t)?;
+            U::from_text(env, &t, prec, body)?;
+        }
+        _ => {}
+    }
+    Ok(prefix)
+}
+
+/// A long field's layout: its width, justification, zero padding, prefix and length.
+#[derive(Clone, Copy)]
+struct Long {
+    width: usize,
+    left: bool,
+    zero_ok: bool,
+    prefix: usize,
+    len: usize,
+}
+
+/// A field longer than a [`Field`] holds (`l.len` units): [`field`] again, written straight to
+/// `out` with its padding, so that no length of field needs memory (PRINTF-NO-HEAP). The units
+/// output.
+#[cold]
+#[inline(never)]
+fn long_field<U: Unit, O: Out<U>>(c: &Conv, letter: u8, prec: Option<usize>, args: &[Arg], env: &mut dyn Env, out: &mut O, l: Long) -> Result<usize> {
+    let pad = l.width.saturating_sub(l.len);
+    let zeros = if l.zero_ok { pad } else { 0 };
+    if !l.left && !l.zero_ok {
+        fill(out, U::ascii(b' '), pad);
+    }
+    let mut s = Stream { out, prefix: l.prefix, zeros, n: 0, _unit: core::marker::PhantomData };
+    let mut zero_ok = l.zero_ok;
+    field(c, letter, prec, args, env, &mut s, &mut zero_ok)?;
+    if s.zeros > 0 {
+        s.zero_run();
+    }
+    if l.left {
+        fill(out, U::ascii(b' '), pad);
+    }
+    Ok(l.len.saturating_add(pad))
+}
+
+/// Whether the locale's grouping inserts separators (`'`): a separator and a first group size.
+fn grouping_active(env: &dyn Env) -> bool {
+    !env.thousands().is_empty() && env.grouping().first().is_some_and(|&g| g != 0 && g != 127)
+}
+
+/// A byte sink that hands a formatter's text to `body` in the destination's units, a buffer at
+/// a time: no length of number needs memory. A put is never split (a multibyte radix arrives
+/// as one).
+struct ToUnits<'a, U: Unit, S: Units<U>> {
+    env: &'a dyn Env,
+    body: &'a mut S,
+    buf: [u8; INLINE_TEXT],
+    len: usize,
+    err: Option<Errno>,
+    _unit: core::marker::PhantomData<U>,
+}
+
+impl<U: Unit, S: Units<U>> ToUnits<'_, U, S> {
+    fn flush(&mut self) {
+        if self.len > 0 {
+            if let Err(e) = U::from_text(self.env, self.buf.get(..self.len).unwrap_or(&[]), None, self.body) {
+                self.err = Some(e);
+            }
+            self.len = 0;
+        }
+    }
+}
+
+impl<U: Unit, S: Units<U>> Sink for ToUnits<'_, U, S> {
+    #[inline]
+    fn put(&mut self, b: &[u8]) {
+        let end = self.len.saturating_add(b.len());
+        if let Some(dst) = self.buf.get_mut(self.len..end) {
+            crate::mem::copy_inline(dst, b);
+            self.len = end;
+            return;
+        }
+        self.flush();
+        if let Some(dst) = self.buf.get_mut(..b.len()) {
+            crate::mem::copy_inline(dst, b);
+            self.len = b.len();
+        } else if let Err(e) = U::from_text(self.env, b, None, self.body) {
+            self.err = Some(e);
+        }
+    }
+}
+
+/// A floating conversion without grouping or locale digits (`'` with no separators in the
+/// locale counts as none), straight into `body`: the prefix length (the sign, and `0x` of a
+/// finite hexadecimal value).
+fn float_units<U: Unit, S: Units<U>>(env: &dyn Env, x: Float, kind: Format, spec: nf::Spec, flags: Flags, body: &mut S) -> Result<usize> {
+    let mut sink: ToUnits<'_, U, S> = ToUnits { env, body, buf: [0; INLINE_TEXT], len: 0, err: None, _unit: core::marker::PhantomData };
+    let mut prefix = usize::from(x.neg);
+    if !x.neg && (flags.plus || flags.space) {
+        sink.put(if flags.plus { b"+" } else { b" " });
+        prefix = 1;
+    }
+    if spec.style == Style::Hex && !matches!(x.value, crate::num::float::Value::Inf | crate::num::float::Value::Nan { .. }) {
+        prefix += 2;
+    }
+    nf::format_float(&mut sink, x, kind, spec, env.radix(), env.rounding());
+    sink.flush();
+    sink.err.map_or(Ok(prefix), Err)
 }
 
 // ------------------------------------------------------------------------------ simple formats
@@ -2090,8 +2268,22 @@ fn simple_float<O: Out<u8>>(c: SimpleConv, width: usize, precision: Option<usize
     let flags = Flags { plus: c.has(F_PLUS), space: c.has(F_SPACE), alt: c.has(F_ALT), ..Flags::default() };
     let x = Float::unpack(u128::from(raw), Format::F64);
     let mut ft = Text::new();
-    // A simple format has neither grouping nor locale digits, and no `%a`: the direct form.
-    let (prefix, finite) = float_text_into(env, x, Format::F64, nf::Spec { style, case, precision, alternate: c.has(F_ALT) }, flags, &mut ft)?;
+    // A simple format has neither grouping nor locale digits, and no `%a`: the direct form
+    // (as `float_text_into`), kept inline; a longer text takes the long path.
+    if !x.neg {
+        if flags.plus {
+            ft.push(b'+')?;
+        } else if flags.space {
+            ft.push(b' ')?;
+        }
+    }
+    let prefix = ft.len().saturating_add(usize::from(x.neg));
+    let mut b = Capped(&mut ft, false);
+    nf::format_float(&mut b, x, Format::F64, nf::Spec { style, case, precision, alternate: c.has(F_ALT) }, env.radix(), env.rounding());
+    if b.1 {
+        return simple_float_long(c, flags, width, precision, raw, env, out);
+    }
+    let finite = !matches!(x.value, crate::num::float::Value::Inf | crate::num::float::Value::Nan { .. });
     let text: &[u8] = &ft;
     let fill = width.saturating_sub(text.len());
     let mut total = text.len();
@@ -2110,6 +2302,32 @@ fn simple_float<O: Out<u8>>(c: SimpleConv, width: usize, precision: Option<usize
         out.put(text);
     }
     Ok(total)
+}
+
+/// A byte sink over a number's text that keeps it inline: `.1` is set (and the rest dropped)
+/// once a piece does not fit.
+struct Capped<'a>(&'a mut Text, bool);
+
+impl Sink for Capped<'_> {
+    #[inline]
+    fn put(&mut self, b: &[u8]) {
+        if !self.0.extend_inline(b) {
+            self.1 = true;
+        }
+    }
+}
+
+/// [`simple_float`] of a text longer than its inline room: the general path's field, produced
+/// straight to the output ([`long_field`]), so that no length needs memory (PRINTF-NO-HEAP).
+#[cold]
+#[inline(never)]
+fn simple_float_long<O: Out<u8>>(c: SimpleConv, flags: Flags, width: usize, precision: Option<usize>, raw: u64, env: &mut dyn Env, out: &mut O) -> Result<usize> {
+    let conv = Conv { letter: u32::from(c.letter), flags: Flags { left: c.has(F_LEFT), zero: c.has(F_ZERO), ..flags }, ..Conv::default() };
+    let args = [Arg::Double(raw)];
+    let mut zero_ok = conv.flags.zero && !conv.flags.left;
+    let mut body: Field<u8> = Field::new();
+    let prefix = field(&conv, c.letter, precision, &args, env, &mut body, &mut zero_ok)?;
+    long_field(&conv, c.letter, precision, &args, env, out, Long { width, left: conv.flags.left, zero_ok, prefix, len: body.len() })
 }
 
 /// A floating conversion of a simple format with a `*` width or precision: their `int`s
@@ -2168,7 +2386,7 @@ mod simple_tests {
             &[]
         }
         fn store_count(&mut self, _: usize, _: Len, _: usize) {}
-        fn error_text(&mut self, _: &mut TryVec<u8>) -> Result<()> {
+        fn error_text(&mut self, _: &mut ErrorText) -> Result<()> {
             Ok(())
         }
         fn radix(&self) -> &[u8] {

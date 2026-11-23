@@ -218,6 +218,20 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
         self.extend_spill(items)
     }
 
+    /// Append `items` if they fit inline, never allocating: whether they were appended (nothing
+    /// is appended otherwise).
+    #[inline]
+    pub fn extend_inline(&mut self, items: &[T]) -> bool {
+        if self.heap.is_none() {
+            if let Some(dst) = self.len.checked_add(items.len()).and_then(|end| self.inline.get_mut(self.len..end)) {
+                copy_inline(dst, items);
+                self.len = self.len.wrapping_add(items.len());
+                return true;
+            }
+        }
+        false
+    }
+
     /// [`Self::extend_from_slice`] onto the heap: the elements are there already, or do not fit
     /// inline any more.
     #[inline(never)]

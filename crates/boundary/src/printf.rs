@@ -78,7 +78,7 @@ impl pf::Env for Env {
         conv::store_int(addr, count_size(len), i64::try_from(count).unwrap_or(i64::MAX));
     }
 
-    fn error_text(&mut self, out: &mut TryVec<u8>) -> KResult<()> {
+    fn error_text(&mut self, out: &mut pf::ErrorText) -> KResult<()> {
         match niji::diag::description(self.errno_at_entry) {
             Some(d) => out.extend_from_slice(d.as_bytes()),
             None => {
@@ -502,13 +502,26 @@ fn render_plan<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
 /// [`format`] of a copy of the caller's format, which lies at `origin` (the fortified `%n` rule
 /// asks where the caller's format is, not the copy).
 fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
-    let mut env = Env::new();
-    let mut parsed = Parsed::new();
+    let mut parsed: Parsed = Parsed::new();
     if reg::active() {
         pf::parse_into(fmt, &mut Hooks { wide: U::WIDE }, &mut parsed)?;
     } else {
+        // Without registered conversions the parse stays inline; a format it does not hold
+        // takes the long path, which needs no memory either (PRINTF-NO-HEAP).
+        parsed.bounded = true;
         pf::parse_into(fmt, &mut pf::Plain, &mut parsed)?;
+        if parsed.more.is_some() {
+            return format_long(fmt, origin, flag, ap, out);
+        }
     }
+    format_parsed(fmt, &parsed, origin, flag, ap, out)
+}
+
+/// The rest of [`format_at`] once `fmt` is parsed: the fortified `%n` rule, the arguments,
+/// the rendering.
+#[inline]
+fn format_parsed<U: Unit, O: Out<U>, const N: usize>(fmt: &[U], parsed: &Parsed<N>, origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    let mut env = Env::new();
     if flag > 0 && parsed.pieces.iter().any(|p| matches!(p, pf::Piece::Conv(c) if c.letter == u32::from(b'n'))) && !crate::process::is_read_only(origin) {
         crate::process::fortify_fail(b"%n in writable segment detected");
     }
@@ -530,9 +543,72 @@ fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize,
         objects.push(mem)?;
         Ok(Arg::User(addr))
     };
-    let mut args = niji::mem::InlineVec::new();
+    let mut args: niji::mem::InlineVec<Arg, N> = niji::mem::InlineVec::new();
     niji_legacy::printf_va::read(&parsed.classes, &mut CVa(ap), &mut user, &mut args)?;
-    let n = pf::render(fmt, &parsed, &args, &mut env, out)?;
+    let n = pf::render(fmt, parsed, &args, &mut env, out)?;
+    // The result is an `int` (D-12.5).
+    if n > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
+        return Err(Errno::EOVERFLOW);
+    }
+    Ok(n)
+}
+
+/// The pieces and argument classes inline for a positional format too long for
+/// [`format_at`]'s parse (the reference allocates from 16 positional arguments on).
+const LONG_PIECES: usize = 48;
+
+/// A format (without registered conversions) whose parse does not fit inline (D-12.32).
+/// Without positional arguments it is parsed and rendered a part at a time, each part's
+/// arguments read from the caller's `va_list` in turn (it keeps the position), after a first
+/// pass that applies the checks [`format_at`] makes before any output (`%n` in a writable
+/// format, a count past `INT_MAX`). A positional format needs every argument's type first: it
+/// is parsed whole into a larger inline parse.
+#[cold]
+#[inline(never)]
+fn format_long<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    let (mut positional, mut count, mut overflow) = (false, false, false);
+    let mut at = 0usize;
+    loop {
+        let mut part: Parsed = Parsed::bounded();
+        pf::parse_from(fmt, &mut pf::Plain, &mut part, at)?;
+        positional |= part.positional;
+        overflow |= part.overflow;
+        count |= part.pieces.iter().any(|p| matches!(p, pf::Piece::Conv(c) if c.letter == u32::from(b'n')));
+        match part.more {
+            Some(m) if !positional && m > at => at = m,
+            Some(_) => {
+                positional = true;
+                break;
+            }
+            None => break,
+        }
+    }
+    if positional {
+        let mut parsed: Parsed<LONG_PIECES> = Parsed::with_room();
+        pf::parse_into(fmt, &mut pf::Plain, &mut parsed)?;
+        return format_parsed(fmt, &parsed, origin, flag, ap, out);
+    }
+    if flag > 0 && count && !crate::process::is_read_only(origin) {
+        crate::process::fortify_fail(b"%n in writable segment detected");
+    }
+    if overflow {
+        return Err(Errno::EOVERFLOW);
+    }
+    let mut env = Env::new();
+    let mut n = 0usize;
+    let mut at = 0usize;
+    loop {
+        let mut part: Parsed = Parsed::bounded();
+        pf::parse_from(fmt, &mut pf::Plain, &mut part, at)?;
+        let mut args: niji::mem::InlineVec<Arg, 16> = niji::mem::InlineVec::new();
+        // No registered types without registered conversions.
+        niji_legacy::printf_va::read(&part.classes, &mut CVa(ap), &mut |_, _| Ok(Arg::Int(0)), &mut args)?;
+        n = pf::render_from(fmt, &part, &args, &mut env, out, n)?;
+        match part.more {
+            Some(m) => at = m,
+            None => break,
+        }
+    }
     // The result is an `int` (D-12.5).
     if n > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
         return Err(Errno::EOVERFLOW);
@@ -760,14 +836,14 @@ fn to_stream(fmt: &[u8], flag: i32, ap: usize, route: pf::Planned, kept: Option<
 /// `vfwprintf(fp, fmt, ap)` (`fp` 0: `stdout`): the stream becomes wide-oriented.
 pub fn vfwprintf(fp: usize, flag: i32, fmt: KResult<&[i32]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
-    let units: TryVec<u32> = fmt.iter().map(|&w| u32::from_ne_bytes(w.to_ne_bytes())).try_fold(TryVec::new(), |mut v, u| v.push(u).map(|()| v))?;
+    let units = conv::wide_units(fmt);
     let fp = if fp == 0 { stdio::stdout() } else { fp };
     let enc = Encoding::of(locale::current());
     if reg::active() {
         // Handlers may run: collect, then write (as `vfprintf`).
         stdio::with(fp, Locking::Locked, |_, file, ext| if sc::wide_oriented(file, ext, enc) { Ok(()) } else { Err(Errno::EINVAL) })??;
         let mut out = CollectWide(TryVec::new(), None);
-        let r = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
+        let r = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
         let written = stdio::with(fp, Locking::Locked, |_, file, ext| {
             let mut w = WideToStream { file, ext, enc, error: None };
             w.put(&out.0);
@@ -785,7 +861,7 @@ pub fn vfwprintf(fp: usize, flag: i32, fmt: KResult<&[i32]>, ap: usize) -> KResu
             return Err(Errno::EINVAL);
         }
         let mut out = WideToStream { file, ext, enc, error: None };
-        let n = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out)?;
+        let n = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out)?;
         out.error.map_or(Ok(n), Err)
     })?
 }
@@ -935,8 +1011,9 @@ pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&
     r
 }
 
-/// Wide characters into a caller's buffer of `max` units (`vswprintf`): `-1` (`EOVERFLOW`)
-/// when the result does not fit, as the contract requires.
+/// Wide characters into a caller's buffer of `max` units (`vswprintf`): `-1` (`E2BIG`, as
+/// observed of the reference at every size; D-NEW) when the result does not fit, as the
+/// contract requires.
 struct ToWideBuffer {
     addr: usize,
     max: usize,
@@ -964,9 +1041,9 @@ impl Out<u32> for ToWideBuffer {
 /// `vswprintf(s, maxlen, fmt, ap)`.
 pub fn vswprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&[i32]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
-    let units: TryVec<u32> = fmt.iter().map(|&w| u32::from_ne_bytes(w.to_ne_bytes())).try_fold(TryVec::new(), |mut v, u| v.push(u).map(|()| v))?;
+    let units = conv::wide_units(fmt);
     let mut out = ToWideBuffer { addr: s, max: maxlen, slen, pos: 0, truncated: false };
-    let r = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
+    let r = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
     if maxlen > 0 {
         if out.pos >= slen {
             crate::ret::chk_fail();
@@ -977,7 +1054,7 @@ pub fn vswprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&
     }
     let n = r?;
     if out.truncated {
-        return Err(Errno::EOVERFLOW);
+        return Err(Errno::E2BIG);
     }
     Ok(n)
 }

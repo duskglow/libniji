@@ -8,9 +8,10 @@
 //! `%.1100f` of 1e-300, `%'f`, `%0400f`, `%-400e`, `%+.300f`; integer precisions and widths up to
 //! 100000 (`%.500d`, `%.100000d`, `%.100000x`, `%#.600o`, `%+0600.500d`, `%100000d`, `%-100000d`,
 //! `%0100000d`, `%*d`, `%.*d`, `%'.500d`); `%100000s`, a 100000-byte `%s`, `%.50000s`, `%ls` (a
-//! 10000-character one too), `%lc`, `%300c`, `%p`, `%m`; up to 12 positional arguments; any number
-//! of sequential conversions (100 tried); and the same in `swprintf`, which fails with `E2BIG`
-//! (7) whenever the result does not fit, at any size. The reference allocates (and fails with
+//! 10000-character one too), `%lc`, `%300c`, `%p`, `%m`, `%.300a`, `%.5000a`; up to 12 positional
+//! arguments; any number of sequential conversions (100 tried, of `%d`, `%'d`, `%+.3d`, and 50
+//! of `%*d`); and the same in `swprintf` (100 sequential `%d` and `%m` too), which fails with
+//! `E2BIG` (7) whenever the result does not fit, at any size. The reference allocates (and fails with
 //! `ENOMEM` under refusal) for a 100000-digit float precision (`%.100000f`, `%.100000e`,
 //! `%#.100000g`) and from 16 positional arguments on: those rows are not held to zero here.
 //!
@@ -170,7 +171,7 @@ fn printf_no_allocation_where_the_reference_makes_none() {
         ("%d".into(), "%d".into(), vec![A::I(42)], Ref::None),
         ("%s".into(), "%s".into(), vec![p(&hello)], Ref::None),
         ("%x %o %u".into(), "%x %o %u".into(), vec![A::I(255), A::I(8), A::I(7)], Ref::None),
-        ("%5.2f".into(), "%5.2f".into(), vec![A::D(3.14159)], Ref::None),
+        ("%5.2f".into(), "%5.2f".into(), vec![A::D(2.71875)], Ref::None),
         ("%e".into(), "%e".into(), vec![A::D(1e308)], Ref::None),
         ("%g 1e308".into(), "%g".into(), vec![A::D(1e308)], Ref::None),
         ("%a 1e308".into(), "%a".into(), vec![A::D(1e308)], Ref::None),
@@ -208,6 +209,13 @@ fn printf_no_allocation_where_the_reference_makes_none() {
         ("%p".into(), "%p".into(), vec![p(&hello)], Ref::None),
         ("%*d".into(), "%*d".into(), vec![A::I(100_000), A::I(5)], Ref::None),
         ("%.*d".into(), "%.*d".into(), vec![A::I(100_000), A::I(5)], Ref::None),
+        ("%m".into(), "%m".into(), vec![], Ref::None),
+        ("%.300a".into(), "%.300a".into(), vec![A::D(1.0)], Ref::None),
+        ("%.5000a".into(), "%.5000a".into(), vec![A::D(1.0)], Ref::None),
+        // Sequential formats the simple-format path does not take: parsed a part at a time.
+        ("grp seq 100".into(), "%'d ".repeat(100), hundred.clone(), Ref::None),
+        ("star seq 50".into(), "%*d ".repeat(50), hundred.clone(), Ref::None),
+        ("prec seq 100".into(), "%+.3d|".repeat(100), hundred.clone(), Ref::None),
     ];
     for n in [8, 12] {
         rows.push((format!("pos {n}"), positional(n), hundred.clone(), Ref::None));
@@ -244,6 +252,8 @@ fn printf_no_allocation_where_the_reference_makes_none() {
         ("%s long".into(), "%s".into(), vec![p(&longs)], BIG / 4, Ref::None),
         ("pos 12".into(), positional(12), hundred.clone(), 4096, Ref::None),
         ("pos 24".into(), positional(24), hundred.clone(), 4096, Ref::Allocates),
+        ("seq 100".into(), sequential(100), hundred.clone(), 4096, Ref::None),
+        ("%m".into(), "%m".into(), vec![], 256, Ref::None),
     ];
     for (name, f, args, max, r) in &wrows {
         let f = wnul(f);
@@ -262,4 +272,73 @@ fn swprintf_result_does_not_fit_is_e2big() {
         let r = wide(&mut wbuf, max, &wnul(f), &mut va(&args));
         assert_eq!((r.rc, r.err), (-1, 7), "swprintf {f:?} into {max} units");
     }
+}
+
+/// The text of one narrow call (allocation allowed).
+fn text_of(fmt: &str, args: &[A]) -> String {
+    let mut buf = vec![0u8; BIG];
+    let mut v = va(args);
+    let f = nul(fmt);
+    errno::set_raw(0);
+    let rc = x::vsnprintf(buf.as_mut_ptr().cast::<c_char>(), BIG, f.as_ptr().cast::<c_char>(), (&raw mut v.ap).cast::<c_void>());
+    assert!(rc >= 0, "{fmt}: rc {rc} errno {}", errno::get());
+    String::from_utf8(buf[..rc as usize].to_vec()).unwrap()
+}
+
+/// The text of one wide call into a large buffer.
+fn wtext_of(fmt: &str, args: &[A]) -> String {
+    let mut buf: Vec<wchar_t> = vec![0; BIG / 4];
+    let mut v = va(args);
+    let f = wnul(fmt);
+    let rc = x::vswprintf(buf.as_mut_ptr(), BIG / 4, f.as_ptr(), (&raw mut v.ap).cast::<c_void>());
+    assert!(rc >= 0, "{fmt}: rc {rc}");
+    buf[..rc as usize].iter().map(|&w| char::from_u32(w as u32).unwrap()).collect()
+}
+
+/// Fields longer than the inline room are produced straight to the output: the same text as
+/// one built here from the conversion's definition (padding after the sign for `0`, spaces
+/// before or after, precision zeros, the exact decimal expansion of a large value).
+#[test]
+fn long_fields_have_their_full_text() {
+    // Trace: s12_6_c_5 (width and precision), s12_6_g_1 (exact floating output), s12_6_g_2 (any destination).
+    let z = |n: usize| "0".repeat(n);
+    let sp = |n: usize| " ".repeat(n);
+    let rows: Vec<(&str, Vec<A>, String)> = vec![
+        ("%.500d", vec![A::I(7)], z(499) + "7"),
+        ("%.100000x", vec![A::I(255)], z(99_998) + "ff"),
+        ("%#.600o", vec![A::I(8)], z(598) + "10"),
+        ("%+0600.500d", vec![A::I(-7i64 as u64)], sp(99) + "-" + &z(499) + "7"),
+        ("%0100000d", vec![A::I(-7i64 as u64)], "-".to_string() + &z(99_998) + "7"),
+        ("%-100000d", vec![A::I(7)], "7".to_string() + &sp(99_999)),
+        ("%100000d", vec![A::I(7)], sp(99_999) + "7"),
+        ("%#0300x", vec![A::I(255)], "0x".to_string() + &z(296) + "ff"),
+        ("%.10000f", vec![A::D(1.0)], "1.".to_string() + &z(10_000)),
+        ("%0400f", vec![A::D(1.5)], z(392) + "1.500000"),
+        ("%-400e", vec![A::D(1.5)], "1.500000e+00".to_string() + &sp(388)),
+        ("%+.300f", vec![A::D(-2.5)], "-2.5".to_string() + &z(299)),
+        ("%f", vec![A::D(1e308)], format!("{:.6}", 1e308f64)),
+        ("%0400f", vec![A::D(-1e300)], "-".to_string() + &z(399 - format!("{:.6}", 1e300f64).len()) + &format!("{:.6}", 1e300f64)),
+        ("%+500.0f", vec![A::D(1e300)], sp(499 - format!("{:.0}", 1e300f64).len()) + "+" + &format!("{:.0}", 1e300f64)),
+        ("%Lf", vec![pow2l(1000)], format!("{:.6}", 2f64.powi(1000))),
+        ("%.5000a", vec![A::D(1.0)], "0x1.".to_string() + &z(5000) + "p+0"),
+        ("%-300.3s|", vec![A::I(c"abcdef".as_ptr() as u64)], "abc".to_string() + &sp(297) + "|"),
+    ];
+    for (f, args, want) in &rows {
+        assert_eq!(text_of(f, args), *want, "{f}");
+        assert_eq!(wtext_of(f, args), *want, "wide {f}");
+    }
+    // Sequential formats parsed a part at a time, and `%n` counting across the parts.
+    let hundred: Vec<A> = (1..=100).map(A::I).collect();
+    let want: String = (1..=100).map(|i| format!("{i:+04}|")).collect();
+    assert_eq!(text_of(&"%+04d|".repeat(100), &hundred), want);
+    assert_eq!(wtext_of(&"%d ".repeat(100), &hundred), (1..=100).map(|i| format!("{i} ")).collect::<String>());
+    let mut count: i32 = -1;
+    let mut args: Vec<A> = (1..=40).map(A::I).collect();
+    args.push(A::I(&raw mut count as u64));
+    let f = "%'d,".repeat(40) + "%n";
+    let t = text_of(&f, &args);
+    assert_eq!((t.len(), count as usize), ((1..=40).map(|i| format!("{i},").len()).sum::<usize>(), t.len()));
+    // Positional past the bounded parse's room.
+    let pos: String = (1..=20).rev().map(|i| format!("%{i}$d ")).collect();
+    assert_eq!(text_of(&pos, &hundred[..20]), (1..=20).rev().map(|i| format!("{i} ")).collect::<String>());
 }
