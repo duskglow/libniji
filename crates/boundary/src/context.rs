@@ -21,6 +21,7 @@ const W_SS_SIZE: usize = 4;
 const W_GREGS: usize = 5;
 const REG_R8: usize = 0;
 const REG_R9: usize = 1;
+const REG_R12: usize = 4;
 const REG_RDI: usize = 8;
 const REG_RSI: usize = 9;
 const REG_RBX: usize = 11;
@@ -28,6 +29,9 @@ const REG_RDX: usize = 12;
 const REG_RCX: usize = 14;
 const REG_RSP: usize = 15;
 const REG_RIP: usize = 16;
+/// `__ssp` (word 117, byte 936): the shadow-stack pointer the context resumes with, then the
+/// base and length of a shadow stack makecontext mapped (D-21.5).
+const W_SSP: usize = 117;
 /// The registers that carry the first six arguments.
 const ARG_REGS: [usize; 6] = [REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9];
 
@@ -73,12 +77,18 @@ pub fn make(uc: KResult<&[AtomicUsize]>, stack: KResult<(usize, &[AtomicUsize])>
         return;
     }
     let at = |i: usize| (sp - base) / 8 + i;
-    put(stack, at(0), start_context_addr());
+    // The context starts in niji_machine_start_context, which calls `func` (in %r12) from one
+    // word above `sp`: the call writes its return address at `sp`, so `func` starts with the
+    // stack it would have been jumped to with, and its return has a shadow-stack entry.
     put(stack, at(link_idx), get(uc, W_LINK));
     put(stack, at(link_idx + 1), end_addr());
-    put(uc, W_GREGS + REG_RIP, func);
-    put(uc, W_GREGS + REG_RSP, sp);
+    put(uc, W_GREGS + REG_RIP, start_context_addr());
+    put(uc, W_GREGS + REG_R12, func);
+    put(uc, W_GREGS + REG_RSP, sp + 8);
     put(uc, W_GREGS + REG_RBX, sp + link_idx * 8);
+    if ffi::niji_machine_ssp() != 0 {
+        shadow_stack(uc, get(uc, W_SS_SIZE));
+    }
     for i in 0..argc {
         // One argument per call, exactly argc of them (the obligation of `niji_va_long`).
         let v = usize::from_ne_bytes(ffi::niji_va_long(ap).to_ne_bytes());
@@ -87,6 +97,24 @@ pub fn make(uc: KResult<&[AtomicUsize]>, stack: KResult<(usize, &[AtomicUsize])>
             None => put(stack, at(i - 5), v),
         }
     }
+}
+
+/// The calling thread has a shadow stack: give the new context its own (D-21.5), `len` bytes
+/// rounded up to a page (each call takes 8 bytes of it and at least 8 of the context's stack, so
+/// it cannot run out first), with a restore token on top (`SHADOW_STACK_SET_TOKEN`), which
+/// setcontext and swapcontext switch to. When the kernel refuses, the context records none and
+/// runs on its resumer's shadow stack. Nothing unmaps it: the interface has no point where a
+/// context ends (its base and length stay in `__ssp[1]`, `__ssp[2]`).
+#[cold]
+#[inline(never)]
+fn shadow_stack(uc: &[AtomicUsize], len: usize) {
+    const SHADOW_STACK_SET_TOKEN: i64 = 1;
+    let len = len.saturating_add(4095) & !4095;
+    let mapped = i64::try_from(len).ok().and_then(|l| crate::raw::syscall(crate::nr::MAP_SHADOW_STACK, [0, l, SHADOW_STACK_SET_TOKEN, 0, 0, 0]).ok());
+    let base = mapped.and_then(|b| usize::try_from(b).ok()).filter(|_| len != 0);
+    put(uc, W_SSP, base.map_or(0, |b| b + len));
+    put(uc, W_SSP + 1, base.unwrap_or(0));
+    put(uc, W_SSP + 2, base.map_or(0, |_| len));
 }
 
 /// `__longjmp_chk(env, val)`: aborts if the jump would land below the current stack pointer,

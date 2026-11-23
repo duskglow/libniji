@@ -517,9 +517,12 @@ unsafe extern "C" {
     /// `_longjmp`: as `niji_machine_siglongjmp`, without the mask. Same obligation.
     #[allow(dead_code)] // reached only from C (`_longjmp`, machine/setjmp.S)
     pub(crate) safe fn niji_machine_longjmp_nomask(env: usize, val: i32) -> !;
-    /// Where a `makecontext` function returns to. Never called from Rust; only its address is
-    /// taken.
+    /// Where a `makecontext` context starts (it calls the function in %r12). Never called from
+    /// Rust; only its address is taken.
     pub(crate) safe fn niji_machine_start_context();
+    /// The calling thread's shadow-stack pointer as its caller sees it, 0 when the thread has
+    /// none (D-21.5). Reads one register; no obligation.
+    pub(crate) safe fn niji_machine_ssp() -> usize;
     /// The next argument of a `va_list` as a register-sized value (`va_arg(*ap, long)`).
     /// Proof obligation: `ap` is the `va_list *` a C adapter passed for this call (it lives
     /// until the adapter returns), and no more arguments are read than the C caller passed

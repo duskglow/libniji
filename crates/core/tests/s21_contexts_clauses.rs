@@ -46,8 +46,10 @@ fn s21_1_i_0() {
 /// §21.1 Guarantees: On x86_64 the saved stack and return addresses are mangled with a per-process secret (pointer guard). With CET, the shadow stack is unwound to match (via `incssp`).
 #[test]
 fn s21_1_g_0() {
-    // Pointer mangling (s22_more checks the saved stack pointer is not stored in the clear). No shadow stack is ever enabled, so none is unwound (D-21.3).
-    conformance(&["s22_more"]);
+    // Pointer mangling (s22_more checks the saved stack pointer is not stored in the clear).
+    // The shadow stack (D-21.5): s21_shadow_stack enables it and jumps, switches contexts, vforks
+    // and runs threads under it; SKIPPED (printed by the program) where the CPU or kernel has none.
+    conformance(&["s22_more", "s21_shadow_stack"]);
 }
 /// §21.2 Contract: **`getcontext(&uc)`** saves the full user context (registers, signal mask, stack description).
 #[test]

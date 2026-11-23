@@ -5,7 +5,7 @@
  * suspended until the child calls execve or _exit, as in glibc. The child runs on the caller's
  * stack, so this entry keeps nothing there across the syscall: the return address is popped
  * into a register (the child's return, and whatever it calls next, overwrite that slot) and
- * pushed back by each of the two returns. No signal is blocked (glibc blocks none). An error
+ * pushed back by each of the two returns (with a shadow stack: below). No signal is blocked (glibc blocks none). An error
  * (-4095..-1) goes to niji_vfork_fail (Rust, local), which sets errno and returns -1.
  *
  * The glibc names exist only in the products (NIJI_EXPORT), so that tests never interpose
@@ -25,9 +25,19 @@ vfork:
 	pushq %rdi
 	cmpq $-4095, %rax
 	jae 1f
+	xorl %ecx, %ecx			/* a shadow stack? (D-21.5) */
+	rdsspq %rcx
+	testq %rcx, %rcx
+	jnz 2f
 	ret
 1:	movq %rax, %rdi			/* the parent, no child: errno from the raw result */
 	jmp niji_vfork_fail
+/* With a shadow stack the child runs on the caller's one too, and its calls overwrite this
+ * call's entry there: both returns drop the entry (incssp) and jump instead of `ret`. */
+2:	popq %rdi
+	movl $1, %ecx
+	incsspq %rcx
+	jmpq *%rdi
 	.size vfork, .-vfork
 	.size __vfork, .-__vfork
 #endif

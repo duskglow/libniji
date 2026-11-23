@@ -118,6 +118,10 @@ pub(crate) fn tmp_name(path: &Path) -> std::path::PathBuf {
 /// Rename the finished `tmp` over `dst`: a reader sees the old product or the new one, never a
 /// half-written file.
 pub(crate) fn publish(tmp: &Path, dst: &Path) -> Result<(), String> {
+    // D-X.164: every archive libniji ships has the shadow-stack property on each member.
+    if dst.extension().is_some_and(|e| e == "a") {
+        crate::cetnote::mark_archive(tmp)?;
+    }
     fs::rename(tmp, dst).map_err(|e| format!("rename {} -> {}: {e}", tmp.display(), dst.display()))
 }
 
@@ -2102,7 +2106,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     fs::write(&dyn_list, libc_dynamic_list()).map_err(|e| format!("{}: {e}", dyn_list.display()))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
-            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
             // LD-RELR-LOOP (ruling #7402): the relative relocations as DT_RELR words, applied an entry
             // at a time by the loader's RELR pass, instead of 24-byte RELA entries.
             .arg("-Wl,-z,pack-relative-relocs")
@@ -2273,6 +2277,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         r => r?,
     }
     phases.mark("layout");
+    // D-X.164: every shipped object (each ELF file, each archive member) has the SHSTK property.
+    let cet = crate::cetnote::check_release(&release)?;
+    println!("so: {cet} shipped ELF files and archives carry the SHSTK property (D-X.164)");
     // The marker last, so a set that was not finished has none.
     let marker = tmp_name(&release.join(".profile"));
     fs::write(&marker, format!("{}
@@ -2413,6 +2420,7 @@ impl LdLink {
         use niji_ld::arch::Arch as _;
         run(Command::new(cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
+            .arg(crate::cetnote::LINK_FLAG)
             .arg(format!("-Wl,-T,{}", self.span.display()))
             .arg(format!("-Wl,-T,{}", self.phase.display()))
             .arg(format!("-Wl,--version-script={}", self.map.display()))
@@ -2819,7 +2827,7 @@ fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Resu
     let out = release.join("getconf");
     let staged = tmp_name(&out);
     run(Command::new(cc)
-        .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"])
+        .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]).arg(crate::cetnote::LINK_FLAG)
         .args(cdebug)
         .arg("-I")
         .arg(&gen_dir)
@@ -2869,7 +2877,7 @@ fn run_freestanding(root: &Path, cc: &str, profile: Profile, build: &ProductBuil
     let out = release.join(name);
     let staged = tmp_name(&out);
     run(Command::new(cc)
-        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs"])
+        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs"]).arg(crate::cetnote::LINK_FLAG)
         .arg(format!("-Wl,-e,niji_machine_{name}_entry"))
         .arg(&entry)
         .arg(&archive)
@@ -2929,7 +2937,7 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str, cdebug: &[Str
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
         let mut c = Command::new(cc);
-        c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"])
+        c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"]).arg(crate::cetnote::LINK_FLAG)
             .arg(format!("-Wl,--dynamic-linker={}", interp.display()))
             .arg(release.join("niji-crt1.o"))
             .arg(release.join("niji-crti.o"))
@@ -2963,7 +2971,7 @@ fn run_ldd(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(
     let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
-        c.args(cdebug);
+        c.args(cdebug).arg(crate::cetnote::LINK_FLAG);
         if let Some(r) = rtld {
             c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
         }
@@ -3985,7 +3993,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     let so_final = release.join("libm.so.6");
     let so = tmp_name(&so_final);
     run(Command::new(cc)
-        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
         .arg(format!("-Wl,--version-script={}", map.display()))
         .arg("-Wl,-soname,libm.so.6")
         .arg(&obj)
