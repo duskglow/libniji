@@ -36,7 +36,7 @@ Within a section the notes are ordered by file name, so the result does not depe
 ```bash
 cargo xtask release-notes            # print the unreleased notes, assembled
 cargo xtask release-notes check      # the check `cargo xtask static` and the precheck run
-cargo xtask release-notes release --heading "<text>" [--intro <file>] [--outro <file>] [--dry-run]
+cargo xtask release-notes release --heading "<text>" [--at <rev>] [--intro <file>] [--outro <file>] [--dry-run]
 ```
 
 `check` fails when a fragment is malformed or names an unknown section, when this directory holds anything but
@@ -44,6 +44,8 @@ fragments and this README, or when `docs/RELEASE-NOTES.md` has an `## Unreleased
 
 `release` (at a snapshot or release) writes `## <text>`, the intro, the assembled notes and the outro into
 `docs/RELEASE-NOTES.md` above the newest released section, keeps every other byte of that file, and deletes the
-fragments it used. Run again with the same heading it changes nothing. The intro and outro are the release's own text
+fragments it used. Run again with the same heading it changes nothing. `--at <rev>` (the snapshot's commit, when the
+notes are written on a later `next`) releases only the fragments that commit holds and refuses one changed since,
+so a note that landed after the snapshot stays for the next one. The intro and outro are the release's own text
 (the commit and tag line, the packages and known-limitations paragraph); `--dry-run` prints the section only. The
 preamble line naming the newest snapshot is edited by hand.
