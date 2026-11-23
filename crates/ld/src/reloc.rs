@@ -20,7 +20,8 @@
 use crate::arch::{ApplyError, Arch, Operands, RelocKind, TlsOperands, ELFDATA2LSB};
 use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF};
 use crate::map::{PROT_EXEC, PROT_READ, PROT_WRITE};
-use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry, VersionMemo};
+use crate::elf::{Vernaux, VERSYM_HIDDEN};
+use crate::symbols::{self, Binding, Found, LookupError, Needs, Object, Request, Scope, UniqueRegistry, VersionMemo};
 
 /// `SHN_ABS` (gABI): an absolute symbol, whose value the load bias does not move.
 const SHN_ABS: u16 = 0xfff1;
@@ -416,7 +417,7 @@ fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: 
 /// Resolve symbol `sym` of object `i`. A defined local, or a defined symbol whose visibility is not
 /// default, binds in its own object; every other reference is looked up in the global scope (without
 /// the program for a `COPY`).
-fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry, memo: &VersionMemo) -> Result<Target, RelocError<'a>> {
+fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry, memo: &VersionMemo, needs: &Needs<'a>) -> Result<Target, RelocError<'a>> {
     if sym == 0 {
         return Ok(Target { s: 0, ifunc: false, obj: None, size: 0 });
     }
@@ -428,7 +429,7 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     // The name's end and its hash in one pass (LD-LOOKUP-COST).
     let (name, gnu) = dynm.hashed_string(st.name).map_err(RelocError::Elf)?;
-    let (want, origin) = me.reference_want_origin(sym, memo).map_err(RelocError::Lookup)?;
+    let (want, origin) = me.reference_want_need(sym, memo, needs).map_err(RelocError::Lookup)?;
     let mut scope = Scope::global(set.global);
     if copy {
         scope = scope.excluding(0);
@@ -481,7 +482,7 @@ fn put<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, r: &Rela,
 /// One relocation of object `i` in pass `deferred` (false: everything but the deferred entries;
 /// true: only them). Returns whether the entry is deferred (pass 1) or was applied (pass 2).
 #[allow(clippy::too_many_arguments)]
-fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry, memo: &VersionMemo) -> Result<bool, RelocError<'a>> {
+fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry, memo: &VersionMemo, needs: &Needs<'a>) -> Result<bool, RelocError<'a>> {
     let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let p = o.bias.wrapping_add(r.offset);
     let field = |kind, s| field::<A>(kind, s, o.bias, r);
@@ -502,7 +503,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
             if matches!(r.kind, RelocKind::TextRel { .. }) && !text {
                 return Err(RelocError::TextRel(r.r_type));
             }
-            let t = target(set, i, r.sym, false, unique, memo)?;
+            let t = target(set, i, r.sym, false, unique, memo, needs)?;
             match (t.ifunc, deferred) {
                 (false, false) => put(img, field(r.kind, t.s)?, text).map(|()| false),
                 (false, true) => Ok(false),
@@ -517,7 +518,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
         RelocKind::Copy => {
             let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
             let size = me.symtab().get(r.sym).map_err(RelocError::Elf)?.size;
-            let t = target(set, i, r.sym, true, unique, memo)?;
+            let t = target(set, i, r.sym, true, unique, memo, needs)?;
             let src = t.obj.filter(|&d| i == 0 && d != 0).and_then(|d| set.objs.get(d)).ok_or(RelocError::Copy(r.offset))?;
             // The program's size; a smaller definition copies only what it has.
             let len = size.min(t.size);
@@ -533,7 +534,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
             let (s, def) = if r.sym == 0 {
                 (0, Some(i))
             } else {
-                let t = target(set, i, r.sym, false, unique, memo)?;
+                let t = target(set, i, r.sym, false, unique, memo, needs)?;
                 (t.s, t.obj)
             };
             let placed = def.and_then(|d| set.objs.get(d)).and_then(|d| d.tls).ok_or(RelocError::TlsModule(r.offset))?;
@@ -619,7 +620,7 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
     let memo = VersionMemo::default();
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo)?;
+            one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo, &Needs::empty())?;
         }
     }
     if set.syms.first().is_some_and(Object::has_canonical_plt) {
@@ -665,6 +666,8 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
     }
     let mut deferred = false;
     let memo = VersionMemo::default();
+    // The object's version requirements, each resolved once for the pass (LD-LOOKUP-STRUCTURE).
+    let needs = version_requirements(set, i);
     // The RELA table's `DT_RELACOUNT` prefix: `RELATIVE` entries, most of a shared object's.
     let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
     for (k, table) in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()].into_iter().enumerate() {
@@ -681,7 +684,7 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
                 put::<A, I>(img, &loads, o, &r, field::<A>(r.kind, 0, o.bias, &r)?, text)?;
                 continue;
             }
-            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo)?;
+            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo, &needs)?;
         }
     }
     Ok(deferred)
@@ -790,6 +793,65 @@ pub enum VersionError<'a> {
 /// loaded by.
 fn provider(objs: &[Obj<'_>], file: &[u8], live: &impl Fn(usize) -> bool) -> Option<usize> {
     objs.iter().enumerate().position(|(j, o)| live(j) && (o.dynm.get(dt::SONAME).and_then(|s| o.dynm.string(s).ok()) == Some(file) || o.name == file))
+}
+
+/// Object `i`'s version requirements by index for its relocation pass ([`Needs`],
+/// LD-LOOKUP-STRUCTURE): each requirement's name and, when its provider defines it, the provider's
+/// (definer, index) pair, found once here and not per relocation (a program's references through a
+/// few requirements found and compared the same version names on every lookup). Built from one
+/// walk of the requirements; any error in them leaves the table empty, so every index then answers
+/// by the walks as before, errors included.
+#[cold]
+#[inline(never)]
+#[must_use]
+pub fn version_requirements<'a>(set: &Objects<'_, 'a>, i: usize) -> Needs<'a> {
+    let (Some(o), Some(me)) = (set.objs.get(i), set.syms.get(i)) else { return Needs::empty() };
+    if !me.has_versym() {
+        return Needs::empty();
+    }
+    let walk = |f: &mut dyn FnMut(&'a [u8], &Vernaux<'a>)| -> Result<(), ElfError> {
+        let Some(needs) = o.dynm.verneed()? else { return Ok(()) };
+        for vn in needs {
+            let vn = vn?;
+            for aux in vn.auxes() {
+                f(vn.file, &aux?);
+            }
+        }
+        Ok(())
+    };
+    let mut base = u16::MAX;
+    let lowest = walk(&mut |_, a| {
+        let index = a.other & !VERSYM_HIDDEN;
+        if index > symbols::VER_NDX_GLOBAL {
+            base = base.min(index);
+        }
+    });
+    if lowest.is_err() || base == u16::MAX {
+        return Needs::empty();
+    }
+    let mut table = Needs::from(base);
+    // The walk met no error above, so it meets none again: every requirement is recorded.
+    let filled = walk(&mut |file, a| table.record(a.other & !VERSYM_HIDDEN, a.name, definer(set, file, a)));
+    if filled.is_err() { Needs::empty() } else { table }
+}
+
+/// Where requirement `aux` of `file` is defined, for [`version_requirements`]: the first object of the pass's
+/// scope that `file` names (its load name or `DT_SONAME`; only the scope's objects are read, as a
+/// `dlopen` set may hold unloaded slots), its string table address, and the version index of the
+/// definition named `aux`'s name ([`crate::elf::Verdefs::find_hashed`]), taken only when that
+/// object's own version name for the index is exactly that name ([`Object::version_name`], which a
+/// lookup's definition side reads first): a lookup that matches the pair then answers as one
+/// comparing the names. `None` when there is no such object or definition (the lookups then
+/// compare names as before).
+fn definer(set: &Objects<'_, '_>, file: &[u8], aux: &Vernaux<'_>) -> Option<(usize, u16)> {
+    let names = |o: &Obj<'_>| o.name == file || o.dynm.get(dt::SONAME).and_then(|s| o.dynm.string(s).ok()) == Some(file);
+    let p = set.global.iter().copied().find(|&j| set.objs.get(j).is_some_and(names))?;
+    let view = set.syms.get(p)?;
+    let d = view.dynamic().verdef().ok()??.find_hashed(aux.hash, aux.name)?;
+    if d <= symbols::VER_NDX_GLOBAL || view.version_name(d).ok()? != Some(aux.name) {
+        return None;
+    }
+    Some((view.dynamic().strtab()?.as_ptr().addr(), d))
 }
 
 /// Check every `DT_VERNEED` entry of every object against the named object's `DT_VERDEF` (D-27.11):

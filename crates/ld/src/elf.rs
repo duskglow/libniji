@@ -2420,26 +2420,34 @@ impl Verdefs<'_> {
     /// (LD-OBJECT-ONCE: the walk read every definition's name up to the one required).
     #[must_use]
     pub fn has_hashed(&self, hash: u32, name: &[u8]) -> bool {
+        self.find_hashed(hash, name).is_some()
+    }
+
+    /// [`Verdefs::has_hashed`], answering with the `vd_ndx` (hidden bit cleared) of the definition
+    /// found: the first one, in walk order, whose `vd_hash` is `hash` and whose first name is `name`.
+    /// `None` tells nothing, as for [`Verdefs::has_hashed`].
+    #[must_use]
+    #[inline]
+    pub fn find_hashed(&self, hash: u32, name: &[u8]) -> Option<u16> {
         let be = self.rd.be;
         let b = self.rd.b;
         let (mut at, mut left) = (self.off, self.left);
         while left != 0 {
-            let Some(e) = b.get(at..).and_then(<[u8]>::first_chunk::<VERDEF_SIZE>) else { return false };
+            let e = b.get(at..).and_then(<[u8]>::first_chunk::<VERDEF_SIZE>)?;
             if field16(e, 0, be) != VER_CURRENT {
-                return false;
+                return None;
             }
             left = left.saturating_sub(1);
             let def = at;
             if left > 0 {
                 let next = field32(e, 16, be);
-                let Some(n) = advance(def, next).filter(|_| next != 0) else { return false };
-                at = n;
+                at = advance(def, next).filter(|_| next != 0)?;
             }
             if field32(e, 8, be) == hash && field16(e, 6, be) != 0 && self.first_name_is(def, e, name) {
-                return true;
+                return Some(field16(e, 4, be) & !VERSYM_HIDDEN);
             }
         }
-        false
+        None
     }
 
     /// Whether the first name of the definition at `def` (entry `e`) reads without error and is

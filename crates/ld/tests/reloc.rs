@@ -32,7 +32,7 @@ use niji_ld::arch::{ApplyError, Arch, Field, Native, Operands, RelocKind};
 use niji_ld::elf::{Elf, Span, SpanKind};
 use niji_ld::map::{PROT_EXEC, PROT_WRITE};
 use niji_ld::reloc::{self, Image, Obj, Objects, RelocError, UniqueTable};
-use niji_ld::symbols::{Object, Request, Want};
+use niji_ld::symbols::{self, gnu_hash, Object, Request, ScopeOrder, Scope, VersionMemo, Want};
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -466,6 +466,84 @@ fn reloc_version_check_beyond_the_kept_definitions() {
         Err(reloc::VersionError::Missing { by: 0, file: name, version: b"V_66" }),
         "a needed version past the kept definitions is missing"
     );
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// s27_1_f_0 (versioned references bind the required version) and the binding rules of
+/// spec/behaviour/dynlink.md "Symbol binding" (an unversioned definition earlier in the scope
+/// interposes on a versioned reference): a relocation pass's requirement table
+/// (`reloc::version_requirements`, LD-LOOKUP-STRUCTURE) pairs each requirement with its provider's
+/// definition index, which differs from the requirement's own index here (the provider defines a
+/// version the program does not need first), and a reference answered through the table binds as one
+/// answered by names: the provider's exact version, or the preloaded object's unversioned definition
+/// ahead of it in the scope.
+#[test]
+fn reloc_requirement_pairs_bind_as_names_do() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("needpairs");
+    let map = d.join("libv.map");
+    std::fs::write(&map, "V0 { global: f0; local: *; };\nV1 { global: f1; } V0;\nV2 { global: f2; } V1;\n").unwrap();
+    let src = "int f0(void) { return 0; }\nint f1(void) { return 1; }\nint f2(void) { return 2; }\n";
+    let libv = build(&d, "libv.so", src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())]);
+    let pre = build(&d, "libpre.so", "int f2(void) { return 9; }\n", &["-fPIC", "-shared"]);
+    let use_src = "extern int f1(void), f2(void);\nvoid _start(void) { f1(); f2(); for (;;); }\n";
+    let p = build(&d, "pv", use_src, &["-fPIE", "-pie", libv.to_str().unwrap()]);
+    let leak = |b: Vec<u8>| -> &'static [u8] { Box::leak(b.into_boxed_slice()) };
+    let files = [leak(std::fs::read(&p).unwrap()), leak(std::fs::read(&libv).unwrap()), leak(std::fs::read(&pre).unwrap())];
+    let names = [&b"pv"[..], leak(libv.to_str().unwrap().as_bytes().to_vec()), leak(pre.to_str().unwrap().as_bytes().to_vec())];
+    let objs: Vec<Obj> = files
+        .iter()
+        .zip(names)
+        .map(|(f, name)| {
+            let elf = Elf::parse::<Native>(f).unwrap();
+            Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: 0, name, tls: None }
+        })
+        .collect();
+    let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
+    reloc::check_versions(&objs).unwrap();
+    let tab = |k: usize| syms[k].dynamic().strtab().unwrap().as_ptr() as usize;
+    // Load order: program, libv, libpre; libpre searched before libv (as a preloaded object is).
+    for (global, f2_from) in [(&[0usize, 1, 2][..], 1usize), (&[0, 2, 1][..], 2)] {
+        let set = Objects { objs: &objs, syms: &syms, global };
+        let needs = reloc::version_requirements(&set, 0);
+        let recs: Vec<_> = needs.records().collect();
+        assert_eq!(recs.len(), 2, "one record per requirement: {recs:?}");
+        for &(index, name, def) in &recs {
+            let (at, di) = def.unwrap_or_else(|| panic!("requirement {index} has its provider's definition"));
+            assert_eq!(at, tab(1), "the definer is libv");
+            assert_ne!(di, index, "libv's index for {} differs from the program's", String::from_utf8_lossy(name));
+            assert_eq!(syms[1].version_name(di).unwrap(), Some(name), "libv's index {di} names {}", String::from_utf8_lossy(name));
+        }
+        let memo = VersionMemo::default();
+        let me = &syms[0];
+        let mut seen = 0;
+        for sym in 1..me.symtab().count().unwrap() {
+            let st = me.symtab().get(sym).unwrap();
+            if st.shndx != 0 {
+                continue;
+            }
+            let name = me.dynamic().string(u64::from(st.name)).unwrap();
+            let weak = st.bind() == 2;
+            let (want, origin) = me.reference_want_need(sym, &memo, &needs).unwrap();
+            let fast = Request::of_table(name, gnu_hash(name), want, origin).with_memo(&memo);
+            let plain = Request::new(name, me.reference_want(sym).unwrap());
+            let got = symbols::resolve(&syms, Scope::global(global), &fast, weak, &mut ScopeOrder);
+            assert_eq!(got, symbols::resolve(&syms, Scope::global(global), &plain, weak, &mut ScopeOrder), "{}", String::from_utf8_lossy(name));
+            let from = |want: usize| match got {
+                Ok(symbols::Binding::Defined(f)) => assert_eq!(f.obj, want, "{} binds object {want}", String::from_utf8_lossy(name)),
+                other => panic!("{}: {other:?}", String::from_utf8_lossy(name)),
+            };
+            match name {
+                b"f1" => from(1),
+                b"f2" => from(f2_from),
+                _ => continue,
+            }
+            seen += 1;
+        }
+        assert_eq!(seen, 2, "the program references f1 and f2");
+    }
     std::fs::remove_dir_all(&d).ok();
 }
 

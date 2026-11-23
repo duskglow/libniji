@@ -119,10 +119,12 @@ pub struct Request<'n> {
     memo: Option<&'n VersionMemo>,
     /// The name holds no NUL, so a candidate's name is compared in place ([`Dynamic::string_is`]).
     plain: bool,
-    /// For a [`Want::Reference`] whose name is its own object's definition of a version index (no
-    /// requirement gives the index): that object's string table address and the index. A definition
-    /// in that same object with that index has exactly that version name, so it matches without
-    /// finding and comparing the name again (LD-LOOKUP-COST).
+    /// For a [`Want::Reference`]: an object's string table address and a version index whose
+    /// definition there has exactly the reference's version name: the reference's own object and
+    /// index when the name is one of its own definitions (no requirement gives the index;
+    /// LD-LOOKUP-COST), or the requirement's provider and the index it defines the name under
+    /// ([`Needs`]; LD-LOOKUP-STRUCTURE). A definition in that object with that index matches
+    /// without finding and comparing the name again; any other is compared as before.
     origin: Option<(usize, u16)>,
 }
 
@@ -210,6 +212,70 @@ pub struct VersionMemo {
 impl Default for VersionMemo {
     fn default() -> Self {
         VersionMemo { slots: [const { Cell::new(MemoSlot { strtab: 0, key: 0, off: 0 }) }; MEMO_SLOTS] }
+    }
+}
+
+/// Slots of a [`Needs`] table: the requirement indices from its base on.
+const NEED_SLOTS: usize = 16;
+
+/// One requirement of a [`Needs`] table: its version name and, when found, where it is defined
+/// (the defining object's string table address, 0 for none, and the definition's version index).
+#[derive(Clone, Copy, Debug)]
+struct NeedSlot<'a> {
+    name: &'a [u8],
+    definer: usize,
+    index: u16,
+    used: bool,
+}
+
+/// One object's version requirements by `versym` index, resolved once for a relocation pass
+/// (LD-LOOKUP-STRUCTURE): each relocation through a requirement's index takes the name from here,
+/// not from the [`VersionMemo`], and, when the requirement's provider defines it, the (definer,
+/// index) pair a lookup matches without finding and comparing the definition's version name
+/// ([`Request::of_table`]'s origin). The pass's builder records only what a walk of the object's
+/// requirements from the start answers (the first requirement with an index names it); an index it
+/// did not record answers as before.
+#[derive(Debug)]
+pub struct Needs<'a> {
+    base: u16,
+    slots: [NeedSlot<'a>; NEED_SLOTS],
+}
+
+impl<'a> Needs<'a> {
+    /// A table that records nothing: every index answers as before.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Needs { base: 0, slots: [NeedSlot { name: &[], definer: 0, index: 0, used: false }; NEED_SLOTS] }
+    }
+
+    /// An empty table for the indices `base` to `base + 15`.
+    #[must_use]
+    pub const fn from(base: u16) -> Self {
+        Needs { base, ..Self::empty() }
+    }
+
+    /// Records requirement index `index` (hidden bit cleared) named `name`, and `def`: an object (its
+    /// string table's address) and a version index whose definition there has exactly the version
+    /// name `name` ([`Object::version_name`], checked by the caller). An index already recorded
+    /// keeps its first record; one outside the table's window is not recorded.
+    pub fn record(&mut self, index: u16, name: &'a [u8], def: Option<(usize, u16)>) {
+        let Some(k) = index.checked_sub(self.base) else { return };
+        if let Some(s) = self.slots.get_mut(usize::from(k)).filter(|s| !s.used) {
+            let (definer, index) = def.filter(|d| d.0 != 0).unwrap_or((0, 0));
+            *s = NeedSlot { name, definer, index, used: true };
+        }
+    }
+
+    /// The recorded requirements: index, name and (definer, index) pair, in index order.
+    pub fn records(&self) -> impl Iterator<Item = (u16, &'a [u8], Option<(usize, u16)>)> + '_ {
+        let base = self.base;
+        (0u16..).zip(&self.slots).filter(|(_, s)| s.used).map(move |(k, s)| (base.wrapping_add(k), s.name, (s.definer != 0).then_some((s.definer, s.index))))
+    }
+
+    /// The record of requirement index `index`.
+    #[inline]
+    fn get(&self, index: u16) -> Option<&NeedSlot<'a>> {
+        self.slots.get(usize::from(index.wrapping_sub(self.base))).filter(|s| s.used)
     }
 }
 
@@ -434,10 +500,30 @@ impl<'a> Object<'a> {
     ///
     /// As [`Object::reference_want`].
     pub fn reference_want_origin(&self, sym: u32, memo: &VersionMemo) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
+        self.reference_want_need(sym, memo, &Needs::empty())
+    }
+
+    /// Whether the object has a `versym` table (without one, every reference is [`Want::Oldest`]).
+    #[must_use]
+    pub fn has_versym(&self) -> bool {
+        self.versym.is_some()
+    }
+
+    /// [`Object::reference_want_origin`], answering an index `needs` recorded from there (the name,
+    /// and the requirement's definer and index as the origin when it has one), without the memo.
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::reference_want`].
+    #[inline]
+    pub fn reference_want_need(&self, sym: u32, memo: &VersionMemo, needs: &Needs<'a>) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
         let Some(vs) = self.versym else { return Ok((Want::Oldest, None)) };
         let index = vs.get(sym)?.index;
         if index <= VER_NDX_GLOBAL {
             return Ok((Want::Oldest, None));
+        }
+        if let Some(n) = needs.get(index) {
+            return Ok((Want::Reference(n.name), (n.definer != 0).then_some((n.definer, n.index))));
         }
         // The reference side answers from this object's own definitions only when no requirement
         // gives the index; a definition of this object with this index then has exactly that name
