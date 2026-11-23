@@ -1013,6 +1013,12 @@ impl<'a> Dynamic<'a> {
         self.strtab
     }
 
+    /// Whether the object's words are big-endian.
+    #[must_use]
+    pub(crate) fn big_endian(&self) -> bool {
+        self.rd.be
+    }
+
     /// The NUL-terminated string at offset `off` of the string table, without its NUL.
     ///
     /// # Errors
@@ -1390,7 +1396,7 @@ impl<'a> Dynamic<'a> {
         }
         let tab = whole.get(16..).ok_or(unmapped)?;
         let chain_at = u32::try_from(bloom_len.checked_add(bucket_len).ok_or(unmapped)?).map_err(|_| unmapped)?;
-        Ok(Some(GnuHash { tab, be, bloom_size, chain_at, nbuckets, symoffset, bloom_shift, mark: 0 }))
+        Ok(Some(GnuHash { tab, be, bloom_size, chain_at, nbuckets, symoffset, bloom_shift, mark: 0, quick: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1936,6 +1942,9 @@ pub struct GnuHash<'a> {
     /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
     /// changing the symbol walk's code.
     mark: u8,
+    /// Set (1) once `symbols::Object::build` has validated every table its quick walk reads
+    /// (LD-SYMBOL-VALIDATE-ONCE); 0 as read. Also in the tail padding: no view grows.
+    quick: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1957,6 +1966,33 @@ impl<'a> GnuHash<'a> {
     #[must_use]
     pub(crate) fn mark(&self) -> bool {
         self.mark != 0
+    }
+
+    /// Records whether the tables of the view holding this table passed `symbols::Object::build`'s
+    /// validation for the quick walk (LD-SYMBOL-VALIDATE-ONCE).
+    pub(crate) fn set_quick(&mut self, on: bool) {
+        self.quick = u8::from(on);
+    }
+
+    /// Whether [`GnuHash::set_quick`] recorded a validated view.
+    #[must_use]
+    #[inline]
+    pub(crate) fn quick(&self) -> bool {
+        self.quick != 0
+    }
+
+    /// The table's bytes from the first Bloom word (the Bloom words, the buckets, then the chain words
+    /// to the end of the mapped bytes) and the chain's byte offset in them, for the validated walk.
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], u32) {
+        (self.tab, self.chain_at)
+    }
+
+    /// Whether the table's words are big-endian.
+    #[must_use]
+    pub(crate) fn big_endian(&self) -> bool {
+        self.be
     }
 
     /// The number of buckets.
@@ -2203,7 +2239,7 @@ pub struct Versym<'a> {
     max: u16,
 }
 
-impl Versym<'_> {
+impl<'a> Versym<'a> {
     /// The dynamic symbol count from the hash tables (see [`Dynamic::symbol_count`]), if known.
     #[must_use]
     pub fn count(&self) -> Option<u32> {
@@ -2214,6 +2250,14 @@ impl Versym<'_> {
     #[must_use]
     pub fn max_index(&self) -> u16 {
         self.max
+    }
+
+    /// The entries' bytes from the table's start to the end of the mapped bytes, and whether they
+    /// are big-endian (LD-SYMBOL-VALIDATE-ONCE: the validated walk reads them in place).
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], bool) {
+        (self.rd.b, self.rd.be)
     }
 
     /// The version of symbol `sym`.
@@ -2306,11 +2350,19 @@ pub struct Symtab<'a> {
     count: Option<u32>,
 }
 
-impl Symtab<'_> {
+impl<'a> Symtab<'a> {
     /// The dynamic symbol count from the hash tables (see [`Dynamic::symbol_count`]), if known.
     #[must_use]
     pub fn count(&self) -> Option<u32> {
         self.count
+    }
+
+    /// The entries' bytes from the table's start to the end of the mapped bytes, and whether they
+    /// are big-endian (LD-SYMBOL-VALIDATE-ONCE: the validated walk reads them in place).
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], bool) {
+        (self.rd.b, self.rd.be)
     }
 
     /// Symbol `i`.
@@ -2358,7 +2410,7 @@ impl Sym {
     /// The symbol in the 24 bytes of an `Elf64_Sym` in byte order `be`.
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn decode(e: &[u8; SYM_SIZE], be: bool) -> Sym {
+    pub(crate) fn decode(e: &[u8; SYM_SIZE], be: bool) -> Sym {
         let w4 = |a: [u8; 4]| if be { u32::from_be_bytes(a) } else { u32::from_le_bytes(a) };
         let w8 = |a: [u8; 8]| if be { u64::from_be_bytes(a) } else { u64::from_le_bytes(a) };
         let shndx = if be { u16::from_be_bytes([e[6], e[7]]) } else { u16::from_le_bytes([e[6], e[7]]) };

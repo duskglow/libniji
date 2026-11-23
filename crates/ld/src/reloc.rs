@@ -18,9 +18,9 @@
 //! deferred store into such a segment is refused. Relocation code matches on [`RelocKind`] only.
 
 use crate::arch::{ApplyError, Arch, Operands, RelocKind, TlsOperands, ELFDATA2LSB};
-use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF};
+use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_GNU_UNIQUE, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF, VERSYM_HIDDEN};
 use crate::map::{PROT_EXEC, PROT_READ, PROT_WRITE};
-use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry, VersionMemo};
+use crate::symbols::{self, Binding, Found, LookupError, Object, Probe, Quick, Request, Scope, UniqueRegistry, VersionMemo, VER_NDX_GLOBAL};
 
 /// `SHN_ABS` (gABI): an absolute symbol, whose value the load bias does not move.
 const SHN_ABS: u16 = 0xfff1;
@@ -480,6 +480,153 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
     }
 }
 
+/// The `versym` indices a [`Wants`] table covers; a reference with a higher one takes the exact path.
+const WANTS: usize = 64;
+
+/// The versions object `i`'s references name, for the quick path of its relocation pass
+/// (LD-SYMBOL-VALIDATE-ONCE). For index `k`, `ent[k]` holds the definition known to have the version
+/// ([`symbols::quick_id`]; 0 until one is found) and the name's place in the object's string table
+/// (`offset << 8 | length`; 0: unknown, the exact path answers). Filled at the pass's first versioned
+/// reference by one walk of the object's requirements and then of its own definitions where no
+/// requirement has the index (a reference's version is a requirement's first, as
+/// [`Object::reference_want`] finds it). An own definition's entry knows its definition at once; a
+/// requirement's learns it from the first definition whose version name matched (names are compared
+/// until then), so a version check is then one integer compare. 512 bytes on the pass's stack.
+struct Wants {
+    filled: bool,
+    ent: [(u32, u32); WANTS],
+}
+
+impl Wants {
+    fn new() -> Self {
+        Wants { filled: false, ent: [(0, 0); WANTS] }
+    }
+}
+
+/// Fills [`Wants`] `w` of lookup view `me` (entry `i` of the list) from the tables the exact path's
+/// [`Object::reference_want_origin`] reads. A malformed version table leaves every entry unknown (the
+/// exact path then reports it).
+#[cold]
+#[inline(never)]
+fn fill_wants(me: &Object<'_>, i: usize, w: &mut Wants) {
+    w.filled = true;
+    let d = me.dynamic();
+    let Some(tab) = d.strtab() else { return };
+    let base = tab.as_ptr().addr();
+    let place = |name: &[u8]| -> u32 {
+        let off = name.as_ptr().addr().wrapping_sub(base);
+        let inside = off.checked_add(name.len()).is_some_and(|end| end <= tab.len());
+        match (u32::try_from(off), u8::try_from(name.len())) {
+            (Ok(off @ 0..0x0100_0000), Ok(len @ 1..)) if inside => off.wrapping_shl(8) | u32::from(len),
+            _ => 0,
+        }
+    };
+    let mut ent = [(0u32, 0u32); WANTS];
+    let mut decided = 0u64;
+    // The first table entry with an index decides it, as the exact walks find it.
+    let mut decide = |k: u16, e: (u32, u32)| {
+        let bit = 1u64.checked_shl(u32::from(k)).unwrap_or(0);
+        if bit != 0 && decided & bit == 0 {
+            decided |= bit;
+            if let Some(slot) = ent.get_mut(usize::from(k)) {
+                *slot = e;
+            }
+        }
+    };
+    match d.verneed() {
+        Ok(Some(needs)) => {
+            for vn in needs {
+                let Ok(vn) = vn else { return };
+                for a in vn.auxes() {
+                    let Ok(a) = a else { return };
+                    decide(a.other & !VERSYM_HIDDEN, (0, place(a.name)));
+                }
+            }
+        }
+        Ok(None) => {}
+        Err(_) => return,
+    }
+    match d.verdef() {
+        Ok(Some(defs)) => {
+            for d in defs {
+                let Ok(d) = d else { return };
+                let k = d.ndx & !VERSYM_HIDDEN;
+                match d.names().next() {
+                    Some(Ok(a)) => decide(k, (symbols::quick_id(i, k).unwrap_or(0), place(a.name))),
+                    Some(Err(_)) => return,
+                    None => decide(k, (0, 0)),
+                }
+            }
+        }
+        Ok(None) => {}
+        Err(_) => return,
+    }
+    w.ent = ent;
+}
+
+/// [`target`] of a `GLOB_DAT`, `JUMP_SLOT` or `64` reference over the tables `Object::build`
+/// validated (LD-SYMBOL-VALIDATE-ONCE): the same target, or `None` when the exact path must decide
+/// (symbol 0, an entry the validation does not cover, a version the [`Wants`] table does not know, an
+/// object in scope that is not validated, a unique definition under a registry that records one, a
+/// canonical PLT entry). One pass over the global scope: per object a Bloom test, per candidate
+/// integer compares; a version is checked by index once its definition is known.
+#[inline]
+fn quick_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn UniqueRegistry, wants: &mut Wants) -> Option<Result<Target, RelocError<'a>>> {
+    let me = set.syms.get(i)?;
+    let st = me.quick_symbol(sym)?;
+    if st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT) {
+        return Some(Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size }));
+    }
+    // The name as `target` reads it, the version as `Object::reference_want_origin` does.
+    let (name, gnu) = set.objs.get(i)?.dynm.hashed_string(st.name).ok()?;
+    let index = me.quick_version(sym)?;
+    let want = if index <= VER_NDX_GLOBAL {
+        Quick::Oldest
+    } else {
+        if !wants.filled {
+            fill_wants(me, i, wants);
+        }
+        let &(id, at) = wants.ent.get(usize::from(index))?;
+        let off = usize::try_from(at.wrapping_shr(8)).ok()?;
+        let len = usize::try_from(at & 0xff).ok().filter(|&n| n != 0)?;
+        Quick::Version { id, name: me.dynamic().strtab()?.get(off..off.checked_add(len)?)? }
+    };
+    let mut found = None;
+    for &o in set.global {
+        match set.syms.get(o)?.quick_lookup(o, name, gnu, want) {
+            Probe::Miss => {}
+            Probe::Hit(def) => {
+                found = Some(Found { obj: o, def });
+                break;
+            }
+            Probe::Slow => return None,
+        }
+    }
+    let Some(f) = found else {
+        return Some(if st.bind() == STB_WEAK { Ok(Target { s: 0, ifunc: false, obj: None, size: 0 }) } else { Err(RelocError::Undefined(name)) });
+    };
+    // A unique definition: by scope order alone under `ScopeOrder`, once the exact walk would find
+    // its version's name (the registry's key) without an error; else the exact walk and its registry.
+    if f.def.st.bind() == STB_GNU_UNIQUE && !(unique.scope_ordered() && set.syms.get(f.obj)?.unique_version_ok(f.def.version)) {
+        return None;
+    }
+    if matches!(want, Quick::Version { id: 0, .. }) && f.def.version > VER_NDX_GLOBAL {
+        // Found by its version's name: the next reference to this version compares the index.
+        if let (Some(e), Some(id)) = (wants.ent.get_mut(usize::from(index)), symbols::quick_id(f.obj, f.def.version)) {
+            e.0 = id;
+        }
+    }
+    unique.bound(i, &f);
+    Some(Ok(Target { s: value_of(set, f.obj, &f.def.st), ifunc: f.def.st.kind() == STT_GNU_IFUNC, obj: Some(f.obj), size: f.def.st.size }))
+}
+
+/// Whether `kind` is a symbol reference the quick path ([`quick_target`]) binds.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn quick_kind(kind: RelocKind) -> bool {
+    matches!(kind, RelocKind::GlobDat | RelocKind::JumpSlot | RelocKind::Abs64)
+}
+
 /// The field `r` (of an object loaded at `bias`) gives for symbol value `s`, as type `kind`.
 // Inlined into each pass: one call per relocation otherwise.
 #[allow(clippy::inline_always)]
@@ -665,8 +812,20 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
     let text = textrel(&o.dynm);
     let loads = Loads::of(&o.elf);
     let memo = VersionMemo::default();
+    let mut wants = Wants::new();
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
+            // As `one` in this pass: only a reference bound to an IFUNC definition is written.
+            if quick_kind(r.kind) {
+                if let Some(t) = quick_target(set, i, r.sym, unique, &mut wants) {
+                    let t = t?;
+                    if t.ifunc {
+                        let s = img.call(t.s);
+                        put::<A, I>(img, &loads, &o, &r, field::<A>(r.kind, s, o.bias, &r)?, false)?;
+                    }
+                    continue;
+                }
+            }
             one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo)?;
         }
     }
@@ -754,6 +913,7 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
     }
     let mut deferred = false;
     let memo = VersionMemo::default();
+    let mut wants = Wants::new();
     // The RELA table's `DT_RELACOUNT` prefix: `RELATIVE` entries, most of a shared object's.
     let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
     for (k, table) in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()].into_iter().enumerate() {
@@ -769,6 +929,22 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
             if r.kind == RelocKind::Relative {
                 put::<A, I>(img, &loads, o, &r, field::<A>(r.kind, 0, o.bias, &r)?, text)?;
                 continue;
+            }
+            // A symbol reference over the validated tables (LD-SYMBOL-VALIDATE-ONCE), as `one` would
+            // write it: the field now, or for an IFUNC definition the field checked and deferred.
+            if quick_kind(r.kind) {
+                if let Some(t) = quick_target(set, i, r.sym, unique, &mut wants) {
+                    let t = t?;
+                    if t.ifunc {
+                        if !loads.inside(&o.elf, r.offset, 8, false) {
+                            return Err(RelocError::Outside(r.offset));
+                        }
+                        deferred = true;
+                    } else {
+                        put::<A, I>(img, &loads, o, &r, field::<A>(r.kind, t.s, o.bias, &r)?, text)?;
+                    }
+                    continue;
+                }
             }
             deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo)?;
         }
