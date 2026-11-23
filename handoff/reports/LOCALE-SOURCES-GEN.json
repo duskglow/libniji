@@ -1,24 +1,61 @@
-{"task": "LOCALE-SOURCES-GEN", "model": "opus", "tokens": null,
+{
+ "task": "LOCALE-SOURCES-GEN",
+ "model": "opus",
+ "tokens": null,
  "result": "Locale sources generated from Unicode CLDR 49 (281 names, translit, UCA root collation with shifted symbols and implicit Han order), packaged in locales with the Unicode licence; CI test against the reference; 4 differences rows",
- "branch": "task/locale-sources-gen", "head": null,
- "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
- "jobs": ["keke:locale-sources-gen-gate", "keke:locale-sources-gen-plants"],
+ "branch": "task/locale-sources-gen",
+ "head": "bfa45e6bd",
+ "gate": {
+  "affected": "PENDING (gate2 on bfa45e6bd); superseded gate on a087da3f1: 689 passed / 1 failed (ja_JP tojhira/tojkata maps, fixed)",
+  "peak": "2.1G (superseded run)"
+ },
+ "accepted_first_attempt": null,
+ "jobs": [
+  "keke:locale-sources-gen-gate2",
+  "keke:locale-sources-gen-plants2"
+ ],
  "rulings": [
-  {"item": "LC_TELEPHONE, LC_ADDRESS postal formats and LC_NAME have no CLDR source", "recommendation": "rule on Apache-2.0 metadata (libphonenumber / libaddressinput) for locales; until then they stay empty (differences row)"}
+  {
+   "item": "LC_TELEPHONE, LC_ADDRESS postal formats and LC_NAME have no CLDR source",
+   "recommendation": "rule on Apache-2.0 metadata (libphonenumber / libaddressinput) for locales; until then they stay empty (differences row)"
+  }
  ],
  "informational": [
   "C.UTF-8 source not generated: a code point order as a .. range costs 31 MB LC_COLLATE / 1.2 GB RSS in libniji's localedef (reference compiled C.UTF-8: 1406 bytes); needs a compact code point order in localedef (follow-up story)",
   "libniji's localedef accepts an empty LC_COLLATE section (the reference's refuses it) and writes an 88-byte no-rules LC_COLLATE that the reference's setlocale refuses",
   "CLDR collation tailorings not applied: ja_JP, tr_TR, sv_SE, es_ES, pl_PL, zh_CN, ko_KR order by the root (differences row)",
   "The reference's sv_SE/es_ES/tr_TR strcoll in the comparison log look like byte order: NOT VERIFIED",
-  "Rule slip: one sed -i on records/decisions/D-31/D-31.27.toml (tests field) instead of the Edit tool; not refused, result checked"
+  "Rule slip: one sed -i on records/decisions/D-31/D-31.27.toml (tests field) instead of the Edit tool; not refused, result checked",
+  "Superseded: locale-sources-gen-gate (a087da3f1, 1 failure fixed in bfa45e6bd), locale-sources-gen-plants (7 CAUGHT, zero-element SURVIVED then marked equivalent with reason)"
  ],
  "refused": [],
  "impact": [
-  {"kind": "correctness", "what": "strcoll order of the 68-string corpus equal to the reference's (was different) in en_US, de_DE, fr_FR, it_IT, pt_BR, ru_RU, nl_NL", "before": 0, "after": 7, "unit": "locales equal", "measured": true},
-  {"kind": "coverage", "what": "generator unit tests (xtask locales::) + 1 CI reference test + 8 plants", "before": 7, "after": 10, "unit": "unit tests", "measured": true},
-  {"kind": "unblock", "what": "locales package ships /usr/share/i18n/locales and SUPPORTED without the reference's files (owner ruling #7532)", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "strcoll order of the 68-string corpus equal to the reference's (was different) in en_US, de_DE, fr_FR, it_IT, pt_BR, ru_RU, nl_NL",
+   "before": 0,
+   "after": 7,
+   "unit": "locales equal",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "generator unit tests (xtask locales::) + 1 CI reference test + 8 plants",
+   "before": 7,
+   "after": 10,
+   "unit": "unit tests",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "locales package ships /usr/share/i18n/locales and SUPPORTED without the reference's files (owner ruling #7532)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "A shared black-box locale comparison harness (refdump/cmp/bcmp) in the repo's tools would save each locale story rebuilding it in scratch",
  "next_step": "localedef compact code point order (then the C source); CLDR collation tailorings as reorder-after; widen the comparison to all 281 names",
- "report_file": "handoff/LOCALE-SOURCES-GEN.md"}
+ "report_file": "handoff/LOCALE-SOURCES-GEN.md"
+}

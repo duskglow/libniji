@@ -21,6 +21,11 @@ the CLDR-covered names, omit the names CLDR lacks (differences row). Report: `ha
 * CI test `crates/locale/tests/reference.rs::generated_sources_keep_the_reference_ctype_numbers_and_root_order`.
 * 4 differences rows (Utilities section, after `iconv -l`). `spec/cldr/` exempt from lab-names (CLDR word `mei`).
 * Plants: `handoff/LOCALE-SOURCES-GEN.plants` (8, xtask unit tests).
+* Jobs on the code head bfa45e6bd (keke): `locale-sources-gen-gate2` (direct tier) and `locale-sources-gen-plants2`,
+  started 05:50Z, PENDING at hand-back. Superseded: `locale-sources-gen-gate` (a087da3f1: 689 passed / 1 failed,
+  ja_JP maps tojhira/tojkata, test narrowed in bfa45e6bd), `locale-sources-gen-plants` (7 CAUGHT; zero-element
+  SURVIVED, now `equivalent:` with its reason). Clippy and `cargo xtask static` clean on a087da3f1 (job
+  `locale-sources-gen-lint2`); bfa45e6bd changed only a test, the plants file, docs and handoff.
 
 ## Comparison (keke, black box; job `locale-sources-gen-cmp5`, before the level-by-level sort fix)
 
