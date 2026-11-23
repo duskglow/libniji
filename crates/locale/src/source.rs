@@ -62,6 +62,8 @@ pub struct Source {
     /// The lines outside any category, each skipped with a syntax error (the reference goes on
     /// past them, with or without `-c`: probe `localedef-outside`, #7534).
     pub errors: TryVec<Error>,
+    /// The line of each category's `END` (0: not defined).
+    pub ends: [u32; 13],
 }
 
 /// Parse the source `text`, loading `copy` targets through `files`.
@@ -71,7 +73,7 @@ pub fn parse(text: &[u8], files: &mut dyn Files) -> Result<Source> {
 
 fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
     let (lines, chars) = lex::lines(text)?;
-    let mut src = Source { cats: Default::default(), errors: TryVec::new() };
+    let mut src = Source { cats: Default::default(), errors: TryVec::new(), ends: [0; 13] };
     let mut cur: Option<(usize, TryVec<Stmt>)> = None;
     for line in lines.into_inner() {
         let first = line.toks.first().and_then(Tok::word).unwrap_or(&[]);
@@ -92,6 +94,9 @@ fn parse_at(text: &[u8], files: &mut dyn Files, depth: u32) -> Result<Source> {
                     }
                     if let Some(slot) = src.cats.get_mut(c) {
                         *slot = Some(body);
+                    }
+                    if let Some(end) = src.ends.get_mut(c) {
+                        *end = line.no;
                     }
                     continue;
                 }

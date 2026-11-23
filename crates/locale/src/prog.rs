@@ -552,6 +552,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         Err(e) => {
             match (e.kind, inputs.failed) {
                 (ErrorKind::NoMemory, _) => return Err(NoMem),
+                // An empty LC_COLLATE (probed): no file even with -c, and status 1, not 4.
+                (ErrorKind::Refused, _) => {
+                    put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+                    put(&mut o.err, &[b"[error] no output file produced because errors were issued\n"])?;
+                    o.status = 1;
+                    return Ok(());
+                }
                 (ErrorKind::Missing, Some((Kind::Locale, errno))) => {
                     put(&mut o.err, &[b"[error] cannot open a locale definition file the source names (copy or include): ", inputs.host.error_text(errno), b"\n"])?;
                 }

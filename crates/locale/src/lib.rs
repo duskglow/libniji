@@ -57,6 +57,9 @@ pub enum ErrorKind {
     Missing,
     /// Memory ran out.
     NoMemory,
+    /// A category the source cannot have at all (an empty `LC_COLLATE`): nothing is written,
+    /// even with `-c`.
+    Refused,
 }
 
 impl Error {
@@ -158,6 +161,8 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
                     *slot = file;
                 }
             }
+            // Refused at the category's END line (probed: `<file>:<END line>: LC_COLLATE: ...`).
+            Err(e) if e.kind == ErrorKind::Refused => return Err(Error { line: src.ends.get(n).copied().unwrap_or(0), ..e }),
             Err(e) if e.kind == ErrorKind::Syntax => {
                 out.errors.push(e)?;
                 if let Some(f) = out.failed.get_mut(n) {
@@ -222,7 +227,7 @@ fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut
         10 => cats::telephone(&b, cs)?,
         11 => cats::measurement(&b, cs)?,
         12 => cats::identification(&b, cs)?,
-        3 => collate::write(stmts, cs)?,
+        3 => collate::write(stmts, cs, defaults)?,
         _ => return Ok(None),
     }))
 }
