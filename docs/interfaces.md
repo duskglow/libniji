@@ -116,13 +116,14 @@ least; 32 KiB for 2,000 variables), and is kept when it is turned off.
 Old data is never unmapped or freed, so pointers into it (`tm_zone`, `tzname`, a `locale_t`)
 stay valid. In Rust: `niji_native::tz::invalidate()` and `niji_native::locale::invalidate()`.
 
-It bounds `getpass` (decision D-17.8): a line of more than the bound (1 MiB by default,
-`NIJI_GETPASS_DEFAULT_LIMIT`) is read to its end and discarded, every buffer of the library's
+It bounds `getpass` when asked (decisions D-17.8, D-17.10): by default the line has no bound
+but memory (`NIJI_GETPASS_DEFAULT_LIMIT`, 0); a line of more than a bound the process set is
+read to its end and discarded, every buffer of the library's
 that held it is zeroed, and `getpass` fails with `EOVERFLOW`; a truncated password is never
 returned.
 
-* `niji_getpass_set_limit(bytes)`: set the process's bound (0: the default again); the bound
-  that was in force, or `-EINVAL` above `PTRDIFF_MAX`. It holds for the life of the process and
+* `niji_getpass_set_limit(bytes)`: set the process's bound (0: none, the default); the bound
+  that was in force (0 for none), or `-EINVAL` above `PTRDIFF_MAX`. It holds for the life of the process and
   in its `fork` children (`niji_native::getpass::set_limit` in Rust).
 
 It has an opt-in diagnostic channel (decision D-2.9). By default the library writes nothing to a

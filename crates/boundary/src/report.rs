@@ -30,8 +30,10 @@ use niji::error::{Errno, KResult};
 use niji::mem::TryVec;
 use niji::text::Encoding;
 use niji_legacy::stdio_compat as sc;
+use niji_rt::chunks::Chunks;
 use niji_rt::sync::RawMutex;
 
+use crate::heap::KernelPages;
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
 use crate::{conv, data, errno, ffi, locale, printf, process};
@@ -224,35 +226,75 @@ fn decimal(mut v: u32, b: &mut [u8; 10]) -> &[u8] {
     b.get(i..).unwrap_or(&[])
 }
 
-/// The longest file name `error_one_per_line` remembers; a longer one is never taken as a
-/// repeat (the message is printed).
-const LAST_MAX: usize = 4096;
+/// The bytes of a remembered file name held in [`LAST_NAME`]; the rest go to [`LAST_MORE`].
+const LAST_FIXED: usize = 4096;
 /// [`LAST_LEN`] when there is no remembered location.
 const NO_LAST: usize = usize::MAX;
 /// The location of the previous `error_at_line` call made with `error_one_per_line` set: the
 /// file name's bytes, its length ([`NO_LAST`] for none) and the line; under [`LAST_LOCK`].
-static LAST_NAME: [AtomicU8; LAST_MAX] = [const { AtomicU8::new(0) }; LAST_MAX];
+static LAST_NAME: [AtomicU8; LAST_FIXED] = [const { AtomicU8::new(0) }; LAST_FIXED];
+/// The name's bytes past [`LAST_FIXED`], eight to a word (zero-padded), in chunks mapped when
+/// a longer name first needs them: the name has no limit but memory (LIMITS-CONFIG-SMALL).
+static LAST_MORE: Chunks = Chunks::new();
 static LAST_LEN: AtomicUsize = AtomicUsize::new(NO_LAST);
 static LAST_LINE: AtomicU32 = AtomicU32::new(0);
 /// Serializes the comparison with the remembered location and its replacement.
 static LAST_LOCK: RawMutex = RawMutex::new();
 
+/// Up to eight bytes as one word, zero-padded.
+fn word(b: &[u8]) -> u64 {
+    let mut w = [0u8; 8];
+    for (d, s) in w.iter_mut().zip(b) {
+        *d = *s;
+    }
+    u64::from_ne_bytes(w)
+}
+
+/// Whether the remembered name's bytes past [`LAST_FIXED`] are `rest` (its length is
+/// compared separately).
+fn more_equal(rest: &[u8]) -> bool {
+    rest.chunks(8).enumerate().all(|(i, c)| LAST_MORE.get(&KernelPages, i, 1).and_then(|w| w.first()).is_some_and(|w| w.load(Relaxed) == word(c)))
+}
+
+/// Keep `rest` as the remembered name's bytes past [`LAST_FIXED`]; false without memory.
+#[cold]
+#[inline(never)]
+fn more_store(rest: &[u8]) -> bool {
+    for (i, c) in rest.chunks(8).enumerate() {
+        if !LAST_MORE.reserve(&KernelPages, i, 1) {
+            return false;
+        }
+        let Some(w) = LAST_MORE.get(&KernelPages, i, 1).and_then(|w| w.first()) else { return false };
+        w.store(word(c), Relaxed);
+    }
+    true
+}
+
 /// Whether `file`:`line` repeats the remembered location; it becomes the remembered one (a
-/// NULL file name, or one too long to keep, leaves none).
+/// NULL file name leaves none, and so does a long one when there is no memory to keep it: the
+/// next message for it is then printed again).
 fn repeats(file: Option<&[u8]>, line: u32) -> bool {
     let _g = LAST_LOCK.lock(&CSys);
+    let split = |f: &'_ [u8]| -> (&'_ [u8], &'_ [u8]) { (f.get(..LAST_FIXED).unwrap_or(f), f.get(LAST_FIXED..).unwrap_or(&[])) };
     let same = file.is_some_and(|f| {
-        LAST_LEN.load(Relaxed) == f.len() && LAST_LINE.load(Relaxed) == line && LAST_NAME.iter().zip(f).all(|(a, &b)| a.load(Relaxed) == b)
+        let (head, rest) = split(f);
+        LAST_LEN.load(Relaxed) == f.len() && LAST_LINE.load(Relaxed) == line && LAST_NAME.iter().zip(head).all(|(a, &b)| a.load(Relaxed) == b) && more_equal(rest)
     });
     match file {
-        Some(f) if f.len() <= LAST_MAX => {
-            for (a, &b) in LAST_NAME.iter().zip(f) {
+        Some(_) if same => {}
+        Some(f) => {
+            let (head, rest) = split(f);
+            for (a, &b) in LAST_NAME.iter().zip(head) {
                 a.store(b, Relaxed);
             }
-            LAST_LEN.store(f.len(), Relaxed);
-            LAST_LINE.store(line, Relaxed);
+            if rest.is_empty() || more_store(rest) {
+                LAST_LEN.store(f.len(), Relaxed);
+                LAST_LINE.store(line, Relaxed);
+            } else {
+                LAST_LEN.store(NO_LAST, Relaxed);
+            }
         }
-        _ => LAST_LEN.store(NO_LAST, Relaxed),
+        None => LAST_LEN.store(NO_LAST, Relaxed),
     }
     same
 }
