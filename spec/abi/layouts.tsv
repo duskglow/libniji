@@ -2030,6 +2030,9 @@ struct ether_arp	arp_sha	8		uint8_t[6]
 struct ether_arp	arp_spa	14		uint8_t[4]	
 struct ether_arp	arp_tha	18		uint8_t[6]	
 struct ether_arp	arp_tpa	24		uint8_t[4]	
+struct icmp_ra_addr		8	4		
+struct icmp_ra_addr	ira_addr	0		uint32_t	
+struct icmp_ra_addr	ira_preference	4		uint32_t	
 struct icmp6_filter		32	4		
 struct icmp6_filter	icmp6_filt	0		uint32_t[8]	
 struct nd_router_solicit		8	4		
