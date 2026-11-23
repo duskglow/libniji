@@ -597,7 +597,10 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
     if text {
         text_segments(&o, img, page, true).map_err(|()| RelocError::Protect)?;
     }
-    let first = pass1::<A, I>(set, i, &o, text, img, unique);
+    // The object's version requirements, each resolved once for the pass (LD-LOOKUP-STRUCTURE);
+    // built here and lent to `pass1`, whose loops keep their shape.
+    let needs = version_requirements(set, i);
+    let first = pass1::<A, I>(set, i, &o, text, img, unique, &needs);
     let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots::<A, I>(set, i, first, false, text, img, unique) } else { first };
     if text {
         // Restored before any resolver can run, also on failure.
@@ -655,7 +658,8 @@ fn relative<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, wind
 /// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred. Kept
 /// out of [`relocate_first`], which then stays small.
 #[inline(never)]
-fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+#[allow(clippy::too_many_arguments)]
+fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry, needs: &Needs<'a>) -> Result<bool, RelocError<'a>> {
     let loads = Loads::of(&o.elf);
     for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
         let at = at.map_err(RelocError::Elf)?;
@@ -670,8 +674,6 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
     }
     let mut deferred = false;
     let memo = VersionMemo::default();
-    // The object's version requirements, each resolved once for the pass (LD-LOOKUP-STRUCTURE).
-    let needs = version_requirements(set, i);
     // The RELA table's `DT_RELACOUNT` prefix: `RELATIVE` entries, most of a shared object's.
     let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
     for (k, table) in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()].into_iter().enumerate() {
@@ -688,7 +690,7 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
                 put::<A, I>(img, &loads, o, &r, field::<A>(r.kind, 0, o.bias, &r)?, text)?;
                 continue;
             }
-            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo, &needs)?;
+            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo, needs)?;
         }
     }
     Ok(deferred)
@@ -835,21 +837,38 @@ pub fn version_requirements<'a>(set: &Objects<'_, 'a>, i: usize) -> Needs<'a> {
     }
     let mut table = Needs::from(base);
     // The walk met no error above, so it meets none again: every requirement is recorded.
-    let filled = walk(&mut |file, a| table.record(a.other & !VERSYM_HIDDEN, a.name, definer(set, file, a)));
+    // The provider is found once per required file (its entries' versions follow it).
+    let mut last: Option<(&'a [u8], Option<usize>)> = None;
+    let filled = walk(&mut |file, a| {
+        let p = match last {
+            Some((f, p)) if core::ptr::eq(f, file) => p,
+            _ => provider_in_scope(set, file),
+        };
+        last = Some((file, p));
+        table.record(a.other & !VERSYM_HIDDEN, a.name, p.and_then(|p| definer(set, p, a)));
+    });
     if filled.is_err() { Needs::empty() } else { table }
 }
 
-/// Where requirement `aux` of `file` is defined, for [`version_requirements`]: the first object of the pass's
-/// scope that `file` names (its load name or `DT_SONAME`; only the scope's objects are read, as a
-/// `dlopen` set may hold unloaded slots), its string table address, and the version index of the
-/// definition named `aux`'s name ([`crate::elf::Verdefs::find_hashed`]), taken only when that
+/// The object of the pass's scope that `file` (a `vn_file`) names, for [`version_requirements`]: the
+/// first whose load name is `file`, else the first whose `DT_SONAME` is (the names are compared
+/// first: they need no walk of the dynamic entries). Only the scope's objects are read: a `dlopen`
+/// set may hold unloaded slots. Any object found is correct here: [`definer`] checks its pair.
+fn provider_in_scope(set: &Objects<'_, '_>, file: &[u8]) -> Option<usize> {
+    let scope = || set.global.iter().copied().filter_map(|j| Some((j, set.objs.get(j)?)));
+    scope()
+        .find(|(_, o)| o.name == file)
+        .or_else(|| scope().find(|(_, o)| o.dynm.get(dt::SONAME).and_then(|s| o.dynm.string(s).ok()) == Some(file)))
+        .map(|(j, _)| j)
+}
+
+/// Where requirement `aux` is defined in object `p` (its provider), for [`version_requirements`]:
+/// `p`'s string table address and the version index of the definition named `aux`'s name ([`crate::elf::Verdefs::find_hashed`]), taken only when that
 /// object's own version name for the index is exactly that name ([`Object::version_name`], which a
 /// lookup's definition side reads first): a lookup that matches the pair then answers as one
 /// comparing the names. `None` when there is no such object or definition (the lookups then
 /// compare names as before).
-fn definer(set: &Objects<'_, '_>, file: &[u8], aux: &Vernaux<'_>) -> Option<(usize, u16)> {
-    let names = |o: &Obj<'_>| o.name == file || o.dynm.get(dt::SONAME).and_then(|s| o.dynm.string(s).ok()) == Some(file);
-    let p = set.global.iter().copied().find(|&j| set.objs.get(j).is_some_and(names))?;
+fn definer(set: &Objects<'_, '_>, p: usize, aux: &Vernaux<'_>) -> Option<(usize, u16)> {
     let view = set.syms.get(p)?;
     let d = view.dynamic().verdef().ok()??.find_hashed(aux.hash, aux.name)?;
     if d <= symbols::VER_NDX_GLOBAL || view.version_name(d).ok()? != Some(aux.name) {
