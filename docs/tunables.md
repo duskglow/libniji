@@ -18,7 +18,8 @@ loader rule 1; phase 14 applies the same rule in the dynamic loader).
 
 | Name (alias) | Range | Effect |
 |---|---|---|
-| `glibc.cpu.hwcaps` (`niji.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. Other items are ignored |
+| `glibc.cpu.hwcaps` (`niji.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. `SHSTK` (exactly) asks for the user shadow stack: enabled at start-up when the program and every start-up object are marked for it and the CPU and kernel have it (D-21.6); `-SHSTK` or no item, off (the default). Other items are ignored |
+| `glibc.cpu.x86_shstk` (`niji.cpu.x86_shstk`) | `on`, `off`, `permissive` | With `hwcaps=SHSTK` (D-21.6): `off` vetoes it; `on` keeps it on when a `dlopen`ed object is not marked (by default that `dlopen` fails); `permissive` turns it off for such an object and does not lock it. Exact lower-case spellings; the last entry counts |
 | `glibc.cpu.x86_rep_movsb_threshold` (`niji.cpu.rep_movsb_threshold`) | 0x100 and up | bytes from which copies use `rep movsb` |
 | `glibc.cpu.x86_rep_stosb_threshold` (`niji.cpu.rep_stosb_threshold`) | 1 and up | bytes from which fills use `rep stosb` |
 | `glibc.pthread.rseq` (`niji.pthread.rseq`) | 0 or 1 | 0: threads register no rseq area (§22.9) |
