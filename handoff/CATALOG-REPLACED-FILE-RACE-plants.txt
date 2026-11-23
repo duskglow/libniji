@@ -1,0 +1,6 @@
+# CATALOG-REPLACED-FILE-RACE plants (D-7.23): each reverts the hidden system locale directory in one place.
+# Without it the reference and libniji see the host's installed locales; catalogs_run.sh then refuses to run,
+# on every run, on any host whose /usr/lib/locale holds more than C.utf8.
+no-hide-flag | crates/core/tests/catalogs_products.rs | lit:cmd.arg("sh").arg(&wrap).arg("--hide-system-locales").arg(mode); ==> cmd.arg("sh").arg(&wrap).arg(mode); | cargo test -p niji --test catalogs_products catalogs_equal_the_reference | msg:holds more than C.utf8
+no-hide-mount | crates/core/tests/oracle/nscache_mode.sh | lit:if [ "$h" = 1 ] && [ -d /usr/lib/locale ]; then ==> if [ "$h" = 0 ] && [ -d /usr/lib/locale ]; then | cargo test -p niji --test catalogs_products catalogs_equal_the_reference | msg:holds more than C.utf8
+no-c-utf8 | crates/core/tests/oracle/nscache_mode.sh | lit:if [ -d "/proc/$$/fd/4/C.utf8" ]; then ==> if false; then | cargo test -p niji --test catalogs_products catalogs_equal_the_reference | msg:C\.UTF-8.*failed|line counts differ
