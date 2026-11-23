@@ -1,0 +1,2 @@
+# HEAP-FIND-DEPTH-NEED plants: map_aligned_exactly places a later heap segment (metadata and 8 slabs) under an address-space limit (9 blockers per round)
+blockers-8 | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo xtask so && cargo test -p niji --test heap_meta_products find_over_200000_entries_bounds_its_address_space | msg:find over 200000 entries needs [0-9]+ KiB over 3 entries > 33296

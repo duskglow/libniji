@@ -211,36 +211,91 @@ fn the_heap_keeps_address_space_near_its_use() {
     );
 }
 
-/// RLIMIT_AS over the VmSize at start under which `tests/oracle/heap_find_entries.c` (200000
-/// blocks of 264 bytes held at once: find over one directory of 200000 entries, issue #21's real
-/// workload) must still succeed, fixed layout, one node. The walk fills several segments of one
-/// shard, and a segment after the first reservation's (metadata and 8 slabs) needs 9 blockers to
-/// be placed aligned when the over-mapping does not fit under the limit. With 8 (before
-/// HEAP-FIND-DEPTH-NEED, D-3.25) the need was FIND_BEFORE KiB (the heap mapped per request once
-/// no later segment could be placed); this is the measured need after (bisected to 16 KiB, Zen 1
-/// build host, identical over 3 runs).
-const FIND_HEADROOM: u64 = 0;
+/// GitHub issue #21's real workload: findutils' `find` over one directory of 200000 files, run by
+/// the products' dynamic loader and libc (the system's `find`), fixed layout, one node. The bound
+/// is on the least `ulimit -v` (KiB) the walk needs over the least `find` needs for 3 files (the
+/// issue's formula allows 35000). The walk fills several segments of one shard; a segment after
+/// the first reservation's (metadata and 8 slabs, 2304 KiB) needs 9 blockers to be placed aligned
+/// once the over-mapping does not fit under the limit. With 8 (before HEAP-FIND-DEPTH-NEED,
+/// D-3.25) none was placed and the heap mapped per request: 37344 KiB with snapshot 22.4
+/// against 34784 with 22.3 (Zen 1 build host, find 4.9.0, tmpfs). The bound is the measured level after (Zen 1 build host, bisected to 16 KiB,
+/// identical over 2 runs; the find of another host or release may differ: run it there first). Fixed layout, so
+/// the need is the same run to run (2 of 2, and 2 of 2 by the test itself).
+const FIND_200K_OVER_3: u64 = 33296;
+
+/// Least `ulimit -v` (KiB, 16 KiB steps) under which `find dir` succeeds with the products.
+fn find_need(find: &Path, dir: &Path, lo: u64) -> u64 {
+    let r = root().join("target/niji");
+    let ld = ["ld-linux-x86-64.so.2", "ld.so"].iter().map(|n| r.join(n)).find(|p| p.exists()).expect("the products' dynamic loader");
+    let run = |kib: u64| {
+        // The loader's own --library-path: LD_LIBRARY_PATH would reach the shell too.
+        let cmd = format!("ulimit -v {kib}; exec \"$0\" --library-path \"$1\" \"$2\" \"$3\" > /dev/null");
+        let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(&r).arg(find).arg(dir).env_clear().stdin(Stdio::null()).output().unwrap();
+        o.status.success()
+    };
+    let (mut lo, mut hi) = (lo, 1 << 20);
+    assert!(run(hi), "find {} fails under ulimit -v {hi} with the products", dir.display());
+    while hi - lo > 16 {
+        let mid = (lo + hi) / 2;
+        if run(mid) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    hi
+}
+
+/// A directory tree removed when dropped (also when the test fails).
+struct Dirs(PathBuf);
+
+impl Drop for Dirs {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
 
 #[test]
-fn the_heap_places_later_segments_under_a_limit() {
+fn find_over_200000_entries_bounds_its_address_space() {
     // Clauses: s3_1_c_1 (T14: address space under a limit); GitHub issue #21, D-3.25.
+    let find = Path::new("/usr/bin/find");
+    if !find.exists() {
+        eprintln!("skipped: no /usr/bin/find on this host (findutils not installed)");
+        return;
+    }
     let r = root();
-    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
-    let dir = r.join("target/test-oracles");
-    std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("heap_find_entries_niji");
-    build("heap_find_entries.c", &exe);
+    assert!(r.join("target/niji/libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
+    // The directories on tmpfs, where the bound was measured: find's need depends on the file
+    // system it reads (the same walk on ext4 needed 3247 KiB less), so not under target/.
+    let shm = Path::new("/dev/shm");
+    if !shm.is_dir() {
+        eprintln!("skipped: no /dev/shm (tmpfs) on this host");
+        return;
+    }
+    let base = Dirs(shm.join(format!("niji-find-entries-{}", std::process::id())));
+    let (d3, d200k) = (base.0.join("d3"), base.0.join("d200k"));
+    for (d, n) in [(&d3, 3), (&d200k, 200_000)] {
+        std::fs::create_dir_all(d).unwrap();
+        for i in 0..n {
+            std::fs::File::create(d.join(i.to_string())).unwrap();
+        }
+    }
     let nodes = numa_nodes();
     let node: &[usize] = match nodes.as_slice() {
         [first, _, ..] => first,
         _ => &[],
     };
-    let o = with_cpus(node, || with_fixed_layout(|| Command::new(&exe).arg(FIND_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap()));
-    assert!(
-        o.status.success(),
-        "under RLIMIT_AS = start + {FIND_HEADROOM} KiB (ADDR_NO_RANDOMIZE) 200000 blocks of 264 bytes did not fit: {:?} (exit 10: a malloc failed; a later segment not placed under the limit?)",
-        o.status
-    );
+    let mut need = (0, 0);
+    with_cpus(node, || {
+        with_fixed_layout(|| {
+            let n3 = find_need(find, &d3, 0);
+            need = (n3, find_need(find, &d200k, 0));
+            Command::new("true").output().unwrap()
+        })
+    });
+    let over = need.1 - need.0;
+    eprintln!("find needs {} KiB for 3 entries, {} for 200000: {over} over (bound {FIND_200K_OVER_3})", need.0, need.1);
+    assert!(over <= FIND_200K_OVER_3, "find over 200000 entries needs {over} KiB over 3 entries > {FIND_200K_OVER_3}: a later heap segment not placed under the limit?");
 }
 
 /// The migration case of [`AS_STEPS`] (ruling #7441): the program starts on the first node's
