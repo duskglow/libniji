@@ -38,24 +38,13 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 use std::collections::{BTreeMap, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let oracle = r.join("crates/core/tests/oracle");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(oracle.join("patterns_diff.c")).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(oracle.join("patterns_diff.c"));
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/patterns_diff.c").build(out, niji)
 }
 
 /// Sections of the regular expressions, compared with the POSIX submatch reading.

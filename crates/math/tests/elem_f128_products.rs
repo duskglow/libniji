@@ -15,28 +15,16 @@ mod skip_note;
 
 #[path = "../../core/tests/support/oracle.rs"]
 mod oracle;
+use oracle::root;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use niji_mathtools::cmp;
 use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/math/tests/oracle/elem_f128_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        let p = r.join("target/niji");
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("niji-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1", "-fno-builtin"]).arg(&src).arg("-lm");
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/math/tests/oracle/elem_f128_diff.c").libm().build(out, niji)
 }
 
 /// One printed line: function, mode, operands, results, flags, errno.
