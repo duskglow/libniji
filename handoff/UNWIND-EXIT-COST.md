@@ -1,67 +1,54 @@
-# UNWIND-EXIT-COST (handoff; leg 1 = profile and design, no code change yet)
+# UNWIND-EXIT-COST (handoff; leg 2 = code, measured, gated)
 
-State: branch `task/unwind-exit-cost` (from origin/next 0495c4684), role keke:~/w/n2 (Zen 1 host, 60 vCPU),
-products built there by job `unwind-exit-cost-so0` (rc 0) on the unchanged head. Scratch (probes, scripts):
-`~/w/.scratch/UNWIND-EXIT-COST/` locally, installed on keke in `~/work/unwind-exit-cost/`; probe builds and
-outputs in keke `/dev/shm/claude/unwind-exit-cost/base0/`.
+State: branch `task/unwind-exit-cost` (from origin/next 0495c4684), role keke:~/w/n2 (Zen 1 host, 60 vCPU).
+Code: `crates/rt/src/unwind.rs` (walker), one test case in `crates/rt/tests/unwind.rs`, pending record
+`records/pending/UNWIND-EXIT-COST-1.toml` (D-NEW, series D-22: CI assigns the id). Plants:
+`handoff/UNWIND-EXIT-COST-plants.txt`. Scratch (probes, measure.sh, step.py, gate.sh): `~/w/.scratch/UNWIND-EXIT-COST/`,
+installed on keke in `~/work/unwind-exit-cost/`.
 
-## Baseline (job `unwind-exit-cost-base0`, keke, user instructions per operation, N=401 minus N=1)
-`measure.sh <role> <outdir> <tag>` prints: per_op, returning-thread cost, delta (= the exit's own cost).
+## What changed (D-NEW in records/pending, body has the detail)
+1. `.eh_frame_hdr` table in datarel|sdata4 (0x3b, what linkers write): the table is taken once as a slice that must
+   fit its segment; fields read straight from it (`last_at_or_below` shared with the generic path, kept for other
+   encodings). A count running past the segment finds nothing (new case in `ip27_finds_fdes_through_the_header...`).
+2. `run`: remembered rows stored lazily (`[Option<Row>; 4]`), not 4 row copies per call; `restore` no longer builds
+   `Row::new` eagerly (`map_or` -> `match`).
+3. `walk_with` generic over `O: Borrow<Object>` (listed objects borrowed; `Held` enum for `handler_above`'s found
+   object); `row_at` and `step` write in place; two register buffers swapped by reference.
+4. `LastCie`: the CIE parsed last is kept across the walk (keyed by address), shared by search and scan.
 
-| row | reference delta | libniji delta |
-|---|---|---|
-| pthread_exit depth 0 (plain C, no -fexceptions: no unwinder loaded) | 8,612 | 57,115 |
-| pthread_exit depth 10 | 21,112 | 97,321 |
-| pthread_exit depth 10, pthread_cleanup_push per frame | 79,011 | 124,468 |
-| pthread_cancel depth 3 (in read) | 13,851 | 70,106 |
-| C++ exit through 10 dtor frames + catch/rethrow (libgcc_s loaded) | 76,958 | 96,125 |
-| C++ throw through 10 frames, caught (no thread) | 86,446 | 98,986 |
-| static pthread_exit depth 3 (plain C) | 17,381 | 129 |
-A returning thread itself costs 2,274 (reference) vs 44,091 (libniji): THREAD-CREATE-COST's area, not this story.
+## Measurements (keke, user instructions per operation, delta = minus a returning thread; measure.sh)
+| row | reference | libniji before (base0) | after round 1 (after1) | after (after2) |
+|---|---|---|---|---|
+| pthread_exit depth 0 | 8,825 | 57,115 | 35,139 | 30,980 |
+| pthread_exit depth 10 | 21,325 | 97,321 | 61,816 | 52,340 |
+| pthread_exit depth 10 + cleanup_push | 79,226 | 124,468 | 88,965 | 80,157 |
+| pthread_cancel depth 3 | 14,065 | 70,106 | 43,910 | 38,161 |
+| C++ exit 10 dtor frames (libgcc unwinder) | 76,957 | 96,125 | 96,046 | 96,036 |
+| C++ throw 10 frames | 86,445 | 98,986 | 98,993 | 99,010 |
+| static pthread_exit depth 3 | 17,344 | 129 | 129 | 128 |
+Round 1 = fixes 1-3 without in-place rows/regs and CIE keep. Step profile after round 1 (step.py, depth 0): walker
+~30k of the exiting thread's ~55k steps; `thread::finish` 19.5k (teardown, also in a returning thread). The C++
+rows run libgcc's unwinder, not this code (their drift: see the report's noise check). Skylake-SP: not measured
+(no Skylake-SP role was assigned; keke only).
 
-## Profile split (exact: gdb single-step of the 2nd thread's pthread_exit, `step.py`, c.niji mode 1 depth 0)
-76,775 instructions in the exiting thread. `thread::finish` 19,539 (thread teardown, not the walker). The rest is
-D-22.23's `backtrace::handler_on_stack` (libniji's own CFI walk, run because a plain C program has no
-`_Unwind_ForcedUnwind`), ~53k for ~11 frames (~4.8k/frame):
-`Object::fde_for` 10,787 (binary search of the eh_frame_hdr table, through generic `at()`+`pointer()` per row);
-`Cursor::value` 8,355 (the table rows' pointer decode); `unwind::run` 7,518; `niji_machine_move_avx2` 7,268 +
-`conv::internal_move` 2,219 + `hot::mem::internal_large` 1,440 + memmove 416 (the "6.3k move": copies, see below);
-`step` 3,087; `Object::cie` 2,763; `handler_above` 2,293; `Fde::parse` 1,232; `OwnMemory::word` 1,072;
-search closure 1,056; `Object::fde` 990; `unwind::object` 888; `row_at` 738; `handler_on_stack` 568;
-`holds_pc` 504; dlsym (the failing `_Unwind_ForcedUnwind` lookup, ruling #6904) ~2.5k in all.
-WARNING: perf sampling on this Zen 1 host attributes `instructions:u` samples by time, not count (it put 48% in
-ld.so's fill/dlsym; the exact count there is ~2.5k). Use step.py or perf stat differences, never perf %.
+## Candidates from the brief
+* (a) per-object index: already there (binary search of PT_GNU_EH_FRAME's table); the cost was constant factors
+  (generic per-row decode, segment lookup per row): fixed by 1.
+* (b) skip the walk when no frame can have a handler: NOT landed, NOT measured. Needs a per-object "has a
+  personality CIE" answer cached across dlopen/dlclose; libc's own .eh_frame (~5,000 records, ~260 KB) has
+  personality CIEs for its guards (skip list), so libc would need a build-time answer. Estimated gain ~25k per
+  plain-C dynamic exit; cost a one-time scan of the exe's (small) and other objects' records. Recommended as a
+  follow-up story with its own measurement and the brief's "shortcut taken with a cleanup frame present" plant.
 
-## Findings for the brief's candidates
-* (a) "per-object index, binary search": ALREADY how `Object::search` works (PT_GNU_EH_FRAME table, binary
-  search; linear scan only without a table). The cost is constant factors per probe, not a linear scan.
-* (b) "skip the handler search when no frame can have a handler": in the no-unwinder case the walk IS the
-  handler search; skipping it needs to know no loaded object has a personality FDE (outside libc's own guards),
-  i.e. a one-time scan of every object's .eh_frame (libc's is 260 KB, ~5k records) plus invalidation on
-  dlopen/dlclose. Not measured yet; leg 2 should estimate it (count records) and report, likely rejected.
-* The copies: `run()` builds `let mut saved = [*row; REMEMBER_DEPTH]` (4 x ~296 B Row) on EVERY call, two calls
-  per frame (CIE + FDE instructions); `walk_with`'s `locate` returns `(Object, Fde)` by value (Object ~240 B,
-  copied per frame, `Some((*o, f))`).
+## Jobs (keke) on the final code
+unwind-exit-cost-chk4 (xtask clippy, unwind tests, so, measure after2), unwind-exit-cost-plants2 (7/7 CAUGHT),
+unwind-exit-cost-gate1 (direct tier, 7 suites, 265 passed, 0 failed), unwind-exit-cost-static1 (records check,
+static, measure after3). Superseded: chk1/chk2 (per-package clippy: failed on unrelated niji-boundary cfg lints),
+chk3 + after1 + step1 (round 1 head), plants1 (stopped: round 1 head).
 
-## Exact next step (leg 2)
-Edit `crates/rt/src/unwind.rs` only:
-1. `run`: lazy remember stack: `let mut saved: Option<[Row; REMEMBER_DEPTH]> = None;` filled on first 0x0a
-   (`get_or_insert([*row; REMEMBER_DEPTH])`), 0x0b reads it (`saved.as_ref()?.get(depth)`).
-2. `walk_with`: generic over `O: core::borrow::Borrow<Object<'a>>`; `walk` passes `&Object`; `handler_above`
-   an enum (listed reference / found owned) so listed objects are not copied.
-3. `Object::search`: fast path for `table_enc == 0x3b` (datarel|sdata4): take the table slice once
-   (`self.bytes(table)`, check `count * 8` fits), binary search on i32 LE pairs; the generic path stays for
-   other encodings. Bounds via slice `get` (loaded data is untrusted).
-Then: `cargo xtask so` on keke (~10 min), `measure.sh` + `step.py` again (table before/after), tests
-`cargo test -p niji-rt --test unwind` + `forced_unwind_products`, plants in `handoff/UNWIND-EXIT-COST-plants.txt`
-(brief step 5: e.g. the search fast path returning the wrong row (stale/wrong range), the lazy stack restoring
-the wrong row; a "shortcut taken with a cleanup frame present" plant only if (b) lands), clippy, static, gate,
-precheck. Bounds: grep `validation/`/`benchmarks/` for a pthread_exit row; none was found in leg 1 (`grep -rln
-pthread_exit benchmarks validation docs/benchmarks.md` hit only a bincompat exports list).
+## Next step
+Land. Follow-ups: (b) as its own story; `thread::finish` 19.5k (THREAD-CREATE-COST's area); the remaining walk
+(~2.6k/frame: FDE instruction interpretation in `run`, CIE instructions re-run per frame).
 
 ## Decisions / rulings in force
-D-22.19, D-22.21, D-22.23 (the walk), ruling #6904 (lookup stays uncached). No new records yet.
-
-## Jobs so far (keke)
-unwind-exit-cost-so0 (build, rc 0), unwind-exit-cost-base0 (baseline table), unwind-exit-cost-prof0 (perf,
-misleading: see WARNING).
+D-22.19, D-22.21, D-22.23 (the walk), ruling #6904 (lookup stays uncached), D-NEW (this story, pending id).
