@@ -358,6 +358,40 @@ impl Gen<'_> {
         name.to_string()
     }
 
+    /// The size and alignment `#[repr(C)]` gives the member `c` without packing: scalars and arrays of them, and
+    /// nested composites of such members. None for anything else (a named type, a bit-field).
+    fn natural(&self, c: &Node) -> Option<(u64, u64)> {
+        if c.bitfield {
+            return None;
+        }
+        if c.children.is_empty() {
+            let t = self.leaf(&c.ctype)?;
+            let (elem, n) = match t.strip_prefix('[').and_then(|s| s.strip_suffix(']')).and_then(|s| s.split_once("; ")) {
+                Some((e, n)) => (e.to_string(), n.parse::<u64>().ok()?),
+                None => (t, 1),
+            };
+            let w = match elem.as_str() {
+                "u8" | "i8" => 1,
+                "u16" | "i16" => 2,
+                "u32" | "i32" | "f32" => 4,
+                "u64" | "i64" | "f64" | "usize" | "isize" => 8,
+                _ => return None,
+            };
+            return Some((w * n, w));
+        }
+        let (base, count) = split_array(&c.ctype);
+        if count.is_some() || self.known.contains_key(base.trim()) {
+            return None;
+        }
+        let (mut end, mut align) = (0, 1);
+        for k in &c.children {
+            let (s, a) = self.natural(k)?;
+            end = end.max(k.offset.checked_sub(c.offset)? + s);
+            align = align.max(a);
+        }
+        Some((end.div_ceil(align) * align, align))
+    }
+
     fn member_type(&mut self, parent: &str, c: &Node, extent_end: u64) -> String {
         let extent = extent_end.saturating_sub(c.offset);
         if c.bitfield {
@@ -375,7 +409,11 @@ impl Gen<'_> {
                 let union = is_union(&base, &c.children);
                 // Children offsets are absolute; rebase them to this member.
                 let rebased: Vec<Node> = c.children.iter().map(|n| rebase(n, c.offset)).collect();
-                return self.composite(&sub, union, &rebased, extent, None, false);
+                // The table gives a nested composite no size of its own. Laid out by rustc it may need more bytes
+                // than the table leaves it (`struct tftphdr`'s union at offset 2: a `char[3]` and a two-byte
+                // structure in 3 bytes): such a member can only be packed.
+                let packed = self.natural(c).is_some_and(|(size, _)| size > extent);
+                return self.composite(&sub, union, &rebased, extent, None, packed);
             }
         }
         if let Some(t) = self.leaf(&c.ctype) {
