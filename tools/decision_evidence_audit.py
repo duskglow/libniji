@@ -80,6 +80,8 @@ def evidence_kinds(text):
 def excerpt(text, n=140):
     t = re.sub(r"\s+", " ", text).strip()
     t = HOSTS.sub("<host>", t).replace("\t", " ")
+    t = re.sub(r"/home/[\w.-]+", "~", t)
+    t = re.sub(r"\b\d{1,3}(\.\d{1,3}){3}\b", "<address>", t)
     return t[:n]
 
 
@@ -117,25 +119,28 @@ def differences():
     path = "docs/differences-from-glibc.md"
     section = ""
     with open(path, encoding="utf-8") as fh:
-        for n, line in enumerate(fh, 1):
-            if line.startswith("#"):
-                section = line.strip("# \n")
-                continue
-            if not line.startswith("|") or line.startswith("|---") or line.startswith("| Area"):
-                continue
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            if cells and cells[0] in ("Area", "Function", "Item"):
-                continue
-            out.append(
-                {
-                    "source": "difference",
-                    "id": "DIFF:%d" % n,
-                    "where": "%s:%d (%s)" % (path, n, section),
-                    "text": line,
-                    "departs_always": True,
-                }
-            )
+        lines = fh.readlines()
+    for n, line in enumerate(lines, 1):
+        if line.startswith("#"):
+            section = line.strip("# \n")
+            continue
+        if not line.startswith("|") or line.startswith("|---") or is_header(lines, n):
+            continue
+        out.append(
+            {
+                "source": "difference",
+                "id": "DIFF:%d" % n,
+                "where": "%s:%d (%s)" % (path, n, section),
+                "text": line,
+                "departs_always": True,
+            }
+        )
     return out
+
+
+def is_header(lines, n):
+    """Line `n` (1-based) is a table's header row: the next line is its `|---` separator."""
+    return n < len(lines) and lines[n].startswith("|---")
 
 
 def rulings(path):
@@ -160,27 +165,28 @@ def rulings(path):
         para = []
 
     with open(path, encoding="utf-8") as fh:
-        for n, line in enumerate(fh, 1):
-            s = line.rstrip("\n")
-            if s.startswith("#"):
+        lines = fh.readlines()
+    for n, line in enumerate(lines, 1):
+        s = line.rstrip("\n")
+        if s.startswith("#"):
+            flush()
+            heading = s.strip("# ")
+            continue
+        if not s.strip():
+            flush()
+            continue
+        if s.startswith("|---") or is_header(lines, n):
+            continue
+        if s.startswith("|") or re.match(r"^\s*([-*]|\d+\.)\s", s):
+            flush()
+            para_start = n
+            para = [s]
+            if s.startswith("|"):
                 flush()
-                heading = s.strip("# ")
-                continue
-            if not s.strip():
-                flush()
-                continue
-            if s.startswith("|---") or re.match(r"^\|\s*(ID|Item|#)\s*\|", s):
-                continue
-            if s.startswith("|") or re.match(r"^\s*([-*]|\d+\.)\s", s):
-                flush()
-                para_start = n
-                para = [s]
-                if s.startswith("|"):
-                    flush()
-                continue
-            if not para:
-                para_start = n
-            para.append(s)
+            continue
+        if not para:
+            para_start = n
+        para.append(s)
     flush()
     return out
 
