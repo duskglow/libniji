@@ -1,0 +1,3 @@
+# SHSTK-ENABLE (D-21.6): the start-up decision ignores an unmarked object; an unmarked dlopen loads by default.
+start-first-only | crates/ld/src/shstk.rs | lit:    objs.all(|e| marked::<A>(e)) ==>     objs.take(1).all(|e| marked::<A>(e)) | cargo test -p niji-ld --test shstk_marking | msg:start_needs_every_object_marked.*FAILED|did not veto
+dlopen-default-loads | crates/ld/src/shstk.rs | lit:        (false, ShstkMode::Default) => OnDlopen::Refuse, ==>         (false, ShstkMode::Default) => OnDlopen::Load, | cargo test -p niji-ld --lib shstk | msg:dlopen_policy.*FAILED|panicked
