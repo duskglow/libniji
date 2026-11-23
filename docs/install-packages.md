@@ -33,7 +33,7 @@ The release notes of that snapshot ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)) c
 | Package | Like Debian's | Contents |
 |---|---|---|
 | `niji6` | `libc6` | the loader `ld-linux-x86-64.so.2` and the shared libraries (`libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2`, `librt.so.1`, `libutil.so.1`, `libanl.so.1`, `libnsl.so.1`, `libc_malloc_debug.so.0`, `libresolv.so.2`, `libBrokenLocale.so.1`) |
-| `niji6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, and `libBrokenLocale.a` with the library's override), the `libm.so` linker script (`libm.so.6`, and `libmvec.so.1` only when a program calls a vector variant), the development links `libresolv.so`, `libBrokenLocale.so`, `libanl.so`, `libc_malloc_debug.so`, and the `niji-gcc` / `niji-g++` compiler wrapper |
+| `niji6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), `niji-unwinder.o` (coexist only: the program's unwinder offered to libniji, linked by `niji-gcc`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, and `libBrokenLocale.a` with the library's override), the `libm.so` linker script (`libm.so.6`, and `libmvec.so.1` only when a program calls a vector variant), the development links `libresolv.so`, `libBrokenLocale.so`, `libanl.so`, `libc_malloc_debug.so`, and the `niji-gcc` / `niji-g++` compiler wrapper |
 
 Everything is inside the sysroot `/usr/lib/niji`, laid out as Debian lays out `/` (merged
 `/usr`, multiarch): the libraries in `/usr/lib/niji/usr/lib/x86_64-linux-gnu/`, the loader also
@@ -80,6 +80,15 @@ directory too (its cache would be `/usr/lib/niji/etc/ld.so.cache`; none is insta
 that needs a system library (`-lz`, ...) names its directory, for example
 `-Wl,-rpath,/usr/lib/x86_64-linux-gnu`; libniji's own libraries still come from the sysroot.
 `-static-pie` and `-pg` are not supported by the wrapper. See `man niji-gcc`.
+
+`niji-g++` links libstdc++ and the compiler's unwinder (libgcc_eh) into the program, so it needs no
+`libgcc_s.so.1`. A dynamic program built by `niji-gcc` or `niji-g++` also links `niji-unwinder.o`
+(in `niji6-dev`), which offers that unwinder to libniji: a thread that calls `pthread_exit` or is
+cancelled with C++ destructors, `catch` handlers or `-fexceptions` cleanups on its stack unwinds
+with it (destructors run, `catch (abi::__forced_unwind &)` is entered and rethrows, a cancelled
+thread joins with `PTHREAD_CANCELED`). A program built by another driver with `-static-libgcc` and
+no `libgcc_s.so.1` loaded has no unwinder libniji can find; such a thread ends the process with a
+FATAL message naming the cause (D-22.23, D-22.24).
 
 The loader finds a program's `DT_NEEDED` libraries named by soname at start-up with the same
 search `ld.so --list` and `dlopen` use (`DT_RPATH`, `LD_LIBRARY_PATH`, `DT_RUNPATH`, the cache,
