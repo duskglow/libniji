@@ -69,6 +69,15 @@ after a cleanup buffer: a measured cost, recorded in the report.
 * A niji-g++ program that also has libgcc_s.so.1 loaded (a dlopen'd plugin needing it): the loader lookup finds
   libgcc_s first and the exit unwinds with it beside the program's static copy. Not tested.
 
+## Run 2 (NIJI-GXX-UNWINDER-2, branch `task/niji-gxx-unwinder-2`, role shiki:~/w/sh2): merge only
+* CI had stopped on a conflict in docs/install-packages.md: next added libmvec (`libmvec.so.1`, `libmvec.a`,
+  the `libmvec.so` link) to the same two table rows where this branch added `niji-unwinder.o`. Merged
+  origin/next (0495c4684); the resolution keeps both. No code change.
+* Step 0 on the inherited head a0134e16a: clippy and static rc 0.
+* Merged head jobs (shiki): niji-gxx-unwinder-2-gate1 (direct gate, rc 0: 15 of 15 suites, 5863 passed,
+  0 failed, 216 ignored, conformance 39 passed, peak 8.3G), -plants1 (5 of 5 CAUGHT, no WARN), -startup1
+  (`cargo xtask test`, full-profile so, hot_text_products). Counts not rerun: the merge changes no code on
+  this branch's side (run 1's percall4 table stands; measured on mei).
+
 ## Exact next step
-Done in run 1 (landing is the coordinator's). For the record: `cargo xtask precheck --jobs <those + percall4> --head <sha>` on the role,
-report json, `ops handback-check`.
+Land (the coordinator's). Run 1's jobs are on mei; run 2's on shiki (report json `jobs`).
