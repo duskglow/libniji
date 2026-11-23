@@ -339,7 +339,7 @@ pub fn render(m: &Model) -> String {
         rows(&mut s, "tolower", ".long", t.tolower.iter().map(i32::to_string).collect());
         rows(&mut s, "toupper", ".long", t.toupper.iter().map(i32::to_string).collect());
         // Writable, as the reference's: the pointers are variables an old binary may assign.
-        for o in ctype {
+        for &o in &ctype {
             let (table, off) = ctype_target(&o.name);
             s.push_str(&format!("\t.section .data.{},\"aw\",@progbits\n\t.p2align 3\n", o.label()));
             declare(&mut s, &[o]);
