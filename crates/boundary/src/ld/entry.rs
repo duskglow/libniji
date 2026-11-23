@@ -143,7 +143,7 @@ pub(super) fn ld_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
         .map(c_string)
 }
 
-/// D-21.6: the shadow-stack mode the start's tunables asked for (`crate::shstk::code`; 0: not asked,
+/// D-21.6: the shadow-stack mode the start's tunables asked for (`niji_ld::shstk::code`; 0: not asked,
 /// the default), read by `link` (whether to enable) and by `dlopen` (an unmarked object).
 pub(super) static SHSTK_WANTED: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(0);
 
@@ -217,7 +217,12 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     RSEQ_WANTED.store(tunables.is_none_or(|t| t.rseq != Some(false)), Relaxed);
     // D-21.6: the shadow stack, only when the tunables ask for it (`link` decides, `dlopen` applies).
     if let Some(m) = tunables.and_then(|t| t.shstk_wanted()) {
-        SHSTK_WANTED.store(crate::shstk::code(m), Relaxed);
+        let m = match m {
+            niji::config::ShstkMode::On => niji_ld::shstk::ShstkMode::On,
+            niji::config::ShstkMode::Permissive => niji_ld::shstk::ShstkMode::Permissive,
+            _ => niji_ld::shstk::ShstkMode::Default,
+        };
+        SHSTK_WANTED.store(niji_ld::shstk::code(m), Relaxed);
     }
     REPORT_NONSHARED.store(ld.report_nonshared && !secure, Relaxed);
     let features = Native::features(&Auxv::from_words(copy.get(..words).unwrap_or(&[])), &crate::sys::CSys);

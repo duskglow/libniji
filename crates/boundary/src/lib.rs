@@ -58,7 +58,6 @@ pub mod cancel;
 pub mod context;
 pub mod sync;
 pub mod setxid;
-mod shstk;
 pub mod nscache;
 pub mod locale;
 pub mod regex;

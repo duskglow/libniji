@@ -79,6 +79,31 @@ pub fn locks(mode: ShstkMode) -> bool {
     mode != ShstkMode::Permissive
 }
 
+/// The `ARCH_SHSTK_LOCK` mask a start in `mode` passes: every feature (probe-settled: the reference
+/// locks `shstk` and `wrss`), or 0 (no lock) when the mode does not lock.
+pub fn lock_mask(mode: ShstkMode) -> u64 {
+    if locks(mode) { u64::MAX } else { 0 }
+}
+
+/// The byte a loader keeps for "asked for, in `mode`" (0 is "not asked").
+pub fn code(mode: ShstkMode) -> u8 {
+    match mode {
+        ShstkMode::Default => 1,
+        ShstkMode::On => 2,
+        ShstkMode::Permissive => 3,
+    }
+}
+
+/// The mode a kept byte stands for, `None` for 0 (not asked).
+pub fn mode_of(code: u8) -> Option<ShstkMode> {
+    match code {
+        0 => None,
+        2 => Some(ShstkMode::On),
+        3 => Some(ShstkMode::Permissive),
+        _ => Some(ShstkMode::Default),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{locks, on_dlopen, OnDlopen, ShstkMode};

@@ -420,8 +420,8 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
 #[cold]
 #[inline(never)]
 fn shstk_decide(objs: &[niji_ld::reloc::Obj<'static>], code: u8) -> Option<u64> {
-    let m = crate::shstk::mode_of(code)?;
-    niji_ld::shstk::start_allowed::<Native>(objs.iter().map(|o| &o.elf)).then(|| crate::shstk::lock_mask(m))
+    let m = niji_ld::shstk::mode_of(code)?;
+    niji_ld::shstk::start_allowed::<Native>(objs.iter().map(|o| &o.elf)).then(|| niji_ld::shstk::lock_mask(m))
 }
 
 /// `DT_DEBUG`: the dynamic entry the loader points at the debugger rendezvous.

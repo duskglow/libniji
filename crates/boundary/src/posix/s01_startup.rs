@@ -55,7 +55,7 @@ export! { runtime "NIJI_PRIVATE";
 pub extern "C" fn __niji_shstk_off() {
     // libniji's `ld.so` loads an object not marked for the shadow stack under
     // `glibc.cpu.x86_shstk=permissive` (D-21.6): off in every thread first.
-    crate::shstk::off_everywhere()
+    crate::runtime::shstk_off_everywhere()
 }}
 
 export! { runtime "NIJI_PRIVATE";

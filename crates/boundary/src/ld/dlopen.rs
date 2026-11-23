@@ -2722,7 +2722,7 @@ fn exec_stack_accepted() -> bool {
 #[inline(never)]
 fn shstk_unmarked(l: &Loader) -> bool {
     use niji_ld::shstk::{on_dlopen, OnDlopen, ShstkMode};
-    let m = crate::shstk::mode_of(super::entry::SHSTK_WANTED.load(Relaxed)).unwrap_or(ShstkMode::Default);
+    let m = niji_ld::shstk::mode_of(super::entry::SHSTK_WANTED.load(Relaxed)).unwrap_or(ShstkMode::Default);
     match on_dlopen(m, false) {
         OnDlopen::Load => true,
         OnDlopen::Refuse => false,
@@ -2734,7 +2734,10 @@ fn shstk_unmarked(l: &Loader) -> bool {
                 Some(f) => {
                     let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
                 }
-                None => crate::shstk::off_here(),
+                None => {
+                    // ARCH(x86_64): arch_prctl(158) ARCH_SHSTK_DISABLE (0x5002) of ARCH_SHSTK_SHSTK (1).
+                    let _ = raw::syscall(158, [0x5002, 1, 0, 0, 0, 0]);
+                }
             }
             true
         }
