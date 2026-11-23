@@ -39,6 +39,18 @@ unsafe extern "C" {
     /// (DL-15, R14-8). Never called from Rust: its address goes in a descriptor's first word.
     // ARCH(x86_64): the %rax-only descriptor convention (tlsdesc.S header); aarch64's is AAELF64's (A-12).
     pub(crate) safe fn niji_machine_ld_tlsdesc_static();
+    /// `csys/src/machine/tlsdesc.S`: the TLS descriptor function of a block that has no static
+    /// place (DL-19): calls the resolver its argument's record names. Never called from Rust.
+    // ARCH(x86_64): the %rax-only descriptor convention (tlsdesc.S header); aarch64's is AAELF64's (A-12).
+    pub(crate) safe fn niji_machine_ld_tlsdesc_dynamic();
+}
+
+/// The address the relocator stores in a TLS descriptor's function word for a block that has no
+/// static place (DL-19): [`niji_machine_ld_tlsdesc_dynamic`].
+#[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+pub(crate) fn tlsdesc_dynamic() -> u64 {
+    let f: extern "C" fn() = niji_machine_ld_tlsdesc_dynamic;
+    u64::try_from((f as *const ()).expose_provenance()).unwrap_or(0)
 }
 
 /// The address the relocator stores in a TLS descriptor's function word for a block in the static

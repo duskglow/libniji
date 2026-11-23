@@ -3,7 +3,7 @@
 //! generation, and `__tls_get_addr`.
 
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::tls::{self as ltls, Area, Module, Placed};
 use niji_rt::tls::{ThreadBlock, FLAG_OWN};
@@ -290,7 +290,8 @@ fn init_block(dst: u64, [src, filesz, memsz]: [u64; 3], zero: bool) -> Option<()
     #[allow(unsafe_code)]
     // SAFETY: `p_memsz` bytes at the block's offset below TP (`ltls::layout` / `Surplus::place`) in a
     // thread's area: one not started yet, or one listed (mapped while listed) whose code cannot reach
-    // a `dlopen`ed block before its module is published (see [`tls_visit`]).
+    // a `dlopen`ed block before its module is published (see [`tls_visit`]); or an on-demand block
+    // [`block_alloc`] has just mapped (`p_memsz` bytes rounded up to pages, no one else's yet).
     let block = unsafe { conv::bytes_at_mut(dst, len) };
     let (init, rest) = block.split_at_mut(filesz.min(len));
     if !init.is_empty() {
@@ -298,7 +299,8 @@ fn init_block(dst: u64, [src, filesz, memsz]: [u64; 3], zero: bool) -> Option<()
         #[allow(unsafe_code)]
         // SAFETY: `ltls::image_in_load` / `program_tls` checked that [p_vaddr, p_vaddr + p_filesz)
         // lies in the file part of one of the object's PT_LOADs, mapped readable at bias + p_vaddr
-        // for the process's lifetime (no object is unloaded before DL-17).
+        // while the object is loaded: a thread reaches its block (and its first access maps an
+        // on-demand one) only between its `dlopen` and its `dlclose`.
         init.copy_from_slice(unsafe { conv::bytes_at(src, init.len()) });
     }
     rest.fill(0);
@@ -316,8 +318,17 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
     let mut count = 0u64;
     for i in 0..n {
         let [src, filesz, memsz, module, off] = module_words(i)?;
-        if module == 0 {
-            // A released ID (DL-17): no block until it is reused.
+        if module == 0 || ltls::dynamic_align(off).is_some() {
+            // A released ID (DL-17) has no block until it is reused; an on-demand block (DL-19) is
+            // made at the thread's first access ([`tls_slow`]). Either way the slot starts empty
+            // (the C library may reuse an exited thread's mapping).
+            let id = if module == 0 { u64::try_from(i).ok()?.wrapping_add(1) } else { module };
+            if let Some(w) = dtv_slot(id).and_then(|s| dtv.get(s)) {
+                w.store(0, Relaxed);
+                if module != 0 {
+                    count = count.max(module);
+                }
+            }
             continue;
         }
         let block = tp64.wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()));
@@ -424,8 +435,52 @@ fn grow_dtv(tp: usize, old: usize, old_words: usize, need: u64, n: usize) -> &'s
         room.store(u64::try_from(words).unwrap_or(0), Relaxed);
     }
     let dtv = map.wrapping_add(16);
-    crate::tb::listed(tp).dtv.store(dtv, Release);
+    let walk = WALK.load(Acquire);
+    let mut grow = Grow { tp, old, old_words, new: dtv, words };
+    if walk == 0 {
+        // No `dlopen` has loaded TLS: no walk writes vectors and no slot holds an on-demand block.
+        crate::tb::listed(tp).dtv.store(dtv, Release);
+    } else {
+        // Under the thread-list lock (DL-19): the slots move to the new vector, and the old
+        // vector's are emptied, so a walk sees each on-demand block in exactly one vector.
+        #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+        let visit = (grow_visit as *const ()).expose_provenance();
+        let ctx = core::ptr::from_mut::<Grow>(&mut grow).expose_provenance();
+        let arg = |v: usize| i64::from_ne_bytes(v.to_ne_bytes());
+        let _ = crate::ffi::niji_machine_call3(walk, arg(visit), arg(ctx), 0);
+    }
     dtv_words(dtv, words)
+}
+
+/// A vector [`grow_dtv`] made, to be named by the thread block of the thread at `tp` in place of
+/// `old` (`old_words` words).
+struct Grow {
+    tp: usize,
+    old: usize,
+    old_words: usize,
+    new: usize,
+    words: usize,
+}
+
+/// The step of the C library's thread walk [`grow_dtv`] runs (its thread-list lock held): at the
+/// end (`tp` 0), the old vector's module slots move to the new one, which the thread block names
+/// from then on.
+extern "C" fn grow_visit(ctx: usize, tp: usize) -> usize {
+    if tp != 0 {
+        return 0;
+    }
+    // UNSAFE(slice): the walk's context.
+    #[allow(unsafe_code)]
+    // SAFETY: [`grow_dtv`] passes the address of a live `Grow` on its stack and the walk calls back
+    // before it returns.
+    let Some(g) = (unsafe { core::ptr::with_exposed_provenance::<Grow>(ctx).as_ref() }) else { return 0 };
+    let header = usize::try_from(ltls::DTV_HEADER).unwrap_or(0);
+    let (old, new) = (dtv_words(g.old, g.old_words), dtv_words(g.new, g.words));
+    for (o, n) in old.iter().zip(new).skip(header) {
+        n.store(o.swap(0, Relaxed), Relaxed);
+    }
+    crate::tb::listed(g.tp).dtv.store(g.new, Release);
+    0
 }
 
 /// A no-op step of the C library's thread walk: [`release_grown`] calls the walk only for its lock.
@@ -468,8 +523,9 @@ pub(super) fn tls_generation() -> u64 {
 
 /// Take `gone`'s modules (`mods[..len]`, ID in word 3) out of [`THREAD_MODS`] at the end of the C
 /// library's thread walk (its thread-list lock held, as [`publish_tls`]) and make `generation`
-/// current: a thread whose dtv still names an old block repairs it in [`tls_slow`] (DL-17). The
-/// threads' blocks are left as they are (their bytes belong to the surplus place, freed already).
+/// current: a thread whose dtv still names an old block repairs it in [`tls_slow`] (DL-17). A
+/// static block's bytes belong to the surplus place, freed already; each thread's on-demand block
+/// (DL-19) is unmapped by the walk's step for that thread ([`tls_visit`]).
 pub(super) fn release_tls(walk: usize, gone: &mut NewTls, generation: u64) {
     gone.generation = generation;
     gone.release = true;
@@ -522,13 +578,13 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
             slot.iter().zip(words).for_each(|(w, v)| w.store(v, Relaxed));
             if !new.release {
                 n = n.max(usize::try_from(m[3]).unwrap_or(0));
+                if ltls::dynamic_align(m[4]).is_some() {
+                    DYNAMIC_SEEN.store(true, Release);
+                }
             }
         }
         THREAD_MODS_LEN.store(n, Release);
         GENERATION.store(new.generation, Release);
-        return 0;
-    }
-    if new.release {
         return 0;
     }
     let b = crate::tb::listed(tp);
@@ -540,12 +596,32 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
     // skipped, and the thread grows its vector at its first access to that module.
     let at = b.dtv.load(Acquire);
     let dtv = dtv_words(at, dtv_room(tp, at));
+    if new.release {
+        // The thread's on-demand blocks of the modules going (DL-19), from their entries (still in
+        // the table until the walk's end). The swap pairs with the thread's own at its exit
+        // ([`release_blocks`]): one of the two frees each block.
+        for m in mods {
+            let Some(w) = usize::try_from(m[3]).ok().and_then(|id| id.checked_sub(1)).and_then(module_words) else { continue };
+            if w[3] == m[3] && ltls::dynamic_align(w[4]).is_some() {
+                if let Some(s) = dtv_slot(m[3]).and_then(|i| dtv.get(i)) {
+                    block_free(s.swap(0, AcqRel), w[2]);
+                }
+            }
+        }
+        return 0;
+    }
     let mut count = None;
     for &[src, filesz, memsz, module, off] in mods {
-        let block = u64::try_from(tp).unwrap_or(0).wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()));
-        if init_block(block, [src, filesz, memsz], true).is_none() {
-            continue;
-        }
+        let block = if ltls::dynamic_align(off).is_some() {
+            // No block until the thread's first access (DL-19).
+            0
+        } else {
+            let block = u64::try_from(tp).unwrap_or(0).wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()));
+            if init_block(block, [src, filesz, memsz], true).is_none() {
+                continue;
+            }
+            block
+        };
         if let Some(w) = dtv_slot(module).and_then(|i| dtv.get(i)) {
             w.store(block, Relaxed);
             count = Some(count.map_or(module, |c: u64| c.max(module)));
@@ -578,16 +654,94 @@ pub(super) extern "C" fn thread_tls_init(tp: usize) -> usize {
     0
 }
 
-/// `StartInfo::tls_release` (DL-15, design §7): the thread at `tp` is ending. Its static blocks and
-/// dtv lie in the C library's mapping and go with it, so nothing is left to release; the hook is the
-/// place for the loader's per-thread state that does not (dynamic blocks, DL-19).
+/// `StartInfo::tls_release` (DL-15, design §7): the thread at `tp` is ending (still listed). Its
+/// static blocks and dtv lie in the C library's mapping and go with it; the loader's own per-thread
+/// state does not: its on-demand blocks (DL-19) and the vectors it grew.
 pub(super) extern "C" fn thread_tls_release(tp: usize) -> usize {
+    if DYNAMIC_SEEN.load(Acquire) {
+        release_blocks(tp);
+    }
     // The vectors the thread grew (DL-PROCESS-OBJECTS part 3) are the loader's.
     let at = crate::tb::listed(tp).dtv.load(Relaxed);
     if at != 0 && !in_place(tp, at) {
         release_grown(tp, at);
     }
     0
+}
+
+/// Whether a module with on-demand blocks (DL-19) was ever published: only then does a thread's
+/// exit look for blocks to free. Set by the walk that publishes the first one, before any thread
+/// can reach it.
+static DYNAMIC_SEEN: AtomicBool = AtomicBool::new(false);
+
+/// The page size on-demand blocks are mapped in.
+// ARCH(x86_64): 4 KiB pages; another architecture takes its page size from the auxiliary vector.
+const PAGE: u64 = 4096;
+
+/// The bytes a block of `memsz` bytes is mapped in (at least one page: a slot holding 0 means none).
+fn block_len(memsz: u64) -> Option<usize> {
+    usize::try_from(memsz.max(1).checked_next_multiple_of(PAGE)?).ok()
+}
+
+/// A new on-demand block (DL-19) for module entry `[image, p_filesz, p_memsz]` with alignment
+/// `align`: a private zero mapping holding its image, aligned as the module asks. The calling
+/// thread's own (only it stores the address in its vector). No memory ends the process as the
+/// reference does (probe-settled: the text, status 127): the access has no error path.
+#[cold]
+#[inline(never)]
+fn block_alloc(image: [u64; 3], align: u64) -> usize {
+    let fail = || -> ! { refuse(b"cannot allocate memory for thread-local data: ABORT\n") };
+    let ([_, _, memsz], Some(len), Ok(align)) = (image, block_len(image[2]), usize::try_from(align)) else { fail() };
+    let page = usize::try_from(PAGE).unwrap_or(0);
+    let extra = if align > page { align } else { 0 };
+    let prot = i32::try_from(niji_kernel::uapi::PROT_READ | niji_kernel::uapi::PROT_WRITE).unwrap_or(0);
+    let flags = i32::try_from(niji_kernel::uapi::MAP_PRIVATE | niji_kernel::uapi::MAP_ANONYMOUS).unwrap_or(0);
+    let Some(map_len) = len.checked_add(extra) else { fail() };
+    let Ok(map) = raw::mmap(0, map_len, prot, flags, -1, 0) else { fail() };
+    let block = map.checked_next_multiple_of(align.max(1)).unwrap_or_else(|| fail());
+    if extra != 0 {
+        // Keep exactly the block's pages: the free only knows `p_memsz`.
+        let head = block.wrapping_sub(map);
+        if head != 0 {
+            let _ = raw::munmap(map, head);
+        }
+        let tail = extra.wrapping_sub(head);
+        if tail != 0 {
+            let _ = raw::munmap(block.wrapping_add(len), tail);
+        }
+    }
+    // The mapping is zero already: only the image is written.
+    if init_block(u64::try_from(block).unwrap_or(0), [image[0], image[1], memsz], false).is_none() {
+        fail()
+    }
+    block
+}
+
+/// Free the on-demand block at `block` of a module of `p_memsz` `memsz` ([`block_alloc`]).
+fn block_free(block: u64, memsz: u64) {
+    if let (Ok(at), Some(len)) = (usize::try_from(block), block_len(memsz)) {
+        if at != 0 {
+            let _ = raw::munmap(at, len);
+        }
+    }
+}
+
+/// Free the on-demand blocks of the ending thread at `tp` (DL-19). Each slot is taken with a swap:
+/// a `dlclose` walking the threads now ([`tls_visit`]) takes it the same way, so exactly one of them
+/// frees each block. A module whose table entry is already cleared was taken by that walk.
+#[cold]
+#[inline(never)]
+fn release_blocks(tp: usize) {
+    let at = crate::tb::listed(tp).dtv.load(Acquire);
+    let dtv = dtv_words(at, dtv_room(tp, at));
+    for w in (0..THREAD_MODS_LEN.load(Acquire)).filter_map(module_words) {
+        if w[3] == 0 || ltls::dynamic_align(w[4]).is_none() {
+            continue;
+        }
+        if let Some(s) = dtv_slot(w[3]).and_then(|i| dtv.get(i)) {
+            block_free(s.swap(0, AcqRel), w[2]);
+        }
+    }
 }
 
 /// `__tls_get_addr` (spec §22.6, s22_6_c_4; exported by `ld.so` at `GLIBC_2.3`): the address of
@@ -655,9 +809,25 @@ fn tls_slow(dtv: &[AtomicU64], module: u64, offset: u64) -> usize {
     let mut count = 0u64;
     // A released ID's entry (module word 0, DL-17) is skipped.
     for w in (0..n).filter_map(module_words).filter(|w| w[3] != 0) {
-        let block = tp.wrapping_add_signed(i64::from_ne_bytes(w[4].to_ne_bytes()));
-        if let Some(s) = dtv_slot(w[3]).and_then(|i| dtv.get(i)) {
-            s.store(block, Relaxed);
+        let slot = dtv_slot(w[3]).and_then(|i| dtv.get(i));
+        let block = if let Some(align) = ltls::dynamic_align(w[4]) {
+            // An on-demand block (DL-19): the slot is the thread's own (0 until made). The module
+            // asked for gets its block now.
+            let mut block = slot.map_or(0, |s| s.load(Relaxed));
+            if block == 0 && w[3] == module {
+                let Some(s) = slot else { refuse(b"ld.so: __tls_get_addr: no TLS block for this module in this thread\n") };
+                block = u64::try_from(block_alloc([w[0], w[1], w[2]], align)).unwrap_or(0);
+                s.store(block, Release);
+            }
+            block
+        } else {
+            let block = tp.wrapping_add_signed(i64::from_ne_bytes(w[4].to_ne_bytes()));
+            if let Some(s) = slot {
+                s.store(block, Relaxed);
+            }
+            block
+        };
+        if slot.is_some() {
             count = count.max(w[3]);
         }
         if w[3] == module {
@@ -695,4 +865,118 @@ pub extern "C" fn _dl_get_tls_static_info(size: usize, align: usize) {
     if let Some(w) = crate::tb::c_word(align) {
         w.store(usize::try_from(THREAD_TLS_ALIGN.load(Relaxed)).unwrap_or(0), Relaxed);
     }
+}
+
+/// The calling thread's address of `offset` in the block of module `p` (`dlsym` of an `STT_TLS`
+/// symbol, `dlinfo`'s `RTLD_DI_TLS_DATA`): a static block's at its offset from the thread pointer;
+/// an on-demand block's (DL-19) through `__tls_get_addr`, which makes it now when `make`, else the
+/// block the thread has (0 when it has none yet: the reference's documented `dlinfo` answer).
+pub(super) fn thread_address(p: Placed, offset: u64, make: bool) -> usize {
+    let tp = crate::tb::tp();
+    if p.tp_offset != ltls::NO_STATIC {
+        let at = tp.wrapping_add_signed(isize::try_from(p.tp_offset).unwrap_or(0));
+        return at.wrapping_add(usize::try_from(offset).unwrap_or(0));
+    }
+    if make {
+        let index = [p.module, offset];
+        return __tls_get_addr(core::ptr::from_ref(&index).expose_provenance());
+    }
+    let at = crate::tb::read::<crate::tb::Dtv>();
+    let dtv = dtv_words(at, dtv_room(tp, at));
+    let count = dtv.get(1).map_or(0, |w| w.load(Relaxed));
+    let block = dtv_slot(p.module).filter(|_| p.module <= count).and_then(|i| dtv.get(i)).map_or(0, |w| w.load(Relaxed));
+    if block == 0 { 0 } else { usize::try_from(block.wrapping_add(offset)).unwrap_or(0) }
+}
+
+/// The records of the dynamic TLS descriptor function (DL-19, tlsdesc.S): three words each,
+/// `[resolver, module ID, offset]` (the last two a `tls_index`), in pages the loader maps, never
+/// unmapped: a descriptor's argument points at one. Word 0 of a page links the next page. A free
+/// record is `[0, 0, next free]`. Changed only with the loader lock held; the resolver reads a
+/// record a relocation wrote before its object was published.
+static DESC_PAGES: AtomicUsize = AtomicUsize::new(0);
+/// The first free record (0: none).
+static DESC_FREE: AtomicUsize = AtomicUsize::new(0);
+/// Records in one page after its link word.
+const DESC_PER_PAGE: usize = (4096 - 8) / 24;
+
+/// The three words of the record at `at` (or the link word of a page at `at`, as its first).
+fn desc_words(at: usize) -> &'static [AtomicU64] {
+    if at == 0 || at % 8 != 0 {
+        return &[];
+    }
+    // UNSAFE(slice): a record of the dynamic TLS descriptor function, as atomic words.
+    #[allow(unsafe_code)]
+    // SAFETY: `at` is a page [`desc_record`] mapped read-write (never unmapped) or a record in one
+    // (8 + 24 k bytes in, k < DESC_PER_PAGE: three words inside the page); every access goes
+    // through these atomics.
+    unsafe {
+        core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU64>(at), 3)
+    }
+}
+
+/// A record for offset `offset` in module `module`'s block: the argument of a dynamic TLS
+/// descriptor. Loader lock held (relocation). `None` when no page can be mapped.
+pub(super) fn desc_record(module: u64, offset: u64) -> Option<usize> {
+    if DESC_FREE.load(Relaxed) == 0 {
+        let prot = i32::try_from(niji_kernel::uapi::PROT_READ | niji_kernel::uapi::PROT_WRITE).unwrap_or(0);
+        let flags = i32::try_from(niji_kernel::uapi::MAP_PRIVATE | niji_kernel::uapi::MAP_ANONYMOUS).unwrap_or(0);
+        let page = raw::mmap(0, 4096, prot, flags, -1, 0).ok()?;
+        desc_words(page).first()?.store(u64::try_from(DESC_PAGES.load(Relaxed)).ok()?, Relaxed);
+        DESC_PAGES.store(page, Relaxed);
+        for k in (0..DESC_PER_PAGE).rev() {
+            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(24));
+            desc_words(at).get(2)?.store(u64::try_from(DESC_FREE.load(Relaxed)).ok()?, Relaxed);
+            DESC_FREE.store(at, Relaxed);
+        }
+    }
+    let at = DESC_FREE.load(Relaxed);
+    let [f, m, o] = desc_words(at) else { return None };
+    DESC_FREE.store(usize::try_from(o.load(Relaxed)).ok()?, Relaxed);
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    let resolver = (tlsdesc_resolve as *const ()).expose_provenance();
+    o.store(offset, Relaxed);
+    m.store(module, Relaxed);
+    f.store(u64::try_from(resolver).ok()?, Release);
+    Some(at)
+}
+
+/// Free the records of module `module` (its object is unloaded, or its `dlopen` failed). Loader
+/// lock held. No descriptor that names them can run any more: their objects are gone too.
+pub(super) fn desc_release(module: u64) {
+    let mut page = DESC_PAGES.load(Relaxed);
+    while page != 0 {
+        for k in 0..DESC_PER_PAGE {
+            let at = page.wrapping_add(8).wrapping_add(k.wrapping_mul(24));
+            let [f, m, o] = desc_words(at) else { continue };
+            if f.load(Relaxed) != 0 && m.load(Relaxed) == module {
+                f.store(0, Relaxed);
+                m.store(0, Relaxed);
+                o.store(u64::try_from(DESC_FREE.load(Relaxed)).unwrap_or(0), Relaxed);
+                DESC_FREE.store(at, Relaxed);
+            }
+        }
+        page = desc_words(page).first().map_or(0, |w| usize::try_from(w.load(Relaxed)).unwrap_or(0));
+    }
+}
+
+/// The resolver of a dynamic TLS descriptor's record (tlsdesc.S): the variable's address in the
+/// calling thread, as `__tls_get_addr` gives it for the record's `tls_index` (words 1 and 2).
+extern "C" fn tlsdesc_resolve(record: usize) -> usize {
+    __tls_get_addr(record.wrapping_add(8))
+}
+
+/// Bytes of the static surplus asked by `glibc.rtld.optional_static_tls` (0: none; D-27.39).
+static SURPLUS_ASKED: AtomicU64 = AtomicU64::new(0);
+
+/// The static surplus every thread's area has (D-27.39): `ltls::SURPLUS`, or the
+/// `glibc.rtld.optional_static_tls` value when that is larger (raise-only).
+pub(super) fn surplus_bytes() -> u64 {
+    ltls::SURPLUS.max(SURPLUS_ASKED.load(Relaxed))
+}
+
+/// Record the start's `glibc.rtld.optional_static_tls` (read only when `GLIBC_TUNABLES` names it).
+#[cold]
+#[inline(never)]
+pub(super) fn ask_surplus(bytes: u64) {
+    SURPLUS_ASKED.store(bytes, Relaxed);
 }
