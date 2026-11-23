@@ -2246,6 +2246,16 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
     let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
     println!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)");
+    // LOCALE-SOURCES-GEN (D-31.27): the locale sources generated from Unicode CLDR, which
+    // `locales` ships in /usr/share/i18n/locales. Written afresh, so a name the generator no
+    // longer writes leaves no stale product behind.
+    let sources = release.join("locale-sources");
+    match std::fs::remove_dir_all(&sources) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", sources.display())),
+        _ => {}
+    }
+    let n = crate::locales::write(root, &sources)?;
+    println!("so: target/niji/locale-sources ({n} locale sources from Unicode CLDR {})", crate::locales::CLDR);
     check_placement(root, &release)?;
     phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
