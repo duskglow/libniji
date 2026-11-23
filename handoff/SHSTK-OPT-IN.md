@@ -1,5 +1,30 @@
 # SHSTK-OPT-IN handoff (part 1: marking + shadow-stack-correct asm)
 
+## Run 2 (SHSTK-OPT-IN-2, branch `task/shstk-opt-in-2`, role shiki:~/w/sh1)
+
+**Cause of train 950's red.** `cetnote::check_release` walked all of `target/niji`. `cargo xtask test` puts
+unshipped products there (`cargo xtask rust-dylib`'s `rust/lr1/` and `rust-test/` rlibs, dylibs and programs;
+`native/libc-by-path.so`), so the train's `so` after those steps found 17 unmarked objects. None of them is in a
+package: the shipped set is the `file` rows of `tools/deb/manifest.tsv` (PKG-MANIFEST; build.sh/check.sh install and
+verify exactly those). **Fix:** the check reads that manifest (`cetnote::shipped_products`), checks each listed
+product that is ELF or an archive, and fails on a listed product the build did not make. D-X.164 point (4) updated.
+The shipped set did not change, so the N100 run was not repeated (coordinator's note). Plants:
+`handoff/plants/SHSTK-OPT-IN-2.plants` (3, on the new code); part 1's libm-unmarked plant still covers the
+`so` integration (libm.so.6 is a manifest row).
+
+**Results (shiki role, Haswell host).** clippy + static green on the inherited head (`shstk-opt-in-2-lint0`) and on
+the fix (`shstk-opt-in-2-lint1`, with the cetnote unit tests: 3 passed). Plants `shstk-opt-in-2-plants1`: 3/3 CAUGHT,
+0 WARN (`handoff/SHSTK-OPT-IN-2-plants.txt`). `cargo xtask test` (`shstk-opt-in-2-test1`): rc 0, 7190 tests passed,
+native examples and rust-dylib green; "so: 43 shipped ELF files and archives carry the SHSTK property". Then
+`cargo xtask so` with `rust/` and `rust-test/` present in `target/niji` (the train's failing situation):
+`shstk-opt-in-2-so2`. 43, not part 1's 44: the one ELF file under `target/niji` outside the manifest (the
+unshipped Rust dirs aside) is the link stub `niji-owner/libc-owner.so` (docs/install-packages.md, opt-in, linked from
+the build tree, in no package); it is still linked with `-z shstk`, only no longer checked.
+
+**Not covered by D-X.164 (INFORMATIONAL):** `libniji_rust.so.lr1` and its rlibs (docs/toolchain.md tells third
+parties how to build them) carry no SHSTK; they ship in no package today. If they ever do, they need a manifest
+row and marking (rustc emits no note: the rlib members would need `mark_archive`, the dylib `-z shstk`).
+
 **Scope (coordinator, accepted challenge #7946).** This story lands part 1 only: every shipped object marked SHSTK, the
 build check, setjmp/longjmp + context functions + vfork shadow-stack-correct, in-process tests on the N100 class that
 skip elsewhere. No behaviour change while nothing enables the shadow stack. Tunables, loader decision, dlopen policy and
@@ -54,5 +79,5 @@ D-X.164 (marking + check), both written as records. No differences row (nothing 
 **Do not redo.** SHSTK-SCOPE's probes and asm survey; the N100 run and its controls (scripts:
 `~/work/shstk-opt-in/{build.sh,run.sh}` on mei).
 
-**Next step.** Land part 1 (train FULL gate); then brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios, costs).
+**Next step.** Land part 1 + run 2's check fix (train FULL gate); then brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios, costs).
 Plan rows: D-21.5, D-X.164, D-X.144, owner ruling #7728.
