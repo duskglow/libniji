@@ -284,11 +284,13 @@ fn format_general<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> 
 /// [`pf::Planned::General`] is a format known not to be simple; otherwise the format is planned here.
 ///
 /// The hot dispatcher, inlined into each caller (PRINTF-NO-HEAP-3): a bare `%s` and a kept plan
-/// of one conversion are written here; every other path is an out-of-line call
-/// ([`format_planned`], [`render_kept`], [`format_general`]). When the render_simple instances
-/// shared one function with these paths, its prologue (six saved registers, a 0x138-byte frame)
-/// ran for a bare `%s` too, and each change to any path moved the others' registers
-/// (PRINTF-NO-HEAP-2).
+/// are written here; a format no plan cache holds is planned by the out-of-line
+/// [`format_planned`] (a stream's kept plan never needs it), one not simple by
+/// [`format_general`]. When the render_simple instances shared one function with these paths,
+/// its prologue (six saved registers, a 0x138-byte frame) ran for a bare `%s` too, and each
+/// change to any path moved the others' registers (PRINTF-NO-HEAP-2). A kept plan of more than
+/// one conversion calls render_simple from here: through an out-of-line wrapper it took 12 more
+/// instructions per call (`fprintf_du_line`, `fprintf_ls_line`).
 #[inline(always)]
 fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planned, kept: Option<&pf::SimpleFormat>, out: &mut O) -> KResult<usize> {
     if let Some(plan) = kept {
@@ -297,7 +299,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
                 return r;
             }
         }
-        return render_kept(fmt, plan, ap, out);
+        return render_plan(fmt, plan, ap, out);
     }
     match route {
         pf::Planned::Simple => {}
@@ -317,14 +319,6 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
         }
     }
     format_planned(fmt, flag, ap, out)
-}
-
-/// [`render_plan`] of a stream's kept plan of more than one conversion, out of line: the
-/// render_simple instances stay out of [`format_routed`]'s callers (the call replaces the one
-/// those callers made to `format_routed` itself).
-#[inline(never)]
-fn render_kept<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: &mut O) -> KResult<usize> {
-    render_plan(fmt, plan, ap, out)
 }
 
 /// The rest of [`format_routed`] for a format no plan cache holds: plan it, then write a plan of
@@ -1030,6 +1024,11 @@ impl ToBuffer {
 
 /// `vsnprintf(s, maxlen, fmt, ap)` and `vsprintf` (`maxlen` `usize::MAX`); `slen` is the
 /// fortified destination size (`usize::MAX`: none). The full length is returned.
+///
+/// Inlined into each C entry (PRINTF-NO-HEAP-3): with [`format_routed`]'s bare `%s` path in it,
+/// the compiler kept this function out of line, and its call, six saved registers and argument
+/// moves cost every `snprintf` row 26 to 32 instructions per call.
+#[inline(always)]
 pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&[u8]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
     let mut out = ToBuffer { addr: s, max: maxlen, slen, pos: 0 };
