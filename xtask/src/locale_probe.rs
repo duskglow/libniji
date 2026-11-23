@@ -31,6 +31,43 @@ pub struct Probe {
     locs: BTreeMap<String, Loc>,
     /// Per probed name, `key` -> fingerprint (`ctype.alpha`, `coll.latin`, ...).
     prints: BTreeMap<String, BTreeMap<String, String>>,
+    /// Per probed name, `ctype.<item>` -> where it differs from en_US.utf8's
+    /// (`spec/locale-probe/ctype-diff.tsv`).
+    ctype: BTreeMap<String, BTreeMap<String, CtypeDiff>>,
+}
+
+/// One LC_CTYPE item of a probed name where it differs from en_US.utf8's: the code points it
+/// adds to / removes from a class, or its own mappings of a case map.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct CtypeDiff {
+    pub added: Vec<u32>,
+    pub removed: Vec<u32>,
+    pub mapped: Vec<(u32, u32)>,
+}
+
+fn parse_ctype_diff(text: &str) -> Result<BTreeMap<String, BTreeMap<String, CtypeDiff>>, String> {
+    let mut out: BTreeMap<String, BTreeMap<String, CtypeDiff>> = BTreeMap::new();
+    let hex = |s: &str| u32::from_str_radix(s, 16).ok().filter(|&c| c <= 0x10_ffff);
+    for line in text.lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
+        let bad = || format!("locale-probe ctype-diff: bad row {line:?}");
+        let [name, item, val] = line.split('\t').collect::<Vec<_>>()[..] else { return Err(bad()) };
+        let d = out.entry(name.to_string()).or_default().entry(item.to_string()).or_default();
+        for v in val.split(' ') {
+            match (v.split_once('>'), v.strip_prefix('+'), v.strip_prefix('-')) {
+                (Some((a, b)), ..) => d.mapped.push((hex(a).ok_or_else(bad)?, hex(b).ok_or_else(bad)?)),
+                (_, Some(c), _) => d.added.push(hex(c).ok_or_else(bad)?),
+                (_, _, Some(c)) => d.removed.push(hex(c).ok_or_else(bad)?),
+                _ => return Err(bad()),
+            }
+        }
+        // A case map has only pairs, a class only + / - code points.
+        let is_map = matches!(item, "ctype.toupper" | "ctype.tolower");
+        let class_ops = !d.added.is_empty() || !d.removed.is_empty();
+        if is_map == class_ops || is_map == d.mapped.is_empty() {
+            return Err(bad());
+        }
+    }
+    Ok(out)
 }
 
 fn unescape(v: &str) -> Result<Vec<u8>, String> {
@@ -99,12 +136,24 @@ impl Probe {
                 Some((name, f.filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.to_string())).collect()))
             })
             .collect();
-        Ok(Probe { locs, prints })
+        Ok(Probe { locs, prints, ctype: BTreeMap::new() })
+    }
+
+    /// Adds the LC_CTYPE differences (`spec/locale-probe/ctype-diff.tsv`'s rows).
+    pub fn with_ctype_diff(mut self, text: &str) -> Result<Probe, String> {
+        self.ctype = parse_ctype_diff(text)?;
+        Ok(self)
     }
 
     pub fn load(root: &Path) -> Result<Probe, String> {
         let rd = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
-        Probe::parse(&rd("spec/locale-probe/locales.tsv")?, &rd("spec/locale-probe/fingerprints.tsv")?)
+        Probe::parse(&rd("spec/locale-probe/locales.tsv")?, &rd("spec/locale-probe/fingerprints.tsv")?)?.with_ctype_diff(&rd("spec/locale-probe/ctype-diff.tsv")?)
+    }
+
+    /// Where the probed name's LC_CTYPE differs from en_US.utf8's, per item (`ctype.space`,
+    /// `ctype.toupper`, ...); empty when it behaves the same.
+    pub fn ctype_diff(&self, name: &str) -> Option<&BTreeMap<String, CtypeDiff>> {
+        self.ctype.get(name)
     }
 
     /// The probed name for a source name (`ll_CC[@modifier]`): its UTF-8 locale (`ll_CC.utf8`,
@@ -178,5 +227,17 @@ mod tests {
         assert_eq!(p.text("xx_DE.utf8", "LC_ADDRESS", "country_name").unwrap(), "D\u{e4}");
         assert_eq!(p.get("yy_ZZ", "LC_TIME", "era").unwrap(), Some(Val::Bare(String::new())));
         assert_eq!(p.prints("xx_DE.utf8").and_then(|m| m.get("coll.latin")).map(String::as_str), Some("02"));
+    }
+
+    #[test]
+    fn ctype_differences_parse_into_class_edits_and_case_pairs() {
+        let p = Probe::parse(DUMP, PRINTS).unwrap().with_ctype_diff("# d\nxx_DE.utf8\tctype.space\t+1361 -0020\nxx_DE.utf8\tctype.toupper\t0069>0130\n").unwrap();
+        let d = p.ctype_diff("xx_DE.utf8").unwrap();
+        assert_eq!(d["ctype.space"], CtypeDiff { added: vec![0x1361], removed: vec![0x20], mapped: vec![] });
+        assert_eq!(d["ctype.toupper"].mapped, vec![(0x69, 0x130)]);
+        assert!(p.ctype_diff("yy_ZZ").is_none());
+        for bad in ["a\tctype.space\t0069>0130\n", "a\tctype.toupper\t+0069\n", "a\tctype.space\t\n", "a\tctype.space\t+110000\n", "a\tctype.space\n"] {
+            assert!(Probe::parse(DUMP, PRINTS).unwrap().with_ctype_diff(bad).is_err(), "{bad:?}");
+        }
     }
 }

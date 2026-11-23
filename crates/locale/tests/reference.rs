@@ -586,8 +586,8 @@ fn sources() -> PathBuf {
 /// map value and width of every code point, the `LC_NUMERIC` items (en_US, de_DE, fr_FR: the
 /// decimal point, grouping and thousands separator printf uses) and, for the locales the
 /// reference does not tailor (en_US, de_DE, fr_FR), the collation order of the corpus
-/// (CLDR's root collation with UTS #10 shifted variable weighting). The parts that differ by
-/// design (transliteration, dates, the tailored orders) are docs/differences-from-glibc.md rows.
+/// (CLDR's root collation with UTS #10 shifted variable weighting). The parts that differ
+/// (transliteration, the tailored orders) are docs/differences-from-glibc.md rows.
 #[test]
 fn generated_sources_keep_the_reference_ctype_numbers_and_root_order() {
     let src = sources();
@@ -701,6 +701,87 @@ fn generated_sources_carry_the_probed_name_address_and_telephone() {
         }
     }
     assert!(out.is_empty(), "{} differences from the probe:\n{}", out.len(), out.join("\n"));
+}
+
+/// s31_8_c_1 (D-31.30, decisions #7890 and #7892): names Unicode CLDR covers take the reference's
+/// value (the probe dump) in LC_NUMERIC, LC_MONETARY, LC_TIME, LC_MESSAGES and LC_PAPER, compiled
+/// for UTF-8 (the separators, currency strings, signs, day, month and AM/PM names, the four
+/// formats, answers and paper size; scripts: Latin, Cyrillic, Arabic, Devanagari, Han, Kana,
+/// Thai, Ethiopic), and LC_CTYPE has every probed difference from en_US's
+/// (`spec/locale-probe/ctype-diff.tsv`: U+1361 ETHIOPIC WORDSPACE in `space`, dotted and dotless i
+/// in the Turkic case maps), and names without one have neither.
+#[test]
+fn generated_sources_take_the_reference_values_and_its_ctype_differences() {
+    let src = sources();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let diff = std::fs::read_to_string(root.join("spec/locale-probe/ctype-diff.tsv")).unwrap();
+    let mut out = Vec::new();
+    for (locale, probe) in [
+        ("en_US", "en_US.utf8"),
+        ("de_DE", "de_DE.utf8"),
+        ("fr_FR", "fr_FR.utf8"),
+        ("ru_RU", "ru_RU.utf8"),
+        ("ar_EG", "ar_EG.utf8"),
+        ("hi_IN", "hi_IN"),
+        ("zh_CN", "zh_CN.utf8"),
+        ("ja_JP", "ja_JP.utf8"),
+        ("th_TH", "th_TH.utf8"),
+        ("am_ET", "am_ET"),
+        ("az_AZ", "az_AZ"),
+        ("ku_TR", "ku_TR.utf8"),
+        ("tt_RU@iqtelif", "tt_RU@iqtelif"),
+    ] {
+        let want = probed(probe);
+        let ours = niji_locale::compile(locale.as_bytes(), b"UTF-8", &mut Sources(src.clone())).unwrap_or_else(|e| panic!("{locale}: the generated source does not compile: {e:?}"));
+        let cat = |n: usize| Category::parse(leak(ours[n].as_ref().unwrap().as_slice().to_vec())).unwrap();
+        let mut check = |name: &str, kw: &str, got: Vec<u8>| {
+            let w = want.get(&(name.to_string(), kw.to_string())).unwrap_or_else(|| panic!("{probe}: no {name} {kw} in the probe"));
+            if &got != w {
+                out.push(format!("{locale} {name} {kw}: ours {:?}, the reference's {:?}", String::from_utf8_lossy(&got), String::from_utf8_lossy(w)));
+            }
+        };
+        for (n, name, items) in [
+            (1, "LC_NUMERIC", &[(0, "decimal_point"), (1, "thousands_sep")][..]),
+            (4, "LC_MONETARY", &[(0, "int_curr_symbol"), (1, "currency_symbol"), (2, "mon_decimal_point"), (3, "mon_thousands_sep"), (5, "positive_sign"), (6, "negative_sign")]),
+            (5, "LC_MESSAGES", &[(0, "yesexpr"), (1, "noexpr"), (2, "yesstr"), (3, "nostr")]),
+            (2, "LC_TIME", &[(40, "d_t_fmt"), (41, "d_fmt"), (42, "t_fmt"), (43, "t_fmt_ampm")]),
+        ] {
+            let c = cat(n);
+            for &(i, kw) in items {
+                check(name, kw, c.string(i).to_vec());
+            }
+        }
+        // `locale -k` prints a fixed-length list as one string joined by `;`.
+        let t = cat(2);
+        for (first, len, kw) in [(0, 7, "abday"), (7, 7, "day"), (14, 12, "abmon"), (26, 12, "mon"), (38, 2, "am_pm")] {
+            check("LC_TIME", kw, (first..first + len).map(|i| t.string(i)).collect::<Vec<_>>().join(&b';'));
+        }
+        let paper = cat(7);
+        for (i, kw) in [(0, "height"), (1, "width")] {
+            check("LC_PAPER", kw, paper.word(i).to_string().into_bytes());
+        }
+        let ct = CtypeFile::parse(cat(0)).unwrap();
+        let (space, up, low) = (ct.class_index(b"space").unwrap(), ct.map_index(b"toupper").unwrap(), ct.map_index(b"tolower").unwrap());
+        let rows: Vec<Vec<&str>> = diff.lines().filter(|l| l.starts_with(&format!("{probe}\t"))).map(|l| l.split('\t').collect()).collect();
+        if rows.is_empty() && (ct.in_class(space, 0x1361) || ct.map(up, 0x69) != 0x49 || ct.map(low, 0x49) != 0x69) {
+            out.push(format!("{locale} LC_CTYPE: the probe found no difference from en_US's, ours has one"));
+        }
+        for r in rows {
+            let item = r[1].strip_prefix("ctype.").unwrap();
+            for v in r[2].split(' ') {
+                let hex = |s: &str| u32::from_str_radix(s, 16).unwrap();
+                let ok = match (v.split_once('>'), v.strip_prefix('+')) {
+                    (Some((a, b)), _) => ct.map(ct.map_index(item.as_bytes()).unwrap(), hex(a)) == hex(b),
+                    (None, Some(c)) => ct.in_class(ct.class_index(item.as_bytes()).unwrap(), hex(c)),
+                    (None, None) => !ct.in_class(ct.class_index(item.as_bytes()).unwrap(), hex(&v[1..])),
+                };
+                if !ok {
+                    out.push(format!("{locale} LC_CTYPE {item}: ours lacks the reference's {v}"));
+                }
+            }
+        }
+    }
+    assert!(out.is_empty(), "{} differences from the reference:\n{}", out.len(), out.join("\n"));
 }
 
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the

@@ -10,6 +10,9 @@
  *    point of the group's ranges alone, and followed by the group's first letter), with ties
  *    marked, sorted by a stable merge sort so the result does not depend on the sort's own order.
  * A locale setlocale refuses prints `<name> refused`.
+ *
+ * `locale_fingerprint --diff <base> <name>...` lists, instead, the code points behind a difference
+ * (see diff() below): the generator applies them to the base locale's LC_CTYPE.
  */
 #define _GNU_SOURCE
 #include <locale.h>
@@ -89,9 +92,55 @@ static uint64_t coll(const struct group *g)
     return h;
 }
 
+static const char *classes[] = { "alpha", "upper", "lower", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum" };
+#define NCP 0x110000u
+struct snap { unsigned char cls[12][NCP]; uint32_t map[2][NCP]; };
+static void take(struct snap *s)
+{
+    for (int k = 0; k < 12; k++) {
+        wctype_t t = wctype(classes[k]);
+        for (unsigned c = 0; c < NCP; c++) s->cls[k][c] = iswctype((wint_t)c, t) != 0;
+    }
+    for (unsigned c = 0; c < NCP; c++) {
+        s->map[0][c] = (uint32_t)towupper((wint_t)c);
+        s->map[1][c] = (uint32_t)towlower((wint_t)c);
+    }
+}
+/* --diff <base> <name>...: for each name, the code points where a class, towupper or towlower
+ * differs from <base>'s, one row per differing item (none when the name behaves as <base>):
+ *   <name> TAB ctype.<class> TAB +XXXX -XXXX ...      (in the name's class / not in it)
+ *   <name> TAB ctype.toupper TAB XXXX>YYYY ...        (the name's mapping of XXXX)  */
+static int diff(int argc, char **argv)
+{
+    struct snap *b = malloc(sizeof *b), *s = malloc(sizeof *s);
+    if (argc < 3 || !b || !s) return 2;
+    if (!setlocale(LC_ALL, argv[2])) { printf("%s refused\n", argv[2]); return 1; }
+    take(b);
+    for (int a = 3; a < argc; a++) {
+        if (!setlocale(LC_ALL, argv[a])) { printf("%s refused\n", argv[a]); continue; }
+        take(s);
+        for (int k = 0; k < 14; k++) {
+            int any = 0;
+            for (unsigned c = 0; c < NCP; c++) {
+                int m = k >= 12;
+                if (m ? s->map[k - 12][c] == b->map[k - 12][c] : s->cls[k][c] == b->cls[k][c]) continue;
+                if (!any) printf("%s\tctype.%s\t", argv[a], m ? (k == 12 ? "toupper" : "tolower") : classes[k]);
+                else putchar(' ');
+                any = 1;
+                if (m) printf("%04X>%04X", c, (unsigned)s->map[k - 12][c]);
+                else printf("%c%04X", s->cls[k][c] ? '+' : '-', c);
+            }
+            if (any) putchar('\n');
+        }
+        fflush(stdout);
+    }
+    free(b);
+    free(s);
+    return 0;
+}
 int main(int argc, char **argv)
 {
-    static const char *classes[] = { "alpha", "upper", "lower", "digit", "xdigit", "space", "print", "graph", "blank", "cntrl", "punct", "alnum" };
+    if (argc > 1 && !strcmp(argv[1], "--diff")) return diff(argc, argv);
     for (int a = 1; a < argc; a++) {
         if (!setlocale(LC_ALL, argv[a])) { printf("%s refused\n", argv[a]); continue; }
         printf("%s", argv[a]);
