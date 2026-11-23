@@ -2,7 +2,7 @@
 //! surplus for `dlopen`ed modules, the module table every new thread copies, the dtv and its
 //! generation, and `__tls_get_addr`.
 
-use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize};
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::tls::{self as ltls, Area, Module, Placed};
@@ -290,8 +290,7 @@ fn init_block(dst: u64, [src, filesz, memsz]: [u64; 3], zero: bool) -> Option<()
     #[allow(unsafe_code)]
     // SAFETY: `p_memsz` bytes at the block's offset below TP (`ltls::layout` / `Surplus::place`) in a
     // thread's area: one not started yet, or one listed (mapped while listed) whose code cannot reach
-    // a `dlopen`ed block before its module is published (see [`tls_visit`]); or an on-demand block
-    // [`block_alloc`] has just mapped (`p_memsz` bytes rounded up to pages, no one else's yet).
+    // a `dlopen`ed block before its module is published (see [`tls_visit`]).
     let block = unsafe { conv::bytes_at_mut(dst, len) };
     let (init, rest) = block.split_at_mut(filesz.min(len));
     if !init.is_empty() {
@@ -299,8 +298,8 @@ fn init_block(dst: u64, [src, filesz, memsz]: [u64; 3], zero: bool) -> Option<()
         #[allow(unsafe_code)]
         // SAFETY: `ltls::image_in_load` / `program_tls` checked that [p_vaddr, p_vaddr + p_filesz)
         // lies in the file part of one of the object's PT_LOADs, mapped readable at bias + p_vaddr
-        // while the object is loaded: a thread reaches its block (and its first access maps an
-        // on-demand one) only between its `dlopen` and its `dlclose`.
+        // while the object is loaded: a thread reaches its block only between its `dlopen` and
+        // its `dlclose`.
         init.copy_from_slice(unsafe { conv::bytes_at(src, init.len()) });
     }
     rest.fill(0);
@@ -711,10 +710,42 @@ fn block_alloc(image: [u64; 3], align: u64) -> usize {
         }
     }
     // The mapping is zero already: only the image is written.
-    if init_block(u64::try_from(block).unwrap_or(0), [image[0], image[1], memsz], false).is_none() {
+    if block_image(block, image[0], image[1].min(memsz)).is_none() {
         fail()
     }
     block
+}
+
+/// Copy `len` bytes of a module's TLS image from `src` to the new on-demand block at `block`
+/// (DL-19), a byte at a time through atomics. This runs under the TLS descriptor trampoline
+/// (tlsdesc.S), which keeps only the x87/SSE state, so it must not reach `memcpy`: the copy
+/// kernels may use AVX and end in `vzeroupper`, clearing the caller's upper ymm halves. Atomic
+/// accesses are never turned into a library call. Cold: once per thread and module.
+#[cold]
+#[inline(never)]
+fn block_image(block: usize, src: u64, len: u64) -> Option<()> {
+    let (src, len) = (usize::try_from(src).ok()?, usize::try_from(len).ok()?);
+    if len == 0 {
+        return Some(());
+    }
+    if block == 0 || src == 0 {
+        return None;
+    }
+    // UNSAFE(slice): a new on-demand block, as atomic bytes.
+    #[allow(unsafe_code)]
+    // SAFETY: [`block_alloc`] just mapped `block` read-write with at least `p_memsz` >= `len`
+    // bytes (page-rounded), no other thread knows it yet; `AtomicU8` has `u8`'s layout.
+    let to = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU8>(block), len) };
+    // UNSAFE(slice): the module's TLS initialisation image in its loaded object, as atomic bytes.
+    #[allow(unsafe_code)]
+    // SAFETY: `ltls::image_in_load` / `program_tls` checked that [p_vaddr, p_vaddr + p_filesz) lies
+    // in the file part of one of the object's PT_LOADs, mapped readable while the object is loaded
+    // (a thread makes a block only between its `dlopen` and `dlclose`); only read.
+    let from = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU8>(src), len) };
+    for (d, s) in to.iter().zip(from) {
+        d.store(s.load(Relaxed), Relaxed);
+    }
+    Some(())
 }
 
 /// Free the on-demand block at `block` of a module of `p_memsz` `memsz` ([`block_alloc`]).
