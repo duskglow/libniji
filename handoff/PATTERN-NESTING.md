@@ -1,40 +1,45 @@
 # PATTERN-NESTING handoff (HL-13 fnmatch, HL-14 wordexp nesting)
 
-State: branch `task/pattern-nesting`, cut from origin/next 0495c4684; this note and the report are
-the only commits pushed. Run 1 (2026-11-23) stopped at the context checkpoint.
+State: branch `task/pattern-nesting-2` (PATTERN-NESTING-2, cut from `task/pattern-nesting`), role
+keke:~/w/n1. Plants file: `handoff/PATTERN-NESTING-2-plants.txt`. Scratch: `~/w/.scratch/PATTERN-NESTING-2/`.
 
-## Done (run 1)
+## Done
 
-- HL-13 (`fnmatch`, `FNM_EXTMATCH` nesting): implemented and tested on the build role, but **held
-  off this branch by the coordinator's decision** (see the run's hand-back). Do not re-implement
-  it. Ask the coordinator for the held change before touching `crates/core/src/pattern/fnmatch.rs`.
-  On the role it was clippy and static clean, and the new tests plus the existing §14.7 tests passed.
-- `s14_7_f_0` asserts the old cap (100 nested groups are an error). It changes with HL-13, not before.
+- HL-13 (fnmatch, FNM_EXTMATCH nesting): committed (6e92bc806) from the held patch, by the
+  coordinator's decision on #7900. Plants for it: the six lines of the plants file (plant 4 now
+  uses `perl:` with `\|`: the old `lit:` with ` | ` split the field and refused the run, which was
+  why pattern-nesting-plants1 ended rc=3). Job `pattern-nesting-2-plants1` ran them on 1a1b2911b.
+- HL-14 (wordexp) code written, **WIP commit, not yet compiled** (the role was busy with the
+  baseline bench; nothing was synced after 1a1b2911b):
+  - Parser: `MAX_DEPTH` gone. `Frame` stack (`Parser::frames`, InlineVec 2) for `"..."`,
+    `${name<op>word}` and slow-path `$((...))`/`$[...]`; nested segments on `Parser::nest`
+    (InlineVec 4), moved to `arena` by `close`. `push_text`/`push_input` take `first` (never merge
+    into an enclosing context's segment). `word` keeps its direct calls; `put*` pick the list.
+  - Expander: `segs` is a driver over `Job`s (InlineVec 4); nested words expanded into `fresh`
+    pieces for Assign/Error/Trim/Arith, finished in `finish`; trim values kept on `vals`;
+    `param`/`param_value`/`seg` return `Option<Nested>`; trimming moved to `fn trim`
+    (body indentation is off: run rustfmt on the file).
+  - Arithmetic evaluator: the 512 limit removed (coordinator's decision on #7901): `P::run` with a
+    `Wait` stack (InlineVec 8), `Read`, and `combine` (indentation off too).
+  - `InlineVec::truncate` and `pop` added in `crates/core/src/mem.rs` (additive).
+  - Tests: `crates/core/tests/wordexp_deep_nesting.rs` (129/600/1000 levels of every kind, 64 KiB
+    stack, allocation-failure sweep expecting `WRDE_NOSPACE`).
 
-## Not started: HL-14 (`wordexp`, `MAX_DEPTH` 128 at `crates/core/src/pattern/wordexp.rs:221`)
+## Next steps, in order
 
-The recursion to replace with a heap stack (read by range: the file is 83 KB):
+1. `~/bin/jobwait pattern-nesting-2-counts-base pattern-nesting-2-plants1` on keke; keep the
+   baseline numbers (bench `cbench_opt`/`cbench_patterns`, rows `wordexp_*,fnmatch*`, counters).
+2. Sync, rustfmt `crates/core/src/pattern/wordexp.rs` (copy the result back to the worktree),
+   `cargo xtask clippy`, fix compile errors; run `cargo test -p niji --test wordexp_deep_nesting
+   --test wordexp_arith_lexer --test wordexp_budget_time --test s14_search_clauses` and the
+   conformance/oracle wordexp tests that `cargo xtask affected --list` names.
+3. Counts after (`pattern-nesting-2-counts-after`, same command); every wordexp/fnmatch row must
+   not get slower; if one does, profile before tuning (InlineVec sizes, frame copies).
+4. Add HL-14 plants (restore a cap alone: parser depth, expander, evaluator; `first` guard;
+   short-circuit `eval` in `run`), run plants on the final head, gate (`cargo xtask affected
+   --run`), precheck, D-row if needed (reserve an id via ops), report json, handback-check.
 
-- Parser: `dollar` (enter/leave) -> `dollar_inner` -> `braced` -> `brace_word` (enter/leave), whose
-  loop calls `dquote`, `dollar` and `backquote`; `dollar_inner` -> `arith` (`$((`, `$[`) whose loop
-  reaches `dollar` again. `dquote` writes into its caller's segment list; `brace_word` and `arith`
-  each build their own list and `stash` it into `arena` (a `Range`), so the result is already flat.
-  Suggested shape: one loop with a stack of frames (BraceWord {header, depth, first, quoted,
-  segs}, Arith {square, segs, ...}, DQuote {}) where a `$`/`"` pushes a frame instead of recursing,
-  and a closing byte pops it and hands the stashed range to the parent.
-- Expander: `segs` -> `param` -> `param_value` -> `segs` on the word's arena range
-  (`${x:-${y:-...}}` expands inner words recursively). Needs the same treatment (or proof that it is
-  bounded otherwise).
-- Not in HL-14: the arithmetic evaluator's own nesting limit (`depth > 512` in `unary` and
-  `primary`, lines ~1896 and ~2002), parentheses within one `$((...))`. It is not an audit row;
-  raise it with the coordinator if it should go too.
+## Not to redo
 
-Tests the brief asks for HL-14: 1000 nested `${x:-...}` (the reference accepts 300, audit probe),
-a deep word on a 64 KiB thread stack (model: `crates/core/tests/regex_deep_nesting.rs`), and an
-allocation-failure sweep (model: the `failinject` hook as in `crates/core/tests/enomem_fs_walk.rs`).
-Update any test that asserts `WRDE_SYNTAX` for 129+ levels.
-
-## Next step
-
-Coordinator: rule on the held HL-13 change (hand-back). Then a run for HL-14 as above.
-Plan rows: `plan/hardcoded-limits.md` HL-13, HL-14 (section 8: owner 2026-11-17 "remove").
+HL-13 code and its tests; the recursion map of wordexp (above). `s14_7_f_0` already updated.
+Plan rows: `plan/hardcoded-limits.md` HL-13, HL-14.

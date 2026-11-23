@@ -246,6 +246,21 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
         }
     }
 
+    /// Keep the first `len` elements (all of them when there are fewer); an allocation is kept.
+    pub fn truncate(&mut self, len: usize) {
+        match &mut self.heap {
+            Some(h) => h.truncate(len),
+            None => self.len = self.len.min(len),
+        }
+    }
+
+    /// Remove the last element and return it (`None` when empty).
+    pub fn pop(&mut self) -> Option<T> {
+        let last = self.as_slice().last().copied()?;
+        self.truncate(self.len().saturating_sub(1));
+        Some(last)
+    }
+
     /// The elements.
     pub fn as_slice(&self) -> &[T] {
         match &self.heap {
