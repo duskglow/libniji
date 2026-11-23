@@ -41,6 +41,68 @@ extern FILE *stdout;
 extern FILE *stderr;
 #endif
 
+/* Inline bodies when optimizing (features.h, __NIJI_INLINES). The byte functions are Appendix C.9's protocols over
+   the FILE window and _flags bits; getchar and putchar are getc and putc on stdin and stdout (C 7.21.7.6, 7.21.7.8);
+   getline is getdelim with '\n' (POSIX getdelim), whose GNU entry __getdelim it calls. */
+#if __NIJI_INLINES
+@@when getc_unlocked
+__NIJI_INLINE_FN int getc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int getchar_unlocked (void)
+{
+  return getc_unlocked (stdin);
+}
+__NIJI_INLINE_FN int putc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int putchar_unlocked (int __c)
+{
+  return putc_unlocked (__c, stdout);
+}
+#endif
+@@when fgetc_unlocked
+__NIJI_INLINE_FN int fgetc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int fputc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int feof_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0010) != 0;
+}
+__NIJI_INLINE_FN int ferror_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0020) != 0;
+}
+#endif
+@@when getchar
+__NIJI_INLINE_FN int getchar (void)
+{
+  return getc (stdin);
+}
+__NIJI_INLINE_FN int putchar (int __c)
+{
+  return putc (__c, stdout);
+}
+#endif
+@@when getline
+# if __NIJI_GNU
+__NIJI_INLINE_FN ssize_t getline (char **__lineptr, size_t *__n, FILE *__stream)
+{
+  return __getdelim (__lineptr, __n, '\n', __stream);
+}
+# endif
+#endif
+#endif
+
 @@fortify
 __NIJI_END_C
 

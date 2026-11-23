@@ -212,6 +212,14 @@ extern int optopt;
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___overflow
+#  define __NIJI_D___overflow 1
+extern int __overflow (FILE *, int);
+# endif
+# ifndef __NIJI_D___uflow
+#  define __NIJI_D___uflow 1
+extern int __uflow (FILE *);
+# endif
 # ifndef __NIJI_D_clearerr
 #  define __NIJI_D_clearerr 1
 extern void clearerr (FILE *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
@@ -680,6 +688,10 @@ extern long ftello (FILE *) __asm__ ("ftello64") __attribute__ ((__nonnull__ (1)
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D___getdelim
+#  define __NIJI_D___getdelim 1
+extern long __getdelim (char **, unsigned long *, int, FILE *) __attribute__ ((__nonnull__ (4), __warn_unused_result__));
+# endif
 # ifndef __NIJI_D_dprintf
 #  define __NIJI_D_dprintf 1
 extern int dprintf (int, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3)));
@@ -825,6 +837,68 @@ typedef __builtin_va_list va_list;
 extern FILE *stdin;
 extern FILE *stdout;
 extern FILE *stderr;
+#endif
+
+/* Inline bodies when optimizing (features.h, __NIJI_INLINES). The byte functions are Appendix C.9's protocols over
+   the FILE window and _flags bits; getchar and putchar are getc and putc on stdin and stdout (C 7.21.7.6, 7.21.7.8);
+   getline is getdelim with '\n' (POSIX getdelim), whose GNU entry __getdelim it calls. */
+#if __NIJI_INLINES
+#if __NIJI_POSIX >= 199506
+__NIJI_INLINE_FN int getc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int getchar_unlocked (void)
+{
+  return getc_unlocked (stdin);
+}
+__NIJI_INLINE_FN int putc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int putchar_unlocked (int __c)
+{
+  return putc_unlocked (__c, stdout);
+}
+#endif
+#if __NIJI_MISC
+__NIJI_INLINE_FN int fgetc_unlocked (FILE *__fp)
+{
+  return __fp->_IO_read_ptr >= __fp->_IO_read_end ? __uflow (__fp) : *(unsigned char *) __fp->_IO_read_ptr++;
+}
+__NIJI_INLINE_FN int fputc_unlocked (int __c, FILE *__fp)
+{
+  return __fp->_IO_write_ptr >= __fp->_IO_write_end ? __overflow (__fp, (unsigned char) __c)
+                                                    : (unsigned char) (*__fp->_IO_write_ptr++ = (char) __c);
+}
+__NIJI_INLINE_FN int feof_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0010) != 0;
+}
+__NIJI_INLINE_FN int ferror_unlocked (FILE *__fp) __NIJI_NOTHROW
+{
+  return (__fp->_flags & 0x0020) != 0;
+}
+#endif
+#if 1
+__NIJI_INLINE_FN int getchar (void)
+{
+  return getc (stdin);
+}
+__NIJI_INLINE_FN int putchar (int __c)
+{
+  return putc (__c, stdout);
+}
+#endif
+#if __NIJI_POSIX >= 200809
+# if __NIJI_GNU
+__NIJI_INLINE_FN ssize_t getline (char **__lineptr, size_t *__n, FILE *__stream)
+{
+  return __getdelim (__lineptr, __n, '\n', __stream);
+}
+# endif
+#endif
 #endif
 
 #if __NIJI_FORTIFY > 0
