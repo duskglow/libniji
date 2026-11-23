@@ -4,6 +4,10 @@ libniji was called Liella until November 2026.
 
 ## Unreleased (on `next`, for the next snapshot)
 
+- **`gencat` in `libc-dev-bin` (GitHub issue #12):** `/usr/bin/gencat` compiles message-catalog sources into the
+  catalogs `catopen` and `catgets` read. For the same source its catalog is byte-identical to glibc's `gencat`'s, so
+  catalogs built with either are interchangeable; the options, the `-H` header and the diagnostics match too
+  (`validation/transcripts/gencat/`).
 - **Executable stacks, opt-in (COMPAT-19):** programs, start-up dependencies and `dlopen`ed libraries whose
   `PT_GNU_STACK` asks for an executable stack (`-z execstack`, or a GCC nested function taken by address) are still
   refused by default, now with a message naming the object, the program or the `dlopen` caller, and the ways in.

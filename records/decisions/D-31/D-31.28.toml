@@ -1,0 +1,11 @@
+id = "D-31.28"
+section = "s31"
+spec = "§31.12, App. D.2.2"
+ann = "—"
+status = "active"
+story = "UTIL-14"
+date = "2026-11-23"
+tests = ["crates/core/tests/gencat_products.rs", "validation/transcripts/gencat"]
+body = '''
+**`gencat` is a C program in `csys/util`, linked dynamically against `libc.so.6` like `getent`, and its catalogs are byte-identical to the reference's for the same source (UTIL-14, GitHub issue #12).** The writer is small and self-contained (parse, merge with an existing catalog, plane search, pool, `-H` header), so it follows the `zic` precedent rather than a Rust library per domain: nothing else reads or writes the source format. Byte identity makes catalogs built either way interchangeable; every rule the spec and POSIX leave open was settled by black-box transcripts of the reference's program (`validation/transcripts/gencat/`): the plane size runs up from n/5+1 while it can still beat the best P*D (a tie goes to the larger P); the pool holds the sets in the reverse of the order they were first named, the default set 1 counting as named first, and each set's messages in ascending signed 32-bit order; a symbolic set or message takes the next number after the signed maximum (from 0) of the sets named by `$set` lines or of the set's messages; without `--new` the existing catalog's messages are added after the sources for keys the sources do not define.
+'''

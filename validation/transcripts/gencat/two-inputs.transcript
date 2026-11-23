@@ -1,0 +1,24 @@
+name: two inputs are one source, read in order
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 1
+| 1 a
+file: j.msg
+| 1 b
+| 2 c
+| $set 9
+| 4 d
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+arg: j.msg
+status: exit 1
+stdout:
+stderr:
+| j.msg:1: duplicated message number
+| i.msg:2: this is the first definition
+written-file: o.cat sha256 1e89c4f793150cee5051fe865855dfd65b1fa0973c855ffbfe564655a5bf5126 size 90

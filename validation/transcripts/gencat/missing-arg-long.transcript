@@ -1,0 +1,11 @@
+name: --output without its value
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --output
+status: exit 64
+stdout:
+stderr:
+| gencat: option '--output' requires an argument
+| Try `gencat --help' or `gencat --usage' for more information.

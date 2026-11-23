@@ -3,7 +3,7 @@
  *
  * Every rule below that the spec and POSIX leave open was settled by black-box transcripts of the reference's
  * program (handoff/UTIL-14.md lists them): the plane size search, the string pool order (sets in the reverse of
- * the order they were first named, messages ascending), the merge with an existing catalog after the sources,
+ * the order they were first named, the default set 1 counting as named first; messages ascending), the merge with an existing catalog after the sources,
  * the -H header layout, octal escapes, the message texts of the diagnostics and the exit codes. */
 #define _GNU_SOURCE
 #include <errno.h>
@@ -33,6 +33,7 @@ struct set {
     char *name; /* symbolic identifier, or NULL */
     const char *file;
     size_t line;
+    int explicit; /* named by a $set line (the default set 1 is not until then) */
     struct msg *m;
     size_t n, cap;
 };
@@ -68,9 +69,15 @@ static struct set *set_by_num(uint32_t num) {
     return NULL;
 }
 
+/* A new set goes last in the naming order, except the default set 1 (NL_SETD), which always counts as named first
+ * whenever it is first used: the pool and the -H header list it last (probe UTIL-14 setorder). Callers hold no set
+ * pointer across this call (the array moves). */
 static struct set *new_set(uint32_t num, const char *file, size_t line) {
     if (nsets == capsets) sets = xrealloc(sets, (capsets = capsets ? 2 * capsets : 8) * sizeof *sets);
-    struct set *s = &sets[nsets++];
+    size_t at = num == 1 ? 0 : nsets;
+    memmove(&sets[at + 1], &sets[at], (nsets - at) * sizeof *sets);
+    nsets++;
+    struct set *s = &sets[at];
     *s = (struct set){.num = num, .file = file, .line = line};
     return s;
 }
@@ -169,6 +176,7 @@ static void directive(const char *p, const char *end, const char *file, size_t l
             } else {
                 current = new_set(num, file, line);
             }
+            current->explicit = 1;
         } else if (a < end && ident_start(*a)) {
             for (size_t i = 0; i < nsets; i++)
                 if (sets[i].name && strlen(sets[i].name) == (size_t)(ae - a) && memcmp(sets[i].name, a, (size_t)(ae - a)) == 0) {
@@ -177,10 +185,18 @@ static void directive(const char *p, const char *end, const char *file, size_t l
                     current = &sets[i];
                     return;
                 }
-            uint32_t max = 0;
+            /* The next number after the largest of the sets named by $set lines, compared as signed 32-bit
+             * numbers from 0 (probe UTIL-14 edge); it can be the default set's 1, which then takes the name. */
+            int32_t max = 0;
             for (size_t i = 0; i < nsets; i++)
-                if (sets[i].num > max) max = sets[i].num;
-            current = new_set(max + 1, file, line);
+                if (sets[i].explicit && (int32_t)sets[i].num > max) max = (int32_t)sets[i].num;
+            uint32_t num = (uint32_t)max + 1;
+            current = set_by_num(num);
+            if (current)
+                current->file = file, current->line = line;
+            else
+                current = new_set(num, file, line);
+            current->explicit = 1;
             current->name = xstrndup(a, (size_t)(ae - a));
         } else {
             diag(file, line, "illegal set number");
@@ -226,13 +242,21 @@ static void message(const char *p, const char *end, const char *file, size_t lin
                 free(text);
                 return;
             }
+        int32_t max = 0; /* the largest number in the set, signed, from 0 (probe UTIL-14 edge) */
         for (size_t i = 0; i < s->n; i++)
-            if (s->m[i].num > num) num = s->m[i].num;
-        num++;
+            if ((int32_t)s->m[i].num > max) max = (int32_t)s->m[i].num;
+        num = (uint32_t)max + 1;
         name = xstrndup(p, nl);
     } else {
         struct msg *old = msg_by_num(s, num);
-        if (old) {
+        if (old && old->name) {
+            /* A number a symbolic message took: that message moves to the set's signed maximum + 1 (probe UTIL-14
+             * edge2: `M a`, `N b`, `1 c` gives c 1, N 2, M 3). */
+            int32_t max = 0;
+            for (size_t i = 0; i < s->n; i++)
+                if ((int32_t)s->m[i].num > max) max = (int32_t)s->m[i].num;
+            old->num = (uint32_t)max + 1;
+        } else if (old) {
             diag(file, line, "duplicated message number");
             fprintf(stderr, "%s:%zu: this is the first definition\n", old->file, old->line);
             free(text);
@@ -323,7 +347,7 @@ out:
 }
 
 static int by_num(const void *a, const void *b) {
-    uint32_t x = ((const struct msg *)a)->num, y = ((const struct msg *)b)->num;
+    int32_t x = (int32_t)((const struct msg *)a)->num, y = (int32_t)((const struct msg *)b)->num; /* signed order */
     return (x > y) - (x < y);
 }
 
@@ -422,7 +446,6 @@ static int write_header(const char *path) {
             if (s->m[j].name)
                 fprintf(f, "#define %s%s %#x\t/* %s:%zu */\n", s->name ? s->name : prefix, s->m[j].name, s->m[j].num, s->m[j].file, s->m[j].line);
     }
-    fputc('\n', f);
     int bad = f == stdout ? fflush(f) != 0 : fclose(f) != 0;
     if (bad) fprintf(stderr, "cannot open output file `%s': %s\n", path, strerror(errno));
     return bad ? -1 : 0;
