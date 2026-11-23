@@ -2,7 +2,7 @@
 // Specify a test by replacing its stub with a real #[test] fn of the SAME NAME (see crates/spectest).
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
-//! Clause tests for spec §31 (114 clauses).
+//! Clause tests for spec §31 (115 clauses).
 
 use spectest::clause;
 
