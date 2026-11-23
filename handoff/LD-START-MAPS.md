@@ -1,5 +1,45 @@
 # LD-START-MAPS: the start's mappings at or below the reference's kernel cost
 
+## Leg 2 (2026-11-23): design steps 1-5 implemented and measured; NOT yet gated, no tests or plants
+
+Commits (on 5d1cebfea): a765f4a7b (read start dependencies from headers + mapped image; D-27.92 record),
+ee10b271d (dynamic array copy by `pread`, removing +1 fault per library). Clippy of niji-boundary + niji-ld
+clean on mei:~/w/s4. Code: `image.rs` `open_start` / `read_headers` / `image_object` / `Found` / `Mapped` /
+`arena_give_back` / `image_spans` (split out of `image_view`; `file: Option<fd>`), `StartMapper::store_file`;
+`map.rs` `plan_headers`, `Mapper::store_file` (default Err), cold `tail_from_file`; `dlopen.rs`
+`loadable_dynamic` now pub; `link.rs` uses `open_start` in the search and for path names (falls back to the old
+`open_file` path via cold `by_path` on any refusal), flat `maps` list (`keep_map`). ARENA 4 -> 16 KiB.
+
+After (kit, release, Skylake-SP, median of 101; jobs `ld-start-maps-meas-new3` vs `ld-start-maps-meas-base`):
+
+| program | user | kernel | faults | syscalls | maps |
+|---|---|---|---|---|---|
+| n0 | 159,047 -> 166,208 | 730,939 -> 628,650 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
+| n3 | 250,528 -> 274,189 | 1,122,981 -> 921,688 | 70 -> 70 | 59 -> 61 | 35 -> 29 |
+| t | 216,900 -> 224,056 | 730,456 -> 629,441 | 58 -> 57 | 29 -> 28 | 14 -> 11 |
+| glibc 2.39 g0 / g3 / true | 101,855 / 138,761 / 128,175 | 588,762 / 925,983 / 592,143 | 51 / 67 / 51 | 30 / 64 / 30 | |
+
+n3's kernel count is now below glibc's; n0 is +40k over it (was +142k). Open cost: user +7.2k per object
+(n3 +24k), not yet attributed (candidates: `image_spans` + `from_image` per object, image-mode `span_bytes`
+lookups in symbol/reloc reading, the `pread` copy; use the kit's callgrind/PT tables, `meas.sh ... pt`).
+Net instructions per start still fall (n0 -95k, n3 -177k), but a cost row must go in the report.
+
+Next steps, in order:
+1. Attribute the +7.2k user instructions per object and cut what is cheap (ALWAYS FORWARD).
+2. Tests (name the clause, §27.1): (a) `crates/ld/tests/map.rs`: `plan_headers` on a header prefix gives
+   `plan`'s result and errors on the whole file (segment past the end -> OutOfRange(Segment(i))); (b) a start
+   whose dependency has a read-only segment with zero fill (`store_file` path) runs and sees its bytes; (c) a
+   search candidate refused at the dynamic step (PT_DYNAMIC outside every PT_LOAD) is skipped and the next
+   directory's copy is loaded; (d) headers past 1 KiB (many PT_NOTEs) still load (view fallback).
+3. Plants (`docs/plants.md` via `cargo xtask plants`): `read_headers` keep computation, `plan_headers` range
+   check, `tail_from_file`/`store_file`, the `image_object` refusal mapping, `arena_give_back` zeroing,
+   `image_spans` pread offset.
+4. Gate (`cargo xtask affected --run`, base origin/next), `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so
+   && ... hot_text_products` (DYN_TRUE_BOUND may tighten: re-measure, tighten, never loosen), layout-bins diff,
+   static, precheck, report JSON, handback-check. Mention in hand-back first line: per-start numbers (owner 11-21).
+
+## Leg 1
+
 **State (leg 1 of the run, attribution done, no product code changed yet):** branch `task/ld-start-maps` from
 origin/next e3b0caf60. Role mei:~/w/s4 (Skylake-SP). Release products (`NIJI_FULL_PROFILE=1`) of that base are in
 `~/work/ld-start-maps/base` on the role's host; the kit is installed in `~/work/ld-start-maps/kit` there
