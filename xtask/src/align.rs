@@ -41,6 +41,27 @@ pub fn remap_flags(root: &Path) -> Vec<String> {
     flags
 }
 
+/// Every spelling of the workspace `root` a product build step may record (BUILD-REPRODUCIBLE-PATHS): as given,
+/// canonical, and the logical spelling through `pwd` (the `$PWD` of the build). The root xtask finds is what
+/// `getcwd` returns, the canonical path; the C compiler names its working directory in the debug information
+/// (`DW_AT_comp_dir`, line-table directory 0) from `$PWD` whenever that names the same directory, so a role reached
+/// through a symlink (`~/w/<role>` -> `/mnt/zram/claude/w/<role>`) is spelled the logical way there. Measured on the
+/// Skylake-SP host: 19 utilities and small libraries carried the logical root in that one attribute.
+pub fn root_spellings(root: &Path, pwd: Option<&Path>) -> Vec<String> {
+    let mut v = vec![root.display().to_string()];
+    let canon = root.canonicalize().ok();
+    if let Some(c) = &canon {
+        v.push(c.display().to_string());
+        // The ancestor of `$PWD` that is the root (the build may run in a subdirectory of the tree).
+        if let Some(a) = pwd.filter(|p| p.is_absolute()).and_then(|p| p.ancestors().find(|a| a.canonicalize().ok().as_ref() == Some(c))) {
+            v.push(a.display().to_string());
+        }
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    v.retain(|s| seen.insert(s.clone()));
+    v
+}
+
 /// The encoded rustflags for a product build: the product flags and the path remapping for
 /// `root`, then what the environment already asks for (`CARGO_ENCODED_RUSTFLAGS`, else
 /// `RUSTFLAGS`: setting the encoded variable would otherwise silently replace them), then `extra`.

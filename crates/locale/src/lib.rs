@@ -8,6 +8,7 @@
 //!   `LC_IDENTIFICATION`; D.1.5).
 //! * [`ctype`]: `LC_CTYPE` (D.1.3).
 //! * [`collate`]: `LC_COLLATE` (D.1.4).
+//! * [`defaults`]: the POSIX defaults of a category a source does not define.
 //! * [`charset`]: the charmap a locale is compiled for (code point to bytes, widths).
 //! * [`prog`]: the `localedef` command over a [`prog::Host`] (options, search paths, the
 //!   directory form, messages).
@@ -21,11 +22,13 @@
 
 extern crate alloc;
 
+pub mod archive;
 pub mod build;
 pub mod cats;
 pub mod charset;
 pub mod collate;
 pub mod ctype;
+pub mod defaults;
 pub mod lex;
 pub mod prog;
 pub mod source;
@@ -92,38 +95,134 @@ pub trait Files {
     fn read(&mut self, kind: Kind, name: &[u8]) -> Result<TryVec<u8>>;
 }
 
-/// The compiled files of one locale, by category number (`LC_ALL`, 6, and categories the
-/// source does not define are `None`).
+/// The compiled files of one locale, by category number (`LC_ALL`, 6, is `None`).
 pub type Compiled = [Option<TryVec<u8>>; 13];
 
+/// What one compile produced.
+#[derive(Debug)]
+pub struct Output {
+    /// Every category's file (`LC_ALL`, 6, is `None`). A category the source does not define,
+    /// or one whose statements have a syntax error, has its POSIX default ([`defaults`]).
+    pub files: Compiled,
+    /// The categories the source defines.
+    pub defined: [bool; 13],
+    /// The syntax errors the compile went past, in the order found: lines outside any category,
+    /// then one per category that failed (that category has its default instead).
+    pub errors: TryVec<Error>,
+    /// How many of [`Output::errors`] are lines outside any category (the first ones).
+    pub outside: usize,
+    /// The categories whose statements failed, by number (one error each after the outside ones,
+    /// in category order).
+    pub failed: [bool; 13],
+}
+
 /// Compile the locale source `locale` for the charmap `charmap` (both read through `files`):
-/// each category the source defines, written as its Appendix D.1 file.
+/// every category the source defines, written as its Appendix D.1 file. Strict: a syntax error
+/// anywhere is the error, and a category the source does not define is `None`.
 pub fn compile(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> Result<Compiled> {
+    let mut out = compile_output(locale, charmap, files)?;
+    if let Some(e) = out.errors.first() {
+        return Err(*e);
+    }
+    for (slot, defined) in out.files.iter_mut().zip(out.defined) {
+        if !defined {
+            *slot = None;
+        }
+    }
+    Ok(out.files)
+}
+
+/// Compile as [`compile`] does, going past syntax errors (recorded in [`Output::errors`]) and
+/// writing the POSIX default for every category without a file of its own (spec §31.8: the
+/// reference writes all twelve, #7534). A missing input or exhausted memory is still the error.
+pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> Result<Output> {
     let cs = charset::Charset::parse(&files.read(Kind::Charmap, charmap)?)?;
     let text = files.read(Kind::Locale, locale)?;
-    let src = source::parse(&text, files)?;
-    let mut out: Compiled = Default::default();
+    compile_text(&text, &cs, files)
+}
+
+/// [`compile_output`] of the source `text` (already read) for the charset `cs`.
+pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
+    let mut src = source::parse(text, files)?;
+    resolve_names(&mut src, cs)?;
+    let outside = src.errors.len();
+    let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside, failed: [false; 13] };
     for (n, stmts) in src.cats.iter().enumerate() {
         let Some(stmts) = stmts else { continue };
-        let b = cats::Body::new(stmts);
-        let file = match n {
-            0 => ctype::write(&ctype::parse(stmts, files)?, &cs)?,
-            1 => cats::numeric(&b, &cs)?,
-            2 => cats::time(&b, &cs)?,
-            4 => cats::monetary(&b, &cs)?,
-            5 => cats::messages(&b, &cs)?,
-            7 => cats::paper(&b, &cs)?,
-            8 => cats::name(&b, &cs)?,
-            9 => cats::address(&b, &cs)?,
-            10 => cats::telephone(&b, &cs)?,
-            11 => cats::measurement(&b, &cs)?,
-            12 => cats::identification(&b, &cs)?,
-            3 => collate::write(stmts, &cs)?,
-            _ => continue,
-        };
-        if let Some(slot) = out.get_mut(n) {
-            *slot = Some(file);
+        if let Some(d) = out.defined.get_mut(n) {
+            *d = true;
+        }
+        match category(n, stmts, cs, files, false) {
+            Ok(file) => {
+                if let Some(slot) = out.files.get_mut(n) {
+                    *slot = file;
+                }
+            }
+            Err(e) if e.kind == ErrorKind::Syntax => {
+                out.errors.push(e)?;
+                if let Some(f) = out.failed.get_mut(n) {
+                    *f = true;
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    if out.files.iter().enumerate().any(|(n, f)| n != 6 && f.is_none()) {
+        let defaults = source::parse(defaults::SOURCE.as_bytes(), files)?;
+        for (n, stmts) in defaults.cats.iter().enumerate() {
+            let (Some(stmts), Some(slot)) = (stmts, out.files.get_mut(n)) else { continue };
+            if slot.is_none() {
+                *slot = category(n, stmts, cs, files, true)?;
+            }
         }
     }
     Ok(out)
+}
+
+/// Write each symbolic name the charmap defines other than `<Uxxxx>` (a POSIX name such as
+/// `<a>` or `<space>`, XBD 6.4 and 7.3) as the `<Uxxxxxxxx>` of its code point, in every
+/// statement and string of `src`; names the charmap does not define are left as written.
+fn resolve_names(src: &mut source::Source, cs: &charset::Charset) -> Result<()> {
+    let resolve = |n: &[u8]| cs.map().named(n);
+    for stmts in src.cats.iter_mut().flatten() {
+        for s in stmts.iter_mut() {
+            for t in s.toks.iter_mut() {
+                match t {
+                    lex::Tok::Sym(n) if lex::ucs_name(n).is_none() => {
+                        if let Some(cp) = resolve(n) {
+                            *n = TryVec::from_slice(&lex::ucs_text(cp))?;
+                        }
+                    }
+                    lex::Tok::Str(raw) => {
+                        if let Some(new) = lex::resolve_string(raw, s.esc, &resolve)? {
+                            *raw = new;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The file of category `n` from its statements (`None` for `LC_ALL`); `defaults`: the
+/// statements are `defaults.rs`'s, for a category the source does not define (D-31.24).
+fn category(n: usize, stmts: &[source::Stmt], cs: &charset::Charset, files: &mut dyn Files, defaults: bool) -> Result<Option<TryVec<u8>>> {
+    let b = if defaults { cats::Body::defaults(stmts) } else { cats::Body::new(stmts) };
+    Ok(Some(match n {
+        0 => ctype::write(&ctype::parse(stmts, files)?, cs, defaults)?,
+        1 => cats::numeric(&b, cs)?,
+        2 => cats::time(&b, cs)?,
+        4 => cats::monetary(&b, cs)?,
+        5 => cats::messages(&b, cs)?,
+        7 => cats::paper(&b, cs)?,
+        8 => cats::name(&b, cs)?,
+        9 => cats::address(&b, cs)?,
+        10 => cats::telephone(&b, cs)?,
+        11 => cats::measurement(&b, cs)?,
+        12 => cats::identification(&b, cs)?,
+        3 => collate::write(stmts, cs)?,
+        _ => return Ok(None),
+    }))
 }

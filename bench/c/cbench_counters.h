@@ -9,7 +9,9 @@
 #ifndef CBENCH_COUNTERS_H
 #define CBENCH_COUNTERS_H
 #include <cpuid.h>
+#include <fcntl.h>
 #include <linux/perf_event.h>
+#include <sys/personality.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,12 +30,47 @@
  * through the Skylake family, where the JCC-erratum microcode drops 32-byte windows from the uop cache). Read it
  * only on those cores; the column is still named uops in the ctr line. Run the bench program directly (the xtask
  * --counters run sets CBENCH_COUNTERS=1). */
-/* Events 0 (instructions), 1 (cycles) and 5 (uops) form ONE pinned group: they are always counted together over the
- * whole row. Without it, 6 events on a CPU with 3-4 programmable counters were multiplexed and the scaled values of
- * short rows were wrong (Ivy Bridge host A, Ivy Bridge: memcmp_16 showed 0.4 cycles/op). The other three events may multiplex. */
+/* Events 0 (instructions), 1 (cycles), 4 (user-mode instructions) and 5 (uops) form ONE pinned group: they are always
+ * counted together over the whole row. Without it, 6 events on a CPU with 3-4 programmable counters were multiplexed
+ * and the scaled values of short rows were wrong (Ivy Bridge host A, Ivy Bridge: memcmp_16 showed 0.4 cycles/op).
+ * The user-mode count joined the group with BUILD-REPRODUCIBLE-PATHS: multiplexed, one row read 926 to 7221 across
+ * runs of one build. Branch and L1d misses may multiplex (scaled by time enabled / time running). */
 #define CTR_N 6
 static int ctr_fd[CTR_N] = {-1, -1, -1, -1, -1, -1};
 static int ctr_on = -1;
+
+/* BUILD-REPRODUCIBLE-PATHS: a counted run executes with address-space randomisation off, so the user-mode count of
+ * one build is the same in every run. With it on, the stack's random offset within its page sometimes puts a row's
+ * buffer near a page end and the row takes another path: measured on the Skylake-SP host, strstr_hit_64 and
+ * strstr_miss_64 read 71 or 135 user instructions per call across 20 runs, exactly 71 with it off. Before main, a
+ * counted run that still randomises sets ADDR_NO_RANDOMIZE and executes itself again (same arguments and environment;
+ * nothing has been printed yet); where that is refused it carries on randomised. Uncounted runs are unchanged. */
+static void __attribute__((constructor)) ctr_fixed_layout(void)
+{
+    const char *v = getenv("CBENCH_COUNTERS");
+    if (!v || !(v[0] == '1' || strcmp(v, "mite") == 0))
+        return;
+    int p = personality(0xffffffff);
+    if (p == -1 || (p & ADDR_NO_RANDOMIZE) || personality((unsigned long)p | ADDR_NO_RANDOMIZE) == -1)
+        return;
+    static char cmd[65536];
+    static char *av[1024];
+    int fd = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
+        return;
+    ssize_t n = 0, r;
+    while (n < (ssize_t)sizeof cmd - 1 && (r = read(fd, cmd + n, sizeof cmd - 1 - (size_t)n)) > 0)
+        n += r;
+    close(fd);
+    if (n <= 0 || n >= (ssize_t)sizeof cmd - 1)
+        return;
+    int ac = 0;
+    for (ssize_t i = 0; i < n && ac < 1023; i += (ssize_t)strlen(cmd + i) + 1)
+        av[ac++] = cmd + i;
+    av[ac] = NULL;
+    extern char **environ;
+    execve("/proc/self/exe", av, environ);
+}
 
 static void ctr_open(void)
 {
@@ -65,11 +102,11 @@ static void ctr_open(void)
         a.type = ev[i].type;
         a.config = i == 5 && v[0] == 'm' ? 0x0479 : ev[i].config;
         a.disabled = 1;
-        a.pinned = i == 0; /* instructions + cycles + uops: one pinned group, never multiplexed out */
+        a.pinned = i == 0; /* instructions + cycles + user instructions + uops: one pinned group, never multiplexed out */
         a.exclude_hv = 1;
         a.exclude_kernel = (unsigned)ev[i].user_only;
         a.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
-        ctr_fd[i] = (int)syscall(SYS_perf_event_open, &a, 0, -1, (i == 1 || i == 5) ? ctr_fd[0] : -1, 0UL);
+        ctr_fd[i] = (int)syscall(SYS_perf_event_open, &a, 0, -1, (i == 1 || i == 4 || i == 5) ? ctr_fd[0] : -1, 0UL);
     }
 }
 
