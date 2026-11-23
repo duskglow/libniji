@@ -26,6 +26,8 @@ struct Row {
     ctype: String,
     bitfield: bool,
     bits: u64,
+    /// For a bitfield: its first bit from the start of its storage unit (`bits W@P`).
+    pos: u64,
     /// For an anonymous member (`<anon>`, `size N rows M` in the last column): its byte size and
     /// how many of the rows that follow it at its level are its own (flattened) members.
     anon: Option<(u64, usize)>,
@@ -84,6 +86,7 @@ fn load(root: &Path, arch: Arch) -> Result<Vec<Ty>, String> {
                 ctype: f[4].trim().to_string(),
                 bitfield: f.get(5).is_some_and(|b| b.trim().starts_with("bits ")),
                 bits: f.get(5).and_then(|b| b.trim().strip_prefix("bits ")).and_then(|b| b.split('@').next()).and_then(|w| w.parse().ok()).unwrap_or(0),
+                pos: f.get(5).and_then(|b| b.trim().strip_prefix("bits ")).and_then(|b| b.split('@').nth(1)).and_then(|p| p.parse().ok()).unwrap_or(0),
                 anon: match f.get(5).and_then(|b| b.trim().strip_prefix("size ")) {
                     Some(s) => {
                         let (size, rows) = s.split_once(" rows ").ok_or(format!("layouts.tsv:{}: `size N rows M` expected", n + 1))?;
@@ -225,6 +228,8 @@ struct Node {
     bitfield: bool,
     /// For a bitfield group: the total width in bits of the consecutive bitfields it stands for.
     bits: u64,
+    /// For a bitfield group: the first bit of its first bitfield in the storage unit.
+    pos: u64,
     children: Vec<Node>,
 }
 
@@ -277,12 +282,12 @@ fn group(level: &[&Row], rows: &[Row], depth: usize) -> Result<Vec<Node>, String
             let base = format!("__anon_{}", r.offset);
             let repeats = out.iter().filter(|n| n.c_name.is_none() && (n.name == base || n.name.starts_with(&format!("{base}_")))).count();
             let name = if repeats == 0 { base } else { format!("{base}_{repeats}") };
-            out.push(Node { name, c_name: None, offset: r.offset, ctype: r.ctype.clone(), bitfield: false, bits: 0, children });
+            out.push(Node { name, c_name: None, offset: r.offset, ctype: r.ctype.clone(), bitfield: false, bits: 0, pos: 0, children });
             continue;
         }
         let prefix = &r.path[..=depth];
         let sub: Vec<Row> = rows.iter().filter(|c| c.path.len() > depth + 1 && c.path[..=depth] == *prefix).cloned().collect();
-        out.push(Node { name: r.path[depth].clone(), c_name: Some(r.path[depth].clone()), offset: r.offset, ctype: r.ctype.clone(), bitfield: r.bitfield, bits: r.bits, children: build(&sub, depth + 1)? });
+        out.push(Node { name: r.path[depth].clone(), c_name: Some(r.path[depth].clone()), offset: r.offset, ctype: r.ctype.clone(), bitfield: r.bitfield, bits: r.bits, pos: r.pos, children: build(&sub, depth + 1)? });
     }
     Ok(out)
 }
@@ -326,7 +331,9 @@ impl Gen<'_> {
         let mut fields = Vec::new();
         let mut sorted: Vec<&Node> = children.iter().collect();
         if !union {
-            sorted.sort_by_key(|c| c.offset);
+            // A bitfield group lies at the byte of its first bit (`struct ip_timestamp`: two 4-bit fields from bit
+            // 24 of the unit at 0 come after the bytes at 1 and 2).
+            sorted.sort_by_key(|c| c.offset + if c.bitfield { c.pos / 8 } else { 0 });
         }
         for (i, c) in sorted.iter().enumerate() {
             let extent_end = if union { end } else { sorted[i + 1..].iter().map(|n| n.offset).find(|&o| o > c.offset).unwrap_or(end) };
@@ -431,6 +438,7 @@ fn rebase(n: &Node, base: u64) -> Node {
         ctype: n.ctype.clone(),
         bitfield: n.bitfield,
         bits: n.bits,
+        pos: n.pos,
         children: n.children.iter().map(|c| rebase(c, base)).collect(),
     }
 }
@@ -598,7 +606,7 @@ mod tests {
     use super::*;
 
     fn row(path: &str, offset: u64, ctype: &str, anon: Option<(u64, usize)>) -> Row {
-        Row { path: path.split('.').map(str::to_string).collect(), offset, ctype: ctype.to_string(), bitfield: false, bits: 0, anon }
+        Row { path: path.split('.').map(str::to_string).collect(), offset, ctype: ctype.to_string(), bitfield: false, bits: 0, pos: 0, anon }
     }
 
     /// (name, children) of a tree, for comparing shapes.
