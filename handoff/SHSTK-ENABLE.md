@@ -6,10 +6,11 @@
 ## Final-head jobs (mei, code head 73d2ad2f6)
 
 `shstk-enable-lint4` (clippy --all-features -D warnings + `cargo xtask static`: rc 0),
-`shstk-enable-plants4` (3/3 CAUGHT, 0 WARN), `shstk-enable-xtest4` (7192 run, 7186 passed, 6 failed:
-the host-locale six, same in mei CI gates ci-gate-691c188e3 / ci-gate-a176ecda8),
-`shstk-enable-hottext4` (33 passed), `shstk-enable-su7` (start-up rows). FULL tier: the train's
-(csys machine `.S` files). SUPERSEDED: xtest3, plants3, lint3 (f4e60abca; lint3's rc 2 was a
+`shstk-enable-plants4` (3/3 CAUGHT, 0 WARN), `shstk-enable-hottext4` (33 passed),
+`shstk-enable-su7` (start-up rows); precheck GREEN on 853640137. FULL tier: the train's (csys
+machine `.S` files). SUPERSEDED: `shstk-enable-xtest4` (rc 1: 7192 run, 7186 passed, 6 failed,
+the host-locale six: mei has had no locale-archive since 11-23 06:32Z; same in mei CI gates
+ci-gate-691c188e3 / ci-gate-a176ecda8), xtest3, plants3, lint3 (f4e60abca; lint3's rc 2 was a
 trailing `cargo xtask affected` without a mode), hottext3 (killed, old head). Earlier-head evidence
 whose code paths are unchanged: percall3 (6e647e491), nozomi n100e and cost1, su6.
 

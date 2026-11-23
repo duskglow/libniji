@@ -160,10 +160,13 @@ without user shadow stacks); its control is the N100 SIGSEGV run above.
   `cargo xtask static`: rc 0.
 * `shstk-enable-plants4`: 3 plants, 3 CAUGHT, 0 WARN (results identical to
   `handoff/SHSTK-ENABLE-plants.txt`).
-* `shstk-enable-xtest4` (`cargo xtask test`): 7,192 run, 7,186 passed, 6 failed, 790 skipped. The
-  six (catalogs_products, locale_data x2, locale_products, printf_corpus_products, s7_2_f_0) fail
-  the same way in this host's CI gates `ci-gate-691c188e3` and `ci-gate-a176ecda8` (host
-  locale data); none is in code this branch touches.
+* `shstk-enable-xtest4` (`cargo xtask test`; SUPERSEDED, rc 1): 7,192 run, 7,186 passed, 6
+  failed, 790 skipped. The six (catalogs_products, locale_data x2, locale_products,
+  printf_corpus_products, s7_2_f_0) fail the same way in this host's CI gates `ci-gate-691c188e3`
+  and `ci-gate-a176ecda8`: mei has no `/usr/lib/locale/locale-archive` since its locales were
+  regenerated as 511 per-locale directories at 2026-11-23T06:32Z (`locale_data`: "the gate
+  machines have a locale archive"). None is in code this branch touches; the host fix needs root
+  (not run). `cargo xtask precheck` on 853640137 without it: GREEN.
 * `shstk-enable-hottext4` (`NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products`): rc 0, 33 passed, 0 failed.
 * `shstk-enable-su7`: start-up rows above.
 * Earlier heads (code paths they measure unchanged since): `shstk-enable-percall3` (6e647e491),

@@ -6,14 +6,13 @@
  "branch": "task/shstk-enable",
  "head": "73d2ad2f6",
  "gate": {
-  "affected": "FULL: the train's (csys machine .S files); cargo xtask test 7192 run, 7186 passed, 6 failed (host locale data, same in mei CI gates ci-gate-691c188e3/ci-gate-a176ecda8); hot_text_products 33 passed; plants 3/3 CAUGHT; lint clean",
+  "affected": "FULL: the train's (csys machine .S files); hot_text_products 33 passed; plants 3/3 CAUGHT; lint clean; precheck GREEN; cargo xtask test (shstk-enable-xtest4, SUPERSEDED) 7192 run, 7186 passed, 6 failed: the build host has no locale archive since its locales were regenerated as per-locale directories at 06:32Z on 11-23 (same six fail in that host's CI gates)",
   "peak": null
  },
  "accepted_first_attempt": null,
  "jobs": [
   "shstk-enable-lint4",
   "shstk-enable-plants4",
-  "shstk-enable-xtest4",
   "shstk-enable-hottext4",
   "shstk-enable-su7"
  ],
@@ -35,7 +34,8 @@
   "With GLIBC_TUNABLES set, a libniji dynamic program run directly (libc.so.6 pinned to its install dir) fails to find libc.so.6 (rc 127), the same at 0495c4684; not this branch's",
   "setcontext on a kernel signal ucontext restores x87 env and MXCSR from the user-context layout (pre-existing); the N100 step passes",
   "cargo xtask so writes products under the workspace's target/niji even with CARGO_TARGET_DIR set (seen building a base tree)",
-  "start-up opt-in asked on a CPU without user shadow stacks: static +1,309 instr:u and +5 faults (reads its own image, maps cold code); a CPUID test first would skip it"
+  "start-up opt-in asked on a CPU without user shadow stacks: static +1,309 instr:u and +5 faults (reads its own image, maps cold code); a CPUID test first would skip it",
+  "the Skylake-SP build host has had no /usr/lib/locale/locale-archive since 2026-11-23T06:32Z (511 per-locale directories): six locale/catalog/printf-corpus tests fail in every cargo xtask test there, CI gates included; host fix needs root (not run)"
  ],
  "refused": [],
  "impact": [
