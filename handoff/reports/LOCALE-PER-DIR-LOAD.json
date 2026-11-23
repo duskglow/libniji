@@ -66,9 +66,9 @@
  "next_step": "land; follow-up: a directory-layout trace data model so per-locale-directory hosts get the search path grouped",
  "report_file": "handoff/LOCALE-PER-DIR-LOAD-report.md",
  "jobs": [
-  "mei:locale-per-dir-load-gate2",
-  "mei:locale-per-dir-load-plants",
-  "mei:locale-per-dir-load-xtask-test2",
+  "mei:locale-per-dir-load-gate3",
+  "mei:locale-per-dir-load-plants2",
+  "mei:locale-per-dir-load-xtask-test3",
   "mei:locale-per-dir-load-fullprof3"
  ]
 }

@@ -68,6 +68,14 @@ moved from bin 1 to bin 2 at unchanged size. Output: mei ~/work/locale-per-dir-l
   locale-per-dir-load-fullprof3 on the final head.
 - locale-per-dir-load-probe-after: the probe tables above.
 
+Final head (5ab4d3876 code, handoff-only commits after it): the jobs above ran before the budget tightening, so
+they are SUPERSEDED for the record (all green except fullprof2) and rerun on the final head:
+- locale-per-dir-load-fullprof3: rc 0; every layout contract ok (release); hot_text_products 33 passed, 0 failed.
+- locale-per-dir-load-gate3 (direct gate), locale-per-dir-load-plants2 (same plants file, RAM copy),
+  locale-per-dir-load-xtask-test3 (`cargo xtask test`, starts when gate3 ends): still running at hand-back
+  (11:04Z: plants2 4 of 5 CAUGHT, the fifth running; gate3 in its second pass, no failure so far).
+- Precheck on 797ec2164: every check ok but the job records (the reruns above answer them); clippy and static clean.
+
 ## INFORMATIONAL
 - WL gate start-up counts on mei now see per-locale directories (about 14 more faults per en_US.UTF-8 program than
   with an archive): a host data change, not a libniji change.
