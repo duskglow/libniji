@@ -1,0 +1,19 @@
+{"task": "BUILD-REPRODUCIBLE-PATHS", "model": "opus", "tokens": null,
+ "result": "Products byte-identical across two tree paths and two hosts (one manifest sha256), gdb still resolves libniji frames; bench counts pinned and ASLR off, COUNT-SPREAD fails a limited row whose count moves; repeat count pending",
+ "branch": "task/build-reproducible-paths", "head": "79e80e1c6",
+ "gate": {"affected": "664 passed / 0 failed (direct tier; FULL is the train's for xtask)", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Not deterministic, ungated (no instruction limit): memcpy_64k 7.3% and memset_64k 2.7% (kernel share of the user+kernel count), gettext_language_steady 14.6% and gettext_language_alternating 4.2% user, re_mt4_* (threads); a future limit on one of them would fail COUNT-SPREAD"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "release manifests of one commit from mei symlinked role dir, mei plain dir and keke (Zen 1): identical (1339 lines, one sha256); before: 19 utilities/small libraries and .hot-lists carried the tree path", "before": 20, "after": 0, "unit": "product files carrying the build path", "measured": true},
+  {"kind": "correctness", "what": "gated bench rows whose instruction count moved beyond max(2,2%) between runs of one build (strstr_hit_64/strstr_miss_64 71 vs 135, strcasestr_hit_64 3.7%), memref+opt", "before": 3, "after": 0, "unit": "rows", "measured": true},
+  {"kind": "tooling", "what": "COUNT-SPREAD check and --count-runs N in cargo xtask bench (also in --counters-only)", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "plants added (3, all CAUGHT) and one test extended (check_dir scans unlisted files)", "before": 0, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "The handoff's repeat-test recipe (--counters-only) never ran the spread check, found only after a 45-minute run: a tool flag's checks should be listed in its --help so a recipe can be checked before it runs",
+ "next_step": "Collect build-reproducible-paths-repeat2 on mei (COUNT-SPREAD ok line, rc 0), then the train",
+ "report_file": "handoff/BUILD-REPRODUCIBLE-PATHS.md",
+ "jobs": ["mei:build-reproducible-paths-gate2", "mei:build-reproducible-paths-plants3", "mei:build-reproducible-paths-lint5", "mei:build-reproducible-paths-repeat2"],
+ "evidence_jobs_on_96f0f1b2a": ["mei:build-reproducible-paths-so2", "mei:build-reproducible-paths-treeb", "keke:build-reproducible-paths-kk-rel", "mei:build-reproducible-paths-gdb-treeb"]}

@@ -2019,26 +2019,43 @@ impl<'a> GnuHash<'a> {
         GnuChain { h: *self, next: start, done: start == 0 }
     }
 
-    /// The symbols a lookup of the name hashing to `hash` must look at: nothing when the Bloom word
-    /// rejects the hash, else each entry of its chain whose hash matches (bit 0 aside), in order, given
-    /// to `f` until it answers true. The same entries and errors as testing the Bloom word, then
-    /// [`GnuHash::chain`] filtered by hash: a Bloom word past the table is
-    /// [`ElfError::BadHashHeader`], a chain word past the mapped bytes [`ElfError::HashIndex`]. One
-    /// loop over the chain's bytes, without the iterator's state (LD-LOOKUP-COST: every object ahead
-    /// of the definer in the scope pays this walk on every lookup).
+    /// The Bloom test of a lookup of the name hashing to `hash` ([`GnuHash::bloom`]), with its error.
+    /// A lookup in a GNU table looks at nothing when the Bloom word rejects the hash, else at each
+    /// entry of its chain whose hash matches (bit 0 aside), in order ([`GnuHash::chain_candidates`]:
+    /// the entries of [`GnuHash::chain`] filtered by hash). LD-LOOKUP-RETHINK split the two halves so
+    /// the scope walk tests the Bloom word before it enters an object (a rejected object then costs
+    /// no call) and the chain walk has one instance.
     ///
     /// # Errors
     ///
-    /// Those above, and the first error of `f`.
-    #[inline]
-    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+    /// [`ElfError::BadHashHeader`] for a Bloom word past the table.
+    #[inline(always)]
+    pub(crate) fn bloom_checked(&self, hash: u32) -> Result<bool, ElfError> {
+        self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash))
+    }
+
+    /// The Bloom test of a lookup of the name hashing to `hash`: `Some(false)` when the Bloom word
+    /// rejects the hash (no symbol of the table has it), `Some(true)` when it passes, `None` when the
+    /// word cannot be read (a header past the table: [`GnuHash::bloom_checked`]'s error).
+    #[inline(always)]
+    #[must_use]
+    pub(crate) fn bloom(&self, hash: u32) -> Option<bool> {
         let wi = usize::try_from(hash.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(self.bloom_size())).unwrap_or(0);
-        let word = self.bloom_word(wi).ok_or(ElfError::BadHashHeader(Table::GnuHash))?;
+        let word = self.bloom_word(wi)?;
         let second = u64::from(hash).checked_shr(self.bloom_shift).unwrap_or(0) & 63;
         let mask = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
-        if word & mask != mask {
-            return Ok(());
-        }
+        Some(word & mask == mask)
+    }
+
+    /// The chain walk after a [`GnuHash::bloom`] test that passed: the chain's entries whose hash
+    /// matches, in order, given to `f` until it answers true. One loop over the chain's bytes,
+    /// without the iterator's state (LD-LOOKUP-COST).
+    ///
+    /// # Errors
+    ///
+    /// A chain word past the mapped bytes ([`ElfError::HashIndex`]), and the first error of `f`.
+    #[inline]
+    pub(crate) fn chain_candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
         let mut sym = hash.checked_rem(self.nbuckets).and_then(|b| self.bucket(b)).unwrap_or(0);
         if sym == 0 {
             return Ok(());
@@ -2786,6 +2803,94 @@ impl Relrs<'_> {
             self.base = Some(base.checked_add(RELR_BITMAP_SPAN).ok_or(ElfError::RelrOverflow(i)));
         }
     }
+}
+
+impl Relrs<'_> {
+    /// The addresses the iterator yields, a table entry at a time: calls `f(base, bits)` with bit `k`
+    /// of `bits` naming the word at `base + 8 * k`, in table order from where the iterator stands (an
+    /// address entry as `(address, 1)`, a bitmap entry as its 63 bits after the run). Every address
+    /// a call names is representable (no `base + 8 * k` overflows): an entry whose higher bits would
+    /// overflow gets a call with the bits that fit, then the error, as [`Iterator::next`] gives it. A
+    /// pass relocates a whole entry after one range check this way (LD-RELR-LOOP: one call per
+    /// address and a check per address were most of the loader's RELR pass).
+    ///
+    /// # Errors
+    ///
+    /// The first error of `f`, or `err` of the iterator's own error ([`ElfError::RelrNoBase`],
+    /// [`ElfError::RelrOverflow`]).
+    // Inlined into the pass that owns `f`: one call per table.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub fn runs<E>(self, f: impl FnMut(u64, u64) -> Result<(), E>, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+        if self.rd.be { self.runs_in::<true, E>(f, err) } else { self.runs_in::<false, E>(f, err) }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn runs_in<const BE: bool, E>(self, mut f: impl FnMut(u64, u64) -> Result<(), E>, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+        if self.done {
+            return Ok(());
+        }
+        // The rest of a bitmap the iterator stopped inside.
+        if self.bits != 0 {
+            match relr_fitting(self.bit_base, self.bits) {
+                Ok(()) => f(self.bit_base, self.bits)?,
+                Err(fit) => return relr_overflow(&mut f, self.bit_base, fit, self.bit_idx, err),
+            }
+        }
+        let start = self.idx.saturating_mul(RELR_SIZE);
+        let mut base = self.base;
+        for (n, e) in self.rd.b.get(start..).unwrap_or(&[]).chunks_exact(RELR_SIZE).enumerate() {
+            let Some(e) = e.first_chunk::<8>() else { break };
+            let e = if BE { u64::from_be_bytes(*e) } else { u64::from_le_bytes(*e) };
+            if e & 1 == 0 {
+                f(e, 1)?;
+                base = Some(e.checked_add(8).ok_or(ElfError::RelrOverflow(self.idx.wrapping_add(n))));
+                continue;
+            }
+            let i = self.idx.wrapping_add(n);
+            let b = match base {
+                Some(Ok(b)) => b,
+                None => return Err(err(ElfError::RelrNoBase(i))),
+                Some(Err(_)) => return Err(err(ElfError::RelrOverflow(i))),
+            };
+            let bits = e.wrapping_shr(1);
+            match relr_fitting(b, bits) {
+                Ok(()) if bits != 0 => f(b, bits)?,
+                Ok(()) => {}
+                Err(fit) => return relr_overflow(&mut f, b, fit, i, err),
+            }
+            base = Some(b.checked_add(RELR_BITMAP_SPAN).ok_or(ElfError::RelrOverflow(i)));
+        }
+        Ok(())
+    }
+}
+
+/// Whether every address of a RELR entry (`bits` after `base`, as [`Relrs::runs`] passes them) is
+/// representable; `Err(the bits that are)` otherwise.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn relr_fitting(base: u64, bits: u64) -> Result<(), u64> {
+    // The highest address the entry names is `base + 8 * top` (`top` <= 63), past the end only for a
+    // base in the last 504 bytes of the address space.
+    let top = 63u32.wrapping_sub(bits.leading_zeros());
+    if bits == 0 || base.checked_add(u64::from(top).wrapping_mul(8)).is_some() {
+        return Ok(());
+    }
+    // The words below the end: `k <= (MAX - base) / 8`, fewer than 63 here.
+    let room = u32::try_from(u64::MAX.wrapping_sub(base) / 8).unwrap_or(63);
+    Err(bits & 1u64.checked_shl(room.wrapping_add(1)).map_or(u64::MAX, |m| m.wrapping_sub(1)))
+}
+
+/// The end of a RELR table whose entry `i` runs past the address space: the addresses that fit,
+/// then the error.
+#[cold]
+#[inline(never)]
+fn relr_overflow<E>(f: &mut impl FnMut(u64, u64) -> Result<(), E>, base: u64, fit: u64, i: usize, err: impl FnOnce(ElfError) -> E) -> Result<(), E> {
+    if fit != 0 {
+        f(base, fit)?;
+    }
+    Err(err(ElfError::RelrOverflow(i)))
 }
 
 impl Iterator for Relrs<'_> {

@@ -2114,6 +2114,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            // LD-RELR-LOOP (ruling #7402): the relative relocations as DT_RELR words, applied an entry
+            // at a time by the loader's RELR pass, instead of 24-byte RELA entries.
+            .arg("-Wl,-z,pack-relative-relocs")
             .arg(format!("-Wl,--dynamic-list={}", dyn_list.display()))
             .arg("-Wl,--dynamic-list-data")
             .arg(format!("-Wl,-T,{}", ro_first.display()))
@@ -2272,7 +2275,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // cache hashes the products directory and so the lists' hashes in the marker).
     let lists = trace_lists_dir(&product, profile);
     let tmp = tmp_name(&release.join(crate::hotlists::MARKER));
-    fs::write(&tmp, crate::hotlists::marker_text(&lists)).map_err(|e| e.to_string())?;
+    fs::write(&tmp, crate::hotlists::marker_text(&release, &lists)).map_err(|e| e.to_string())?;
     publish(&tmp, &release.join(crate::hotlists::MARKER))?;
     match crate::layout::check_products(root, &release, Some(profile.name())) {
         // The explicit opt-out (ruling #5190): an ungrouped product is correct but misses the start-up contracts.
@@ -2327,18 +2330,22 @@ const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 /// (measured per product: `.text` identical with and without it). `-fdebug-prefix-map` spells the
 /// workspace root `/niji` in the debug sections, as `--remap-path-prefix` does for the crates
 /// (PRODUCT-PATH-REMAP); `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, a
-/// loaded string.
+/// loaded string. Every spelling of the root is mapped ([`debug_prefix_flags`]), the logical one in `$PWD` too.
 pub(crate) fn release_debug_cflags(root: &Path, profile: Profile) -> Vec<String> {
     if profile != Profile::Release {
         return Vec::new();
     }
-    let mut flags = vec!["-g1".to_string(), format!("-fdebug-prefix-map={}={}", root.display(), crate::align::REMAP_ROOT)];
-    if let Ok(real) = root.canonicalize() {
-        if real != root {
-            flags.push(format!("-fdebug-prefix-map={}={}", real.display(), crate::align::REMAP_ROOT));
-        }
-    }
+    let pwd = std::env::var_os("PWD").map(std::path::PathBuf::from);
+    let mut flags = vec!["-g1".to_string()];
+    flags.extend(debug_prefix_flags(root, pwd.as_deref()));
     flags
+}
+
+/// BUILD-REPRODUCIBLE-PATHS: `-fdebug-prefix-map=<spelling>=/niji` for every spelling of `root`
+/// ([`crate::align::root_spellings`]; `pwd` is the build's `$PWD`, which the compiler records as the compile
+/// directory), so the debug sections are the same whatever directory, or symlink to it, the tree is built in.
+pub(crate) fn debug_prefix_flags(root: &Path, pwd: Option<&Path>) -> Vec<String> {
+    crate::align::root_spellings(root, pwd).iter().map(|r| format!("-fdebug-prefix-map={r}={}", crate::align::REMAP_ROOT)).collect()
 }
 
 /// SYS-DBG-DWARF: `objcopy --strip-unneeded` also removes the debug sections; the one-object
@@ -2648,21 +2655,34 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
         let f = format!("ldso.{m}.names");
         let want = fs::read_to_string(own.join(&f)).map_err(|e| format!("{}: {e} (products built without their trace? run `cargo xtask so`)", own.join(&f).display()))?;
         let got = fs::read_to_string(lists.join(&f)).map_err(|e| format!("{}: {e}", lists.join(&f).display()))?;
-        if got != want {
-            let (w, g): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
-            let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
-            return Err(format!(
-                "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
-                g.len(),
-                w.len(),
-                at + 1,
-                g.get(at),
-                w.get(at)
-            ));
+        if let Some(e) = trace_difference(m, prefix, &want, &got) {
+            return Err(e);
         }
         println!("ldso-trace: prefix {prefix}: {m}: {} names, the same as the products' own trace", got.lines().count());
     }
     Ok(())
+}
+
+/// LDSO-TRACE-PREFIX: why the `m` trace `got` of the interpreter compiled with `prefix` is not the products' own
+/// `want`, or `None` when both run the same functions in the same order. Names are compared without ThinLTO's
+/// `.llvm.<n>` suffix: `<n>` is a hash of the contents of the module the promoted function came from, and the prefix
+/// is compiled into niji_ld, so a niji_ld function that ThinLTO promotes carries another suffix in each flavour
+/// (`Object::lookup_in`, D-27.91). The hot list drops that suffix too ([`crate::hottext::key`]); every other byte of
+/// a name must match, and a difference is reported with the names as traced.
+fn trace_difference(m: &str, prefix: &str, want: &str, got: &str) -> Option<String> {
+    let (w, g): (Vec<String>, Vec<String>) = (want.lines().map(crate::hottext::strip_llvm).collect(), got.lines().map(crate::hottext::strip_llvm).collect());
+    if g == w {
+        return None;
+    }
+    let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
+    Some(format!(
+        "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
+        g.len(),
+        w.len(),
+        at + 1,
+        got.lines().nth(at),
+        want.lines().nth(at)
+    ))
 }
 
 /// ICONV-CJK-STARTUP-2: `Ok` when the C library at `libc` carries the build tag `tag` (`TAG_PREFIX` then the tag,
@@ -4345,6 +4365,24 @@ mod tests {
         }
         assert_eq!(ldso_config_paths("/"), ["/etc/ld.so.preload", "/etc/ld.so.cache"]);
         assert_eq!(ldso_config_paths("/usr/lib/niji/"), ["/usr/lib/niji/etc/ld.so.preload", "/usr/lib/niji/etc/ld.so.cache"]);
+    }
+
+    /// No spec clause (product build tooling, LDSO-TRACE-PREFIX): the prefixed trace matches the products' own when
+    /// both run the same functions in the same order, whatever ThinLTO's `.llvm.<n>` suffix on a promoted function
+    /// (a hash of its module, which the compiled-in prefix changes). Another function, another order, a missing
+    /// name, another crate disambiguator or a `.llvm.` without digits is a difference, reported as traced.
+    #[test]
+    fn ldso_trace_compares_functions_not_thinlto_suffixes() {
+        let f = |name: &str| format!("_start\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9{name}\nexit\n");
+        let own = f("lookup_in.llvm.18142375468484170381");
+        assert_eq!(trace_difference("true", "/usr/lib/niji", &own, &f("lookup_in.llvm.2663032009440432103")), None);
+        let e = trace_difference("true", "/usr/lib/niji", &own, &f("lookup_at.llvm.2663032009440432103")).unwrap();
+        assert!(e.contains("first difference at line 2") && e.contains("lookup_at.llvm.2663032009440432103"), "{e}");
+        let swapped = "_start\nexit\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9lookup_in.llvm.1\n";
+        assert!(trace_difference("true", "/p", &own, swapped).is_some(), "another order");
+        assert!(trace_difference("true", "/p", &own, "_start\n").is_some(), "missing names");
+        assert!(trace_difference("true", "/p", &own, &own.replace("Cs6LFamp2kJN_", "Cs7LFamp2kJN_")).is_some(), "another crate");
+        assert!(trace_difference("true", "/p", "f.llvm.x\n", "f.llvm.y\n").is_some(), "a `.llvm.` without digits is part of the name");
     }
 
     /// No spec clause (product build tooling, XTASK-SO-NOCHANGE-PROFILE): the product builds that share a cargo target

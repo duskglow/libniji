@@ -1,0 +1,11 @@
+id = "D-31.24"
+section = "s31"
+spec = "§31.8"
+ann = "—"
+status = "active"
+story = "LOCALEDEF-ARCHIVE"
+date = "2026-11-22"
+tests = ["crates/locale/tests/reference.rs", "crates/locale/tests/prog.rs"]
+body = '''
+**localedef writes all twelve category files; a category the source does not define (or, under `-c`, one whose statements failed) gets the POSIX locale's values** (#7534; RELEASE-SNAPSHOT-1122C finding L1: a source of the six POSIX categories gave six files and `setlocale(LC_ALL, ...)` failed). The values come from one built-in source (`crates/locale/src/defaults.rs`) compiled for the run's charmap, so they pass through the same writers as any source. Compared black-box with the reference's files for a one-category source (UTF-8 and ISO-8859-1), they are equal except where the reference's default is not the POSIX locale's value (XBD 7.3), and there libniji keeps POSIX: `LC_CTYPE` gives the ASCII characters their XBD 7.3.1 classes (`print`, `graph`, `cntrl`, `punct`) and widths, and `outdigit`s 0-9 (the reference: none of those classes, width -1, no outdigits); `LC_TIME`'s wide strings and alternative month names are the narrow names (the reference: empty); `LC_MONETARY`'s "not available" numbers are `CHAR_MAX` as `localeconv` of the POSIX locale gives (the reference: 0xff where a source's `-1` gives 0x7f) and `mon_grouping` empty; `LC_ADDRESS`'s `country_ab2`/`country_ab3` are empty (the reference: spaces). Equal: `week 7;19971130;7`, `LC_NUMERIC` grouping empty, the code-point collation, `LC_PAPER` 297x210, `LC_MEASUREMENT` 1, `LC_TELEPHONE`'s `+%c %a%t%l`. A program sees the difference only in a locale built from an incomplete source, where the POSIX values are what the source's author gets from the C locale. Recorded in docs/differences-from-glibc.md; no compat option (a default without classes or widths serves no program); RULING NEEDED on that in the story's hand-back.
+'''

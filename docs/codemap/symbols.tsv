@@ -2637,7 +2637,7 @@ niji_llroundl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3800	m
 niji_locale_decimal_point	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:21	abi::value
 niji_locale_invalidate	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:31	abi::done
 niji_locale_name	NIJI_NATIVE_1	crates/boundary/src/native/locale.rs:13	abi::value
-niji_localedef_start		crates/boundary/src/localedef.rs:53	crate::bootstrap::relocate_image
+niji_localedef_start		crates/boundary/src/localedef.rs:78	crate::bootstrap::relocate_image
 niji_log10f128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3820	mret::elem
 niji_log10f64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3840	mret::elem
 niji_log10l_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3845	mret::elem
