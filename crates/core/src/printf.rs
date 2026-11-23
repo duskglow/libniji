@@ -155,8 +155,160 @@ const INLINE_FIELD: usize = 256;
 /// A number's text while it is built.
 type Text = InlineVec<u8, INLINE_TEXT>;
 
-/// A formatted field before padding.
-pub type Field<U> = InlineVec<U, INLINE_FIELD>;
+/// Where a conversion's units go while its field is built: a [`Field`] (kept inline, counted
+/// past its room), a [`Stream`] straight to the output, or a [`TryVec`].
+pub trait Units<U> {
+    /// Append `s`.
+    fn extend_from_slice(&mut self, s: &[U]) -> Result<()>;
+    /// Append one unit.
+    fn push(&mut self, u: U) -> Result<()> {
+        self.extend_from_slice(&[u])
+    }
+}
+
+impl<U: Copy> Units<U> for TryVec<U> {
+    fn extend_from_slice(&mut self, s: &[U]) -> Result<()> {
+        TryVec::extend_from_slice(self, s)
+    }
+}
+
+/// A formatted field before padding: its first [`INLINE_FIELD`] units, inline. It never
+/// allocates (PRINTF-NO-HEAP): past its room it only counts, and [`render`] produces such a
+/// field a second time straight to the output ([`Stream`]).
+#[derive(Debug)]
+pub struct Field<U> {
+    inline: [U; INLINE_FIELD],
+    /// Units kept (all of them while `len == total`).
+    len: usize,
+    /// Units appended.
+    total: usize,
+}
+
+impl<U: Copy + Default> Field<U> {
+    /// An empty field.
+    #[inline(always)]
+    pub fn new() -> Self {
+        Field { inline: [U::default(); INLINE_FIELD], len: 0, total: 0 }
+    }
+
+    /// Remove every unit.
+    pub fn clear(&mut self) {
+        self.len = 0;
+        self.total = 0;
+    }
+
+    /// The units appended (kept or not).
+    pub fn len(&self) -> usize {
+        self.total
+    }
+
+    /// Whether nothing was appended.
+    pub fn is_empty(&self) -> bool {
+        self.total == 0
+    }
+
+    /// Whether every unit appended is kept.
+    pub fn complete(&self) -> bool {
+        self.len == self.total
+    }
+
+    /// The units kept.
+    pub fn as_slice(&self) -> &[U] {
+        self.inline.get(..self.len).unwrap_or(&[])
+    }
+}
+
+impl<U: Copy + Default> Default for Field<U> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<U: Copy + Default> core::ops::Deref for Field<U> {
+    type Target = [U];
+    fn deref(&self) -> &[U] {
+        self.as_slice()
+    }
+}
+
+impl<U: Copy> Units<U> for Field<U> {
+    #[inline]
+    fn extend_from_slice(&mut self, s: &[U]) -> Result<()> {
+        if self.len == self.total {
+            if let Some(dst) = self.len.checked_add(s.len()).and_then(|end| self.inline.get_mut(self.len..end)) {
+                crate::mem::copy_inline(dst, s);
+                self.len = self.len.wrapping_add(s.len());
+                self.total = self.len;
+                return Ok(());
+            }
+        }
+        // Past the room: counted only (the kept units stop at the last whole piece).
+        self.total = self.total.saturating_add(s.len());
+        Ok(())
+    }
+}
+
+/// A field too long for a [`Field`], produced straight to the output: `zeros` zero units go
+/// after the first `prefix` units (the sign or `0x` that zero padding follows).
+struct Stream<'o, U: Unit, O: Out<U>> {
+    out: &'o mut O,
+    prefix: usize,
+    zeros: usize,
+    /// Units written, the zeros included.
+    n: usize,
+    _unit: core::marker::PhantomData<U>,
+}
+
+impl<U: Unit, O: Out<U>> Stream<'_, U, O> {
+    /// Write the pending zeros.
+    fn zero_run(&mut self) {
+        fill(self.out, U::ascii(b'0'), self.zeros);
+        self.n = self.n.saturating_add(self.zeros);
+        self.zeros = 0;
+    }
+}
+
+impl<U: Unit, O: Out<U>> Units<U> for Stream<'_, U, O> {
+    fn extend_from_slice(&mut self, s: &[U]) -> Result<()> {
+        let mut s = s;
+        if self.zeros > 0 {
+            let k = self.prefix.saturating_sub(self.n);
+            if k <= s.len() {
+                let (a, b) = s.split_at(k);
+                self.out.put(a);
+                self.n = self.n.saturating_add(a.len());
+                self.zero_run();
+                s = b;
+            }
+        }
+        self.out.put(s);
+        self.n = self.n.saturating_add(s.len());
+        Ok(())
+    }
+}
+
+/// Write `n` copies of `u` in pieces.
+fn fill<U: Unit, O: Out<U>>(out: &mut O, u: U, n: usize) {
+    let piece = [u; 64];
+    let mut left = n;
+    while left > 0 {
+        let k = left.min(piece.len());
+        out.put(piece.get(..k).unwrap_or(&[]));
+        left -= k;
+    }
+}
+
+/// Append `n` zero units (an integer's precision zeros) in pieces.
+fn zeros<U: Unit, S: Units<U>>(out: &mut S, n: usize) -> Result<()> {
+    let piece = [U::ascii(b'0'); 64];
+    let mut left = n;
+    while left > 0 {
+        let k = left.min(piece.len());
+        out.extend_from_slice(piece.get(..k).unwrap_or(&[]))?;
+        left -= k;
+    }
+    Ok(())
+}
 
 /// A parsed format.
 #[derive(Debug)]
@@ -566,12 +718,12 @@ pub trait Unit: Copy + Default + PartialEq + core::fmt::Debug + Into<u32> {
     fn from_raw(u: u32) -> Self;
     /// Append multibyte `text` in this unit (decoded for wide output); `max` limits the units
     /// appended (whole characters only).
-    fn from_text(env: &dyn Env, text: &[u8], max: Option<usize>, out: &mut Field<Self>) -> Result<()>;
+    fn from_text(env: &dyn Env, text: &[u8], max: Option<usize>, out: &mut impl Units<Self>) -> Result<()>;
     /// Append wide characters in this unit (encoded for byte output); `max` limits the units
     /// appended (whole characters only).
-    fn from_wide(env: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut Field<Self>) -> Result<()>;
+    fn from_wide(env: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut impl Units<Self>) -> Result<()>;
     /// A character argument of `%c` (a byte) in this unit.
-    fn from_byte(env: &dyn Env, b: u8, out: &mut Field<Self>) -> Result<()>;
+    fn from_byte(env: &dyn Env, b: u8, out: &mut impl Units<Self>) -> Result<()>;
 }
 
 impl Unit for u8 {
@@ -585,14 +737,14 @@ impl Unit for u8 {
         u.to_le_bytes()[0]
     }
 
-    fn from_text(_: &dyn Env, text: &[u8], max: Option<usize>, out: &mut Field<u8>) -> Result<()> {
+    fn from_text(_: &dyn Env, text: &[u8], max: Option<usize>, out: &mut impl Units<u8>) -> Result<()> {
         out.extend_from_slice(text.get(..max.unwrap_or(text.len()).min(text.len())).unwrap_or(&[]))
     }
 
     /// `%ls` into bytes: at most `max` bytes and no partial character (C17 7.21.6.1); nothing is
     /// converted once `max` bytes are written, so a character past the precision cannot fail
     /// the call (as observed: one that does not convert while room is left gives `EILSEQ`).
-    fn from_wide(env: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut Field<u8>) -> Result<()> {
+    fn from_wide(env: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut impl Units<u8>) -> Result<()> {
         let mut n = 0usize;
         for &w in wide {
             if max.is_some_and(|m| n >= m) {
@@ -609,7 +761,7 @@ impl Unit for u8 {
         Ok(())
     }
 
-    fn from_byte(_: &dyn Env, b: u8, out: &mut Field<u8>) -> Result<()> {
+    fn from_byte(_: &dyn Env, b: u8, out: &mut impl Units<u8>) -> Result<()> {
         out.push(b)
     }
 }
@@ -625,7 +777,7 @@ impl Unit for u32 {
         u
     }
 
-    fn from_text(env: &dyn Env, text: &[u8], max: Option<usize>, out: &mut Field<u32>) -> Result<()> {
+    fn from_text(env: &dyn Env, text: &[u8], max: Option<usize>, out: &mut impl Units<u32>) -> Result<()> {
         let mut i = 0usize;
         let mut n = 0usize;
         while i < text.len() && !max.is_some_and(|m| n >= m) {
@@ -637,14 +789,14 @@ impl Unit for u32 {
         Ok(())
     }
 
-    fn from_wide(_: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut Field<u32>) -> Result<()> {
+    fn from_wide(_: &dyn Env, wide: &[i32], max: Option<usize>, out: &mut impl Units<u32>) -> Result<()> {
         for &w in wide.iter().take(max.unwrap_or(usize::MAX)) {
             out.push(u32::from_ne_bytes(w.to_ne_bytes()))?;
         }
         Ok(())
     }
 
-    fn from_byte(env: &dyn Env, b: u8, out: &mut Field<u32>) -> Result<()> {
+    fn from_byte(env: &dyn Env, b: u8, out: &mut impl Units<u32>) -> Result<()> {
         let c = env.decode(&[b]).map_or(u32::from(b), |(c, _)| c);
         out.push(c)
     }
