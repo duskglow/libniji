@@ -81,3 +81,44 @@ disassembly (both loops read in `~/work/ld-relr-loop-2/new2-ld.dis` on keke) and
 ## INFORMATIONAL
 * The big-endian branch of `add_bits_by_word` (as of the earlier per-word code) has no test: no big-endian
   target is relocated by any test image.
+
+# LD-RELR-LOOP-3 (continuation, branch task/ld-relr-loop-3)
+
+**Result:** origin/next 8e1837914 merged into the LD-RELR-LOOP-2 head (clean, no conflict); no code change. The
+eleven loader tests that failed in CI train 932 pass on the merged head. They reproduce on a merge with next as of
+d258cd270 even with libc.so.6 left unpacked, so the RELR change is not their cause; cause not found (below).
+
+## Commits
+* 245779614 merge of origin/next (8e1837914) into the LD-RELR-LOOP-2 head
+* the handoff/report commits after it (prose only)
+
+## Diagnosis of the CI red (mei, role s2, fast profile)
+| build | atexit_owner `net` | job |
+|---|---|---|
+| this branch + next 8e1837914 | pass (and dlclose, dl_find_object_index, dlopen_concurrent, dlopen_process_objects, runpath_search: 27 passed; `s27_dladdr` ok) | ld-relr-loop-3-repro2, -repro3 |
+| loop-2 + next d258cd270 (scratch merge, the next just before 22:17Z) | FAIL `got 'dA aX', want 'dA mainH aX mainC'` | ld-relr-loop-3-repro4 |
+| the same, libc.so.6 not packed (so.rs flag removed in the scratch copy) | FAIL, same message | ld-relr-loop-3-repro5 |
+* In the failing build, a probe compared each of ld.so's RELR-named words with its file value + load bias at
+  run time: 415 words, 0 mismatches. The test program has no DT_RELR (readelf); the helper libraries are built
+  by the system compiler without it. So no RELR code but ld.so's (correct) self-relocation runs in that test.
+* A probe that looks up `main` with dladdr and `_dl_find_object` after dlopens, also with libc named by path
+  like the tests, finds the program in the failing build: not reduced further (budget).
+* Reading: what the branch changes on the failing path is ld.so's code layout. The defect is layout-sensitive,
+  in the loader's program entry or address tables (LD-OBJECT-ONCE-2 trips it the same way), and was masked by
+  next's 22:17Z merge. It may still be latent on next.
+* Recipe to rebuild the failing build: a detached worktree at next d258cd270, `git merge
+  origin/task/ld-relr-loop-2`, sync to a role, `cargo xtask so && cargo test -p niji-ld --test atexit_owner`.
+
+## Jobs (mei, role s2)
+* ld-relr-loop-3-lint0: clippy (workspace, all targets, all features) + static on the inherited head: rc 0.
+* ld-relr-loop-3-repro, -repro2, -repro3: the CI-failing suites on the merged tree (first run skipped: no products).
+* ld-relr-loop-3-repro4, -repro5, -probe1..7: the diagnosis above (scratch builds, not this head).
+* ld-relr-loop-3-lint1: clippy + static green; rc 134 only from a `| head` that broke the affected listing's pipe
+  (superseded by lint2). The affected listing: FULL (xtask/src/so.rs), so the gate is the train's.
+* ld-relr-loop-3-startup: `cargo xtask test` (every suite, the changed crates included), then
+  `NIJI_FULL_PROFILE=1 cargo xtask so` and `hot_text_products`: rc 0 (nextest: 7,153 + 4,877 + 129 + 46
+  passed, 0 failed, the ten CI-failing niji-ld tests among them; `hot_text_products` full profile 33 passed).
+* ld-relr-loop-3-lint2: clippy + static on the final head (after the prose commits): see the hand-back.
+* Plants: none new (no code change this run; LD-RELR-LOOP-2's 4 plants, all CAUGHT, cover the code unchanged).
+* Start-up counts: not re-measured this run (the STARTUP-REPROFILE kit is on the Zen 1 host); LD-RELR-LOOP-2's
+  numbers stand (the merge changes no RELR code); `hot_text_products`' bound holds (startup job).

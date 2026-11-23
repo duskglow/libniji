@@ -1,37 +1,35 @@
 # LD-RELR-LOOP: RELR applied a run at a time, words added in place; libc.so.6 packed
 
-**State (LD-RELR-LOOP-2):** branch `task/ld-relr-loop-2` (continues `task/ld-relr-loop`, base origin/next
-fd973fc44; next has moved 44 commits since, `crates/ld/src/elf.rs` touched on both: the landing's merge). Code
-commits: bdf1d6fa0, bdbdf3c85 (leg 1-2), 9a96824e1 and bb4b03995 (this run). Role keke `~/w/n1` (Zen 1). Kits:
-keke `~/work/ld-relr-loop/` (meas.sh = STARTUP-REPROFILE's, relrstat.py) and `~/work/ld-relr-loop-2/` (build.sh,
-products `new2`, counts `out-prev` / `out-new2`). Decision in force: D-27.87 (both runs), ruling #7402.
+**State (LD-RELR-LOOP-3):** branch `task/ld-relr-loop-3` = `task/ld-relr-loop-2` (2b2645b6b) with origin/next
+8e1837914 merged in (clean merge, no conflict, no code change of mine this run). Role mei `~/w/s2`.
+Decision in force: D-27.87 (both earlier runs), ruling #7402. Full report: handoff/LD-RELR-LOOP-report.md
+("LD-RELR-LOOP-3").
 
-## The change
-* `elf.rs` `Relrs::runs`: one `(base, bits)` call per table entry (test `relr_runs_match_the_iterator`).
-* `reloc.rs` `pass1` -> `relr_entry`: entry's lowest and highest words inside the window -> `Image::add_bits`
-  for the whole bitmap, else cold `relr_checked` (test `reloc_relr_entry_checks_its_whole_run`).
-* `Image::add_bits` (new trait method): default `add_bits_by_word` (load/store, either byte order); niji-boundary
-  `ProcImage` adds in place (unaligned read + write, native order): 6 instructions per word (was 8).
-* `boot.rs` `Writer::add_bits` -> `Memory::add_bits` (new trait method): default = bounds-checked view loop;
-  `bootstrap::Mapped` adds in place: 6 instructions per word (was 13). Test `relr_bitmap_across_segments`.
-* `xtask/src/so.rs`: libc.so.6 linked with `-z pack-relative-relocs` (1,441 RELATIVE -> 63 RELR words).
-* `hot_text_products` `DYN_START_INSTR` tightened again (Zen 1 fast 248,446, release 238,792, + 2%).
+## The change (unchanged since LD-RELR-LOOP-2)
+* `elf.rs` `Relrs::runs`; `reloc.rs` `pass1` -> `relr_entry` / cold `relr_checked`; `Image::add_bits` (default
+  `add_bits_by_word`, niji-boundary `ProcImage` adds in place); `boot.rs` `Writer::add_bits` -> `Memory::add_bits`
+  (`bootstrap::Mapped` adds in place); `xtask/src/so.rs` links libc.so.6 with `-z pack-relative-relocs`;
+  `hot_text_products` `DYN_START_INSTR` tightened.
 
-## Counts (Zen 1, release, STARTUP-REPROFILE kit, median of 101; user instructions)
-| row | next fd973fc44 | leg 2 (bdbdf3c85) | this run (9a96824e1) | glibc 2.39 |
-|---|---|---|---|---|
-| empty main n0 | 268,837 | 243,688 | 238,655 | 96,040 |
-| three libraries n3 | 378,132 | 352,952 | 347,868 | 132,771 |
-| /bin/true t | 329,222 | 304,186 | 299,000 | 122,349 |
-Total vs next: -30,182 / -30,264 / -30,222. Faults 58/70/58 -> 57/69/57; syscalls unchanged. Target (RELATIVE +
-self-relocation <= 15k): ~12k by estimate (libc RELR 1,441 x 6 + 63 entries x ~25; self 233 x 6 + 11 x ~40), NOT
-measured: no Intel PT or valgrind on the Zen 1 host.
-
-## Jobs (keke, this run) and open items
-See handoff/LD-RELR-LOOP-report.md ("LD-RELR-LOOP-2") for the job list and results.
-* Skylake-SP not measured (no product copy between hosts: refused in leg 2; this run did not build there).
-* `layout-bins.tsv`: not diffed against base (no base copy; the change is ld.so code + libc's relocation sections).
+## The CI red of LD-RELR-LOOP-2 (train 932, 11 loader tests: the program missing from the address tables)
+* On this branch merged with origin/next 8e1837914: all ten failing niji-ld tests (atexit_owner, dlclose,
+  dl_find_object_index, dlopen_concurrent, dlopen_process_objects, runpath_search suites, 27 tests) and the
+  `s27_dladdr` conformance program pass (jobs ld-relr-loop-3-repro2, -repro3).
+* Reproduced on a scratch merge of `task/ld-relr-loop-2` into next d258cd270 (next just before
+  LDSO-PROGRAM-OPTIONS-REST-2 landed, 22:17Z): atexit_owner fails as in CI, `got 'dA aX', want 'dA mainH aX mainC'`
+  (ld-relr-loop-3-repro4).
+* Same scratch merge with libc.so.6 NOT packed (so.rs flag removed): still fails (ld-relr-loop-3-repro5). So the
+  packed libc is not the trigger.
+* In that failing build: every one of ld.so's 415 RELR words holds file value + bias at run time (probe, 0
+  mismatches); the test program has no DT_RELR (readelf); the helper libraries are built by the system compiler
+  without it. The only RELR code that runs in the failing test is ld.so's self-relocation, verified correct.
+* A probe (dladdr / _dl_find_object of `main` after dlopens, libc named by path as the tests do) finds the program
+  in that build. Not reduced further (budget).
+* Conclusion (evidence above, cause NOT found): the branch changes only ld.so's code layout on the failing path;
+  a layout-sensitive defect in the loader's program/address tables on next d258cd270 shows with it (and with
+  LD-OBJECT-ONCE-2's change), and is masked again on next 8e1837914. It may still be latent on next.
 
 ## Next step
-Land. A follow-up, if start-up wants more: measure the RELR share exactly with PT on Skylake-SP (build there),
-and consider the per-entry overhead (~25 instructions x 63 entries) only if a profile ranks it.
+Land (CI train). If the eleven tests fail again in some later combination: rebuild the failing merge (recipe in
+the report), and debug ld.so in the atexit_owner `net` run (gdb on our own ld.so is allowed) to find what
+overwrites or misreads the program's entry; that is a loader-tables defect, not RELR.
