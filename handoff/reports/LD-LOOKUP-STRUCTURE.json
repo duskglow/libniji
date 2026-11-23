@@ -1,0 +1,19 @@
+{"task": "LD-LOOKUP-STRUCTURE", "model": "opus", "tokens": null,
+ "result": "DO NOT LAND: requirements answered by a per-pass (definer, index) table measured worse on every row (n0 +8,657, n3 +9,319, /bin/true +12,288, per lookup 1,449 -> 1,483); kept as evidence",
+ "branch": "task/ld-lookup-structure", "head": null,
+ "gate": {"affected": "not run (evidence-only branch); clippy + static green in keke:ld-lookup-structure-head3", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "RUT rule: second lookup-cost fix with negative gain; brief's -38k/-58k/-64k not reachable by a (definer, index) table", "recommendation": "rethink: split the 1,483 instructions per lookup per phase on an Intel PT host (Skylake-SP) before any new design; do not land this branch"}],
+ "informational": ["Reserved decision id D-27.90 is unused (nothing lands)", "Why the per-lookup cost rose (+34) is NOT VERIFIED; the origin compare was ruled out (Dynamic::strtab is a field read)"],
+ "refused": [],
+ "impact": [
+  {"kind": "cost", "what": "empty dynamic main, user instructions (Zen 1, median of 101) if landed; not proposed", "before": 189656, "after": 198313, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "main + three one-function libraries", "before": 281219, "after": 290538, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "/bin/true", "before": 247549, "after": 259837, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "per symbol lookup (n200-np0)/200", "before": 1449, "after": 1483, "unit": "instr/lookup", "measured": true},
+  {"kind": "none", "what": "negative result recorded in handoff/LD-LOOKUP-STRUCTURE.md so the design is not retried", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "Leg 1 spent two count cycles (~20 min each) before seeing an out-of-line closure; an nm size diff of the hot functions against base right after the release build would catch that in seconds",
+ "next_step": "Rethink story: per-phase split of the symbolic lookup on an Intel PT host before new design",
+ "report_file": "handoff/LD-LOOKUP-STRUCTURE.md",
+ "jobs": ["keke:ld-lookup-structure-head3", "keke:ld-lookup-structure-base"]}
