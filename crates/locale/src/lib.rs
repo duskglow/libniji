@@ -143,7 +143,8 @@ pub fn compile_output(locale: &[u8], charmap: &[u8], files: &mut dyn Files) -> R
 
 /// [`compile_output`] of the source `text` (already read) for the charset `cs`.
 pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -> Result<Output> {
-    let src = source::parse(text, files)?;
+    let mut src = source::parse(text, files)?;
+    resolve_names(&mut src, cs)?;
     let outside = src.errors.len();
     let mut out = Output { files: Default::default(), defined: [false; 13], errors: src.errors, outside, failed: [false; 13] };
     for (n, stmts) in src.cats.iter().enumerate() {
@@ -176,6 +177,33 @@ pub fn compile_text(text: &[u8], cs: &charset::Charset, files: &mut dyn Files) -
         }
     }
     Ok(out)
+}
+
+/// Write each symbolic name the charmap defines other than `<Uxxxx>` (a POSIX name such as
+/// `<a>` or `<space>`, XBD 6.4 and 7.3) as the `<Uxxxxxxxx>` of its code point, in every
+/// statement and string of `src`; names the charmap does not define are left as written.
+fn resolve_names(src: &mut source::Source, cs: &charset::Charset) -> Result<()> {
+    let resolve = |n: &[u8]| cs.map().named(n);
+    for stmts in src.cats.iter_mut().flatten() {
+        for s in stmts.iter_mut() {
+            for t in s.toks.iter_mut() {
+                match t {
+                    lex::Tok::Sym(n) if lex::ucs_name(n).is_none() => {
+                        if let Some(cp) = resolve(n) {
+                            *n = TryVec::from_slice(&lex::ucs_text(cp))?;
+                        }
+                    }
+                    lex::Tok::Str(raw) => {
+                        if let Some(new) = lex::resolve_string(raw, s.esc, &resolve)? {
+                            *raw = new;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The file of category `n` from its statements (`None` for `LC_ALL`).

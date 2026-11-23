@@ -17,6 +17,7 @@ struct Mem {
     stdin: Option<Vec<u8>>,
     /// The directories locked, in order.
     locked: Vec<Vec<u8>>,
+    i18npath: Option<Vec<u8>>,
 }
 
 impl Host for Mem {
@@ -43,6 +44,9 @@ impl Host for Mem {
     fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
         self.locked.push(dir.to_vec());
         Ok(())
+    }
+    fn i18npath(&self) -> Option<&[u8]> {
+        self.i18npath.as_deref()
     }
     fn error_text(&self, errno: i32) -> &'static [u8] {
         match errno {
@@ -359,4 +363,163 @@ fn options() {
         assert_eq!((o.status, text(&o.out), text(&o.err)), (4, try_line.to_string(), String::new()), "{args:?}");
     }
     assert!(m.dirs.is_empty());
+}
+
+/// MINI's source with `decimal_point` set to `c` (a letter that marks which file was read).
+fn marked(c: char) -> Vec<u8> {
+    format!("LC_NUMERIC\ndecimal_point \"{c}\"\nthousands_sep \"\"\ngrouping -1\nEND LC_NUMERIC\n").into_bytes()
+}
+
+/// The marker letter of the compiled `LC_NUMERIC` at `dir` (its decimal point string).
+fn marker(m: &Mem, dir: &str) -> Option<u8> {
+    let f = m.files.get(format!("{dir}/LC_NUMERIC").as_bytes())?;
+    (b'A'..=b'Z').find(|&c| f.windows(2).any(|w| w == [c, 0]))
+}
+
+/// s31_8_i_4: a `-i` or `copy` name is tried from the working directory, then for each non-empty `I18NPATH` entry
+/// in order as `<entry>/locales/<name>` and `<entry>/<name>`, then in the default directory; a relative name
+/// with `/` skips the default directory; none readable: status 4.
+#[test]
+fn source_search_order() {
+    let mut m = host();
+    m.i18npath = Some(b"/e0::/e1".to_vec());
+    for (path, c) in [("tsrc", 'A'), ("/e1/locales/tsrc", 'B'), ("/e1/tsrc", 'C'), ("/usr/share/i18n/locales/tsrc", 'D')] {
+        m.files.insert(path.as_bytes().to_vec(), marked(c));
+    }
+    for (gone, want) in [("", b'A'), ("tsrc", b'B'), ("/e1/locales/tsrc", b'C'), ("/e1/tsrc", b'D')] {
+        m.files.remove(gone.as_bytes());
+        let o = go(&mut m, &["-c", "-i", "tsrc", "-f", "MINI", "--quiet", "/out/s"]);
+        assert_eq!((o.status, marker(&m, "/out/s")), (1, Some(want)), "after removing {gone:?}: {}", text(&o.err));
+    }
+    // The entries in order, each with both of its places before the next entry.
+    m.files.insert(b"/e1/locales/tsrc".to_vec(), marked('B'));
+    m.files.insert(b"/e0/tsrc".to_vec(), marked('E'));
+    let o = go(&mut m, &["-c", "-i", "tsrc", "-f", "MINI", "--quiet", "/out/e"]);
+    assert_eq!((o.status, marker(&m, "/out/e")), (1, Some(b'E')), "{}", text(&o.err));
+    // copy names search the same way.
+    m.files.insert(b"/e1/locales/cp".to_vec(), b"LC_NUMERIC\ncopy \"tsrc\"\nEND LC_NUMERIC\n".to_vec());
+    let o = go(&mut m, &["-c", "-i", "cp", "-f", "MINI", "--quiet", "/out/c"]);
+    assert_eq!((o.status, marker(&m, "/out/c")), (1, Some(b'E')), "{}", text(&o.err));
+    // A relative name with '/': I18NPATH, not the default directory.
+    m.files.insert(b"/usr/share/i18n/locales/sub/x".to_vec(), marked('F'));
+    let o = go(&mut m, &["-c", "-i", "sub/x", "-f", "MINI", "--quiet", "/out/r"]);
+    assert_eq!((o.status, marker(&m, "/out/r")), (4, None), "{}", text(&o.err));
+    m.files.insert(b"/e1/locales/sub/x".to_vec(), marked('G'));
+    let o = go(&mut m, &["-c", "-i", "sub/x", "-f", "MINI", "--quiet", "/out/r"]);
+    assert_eq!((o.status, marker(&m, "/out/r")), (1, Some(b'G')), "{}", text(&o.err));
+    // Nothing anywhere: the missing-source failure.
+    let o = go(&mut m, &["-c", "-i", "nosuch", "-f", "MINI", "/out/n"]);
+    assert_eq!((o.status, text(&o.err)), (4, "[error] cannot open locale definition file `nosuch': No such file or directory\n".to_string()));
+}
+
+/// s31_8_i_4: a `-f` name without `/` is tried from the working directory (not as `.gz`), then in each `I18NPATH`
+/// entry's `charmaps/` and the entry itself, `<name>.gz` after `<name>`; a name with `/` is a path only.
+#[test]
+fn charmap_search_order() {
+    let named = |n: &str| String::from_utf8(ascii_charmap()).unwrap().replace("<code_set_name> MINI", &format!("<code_set_name> {n}")).into_bytes();
+    let codeset = |m: &Mem, dir: &str| -> Option<String> {
+        let f = m.files.get(format!("{dir}/LC_CTYPE").as_bytes())?;
+        ["CMCWD", "CMSUB", "CMGZ", "CMROOT"].iter().find(|n| f.windows(n.len()).any(|w| w == n.as_bytes())).map(|n| n.to_string())
+    };
+    let mut m = host();
+    m.i18npath = Some(b"/e1".to_vec());
+    m.files.insert(b"tcm".to_vec(), named("CMCWD"));
+    m.files.insert(b"/e1/charmaps/tcm.gz".to_vec(), gzip_stored(&named("CMGZ")));
+    m.files.insert(b"/e1/tcm".to_vec(), named("CMROOT"));
+    let o = go(&mut m, &["-i", "mini", "-f", "tcm", "--quiet", "/out/1"]);
+    assert_eq!((o.status, codeset(&m, "/out/1")), (0, Some("CMCWD".into())), "{}", text(&o.err));
+    m.files.remove(&b"tcm"[..]);
+    m.files.insert(b"tcm.gz".to_vec(), gzip_stored(&named("CMCWD")));
+    let o = go(&mut m, &["-i", "mini", "-f", "tcm", "--quiet", "/out/2"]);
+    assert_eq!((o.status, codeset(&m, "/out/2")), (0, Some("CMGZ".into())), "{}", text(&o.err));
+    m.files.insert(b"/e1/charmaps/tcm".to_vec(), named("CMSUB"));
+    let o = go(&mut m, &["-i", "mini", "-f", "tcm", "--quiet", "/out/3"]);
+    assert_eq!((o.status, codeset(&m, "/out/3")), (0, Some("CMSUB".into())), "{}", text(&o.err));
+    m.files.remove(&b"/e1/charmaps/tcm"[..]);
+    m.files.remove(&b"/e1/charmaps/tcm.gz"[..]);
+    let o = go(&mut m, &["-i", "mini", "-f", "tcm", "--quiet", "/out/4"]);
+    assert_eq!((o.status, codeset(&m, "/out/4")), (0, Some("CMROOT".into())), "{}", text(&o.err));
+    m.files.insert(b"/e1/charmaps/sub/tcm".to_vec(), named("CMSUB"));
+    let o = go(&mut m, &["-i", "mini", "-f", "sub/tcm", "--quiet", "/out/5"]);
+    assert_eq!(o.status, 4, "a charmap name with '/' is a path: {}", text(&o.err));
+}
+
+/// The portable character set names (XBD 6.1) this test uses, with their code points.
+const POSIX_NAMES: &[(&str, u32)] = &[
+    ("space", 0x20), ("percent-sign", 0x25), ("comma", 0x2c), ("hyphen", 0x2d), ("period", 0x2e), ("slash", 0x2f),
+    ("zero", 0x30), ("one", 0x31), ("two", 0x32), ("three", 0x33), ("four", 0x34), ("five", 0x35), ("six", 0x36),
+    ("seven", 0x37), ("eight", 0x38), ("nine", 0x39), ("colon", 0x3a), ("underscore", 0x5f),
+];
+
+fn posix_name(cp: u32) -> Option<String> {
+    if (b'A'..=b'Z').contains(&(cp as u8)) && cp < 0x80 || (b'a'..=b'z').contains(&(cp as u8)) && cp < 0x80 {
+        return Some(char::from(cp as u8).to_string());
+    }
+    POSIX_NAMES.iter().find(|p| p.1 == cp).map(|p| p.0.to_string())
+}
+
+/// A source over the names `n` gives each code point, and a string naming `<e-acute>` the same way.
+fn named_source(n: &dyn Fn(u32) -> String) -> Vec<u8> {
+    let list = |r: core::ops::RangeInclusive<u32>| r.map(|c| format!("<{}>", n(c))).collect::<Vec<_>>().join(";");
+    let pairs = (0x61..=0x7a).map(|c| format!("(<{}>,<{}>)", n(c), n(c - 0x20))).collect::<Vec<_>>().join(";");
+    format!(
+        "LC_CTYPE\nupper {}\nlower {}\nalpha <{}>..<{}>;<{}>..<{}>\ndigit {}\nspace <{}>\ntoupper {pairs}\nEND LC_CTYPE\n\
+LC_NUMERIC\ndecimal_point \"<{}>\"\nthousands_sep \"<{}>\"\ngrouping 3\nEND LC_NUMERIC\n\
+LC_TIME\nd_fmt \"<{}>d<{}><{}>m<e-acute>\"\nEND LC_TIME\n",
+        list(0x41..=0x5a), list(0x61..=0x7a), n(0x41), n(0x5a), n(0x61), n(0x7a), list(0x30..=0x39), n(0x20),
+        n(0x2c), n(0x2e), n(0x25), n(0x2f), n(0x25)
+    )
+    .into_bytes()
+}
+
+/// Compile `source` over `charmap` (both by path) with `-c`; the outcome and every file written.
+fn compile_pair(charmap: &[u8], source: &[u8]) -> (u8, String, BTreeMap<Vec<u8>, Vec<u8>>) {
+    let mut m = Mem::default();
+    m.files.insert(b"/in/cm".to_vec(), charmap.to_vec());
+    m.files.insert(b"/in/src".to_vec(), source.to_vec());
+    let o = go(&mut m, &["-c", "-i", "/in/src", "-f", "/in/cm", "/out/p"]);
+    m.files.retain(|k, _| k.starts_with(b"/out/"));
+    (o.status, text(&o.err), m.files)
+}
+
+/// s31_8_i_5: a charmap may name characters by portable character set names (XBD 6.1) without `<Uxxxx>`, and by
+/// other names with the `<Uxxxx>` after the bytes; a source over those names (in lists, ranges, map pairs and
+/// strings) compiles to the same files as the same source over `<Uxxxx>` names.
+#[test]
+fn posix_symbolic_names() {
+    let mut ucs = String::from("<code_set_name> NAMES\n<mb_cur_max> 1\n<mb_cur_min> 1\nCHARMAP\n");
+    let mut posix = ucs.clone();
+    for c in 0..128u32 {
+        ucs.push_str(&format!("<U{c:04X}> /x{c:02x}\n"));
+        match posix_name(c) {
+            Some(n) => posix.push_str(&format!("<{n}> /x{c:02x}\n")),
+            None => posix.push_str(&format!("<U{c:04X}> /x{c:02x}\n")),
+        }
+    }
+    ucs.push_str("<U00E9> /xe9\nEND CHARMAP\n");
+    posix.push_str("<e-acute> /xe9 <U00E9> LATIN SMALL LETTER E WITH ACUTE\nEND CHARMAP\n");
+    let by_ucs = named_source(&|c| format!("U{c:04X}"));
+    let by_ucs = String::from_utf8(by_ucs).unwrap().replace("<e-acute>", "<U00E9>").into_bytes();
+    let by_posix = named_source(&|c| posix_name(c).unwrap_or_else(|| format!("U{c:04X}")));
+    let want = compile_pair(ucs.as_bytes(), &by_ucs);
+    assert!(want.0 <= 1 && want.2.contains_key(&b"/out/p/LC_CTYPE"[..]), "{}", want.1);
+    let got = compile_pair(posix.as_bytes(), &by_posix);
+    assert_eq!((got.0, &got.1), (want.0, &want.1));
+    assert!(got.2 == want.2, "the files differ from the <Uxxxx> compile");
+    // A portable-names-only charmap is a charmap (no "no mappings" refusal).
+    let only: String = posix.lines().filter(|l| !l.starts_with("<U")).map(|l| format!("{l}\n")).collect();
+    assert_eq!(compile_pair(only.as_bytes(), &by_posix).0, want.0);
+}
+
+/// s31_8_i_5: a name the charmap does not define, in a class list, a range end or a map pair, is skipped: the
+/// files and the status are those of the source without it.
+#[test]
+fn undefined_names_are_skipped() {
+    let cm = ascii_charmap();
+    let base = "LC_CTYPE\nupper <U0041>\nlower <U0061>\ntoupper (<U0061>,<U0041>)\nEND LC_CTYPE\n";
+    let with = "LC_CTYPE\nupper <U0041>;<no-such>\nlower <no-such>;<U0061>;<U0062>..<no-such>\ntoupper (<U0061>,<U0041>);(<no-such>,<U0042>)\nEND LC_CTYPE\n";
+    let want = compile_pair(&cm, base.as_bytes());
+    let got = compile_pair(&cm, with.as_bytes());
+    assert_eq!((got.0, &got.1), (want.0, &want.1));
+    assert!(got.2 == want.2, "an undefined name changed the files");
 }
