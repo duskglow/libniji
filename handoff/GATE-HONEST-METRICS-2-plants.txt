@@ -1,3 +1,7 @@
 perdir-trace-dropped | tools/hottext/regen.sh | lit:cat "$work/dir.$m.names" >> "$f" ==> true | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:per-locale directory\).*runs outside the hot group
 setlocale-keys-dropped | tools/hottext/regen.sh | lit:next } $1 in lib' "$work/lib.keys" ==> next } $1 in lib && $1 !~ /setlocale/' "$work/lib.keys" | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:runs outside the hot group
 kinstr-lost | crates/core/tests/oracle/exec_instr.c | lit:if (kerr != 0) { ==> if (1) { | cargo test -p niji --test hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound | msg:kinstr counter lost
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# perdir-trace-dropped: CAUGHT, caught by hot_text_products init_data_clusters_hold_at_every_text_phase
+# setlocale-keys-dropped: CAUGHT, caught by hot_text_products init_data_clusters_hold_at_every_text_phase
+# kinstr-lost: CAUGHT, caught by hot_text_products init_dynamic_empty_main_stays_within_its_instruction_bound

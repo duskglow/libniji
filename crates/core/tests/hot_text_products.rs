@@ -407,8 +407,11 @@ fn reference_probe(dynamic: bool) -> Option<PathBuf> {
     let link: &[&str] = if dynamic { &["-fPIE", "-pie"] } else { &["-static"] };
     // Several tests (separate processes under nextest) build it at once: each links a file of its own and renames
     // it into place, so a test staging the program ([`stage`]) never copies one another test is still writing (a
-    // shared output read ENOEXEC once).
-    let part = dir.join(format!("{}.{}.part", exe.file_name().and_then(|n| n.to_str()).unwrap_or("ref"), std::process::id()));
+    // shared output read ENOEXEC once). The name holds a per-call number besides the process id: under `cargo test`
+    // the tests are threads of one process (two threads linking one `<pid>.part` renamed it away from each other).
+    static LINK: AtomicUsize = AtomicUsize::new(0);
+    let n = LINK.fetch_add(1, Ordering::Relaxed);
+    let part = dir.join(format!("{}.{}.{n}.part", exe.file_name().and_then(|n| n.to_str()).unwrap_or("ref"), std::process::id()));
     let o = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-fno-builtin"])
         .args(link)
