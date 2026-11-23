@@ -480,6 +480,21 @@ fn publish_global() {
             store_words(b, view_of(GLOBAL));
         }
     });
+    crate::ffi::compat_ctype_store(&compat_ctype_words(view_of(GLOBAL).locale()));
+}
+
+/// The six words of the legacy ctype objects for the global locale `l` (CTYPE-OBJECTS-SETLOCALE,
+/// spec/behaviour/ctype-objects.md): the 16-bit tables [`tables`] gives (`*__ctype_*_loc()`'s),
+/// then the 32-bit class, `tolower` and `toupper` tables of code points U+0000…U+00FF, which for
+/// a locale file are its own items and otherwise the `"C"` tables (D-5.13: the built-in
+/// `"C.UTF-8"` has no 32-bit items). The order is `xtask/src/compat_objects.rs`' `CTYPE_STORE_ORDER`.
+fn compat_ctype_words(l: &Locale) -> [usize; 6] {
+    let [class, lower, upper] = tables(l);
+    let [class32, lower32, upper32] = match l.ctype() {
+        Ctype::C | Ctype::CUtf8 => [ctype_tables::C_CLASS32.as_ptr().wrapping_add(ZERO).expose_provenance(), lower, upper],
+        Ctype::File(f) => [f.class32_table(), f.tolower32_table(), f.toupper32_table()].map(|t| t.as_ptr().expose_provenance()),
+    };
+    [class, lower, upper, class32, lower32, upper32]
 }
 
 /// The address of the calling thread's pointer `slot` (0 `__ctype_b`, 1 `__ctype_tolower`,

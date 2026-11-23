@@ -346,8 +346,31 @@ pub fn render(m: &Model) -> String {
             s.push_str(&format!("\t.quad .Lniji_compat_ctype_{table}+{off}\n"));
             symver(&mut s, &[o]);
         }
+        store(&mut s, &ctype);
     }
     s
+}
+
+/// The order of the six words `niji_compat_ctype_store` takes (`crates/boundary/src/locale.rs`,
+/// `publish_global`): the 16-bit class, `tolower`, `toupper` tables, then the 32-bit ones.
+pub const CTYPE_STORE_ORDER: [&str; 6] = ["__ctype_b", "__ctype_tolower", "__ctype_toupper", "__ctype32_b", "__ctype32_tolower", "__ctype32_toupper"];
+
+/// CTYPE-OBJECTS-SETLOCALE: `niji_compat_ctype_store(const uintptr_t words[6])`, which `setlocale`
+/// calls (through csys's weak hook, absent from libc.a) when the global `LC_CTYPE` changes. Each
+/// word goes through the GOT of the object's versioned name, so an old binary's COPY of the
+/// object is the one written (the reference's objects follow the global locale:
+/// spec/behaviour/ctype-objects.md). Hidden: only the library calls it.
+fn store(s: &mut String, ctype: &[&Object]) {
+    let f = "niji_compat_ctype_store";
+    s.push_str(&format!("\t.section .text.{f},\"ax\",@progbits\n\t.globl {f}\n\t.hidden {f}\n\t.type {f}, @function\n\t.p2align 4\n{f}:\n"));
+    let mut refs = String::new();
+    for (i, name) in CTYPE_STORE_ORDER.iter().enumerate() {
+        let Some(o) = ctype.iter().find(|o| o.name == *name) else { continue };
+        let r = format!("niji_compat_{name}_store_ref");
+        s.push_str(&format!("\tmovq {}(%rdi), %rax\n\tmovq {r}@GOTPCREL(%rip), %rcx\n\tmovq %rax, (%rcx)\n", 8 * i));
+        refs.push_str(&format!("\t.symver {r}, {name}@{}\n", o.version));
+    }
+    s.push_str(&format!("\tret\n\t.size {f}, .-{f}\n{refs}"));
 }
 
 /// `text` (LG-1's rendering) with the objects before its closing GNU-stack note.

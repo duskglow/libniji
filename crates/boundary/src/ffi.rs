@@ -57,6 +57,12 @@ pub(crate) struct StrDiff {
 unsafe extern "C" {
     safe fn niji_csys_abi_version() -> u32;
 
+    /// `niji_csys_compat_ctype_store` (adapter/runtime.c): stores the six words into the legacy
+    /// ctype objects of `libc.so.6` (an old binary's COPY of each); does nothing elsewhere. Reads
+    /// the six words only.
+    #[link_name = "niji_csys_compat_ctype_store"]
+    pub(crate) safe fn compat_ctype_store(words: &[usize; 6]);
+
     /// `%fs:0`.
     #[allow(dead_code)] // Rust reads %fs inline since TINY-HOT (tb.rs); the C layer still calls it
     pub(crate) safe fn niji_machine_tp() -> usize;
