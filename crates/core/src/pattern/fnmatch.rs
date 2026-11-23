@@ -49,6 +49,7 @@ use crate::error::Result;
 use crate::locale::collate::Collation;
 use crate::locale::Locale;
 use crate::mem::TryVec;
+use crate::text::Encoding;
 
 use super::regex::text::{self, Mode, Order, Unit};
 
@@ -1041,6 +1042,12 @@ impl Pattern {
         if let Some(m) = direct(&self.raw, string, self.flags, loc) {
             return Ok(m);
         }
+        self.general(string, loc)
+    }
+
+    /// [`Self::matches`] by the compiled items (the general matcher), for a string [`direct`]
+    /// leaves to it.
+    fn general(&self, string: &[u8], loc: &Locale) -> Result<bool> {
         let c = self.items(loc)?;
         let mode = Mode::of(loc);
         let as_bytes = || -> Result<Units> { Ok(decode(Mode::Bytes, string, false)?.unwrap_or(Units { chars: TryVec::new(), offs: TryVec::new() })) };
@@ -1202,25 +1209,79 @@ pub fn fnmatch(pattern: &[u8], string: &[u8], flags: i32, loc: &Locale) -> Resul
     if let Some(m) = direct(pattern, string, flags, loc) {
         return Ok(m);
     }
-    Pattern::new(pattern, flags, loc)?.matches(string, loc)
+    // `direct` has decided it cannot: straight to the compiled items.
+    Pattern::new(pattern, flags, loc)?.general(string, loc)
 }
 
 /// The match decided directly on the bytes, without compiling the pattern, when it can be: no
-/// `FNM_EXTMATCH`, every byte ASCII in a multibyte locale (so bytes are the characters), and
-/// bracket expressions made of characters, ranges and `[:class:]` only (`None` otherwise, and
-/// the general matcher decides). The rules are the general matcher's, item for item (module
+/// `FNM_EXTMATCH`, an ASCII pattern, a string that is ASCII in a multibyte locale (so bytes are
+/// the characters) or valid UTF-8 in a UTF-8 locale (read a character at a time, [`direct_utf8`]),
+/// and bracket expressions made of characters, ranges and `[:class:]` only (`None` otherwise,
+/// and the general matcher decides). The rules are the general matcher's, item for item (module
 /// documentation): `*` is matched by the classic method that remembers only the last star
 /// (a star never consumes a `/` under `FNM_PATHNAME` or a leading period, so where the
-/// segments between stars lie never depends on an earlier star), linear for `*` and `?`.
+/// segments between stars lie never depends on an earlier star), linear for `*` and `?`. A
+/// pattern without groups needs no set of reached positions, so neither the pattern's items
+/// nor the string's characters are ever built.
 fn direct(p: &[u8], s: &[u8], flags: i32, loc: &Locale) -> Option<bool> {
     let mode = Mode::of(loc);
-    if flags & EXTMATCH != 0 || (mode.multibyte() && (!p.is_ascii() || !s.is_ascii())) {
+    if flags & EXTMATCH != 0 {
         return None;
     }
+    if mode.multibyte() && (!p.is_ascii() || !s.is_ascii()) {
+        return direct_utf8(p, s, flags, loc, mode);
+    }
+    direct_in::<false>(p, s, flags, loc, mode)
+}
+
+/// [`direct`] for a string that is not ASCII in a multibyte locale: an ASCII pattern against a
+/// string of valid UTF-8 in a UTF-8 locale (the text the general matcher would read as
+/// characters, RFC 3629 in both), else `None`. Out of line: the ASCII path pays nothing for it.
+#[inline(never)]
+fn direct_utf8(p: &[u8], s: &[u8], flags: i32, loc: &Locale, mode: Mode) -> Option<bool> {
+    if !p.is_ascii() || !matches!(mode, Mode::Multi(Encoding::Utf8)) || core::str::from_utf8(s).is_err() {
+        return None;
+    }
+    direct_in::<true>(p, s, flags, loc, mode)
+}
+
+/// The length of the UTF-8 sequence that the byte `b` starts (1 for an ASCII byte).
+#[inline(always)]
+fn utf8_len(b: u8) -> usize {
+    match b {
+        0xf0..=0xff => 4,
+        0xe0..=0xef => 3,
+        0xc0..=0xdf => 2,
+        _ => 1,
+    }
+}
+
+/// The character that starts at byte `i` of the valid UTF-8 string `s`.
+#[inline(always)]
+fn utf8_at(s: &[u8], i: usize) -> Option<u32> {
+    let b = *s.get(i)?;
+    if b < 0x80 {
+        return Some(u32::from(b));
+    }
+    let n = utf8_len(b);
+    let mut c = u32::from(b) & (0x7f >> n);
+    for k in 1..n {
+        c = (c << 6) | (u32::from(*s.get(i + k)?) & 0x3f);
+    }
+    Some(c)
+}
+
+/// The body of [`direct`]: with `UTF8`, `s` is valid UTF-8 and every step over a character of
+/// the string takes the whole sequence; a byte that equals an ASCII pattern byte, a `/` or a `.`
+/// is always a whole character there, so the byte comparisons hold as they are.
+#[inline(always)]
+fn direct_in<const UTF8: bool>(p: &[u8], s: &[u8], flags: i32, loc: &Locale, mode: Mode) -> Option<bool> {
     let work = core::cell::Cell::new(0);
     let mt = Matcher { s: &[], flags, mode, loc, work: &work };
     let n = s.len();
-    let at = |i: usize| s.get(i).map(|&b| u32::from(b));
+    let at = |i: usize| if UTF8 { utf8_at(s, i) } else { s.get(i).map(|&b| u32::from(b)) };
+    // The length of the character at `i` (`i` before the end).
+    let width = |i: usize| if UTF8 { s.get(i).map_or(1, |&b| utf8_len(b)) } else { 1 };
     let leading = |q: usize| q == 0 || (flags & PATHNAME != 0 && s.get(q - 1) == Some(&b'/'));
     let period_at = |q: usize| flags & PERIOD != 0 && s.get(q) == Some(&b'.') && leading(q);
     let wild = |q: usize| match s.get(q) {
@@ -1253,23 +1314,23 @@ fn direct(p: &[u8], s: &[u8], flags: i32, loc: &Locale) -> Option<bool> {
                 star = Some((pi + 1, si));
                 Some((pi + 1, si))
             }
-            Some(b'?') => wild(si).then_some((pi + 1, si + 1)),
+            Some(b'?') => wild(si).then(|| (pi + 1, si + width(si))),
             Some(b'\\') if escapes => match p.get(pi + 1) {
-                Some(&e) => at(si).is_some_and(|c| mt.same(u32::from(e), c)).then_some((pi + 2, si + 1)),
+                Some(&e) => at(si).is_some_and(|c| mt.same(u32::from(e), c)).then(|| (pi + 2, si + width(si))),
                 // A trailing `\`: nothing matches.
                 None => return Some(false),
             },
-            Some(b'[') if close_before(p, &mut last_close) <= pi => at(si).is_some_and(|c| mt.same(u32::from(b'['), c)).then_some((pi + 1, si + 1)),
+            Some(b'[') if close_before(p, &mut last_close) <= pi => at(si).is_some_and(|c| mt.same(u32::from(b'['), c)).then(|| (pi + 1, si + width(si))),
             Some(b'[') => match bracket_has(p, pi + 1, escapes, &mt, at(si).filter(|_| wild(si)))? {
-                Some((hit, after)) => hit.then_some((after, si + 1)),
-                None => at(si).is_some_and(|c| mt.same(u32::from(b'['), c)).then_some((pi + 1, si + 1)),
+                Some((hit, after)) => hit.then(|| (after, si + width(si))),
+                None => at(si).is_some_and(|c| mt.same(u32::from(b'['), c)).then(|| (pi + 1, si + width(si))),
             },
             Some(&c) => at(si).is_some_and(|x| mt.same(u32::from(c), x)).then(|| {
                 // A run of further ordinary characters that equal the string's: compared straight,
                 // without the per-step dispatch (a mismatch, or any other pattern character, ends
                 // the run and the next step decides). Ordinary characters match only themselves,
                 // bytewise. Only here, so that steps for `*`, `?` and `[` pay nothing for it.
-                let (mut a, mut b) = (pi + 1, si + 1);
+                let (mut a, mut b) = (pi + 1, si + width(si));
                 if flags & CASEFOLD == 0 {
                     while let (Some(&c), Some(&x)) = (p.get(a), s.get(b)) {
                         if c != x || matches!(c, b'*' | b'?' | b'[' | b'\\') {
@@ -1293,7 +1354,7 @@ fn direct(p: &[u8], s: &[u8], flags: i32, loc: &Locale) -> Option<bool> {
                 if !wild(ss) {
                     return Some(false);
                 }
-                let mut q = ss + 1;
+                let mut q = ss + width(ss);
                 // When an ordinary character follows the star (compared exactly), the star takes
                 // every character up to its next occurrence at once. Those characters are never
                 // a leading period (the one before each is not a `/`), so each may be taken
@@ -1518,13 +1579,100 @@ mod tests {
                     for s in &strings {
                         if let Some(d) = direct(pat, s, flags, loc) {
                             decided += 1;
-                            assert_eq!(d, general.matches(s, loc).unwrap(), "{:?} {:?} flags {flags}", std::string::String::from_utf8_lossy(pat), std::string::String::from_utf8_lossy(s));
+                            // `general`, not `matches`: `matches` tries `direct` first.
+                            assert_eq!(d, general.general(s, loc).unwrap(), "{:?} {:?} flags {flags}", std::string::String::from_utf8_lossy(pat), std::string::String::from_utf8_lossy(s));
                         }
                     }
                 }
             }
         }
         assert!(decided > 100_000, "the direct matcher decides most cases ({decided})");
+    }
+
+    /// The direct matcher reads a valid UTF-8 string a character at a time (two-, three- and
+    /// four-byte characters, upper case, a character that case-folds to an ASCII letter) and
+    /// agrees with the general matcher on every ASCII pattern of up to three tokens over every
+    /// string of up to three characters, under the flags that change a step, in C.UTF-8; it
+    /// leaves to the general matcher a pattern that is not ASCII and a string that is not valid
+    /// UTF-8 (overlong, surrogate, above U+10FFFF, cut short, a stray byte), which are matched
+    /// byte by byte.
+    // no spec clause: speed-up of the direct matcher (MATCHER-WORDEXP-RETHINK); XCU 2.13 defines the results.
+    #[test]
+    fn the_direct_matcher_reads_utf8_names_as_the_general_one_does() {
+        let toks: [&[u8]; 12] = [b"a", b"k", b".", b"/", b"*", b"?", b"[!a]", b"[[:upper:]]", b"[a-z]", b"\\*", b"[k]", "é".as_bytes()];
+        let alphabet: [&[u8]; 8] = [b"a", b".", b"/", "é".as_bytes(), "É".as_bytes(), "\u{212a}".as_bytes(), "日".as_bytes(), "\u{1f600}".as_bytes()];
+        let mut strings: Vec<Vec<u8>> = std::vec![Vec::new()];
+        let mut frontier = strings.clone();
+        for _ in 0..3 {
+            let mut next = Vec::new();
+            for s in &frontier {
+                for c in alphabet {
+                    let mut t = s.clone();
+                    t.extend_from_slice(c);
+                    next.push(t);
+                }
+            }
+            strings.extend(next.iter().cloned());
+            frontier = next;
+        }
+        let invalid: [&[u8]; 7] = [b"a\xc3", b"\xff.c", b"\xc0\x80", b"\xed\xa0\x80", b"\xf4\x90\x80\x80", "é\u{65e5}".as_bytes().get(..4).unwrap(), b"\x80a"];
+        let mut patterns: Vec<Vec<u8>> = std::vec![Vec::new()];
+        let mut level = patterns.clone();
+        for _ in 0..3 {
+            let mut next = Vec::new();
+            for pfx in &level {
+                for t in toks {
+                    let mut q = pfx.clone();
+                    q.extend_from_slice(t);
+                    next.push(q);
+                }
+            }
+            patterns.extend(next.iter().cloned());
+            level = next;
+        }
+        let loc = Locale::c_utf8(b"C.UTF-8");
+        let (mut decided, mut utf8) = (0usize, 0usize);
+        for flags in [0, PATHNAME, PERIOD, PATHNAME | PERIOD, CASEFOLD, NOESCAPE, PATHNAME | LEADING_DIR, PERIOD | CASEFOLD] {
+            for pat in &patterns {
+                let general = Pattern::new(pat, flags, &loc).unwrap();
+                for s in &strings {
+                    let d = direct(pat, s, flags, &loc);
+                    if !pat.is_ascii() {
+                        assert_eq!(d, None, "a pattern that is not ASCII is the general matcher's");
+                        continue;
+                    }
+                    if let Some(d) = d {
+                        decided += 1;
+                        utf8 += usize::from(!s.is_ascii());
+                        assert_eq!(d, general.general(s, &loc).unwrap(), "{:?} {:?} flags {flags}", std::string::String::from_utf8_lossy(pat), std::string::String::from_utf8_lossy(s));
+                    }
+                }
+                for s in invalid {
+                    assert_eq!(direct(pat, s, flags, &loc), None, "{:?} {s:?}: invalid text is matched byte by byte", std::string::String::from_utf8_lossy(pat));
+                }
+            }
+        }
+        assert!(utf8 > 1_000_000, "the direct matcher decides the UTF-8 strings ({utf8} of {decided})");
+    }
+
+    /// A pattern without groups matches a UTF-8 file name, and fails to, without compiling its
+    /// items: no allocation and no general-matcher work for the usual name in a UTF-8 locale.
+    // no spec clause: speed-up of the direct matcher (MATCHER-WORDEXP-RETHINK).
+    #[test]
+    fn a_utf8_name_is_matched_without_compiling_the_pattern() {
+        let loc = Locale::c_utf8(b"C.UTF-8");
+        for (pat, flags, name, want) in [
+            (&b"*.[ch]"[..], 0, "naïve.c", true),
+            (b"*", PERIOD, "Grüße.txt", true),
+            (b"????.txt", 0, "Grüße.txt", false),
+            (b"[[:upper:]]*", 0, "Übersicht.ods", true),
+            (b"*.TXT", CASEFOLD, "Отчёт.txt", true),
+            (b"src/*/*.c", PATHNAME, "src/日本/Ελληνικά.c", true),
+        ] {
+            let p = Pattern::new(pat, flags, &loc).unwrap();
+            assert_eq!(p.matches(name.as_bytes(), &loc).unwrap(), want, "{name}");
+            assert!(p.compiled.get().is_none() && p.work() == 0, "{name}: decided without the compiled items");
+        }
     }
 
     /// A pattern without `FNM_EXTMATCH` compiles with no group structures (no alternatives, no
