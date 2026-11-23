@@ -230,7 +230,9 @@ pub(super) fn image_view(
     maps[1] = (at, unmap);
     let dynamic: &'static [u8] = buf;
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
-    let copy_len = loads().filter(|p| probe.image_span_kind(p, dynamic) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
+    // The entries the segments' kinds read, read once (LD-OBJECT-ONCE).
+    let tables = probe.image_tables(dynamic);
+    let copy_len = loads().filter(|p| probe.image_span_kind_with(p, &tables) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
         let (at, unmap, buf) = scratch(copy_len, name, !published);
@@ -239,7 +241,7 @@ pub(super) fn image_view(
     }
     let mut k = 0usize;
     for kind in [SpanKind::Copy, SpanKind::Live] {
-        for p in loads().filter(|p| probe.image_span_kind(p, dynamic) == kind) {
+        for p in loads().filter(|p| probe.image_span_kind_with(p, &tables) == kind) {
             let len = usize::try_from(p.filesz).unwrap_or(usize::MAX);
             if !mapped(p.vaddr, p.filesz) || k == spans.len() {
                 bad(b": malformed program headers\n");
@@ -349,6 +351,32 @@ impl niji_ld::reloc::Image for ProcImage {
     fn warn(&mut self, parts: &[&[u8]]) {
         write_all(2, b"ld.so: ");
         parts.iter().for_each(|p| write_all(2, p));
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn add_bits(&mut self, at: u64, bits: u64, bias: u64, little: bool) {
+        // The words are in the process's own byte order unless `little` says otherwise.
+        let Ok(base) = word(at) else { return };
+        if little != cfg!(target_endian = "little") {
+            return niji_ld::reloc::add_bits_by_word(self, at, bits, bias, little);
+        }
+        let mut rest = bits;
+        while rest != 0 {
+            let w = core::ptr::with_exposed_provenance_mut::<u64>(base.wrapping_add(usize::try_from(rest.trailing_zeros()).unwrap_or(0).wrapping_mul(8)));
+            rest &= rest.wrapping_sub(1);
+            // UNSAFE(slice): one relocated word of a loaded object, read.
+            #[allow(unsafe_code)]
+            // SAFETY: the relocator checked each word `at + 8 * k` of the bitmap lies in a
+            // segment of the object mapped readable and writable at this moment. RELR does not
+            // promise alignment: the access is unaligned.
+            let v = unsafe { w.read_unaligned() };
+            // UNSAFE(slice): the same word, written back with the bias added.
+            #[allow(unsafe_code)]
+            // SAFETY: as for the read; nothing else of the process runs yet, so no other
+            // reference to the word exists.
+            unsafe { w.write_unaligned(v.wrapping_add(bias)) };
+        }
     }
 }
 

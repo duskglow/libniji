@@ -188,11 +188,16 @@ fn for_each_char(toks: &[Tok], no: u32, f: &mut dyn FnMut(u32) -> Result<()>) ->
         match &toks[i] {
             Tok::Semi => i += 1,
             Tok::Sym(a) => {
-                let a = lex::ucs_name(a).ok_or(Error::syntax(no, "unknown symbolic name"))?;
+                // A name the charmap does not define (left unresolved by `resolve_names`) is
+                // no character of this locale: skipped, alone or as a range's end (spec §31.8).
+                let a = lex::ucs_name(a);
                 let dots = toks.get(i + 1).and_then(Tok::word).is_some_and(|w| w == b".." || w == b"...");
                 if dots {
                     let Some(Tok::Sym(b)) = toks.get(i + 2) else { return Err(Error::syntax(no, "a range needs an end")) };
-                    let b = lex::ucs_name(b).ok_or(Error::syntax(no, "unknown symbolic name"))?;
+                    let (Some(a), Some(b)) = (a, lex::ucs_name(b)) else {
+                        i += 3;
+                        continue;
+                    };
                     if b < a {
                         return Err(Error::syntax(no, "a range ends before it starts"));
                     }
@@ -201,7 +206,9 @@ fn for_each_char(toks: &[Tok], no: u32, f: &mut dyn FnMut(u32) -> Result<()>) ->
                     }
                     i += 3;
                 } else {
-                    f(a)?;
+                    if let Some(a) = a {
+                        f(a)?;
+                    }
                     i += 1;
                 }
             }
@@ -233,9 +240,10 @@ fn add_pairs(map: &mut BTreeMap<u32, u32>, toks: &[Tok], no: u32) -> Result<()> 
         match (&toks[i], toks.get(i + 1), toks.get(i + 2), toks.get(i + 3), toks.get(i + 4)) {
             (Tok::Semi, ..) => i += 1,
             (Tok::Open, Some(Tok::Sym(a)), Some(Tok::Comma), Some(Tok::Sym(b)), Some(Tok::Close)) => {
-                let a = lex::ucs_name(a).ok_or(Error::syntax(no, "unknown symbolic name"))?;
-                let b = lex::ucs_name(b).ok_or(Error::syntax(no, "unknown symbolic name"))?;
-                map.insert(a, b);
+                // A pair naming a character the charmap does not define is skipped.
+                if let (Some(a), Some(b)) = (lex::ucs_name(a), lex::ucs_name(b)) {
+                    map.insert(a, b);
+                }
                 i += 5;
             }
             _ => return Err(Error::syntax(no, "a map entry is not (<a>,<b>)")),
@@ -308,8 +316,8 @@ const fn isbit(k: u32) -> u16 {
     if k < 8 { (1 << k) << 8 } else { (1 << k) >> 8 }
 }
 
-/// Write `LC_CTYPE`.
-pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
+/// Write `LC_CTYPE` (`defaults`: the built-in defaults of an undefined `LC_CTYPE`, D-31.24).
+pub fn write(c: &Ctype, cs: &Charset, defaults: bool) -> Result<TryVec<u8>> {
     let mut f = File::new();
     let upper = |cp: u32| c.maps[0].1.get(&cp).copied().unwrap_or(cp);
     let lower = |cp: u32| c.maps[1].1.get(&cp).copied().unwrap_or(cp);
@@ -386,10 +394,18 @@ pub fn write(c: &Ctype, cs: &Charset) -> Result<TryVec<u8>> {
     for d in 0..10u32 {
         f.string(&mb(cs, &[u32::from(b'0') + d])?)?;
     }
-    f.word(1)?; // 30 INDIGITS_WC_LEN
-    // 31..40: one wide character each, no terminator.
-    for d in 0..10u32 {
-        f.word(u32::from(b'0') + d)?;
+    if defaults {
+        // The defaults have no wide input digits: length 0, ten empty items (D-31.24).
+        f.word(0)?; // 30
+        for _ in 0..10 {
+            f.raw(true, TryVec::new())?;
+        }
+    } else {
+        f.word(1)?; // 30 INDIGITS_WC_LEN
+        // 31..40: one wide character each, no terminator.
+        for d in 0..10u32 {
+            f.word(u32::from(b'0') + d)?;
+        }
     }
     let out: [u32; 10] = core::array::from_fn(|d| c.outdigits.as_ref().and_then(|o| o.get(d).copied()).unwrap_or(u32::from(b'0') + u32::try_from(d).unwrap_or(0)));
     for &d in &out {

@@ -33,6 +33,11 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `nr`  F(valid arguments); mk_nr(): the marker is dropped when F is noreturn.
 * `ct`  a non-variadic F with a result: two calls with a memory clobber between them, mk_ct() when the results
         differ: the marker is dropped when F is const (a pure F is called again; this tells pure from const).
+* `e`   a non-variadic F with a result, in a unit without the `bp` redeclarations: errno = 0; r = F(opaque
+        arguments); mk_e() when errno != 0. The marker is
+        dropped when the compiler may assume F leaves errno alone (pure or const). Where the reference keeps it, its
+        objects let the call set errno, and the table marks F neither pure nor const, whatever the other tests say
+        (they use literal arguments, which the compiler's own knowledge of a builtin such as acos can fold).
 * `ma`  two calls p = F(..), q = F(..), stores *p = 1 and *q = 2; the marker is called when *p != 1, so it is
         dropped when the two results cannot alias (attribute malloc).
 * `as.S` p = F(..) with the arguments of subset S set to 2 and the others opaque; the marker is dropped
@@ -53,6 +58,8 @@ OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security
 # open and kin take an optional mode, not a sentinel list: the reference's checking wrappers report an error, inside a
 # header and so on no test line, for a call with extra arguments. They get no sentinel test.
 NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64"}
+# The tests that read back a marker function (mk_<kind>_<line>) from the object.
+MARKED = ("nr", "ma", "as", "ct", "e")
 
 
 def protos():
@@ -123,14 +130,14 @@ def corpus(names, heads, pr):
     # unistd.h first: with fcntl.h included before it, the reference's lockf loses its warn_unused_result (the header
     # order changes the answer), and a program that includes unistd.h alone sees it.
     order = ["unistd.h"] + [h for h in heads if h != "unistd.h"] if "unistd.h" in heads else heads
-    L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in order]
-    L += ["extern void *v[16]; extern char *nl; extern int ov; extern __builtin_va_list ap;"]
+    L = ["#define _GNU_SOURCE 1"] + ["#include <%s>" % h for h in order] + ["#include <errno.h>"]
+    L += ["extern void *v[16]; extern char *nl; extern int ov; extern long double oe; extern __builtin_va_list ap;"]
     meta = {}
 
     def add(fmt, key):
         """One test per line; `%(N)d` in fmt is the line's own number (it names the line's marker)."""
         n = len(L) + 1
-        mk = "extern void mk_%s_%d(void); " % (key[1], n) if key[1] in ("nr", "ma", "as", "ct") else ""
+        mk = "extern void mk_%s_%d(void); " % (key[1], n) if key[1] in MARKED else ""
         L.append(mk + fmt.replace("@N@", str(n)))
         meta[n] = key
 
@@ -144,6 +151,12 @@ def corpus(names, heads, pr):
         fixed = [k for k in kinds if k != "var"]
         variadic = "var" in kinds
         isptr_ret = "*" in ret
+        # ret ends with the function's name: the return type is what precedes it.
+        has_result = re.sub(r"\b%s\s*$" % re.escape(n), "", ret).strip() != "void"
+        # The `e` test's opaque argument per parameter: a floating one gets a long double (an int would let the compiler
+        # know lround's argument integral and fold the call), any other number an int.
+        opaque = {j: ("oe" if re.search(r"\b(double|float|_Float\d+x?)\b", p) else "ov")
+                  for j, (k, p) in enumerate((k, p) for k, p in zip(kinds, ps) if k != "var") if k == "num"}
 
         def args(over=None, lit=True):
             o = []
@@ -179,6 +192,11 @@ def corpus(names, heads, pr):
             for c in (1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
+        if not variadic and has_result:
+            # Opaque arguments: no builtin folding, so only the declaration decides.
+            add("void e_@N@(void) { static __typeof__ (%s(%s)) volatile r; errno = 0; r = %s(%s); if (errno != 0) mk_e_@N@(); }"
+                % (n, args(lit=False), n, args(opaque, lit=False)),
+                (n, "e"))
         # A redeclaration with attribute pure: the compiler objects when it knows the function as a const builtin
         # (the math functions), and then the declaration must say const to compile at all.
         add("extern __typeof__ (%s) %s __attribute__ ((__pure__));" % (n, n), (n, "bp"))
@@ -254,13 +272,25 @@ def compile_side(text, inc, keep, tag):
     nm = subprocess.run(["nm", "-u", obj], capture_output=True, text=True, check=True).stdout.split()
     marks = set()
     for s in nm:
-        m = re.match(r"^mk_(nr|ma|as|ct)_(\d+)$", s)
+        m = re.match(r"^mk_(%s)_(\d+)$" % "|".join(MARKED), s)
         if m:
             marks.add(int(m.group(2)))
     return diags, marks, errs
 
 
 def results(text, meta, inc, keep, tag):
+    """The `e` tests in a unit of their own (the same line numbers, every other test line blank): GCC merges the `bp`
+    redeclaration's pure into the one declaration of F for the whole unit, wherever the line is."""
+    lines = text.split("\n")
+    ekeys = {ln for ln, key in meta.items() if key[1] == "e"}
+    main = "\n".join("" if ln + 1 in ekeys else x for ln, x in enumerate(lines))
+    errno = "\n".join("" if ln + 1 in meta and ln + 1 not in ekeys else x for ln, x in enumerate(lines))
+    res = results_unit(main, {ln: k for ln, k in meta.items() if ln not in ekeys}, inc, keep, tag)
+    res.update(results_unit(errno, {ln: meta[ln] for ln in ekeys}, inc, keep, tag + "-e"))
+    return res
+
+
+def results_unit(text, meta, inc, keep, tag):
     """Compile; a test line that does not compile is blanked (keeping every line number) and recorded."""
     dropped = set()
     for _ in range(6):
@@ -278,7 +308,7 @@ def results(text, meta, inc, keep, tag):
     res = {}
     for ln, key in meta.items():
         flags = set(diags.get(ln, set()))
-        if key[1] in ("nr", "ma", "as", "ct"):
+        if key[1] in MARKED:
             flags.add("marker" if ln in marks else "folded")
         res[ln] = (key, flags, ln in errs)
     return res
@@ -299,6 +329,11 @@ OPEN = {
     "wctob": "the reference's calls are merged by the compiler's own knowledge of the function; no attribute decides it",
     "fwrite_unlocked": "libniji's declaration is the plain function, so the compiler's own builtin knowledge adds -Wnonnull",
 }
+# Known differences the `e` test explains (decided per line in `check`, printed, not counted).
+ERRNO_VETO = ("the call may set errno (the reference's objects keep an errno check after it at -O2), so libniji's "
+              "declaration is not pure, and the compiler does not report a call whose result is unused (-Wunused-value)")
+ERRNO_INLINE = ("the reference's caller folds the errno check with no pure or const in the table: its header expands the "
+                "call inline; libniji's calls the library, which keeps the check (not slice 19's)")
 CTYPE_OPEN = re.compile(r"^is(alnum|alpha|blank|cntrl|digit|graph|lower|print|punct|space|upper|xdigit)$")
 
 
@@ -385,7 +420,16 @@ def derive(res, pr, names):
     for n in CONST_BY_STANDARD & set(rows):
         if rows[n]["pure"]:
             rows[n]["pure"] = "const"
+    # The errno veto, last: a caller of F keeps an errno check after the call in the reference's objects.
+    for n in errno_kept(res):
+        if n in rows:
+            rows[n]["pure"] = ""
     return rows
+
+
+def errno_kept(res):
+    """The functions whose `e` test kept its marker: the call may set errno, so neither pure nor const."""
+    return {key[0] for key, flags, err in res.values() if key[1] == "e" and not err and "marker" in flags}
 
 
 def main():
@@ -417,6 +461,8 @@ def main():
     diff = 0
     opened = {}
     known = {}
+    vetoed = errno_kept(ref)
+    table = derive(ref, pr, names)
     for ln in sorted(ref):
         if ref[ln][0][1] == "bp":
             continue  # a table-only test (is the compiler's own knowledge of the function const?), not a compared line
@@ -425,6 +471,13 @@ def main():
                 opened[f] = opened.get(f, 0) + 1
         if decided(ref[ln][1]) != decided(got[ln][1]) or ref[ln][2] != got[ln][2]:
             why = open_reason(ref[ln][0][0])
+            n, kind = ref[ln][0][0], ref[ln][0][1]
+            if not why and ref[ln][2] == got[ln][2]:
+                only = decided(ref[ln][1]) ^ decided(got[ln][1])
+                if n in vetoed and only == {"-Wunused-value"}:
+                    why = ERRNO_VETO
+                elif kind == "e" and "folded" in ref[ln][1] and "marker" in got[ln][1] and not table[n]["pure"]:
+                    why = ERRNO_INLINE
             if why:
                 known[ref[ln][0][0]] = why
                 continue

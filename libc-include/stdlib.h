@@ -381,15 +381,15 @@ extern int atexit (void (*) (void)) __NIJI_NOTHROW __attribute__ ((__nonnull__ (
 # endif
 # ifndef __NIJI_D_atof
 #  define __NIJI_D_atof 1
-extern double atof (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__, __warn_unused_result__));
+extern double atof (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_atoi
 #  define __NIJI_D_atoi 1
-extern int atoi (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__, __warn_unused_result__));
+extern int atoi (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_atol
 #  define __NIJI_D_atol 1
-extern long int atol (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__, __warn_unused_result__));
+extern long int atol (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D___compar_fn_t
 #  define __NIJI_D___compar_fn_t 1
@@ -643,7 +643,7 @@ extern void _Exit (int) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 # ifndef __NIJI_D_atoll
 #  define __NIJI_D_atoll 1
-extern long long int atoll (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__, __warn_unused_result__));
+extern long long int atoll (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_llabs
 #  define __NIJI_D_llabs 1
@@ -1245,6 +1245,56 @@ __NIJI_FORTIFY_FN int wctomb (char *__p0, wchar_t __p1) __NIJI_NOTHROW
 #  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
 #  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 # endif
+#endif
+
+/* Inline bodies when optimizing (features.h, __NIJI_INLINES): atof, atoi, atol and atoll are the strtod, strtol and
+   strtoll calls C 7.22.1.1-2 makes them equivalent to (so a caller sees errno as those set it, and the strtol family's
+   language-mode name); bsearch is libniji's own binary search (C 7.22.5.1), probing the elements in the order the
+   library's does. */
+#if __NIJI_INLINES
+#if 1
+__NIJI_INLINE_FN double atof (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtod (__nptr, (char **) 0);
+}
+__NIJI_INLINE_FN int atoi (const char *__nptr) __NIJI_NOTHROW
+{
+  return (int) strtol (__nptr, (char **) 0, 10);
+}
+__NIJI_INLINE_FN long int atol (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtol (__nptr, (char **) 0, 10);
+}
+#endif
+#if __NIJI_ISOC >= 1999
+__NIJI_INLINE_FN long long int atoll (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtoll (__nptr, (char **) 0, 10);
+}
+#endif
+#if 1
+__NIJI_INLINE_FN void *bsearch (const void *__key, const void *__base, size_t __nmemb, size_t __size,
+                                int (*__compar) (const void *, const void *))
+{
+  size_t __lo = 0, __n = __size != 0 ? __nmemb : 0;
+  while (__n > 0)
+    {
+      size_t __half = __n / 2;
+      const void *__p = (const char *) __base + (__lo + __half) * __size;
+      int __c = (*__compar) (__key, __p);
+      if (__c == 0)
+        return (void *) __p;
+      if (__c < 0)
+        __n = __half;
+      else
+        {
+          __lo += __half + 1;
+          __n -= __half + 1;
+        }
+    }
+  return (void *) 0;
+}
+#endif
 #endif
 
 __NIJI_END_C

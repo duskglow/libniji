@@ -138,6 +138,17 @@
 # define __NIJI_FORTIFY 0
 #endif
 
+/* Header-inline bodies (Appendix C.9 protocols, and calls a function is specified to be equivalent to): in effect when
+   optimizing for speed, as GCC's predefined macros say (-O1 and up, -Og), not at -O0, -Os or -fno-inline (black-box
+   probe of the reference's objects, HEADERS-O2-INLINES). The body is GNU inline: taking the function's address, or
+   a call GCC does not inline, binds to the library's definition. */
+#if defined __OPTIMIZE__ && !defined __OPTIMIZE_SIZE__ && !defined __NO_INLINE__
+# define __NIJI_INLINES 1
+# define __NIJI_INLINE_FN extern __inline __attribute__ ((__gnu_inline__))
+#else
+# define __NIJI_INLINES 0
+#endif
+
 /* The two glibc-internal level names other software tests (owner ruling R-H2), with the same meaning. */
 #if __NIJI_MISC
 # define __USE_MISC 1

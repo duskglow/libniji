@@ -469,6 +469,76 @@ fn reloc_version_check_beyond_the_kept_definitions() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// s27_1_f_0: the version check compares the stored hashes (`vd_hash`, `vna_hash`) before the names
+/// (LD-OBJECT-ONCE), and answers as the walk by name does whatever the hashes say: a definition whose
+/// hash is wrong is still found by its name, a definition with the required hash but another name is
+/// not the required version, and a malformed definition ahead of the required one is still refused.
+#[test]
+fn reloc_version_check_hashes_never_change_the_answer() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("verhash");
+    let node = |k: usize| format!("V_{k} {{ global: f_{k}; {}}};\n", if k == 0 { "local: *; " } else { "" });
+    let src: String = (0..8).map(|k| format!("int f_{k}(void) {{ return {k}; }}\n")).collect();
+    let lib = |name: &str, keep: &dyn Fn(usize) -> bool| {
+        let map = d.join(format!("{name}.map"));
+        std::fs::write(&map, (0..8).filter(|&k| keep(k)).map(node).collect::<String>()).unwrap();
+        build(&d, name, &src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())])
+    };
+    let full = lib("libfull.so", &|_| true);
+    let less = std::fs::read(lib("libless6.so", &|k| k != 6)).unwrap();
+    let use_src = "extern int f_0(void), f_6(void);\nvoid _start(void) { f_0(); f_6(); for (;;); }\n";
+    let p = std::fs::read(build(&d, "p8", use_src, &["-fPIE", "-pie", full.to_str().unwrap()])).unwrap();
+    let full = std::fs::read(&full).unwrap();
+    // Each definition's file offset (the first segment maps the file at its own address), index,
+    // hash and name.
+    let defs = |f: &[u8]| -> Vec<(usize, u16, u32, Vec<u8>)> {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        let dynm = elf.dynamic().unwrap().unwrap();
+        let base = usize::try_from(dynm.get(niji_ld::elf::dt::VERDEF).unwrap()).unwrap();
+        let out: Vec<_> = dynm.verdef().unwrap().unwrap().map(|v| v.unwrap()).map(|v| (base + v.offset, v.ndx, v.hash, v.names().next().unwrap().unwrap().name.to_vec())).collect();
+        for (at, _, hash, _) in &out {
+            assert_eq!(f[at + 8..at + 12], hash.to_le_bytes(), "definition read at its file offset");
+        }
+        out
+    };
+    let at_of = |f: &[u8], name: &[u8]| defs(f).into_iter().find(|e| e.3 == name).unwrap();
+    let hash_of = |name: &[u8]| at_of(&full, name).2;
+    let leak = |b: Vec<u8>| -> &'static [u8] { Box::leak(b.into_boxed_slice()) };
+    let pname = leak(d.join("libfull.so").to_str().unwrap().as_bytes().to_vec());
+    let p = leak(p);
+    let obj = |f: &'static [u8], name: &'static [u8]| {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: 0, name, tls: None }
+    };
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(full.clone()), pname)]), Ok(()), "as linked");
+    // V_6's stored hash is wrong: found by its name.
+    let mut wrong = full.clone();
+    let (at, ..) = at_of(&full, b"V_6");
+    wrong[at + 8..at + 12].copy_from_slice(&(hash_of(b"V_6") ^ 0x10).to_le_bytes());
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(wrong), pname)]), Ok(()), "a wrong vd_hash");
+    // Without V_6, V_7 given V_6's hash: still missing.
+    let mut collide = less.clone();
+    let (at, ..) = at_of(&less, b"V_7");
+    collide[at + 8..at + 12].copy_from_slice(&hash_of(b"V_6").to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(collide), pname)]),
+        Err(reloc::VersionError::Missing { by: 0, file: pname, version: b"V_6" }),
+        "another name with the required hash"
+    );
+    // V_3's revision is bad: V_0 lies ahead of it and is found, V_6 lies past it and is refused.
+    let mut bad = full.clone();
+    let (at, ..) = at_of(&full, b"V_3");
+    bad[at..at + 2].copy_from_slice(&2u16.to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(bad), pname)]),
+        Err(reloc::VersionError::Elf(0, niji_ld::elf::ElfError::BadVersionRevision(niji_ld::elf::Table::Verdef, 2))),
+        "a malformed definition ahead of the required one"
+    );
+    std::fs::remove_dir_all(&d).ok();
+}
+
 /// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
 /// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
 /// built object, moved: into the read-only text, past every segment, across the end of the writable
@@ -571,6 +641,84 @@ fn reloc_relative_run_checks_each_entry_after_the_first() {
             assert_eq!(word(&mut m, bias(0) + offset), bias(0) + relas[1].addend as u64, "B + A stored at {offset:#x}");
         } else {
             assert_eq!(r.map_err(|e| e.error), Err(RelocError::Outside(offset)), "second field at {offset:#x} refused");
+        }
+    }
+}
+
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): the RELR pass
+/// applies an entry's words after one range check when its lowest and highest words lie in the
+/// writable segment (LD-RELR-LOOP), and that shortcut accepts nothing the word-by-word check
+/// refuses. The library's 40 pointers are one address entry and one bitmap; the address entry is
+/// moved so the run ends on the writable segment's last word (all 40 applied), crosses its end
+/// (the words inside applied in order, then the first one past it refused), starts past it or
+/// across it, or lies in the read-only text.
+#[test]
+fn reloc_relr_entry_checks_its_whole_run() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("relrrun");
+    let src = "static long x[64];
+long *p[40] = { &x[0], &x[1], &x[2], &x[3], &x[4], &x[5], &x[6], &x[7], &x[8], &x[9], &x[10], &x[11], &x[12], &x[13],
+  &x[14], &x[15], &x[16], &x[17], &x[18], &x[19], &x[20], &x[21], &x[22], &x[23], &x[24], &x[25], &x[26], &x[27], &x[28],
+  &x[29], &x[30], &x[31], &x[32], &x[33], &x[34], &x[35], &x[36], &x[37], &x[38], &x[39] };\n";
+    let lib = std::fs::read(build(&d, "librr.so", src, &["-fPIC", "-shared", "-Wl,-z,pack-relative-relocs"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let relr = dynm.get(niji_ld::elf::dt::RELR).expect("DT_RELR");
+    let words: Vec<u64> = dynm.relr().unwrap().unwrap().map(Result::unwrap).collect();
+    assert_eq!(words.len(), 40, "the 40 pointers are RELR words");
+    assert!(words.windows(2).all(|w| w[1] == w[0] + 8), "in one run");
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELRSZ), Some(16), "one address entry and one bitmap");
+    // The address entry's file offset (the first PT_LOAD maps the file from offset 0 at address 0).
+    let at = usize::try_from(loads[0].offset + relr - loads[0].vaddr).unwrap();
+    let end = rw.vaddr + rw.memsz;
+    // (address entry, the first word refused; None: all applied).
+    let cases = [
+        (words[0], None),
+        (end - 40 * 8, None),
+        (end - 39 * 8, Some(end)),
+        (end - 8, Some(end)),
+        (end, Some(end)),
+        (end - 4, Some(end - 4)),
+        (ro.vaddr, Some(ro.vaddr)),
+        (rw.vaddr - 16, Some(rw.vaddr - 16)),
+    ];
+    for (start, refused) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&start.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            // A writable segment's words read 0x10 apart from its start, so each applied word is told apart.
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            if ph.flags & 2 != 0 {
+                for (k, w) in v.chunks_exact_mut(8).enumerate() {
+                    w.copy_from_slice(&(0x10 * k as u64).to_le_bytes());
+                }
+            }
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"librr.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        assert_eq!(r.map_err(|e| e.error), refused.map_or(Ok(()), |a| Err(RelocError::Outside(a))), "run from {start:#x}");
+        // Every word of the run before the refused one (all of them when none is) holds its value
+        // plus the bias; the rest of the writable segment is as it was.
+        let stop = refused.unwrap_or(u64::MAX);
+        for w in (rw.vaddr..end).step_by(8) {
+            let old = 0x10 * ((w - rw.vaddr) / 8);
+            let applied = (start..start + 40 * 8).contains(&w) && w < stop;
+            assert_eq!(word(&mut m, bias(0) + w), if applied { old + bias(0) } else { old }, "word {w:#x}, run from {start:#x}");
         }
     }
 }

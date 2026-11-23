@@ -73,12 +73,13 @@ const PROG: &str = r#"#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/auxv.h>
 #include <unistd.h>
 #define N 40
 #define HALF (N / 2)
 static const char *dir;
 static void *h[N + 1];
-struct obj { unsigned long lo, hi, eh; int nseg, vdso; unsigned long s[16][2]; };
+struct obj { unsigned long lo, hi, eh; int nseg, vdso, kernel; unsigned long s[16][2]; };
 static struct obj objs[256];
 static int nobj;
 static unsigned long page;
@@ -89,6 +90,8 @@ static int cb(struct dl_phdr_info *i, size_t sz, void *d) {
     memset(o, 0, sizeof *o);
     o->lo = ~0UL;
     o->vdso = strstr(i->dlpi_name, "linux-vdso") != NULL;
+    /* The program (first, the kernel started it) and ld.so (at AT_BASE) the kernel mapped. */
+    o->kernel = nobj == 1 || (getauxval(AT_BASE) != 0 && i->dlpi_addr == getauxval(AT_BASE));
     for (int k = 0; k < i->dlpi_phnum; k++) {
         const ElfW(Phdr) *p = &i->dlpi_phdr[k];
         unsigned long a = i->dlpi_addr + p->p_vaddr;
@@ -103,16 +106,45 @@ static int cb(struct dl_phdr_info *i, size_t sz, void *d) {
 }
 static void snapshot(void) { nobj = 0; dl_iterate_phdr(cb, 0); }
 static void fail(int n, const char *what, unsigned long a) { fprintf(stderr, "check %d: %s at %#lx\n", n, what, a); exit(n); }
-/* The object whose range (lowest to highest PT_LOAD address, gaps between segments included: probe R-5)
- * holds a (-1: none), and the first non-vDSO object whose range holds it. */
+/* The range of object o that holds a, in *lo and *hi (0: none). An object the loader mapped: its
+ * range, lowest to highest PT_LOAD address, gaps between segments included (probe R-5). One the
+ * kernel mapped (the program and ld.so; the kernel leaves the pages between its segment runs
+ * unmapped, probe R-6): the run of segments whose pages touch, from a segment whose pages hold a. */
+static int range_of(const struct obj *o, unsigned long a, unsigned long *lo, unsigned long *hi) {
+    *lo = o->lo;
+    *hi = o->hi;
+    if (o->kernel) {
+        int k0 = -1;
+        for (int k = 0; k < o->nseg && k0 < 0; k++)
+            if (o->s[k][0] < o->s[k][1] && (o->s[k][0] & -page) <= a && a < ((o->s[k][1] + page - 1) & -page)) k0 = k;
+        if (k0 < 0) return 0;
+        *lo = o->s[k0][0];
+        *hi = o->s[k0][1];
+        for (int grew = 1; grew;) {
+            grew = 0;
+            for (int k = 0; k < o->nseg; k++) {
+                unsigned long l = o->s[k][0], h = o->s[k][1];
+                if (l < h && (l & -page) <= ((*hi + page - 1) & -page) && (*lo & -page) <= ((h + page - 1) & -page) && (l < *lo || h > *hi)) {
+                    if (l < *lo) *lo = l;
+                    if (h > *hi) *hi = h;
+                    grew = 1;
+                }
+            }
+        }
+    }
+    return *lo <= a && a < *hi;
+}
+/* The object whose range holds a (-1: none), and the first non-vDSO object whose range holds it. */
 static int span_owner(unsigned long a) {
+    unsigned long lo, hi;
     for (int j = 0; j < nobj; j++)
-        if (objs[j].lo <= a && a < objs[j].hi) return j;
+        if (range_of(&objs[j], a, &lo, &hi)) return j;
     return -1;
 }
 static int range_owner(unsigned long a) {
+    unsigned long lo, hi;
     for (int j = 0; j < nobj; j++)
-        if (!objs[j].vdso && objs[j].lo <= a && a < objs[j].hi) return j;
+        if (!objs[j].vdso && range_of(&objs[j], a, &lo, &hi)) return j;
     return -1;
 }
 static void probe(int base, unsigned long a) {
@@ -121,7 +153,9 @@ static void probe(int base, unsigned long a) {
     int j = span_owner(a), r = _dl_find_object((void *)a, &f);
     if (j < 0 && r != -1) fail(base + 1, "_dl_find_object found an object where none is", a);
     if (j >= 0 && r != 0) fail(base + 2, "_dl_find_object found nothing in a loaded object's range", a);
-    if (j >= 0 && ((unsigned long)f.dlfo_map_start != objs[j].lo || (unsigned long)f.dlfo_map_end != objs[j].hi || (unsigned long)f.dlfo_eh_frame != objs[j].eh))
+    unsigned long lo = 0, hi = 0;
+    if (j >= 0) range_of(&objs[j], a, &lo, &hi);
+    if (j >= 0 && ((unsigned long)f.dlfo_map_start != lo || (unsigned long)f.dlfo_map_end != hi || (unsigned long)f.dlfo_eh_frame != objs[j].eh))
         fail(base + 3, "_dl_find_object: wrong range or PT_GNU_EH_FRAME", a);
     Dl_info info;
     memset(&info, 0, sizeof info);
@@ -238,9 +272,10 @@ fn run(prog: &Path, d: &Path, mode: &str) {
 
 /// s27_1_c_9, s27_1_c_6: `_dl_find_object` and `dladdr` find the object whose range (lowest to
 /// highest `PT_LOAD` address) holds an address, at every segment's edges and in the gaps between
-/// segments (`_dl_find_object` too: probe R-5), with only the start-time objects (the index's
-/// first build), after `dlopen`, after `dlclose` (a closed object is never found again) and after
-/// reopening.
+/// segments (`_dl_find_object` too: probe R-5; for the program and `ld.so`, which the kernel
+/// mapped, the run of segments whose pages touch: probe R-6), with only the start-time objects
+/// (the index's first build), after `dlopen`, after `dlclose` (a closed object is never found
+/// again) and after reopening.
 #[test]
 fn s27_1_c_9_find_object_index_matches_the_program_headers() {
     let Some((d, prog)) = setup("map") else { return };

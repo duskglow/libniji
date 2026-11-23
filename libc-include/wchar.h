@@ -69,6 +69,10 @@ typedef struct __locale_struct * locale_t;
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___mbrlen
+#  define __NIJI_D___mbrlen 1
+extern unsigned long __mbrlen (const char *, unsigned long, mbstate_t *) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D_btowc
 #  define __NIJI_D_btowc 1
 extern unsigned int btowc (int) __NIJI_NOTHROW;
@@ -1210,6 +1214,17 @@ inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { retur
 # else
 extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
+#endif
+
+/* Inline body when optimizing (features.h, __NIJI_INLINES): mbrlen is mbrtowc (NULL, s, n, ps) for a caller's state
+   (C 7.29.6.3.1); without one it keeps its own internal state, which the library entry __mbrlen holds. */
+#if __NIJI_INLINES
+#if 1
+__NIJI_INLINE_FN size_t mbrlen (const char *__restrict __s, size_t __n, mbstate_t *__restrict __ps) __NIJI_NOTHROW
+{
+  return __ps != 0 ? mbrtowc ((wchar_t *) 0, __s, __n, __ps) : __mbrlen (__s, __n, (mbstate_t *) 0);
+}
+#endif
 #endif
 
 __NIJI_END_C
