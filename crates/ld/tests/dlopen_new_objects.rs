@@ -261,13 +261,19 @@ fn dlopen_new_objects_past_every_old_bound() {
 /// no spec clause (the call's tables are allocated, so the only limit is memory): under a sweep of
 /// address-space limits, from the first one at which the program runs at all, each run either
 /// completes or fails cleanly: `dlopen` returns NULL with a `dlerror` text (status 1) or the start
-/// ends with the loader's message (127); never a signal.
+/// ends with the loader's message (127); never a signal. Every limit refused is swept; the sweep
+/// ends once two runs in a row complete (a larger limit only adds room no growth path lacks; on the
+/// Zen 1 host the full sweep to 48 MiB ran 84 of its 189 limits above that point and none of them
+/// was refused).
 #[test]
 fn dlopen_new_objects_out_of_memory_is_clean() {
     let Some((d, prog)) = corpus("oom") else { return };
-    let (mut ran, mut refused) = (0, 0);
+    let (mut ran, mut refused, mut in_row, mut first_ran) = (0, 0, 0, None);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (1024..=48 * 1024).step_by(256) {
+        if in_row == 2 {
+            break;
+        }
         let o = run(Command::new("sh").arg("-c").arg(format!("ulimit -v {kb}; exec \"$0\"")).arg(&prog));
         let (out, err) = (String::from_utf8_lossy(&o.stdout).into_owned(), String::from_utf8_lossy(&o.stderr).into_owned());
         let started = out.lines().next().is_some() || err.starts_with("ld.so:") || err.contains("error while loading shared libraries");
@@ -276,8 +282,11 @@ fn dlopen_new_objects_out_of_memory_is_clean() {
         }
         if o.status.success() {
             ran += 1;
+            in_row += 1;
+            first_ran.get_or_insert(kb);
             continue;
         }
+        in_row = 0;
         refused += 1;
         let code = o.status.code();
         assert!(code == Some(1) || code == Some(127), "limit {kb} KiB: not a clean failure: {:?}\n{err}", o.status);
@@ -290,6 +299,6 @@ fn dlopen_new_objects_out_of_memory_is_clean() {
         }
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
-    eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran");
+    eprintln!("dlopen under limits: {refused} refused ({reasons:?}), {ran} ran, the first at {first_ran:?} KiB");
     std::fs::remove_dir_all(&d).ok();
 }
