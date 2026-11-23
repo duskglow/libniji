@@ -43,11 +43,24 @@ handoff/PRINTF-NO-HEAP-3-plants.txt. Predecessors: handoff/PRINTF-NO-HEAP-2.md (
    45 at all four pads. Scripts: mei ~/work/printf-no-heap-3/l3/ (diag3.sh, inner4.sh, run.py); outputs
    /mnt/zram/claude/printf-no-heap-3/diag-l3 (fault maps `*.fm`).
 
-## Exact next step
-Coordinator: restore an archive on mei (or rule the hosts' locale set), then rerun on 32b6f8490: hot_text
-(`NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`), the gate
-and `cargo xtask test`. No code change is indicated by this story's evidence; moving printf sections to dodge the
-boundary would be chasing jitter (#4347).
+## Exact next step (leg 4)
+COORDINATOR NOTES 08:34Z (they add to the brief): (1) test growth: fold crates/boundary/tests/printf_no_heap.rs
+(+357 lines, a new test binary) into the existing printf test binary of that area (one binary fewer), unless a
+concrete reason keeps it apart (then a `TESTS:` line in the hand-back); (2) add a case there for the plant
+"planned path skips registered conversions" (today caught only by conformance s12_registry); (3) mei's locale reds
+are host change #7846, not this story's (my flag #7860 answered "noted").
+1. Find the printf test binary (`ls crates/boundary/tests | grep -i printf`), move the cases (keep clause names,
+   trace ids), delete printf_no_heap.rs, add the registered-conversion case (register a handler for a letter,
+   keep a plan, check the handler's text); update handoff/PRINTF-NO-HEAP-3.plants (nh3-planned-skips-hooks
+   `msg:` naming the new test too).
+2. clippy + `cargo xtask static` on s2 (foreground), sync, then gate (direct tier), plants (new RAM dir
+   plants-4), `cargo xtask test`, and hot_text (red only through #7846 until mei has an archive again).
+3. Leg 3 ended: gate-3 rc 1 at 08:34:43Z (peak 14G; red only on the 6 locale-dependent tests listed above);
+   chain3.sh and `printf-no-heap-3-xtask-test-3` stopped (kill-label) while it still waited for a slot, before
+   any build: run `cargo xtask test` on leg 4's head. Nothing of this story runs on mei.
+4. precheck, report json (update jobs/head), handback-check; hot-text-3 goes on SUPERSEDED with its reason.
+No printf code change is indicated by the hot_text evidence; moving printf sections to dodge the boundary would
+be chasing jitter (#4347).
 
 ## RULING NEEDED
 - Hosts: the hot_text and locale tests assume a locale archive; mei has none since 06:32Z. Recommend restoring it

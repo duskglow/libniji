@@ -19,4 +19,4 @@
  "improvement": "Build hosts' system state (locale archive) changes silently break gates: a host-state fingerprint (locale archive present, locale set) in each gate log would point at the cause in minutes",
  "next_step": "coordinator: restore mei's locale archive or rule the locale set, then rerun hot-text, gate and cargo xtask test on 32b6f8490",
  "report_file": "handoff/PRINTF-NO-HEAP-3.md",
- "jobs": ["printf-no-heap-3-cbench-3", "printf-no-heap-3-plants-3", "printf-no-heap-3-gate-3", "printf-no-heap-3-hot-text-3", "printf-no-heap-3-xtask-test-3"]}
+ "jobs": ["printf-no-heap-3-cbench-3", "printf-no-heap-3-plants-3", "printf-no-heap-3-gate-3", "printf-no-heap-3-hot-text-3"]}
