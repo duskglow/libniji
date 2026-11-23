@@ -45,21 +45,41 @@ SHSTK-OPT-IN (a2cee937a; merge base with next 0495c4684).
 | getcontext | 45 | 41 | 46 (SHSTK-OPT-IN's +5; this branch 0) |
 | swapcontext | 62 | 64.1 | 72.0 (SHSTK-OPT-IN's; this branch 0) |
 
-### Start-up, default mode and opt-in on a CPU without the feature (Skylake-SP, `mei:shstk-enable-su6`)
+### Start-up, default mode and opt-in on a CPU without the feature (Skylake-SP, `mei:shstk-enable-su7`)
 
-Before = SHSTK-OPT-IN head a2cee937a (this branch's base), after = this branch; empty program, mean
-of 50 runs, two passes (they agree). Dynamic rows run through each side's ld.so (program mode).
+Final code head 73d2ad2f6 (fast products of `shstk-enable-xtest4`'s build, copied before
+`hottext4` rebuilt the tree). Before = SHSTK-OPT-IN head a2cee937a (this branch's base), after =
+this branch; empty program, mean of 50 runs, two passes in one job (base rows agree to 1).
+Dynamic rows run through each side's ld.so (program mode).
 
 | row | before instr:u | after instr:u | faults before -> after |
 |---|---:|---:|---|
-| static | 2,956 | 2,964 (+8) | 8 -> 8 |
-| dynamic | 189,915 | 189,924 / 189,964 (+9..+49) | 67-68 -> 66 |
-| static, hwcaps=SHSTK | 6,037 | 7,492 | 12 -> 16 |
-| dynamic, hwcaps=SHSTK | 193,102 | 194,114 | 68-69 -> 68 |
+| static | 2,927 | 2,934 (+7) | 8 -> 8 |
+| dynamic | 189,266 / 189,267 | 189,309 / 189,297 (+30..+43) | 67 -> 67 |
+| static, hwcaps=SHSTK | 6,257 | 7,566 (+1,309) | 12 -> 17 |
+| dynamic, hwcaps=SHSTK | 192,727 | 193,512 / 193,495 (+768..+785) | 69 -> 69 |
 
-Against the merge base 0495c4684 (`shstk-enable-su5`) dynamic is +385..+438: SHSTK-OPT-IN's share.
-Dynamic rows of identical binaries differ by up to ~600 between separate jobs (within a job they
-agree), so +9..+49 is inside the noise; the static +8 is the not-asked tunable test.
+The static +7 is the not-asked tunable test and the larger `Tunables` default. The dynamic +30..+43
+(0.02%) is stable within the job (separate jobs on identical binaries differ by up to ~600, so the
+earlier su6 read it as noise; within one job it is real). Cause not isolated: in default mode the
+loader adds one atomic load and branch in `link`; the one new export (`__niji_shstk_off@@NIJI_PRIVATE`,
+libc.so.6 2,822 -> 2,823 dynamic symbols) changes the hash table, a candidate, not verified. The
+static opt-in row on a CPU without the feature still reads its own image and maps the cold
+decision code (+5 faults); a CPUID test before the image read would skip it (fix-forward, asked
+path only). Against the merge base 0495c4684 (`shstk-enable-su5`) dynamic is +385..+438:
+SHSTK-OPT-IN's share.
+
+### Layout (§9; `target/product/fast/layout-bins.tsv`, a2cee937a vs 73d2ad2f6)
+
+551 rows each; the bin plan is unchanged except: bin 0 `runtime::start` 5,658 -> 5,808 bytes
+(+150), `cpu::init` 50 -> 60 (+10); bin 0's cold filler swapped (`timefmt` 448 B -> `pairscan_ci`
+328 B); bin 1 `time_compat::select` 3,953 -> 3,079; the rest are `.llvm.<hash>` renames and
+page-fault mode lists. The cold move (73d2ad2f6) did not shrink `start` (f4e60abca: 5,799): a
+disassembly diff of `start` (+28 instructions, frame 0xf8 -> 0x108) shows the `shstk == Some(true)`
+test and branch, the wider `Tunables` default store (4+1 bytes instead of 2), and register
+churn from passing `&aux` (it pins the auxiliary-vector view to the stack). Fix-forward: pass only
+`&tunables` and read AT_PHDR/AT_PHNUM in the cold function through `process::auxval` (not done:
+it needs a fresh gate cycle that does not fit this run's wall time). Start-up faults are unchanged.
 
 ### N100 cost table, opt-in off vs on (nozomi `shstk-enable-cost1`, 3 passes, medians; dynamic rows minus env's own cost)
 
@@ -131,4 +151,21 @@ without user shadow stacks); its control is the N100 SIGSEGV run above.
   the user-context layout (fldenv from `fpregs`, ldmxcsr at byte 448), which in a kernel frame are
   the fxsave layout and not the library's field; pre-existing, not changed here; the N100 step passes.
 * Cost accepted: thread create +13.2 instructions default mode (fix-forward: inline `rdssp` instead
-  of the `niji_machine_ssp` call, about -5); static start-up +8.
+  of the `niji_machine_ssp` call, about -5); static start-up +7, dynamic +30..+43 (0.02%), `start`
+  +150 bytes (fix-forwards in the start-up and layout sections).
+
+## Final-head jobs (code head 73d2ad2f6, mei)
+
+* `shstk-enable-lint4`: clippy --workspace --all-targets --all-features -D warnings, then
+  `cargo xtask static`: rc 0.
+* `shstk-enable-plants4`: 3 plants, 3 CAUGHT, 0 WARN (results identical to
+  `handoff/SHSTK-ENABLE-plants.txt`).
+* `shstk-enable-xtest4` (`cargo xtask test`): 7,192 run, 7,186 passed, 6 failed, 790 skipped. The
+  six (catalogs_products, locale_data x2, locale_products, printf_corpus_products, s7_2_f_0) fail
+  the same way in this host's CI gates `ci-gate-691c188e3` and `ci-gate-a176ecda8` (host
+  locale data); none is in code this branch touches.
+* `shstk-enable-hottext4` (`NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products`): rc 0, 33 passed, 0 failed.
+* `shstk-enable-su7`: start-up rows above.
+* Earlier heads (code paths they measure unchanged since): `shstk-enable-percall3` (6e647e491),
+  `nozomi:shstk-enable-n100e`, `nozomi:shstk-enable-cost1`, `shstk-enable-su6`.
+* FULL tier: the train's (csys machine `.S` files: context.S, entry.S, thread_start.S).
