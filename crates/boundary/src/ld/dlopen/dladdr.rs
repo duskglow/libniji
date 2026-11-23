@@ -133,15 +133,17 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         return 0;
     }
     let found = read_section(|v| {
+        // Inside the object's whole range, then its extent (`crate::ld::readers::extent`: the
+        // program the kernel started and `ld.so` hold only their segment runs).
         let holds = |i: usize| {
             let (lo, hi) = v.range(i);
-            lo <= addr && addr < hi
+            lo <= addr && addr < hi && crate::ld::readers::extent_holds(i, addr)
         };
         // The program (the first node) is tried first. Up to `WALK` objects the chain walk is
         // cheaper than the address index (counted per call, validation/percall/dl_objects.c: about
         // 17 instructions a node); past them the index (`crate::ld::index`), and the walk again
-        // when the index cannot tell or its object's range is not the node's (never expected: both
-        // are the `PT_LOAD` span).
+        // when the index cannot tell or its object is not one that holds the address (never
+        // expected: both match by `crate::ld::readers::extent`).
         const WALK: usize = 12;
         let i = if holds(0) {
             0
