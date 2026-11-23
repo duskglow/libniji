@@ -782,37 +782,47 @@ fn model_of<'a>(files: &'a [Vec<u8>], names: &'a [Vec<u8>]) -> (Model, Vec<Obj<'
     (m, objs)
 }
 
-/// s27_1_c_1 (D-27.11 version binding; versions compared by index, LD-SYMBOL-VALIDATE-ONCE): a program
-/// referencing both versions of one name, the older (hidden) one and the default, binds each reference
-/// to its own version's definition whichever comes first in the hash chain, and a second reference to
-/// each version (its definition then known by index) binds the same.
+/// s27_1_c_1 (D-27.11 version binding; versions compared by index, LD-SYMBOL-VALIDATE-ONCE): a library
+/// defines `vf` twice, `vf@V1` (hidden, older) and `vf@@V2` (default), adjacent in one hash chain. A
+/// program linked when V1 was the default binds both its references to the V1 definition, and one
+/// linked against the library as it is binds both to V2: whichever definition comes first in the
+/// chain, each reference binds its own version, and the second reference (its definition then known
+/// by index) binds as the first.
 #[test]
 fn reloc_quick_versions_bind_by_index_each_to_its_own() {
     if !cc_ok() {
         return;
     }
     let d = dir("quickver");
-    std::fs::write(d.join("v.map"), "V1 { local: *; };\nV2 { } V1;\n").unwrap();
+    std::fs::write(d.join("old.map"), "V1 { global: vf; local: *; };\n").unwrap();
+    // Only the two implementations are local: `local: *` would also hide `vf@V1`.
+    std::fs::write(d.join("v.map"), "V1 { local: vf_*; };\nV2 { } V1;\n").unwrap();
+    let old_map = format!("-Wl,--version-script={}", d.join("old.map").display());
     let map = format!("-Wl,--version-script={}", d.join("v.map").display());
+    let old = build(&d, "libv_old.so", "int vf(void) { return 1; }\n", &["-fPIC", "-shared", "-Wl,-soname,libv.so", &old_map]);
     let lib_src = "int vf_1(void) { return 1; }\nint vf_2(void) { return 2; }\n__asm__(\".symver vf_1, vf@V1\");\n__asm__(\".symver vf_2, vf@@V2\");\n";
-    let lib = build(&d, "libv.so", lib_src, &["-fPIC", "-shared", &map]);
-    let src = "extern int vf(void); extern int vf_old(void);\n__asm__(\".symver vf_old, vf@V1\");\n\
-int (*p_new)(void) = vf; int (*p_old)(void) = vf_old; int (*p_new2)(void) = vf; int (*p_old2)(void) = vf_old;\n\
-void _start(void) { for (;;) {} }\n";
-    let prog = build(&d, "prog", src, &["-fPIE", "-pie", "-Wl,--export-dynamic", lib.to_str().unwrap()]);
-    let files = vec![std::fs::read(&prog).unwrap(), std::fs::read(&lib).unwrap()];
-    let names = vec![prog.to_str().unwrap().as_bytes().to_vec(), lib.to_str().unwrap().as_bytes().to_vec()];
-    let (mut m, objs) = model_of(&files, &names);
-    let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
-    let global: Vec<usize> = (0..objs.len()).collect();
-    let set = Objects { objs: &objs, syms: &syms, global: &global };
-    reloc::check_versions(&objs).unwrap();
-    reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut ScopeOrder).unwrap();
-    let def = |v: &[u8]| bias(1) + syms[1].lookup(&Request::new(b"vf", Want::Version(v))).unwrap().unwrap().st.value;
+    let lib = build(&d, "libv.so", lib_src, &["-fPIC", "-shared", "-Wl,-soname,libv.so", &map]);
+    let src = "extern int vf(void);\nint (*p1)(void) = vf; int (*p2)(void) = vf;\nvoid _start(void) { for (;;) {} }\n";
+    let prog_old = build(&d, "prog_old", src, &["-fPIE", "-pie", "-Wl,--export-dynamic", old.to_str().unwrap()]);
+    let prog_new = build(&d, "prog_new", src, &["-fPIE", "-pie", "-Wl,--export-dynamic", lib.to_str().unwrap()]);
+    let lib_bytes = std::fs::read(&lib).unwrap();
+    let lib_elf = Elf::parse::<Native>(&lib_bytes).unwrap();
+    let lib_view = Object::new(lib_elf.dynamic().unwrap().unwrap()).unwrap();
+    let def = |v: &[u8]| bias(1) + lib_view.lookup(&Request::new(b"vf", Want::Version(v))).unwrap().unwrap().st.value;
     let (v1, v2) = (def(b"V1"), def(b"V2"));
     assert_ne!(v1, v2, "two definitions");
-    for (var, want, what) in [("p_new", v2, "vf@@V2"), ("p_old", v1, "vf@V1"), ("p_new2", v2, "vf@@V2 again"), ("p_old2", v1, "vf@V1 again")] {
-        assert_eq!(word(&mut m, bias(0) + sym_value(&files[0], var.as_bytes())), want, "{var} binds {what}");
+    for (prog, want, what) in [(&prog_old, v1, "vf@V1"), (&prog_new, v2, "vf@@V2")] {
+        let files = vec![std::fs::read(prog).unwrap(), lib_bytes.clone()];
+        let names = vec![prog.to_str().unwrap().as_bytes().to_vec(), b"libv.so".to_vec()];
+        let (mut m, objs) = model_of(&files, &names);
+        let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
+        let global: Vec<usize> = (0..objs.len()).collect();
+        let set = Objects { objs: &objs, syms: &syms, global: &global };
+        reloc::check_versions(&objs).unwrap();
+        reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut ScopeOrder).unwrap();
+        for var in ["p1", "p2"] {
+            assert_eq!(word(&mut m, bias(0) + sym_value(&files[0], var.as_bytes())), want, "{} {var} binds {what}", prog.display());
+        }
     }
 }
 

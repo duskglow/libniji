@@ -423,7 +423,9 @@ impl<'a> Object<'a> {
     fn quick_valid(&self, h: &Hashes<'a>) -> bool {
         let Hash::Gnu(g) = &self.hash else { return false };
         let (syms, be) = self.symtab.raw();
-        if be || g.big_endian() || self.dynm.big_endian() || !g.bloom_size().is_power_of_two() {
+        // A Bloom shift of 32 or more leaves the second bit at bit 0, which the quick walk's 32-bit
+        // shift does not give: such a table keeps the exact walk.
+        if be || g.big_endian() || self.dynm.big_endian() || !g.bloom_size().is_power_of_two() || g.bloom_shift() >= 32 {
             return false;
         }
         let Some(count) = self.symtab.count() else { return false };
@@ -583,6 +585,15 @@ impl<'a> Object<'a> {
             Ok(Some(_)) => Step::Next,
             Ok(None) | Err(_) => Step::Slow,
         }
+    }
+
+    /// Whether the exact walk ([`lookup`]) finds the name of definition version `version` without an
+    /// error, as it does for an `STB_GNU_UNIQUE` definition's registry key: the quick walk leaves a
+    /// definition whose name is an error to it (LD-SYMBOL-VALIDATE-ONCE).
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn unique_version_ok(&self, version: u16) -> bool {
+        self.def_version_name(version).is_ok()
     }
 
     /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their

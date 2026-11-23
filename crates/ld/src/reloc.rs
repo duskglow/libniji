@@ -491,13 +491,15 @@ impl Wants {
     }
 }
 
-/// Fills [`Wants`] `w` of object `o` (entry `i` of the list). A malformed version table leaves every
-/// entry unknown (the exact path then reports it).
+/// Fills [`Wants`] `w` of lookup view `me` (entry `i` of the list) from the tables the exact path's
+/// [`Object::reference_want_origin`] reads. A malformed version table leaves every entry unknown (the
+/// exact path then reports it).
 #[cold]
 #[inline(never)]
-fn fill_wants(o: &Obj<'_>, i: usize, w: &mut Wants) {
+fn fill_wants(me: &Object<'_>, i: usize, w: &mut Wants) {
     w.filled = true;
-    let Some(tab) = o.dynm.strtab() else { return };
+    let d = me.dynamic();
+    let Some(tab) = d.strtab() else { return };
     let base = tab.as_ptr().addr();
     let place = |name: &[u8]| -> u32 {
         let off = name.as_ptr().addr().wrapping_sub(base);
@@ -519,7 +521,7 @@ fn fill_wants(o: &Obj<'_>, i: usize, w: &mut Wants) {
             }
         }
     };
-    match o.dynm.verneed() {
+    match d.verneed() {
         Ok(Some(needs)) => {
             for vn in needs {
                 let Ok(vn) = vn else { return };
@@ -532,7 +534,7 @@ fn fill_wants(o: &Obj<'_>, i: usize, w: &mut Wants) {
         Ok(None) => {}
         Err(_) => return,
     }
-    match o.dynm.verdef() {
+    match d.verdef() {
         Ok(Some(defs)) => {
             for d in defs {
                 let Ok(d) = d else { return };
@@ -563,13 +565,14 @@ fn quick_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn 
     if st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT) {
         return Some(Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size }));
     }
-    let (name, gnu) = me.dynamic().hashed_string(st.name).ok()?;
+    // The name as `target` reads it, the version as `Object::reference_want_origin` does.
+    let (name, gnu) = set.objs.get(i)?.dynm.hashed_string(st.name).ok()?;
     let index = me.quick_version(sym)?;
     let want = if index <= VER_NDX_GLOBAL {
         Quick::Oldest
     } else {
         if !wants.filled {
-            fill_wants(set.objs.get(i)?, i, wants);
+            fill_wants(me, i, wants);
         }
         let &(id, at) = wants.ent.get(usize::from(index))?;
         let off = usize::try_from(at.wrapping_shr(8)).ok()?;
@@ -590,7 +593,9 @@ fn quick_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn 
     let Some(f) = found else {
         return Some(if st.bind() == STB_WEAK { Ok(Target { s: 0, ifunc: false, obj: None, size: 0 }) } else { Err(RelocError::Undefined(name)) });
     };
-    if f.def.st.bind() == STB_GNU_UNIQUE && !unique.scope_ordered() {
+    // A unique definition: by scope order alone under `ScopeOrder`, once the exact walk would find
+    // its version's name (the registry's key) without an error; else the exact walk and its registry.
+    if f.def.st.bind() == STB_GNU_UNIQUE && !(unique.scope_ordered() && set.syms.get(f.obj)?.unique_version_ok(f.def.version)) {
         return None;
     }
     if matches!(want, Quick::Version { id: 0, .. }) && f.def.version > VER_NDX_GLOBAL {
