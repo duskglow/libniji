@@ -87,7 +87,12 @@ fn build_pair_quiet_reports_a_failed_build_as_false() {
     }
 }
 
-const OUT: &str ="== open\nok 1\n-- twice\nsame\nsame\n== close\nsame\nok 2\n";
+/// The text of each line, without its header.
+fn text(v: &[(String, String)]) -> Vec<&str> {
+    v.iter().map(|(_, l)| l.as_str()).collect()
+}
+
+const OUT: &str = "== open\nok 1\n-- twice\nsame\nsame\n== close\nsame\nok 2\n";
 
 #[test]
 fn with_headers_gives_each_line_the_last_header_above_it() {
