@@ -19,6 +19,8 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
+use crate::locale_probe::{Probe, Val};
+
 /// The pinned CLDR release (`tools/cldr/cldr_extract.py` `PIN_VERSION`).
 pub const CLDR: &str = "49";
 const DAYS: [&str; 7] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -280,8 +282,9 @@ fn day_index(d: &str) -> usize {
 }
 
 /// The locale source for `name` (`ll_CC[@modifier]`), or None when CLDR does not cover it.
-pub fn source(d: &Data, name: &str) -> Option<String> {
-    let v = d.locales.get(name)?;
+/// `LC_NAME`, `LC_ADDRESS` and `LC_TELEPHONE` come from the probe `p` when it has the name.
+pub fn source(d: &Data, p: Option<&Probe>, name: &str) -> Result<Option<String>, String> {
+    let Some(v) = d.locales.get(name) else { return Ok(None) };
     let g = |k: &str| v.get(k).map(String::as_str).unwrap_or("");
     let base = name.split('@').next().unwrap_or(name);
     let (lang, cc) = base.split_once('_').unwrap_or((base, ""));
@@ -313,18 +316,7 @@ pub fn source(d: &Data, name: &str) -> Option<String> {
     }
     writeln!(w, "END LC_IDENTIFICATION\n").ok();
 
-    writeln!(w, "LC_CTYPE\ncopy {}", quote("i18n")).ok();
-    if matches!(lang, "tr" | "az") {
-        // SpecialCasing.txt's language-conditioned single mappings (dotted and dotless i).
-        writeln!(w, "toupper ({},{})", uname(0x69), uname(0x130)).ok();
-        writeln!(w, "tolower ({},{})", uname(0x49), uname(0x131)).ok();
-    }
-    writeln!(w, "translit_start").ok();
-    for t in ["translit_combining", "translit_compat"] {
-        writeln!(w, "include {};{}", quote(t), quote("")).ok();
-    }
-    writeln!(w, "translit_end\nEND LC_CTYPE\n").ok();
-
+    ctype(w, matches!(lang, "tr" | "az"));
     writeln!(w, "LC_COLLATE\ncopy {}\nEND LC_COLLATE\n", quote("iso14651_t1")).ok();
 
     writeln!(w, "LC_NUMERIC").ok();
@@ -391,6 +383,12 @@ pub fn source(d: &Data, name: &str) -> Option<String> {
     let (h, wd) = if d.terr(cc, "paper") == Some("US-Letter") { (279, 216) } else { (297, 210) };
     writeln!(w, "LC_PAPER\nheight {h}\nwidth  {wd}\nEND LC_PAPER\n").ok();
 
+    if let Some(pn) = p.and_then(|p| p.resolve(name).map(|n| (p, n))) {
+        probed_contact(w, pn.0, pn.1)?;
+        writeln!(w, "LC_MEASUREMENT\nmeasurement {}\nEND LC_MEASUREMENT", if d.terr(cc, "measurement") == Some("US") { 2 } else { 1 }).ok();
+        return Ok(Some(s));
+    }
+
     writeln!(w, "LC_NAME\nEND LC_NAME\n").ok();
 
     writeln!(w, "LC_ADDRESS").ok();
@@ -416,7 +414,169 @@ pub fn source(d: &Data, name: &str) -> Option<String> {
     writeln!(w, "LC_TELEPHONE\nEND LC_TELEPHONE\n").ok();
 
     writeln!(w, "LC_MEASUREMENT\nmeasurement {}\nEND LC_MEASUREMENT", if d.terr(cc, "measurement") == Some("US") { 2 } else { 1 }).ok();
-    Some(s)
+    Ok(Some(s))
+}
+
+/// `LC_CTYPE`: the shared classes and maps (`i18n`), with `turkic` SpecialCasing.txt's
+/// language-conditioned single mappings (dotted and dotless i), and the transliterations.
+fn ctype(w: &mut String, turkic: bool) {
+    writeln!(w, "LC_CTYPE\ncopy {}", quote("i18n")).ok();
+    if turkic {
+        writeln!(w, "toupper ({},{})", uname(0x69), uname(0x130)).ok();
+        writeln!(w, "tolower ({},{})", uname(0x49), uname(0x131)).ok();
+    }
+    writeln!(w, "translit_start").ok();
+    for t in ["translit_combining", "translit_compat"] {
+        writeln!(w, "include {};{}", quote(t), quote("")).ok();
+    }
+    writeln!(w, "translit_end\nEND LC_CTYPE\n").ok();
+}
+
+const NAME_KW: [&str; 6] = ["name_fmt", "name_gen", "name_mr", "name_mrs", "name_miss", "name_ms"];
+const ADDRESS_KW: [&str; 12] =
+    ["postal_fmt", "country_name", "country_post", "country_ab2", "country_ab3", "country_num", "country_car", "country_isbn", "lang_name", "lang_ab", "lang_term", "lang_lib"];
+const TELEPHONE_KW: [&str; 4] = ["tel_int_fmt", "tel_dom_fmt", "int_select", "int_prefix"];
+
+/// One keyword line with the probed value: a string quoted, a number or byte list as printed
+/// (checked to be one); nothing when the probe printed none or an empty list.
+fn probed_kw(w: &mut String, p: &Probe, pn: &str, cat: &str, kw: &str) -> Result<(), String> {
+    match p.get(pn, cat, kw)? {
+        Some(Val::Str(s)) => writeln!(w, "{kw} {}", quote(&s)).ok(),
+        Some(Val::Bare(b)) if b.is_empty() => None,
+        Some(Val::Bare(b)) => {
+            if !b.split(';').all(|n| n.strip_prefix('-').unwrap_or(n).bytes().all(|c| c.is_ascii_digit()) && !n.is_empty()) {
+                return Err(format!("{pn} {cat} {kw}: {b:?} is not a number list"));
+            }
+            writeln!(w, "{kw} {b}").ok()
+        }
+        None => None,
+    };
+    Ok(())
+}
+
+/// A string-list keyword (`abday`, `alt_digits`, ...): `"a";"b"`, checked to have `n` items when
+/// given; nothing when the probe printed an empty list.
+fn probed_list(w: &mut String, p: &Probe, pn: &str, cat: &str, kw: &str, n: Option<usize>) -> Result<(), String> {
+    let Some(Val::Str(s)) = p.get(pn, cat, kw)? else { return Ok(()) };
+    let items: Vec<&str> = s.split(';').collect();
+    if n.is_some_and(|n| n != items.len()) {
+        return Err(format!("{pn} {cat} {kw}: {} items, not {n:?}", items.len()));
+    }
+    writeln!(w, "{kw} {}", items.iter().map(|i| quote(i)).collect::<Vec<_>>().join(";")).ok();
+    Ok(())
+}
+
+/// `LC_NAME`, `LC_ADDRESS` and `LC_TELEPHONE` from the probe of `pn` (no CLDR source: #7791).
+fn probed_contact(w: &mut String, p: &Probe, pn: &str) -> Result<(), String> {
+    for (cat, kws) in [("LC_NAME", &NAME_KW[..]), ("LC_ADDRESS", &ADDRESS_KW[..]), ("LC_TELEPHONE", &TELEPHONE_KW[..])] {
+        writeln!(w, "{cat}\n% probed: the reference's {pn} (spec/locale-probe)").ok();
+        for kw in kws {
+            probed_kw(w, p, pn, cat, kw)?;
+        }
+        writeln!(w, "END {cat}\n").ok();
+    }
+    Ok(())
+}
+
+/// The fingerprint keys of `pn` that differ from the probed name `like`'s (`ctype.` or `coll.`).
+fn differs(p: &Probe, pn: &str, like: &str, prefix: &str) -> Result<Vec<String>, String> {
+    let (Some(a), Some(b)) = (p.prints(pn), p.prints(like)) else { return Err(format!("no fingerprints for {pn} or {like}")) };
+    Ok(a.iter().filter(|(k, v)| k.starts_with(prefix) && b.get(*k) != Some(v)).map(|(k, _)| k[prefix.len()..].to_string()).collect())
+}
+
+/// The locale source for a name CLDR does not cover, every category from the probe of the
+/// reference's locale (#7791). `LC_CTYPE` and `LC_COLLATE` cannot be dumped: they are those of a
+/// generated locale the probe found the reference to behave the same as (fingerprints of every
+/// class, case map and width, and of `wcscoll` over each script group): en_US (`i18n`, root
+/// order) or tr_TR (dotted and dotless i). A difference from both is a gap, written in the
+/// source's comment, and the source takes en_US's (docs/differences-from-glibc.md).
+pub fn probe_source(p: &Probe, name: &str) -> Result<Option<String>, String> {
+    let Some(pn) = p.resolve(name) else { return Ok(None) };
+    let fp = p.resolve(name.split('@').next().unwrap_or(name)).filter(|_| p.prints(pn).is_none()).unwrap_or(pn);
+    let (en, tr) = (differs(p, fp, "en_US.utf8", "ctype.")?, differs(p, fp, "tr_TR.utf8", "ctype.")?);
+    let coll = differs(p, fp, "en_US.utf8", "coll.")?;
+    let mut s = String::new();
+    let w = &mut s;
+    writeln!(w, "comment_char %\nescape_char /\n").ok();
+    writeln!(w, "% {name}: generated by libniji (cargo xtask locale-sources) from a black-box probe of the").ok();
+    writeln!(w, "% reference's compiled {pn} (spec/locale-probe; Unicode CLDR has no data for it).").ok();
+    if !en.is_empty() && !tr.is_empty() {
+        writeln!(w, "% gap: LC_CTYPE differs from en_US's (and tr_TR's) in {}; en_US's is used.", en.join(", ")).ok();
+    }
+    if !coll.is_empty() {
+        writeln!(w, "% gap: LC_COLLATE differs from en_US's (root order) in {}; en_US's is used.", coll.join(", ")).ok();
+    }
+    writeln!(w).ok();
+    let id = |k: &str| p.text(pn, "LC_IDENTIFICATION", k);
+    let (language, territory) = (id("language")?, id("territory")?);
+    writeln!(w, "LC_IDENTIFICATION").ok();
+    let title = format!("{language} locale for {territory}");
+    for (k, val) in
+        [("title", title.as_str()), ("source", "libniji"), ("address", ""), ("contact", ""), ("email", ""), ("tel", ""), ("fax", ""), ("language", &language), ("territory", &territory), ("revision", "probe"), ("date", "")]
+    {
+        writeln!(w, "{k:<10} {}", quote(val)).ok();
+    }
+    for c in ["LC_IDENTIFICATION", "LC_CTYPE", "LC_COLLATE", "LC_TIME", "LC_NUMERIC", "LC_MONETARY", "LC_MESSAGES", "LC_PAPER", "LC_NAME", "LC_ADDRESS", "LC_TELEPHONE", "LC_MEASUREMENT"] {
+        writeln!(w, "category   {};{c}", quote("i18n:2012")).ok();
+    }
+    writeln!(w, "END LC_IDENTIFICATION\n").ok();
+    ctype(w, tr.is_empty() && !en.is_empty());
+    writeln!(w, "LC_COLLATE\ncopy {}\nEND LC_COLLATE\n", quote("iso14651_t1")).ok();
+
+    let plain = |w: &mut String, cat: &str, kws: &[&str]| -> Result<(), String> {
+        writeln!(w, "{cat}").ok();
+        for kw in kws {
+            probed_kw(w, p, pn, cat, kw)?;
+        }
+        writeln!(w, "END {cat}\n").ok();
+        Ok(())
+    };
+    plain(w, "LC_NUMERIC", &["decimal_point", "thousands_sep", "grouping"])?;
+    plain(
+        w,
+        "LC_MONETARY",
+        &[
+            "int_curr_symbol", "currency_symbol", "mon_decimal_point", "mon_thousands_sep", "mon_grouping", "positive_sign", "negative_sign", "int_frac_digits", "frac_digits", "p_cs_precedes",
+            "p_sep_by_space", "n_cs_precedes", "n_sep_by_space", "p_sign_posn", "n_sign_posn", "int_p_cs_precedes", "int_p_sep_by_space", "int_n_cs_precedes", "int_n_sep_by_space",
+            "int_p_sign_posn", "int_n_sign_posn",
+        ],
+    )?;
+    writeln!(w, "LC_TIME").ok();
+    for (kw, n) in [("abday", Some(7)), ("day", Some(7)), ("abmon", Some(12)), ("mon", Some(12)), ("am_pm", Some(2))] {
+        probed_list(w, p, pn, "LC_TIME", kw, n)?;
+    }
+    for kw in ["d_t_fmt", "d_fmt", "t_fmt", "t_fmt_ampm"] {
+        probed_kw(w, p, pn, "LC_TIME", kw)?;
+    }
+    probed_list(w, p, pn, "LC_TIME", "era", None)?;
+    for kw in ["era_d_fmt", "era_d_t_fmt", "era_t_fmt"] {
+        if !p.text(pn, "LC_TIME", kw)?.is_empty() {
+            probed_kw(w, p, pn, "LC_TIME", kw)?;
+        }
+    }
+    probed_list(w, p, pn, "LC_TIME", "alt_digits", None)?;
+    let num = |kw: &str| -> Result<String, String> {
+        match p.get(pn, "LC_TIME", kw)? {
+            Some(Val::Bare(b)) if !b.is_empty() && b.bytes().all(|c| c.is_ascii_digit()) => Ok(b),
+            other => Err(format!("{pn} LC_TIME {kw}: {other:?} is not a number")),
+        }
+    };
+    writeln!(w, "week {};{};{}", num("week-ndays")?, num("week-1stday")?, num("week-1stweek")?).ok();
+    for kw in ["first_weekday", "first_workday", "cal_direction"] {
+        writeln!(w, "{kw} {}", num(kw)?).ok();
+    }
+    for kw in ["date_fmt"] {
+        probed_kw(w, p, pn, "LC_TIME", kw)?;
+    }
+    for kw in ["alt_mon", "ab_alt_mon"] {
+        probed_list(w, p, pn, "LC_TIME", kw, Some(12))?;
+    }
+    writeln!(w, "END LC_TIME\n").ok();
+    plain(w, "LC_MESSAGES", &["yesexpr", "noexpr", "yesstr", "nostr"])?;
+    plain(w, "LC_PAPER", &["height", "width"])?;
+    probed_contact(w, p, pn)?;
+    plain(w, "LC_MEASUREMENT", &["measurement"])?;
+    Ok(Some(s))
 }
 
 /// Code points as `<Ua>..<Ub>` runs joined by `;`, wrapped with `/` continuation lines.
@@ -649,13 +809,18 @@ pub fn iso14651_t1(root: &Path) -> Result<String, String> {
 /// Write every generated file into `out`; returns the number of locale sources.
 pub fn write(root: &Path, out: &Path) -> Result<usize, String> {
     let d = Data::load(root)?;
+    let p = Probe::load(root)?;
     fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let put = |n: &str, text: &str| fs::write(out.join(n), text).map_err(|e| format!("{}/{n}: {e}", out.display()));
     let mut done = BTreeSet::new();
     let mut supported = String::new();
     for (src, entry, cs) in &d.names {
         if src.contains('_') && !done.contains(src) {
-            if let Some(text) = source(&d, src) {
+            let text = match source(&d, Some(&p), src)? {
+                Some(t) => Some(t),
+                None => probe_source(&p, src)?,
+            };
+            if let Some(text) = text {
                 put(src, &text)?;
                 done.insert(src.clone());
             }
@@ -746,7 +911,7 @@ mod tests {
     #[test]
     fn a_source_carries_the_cldr_values_in_every_category() {
         let d = data();
-        let s = source(&d, "xx_DE").expect("xx_DE is covered");
+        let s = source(&d, None, "xx_DE").unwrap().expect("xx_DE is covered");
         for cat in ["LC_IDENTIFICATION", "LC_CTYPE", "LC_COLLATE", "LC_NUMERIC", "LC_MONETARY", "LC_TIME", "LC_MESSAGES", "LC_PAPER", "LC_NAME", "LC_ADDRESS", "LC_TELEPHONE", "LC_MEASUREMENT"] {
             assert!(s.contains(&format!("\n{cat}\n")) && s.contains(&format!("END {cat}")), "{cat} missing:\n{s}");
         }
@@ -776,7 +941,7 @@ mod tests {
 
     #[test]
     fn territory_data_picks_paper_measurement_and_week() {
-        let s = source(&data(), "xx_US").expect("xx_US is covered");
+        let s = source(&data(), None, "xx_US").unwrap().expect("xx_US is covered");
         for l in ["height 279", "width  216", "measurement 2", "first_weekday 1", "week       7;19971130;1", "t_fmt      \"<U0025>r\""] {
             assert!(s.lines().any(|x| x == l), "no line {l:?} in:\n{s}");
         }
@@ -785,7 +950,107 @@ mod tests {
 
     #[test]
     fn a_name_cldr_does_not_cover_is_not_generated() {
-        assert!(source(&data(), "zz_ZZ").is_none());
+        assert!(source(&data(), None, "zz_ZZ").unwrap().is_none());
+    }
+
+    /// A probe dump: xx_DE (CLDR covers it) and zz_ZZ / tt_ZZ (it does not), with fingerprints
+    /// where zz_ZZ behaves as en_US, tt_ZZ as tr_TR and yy_ZZ as neither.
+    fn probe() -> Probe {
+        let mut dump = String::from("# fixture\n");
+        let mut row = |n: &str, c: &str, k: &str, v: &str| dump.push_str(&format!("{n}\t{c}\t{k}\t{v}\n"));
+        for n in ["xx_DE.utf8", "zz_ZZ", "tt_ZZ", "yy_ZZ"] {
+            row(n, "-", "charmap", "UTF-8");
+            for (c, k, v) in [
+                ("LC_NAME", "name_fmt", "\"%d%t%g\""),
+                ("LC_NAME", "name_mr", "\"Herr\""),
+                ("LC_ADDRESS", "postal_fmt", "\"%f%N%a\""),
+                ("LC_ADDRESS", "country_num", "276"),
+                ("LC_ADDRESS", "country_car", "\"D\""),
+                ("LC_TELEPHONE", "tel_int_fmt", "\"+%c %a %l\""),
+                ("LC_TELEPHONE", "int_prefix", "\"49\""),
+                ("LC_IDENTIFICATION", "language", "\"Zed\""),
+                ("LC_IDENTIFICATION", "territory", "\"Zedland\""),
+                ("LC_NUMERIC", "decimal_point", "\",\""),
+                ("LC_NUMERIC", "grouping", "3;3"),
+                ("LC_MONETARY", "int_frac_digits", "2"),
+                ("LC_TIME", "abday", "\"Su;Mo;Tu;We;Th;Fr;Sa\""),
+                ("LC_TIME", "mon", "\"J\\xc3\\xa4n;F;M;A;M;J;J;A;S;O;N;D\""),
+                ("LC_TIME", "era", ""),
+                ("LC_TIME", "week-ndays", "7"),
+                ("LC_TIME", "week-1stday", "19971130"),
+                ("LC_TIME", "week-1stweek", "4"),
+                ("LC_TIME", "first_weekday", "2"),
+                ("LC_TIME", "first_workday", "2"),
+                ("LC_TIME", "cal_direction", "1"),
+                ("LC_MESSAGES", "yesexpr", "\"^[yY]\""),
+                ("LC_PAPER", "height", "297"),
+            ] {
+                row(n, c, k, v);
+            }
+        }
+        for n in ["en_US.utf8", "tr_TR.utf8"] {
+            row(n, "-", "charmap", "UTF-8");
+        }
+        let prints = "en_US.utf8 ctype.alpha=1 ctype.toupper=2 coll.latin=3 coll.greek=4\n\
+            tr_TR.utf8 ctype.alpha=1 ctype.toupper=9 coll.latin=8 coll.greek=4\n\
+            xx_DE.utf8 ctype.alpha=1 ctype.toupper=2 coll.latin=3 coll.greek=4\n\
+            zz_ZZ ctype.alpha=1 ctype.toupper=2 coll.latin=3 coll.greek=4\n\
+            tt_ZZ ctype.alpha=1 ctype.toupper=9 coll.latin=8 coll.greek=4\n\
+            yy_ZZ ctype.alpha=5 ctype.toupper=2 coll.latin=3 coll.greek=7\n";
+        Probe::parse(&dump, prints).unwrap()
+    }
+
+    fn has_line(s: &str, l: &str) -> bool {
+        s.lines().any(|x| x.split_whitespace().collect::<Vec<_>>() == l.split_whitespace().collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn name_address_and_telephone_come_from_the_probe() {
+        let p = probe();
+        let s = source(&data(), Some(&p), "xx_DE").unwrap().unwrap();
+        for l in ["name_fmt \"<U0025>d<U0025>t<U0025>g\"", "name_mr \"Herr\"", "postal_fmt \"<U0025>f<U0025>N<U0025>a\"", "country_num 276", "country_car \"D\"", "int_prefix \"49\""] {
+            assert!(has_line(&s, l), "no line {l:?} in:\n{s}");
+        }
+        assert!(!s.contains("country_ab2"), "LC_ADDRESS is the probe's, not CLDR's:\n{s}");
+        assert!(s.contains("\nEND LC_TELEPHONE\n\nLC_MEASUREMENT\nmeasurement 1\n"), "{s}");
+    }
+
+    #[test]
+    fn a_name_cldr_lacks_is_generated_from_the_probe() {
+        let p = probe();
+        let s = probe_source(&p, "zz_ZZ").unwrap().unwrap();
+        for l in [
+            "title \"Zed locale for Zedland\"",
+            "decimal_point \"<U002C>\"",
+            "grouping 3;3",
+            "int_frac_digits 2",
+            "abday \"Su\";\"Mo\";\"Tu\";\"We\";\"Th\";\"Fr\";\"Sa\"",
+            "mon \"J<U00E4>n\";\"F\";\"M\";\"A\";\"M\";\"J\";\"J\";\"A\";\"S\";\"O\";\"N\";\"D\"",
+            "week 7;19971130;4",
+            "first_weekday 2",
+            "yesexpr \"<U005E><U005B>yY<U005D>\"",
+            "height 297",
+            "name_mr \"Herr\"",
+            "tel_int_fmt \"<U002B><U0025>c <U0025>a <U0025>l\"",
+        ] {
+            assert!(has_line(&s, l), "no line {l:?} in:\n{s}");
+        }
+        assert!(!s.contains("\nera") && !s.contains("toupper") && !s.contains("% gap"), "{s}");
+        let t = probe_source(&p, "tt_ZZ").unwrap().unwrap();
+        assert!(t.contains("toupper (<U0069>,<U0130>)") && t.contains("% gap: LC_COLLATE differs from en_US's (root order) in latin;"), "{t}");
+        let y = probe_source(&p, "yy_ZZ").unwrap().unwrap();
+        assert!(y.contains("% gap: LC_CTYPE differs from en_US's (and tr_TR's) in alpha;") && y.contains("in greek;") && !y.contains("toupper"), "{y}");
+        assert!(probe_source(&p, "qq_ZZ").unwrap().is_none());
+    }
+
+    #[test]
+    fn a_list_with_the_wrong_count_or_a_bad_number_is_refused() {
+        let base = "q_Q\t-\tcharmap\tUTF-8\nen_US.utf8\t-\tcharmap\tUTF-8\ntr_TR.utf8\t-\tcharmap\tUTF-8\n";
+        let fp = "en_US.utf8 ctype.a=1\ntr_TR.utf8 ctype.a=1\nq_Q ctype.a=1\n";
+        let p = Probe::parse(&format!("{base}q_Q\tLC_TIME\tabday\t\"a;b\"\n"), fp).unwrap();
+        assert!(probe_source(&p, "q_Q").unwrap_err().contains("abday: 2 items"));
+        let p = Probe::parse(&format!("{base}q_Q\tLC_NUMERIC\tgrouping\t3;x\n"), fp).unwrap();
+        assert!(probe_source(&p, "q_Q").unwrap_err().contains("not a number list"));
     }
 
     #[test]

@@ -62,6 +62,7 @@ mod affected;
 mod encodings;
 mod encodings_cjk;
 mod charmaps;
+mod locale_probe;
 mod locales;
 mod align;
 mod bench;
