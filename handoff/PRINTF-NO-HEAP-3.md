@@ -1,64 +1,79 @@
-# PRINTF-NO-HEAP-3 (handoff; run 1, end of leg 1)
+# PRINTF-NO-HEAP-3 (handoff; run 1, leg 2)
 
 State: branch `task/printf-no-heap-3` (continues task/printf-no-heap-2 at 629dd2c71; merge base with origin/next
-28843dea1, not merged). Commits: `d61ef591a` dispatcher split (MEASURED WORSE, see below: rework or revert before
-hand-back), `ea69122fb` plants file. Role mei:~/w/s2 (Skylake-SP). Predecessor notes: handoff/PRINTF-NO-HEAP-2.md
-(its cbench "before" column is the land bar), handoff/PRINTF-NO-HEAP.md. Decisions in force: D-12.32, D-12.33;
-ruling #7808 (restructure, no third attribute pass). Nothing of this story runs on mei (chain killed, PID-checked).
+28843dea1, not merged). Code head `32b6f8490`. Role mei:~/w/s2 (Skylake-SP). Decisions in force: D-12.32, D-12.33;
+ruling #7808 (restructure, no third attribute pass). Predecessor notes: handoff/PRINTF-NO-HEAP-2.md (its cbench
+"before" column is the land bar), handoff/PRINTF-NO-HEAP.md. Plants file: handoff/PRINTF-NO-HEAP-3.plants.
 
-## Done
-- Step 0: clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static` green on 629dd2c71.
-- Step 1, cause of the red `printf-no-heap-2-hot-text` (`init_zero_fault_calls_hold_at_every_text_phase`, "pre
-  0x2000: strings 1 faults"), probe-settled with mei `~/work/printf-no-heap-3/diag.sh <tree> <out> <pad>` (links
-  page_faults.c with the test's `pre` pad against a tree's products, prints the strings minflt, records faults with
-  `perf record -e page-faults -d` + tools/hottext/faultmap.py). pad 0x2000: branch 629dd2c71 minflt 1 (3 of 3), base
-  0; pad 0x800 both 0. One fault differs: base faults at `SimpleFormat::pair_s` 0x4207c0 in the WARM-UP (out of
-  line); the branch (pair_s inlined) faults at `dispatch::resolve_fold_slow` ip 0x41fffd in the MEASURED phase
-  (section 0x41ffc0..0x420369 crosses window 0x420000). `resolve_fold_slow` (signature has `strings`, not
-  `strings.pre`) sits near the end of bin 0, the head bin, which straddles two windows at some pads; its second
-  window is mapped in the warm-up only if some warm-up section happens to lie there (base: the incidental `pair_s`).
-  The defect is the planner's (xtask/src/bins.rs `head_takes`/`head_may_take`): RULING NEEDED below.
-- Dispatcher split `d61ef591a`: `format_routed` `#[inline(always)]` (bare `%s` + kept lone plan), out of line
-  `format_planned` (plan, lone, pair, render_plan) and `render_kept` (kept multi-conversion plan).
+## Commits (this story)
+- `d61ef591a` dispatcher split: `format_routed` `#[inline(always)]` (bare `%s` + kept plans), out-of-line
+  `format_planned` (plan, lone, pair, render_simple). Measured +25..28 on snprintf rows: fixed by the two below.
+- `918114f6c` `vsnprintf` `#[inline(always)]` (it had gone out of line from its C entries: call, six saved
+  registers, argument moves = 42 instructions per call); `render_kept` wrapper removed (it cost 37 to save 25 on
+  kept multi-conversion stream plans: fprintf du/ls rows +12).
+- `98bd3673b` conformance/c/s12_registry.c: a handler registered for a built-in letter (`x`) writes every later
+  `%x`, through snprintf and through a memstream that kept the format's plan before the registration (text
+  only). Probe-settled: the reference and libniji print the handler's text in both (mei ~/work/printf-no-heap-3/
+  redef.c; reg-glibc passes the extended program). Plant nh3-planned-skips-hooks now runs that program.
+- `32b6f8490` `vsnprintf` calls `format_routed` directly: `format::<ToBuffer>` had stayed a 15-instruction
+  function between the entry and `format_planned`.
 
-## Measured on d61ef591a (`printf-no-heap-3-cbench-1`, same command as PRINTF-NO-HEAP-2: `cargo xtask bench
---compare --counters --runs 3 cbench_opt cbench_stdio`), instructions per call, before / prev ef49de906 / now:
-snprintf_d 489.5/487.5/**515.5**; ld_large 549.4/547.5/**575.5**; x08 530.5/527.6/**555.6**; s_path
-229.2/231.2/**236.2**; s_d_colon 961.0/941.2/**969.2**; ls_line 2420.9/2379.4/2407; chk_ls_nlink 760.6/699.6/727.6;
-mixed 1997.6/1924.7/1952.6; f2 1110.3/1060.3/1088.3; g 1286.3/1237.3/1265.2; e 1582.3/1532.3/1560.2;
-fprintf_ls_line 1877.2/1877.2/**1889.1**; du_line 842.4/842.3/**854.2**; stdio fprintf_d 633.7/639.5/632.8 (now
-below base); fputs_32 125.0, putc 23.2, fwrite_4k 1087.8 (unchanged). So every ToBuffer row +25..28 vs prev, kept
-multi-conversion stream rows +12: WORSE. Symbols in s2's cbench_opt: `format::<ToBuffer>` inlined (no symbol);
-`format_planned::<ToBuffer>` 0x9579 B (render_simple still inlined); `format_planned::<ToStream>` 0x183d B and
-`render_kept::<ToStream>` 0x20e B (render_simple NOT inlined there: separate calls). Cause of the +28 not yet seen:
-disassemble `__niji_libc_vsnprintf` and `format_planned::<ToBuffer>` (prologue, frame) against the predecessor's
-`~/work/printf-no-heap-2/dis-after-*.s` (script `~/work/printf-no-heap-2/dis.sh`, adapt paths to s2).
-- Hot text on d61ef591a (`printf-no-heap-3-hot-text`): 32 passed, 1 failed, now
-  `init_data_clusters_hold_at_every_text_phase` (hot_text_products.rs:1720); the strings test passed. Layout moves
-  with every printf restructure; re-check on the final head.
-- Plants on d61ef591a (`printf-no-heap-3-plants`): 2 CAUGHT (nh3-kept-count by s12_stdio_symbols
-  sym__IO_fprintf, nh3-bare-s-count), 1 SURVIVED: `nh3-planned-skips-hooks` (no s12_stdio_symbols test registers a
-  conversion for a letter the simple path takes, e.g. `d` or `s`, then prints through snprintf). Add that test
-  (handler registered for `d`: snprintf("%d") must call it; spec: register_printf_specifier clause) or point the
-  plant at the test that has it (conformance/c/s12_registry.c may: check), then re-run plants on the final head.
-- SUPERSEDED: printf-no-heap-3-gate (killed: head to change), the three jobs above (d61ef591a, to be reworked).
+## How the cost was found (method worth reusing)
+gdb instruction trace of ONE call on libniji's own bench binary (mei ~/work/printf-no-heap-3/trace.py:
+`OUT=f FUNC=snprintf FMT=%d HIT=3 gdb -nx -batch -x trace.py --args <cbench_opt>`; FMTREG=rsi for fprintf):
+exact per-function instruction counts, base vs branch. snprintf("%d"): base 437; d61ef591a 463; 918114f6c 446.
+fprintf du_line (HIT=5): base 756, d61ef591a 768. Base binaries: /mnt/zram/claude/printf-no-heap-2/base.
 
-## Exact next step
-1. Profile the +28 (disassembly above) before changing code. Likely shapes to test: keep ToBuffer exactly as prev
-   (format_routed<ToBuffer> one function, kept=None) and split only the stream side (kept lone inline in to_stream,
-   render_kept out of line), since fprintf_d gained there; or move only the bare `%s` check ahead of the call.
-   Keep only what measures at or below "before" on every row; else revert d61ef591a (`git revert`, a new commit).
-2. Re-run: cbench (same command), hot_text (full profile), plants, gate, `cargo xtask test`, precheck, report json,
-   handback-check. A row that cannot reach before: hand back with the per-row table (owner decision, #7808).
+## Measured (cbench, `cargo xtask bench --compare --counters --runs 3 cbench_opt cbench_stdio`, instr/call)
+918114f6c (`printf-no-heap-3-cbench-2`) vs base: s_path 229.2 -> 221.2, s_d_colon 961.5 -> 952.1, ls_line
+2422.9 -> 2390.2, chk_ls_nlink 761.5 -> 710.5, mixed 1998.7 -> 1935.5, f2 1111.8 -> 1071.3, g 1287.7 -> 1248.2,
+e 1583.9 -> 1543.2, f_large 18478.1 -> 17821.3, fprintf_ls_line 1878.1 -> 1874.0, du_line 842.7 -> 839.2,
+fprintf_d 633.7 -> 630.5; ABOVE: snprintf_d 489.6 -> 498.4, ld_large 549.7 -> 558.4, x08 530.8 -> 538.6
+(the format::<ToBuffer> layer, fixed in 32b6f8490). Final head: see "Final head" below.
 
-## RULING NEEDED
+## Final head 32b6f8490
+- clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static` green on the role.
+- cbench `printf-no-heap-3-cbench-3` (rc 0), base / now: snprintf_d 489.6/487.4, ld_large 549.7/546.5, x08
+  530.8/526.6, s_path 229.2/201.2, s_d_colon 961.5/940.1, ls_line 2422.9/2378.4, chk_ls_nlink 761.5/698.6,
+  mixed 1998.7/1923.7, f2 1111.8/1059.4, g 1287.7/1237.3, e 1583.9/1531.4, f_large 18478.1/17813.1,
+  fprintf_ls_line 1878.1/1874.2, du_line 842.7/839.3, fprintf_d 633.7/630.5 (base from PRINTF-NO-HEAP-2's
+  handoff), fputs_32 125.0, putc 23.2, fwrite_4k 1088.2 (not printf code; 1087.8 on d61ef591a). EVERY printf
+  row at or below base. Base counters: /mnt/zram/claude/printf-no-heap-2/base/target/niji/bench/.
+- hot_text `printf-no-heap-3-hot-text-3` (full profile): RED, 32 passed, 1 failed:
+  `init_data_clusters_hold_at_every_text_phase` (hot_text_products.rs:1720): "tool: fault count moves with the
+  text phase": `cold 0x2000` 60, the nine other pads 59. Mode `tool` = setlocale + malloc + printf
+  (crates/core/tests/oracle/page_faults.c:2), so printf's text IS on that measured path: not exempt as
+  LAYOUT-JITTER without evidence. Same test was red on d61ef591a (leg 1); base 28843dea1 green.
+- STILL RUNNING at the end of leg 2 (chain ~/work/printf-no-heap-3/chain3.sh): `printf-no-heap-3-gate-3`
+  (direct tier), then `printf-no-heap-3-xtask-test-3`; and `printf-no-heap-3-plants-3` (3 plants, dir
+  /mnt/zram/claude/printf-no-heap-3/plants-3). Collect: `~/bin/jobwait printf-no-heap-3-gate-3
+  printf-no-heap-3-xtask-test-3 printf-no-heap-3-plants-3`.
+- SUPERSEDED: cbench-1, hot-text, plants, gate (leg 1, d61ef591a); cbench-2 (918114f6c: %d/%ld/%x +8..9);
+  hot-text-2, plants-2 (98bd3673b, killed: head changed). A leg-1 gate orphan (`cargo xtask affected --run`,
+  parent 1) was found still running in s2 and killed with kill-mine.
+
+## Exact next step (leg 3)
+1. Collect the three running jobs (command above); fix what they find.
+2. hot_text: find the faulting section of mode `tool` at pad `cold 0x2000`, base vs branch, the way leg 1 did for
+   strings (adapt ~/work/printf-no-heap-3/diag.sh: link page_faults.c with the test's `cold` pad (see
+   hot_text_products.rs near :1690 for how the cold pad is applied), run `tool`, perf record page-faults +
+   tools/hottext/faultmap.py). If the extra fault is a printf section (format_planned, render_simple, the C
+   entries) crossing a window only at that pad, fix the placement or the code shape (new rare code cold) and
+   re-measure cbench rows (all must stay at or below base); if it is the planner's head-bin defect (leg 1),
+   hand back INCOMPLETE with the evidence under the open RULING NEEDED, never loosen the test.
+3. Then: precheck (`cargo xtask precheck --jobs <labels> --head <sha>`), report json, handback-check.
+
+## RULING NEEDED (from leg 1, still open)
 - Layout planner: a section a measured phase runs (strings: `dispatch::resolve_fold_slow`) may sit in the head
   bin's tail, whose window is mapped during the warm-up only by chance (base: printf's out-of-line `pair_s`).
   Recommend a layout story: end the head bin with a section every mode's start-up runs, or keep measured-phase
-  sections out of the head bin (bins.rs `head_takes`); then phase modes hold at every pad by construction.
+  sections out of the head bin (xtask/src/bins.rs `head_takes`); then phase modes hold at every pad by construction.
 
 ## Follow-ups still open (from PRINTF-NO-HEAP-2)
 #7764 (a) grouped/`I` floats past 128 bytes allocate; (b) registered conversions allocate. Not started.
+
+## Not to redo
+Cause of the leg-1 hot-text red (pre 0x2000 strings fault; planner, above). The +28 profile (done, fixed).
 
 ## Refused
 None.
