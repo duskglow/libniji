@@ -293,7 +293,25 @@ fn image_spans(
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
     // The entries the segments' kinds read, read once (LD-OBJECT-ONCE).
     let tables = probe.image_tables(dynamic);
-    let copy_len = loads().filter(|p| probe.image_span_kind_with(p, &tables) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
+    // Each PT_LOAD's kind, worked out once (each asks about every header): two bits per PT_LOAD for
+    // the first 32, a later one (rare) asked again where it is needed.
+    let code = |k: SpanKind| match k {
+        SpanKind::Unseen => 0u64,
+        SpanKind::Live => 1,
+        SpanKind::Copy => 2,
+    };
+    let shift = |i: usize| u32::try_from(i).unwrap_or(0).wrapping_mul(2);
+    let mut known = 0u64;
+    for (i, p) in loads().enumerate().take(32) {
+        known |= code(probe.image_span_kind_with(&p, &tables)).wrapping_shl(shift(i));
+    }
+    let kind_of = |i: usize, p: &niji_ld::elf::ProgramHeader| match (i < 32).then(|| known.wrapping_shr(shift(i)) & 3) {
+        Some(0) => SpanKind::Unseen,
+        Some(1) => SpanKind::Live,
+        Some(_) => SpanKind::Copy,
+        None => probe.image_span_kind_with(p, &tables),
+    };
+    let copy_len = loads().enumerate().filter(|(i, p)| kind_of(*i, p) == SpanKind::Copy).fold(0usize, |a, (_, p)| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
         let (at, unmap, buf) = scratch(copy_len, name, !published);
@@ -302,7 +320,7 @@ fn image_spans(
     }
     let mut k = 0usize;
     for kind in [SpanKind::Copy, SpanKind::Live] {
-        for p in loads().filter(|p| probe.image_span_kind_with(p, &tables) == kind) {
+        for (_, p) in loads().enumerate().filter(|(i, p)| kind_of(*i, p) == kind) {
             let len = usize::try_from(p.filesz).unwrap_or(usize::MAX);
             if !mapped(p.vaddr, p.filesz) || k == spans.len() {
                 return Err(malformed);
