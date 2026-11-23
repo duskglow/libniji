@@ -1,0 +1,31 @@
+{"task": "SHSTK-ENABLE", "model": "opus", "tokens": null,
+ "result": "Opt-in user shadow stack as the reference: tunables, start-up decision, dlopen policy, clone3 thread shadow-stack size, signal-ucontext setcontext rule; N100 functional runs, controls and cost table",
+ "branch": "task/shstk-enable", "head": "f4e60abca",
+ "gate": {"affected": "FULL: the train's (csys machine .S files); cargo xtask test XTEST; hot_text_products HOTTEXT", "peak": null},
+ "accepted_first_attempt": null,
+ "jobs": ["shstk-enable-xtest3", "shstk-enable-hottext3", "shstk-enable-plants3", "shstk-enable-lint3", "shstk-enable-percall3", "shstk-enable-su6", "nozomi:shstk-enable-n100e", "nozomi:shstk-enable-cost1"],
+ "rulings": [
+  {"item": "makecontext shadow stacks are never unmapped (D-21.7 (5))", "recommendation": "a registry keyed to uc_stack.ss_sp that unmaps the earlier shadow stack when makecontext reuses the same stack memory"},
+  {"item": "reference static programs ignore glibc.cpu.x86_shstk=off with hwcaps=SHSTK; libniji vetoes (differences row, no compat option)", "recommendation": "keep the veto"},
+  {"item": "the -2 instructions per getcontext/swapcontext fix-forward needs uc_flags written in every mode (a default-mode difference)", "recommendation": "keep the default mode exact (net 0 taken)"}
+ ],
+ "informational": [
+  "With GLIBC_TUNABLES set, a libniji dynamic program run directly (libc.so.6 pinned to its install dir) fails to find libc.so.6 (rc 127), the same at 0495c4684; not this branch's",
+  "setcontext on a kernel signal ucontext restores x87 env and MXCSR from the user-context layout (pre-existing); the N100 step passes",
+  "cargo xtask so writes products under the workspace's target/niji even with CARGO_TARGET_DIR set (seen building a base tree)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "setcontext from a signal handler to its ucontext with the shadow stack on (was a control-protection SIGSEGV; N100 control)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "thread shadow stack sized from the thread stack with the opt-in on (RLIMIT_STACK 64 MiB)", "before": 67108864, "after": 262144, "unit": "bytes/thread", "measured": true},
+  {"kind": "cost", "what": "thread_create_join default mode (fix-forward: inline rdssp, about -5)", "before": 36092.0, "after": 36105.2, "unit": "instr/call", "measured": true},
+  {"kind": "cost", "what": "static empty start-up default mode vs SHSTK-OPT-IN head", "before": 2956, "after": 2964, "unit": "instr:u", "measured": true},
+  {"kind": "perf", "what": "dynamic empty start-up default mode vs SHSTK-OPT-IN head (inside run-to-run noise)", "before": 189915, "after": 189944, "unit": "instr:u", "measured": true},
+  {"kind": "cost", "what": "opt-in on, N100: static empty start-up (enable, lock, shadow-stack map, cold pages)", "before": 6275, "after": 7455, "unit": "instr:u", "measured": true},
+  {"kind": "cost", "what": "opt-in on, N100: per thread kernel instructions (reference +13.1k)", "before": 44990, "after": 57722, "unit": "instr:k/thread", "measured": true},
+  {"kind": "coverage", "what": "plants (B, C, K), all caught; conformance step setcontext-from-handler; tunable unit test; linker-built marking test", "before": 0, "after": 3, "unit": "plants", "measured": true},
+  {"kind": "unblock", "what": "owner default-on decision (#154): N100 cost table in handoff/SHSTK-ENABLE-report.md", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "cargo xtask so ignores CARGO_TARGET_DIR for target/niji, and perf under LD_LIBRARY_PATH loads libniji into perf itself: a documented 'measure two revisions' recipe (wl tools for dynamic products) would have saved 5 jobs",
+ "next_step": "land; owner rulings on the makecontext leak policy and the static x86_shstk=off difference",
+ "report_file": "handoff/SHSTK-ENABLE-report.md"}
