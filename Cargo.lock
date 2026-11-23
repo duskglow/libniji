@@ -48,6 +48,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "niji-collate-root"
+version = "0.0.0"
+
+[[package]]
 name = "niji-kernel"
 version = "0.0.0"
 dependencies = [
@@ -80,6 +84,7 @@ version = "0.0.0"
 dependencies = [
  "niji",
  "niji-charmaps",
+ "niji-collate-root",
  "spectest",
 ]
 
