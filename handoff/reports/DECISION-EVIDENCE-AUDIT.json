@@ -1,0 +1,24 @@
+{"task": "DECISION-EVIDENCE-AUDIT", "model": "opus", "tokens": null,
+ "result": "Audit done: 1,008 of 1,474 items flagged, 554 without a measurement; the 4096-key scan causes about 34,700 of 36,026 instructions per pthread_create+join; the start-up data budget charges a page no process faults",
+ "branch": "task/decision-evidence-audit", "head": "87b60f1a6",
+ "gate": {"affected": "no product change: clippy and static on the role (decision-evidence-audit-lint)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Static TLS surplus 64 KiB (R14-4, D-22.6): the record says sized by tunable, the code is a const and glibc.rtld.optional_static_tls is unused; a reused thread stack zeroes the surplus every time", "recommendation": "the reference's default surplus, honour optional_static_tls for the rare case (with #8009), and correct D-22.6"}
+ ],
+ "informational": [
+  "THREAD-CREATE-COST cause: KeyTable::span scans 4096 key words at every cached-stack reuse and thread exit (about 34,700 of 36,026 instructions per create+join, perf annotate); proposal: a high-water mark, then a 1,024-entry key area with growth",
+  "D-X.138 start-up data budget charges the RESERVE_MEM .lbss page; probe 3 measured 0 faults in it (static release)",
+  "Rulings file: RPC 4 MiB record cap (#1466) is moot (RPC stubs, D-29.5); #1317 __libc_freeres is already reversed but still under the provisional heading",
+  "Dynamic one-fopen program: 201,021 vs 138,655 user instructions and 76 vs 57 faults; not linked to any assumption by this audit"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit only: no decision, product or test changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "pthread_create+join user instructions per pair if the key scan goes (projection from the profile)", "before": 36026, "after": 1300, "unit": "instr/pair", "measured": false},
+  {"kind": "unblock", "what": "THREAD-CREATE-COST (cause found), #8009 static TLS surplus (two more facts)", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "A record whose text claims a mechanism (D-22.6: sized by tunable) should be checked against the code by a static check; the filter could flag records naming a tunable that config.rs parses but nothing reads",
+ "next_step": "Brief a story for the key-scan watermark (measure on the create+join percall row); give finding 2 to #8009; check the start-up data budget members by fault address on both profiles",
+ "report_file": "handoff/DECISION-EVIDENCE-AUDIT.md",
+ "jobs": ["shiki:decision-evidence-audit-probe1", "shiki:decision-evidence-audit-probe2", "shiki:decision-evidence-audit-probe3", "shiki:decision-evidence-audit-lint"]}
