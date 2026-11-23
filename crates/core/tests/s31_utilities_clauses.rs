@@ -2,7 +2,7 @@
 // Specify a test by replacing its stub with a real #[test] fn of the SAME NAME (see crates/spectest).
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
-//! Clause tests for spec §31 (113 clauses).
+//! Clause tests for spec §31 (114 clauses).
 
 use spectest::clause;
 
@@ -89,6 +89,7 @@ clause!(s31_8_g_3, "31.8", "Guarantees", r##"Every category file is written: a c
 clause!(s31_8_g_4, "31.8", "Guarantees", r##"The archive: a stored name has its codeset normalized (`de_DE.UTF-8` is `de_DE.utf8`); a NAME without a codeset is stored as given and also with the charmap's normalized codeset before any `@modifier`, one locale under both; compiling a stored name replaces it. `--add-to-archive DIR...` prints `Adding DIR` and stores DIR's files under its last component normalized; an existing name is `locale 'NAME' already exists` and exit 255 unless `--replace`; a missing DIR is `stat of "DIR" failed: ...: ignored`, exit 0. `--delete-from-archive NAME...` removes exact names; a name not stored is `locale "NAME" not in archive`, exit 0. `--no-archive` writes the directory `<prefix>/usr/lib/locale/NAME` with NAME's codeset normalized (probe `localedef-archive`)."##);
 clause!(s31_8_f_1, "31.8", "Failure", r##"A missing source or charmap: `[error] ...` lines and exit 4, no output produced (probe `localedef-nosource`, `localedef-nocharmap`; POSIX `localedef` exit status 4: errors, no output created)."##);
 clause!(s31_8_f_2, "31.8", "Failure", r##"A source line outside any category: `<file>:<line>: syntax error: not inside a locale definition section`, the line skipped, output written, exit 1. An error inside a category: `<file>:<line>: <CATEGORY>: syntax error`; without `-c` exit 4 and no output; with `-c` output written (that category with its default) and exit 1 (POSIX `localedef` exit status 1: warnings or errors, output created) (probe `localedef-syntax`)."##);
+clause!(s31_8_f_3, "31.8", "Failure", r##"An `LC_COLLATE` section without an `order_start` (empty, or `collating-symbol` lines only): `<file>:<END line>: LC_COLLATE: empty category description not allowed`, then `[error] too many errors; giving up`, exit 1 with or without `-c`; the output directory is made and no category file is written. A section with `order_start` and `order_end` and nothing between compiles (probe `localedef-empty-collate`)."##);
 clause!(s31_9_c_1, "31.9", "Contract", r##"Compiles time-zone source (the `Rule`, `Zone`, `Link`, `Leap` and `Expires` lines of zic(8)) into TZif files (RFC 8536; tzfile(5)); libniji's `localtime` reads the same files (§23.5)."##);
 clause!(s31_9_i_1, "31.9", "Inputs", r##"Options (probe `zic-help`; zic(8)): `--version`, `--help`, `-v`, `-b slim|fat`, `-d DIRECTORY`, `-l LOCALTIME`, `-L LEAPSECONDS`, `-p POSIXRULES`, `-r '[@lo][/@hi]'`, `-t LINK`, then source files."##);
 clause!(s31_9_i_2, "31.9", "Inputs", r##"`tzdata` installs `/usr/share/zoneinfo/tzdata.zi` (`# version 2026e` on the reference) and fat TZif version 2 files (`Europe/London` 3664 bytes); there is no `posix/` or `right/` tree (probe `zic-tzdata`)."##);
