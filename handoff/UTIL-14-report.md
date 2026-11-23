@@ -20,6 +20,11 @@ gencat in the libc6-dbg row. No gencat code change. Proof on keke (Zen 1 host), 
 * Plants `util-14-2-plants` (033a496fa, handoff/UTIL-14-plants.txt): 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG (one WARN-DEV-SHM: the RAM dir is under
   /dev/shm, as the brief says for a Zen 1 host; no gencat test mounts its own /dev/shm). Results file:
   handoff/UTIL-14-2-plants.txt. (`util-14-plants3` on 4809e2d1f: 7 CAUGHT.)
+* Test fold (coordinator note 10:27Z: tests cost like code): `611826752` moves gencat_products.rs into
+  catalogs_products.rs as `mod gencat` (body and skip conditions unchanged; D-31.28's test path, the plants file and
+  gencat_lookup.c's comment follow). Proved on that head: gate `util-14-2-gate2`, plants `util-14-2-plants2`,
+  clippy+static `util-14-2-final2` (gate2: 15 suites ok, 1852 passed, 0 failed, peak 3.4G; plants2 in the hand-back; the gate, plants and final jobs above are superseded
+  by these, tests2/pkg2 stay valid for everything but the moved test file).
 * SUPERSEDED: `util-14-2-tests` and `util-14-2-pkg` (bd99cec16, both green) left no tested-content record (their
   command lines did not name the role path, so jobrun could not tell what they tested); re-run as tests2/pkg2.
 
