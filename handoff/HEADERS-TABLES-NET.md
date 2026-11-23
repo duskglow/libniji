@@ -59,4 +59,13 @@ hand-respelled Elf*_Phdr p_type rows): left as they are; only the new types' row
 **Not to redo.** The probes and splices (all additions verified). Scratch scripts: `~/w/.scratch/HEADERS-TABLES-NET/`
 (tpdiff.py, splice_lay.py, dropvis.py, negatives.py).
 
-**Next step.** None if htn-gate1 and htn-plants1 are green: CI. Else fix what they name.
+**Next step (leg 3; leg 2 ended at 13:35Z by REFRESH with the role busy).** All work is pushed; code head afe915972,
+later commits are handoff/ only. 1. `~/bin/jobwait htn-gate1 htn-plants1` on keke (htn-plants1's last plant,
+htn-macro-value, was still running; its 6 settled results are above). If htn-gate1 fails, fix and rerun only the
+failing suite. 2. Sync (`sync_role.sh ... keke n2`; rc 4 = BUSY, wait for the jobs), then start
+`htn-plants2` exactly like htn-plants1 (`cargo xtask plants handoff/HEADERS-TABLES-NET-plants.txt --dir
+/dev/shm/claude/headers-tables-net/plants-2 --timeout 900`, kind plants; about 45 min, `cargo xtask so` alone takes
+830 s). 3. Then `cargo xtask precheck --jobs htn-gate1,htn-plants2 --head <sha>` on the role, update the json `head`
+and gate line, push, `ops handback-check HEADERS-TABLES-NET --head <sha> --jobs "keke:htn-gate1, keke:htn-plants2"`.
+If time is short (deadline 15:53Z), hand back `PENDING JOBS:` naming htn-plants2. SUPERSEDED: htn-plants1 (the
+plants file changed after it: one plant marked equivalent). Leg 2 left nothing running locally.
