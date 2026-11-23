@@ -1219,6 +1219,9 @@ pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut
 }
 
 /// An object a walk uses: one of the caller's (borrowed) or one found for a frame (owned).
+// The owned variant is the object itself, by design: no allocator here, and it is the rare case
+// (a frame outside the objects the caller lists).
+#[allow(clippy::large_enum_variant)]
 enum Held<'o, 'a> {
     Listed(&'o Object<'a>),
     Found(Object<'a>),
