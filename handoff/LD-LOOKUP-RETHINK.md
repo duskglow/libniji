@@ -1,7 +1,7 @@
 # LD-LOOKUP-RETHINK: where a symbol lookup's instructions go, and the walk-level Bloom filter
 
-**State:** branch `task/ld-lookup-rethink` from origin/next 099566cb9; code head ae0361b3b (records, handoff and kit
-commits on top). Role shiki `~/w/sh2` (Haswell-EP, 26 vCPU). Decision D-27.91 (records/decisions/D-27/). Brief:
+**State:** branch `task/ld-lookup-rethink` from origin/next 099566cb9; code head c5e3ff2dc (D1b ae0361b3b, then leg
+2's fix of the prefixed-trace check; records, handoff and kit commits on top). Role shiki `~/w/sh2` (Haswell-EP, 26 vCPU). Decision D-27.91 (records/decisions/D-27/). Brief:
 ~/state/briefs/LD-LOOKUP-RETHINK.md. Kit: handoff/LD-LOOKUP-RETHINK/kit/ (installed as shiki `~/work/ld-lookup-rethink/`).
 **Verdict:** design D1 lands (beats next on every row measured here); target 675 per lookup not reached (1,400).
 Intel PT on the Skylake-SP host was not available (ssh to mei refused, see the report); attribution used a ptrace
@@ -70,19 +70,30 @@ The first form instantiated the chain walk twice (outlined: the definer paid a c
 Only one CPU class measured (Haswell-EP): Zen 1 and Skylake-SP not run here (loader instruction counts differed by
 0.05% between those classes in STARTUP-REPROFILE). Not timed (instructions to work).
 
+## Leg 2: the direct gate's red, and its fix (c5e3ff2dc)
+The gate on the D1b tree failed one test of 363, hot_text_products
+`init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace`: both traces ran the same 106
+functions in the same order, but line 67 named `Object::lookup_in.llvm.2663032009440432103` (prefix /usr/lib/niji)
+against `Object::lookup_in.llvm.18142375468484170381` (the products). ThinLTO promotes `lookup_in` (D1b outlined it)
+and suffixes it with a hash of niji_ld's module; the prefix is compiled into niji_ld, so the suffix differs between
+the flavours by construction. It is the only suffixed name in either trace. The hot list already keys names without
+it (`hottext::key`); `trace_difference` (xtask/src/so.rs) now compares the traces with only `.llvm.<digits>` dropped
+(`hottext::strip_llvm`, now pub(crate)), every other byte exact, a difference reported as traced. Unit test
+`ldso_trace_compares_functions_not_thinlto_suffixes`; plants trace-suffix-exact, trace-key-compare; D-27.91 body.
+
 ## Jobs (shiki)
-Final head: ld-lookup-rethink-d1b (release build, counts, traces, clippy: rc 0), ld-lookup-rethink-plants (5 plants:
-4 CAUGHT, 1 EQUIVALENT, no WARN; handoff/LD-LOOKUP-RETHINK-plants.txt), ld-lookup-rethink-gate (direct tier, 35
-targets), ld-lookup-rethink-startup (cargo xtask test; release products + hot_text_products). Evidence on base:
-ld-lookup-rethink-so-base, -meas-base2 (counts; its trace step failed on a kit bug), -trace-base. Superseded:
--meas-base (kit bug), -d1 (first form). Results of gate/startup: see the report json.
+Final head (tree of c5e3ff2dc), all rc 0: ld-lookup-rethink-gate2 (direct tier: 11 suites, 988 passed, 0 failed,
+peak 3.5G), ld-lookup-rethink-plants2 (7 plants: 6 CAUGHT, 1 EQUIVALENT, 0 SURVIVED, no WARN;
+handoff/LD-LOOKUP-RETHINK-plants.txt), ld-lookup-rethink-startup2 (`cargo xtask test`, then
+`NIJI_FULL_PROFILE=1 cargo xtask so` and `hot_text_products`: green; kit after.sh), ld-lookup-rethink-counts2
+(meas2.sh counts of startup2's full-profile products, kit counts2.sh: the products are byte-identical to the ones
+d1b counted, and every row equals the D1b column of Results: 201,801 / 291,992 / 242,991, 1,399.5 per lookup).
+Superseded: ld-lookup-rethink-d1b (counts, traces, clippy on code head ae0361b3b: the Results above), -plants (5
+plants on ae0361b3b: 4 CAUGHT, 1 EQUIVALENT), -gate (red: the trace check above), -startup (stopped by leg 2: it
+waited behind the red gate on a superseded tree). Evidence on base: ld-lookup-rethink-so-base, -meas-base2 (counts;
+its trace step failed on a kit bug), -trace-base. Superseded earlier: -meas-base (kit bug), -d1 (first form).
 
 ## Next step
-Leg 2 (refresh, nothing to change in code): on shiki `~/bin/jobwait ld-lookup-rethink-gate ld-lookup-rethink-startup`
-(the startup job waits for the gate, then runs `cargo xtask test` and `NIJI_FULL_PROFILE=1 cargo xtask so` +
-`hot_text_products`; logs `~/logs/<label>.log`, read with `~/bin/test-summary`). Green: sync the final head
-(sync_role.sh), `cargo xtask static` on the role, `cargo xtask precheck --jobs ld-lookup-rethink-d1b,
-ld-lookup-rethink-plants,ld-lookup-rethink-gate,ld-lookup-rethink-startup --head <sha>`, fill the gate field of
-handoff/reports/LD-LOOKUP-RETHINK.json and this note's Jobs line, commit, push, `ops handback-check`, hand back
-COMPLETE with the REFUSED line (the report's `refused` entry). Red: fix only the failing suite, rerun it.
-Then: land D1b. Coordinator: brief LD-VERSION-INDEX and LD-RELOC-FLAT (files above); count D1b on Zen 1 / Skylake-SP.
+Nothing left in this story: leg 2 fixed the first gate's red and every final-head job above is green (precheck and
+handback-check on the final head: see the hand-back). Coordinator: land D1b with the trace-check fix; brief
+LD-VERSION-INDEX and LD-RELOC-FLAT (files above); count D1b on Zen 1 / Skylake-SP.
