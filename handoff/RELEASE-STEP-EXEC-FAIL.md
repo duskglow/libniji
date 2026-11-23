@@ -1,87 +1,58 @@
 # RELEASE-STEP-EXEC-FAIL: the CI release step's failed counted runs (exit 127, exit 99)
 
-State: branch `task/release-step-exec-fail`, HEAD = the commit that adds this note (code: bc886b1ac), base origin/next 0495c4684.
-Kind: investigate. Verdict: **cause NOT established**; the branch makes the next failure name its cause and removes a
-latent race. Decisions in force: none new (test-harness change only).
+State: branch `task/release-step-exec-fail`, HEAD = the commit that adds this note (code: bc886b1ac + e01b84ea0),
+base origin/next 0495c4684. Kind: investigate. Decisions in force: none new (test-harness change only).
+Verdict: the release-step exits (127, 99) are **not established**. The **gate red on the direct tier IS established**:
+it is next's, caused by a host change, and fixed by LOCALE-PER-DIR-LOAD (not by this branch).
 
-## LEG 1 END (refresh, 17:08Z): state and exact next step
+## Established (leg 2): next fails `init_data_clusters_hold_at_every_text_phase` on the Skylake-SP CI host since 06:32Z
 
-* Done: clippy (workspace, all targets/features) rc 0 and `cargo xtask static` rc 0 on the role at 155df8005.
-* Plants run 1 (`release-step-exec-fail-plants`, rc 2) is SUPERSEDED: its baseline failed on my own test
-  (`{:?}` printed `unix_wait_status(32512)`, not 127); fixed in e01b84ea0 (`{}`).
-* `release-step-exec-fail-plants-2` (155df8005, dir /mnt/zram/claude/release-step-exec-fail/plants-2) was still
-  running at the refresh: jobwait it.
-* **Gate `release-step-exec-fail-gate` (155df8005) is RED** in the direct tier (nextest, run beside plants-2 and
-  static): `init_data_clusters_hold_at_every_text_phase`: `tool` reads 59 faults at `cold 0x2000`, 58 at the
-  other nine phases. That test counts through `faults_env`, whose directory name this branch changed
-  (`/tmp/niji-hot-text-<pid>-<call%10>` -> `/tmp/niji-hot-t-<pid>-<nnnn>`, both 31 bytes). Not yet known whether the
-  change or jitter/load causes it. The release pair in that job did not run (the `&&` chain stopped).
-* NEXT: on mei s3 (synced at 155df8005, fast products built), run alone (no plants beside it)
-  `cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase` 2x on the branch, then
-  with `crates/core/tests/hot_text_products.rs` of origin/next 2x. If only the branch reads the step, its path
-  content matters (e.g. the `tool` mode reads its directory): restore a name whose bytes match the old one where
-  they can (e.g. keep `niji-hot-text-` and widen only the number, shortening elsewhere), re-gate. If both read it,
-  it is next's: LAYOUT-JITTER per ruling #4347 (INCOMPLETE: LAYOUT-JITTER with next's numbers). Then re-run the
-  gate job (it includes the release pair), precheck `--jobs release-step-exec-fail-gate,release-step-exec-fail-plants-2`
-  on the final head, handback-check, hand back.
+* mei's `/var/log/dpkg.log`: `2026-11-23 06:32:42 install locales-all` (apt history: `apt install locales-all`).
+  `/usr/lib/locale/locale-archive` no longer exists; `/usr/lib/locale` now holds 511 per-locale directories.
+* next 0495c4684 was gated at 06:03Z (before it). CI trains with LOCALE-PER-DIR-LOAD (951 14:07, 952 14:57, 29657fdab
+  15:43; its probes mount their own en_US archive) PASS the test in the fast pass; the trains without it (c07243b9d 16:09,
+  48f597ce3 16:44) FAIL it with exactly next's numbers.
+* Fast products of next (my role, test file of origin/next and of this branch alike, 2+2 runs, rc 101 each):
+  `tool` 59 at `cold 0x2000`, 58 at the other nine phases.
+* Same products, same test, only `/usr/lib/locale` changed in a private mount namespace (`unshare -r -m`, 2 runs each):
+  en_US.UTF-8 **archive** (host `localedef --prefix`): `tool` 45 at all ten phases, **pass**; host directories: 58/59,
+  fail; only the `en_US.utf8` directory: 38/39, fail. So the +1 follows the per-directory locale form, not the branch.
+* The release profile passes it on the host's directories (job `release-step-exec-fail-release`, host arm: 35/35 ok).
+* LOCALE-PER-DIR-LOAD's own `faults_env` comment (tip 6f9fd5047) already states this (58/59 by text pad) and fixes it.
 
-## What the CI logs say (trains 951 tip 0fabf6a8f, 952 tip 6f9fd5047)
+## Release-step exits 127 / 99 (trains with LOCALE-PER-DIR-LOAD only): not established
 
-* Both trains contain `task/locale-per-dir-load` (LOCALE-PER-DIR-LOAD), not on next. It changed `faults_env` in
-  `crates/core/tests/hot_text_products.rs`: each counted run is now
-  `unshare -r -m sh -c 'mount --bind "$1" /usr/lib/locale || exit 99; ...; PATH=$2; exec page_faults relay "$mode"'`.
-* So **exit 99** (952, `init_data_clusters_hold_at_every_text_phase`, cold-800) = the bind mount of
-  `<call dir>/locale` failed, and **exit 127** (951, `init_dynamic_startup_only_program_stays_within_its_page_fault_bound`)
-  = `sh` could not exec `page_faults` from the call directory (file missing, or for that dynamic program its
-  interpreter `/tmp/niji-hot-ldso-<pid>/...` missing). The assert printed only the status, so the logs cannot say
-  which or why.
-* The fast pass runs the same file under nextest (one process per test); the release step runs `cargo test`
-  (all 33 tests in one process, one pid).
+* Only that branch's namespace script exits 99 (`mount --bind <call dir>/locale` failed) or 127 (`exec page_faults`
+  from the call dir not found). Its call dirs are `/tmp/nht-<pid>-<call % 10>`; under `cargo test` all tests share a
+  pid, so a call outlived by 10 later calls loses its directory (gives exactly 127 or 99). 952 failed on the FIRST
+  counted call of its test (cold 0x800 `true`), peak memory 13G of the 16G gate limit.
+* Not reproduced: leg 1 13 release runs (+10 instrumented: at most 5 later calls during any call); leg 2 job
+  `release-step-exec-fail-tipslow` on tip 6f9fd5047, release products, `localedef` slowed by 20 s (the probe-archive
+  OnceLock held while calls queue): tip file 2/2 green, tip + `call_dir` 2/2 green. (a) `rm -rf target/niji*`,
+  (b) zram space, (c) GNU-stack warnings: excluded or not reproduced (leg 1).
 
-## Hypotheses tested
+## The change (bc886b1ac, e01b84ea0)
 
-| hypothesis | result | evidence |
-|---|---|---|
-| (a) `rm -rf target/niji target/niji-test` before the gate | not reproduced | repro 1: cleared, fast `so`, release `so`, release test x3 on tip 6f9fd5047: 3/3 green |
-| (b) /mnt/zram 91-93% full | excluded by construction | every path the failing runs touch (`/tmp/nht-<pid>-<n>/{page_faults,locale}`, `/tmp/niji-hot-ldso-<pid>`) is on the gate wrapper's private tmpfs `/tmp` (189G, 1% used), not on zram. My role (`~/w/s3`) is on zram too, but ran after the 17:05Z cleanup, so my runs do not test the full-disk state |
-| (c) pad objects without `.note.GNU-stack` | excluded | 70 such ld warnings in every green run; the 951 failure links no pad object |
-| (d, mine) `faults_env`'s `<pid>-<call % 10>` directory reused by a later call while an earlier one runs | real latent race, **not shown to fire** | instrumented tip: 10 release runs (4 with the CI condition, `target/product/ld-prefix` rebuilt beside the counts; host load up to 42 on 48 threads): 0 reuses; 67-68 calls per run; at most **5** later calls started during any call (10 needed) |
+* `run_failure`: a failed counted run panics with its status and stderr (test `harness_failed_run_reports_its_stderr`).
+* `call_dir`: every `faults_env` call gets its own directory, same 31-byte length (test
+  `harness_fault_call_dirs_are_never_shared`). Plants: `handoff/RELEASE-STEP-EXEC-FAIL-plants.txt`, 3/3 CAUGHT.
 
-## Not tested (next step if it recurs)
+## Jobs (mei, role s3)
 
-The CI step runs inside the same gate invocation as the 25-minute full tier (same private `/tmp`, possible leftover
-processes), on a host loaded by other jobs. With this branch landed, the failure message carries the run's stderr
-(`mount: ...` or `sh: page_faults: not found`), which names the cause. Probe-settled: nothing (no reference probe).
+* `release-step-exec-fail-gate2` (47546f1f2, code = final): direct tier 34 passed, 1 failed = the test above (next's,
+  host locale form); unsafe-audit, csys-audit, clippy, static ok; peak 1.6G.
+* `release-step-exec-fail-plants-2` (155df8005, code = final): 3/3 CAUGHT.
+* `release-step-exec-fail-release2`: the CI release pair exactly (`NIJI_FULL_PROFILE=1 cargo xtask so && ... cargo test
+  -p niji --test hot_text_products`) on the final code.
+* Superseded: `-gate` (first run, ran beside plants), `-plants` (baseline bug fixed in e01b84ea0), `-release` (script rc
+  = its namespace arm, where `perf` records nothing: `init_startup_data_accesses_are_in_the_data1_cluster`; host arm 35/35).
+  Diagnostics, not proof: `-iso`, `-loc`, `-tipslow`, `-instr` (leg 1).
 
-## The change (bc886b1ac)
+## Exact next step (coordinator)
 
-* `run_failure`: a failed counted run panics with its status and stderr. Test `harness_failed_run_reports_its_stderr`.
-* `call_dir`: every `faults_env` call gets its own directory (`/tmp/niji-hot-t-<pid>-<nnnn>`, 31 bytes as before, so
-  counts do not move). Test `harness_fault_call_dirs_are_never_shared`.
-* Plants: `handoff/RELEASE-STEP-EXEC-FAIL-plants.txt` (3).
-* LOCALE-PER-DIR-LOAD rewrites the same `faults_env` lines (its dir `/tmp/nht-<pid>-<n>`, exec path `<dir>/page_faults`,
-  33 bytes): when it merges next it keeps `call_dir`/`run_failure` with its own fixed-length name
-  (e.g. `/tmp/n-<pid:010>-<n:03>`, same 21-byte dir length as `/tmp/nht-<pid>-<n>`; tested on tip 6f9fd5047 as
-  `fixed.rs`: 8/8 release runs green).
+Land LOCALE-PER-DIR-LOAD and this branch in one train (this branch alone fails the fast pass on mei like every train
+without LOCALE-PER-DIR-LOAD); LOCALE-PER-DIR-LOAD keeps `call_dir` + `run_failure` when it merges (fixed-length name,
+e.g. `/tmp/n-<pid:010>-<n:03>`, tested as leg 1's `fixed.rs`: 8/8 + 2/2 green). The next 127/99 then prints its stderr.
+Earlier coordinator scope (train 953 empty-main bound): LD-START-MAPS +2422 of next's 2972 headroom (leg 1 table, report).
 
-## Coordinator scope (16:11Z): `init_dynamic_empty_main_stays_within_its_instruction_bound`, fast, bound 173600
-
-Skylake-SP host, my role (`/mnt/zram/claude/w/s3`), fast products, `cargo test ... -- --nocapture`, 2 runs each, every
-run identical. "next" = origin/next 0495c4684 plus this branch's test-only change (the products are next's). Each
-candidate = `git merge origin/task/<b>` onto next (all clean), applied alone (job `release-step-exec-fail-instr`).
-
-| tree | instructions | delta vs next | headroom to 173600 |
-|---|---|---|---|
-| next | 170628 | - | 2972 |
-| next + LD-START-MAPS (e3fa3d83a) | 173050 | **+2422** | 550 |
-| next + THREAD-CREATE-COST (7cbd370b4) | 170631 | +3 | 2969 |
-| next + SHSTK-OPT-IN-2 (90fdd8142, fast-forward of next) | 170990 | +362 | 2610 |
-
-next alone is under the bound (not an environment/host finding). The three deltas sum to +2787 (173415, 185 under
-the bound) if they add; train 953 read 173794 in ci-z, so its other stories (or the CI tree) add the rest, about +379
-over the sum. Not measured: the 953 tip itself and its other five stories. LD-START-MAPS uses 81% of the headroom.
-
-## Scratch (mei, ~/work/release-step-exec-fail/)
-
-repro1-4 scripts and logs (r1, r2, r3d, r4), the tip variants (orig/detect/detect2/fixed.rs), candidate patches and
-`instr.sh` (r3). Nothing deleted in ci-z or other roles.
+Scratch (mei ~/work/release-step-exec-fail/): iso.sh, loc.sh, rel.sh, tip.sh, slowbin/, orig/fixed/next .rs, logs.
