@@ -696,7 +696,7 @@ LC_TIME\nabday {}\nday {}\nabmon {}\nmon {}\nd_t_fmt {}\nd_fmt \"%x\"\nt_fmt \"%
     std::fs::write(&path, src).unwrap();
     let out = dir.join("out");
     let run = Command::new("localedef").args(["-c", "-f", "ISO-8859-1", "-i"]).arg(&path).arg(&out).env("LC_ALL", "C").env("I18NPATH", &dir).current_dir(&dir).output();
-    if !matches!(&run, Ok(_) if out.join("LC_TIME").exists()) {
+    if !(run.is_ok() && out.join("LC_TIME").exists()) {
         println!("skip: the reference localedef wrote nothing: {run:?}");
         return;
     }
