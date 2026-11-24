@@ -55,7 +55,8 @@ its remaining kernel gap (+23k held) is page faults (+9.5: written pages), not m
 
 `ld-start-maps-2-lint1` (clippy + static), `-startup2` (full products, `hot_text_products` 37/37), `-krp3`
 (measurement above), `-gate` (direct tier), `-plants` (16 plants: 3 new, 13 of LD-START-MAPS again on the merged
-head; `handoff/LD-START-MAPS-2-plants.txt`), `-xtask-test`. Results: see the report json and the hand-back.
+head; `handoff/LD-START-MAPS-2-plants.txt`), `-xtask-test`. Results: gate all steps ok (peak 3.8G); plants
+16/16 CAUGHT, no WARN; `cargo xtask test` ok (7265, 4850, 129 and 46 tests passed).
 Earlier: `-lint0` (inherited head, clean), `-startup` / `-krp2` (merged head before change 2), `-nextprod` (next's
 products for the comparison), `-krp` (failed: wrong product layout, no measurement).
 
