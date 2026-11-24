@@ -30,8 +30,11 @@ regenerated headers, plants file), then this note and `handoff/reports/HEADERS-G
   output (17 lines each); sizes 4/4/4, values P_ALL..P_PIDFD 0..3, FIND 0 ENTER 1, preorder..leaf 0..3. With
   `<linux/wait.h>` included first, both header sets fail to compile the same way (the kernel's P_* macros in the
   enumerator list).
-* `lint` (clippy -D warnings, `cargo xtask static`, `headers-gen --check`, affected --list), `plants`
-  (`handoff/HEADERS-GEN-SHARED/plants.txt`, 4 plants), `gate`, `precheck`: see the hand-back / report json.
+* `lint`: clippy -D warnings, `cargo xtask static`, `headers-gen --check`: green. `affected --list`: a bounded set
+  (xtask unit tests, clippy, static); FULL: the train's (generated headers, enumerators.tsv, xtask).
+* `gate` (a1e494326): affected ok, 6 suites, 685 passed, 0 failed, 0 SKIPPED, peak 2.2G.
+* `plants2`: 4 plants, 4 CAUGHT, 0 WARN. SUPERSEDED `plants`: its rows-test baseline failed because the plant command
+  passed a relative `--rows` directory (the call-site family units are compiled from another directory).
 
 ## Open
 * INFORMATIONAL 1: `abi_extract.py --layouts-only` on the reference system also produces 19 layouts.tsv rows the
