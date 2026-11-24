@@ -154,3 +154,17 @@ Found by probes against the reference system; amended in the spec on 2026-10-24 
 * §1.7, `ARGP_PARSE_ARGV0` takes effect only together with `ARGP_NO_ERRS`.
 * Clause `s2_2_c_6`: `perror` makes an undecided `stderr` byte-oriented, as the reference does
   (PERROR-HERROR-REFERENCE); the spec said it stays unoriented.
+
+## E14. `MINSIGSTKSZ` is `SIGSTKSZ`'s value where it is not a constant (§20.7, s20_7_i_0)
+
+Clause `s20_7_i_0` says that under `_DYNAMIC_STACK_SIZE_SOURCE` / `_GNU_SOURCE` `MINSIGSTKSZ` calls
+`sysconf(_SC_MINSIGSTKSZ)`; the glibc 2.34 release notes (NEWS) say the same ("MINSIGSTKSZ is redefined to
+sysconf(_SC_MINSIGSTKSZ)"), and the manual describes `_SC_MINSIGSTKSZ` as the kernel's minimum. Black-box probes
+of the reference (a program printing the macro and both `sysconf` values; HEADERS-SIGSTKSZ-MATCH, matrix in
+`handoff/HEADERS-SIGSTKSZ-MATCH.md`) show `MINSIGSTKSZ` equal to `sysconf(_SC_SIGSTKSZ)` in every run-time
+configuration (`-D_GNU_SOURCE`, `-D_DYNAMIC_STACK_SIZE_SOURCE`, g++'s defaults, `-std=c++17`): 14528 where
+`_SC_MINSIGSTKSZ` is 3632 (Skylake-SP host), 8192 where it is 1776 (Zen 1 host). Where it is a constant (no feature
+macro, `-D_XOPEN_SOURCE=700`) it is 2048, as Appendix C has it. **Resolved:** libniji follows the reference (owner
+ruling 2026-11-24, D-20.10): the expansion is the `_SC_SIGSTKSZ` call, so a program rebuilt against libniji gets no
+less alternate-stack room than with the reference, and the larger value is still at least the kernel's minimum the
+clause asks for. Spec text unchanged; the owner decides whether to amend the clause.
