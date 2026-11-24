@@ -722,6 +722,8 @@ fn s20_7_i_0() {
         ss.size = niji_boundary::posix::s24_system::sysconf(250) as usize;
         small && x::sigaltstack(Some(&ss), None) == 0
     });
+    // Under _GNU_SOURCE the macros are sysconf's values in a C program (s20_7_i_0's HIST note).
+    conformance(&["s20_sigstksz_dynamic"]);
 }
 
 #[test]

@@ -64,7 +64,9 @@
 # kernel UAPI headers (target/niji/uapi). Only the programs whose every `#include <...>` one of
 # those directories holds are built (C programs; C++ needs the C++ library's headers); the others
 # are listed NOT-COVERED and are not counted, unless named on the command line (then a FAIL).
-# Executables and logs carry `.lh` (conformance/build/<name>.lh.log), apart from the default mode's.
+# Logs carry `.lh` (conformance/build/<name>.lh.log), apart from the default mode's; executables go
+# in conformance/build/lh/ under the program's own name, so a message that names the program (assert,
+# err, the stack protector) reads as in the default mode.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -173,6 +175,7 @@ verdict() {
 }
 
 mkdir -p "$here/build"
+[ -z "$lh" ] || mkdir -p "$here/build/lh"
 execenv="$here/build/execenv"
 # Executables are linked under a temporary name and renamed into place: a concurrent run
 # (another test binary) may be executing the previous copy, which a rewrite in place would
@@ -210,7 +213,7 @@ if [ $# -eq 0 ]; then
 fi
 for name in "$@"; do
     src="$here/c/$name.c"
-    exe="$here/build/$name${lh:+.lh}"
+    exe="$here/build/${lh:+lh/}$name"
     log="$here/build/$name.log"
     # --niji-headers: its own log (the default line above is the format `cargo xtask affected` reads).
     [ -z "$lh" ] || log="$here/build/$name.lh.log"
@@ -344,7 +347,7 @@ $ldir/lib$h.so"
             IFS=$oldifs
         fi
         if [ -n "$hbad" ]; then
-            echo "conformance: FAIL $name ($hbad; see conformance/build/$name.log)"
+            echo "conformance: FAIL $name ($hbad; see ${log#"$root/"})"
             fail=$((fail + 1))
             continue
         fi
@@ -356,7 +359,7 @@ $ldir/lib$h.so"
     elif ! "$comp" $flags "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$start" $cxxbegin $lang "$src" $lang_end $cxxlibs $libm "$libc" $unwind -lgcc $cxxend -o "$exe.$$" >"$log" 2>&1 \
           || ! mv -f "$exe.$$" "$exe" || ! printf '%s\n' "$key" > "$exe.key"; then
         rm -f "$exe.$$" "$exe.key"
-        echo "conformance: FAIL $name (does not build; see conformance/build/$name.log)"
+        echo "conformance: FAIL $name (does not build; see ${log#"$root/"})"
         fail=$((fail + 1))
         continue
     fi
@@ -377,7 +380,7 @@ $ldir/lib$h.so"
         run_dyn "$exe" "$hdir" ref
         verdict "$name (reference)" "$log.ref.stderr"
         if [ "$ok" -ne 1 ]; then
-            echo "conformance: FAIL $name on the reference (stderr: conformance/build/$name.log.ref.stderr)"
+            echo "conformance: FAIL $name on the reference (stderr: ${log#"$root/"}.ref.stderr)"
             fail=$((fail + 1))
             continue
         fi
@@ -392,7 +395,7 @@ $ldir/lib$h.so"
         elif [ "$ok" -eq 1 ]; then
             pass=$((pass + 1))
         else
-            echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.log.niji.stderr)"
+            echo "conformance: FAIL $name on libniji (stderr: ${log#"$root/"}.niji.stderr)"
             fail=$((fail + 1))
         fi
         continue
@@ -424,7 +427,7 @@ $ldir/lib$h.so"
     if [ "$ok" -eq 1 ]; then
         pass=$((pass + 1))
     else
-        echo "conformance: FAIL $name (stderr: conformance/build/$name.log.stderr)"
+        echo "conformance: FAIL $name (stderr: ${log#"$root/"}.stderr)"
         fail=$((fail + 1))
     fi
 done

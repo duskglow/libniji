@@ -6,7 +6,8 @@ they take from a header of a slice that is not generated yet (`fd_set`, `sigset_
 is not an integer constant expression for P1's array bound. This module runs the same P1 over the two headers without
 those names (DEFERRED). Slices 7 and 14 have landed (SL-HEADERS-S07-TAIL), so `f_owner_ex` is checked. Still left out:
 `MS_NOUSER`, and `OPEN_TREE_CLOEXEC`, which the kernel's linux/mount.h defines as `O_CLOEXEC`, a name <sys/mount.h>
-does not make visible in 17 strict configurations (P1 fails there: an open finding for slice 15's sys/mount.h).
+does not make visible in 17 strict configurations; the reference's <sys/mount.h> does not compile a use there either
+(black-box probe, HEADERS-SMALL-FIXES: all 17 rejected), so P1 has no value to assert in them.
 
 `problems` (no spec clause; HEADERS-WINSIZE-TWICE): a template of this slice includes only a header libniji generates
 (a template `headers/<name>.in`), a kernel UAPI header (`linux/`, `asm/`, `asm-generic/`) or one of the compiler's

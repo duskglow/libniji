@@ -1,0 +1,6 @@
+# HEADERS-SMALL-FIXES-2 plants (cargo xtask plants; docs/plants.md): the conformance report's --niji-headers file names.
+hsf2-build-log-name | xtask/src/affected.rs | lit:in_build("see conformance/build/").map_or_else ==> None::<&str>.map_or_else | cargo test -p xtask --bin xtask conformance | msg:a_failed_niji_headers_conformance_program_reports_its_own_files
+hsf2-fail-line-format | conformance/run.sh | lit:echo "conformance: FAIL $name on libniji (stderr: ${log#"$root/"}.niji.stderr)" ==> echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.niji.stderr)" | cargo test -p xtask --bin xtask conformance | msg:the_conformance_report_matches_the_runner_formats
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hsf2-build-log-name: CAUGHT, caught by xtask affected::tests::a_failed_niji_headers_conformance_program_reports_its_own_files
+# hsf2-fail-line-format: CAUGHT, caught by xtask affected::tests::the_conformance_report_matches_the_runner_formats
