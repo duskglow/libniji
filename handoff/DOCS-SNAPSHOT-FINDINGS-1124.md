@@ -24,3 +24,6 @@ State: branch `task/docs-snapshot-findings-1124`; docs and packaging-description
 ## Next step
 Confirm the lintian W count on a rebuilt libc-bin; regenerate views on the train. The `docs/differences-from-glibc.md`
 `iconv -l` row (D-6.20) still says 982 names; the ICONV-LIST-ALIASES-2 count is 1028: an owner of that row should update it.
+
+## Run 2 (DOCS-SNAPSHOT-FINDINGS-1124-2)
+No lintian (installed only on mei; this story runs on keke, coordinator note). Re-checked inherited head: clippy and `cargo xtask static` green; description templates have no line over 79 columns. The lintian W count (expected 43 -> 42) is checked by the next snapshot validation lint job on mei.
