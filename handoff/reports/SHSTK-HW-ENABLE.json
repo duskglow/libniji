@@ -17,4 +17,4 @@
  "improvement": "cargo xtask plants needs a run-host mode (build on the role, run the cmd on a capability host such as natsumi or the N100) so hardware-only rows can be planted through the tool instead of a hand-built control.",
  "next_step": "Land (test-only); reply to Yohane on #154 with the hwcaps=SHSTK rows.",
  "report_file": "handoff/SHSTK-HW-ENABLE.md",
- "jobs": ["keke:shstk-hw-enable-gate1", "keke:shstk-hw-enable-lint", "keke:shstk-hw-enable-kit2"]}
+ "jobs": ["keke:shstk-hw-enable-gate1", "keke:shstk-hw-enable-lint2"]}

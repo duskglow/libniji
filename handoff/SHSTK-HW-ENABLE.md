@@ -53,8 +53,10 @@ Only natsumi (Zen 3) and the N100 class can.
 `cargo xtask plants` was not used for it. The tool runs the plant's command on the build host, where the row SKIPs,
 so it would report SURVIVED. See the hand-back INFORMATIONAL.
 
-**Jobs (keke):** `shstk-hw-enable-kit1` (before kit), `shstk-hw-enable-kit2` (control + after kit),
-`shstk-hw-enable-lint` (clippy -D warnings + static), `shstk-hw-enable-gate1` (direct tier). natsumi runs were
+**Jobs (keke):** final head: `shstk-hw-enable-gate1` (direct tier: 22 passed, conformance 1 passed, peak 1.5G),
+`shstk-hw-enable-lint2` (clippy -D warnings + static). Evidence: `shstk-hw-enable-kit1` (before kit),
+`shstk-hw-enable-kit2` (control + after kit; test source identical to the final head's). Superseded:
+`shstk-hw-enable-lint` (ran before the clause-test comment). natsumi runs were
 by hand (`nrun.sh`), under ~/work/SHSTK-HW-ENABLE there. Nothing is left running, and the /tmp links are removed.
 
 **Do not redo.** The Zen 3 matrix above. **Next step:** land (test-only change). Reply to Yohane on #154 with the
