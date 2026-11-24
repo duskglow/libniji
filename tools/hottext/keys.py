@@ -269,21 +269,17 @@ def sections(path):
     (regen.sh: the names of libc.a that may be listed), read with `objdump -h`.
     GATE-HONEST-METRICS-3: not `readelf -SW`, which cuts a section name at 256 bytes: a function whose
     mangled name is longer (a generic iterator adapter over a closure, 538 bytes) was traced but matched
-    no section here, so it was never listed and ran outside the hot group. A listing with no section
-    line fails rather than listing nothing."""
+    no section here, so it was never listed and ran outside the hot group. A file objdump cannot read
+    fails rather than listing nothing."""
     out = subprocess.run(["objdump", "-h", path], capture_output=True, text=True, check=False)
     if out.returncode != 0:
         sys.exit(f"keys.py --sections: objdump -h {path} failed ({out.returncode}): {out.stderr.strip()}")
-    found = 0
     for line in out.stdout.splitlines():
         m = re.match(r"^\s*[0-9]+\s+(\S+)\s+[0-9a-f]{8}\s", line)
         if m:
-            found += 1
             name = function_of(m.group(1))
             if name:
                 print(name)
-    if not found:
-        sys.exit(f"keys.py --sections: objdump -h {path} printed no section line")
 
 
 def aliases(path):

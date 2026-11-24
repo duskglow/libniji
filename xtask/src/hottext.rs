@@ -1264,14 +1264,20 @@ mod tests {
         };
         ok(std::process::Command::new("cc").args(["-c", "-O0", "-o"]).arg(tmp.join("fixture.o")).arg(tmp.join("fixture.c")));
         ok(std::process::Command::new("ar").arg("rc").arg(tmp.join("fixture.a")).arg(tmp.join("fixture.o")));
-        let o = std::process::Command::new("python3")
-            .arg("-I")
-            .arg(root.join("tools/hottext/keys.py"))
-            .arg("--sections")
-            .arg(tmp.join("fixture.a"))
-            .output()
-            .expect("python3 runs tools/hottext/keys.py");
+        let sections = |f: &str| {
+            std::process::Command::new("python3")
+                .arg("-I")
+                .arg(root.join("tools/hottext/keys.py"))
+                .arg("--sections")
+                .arg(tmp.join(f))
+                .output()
+                .expect("python3 runs tools/hottext/keys.py")
+        };
+        let o = sections("fixture.a");
+        // A file that is no archive or object (regen.sh handed the wrong path) fails; it never lists nothing.
+        let bad = sections("fixture.c");
         std::fs::remove_dir_all(&tmp).unwrap();
+        assert!(!bad.status.success() && bad.stdout.is_empty(), "keys.py --sections on a C source: {:?}", bad.status);
         assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
         let got = String::from_utf8(o.stdout).unwrap();
         // The compiler's own `.text` (empty) gives no name, as every non-function section; sorted, as the
