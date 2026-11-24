@@ -1,0 +1,5 @@
+# Plants of SL-HEADERS-S20-3 (cargo xtask plants; docs/plants.md): math.h's simd declarations (D-X.170).
+# The staged headers are the committed libc-include/, so each command regenerates them and restages the products.
+s20-3-simd-fastmath | headers/math.h.in | perl:s/defined __FAST_MATH__ && // | cargo xtask headers-gen && cargo xtask so && cargo test -p niji-boundary --test niji_cc_headers niji_cc_loops | msg:not-fast: libniji
+s20-3-simd-decl | xtask/src/headers/functions.rs | perl:s/sym == name && self\.t\.simd\.contains\(name\)/false/ | cargo xtask headers-gen && cargo xtask so && cargo test -p niji-boundary --test niji_cc_headers niji_cc_loops | msg:sinf fast: libniji \[\]
+s20-3-simd-set | xtask/src/headers.rs | perl:s/Ok\(by\.into_keys\(\)\.collect\(\)\)/Ok(by.into_keys().filter(|f| !f.ends_with(char::from(102u8))).collect())/ | cargo xtask headers-gen && cargo xtask so && cargo test -p niji-boundary --test niji_cc_headers niji_cc_loops | msg:sinf fast: libniji \[\]

@@ -12,6 +12,8 @@ __time64_t	emit	R-H3: SL-HEADERS-1 corpus, 4 packages
 __wchar_t	emit	R-H3: SL-HEADERS-1 corpus, 3 packages
 __wint_t	emit	R-H3: SL-HEADERS-1 corpus, 2 packages
 _NET_IF_H	emit	R-H2: include guard tested by the kernel's linux/libc-compat.h
+__CORRECT_ISO_CPP_STRING_H_PROTO	emit	R-H2: tested by the C++ library's <cstring>: string.h declares the [cstring.syn] overloads
+__CORRECT_ISO_CPP_WCHAR_H_PROTO	emit	R-H2: tested by the C++ library's <cwchar>: wchar.h declares the [cwchar.syn] overloads
 _NETINET_IN_H	emit	R-H2: include guard tested by the kernel's linux/libc-compat.h
 _SYS_XATTR_H	emit	R-H2: include guard tested by the kernel's linux/libc-compat.h
 _SIGSET_NWORDS	omit	internal size constant; sigset_t's size comes from typedefs.tsv

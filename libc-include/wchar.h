@@ -63,6 +63,10 @@ typedef struct _IO_FILE FILE;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D___locale_t
+#  define __NIJI_D___locale_t 1
+typedef struct __locale_struct * __locale_t;
+# endif
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
 typedef struct __locale_struct * locale_t;
@@ -1183,6 +1187,9 @@ typedef __builtin_va_list va_list;
 
 #if 1
 # ifdef __cplusplus
+/* Tells the C++ library's <cwchar> that these overloads are declared here, so it declares none of its own in std
+   (R-H2, D-X.169). */
+#  define __CORRECT_ISO_CPP_WCHAR_H_PROTO 1
 extern "C++" {
 extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr") __attribute__ ((__pure__));
 extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr") __attribute__ ((__pure__));

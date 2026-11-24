@@ -12,8 +12,15 @@ niji-gcc, niji-g++ \- build programs that run on the libniji C library
 runs the system's
 .BR gcc (1)
 (\fBniji-g++\fR: \fBg++\fR(1)).
-Compiling (\fB\-c\fR, \fB\-S\fR, \fB\-E\fR, \fB\-M\fR, \fB\-MM\fR) is unchanged and uses
-the system's C headers.
+Compiling uses libniji's own C headers from
+.I /usr/lib/niji/usr/include
+(and its
+.I x86_64\-linux\-gnu
+directory), never the system's: the compiler runs with \fB\-nostdinc\fR, then (C++) the C++
+library's directories, libniji's headers, the compiler's own include directory and the kernel
+headers of \fBlinux-libc-dev\fR, after the program's own \fB\-I\fR and \fB\-isystem\fR directories.
+A program that passes \fB\-nostdinc\fR gets no directory added; with \fB\-nostdinc++\fR the C++
+library's directories are left out.
 A link uses only libniji's start files and libraries from the sysroot
 .I /usr/lib/niji
 and sets the program interpreter to
@@ -34,8 +41,12 @@ system library names its directory with \fB\-Wl,\-rpath,\fR\fIdir\fR.
 The compilers (default \fBgcc\fR and \fBg++\fR).
 .TP
 .B NIJI_SYSROOT
-Where the link-time files are read from (default \fI/usr/lib/niji\fR).
+Where the link-time files and the headers are read from (default \fI/usr/lib/niji\fR).
 The program interpreter is always the installed loader.
+.TP
+.B NIJI_SYSTEM_HEADERS
+When set and not empty, compile with the system's C headers instead of libniji's (libniji
+implements the glibc 2.39 ABI they describe).
 .SH SEE ALSO
 .BR gcc (1),
 .BR ld (1)

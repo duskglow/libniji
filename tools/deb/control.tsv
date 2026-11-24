@@ -63,7 +63,7 @@ niji6	Architecture	amd64
 niji6	Priority	optional
 niji6	Section	libs
 niji6-dev	Architecture	amd64
-niji6-dev	Depends	niji6 (= $version), gcc, libc6-dev, binutils
+niji6-dev	Depends	niji6 (= $version), gcc, libc6-dev, linux-libc-dev, binutils
 niji6-dev	Priority	optional
 niji6-dev	Recommends	g++
 niji6-dev	Section	libdevel

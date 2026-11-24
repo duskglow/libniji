@@ -1,0 +1,17 @@
+{"task": "SL-HEADERS-S20-4", "model": "opus", "tokens": null,
+ "result": "rows test red fixed: __NIJI_SIMD now defined in features.h beside __NIJI_NOTHROW (was math.h only); next merged; rows test, simd tests and 1 plant green",
+ "branch": "task/sl-headers-s20-4", "head": "6e5d31009",
+ "gate": {"affected": "FULL escalated (headers/*.h.in are generator inputs): the train's; rows test by name 1 passed / 0 failed; niji_cc_headers 5 passed; deb_manifest libmvec guard 1 passed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The rows test takes 9.6 s green and 1563 s red on keke (the CI's 1150 s was the failure itself)."],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "every rows-test unit (C families, C++ families, run-time unit) failed to parse: a libmvec scalar declared in a unit without <math.h> carried an undefined __NIJI_SIMD; now defined in features.h for every unit", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants added (s20-4-simd-everywhere, CAUGHT)", "before": 0, "after": 1, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "slice 20 (libniji headers by default) can land; it blocks Yohane stage 2", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A header-generator change should run the rows test by name in its test job: about 10 s when green, and run 3 missed this red without it.",
+ "next_step": "Land on the train; then the diagattrs __const__ conditions, SL-HEADERS-P4-CALLSITES, SL-HEADERS-COMPLEX-TGMATH.",
+ "report_file": "handoff/SL-HEADERS-S20-report.md",
+ "jobs": ["keke:sl-headers-s20-4-rows", "keke:sl-headers-s20-4-t1", "keke:sl-headers-s20-4-plants1"]}

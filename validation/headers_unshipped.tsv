@@ -1,0 +1,17 @@
+# Headers the spec tables name (spec/abi visibility.tsv, typedefs.tsv, callsites.tsv, noexcept.tsv: the
+# `header` column) that libniji does not ship yet. Read by validation/headers_p4.py (P4 of plan/headers.md,
+# slice 20): the list must equal the named headers with no file under libniji's staged tree, so a header that
+# ships fails P4 until its row is removed here (the list only shrinks), and a header missing without a row
+# fails too. A C++ header that fails only because one of these is not found counts as "known", not FAIL, and
+# P4 compares callsites.tsv and noexcept.tsv without their rows. Known limitation of the slice 20 switch
+# (docs/release-notes.d/SL-HEADERS-S20-2.md); `NIJI_SYSTEM_HEADERS=1` compiles a package that needs one of
+# them with the system's headers (coexist flavour). No spec clause: header tooling (plan/headers.md P4).
+# Columns, tab-separated: header, what it waits for.
+header	waits_for
+aio.h	struct sigevent and struct aiocb64 in the generator's tables (plan/headers.md slice 14)
+complex.h	a slice of its own: a C++ spelling for union typedefs and the C++ library wrappers' rows (D-10.125)
+finclude/x86_64-linux-gnu/math-vector-fortran.h	a Fortran output form of the generator, fed by the libmvec tables (D-10.125)
+mqueue.h	struct sigevent in the generator's tables (plan/headers.md slice 14)
+proc_service.h	a template (plan/headers.md slice 16; R-H7: ship, for debuggers)
+tgmath.h	a slice of its own: type-generic macro rows (D-10.125)
+thread_db.h	a template (plan/headers.md slice 16; R-H7: ship, for debuggers)

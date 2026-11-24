@@ -179,6 +179,10 @@ struct Tables {
     attrs: BTreeMap<String, String>,
     /// `diagattrs.tsv` rows with noreturn `nonzero:K`: the function and K (1-based), for the GCC wrapper (functions.rs).
     nonzero_noreturn: BTreeMap<String, usize>,
+    /// The scalar functions whose vector variants `libmvec.so.1` exports (versions.tsv): their declarations carry
+    /// `__NIJI_SIMD` (features.h.in defines it, beside `__NIJI_NOTHROW`, so every unit with a declaration has it),
+    /// so a vectorizing compiler calls those variants (D-X.170).
+    simd: BTreeSet<String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
@@ -356,7 +360,9 @@ fn load(root: &Path) -> Result<Tables, String> {
         }
     }
     let attrs = diag.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
-    let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
+    let versions = tsv(root, "spec/abi/versions.tsv")?;
+    let simd = simd_scalars(&versions)?;
+    let exported = versions.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
     let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
@@ -369,7 +375,37 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, simd, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+}
+
+/// The scalar functions of the `libmvec.so.1` rows of versions.tsv (D-X.170). GCC's `simd ("notinbranch")` attribute
+/// makes a vectorizing caller pick the unmasked variant of each of the four x86-64 ISA classes (`b`, `c`, `d`, `e`),
+/// with the lane count of the element type, so a function is declared simd only when the table has exactly those
+/// four variants, one parameter shape and one element type; anything else is an error, never a call to a missing symbol.
+fn simd_scalars(versions: &Rows) -> Result<BTreeSet<String>, String> {
+    let mut by: BTreeMap<String, Vec<crate::libmvec::Variant>> = BTreeMap::new();
+    let mut bad = Vec::new();
+    for r in versions.iter().filter(|r| r["library"] == crate::libmvec::SONAME && r["binding"] == "default") {
+        match crate::libmvec::parse(&r["symbol"]) {
+            Some(v) => by.entry(v.scalar.clone()).or_default().push(v),
+            None => bad.push(format!("{}: not an unmasked vector variant", r["symbol"])),
+        }
+    }
+    for (f, vs) in &by {
+        let isas: Vec<char> = vs.iter().map(|v| v.isa).collect();
+        let elems: BTreeSet<Result<&str, String>> = vs.iter().map(crate::libmvec::element).collect();
+        let shapes: BTreeSet<&str> = vs.iter().map(|v| v.params.as_str()).collect();
+        let mut sorted = isas.clone();
+        sorted.sort_unstable();
+        if sorted != ['b', 'c', 'd', 'e'] || elems.len() != 1 || elems.iter().any(Result::is_err) || shapes.len() != 1 {
+            bad.push(format!("{f}: variants {isas:?}, element types {elems:?}, shapes {shapes:?}: want one each of b, c, d, e of one element type and shape"));
+        }
+    }
+    if bad.is_empty() {
+        Ok(by.into_keys().collect())
+    } else {
+        Err(format!("spec/abi/versions.tsv {}: {}", crate::libmvec::SONAME, bad.join("; ")))
+    }
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export

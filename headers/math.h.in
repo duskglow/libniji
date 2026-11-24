@@ -1,6 +1,7 @@
 @@generated
 /* math.h: mathematics (C 7.12, XSH <math.h>, TS 18661-1..4). The classification and comparison macros use
-   the compiler builtins GCC's manual documents (fpclassify, isinf_sign, ...). No `simd` declarations. */
+   the compiler builtins GCC's manual documents (fpclassify, isinf_sign, ...). The functions libmvec.so.1 has
+   vector variants of are declared `simd` under `__FAST_MATH__` (D-X.170). */
 #ifndef __NIJI_H_math_h
 #define __NIJI_H_math_h 1
 

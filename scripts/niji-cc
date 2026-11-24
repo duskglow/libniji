@@ -4,8 +4,14 @@
 #
 #   CC=/path/to/niji/scripts/niji-cc ./configure ...
 #
-# Compiling (-c, -S, -E, -M, -MM) is the real compiler with the system's headers (the installed
-# glibc 2.39 headers: libniji is ABI-compatible with them), unchanged. Linking is what the C
+# Compiling uses libniji's own C headers (plan/headers.md slice 20), as `conformance/run.sh
+# --niji-headers` does: -nostdinc, then (C++ only) the C++ library's directories as the compiler
+# lists them, the headers `cargo xtask so` staged in <products>/include, the compiler's own include
+# directory and the staged kernel UAPI headers (<products>/uapi), appended after the program's own
+# -I/-isystem directories. With -nostdinc among the arguments nothing is added; with -nostdinc++
+# the C++ library's directories are left out. NIJI_SYSTEM_HEADERS=1 compiles with the system's
+# headers instead (libniji is ABI-compatible with the glibc 2.39 headers), as before slice 20.
+# Linking is what the C
 # conformance suite does (conformance/run.sh): -static -nostdlib, libniji's start object first,
 # the program's objects and libraries, then libniji's libc.a and libgcc. The libraries glibc
 # splits out of libc (-lpthread, -lrt, -ldl, -lutil, -lanl, -lresolv, -lc) are dropped: their
@@ -23,6 +29,39 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 products=${NIJI_PRODUCTS:-${CARGO_TARGET_DIR:-$here/../target}/niji}
 cc=${NIJI_REAL_CC:-gcc}
+
+# The header search path (appended). The language is C++ for a C++ compiler (NIJI_REAL_CC=g++),
+# after `-x c++`, or for a C++ source name.
+lang=c
+case ${cc##*/} in *++) lang=c++ ;; esac
+hdr=yes; cxxdirs=yes; prev=""
+[ -n "${NIJI_SYSTEM_HEADERS:-}" ] && hdr=no
+for a in "$@"; do
+    case $prev:$a in
+        -x:c++ | *:-xc++ | *:*.cc | *:*.cp | *:*.cxx | *:*.cpp | *:*.CPP | *:*.c++ | *:*.C | *:*.ii) lang=c++ ;;
+    esac
+    case $a in
+        # -shared: a test's LD_PRELOAD library, built untouched as below.
+        -nostdinc | -shared) hdr=no ;;
+        -nostdinc++) cxxdirs=no ;;
+    esac
+    prev=$a
+done
+if [ $hdr = yes ]; then
+    if [ ! -f "$products/include/features.h" ] || [ ! -d "$products/uapi" ]; then
+        echo "niji-cc: $products/include or $products/uapi is missing (run cargo xtask so, or set NIJI_SYSTEM_HEADERS=1)" >&2
+        exit 1
+    fi
+    gccinc=$("$cc" -print-file-name=include)
+    set -- "$@" -nostdinc
+    if [ $lang = c++ ] && [ $cxxdirs = yes ]; then
+        # The compiler's own search list (its -v report), C++ library directories only.
+        for d in $("$cc" -x c++ -E -v - </dev/null 2>&1 | sed -n '/^#include <\.\.\.> search starts here:/,/^End of search list\./s/^ \(.*\/c++\/.*\)/\1/p'); do
+            set -- "$@" -isystem "$d"
+        done
+    fi
+    set -- "$@" -isystem "$products/include" -isystem "$gccinc" -isystem "$products/uapi"
+fi
 
 link=yes
 for a in "$@"; do

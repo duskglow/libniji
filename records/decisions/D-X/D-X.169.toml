@@ -1,0 +1,9 @@
+id = "D-X.169"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S20-2"
+date = "2026-11-24"
+tests = ["validation/headers_p4.py"]
+body = '''
+**Liella's headers declare `__locale_t` and define `__CORRECT_ISO_CPP_STRING_H_PROTO` and `__CORRECT_ISO_CPP_WCHAR_H_PROTO`, the reserved names the compiler's C++ library needs from the C library's headers** (SL-HEADERS-S20-2, plan/headers.md P4; owner ruling #8412 of 2026-11-24; rulings R-H2 and R-H3). The C++ library's locale support (`c++locale.h`, reached by `<iostream>`, `<locale>`, `<sstream>`) names `__locale_t`; it belongs to the compiler, so it cannot be patched per package as a program's source can (plan/headers.md section 0). `<cstring>` and `<cwchar>` test the two macros and, when they are absent, declare their own non-const overloads of the search functions in `std`, which collide with the [cstring.syn] and [cwchar.syn] overloads that string.h and wchar.h already declare. The three names are `emit` rows of headers/reserved.tsv, so spec/tools/header_probe.py probes them on the reference and the generator declares them exactly where the reference shows them (visibility.tsv, typedefs.tsv). Found by P4 (validation/headers_p4.py): every C++ standard library header in every `-std` compiles on Liella's headers wherever it compiles on the reference.
+'''

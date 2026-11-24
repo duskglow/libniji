@@ -102,7 +102,10 @@ check_calls() { # <probe> <n>: after its trace (names.<n>)
 cc -std=gnu17 -O1 -static -nostdlib -fno-builtin "$P/niji-crt1.o" "$T/crates/core/tests/oracle/page_faults.c" \
     "$P/libc.a" -lgcc -o page_faults
 for p in $probes; do
-    NIJI_PRODUCTS=$P "$T/scripts/niji-cc" -O2 -o "$p" "$p.c"
+    # NIJI_SYSTEM_HEADERS=1: the probes compile as the hot lists were measured (the system's
+    # headers; libniji's give the same call sites, plan/headers.md P3), and the trace's products
+    # directory stages no headers.
+    NIJI_SYSTEM_HEADERS=1 NIJI_PRODUCTS=$P "$T/scripts/niji-cc" -O2 -o "$p" "$p.c"
     if [ "$p" = p_cat ]; then
         # HOT-ORDER-3: p_cat's read path here (empty stdin), its write path (fwrite) at the end of the
         # group below: fwrite ahead of the printf group cost the first snprintf one fault (Ivy Bridge host B:

@@ -60,16 +60,20 @@ impl Gen<'_> {
     pub(super) fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
         // The attributes (slice 19) come after the assembler label (GCC's declarator order).
         let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
+        // A libmvec function bound to its own name (the variants' names are the symbol's) is declared simd
+        // (D-X.170); `__NIJI_SIMD` comes from features.h (as `__NIJI_NOTHROW` does), empty unless the configuration
+        // vectorizes.
+        let simd = if sym == name && self.t.simd.contains(name) { " __NIJI_SIMD" } else { "" };
         match self.t.lfs.get(name) {
             Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
                 format!("{ind}if __NIJI_FOB64"),
                 format!("extern {decl}{nt} __asm__ (\"{y}\"){at};"),
                 format!("{ind}else"),
-                format!("extern {decl}{nt}{at};"),
+                format!("extern {decl}{nt}{at}{simd};"),
                 format!("{ind}endif"),
             ],
             _ if sym != name => vec![format!("extern {decl}{nt} __asm__ (\"{sym}\"){at};")],
-            _ => vec![format!("extern {decl}{nt}{at};")],
+            _ => vec![format!("extern {decl}{nt}{at}{simd};")],
         }
     }
 

@@ -24,6 +24,10 @@ typedef int __pid_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D___locale_t
+#  define __NIJI_D___locale_t 1
+typedef struct __locale_struct * __locale_t;
+# endif
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
 typedef struct __locale_struct * locale_t;

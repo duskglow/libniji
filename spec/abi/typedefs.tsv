@@ -588,6 +588,7 @@ function	__llroundl	complex.h			long long (long double)
 function	__loc_aton	resolv.h			int (char const*, unsigned char*)
 function	__loc_ntoa	resolv.h			char const* (unsigned char const*, char*)
 struct	__locale_struct	argp.h	232	8	__locale_struct
+typedef	__locale_t	argp.h	8	8	__locale_struct*
 function	__log	complex.h			double (double)
 function	__log10	complex.h			double (double)
 function	__log10f	complex.h			float (float)

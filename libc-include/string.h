@@ -15,6 +15,10 @@ typedef unsigned long size_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D___locale_t
+#  define __NIJI_D___locale_t 1
+typedef struct __locale_struct * __locale_t;
+# endif
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
 typedef struct __locale_struct * locale_t;
@@ -434,6 +438,9 @@ __NIJI_FORTIFY_FN char *strncpy (char *__p0, const char *__p1, unsigned long __p
 
 #if 1
 # ifdef __cplusplus
+/* Tells the C++ library's <cstring> that these overloads are declared here, so it declares none of its own in std
+   (R-H2, D-X.169). */
+#  define __CORRECT_ISO_CPP_STRING_H_PROTO 1
 extern "C++" {
 extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr") __attribute__ ((__nonnull__ (1), __pure__));
 extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr") __attribute__ ((__nonnull__ (1), __pure__));

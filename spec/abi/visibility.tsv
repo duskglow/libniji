@@ -809,6 +809,7 @@ argp.h	__isupper_l	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199
 argp.h	__isxdigit_l	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 argp.h	__key_t	typedef	!time64only
 argp.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+argp.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 argp.h	__mbstate_t	typedef	!time64only
 argp.h	__mode_t	typedef	!time64only
 argp.h	__nlink_t	typedef	!time64only
@@ -1220,6 +1221,7 @@ argz.h	_STRING_H	macro	!time64only
 argz.h	_SYS_CDEFS_H	macro	!time64only
 argz.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 argz.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+argz.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 argz.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 argz.h	__argz_count	function	!time64only
 argz.h	__argz_create	function	!time64only
@@ -1229,6 +1231,7 @@ argz.h	__argz_stringify	function	!time64only
 argz.h	__errno_location	function	!time64only
 argz.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 argz.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+argz.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 argz.h	__memcmpeq	function	!time64only
 argz.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 argz.h	__stpcpy	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -4771,6 +4774,7 @@ complex.h	_WCTYPE_H	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	_WINT_T	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+complex.h	__CORRECT_ISO_CPP_WCHAR_H_PROTO	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__FILE	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 complex.h	__acos	function	cxx11,cxx14,cxx17,cxx20,cxx23
@@ -5427,6 +5431,7 @@ complex.h	__llroundf64	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__llroundf64x	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__llroundl	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__locale_struct	struct	cxx11,cxx14,cxx17,cxx20,cxx23
+complex.h	__locale_t	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__log	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__log10	function	cxx11,cxx14,cxx17,cxx20,cxx23
 complex.h	__log10f	function	cxx11,cxx14,cxx17,cxx20,cxx23
@@ -7518,6 +7523,7 @@ ctype.h	__isupper_l	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix19
 ctype.h	__isxdigit_l	macro	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 ctype.h	__key_t	typedef	!time64only
 ctype.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+ctype.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 ctype.h	__mode_t	typedef	!time64only
 ctype.h	__nlink_t	typedef	!time64only
 ctype.h	__off64_t	typedef	!time64only
@@ -11319,6 +11325,7 @@ envz.h	_STRING_H	macro	!time64only
 envz.h	_SYS_CDEFS_H	macro	!time64only
 envz.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 envz.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+envz.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 envz.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 envz.h	__argz_count	function	!time64only
 envz.h	__argz_create	function	!time64only
@@ -11328,6 +11335,7 @@ envz.h	__argz_stringify	function	!time64only
 envz.h	__errno_location	function	!time64only
 envz.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 envz.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+envz.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 envz.h	__memcmpeq	function	!time64only
 envz.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 envz.h	__stpcpy	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -13934,6 +13942,7 @@ langinfo.h	__INT_CURR_SYMBOL	enumerator	!time64only
 langinfo.h	__INT_FRAC_DIGITS	enumerator	!time64only
 langinfo.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 langinfo.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+langinfo.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 langinfo.h	catclose	function	!time64only
 langinfo.h	catgets	function	!time64only
 langinfo.h	catopen	function	!time64only
@@ -14208,6 +14217,7 @@ libintl.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 libintl.h	__dcgettext	function	!time64only
 libintl.h	__dgettext	function	!time64only
 libintl.h	__locale_struct	struct	fortify1,fortify2,fortify3
+libintl.h	__locale_t	typedef	fortify1,fortify2,fortify3
 libintl.h	bind_textdomain_codeset	function	!time64only
 libintl.h	bindtextdomain	function	!time64only
 libintl.h	dcgettext	function	!time64only
@@ -17824,6 +17834,7 @@ locale.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 locale.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 locale.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 locale.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+locale.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 locale.h	duplocale	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 locale.h	freelocale	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 locale.h	lconv	struct	!time64only
@@ -18764,6 +18775,7 @@ math.h	__llroundf64	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	__llroundf64x	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	__llroundl	function	!c89,time64only
 math.h	__locale_struct	struct	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+math.h	__locale_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 math.h	__log	function	!time64only
 math.h	__log10	function	!time64only
 math.h	__log10f	function	!c89,time64only
@@ -20156,9 +20168,11 @@ memory.h	_STRING_H	macro	!time64only
 memory.h	_SYS_CDEFS_H	macro	!time64only
 memory.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 memory.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+memory.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 memory.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 memory.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 memory.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+memory.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 memory.h	__memcmpeq	function	!time64only
 memory.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 memory.h	__stpcpy	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -20305,6 +20319,7 @@ monetary.h	__int32_t	typedef	!time64only
 monetary.h	__intmax_t	typedef	!time64only
 monetary.h	__key_t	typedef	!time64only
 monetary.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+monetary.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 monetary.h	__mode_t	typedef	!time64only
 monetary.h	__nlink_t	typedef	!time64only
 monetary.h	__off64_t	typedef	!time64only
@@ -28097,6 +28112,7 @@ netinet/icmp6.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	__CONST_SOCKADDR_ARG	macro	!gnu,time64only
 netinet/icmp6.h	__CONST_SOCKADDR_ARG	typedef	gnu
+netinet/icmp6.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	__SOCKADDR_ARG	macro	!gnu,time64only
 netinet/icmp6.h	__SOCKADDR_ARG	typedef	gnu
 netinet/icmp6.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
@@ -28131,6 +28147,7 @@ netinet/icmp6.h	__kernel_long_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,f
 netinet/icmp6.h	__kernel_ulong_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	__key_t	typedef	!time64only
 netinet/icmp6.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+netinet/icmp6.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 netinet/icmp6.h	__memcmpeq	function	!time64only
 netinet/icmp6.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 netinet/icmp6.h	__mode_t	typedef	!time64only
@@ -36447,9 +36464,11 @@ obstack.h	_STRING_H	macro	!time64only
 obstack.h	_SYS_CDEFS_H	macro	!time64only
 obstack.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 obstack.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+obstack.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 obstack.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 obstack.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 obstack.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+obstack.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 obstack.h	__memcmpeq	function	!time64only
 obstack.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 obstack.h	__stpcpy	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -38446,6 +38465,7 @@ pthread.h	__jmp_buf	typedef	!time64only
 pthread.h	__jmp_buf_tag	struct	!time64only
 pthread.h	__key_t	typedef	!time64only
 pthread.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+pthread.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 pthread.h	__mode_t	typedef	!time64only
 pthread.h	__nlink_t	typedef	!time64only
 pthread.h	__off64_t	typedef	!time64only
@@ -45578,6 +45598,7 @@ stdlib.h	__int32_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix1
 stdlib.h	__intmax_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	__key_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	__locale_struct	struct	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+stdlib.h	__locale_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdlib.h	__mbstowcs_chk	function	fortify1,fortify2,fortify3
 stdlib.h	__mode_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
 stdlib.h	__nlink_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,isoc99,isoc11,isoc2x,time64only
@@ -45818,9 +45839,11 @@ string.h	_STRING_H	macro	!time64only
 string.h	_SYS_CDEFS_H	macro	!time64only
 string.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 string.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+string.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 string.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 string.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 string.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+string.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 string.h	__memcmpeq	function	!time64only
 string.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 string.h	__stpcpy	function	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
@@ -45917,6 +45940,7 @@ strings.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 strings.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 strings.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 strings.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+strings.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 strings.h	bcmp	function	!posix200809,xopen700,time64only
 strings.h	bcopy	function	!posix200809,xopen700,time64only
 strings.h	bzero	function	!posix200809,xopen700,time64only
@@ -61245,6 +61269,7 @@ sys/timerfd.h	__int32_t	typedef	!time64only
 sys/timerfd.h	__intmax_t	typedef	!time64only
 sys/timerfd.h	__key_t	typedef	!time64only
 sys/timerfd.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+sys/timerfd.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 sys/timerfd.h	__mode_t	typedef	!time64only
 sys/timerfd.h	__nlink_t	typedef	!time64only
 sys/timerfd.h	__off64_t	typedef	!time64only
@@ -61995,9 +62020,11 @@ sys/un.h	_SYS_CDEFS_H	macro	!time64only
 sys/un.h	_SYS_UN_H	macro	!time64only
 sys/un.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/un.h	__CORRECT_ISO_CPP_STRING_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 sys/un.h	__explicit_bzero_chk	function	fortify1,fortify2,fortify3
 sys/un.h	__locale_struct	struct	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/un.h	__locale_t	typedef	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	__memcmpeq	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	__mempcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/un.h	__stpcpy	function	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
@@ -65847,6 +65874,7 @@ tgmath.h	_WCTYPE_H	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	_WINT_T	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+tgmath.h	__CORRECT_ISO_CPP_WCHAR_H_PROTO	macro	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__FILE	typedef	cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 tgmath.h	__acos	function	!time64only
@@ -66503,6 +66531,7 @@ tgmath.h	__llroundf64	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__llroundf64x	function	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__llroundl	function	!c89,time64only
 tgmath.h	__locale_struct	struct	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+tgmath.h	__locale_t	typedef	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 tgmath.h	__log	function	!time64only
 tgmath.h	__log10	function	!time64only
 tgmath.h	__log10f	function	!c89,time64only
@@ -68997,6 +69026,7 @@ thread_db.h	__jmp_buf	typedef	!time64only
 thread_db.h	__jmp_buf_tag	struct	!time64only
 thread_db.h	__key_t	typedef	!time64only
 thread_db.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+thread_db.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 thread_db.h	__mode_t	typedef	!time64only
 thread_db.h	__nlink_t	typedef	!time64only
 thread_db.h	__off64_t	typedef	!time64only
@@ -69477,6 +69507,7 @@ threads.h	__int32_t	typedef	!time64only
 threads.h	__intmax_t	typedef	!time64only
 threads.h	__key_t	typedef	!time64only
 threads.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+threads.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 threads.h	__mode_t	typedef	!time64only
 threads.h	__nlink_t	typedef	!time64only
 threads.h	__off64_t	typedef	!time64only
@@ -69701,6 +69732,7 @@ time.h	__int32_t	typedef	!time64only
 time.h	__intmax_t	typedef	!time64only
 time.h	__key_t	typedef	!time64only
 time.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+time.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 time.h	__mode_t	typedef	!time64only
 time.h	__nlink_t	typedef	!time64only
 time.h	__off64_t	typedef	!time64only
@@ -72825,6 +72857,7 @@ wchar.h	_WCHAR_H	macro	!time64only
 wchar.h	_WINT_T	macro	!time64only
 wchar.h	_XOPEN_SOURCE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wchar.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+wchar.h	__CORRECT_ISO_CPP_WCHAR_H_PROTO	macro	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 wchar.h	__FILE	typedef	!time64only
 wchar.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 wchar.h	__blkcnt64_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
@@ -72850,6 +72883,7 @@ wchar.h	__int32_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__intmax_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__key_t	typedef	xopen,xopen500,xopen600,xopen700,xopenext
 wchar.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+wchar.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 wchar.h	__mbrlen	function	!time64only
 wchar.h	__mbsnrtowcs_chk	function	fortify1,fortify2,fortify3
 wchar.h	__mbsrtowcs_chk	function	fortify1,fortify2,fortify3
@@ -73069,6 +73103,7 @@ wctype.h	__int32_t	typedef	!time64only
 wctype.h	__intmax_t	typedef	!time64only
 wctype.h	__key_t	typedef	!time64only
 wctype.h	__locale_struct	struct	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
+wctype.h	__locale_t	typedef	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only
 wctype.h	__mode_t	typedef	!time64only
 wctype.h	__nlink_t	typedef	!time64only
 wctype.h	__off64_t	typedef	!time64only

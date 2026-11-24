@@ -28,8 +28,12 @@ typedef __builtin_va_list va_list;
 # endif
 #endif
 
+@@owns __CORRECT_ISO_CPP_WCHAR_H_PROTO
 @@if wcschr
 # ifdef __cplusplus
+/* Tells the C++ library's <cwchar> that these overloads are declared here, so it declares none of its own in std
+   (R-H2, D-X.169). */
+#  define __CORRECT_ISO_CPP_WCHAR_H_PROTO 1
 extern "C++" {
 extern const wchar_t *wcschr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcschr") @@attrs(wcschr);
 extern const wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW __asm__ ("wcsrchr") @@attrs(wcsrchr);
