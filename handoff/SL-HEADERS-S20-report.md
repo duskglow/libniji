@@ -1,4 +1,17 @@
-# SL-HEADERS-S20 report (runs 1 and 2)
+# SL-HEADERS-S20 report (runs 1 to 4)
+
+**Run 4 (SL-HEADERS-S20-4).** Commits: f05fd0ae1 (merge origin/next bf40b1b1c; one conflict, docs/install-packages.md:
+next's libc-bin row kept, this branch's libc6-dev row kept), f811cf2d1 (`__NIJI_SIMD` defined in features.h beside
+`__NIJI_NOTHROW`; libc-include regenerated: features.h, math.h), 6e5d31009 (plant file). Step 0 on the inherited
+head 85021878b: clippy and static green. On the merged and fixed head: clippy and static green; rows test by name
+green (job sl-headers-s20-4-rows: 1 passed in 9.6 s; the same test on the plant's failing units took 1563 s on
+keke, so the CI's 1150 s was the failure itself, not the test's normal cost); sl-headers-s20-4-t1 green
+(`cargo xtask so`; niji_cc_headers 5 passed incl. the simd comparison; deb_manifest
+`coexist_lm_brings_in_libmvec_only_for_a_vector_call` passed). Plants: sl-headers-s20-4-plants1 (1 plant,
+s20-4-simd-everywhere: the definition reachable only when math.h includes features.h): 1 CAUGHT by its message
+(rows test FAILED, "storage class specified for parameter"), 0 warnings; results in handoff/SL-HEADERS-S20-4-plants.txt.
+IMPROVEMENT: the rows test is ~10 s green but ~25 min red, and the run-3 test job never ran it although the change
+reached its emitter; a header-generator change should run it by name (it is cheap when green).
 
 **Commits (run 2).** 6228e4df5 (`__locale_t`, C++ overload macros), 287819e37 (unshipped-header list, P4 and
 callsite_probe), b969dc875 (-nostdinc driver test, P4 plants), d22bb006b (cxx98 probe flags), 4b30fac10 (__locale_t test); run 1's commits before them.

@@ -2,3 +2,5 @@
 # The mutant defines it only when <math.h> includes features.h (the run-3 shape: a unit with features.h but no
 # math.h, as the rows test builds, sees the macro undefined). The command regenerates the headers first.
 s20-4-simd-everywhere | headers/features.h.in | lit:#ifndef __NIJI_SIMD ==> #if defined __NIJI_H_math_h && !defined __NIJI_SIMD | cargo xtask headers-gen && cargo test -p xtask --bin xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables -- --exact | msg:storage class specified for parameter
+# cargo xtask plants results (1 plants: 1 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s20-4-simd-everywhere: CAUGHT, caught by xtask headers::tests::every_table_row_is_emitted_and_matches_the_tables
