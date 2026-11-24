@@ -1239,7 +1239,7 @@ mod tests {
         for l in ["<U20AC> \"<U0045><U0055><U0052>\"", "<U202F> <U00A0>;<U0020>", "<U021B> <U0074>"] {
             assert!(has_line(&t, l), "no line {l:?} in:\n{t}");
         }
-        let includes = "include \"translit_shared\";\"\"\ninclude \"translit_combining\";\"\"\ninclude \"translit_compat\";\"\"\ntranslit_end\n";
+        let includes = "include \"translit<U005F>shared\";\"\"\ninclude \"translit<U005F>combining\";\"\"\ninclude \"translit<U005F>compat\";\"\"\ntranslit_end\n";
         let s = probe_source(&p, "zz_ZZ").unwrap().unwrap();
         assert!(s.contains(&format!("translit_start\n<U021B> <U0163>;<U0074>\n{includes}")), "{s}");
         let y = probe_source(&p, "yy_ZZ").unwrap().unwrap();

@@ -850,6 +850,24 @@ fn generated_c_source_compiles_to_the_builtin_c_utf8() {
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).
+/// The generated sources with the products' charmaps (`target/niji/charmaps`), else the
+/// installed one of that name (a codeset the products do not generate yet).
+struct ProductSources(PathBuf);
+
+impl Files for ProductSources {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        let dir = match kind {
+            Kind::Locale => self.0.clone(),
+            Kind::Charmap => self.0.join("../charmaps"),
+        };
+        match std::fs::read(dir.join(String::from_utf8_lossy(name).as_ref())) {
+            Ok(data) => TryVec::from_slice(&data).map_err(Into::into),
+            Err(_) if matches!(kind, Kind::Charmap) => Disk.read(kind, name),
+            Err(_) => Err(niji_locale::Error::missing("no such file")),
+        }
+    }
+}
+
 /// One compared item: a string, a fixed list `locale -k` joins with `;`, or a number.
 #[derive(Clone, Copy)]
 enum Item {
@@ -921,7 +939,14 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
             })
             .collect();
         assert!(dump.lines().any(|l| l.starts_with(&format!("{pn}\t-\tcharmap\t{cs}"))), "{entry} {cs}: no probe of {pn} in that codeset");
-        if !rows.is_empty() {
+        if rows.is_empty() {
+            continue;
+        }
+        if ProductSources(src.clone()).read(Kind::Charmap, cs.as_bytes()).is_err() {
+            println!("SKIP {entry} {cs}: neither the products nor this system has the charmap");
+            continue;
+        }
+        {
             jobs.push((entry.to_string(), cs.to_string(), source, rows));
         }
     }
@@ -936,7 +961,7 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
                 s.spawn(move || {
                     let mut out = Vec::new();
                     for (entry, cs, source, rows) in chunk {
-                        let files = niji_locale::compile_output(source.as_bytes(), cs.as_bytes(), &mut Sources(src.clone())).unwrap_or_else(|e| panic!("{entry} {cs}: {e:?}")).files;
+                        let files = niji_locale::compile_output(source.as_bytes(), cs.as_bytes(), &mut ProductSources(src.clone())).unwrap_or_else(|e| panic!("{entry} {cs}: {e:?}")).files;
                         for (file, item, what, want) in rows {
                             let c = Category::parse(leak(files[*file].as_ref().unwrap().as_slice().to_vec())).unwrap();
                             let got = match *item {
