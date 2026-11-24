@@ -1,0 +1,17 @@
+{"task": "SHSTK-ENABLE-2", "model": "opus", "tokens": null,
+ "result": "CI conflict with next resolved (both sides kept); ruling #8100: makecontext shadow stacks recorded by uc_stack.ss_sp and unmapped on reuse (D-21.7 (5) with residual); #8101 cited in D-21.6",
+ "branch": "task/shstk-enable-2", "head": "3461ce9b4",
+ "gate": {"affected": "FULL tier is the train's (csys .S); cargo xtask test shstk-enable-2-xtest2 + hot_text_products shstk-enable-2-hottext2 on keke, see hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["#8101 veto stays provisional until the owner answers", "one edit used sed -i on D-21.7's tests line (rules ask for the Edit tool); result checked", "N100 run on 0533b7a7e; 3461ce9b4 adds only the fork USED bit"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "makecontext re-made on the same stack with the shadow stack on: 64 rounds no longer grow shadow-stack mappings (control: +4032 kB on N100)", "before": 4032, "after": 0, "unit": "kB leaked over 63 reuses of a 64 KiB stack", "measured": true},
+   {"kind": "coverage", "what": "unit test makecontext_shadow_stack_registry, s21_shadow_stack reuse step, 3 plants (3 CAUGHT)", "before": null, "after": 3, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "SHSTK-ENABLE can land (CI merge conflict resolved)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["shstk-enable-2-lint2", "shstk-enable-2-plants2", "shstk-enable-2-xtest2", "shstk-enable-2-hottext2", "nozomi:shstk-enable-2-n100a"],
+ "improvement": "jobwait --max is easy to miss: the brief's wait recipe could name it, and the N100 kit recipe (static link line + control) could be a repo script instead of per-run shell",
+ "next_step": "landing; fix-forwards as in handoff/SHSTK-ENABLE.md",
+ "report_file": "handoff/SHSTK-ENABLE-2-report.md"}

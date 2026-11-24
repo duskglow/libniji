@@ -1,47 +1,41 @@
-# SHSTK-ENABLE handoff (final, leg 4)
+# SHSTK-ENABLE handoff (SHSTK-ENABLE-2, final)
 
-**State.** Branch `task/shstk-enable`, stacked on SHSTK-OPT-IN (a2cee937a; merge base with next
-0495c4684). **Code head 73d2ad2f6**; later commits are handoff/report only. Done; hand-back sent.
+**State.** Branch `task/shstk-enable-2` (continues `task/shstk-enable`, code head 73d2ad2f6 there),
+origin/next 237dbda92 merged in (d5888c793). Code head **3461ce9b4**; later commits are
+handoff/report only. SHSTK-OPT-IN (a2cee937a) is on next.
 
-## Final-head jobs (mei, code head 73d2ad2f6)
+## This run
 
-`shstk-enable-lint4` (clippy --all-features -D warnings + `cargo xtask static`: rc 0),
-`shstk-enable-plants4` (3/3 CAUGHT, 0 WARN), `shstk-enable-hottext4` (33 passed),
-`shstk-enable-su7` (start-up rows); precheck GREEN on 853640137. FULL tier: the train's (csys
-machine `.S` files). SUPERSEDED: `shstk-enable-xtest4` (rc 1: 7192 run, 7186 passed, 6 failed,
-the host-locale six: mei has had no locale-archive since 11-23 06:32Z; same in mei CI gates
-ci-gate-691c188e3 / ci-gate-a176ecda8), xtest3, plants3, lint3 (f4e60abca; lint3's rc 2 was a
-trailing `cargo xtask affected` without a mode), hottext3 (killed, old head). Earlier-head evidence
-whose code paths are unchanged: percall3 (6e647e491), nozomi n100e and cost1, su6.
-
-## Results that matter for landing
-
-* Start-up default mode vs a2cee937a (su7): static +7 instr:u, dynamic +30..+43 (0.02%, stable in
-  the job, cause not isolated), faults unchanged.
-* Layout: bin 0 `runtime::start` 5,658 -> 5,808 bytes (+150), `cpu::init` +10. The cold move did not
-  shrink `start`; `&aux` passed to the cold function causes register churn (report, Layout).
+1. **CI conflict resolved** (merge of origin/next, d5888c793): both sides added a tunable and a
+   NIJI_PRIVATE export; kept both everywhere (`Tunables` fields and parse arms, the loader's
+   start-up reads in `ld/entry.rs` (shadow-stack request, then the static TLS surplus), the
+   `s1_8_c_0` literal, `LIBC_PRIVATE` in `xtask/src/so.rs`).
+2. **Ruling #8100 implemented** (0533b7a7e, 3461ce9b4): makecontext's shadow stacks are recorded
+   in a library-owned registry keyed by `uc_stack.ss_sp` (`boundary/src/context.rs`, module
+   `registry`); a reuse of the key unmaps the earlier shadow stack unless the caller runs on it.
+   The fork child resets the registry lock only after makecontext used it (`fork::USED_CONTEXT`,
+   D-18.8). Residual and reuse rule in D-21.7 (5).
+3. **Ruling #8101** cited in D-21.6 (veto kept, provisional). **#8102**: nothing to change
+   (default mode stays exact).
 
 ## Decisions in force
 
-D-21.6 (tunables, start-up decision, dlopen policy; amends D-21.3), D-21.7 (raw SSP, `uc_flags`,
-signal-ucontext setcontext, makecontext shadow stacks kept; amends D-21.5), D-22.29 (clone3 with
-`stack_size`). Differences rows: static `x86_shstk=off` veto; `uc_flags` with the shadow stack on.
+D-21.6, D-21.7 (amended this run: item (5)), D-22.29. Differences rows: static `x86_shstk=off`
+veto; `uc_flags` with the shadow stack on.
 
-## Open questions (RULING NEEDED)
+## Open questions
 
-1. makecontext shadow-stack leak: recommend a registry keyed to `uc_stack.ss_sp`.
-2. Reference-static `x86_shstk=off` difference: recommend keep the veto.
-3. -2 instr/call get/swapcontext fix-forward would write `uc_flags` in default mode: recommend not.
+None new. #8101 waits for the owner (provisional).
 
 ## Do not redo
 
-Tunable probes, N100 functional and control runs, the cost1 table, percall, start-up counts, plants,
-the `start` disassembly diff (mei `/mnt/zram/claude/shstk-enable/dis/`).
+The N100 runs (`nozomi:shstk-enable-2-n100a`: reuse step passes, control fails with +4,032 kB),
+the earlier run's tunable probes, cost table, percall and start-up counts.
 
 ## Next step
 
-Landing. Fix-forwards (each its own small story): `start` passes only `&tunables` and the cold
-function reads AT_PHDR/AT_PHNUM via `process::auxval` (start -150 B target); inline `rdssp` in thread
-create (about -5 of +13.2); CPUID test before the static opt-in image read (asked path on CPUs
-without the feature); setcontext's FP restore from a kernel signal frame (INFORMATIONAL).
-Full report: `handoff/SHSTK-ENABLE-report.md`.
+Landing (FULL tier is the train's: csys machine `.S` files). Fix-forwards stay as SHSTK-ENABLE
+listed them: `start` passes only `&tunables` to the cold function; inline `rdssp` in thread create;
+a CPUID test before the static opt-in image read; setcontext's FP restore from a kernel signal
+frame (INFORMATIONAL).
+Report: `handoff/SHSTK-ENABLE-2-report.md`; earlier: `handoff/SHSTK-ENABLE-report.md`.
