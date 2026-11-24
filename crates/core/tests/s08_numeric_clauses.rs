@@ -463,7 +463,7 @@ mod sys_param {
     use std::process::Command;
     use std::sync::OnceLock;
 
-    pub(crate) fnroot() -> PathBuf {
+    pub(crate) fn root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
@@ -488,7 +488,7 @@ mod sys_param {
     }
 
     /// Whether the compilers are here; prints why not.
-    pub(crate) fnhave_gcc() -> bool {
+    pub(crate) fn have_gcc() -> bool {
         let ok = ["gcc", "g++"].iter().all(|t| Command::new(t).arg("--version").output().is_ok_and(|o| o.status.success()));
         if !ok {
             eprintln!("skipped: needs gcc and g++ (the macros are compiled, not called)");
@@ -497,7 +497,7 @@ mod sys_param {
     }
 
     /// The oracle probe built with libniji's headers and run: (its output, the recorded reference output).
-    pub(crate) fnprobe() -> &'static (String, String) {
+    pub(crate) fn probe() -> &'static (String, String) {
         static P: OnceLock<(String, String)> = OnceLock::new();
         P.get_or_init(|| {
             let src = std::fs::read_to_string(root().join("crates/core/tests/oracle/sys_param_diff.c")).unwrap();
@@ -511,7 +511,7 @@ mod sys_param {
     }
 
     /// The probe's lines whose item starts with one of `prefixes`, libniji's beside the reference's.
-    pub(crate) fnsame(prefixes: &[&str]) {
+    pub(crate) fn same(prefixes: &[&str]) {
         let (ours, reference) = probe();
         let pick = |t: &str| t.lines().filter(|l| prefixes.iter().any(|p| l.starts_with(p))).map(String::from).collect::<Vec<_>>();
         let (o, r) = (pick(ours), pick(reference));
@@ -521,7 +521,7 @@ mod sys_param {
     }
 
     /// Compiles `text` with `-Wall -Wextra -Werror`; the error lines when it does not.
-    pub(crate) fncompiles(lang: &str, flags: &[&str], text: &str, tag: &str) -> Result<(), String> {
+    pub(crate) fn compiles(lang: &str, flags: &[&str], text: &str, tag: &str) -> Result<(), String> {
         let mut f = vec!["-Wall", "-Wextra", "-Werror"];
         f.extend_from_slice(flags);
         cc(lang, &f, text, tag, false).map(|_| ())
