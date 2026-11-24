@@ -1,0 +1,8 @@
+{"task": "LD-TESTS-SHSTK-FOLD", "model": "sonnet", "tokens": null,
+ "result": "shstk_marking.rs folded into start_objects.rs (start-up decision); plants and D-21.6 record updated; gate and plants green",
+ "branch": "task/ld-tests-shstk-fold", "head": "e5de9b7a5",
+ "gate": {"affected": "945 passed / 0 failed", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["plan/07-decisions/s21-contexts.md is a generated view still naming the old file; the train regenerates it"], "refused": [],
+ "impact": [{"kind": "tooling", "what": "one fewer niji-ld test binary to link", "before": 1, "after": 0, "unit": "test binaries", "measured": false}],
+ "improvement": "none", "next_step": "land", "report_file": "handoff/reports/LD-TESTS-SHSTK-FOLD.json",
+ "jobs": ["ld-tests-shstk-fold-gate", "ld-tests-shstk-fold-plants"]}
