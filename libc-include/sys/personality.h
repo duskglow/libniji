@@ -12,11 +12,13 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_personality 1
 extern int personality (long unsigned int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_ADDR_NO_RANDOMIZE
-#  define __NIJI_D_enum_ADDR_NO_RANDOMIZE 1
+# ifndef __NIJI_D_anon_ADDR_NO_RANDOMIZE
+#  define __NIJI_D_anon_ADDR_NO_RANDOMIZE 1
+enum {
 #  ifndef ADDR_NO_RANDOMIZE
-enum { ADDR_NO_RANDOMIZE = 262144 };
+  ADDR_NO_RANDOMIZE = 262144,
 #  endif
+};
 # endif
 #endif
 

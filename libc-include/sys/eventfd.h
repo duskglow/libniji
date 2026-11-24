@@ -25,32 +25,28 @@ extern int eventfd_read (int, unsigned long *);
 #  define __NIJI_D_eventfd_write 1
 extern int eventfd_write (int, unsigned long);
 # endif
-# ifndef __NIJI_D_enum_EFD_CLOEXEC
-#  define __NIJI_D_enum_EFD_CLOEXEC 1
-#  ifndef EFD_CLOEXEC
-enum { EFD_CLOEXEC = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EFD_NONBLOCK
-#  define __NIJI_D_enum_EFD_NONBLOCK 1
-#  ifndef EFD_NONBLOCK
-enum { EFD_NONBLOCK = 2048 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EFD_SEMAPHORE
-#  define __NIJI_D_enum_EFD_SEMAPHORE 1
+# ifndef __NIJI_D_anon_EFD_CLOEXEC
+#  define __NIJI_D_anon_EFD_CLOEXEC 1
+enum {
 #  ifndef EFD_SEMAPHORE
-enum { EFD_SEMAPHORE = 1 };
+  EFD_SEMAPHORE = 1,
 #  endif
+#  ifndef EFD_NONBLOCK
+  EFD_NONBLOCK = 2048,
+#  endif
+#  ifndef EFD_CLOEXEC
+  EFD_CLOEXEC = 524288,
+#  endif
+};
 # endif
 # ifndef EFD_CLOEXEC
-#  define EFD_CLOEXEC 524288
+#  define EFD_CLOEXEC EFD_CLOEXEC
 # endif
 # ifndef EFD_NONBLOCK
-#  define EFD_NONBLOCK 2048
+#  define EFD_NONBLOCK EFD_NONBLOCK
 # endif
 # ifndef EFD_SEMAPHORE
-#  define EFD_SEMAPHORE 1
+#  define EFD_SEMAPHORE EFD_SEMAPHORE
 # endif
 #endif
 

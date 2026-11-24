@@ -92,128 +92,112 @@ extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_ST_NOSUID
-#  define __NIJI_D_enum_ST_NOSUID 1
-#  ifndef ST_NOSUID
-enum { ST_NOSUID = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ST_RDONLY
-#  define __NIJI_D_enum_ST_RDONLY 1
+# ifndef __NIJI_D_anon_ST_APPEND
+#  define __NIJI_D_anon_ST_APPEND 1
+enum {
 #  ifndef ST_RDONLY
-enum { ST_RDONLY = 1 };
+  ST_RDONLY = 1,
 #  endif
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_enum_ST_APPEND
-#  define __NIJI_D_enum_ST_APPEND 1
-#  ifndef ST_APPEND
-enum { ST_APPEND = 256 };
+#  ifndef ST_NOSUID
+  ST_NOSUID = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_IMMUTABLE
-#  define __NIJI_D_enum_ST_IMMUTABLE 1
-#  ifndef ST_IMMUTABLE
-enum { ST_IMMUTABLE = 512 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ST_MANDLOCK
-#  define __NIJI_D_enum_ST_MANDLOCK 1
-#  ifndef ST_MANDLOCK
-enum { ST_MANDLOCK = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ST_NOATIME
-#  define __NIJI_D_enum_ST_NOATIME 1
-#  ifndef ST_NOATIME
-enum { ST_NOATIME = 1024 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ST_NODEV
-#  define __NIJI_D_enum_ST_NODEV 1
+#  if __NIJI_GNU
 #  ifndef ST_NODEV
-enum { ST_NODEV = 4 };
+  ST_NODEV = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_NODIRATIME
-#  define __NIJI_D_enum_ST_NODIRATIME 1
-#  ifndef ST_NODIRATIME
-enum { ST_NODIRATIME = 2048 };
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_NOEXEC
-#  define __NIJI_D_enum_ST_NOEXEC 1
+#  if __NIJI_GNU
 #  ifndef ST_NOEXEC
-enum { ST_NOEXEC = 8 };
+  ST_NOEXEC = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_NOSYMFOLLOW
-#  define __NIJI_D_enum_ST_NOSYMFOLLOW 1
-#  ifndef ST_NOSYMFOLLOW
-enum { ST_NOSYMFOLLOW = 8192 };
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_RELATIME
-#  define __NIJI_D_enum_ST_RELATIME 1
-#  ifndef ST_RELATIME
-enum { ST_RELATIME = 4096 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ST_SYNCHRONOUS
-#  define __NIJI_D_enum_ST_SYNCHRONOUS 1
+#  if __NIJI_GNU
 #  ifndef ST_SYNCHRONOUS
-enum { ST_SYNCHRONOUS = 16 };
+  ST_SYNCHRONOUS = 16,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_ST_WRITE
-#  define __NIJI_D_enum_ST_WRITE 1
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_MANDLOCK
+  ST_MANDLOCK = 64,
+#  endif
+#  endif
+#  if __NIJI_GNU
 #  ifndef ST_WRITE
-enum { ST_WRITE = 128 };
+  ST_WRITE = 128,
 #  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_APPEND
+  ST_APPEND = 256,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_IMMUTABLE
+  ST_IMMUTABLE = 512,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_NOATIME
+  ST_NOATIME = 1024,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_NODIRATIME
+  ST_NODIRATIME = 2048,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_RELATIME
+  ST_RELATIME = 4096,
+#  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef ST_NOSYMFOLLOW
+  ST_NOSYMFOLLOW = 8192,
+#  endif
+#  endif
+};
 # endif
-#endif
-#if 1
 # ifndef ST_NOSUID
-#  define ST_NOSUID 2
+#  define ST_NOSUID ST_NOSUID
 # endif
 # ifndef ST_RDONLY
-#  define ST_RDONLY 1
+#  define ST_RDONLY ST_RDONLY
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef ST_APPEND
-#  define ST_APPEND 256
+#  define ST_APPEND ST_APPEND
 # endif
 # ifndef ST_IMMUTABLE
-#  define ST_IMMUTABLE 512
+#  define ST_IMMUTABLE ST_IMMUTABLE
 # endif
 # ifndef ST_MANDLOCK
-#  define ST_MANDLOCK 64
+#  define ST_MANDLOCK ST_MANDLOCK
 # endif
 # ifndef ST_NOATIME
-#  define ST_NOATIME 1024
+#  define ST_NOATIME ST_NOATIME
 # endif
 # ifndef ST_NODEV
-#  define ST_NODEV 4
+#  define ST_NODEV ST_NODEV
 # endif
 # ifndef ST_NODIRATIME
-#  define ST_NODIRATIME 2048
+#  define ST_NODIRATIME ST_NODIRATIME
 # endif
 # ifndef ST_NOEXEC
-#  define ST_NOEXEC 8
+#  define ST_NOEXEC ST_NOEXEC
 # endif
 # ifndef ST_NOSYMFOLLOW
-#  define ST_NOSYMFOLLOW 8192
+#  define ST_NOSYMFOLLOW ST_NOSYMFOLLOW
 # endif
 # ifndef ST_RELATIME
-#  define ST_RELATIME 4096
+#  define ST_RELATIME ST_RELATIME
 # endif
 # ifndef ST_SYNCHRONOUS
-#  define ST_SYNCHRONOUS 16
+#  define ST_SYNCHRONOUS ST_SYNCHRONOUS
 # endif
 # ifndef ST_WRITE
-#  define ST_WRITE 128
+#  define ST_WRITE ST_WRITE
 # endif
 #endif
 

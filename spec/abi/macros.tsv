@@ -120,7 +120,7 @@ ALT_DIGITS	langinfo.h	int	131119
 AM_STR	langinfo.h	int	131110
 AO	arpa/telnet.h	int	245
 ARCDENSITY	sys/gmon.h	int	3
-AREGTYPE	tar.h	int	0
+AREGTYPE	tar.h	char	0
 ARGP_ERR_UNKNOWN	argp.h	int	7
 ARGP_HELP_BUG_ADDR	argp.h	int	64
 ARGP_HELP_DOC	argp.h	int	48
@@ -362,7 +362,7 @@ BLKRRPART	sys/mount.h	unsigned int	4703
 BLKSECTGET	sys/mount.h	unsigned int	4711
 BLKSECTSET	sys/mount.h	unsigned int	4710
 BLKSSZGET	sys/mount.h	unsigned int	4712
-BLKTYPE	tar.h	int	52
+BLKTYPE	tar.h	char	52
 BLK_BYTECOUNT	arpa/ftp.h	int	2
 BLK_EOF	arpa/ftp.h	int	64
 BLK_EOR	arpa/ftp.h	int	128
@@ -394,7 +394,7 @@ BYTE_ORDER	aio.h	int	1234
 CANBSIZ	arpa/nameser.h	int	255
 CBAUD	pty.h	int	4111
 CBAUDEX	pty.h	int	4096
-CBRK	net/if_ppp.h	int	0
+CBRK	net/if_ppp.h	char	0
 CCP_CONFACK	net/ppp-comp.h	int	2
 CCP_CONFREQ	net/ppp-comp.h	int	1
 CCP_HDRLEN	net/ppp-comp.h	int	4
@@ -407,7 +407,7 @@ CCP_TERMREQ	net/ppp-comp.h	int	5
 CDISCARD	net/if_ppp.h	int	15
 CDSUSP	net/if_ppp.h	int	25
 CEOF	net/if_ppp.h	int	4
-CEOL	net/if_ppp.h	int	0
+CEOL	net/if_ppp.h	char	0
 CEOT	net/if_ppp.h	int	4
 CERASE	net/if_ppp.h	int	127
 CFLUSH	net/if_ppp.h	int	15
@@ -416,7 +416,7 @@ CHAR_BIT	argp.h	int	8
 CHAR_MAX	argp.h	int	127
 CHAR_MIN	argp.h	int	-128
 CHAR_WIDTH	argp.h	int	8
-CHRTYPE	tar.h	int	51
+CHRTYPE	tar.h	char	51
 CIBAUD	pty.h	int	269418496
 CILEN_BSD_COMPRESS	net/ppp-comp.h	int	3
 CILEN_DEFLATE	net/ppp-comp.h	int	4
@@ -484,7 +484,7 @@ CODESET	langinfo.h	int	14
 COLL_WEIGHTS_MAX	argp.h	int	255
 COMPLETE	arpa/ftp.h	int	2
 CONTINUE	arpa/ftp.h	int	3
-CONTTYPE	tar.h	int	55
+CONTTYPE	tar.h	char	55
 CPU_SETSIZE	pthread.h	int	1024
 CQUIT	net/if_ppp.h	int	28
 CR0	pty.h	int	0
@@ -505,7 +505,7 @@ CS8	pty.h	int	48
 CSIGNAL	pthread.h	int	255
 CSIZE	pty.h	int	48
 CSTART	net/if_ppp.h	int	17
-CSTATUS	net/if_ppp.h	int	0
+CSTATUS	net/if_ppp.h	char	0
 CSTOP	net/if_ppp.h	int	19
 CSTOPB	pty.h	int	64
 CSUSP	net/if_ppp.h	int	26
@@ -593,7 +593,7 @@ DF_P1_LAZYLOAD	elf.h	int	1
 DF_STATIC_TLS	elf.h	int	16
 DF_SYMBOLIC	elf.h	int	2
 DF_TEXTREL	elf.h	int	4
-DIRTYPE	tar.h	int	53
+DIRTYPE	tar.h	char	53
 DLFO_EH_SEGMENT_TYPE	link.h	int	1685382480
 DLFO_STRUCT_HAS_EH_COUNT	dlfcn.h	int	0
 DLFO_STRUCT_HAS_EH_DBASE	dlfcn.h	int	0
@@ -1075,9 +1075,9 @@ ELFDATA2MSB	elf.h	int	2
 ELFDATANONE	elf.h	int	0
 ELFDATANUM	elf.h	int	3
 ELFMAG0	elf.h	int	127
-ELFMAG1	elf.h	int	69
-ELFMAG2	elf.h	int	76
-ELFMAG3	elf.h	int	70
+ELFMAG1	elf.h	char	69
+ELFMAG2	elf.h	char	76
+ELFMAG3	elf.h	char	70
 ELFOSABI_AIX	elf.h	int	7
 ELFOSABI_ARM	elf.h	int	97
 ELFOSABI_ARM_AEABI	elf.h	int	64
@@ -1699,7 +1699,7 @@ FF0	pty.h	int	0
 FF1	pty.h	int	32768
 FFDLY	pty.h	int	32768
 FFSYNC	fcntl.h	int	1052672
-FIFOTYPE	tar.h	int	54
+FIFOTYPE	tar.h	char	54
 FILENAME_MAX	argp.h	int	4096
 FIOASYNC	net/if_ppp.h	int	21586
 FIOCLEX	net/if_ppp.h	int	21585
@@ -2541,7 +2541,7 @@ LM_ID_BASE	dlfcn.h	int	0
 LM_ID_NEWLM	dlfcn.h	int	-1
 LM_MODE	arpa/telnet.h	int	1
 LM_SLC	arpa/telnet.h	int	3
-LNKTYPE	tar.h	int	49
+LNKTYPE	tar.h	char	49
 LOCALDOMAINPARTS	resolv.h	int	2
 LOCK_EX	fcntl.h	int	2
 LOCK_MAND	fcntl.h	int	32
@@ -3924,14 +3924,14 @@ RB_SW_SUSPEND	sys/reboot.h	unsigned int	3489725666
 RCX	sys/reg.h	int	11
 RDI	sys/reg.h	int	14
 RDX	sys/reg.h	int	12
-REC_EOF	arpa/ftp.h	int	2
-REC_EOR	arpa/ftp.h	int	1
-REC_ESC	arpa/ftp.h	int	-1
+REC_EOF	arpa/ftp.h	char	2
+REC_EOR	arpa/ftp.h	char	1
+REC_ESC	arpa/ftp.h	char	-1
 REFUSED	arpa/nameser.h	int	5
 REGS_FIXED	re_comp.h	int	2
 REGS_REALLOCATE	re_comp.h	int	1
 REGS_UNALLOCATED	re_comp.h	int	0
-REGTYPE	tar.h	int	48
+REGTYPE	tar.h	char	48
 REG_BADBR	re_comp.h	int	10
 REG_BADPAT	re_comp.h	int	2
 REG_BADRPT	re_comp.h	int	13
@@ -6190,7 +6190,7 @@ SCNxLEAST64	inttypes.h	char[3]	"lx"
 SCNxLEAST8	inttypes.h	char[4]	"hhx"
 SCNxMAX	inttypes.h	char[3]	"lx"
 SCNxPTR	inttypes.h	char[3]	"lx"
-SCOPE_DELIMITER	netdb.h	int	37
+SCOPE_DELIMITER	netdb.h	char	37
 SE	arpa/telnet.h	int	240
 SEEK_CUR	argp.h	int	1
 SEEK_DATA	argp.h	int	3
@@ -6813,7 +6813,7 @@ SYMINFO_FLG_LAZYLOAD	elf.h	int	8
 SYMINFO_FLG_PASSTHRU	elf.h	int	2
 SYMINFO_NONE	elf.h	int	0
 SYMINFO_NUM	elf.h	int	2
-SYMTYPE	tar.h	int	50
+SYMTYPE	tar.h	char	50
 SYNCH	arpa/telnet.h	int	242
 SYNC_FILE_RANGE_WAIT_AFTER	fcntl.h	int	4
 SYNC_FILE_RANGE_WAIT_BEFORE	fcntl.h	int	1
@@ -7690,7 +7690,7 @@ _POSIX_V6_LP64_OFF64	arpa/nameser.h	int	1
 _POSIX_V6_LPBIG_OFFBIG	arpa/nameser.h	int	-1
 _POSIX_V7_LP64_OFF64	arpa/nameser.h	int	1
 _POSIX_V7_LPBIG_OFFBIG	arpa/nameser.h	int	-1
-_POSIX_VDISABLE	arpa/nameser.h	int	0
+_POSIX_VDISABLE	arpa/nameser.h	char	0
 _POSIX_VERSION	arpa/nameser.h	long	200809
 _PRINTF_H	printf.h	int	1
 _PRINTF_NAN_LEN_MAX	argp.h	int	4

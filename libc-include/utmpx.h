@@ -80,6 +80,14 @@ struct timespec {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D_enum___itimer_which
+#  define __NIJI_D_enum___itimer_which 1
+enum __itimer_which {
+  ITIMER_REAL = 0,
+  ITIMER_VIRTUAL = 1,
+  ITIMER_PROF = 2,
+};
+# endif
 # ifndef __NIJI_D_fd_set
 #  define __NIJI_D_fd_set 1
 typedef struct {
@@ -220,24 +228,6 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_ITIMER_PROF
-#  define __NIJI_D_enum_ITIMER_PROF 1
-#  ifndef ITIMER_PROF
-enum { ITIMER_PROF = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ITIMER_REAL
-#  define __NIJI_D_enum_ITIMER_REAL 1
-#  ifndef ITIMER_REAL
-enum { ITIMER_REAL = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_ITIMER_VIRTUAL
-#  define __NIJI_D_enum_ITIMER_VIRTUAL 1
-#  ifndef ITIMER_VIRTUAL
-enum { ITIMER_VIRTUAL = 1 };
-#  endif
-# endif
 # ifndef BOOT_TIME
 #  define BOOT_TIME 2
 # endif
@@ -254,13 +244,13 @@ enum { ITIMER_VIRTUAL = 1 };
 #  define INIT_PROCESS 5
 # endif
 # ifndef ITIMER_PROF
-#  define ITIMER_PROF 2
+#  define ITIMER_PROF ITIMER_PROF
 # endif
 # ifndef ITIMER_REAL
-#  define ITIMER_REAL 0
+#  define ITIMER_REAL ITIMER_REAL
 # endif
 # ifndef ITIMER_VIRTUAL
-#  define ITIMER_VIRTUAL 1
+#  define ITIMER_VIRTUAL ITIMER_VIRTUAL
 # endif
 # ifndef LOGIN_PROCESS
 #  define LOGIN_PROCESS 6

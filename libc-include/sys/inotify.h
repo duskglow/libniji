@@ -35,17 +35,16 @@ extern int inotify_init1 (int) __NIJI_NOTHROW;
 #  define __NIJI_D_inotify_rm_watch 1
 extern int inotify_rm_watch (int, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_IN_CLOEXEC
-#  define __NIJI_D_enum_IN_CLOEXEC 1
-#  ifndef IN_CLOEXEC
-enum { IN_CLOEXEC = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IN_NONBLOCK
-#  define __NIJI_D_enum_IN_NONBLOCK 1
+# ifndef __NIJI_D_anon_IN_CLOEXEC
+#  define __NIJI_D_anon_IN_CLOEXEC 1
+enum {
 #  ifndef IN_NONBLOCK
-enum { IN_NONBLOCK = 2048 };
+  IN_NONBLOCK = 2048,
 #  endif
+#  ifndef IN_CLOEXEC
+  IN_CLOEXEC = 524288,
+#  endif
+};
 # endif
 # ifndef IN_ACCESS
 #  define IN_ACCESS 1
@@ -57,7 +56,7 @@ enum { IN_NONBLOCK = 2048 };
 #  define IN_ATTRIB 4
 # endif
 # ifndef IN_CLOEXEC
-#  define IN_CLOEXEC 524288
+#  define IN_CLOEXEC IN_CLOEXEC
 # endif
 # ifndef IN_CLOSE
 #  define IN_CLOSE 24
@@ -111,7 +110,7 @@ enum { IN_NONBLOCK = 2048 };
 #  define IN_MOVE_SELF 2048
 # endif
 # ifndef IN_NONBLOCK
-#  define IN_NONBLOCK 2048
+#  define IN_NONBLOCK IN_NONBLOCK
 # endif
 # ifndef IN_ONESHOT
 #  define IN_ONESHOT 2147483648U

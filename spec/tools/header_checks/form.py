@@ -18,9 +18,11 @@ Facts per (macro, configuration, side): `def` defined; `pp` usable in `#if`; `ex
 `arr` usable as a file-scope array size; `cx` a C++ `constexpr` initializer; `ty` its type (a `_Generic` / overload
 code, below) and `sz` its `sizeof`; `val` its value at run time (only with --values: needs a libniji to link).
 
-Report mode (as a header_check.py module): prints one `FORM-DIFF` line per (macro, configuration) whose form differs,
-grouped by cause, one `FORM-RUNTIME` line per macro the reference defines as a run-time expression, and a summary;
-it never fails the run (the coordinator turns it into a failing check once the follow-ups land). Set
+As a header_check.py module: prints one `FORM-DIFF` line per (macro, configuration) whose form differs, grouped by
+cause, one `FORM-RUNTIME` line per macro the reference defines as a run-time expression, and a summary; a difference
+of type in C++ (an enumeration or `char` against `int`) or of enumeration (`ut` its underlying type, `same-as`
+whether it is one type with the enumeration-typed name before it) is a FAIL (HEADERS-CXX-ENUM-TYPES), the other causes
+are report mode until their follow-ups land. Set
 NIJI_FORM_PROBE=0 to skip it, NIJI_FORM_JOBS=<n> for the parallel compilers (default: CPUs, at most 16).
 
 Stand-alone: python3 spec/tools/header_checks/form.py [--include DIR] [--work DIR] [--tsv FILE] [--diff FILE]
@@ -100,6 +102,11 @@ def ty_c():
 def cxx_prelude():
     lines = ["template<int K> struct niji_k { char a[K]; };", "template<class T> niji_k<30> niji_ty(T);"]
     lines += [f"niji_k<{k}> niji_ty({'bool' if t == '_Bool' else t});" for k, t in TYPES]
+    # The underlying type of an enumeration (C++17 [dcl.enum]/7: a fixed or an implementation-chosen integer type that
+    # holds every value), `int` for any other type: `std::underlying_type` without a standard header.
+    lines += ["template<class T, bool = __is_enum(T)> struct niji_ut { typedef int type; };",
+              "template<class T> struct niji_ut<T, true> { typedef __underlying_type(T) type; };",
+              "template<class T> typename niji_ut<T>::type niji_ul();"]
     return "\n".join(lines) + "\n"
 
 
@@ -161,6 +168,19 @@ def tu_types(header, names, cxx):
         if cxx:  # an enumerator has its enumeration's type in C++ (C++17 [dcl.enum]), int in C (C11 6.7.2.2)
             lines.append(f"char niji_en_{i}[__is_enum(decltype(({n}))) ? 2 : 1];")
             at[len(lines)] = (i, n)
+            lines.append(f"char niji_ut_{i}[sizeof(niji_ty(niji_ul<decltype(({n}))>()))];")
+            at[len(lines)] = (i, n)
+    return "\n".join(lines) + "\n", at
+
+
+def tu_same(header, pairs):
+    """The C++ object unit over [(index, name, previous name)] of enumeration-typed macros: whether each has the
+    type of the one before it (one enumeration or two: `decltype` and templates tell them apart)."""
+    lines = [f"#include <{header}>"]
+    at = {}
+    for i, n, p in pairs:
+        lines.append(f"char niji_sp_{i}[__is_same(decltype(({n})), decltype(({p}))) ? 2 : 1];")
+        at[len(lines)] = (i, n, p)
     return "\n".join(lines) + "\n", at
 
 
@@ -283,11 +303,24 @@ def probe_one(side, header, cfg, names, work, values):
             sizes = {}
             for line in nm.splitlines():
                 p = line.split()
-                if len(p) == 4 and p[3].startswith(("niji_t_", "niji_s_", "niji_en_")):
+                if len(p) == 4 and p[3].startswith(("niji_t_", "niji_s_", "niji_en_", "niji_ut_")):
                     sizes[p[3]] = int(p[1], 16)
             for i, n in done:
                 facts[n]["ty"] = "enum" if sizes.get(f"niji_en_{i}") == 2 else TYPE_NAME.get(sizes.get(f"niji_t_{i}"), "?")
                 facts[n]["sz"] = sizes.get(f"niji_s_{i}", "?")
+                if facts[n]["ty"] == "enum":
+                    facts[n]["ut"] = TYPE_NAME.get(sizes.get(f"niji_ut_{i}"), "?")
+            # Each enumeration-typed macro against the name before it in the list (when that one is one too): one
+            # enumeration or two. A one-enumerator enumeration per name has the right type kind and the wrong identity.
+            if cxx:
+                pairs = [(i, n, names[i - 1]) for i, n in enumerate(names)
+                         if i and facts[n].get("ut") and facts[names[i - 1]].get("ut")]
+                sp, ok2 = compile_dropping(cmd[:-1] + [f"{stem}-sp.o"], f"{stem}-sp.cc", lambda xs: tu_same(header, xs), pairs)
+                if sp and ok2:
+                    nm = subprocess.run(["nm", "-S", f"{stem}-sp.o"], capture_output=True, text=True).stdout
+                    same = {p[3]: int(p[1], 16) == 2 for p in (x.split() for x in nm.splitlines()) if len(p) == 4}
+                    for i, n, p in sp:
+                        facts[n]["sp"] = f"{p}:{same.get(f'niji_sp_{i}', '?')}"
     if values and usable and (side.cc or not side.inc):
         exe = f"{stem}-v"
         cmd = side.compiler(lang, link=True) + cflags + side.flags() + diag + ["-o", exe]
@@ -316,6 +349,10 @@ def form(f, cxx):
     if f.get("expr"):
         parts.append(f"ty={f.get('ty')}")
         parts.append(f"sz={f.get('sz')}")
+        if f.get("ut"):
+            parts.append(f"ut={f.get('ut')}")
+        if f.get("sp"):
+            parts.append(f"same-as={f.get('sp')}")
     return " ".join(parts) if parts else "defined (no use compiles)"
 
 
@@ -335,6 +372,8 @@ def cause(a, b):
         return "#if usability differs"
     if (a.get("ty"), a.get("sz")) != (b.get("ty"), b.get("sz")):
         return "type differs"
+    if (a.get("ut"), a.get("sp")) != (b.get("ut"), b.get("sp")):
+        return "enumeration differs"
     va, vb = a.get("val"), b.get("val")  # compared only where both sides ran (--values with a libniji to link)
     if va and vb and "?" not in (va, vb) and va != vb:
         return "value differs"
@@ -396,7 +435,7 @@ def report(inv, out, emit=print):
     emit(f"form: {len(names)} macros, {len(inv)} (macro, header) pairs x {len(CONFIGS)} configurations: "
          f"{len(inv) - len(bad)} pairs match in every configuration, {len(bad)} pairs ({len({n for n, _ in bad})} macros) "
          f"differ in at least one ({sum(len(v) for v in diffs.values())} rows; "
-         + ", ".join(f"{c}: {len(v)}" for c, v in sorted(diffs.items())) + "); report mode, not a failure")
+         + ", ".join(f"{c}: {len(v)}" for c, v in sorted(diffs.items())) + f"); {' and '.join(FAILING)} fail, the rest is report mode")
     return len(inv) - len(bad), len(bad), diffs
 
 
@@ -415,8 +454,8 @@ def units(ctx):
 # facts the probe must find for it. A probe that stops telling a constant from a run-time call reports no difference
 # at all, so the report alone would not show it.
 CONTROL_H = ("#ifndef NIJI_FORM_CONTROL_H\n#define NIJI_FORM_CONTROL_H\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
-             "long niji_form_rt (int) __attribute__ ((__const__));\n#ifdef __cplusplus\n}\n#endif\nenum { NIJI_E0 = 3 };\n"
-             "#define NIJI_K 5\n#define NIJI_RT (niji_form_rt (1))\n#define NIJI_EN NIJI_E0\n#define NIJI_CH 'x'\n"
+             "long niji_form_rt (int) __attribute__ ((__const__));\n#ifdef __cplusplus\n}\n#endif\nenum { NIJI_E0 = 3 };\nenum { NIJI_E1 = -1, NIJI_E2 = 4 };\n"
+             "#define NIJI_EA NIJI_E1\n#define NIJI_EB NIJI_E2\n#define NIJI_K 5\n#define NIJI_RT (niji_form_rt (1))\n#define NIJI_EN NIJI_E0\n#define NIJI_CH 'x'\n"
              "#define NIJI_F 1.5f\n#define NIJI_CAST ((unsigned long) 7)\n#define NIJI_UNDECL niji_form_nowhere\n"
              "#define NIJI_CALL (niji_form_undeclared (1))\n#endif\n")
 CONTROL = {  # name: ({fact: value} in C, the same in C++); ty and sz from the object unit
@@ -424,7 +463,10 @@ CONTROL = {  # name: ({fact: value} in C, the same in C++); ty and sz from the o
                {"pp": True, "ice": True, "arr": True, "cx": True, "ty": "int"}),
     "NIJI_RT": ({"pp": False, "expr": True, "ice": False, "arr": False, "init": False, "ty": "long", "sz": 8},
                 {"expr": True, "ice": False, "arr": False, "cx": False, "ty": "long"}),
-    "NIJI_EN": ({"ice": True, "ty": "int"}, {"ice": True, "cx": True, "ty": "enum"}),
+    "NIJI_EN": ({"ice": True, "ty": "int"}, {"ice": True, "cx": True, "ty": "enum", "ut": "unsigned int", "sp": "NIJI_EB:False"}),
+    # Two enumerators of one enumeration with a negative member: its underlying type is signed, and one type.
+    "NIJI_EA": ({"ty": "int"}, {"ty": "enum", "ut": "int"}),
+    "NIJI_EB": ({"ty": "int"}, {"ty": "enum", "ut": "int", "sp": "NIJI_EA:True"}),
     "NIJI_CH": ({"ty": "int", "sz": 4}, {"ty": "char", "sz": 1}),
     "NIJI_F": ({"pp": False, "expr": True, "ice": False, "arr": False, "init": True, "ty": "float"}, {"cx": True, "ty": "float"}),
     "NIJI_CAST": ({"pp": False, "ice": True, "ty": "unsigned long"}, {"pp": False, "cx": True, "ty": "unsigned long"}),
@@ -469,8 +511,36 @@ def problems(ctx):
     jobs = int(os.environ.get("NIJI_FORM_JOBS", min(16, os.cpu_count() or 1)))
     skip = {x for _, mod in ctx.mods for x in getattr(mod, "must_fail", ())} if hasattr(ctx, "mods") else must_fail_headers()
     inv, out = run(inc, work, jobs, macros_tsv=ctx.macros, skip=skip)
-    report(inv, out, emit=lambda s: print("NOTE " + s))
-    return fails
+    _, _, diffs = report(inv, out, emit=lambda s: print("NOTE " + s))
+    return fails + failing(diffs)
+
+
+# The causes that fail the run (HEADERS-CXX-ENUM-TYPES): a macro's type in C++ (an enumerator's enumeration, a
+# character constant's `char`) and which enumeration it belongs to. The other causes stay report mode until their
+# follow-ups land.
+FAILING = ("type differs", "enumeration differs")
+# D-X.126 (COMPAT-34): the MS_* names of <sys/mount.h> are macros only, not enumerators.
+KEPT = re.compile(r"MS_[A-Z_]+$")
+# Known gaps outside this check's fix, each printed as a NOTE: (name pattern, header, why).
+GAPS = [(re.compile(r"REG_[A-Z]+$"), "regex.h", "libniji's <regex.h> does not declare reg_errcode_t (no typedefs.tsv row), the "
+         "enumeration whose enumerators these macros name in the reference: follow-up of HEADERS-CXX-ENUM-TYPES")]
+
+
+def failing(diffs):
+    """FAIL lines of the FAILING rows, except the names D-X.126 keeps as macros (and a name whose only difference is
+    that the name before it is one of those)."""
+    out = []
+    for c in FAILING:
+        for n, h, cid, fa, fb, _, _ in sorted(diffs.get(c, [])):
+            prev = re.findall(r"same-as=(\S+):", fa + " " + fb)
+            if KEPT.match(n) or (c == "enumeration differs" and any(KEPT.match(x) for x in prev)):
+                continue
+            gap = next((why for pat, gh, why in GAPS if pat.match(n) and gh == h), None)
+            if gap:
+                print(f"NOTE form known gap: {n} <{h}> {cid}: {gap}")
+                continue
+            out.append(f"form [{c}] {n} <{h}> {cid}: libniji {fa} | reference {fb}")
+    return out
 
 
 def main():
@@ -501,7 +571,10 @@ def main():
     inv, out = run(os.path.abspath(args.include), work, args.jobs, args.values, args.niji_cc or None, args.niji_cxx or None,
                    only, macros, must_fail_headers())
     lines = []
-    report(inv, out, emit=lambda s: (print(s), lines.append(s)))
+    _, _, diffs = report(inv, out, emit=lambda s: (print(s), lines.append(s)))
+    for x in failing(diffs):
+        print(f"FAIL {x}")
+        fails.append(x)
     if args.diff:
         with open(args.diff, "w") as f:
             f.write("\n".join(lines) + "\n")

@@ -28,71 +28,48 @@ extern int wordexp (const char *, wordexp_t *, int);
 #  define __NIJI_D_wordfree 1
 extern void wordfree (wordexp_t *) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_WRDE_APPEND
-#  define __NIJI_D_enum_WRDE_APPEND 1
-#  ifndef WRDE_APPEND
-enum { WRDE_APPEND = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_BADCHAR
-#  define __NIJI_D_enum_WRDE_BADCHAR 1
-#  ifndef WRDE_BADCHAR
-enum { WRDE_BADCHAR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_BADVAL
-#  define __NIJI_D_enum_WRDE_BADVAL 1
-#  ifndef WRDE_BADVAL
-enum { WRDE_BADVAL = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_CMDSUB
-#  define __NIJI_D_enum_WRDE_CMDSUB 1
-#  ifndef WRDE_CMDSUB
-enum { WRDE_CMDSUB = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_DOOFFS
-#  define __NIJI_D_enum_WRDE_DOOFFS 1
+# ifndef __NIJI_D_anon_WRDE_APPEND
+#  define __NIJI_D_anon_WRDE_APPEND 1
+enum {
 #  ifndef WRDE_DOOFFS
-enum { WRDE_DOOFFS = 1 };
+  WRDE_DOOFFS = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_NOCMD
-#  define __NIJI_D_enum_WRDE_NOCMD 1
+#  ifndef WRDE_APPEND
+  WRDE_APPEND = 2,
+#  endif
 #  ifndef WRDE_NOCMD
-enum { WRDE_NOCMD = 4 };
+  WRDE_NOCMD = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_NOSPACE
-#  define __NIJI_D_enum_WRDE_NOSPACE 1
-#  ifndef WRDE_NOSPACE
-enum { WRDE_NOSPACE = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_REUSE
-#  define __NIJI_D_enum_WRDE_REUSE 1
 #  ifndef WRDE_REUSE
-enum { WRDE_REUSE = 8 };
+  WRDE_REUSE = 8,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_SHOWERR
-#  define __NIJI_D_enum_WRDE_SHOWERR 1
 #  ifndef WRDE_SHOWERR
-enum { WRDE_SHOWERR = 16 };
+  WRDE_SHOWERR = 16,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_SYNTAX
-#  define __NIJI_D_enum_WRDE_SYNTAX 1
-#  ifndef WRDE_SYNTAX
-enum { WRDE_SYNTAX = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_WRDE_UNDEF
-#  define __NIJI_D_enum_WRDE_UNDEF 1
 #  ifndef WRDE_UNDEF
-enum { WRDE_UNDEF = 32 };
+  WRDE_UNDEF = 32,
 #  endif
+};
+# endif
+# ifndef __NIJI_D_anon_WRDE_BADCHAR
+#  define __NIJI_D_anon_WRDE_BADCHAR 1
+enum {
+#  ifndef WRDE_NOSPACE
+  WRDE_NOSPACE = 1,
+#  endif
+#  ifndef WRDE_BADCHAR
+  WRDE_BADCHAR = 2,
+#  endif
+#  ifndef WRDE_BADVAL
+  WRDE_BADVAL = 3,
+#  endif
+#  ifndef WRDE_CMDSUB
+  WRDE_CMDSUB = 4,
+#  endif
+#  ifndef WRDE_SYNTAX
+  WRDE_SYNTAX = 5,
+#  endif
+};
 # endif
 #endif
 

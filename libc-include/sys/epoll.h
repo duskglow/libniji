@@ -37,6 +37,26 @@ struct timespec {
   long tv_nsec;
 };
 # endif
+# ifndef __NIJI_D_enum_EPOLL_EVENTS
+#  define __NIJI_D_enum_EPOLL_EVENTS 1
+enum EPOLL_EVENTS {
+  EPOLLIN = 1,
+  EPOLLPRI = 2,
+  EPOLLOUT = 4,
+  EPOLLRDNORM = 64,
+  EPOLLRDBAND = 128,
+  EPOLLWRNORM = 256,
+  EPOLLWRBAND = 512,
+  EPOLLMSG = 1024,
+  EPOLLERR = 8,
+  EPOLLHUP = 16,
+  EPOLLRDHUP = 8192,
+  EPOLLEXCLUSIVE = 268435456,
+  EPOLLWAKEUP = 536870912,
+  EPOLLONESHOT = 1073741824,
+  EPOLLET = 2147483648,
+};
+# endif
 # ifndef __NIJI_D_union_epoll_data
 #  define __NIJI_D_union_epoll_data 1
 union epoll_data {
@@ -113,149 +133,61 @@ struct epoll_event;
 #  define __NIJI_D_epoll_wait 1
 extern int epoll_wait (int, struct epoll_event *, int, int);
 # endif
-# ifndef __NIJI_D_enum_EPOLLERR
-#  define __NIJI_D_enum_EPOLLERR 1
-#  ifndef EPOLLERR
-enum { EPOLLERR = 8U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLET
-#  define __NIJI_D_enum_EPOLLET 1
-#  ifndef EPOLLET
-enum { EPOLLET = 2147483648U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLEXCLUSIVE
-#  define __NIJI_D_enum_EPOLLEXCLUSIVE 1
-#  ifndef EPOLLEXCLUSIVE
-enum { EPOLLEXCLUSIVE = 268435456U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLHUP
-#  define __NIJI_D_enum_EPOLLHUP 1
-#  ifndef EPOLLHUP
-enum { EPOLLHUP = 16U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLIN
-#  define __NIJI_D_enum_EPOLLIN 1
-#  ifndef EPOLLIN
-enum { EPOLLIN = 1U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLMSG
-#  define __NIJI_D_enum_EPOLLMSG 1
-#  ifndef EPOLLMSG
-enum { EPOLLMSG = 1024U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLONESHOT
-#  define __NIJI_D_enum_EPOLLONESHOT 1
-#  ifndef EPOLLONESHOT
-enum { EPOLLONESHOT = 1073741824U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLOUT
-#  define __NIJI_D_enum_EPOLLOUT 1
-#  ifndef EPOLLOUT
-enum { EPOLLOUT = 4U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLPRI
-#  define __NIJI_D_enum_EPOLLPRI 1
-#  ifndef EPOLLPRI
-enum { EPOLLPRI = 2U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLRDBAND
-#  define __NIJI_D_enum_EPOLLRDBAND 1
-#  ifndef EPOLLRDBAND
-enum { EPOLLRDBAND = 128U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLRDHUP
-#  define __NIJI_D_enum_EPOLLRDHUP 1
-#  ifndef EPOLLRDHUP
-enum { EPOLLRDHUP = 8192U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLRDNORM
-#  define __NIJI_D_enum_EPOLLRDNORM 1
-#  ifndef EPOLLRDNORM
-enum { EPOLLRDNORM = 64U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLWAKEUP
-#  define __NIJI_D_enum_EPOLLWAKEUP 1
-#  ifndef EPOLLWAKEUP
-enum { EPOLLWAKEUP = 536870912U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLWRBAND
-#  define __NIJI_D_enum_EPOLLWRBAND 1
-#  ifndef EPOLLWRBAND
-enum { EPOLLWRBAND = 512U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLLWRNORM
-#  define __NIJI_D_enum_EPOLLWRNORM 1
-#  ifndef EPOLLWRNORM
-enum { EPOLLWRNORM = 256U };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_EPOLL_CLOEXEC
-#  define __NIJI_D_enum_EPOLL_CLOEXEC 1
+# ifndef __NIJI_D_anon_EPOLL_CLOEXEC
+#  define __NIJI_D_anon_EPOLL_CLOEXEC 1
+enum {
 #  ifndef EPOLL_CLOEXEC
-enum { EPOLL_CLOEXEC = 524288 };
+  EPOLL_CLOEXEC = 524288,
 #  endif
+};
 # endif
 # ifndef EPOLLERR
-#  define EPOLLERR 8U
+#  define EPOLLERR EPOLLERR
 # endif
 # ifndef EPOLLET
-#  define EPOLLET 2147483648U
+#  define EPOLLET EPOLLET
 # endif
 # ifndef EPOLLEXCLUSIVE
-#  define EPOLLEXCLUSIVE 268435456U
+#  define EPOLLEXCLUSIVE EPOLLEXCLUSIVE
 # endif
 # ifndef EPOLLHUP
-#  define EPOLLHUP 16U
+#  define EPOLLHUP EPOLLHUP
 # endif
 # ifndef EPOLLIN
-#  define EPOLLIN 1U
+#  define EPOLLIN EPOLLIN
 # endif
 # ifndef EPOLLMSG
-#  define EPOLLMSG 1024U
+#  define EPOLLMSG EPOLLMSG
 # endif
 # ifndef EPOLLONESHOT
-#  define EPOLLONESHOT 1073741824U
+#  define EPOLLONESHOT EPOLLONESHOT
 # endif
 # ifndef EPOLLOUT
-#  define EPOLLOUT 4U
+#  define EPOLLOUT EPOLLOUT
 # endif
 # ifndef EPOLLPRI
-#  define EPOLLPRI 2U
+#  define EPOLLPRI EPOLLPRI
 # endif
 # ifndef EPOLLRDBAND
-#  define EPOLLRDBAND 128U
+#  define EPOLLRDBAND EPOLLRDBAND
 # endif
 # ifndef EPOLLRDHUP
-#  define EPOLLRDHUP 8192U
+#  define EPOLLRDHUP EPOLLRDHUP
 # endif
 # ifndef EPOLLRDNORM
-#  define EPOLLRDNORM 64U
+#  define EPOLLRDNORM EPOLLRDNORM
 # endif
 # ifndef EPOLLWAKEUP
-#  define EPOLLWAKEUP 536870912U
+#  define EPOLLWAKEUP EPOLLWAKEUP
 # endif
 # ifndef EPOLLWRBAND
-#  define EPOLLWRBAND 512U
+#  define EPOLLWRBAND EPOLLWRBAND
 # endif
 # ifndef EPOLLWRNORM
-#  define EPOLLWRNORM 256U
+#  define EPOLLWRNORM EPOLLWRNORM
 # endif
 # ifndef EPOLL_CLOEXEC
-#  define EPOLL_CLOEXEC 524288
+#  define EPOLL_CLOEXEC EPOLL_CLOEXEC
 # endif
 # ifndef EPOLL_CTL_ADD
 #  define EPOLL_CTL_ADD 1

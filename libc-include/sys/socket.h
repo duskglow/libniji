@@ -94,6 +94,20 @@ struct ucred {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D_enum___socket_type
+#  define __NIJI_D_enum___socket_type 1
+enum __socket_type {
+  SOCK_STREAM = 1,
+  SOCK_DGRAM = 2,
+  SOCK_RAW = 3,
+  SOCK_RDM = 4,
+  SOCK_SEQPACKET = 5,
+  SOCK_DCCP = 6,
+  SOCK_PACKET = 10,
+  SOCK_CLOEXEC = 524288,
+  SOCK_NONBLOCK = 2048,
+};
+# endif
 # ifndef __NIJI_D_sa_family_t
 #  define __NIJI_D_sa_family_t 1
 typedef unsigned short sa_family_t;
@@ -334,238 +348,116 @@ extern int sockatmark (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
-# ifndef __NIJI_D_enum_MSG_BATCH
-#  define __NIJI_D_enum_MSG_BATCH 1
-#  ifndef MSG_BATCH
-enum { MSG_BATCH = 262144 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_CMSG_CLOEXEC
-#  define __NIJI_D_enum_MSG_CMSG_CLOEXEC 1
-#  ifndef MSG_CMSG_CLOEXEC
-enum { MSG_CMSG_CLOEXEC = 1073741824 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_CONFIRM
-#  define __NIJI_D_enum_MSG_CONFIRM 1
-#  ifndef MSG_CONFIRM
-enum { MSG_CONFIRM = 2048 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_CTRUNC
-#  define __NIJI_D_enum_MSG_CTRUNC 1
-#  ifndef MSG_CTRUNC
-enum { MSG_CTRUNC = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_DONTROUTE
-#  define __NIJI_D_enum_MSG_DONTROUTE 1
-#  ifndef MSG_DONTROUTE
-enum { MSG_DONTROUTE = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_DONTWAIT
-#  define __NIJI_D_enum_MSG_DONTWAIT 1
-#  ifndef MSG_DONTWAIT
-enum { MSG_DONTWAIT = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_EOR
-#  define __NIJI_D_enum_MSG_EOR 1
-#  ifndef MSG_EOR
-enum { MSG_EOR = 128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_ERRQUEUE
-#  define __NIJI_D_enum_MSG_ERRQUEUE 1
-#  ifndef MSG_ERRQUEUE
-enum { MSG_ERRQUEUE = 8192 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_FASTOPEN
-#  define __NIJI_D_enum_MSG_FASTOPEN 1
-#  ifndef MSG_FASTOPEN
-enum { MSG_FASTOPEN = 536870912 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_FIN
-#  define __NIJI_D_enum_MSG_FIN 1
-#  ifndef MSG_FIN
-enum { MSG_FIN = 512 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_MORE
-#  define __NIJI_D_enum_MSG_MORE 1
-#  ifndef MSG_MORE
-enum { MSG_MORE = 32768 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_NOSIGNAL
-#  define __NIJI_D_enum_MSG_NOSIGNAL 1
-#  ifndef MSG_NOSIGNAL
-enum { MSG_NOSIGNAL = 16384 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_OOB
-#  define __NIJI_D_enum_MSG_OOB 1
+# ifndef __NIJI_D_anon_MSG_BATCH
+#  define __NIJI_D_anon_MSG_BATCH 1
+enum {
 #  ifndef MSG_OOB
-enum { MSG_OOB = 1 };
+  MSG_OOB = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_PEEK
-#  define __NIJI_D_enum_MSG_PEEK 1
 #  ifndef MSG_PEEK
-enum { MSG_PEEK = 2 };
+  MSG_PEEK = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_PROXY
-#  define __NIJI_D_enum_MSG_PROXY 1
-#  ifndef MSG_PROXY
-enum { MSG_PROXY = 16 };
+#  ifndef MSG_DONTROUTE
+  MSG_DONTROUTE = 4,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_RST
-#  define __NIJI_D_enum_MSG_RST 1
-#  ifndef MSG_RST
-enum { MSG_RST = 4096 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_SYN
-#  define __NIJI_D_enum_MSG_SYN 1
-#  ifndef MSG_SYN
-enum { MSG_SYN = 1024 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_TRUNC
-#  define __NIJI_D_enum_MSG_TRUNC 1
-#  ifndef MSG_TRUNC
-enum { MSG_TRUNC = 32 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_WAITALL
-#  define __NIJI_D_enum_MSG_WAITALL 1
-#  ifndef MSG_WAITALL
-enum { MSG_WAITALL = 256 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_WAITFORONE
-#  define __NIJI_D_enum_MSG_WAITFORONE 1
-#  ifndef MSG_WAITFORONE
-enum { MSG_WAITFORONE = 65536 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_MSG_ZEROCOPY
-#  define __NIJI_D_enum_MSG_ZEROCOPY 1
-#  ifndef MSG_ZEROCOPY
-enum { MSG_ZEROCOPY = 67108864 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SCM_RIGHTS
-#  define __NIJI_D_enum_SCM_RIGHTS 1
-#  ifndef SCM_RIGHTS
-enum { SCM_RIGHTS = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SHUT_RD
-#  define __NIJI_D_enum_SHUT_RD 1
-#  ifndef SHUT_RD
-enum { SHUT_RD = 0 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SHUT_RDWR
-#  define __NIJI_D_enum_SHUT_RDWR 1
-#  ifndef SHUT_RDWR
-enum { SHUT_RDWR = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SHUT_WR
-#  define __NIJI_D_enum_SHUT_WR 1
-#  ifndef SHUT_WR
-enum { SHUT_WR = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_CLOEXEC
-#  define __NIJI_D_enum_SOCK_CLOEXEC 1
-#  ifndef SOCK_CLOEXEC
-enum { SOCK_CLOEXEC = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_DCCP
-#  define __NIJI_D_enum_SOCK_DCCP 1
-#  ifndef SOCK_DCCP
-enum { SOCK_DCCP = 6 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_DGRAM
-#  define __NIJI_D_enum_SOCK_DGRAM 1
-#  ifndef SOCK_DGRAM
-enum { SOCK_DGRAM = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_NONBLOCK
-#  define __NIJI_D_enum_SOCK_NONBLOCK 1
-#  ifndef SOCK_NONBLOCK
-enum { SOCK_NONBLOCK = 2048 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_PACKET
-#  define __NIJI_D_enum_SOCK_PACKET 1
-#  ifndef SOCK_PACKET
-enum { SOCK_PACKET = 10 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_RAW
-#  define __NIJI_D_enum_SOCK_RAW 1
-#  ifndef SOCK_RAW
-enum { SOCK_RAW = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_RDM
-#  define __NIJI_D_enum_SOCK_RDM 1
-#  ifndef SOCK_RDM
-enum { SOCK_RDM = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_SEQPACKET
-#  define __NIJI_D_enum_SOCK_SEQPACKET 1
-#  ifndef SOCK_SEQPACKET
-enum { SOCK_SEQPACKET = 5 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_SOCK_STREAM
-#  define __NIJI_D_enum_SOCK_STREAM 1
-#  ifndef SOCK_STREAM
-enum { SOCK_STREAM = 1 };
-#  endif
-# endif
-#endif
-#if __NIJI_GNU
-# ifndef __NIJI_D_enum_MSG_TRYHARD
-#  define __NIJI_D_enum_MSG_TRYHARD 1
+#  if __NIJI_GNU
 #  ifndef MSG_TRYHARD
-enum { MSG_TRYHARD = 4 };
+  MSG_TRYHARD = 4,
 #  endif
+#  endif
+#  ifndef MSG_CTRUNC
+  MSG_CTRUNC = 8,
+#  endif
+#  ifndef MSG_PROXY
+  MSG_PROXY = 16,
+#  endif
+#  ifndef MSG_TRUNC
+  MSG_TRUNC = 32,
+#  endif
+#  ifndef MSG_DONTWAIT
+  MSG_DONTWAIT = 64,
+#  endif
+#  ifndef MSG_EOR
+  MSG_EOR = 128,
+#  endif
+#  ifndef MSG_WAITALL
+  MSG_WAITALL = 256,
+#  endif
+#  ifndef MSG_FIN
+  MSG_FIN = 512,
+#  endif
+#  ifndef MSG_SYN
+  MSG_SYN = 1024,
+#  endif
+#  ifndef MSG_CONFIRM
+  MSG_CONFIRM = 2048,
+#  endif
+#  ifndef MSG_RST
+  MSG_RST = 4096,
+#  endif
+#  ifndef MSG_ERRQUEUE
+  MSG_ERRQUEUE = 8192,
+#  endif
+#  ifndef MSG_NOSIGNAL
+  MSG_NOSIGNAL = 16384,
+#  endif
+#  ifndef MSG_MORE
+  MSG_MORE = 32768,
+#  endif
+#  ifndef MSG_WAITFORONE
+  MSG_WAITFORONE = 65536,
+#  endif
+#  ifndef MSG_BATCH
+  MSG_BATCH = 262144,
+#  endif
+#  ifndef MSG_ZEROCOPY
+  MSG_ZEROCOPY = 67108864,
+#  endif
+#  ifndef MSG_FASTOPEN
+  MSG_FASTOPEN = 536870912,
+#  endif
+#  ifndef MSG_CMSG_CLOEXEC
+  MSG_CMSG_CLOEXEC = 1073741824,
+#  endif
+};
 # endif
-# ifndef __NIJI_D_enum_SCM_CREDENTIALS
-#  define __NIJI_D_enum_SCM_CREDENTIALS 1
+# ifndef __NIJI_D_anon_SCM_CREDENTIALS
+#  define __NIJI_D_anon_SCM_CREDENTIALS 1
+enum {
+#  ifndef SCM_RIGHTS
+  SCM_RIGHTS = 1,
+#  endif
+#  if __NIJI_GNU
 #  ifndef SCM_CREDENTIALS
-enum { SCM_CREDENTIALS = 2 };
+  SCM_CREDENTIALS = 2,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SCM_PIDFD
-#  define __NIJI_D_enum_SCM_PIDFD 1
-#  ifndef SCM_PIDFD
-enum { SCM_PIDFD = 4 };
 #  endif
-# endif
-# ifndef __NIJI_D_enum_SCM_SECURITY
-#  define __NIJI_D_enum_SCM_SECURITY 1
+#  if __NIJI_GNU
 #  ifndef SCM_SECURITY
-enum { SCM_SECURITY = 3 };
+  SCM_SECURITY = 3,
 #  endif
+#  endif
+#  if __NIJI_GNU
+#  ifndef SCM_PIDFD
+  SCM_PIDFD = 4,
+#  endif
+#  endif
+};
 # endif
-#endif
-#if 1
+# ifndef __NIJI_D_anon_SHUT_RD
+#  define __NIJI_D_anon_SHUT_RD 1
+enum {
+#  ifndef SHUT_RD
+  SHUT_RD = 0,
+#  endif
+#  ifndef SHUT_WR
+  SHUT_WR = 1,
+#  endif
+#  ifndef SHUT_RDWR
+  SHUT_RDWR = 2,
+#  endif
+};
+# endif
 # ifndef AF_ALG
 #  define AF_ALG 38
 # endif
@@ -717,67 +609,67 @@ enum { SCM_SECURITY = 3 };
 #  define AF_XDP 44
 # endif
 # ifndef MSG_BATCH
-#  define MSG_BATCH 262144
+#  define MSG_BATCH MSG_BATCH
 # endif
 # ifndef MSG_CMSG_CLOEXEC
-#  define MSG_CMSG_CLOEXEC 1073741824
+#  define MSG_CMSG_CLOEXEC MSG_CMSG_CLOEXEC
 # endif
 # ifndef MSG_CONFIRM
-#  define MSG_CONFIRM 2048
+#  define MSG_CONFIRM MSG_CONFIRM
 # endif
 # ifndef MSG_CTRUNC
-#  define MSG_CTRUNC 8
+#  define MSG_CTRUNC MSG_CTRUNC
 # endif
 # ifndef MSG_DONTROUTE
-#  define MSG_DONTROUTE 4
+#  define MSG_DONTROUTE MSG_DONTROUTE
 # endif
 # ifndef MSG_DONTWAIT
-#  define MSG_DONTWAIT 64
+#  define MSG_DONTWAIT MSG_DONTWAIT
 # endif
 # ifndef MSG_EOR
-#  define MSG_EOR 128
+#  define MSG_EOR MSG_EOR
 # endif
 # ifndef MSG_ERRQUEUE
-#  define MSG_ERRQUEUE 8192
+#  define MSG_ERRQUEUE MSG_ERRQUEUE
 # endif
 # ifndef MSG_FASTOPEN
-#  define MSG_FASTOPEN 536870912
+#  define MSG_FASTOPEN MSG_FASTOPEN
 # endif
 # ifndef MSG_FIN
-#  define MSG_FIN 512
+#  define MSG_FIN MSG_FIN
 # endif
 # ifndef MSG_MORE
-#  define MSG_MORE 32768
+#  define MSG_MORE MSG_MORE
 # endif
 # ifndef MSG_NOSIGNAL
-#  define MSG_NOSIGNAL 16384
+#  define MSG_NOSIGNAL MSG_NOSIGNAL
 # endif
 # ifndef MSG_OOB
-#  define MSG_OOB 1
+#  define MSG_OOB MSG_OOB
 # endif
 # ifndef MSG_PEEK
-#  define MSG_PEEK 2
+#  define MSG_PEEK MSG_PEEK
 # endif
 # ifndef MSG_PROXY
-#  define MSG_PROXY 16
+#  define MSG_PROXY MSG_PROXY
 # endif
 # ifndef MSG_RST
-#  define MSG_RST 4096
+#  define MSG_RST MSG_RST
 # endif
 # ifndef MSG_SYN
-#  define MSG_SYN 1024
+#  define MSG_SYN MSG_SYN
 # endif
 # ifndef MSG_TRUNC
-#  define MSG_TRUNC 32
+#  define MSG_TRUNC MSG_TRUNC
 # endif
 # ifndef MSG_WAITALL
-#  define MSG_WAITALL 256
+#  define MSG_WAITALL MSG_WAITALL
 # endif
 # ifndef MSG_WAITFORONE
-#  define MSG_WAITFORONE 65536
+#  define MSG_WAITFORONE MSG_WAITFORONE
 # endif
 # ifndef MSG_ZEROCOPY
-#  define MSG_ZEROCOPY 67108864
+#  define MSG_ZEROCOPY MSG_ZEROCOPY
 # endif
 # ifndef PF_ALG
 #  define PF_ALG 38
@@ -930,43 +822,43 @@ enum { SCM_SECURITY = 3 };
 #  define PF_XDP 44
 # endif
 # ifndef SCM_RIGHTS
-#  define SCM_RIGHTS 1
+#  define SCM_RIGHTS SCM_RIGHTS
 # endif
 # ifndef SHUT_RD
-#  define SHUT_RD 0
+#  define SHUT_RD SHUT_RD
 # endif
 # ifndef SHUT_RDWR
-#  define SHUT_RDWR 2
+#  define SHUT_RDWR SHUT_RDWR
 # endif
 # ifndef SHUT_WR
-#  define SHUT_WR 1
+#  define SHUT_WR SHUT_WR
 # endif
 # ifndef SOCK_CLOEXEC
-#  define SOCK_CLOEXEC 524288
+#  define SOCK_CLOEXEC SOCK_CLOEXEC
 # endif
 # ifndef SOCK_DCCP
-#  define SOCK_DCCP 6
+#  define SOCK_DCCP SOCK_DCCP
 # endif
 # ifndef SOCK_DGRAM
-#  define SOCK_DGRAM 2
+#  define SOCK_DGRAM SOCK_DGRAM
 # endif
 # ifndef SOCK_NONBLOCK
-#  define SOCK_NONBLOCK 2048
+#  define SOCK_NONBLOCK SOCK_NONBLOCK
 # endif
 # ifndef SOCK_PACKET
-#  define SOCK_PACKET 10
+#  define SOCK_PACKET SOCK_PACKET
 # endif
 # ifndef SOCK_RAW
-#  define SOCK_RAW 3
+#  define SOCK_RAW SOCK_RAW
 # endif
 # ifndef SOCK_RDM
-#  define SOCK_RDM 4
+#  define SOCK_RDM SOCK_RDM
 # endif
 # ifndef SOCK_SEQPACKET
-#  define SOCK_SEQPACKET 5
+#  define SOCK_SEQPACKET SOCK_SEQPACKET
 # endif
 # ifndef SOCK_STREAM
-#  define SOCK_STREAM 1
+#  define SOCK_STREAM SOCK_STREAM
 # endif
 # ifndef SOL_AAL
 #  define SOL_AAL 265
@@ -1121,16 +1013,16 @@ enum { SCM_SECURITY = 3 };
 #endif
 #if __NIJI_GNU
 # ifndef MSG_TRYHARD
-#  define MSG_TRYHARD 4
+#  define MSG_TRYHARD MSG_TRYHARD
 # endif
 # ifndef SCM_CREDENTIALS
-#  define SCM_CREDENTIALS 2
+#  define SCM_CREDENTIALS SCM_CREDENTIALS
 # endif
 # ifndef SCM_PIDFD
-#  define SCM_PIDFD 4
+#  define SCM_PIDFD SCM_PIDFD
 # endif
 # ifndef SCM_SECURITY
-#  define SCM_SECURITY 3
+#  define SCM_SECURITY SCM_SECURITY
 # endif
 #endif
 #if __NIJI_MISC

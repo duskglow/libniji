@@ -54,7 +54,7 @@ NOT_CONSTANT = {"PTHREAD_STACK_MIN", "MINSIGSTKSZ", "SIGSTKSZ"}
 # header owns: emitted only where headers/reserved.tsv says, and `_POSIX_C_SOURCE` takes its value from the
 # configuration, so P1 asserts such a value only in the owning header.
 RESERVED = re.compile(r"_[A-Z_]")
-INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
+INT_SUFFIX = {"int": "", "char": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
 def slice_rows():

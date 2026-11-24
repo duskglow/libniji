@@ -114,101 +114,58 @@ extern unsigned int if_nametoindex (const char *) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_MISC
-# ifndef __NIJI_D_enum_IFF_ALLMULTI
-#  define __NIJI_D_enum_IFF_ALLMULTI 1
-#  ifndef IFF_ALLMULTI
-enum { IFF_ALLMULTI = 512 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_AUTOMEDIA
-#  define __NIJI_D_enum_IFF_AUTOMEDIA 1
-#  ifndef IFF_AUTOMEDIA
-enum { IFF_AUTOMEDIA = 16384 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_BROADCAST
-#  define __NIJI_D_enum_IFF_BROADCAST 1
-#  ifndef IFF_BROADCAST
-enum { IFF_BROADCAST = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_DEBUG
-#  define __NIJI_D_enum_IFF_DEBUG 1
-#  ifndef IFF_DEBUG
-enum { IFF_DEBUG = 4 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_DYNAMIC
-#  define __NIJI_D_enum_IFF_DYNAMIC 1
-#  ifndef IFF_DYNAMIC
-enum { IFF_DYNAMIC = 32768 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_LOOPBACK
-#  define __NIJI_D_enum_IFF_LOOPBACK 1
-#  ifndef IFF_LOOPBACK
-enum { IFF_LOOPBACK = 8 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_MASTER
-#  define __NIJI_D_enum_IFF_MASTER 1
-#  ifndef IFF_MASTER
-enum { IFF_MASTER = 1024 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_MULTICAST
-#  define __NIJI_D_enum_IFF_MULTICAST 1
-#  ifndef IFF_MULTICAST
-enum { IFF_MULTICAST = 4096 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_NOARP
-#  define __NIJI_D_enum_IFF_NOARP 1
-#  ifndef IFF_NOARP
-enum { IFF_NOARP = 128 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_NOTRAILERS
-#  define __NIJI_D_enum_IFF_NOTRAILERS 1
-#  ifndef IFF_NOTRAILERS
-enum { IFF_NOTRAILERS = 32 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_POINTOPOINT
-#  define __NIJI_D_enum_IFF_POINTOPOINT 1
-#  ifndef IFF_POINTOPOINT
-enum { IFF_POINTOPOINT = 16 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_PORTSEL
-#  define __NIJI_D_enum_IFF_PORTSEL 1
-#  ifndef IFF_PORTSEL
-enum { IFF_PORTSEL = 8192 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_PROMISC
-#  define __NIJI_D_enum_IFF_PROMISC 1
-#  ifndef IFF_PROMISC
-enum { IFF_PROMISC = 256 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_RUNNING
-#  define __NIJI_D_enum_IFF_RUNNING 1
-#  ifndef IFF_RUNNING
-enum { IFF_RUNNING = 64 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_SLAVE
-#  define __NIJI_D_enum_IFF_SLAVE 1
-#  ifndef IFF_SLAVE
-enum { IFF_SLAVE = 2048 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_IFF_UP
-#  define __NIJI_D_enum_IFF_UP 1
+# ifndef __NIJI_D_anon_IFF_ALLMULTI
+#  define __NIJI_D_anon_IFF_ALLMULTI 1
+enum {
 #  ifndef IFF_UP
-enum { IFF_UP = 1 };
+  IFF_UP = 1,
 #  endif
+#  ifndef IFF_BROADCAST
+  IFF_BROADCAST = 2,
+#  endif
+#  ifndef IFF_DEBUG
+  IFF_DEBUG = 4,
+#  endif
+#  ifndef IFF_LOOPBACK
+  IFF_LOOPBACK = 8,
+#  endif
+#  ifndef IFF_POINTOPOINT
+  IFF_POINTOPOINT = 16,
+#  endif
+#  ifndef IFF_NOTRAILERS
+  IFF_NOTRAILERS = 32,
+#  endif
+#  ifndef IFF_RUNNING
+  IFF_RUNNING = 64,
+#  endif
+#  ifndef IFF_NOARP
+  IFF_NOARP = 128,
+#  endif
+#  ifndef IFF_PROMISC
+  IFF_PROMISC = 256,
+#  endif
+#  ifndef IFF_ALLMULTI
+  IFF_ALLMULTI = 512,
+#  endif
+#  ifndef IFF_MASTER
+  IFF_MASTER = 1024,
+#  endif
+#  ifndef IFF_SLAVE
+  IFF_SLAVE = 2048,
+#  endif
+#  ifndef IFF_MULTICAST
+  IFF_MULTICAST = 4096,
+#  endif
+#  ifndef IFF_PORTSEL
+  IFF_PORTSEL = 8192,
+#  endif
+#  ifndef IFF_AUTOMEDIA
+  IFF_AUTOMEDIA = 16384,
+#  endif
+#  ifndef IFF_DYNAMIC
+  IFF_DYNAMIC = 32768,
+#  endif
+};
 # endif
 #endif
 #if 1
@@ -221,52 +178,52 @@ enum { IFF_UP = 1 };
 #endif
 #if __NIJI_MISC
 # ifndef IFF_ALLMULTI
-#  define IFF_ALLMULTI 512
+#  define IFF_ALLMULTI IFF_ALLMULTI
 # endif
 # ifndef IFF_AUTOMEDIA
-#  define IFF_AUTOMEDIA 16384
+#  define IFF_AUTOMEDIA IFF_AUTOMEDIA
 # endif
 # ifndef IFF_BROADCAST
-#  define IFF_BROADCAST 2
+#  define IFF_BROADCAST IFF_BROADCAST
 # endif
 # ifndef IFF_DEBUG
-#  define IFF_DEBUG 4
+#  define IFF_DEBUG IFF_DEBUG
 # endif
 # ifndef IFF_DYNAMIC
-#  define IFF_DYNAMIC 32768
+#  define IFF_DYNAMIC IFF_DYNAMIC
 # endif
 # ifndef IFF_LOOPBACK
-#  define IFF_LOOPBACK 8
+#  define IFF_LOOPBACK IFF_LOOPBACK
 # endif
 # ifndef IFF_MASTER
-#  define IFF_MASTER 1024
+#  define IFF_MASTER IFF_MASTER
 # endif
 # ifndef IFF_MULTICAST
-#  define IFF_MULTICAST 4096
+#  define IFF_MULTICAST IFF_MULTICAST
 # endif
 # ifndef IFF_NOARP
-#  define IFF_NOARP 128
+#  define IFF_NOARP IFF_NOARP
 # endif
 # ifndef IFF_NOTRAILERS
-#  define IFF_NOTRAILERS 32
+#  define IFF_NOTRAILERS IFF_NOTRAILERS
 # endif
 # ifndef IFF_POINTOPOINT
-#  define IFF_POINTOPOINT 16
+#  define IFF_POINTOPOINT IFF_POINTOPOINT
 # endif
 # ifndef IFF_PORTSEL
-#  define IFF_PORTSEL 8192
+#  define IFF_PORTSEL IFF_PORTSEL
 # endif
 # ifndef IFF_PROMISC
-#  define IFF_PROMISC 256
+#  define IFF_PROMISC IFF_PROMISC
 # endif
 # ifndef IFF_RUNNING
-#  define IFF_RUNNING 64
+#  define IFF_RUNNING IFF_RUNNING
 # endif
 # ifndef IFF_SLAVE
-#  define IFF_SLAVE 2048
+#  define IFF_SLAVE IFF_SLAVE
 # endif
 # ifndef IFF_UP
-#  define IFF_UP 1
+#  define IFF_UP IFF_UP
 # endif
 # ifndef IFHWADDRLEN
 #  define IFHWADDRLEN 6

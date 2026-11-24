@@ -52,41 +52,39 @@ struct itimerspec;
 #  define __NIJI_D_timerfd_settime 1
 extern int timerfd_settime (int, int, const struct itimerspec *, struct itimerspec *) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_TFD_CLOEXEC
-#  define __NIJI_D_enum_TFD_CLOEXEC 1
-#  ifndef TFD_CLOEXEC
-enum { TFD_CLOEXEC = 524288 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_TFD_NONBLOCK
-#  define __NIJI_D_enum_TFD_NONBLOCK 1
+# ifndef __NIJI_D_anon_TFD_CLOEXEC
+#  define __NIJI_D_anon_TFD_CLOEXEC 1
+enum {
 #  ifndef TFD_NONBLOCK
-enum { TFD_NONBLOCK = 2048 };
+  TFD_NONBLOCK = 2048,
 #  endif
+#  ifndef TFD_CLOEXEC
+  TFD_CLOEXEC = 524288,
+#  endif
+};
 # endif
-# ifndef __NIJI_D_enum_TFD_TIMER_ABSTIME
-#  define __NIJI_D_enum_TFD_TIMER_ABSTIME 1
+# ifndef __NIJI_D_anon_TFD_TIMER_ABSTIME
+#  define __NIJI_D_anon_TFD_TIMER_ABSTIME 1
+enum {
 #  ifndef TFD_TIMER_ABSTIME
-enum { TFD_TIMER_ABSTIME = 1 };
+  TFD_TIMER_ABSTIME = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_TFD_TIMER_CANCEL_ON_SET
-#  define __NIJI_D_enum_TFD_TIMER_CANCEL_ON_SET 1
 #  ifndef TFD_TIMER_CANCEL_ON_SET
-enum { TFD_TIMER_CANCEL_ON_SET = 2 };
+  TFD_TIMER_CANCEL_ON_SET = 2,
 #  endif
+};
 # endif
 # ifndef TFD_CLOEXEC
-#  define TFD_CLOEXEC 524288
+#  define TFD_CLOEXEC TFD_CLOEXEC
 # endif
 # ifndef TFD_NONBLOCK
-#  define TFD_NONBLOCK 2048
+#  define TFD_NONBLOCK TFD_NONBLOCK
 # endif
 # ifndef TFD_TIMER_ABSTIME
-#  define TFD_TIMER_ABSTIME 1
+#  define TFD_TIMER_ABSTIME TFD_TIMER_ABSTIME
 # endif
 # ifndef TFD_TIMER_CANCEL_ON_SET
-#  define TFD_TIMER_CANCEL_ON_SET 2
+#  define TFD_TIMER_CANCEL_ON_SET TFD_TIMER_CANCEL_ON_SET
 # endif
 #endif
 

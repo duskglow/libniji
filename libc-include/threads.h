@@ -160,53 +160,39 @@ extern void *tss_get (unsigned int);
 #  define __NIJI_D_tss_set 1
 extern int tss_set (unsigned int, void *);
 # endif
-# ifndef __NIJI_D_enum_mtx_plain
-#  define __NIJI_D_enum_mtx_plain 1
+# ifndef __NIJI_D_anon_mtx_plain
+#  define __NIJI_D_anon_mtx_plain 1
+enum {
 #  ifndef mtx_plain
-enum { mtx_plain = 0 };
+  mtx_plain = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_mtx_recursive
-#  define __NIJI_D_enum_mtx_recursive 1
 #  ifndef mtx_recursive
-enum { mtx_recursive = 1 };
+  mtx_recursive = 1,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_mtx_timed
-#  define __NIJI_D_enum_mtx_timed 1
 #  ifndef mtx_timed
-enum { mtx_timed = 2 };
+  mtx_timed = 2,
 #  endif
+};
 # endif
-# ifndef __NIJI_D_enum_thrd_busy
-#  define __NIJI_D_enum_thrd_busy 1
-#  ifndef thrd_busy
-enum { thrd_busy = 1 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_thrd_error
-#  define __NIJI_D_enum_thrd_error 1
-#  ifndef thrd_error
-enum { thrd_error = 2 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_thrd_nomem
-#  define __NIJI_D_enum_thrd_nomem 1
-#  ifndef thrd_nomem
-enum { thrd_nomem = 3 };
-#  endif
-# endif
-# ifndef __NIJI_D_enum_thrd_success
-#  define __NIJI_D_enum_thrd_success 1
+# ifndef __NIJI_D_anon_thrd_busy
+#  define __NIJI_D_anon_thrd_busy 1
+enum {
 #  ifndef thrd_success
-enum { thrd_success = 0 };
+  thrd_success = 0,
 #  endif
-# endif
-# ifndef __NIJI_D_enum_thrd_timedout
-#  define __NIJI_D_enum_thrd_timedout 1
+#  ifndef thrd_busy
+  thrd_busy = 1,
+#  endif
+#  ifndef thrd_error
+  thrd_error = 2,
+#  endif
+#  ifndef thrd_nomem
+  thrd_nomem = 3,
+#  endif
 #  ifndef thrd_timedout
-enum { thrd_timedout = 4 };
+  thrd_timedout = 4,
 #  endif
+};
 # endif
 # ifndef TSS_DTOR_ITERATIONS
 #  define TSS_DTOR_ITERATIONS 4
