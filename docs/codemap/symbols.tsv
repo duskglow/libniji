@@ -497,7 +497,7 @@ __sysconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:226	ret::sysconf
 __sysctl	GLIBC_2.2.5	crates/boundary/src/posix/s29_legacy.rs:555	ret::zero
 __syslog_chk		csys/src/adapter/variadic.c:254	
 __sysv_signal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:70	ret::handler
-__tls_get_addr		crates/boundary/src/ld/tls.rs:790	crate::tb::read
+__tls_get_addr		crates/boundary/src/ld/tls.rs:794	crate::tb::read
 __toascii_l	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:395	ctype_tables::toascii
 __tolower_l	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:420	locale::case_map_l
 __toupper_l	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:455	locale::case_map_l
@@ -577,7 +577,7 @@ __xstat64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:272	ret::store
 _authenticate	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:157	
 _dl_debug_state		crates/boundary/src/ld.rs:65	core::sync::atomic::compiler_fence
 _dl_find_object	GLIBC_2.35	crates/boundary/src/posix/s27_dynlink.rs:228	i64::from_ne_bytes
-_dl_get_tls_static_info		crates/boundary/src/ld/tls.rs:895	crate::tb::c_word
+_dl_get_tls_static_info		crates/boundary/src/ld/tls.rs:899	crate::tb::c_word
 _exit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:89	process::exit_now
 _flushlbf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:109	stdio::flushlbf
 _getlong	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:881	resolv::get_be
