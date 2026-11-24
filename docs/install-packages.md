@@ -65,6 +65,8 @@ default (`-nostdinc`, then the C++ library's directories for C++, libniji's head
 compiler's own directory); `NIJI_SYSTEM_HEADERS=1` compiles with the system's glibc headers
 instead (libniji implements the glibc 2.39 ABI they describe). `niji6-dev` depends on `gcc`,
 `binutils`, `libc6-dev` and `linux-libc-dev`; `g++` is recommended for `niji-g++`.
+Not shipped yet: `aio.h`, `complex.h`, `mqueue.h`, `proc_service.h`, `tgmath.h`, `thread_db.h`
+(`validation/headers_unshipped.tsv`); build a package that includes one with `NIJI_SYSTEM_HEADERS=1`.
 
 ## Building a program against libniji
 

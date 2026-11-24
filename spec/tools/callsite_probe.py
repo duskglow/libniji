@@ -7,6 +7,10 @@ specification (plan/headers.md slice 4, Appendix C.13).
 `--include DIR` probes libniji's headers (P3 of plan/headers.md section 3): every compile gets `-nostdinc -isystem DIR`,
 and a C++ compile also g++'s C++ library directories ahead of DIR (as a C++ build sees them: libstdc++'s <stdlib.h>
 adds std:: overloads, so `&abs` is ambiguous on both sides); `--headers` keeps the functions probed through those headers.
+In that mode the kernel UAPI tree is $NIJI_UAPI, or else the `uapi` directory beside DIR (`cargo xtask so` stages both
+under target/niji/), never the build host's /usr/include, which would supply the host's libc headers for a header
+libniji lacks. A header with no file under DIR is not probed: its functions and macros get no row in either table, and
+the headers left out are named on stderr (validation/headers_p4.py lists the ones libniji does not ship yet).
 
 Run on the reference system (Appendix C.0), like header_probe.py, after it: the function list is
 prototypes.tsv, and the header and configurations each function is probed in come from visibility.tsv
@@ -407,10 +411,19 @@ def main():
     gccinc = subprocess.run(["g++", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
+    absent = []
     if inc:
         plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
-        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, *uapi_flags()])
+        uapi = os.environ.get("NIJI_UAPI") or os.path.join(os.path.dirname(inc), "uapi")
+        if not os.path.isdir(uapi):
+            sys.exit(f"callsite_probe: --include needs the kernel UAPI tree: set NIJI_UAPI ({uapi} does not exist)")
+        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, "-isystem", uapi])
         CXX_INC.extend(x for d in cxx_library_dirs() for x in ("-isystem", d))
+        absent = sorted({h for h, _ in fns.values()} - {"-"} | {m[1] for m in MACROS})
+        absent = [h for h in absent if not os.path.isfile(os.path.join(inc, h))]
+        if absent:
+            print(f"callsite_probe: not under {inc}, not probed: {' '.join(absent)}", file=sys.stderr)
+            protos = {n: d for n, d in protos.items() if n not in fns or fns[n][0] not in absent}
     # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
     all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []
@@ -432,7 +445,7 @@ def main():
             if names:
                 jobs.append((label, h, std, cfg[std], names))
     # One unit per (header, configuration) for the macros too: every job writes its own file names.
-    for h in sorted({m[1] for m in MACROS if not only or m[1] in only}):
+    for h in sorted({m[1] for m in MACROS if (not only or m[1] in only) and m[1] not in absent}):
         items = [(m, [e]) for m, mh, e in MACROS if mh == h and (not names_filter or m in names_filter)]
         if items:
             for c in call_ids:
