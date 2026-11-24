@@ -259,7 +259,8 @@ fn find_run(find: &Path, dir: &Path, preload: &Path, phase: u64, kib: Option<u64
     let ld = ["ld-linux-x86-64.so.2", "ld.so"].iter().map(|n| r.join(n)).find(|p| p.exists()).expect("the products' dynamic loader");
     let stack = 131_072_u64.saturating_add(phase);
     let limit = kib.map_or(String::new(), |k| format!("ulimit -v {k}; "));
-    let cmd = format!("ulimit -s {stack} || exit 99; {limit}exec \"$0\" --preload \"$1\" --library-path \"$2\" \"$3\" \"$4\" > /dev/null");
+    // Descriptor 3 is the preload's (on the standard error pipe), open in every run alike.
+    let cmd = format!("ulimit -s {stack} || exit 99; {limit}exec \"$0\" --preload \"$1\" --library-path \"$2\" \"$3\" \"$4\" > /dev/null 3>&2");
     let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(preload).arg(&r).arg(find).arg(dir).env_clear().env("LANG", "en_US.UTF-8").stdin(Stdio::null()).output().unwrap();
     assert_ne!(o.status.code(), Some(99), "ulimit -s {stack} refused: the stack hard limit was checked before the run");
     o
@@ -283,7 +284,7 @@ fn find_need(find: &Path, dir: &Path, preload: &Path, phase: u64) -> u64 {
 }
 
 /// The address space (KiB) `find dir` leaves mapped at exit without a limit: the `VmSize:` line
-/// `vm_size_at_exit.so` writes to standard error.
+/// `vm_size_at_exit.so` writes to descriptor 3 (opened on the standard error pipe).
 fn find_mapped(find: &Path, dir: &Path, preload: &Path, phase: u64) -> u64 {
     let o = find_run(find, dir, preload, phase, None);
     assert!(o.status.success(), "find {} fails without a limit with the products: {:?}", dir.display(), o.status);

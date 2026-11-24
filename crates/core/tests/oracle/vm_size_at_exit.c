@@ -1,6 +1,7 @@
 /* The process's address space at exit (HEAP-FIND-DEPTH-NEED-3, D-3.25): a shared object preloaded
  * into a program (the loader's --preload) whose destructor copies the "VmSize:" line of
- * /proc/self/status to standard error. heap_meta_products takes it as the address space a walk
+ * /proc/self/status to file descriptor 3, which the caller opens (`find` closes its standard error
+ * at exit, before destructors run). heap_meta_products takes it as the address space a walk
  * maps without a limit: the heap keeps its segments to the end, so at exit that is everything the
  * walk left mapped, without the over-mapping it used and returned on the way.
  * Freestanding (raw system calls, no headers, built with -nostdlib): it depends on no C library,
@@ -38,7 +39,7 @@ __attribute__((destructor)) static void vm_size_at_exit(void) {
             end++;
         if (end < n)
             end++;
-        sys3(1 /* write */, 2, (long)(buf + i + 1), end - i - 1);
+        sys3(1 /* write */, 3, (long)(buf + i + 1), end - i - 1);
         return;
     }
 }
