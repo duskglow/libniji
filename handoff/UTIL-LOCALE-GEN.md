@@ -1,58 +1,31 @@
 # UTIL-LOCALE-GEN: locale-gen, update-locale, validlocale (commands of the shipped localedef)
 
-**State (leg 2 -> refresh 2).** Branch `task/util-locale-gen` from origin/next `4540a7cc8`; role keke `~/w/n4`
-(synced at d50738d5c; resync before any job). Reserved ids: **D-31.36** (commands + locale-gen semantics),
-**D-31.37** (update-locale / validlocale / packaging). No COMPAT reserved. Leg 1 ~85 calls, leg 2 ~100 calls
-(context limit both times).
+**State (leg 3, run 1).** Branch `task/util-locale-gen` from origin/next `4540a7cc8`; role keke `~/w/n4`. Records
+D-31.36 (commands, locale-gen) and D-31.37 (update-locale, validlocale, package) written. Report:
+`handoff/reports/UTIL-LOCALE-GEN.json`. Probe transcripts of the reference: `handoff/UTIL-LOCALE-GEN-probe.txt`
+(trixie `locales` 2.41). Plants: `handoff/UTIL-LOCALE-GEN-plants.txt`.
 
 ## Done (do not redo)
-* Probes of the reference (Debian trixie `locales` 2.41): `handoff/UTIL-LOCALE-GEN-probe.txt`. keke is Ubuntu
-  24.04 (`locales` 2.39-0ubuntu8.9): its locale-gen is a DIFFERENT interface (so no locale-gen transcript);
-  its update-locale/validlocale are expected to match trixie's.
-* Code: `crates/locale/src/cmds.rs`, `prog::Host` remove/exists/env/emit, `crates/boundary/src/localedef.rs`
-  dispatch on argv[0]. Leg 2 fixed two borrow errors (leg 1's WIP did not compile).
-* Unit tests (commit fda84c48a) in `crates/locale/tests/prog.rs` (mock Host gained remove/exists/env):
-  5 tests, clause `s31_14_c_2`; keke job util-locale-gen-unit4: 26 passed (whole file).
-* Packaging (commit d50738d5c): manifest rows (locales: DEBIAN/{config,postinst,postrm,templates},
-  etc/locale.alias (comment-only), usr/lib/locale dir, usr/sbin/{locale-gen,update-locale,validlocale} ->
-  ../bin/localedef, usr/share/locale/locale.alias -> /etc/locale.alias), files under tools/deb/system/locales.*
-  and locale.alias, description text, `tools/deb/smoke/locale.c`, root-system.sh check (after the tzselect
-  block) + header bullet. `manifest.py lint` OK. The postinst's select_entries was checked locally with a scratch
-  script (selected lines uncommented, others `# `, missing selected appended, missing SUPPORTED appended commented).
-* Transcripts (commit 79a4ce942, WIP, pushed): `validation/transcripts/{update-locale,validlocale}/`
-  (9 cases, NO outcome blocks yet), harness map in xtask/src/transcript/mod.rs, test
-  `the_shipped_locales_commands_pass_the_transcripts` in xtask/tests/transcripts.rs.
+* Code: `crates/locale/src/cmds.rs` (argv[0] dispatch in `crates/boundary/src/localedef.rs`, which also captures
+  `PATH` and `DEFAULTCHARSET`); unit tests in `crates/locale/tests/prog.rs` (clause `s31_14_c_2`).
+* Packaging: manifest rows, `tools/deb/system/locales.{config,postinst,postrm,templates}`, `locale.alias`,
+  `tools/deb/smoke/locale.c`, the locales block of `tools/deb/root-system.sh`.
+* Transcripts `validation/transcripts/{update-locale,validlocale}/` recorded against keke's reference (Ubuntu 24.04
+  `locales` 2.39) and checked against the trixie probe. Leg 3 fixes found by them: update-locale's LANGUAGE check
+  is one of the sanity checks (`--no-checks` skips it; probed on 2.39) and runs after the availability check
+  (trixie probe); validlocale's usage line names a bare argv[0] by the PATH directory holding it. Dropped cases:
+  `validlocale` usage (output depends on the host's PATH; unit test covers it); the empty input line of
+  `update-locale/edit` (trixie writes `#`, 2.39 keeps it empty; libniji follows trixie, D-31.37).
+* Docs: differences rows (`/etc/locale.alias` without aliases; update-locale's error has no check-program block),
+  release note `docs/release-notes.d/UTIL-LOCALE-GEN.md`.
+* debconf proof script (scratch, keke `~/work/util-locale-gen/`): `final-root.sh COMMIT OUT` = `debroot.sh`
+  (build.sh --flavour system, check-system.sh, root-system.sh) then `reconf.sh` (two throwaway trixie roots,
+  stock and with libniji's libc6/libc-bin/locales swapped in; preseed + `dpkg-reconfigure locales`; compare).
 
-## Running job
-* keke `util-locale-gen-debroot1` (kind test): `sh ~/work/util-locale-gen/debroot.sh ~/w/n4 d50738d5c ~/work/util-locale-gen/d1`
-  = build.sh --flavour system (full release product build in d1/work), check-system.sh, root-system.sh. Read
-  `grep "root: \(FAIL\|RESULT\)\|^== " ~/logs/util-locale-gen-debroot1.log` (never jobwait in a call without a
-  timeout plan: it blocks up to the job's end). Fix any FAIL in the locales lines; the job is SUPERSEDED for the
-  final head unless re-run (re-run it on the final head: it is the brief's packaged-root proof).
+## Open
+* RULING NEEDED: `/etc/locale.alias` ships with no aliases; recommend a story deriving aliases from CLDR language
+  names, or none.
+* See the report for the jobs on the final head and their results.
 
-## Exact next steps
-1. Sync role; on keke run (jobrun, kind test)
-   `cargo xtask transcript record validation/transcripts/update-locale validation/transcripts/validlocale`
-   in ~/w/n4, copy the recorded files back (scp/ssh cat into the worktree, by Write), and CHECK each outcome
-   against the trixie probe (e.g. update-locale header line `#  File generated by update-locale`, LANGUAGE
-   warning on stdout, `Unknown option: bogus` on stderr). A case where Ubuntu's reference differs from trixie:
-   drop it and say so. Then `cargo xtask so` + the transcripts test on the role.
-2. Records: D-31.36 / D-31.37 rows (plan/07-decisions; read developer-flow-reference §10 first), differences
-   rows (no locale.alias aliases yet; update-locale prints no `----------` block of the check program's output
-   on an invalid setting; new variables appended in argument order), release-notes fragment, spec §31.14
-   clause s31_14_c_2 wording may say "pending UTIL-SPEC-8": leave the spec alone unless a static check needs it.
-3. docs/plants.md plants: (a) cmds.rs gen_line: drop the `#` check (`l.first() == Some(&b'#')` -> false) ->
-   msg `locale_gen_compiles_the_uncommented_lines.*(FAILED|panicked)`; (b) cmds.rs `LOCALE_CONF` path ->
-   `/etc/default/locale` -> msg `update_locale_edits_the_locale_file`. Run `cargo xtask plants` (brief step 6,
-   dir /dev/shm/claude/util-locale-gen/plants-1).
-4. clippy (`cargo clippy --workspace --all-targets --all-features -- -D warnings`), `cargo xtask static`,
-   direct gate (`cargo xtask affected --run` under ~/bin/gate), precheck, report json, handback-check.
-   Start-up checks do not apply (no start-up code touched).
-
-## For the report
-* RULING NEEDED: /etc/locale.alias ships with no aliases (the reference's alias list is its own data);
-  recommend a story LOCALE-ALIAS-GEN deriving aliases from CLDR language names, or none.
-* INFORMATIONAL: leg 1 used one `sed -i` on a scratch probe script; leg 2 ran one `sed -i 's/\r$//'` on the
-  new tools/deb/system/locales.* files (no-op, LF already) instead of the Edit tool.
-* dpkg-reconfigure with debconf was not run in the libniji-only root (no debconf/perl there); the postinst
-  without debconf is what root-system.sh proves. A trixie-root debconf run would need a probe root.
+## Next step
+Read the report json; if any job in `jobs` failed, fix that and rerun only it.
