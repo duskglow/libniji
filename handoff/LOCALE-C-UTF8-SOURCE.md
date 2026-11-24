@@ -36,7 +36,16 @@ as the compact no-rules table), D-5.4 (the built-in C.UTF-8 classes and maps).
 
 ## Open / next step
 
-* None required. Possible follow-up: translit includes in `C` if the built-in C.UTF-8's iconv //TRANSLIT should
+* **Exact next step (leg 2):** keke jobs `locale-c-utf8-source-gate` (t2.sh: clippy, static, so, `affected --run
+  --base origin/next`, then the reference localedef WITHOUT -c on the new source: expect rc 0 and no `[error]`) and
+  `locale-c-utf8-source-plants` (4 plants, handoff/LOCALE-C-UTF8-SOURCE.plants) were started on code head 01a9a55b2:
+  `~/bin/jobwait locale-c-utf8-source-gate locale-c-utf8-source-plants`, then read `~/logs/<label>.log` (grep, not
+  cat). The gate's tree had one stray untracked file `keke-dummy` (a copy of a probe script; removed locally since,
+  not in any commit): re-sync before precheck. `affected` says FULL (xtask/src/locales.rs is the Xtask bounded
+  set): hand back `FULL: the train's`. Then fill the proof here, write handoff/reports/LOCALE-C-UTF8-SOURCE.json
+  (jobs: gate, plants), push, sync, `cargo xtask precheck --jobs <labels> --head <sha>` on keke n3, and
+  `ops handback-check`. If a plant SURVIVES or warns, fix the plant or test and rerun plants as `-plants2`.
+* Nothing else required. Possible follow-up: translit includes in `C` if the built-in C.UTF-8's iconv //TRANSLIT should
   match a compiled C.UTF-8 (not probed).
 
 ## Not to redo
