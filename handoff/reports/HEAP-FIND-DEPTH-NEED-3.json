@@ -1,6 +1,6 @@
 {"task": "HEAP-FIND-DEPTH-NEED-3", "model": "opus", "tokens": null,
  "result": "find workload test now gates on a same-run rule (need under ulimit -v <= the walk's unlimited VmSize at exit + 548 KiB, per layout phase) instead of a KiB constant over the 3-entry need; correct 0..264 over, the cause 1184..1444, plants 2/2 CAUGHT; INTERNAL-ALLOC-ROUTING-3 adds nothing to the walk (+4 KiB over 3 entries, 200000-entry need identical)",
- "branch": "task/heap-find-depth-need-3", "head": null,
+ "branch": "task/heap-find-depth-need-3", "head": "7caead288",
  "gate": {"affected": "10455 passed / 0 failed (direct tier, 14 suites, conformance 9 passed)", "peak": "14G (page cache included), oom_kill=0"},
  "accepted_first_attempt": null,
  "rulings": [],
