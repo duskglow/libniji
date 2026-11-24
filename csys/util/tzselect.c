@@ -14,14 +14,13 @@
  * UTF-8 (transliterated, '?' for what cannot be), the information block and its two times (the date(1) default
  * format of the POSIX locale), the TZ strings accepted, the labels of the -c list, and the exit codes (0 once
  * confirmed, 1 at the end of input or on a usage error). The -c list is in increasing great-circle distance
- * (D-31.27; differences row "tzselect -c order and limit"). */
+ * (D-31.34; differences row "tzselect -c order"). */
 #define _GNU_SOURCE
 #include <ctype.h>
 #include <errno.h>
 #include <iconv.h>
 #include <langinfo.h>
 #include <locale.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -157,11 +156,30 @@ static void iso6709(const char *s, double *lat, double *lon) {
     if (iso_part(&p, 2, lat) || iso_part(&p, 3, lon) || *p) *lat = *lon = 0;
 }
 
+/* sin x for |x| <= pi, by its Maclaurin series after folding x into [-pi/2, pi/2] (the last term kept, x^27/27!, is
+ * below 1e-20 there). The program links libc only, not libm. */
+static double sine(double x) {
+    const double pi = 3.14159265358979323846;
+    if (x > pi / 2) x = pi - x;
+    if (x < -pi / 2) x = -pi - x;
+    double term = x, sum = x;
+    for (int k = 1; k <= 13; k++) {
+        term *= -x * x / ((2.0 * k) * (2.0 * k + 1));
+        sum += term;
+    }
+    return sum;
+}
+
+/* The haversine of the central angle between two points (degrees): sin^2(dlat/2) + cos lat1 cos lat2 sin^2(dlon/2).
+ * It rises with the great-circle distance over [0, pi], so it orders the zones as the distance does. */
 static double distance(double lat1, double lon1, double lat2, double lon2) {
-    const double r = M_PI / 180;
-    double a = sin((lat2 - lat1) * r / 2), b = sin((lon2 - lon1) * r / 2);
-    double h = a * a + cos(lat1 * r) * cos(lat2 * r) * b * b;
-    return 2 * asin(sqrt(h < 1 ? h : 1));
+    const double r = 3.14159265358979323846 / 180;
+    double dlon = lon2 - lon1;
+    while (dlon > 180) dlon -= 360;
+    while (dlon < -180) dlon += 360;
+    double a = sine((lat2 - lat1) * r / 2), b = sine(dlon * r / 2);
+    double c1 = sine((90 - (lat1 < 0 ? -lat1 : lat1)) * r), c2 = sine((90 - (lat2 < 0 ? -lat2 : lat2)) * r);
+    return a * a + c1 * c2 * b * b;
 }
 
 static void load(const char *dir) {
@@ -221,10 +239,14 @@ static char *line_buf;
 static size_t line_cap;
 
 /* One answer line without its newline and surrounding blanks; a last line without a newline is the end of input,
- * as for the reference. The end of input ends the program with status 1. */
-static char *answer(void) {
+ * as for the reference. The end of input ends the program with status 1, after a newline on standard output when it
+ * came at a menu (probed). */
+static char *answer(int at_menu) {
     ssize_t n = getline(&line_buf, &line_cap, stdin);
-    if (n <= 0 || line_buf[n - 1] != '\n') exit(1);
+    if (n <= 0 || line_buf[n - 1] != '\n') {
+        if (at_menu) putchar('\n');
+        exit(1);
+    }
     line_buf[--n] = 0;
     char *s = line_buf;
     while (*s == ' ' || *s == '\t') s++;
@@ -288,7 +310,7 @@ static size_t menu(char **items, size_t n) {
     show_menu(items, n);
     for (;;) {
         fputs("#? ", stderr);
-        char *a = answer();
+        char *a = answer(1);
         if (!*a) {
             show_menu(items, n);
             continue;
@@ -396,8 +418,18 @@ static const char *continent_name(const char *prefix, size_t n) {
     return 0;
 }
 
+/* Menu order of names: the locale's collation; where that is byte order (C, POSIX, C.UTF-8), ASCII letters compare
+ * as their capitals first (probed: "United States" before "US minor outlying islands"), then byte order. */
+static int bytewise_collation;
 static int by_coll(const void *a, const void *b) {
-    return strcoll(*(char *const *)a, *(char *const *)b);
+    const unsigned char *x = *(unsigned char *const *)a, *y = *(unsigned char *const *)b;
+    if (!bytewise_collation) return strcoll((const char *)x, (const char *)y);
+    for (size_t i = 0;; i++) {
+        int cx = x[i] >= 'a' && x[i] <= 'z' ? x[i] - ('a' - 'A') : x[i];
+        int cy = y[i] >= 'a' && y[i] <= 'z' ? y[i] - ('a' - 'A') : y[i];
+        if (cx != cy) return cx - cy;
+        if (!x[i]) return strcmp((const char *)x, (const char *)y);
+    }
 }
 
 static const double *dist_of;
@@ -527,7 +559,7 @@ int main(int argc, char **argv) {
             if (*o == 'c') {
                 opt_coord = v;
             } else {
-                /* LIMIT: a positive decimal number (D-31.27). */
+                /* LIMIT: a positive decimal number (D-31.34). */
                 char *end;
                 errno = 0;
                 unsigned long long l = strtoull(v, &end, 10);
@@ -538,10 +570,14 @@ int main(int argc, char **argv) {
             break;
         }
     }
-    if (i < argc) usage_error("%s: unknown argument", argv[i]);
+    if (i < argc) { /* no "try" line here (probed) */
+        fprintf(stderr, "%s: %s: unknown argument\n", prog, argv[i]);
+        return 1;
+    }
 
     setlocale(LC_CTYPE, "");
     setlocale(LC_COLLATE, "");
+    bytewise_collation = strcoll("a", "B") > 0; /* byte order puts every capital first */
     const char *cs = nl_langinfo(CODESET);
     utf8 = cs && !strcmp(cs, "UTF-8");
     if (!utf8 && cs) {
@@ -594,7 +630,7 @@ int main(int argc, char **argv) {
                       "For example, +4042-07403 stands for\n"
                       "40 degrees 42 minutes north, 74 degrees 3 minutes west.\n",
                       stderr);
-                char *c = xstrdup(answer());
+                char *c = xstrdup(answer(0));
                 tz = by_coordinates(c, limit)->tz;
                 free(c);
             } else if (k == n + 1) {
@@ -603,7 +639,7 @@ int main(int argc, char **argv) {
                           "For example, AEST-10 is abbreviated AEST and is 10 hours\n"
                           "ahead (east) of Greenwich, with no daylight saving time.\n",
                           stderr);
-                    char *v = answer();
+                    char *v = answer(0);
                     if (tz_valid(v)) {
                         tz = chosen_tz = xstrdup(v);
                         break;
@@ -671,8 +707,15 @@ int main(int argc, char **argv) {
         }
         fprintf(stderr, "\nTherefore TZ='%s' will be used.\n", tz);
         time_t now = time(0);
-        show_time("Selected time is now:", tz, now);
-        show_time("Universal Time is now:", "UTC0", now);
+        /* Both clock lines are left out when the value's offset from UTC now has a seconds part (probed:
+         * EST5:30:59, EST-24:59:59; a rule time with seconds keeps them). */
+        struct tm probe;
+        setenv("TZ", tz, 1);
+        tzset();
+        if (localtime_r(&now, &probe) && probe.tm_gmtoff % 60 == 0) {
+            show_time("Selected time is now:", tz, now);
+            show_time("Universal Time is now:", "UTC0", now);
+        }
         fputs("Is the above information OK?\n", stderr);
         char *yn[] = {"Yes", "No"};
         if (menu(yn, 2) == 0) {
