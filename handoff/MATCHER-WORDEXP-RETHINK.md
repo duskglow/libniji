@@ -1,6 +1,11 @@
 # MATCHER-WORDEXP-RETHINK handoff (RETHINK of fnmatch's item loop and wordexp's buffering; #8237, #8238)
 
-State: branch `task/matcher-wordexp-rethink`, stacked on `task/fnmatch-group-free-compile` (aa4d907d9, not yet
+State (MATCHER-WORDEXP-RETHINK-2, 11-24): branch `task/matcher-wordexp-rethink-2` = this branch plus a merge of
+origin/next de86ab08b (merge d4c6cabdf; clean, no library change; FNMATCH-GROUP-FREE-COMPILE and LOCALE-PER-DIR-LOAD
+now come from next). Role mei:~/w/s1. Jobs on the merged head: matcher-wordexp-rethink-2-lint (clippy + static) rc 0,
+matcher-wordexp-rethink-2-gate (direct tier: 20 suites ok, 10426 passed, 0 failed; conformance 7/7) rc 0 - the four
+locale tests that failed in gate2 pass with next's fixed tests; matcher-wordexp-rethink-2-plants 5/5 CAUGHT.
+Earlier state: branch `task/matcher-wordexp-rethink`, stacked on `task/fnmatch-group-free-compile` (aa4d907d9, then not
 on next; next's merge base ea69dbf20 = PATTERN-NESTING-3). Role mei:~/w/s2 (Skylake-SP build host). Code head
 cdeb7ccca (commits b76ac55a2 percall spec, 95c8715df bench row, 630dbda14 fnmatch, cf4ca8ad3 wordexp, cdeb7ccca
 test fix + plants); records, limits and this note on top. Decision: **D-14.25** (adopt). Plants:
