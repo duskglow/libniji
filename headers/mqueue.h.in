@@ -10,6 +10,7 @@
 __NIJI_BEGIN_C
 
 @@emit
+@@fortify
 
 __NIJI_END_C
 

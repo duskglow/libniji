@@ -199,6 +199,52 @@ struct timespec;
 extern int mq_timedsend (int, const char *, unsigned long, unsigned int, const struct timespec *);
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mq_open
+#  define __NIJI_F_mq_open 1
+#  ifndef __NIJI_D___mq_open_2
+#   define __NIJI_D___mq_open_2 1
+extern int __mq_open_2 (const char *, int) __NIJI_NOTHROW;
+#  endif
+extern int __niji_plain_mq_open (const char *, int, ...) __NIJI_NOTHROW __asm__ ("mq_open");
+#  ifndef __NIJI_D_fortify_mode2
+#   define __NIJI_D_fortify_mode2 1
+extern void __niji_fortify_mode2 (void) __attribute__ ((__error__ ("O_CREAT needs the mode and attributes arguments")));
+extern void __niji_fortify_args2 (void) __attribute__ ((__error__ ("pass the mode and the attributes together, or neither")));
+#  endif
+__NIJI_FORTIFY_FN int mq_open (const char *__p0, int __p1, ...) __NIJI_NOTHROW
+{
+  if (__builtin_va_arg_pack_len () != 0 && __builtin_va_arg_pack_len () != 2)
+    __niji_fortify_args2 ();
+  if (__builtin_va_arg_pack_len () < 1)
+    {
+      if (__builtin_constant_p (__p1))
+        {
+          if ((__p1 & 0100) != 0)
+            __niji_fortify_mode2 ();
+          return __niji_plain_mq_open (__p0, __p1);
+        }
+      return __mq_open_2 (__p0, __p1);
+    }
+  return __niji_plain_mq_open (__p0, __p1, __builtin_va_arg_pack ());
+}
+# endif
+#endif
 
 __NIJI_END_C
 
