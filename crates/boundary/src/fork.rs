@@ -179,6 +179,8 @@ static USED: AtomicU32 = AtomicU32::new(0);
 pub(crate) const USED_AIO: u32 = 1;
 /// `getaddrinfo_a` ran.
 pub(crate) const USED_GAI: u32 = 2;
+/// makecontext recorded a shadow stack (D-21.7 (5)).
+pub(crate) const USED_CONTEXT: u32 = 4;
 
 /// Record that the subsystem `bit` names holds state a `fork` child must reset. Written once:
 /// the word stays shared with later children.
@@ -212,7 +214,9 @@ fn child_reset() {
     let used = USED.load(Acquire);
     thread::after_fork_child();
     crate::stacks::after_fork_child();
-    crate::context::after_fork_child();
+    if used & USED_CONTEXT != 0 {
+        crate::context::after_fork_child();
+    }
     crate::timer::after_fork_child();
     crate::mqueue::after_fork_child();
     crate::syslog::after_fork_child();

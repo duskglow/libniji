@@ -250,6 +250,7 @@ mod registry {
         if key == 0 {
             return;
         }
+        crate::fork::mark_used(crate::fork::USED_CONTEXT);
         let old = {
             let _g = LOCK.lock(&CSys);
             let (t, cap) = room();
@@ -266,7 +267,9 @@ mod registry {
         }
     }
 
-    /// A `fork` child: the lock, if a thread that does not exist there held it.
+    /// A `fork` child of a process whose makecontext used the registry (`fork::USED_CONTEXT`,
+    /// D-18.8: other children never touch the lock's page): the lock, if a thread that does not
+    /// exist there held it.
     pub(crate) fn after_fork_child() {
         LOCK.reset();
     }
