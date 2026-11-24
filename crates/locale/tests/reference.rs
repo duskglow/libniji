@@ -847,9 +847,6 @@ fn generated_c_source_compiles_to_the_builtin_c_utf8() {
     assert!(out.is_empty(), "C: {} differences from the built-in C.UTF-8, first:\n{}", out.len(), out[..out.len().min(20)].join("\n"));
 }
 
-/// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
-/// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
-/// categories are not compared here: they differ with the installed charmaps too (handoff).
 /// The generated sources with the products' charmaps (`target/niji/charmaps`), else the
 /// installed one of that name (a codeset the products do not generate yet).
 struct ProductSources(PathBuf);
@@ -986,6 +983,9 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
     assert!(out.is_empty(), "{} values differ from the reference's:\n{}", out.len(), out.join("\n"));
 }
 
+/// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
+/// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
+/// categories are not compared here: they differ with the installed charmaps too (handoff).
 #[test]
 fn generated_cjk_charmaps_give_the_reference_ctype() {
     for (locale, charmap) in [("ja_JP", "EUC-JP"), ("ja_JP", "WINDOWS-31J"), ("ko_KR", "EUC-KR"), ("ko_KR", "CP949")] {

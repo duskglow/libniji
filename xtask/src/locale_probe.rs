@@ -27,6 +27,10 @@ pub enum Val {
     Bare(String),
 }
 
+/// A legacy-codeset name's own transliteration rows: code point -> the result in its codeset,
+/// None for none.
+type OwnRows = Vec<(u32, Option<Vec<u32>>)>;
+
 pub struct Probe {
     locs: BTreeMap<String, Loc>,
     /// Per probed name, `key` -> fingerprint (`ctype.alpha`, `coll.latin`, ...).
@@ -39,7 +43,7 @@ pub struct Probe {
     translit: BTreeMap<u32, Vec<Vec<u32>>>,
     /// Per probed legacy-codeset name, its own entries for the code points its strings hold:
     /// code point -> the result in its codeset, None for none.
-    own_translit: BTreeMap<String, Vec<(u32, Option<Vec<u32>>)>>,
+    own_translit: BTreeMap<String, OwnRows>,
 }
 
 /// One LC_CTYPE item of a probed name where it differs from en_US.utf8's: the code points it
