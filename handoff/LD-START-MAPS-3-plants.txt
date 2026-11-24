@@ -16,3 +16,21 @@ span-in-place | crates/ld/src/map.rs | lit:if !in_place { ==> if true { | cargo 
 span-prot | crates/ld/src/map.rs | lit:m.map_span(plan.span, s.prot, s.offset) ==> m.map_span(plan.span, s.prot ^ PROT_WRITE, s.offset) | cargo test -p niji-ld --test map | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|pages, spanned
 start-span-offset | crates/boundary/src/ld/image.rs | lit:raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off) ==> raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off.wrapping_add(4096)) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
 merge-with-spans | crates/boundary/src/ld/image.rs | lit:probe.with_spans(&spans[..k]).ok_or(malformed) ==> probe.with_spans(&spans[..k.saturating_sub(1)]).ok_or(malformed) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+# cargo xtask plants results (17 plants: 15 CAUGHT, 2 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# prog-headers-skip: CAUGHT, caught by hot_text_products init_explicit_run_maps_the_program_without_a_whole_file_view
+# prog-headers-entry: CAUGHT, caught by ldso_run ldso_run_as_program_at_random_bases
+# prog-view-refusal: CAUGHT, caught by ldso_run ldso_run_as_program_at_random_bases
+# read-headers-keep: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# read-headers-long: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# plan-headers-range: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# tail-offset: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# store-file-offset: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# refusal-mapping: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# give-back-overlap: SURVIVED
+# dynamic-pread-offset: CAUGHT, caught by ldso_search ldso_search_cache_opened_once_when_reached
+# span-kind-decode: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# span-gap: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# span-in-place: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# span-prot: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# start-span-offset: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# merge-with-spans: SURVIVED

@@ -1231,6 +1231,24 @@ mod tests {
         line.split_whitespace().nth(1).unwrap().to_owned()
     }
 
+    /// LD-START-MAPS (D-27.92); no spec clause (the loader's scratch arena). A range given back in
+    /// part (`read_headers` keeps a file's headers and returns the rest of its read) keeps its first
+    /// bytes: the next range taken starts at or after their 16-byte rounded end, so bytes still in use
+    /// are never handed out twice, and the given-back bytes come back zeroed.
+    #[test]
+    fn arena_give_back_keeps_the_bytes_still_in_use() {
+        let (at, unmap, a) = super::scratch(200, b"arena", true);
+        assert_eq!(unmap, 0, "200 bytes come from the arena (nothing else takes from it in the unit tests)");
+        a.fill(0xa5);
+        let (kept, tail): (&'static mut [u8], &'static mut [u8]) = a.split_at_mut(100);
+        super::arena_give_back(tail);
+        let (next, _, b) = super::scratch(64, b"arena", true);
+        assert!(next >= at.wrapping_add(112), "the next range starts at {next:#x}, inside the kept bytes [{at:#x}, +100)");
+        assert!(b.iter().all(|&x| x == 0), "a given-back byte was handed out again without being zeroed");
+        b.fill(0x5a);
+        assert!(kept.iter().all(|&x| x == 0xa5), "a byte still in use was written through the next range");
+    }
+
     /// VALGRIND-LOADER-VIEW (ruling #7301); no spec clause (a tool's view of the loader). The view
     /// valgrind must not record is inaccessible when it is mapped (a readable file mapping made before
     /// an object's segments is taken for one of the object's own) and readable once `reveal` has run;
