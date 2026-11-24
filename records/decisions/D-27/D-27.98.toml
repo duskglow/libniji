@@ -1,0 +1,12 @@
+id = "D-27.98"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+amends = ["D-27.92"]
+story = "LDSO-PROGRAM-MODE-SPACE"
+date = "2026-11-24"
+tests = ["crates/ld/tests/ldso_program_options.rs::ldso_program_mode_maps_no_more_than_an_exec_beyond_the_reference"]
+body = '''
+**`ld.so PROGRAM` trims the alignment slack of the program's reservation (story LDSO-PROGRAM-MODE-SPACE; amends D-27.92 for the loader run as a command).** The loader run as a command maps the program with `ProgramMapper`: the start's mapper (`StartMapper`, D-27.92's headers-only path and the whole-file fallback alike) except that a reservation over-sized for a `p_align` above the page is trimmed at both ends (two `munmap`s), not kept as inaccessible slack. The start's dependencies keep `StartMapper`'s rule (slack kept, DYN-START-RING) in both modes, so an exec'd program's start is unchanged byte for byte. Why: an exec'd program is mapped by the kernel, which leaves no slack; program mode kept `p_align` minus a page more (2044 KiB for a 2 MiB-aligned program, 60 KiB at 64 KiB), the only part of program mode's extra address space that the reference does not have. Measured (Zen 1 host, kernel 6.8, `VmSize` at entry, KiB, one libc-linked program with separate code, page / 64 KiB / 2 MiB `max-page-size`; program mode minus exec): reference 0 / +240 / +8176; libniji before 0 / +300 / +10220; after, the same as the reference. What stays, in both loaders: the gaps between the program's segments, which the loader's span reservation keeps reserved (up to `p_align` minus the segment's tail per gap; the kernel's exec leaves them unmapped); they are the reference's own program-mode difference, kept as every loaded object's span is. `find` over 200,000 entries (GitHub issue #21's case) with the host's page-aligned `find` showed no program-mode difference before this change (least `ulimit -v`, 200,000 entries minus 3, libniji exec 29032..29436 KiB, program mode 28944..29444, reference 29904 in every mode): the case reported for program mode needs a program aligned above the page.
+'''

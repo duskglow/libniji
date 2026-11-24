@@ -2,7 +2,9 @@
 //! spec/behaviour/dynlink.md "Program mode options"): the product interpreter runs a position-independent
 //! program with a shared-object dependency under each option it implements, refuses the ones it
 //! does not, and gives the reference's statuses and messages for a missing, short, directory,
-//! static and shared-object file. Skips (with the reason) before `cargo xtask so` or without `cc`.
+//! static and shared-object file, and maps a program with no more address space over an exec of
+//! it than the reference's program mode adds (D-27.98). Skips (with the reason) before
+//! `cargo xtask so` or without `cc`.
 
 // ARCH(x86_64): the test programs are x86-64 assembly and system call numbers; the product is x86_64's.
 #![cfg(target_arch = "x86_64")]
@@ -423,4 +425,88 @@ fn ldso_program_dlopen_after_library_path_and_inhibit_cache() {
     cc(d, "hw/glibc-hwcaps/myhw/libdep.so", "int dep_value(void) { return 5; }\n", &["-fPIC", "-shared", "-Wl,-soname,libdep.so"]);
     let o = ran(&run(&ld, d, &env, &["--glibc-hwcaps-prepend", "myhw", "--library-path", &path("hw"), "./dprog"]), "dlopen after --glibc-hwcaps-prepend");
     assert_eq!(o, "dlopen:5\n", "dlopen searches the prepended glibc-hwcaps subdirectory");
+}
+
+/// A program printing `vmsize:<the VmSize line's value>` (its address space at entry, from
+/// `/proc/self/status`), then exiting 0. No libc, no dependencies: what differs between an exec and
+/// `ld.so PROGRAM` is then only where the program itself is mapped from.
+const VM_SIZE_PROG: &str = r#"
+void start_c(void) {
+    static char buf[8192];
+    static const char key[] = "\nVmSize:";
+    long fd = sys3(2, (long)"/proc/self/status", 0, 0), n = 0, r;
+    while (fd >= 0 && (r = sys3(0, fd, (long)(buf + n), (long)sizeof buf - 1 - n)) > 0) n += r;
+    for (long i = 0; i + 8 < n; i++) {
+        long k = 0;
+        while (k < 8 && buf[i + k] == key[k]) k++;
+        if (k < 8) continue;
+        long e = i + 8;
+        while (e < n && buf[e] != '\n') e++;
+        buf[e] = 0;
+        put("vmsize:", buf + i + 8);
+        break;
+    }
+    sys3(231, 0, 0, 0);
+}
+__asm__(".globl _start\n_start:\n\tand $-16, %rsp\n\tcall start_c\n\thlt\n");
+"#;
+
+/// The reference's dynamic loader (the installed glibc 2.39), for its own program-mode difference.
+const REFERENCE_LD: &str = "/lib64/ld-linux-x86-64.so.2";
+
+/// What libniji's program mode may add over the reference's own difference (KiB): four pages,
+/// for a sub-page remainder the two loaders may place apart. Below the least alignment slack
+/// this test can see (60 KiB: a 64 KiB-aligned program), so a kept slack is caught.
+const PROGRAM_SPACE_MARGIN_KIB: u64 = 16;
+
+/// The `vmsize:` value (KiB) a [`VM_SIZE_PROG`] run printed.
+fn vm_size(o: &Output, what: &str) -> u64 {
+    let s = ran(o, what);
+    let kib = s.lines().find_map(|l| l.strip_prefix("vmsize:")).and_then(|v| v.trim().strip_suffix("kB")).and_then(|v| v.trim().parse().ok());
+    kib.unwrap_or_else(|| panic!("{what}: no vmsize line: {s:?}"))
+}
+
+/// (no spec clause: ld.so(8) program mode; LDSO-PROGRAM-MODE-SPACE, D-27.98.) The same program,
+/// page-, 64 KiB- and 2 MiB-aligned (`max-page-size`; separate code, so gaps between its
+/// segments), run by an exec and as `ld.so PROGRAM`, once with libniji's loader and once with the
+/// reference's, in this run: libniji's program mode adds no more address space over its exec than
+/// the reference's adds over its own, plus [`PROGRAM_SPACE_MARGIN_KIB`]. Both loaders keep the
+/// gaps between the program's segments reserved (the kernel's exec leaves them unmapped); an
+/// alignment slack kept around the program's reservation is libniji's alone and is caught here.
+#[test]
+fn ldso_program_mode_maps_no_more_than_an_exec_beyond_the_reference() {
+    let ld = target().join("niji").join(Native::INTERP);
+    if !ld.exists() {
+        eprintln!("SKIP: {} not built (run cargo xtask so)", ld.display());
+        return;
+    }
+    if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        eprintln!("SKIP: no cc");
+        return;
+    }
+    if !Path::new(REFERENCE_LD).exists() {
+        eprintln!("SKIP: no reference loader at {REFERENCE_LD}");
+        return;
+    }
+    let s = Scratch::dir_in(&target(), "ldso-options-space");
+    let d = s.to_path_buf();
+    for align in ["0x1000", "0x10000", "0x200000"] {
+        let page = format!("-Wl,-z,max-page-size={align}");
+        let size = |interp: &Path, who: &str| {
+            let name = format!("{who}-{align}");
+            let dl = format!("-Wl,--dynamic-linker={}", interp.display());
+            cc(&d, &name, &format!("{RT}{VM_SIZE_PROG}"), &["-fPIE", "-pie", "-Wl,-z,separate-code", &page, &dl]);
+            let exec = vm_size(&run(&d.join(&name), &d, &[], &[]), &format!("{name} exec'd"));
+            let prog = vm_size(&run(interp, &d, &[], &[&format!("./{name}")]), &format!("{} {name}", interp.display()));
+            (exec, prog)
+        };
+        let (n_exec, n_prog) = size(&ld, "niji");
+        let (r_exec, r_prog) = size(Path::new(REFERENCE_LD), "reference");
+        let (n_more, r_more) = (n_prog.saturating_sub(n_exec), r_prog.saturating_sub(r_exec));
+        eprintln!("p_align {align}: libniji exec {n_exec} KiB, ld.so PROGRAM {n_prog} (+{n_more}); reference exec {r_exec}, ld.so PROGRAM {r_prog} (+{r_more})");
+        assert!(
+            n_more <= r_more.saturating_add(PROGRAM_SPACE_MARGIN_KIB),
+            "p_align {align}: ld.so PROGRAM maps {n_more} KiB more than an exec of the same program; the reference's program mode adds {r_more} (margin {PROGRAM_SPACE_MARGIN_KIB}): an alignment slack or another reservation kept around the program?"
+        );
+    }
 }
