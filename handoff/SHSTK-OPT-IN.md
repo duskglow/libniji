@@ -1,5 +1,37 @@
 # SHSTK-OPT-IN handoff (part 1: marking + shadow-stack-correct asm)
 
+## Run 3 (SHSTK-OPT-IN-3, branch `task/shstk-opt-in-3`, role keke:~/w/n3, Zen 1 host)
+
+**CI red (train on 90fdd8142): hot_text_products dynamic empty main 173794 > 173600 (Skylake-SP).** This branch
+is a measured cause, not only one of the train's "several": on the Zen 1 host (fast profile, the test's own count,
+3 runs each, identical) the marked head counts 170825, the same tree with `-z shstk` and the check turned off
+170464: **+361**. The marking adds a second `PT_NOTE` (8-aligned, beside the 4-aligned build-id note) and
+`PT_GNU_PROPERTY` to ld.so and libc.so.6 (9 -> 11 headers each). A gdb single-step split by function (scratch probe,
+libniji only) put +123 in `Elf::check_table` and the rest in eight header walks (relocate_self +48, open_candidate
++36, publish_dynamic +36, find +28, protect_relro +26, map_planned +24, boot::tables +16, Loads::of +12). The
+property readers in reloc.rs are cold (not reached).
+
+**Fix (D-27.97, `25297497e`).** `image_view` checked its private copy of the table as a probe; each caller then
+checked the same bytes again with `from_image`. It now returns the probe with the spans attached
+(`Elf::with_spans`, `None` for a file reader). Count: **170580** (-245 against the marked head, +116 over
+unmarked). Test: `reloc_image_reader_slices_only_unchanging_segments` also builds the reader that way and refuses a
+file reader. Plants `handoff/plants/SHSTK-OPT-IN-3.plants` (2).
+
+**Remaining cost (accepted, fix-forward):** +116 instructions on a dynamic start against an unmarked build. The
+next saving: `find` and the `PT_LOAD` filters could use what `check_table` sees in its one pass (first index per
+type, last `PT_LOAD`). Not done here (budget).
+
+**Results (keke, head 25297497e):** clippy + static green on the inherited head (`shstk-opt-in-3-lint0`) and on
+the fix (`shstk-opt-in-3-lc1`, with the count above). Plants `shstk-opt-in-3-plants1`: 2/2 CAUGHT, 0 WARN
+(`handoff/SHSTK-OPT-IN-3-plants.txt`). `cargo xtask test` (`shstk-opt-in-3-test1`): rc 0, 7190 + 4878 + 129 + 46
+passed, "43 shipped ELF files and archives carry the SHSTK property". Full profile (`shstk-opt-in-3-hottext1`):
+33 passed, release dynamic empty main 159407 (bound 162300). FULL: the train's (xtask, csys header). Diagnostics
+(not proofs): dyn-a / dyn-b (marked / unmarked counts), so-c, trace1 (gdb picked up libniji through
+LD_LIBRARY_PATH: probe fixed), trace2 (the per-function split). Scratch scripts: `~/work/shstk-opt-in-3/` on keke.
+
+**Next step.** Land with the train (the Skylake-SP count should drop by about 245 from 173794). Then the
+fix-forward above, and SHSTK-ENABLE as in run 1's notes below.
+
 ## Run 2 (SHSTK-OPT-IN-2, branch `task/shstk-opt-in-2`, role shiki:~/w/sh1)
 
 **Cause of train 950's red.** `cetnote::check_release` walked all of `target/niji`. `cargo xtask test` puts
