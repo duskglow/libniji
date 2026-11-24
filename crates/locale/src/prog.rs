@@ -39,6 +39,23 @@ pub trait Host {
     fn i18npath(&self) -> Option<&[u8]> {
         None
     }
+    /// Remove the file `path` (`locale-gen` replaces the archive whole; D-31.36).
+    fn remove(&mut self, _path: &[u8]) -> core::result::Result<(), i32> {
+        Err(38) // ENOSYS
+    }
+    /// Whether `path` names an existing file or directory (`validlocale`, `update-locale`).
+    fn exists(&mut self, _path: &[u8]) -> bool {
+        false
+    }
+    /// The value of the environment variable `name` (`validlocale`'s `DEFAULTCHARSET`).
+    fn env(&self, _name: &[u8]) -> Option<&[u8]> {
+        None
+    }
+    /// Write `bytes` to standard output (`fd` 1) or error (2) at once and return true, so a long
+    /// `locale-gen` shows its progress; false (the default) keeps them in the [`Outcome`].
+    fn emit(&mut self, _fd: u8, _bytes: &[u8]) -> bool {
+        false
+    }
 }
 
 /// What a run printed and its exit status.
