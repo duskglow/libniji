@@ -258,7 +258,8 @@ fn valid_body(argv0: &[u8], args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome
         // directory holding it.
         let mut shown = join(&[argv0])?;
         if !argv0.contains(&b'/') {
-            for dir in host.env(b"PATH").unwrap_or_default().split(|&b| b == b':').filter(|d| !d.is_empty()) {
+            let path = join(&[host.env(b"PATH").unwrap_or_default()])?;
+            for dir in path.split(|&b| b == b':').filter(|d| !d.is_empty()) {
                 let p = join(&[dir, b"/", argv0])?;
                 if host.exists(&p) {
                     shown = p;

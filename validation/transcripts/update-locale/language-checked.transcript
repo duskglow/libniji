@@ -7,3 +7,10 @@ file: conf
 arg: --locale-file
 arg: @ROOT@/conf
 arg: LANG=C.UTF-8
+status: exit 0
+stdout:
+| *** update-locale: Warning: LANGUAGE (fr:en) is not compatible with LANG (C.UTF-8). Disabling it.
+stderr:
+written-file: conf
+| #LANGUAGE=fr:en
+| LANG=C.UTF-8
