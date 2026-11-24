@@ -311,6 +311,92 @@ impl<T: Copy + Default, const N: usize> InlineVec<T, N> {
     }
 }
 
+/// An [`InlineVec`] whose inline storage is made (filled with `T::default()`, as safe code must)
+/// on the first push, not when the vector is made: for a buffer that most calls never use (the
+/// nesting stacks of a parser), so that those calls write nothing but an empty marker.
+#[derive(Debug)]
+pub struct LazyInlineVec<T: Copy + Default, const N: usize> {
+    v: Option<InlineVec<T, N>>,
+}
+
+impl<T: Copy + Default, const N: usize> LazyInlineVec<T, N> {
+    /// An empty vector: no storage yet.
+    #[inline(always)]
+    pub fn new() -> Self {
+        LazyInlineVec { v: None }
+    }
+
+    /// Whether the storage has been made (a push has happened).
+    pub fn is_made(&self) -> bool {
+        self.v.is_some()
+    }
+
+    /// The vector itself, its storage made now if it was not.
+    #[inline]
+    pub fn force(&mut self) -> &mut InlineVec<T, N> {
+        self.v.get_or_insert_with(InlineVec::new)
+    }
+
+    /// Append `value`.
+    #[inline]
+    pub fn push(&mut self, value: T) -> Result<()> {
+        self.force().push(value)
+    }
+
+    /// Append `items`.
+    #[inline]
+    pub fn extend_from_slice(&mut self, items: &[T]) -> Result<()> {
+        self.force().extend_from_slice(items)
+    }
+
+    /// Remove the last element.
+    #[inline]
+    pub fn pop(&mut self) -> Option<T> {
+        self.v.as_mut()?.pop()
+    }
+
+    /// Keep the first `len` elements.
+    #[inline]
+    pub fn truncate(&mut self, len: usize) {
+        if let Some(v) = &mut self.v {
+            v.truncate(len);
+        }
+    }
+
+    /// The elements.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        self.v.as_ref().map_or(&[], InlineVec::as_slice)
+    }
+
+    /// The elements, mutably.
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        match &mut self.v {
+            Some(v) => v.as_mut_slice(),
+            None => &mut [],
+        }
+    }
+
+    /// The number of elements.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.v.as_ref().map_or(0, InlineVec::len)
+    }
+
+    /// Whether there are none.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl<T: Copy + Default, const N: usize> Default for LazyInlineVec<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Bytes up to which [`copy_small`] and [`fill_small`] work: two overlapping fixed-size pieces,
 /// as plain loads and stores (PJ-20).
 pub const SMALL: usize = 32;

@@ -47,7 +47,7 @@
 
 use crate::error::{Errno, Result};
 use crate::locale::Locale;
-use crate::mem::{InlineVec, TryVec};
+use crate::mem::{InlineVec, LazyInlineVec, TryVec};
 
 use super::fnmatch::Pattern;
 use super::regex::text::{self, Mode, Unit};
@@ -221,11 +221,13 @@ struct Parser<'a> {
     s: &'a [u8],
     i: usize,
     nocmd: bool,
-    /// The contexts open inside the current word, innermost last (inline for a usual word).
-    frames: InlineVec<Frame, 2>,
+    /// The contexts open inside the current word, innermost last. This stack, `nest` and
+    /// `arena` are made on first use: most texts open no `${...}` word or arithmetic text, and
+    /// filling their inline storage was a cost of every call (MATCHER-WORDEXP-RETHINK).
+    frames: LazyInlineVec<Frame, 2>,
     /// The segments of the open `${...}` words and arithmetic texts, each frame's from its
     /// `first`: moved to `arena` when the frame closes.
-    nest: InlineVec<Seg, 4>,
+    nest: LazyInlineVec<Seg, 4>,
     /// The words' text, every `Seg::Text` a range of it: one buffer for the whole call (inline
     /// for a usual text: no allocation). Each word starts with a separator byte, so that no
     /// range of an earlier word reaches the current word's `floor`.
@@ -236,7 +238,7 @@ struct Parser<'a> {
     /// Where each word's segments end in the list [`Parser::words`] returns.
     ends: InlineVec<usize, 16>,
     /// The segments of nested words (`${x:-word}`, `$((expr))`), each stored when complete.
-    arena: InlineVec<Seg, 4>,
+    arena: LazyInlineVec<Seg, 4>,
 }
 
 fn is_name_start(b: u8) -> bool {
@@ -325,7 +327,7 @@ impl Parser<'_> {
     /// [`push_text`] to the current context's list.
     fn put_text(&mut self, segs: &mut Segs, b: &[u8], quoted: bool) -> Wr<()> {
         match self.nest_first() {
-            Some(first) => push_text(&mut self.nest, first, &mut self.text, self.floor, b, quoted),
+            Some(first) => push_text(self.nest.force(), first, &mut self.text, self.floor, b, quoted),
             None => push_text(segs, 0, &mut self.text, self.floor, b, quoted),
         }
     }
@@ -333,7 +335,7 @@ impl Parser<'_> {
     /// [`push_input`] to the current context's list.
     fn put_input(&mut self, segs: &mut Segs, at: Span, quoted: bool) -> Wr<()> {
         match self.nest_first() {
-            Some(first) => push_input(&mut self.nest, first, at, quoted),
+            Some(first) => push_input(self.nest.force(), first, at, quoted),
             None => push_input(segs, 0, at, quoted),
         }
     }
@@ -1892,7 +1894,7 @@ fn seg_text<'t>(input: &'t [u8], text: &'t [u8], at: Span, from_input: bool) -> 
 /// fields given so far are the partial result; on any other error the caller discards them.
 pub fn wordexp<S: Shell, W: Words>(words: &[u8], flags: i32, loc: &Locale, sh: &mut S, out: &mut W) -> core::result::Result<(), WordError> {
     // The words' text is about as long as the input: one allocation for it.
-    let mut parser = Parser { s: words, i: 0, nocmd: flags & NOCMD != 0, frames: InlineVec::new(), nest: InlineVec::new(), text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: InlineVec::new() };
+    let mut parser = Parser { s: words, i: 0, nocmd: flags & NOCMD != 0, frames: LazyInlineVec::new(), nest: LazyInlineVec::new(), text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: LazyInlineVec::new() };
     let mut segs = Segs::new();
     parser.words(&mut segs)?;
     let parsed = segs.as_slice();
@@ -2388,5 +2390,32 @@ pub mod arith {
             return Err(WordError::Syntax);
         }
         Ok(v)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    /// A text that opens no `${...}` word and no arithmetic text is parsed without making the
+    /// nesting stacks (their inline storage is made on first use, not filled on every call); one
+    /// that opens them makes them.
+    // no spec clause: cost of the parser (MATCHER-WORDEXP-RETHINK); XCU 2.6 defines the words.
+    #[test]
+    fn the_nesting_stacks_are_made_only_when_a_text_nests() {
+        let parse = |s: &[u8]| {
+            let mut p = Parser { s, i: 0, nocmd: true, frames: LazyInlineVec::new(), nest: LazyInlineVec::new(), text: InlineVec::new(), floor: 0, ends: InlineVec::new(), arena: LazyInlineVec::new() };
+            let mut segs = Segs::new();
+            p.words(&mut segs).unwrap();
+            (p.frames.is_made(), p.nest.is_made(), p.arena.is_made())
+        };
+        for s in [&b"cc -O2 -Wall -o prog main.c util.c -lm"[..], b"'a b' \"c $HOME\" d\\ e", b"$WORDS", b"~/a $HOME b", b"x=~/y \"$1\" $#"] {
+            assert_eq!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
+        }
+        for s in [&b"${HOME:-/x}"[..], b"${HOME:-$x}", b"\"${HOME:-a b}\"", b"$((1+2))", b"$(($x+2))"] {
+            assert_ne!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
+        }
+        assert!(parse(b"${HOME:-$x}").0, "an expansion inside a ${{...}} word opens a frame");
     }
 }
