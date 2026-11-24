@@ -1,6 +1,6 @@
 # UTIL-TZSELECT-PLDD plants: tzselect (csys/util/tzselect.c), pldd (csys/util/pldd.c) and libc-bin's
-# /usr/bin/ld.so link (tools/deb/manifest.tsv). Each must make a test of xtask/tests/tzselect_pldd.rs fail;
+# /usr/bin/ld.so link (tools/deb/manifest.tsv). Each must make a test of xtask/tests/tz_tools.rs fail;
 # cargo xtask plants rebuilds the products before each command. Run with cargo xtask plants (docs/plants.md).
-c-order-reversed | csys/util/tzselect.c | lit:if (dist_of[x] != dist_of[y]) return dist_of[x] < dist_of[y] ? -1 : 1; ==> if (dist_of[x] != dist_of[y]) return dist_of[x] < dist_of[y] ? 1 : -1; | cargo test -p xtask --test tzselect_pldd tzselect_coordinates_list_nearest_first | msg:tzselect_coordinates_list_nearest_first.*(FAILED|panicked)
-pldd-no-dlopened | csys/util/pldd.c | lit:for (unsigned i = 0; next && i < MAX_OBJECTS; i++) { ==> for (unsigned i = 0; next && i < 3; i++) { | cargo test -p xtask --test tzselect_pldd pldd_matches_the_reference | msg:pldd_matches_the_reference.*(FAILED|panicked)
-manifest-no-ld-so | tools/deb/manifest.tsv | perl:s!^system\tlibc-bin\tusr/bin/ld\.so\t.*\n!!m | cargo test -p xtask --test tzselect_pldd manifest_ships_ld_so_link | msg:manifest_ships_ld_so_link.*(FAILED|panicked)
+c-order-reversed | csys/util/tzselect.c | lit:if (dist_of[x] != dist_of[y]) return dist_of[x] < dist_of[y] ? -1 : 1; ==> if (dist_of[x] != dist_of[y]) return dist_of[x] < dist_of[y] ? 1 : -1; | cargo test -p xtask --test tz_tools tzselect_coordinates_list_nearest_first | msg:tzselect_coordinates_list_nearest_first.*(FAILED|panicked)
+pldd-no-dlopened | csys/util/pldd.c | lit:for (unsigned i = 0; next && i < MAX_OBJECTS; i++) { ==> for (unsigned i = 0; next && i < 3; i++) { | cargo test -p xtask --test tz_tools pldd_matches_the_reference | msg:pldd_matches_the_reference.*(FAILED|panicked)
+manifest-no-ld-so | tools/deb/manifest.tsv | perl:s!^system\tlibc-bin\tusr/bin/ld\.so\t.*\n!!m | cargo test -p xtask --test tz_tools manifest_ships_ld_so_link | msg:manifest_ships_ld_so_link.*(FAILED|panicked)
