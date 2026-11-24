@@ -71,7 +71,7 @@
    "kind": "perf",
    "what": "thread_create_join8 static (per thread), Skylake-SP",
    "before": 27190,
-   "after": 1083,
+   "after": 1066,
    "unit": "instr/call",
    "measured": true
   },
@@ -79,7 +79,7 @@
    "kind": "perf",
    "what": "thread_create_join8 dynamic (per thread), Skylake-SP",
    "before": 27292,
-   "after": 1211,
+   "after": 1201,
    "unit": "instr/call",
    "measured": true
   },

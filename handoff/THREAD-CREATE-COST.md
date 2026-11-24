@@ -21,8 +21,8 @@ Decision in force: D-22.25 (records/decisions/D-22/D-22.25.toml). Related: D-22.
 DL-19, ruling #6904 (unwinder lookup stays uncached), ruling #7877 (unwinder walk: follow-up UNWIND-EXIT-COST).
 
 ## Measurements, Skylake-SP (mei), merged head 14e08e0f4 vs origin/next 9139a21d9, wl_percall release products
-instructions:u per thread, 5 runs; glibc = the reference (dynamic). Jobs thread-create-cost-2-counts (dynamic, the
-script's default link) and thread-create-cost-2-counts-static (WL_LINK=static).
+instructions:u per thread, 5 runs; glibc = the reference (dynamic). Job thread-create-cost-2-counts2 on ea4a96b5b
+(dynamic, the script's default link, then WL_LINK=static); the same as the earlier counts on 14e08e0f4 but join8.
 
 | case | link | glibc | next | this branch |
 |---|---|---|---|---|
@@ -32,10 +32,10 @@ script's default link) and thread-create-cost-2-counts-static (WL_LINK=static).
 | create + pthread_exit + join | dynamic | 9,558 | 65,798 | **31,034** |
 | pthread_exit 5 frames down | static | 15,194 | 36,132 | **1,315** |
 | pthread_exit 5 frames down | dynamic | 15,194 | 75,748 | **40,984** |
-| 8 alive at once (per thread) | static | 2,441 | 27,190 | **1,083** |
-| 8 alive at once (per thread) | dynamic | 2,441 | 27,292 | **1,211** |
+| 8 alive at once (per thread) | static | 2,441 | 27,190 | **1,066** |
+| 8 alive at once (per thread) | dynamic | 2,441 | 27,292 | **1,201** |
 
-sd 0 in every libniji row but join8 (1.6-2.7). Every row is cheaper than next; the dynamic pthread_exit rows stay
+sd 0 in every libniji row (join8 was 1.6-2.7 in the earlier run: 1,083 static, 1,211 dynamic). Every row is cheaper than next; the dynamic pthread_exit rows stay
 above the reference (the unwinder walk, ruling #7877, story UNWIND-EXIT-COST). Zen 1 numbers of the first run (same
 code before the merge): static join 36,014 -> 1,197, dynamic join 39,973 -> 1,332, dynamic exit 93,824 -> 55,183.
 
