@@ -2,8 +2,7 @@
 //! `tests/oracle/catalogs_diff.c` built against the host C library and statically against
 //! libniji's products, each run by `tests/oracle/catalogs_run.sh` (fixture catalogs built with
 //! `msgfmt` and `gencat`, every other catalog written by the probe below a scratch directory under
-//! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on and
-//! off (`nscache_mode.sh`, D-16.10); every run, the reference's included, with the system's locale
+//! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`); every run, the reference's included, with the system's locale
 //! directory hidden but for `C.utf8`, so the host's installed locales never decide a case
 //! (`setlocale` searches that directory after `LOCPATH`; D-7.23). The outputs must be identical line by line, except the
 //! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
@@ -315,48 +314,48 @@ fn catalogs_equal_the_reference() {
     } else {
         eprintln!("note: the reference differs from the record");
     }
-    for mode in ["on", "off"] {
-        eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("catalogs-niji-{mode}"), mode);
-        let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
-        let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
-        let mut diffs = 0;
-        let mut seen = [false; KNOWN.len()];
-        for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
-            if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
-                if w != g {
-                    seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
-                }
-                continue;
-            }
+    // One mode (D-16.18): the program reaches no name-service cache lookup (tests/nscache_reach.rs).
+    let mode = "on";
+    eprintln!("name-service cache {mode}");
+    let got = run(&ours, &format!("catalogs-niji-{mode}"), mode);
+    let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
+    let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
+    let mut diffs = 0;
+    let mut seen = [false; KNOWN.len()];
+    for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
+        if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
             if w != g {
-                diffs += 1;
-                if diffs <= 400 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
-                }
+                seen[i] = true;
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
+            }
+            continue;
+        }
+        if w != g {
+            diffs += 1;
+            if diffs <= 400 {
+                eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
             }
         }
-        let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        if want.len() != got.len() {
-            // The diff comes first: a log that keeps only the start of a long message still shows it.
-            let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-niji-{mode}.txt")));
-            let _ = std::fs::write(&wf, text(&want));
-            let _ = std::fs::write(&gf, text(&got));
-            panic!(
-                "line counts differ (glibc {}, niji {}; name-service cache {mode}); line diff (- glibc, + niji):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- niji\n{}",
-                want.len(),
-                got.len(),
-                line_diff(&want, &got),
-                wf.display(),
-                gf.display(),
-                text(&want),
-                text(&got)
-            );
-        }
-        assert_eq!(diffs, 0, "lines that differ from the reference");
-        for (i, s) in seen.iter().enumerate() {
-            assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);
-        }
+    }
+    let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+    if want.len() != got.len() {
+        // The diff comes first: a log that keeps only the start of a long message still shows it.
+        let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-niji-{mode}.txt")));
+        let _ = std::fs::write(&wf, text(&want));
+        let _ = std::fs::write(&gf, text(&got));
+        panic!(
+            "line counts differ (glibc {}, niji {}; name-service cache {mode}); line diff (- glibc, + niji):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- niji\n{}",
+            want.len(),
+            got.len(),
+            line_diff(&want, &got),
+            wf.display(),
+            gf.display(),
+            text(&want),
+            text(&got)
+        );
+    }
+    assert_eq!(diffs, 0, "lines that differ from the reference");
+    for (i, s) in seen.iter().enumerate() {
+        assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);
     }
 }

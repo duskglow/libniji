@@ -4,7 +4,7 @@
 //! engine and on its worker engine (the run started under `tests/oracle/aio_noring.c`: a seccomp
 //! filter refusing `io_uring_setup` with `EPERM` or `ENOSYS`, as restricted systems refuse it, or
 //! one allowing everything; under any filter libniji takes the workers without trying io_uring,
-//! D-11.11), with the name-service cache on and off (`nscache_mode.sh`, D-16.10). The
+//! D-11.11), with the name-service cache off only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`). The
 //! outputs must be identical line by line, except the recorded differences: [`KNOWN`] (a line
 //! that differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). Every entry names the case it belongs to: the text of the last `== ` or `-- ` header
@@ -82,25 +82,15 @@ const DROPPED: [(&str, &str, &str); 0] = [];
 /// The header lines a recorded entry's case is matched against (`oracle::with_headers`).
 const HEADERS: &[&str] = &["== ", "-- "];
 
-// GATE-SPEED-3: one test per engine and name-service cache mode (they were one test of seven serial
-// runs, ~290 s). Each test has its own build outputs and scratch directories (named by `tag`) and
-// runs under its own private /dev/shm (nscache_mode.sh), so they can run side by side.
-#[test]
-fn aio_equals_the_reference_uring_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("uring-on", "io_uring", None, "on");
-}
-
+// GATE-SPEED-3: one test per engine (they were one test of seven serial runs, ~290 s). Each test
+// has its own build outputs and scratch directories (named by `tag`) and runs under its own private
+// /dev/shm (nscache_mode.sh), so they can run side by side. The name-service cache runs in one mode
+// (D-16.18): aio_diff.c makes no lookup, so an "on" run executes the same code as the "off" run
+// (`tests/nscache_reach.rs` fails when the program starts making one).
 #[test]
 fn aio_equals_the_reference_uring_off() {
     // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
     check("uring-off", "io_uring", None, "off");
-}
-
-#[test]
-fn aio_equals_the_reference_eperm_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("eperm-on", "workers (io_uring_setup refused with EPERM)", Some("EPERM"), "on");
 }
 
 #[test]

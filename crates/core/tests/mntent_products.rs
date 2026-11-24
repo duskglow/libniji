@@ -3,7 +3,7 @@
 //! libniji's products, each run by `tests/oracle/mntent_run.sh` (the unprivileged cases on fixture
 //! files in a scratch directory under `target/`, then the `root` cases in a private mount
 //! namespace with a fixture `/etc` bind-mounted and the probe's own tmpfs mounts, as root through
-//! `sudo -n`), libniji with the name-service cache on and off (`nscache_mode.sh`, D-16.10). The
+//! `sudo -n`), libniji with the name-service cache on only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`). The
 //! outputs must be identical line by line, except the recorded differences: [`KNOWN`] (a line
 //! that differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). Every entry names the case it belongs to: the text of the last `== ` or `-- ` header
@@ -214,33 +214,33 @@ fn mntent_equals_the_reference() {
         eprintln!("note: the reference differs from the record (the kernel's mount option text is per kernel)");
     }
     let known: Vec<(&str, &str, &str)> = KNOWN.iter().chain(KNOWN_FSTAB.iter()).copied().collect();
-    for mode in ["on", "off"] {
-        eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("mntent-niji-{mode}"), Some(mode));
-        let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
-        let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
-        let mut diffs = 0;
-        let mut seen = vec![false; known.len()];
-        for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
-            if let Some(i) = known.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
-                if w != g {
-                    seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].2);
-                }
-                continue;
-            }
+    // One mode (D-16.18): the program reaches no name-service cache lookup (tests/nscache_reach.rs).
+    let mode = "on";
+    eprintln!("name-service cache {mode}");
+    let got = run(&ours, &format!("mntent-niji-{mode}"), Some(mode));
+    let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
+    let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
+    let mut diffs = 0;
+    let mut seen = vec![false; known.len()];
+    for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
+        if let Some(i) = known.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
             if w != g {
-                diffs += 1;
-                if diffs <= 40 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
-                }
+                seen[i] = true;
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].2);
+            }
+            continue;
+        }
+        if w != g {
+            diffs += 1;
+            if diffs <= 40 {
+                eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
             }
         }
-        let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
-        assert_eq!(diffs, 0, "lines that differ from the reference");
-        for (i, s) in seen.iter().enumerate() {
-            assert!(s, "recorded difference no longer seen: {:?}", known[i]);
-        }
+    }
+    let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+    assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
+    assert_eq!(diffs, 0, "lines that differ from the reference");
+    for (i, s) in seen.iter().enumerate() {
+        assert!(s, "recorded difference no longer seen: {:?}", known[i]);
     }
 }
