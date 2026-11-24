@@ -3,3 +3,9 @@ utf8-step-one-byte | crates/core/src/pattern/fnmatch.rs | lit:s.get(i).map_or(1,
 utf8-lead-mask | crates/core/src/pattern/fnmatch.rs | lit:u32::from(b) & (0x7f >> n) ==> u32::from(b) & (0x3f >> n) | cargo test -p niji --lib fnmatch | msg:reads_utf8_names_as_the_general_one_does.*FAILED|panicked
 stacks-filled-per-call | crates/core/src/mem.rs | lit:LazyInlineVec { v: None } ==> LazyInlineVec { v: Some(InlineVec::new()) } | cargo test -p niji --lib the_nesting_stacks_are_made_only_when_a_text_nests | msg:the_nesting_stacks_are_made_only_when_a_text_nests.*FAILED|panicked
 block-slots-at-first-word | crates/boundary/src/patterns.rs | lit:base.saturating_add(pos).saturating_add(from) ==> base.saturating_add(pos) | cargo test -p niji-boundary --test wordexp_block --test wordexp_reuse | msg:wordexp_.*FAILED|panicked
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# utf8-names-to-general: CAUGHT, caught by niji pattern::fnmatch::tests::a_utf8_name_is_matched_without_compiling_the_pattern
+# utf8-step-one-byte: CAUGHT, caught by niji pattern::fnmatch::tests::the_direct_matcher_reads_utf8_names_as_the_general_one_does
+# utf8-lead-mask: CAUGHT, caught by niji pattern::fnmatch::tests::the_direct_matcher_reads_utf8_names_as_the_general_one_does
+# stacks-filled-per-call: CAUGHT, caught by niji pattern::wordexp::tests::the_nesting_stacks_are_made_only_when_a_text_nests
+# block-slots-at-first-word: CAUGHT, caught by wordexp_block wordexp_result_is_one_block

@@ -1,0 +1,29 @@
+{"task": "MATCHER-WORDEXP-RETHINK", "model": "opus", "tokens": null,
+ "result": "RETHINK adopted (D-14.25): fnmatch matches valid UTF-8 names with the direct last-star matcher (no compile, no allocation); wordexp's nesting stacks are made on first use and the result block is copied once; every premise row is below the pre-PATTERN-NESTING-3 base and the improved rows improved again",
+ "branch": "task/matcher-wordexp-rethink", "head": "cdeb7ccca",
+ "gate": {"affected": "direct tier (231 targets): all green except 4 niji tests that fail the same way in other branches' gates on this host (s7_2_f_0 zh_HK.big5hkscs, printf_corpus_equals_the_reference, locale_behaviour_equals_the_reference, catalogs_equal_the_reference)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Four niji tests fail on the Skylake-SP build host in this gate and in other stories' gates there (heap-find-depth-need-2-gate, gate-honest-metrics-*): s07_locale_clauses s7_2_f_0 (zh_HK.big5hkscs), printf_corpus_equals_the_reference (4 lines), locale_behaviour_equals_the_reference (3 lines), catalogs_equal_the_reference (catalog replaced on disk, 1 line): host state, not this change (it adds a type to mem.rs and touches only fnmatch, wordexp and the wordexp result block).",
+   "The direct matcher's differential test compared it with Pattern::matches, which runs the direct matcher first (vacuous for every case direct decides); it now compares with the general matcher.",
+   "Zen 1 instruction limits of the fnmatch rows were not tightened (counts here are Skylake-SP); Skylake-SP rows were added with 2% headroom."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "fnmatch on UTF-8 names, per call (fnmatch_utf8.c, 56 pattern/name pairs), vs pre-PN3 base", "before": 4971.0, "after": 886.4, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt fnmatch_names_ch (Skylake-SP; before = this branch's base aa4d907d9 on keke)", "before": 760.3, "after": 574.6, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt fnmatch_names_period", "before": 652.4, "after": 483.5, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt fnmatch_names_class", "before": 898.3, "after": 723.2, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt fnmatch_names_star_c", "before": 565.7, "after": 374.5, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt wordexp_plain_8 (Skylake-SP, before and after on this host)", "before": 3820.4, "after": 3426.0, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt wordexp_quoted", "before": 3830.9, "after": 3676.7, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt wordexp_split_var", "before": 3839.9, "after": 3624.4, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt wordexp_tilde_var", "before": 4147.0, "after": 3989.8, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "cbench_opt wordexp_arith / param_forms (rows PN3 improved)", "before": 3962.0, "after": 3824.8, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "new bench row fnmatch_names_utf8, percall spec fnmatch_utf8.c, 3 tests, 5 plants (all caught), 9 Skylake-SP instruction limits", "before": null, "after": 5, "unit": "plants", "measured": true}
+ ],
+ "improvement": "The direct matcher's differential test had been vacuous since it compared against a path that ran the direct matcher first; a differential test should name the exact implementation it compares against (here Pattern::general).",
+ "next_step": "wordexp plain-text lane (no Parser for text with no quote, expansion, glob or operator byte; bound ~1300 for plain_8, now 3427); tighten the Zen 1 fnmatch limits from a Zen 1 count",
+ "report_file": "handoff/MATCHER-WORDEXP-RETHINK.md",
+ "jobs": ["matcher-wordexp-rethink-gate", "matcher-wordexp-rethink-plants", "matcher-wordexp-rethink-ck2"]}
