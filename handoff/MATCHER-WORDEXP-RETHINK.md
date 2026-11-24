@@ -53,10 +53,14 @@ paths_leading_dir 438.6 -> 259.4, fnmatch_names_utf8 (new) 962.6 (glibc 1474.0);
 
 ## Jobs (mei)
 
-matcher-wordexp-rethink-gate (direct tier, 231 targets: mem.rs has 60 one-hop users), matcher-wordexp-rethink-plants
-(5 plants), matcher-wordexp-rethink-ck2 (tests, clippy, static, counts, percall; rc 1 only from the first version of
-the stack test, fixed in cdeb7ccca). Limits: Skylake-SP rows added in bench/instr_limits.tsv (2% headroom); the
-Zen 1 rows were not tightened (no Zen 1 count in this run).
+Final head 534cae783: matcher-wordexp-rethink-gate2 (direct tier, 231 targets: mem.rs has 60 one-hop users) rc 1,
+and the only failures are four niji tests that fail the same way in other stories' gates on this host
+(heap-find-depth-need-2-gate, gate-honest-metrics-*): s7_2_f_0 (zh_HK.big5hkscs), printf_corpus_equals_the_reference,
+locale_behaviour_equals_the_reference, catalogs_equal_the_reference; matcher-wordexp-rethink-plants2 5/5 caught;
+precheck red only on gate2 (33 other checks ok). Superseded: -gate (code head cdeb7ccca, same four), -plants
+(before the limits commit), -ck2 (tests, clippy, static, counts, percall; rc 1 only from the first version of the
+stack test, fixed in cdeb7ccca; the counts above are from it). Limits: Skylake-SP rows added in
+bench/instr_limits.tsv (2% headroom); the Zen 1 rows were not tightened (no Zen 1 count in this run).
 
 ## Next step
 
