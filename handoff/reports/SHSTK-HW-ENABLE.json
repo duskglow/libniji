@@ -1,0 +1,20 @@
+{"task": "SHSTK-HW-ENABLE", "model": "opus", "tokens": null,
+ "result": "No defect: on Zen 3 (natsumi) glibc.cpu.hwcaps=SHSTK enables, locks and enforces the shadow stack for libniji dynamic and static exactly as D-21.6/D-21.7 say and as the host's 2.39 does; #154 used x86_shstk alone, which never asks. Added an enforced (SEGV_CPERR) row to s21_shstk_optin.",
+ "branch": "task/shstk-hw-enable", "head": null,
+ "gate": {"affected": "22 passed / 0 failed (2 suites), conformance 1 passed / 0 failed", "peak": "1.5G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Our CI hosts (Zen 1, Skylake-SP) cannot run the s21_shstk_optin enabled rows (no user_shstk): they SKIP there; only natsumi (Zen 3) and the N100 class run them.",
+   "The plant (enable calls skipped) cannot run through cargo xtask plants: it runs the command on the build host, where the row SKIPs (SURVIVED). It was run as a control kit built on keke (shstk-hw-enable-kit2) and run on natsumi: CAUGHT, 11 dynamic + 8 static failures.",
+   "Yohane rows for #154: GLIBC_TUNABLES=glibc.cpu.hwcaps=SHSTK (optionally :glibc.cpu.x86_shstk=on|permissive) turns it on; x86_shstk alone never asks, in libniji or stock 2.39. Table in handoff/SHSTK-HW-ENABLE.md."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "s21_shstk_optin(+_static) enforced row: return-address overwrite stops with SEGV_CPERR under hwcaps=SHSTK", "before": 0, "after": 2, "unit": "rows (dynamic, static)", "measured": true},
+   {"kind": "unblock", "what": "Yohane #154 answered with Zen 3 rows (libniji = host 2.39, 102 shst runs, 0 differing)", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "cargo xtask plants needs a run-host mode (build on the role, run the cmd on a capability host such as natsumi or the N100) so hardware-only rows can be planted through the tool instead of a hand-built control.",
+ "next_step": "Land (test-only); reply to Yohane on #154 with the hwcaps=SHSTK rows.",
+ "report_file": "handoff/SHSTK-HW-ENABLE.md",
+ "jobs": ["keke:shstk-hw-enable-gate1", "keke:shstk-hw-enable-lint", "keke:shstk-hw-enable-kit2"]}
