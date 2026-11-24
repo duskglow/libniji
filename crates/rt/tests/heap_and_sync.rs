@@ -256,6 +256,19 @@ fn classes_cover_every_small_size_with_the_fundamental_alignment() {
     }
     assert_eq!(class_for(MAX_SMALL + 1, ALIGN), None);
     assert_eq!(class_for(100, 2 * PAGE), None, "over-page alignment goes large");
+}
+
+#[test]
+fn a_block_up_to_1024_bytes_exceeds_its_request_by_at_most_an_eighth() {
+    // Clauses: s3_1_c_1 (D-3.26; GitHub issue #21, HEAP-WALK-ADDRESS-SPACE). Up to 1024 bytes a
+    // class is at most an eighth (and 16 bytes) above the class below, so no request pays more:
+    // with a quarter, find's 264-byte directory entries took 320 bytes each.
+    for size in 1..=1024 {
+        let c = class_for(size, ALIGN).unwrap();
+        let below = if c == 0 { 0 } else { CLASSES[c - 1] };
+        let over = CLASSES[c] - size;
+        assert!(over < (below / 8).max(16), "size {size}: class {} wastes {over} bytes (class below {below})", CLASSES[c]);
+    }
     for align in [32, 64, 128, 256, 512, 1024, 2048, 4096] {
         let c = class_for(100, align).unwrap();
         assert_eq!(CLASSES[c] % align, 0, "every block of the class is aligned");
@@ -1012,7 +1025,7 @@ fn realloc_takes_one_fused_path_and_forecasts_growth() {
     let (r, copied) = resize(grown.addr, 81);
     let g3 = r.unwrap().unwrap();
     assert_eq!(copied, Some((grown.addr, g3.addr, 80)));
-    assert_eq!((g3.usable, heap.usable(&CSys, &pages, g3.addr)), (192, Ok(192)), "forecast 162 -> class 192");
+    assert_eq!((g3.usable, heap.usable(&CSys, &pages, g3.addr)), (176, Ok(176)), "forecast 162 -> class 176");
     // A shrink below half the next class down moves without a forecast, copying the request.
     let (r, copied) = resize(g3.addr, 10);
     let small = r.unwrap().unwrap();
