@@ -161,7 +161,8 @@ fn gen_body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> Res<()> {
         Ok(t) => t,
         Err(ENOENT) => return Ok(()),
         Err(e) => {
-            say(host, o, 2, &[b"locale-gen: cannot read ", LOCALE_GEN, b": ", host.error_text(e), b"\n"])?;
+            let t = host.error_text(e);
+            say(host, o, 2, &[b"locale-gen: cannot read ", LOCALE_GEN, b": ", t, b"\n"])?;
             o.status = 1;
             return Ok(());
         }
@@ -175,7 +176,8 @@ fn gen_body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> Res<()> {
         match host.remove(ARCHIVE) {
             Ok(()) | Err(ENOENT) => {}
             Err(e) => {
-                say(host, o, 2, &[b"locale-gen: cannot remove ", ARCHIVE, b": ", host.error_text(e), b"\n"])?;
+                let t = host.error_text(e);
+                say(host, o, 2, &[b"locale-gen: cannot remove ", ARCHIVE, b": ", t, b"\n"])?;
                 o.status = 1;
                 return Ok(());
             }
