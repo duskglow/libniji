@@ -1,0 +1,23 @@
+{"task": "REVIEW-GATE-HONEST-METRICS", "model": "opus", "tokens": null,
+ "result": "COMPLETE: chain GATE-HONEST-METRICS is not a failure loop (each red real and different; a 256-byte section-name cut was found and fixed), but its blocker premise has been stale since 17:43Z 11-23 and the train-975 window red is not shown to be its branch's (-3 alone: tool 2/2 windows); continue with named changes: no bin-fitting in -4, split metrics from layout, rule on WINDOW-BIN-BYTES and #8134",
+ "branch": "task/review-gate-honest-metrics", "head": null,
+ "gate": {"affected": null, "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+   {"item": "WINDOW-BIN-BYTES per-mode window budgets (release) as a hard per-story/train gate, after #8143 (placement not the lever) and #8135 (faults as ratio to the reference)", "recommendation": "once #8135's fault-ratio gate lands, report window counts without gating; until then a window red on a merged train whose members each pass alone belongs to the train (compose, bisect); data: tool faults with 2 vs 3 windows"},
+   {"item": "#8134 (group the per-locale-directory load path) after the CI host's locale-archive was restored, given #8143's pause on static layout work", "recommendation": "hold #8134 until the locale form of the target distributions' default configurations and the archive-host cost of the grouping are measured (decision rule in the review, section 4); the cause test pins its locale form meanwhile"}
+ ],
+ "informational": [
+   "flag #8321: train 975's third tool window is bin 1 (packer reshuffle of the merged set); GATE-HONEST-METRICS-3's own release build was WINDOW-BIN-BYTES ok, tool 2/2; the 03:53Z manual finishes of INTERNAL-ALLOC-ROUTING-3 and LOCALE-COLLATE-TAILORINGS-4 rest on the stronger claim",
+   "the premise 'nothing has landed since 06:44Z' is in all four chain briefs; landings resumed 17:43:57Z 11-23 (55 since); continuation briefs copy the parent premise unchanged",
+   "the tripwire counted GATE-HONEST-METRICS's INCOMPLETE-by-design red (reason 'verify: job ... rc=1' is not in NOT_FAILURE_REDS); #8157's tripwire is unbuilt (owed #204, due since 11-23 17:51Z)",
+   "of the chain's measured impact entries, the user-facing ones are -3/-4 page faults on per-locale-directory hosts (run 1) and 4 functions grouped (-3); the reference_probe race fix repairs the chain's own new code"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "none", "what": "independent review of chain GATE-HONEST-METRICS: 4 false or stale premises, 5 process findings, 2 rulings; no behaviour change", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "a continuation brief should re-derive its premise from the database at submission (landings, which reds are live) instead of copying the parent's; three briefs carried a premise false since two minutes into the first run",
+ "next_step": "coordinator acts on #8321 for the live GATE-HONEST-METRICS-4 (no bin-fitting; confirm tool 2/2 on its own head) and takes the two rulings to the owner",
+ "report_file": "plan/reviews/REVIEW-GATE-HONEST-METRICS.md",
+ "jobs": []}
