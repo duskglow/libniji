@@ -42,6 +42,9 @@ Plants file: `handoff/LOCALE-ADDRESS-SPACE-plants.txt`. Scratch scripts: keke `~
   growth step fails (EEXIST). The first segment's 68 KiB head below its aligned address then stops the next
   segment's last 1.75 MiB step, and the walk places a third segment (12.3 + 14.25 + 6.25 MiB against 16 + 16 without
   a limit: 768 KiB more, plus two 4 KiB per-request maps). Without a limit the same walk fits in two segments.
+  Phase 8192 (limit 45360, `/dev/shm/claude/las/t8192`): the same mechanism. The first segment fills its 16 MiB slot,
+  the second (0x...6000000) stops after 3 growth steps below the archive (mapped at 0x...6a00000), and a third
+  segment follows; ends with 45360 mapped against 44840 without a limit.
   Inferred, NOT VERIFIED (no base products on the host to trace): base hit the same placement under the limit, but
   its at-exit mapping without a limit was also three segments (its locale objects took a 2 MiB heap step), so
   the difference hid it. The branch makes the run without a limit more compact; need fell 1228 to 1484 KiB at 6
