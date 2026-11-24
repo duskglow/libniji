@@ -1,0 +1,11 @@
+id = "D-22.29"
+section = "s22"
+spec = "§22.1"
+ann = "KERN, PERF"
+status = "active"
+story = "SHSTK-ENABLE"
+date = "2026-11-23"
+tests = ["conformance/c/s21_shstk_optin.c"]
+body = '''
+**A thread created while the creator's shadow stack is on is started with `clone3` and its stack's size, so its shadow stack is sized from its stack** (SHSTK-ENABLE, SHSTK-SCOPE item F). Interface: clone3(2) (`struct clone_args`, `stack`, `stack_size`) and the kernel's shstk documentation (a new thread's shadow stack is sized from `stack_size` when given, else from RLIMIT_STACK). `boundary/src/thread.rs` `clone3_thread` (cold): `clone3` with `stack` = the thread stack's low end and `stack_size` = its start SP minus that, the same flags, TLS and tid words as the `clone` path; `machine/thread_start.S` `niji_machine_clone3_thread` shares the child's start (`.Lthread_child`). A kernel without `clone3` (`ENOSYS`) gets the plain `clone`. Without a shadow stack (the default) the `clone` path is unchanged apart from the test (`niji_machine_ssp() != 0`). Measured: on the N100 class with RLIMIT_STACK 64 MiB, a default-size thread's shadow stack is 262,144 bytes (was the 64 MiB the rlimit gives `clone`); the negative control (clone3 refused by seccomp) falls back and gets 67,108,864 bytes. Cost: default mode (Skylake-SP host) thread create+join 36,092.0 -> 36,105.2 instructions (+13.2: the call and test, and a register the clone call keeps live; an inline `rdssp` would save about 5); opt-in on (N100 class) +31 user and +12.7k kernel instructions and +1 fault per thread, all of them the kernel's shadow-stack mapping and the enable state, against the reference's +3 user and +13.1k kernel.
+'''

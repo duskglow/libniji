@@ -51,7 +51,9 @@ fn s21_1_g_0() {
     // Pointer mangling (s22_more checks the saved stack pointer is not stored in the clear).
     // The shadow stack (D-21.5): s21_shadow_stack enables it and jumps, switches contexts, vforks
     // and runs threads under it; SKIPPED (printed by the program) where the CPU or kernel has none.
-    conformance(&["s22_more", "s21_shadow_stack"]);
+    // The opt-in (D-21.6, D-22.29): s21_shstk_optin (dynamic, both C libraries) and its static
+    // copy check the tunables, the start decision, an unmarked dlopen and a thread's shadow stack.
+    conformance(&["s22_more", "s21_shadow_stack", "s21_shstk_optin", "s21_shstk_optin_static"]);
     shadow_stack_instructions();
 }
 

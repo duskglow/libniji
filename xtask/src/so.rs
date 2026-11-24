@@ -471,6 +471,7 @@ const LIBC_PRIVATE: &[&str] = &[
     "__niji_owner_unload",
     "__niji_resolv_block",
     "__niji_resolv_pfcode",
+    "__niji_shstk_off",
     "__niji_stack_exec",
     "__niji_thread_db",
     "__niji_thread_walk",

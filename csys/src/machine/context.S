@@ -7,15 +7,19 @@
  * the registers' contents, which the ABI does not preserve across calls) and points fpregs at
  * __fpregs_mem.
  *
- * Shadow stack (D-21.5). __ssp[0] is the shadow-stack pointer (SSP) the context resumes with:
- * the SSP its capturing call returns to, 0 when the thread had no shadow stack (rdssp is a no-op
- * then, so the zeroed register stays 0). A context suspended on another shadow stack has a
- * restore token at __ssp[0] - 8 (the value __ssp[0] | 1): swapcontext leaves one when it leaves a
- * stack (saveprevssp), and makecontext's stack gets one from the kernel (map_shadow_stack with
- * SHADOW_STACK_SET_TOKEN). Resuming such a context switches to its stack (rstorssp, then
- * saveprevssp); resuming one without a token, captured on the current shadow stack, pops this
- * stack up to it (incssp), as longjmp does. Every resume jumps to RIP (a `ret` would have no
- * matching shadow-stack entry). Without a shadow stack none of this runs.
+ * Shadow stack (D-21.5, D-21.7). __ssp[0] is the raw shadow-stack pointer (SSP) of the capturing
+ * call: the context resumes at __ssp[0] + 8, the SSP that call returns to. It is 0 when the
+ * thread had no shadow stack (rdssp is a no-op then, so the zeroed register stays 0); with one,
+ * getcontext and swapcontext also set uc_flags to 0 (a user context; without a shadow stack they
+ * leave it). A context suspended on another shadow stack has a restore token at __ssp[0] (the
+ * value (__ssp[0] + 8) | 1): swapcontext leaves one when it leaves a stack (saveprevssp), and
+ * makecontext's stack gets one from the kernel (map_shadow_stack with SHADOW_STACK_SET_TOKEN).
+ * Resuming such a context switches to its stack (rstorssp, then saveprevssp); resuming one
+ * without a token, captured on the current shadow stack, pops this stack up to it (incssp), as
+ * longjmp does. A context with UC_SIGCONTEXT_SS (2) in uc_flags is the kernel's signal frame,
+ * whose __ssp is not the library's: setcontext pops the current shadow stack to the innermost
+ * signal frame's interrupted SSP instead (D-21.7). Every resume jumps to RIP (a `ret` would have
+ * no matching shadow-stack entry). Without a shadow stack none of this runs.
  *
  * setcontext and swapcontext never block the library's internal signal (32, D-20.1, OD-8):
  * they install a copy of the context's mask with its bit cleared.
@@ -58,9 +62,13 @@ niji_machine_getcontext:
 	movq %rcx, 0xa8(%rdi)		/* RIP: the return address */
 	leaq 8(%rsp), %rcx
 	movq %rcx, 0xa0(%rdi)		/* RSP: the caller's, once this returns */
-	NIJI_SSP_AFTER_RETURN
-	movq %rax, 936(%rdi)		/* __ssp[0] */
-	leaq 0x1a8(%rdi), %rcx
+	xorl %eax, %eax
+	rdsspq %rax
+	movq %rax, 936(%rdi)		/* __ssp[0]: the raw SSP (D-21.7) */
+	testq %rax, %rax
+	jz 9f
+	movq $0, (%rdi)			/* uc_flags: a user context (D-21.7) */
+9:	leaq 0x1a8(%rdi), %rcx
 	movq %rcx, 0xe0(%rdi)		/* fpregs = &__fpregs_mem */
 	fnstenv (%rcx)
 	fldenv (%rcx)			/* fnstenv masks the x87 exceptions: put them back */
@@ -121,9 +129,12 @@ niji_machine_setcontext:
 	xorl %eax, %eax
 	jmpq *%r11
 /* With a shadow stack (SSP in %rax): switch to the context's, or pop this one up to it. */
-3:	movq 936(%rdx), %rcx		/* the context's SSP; 0: none recorded, leave it */
+3:	testb $2, (%rdx)		/* uc_flags UC_SIGCONTEXT_SS: a kernel signal frame */
+	jnz 7f
+	movq 936(%rdx), %rcx		/* the context's raw SSP; 0: none recorded, leave it */
 	testq %rcx, %rcx
 	jz 2b
+	addq $8, %rcx			/* resume above its capturing call's entry */
 	leaq 1(%rcx), %rsi
 	cmpq %rsi, -8(%rcx)		/* a restore token for it: another shadow stack */
 	jne 4f
@@ -143,6 +154,17 @@ niji_machine_setcontext:
 	jmp 5b
 6:	incsspq %rcx
 	jmp 2b
+/* A kernel signal frame (D-21.7): the kernel pushed the interrupted SSP with bit 63 set just
+ * below that SSP. Find the first such entry above this call's (no return address or restore
+ * token has bit 63 set) and pop to the interrupted SSP. */
+7:	movq %rax, %rcx
+8:	movq (%rcx), %rsi
+	addq $8, %rcx
+	movq %rcx, %r8
+	btsq $63, %r8
+	cmpq %r8, %rsi
+	jne 8b
+	jmp 4b
 	.size niji_machine_setcontext, .-niji_machine_setcontext
 
 /* int niji_machine_swapcontext(ucontext_t *save, const ucontext_t *to): saves the caller's
@@ -170,9 +192,13 @@ niji_machine_swapcontext:
 	leaq 8(%rsp), %rcx
 	movq %rcx, 0xa0(%rdi)
 	movq $0, 0x90(%rdi)		/* RAX: the saved context returns 0 */
-	NIJI_SSP_AFTER_RETURN
-	movq %rax, 936(%rdi)		/* __ssp[0] */
-	leaq 0x1a8(%rdi), %rcx
+	xorl %eax, %eax
+	rdsspq %rax
+	movq %rax, 936(%rdi)		/* __ssp[0]: the raw SSP (D-21.7) */
+	testq %rax, %rax
+	jz 9f
+	movq $0, (%rdi)			/* uc_flags: a user context (D-21.7) */
+9:	leaq 0x1a8(%rdi), %rcx
 	movq %rcx, 0xe0(%rdi)
 	fnstenv (%rcx)
 	fldenv (%rcx)
@@ -225,6 +251,37 @@ niji_machine_ssp:
 	NIJI_SSP_AFTER_RETURN
 	ret
 	.size niji_machine_ssp, .-niji_machine_ssp
+
+/* long niji_machine_shstk_enter(unsigned long lock) (D-21.6): turn on the calling thread's
+ * shadow stack (arch_prctl ARCH_SHSTK_ENABLE 0x5001, ARCH_SHSTK_SHSTK 1) and, when that succeeded
+ * and `lock` is not 0, lock those features (ARCH_SHSTK_LOCK 0x5003, mask `lock`). Returns the
+ * enable's result (0 or -errno) by a jump: the new shadow stack has no entry for this call, and
+ * the caller must be a frame that never returns (the static start). ld.so has its own copy
+ * (machine/entry.S, niji_machine_ld_shstk_enter). */
+	.section .text.niji_machine_shstk_enter,"ax",@progbits
+	.globl niji_machine_shstk_enter
+	.hidden niji_machine_shstk_enter
+	.type niji_machine_shstk_enter, @function
+	.p2align 4
+niji_machine_shstk_enter:
+	movq %rdi, %rdx
+	movl $0x5001, %edi
+	movl $1, %esi
+	movl $158, %eax			/* SYS_arch_prctl */
+	syscall
+	testq %rax, %rax
+	jnz 1f
+	testq %rdx, %rdx
+	jz 1f
+	movl $0x5003, %edi
+	movq %rdx, %rsi
+	movl $158, %eax
+	syscall
+	xorl %eax, %eax
+1:	popq %r11
+	jmpq *%r11
+	.size niji_machine_shstk_enter, .-niji_machine_shstk_enter
+	.text
 
 #ifdef NIJI_EXPORT
 	.globl getcontext

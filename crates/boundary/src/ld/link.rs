@@ -31,7 +31,7 @@ use super::tls::{INITIAL_TAIL, install_tls, map_area, surplus_bytes};
 /// path for `ld.so PROGRAM`, else `argv[0]`).
 // Indices stay below `n`; every per-object table is reserved to `n + 1` entries before each store.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments, clippy::too_many_lines)]
-pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin, preloads: &Preloads<'_>) -> usize {
+pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin, preloads: &Preloads<'_>) -> ! {
     use niji_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
     // The program's `$ORIGIN`, once looked up ([`Origin::dir`]); LD_LIBRARY_PATH as the search reads it.
@@ -350,6 +350,10 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     if let Err(i) = reloc::protect_relro(objs, &mut ProcImage, page) {
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
     }
+    // D-21.6: asked for by the tunables, the shadow stack needs every start object marked; read while
+    // the views are mapped.
+    let shstk = super::entry::SHSTK_WANTED.load(Relaxed);
+    let shstk_lock = if shstk == 0 { None } else { shstk_decide(objs, shstk) };
     // The program's headers are read here, before their views are unmapped below.
     debug::keep_copy(|| {
         reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)))
@@ -399,7 +403,24 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     START_PAGE.store(page, Relaxed);
     START_N.store(n, Release);
     debug::consistent();
-    run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size)
+    if let Some(lock) = shstk_lock {
+        // From here no frame older than this call returns: the initialisers and the program run on
+        // the new shadow stack, and this function ends in the program-entry transfer.
+        let _ = crate::arch::niji_machine_ld_shstk_enter(lock);
+    }
+    let fini = run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size);
+    crate::arch::enter(sp, prog.entry, fini)
+}
+
+/// D-21.6: the lock mask to enable the shadow stack with when every start object in `objs` (the
+/// program, its `DT_NEEDED` objects and the preloads, with `ld.so` and the C library) is marked for
+/// it, in the mode kept as `code`; `None` when one is not. `ld.so` itself, when no object names it,
+/// is the build's (marked and checked, D-X.164). Cold: reached only when the tunables ask.
+#[cold]
+#[inline(never)]
+fn shstk_decide(objs: &[niji_ld::reloc::Obj<'static>], code: u8) -> Option<u64> {
+    let m = niji_ld::shstk::mode_of(code)?;
+    niji_ld::shstk::start_allowed::<Native>(objs.iter().map(|o| &o.elf)).then(|| niji_ld::shstk::lock_mask(m))
 }
 
 /// `DT_DEBUG`: the dynamic entry the loader points at the debugger rendezvous.

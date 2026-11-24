@@ -155,6 +155,7 @@ void niji_machine_trap(void);
 long niji_machine_clone_thread(unsigned long flags, uintptr_t stack, uint32_t *ptid, uint32_t *ctid, uintptr_t tls);
 long niji_machine_clone_raw(unsigned long flags, uintptr_t stack, uintptr_t ptid, uintptr_t ctid, uintptr_t tls);
 long niji_machine_clone3_run(const void *args, long size, void (*entry)(uintptr_t), uintptr_t arg);
+long niji_machine_clone3_thread(const void *args, long size);
 long niji_machine_syscall_cancel(const uint32_t *word, long nr, long a, long b, long c, long d, long e, long f);
 long niji_machine_syscall_cancel4(const uint32_t *word, long nr, long a, long b, long c, long d);
 void niji_machine_cancel_bounds(uintptr_t out[3]);
@@ -175,6 +176,7 @@ int niji_machine_setcontext(const void *uc);
 int niji_machine_swapcontext(void *save, const void *to);
 void niji_machine_start_context(void);
 uintptr_t niji_machine_ssp(void);
+long niji_machine_shstk_enter(unsigned long lock);
 /* Class adapter: va_arg accessor (src/adapter/variadic.c). */
 long niji_va_long(void *ap);
 double niji_va_double(void *ap);

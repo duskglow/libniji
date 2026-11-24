@@ -4,8 +4,10 @@
  * exit by signal). main enables it for this thread (arch_prctl(ARCH_SHSTK_ENABLE), inline, so
  * main itself never returns: no frame older than the enable has an entry), then runs: longjmp
  * out of nested frames, siglongjmp out of a signal handler, setcontext to a getcontext point
- * from a deeper frame, swapcontext between main and a makecontext context (eight arguments, on
- * its own shadow stack) and back, a context function returning to uc_link, vfork returning in
+ * from a deeper frame, setcontext from a signal handler to the kernel's ucontext (D-21.7),
+ * swapcontext between main and a makecontext context (eight arguments, on
+ * its own shadow stack) and back, a context function returning to uc_link, makecontext on the
+ * same stack memory again (the earlier shadow stack is unmapped, D-21.7), vfork returning in
  * the parent after the child's calls, posix_spawn, and threads (their own shadow stacks: create,
  * join, pthread_exit through cleanup handlers, cancellation). Each step returns through the
  * frames it went through, which is what the hardware checks.
@@ -20,6 +22,7 @@
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <ucontext.h>
 #include <unistd.h>
@@ -73,7 +76,25 @@ static void co(int a, int b, int c, int d, int e, int f, int g, int h)
 
 static __attribute__((noinline)) void returns(void)
 {
-    returned = 1;
+    returned++;
+}
+
+/* The kB of shadow-stack mappings ("ss" in an smaps VmFlags line), -1 if unreadable. */
+static long shadow_kb(void)
+{
+    FILE *f = fopen("/proc/self/smaps", "r");
+    if (!f)
+        return -1;
+    char line[512];
+    long size = 0, total = 0;
+    while (fgets(line, sizeof line, f)) {
+        if (sscanf(line, "Size: %ld kB", &size) == 1)
+            continue;
+        if (strncmp(line, "VmFlags:", 8) == 0 && strstr(line, " ss "))
+            total += size;
+    }
+    fclose(f);
+    return total;
 }
 
 static __attribute__((noinline)) void set_from_deeper(int n, ucontext_t *uc)
@@ -81,6 +102,31 @@ static __attribute__((noinline)) void set_from_deeper(int n, ucontext_t *uc)
     if (n == 0)
         setcontext(uc);
     set_from_deeper(n - 1, uc);
+}
+
+/* setcontext on the kernel's ucontext (a handler's third argument) from frames inside the
+ * handler: the interrupted code resumes, and its frames return (D-21.7). */
+static volatile int handled;
+static __attribute__((noinline)) void set_kernel_uc(int n, void *uc)
+{
+    if (n == 0)
+        setcontext((ucontext_t *)uc);
+    set_kernel_uc(n - 1, uc);
+}
+
+static void on_usr2(int sig, siginfo_t *si, void *uc)
+{
+    (void)sig;
+    (void)si;
+    handled++;
+    set_kernel_uc(5, uc);
+}
+
+static __attribute__((noinline)) int raise_deep(int n)
+{
+    if (n == 0)
+        return raise(SIGUSR2);
+    return raise_deep(n - 1) + 1;
 }
 
 static __attribute__((noinline)) pid_t vfork_and_return(void)
@@ -174,6 +220,15 @@ int main(void)
     }
     CHECK(resumed == 1);
 
+    /* setcontext from a handler to the ucontext it was given, from 5 frames inside it; the
+     * signal arrived 10 frames down in main. */
+    struct sigaction sa = {0};
+    sa.sa_sigaction = on_usr2;
+    sa.sa_flags = SA_SIGINFO;
+    CHECK(sigaction(SIGUSR2, &sa, NULL) == 0);
+    CHECK(raise_deep(10) == 10);
+    CHECK(handled == 1);
+
     /* swapcontext with a makecontext context and back, three times; then it ends in main_uc. */
     getcontext(&co_uc);
     co_uc.uc_stack.ss_sp = co_stack;
@@ -193,6 +248,26 @@ int main(void)
     makecontext(&ret_uc, returns, 0);
     swapcontext(&main_uc, &ret_uc);
     CHECK(returned == 1);
+
+    /* makecontext on the same stack memory 64 more times, each context run to its return
+     * (D-21.7 (5)): the shadow stack made for the earlier context on it is unmapped, so the
+     * shadow-stack mappings stay at their size after the first of these rounds. */
+    long kb_first = 0;
+    for (int i = 0; i < 64; i++) {
+        getcontext(&ret_uc);
+        ret_uc.uc_stack.ss_sp = ret_stack;
+        ret_uc.uc_stack.ss_size = sizeof ret_stack;
+        ret_uc.uc_link = &main_uc;
+        makecontext(&ret_uc, returns, 0);
+        swapcontext(&main_uc, &ret_uc);
+        if (i == 0)
+            kb_first = shadow_kb();
+    }
+    long kb_last = shadow_kb();
+    CHECK(returned == 65);
+    CHECK(kb_first > 0 && kb_last == kb_first);
+    if (kb_last != kb_first)
+        printf("shadow-stack mappings: %ld kB after the first reuse, %ld kB after 64\n", kb_first, kb_last);
 
     /* vfork: the parent returns through the frame that called it. */
     int st = 0;

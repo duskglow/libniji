@@ -527,6 +527,59 @@ fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: 
     process::exit(status)
 }
 
+/// The static start's decision (D-21.6): the lock mask to enable with when `tunables` ask for the
+/// shadow stack and the program's own image (program headers at AT_PHDR, AT_PHNUM of them, its
+/// `PT_GNU_PROPERTY` holding the AND of every linked input) is marked; `None` otherwise. Cold: a
+/// start reaches it only when `GLIBC_TUNABLES` asks.
+#[cold]
+#[inline(never)]
+fn shstk_static_start(tunables: &Tunables, aux: &Auxv<'_>) -> Option<u64> {
+    use niji_ld::arch::Native;
+    use niji_ld::elf::{pt, Elf, Span};
+    const PHDR_SIZE: usize = 56;
+    let wanted = tunables.shstk_wanted()?;
+    let at = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
+    let (phdr, phnum) = (at(niji_kernel::uapi::AT_PHDR), at(niji_kernel::uapi::AT_PHNUM));
+    if phdr == 0 || phnum == 0 {
+        return None;
+    }
+    // UNSAFE(slice): the program's headers.
+    #[allow(unsafe_code)]
+    // SAFETY: the kernel mapped `phnum` 56-byte program headers at AT_PHDR (⚑ KERN), readable for
+    // the process's lifetime.
+    let headers = unsafe { crate::conv::bytes_at(phdr, phnum.saturating_mul(PHDR_SIZE)) };
+    let word = |h: &[u8], at: usize| h.get(at..at.saturating_add(8)).and_then(|b| b.try_into().ok()).map_or(0, u64::from_le_bytes);
+    let entries = || headers.chunks_exact(PHDR_SIZE).map(|h| (word(h, 0) & 0xffff_ffff, word(h, 16), word(h, 32)));
+    // The load bias: PT_PHDR's address against AT_PHDR (a static PIE), else 0.
+    let bias = entries().find(|e| e.0 == u64::from(pt::PHDR)).map_or(0, |e| u64::try_from(phdr).unwrap_or(0).wrapping_sub(e.1));
+    let (_, vaddr, filesz) = entries().find(|e| e.0 == u64::from(pt::GNU_PROPERTY))?;
+    let at = usize::try_from(bias.wrapping_add(vaddr)).ok()?;
+    // UNSAFE(slice): the program's property note, inside its first loaded segment.
+    #[allow(unsafe_code)]
+    // SAFETY: PT_GNU_PROPERTY's `p_filesz` bytes at bias + `p_vaddr` lie in a PT_LOAD the kernel mapped
+    // readable (the static link places the note in the read-only segment); `from_image` checks the
+    // span against the PT_LOAD table before reading it.
+    let bytes = unsafe { crate::conv::bytes_at(at, usize::try_from(filesz).ok()?) };
+    let spans = [Span { vaddr, bytes }];
+    let elf = Elf::from_image::<Native>(headers, &spans).ok()?;
+    let m = match wanted {
+        niji::config::ShstkMode::On => niji_ld::shstk::ShstkMode::On,
+        niji::config::ShstkMode::Permissive => niji_ld::shstk::ShstkMode::Permissive,
+        _ => niji_ld::shstk::ShstkMode::Default,
+    };
+    niji_ld::shstk::marked::<Native>(&elf).then(|| niji_ld::shstk::lock_mask(m))
+}
+
+/// `__niji_shstk_off` (D-21.6, `permissive`): turn the shadow stack off in the calling thread and
+/// in every other thread the library runs (the set*id broadcast's replay, D-17.7); outside the
+/// library's threads (a test process), the calling thread alone.
+pub(crate) fn shstk_off_everywhere() {
+    // ARCH(x86_64): arch_prctl(158) ARCH_SHSTK_DISABLE (0x5002) of ARCH_SHSTK_SHSTK (1).
+    if crate::setxid::broadcast(158, 0x5002, 1, 0).is_err() {
+        let _ = crate::raw::syscall(158, [0x5002, 1, 0, 0, 0, 0]);
+    }
+}
+
 /// `__libc_start_main(main, argc, argv, init, fini, rtld_fini, stack_end)`; with `PIE`, the
 /// static-PIE start `niji-rcrt1.o` calls (`niji_start_main_static_pie`, D-27.10).
 // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
@@ -629,6 +682,14 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
         Tunables::parse(text, secure)
     });
     let cpu_state = cpu::init_with(&tunables);
+    // D-21.6: the shadow stack, asked for by the tunables, for a static program whose image is
+    // marked; before its constructors. `start` never returns, as the enable requires.
+    // The decision is cold; only the enable stays here, in the frame that never returns.
+    if static_program && tunables.shstk == Some(true) {
+        if let Some(lock) = shstk_static_start(&tunables, &aux) {
+            let _ = ffi::niji_machine_shstk_enter(lock);
+        }
+    }
     // The classed entries (D-4.53): on the AVX2 class, the AVX2 page moves over the SSE2 page,
     // here, with one thread and before the program's IFUNC resolvers and constructors. A program
     // started by another `ld.so` keeps the SSE2 page (other objects' code may have run). The

@@ -2282,6 +2282,11 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         drop_file();
         return refused(l, Refusal::NoDynamic);
     };
+    // D-21.6: with the calling thread's shadow stack on, an object not marked for it.
+    if crate::ffi::niji_machine_ssp() != 0 && !niji_ld::shstk::marked::<Native>(&elf) && !shstk_unmarked(l) {
+        drop_file();
+        return refused(l, Refusal::Shstk);
+    }
     // `ld.so` by any path is the start-time `ld.so` (ruling #5126).
     if dyn_string(&dynm, DT_SONAME) == Some(Native::INTERP.as_bytes()) {
         drop_file();
@@ -2734,6 +2739,36 @@ fn exec_stack_accepted() -> bool {
     let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
     let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
     start::ld_env(env_entries(envp)).tunables.is_some_and(|t| niji::config::Tunables::parse(t, secure).exec_stack == Some(true))
+}
+
+/// D-21.6: whether an object not marked for the shadow stack loads while it is on, in the mode the
+/// start's tunables asked for (none: the process turned it on itself; the default rule):
+/// refused, loaded, or loaded after the C library's `__niji_shstk_off` turned it off in every thread
+/// (`permissive`; without that function, in the calling thread).
+#[cold]
+#[inline(never)]
+fn shstk_unmarked(l: &Loader) -> bool {
+    use niji_ld::shstk::{on_dlopen, OnDlopen, ShstkMode};
+    let m = niji_ld::shstk::mode_of(super::entry::SHSTK_WANTED.load(Relaxed)).unwrap_or(ShstkMode::Default);
+    match on_dlopen(m, false) {
+        OnDlopen::Load => true,
+        OnDlopen::Refuse => false,
+        OnDlopen::Disable => {
+            let req = Request::new(start::private::SHSTK_OFF, Want::Version(start::private::NODE));
+            let n = START_N.load(Acquire).min(l.n);
+            let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+            match found.and_then(|a| usize::try_from(a).ok()) {
+                Some(f) => {
+                    let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
+                }
+                None => {
+                    // ARCH(x86_64): arch_prctl(158) ARCH_SHSTK_DISABLE (0x5002) of ARCH_SHSTK_SHSTK (1).
+                    let _ = raw::syscall(158, [0x5002, 1, 0, 0, 0, 0]);
+                }
+            }
+            true
+        }
+    }
 }
 
 /// COMPAT-19: call the C library's `__niji_stack_exec` (a start object's, at `NIJI_PRIVATE`) once
