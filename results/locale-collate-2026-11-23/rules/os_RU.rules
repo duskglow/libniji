@@ -1,0 +1,6 @@
+os_RU	n=122590	moved=4	relevel=1	rules=5
+=U+2100 1 U+1DD4 (root 4)
+&U+04D2 1 U+04D5
+&U+04D5 3 U+04D4
+&U+04D4 2 U+00E6
+&U+00E6 3 U+00C6

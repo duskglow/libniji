@@ -1,0 +1,20 @@
+name: set and message numbers near and past 2^32
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 2147483647
+| 1 a
+| $set 1
+| 4294967296 b
+| 99999999999 c
+| 4294967295 d
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 668c9b869de7221893759f0dfd387cc1d9aec629dd4ba028476f19b8df15cba6 size 90

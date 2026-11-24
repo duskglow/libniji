@@ -1,0 +1,16 @@
+name: UTF-8 text in a UTF-8 locale is copied as is
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| 1 caf\xc3\xa9
+| 2 \xe6\x97\xa5\xe6\x9c\xac
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 e9048a3b6ecf9439473ab52ea977e8b967ef08706496867301ad7fd029e0c735 size 73

@@ -208,13 +208,21 @@ python3 -B "$here/keys.py" --tagged $(cat "$work/tagged") > "$work/hit.keys"
 # (The traced archive is ungrouped, but its sections may still carry a hot or cold prefix: `.text.sorted.h<n>.`,
 # `.text.hot.`, `.text.unlikely.<f>` of a #[cold] function, `.text.niji_cold.<f>.niji_cold` (D-X.63);
 # keys.py --sections strips every one of them, LAYOUT-TEXT-PIN-9 #4541.)
-readelf -SW "$P/libc.a" > "$work/readelf"
-python3 -B "$here/keys.py" --sections "$work/readelf" > "$work/sections"
+# GATE-HONEST-METRICS-3: keys.py reads the section names whole (`objdump -h`); `readelf -SW` cut them at 256
+# bytes, and a traced function with a longer mangled name matched no section here and stayed out of the group.
+python3 -B "$here/keys.py" --sections "$P/libc.a" > "$work/sections"
 python3 -B "$here/keys.py" "$work/sections" > "$work/lib.keys"
 # LAYOUT-TEXT-PIN-6 (#4467): labels inside a function section (assembly entry labels, aliases) -> its key,
 # so a start-up key traced at such a label brings its section to the start-up head.
 objdump -t "$P/libc.a" > "$work/syms"
 python3 -B "$here/keys.py" --aliases "$work/syms" > "$work/alias.keys"
+# GATE-HONEST-METRICS-3: a traced function of libc.a whose section the listing above missed would drop out of the
+# list below without a word (the cut names did); objdump -t names every section whole, so it checks the listing.
+python3 -B "$here/keys.py" --unlisted "$work/syms" "$work/lib.keys" "$work/hit.keys" > "$work/unlisted"
+if [ -s "$work/unlisted" ]; then
+    echo "regen: traced library functions whose section is missing from the section listing: $(head -3 "$work/unlisted" | tr '\n' ' ')($(wc -l < "$work/unlisted") in all)" >&2
+    exit 1
+fi
 awk -F'\t' 'NR == FNR { lib[$1]; next } $1 in lib' "$work/lib.keys" "$work/hit.keys" > "$work/new.keys"  # keeps the touch order
 {
     echo "# Functions grouped as hot text in libc.a (PAGEFAULTS-2), in this order (HOT-ORDER: first touch): build-stable keys, see tools/hottext/keys.py."

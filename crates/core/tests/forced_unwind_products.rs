@@ -259,25 +259,72 @@ fn static_libgcc_cxx_programs_unwind() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// s22_1_c_2, s22_3_c_4 (D-22.19, ruling #7081): a C program linked with `-static-libgcc` loads no
-/// `libgcc_s.so.1`, and its own unwinder is hidden, so libniji finds none: the exiting or
-/// cancelled thread takes the exit without an unwinder and the process goes on. The cleanup
-/// buffers still run (the buffers build: `3`, `1`, then the key destructor `K`); the handlers of
-/// the `-fexceptions` build are unwind cleanups and do not run (the accepted gap of ruling #7081:
-/// only the key destructor). libniji's run only; the expected text is libniji's.
+/// D-22.23's diagnostic, as libniji writes it before it aborts.
+const NO_UNWINDER: &str = "FATAL: an exiting or cancelled thread has frames to unwind (cleanups, destructors or handlers) and no unwinder can be found; link libgcc_s dynamically (not -static-libgcc) in a program whose threads exit or are cancelled\n";
+
+/// Runs `exe` (on libniji's products when `niji`) without core dumps: its status, standard
+/// output and standard error.
+fn run_status(exe: &Path, niji: bool) -> (std::process::ExitStatus, String, String) {
+    let lib = if niji { format!("LD_LIBRARY_PATH={}", products().display()) } else { String::from("NIJI_UNUSED=1") };
+    let c = format!("ulimit -c 0; exec timeout {} env {lib} {}", timeout::secs(60), exe.display());
+    let out = Command::new("sh").args(["-c", &c]).output().unwrap();
+    (out.status, String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+}
+
+/// Whether `status` is a SIGABRT death (as `timeout` passes it on: the signal, or 128 + 6).
+fn aborted(status: std::process::ExitStatus) -> bool {
+    status.code() == Some(134) || std::os::unix::process::ExitStatusExt::signal(&status) == Some(6)
+}
+
+/// s22_1_c_2, s22_3_c_4 (D-22.23, rulings #7118 and #7119): a program linked with
+/// `-static-libgcc` that loads no `libgcc_s.so.1` carries its own unwinder hidden, so libniji
+/// finds none at a thread's exit. When a frame of the exiting thread has unwind work (the
+/// `-fexceptions` build's cleanup handlers; the buffers build's cleanup attribute in `f2`; the
+/// C++ build's destructors, `lock_guard` and `std::async`, linked with `-static-libstdc++`), the
+/// process ends with SIGABRT and a diagnostic naming the cause and the fix, at the first exit:
+/// nothing is printed before it. The reference also ends each with SIGABRT (black box, glibc 2.39,
+/// `libgcc_s.so.1` installed), without a message.
 #[test]
-fn static_libgcc_c_programs_without_a_shared_unwinder_exit_through_their_buffers() {
+fn static_libgcc_programs_without_a_shared_unwinder_abort_when_frames_need_unwinding() {
+    if !have("gcc") || !have("g++") {
+        return;
+    }
+    let dir = scratch("slg-abort");
+    for (name, compiler, src, flags) in [
+        ("fexceptions", "gcc", "forced_unwind.c", &["-fexceptions", "-static-libgcc"][..]),
+        ("buffers", "gcc", "forced_unwind.c", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline", "-static-libgcc"][..]),
+        ("cxx", "g++", "forced_unwind.cc", &["-std=c++17", "-static-libgcc", "-static-libstdc++"][..]),
+    ] {
+        let (reference, niji) = build(&dir, name, compiler, src, flags);
+        let deps = needed(&niji);
+        assert!(!deps.iter().any(|n| n.starts_with("libgcc_s") || n.starts_with("libstdc++")), "{name}: DT_NEEDED {deps:?}");
+        let (status, stdout, stderr) = run_status(&niji, true);
+        assert!(aborted(status), "{name} (libniji): status {status:?}\nstdout:\n{stdout}\nstderr:\n{stderr}");
+        assert_eq!(stdout, "", "{name} (libniji): nothing runs past the first exit");
+        assert!(stderr.contains(NO_UNWINDER), "{name} (libniji): stderr:\n{stderr}");
+        let (status, stdout, stderr) = run_status(&reference, false);
+        assert!(aborted(status), "{name} (reference): status {status:?}\nstdout:\n{stdout}\nstderr:\n{stderr}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// s22_1_c_2, s22_3_c_4 (D-22.23): a C program built without `-fexceptions` and linked with
+/// `-static-libgcc` has no unwinder and nothing to unwind (its cleanup attribute is not an unwind
+/// cleanup; its handlers are cleanup buffers): its threads keep the exit without an unwinder, the
+/// buffers (`3`, `1`) and the key destructor (`K`) run, and the process ends normally, as on the
+/// reference with `libgcc_s.so.1` installed.
+#[test]
+fn static_libgcc_c_programs_with_nothing_to_unwind_exit_cleanly() {
     if !have("gcc") {
         return;
     }
-    let dir = scratch("slg-c");
-    for (name, flags, expected) in [
-        ("fexceptions", &["-fexceptions", "-static-libgcc"][..], "exit: order=K result=9\ncancel: order=K result=-1\n"),
-        ("buffers", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline", "-static-libgcc"][..], "exit: order=31K result=9\ncancel: order=31K result=-1\n"),
-    ] {
-        let (_, niji) = build(&dir, name, "gcc", "forced_unwind.c", flags);
-        assert!(!needed(&niji).iter().any(|n| n.starts_with("libgcc_s")), "{name}: DT_NEEDED {:?}", needed(&niji));
-        assert_eq!(run(&niji, true, &[]), expected, "-static-libgcc {name}");
-    }
+    let dir = scratch("slg-plain");
+    let (reference, niji) = build(&dir, "plain", "gcc", "forced_unwind.c", &["-static-libgcc"]);
+    assert!(!needed(&niji).iter().any(|n| n.starts_with("libgcc_s")), "DT_NEEDED {:?}", needed(&niji));
+    let expected = "exit: order=31K result=9\ncancel: order=31K result=-1\n";
+    assert_eq!(run(&reference, false, &[]), expected, "the reference differs from the expected text");
+    let (status, stdout, stderr) = run_status(&niji, true);
+    assert!(status.success() && !stderr.contains("FATAL"), "libniji: status {status:?}\nstderr:\n{stderr}");
+    assert_eq!(stdout, expected);
     std::fs::remove_dir_all(&dir).unwrap();
 }

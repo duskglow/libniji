@@ -273,7 +273,7 @@ pub mod private {
     use crate::reloc::Obj;
     use crate::symbols::{Object, Request, Want};
 
-    pub use niji_rt::start::private::{BUILD_TAG, EARLY_INIT, NODE, OWNER_UNLOAD, STACK_EXEC, StartInfo, TAG_LEN, TAG_PREFIX, THREAD_WALK};
+    pub use niji_rt::start::private::{BUILD_TAG, EARLY_INIT, NODE, OWNER_UNLOAD, SHSTK_OFF, STACK_EXEC, StartInfo, TAG_LEN, TAG_PREFIX, THREAD_WALK};
 
     /// The loader's build tag (`niji_rt::start::private::tag`), compared with the C library's.
     pub const TAG: [u8; TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));

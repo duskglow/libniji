@@ -31,7 +31,7 @@
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, ld_entries, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
 use super::table::{Arena, Gens, Grown, Records, Spill, Table, Wide, ZeroValid, INLINE};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_ORIGIN, START_PAGE, START_RUN_PATH};
 use crate::{conv, dlerr, raw, tb};
@@ -44,7 +44,7 @@ use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::cache::Cache;
 use niji_ld::dlopen::{self as dl, Mode, Refusal};
-use niji_ld::elf::{pt, Elf, STB_GNU_UNIQUE};
+use niji_ld::elf::{dt, pt, STB_GNU_UNIQUE};
 use niji_ld::reloc::{self, Obj, Objects, RelocError, VersionError};
 use niji_ld::search::{self, Ctx, PathBuf, Scope};
 use niji_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, UniqueRegistry, Want};
@@ -1250,8 +1250,7 @@ fn adopt_start(l: &mut Loader) -> bool {
         } else {
             let at = |v: u64| usize::try_from(v).unwrap_or(0);
             let prog = start::Program { phdr: at(w[0]), phnum: at(w[1]), entry: 0 };
-            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views, true);
-            let Ok(elf) = Elf::from_image::<Native>(head, view) else { return false };
+            let elf = image_view(&prog, at(w[2]), b"", &mut views, true);
             let Ok(Some(dynm)) = elf.dynamic() else { return false };
             // Its static block, so a `dlopen`ed object's TLS relocation against one of its
             // symbols finds the place (DL-16d).
@@ -1316,7 +1315,7 @@ fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
             mods[k] = o.elf.find(pt::TLS).map(|ph| Module::of(&ph));
         }
     }
-    if ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).is_err() {
+    if ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, super::tls::surplus_bytes()).is_err() {
         return false;
     }
     for (k, p) in placed[..n].iter().enumerate() {
@@ -1929,7 +1928,13 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         (nd.dev, nd.ino) = (u64::MAX, u64::MAX.wrapping_sub(1));
     }
     let p = tls?;
-    let _ = l.surplus.free(p.tp_offset);
+    if p.tp_offset == ltls::NO_STATIC {
+        // On-demand blocks (DL-19): each thread's is freed by the release walk; the descriptor
+        // records of the module go now.
+        super::tls::desc_release(p.module);
+    } else {
+        let _ = l.surplus.free(p.tp_offset);
+    }
     Some(p.module)
 }
 
@@ -2110,11 +2115,14 @@ impl Env {
         let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
         let aux = Auxv::from_words(copy.get(..words).unwrap_or(&[]));
         let secure = start::secure(&aux);
-        let ld = start::ld_env(env_entries(envp));
+        // Only the `LD_` entries: the settings read here (`LD_LIBRARY_PATH`, `LD_ORIGIN_PATH`) are
+        // among them, and the others are never measured.
+        let ld = start::ld_env(ld_entries(envp));
         let features = Native::features(&aux, &crate::sys::CSys);
         // `ld.so --library-path` replaces LD_LIBRARY_PATH and `--inhibit-cache` the cache, as at start.
-        let (option_path, inhibit_cache) = super::state::program_options();
-        let cache = if with_cache && !inhibit_cache { read_cache() } else { None };
+        // (`read_cache` reads none after `--inhibit-cache`.)
+        let (option_path, _) = super::state::program_options();
+        let cache = if with_cache { read_cache() } else { None };
         Env { secure, library_path: option_path.or(ld.library_path), origin_path: ld.origin_path, features, cache }
     }
 
@@ -2124,7 +2132,7 @@ impl Env {
             library_path: if self.secure { None } else { self.library_path },
             origin_path: if self.secure { None } else { self.origin_path },
             platform: Native::platform(&self.features),
-            hwcaps: Native::hwcaps(&self.features),
+            hwcaps: super::state::program_hwcaps().unwrap_or_else(|| Native::hwcaps(&self.features)),
             cache: self.cache.as_ref().map(|(_, c)| c).into(),
         }
     }
@@ -2156,7 +2164,10 @@ fn scope_of(l: &Loader, i: usize) -> Scope<'static> {
     // is never rewritten while it is in use: a failed attempt rewinds only past its own spans, and
     // `reclaim` only past the spans of objects already unmapped; the origin is written once.
     let origin: Option<&'static [u8]> = origin.map(|s| unsafe { conv::bytes_at(s.as_ptr().expose_provenance(), s.len()) });
-    Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin }
+    // The path `ld.so --inhibit-rpath` matches: the one the object was loaded by (the program's: empty).
+    let loaded: &[u8] = if i == 0 { b"" } else { l.path(i) };
+    let list = |tag| super::image::search_list(&o.dynm, tag, loaded);
+    Scope { rpath: list(DT_RPATH), runpath: list(DT_RUNPATH), origin }
 }
 
 /// Whether a search can expand the program's `$ORIGIN`: a token in its `DT_RPATH` or `DT_RUNPATH`.
@@ -2271,6 +2282,11 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         drop_file();
         return refused(l, Refusal::NoDynamic);
     };
+    // D-21.6: with the calling thread's shadow stack on, an object not marked for it.
+    if crate::ffi::niji_machine_ssp() != 0 && !niji_ld::shstk::marked::<Native>(&elf) && !shstk_unmarked(l) {
+        drop_file();
+        return refused(l, Refusal::Shstk);
+    }
     // `ld.so` by any path is the start-time `ld.so` (ruling #5126).
     if dyn_string(&dynm, DT_SONAME) == Some(Native::INTERP.as_bytes()) {
         drop_file();
@@ -2463,6 +2479,9 @@ fn unwind(l: &mut Loader, base: usize, k: usize, names_top: usize, deps_top: usi
     super::readers::count_unmapped(k.saturating_sub(base));
     for i in (base..k).rev() {
         if let Some(p) = l.objs_upto(k).get(i).and_then(|o| o.tls) {
+            if p.tp_offset == ltls::NO_STATIC {
+                super::tls::desc_release(p.module);
+            }
             l.ids.put_back(p.module, l.ids_more.all_mut());
         }
     }
@@ -2611,14 +2630,33 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
         if (l.surplus.is_full() || l.ids.top(floor) >= MODS_IN_PLACE) && !tls_room_past(l, floor) {
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
-        let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
+        // Only an object marked `DF_STATIC_TLS` (initial-exec accesses) needs a place in every
+        // thread's static area; any other gets its block per thread on demand (DL-19), so the
+        // surplus stays for the objects that need it.
+        let static_tls = o.dynm.get(dt::FLAGS).is_some_and(|f| f & dt::DF_STATIC_TLS != 0);
+        let off = if static_tls {
+            let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
+            off
+        } else {
+            let align = m.align.max(1);
+            if !align.is_power_of_two() || align >= ltls::DYNAMIC {
+                return Err(fail_parts(&[l_path_static(l, i), b": ", Refusal::Malformed.text()]));
+            }
+            ltls::NO_STATIC
+        };
+        let free = |l: &mut Loader| {
+            if static_tls {
+                let _ = l.surplus.free(off);
+            }
+        };
         let Some(id) = l.ids.take(floor, l.ids_more.all_mut()) else {
-            let _ = l.surplus.free(off);
+            free(l);
             return Err(refused(l));
         };
-        if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, u64::from_ne_bytes(off.to_ne_bytes())]).is_err() {
+        let word = if static_tls { u64::from_ne_bytes(off.to_ne_bytes()) } else { ltls::DYNAMIC | m.align.max(1) };
+        if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, word]).is_err() {
             l.ids.put_back(id, l.ids_more.all_mut());
-            let _ = l.surplus.free(off);
+            free(l);
             return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
         }
         o.tls = Some(Placed { module: id, tp_offset: off });
@@ -2701,6 +2739,36 @@ fn exec_stack_accepted() -> bool {
     let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
     let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
     start::ld_env(env_entries(envp)).tunables.is_some_and(|t| niji::config::Tunables::parse(t, secure).exec_stack == Some(true))
+}
+
+/// D-21.6: whether an object not marked for the shadow stack loads while it is on, in the mode the
+/// start's tunables asked for (none: the process turned it on itself; the default rule):
+/// refused, loaded, or loaded after the C library's `__niji_shstk_off` turned it off in every thread
+/// (`permissive`; without that function, in the calling thread).
+#[cold]
+#[inline(never)]
+fn shstk_unmarked(l: &Loader) -> bool {
+    use niji_ld::shstk::{on_dlopen, OnDlopen, ShstkMode};
+    let m = niji_ld::shstk::mode_of(super::entry::SHSTK_WANTED.load(Relaxed)).unwrap_or(ShstkMode::Default);
+    match on_dlopen(m, false) {
+        OnDlopen::Load => true,
+        OnDlopen::Refuse => false,
+        OnDlopen::Disable => {
+            let req = Request::new(start::private::SHSTK_OFF, Want::Version(start::private::NODE));
+            let n = START_N.load(Acquire).min(l.n);
+            let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+            match found.and_then(|a| usize::try_from(a).ok()) {
+                Some(f) => {
+                    let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
+                }
+                None => {
+                    // ARCH(x86_64): arch_prctl(158) ARCH_SHSTK_DISABLE (0x5002) of ARCH_SHSTK_SHSTK (1).
+                    let _ = raw::syscall(158, [0x5002, 1, 0, 0, 0, 0]);
+                }
+            }
+            true
+        }
+    }
 }
 
 /// COMPAT-19: call the C library's `__niji_stack_exec` (a start object's, at `NIJI_PRIVATE`) once

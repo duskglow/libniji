@@ -8,8 +8,61 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_tftphdr
+#  define __NIJI_D_struct_tftphdr 1
+struct __attribute__ ((__packed__)) tftphdr {
+  short th_opcode;
+  union __attribute__ ((__packed__)) {
+  char tu_padding[3];
+  struct {
+  union { unsigned short tu_block; short tu_code; } th_u3;
+  char tu_data[0];
+  } th_u2;
+  char tu_stuff[0];
+  } th_u1;
+};
+# endif
+# ifndef ACK
+#  define ACK 4
+# endif
 # ifndef DATA
 #  define DATA 3
+# endif
+# ifndef EACCESS
+#  define EACCESS 2
+# endif
+# ifndef EBADID
+#  define EBADID 5
+# endif
+# ifndef EBADOP
+#  define EBADOP 4
+# endif
+# ifndef EEXISTS
+#  define EEXISTS 6
+# endif
+# ifndef ENOSPACE
+#  define ENOSPACE 3
+# endif
+# ifndef ENOTFOUND
+#  define ENOTFOUND 1
+# endif
+# ifndef ENOUSER
+#  define ENOUSER 7
+# endif
+# ifndef ERROR
+#  define ERROR 5
+# endif
+# ifndef EUNDEF
+#  define EUNDEF 0
+# endif
+# ifndef RRQ
+#  define RRQ 1
+# endif
+# ifndef SEGSIZE
+#  define SEGSIZE 512
+# endif
+# ifndef WRQ
+#  define WRQ 2
 # endif
 #endif
 

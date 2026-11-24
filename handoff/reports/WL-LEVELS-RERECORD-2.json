@@ -1,0 +1,70 @@
+{
+ "task": "WL-LEVELS-RERECORD-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Skylake-SP (the CI gate's class) bound by 22 recorded levels (20 from the 5 existing counts, printf-loop from 2 new counts); counts now re-measure a long row's column that sits more than 7 % above its pair (k2 tar-gz replay passes the unchanged level, a planted regression of that size still fails); printf-loop rows state their 2 counts; D-X.157",
+ "branch": "task/wl-levels-rerecord-2",
+ "head": "719512dba",
+ "gate": {
+  "affected": "619 passed / 0 failed",
+  "peak": "1.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The brief says du gets no hold 'as on Zen 1'; on Zen 1 du has a hold (1.1891). On Skylake-SP du measures 1.0615, so it gets none there by the rule.",
+  "An excursion on the glibc column is not re-measured (it has no pair); it can only make a count lenient, never fail it. Both new and base high at once is not seen either.",
+  "The k2 tar-gz demonstration is a replay (stub batch from the normal range of the other 8 columns) through the real loop and the real verdict; the method's effect on a live excursion shows in the next loaded count.",
+  "Data jobs (measure next 0299fd6e1, not this head; the source of the Skylake-SP printf-loop rows): mei wl-levels-rerecord-2-m-printf and wl-levels-rerecord-2-m-printf2, rc 0."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "Skylake-SP (CI gate class) workload levels recorded: rows that reported HELD-UNRECORDED (advisory) now bind",
+   "before": 0,
+   "after": 22,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "Zen 1 count k2's tar-gz failure from a 758-fault excursion column: the count now measures the column again (replay: 758 -> 631, passes level 1.2371 unchanged)",
+   "before": 1,
+   "after": 0,
+   "unit": "failing rows in the replay",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added to validation/wl_stats_test.sh for the excursion re-measure (incl. k2 replay and planted regression)",
+   "before": 64,
+   "after": 91,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants (9 CAUGHT, 0 WARN)",
+   "before": 0,
+   "after": 9,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "count time: only rows of >= 4e9 instructions whose new/base faults differ by more than 7 %: up to 3 batches (tar-gz about 20 s each, printf-loop about 4 min each)",
+   "before": 0,
+   "after": null,
+   "unit": "s per affected row",
+   "measured": false
+  }
+ ],
+ "improvement": "The count's 2 % re-measure REPLACED a good first batch with a worse one (k4 base 629 -> 765); fault batches should always join (lowest of all), which wl_row_lowest now does for the excursion stage; the 2 % stage could use it too.",
+ "next_step": "Land; the next loaded count shows the re-measure on a live excursion.",
+ "report_file": "handoff/WL-LEVELS-RERECORD-2-report.md",
+ "jobs": [
+  "mei:wl-levels-rerecord-2-gate",
+  "mei:wl-levels-rerecord-2-plants"
+ ]
+}

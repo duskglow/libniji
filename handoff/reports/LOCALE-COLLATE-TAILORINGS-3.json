@@ -1,0 +1,35 @@
+{
+ "task": "LOCALE-COLLATE-TAILORINGS-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: CI conflict fixed: origin/next merged into run -2's shared collation root (D-31.32); crates/locale/tests/reference.rs keeps both appended tests (generated root, transliteration); changed crates' tests green, 12 plants 11 caught 1 equivalent",
+ "branch": "task/locale-collate-tailorings-3",
+ "head": "87e35ce96",
+ "gate": {
+  "affected": "FULL: the train's (Cargo.toml, crates/*/Cargo.toml, spec/locale/collate-root.txt); changed crates' tests (cargo xtask so + cargo test -p niji-collate-root -p niji-locale) all passed, 0 failed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Run -2's informational items stand (collseq differs, root contractions beyond l-middle-dot not probed): handoff/LOCALE-COLLATE-TAILORINGS-2-report.md"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "run -2's shared collation root (D-31.32) can merge on the train again; the conflict in crates/locale/tests/reference.rs is resolved",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "Both runs lost ~9 min to `cargo xtask affected --list` only to learn the escalation to FULL; a cheap pre-pass that prints the FULL reasons first (or a --why-full flag) would answer that in seconds",
+ "next_step": "New story (L), stacked on LOCALE-PROBE-GEN-2 + LOCALE-SOURCES-GEN-2: emit the root into the generated sources, apply the 16,151 tailoring rules and 6 own-order tables, probe collseq, add per-locale tests",
+ "report_file": "handoff/LOCALE-COLLATE-TAILORINGS-3-report.md",
+ "jobs": [
+  "mei:lct3-tests",
+  "mei:lct3-plants"
+ ]
+}

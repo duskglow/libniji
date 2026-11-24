@@ -1,0 +1,19 @@
+# LD-LOOKUP-RETHINK plants: the scope walk's Bloom test (symbols::lookup), Object::lookup_in's own test, GnuHash::bloom,
+# and the prefixed interpreter's trace comparison (xtask so.rs trace_difference).
+walk-skips-pass | crates/ld/src/symbols.rs | lit:Some(true) => true, ==> Some(true) => continue, | cargo test -p niji-ld --test symbols | msg:scope_walk_answers_as_each_object_in_order.*FAILED|panicked
+walk-skips-sysv | crates/ld/src/symbols.rs | perl:s/None => false,(\s+\};\s+let Some\(def\) = obj\.lookup_in)/None => continue,$1/s | cargo test -p niji-ld --test symbols | msg:scope_walk_answers_as_each_object_in_order.*FAILED|panicked
+lookup-bloom-inverted | crates/ld/src/symbols.rs | lit:if !g.bloom_checked(req.gnu)? { ==> if g.bloom_checked(req.gnu)? { | cargo test -p niji-ld --test symbols | msg:FAILED|panicked
+bloom-inverted | crates/ld/src/elf.rs | lit:Some(word & mask == mask) ==> Some(word & mask != mask) | cargo test -p niji-ld --test symbols | msg:FAILED|panicked
+bloom-unread-dropped | crates/ld/src/elf.rs | lit:self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash)) ==> Ok(self.bloom(hash).unwrap_or(false)) | cargo test -p niji-ld --test symbols | equivalent:unreachable for a parsed table: gnu_hash_at refuses bloom_size 0 and maps the Bloom words and buckets (bytes_at 16 + bloom + buckets), so bloom_word(wi) with wi < bloom_size always reads
+trace-suffix-exact | xtask/src/so.rs | lit:(want.lines().map(crate::hottext::strip_llvm).collect(), got.lines().map(crate::hottext::strip_llvm).collect()) ==> (want.lines().map(str::to_string).collect(), got.lines().map(str::to_string).collect()) | cargo test -p xtask --bin xtask ldso_trace_compares | msg:ldso_trace_compares_functions_not_thinlto_suffixes.*FAILED|panicked
+trace-key-compare | xtask/src/so.rs | lit:(want.lines().map(crate::hottext::strip_llvm).collect(), got.lines().map(crate::hottext::strip_llvm).collect()) ==> (want.lines().map(crate::hottext::key).collect(), got.lines().map(crate::hottext::key).collect()) | cargo test -p xtask --bin xtask ldso_trace_compares | msg:another crate
+# plants-1 (shiki ld-lookup-rethink-plants, code head ae0361b3b, /mnt/zram/claude/ld-lookup-rethink/plants-1): 5 plants: 4 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG
+# plants-2 (shiki ld-lookup-rethink-plants2, code head c5e3ff2dc, /mnt/zram/claude/ld-lookup-rethink/plants-2):
+# cargo xtask plants results (7 plants: 6 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# walk-skips-pass: CAUGHT, caught by symbols scopes_order_and_exclusion
+# walk-skips-sysv: CAUGHT, caught by symbols scope_walk_answers_as_each_object_in_order
+# lookup-bloom-inverted: CAUGHT, caught by symbols gnu_and_sysv_give_the_same_answers
+# bloom-inverted: CAUGHT, caught by symbols scopes_order_and_exclusion
+# bloom-unread-dropped: EQUIVALENT
+# trace-suffix-exact: CAUGHT, caught by xtask so::tests::ldso_trace_compares_functions_not_thinlto_suffixes
+# trace-key-compare: CAUGHT, caught by xtask so::tests::ldso_trace_compares_functions_not_thinlto_suffixes

@@ -17,6 +17,7 @@
 
 /* Phase 0: proves the layer builds, links and is reachable from Rust. */
 uint32_t niji_csys_abi_version(void);
+void niji_csys_compat_ctype_store(const uintptr_t at[6], const uintptr_t words[6]);
 
 /* Class machine (src/machine, assembly; owner decisions: approved set plus OD-C1). */
 uintptr_t niji_machine_tp(void);
@@ -154,6 +155,7 @@ void niji_machine_trap(void);
 long niji_machine_clone_thread(unsigned long flags, uintptr_t stack, uint32_t *ptid, uint32_t *ctid, uintptr_t tls);
 long niji_machine_clone_raw(unsigned long flags, uintptr_t stack, uintptr_t ptid, uintptr_t ctid, uintptr_t tls);
 long niji_machine_clone3_run(const void *args, long size, void (*entry)(uintptr_t), uintptr_t arg);
+long niji_machine_clone3_thread(const void *args, long size);
 long niji_machine_syscall_cancel(const uint32_t *word, long nr, long a, long b, long c, long d, long e, long f);
 long niji_machine_syscall_cancel4(const uint32_t *word, long nr, long a, long b, long c, long d);
 void niji_machine_cancel_bounds(uintptr_t out[3]);
@@ -173,6 +175,8 @@ int niji_machine_getcontext(void *uc);
 int niji_machine_setcontext(const void *uc);
 int niji_machine_swapcontext(void *save, const void *to);
 void niji_machine_start_context(void);
+uintptr_t niji_machine_ssp(void);
+long niji_machine_shstk_enter(unsigned long lock);
 /* Class adapter: va_arg accessor (src/adapter/variadic.c). */
 long niji_va_long(void *ap);
 double niji_va_double(void *ap);
@@ -194,6 +198,8 @@ void *niji_caller_malloc(size_t n);
 void *niji_caller_calloc(size_t k, size_t n);
 void *niji_caller_realloc(void *p, size_t n);
 void niji_caller_free(void *p);
+/* The library image's start and end (0 if none) and the addresses those four symbols resolve to. */
+void niji_link_alloc_family(volatile uintptr_t w[6]);
 /* The image's ELF header and a static executable's .eh_frame bounds (D-2.7), 0 where absent. */
 uintptr_t niji_link_ehdr(void);
 /* The run-time address of the image's ELF header, reached PC-relatively (`__ehdr_start`, hidden,

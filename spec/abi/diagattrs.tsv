@@ -5,6 +5,7 @@ __ctype_get_mb_cur_max		1
 __ctype_tolower_loc									const
 __ctype_toupper_loc									const
 __errno_location									const
+__getdelim	4	1							
 __h_errno_location									const
 __pthread_unwind_next			1						
 __res_state									const
@@ -16,22 +17,6 @@ a64l	1	1							1
 abort			1						
 abs									const
 access	1								
-acos									const
-acosf									const
-acosf128									1
-acosf32									const
-acosf32x									const
-acosf64									const
-acosf64x									1
-acosh									const
-acoshf									const
-acoshf128									1
-acoshf32									const
-acoshf32x									const
-acoshf64									const
-acoshf64x									1
-acoshl									1
-acosl									1
 aligned_alloc		1			1	2			
 alloca					1	1			
 alphasort	1,2								1
@@ -42,13 +27,6 @@ arc4random_uniform		1
 argp_error				printf:2:3					
 argp_failure				printf:4:5					
 argz_count									1
-asin									const
-asinf									const
-asinf128									1
-asinf32									const
-asinf32x									const
-asinf64									const
-asinf64x									1
 asinh									const
 asinhf									const
 asinhf128									const
@@ -57,18 +35,9 @@ asinhf32x									const
 asinhf64									const
 asinhf64x									const
 asinhl									const
-asinl									1
 asprintf		1		printf:2:3					
 at_quick_exit	1								
 atan									const
-atan2									const
-atan2f									const
-atan2f128									1
-atan2f32									const
-atan2f32x									const
-atan2f64									const
-atan2f64x									1
-atan2l									1
 atanf									const
 atanf128									const
 atanf32									const
@@ -77,10 +46,10 @@ atanf64									const
 atanf64x									const
 atanl									const
 atexit	1								
-atof	1	1							1
-atoi	1	1							1
-atol	1	1							1
-atoll	1	1							1
+atof	1	1							
+atoi	1	1							
+atol	1	1							
+atoll	1	1							
 backtrace	1								
 backtrace_symbols	1								
 backtrace_symbols_fd	1								
@@ -134,14 +103,6 @@ cosf32									const
 cosf32x									const
 cosf64									const
 cosf64x									const
-cosh									const
-coshf									const
-coshf128									1
-coshf32									const
-coshf32x									const
-coshf64									const
-coshf64x									1
-coshl									1
 cosl									const
 creat	1								
 creat64	1								
@@ -159,9 +120,6 @@ dlsym	2
 dlvsym	2,3								
 dprintf				printf:2:3					
 drand48_r	1,2								
-drem									const
-dremf									const
-dreml									1
 dup		1							
 dysize									const
 eaccess	1								
@@ -172,14 +130,6 @@ envz_get									1
 erand48	1								
 erand48_r	1,2								
 erf									const
-erfc									const
-erfcf									const
-erfcf128									1
-erfcf32									const
-erfcf32x									const
-erfcf64									const
-erfcf64x									1
-erfcl									1
 erff									const
 erff128									const
 erff32									const
@@ -188,8 +138,8 @@ erff64									const
 erff64x									const
 erfl									const
 err			1	printf:2:3					
-error			1	printf:3:4					
-error_at_line			1	printf:5:6					
+error			nonzero:1	printf:3:4					
+error_at_line			nonzero:1	printf:5:6					
 errx			1	printf:2:3					
 euidaccess	1								
 execl	1,2							0	
@@ -201,34 +151,7 @@ execveat	2,3
 execvp	1,2								
 execvpe	1,2								
 exit			1						
-exp									const
-exp10									const
-exp10f									const
-exp10l									1
-exp2									const
-exp2f									const
-exp2f128									1
-exp2f32									const
-exp2f32x									const
-exp2f64									const
-exp2f64x									1
-exp2l									1
-expf									const
-expf128									1
-expf32									const
-expf32x									const
-expf64									const
-expf64x									1
-expl									1
 explicit_bzero	1								
-expm1									const
-expm1f									const
-expm1f128									1
-expm1f32									const
-expm1f32x									const
-expm1f64									const
-expm1f64x									1
-expm1l									1
 fabs									const
 fabsf									const
 fabsf128									const
@@ -245,14 +168,6 @@ fchownat	2	1
 fclose	1								
 fcvt	3,4	1							
 fcvt_r	3,4,5								
-fdim									const
-fdimf									const
-fdimf128									1
-fdimf32									const
-fdimf32x									const
-fdimf64									const
-fdimf64x									1
-fdiml									1
 fdopen		1			1				
 fdopendir					1				
 fegetround									1
@@ -396,14 +311,6 @@ fminmagf32x									const
 fminmagf64									const
 fminmagf64x									const
 fminmagl									const
-fmod									const
-fmodf									const
-fmodf128									1
-fmodf32									const
-fmodf32x									const
-fmodf64									const
-fmodf64x									1
-fmodl									1
 fopen		1			1				
 fopen64		1			1				
 fprintf	1,2			printf:2:3					
@@ -471,22 +378,6 @@ getsubopt	1,2,3	1
 gettimeofday	1								
 getw	1								
 getwd	1	1					1		
-hypot									const
-hypotf									const
-hypotf128									1
-hypotf32									const
-hypotf32x									const
-hypotf64									const
-hypotf64x									1
-hypotl									1
-ilogb									const
-ilogbf									const
-ilogbf128									const
-ilogbf32									const
-ilogbf32x									const
-ilogbf64									const
-ilogbf64x									const
-ilogbl									const
 imaxabs									const
 imaxdiv									const
 index	1								1
@@ -508,15 +399,6 @@ iswpunct									1
 iswspace									1
 iswupper									1
 iswxdigit									1
-j0									const
-j0f									const
-j0l									1
-j1									const
-j1f									const
-j1l									1
-jn									const
-jnf									const
-jnl									1
 jrand48	1								
 jrand48_r	1,2								
 l64a		1							
@@ -525,82 +407,15 @@ lchmod	1
 lchown	1	1							
 lcong48	1								
 lcong48_r	1,2								
-ldexp									const
-ldexpf									const
-ldexpf128									1
-ldexpf32									const
-ldexpf32x									const
-ldexpf64									const
-ldexpf64x									1
-ldexpl									1
 ldiv		1							const
-lgamma_r									1
-lgammaf_r									1
-lgammal_r									1
 link	1,2	1							
 linkat	2,4	1							
 llabs									const
 lldiv		1							const
-llround									const
-llroundf									const
-llroundf128									const
-llroundf32									const
-llroundf32x									const
-llroundf64									const
-llroundf64x									const
-llroundl									const
 lockf		1							
 lockf64		1							
-log									const
-log10									const
-log10f									const
-log10f128									1
-log10f32									const
-log10f32x									const
-log10f64									const
-log10f64x									1
-log10l									1
-log1p									const
-log1pf									const
-log1pf128									1
-log1pf32									const
-log1pf32x									const
-log1pf64									const
-log1pf64x									1
-log1pl									1
-log2									const
-log2f									const
-log2f128									1
-log2f32									const
-log2f32x									const
-log2f64									const
-log2f64x									1
-log2l									1
-logb									const
-logbf									const
-logbf128									1
-logbf32									const
-logbf32x									const
-logbf64									const
-logbf64x									1
-logbl									1
-logf									const
-logf128									1
-logf32									const
-logf32x									const
-logf64									const
-logf64x									1
-logl									1
 longjmp			1						
 lrand48_r	1,2								
-lround									const
-lroundf									const
-lroundf128									const
-lroundf32									const
-lroundf32x									const
-lroundf64									const
-lroundf64x									const
-lroundl									const
 lstat	1,2								
 lstat64	1,2								
 lutimes	1								
@@ -651,17 +466,6 @@ nearbyintf32x									const
 nearbyintf64									const
 nearbyintf64x									const
 nearbyintl									const
-nextafter									const
-nextafterf									const
-nextafterf128									1
-nextafterf32									const
-nextafterf32x									const
-nextafterf64									const
-nextafterf64x									1
-nextafterl									1
-nexttoward									const
-nexttowardf									const
-nexttowardl									1
 nftw	1								
 nftw64	1								
 nice		1							
@@ -713,14 +517,6 @@ posix_spawnattr_setschedpolicy	1
 posix_spawnattr_setsigdefault	1,2								
 posix_spawnattr_setsigmask	1,2								
 posix_spawnp	2,5								
-pow									const
-powf									const
-powf128									1
-powf32									const
-powf32x									const
-powf64									const
-powf64x									1
-powl									1
 pread		1							
 pread64		1							
 printf	1			printf:1:2					
@@ -871,14 +667,6 @@ regexec	4
 register_printf_function							1		
 register_printf_modifier		1							
 register_printf_type		1							
-remainder									const
-remainderf									const
-remainderf128									1
-remainderf32									const
-remainderf32x									const
-remainderf64									const
-remainderf64x									1
-remainderl									1
 revoke	1	1							
 rewind	1								
 rewinddir	1								
@@ -909,22 +697,6 @@ roundf64									const
 roundf64x									const
 roundl									const
 rpmatch	1	1							
-scalbln									const
-scalblnf									const
-scalblnf128									1
-scalblnf32									const
-scalblnf32x									const
-scalblnf64									const
-scalblnf64x									1
-scalblnl									1
-scalbn									const
-scalbnf									const
-scalbnf128									1
-scalbnf32									const
-scalbnf32x									const
-scalbnf64									const
-scalbnf64x									1
-scalbnl									1
 scandir	1,2								
 scandir64	1,2								
 scandirat	2,3								
@@ -979,9 +751,6 @@ siginterrupt							1
 sigisemptyset	1								
 sigismember	1								
 siglongjmp			1						
-significand									const
-significandf									const
-significandl									1
 sigorset	1,2,3								
 sigpause							1		
 sigpending	1								
@@ -1000,25 +769,9 @@ sinf32									const
 sinf32x									const
 sinf64									const
 sinf64x									const
-sinh									const
-sinhf									const
-sinhf128									1
-sinhf32									const
-sinhf32x									const
-sinhf64									const
-sinhf64x									1
-sinhl									1
 sinl									const
 snprintf	3			printf:3:4					
 sprintf	1,2			printf:2:3					
-sqrt									const
-sqrtf									const
-sqrtf128									1
-sqrtf32									const
-sqrtf32x									const
-sqrtf64									const
-sqrtf64x									1
-sqrtl									1
 srand48_r	2								
 srandom_r	2								
 sscanf	2			scanf:2:3					
@@ -1120,14 +873,6 @@ tanhl									const
 tanl									const
 telldir	1								
 tempnam		1			1				
-tgamma									const
-tgammaf									const
-tgammaf128									1
-tgammaf32									const
-tgammaf32x									const
-tgammaf64									const
-tgammaf64x									1
-tgammal									1
 thrd_exit			1						
 timespec_get	1								
 tmpfile		1			1				
@@ -1213,12 +958,3 @@ wctomb		1
 wmemchr									1
 wmemcmp									1
 write	2	1							
-y0									const
-y0f									const
-y0l									1
-y1									const
-y1f									const
-y1l									1
-yn									const
-ynf									const
-ynl									1

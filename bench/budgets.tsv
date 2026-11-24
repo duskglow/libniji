@@ -212,6 +212,7 @@ cbench_opt	fnmatch_names_class	ratio_host	1.10	target: within about 10% of glibc
 cbench_opt	fnmatch_names_casefold	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv
 cbench_opt	fnmatch_paths_pathname	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv
 cbench_opt	fnmatch_paths_leading_dir	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv
+cbench_opt	fnmatch_names_utf8	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; non-ASCII names alone (MATCHER-WORDEXP-RETHINK, owner #8238); the instruction limit is in instr_limits.tsv
 cbench_opt	wordexp_tilde_var	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv
 cbench_opt	wordexp_arith	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv
 cbench_opt	wordexp_plain_8	ratio_host	1.10	target: within about 10% of glibc (owner 2026-10-05), informational; the regression limit per CPU model is in host_limits.tsv

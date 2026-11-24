@@ -11,6 +11,7 @@ __NIJI_BEGIN_C
 
 @@owns CMSG_NXTHDR
 @@emit
+@@fortify
 
 @@if CMSG_NXTHDR
 # define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (mhdr, cmsg)

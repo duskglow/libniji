@@ -84,4 +84,60 @@ niji_machine_ld_tlsdesc_dynamic:
 	ret
 	.cfi_endproc
 	.size niji_machine_ld_tlsdesc_dynamic, .-niji_machine_ld_tlsdesc_dynamic
+
+/* niji_machine_ld_tlsdesc_ondemand: the descriptor function of a block made per thread on first
+ * access (DL-19, D-27.94). The argument word points at a record [resolver, module ID, offset,
+ * address of the loader's TLS generation] (boundary/src/ld/tls.rs `desc_record`). The fast path
+ * reads the thread's vector (%fs:8) as `__tls_get_addr` does (ltls::lookup): word 0 equal to the
+ * generation, the module not past word 1, its slot (word 1 + module) not 0; then the slot plus
+ * the offset minus %fs:0 (DTP_BIAS is 0 on x86-64). Anything else (no vector, an old vector, no
+ * block yet in this thread) jumps with %rax unchanged to niji_machine_ld_tlsdesc_dynamic, whose
+ * resolver makes the block. Uses %rcx, %rdx and %rsi, saved on its own frame. */
+	.section .text.niji_machine_ld_tlsdesc_ondemand,"ax",@progbits
+	.globl niji_machine_ld_tlsdesc_ondemand
+	.hidden niji_machine_ld_tlsdesc_ondemand
+	.type niji_machine_ld_tlsdesc_ondemand, @function
+	.p2align 4
+niji_machine_ld_tlsdesc_ondemand:
+	.cfi_startproc
+	pushq %rcx
+	.cfi_adjust_cfa_offset 8
+	pushq %rdx
+	.cfi_adjust_cfa_offset 8
+	pushq %rsi
+	.cfi_adjust_cfa_offset 8
+	movq 8(%rax), %rsi
+	movq %fs:8, %rdx
+	testq %rdx, %rdx
+	jz 1f
+	movq 24(%rsi), %rcx
+	movq (%rcx), %rcx
+	cmpq %rcx, (%rdx)
+	jne 1f
+	movq 8(%rsi), %rcx
+	cmpq 8(%rdx), %rcx
+	ja 1f
+	movq 8(%rdx,%rcx,8), %rdx
+	testq %rdx, %rdx
+	jz 1f
+	addq 16(%rsi), %rdx
+	subq %fs:0, %rdx
+	movq %rdx, %rax
+	popq %rsi
+	.cfi_adjust_cfa_offset -8
+	popq %rdx
+	.cfi_adjust_cfa_offset -8
+	popq %rcx
+	.cfi_adjust_cfa_offset -8
+	ret
+	.cfi_adjust_cfa_offset 24
+1:	popq %rsi
+	.cfi_adjust_cfa_offset -8
+	popq %rdx
+	.cfi_adjust_cfa_offset -8
+	popq %rcx
+	.cfi_adjust_cfa_offset -8
+	jmp niji_machine_ld_tlsdesc_dynamic
+	.cfi_endproc
+	.size niji_machine_ld_tlsdesc_ondemand, .-niji_machine_ld_tlsdesc_ondemand
 	.section .note.GNU-stack,"",@progbits

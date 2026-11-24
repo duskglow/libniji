@@ -360,7 +360,7 @@ fn s17_5_c_1() {
     let (utmp_path, utmp) = fixture("c51-utmp", "");
     std::fs::write(&utmp_path, rec.to_bytes()).unwrap();
     let k = &CSys;
-    let name = |loginuid: &[u8], tty: Option<&[u8]>| acct::login_name(k, acct::LoginFiles { loginuid, passwd: &passwd, utmp: &utmp }, tty, |n| String::from_utf8_lossy(n).into_owned());
+    let name = |loginuid: &[u8], tty: Option<&[u8]>| acct::login_name(k, &niji_boundary::heap::KernelPages, acct::LoginFiles { loginuid, passwd: &passwd, utmp: &utmp }, tty, |n| String::from_utf8_lossy(n).into_owned());
     assert_eq!(name(&set, None).as_deref(), Ok("alice"), "the audit login UID through the user database");
     assert_eq!(name(&unset, Some(b"pts/9")).as_deref(), Ok("bob"), "unset: the utmp entry of the terminal");
     let (_g, other) = fixture("c51-loginuid-unknown", "4242");
@@ -389,8 +389,8 @@ fn s17_5_f_0() {
     let (_g, utmp) = fixture("c5f-utmp", "");
     let k = &CSys;
     let files = acct::LoginFiles { loginuid: &unset, passwd: &passwd, utmp: &utmp };
-    assert_eq!(acct::login_name(k, files, None, |_| ()), Err(Errno::ENXIO), "no terminal");
-    assert_eq!(acct::login_name(k, files, Some(b"pts/4"), |_| ()), Err(Errno::ENOENT), "no record for the terminal");
+    assert_eq!(acct::login_name(k, &niji_boundary::heap::KernelPages, files, None, |_| ()), Err(Errno::ENXIO), "no terminal");
+    assert_eq!(acct::login_name(k, &niji_boundary::heap::KernelPages, files, Some(b"pts/4"), |_| ()), Err(Errno::ENOENT), "no record for the terminal");
 }
 #[test]
 fn s17_5a_c_0() {

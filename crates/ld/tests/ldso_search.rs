@@ -16,7 +16,7 @@
 //! set-group-ID bit (secure test only), or `strace` cannot trace (cache test only).
 // ARCH(x86_64): the test programs are x86-64 assembly and system call numbers; the product is x86_64's.
 #![cfg(target_arch = "x86_64")]
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
@@ -331,4 +331,101 @@ fn ldso_search_cache_opened_once_when_reached() {
     assert_eq!(String::from_utf8_lossy(&o.stderr), want);
     assert!(t.lines().any(|l| l.contains("libgcc_s.so.1\"") && !l.contains("= -1")), "libgcc_s.so.1 found:\n{t}");
     assert_eq!(opens(&t), 1, "two searches reached the cache: one open:\n{t}");
+}
+
+/// A library whose `x()` returns `V` read from its read-only data.
+const TABLE: &str = "static const volatile int t[2] = { V, 0 };\nint x(void) { return t[0]; }\n";
+
+fn u64_at(f: &[u8], o: usize) -> u64 {
+    u64::from_le_bytes(f[o..o + 8].try_into().unwrap())
+}
+
+fn put64(f: &mut [u8], o: usize, v: u64) {
+    f[o..o + 8].copy_from_slice(&v.to_le_bytes());
+}
+
+/// The program headers of `f` (ELF64, little-endian): (offset of the entry, `p_type`, `p_flags`).
+fn phs(f: &[u8]) -> Vec<(usize, u32, u32)> {
+    let (off, n) = (u64_at(f, 32) as usize, usize::from(u16::from_le_bytes([f[56], f[57]])));
+    (0..n).map(|i| off + 56 * i).map(|o| (o, u32::from_le_bytes(f[o..o + 4].try_into().unwrap()), u32::from_le_bytes(f[o + 4..o + 8].try_into().unwrap()))).collect()
+}
+
+/// A program start maps each dependency from its ELF header and program header table and reads it
+/// from its mapped image (D-27.92), with the whole-file reader's results: a read-only segment whose
+/// last file page also holds zero fill gets that page's file bytes (`x()` reads its table there); a
+/// candidate whose `PT_DYNAMIC` lies outside every `PT_LOAD` is refused at the search, the start
+/// ending with that path's message and status 127; a library whose program header table lies past
+/// the first KiB of its file, and a program with more libraries than the loader's scratch arena
+/// holds, still start. Expected values only: the edited objects are not run under the reference.
+/// Clause: s27_1_c_1 (segments mapped as the object asks), s27_1_c_1_1 (a candidate refused).
+#[test]
+fn ldso_start_maps_dependencies_from_headers() {
+    let (Some(ld), true) = (product(), cc_ok()) else { return eprintln!("SKIP: no product or no cc") };
+    let d = dir("headers");
+    let p = |x: &str| s(&d.join(x));
+    lib(&d, STEP, 0, "link/libstep.so.1", "libstep.so.1", &[]);
+    lib(&d, STEP, 12, "llp/libstep.so.1", "libstep.so.1", &[]);
+    lib(&d, TABLE, 14, "robss/libstep.so.1", "libstep.so.1", &[]);
+    lib(&d, STEP, 15, "longh/libstep.so.1", "libstep.so.1", &[]);
+    let plain = prog(&d, &ld, "p_plain", &[format!("-L{}", p("link")), "-l:libstep.so.1".into()]);
+    let run = |llp: &str| output(with_llp(timed(&plain), Some(llp)));
+    let edit = |at: &str, f: &dyn Fn(&mut Vec<u8>)| {
+        let mut v = std::fs::read(d.join(at)).unwrap();
+        f(&mut v);
+        std::fs::create_dir_all(d.join(at).parent().unwrap()).unwrap();
+        std::fs::write(d.join(at), v).unwrap();
+    };
+    // The last read-only PT_LOAD (`.rodata`, a part of one page) given zero fill inside its last page.
+    edit("robss/libstep.so.1", &|v| {
+        let &(o, ..) = phs(v).iter().filter(|h| h.1 == 1 && h.2 == 4).max_by_key(|h| u64_at(v, h.0 + 16)).expect("a read-only PT_LOAD");
+        let (end, memsz) = (u64_at(v, o + 16) + u64_at(v, o + 32), u64_at(v, o + 40));
+        assert!(end % 4096 != 0 && end + 8 <= end.div_ceil(4096) * 4096 && memsz == u64_at(v, o + 32), "robss: segment end {end:#x}");
+        put64(v, o + 40, memsz + 8);
+    });
+    let o = run(&p("robss"));
+    assert_eq!(o.status.code(), Some(14), "read-only segment with zero fill: {}", String::from_utf8_lossy(&o.stderr));
+    // PT_DYNAMIC moved outside every PT_LOAD (its file bytes unchanged).
+    std::fs::create_dir_all(d.join("badd")).unwrap();
+    std::fs::copy(d.join("llp/libstep.so.1"), d.join("badd/libstep.so.1")).unwrap();
+    edit("badd/libstep.so.1", &|v| {
+        let &(o, ..) = phs(v).iter().find(|h| h.1 == 2).expect("PT_DYNAMIC");
+        put64(v, o + 16, 1 << 40);
+        put64(v, o + 24, 1 << 40);
+    });
+    let o = run(&format!("{}:{}", p("badd"), p("llp")));
+    assert_eq!(o.status.code(), Some(127), "PT_DYNAMIC outside the PT_LOADs: {}", String::from_utf8_lossy(&o.stderr));
+    let want = format!("{}: error while loading shared libraries: {}/libstep.so.1: object file has no dynamic section\n", plain.display(), p("badd"));
+    assert_eq!(String::from_utf8_lossy(&o.stderr), want);
+    // The program header table moved to the end of the file, in a new read-only PT_LOAD of its own.
+    edit("longh/libstep.so.1", &|v| {
+        let hs = phs(v);
+        let top = hs.iter().filter(|h| h.1 == 1).map(|h| u64_at(v, h.0 + 16) + u64_at(v, h.0 + 40)).max().unwrap();
+        let mut table: Vec<u8> = hs.iter().flat_map(|h| v[h.0..h.0 + 56].to_vec()).collect();
+        let (off, size) = ((v.len() as u64).div_ceil(4096) * 4096, 56 * (hs.len() as u64 + 1));
+        let mut load = vec![0u8; 56];
+        load[..4].copy_from_slice(&1u32.to_le_bytes());
+        load[4..8].copy_from_slice(&4u32.to_le_bytes());
+        for (at, x) in [(8, off), (16, top.div_ceil(4096) * 4096 + 4096), (24, top.div_ceil(4096) * 4096 + 4096), (32, size), (40, size), (48, 4096)] {
+            put64(&mut load, at, x);
+        }
+        table.extend(load);
+        v.resize(off as usize, 0);
+        v.extend(table);
+        put64(v, 32, off);
+        v[56..58].copy_from_slice(&(hs.len() as u16 + 1).to_le_bytes());
+    });
+    let o = run(&p("longh"));
+    assert_eq!(o.status.code(), Some(15), "program headers past the first KiB: {}", String::from_utf8_lossy(&o.stderr));
+    // Twelve libraries: more than the scratch arena holds the headers and image views of.
+    let mut src = String::new();
+    let mut args = vec![format!("-L{}", p("many")), "-Wl,--enable-new-dtags,-rpath,$ORIGIN/many".to_owned()];
+    for i in 1..=12 {
+        lib(&d, &format!("int x{i}(void) {{ return V; }}\n"), i, &format!("many/libn{i}.so"), &format!("libn{i}.so"), &[]);
+        src.push_str(&format!("int x{i}(void);\n"));
+        args.push(format!("-l:libn{i}.so"));
+    }
+    src.push_str(&format!("int x(void) {{ return {}; }}\n", (1..=12).map(|i| format!("x{i}()")).collect::<Vec<_>>().join(" + ")));
+    let many = prog_from(&d, &ld, &format!("{src}{PROG}").replace("int x(void);\n", ""), "p_many", &args);
+    let o = output(with_llp(timed(&many), None));
+    assert_eq!(o.status.code(), Some(78), "twelve libraries: {}", String::from_utf8_lossy(&o.stderr));
 }

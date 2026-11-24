@@ -74,6 +74,41 @@ niji_machine_ld_enter:
 	.cfi_endproc
 	.size niji_machine_ld_enter, .-niji_machine_ld_enter
 
+/* long niji_machine_ld_shstk_enter(unsigned long lock) (D-21.6): turn on the calling thread's
+ * shadow stack (arch_prctl ARCH_SHSTK_ENABLE 0x5001, ARCH_SHSTK_SHSTK 1; kernel
+ * Documentation/arch/x86/shstk.rst) and, when that succeeded and `lock` is not 0, lock those
+ * features (ARCH_SHSTK_LOCK 0x5003, mask `lock`). Returns the enable's result (0 or -errno). The
+ * new shadow stack holds no entry for any frame that existed before the call, so this returns by
+ * a jump, and its caller must be a frame that never returns (the loader's start). The same code
+ * as niji_machine_shstk_enter (machine/context.S), which the C library's static start uses; ld.so
+ * links only this file of the start-up primitives. Declared once in boundary/src/arch/. */
+	.section .text.niji_machine_ld_shstk_enter,"ax",@progbits
+	.globl niji_machine_ld_shstk_enter
+	.hidden niji_machine_ld_shstk_enter
+	.type niji_machine_ld_shstk_enter, @function
+	.p2align 4
+niji_machine_ld_shstk_enter:
+	.cfi_startproc
+	movq %rdi, %rdx
+	movl $0x5001, %edi
+	movl $1, %esi
+	movl $158, %eax			/* SYS_arch_prctl */
+	syscall
+	testq %rax, %rax
+	jnz 1f
+	testq %rdx, %rdx
+	jz 1f
+	movl $0x5003, %edi
+	movq %rdx, %rsi
+	movl $158, %eax
+	syscall
+	xorl %eax, %eax
+1:	popq %r11
+	.cfi_adjust_cfa_offset -8
+	jmpq *%r11
+	.cfi_endproc
+	.size niji_machine_ld_shstk_enter, .-niji_machine_ld_shstk_enter
+
 #ifdef NIJI_LDCONFIG
 /* Assembled with -DNIJI_LD -DNIJI_LDCONFIG it also holds niji_machine_ldconfig_entry, the ELF
  * entry point of the freestanding static ldconfig (UTIL-3, D-31.2): the same convention as

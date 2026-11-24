@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (251 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (277 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -2692,6 +2692,383 @@ fn abi_struct_in6_pktinfo() {
     expect_member("struct in6_pktinfo", "ipi6_addr.__in6_u.__u6_addr16", offset_of!(struct_in6_pktinfo, ipi6_addr.__in6_u.__u6_addr16));
     expect_member("struct in6_pktinfo", "ipi6_addr.__in6_u.__u6_addr32", offset_of!(struct_in6_pktinfo, ipi6_addr.__in6_u.__u6_addr32));
     expect_member("struct in6_pktinfo", "ipi6_ifindex", offset_of!(struct_in6_pktinfo, ipi6_ifindex));
+}
+
+#[test]
+fn abi_struct_ip_timestamp() {
+    expect_type("struct ip_timestamp", size_of::<struct_ip_timestamp>(), align_of::<struct_ip_timestamp>());
+    expect_member("struct ip_timestamp", "ipt_code", offset_of!(struct_ip_timestamp, ipt_code));
+    expect_member("struct ip_timestamp", "ipt_len", offset_of!(struct_ip_timestamp, ipt_len));
+    expect_member("struct ip_timestamp", "ipt_ptr", offset_of!(struct_ip_timestamp, ipt_ptr));
+    expect_member("struct ip_timestamp", "data", offset_of!(struct_ip_timestamp, data));
+}
+
+#[test]
+fn abi_struct_rtentry() {
+    expect_type("struct rtentry", size_of::<struct_rtentry>(), align_of::<struct_rtentry>());
+    expect_member("struct rtentry", "rt_pad1", offset_of!(struct_rtentry, rt_pad1));
+    expect_member("struct rtentry", "rt_dst", offset_of!(struct_rtentry, rt_dst));
+    expect_member("struct rtentry", "rt_dst.sa_family", offset_of!(struct_rtentry, rt_dst.sa_family));
+    expect_member("struct rtentry", "rt_dst.sa_data", offset_of!(struct_rtentry, rt_dst.sa_data));
+    expect_member("struct rtentry", "rt_gateway", offset_of!(struct_rtentry, rt_gateway));
+    expect_member("struct rtentry", "rt_gateway.sa_family", offset_of!(struct_rtentry, rt_gateway.sa_family));
+    expect_member("struct rtentry", "rt_gateway.sa_data", offset_of!(struct_rtentry, rt_gateway.sa_data));
+    expect_member("struct rtentry", "rt_genmask", offset_of!(struct_rtentry, rt_genmask));
+    expect_member("struct rtentry", "rt_genmask.sa_family", offset_of!(struct_rtentry, rt_genmask.sa_family));
+    expect_member("struct rtentry", "rt_genmask.sa_data", offset_of!(struct_rtentry, rt_genmask.sa_data));
+    expect_member("struct rtentry", "rt_flags", offset_of!(struct_rtentry, rt_flags));
+    expect_member("struct rtentry", "rt_pad2", offset_of!(struct_rtentry, rt_pad2));
+    expect_member("struct rtentry", "rt_pad3", offset_of!(struct_rtentry, rt_pad3));
+    expect_member("struct rtentry", "rt_tos", offset_of!(struct_rtentry, rt_tos));
+    expect_member("struct rtentry", "rt_class", offset_of!(struct_rtentry, rt_class));
+    expect_member("struct rtentry", "rt_pad4", offset_of!(struct_rtentry, rt_pad4));
+    expect_member("struct rtentry", "rt_metric", offset_of!(struct_rtentry, rt_metric));
+    expect_member("struct rtentry", "rt_dev", offset_of!(struct_rtentry, rt_dev));
+    expect_member("struct rtentry", "rt_mtu", offset_of!(struct_rtentry, rt_mtu));
+    expect_member("struct rtentry", "rt_window", offset_of!(struct_rtentry, rt_window));
+    expect_member("struct rtentry", "rt_irtt", offset_of!(struct_rtentry, rt_irtt));
+}
+
+#[test]
+fn abi_struct_in6_rtmsg() {
+    expect_type("struct in6_rtmsg", size_of::<struct_in6_rtmsg>(), align_of::<struct_in6_rtmsg>());
+    expect_member("struct in6_rtmsg", "rtmsg_dst", offset_of!(struct_in6_rtmsg, rtmsg_dst));
+    expect_member("struct in6_rtmsg", "rtmsg_dst.__in6_u", offset_of!(struct_in6_rtmsg, rtmsg_dst.__in6_u));
+    expect_member("struct in6_rtmsg", "rtmsg_dst.__in6_u.__u6_addr8", offset_of!(struct_in6_rtmsg, rtmsg_dst.__in6_u.__u6_addr8));
+    expect_member("struct in6_rtmsg", "rtmsg_dst.__in6_u.__u6_addr16", offset_of!(struct_in6_rtmsg, rtmsg_dst.__in6_u.__u6_addr16));
+    expect_member("struct in6_rtmsg", "rtmsg_dst.__in6_u.__u6_addr32", offset_of!(struct_in6_rtmsg, rtmsg_dst.__in6_u.__u6_addr32));
+    expect_member("struct in6_rtmsg", "rtmsg_src", offset_of!(struct_in6_rtmsg, rtmsg_src));
+    expect_member("struct in6_rtmsg", "rtmsg_src.__in6_u", offset_of!(struct_in6_rtmsg, rtmsg_src.__in6_u));
+    expect_member("struct in6_rtmsg", "rtmsg_src.__in6_u.__u6_addr8", offset_of!(struct_in6_rtmsg, rtmsg_src.__in6_u.__u6_addr8));
+    expect_member("struct in6_rtmsg", "rtmsg_src.__in6_u.__u6_addr16", offset_of!(struct_in6_rtmsg, rtmsg_src.__in6_u.__u6_addr16));
+    expect_member("struct in6_rtmsg", "rtmsg_src.__in6_u.__u6_addr32", offset_of!(struct_in6_rtmsg, rtmsg_src.__in6_u.__u6_addr32));
+    expect_member("struct in6_rtmsg", "rtmsg_gateway", offset_of!(struct_in6_rtmsg, rtmsg_gateway));
+    expect_member("struct in6_rtmsg", "rtmsg_gateway.__in6_u", offset_of!(struct_in6_rtmsg, rtmsg_gateway.__in6_u));
+    expect_member("struct in6_rtmsg", "rtmsg_gateway.__in6_u.__u6_addr8", offset_of!(struct_in6_rtmsg, rtmsg_gateway.__in6_u.__u6_addr8));
+    expect_member("struct in6_rtmsg", "rtmsg_gateway.__in6_u.__u6_addr16", offset_of!(struct_in6_rtmsg, rtmsg_gateway.__in6_u.__u6_addr16));
+    expect_member("struct in6_rtmsg", "rtmsg_gateway.__in6_u.__u6_addr32", offset_of!(struct_in6_rtmsg, rtmsg_gateway.__in6_u.__u6_addr32));
+    expect_member("struct in6_rtmsg", "rtmsg_type", offset_of!(struct_in6_rtmsg, rtmsg_type));
+    expect_member("struct in6_rtmsg", "rtmsg_dst_len", offset_of!(struct_in6_rtmsg, rtmsg_dst_len));
+    expect_member("struct in6_rtmsg", "rtmsg_src_len", offset_of!(struct_in6_rtmsg, rtmsg_src_len));
+    expect_member("struct in6_rtmsg", "rtmsg_metric", offset_of!(struct_in6_rtmsg, rtmsg_metric));
+    expect_member("struct in6_rtmsg", "rtmsg_info", offset_of!(struct_in6_rtmsg, rtmsg_info));
+    expect_member("struct in6_rtmsg", "rtmsg_flags", offset_of!(struct_in6_rtmsg, rtmsg_flags));
+    expect_member("struct in6_rtmsg", "rtmsg_ifindex", offset_of!(struct_in6_rtmsg, rtmsg_ifindex));
+}
+
+#[test]
+fn abi_struct_arpreq() {
+    expect_type("struct arpreq", size_of::<struct_arpreq>(), align_of::<struct_arpreq>());
+    expect_member("struct arpreq", "arp_pa", offset_of!(struct_arpreq, arp_pa));
+    expect_member("struct arpreq", "arp_pa.sa_family", offset_of!(struct_arpreq, arp_pa.sa_family));
+    expect_member("struct arpreq", "arp_pa.sa_data", offset_of!(struct_arpreq, arp_pa.sa_data));
+    expect_member("struct arpreq", "arp_ha", offset_of!(struct_arpreq, arp_ha));
+    expect_member("struct arpreq", "arp_ha.sa_family", offset_of!(struct_arpreq, arp_ha.sa_family));
+    expect_member("struct arpreq", "arp_ha.sa_data", offset_of!(struct_arpreq, arp_ha.sa_data));
+    expect_member("struct arpreq", "arp_flags", offset_of!(struct_arpreq, arp_flags));
+    expect_member("struct arpreq", "arp_netmask", offset_of!(struct_arpreq, arp_netmask));
+    expect_member("struct arpreq", "arp_netmask.sa_family", offset_of!(struct_arpreq, arp_netmask.sa_family));
+    expect_member("struct arpreq", "arp_netmask.sa_data", offset_of!(struct_arpreq, arp_netmask.sa_data));
+    expect_member("struct arpreq", "arp_dev", offset_of!(struct_arpreq, arp_dev));
+}
+
+#[test]
+fn abi_struct_arpreq_old() {
+    expect_type("struct arpreq_old", size_of::<struct_arpreq_old>(), align_of::<struct_arpreq_old>());
+    expect_member("struct arpreq_old", "arp_pa", offset_of!(struct_arpreq_old, arp_pa));
+    expect_member("struct arpreq_old", "arp_pa.sa_family", offset_of!(struct_arpreq_old, arp_pa.sa_family));
+    expect_member("struct arpreq_old", "arp_pa.sa_data", offset_of!(struct_arpreq_old, arp_pa.sa_data));
+    expect_member("struct arpreq_old", "arp_ha", offset_of!(struct_arpreq_old, arp_ha));
+    expect_member("struct arpreq_old", "arp_ha.sa_family", offset_of!(struct_arpreq_old, arp_ha.sa_family));
+    expect_member("struct arpreq_old", "arp_ha.sa_data", offset_of!(struct_arpreq_old, arp_ha.sa_data));
+    expect_member("struct arpreq_old", "arp_flags", offset_of!(struct_arpreq_old, arp_flags));
+    expect_member("struct arpreq_old", "arp_netmask", offset_of!(struct_arpreq_old, arp_netmask));
+    expect_member("struct arpreq_old", "arp_netmask.sa_family", offset_of!(struct_arpreq_old, arp_netmask.sa_family));
+    expect_member("struct arpreq_old", "arp_netmask.sa_data", offset_of!(struct_arpreq_old, arp_netmask.sa_data));
+}
+
+#[test]
+fn abi_struct_arpd_request() {
+    expect_type("struct arpd_request", size_of::<struct_arpd_request>(), align_of::<struct_arpd_request>());
+    expect_member("struct arpd_request", "req", offset_of!(struct_arpd_request, req));
+    expect_member("struct arpd_request", "ip", offset_of!(struct_arpd_request, ip));
+    expect_member("struct arpd_request", "dev", offset_of!(struct_arpd_request, dev));
+    expect_member("struct arpd_request", "stamp", offset_of!(struct_arpd_request, stamp));
+    expect_member("struct arpd_request", "updated", offset_of!(struct_arpd_request, updated));
+    expect_member("struct arpd_request", "ha", offset_of!(struct_arpd_request, ha));
+}
+
+#[test]
+fn abi_struct_ether_arp() {
+    expect_type("struct ether_arp", size_of::<struct_ether_arp>(), align_of::<struct_ether_arp>());
+    expect_member("struct ether_arp", "ea_hdr", offset_of!(struct_ether_arp, ea_hdr));
+    expect_member("struct ether_arp", "ea_hdr.ar_hrd", offset_of!(struct_ether_arp, ea_hdr.ar_hrd));
+    expect_member("struct ether_arp", "ea_hdr.ar_pro", offset_of!(struct_ether_arp, ea_hdr.ar_pro));
+    expect_member("struct ether_arp", "ea_hdr.ar_hln", offset_of!(struct_ether_arp, ea_hdr.ar_hln));
+    expect_member("struct ether_arp", "ea_hdr.ar_pln", offset_of!(struct_ether_arp, ea_hdr.ar_pln));
+    expect_member("struct ether_arp", "ea_hdr.ar_op", offset_of!(struct_ether_arp, ea_hdr.ar_op));
+    expect_member("struct ether_arp", "arp_sha", offset_of!(struct_ether_arp, arp_sha));
+    expect_member("struct ether_arp", "arp_spa", offset_of!(struct_ether_arp, arp_spa));
+    expect_member("struct ether_arp", "arp_tha", offset_of!(struct_ether_arp, arp_tha));
+    expect_member("struct ether_arp", "arp_tpa", offset_of!(struct_ether_arp, arp_tpa));
+}
+
+#[test]
+fn abi_struct_icmp_ra_addr() {
+    expect_type("struct icmp_ra_addr", size_of::<struct_icmp_ra_addr>(), align_of::<struct_icmp_ra_addr>());
+    expect_member("struct icmp_ra_addr", "ira_addr", offset_of!(struct_icmp_ra_addr, ira_addr));
+    expect_member("struct icmp_ra_addr", "ira_preference", offset_of!(struct_icmp_ra_addr, ira_preference));
+}
+
+#[test]
+fn abi_struct_icmp6_filter() {
+    expect_type("struct icmp6_filter", size_of::<struct_icmp6_filter>(), align_of::<struct_icmp6_filter>());
+    expect_member("struct icmp6_filter", "icmp6_filt", offset_of!(struct_icmp6_filter, icmp6_filt));
+}
+
+#[test]
+fn abi_struct_nd_router_solicit() {
+    expect_type("struct nd_router_solicit", size_of::<struct_nd_router_solicit>(), align_of::<struct_nd_router_solicit>());
+    expect_member("struct nd_router_solicit", "nd_rs_hdr", offset_of!(struct_nd_router_solicit, nd_rs_hdr));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_type", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_type));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_code", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_code));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_cksum", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_cksum));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_dataun", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_dataun));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct nd_router_solicit", "nd_rs_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_nd_router_solicit, nd_rs_hdr.icmp6_dataun.icmp6_un_data8));
+}
+
+#[test]
+fn abi_struct_nd_router_advert() {
+    expect_type("struct nd_router_advert", size_of::<struct_nd_router_advert>(), align_of::<struct_nd_router_advert>());
+    expect_member("struct nd_router_advert", "nd_ra_hdr", offset_of!(struct_nd_router_advert, nd_ra_hdr));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_type", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_type));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_code", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_code));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_cksum", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_cksum));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_dataun", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_dataun));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct nd_router_advert", "nd_ra_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_nd_router_advert, nd_ra_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct nd_router_advert", "nd_ra_reachable", offset_of!(struct_nd_router_advert, nd_ra_reachable));
+    expect_member("struct nd_router_advert", "nd_ra_retransmit", offset_of!(struct_nd_router_advert, nd_ra_retransmit));
+}
+
+#[test]
+fn abi_struct_nd_neighbor_solicit() {
+    expect_type("struct nd_neighbor_solicit", size_of::<struct_nd_neighbor_solicit>(), align_of::<struct_nd_neighbor_solicit>());
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_type", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_type));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_code", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_code));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_cksum", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_cksum));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_dataun", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_dataun));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_nd_neighbor_solicit, nd_ns_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_target", offset_of!(struct_nd_neighbor_solicit, nd_ns_target));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_target.__in6_u", offset_of!(struct_nd_neighbor_solicit, nd_ns_target.__in6_u));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_target.__in6_u.__u6_addr8", offset_of!(struct_nd_neighbor_solicit, nd_ns_target.__in6_u.__u6_addr8));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_target.__in6_u.__u6_addr16", offset_of!(struct_nd_neighbor_solicit, nd_ns_target.__in6_u.__u6_addr16));
+    expect_member("struct nd_neighbor_solicit", "nd_ns_target.__in6_u.__u6_addr32", offset_of!(struct_nd_neighbor_solicit, nd_ns_target.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_nd_neighbor_advert() {
+    expect_type("struct nd_neighbor_advert", size_of::<struct_nd_neighbor_advert>(), align_of::<struct_nd_neighbor_advert>());
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr", offset_of!(struct_nd_neighbor_advert, nd_na_hdr));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_type", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_type));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_code", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_code));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_cksum", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_cksum));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_dataun", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_dataun));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct nd_neighbor_advert", "nd_na_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_nd_neighbor_advert, nd_na_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct nd_neighbor_advert", "nd_na_target", offset_of!(struct_nd_neighbor_advert, nd_na_target));
+    expect_member("struct nd_neighbor_advert", "nd_na_target.__in6_u", offset_of!(struct_nd_neighbor_advert, nd_na_target.__in6_u));
+    expect_member("struct nd_neighbor_advert", "nd_na_target.__in6_u.__u6_addr8", offset_of!(struct_nd_neighbor_advert, nd_na_target.__in6_u.__u6_addr8));
+    expect_member("struct nd_neighbor_advert", "nd_na_target.__in6_u.__u6_addr16", offset_of!(struct_nd_neighbor_advert, nd_na_target.__in6_u.__u6_addr16));
+    expect_member("struct nd_neighbor_advert", "nd_na_target.__in6_u.__u6_addr32", offset_of!(struct_nd_neighbor_advert, nd_na_target.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_nd_redirect() {
+    expect_type("struct nd_redirect", size_of::<struct_nd_redirect>(), align_of::<struct_nd_redirect>());
+    expect_member("struct nd_redirect", "nd_rd_hdr", offset_of!(struct_nd_redirect, nd_rd_hdr));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_type", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_type));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_code", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_code));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_cksum", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_cksum));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_dataun", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_dataun));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct nd_redirect", "nd_rd_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_nd_redirect, nd_rd_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct nd_redirect", "nd_rd_target", offset_of!(struct_nd_redirect, nd_rd_target));
+    expect_member("struct nd_redirect", "nd_rd_target.__in6_u", offset_of!(struct_nd_redirect, nd_rd_target.__in6_u));
+    expect_member("struct nd_redirect", "nd_rd_target.__in6_u.__u6_addr8", offset_of!(struct_nd_redirect, nd_rd_target.__in6_u.__u6_addr8));
+    expect_member("struct nd_redirect", "nd_rd_target.__in6_u.__u6_addr16", offset_of!(struct_nd_redirect, nd_rd_target.__in6_u.__u6_addr16));
+    expect_member("struct nd_redirect", "nd_rd_target.__in6_u.__u6_addr32", offset_of!(struct_nd_redirect, nd_rd_target.__in6_u.__u6_addr32));
+    expect_member("struct nd_redirect", "nd_rd_dst", offset_of!(struct_nd_redirect, nd_rd_dst));
+    expect_member("struct nd_redirect", "nd_rd_dst.__in6_u", offset_of!(struct_nd_redirect, nd_rd_dst.__in6_u));
+    expect_member("struct nd_redirect", "nd_rd_dst.__in6_u.__u6_addr8", offset_of!(struct_nd_redirect, nd_rd_dst.__in6_u.__u6_addr8));
+    expect_member("struct nd_redirect", "nd_rd_dst.__in6_u.__u6_addr16", offset_of!(struct_nd_redirect, nd_rd_dst.__in6_u.__u6_addr16));
+    expect_member("struct nd_redirect", "nd_rd_dst.__in6_u.__u6_addr32", offset_of!(struct_nd_redirect, nd_rd_dst.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_nd_opt_hdr() {
+    expect_type("struct nd_opt_hdr", size_of::<struct_nd_opt_hdr>(), align_of::<struct_nd_opt_hdr>());
+    expect_member("struct nd_opt_hdr", "nd_opt_type", offset_of!(struct_nd_opt_hdr, nd_opt_type));
+    expect_member("struct nd_opt_hdr", "nd_opt_len", offset_of!(struct_nd_opt_hdr, nd_opt_len));
+}
+
+#[test]
+fn abi_struct_nd_opt_prefix_info() {
+    expect_type("struct nd_opt_prefix_info", size_of::<struct_nd_opt_prefix_info>(), align_of::<struct_nd_opt_prefix_info>());
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_type", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_type));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_len", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_len));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix_len", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix_len));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_flags_reserved", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_flags_reserved));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_valid_time", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_valid_time));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_preferred_time", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_preferred_time));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_reserved2", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_reserved2));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix.__in6_u", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix.__in6_u));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix.__in6_u.__u6_addr8", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix.__in6_u.__u6_addr8));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix.__in6_u.__u6_addr16", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix.__in6_u.__u6_addr16));
+    expect_member("struct nd_opt_prefix_info", "nd_opt_pi_prefix.__in6_u.__u6_addr32", offset_of!(struct_nd_opt_prefix_info, nd_opt_pi_prefix.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_nd_opt_rd_hdr() {
+    expect_type("struct nd_opt_rd_hdr", size_of::<struct_nd_opt_rd_hdr>(), align_of::<struct_nd_opt_rd_hdr>());
+    expect_member("struct nd_opt_rd_hdr", "nd_opt_rh_type", offset_of!(struct_nd_opt_rd_hdr, nd_opt_rh_type));
+    expect_member("struct nd_opt_rd_hdr", "nd_opt_rh_len", offset_of!(struct_nd_opt_rd_hdr, nd_opt_rh_len));
+    expect_member("struct nd_opt_rd_hdr", "nd_opt_rh_reserved1", offset_of!(struct_nd_opt_rd_hdr, nd_opt_rh_reserved1));
+    expect_member("struct nd_opt_rd_hdr", "nd_opt_rh_reserved2", offset_of!(struct_nd_opt_rd_hdr, nd_opt_rh_reserved2));
+}
+
+#[test]
+fn abi_struct_nd_opt_mtu() {
+    expect_type("struct nd_opt_mtu", size_of::<struct_nd_opt_mtu>(), align_of::<struct_nd_opt_mtu>());
+    expect_member("struct nd_opt_mtu", "nd_opt_mtu_type", offset_of!(struct_nd_opt_mtu, nd_opt_mtu_type));
+    expect_member("struct nd_opt_mtu", "nd_opt_mtu_len", offset_of!(struct_nd_opt_mtu, nd_opt_mtu_len));
+    expect_member("struct nd_opt_mtu", "nd_opt_mtu_reserved", offset_of!(struct_nd_opt_mtu, nd_opt_mtu_reserved));
+    expect_member("struct nd_opt_mtu", "nd_opt_mtu_mtu", offset_of!(struct_nd_opt_mtu, nd_opt_mtu_mtu));
+}
+
+#[test]
+fn abi_struct_nd_opt_adv_interval() {
+    expect_type("struct nd_opt_adv_interval", size_of::<struct_nd_opt_adv_interval>(), align_of::<struct_nd_opt_adv_interval>());
+    expect_member("struct nd_opt_adv_interval", "nd_opt_adv_interval_type", offset_of!(struct_nd_opt_adv_interval, nd_opt_adv_interval_type));
+    expect_member("struct nd_opt_adv_interval", "nd_opt_adv_interval_len", offset_of!(struct_nd_opt_adv_interval, nd_opt_adv_interval_len));
+    expect_member("struct nd_opt_adv_interval", "nd_opt_adv_interval_reserved", offset_of!(struct_nd_opt_adv_interval, nd_opt_adv_interval_reserved));
+    expect_member("struct nd_opt_adv_interval", "nd_opt_adv_interval_ival", offset_of!(struct_nd_opt_adv_interval, nd_opt_adv_interval_ival));
+}
+
+#[test]
+fn abi_struct_nd_opt_home_agent_info() {
+    expect_type("struct nd_opt_home_agent_info", size_of::<struct_nd_opt_home_agent_info>(), align_of::<struct_nd_opt_home_agent_info>());
+    expect_member("struct nd_opt_home_agent_info", "nd_opt_home_agent_info_type", offset_of!(struct_nd_opt_home_agent_info, nd_opt_home_agent_info_type));
+    expect_member("struct nd_opt_home_agent_info", "nd_opt_home_agent_info_len", offset_of!(struct_nd_opt_home_agent_info, nd_opt_home_agent_info_len));
+    expect_member("struct nd_opt_home_agent_info", "nd_opt_home_agent_info_reserved", offset_of!(struct_nd_opt_home_agent_info, nd_opt_home_agent_info_reserved));
+    expect_member("struct nd_opt_home_agent_info", "nd_opt_home_agent_info_preference", offset_of!(struct_nd_opt_home_agent_info, nd_opt_home_agent_info_preference));
+    expect_member("struct nd_opt_home_agent_info", "nd_opt_home_agent_info_lifetime", offset_of!(struct_nd_opt_home_agent_info, nd_opt_home_agent_info_lifetime));
+}
+
+#[test]
+fn abi_struct_mld_hdr() {
+    expect_type("struct mld_hdr", size_of::<struct_mld_hdr>(), align_of::<struct_mld_hdr>());
+    expect_member("struct mld_hdr", "mld_icmp6_hdr", offset_of!(struct_mld_hdr, mld_icmp6_hdr));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_type", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_type));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_code", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_code));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_cksum", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_cksum));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_dataun", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_dataun));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct mld_hdr", "mld_icmp6_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_mld_hdr, mld_icmp6_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct mld_hdr", "mld_addr", offset_of!(struct_mld_hdr, mld_addr));
+    expect_member("struct mld_hdr", "mld_addr.__in6_u", offset_of!(struct_mld_hdr, mld_addr.__in6_u));
+    expect_member("struct mld_hdr", "mld_addr.__in6_u.__u6_addr8", offset_of!(struct_mld_hdr, mld_addr.__in6_u.__u6_addr8));
+    expect_member("struct mld_hdr", "mld_addr.__in6_u.__u6_addr16", offset_of!(struct_mld_hdr, mld_addr.__in6_u.__u6_addr16));
+    expect_member("struct mld_hdr", "mld_addr.__in6_u.__u6_addr32", offset_of!(struct_mld_hdr, mld_addr.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_icmp6_router_renum() {
+    expect_type("struct icmp6_router_renum", size_of::<struct_icmp6_router_renum>(), align_of::<struct_icmp6_router_renum>());
+    expect_member("struct icmp6_router_renum", "rr_hdr", offset_of!(struct_icmp6_router_renum, rr_hdr));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_type", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_type));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_code", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_code));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_cksum", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_cksum));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_dataun", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_dataun));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_dataun.icmp6_un_data32", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_dataun.icmp6_un_data32));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_dataun.icmp6_un_data16", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_dataun.icmp6_un_data16));
+    expect_member("struct icmp6_router_renum", "rr_hdr.icmp6_dataun.icmp6_un_data8", offset_of!(struct_icmp6_router_renum, rr_hdr.icmp6_dataun.icmp6_un_data8));
+    expect_member("struct icmp6_router_renum", "rr_segnum", offset_of!(struct_icmp6_router_renum, rr_segnum));
+    expect_member("struct icmp6_router_renum", "rr_flags", offset_of!(struct_icmp6_router_renum, rr_flags));
+    expect_member("struct icmp6_router_renum", "rr_maxdelay", offset_of!(struct_icmp6_router_renum, rr_maxdelay));
+    expect_member("struct icmp6_router_renum", "rr_reserved", offset_of!(struct_icmp6_router_renum, rr_reserved));
+}
+
+#[test]
+fn abi_struct_rr_pco_match() {
+    expect_type("struct rr_pco_match", size_of::<struct_rr_pco_match>(), align_of::<struct_rr_pco_match>());
+    expect_member("struct rr_pco_match", "rpm_code", offset_of!(struct_rr_pco_match, rpm_code));
+    expect_member("struct rr_pco_match", "rpm_len", offset_of!(struct_rr_pco_match, rpm_len));
+    expect_member("struct rr_pco_match", "rpm_ordinal", offset_of!(struct_rr_pco_match, rpm_ordinal));
+    expect_member("struct rr_pco_match", "rpm_matchlen", offset_of!(struct_rr_pco_match, rpm_matchlen));
+    expect_member("struct rr_pco_match", "rpm_minlen", offset_of!(struct_rr_pco_match, rpm_minlen));
+    expect_member("struct rr_pco_match", "rpm_maxlen", offset_of!(struct_rr_pco_match, rpm_maxlen));
+    expect_member("struct rr_pco_match", "rpm_reserved", offset_of!(struct_rr_pco_match, rpm_reserved));
+    expect_member("struct rr_pco_match", "rpm_prefix", offset_of!(struct_rr_pco_match, rpm_prefix));
+    expect_member("struct rr_pco_match", "rpm_prefix.__in6_u", offset_of!(struct_rr_pco_match, rpm_prefix.__in6_u));
+    expect_member("struct rr_pco_match", "rpm_prefix.__in6_u.__u6_addr8", offset_of!(struct_rr_pco_match, rpm_prefix.__in6_u.__u6_addr8));
+    expect_member("struct rr_pco_match", "rpm_prefix.__in6_u.__u6_addr16", offset_of!(struct_rr_pco_match, rpm_prefix.__in6_u.__u6_addr16));
+    expect_member("struct rr_pco_match", "rpm_prefix.__in6_u.__u6_addr32", offset_of!(struct_rr_pco_match, rpm_prefix.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_rr_pco_use() {
+    expect_type("struct rr_pco_use", size_of::<struct_rr_pco_use>(), align_of::<struct_rr_pco_use>());
+    expect_member("struct rr_pco_use", "rpu_uselen", offset_of!(struct_rr_pco_use, rpu_uselen));
+    expect_member("struct rr_pco_use", "rpu_keeplen", offset_of!(struct_rr_pco_use, rpu_keeplen));
+    expect_member("struct rr_pco_use", "rpu_ramask", offset_of!(struct_rr_pco_use, rpu_ramask));
+    expect_member("struct rr_pco_use", "rpu_raflags", offset_of!(struct_rr_pco_use, rpu_raflags));
+    expect_member("struct rr_pco_use", "rpu_vltime", offset_of!(struct_rr_pco_use, rpu_vltime));
+    expect_member("struct rr_pco_use", "rpu_pltime", offset_of!(struct_rr_pco_use, rpu_pltime));
+    expect_member("struct rr_pco_use", "rpu_flags", offset_of!(struct_rr_pco_use, rpu_flags));
+    expect_member("struct rr_pco_use", "rpu_prefix", offset_of!(struct_rr_pco_use, rpu_prefix));
+    expect_member("struct rr_pco_use", "rpu_prefix.__in6_u", offset_of!(struct_rr_pco_use, rpu_prefix.__in6_u));
+    expect_member("struct rr_pco_use", "rpu_prefix.__in6_u.__u6_addr8", offset_of!(struct_rr_pco_use, rpu_prefix.__in6_u.__u6_addr8));
+    expect_member("struct rr_pco_use", "rpu_prefix.__in6_u.__u6_addr16", offset_of!(struct_rr_pco_use, rpu_prefix.__in6_u.__u6_addr16));
+    expect_member("struct rr_pco_use", "rpu_prefix.__in6_u.__u6_addr32", offset_of!(struct_rr_pco_use, rpu_prefix.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_rr_result() {
+    expect_type("struct rr_result", size_of::<struct_rr_result>(), align_of::<struct_rr_result>());
+    expect_member("struct rr_result", "rrr_flags", offset_of!(struct_rr_result, rrr_flags));
+    expect_member("struct rr_result", "rrr_ordinal", offset_of!(struct_rr_result, rrr_ordinal));
+    expect_member("struct rr_result", "rrr_matchedlen", offset_of!(struct_rr_result, rrr_matchedlen));
+    expect_member("struct rr_result", "rrr_ifid", offset_of!(struct_rr_result, rrr_ifid));
+    expect_member("struct rr_result", "rrr_prefix", offset_of!(struct_rr_result, rrr_prefix));
+    expect_member("struct rr_result", "rrr_prefix.__in6_u", offset_of!(struct_rr_result, rrr_prefix.__in6_u));
+    expect_member("struct rr_result", "rrr_prefix.__in6_u.__u6_addr8", offset_of!(struct_rr_result, rrr_prefix.__in6_u.__u6_addr8));
+    expect_member("struct rr_result", "rrr_prefix.__in6_u.__u6_addr16", offset_of!(struct_rr_result, rrr_prefix.__in6_u.__u6_addr16));
+    expect_member("struct rr_result", "rrr_prefix.__in6_u.__u6_addr32", offset_of!(struct_rr_result, rrr_prefix.__in6_u.__u6_addr32));
+}
+
+#[test]
+fn abi_struct_tftphdr() {
+    expect_type("struct tftphdr", size_of::<struct_tftphdr>(), align_of::<struct_tftphdr>());
+    expect_member("struct tftphdr", "th_opcode", offset_of!(struct_tftphdr, th_opcode));
+    expect_member("struct tftphdr", "th_u1", offset_of!(struct_tftphdr, th_u1));
+    expect_member("struct tftphdr", "th_u1.tu_padding", offset_of!(struct_tftphdr, th_u1.tu_padding));
+    expect_member("struct tftphdr", "th_u1.th_u2", offset_of!(struct_tftphdr, th_u1.th_u2));
+    expect_member("struct tftphdr", "th_u1.th_u2.th_u3", offset_of!(struct_tftphdr, th_u1.th_u2.th_u3));
+    expect_member("struct tftphdr", "th_u1.th_u2.th_u3.tu_block", offset_of!(struct_tftphdr, th_u1.th_u2.th_u3.tu_block));
+    expect_member("struct tftphdr", "th_u1.th_u2.th_u3.tu_code", offset_of!(struct_tftphdr, th_u1.th_u2.th_u3.tu_code));
+    expect_member("struct tftphdr", "th_u1.th_u2.tu_data", offset_of!(struct_tftphdr, th_u1.th_u2.tu_data));
+    expect_member("struct tftphdr", "th_u1.tu_stuff", offset_of!(struct_tftphdr, th_u1.tu_stuff));
 }
 
 #[test]

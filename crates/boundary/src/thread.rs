@@ -19,7 +19,7 @@ use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, AtomicUsize, Ordering:
 use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{
-    SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
+    CloneArgs, SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
     CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
 };
 use niji_rt::futex::{self, Clock, Scope};
@@ -41,10 +41,10 @@ use crate::data::__libc_single_threaded as SINGLE_THREADED;
 
 static LIST: RawMutex = RawMutex::new();
 /// The newest listed descriptor (linked through `next`/`prev`).
-static HEAD: AtomicUsize = AtomicUsize::new(0);
+pub(crate) static HEAD: AtomicUsize = AtomicUsize::new(0);
 /// Threads running. In a process libniji started the initial thread counts, and the last one to
 /// exit ends the process with status 0 (§22.1).
-static LIVE: AtomicUsize = AtomicUsize::new(0);
+pub(crate) static LIVE: AtomicUsize = AtomicUsize::new(0);
 /// Whether the runtime started this process: a byte the cancellation-point entries read too
 /// (machine/points.S, D-X.58).
 use crate::ffi::niji_machine_owned as OWNED;
@@ -70,7 +70,7 @@ static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
 /// D-3.21).
 static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
-static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
+pub(crate) static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 /// Process-wide defaults (`pthread_setattr_default_np`): 0 means "not decided yet".
 pub(crate) static DEFAULT_STACK: AtomicUsize = AtomicUsize::new(0);
 /// The default guard size.
@@ -233,8 +233,10 @@ pub(crate) fn init_initial(static_program: bool) {
     d.tp.store(tb::tp(), Relaxed);
     OWNED.store(true, Release);
     OWNED_HERE.store(usize::MAX, Release);
-    // D-X.60: the heap's C entries take their plain paths (no further test of whose block).
+    // D-X.60: the heap's C entries take their plain paths (no further test of whose block), and
+    // so do the library's own allocations unless they are routed (ruling #7583).
     crate::heap::DEBUG.clear_foreign();
+    crate::heap::open_own_fast();
     LOCK_ALONE.store(SINGLE_THREADED.load(Acquire) != 0, Release);
     LIVE.store(1, Release);
     register_kernel_areas(d, RSEQ_OWNED.load(Acquire));
@@ -972,8 +974,10 @@ pub(crate) fn after_fork_child() {
 
 // ------------------------------------------------------------------------------ creation
 
-/// Map (or reuse) the memory for a thread with `lay`'s layout: its base.
-fn take_mapping(lay: &Layout) -> KResult<usize> {
+/// Map (or reuse) the memory for a thread with `lay`'s layout: its base. `loaders`: the static
+/// TLS area below the thread pointer is libniji's `ld.so`'s (its `tls_init` writes every byte
+/// anything reads there: each block in full and the dtv), so a reused mapping leaves it as it is.
+fn take_mapping(lay: &Layout, loaders: bool) -> KResult<usize> {
     {
         let _g = RECYCLE.lock(&CSys);
         sweep_locked();
@@ -990,11 +994,13 @@ fn take_mapping(lay: &Layout) -> KResult<usize> {
                 }
                 CACHE_BYTES.fetch_sub(lay.len, Relaxed);
                 let base = d.map_base.load(Relaxed);
-                // The parts above the stack start clean; the stack itself need not.
+                // The parts above the stack start clean; the stack itself need not. Under
+                // libniji's `ld.so` the area below the thread pointer is its own: its `tls_init`
+                // clears the dtv and writes each block (image and zeros); the free surplus (64 KiB)
+                // is written by the `dlopen` that places a block there, before any read.
                 let span = KEYS.span();
-                // Under libniji's `ld.so` this clears its whole area too (the surplus as in a fresh
-                // mapping), before its `tls_init` rewrites the blocks and the dtv.
-                conv::zero_mapped(base + lay.tls, lay.keys - lay.tls);
+                let from = if loaders { lay.tp } else { lay.tls };
+                conv::zero_mapped(base + from, lay.keys - from);
                 conv::zero_mapped(base + lay.keys, (span * 16).min(KEY_AREA));
                 return Ok(base);
             }
@@ -1108,7 +1114,8 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
     let (lay, base, sp) = match a.stack {
         None => {
             let lay = Layout::new(stack_size, guard, img.as_ref()).ok_or(Errno::EINVAL)?;
-            let base = take_mapping(&lay)?;
+            let loaders = img.as_ref().is_some_and(|t| t.addr == 0) && LOADER_INIT.load(Acquire) != 0;
+            let base = take_mapping(&lay, loaders)?;
             (lay, base, base + lay.sp)
         }
         Some((lo, size)) => {
@@ -1212,7 +1219,11 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         link_locked(d);
     }
     LIVE.fetch_add(1, AcqRel);
-    let r = ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp);
+    let r = if ffi::niji_machine_ssp() == 0 {
+        ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp)
+    } else {
+        clone3_thread(sp, lo, &b.tid, tp)
+    };
     // The creator's own mask again (unchanged if blocking failed).
     if let Ok(old) = blocked {
         let _ = CSys.sigprocmask(SIG_SETMASK, Some(&old));
@@ -1243,6 +1254,31 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         }
     }
     Ok(tp)
+}
+
+/// The thread's `clone` while the creator's shadow stack is on (D-22.29): `clone3` with the stack
+/// as `lo` and `sp - lo`, so the kernel gives the new thread a shadow stack the size of its stack
+/// rather than of RLIMIT_STACK (the size `clone` without a size gets). Where `clone3` is refused
+/// (`ENOSYS`), the plain `clone`.
+#[cold]
+#[inline(never)]
+#[allow(clippy::as_conversions)] // addresses and sizes into the kernel's u64 fields (x86-64: lossless)
+fn clone3_thread(sp: usize, lo: usize, tid: &AtomicU32, tp: usize) -> i64 {
+    let word = core::ptr::from_ref(tid).expose_provenance() as u64;
+    let args = CloneArgs {
+        flags: CLONE_FLAGS,
+        parent_tid: word,
+        child_tid: word,
+        stack: lo as u64,
+        stack_size: sp.saturating_sub(lo) as u64,
+        tls: tp as u64,
+        ..CloneArgs::default()
+    };
+    let r = ffi::niji_machine_clone3_thread(core::ptr::from_ref(&args).cast(), size_of::<CloneArgs>() as i64);
+    if matches!(Errno::decode(r), Err(Errno::ENOSYS)) {
+        return ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, tid, tid, tp);
+    }
+    r
 }
 
 /// The address of [`entry`].
@@ -1405,7 +1441,17 @@ pub(crate) fn join(tp: usize, how: JoinWait<'_>) -> KResult<usize> {
         JoinWait::Try => {
             if b.tid.load(Acquire) == 0 { Ok(()) } else { Err(Errno::EBUSY) }
         }
-        JoinWait::Until(c, t) => wait_tid(b, Some((c, t)), true),
+        // A thread that has ended is joined whatever the deadline; one that still runs makes
+        // an invalid tv_nsec EINVAL, whatever tv_sec (§22.1; D-22.26).
+        JoinWait::Until(c, t) => {
+            if b.tid.load(Acquire) == 0 {
+                Ok(())
+            } else if !(0..1_000_000_000).contains(&t.nsec) {
+                Err(Errno::EINVAL)
+            } else {
+                wait_tid(b, Some((c, t)), true)
+            }
+        }
     };
     me.joining.store(0, Release);
     if let Err(e) = waited {

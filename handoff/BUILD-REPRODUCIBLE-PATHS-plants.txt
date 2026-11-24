@@ -1,0 +1,4 @@
+# BUILD-REPRODUCIBLE-PATHS plants (cargo xtask plants; D-X.159)
+root-logical-spelling | xtask/src/align.rs | lit:v.push(a.display().to_string()); ==> | cargo test -p xtask -- remap:: | msg:c_debug_info_is_the_same_in_two_tree_paths.*FAILED
+scan-listed-only | xtask/src/remap.rs | lit:if let Ok(rd) = fs::read_dir(dir) { ==> if let Some(rd) = None::<fs::ReadDir> { | cargo test -p xtask -- remap:: | msg:check_dir_names_the_product_that_carries_a_path.*FAILED
+count-spread-off | xtask/src/bench.rs | lit:if hi - lo > tol { ==> if false && hi - lo > tol { | cargo test -p xtask -- count_spread | msg:count_spread_fails_a_limited_row_that_moves_beyond_its_tolerance.*FAILED

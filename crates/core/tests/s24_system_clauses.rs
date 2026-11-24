@@ -723,7 +723,7 @@ fn s24_5_c_4() {
     std::fs::write(&f, 0x1234_5678i32.to_ne_bytes()).unwrap();
     let mut path = f.as_os_str().as_encoded_bytes().to_vec();
     path.push(0);
-    assert_eq!(sys_compat::gethostid(&CSys, &path), 0x1234_5678);
+    assert_eq!(sys_compat::gethostid(&CSys, &niji_boundary::heap::KernelPages, &path), 0x1234_5678);
     assert_eq!(x::gethostid(), x::gethostid(), "stable");
     if CSys.geteuid() != 0 {
         errno::set_raw(0);

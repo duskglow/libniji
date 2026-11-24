@@ -1,0 +1,11 @@
+wrapper-removed | headers/fortify.tsv | perl:s/memcpy\tbuiltin/memcpy_gone\tbuiltin/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort
+size-off-by-one | xtask/src/headers/slices/s18.rs | perl:s/\Q"__NIJI_BOS (__p{digits}, {t})"\E/"(__NIJI_BOS (__p{digits}, {t}) + 1)"/ | cargo test -p xtask -- headers::slices::s18 | msg:a_deliberate_overflow.*FAILED|did not abort
+open-row-removed | headers/fortify.tsv | perl:s/^open\tmode/open_gone\tmode/m | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants __open_2
+flags-fold | xtask/src/headers/slices/s18.rs | perl:s/\Q__builtin_constant_p ({flags})\E/__builtin_constant_p ({need})/ | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants __open_2
+mode-error-dropped | xtask/src/headers/slices/s18.rs | perl:s/\Q"            __niji_fortify_mode ();"\E/"            ;"/ | cargo test -p xtask -- headers::slices::s18 | msg:an_open_without_its_mode.*FAILED|wants a compile-time error
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# wrapper-removed: CAUGHT, caught by xtask headers::slices::s18::tests::a_deliberate_overflow_aborts_and_an_exact_fit_runs
+# size-off-by-one: CAUGHT, caught by xtask headers::slices::s18::tests::a_deliberate_overflow_aborts_and_an_exact_fit_runs
+# open-row-removed: CAUGHT, caught by xtask headers::slices::s18::tests::an_open_without_its_mode_calls_the_checked_entry
+# flags-fold: CAUGHT, caught by xtask headers::slices::s18::tests::an_open_without_its_mode_calls_the_checked_entry
+# mode-error-dropped: CAUGHT, caught by xtask headers::slices::s18::tests::an_open_without_its_mode_calls_the_checked_entry

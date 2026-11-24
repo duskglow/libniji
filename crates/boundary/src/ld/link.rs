@@ -15,11 +15,11 @@ use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
 use super::exec_stack::exec_stack_dependency;
-use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, unmap_view, views_arm, views_close};
+use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_file, open_start, Found, own_object, parse, read_cache, read_image, search_list, unmap_view, views_arm, views_close};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_ORIGIN, START_PAGE, START_SPILL};
-use super::tls::{INITIAL_TAIL, install_tls, map_area};
+use super::tls::{INITIAL_TAIL, install_tls, map_area, surplus_bytes};
 
 /// Load the program's dependencies, check their versions, relocate everything and protect the RELRO
 /// pages (DL-10, design §6, D-27.17). A `DT_NEEDED` name with `/` is opened as given; one without is
@@ -31,7 +31,7 @@ use super::tls::{INITIAL_TAIL, install_tls, map_area};
 /// path for `ld.so PROGRAM`, else `argv[0]`).
 // Indices stay below `n`; every per-object table is reserved to `n + 1` entries before each store.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments, clippy::too_many_lines)]
-pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin, preloads: &Preloads<'_>) -> usize {
+pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin, preloads: &Preloads<'_>) -> ! {
     use niji_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
     // The program's `$ORIGIN`, once looked up ([`Origin::dir`]); LD_LIBRARY_PATH as the search reads it.
@@ -44,23 +44,24 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     let mut paths: Table<&'static [u8], INLINE> = Table::new(&[]);
     let mut store = PathStore::default();
     let cache: search::LazyCache<'_> = core::cell::OnceCell::new();
+    // The mappings released after the start: the dependencies' whole-file views and image views' scratch.
     let mut maps: Table<(usize, usize), INLINE> = Table::new((0, 0));
+    let mut nm = 0usize;
     // The objects' whole-file views come from one arena, unmapped whole below (DYN-START-RING).
     views_arm();
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
     let (prog_views, own_views) = views.split_at_mut(3);
-    let (head, view) = image_view(prog, bias, name, prog_views, false);
+    let image = image_view(prog, bias, name, prog_views, false);
     // The program's own file is not known (no file is read): (dev, ino) that no file has.
     let mut ids: Table<FileId, INLINE> = Table::new((u64::MAX, u64::MAX));
     // Each object's run-time program header table (address, count), for `dlopen` (DL-16a).
     let mut phdrs: Table<(usize, usize), INLINE> = Table::new((prog.phdr, prog.phnum));
-    let image = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
     let dynm = image.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     let first = Obj { elf: image, dynm, bias: u64::try_from(bias).unwrap_or(0), name, tls: None };
     let mut objs: Table<Obj<'static>, INLINE> = Table::new(first);
     // Entry 0, the program, in every per-object table (inline: nothing can fail).
-    let grown = [parent.reserve(1), paths.reserve(1), maps.reserve(1), ids.reserve(1), phdrs.reserve(1), objs.reserve(1)];
+    let grown = [parent.reserve(1), paths.reserve(1), ids.reserve(1), phdrs.reserve(1), objs.reserve(1)];
     if grown.iter().any(Result::is_err) {
         no_memory(name);
     }
@@ -103,7 +104,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 continue;
             }
             // Room for object `n` in every per-object table (each holds INLINE entries without a mapping).
-            let grown = [parent.reserve(n + 1), paths.reserve(n + 1), maps.reserve(n + 1), ids.reserve(n + 1), phdrs.reserve(n + 1), objs.reserve(n + 1)];
+            let grown = [parent.reserve(n + 1), paths.reserve(n + 1), ids.reserve(n + 1), phdrs.reserve(n + 1), objs.reserve(n + 1)];
             if grown.iter().any(Result::is_err) {
                 no_memory(name);
             }
@@ -117,7 +118,9 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 loop {
                     chain.reserve(depth + 1).unwrap_or_else(|_| no_memory(name));
                     let d = &objs[k].dynm;
-                    let (rpath, runpath) = (dyn_string(d, elf::dt::RPATH), dyn_string(d, elf::dt::RUNPATH));
+                    // `ld.so --inhibit-rpath` matches the path the object was loaded by (the program's: empty).
+                    let loaded: &[u8] = if k == 0 { b"" } else { paths[k] };
+                    let (rpath, runpath) = (search_list(d, elf::dt::RPATH, loaded), search_list(d, elf::dt::RUNPATH, loaded));
                     let dir = if k == 0 {
                         // The program's is read only for a search that can expand it: a token in its
                         // own lists, in LD_LIBRARY_PATH (expanded with the program's) or in the name.
@@ -128,7 +131,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                             None
                         }
                     } else {
-                        Some(paths[k]).filter(|p| !p.is_empty()).map(dir_of)
+                        Some(loaded).filter(|p| !p.is_empty()).map(dir_of)
                     };
                     chain[depth] = Scope { rpath, runpath, origin: dir };
                     depth += 1;
@@ -144,12 +147,11 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
                 let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
-                    match open_candidate(c, page, env, &mut checked) {
+                    match open_start(c, page, env, &mut checked) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
-                        Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
-                            let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
-                            unmap_view(at, file.len());
+                        Ok(hit) if set_uid_only && !start::preload_mode_admits(file_mode(hit.fd())) => {
+                            hit.release();
                             checked = None;
                             return false;
                         }
@@ -190,27 +192,32 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
             } else {
-                let (fd, at, file, id) = match found {
+                let f = match found.take() {
                     Some(f) => f,
-                    None => {
-                        // Not checked here (`map::load` checks it).
-                        checked = None;
-                        // The string table entry is NUL-terminated in the mapped file.
-                        open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING))
-                    }
+                    // Read from its headers as a search's candidate is (the string table entry is
+                    // NUL-terminated in the mapped object); anything that would refuse it is left to
+                    // the whole-file path below, which reports it as before.
+                    None => match open_start(name, page, env, &mut checked) {
+                        Ok(f) => f,
+                        Err(_) => by_path(name, prog_name, &mut checked),
+                    },
                 };
-                found = Some((fd, at, file, id));
                 // `ld.so` by any name it was found by is the start-time `ld.so` (ruling #5126).
-                let dynm = checked.map(|c| c.dynm).or_else(|| dynamic_of(file));
+                let dynm = match &f {
+                    Found::Mapped(_) => checked.map(|c| c.dynm),
+                    Found::View(_, _, file, _) => checked.map(|c| c.dynm).or_else(|| dynamic_of(file)),
+                    Found::Unmapped(..) => None,
+                };
                 is_interp = bare && dynm.and_then(|d| dyn_string(&d, elf::dt::SONAME)) == Some(Native::INTERP.as_bytes());
+                let id = f.id();
+                found = Some(f);
                 id
             };
             // Another path to an object already loaded (L14-4): the same object, loaded once.
             let again = if is_interp { interp } else { ids[..n].iter().position(|x| *x == id) };
             if is_interp || again.is_some() {
-                if let Some((fd, at, file, _)) = found {
-                    let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
-                    unmap_view(at, file.len());
+                if let Some(f) = found.take() {
+                    f.release();
                 }
             }
             if pre.is_some() && (is_interp || again.is_some()) {
@@ -229,7 +236,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 n += 1;
                 continue;
             }
-            let Some((fd, at, file, id)) = found else { continue };
+            let Some(f) = found else { continue };
             if !bare && pre.is_none() {
                 // Kept (NUL-terminated) as its link map's name: the DT_NEEDED string is in a mapping
                 // released below.
@@ -237,22 +244,44 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             }
             // A candidate the search checked is mapped by the plan its check made (the same bytes,
             // planned once); one found by path, or asking for an executable stack, is checked here.
-            let loaded = match checked {
-                Some(c) => map::map_planned(&mut StartMapper { fd }, &c.elf, &c.plan, file, page),
-                None => match map::load::<Native, _>(&mut StartMapper { fd }, file, page) {
-                    Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
-                    other => other,
-                },
+            // A candidate read from its headers is mapped already, by the plan they gave (LD-START-MAPS).
+            // A view-path object is mapped below, from its descriptor; it is closed after that.
+            if !matches!(f, Found::View(..)) {
+                let _ = crate::ffi_sys::niji_sys_close(i64::from(f.fd()));
+            }
+            let (loaded, elf, dynm) = match f {
+                Found::Mapped(m) => {
+                    for x in m.maps {
+                        keep_map(&mut maps, &mut nm, x, name);
+                    }
+                    // `open_start` gave the image-mode reader with every `Found::Mapped`.
+                    let Some(c) = checked else { fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE) };
+                    (m.loaded, c.elf, c.dynm)
+                }
+                Found::Unmapped(_, _, e) => fail_with(&[name, b": ", e.message()], program::FAILURE),
+                Found::View(fd, at, file, _) => {
+                    let loaded = match checked {
+                        Some(c) => map::map_planned(&mut StartMapper { fd }, &c.elf, &c.plan, file, page),
+                        None => match map::load::<Native, _>(&mut StartMapper { fd }, file, page) {
+                            Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
+                            other => other,
+                        },
+                    };
+                    let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
+                    let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
+                    keep_map(&mut maps, &mut nm, (at, file.len()), name);
+                    match checked {
+                        Some(c) => (loaded, c.elf, c.dynm),
+                        None => {
+                            let o = parse(file, name, loaded.bias);
+                            (loaded, o.elf, o.dynm)
+                        }
+                    }
+                }
             };
-            let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
-            let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
-            maps[n] = (at, file.len());
             ids[n] = id;
             phdrs[n] = (usize::try_from(loaded.phdr).unwrap_or(0), usize::from(loaded.phnum));
-            objs[n] = match checked {
-                Some(c) => niji_ld::reloc::Obj { elf: c.elf, dynm: c.dynm, bias: loaded.bias, name, tls: None },
-                None => parse(file, name, loaded.bias),
-            };
+            objs[n] = niji_ld::reloc::Obj { elf, dynm, bias: loaded.bias, name, tls: None };
             parent[n] = q;
             if pre.is_none() {
                 edge(q, n, name);
@@ -281,7 +310,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             fail_with(&[o.name, b": the TLS image lies outside the object's segments\n"], program::FAILURE);
         }
     }
-    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).unwrap_or_else(|e| {
+    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, surplus_bytes()).unwrap_or_else(|e| {
         let at = match e {
             ltls::TlsError::Align(k) | ltls::TlsError::Size(k) => k,
             _ => 0,
@@ -349,6 +378,10 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     if let Err(i) = reloc::protect_relro(objs, &mut ProcImage, page) {
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
     }
+    // D-21.6: asked for by the tunables, the shadow stack needs every start object marked; read while
+    // the views are mapped.
+    let shstk = super::entry::SHSTK_WANTED.load(Relaxed);
+    let shstk_lock = if shstk == 0 { None } else { shstk_decide(objs, shstk) };
     // The program's headers are read here, before their views are unmapped below.
     debug::keep_copy(|| {
         reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)))
@@ -373,7 +406,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     // start-time link maps' names (DL-23).
     let cache_map = cache.get().map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
-    for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
+    for &(at, len) in maps[..nm].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
         unmap_view(at, len);
     }
     views_close();
@@ -398,11 +431,50 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
     START_PAGE.store(page, Relaxed);
     START_N.store(n, Release);
     debug::consistent();
-    run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size)
+    if let Some(lock) = shstk_lock {
+        // From here no frame older than this call returns: the initialisers and the program run on
+        // the new shadow stack, and this function ends in the program-entry transfer.
+        let _ = crate::arch::niji_machine_ld_shstk_enter(lock);
+    }
+    let fini = run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size);
+    crate::arch::enter(sp, prog.entry, fini)
+}
+
+/// D-21.6: the lock mask to enable the shadow stack with when every start object in `objs` (the
+/// program, its `DT_NEEDED` objects and the preloads, with `ld.so` and the C library) is marked for
+/// it, in the mode kept as `code`; `None` when one is not. `ld.so` itself, when no object names it,
+/// is the build's (marked and checked, D-X.164). Cold: reached only when the tunables ask.
+#[cold]
+#[inline(never)]
+fn shstk_decide(objs: &[niji_ld::reloc::Obj<'static>], code: u8) -> Option<u64> {
+    let m = niji_ld::shstk::mode_of(code)?;
+    niji_ld::shstk::start_allowed::<Native>(objs.iter().map(|o| &o.elf)).then(|| niji_ld::shstk::lock_mask(m))
 }
 
 /// `DT_DEBUG`: the dynamic entry the loader points at the debugger rendezvous.
 const DT_DEBUG: u64 = 21;
+
+/// A dependency named by a path that [`open_start`] would not use: opened and mapped whole, not
+/// checked here (`map::load` checks it and reports why it is refused, `link` stops there).
+#[cold]
+#[inline(never)]
+fn by_path(name: &[u8], prog_name: &[u8], checked: &mut Option<niji_ld::dlopen::Checked<'static>>) -> Found {
+    *checked = None;
+    // The string table entry is NUL-terminated in the mapped object.
+    let (fd, at, file, id) = open_file(name.as_ptr().expose_provenance()).unwrap_or_else(|| fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING));
+    Found::View(fd, at, file, id)
+}
+
+/// Keep `m` (address, length; length 0: nothing to unmap) in the list of mappings `link` releases
+/// after the start, whose first `*nm` entries are in use.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+fn keep_map(maps: &mut Table<(usize, usize), INLINE>, nm: &mut usize, m: (usize, usize), name: &[u8]) {
+    if m.1 != 0 {
+        maps.reserve(*nm + 1).unwrap_or_else(|_| no_memory(name));
+        maps[*nm] = m;
+        *nm += 1;
+    }
+}
 
 /// The debugger rendezvous at the start (DL-23, [`debug`]): link the start-time objects' link maps
 /// in load order (the program `""`, the vDSO `linux-vdso.so.1` when `vdso` (`AT_SYSINFO_EHDR`) is
@@ -563,26 +635,24 @@ pub(super) fn program_origin(path: usize, out: &mut PathBuf) -> bool {
 }
 
 /// The objects program start preloads (DL-LD-PRELOAD): the `LD_PRELOAD` names, then the preload
-/// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`.
+/// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`. `ld.so --preload
+/// LIST`'s names come after `LD_PRELOAD`'s, under its rule: program mode folds them into `env`
+/// (`entry::fold_preload`), so an exec'd start pays nothing for the option.
 pub(super) struct Preloads<'a> {
     pub(super) env: &'static [u8],
-    /// `ld.so --preload LIST` (program mode; empty otherwise): after `LD_PRELOAD`'s names, before the
-    /// file's (probed), under `LD_PRELOAD`'s rule (`from_env`).
-    pub(super) option: &'static [u8],
     pub(super) file: &'static [u8],
     pub(super) file_path: &'a [u8],
 }
 
 impl Preloads<'_> {
     pub(super) fn names(&self) -> impl Iterator<Item = (&'static [u8], bool)> {
-        start::preload_names(self.env).chain(start::preload_names(self.option)).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
+        start::preload_names(self.env).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
     }
 
     /// The "cannot be preloaded" diagnostic for `name` (from `LD_PRELOAD` or `--preload` when
-    /// `from_env`: the option's names lie inside its value).
+    /// `from_env`: the option's names lie inside its part of the folded value).
     fn ignored(&self, name: &[u8], from_env: bool, reason: &[u8]) {
-        let in_option = self.option.as_ptr_range().contains(&name.as_ptr());
-        let source = match (from_env, in_option) {
+        let source = match (from_env, from_env && super::state::in_preload_option(name)) {
             (true, true) => b"--preload".as_slice(),
             (true, false) => start::PRELOAD_ENV,
             (false, _) => self.file_path,

@@ -1,0 +1,89 @@
+{
+ "task": "GATE-HONEST-METRICS",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE (base only): data-phase test gates on traced start-up text outside the hot group; per-locale-directory load traced at build; runtime fault bounds and the dynamic instruction bound are ratios to the reference on the same host; kernel instructions reported (spread over 1%, not gated); cargo xtask test red only on 4 tests that fail the same on next's base 0495c4684 and pass on next 81bdd4b45 (merge needed)",
+ "branch": "task/gate-honest-metrics",
+ "head": "499f8f05a",
+ "gate": {
+  "affected": "659 passed / 0 failed (direct tier, 7 suites, gate-honest-metrics-gate2)",
+  "peak": "gate: peak memory 2.1G (page cache included) oom_kill=0 rc=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "merge origin/next into task/gate-honest-metrics (the brief allows no merge): cargo xtask test is red on mei only on s7_2_f_0, locale_behaviour_equals_the_reference, printf_corpus_equals_the_reference, catalogs_equal_the_reference, which fail with the same lines on the base 0495c4684 and pass on next 81bdd4b45",
+   "recommendation": "allow the merge; a continuation merges, re-runs gate, plants, cargo xtask test and the release hot_text_products run, then hands back COMPLETE"
+  },
+  {
+   "item": "gate the kernel instruction count on the min of 20 runs (libniji within 0.4%, reference within 1.1% across series) instead of not at all",
+   "recommendation": "follow-up story: measure min-of-N stability on more programs and the workload kit first"
+  },
+  {
+   "item": "release-profile ratio bounds take the fast bounds until measured on the three classes",
+   "recommendation": "measure release ratios in a follow-up and tighten"
+  }
+ ],
+ "informational": [
+  "the first plant (per-directory names not appended to the mode traces) SURVIVED: the mutant build still grouped the per-directory functions by a route not identified; replaced by setlocale-keys-dropped (CAUGHT). Next's products fail the new check (2 functions outside) and this branch's pass, but which part of the change groups them is not proven",
+  "the whole test was run on the Skylake-SP host only; Haswell-EP and Zen 1 counts come from the same probe and harness in a scratch script, not this test binary",
+  "cargo xtask test on the Skylake-SP host: 4 reds (s7_2_f_0, locale_behaviour_equals_the_reference, printf_corpus_equals_the_reference, catalogs_equal_the_reference) fail with the same lines on origin/next's base 0495c4684 (gate-honest-metrics-nextbase): next's state on a host without locale-archive, not this branch",
+  "diagnostic gate-honest-metrics-next81-diag (mei, not a JOBS entry): the 4 tests on origin/next 81bdd4b45, 46 passed / 0 failed",
+  "layout-bins.tsv (fast) vs base: bins 0 and 1 unchanged; bin 2 63,498 -> 63,357 B (per-locale-directory functions in, a printf filler out)"
+ ],
+ "refused": [],
+ "jobs": [
+  "mei:gate-honest-metrics-lint4",
+  "mei:gate-honest-metrics-gate2",
+  "mei:gate-honest-metrics-plants3",
+  "mei:gate-honest-metrics-xtest2",
+  "mei:gate-honest-metrics-htp-release",
+  "mei:gate-honest-metrics-xpass2",
+  "mei:gate-honest-metrics-nextbase",
+  "mei:gate-honest-metrics-measure-mei2",
+  "shiki:gate-honest-metrics-measure-next",
+  "keke:gate-honest-metrics-measure-next"
+ ],
+ "impact": [
+  {
+   "kind": "faults",
+   "what": "static page_faults locale / tool, Skylake-SP (per-locale directories), fast",
+   "before": 56,
+   "after": 53,
+   "unit": "faults (locale; tool 58 -> 55)",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic page_faults locale / tool, Skylake-SP, fast",
+   "before": 107,
+   "after": 103,
+   "unit": "faults (locale; tool 109 -> 105)",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "init_data_clusters_hold_at_every_text_phase no longer flips with unrelated bytes on the per-locale-directory host class; names the function instead",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "dynamic probe locale and tool modes, kernel instruction report, Haswell-EP no longer skipped by the instruction bound; plants added",
+   "before": 0,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a test's reference counts (host C library, same probe and harness) make host classes comparable at no cost; the plants tool's per-plant rebuild (7-9 min traced) dominated wall time",
+ "next_step": "merge origin/next (ruling), re-run gate, plants, cargo xtask test and release hot_text_products on the merged head; then the follow-ups: release ratios on the other two classes, kernel min-of-N gating study",
+ "report_file": "handoff/GATE-HONEST-METRICS.md",
+ "superseded": [
+  "mei:gate-honest-metrics-plants (perdir-trace-dropped SURVIVED; plant replaced)",
+  "mei:gate-honest-metrics-lint, -lint2 (clippy arithmetic, fixed)",
+  "mei:gate-honest-metrics-gate, -plants2, -lint3, -xtest, -full (head before the reference_probe fix)"
+ ]
+}

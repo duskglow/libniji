@@ -157,12 +157,19 @@ unsafe fn rescan_until(p: *const u8, from: usize, c: u8) -> usize {
 // UNSAFE(slice): reading C text one unit at a time, up to the first NUL read.
 #[allow(unsafe_code)]
 unsafe fn cursor(mut p: *const u8) -> impl FnMut() -> u8 {
-    static END: u8 = 0;
+    // A flag, not a pointer to a static terminator: the address of a static in this crate, picked
+    // by a conditional move in another crate's code, is a GOT operand no link relaxes (D-X.140).
+    let mut done = false;
     move || {
-        // UNSAFE(slice) SAFETY: no byte before `p` was NUL (each one read moved `p` on; the
-        // NUL read moves it to `END`), so `p` is a byte of the string, its terminator, or `END`.
+        if done {
+            return 0;
+        }
+        // UNSAFE(slice) SAFETY: no byte before `p` was NUL (each one read moved `p` on, and the
+        // NUL read sets `done`, after which `p` is never read), so `p` is a byte of the string
+        // or its terminator.
         let x = unsafe { byte_at(p, 0) };
-        p = if x == 0 { &raw const END } else { p.wrapping_add(1) };
+        done = x == 0;
+        p = p.wrapping_add(1);
         x
     }
 }
@@ -2097,5 +2104,28 @@ pub(crate) mod portable {
             super::null_abort();
         }
         order(a, b, n)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    // UNSAFE(slice): the cursor reads C text; the test hands it NUL-terminated buffers.
+    #[allow(unsafe_code)]
+    fn cursor_yields_each_byte_then_zero_for_good() {
+        // Clauses: s4_4_c_0 (strcoll's single pass reads its C strings through this cursor, D-4.37).
+        // Each byte in order, the terminator, then 0 on every later call: a cursor that stops early
+        // or runs on past the terminator orders strcoll's pairs by the wrong bytes.
+        for text in [&b"\0"[..], b"e\0", b"abex\0", b"zebra\xc3\xa9\0"] {
+            // UNSAFE(slice) SAFETY: `text` is NUL-terminated and outlives the cursor.
+            let mut next = unsafe { cursor(text.as_ptr()) };
+            let got: Vec<u8> = (0..text.len() + 3).map(|_| next()).collect();
+            let mut want = text.to_vec();
+            want.extend([0, 0, 0]);
+            assert_eq!(got, want, "{text:?}");
+        }
     }
 }

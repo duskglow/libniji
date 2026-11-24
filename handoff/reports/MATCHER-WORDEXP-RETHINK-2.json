@@ -1,0 +1,123 @@
+{
+ "task": "MATCHER-WORDEXP-RETHINK-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Merged origin/next (no library change) and re-gated: direct tier green; RETHINK adopted (D-14.25): fnmatch matches valid UTF-8 names with the direct last-star matcher (no compile, no allocation); wordexp's nesting stacks are made on first use and the result block is copied once; every premise row is below the pre-PATTERN-NESTING-3 base and the improved rows improved again",
+ "branch": "task/matcher-wordexp-rethink-2",
+ "head": "d4c6cabdf",
+ "gate": {
+  "affected": "direct tier on mei: 20 suites ok, 10426 passed, 0 failed, 1227 ignored; conformance 7 passed",
+  "peak": "15G (page cache included), oom_kill=0"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The four locale tests that failed in matcher-wordexp-rethink-gate2 (s7_2_f_0, printf_corpus_equals_the_reference, locale_behaviour_equals_the_reference, catalogs_equal_the_reference) pass after merging next (LOCALE-PER-DIR-LOAD fixed them); no finding.",
+  "The direct matcher's differential test compared it with Pattern::matches, which runs the direct matcher first (vacuous for every case direct decides); it now compares with the general matcher.",
+  "Zen 1 instruction limits of the fnmatch rows were not tightened (counts here are Skylake-SP); Skylake-SP rows were added with 2% headroom."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "fnmatch on UTF-8 names, per call (fnmatch_utf8.c, 56 pattern/name pairs), vs pre-PN3 base",
+   "before": 4971.0,
+   "after": 886.4,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt fnmatch_names_ch (Skylake-SP; before = this branch's base aa4d907d9 on keke)",
+   "before": 760.3,
+   "after": 574.6,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt fnmatch_names_period",
+   "before": 652.4,
+   "after": 483.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt fnmatch_names_class",
+   "before": 898.3,
+   "after": 723.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt fnmatch_names_star_c",
+   "before": 565.7,
+   "after": 374.5,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_plain_8 (Skylake-SP, before and after on this host)",
+   "before": 3820.4,
+   "after": 3426.0,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_quoted",
+   "before": 3830.9,
+   "after": 3676.7,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_split_var",
+   "before": 3839.9,
+   "after": 3624.4,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_tilde_var",
+   "before": 4147.0,
+   "after": 3989.8,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_opt wordexp_arith / param_forms (rows PN3 improved)",
+   "before": 3962.0,
+   "after": 3824.8,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "new bench row fnmatch_names_utf8, percall spec fnmatch_utf8.c, 3 tests, 5 plants (all caught), 9 Skylake-SP instruction limits",
+   "before": null,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A stacked branch whose base lands should merge next before its gate, not after: the last run gated on a base whose tests next had already fixed.",
+ "next_step": "wordexp plain-text lane (no Parser for text with no quote, expansion, glob or operator byte; bound ~1300 for plain_8, now 3427); tighten the Zen 1 fnmatch limits from a Zen 1 count",
+ "report_file": "handoff/MATCHER-WORDEXP-RETHINK.md",
+ "jobs": [
+  "matcher-wordexp-rethink-2-lint",
+  "matcher-wordexp-rethink-2-gate",
+  "matcher-wordexp-rethink-2-plants"
+ ],
+ "superseded": [
+  "matcher-wordexp-rethink-gate (code head cdeb7ccca; same 4 host failures)",
+  "matcher-wordexp-rethink-plants (5 caught; before the limits commit)",
+  "matcher-wordexp-rethink-ck2 (first version of the stack test)"
+ ]
+}

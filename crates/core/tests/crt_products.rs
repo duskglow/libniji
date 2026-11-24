@@ -245,10 +245,12 @@ fn start_files_follow_the_psabi() {
         assert!(!secs.iter().any(|x| x.2.contains('W') && x.2.contains('X')), "{installed}: a writable code section: {secs:?}");
     }
     // Mcrt1.o: no driver names it; nothing in it reaches a program (the assembler's empty
-    // .text/.data/.bss are allocated but hold no byte).
+    // .text/.data/.bss are allocated but hold no byte). Its one allocated note is the GNU property
+    // note every shipped object carries (D-X.164), so that a link with it keeps the shadow-stack
+    // property; it holds no code or data.
     let m = p.join("niji-Mcrt1.o");
     let msecs = sections(&m);
-    assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0), "Mcrt1.o has allocated content: {msecs:?}");
+    assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0 && !(x.0 == ".note.gnu.property" && x.1 == "NOTE")), "Mcrt1.o has allocated content: {msecs:?}");
     assert!(symbols(&m).iter().all(|x| x[1] == "LOCAL"), "Mcrt1.o defines a symbol");
     // grcrt1.o: the static-PIE start plus the profiling hook in .preinit_array.
     let g = p.join("niji-grcrt1.o");
@@ -395,6 +397,36 @@ fn plain_cxx_runs_static_constructors_and_destructors() {
         let host = w.join(format!("host{tag}"));
         drive("c++", None, &[opts.iter().map(|x| (*x).to_string()).collect(), vec![s(&obj), "-o".into(), s(&host)]].concat());
         assert_eq!(run(&host, &w), want, "the reference, c++ {tag}");
+    }
+}
+
+#[test]
+fn plain_cc_runs_the_program_arrays_in_the_reference_order() {
+    // Clauses: s1_1_c_5, s1_1_c_6 (LIBC-INIT-ARRAY-REFS: a static program's start runs its own
+    // `.preinit_array`, `_init`, `.init_array`, and at exit `.fini_array` and `_fini`, found through
+    // the linker's markers; a dynamic program's come from its dynamic section, run by the loader).
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("arrays");
+    let src = s(&root().join("crates/core/tests/oracle/crt_arrays.c"));
+    let want = "preinit args\ninit section\nctor 101 args\nctor\nmain\natexit main\natexit ctor\ndtor\ndtor 101\nfini section\n";
+    for (opt, start) in [("-pie", "Scrt1.o"), ("-static", "crt1.o"), ("-static-pie", "rcrt1.o")] {
+        let tag = opt.trim_start_matches('-');
+        let obj = w.join(format!("arrays-{tag}.o"));
+        drive("cc", None, &["-O1".into(), "-fPIE".into(), "-c".into(), src.clone(), "-o".into(), s(&obj)]);
+        let exe = w.join(format!("arrays-{tag}"));
+        let mut args = vec![opt.to_string()];
+        if opt == "-pie" {
+            args.push(ldso());
+        }
+        args.extend([s(&obj), "-o".into(), s(&exe)]);
+        let trace = drive("cc", Some(&lib), &args);
+        assert_eq!(start_files(&trace, &lib), set(&[start, "crti.o", "crtn.o"]), "cc {opt}: start files");
+        assert_eq!(run(&exe, &w), want, "cc {opt}");
+        let host = w.join(format!("host-{tag}"));
+        drive("cc", None, &[opt.to_string(), s(&obj), "-o".into(), s(&host)]);
+        assert_eq!(run(&host, &w), want, "the reference, cc {opt}");
     }
 }
 

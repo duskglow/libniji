@@ -331,7 +331,8 @@ fn s7_2_f_0() {
     // strerror(errno) when setlocale fails): ENOENT when a name's data is not available, on every
     // attempt (a repeated name too, whatever errno held), as newlocale (D-7.18); EINVAL for a
     // category number that names none; a successful call leaves errno alone.
-    for (cat, name) in [(LC_ALL, "zh_HK.big5hkscs"), (LC_ALL, "zh_HK.big5hkscs"), (LC_CTYPE, "xx_YY"), (LC_ALL, "a/b"), (LC_ALL, "LC_CTYPE=C;LC_NUMERIC=nope")] {
+    // `qq` is in ISO 639's range reserved for local use: no installed locale has it.
+    for (cat, name) in [(LC_ALL, "qq_QQ.big5hkscs"), (LC_ALL, "qq_QQ.big5hkscs"), (LC_CTYPE, "xx_YY"), (LC_ALL, "a/b"), (LC_ALL, "LC_CTYPE=C;LC_NUMERIC=nope")] {
         for pre in [0, 1234] {
             errno::set_raw(pre);
             assert!(x::setlocale(cat, c(name).as_ptr()).is_null(), "{name}");
@@ -530,6 +531,28 @@ fn s7_4_c_2() {
     assert_eq!(text(x::__nl_langinfo_l(DAY_1, l)), "Sunday");
     assert_eq!(langinfo(0x7FFF_0000), "", "an unknown item: the empty string");
     x::freelocale(l);
+    // "C" LC_IDENTIFICATION (D-7.22): the reference's values as probed (perl's Langinfo.t checks
+    // TERRITORY), and the contact fields of an individual (items 2..6) empty (D-7.10).
+    // locale_products also diffs every item with the host's library.
+    let ident = |i: i32| langinfo((12 << 16) | i);
+    assert_eq!(ident(8), "ISO", "_NL_IDENTIFICATION_TERRITORY");
+    for i in 2..=6 {
+        assert_eq!(ident(i), "", "contact field {i} is empty");
+    }
+    let want = [(0, "ISO/IEC 14652 i18n FDCC-set"), (1, "ISO/IEC JTC1/SC22/WG20 - internationalization"), (12, "1.0"), (13, "1997-12-20"), (15, "ANSI_X3.4-1968")];
+    for (i, v) in want {
+        assert_eq!(ident(i), v, "_NL_IDENTIFICATION item {i}");
+    }
+    for i in [7, 9, 10, 11, 16] {
+        assert_eq!(ident(i), "", "_NL_IDENTIFICATION item {i}");
+    }
+    // CATEGORY: one string per category, LC_CTYPE..LC_IDENTIFICATION; the LC_ALL slot (6) empty.
+    let mut p = x::nl_langinfo((12 << 16) | 14);
+    for k in 0..12 {
+        let s = text(p);
+        assert_eq!(s, if k == 6 { "" } else { "i18n:1999" }, "_NL_IDENTIFICATION_CATEGORY string {k}");
+        p = p.wrapping_add(s.len() + 1);
+    }
 }
 
 #[test]

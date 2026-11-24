@@ -42,7 +42,7 @@ use self::state::{AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, S
 use self::tls::{INITIAL_TAIL, NewTls, Places, THREAD_MODS_LEN, initial_place, module_floor, reserve_thread_mods, publish_tls, release_tls, surplus, thread_mod, tls_generation};
 use self::image::{AT_FDCWD, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, ProcImage, SysMapper, dyn_string, image_view, map_view, own_object, read_cache, read_image};
 use self::initfini::{array_words, fn_addr0};
-use self::entry::{env_entries, read_auxv, report_nonshared};
+use self::entry::{env_entries, ld_entries, read_auxv, report_nonshared};
 
 pub(crate) use self::io::{c_string, exit, stack_word, write_all};
 pub use self::tls::{__tls_get_addr, _dl_get_tls_static_info};
@@ -74,6 +74,7 @@ mod initfini;
 mod link;
 mod trace;
 mod entry;
+mod report;
 mod exec_stack;
 pub mod debug;
 mod dlopen;

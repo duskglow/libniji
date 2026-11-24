@@ -10,14 +10,11 @@ __NIJI_BEGIN_C
 
 @@owns NULL va_list wcschr wcsrchr wcspbrk wcsstr wmemchr wcswcs
 @@emit
+@@fortify
 
 @@if NULL
 # ifndef NULL
-#  ifdef __cplusplus
-#   define NULL __null
-#  else
-#   define NULL ((void *) 0)
-#  endif
+@@null NULL
 # endif
 #endif
 
@@ -64,6 +61,17 @@ inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { retur
 # else
 extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW @@attrs(wcswcs);
 # endif
+#endif
+
+/* Inline body when optimizing (features.h, __NIJI_INLINES): mbrlen is mbrtowc (NULL, s, n, ps) for a caller's state
+   (C 7.29.6.3.1); without one it keeps its own internal state, which the library entry __mbrlen holds. */
+#if __NIJI_INLINES
+@@when mbrlen
+__NIJI_INLINE_FN size_t mbrlen (const char *__restrict __s, size_t __n, mbstate_t *__restrict __ps) __NIJI_NOTHROW
+{
+  return __ps != 0 ? mbrtowc ((wchar_t *) 0, __s, __n, __ps) : __mbrlen (__s, __n, (mbstate_t *) 0);
+}
+#endif
 #endif
 
 __NIJI_END_C

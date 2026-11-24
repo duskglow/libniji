@@ -1,0 +1,20 @@
+name: -H - writes the header to standard output after the catalog file
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set S
+| M x
+arg: --new
+arg: -H
+arg: -
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+| #define SSet 0x1\t/* i.msg:1 */
+| #define SM 0x1\t/* i.msg:2 */
+stderr:
+written-file: o.cat sha256 908cf673d05416edc8096f1f9167920b065ac00a532f09ebf9268079d79c02fb size 38

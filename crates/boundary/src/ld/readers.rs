@@ -30,8 +30,8 @@
 
 use super::dlopen::{node_address, reader_entry, CAP};
 use super::index::Found;
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
-use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, START_PAGE, START_RUN_PATH, THREAD_MODS_LEN};
+use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers, Extent};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
@@ -48,12 +48,26 @@ const DT_SONAME: u64 = 14;
 
 /// Per object: `[load bias, name address, program header table address, header count, live]`; a
 /// reader reads the first four words only after it saw `live` set (Acquire), and they do not change
-/// until the slot is reused, after a grace period (DL-17).
+/// until the slot is reused, after a grace period (DL-17). `live` is 0, [`LIVE`] or [`LIVE_TLS`]
+/// (the object has a `PT_TLS` header: the walk looks for its module only then).
 /// The first [`CAP`] entries (generation 0); later ones are in generations the loader maps and
 /// lists in its directory before staging them (DL-PROCESS-OBJECTS part 2, [`slot`]).
 static TABLE: [[AtomicUsize; 5]; CAP] = [const { [const { AtomicUsize::new(0) }; 5] }; CAP];
 /// Bytes of one entry of the readers' table.
 pub(super) const ENTRY_BYTES: usize = size_of::<[AtomicUsize; 5]>();
+/// The `live` word of a published object without a `PT_TLS` header.
+const LIVE: usize = 1;
+/// The `live` word of a published object with a `PT_TLS` header.
+const LIVE_TLS: usize = 3;
+
+/// The `live` word for an object with these program headers (written once, at its publication).
+fn live_word(phdr: usize, phnum: usize) -> usize {
+    if headers(phdr, phnum).any(|h| h.0 == PT_TLS) {
+        LIVE_TLS
+    } else {
+        LIVE
+    }
+}
 
 /// Entry `i` of the readers' table: below [`CAP`] the static table, else one directory load; `None`
 /// when its generation is not mapped.
@@ -188,6 +202,8 @@ struct Entry {
     name: usize,
     phdr: usize,
     phnum: usize,
+    /// The `live` word ([`LIVE`] or [`LIVE_TLS`]).
+    live: usize,
 }
 
 impl View {
@@ -217,22 +233,30 @@ impl View {
     /// The words of a live entry.
     #[inline(always)]
     fn read(e: &[AtomicUsize; 5]) -> Option<Entry> {
-        if e.get(4)?.load(Acquire) == 0 {
+        let live = e.get(4)?.load(Acquire);
+        if live == 0 {
             return None;
         }
         let w: [usize; 4] = core::array::from_fn(|j| e.get(j).map_or(0, |x| x.load(Relaxed)));
-        Some(Entry { bias: w[0], name: w[1], phdr: w[2], phnum: w[3] })
+        Some(Entry { bias: w[0], name: w[1], phdr: w[2], phnum: w[3], live })
     }
 
-    /// `(dlpi_adds, dlpi_subs)` now: the start-time objects and the vDSO, then the `dlopen`s'.
-    fn counters(&self) -> (u64, u64) {
-        let start = u64::try_from(self.start).unwrap_or(0).saturating_add(u64::from(vdso() != 0));
+    /// The start-time objects and the vDSO: the part of `dlpi_adds` that never changes (a walk
+    /// reads it once, [`View::counters`] adds the `dlopen`s' at every step).
+    fn start_adds(&self) -> u64 {
+        u64::try_from(self.start).unwrap_or(0).saturating_add(u64::from(vdso() != 0))
+    }
+
+    /// `(dlpi_adds, dlpi_subs)` now, from [`View::start_adds`]: the start-time objects and the vDSO,
+    /// then the `dlopen`s'.
+    #[inline(always)]
+    fn counters(start: u64) -> (u64, u64) {
         (start.saturating_add(ADDS.load(Acquire)), SUBS.load(Acquire))
     }
 }
 
 /// The vDSO's address from the start's auxiliary vector (0: none).
-fn vdso() -> usize {
+pub(super) fn vdso() -> usize {
     let v = VDSO.load(Relaxed);
     if v != usize::MAX {
         return v;
@@ -271,6 +295,38 @@ pub(super) fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u
         let w0 = h.first().copied().unwrap_or(0);
         (w0 & 0xffff_ffff, h.get(2).copied().unwrap_or(0), h.get(5).copied().unwrap_or(0), w0 >> 32)
     })
+}
+
+/// How the lookups that resolve an address to an object (`_dl_find_object`, `dladdr`, the index)
+/// match entry `i` (`super::index`). The kernel mapped the program it started and `ld.so` itself
+/// and left the pages between their segment runs unmapped, so another object or mapping may lie
+/// there (probe R-6, `spec/behaviour/dynlink.md`): those match by the run that holds the address.
+/// Every other object `map::load` mapped in one reservation that keeps its gaps: its whole range
+/// (probe R-5).
+pub(super) fn extent(i: usize) -> Extent {
+    let n = START_N.load(Relaxed);
+    let interp = START_INTERP.load(Relaxed);
+    let own = if interp < n { interp } else { n };
+    let kernel = n != 0 && ((i == 0 && START_RUN_PATH.load(Relaxed) == 0) || i == own);
+    if kernel {
+        Extent::Run(usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1))
+    } else {
+        Extent::Whole
+    }
+}
+
+/// Whether object `i`'s [`extent`] holds `a`, for a caller that found `a` inside its whole range
+/// (`super::dlopen::dladdr`): always for a whole-range object; else its run that holds `a`.
+pub(super) fn extent_holds(i: usize, a: usize) -> bool {
+    match extent(i) {
+        Extent::Whole => true,
+        // A segment that holds `a` (the common case, one pass), else the run's gaps.
+        e => live(i).is_some_and(|(bias, phdr, phnum)| {
+            let at = |v: u64| bias.wrapping_add(usize::try_from(v).unwrap_or(0));
+            headers(phdr, phnum).any(|h| h.0 == PT_LOAD && at(h.1) <= a && a < at(h.1).wrapping_add(usize::try_from(h.2).unwrap_or(0)))
+                || find_in(phdr, phnum, bias, a, e).is_some()
+        }),
+    }
 }
 
 /// The `DT_SONAME` of the object (`bias`, program headers at `phdr`) as a run-time address, from its
@@ -332,7 +388,7 @@ fn fill_start() -> usize {
         let name = if name == 0 { c"".as_ptr().expose_provenance() } else { name };
         stage(k, bias, name, phdr, phnum);
         if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
-            live.store(1, Release);
+            live.store(live_word(phdr, phnum), Release);
         }
     }
     let _ = PUBLISHED.compare_exchange(0, total, Release, Relaxed);
@@ -374,9 +430,8 @@ pub(super) fn publish(base: usize, len: usize) {
     fill_start();
     ADDS.fetch_add(u64::try_from(len.saturating_sub(base)).unwrap_or(0), Relaxed);
     for e in (base..len).filter_map(slot) {
-        if let Some(live) = e.get(4) {
-            live.store(1, Release);
-        }
+        let [_, _, phdr, phnum, live] = e;
+        live.store(live_word(phdr.load(Relaxed), phnum.load(Relaxed)), Release);
     }
     PUBLISHED.fetch_max(len, Release);
     super::index::added(base, len);
@@ -403,12 +458,27 @@ pub(super) fn count_unmapped(n: usize) {
 /// DL-15's records of the start-time modules, which DL-16d's `dlopen` extends with each new module
 /// before [`publish`] lists its object; `(0, 0)` otherwise.
 fn tls_of(e: &Entry) -> (u64, usize) {
+    if e.live != LIVE_TLS {
+        return (0, 0);
+    }
+    tls_module(e)
+}
+
+/// [`tls_of`] for an object with a `PT_TLS` header (out of the walk's loop).
+#[inline(never)]
+fn tls_module(e: &Entry) -> (u64, usize) {
     let Some((_, vaddr, _, _)) = headers(e.phdr, e.phnum).find(|h| h.0 == PT_TLS) else { return (0, 0) };
     let image = u64::try_from(e.bias).unwrap_or(0).wrapping_add(vaddr);
     let n = THREAD_MODS_LEN.load(Acquire);
     for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
+            if niji_ld::tls::dynamic_align(off).is_some() {
+                // An on-demand block (DL-19): the calling thread's, or null when it has none yet
+                // (dl_iterate_phdr(3): "if it has been allocated in the calling thread").
+                let p = niji_ld::tls::Placed { module, tp_offset: niji_ld::tls::NO_STATIC };
+                return (module, super::tls::thread_address(p, 0, false));
+            }
             let tp = u64::try_from(tb::tp()).unwrap_or(0);
             return (module, usize::try_from(tp.wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()))).unwrap_or(0));
         }
@@ -442,17 +512,18 @@ extern "C" fn iterate(cb: usize, data: usize) -> i64 {
         if REORDERED.load(Acquire) {
             return iterate_chain(v, cb, data);
         }
+        let start = v.start_adds();
         let mut i = 0usize;
         while i < v.len0() {
             if let Some(e) = v.entry(i) {
-                if let Some(r) = report(v, i, &e, cb, data) {
+                if let Some(r) = report(start, i, &e, cb, data) {
                     return r;
                 }
             }
             i = i.wrapping_add(1);
         }
         if i < v.len() {
-            return iterate_past(v, cb, data);
+            return iterate_past(v, start, cb, data);
         }
         0
     })
@@ -461,11 +532,11 @@ extern "C" fn iterate(cb: usize, data: usize) -> i64 {
 /// [`iterate`] past generation 0 (entries [`CAP`] on).
 #[cold]
 #[inline(never)]
-fn iterate_past(v: &View, cb: usize, data: usize) -> i64 {
+fn iterate_past(v: &View, start: u64, cb: usize, data: usize) -> i64 {
     let mut i = CAP;
     while i < v.len() {
         if let Some(e) = v.entry_past(i) {
-            if let Some(r) = report(v, i, &e, cb, data) {
+            if let Some(r) = report(start, i, &e, cb, data) {
                 return r;
             }
         }
@@ -481,10 +552,11 @@ fn iterate_past(v: &View, cb: usize, data: usize) -> i64 {
 #[cold]
 #[inline(never)]
 fn iterate_chain(v: &View, cb: usize, data: usize) -> i64 {
+    let start = v.start_adds();
     let mut out = 0i64;
     let _ = super::dlopen::chain_find(|i| {
         let e = if i < CAP { v.entry(i) } else { v.entry_past(i) };
-        match e.and_then(|e| report(v, i, &e, cb, data)) {
+        match e.and_then(|e| report(start, i, &e, cb, data)) {
             Some(r) => {
                 out = r;
                 true
@@ -496,25 +568,36 @@ fn iterate_chain(v: &View, cb: usize, data: usize) -> i64 {
 }
 
 /// Call `cb` for live entry `i` (and the vDSO after entry 0): `Some` with the callback's nonzero
-/// result, which ends the walk.
+/// result, which ends the walk. `start`: [`View::start_adds`]; the `dlopen`s' counters are read at
+/// every step (the walk is live).
 #[inline(always)]
-fn report(v: &View, i: usize, e: &Entry, cb: usize, data: usize) -> Option<i64> {
-    let (adds, subs) = v.counters();
+fn report(start: u64, i: usize, e: &Entry, cb: usize, data: usize) -> Option<i64> {
+    let (adds, subs) = View::counters(start);
     let (modid, block) = tls_of(e);
     let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(e.bias).unwrap_or(0), dlpi_name: e.name, dlpi_phdr: e.phdr, dlpi_phnum: u16::try_from(e.phnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: modid, dlpi_tls_data: block };
     let r = call(cb, &info, data);
     if r != 0 {
         return Some(i64::from(r));
     }
+    if i == 0 {
+        return report_vdso(start, cb, data);
+    }
+    None
+}
+
+/// [`report`]'s step after entry 0: the vDSO, when the process has one.
+#[inline(never)]
+fn report_vdso(start: u64, cb: usize, data: usize) -> Option<i64> {
     let vd = vdso();
-    if i == 0 && vd != 0 {
-        let (vphdr, vphnum, bias) = vdso_headers(vd);
-        let (adds, subs) = v.counters();
-        let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
-        let r = call(cb, &info, data);
-        if r != 0 {
-            return Some(i64::from(r));
-        }
+    if vd == 0 {
+        return None;
+    }
+    let (vphdr, vphnum, bias) = vdso_headers(vd);
+    let (adds, subs) = View::counters(start);
+    let info = struct_dl_phdr_info { dlpi_addr: u64::try_from(bias).unwrap_or(0), dlpi_name: c"linux-vdso.so.1".as_ptr().expose_provenance(), dlpi_phdr: vphdr, dlpi_phnum: u16::try_from(vphnum).unwrap_or(0), dlpi_adds: adds, dlpi_subs: subs, dlpi_tls_modid: 0, dlpi_tls_data: 0 };
+    let r = call(cb, &info, data);
+    if r != 0 {
+        return Some(i64::from(r));
     }
     None
 }
@@ -527,7 +610,7 @@ fn find_walk(v: &View, pc: usize) -> Option<(usize, usize, usize, usize)> {
     (0..n.min(CAP))
         .find_map(|i| {
             let e = v.entry(i)?;
-            find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+            find_in(e.phdr, e.phnum, e.bias, pc, extent(i)).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
         })
         .or_else(|| find_past(v, n, pc))
 }
@@ -538,7 +621,7 @@ fn find_walk(v: &View, pc: usize) -> Option<(usize, usize, usize, usize)> {
 fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usize)> {
     (CAP..n).find_map(|i| {
         let e = v.entry_past(i)?;
-        find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+        find_in(e.phdr, e.phnum, e.bias, pc, extent(i)).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
     })
 }
 
@@ -558,7 +641,7 @@ extern "C" fn find_object(pc: usize, result: usize) -> i64 {
             return None;
         }
         let (vphdr, vphnum, bias) = vdso_headers(vd);
-        find_in(vphdr, vphnum, bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, 0))
+        find_in(vphdr, vphnum, bias, pc, Extent::Whole).map(|(lo, hi, eh)| (lo, hi, eh, 0))
     });
     let Some((lo, hi, eh, map)) = found else { return -1 };
     // UNSAFE(slice): the caller's `struct dl_find_object` (§27.1).

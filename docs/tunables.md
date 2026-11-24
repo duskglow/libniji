@@ -18,15 +18,18 @@ loader rule 1; phase 14 applies the same rule in the dynamic loader).
 
 | Name (alias) | Range | Effect |
 |---|---|---|
-| `glibc.cpu.hwcaps` (`niji.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. Other items are ignored |
+| `glibc.cpu.hwcaps` (`niji.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. `SHSTK` (exactly) asks for the user shadow stack: enabled at start-up when the program and every start-up object are marked for it and the CPU and kernel have it (D-21.6); `-SHSTK` or no item, off (the default). Other items are ignored |
+| `glibc.cpu.x86_shstk` (`niji.cpu.x86_shstk`) | `on`, `off`, `permissive` | With `hwcaps=SHSTK` (D-21.6): `off` vetoes it; `on` keeps it on when a `dlopen`ed object is not marked (by default that `dlopen` fails); `permissive` turns it off for such an object and does not lock it. Exact lower-case spellings; the last entry counts |
 | `glibc.cpu.x86_rep_movsb_threshold` (`niji.cpu.rep_movsb_threshold`) | 0x100 and up | bytes from which copies use `rep movsb` |
 | `glibc.cpu.x86_rep_stosb_threshold` (`niji.cpu.rep_stosb_threshold`) | 1 and up | bytes from which fills use `rep stosb` |
 | `glibc.pthread.rseq` (`niji.pthread.rseq`) | 0 or 1 | 0: threads register no rseq area (§22.9) |
 | `glibc.malloc.perturb` (`niji.malloc.perturb`) | 0 to 255 | `M_PERTURB` of the C `malloc` family (§3.2); wins over `MALLOC_PERTURB_` |
+| `glibc.rtld.optional_static_tls` | 0 and up | bytes of static TLS room every thread keeps for `dlopen`ed objects that need it (initial-exec, `DF_STATIC_TLS`): the room is this value plus 1200 bytes, 512 + 1200 = 1712 bytes by default, as on the reference (objects without `DF_STATIC_TLS` take none, their blocks are made per thread on first access). Read at start-up only when `GLIBC_TUNABLES` names it (D-27.94) |
 | `niji.compat.no_classed_swap` (libniji only) | 0 or 1 | 1, or not set (the default, ruling #3434): the classed entries keep the file's SSE2 page; no page swap at start-up, so debuggers, profilers and core files see the code that runs. 0: on the AVX2 class the AVX2 page is swapped in at start-up (COMPAT-20, D-4.53) |
 | `niji.compat.execstack` (libniji only) | 0 or 1 | 1: the dynamic loader accepts a program, start-up dependency or `dlopen`ed library whose `PT_GNU_STACK` asks for an executable stack, and makes the main stack and the library-made thread stacks executable, as glibc does; 0 or not set (the default): such objects are refused (COMPAT-19, D-27.66) |
 
-The ranges are the ones the host loader lists (`ld.so --list-tunables`).
+The ranges are the ones the host loader lists (`ld.so --list-tunables`). libniji's own
+`ld.so --list-tunables` lists the `niji.*` names above with their ranges and current values (D-27.88).
 
 ## Ignored
 

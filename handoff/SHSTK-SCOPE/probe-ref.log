@@ -1,0 +1,246 @@
+-- GLIBC_TUNABLES=[] ./shb
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[] ./shb_static
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[] ./shb_unm
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb_static
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb_unm
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=permissive] ./shb
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=permissive] ./shb_static
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=permissive] ./shb_unm
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=off] ./shb
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=off] ./shb_static
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=off] ./shb_unm
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb_static
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb_unm
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+before x86_Thread_features:	
+before x86_Thread_features_locked:	
+before ssp=0
+dlopen ./libunm.so: ok
+after x86_Thread_features:	
+after x86_Thread_features_locked:	
+after ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=permissive] ./shb
+before x86_Thread_features:	
+before x86_Thread_features_locked:	
+before ssp=0
+dlopen ./libunm.so: ok
+after x86_Thread_features:	
+after x86_Thread_features_locked:	
+after ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+before x86_Thread_features:	
+before x86_Thread_features_locked:	
+before ssp=0
+dlopen ./libmk.so: ok
+after x86_Thread_features:	
+after x86_Thread_features_locked:	
+after ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+thread x86_Thread_features:	
+thread x86_Thread_features_locked:	
+thread ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb_static
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+thread x86_Thread_features:	
+thread x86_Thread_features_locked:	
+thread ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./shb
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./cxx
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.x86_shstk=on] ./main3
+   rc=0
+-- ulimit -s 1024, on, ssinfo
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+thread x86_Thread_features:	
+thread x86_Thread_features_locked:	
+thread ssp=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb dlopen ./libunm.so
+before x86_Thread_features:	shstk 
+before x86_Thread_features_locked:	shstk wrss 
+before ssp=nonzero
+dlopen ./libunm.so: ./libunm.so: rebuild shared object with SHSTK support enabled
+after x86_Thread_features:	shstk 
+after x86_Thread_features_locked:	shstk wrss 
+after ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=on] ./shb dlopen ./libunm.so
+before x86_Thread_features:	shstk 
+before x86_Thread_features_locked:	shstk wrss 
+before ssp=nonzero
+dlopen ./libunm.so: ok
+after x86_Thread_features:	shstk 
+after x86_Thread_features_locked:	shstk wrss 
+after ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=permissive] ./shb dlopen ./libunm.so
+before x86_Thread_features:	shstk 
+before x86_Thread_features_locked:	
+before ssp=nonzero
+dlopen ./libunm.so: ok
+after x86_Thread_features:	
+after x86_Thread_features_locked:	
+after ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK:glibc.cpu.x86_shstk=off] ./shb status
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb dlopen ./libmk.so
+before x86_Thread_features:	shstk 
+before x86_Thread_features_locked:	shstk wrss 
+before ssp=nonzero
+dlopen ./libmk.so: ok
+after x86_Thread_features:	shstk 
+after x86_Thread_features_locked:	shstk wrss 
+after ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb ssinfo
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+main shstk 74ba70600000-74ba70e00000 size=8192 kB rss=4 kB
+thread shstk 74ba6f400000-74ba6fc00000 size=8192 kB rss=4 kB
+thread shstk 74ba70600000-74ba70e00000 size=8192 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	shstk wrss 
+thread ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb_static ssinfo
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+main shstk 796d78200000-796d78a00000 size=8192 kB rss=4 kB
+thread shstk 796d771fd000-796d779fe000 size=8196 kB rss=4 kB
+thread shstk 796d78200000-796d78a00000 size=8192 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	shstk wrss 
+thread ssp=nonzero
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb longjmp 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb deep 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb swap 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb signal 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb thread 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb vfork 3
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./shb mapss 3
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./cxx 10
+   rc=0
+-- GLIBC_TUNABLES=[glibc.cpu.hwcaps=SHSTK] ./main3
+   rc=0
+-- ulimit -s 1024
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+main shstk 70c432b00000-70c432c00000 size=1024 kB rss=4 kB
+thread shstk 70c4328fe000-70c4329fe000 size=1024 kB rss=4 kB
+thread shstk 70c432b00000-70c432c00000 size=1024 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	shstk wrss 
+thread ssp=nonzero
+-- ulimit -s unlimited
+main x86_Thread_features:	shstk 
+main x86_Thread_features_locked:	shstk wrss 
+main ssp=nonzero
+main shstk 14531ee00000-14541ee00000 size=4194304 kB rss=4 kB
+thread shstk 14531e800000-14531ea00000 size=2048 kB rss=4 kB
+thread shstk 14531ee00000-14541ee00000 size=4194304 kB rss=4 kB
+thread x86_Thread_features:	shstk 
+thread x86_Thread_features_locked:	shstk wrss 
+thread ssp=nonzero
+-- LD_PRELOAD unmarked
+main x86_Thread_features:	
+main x86_Thread_features_locked:	
+main ssp=0

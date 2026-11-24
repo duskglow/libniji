@@ -1,0 +1,23 @@
+# The shared root of libniji's generated LC_COLLATE (LOCALE-COLLATE-TAILORINGS-2, decision #7958):
+# the DUCET (spec/unicode/15.1.0/allkeys.txt) with the reference's order as probed
+# (spec/locale/collate-root.txt). A host tool: its output is a locale source's LC_COLLATE section,
+# input to localedef. Not a product crate (nothing of it is linked into libc).
+[package]
+name = "niji-collate-root"
+description = "Generates the root LC_COLLATE locale source section from the DUCET and probed rules"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "niji_collate_root"
+
+[[bin]]
+name = "niji-collate-root"
+path = "src/main.rs"
+test = false
+
+[lints]
+workspace = true

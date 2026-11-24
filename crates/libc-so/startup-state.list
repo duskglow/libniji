@@ -47,6 +47,7 @@ niji_boundary::heap::RESERVE_TOP
 niji_boundary::heap::RESERVE_LIVE
 niji_boundary::heap::RESERVE_LOCK
 niji_boundary::heap::RSEQ_NODE  # the kernel-fills-node_id answer, written by the first multi-node allocation (D-3.21)
+niji_boundary::heap::RESERVE_LAST  # the release path's reserve bound and the library's own allocation fast path's gate, opened at start, set when routed (ruling #7583)
 # The initial thread, its TLS image and rseq registration.
 niji_boundary::thread::HEAD
 niji_boundary::thread::LIST
@@ -58,6 +59,7 @@ niji_boundary::thread::RSEQ_OWNED
 niji_boundary::thread::LOADER_RSEQ  # read by every start (init_initial) to find the loader's registration (D-3.21)
 niji_boundary::thread::LOADER_RSEQ_TP  # written by a dynamic program's start when libniji's loader registered rseq (D-3.21)
 niji_boundary::process::LOADER_PIN  # written by a dynamic program's start: the loader's thread_local destructor pin (s1_2_c_6)
+niji_boundary::posix::s27_dynlink::LOADER_DLSYM  # written by a dynamic program's start; read by the first setlocale (CTYPE-OBJECTS-SETLOCALE)
 niji_boundary::thread::FORBIDDEN
 niji_boundary::thread::TLS_IMAGE
 symbol __rseq_offset
@@ -167,6 +169,10 @@ niji::locale::collate::ASCII_KEYS
 # The class-table slot counter (D-5.10, WCTYPE-TRIE-FILE): the first setlocale that builds a compiled LC_CTYPE view
 # takes a slot of FILE_TABLES (the `locale`, `rebind` and `tool` probes); the tables themselves stay in `.bss`.
 niji::locale::classes::FILE_NEXT
+# The legacy ctype objects' addresses (CTYPE-OBJECTS-SETLOCALE, D-5.13): the first setlocale reads the found flag
+# (the `locale` and `rebind` probes) and, in a dynamic program, writes the six addresses the loader resolves.
+niji_boundary::locale::COMPAT_CTYPE_FOUND
+niji_boundary::locale::COMPAT_CTYPE_AT
 niji_legacy::intl::GENERATION
 niji_legacy::intl::SETTINGS
 symbol _IO_2_1_stdout_

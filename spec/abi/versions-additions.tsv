@@ -1,0 +1,3 @@
+arch	library	symbol	version	binding	type	scope	size	decision
+all	libc.so.6	sched_getattr	GLIBC_2.41	default	FUNC	GLOBAL		D-24.12
+all	libc.so.6	sched_setattr	GLIBC_2.41	default	FUNC	GLOBAL		D-24.12

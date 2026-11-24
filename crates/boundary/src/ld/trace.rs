@@ -8,7 +8,7 @@ use niji_ld::search::{self, PathBuf, Scope};
 use niji_ld::{elf, map};
 use super::table::{PathStore, Table, INLINE};
 use super::entry::List;
-use super::image::{SysMapper, Unusable, dir_of, dyn_string, dynamic_of, open_candidate, open_whole, read_cache};
+use super::image::{SysMapper, Unusable, dir_of, dyn_string, dynamic_of, fail_program, open_candidate, open_program, open_whole, read_cache, search_list};
 use super::io::{exit, fail_loading, write_all};
 
 /// One object of the dependency list: the name it was needed as, its `DT_SONAME`, its file (empty
@@ -58,10 +58,21 @@ pub(super) fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: O
         }
         exit(program::FAILURE)
     };
-    let Some((file, fd)) = (if path.push(prog) { path.c_str().and_then(open_whole) } else { None }) else {
+    let pushed = path.push(prog);
+    // `--list PROGRAM`: a file that is missing, unreadable, a directory, shorter than an ELF header or
+    // not an ELF file ends the start as running it does (the reference's form and reasons, probed).
+    let named = path.c_str().filter(|_| strict && pushed).map(|c| c.as_ptr().expose_provenance());
+    if let Some(at) = named {
+        let (fd, _) = open_program(at);
+        let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
+    }
+    let Some((file, fd)) = (if pushed { path.c_str().and_then(open_whole) } else { None }) else {
         fail(prog, b"cannot open shared object file\n")
     };
     let _ = crate::ffi_sys::niji_sys_close(fd);
+    if let Some(at) = named.filter(|_| !file.starts_with(b"\x7fELF")) {
+        fail_program(at, b"invalid ELF header");
+    }
     let interp = elf::Elf::parse::<Native>(file).ok().and_then(|e| e.interp().ok().flatten());
     // The interpreter's line: the program's PT_INTERP, else the path the loader was run by; the
     // path is the loader as run (`NAME => PATH` when the two differ), as the reference prints it.
@@ -100,7 +111,10 @@ pub(super) fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: O
             let Some(slot) = chain.get_mut(depth) else { break };
             let od = dynamic_of(o.file);
             let origin = Some(dir_of(o.path));
-            *slot = Scope { rpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RPATH)), runpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RUNPATH)), origin };
+            // The path `ld.so --inhibit-rpath` matches: the one the object was loaded by (the program's: empty).
+            let loaded: &[u8] = if k == 0 { b"" } else { o.path };
+            let list = |tag| od.as_ref().and_then(|x| search_list(x, tag, loaded));
+            *slot = Scope { rpath: list(elf::dt::RPATH), runpath: list(elf::dt::RUNPATH), origin };
             depth = depth.wrapping_add(1);
             if k == 0 {
                 break;

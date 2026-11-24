@@ -78,7 +78,7 @@ impl pf::Env for Env {
         conv::store_int(addr, count_size(len), i64::try_from(count).unwrap_or(i64::MAX));
     }
 
-    fn error_text(&mut self, out: &mut TryVec<u8>) -> KResult<()> {
+    fn error_text(&mut self, out: &mut pf::ErrorText) -> KResult<()> {
         match niji::diag::description(self.errno_at_entry) {
             Some(d) => out.extend_from_slice(d.as_bytes()),
             None => {
@@ -269,10 +269,29 @@ fn format<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<
     format_routed(fmt, flag, ap, pf::Planned::Unknown, None, out)
 }
 
+/// [`format_at`] of the caller's own format, for [`format_routed`]: a cold call there, so the
+/// simple formats' paths keep their registers and layout (as a plain call, `%s` alone took two
+/// more instructions per call; PRINTF-NO-HEAP-2). `format_at` itself is not cold: its own
+/// inlining is unchanged.
+#[cold]
+#[inline(never)]
+fn format_general<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out)
+}
+
 /// [`format`] when a stream's plan cache (D-12.21) may already know `fmt`: `kept` is its plan
 /// (lent by the cache, not copied; TAR-TV) when `route` is [`pf::Planned::Simple`];
 /// [`pf::Planned::General`] is a format known not to be simple; otherwise the format is planned here.
-#[inline]
+///
+/// The hot dispatcher, inlined into each caller (PRINTF-NO-HEAP-3): a bare `%s` and a kept plan
+/// are written here; a format no plan cache holds is planned by the out-of-line
+/// [`format_planned`] (a stream's kept plan never needs it), one not simple by
+/// [`format_general`]. When the render_simple instances shared one function with these paths,
+/// its prologue (six saved registers, a 0x138-byte frame) ran for a bare `%s` too, and each
+/// change to any path moved the others' registers (PRINTF-NO-HEAP-2). A kept plan of more than
+/// one conversion calls render_simple from here: through an out-of-line wrapper it took 12 more
+/// instructions per call (`fprintf_du_line`, `fprintf_ls_line`).
+#[inline(always)]
 fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planned, kept: Option<&pf::SimpleFormat>, out: &mut O) -> KResult<usize> {
     if let Some(plan) = kept {
         if plan.is_lone() {
@@ -284,7 +303,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
     }
     match route {
         pf::Planned::Simple => {}
-        pf::Planned::General => return format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out),
+        pf::Planned::General => return format_general(fmt, flag, ap, out),
         pf::Planned::Unknown => {
             // A format that is exactly `%s` (the commonest one for a string copy) has nothing to parse or
             // pad: one argument, `(null)` for a null pointer, written as is. Same bytes as the general path.
@@ -299,10 +318,18 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
             }
         }
     }
+    format_planned(fmt, flag, ap, out)
+}
+
+/// The rest of [`format_routed`] for a format no plan cache holds: plan it, then write a plan of
+/// one conversion or of two strings piece by piece, any other through render_simple; a format
+/// that is not simple, or any while conversions are registered, takes the general path.
+#[inline(never)]
+fn format_planned<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
     // The plan is filled in place: returned by value it would be copied.
     let mut plan = pf::SimpleFormat::new();
     if reg::active() || !pf::simple_into(fmt, &mut plan) {
-        return format_at(fmt, fmt.as_ptr().expose_provenance(), flag, ap, out);
+        return format_general(fmt, flag, ap, out);
     }
     // One conversion and its text (gawk's `"*.*%c"`, `"%lu"`): the pieces written directly, as
     // for a kept plan, without render_simple's loop (SPRINTF-RENDER).
@@ -500,15 +527,31 @@ fn render_plan<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
 }
 
 /// [`format`] of a copy of the caller's format, which lies at `origin` (the fortified `%n` rule
-/// asks where the caller's format is, not the copy).
+/// asks where the caller's format is, not the copy). Kept out of line: inlined into
+/// [`format_routed`] it changed the simple formats' code there (`%s:%d: %s` +14 instructions
+/// per call; PRINTF-NO-HEAP-2), and the general path's own cost dwarfs a call.
+#[inline(never)]
 fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
-    let mut env = Env::new();
-    let mut parsed = Parsed::new();
+    let mut parsed: Parsed = Parsed::new();
     if reg::active() {
         pf::parse_into(fmt, &mut Hooks { wide: U::WIDE }, &mut parsed)?;
     } else {
+        // Without registered conversions the parse stays inline; a format it does not hold
+        // takes the long path, which needs no memory either (PRINTF-NO-HEAP).
+        parsed.bounded = true;
         pf::parse_into(fmt, &mut pf::Plain, &mut parsed)?;
+        if parsed.more.is_some() {
+            return format_long(fmt, origin, flag, ap, out);
+        }
     }
+    format_parsed(fmt, &parsed, origin, flag, ap, out)
+}
+
+/// The rest of [`format_at`] once `fmt` is parsed: the fortified `%n` rule, the arguments,
+/// the rendering.
+#[inline]
+fn format_parsed<U: Unit, O: Out<U>, const N: usize>(fmt: &[U], parsed: &Parsed<N>, origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    let mut env = Env::new();
     if flag > 0 && parsed.pieces.iter().any(|p| matches!(p, pf::Piece::Conv(c) if c.letter == u32::from(b'n'))) && !crate::process::is_read_only(origin) {
         crate::process::fortify_fail(b"%n in writable segment detected");
     }
@@ -530,9 +573,72 @@ fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize,
         objects.push(mem)?;
         Ok(Arg::User(addr))
     };
-    let mut args = niji::mem::InlineVec::new();
+    let mut args: niji::mem::InlineVec<Arg, N> = niji::mem::InlineVec::new();
     niji_legacy::printf_va::read(&parsed.classes, &mut CVa(ap), &mut user, &mut args)?;
-    let n = pf::render(fmt, &parsed, &args, &mut env, out)?;
+    let n = pf::render(fmt, parsed, &args, &mut env, out)?;
+    // The result is an `int` (D-12.5).
+    if n > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
+        return Err(Errno::EOVERFLOW);
+    }
+    Ok(n)
+}
+
+/// The pieces and argument classes inline for a positional format too long for
+/// [`format_at`]'s parse (the reference allocates from 16 positional arguments on).
+const LONG_PIECES: usize = 48;
+
+/// A format (without registered conversions) whose parse does not fit inline (D-12.32).
+/// Without positional arguments it is parsed and rendered a part at a time, each part's
+/// arguments read from the caller's `va_list` in turn (it keeps the position), after a first
+/// pass that applies the checks [`format_at`] makes before any output (`%n` in a writable
+/// format, a count past `INT_MAX`). A positional format needs every argument's type first: it
+/// is parsed whole into a larger inline parse.
+#[cold]
+#[inline(never)]
+fn format_long<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize, out: &mut O) -> KResult<usize> {
+    let (mut positional, mut count, mut overflow) = (false, false, false);
+    let mut at = 0usize;
+    loop {
+        let mut part: Parsed = Parsed::bounded();
+        pf::parse_from(fmt, &mut pf::Plain, &mut part, at)?;
+        positional |= part.positional;
+        overflow |= part.overflow;
+        count |= part.pieces.iter().any(|p| matches!(p, pf::Piece::Conv(c) if c.letter == u32::from(b'n')));
+        match part.more {
+            Some(m) if !positional && m > at => at = m,
+            Some(_) => {
+                positional = true;
+                break;
+            }
+            None => break,
+        }
+    }
+    if positional {
+        let mut parsed: Parsed<LONG_PIECES> = Parsed::with_room();
+        pf::parse_into(fmt, &mut pf::Plain, &mut parsed)?;
+        return format_parsed(fmt, &parsed, origin, flag, ap, out);
+    }
+    if flag > 0 && count && !crate::process::is_read_only(origin) {
+        crate::process::fortify_fail(b"%n in writable segment detected");
+    }
+    if overflow {
+        return Err(Errno::EOVERFLOW);
+    }
+    let mut env = Env::new();
+    let mut n = 0usize;
+    let mut at = 0usize;
+    loop {
+        let mut part: Parsed = Parsed::bounded();
+        pf::parse_from(fmt, &mut pf::Plain, &mut part, at)?;
+        let mut args: niji::mem::InlineVec<Arg, 16> = niji::mem::InlineVec::new();
+        // No registered types without registered conversions.
+        niji_legacy::printf_va::read(&part.classes, &mut CVa(ap), &mut |_, _| Ok(Arg::Int(0)), &mut args)?;
+        n = pf::render_from(fmt, &part, &args, &mut env, out, n)?;
+        match part.more {
+            Some(m) => at = m,
+            None => break,
+        }
+    }
     // The result is an `int` (D-12.5).
     if n > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
         return Err(Errno::EOVERFLOW);
@@ -701,14 +807,51 @@ fn plan_cache(slot: &mut PlanSlot) -> Option<&'static mut pf::PlanCache> {
             slot.calls = slot.calls.saturating_add(1);
             return None;
         }
-        // Never freed: the cache stays with the stream's slot (tb::leaked_at).
-        slot.addr = niji::mem::TryBox::new(pf::PlanCache::new()).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance());
+        slot.addr = make_plans();
         if slot.addr == 0 {
             slot.calls = 0;
             return None;
         }
     }
-    Some(tb::leaked_at::<pf::PlanCache>(slot.addr))
+    Some(&mut tb::leaked_at::<KeptPlans>(slot.addr).cache)
+}
+
+/// A stream's plan cache, and the link that holds it in [`SPARE_PLANS`] while no stream has it.
+struct KeptPlans {
+    cache: pf::PlanCache,
+    next: usize,
+}
+
+/// Plan caches given back by closed streams (their slots are freed, D-12.31), linked through
+/// `next`, under the slot lock: the next stream to make a cache takes one (a cache keyed on the
+/// format's bytes is not state, D-12.21). Never freed (tb::leaked_at).
+static SPARE_PLANS: AtomicUsize = AtomicUsize::new(0);
+
+/// A plan cache for a stream: a given-back one, or a new one (0: no memory).
+#[cold]
+#[inline(never)]
+fn make_plans() -> usize {
+    let spare = stdio::under_slot_lock(|| {
+        let a = SPARE_PLANS.load(Relaxed);
+        if a != 0 {
+            SPARE_PLANS.store(tb::leaked_at::<KeptPlans>(a).next, Relaxed);
+        }
+        a
+    });
+    if spare != 0 {
+        return spare;
+    }
+    niji::mem::TryBox::new(KeptPlans { cache: pf::PlanCache::new(), next: 0 }).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance())
+}
+
+/// Keep a closing stream's plan cache (if it made one) for the next stream (D-12.31).
+pub(crate) fn give_back_plans(plans: PlanSlot) {
+    if plans.addr != 0 {
+        stdio::under_slot_lock(|| {
+            tb::leaked_at::<KeptPlans>(plans.addr).next = SPARE_PLANS.load(Relaxed);
+            SPARE_PLANS.store(plans.addr, Relaxed);
+        });
+    }
 }
 
 /// [`vfprintf`] into `out`, under the stream's lock (`route` and `kept`: [`format_routed`]).
@@ -723,14 +866,14 @@ fn to_stream(fmt: &[u8], flag: i32, ap: usize, route: pf::Planned, kept: Option<
 /// `vfwprintf(fp, fmt, ap)` (`fp` 0: `stdout`): the stream becomes wide-oriented.
 pub fn vfwprintf(fp: usize, flag: i32, fmt: KResult<&[i32]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
-    let units: TryVec<u32> = fmt.iter().map(|&w| u32::from_ne_bytes(w.to_ne_bytes())).try_fold(TryVec::new(), |mut v, u| v.push(u).map(|()| v))?;
+    let units = conv::wide_units(fmt);
     let fp = if fp == 0 { stdio::stdout() } else { fp };
     let enc = Encoding::of(locale::current());
     if reg::active() {
         // Handlers may run: collect, then write (as `vfprintf`).
         stdio::with(fp, Locking::Locked, |_, file, ext| if sc::wide_oriented(file, ext, enc) { Ok(()) } else { Err(Errno::EINVAL) })??;
         let mut out = CollectWide(TryVec::new(), None);
-        let r = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
+        let r = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
         let written = stdio::with(fp, Locking::Locked, |_, file, ext| {
             let mut w = WideToStream { file, ext, enc, error: None };
             w.put(&out.0);
@@ -748,7 +891,7 @@ pub fn vfwprintf(fp: usize, flag: i32, fmt: KResult<&[i32]>, ap: usize) -> KResu
             return Err(Errno::EINVAL);
         }
         let mut out = WideToStream { file, ext, enc, error: None };
-        let n = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out)?;
+        let n = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out)?;
         out.error.map_or(Ok(n), Err)
     })?
 }
@@ -881,10 +1024,18 @@ impl ToBuffer {
 
 /// `vsnprintf(s, maxlen, fmt, ap)` and `vsprintf` (`maxlen` `usize::MAX`); `slen` is the
 /// fortified destination size (`usize::MAX`: none). The full length is returned.
+///
+/// Inlined into each C entry (PRINTF-NO-HEAP-3): with [`format_routed`]'s bare `%s` path in it,
+/// the compiler kept this function out of line, and its call, six saved registers and argument
+/// moves cost every `snprintf` row 26 to 32 instructions per call.
+#[inline(always)]
 pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&[u8]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
     let mut out = ToBuffer { addr: s, max: maxlen, slen, pos: 0 };
-    let r = format(fmt, flag, ap, &mut out);
+    // The dispatcher itself, not [`format`]: called from every C entry, `format::<ToBuffer>`
+    // stayed a function of its own between the entry and `format_planned` (15 instructions per
+    // `snprintf("%d")`).
+    let r = format_routed(fmt, flag, ap, pf::Planned::Unknown, None, &mut out);
     // The output so far is terminated, on an error too.
     if maxlen > 0 {
         if out.pos >= slen {
@@ -898,8 +1049,9 @@ pub fn vsnprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&
     r
 }
 
-/// Wide characters into a caller's buffer of `max` units (`vswprintf`): `-1` (`EOVERFLOW`)
-/// when the result does not fit, as the contract requires.
+/// Wide characters into a caller's buffer of `max` units (`vswprintf`): `-1` (`E2BIG`, as
+/// observed of the reference at every size; D-12.33) when the result does not fit, as the
+/// contract requires.
 struct ToWideBuffer {
     addr: usize,
     max: usize,
@@ -927,9 +1079,9 @@ impl Out<u32> for ToWideBuffer {
 /// `vswprintf(s, maxlen, fmt, ap)`.
 pub fn vswprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&[i32]>, ap: usize) -> KResult<usize> {
     let fmt = fmt?;
-    let units: TryVec<u32> = fmt.iter().map(|&w| u32::from_ne_bytes(w.to_ne_bytes())).try_fold(TryVec::new(), |mut v, u| v.push(u).map(|()| v))?;
+    let units = conv::wide_units(fmt);
     let mut out = ToWideBuffer { addr: s, max: maxlen, slen, pos: 0, truncated: false };
-    let r = format_at(&units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
+    let r = format_at(units, fmt.as_ptr().expose_provenance(), flag, ap, &mut out);
     if maxlen > 0 {
         if out.pos >= slen {
             crate::ret::chk_fail();
@@ -940,7 +1092,7 @@ pub fn vswprintf(s: usize, maxlen: usize, flag: i32, slen: usize, fmt: KResult<&
     }
     let n = r?;
     if out.truncated {
-        return Err(Errno::EOVERFLOW);
+        return Err(Errno::E2BIG);
     }
     Ok(n)
 }

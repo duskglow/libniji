@@ -75,7 +75,26 @@ for name, a in targets:
         func = name
 gdb.execute("delete", to_string=True)
 
-sp0 = int(gdb.parse_and_eval("$sp"))
+
+
+def entry_sp():
+    """The stack pointer at the function's entry (the return address on top): the caller's unwound stack pointer
+    minus 8. In a dynamic link the name is not in the program's own symbol table, gdb breaks after the prologue's
+    pushes, and the current stack pointer is below the entry value: the first epilogue pop before a tail jump would
+    then read as the return (PATTERN-NESTING-3: 32 of ~3900 instructions traced)."""
+    try:
+        f = gdb.selected_frame()
+        while f is not None and f.type() == gdb.INLINE_FRAME:
+            f = f.older()
+        caller = f.older() if f is not None else None
+        if caller is not None:
+            return int(caller.read_register("sp")) - 8
+    except gdb.error:
+        pass
+    return int(gdb.parse_and_eval("$sp"))
+
+
+sp0 = entry_sp()
 counts = collections.Counter()
 order = []
 n = 0
@@ -96,8 +115,15 @@ while n < limit:
     else:
         order.append([name, 1])
     n += 1
-    gdb.execute("stepi", to_string=True)
-    if int(gdb.parse_and_eval("$sp")) > sp0:
+    # A function that never returns (a thread's entry, its exit sequence) ends with its thread: the step that
+    # exits leaves no live selected thread, and the trace ends there.
+    try:
+        gdb.execute("stepi", to_string=True)
+        if int(gdb.parse_and_eval("$sp")) > sp0:
+            break
+    except gdb.error as e:
+        ended = str(e)
+        print("wl_trace: the traced thread ended (%s)" % ended.splitlines()[0][:100] if ended else "wl_trace: the traced thread ended")
         break
 print("TOTAL %d instructions in call %d of %s%s" % (n, skip + 1, func, " (STEP LIMIT REACHED)" if n >= limit else ""))
 for name, c in counts.most_common(40):

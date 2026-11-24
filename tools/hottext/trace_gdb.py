@@ -581,3 +581,10 @@ with open(out_path, "w") as f:
     for addr in merge(runs):
         for n in out_names.get(addr, []):
             f.write(n + "\n")
+# GATE-HONEST-METRICS (#8133): HOT_TEXT_ADDRS=<file> also writes the entry address of every function that ran
+# (hex, one per line, the order above), so a test can check where each lies in the traced program's link map
+# without mapping names back (a local name can be defined twice).
+if os.environ.get("HOT_TEXT_ADDRS"):
+    with open(os.environ["HOT_TEXT_ADDRS"], "w") as f:
+        for addr in merge(runs):
+            f.write("%x\n" % addr)

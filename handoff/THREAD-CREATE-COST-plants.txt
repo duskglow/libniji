@@ -1,0 +1,5 @@
+# THREAD-CREATE-COST plants (cargo xtask plants handoff/THREAD-CREATE-COST-plants.txt --dir <RAM dir>)
+span-zero | crates/rt/src/thread.rs | lit:self.hi.load(Acquire).min(KEYS) ==> 0 | cargo test -p niji-rt --lib the_exit_scan | msg:the_exit_scan_reaches_the_highest_key_ever_created.*(FAILED|panicked)
+span-short | crates/rt/src/thread.rs | lit:self.hi.fetch_max(k + 1, AcqRel); ==> self.hi.fetch_max(k, AcqRel); | cargo test -p niji-rt --lib the_exit_scan | msg:the_exit_scan_reaches_the_highest_key_ever_created.*(FAILED|panicked)
+reuse-skips-block | crates/boundary/src/thread.rs | lit:let from = if loaders { lay.tp } else { lay.tls }; ==> let from = if loaders { lay.keys } else { lay.tls }; | cargo test -p niji-boundary --test dl_tls_threads | msg:threads_get_static_tls_of_every_initial_module.*(FAILED|panicked)
+empty-slot | crates/boundary/src/ld/tls.rs | lit:if let Some(w) = dtv_slot(id).and_then(|s| dtv.get(s)) { ==> if let Some(w) = None::<&AtomicU64> { | cargo test -p niji-boundary --test dl_tls_threads a_reused_mapping | msg:a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id.*(FAILED|panicked)

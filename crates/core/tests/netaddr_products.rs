@@ -13,29 +13,12 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+use oracle::root;
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/netaddr_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-            .arg(r.join("target/niji/niji-crt1.o"))
-            .arg(&src)
-            .arg(r.join("target/niji/libc.a"))
-            .arg("-L")
-            .arg(r.join("target/niji"))
-            .args(["-lresolv", "-lgcc"]);
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src).arg("-lresolv");
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/netaddr_diff.c").host_libs(&["-lresolv"]).niji_libs(&["-lresolv"]).build(out, niji)
 }
 
 /// Lines that differ from the reference by decision: text the line starts with, and why. A

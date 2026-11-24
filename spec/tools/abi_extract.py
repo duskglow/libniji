@@ -6,12 +6,17 @@ Sources, per the owner's decision on OD-1 (interface declarations, not implement
     type layouts (DWARF of a probe that declares one object per type), sizes and alignments,
     static-initializer bytes, function prototypes (gcc -aux-info), numeric macro values;
   * the dynamic symbol tables of the installed libraries (readelf): symbol versions,
-    default-vs-compat binding, and object sizes of exported data symbols.
+    default-vs-compat binding, and object sizes of exported data symbols;
+  * spec/abi/versions-additions.tsv: the exports libniji adds beyond the reference, each with its
+    decision record, merged into versions.tsv (versions.sha256 pins the reference rows alone);
+  * spec/abi/prototypes-additions.tsv: the prototypes of those exports, the same way, merged into
+    prototypes.tsv (prototypes.sha256 pins the reference rows alone).
 
 Run on the reference system (Ubuntu 24.04, glibc 2.39):  python3 spec/tools/abi_extract.py
-Outputs go to spec/abi/. Nothing here reads glibc source code.
+Outputs go to spec/abi/. Nothing here reads glibc source code. `--versions-only` regenerates
+versions.tsv and versions.sha256 alone; `--prototypes-only` prototypes.tsv and prototypes.sha256 alone.
 """
-import csv, os, re, subprocess, sys, tempfile, collections
+import csv, os, re, subprocess, sys, tempfile, collections, hashlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "abi")
@@ -35,7 +40,8 @@ sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mch
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
-net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h""".split()
+net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
+net/route.h netinet/if_ether.h arpa/tftp.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -137,6 +143,13 @@ TYPES = [
  ("struct sockaddr_ll", "struct sockaddr_ll"), ("struct ip_mreqn", "struct ip_mreqn"),
  ("struct ipv6_mreq", "struct ipv6_mreq"), ("struct in_pktinfo", "struct in_pktinfo"),
  ("struct in6_pktinfo", "struct in6_pktinfo"),
+ # HEADERS-TABLES-NET: the structures of slice 13's network headers (header_probe.py net_names() names the sources).
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "ip_timestamp", "rtentry", "in6_rtmsg", "arpreq", "arpreq_old", "arpd_request", "ether_arp", "icmp_ra_addr",
+     "icmp6_filter", "nd_router_solicit", "nd_router_advert", "nd_neighbor_solicit", "nd_neighbor_advert",
+     "nd_redirect", "nd_opt_hdr", "nd_opt_prefix_info", "nd_opt_rd_hdr", "nd_opt_mtu", "nd_opt_adv_interval",
+     "nd_opt_home_agent_info", "nd_opt_route_info", "nd_opt_rdnss", "nd_opt_dnssl", "mld_hdr", "icmp6_router_renum",
+     "rr_pco_match", "rr_pco_use", "rr_result", "tftphdr")],
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),
@@ -530,13 +543,13 @@ def tsv_rows(name):
     with open(os.path.join(OUT, name), newline="") as f:
         return list(csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE))
 
-def prototypes_missing(tmp):
+def prototypes_missing(tmp, seen):
     """Rows for the functions visibility.tsv declares in some C configuration that the `_GNU_SOURCE` pass of
-    prototypes() does not see (`gets`: C89/C99 only; `bsd_signal`: X/Open 500/600 only). Each such name is
-    compiled in the first C configuration of ftm-configs.tsv that declares it, with that configuration's flags and
-    the headers that show it there, and its `-aux-info` line is taken. Names declared in no C configuration (the
-    C++ function forms of the type-generic macros) or only under _FORTIFY_SOURCE get no row here."""
-    have = {r["name"] for r in tsv_rows("prototypes.tsv")}
+    prototypes() (the names `seen`) does not see (`gets`: C89/C99 only; `bsd_signal`: X/Open 500/600 only). Each
+    such name is compiled in the first C configuration of ftm-configs.tsv that declares it, with that configuration's
+    flags and the headers that show it there, and its `-aux-info` line is taken. Names declared in no C configuration
+    (the C++ function forms of the type-generic macros) or only under _FORTIFY_SOURCE get no row here."""
+    have = set(seen)
     have |= {r["name"] for r in tsv_rows("typedefs.tsv") if r["kind"] == "function"}
     # Not the fortify configurations: their `__*_chk` functions are the fortify layer's, not ordinary prototypes.
     cfgs = [r for r in tsv_rows("ftm-configs.tsv") if r["language"] == "c" and "_FORTIFY_SOURCE" not in r["flags"]]
@@ -670,6 +683,115 @@ def write(name, header, rows):
         for r in rows:
             f.write("\t".join(str(x) for x in r) + "\n")
 
+VERSIONS_HEAD = ["library", "symbol", "version", "binding", "type", "scope", "size"]
+ADDITIONS = "versions-additions.tsv"
+ADDITIONS_HEAD = ["arch"] + VERSIONS_HEAD + ["decision"]
+
+def additions():
+    """The exports libniji adds beyond the reference (spec/abi/versions-additions.tsv), for this ARCH.
+
+    The reference's symbol tables cannot give them, so a regeneration takes them from that file: one row per
+    export, `all` or one architecture, and the decision record that adds it (for example GLIBC_2.41's
+    sched_getattr/sched_setattr, owner ruling R3, D-24.12). `cargo xtask static` (abi-versions) checks the file
+    and that the committed versions tables are what this script writes."""
+    path = os.path.join(OUT, ADDITIONS)
+    if not os.path.exists(path):
+        sys.exit(f"{path}: missing; it lists the exports libniji adds beyond the reference, which a regeneration "
+                 f"would otherwise drop")
+    lines = open(path).read().splitlines()
+    if not lines or lines[0].split("\t") != ADDITIONS_HEAD:
+        sys.exit(f"{path}: the header must be {' '.join(ADDITIONS_HEAD)}")
+    rows = []
+    for n, line in enumerate(lines[1:], 2):
+        f = line.split("\t")
+        if len(f) != len(ADDITIONS_HEAD):
+            sys.exit(f"{path}:{n}: {len(f)} columns, want {len(ADDITIONS_HEAD)}")
+        if f[0] not in ("all", "x86_64", "aarch64"):
+            sys.exit(f"{path}:{n}: arch `{f[0]}` is none of all, x86_64, aarch64")
+        if not re.fullmatch(r"D-[0-9A-Z]+\.[0-9]+", f[-1]):
+            sys.exit(f"{path}:{n}: {f[2]}: the decision column names no decision record (D-<section>.<n>)")
+        if f[0] in ("all", ARCH):
+            rows.append(tuple(f[1:-1]))
+    return rows
+
+def merged(ref, adds):
+    """The reference rows with each addition after the last row of its library (at the end for a library the
+    reference lacks), in the additions file's order. An addition must not repeat a reference row's
+    library, symbol and version."""
+    keys = {tuple(str(x) for x in r[:3]) for r in ref}
+    out = list(ref)
+    for a in adds:
+        if a[:3] in keys:
+            sys.exit(f"{ADDITIONS}: {a[0]} {a[1]}@{a[2]} is already a row of the reference (or repeated)")
+        keys.add(a[:3])
+        last = max((i for i, r in enumerate(out) if r[0] == a[0]), default=len(out) - 1)
+        out.insert(last + 1, a)
+    return out
+
+def write_versions(syms):
+    """versions{SUFFIX}.tsv: the reference rows merged with the additions. versions{SUFFIX}.sha256: the sha256 of
+    the reference rows alone, rendered as write() renders them (header included), and their count, so that the
+    static check can tell a regenerated row from a hand-written one without the reference system."""
+    ref_text = "\t".join(VERSIONS_HEAD) + "\n" + "".join("\t".join(str(x) for x in r) + "\n" for r in syms)
+    rows = merged(syms, additions())
+    write(f"versions{SUFFIX}.tsv", VERSIONS_HEAD, rows)
+    with open(os.path.join(OUT, f"versions{SUFFIX}.sha256"), "w", newline="\n") as f:
+        f.write(f"{hashlib.sha256(ref_text.encode()).hexdigest()}\t{len(syms)}\n")
+    return rows
+
+PROTO_HEAD = ["name", "header", "declaration"]
+PROTO_ADDITIONS = "prototypes-additions.tsv"
+PROTO_ADDITIONS_HEAD = PROTO_HEAD + ["decision"]
+
+def proto_additions():
+    """The prototypes of the functions libniji adds beyond the reference (spec/abi/prototypes-additions.tsv): one row
+    per function, a prototypes.tsv row plus the decision record that adds it (for example GLIBC_2.41's
+    sched_getattr/sched_setattr, owner ruling R3, D-24.12). The reference's headers cannot declare them, so a
+    regeneration takes them from that file. `cargo xtask static` (abi-prototypes) checks the file and that the
+    committed prototypes.tsv is what this script writes."""
+    path = os.path.join(OUT, PROTO_ADDITIONS)
+    if not os.path.exists(path):
+        sys.exit(f"{path}: missing; it lists the prototypes libniji adds beyond the reference, which a regeneration "
+                 f"would otherwise drop")
+    lines = open(path).read().splitlines()
+    if not lines or lines[0].split("\t") != PROTO_ADDITIONS_HEAD:
+        sys.exit(f"{path}: the header must be {' '.join(PROTO_ADDITIONS_HEAD)}")
+    rows = []
+    for n, line in enumerate(lines[1:], 2):
+        f = line.split("\t")
+        if len(f) != len(PROTO_ADDITIONS_HEAD):
+            sys.exit(f"{path}:{n}: {len(f)} columns, want {len(PROTO_ADDITIONS_HEAD)}")
+        if not re.fullmatch(r"D-[0-9A-Z]+\.[0-9]+", f[-1]):
+            sys.exit(f"{path}:{n}: {f[0]}: the decision column names no decision record (D-<section>.<n>)")
+        rows.append(tuple(f[:-1]))
+    return rows
+
+def write_prototypes(ref):
+    """prototypes.tsv: the reference rows `ref` (name, header, declaration), sorted by name, with each addition of
+    prototypes-additions.tsv before the first row whose name sorts after its own. prototypes.sha256: the sha256 of
+    the reference rows alone, rendered as write() renders them (header included), and their count."""
+    ref = sorted(ref)
+    ref_text = "\t".join(PROTO_HEAD) + "\n" + "".join("\t".join(r) + "\n" for r in ref)
+    rows = list(ref)
+    names = {r[0] for r in ref}
+    for a in proto_additions():
+        if a[0] in names:
+            sys.exit(f"{PROTO_ADDITIONS}: {a[0]} is already a row of the reference (or repeated)")
+        names.add(a[0])
+        at = next((i for i, r in enumerate(rows) if r[0] > a[0]), len(rows))
+        rows.insert(at, a)
+    write("prototypes.tsv", PROTO_HEAD, rows)
+    with open(os.path.join(OUT, "prototypes.sha256"), "w", newline="\n") as f:
+        f.write(f"{hashlib.sha256(ref_text.encode()).hexdigest()}\t{len(ref)}\n")
+    return rows
+
+def reference_prototypes(tmp):
+    """The reference's prototypes: the `_GNU_SOURCE` pass and the functions only other configurations declare
+    (HEADERS-TABLES-COMPLETE), as (name, header, declaration) rows."""
+    pro = prototypes(tmp)
+    pro.update(prototypes_missing(tmp, pro))
+    return [(k, *v) for k, v in pro.items()]
+
 def exports_diff(syms):
     """Exports present on only one of x86_64 (versions.tsv) and this arch, by library and name."""
     norm = lambda lib: "ld-linux" if lib.startswith("ld-linux") else lib
@@ -707,8 +829,7 @@ def main_cross():
             ini = initializers(tmp)
             write(f"initializers{SUFFIX}.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
     syms = symbols()
-    write(f"versions{SUFFIX}.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
-    diff = exports_diff(syms)
+    diff = exports_diff(write_versions(syms))
     write(f"exports-diff{SUFFIX}.tsv", ["library", "symbol", "only_on"], diff)
     oldest = sorted({r[2] for r in syms if r[2].startswith("GLIBC_2.")},
                     key=lambda v: [int(x) for x in v[6:].split(".")])[0]
@@ -734,12 +855,14 @@ def main():
         write("constants.tsv", ["macro", "value"], mac)
         print(f"{ver}\nconstants: {len(mac)}")
         return
-    if "--prototypes-only" in sys.argv:
-        # Regenerate prototypes.tsv alone (slice 7 added utime.h to HEADERS; the other tables do not depend on it).
+    if "--prototypes-only" in sys.argv or "--prototypes-missing" in sys.argv:
+        # Regenerate prototypes.tsv (reference rows plus prototypes-additions.tsv) and prototypes.sha256 alone (slice
+        # 7 added utime.h to HEADERS; the other tables do not depend on it). `--prototypes-missing` (which once added
+        # only the rows of the functions other configurations declare to the committed table) is the same run now.
         with tempfile.TemporaryDirectory() as tmp:
-            pro = prototypes(tmp)
-        write("prototypes.tsv", ["name", "header", "declaration"], [(k, *v) for k, v in sorted(pro.items())])
-        print(f"{ver}\nPrototypes: {len(pro)}")
+            pro = reference_prototypes(tmp)
+        rows = write_prototypes(pro)
+        print(f"{ver}\nPrototypes: {len(pro)}  additions: {len(rows) - len(pro)}")
         return
     if "--empty-versions-only" in sys.argv:
         # Write empty-versions.tsv alone and add its line to PROVENANCE (SYS-ABI-DT-RELR).
@@ -750,24 +873,25 @@ def main():
                     f"definitions no exported symbol carries.\n")
         print(f"{ver}\nempty versions: {len(emp)}")
         return
-    if "--prototypes-missing" in sys.argv:
-        # Add the prototypes of the functions only other configurations declare (HEADERS-TABLES-COMPLETE): the
-        # existing rows are kept where they are, each new one goes before the first row whose name sorts after it.
+    if "--prototypes-fortify" in sys.argv:
+        # The `__*_chk` declarations the headers make only under _FORTIFY_SOURCE (plan/headers.md slice 18; C.9
+        # "Signatures per chk-prototypes.tsv"): the `_GNU_SOURCE` prelude compiled at -O2 with _FORTIFY_SOURCE=3,
+        # the `-aux-info` lines of `__*_chk` names only, in their own table so prototypes.tsv and the tables keyed on
+        # it (noexcept.tsv, callsites.tsv) keep their contents. Names GCC provides as builtins and the headers do
+        # not declare (`__memcpy_chk`) get no row. The `__*_2` entries a call without its mode argument reaches
+        # (`__open_2`, `__openat64_2`; spec 11.1 and 25.3, "fortify") are declared the same way and get rows too.
         with tempfile.TemporaryDirectory() as tmp:
-            new = prototypes_missing(tmp)
-        rows = [(r["name"], r["header"], r["declaration"]) for r in tsv_rows("prototypes.tsv")]
-        for k, v in sorted(new.items()):
-            at = next((i for i, r in enumerate(rows) if r[0] > k), len(rows))
-            rows.insert(at, (k, *v))
-        write("prototypes.tsv", ["name", "header", "declaration"], rows)
-        print(f"{ver}\nprototypes added: {len(new)} ({', '.join(sorted(new))})")
+            got = prototypes(tmp, None, ("-std=gnu17", "-O2", "-D_FORTIFY_SOURCE=3"))
+        rows = sorted((k, *v) for k, v in got.items() if re.fullmatch(r"__\w+_chk|__\w+_2", k))
+        write("chk-prototypes.tsv", ["name", "header", "declaration"], rows)
+        print(f"{ver}\nchk prototypes: {len(rows)}")
         return
     if "--versions-only" in sys.argv:
-        # Regenerate versions.tsv alone (SYS-LIBMVEC added libmvec.so.1 to LIBS; the other tables
-        # do not depend on the library list).
+        # Regenerate versions.tsv (reference rows plus versions-additions.tsv) and versions.sha256 alone
+        # (SYS-LIBMVEC added libmvec.so.1 to LIBS; the other tables do not depend on the library list).
         syms = symbols()
-        write("versions.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
-        print(f"{ver}\nversioned symbol rows: {len(syms)}")
+        rows = write_versions(syms)
+        print(f"{ver}\nversioned symbol rows: {len(syms)}  additions: {len(rows) - len(syms)}")
         return
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
@@ -782,12 +906,12 @@ def main():
             return
         ini = initializers(tmp)
         write("initializers.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
-        pro = prototypes(tmp)
-        write("prototypes.tsv", ["name", "header", "declaration"], [(k, *v) for k, v in sorted(pro.items())])
+        pro = reference_prototypes(tmp)
+        write_prototypes(pro)
         mac = macros(tmp)
         write("constants.tsv", ["macro", "value"], mac)
     syms = symbols()
-    write("versions.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
+    write_versions(syms)
     emp = empty_versions()
     write("empty-versions.tsv", ["library", "version", "parent"], emp)
     with open(os.path.join(OUT, "PROVENANCE"), "w", newline="\n") as f:

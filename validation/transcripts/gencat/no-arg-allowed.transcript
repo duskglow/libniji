@@ -1,0 +1,11 @@
+name: --new=x: the option takes no argument
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --new=x
+status: exit 64
+stdout:
+stderr:
+| gencat: option '--new' doesn't allow an argument
+| Try `gencat --help' or `gencat --usage' for more information.

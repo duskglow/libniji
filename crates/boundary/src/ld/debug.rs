@@ -92,6 +92,15 @@ pub(super) fn vdso_node(vdso: usize, prev: usize) -> usize {
     core::ptr::from_ref(m).expose_provenance()
 }
 
+/// The vDSO's link map's address once [`vdso_node`] has filled it, else 0 (`dladdr1`'s
+/// `RTLD_DL_LINKMAP` for an address in the vDSO).
+pub(super) fn vdso_map() -> usize {
+    if VDSO_MAP.l_name.load(Relaxed) == 0 {
+        return 0;
+    }
+    core::ptr::from_ref(&VDSO_MAP).expose_provenance()
+}
+
 /// Link `next` after the vDSO's link map.
 pub(super) fn vdso_next(next: usize) {
     VDSO_MAP.l_next.store(next, Release);

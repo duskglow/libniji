@@ -29,10 +29,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use niji_ld::arch::{ApplyError, Arch, Field, Native, Operands, RelocKind};
-use niji_ld::elf::{Elf, Span, SpanKind};
+use niji_ld::elf::{Elf, ElfError, Span, SpanKind};
 use niji_ld::map::{PROT_EXEC, PROT_WRITE};
 use niji_ld::reloc::{self, Image, Obj, Objects, RelocError, UniqueTable};
-use niji_ld::symbols::{Object, Request, Want};
+use niji_ld::symbols::{LookupError, Object, Request, ScopeOrder, Want};
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -469,6 +469,76 @@ fn reloc_version_check_beyond_the_kept_definitions() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// s27_1_f_0: the version check compares the stored hashes (`vd_hash`, `vna_hash`) before the names
+/// (LD-OBJECT-ONCE), and answers as the walk by name does whatever the hashes say: a definition whose
+/// hash is wrong is still found by its name, a definition with the required hash but another name is
+/// not the required version, and a malformed definition ahead of the required one is still refused.
+#[test]
+fn reloc_version_check_hashes_never_change_the_answer() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("verhash");
+    let node = |k: usize| format!("V_{k} {{ global: f_{k}; {}}};\n", if k == 0 { "local: *; " } else { "" });
+    let src: String = (0..8).map(|k| format!("int f_{k}(void) {{ return {k}; }}\n")).collect();
+    let lib = |name: &str, keep: &dyn Fn(usize) -> bool| {
+        let map = d.join(format!("{name}.map"));
+        std::fs::write(&map, (0..8).filter(|&k| keep(k)).map(node).collect::<String>()).unwrap();
+        build(&d, name, &src, &["-fPIC", "-shared", &format!("-Wl,--version-script={}", map.display())])
+    };
+    let full = lib("libfull.so", &|_| true);
+    let less = std::fs::read(lib("libless6.so", &|k| k != 6)).unwrap();
+    let use_src = "extern int f_0(void), f_6(void);\nvoid _start(void) { f_0(); f_6(); for (;;); }\n";
+    let p = std::fs::read(build(&d, "p8", use_src, &["-fPIE", "-pie", full.to_str().unwrap()])).unwrap();
+    let full = std::fs::read(&full).unwrap();
+    // Each definition's file offset (the first segment maps the file at its own address), index,
+    // hash and name.
+    let defs = |f: &[u8]| -> Vec<(usize, u16, u32, Vec<u8>)> {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        let dynm = elf.dynamic().unwrap().unwrap();
+        let base = usize::try_from(dynm.get(niji_ld::elf::dt::VERDEF).unwrap()).unwrap();
+        let out: Vec<_> = dynm.verdef().unwrap().unwrap().map(|v| v.unwrap()).map(|v| (base + v.offset, v.ndx, v.hash, v.names().next().unwrap().unwrap().name.to_vec())).collect();
+        for (at, _, hash, _) in &out {
+            assert_eq!(f[at + 8..at + 12], hash.to_le_bytes(), "definition read at its file offset");
+        }
+        out
+    };
+    let at_of = |f: &[u8], name: &[u8]| defs(f).into_iter().find(|e| e.3 == name).unwrap();
+    let hash_of = |name: &[u8]| at_of(&full, name).2;
+    let leak = |b: Vec<u8>| -> &'static [u8] { Box::leak(b.into_boxed_slice()) };
+    let pname = leak(d.join("libfull.so").to_str().unwrap().as_bytes().to_vec());
+    let p = leak(p);
+    let obj = |f: &'static [u8], name: &'static [u8]| {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: 0, name, tls: None }
+    };
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(full.clone()), pname)]), Ok(()), "as linked");
+    // V_6's stored hash is wrong: found by its name.
+    let mut wrong = full.clone();
+    let (at, ..) = at_of(&full, b"V_6");
+    wrong[at + 8..at + 12].copy_from_slice(&(hash_of(b"V_6") ^ 0x10).to_le_bytes());
+    assert_eq!(reloc::check_versions(&[obj(p, b"p8"), obj(leak(wrong), pname)]), Ok(()), "a wrong vd_hash");
+    // Without V_6, V_7 given V_6's hash: still missing.
+    let mut collide = less.clone();
+    let (at, ..) = at_of(&less, b"V_7");
+    collide[at + 8..at + 12].copy_from_slice(&hash_of(b"V_6").to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(collide), pname)]),
+        Err(reloc::VersionError::Missing { by: 0, file: pname, version: b"V_6" }),
+        "another name with the required hash"
+    );
+    // V_3's revision is bad: V_0 lies ahead of it and is found, V_6 lies past it and is refused.
+    let mut bad = full.clone();
+    let (at, ..) = at_of(&full, b"V_3");
+    bad[at..at + 2].copy_from_slice(&2u16.to_le_bytes());
+    assert_eq!(
+        reloc::check_versions(&[obj(p, b"p8"), obj(leak(bad), pname)]),
+        Err(reloc::VersionError::Elf(0, niji_ld::elf::ElfError::BadVersionRevision(niji_ld::elf::Table::Verdef, 2))),
+        "a malformed definition ahead of the required one"
+    );
+    std::fs::remove_dir_all(&d).ok();
+}
+
 /// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
 /// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
 /// built object, moved: into the read-only text, past every segment, across the end of the writable
@@ -575,6 +645,84 @@ fn reloc_relative_run_checks_each_entry_after_the_first() {
     }
 }
 
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): the RELR pass
+/// applies an entry's words after one range check when its lowest and highest words lie in the
+/// writable segment (LD-RELR-LOOP), and that shortcut accepts nothing the word-by-word check
+/// refuses. The library's 40 pointers are one address entry and one bitmap; the address entry is
+/// moved so the run ends on the writable segment's last word (all 40 applied), crosses its end
+/// (the words inside applied in order, then the first one past it refused), starts past it or
+/// across it, or lies in the read-only text.
+#[test]
+fn reloc_relr_entry_checks_its_whole_run() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("relrrun");
+    let src = "static long x[64];
+long *p[40] = { &x[0], &x[1], &x[2], &x[3], &x[4], &x[5], &x[6], &x[7], &x[8], &x[9], &x[10], &x[11], &x[12], &x[13],
+  &x[14], &x[15], &x[16], &x[17], &x[18], &x[19], &x[20], &x[21], &x[22], &x[23], &x[24], &x[25], &x[26], &x[27], &x[28],
+  &x[29], &x[30], &x[31], &x[32], &x[33], &x[34], &x[35], &x[36], &x[37], &x[38], &x[39] };\n";
+    let lib = std::fs::read(build(&d, "librr.so", src, &["-fPIC", "-shared", "-Wl,-z,pack-relative-relocs"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let relr = dynm.get(niji_ld::elf::dt::RELR).expect("DT_RELR");
+    let words: Vec<u64> = dynm.relr().unwrap().unwrap().map(Result::unwrap).collect();
+    assert_eq!(words.len(), 40, "the 40 pointers are RELR words");
+    assert!(words.windows(2).all(|w| w[1] == w[0] + 8), "in one run");
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELRSZ), Some(16), "one address entry and one bitmap");
+    // The address entry's file offset (the first PT_LOAD maps the file from offset 0 at address 0).
+    let at = usize::try_from(loads[0].offset + relr - loads[0].vaddr).unwrap();
+    let end = rw.vaddr + rw.memsz;
+    // (address entry, the first word refused; None: all applied).
+    let cases = [
+        (words[0], None),
+        (end - 40 * 8, None),
+        (end - 39 * 8, Some(end)),
+        (end - 8, Some(end)),
+        (end, Some(end)),
+        (end - 4, Some(end - 4)),
+        (ro.vaddr, Some(ro.vaddr)),
+        (rw.vaddr - 16, Some(rw.vaddr - 16)),
+    ];
+    for (start, refused) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&start.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            // A writable segment's words read 0x10 apart from its start, so each applied word is told apart.
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            if ph.flags & 2 != 0 {
+                for (k, w) in v.chunks_exact_mut(8).enumerate() {
+                    w.copy_from_slice(&(0x10 * k as u64).to_le_bytes());
+                }
+            }
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"librr.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        assert_eq!(r.map_err(|e| e.error), refused.map_or(Ok(()), |a| Err(RelocError::Outside(a))), "run from {start:#x}");
+        // Every word of the run before the refused one (all of them when none is) holds its value
+        // plus the bias; the rest of the writable segment is as it was.
+        let stop = refused.unwrap_or(u64::MAX);
+        for w in (rw.vaddr..end).step_by(8) {
+            let old = 0x10 * ((w - rw.vaddr) / 8);
+            let applied = (start..start + 40 * 8).contains(&w) && w < stop;
+            assert_eq!(word(&mut m, bias(0) + w), if applied { old + bias(0) } else { old }, "word {w:#x}, run from {start:#x}");
+        }
+    }
+}
+
 /// Covers no spec clause (design §6, `Relas::relative_prefix`'s contract): the prefix loop leaves
 /// the table iterator just after the run it applied, so the entries after it are yielded once,
 /// in order; a count past the run stops at the first other entry; when the callback fails, the
@@ -612,6 +760,114 @@ fn reloc_relative_prefix_leaves_the_table_after_its_run() {
 }
 
 // ------------------------------------------------------------------ (3) the built ld.so
+
+// ------------------------------------------------------------------ the quick path (LD-SYMBOL-VALIDATE-ONCE)
+
+/// `files` (load order) in a fresh model at their biases, and their relocator views.
+fn model_of<'a>(files: &'a [Vec<u8>], names: &'a [Vec<u8>]) -> (Model, Vec<Obj<'a>>) {
+    let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+    let mut objs = vec![];
+    for (i, f) in files.iter().enumerate() {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(i) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(i) + ph.vaddr), hi.max(bias(i) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        objs.push(Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(i), name: &names[i], tls: None });
+    }
+    (m, objs)
+}
+
+/// s27_1_c_1 (D-27.11 version binding; versions compared by index, LD-SYMBOL-VALIDATE-ONCE): a library
+/// defines `vf` twice, `vf@V1` (hidden, older) and `vf@@V2` (default), adjacent in one hash chain. A
+/// program linked when V1 was the default binds both its references to the V1 definition, and one
+/// linked against the library as it is binds both to V2: whichever definition comes first in the
+/// chain, each reference binds its own version, and the second reference (its definition then known
+/// by index) binds as the first.
+#[test]
+fn reloc_quick_versions_bind_by_index_each_to_its_own() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("quickver");
+    std::fs::write(d.join("old.map"), "V1 { global: vf; local: *; };\n").unwrap();
+    // Only the two implementations are local: `local: *` would also hide `vf@V1`.
+    std::fs::write(d.join("v.map"), "V1 { local: vf_*; };\nV2 { } V1;\n").unwrap();
+    let old_map = format!("-Wl,--version-script={}", d.join("old.map").display());
+    let map = format!("-Wl,--version-script={}", d.join("v.map").display());
+    let old = build(&d, "libv_old.so", "int vf(void) { return 1; }\n", &["-fPIC", "-shared", "-Wl,-soname,libv.so", &old_map]);
+    let lib_src = "int vf_1(void) { return 1; }\nint vf_2(void) { return 2; }\n__asm__(\".symver vf_1, vf@V1\");\n__asm__(\".symver vf_2, vf@@V2\");\n";
+    let lib = build(&d, "libv.so", lib_src, &["-fPIC", "-shared", "-Wl,-soname,libv.so", &map]);
+    let src = "extern int vf(void);\nint (*p1)(void) = vf; int (*p2)(void) = vf;\nvoid _start(void) { for (;;) {} }\n";
+    let prog_old = build(&d, "prog_old", src, &["-fPIE", "-pie", "-Wl,--export-dynamic", old.to_str().unwrap()]);
+    let prog_new = build(&d, "prog_new", src, &["-fPIE", "-pie", "-Wl,--export-dynamic", lib.to_str().unwrap()]);
+    let lib_bytes = std::fs::read(&lib).unwrap();
+    let lib_elf = Elf::parse::<Native>(&lib_bytes).unwrap();
+    let lib_view = Object::new(lib_elf.dynamic().unwrap().unwrap()).unwrap();
+    let def = |v: &[u8]| bias(1) + lib_view.lookup(&Request::new(b"vf", Want::Version(v))).unwrap().unwrap().st.value;
+    let (v1, v2) = (def(b"V1"), def(b"V2"));
+    assert_ne!(v1, v2, "two definitions");
+    for (prog, want, what) in [(&prog_old, v1, "vf@V1"), (&prog_new, v2, "vf@@V2")] {
+        let files = vec![std::fs::read(prog).unwrap(), lib_bytes.clone()];
+        let names = vec![prog.to_str().unwrap().as_bytes().to_vec(), b"libv.so".to_vec()];
+        let (mut m, objs) = model_of(&files, &names);
+        let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
+        let global: Vec<usize> = (0..objs.len()).collect();
+        let set = Objects { objs: &objs, syms: &syms, global: &global };
+        reloc::check_versions(&objs).unwrap();
+        reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut ScopeOrder).unwrap();
+        for var in ["p1", "p2"] {
+            assert_eq!(word(&mut m, bias(0) + sym_value(&files[0], var.as_bytes())), want, "{} {var} binds {what}", prog.display());
+        }
+    }
+}
+
+/// no spec clause (owner rule 2026-11-17, loaded data is untrusted; LD-SYMBOL-VALIDATE-ONCE): a definer
+/// whose string table does not end in a NUL fails the map-time validation, so its lookups take the
+/// exact walk, which reports the unterminated name: the reference is neither bound nor skipped.
+#[test]
+fn reloc_quick_unterminated_string_table_is_the_exact_walks_error() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("quickstr");
+    let lib = build(&d, "libz.so", "int zfn(void) { return 3; }\n", &["-fPIC", "-shared"]);
+    let src = "extern int zfn(void); int (*p)(void) = zfn; void _start(void) { for (;;) {} }\n";
+    let prog = build(&d, "prog", src, &["-fPIE", "-pie", lib.to_str().unwrap()]);
+    let mut lib_bytes = std::fs::read(&lib).unwrap();
+    let (off, dynoff) = {
+        let elf = Elf::parse::<Native>(&lib_bytes).unwrap();
+        let o = Object::new(elf.dynamic().unwrap().unwrap()).unwrap();
+        (o.lookup(&Request::new(b"zfn", Want::Oldest)).unwrap().unwrap().st.name, elf.program_headers().find(|p| p.p_type == 2).unwrap().offset as usize)
+    };
+    // DT_STRSZ cut inside "zfn": the table ends in "zf", with no NUL.
+    let mut k = dynoff;
+    loop {
+        let tag = u64::from_le_bytes(lib_bytes[k..k + 8].try_into().unwrap());
+        assert_ne!(tag, 0, "no DT_STRSZ");
+        if tag == 10 {
+            lib_bytes[k + 8..k + 16].copy_from_slice(&(u64::from(off) + 2).to_le_bytes());
+            break;
+        }
+        k += 16;
+    }
+    let files = vec![std::fs::read(&prog).unwrap(), lib_bytes];
+    let names = vec![b"prog".to_vec(), lib.to_str().unwrap().as_bytes().to_vec()];
+    let (mut m, objs) = model_of(&files, &names);
+    let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
+    let global: Vec<usize> = (0..objs.len()).collect();
+    let set = Objects { objs: &objs, syms: &syms, global: &global };
+    let err = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut ScopeOrder).unwrap_err();
+    assert!(
+        matches!(err.error, RelocError::Lookup(LookupError::Elf(ElfError::StringUnterminated(o))) if o == u64::from(off)),
+        "the exact walk's error for the unterminated name, not a binding or an undefined symbol: {:?}",
+        err.error
+    );
+}
 
 fn run(cmd: &mut Command) -> (Option<i32>, Option<i32>, String) {
     use std::os::unix::process::ExitStatusExt;
@@ -864,7 +1120,8 @@ fn reader_view(elf: &Elf<'_>) -> String {
 /// no spec clause (ruling #4229, #4323, D-27.18): the image-mode reader slices in place only `PT_LOAD`s
 /// whose bytes cannot change during loading (never a writable one, never any of a text-relocated
 /// program), copies the others that hold tables, and reads exactly what the file reader reads, for a
-/// program with a GOT and for a text-relocated one.
+/// program with a GOT and for a text-relocated one; so does a reader checked without spans and given
+/// them afterwards (D-27.97).
 #[test]
 fn reloc_image_reader_slices_only_unchanging_segments() {
     if !cc_ok() {
@@ -899,6 +1156,11 @@ fn reloc_image_reader_slices_only_unchanging_segments() {
         let phdrs = &file[h.phoff as usize..h.phoff as usize + usize::from(h.phnum) * 56];
         let image = Elf::from_image::<Native>(phdrs, &spans).unwrap();
         assert_eq!(reader_view(&image), reader_view(&elf), "{}: the image reader reads what the file reader reads", prog.display());
+        // D-27.97: the loader checks a table once, as a reader without spans, then gives it the spans.
+        let probe = Elf::from_image::<Native>(phdrs, &[]).unwrap();
+        let later = probe.with_spans(&spans).expect("an image reader takes spans");
+        assert_eq!(reader_view(&later), reader_view(&elf), "{}: the image reader given its spans later reads what the file reader reads", prog.display());
+        assert!(elf.with_spans(&spans).is_none(), "{}: a file reader does not become an image reader", prog.display());
     }
 }
 

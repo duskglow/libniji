@@ -49,7 +49,8 @@ pub fn key(name: &str) -> String {
     s
 }
 
-fn strip_llvm(s: &str) -> String {
+/// `s` without ThinLTO's `.llvm.<digits>` suffixes; a `.llvm.` not followed by a digit stays.
+pub(crate) fn strip_llvm(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(i) = rest.find(".llvm.") {
@@ -1230,9 +1231,13 @@ mod tests {
         // module gives a section (function_of), the cold rename `.text.niji_cold.<f>.niji_cold`
         // included: a name left with the rename never matches a traced key, so a function the
         // build once renamed cold could not re-enter the list. Fictional names (see above).
+        // GATE-HONEST-METRICS-3: keys.py reads the names from a real archive itself, whole: one name is
+        // longer than the 256 bytes `readelf -SW` prints (a generic iterator adapter's mangled name ran
+        // 538 bytes), and a cut name matched no traced key, so that function never joined the group.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let tmp = root.join(format!("target/xtask-sections-test-{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
+        let long = format!(".text.fixture_long_{}", "x".repeat(300));
         let names = [
             ".text.niji_cold.fixture_exit.niji_cold",
             ".text.sorted.h00012.fixture_len",
@@ -1241,27 +1246,80 @@ mod tests {
             ".text.startup.fixture_gcc",
             ".text.exit.fixture_fini",
             ".text.fixture_plain",
+            long.as_str(),
             ".rodata.fixture_tab",
-            ".text",
         ];
-        let mut readelf = String::from("There are 12 section headers:\n\nSection Headers:\n  [Nr] Name Type Address Off Size ES Flg Lk Inf Al\n");
+        let mut c = String::new();
         for (i, n) in names.iter().enumerate() {
-            readelf.push_str(&format!("  [{:>2}] {n} PROGBITS 0000000000000000 000040 000010 00  AX  0   0 16\n", i + 1));
+            if n.starts_with(".text.") {
+                c.push_str(&format!("__attribute__((section(\"{n}\"))) void fixture_{i}(void) {{}}\n"));
+            } else {
+                c.push_str(&format!("__attribute__((section(\"{n}\"))) const int fixture_{i} = {i};\n"));
+            }
         }
-        std::fs::write(tmp.join("readelf"), readelf).unwrap();
+        std::fs::write(tmp.join("fixture.c"), c).unwrap();
+        let ok = |cmd: &mut std::process::Command| {
+            let o = cmd.output().unwrap_or_else(|e| panic!("{cmd:?}: {e}"));
+            assert!(o.status.success(), "{cmd:?}: {}", String::from_utf8_lossy(&o.stderr));
+        };
+        ok(std::process::Command::new("cc").args(["-c", "-O0", "-o"]).arg(tmp.join("fixture.o")).arg(tmp.join("fixture.c")));
+        ok(std::process::Command::new("ar").arg("rc").arg(tmp.join("fixture.a")).arg(tmp.join("fixture.o")));
+        let sections = |f: &str| {
+            std::process::Command::new("python3")
+                .arg("-I")
+                .arg(root.join("tools/hottext/keys.py"))
+                .arg("--sections")
+                .arg(tmp.join(f))
+                .output()
+                .expect("python3 runs tools/hottext/keys.py")
+        };
+        let o = sections("fixture.a");
+        // A file that is no archive or object (regen.sh handed the wrong path) fails; it never lists nothing.
+        let bad = sections("fixture.c");
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert!(!bad.status.success() && bad.stdout.is_empty(), "keys.py --sections on a C source: {:?}", bad.status);
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        let got = String::from_utf8(o.stdout).unwrap();
+        // The compiler's own `.text` (empty) gives no name, as every non-function section; sorted, as the
+        // compiler's section order is not this test's subject.
+        let mut want: Vec<&str> = names.iter().filter_map(|n| function_of(n)).collect();
+        let mut seen: Vec<&str> = got.lines().collect();
+        want.sort_unstable();
+        seen.sort_unstable();
+        assert_eq!(seen, want, "keys.py --sections and function_of disagree");
+        assert!(got.lines().any(|l| l == "fixture_exit"), "the cold rename is not stripped: {got}");
+        assert!(got.lines().any(|l| l.len() == long.len() - ".text.".len()), "the long section name is cut: {got}");
+    }
+
+    #[test]
+    fn a_traced_function_with_an_unlisted_section_is_named() {
+        // GATE-HONEST-METRICS-3 (no spec clause: build tooling): regen.sh fails on every key `keys.py --unlisted`
+        // prints, a traced function of libc.a whose section the section listing missed (names cut at 256 bytes
+        // dropped such functions from the list without a word). Named: a traced symbol of a function section
+        // absent from lib.keys, also when traced at a label inside it. Not named: a listed section, its label,
+        // the program's own function (no symbol of the archive). Fictional names.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-unlisted-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let syms = "\nfixture.o:     file format elf64-x86-64\n\nSYMBOL TABLE:\n\
+            0000000000000000 g     F .text.fixture_listed\t0000000000000010 fixture_listed\n\
+            0000000000000008 g       .text.fixture_listed\t0000000000000000 fixture_listed_label\n\
+            0000000000000000 g     F .text.fixture_missed\t0000000000000010 fixture_missed\n\
+            0000000000000000 g     F .text.fixture_other\t0000000000000010 fixture_other\n\
+            0000000000000004 g       .text.fixture_other\t0000000000000000 fixture_other_label\n";
+        std::fs::write(tmp.join("syms"), syms).unwrap();
+        std::fs::write(tmp.join("lib.keys"), "fixture_listed\n").unwrap();
+        std::fs::write(tmp.join("hit.keys"), "fixture_listed\tstartup\nfixture_listed_label\tstartup\nfixture_missed\ttool\nfixture_other_label\tlocale\nfixture_program\tstartup\n").unwrap();
         let o = std::process::Command::new("python3")
             .arg("-I")
             .arg(root.join("tools/hottext/keys.py"))
-            .arg("--sections")
-            .arg(tmp.join("readelf"))
+            .arg("--unlisted")
+            .args(["syms", "lib.keys", "hit.keys"].map(|f| tmp.join(f)))
             .output()
             .expect("python3 runs tools/hottext/keys.py");
         std::fs::remove_dir_all(&tmp).unwrap();
         assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
-        let got = String::from_utf8(o.stdout).unwrap();
-        let want: String = names.iter().filter_map(|n| function_of(n)).map(|f| format!("{f}\n")).collect();
-        assert_eq!(got, want, "keys.py --sections and function_of disagree");
-        assert!(got.lines().any(|l| l == "fixture_exit"), "the cold rename is not stripped: {got}");
+        assert_eq!(String::from_utf8(o.stdout).unwrap(), "fixture_missed\nfixture_other_label\n", "keys.py --unlisted");
     }
 
     #[test]

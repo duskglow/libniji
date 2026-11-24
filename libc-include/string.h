@@ -91,21 +91,9 @@ extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHRO
 # endif
 #endif
 #if __NIJI_GNU
-# ifndef __NIJI_D_basename
-#  define __NIJI_D_basename 1
-extern char *basename (const char *) __attribute__ ((__nonnull__ (1)));
-# endif
 # ifndef __NIJI_D_memfrob
 #  define __NIJI_D_memfrob 1
 extern void *memfrob (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
-# endif
-# ifndef __NIJI_D_memrchr
-#  define __NIJI_D_memrchr 1
-extern void *memrchr (const void *, int, unsigned long) __attribute__ ((__nonnull__ (1), __pure__));
-# endif
-# ifndef __NIJI_D_rawmemchr
-#  define __NIJI_D_rawmemchr 1
-extern void *rawmemchr (const void *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_sigabbrev_np
 #  define __NIJI_D_sigabbrev_np 1
@@ -161,10 +149,6 @@ extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 #  define __NIJI_D_ffsll 1
 extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
-# ifndef __NIJI_D_index
-#  define __NIJI_D_index 1
-extern char *index (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
-# endif
 # ifndef __NIJI_D_memmem
 #  define __NIJI_D_memmem 1
 extern void *memmem (const void *, unsigned long, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3), __pure__));
@@ -173,10 +157,6 @@ extern void *memmem (const void *, unsigned long, const void *, unsigned long) _
 #  define __NIJI_D_mempcpy 1
 extern void *mempcpy (void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
-# ifndef __NIJI_D_rindex
-#  define __NIJI_D_rindex 1
-extern char *rindex (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
-# endif
 # ifndef __NIJI_D_strcasecmp
 #  define __NIJI_D_strcasecmp 1
 extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
@@ -184,14 +164,6 @@ extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ 
 # ifndef __NIJI_D_strcasecmp_l
 #  define __NIJI_D_strcasecmp_l 1
 extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
-# endif
-# ifndef __NIJI_D_strcasestr
-#  define __NIJI_D_strcasestr 1
-extern char *strcasestr (const char *, const char *) __attribute__ ((__nonnull__ (1, 2), __pure__));
-# endif
-# ifndef __NIJI_D_strchrnul
-#  define __NIJI_D_strchrnul 1
-extern char *strchrnul (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_strlcat
 #  define __NIJI_D_strlcat 1
@@ -278,6 +250,177 @@ extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW __attribute__ 
 extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bcopy
+#  define __NIJI_F_bcopy 1
+__NIJI_FORTIFY_FN void bcopy (const void *__p0, void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  __builtin___memmove_chk (__p1, __p0, __p2, __NIJI_BOS (__p1, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_bzero
+#  define __NIJI_F_bzero 1
+__NIJI_FORTIFY_FN void bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  __builtin___memset_chk (__p0, 0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_explicit_bzero
+#  define __NIJI_F_explicit_bzero 1
+#  ifndef __NIJI_D___explicit_bzero_chk
+#   define __NIJI_D___explicit_bzero_chk 1
+extern void __explicit_bzero_chk (void *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern void __niji_plain_explicit_bzero (void *, unsigned long) __NIJI_NOTHROW __asm__ ("explicit_bzero");
+__NIJI_FORTIFY_FN void explicit_bzero (void *__p0, unsigned long __p1) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p1 <= __NIJI_BOS (__p0, 0)) && (__p1 <= __NIJI_BOS (__p0, 0))))
+    { __niji_plain_explicit_bzero (__p0, __p1); return; }
+  __explicit_bzero_chk (__p0, __p1, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memcpy
+#  define __NIJI_F_memcpy 1
+__NIJI_FORTIFY_FN void *memcpy (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memmove
+#  define __NIJI_F_memmove 1
+__NIJI_FORTIFY_FN void *memmove (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memmove_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_GNU && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_mempcpy
+#  define __NIJI_F_mempcpy 1
+__NIJI_FORTIFY_FN void *mempcpy (void *__p0, const void *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___mempcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_memset
+#  define __NIJI_F_memset 1
+__NIJI_FORTIFY_FN void *memset (void *__p0, int __p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___memset_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, 0));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_stpcpy
+#  define __NIJI_F_stpcpy 1
+__NIJI_FORTIFY_FN char *stpcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___stpcpy_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_POSIX >= 200809) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_stpncpy
+#  define __NIJI_F_stpncpy 1
+__NIJI_FORTIFY_FN char *stpncpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___stpncpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strcat
+#  define __NIJI_F_strcat 1
+__NIJI_FORTIFY_FN char *strcat (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___strcat_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strcpy
+#  define __NIJI_F_strcpy 1
+__NIJI_FORTIFY_FN char *strcpy (char *__p0, const char *__p1) __NIJI_NOTHROW
+{
+  return __builtin___strcpy_chk (__p0, __p1, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strlcat
+#  define __NIJI_F_strlcat 1
+#  ifndef __NIJI_D___strlcat_chk
+#   define __NIJI_D___strlcat_chk 1
+extern unsigned long __strlcat_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_strlcat (char *, const char *, unsigned long) __NIJI_NOTHROW __asm__ ("strlcat");
+__NIJI_FORTIFY_FN unsigned long strlcat (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
+    return __niji_plain_strlcat (__p0, __p1, __p2);
+  return __strlcat_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (__NIJI_MISC) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strlcpy
+#  define __NIJI_F_strlcpy 1
+#  ifndef __NIJI_D___strlcpy_chk
+#   define __NIJI_D___strlcpy_chk 1
+extern unsigned long __strlcpy_chk (char *, const char *, unsigned long, unsigned long) __NIJI_NOTHROW;
+#  endif
+extern unsigned long __niji_plain_strlcpy (char *, const char *, unsigned long) __NIJI_NOTHROW __asm__ ("strlcpy");
+__NIJI_FORTIFY_FN unsigned long strlcpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  if (__NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1))) && (__p2 <= __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)))))
+    return __niji_plain_strlcpy (__p0, __p1, __p2);
+  return __strlcpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strncat
+#  define __NIJI_F_strncat 1
+__NIJI_FORTIFY_FN char *strncat (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___strncat_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_strncpy
+#  define __NIJI_F_strncpy 1
+__NIJI_FORTIFY_FN char *strncpy (char *__p0, const char *__p1, unsigned long __p2) __NIJI_NOTHROW
+{
+  return __builtin___strncpy_chk (__p0, __p1, __p2, __NIJI_BOS (__p0, (__NIJI_FORTIFY > 1)));
+}
+# endif
+#endif
 
 #if 1
 # ifndef NULL
@@ -309,6 +452,54 @@ extern char *strrchr (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnul
 extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 extern char *strstr (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+# endif
+#endif
+
+/* The GNU and BSD search functions take the same two overloads in C++ (black-box probe of the reference: `&F` is
+   ambiguous, and a const argument gives a const result). index and rindex are <strings.h>'s too, under one guard. */
+#if __NIJI_MISC
+# ifdef __cplusplus
+extern "C++" {
+extern const char *strchrnul (const char *, int) __NIJI_NOTHROW __asm__ ("strchrnul") __attribute__ ((__nonnull__ (1), __pure__));
+extern const char *strcasestr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strcasestr") __attribute__ ((__nonnull__ (1, 2), __pure__));
+inline __attribute__ ((__nonnull__ (1), __pure__)) char *strchrnul (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchrnul (static_cast<const char *> (__s), __c)); }
+inline __attribute__ ((__nonnull__ (1, 2), __pure__)) char *strcasestr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strcasestr (static_cast<const char *> (__s), __a)); }
+}
+# else
+extern char *strchrnul (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+extern char *strcasestr (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+# endif
+#endif
+#if __NIJI_GNU
+# ifdef __cplusplus
+extern "C++" {
+extern const char *basename (const char *) __NIJI_NOTHROW __asm__ ("basename") __attribute__ ((__nonnull__ (1)));
+extern const void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memrchr") __attribute__ ((__nonnull__ (1), __pure__));
+extern const void *rawmemchr (const void *, int) __NIJI_NOTHROW __asm__ ("rawmemchr") __attribute__ ((__nonnull__ (1), __pure__));
+inline __attribute__ ((__nonnull__ (1))) char *basename (char *__s) __NIJI_NOTHROW { return const_cast<char *> (basename (static_cast<const char *> (__s))); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) void *memrchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memrchr (static_cast<const void *> (__s), __c, __n)); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) void *rawmemchr (void *__s, int __c) __NIJI_NOTHROW { return const_cast<void *> (rawmemchr (static_cast<const void *> (__s), __c)); }
+}
+# else
+extern char *basename (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+extern void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+extern void *rawmemchr (const void *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+# endif
+#endif
+#if __NIJI_MISC
+# ifndef __NIJI_D_index
+#  define __NIJI_D_index 1
+#  ifdef __cplusplus
+extern "C++" {
+extern const char *index (const char *, int) __NIJI_NOTHROW __asm__ ("index") __attribute__ ((__nonnull__ (1), __pure__));
+extern const char *rindex (const char *, int) __NIJI_NOTHROW __asm__ ("rindex") __attribute__ ((__nonnull__ (1), __pure__));
+inline __attribute__ ((__nonnull__ (1), __pure__)) char *index (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (index (static_cast<const char *> (__s), __c)); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) char *rindex (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (rindex (static_cast<const char *> (__s), __c)); }
+}
+#  else
+extern char *index (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+extern char *rindex (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+#  endif
 # endif
 #endif
 

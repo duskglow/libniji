@@ -23,6 +23,10 @@ __ctype_b_loc	emit	C.9: the is* macros index (*__ctype_b_loc ())[c]
 __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
+__uflow	emit	C.9: the inline getc_unlocked family calls __uflow (fp) on an empty read window
+__overflow	emit	C.9: the inline putc_unlocked family calls __overflow (fp, c) on a full write window
+__getdelim	emit	the inline getline (GNU, when optimizing) calls __getdelim (lineptr, n, '\n', fp)
+__mbrlen	emit	the inline mbrlen (when optimizing) calls __mbrlen for a null state pointer
 __cmsg_nxthdr	emit	C.9: CMSG_NXTHDR is __cmsg_nxthdr (mhdr, cmsg)
 __h_errno_location	emit	the thread-local h_errno is (*__h_errno_location ())
 __res_state	emit	the thread-local _res is (*__res_state ())

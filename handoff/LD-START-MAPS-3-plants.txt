@@ -1,0 +1,36 @@
+# LD-START-MAPS-3 plants: LD-START-MAPS-2's 16 on the head merged with next (D-27.92), and 1 on the merge's resolution (image_spans returns the reader checked once, D-27.97)
+prog-headers-skip | crates/boundary/src/ld/image.rs | lit:let head = read_headers(fd, len).ok().flatten()?; ==> let head = read_headers(fd, len).ok().flatten().filter(|_| false)?; | cargo test -p niji --test hot_text_products init_explicit_run | msg:init_explicit_run_maps_the_program_without_a_whole_file_view.*(FAILED|panicked)|whole-file view
+prog-headers-entry | crates/boundary/src/ld/image.rs | lit:map::map_planned(&mut StartMapper { fd }, &elf, &plan, head, page).ok() ==> map::map_planned(&mut StartMapper { fd }, &elf, &plan, head, page).ok().map(|l| map::Loaded { entry: l.entry.wrapping_add(1), ..l }) | cargo test -p niji-ld --test ldso_run ldso_run_as_program | msg:ldso_run_as_program_at_random_bases.*(FAILED|panicked)
+prog-view-refusal | crates/boundary/src/ld/image.rs | lit:fail(b"invalid ELF header"); ==> fail(b"invalid ELF"); | cargo test -p niji-ld --test ldso_run ldso_run_as_program | msg:ldso_run_as_program_at_random_bases.*(FAILED|panicked)
+read-headers-keep | crates/boundary/src/ld/image.rs | lit:Some(e) if e <= first => e.max(niji_ld::elf::EHDR_SIZE), ==> Some(e) if e <= first => e.max(niji_ld::elf::EHDR_SIZE).saturating_sub(8), | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+read-headers-long | crates/boundary/src/ld/image.rs | lit:Some(e) if e <= len => { ==> Some(e) if e <= len && e == 0 => { | cargo test -p niji-ld --test ldso_search | msg:ldso_start_maps_dependencies_from_headers.*(FAILED|panicked)|program headers past the first KiB
+plan-headers-range | crates/ld/src/map.rs | lit:is_none_or(|end| end > len) ==> is_none_or(|end| end > len.saturating_add(1)) | cargo test -p niji-ld --test map | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|one byte short
+tail-offset | crates/ld/src/map.rs | lit:None => tail_from_file(m, tail_page, file_end.wrapping_sub(tail_page), s.offset.wrapping_add(full))?, ==> None => tail_from_file(m, tail_page, file_end.wrapping_sub(tail_page), s.offset)?, | cargo test -p niji-ld --test map --test ldso_search | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|stored bytes
+store-file-offset | crates/boundary/src/ld/image.rs | lit:core::ptr::with_exposed_provenance_mut::<c_void>(word(at)?), n, off); ==> core::ptr::with_exposed_provenance_mut::<c_void>(word(at)?), n, 0); | cargo test -p niji-ld --test ldso_search | msg:ldso_start_maps_dependencies_from_headers.*(FAILED|panicked)|read-only segment with zero fill
+refusal-mapping | crates/boundary/src/ld/image.rs | lit:{ Refusal::NoDynamic } else { Refusal::Malformed } ==> { Refusal::Malformed } else { Refusal::NoDynamic } | cargo test -p niji-ld --test ldso_search | msg:ldso_start_maps_dependencies_from_headers.*(FAILED|panicked)|object file has no dynamic section
+give-back-overlap | crates/boundary/src/ld/image.rs | lit:compare_exchange(end, keep, Relaxed, Relaxed) ==> compare_exchange(end, keep.saturating_sub(128), Relaxed, Relaxed) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+dynamic-pread-offset | crates/boundary/src/ld/image.rs | lit:checked_add(p.offset).and_then(|o| i64::try_from(o).ok()).ok_or(no_dynamic)?; ==> checked_add(p.offset.wrapping_add(16)).and_then(|o| i64::try_from(o).ok()).ok_or(no_dynamic)?; | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+span-kind-decode | crates/boundary/src/ld/image.rs | lit:Some(1) => SpanKind::Live, ==> Some(1) => SpanKind::Unseen, | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+span-gap | crates/ld/src/map.rs | lit:if next.start != end { ==> if next.start < end { | cargo test -p niji-ld --test map | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|shared-gap
+span-in-place | crates/ld/src/map.rs | lit:if !in_place { ==> if true { | cargo test -p niji-ld --test map | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|calls, spanned
+span-prot | crates/ld/src/map.rs | lit:m.map_span(plan.span, s.prot, s.offset) ==> m.map_span(plan.span, s.prot ^ PROT_WRITE, s.offset) | cargo test -p niji-ld --test map | msg:map_from_headers_as_from_the_whole_file.*(FAILED|panicked)|pages, spanned
+start-span-offset | crates/boundary/src/ld/image.rs | lit:raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off) ==> raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off.wrapping_add(4096)) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+merge-with-spans | crates/boundary/src/ld/image.rs | lit:probe.with_spans(&spans[..k]).ok_or(malformed) ==> probe.with_spans(&spans[..k.saturating_sub(1)]).ok_or(malformed) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+# cargo xtask plants results (17 plants: 15 CAUGHT, 2 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# prog-headers-skip: CAUGHT, caught by hot_text_products init_explicit_run_maps_the_program_without_a_whole_file_view
+# prog-headers-entry: CAUGHT, caught by ldso_run ldso_run_as_program_at_random_bases
+# prog-view-refusal: CAUGHT, caught by ldso_run ldso_run_as_program_at_random_bases
+# read-headers-keep: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# read-headers-long: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# plan-headers-range: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# tail-offset: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# store-file-offset: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# refusal-mapping: CAUGHT, caught by ldso_search ldso_start_maps_dependencies_from_headers
+# give-back-overlap: SURVIVED
+# dynamic-pread-offset: CAUGHT, caught by ldso_search ldso_search_cache_opened_once_when_reached
+# span-kind-decode: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# span-gap: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# span-in-place: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# span-prot: CAUGHT, caught by map map_from_headers_as_from_the_whole_file
+# start-span-offset: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
+# merge-with-spans: SURVIVED

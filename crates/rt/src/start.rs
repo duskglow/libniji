@@ -299,6 +299,9 @@ pub mod private {
     /// Looked up only on that branch, by `dlopen` or at a start whose C library did not run
     /// [`EARLY_INIT`] (with it, the C library does this at start itself; D-27.66).
     pub const STACK_EXEC: &[u8] = b"__niji_stack_exec";
+    /// `void __niji_shstk_off(void)`: a `permissive` `dlopen` of an object not marked for the
+    /// shadow stack; the C library turns it off in every thread (D-21.6).
+    pub const SHSTK_OFF: &[u8] = b"__niji_shstk_off";
     /// `__niji_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
     pub const BUILD_TAG: &[u8] = b"__niji_build_tag";
     /// The tag's first bytes (a test finds the tag in a file by them).

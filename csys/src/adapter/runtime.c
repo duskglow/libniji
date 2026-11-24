@@ -57,14 +57,19 @@ void rust_eh_personality(void);
 __attribute__((weak)) void rust_eh_personality(void) { return; }
 #endif
 
-extern void (*__preinit_array_start[])(void) __attribute__((weak));
-extern void (*__preinit_array_end[])(void) __attribute__((weak));
-extern void (*__init_array_start[])(void) __attribute__((weak));
-extern void (*__init_array_end[])(void) __attribute__((weak));
-extern void (*__fini_array_start[])(void) __attribute__((weak));
-extern void (*__fini_array_end[])(void) __attribute__((weak));
-extern void _init(void) __attribute__((weak));
-extern void _fini(void) __attribute__((weak));
+/* A static program's constructor and destructor arrays and its `_init`/`_fini` (crti.o), which only
+ * a static program's start runs (a dynamic program's come from its dynamic section, DT_PREINIT_ARRAY,
+ * DT_INIT_ARRAY, DT_FINI_ARRAY, DT_INIT and DT_FINI, run by the loader). Hidden, so they are resolved
+ * when the object is linked: to the program's markers in a static link, to 0 in libc.so.6, which then
+ * carries no dynamic symbol, relocation or start-up lookup for them (LIBC-INIT-ARRAY-REFS). */
+extern void (*__preinit_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__preinit_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__init_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__init_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__fini_array_start[])(void) __attribute__((weak, visibility("hidden")));
+extern void (*__fini_array_end[])(void) __attribute__((weak, visibility("hidden")));
+extern void _init(void) __attribute__((weak, visibility("hidden")));
+extern void _fini(void) __attribute__((weak, visibility("hidden")));
 
 uintptr_t niji_link_preinit_start(void) { return (uintptr_t)__preinit_array_start; }
 uintptr_t niji_link_preinit_end(void) { return (uintptr_t)__preinit_array_end; }
@@ -105,9 +110,36 @@ void *niji_caller_realloc(void *p, size_t n) { return realloc(p, n); }
 void niji_caller_free(void *p) { free(p); }
 
 extern const char __ehdr_start[] __attribute__((weak, visibility("hidden")));
+
+/* The start (`__ehdr_start`) and end (`_end`) of this object's image and the addresses the four
+ * calls above reach (each through this object's GOT in libc.so.6), in one call:
+ * `caller_alloc::decide_route` asks whether the family resolves outside the image (ruling #7583).
+ * `volatile`: each store takes its address from a general register, loaded by a `mov` from the
+ * GOT that the linker relaxes to a `lea` in a static program (D-X.140: libc.a leaves no `.got`).
+ * Plain stores let the compiler pair the six addresses into vector loads straight from the GOT
+ * (`movq`/`movhps`), which have no relaxable form, and kept six GOT entries in every static
+ * program. */
+extern const char niji_image_end[] __asm__("_end") __attribute__((weak, visibility("hidden")));
+void niji_link_alloc_family(volatile uintptr_t w[6]) {
+    w[0] = (uintptr_t)__ehdr_start;
+    w[1] = (uintptr_t)niji_image_end;
+    w[2] = (uintptr_t)&malloc;
+    w[3] = (uintptr_t)&calloc;
+    w[4] = (uintptr_t)&realloc;
+    w[5] = (uintptr_t)&free;
+}
+
 extern const char niji_eh_frame_start[] __attribute__((weak, visibility("hidden")));
 static const uint32_t niji_eh_frame_end __attribute__((section(".eh_frame.niji_end"), aligned(4))) = 0;
 
 uintptr_t niji_link_ehdr(void) { return (uintptr_t)__ehdr_start; }
 uintptr_t niji_link_eh_frame_start(void) { return (uintptr_t)niji_eh_frame_start; }
 uintptr_t niji_link_eh_frame_end(void) { return (uintptr_t)&niji_eh_frame_end; }
+
+/* 4. The global LC_CTYPE's tables for an old binary's legacy ctype objects (spec/behaviour/ctype-objects.md,
+ *    D-5.13): setlocale passes the six words here, with the objects' addresses as the loader resolves their
+ *    GLIBC_2.2.5 names (a program's COPY of an object is the one written), when the global LC_CTYPE changes.
+ *    libc.so.6's generated compat_aliases.S defines the store and its strong definition replaces the weak
+ *    empty one here in libc.so.6; libc.a has no such objects and keeps the empty one. */
+__attribute__((weak, visibility("hidden"))) void niji_compat_ctype_store(const uintptr_t at[6], const uintptr_t w[6]) { (void)at; (void)w; }
+void niji_csys_compat_ctype_store(const uintptr_t at[6], const uintptr_t words[6]) { niji_compat_ctype_store(at, words); }

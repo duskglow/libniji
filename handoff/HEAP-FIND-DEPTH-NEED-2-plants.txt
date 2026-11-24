@@ -1,0 +1,8 @@
+# HEAP-FIND-DEPTH-NEED-2 plants: the find bound now takes the worst of 8 layout phases (one 16 MiB period), page-exact.
+# blockers-8-find: the cause put back, against the workload test itself (at the one default layout it survived: HEAP-FIND-DEPTH-NEED plants-1/2, Zen 1 host).
+# plants-1 (mei): the mutant needed 34340 to 34852 KiB over 3 entries at the 8 phases (bound 33576), failing the bound's assertion; WARN-NO-MSG only because the msg regex used \d (not supported); fixed to [0-9]+ for plants-2.
+blockers-8-find | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji --test heap_meta_products find_over_200000_entries_bounds_its_address_space | msg:find over 200000 entries needs [0-9]+ KiB over 3 entries at layout phase
+blockers-8 | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken | msg:an aligned later segment from another gap fits under the limit
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# blockers-8-find: CAUGHT, caught by heap_meta_products find_over_200000_entries_bounds_its_address_space
+# blockers-8: CAUGHT, caught by s03_memory_symbols kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken

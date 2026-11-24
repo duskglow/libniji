@@ -1,0 +1,6 @@
+setlocale-keys-dropped | tools/hottext/regen.sh | lit:next } $1 in lib' "$work/lib.keys" ==> next } $1 in lib && $1 !~ /setlocale/' "$work/lib.keys" | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:locale \(build files, locale-archive\).*runs outside the hot group
+textdomain-keys-dropped | tools/hottext/regen.sh | lit:next } $1 in lib' "$work/lib.keys" ==> next } $1 in lib && $1 !~ /textdomain/' "$work/lib.keys" | cargo test -p niji --test hot_text_products init_data_clusters_hold_at_every_text_phase | msg:tool \(build files, locale-archive\).*textdomain.*runs outside the hot group
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# setlocale-keys-dropped: CAUGHT (rc 101, its msg: locale traced with the build's locale-archive names setlocale outside the hot group)
+# textdomain-keys-dropped: CAUGHT (rc 101, its msg: tool traced with the build's locale-archive names textdomain outside the hot group)
+# Job gate-honest-metrics-4-plants1 (mei), head d8f77f1a3.

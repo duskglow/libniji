@@ -1,0 +1,16 @@
+{"task": "LD-RELR-LOOP-3", "model": "opus", "tokens": null,
+ "result": "origin/next merged into the LD-RELR-LOOP-2 head (no code change); the eleven CI-failing loader tests pass on it; they reproduce on next d258cd270 even with libc.so.6 unpacked, so RELR is not their cause (cause not found)",
+ "branch": "task/ld-relr-loop-3", "head": null,
+ "gate": {"affected": "FULL: the train's (xtask/src/so.rs); cargo xtask test 7153 + 4877 + 129 + 46 passed / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "The eleven loader failures of train 932 (program missing from the address tables) are a layout-sensitive loader-tables defect: they reproduce with RELR-LOOP-2 on next d258cd270 with libc.so.6 unpacked, ld.so's 415 RELR words verified correct, and vanish on next 8e1837914", "recommendation": "land this branch; open a small loader story to find the latent defect (debug ld.so in atexit_owner's net run on the d258cd270 + loop-2 merge, recipe in handoff/LD-RELR-LOOP-report.md)"}],
+ "informational": ["Start-up counts not re-measured (the kit is on the Zen 1 host); LD-RELR-LOOP-2's numbers stand: the merge changes no RELR code", "ld-relr-loop-3-lint1 rc 134 only from a `| head` broken pipe on the affected listing; clippy and static were green (superseded by lint2)"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic empty main start, Zen 1 release, whole story (next fd973fc44 -> LD-RELR-LOOP-2 code, unchanged here)", "before": 268837, "after": 238655, "unit": "instr/start", "measured": false},
+  {"kind": "unblock", "what": "LD-RELR-LOOP-2's CI red shown not caused by RELR; branch current with next", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "A CI red attributed to a merge interaction should come with the train's exact next revision: rebuilding loop-2 on d258cd270 reproduced it at once, while the current next hid it",
+ "next_step": "Land via the CI train; if the eleven loader tests fail again, chase the layout-sensitive loader-tables defect with the recipe in the report",
+ "report_file": "handoff/LD-RELR-LOOP-report.md",
+ "jobs": ["mei:ld-relr-loop-3-startup", "mei:ld-relr-loop-3-lint2"]}

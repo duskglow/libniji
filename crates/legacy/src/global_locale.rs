@@ -605,10 +605,17 @@ fn intern_name_locked(objs: &impl Objects, name: &[u8]) -> KResult<(usize, &'sta
     let e = slot_for_write(objs, n)?;
     index_reserve(NAMES, n)?;
     let (addr, len) = (&e.name_addr, &e.name_len);
-    let mut v = TryVec::with_capacity(name.len().saturating_add(1))?;
-    v.extend_from_slice(name)?;
-    v.push(0)?;
-    let leaked: &'static [u8] = v.leak();
+    // The built-in locale's name is a literal with its NUL: a query of the default locale never
+    // allocates, so it cannot fail when the program's allocator (which serves the library's own
+    // allocations once it replaces malloc, ruling #7583) refuses every call.
+    let leaked: &'static [u8] = if name == b"C" {
+        b"C\0"
+    } else {
+        let mut v = TryVec::with_capacity(name.len().saturating_add(1))?;
+        v.extend_from_slice(name)?;
+        v.push(0)?;
+        v.leak()
+    };
     addr.store(addr_of(leaked), Release);
     len.store(name.len(), Release);
     index_add(objs, NAMES, n);
@@ -1280,7 +1287,7 @@ fn same_name(a: &[u8], b: &[u8]) -> bool {
 /// The answer's name is read here only from the static table. A name in a spill chunk goes to
 /// [`setlocale_spilled`] by a tail call: a call here that returned would make every call set up
 /// a frame and save registers (+8 to +9 instructions per call; ruling #6981).
-pub fn setlocale<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Request<'_>) -> Option<&'static [u8]> {
+pub fn global_setlocale_request<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Request<'_>) -> Option<&'static [u8]> {
     if !matches!(req, Request::Environment(_))
         && let Some(i) = query_slot(cat)
     {

@@ -1,0 +1,72 @@
+{
+ "task": "LD-START-MAPS-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "merged next (CI conflict in ld/image.rs resolved: image_spans returns the reader checked once, D-27.97) + arena unit test; held: the only red is issue #21 findutils formula, exposed by this branch lowering the start address-space peak 15120 KiB (walk needs 37036 KiB over 3 entries > 35000; next 21308; glibc 29520); HEAP-WALK-ADDRESS-SPACE lands first (coordinator #8348)",
+ "branch": "task/ld-start-maps-3",
+ "head": "5cb29d2c2",
+ "gate": {
+  "affected": "direct tier on the final code head 5cb29d2c2 (ld-start-maps-3-gate2): 1065 passed / 2 failed, both niji::heap_meta_products find_over_200000_entries_bounds_its_address_space (plain and native pass; issue #21 formula, held by coordinator #8348); all other steps ok. Plants 15+2 CAUGHT after one new unit test (17 of 17 live plants caught across two runs). cargo xtask test 7311 passed / 1 failed (same #21 test); hot_text_products (full profile) 37/37",
+  "peak": "2.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "Issue #21's formula (findutils many-dir-entries-vs-OOM) goes red once the start's address-space peak falls: head 12392 KiB for 3 entries vs next 27512, the walk unchanged (49428 vs 48820)",
+   "recommendation": "hold LD-START-MAPS until a heap story cuts the 200000-entry walk's address space by >= 2.3 MiB (to under 35000 at every phase, with margin); never loosen ISSUE_21_ALLOWANCE. Answered by the coordinator (#8348): agreed, HEAP-WALK-ADDRESS-SPACE briefed, both land together"
+  }
+ ],
+ "informational": [
+  "find over 200000 entries, least ulimit -v (KiB, keke, fixed layout, node 0, en_US.UTF-8): next de86ab08b 27512 / 48820 (diff 21308); head 12392 / 49428-49684 (diff 37036-37292); glibc 2.39 3680 / 33200 (diff 29520); explicit (ld.so --library-path) and exec'd runs give identical numbers",
+  "The walk's address space (strace, no limit) is all heap: first segment over-mapping kept 4420 KiB, two later segments 2304 KiB each after trimming 32 MiB over-mappings, 13 slab chunks of 1792-2048 KiB",
+  "Every later start-up address-space gain widens the #21 formula's gap until the heap's walk overhead is closed"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "size",
+   "what": "address space a start needs under ulimit -v (find, 3 entries: the least RLIMIT_AS), next de86ab08b -> head",
+   "before": 27512,
+   "after": 12392,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "issue #21 formula (find 200000 entries over 3 entries) goes past its 35000 KiB bound; fix-forward: HEAP-WALK-ADDRESS-SPACE (heap walk overhead), branch held until then",
+   "before": 21308,
+   "after": 37036,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "kernel instructions per start (krp shared, held), inherited from LD-START-MAPS-2 (shiki, before this merge): empty main / true / ls / sed",
+   "before": 726038,
+   "after": 613188,
+   "unit": "instr/start (empty main)",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "unit test arena_give_back_keeps_the_bytes_still_in_use; plants: 16 rerun on the merged head (give-back-overlap now caught by the new test) + 1 new on the merge resolution",
+   "before": 16,
+   "after": 17,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "The gate's heap_meta_products selection (dlopen.rs linked into libc.a) caught a cross-area interaction the start-up stories' own counts could not: a start-up address-space check in the start-up stories' briefs (find 3-entry need vs the walk) would surface it before a merge",
+ "next_step": "after HEAP-WALK-ADDRESS-SPACE lands: merge next, re-run the direct gate (heap_meta_products green), land with it",
+ "report_file": "handoff/LD-START-MAPS.md",
+ "jobs": [
+  "keke:ld-start-maps-3-lint2",
+  "keke:ld-start-maps-3-gate2",
+  "keke:ld-start-maps-3-plants",
+  "keke:ld-start-maps-3-plants2",
+  "keke:ld-start-maps-3-startup",
+  "keke:ld-start-maps-3-findneed",
+  "keke:ld-start-maps-3-findexec2",
+  "keke:ld-start-maps-3-findglibc"
+ ]
+}

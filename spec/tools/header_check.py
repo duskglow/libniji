@@ -17,8 +17,7 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
           template is in a row (each problem one FAIL naming the row);
 * levels  a unit that includes features.h and `#error`s unless each `__NIJI_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
-* P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`
-          (a row with `p1` reject is a header every configuration rejects: its unit must NOT compile);
+* P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
 * P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value, typedefs.tsv size and
           alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
 * slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`); a module
@@ -77,8 +76,8 @@ def slice_rows():
                 if h in seen:
                     problems.append(f"{r['where']}: {h} is also in {seen[h]}")
                     continue
-                if r.get("p1") not in ("0", "1", "reject"):
-                    problems.append(f"{r['where']}: {h}: p1 is {r.get('p1')!r}, not 0, 1 or reject")
+                if r.get("p1") not in ("0", "1"):
+                    problems.append(f"{r['where']}: {h}: p1 is {r.get('p1')!r}, not 0 or 1")
                 seen[h] = r["where"]
                 out.append(r)
     for t in sorted(glob.glob(os.path.join(ROOT, "headers", "**", "*.h.in"), recursive=True)):
@@ -172,7 +171,8 @@ def uapi_flags():
 # P8 (plan/headers.md section 3): a libniji header and a kernel UAPI header that defines the same names (the `uapi` cell
 # of its slice row). Both include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose
 # kernel header is not installed is skipped.
-P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE")]
+P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE"),
+            ("c++", "-std=gnu++17")]
 
 
 def p8_pairs(slice_rows):
@@ -290,7 +290,7 @@ def main():
         units = [("levels", "#include <features.h>\n" + "".join(
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
-            units += [(f"P5 {'reject ' if r['p1'] == 'reject' else ''}{r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
+            units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
@@ -302,7 +302,7 @@ def main():
                 # libniji's own header: the failure must be its #error, not a missing file or a syntax slip.
                 ok = r.returncode != 0 and "is not provided" in r.stderr
             else:
-                ok = (r.returncode != 0) if ((rejected and what == "levels") or what.startswith("P5 reject ")) else (r.returncode == 0)
+                ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")

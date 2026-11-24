@@ -1,0 +1,126 @@
+{
+ "task": "SHSTK-ENABLE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Opt-in user shadow stack as the reference: tunables, start-up decision, dlopen policy, clone3 thread shadow-stack size, signal-ucontext setcontext rule; N100 functional runs, controls and cost table",
+ "branch": "task/shstk-enable",
+ "head": "73d2ad2f6",
+ "gate": {
+  "affected": "FULL: the train's (csys machine .S files); hot_text_products 33 passed; plants 3/3 CAUGHT; lint clean; precheck GREEN; cargo xtask test (shstk-enable-xtest4, SUPERSEDED) 7192 run, 7186 passed, 6 failed: the build host has no locale archive since its locales were regenerated as per-locale directories at 06:32Z on 11-23 (same six fail in that host's CI gates)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "jobs": [
+  "shstk-enable-lint4",
+  "shstk-enable-plants4",
+  "shstk-enable-hottext4",
+  "shstk-enable-su7"
+ ],
+ "rulings": [
+  {
+   "item": "makecontext shadow stacks are never unmapped (D-21.7 (5))",
+   "recommendation": "a registry keyed to uc_stack.ss_sp that unmaps the earlier shadow stack when makecontext reuses the same stack memory"
+  },
+  {
+   "item": "reference static programs ignore glibc.cpu.x86_shstk=off with hwcaps=SHSTK; libniji vetoes (differences row, no compat option)",
+   "recommendation": "keep the veto"
+  },
+  {
+   "item": "the -2 instructions per getcontext/swapcontext fix-forward needs uc_flags written in every mode (a default-mode difference)",
+   "recommendation": "keep the default mode exact (net 0 taken)"
+  }
+ ],
+ "informational": [
+  "With GLIBC_TUNABLES set, a libniji dynamic program run directly (libc.so.6 pinned to its install dir) fails to find libc.so.6 (rc 127), the same at 0495c4684; not this branch's",
+  "setcontext on a kernel signal ucontext restores x87 env and MXCSR from the user-context layout (pre-existing); the N100 step passes",
+  "cargo xtask so writes products under the workspace's target/niji even with CARGO_TARGET_DIR set (seen building a base tree)",
+  "start-up opt-in asked on a CPU without user shadow stacks: static +1,309 instr:u and +5 faults (reads its own image, maps cold code); a CPUID test first would skip it",
+  "the Skylake-SP build host has had no /usr/lib/locale/locale-archive since 2026-11-23T06:32Z (511 per-locale directories): six locale/catalog/printf-corpus tests fail in every cargo xtask test there, CI gates included; host fix needs root (not run)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "cost",
+   "what": "static empty start-up default mode vs SHSTK-OPT-IN head (su7)",
+   "before": 2927,
+   "after": 2934,
+   "unit": "instr:u",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dynamic empty start-up default mode vs SHSTK-OPT-IN head (su7, stable within the job; cause not isolated)",
+   "before": 189266,
+   "after": 189309,
+   "unit": "instr:u",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "runtime::start in hot bin 0 (fix-forward: pass only &tunables, read auxv in the cold function)",
+   "before": 5658,
+   "after": 5808,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "setcontext from a signal handler to its ucontext with the shadow stack on (was a control-protection SIGSEGV; N100 control)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "thread shadow stack sized from the thread stack with the opt-in on (RLIMIT_STACK 64 MiB)",
+   "before": 67108864,
+   "after": 262144,
+   "unit": "bytes/thread",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "thread_create_join default mode (fix-forward: inline rdssp, about -5)",
+   "before": 36092.0,
+   "after": 36105.2,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "opt-in on, N100: static empty start-up (enable, lock, shadow-stack map, cold pages)",
+   "before": 6275,
+   "after": 7455,
+   "unit": "instr:u",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "opt-in on, N100: per thread kernel instructions (reference +13.1k)",
+   "before": 44990,
+   "after": 57722,
+   "unit": "instr:k/thread",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants (B, C, K), all caught; conformance step setcontext-from-handler; tunable unit test; linker-built marking test",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "owner default-on decision (#154): N100 cost table in handoff/SHSTK-ENABLE-report.md",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "cargo xtask so ignores CARGO_TARGET_DIR for target/niji, and perf under LD_LIBRARY_PATH loads libniji into perf itself: a documented 'measure two revisions' recipe (wl tools for dynamic products) would have saved 5 jobs",
+ "next_step": "land; owner rulings on the makecontext leak policy and the static x86_shstk=off difference; fix-forwards: start passes only &tunables (start +150 B), inline rdssp in thread create, CPUID test before the static opt-in image read",
+ "report_file": "handoff/SHSTK-ENABLE-report.md"
+}

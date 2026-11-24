@@ -1366,6 +1366,81 @@ enum { SCM_SECURITY = 3 };
 #  define SO_ZEROCOPY 60
 # endif
 #endif
+#if __NIJI_FORTIFY > 0
+#ifndef __NIJI_FORTIFY_DEFS
+# define __NIJI_FORTIFY_DEFS 1
+# define __NIJI_FORTIFY_FN extern __inline __attribute__ ((__always_inline__, __gnu_inline__, __artificial__))
+# define __NIJI_FORTIFY_FLAG (__NIJI_FORTIFY > 1)
+# if __NIJI_FORTIFY > 2 && defined __has_builtin
+#  if __has_builtin (__builtin_dynamic_object_size)
+#   define __NIJI_BOS(p, t) __builtin_dynamic_object_size (p, t)
+#  endif
+# endif
+# ifndef __NIJI_BOS
+#  define __NIJI_BOS(p, t) __builtin_object_size (p, t)
+# endif
+#endif
+#endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_recv
+#  define __NIJI_F_recv 1
+#  ifndef __NIJI_D___recv_chk
+#   define __NIJI_D___recv_chk 1
+extern long __recv_chk (int, void *, unsigned long, unsigned long, int);
+#  endif
+extern long __niji_plain_recv (int, void *, unsigned long, int) __asm__ ("recv");
+__NIJI_FORTIFY_FN long recv (int __p0, void *__p1, unsigned long __p2, int __p3)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_recv (__p0, __p1, __p2, __p3);
+  return __recv_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0), __p3);
+}
+# endif
+#endif
+# ifndef __NIJI_D___SOCKADDR_ARG
+#  define __NIJI_D___SOCKADDR_ARG 1
+#  if __NIJI_GNU
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
+# endif
+# ifndef __NIJI_D___SOCKADDR_ARG
+#  define __NIJI_D___SOCKADDR_ARG 1
+#  if __NIJI_GNU
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
+# endif
+#if (1) && __NIJI_FORTIFY >= 1
+# ifndef __NIJI_F_recvfrom
+#  define __NIJI_F_recvfrom 1
+#  ifndef __NIJI_D___recvfrom_chk
+#   define __NIJI_D___recvfrom_chk 1
+extern long __recvfrom_chk (int, void *, unsigned long, unsigned long, int, __SOCKADDR_ARG, unsigned int *);
+#  endif
+extern long __niji_plain_recvfrom (int, void *, unsigned long, int, __SOCKADDR_ARG, unsigned int *) __asm__ ("recvfrom");
+__NIJI_FORTIFY_FN long recvfrom (int __p0, void *__p1, unsigned long __p2, int __p3, __SOCKADDR_ARG __p4, unsigned int *__p5)
+{
+  if (__NIJI_BOS (__p1, 0) == (__SIZE_TYPE__) -1 || (__builtin_constant_p (__p2 <= __NIJI_BOS (__p1, 0)) && (__p2 <= __NIJI_BOS (__p1, 0))))
+    return __niji_plain_recvfrom (__p0, __p1, __p2, __p3, __p4, __p5);
+  return __recvfrom_chk (__p0, __p1, __p2, __NIJI_BOS (__p1, 0), __p3, __p4, __p5);
+}
+# endif
+#endif
 
 #if 1
 # define CMSG_NXTHDR(mhdr, cmsg) __cmsg_nxthdr (mhdr, cmsg)

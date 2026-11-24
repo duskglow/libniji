@@ -16,6 +16,10 @@ niji = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
+# The generated charmaps (LOCALE-CHARMAPS-GEN), compiled against the reference in tests/reference.rs.
+niji-charmaps = { workspace = true }
+# The generated root collation (LOCALE-COLLATE-TAILORINGS-2), compared with the reference in tests/reference.rs.
+niji-collate-root = { workspace = true }
 
 [lints]
 workspace = true

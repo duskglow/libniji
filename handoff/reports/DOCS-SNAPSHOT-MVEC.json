@@ -1,0 +1,11 @@
+{"task": "DOCS-SNAPSHOT-MVEC", "model": "sonnet", "tokens": null,
+ "result": "install-packages, differences and release-notes docs corrected (libmvec, libc6-dbg, iconv, headers, stale records/pending links, snapshot .2/.3 notes)",
+ "branch": "task/docs-snapshot-mvec", "head": "dea1a8187",
+ "gate": {"affected": "docs only: cargo xtask static passed", "peak": null},
+ "accepted_first_attempt": null, "rulings": [], "informational": [
+  "records/pending/ is still named in non-doc files (tools/deb/*.sh, crates/*, spec/behaviour/setlocale-errno.md, glibc-functional-spec.md, tools/records_import.py); outside this docs-only brief"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "documentation corrections only", "before": null, "after": null, "unit": "", "measured": false}],
+ "improvement": "none", "next_step": "land",
+ "report_file": "handoff/DOCS-SNAPSHOT-MVEC.md",
+ "jobs": ["keke:docs-snapshot-mvec-static"]}

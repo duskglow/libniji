@@ -24,7 +24,7 @@
 //!   A handle must be a published link map (one comparison per object, never dereferenced).
 
 use super::dlsym::start_path;
-use super::{c_string, dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
+use super::{c_string, dlerr, dyn_string, read_section, start_arg, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
 use crate::ld::index::Found;
 use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
@@ -92,8 +92,8 @@ fn put_str(at: usize, s: &[u8]) {
 fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
     let tab = syms.symtab();
     let mut best: Option<(u32, Sym)> = None;
-    for k in 0..tab.count()? {
-        let Ok(s) = tab.get(k) else { break };
+    // Only the symbols whose range holds `addr` are decoded (most of a large table is not).
+    for (k, s) in tab.holding(bias, addr) {
         // The program's canonical PLT entry is its function's address in the process, so it
         // holds that address like a definition (probe-settled: only the entry's own address, its
         // size being 0).
@@ -102,10 +102,6 @@ fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
             continue;
         }
         let start = bias.wrapping_add(s.value);
-        let Some(off) = addr.checked_sub(start) else { continue };
-        if off >= s.size && off != 0 {
-            continue;
-        }
         if best.is_none_or(|(_, b)| start > bias.wrapping_add(b.value)) {
             best = Some((k, s));
         }
@@ -131,26 +127,28 @@ fn file_name(v: &View, i: usize) -> usize {
 
 /// `dladdr(addr, info)` (`flags` 0) and `dladdr1(addr, info, extra, flags)`: 1 with `*info` filled
 /// (and `*extra` for `RTLD_DL_SYMENT`/`RTLD_DL_LINKMAP`), or 0 with both untouched when no object
-/// holds `addr`. The dlerror state is not touched.
+/// (nor the vDSO, [`vdso_dladdr`]) holds `addr`. The dlerror state is not touched.
 extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -> i32 {
     if info == 0 {
         return 0;
     }
     let found = read_section(|v| {
+        // Inside the object's whole range, then its extent (`crate::ld::readers::extent`: the
+        // program the kernel started and `ld.so` hold only their segment runs).
         let holds = |i: usize| {
             let (lo, hi) = v.range(i);
-            lo <= addr && addr < hi
+            lo <= addr && addr < hi && crate::ld::readers::extent_holds(i, addr)
         };
-        // Up to `WALK` objects the chain walk is cheaper than the address index (counted per call,
-        // validation/percall/dl_objects.c: about 17 instructions a node); past them the program
-        // (the first node) is tried first, then the index (`crate::ld::index`), and the walk again
-        // when the index cannot tell or its object's range is not the node's (never expected: both
-        // are the `PT_LOAD` span).
+        // The program (the first node) is tried first. Up to `WALK` objects the chain walk is
+        // cheaper than the address index (counted per call, validation/percall/dl_objects.c: about
+        // 17 instructions a node); past them the index (`crate::ld::index`), and the walk again
+        // when the index cannot tell or its object is not one that holds the address (never
+        // expected: both match by `crate::ld::readers::extent`).
         const WALK: usize = 12;
-        let i = if crate::ld::readers::published() <= WALK {
-            v.find(holds)?
-        } else if holds(0) {
+        let i = if holds(0) {
             0
+        } else if crate::ld::readers::published() <= WALK {
+            v.find(holds)?
         } else {
             match crate::ld::index::find(addr) {
                 Found::Hit(h) if holds(h.i) => h.i,
@@ -180,7 +178,48 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         }
         Some(())
     });
-    i32::from(found.flatten().is_some())
+    i32::from(found.flatten().is_some() || vdso_dladdr(addr, info, extra, flags))
+}
+
+/// [`dladdr_entry`] for an address no loaded object holds: the vDSO's when its `PT_LOAD` range
+/// (lowest to highest address) holds it (DL-OBJECT-PATHS, D-27.93; probed): `dli_fname`
+/// `linux-vdso.so.1`, the symbol by the module's rule over its dynamic symbols, and its link map
+/// for `RTLD_DL_LINKMAP`. Out of line: a lookup in the vDSO is rare, and the objects' path stays
+/// as it was.
+#[cold]
+#[inline(never)]
+fn vdso_dladdr(addr: usize, info: usize, extra: usize, flags: i32) -> bool {
+    use crate::posix::s27_dynlink::{find_in, vdso_headers, Extent};
+    use niji_kernel::vdso::{image_len, HEADER_LEN};
+    let vd = crate::ld::readers::vdso();
+    if vd == 0 {
+        return false;
+    }
+    let (phdr, phnum, bias) = vdso_headers(vd);
+    let Some((lo, _, _)) = find_in(phdr, phnum, bias, addr, Extent::Whole) else { return false };
+    let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
+    let at = |x: u64| usize::try_from(x).unwrap_or(0);
+    let b = u64::try_from(bias).unwrap_or(0);
+    // The image as the kernel mapped it, its length from its own header (`crate::conv::kernel_image`'s
+    // obligation), read by the validating file reader: its file offsets are its image's.
+    let sym = image_len(crate::conv::kernel_image(vd, HEADER_LEN)).and_then(|len| {
+        let elf = niji_ld::elf::Elf::parse::<Native>(crate::conv::kernel_image(vd, len)).ok()?;
+        let dynm = elf.dynamic().ok().flatten()?;
+        let (k, s) = containing(&Object::new(dynm).ok()?, b, u64::try_from(addr).unwrap_or(0))?;
+        let (strtab, symtab) = (dynm.get(dt::STRTAB)?, dynm.get(dt::SYMTAB)?);
+        let entry = at(b.wrapping_add(symtab)).wrapping_add(usize::try_from(k).unwrap_or(0).wrapping_mul(SYM_SIZE));
+        Some((at(b.wrapping_add(strtab).wrapping_add(u64::from(s.name))), at(b.wrapping_add(s.value)), entry))
+    });
+    let (sname, saddr, entry) = sym.unwrap_or((0, 0, 0));
+    put(info, [c"linux-vdso.so.1".as_ptr().expose_provenance(), lo & !page.wrapping_sub(1), sname, saddr]);
+    if extra != 0 {
+        match flags {
+            RTLD_DL_SYMENT => put(extra, entry),
+            RTLD_DL_LINKMAP => put(extra, crate::ld::debug::vdso_map()),
+            _ => {}
+        }
+    }
+    true
 }
 
 /// Object `i`'s search scope as a reader sees it: its `DT_RPATH`, `DT_RUNPATH` and `$ORIGIN`.
@@ -279,7 +318,8 @@ fn request(v: &View, i: usize, req: i32, arg: usize) -> Result<i32, &'static [u8
         RTLD_DI_ORIGIN => put_str(arg, origin(v, i).ok_or(&b"dlinfo: the origin of the object is unknown"[..])?),
         RTLD_DI_TLS_MODID => put(arg, tls_place(v, i).map_or(0, |p| usize::try_from(p.module).unwrap_or(0))),
         RTLD_DI_TLS_DATA => {
-            let data = tls_place(v, i).map_or(0, |p| tb::tp().wrapping_add_signed(isize::try_from(p.tp_offset).unwrap_or(0)));
+            // An on-demand block (DL-19) the calling thread has not made yet: 0, as documented.
+            let data = tls_place(v, i).map_or(0, |p| super::super::tls::thread_address(p, 0, false));
             put(arg, data);
         }
         RTLD_DI_PHDR => {

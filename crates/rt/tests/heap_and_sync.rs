@@ -256,6 +256,19 @@ fn classes_cover_every_small_size_with_the_fundamental_alignment() {
     }
     assert_eq!(class_for(MAX_SMALL + 1, ALIGN), None);
     assert_eq!(class_for(100, 2 * PAGE), None, "over-page alignment goes large");
+}
+
+#[test]
+fn a_block_up_to_1024_bytes_exceeds_its_request_by_at_most_an_eighth() {
+    // Clauses: s3_1_c_1 (D-3.26; GitHub issue #21, HEAP-WALK-ADDRESS-SPACE). Up to 1024 bytes a
+    // class is at most an eighth (and 16 bytes) above the class below, so no request pays more:
+    // with a quarter, find's 264-byte directory entries took 320 bytes each.
+    for size in 1..=1024 {
+        let c = class_for(size, ALIGN).unwrap();
+        let below = if c == 0 { 0 } else { CLASSES[c - 1] };
+        let over = CLASSES[c] - size;
+        assert!(over < (below / 8).max(16), "size {size}: class {} wastes {over} bytes (class below {below})", CLASSES[c]);
+    }
     for align in [32, 64, 128, 256, 512, 1024, 2048, 4096] {
         let c = class_for(100, align).unwrap();
         assert_eq!(CLASSES[c] % align, 0, "every block of the class is aligned");
@@ -698,6 +711,35 @@ fn under_an_address_space_limit_a_moved_thread_takes_held_slabs_before_a_new_seg
 }
 
 #[test]
+fn a_segment_after_the_first_maps_one_growth_step_first() {
+    // Trace: no spec clause (address space of the heap's segments, T14; GitHub issue #21); D-3.22,
+    // D-3.24. The first reservation's segment maps its metadata and 16 slabs (start-up); a segment
+    // mapped after it (here node 1's) maps its metadata and 8, the step a segment grows by, and
+    // then grows by that step. Mapping 16 there left a second node 8 slabs (2 MiB) of address
+    // space above the first node's next growth, under a limit too.
+    let (meta, slab) = (256usize << 10, 256usize << 10);
+    let heap = Heap::new();
+    let pages = FakePages::new();
+    heap.set_numa(true);
+    pages.shard.set(0);
+    let a = heap.alloc(&CSys, &pages, 100, ALIGN).unwrap().addr;
+    let first = meta + 16 * slab;
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first, "the first segment: metadata and 16 slabs");
+    pages.thread.set(1);
+    pages.shard.set(1);
+    // 64 KiB blocks, four per slab: 32 fill node 1's first 8 slabs, the 33rd takes a ninth.
+    let mut big: Vec<usize> = (0..8 * 4).map(|_| heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr).collect();
+    assert_eq!(segment_nodes(&pages).values().copied().collect::<Vec<_>>(), [Some(0), Some(1)], "node 1 has a segment of its own");
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first + meta + 8 * slab, "node 1's segment maps its metadata and 8 slabs first");
+    big.push(heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr);
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, first + meta + 16 * slab, "then it grows by 8 slabs");
+    for p in big.into_iter().chain([a]) {
+        heap.free(&CSys, &pages, p).unwrap();
+    }
+    assert_eq!(heap.stats(&CSys, &pages).in_use, 0);
+}
+
+#[test]
 fn one_allowed_node_never_reads_the_node() {
     // Trace: no spec clause (NUMA placement of the heap's shards); D-3.12 as amended by D-3.20.
     // One allowed node: the set is asked once, on the first slow path; the thread's node is never
@@ -983,7 +1025,7 @@ fn realloc_takes_one_fused_path_and_forecasts_growth() {
     let (r, copied) = resize(grown.addr, 81);
     let g3 = r.unwrap().unwrap();
     assert_eq!(copied, Some((grown.addr, g3.addr, 80)));
-    assert_eq!((g3.usable, heap.usable(&CSys, &pages, g3.addr)), (192, Ok(192)), "forecast 162 -> class 192");
+    assert_eq!((g3.usable, heap.usable(&CSys, &pages, g3.addr)), (176, Ok(176)), "forecast 162 -> class 176");
     // A shrink below half the next class down moves without a forecast, copying the request.
     let (r, copied) = resize(g3.addr, 10);
     let small = r.unwrap().unwrap();

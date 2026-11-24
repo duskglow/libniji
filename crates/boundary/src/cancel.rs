@@ -93,7 +93,7 @@ pub fn unwind_next(buf: KResult<&[AtomicUsize]>) -> ! {
         d.cleanup_jmp.store(next, Release);
         d.result.load(Acquire)
     });
-    continue_unwind(next, result)
+    continue_unwind(next, result, false)
 }
 
 /// The thread exits with `result` (`pthread_exit`, `thrd_exit`, or acting on cancellation with
@@ -104,12 +104,15 @@ pub fn unwind(result: usize) -> ! {
         d.cancel.fetch_or(CANCEL_ACTING, AcqRel);
         d.cleanup_jmp.load(Acquire)
     });
-    continue_unwind(head, result)
+    continue_unwind(head, result, true)
 }
 
-fn continue_unwind(buf: usize, result: usize) -> ! {
+/// `first`: the exit's first step (from [`unwind`]), where a process without an unwinder checks
+/// that the thread's frames need none (D-22.23); a later step (from a cleanup buffer's handler)
+/// comes after that check passed.
+fn continue_unwind(buf: usize, result: usize, first: bool) -> ! {
     // Returns only when the process has no unwinder or the unwind could not start.
-    forced_unwind();
+    forced_unwind(first);
     fallback(buf, result)
 }
 
@@ -194,12 +197,27 @@ fn unwinder() -> Option<(usize, usize)> {
 /// `_Unwind_ForcedUnwind`): every frame's cleanups run (C++ destructors, `catch` handlers that
 /// rethrow, `-fexceptions` cleanups), the C cleanup buffers in their frames' turn
 /// ([`stop`]), and the exit sequence after the outermost frame. Returns only when there is no
-/// unwinder or the unwind could not start; the caller then exits without it.
+/// unwinder or the unwind could not start; the caller then exits without it. Without an
+/// unwinder, on the exit's `first` step, [`no_unwinder`] decides whether it may.
 #[cold]
 #[inline(never)]
-fn forced_unwind() {
+fn forced_unwind(first: bool) {
     let Ok(d) = thread::desc() else { return };
-    let Some((force, get_cfa)) = unwinder() else { return };
+    let Some((force, get_cfa)) = unwinder() else {
+        if first {
+            no_unwinder();
+        } else {
+            later_step(d);
+        }
+        return;
+    };
+    start_unwind(d, force, get_cfa);
+}
+
+/// Start the exit's unwind with `force` (`_Unwind_ForcedUnwind`) and `get_cfa`; returns only
+/// when it could not start.
+#[inline]
+fn start_unwind(d: &niji_rt::thread::Thread, force: usize, get_cfa: usize) {
     let w = &d.unwind.words;
     set(w, niji_rt::thread::UNWIND_CLASS, usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes()));
     set(w, niji_rt::thread::UNWIND_CLEANUP, swallowed_addr());
@@ -230,6 +248,78 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
     set(&d.unwind.words, niji_rt::thread::UNWIND_LAST_CFA, cfa);
     0
 }
+
+/// The exit without an unwinder (D-22.23, rulings #7118 and #7119): when a frame of the thread's
+/// stack has unwind work (`-fexceptions` cleanups, C++ destructors or handlers, found by this
+/// library's own call-frame walker), going on would skip it (a mutex a destructor owns stays
+/// locked, a promise is never broken), so the process ends: a message naming the cause and the
+/// fix on standard error, then `abort` (SIGABRT). A thread with nothing to unwind (C cleanup
+/// buffers and old-style records only) goes on to the exit without an unwinder. A program that
+/// links its own unwinder hidden (`-static-libgcc`) and loads no `libgcc_s.so.1` lands here.
+/// Only in a program this library's `ld.so` started: a static program with unwind work links
+/// its unwinder (D-22.21), and a process another loader started (the in-process test runtime)
+/// has no lookup to find one.
+///
+/// Before the message, the program's own unwinder (D-22.24): a program linked by niji-gcc or
+/// niji-g++ exports `__niji_program_unwinder` (csys/start/unwinder.S), which returns the hidden
+/// copy the program links; the exit then unwinds with it ([`with_program_unwinder`], called
+/// only once the walk found work, so this frame stays as small as before: every frame the walk
+/// passes costs it, and a plain-C `pthread_exit` walks this one: no argument, no register to
+/// keep across the walk).
+#[cold]
+#[inline(never)]
+fn no_unwinder() {
+    if crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire) == 0 {
+        return;
+    }
+    if crate::backtrace::handler_on_stack() && !with_program_unwinder() {
+        niji_rt::fatal::fatal(&CSys, &[NO_UNWINDER], crate::ret::trap)
+    }
+}
+
+/// A later step of an exit without a loaded unwinder (after a cleanup buffer): the program's own
+/// unwinder (D-22.24) only when this exit already started an unwind with it (the exception's
+/// class is this exit's), so a thread with nothing to unwind looks nothing up.
+#[cold]
+#[inline(never)]
+fn later_step(d: &niji_rt::thread::Thread) {
+    let started = word(&d.unwind.words, niji_rt::thread::UNWIND_CLASS) == usize::from_ne_bytes(EXIT_CLASS.to_ne_bytes());
+    if started {
+        with_program_unwinder();
+    }
+}
+
+/// Unwind with the program's own unwinder; `false` when it has none (returns `true` also when
+/// the unwind could not start: the exit then goes on without it, as with a loaded one).
+#[cold]
+#[inline(never)]
+fn with_program_unwinder() -> bool {
+    let Ok(d) = thread::desc() else { return false };
+    let Some((force, get_cfa)) = program_unwinder() else { return false };
+    start_unwind(d, force, get_cfa);
+    true
+}
+
+/// The unwinder the program links, through the entry it exports (`__niji_program_unwinder(0)`:
+/// `_Unwind_ForcedUnwind`, `(1)`: `_Unwind_GetCFA`; D-22.24), looked up with the loader's `dlsym`
+/// as [`unwinder`] does; `None` when the program exports no entry or links no unwinder.
+fn program_unwinder() -> Option<(usize, usize)> {
+    let entry = crate::posix::s27_dynlink::LOADER_DLSYM.load(Acquire);
+    if entry == 0 {
+        return None;
+    }
+    let name = b"__niji_program_unwinder\0";
+    let program = usize::from_ne_bytes(ffi::niji_machine_call4(entry, 0, as_i64(name.as_ptr().expose_provenance()), 0, 0).to_ne_bytes());
+    if program == 0 {
+        return None;
+    }
+    let get = |which: i64| usize::from_ne_bytes(ffi::niji_machine_call3(program, which, 0, 0).to_ne_bytes());
+    let (force, cfa) = (get(0), get(1));
+    (force != 0 && cfa != 0).then_some((force, cfa))
+}
+
+/// [`no_unwinder`]'s message.
+const NO_UNWINDER: &[u8] = b"FATAL: an exiting or cancelled thread has frames to unwind (cleanups, destructors or handlers) and no unwinder can be found; link libgcc_s dynamically (not -static-libgcc) in a program whose threads exit or are cancelled\n";
 
 /// The exception's cleanup function: a handler caught the thread's exit and ended without
 /// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither

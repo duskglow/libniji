@@ -10,7 +10,12 @@
 //!   text is "Unknown error n" and past the last errno; `sys_nerr`/`_sys_nerr`: the pointers in the
 //!   same version of `sys_errlist`;
 //! * `sys_siglist`/`_sys_siglist`/`sys_sigabbrev`: `spec/abi/sigmsgs.tsv`, NULL elsewhere;
-//! * the inert malloc hooks, `__morecore`, `mallwatch` and `_null_auth`: zero bytes.
+//! * the inert malloc hooks, `__morecore`, `mallwatch`, `_null_auth` and `_obstack`: zero bytes;
+//! * `__ctype_b`, `__ctype_tolower`, `__ctype_toupper` and the `__ctype32_*` names: a pointer to
+//!   the `"C"` locale's table at character 0 ([`ctype_tables`]; `spec/behaviour/ctype-objects.md`).
+//!   The tables are rendered here, in `libc.so.6` only: the library's own copies live in a crate
+//!   that cannot name a symbol (`niji_legacy`, `forbid(unsafe_code)`), and an assembled object can
+//!   only point at a named symbol (D-5.13, records/decisions/D-5/D-5.13.toml).
 //!
 //! `cargo xtask so` checks that every exported object of `libc.so.6` whose row `versions.tsv`
 //! has carries the row's size ([`problems`]).
@@ -41,7 +46,88 @@ pub const NAMES: &[&str] = &[
     "loc1",
     "loc2",
     "locs",
+    "_obstack",
+    "__ctype_b",
+    "__ctype_tolower",
+    "__ctype_toupper",
+    "__ctype32_b",
+    "__ctype32_tolower",
+    "__ctype32_toupper",
 ];
+
+/// Entries of each `"C"` ctype table: characters -128 to 255, so that the table pointer (at
+/// character 0) is indexable from -128 (`<ctype.h>`'s classification macros of old binaries).
+pub const CTYPE_LEN: usize = 384;
+/// Index of character 0 in the ctype tables.
+pub const CTYPE_ZERO: usize = 128;
+
+/// The `"C"` locale's class bits of byte `c` (POSIX "C" locale, ASCII only), in `<ctype.h>`'s
+/// `_ISbit` order: upper, lower, alpha, digit, xdigit, space, print, graph, blank, cntrl, punct,
+/// alnum (bits 0 to 11).
+fn c_bits(c: u8) -> [bool; 12] {
+    let (upper, lower, digit) = (c.is_ascii_uppercase(), c.is_ascii_lowercase(), c.is_ascii_digit());
+    let graph = c.is_ascii_graphic();
+    let alnum = upper || lower || digit;
+    [
+        upper,
+        lower,
+        upper || lower,
+        digit,
+        c.is_ascii_hexdigit(),
+        matches!(c, b' ' | b'\t' | b'\n' | 0x0b | 0x0c | b'\r'),
+        graph || c == b' ',
+        graph,
+        matches!(c, b' ' | b'\t'),
+        c < 0x20 || c == 0x7f,
+        graph && !alnum,
+        alnum,
+    ]
+}
+
+/// The `"C"` ctype tables, each indexed by character + [`CTYPE_ZERO`].
+pub struct CtypeTables {
+    /// `unsigned short` class masks, `_ISbit(b)`: bits 0-7 in the high byte, 8-15 in the low.
+    pub class: Vec<u16>,
+    /// 32-bit class masks, the four bytes of `1 << b` reversed (`__ctype32_b`).
+    pub class32: Vec<u32>,
+    pub tolower: Vec<i32>,
+    pub toupper: Vec<i32>,
+}
+
+/// The `"C"` ctype tables: no class outside 0-127; a case table maps a negative `char` other
+/// than `EOF` to the byte it aliases (c + 256), `EOF` to itself, and every byte outside A-Z/a-z to
+/// itself (probe-settled, `spec/behaviour/ctype-objects.md`).
+pub fn ctype_tables() -> CtypeTables {
+    let mut t = CtypeTables { class: vec![0; CTYPE_LEN], class32: vec![0; CTYPE_LEN], tolower: vec![0; CTYPE_LEN], toupper: vec![0; CTYPE_LEN] };
+    for (i, c) in (-(CTYPE_ZERO as i32)..(CTYPE_LEN - CTYPE_ZERO) as i32).enumerate() {
+        if let Some(b) = u8::try_from(c).ok().filter(u8::is_ascii) {
+            for (bit, on) in c_bits(b).into_iter().enumerate() {
+                if on {
+                    t.class[i] |= if bit < 8 { (1u16 << bit) << 8 } else { (1u16 << bit) >> 8 };
+                    t.class32[i] |= (1u32 << bit).swap_bytes();
+                }
+            }
+        }
+        let (lo, up) = match u8::try_from(c) {
+            Ok(b) if b < 128 => (i32::from(b.to_ascii_lowercase()), i32::from(b.to_ascii_uppercase())),
+            _ if c < -1 => (c + 256, c + 256),
+            _ => (c, c),
+        };
+        t.tolower[i] = lo;
+        t.toupper[i] = up;
+    }
+    t
+}
+
+/// The table a ctype object points at, and the byte offset of character 0 in it.
+fn ctype_target(name: &str) -> (&'static str, usize) {
+    match name {
+        "__ctype_b" => ("class", 2 * CTYPE_ZERO),
+        "__ctype32_b" => ("class32", 4 * CTYPE_ZERO),
+        "__ctype_tolower" | "__ctype32_tolower" => ("tolower", 4 * CTYPE_ZERO),
+        _ => ("toupper", 4 * CTYPE_ZERO),
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
@@ -50,6 +136,7 @@ enum Kind {
     Siglist,
     Sigabbrev,
     Zero,
+    Ctype,
 }
 
 fn kind(name: &str) -> Kind {
@@ -58,6 +145,7 @@ fn kind(name: &str) -> Kind {
         "sys_nerr" | "_sys_nerr" => Kind::Nerr,
         "sys_siglist" | "_sys_siglist" => Kind::Siglist,
         "sys_sigabbrev" => Kind::Sigabbrev,
+        n if n.starts_with("__ctype") => Kind::Ctype,
         _ => Kind::Zero,
     }
 }
@@ -153,6 +241,9 @@ pub fn model_from(versions: &str, errmsgs: &str, sigmsgs: &str) -> Result<Model,
             Kind::Nerr if o.size != 4 || model.nerr(&o.version).is_none() => {
                 return Err(format!("compat-gen: {}@{} needs 4 bytes and a sys_errlist of its version", o.name, o.version));
             }
+            Kind::Ctype if o.size != 8 => {
+                return Err(format!("compat-gen: {}@{} is a table pointer: 8 bytes, not {}", o.name, o.version, o.size));
+            }
             Kind::Errlist | Kind::Siglist | Kind::Sigabbrev if o.size % 8 != 0 => {
                 return Err(format!("compat-gen: {}@{} is not a whole number of pointers", o.name, o.version));
             }
@@ -233,7 +324,56 @@ pub fn render(m: &Model) -> String {
         s.push_str(&format!("\t.zero {}\n", o.size));
         symver(&mut s, &[o]);
     }
+    let ctype: Vec<&Object> = m.objects.iter().filter(|o| kind(&o.name) == Kind::Ctype).collect();
+    if !ctype.is_empty() {
+        let t = ctype_tables();
+        s.push_str("\t.section .rodata.niji_compat_ctype,\"a\",@progbits\n\t.p2align 6\n");
+        let rows = |s: &mut String, label: &str, dir: &str, v: Vec<String>| {
+            s.push_str(&format!(".Lniji_compat_ctype_{label}:\n"));
+            for chunk in v.chunks(16) {
+                s.push_str(&format!("\t{dir} {}\n", chunk.join(",")));
+            }
+        };
+        rows(&mut s, "class", ".short", t.class.iter().map(|v| format!("{v:#06x}")).collect());
+        rows(&mut s, "class32", ".long", t.class32.iter().map(|v| format!("{v:#010x}")).collect());
+        rows(&mut s, "tolower", ".long", t.tolower.iter().map(i32::to_string).collect());
+        rows(&mut s, "toupper", ".long", t.toupper.iter().map(i32::to_string).collect());
+        // Writable, as the reference's: the pointers are variables an old binary may assign.
+        for &o in &ctype {
+            let (table, off) = ctype_target(&o.name);
+            s.push_str(&format!("\t.section .data.{},\"aw\",@progbits\n\t.p2align 3\n", o.label()));
+            declare(&mut s, &[o]);
+            s.push_str(&format!("\t.quad .Lniji_compat_ctype_{table}+{off}\n"));
+            symver(&mut s, &[o]);
+        }
+        store(&mut s, &ctype);
+    }
     s
+}
+
+/// The order of the six words `niji_compat_ctype_store` takes (`crates/boundary/src/locale.rs`,
+/// `publish_global`): the 16-bit class, `tolower`, `toupper` tables, then the 32-bit ones.
+pub const CTYPE_STORE_ORDER: [&str; 6] = ["__ctype_b", "__ctype_tolower", "__ctype_toupper", "__ctype32_b", "__ctype32_tolower", "__ctype32_toupper"];
+
+/// CTYPE-OBJECTS-SETLOCALE: `niji_compat_ctype_store(const uintptr_t at[6], const uintptr_t
+/// words[6])`, which `setlocale` calls (through csys's weak hook, absent from libc.a) when the
+/// global `LC_CTYPE` changes: `words[i]` goes to the object at `at[i]` (skipped when 0). The
+/// addresses are the objects' versioned names as the loader resolves them, looked up on the first
+/// store (`crates/boundary/src/locale.rs`), so an old binary's COPY of an object is the one
+/// written (the reference's objects follow the global locale: spec/behaviour/ctype-objects.md).
+/// No GOT reference to the names: each would be a symbol relocation the loader resolves at every
+/// start-up. Hidden: only the library calls it.
+fn store(s: &mut String, ctype: &[&Object]) {
+    let f = "niji_compat_ctype_store";
+    s.push_str(&format!("\t.section .text.{f},\"ax\",@progbits\n\t.globl {f}\n\t.hidden {f}\n\t.type {f}, @function\n\t.p2align 4\n{f}:\n"));
+    for (i, name) in CTYPE_STORE_ORDER.iter().enumerate() {
+        if !ctype.iter().any(|o| o.name == *name) {
+            continue;
+        }
+        let skip = format!(".Lniji_compat_ctype_store_{i}");
+        s.push_str(&format!("\tmovq {o}(%rdi), %rcx\n\ttestq %rcx, %rcx\n\tjz {skip}\n\tmovq {o}(%rsi), %rax\n\tmovq %rax, (%rcx)\n{skip}:\n", o = 8 * i));
+    }
+    s.push_str(&format!("\tret\n\t.size {f}, .-{f}\n"));
 }
 
 /// `text` (LG-1's rendering) with the objects before its closing GNU-stack note.
@@ -359,10 +499,44 @@ mod tests {
         }
     }
 
+    // LG-6 (spec/behaviour/ctype-objects.md, s5_1_c_0 compat): every entry of the "C" tables the
+    // legacy pointers reach equals the reference's, read through the GLIBC_2.2.5 objects.
+    #[test]
+    fn ctype_tables_equal_the_glibc_probe() {
+        let t = ctype_tables();
+        let probe = read(root(), "spec/behaviour/ctype-objects.glibc.txt").unwrap();
+        let (mut narrow, mut wide) = (0, 0);
+        for line in probe.lines() {
+            let f: Vec<&str> = line.split_whitespace().collect();
+            let ["start", w @ ("b" | "w"), c, class, lo, up] = f.as_slice() else { continue };
+            let c: i32 = c.parse().unwrap();
+            let i = usize::try_from(c + CTYPE_ZERO as i32).unwrap();
+            let class = u32::from_str_radix(class, 16).unwrap();
+            let got = if *w == "b" { u32::from(t.class[i]) } else { t.class32[i] };
+            assert_eq!((got, t.tolower[i], t.toupper[i]), (class, lo.parse().unwrap(), up.parse().unwrap()), "{line}");
+            if *w == "b" { narrow += 1 } else { wide += 1 }
+        }
+        assert_eq!((narrow, wide), (CTYPE_LEN, 256));
+    }
+
+    // Each pointer is the table's address at character 0 (an old binary indexes it from -128),
+    // writable, at the compat version only (single `@`: no new link can bind it).
+    #[test]
+    fn ctype_objects_point_at_character_zero_at_the_compat_version() {
+        let s = render(&model(root()).unwrap());
+        for (name, table, off) in [("__ctype_b", "class", 256), ("__ctype32_b", "class32", 512), ("__ctype_tolower", "tolower", 512), ("__ctype32_toupper", "toupper", 512)] {
+            let l = format!("niji_compat_{name}_GLIBC_2_2_5");
+            let want = format!("\t.section .data.{l},\"aw\",@progbits\n\t.p2align 3\n\t.globl {l}\n\t.type {l}, @object\n\t.size {l}, 8\n{l}:\n\t.quad .Lniji_compat_ctype_{table}+{off}\n\t.symver {l}, {name}@GLIBC_2.2.5\n");
+            assert!(s.contains(&want), "{name}");
+        }
+        let l = "niji_compat__obstack_GLIBC_2_2_5";
+        assert!(s.contains(&format!("{l}:\n\t.zero 8\n\t.symver {l}, _obstack@GLIBC_2.2.5\n")));
+    }
+
     #[test]
     fn every_object_row_is_generated_at_its_size() {
         let m = model(root()).unwrap();
-        assert_eq!(m.objects.len(), 34);
+        assert_eq!(m.objects.len(), 41);
         let s = render(&m);
         for o in &m.objects {
             assert!(s.contains(&format!("\t.size {}, {}\n", o.label(), o.size)), "{o:?}");

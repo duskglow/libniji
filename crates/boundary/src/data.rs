@@ -13,8 +13,10 @@ pub static DOT: [u8; 2] = *b".\0";
 // The table pointers the classification macros index (from -128). glibc keeps them per thread
 // and repoints them on `uselocale`; until the thread blocks of phase 4 they are process-wide
 // and fixed at the "C" tables (the only locale before phase 7). `__ctype_b_loc` and its
-// siblings return the address of these variables; the `__ctype_*` names are also exported
-// as the compat data objects of the same names.
+// siblings return the address of these variables. The compat-only data objects of the same
+// names (`__ctype_b@GLIBC_2.2.5`, ...) are not exported from here: `libc.a` must not offer them
+// (R15-2); `libc.so.6` gets them from the generated `csys/src/machine/compat_aliases.S` (LG-6,
+// `xtask/src/compat_objects.rs`). These statics keep the in-process tests of the tables.
 
 use core::sync::atomic::AtomicPtr;
 
@@ -23,11 +25,6 @@ use niji_legacy::ctype_tables::{C_CLASS, C_CLASS32, C_TOLOWER, C_TOUPPER, ZERO};
 macro_rules! table_ptr {
     ($(#[$m:meta])* $name:ident: $t:ty = $table:ident) => {
         $(#[$m])*
-        // UNSAFE(export): a C data symbol needs an unmangled name; the attribute is unsafe
-        // because two symbols of one name would conflict at link time. Names are unique per
-        // version node (spec Appendix B).
-        #[cfg_attr(feature = "export", unsafe(no_mangle))]
-        #[allow(unsafe_code)]
         #[allow(non_upper_case_globals)]
         pub static $name: AtomicPtr<$t> = AtomicPtr::new($table.as_ptr().wrapping_add(ZERO).cast_mut());
     };
@@ -122,8 +119,9 @@ compat_word!(
     /// `mallwatch` (compat, inert).
     mallwatch: AtomicUsize = AtomicUsize::new(0)
 );
-data_word!(
-    /// `_obstack` (compat pointer, inert).
+compat_word!(
+    /// `_obstack` (compat pointer, inert; `libc.so.6` exports it at GLIBC_2.2.5 from the
+    /// generated compat objects).
     _obstack: AtomicUsize = AtomicUsize::new(0)
 );
 data_word!(
@@ -226,6 +224,22 @@ pub static __rseq_flags: core::sync::atomic::AtomicU32 = core::sync::atomic::Ato
 #[allow(unsafe_code)]
 #[allow(non_upper_case_globals)]
 pub static __niji_build_tag: [u8; niji_rt::start::private::TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));
+
+/// `__niji_thread_db@NIJI_PRIVATE` (spec §22.10, D-22.17): where a debugger's
+/// `libthread_db.so.1` finds the thread list and this build's layout. Only read, by another
+/// process through the debugger's memory access; `#[used]` keeps it in a program linked with
+/// `--gc-sections`, since nothing in the process refers to it. Only libc's build (`runtime`)
+/// keeps it: in the other products (`libresolv.so.2`, `libm.so.6`, the loader) it would pull the
+/// thread list's statics in as writable data of their own, which `cargo xtask so` refuses.
+// UNSAFE(export): as above; read only by a debugger.
+#[cfg_attr(feature = "runtime", unsafe(no_mangle))]
+#[allow(unsafe_code)]
+#[allow(non_upper_case_globals)]
+#[cfg_attr(feature = "runtime", used)]
+pub static __niji_thread_db: niji_rt::thread::Debug<'static> =
+    niji_rt::thread::Debug::new(&crate::thread::HEAD, &crate::thread::LIVE, &crate::thread::TLS_IMAGE);
+// The descriptor's dtv header agrees with the loader's: checked in `bootstrap` (product builds
+// only), so this module, which the test builds compile, names no loader crate.
 
 // ------------------------------------------------------------------------------ §12 objects
 //

@@ -137,6 +137,8 @@ pub enum Refusal {
     StaticTls,
     /// `PT_GNU_STACK` asks for an executable stack (R14-13; accepted only under COMPAT-19).
     ExecutableStack,
+    /// Not marked for the shadow stack, which is on (D-21.6, `shstk::on_dlopen`).
+    Shstk,
 }
 
 /// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
@@ -180,6 +182,8 @@ impl Refusal {
             Refusal::NoDynamic => b"object file has no dynamic section",
             Refusal::StaticTls => b"cannot allocate memory in static TLS block",
             Refusal::ExecutableStack => b"the object asks for an executable stack (PT_GNU_STACK with PF_X); refused",
+            // The reference's text (plan/reviews/SHSTK-SCOPE.md §2, probe).
+            Refusal::Shstk => b"rebuild shared object with SHSTK support enabled",
         }
     }
 
@@ -329,8 +333,13 @@ pub fn loadable(elf: &Elf<'_>) -> Result<(), Refusal> {
     loadable_dynamic(elf).map(|_| ())
 }
 
-/// [`loadable`], giving the dynamic section it read.
-fn loadable_dynamic<'a>(elf: &Elf<'a>) -> Result<Dynamic<'a>, Refusal> {
+/// [`loadable`], giving the dynamic section it read (also the program start's verdict on a
+/// dependency read from its mapped image, LD-START-MAPS).
+///
+/// # Errors
+///
+/// The [`Refusal`].
+pub fn loadable_dynamic<'a>(elf: &Elf<'a>) -> Result<Dynamic<'a>, Refusal> {
     if elf.header().e_type == et::EXEC {
         return Err(Refusal::Executable);
     }

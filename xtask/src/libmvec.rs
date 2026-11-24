@@ -174,7 +174,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, cdebu
     let dst = release.join(SONAME);
     let tmp = crate::so::tmp_name(&dst);
     crate::so::run(Command::new(cc)
-        .args(["-shared", "-nostdlib"])
+        .args(["-shared", "-nostdlib"]).arg(crate::cetnote::LINK_FLAG)
         .args(CFLAGS)
         .args(cdebug)
         .args(["-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])

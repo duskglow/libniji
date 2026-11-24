@@ -223,6 +223,98 @@ pub const DESC_RSEQ: u32 = 16;
 /// Descriptor flag: the thread has exited (its exit sequence ran).
 pub const DESC_EXITED: u32 = 32;
 
+// ------------------------------------------------------------------------------ the debugger's view
+
+/// [`Debug::magic`]: the bytes `nijitdb1` read as a little-endian word.
+pub const DEBUG_MAGIC: u64 = u64::from_le_bytes(*b"nijitdb1");
+/// [`Debug::version`]: bumped when a word's meaning changes (new words go at the end, with
+/// [`Debug::words`] saying how many there are). Words are `u64` or `usize`: one 64-bit word each.
+pub const DEBUG_VERSION: u64 = 1;
+/// The dtv words before the first module slot (generation, slot count): the loader's layout
+/// (`niji_ld::tls::DTV_HEADER`; the boundary checks the two agree).
+pub const DEBUG_DTV_HEADER: u64 = 2;
+
+/// The thread-list descriptor a debugger's `libthread_db.so.1` reads through its memory
+/// callbacks (spec §22.10, D-22.17): `libc` exports one, named
+/// `__niji_thread_db`, so the library finds libniji's own thread list and layout without
+/// any private symbol of another C library. Every word is 64 bits, in this order; the C reader
+/// (`crates/libc-so/placeholders/libthread_db.c`) indexes the same words.
+#[repr(C)]
+pub struct Debug<'a> {
+    /// [`DEBUG_MAGIC`].
+    pub magic: u64,
+    /// [`DEBUG_VERSION`].
+    pub version: u64,
+    /// The number of words in the descriptor.
+    pub words: usize,
+    /// The thread list's head: the newest listed descriptor's address (0: none).
+    pub list: &'a AtomicUsize,
+    /// The number of threads running.
+    pub live: &'a AtomicUsize,
+    /// The executable's TLS segment as the startup recorded it: address, file size, memory size,
+    /// alignment (memory size 0: none, or the loader's dtv describes the blocks).
+    pub tls_image: &'a [AtomicUsize; 4],
+    /// The kernel thread ID's offset in the thread block (32 bits).
+    pub tb_tid: usize,
+    /// The dtv pointer's offset in the thread block (0 in the word: no dtv).
+    pub tb_dtv: usize,
+    /// The next-descriptor link's offset in a descriptor.
+    pub desc_next: usize,
+    /// The thread pointer's offset in a descriptor (`pthread_t`).
+    pub desc_tp: usize,
+    /// The flag word's offset in a descriptor (32 bits).
+    pub desc_flags: usize,
+    /// The start routine's offset in a descriptor.
+    pub desc_start: usize,
+    /// The stack's lowest address's offset in a descriptor.
+    pub desc_stack_lo: usize,
+    /// The stack size's offset in a descriptor.
+    pub desc_stack_size: usize,
+    /// The scheduling priority's offset in a descriptor (32 bits).
+    pub desc_prio: usize,
+    /// The flag meaning the thread has exited ([`DESC_EXITED`]).
+    pub exited_flag: u64,
+    /// [`DEBUG_DTV_HEADER`].
+    pub dtv_header: u64,
+}
+
+/// [`DESC_EXITED`] widened to the descriptor's 64-bit word (`From` is not callable in a const fn).
+const DEBUG_EXITED: u64 = {
+    let [a, b, c, d] = DESC_EXITED.to_le_bytes();
+    u64::from_le_bytes([a, b, c, d, 0, 0, 0, 0])
+};
+
+/// The number of 64-bit words in [`Debug`].
+pub const DEBUG_WORDS: usize = size_of::<Debug<'static>>() / 8;
+const _: () = assert!(size_of::<Debug<'static>>() == 17 * 8 && size_of::<&AtomicUsize>() == 8);
+
+impl<'a> Debug<'a> {
+    /// The descriptor of this build's layout over the given process-wide words.
+    pub const fn new(list: &'a AtomicUsize, live: &'a AtomicUsize, tls_image: &'a [AtomicUsize; 4]) -> Debug<'a> {
+        use core::mem::offset_of;
+        use crate::tls::ThreadBlock;
+        Debug {
+            magic: DEBUG_MAGIC,
+            version: DEBUG_VERSION,
+            words: DEBUG_WORDS,
+            list,
+            live,
+            tls_image,
+            tb_tid: offset_of!(ThreadBlock, tid),
+            tb_dtv: offset_of!(ThreadBlock, dtv),
+            desc_next: offset_of!(Thread, next),
+            desc_tp: offset_of!(Thread, tp),
+            desc_flags: offset_of!(Thread, flags),
+            desc_start: offset_of!(Thread, start),
+            desc_stack_lo: offset_of!(Thread, stack_lo),
+            desc_stack_size: offset_of!(Thread, stack_size),
+            desc_prio: offset_of!(Thread, sched_prio),
+            exited_flag: DEBUG_EXITED,
+            dtv_header: DEBUG_DTV_HEADER,
+        }
+    }
+}
+
 /// The descriptor's size.
 pub const DESC_SIZE: usize = size_of::<Thread>();
 /// `__rseq_size`: the registered size (the original 32-byte area).
@@ -323,6 +415,10 @@ impl Layout {
 pub struct KeyTable {
     seq: [AtomicU32; KEYS],
     dtor: [AtomicUsize; KEYS],
+    /// One past the highest slot a `create` ever tried to claim (never lower than one past the
+    /// highest slot whose number is not 0): the exit-time scan's bound, read in O(1) instead of
+    /// a scan of all `KEYS` numbers on every thread exit.
+    hi: AtomicUsize,
 }
 
 impl Default for KeyTable {
@@ -334,7 +430,7 @@ impl Default for KeyTable {
 impl KeyTable {
     /// No keys (all zero).
     pub const fn new() -> KeyTable {
-        KeyTable { seq: [const { AtomicU32::new(0) }; KEYS], dtor: [const { AtomicUsize::new(0) }; KEYS] }
+        KeyTable { seq: [const { AtomicU32::new(0) }; KEYS], dtor: [const { AtomicUsize::new(0) }; KEYS], hi: AtomicUsize::new(0) }
     }
 
     /// `pthread_key_create`: a free key with destructor `dtor` (0 for none), or `None` when all
@@ -342,9 +438,14 @@ impl KeyTable {
     pub fn create(&self, dtor: usize) -> Option<usize> {
         for (k, (s, d)) in self.seq.iter().zip(&self.dtor).enumerate() {
             let v = s.load(Relaxed);
-            if v % 2 == 0 && s.compare_exchange(v, v.wrapping_add(1), AcqRel, Relaxed).is_ok() {
-                d.store(dtor, Release);
-                return Some(k);
+            if v % 2 == 0 {
+                // The bound first: whoever sees the slot live (its number, released by the
+                // exchange) also sees a bound that covers it.
+                self.hi.fetch_max(k + 1, AcqRel);
+                if s.compare_exchange(v, v.wrapping_add(1), AcqRel, Relaxed).is_ok() {
+                    d.store(dtor, Release);
+                    return Some(k);
+                }
             }
         }
         None
@@ -367,9 +468,11 @@ impl KeyTable {
         self.dtor.get(k).map_or(0, |d| d.load(Acquire))
     }
 
-    /// One past the highest key ever created (bounds the exit-time scan).
+    /// One past the highest key ever created (bounds the exit-time scan; at most `KEYS`). A
+    /// `create` racing with this call may be counted early, never late for a key the caller
+    /// can already see live.
     pub fn span(&self) -> usize {
-        self.seq.iter().rposition(|s| s.load(Relaxed) != 0).map_or(0, |i| i + 1)
+        self.hi.load(Acquire).min(KEYS)
     }
 }
 
@@ -607,6 +710,30 @@ mod tests {
         sp.run_destructors(&t, |_, _| more += 1);
         assert_eq!(more, 0, "NULL values get no call");
 
+    }
+
+    // s22_6_c_2: destructors run at exit for every non-NULL value, the highest key's included,
+    // whatever the scan bound (THREAD-CREATE-COST: the bound is kept, not scanned for).
+    #[test]
+    fn the_exit_scan_reaches_the_highest_key_ever_created() {
+        let t = KeyTable::new();
+        assert_eq!(t.span(), 0, "no key: nothing to scan");
+        let keys: Vec<usize> = (0..300).map(|_| t.create(0x222).unwrap()).collect();
+        let top = *keys.last().unwrap();
+        assert_eq!(t.span(), top + 1);
+        for &k in &keys[..keys.len() - 1] {
+            assert!(t.delete(k));
+        }
+        assert_eq!(t.span(), top + 1, "deleting lower keys keeps the bound");
+        let words: Vec<AtomicUsize> = (0..2 * KEYS).map(|_| AtomicUsize::new(0)).collect();
+        let sp = Specific::new(&words);
+        assert!(sp.set(&t, top, 5));
+        let mut seen = Vec::new();
+        sp.run_destructors(&t, |d, v| seen.push((d, v)));
+        assert_eq!(seen, [(0x222, 5)], "the highest key's destructor runs");
+        assert!(t.delete(top));
+        assert_eq!(t.create(0).unwrap(), 0, "the lowest free slot is taken again");
+        assert_eq!(t.span(), top + 1, "the bound never shrinks");
     }
 
     #[test]

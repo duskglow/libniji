@@ -1,0 +1,24 @@
+{"task": "TEST-BOUNDS-AUDIT", "model": "opus", "tokens": null,
+ "result": "Audit: the data-phase fault red is next's own state on the Skylake-SP class (untraced locale-directory path in cold text; an unrelated glob change flips it); FS moves no count; runtime bounds stale on both classes; user-paid gap is dynamic start and anon memory, not layout",
+ "branch": "task/test-bounds-audit", "head": null,
+ "gate": {"affected": "investigation (results/ and handoff/ only); hot_text_products 33 passed on next, nocode, libm, glob heads (Haswell-EP)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "init_data_clusters_hold_at_every_text_phase: replace count equality across pads by 'every executed start-up text address lies in the hot group'", "recommendation": "yes"},
+  {"item": "trace the per-locale-directory locale load path so it is grouped", "recommendation": "yes"},
+  {"item": "runtime fault metrics as a per-host ratio to the reference on the same probe; ratchet the ratio, not absolute counts", "recommendation": "yes"},
+  {"item": "report the dynamic probe's locale and tool modes (largest user-paid gap, +27..+29 faults)", "recommendation": "yes"}],
+ "informational": [
+  "next 0495c4684 reads tool 58 / locale 56 on Skylake-SP and 45 / 43 on Haswell-EP with identical products: the host's locale source (no locale-archive on the Skylake-SP host)",
+  "runtime fault reports fire on every run: tool 45/58 vs 44, float 4 vs 3, dynamic 65 vs 73 (under-side)",
+  "DYN_START_INSTR has no Haswell-EP row: the test skips on that build-host class",
+  "the 11-23 DYN_START_INSTR red (173,794 > 173,600) was not attributed",
+  "probes of the base and glob products were run on the Skylake-SP host from a scratch directory (no build, no role) because the brief asks for both host classes"],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit; no behaviour, bound or test changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "unblock", "what": "explains the 11-23 data-phase reds of three stories as next's state (LAYOUT-JITTER holds can be cleared on that basis)", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "a fault test that runs on CI's host must be traced on CI's environment, or check the cause (addresses outside the hot group) instead of counts",
+ "next_step": "owner rulings 1-4; then one story for the address check plus the locale-directory trace",
+ "report_file": "results/test-bounds-audit/README.md",
+ "jobs": ["shiki:test-bounds-audit-base3", "shiki:test-bounds-audit-nocode", "shiki:test-bounds-audit-libm", "shiki:test-bounds-audit-glob", "mei:test-bounds-audit-mei-base", "mei:test-bounds-audit-mei-glob"]}

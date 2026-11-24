@@ -52,6 +52,14 @@ pub extern "C" fn __niji_stack_exec() {
 
 export! { runtime "NIJI_PRIVATE";
 #[cfg(feature = "runtime")]
+pub extern "C" fn __niji_shstk_off() {
+    // libniji's `ld.so` loads an object not marked for the shadow stack under
+    // `glibc.cpu.x86_shstk=permissive` (D-21.6): off in every thread first.
+    crate::runtime::shstk_off_everywhere()
+}}
+
+export! { runtime "NIJI_PRIVATE";
+#[cfg(feature = "runtime")]
 pub extern "C" fn __niji_owner_unload(lo: usize, hi: usize) {
     // libniji's `ld.so` unloads the module mapped at [lo, hi): the opted-in registrations it owns
     // or whose handlers it holds go (DL-ATEXIT-OWNER, D-27.29).

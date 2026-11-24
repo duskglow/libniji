@@ -1,0 +1,30 @@
+name: a numeric message on a number a symbolic one took moves the symbolic one
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| M a
+| N b
+| 1 c
+| $set 2
+| P d
+| 5 e
+| 1 f
+| 1 g
+arg: --new
+arg: -H
+arg: o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:8: duplicated message number
+| i.msg:7: this is the first definition
+written-file: o.cat sha256 1a42a0ddd0112ce220fe7b41dfb372b659b0e67530aacdafc379d2d961c9fb8c size 216
+written-file: o.h
+| #define AutomaticSet3P 0x6\t/* i.msg:5 */
+| #define AutomaticSet2N 0x2\t/* i.msg:2 */
+| #define AutomaticSet2M 0x3\t/* i.msg:1 */

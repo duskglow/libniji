@@ -1,0 +1,26 @@
+{"task": "LD-START-MAPS", "model": "opus", "tokens": null,
+ "result": "start dependencies read by pread + mapped image (no whole-file view), gapless page-aligned spans mapped in one call: kernel per start n0 730,939 -> 626,081, n3 1,122,981 -> 903,807 (glibc 920,185); n0 target not reached (+39k kernel, +6 faults)",
+ "branch": "task/ld-start-maps", "head": null,
+ "gate": {"affected": "direct tier 13/13 steps ok (ld-start-maps-gate2); plants 13/13 caught; hot_text_products 33/33", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "cargo xtask test: catalogs_products::catalogs_equal_the_reference differs (catalog replaced on disk: libniji [new], reference [old], name-service cache on); no catalog code on this branch; base check in job ld-start-maps-basecat",
+   "cargo clippy -p niji-boundary --all-targets alone fails in ffi.rs/selftest.rs (feature set); cargo xtask clippy clean",
+   "a plants-file replacement containing ' | ' splits the line (plants2 baseline failed); use another operator"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "perf", "what": "dynamic empty main (kit n0) kernel instructions per start", "before": 730939, "after": 626081, "unit": "instr/start", "measured": true},
+   {"kind": "perf", "what": "main with three libraries (kit n3) kernel instructions per start", "before": 1122981, "after": 903807, "unit": "instr/start", "measured": true},
+   {"kind": "faults", "what": "kit n0 page faults per start", "before": 58, "after": 57, "unit": "faults/start", "measured": true},
+   {"kind": "perf", "what": "kit n3 system calls per start", "before": 59, "after": 58, "unit": "syscalls/start", "measured": true},
+   {"kind": "cost", "what": "kit n0 user instructions per start (image-mode reading); fix-forward: cache the image tables per object", "before": 159047, "after": 161576, "unit": "instr/start", "measured": true},
+   {"kind": "cost", "what": "kit n3 user instructions per start (about +3.6k per extra library)", "before": 250528, "after": 265243, "unit": "instr/start", "measured": true},
+   {"kind": "correctness", "what": "a start dependency whose PT_DYNAMIC lies outside every readable PT_LOAD's file bytes is refused at the search (its _DYNAMIC would not be mapped)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "tests: map_from_headers_as_from_the_whole_file (spanned reservation, gapped object), ldso_start_maps_dependencies_from_headers; plants", "before": 0, "after": 13, "unit": "plants", "measured": true}
+ ],
+ "improvement": "cargo xtask test (7k tests) as a start-up check blocks the role for the counts; run hot_text_products and counts first, the workspace test last (or let the train run it)",
+ "next_step": "n0 gap: link's inline stack tables and the anonymous areas (thread block, TLS, descriptor area)",
+ "report_file": "handoff/LD-START-MAPS.md",
+ "jobs": ["mei:ld-start-maps-gate2", "mei:ld-start-maps-plants3", "mei:ld-start-maps-startup3", "mei:ld-start-maps-xtask-test"]}

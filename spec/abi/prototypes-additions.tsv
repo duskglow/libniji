@@ -1,0 +1,3 @@
+name	header	declaration	decision
+sched_getattr	sched.h	extern int sched_getattr (__pid_t, struct sched_attr *, unsigned int, unsigned int)	D-24.12
+sched_setattr	sched.h	extern int sched_setattr (__pid_t, struct sched_attr *, unsigned int)	D-24.12

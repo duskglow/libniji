@@ -1,11 +1,13 @@
-/* start_syscalls PROG [NAME=VALUE ...]: run PROG (no arguments; its environment exactly the
- * NAME=VALUE words, so this program itself runs under the caller's own environment) under ptrace
+/* start_syscalls PROG [ARG ...] [NAME=VALUE ...]: run PROG (its arguments the words before the first
+ * one holding '='; its environment exactly the NAME=VALUE words, so this program itself runs under
+ * the caller's own environment) under ptrace
  * and print one line per system call it enters, "nr arg0 arg1 arg3" in decimal (x86-64 registers
  * rax, rdi, rsi, r10), from the exec to the exit. Exit status: PROG's, or 120-125 on a tracing
  * failure. DYN-START-QUICK: hot_text_products reads the list a dynamic start makes. */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/wait.h>
@@ -21,8 +23,15 @@ int main(int argc, char **argv)
     if (pid == 0) {
         if (ptrace(PTRACE_TRACEME, 0, 0, 0) != 0)
             _exit(123);
-        char *args[] = { argv[1], NULL };
-        execve(argv[1], args, argv + 2);
+        /* PROG's arguments: the words before the first NAME=VALUE one. */
+        char *args[argc];
+        int n = 0;
+        while (1 + n < argc && (n == 0 || !strchr(argv[1 + n], '='))) {
+            args[n] = argv[1 + n];
+            n++;
+        }
+        args[n] = NULL;
+        execve(argv[1], args, argv + 1 + n);
         _exit(122);
     }
     int st;

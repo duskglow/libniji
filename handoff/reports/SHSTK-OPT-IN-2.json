@@ -1,0 +1,20 @@
+{"task": "SHSTK-OPT-IN-2", "model": "opus", "tokens": null,
+ "result": "Train 950's red fixed: the D-X.164 SHSTK build check now reads the shipped products from tools/deb/manifest.tsv (file rows) instead of walking target/niji, so the unshipped rust-dylib and by-path products are no longer counted; xtask test green, so after rust-dylib green",
+ "branch": "task/shstk-opt-in-2", "head": "80e060c66",
+ "gate": {"affected": "FULL: the train's (xtask, csys); cargo xtask test 7190 passed / 0 failed (rc 0) on 5547c3a93; cargo xtask so with rust/ and rust-test/ present: 43 shipped objects SHSTK, rc 0", "peak": "16G cap; test1 peak under it, oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "libniji_rust.so.lr1 and its rlibs (cargo xtask rust-dylib; docs/toolchain.md) carry no SHSTK; no package ships them. Shipping them later needs a manifest row and marking (rlib members via mark_archive, the dylib -z shstk)",
+   "The link stub niji-owner/libc-owner.so (opt-in, linked from the build tree, in no package) is still linked with -z shstk but no longer checked (43 checked vs part 1's 44)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "cargo xtask so no longer fails after cargo xtask rust-dylib/native (train 950: 17 unshipped objects reported)", "before": 17, "after": 0, "unit": "objects wrongly reported", "measured": true},
+   {"kind": "coverage", "what": "cetnote unit test the_check_reads_the_products_the_manifest_ships; plants 3 CAUGHT", "before": null, "after": 3, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "SHSTK-OPT-IN part 1 can land; SHSTK-ENABLE follows", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A build check about 'shipped' objects should read the packaging manifest from the start; a shared xtask reader for tools/deb/manifest.tsv (today Python manifest.py plus ad-hoc readers) would make that the obvious choice",
+ "next_step": "Land through the train; then SHSTK-ENABLE (tunables, loader, dlopen, scenarios and costs)",
+ "report_file": "handoff/SHSTK-OPT-IN.md",
+ "jobs": ["shstk-opt-in-2-test1", "shstk-opt-in-2-so2", "shstk-opt-in-2-plants1", "shstk-opt-in-2-lint3", "shstk-opt-in-2-pre1"]}

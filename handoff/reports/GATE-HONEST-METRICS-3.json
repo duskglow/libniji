@@ -1,0 +1,21 @@
+{"task": "GATE-HONEST-METRICS-3", "model": "opus", "tokens": null,
+ "result": "Train 970 red explained and fixed: the hot-text regen read libc.a's section names with readelf -SW, which cuts at 256 bytes, so a traced 538-byte try_fold over a find_named closure was never listed; the names are now read whole (objdump -h), and regen fails on any traced library function whose section the listing missed",
+ "branch": "task/gate-honest-metrics-3", "head": "b7b37e33f",
+ "gate": {"affected": "669 passed / 0 failed (7 suites, direct tier, gate-honest-metrics-3-gate4)", "peak": "2.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "v0 key walker (keys.py and xtask/src/hottext.rs V0::decimal) reads a leading-zero run as one number, so names with nested closures (`000`) fall back to the plain strip; both sides agree and no list crosses a build (LT-5), so grouping is unaffected; recommend a small follow-up reading `0` as one digit, with a test",
+   "xtask/src/so.rs exclude_link_edges still reads section names with readelf -SW (cut at 256 bytes); not changed here",
+   "The merged train head b3f3fd771 was not rebuilt here (the brief allows no merge); the cause is the list step, which drops every traced function whose section name is over 256 bytes, on any head"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "traced libc.a functions whose section names exceed 256 bytes now join the hot group (train 970: a locale per-directory try_fold ran outside it); on this branch's fast build 4 name-service functions (nss::passwd_cached, nscache::line_system x2, nscache::line) join", "before": 0, "after": 4, "unit": "functions grouped that were dropped", "measured": true},
+   {"kind": "tooling", "what": "regen.sh fails by name on a traced library function whose section is missing from the section listing (was a silent drop)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "xtask tests: keys.py --sections on a real archive with a 300-byte name and a non-ELF input; keys.py --unlisted; 4 plants CAUGHT", "before": null, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A tool that cuts names (readelf -SW at 256 bytes) was fixed in xtask's grouping (#4354) but not in regen.sh's list step; a static check that no section-name reader uses readelf -SW would close the class",
+ "next_step": "Train re-run of the merged head; follow-ups: v0 leading-zero decimal, so.rs exclude_link_edges reader, #8198/#8199 measurements",
+ "report_file": "handoff/GATE-HONEST-METRICS-3-report.md",
+ "jobs": ["mei:gate-honest-metrics-3-gate4", "mei:gate-honest-metrics-3-plants2", "mei:gate-honest-metrics-3-xtest2", "mei:gate-honest-metrics-3-htp-release2"]}

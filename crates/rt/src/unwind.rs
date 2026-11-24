@@ -24,14 +24,19 @@
 //! stack pointer), or the caller's limit. The stack pointer need not grow from frame to frame:
 //! a handler on an alternate signal stack sits apart from the frames it interrupted.
 //!
-//! Nothing allocates, nothing takes a lock and nothing is kept between calls, so a trace is
-//! async-signal-safe. Working storage is on the stack and bounded (a row is 17 rules of 16
-//! bytes; at most [`REMEMBER_DEPTH`] remembered rows; an expression stack of [`EXPR_STACK`]).
+//! Nothing takes a lock, nothing uses the heap and nothing is kept between calls, so a trace is
+//! async-signal-safe. Working storage is on the stack for the common case (a row is 17 rules of
+//! 16 bytes; [`REMEMBER_DEPTH`] remembered rows; an expression stack of [`EXPR_STACK`]); a
+//! deeper `DW_CFA_remember_state` nesting or expression stack spills to pages mapped for the
+//! call ([`Memory::spill_map`], an `mmap`, itself async-signal-safe) and unmapped before it
+//! returns (HL-20). Where no pages can be had, that frame's row cannot be evaluated.
 
+use core::borrow::Borrow;
 use core::cell::Cell;
 
-use niji_kernel::mem::{IoVecMut, RemoteIoVec};
+use niji_kernel::mem::{IoVecMut, Region, RemoteIoVec};
 use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 
 /// The DWARF registers the unwinder tracks: the sixteen general registers (0 to 15) and the
 /// return-address column (16), psABI figure 3.36.
@@ -55,10 +60,14 @@ pub const RA: usize = 16;
 
 /// Read-only segments kept per object (an executable has two or three).
 const SEGMENTS: usize = 8;
-/// Nesting of `DW_CFA_remember_state` (compilers emit one level around each epilogue).
+/// Remembered rows kept on the stack (compilers emit one level of `DW_CFA_remember_state`
+/// around each epilogue); deeper nesting spills ([`Spill`]).
 const REMEMBER_DEPTH: usize = 4;
-/// Entries on an expression's stack (call-frame expressions use a handful).
+/// Expression stack entries kept on the stack (call-frame expressions use a handful); more
+/// spill ([`Spill`]).
 const EXPR_STACK: usize = 32;
+/// The first spill mapping (a page); each later one doubles it.
+const SPILL_FIRST: usize = 4096;
 /// Operations one expression may execute (branches can loop).
 const EXPR_BUDGET: usize = 1024;
 /// Bytes `OwnMemory` reads at a time: an aligned line never crosses a page.
@@ -66,6 +75,8 @@ const LINE: usize = 64;
 
 /// `DW_EH_PE_omit`.
 const PE_OMIT: u8 = 0xff;
+/// The pointer encoding of signed 4-byte values relative to the `.eh_frame_hdr`.
+const PE_DATAREL_SDATA4: u8 = 0x3b;
 
 // ------------------------------------------------------------------------------ numbers
 
@@ -96,6 +107,25 @@ fn addr_of(v: u64) -> Option<usize> {
 pub trait Memory {
     /// The 8 bytes at `addr` (little-endian), or `None` if they cannot be read.
     fn word(&self, addr: u64) -> Option<u64>;
+
+    /// `len` bytes of new private, writable, zeroed memory for working storage beyond the
+    /// unwinder's inline areas, or `None` when none can be had. Without it (the default) a row
+    /// that needs more cannot be evaluated, which ends a walk there.
+    fn spill_map(&self, len: usize) -> Option<Region> {
+        let _ = len;
+        None
+    }
+
+    /// The bytes of a region [`Memory::spill_map`] returned.
+    fn spill_bytes<'r>(&self, region: &'r mut Region) -> Option<&'r mut [u8]> {
+        let _ = region;
+        None
+    }
+
+    /// Give back a region [`Memory::spill_map`] returned.
+    fn spill_unmap(&self, region: Region) {
+        let _ = region;
+    }
 }
 
 /// The process's own memory through `process_vm_readv` (the kernel checks every read). It
@@ -139,6 +169,69 @@ impl<S: Sys> Memory for OwnMemory<'_, S> {
         // A word that straddles two lines, or a line that could not be read as a whole.
         let mut w = [0u8; 8];
         self.read(addr, &mut w).then(|| u64::from_le_bytes(w))
+    }
+
+    fn spill_map(&self, len: usize) -> Option<Region> {
+        self.sys.mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).ok()
+    }
+
+    fn spill_bytes<'r>(&self, region: &'r mut Region) -> Option<&'r mut [u8]> {
+        self.sys.region_bytes(region)
+    }
+
+    fn spill_unmap(&self, region: Region) {
+        // A failed unmap of a region this call mapped leaves pages behind, nothing worse.
+        let _ = self.sys.munmap(region);
+    }
+}
+
+/// Fixed-size records past an inline area (HL-20): pages mapped through [`Memory::spill_map`]
+/// when record 0 is first needed, replaced by a mapping twice the size (a copy: only this call
+/// sees them) when one fills, and unmapped when dropped. Grows with use up to what the process
+/// may map; the only failure left is a mapping that cannot be had.
+struct Spill<'m, M: Memory> {
+    mem: &'m M,
+    region: Option<Region>,
+}
+
+impl<'m, M: Memory> Spill<'m, M> {
+    fn new(mem: &'m M) -> Self {
+        Spill { mem, region: None }
+    }
+
+    /// The `size` bytes of record `i`, growing the mapping to hold it.
+    #[cold]
+    #[inline(never)]
+    fn record(&mut self, i: usize, size: usize) -> Option<&mut [u8]> {
+        let start = i.checked_mul(size)?;
+        let end = start.checked_add(size)?;
+        if end > self.region.as_ref().map_or(0, Region::len) {
+            let want = end.checked_next_power_of_two()?.max(SPILL_FIRST);
+            let mut fresh = self.mem.spill_map(want)?;
+            let copied = match self.region.as_mut() {
+                None => true,
+                Some(old) => match (self.mem.spill_bytes(old), self.mem.spill_bytes(&mut fresh)) {
+                    (Some(from), Some(to)) => to.get_mut(..from.len()).map(|t| t.copy_from_slice(from)).is_some(),
+                    _ => false,
+                },
+            };
+            if !copied {
+                self.mem.spill_unmap(fresh);
+                return None;
+            }
+            if let Some(old) = self.region.replace(fresh) {
+                self.mem.spill_unmap(old);
+            }
+        }
+        self.mem.spill_bytes(self.region.as_mut()?)?.get_mut(start..end)
+    }
+}
+
+impl<M: Memory> Drop for Spill<'_, M> {
+    fn drop(&mut self) {
+        if let Some(r) = self.region.take() {
+            self.mem.spill_unmap(r);
+        }
     }
 }
 
@@ -215,18 +308,18 @@ impl<'a> Object<'a> {
         Some(Cursor { bytes: self.bytes(addr)?, pos: 0, base: addr })
     }
 
-    /// The FDE covering `pc`.
-    fn fde_for(&self, pc: usize) -> Option<Fde<'a>> {
+    /// The FDE covering `pc` (`last`: the CIE parsed last, kept for the next lookup).
+    fn fde_for(&self, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         match (self.hdr, self.frames) {
-            (Some(hdr), _) => self.search(hdr, pc),
-            (None, Some((start, end))) => self.scan(start, end, pc),
+            (Some(hdr), _) => self.search(hdr, pc, last),
+            (None, Some((start, end))) => self.scan(start, end, pc, last),
             (None, None) => None,
         }
     }
 
     /// Look `pc` up through the `.eh_frame_hdr` at `hdr`: binary search of its table when it
     /// has one in a fixed-size encoding, otherwise a scan from the `.eh_frame` it points to.
-    fn search(&self, hdr: usize, pc: usize) -> Option<Fde<'a>> {
+    fn search(&self, hdr: usize, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let mut c = self.at(hdr)?;
         let [version, frames_enc, count_enc, table_enc] = c.array::<4>()?;
         if version != 1 {
@@ -235,46 +328,40 @@ impl<'a> Object<'a> {
         let frames = c.pointer(frames_enc, Some(hdr))?;
         let entry = fixed_size(table_enc).and_then(|n| n.checked_mul(2));
         let (Some(entry), false) = (entry, count_enc == PE_OMIT) else {
-            return self.scan(frames, usize::MAX, pc);
+            return self.scan(frames, usize::MAX, pc, last);
         };
         let count = c.pointer(count_enc, Some(hdr))?;
         let table = c.addr();
-        let row = |i: usize| -> Option<(usize, usize)> {
-            let mut r = self.at(table.checked_add(i.checked_mul(entry)?)?)?;
-            Some((r.pointer(table_enc, Some(hdr))?, r.pointer(table_enc, Some(hdr))?))
+        let fde = if table_enc == PE_DATAREL_SDATA4 {
+            // The encoding linkers write: the whole table taken once as a slice (it must fit in
+            // its segment), its fields read straight from it.
+            let rows = self.bytes(table)?.get(..count.checked_mul(8)?)?;
+            let field = |at: usize| -> Option<usize> {
+                let b = rows.get(at..at.checked_add(4)?)?.try_into().ok()?;
+                Some(hdr.wrapping_add_signed(isize::try_from(i32::from_le_bytes(b)).ok()?))
+            };
+            let i = last_at_or_below(count, pc, |i| field(i.checked_mul(8)?))?;
+            field(i.checked_mul(8)?.checked_add(4)?)?
+        } else {
+            let row = |i: usize| -> Option<(usize, usize)> {
+                let mut r = self.at(table.checked_add(i.checked_mul(entry)?)?)?;
+                Some((r.pointer(table_enc, Some(hdr))?, r.pointer(table_enc, Some(hdr))?))
+            };
+            let i = last_at_or_below(count, pc, |i| Some(row(i)?.0))?;
+            row(i)?.1
         };
-        // The last entry whose start is at or below pc.
-        let (mut lo, mut hi) = (0usize, count);
-        while lo < hi {
-            let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
-            if row(mid)?.0 <= pc {
-                lo = mid.wrapping_add(1);
-            } else {
-                hi = mid;
-            }
-        }
-        let (_, fde) = row(lo.checked_sub(1)?)?;
-        self.fde(fde, None).filter(|f| f.covers(pc))
+        self.fde(fde, last).filter(|f| f.covers(pc))
     }
 
     /// Scan the `.eh_frame` records from `start` (to `end`, the terminator, or the end of the
-    /// segment) for the FDE covering `pc`. The last CIE parsed is kept: FDEs share a few.
-    fn scan(&self, start: usize, end: usize, pc: usize) -> Option<Fde<'a>> {
+    /// segment) for the FDE covering `pc`.
+    fn scan(&self, start: usize, end: usize, pc: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let mut at = start;
-        let mut last: Option<(usize, Cie<'a>)> = None;
         while at < end {
             let r = self.record(at)?;
-            if let Some(cie_at) = r.cie_at() {
-                let cie = match last {
-                    Some((addr, cie)) if addr == cie_at => Some(cie),
-                    _ => self.cie(cie_at),
-                };
-                if let Some(cie) = cie {
-                    last = Some((cie_at, cie));
-                    if let Some(f) = Fde::parse(r, cie).filter(|f| f.covers(pc)) {
-                        return Some(f);
-                    }
-                }
+            let cie = r.cie_at().and_then(|cie_at| self.cie_kept(cie_at, last));
+            if let Some(f) = cie.and_then(|cie| Fde::parse(r, cie)).filter(|f| f.covers(pc)) {
+                return Some(f);
             }
             at = r.next;
         }
@@ -305,16 +392,30 @@ impl<'a> Object<'a> {
         Cie::parse(r.body)
     }
 
-    /// The FDE at `addr` (`cie`: its CIE when the caller already has it).
-    fn fde(&self, addr: usize, cie: Option<Cie<'a>>) -> Option<Fde<'a>> {
+    /// The CIE at `addr`: `last` when it is the one there, else parsed (and kept in `last`).
+    fn cie_kept(&self, addr: usize, last: &mut LastCie<'a>) -> Option<Cie<'a>> {
+        match *last {
+            Some((at, cie)) if at == addr => Some(cie),
+            _ => {
+                let cie = self.cie(addr)?;
+                *last = Some((addr, cie));
+                Some(cie)
+            }
+        }
+    }
+
+    /// The FDE at `addr`.
+    fn fde(&self, addr: usize, last: &mut LastCie<'a>) -> Option<Fde<'a>> {
         let r = self.record(addr)?;
-        let cie = match cie {
-            Some(c) => c,
-            None => self.cie(r.cie_at()?)?,
-        };
+        let cie = self.cie_kept(r.cie_at()?, last)?;
         Fde::parse(r, cie)
     }
 }
+
+/// The CIE a walk parsed last and its address: an object's FDEs share a few CIEs, so
+/// consecutive frames mostly need the same one. An address names one CIE for the length of a
+/// walk (the objects it reads stay loaded while their frames are live).
+type LastCie<'a> = Option<(usize, Cie<'a>)>;
 
 /// Register values (DWARF numbering); `None` where a value is unknown.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -555,6 +656,20 @@ impl<'a> Cursor<'a> {
     }
 }
 
+/// The last of `count` entries sorted by start (`start(i)`) whose start is at or below `pc`.
+fn last_at_or_below(count: usize, pc: usize, start: impl Fn(usize) -> Option<usize>) -> Option<usize> {
+    let (mut lo, mut hi) = (0usize, count);
+    while lo < hi {
+        let mid = lo.wrapping_add(hi.wrapping_sub(lo) / 2);
+        if start(mid)? <= pc {
+            lo = mid.wrapping_add(1);
+        } else {
+            hi = mid;
+        }
+    }
+    lo.checked_sub(1)
+}
+
 /// The size of a fixed-size pointer encoding.
 fn fixed_size(enc: u8) -> Option<usize> {
     match enc & 0x0f {
@@ -597,6 +712,10 @@ struct Cie<'a> {
     ptr_enc: u8,
     augmented: bool,
     signal: bool,
+    /// The augmentation names a personality routine (`P`).
+    personality: bool,
+    /// The encoding of the FDEs' language-specific data pointer (`L`), if they carry one.
+    lsda_enc: Option<u8>,
     insns: Cursor<'a>,
 }
 
@@ -619,7 +738,7 @@ impl<'a> Cie<'a> {
         let data_align = c.sleb()?;
         let ra = if version == 1 { u64::from(c.u8()?) } else { c.uleb()? };
         let ra = addr_of(ra).filter(|&r| r < REGS)?;
-        let mut cie = Cie { code_align, data_align, ra, ptr_enc: 0, augmented: false, signal: false, insns: c };
+        let mut cie = Cie { code_align, data_align, ra, ptr_enc: 0, augmented: false, signal: false, personality: false, lsda_enc: None, insns: c };
         if let Some((&b'z', letters)) = aug.split_first() {
             cie.augmented = true;
             let n = c.len()?;
@@ -627,12 +746,11 @@ impl<'a> Cie<'a> {
             for &l in letters {
                 match l {
                     b'R' => cie.ptr_enc = data.u8()?,
-                    b'L' => {
-                        data.u8()?;
-                    }
+                    b'L' => cie.lsda_enc = Some(data.u8()?),
                     b'P' => {
                         let enc = data.u8()?;
                         data.value(enc)?;
+                        cie.personality = true;
                     }
                     b'S' => cie.signal = true,
                     b'B' | b'G' => {}
@@ -653,6 +771,10 @@ struct Fde<'a> {
     begin: usize,
     end: usize,
     cie: Cie<'a>,
+    /// The function has exception-handling work for an unwind (D-22.23): its CIE names a
+    /// personality routine and its language-specific data pointer is not null (or cannot be
+    /// read, or the CIE gives none: the personality still runs).
+    handler: bool,
     insns: Cursor<'a>,
 }
 
@@ -662,11 +784,13 @@ impl<'a> Fde<'a> {
         let begin = c.pointer(cie.ptr_enc, None)?;
         let len = addr_of(c.value(cie.ptr_enc)?)?;
         let end = begin.checked_add(len)?;
+        let mut handler = false;
         if cie.augmented {
             let n = c.len()?;
-            c.take(n)?;
+            let mut data = c.sub(n)?;
+            handler = cie.personality && cie.lsda_enc.is_none_or(|enc| data.pointer(enc, None) != Some(0));
         }
-        Some(Fde { begin, end, cie, insns: c })
+        Some(Fde { begin, end, cie, handler, insns: c })
     }
 
     fn covers(&self, pc: usize) -> bool {
@@ -675,8 +799,8 @@ impl<'a> Fde<'a> {
 }
 
 /// The object holding `pc` and the FDE covering it.
-fn locate<'o, 'a>(objects: &'o [Object<'a>], pc: usize) -> Option<(&'o Object<'a>, Fde<'a>)> {
-    objects.iter().filter(|o| o.contains(pc)).find_map(|o| Some((o, o.fde_for(pc)?)))
+fn locate<'o, 'a>(objects: &'o [Object<'a>], pc: usize, last: &mut LastCie<'a>) -> Option<(&'o Object<'a>, Fde<'a>)> {
+    objects.iter().filter(|o| o.contains(pc)).find_map(|o| Some((o, o.fde_for(pc, last)?)))
 }
 
 // ------------------------------------------------------------------------------ rows
@@ -753,17 +877,113 @@ impl Row {
     fn rule(&self, reg: u64) -> Rule {
         addr_of(reg).and_then(|r| self.rules.get(r)).copied().unwrap_or(Rule::Same)
     }
+
+    /// Write the row to a spill record of [`ROW_BYTES`]: the CFA rule, then each register's.
+    fn store(&self, out: &mut [u8]) -> Option<()> {
+        let mut cells = out.chunks_exact_mut(CELL);
+        cells.next()?.copy_from_slice(&self.cfa.cell());
+        for rule in &self.rules {
+            cells.next()?.copy_from_slice(&rule.cell());
+        }
+        Some(())
+    }
+
+    /// The row [`Row::store`] wrote.
+    fn load(bytes: &[u8]) -> Option<Row> {
+        let mut cells = bytes.chunks_exact(CELL);
+        let mut row = Row { cfa: Cfa::from_cell(cells.next()?)?, rules: [Rule::Same; REGS] };
+        for slot in &mut row.rules {
+            *slot = Rule::from_cell(cells.next()?)?;
+        }
+        Some(row)
+    }
+}
+
+/// Bytes of one rule in a spilled row.
+const CELL: usize = 16;
+/// Bytes of a spilled row.
+const ROW_BYTES: usize = CELL * (REGS + 1);
+
+/// A rule as a spill cell: a tag, a register, two zero bytes, a 32-bit length and a 64-bit
+/// value, little-endian.
+fn cell(tag: u8, reg: u8, len: u32, value: u64) -> [u8; CELL] {
+    let mut c = [0u8; CELL];
+    for (d, s) in c.iter_mut().zip([tag, reg, 0, 0].iter().chain(&len.to_le_bytes()).chain(&value.to_le_bytes())) {
+        *d = *s;
+    }
+    c
+}
+
+/// The fields of a spill cell.
+fn uncell(c: &[u8]) -> Option<(u8, u8, u32, u64)> {
+    let len = u32::from_le_bytes(c.get(4..8)?.try_into().ok()?);
+    Some((*c.first()?, *c.get(1)?, len, u64::from_le_bytes(c.get(8..CELL)?.try_into().ok()?)))
+}
+
+impl Rule {
+    fn cell(self) -> [u8; CELL] {
+        match self {
+            Rule::Same => cell(0, 0, 0, 0),
+            Rule::Undefined => cell(1, 0, 0, 0),
+            Rule::At(n) => cell(2, 0, 0, unsigned(n)),
+            Rule::Val(n) => cell(3, 0, 0, unsigned(n)),
+            Rule::Reg(r) => cell(4, r, 0, 0),
+            Rule::AtExpr { at, len } => cell(5, 0, len, word_of(at)),
+            Rule::ValExpr { at, len } => cell(6, 0, len, word_of(at)),
+        }
+    }
+
+    fn from_cell(c: &[u8]) -> Option<Rule> {
+        let (tag, reg, len, v) = uncell(c)?;
+        Some(match tag {
+            0 => Rule::Same,
+            1 => Rule::Undefined,
+            2 => Rule::At(signed(v)),
+            3 => Rule::Val(signed(v)),
+            4 => Rule::Reg(reg),
+            5 => Rule::AtExpr { at: addr_of(v)?, len },
+            6 => Rule::ValExpr { at: addr_of(v)?, len },
+            _ => return None,
+        })
+    }
+}
+
+impl Cfa {
+    fn cell(self) -> [u8; CELL] {
+        match self {
+            Cfa::Unset => cell(0, 0, 0, 0),
+            Cfa::Reg(r, off) => cell(1, r, 0, unsigned(off)),
+            Cfa::Expr(Block { at, len }) => cell(2, 0, len, word_of(at)),
+        }
+    }
+
+    fn from_cell(c: &[u8]) -> Option<Cfa> {
+        let (tag, reg, len, v) = uncell(c)?;
+        Some(match tag {
+            0 => Cfa::Unset,
+            1 => Cfa::Reg(reg, signed(v)),
+            2 => Cfa::Expr(Block { at: addr_of(v)?, len }),
+            _ => return None,
+        })
+    }
 }
 
 /// Run call-frame instructions `c` over `row`, from location `loc`, until an advance passes
 /// `target` or the instructions end. `initial` is the CIE's row (for `DW_CFA_restore`), `None`
-/// while running the CIE's own instructions.
-fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, mut loc: usize, target: usize) -> Option<()> {
-    let mut saved = [*row; REMEMBER_DEPTH];
+/// while running the CIE's own instructions. Remembered rows past [`REMEMBER_DEPTH`] spill
+/// through `mem`.
+fn run<M: Memory>(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, mut loc: usize, target: usize, mem: &M) -> Option<()> {
+    // Remembered rows are written only when an instruction remembers one: most runs never do,
+    // and a row is a few hundred bytes.
+    let mut saved: [Option<Row>; REMEMBER_DEPTH] = [None; REMEMBER_DEPTH];
+    let mut spill = Spill::new(mem);
     let mut depth = 0usize;
     let factored = |n: u64| i64::try_from(n).ok()?.checked_mul(cie.data_align);
     let factored_sf = |n: i64| n.checked_mul(cie.data_align);
-    let restore = |reg: u64| initial.map_or(Row::new(cie.ra).rule(reg), |r| r.rule(reg));
+    let restore = |reg: u64| match initial {
+        Some(r) => r.rule(reg),
+        None => Row::new(cie.ra).rule(reg),
+    };
     while !c.done() {
         let op = c.u8()?;
         let low = u64::from(op & 0x3f);
@@ -814,13 +1034,19 @@ fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, m
                     None
                 }
                 0x0a => {
-                    *saved.get_mut(depth)? = *row;
-                    depth = depth.saturating_add(1);
+                    match saved.get_mut(depth) {
+                        Some(slot) => *slot = Some(*row),
+                        None => row.store(spill.record(depth.checked_sub(REMEMBER_DEPTH)?, ROW_BYTES)?)?,
+                    }
+                    depth = depth.checked_add(1)?;
                     None
                 }
                 0x0b => {
                     depth = depth.checked_sub(1)?;
-                    *row = *saved.get(depth)?;
+                    *row = match saved.get(depth) {
+                        Some(r) => (*r)?,
+                        None => Row::load(spill.record(depth.checked_sub(REMEMBER_DEPTH)?, ROW_BYTES)?)?,
+                    };
                     None
                 }
                 0x0c => {
@@ -895,38 +1121,54 @@ fn run(row: &mut Row, initial: Option<&Row>, mut c: Cursor<'_>, cie: &Cie<'_>, m
     Some(())
 }
 
-/// The row of `fde` at `target`.
-fn row_at(fde: &Fde<'_>, target: usize) -> Option<Row> {
-    let mut row = Row::new(fde.cie.ra);
-    run(&mut row, None, fde.cie.insns, &fde.cie, fde.begin, usize::MAX)?;
-    let initial = row;
-    run(&mut row, Some(&initial), fde.insns, &fde.cie, fde.begin, target)?;
-    Some(row)
+/// Set `row` to the row of `fde` at `target` (written in place: a row is a few hundred bytes).
+fn row_at<M: Memory>(fde: &Fde<'_>, target: usize, mem: &M, row: &mut Row) -> Option<()> {
+    let mut initial = Row::new(fde.cie.ra);
+    run(&mut initial, None, fde.cie.insns, &fde.cie, fde.begin, usize::MAX, mem)?;
+    *row = initial;
+    run(row, Some(&initial), fde.insns, &fde.cie, fde.begin, target, mem)
 }
 
 // ------------------------------------------------------------------------------ expressions
 
 /// A DWARF expression's stack.
-struct Stack {
+/// A DWARF expression's stack: entries past [`EXPR_STACK`] spill.
+struct Stack<'m, M: Memory> {
     v: [u64; EXPR_STACK],
     n: usize,
+    spill: Spill<'m, M>,
 }
 
-impl Stack {
+impl<'m, M: Memory> Stack<'m, M> {
+    fn new(mem: &'m M) -> Self {
+        Stack { v: [0; EXPR_STACK], n: 0, spill: Spill::new(mem) }
+    }
+
     fn push(&mut self, x: u64) -> Option<()> {
-        *self.v.get_mut(self.n)? = x;
-        self.n = self.n.saturating_add(1);
+        match self.v.get_mut(self.n) {
+            Some(slot) => *slot = x,
+            None => self.spill.record(self.n.checked_sub(EXPR_STACK)?, 8)?.copy_from_slice(&x.to_ne_bytes()),
+        }
+        self.n = self.n.checked_add(1)?;
         Some(())
+    }
+
+    /// Entry `i` from the bottom.
+    fn at(&mut self, i: usize) -> Option<u64> {
+        match self.v.get(i) {
+            Some(x) => Some(*x),
+            None => Some(u64::from_ne_bytes(self.spill.record(i.checked_sub(EXPR_STACK)?, 8)?.try_into().ok()?)),
+        }
     }
 
     fn pop(&mut self) -> Option<u64> {
         self.n = self.n.checked_sub(1)?;
-        self.v.get(self.n).copied()
+        self.at(self.n)
     }
 
     /// The entry `i` below the top (0 is the top).
-    fn pick(&self, i: usize) -> Option<u64> {
-        self.v.get(self.n.checked_sub(i)?.checked_sub(1)?).copied()
+    fn pick(&mut self, i: usize) -> Option<u64> {
+        self.at(self.n.checked_sub(i)?.checked_sub(1)?)
     }
 }
 
@@ -935,7 +1177,7 @@ impl Stack {
 /// division is signed and fails on zero or overflow; comparisons are signed.
 fn eval<M: Memory>(obj: &Object<'_>, b: Block, regs: &Regs, mem: &M, cfa: Option<u64>) -> Option<u64> {
     let code = obj.bytes(b.at)?.get(..addr_of(u64::from(b.len))?)?;
-    let mut s = Stack { v: [0; EXPR_STACK], n: 0 };
+    let mut s = Stack::new(mem);
     if let Some(cfa) = cfa {
         s.push(cfa)?;
     }
@@ -945,7 +1187,7 @@ fn eval<M: Memory>(obj: &Object<'_>, b: Block, regs: &Regs, mem: &M, cfa: Option
             return s.pop();
         }
         let op = c.u8()?;
-        let two = |s: &mut Stack, f: &dyn Fn(u64, u64) -> Option<u64>| -> Option<()> {
+        let two = |s: &mut Stack<'_, M>, f: &dyn Fn(u64, u64) -> Option<u64>| -> Option<()> {
             let (top, below) = (s.pop()?, s.pop()?);
             s.push(f(below, top)?)
         };
@@ -964,14 +1206,21 @@ fn eval<M: Memory>(obj: &Object<'_>, b: Block, regs: &Regs, mem: &M, cfa: Option
             0x0e | 0x0f => s.push(c.u64()?)?,
             0x10 => s.push(c.uleb()?)?,
             0x11 => s.push(unsigned(c.sleb()?))?,
-            0x12 => s.push(s.pick(0)?)?,
+            0x12 => {
+                let v = s.pick(0)?;
+                s.push(v)?;
+            }
             0x13 => {
                 s.pop()?;
             }
-            0x14 => s.push(s.pick(1)?)?,
+            0x14 => {
+                let v = s.pick(1)?;
+                s.push(v)?;
+            }
             0x15 => {
                 let i = usize::from(c.u8()?);
-                s.push(s.pick(i)?)?;
+                let v = s.pick(i)?;
+                s.push(v)?;
             }
             0x16 => {
                 let (a, b) = (s.pop()?, s.pop()?);
@@ -1063,15 +1312,15 @@ fn eval<M: Memory>(obj: &Object<'_>, b: Block, regs: &Regs, mem: &M, cfa: Option
 // ------------------------------------------------------------------------------ frames
 
 /// The caller's registers from the frame whose registers are `regs`, described by `fde` at
-/// `look` (in `obj`): the caller's return address in `RA`.
-fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: usize) -> Option<Regs> {
-    let row = row_at(fde, look)?;
+/// `look` (in `obj`), written to `next` (every register): the caller's return address in `RA`.
+fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: usize, next: &mut Regs) -> Option<()> {
+    let mut row = Row::new(fde.cie.ra);
+    row_at(fde, look, mem, &mut row)?;
     let cfa = match row.cfa {
         Cfa::Unset => return None,
         Cfa::Reg(reg, off) => regs.get(usize::from(reg))?.checked_add_signed(off)?,
         Cfa::Expr(b) => eval(obj, b, regs, mem, None)?,
     };
-    let mut next = Regs::new();
     for (r, rule) in row.rules.iter().enumerate() {
         let v = match *rule {
             Rule::Same => regs.get(r),
@@ -1087,7 +1336,7 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
     if fde.cie.ra != RA {
         next.set(RA, next.get(fde.cie.ra));
     }
-    Some(next)
+    Some(())
 }
 
 /// Walk the frames above the one `start` describes (its `RA` is its own address, which is not
@@ -1095,24 +1344,36 @@ fn step<M: Memory>(obj: &Object<'_>, fde: &Fde<'_>, regs: &Regs, mem: &M, look: 
 /// with the start of the function covering it (`None` where no object describes it, which
 /// ends the walk); it returns whether to go on.
 fn walk<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<usize>) -> bool) {
-    let mut regs = start;
+    let mut last = None;
+    walk_with(|look| locate(objects, look, &mut last), mem, start, |pc, fde| visit(pc, fde.map(|f| f.begin)));
+}
+
+/// [`walk`] with the object holding an address and the FDE covering it found by `locate`, and
+/// the FDE itself passed to `visit`. The object is borrowed where the caller holds it (an
+/// object is a few hundred bytes: no copy per frame).
+fn walk_with<'a, O: Borrow<Object<'a>>, M: Memory>(mut locate: impl FnMut(usize) -> Option<(O, Fde<'a>)>, mem: &M, start: Regs, mut visit: impl FnMut(usize, Option<&Fde<'a>>) -> bool) {
+    // A frame's registers and its caller's, swapped by reference from one frame to the next.
+    let (mut a, mut b) = (start, Regs::new());
+    let (mut regs, mut next) = (&mut a, &mut b);
     let mut exact = false;
     let mut first = true;
     loop {
         let Some(pc) = regs.get(RA).filter(|&p| p != 0).and_then(addr_of) else { return };
         let look = if exact { pc } else { pc.wrapping_sub(1) };
-        let found = locate(objects, look);
-        if !first && !visit(pc, found.map(|(_, f)| f.begin)) {
+        let found = locate(look);
+        if !first && !visit(pc, found.as_ref().map(|(_, f)| f)) {
             return;
         }
         first = false;
         let Some((obj, fde)) = found else { return };
-        let Some(next) = step(obj, &fde, &regs, mem, look) else { return };
+        if step(obj.borrow(), &fde, regs, mem, look, next).is_none() {
+            return;
+        }
         if next.get(RA) == regs.get(RA) && next.get(RSP) == regs.get(RSP) {
             return; // no progress
         }
         exact = fde.cie.signal;
-        regs = next;
+        core::mem::swap(&mut regs, &mut next);
     }
 }
 
@@ -1155,8 +1416,52 @@ pub fn caller<M: Memory>(objects: &[Object<'_>], mem: &M, start: Regs, inside: &
     found
 }
 
+/// Whether a frame above `start` belongs to a function with exception-handling work for an
+/// unwind (a personality routine and language-specific data: `-fexceptions` cleanups, C++
+/// destructors and handlers; D-22.23), looking at most `max` frames. Functions starting at one
+/// of `skip` do not count (the C library's own guards, whose undo its exit runs without an
+/// unwinder). The object holding an
+/// address is the first of `objects` that holds it, else `find(address)`. A walk that ends
+/// early (an address no object describes, a row that cannot be evaluated, `max`) answers for
+/// the frames it saw.
+pub fn handler_above<'a, M: Memory>(objects: &[Object<'a>], mut find: impl FnMut(usize) -> Option<Object<'a>>, skip: &[usize], mem: &M, start: Regs, max: usize) -> bool {
+    let (mut seen, mut found) = (0usize, false);
+    let mut last = None;
+    let locate = |look: usize| match locate(objects, look, &mut last) {
+        Some((o, f)) => Some((Held::Listed(o), f)),
+        None => find(look).and_then(|o| {
+            let f = o.fde_for(look, &mut last)?;
+            Some((Held::Found(o), f))
+        }),
+    };
+    walk_with(locate, mem, start, |_, fde| {
+        found = fde.is_some_and(|f| f.handler && !skip.contains(&f.begin));
+        seen = seen.saturating_add(1);
+        !found && seen < max
+    });
+    found
+}
+
+/// An object a walk uses: one of the caller's (borrowed) or one found for a frame (owned).
+// The owned variant is the object itself, by design: no allocator here, and it is the rare case
+// (a frame outside the objects the caller lists).
+#[allow(clippy::large_enum_variant)]
+enum Held<'o, 'a> {
+    Listed(&'o Object<'a>),
+    Found(Object<'a>),
+}
+
+impl<'a> Borrow<Object<'a>> for Held<'_, 'a> {
+    fn borrow(&self) -> &Object<'a> {
+        match self {
+            Held::Listed(o) => o,
+            Held::Found(o) => o,
+        }
+    }
+}
+
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 mod tests {
     use super::*;
 
@@ -1198,9 +1503,170 @@ mod tests {
 
     /// Evaluate `code` as if it were an object's bytes at 0x1000.
     fn run_expr(code: &[u8], regs: &Regs) -> Option<u64> {
+        run_expr_in(code, regs, &NoMemory)
+    }
+
+    fn run_expr_in<M: Memory>(code: &[u8], regs: &Regs, mem: &M) -> Option<u64> {
         let mut o = Object::new();
         o.add_segment(Image { addr: 0x1000, bytes: code });
-        eval(&o, Block { at: 0x1000, len: u32::try_from(code.len()).unwrap() }, regs, &NoMemory, Some(0x40))
+        eval(&o, Block { at: 0x1000, len: u32::try_from(code.len()).unwrap() }, regs, mem, Some(0x40))
+    }
+
+    /// The process's own memory, counting the spill regions mapped and not yet unmapped.
+    struct Counted<'s, S: Sys> {
+        own: OwnMemory<'s, S>,
+        live: Cell<i64>,
+    }
+
+    impl<'s, S: Sys> Counted<'s, S> {
+        fn new(sys: &'s S) -> Self {
+            Counted { own: OwnMemory::new(sys), live: Cell::new(0) }
+        }
+    }
+
+    impl<S: Sys> Memory for Counted<'_, S> {
+        fn word(&self, addr: u64) -> Option<u64> {
+            self.own.word(addr)
+        }
+        fn spill_map(&self, len: usize) -> Option<Region> {
+            let r = self.own.spill_map(len)?;
+            self.live.set(self.live.get() + 1);
+            Some(r)
+        }
+        fn spill_bytes<'r>(&self, region: &'r mut Region) -> Option<&'r mut [u8]> {
+            self.own.spill_bytes(region)
+        }
+        fn spill_unmap(&self, region: Region) {
+            self.live.set(self.live.get() - 1);
+            self.own.spill_unmap(region);
+        }
+    }
+
+    fn uleb(mut v: usize, out: &mut Vec<u8>) {
+        loop {
+            let b = u8::try_from(v & 0x7f).unwrap();
+            v >>= 7;
+            out.push(if v == 0 { b } else { b | 0x80 });
+            if v == 0 {
+                return;
+            }
+        }
+    }
+
+    /// (CFA) constu 1 .. constu n, then `n` plus: the CFA plus n(n+1)/2, with n + 1 entries on
+    /// the stack at its deepest.
+    fn deep_sum(n: usize) -> Vec<u8> {
+        let mut code = Vec::new();
+        for k in 1..=n {
+            code.push(0x10);
+            uleb(k, &mut code);
+        }
+        code.extend(core::iter::repeat_n(0x22, n));
+        code
+    }
+
+    #[test]
+    fn expression_stack_spills_past_the_inline_entries() {
+        // no spec clause (HL-20, D-2.11 (8)): stacks deeper than EXPR_STACK spill to mapped
+        // pages and give every entry back, by pop and by pick, in place.
+        let r = Regs::new();
+        let mem = Counted::new(&niji_boundary::sys::CSys);
+        for n in [EXPR_STACK, 100, 500] {
+            let want = 0x40 + u64::try_from(n * (n + 1) / 2).unwrap();
+            assert_eq!(run_expr_in(&deep_sum(n), &r, &mem), Some(want), "{n} deep");
+            assert_eq!(run_expr(&deep_sum(n), &r), None, "{n} deep without a spill");
+            assert_eq!(mem.live.get(), 0, "every spill region is unmapped");
+        }
+        // Stack (CFA) 1 .. 100: pick reaches the spilled top, an inline entry and the bottom.
+        let hundred = |tail: &[u8]| {
+            let mut c = deep_sum(100);
+            c.truncate(c.len() - 100);
+            c.extend_from_slice(tail);
+            run_expr_in(&c, &r, &mem)
+        };
+        assert_eq!(hundred(&[0x15, 0]), Some(100));
+        assert_eq!(hundred(&[0x15, 60]), Some(40));
+        assert_eq!(hundred(&[0x15, 90]), Some(10));
+        assert_eq!(hundred(&[0x15, 100]), Some(0x40));
+        assert_eq!(hundred(&[0x15, 101]), None);
+        assert_eq!(hundred(&[0x12, 0x22]), Some(200));
+        assert_eq!(hundred(&[0x16, 0x1c]), Some(1));
+        assert_eq!(mem.live.get(), 0);
+        // The budget (HL-26) still bounds an expression: 1024 pushes do not finish.
+        assert_eq!(run_expr_in(&[0x30; EXPR_BUDGET + 1], &r, &mem), None);
+        assert_eq!(mem.live.get(), 0);
+    }
+
+    /// Instructions for `depth` nested remember_state levels, level k remembering CFA rsp+16+8k
+    /// and rbx at CFA-8(k+1); then CFA rsp+1 and `restores` restore_state.
+    fn nested(depth: usize, restores: usize) -> Vec<u8> {
+        let mut insns = Vec::new();
+        for k in 0..depth {
+            insns.extend_from_slice(&[0x0c, 7]);
+            uleb(16 + 8 * k, &mut insns);
+            insns.push(0x83);
+            uleb(k + 1, &mut insns);
+            insns.push(0x0a);
+        }
+        insns.extend_from_slice(&[0x0c, 7, 1]);
+        insns.extend(core::iter::repeat_n(0x0b, restores));
+        insns
+    }
+
+    #[test]
+    fn remember_state_spills_past_the_inline_rows() {
+        // no spec clause (HL-20, D-2.11 (2)): rows remembered past REMEMBER_DEPTH spill to
+        // mapped pages and come back in reverse order, each whole.
+        let cie = row_cie(-8);
+        let mem = Counted::new(&niji_boundary::sys::CSys);
+        for depth in [REMEMBER_DEPTH + 1, 10, 1000] {
+            let restores: Vec<usize> = if depth == 1000 { vec![1, 500, 995, 996, 997, 1000] } else { (1..=depth).collect() };
+            for r in restores {
+                let mut row = Row::new(RA);
+                assert!(run(&mut row, None, cursor(&nested(depth, r)), &cie, 0, usize::MAX, &mem).is_some(), "{depth}/{r}");
+                let level = i64::try_from(depth - r).unwrap();
+                assert_eq!(row.cfa, Cfa::Reg(7, 16 + 8 * level), "{depth}/{r}");
+                assert_eq!(row.rule(3), Rule::At(-8 * (level + 1)), "{depth}/{r}");
+                assert_eq!(row.rule(16), Rule::Undefined);
+                assert_eq!(mem.live.get(), 0, "every spill region is unmapped");
+            }
+        }
+        // A spilled row keeps every kind of rule: the inline rows are taken first, so the one
+        // restored last comes from the spill.
+        let rules = [0x0f, 2, 0x77, 8, 0x09, 3, 5, 0x07, 4, 0x08, 6, 0x14, 12, 2, 0x10, 13, 1, 0x30, 0x16, 14, 1, 0x31, 0x81, 1];
+        let mut kinds = vec![0x0a; REMEMBER_DEPTH];
+        kinds.extend_from_slice(&rules);
+        kinds.push(0x0a);
+        kinds.extend_from_slice(&[0x0c, 7, 8, 0x07, 1, 0x07, 3, 0x07, 4, 0x07, 6, 0x07, 12, 0x07, 13, 0x07, 14, 0x07, 16]);
+        kinds.push(0x0b);
+        let mut row = Row::new(RA);
+        let mut want = Row::new(RA);
+        // The same bytes up to the spilled remember: expression rules keep their block's address.
+        assert!(run(&mut want, None, cursor(&kinds[..REMEMBER_DEPTH + rules.len()]), &cie, 0, usize::MAX, &mem).is_some());
+        assert!(run(&mut row, None, cursor(&kinds), &cie, 0, usize::MAX, &mem).is_some());
+        assert_eq!((row.cfa, row.rules), (want.cfa, want.rules));
+        assert!(matches!(row.cfa, Cfa::Expr(_)) && matches!(row.rule(14), Rule::ValExpr { .. }) && row.rule(1) == Rule::At(-8));
+    }
+
+    #[test]
+    fn a_spill_that_cannot_be_mapped_fails_the_row() {
+        // no spec clause (HL-20; ruling #5594: running out is a clean failure, never a crash):
+        // with mmap failing (ENOMEM), the row or expression that needs a spill cannot be
+        // evaluated, exactly as before the spill; the next one maps again.
+        let sys = niji_kernel::testing::Faulty::new(niji_boundary::sys::CSys);
+        let mem = Counted::new(&sys);
+        let cie = row_cie(-8);
+        assert!(sys.fail("mmap", niji_kernel::Errno::ENOMEM, 0, 1));
+        assert!(run(&mut Row::new(RA), None, cursor(&nested(REMEMBER_DEPTH + 1, 0)), &cie, 0, usize::MAX, &mem).is_none());
+        assert!(run(&mut Row::new(RA), None, cursor(&nested(REMEMBER_DEPTH + 1, 0)), &cie, 0, usize::MAX, &mem).is_some());
+        // A failed regrowth keeps nothing mapped.
+        assert!(sys.fail("mmap", niji_kernel::Errno::ENOMEM, 1, 1));
+        assert!(run(&mut Row::new(RA), None, cursor(&nested(100, 0)), &cie, 0, usize::MAX, &mem).is_none());
+        assert_eq!(mem.live.get(), 0);
+        assert!(sys.fail("mmap", niji_kernel::Errno::ENOMEM, 0, 1));
+        assert_eq!(run_expr_in(&deep_sum(EXPR_STACK), &Regs::new(), &mem), None);
+        assert_eq!(run_expr_in(&deep_sum(EXPR_STACK), &Regs::new(), &mem), Some(0x40 + 528));
+        assert_eq!(mem.live.get(), 0);
     }
 
     #[test]
@@ -1225,14 +1691,15 @@ mod tests {
 
     #[test]
     fn remember_depth_is_bounded() {
-        let cie = Cie { code_align: 1, data_align: -8, ra: RA, ptr_enc: 0x1b, augmented: true, signal: false, insns: cursor(&[]) };
+        let cie = Cie { code_align: 1, data_align: -8, ra: RA, ptr_enc: 0x1b, augmented: true, signal: false, personality: false, lsda_enc: None, insns: cursor(&[]) };
         let mut row = Row::new(RA);
         let deep = [0x0a; REMEMBER_DEPTH + 1];
-        assert!(run(&mut row, None, cursor(&deep[..REMEMBER_DEPTH]), &cie, 0, 10).is_some());
-        assert!(run(&mut row, None, cursor(&deep), &cie, 0, 10).is_none());
-        assert!(run(&mut row, None, cursor(&[0x0b]), &cie, 0, 10).is_none());
+        // Without pages to spill to, nesting past the inline rows fails the row.
+        assert!(run(&mut row, None, cursor(&deep[..REMEMBER_DEPTH]), &cie, 0, 10, &NoMemory).is_some());
+        assert!(run(&mut row, None, cursor(&deep), &cie, 0, 10, &NoMemory).is_none());
+        assert!(run(&mut row, None, cursor(&[0x0b]), &cie, 0, 10, &NoMemory).is_none());
         // Rules for registers beyond the tracked ones are read and dropped.
-        assert!(run(&mut row, None, cursor(&[0x05, 40, 2, 0x10, 33, 1, 0x96]), &cie, 0, 10).is_some());
+        assert!(run(&mut row, None, cursor(&[0x05, 40, 2, 0x10, 33, 1, 0x96]), &cie, 0, 10, &NoMemory).is_some());
         assert_eq!(row.rule(40), Rule::Same);
         assert_eq!(size_of::<Rule>(), 16);
     }
@@ -1240,16 +1707,16 @@ mod tests {
     /// A CIE for row tests: code factor 1, data factor `data`, return address column 16,
     /// absolute 8-byte pointers (for `DW_CFA_set_loc`).
     fn row_cie(data: i64) -> Cie<'static> {
-        Cie { code_align: 1, data_align: data, ra: RA, ptr_enc: 0x00, augmented: true, signal: false, insns: cursor(&[]) }
+        Cie { code_align: 1, data_align: data, ra: RA, ptr_enc: 0x00, augmented: true, signal: false, personality: false, lsda_enc: None, insns: cursor(&[]) }
     }
 
     /// The row at `target` after the CIE instructions `initial` and the FDE instructions `fde`
     /// (both starting at location 0).
     fn row_of(cie: &Cie<'_>, initial: &[u8], fde: &[u8], target: usize) -> Option<Row> {
         let mut row = Row::new(cie.ra);
-        run(&mut row, None, cursor(initial), cie, 0, usize::MAX)?;
+        run(&mut row, None, cursor(initial), cie, 0, usize::MAX, &NoMemory)?;
         let first = row;
-        run(&mut row, Some(&first), cursor(fde), cie, 0, target)?;
+        run(&mut row, Some(&first), cursor(fde), cie, 0, target, &NoMemory)?;
         Some(row)
     }
 

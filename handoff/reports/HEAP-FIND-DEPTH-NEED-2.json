@@ -1,0 +1,25 @@
+{"task": "HEAP-FIND-DEPTH-NEED-2", "model": "opus", "tokens": null,
+ "result": "find bound red on the Skylake-SP CI host was measurement: 16 KiB grid (a page of start-up moved the difference a step) and layout phase (the need varies 33048..33576 KiB over 3 entries across the heap's 16 MiB alignment); test now page-exact over 8 phases, bound 33576 (worst of 145 dense shifts), plants 2/2 caught",
+ "branch": "task/heap-find-depth-need-2", "head": "ad79cde77",
+ "gate": {"affected": "10450 passed / 8 failed (4 tests x 2 passes: locale_behaviour_equals_the_reference, catalogs_equal_the_reference, printf_corpus_equals_the_reference, s7_2_f_0; host locale environment, not this branch: see informational)", "peak": "gate: peak memory 14G oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "mei role gates fail 4 locale/reference tests (s7_2_f_0 accepts zh_HK.big5hkscs, which locale -a does not list; 3 locale_products lines incl. mbrtowc eda080; 4 printf corpus lines; a catalog reload line under load 14-26) since the host's /usr/lib/locale gained 511 compiled locale dirs (2026-11-23 06:32, dir 18:10): ctype-objects-setlocale-2-gate (role s4, 18:44) failed the same 4; CI gates on mei passed them all evening, including the train with this branch's code (ba4f67797). The branch's only library change is EXACT_BLOCKERS 8->9, read after an over-mapping fails under RLIMIT_AS.",
+   "Heap: the find need depends on the layout phase by up to 528 KiB: in the high band a later segment's aligned slot has room for one 2 MiB growth step before another mapping (strace: MAP_FIXED_NOREPLACE EEXIST at +0x440000), so one more segment is placed. Choosing a slot with growth room would flatten it and let the bound tighten to ~33048. Candidate story HEAP-SEGMENT-GROWTH-ROOM.",
+   "The train composition with NIJI-GXX-UNWINDER-2 read 33344 on the 16 KiB grid (33329..33360 exact), between this branch's bands; a layout effect of that composition, not investigated.",
+   "keke (Zen 1) not re-measured this leg; its 16 KiB-grid needs put it at or under mei's level at the default phase."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "find_over_200000_entries_bounds_its_address_space no longer depends on the build host's start-up size (page-exact) or on library sizes (worst of 8 layout phases); was red on the CI host at 33344 > 33296", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants on the find workload test (blockers-8-find: mutant 34340..34852 KiB over 3 entries > 33576, caught at every phase; at one layout it survived before)", "before": 0, "after": 1, "unit": "plants caught by the workload test", "measured": true},
+   {"kind": "none", "what": "the find bound's value: the libniji need is unchanged (default phase on mei 33304 page-exact); the bound moved from one layout on a 16 KiB grid to the worst phase page-exact (22.3 one-layout 34784)", "before": 33296, "after": 33576, "unit": "KiB over 3 entries", "measured": true},
+   {"kind": "cost", "what": "find bound test runtime (8 phases)", "before": 3.6, "after": 12.7, "unit": "s", "measured": true}
+ ],
+ "improvement": "Bounds on least-RLIMIT_AS differences should be page-exact and swept over the 16 MiB layout phase (stack-limit shift): one-layout zero-headroom bounds red unrelated stories whenever a library's size changes.",
+ "next_step": "Coordinator: land (FULL gate on the train); route the mei locale-environment reds and HEAP-SEGMENT-GROWTH-ROOM.",
+ "report_file": "handoff/HEAP-FIND-DEPTH-NEED.md",
+ "jobs": ["mei:heap-find-depth-need-2-direct", "mei:heap-find-depth-need-2-plants2", "mei:heap-find-depth-need-2-fullprof", "mei:heap-find-depth-need-2-lint3"],
+ "superseded": ["mei:heap-find-depth-need-2-gate (direct tier: red only on the 4 host-locale tests, see informational; find bound and s03 passed)", "mei:heap-find-depth-need-2-startup (static ok; cargo xtask test red only on the same 4)", "mei:heap-find-depth-need-2-plants (msg regex \\d, WARN-NO-MSG)"],
+ "job_results": {"direct": "rc 0: affected --only niji::heap_meta_products (7 passed) and niji-boundary::s03_memory_symbols (198 passed, 3 passes), final head","gate": "rc 1: 10450 passed, the 4 host-locale tests failed (x2 passes)", "plants2": "2 of 2 CAUGHT", "startup": "rc 1: static ok; cargo xtask test 7153 passed, the same 4 host-locale tests failed", "fullprof": "rc 0: full-profile so + hot_text_products 33 passed", "lint3": "rc 0: clippy -D warnings, static, the find test (33572 <= 33576)"}}

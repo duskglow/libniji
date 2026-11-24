@@ -177,6 +177,8 @@ struct Tables {
     nothrow: BTreeSet<String>,
     /// `spec/abi/diagattrs.tsv`: the ` __attribute__ ((...))` text of each function that has diagnostic attributes.
     attrs: BTreeMap<String, String>,
+    /// `diagattrs.tsv` rows with noreturn `nonzero:K`: the function and K (1-based), for the GCC wrapper (functions.rs).
+    nonzero_noreturn: BTreeMap<String, usize>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
@@ -339,7 +341,20 @@ fn load(root: &Path) -> Result<Tables, String> {
         }
     }
     let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept").map(|r| r["name"].clone()).collect();
-    let attrs = tsv(root, "spec/abi/diagattrs.tsv")?.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
+    let diag = tsv(root, "spec/abi/diagattrs.tsv")?;
+    let mut nonzero_noreturn = BTreeMap::new();
+    for r in &diag {
+        match r["noreturn"].as_str() {
+            "" | "1" => {}
+            v => match v.strip_prefix("nonzero:").and_then(|k| k.parse::<usize>().ok()).filter(|&k| k > 0) {
+                Some(k) => {
+                    nonzero_noreturn.insert(r["name"].clone(), k);
+                }
+                None => return Err(format!("spec/abi/diagattrs.tsv: {}: noreturn {v:?} is neither 1 nor nonzero:K", r["name"])),
+            },
+        }
+    }
+    let attrs = diag.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
@@ -353,7 +368,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, attrs, nonzero_noreturn, exported, reserved, linked_elsewhere, providers, inits, fnmembers, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -415,7 +430,9 @@ fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
     if !r["pure"].is_empty() {
         a.push(if r["pure"] == "const" { "__const__" } else { "__pure__" }.into());
     }
-    if !r["noreturn"].is_empty() {
+    // `nonzero:K` (the call returns unless parameter K is a nonzero constant, error(3)): no attribute on the declaration;
+    // functions.rs adds the wrapper that applies noreturn only to such a call.
+    if r["noreturn"] == "1" {
         a.push("__noreturn__".into());
     }
     if !r["deprecated"].is_empty() {
@@ -713,6 +730,17 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
                 Some("@@owns") | Some("@@owns-macro") | Some("@@hidden-member") => {}
+                Some("@@null") => {
+                    // `@@null NAME`: the definition of a `null` macros.tsv row, spelled per language.
+                    let n = l.split_whitespace().nth(1).unwrap_or("");
+                    match g.t.macros.get(n) {
+                        Some((ty, v)) if ty == "null" => match values::null_lines(n, v) {
+                            Ok(lines) => g.out.extend(lines),
+                            Err(e) => g.errors.push(format!("{}: {n}: {e}", g.header)),
+                        },
+                        _ => g.errors.push(format!("headers/{h}.in: @@null {n}: no macros.tsv row of type null")),
+                    }
+                }
                 Some("@@enum") => g.enumeration(&l.split_whitespace().skip(1).collect::<Vec<_>>()),
                 Some("@@if") | Some("@@when") => {
                     let n = l.split_whitespace().nth(1).unwrap_or("");
@@ -905,6 +933,33 @@ mod tests {
         assert_eq!(literal("unsigned long", "18446744073709551615").unwrap(), "18446744073709551615UL");
         assert_eq!(literal("int", "-128").unwrap(), "(-128)");
         assert!(literal("double", "1.0").is_err());
+    }
+
+    // C11 5.2.4.2.2 (*_DECIMAL_DIG), C99 6.4.4.2 and C++17 [lex.fcon]: a floating value is spelled in decimal, which
+    // every language mode lexes, rounded half to even to the digits that carry the type's values exactly. Expected
+    // strings from an independent exact-decimal computation (Python's decimal module), not from this code.
+    #[test]
+    fn floating_literals_are_decimal_and_exact() {
+        for (hex, n, want) in [
+            ("0x1.921fb54442d18p+1", 17, "3.1415926535897931e+0"),
+            ("0x1p-126", 9, "1.17549435e-38"),
+            ("0x1.fffffffffffffp+1023", 17, "1.7976931348623157e+308"),
+            ("0x1.fffffep+127", 9, "3.40282347e+38"),
+            ("0x1.921fb54442d1846ap+1", 21, "3.14159265358979323851e+0"),
+            ("0x1.921fb54442d18469898cc51701b8p+1", 36, "3.1415926535897932384626433832795028e+0"),
+            ("0x1.8p+0", 1, "2.0e+0"),
+            ("0x1.4p+1", 1, "2.0e+0"),
+            ("0x1.3ep+3", 1, "1.0e+1"),
+            ("0x1.3ep+3", 2, "9.9e+0"),
+            ("-0x1.8p-3", 5, "-1.875e-1"),
+            ("0x1p-1022", 17, "2.2250738585072014e-308"),
+        ] {
+            assert_eq!(super::values::decimal(hex, n).unwrap(), want, "{hex} to {n} digits");
+        }
+        assert_eq!(literal("float", "0x1.fffffep+127").unwrap(), "(3.40282347e+38f)");
+        assert_eq!(literal("_Float128", "0x1.921fb54442d18469898cc51701b8p+1").unwrap(), "(3.1415926535897932384626433832795028e+0f128)");
+        assert_eq!(literal("_Float32x", "0x1p-1022").unwrap(), "(2.2250738585072014e-308f32x)");
+        assert!(literal("_Float64", "1.5").is_err());
     }
 
     // no spec clause: owner rulings R-H2, R-H3 (reserved names stay out unless listed).
@@ -1172,8 +1227,9 @@ mod tests {
         }
         let mut t = load(&root).unwrap();
         let mut only = BTreeSet::new();
-        for (name, cxx) in [("niji_test_v4sf", "float __vector(4)"), ("niji_test_v2di", "long long __vector(2)")] {
-            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", "16"), ("align", "16"), ("cxx", cxx)];
+        // niji_test_v8sf is an aligned vector (HEADERS-S16-FOLLOWUP, as La_x86_64_ymm): 32 bytes aligned to 16.
+        for (name, cxx, size, align) in [("niji_test_v4sf", "float __vector(4)", "16", "16"), ("niji_test_v2di", "long long __vector(2)", "16", "16"), ("niji_test_v8sf", "float __vector(8)", "32", "16")] {
+            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", size), ("align", align), ("cxx", cxx)];
             t.typedefs.insert(("typedef".into(), name.into()), row.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());
             only.insert(name.to_string());
         }
@@ -1181,6 +1237,6 @@ mod tests {
         let r = rows::check(&root, &t, &dir, Some(&only));
         let _ = fs::remove_dir_all(&dir);
         let summary = r.unwrap_or_else(|e| panic!("{e}"));
-        assert!(summary.contains("typedefs 2 rows, 0 failed"), "{summary}");
+        assert!(summary.contains("typedefs 3 rows, 0 failed"), "{summary}");
     }
 }

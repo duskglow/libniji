@@ -1,0 +1,280 @@
+name: 260 messages in 5 sets named out of order (byte comparison)
+clause: s31_12_c_1
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 7
+| 243 set 7 message 243 xxxxx
+| 138 set 7 message 138 xxxxxxxxxxxxxxxx
+| 337 set 7 message 337 xx
+| 271 set 7 message 271 xxxxxxxxxxxx
+| 342 set 7 message 342 xxxxxxxxxxxxxxxxxxx
+| 180 set 7 message 180 xxxxxxxxxxxxx
+| 74 set 7 message 74 xxxxxxxxxxxxxxxxxxx
+| 196 set 7 message 196 xxxxxxxxxxxxxxx
+| 6 set 7 message 6 xxxxxxxxxxxxxxx
+| 192 set 7 message 192 xxxxxxxxxxxxxxxxxxx
+| 248 set 7 message 248 xxxxxxxxxxxx
+| 141 set 7 message 141 xxxxxxxxxxxxxxxxx
+| 330 set 7 message 330 
+| 236 set 7 message 236 xx
+| 354 set 7 message 354 xxxxxx
+| 308 set 7 message 308 xxxxxxxx
+| 117 set 7 message 117 xxxxxxxxxxx
+| 286 set 7 message 286 xxxxxxxxxxx
+| 1 set 7 message 1 xxxxxxxxxxxx
+| 339 set 7 message 339 xxxxxxxxx
+| 320 set 7 message 320 xxx
+| 75 set 7 message 75 xxxxxxxx
+| 226 set 7 message 226 xxxxxxx
+| 189 set 7 message 189 xxxxxxxxxx
+| 84 set 7 message 84 xxxxxxxxxxx
+| 174 set 7 message 174 xxxxxxxxxxx
+| 108 set 7 message 108 xxxxxxxxxxxxxxxx
+| 31 set 7 message 31 xxxxxxxxxxxxxxxxxx
+| 296 set 7 message 296 xxxxxxxxxxxxxxxx
+| 103 set 7 message 103 xxxxx
+| 39 set 7 message 39 
+| 263 set 7 message 263 xxxxxxxxxxxx
+| 352 set 7 message 352 xxxxxxxxxxxxx
+| 173 set 7 message 173 x
+| 349 set 7 message 349 xxxxxxxxxxxxxxxx
+| 208 set 7 message 208 
+| 45 set 7 message 45 xxxxxxx
+| 10 set 7 message 10 xxxxxxxxxxxxx
+| 32 set 7 message 32 x
+| 261 set 7 message 261 xxxxxxxxxxxx
+| 115 set 7 message 115 xxxxxx
+| 47 set 7 message 47 xxxxxxxxxxxxxxxxxxx
+| 217 set 7 message 217 xxx
+| 228 set 7 message 228 xxxxxxxxxxxxxxxxx
+| 58 set 7 message 58 xxxxxxx
+| 70 set 7 message 70 xxxxx
+| 277 set 7 message 277 xx
+| 161 set 7 message 161 xxxxxxxx
+| 319 set 7 message 319 x
+| 357 set 7 message 357 xxxxxxxxxxxxx
+| 27 set 7 message 27 xxxxxxxx
+| 285 set 7 message 285 xxxxxxxxxxxxxxx
+| $set 3
+| 177 set 3 message 177 xxxxxxxxxxx
+| 309 set 3 message 309 xxxxxxxx
+| 327 set 3 message 327 xxxxxxxxxxxxxx
+| 372 set 3 message 372 xxxxx
+| 27 set 3 message 27 xxxxxxxxxxxxxx
+| 264 set 3 message 264 xxxxxxxxx
+| 236 set 3 message 236 xxxxxxxxxxxxxxxxxxx
+| 189 set 3 message 189 x
+| 107 set 3 message 107 xxxxxxxx
+| 174 set 3 message 174 xxxxxxxxxx
+| 145 set 3 message 145 xxxxxxxxxxxxxxxx
+| 234 set 3 message 234 xxxxxxxxxxxxxx
+| 244 set 3 message 244 xxxxxx
+| 357 set 3 message 357 xxxxxxxxx
+| 247 set 3 message 247 xxxxxxxxxxxxxxxx
+| 123 set 3 message 123 xxxxxxxx
+| 86 set 3 message 86 
+| 238 set 3 message 238 
+| 282 set 3 message 282 
+| 187 set 3 message 187 xxxx
+| 94 set 3 message 94 xxxxxxxxxxxxxxxxx
+| 97 set 3 message 97 xxxxxxxx
+| 393 set 3 message 393 xxxxxxxxxxxxx
+| 384 set 3 message 384 xxxx
+| 113 set 3 message 113 xxxxxxx
+| 311 set 3 message 311 xxxxxx
+| 4 set 3 message 4 xxxxxxxxxxxxx
+| 138 set 3 message 138 xxxxxxxxxxxxxxx
+| 395 set 3 message 395 x
+| 175 set 3 message 175 xxxxxxxxxxxxxxxxx
+| 92 set 3 message 92 xxxxxxxxxxxxxxxxxx
+| 124 set 3 message 124 xxxxxxxxxxxxxxxxxxx
+| 5 set 3 message 5 xxxxxxxx
+| 257 set 3 message 257 x
+| 21 set 3 message 21 xxxxxxxxxxxxx
+| 127 set 3 message 127 xxxxxxxxxxxxx
+| 317 set 3 message 317 xxxxxxxxxxxxxxxxxx
+| 60 set 3 message 60 xx
+| 185 set 3 message 185 xxxxxxxxxxxx
+| 280 set 3 message 280 xxxxxx
+| 258 set 3 message 258 xxxxxxxxxxxxxxxxxx
+| 80 set 3 message 80 xxxxxxxxxxxxxxxxx
+| 13 set 3 message 13 xxxxxxxxxxx
+| 166 set 3 message 166 xxxxxxxxxxx
+| 343 set 3 message 343 xxxxxxxxxxxx
+| 144 set 3 message 144 xxxxxxxxxxxxxxxxxx
+| 328 set 3 message 328 xxxxx
+| 61 set 3 message 61 
+| 118 set 3 message 118 xxxx
+| 270 set 3 message 270 
+| 245 set 3 message 245 x
+| 251 set 3 message 251 xx
+| $set 11
+| 213 set 11 message 213 xxxxxxxxxxxxxx
+| 274 set 11 message 274 xxxxxxx
+| 103 set 11 message 103 xxxxxxxxxx
+| 195 set 11 message 195 xxx
+| 51 set 11 message 51 xxxxxxx
+| 364 set 11 message 364 
+| 181 set 11 message 181 xxxxxxxxxxx
+| 97 set 11 message 97 xxxxxxxxxxx
+| 160 set 11 message 160 xxxxxxxx
+| 139 set 11 message 139 xxxxxx
+| 353 set 11 message 353 xxxxxxxxxxxxx
+| 352 set 11 message 352 xxxxxxxxx
+| 278 set 11 message 278 xxxxxxx
+| 252 set 11 message 252 xxxxxxxxxxxxxxxx
+| 319 set 11 message 319 xxxx
+| 313 set 11 message 313 xxxxxxxxxxxxxxxx
+| 64 set 11 message 64 xxxxxxxxxx
+| 109 set 11 message 109 xxxxx
+| 307 set 11 message 307 xxxxxxxxxxxxxxxx
+| 359 set 11 message 359 xxxxxxxxxxxxxx
+| 348 set 11 message 348 xxxxxxxxxxxx
+| 202 set 11 message 202 xxxxxxxxxxxxxxxxxxx
+| 298 set 11 message 298 xxxxxxxxxxxxxxxx
+| 126 set 11 message 126 xxxxxxx
+| 37 set 11 message 37 xxxxxxxxxxxxxx
+| 209 set 11 message 209 xxxxxxxxxxxxxx
+| 183 set 11 message 183 x
+| 166 set 11 message 166 xxxxxxx
+| 43 set 11 message 43 xxxxxxxxxxxxx
+| 351 set 11 message 351 xxxxxxxxxxxxxxxxx
+| 171 set 11 message 171 xxxxxxxxxxxx
+| 73 set 11 message 73 xxxxxxxxxxxxxxxx
+| 47 set 11 message 47 xxxxxxxxxxxxxx
+| 370 set 11 message 370 x
+| 357 set 11 message 357 xxx
+| 93 set 11 message 93 xxxxxxxxxxxxxxxxx
+| 389 set 11 message 389 xxxxxxxxxxxxxxxxxx
+| 338 set 11 message 338 xxxxxxxxx
+| 327 set 11 message 327 xxxxxxxxxxx
+| 224 set 11 message 224 
+| 188 set 11 message 188 xxxxxxxxxx
+| 91 set 11 message 91 xxxxxxxxxxxxxxx
+| 16 set 11 message 16 xxxxxxxxxxx
+| 108 set 11 message 108 xxxxxxxxx
+| 250 set 11 message 250 xxxxx
+| 228 set 11 message 228 xxxx
+| 249 set 11 message 249 xxxxxxxxxxxxxxx
+| 92 set 11 message 92 xxxxxxx
+| 30 set 11 message 30 xxxxxxxxxxxxxxxxx
+| 342 set 11 message 342 xxxx
+| 305 set 11 message 305 xxxxxxxx
+| 175 set 11 message 175 xxxxxxxxxxxxxxx
+| $set 1
+| 24 set 1 message 24 x
+| 220 set 1 message 220 
+| 187 set 1 message 187 xxxxx
+| 147 set 1 message 147 xxxxxx
+| 210 set 1 message 210 xxxxx
+| 322 set 1 message 322 xxxxxx
+| 307 set 1 message 307 xxxxxxxxx
+| 145 set 1 message 145 xxxxxx
+| 200 set 1 message 200 xxxxx
+| 311 set 1 message 311 xxxxxxxxx
+| 165 set 1 message 165 xxxxxxxxxxxxxxxxx
+| 76 set 1 message 76 
+| 65 set 1 message 65 xxxxxxxxxxxxxxxxxxx
+| 133 set 1 message 133 xxx
+| 329 set 1 message 329 xxxxxxxxxxx
+| 17 set 1 message 17 xxxxxxxxxxxxxxx
+| 338 set 1 message 338 xxxxxxxxxxxxxxxxx
+| 312 set 1 message 312 xxxxxx
+| 194 set 1 message 194 xxxxxxxxxxxxxx
+| 212 set 1 message 212 xxx
+| 218 set 1 message 218 xxxxxxxxxxxxxxxx
+| 317 set 1 message 317 
+| 135 set 1 message 135 xxxx
+| 174 set 1 message 174 xxxxxxxxxxxx
+| 209 set 1 message 209 xxxxxxxxxxxxxxxx
+| 394 set 1 message 394 xxxxxxxxxxxxxxx
+| 195 set 1 message 195 xxxxxxxxx
+| 253 set 1 message 253 xxxxxxxxxxxxxx
+| 197 set 1 message 197 xxxxxxxxxxx
+| 205 set 1 message 205 xxxxxxxxxxxx
+| 94 set 1 message 94 xxxxxxxxxxxxx
+| 87 set 1 message 87 xxxxxxxxxxxxxxxx
+| 106 set 1 message 106 
+| 131 set 1 message 131 xxxxxxxx
+| 57 set 1 message 57 
+| 138 set 1 message 138 xxxx
+| 268 set 1 message 268 xxxxxxxxxxxxxxx
+| 28 set 1 message 28 xxxxxxxxxxx
+| 335 set 1 message 335 xxx
+| 380 set 1 message 380 xxxxxxxxxxxxx
+| 367 set 1 message 367 xxxxxxxxxxxxxxxxx
+| 184 set 1 message 184 xxxxxxxxxxxx
+| 377 set 1 message 377 xxxxxxxxxxxxxxxxxxx
+| 157 set 1 message 157 xxxxxxxxxxx
+| 395 set 1 message 395 xx
+| 71 set 1 message 71 xxxx
+| 160 set 1 message 160 xxxxxxxxxxx
+| 109 set 1 message 109 x
+| 384 set 1 message 384 xxxxxxx
+| 13 set 1 message 13 xxx
+| 285 set 1 message 285 xxxxxxxxxxxxx
+| 158 set 1 message 158 xx
+| $set 5
+| 29 set 5 message 29 xxxxxxxxxxxxxxxxxxx
+| 5 set 5 message 5 xxxxxxxxxxxx
+| 128 set 5 message 128 xxxxxxxxxxxxxxx
+| 16 set 5 message 16 xxxxxxxxxx
+| 58 set 5 message 58 xxxxxx
+| 352 set 5 message 352 xxxxxxxxxxxxxxxxxxx
+| 351 set 5 message 351 xxxxxxxxxxxxxxxxx
+| 290 set 5 message 290 xxxxxxxxxxxxxxxxxxx
+| 316 set 5 message 316 xxxxxxxxxxx
+| 372 set 5 message 372 xx
+| 333 set 5 message 333 xxxxxxx
+| 383 set 5 message 383 xxxxxxxxxx
+| 15 set 5 message 15 xxxxxxxxxxxx
+| 304 set 5 message 304 xxxxxxxx
+| 117 set 5 message 117 xxxxxxxxxxxxxxxxxxx
+| 301 set 5 message 301 xxxxxxxxxxxxxxxxxx
+| 244 set 5 message 244 xxxx
+| 323 set 5 message 323 xxxxxxxxxxxxxxxxx
+| 106 set 5 message 106 xxxxxxxxxxxxxx
+| 236 set 5 message 236 xxxxxxxx
+| 388 set 5 message 388 xxxxxxxx
+| 173 set 5 message 173 xxxxxxxxxx
+| 217 set 5 message 217 xxxxxxxxxxxxx
+| 279 set 5 message 279 xxx
+| 162 set 5 message 162 xxx
+| 124 set 5 message 124 xxxxxxxxxxxxxxxxxx
+| 201 set 5 message 201 xxxxxxxxxxxxxxx
+| 45 set 5 message 45 xxxxx
+| 336 set 5 message 336 xxxxxxxxxxx
+| 311 set 5 message 311 xxxxxxxxxxxxxxxxx
+| 31 set 5 message 31 xxxx
+| 392 set 5 message 392 xxxxxxxxxxxxxxxxxxx
+| 186 set 5 message 186 xxxxxxxxxxxxxxxxxxx
+| 73 set 5 message 73 xxxxxxxxxxxxxxxxxx
+| 153 set 5 message 153 xxxxxxxx
+| 63 set 5 message 63 xxxxxxxxxxxx
+| 249 set 5 message 249 xxxxxxxxxx
+| 308 set 5 message 308 xxxxxxxxx
+| 70 set 5 message 70 xxxxxxxxxxx
+| 343 set 5 message 343 xxxxxxxxxxx
+| 143 set 5 message 143 xxxxxxxxxx
+| 7 set 5 message 7 xxxxxxxxxxxxxxxx
+| 102 set 5 message 102 xxxxxxxxxxxxxxxxxxx
+| 118 set 5 message 118 xxxxxxxxxxxxxx
+| 64 set 5 message 64 xx
+| 248 set 5 message 248 xxxxx
+| 224 set 5 message 224 xxxxxxxxxxxxxxxxxxx
+| 375 set 5 message 375 xxxxxxxxxxxx
+| 175 set 5 message 175 xxxxxx
+| 208 set 5 message 208 xxxxxxxxxx
+| 163 set 5 message 163 xxxxxxxxxxxxxxxxxxx
+| 174 set 5 message 174 xxxxxxxxxxx
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 0afd40f7204c99556b3ebede2a1e446ec145525d5febc911c5456f2ce7cfad9b size 17696

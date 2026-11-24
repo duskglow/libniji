@@ -1,0 +1,21 @@
+{"task": "INTERNAL-ALLOC-ROUTING", "model": "opus", "tokens": null,
+ "result": "libc's own allocations go through a replaced malloc family (qsort, opendir, setlocale, glob, regex, NSS, ...); dlopen's loader tables, >16-aligned blocks and static programs kept private (D-X.156); start-up +0.22..0.29% instructions needs a ruling",
+ "branch": "task/internal-alloc-routing", "head": null,
+ "gate": {"affected": "11797 passed / 0 failed; conformance 41 passed / 0 failed", "peak": "15G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "start-up rows +137..+187 user instructions (+0.22..0.29%) from the route decision and the per-allocation test, against 'start-up must not move'", "recommendation": "accept; follow-up: ld.so passes 'family replaced' in StartInfo"},
+  {"item": "dlopen/dlclose: loader tables stay in ld.so's own mappings", "recommendation": "accept as the ruling's ld.so-own-data exception"},
+  {"item": "printf format tables (D-12.12) now routed: a refusing replacement makes snprintf fail with ENOMEM", "recommendation": "follow-up to format common conversions without heap tables"}],
+ "informational": ["valgrind: GOT unchanged, so not routed; niji_machine_running_on_valgrind exists", "static programs not routed", "closedir keeps spare buffers", "head copy has 10 window bins vs base 9 (bin 9: 65 hot-list functions without start-up signature); not investigated"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "mint phases where a replacing malloc sees libc's own allocations: qsort 0->1, opendir 0->3, setlocale 0->3, regcomp 3->51, glob 212->476, getaddrinfo 1->33 calls", "before": 0, "after": 1, "unit": "qsort calls seen", "measured": true},
+  {"kind": "correctness", "what": "setlocale(LC_ALL, NULL) no longer needs memory in the default locale (NULL under a refusing replacement)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "conformance x_internal_alloc (fail-all, fail-Nth, recovery, no foreign free) and 3 plants", "before": 0, "after": 4, "unit": "tests+plants", "measured": true},
+  {"kind": "cost", "what": "startup_instr_printf user instructions", "before": 65453, "after": 65640, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "startup_instr_setloc user instructions", "before": 61928, "after": 62065, "unit": "instr", "measured": true}],
+ "improvement": "a mint-style replacement probe as a standing conformance program (x_internal_alloc) catches routing regressions in the gate instead of in a release snapshot",
+ "next_step": "owner ruling on the start-up cost; then land, or a follow-up passing the decision from ld.so",
+ "report_file": "handoff/INTERNAL-ALLOC-ROUTING-report.md",
+ "jobs": ["internal-alloc-routing-gate", "internal-alloc-routing-plants", "internal-alloc-routing-xtest", "internal-alloc-routing-basebench", "internal-alloc-routing-conf2"]}

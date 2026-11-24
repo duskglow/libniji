@@ -1,0 +1,31 @@
+cldr-values-for-probed | xtask/src/locales.rs | perl:s/if let Some\(\(p, pn\)\) = probed \{\n\s+probed_rest\(w, p, pn\)\?;\n\s+return Ok\(Some\(s\)\);\n\s+\}\n/let _ = probed;\n/ | cargo xtask locale-sources target/niji/locale-sources && cargo test -p niji-locale --test reference -- generated_sources_take_the_reference_values | msg:differences from the reference
+cldr-ctype-unedited | xtask/src/locales.rs | perl:s/(let \(edits, gaps\) = ctype_edits\(p, print_name\(p, name, pn\)\)\?;.*?)ctype\(w, &edits\);/$1ctype(w, &edits[..0]);/s | cargo test -p xtask locales:: | msg:every_category_after_collation_comes_from_the_probe.*FAILED|panicked
+ctype-added | xtask/src/locales.rs | lit:if !d.added.is_empty() { ==> if false { | cargo xtask locale-sources target/niji/locale-sources && cargo test -p niji-locale --test reference -- generated_sources_take_the_reference_values | msg:differences from the reference
+ctype-mapped | xtask/src/locales.rs | lit:if !d.mapped.is_empty() { ==> if false { | cargo test -p xtask locales:: | msg:a_name_cldr_lacks_is_generated_from_the_probe.*FAILED|panicked
+ctype-removed-gap | xtask/src/locales.rs | lit:if !d.removed.is_empty() { ==> if false { | cargo test -p xtask locales:: | msg:a_name_cldr_lacks_is_generated_from_the_probe.*FAILED|panicked
+ctype-unlisted-gap | xtask/src/locales.rs | lit:.filter(|k| !listed(k)).collect(); ==> .filter(|k| !listed(k) && false).collect(); | cargo test -p xtask locales:: | msg:a_name_cldr_lacks_is_generated_from_the_probe.*FAILED|panicked
+coll-gap | xtask/src/locales.rs | lit:if !coll.is_empty() { ==> if false { | cargo test -p xtask locales:: | msg:a_name_cldr_lacks_is_generated_from_the_probe.*FAILED|panicked
+probe-value | xtask/src/locales.rs | lit:Some(Val::Str(s)) => writeln!(w, "{kw} {}", quote(&s)).ok(), ==> Some(Val::Str(s)) => writeln!(w, "{kw} {}", quote(if kw == "int_prefix" { "1" } else { &s })).ok(), | cargo xtask locale-sources target/niji/locale-sources && cargo test -p niji-locale --test reference -- generated_sources_carry | msg:differences from the probe
+diff-validate | xtask/src/locale_probe.rs | lit:if is_map == class_ops || is_map == d.mapped.is_empty() { ==> if false { | cargo test -p xtask locale_probe:: | msg:ctype_differences_parse_into_class_edits_and_case_pairs.*FAILED|panicked
+diff-hex-range | xtask/src/locale_probe.rs | lit:.filter(|&c| c <= 0x10_ffff) ==> | cargo test -p xtask locale_probe:: | msg:ctype_differences_parse_into_class_edits_and_case_pairs.*FAILED|panicked
+resolve-utf8 | xtask/src/locale_probe.rs | lit:utf8(&format!("{base}.utf8{m}")).or_else(|| utf8(src)) ==> utf8(src) | cargo test -p xtask locale_probe:: | msg:rows_resolve_through_the_utf8_sibling.*FAILED|panicked|no fingerprints for
+same-as | xtask/src/locale_probe.rs | lit:match self.locs.get(s).and_then(|o| o.rows.get(&key)) { ==> match self.locs.get(s).and_then(|_| None::<&Vec<u8>>) { | cargo test -p xtask locale_probe:: | msg:rows_resolve_through_the_utf8_sibling.*FAILED|panicked|None is not a number
+euro-decode | xtask/src/locale_probe.rs | lit:("ISO-8859-15", 0xa4) => Ok('\u{20ac}'), ==> | cargo test -p xtask locale_probe:: | msg:rows_resolve_through_the_utf8_sibling.*FAILED|panicked
+merge-c-source | xtask/src/locales.rs | lit:Some(c_source()) ==> None | rm -rf target/niji/locale-sources && cargo xtask locale-sources target/niji/locale-sources && cargo test -p niji-locale --test reference -- generated_c_source_compiles_to_the_builtin_c_utf8 | msg:generated_c_source_compiles_to_the_builtin_c_utf8.*FAILED|panicked
+merge-probe-only | xtask/src/locales.rs | lit:None => probe_source(&p, src)?, ==> None => None, | rm -rf target/niji/locale-sources && cargo xtask locale-sources target/niji/locale-sources && cargo test -p niji-locale --test reference -- generated_sources_carry | msg:generated_sources_carry_the_probed_name_address_and_telephone.*FAILED|panicked
+# cargo xtask plants results (15 plants: 13 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 2 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# cldr-values-for-probed: CAUGHT, caught by reference generated_sources_take_the_reference_values_and_its_ctype_differences
+# cldr-ctype-unedited: CAUGHT, caught by xtask locales::tests::every_category_after_collation_comes_from_the_probe
+# ctype-added: CAUGHT, caught by reference generated_sources_take_the_reference_values_and_its_ctype_differences
+# ctype-mapped: CAUGHT, caught by xtask locales::tests::a_name_cldr_lacks_is_generated_from_the_probe
+# ctype-removed-gap: CAUGHT, caught by xtask locales::tests::a_name_cldr_lacks_is_generated_from_the_probe
+# ctype-unlisted-gap: CAUGHT, caught by xtask locales::tests::a_name_cldr_lacks_is_generated_from_the_probe
+# coll-gap: CAUGHT, caught by xtask locales::tests::a_name_cldr_lacks_is_generated_from_the_probe
+# probe-value: CAUGHT, caught by reference generated_sources_carry_the_probed_name_address_and_telephone
+# diff-validate: CAUGHT, caught by xtask locale_probe::tests::ctype_differences_parse_into_class_edits_and_case_pairs
+# diff-hex-range: CAUGHT, caught by xtask locale_probe::tests::ctype_differences_parse_into_class_edits_and_case_pairs
+# resolve-utf8: CAUGHT, caught by no test the log names
+# same-as: CAUGHT, caught by no test the log names
+# euro-decode: CAUGHT, caught by xtask locale_probe::tests::rows_resolve_through_the_utf8_sibling_and_decode_their_codeset
+# merge-c-source: WARN-NO-MSG, caught by no test the log names
+# merge-probe-only: WARN-NO-MSG, caught by no test the log names

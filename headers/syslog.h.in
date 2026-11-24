@@ -9,6 +9,7 @@ __NIJI_BEGIN_C
 
 @@owns LOG_MASK LOG_UPTO
 @@emit
+@@fortify
 
 /* syslog(3): the mask of one priority, and of all priorities up to one. */
 @@when LOG_MASK

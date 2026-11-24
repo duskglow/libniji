@@ -10,6 +10,7 @@ use alloc::vec::Vec;
 use niji_kernel::fd::Fd;
 use niji_kernel::path::KPathBuf;
 use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{LOCK_EX, O_CLOEXEC, O_DIRECTORY, O_RDONLY};
 use niji_ld::ldconfig::sysfs::SysFs;
 use niji_ld::ldconfig::Fs;
 use niji_locale::prog::{self, Host};
@@ -22,6 +23,8 @@ use crate::sys::CSys;
 /// the working directory), directories with `mkdirat`.
 struct Disk<'s> {
     fs: SysFs<'s, CSys>,
+    /// `I18NPATH`'s value, when the environment has it.
+    i18npath: Option<&'static [u8]>,
 }
 
 impl Host for Disk<'_> {
@@ -38,6 +41,28 @@ impl Host for Disk<'_> {
 
     fn write(&mut self, path: &[u8], data: &[u8]) -> Result<(), i32> {
         self.fs.replace_file(path, data).map_err(|(_, e)| e)
+    }
+
+    fn read_stdin(&mut self, max: usize) -> Result<TryVec<u8>, i32> {
+        let mut out = TryVec::new();
+        let mut chunk = [0u8; 4096];
+        while out.len() < max {
+            let n = CSys.read(Fd::STDIN, &mut chunk).map_err(|e| e.get())?;
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(chunk.get(..n).unwrap_or_default()).map_err(|_| 12)?; // ENOMEM
+        }
+        Ok(out)
+    }
+    fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
+        let p = KPathBuf::new(dir).map_err(|e| e.get())?;
+        let fd = CSys.openat(Fd::CWD, p.as_kstr(), O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0).map_err(|e| e.get())?;
+        // The descriptor stays open, and the lock held, until the program exits.
+        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())
+    }
+    fn i18npath(&self) -> Option<&[u8]> {
+        self.i18npath
     }
 
     fn error_text(&self, errno: i32) -> &'static [u8] {
@@ -69,7 +94,20 @@ pub extern "C" fn niji_localedef_start(sp: usize, ehdr: usize) -> ! {
         }
     }
     let rest = args.as_slice().get(1..).unwrap_or_default();
-    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description) };
+    // The environment follows argv's terminating null word; the last I18NPATH entry wins.
+    let mut i18npath = None;
+    let mut at = sp.wrapping_add(16).wrapping_add(argc.wrapping_mul(8));
+    loop {
+        let p = usize::try_from(stack_word(at)).unwrap_or(0);
+        if p == 0 {
+            break;
+        }
+        if let Some(v) = c_string(p).strip_prefix(b"I18NPATH=") {
+            i18npath = Some(v);
+        }
+        at = at.wrapping_add(8);
+    }
+    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath };
     let r = prog::run(rest, &mut disk);
     drop(disk);
     write_all(1, r.out.as_slice());

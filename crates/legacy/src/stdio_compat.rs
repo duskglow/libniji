@@ -409,8 +409,9 @@ pub struct Ext {
 }
 
 /// Where a stream's `fprintf` plan cache lives (D-12.21): a [`niji::printf::PlanCache`] made
-/// on the [`PlanSlot::AFTER`]th formatted call and kept for the slot's life, across `fclose`
-/// and `freopen` (a cache keyed on the format's bytes is not state). Outside the record so a
+/// on the [`PlanSlot::AFTER`]th formatted call and kept across `freopen`; at `fclose` it goes
+/// to a pool for the next stream that makes one (D-12.31; a cache keyed on the format's bytes is
+/// not state). Outside the record so a
 /// one-shot printer pays neither its ~220 bytes in every stream's slot nor its fill: inline,
 /// the slot crossed a heap size class and cost every process ~2.7k instructions and two page
 /// faults (printf-loop, PRINTF-STAR-2).
@@ -1072,6 +1073,54 @@ pub fn flush_all<E: Env>(env: &E) -> KResult<()> {
         FLUSHING.store(false, Release);
     });
     result
+}
+
+/// `__libc_freeres` (§29.4): every stream gives back the buffer the library allocated for it
+/// when the buffer holds nothing. Pending output is written first; a stream with bytes read
+/// ahead or pushed back, or whose output cannot be written, keeps its buffer. A stream that gave
+/// its buffer back is as before its first use (the next operation allocates again), so a call
+/// while streams are still in use loses no data, and a second call finds nothing to release.
+#[cold]
+#[inline(never)]
+pub fn release_buffers<E: Env>(env: &E) {
+    with_list(env, || {
+        FLUSHING.store(true, Release);
+        each_stream(env, |fp| {
+            let file = env.file_at(fp);
+            if let Some((lock, ext)) = parts(env, file) {
+                lock.lock(env.sys(), env.tid());
+                release_buffer(env, file, env.ext_at(ext));
+                lock.unlock(env.sys(), env.tid());
+            }
+        });
+        FLUSHING.store(false, Release);
+    });
+}
+
+/// [`release_buffers`] for one stream, under its lock.
+fn release_buffer<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) {
+    if ext.kind == Kind::Closed || ext.buf == 0 || !ext.buf_owned {
+        return;
+    }
+    load(file, ext);
+    match ext.state.role {
+        Role::Writing => {
+            if flush(env, file, ext).is_err() {
+                return;
+            }
+        }
+        // Nothing read ahead: going idle without a seek loses nothing (EOF and error stay).
+        Role::Reading if ext.state.unread() == 0 => ext.state.purge(),
+        _ => {}
+    }
+    if ext.state.role != Role::Idle {
+        return;
+    }
+    env.free(ext.buf);
+    ext.buf = 0;
+    ext.buf_len = 0;
+    ext.buf_owned = false;
+    store(file, ext);
 }
 
 /// Flush the line-buffered streams with pending output (`_flushlbf`; ISO C: before input

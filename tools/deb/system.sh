@@ -36,7 +36,7 @@
 #                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
 #                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
 #                 versioned relations on libc-dev are met.
-#   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
+#   libc-dev-bin  /usr/bin/gencat (dynamic, UTIL-14).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
 #   libc6-dbg     the detached debugging information of libc6's shared objects and libc-bin's

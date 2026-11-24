@@ -141,6 +141,82 @@ wl_faults_differ() {
     }'
 }
 
+# EXCURSION RE-MEASURE (WL-LEVELS-RERECORD-2, D-X.157). A positive excursion (D-X.151: extra minor faults, time driven,
+# on runs of about two seconds or more) can hit every run of one column, so the lowest of its runs is still high: on the
+# Zen 1 host, under 5 counts at once, tar-gz (a 4 s pipeline) measured 758 and 765 in one column each against 629..647
+# in the other 8 libniji columns of 5 counts (the faults re-measure above ran and the column stayed high). So in a long
+# row whose new and base columns are far apart, the high column is measured again and its runs join the ones it has
+# (the row keeps the lowest run of all its batches) until it is within the threshold or WL_XROUNDS (3) batches ran.
+# THRESHOLD (WL_XPCT, 7 %), from the 10 counts of D-X.155 (5 per CPU class, page faults, each column the lowest of 5
+# runs): columns of one code spread by at most 3.0 % (tar-gz on Zen 1: 629..648, first measurements included; tar-c
+# on Skylake-SP 465..476 = 2.4 %, its glibc 389..400 = 2.8 %; every single-process row 0); the excursion columns sat
+# 15.6 % (727 against 629) to 24 % (781 against 629) above their pair. 7 % is about the geometric midpoint of 3.0 and
+# 15.6, a factor of more than 2 from either. LONG ROW: the new or base column runs at least WL_LONG_INSTR (4 x 10^9)
+# user instructions, about 2 s on both classes (sed-s glibc 9.9 x 10^9 in 4.5 s, gawk-printf 5.9 x 10^9 in 2.8 s on
+# the Zen 1 host); an instruction count, not a clock, so the choice of rows is the same on every run. Short rows
+# repeat exactly in all 10 counts, so a far-apart pair there is a real difference and is not measured again.
+# A real regression is present in every run of its column, so more batches cannot lower it: the column stays high, the
+# note says so and the verdict judges it as measured. Only the lowest-run method (wl_fault_field 5) is re-measured so.
+#   wl_long_row ROWN ROWB         exit 0 when field 1 (instructions:u) of either row is at least WL_LONG_INSTR
+#   wl_excursion_side ROWN ROWB [PCT]
+#                                 stdout: `new` when ROWN's page faults (field 4) are more than PCT % (WL_XPCT, 7)
+#                                 above ROWB's, `base` for the reverse, nothing otherwise (or when either is not a number)
+#   wl_row_lowest ROW ST          ROW with a further batch ST (wl_stats output) of the same column joined: page faults
+#                                 and the lowest run = the lower of ROW's lowest and ST's, the highest run = the higher;
+#                                 every other field kept (instructions are exact; syscalls and output do not vary)
+#   wl_excursions MEASURE         on the globals WL_RN and WL_RB (the new and base rows): while the row is long and one
+#                                 column is an excursion (wl_excursion_side), `MEASURE new|base` prints a fresh wl_stats
+#                                 batch of that column and wl_row_lowest joins it, at most WL_XROUNDS times; sets
+#                                 WL_XNOTE (empty when nothing was measured again). Exit 1 when MEASURE fails.
+wl_long_row() {
+    awk -v a="$(echo "$1" | cut -f1)" -v b="$(echo "$2" | cut -f1)" -v l="${WL_LONG_INSTR:-4000000000}" \
+        'BEGIN { exit ((a ~ /^[0-9]+$/ && a + 0 >= l + 0) || (b ~ /^[0-9]+$/ && b + 0 >= l + 0) ? 0 : 1) }'
+}
+
+wl_excursion_side() {
+    awk -v a="$(echo "$1" | cut -f4)" -v b="$(echo "$2" | cut -f4)" -v p="${3:-${WL_XPCT:-7}}" 'BEGIN {
+        if (a !~ /^[0-9]+$/ || b !~ /^[0-9]+$/) exit
+        if (a * 100 > b * (100 + p)) print "new"
+        else if (b * 100 > a * (100 + p)) print "base"
+    }'
+}
+
+wl_row_lowest() {
+    printf '%s\n%s\n' "$2" "$1" | awk -v OFS='\t' 'NR == 1 { split($0, s, " ") }
+        NR == 2 { n = split($0, r, "\t")
+            lo = (s[5] + 0 < r[7] + 0) ? s[5] : r[7]; hi = (s[6] + 0 > r[8] + 0) ? s[6] : r[8]
+            r[4] = (s[5] + 0 < r[4] + 0) ? s[5] : r[4]; r[7] = lo; r[8] = hi
+            out = r[1]; for (i = 2; i <= n; i++) out = out OFS r[i]; print out }'
+}
+
+wl_excursions() {
+    local m=$1 side st x before rounds=${WL_XROUNDS:-3}
+    WL_XNOTE=
+    [ "$(wl_fault_field)" = 5 ] || return 0
+    wl_long_row "$WL_RN" "$WL_RB" || return 0
+    for ((x = 1; x <= rounds; x++)); do
+        side=$(wl_excursion_side "$WL_RN" "$WL_RB")
+        [ -n "$side" ] || break
+        st=$("$m" "$side") || return 1
+        if [ "$side" = new ]; then
+            before=$(echo "$WL_RN" | cut -f4)
+            WL_RN=$(wl_row_lowest "$WL_RN" "$st")
+            WL_XNOTE+="${WL_XNOTE:+; }round $x: new $before, batch $(echo "$st" | cut -d' ' -f5)..$(echo "$st" | cut -d' ' -f6) -> $(echo "$WL_RN" | cut -f4)"
+        else
+            before=$(echo "$WL_RB" | cut -f4)
+            WL_RB=$(wl_row_lowest "$WL_RB" "$st")
+            WL_XNOTE+="${WL_XNOTE:+; }round $x: base $before, batch $(echo "$st" | cut -d' ' -f5)..$(echo "$st" | cut -d' ' -f6) -> $(echo "$WL_RB" | cut -f4)"
+        fi
+    done
+    [ -n "$WL_XNOTE" ] || return 0
+    side=$(wl_excursion_side "$WL_RN" "$WL_RB")
+    if [ -n "$side" ]; then
+        WL_XNOTE="excursion re-measure (D-X.157): $WL_XNOTE; $side still over ${WL_XPCT:-7} % after $rounds batches: reported as measured (a real difference)"
+    else
+        WL_XNOTE="excursion re-measure (D-X.157): $WL_XNOTE; within ${WL_XPCT:-7} %"
+    fi
+}
+
 # wl_strace_sys FILE [MT] [MP] -> "GATING FUTEX MTMEM PIPERW" from an `strace -C -f -y` (or `strace -c -f`) output (WLCOUNT-FUTEX, WLCOUNT-MTMEM-2). It takes the
 # classification from wl_syscls.sh (the same code wl_run.sh uses, so both tools agree): GATING = all calls minus the
 # scheduling-dependent ones; FUTEX = futex calls; MTMEM = for a run that created threads (MT=1, found by wl_has_thread on a

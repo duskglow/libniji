@@ -1,0 +1,21 @@
+{"task": "INTERNAL-ALLOC-ROUTING-2", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: step 1 measured (+2 instr per allocation, about -5 per release vs base; start-up +0..+33); gate red on the static probe's GOT from niji_link_alloc_family; printf step 2 not done (8 rows still allocate); leg 3's printf wrong result was a probe artifact",
+ "branch": "task/internal-alloc-routing-2", "head": null,
+ "gate": {"affected": "red: hot_text_products::init_static_probe_has_no_got_at_any_relro_size (6 GOT entries from niji_link_alloc_family in libc.a)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "rust_alloc's fast path: +2 instructions per allocation (cmp FAST_ALIGN_END(%rip); jae) where base has none (LTO folded the constant alignment test); rust_dealloc about -5 per release", "recommendation": "do not accept as zero-cost; next run moves the routing bound onto the size compares (three more process-flag words, needs an owner ruling beyond #7708) or withholds the thread's heap cache word"},
+  {"item": "printf step 2 (8 rows allocate where the reference makes none: %f 1e308, %Lf 1e300, %Lf 1e4000, %.400e, %.10000f, %.500d, %.100000d, 12 positional)", "recommendation": "own run: streamed precision zeros, two-pass long float text in a cold path, measured INLINE_PIECES; or private over-aligned spill as a D-X.156 exception"}
+ ],
+ "informational": ["swprintf(buf,256,L\"%100000d\"): errno 7 on the reference, 75 on libniji, base the same (pre-existing)", "leg 3's printf 'silent wrong result' was gcc folding snprintf's return value (even with -fno-builtin): libniji returns -1/ENOMEM; probes need -fno-printf-return-value"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "rust_alloc fast path vs base 279a24ee4 (disassembly)", "before": 0, "after": 2, "unit": "instructions added per allocation", "measured": true},
+  {"kind": "perf", "what": "rust_dealloc reserve test vs base (disassembly)", "before": 10, "after": 5, "unit": "instructions per release (approx.)", "measured": true},
+  {"kind": "cost", "what": "cbench_startup setloc/wctype/printf rows, Zen 1 host, user instructions", "before": 62056, "after": 62089, "unit": "instr (setloc; wctype +20, printf +4, c 0)", "measured": true},
+  {"kind": "coverage", "what": "x_internal_alloc: snprintf common conversions under refusal; 6 plants", "before": 0, "after": 7, "unit": "checks+plants", "measured": false}
+ ],
+ "jobs": ["keke:internal-alloc-routing-2-gate4", "keke:internal-alloc-routing-2-plants5"],
+ "improvement": "printf probes and conformance checks must defeat gcc's snprintf return-value folding (volatile format or -fno-printf-return-value); leg 3 lost time to a phantom defect",
+ "next_step": "fix the static probe GOT (libc.a stub of niji_link_alloc_family), then the rulings above, then printf step 2",
+ "report_file": "handoff/INTERNAL-ALLOC-ROUTING-2.md"}

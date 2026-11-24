@@ -1,0 +1,16 @@
+# Plants of HEADERS-TABLES-NET(-2) (cargo xtask plants; docs/plants.md). The generator's packed nested aggregate (struct tftphdr), bit-field byte order and the new table rows; rerun on the merge with origin/next.
+htn-nested-never-packed | xtask/src/headers/aggregates.rs | lit:let packed = arr.is_empty() && natural.zip(total).is_some_and(|(s, t)| off + s > t); ==> let packed = false; | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL P1 arpa/tftp.h
+htn-nested-always-packed | xtask/src/headers/aggregates.rs | lit:let packed = arr.is_empty() && natural.zip(total).is_some_and(|(s, t)| off + s > t); ==> let packed = arr.is_empty(); | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL uapi netinet/in.h then linux/ipv6.h
+htn-nested-attr-dropped | xtask/src/headers/aggregates.rs | lit:let kw = kw.split_once(' ').map_or(format!("{kw}{attr}"), |(k, t)| format!("{k}{attr} {t}")); ==> let kw = kw.to_string(); | sh -c 'cargo xtask headers-gen && python3 -I spec/tools/header_check.py --include libc-include' | msg:FAIL P1 arpa/tftp.h
+htn-abi-nested-never-packed | xtask/src/abi.rs | lit:let packed = self.natural(c).is_some_and(|(size, _)| size > extent); ==> let packed = false; | sh -c 'cargo xtask headers-gen && cargo test -p niji-abi --test appendix_c_layouts' | msg:abi_struct_tftphdr.*FAILED|panicked.*tftphdr
+htn-abi-natural-align | xtask/src/abi.rs | lit:Some((end.div_ceil(align) * align, align)) ==> Some((end, align)) | sh -c 'cargo xtask headers-gen && cargo test -p niji-abi --test appendix_c_layouts' | msg:abi_struct_tftphdr.*FAILED|panicked.*tftphdr
+htn-abi-bitfield-byte | xtask/src/abi.rs | lit:sorted.sort_by_key(|c| c.offset + if c.bitfield { c.pos / 8 } else { 0 }); ==> sorted.sort_by_key(|c| c.offset); | sh -c 'cargo xtask headers-gen && cargo test -p niji-abi --test appendix_c_layouts' | msg:abi_struct_ip_timestamp.*FAILED|ip_timestamp.ipt_len
+htn-macro-value | spec/abi/macros.tsv | lit:RTF_UP	net/route.h	int	1 ==> RTF_UP	net/route.h	int	3 | cargo xtask abi-types | msg:RTF_UP.*in constants.tsv
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# htn-nested-never-packed: CAUGHT, caught by no test the log names
+# htn-nested-always-packed: CAUGHT, caught by no test the log names
+# htn-nested-attr-dropped: CAUGHT, caught by no test the log names
+# htn-abi-nested-never-packed: CAUGHT, caught by appendix_c_layouts abi_struct_tftphdr
+# htn-abi-natural-align: CAUGHT, caught by appendix_c_layouts abi_struct_tftphdr
+# htn-abi-bitfield-byte: CAUGHT, caught by appendix_c_layouts abi_struct_ip_timestamp
+# htn-macro-value: CAUGHT, caught by no test the log names
