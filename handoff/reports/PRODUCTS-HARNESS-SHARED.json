@@ -1,0 +1,22 @@
+{"task": "PRODUCTS-HARNESS-SHARED", "model": "opus", "tokens": null,
+ "result": "products tests share one link line (oracle::build_pair, 55 of 58 build fns), root (57 copies) and the header-keyed known-differences filter (5 copies); -775 lines in 56 products files, +135 shared, +132 helper tests; no assertion changed",
+ "branch": "task/products-harness-shared", "head": "43ee29109",
+ "gate": {"affected": "3537 passed / 0 failed (direct tier, both passes; the 12 math targets in both passes in products-harness-shared-math3)", "peak": "6.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "aio_products eperm_off/enosys_off failed once (job products-harness-shared-math2, run beside two plants product builds): line 217, the host reference printed aio_suspend ... -1 errno=EAGAIN after its 600 ms timeout where the record (spec/behaviour/aio.glibc.txt:217) and libniji print EINTR: the reference's 100 ms SIGUSR1 landed late under load. The compared programs and filter are unchanged by this branch (identical argv); all six aio shards passed in both passes in products-harness-shared-gate1. A test-design point for the aio owners: a reference-side timing deviation from the record fails the comparison.",
+   "Not moved, by design (different matching or link kind): forced_unwind, hot_text, ns_parse, heap_meta build; fstree/process/terminals (next-line), netdb (line-only), mallocdbg (ordered), dns (sectioned) filters; the 32 KNOWN diff loops (6+ matching rules)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "size", "what": "lines in the 56 migrated *_products.rs files", "before": 14515, "after": 13740, "unit": "lines (all 71 products files)", "measured": true},
+   {"kind": "size", "what": "shared harness added to support/oracle.rs", "before": 0, "after": 135, "unit": "lines", "measured": true},
+   {"kind": "coverage", "what": "oracle_pair.rs helper tests (6) and plants on the shared helpers (10, all CAUGHT)", "before": 0, "after": 16, "unit": "tests+plants", "measured": true},
+   {"kind": "tooling", "what": "files a products link-line change touches", "before": 58, "after": 1, "unit": "files", "measured": true},
+   {"kind": "perf", "what": "test-s of the 56 migrated targets per full CI gate (T1 method), before = CI gates at 0495c4684 / aacf0bce8; after = next CI gates", "before": 2506, "after": null, "unit": "test-s", "measured": false}
+ ],
+ "improvement": "the audit's per-file line counts made scoping quick; a --files selection that excludes shared support files would let a developer run one crate's second pass without re-running every including target",
+ "next_step": "land; then PRODUCTS-ONE-BINARY (M7); a follow-up may fold the next-line filter (3 copies) into the shared one with its own plants",
+ "report_file": "handoff/PRODUCTS-HARNESS-SHARED.md",
+ "jobs": ["products-harness-shared-gate1", "products-harness-shared-plants1", "products-harness-shared-math3"]}

@@ -33,6 +33,141 @@ pub(crate) mod contain;
 
 static SEQ: AtomicU32 = AtomicU32::new(0);
 
+/// The repository root: every crate that includes this file sits at `crates/<name>`.
+pub(crate) fn root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// A differential test program: one C source compiled against the host C library (the
+/// reference) and linked statically against libniji's products in `target/niji`, with the
+/// test's own flags and libraries. The one place the products' link line is written, so a
+/// change to it (the start file, a new library) is one edit. Command lines:
+///
+/// ```text
+/// reference: cc -std=gnu17 -O1 <flags> <host_flags> <src> <host_libs>
+/// libniji:   cc -std=gnu17 -O1 <flags> -static -nostdlib -fno-builtin <niji_flags>
+///               target/niji/<crt> <src> target/niji/<archives>... target/niji/libc.a
+///               [-L target/niji <niji_libs>] -lgcc
+/// ```
+#[derive(Clone, Copy)]
+pub(crate) struct Pair<'a> {
+    src: &'a str,
+    flags: &'a [&'a str],
+    host_flags: &'a [&'a str],
+    host_libs: &'a [&'a str],
+    niji_flags: &'a [&'a str],
+    archives: &'a [&'a str],
+    niji_libs: &'a [&'a str],
+    crt: &'a str,
+    quiet: bool,
+}
+
+/// The pair for `src` (a path under the repository root) with no extra flags or libraries.
+pub(crate) const fn build_pair(src: &str) -> Pair<'_> {
+    Pair { src, flags: &[], host_flags: &[], host_libs: &[], niji_flags: &[], archives: &[], niji_libs: &[], crt: "niji-crt1.o", quiet: false }
+}
+
+impl<'a> Pair<'a> {
+    /// Flags for both sides, right after `-O1` (`-w`, `-pg`).
+    pub(crate) const fn flags(self, flags: &'a [&'a str]) -> Self {
+        Pair { flags, ..self }
+    }
+    /// Flags for the reference side only, before the source (`-fno-builtin`, `-static`).
+    pub(crate) const fn host_flags(self, host_flags: &'a [&'a str]) -> Self {
+        Pair { host_flags, ..self }
+    }
+    /// Libraries for the reference side, after the source (`-lm`, `-lresolv`).
+    pub(crate) const fn host_libs(self, host_libs: &'a [&'a str]) -> Self {
+        Pair { host_libs, ..self }
+    }
+    /// Flags for the libniji side only, after `-fno-builtin` (`-DNIJI_PRODUCTS`).
+    pub(crate) const fn niji_flags(self, niji_flags: &'a [&'a str]) -> Self {
+        Pair { niji_flags, ..self }
+    }
+    /// Product archives linked before `libc.a` (`libm.a`).
+    pub(crate) const fn archives(self, archives: &'a [&'a str]) -> Self {
+        Pair { archives, ..self }
+    }
+    /// Libraries searched in `target/niji` after `libc.a` (`-lresolv`).
+    pub(crate) const fn niji_libs(self, niji_libs: &'a [&'a str]) -> Self {
+        Pair { niji_libs, ..self }
+    }
+    /// The products' start file (`niji-gcrt1.o` for a profiled program).
+    pub(crate) const fn crt(self, crt: &'a str) -> Self {
+        Pair { crt, ..self }
+    }
+    /// The math tests' pair: `libm.a` before `libc.a` on the libniji side, `-lm` and no compiler
+    /// builtins on the reference side (so both sides call the library).
+    pub(crate) const fn libm(self) -> Self {
+        Pair { host_flags: &["-fno-builtin"], host_libs: &["-lm"], archives: &["libm.a"], ..self }
+    }
+    /// Capture the compiler's messages ([`build_quiet`]): for programs that may fail to build by design.
+    pub(crate) const fn quiet(self) -> Self {
+        Pair { quiet: true, ..self }
+    }
+
+    /// The compiler command line for one side, without `-o`.
+    pub(crate) fn command(&self, niji: bool) -> Command {
+        let r = root();
+        let src = r.join(self.src);
+        let mut cmd = Command::new("cc");
+        cmd.args(["-std=gnu17", "-O1"]).args(self.flags);
+        if niji {
+            let p = r.join("target/niji");
+            cmd.args(["-static", "-nostdlib", "-fno-builtin"]).args(self.niji_flags).arg(p.join(self.crt)).arg(&src);
+            cmd.args(self.archives.iter().map(|a| p.join(a))).arg(p.join("libc.a"));
+            if !self.niji_libs.is_empty() {
+                cmd.arg("-L").arg(&p).args(self.niji_libs);
+            }
+            cmd.arg("-lgcc");
+        } else {
+            cmd.args(self.host_flags).arg(&src).args(self.host_libs);
+        }
+        cmd
+    }
+
+    /// Build one side into `out` ([`build`] or [`build_quiet`]): the libniji side if `niji`.
+    pub(crate) fn build(&self, out: &Path, niji: bool) -> bool {
+        build_with(self.command(niji), out, self.quiet)
+    }
+}
+
+/// Each line of `text` with the last header line before it (a line starting with one of
+/// `markers`, itself included, `\n`-terminated; empty before the first header).
+pub(crate) fn with_headers(text: &str, markers: &[&str]) -> Vec<(String, String)> {
+    let mut header = String::new();
+    text.lines()
+        .map(|l| {
+            if markers.iter().any(|m| l.starts_with(m)) {
+                header = format!("{l}\n");
+            }
+            (header.clone(), l.to_string())
+        })
+        .collect()
+}
+
+/// The known-differences filter: `lines` without the lines recorded in `list` as printed by
+/// `who` only. An entry is `(case, line, why)`: it takes the first line not yet taken whose
+/// header starts with `case` and whose text starts with `line`, so each entry takes exactly one
+/// line; an entry that takes none is no longer printed and fails the test.
+pub(crate) fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)], who: &str) -> Vec<(String, String)> {
+    let mut seen = vec![false; list.len()];
+    let mut out = Vec::new();
+    for (h, l) in lines {
+        match list.iter().zip(seen.iter_mut()).find(|((case, needle, _), taken)| !**taken && h.starts_with(case) && l.starts_with(needle)) {
+            Some(((_, _, why), taken)) => {
+                *taken = true;
+                eprintln!("recorded line only {who} prints ({why}):\n  {l}");
+            }
+            None => out.push((h, l)),
+        }
+    }
+    for (entry, taken) in list.iter().zip(&seen) {
+        assert!(*taken, "recorded line no longer printed by {who}: {entry:?}");
+    }
+    out
+}
+
 /// Compile `cmd` (a compiler command line without `-o`) into `out`; the compiler's messages go
 /// to the test's stderr. True if `out` is there and current.
 pub(crate) fn build(cmd: Command, out: &Path) -> bool {
