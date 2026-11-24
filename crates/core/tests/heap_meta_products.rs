@@ -215,7 +215,7 @@ fn the_heap_keeps_address_space_near_its_use() {
     let out = String::from_utf8_lossy(&o.stdout);
     let at = |step: &str| -> u64 { out.lines().find_map(|l| l.strip_prefix(step).and_then(|v| v.strip_prefix(' ')).and_then(|v| v.parse().ok())).unwrap_or_else(|| panic!("no step {step} in {out:?}")) };
     let held = AS_STEPS.iter().map(|&(step, ..)| at(step).saturating_sub(at("start"))).max().unwrap_or(0);
-    let (mut lo, mut hi) = (0, 1 << 17);
+    let (mut lo, mut hi): (u64, u64) = (0, 1 << 17);
     while hi.saturating_sub(lo) > 4 {
         let mid = lo.midpoint(hi) / 4 * 4;
         if run(mid.to_string()).status.success() {
