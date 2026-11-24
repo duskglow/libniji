@@ -70,6 +70,8 @@ Other crates: abi, boundary, charmaps, collate-root, core, kernel, ld, ld-so, ld
 | `/etc/hosts` | crates/legacy/src/nss.rs:87 |
 | `/etc/ld.so.cache` | crates/ld/src/ldconfig/mod.rs:175 |
 | `/etc/ld.so.conf` | crates/ld/src/ldconfig/mod.rs:173 |
+| `/etc/locale.conf` | crates/locale/src/cmds.rs:17 |
+| `/etc/locale.gen` | crates/locale/src/cmds.rs:15 |
 | `/etc/localtime` | crates/core/src/time.rs:42 |
 | `/etc/netgroup` | crates/legacy/src/nss.rs:93 |
 | `/etc/networks` | crates/legacy/src/nss.rs:88 |
@@ -110,8 +112,9 @@ Other crates: abi, boundary, charmaps, collate-root, core, kernel, ld, ld-so, ld
 | `/usr/lib` | crates/ld/src/arch.rs:321 |
 | `/usr/lib/locale` | crates/core/src/locale/mod.rs:534, crates/locale/src/prog.rs:16 |
 | `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:940 |
-| `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
+| `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536, crates/locale/src/cmds.rs:21 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
+| `/usr/share/i18n/SUPPORTED` | crates/locale/src/cmds.rs:19 |
 | `/usr/share/i18n/charmaps` | crates/locale/src/prog.rs:12 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:128 |
 | `/usr/share/i18n/locales` | crates/locale/src/prog.rs:14 |
