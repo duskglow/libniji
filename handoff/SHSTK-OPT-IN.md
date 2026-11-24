@@ -1,5 +1,25 @@
 # SHSTK-OPT-IN handoff (part 1: marking + shadow-stack-correct asm)
 
+## Run 4 (SHSTK-OPT-IN-4, branch `task/shstk-opt-in-4`, role keke:~/w/n1, Zen 1 host)
+
+**CI conflict (train merge of `1c9d5af83`): `crates/boundary/src/ld/dlopen.rs`.** One import line: next's loader
+work added `dt` to the `niji_ld::elf` import, this branch had dropped `Elf` from it (D-27.97: `image_view` returns
+the checked reader, so dlopen builds none). Merged origin/next (`deead7890`) in `26e3b8ca9`, import = `{dt, pt,
+STB_GNU_UNIQUE}`; nothing else in dlopen.rs names `Elf`. No other conflict; image.rs, link.rs, elf.rs, reloc.rs,
+so.rs merged cleanly.
+
+**Results (keke, code head `26e3b8ca9`; later commits are handoff only):** clippy + static green on the
+inherited head (`shstk-opt-in-4-lint0`) and the merge (`shstk-opt-in-4-lint1`; `affected` = direct bounded set,
+not FULL). Gate `shstk-opt-in-4-gate1` (direct tier, `--base origin/next`): 20 suites, 11721 passed, 0 failed,
+conformance 46/46, hot_text_products in it (Zen 1 bounds). `cargo xtask test` (`shstk-opt-in-4-test1`): 29 suites,
+12655 passed, 0 failed, conformance 150/150, "so: 45 shipped ELF files and archives carry the SHSTK property" (45:
+next added manifest rows). Full profile (`shstk-opt-in-4-hottext1`): hot_text_products 36 passed. Plants re-run on
+the merge: `shstk-opt-in-4-plants1` (run 3's file) 2/2 CAUGHT, `shstk-opt-in-4-plants2` (run 2's file) 3/3
+CAUGHT, 0 WARN (`handoff/SHSTK-OPT-IN-4-plants.txt`). The Skylake-SP start-up count is the train's to confirm
+(run 3 expected about -245 from 173794). Job scripts: `~/work/shstk-opt-in-4/` on keke.
+
+**Next step.** Land with the train; then run 3's fix-forward and SHSTK-ENABLE (below).
+
 ## Run 3 (SHSTK-OPT-IN-3, branch `task/shstk-opt-in-3`, role keke:~/w/n3, Zen 1 host)
 
 **CI red (train on 90fdd8142): hot_text_products dynamic empty main 173794 > 173600 (Skylake-SP).** This branch
