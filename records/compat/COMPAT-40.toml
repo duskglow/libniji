@@ -1,0 +1,12 @@
+id = "COMPAT-40"
+behaviour = "`fflush` of a reading stream whose give-back seek fails with an `errno` other than `ESPIPE` (§12.4; FCLOSE-COOKIE-SEEK, ruling #7287)"
+glibc = "Returns `EOF` with the seek's `errno`; the error indicator stays clear (black-box probe, glibc 2.39, a cookie seek hook failing with `EINVAL`)"
+liella = "Returns `EOF` with the seek's `errno` and sets the error indicator, as POSIX `fflush` says (D-12.34; `s12_4_f_0`)"
+restore = "An option that leaves the error indicator clear when the give-back seek fails. Registered only (DOCS-CATCHUP-1121 brief), not implemented."
+cost = "none expected: one flag test on the failure path of the give-back"
+status = "registered"
+decisions = ["D-12.34"]
+story = "DOCS-CATCHUP-1121"
+date = "2026-11-23"
+body = '''
+'''

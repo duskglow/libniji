@@ -1,0 +1,12 @@
+id = "COMPAT-39"
+behaviour = "`fclose` of a seekable input stream on a descriptor after a partial read (§12.3; FCLOSE-COOKIE-SEEK, ruling #7286)"
+glibc = "The descriptor's offset is left at the end of the read-ahead (black-box probe, glibc 2.39: offset 100 after reading 10 of 100 bytes)"
+liella = "The read-ahead is given back: the descriptor's offset is the stream's position (offset 10), as POSIX `fclose` says (D-12.34)"
+restore = "An option that leaves the read-ahead unread at `fclose`, the descriptor at the end of the last fill. Registered only (DOCS-CATCHUP-1121 brief), not implemented."
+cost = "none expected: one flag test in `fclose` of a reading descriptor stream"
+status = "registered"
+decisions = ["D-12.34"]
+story = "DOCS-CATCHUP-1121"
+date = "2026-11-23"
+body = '''
+'''
