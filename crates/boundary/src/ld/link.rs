@@ -19,7 +19,7 @@ use super::image::{AT_FDCWD, FileId, ProcImage, StartMapper, Unusable, dir_of, d
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_ORIGIN, START_PAGE, START_SPILL};
-use super::tls::{INITIAL_TAIL, install_tls, map_area};
+use super::tls::{INITIAL_TAIL, install_tls, map_area, surplus_bytes};
 
 /// Load the program's dependencies, check their versions, relocate everything and protect the RELRO
 /// pages (DL-10, design §6, D-27.17). A `DT_NEEDED` name with `/` is opened as given; one without is
@@ -282,7 +282,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
             fail_with(&[o.name, b": the TLS image lies outside the object's segments\n"], program::FAILURE);
         }
     }
-    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).unwrap_or_else(|e| {
+    let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, surplus_bytes()).unwrap_or_else(|e| {
         let at = match e {
             ltls::TlsError::Align(k) | ltls::TlsError::Size(k) => k,
             _ => 0,

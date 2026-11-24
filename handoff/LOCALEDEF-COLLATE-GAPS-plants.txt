@@ -1,0 +1,19 @@
+# LOCALEDEF-COLLATE-GAPS plants (docs/plants.md): the code point order written without rules (D-31.31, s31_8_c_1)
+# and the empty LC_COLLATE refused (s31_8_f_3).
+compact-off | crates/locale/src/collate.rs | lit:if code_point_order(&c, cs) { ==> if false && code_point_order(&c, cs) { | cargo test -p niji-locale --test prog code_point_order_compiles_without_rules | msg:test code_point_order_compiles_without_rules \.\.\. FAILED
+coverage-off | crates/locale/src/collate.rs | lit:rising && covered.get(k).is_some_and(|r| r.0 <= cp) ==> rising | cargo test -p niji-locale --test prog code_point_order_compiles_without_rules | msg:short: compiled without rules
+byte-order-off | crates/locale/src/collate.rs | lit:let rising = last.is_none_or(|l| l < cp); ==> let rising = true; | cargo test -p niji-locale --test prog code_point_order_compiles_without_rules | msg:a charmap out of code point order: compiled without rules
+empty-check-off | crates/locale/src/collate.rs | lit:if !defaults { ==> if false { | cargo test -p niji-locale --test prog empty_collate_is_refused | msg:test empty_collate_is_refused \.\.\. FAILED
+hash-word-off | crates/locale/src/collate.rs | lit:f.word(0)?; // 13 the collating-symbol hash size ==> f.raw(true, TryVec::new())?; | cargo test -p niji-locale --test reference undefined_categories_get_the_references_defaults | msg:LC_COLLATE item 13
+reorder-touch-off | crates/locale/src/collate.rs | perl:s/(b"reorder-after" => \{.*?)touch\(&mut c, cs, cp\)\?;/$1/s | cargo test -p niji-locale --test prog a_run_split_by_a_later_line_compiles_as_its_lines | msg:moved by reorder-after: the files differ
+order-touch-off | crates/locale/src/collate.rs | perl:s/(\/\/ A run's node is never the tail.*?)touch\(&mut c, cs, cp\)\?;/$1/s | cargo test -p niji-locale --test prog a_run_split_by_a_later_line_compiles_as_its_lines | msg:moved into another section: the files differ
+lazy-off | crates/locale/src/collate.rs | lit:after = c.order.place(Key::Run(id), Some(ws), ruleset, after)?; ==> after = c.order.place(Key::Run(id), Some(ws), ruleset, after)?; let nx = c.order.nodes[after].next; expand(&mut c, cs, id)?; after = if nx == usize::MAX { c.order.tail } else { c.order.nodes[nx].prev }; | cargo xtask so && cargo test -p niji-locale --test reference code_point_order_compiles_like_the_reference_c_utf8 | msg:not the library's
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# compact-off: CAUGHT, caught by prog code_point_order_compiles_without_rules
+# coverage-off: CAUGHT, caught by prog code_point_order_compiles_without_rules
+# byte-order-off: CAUGHT, caught by prog code_point_order_compiles_without_rules
+# empty-check-off: CAUGHT, caught by prog empty_collate_is_refused
+# hash-word-off: CAUGHT, caught by reference undefined_categories_get_the_references_defaults
+# reorder-touch-off: CAUGHT, caught by prog a_run_split_by_a_later_line_compiles_as_its_lines
+# order-touch-off: CAUGHT, caught by prog a_run_split_by_a_later_line_compiles_as_its_lines
+# lazy-off: CAUGHT, caught by reference code_point_order_compiles_like_the_reference_c_utf8

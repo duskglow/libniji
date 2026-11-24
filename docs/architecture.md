@@ -126,7 +126,6 @@ Adapted from [plan/03-architecture.md](../plan/03-architecture.md) §3.1.
 | `niji-boundary` | `crates/boundary` | The C boundary: the POSIX exports, the native C ABI, the `CSys` implementation of `Sys`, the global allocator shim, exported data objects, the hot kernels | kernel, rt, abi, core, legacy, math |
 | `niji-native` | `crates/native` | A facade for Rust programs that want the clean API without POSIX conventions (D-X.10, [docs/interfaces.md](interfaces.md)) | core, math, optionally rt, kernel |
 | `niji-ld` | `crates/ld` | The dynamic linker (phase 14): `ld-linux-x86-64.so.2`'s loader and the `dlopen` machinery, and the `ldconfig` engine | kernel, rt |
-| `niji-thread-db` | `crates/thread-db` | `libthread_db` for libniji's thread layout (phase 14) | kernel |
 | `niji-mathtools` | `crates/mathtools` | Test and tool code only: the arbitrary-precision oracle, the Remez fitter, the glibc comparison (D-10.12). No product depends on it. | none |
 | `spectest` | `crates/spectest` | Traceability macros: pending tests generated per clause and symbol | none |
 | products | `crates/libc-so`, `crates/libm-so` | Separate workspaces that link `niji-boundary` with the export features into `libc.a`/`libc.so.6` and `libm.a`/`libm.so.6`, and name the global allocator and panic handler once | boundary |
@@ -558,7 +557,7 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 
 | Limitation | What it affects in practice |
 |---|---|
-| **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`, and honours `LD_PRELOAD`. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
+| **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`, and honours `LD_PRELOAD`. `libthread_db.so.1` serves statically linked programs. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, thread debugging of dynamically linked programs (`_r_debug`); at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
 | **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. |
 | **x86-64 Linux only** | No other architecture or OS; the C layer's assembly and the Appendix C layouts are x86-64. Porting would mean a new `csys/src/machine/` and layout set. |
 | **One CPU level** | Products are built for baseline x86-64. The string scanners pick AVX2 or SSE2 at run time; other code does not. This affects speed on AVX2 hosts for some rows, not correctness. |

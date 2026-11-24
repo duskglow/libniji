@@ -628,7 +628,7 @@ pub fn ether_line<'a>(line: KResult<&[u8]>, out: Option<&mut [u8; 6]>, host: imp
 /// `niji_legacy::nss`).
 pub fn ether_hostton(name: KResult<&[u8]>, out: Option<&mut [u8; 6]>) -> KResult<i64> {
     let (name, out) = (name?, out.ok_or(Errno::EFAULT)?);
-    Ok(match nss::ether_by_name(&Ctx::system(&CSys), name) {
+    Ok(match nss::ether_by_name(&Ctx::system(&CSys, &crate::heap::KernelPages), name) {
         Ok(a) => {
             *out = a;
             0
@@ -641,7 +641,7 @@ pub fn ether_hostton(name: KResult<&[u8]>, out: Option<&mut [u8; 6]>) -> KResult
 /// given length.
 pub fn ether_ntohost<'a>(host: impl FnOnce(usize) -> KResult<&'a mut [u8]>, a: Option<&[u8; 6]>) -> KResult<i64> {
     // Any failure of the lookup (no entry, no file, no source) is -1, as for `ether_hostton`.
-    let Ok(name) = nss::ether_by_addr(&Ctx::system(&CSys), *a.ok_or(Errno::EFAULT)?) else { return Ok(-1) };
+    let Ok(name) = nss::ether_by_addr(&Ctx::system(&CSys, &crate::heap::KernelPages), *a.ok_or(Errno::EFAULT)?) else { return Ok(-1) };
     copy_z(&name, host(name.len().saturating_add(1))?).ok_or(Errno::EFAULT)?;
     Ok(0)
 }
@@ -673,7 +673,7 @@ pub fn rth_init(bp: KResult<&mut [u8]>, ty: i32, segments: i32) -> usize {
 
 /// `gethostid()` (`niji_legacy::sys_compat::gethostid`): sign-extended to `long`.
 pub fn gethostid() -> i64 {
-    i64::from(niji_legacy::sys_compat::gethostid(&CSys, niji_legacy::sys_compat::HOSTID_FILE))
+    i64::from(niji_legacy::sys_compat::gethostid(&CSys, &crate::heap::KernelPages, niji_legacy::sys_compat::HOSTID_FILE))
 }
 
 /// `sethostid(id)` (`niji_legacy::sys_compat::sethostid`).

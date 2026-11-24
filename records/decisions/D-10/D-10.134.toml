@@ -1,0 +1,11 @@
+id = "D-10.134"
+section = "s10"
+spec = "§10.1"
+ann = "—"
+status = "active"
+story = "HEADERS-TABLES-COMPLETE-2"
+date = "2026-11-23"
+tests = ["xtask/src/headers.rs", "xtask/src/headers/rows.rs", "spec/tools/header_checks/s11.py"]
+body = '''
+**Floating macro values are spelled in decimal; `_FloatN` macros take the TS 18661-3 suffix; signaling NaNs are their own value** (HEADERS-TABLES-COMPLETE-2; plan/headers.md slice 11). (1) The header generator writes every finite floating value of macros.tsv (probed as an exact hexadecimal constant) as a decimal constant rounded half to even to the type's `*_DECIMAL_DIG` digits (C11 5.2.4.2.2: 9 binary32, 17 binary64, 21 x87 80-bit, 36 binary128), so it is a token in every language mode (a hexadecimal floating constant is none in C89 and C++98 to C++14) and reads back as the same value; slice 11's header_check unit checks each value in every configuration that shows the macro, C89 and C++98 included. (2) A `_Float32`, `_Float64`, `_Float128`, `_Float32x` or `_Float64x` macro is that decimal with the suffix `f32`, `f64`, `f128`, `f32x` or `f64x`: the reference toolchain's gcc and g++ take each in every C and C++ mode with the `_FloatN` type, which is the type the reference's macros have in C and in every C++ mode (black-box probe); the 70 math.h macros (`M_*f32` ... and `SNANF32` ...) leave headers/rows-exceptions.tsv. (3) macros.tsv's value `snan` (type_probe: a NaN whose quiet bit, the fraction's top bit, is clear) is emitted as `__builtin_nans<f>`; `nan` stays quiet. The reference's eight `SNAN*` macros are signaling (probe); the generator had emitted a quiet NaN for `SNAN`, `SNANF` and `SNANL`.
+'''

@@ -22,11 +22,11 @@ netinet/icmp6.h	1	linux/icmpv6.h
 netinet/if_ether.h	1	linux/if_ether.h
 netinet/if_fddi.h	1	-
 netinet/if_tr.h	1	-
-netinet/igmp.h	1	linux/igmp.h
+netinet/igmp.h	1	linux/igmp.h,linux/in.h
 netinet/in_systm.h	1	-
 netinet/ip.h	1	linux/ip.h
-netinet/ip6.h	1	-
-netinet/ip_icmp.h	1	linux/icmp.h
+netinet/ip6.h	1	linux/ipv6.h
+netinet/ip_icmp.h	1	linux/icmp.h,linux/in.h
 netipx/ipx.h	1	-
 netiucv/iucv.h	1	-
 netpacket/packet.h	1	linux/if_packet.h

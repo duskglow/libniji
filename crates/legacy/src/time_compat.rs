@@ -323,7 +323,7 @@ impl Out {
 /// (spec §23.5's ARB: years 0 to 9999 with in-range fields fit, and so do years down to -999,
 /// as in glibc's `asctime_r`; out-of-range fields that widen the text fail for `asctime` too,
 /// where glibc prints them into a larger static buffer).
-pub fn asctime(f: &AscFields) -> KResult<([u8; ASCTIME_LEN], usize)> {
+pub fn asctime_text(f: &AscFields) -> KResult<([u8; ASCTIME_LEN], usize)> {
     let name = |table: &[&'static [u8; 3]], i: i32| -> &'static [u8] {
         usize::try_from(i).ok().and_then(|i| table.get(i)).map_or(b"???", |s| &s[..])
     };
@@ -357,7 +357,7 @@ mod tests {
     use super::*;
 
     fn text(f: AscFields) -> Option<std::string::String> {
-        asctime(&f).ok().map(|(b, n)| std::string::String::from_utf8_lossy(&b[..n]).into_owned())
+        asctime_text(&f).ok().map(|(b, n)| std::string::String::from_utf8_lossy(&b[..n]).into_owned())
     }
 
     #[test]

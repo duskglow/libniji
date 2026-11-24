@@ -1,0 +1,11 @@
+id = "D-16.17"
+section = "s16"
+spec = "§16.1, §16.2"
+ann = "ARB"
+status = "active"
+story = "CONFIG-TABLES-GROWTH"
+date = "2026-11-23"
+tests = ["crates/core/tests/s16_nameservices_clauses.rs"]
+body = '''
+**`nsswitch.conf` lines, their `[...]` action groups and `gai.conf` tables have no limit but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-16, HL-17; CONFIG-TABLES-GROWTH). A line keeps its first 16 sources and a table its first 32 rows inline, with no allocation; past them the values spill to the heap, and the process-wide copies put the entries past the inline ones in chunks that never move (`niji_rt::chunks`), written and read under the locks that already guard the tables. An action group is read one word at a time, so only a single word longer than any valid `STATUS=ACTION` item (34 bytes) is refused, as before. Memory exhaustion: an `nsswitch.conf` line that cannot be held is taken as a line that does not parse (no source: its lookups are unavailable); `__nss_configure_lookup` returns `ENOMEM` and leaves the overrides unchanged; a `gai.conf` table that cannot be held is the default table, never part of the file's. Lookups read each line's source count first and decode only the sources it has.
+'''

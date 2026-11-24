@@ -88,7 +88,7 @@ fn without_switch<R>(f: impl FnOnce(&Ctx<'_, CSys>) -> R) -> R {
         let c = ctx().with_multi();
         crate::data::set_hconf(c.multi, c.hconf.is_some_and(|s| s.reorder));
     }
-    f(&Ctx::bare(&CSys, &nss::SYSTEM))
+    f(&Ctx::bare(&CSys, &crate::heap::KernelPages, &nss::SYSTEM))
 }
 
 // ------------------------------------------------------------------------------ h_errno (§16.3)
@@ -908,7 +908,7 @@ pub fn innetgr(group: KResult<&[u8]>, host: KResult<Option<&[u8]>>, user: KResul
 
 /// `__nss_configure_lookup(db, spec)`: 0, or -1 with `EINVAL` (D-16.1).
 pub fn configure_lookup(db: KResult<&[u8]>, spec: KResult<&[u8]>) -> KResult<()> {
-    nss::SWITCH.configure(&CSys, db.map_err(|_| Errno::EINVAL)?, spec.map_err(|_| Errno::EINVAL)?)
+    nss::SWITCH.configure(&CSys, &crate::heap::KernelPages, db.map_err(|_| Errno::EINVAL)?, spec.map_err(|_| Errno::EINVAL)?)
 }
 
 // ------------------------------------------------------------------------------ getaddrinfo (§16.2)

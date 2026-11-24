@@ -123,6 +123,9 @@ pub mod dt {
     pub const FLAGS: u64 = 30;
     /// `DF_TEXTREL` in `DT_FLAGS` (gABI).
     pub const DF_TEXTREL: u64 = 4;
+    /// `DF_STATIC_TLS` in `DT_FLAGS` (gABI): the object uses the static TLS model (initial-exec), so
+    /// its block needs a place in every thread's static area.
+    pub const DF_STATIC_TLS: u64 = 0x10;
     /// Address of the PLT relocations.
     pub const JMPREL: u64 = 23;
     /// Library search path (string table offset).
@@ -1019,6 +1022,12 @@ impl<'a> Dynamic<'a> {
         self.strtab
     }
 
+    /// Whether the object's words are big-endian.
+    #[must_use]
+    pub(crate) fn big_endian(&self) -> bool {
+        self.rd.be
+    }
+
     /// The NUL-terminated string at offset `off` of the string table, without its NUL.
     ///
     /// # Errors
@@ -1396,7 +1405,7 @@ impl<'a> Dynamic<'a> {
         }
         let tab = whole.get(16..).ok_or(unmapped)?;
         let chain_at = u32::try_from(bloom_len.checked_add(bucket_len).ok_or(unmapped)?).map_err(|_| unmapped)?;
-        Ok(Some(GnuHash { tab, be, bloom_size, chain_at, nbuckets, symoffset, bloom_shift, mark: 0 }))
+        Ok(Some(GnuHash { tab, be, bloom_size, chain_at, nbuckets, symoffset, bloom_shift, mark: 0, quick: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1942,6 +1951,9 @@ pub struct GnuHash<'a> {
     /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
     /// changing the symbol walk's code.
     mark: u8,
+    /// Set (1) once `symbols::Object::build` has validated every table its quick walk reads
+    /// (LD-SYMBOL-VALIDATE-ONCE); 0 as read. Also in the tail padding: no view grows.
+    quick: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1963,6 +1975,33 @@ impl<'a> GnuHash<'a> {
     #[must_use]
     pub(crate) fn mark(&self) -> bool {
         self.mark != 0
+    }
+
+    /// Records whether the tables of the view holding this table passed `symbols::Object::build`'s
+    /// validation for the quick walk (LD-SYMBOL-VALIDATE-ONCE).
+    pub(crate) fn set_quick(&mut self, on: bool) {
+        self.quick = u8::from(on);
+    }
+
+    /// Whether [`GnuHash::set_quick`] recorded a validated view.
+    #[must_use]
+    #[inline]
+    pub(crate) fn quick(&self) -> bool {
+        self.quick != 0
+    }
+
+    /// The table's bytes from the first Bloom word (the Bloom words, the buckets, then the chain words
+    /// to the end of the mapped bytes) and the chain's byte offset in them, for the validated walk.
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], u32) {
+        (self.tab, self.chain_at)
+    }
+
+    /// Whether the table's words are big-endian.
+    #[must_use]
+    pub(crate) fn big_endian(&self) -> bool {
+        self.be
     }
 
     /// The number of buckets.
@@ -2028,26 +2067,43 @@ impl<'a> GnuHash<'a> {
         GnuChain { h: *self, next: start, done: start == 0 }
     }
 
-    /// The symbols a lookup of the name hashing to `hash` must look at: nothing when the Bloom word
-    /// rejects the hash, else each entry of its chain whose hash matches (bit 0 aside), in order, given
-    /// to `f` until it answers true. The same entries and errors as testing the Bloom word, then
-    /// [`GnuHash::chain`] filtered by hash: a Bloom word past the table is
-    /// [`ElfError::BadHashHeader`], a chain word past the mapped bytes [`ElfError::HashIndex`]. One
-    /// loop over the chain's bytes, without the iterator's state (LD-LOOKUP-COST: every object ahead
-    /// of the definer in the scope pays this walk on every lookup).
+    /// The Bloom test of a lookup of the name hashing to `hash` ([`GnuHash::bloom`]), with its error.
+    /// A lookup in a GNU table looks at nothing when the Bloom word rejects the hash, else at each
+    /// entry of its chain whose hash matches (bit 0 aside), in order ([`GnuHash::chain_candidates`]:
+    /// the entries of [`GnuHash::chain`] filtered by hash). LD-LOOKUP-RETHINK split the two halves so
+    /// the scope walk tests the Bloom word before it enters an object (a rejected object then costs
+    /// no call) and the chain walk has one instance.
     ///
     /// # Errors
     ///
-    /// Those above, and the first error of `f`.
-    #[inline]
-    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+    /// [`ElfError::BadHashHeader`] for a Bloom word past the table.
+    #[inline(always)]
+    pub(crate) fn bloom_checked(&self, hash: u32) -> Result<bool, ElfError> {
+        self.bloom(hash).ok_or(ElfError::BadHashHeader(Table::GnuHash))
+    }
+
+    /// The Bloom test of a lookup of the name hashing to `hash`: `Some(false)` when the Bloom word
+    /// rejects the hash (no symbol of the table has it), `Some(true)` when it passes, `None` when the
+    /// word cannot be read (a header past the table: [`GnuHash::bloom_checked`]'s error).
+    #[inline(always)]
+    #[must_use]
+    pub(crate) fn bloom(&self, hash: u32) -> Option<bool> {
         let wi = usize::try_from(hash.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(self.bloom_size())).unwrap_or(0);
-        let word = self.bloom_word(wi).ok_or(ElfError::BadHashHeader(Table::GnuHash))?;
+        let word = self.bloom_word(wi)?;
         let second = u64::from(hash).checked_shr(self.bloom_shift).unwrap_or(0) & 63;
         let mask = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
-        if word & mask != mask {
-            return Ok(());
-        }
+        Some(word & mask == mask)
+    }
+
+    /// The chain walk after a [`GnuHash::bloom`] test that passed: the chain's entries whose hash
+    /// matches, in order, given to `f` until it answers true. One loop over the chain's bytes,
+    /// without the iterator's state (LD-LOOKUP-COST).
+    ///
+    /// # Errors
+    ///
+    /// A chain word past the mapped bytes ([`ElfError::HashIndex`]), and the first error of `f`.
+    #[inline]
+    pub(crate) fn chain_candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
         let mut sym = hash.checked_rem(self.nbuckets).and_then(|b| self.bucket(b)).unwrap_or(0);
         if sym == 0 {
             return Ok(());
@@ -2192,7 +2248,7 @@ pub struct Versym<'a> {
     max: u16,
 }
 
-impl Versym<'_> {
+impl<'a> Versym<'a> {
     /// The dynamic symbol count from the hash tables (see [`Dynamic::symbol_count`]), if known.
     #[must_use]
     pub fn count(&self) -> Option<u32> {
@@ -2203,6 +2259,14 @@ impl Versym<'_> {
     #[must_use]
     pub fn max_index(&self) -> u16 {
         self.max
+    }
+
+    /// The entries' bytes from the table's start to the end of the mapped bytes, and whether they
+    /// are big-endian (LD-SYMBOL-VALIDATE-ONCE: the validated walk reads them in place).
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], bool) {
+        (self.rd.b, self.rd.be)
     }
 
     /// The version of symbol `sym`.
@@ -2295,11 +2359,19 @@ pub struct Symtab<'a> {
     count: Option<u32>,
 }
 
-impl Symtab<'_> {
+impl<'a> Symtab<'a> {
     /// The dynamic symbol count from the hash tables (see [`Dynamic::symbol_count`]), if known.
     #[must_use]
     pub fn count(&self) -> Option<u32> {
         self.count
+    }
+
+    /// The entries' bytes from the table's start to the end of the mapped bytes, and whether they
+    /// are big-endian (LD-SYMBOL-VALIDATE-ONCE: the validated walk reads them in place).
+    #[must_use]
+    #[inline]
+    pub(crate) fn raw(&self) -> (&'a [u8], bool) {
+        (self.rd.b, self.rd.be)
     }
 
     /// Symbol `i`.
@@ -2347,7 +2419,7 @@ impl Sym {
     /// The symbol in the 24 bytes of an `Elf64_Sym` in byte order `be`.
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn decode(e: &[u8; SYM_SIZE], be: bool) -> Sym {
+    pub(crate) fn decode(e: &[u8; SYM_SIZE], be: bool) -> Sym {
         let w4 = |a: [u8; 4]| if be { u32::from_be_bytes(a) } else { u32::from_le_bytes(a) };
         let w8 = |a: [u8; 8]| if be { u64::from_be_bytes(a) } else { u64::from_le_bytes(a) };
         let shndx = if be { u16::from_be_bytes([e[6], e[7]]) } else { u16::from_le_bytes([e[6], e[7]]) };

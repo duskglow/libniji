@@ -1,0 +1,90 @@
+# host C library: ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+# initial-exec object:  TLS 0x002e50 0x0000000000003e50 0x0000000000003e50 0x000000 0x000400 R 0x1 /  0x000000000000001e (FLAGS) STATIC_TLS
+# global-dynamic object:  TLS 0x002de8 0x0000000000003de8 0x0000000000003de8 0x000000 0x000400 R 0x1 / flags: 0 STATIC_TLS
+
+## A. largest single initial-exec block opened by dlopen (bytes, 16-byte steps)
+A libc=ref threads=0 tunables=-: largest=1712 fails_at=1728 [libc=host loaded=0 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=0: largest=1200 fails_at=1216 [libc=host loaded=0 fail: $W/obj/initial-exec-1216-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=512: largest=1712 fails_at=1728 [libc=host loaded=0 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=4096: largest=5296 fails_at=5312 [libc=host loaded=0 fail: $W/obj/initial-exec-5312-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=65536: largest=66736 fails_at=66752 [libc=host loaded=0 fail: $W/obj/initial-exec-66752-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=1048576: largest=1049776 fails_at=1049792 [libc=host loaded=0 fail: $W/obj/initial-exec-1049792-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.nns=1: largest=816 fails_at=832 [libc=host loaded=0 fail: $W/obj/initial-exec-832-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=0 tunables=glibc.rtld.nns=16: largest=5168 fails_at=5184 [libc=host loaded=0 fail: $W/obj/initial-exec-5184-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=-: largest=1712 fails_at=1728 [libc=host loaded=0 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=0: largest=1200 fails_at=1216 [libc=host loaded=0 fail: $W/obj/initial-exec-1216-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=512: largest=1712 fails_at=1728 [libc=host loaded=0 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=4096: largest=5296 fails_at=5312 [libc=host loaded=0 fail: $W/obj/initial-exec-5312-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=65536: largest=66736 fails_at=66752 [libc=host loaded=0 fail: $W/obj/initial-exec-66752-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=1048576: largest=1049776 fails_at=1049792 [libc=host loaded=0 fail: $W/obj/initial-exec-1049792-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.nns=1: largest=816 fails_at=832 [libc=host loaded=0 fail: $W/obj/initial-exec-832-0.so: cannot allocate memory in static TLS block]
+A libc=ref threads=1 tunables=glibc.rtld.nns=16: largest=5168 fails_at=5184 [libc=host loaded=0 fail: $W/obj/initial-exec-5184-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=-: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=0: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=512: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=4096: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=65536: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=1048576: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.nns=1: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=0 tunables=glibc.rtld.nns=16: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=-: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=0: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=512: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=4096: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=65536: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=1048576: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.nns=1: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+A libc=niji threads=1 tunables=glibc.rtld.nns=16: largest=65536 fails_at=65552 [libc=libniji loaded=0 fail: $W/obj/initial-exec-65552-0.so: cannot allocate memory in static TLS block]
+
+## B. 1 KiB initial-exec objects opened one after another (of 160)
+B libc=ref threads=0 tunables=-: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=0: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=512: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=4096: libc=host loaded=5 fail: $W/obj/initial-exec-1024-5.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=65536: libc=host loaded=65 fail: $W/obj/initial-exec-1024-65.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.optional_static_tls=1048576: libc=host loaded=160 ok
+B libc=ref threads=0 tunables=glibc.rtld.nns=1: libc=host loaded=0 fail: $W/obj/initial-exec-1024-0.so: cannot allocate memory in static TLS block
+B libc=ref threads=0 tunables=glibc.rtld.nns=16: libc=host loaded=5 fail: $W/obj/initial-exec-1024-5.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=-: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=0: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=512: libc=host loaded=1 fail: $W/obj/initial-exec-1024-1.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=4096: libc=host loaded=5 fail: $W/obj/initial-exec-1024-5.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=65536: libc=host loaded=65 fail: $W/obj/initial-exec-1024-65.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.optional_static_tls=1048576: libc=host loaded=160 ok
+B libc=ref threads=1 tunables=glibc.rtld.nns=1: libc=host loaded=0 fail: $W/obj/initial-exec-1024-0.so: cannot allocate memory in static TLS block
+B libc=ref threads=1 tunables=glibc.rtld.nns=16: libc=host loaded=5 fail: $W/obj/initial-exec-1024-5.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=-: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=0: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=512: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=4096: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=65536: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.optional_static_tls=1048576: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.nns=1: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=0 tunables=glibc.rtld.nns=16: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=-: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=0: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=512: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=4096: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=65536: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.optional_static_tls=1048576: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.nns=1: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+B libc=niji threads=1 tunables=glibc.rtld.nns=16: libc=libniji loaded=64 fail: $W/obj/initial-exec-1024-64.so: cannot allocate memory in static TLS block
+
+## C. 16-byte initial-exec objects opened one after another (of 1100; default tunables)
+C libc=ref threads=0: libc=host loaded=107 fail: $W/obj/initial-exec-16-107.so: cannot allocate memory in static TLS block
+C libc=ref threads=1: libc=host loaded=107 fail: $W/obj/initial-exec-16-107.so: cannot allocate memory in static TLS block
+C libc=niji threads=0: libc=libniji loaded=1100 ok
+C libc=niji threads=1: libc=libniji loaded=1100 ok
+
+## D. 16 KiB global-dynamic objects opened one after another (of 64 = 1 MiB; default tunables)
+D libc=ref threads=0: libc=host loaded=64 ok
+D libc=ref threads=1: libc=host loaded=64 ok
+D libc=niji threads=0: libc=libniji loaded=4 fail: $W/obj/global-dynamic-16384-4.so: cannot allocate memory in static TLS block
+D libc=niji threads=1: libc=libniji loaded=4 fail: $W/obj/global-dynamic-16384-4.so: cannot allocate memory in static TLS block
+
+## E. largest single initial-exec block after four 16 KiB global-dynamic objects (default tunables)
+E libc=ref threads=0: largest=1712 fails_at=1728 [libc=host loaded=4 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+E libc=ref threads=1: largest=1712 fails_at=1728 [libc=host loaded=4 fail: $W/obj/initial-exec-1728-0.so: cannot allocate memory in static TLS block]
+E libc=niji threads=0: largest=<16 (libc=libniji loaded=4 fail: $W/obj/initial-exec-16-0.so: cannot allocate memory in static TLS block)
+E libc=niji threads=1: largest=<16 (libc=libniji loaded=4 fail: $W/obj/initial-exec-16-0.so: cannot allocate memory in static TLS block)
+# done
