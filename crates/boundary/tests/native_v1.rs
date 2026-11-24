@@ -764,7 +764,7 @@ fn aio_use_threads_follows_the_conventions() {
 
 #[test]
 fn getpass_set_limit_follows_the_conventions() {
-    // Trace: no spec clause (native getpass bound, NIJI_NATIVE_1); D-X.10, D-17.8.
+    // Trace: no spec clause (native getpass bound, NIJI_NATIVE_1); D-X.10, D-17.8, D-17.10.
     // In a child: the bound is process-wide. getpass itself under the bound is
     // tests/s17_users_symbols.rs (sym_getpass_bound).
     let child = |_: &CSys| -> i32 {
@@ -776,7 +776,7 @@ fn getpass_set_limit_follows_the_conventions() {
         i32::from(!ok)
     };
     assert_eq!(selftest::in_child(child).unwrap(), ChildEnd::Exited(0), "the previous bound; EINVAL above PTRDIFF_MAX; 0 restores the default");
-    assert_eq!(NIJI_GETPASS_DEFAULT_LIMIT, 1 << 20, "1 MiB (D-17.8)");
+    assert_eq!(NIJI_GETPASS_DEFAULT_LIMIT, 0, "no bound by default (D-17.9)");
 }
 
 // ------------------------------------------------------------------------------ products

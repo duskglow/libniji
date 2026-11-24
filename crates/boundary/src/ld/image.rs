@@ -348,6 +348,11 @@ impl niji_ld::reloc::Image for ProcImage {
         Some(crate::arch::tlsdesc_static())
     }
 
+    fn tlsdesc_dynamic(&mut self, module: u64, offset: u64) -> Option<[u64; 2]> {
+        let record = super::tls::desc_record(module, offset)?;
+        Some([crate::arch::tlsdesc_dynamic(), u64::try_from(record).ok()?])
+    }
+
     fn warn(&mut self, parts: &[&[u8]]) {
         write_all(2, b"ld.so: ");
         parts.iter().for_each(|p| write_all(2, p));

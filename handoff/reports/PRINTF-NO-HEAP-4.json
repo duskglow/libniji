@@ -1,0 +1,27 @@
+{"task": "PRINTF-NO-HEAP-4", "model": "opus", "tokens": null,
+ "result": "COMPLETE: merged next; gate green (11905 passed, 0 failed), plants 20/20 caught, cbench 0 of 17 printf rows above next; s12_stdio_symbols line-buffered race fixed; hot_text red on shiki is origin/next's own (9 of 10 runs)",
+ "branch": "task/printf-no-heap-4", "head": "68a093693",
+ "gate": {"affected": "11905 passed / 0 failed (conformance 137/137)", "peak": "13G"},
+ "accepted_first_attempt": null,
+ "jobs": ["printf-no-heap-4-lint-3", "printf-no-heap-4-gate-3", "printf-no-heap-4-plants-3", "printf-no-heap-4-xtask-test-3", "printf-no-heap-4-cbench-3", "printf-no-heap-4-cbench-ram-3", "printf-no-heap-4-basebench-1", "printf-no-heap-4-headhot-1", "printf-no-heap-4-basehot-1", "printf-no-heap-4-hotrep-1"],
+ "rulings": [
+  {"item": "hot_text_products on shiki (Haswell, 26 vCPU): origin/next 81bdd4b45 fails 9 of 10 full runs (printf-no-heap-4-hotrep-1): the page_faults relay exits 127 (its execve failed) in init_data_clusters_hold_at_every_text_phase / init_dynamic_startup_*; the start-up check cannot be green on this host for any branch", "recommendation": "a harness story to find why the relay's execve fails there (errno not reported: make the relay print it), and until then do not admit start-up stories to shiki"},
+  {"item": "carried: #7884 layout tracer misses the directory-search candidates; #7885 LOCPATH fallback; #7886 head-bin tail", "recommendation": "as recorded in handoff/PRINTF-NO-HEAP-3.md"}
+ ],
+ "informational": [
+  "s12_stdio_symbols under cargo test (threads of one process): input on an unbuffered or line-buffered stream flushes every line-buffered stream (ISO C 7.21.3p3), so the held-output checks of fputs_nbf_writes, fputs_fuse_corners and front_corners could see bytes written early; they now run in a child (lbf_alone). nextest gates never showed it",
+  "the five gate-4 reds on mei (#7846, no locale archive) do not occur on shiki"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "snprintf_s_path (cbench_opt) per call vs origin/next", "before": 229.2, "after": 201.3, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "sprintf_chk_ls_nlink per call vs origin/next", "before": 760.6, "after": 699.0, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_f_large per call vs origin/next", "before": 18433.9, "after": 17812.7, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "snprintf_mixed per call vs origin/next", "before": 1997.6, "after": 1924.2, "unit": "instr/call", "measured": true},
+  {"kind": "correctness", "what": "printf allocates nowhere the reference does not; swprintf truncation E2BIG (from PRINTF-NO-HEAP..-3, carried)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "plants of the story re-proved against the folded tests, plus 2 for the line-buffered checks", "before": 3, "after": 20, "unit": "plants", "measured": true},
+  {"kind": "correctness", "what": "s12_stdio_symbols sym_fputs intermittent failure under cargo test (test race)", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "hot_text_products' page_faults relay exits 127 without the errno; one line of errno in its stderr would have saved this run's diagnosis, and the host-admission check should run hot_text once before giving a host start-up stories",
+ "next_step": "land; then the #7764 follow-ups (grouped/I floats past 128 bytes, registered conversions allocate)",
+ "report_file": "handoff/PRINTF-NO-HEAP-4.md"}

@@ -294,7 +294,7 @@ pub fn btowc(c: i32, loc: &Locale) -> u32 {
 }
 
 /// `wctob`: the single byte of a wide character, `EOF` if it needs more (or is invalid).
-pub fn wctob(wc: u32, loc: &Locale) -> i32 {
+pub fn wctob_in(wc: u32, loc: &Locale) -> i32 {
     let mut buf = [0u8; text::MAX_ENCODED];
     match text::encode(wc, Encoding::of(loc), &mut buf) {
         Some(1) => i32::from(buf[0]),

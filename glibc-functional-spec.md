@@ -5371,6 +5371,15 @@ decided differently from the reference; each has a row in `docs/differences-from
   `--replace`; a missing DIR is `stat of "DIR" failed: ...: ignored`, exit 0. `--delete-from-archive NAME...`
   removes exact names; a name not stored is `locale "NAME" not in archive`, exit 0. `--no-archive` writes the
   directory `<prefix>/usr/lib/locale/NAME` with NAME's codeset normalized (probe `localedef-archive`).
+* A string of a category other than `LC_CTYPE` and `LC_COLLATE` with a character the charmap lacks takes, for
+  that character, the locale's `LC_CTYPE` transliteration (`translit_start` ... `translit_end`, wherever the
+  category stands in the source): the entry of the locale's own (the later of two for one character), else of its
+  `include`s in order (the first that has one), an included file resolved the same way; of that entry's
+  alternatives, the first that is not empty and that the charmap encodes whole. An alternative is not
+  transliterated again, `default_missing` is not used, and nothing applies without such an entry. A string
+  with a character neither encoded nor so transliterated is written empty, whole, with `<file>:<line>:
+  <CATEGORY>: unknown character in field `<keyword>'` (one line per string, also under `--quiet`) and exit 1,
+  output written without `-c` (probe `localedef-translit`).
 
 **Failure.**
 
@@ -5380,6 +5389,10 @@ decided differently from the reference; each has a row in `docs/differences-from
   line skipped, output written, exit 1. An error inside a category: `<file>:<line>: <CATEGORY>: syntax error`;
   without `-c` exit 4 and no output; with `-c` output written (that category with its default) and exit 1 (POSIX
   `localedef` exit status 1: warnings or errors, output created) (probe `localedef-syntax`).
+* An `LC_COLLATE` section without an `order_start` (empty, or `collating-symbol` lines only):
+  `<file>:<END line>: LC_COLLATE: empty category description not allowed`, then `[error] too many errors; giving
+  up`, exit 1 with or without `-c`; the output directory is made and no category file is written. A section with
+  `order_start` and `order_end` and nothing between compiles (probe `localedef-empty-collate`).
 
 ### 31.9 zic
 

@@ -64,6 +64,9 @@ pub struct Tunables {
     /// then make the main stack and the C library's thread stacks executable. Read by the loader
     /// only on its refusal branch for such an object; never honoured in secure mode.
     pub exec_stack: Option<bool>,
+    /// `glibc.rtld.optional_static_tls`: bytes of static TLS room for objects loaded by `dlopen`
+    /// that need it (D-27.94). The loader's surplus is this plus 1200 bytes (default 512 + 1200).
+    pub optional_static_tls: Option<u64>,
 }
 
 /// Which tunable a name denotes (its `niji.*` name or the `glibc.*` alias).
@@ -76,6 +79,7 @@ enum Key {
     Perturb,
     NoClassedSwap,
     ExecStack,
+    OptionalStaticTls,
 }
 
 /// The tunable `name` stands for, or `None` for names that mean nothing in this design.
@@ -88,6 +92,7 @@ fn key_of(name: &[u8]) -> Option<Key> {
         b"niji.malloc.perturb" | b"glibc.malloc.perturb" => Key::Perturb,
         b"niji.compat.no_classed_swap" => Key::NoClassedSwap,
         b"niji.compat.execstack" => Key::ExecStack,
+        b"glibc.rtld.optional_static_tls" => Key::OptionalStaticTls,
         _ => return None,
     })
 }
@@ -292,6 +297,7 @@ impl Tunables {
                 Key::Perturb => {} // read on its own by `malloc_perturb`
                 Key::NoClassedSwap => t.no_classed_swap = ranged(value, 0, 1).map(|n| n != 0).or(t.no_classed_swap),
                 Key::ExecStack => t.exec_stack = ranged(value, 0, 1).map(|n| n != 0).or(t.exec_stack),
+                Key::OptionalStaticTls => t.optional_static_tls = number(value).or(t.optional_static_tls),
             }
         }
         t

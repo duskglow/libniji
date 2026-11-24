@@ -202,7 +202,7 @@ pub fn argz_concat(argz: &[u8], more: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// `argz_delete`: remove the entry starting at `at`.
-pub fn argz_delete(argz: &[u8], at: usize) -> Result<Vec<u8>> {
+pub fn argz_delete_list(argz: &[u8], at: usize) -> Result<Vec<u8>> {
     let mut v = try_vec(argz.len())?;
     for (s, l) in argz_entries(argz) {
         if s != at {
@@ -214,7 +214,7 @@ pub fn argz_delete(argz: &[u8], at: usize) -> Result<Vec<u8>> {
 
 /// `argz_insert`: insert `entry` before the entry at `before` (at the end if `before` is not an
 /// entry start).
-pub fn argz_insert(argz: &[u8], before: usize, entry: &[u8]) -> Result<Vec<u8>> {
+pub fn argz_insert_list(argz: &[u8], before: usize, entry: &[u8]) -> Result<Vec<u8>> {
     let mut v = try_vec(argz.len().saturating_add(entry.len()).saturating_add(1))?;
     let at = if argz_entries(argz).any(|(s, _)| s == before) { before } else { argz.len() };
     push(&mut v, argz.get(..at).unwrap_or(argz))?;
@@ -291,9 +291,9 @@ pub fn envz_get(envz: &[u8], name: &[u8]) -> Option<usize> {
 
 /// `envz_add`: set `name` to `value` (`None`: a null entry without `=`), replacing an existing
 /// entry.
-pub fn envz_add(envz: &[u8], name: &[u8], value: Option<&[u8]>) -> Result<Vec<u8>> {
+pub fn envz_add_list(envz: &[u8], name: &[u8], value: Option<&[u8]>) -> Result<Vec<u8>> {
     let base = match envz_entry(envz, name) {
-        Some(s) => argz_delete(envz, s)?,
+        Some(s) => argz_delete_list(envz, s)?,
         None => argz_concat(envz, &[])?,
     };
     let mut entry = try_vec(name.len().saturating_add(value.map_or(0, <[u8]>::len)).saturating_add(2))?;
@@ -316,7 +316,7 @@ pub fn envz_merge(envz: &[u8], other: &[u8], override_: bool) -> Result<Vec<u8>>
             continue;
         }
         let value = e.get(name.len()..).and_then(|r| r.strip_prefix(b"="));
-        cur = envz_add(&cur, name, value)?;
+        cur = envz_add_list(&cur, name, value)?;
     }
     Ok(cur)
 }
@@ -324,7 +324,7 @@ pub fn envz_merge(envz: &[u8], other: &[u8], override_: bool) -> Result<Vec<u8>>
 /// `envz_remove`.
 pub fn envz_remove(envz: &[u8], name: &[u8]) -> Result<Vec<u8>> {
     match envz_entry(envz, name) {
-        Some(s) => argz_delete(envz, s),
+        Some(s) => argz_delete_list(envz, s),
         None => argz_concat(envz, &[]),
     }
 }
@@ -371,7 +371,7 @@ fn offset_in(base: usize, len: usize, entry: usize) -> Option<usize> {
 /// `argz_delete`: remove the entry at address `entry` (NULL or outside: unchanged).
 pub fn argz_delete_addr(argz: &[u8], base: usize, entry: usize) -> Result<Vec<u8>> {
     match offset_in(base, argz.len(), entry) {
-        Some(o) => argz_delete(argz, o),
+        Some(o) => argz_delete_list(argz, o),
         None => argz_concat(argz, &[]),
     }
 }
@@ -384,7 +384,7 @@ pub fn argz_insert_addr(argz: &[u8], base: usize, before: usize, text: &[u8]) ->
     }
     let o = offset_in(base, argz.len(), before).ok_or(Errno::EINVAL)?;
     let start = argz.get(..o).and_then(|h| h.iter().rposition(|&b| b == 0)).map_or(0, |i| i.saturating_add(1));
-    argz_insert(argz, start, text)
+    argz_insert_list(argz, start, text)
 }
 
 /// `argz_next`: the offset of the entry after the one at address `entry` (NULL: the first).

@@ -74,11 +74,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+typedef float La_x86_64_ymm __attribute__ ((__vector_size__ (32), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+typedef double La_x86_64_zmm __attribute__ ((__vector_size__ (64), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
@@ -119,11 +119,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+typedef float La_x86_64_ymm __attribute__ ((__vector_size__ (32), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+typedef double La_x86_64_zmm __attribute__ ((__vector_size__ (64), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
@@ -140,11 +140,11 @@ typedef union La_x86_64_vector La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+typedef float La_x86_64_ymm __attribute__ ((__vector_size__ (32), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+typedef double La_x86_64_zmm __attribute__ ((__vector_size__ (64), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
@@ -176,11 +176,11 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+typedef float La_x86_64_ymm __attribute__ ((__vector_size__ (32), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+typedef double La_x86_64_zmm __attribute__ ((__vector_size__ (64), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
@@ -201,11 +201,11 @@ typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+typedef float La_x86_64_ymm __attribute__ ((__vector_size__ (32), __aligned__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+typedef double La_x86_64_zmm __attribute__ ((__vector_size__ (64), __aligned__ (16)));
 # endif
 #endif
 #if __NIJI_POSIX >= 199506

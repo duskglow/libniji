@@ -16,14 +16,11 @@ mod skip_note;
 
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 #[path = "support/timeout.rs"]
 mod timeout;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 fn products() -> PathBuf {
     let lib = root().join("target/niji");

@@ -175,7 +175,7 @@ pub extern "C" fn btowc(c: c_int) -> wint_t {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn wctob(wc: wint_t) -> c_int {
-    locale::with_current(move |l| mb_compat::wctob(wc, l))
+    locale::with_current(move |l| mb_compat::wctob_in(wc, l))
 }}
 
 export! { "GLIBC_2.2.5";

@@ -440,7 +440,7 @@ impl<R: CPod + Copy + 'static> Db<R> {
     /// The next record of the enumeration, `f` stepping over the lines: the `files` source's,
     /// when the database's line names it (D-16.1), else none.
     fn step<T>(&self, f: impl FnMut(&[u8]) -> Step<T>) -> KResult<Option<T>> {
-        if !Ctx::system(&CSys).enumerates(self.db) {
+        if !Ctx::system(&CSys, &crate::heap::KernelPages).enumerates(self.db) {
             return Ok(None);
         }
         self.cursor.next(&CSys, self.file, f)
@@ -516,22 +516,22 @@ pub fn gr_by_r(key: KResult<Key<'_>>, out: Option<&mut struct_group>, buf: KResu
 
 /// `getspnam(name)`.
 pub fn sp_by(name: KResult<&[u8]>) -> KResult<usize> {
-    found(nss::found(nss::shadow(&Ctx::system(&CSys), name?, |s| own(SP, |k| pack::spwd(s, k)))))
+    found(nss::found(nss::shadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |s| own(SP, |k| pack::spwd(s, k)))))
 }
 
 /// `getspnam_r`.
 pub fn sp_by_r(name: KResult<&[u8]>, out: Option<&mut struct_spwd>, buf: KResult<&mut [u8]>, result: Option<&mut usize>) -> i32 {
-    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::shadow(&Ctx::system(&CSys), name?, |s| pack::spwd(s, &mut Packer::new(buf, base))))))
+    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::shadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |s| pack::spwd(s, &mut Packer::new(buf, base))))))
 }
 
 /// `getsgnam(name)`.
 pub fn sg_by(name: KResult<&[u8]>) -> KResult<usize> {
-    found(nss::found(nss::gshadow(&Ctx::system(&CSys), name?, |g| own(SG, |k| pack::sgrp(g, k)))))
+    found(nss::found(nss::gshadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |g| own(SG, |k| pack::sgrp(g, k)))))
 }
 
 /// `getsgnam_r`.
 pub fn sg_by_r(name: KResult<&[u8]>, out: Option<&mut struct_sgrp>, buf: KResult<&mut [u8]>, result: Option<&mut usize>) -> i32 {
-    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::gshadow(&Ctx::system(&CSys), name?, |g| pack::sgrp(g, &mut Packer::new(buf, base))))))
+    reentrant(out, buf, result, |buf, base| packed(nss::found(nss::gshadow(&Ctx::system(&CSys, &crate::heap::KernelPages), name?, |g| pack::sgrp(g, &mut Packer::new(buf, base))))))
 }
 
 // ------------------------------------------------------------------------------ writing records
@@ -701,7 +701,7 @@ pub fn ttyslot() -> i32 {
 fn login_name<T>(f: impl FnOnce(&[u8]) -> T) -> KResult<T> {
     let mut line = [0u8; 256];
     let tty = acct::session_tty(&CSys, &mut line).and_then(|n| line.get(..n));
-    acct::login_name(&CSys, acct::SYSTEM_LOGIN, tty, f)
+    acct::login_name(&CSys, &crate::heap::KernelPages, acct::SYSTEM_LOGIN, tty, f)
 }
 
 /// `getlogin()`: the name in the calling thread's block.
@@ -736,29 +736,26 @@ static PASS_SIZE: AtomicUsize = AtomicUsize::new(0);
 /// Serializes `getpass` (it changes the terminal).
 static PASS_LOCK: RawMutex = RawMutex::new();
 
-/// `getpass`'s default bound (D-17.8): the most bytes of input before the newline, 1 MiB.
-pub const PASS_DEFAULT_LIMIT: usize = 1 << 20;
-/// The bound in force for the process (`niji_getpass_set_limit`); 0 stands for the default.
-static PASS_LIMIT: AtomicUsize = AtomicUsize::new(0);
+/// `getpass`'s default bound: 0, no bound (D-17.9: the line grows with use, memory permitting).
+pub const PASS_DEFAULT_LIMIT: usize = 0;
+/// The bound in force for the process (`niji_getpass_set_limit`); 0 is no bound.
+static PASS_LIMIT: AtomicUsize = AtomicUsize::new(PASS_DEFAULT_LIMIT);
 
-/// The bound `getpass` applies now.
+/// The bound `getpass` applies now (`usize::MAX`: none).
 fn pass_limit() -> usize {
     match PASS_LIMIT.load(Relaxed) {
-        0 => PASS_DEFAULT_LIMIT,
+        0 => usize::MAX,
         n => n,
     }
 }
 
-/// `niji_getpass_set_limit(bytes)`: the process's bound on `getpass`'s line (0: the default
-/// again); the bound that was in force. More than `PTRDIFF_MAX` is `EINVAL`.
+/// `niji_getpass_set_limit(bytes)`: the process's bound on `getpass`'s line (0: no bound, the
+/// default); the bound that was in force (0 for none). More than `PTRDIFF_MAX` is `EINVAL`.
 pub fn set_pass_limit(bytes: usize) -> KResult<usize> {
     if isize::try_from(bytes).is_err() {
         return Err(Errno::EINVAL);
     }
-    Ok(match PASS_LIMIT.swap(bytes, Relaxed) {
-        0 => PASS_DEFAULT_LIMIT,
-        n => n,
-    })
+    Ok(PASS_LIMIT.swap(bytes, Relaxed))
 }
 
 /// The `termios` local-mode bits `getpass` turns off: `ECHO`, `ECHOE`, `ECHOK`, `ECHONL`.
@@ -821,7 +818,8 @@ impl Drop for Secret {
 fn read_line_fd(fd: Fd, limit: usize) -> KResult<Secret> {
     let mut line = Secret::new();
     let mut chunk = [0u8; 256];
-    let mut over = false;
+    // Why the line is being discarded: over the bound, or no memory to hold it.
+    let mut fail: Option<Errno> = None;
     let r = loop {
         let n = match CSys.read(fd, &mut chunk) {
             Ok(n) => n,
@@ -832,17 +830,18 @@ fn read_line_fd(fd: Fd, limit: usize) -> KResult<Secret> {
             Some(i) => (got.get(..i).unwrap_or(&[]), true),
             None => (got, n == 0),
         };
-        if !over && line.len().saturating_add(part.len()) > limit {
+        if fail.is_none() && line.len().saturating_add(part.len()) > limit {
             line.clear();
-            over = true;
+            fail = Some(Errno::EOVERFLOW);
         }
-        if !over {
+        if fail.is_none() {
             if let Err(e) = line.push(part) {
-                break Err(e);
+                line.clear();
+                fail = Some(e);
             }
         }
         if end {
-            break if over { Err(Errno::EOVERFLOW) } else { Ok(()) };
+            break fail.map_or(Ok(()), Err);
         }
     };
     wipe(&mut chunk);
@@ -853,25 +852,25 @@ fn read_line_fd(fd: Fd, limit: usize) -> KResult<Secret> {
 /// [`read_line_fd`].
 fn read_line_stream(fp: usize, limit: usize) -> KResult<Secret> {
     let mut line = Secret::new();
-    let mut over = false;
+    let mut fail: Option<Errno> = None;
     while let Some(c) = stdio::getc(fp, Locking::Locked)? {
         if c == b'\n' {
             break;
         }
-        if over {
+        if fail.is_some() {
             continue;
         }
         if line.len() >= limit {
             line.clear();
-            over = true;
+            fail = Some(Errno::EOVERFLOW);
             continue;
         }
-        line.push(&[c])?;
+        if let Err(e) = line.push(&[c]) {
+            line.clear();
+            fail = Some(e);
+        }
     }
-    if over {
-        return Err(Errno::EOVERFLOW);
-    }
-    Ok(line)
+    fail.map_or(Ok(line), Err)
 }
 
 /// Write all of `text` to `fd`.
@@ -902,9 +901,10 @@ fn without_echo<T>(fd: Fd, f: impl FnOnce() -> KResult<T>) -> (KResult<T>, bool)
 /// `getpass(prompt)`: on the controlling terminal (`/dev/tty`), or else on standard input with
 /// the prompt on standard error, read one line with echo off and restore the terminal; the line
 /// (without its newline) in the process-wide buffer. The end of the input before a newline ends
-/// the line (an empty one at once). A line of more than the bound (D-17.8: 1 MiB unless
-/// `niji_getpass_set_limit` changed it) is never returned cut short: it is read to its end
-/// and discarded, and the call fails with `EOVERFLOW`. Every buffer of the library's that held
+/// the line (an empty one at once). The line has no bound but memory (D-17.9) unless the
+/// process set one (`niji_getpass_set_limit`); a line over that bound, or one there is no
+/// memory to hold, is never returned cut short: it is read to its end and discarded, and the
+/// call fails with `EOVERFLOW` (or `ENOMEM`). Every buffer of the library's that held
 /// the line is zeroed before it is let go of (a stream's own buffer belongs to the stream), and
 /// the result block is zeroed before each new line goes in.
 pub fn getpass(prompt: KResult<&[u8]>) -> KResult<usize> {

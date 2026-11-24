@@ -1,0 +1,3 @@
+nh3-kept-count | crates/boundary/src/printf.rs | lit:render_plan(fmt, plan, ap, out) ==> render_plan(fmt, plan, ap, out).map(|n| n.saturating_add(1)) | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked
+nh3-planned-skips-hooks | crates/boundary/src/printf.rs | lit:    if reg::active() || !pf::simple_into(fmt, &mut plan) { ==>     if !pf::simple_into(fmt, &mut plan) { | cargo test -p niji-boundary --test s12_stdio_symbols registered_conversion | msg:registered_conversion_is_written_by_its_handler.*FAILED
+nh3-bare-s-count | crates/boundary/src/printf.rs | lit:return Ok(body.len()); ==> return Ok(body.len().saturating_sub(1)); | cargo test -p niji-boundary --test s12_stdio_symbols | msg:FAILED|panicked

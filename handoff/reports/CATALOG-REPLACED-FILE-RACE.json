@@ -1,0 +1,21 @@
+{"task": "CATALOG-REPLACED-FILE-RACE", "model": "opus", "tokens": null,
+ "result": "catalogs_equal_the_reference made host-independent: the flip was the host's installed system locales (de_DE.UTF-8@euro case), not the replaced-catalog case; both runs now see only C.utf8 in /usr/lib/locale (D-7.23)",
+ "branch": "task/catalog-replaced-file-race", "head": null,
+ "gate": {"affected": "646 passed / 0 failed (direct tier, 13 targets)", "peak": "2.4G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "locale_products (oracle/locale_diff.c: en_US, en_US.utf8, de_DE.UTF-8@euro, french with LOCPATH) reads the host's system locale directory the same way and failed on mei after locales-all was installed (3 lines); recommend the same --hide-system-locales plain wrapper in a follow-up story",
+   "Failing branches were based before D-7.21 (libniji did not yet search the default directory after LOCPATH); on current next the test passed only by both sides failing the @euro case (the reference differed from the record)",
+   "locale_data 'the gate machines have a locale archive' failed on mei at 11:51 on 2026-11-23 (host locale state changing that day); host state, not this story"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "catalogs_equal_the_reference no longer depends on the host's installed locales: 28 failing runs on one build host in a day removed; 5/5 repeat passes under load ~30 with locales-all installed, reference equals the record", "before": 28, "after": 0, "unit": "failing runs (one host, one day) / repeat failures", "measured": true},
+   {"kind": "coverage", "what": "plants added (hide flag, hide mount, C.utf8 bind-back), all CAUGHT", "before": 0, "after": 3, "unit": "plants", "measured": true},
+   {"kind": "tooling", "what": "the failure message lists unrecorded differences first and marks recorded runs (recorded), so truncated gate summaries no longer point at a known difference", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "Gate summaries truncate a multi-hunk diff to its first hunk; the triage blamed a recorded difference. Other differential tests' diffs should also put unrecorded lines first.",
+ "next_step": "Land; follow-up story to hide the system locale directory in locale_products the same way.",
+ "report_file": "handoff/catalog-replaced-file-race.md",
+ "jobs": ["catalog-replaced-file-race-gate1", "catalog-replaced-file-race-plants1", "catalog-replaced-file-race-repeat1", "catalog-replaced-file-race-lint2"]}

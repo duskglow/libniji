@@ -526,3 +526,141 @@ fn undefined_names_are_skipped() {
     assert_eq!((got.0, &got.1), (want.0, &want.1));
     assert!(got.2 == want.2, "an undefined name changed the files");
 }
+
+/// s31_8_f_3: an `LC_COLLATE` without `order_start` (empty, or `collating-symbol` lines only) is refused at its END
+/// line, with or without -c: status 1, the output directory made, no category file written (a file a setlocale would
+/// refuse). `order_start` and `order_end` alone are a collation and compile.
+#[test]
+fn empty_collate_is_refused() {
+    for (body, end) in [("", 13), ("collating-symbol <x>\n", 14)] {
+        let src = [MINI, format!("LC_COLLATE\n{body}END LC_COLLATE\n").as_bytes()].concat();
+        for force in [false, true] {
+            let mut m = host();
+            m.files.insert(b"/usr/share/i18n/locales/ec".to_vec(), src.clone());
+            let args = ["-i", "ec", "-f", "MINI", "--quiet", "-c", "/out/e"];
+            let args: Vec<&str> = args.into_iter().filter(|&a| force || a != "-c").collect();
+            let o = go(&mut m, &args);
+            let err = text(&o.err);
+            assert_eq!(o.status, 1, "-c {force}: {err}");
+            assert!(err.contains(&format!("ec:{end}: LC_COLLATE: empty category description not allowed\n")), "-c {force}: {err}");
+            assert!(err.ends_with("[error] too many errors; giving up\n"), "-c {force}: {err}");
+            assert!(m.dirs.iter().any(|d| d == b"/out/e"), "-c {force}: the output directory is made");
+            assert!(!m.files.keys().any(|k| k.starts_with(b"/out/")), "-c {force}: a category file was written");
+        }
+    }
+    let (_, err, files) = compile_pair(&ascii_charmap(), b"LC_COLLATE\norder_start forward\norder_end\nEND LC_COLLATE\n");
+    assert!(files.contains_key(&b"/out/p/LC_COLLATE"[..]), "{err}");
+}
+
+/// How the C library reads a compiled `LC_COLLATE`: `true` for code point order (no rules).
+fn code_point(file: &[u8]) -> bool {
+    use niji::locale::collate::{Collate, Collation};
+    let cat = niji::locale::file::Category::parse(Box::leak(file.to_vec().into_boxed_slice())).expect("a category file");
+    match Collate::parse(cat) {
+        Some(Collation::CodePoint) => true,
+        Some(Collation::Rules(_)) => false,
+        None => panic!("the C library refuses the file"),
+    }
+}
+
+/// The `LC_COLLATE` compiled from `order` (the lines inside `order_start`, after `head`) with `charmap`.
+fn collate_file(charmap: &[u8], head: &str, order: &str) -> Vec<u8> {
+    let src = format!("LC_COLLATE\n{head}order_start forward\n{order}order_end\nEND LC_COLLATE\n");
+    let (_, err, mut files) = compile_pair(charmap, src.as_bytes());
+    files.remove(&b"/out/p/LC_COLLATE"[..]).unwrap_or_else(|| panic!("no LC_COLLATE: {err}\n{order}"))
+}
+
+/// s31_8_c_1 (D-31.31): an order that is every character of the charmap in code point order, each weighted by itself
+/// (a `..` run or line by line), compiles without rules, in under 2 KiB, which compares as the code points do; any
+/// other order keeps its tables: a character out of place (named before or after the run), a run stopping short of the
+/// charmap, another weight, a contraction, `UNDEFINED`, a backward first level, or a charmap whose byte order is not
+/// its code point order (a file without rules compares bytes).
+#[test]
+fn code_point_order_compiles_without_rules() {
+    let cm = ascii_charmap();
+    let run = "<U0000>\n..\n<U007F>\n";
+    let lines: String = (0..128u32).map(|c| format!("<U{c:04X}>\n")).collect();
+    for order in [run, lines.as_str()] {
+        let f = collate_file(&cm, "", order);
+        assert!(code_point(&f) && f.len() <= 2048, "{} bytes for\n{order}", f.len());
+    }
+    let short = "<U0000>\n..\n<U007E>\n";
+    let weighted = format!("{short}<U007F> <U0041>\n");
+    let after = format!("{run}<U0041>\n");
+    let before = format!("<U0041>\n{run}");
+    let contraction = format!("{run}<ab>\n");
+    let undefined = format!("UNDEFINED\n{run}");
+    for (what, head, order) in [
+        ("short", "", short),
+        ("weighted", "", weighted.as_str()),
+        ("after", "", after.as_str()),
+        ("before", "", before.as_str()),
+        ("contraction", "collating-element <ab> from \"<U0061><U0062>\"\n", contraction.as_str()),
+        ("undefined", "", undefined.as_str()),
+    ] {
+        assert!(!code_point(&collate_file(&cm, head, order)), "{what}: compiled without rules");
+    }
+    let backward = format!("LC_COLLATE\norder_start backward\n{run}order_end\nEND LC_COLLATE\n");
+    let (_, err, files) = compile_pair(&cm, backward.as_bytes());
+    assert!(!code_point(files.get(&b"/out/p/LC_COLLATE"[..]).unwrap_or_else(|| panic!("{err}"))), "backward: compiled without rules");
+    let swapped = String::from_utf8(cm.clone()).unwrap().replace("<U0041> /x41", "<U0041> /x42").replacen("<U0042> /x42", "<U0042> /x41", 1);
+    assert!(!code_point(&collate_file(swapped.as_bytes(), "", run)), "a charmap out of code point order: compiled without rules");
+}
+
+/// s31_8_c_1: a `..` run stays one item until a line names a character inside it; the file is then the one the same
+/// order written line by line gives (the run's characters in place, the named one moved).
+#[test]
+fn a_run_split_by_a_later_line_compiles_as_its_lines() {
+    let cm = ascii_charmap();
+    let lines = |skip: u32| -> String { (0..128u32).filter(|&c| c != skip).map(|c| format!("<U{c:04X}>\n")).collect() };
+    let by_run = collate_file(&cm, "", "<U0000>\n..\n<U007F>\n<U0041>\n");
+    let by_lines = collate_file(&cm, "", &format!("{}<U0041>\n", lines(0x41)));
+    assert!(by_run == by_lines, "moved after the run: the files differ");
+    let by_run = collate_file(&cm, "", "<U0000>\n..\n<U007F>\nreorder-after <U0010>\n<U0050>\nreorder-end\n");
+    let by_lines = collate_file(&cm, "", &lines(0x50).replace("<U0010>\n", "<U0010>\n<U0050>\n"));
+    assert!(by_run == by_lines, "moved by reorder-after: the files differ");
+    // Moved under reorder-after to an item of a backward section, a character of the run keeps its own section's rules.
+    let moved = "order_end\norder_start backward\n<s>\nreorder-after <s>\n<U0041>\nreorder-end\n";
+    let by_run = collate_file(&cm, "collating-symbol <s>\n", &format!("<U0000>\n..\n<U007F>\n{moved}"));
+    let by_lines = collate_file(&cm, "collating-symbol <s>\n", &format!("{}{moved}", lines(u32::MAX)));
+    assert!(by_run == by_lines, "moved into another section: the files differ");
+}
+
+/// A locale whose strings hold characters the ASCII charmap `MINI` lacks, with a transliteration
+/// table that includes `tra`, which includes `trb` (see the test below for what each line probes).
+const TR: &str = "LC_CTYPE\ntranslit_start\ninclude \"tra\";\"\"\n<U20AC> \"<U0045><U0055><U0052>\"\n\
+<U2030> \"<U2031>\";\"<U0025><U0030>\"\n<U2032> \"<U2033>\"\n<U2033> \"<U0022>\"\n\
+<U2034> \"\";\"<U0041><U2035>\";\"<U0042>\"\ntranslit_end\nEND LC_CTYPE\n\
+LC_NUMERIC\ndecimal_point \"<U4E01>\"\nthousands_sep \"<U4E02>\"\ngrouping -1\nEND LC_NUMERIC\n\
+LC_MESSAGES\nyesexpr \"<U005E>[yY<U20AC>]\"\nnoexpr \"<U005E>[nN<U4E00>]\"\nyesstr \"<U2030><U2034>\"\nnostr \"<U2032>\"\nEND LC_MESSAGES\n";
+const TRA: &str = "LC_CTYPE\ntranslit_start\ninclude \"trb\";\"\"\n<U20AC> \"<U0058>\"\n<U4E01> \"<U0031>\"\ntranslit_end\nEND LC_CTYPE\n";
+const TRB: &str = "LC_CTYPE\ntranslit_start\n<U4E01> \"<U0032>\"\n<U4E02> \"<U0033>\"\ntranslit_end\nEND LC_CTYPE\n";
+
+/// Item `i` of the category file at `path` in `m`, without its NUL.
+fn item(m: &Mem, path: &str, i: usize) -> String {
+    let data = m.files.get(path.as_bytes()).unwrap_or_else(|| panic!("{path} written"));
+    let c = niji::locale::file::Category::parse(Box::leak(data.clone().into_boxed_slice())).expect("a category file");
+    text(c.item(i).split(|&b| b == 0).next().unwrap_or_default())
+}
+
+/// s31_8_g_5: a string with a character the charmap lacks takes the locale's transliteration at
+/// compile time: the locale's own entry before an include's (U+20AC: `EUR`, not `tra`'s `X`), an
+/// include's own entry before its include's (U+4E01: `1`, not `trb`'s `2`), an include of an
+/// include (U+4E02: `3`); the first alternative the charmap encodes whole (U+2030: `%0`), an empty
+/// one passed over (U+2034: `B`); no second transliteration (U+2032 to U+2033 fails). A string
+/// with a character neither encoded nor transliterated is empty, one line each (under --quiet too),
+/// status 1, the locale written without -c.
+#[test]
+fn unencodable_strings_take_the_locales_transliteration() {
+    let mut m = host();
+    for (name, src) in [("tr", TR), ("tra", TRA), ("trb", TRB)] {
+        m.files.insert(format!("/usr/share/i18n/locales/{name}").into_bytes(), src.as_bytes().to_vec());
+    }
+    let o = go(&mut m, &["-i", "tr", "-f", "MINI", "--quiet", "/out/tr"]);
+    let err = text(&o.err);
+    assert_eq!(o.status, 1, "{err}");
+    assert_eq!(err, "tr:18: LC_MESSAGES: unknown character in field `noexpr'\ntr:20: LC_MESSAGES: unknown character in field `nostr'\n");
+    assert_eq!((item(&m, "/out/tr/LC_NUMERIC", 0), item(&m, "/out/tr/LC_NUMERIC", 1)), ("1".into(), "3".into()));
+    let msgs: Vec<String> = (0..4).map(|i| item(&m, "/out/tr/LC_MESSAGES/SYS_LC_MESSAGES", i)).collect();
+    assert_eq!(msgs, ["^[yYEUR]", "", "%0B", ""]);
+}

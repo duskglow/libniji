@@ -1,5 +1,6 @@
 # One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
-# spec/tools/header_check.py cover it, 0 = not (header_checks/s16.py does it for sys/profil.h), reject = every configuration rejects it;
+# spec/tools/header_check.py cover it, 0 = not (header_checks/s16.py does it for sys/profil.h;
+# sys/elf.h ships to fail in every configuration, header_checks/s16.py must_fail);
 # uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
 header	p1	uapi
 dlfcn.h	1	-
@@ -11,4 +12,4 @@ sys/gmon_out.h	1	-
 gnu/lib-names.h	1	-
 sys/platform/x86.h	1	-
 sys/profil.h	0	-
-sys/elf.h	reject	-
+sys/elf.h	0	-

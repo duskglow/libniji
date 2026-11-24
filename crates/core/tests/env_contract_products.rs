@@ -16,26 +16,15 @@ mod skip_note;
 
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 
 #[path = "support/timeout.rs"]
 mod timeout;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/env_contract.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-DNIJI_PRODUCTS"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build_quiet(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/env_contract.c").niji_flags(&["-DNIJI_PRODUCTS"]).quiet().build(out, niji)
 }
 
 fn run(exe: &Path) -> (bool, String) {

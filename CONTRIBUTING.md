@@ -175,6 +175,10 @@ the hot-text grouping to the tests that reach it. The CI FULL gate stays the exh
   comes with a compatibility option that restores glibc's behaviour
   ([docs/compat-flags.md](docs/compat-flags.md)), unless there is a very good reason not to
   offer one ([docs/PRINCIPLES.md](docs/PRINCIPLES.md) section 2).
+* **Release notes are one file per change.** A change users may notice adds
+  `docs/release-notes.d/<STORY-ID>.md` (format and sections in that directory's README.md), never
+  a line in `docs/RELEASE-NOTES.md`, which holds released sections only; `cargo xtask static`
+  checks the fragments, and `cargo xtask release-notes release` assembles them at a snapshot.
 * **Wall-clock bounds in tests scale with the machine load.** Never write `elapsed < N s` or
   `Duration::from_secs(N)` as a pass/fail limit: a gate that shares a loaded machine fails it
   (FL-13: a 120 s bound failed at load 20). Prefer an instruction or iteration budget. Where a clock

@@ -1,0 +1,12 @@
+# LIBC-FREERES plants (cargo xtask plants handoff/LIBC-FREERES-plants.txt --dir <new dir>)
+skip-stdio-release | crates/legacy/src/stdio_compat.rs | perl:s/release_buffer\(env, file, env\.ext_at\(ext\)\);/let _ = env.ext_at(ext);/ | cargo test -p niji --test s29_legacy_clauses s29_4_c_1 | msg:s29_4_c_1.*(FAILED|panicked)|buffer is released
+release-unflushed | crates/legacy/src/stdio_compat.rs | perl:s/if flush\(env, file, ext\)\.is_err\(\) \{/ext.state.purge(); if false {/ | cargo test -p niji --test s29_legacy_clauses s29_4_c_1 | msg:s29_4_c_1.*(FAILED|panicked)|pending output is written
+release-read-ahead | crates/legacy/src/stdio_compat.rs | perl:s/Role::Reading if ext\.state\.unread\(\) == 0 => ext\.state\.purge\(\),/Role::Reading => ext.state.purge(),/ | cargo test -p niji --test s29_legacy_clauses s29_4_c_1 | msg:s29_4_c_1.*(FAILED|panicked)|keeps its buffer|no byte read ahead is lost
+skip-freeres-users | crates/boundary/src/posix/s03_memory.rs | perl:s/crate::users::thread_ending\(\);// | cargo test -p niji --test s29_legacy_clauses s29_4_c_1 | msg:s29_4_c_1_counted.*(FAILED|panicked)|none of the library's blocks is left
+skip-freeres-stdio | crates/boundary/src/posix/s03_memory.rs | perl:s/crate::stdio::release_buffers\(\);// | cargo test -p niji --test s29_legacy_clauses s29_4_c_1 | msg:s29_4_c_1.*(FAILED|panicked)|buffer is released
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# skip-stdio-release: CAUGHT, caught by s29_legacy_clauses s29_4_c_1
+# release-unflushed: CAUGHT, caught by s29_legacy_clauses s29_4_c_1
+# release-read-ahead: CAUGHT, caught by s29_legacy_clauses s29_4_c_1
+# skip-freeres-users: CAUGHT, caught by s29_legacy_clauses s29_4_c_1_counted
+# skip-freeres-stdio: CAUGHT, caught by s29_legacy_clauses s29_4_c_1

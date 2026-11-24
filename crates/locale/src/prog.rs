@@ -552,6 +552,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         Err(e) => {
             match (e.kind, inputs.failed) {
                 (ErrorKind::NoMemory, _) => return Err(NoMem),
+                // An empty LC_COLLATE (probed): no file even with -c, and status 1, not 4.
+                (ErrorKind::Refused, _) => {
+                    put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": ", e.what.as_bytes(), b"\n"])?;
+                    put(&mut o.err, &[b"[error] too many errors; giving up\n"])?;
+                    o.status = 1;
+                    return Ok(());
+                }
                 (ErrorKind::Missing, Some((Kind::Locale, errno))) => {
                     put(&mut o.err, &[b"[error] cannot open a locale definition file the source names (copy or include): ", inputs.host.error_text(errno), b"\n"])?;
                 }
@@ -577,6 +584,13 @@ fn body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> core::result::R
         put(&mut o.err, &[shown, b":", decimal(e.line, &mut line), b": "])?;
         put(&mut o.err, cat)?;
         put(&mut o.err, &[e.what.as_bytes(), b"\n"])?;
+        o.status = 1;
+    }
+    // A value written empty because a character is neither in the charmap nor transliterable
+    // (probed, LOCALEDEF-TRANSLIT): one line per value, also under --quiet; a warning (status 1,
+    // the locale written without -c).
+    for (no, n, kw) in out.unknown.iter() {
+        put(&mut o.err, &[shown, b":", decimal(*no, &mut line), b": ", NAMES.get(*n).copied().unwrap_or_default(), b": unknown character in field `", kw, b"'\n"])?;
         o.status = 1;
     }
     let category_errors = out.errors.len() > out.outside;

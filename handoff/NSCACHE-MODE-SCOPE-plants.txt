@@ -1,0 +1,22 @@
+# NSCACHE-MODE-SCOPE plants (cargo xtask plants). Each breaks one assumption of the one-mode tests (D-16.18);
+# crates/core/tests/nscache_reach.rs must fail.
+# A one-mode program starts making a lookup (red-before-green: a getpwnam call added to aio_diff.c).
+aio-calls-getpwnam | crates/core/tests/oracle/aio_diff.c | lit:int main(int argc, char **argv) ==> static struct passwd *plant_pw(void) { return getpwnam("root"); } int main(int argc, char **argv) | cargo test -p niji --test nscache_reach | msg:aio: crates/core/tests/oracle/aio_diff.c names getpwnam
+# The same through a resolver call in another program.
+mntent-calls-res-query | crates/core/tests/oracle/mntent_diff.c | lit:int main(int argc, char **argv) ==> static int plant_q(unsigned char *b) { return res_query("example.org", 1, 1, b, 512); } int main(int argc, char **argv) | cargo test -p niji --test nscache_reach | msg:mntent: crates/core/tests/oracle/mntent_diff.c names res_query
+# A lookup in a local header the programs include.
+header-calls-getaddrinfo | crates/core/tests/oracle/tscale.h | lit:static unsigned tw_scale(void) ==> static int plant_gai(void) { return getaddrinfo("localhost", 0, 0, 0); } static unsigned tw_scale(void) | cargo test -p niji --test nscache_reach | msg:names getaddrinfo \(network lookups
+# A library file that starts using the cache without joining CALLERS.
+new-cache-caller | crates/boundary/src/mntent.rs | lit:use niji::error::Errno; ==> use niji::error::Errno; // reads crate::nscache::MEMORY | cargo test -p niji --test nscache_reach | msg:the name-service cache's callers changed: new \["crates/boundary/src/mntent.rs"\]
+# A both-mode test drops a mode (users makes lookups: it must stay in both).
+users-one-mode | crates/core/tests/users_products.rs | lit:for mode in ["on", "off"] { ==> for mode in ["on"] { | cargo test -p niji --test nscache_reach | msg:one mode changed
+# A one-mode test goes back to both modes without leaving ONE_MODE.
+syslog-both-modes | crates/core/tests/syslog_products.rs | lit:let mode = "on"; ==> let mode = if std::env::args().count() > 99 { "off" } else { "on" }; | cargo test -p niji --test nscache_reach | msg:one mode changed
+# A misspelt family name that would match nothing.
+family-typo | crates/core/tests/nscache_reach.rs | lit:&["res_*", "__res_*"] ==> &["rex_*", "__res_*"] | cargo test -p niji --test nscache_reach | msg:rex_\* \(resolver
+# The scan blanks code as well as comments and literals: it would miss every call.
+scan-blanks-code | crates/core/tests/nscache_reach.rs | lit:out.push(b[i]); ==> out.push(b' '); | cargo test -p niji --test nscache_reach | msg:scan of the sample
+# The scan keeps comments: a lookup named in a comment would count.
+scan-keeps-comments | crates/core/tests/nscache_reach.rs | lit:if b[i..].starts_with(b"/*") { ==> if b[i..].starts_with(b"/+") { | cargo test -p niji --test nscache_reach | msg:scan of the sample
+# The scan keeps string literals.
+scan-keeps-strings | crates/core/tests/nscache_reach.rs | lit:while i < b.len() && b[i] != q { ==> while false && b[i] != q { | cargo test -p niji --test nscache_reach | msg:scan of the sample
