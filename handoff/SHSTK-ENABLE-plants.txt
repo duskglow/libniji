@@ -1,8 +1,8 @@
 # SHSTK-ENABLE (D-21.6): the start-up decision ignores an unmarked object; an unmarked dlopen loads by default.
-start-first-only | crates/ld/src/shstk.rs | lit:    objs.all(|e| marked::<A>(e)) ==>     objs.take(1).all(|e| marked::<A>(e)) | cargo test -p niji-ld --test shstk_marking | msg:start_needs_every_object_marked.*FAILED|did not veto
+start-first-only | crates/ld/src/shstk.rs | lit:    objs.all(|e| marked::<A>(e)) ==>     objs.take(1).all(|e| marked::<A>(e)) | cargo test -p niji-ld --test start_objects | msg:start_needs_every_object_marked.*FAILED|did not veto
 shstk-off-ignored | crates/core/src/config.rs | lit:                        b"off" => ShstkMode::Off, ==>                         b"off" => ShstkMode::Default, | cargo test -p niji --lib shstk_tunables | msg:shstk_tunables.*FAILED|panicked
 dlopen-default-loads | crates/ld/src/shstk.rs | lit:        (false, ShstkMode::Default) => OnDlopen::Refuse, ==>         (false, ShstkMode::Default) => OnDlopen::Load, | cargo test -p niji-ld --lib shstk | msg:dlopen_policy.*FAILED|panicked
 # cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
-# start-first-only: CAUGHT, caught by shstk_marking start_needs_every_object_marked
+# start-first-only: CAUGHT, caught by start_objects start_needs_every_object_marked
 # shstk-off-ignored: CAUGHT, caught by niji config::tests::shstk_tunables
 # dlopen-default-loads: CAUGHT, caught by niji_ld shstk::tests::dlopen_policy
