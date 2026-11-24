@@ -318,6 +318,10 @@ depend only on 6 and may run in parallel.
 | 19 | diagnostic attributes | S | 6 | `format`, `nonnull`, `warn_unused_result`, `malloc`/`alloc_size`, `deprecated`, `noreturn`, from the standards and a warning differential | the same warnings (code and line) as the reference headers on a probe corpus with `-Wall -Wextra -Wformat=2` |
 | 20 | switch and package | M | all | the full C++ check (P4); `niji-gcc`/`niji-cc` default to libniji's headers; `niji6-dev` installs them (`/usr/lib/niji/include`; SL-FLAVOUR gets `/usr/include` and the multiarch directory) | P4; P6 for all 154 programs; P7 for the whole smoke corpus; differences rows for anything accepted |
 
+Open for the owner of `sys/types.h` (slice 5; #7521, found by slice 16): the reference shows
+`struct __pthread_rwlock_arch_t` as visible in `link.h` and `sys/gmon.h` under POSIX 1995, where libniji's
+`sys/types.h` does not declare it; `header_checks/s16.py` leaves the `__pthread*` structures to that slice.
+
 ### 4.1 Adding a slice (SL-HEADERS-REGISTRY)
 
 Slices run in parallel, so a slice **adds files and edits no shared list or function** of the tools.

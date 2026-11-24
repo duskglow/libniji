@@ -1227,8 +1227,9 @@ mod tests {
         }
         let mut t = load(&root).unwrap();
         let mut only = BTreeSet::new();
-        for (name, cxx) in [("niji_test_v4sf", "float __vector(4)"), ("niji_test_v2di", "long long __vector(2)")] {
-            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", "16"), ("align", "16"), ("cxx", cxx)];
+        // niji_test_v8sf is an aligned vector (HEADERS-S16-FOLLOWUP, as La_x86_64_ymm): 32 bytes aligned to 16.
+        for (name, cxx, size, align) in [("niji_test_v4sf", "float __vector(4)", "16", "16"), ("niji_test_v2di", "long long __vector(2)", "16", "16"), ("niji_test_v8sf", "float __vector(8)", "32", "16")] {
+            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", size), ("align", align), ("cxx", cxx)];
             t.typedefs.insert(("typedef".into(), name.into()), row.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());
             only.insert(name.to_string());
         }
@@ -1236,6 +1237,6 @@ mod tests {
         let r = rows::check(&root, &t, &dir, Some(&only));
         let _ = fs::remove_dir_all(&dir);
         let summary = r.unwrap_or_else(|e| panic!("{e}"));
-        assert!(summary.contains("typedefs 2 rows, 0 failed"), "{summary}");
+        assert!(summary.contains("typedefs 3 rows, 0 failed"), "{summary}");
     }
 }
