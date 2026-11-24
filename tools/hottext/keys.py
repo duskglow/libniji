@@ -4,7 +4,7 @@
 usage: keys.py <names file>... > keys              sorted
        keys.py --ordered <names file>... > keys    first occurrence order (files in argument order)
        keys.py --aliases <objdump -t output>       `<symbol key>\t<section key>` (see aliases())
-       keys.py --sections <readelf -SW output>     function names of the function sections (see sections())
+       keys.py --sections <archive or object>      function names of the function sections (see sections())
 The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
   1. drop the library's own prefix `__niji_libc_` (D-X.14 renames; the section keeps the C name);
   2. drop ThinLTO promotion suffixes `.llvm.<digits>`;
@@ -16,6 +16,7 @@ The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
 --ordered (HOT-ORDER) keeps the tracer's first-touch order: the hot-text list is a layout order.
 """
 import re
+import subprocess
 import sys
 
 OWN = "__niji_libc_"
@@ -264,15 +265,25 @@ def function_of(section):
 
 
 def sections(path):
-    """--sections <readelf -SW output>: the function name of every function section, one per line
-    (regen.sh: the names of libc.a that may be listed)."""
-    with open(path) as f:
-        for line in f:
-            m = re.match(r"^\s*\[\s*[0-9]+\]\s+(\S+)\s", line)
-            if m:
-                name = function_of(m.group(1))
-                if name:
-                    print(name)
+    """--sections <archive or object>: the function name of every function section, one per line
+    (regen.sh: the names of libc.a that may be listed), read with `objdump -h`.
+    GATE-HONEST-METRICS-3: not `readelf -SW`, which cuts a section name at 256 bytes: a function whose
+    mangled name is longer (a generic iterator adapter over a closure, 538 bytes) was traced but matched
+    no section here, so it was never listed and ran outside the hot group. A listing with no section
+    line fails rather than listing nothing."""
+    out = subprocess.run(["objdump", "-h", path], capture_output=True, text=True, check=False)
+    if out.returncode != 0:
+        sys.exit(f"keys.py --sections: objdump -h {path} failed ({out.returncode}): {out.stderr.strip()}")
+    found = 0
+    for line in out.stdout.splitlines():
+        m = re.match(r"^\s*[0-9]+\s+(\S+)\s+[0-9a-f]{8}\s", line)
+        if m:
+            found += 1
+            name = function_of(m.group(1))
+            if name:
+                print(name)
+    if not found:
+        sys.exit(f"keys.py --sections: objdump -h {path} printed no section line")
 
 
 def aliases(path):
