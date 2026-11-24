@@ -1,0 +1,24 @@
+sv_SE.UTF-8  setlocale=sv_SE.UTF-8 (a..z then å ä ö)
+  strcoll: az zz åa äa öa
+  verdict: TAILORED 
+es_ES.UTF-8  setlocale=es_ES.UTF-8 (ñ a letter after n)
+  strcoll: nz ña oa
+  verdict: TAILORED 
+tr_TR.UTF-8  setlocale=tr_TR.UTF-8 (ı before i; I/ı and İ/i pairs)
+  strcoll: Ia ıa İa ia iz ja
+  verdict: OTHER
+pl_PL.UTF-8  setlocale=pl_PL.UTF-8 (ą ł ś ż letters of their own)
+  strcoll: az ąa lz ła sz śa zz źa ża
+  verdict: TAILORED ROOT 
+pl_PL.UTF-8  setlocale=pl_PL.UTF-8 (ą after az (tailored) vs between (root))
+  strcoll: az ąa
+  verdict: TAILORED BYTE 
+zh_CN.UTF-8  setlocale=zh_CN.UTF-8 (Han in pinyin order)
+  strcoll: 阿 八 你 我 中
+  verdict: TAILORED 
+ja_JP.UTF-8  setlocale=ja_JP.UTF-8 (kana before Han; hiragana/katakana pairs)
+  strcoll: あ か ア カ 亜 日
+  verdict: BYTE 
+ko_KR.UTF-8  setlocale=ko_KR.UTF-8 (Hanja next to its Hangul reading)
+  strcoll: 가 나 伽 羅
+  verdict: ROOT 

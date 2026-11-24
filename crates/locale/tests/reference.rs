@@ -19,6 +19,10 @@ use niji::locale::file::Category;
 use niji::locale::table3::Table3;
 use niji_locale::{Files, Kind, TryVec};
 
+/// The generated collation root against the reference's en_US (D-31.32).
+#[path = "reference/collate_root.rs"]
+mod collate_root;
+
 const I18N: &str = "/usr/share/i18n";
 /// The decompressed size a charmap may have (the largest installed is under 4 MiB).
 const CHARMAP_LIMIT: usize = 64 << 20;

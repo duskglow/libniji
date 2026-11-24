@@ -1,0 +1,35 @@
+{
+ "task": "LOCALE-COLLATE-TAILORINGS-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: second CI conflict fixed: origin/next deead7890 merged; the generated-root test moved into its own module crates/locale/tests/reference/collate_root.rs so cases appended to reference.rs no longer collide; changed crates' tests green, 12 plants 11 caught 1 equivalent",
+ "branch": "task/locale-collate-tailorings-4",
+ "head": "a997a0f44",
+ "gate": {
+  "affected": "FULL: the train's (Cargo.lock, Cargo.toml, crates/*/Cargo.toml, spec/locale/collate-root.txt); changed crates' tests (cargo xtask so + cargo test -p niji-collate-root -p niji-locale): unit 5, prog 21, reference 20 passed, 0 failed",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Run -2's informational items stand (collseq differs, root contractions beyond l-middle-dot not probed): handoff/LOCALE-COLLATE-TAILORINGS-2-report.md"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "run -2's shared collation root (D-31.32) can merge on the train again; its test now lives in its own module, so later appends to crates/locale/tests/reference.rs do not conflict with it",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "The same conflict cost two CI runs and two agent runs; a static note (or affected warning) when a branch appends a test to a shared reference test file that next also touches would catch it before the train",
+ "next_step": "New story (L), stacked on LOCALE-PROBE-GEN-2 + LOCALE-SOURCES-GEN-2: emit the root into the generated sources, apply the 16,151 tailoring rules and 6 own-order tables, probe collseq; tests as modules under crates/locale/tests/reference/",
+ "report_file": "handoff/LOCALE-COLLATE-TAILORINGS-4-report.md",
+ "jobs": [
+  "shiki:lct4-tests",
+  "shiki:lct4-plants"
+ ]
+}

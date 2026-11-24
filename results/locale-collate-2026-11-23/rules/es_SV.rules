@@ -1,0 +1,6 @@
+es_SV	n=122590	moved=4	relevel=1	rules=5
+&U+101FD 4 U+0020
+&U+0020 4 U+00A0
+=U+00A0 1 U+02D0 (root 4)
+&U+AB3C 1 U+00F1
+&U+00F1 3 U+00D1

@@ -1,0 +1,25 @@
+{"task": "LOCALE-COLLATE-TAILORINGS", "model": "opus", "tokens": null,
+ "result": "CHECKPOINT (coordinator #7950): step 1 done; #7795 = locale not installed (setlocale NULL, C byte order); reference collation of all 327 supported UTF-8 locales probed: 72 distinct orders, 16,151 tailoring rules over 320 locales + 7 own-order tables, 4 weight levels, 36 locales with contractions, root = DUCET 15.1 + ~1,150 placements; steps 2-4 wait for LOCALE-SOURCES-GEN-2/LOCALE-PROBE-GEN-2",
+ "branch": "task/locale-collate-tailorings", "head": "956267aa2",
+ "gate": {"affected": "no library code changed; cargo xtask static rc 0", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+   {"item": "Shared root for generated LC_COLLATE: generate from spec/unicode/15.1.0/allkeys.txt + reference-defined ranges + ~1,150 placement rules, or commit the probed 120k-line root", "recommendation": "generate from DUCET (spec-traceable, compact), after one probe confirms the level-4 tie-break is code point order"}
+ ],
+ "informational": [
+   "Three of four build hosts have only C, C.utf8, en_US.utf8 and POSIX compiled; any comparison of reference locale behaviour there silently measures C. collprobe prints setlocale's return; mei has all locales installed",
+   "Reference strcoll and wcscoll disagree only between undefined code points of different UTF-8 lengths (strcoll -1, wcscoll 0): 2 pairs per locale",
+   "Level labels are unreliable for da, fo, is, kl, lt, lv, nb, nn, se (a filler letter is tailored there); order data is fine",
+   "The reference localedef needs about 200 s and 4.8 MB LC_COLLATE for cmn_TW (beyond a 300 s timeout under load)",
+   "git diff --stat origin/next...origin/task/locale-sources-gen-2 and ...locale-probe-gen-2 were run once (file counts only) to see whether the generator had landed; nothing else read from those branches"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "#7795 settled: the byte-order observation was a missing locale (setlocale NULL), not the reference's order", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "unblock", "what": "probe data and tools for the LC_COLLATE generation continuation (stacked on LOCALE-SOURCES-GEN-2, LOCALE-PROBE-GEN-2)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "locales whose reference collation order is recorded", "before": 0, "after": 327, "unit": "locales", "measured": true}
+ ],
+ "improvement": "Brief was submitted unstacked on its generator; a submit-time check that a brief's named prerequisite story has landed or is stacked would have saved a run start (caught in 6 calls via a cheap challenge)",
+ "next_step": "Continuation story (L, ~250-350 calls): per-locale fillers for 9 Nordic/Baltic locales, expansion + 3-char contraction probes, then generator, tests and plant per results page section 6",
+ "report_file": "handoff/LOCALE-COLLATE-TAILORINGS.md",
+ "jobs": ["keke:locale-collate-tailorings-survey", "keke:locale-collate-tailorings-diff", "keke:locale-collate-tailorings-contr2", "keke:locale-collate-tailorings-cmntw2", "keke:locale-collate-tailorings-static"]}
