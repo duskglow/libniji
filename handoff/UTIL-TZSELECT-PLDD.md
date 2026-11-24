@@ -14,7 +14,7 @@ no-compat reasons).
   ELFCLASS32 layout by the executable's class: NOT VERIFIED (no 32-bit target on the host).
 * Packaging: manifest rows libc-bin `usr/bin/tzselect`, `usr/bin/pldd`, `usr/bin/ld.so` -> `../lib64/ld-linux-x86-64.so.2`;
   coexist niji6 `usr/lib/niji/usr/bin/ld.so`. docs/install-packages.md, release-notes fragment, three differences rows.
-* Tests: `xtask/tests/tzselect_pldd.rs` (8 tests: sessions vs the reference, help/version, missing tables, -c order vs an
+* Tests: `xtask/tests/tz_tools.rs` (8 tests: sessions vs the reference, help/version, missing tables, -c order vs an
   in-test haversine, end of input at every prompt, pldd vs the reference incl. dlopen'd objects and a second thread,
   pldd options, manifest link in both flavours). `tools/deb/root-system.sh`: `/usr/bin/ld.so --version` equals the
   loader path's, `/usr/bin/ld.so --library-path` runs hello, `tzselect -c +4852+00220` picks Europe/Paris, pldd lists a

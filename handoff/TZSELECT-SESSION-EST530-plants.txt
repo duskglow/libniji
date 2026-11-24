@@ -1,6 +1,6 @@
 # TZSELECT-SESSION-EST530 plants: the pinned clock of tzselect_sessions_match_the_reference
-# (xtask/tests/tzselect_pldd.rs) and the clock lines it now compares (csys/util/tzselect.c).
+# (xtask/tests/tz_tools.rs) and the clock lines it now compares (csys/util/tzselect.c).
 # Run with cargo xtask plants (docs/plants.md).
-clock-pin-dropped | xtask/tests/tzselect_pldd.rs | lit:c.env("LD_PRELOAD", pin).env("NIJI_TEST_CLOCK", secs); ==> c.env("NIJI_TEST_CLOCK", secs); | cargo test -p xtask --test tzselect_pldd tzselect_sessions_match_the_reference | msg:clock is not pinned
-seconds-offset-shows-clock | csys/util/tzselect.c | lit:probe.tm_gmtoff % 60 == 0 ==> probe.tm_gmtoff % 60 != 61 | cargo test -p xtask --test tzselect_pldd tzselect_sessions_match_the_reference | msg:EST5:30:59. at 1795543500
-clock-line-a-second-late | csys/util/tzselect.c | lit:if (!localtime_r(&now, &tm) ==> if (!localtime_r(&(time_t){now + 1}, &tm) | cargo test -p xtask --test tzselect_pldd tzselect_sessions_match_the_reference | msg:Selected time is now:.*vs Some
+clock-pin-dropped | xtask/tests/tz_tools.rs | lit:c.env("LD_PRELOAD", pin).env("NIJI_TEST_CLOCK", secs); ==> c.env("NIJI_TEST_CLOCK", secs); | cargo test -p xtask --test tz_tools tzselect_sessions_match_the_reference | msg:clock is not pinned
+seconds-offset-shows-clock | csys/util/tzselect.c | lit:probe.tm_gmtoff % 60 == 0 ==> probe.tm_gmtoff % 60 != 61 | cargo test -p xtask --test tz_tools tzselect_sessions_match_the_reference | msg:EST5:30:59. at 1795543500
+clock-line-a-second-late | csys/util/tzselect.c | lit:if (!localtime_r(&now, &tm) ==> if (!localtime_r(&(time_t){now + 1}, &tm) | cargo test -p xtask --test tz_tools tzselect_sessions_match_the_reference | msg:Selected time is now:.*vs Some
