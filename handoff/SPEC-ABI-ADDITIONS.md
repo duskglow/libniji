@@ -1,7 +1,7 @@
-# SPEC-ABI-ADDITIONS(-2): exports beyond the reference survive a versions.tsv regeneration
+# SPEC-ABI-ADDITIONS(-2,-3): exports beyond the reference survive a versions.tsv regeneration
 
-State: branch `task/spec-abi-additions-2` (SPEC-ABI-ADDITIONS's branch plus a merge of origin/next); code head and
-job results are in handoff/reports/SPEC-ABI-ADDITIONS-2.json. Decisions in force: D-24.12 (owner ruling R3, the
+State: branch `task/spec-abi-additions-3` (SPEC-ABI-ADDITIONS-2's branch plus a second merge of origin/next); head
+and job results are in handoff/reports/SPEC-ABI-ADDITIONS-3.json. Decisions in force: D-24.12 (owner ruling R3, the
 GLIBC_2.41 exports; its body names the additions file). No new decision record: the mechanism is described in
 Appendix C.0 "Additions" (glibc-functional-spec.md), the extractor's docstring and `xtask/src/abi_versions.rs`.
 
@@ -47,7 +47,23 @@ symbol would belong in an additions-style file (with a decision), not in empty-v
 - `cargo xtask affected` escalates to FULL for any spec/abi table change, including the additions file and digests
   read only by the extractor and one static check.
 
+## SPEC-ABI-ADDITIONS-3: the release step's exec rc 127 (train of 11-23 14:54Z)
+
+- Step 0: clippy and static green on the inherited head de5fbdfef (mei s4, job spec-abi-additions-3-lint0).
+- Merged origin/next (de86ab08b). One conflict, `static_list()`: next added `release-notes`, this branch
+  `abi-versions`; both kept (43 checks).
+- The release step as CI runs it (`NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji
+  --test hot_text_products`, after `cargo xtask static`) PASSES on the merged head: 36 passed, including
+  `init_dynamic_startup_only_program_stays_within_its_page_fault_bound` (job spec-abi-additions-3-release1).
+- Why the branch cannot change the loader's view: `versions.tsv` and `versions-aarch64.tsv` hold exactly next's
+  rows (sorted comparison equal); the branch only moves the two sched_*attr rows to the end of libc.so.6's rows.
+  Every product-side reader (`so.rs` version scripts, `libmvec.rs`, `placeholders.rs`, `compat.rs`) collects into
+  BTreeMap/BTreeSet, so the order never reaches the products. The release libc.so.6 defines 44 version nodes, none
+  twice, with `sched_getattr/sched_setattr@@GLIBC_2.41`.
+- Cause of the old 127: not reproducible and not attributable from the old log (the harness of the time printed
+  only the status, no stderr). RELEASE-STEP-EXEC-FAIL-2's harness now names a relay exec failure or the loader's
+  error, so a recurrence will say which.
+
 ## Next step
 
-Land. Plants: handoff/SPEC-ABI-ADDITIONS-2-plants.txt (7: hand row, no decision, rows removed, file deleted,
-digest ignored, merge at end, record unchecked).
+Land. Plants: handoff/SPEC-ABI-ADDITIONS-3-plants.txt (the same 7 as -2, rerun on the merged head).
