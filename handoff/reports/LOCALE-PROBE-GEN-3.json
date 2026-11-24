@@ -1,20 +1,48 @@
-{"task": "LOCALE-PROBE-GEN-3", "model": "opus", "tokens": null,
+{
+ "task": "LOCALE-PROBE-GEN-3",
+ "model": "opus",
+ "tokens": null,
  "result": "origin/next merged (C.UTF-8 source from next, probe-generated names kept); direct gate, release-profile hot_text_products and plants green on keke",
- "branch": "task/locale-probe-gen-3", "head": null,
- "gate": {"affected": "8 suites ok, 705 passed / 0 failed (direct tier; FULL is the train's); release-profile hot_text_products 36 passed / 0 failed", "peak": "6.8G"},
+ "branch": "task/locale-probe-gen-3",
+ "head": "fc9d1abb4",
+ "gate": {
+  "affected": "8 suites ok, 705 passed / 0 failed (direct tier; FULL is the train's); release-profile hot_text_products 36 passed / 0 failed",
+  "peak": "6.8G"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "CI's red (init_data_clusters_hold_at_every_text_phase, release profile) does not recur after merging origin/next: the release-profile hot_text_products run on keke passes 36 of 36",
-   "Locale sources differences row reworded: localedef now transliterates at compile time (LOCALEDEF-TRANSLIT); the 251-value / 81-entry count is labelled as measured before that landed; re-measuring is the queued follow-up #185 (#7957)",
-   "plants: WARN-DEV-SHM for the /dev/shm plants dir the brief prescribes for a Zen 1 host; none of the planted tests mounts /dev or /dev/shm"
+  "CI's red (init_data_clusters_hold_at_every_text_phase, release profile) does not recur after merging origin/next: the release-profile hot_text_products run on keke passes 36 of 36",
+  "Locale sources differences row reworded: localedef now transliterates at compile time (LOCALEDEF-TRANSLIT); the 251-value / 81-entry count is labelled as measured before that landed; re-measuring is the queued follow-up #185 (#7957)",
+  "plants: WARN-DEV-SHM for the /dev/shm plants dir the brief prescribes for a Zen 1 host; none of the planted tests mounts /dev or /dev/shm. First run: merge-c-source and merge-probe-only WARN-NO-MSG (caught by the products shipping check, not the named test); msg widened, both CAUGHT in plants2"
  ],
  "refused": [],
  "impact": [
-   {"kind": "unblock", "what": "LOCALE-PROBE-GEN chain mergeable with next; enables the queued follow-ups #185 (generator transliteration data, 251 legacy values) and #188 (collation tailorings), both waiting on this chain", "before": null, "after": null, "unit": null, "measured": false},
-   {"kind": "coverage", "what": "plants on the merged head (13 inherited, 2 new on the merge resolution)", "before": 13, "after": 15, "unit": "plants", "measured": true}
+  {
+   "kind": "unblock",
+   "what": "LOCALE-PROBE-GEN chain mergeable with next; enables the queued follow-ups #185 (generator transliteration data, 251 legacy values) and #188 (collation tailorings), both waiting on this chain",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the merged head: 15 of 15 CAUGHT (13 inherited, 2 new on the merge resolution; the 2 new caught by the products shipping check, re-run with the widened msg as plants2)",
+   "before": 13,
+   "after": 15,
+   "unit": "plants",
+   "measured": true
+  }
  ],
  "improvement": "A merge-only continuation could skip step 0's lint on the inherited head when the coordinator already says to merge next: the merged head is linted anyway (one 5-minute build saved).",
  "next_step": "Land; then brief #185 (generator emits the transliteration include, re-measure the 251 legacy values on mei) and #188 (tailorings).",
  "report_file": "handoff/LOCALE-PROBE-GEN.md",
- "jobs": ["keke:locale-probe-gen-3-lint2", "keke:locale-probe-gen-3-gate2", "keke:locale-probe-gen-3-relht", "keke:locale-probe-gen-3-plants"]}
+ "jobs": [
+  "keke:locale-probe-gen-3-lint2",
+  "keke:locale-probe-gen-3-gate2",
+  "keke:locale-probe-gen-3-relht",
+  "keke:locale-probe-gen-3-plants",
+  "keke:locale-probe-gen-3-plants2"
+ ]
+}

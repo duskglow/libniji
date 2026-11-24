@@ -31,7 +31,8 @@ JSON: `handoff/reports/LOCALE-PROBE-GEN-3.json`. Remaining differences (pre-merg
 * `locale-probe-gen-3-plants`: 15 plants, 13 CAUGHT with their message, 0 SURVIVED; `merge-c-source` and
   `merge-probe-only` WARN-NO-MSG: caught by the products build's shipping check (a manifest-listed source missing,
   `locale-sources/C` / `locale-sources/aa_DJ: No such file`). msg widened; the two re-run alone as
-  `locale-probe-gen-3-plants2` (results: `handoff/LOCALE-PROBE-GEN-3-plants.txt`, first run).
+  `locale-probe-gen-3-plants2`: 2 of 2 CAUGHT with the message (results: `handoff/LOCALE-PROBE-GEN-3-plants.txt`,
+  first run).
 * Superseded: `locale-probe-gen-3-gate` (stopped in its prechecks: the head moved by a docs commit), `lint1` (older head).
 
 ## Not done / next
