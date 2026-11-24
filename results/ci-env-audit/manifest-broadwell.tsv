@@ -1,0 +1,91 @@
+kernel.release	6.8.0-147-generic
+kernel.version	#147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026
+cpu.model	Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+cpu.count	35
+cpu.flags.sha	1e51ead50b4d3612
+cpu.flag.avx2	1
+cpu.flag.avx512f	0
+cpu.flag.avx512bw	0
+cpu.flag.bmi2	1
+cpu.flag.erms	1
+cpu.flag.fsrm	0
+cpu.flag.shstk	0
+cpu.flag.ibt	0
+cpu.flag.user_shstk	0
+os.release	Ubuntu 24.04.5 LTS
+libc.reference	GNU C Library (Ubuntu GLIBC 2.39-0ubuntu8.9) stable release version 2.39.
+libc.reference.sha	3a15d66867d83762
+ldso.reference.sha	c20a2dc8917c755f
+tool.cc	cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+tool.gcc	gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+tool.g++	g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+tool.clang	ABSENT
+tool.ld	GNU ld (GNU Binutils for Ubuntu) 2.42
+tool.ld.bfd	GNU ld (GNU Binutils for Ubuntu) 2.42
+tool.ld.gold	GNU gold (GNU Binutils for Ubuntu 2.42) 1.16
+tool.ld.lld	ABSENT
+tool.as	GNU assembler (GNU Binutils for Ubuntu) 2.42
+tool.ar	GNU ar (GNU Binutils for Ubuntu) 2.42
+tool.objdump	GNU objdump (GNU Binutils for Ubuntu) 2.42
+tool.readelf	GNU readelf (GNU Binutils for Ubuntu) 2.42
+tool.nm	GNU nm (GNU Binutils for Ubuntu) 2.42
+tool.python3	Python 3.12.3
+tool.perl	
+tool.make	GNU Make 4.3
+tool.strace	strace -- version 6.8
+tool.gdb	GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1
+tool.msgfmt	msgfmt (GNU gettext-tools) 0.21
+tool.gencat	gencat (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+tool.localedef	localedef (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+tool.iconv	iconv (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+tool.zic	zic (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+rust.toolchains	1.99.0-x86_64-unknown-linux-gnu 1.99.1-x86_64-unknown-linux-gnu nightly-2026-10-04-x86_64-unknown-linux-gnu nightly-x86_64-unknown-linux-gnu stable-x86_64-unknown-linux-gnu 
+cargo.nextest	
+locale.archive.sha	7a31de159ded19d7
+locale.archive.size	3055776
+locale.dirs	1
+locale.list.sha	dd84eab41dc558c1
+locale.count	4
+i18n.locales.sha	9cb326218907c82c
+i18n.charmaps.sha	10894f0ec21b7bef
+zoneinfo.version	# version 2026e
+gconv.modules.sha	52c227df9d532482
+etc.resolv.conf.sha	8bd3414796c90cb6
+etc.hosts.sha	a199e49dbfd2eedc
+etc.nsswitch.conf.sha	cf4b86500454b477
+etc.services.sha	f6183055fd949f9c
+etc.protocols.sha	4959498abbadaa1e
+etc.localtime.sha	8b85846791ab2c8a
+etc.ld.so.preload.sha	ABSENT
+etc.ld.so.cache.sha	e7bda77e05e2950c
+dpkg.count	1882
+dpkg.sha	0525966a2598ed2c
+pkg.libc6	2.39-0ubuntu8.9
+pkg.libc6-dev	2.39-0ubuntu8.9
+pkg.libc-bin	2.39-0ubuntu8.9
+pkg.locales	2.39-0ubuntu8.9
+pkg.locales-all	
+pkg.tzdata	2026e-0ubuntu0.24.04.1
+pkg.gcc	4:13.2.0-7ubuntu1
+pkg.g++	4:13.2.0-7ubuntu1
+pkg.binutils	2.42-4ubuntu2.10
+pkg.libstdc++6	14.2.0-4ubuntu2~24.04.1
+pkg.libgcc-s1	14.2.0-4ubuntu2~24.04.1
+pkg.gettext	0.21-14ubuntu2
+sysctl.kernel.randomize_va_space	2
+sysctl.vm.overcommit_memory	0
+sysctl.vm.max_map_count	1048576
+sysctl.vm.mmap_min_addr	65536
+sysctl.kernel.yama.ptrace_scope	1
+sysctl.kernel.perf_event_paranoid	1
+sysctl.kernel.unprivileged_userns_clone	1
+sysctl.fs.mqueue.msg_max	10
+sysctl.kernel.pid_max	4194304
+thp.enabled	always [madvise] never
+thp.defrag	always defer defer+madvise [madvise] never
+fault_around_bytes	UNREADABLE
+ulimit.stack	8192
+ulimit.nofile	1024
+ulimit.as	unlimited
+tmp.fs	ext2/ext3
+home.fs	ext2/ext3

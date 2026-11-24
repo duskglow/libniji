@@ -1,0 +1,23 @@
+{"task": "LAYOUT-HEAD-BIN-TAIL", "model": "opus", "tokens": null,
+ "result": "Head window bin links measured-phase sections ahead of the last member every warm-up runs (D-X.162): no phase mode exposed at any text pad on the fast and release plans; planned windows unchanged",
+ "branch": "task/layout-head-bin-tail", "head": "78527098f",
+ "gate": {"affected": "627 passed / 0 failed (direct tier, xtask bounded set; FULL is the train's)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "next's fast plan already gives the float phase 2 faults against 1 planned at 97 of 4096 text pads (0x1e30..0x2430, pad 0x2000 among them); float is not among the text-phase test's modes; fixed by the same rule",
+   "start-up counts at pre pads are not a contract; with the fix the probe's true mode exceeds its plan at 3619 / 3495 pads (fast / release) against 3517 / 3411 on next; real programs do not run the cover (getrusage)",
+   "PRINTF-NO-HEAP-3's branch was not checked out (no checkouts of others' work); the mechanism is reduced on next's own plan by removing pair_s from its items"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "strings phase faults at text pads ahead of the group, release plan with pair_s inlined away (evaluator, 4096 pads)", "before": 60, "after": 0, "unit": "pads with 1 fault over plan", "measured": true},
+   {"kind": "faults", "what": "float phase faults over plan at text pads, fast plan of next (evaluator, 4096 pads)", "before": 97, "after": 0, "unit": "pads with 1 fault over plan", "measured": true},
+   {"kind": "cost", "what": "probe true mode over plan at pre text pads (not a contract), fast / release (evaluator); fix-forward: none needed, the cover getrusage is not run by real start-up", "before": 3517, "after": 3619, "unit": "pads (fast)", "measured": true},
+   {"kind": "coverage", "what": "planner test of every head-bin split with an inlining-like change, 3 plants caught", "before": 0, "after": 1, "unit": "tests", "measured": true},
+   {"kind": "unblock", "what": "PRINTF-NO-HEAP-3 (#7886): inlining pair_s no longer exposes resolve_fold_slow", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A pad-sweep evaluator over the build's own plan (scratch today) would catch this class at build time; worth an xtask check that every phase mode stays at its planned count at every pad",
+ "next_step": "Land; optionally promote the pad-sweep evaluator to a planner check",
+ "report_file": "handoff/LAYOUT-HEAD-BIN-TAIL.md",
+ "jobs": ["shiki:layout-head-bin-tail-gate", "shiki:layout-head-bin-tail-plants", "shiki:layout-head-bin-tail-full", "shiki:layout-head-bin-tail-xtest"]}

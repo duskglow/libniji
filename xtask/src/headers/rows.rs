@@ -41,9 +41,19 @@ const DWARF: &[(&str, &str)] = &[
 /// The integer types of macros.tsv.
 const INTS: &[&str] = &["int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long"];
 
-/// The largest finite value of each floating type (IEEE 754 binary32 and binary64, and the x87 80-bit format the
-/// x86-64 psABI gives `long double`): a value above it is an infinity.
-const FMAX: &[(&str, &str)] = &[("float", "3.40282346638528859811704183484516925e+38F"), ("double", "1.79769313486231570814527423731704357e+308"), ("long double", "1.18973149535723176502126385303097021e+4932L")];
+/// The largest finite value of each floating type's format (IEEE 754 binary32, binary64 and binary128, and the x87
+/// 80-bit format the x86-64 psABI gives `long double` and `_Float64x`), without the type's suffix: a value above it is
+/// an infinity.
+const FMAX: &[(&str, &str)] = &[
+    ("float", "3.40282346638528859811704183484516925e+38"),
+    ("double", "1.79769313486231570814527423731704357e+308"),
+    ("long double", "1.18973149535723176502126385303097021e+4932"),
+    ("_Float32", "3.40282346638528859811704183484516925e+38"),
+    ("_Float64", "1.79769313486231570814527423731704357e+308"),
+    ("_Float32x", "1.79769313486231570814527423731704357e+308"),
+    ("_Float64x", "1.18973149535723176502126385303097021e+4932"),
+    ("_Float128", "1.18973149535723176508575932662800702e+4932"),
+];
 
 /// One translation unit: its lines and, for each, the row it belongs to.
 #[derive(Default, Clone)]
@@ -475,15 +485,14 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         } else if let Some((_, max)) = FMAX.iter().find(|(f, _)| f == ty) {
             lines.push(format!("NIJI_C (_Generic (({n}), {ty}: 1, default: 0), \"macros {n} is {ty}\");"));
             lines.push(format!("NIJI_X (niji_same<decltype ({n}), {ty}>::v, \"macros {n} is {ty}\");"));
-            let sfx = match ty.as_str() {
-                "float" => "F",
-                "long double" => "L",
-                _ => "",
-            };
+            // The table's hexadecimal value, read by the C++ unit (gnu++17 has hexadecimal floating constants) in
+            // the type: an independent spelling of the value the generator writes in decimal.
+            let sfx = super::values::FLOATS.iter().find(|r| r.0 == ty).map_or("", |r| r.2);
             let test = match v.as_str() {
-                "inf" => format!("({n}) > {max}"),
-                "-inf" => format!("({n}) < -{max}"),
-                "nan" => format!("({n}) != ({n})"),
+                "inf" => format!("({n}) > {max}{sfx}"),
+                "-inf" => format!("({n}) < -{max}{sfx}"),
+                "nan" => format!("({n}) != ({n}) && !__builtin_issignaling ({n})"),
+                "snan" => format!("__builtin_issignaling ({n})"),
                 x => format!("({n}) == {x}{sfx}"),
             };
             lines.push(format!("NIJI_X ({test}, \"macros {n} = {v}\");"));

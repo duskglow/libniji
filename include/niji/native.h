@@ -173,8 +173,9 @@ extern "C" {
 #define NIJI_NSCACHE_REASON_REFUSED UINT32_C(3)
 /* niji_nscache_info.reason: the region could not be opened, created, sized, locked or mapped. */
 #define NIJI_NSCACHE_REASON_UNAVAILABLE UINT32_C(4)
-/* getpass's default bound: the most bytes of input before the newline (1 MiB). */
-#define NIJI_GETPASS_DEFAULT_LIMIT ((size_t)1048576)
+/* getpass's default bound: 0, no bound (the line grows with use, memory permitting; D-17.9,
+ * D-17.10). */
+#define NIJI_GETPASS_DEFAULT_LIMIT ((size_t)0)
 
 /* An instant (seconds and nanoseconds since 1970-01-01 00:00:00 UTC) or a clock reading. Size
  * 16 bytes, alignment 8. */
@@ -442,10 +443,11 @@ int64_t niji_nscache_status(struct niji_nscache_info *out);
  * the first request. */
 int64_t niji_aio_use_threads(void);
 
-/* Set the process's bound on getpass's line to bytes (0: NIJI_GETPASS_DEFAULT_LIMIT again): the
- * bound that was in force, or -EINVAL above PTRDIFF_MAX. A longer line is read to its end and
- * discarded, every library buffer that held it zeroed, and getpass fails with EOVERFLOW (never
- * a truncated password). It holds for the life of the process and in its fork children. */
+/* Set the process's bound on getpass's line to bytes (0: no bound, NIJI_GETPASS_DEFAULT_LIMIT,
+ * the default): the bound that was in force (0 for none), or -EINVAL above PTRDIFF_MAX. A
+ * longer line is read to its end and discarded, every library buffer that held it zeroed, and
+ * getpass fails with EOVERFLOW (never a truncated password). It holds for the life of the
+ * process and in its fork children. */
 int64_t niji_getpass_set_limit(size_t bytes);
 
 #ifdef __cplusplus

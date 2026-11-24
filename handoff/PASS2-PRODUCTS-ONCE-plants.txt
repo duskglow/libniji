@@ -1,0 +1,14 @@
+# PASS2-PRODUCTS-ONCE plants (D-X.161)
+p2po-leak-all | xtask/src/nextest.rs | lit:target.ends_with(PRODUCTS_SUFFIX) && !PASS2_PRODUCTS ==> target.ends_with("_never") && !PASS2_PRODUCTS | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:(products_targets_run_in_the_second_pass_only_when_listed|the_native_pass_runs_only_the_listed_products_targets).*(FAILED|panicked)
+p2po-term-leak | xtask/src/nextest.rs | lit:binary_id(/{PRODUCTS_SUFFIX}$/) ==> binary_id(/{PRODUCTS_SUFFIX}_x$/) | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:products_targets_run_in_the_second_pass_only_when_listed.*(FAILED|panicked)
+p2po-kept-dropped | xtask/src/nextest.rs | lit:, ("niji", "timers_products")] ==> ] | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:(products_targets_run_in_the_second_pass_only_when_listed|the_native_pass_runs_only_the_listed_products_targets).*(FAILED|panicked)
+p2po-once-dedup | xtask/src/nextest.rs | lit:.filter(|b| !b.split_once("::").is_some_and(|(c, t)| first_pass_only(c, t))) ==> | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:products_targets_run_in_the_second_pass_only_when_listed.*(FAILED|panicked)
+p2po-pass0-lost | xtask/src/nextest.rs | lit:pass0_only(krate, target) || products_once(krate, target) ==> products_once(krate, target) | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:(products_targets_run_in_the_second_pass_only_when_listed|the_native_pass_runs_only_the_listed_products_targets).*(FAILED|panicked)
+p2po-affected-wiring | xtask/src/affected.rs | lit:pass == 0 || !crate::nextest::first_pass_only(c, t) ==> pass == 0 || !crate::nextest::pass0_only(c, t) | cargo test -p xtask -- nextest::tests::products_targets affected::tests::the_native_pass | msg:the_native_pass_runs_only_the_listed_products_targets.*(FAILED|panicked)
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# p2po-leak-all: CAUGHT, caught by xtask nextest::tests::products_targets_run_in_the_second_pass_only_when_listed
+# p2po-term-leak: CAUGHT, caught by xtask nextest::tests::products_targets_run_in_the_second_pass_only_when_listed
+# p2po-kept-dropped: CAUGHT, caught by xtask affected::tests::the_native_pass_runs_only_the_listed_products_targets
+# p2po-once-dedup: CAUGHT, caught by xtask nextest::tests::products_targets_run_in_the_second_pass_only_when_listed
+# p2po-pass0-lost: CAUGHT, caught by xtask affected::tests::the_native_pass_runs_only_the_listed_products_targets
+# p2po-affected-wiring: CAUGHT, caught by xtask affected::tests::the_native_pass_runs_only_the_listed_products_targets

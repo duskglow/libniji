@@ -1,0 +1,15 @@
+# SYS-THREAD-DB-2: plants on libthread_db.so.1 (C layer) and the libc descriptor it reads. Each rebuilds the
+# products and runs the gdb proof (static program: threads, backtraces, TLS, live and from a core file).
+fs-base-index | crates/libc-so/placeholders/libthread_db.c | lit:#define REG_FS_BASE 21 ==> #define REG_FS_BASE 20 | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+iter-state-filter | crates/libc-so/placeholders/libthread_db.c | lit:if (state == TD_THR_ANY_STATE || state == st) { ==> if (state == st) { | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+tlsbase-direction | crates/libc-so/placeholders/libthread_db.c | lit:*base = (void *)(uintptr_t)(tp - size); ==> *base = (void *)(uintptr_t)(tp + size); | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+magic-mismatch | crates/libc-so/placeholders/libthread_db.c | lit:#define DEBUG_MAGIC 0x31626474696a696eULL ==> #define DEBUG_MAGIC 0x32626474696a696eULL | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+lwp-is-pid | crates/libc-so/placeholders/libthread_db.c | lit:info->ti_lid = (int)tid; ==> info->ti_lid = ps_getpid(ta->ph); | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+desc-next-offset | crates/rt/src/thread.rs | lit:desc_next: offset_of!(Thread, next), ==> desc_next: offset_of!(Thread, prev), | cargo xtask so && cargo test -p niji --test thread_db_products | msg:gdb_lists_threads.*FAILED
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# fs-base-index: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# iter-state-filter: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# tlsbase-direction: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# magic-mismatch: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# lwp-is-pid: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core
+# desc-next-offset: CAUGHT, caught by thread_db_products gdb_lists_threads_backtraces_and_tls_of_a_static_program_and_its_core

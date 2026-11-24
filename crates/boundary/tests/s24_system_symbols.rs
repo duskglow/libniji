@@ -380,14 +380,14 @@ fn sym_gethostid() {
     let dir = scratch::Scratch::dir("s24-hostid");
     let file = dir.join("hostid");
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
-    let fallback = sys_compat::gethostid(k, b"/nonexistent/hostid\0");
+    let fallback = sys_compat::gethostid(k, &niji_boundary::heap::KernelPages, b"/nonexistent/hostid\0");
     assert_eq!(fallback, expected_hostid_without_file(), "no file: from the address");
     for (bytes, want) in [(&[0x78u8, 0x56, 0x34, 0x12][..], 0x1234_5678), (&[1, 2, 3, 4, 5, 6, 7, 8][..], i32::from_ne_bytes([1, 2, 3, 4])), (&[0xff; 4][..], -1)] {
         std::fs::write(&file, bytes).unwrap();
-        assert_eq!(sys_compat::gethostid(k, &path), want, "{bytes:?}: the first 4 bytes, native order");
+        assert_eq!(sys_compat::gethostid(k, &niji_boundary::heap::KernelPages, &path), want, "{bytes:?}: the first 4 bytes, native order");
     }
     std::fs::write(&file, [1u8, 2]).unwrap();
-    assert_eq!(sys_compat::gethostid(k, &path), fallback, "a short file counts as absent");
+    assert_eq!(sys_compat::gethostid(k, &niji_boundary::heap::KernelPages, &path), fallback, "a short file counts as absent");
 }
 
 /// [`expected_hostid`] as if /etc/hostid did not exist.
@@ -1050,7 +1050,7 @@ fn sym_sethostid() {
     std::fs::write(&file, b"longer old contents").unwrap();
     sys_compat::sethostid(k, &path, -2).unwrap();
     assert_eq!(std::fs::read(&file).unwrap(), (-2i32).to_ne_bytes(), "4 bytes, native order, replacing the old contents");
-    assert_eq!(sys_compat::gethostid(k, &path), -2, "read back");
+    assert_eq!(sys_compat::gethostid(k, &niji_boundary::heap::KernelPages, &path), -2, "read back");
 }
 /// Without privilege the kernel refuses (`EPERM`, as the host's glibc reports); in a private
 /// user and UTS namespace the name changes there only (`unshare`, run as a child test).

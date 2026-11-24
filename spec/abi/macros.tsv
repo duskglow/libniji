@@ -6540,14 +6540,14 @@ SL_MODE_KISS	net/if_slip.h	int	4
 SL_MODE_SLIP	net/if_slip.h	int	0
 SL_OPT_ADAPTIVE	net/if_slip.h	int	8
 SL_OPT_SIXBIT	net/if_slip.h	int	2
-SNAN	math.h	double	nan
-SNANF	math.h	float	nan
-SNANF128	math.h	_Float128	nan
-SNANF32	math.h	_Float32	nan
-SNANF32X	math.h	_Float32x	nan
-SNANF64	math.h	_Float64	nan
-SNANF64X	math.h	_Float64x	nan
-SNANL	math.h	long double	nan
+SNAN	math.h	double	snan
+SNANF	math.h	float	snan
+SNANF128	math.h	_Float128	snan
+SNANF32	math.h	_Float32	snan
+SNANF32X	math.h	_Float32x	snan
+SNANF64	math.h	_Float64	snan
+SNANF64X	math.h	_Float64x	snan
+SNANL	math.h	long double	snan
 SOCK_CLOEXEC	arpa/inet.h	int	524288
 SOCK_DCCP	arpa/inet.h	int	6
 SOCK_DGRAM	arpa/inet.h	int	2

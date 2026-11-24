@@ -393,6 +393,15 @@ fn s2_3_c_3() {
     c_clause(&REPORT, "s02_report", "s2_3_c_3");
 }
 
+/// §2.3: `error` and `error_at_line` exit only for a status other than 0, so a status-0 call (a
+/// constant 0 or a run-time 0) returns: compiled at -O2 against libniji's own `<error.h>`, the code
+/// after each such call runs (ERROR-H-NORETURN: the header must not declare them noreturn then).
+/// Clauses `s2_3_c_2`, `s2_3_c_3`.
+#[test]
+fn error_status_zero_returns() {
+    conformance(&["s02_error_returns"]);
+}
+
 /// §2.3: `error_print_progname`, when set, replaces the program-name prefix.
 #[test]
 fn s2_3_c_4() {

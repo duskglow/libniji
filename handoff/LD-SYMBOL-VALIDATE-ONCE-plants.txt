@@ -1,0 +1,4 @@
+# LD-SYMBOL-VALIDATE-ONCE plants (cargo xtask plants)
+version-index-skip | crates/ld/src/symbols.rs | lit:if quick_id(me, version) == Some(id) { ==> if true { | cargo test -p niji-ld --test reloc reloc_quick | msg:reloc_quick_versions_bind_by_index_each_to_its_own.*FAILED|panicked
+validation-skip | crates/ld/src/symbols.rs | lit:let ok = self.quick_valid(h); ==> let ok = self.quick_valid(h) || true; | cargo test -p niji-ld --test reloc reloc_quick | msg:reloc_quick_unterminated_string_table_is_the_exact_walks_error.*FAILED|panicked
+quick-bloom | crates/ld/src/symbols.rs | lit:if bloom & bits != bits { ==> if bloom & bits == bits { | cargo test -p niji-ld --test reloc reloc_quick | msg:FAILED|panicked

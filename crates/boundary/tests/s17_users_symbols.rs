@@ -31,7 +31,7 @@ use niji_boundary::sys::CSys;
 use niji_kernel::ops::{IoctlIntArg, IoctlIntIn, IoctlIntOut};
 use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
-use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
+use niji_kernel::uapi::{Rlimit, O_CLOEXEC, O_NOCTTY, O_RDWR, RLIMIT_AS, RLIM_INFINITY};
 use niji_kernel::Fd;
 use niji_legacy::accounting as acct;
 
@@ -818,20 +818,34 @@ fn wiped(line: &str) -> (usize, usize) {
 
 #[test]
 fn sym_getpass_bound() {
-    // D-17.8 (§17.5, getpass; the spec's HIST note corrected: glibc has no bound, getpass(3)):
-    // at most 1 MiB before the newline unless niji_getpass_set_limit changes it; a longer line
-    // is read to its end, discarded and zeroed, and the call fails with EOVERFLOW, never
-    // returning a truncated password; the next line is read normally.
+    // D-17.8, D-17.9 (§17.5, getpass; getpass(3) names no bound): no bound by default (a 4 MiB
+    // line, four times the 1 MiB bound D-17.9 removed, comes back whole); a line over a bound
+    // the process set with niji_getpass_set_limit, or one there is no memory to hold, is read
+    // to its end, discarded and zeroed, and the call fails with EOVERFLOW (ENOMEM), never
+    // returning a truncated password; the next line is read normally. The 4 MiB line goes
+    // through standard input: a terminal in canonical mode passes at most 4095 bytes of a line.
     const MIB: usize = 1 << 20;
+    const ENOMEM: i32 = 12;
     match probe().as_deref() {
         Some("bound") => {
-            for prompt in [c"at: ", c"under: ", c"over: ", c"after: "] {
+            for prompt in [c"long: ", c"after: "] {
+                println!("{}", pass_line(prompt));
+            }
+            return;
+        }
+        Some("bound-nomem") => {
+            // The address space capped a little above what the process uses: the 64 MiB line
+            // cannot be held.
+            let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
+            let pages: u64 = statm.split_whitespace().next().unwrap().parse().unwrap();
+            CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: pages * 4096 + 16 * MIB as u64, max: RLIM_INFINITY })).unwrap();
+            for prompt in [c"huge: ", c"after: "] {
                 println!("{}", pass_line(prompt));
             }
             return;
         }
         Some("bound-set") => {
-            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), MIB as i64);
+            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), 0, "no bound by default");
             for prompt in [c"at: ", c"over: ", c"after: "] {
                 println!("{}", pass_line(prompt));
             }
@@ -842,7 +856,7 @@ fn sym_getpass_bound() {
             let path = CString::new(&tty["bound-tty:".len()..]).unwrap();
             let fd = CSys.openat(Fd::CWD, KStr::from_nul_terminated(path.as_bytes_with_nul()).unwrap(), O_RDWR, 0).unwrap();
             CSys.ioctl_int(fd, IoctlIntArg::Tiocsctty, 0).unwrap();
-            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), MIB as i64);
+            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), 0, "no bound by default");
             for prompt in [c"P1: ", c"P2: "] {
                 println!("{}", pass_line(prompt));
             }
@@ -871,24 +885,24 @@ fn sym_getpass_bound() {
         assert!(o.status.success(), "{out}{}", String::from_utf8_lossy(&o.stderr));
         reports(&out)
     };
-    // The default bound, on standard input: at, one under and one over it.
-    let mut input = Vec::new();
-    for (c, n) in [(b'a', MIB), (b'b', MIB - 1), (b'c', MIB + 1)] {
-        input.extend(std::iter::repeat_n(c, n));
-        input.push(b'\n');
-    }
-    input.extend(b"after\n");
+    // No bound by default, on standard input: a 4 MiB line whole.
+    let mut input = std::iter::repeat_n(b'a', 4 * MIB).collect::<Vec<u8>>();
+    input.extend(b"\nafter\n");
     let r = run("bound", input);
-    assert_eq!(r.len(), 4, "{r:?}");
-    assert!(r[0].starts_with(&format!("len={MIB} fill=true ")), "at the bound: {}", r[0]);
-    assert!(r[1].starts_with(&format!("len={} fill=true ", MIB - 1)), "one under the bound: {}", r[1]);
-    assert!(r[2].starts_with(&format!("NULL errno={EOVERFLOW} ")), "one over the bound: {}", r[2]);
-    assert!(r[3].starts_with("len=5 fill=false "), "the rest of the long line was consumed: {}", r[3]);
-    let (before, _) = wiped(&r[2]);
-    assert!(before >= MIB, "the discarded line's bytes (at least the bound) were zeroed: {}", r[2]);
+    assert_eq!(r.len(), 2, "{r:?}");
+    assert!(r[0].starts_with(&format!("len={} fill=true ", 4 * MIB)), "a 4 MiB line, whole: {}", r[0]);
+    assert!(r[1].starts_with("len=5 fill=false "), "{}", r[1]);
     for line in &r {
         assert_eq!(wiped(line).1, 0, "every buffer zeroed completely: {line}");
     }
+    // No memory for the line: ENOMEM, the line read to its end and the next one read normally.
+    let mut input = std::iter::repeat_n(b'h', 64 * MIB).collect::<Vec<u8>>();
+    input.extend(b"\nafter\n");
+    let r = run("bound-nomem", input);
+    assert_eq!(r.len(), 2, "{r:?}");
+    assert!(r[0].starts_with(&format!("NULL errno={ENOMEM} ")), "no memory for the line: {}", r[0]);
+    assert!(r[1].starts_with("len=5 fill=false "), "the rest of the huge line was consumed: {}", r[1]);
+    assert_eq!(wiped(&r[0]).1, 0, "zeroed: {}", r[0]);
     // The override, on standard input.
     let r = run("bound-set", b"12345678\n123456789\nok\n".to_vec());
     assert_eq!(r.len(), 3, "{r:?}");

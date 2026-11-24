@@ -34,6 +34,20 @@ const BLANK: u16 = isbit(8);
 const CNTRL: u16 = isbit(9);
 const PUNCT: u16 = isbit(10);
 const ALNUM: u16 = isbit(11);
+/// The class keywords of an `LC_CTYPE` source and their bits (`alnum` is derived, never listed).
+pub(crate) const CLASS_KEYWORDS: [(&str, u16); 11] = [
+    ("upper", UPPER),
+    ("lower", LOWER),
+    ("alpha", ALPHA),
+    ("digit", DIGIT),
+    ("xdigit", XDIGIT),
+    ("space", SPACE),
+    ("print", PRINT),
+    ("graph", GRAPH),
+    ("blank", BLANK),
+    ("cntrl", CNTRL),
+    ("punct", PUNCT),
+];
 
 struct Record {
     cat: String,
@@ -750,6 +764,82 @@ fn generate_class_words(dir: &Path) -> Result<String, String> {
     }
     writeln!(w, "];").ok();
     Ok(s)
+}
+
+/// For each code point below 0x110000: the `C.UTF-8` class word (D-5.4), whether it is in the
+/// `combining` and `combining_level3` classes (bits 0 and 1), and its simple upper, lower and
+/// title case mappings (the code point itself when it has none). Read by the generated locale sources'
+/// `i18n_ctype` (`xtask/src/locales.rs`, D-31.27), so the locales classify as `C.UTF-8` does.
+pub(crate) fn ctype_props(root: &Path) -> Result<Vec<CtypeProps>, String> {
+    let dir = root.join("spec/unicode/15.1.0");
+    let ud = unicode_data(&dir)?;
+    let map = |c: u32, d: i32| c.checked_add_signed(d).ok_or_else(|| format!("U+{c:04X}: case delta {d}"));
+    (0..MAX)
+        .zip(props(&dir, &ud)?)
+        .map(|(c, p)| Ok(CtypeProps { class: p.class, extra: p.extra, upper: map(c, p.upper)?, lower: map(c, p.lower)?, title: map(c, p.title)? }))
+        .collect()
+}
+
+/// The assigned code points a collation table orders by implicit weights (UTS #10 10.1.3,
+/// "Implicit Weights"), as groups in the order of their implicit bases: Tangut (with its
+/// components and supplement), Nushu, Khitan Small Script, then the Unified_Ideograph code points
+/// of the CJK Unified Ideographs and CJK Compatibility Ideographs blocks, then the other
+/// Unified_Ideograph code points. Each group is in code point order (the implicit weights' order).
+pub(crate) fn implicit_groups(root: &Path) -> Result<Vec<Vec<u32>>, String> {
+    let dir = root.join("spec/unicode/15.1.0");
+    let ud = unicode_data(&dir)?;
+    let uni = ranges(&dir, "PropList.txt")?.remove("Unified_Ideograph").ok_or("PropList.txt: no Unified_Ideograph")?;
+    let assigned = |r: &[(u32, u32)]| -> Vec<u32> { r.iter().flat_map(|&(a, b)| a..=b).filter(|c| ud.contains_key(c)).collect() };
+    let core = |c: &u32| (0x4E00..=0x9FFF).contains(c) || (0xF900..=0xFAFF).contains(c);
+    Ok(vec![
+        assigned(&[(0x17000, 0x18AFF), (0x18D00, 0x18D7F)]),
+        assigned(&[(0x1B170, 0x1B2FF)]),
+        assigned(&[(0x18B00, 0x18CFF)]),
+        uni.iter().copied().filter(core).collect(),
+        uni.iter().copied().filter(|c| !core(c)).collect(),
+    ])
+}
+
+/// Each code point's full decomposition (canonical only when `compat` is false), for the code
+/// points that have one: the transliteration tables of the generated locale sources.
+pub(crate) fn full_decompositions(root: &Path, compat: bool) -> Result<BTreeMap<u32, (bool, Vec<u32>)>, String> {
+    let ud = unicode_data(&root.join("spec/unicode/15.1.0"))?;
+    fn full(ud: &BTreeMap<u32, Record>, c: u32, compat: bool, is_compat: &mut bool, out: &mut Vec<u32>) {
+        match ud.get(&c).and_then(|r| r.decomp.as_ref()) {
+            Some((k, d)) if compat || !*k => {
+                *is_compat |= *k;
+                for &x in d {
+                    full(ud, x, compat, is_compat, out);
+                }
+            }
+            _ => out.push(c),
+        }
+    }
+    let mut out = BTreeMap::new();
+    for (&c, r) in &ud {
+        if r.decomp.as_ref().is_some_and(|(k, _)| compat || !*k) {
+            let (mut k, mut v) = (false, Vec::new());
+            full(&ud, c, compat, &mut k, &mut v);
+            out.insert(c, (k, v));
+        }
+    }
+    Ok(out)
+}
+
+/// The code points whose General_Category starts with `prefix` (`M`: the combining marks; `Sc`:
+/// the currency symbols).
+pub(crate) fn category(root: &Path, prefix: &str) -> Result<BTreeSet<u32>, String> {
+    let ud = unicode_data(&root.join("spec/unicode/15.1.0"))?;
+    Ok(ud.iter().filter(|(_, r)| r.cat.starts_with(prefix)).map(|(&c, _)| c).collect())
+}
+
+/// One code point's `C.UTF-8` class word, `combining` bits and simple case mappings.
+pub(crate) struct CtypeProps {
+    pub class: u16,
+    pub extra: u8,
+    pub upper: u32,
+    pub lower: u32,
+    pub title: u32,
 }
 
 fn write_out(root: &Path, out: &str, text: &str, check: bool) -> Result<(), String> {
