@@ -60,3 +60,12 @@ configurations, 73462 rows) gave 35 rows for the three names this slice adds the
 visibility.tsv (25 `__locale_t` typedef rows, each with the configurations of the same header's `locale_t` row; 7
 `__CORRECT_ISO_CPP_STRING_H_PROTO` and 3 `__CORRECT_ISO_CPP_WCHAR_H_PROTO` macro rows, C++ configurations only). The
 typedefs.tsv row of `__locale_t` by type_probe.py --headers argp.h (8, 8, `__locale_struct*`).
+SL-HEADERS-UNSHIPPED-REST (thread_db.h, proc_service.h), on the reference system (ldd (Ubuntu GLIBC 2.39-0ubuntu8.9)
+2.39, GCC 13.3): abi_extract.py with proc_service.h in HEADERS and the thread_db.h tags in TYPES (the C++ names of
+typedefs.tsv's rows; struct td_eventbuf is not declared): --layouts-only gave 64 rows for the 13 new types, spliced in
+alone (the rerun's other differences, listed under HEADERS-TABLES-NET, left as they are), and the 7 ps_err_e
+enumerators (enumerators.tsv otherwise unchanged); --prototypes-only added the 15 proc_service.h rows (3796 reference
+rows, otherwise unchanged; prototypes.sha256 rewritten). visibility.tsv by header_probe.py --headers
+thread_db.h,proc_service.h: the 900 committed rows of the two headers reproduced unchanged, 22 rows added; typedefs.tsv
+by type_probe.py --headers thread_db.h,proc_service.h: 22 rows added, the 70 it gave for names already in the table
+identical. macros.tsv unchanged (type_probe now calls TD_SIGNO_MASK `pointer` 0; the committed `null` row is kept).

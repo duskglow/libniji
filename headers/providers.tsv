@@ -21,10 +21,21 @@ la_x32_gnu_pltenter	program	rtld-audit(7): an audit library (LD_AUDIT) defines i
 la_x32_gnu_pltexit	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltexit, x32)
 la_x86_64_gnu_pltenter	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltenter, x86-64)
 la_x86_64_gnu_pltexit	program	rtld-audit(7): an audit library (LD_AUDIT) defines it (la_pltexit, x86-64)
+ps_get_thread_area	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_getpid	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_lcontinue	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_lgetfpregs	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 ps_lgetregs	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_lsetfpregs	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_lsetregs	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_lstop	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_pcontinue	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 ps_pdread	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 ps_pdwrite	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 ps_pglobal_lookup	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_pstop	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_ptread	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
+ps_ptwrite	debugger	proc_service.h: the proc_service interface the debugger implements for libthread_db
 bindresvport6	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
 getumask	none	declared by the reference (visibility.tsv), no default-version export (versions.tsv); ruling #6715
 fpclassify	generic	ISO C++ [c.math]: <cmath> declares std::fpclassify as overloaded functions; probe: using std::fpclassify compiles

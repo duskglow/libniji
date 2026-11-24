@@ -2466,3 +2466,67 @@ struct res_sym		24	8
 struct res_sym	number	0		int	
 struct res_sym	name	8		char *	
 struct res_sym	humanname	16		char *	
+struct td_thrhandle		16	8		
+struct td_thrhandle	th_ta_p	0		td_thragent_t *	
+struct td_thrhandle	th_unique	8		psaddr_t	
+struct td_thr_events		8	4		
+struct td_thr_events	event_bits	0		uint32_t[2]	
+struct td_notify		16	8		
+struct td_notify	type	0		td_notify_e	
+struct td_notify	u	8		union <anon>	
+struct td_notify	u.bptaddr	8		psaddr_t	
+struct td_notify	u.syscallno	8		int	
+struct td_event_msg		24	8		
+struct td_event_msg	event	0		td_event_e	
+struct td_event_msg	th_p	8		const td_thrhandle_t *	
+struct td_event_msg	msg	16		union <anon>	
+struct td_event_msg	msg.data	16		uintptr_t	
+struct td_ta_stats		40	4		
+struct td_ta_stats	nthreads	0		int	
+struct td_ta_stats	r_concurrency	4		int	
+struct td_ta_stats	nrunnable_num	8		int	
+struct td_ta_stats	nrunnable_den	12		int	
+struct td_ta_stats	a_concurrency_num	16		int	
+struct td_ta_stats	a_concurrency_den	20		int	
+struct td_ta_stats	nlwps_num	24		int	
+struct td_ta_stats	nlwps_den	28		int	
+struct td_ta_stats	nidle_num	32		int	
+struct td_ta_stats	nidle_den	36		int	
+struct td_thrinfo		384	8		
+struct td_thrinfo	ti_ta_p	0		td_thragent_t *	
+struct td_thrinfo	ti_user_flags	8		unsigned int	
+struct td_thrinfo	ti_tid	16		thread_t	
+struct td_thrinfo	ti_tls	24		char *	
+struct td_thrinfo	ti_startfunc	32		psaddr_t	
+struct td_thrinfo	ti_stkbase	40		psaddr_t	
+struct td_thrinfo	ti_stksize	48		long int	
+struct td_thrinfo	ti_ro_area	56		psaddr_t	
+struct td_thrinfo	ti_ro_size	64		int	
+struct td_thrinfo	ti_state	68		td_thr_state_e	
+struct td_thrinfo	ti_db_suspended	72		unsigned char	
+struct td_thrinfo	ti_type	76		td_thr_type_e	
+struct td_thrinfo	ti_pc	80		intptr_t	
+struct td_thrinfo	ti_sp	88		intptr_t	
+struct td_thrinfo	ti_flags	96		short int	
+struct td_thrinfo	ti_pri	100		int	
+struct td_thrinfo	ti_lid	104		lwpid_t	
+struct td_thrinfo	ti_sigmask	112		sigset_t	
+struct td_thrinfo	ti_sigmask.__val	112		long unsigned int[16]	
+struct td_thrinfo	ti_traceme	240		unsigned char	
+struct td_thrinfo	ti_preemptflag	241		unsigned char	
+struct td_thrinfo	ti_pirecflag	242		unsigned char	
+struct td_thrinfo	ti_pending	248		sigset_t	
+struct td_thrinfo	ti_pending.__val	248		long unsigned int[16]	
+struct td_thrinfo	ti_events	376		td_thr_events_t	
+struct td_thrinfo	ti_events.event_bits	376		uint32_t[2]	
+td_eventbuf_t		24	8		
+td_eventbuf_t	eventmask	0		td_thr_events_t	
+td_eventbuf_t	eventmask.event_bits	0		uint32_t[2]	
+td_eventbuf_t	eventnum	8		td_event_e	
+td_eventbuf_t	eventdata	16		void *	
+td_err_e		4	4		
+td_event_e		4	4		
+td_notify_e		4	4		
+td_thr_state_e		4	4		
+td_thr_type_e		4	4		
+ps_err_e		4	4		

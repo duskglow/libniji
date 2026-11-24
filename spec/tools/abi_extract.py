@@ -34,7 +34,7 @@ sys/wait.h dlfcn.h link.h mntent.h fstab.h getopt.h argp.h obstack.h printf.h ma
 error.h syslog.h fmtmsg.h sys/mman.h fcntl.h unistd.h sched.h sys/sysmacros.h sys/inotify.h
 sys/signalfd.h sys/timerfd.h sys/eventfd.h sys/xattr.h sys/random.h sys/auxv.h execinfo.h
 inttypes.h stdint.h stddef.h stdarg.h envz.h argz.h libgen.h nl_types.h libintl.h
-thread_db.h sys/ptrace.h sys/prctl.h gnu/libc-version.h sys/single_threaded.h sys/rseq.h
+thread_db.h proc_service.h sys/ptrace.h sys/prctl.h gnu/libc-version.h sys/single_threaded.h sys/rseq.h
 stdbit.h sys/pidfd.h sys/mount.h sys/fanotify.h sys/quota.h sys/swap.h sys/klog.h
 sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mcheck.h nss.h
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
@@ -158,6 +158,13 @@ TYPES = [
  ("Elf64_Verdaux", "Elf64_Verdaux"), ("Elf64_Verneed", "Elf64_Verneed"), ("Elf64_Vernaux", "Elf64_Vernaux"),
  ("struct user", "struct user"), ("struct elf_prstatus", "struct elf_prstatus"),
  ("struct elf_prpsinfo", "struct elf_prpsinfo"), ("struct elf_siginfo", "struct elf_siginfo"),
+ # thread_db.h and proc_service.h (SL-HEADERS-UNSHIPPED-REST): the tags are the C++ names of typedefs.tsv's rows.
+ ("struct td_thrhandle", "struct td_thrhandle"), ("struct td_thr_events", "struct td_thr_events"),
+ ("struct td_notify", "struct td_notify"), ("struct td_event_msg", "struct td_event_msg"),
+ ("struct td_ta_stats", "struct td_ta_stats"), ("struct td_thrinfo", "struct td_thrinfo"),
+ ("struct td_eventbuf", "struct td_eventbuf"), ("td_eventbuf_t", "td_eventbuf_t"),
+ ("td_err_e", "td_err_e"), ("td_event_e", "td_event_e"), ("td_notify_e", "td_notify_e"),
+ ("td_thr_state_e", "td_thr_state_e"), ("td_thr_type_e", "td_thr_type_e"), ("ps_err_e", "ps_err_e"),
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).

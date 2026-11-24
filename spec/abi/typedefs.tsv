@@ -3641,6 +3641,16 @@ typedef	thrd_start_t	threads.h	8	8	int (*)(void*)
 typedef	thrd_t	threads.h	8	8	unsigned long
 function	thrd_yield	threads.h			void ()
 typedef	thread_key_t	thread_db.h	4	4	unsigned int
+struct	td_event_msg	thread_db.h	24	8	td_event_msg
+typedef	td_eventbuf_t	thread_db.h	24	8	td_eventbuf_t
+struct	td_notify	thread_db.h	16	8	td_notify
+typedef	td_notify_e	thread_db.h	4	4	td_notify_e
+struct	td_ta_stats	thread_db.h	40	4	td_ta_stats
+struct	td_thr_events	thread_db.h	8	4	td_thr_events
+typedef	td_thr_type_e	thread_db.h	4	4	td_thr_type_e
+struct	td_thrhandle	thread_db.h	16	8	td_thrhandle
+struct	td_thrinfo	thread_db.h	384	8	td_thrinfo
+typedef	thread_t	thread_db.h	8	8	unsigned long
 function	time	complex.h			long (long*)
 typedef	time_t	aio.h	8	8	long
 struct	timeb	sys/timeb.h	16	8	timeb
@@ -3776,6 +3786,18 @@ function	uselocale	complex.h			__locale_struct* (__locale_struct*)
 struct	user	proc_service.h	912	8	user
 struct	user_fpregs_struct	proc_service.h	512	8	user_fpregs_struct
 struct	user_regs_struct	proc_service.h	216	8	user_regs_struct
+typedef	ps_err_e	proc_service.h	4	4	ps_err_e
+function	ps_get_thread_area	proc_service.h			ps_err_e (ps_prochandle*, int, int, void**)
+function	ps_getpid	proc_service.h			int (ps_prochandle*)
+function	ps_lcontinue	proc_service.h			ps_err_e (ps_prochandle*, int)
+function	ps_lgetfpregs	proc_service.h			ps_err_e (ps_prochandle*, int, user_fpregs_struct*)
+function	ps_lsetfpregs	proc_service.h			ps_err_e (ps_prochandle*, int, user_fpregs_struct const*)
+function	ps_lsetregs	proc_service.h			ps_err_e (ps_prochandle*, int, unsigned long long const*)
+function	ps_lstop	proc_service.h			ps_err_e (ps_prochandle*, int)
+function	ps_pcontinue	proc_service.h			ps_err_e (ps_prochandle*)
+function	ps_pstop	proc_service.h			ps_err_e (ps_prochandle*)
+function	ps_ptread	proc_service.h			ps_err_e (ps_prochandle*, void*, void*, unsigned long)
+function	ps_ptwrite	proc_service.h			ps_err_e (ps_prochandle*, void*, void const*, unsigned long)
 function	usleep	arpa/nameser.h			int (unsigned int)
 function	utime	utime.h			int (char const*, utimbuf const*)
 function	utimensat	ftw.h			int (int, char const*, timespec const*, int)
