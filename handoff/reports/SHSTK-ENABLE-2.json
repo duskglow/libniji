@@ -1,7 +1,7 @@
 {"task": "SHSTK-ENABLE-2", "model": "opus", "tokens": null,
  "result": "CI conflict with next resolved (both sides kept); ruling #8100: makecontext shadow stacks recorded by uc_stack.ss_sp and unmapped on reuse (D-21.7 (5) with residual); #8101 cited in D-21.6",
  "branch": "task/shstk-enable-2", "head": "3461ce9b4",
- "gate": {"affected": "FULL tier is the train's (csys .S); cargo xtask test shstk-enable-2-xtest2 + hot_text_products shstk-enable-2-hottext2 on keke, see hand-back", "peak": null},
+ "gate": {"affected": "FULL tier is the train's (csys .S); cargo xtask test (xtest2): 7313 + 4852 + 131 + 46 passed / 0 failed; hot_text_products (hottext2) 36 passed; plants2 3/3 CAUGHT; lint2 rc 0; precheck GREEN on cc48f6613", "peak": "13G (xtest2, oom_kill=0)"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": ["#8101 veto stays provisional until the owner answers", "one edit used sed -i on D-21.7's tests line (rules ask for the Edit tool); result checked", "N100 run on 0533b7a7e; 3461ce9b4 adds only the fork USED bit"],
