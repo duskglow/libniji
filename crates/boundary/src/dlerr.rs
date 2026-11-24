@@ -82,6 +82,24 @@ fn compose(buf: &mut [u8], parts: &[&[u8]]) -> usize {
     n
 }
 
+/// Run `f`, a lookup the library makes for itself (not a caller's `dl*` call), and leave the
+/// calling thread's pending/not-pending state as it was: a success clears only the pending word
+/// ([`clear`]), which is put back, so a text pending before `f` is still the one `dlerror` returns.
+/// A failure inside `f` replaces the text; callers use this only for lookups that cannot fail.
+pub fn keeping<T>(f: impl FnOnce() -> T) -> T {
+    let word = |r: usize| bytes(r).get(..TEXT).map_or([0; TEXT], |w| w.try_into().unwrap_or([0; TEXT]));
+    let r = record(false);
+    let before = if r == 0 { [0; TEXT] } else { word(r) };
+    let out = f();
+    let r = record(false);
+    if r != 0 && word(r) != before {
+        if let Some(w) = bytes(r).get_mut(..TEXT) {
+            w.copy_from_slice(&before);
+        }
+    }
+    out
+}
+
 /// Clear the calling thread's pending text (a successful `dl*` call).
 pub fn clear() {
     let r = record(false);
