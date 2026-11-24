@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "Merged origin/next, moved the gencat release note to docs/release-notes.d/UTIL-14-4.md, fixed the stale libc-dev-bin package description; direct gate and 7 gencat plants green",
  "branch": "task/util-14-4",
- "head": "80f55a809",
+ "head": "289a04f51",
  "gate": {
   "affected": "util-14-4-gate2: green (direct tier, rc 0); util-14-4-gate (before the description fix): 2 failed, both deb_manifest description check",
   "peak": "3.8G"
@@ -14,7 +14,7 @@
  "informational": [
   "Premise: UTIL-14-3 work is complete; only the RELEASE-NOTES.md conflict kept it red",
   "The merge also conflicted in crates/core/tests/catalogs_products.rs (imports): next's imports kept, scratch module kept",
-  "The plants ran on cf8d3a355; the only later change is tools/deb/description/libc-dev-bin (not code under plant)"
+  "Plants util-14-4-plants (older head) superseded by util-14-4-plants2 on the final head"
  ],
  "refused": [],
  "impact": [
@@ -40,6 +40,6 @@
  "report_file": "handoff/UTIL-14.md",
  "jobs": [
   "mei:util-14-4-gate2",
-  "mei:util-14-4-plants"
+  "mei:util-14-4-plants2"
  ]
 }
