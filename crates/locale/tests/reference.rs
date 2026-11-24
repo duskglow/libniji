@@ -881,7 +881,8 @@ type Compared = (&'static str, usize, &'static [(&'static str, Item)]);
 /// name where it differs from its UTF-8 sibling (the probe dump's own rows; the rest the UTF-8
 /// tests cover): the characters the codeset lacks transliterated through the locale's table at
 /// compile time (`€` as `EUR`, U+202F as U+00A0, `’` as `'`, `₽` as `руб` in Cyrillic codesets),
-/// the wide separators keeping the source's character. LOCALE-PROBE-GEN-2 measured 251 such
+/// the wide separators keeping the source's character (compared from the sibling's rows for every
+/// entry compiled here). LOCALE-PROBE-GEN-2 measured 251 such
 /// values differing in 81 of the 182 entries before the probed table was generated.
 #[test]
 fn generated_legacy_codesets_hold_the_references_transliterated_values() {
@@ -927,7 +928,7 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
             Some((b, c)) => format!("{b}.{}{m}", c.to_lowercase().replace(['-', '_'], "")),
             None => entry.to_string(),
         };
-        let rows: Vec<(usize, Item, String, Vec<u8>)> = dump
+        let mut rows: Vec<(usize, Item, String, Vec<u8>)> = dump
             .lines()
             .filter_map(|l| l.strip_prefix(&format!("{pn}\t")))
             .filter_map(|r| {
@@ -941,6 +942,20 @@ fn generated_legacy_codesets_hold_the_references_transliterated_values() {
         assert!(dump.lines().any(|l| l.starts_with(&format!("{pn}\t-\tcharmap\t{cs}"))), "{entry} {cs}: no probe of {pn} in that codeset");
         if rows.is_empty() {
             continue;
+        }
+        // The wide separators (`*-thousands-sep-wc`) equal the UTF-8 sibling's, so the dump has
+        // no own row for them; compare them too where the narrow form is transliterated (the
+        // `@euro` names: U+00A0 narrow, U+202F wide).
+        if let Some(sib) = dump.lines().find_map(|l| l.strip_prefix(&format!("{pn}\t-\tsame-as\t"))) {
+            for r in dump.lines().filter_map(|l| l.strip_prefix(&format!("{sib}\t"))) {
+                let [cat, kw, val] = r.split('\t').collect::<Vec<_>>()[..] else { continue };
+                let what = format!("{cat} {kw}");
+                if let Some((file, item @ Word(_))) = find(cat, kw) {
+                    if !rows.iter().any(|r| r.2 == what) {
+                        rows.push((file, item, what, val.as_bytes().to_vec()));
+                    }
+                }
+            }
         }
         if ProductSources(src.clone()).read(Kind::Charmap, cs.as_bytes()).is_err() {
             println!("SKIP {entry} {cs}: neither the products nor this system has the charmap");
