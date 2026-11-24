@@ -1600,7 +1600,8 @@ mod tests {
     #[test]
     fn the_direct_matcher_reads_utf8_names_as_the_general_one_does() {
         let toks: [&[u8]; 12] = [b"a", b"k", b".", b"/", b"*", b"?", b"[!a]", b"[[:upper:]]", b"[a-z]", b"\\*", b"[k]", "é".as_bytes()];
-        let alphabet: [&[u8]; 8] = [b"a", b".", b"/", "é".as_bytes(), "É".as_bytes(), "\u{212a}".as_bytes(), "日".as_bytes(), "\u{1f600}".as_bytes()];
+        // `Ж` (first byte 0xd0) has the top payload bit of a two-byte first byte set: a wrong mask shows.
+        let alphabet: [&[u8]; 8] = [b"a", b".", b"/", "é".as_bytes(), "É".as_bytes(), "\u{212a}".as_bytes(), "Ж".as_bytes(), "\u{1f600}".as_bytes()];
         let mut strings: Vec<Vec<u8>> = std::vec![Vec::new()];
         let mut frontier = strings.clone();
         for _ in 0..3 {

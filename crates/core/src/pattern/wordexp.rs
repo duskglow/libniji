@@ -2413,7 +2413,9 @@ mod tests {
         for s in [&b"cc -O2 -Wall -o prog main.c util.c -lm"[..], b"'a b' \"c $HOME\" d\\ e", b"$WORDS", b"~/a $HOME b", b"x=~/y \"$1\" $#"] {
             assert_eq!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
         }
-        assert_eq!(parse(b"${HOME:-/x}"), (true, true, true));
-        assert_ne!(parse(b"$((1+2))"), (false, false, false));
+        for s in [&b"${HOME:-/x}"[..], b"${HOME:-$x}", b"\"${HOME:-a b}\"", b"$((1+2))", b"$(($x+2))"] {
+            assert_ne!(parse(s), (false, false, false), "{:?}", core::str::from_utf8(s));
+        }
+        assert!(parse(b"${HOME:-$x}").0, "an expansion inside a ${{...}} word opens a frame");
     }
 }
