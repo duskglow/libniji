@@ -98,9 +98,10 @@ fn sysroot(dir: &Path) -> PathBuf {
     let inc = dir.join("sysroot/usr/include");
     std::fs::create_dir_all(inc.join("x86_64-linux-gnu")).unwrap();
     for tree in ["include", "uapi"] {
-        for e in std::fs::read_dir(p.join(tree)).unwrap() {
-            let e = e.unwrap();
-            std::os::unix::fs::symlink(e.path(), inc.join(e.file_name())).unwrap();
+        let mut names: Vec<_> = std::fs::read_dir(p.join(tree)).unwrap().map(|e| e.unwrap().file_name()).collect();
+        names.sort();
+        for n in names {
+            std::os::unix::fs::symlink(p.join(tree).join(&n), inc.join(&n)).unwrap();
         }
     }
     dir.join("sysroot")
