@@ -1,3 +1,6 @@
 # LD-START-MAPS-3 plants, run 2: the two that survived run 1 (handoff/LD-START-MAPS-3-plants.txt). give-back-overlap was caught on the Haswell-EP host by a system-level search test only; it now has a direct unit test of the arena (arena_give_back_keeps_the_bytes_still_in_use). merge-with-spans dropped the last span, a read-only segment the reader need not read (too weak); merge-with-spans-2 drops every span, the merge's likely slip (the probe returned without its spans).
 give-back-overlap | crates/boundary/src/ld/image.rs | lit:compare_exchange(end, keep, Relaxed, Relaxed) ==> compare_exchange(end, keep.saturating_sub(128), Relaxed, Relaxed) | cargo test -p niji-boundary --features ld --lib arena_give_back | msg:arena_give_back_keeps_the_bytes_still_in_use.*(FAILED|panicked)
 merge-with-spans-2 | crates/boundary/src/ld/image.rs | lit:probe.with_spans(&spans[..k]).ok_or(malformed) ==> probe.with_spans(&spans[..0]).ok_or(malformed) | cargo test -p niji-ld --test ldso_search | msg:ldso_s.*(FAILED|panicked)
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# give-back-overlap: CAUGHT, caught by niji_boundary ld::image::tests::arena_give_back_keeps_the_bytes_still_in_use
+# merge-with-spans-2: CAUGHT, caught by ldso_search ldso_search_secure_ignores_library_path
