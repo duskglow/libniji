@@ -847,6 +847,160 @@ fn generated_c_source_compiles_to_the_builtin_c_utf8() {
     assert!(out.is_empty(), "C: {} differences from the built-in C.UTF-8, first:\n{}", out.len(), out[..out.len().min(20)].join("\n"));
 }
 
+/// The generated sources with the products' charmaps (`target/niji/charmaps`), else the
+/// installed one of that name (a codeset the products do not generate yet).
+struct ProductSources(PathBuf);
+
+impl Files for ProductSources {
+    fn read(&mut self, kind: Kind, name: &[u8]) -> niji_locale::Result<TryVec<u8>> {
+        let dir = match kind {
+            Kind::Locale => self.0.clone(),
+            Kind::Charmap => self.0.join("../charmaps"),
+        };
+        match std::fs::read(dir.join(String::from_utf8_lossy(name).as_ref())) {
+            Ok(data) => TryVec::from_slice(&data).map_err(Into::into),
+            Err(_) if matches!(kind, Kind::Charmap) => Disk.read(kind, name),
+            Err(_) => Err(niji_locale::Error::missing("no such file")),
+        }
+    }
+}
+
+/// One compared item: a string, a fixed list `locale -k` joins with `;`, or a number.
+#[derive(Clone, Copy)]
+enum Item {
+    Str(usize),
+    List(usize, usize),
+    Word(usize),
+}
+
+/// A category's name, its number (`LC_NUMERIC` 1) and its compared keywords.
+type Compared = (&'static str, usize, &'static [(&'static str, Item)]);
+
+/// s31_8_c_1 (LOCALE-TRANSLIT-TABLE, ruling #7791): every legacy-codeset entry of the generated
+/// `SUPPORTED`, compiled in its codeset, holds what the reference's `locale -k` printed for that
+/// name where it differs from its UTF-8 sibling (the probe dump's own rows; the rest the UTF-8
+/// tests cover): the characters the codeset lacks transliterated through the locale's table at
+/// compile time (`€` as `EUR`, U+202F as U+00A0, `’` as `'`, `₽` as `руб` in Cyrillic codesets),
+/// the wide separators keeping the source's character (compared from the sibling's rows for every
+/// entry compiled here). LOCALE-PROBE-GEN-2 measured 251 such
+/// values differing in 81 of the 182 entries before the probed table was generated.
+#[test]
+fn generated_legacy_codesets_hold_the_references_transliterated_values() {
+    use Item::{List, Str, Word};
+    let src = sources();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dump = std::fs::read_to_string(root.join("spec/locale-probe/locales.tsv")).unwrap();
+    #[rustfmt::skip]
+    let keys: &[Compared] = &[
+        ("LC_NUMERIC", 1, &[("decimal_point", Str(0)), ("thousands_sep", Str(1)), ("numeric-thousands-sep-wc", Word(4))]),
+        ("LC_MONETARY", 4, &[("int_curr_symbol", Str(0)), ("currency_symbol", Str(1)), ("mon_decimal_point", Str(2)), ("mon_thousands_sep", Str(3)),
+            ("positive_sign", Str(5)), ("negative_sign", Str(6)), ("crncystr", Str(15)), ("duo_currency_symbol", Str(23)), ("monetary-thousands-sep-wc", Word(44))]),
+        ("LC_TIME", 2, &[("abday", List(0, 7)), ("day", List(7, 7)), ("abmon", List(14, 12)), ("mon", List(26, 12)), ("am_pm", List(38, 2)),
+            ("d_t_fmt", Str(40)), ("d_fmt", Str(41)), ("t_fmt", Str(42)), ("t_fmt_ampm", Str(43)), ("date_fmt", Str(108))]),
+        ("LC_MESSAGES", 5, &[("yesexpr", Str(0)), ("noexpr", Str(1)), ("yesstr", Str(2)), ("nostr", Str(3))]),
+        ("LC_NAME", 8, &[("name_fmt", Str(0)), ("name_gen", Str(1)), ("name_mr", Str(2)), ("name_mrs", Str(3)), ("name_miss", Str(4)), ("name_ms", Str(5))]),
+        ("LC_ADDRESS", 9, &[("postal_fmt", Str(0)), ("country_name", Str(1)), ("country_post", Str(2)), ("country_ab2", Str(3)), ("country_ab3", Str(4)),
+            ("country_car", Str(5)), ("country_isbn", Str(7)), ("lang_name", Str(8)), ("lang_ab", Str(9)), ("lang_term", Str(10)), ("lang_lib", Str(11))]),
+        ("LC_TELEPHONE", 10, &[("tel_int_fmt", Str(0)), ("tel_dom_fmt", Str(1)), ("int_select", Str(2)), ("int_prefix", Str(3))]),
+    ];
+    let find = |cat: &str, kw: &str| keys.iter().find(|k| k.0 == cat).and_then(|k| k.2.iter().find(|i| i.0 == kw).map(|i| (k.1, i.1)));
+    let unescape = |v: &str| -> Vec<u8> {
+        let (b, mut out, mut i) = (v.as_bytes(), Vec::new(), 0);
+        while i < b.len() {
+            if b[i] == b'\\' && b.get(i + 1) == Some(&b'x') {
+                out.push(u8::from_str_radix(&v[i + 2..i + 4], 16).unwrap());
+                i += 4;
+            } else {
+                out.push(b[i]);
+                i += 1;
+            }
+        }
+        out
+    };
+    // (SUPPORTED entry, codeset, source name, the probe's own rows: (file, item, bytes)).
+    let mut jobs = Vec::new();
+    for line in std::fs::read_to_string(src.join("SUPPORTED")).unwrap().lines() {
+        let Some((entry, cs)) = line.split_once(' ').filter(|(_, cs)| *cs != "UTF-8") else { continue };
+        let (base, m) = entry.split_once('@').map_or((entry, String::new()), |(b, m)| (b, format!("@{m}")));
+        let source = format!("{}{m}", base.split('.').next().unwrap());
+        // The probe's name: `ll_CC.<codeset>` in lower case without `-` and `_` (`ru_RU.koi8r`).
+        let pn = match base.split_once('.') {
+            Some((b, c)) => format!("{b}.{}{m}", c.to_lowercase().replace(['-', '_'], "")),
+            None => entry.to_string(),
+        };
+        let mut rows: Vec<(usize, Item, String, Vec<u8>)> = dump
+            .lines()
+            .filter_map(|l| l.strip_prefix(&format!("{pn}\t")))
+            .filter_map(|r| {
+                let [cat, kw, val] = r.split('\t').collect::<Vec<_>>()[..] else { return None };
+                let (file, item) = find(cat, kw)?;
+                let v = unescape(val);
+                let v = if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' { v[1..v.len() - 1].to_vec() } else { v };
+                Some((file, item, format!("{cat} {kw}"), v))
+            })
+            .collect();
+        assert!(dump.lines().any(|l| l.starts_with(&format!("{pn}\t-\tcharmap\t{cs}"))), "{entry} {cs}: no probe of {pn} in that codeset");
+        if rows.is_empty() {
+            continue;
+        }
+        // The wide separators (`*-thousands-sep-wc`) equal the UTF-8 sibling's, so the dump has
+        // no own row for them; compare them too where the narrow form is transliterated (the
+        // `@euro` names: U+00A0 narrow, U+202F wide).
+        if let Some(sib) = dump.lines().find_map(|l| l.strip_prefix(&format!("{pn}\t-\tsame-as\t"))) {
+            for r in dump.lines().filter_map(|l| l.strip_prefix(&format!("{sib}\t"))) {
+                let [cat, kw, val] = r.split('\t').collect::<Vec<_>>()[..] else { continue };
+                let what = format!("{cat} {kw}");
+                if let Some((file, item @ Word(_))) = find(cat, kw) {
+                    if !rows.iter().any(|r| r.2 == what) {
+                        rows.push((file, item, what, val.as_bytes().to_vec()));
+                    }
+                }
+            }
+        }
+        if ProductSources(src.clone()).read(Kind::Charmap, cs.as_bytes()).is_err() {
+            println!("SKIP {entry} {cs}: neither the products nor this system has the charmap");
+            continue;
+        }
+        {
+            jobs.push((entry.to_string(), cs.to_string(), source, rows));
+        }
+    }
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get().min(16));
+    let compared = std::sync::atomic::AtomicUsize::new(0);
+    let mut out: Vec<String> = std::thread::scope(|s| {
+        let chunks: Vec<_> = jobs.chunks(jobs.len().div_ceil(threads).max(1)).collect();
+        let handles: Vec<_> = chunks
+            .into_iter()
+            .map(|chunk| {
+                let (src, compared) = (&src, &compared);
+                s.spawn(move || {
+                    let mut out = Vec::new();
+                    for (entry, cs, source, rows) in chunk {
+                        let files = niji_locale::compile_output(source.as_bytes(), cs.as_bytes(), &mut ProductSources(src.clone())).unwrap_or_else(|e| panic!("{entry} {cs}: {e:?}")).files;
+                        for (file, item, what, want) in rows {
+                            let c = Category::parse(leak(files[*file].as_ref().unwrap().as_slice().to_vec())).unwrap();
+                            let got = match *item {
+                                Str(i) => c.string(i).to_vec(),
+                                List(first, len) => (first..first + len).map(|i| c.string(i)).collect::<Vec<_>>().join(&b';'),
+                                Word(i) => c.word(i).to_string().into_bytes(),
+                            };
+                            compared.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            if &got != want {
+                                out.push(format!("{entry} {cs} {what}: ours {}, the reference's {}", got.escape_ascii(), want.escape_ascii()));
+                            }
+                        }
+                    }
+                    out
+                })
+            })
+            .collect();
+        handles.into_iter().flat_map(|h| h.join().unwrap()).collect()
+    });
+    out.sort();
+    println!("{} legacy entries, {} values compared", jobs.len(), compared.into_inner());
+    assert!(out.is_empty(), "{} values differ from the reference's:\n{}", out.len(), out.join("\n"));
+}
+
 /// s31_8_c_1, s31_8_i_2: CJK locales compiled with the generated multi-byte charmaps give the
 /// reference's `LC_CTYPE` (classes, maps, every width: the double-width rule of D-31.22). The other
 /// categories are not compared here: they differ with the installed charmaps too (handoff).

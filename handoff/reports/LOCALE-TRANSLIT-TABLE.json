@@ -1,0 +1,46 @@
+{
+  "task": "LOCALE-TRANSLIT-TABLE",
+  "model": "opus",
+  "tokens": null,
+  "result": "Generated locale sources include a probed shared transliteration table (translit_shared, D-31.33): every probed legacy-codeset value equals the reference's (394 values in 86 of 182 entries, the 251 included); run-time iconv //TRANSLIT gap in 104 locales with own tables remains, recorded",
+  "branch": "task/locale-translit-table",
+  "head": "24d240a94",
+  "gate": {
+    "affected": "717 passed / 0 failed (8 suites, direct tier, gate2; FULL is the train's: xtask and spec/locale-probe changed)",
+    "peak": "6.5G"
+  },
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "Run-time iconv //TRANSLIT in a generated locale differs from the reference's in 38,814 (locale, code point) pairs in 104 of 183 locales that have tables of their own (ko_KR.euckr 10,416, ja_JP.eucjp 4,478, zh_* ~1,500-2,100 each, tr_*/ku_TR 1,854, uk_UA 585, el_* 493, ar_* 133); compiled values unaffected; recorded as a gap in D-31.33 and the differences row; follow-up: per-locale tables from the same probe",
+    "generated_legacy_codesets_hold_the_references_transliterated_values takes 184 s alone and 414 s in the gate on the Zen 1 host (182 locales compiled in memory); a candidate for parallel compilation if gate time matters",
+    "plants1 (superseded): sibling-text-ignored survived because the test compared only the legacy names' own dump rows; fixed in 24d240a94 (the test also compares the sibling's wide separators); plants2: 5 of 5 CAUGHT"
+  ],
+  "refused": [],
+  "impact": [
+    {
+      "kind": "correctness",
+      "what": "legacy-codeset locale values (EUR for the euro sign, apostrophe for U+2019, U+00A0 for U+202F, ...) that localedef dropped now equal the reference's",
+      "before": 251,
+      "after": 0,
+      "unit": "differing values (81 / 0 of 182 entries)",
+      "measured": true
+    },
+    {
+      "kind": "coverage",
+      "what": "tests added: 1 reference test over 560 values in 86 legacy entries (394 own rows, the 251 included, and the wide separators), 3 xtask unit tests; 5 plants",
+      "before": null,
+      "after": 4,
+      "unit": "tests",
+      "measured": true
+    }
+  ],
+  "jobs": [
+    "keke:locale-translit-table-gate2",
+    "keke:locale-translit-table-plants2",
+    "keke:locale-translit-table-t3"
+  ],
+  "improvement": "Leg 1 inserted a new test between another test's doc comment and its fn: it compiled and passed, and only static's trace caught the orphaned clause comment in leg 2 (plus two clippy type_complexity rounds); running cargo xtask clippy and static right after a test is added, not at hand-back, would save a sync/lint cycle",
+  "next_step": "Land; follow-up story for per-locale transliteration tables in the 104 locales above",
+  "report_file": "handoff/LOCALE-TRANSLIT-TABLE.md"
+}
