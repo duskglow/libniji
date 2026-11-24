@@ -50,8 +50,8 @@ typedef	La_x86_64_regs	link.h	768	16
 typedef	La_x86_64_retval	link.h	240	16	
 typedef	La_x86_64_vector	link.h	64	16	
 typedef	La_x86_64_xmm	link.h	16	16	float __vector(4)
-typedef	La_x86_64_ymm	link.h	32	16	
-typedef	La_x86_64_zmm	link.h	64	16	
+typedef	La_x86_64_ymm	link.h	32	16	float __vector(8)
+typedef	La_x86_64_zmm	link.h	64	16	double __vector(8)
 typedef	Lmid_t	dlfcn.h	8	8	long
 typedef	VISIT	search.h	4	4	VISIT
 function	_Exit	complex.h			void (int)
@@ -1080,7 +1080,10 @@ function	argz_insert	argz.h			int (char**, unsigned long*, char*, char const*)
 function	argz_next	argz.h			char* (char const*, unsigned long, char const*)
 function	argz_replace	argz.h			int (char**, unsigned long*, char const*, char const*, unsigned int*)
 function	argz_stringify	argz.h			void (char*, unsigned long, int)
+struct	arpd_request	net/if_arp.h	40	8	arpd_request
 struct	arphdr	net/if_arp.h	8	2	arphdr
+struct	arpreq	net/if_arp.h	68	4	arpreq
+struct	arpreq_old	net/if_arp.h	52	4	arpreq_old
 function	asctime	complex.h			char* (tm const*)
 function	asctime_r	complex.h			char* (tm const*, char*)
 function	asin	complex.h			double (double)
@@ -1375,6 +1378,7 @@ object	error_print_progname	error.h	8	8	void (*)()
 typedef	error_t	argp.h	4	4	int
 function	errx	err.h			void (int, char const*, ...)
 struct	ether_addr	net/ethernet.h	6	1	ether_addr
+struct	ether_arp	netinet/ether.h	28	2	ether_arp
 function	ether_aton	netinet/ether.h			ether_addr* (char const*)
 function	ether_aton_r	netinet/ether.h			ether_addr* (char const*, ether_addr*)
 struct	ether_header	net/ethernet.h	14	1	ether_header
@@ -2042,7 +2046,9 @@ function	hypotf64	complex.h			_Float64 (_Float64, _Float64)
 function	hypotf64x	complex.h			_Float64x (_Float64x, _Float64x)
 function	hypotl	complex.h			long double (long double, long double)
 struct	icmp	netinet/ip_icmp.h	28	4	icmp
+struct	icmp6_filter	netinet/icmp6.h	32	4	icmp6_filter
 struct	icmp6_hdr	netinet/icmp6.h	8	4	icmp6_hdr
+struct	icmp6_router_renum	netinet/icmp6.h	16	4	icmp6_router_renum
 struct	icmp_ra_addr	netinet/ip_icmp.h	8	4	icmp_ra_addr
 struct	icmphdr	netinet/ip_icmp.h	8	4	icmphdr
 function	iconv	iconv.h			unsigned long (void*, char**, unsigned long*, char**, unsigned long*)
@@ -2078,6 +2084,7 @@ function	imaxdiv	inttypes.h			imaxdiv_t (long, long)
 typedef	imaxdiv_t	inttypes.h	16	8	imaxdiv_t
 struct	in6_addr	arpa/inet.h	16	4	in6_addr
 struct	in6_pktinfo	arpa/inet.h	20	4	in6_pktinfo
+struct	in6_rtmsg	net/route.h	80	8	in6_rtmsg
 object	in6addr_any	arpa/inet.h	16	4	in6_addr const
 object	in6addr_loopback	arpa/inet.h	16	4	in6_addr const
 struct	in_addr	arpa/inet.h	4	4	in_addr
@@ -2152,6 +2159,7 @@ struct	ip6_hdrctl	netinet/ip6.h	8	4
 struct	ip6_mtuinfo	arpa/inet.h	32	4	ip6_mtuinfo
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
 struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
+struct	ip_timestamp	netinet/ip.h	40	4	ip_timestamp
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm
 struct	iphdr	netinet/ip.h	20	4	iphdr
 struct	ipv6_mreq	arpa/inet.h	20	4	ipv6_mreq
@@ -2469,6 +2477,7 @@ function	mkstemps	complex.h			int (char*, int)
 function	mkstemps64	complex.h			int (char*, int)
 function	mktemp	complex.h			char* (char*)
 function	mktime	complex.h			long (tm*)
+struct	mld_hdr	netinet/icmp6.h	24	4	mld_hdr
 function	mlock	sys/mman.h			int (void const*, unsigned long)
 function	mlock2	sys/mman.h			int (void const*, unsigned long, unsigned int)
 function	mlockall	sys/mman.h			int (int)
@@ -2538,6 +2547,17 @@ function	nanf64	complex.h			_Float64 (char const*)
 function	nanf64x	complex.h			_Float64x (char const*)
 function	nanl	complex.h			long double (char const*)
 function	nanosleep	complex.h			int (timespec const*, timespec*)
+struct	nd_neighbor_advert	netinet/icmp6.h	24	4	nd_neighbor_advert
+struct	nd_neighbor_solicit	netinet/icmp6.h	24	4	nd_neighbor_solicit
+struct	nd_opt_adv_interval	netinet/icmp6.h	8	4	nd_opt_adv_interval
+struct	nd_opt_hdr	netinet/icmp6.h	2	1	nd_opt_hdr
+struct	nd_opt_home_agent_info	netinet/icmp6.h	8	2	nd_opt_home_agent_info
+struct	nd_opt_mtu	netinet/icmp6.h	8	4	nd_opt_mtu
+struct	nd_opt_prefix_info	netinet/icmp6.h	32	4	nd_opt_prefix_info
+struct	nd_opt_rd_hdr	netinet/icmp6.h	8	4	nd_opt_rd_hdr
+struct	nd_redirect	netinet/icmp6.h	40	4	nd_redirect
+struct	nd_router_advert	netinet/icmp6.h	16	4	nd_router_advert
+struct	nd_router_solicit	netinet/icmp6.h	8	4	nd_router_solicit
 function	nearbyint	complex.h			double (double)
 function	nearbyintf	complex.h			float (float)
 function	nearbyintf128	complex.h			_Float128 (_Float128)
@@ -3055,9 +3075,13 @@ function	roundf64x	complex.h			_Float64x (_Float64x)
 function	roundl	complex.h			long double (long double)
 struct	rpcent	netdb.h	24	8	rpcent
 function	rpmatch	complex.h			int (char const*)
+struct	rr_pco_match	netinet/icmp6.h	24	4	rr_pco_match
+struct	rr_pco_use	netinet/icmp6.h	32	4	rr_pco_use
+struct	rr_result	netinet/icmp6.h	24	4	rr_result
 function	rresvport	netdb.h			int (int*)
 function	rresvport_af	netdb.h			int (int*, unsigned short)
 struct	rseq	sys/rseq.h	32	32	rseq
+struct	rtentry	net/route.h	120	8	rtentry
 struct	rusage	sys/resource.h	144	8	rusage
 function	ruserok	netdb.h			int (char const*, int, char const*, char const*)
 function	ruserok_af	netdb.h			int (char const*, int, char const*, char const*, unsigned short)
@@ -3595,6 +3619,7 @@ function	tempnam	argp.h			char* (char const*, char const*)
 struct	termios	pty.h	60	4	termios
 function	textdomain	libintl.h			char* (char const*)
 function	tfind	search.h			void* (void const*, void* const*, int (*)(void const*, void const*))
+struct	tftphdr	arpa/tftp.h	5	1	tftphdr
 function	tgamma	complex.h			double (double)
 function	tgammaf	complex.h			float (float)
 function	tgammaf128	complex.h			_Float128 (_Float128)

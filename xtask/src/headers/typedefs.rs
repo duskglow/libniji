@@ -24,7 +24,10 @@ impl Gen<'_> {
         } else if let Some((elem, _)) = vector_type(&cxx) {
             // A vector type (`La_x86_64_xmm` is `float __vector(4)`): GCC's `vector_size`, the row's size. A
             // structure of that size and alignment is another type, passed in other registers (psABI 3.2.3).
-            vec![format!("typedef {elem} {name} __attribute__ ((__vector_size__ ({})));", r["size"])]
+            // An aligned vector: a row whose alignment is below its size (`La_x86_64_ymm` is `float __vector(8)`,
+            // size 32, alignment 16) keeps that alignment; on a typedef, GCC's `aligned` may lower it.
+            let aligned = if r["align"] != r["size"] { format!(", __aligned__ ({})", r["align"]) } else { String::new() };
+            vec![format!("typedef {elem} {name} __attribute__ ((__vector_size__ ({}){aligned}));", r["size"])]
         } else if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
             vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
         } else if cxx.ends_with(']') && !cxx.contains('(') {

@@ -101,6 +101,13 @@ pub fn others_done() -> u64 {
     DONE.load(Ordering::SeqCst).wrapping_sub(CALLS.try_with(Cell::get).unwrap_or(0))
 }
 
+/// Calls the calling thread has made into the host allocator through [`FailAlloc`] (allocations,
+/// reallocations and releases) since it started: a test reads it before and after a call to
+/// count the allocator calls the call made.
+pub fn calls() -> u64 {
+    CALLS.try_with(Cell::get).unwrap_or(0)
+}
+
 /// Fail the `n`-th allocation of the calling thread from now (1: the next one), once; the
 /// allocations before it and after it succeed. `n == 0` is [`off`].
 pub fn fail_nth(n: u64) {

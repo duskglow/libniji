@@ -26,18 +26,19 @@
 //! **Testability.** Every lookup takes a [`Ctx`]: the files to read ([`Paths`], fixtures in the
 //! tests) and the configuration to use ([`Config`], built from text in the tests).
 
-use core::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, AtomicU8, Ordering::{Acquire, Relaxed, Release}};
+use core::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, AtomicU8, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 use niji::names::hostconf::{self, Domains, Env, Settings};
 
 use niji::error::{Errno, Result};
 use niji::mem::TryVec;
 use niji::names::cache::Category;
 use niji::names::db;
-use niji::names::nss::{self, Answer, Config, Database, LookupError, Service, Spec, DATABASES, SPEC_BYTES};
+use niji::names::nss::{self, Answer, Config, Database, LookupError, Service, Spec, Step, DATABASES, INLINE_STEPS, STEP_BYTES};
 use niji::users::{self, Group, Gshadow, Passwd, Shadow};
 use niji_kernel::fd::Fd;
 use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
+use niji_rt::chunks::{ChunkPages, Chunks};
 use niji_rt::sync::RawMutex;
 
 use crate::nss_files::{self as files, Key};
@@ -162,15 +163,136 @@ impl Watched {
 
 // ------------------------------------------------------------------------------ the switch
 
-const SLOT: usize = SPEC_BYTES + 1;
+/// A database's slot in a [`Lines`] table: whether it has a line (1) or not (0), how many of
+/// its sources the slot holds (at most [`INLINE_STEPS`]), then those sources.
+const SLOT: usize = 2 + INLINE_STEPS * STEP_BYTES;
 const TABLE: usize = DATABASES * SLOT;
 
+/// One configuration's lines in atomics (S9), read and written under their owner's lock. The
+/// common line (at most [`INLINE_STEPS`] sources) is all in `inline`; the sources past those
+/// are one word each in `more`, database after database, so a line has no limit but memory
+/// (CONFIG-TABLES-GROWTH). The chunks only grow and never move.
+struct Lines {
+    inline: Buf<TABLE>,
+    /// Per database, its sources in `more`.
+    extra: [AtomicUsize; DATABASES],
+    more: Chunks,
+}
+
+/// The longest line `c` has past the inline sources: the words it needs in [`Lines::more`].
+fn extra_of(c: &Config) -> usize {
+    Database::ALL.iter().map(|&db| c.line(db).map_or(0, |s| s.steps().len().saturating_sub(INLINE_STEPS))).fold(0, usize::saturating_add)
+}
+
+/// `c` with every line past the inline sources taken as a line that does not parse (no
+/// source): what a line memory cannot hold gives.
+#[cold]
+#[inline(never)]
+fn without_long(mut c: Config) -> Config {
+    for db in Database::ALL {
+        if c.line(db).is_some_and(|s| s.steps().len() > INLINE_STEPS) {
+            c.set(db, Some(Spec::EMPTY));
+        }
+    }
+    c
+}
+
+impl Lines {
+    const fn new() -> Lines {
+        Lines { inline: Buf::new(), extra: [const { AtomicUsize::new(0) }; DATABASES], more: Chunks::new() }
+    }
+
+    /// Hold `c`. `ENOMEM` (nothing changed) when its long lines need memory that is out.
+    fn store(&self, pages: &dyn ChunkPages, c: &Config) -> Result<()> {
+        let total = extra_of(c);
+        if total > 0 && !self.more.reserve_first(pages, total, 1) {
+            return Err(Errno::ENOMEM);
+        }
+        let mut at = 0usize;
+        for ((k, db), extra) in Database::ALL.into_iter().enumerate().zip(&self.extra) {
+            let mut slot = [0u8; SLOT];
+            let steps = c.line(db).map_or(&[][..], Spec::steps);
+            let (head, tail) = steps.split_at_checked(INLINE_STEPS).unwrap_or((steps, &[]));
+            let [flag, n, rest @ ..] = &mut slot;
+            *flag = u8::from(c.line(db).is_some());
+            *n = u8::try_from(head.len()).unwrap_or(0);
+            for (chunk, s) in rest.chunks_exact_mut(STEP_BYTES).zip(head) {
+                chunk.copy_from_slice(&s.encode());
+            }
+            self.inline.store_at(k.saturating_mul(SLOT), &slot);
+            for s in tail {
+                let mut w = [0u8; 8];
+                for (d, b) in w.iter_mut().zip(s.encode()) {
+                    *d = b;
+                }
+                if let Some(word) = self.more.get(pages, at, 1).and_then(<[_]>::first) {
+                    word.store(u64::from_le_bytes(w), Relaxed);
+                }
+                at = at.saturating_add(1);
+            }
+            extra.store(tail.len(), Relaxed);
+        }
+        Ok(())
+    }
+
+    /// Set each database `into` that has a line here to that line. `ENOMEM` when a long line
+    /// could not be held: it is then given as a line that does not parse (no source).
+    fn load(&self, pages: &dyn ChunkPages, into: &mut Config) -> Result<()> {
+        let mut r = Ok(());
+        let mut at = 0usize;
+        for ((k, db), extra) in Database::ALL.into_iter().enumerate().zip(&self.extra) {
+            let base = k.saturating_mul(SLOT);
+            let extra = extra.load(Relaxed);
+            let first = at;
+            at = at.saturating_add(extra);
+            let mut head = [0u8; 2];
+            self.inline.load_at(base, &mut head);
+            let [1, n] = head else { continue };
+            // Only the sources the line has: a lookup reads a few bytes, not the whole table.
+            let mut bytes = [0u8; INLINE_STEPS * STEP_BYTES];
+            let body = bytes.get_mut(..usize::from(n).min(INLINE_STEPS).saturating_mul(STEP_BYTES)).unwrap_or(&mut []);
+            self.inline.load_at(base.saturating_add(2), body);
+            let mut spec = Spec::EMPTY;
+            let mut ok = true;
+            for chunk in body.chunks_exact(STEP_BYTES) {
+                // In place: cannot fail.
+                ok &= Step::decode(chunk).is_some_and(|s| spec.push(s).is_ok());
+            }
+            if extra > 0 {
+                match self.load_more(pages, &mut spec, first, extra) {
+                    Ok(true) => {}
+                    Ok(false) => ok = false,
+                    Err(e) => {
+                        r = Err(e);
+                        spec = Spec::EMPTY;
+                    }
+                }
+            }
+            into.set(db, ok.then_some(spec));
+        }
+        r
+    }
+
+    /// The `n` sources from word `first` of `more`, onto `spec`: `Ok(false)` when they do not
+    /// decode, `ENOMEM` when memory is out.
+    #[cold]
+    #[inline(never)]
+    fn load_more(&self, pages: &dyn ChunkPages, spec: &mut Spec, first: usize, n: usize) -> Result<bool> {
+        for i in first..first.saturating_add(n) {
+            let Some(w) = self.more.get(pages, i, 1).and_then(<[_]>::first) else { return Ok(false) };
+            let Some(s) = Step::decode(&w.load(Relaxed).to_le_bytes()) else { return Ok(false) };
+            spec.push(s)?;
+        }
+        Ok(true)
+    }
+}
+
 /// The process's switch configuration: the file's lines and `__nss_configure_lookup`'s
-/// overrides, each database's line encoded in atomics (S9).
+/// overrides, each in a [`Lines`] table.
 pub struct Switch {
     file: Watched,
-    lines: Buf<TABLE>,
-    overrides: Buf<TABLE>,
+    lines: Lines,
+    overrides: Lines,
     override_lock: RawMutex,
     /// Whether `__nss_configure_lookup` was ever called (until then the overrides are empty and
     /// are not decoded per lookup).
@@ -183,59 +305,45 @@ impl Default for Switch {
     }
 }
 
-fn store(buf: &Buf<TABLE>, c: &Config) {
-    let mut out = [0u8; TABLE];
-    for (chunk, db) in out.chunks_exact_mut(SLOT).zip(Database::ALL) {
-        if let (Some(spec), Some((flag, rest))) = (c.line(db), chunk.split_first_mut()) {
-            *flag = 1;
-            rest.copy_from_slice(&spec.encode());
-        }
-    }
-    buf.store(&out);
-}
-
-fn load(buf: &Buf<TABLE>, into: &mut Config) {
-    let mut bytes = [0u8; TABLE];
-    buf.load(&mut bytes);
-    for (chunk, db) in bytes.chunks_exact(SLOT).zip(Database::ALL) {
-        if let Some((1, rest)) = chunk.split_first() {
-            into.set(db, Spec::decode(rest));
-        }
-    }
-}
-
 impl Switch {
     /// Nothing read, nothing overridden.
     pub const fn new() -> Switch {
-        Switch { file: Watched::new(), lines: Buf::new(), overrides: Buf::new(), override_lock: RawMutex::new(), overridden: AtomicBool::new(false) }
+        Switch { file: Watched::new(), lines: Lines::new(), overrides: Lines::new(), override_lock: RawMutex::new(), overridden: AtomicBool::new(false) }
     }
 
     /// The configuration now: the file `path` (re-read when it changed), then the overrides.
-    pub fn config<S: Sys>(&self, sys: &S, path: &[u8]) -> Config {
-        self.config_checked(sys, path, true)
+    /// `pages`: the memory the long lines live in.
+    pub fn config<S: Sys>(&self, sys: &S, pages: &dyn ChunkPages, path: &[u8]) -> Config {
+        self.config_checked(sys, pages, path, true)
     }
 
     /// The configuration as last read (read now if it never was), without checking the file
     /// (the name-service cache's account stamp, whose own record covers the file's identity).
-    pub fn config_as_read<S: Sys>(&self, sys: &S, path: &[u8]) -> Config {
-        self.config_checked(sys, path, false)
+    pub fn config_as_read<S: Sys>(&self, sys: &S, pages: &dyn ChunkPages, path: &[u8]) -> Config {
+        self.config_checked(sys, pages, path, false)
     }
 
-    fn config_checked<S: Sys>(&self, sys: &S, path: &[u8], recheck: bool) -> Config {
+    fn config_checked<S: Sys>(&self, sys: &S, pages: &dyn ChunkPages, path: &[u8], recheck: bool) -> Config {
         let mut c = self.file.with(
             sys,
             path,
             recheck,
-            |text| store(&self.lines, &text.map(Config::parse).unwrap_or(Config::EMPTY)),
+            |text| {
+                let c = text.map(Config::parse).unwrap_or(Config::EMPTY);
+                if self.lines.store(pages, &c).is_err() {
+                    // Without the short lines nothing needs memory.
+                    let _ = self.lines.store(pages, &without_long(c));
+                }
+            },
             || {
                 let mut c = Config::EMPTY;
-                load(&self.lines, &mut c);
+                let _ = self.lines.load(pages, &mut c);
                 c
             },
         );
         if self.overridden.load(Acquire) {
             let _g = self.override_lock.lock(sys);
-            load(&self.overrides, &mut c);
+            let _ = self.overrides.load(pages, &mut c);
         }
         c
     }
@@ -247,15 +355,16 @@ impl Switch {
     }
 
     /// `__nss_configure_lookup(db, text)`: `db`'s sources are `text` from now on. `EINVAL` for
-    /// an unknown database or a source list that does not parse (D-16.1).
-    pub fn configure<S: Sys>(&self, sys: &S, db: &[u8], text: &[u8]) -> Result<()> {
+    /// an unknown database or a source list that does not parse (D-16.1); `ENOMEM` when a list
+    /// past the inline sources cannot be held (the overrides are then unchanged).
+    pub fn configure<S: Sys>(&self, sys: &S, pages: &dyn ChunkPages, db: &[u8], text: &[u8]) -> Result<()> {
         let db = Database::from_name(db).ok_or(Errno::EINVAL)?;
-        let spec = Spec::parse(text).ok_or(Errno::EINVAL)?;
+        let spec = Spec::try_parse(text)?;
         let _g = self.override_lock.lock(sys);
         let mut c = Config::EMPTY;
-        load(&self.overrides, &mut c);
+        self.overrides.load(pages, &mut c)?;
         c.set(db, Some(spec));
-        store(&self.overrides, &c);
+        self.overrides.store(pages, &c)?;
         self.overridden.store(true, Release);
         Ok(())
     }
@@ -583,10 +692,12 @@ pub static HOST_CONF: HostConf = HostConf::new();
 
 /// What one lookup needs: the kernel, the files, the configuration, `host.conf`'s `multi`, and
 /// for host lookups the resolver of the `dns` source and the locale of IDNA texts (part 4).
-#[derive(Clone, Copy, Debug)]
+/// Not `Copy`: a configuration line past the inline sources is an allocation.
 pub struct Ctx<'a, S: Sys> {
     /// The kernel.
     pub sys: &'a S,
+    /// The memory the process's switch and `gai.conf` tables grow in (the boundary's).
+    pub pages: &'a dyn ChunkPages,
     /// The files.
     pub paths: &'a Paths<'a>,
     /// The switch configuration.
@@ -605,11 +716,17 @@ pub struct Ctx<'a, S: Sys> {
     pub cache: Option<&'a dyn crate::nscache::Memory>,
 }
 
+impl<S: Sys> core::fmt::Debug for Ctx<'_, S> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Ctx").field("paths", self.paths).field("config", &self.config).field("multi", &self.multi).field("hconf", &self.hconf).finish_non_exhaustive()
+    }
+}
+
 impl<'a, S: Sys> Ctx<'a, S> {
     /// The process's configuration with the files `paths` (`multi` off: only host lookups by
     /// name read `host.conf`, through [`Ctx::with_multi`]).
-    pub fn with_paths(sys: &'a S, paths: &'a Paths<'a>) -> Ctx<'a, S> {
-        Ctx { sys, paths, config: SWITCH.config(sys, paths.nsswitch), multi: false, hconf: None, dns: None, locale: None, cache: None }
+    pub fn with_paths(sys: &'a S, pages: &'a dyn ChunkPages, paths: &'a Paths<'a>) -> Ctx<'a, S> {
+        Ctx { sys, pages, paths, config: SWITCH.config(sys, pages, paths.nsswitch), multi: false, hconf: None, dns: None, locale: None, cache: None }
     }
 
     /// This context with the name-service cache (D-16.10), which serves it only while it reads
@@ -619,8 +736,8 @@ impl<'a, S: Sys> Ctx<'a, S> {
     }
 
     /// The process's configuration and the system's files.
-    pub fn system(sys: &'a S) -> Ctx<'a, S> {
-        Ctx::with_paths(sys, &SYSTEM)
+    pub fn system(sys: &'a S, pages: &'a dyn ChunkPages) -> Ctx<'a, S> {
+        Ctx::with_paths(sys, pages, &SYSTEM)
     }
 
     /// This context with `host.conf`'s `multi` (the file re-read when it changed), for host
@@ -634,12 +751,12 @@ impl<'a, S: Sys> Ctx<'a, S> {
     /// (`getaddrinfo` and `getnameinfo` with numeric arguments: `crate::gai::uses_switch`,
     /// `crate::gai::ni_uses_switch`). Its configuration is empty, so it must not be used for a
     /// lookup.
-    pub fn bare(sys: &'a S, paths: &'a Paths<'a>) -> Ctx<'a, S> {
-        Ctx { sys, paths, config: Config::EMPTY, multi: false, hconf: None, dns: None, locale: None, cache: None }
+    pub fn bare(sys: &'a S, pages: &'a dyn ChunkPages, paths: &'a Paths<'a>) -> Ctx<'a, S> {
+        Ctx { sys, pages, paths, config: Config::EMPTY, multi: false, hconf: None, dns: None, locale: None, cache: None }
     }
 
     /// The sources of `db`.
-    pub fn spec(&self, db: Database) -> Spec {
+    pub fn spec(&self, db: Database) -> &Spec {
         self.config.spec(db)
     }
 
@@ -654,7 +771,7 @@ impl<'a, S: Sys> Ctx<'a, S> {
     pub fn line(&self, db: Database, file: &[u8], mut pred: impl FnMut(&[u8]) -> bool) -> Answer<TryVec<u8>> {
         let compat = matches!(db, Database::Passwd | Database::Group | Database::Shadow);
         nss::run(
-            &self.spec(db),
+            self.spec(db),
             |svc| match svc {
                 Service::Files => files::find_line(self.sys, file, &mut pred),
                 Service::Compat if compat => files::find_line(self.sys, file, &mut pred),
@@ -706,7 +823,7 @@ fn passwd_line<S: Sys>(ctx: &Ctx<'_, S>, key: Key<'_>) -> Answer<TryVec<u8>> {
 pub fn passwd_cached<S: Sys, T>(sys: &S, memory: &dyn crate::nscache::Memory, key: Key<'_>, f: impl FnOnce(&Passwd<'_>) -> T) -> Answer<T> {
     let mut id = [0u8; 4];
     let (kind, part) = key_parts(key, &mut id);
-    let line = crate::nscache::line_system(sys, memory, Category::Passwd, kind, &[part], || passwd_line(&Ctx::system(sys), key))?;
+    let line = crate::nscache::line_system(sys, memory, Category::Passwd, kind, &[part], || passwd_line(&Ctx::system(sys, memory.pages()), key))?;
     users::passwd(&line).map(|p| f(&p)).ok_or(LookupError::NotFound)
 }
 
@@ -762,7 +879,7 @@ fn group_line<S: Sys>(ctx: &Ctx<'_, S>, key: Key<'_>) -> Answer<TryVec<u8>> {
     let pred = |l: &[u8]| users::group(l).is_some_and(|g| files::group_is(&g, key));
     let file = ctx.paths.group;
     nss::run(
-        &ctx.spec(Database::Group),
+        ctx.spec(Database::Group),
         |svc| match svc {
             Service::Files | Service::Compat => files::find_line(ctx.sys, file, pred),
             _ => Err(LookupError::Unavailable),
@@ -776,7 +893,7 @@ fn group_line<S: Sys>(ctx: &Ctx<'_, S>, key: Key<'_>) -> Answer<TryVec<u8>> {
 pub fn group_cached<S: Sys, T>(sys: &S, memory: &dyn crate::nscache::Memory, key: Key<'_>, f: impl FnOnce(&Group<'_>) -> T) -> Answer<T> {
     let mut id = [0u8; 4];
     let (kind, part) = key_parts(key, &mut id);
-    let line = crate::nscache::line_system(sys, memory, Category::Group, kind, &[part], || group_line(&Ctx::system(sys), key))?;
+    let line = crate::nscache::line_system(sys, memory, Category::Group, kind, &[part], || group_line(&Ctx::system(sys, memory.pages()), key))?;
     users::group(&line).map(|g| f(&g)).ok_or(LookupError::NotFound)
 }
 
@@ -801,7 +918,7 @@ fn listed_groups<S: Sys>(ctx: &Ctx<'_, S>, user: &[u8]) -> Result<TryVec<u32>> {
     let (spec, inherited) = ctx.config.resolve(Database::Initgroups);
     let mut out = TryVec::new();
     let mut failed = None;
-    nss::gather(&spec, inherited, |svc| match svc {
+    nss::gather(spec, inherited, |svc| match svc {
         Service::Files | Service::Compat => {
             let text = files::read(ctx.sys, ctx.paths.group)?;
             match files::add_groups(&text, user, &mut out) {
@@ -826,7 +943,7 @@ fn listed_groups<S: Sys>(ctx: &Ctx<'_, S>, user: &[u8]) -> Result<TryVec<u32>> {
 /// The Ethernet address of `name` (`ether_hostton`).
 pub fn ether_by_name<S: Sys>(ctx: &Ctx<'_, S>, name: &[u8]) -> Answer<[u8; 6]> {
     nss::run(
-        &ctx.spec(Database::Ethers),
+        ctx.spec(Database::Ethers),
         |svc| match svc {
             Service::Files => files::ether_name(ctx.sys, ctx.paths.ethers, name),
             _ => Err(LookupError::Unavailable),
@@ -838,7 +955,7 @@ pub fn ether_by_name<S: Sys>(ctx: &Ctx<'_, S>, name: &[u8]) -> Answer<[u8; 6]> {
 /// The host name of the Ethernet address `a` (`ether_ntohost`).
 pub fn ether_by_addr<S: Sys>(ctx: &Ctx<'_, S>, a: [u8; 6]) -> Answer<TryVec<u8>> {
     nss::run(
-        &ctx.spec(Database::Ethers),
+        ctx.spec(Database::Ethers),
         |svc| match svc {
             Service::Files => files::ether_addr(ctx.sys, ctx.paths.ethers, a),
             _ => Err(LookupError::Unavailable),
@@ -1005,7 +1122,7 @@ pub static NETGROUP_CURSOR: NetgroupCursor = NetgroupCursor::new();
 /// The `aliases` entry `name` (ASCII case ignored), given to `f`.
 pub fn alias<S: Sys, T>(ctx: &Ctx<'_, S>, name: &[u8], f: impl FnOnce(&db::Alias<'_>) -> T) -> Answer<T> {
     let entry = nss::run(
-        &ctx.spec(Database::Aliases),
+        ctx.spec(Database::Aliases),
         |svc| match svc {
             Service::Files => files::alias_entry(ctx.sys, ctx.paths.aliases, name),
             _ => Err(LookupError::Unavailable),

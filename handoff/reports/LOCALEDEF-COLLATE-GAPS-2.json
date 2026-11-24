@@ -1,0 +1,17 @@
+{"task": "LOCALEDEF-COLLATE-GAPS-2", "model": "opus", "tokens": null,
+ "result": "merged next into the LOCALEDEF-COLLATE-GAPS work (CI conflict in the locale tests resolved, both sides kept), cited ruling #7942 in D-31.31; gate and plants green on the merged head; C.UTF-8 source generation still waits on LOCALE-SOURCES-GEN-2",
+ "branch": "task/localedef-collate-gaps-2", "head": "25ed17cb5",
+ "gate": {"affected": "7454 passed / 0 failed (12 suites; conformance 148 passed / 0 failed; direct tier)", "peak": "11G (page cache included) oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["Brief step 2 not done: LOCALE-SOURCES-GEN-2 not on next (xtask/src/locales.rs absent at 997a3a8c3); once it lands, restore c_source() with <U00000000>..<U0010FFFF> and build it in the locale tests (could be a follow-up so this branch lands now)",
+                   "Start-up checks not run: the change is localedef's compiler only (niji-locale, reached from boundary/src/localedef.rs); the direct gate's start-up layout tests passed"],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "LOCALEDEF-COLLATE-GAPS can land: the CI merge conflict with next is resolved", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "size", "what": "C.UTF-8 code point order LC_COLLATE (products localedef; leg 1-2 measurement)", "before": 31000000, "after": 1530, "unit": "bytes", "measured": false},
+   {"kind": "correctness", "what": "empty LC_COLLATE refused, status 1, no file (leg 1-2 work, re-proven by this gate and plants)", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "a continuation whose only job is a CI merge conflict between two test-append hunks could be resolved mechanically by the train (keep-both for disjoint appended tests) instead of a full agent run",
+ "next_step": "land; then (here or as a follow-up) once LOCALE-SOURCES-GEN-2 lands, generate the C.UTF-8 source with <U00000000>..<U0010FFFF> and build it in the locale tests",
+ "report_file": "handoff/LOCALEDEF-COLLATE-GAPS.md",
+ "jobs": ["shiki:localedef-collate-gaps-2-gate2", "shiki:localedef-collate-gaps-2-plants2", "shiki:localedef-collate-gaps-2-lint2"]}

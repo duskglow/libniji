@@ -1,0 +1,9 @@
+id = "D-X.163"
+section = "x"
+status = "active"
+amends = ["D-X.130"]
+story = "HEADERS-S16-FOLLOWUP"
+date = "2026-11-23"
+body = '''
+**Slice 16 follow-up: `<sys/elf.h>` in the must-fail form, aligned vector typedefs** (HEADERS-S16-FOLLOWUP; rulings #7519, #7520; amends D-X.130 (3)). (1) `<sys/elf.h>` is shipped to fail in every configuration through the slice's `must_fail` list (`spec/tools/header_checks/s16.py`, row `p1` 0 in `headers/slices/s16.tsv`), as `<regexp.h>` is in slice 10: its `#error` says "is not provided" and the slice's unit requires that failure. The `p1` reject value and its P5 unit are gone from the shared `spec/tools/header_check.py`. (2) A `typedefs.tsv` row whose `cxx` is a vector (`float __vector(8)`) and whose alignment is below its size is generated as `vector_size` with `__aligned__ (<align>)` (`xtask/src/headers/typedefs.rs`). `La_x86_64_ymm` is `float __vector(8)` (32 bytes) and `La_x86_64_zmm` is `double __vector(8)` (64 bytes), both aligned to 16: the element type and count are from a black-box probe of the reference (the demangled linkage name of a probe function taking each type; size, alignment and type compatibility in C), and libniji's `<link.h>` gives the same answers in C and C++. A structure of the same size and alignment would be a different type in C++ linkage and in argument passing (psABI 3.2.3).
+'''

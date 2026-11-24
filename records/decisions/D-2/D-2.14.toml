@@ -1,0 +1,12 @@
+id = "D-2.14"
+section = "s02"
+spec = "§2.7"
+ann = "ARB"
+status = "active"
+amends = ["D-2.11"]
+story = "UNWIND-SPILL"
+date = "2026-11-23"
+tests = ["crates/rt/src/unwind.rs", "crates/core/tests/s02_diagnostics_clauses.rs"]
+body = '''
+**The unwinder's remember-state nesting and expression stack have no limit but memory** (owner ruling 2026-11-17 on the hardcoded-limits audit, HL-20; replaces D-2.11 (2)'s "remember-state depth 4" and (8)'s "stack 32" as limits). The first 4 remembered rows and 32 expression stack entries stay on the stack, as before (the common case: compilers emit one remember level around an epilogue, and call-frame expressions use a handful of entries). Past them a row or entry spills to pages mapped for that call (`Memory::spill_map`: an anonymous private `mmap`, one page first, replaced by one twice the size with a copy when full, unmapped when the row or expression is done). Mapping is a system call, async-signal-safe and lock-free, so a trace from a signal handler or on a small stack spills too, and the walk takes no heap lock. When no mapping can be had (ENOMEM, an address-space limit) the row or expression cannot be evaluated and the walk ends at that frame, as it did at the old limits; a `Memory` without pages (the default) behaves the same way. The 1024-operation expression budget (HL-26) stays: it bounds an expression's stack too. Nothing kept between calls; `backtrace`, the `mtrace` caller and the thread exit's handler walk (D-22.23) all use it. Tests: rt unit tests (10, 1000 nested levels restored in order with every rule kind; 100 and 500 deep stacks by pop and pick; mmap failing with ENOMEM fails only that row; every mapping unmapped) and conformance `s02_backtrace` (clause s2_7_c_1: frames with hand-written CFI nesting remember-state ten deep and a 100-entry CFA expression are traced through).
+'''

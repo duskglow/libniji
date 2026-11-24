@@ -1,0 +1,46 @@
+{
+ "task": "DL-OBJECT-PATHS",
+ "model": "opus",
+ "tokens": null,
+ "result": "Every object is already named by the path it was opened at (DL-NAME-PATH/-2 landed since the brief); the one remaining difference, dladdr/dladdr1 inside the vDSO returning 0, now matches the reference via a cold fallback; conformance test for every probed case, D-27.93",
+ "branch": "task/dl-object-paths",
+ "head": "ed5783e23",
+ "gate": {
+  "affected": "742 passed / 0 failed / 0 ignored (11 suites), direct tier",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Premise moved: the brief's bare-DT_NEEDED-name report was fixed by DL-NAME-PATH and DL-NAME-PATH-2 before this run; the probe (table in handoff/DL-OBJECT-PATHS.md) confirms dlpi_name, l_name, _r_debug and dli_fname agree with the reference for every case of step 1",
+  "crates/ld/tests/dl_find_object_index.rs's dladdr oracle left out the vDSO (it encoded the old miss); it now uses span_owner for both lookups",
+  "Not probed: dlopen(\"linux-vdso.so.1\", RTLD_NOLOAD) and dlsym on such a handle (a loader story if they differ)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "dladdr/dladdr1 on an address inside the vDSO: returned 0 (no info), now linux-vdso.so.1 with the vDSO base, the nearest vDSO symbol and, for dladdr1, its link map / symbol entry",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "conformance test every_object_is_named_by_the_path_it_was_opened_by (program, vDSO, LD_PRELOAD x3, search, RUNPATH, slash name, libc, system lib, ld.so, dlopen x4) and 4 plants, all caught",
+   "before": 0,
+   "after": 5,
+   "unit": "test + plants",
+   "measured": true
+  }
+ ],
+ "improvement": "The brief predated two landed stories that fixed its premise; a check at admission that greps the reported symptom against the handoff notes of stories landed since the brief was written would have turned this into a short confirm-and-test run from the start",
+ "next_step": "Land; the coordinator can then comment on duskglow/libniji#24 that every case is covered",
+ "report_file": "handoff/DL-OBJECT-PATHS.md",
+ "jobs": [
+  "keke:dl-object-paths-gate3",
+  "keke:dl-object-paths-plants3",
+  "keke:dl-object-paths-startup"
+ ]
+}

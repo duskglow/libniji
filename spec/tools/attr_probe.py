@@ -31,6 +31,9 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 * `s.c` a variadic F with c null pointers appended: -Wformat= (a missing sentinel) tells the attribute and
         its position (c - 1 is the position of the first that makes it quiet).
 * `nr`  F(valid arguments); mk_nr(): the marker is dropped when F is noreturn.
+* `nz.k`, `nv.k` a void F as in `nr`, numeric parameter k set to 0 (`nz`) or to an opaque value (`nv`): when `nr`
+        drops its marker and both of these keep theirs, F returns unless argument k is a nonzero constant
+        (error(3): status 0 returns), and the table writes `nonzero:k`, never `1`.
 * `ct`  a non-variadic F with a result: two calls with a memory clobber between them, mk_ct() when the results
         differ: the marker is dropped when F is const (a pure F is called again; this tells pure from const).
 * `e`   a non-variadic F with a result, in a unit without the `bp` redeclarations: errno = 0; r = F(opaque
@@ -45,7 +48,8 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 
 diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma list of
 1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
-printf), alloc_size the comma list of parameters, the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
+printf), alloc_size the comma list of parameters, noreturn `1` (every call) or `nonzero:K` (only a call whose 1-based
+parameter K is a nonzero constant; headers-gen emits a GCC wrapper for it), the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
 """
 import argparse, csv, json, os, re, subprocess, sys, tempfile
 
@@ -59,7 +63,7 @@ OPT = ["-O2", "-std=gnu17", "-Wall", "-Wextra", "-Wformat=2", "-Wformat-security
 # header and so on no test line, for a call with extra arguments. They get no sentinel test.
 NO_SENTINEL = {"open", "open64", "openat", "openat64", "creat", "creat64"}
 # The tests that read back a marker function (mk_<kind>_<line>) from the object.
-MARKED = ("nr", "ma", "as", "ct", "e")
+MARKED = ("nr", "nz", "nv", "ma", "as", "ct", "e")
 
 
 def protos():
@@ -192,6 +196,10 @@ def corpus(names, heads, pr):
             for c in (1, 2):
                 add("void s%d_@N@(void) { %s(%s%s); }" % (c, n, args(), ", ((void *) 0)" * c), (n, "s", c))
         add("void nr_@N@(void) { %s(%s); mk_nr_@N@(); }" % (n, args(lit=False)), (n, "nr"))
+        if not has_result:
+            for j in [j for j, k in enumerate(fixed) if k == "num"]:
+                add("void nz_@N@(void) { %s(%s); mk_nz_@N@(); }" % (n, args({j: "0"}, lit=False)), (n, "nz", j + 1))
+                add("void nv_@N@(void) { %s(%s); mk_nv_@N@(); }" % (n, args({j: "ov"}, lit=False)), (n, "nv", j + 1))
         if not variadic and has_result:
             # Opaque arguments: no builtin folding, so only the declaration decides.
             add("void e_@N@(void) { static __typeof__ (%s(%s)) volatile r; errno = 0; r = %s(%s); if (errno != 0) mk_e_@N@(); }"
@@ -369,6 +377,7 @@ def derive(res, pr, names):
     rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": ""} for n in names}
     fmt = {}
     conflict = set()
+    kept = {}  # name -> {1-based numeric parameter: {"nz", "nv"} tests that kept their marker}
     for ln, (key, flags, err) in sorted(res.items()):
         n, kind = key[0], key[1]
         r = rows[n]
@@ -400,6 +409,8 @@ def derive(res, pr, names):
             pass
         elif kind == "nr" and "marker" not in flags:
             r["noreturn"] = "1"
+        elif kind in ("nz", "nv") and "marker" in flags:
+            kept.setdefault(n, {}).setdefault(key[2], set()).add(kind)
         elif kind == "ct" and "marker" not in flags and r["pure"]:
             r["pure"] = "const"
         elif kind == "ma" and "marker" not in flags:
@@ -409,6 +420,12 @@ def derive(res, pr, names):
     for r in rows.values():
         if r["sentinel"] == "?":
             r["sentinel"] = ""
+    # A noreturn F that returns for some argument: `nonzero:k` when exactly parameter k decides (0 and an opaque value
+    # both return); any other shape is left for a person (`?`, which headers-gen rejects).
+    for n, by in kept.items():
+        if rows[n]["noreturn"]:
+            ks = sorted(by)
+            rows[n]["noreturn"] = "nonzero:%d" % ks[0] if len(ks) == 1 and by[ks[0]] == {"nz", "nv"} else "?"
     for n, j in fmt.items():
         _, ps = split_params(pr[n], n)
         variadic = ps[-1] == "..."
@@ -469,6 +486,11 @@ def main():
         for f in ref[ln][1] ^ got[ln][1]:
             if f not in DECIDED and f != "note":
                 opened[f] = opened.get(f, 0) + 1
+        # `nz`/`nv` judge only whether control returns (the marker): a warning their 0 or opaque argument draws from
+        # another attribute (nonnull on a parameter whose typedef hides the pointer, qsort's comparator) is the
+        # question of that attribute's own tests.
+        if ref[ln][0][1] in ("nz", "nv") and ("marker" in ref[ln][1]) == ("marker" in got[ln][1]) and ref[ln][2] == got[ln][2]:
+            continue
         if decided(ref[ln][1]) != decided(got[ln][1]) or ref[ln][2] != got[ln][2]:
             why = open_reason(ref[ln][0][0])
             n, kind = ref[ln][0][0], ref[ln][0][1]

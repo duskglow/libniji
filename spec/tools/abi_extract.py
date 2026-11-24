@@ -38,7 +38,8 @@ sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mch
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
-net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h""".split()
+net/ethernet.h net/if_arp.h netpacket/packet.h utime.h ieee754.h
+net/route.h netinet/if_ether.h arpa/tftp.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -140,6 +141,13 @@ TYPES = [
  ("struct sockaddr_ll", "struct sockaddr_ll"), ("struct ip_mreqn", "struct ip_mreqn"),
  ("struct ipv6_mreq", "struct ipv6_mreq"), ("struct in_pktinfo", "struct in_pktinfo"),
  ("struct in6_pktinfo", "struct in6_pktinfo"),
+ # HEADERS-TABLES-NET: the structures of slice 13's network headers (header_probe.py net_names() names the sources).
+ *[(f"struct {t}", f"struct {t}") for t in (
+     "ip_timestamp", "rtentry", "in6_rtmsg", "arpreq", "arpreq_old", "arpd_request", "ether_arp", "icmp_ra_addr",
+     "icmp6_filter", "nd_router_solicit", "nd_router_advert", "nd_neighbor_solicit", "nd_neighbor_advert",
+     "nd_redirect", "nd_opt_hdr", "nd_opt_prefix_info", "nd_opt_rd_hdr", "nd_opt_mtu", "nd_opt_adv_interval",
+     "nd_opt_home_agent_info", "nd_opt_route_info", "nd_opt_rdnss", "nd_opt_dnssl", "mld_hdr", "icmp6_router_renum",
+     "rr_pco_match", "rr_pco_use", "rr_result", "tftphdr")],
  ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
  ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
  ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),

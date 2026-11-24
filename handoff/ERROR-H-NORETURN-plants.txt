@@ -1,0 +1,4 @@
+# ERROR-H-NORETURN plants (cargo xtask plants; D-2.13)
+error-noreturn-back | libc-include/error.h | lit:extern void error (int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 3, 4))); ==> extern void error (int, int, const char *, ...) __attribute__ ((__format__ (__printf__, 3, 4), __noreturn__)); | cargo test -p niji --test s02_diagnostics_clauses -- error_status_zero_returns | msg:error_status_zero_returns.*FAILED|panicked
+at-line-wrapper-always-nr | libc-include/error.h | perl:s/(void error_at_line \(int __p0.*?)__builtin_constant_p \(__p0\) && __p0 != 0/${1}1/s | cargo test -p niji --test s02_diagnostics_clauses -- error_status_zero_returns | msg:error_status_zero_returns.*FAILED|panicked
+table-noreturn-back | spec/abi/diagattrs.tsv | perl:s/^(error\t+)nonzero:1/${1}1/m | cargo xtask headers-gen --check | msg:error\.h

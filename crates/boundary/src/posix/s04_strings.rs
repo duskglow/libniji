@@ -1031,7 +1031,7 @@ pub extern "C" fn envz_get(envz: *const c_char, len: size_t, name: *const c_char
 export! { "GLIBC_2.2.5";
 pub extern "C" fn envz_add(envz: Option<&mut *mut c_char>, len: Option<&mut size_t>, name: *const c_char, value: *const c_char) -> c_int {
     // UNSAFE(slice) SAFETY: *envz/*len describe an envz vector; name is a string, value NULL or a string (§4.14).
-    ret::errnum(unsafe { strz::strz(name) }.and_then(|n| unsafe { strz::strz_opt(value) }.and_then(|v| unsafe { conv::argz(envz, len) }.and_then(|a| a.update(|b, _| cstring::envz_add(b, n, v))))))
+    ret::errnum(unsafe { strz::strz(name) }.and_then(|n| unsafe { strz::strz_opt(value) }.and_then(|v| unsafe { conv::argz(envz, len) }.and_then(|a| a.update(|b, _| cstring::envz_add_list(b, n, v))))))
 }}
 
 export! { "GLIBC_2.2.5";

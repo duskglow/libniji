@@ -110,7 +110,7 @@ pub const CROSS_TARGET: &str = "aarch64-unknown-linux-gnu";
 /// normal or dev dependencies; docs/arch-seams.md). A crate that gains that dependency fails the check at the
 /// boundary build script, which refuses a non-x86_64 target.
 pub const CHECK_ALL_TARGETS: &[&str] =
-    &["niji-kernel", "niji-mem", "niji-abi", "niji-legacy", "niji-ld", "niji-native", "niji-thread-db", "niji-mathtools", "spectest"];
+    &["niji-kernel", "niji-mem", "niji-abi", "niji-legacy", "niji-ld", "niji-native", "niji-mathtools", "spectest"];
 
 /// The check set, library only: these crates build without csys, but their tests take `niji-boundary` as a
 /// dev-dependency (csys), so only the library target is checked.

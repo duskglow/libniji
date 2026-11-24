@@ -683,6 +683,24 @@
   (one line for each of the other ten undefined categories)
   | 12
   rc=1
+== localedef-translit
+  (LOCALEDEF-TRANSLIT, own sources, ISO-8859-1; `locale -k` under LOCPATH; condensed)
+  $ LC_CTYPE: translit_start / <U20AC> "<U0045><U0055><U0052>" / <U2030> "<U2031>";"<U0025><U0030>" / <U2032> "<U2033>" / <U2033> "<U0022>" / <U2034> "<U0041><U2035>";"<U0042>" / translit_end
+  $ LC_TIME mon "<U20AC>";"<U2030>";"<U2032>";"<U2034>";"a<U4E00>b";"X<U20AC>Y";"<U00E9>";...
+  | mon="EUR;%0;;B;;XEURY;\xe9;..."
+  ! <src>:<line>: LC_TIME: unknown character in field `mon'
+  (one such line per string written empty; the same with LC_CTYPE after LC_TIME, or copied from another file)
+  rc=1
+  $ the same table plus default_missing <U003F> (or "<U003C><U003F><U003E>", or in an included file)
+  | (values unchanged: default_missing is not used at compile time)
+  $ no translit section, or no LC_CTYPE: | mon="" for each of the first six; no built-in table
+  $ include "tra";"" then include "trb";"" (both <U20AC>): | the first include's; reversed: the other's
+  $ an own entry <U20AC> and an include with one, either order: | the own entry's
+  $ two own entries <U20AC> "<U0044><U0031>" then "<U0044><U0032>": | D2
+  $ <U20AC> "";"<U0045>": | E   (an empty alternative is passed over; <U4E00> "" alone: the string is empty)
+  $ currency_symbol "<U4E00>", no -c, --quiet: (value empty, all twelve files written)
+  ! <src>:8: LC_MONETARY: unknown character in field `currency_symbol'
+  rc=1
 == zic-help
   $ zic --help
   | zic: usage is zic [ --version ] [ --help ] [ -v ] \

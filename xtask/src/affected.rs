@@ -48,7 +48,7 @@
 //!      `sN_...`, a plan row `D-N.`), or references an affected module, or carries no section at
 //!      all (then nothing says it is unrelated). A root file (`lib.rs`, `main.rs`) or a module
 //!      re-exported with `pub use` is not narrowed.
-//!    * every other crate (`kernel`, `rt`, `mem`, `ld`, `native`, `thread-db`, ...), a root file:
+//!    * every other crate (`kernel`, `rt`, `mem`, `ld`, `native`, ...), a root file:
 //!      WIDE: every test target of every crate that depends on it (dev-dependencies included),
 //!      directly or not, and every conformance program.
 //!    * "Depends" (both bullets, every tier; XTASK-AFFECTED-LOADER): a crate's own dependencies always count; a
@@ -137,7 +137,7 @@
 //! its module is not seen; the closure-wide reasons of the narrowed crates are written so that
 //! this is rare, but it is the reason the full gate runs once at merge.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
@@ -363,7 +363,7 @@ fn csys_symbols(path: &str, text: &str) -> Option<Vec<String>> {
 }
 
 /// The occurrences of `symbols` in `text` (file `rel`), skipping comment lines.
-fn sym_refs(rel: &str, text: &str, symbols: &BTreeSet<String>, out: &mut BTreeMap<String, Vec<SymRef>>) {
+fn sym_refs(rel: &str, text: &str, symbols: &HashSet<&str>, out: &mut BTreeMap<String, Vec<SymRef>>) {
     let code = rel.ends_with(".rs") || rel.ends_with(".c") || rel.ends_with(".h") || rel.ends_with(".S");
     for l in text.lines() {
         let t = l.trim();
@@ -521,9 +521,9 @@ fn sections_of_text(file_name: &str, text: &str) -> BTreeSet<u32> {
 /// determined) and the module (the path segment after the crate).
 type Ref = (Option<String>, String);
 
-#[derive(Debug, PartialEq)]
-enum Tok {
-    Id(String),
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Tok<'a> {
+    Id(&'a str),
     Sep,
     Open,
     Close,
@@ -532,7 +532,9 @@ enum Tok {
     Star,
 }
 
-fn tokens(text: &str) -> Vec<Tok> {
+/// The tokens of a text, line by line (a `//` line has none). Lines are tokenised on their own, so the tokens of texts
+/// joined with `\n` are the tokens of each text, one after the other (what [`refs_closed`] relies on).
+fn tokens(text: &str) -> Vec<Tok<'_>> {
     let mut out = Vec::new();
     for line in text.lines() {
         if line.trim_start().starts_with("//") {
@@ -547,7 +549,7 @@ fn tokens(text: &str) -> Vec<Tok> {
                 while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
                     i += 1;
                 }
-                out.push(Tok::Id(line[s..i].to_string()));
+                out.push(Tok::Id(&line[s..i]));
                 continue;
             }
             match c {
@@ -574,44 +576,58 @@ fn tokens(text: &str) -> Vec<Tok> {
 /// path is resolved the same way (`use niji::{printf, fs::dir}` names `printf` and `fs`). A
 /// `mod` declaration is not a reference. `aliases` maps library names to package names.
 fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
+    refs_closed(text, aliases).0
+}
+
+/// [`refs_of`], and whether the text is CLOSED: it neither starts nor ends with a `::`, and the reading below ends
+/// exactly at its last token with every `use` tree ended by its `;` (no `use`, `mod`, `as` or path is cut off by the
+/// end of the text). Every look-ahead of a closed text stays inside it except one, whether the token after its last
+/// one is a `::`, and the next closed text does not start with one; its only look-back is whether its first token
+/// follows a `::`, and the closed text before it does not end with one. So the references of closed texts joined
+/// with `\n` (whose tokens are theirs one after the other, see [`tokens`]) are the union of theirs: `Repo::load` reads
+/// a support file shared by many test targets once (AFFECTED-TESTS-ONE-LOAD, D-X.160) and reads a target whole as before when
+/// any of its parts is not closed.
+fn refs_closed<'t, 'k>(text: &'t str, aliases: &'k BTreeMap<String, String>) -> (BTreeSet<Ref>, bool) {
     let toks = tokens(text);
-    let mut out = BTreeSet::new();
-    let mut record = |path: &[String]| {
-        let Some(root) = path.first() else { return };
-        if matches!(root.as_str(), "std" | "core" | "alloc" | "*") {
+    let mut out: BTreeSet<(Option<&'k str>, &'t str)> = BTreeSet::new();
+    let mut record = |path: &[&'t str]| {
+        let Some(&root) = path.first() else { return };
+        if matches!(root, "std" | "core" | "alloc" | "*") {
             return;
         }
         if let Some(krate) = aliases.get(root) {
-            if let Some(m) = path.get(1) {
+            if let Some(&m) = path.get(1) {
                 if m != "*" {
-                    out.insert((Some(krate.clone()), m.clone()));
+                    out.insert((Some(krate.as_str()), m));
                 }
             }
-        } else if matches!(root.as_str(), "crate" | "self" | "super") {
-            if let Some(m) = path.get(1) {
+        } else if matches!(root, "crate" | "self" | "super") {
+            if let Some(&m) = path.get(1) {
                 if m != "*" {
-                    out.insert((None, m.clone()));
+                    out.insert((None, m));
                 }
             }
         } else {
-            out.insert((None, root.clone()));
+            out.insert((None, root));
         }
     };
+    let mut cut = false;
     let mut i = 0;
     while i < toks.len() {
-        match &toks[i] {
-            Tok::Id(id) if id == "use" => {
+        match toks[i] {
+            Tok::Id("use") => {
                 // The use tree up to its `;`.
-                let mut prefixes: Vec<Vec<String>> = vec![Vec::new()];
-                let mut cur: Vec<String> = Vec::new();
+                let mut prefixes: Vec<Vec<&str>> = vec![Vec::new()];
+                let mut cur: Vec<&str> = Vec::new();
+                let mut ended = false;
                 i += 1;
                 while i < toks.len() {
-                    match &toks[i] {
-                        Tok::Id(w) if w == "as" => {
+                    match toks[i] {
+                        Tok::Id("as") => {
                             i += 1; // the alias
                         }
-                        Tok::Id(w) => cur.push(w.clone()),
-                        Tok::Star => cur.push("*".to_string()),
+                        Tok::Id(w) => cur.push(w),
+                        Tok::Star => cur.push("*"),
                         Tok::Sep => {}
                         Tok::Open => {
                             let mut p = prefixes.last().cloned().unwrap_or_default();
@@ -628,14 +644,16 @@ fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
                                 prefixes.pop();
                             }
                             if toks[i] == Tok::Semi {
+                                ended = true;
                                 break;
                             }
                         }
                     }
                     i += 1;
                 }
+                cut |= !ended;
             }
-            Tok::Id(id) if id == "mod" => {
+            Tok::Id("mod") => {
                 i += 2; // the name
             }
             Tok::Id(_) if i > 0 && toks[i - 1] == Tok::Sep => {
@@ -644,8 +662,8 @@ fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
             Tok::Id(_) => {
                 let mut path = Vec::new();
                 let mut j = i;
-                while let Some(Tok::Id(w)) = toks.get(j) {
-                    path.push(w.clone());
+                while let Some(&Tok::Id(w)) = toks.get(j) {
+                    path.push(w);
                     if toks.get(j + 1) == Some(&Tok::Sep) {
                         j += 2;
                     } else {
@@ -660,7 +678,8 @@ fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
             _ => i += 1,
         }
     }
-    out
+    let closed = !cut && i == toks.len() && toks.first() != Some(&Tok::Sep) && toks.last() != Some(&Tok::Sep);
+    (out.into_iter().map(|(k, m)| (k.map(String::from), m.to_string())).collect(), closed)
 }
 
 /// The identifiers of each `pub use` statement.
@@ -1096,6 +1115,10 @@ impl Repo {
             let tdir = cdir.join("tests");
             let entries = sorted_dir(&tdir);
             let subdirs: Vec<(String, PathBuf)> = entries.iter().filter(|p| p.is_dir()).map(|p| (p.file_name().and_then(|s| s.to_str()).unwrap_or_default().to_string(), p.clone())).collect();
+            // AFFECTED-TESTS-ONE-LOAD, D-X.160: each support directory's files (path, text, references, closed), read once for
+            // every target of the crate that names it (core's `oracle/` is named by about a hundred).
+            type SupportFile = (String, String, BTreeSet<Ref>, bool);
+            let mut support_files: BTreeMap<String, Vec<SupportFile>> = BTreeMap::new();
             for p in &entries {
                 let (name, file) = if p.is_dir() {
                     if !p.join("main.rs").exists() {
@@ -1114,22 +1137,42 @@ impl Repo {
                     text = all.iter().map(|f| read(f)).collect::<Vec<_>>().join("\n");
                 }
                 let own = text.len();
+                // The target's references: its own text's, and each support file's (computed once) when every part is
+                // closed (`refs_closed`: then the union is what reading the joined text gives); else the joined text's.
+                let (mut refs, mut closed) = refs_closed(&text, &aliases);
                 let mut support = BTreeSet::new();
                 for (d, dp) in &subdirs {
                     if *dp != *p && text.contains(d.as_str()) {
                         support.insert(d.clone());
-                        let mut all = Vec::new();
-                        files_under(dp, &["rs", "c", "h"], &mut all);
-                        for f in all {
-                            let t = read(&f);
+                        let files = support_files.entry(d.clone()).or_insert_with(|| {
+                            let mut all = Vec::new();
+                            files_under(dp, &["rs", "c", "h"], &mut all);
+                            all.iter()
+                                .map(|f| {
+                                    let t = read(f);
+                                    let (r, c) = refs_closed(&t, &aliases);
+                                    (f.strip_prefix(root).unwrap_or(f).to_string_lossy().replace('\\', "/"), t, r, c)
+                                })
+                                .collect()
+                        });
+                        for (rel, t, r, c) in files.iter() {
                             text.push('\n');
-                            text.push_str(&t);
-                            support_texts.insert(f.strip_prefix(root).unwrap_or(&f).to_string_lossy().replace('\\', "/"), t);
+                            text.push_str(t);
+                            if !support_texts.contains_key(rel) {
+                                support_texts.insert(rel.clone(), t.clone());
+                            }
+                            closed &= *c;
+                            if closed {
+                                refs.extend(r.iter().cloned());
+                            }
                         }
                     }
                 }
+                if !closed {
+                    refs = refs_of(&text, &aliases);
+                }
                 let products = names_products(&text);
-                targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs: refs_of(&text, &aliases), name, support, products, text, own });
+                targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs, name, support, products, text, own });
             }
         }
         // GATE-TIER-2: the C entry points and the modules each one's body names.
@@ -1150,13 +1193,21 @@ impl Repo {
                 }
             }
         }
+        // AFFECTED-TESTS-ONE-LOAD, D-X.160: the nodes each reference names, by (crate, module), so that a count below goes from a
+        // text's references to the nodes they name instead of asking every text about every node.
+        let mut node_index: BTreeMap<(&str, &str), Vec<usize>> = BTreeMap::new();
+        for (x, n) in nodes.iter().enumerate() {
+            node_index.entry((n.krate.as_str(), n.name.as_str())).or_default().push(x);
+        }
+        // The nodes `refs` (of a text in crate `krate`) names: `(Some(c), m)` names `m` of `c`, `(None, m)` names `m` of `krate`.
+        let named = |refs: &BTreeSet<Ref>, krate: &str| -> BTreeSet<usize> {
+            refs.iter().filter_map(|(c, m)| node_index.get(&(c.as_deref().unwrap_or(krate), m.as_str()))).flatten().copied().collect()
+        };
         let mut named_by: BTreeMap<usize, usize> = BTreeMap::new();
         let all_entries: Vec<&Entry> = entries.values().flatten().collect();
         for e in &all_entries {
-            for (x, n) in nodes.iter().enumerate() {
-                if e.refs.contains(&(Some(n.krate.clone()), n.name.clone())) || (n.krate == nodes[e.node].krate && e.refs.contains(&(None, n.name.clone()))) {
-                    *named_by.entry(x).or_default() += 1;
-                }
+            for x in named(&e.refs, &nodes[e.node].krate) {
+                *named_by.entry(x).or_default() += 1;
             }
         }
         let entry_hubs: BTreeSet<usize> = named_by.into_iter().filter(|&(_, k)| k * 6 >= all_entries.len()).map(|(x, _)| x).collect();
@@ -1179,7 +1230,8 @@ impl Repo {
             let (r, text) = (rel(p), read(p));
             csys.insert(r.clone(), CsysFile { generated: text.contains("@generated"), symbols: csys_symbols(&r, &text) });
         }
-        let symbols: BTreeSet<String> = csys.values().filter_map(|c| c.symbols.as_ref()).flatten().cloned().collect();
+        // AFFECTED-TESTS-ONE-LOAD, D-X.160: a hash set, since `sym_refs` asks it about every word of the scanned files.
+        let symbols: HashSet<&str> = csys.values().filter_map(|c| c.symbols.as_ref()).flatten().map(String::as_str).collect();
         let mut csys_refs = BTreeMap::new();
         let mut scan = Vec::new();
         for (dir, exts) in [
@@ -1199,8 +1251,15 @@ impl Repo {
         for p in &scan {
             sym_refs(&rel(p), &read(p), &symbols, &mut csys_refs);
         }
-        let names = |x: &Node, y: &Node| x.refs.contains(&(Some(y.krate.clone()), y.name.clone())) || (x.krate == y.krate && x.refs.contains(&(None, y.name.clone())));
-        let hubs = (0..nodes.len()).filter(|&y| nodes.iter().filter(|x| names(x, &nodes[y])).count() * 6 >= nodes.len()).collect();
+        // A hub: a node named by at least a sixth of all nodes (`x` names `y`: `(Some(y's crate), y)` or, in `y`'s crate,
+        // `(None, y)` is one of `x`'s references).
+        let mut names_of: Vec<usize> = vec![0; nodes.len()];
+        for x in &nodes {
+            for y in named(&x.refs, &x.krate) {
+                names_of[y] += 1;
+            }
+        }
+        let hubs = (0..nodes.len()).filter(|&y| names_of[y] * 6 >= nodes.len()).collect();
         let test_only = test_only_modules(&nodes);
         let image = image_of(root, &crates, &nodes);
         let closure = build_closures(root, &crates, &nodes);
@@ -4013,10 +4072,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 if pass > 0 && !second(c, ts) {
                     continue;
                 }
-                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889); the
-                // interposed pass runs the suite's targets only. A pass left with no target and no
-                // unit tests is not run (no `--test` would run all).
-                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect();
+                // A pass left with no target and no unit tests is not run (no `--test` would run all).
+                let ts = pass_targets(pass, c, ts);
                 let lib = sel.libs.contains_key(*c) && (pass < 2 || crate::nextest::interposed(c, ""));
                 if pass > 0 && ts.is_empty() && !lib {
                     continue;
@@ -4038,6 +4095,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                     cmd.arg("test");
                 }
                 cmd.args(&selection);
+                cmd.args(pass_filter(pass, nextest, c, &ts));
                 if pass == 1 {
                     let r = runner.get_or_insert_with(|| {
                         let made = crate::pass2::lock(root).and_then(|held| {
@@ -4059,11 +4117,6 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 }
                 if pass == 2 {
                     cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
-                }
-                // The heavy products sweeps run shard 0 only in the second pass
-                // (`nextest::PASS1_SHARD0`, D-X.36); `cargo test` has no filter for it and runs all.
-                if pass > 0 && nextest {
-                    cmd.args(crate::nextest::pass1_shard_filter(c, &ts).unwrap_or_default());
                 }
                 let label = format!("test -p {c}{}", match pass {
                     0 => "",
@@ -4245,6 +4298,24 @@ fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, 
 fn second_pass(interpose: bool, c: &str, ts: &[&str]) -> bool {
     let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
     (interpose || c == "niji-boundary" || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c)
+}
+
+/// The selected test targets `ts` of crate `c` that pass `pass` runs (0: the first, 1: native, 2: exports
+/// interposed): the pure-Rust sweeps (`nextest::PASS0_ONLY`, #889) and the products targets but
+/// `nextest::PASS2_PRODUCTS` (D-X.161) run in the first pass only; the interposed pass runs the suite's targets only.
+fn pass_targets<'a>(pass: usize, c: &str, ts: &[&'a str]) -> Vec<&'a str> {
+    ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::first_pass_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect()
+}
+
+/// The nextest filter of pass `pass` over crate `c`'s targets `ts`: the native pass leaves out the
+/// later shards of `nextest::PASS2_SHARD0` (D-X.167), as the gate's second pass does; the other
+/// passes, and a run without nextest (`cargo test` takes no filterset), run every test.
+fn pass_filter(pass: usize, nextest: bool, c: &str, ts: &[&str]) -> Vec<String> {
+    if pass == 1 && nextest {
+        crate::nextest::later_shards_filter(c, ts)
+    } else {
+        Vec::new()
+    }
 }
 
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
@@ -5294,7 +5365,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for d in ["crates/boundary", "crates/math", "crates/ld", "crates/core", "crates/kernel", "crates/mem"] {
             assert!(r.image.dirs.contains(d), "{d} is linked into libc.a: {:?}", r.image.dirs);
         }
-        for d in ["crates/native", "crates/thread-db", "crates/mathtools", "crates/spectest", "xtask"] {
+        for d in ["crates/native", "crates/mathtools", "crates/spectest", "xtask"] {
             assert!(!r.image.dirs.contains(d), "{d} is not linked into libc.a");
         }
         assert!(r.image.off.contains(&("niji-boundary".into(), "ld".into())) && !r.image.off.contains(&("niji-boundary".into(), "runtime".into())), "{:?}", r.image.off);
@@ -5988,7 +6059,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert_eq!(csys_symbols("a.S", "\t.symver a\n"), None);
         assert_eq!(csys_symbols("a.S", "\t.symver a, b\n"), None);
         assert_eq!(csys_symbols("a.c", "long niji_a(void) { return 0; }\n"), None);
-        let syms = BTreeSet::from(["niji_a".to_string()]);
+        let syms = std::collections::HashSet::from(["niji_a"]);
         let mut out = BTreeMap::new();
         sym_refs("x.rs", "    pub(crate) safe fn niji_a(s: *const u8) -> usize;\n    /// As `niji_a`\n    let n = ffi::niji_a(p);\n", &syms, &mut out);
         let r = &out["niji_a"];
@@ -6221,7 +6292,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(s.conf.len() == 1 && s.conf.contains_key("s12_printf") && s.libs.len() == 1 && s.clippy.is_empty());
         let krate = &s.tests.keys().next().map(|(c, _)| c.clone()).unwrap_or_default();
         assert!(select_only(repo, &format!("{krate}::s12_stdio_clauses")).is_ok());
-        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-thread-db::s12_stdio_clauses"] {
+        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-kernel::s12_stdio_clauses"] {
             assert!(select_only(repo, bad).is_err(), "{bad}");
         }
     }
@@ -6584,6 +6655,94 @@ fn plain() {}", &aliases);
         }
     }
 
+    // AFFECTED-TESTS-ONE-LOAD, D-X.160: `Repo::load` joins the references of closed texts instead of reading the joined text; for
+    // every pair of these texts that are both closed, the union must be what the joined text gives, and each text that
+    // a neighbour can change (a `use`, `mod`, `as` or path cut off by its end, a `::` at either end) must not be closed.
+    // Trace: no spec clause (test-harness tooling; AFFECTED-TESTS-ONE-LOAD, D-X.160).
+    #[test]
+    fn closed_texts_join_by_the_union_of_their_references() {
+        let aliases = BTreeMap::from([("niji".to_string(), "niji".to_string())]);
+        let open = ["use crate::a", "use x::{y", "use a as", "mod", "q::", "::r::s;", "use niji::t::", "f(niji::", "use crate::{", "{ ::"];
+        let closed = ["", "// only::comment", "use crate::b;", "c::d();", "niji::e::f();", "mod g;", "h", "use niji::{i, j::k};", "int use; z::w;", "x::y\n", "struct S;\n/* use */ m::n;"];
+        for t in open {
+            assert!(!refs_closed(t, &aliases).1, "{t:?} was taken as closed");
+        }
+        for t in closed {
+            assert!(refs_closed(t, &aliases).1, "{t:?} was not taken as closed");
+        }
+        // Cases a cut-off text changes: the union would be wrong for them, which is why they are read whole.
+        let joined = |a: &str, b: &str| refs_of(&format!("{a}\n{b}"), &aliases);
+        let union = |a: &str, b: &str| refs_of(a, &aliases).into_iter().chain(refs_of(b, &aliases)).collect::<BTreeSet<_>>();
+        for (a, b) in [("use crate::a", "b::c;"), ("q::", "r::s;"), ("h", "::r::s;"), ("mod", "c::d();"), ("use a as", "b; c::d();"), ("{ ::", "b::c;")] {
+            assert_ne!(joined(a, b), union(a, b), "{a:?} + {b:?}: a case the closed test must keep whole");
+        }
+        for a in open.iter().chain(&closed) {
+            for b in open.iter().chain(&closed) {
+                let (ra, ca) = refs_closed(a, &aliases);
+                let (rb, cb) = refs_closed(b, &aliases);
+                if ca && cb {
+                    let all: BTreeSet<Ref> = ra.into_iter().chain(rb).collect();
+                    assert_eq!(all, joined(a, b), "{a:?} + {b:?}: both closed, but the union differs from the joined text");
+                    assert!(refs_closed(&format!("{a}\n{b}"), &aliases).1, "{a:?} + {b:?}: joined closed texts are closed");
+                }
+            }
+        }
+    }
+
+    // AFFECTED-TESTS-ONE-LOAD, D-X.160: on the tree itself, a target with support directories has the references of its whole
+    // text (one target per distinct support set, so the check stays cheap; the fragments above cover the rule).
+    // Trace: no spec clause (test-harness tooling; AFFECTED-TESTS-ONE-LOAD, D-X.160).
+    #[test]
+    fn a_target_s_references_are_those_of_its_whole_text() {
+        let repo = repo();
+        let aliases: BTreeMap<String, String> = repo.crates.iter().map(|c| (c.name.replace('-', "_"), c.name.clone())).collect();
+        let mut seen = BTreeSet::new();
+        let mut checked = 0;
+        for t in repo.targets.iter().filter(|t| !t.support.is_empty()) {
+            if seen.insert((t.krate.clone(), t.support.clone())) {
+                assert_eq!(t.refs, refs_of(&t.text, &aliases), "{}::{} (support {:?}): references differ from its whole text's", t.krate, t.name, t.support);
+                checked += 1;
+            }
+        }
+        assert!(checked >= 2, "only {checked} targets with support directories: the check reads nothing");
+    }
+
+    // AFFECTED-TESTS-ONE-LOAD, D-X.160: a support file that is not closed (a `use` cut off by its end, which the next
+    // file's tokens end) makes `Repo::load` read the target's whole text, as before: here the joined text names `m`
+    // and not `z`, while the union of the parts would name `z` and not `m`. No target of the tree has such a part.
+    // Trace: no spec clause (test-harness tooling; AFFECTED-TESTS-ONE-LOAD, D-X.160).
+    #[test]
+    fn a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs() {
+        let root = std::env::temp_dir().join(format!("xtask-oneload-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for (f, text) in [
+            ("Cargo.toml", "[workspace]\nmembers = [\"crates/a\"]\n"),
+            ("crates/a/Cargo.toml", "[package]\nname = \"a\"\n"),
+            ("crates/a/src/lib.rs", "pub mod m;\npub mod n;\nmod p;\nmod q;\n"),
+            ("crates/a/src/m.rs", "pub fn f() {}\n"),
+            ("crates/a/src/n.rs", "pub fn f() {}\n"),
+            ("crates/a/src/p.rs", "use crate::m;\npub extern \"C\" fn e() { crate::m::f(); }\n"),
+            ("crates/a/src/q.rs", "fn k() { a::n::f(); }\n"),
+            ("crates/a/tests/t.rs", "mod sup;\n#[test]\nfn x() {}\n"),
+            ("crates/a/tests/sup/one.rs", "pub fn g() {}\nuse crate::m"),
+            ("crates/a/tests/sup/two.rs", "z::w;\n"),
+        ] {
+            let p = root.join(f);
+            fs::create_dir_all(p.parent().expect("parent")).expect("mkdir");
+            fs::write(&p, text).expect("write");
+        }
+        let repo = Repo::load(&root);
+        let _ = fs::remove_dir_all(&root);
+        let t = repo.targets.iter().find(|t| t.name == "t").expect("target t");
+        assert_eq!(t.support, BTreeSet::from(["sup".to_string()]), "support of t");
+        assert_eq!(t.refs, BTreeSet::from([(None, "m".to_string())]), "t's references are not those of its whole text (the union of its parts names z)");
+        // The hub counts (named by a sixth of the nodes or entries): `m` only through `crate::m` (its own crate), `n`
+        // only through `a::n`; the one entry, `e`, names `m`.
+        let names = |xs: &BTreeSet<usize>| xs.iter().map(|&x| repo.nodes[x].name.clone()).collect::<BTreeSet<_>>();
+        assert_eq!(names(&repo.hubs), BTreeSet::from(["m".to_string(), "n".to_string()]), "hubs");
+        assert_eq!(names(&repo.entry_hubs), BTreeSet::from(["m".to_string()]), "entry hubs");
+    }
+
     #[test]
     fn summary_matches_the_test_summary_format() {
         let log = "test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.1s\ntest result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out\n---- foo::bar stdout ----\nconformance: 5 passed, 0 failed\n";
@@ -6839,5 +6998,27 @@ fn plain() {}", &aliases);
         assert!(second_pass(false, "niji-boundary", &["s03_memory_symbols"]) && second_pass(false, "niji-boundary", &[]));
         assert!(!second_pass(false, "niji", &["printf_rules"]) && second_pass(false, "niji", &["s07_stdio_clauses"]));
         assert!(second_pass(true, "niji-math", &[]) && !second_pass(true, "niji-legacy", &[]) && !second_pass(false, "niji-math", &[]));
+    }
+
+    #[test]
+    fn the_native_pass_runs_only_the_listed_products_targets() {
+        // no spec clause: gate tooling (PASS2-PRODUCTS-ONCE, D-X.161), not libc behaviour.
+        let ts = ["aio_products", "hot_text_products", "heap_meta_products", "timers_products", "s03_memory_clauses", "printf_rules"];
+        assert_eq!(pass_targets(0, "niji", &ts), ts, "the first pass runs every selected target");
+        assert_eq!(pass_targets(1, "niji", &ts), ["hot_text_products", "heap_meta_products", "timers_products", "s03_memory_clauses", "printf_rules"]);
+        assert_eq!(pass_targets(2, "niji", &ts), ["s03_memory_clauses"], "the interposed pass runs the suite's targets only");
+        assert_eq!(pass_targets(1, "niji-math", &["special_cr", "complex_products", "fast64"]), ["fast64"]);
+    }
+
+    #[test]
+    fn the_native_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps() {
+        // no spec clause: gate tooling (PASS2-KERNEL-SHARD0, D-X.167), not libc behaviour.
+        let ts = ["strstr_find", "heap_threads"];
+        let native = pass_filter(1, true, "niji-boundary", &ts);
+        assert_eq!(native, crate::nextest::later_shards_filter("niji-boundary", &ts));
+        assert!(native.len() == 2 && native[1].contains("m_16_to_31") && !native[1].contains("small_compare"), "{native:?}");
+        assert!(pass_filter(0, true, "niji-boundary", &ts).is_empty(), "the first pass runs every shard");
+        assert!(pass_filter(2, true, "niji-boundary", &ts).is_empty() && pass_filter(1, false, "niji-boundary", &ts).is_empty());
+        assert!(pass_filter(1, true, "niji-boundary", &["heap_threads"]).is_empty());
     }
 }

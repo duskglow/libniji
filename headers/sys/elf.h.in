@@ -5,6 +5,6 @@
 
 #include <features.h>
 
-#error "<sys/elf.h> declares nothing: include <elf.h> for the ELF definitions"
+#error "<sys/elf.h> is not provided: it declares nothing; include <elf.h> for the ELF definitions"
 
 #endif

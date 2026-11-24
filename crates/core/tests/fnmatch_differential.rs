@@ -170,16 +170,16 @@ fn a_class_name_runs_to_its_colon_bracket_not_to_the_first_bracket() {
 }
 
 #[test]
-fn extended_groups_nest_to_the_limit_in_every_alternative() {
-    // Clauses: s14_7_c_2_6 (groups nested deeper than the parser allows are an error, never a wrong
-    // answer). The limit is 64 levels: 64 still match, 65 are an error (MUTATION-CAMPAIGN-1B-3:
-    // seq's `depth > MAX_DEPTH` -> `>=` survivor), and a group nested in a first alternative
-    // counts as deep as one in the last (alternatives' `depth + 1` -> `* 1` survivor).
+fn extended_groups_nest_past_the_old_limit_in_every_alternative() {
+    // Clauses: s14_7_c_2_6 (groups nest as deep as the pattern allows; HL-13 removed the old limit
+    // of 64 levels). A group nested in a first alternative is matched as one in the last.
     let nest = |n: usize, alt: &str| "@(".repeat(n) + "a" + &format!("{alt})").repeat(n);
-    assert_eq!(fm::fnmatch(nest(64, "").as_bytes(), b"a", fm::EXTMATCH, &Locale::C), Ok(true), "64 levels");
-    assert!(fm::fnmatch(nest(65, "").as_bytes(), b"a", fm::EXTMATCH, &Locale::C).is_err(), "65 levels");
-    assert_eq!(fm::fnmatch(nest(64, "|z").as_bytes(), b"a", fm::EXTMATCH, &Locale::C), Ok(true), "64 levels, first alternatives");
-    assert!(fm::fnmatch(nest(100, "|z").as_bytes(), b"a", fm::EXTMATCH, &Locale::C).is_err(), "100 levels, first alternatives");
+    for n in [64, 65, 100] {
+        assert_eq!(fm::fnmatch(nest(n, "").as_bytes(), b"a", fm::EXTMATCH, &Locale::C), Ok(true), "{n} levels");
+        assert_eq!(fm::fnmatch(nest(n, "|z").as_bytes(), b"a", fm::EXTMATCH, &Locale::C), Ok(true), "{n} levels, first alternatives");
+        assert_eq!(fm::fnmatch(nest(n, "|z").as_bytes(), b"z", fm::EXTMATCH, &Locale::C), Ok(true), "{n} levels, the other alternatives");
+        assert_eq!(fm::fnmatch(nest(n, "|z").as_bytes(), b"az", fm::EXTMATCH, &Locale::C), Ok(false), "{n} levels, one alternative only");
+    }
 }
 
 #[test]

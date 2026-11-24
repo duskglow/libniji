@@ -12,6 +12,12 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_icmp6_filter
+#  define __NIJI_D_struct_icmp6_filter 1
+struct icmp6_filter {
+  unsigned int icmp6_filt[8];
+};
+# endif
 # ifndef __NIJI_D_struct_icmp6_hdr
 #  define __NIJI_D_struct_icmp6_hdr 1
 struct icmp6_hdr {
@@ -19,6 +25,269 @@ struct icmp6_hdr {
   unsigned char icmp6_code;
   unsigned short icmp6_cksum;
   union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_router_renum
+#  define __NIJI_D_struct_icmp6_router_renum 1
+struct icmp6_router_renum {
+  struct icmp6_hdr rr_hdr;
+  unsigned char rr_segnum;
+  unsigned char rr_flags;
+  unsigned short rr_maxdelay;
+  unsigned int rr_reserved;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_mld_hdr
+#  define __NIJI_D_struct_mld_hdr 1
+struct mld_hdr {
+  struct icmp6_hdr mld_icmp6_hdr;
+  struct in6_addr mld_addr;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_neighbor_advert
+#  define __NIJI_D_struct_nd_neighbor_advert 1
+struct nd_neighbor_advert {
+  struct icmp6_hdr nd_na_hdr;
+  struct in6_addr nd_na_target;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_neighbor_solicit
+#  define __NIJI_D_struct_nd_neighbor_solicit 1
+struct nd_neighbor_solicit {
+  struct icmp6_hdr nd_ns_hdr;
+  struct in6_addr nd_ns_target;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_adv_interval
+#  define __NIJI_D_struct_nd_opt_adv_interval 1
+struct nd_opt_adv_interval {
+  unsigned char nd_opt_adv_interval_type;
+  unsigned char nd_opt_adv_interval_len;
+  unsigned short nd_opt_adv_interval_reserved;
+  unsigned int nd_opt_adv_interval_ival;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_hdr
+#  define __NIJI_D_struct_nd_opt_hdr 1
+struct nd_opt_hdr {
+  unsigned char nd_opt_type;
+  unsigned char nd_opt_len;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_home_agent_info
+#  define __NIJI_D_struct_nd_opt_home_agent_info 1
+struct nd_opt_home_agent_info {
+  unsigned char nd_opt_home_agent_info_type;
+  unsigned char nd_opt_home_agent_info_len;
+  unsigned short nd_opt_home_agent_info_reserved;
+  unsigned short nd_opt_home_agent_info_preference;
+  unsigned short nd_opt_home_agent_info_lifetime;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_mtu
+#  define __NIJI_D_struct_nd_opt_mtu 1
+struct nd_opt_mtu {
+  unsigned char nd_opt_mtu_type;
+  unsigned char nd_opt_mtu_len;
+  unsigned short nd_opt_mtu_reserved;
+  unsigned int nd_opt_mtu_mtu;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_prefix_info
+#  define __NIJI_D_struct_nd_opt_prefix_info 1
+struct nd_opt_prefix_info {
+  unsigned char nd_opt_pi_type;
+  unsigned char nd_opt_pi_len;
+  unsigned char nd_opt_pi_prefix_len;
+  unsigned char nd_opt_pi_flags_reserved;
+  unsigned int nd_opt_pi_valid_time;
+  unsigned int nd_opt_pi_preferred_time;
+  unsigned int nd_opt_pi_reserved2;
+  struct in6_addr nd_opt_pi_prefix;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_opt_rd_hdr
+#  define __NIJI_D_struct_nd_opt_rd_hdr 1
+struct nd_opt_rd_hdr {
+  unsigned char nd_opt_rh_type;
+  unsigned char nd_opt_rh_len;
+  unsigned short nd_opt_rh_reserved1;
+  unsigned int nd_opt_rh_reserved2;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_redirect
+#  define __NIJI_D_struct_nd_redirect 1
+struct nd_redirect {
+  struct icmp6_hdr nd_rd_hdr;
+  struct in6_addr nd_rd_target;
+  struct in6_addr nd_rd_dst;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_router_advert
+#  define __NIJI_D_struct_nd_router_advert 1
+struct nd_router_advert {
+  struct icmp6_hdr nd_ra_hdr;
+  unsigned int nd_ra_reachable;
+  unsigned int nd_ra_retransmit;
+};
+# endif
+# ifndef __NIJI_D_struct_icmp6_hdr
+#  define __NIJI_D_struct_icmp6_hdr 1
+struct icmp6_hdr {
+  unsigned char icmp6_type;
+  unsigned char icmp6_code;
+  unsigned short icmp6_cksum;
+  union { unsigned int icmp6_un_data32[1]; unsigned short icmp6_un_data16[2]; unsigned char icmp6_un_data8[4]; } icmp6_dataun;
+};
+# endif
+# ifndef __NIJI_D_struct_nd_router_solicit
+#  define __NIJI_D_struct_nd_router_solicit 1
+struct nd_router_solicit {
+  struct icmp6_hdr nd_rs_hdr;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_rr_pco_match
+#  define __NIJI_D_struct_rr_pco_match 1
+struct rr_pco_match {
+  unsigned char rpm_code;
+  unsigned char rpm_len;
+  unsigned char rpm_ordinal;
+  unsigned char rpm_matchlen;
+  unsigned char rpm_minlen;
+  unsigned char rpm_maxlen;
+  unsigned short rpm_reserved;
+  struct in6_addr rpm_prefix;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_rr_pco_use
+#  define __NIJI_D_struct_rr_pco_use 1
+struct rr_pco_use {
+  unsigned char rpu_uselen;
+  unsigned char rpu_keeplen;
+  unsigned char rpu_ramask;
+  unsigned char rpu_raflags;
+  unsigned int rpu_vltime;
+  unsigned int rpu_pltime;
+  unsigned int rpu_flags;
+  struct in6_addr rpu_prefix;
+};
+# endif
+# ifndef __NIJI_D_struct_in6_addr
+#  define __NIJI_D_struct_in6_addr 1
+struct in6_addr {
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
+};
+# endif
+# ifndef __NIJI_D_struct_rr_result
+#  define __NIJI_D_struct_rr_result 1
+struct rr_result {
+  unsigned short rrr_flags;
+  unsigned char rrr_ordinal;
+  unsigned char rrr_matchedlen;
+  unsigned int rrr_ifid;
+  struct in6_addr rrr_prefix;
 };
 # endif
 # ifndef __NIJI_D_imaxdiv_t
@@ -79,6 +348,177 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 #  elif __NIJI_ISOC < 2023
 extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NIJI_NOTHROW;
 #  endif
+# endif
+# ifndef ICMP6_DST_UNREACH
+#  define ICMP6_DST_UNREACH 1
+# endif
+# ifndef ICMP6_DST_UNREACH_ADDR
+#  define ICMP6_DST_UNREACH_ADDR 3
+# endif
+# ifndef ICMP6_DST_UNREACH_ADMIN
+#  define ICMP6_DST_UNREACH_ADMIN 1
+# endif
+# ifndef ICMP6_DST_UNREACH_BEYONDSCOPE
+#  define ICMP6_DST_UNREACH_BEYONDSCOPE 2
+# endif
+# ifndef ICMP6_DST_UNREACH_NOPORT
+#  define ICMP6_DST_UNREACH_NOPORT 4
+# endif
+# ifndef ICMP6_DST_UNREACH_NOROUTE
+#  define ICMP6_DST_UNREACH_NOROUTE 0
+# endif
+# ifndef ICMP6_ECHO_REPLY
+#  define ICMP6_ECHO_REPLY 129
+# endif
+# ifndef ICMP6_ECHO_REQUEST
+#  define ICMP6_ECHO_REQUEST 128
+# endif
+# ifndef ICMP6_FILTER
+#  define ICMP6_FILTER 1
+# endif
+# ifndef ICMP6_FILTER_BLOCK
+#  define ICMP6_FILTER_BLOCK 1
+# endif
+# ifndef ICMP6_FILTER_BLOCKOTHERS
+#  define ICMP6_FILTER_BLOCKOTHERS 3
+# endif
+# ifndef ICMP6_FILTER_PASS
+#  define ICMP6_FILTER_PASS 2
+# endif
+# ifndef ICMP6_FILTER_PASSONLY
+#  define ICMP6_FILTER_PASSONLY 4
+# endif
+# ifndef ICMP6_INFOMSG_MASK
+#  define ICMP6_INFOMSG_MASK 128
+# endif
+# ifndef ICMP6_PACKET_TOO_BIG
+#  define ICMP6_PACKET_TOO_BIG 2
+# endif
+# ifndef ICMP6_PARAMPROB_HEADER
+#  define ICMP6_PARAMPROB_HEADER 0
+# endif
+# ifndef ICMP6_PARAMPROB_NEXTHEADER
+#  define ICMP6_PARAMPROB_NEXTHEADER 1
+# endif
+# ifndef ICMP6_PARAMPROB_OPTION
+#  define ICMP6_PARAMPROB_OPTION 2
+# endif
+# ifndef ICMP6_PARAM_PROB
+#  define ICMP6_PARAM_PROB 4
+# endif
+# ifndef ICMP6_ROUTER_RENUMBERING
+#  define ICMP6_ROUTER_RENUMBERING 138
+# endif
+# ifndef ICMP6_RR_FLAGS_FORCEAPPLY
+#  define ICMP6_RR_FLAGS_FORCEAPPLY 32
+# endif
+# ifndef ICMP6_RR_FLAGS_PREVDONE
+#  define ICMP6_RR_FLAGS_PREVDONE 8
+# endif
+# ifndef ICMP6_RR_FLAGS_REQRESULT
+#  define ICMP6_RR_FLAGS_REQRESULT 64
+# endif
+# ifndef ICMP6_RR_FLAGS_SPECSITE
+#  define ICMP6_RR_FLAGS_SPECSITE 16
+# endif
+# ifndef ICMP6_RR_FLAGS_TEST
+#  define ICMP6_RR_FLAGS_TEST 128
+# endif
+# ifndef ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME
+#  define ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME 64
+# endif
+# ifndef ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME
+#  define ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME 128
+# endif
+# ifndef ICMP6_RR_PCOUSE_RAFLAGS_AUTO
+#  define ICMP6_RR_PCOUSE_RAFLAGS_AUTO 16
+# endif
+# ifndef ICMP6_RR_PCOUSE_RAFLAGS_ONLINK
+#  define ICMP6_RR_PCOUSE_RAFLAGS_ONLINK 32
+# endif
+# ifndef ICMP6_RR_RESULT_FLAGS_FORBIDDEN
+#  define ICMP6_RR_RESULT_FLAGS_FORBIDDEN 256
+# endif
+# ifndef ICMP6_RR_RESULT_FLAGS_OOB
+#  define ICMP6_RR_RESULT_FLAGS_OOB 512
+# endif
+# ifndef ICMP6_TIME_EXCEEDED
+#  define ICMP6_TIME_EXCEEDED 3
+# endif
+# ifndef ICMP6_TIME_EXCEED_REASSEMBLY
+#  define ICMP6_TIME_EXCEED_REASSEMBLY 1
+# endif
+# ifndef ICMP6_TIME_EXCEED_TRANSIT
+#  define ICMP6_TIME_EXCEED_TRANSIT 0
+# endif
+# ifndef MLD_LISTENER_QUERY
+#  define MLD_LISTENER_QUERY 130
+# endif
+# ifndef MLD_LISTENER_REDUCTION
+#  define MLD_LISTENER_REDUCTION 132
+# endif
+# ifndef MLD_LISTENER_REPORT
+#  define MLD_LISTENER_REPORT 131
+# endif
+# ifndef ND_NA_FLAG_OVERRIDE
+#  define ND_NA_FLAG_OVERRIDE 32
+# endif
+# ifndef ND_NA_FLAG_ROUTER
+#  define ND_NA_FLAG_ROUTER 128
+# endif
+# ifndef ND_NA_FLAG_SOLICITED
+#  define ND_NA_FLAG_SOLICITED 64
+# endif
+# ifndef ND_NEIGHBOR_ADVERT
+#  define ND_NEIGHBOR_ADVERT 136
+# endif
+# ifndef ND_NEIGHBOR_SOLICIT
+#  define ND_NEIGHBOR_SOLICIT 135
+# endif
+# ifndef ND_OPT_HOME_AGENT_INFO
+#  define ND_OPT_HOME_AGENT_INFO 8
+# endif
+# ifndef ND_OPT_MTU
+#  define ND_OPT_MTU 5
+# endif
+# ifndef ND_OPT_PI_FLAG_AUTO
+#  define ND_OPT_PI_FLAG_AUTO 64
+# endif
+# ifndef ND_OPT_PI_FLAG_ONLINK
+#  define ND_OPT_PI_FLAG_ONLINK 128
+# endif
+# ifndef ND_OPT_PI_FLAG_RADDR
+#  define ND_OPT_PI_FLAG_RADDR 32
+# endif
+# ifndef ND_OPT_PREFIX_INFORMATION
+#  define ND_OPT_PREFIX_INFORMATION 3
+# endif
+# ifndef ND_OPT_REDIRECTED_HEADER
+#  define ND_OPT_REDIRECTED_HEADER 4
+# endif
+# ifndef ND_OPT_SOURCE_LINKADDR
+#  define ND_OPT_SOURCE_LINKADDR 1
+# endif
+# ifndef ND_OPT_TARGET_LINKADDR
+#  define ND_OPT_TARGET_LINKADDR 2
+# endif
+# ifndef ND_RA_FLAG_HOME_AGENT
+#  define ND_RA_FLAG_HOME_AGENT 32
+# endif
+# ifndef ND_RA_FLAG_MANAGED
+#  define ND_RA_FLAG_MANAGED 128
+# endif
+# ifndef ND_RA_FLAG_OTHER
+#  define ND_RA_FLAG_OTHER 64
+# endif
+# ifndef ND_REDIRECT
+#  define ND_REDIRECT 137
+# endif
+# ifndef ND_ROUTER_ADVERT
+#  define ND_ROUTER_ADVERT 134
+# endif
+# ifndef ND_ROUTER_SOLICIT
+#  define ND_ROUTER_SOLICIT 133
 # endif
 # ifndef PRIX16
 #  define PRIX16 "X"
@@ -331,6 +771,15 @@ extern unsigned long wcstoumax (const __NIJI_WCHAR *, __NIJI_WCHAR **, int) __NI
 # endif
 # ifndef PRIxPTR
 #  define PRIxPTR "lx"
+# endif
+# ifndef RPM_PCO_ADD
+#  define RPM_PCO_ADD 1
+# endif
+# ifndef RPM_PCO_CHANGE
+#  define RPM_PCO_CHANGE 2
+# endif
+# ifndef RPM_PCO_SETGLOBAL
+#  define RPM_PCO_SETGLOBAL 3
 # endif
 # ifndef SCNd16
 #  define SCNd16 "hd"

@@ -4,7 +4,7 @@
 //! engine and on its worker engine (the run started under `tests/oracle/aio_noring.c`: a seccomp
 //! filter refusing `io_uring_setup` with `EPERM` or `ENOSYS`, as restricted systems refuse it, or
 //! one allowing everything; under any filter libniji takes the workers without trying io_uring,
-//! D-11.11), with the name-service cache on and off (`nscache_mode.sh`, D-16.10). The
+//! D-11.11), with the name-service cache off only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`). The
 //! outputs must be identical line by line, except the recorded differences: [`KNOWN`] (a line
 //! that differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). Every entry names the case it belongs to: the text of the last `== ` or `-- ` header
@@ -24,25 +24,14 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::{root, with_headers, without};
 #[path = "support/scratch.rs"]
 mod scratch;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/aio_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build_quiet(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/aio_diff.c").quiet().build(out, niji)
 }
 
 const LONG: &str = "D-11.8: a list is read entry by entry, so any length works (AIO_LISTIO_MAX has no fixed value: sysconf -1, as the reference's)";
@@ -90,58 +79,18 @@ const ADDED: [(&str, &str, &str); 8] = [
 /// Lines only the reference prints: as [`ADDED`].
 const DROPPED: [(&str, &str, &str); 0] = [];
 
-/// Each line of `text` with the header line (`== ` or `-- `) it falls under.
-fn with_headers(text: &str) -> Vec<(String, String)> {
-    let mut header = String::new();
-    text.lines()
-        .map(|l| {
-            if l.starts_with("== ") || l.starts_with("-- ") {
-                header = format!("{l}\n");
-            }
-            (header.clone(), l.to_string())
-        })
-        .collect()
-}
+/// The header lines a recorded entry's case is matched against (`oracle::with_headers`).
+const HEADERS: &[&str] = &["== ", "-- "];
 
-/// `lines` without the lines recorded in `list` (each entry is taken once, by the first line
-/// of its case that starts with its text and has not been taken).
-fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)], who: &str) -> Vec<(String, String)> {
-    let mut seen = vec![false; list.len()];
-    let mut out = Vec::new();
-    for (h, l) in lines {
-        match list.iter().enumerate().position(|(i, (case, needle, _))| !seen[i] && h.starts_with(case) && l.starts_with(needle)) {
-            Some(i) => {
-                seen[i] = true;
-                eprintln!("recorded line only {who} prints ({}):\n  {l}", list[i].2);
-            }
-            None => out.push((h, l)),
-        }
-    }
-    for (i, s) in seen.iter().enumerate() {
-        assert!(s, "recorded line no longer printed by {who}: {:?}", list[i]);
-    }
-    out
-}
-
-// GATE-SPEED-3: one test per engine and name-service cache mode (they were one test of seven serial
-// runs, ~290 s). Each test has its own build outputs and scratch directories (named by `tag`) and
-// runs under its own private /dev/shm (nscache_mode.sh), so they can run side by side.
-#[test]
-fn aio_equals_the_reference_uring_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("uring-on", "io_uring", None, "on");
-}
-
+// GATE-SPEED-3: one test per engine (they were one test of seven serial runs, ~290 s). Each test
+// has its own build outputs and scratch directories (named by `tag`) and runs under its own private
+// /dev/shm (nscache_mode.sh), so they can run side by side. The name-service cache runs in one mode
+// (D-16.18): aio_diff.c makes no lookup, so an "on" run executes the same code as the "off" run
+// (`tests/nscache_reach.rs` fails when the program starts making one).
 #[test]
 fn aio_equals_the_reference_uring_off() {
     // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
     check("uring-off", "io_uring", None, "off");
-}
-
-#[test]
-fn aio_equals_the_reference_eperm_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("eperm-on", "workers (io_uring_setup refused with EPERM)", Some("EPERM"), "on");
 }
 
 #[test]
@@ -214,7 +163,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     } else {
         eprintln!("note: the reference differs from the record (timing under load: aio.md, \"Timing\")");
     }
-    let want = without(with_headers(&reference), &DROPPED, "the reference");
+    let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
     eprintln!("engine: {engine}; name-service cache {mode}");
     let got = run(&ours, &format!("aio-niji-{tag}-{mode}"), Some(mode), refuse);
     // A section killed by its own alarm on one side only is load, not a difference: say so before the line counts.
@@ -223,7 +172,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         a.sort();
         a
     };
-    let (aw, ag) = (alarmed(&with_headers(&reference)), alarmed(&with_headers(&got)));
+    let (aw, ag) = (alarmed(&with_headers(&reference, HEADERS)), alarmed(&with_headers(&got, HEADERS)));
     if aw != ag {
         let (side, line) = match aw.iter().find(|l| !ag.contains(l)) {
             Some(l) => ("the glibc reference", l),
@@ -231,7 +180,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         };
         panic!("section alarm: {side} ({engine}) has {line:?}: killed by its section alarm (load?) - rerun");
     }
-    let got = without(with_headers(&got), &ADDED, "libniji");
+    let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
     let mut diffs = 0;
     let mut seen = vec![false; KNOWN.len()];
     for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
