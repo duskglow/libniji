@@ -40,6 +40,11 @@ next's structure was kept; Unreleased holds one entry, the loud failure of a thr
 landed after 22.3). Differences rows (D-12.34, COMPAT-39..41) merged cleanly. clippy, static green; affected gate green
 (first gate red only because `target/niji` was missing for the iconv transcript tests; `cargo xtask so` fixed it).
 
+## Continuation DOCS-CATCHUP-1121-3
+Merged origin/next (release-notes fragments). Conflict in RELEASE-NOTES.md: took next's text (released sections only);
+the one Unreleased entry (COMPAT-38 thread exit) moved to docs/release-notes.d/DOCS-CATCHUP-1121-3.md. clippy and
+static green on mei. Differences rows unchanged.
+
 ## Next step
 Land. Later snapshots (1121C..1122D: LOCALEDEF-*, LG6-CTYPE-OBJECTS, HEADERS-O2-INLINES, ...) are
 not in these notes: a follow-up docs story.
