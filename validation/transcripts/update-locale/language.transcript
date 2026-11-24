@@ -1,4 +1,4 @@
-name: update-locale disables a LANGUAGE whose first language is not LANG's
+name: update-locale --no-checks leaves a LANGUAGE whose first language is not LANG's
 clause: s31_14_c_2
 command: update-locale
 file: conf
@@ -7,3 +7,9 @@ arg: --no-checks
 arg: --locale-file
 arg: @ROOT@/conf
 arg: LANG=de_DE.UTF-8
+status: exit 0
+stdout:
+stderr:
+written-file: conf
+| LANGUAGE=fr:en
+| LANG=de_DE.UTF-8

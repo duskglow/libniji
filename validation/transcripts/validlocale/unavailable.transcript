@@ -2,3 +2,8 @@ name: validlocale on a locale no system has suggests its locale.gen line with th
 clause: s31_14_c_2
 command: validlocale
 arg: xx_XX
+status: exit 1
+stdout:
+| xx_XX ISO-8859-1
+stderr:
+| locale 'xx_XX' not available

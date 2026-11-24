@@ -8,3 +8,10 @@ file: conf
 arg: --reset
 arg: --locale-file=@ROOT@/conf
 arg: LC_TIME=C
+status: exit 0
+stdout:
+stderr:
+written-file: conf
+| #LANG=C
+| #LC_NAME=C
+| LC_TIME=C

@@ -7,3 +7,10 @@ arg: --bogus
 arg: --locale-file
 arg: @ROOT@/conf
 arg: LC_TIME=C
+status: exit 0
+stdout:
+stderr:
+| Unknown option: bogus
+written-file: conf
+| LANG=C
+| LC_TIME=C

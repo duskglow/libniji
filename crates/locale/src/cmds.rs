@@ -253,7 +253,20 @@ pub fn validlocale(argv0: &[u8], args: &[&[u8]], host: &mut dyn Host) -> Outcome
 
 fn valid_body(argv0: &[u8], args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> Res<()> {
     let Some(&name) = args.first() else {
-        put(&mut o.out, &[b"Usage: ", argv0, b" <locale>\n"])?;
+        // The program names itself by the path it was run from, as a shell names a script (probed: a bare
+        // `validlocale` found on PATH prints `/usr/sbin/validlocale`): a bare argv[0] gets the first PATH
+        // directory holding it.
+        let mut shown = join(&[argv0])?;
+        if !argv0.contains(&b'/') {
+            for dir in host.env(b"PATH").unwrap_or_default().split(|&b| b == b':').filter(|d| !d.is_empty()) {
+                let p = join(&[dir, b"/", argv0])?;
+                if host.exists(&p) {
+                    shown = p;
+                    break;
+                }
+            }
+        }
+        put(&mut o.out, &[b"Usage: ", &shown, b" <locale>\n"])?;
         o.status = 1;
         return Ok(());
     };
@@ -433,17 +446,8 @@ fn update_body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> Res<()> 
             }
         }
     }
-    // LANGUAGE lists languages for messages; one whose first language is not LC_ALL's (or else LANG's) is
-    // disabled with a warning, unless that locale is C or POSIX (probed).
-    let target = [&b"LC_ALL"[..], b"LANG"].into_iter().find_map(|n| value_of(&lines, n).filter(|v| !v.is_empty()).map(|v| (n, v)));
-    if let (Some((tname, tval)), Some(langs)) = (target, value_of(&lines, b"LANGUAGE").filter(|v| !v.is_empty())) {
-        let first = langs.split(|&b| b == b':').next().unwrap_or_default();
-        if tval != b"C" && tval != b"POSIX" && language(first) != language(tval) {
-            let (tname, tval, langs) = (join(&[tname])?, join(&[tval])?, join(&[langs])?);
-            put(&mut o.out, &[b"*** update-locale: Warning: LANGUAGE (", &langs, b") is not compatible with ", &tname, b" (", &tval, b"). Disabling it.\n"])?;
-            disable(&mut lines, b"LANGUAGE")?;
-        }
-    }
+    // Both checks are the sanity checks `--no-checks` skips, availability first: a refused setting leaves
+    // LANGUAGE in the error line and unwarned (probed).
     if checks {
         let avail = Available::new(host);
         let mut bad = false;
@@ -466,6 +470,17 @@ fn update_body(args: &[&[u8]], host: &mut dyn Host, o: &mut Outcome) -> Res<()> 
             put(&mut o.err, &[b"\n"])?;
             o.status = 255;
             return Ok(());
+        }
+        // LANGUAGE lists languages for messages; one whose first language is not LC_ALL's (or else LANG's) is
+        // disabled with a warning, unless that locale is C or POSIX (probed).
+        let target = [&b"LC_ALL"[..], b"LANG"].into_iter().find_map(|n| value_of(&lines, n).filter(|v| !v.is_empty()).map(|v| (n, v)));
+        if let (Some((tname, tval)), Some(langs)) = (target, value_of(&lines, b"LANGUAGE").filter(|v| !v.is_empty())) {
+            let first = langs.split(|&b| b == b':').next().unwrap_or_default();
+            if tval != b"C" && tval != b"POSIX" && language(first) != language(tval) {
+                let (tname, tval, langs) = (join(&[tname])?, join(&[tval])?, join(&[langs])?);
+                put(&mut o.out, &[b"*** update-locale: Warning: LANGUAGE (", &langs, b") is not compatible with ", &tname, b" (", &tval, b"). Disabling it.\n"])?;
+                disable(&mut lines, b"LANGUAGE")?;
+            }
         }
     }
     let mut out = TryVec::new();

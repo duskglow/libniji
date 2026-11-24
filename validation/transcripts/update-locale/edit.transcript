@@ -1,11 +1,11 @@
 name: update-locale edits a hand-written file in place
 clause: s31_14_c_2
 command: update-locale
-# A set variable replaces its line, commented or not; a bare name comments its line out; an empty line becomes
-# `#`; an `export` line is not a variable; leading blanks are kept.
+# A set variable replaces its line, commented or not; a bare name comments its line out; an `export` line is not
+# a variable; leading blanks are kept. (An empty line is left out: trixie's update-locale writes it back as `#`,
+# the 2.39 reference keeps it empty; libniji follows trixie, D-31.37.)
 file: conf
 |   LC_PAPER=C
-|
 | #LANG=POSIX
 | export LC_TIME=C
 | LC_NAME=C
@@ -13,3 +13,11 @@ arg: --locale-file
 arg: @ROOT@/conf
 arg: LANG=C
 arg: LC_PAPER
+status: exit 0
+stdout:
+stderr:
+written-file: conf
+| #  LC_PAPER=C
+| LANG=C
+| export LC_TIME=C
+| LC_NAME=C

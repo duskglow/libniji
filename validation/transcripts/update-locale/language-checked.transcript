@@ -1,0 +1,9 @@
+name: update-locale disables a LANGUAGE whose first language is not LANG's
+clause: s31_14_c_2
+command: update-locale
+# C.UTF-8 is available on every system (built in) and, unlike C, not exempt from the LANGUAGE check.
+file: conf
+| LANGUAGE=fr:en
+arg: --locale-file
+arg: @ROOT@/conf
+arg: LANG=C.UTF-8
