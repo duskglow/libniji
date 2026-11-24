@@ -539,10 +539,29 @@ in any way ships them as a new version, and the released file is never replaced.
   would load the host's `libc.so.6` and stop at the missing `NIJI_NATIVE_1` node; the host's
   loader must never load libniji's `libc.so.6`. The `dynamic` example is also linked with
   libniji's `ld-linux-x86-64.so.2` as its interpreter and run in `cargo xtask native` (D-27.24).
-* **Rust `std`.** Not tried yet (section 5: the C symbols it needs are defined now; a link
-  has not been tested). Every Rust program is `#![no_std]` until then, and the
-  dylib's `toolchain.std` is `false`; a version with `std` would be a new version.
-* **Unwinding.** Everything is `panic = "abort"`; `nounwind.o` stands in for the unwinder.
+* **Linking Rust `std` against libniji.** Not tried yet (section 5: the C symbols it needs
+  are defined now; a link has not been tested). Every Rust program of libniji's own is
+  `#![no_std]` until then, and the dylib's `toolchain.std` is `false`; a version with `std`
+  would be a new version. This is about building: a `std` program built by the host toolchain
+  does run under libniji (below).
+* **Unwinding in libniji's own programs.** They are all `panic = "abort"`; `nounwind.o`
+  stands in for the unwinder.
+
+**What does work: Rust `std` programs built by the host toolchain.** Such a program, started
+by libniji's `ld-linux-x86-64.so.2` with libniji's `libc.so.6`, starts, runs threads with
+thread-local storage, unwinds and catches panics (on the main thread and in a spawned thread,
+running destructors on the way), forks a child through `std`'s fork-then-exec path,
+re-executes `current_exe()`, writes, reads and lists files, reads its environment and exits
+with its own status. `crates/boundary/tests/std_smoke.rs` checks all of these, line by line,
+in the gate's native pass (PASS2-NATIVE-RUNNER, D-X.135), which runs every Rust test binary of
+the selftest crates as a libniji process (a copy whose program interpreter is a loader built
+with a short per-tree prefix). Shown so far with that prefixed loader only, not with libniji
+installed as the system's C library.
+
+Every `std` program names `libgcc_s.so.1` (the GCC unwinder) in `NEEDED`. libniji does not
+ship it: it comes from the GCC toolchain's runtime (`cc -print-file-name=libgcc_s.so.1`
+prints its path; on Debian and Ubuntu it is the `libgcc-s1` package), and the native pass
+links that file into its root's `lib/`, the only directory a prefixed libniji loader searches.
 * **Several CPU levels.** The dylib is built for the baseline `x86-64` only, like the
   static products; the `glibc-hwcaps` builds (P4) do not exist yet.
 * **A second real toolchain** has not been exercised: `lr999-test` uses lr1's.

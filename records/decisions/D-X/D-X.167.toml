@@ -1,0 +1,10 @@
+id = "D-X.167"
+section = "x"
+status = "active"
+amends = ["D-X.161"]
+story = "PASS2-KERNEL-SHARD0"
+date = "2026-11-23"
+tests = ["xtask/src/nextest.rs::the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps", "xtask/src/affected.rs::the_native_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps"]
+body = '''
+**The gate's second (native) pass runs only the first shard of strstr_find's three needle-length sweeps and small_compare's size sweep** (PASS2-KERNEL-SHARD0, TEST-REDUNDANCY-AUDIT M1; owner ruling 2026-11-23 accepting the audit's test recommendations). `nextest::PASS2_SHARD0` lists each family (crate, target, family name, first shard, later shards); the second pass of `cargo xtask test` (`pass1_filter`) and `affected`'s native pass under nextest leave out the later shards by full test name (`test(=..)`). The first pass runs every shard; a run without nextest runs all. Reason: these tests call niji-boundary's Rust functions inside the test binary, the same code in both passes. The second pass changes the thread block, the heap and the locale reached through the thread block. A shard is a needle-length range (`m_16_to_31`, `m_32_to_47`, `m_48_to_70`) or a size range (`_in_each_build_1` to `_4`), and changes none of these. The first shard therefore meets the second pass's state as every later one would. The audit found no pass-2-only failure of either binary in 698 gate runs; the cut is 249 test-s of pass 2. casecmp_avx2 is not included (one unsharded, locale-dependent test). A shard added later runs in both passes until it is listed; a listed name that no longer exists fails the unit test.
+'''

@@ -185,6 +185,16 @@ impl CtypeFile {
         self.cat.item(CLASS32)
     }
 
+    /// The 256 `i32` uppercase mappings of code points U+0000…U+00FF (`__ctype32_toupper`).
+    pub fn toupper32_table(&self) -> &'static [u8] {
+        self.cat.item(TOUPPER32)
+    }
+
+    /// The 256 `i32` lowercase mappings of code points U+0000…U+00FF (`__ctype32_tolower`).
+    pub fn tolower32_table(&self) -> &'static [u8] {
+        self.cat.item(TOLOWER32)
+    }
+
     /// The class mask of byte `b` (−128…255).
     pub fn byte_class(&self, b: i32) -> u16 {
         let i = usize::try_from(b + 128).unwrap_or(usize::MAX);

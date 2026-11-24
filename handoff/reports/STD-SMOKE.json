@@ -1,0 +1,21 @@
+{"task": "STD-SMOKE", "model": "opus", "tokens": null,
+ "result": "std_smoke.rs runs a Rust std program (threads, TLS, caught panic, fork-then-exec child, re-exec, file and env I/O, exit status) as a libniji process in the native pass; README and toolchain.md section 8 now say host-built std programs run under libniji and where libgcc_s.so.1 comes from",
+ "branch": "task/std-smoke", "head": null,
+ "gate": {"affected": "628 passed / 0 failed (direct tier)", "peak": "2.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The test cannot see whether std took its fork path: gid() forces it today (strace: clone with SIGCHLD only, then execve); a std change back to posix_spawn would go unnoticed",
+   "Shown with the native pass's prefixed loader only, not with libniji installed as the system C library",
+   "cargo xtask plants printed 'caught by no test the log names' for every plant of an `affected --only` command although the msg regex matched"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "tests added (std_smoke, runs in pass 1 and the native pass)", "before": 0, "after": 1, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants added, all caught", "before": 0, "after": 5, "unit": "plants", "measured": true},
+   {"kind": "correctness", "what": "README and docs/toolchain.md section 8 no longer say Rust std programs are unsupported; they state what runs, what is untried, and the libgcc_s.so.1 dependency", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "cargo xtask plants could name the test from nextest's FAIL line in an `affected --only` log instead of printing 'caught by no test the log names'",
+ "next_step": "none for this story; follow-ups: a std program with libniji installed at / ; linking std against libc.so.6/libc.a (toolchain.md section 5)",
+ "report_file": "handoff/STD-SMOKE.md",
+ "jobs": ["std-smoke-gate", "std-smoke-plants", "std-smoke-lint3"]}

@@ -23,5 +23,5 @@ sys/file.h	1	-
 sys/sysmacros.h	1	-
 paths.h	1	-
 libgen.h	1	-
-sys/xattr.h	1	-
+sys/xattr.h	1	linux/xattr.h
 sys/sendfile.h	1	-

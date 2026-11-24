@@ -61,15 +61,18 @@
 //! `errno` `EBUSY`, an artifact), `EAI_MEMORY`, `EAI_SYSTEM` with the error of a database file
 //! that cannot be read.
 
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
+
 use niji::error::Errno;
 use niji::mem::TryVec;
 use niji::names::nss::LookupError;
-use niji::names::sort::{self, Candidate, Policy, POLICY_BYTES};
+use niji::names::sort::{self, Candidate, Policy, Table, ENTRY_BYTES, INLINE_ENTRIES};
 use niji::names::dns::idna;
 use niji::names::{db, Family, Ip};
 use niji::net::{addr, iface, Text};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{AF_INET, AF_INET6};
+use niji_rt::chunks::{ChunkPages, Chunks};
 
 use crate::netdb_compat as netdb;
 use crate::nss::{Ctx, Watched};
@@ -376,10 +379,24 @@ fn configured<S: Sys>(sys: &S) -> Option<(bool, bool)> {
     Some((v4, v6))
 }
 
-/// `gai.conf`, read once (or again when it changes, with `reload yes`).
+/// A table's inline entries in [`GaiConf`]'s buffer.
+const TABLE_INLINE: usize = INLINE_ENTRIES * ENTRY_BYTES;
+/// The words of one entry past the inline ones.
+const ENTRY_WORDS: usize = ENTRY_BYTES.div_ceil(8);
+
+/// `gai.conf`, read once (or again when it changes, with `reload yes`). Its three tables
+/// (precedence, label, scopev4) are held in atomics, read and written under the file's lock: a
+/// table's first [`INLINE_ENTRIES`] entries in `inline`, the rest in `more`
+/// ([`ENTRY_WORDS`] words each, table after table), so a table has no limit but memory
+/// (CONFIG-TABLES-GROWTH). The chunks only grow and never move.
 pub struct GaiConf {
     file: Watched,
-    policy: Buf<POLICY_BYTES>,
+    /// `reload yes` in the file read last: read before the lock, so it is its own atomic.
+    reload: AtomicBool,
+    /// Each table's entries.
+    lens: [AtomicUsize; 3],
+    inline: Buf<{ 3 * TABLE_INLINE }>,
+    more: Chunks,
 }
 
 impl Default for GaiConf {
@@ -391,19 +408,99 @@ impl Default for GaiConf {
 impl GaiConf {
     /// Never read.
     pub const fn new() -> GaiConf {
-        GaiConf { file: Watched::new(), policy: Buf::new() }
+        GaiConf { file: Watched::new(), reload: AtomicBool::new(false), lens: [const { AtomicUsize::new(0) }; 3], inline: Buf::new(), more: Chunks::new() }
     }
 
-    /// The policy of the file `path`.
-    pub fn policy<S: Sys>(&self, sys: &S, path: &[u8]) -> Policy {
-        let read = || {
-            let mut b = [0u8; POLICY_BYTES];
-            self.policy.load(&mut b);
-            Policy::decode(&b).unwrap_or(Policy::DEFAULT)
-        };
+    /// The policy of the file `path`. `pages`: the memory the long tables live in.
+    pub fn policy<S: Sys>(&self, sys: &S, pages: &dyn ChunkPages, path: &[u8]) -> Policy {
         // Whether to look at the file again: only once read with `reload yes`.
-        let reload = read().reload;
-        self.file.with(sys, path, reload, |t| self.policy.store(&t.map_or(Policy::DEFAULT, Policy::parse).encode()), read)
+        let reload = self.reload.load(Relaxed);
+        self.file.with(sys, path, reload, |t| self.store(pages, t.map_or(Policy::DEFAULT, Policy::parse)), || self.load(pages))
+    }
+
+    /// Hold `p`. A table past the inline entries whose memory is out is held as the default
+    /// one, never in part.
+    fn store(&self, pages: &dyn ChunkPages, mut p: Policy) {
+        let extra = |t: &Table| t.entries().len().saturating_sub(INLINE_ENTRIES);
+        let total = extra(&p.precedence).saturating_add(extra(&p.label)).saturating_add(extra(&p.scopev4));
+        if total > 0 && !self.more.reserve_first(pages, total, ENTRY_WORDS) {
+            for (t, d) in [(&mut p.precedence, sort::PRECEDENCE), (&mut p.label, sort::LABEL), (&mut p.scopev4, sort::SCOPEV4)] {
+                if t.entries().len() > INLINE_ENTRIES {
+                    *t = d;
+                }
+            }
+        }
+        let mut at = 0usize;
+        for ((k, t), len) in [&p.precedence, &p.label, &p.scopev4].into_iter().enumerate().zip(&self.lens) {
+            let all = t.entries();
+            let (head, tail) = all.split_at_checked(INLINE_ENTRIES).unwrap_or((all, &[]));
+            let mut bytes = [0u8; TABLE_INLINE];
+            for (chunk, x) in bytes.chunks_exact_mut(ENTRY_BYTES).zip(head) {
+                chunk.copy_from_slice(&x.encode());
+            }
+            self.inline.store_at(k.saturating_mul(TABLE_INLINE), bytes.get(..head.len().saturating_mul(ENTRY_BYTES)).unwrap_or(&[]));
+            for x in tail {
+                let mut b = [0u8; ENTRY_WORDS * 8];
+                for (d, s) in b.iter_mut().zip(x.encode()) {
+                    *d = s;
+                }
+                if let Some(words) = self.more.get(pages, at, ENTRY_WORDS) {
+                    for (w, c) in words.iter().zip(b.chunks_exact(8)) {
+                        w.store(u64::from_le_bytes(c.try_into().unwrap_or([0; 8])), Relaxed);
+                    }
+                }
+                at = at.saturating_add(1);
+            }
+            len.store(all.len(), Relaxed);
+        }
+        self.reload.store(p.reload, Relaxed);
+    }
+
+    /// The policy held. A table that cannot be given (its entries past the inline ones need
+    /// memory that is out) is the default one.
+    fn load(&self, pages: &dyn ChunkPages) -> Policy {
+        let mut at = 0usize;
+        let mut tables = [sort::PRECEDENCE, sort::LABEL, sort::SCOPEV4].map(|d| (Table::EMPTY, d));
+        for ((k, (t, default)), len) in tables.iter_mut().enumerate().zip(&self.lens) {
+            let n = len.load(Relaxed);
+            let first = at;
+            at = at.saturating_add(n.saturating_sub(INLINE_ENTRIES));
+            // Only the entries the table has.
+            let mut bytes = [0u8; TABLE_INLINE];
+            let body = bytes.get_mut(..n.min(INLINE_ENTRIES).saturating_mul(ENTRY_BYTES)).unwrap_or(&mut []);
+            self.inline.load_at(k.saturating_mul(TABLE_INLINE), body);
+            let mut ok = true;
+            for chunk in body.chunks_exact(ENTRY_BYTES) {
+                // In place: cannot fail.
+                ok &= sort::Entry::decode(chunk).is_some_and(|x| t.push(x).is_ok());
+            }
+            if n > INLINE_ENTRIES {
+                ok &= self.load_more(pages, t, first, n.saturating_sub(INLINE_ENTRIES));
+            }
+            if ok && !t.entries().is_empty() {
+                core::mem::swap(t, default);
+            }
+        }
+        let [(_, precedence), (_, label), (_, scopev4)] = tables;
+        Policy { precedence, label, scopev4, reload: self.reload.load(Relaxed) }
+    }
+
+    /// The `n` entries from entry `first` of `more`, onto `t`: false when they do not decode
+    /// or memory is out.
+    #[cold]
+    #[inline(never)]
+    fn load_more(&self, pages: &dyn ChunkPages, t: &mut Table, first: usize, n: usize) -> bool {
+        for i in first..first.saturating_add(n) {
+            let Some(words) = self.more.get(pages, i, ENTRY_WORDS) else { return false };
+            let mut b = [0u8; ENTRY_WORDS * 8];
+            for (c, w) in b.chunks_exact_mut(8).zip(words) {
+                c.copy_from_slice(&w.load(Relaxed).to_le_bytes());
+            }
+            if !sort::Entry::decode(&b).is_some_and(|x| t.push(x).is_ok()) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -415,7 +512,7 @@ fn sort_addrs<S: Sys>(ctx: &Ctx<'_, S>, addrs: &mut [Addr]) {
     if addrs.len() < 2 {
         return;
     }
-    let policy = GAI_CONF.policy(ctx.sys, ctx.paths.gai_conf);
+    let policy = GAI_CONF.policy(ctx.sys, ctx.pages, ctx.paths.gai_conf);
     let ifaddrs = iface::addrs(ctx.sys).ok();
     let mut keyed: TryVec<(Addr, Candidate)> = TryVec::new();
     for a in addrs.iter() {

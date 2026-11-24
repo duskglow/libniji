@@ -1,0 +1,7 @@
+# C-LOCALE-IDENTIFICATION plants (D-7.22). The built-in tables are generated from spec/abi/langinfo.tsv,
+# so each plant mutates the table and its command regenerates it; s7_4_c_2 checks the values in-process.
+# (plants-1: commands that also rebuilt the products for the host-diff oracle ran past the 600 s limit.)
+terr | spec/abi/langinfo.tsv | perl:s/(_NL_IDENTIFICATION_TERRITORY\tP\t)49534f00/${1}00/ | cargo xtask locale-gen && cargo test -p niji --test s07_locale_clauses s7_4_c_2 | msg:_NL_IDENTIFICATION_TERRITORY
+email | spec/abi/langinfo.tsv | perl:s/(_NL_IDENTIFICATION_EMAIL\tP\t)00/${1}7800/ | cargo xtask locale-gen && cargo test -p niji --test s07_locale_clauses s7_4_c_2 | msg:contact field 4 is empty
+category2 | spec/abi/langinfo.tsv | perl:s/(_NL_IDENTIFICATION_CATEGORY\tP\t6931386e3a3139393900)6931386e3a31393939/${1}6931386e3a31393938/ | cargo xtask locale-gen && cargo test -p niji --test s07_locale_clauses s7_4_c_2 | msg:_NL_IDENTIFICATION_CATEGORY string 1
+revision | spec/abi/langinfo.tsv | perl:s/(_NL_IDENTIFICATION_REVISION\tP\t)312e3000/${1}322e3100/ | cargo xtask locale-gen && cargo test -p niji --test s07_locale_clauses s7_4_c_2 | msg:_NL_IDENTIFICATION item 12

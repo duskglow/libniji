@@ -1,0 +1,11 @@
+{"task": "PKG-COEXIST-SERIAL", "model": "sonnet", "tokens": null,
+ "result": "Serial form was already on next (DEB-COEXIST-SERIAL), verified by a serial-4 build; libc-bin description now uses $programs and locales' text corrected, with a test",
+ "branch": "task/pkg-coexist-serial", "head": "f3ff26171",
+ "gate": {"affected": "6 passed / 0 failed", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["the build logs 'layout: verdict cache: could not store ... (an ok line holds a newline)'"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "libc-bin and locales package descriptions now match what they ship", "before": null, "after": null, "unit": "descriptions", "measured": true},
+            {"kind": "coverage", "what": "test that system packages shipping programs list them via $programs, plus 2 plants", "before": 0, "after": 3, "unit": "tests+plants", "measured": true}],
+ "improvement": "a brief for work that has already landed should be caught at admission by comparing it with next",
+ "next_step": "none", "report_file": "handoff/PKG-COEXIST-SERIAL.md",
+ "jobs": ["mei:pkg-coexist-serial-gate", "mei:pkg-coexist-serial-plants", "mei:pkg-coexist-serial-build2"]}

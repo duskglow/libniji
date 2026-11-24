@@ -62,8 +62,8 @@ pub fn sysconf<S: Sys, M: Machine, A: Aux>(sys: &S, m: &M, aux: &A, name: i32) -
 /// `confstr(name, buf, len)` (§24.4): the full length of the text including its terminator;
 /// the text is copied into `buf`, truncated and terminated, when `buf` is not empty. An
 /// unknown name is `EINVAL`.
-pub fn confstr(name: i32, buf: &mut [u8]) -> Result<usize> {
-    let text = sysconf_table::confstr(name).ok_or(Errno::EINVAL)?;
+pub fn confstr_into(name: i32, buf: &mut [u8]) -> Result<usize> {
+    let text = sysconf_table::confstr_value(name).ok_or(Errno::EINVAL)?;
     if let Some(room) = buf.len().checked_sub(1) {
         let n = room.min(text.len());
         for (d, s) in buf.iter_mut().zip(text.get(..n).unwrap_or(&[]).iter().chain(&[0u8])) {
@@ -288,7 +288,7 @@ pub const HOSTID_FILE: &[u8] = b"/etc/hostid\0";
 /// 0x007f0101); without one, 0. A file shorter than 4 bytes, or empty, counts as absent; of a
 /// longer one only the first 4 bytes
 /// count (observed in a private mount namespace, 2026-10-03).
-pub fn gethostid<S: Sys>(sys: &S, file: &[u8]) -> i32 {
+pub fn gethostid<S: Sys>(sys: &S, pages: &dyn niji_rt::chunks::ChunkPages, file: &[u8]) -> i32 {
     if let Ok(text) = system::read_file(sys, file) {
         if let Some(b) = text.get(..4).and_then(|b| <[u8; 4]>::try_from(b).ok()) {
             return i32::from_ne_bytes(b);
@@ -297,7 +297,7 @@ pub fn gethostid<S: Sys>(sys: &S, file: &[u8]) -> i32 {
     let Ok(u) = sys.uname() else { return 0 };
     let end = u.nodename.iter().position(|&c| c == 0).unwrap_or(u.nodename.len());
     let name = u.nodename.get(..end).unwrap_or(&[]);
-    match crate::netdb_compat::resolve(sys, name, niji::names::Family::V4) {
+    match crate::netdb_compat::resolve(sys, pages, name, niji::names::Family::V4) {
         Ok(Some(crate::netdb_compat::Resolved { addr: niji::names::Ip::V4(a), .. })) => i32::from_ne_bytes(u32::from_ne_bytes(a).rotate_left(16).to_ne_bytes()),
         _ => 0,
     }

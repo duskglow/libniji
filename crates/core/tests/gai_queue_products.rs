@@ -16,18 +16,12 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+use oracle::root;
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path) -> bool {
-    let r = root();
-    let mut cmd = Command::new("cc");
-    cmd.args(["-std=gnu17", "-O1", "-w", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(r.join("crates/core/tests/oracle/gai_queue.c")).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/gai_queue.c").flags(&["-w"]).build(out, true)
 }
 
 #[test]

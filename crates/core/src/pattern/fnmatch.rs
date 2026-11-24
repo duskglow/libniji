@@ -226,7 +226,7 @@ impl Parser<'_> {
         let k = self.item_close(j, to, d)?;
         let name = self.bytes_of(j + 2, k);
         let v = if d == ch(b':') {
-            Special::Class(ctype::wctype(name, self.loc)?)
+            Special::Class(ctype::wctype_class(name, self.loc)?)
         } else {
             Special::Char(text::collating_element(self.mode, name)?)
         };
@@ -1434,7 +1434,7 @@ fn bracket_has(p: &[u8], i: usize, escapes: bool, mt: &Matcher<'_>, ch: Option<u
                     _ => return Some(None),
                 }
             };
-            let w = ctype::wctype(p.get(j + 2..close)?, mt.loc);
+            let w = ctype::wctype_class(p.get(j + 2..close)?, mt.loc);
             let Some(w) = w else { return Some(None) };
             add(Member::Class(w));
             j = close + 2;

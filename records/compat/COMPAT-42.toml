@@ -1,0 +1,12 @@
+id = "COMPAT-42"
+behaviour = "A timed mutex lock (`pthread_mutex_timedlock`, `pthread_mutex_clocklock`, `mtx_timedlock`) on a held mutex, or a timed join (`pthread_timedjoin_np`, `pthread_clockjoin_np`) of a running thread, given an invalid tv_nsec beside a negative tv_sec (§22.1, §22.4; D-22.26, TIMED-WAIT-EDGE-ORDER-2)"
+glibc = "ETIMEDOUT (`thrd_timedout`) for the plain mutex kinds, `mtx_timedlock` and the joins: the past deadline is decided before tv_nsec (black-box probe, glibc 2.39)"
+liella = "EINVAL (`thrd_error`): a call that would block checks tv_nsec first, whatever tv_sec (POSIX's \"shall fail\")"
+restore = "A tunable read at startup making the would-block path of these calls report ETIMEDOUT for a negative tv_sec before it checks tv_nsec. Registered only, not implemented."
+cost = "none on the default path: one flag test on the invalid-deadline path, after the uncontended attempt failed"
+status = "registered"
+decisions = ["D-22.26"]
+story = "TIMED-WAIT-EDGE-ORDER-2"
+date = "2026-11-23"
+body = '''
+'''

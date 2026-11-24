@@ -583,3 +583,42 @@ fn a_deadline_with_a_negative_second_has_passed() {
         }
     }
 }
+
+#[test]
+fn an_invalid_deadline_is_an_error_only_when_the_mutex_would_block() {
+    // Clauses: s22_4_c_5, s22_7_c_2 (TIMED-WAIT-EDGE-ORDER-2, D-22.26): a tv_nsec outside
+    // 0..999999999 is not looked at when the mutex is free (every kind takes it, through its own
+    // try path); a held one gives EINVAL whatever tv_sec, a past one included. A semaphore reports
+    // EINVAL even when it could be taken, and keeps its value.
+    let bad = [Timespec { sec: -1, nsec: 1_000_000_000 }, Timespec { sec: -1, nsec: -1 }, Timespec { sec: 5, nsec: 1_000_000_000 }];
+    let kinds = [
+        ps::MUTEX_NORMAL,
+        ps::MUTEX_RECURSIVE,
+        ps::MUTEX_ERRORCHECK,
+        ps::MUTEX_ADAPTIVE,
+        ps::MUTEX_NORMAL | ps::KIND_ROBUST,
+        ps::MUTEX_NORMAL | ps::KIND_PP,
+        ps::MUTEX_NORMAL | ps::KIND_PI,
+        ps::MUTEX_NORMAL | ps::KIND_PI | ps::KIND_ROBUST,
+    ];
+    for clock in [Clock::Realtime, Clock::Monotonic] {
+        for at in bad {
+            for kind in kinds {
+                let m = Obj::new(10);
+                m.mutex().init(kind, 1);
+                assert_eq!(m.mutex().lock(&T, LockWait::Until(clock, &at)), Ok(()), "free, kind {kind:#x}, {clock:?} {at:?}");
+                m.mutex().unlock(&T).unwrap();
+                // Held by this thread; a PI kind's other thread meets it in the kernel's try-lock.
+                m.mutex().lock(&T, LockWait::Block).unwrap();
+                let m2 = Arc::clone(&m);
+                let r = std::thread::spawn(move || m2.mutex().lock(&T, LockWait::Until(clock, &at))).join().unwrap();
+                assert_eq!(r, Err(Errno::EINVAL), "held, kind {kind:#x}, {clock:?} {at:?}");
+                m.mutex().unlock(&T).unwrap();
+            }
+            let s = Obj::new(8);
+            Sem::new(&s.w).init(1, false).unwrap();
+            assert_eq!(Sem::new(&s.w).wait(&T, LockWait::Until(clock, &at)), Err(Errno::EINVAL), "semaphore at 1, {clock:?} {at:?}");
+            assert_eq!(Sem::new(&s.w).wait(&T, LockWait::Try), Ok(()), "the value is kept");
+        }
+    }
+}

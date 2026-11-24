@@ -1,0 +1,15 @@
+table-start-strict | crates/rt/src/unwind.rs | lit:        if start(mid)? <= pc { ==>         if start(mid)? < pc { | cargo test -p niji-rt --test unwind | msg:ip27_finds_fdes_through_the_header_and_by_scanning.*(FAILED|panicked)
+table-sdata4-wrong-field | crates/rt/src/unwind.rs | lit:field(i.checked_mul(8)?.checked_add(4)?)? ==> field(i.checked_mul(8)?)? | cargo test -p niji-rt --test unwind | msg:ip27_finds_fdes_through_the_header_and_by_scanning.*(FAILED|panicked)
+table-sdata4-stale-row | crates/rt/src/unwind.rs | lit:let i = last_at_or_below(count, pc, |i| field(i.checked_mul(8)?))?; ==> let i = last_at_or_below(count, pc, |i| field(i.checked_mul(8)?))?.saturating_sub(1); | cargo test -p niji-rt --test unwind | msg:ip27_finds_fdes_through_the_header_and_by_scanning.*(FAILED|panicked)
+remember-wrong-slot | crates/rt/src/unwind.rs | lit:Some(r) => (*r)?, ==> Some(_) => (*saved.first()?)?, | cargo test -p niji-rt --lib unwind | msg:remembered_rows_nest.*(FAILED|panicked)
+remember-not-stored | crates/rt/src/unwind.rs | lit:Some(slot) => *slot = Some(*row), ==> Some(_) => {} | cargo test -p niji-rt --test unwind | msg:ip27_register_rules.*(FAILED|panicked)
+cie-kept-any-address | crates/rt/src/unwind.rs | lit:Some((at, cie)) if at == addr => Some(cie), ==> Some((_, cie)) => Some(cie), | cargo test -p niji-rt --test unwind | msg:(ip27_signal_frames|ip27_advance_encodings_and_code_factor).*(FAILED|panicked)
+regs-not-advanced | crates/rt/src/unwind.rs | lit:core::mem::swap(&mut regs, &mut next); ==> core::mem::swap(regs, &mut Regs::new()); | cargo test -p niji-rt --test unwind | msg:ip27_frame_pointer_chain.*(FAILED|panicked)
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# table-start-strict: CAUGHT, caught by unwind ip27_finds_fdes_through_the_header_and_by_scanning
+# table-sdata4-wrong-field: CAUGHT, caught by unwind ip27_finds_fdes_through_the_header_and_by_scanning
+# table-sdata4-stale-row: CAUGHT, caught by unwind ip27_finds_fdes_through_the_header_and_by_scanning
+# remember-wrong-slot: CAUGHT, caught by niji_rt unwind::tests::remembered_rows_nest
+# remember-not-stored: CAUGHT, caught by unwind ip27_register_rules
+# cie-kept-any-address: CAUGHT, caught by unwind d22_23_handler_frames_above_the_start
+# regs-not-advanced: CAUGHT, caught by unwind d22_23_handler_frames_above_the_start

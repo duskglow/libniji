@@ -1,0 +1,3 @@
+# PKG-COEXIST-SERIAL plants (cargo xtask plants; docs/plants.md): the coexist version loses its serial; libc-bin's description names its programs by hand again.
+no-serial | tools/deb/version.sh | lit:0.0~snapshot$day.$serial+$commit ==> 0.0~snapshot$day+$commit | cargo test -p niji --test deb_version_order | msg:must sort below
+desc-hand-written | tools/deb/description/libc-bin | lit:the programs $programs, the ==> the programs ldconfig, getconf, the | cargo test -p niji --test deb_manifest a_package_that_ships_programs | msg:does not name them with

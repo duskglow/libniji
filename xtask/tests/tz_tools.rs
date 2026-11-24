@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+mod test_link;
+
 const TZDATA: &str = "/usr/share/zoneinfo/tzdata.zi";
 const REF_ZIC: &str = "/usr/sbin/zic";
 const REF_ZDUMP: &str = "/usr/bin/zdump";
@@ -40,11 +42,14 @@ fn root() -> PathBuf {
 
 /// libniji's test link of `name`, or None (with the reason printed) when it or the reference is missing.
 fn tools(name: &str, reference: &str) -> Option<PathBuf> {
-    let ours = root().join("target/niji-test").join(name);
-    if !ours.is_file() {
-        println!("SKIPPED: {} is not built (run `cargo xtask so` first)", ours.display());
-        return None;
-    }
+    // XTASK-STALE-PRODUCTS: a link left by an earlier build whose loader or library is gone is skipped too.
+    let ours = match test_link::usable(&root().join("target/niji-test").join(name)) {
+        Ok(p) => p,
+        Err(why) => {
+            println!("SKIPPED: {why}");
+            return None;
+        }
+    };
     for p in [reference, TZDATA] {
         if !Path::new(p).is_file() {
             println!("SKIPPED: {p} is not installed on this host (the reference to compare with)");

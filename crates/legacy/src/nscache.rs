@@ -82,6 +82,7 @@ use niji_kernel::ops::FcntlLock;
 use niji_kernel::path::KStr;
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_EXCL, O_NOCTTY, O_NOFOLLOW, O_NONBLOCK, O_RDWR, SEEK_SET, S_IFMT, S_IFREG, TMPFS_MAGIC};
+use niji_rt::chunks::ChunkPages;
 use niji_rt::sync::RawMutex;
 
 use crate::nss::{Ctx, SYSTEM};
@@ -103,6 +104,8 @@ pub trait Memory: core::fmt::Debug {
     /// mapping stays mapped (this module: while it holds a reader count, see the module
     /// documentation).
     fn words(&self, addr: usize, n: usize) -> &[AtomicU64];
+    /// The memory the switch's and `gai.conf`'s tables grow in (`crate::nss::Ctx::pages`).
+    fn pages(&self) -> &dyn ChunkPages;
 }
 
 /// The longest positive DNS lifetime kept (seconds).
@@ -745,10 +748,10 @@ impl NsCache {
                 // deleted and its UID reused, changes their identity) and only `files` answers
                 // passwd lookups. Otherwise the account's name is looked up.
                 let recorded = t.stamp_files();
-                let cheap = recorded == Some([files[0].1, files[1].1]) && passwd_from_files(sys);
+                let cheap = recorded == Some([files[0].1, files[1].1]) && passwd_from_files(sys, mem.pages());
                 let stamp = match t.account() {
                     Some(a) if cheap => Stamp { owner, boot, account: a },
-                    _ => Stamp { owner, boot, account: account(sys, euid) },
+                    _ => Stamp { owner, boot, account: account(sys, mem.pages(), euid) },
                 };
                 let good = t.valid(&stamp) && recorded == Some([files[0].1, files[1].1]);
                 if good {
@@ -975,16 +978,17 @@ impl NsCache {
 pub static NSCACHE: NsCache = NsCache::new();
 
 /// The account stamp of `euid`: its user-database name (looked up without the cache) and UID.
-fn account<S: Sys>(sys: &S, euid: u32) -> u64 {
-    crate::nss::passwd(&Ctx::system(sys), Key::Id(euid), |p| cache::account(p.name, euid)).unwrap_or_else(|_| cache::account(b"", euid))
+fn account<S: Sys>(sys: &S, pages: &dyn ChunkPages, euid: u32) -> u64 {
+    crate::nss::passwd(&Ctx::system(sys, pages), Key::Id(euid), |p| cache::account(p.name, euid)).unwrap_or_else(|_| cache::account(b"", euid))
 }
 
 /// Whether only the `files` source (or `compat`, which is `files` here) answers passwd lookups,
 /// so that the user database is the `passwd` file whose identity the account stamp records.
-fn passwd_from_files<S: Sys>(sys: &S) -> bool {
+fn passwd_from_files<S: Sys>(sys: &S, pages: &dyn ChunkPages) -> bool {
     // As read: when `nsswitch.conf` changed since the stamp was verified, its recorded identity
     // differs anyway and the account is looked up.
-    let spec = crate::nss::SWITCH.config_as_read(sys, SYSTEM.nsswitch).spec(niji::names::nss::Database::Passwd);
+    let spec = crate::nss::SWITCH.config_as_read(sys, pages, SYSTEM.nsswitch);
+    let spec = spec.spec(niji::names::nss::Database::Passwd);
     // Other modules (`systemd`, `sss`, ...) cannot answer before the NSS module ABI (F27, phase 14):
     // when they can, a line naming one must make this false.
     spec.steps().iter().all(|s| matches!(s.service, niji::names::nss::Service::Files | niji::names::nss::Service::Compat | niji::names::nss::Service::Module))

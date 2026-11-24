@@ -6,8 +6,14 @@
 #include <features.h>
 #include <sys/types.h>
 #include <stdint.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
+/* netinet/in.h's and netinet/ip.h's names only where they are visible here (visibility.tsv): elsewhere the header
+   leaves them out, and so does not clash with a kernel UAPI header (linux/in.h) included before it. */
+#if __NIJI_MISC
+# include <netinet/in.h>
+#endif
+#if __NIJI_MISC
+# include <netinet/ip.h>
+#endif
 
 __NIJI_BEGIN_C
 

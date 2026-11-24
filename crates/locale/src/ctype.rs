@@ -72,9 +72,55 @@ pub struct Ctype {
     outdigits: Option<TryVec<u32>>,
     translit: TryVec<Translit>,
     default_missing: Option<TryVec<u32>>,
+    /// For each character with a one-character entry, the entry a value of another category uses
+    /// when the charmap lacks the character (see [`Pick`]).
+    pick: BTreeMap<u32, usize>,
+}
+
+/// The compile-time choice among a file's transliteration entries, probed (LOCALEDEF-TRANSLIT):
+/// the file's own entries first, the later of two for one character winning, then its
+/// `include`s in order, the first that has the character winning, each resolved the same way.
+/// The runtime table ([`write_translit`]) keeps its own order; only a one-character from-string
+/// is looked up (the reference does not accept a longer one in this form).
+#[derive(Default)]
+struct Pick {
+    own: BTreeMap<u32, usize>,
+    incs: TryVec<BTreeMap<u32, usize>>,
+}
+
+impl Pick {
+    fn finish(self) -> BTreeMap<u32, usize> {
+        let mut m = self.own;
+        for inc in self.incs.into_inner() {
+            for (k, v) in inc {
+                m.entry(k).or_insert(v);
+            }
+        }
+        m
+    }
 }
 
 impl Ctype {
+    /// Append to `out` the bytes for `ch`, a character the charmap `cs` lacks, through the entry
+    /// [`Pick`] chose: its first alternative that is not empty and that `cs` encodes whole (an
+    /// alternative is not transliterated again; `default_missing` is not used here). `false`
+    /// (and `out` unchanged): no such alternative. Probed (LOCALEDEF-TRANSLIT).
+    pub fn transliterate(&self, cs: &Charset, ch: u32, out: &mut TryVec<u8>) -> Result<bool> {
+        let Some(e) = self.pick.get(&ch).and_then(|&i| self.translit.get(i)) else { return Ok(false) };
+        let mut one = TryVec::new();
+        'alts: for alt in e.to.iter().filter(|a| !a.is_empty()) {
+            one.clear();
+            for &c in alt.iter() {
+                if !cs.encode(c, &mut one)? {
+                    continue 'alts;
+                }
+            }
+            out.extend_from_slice(&one)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     fn class_index(&mut self, name: &[u8]) -> Result<usize> {
         if let Some(i) = self.classes.iter().position(|(n, _)| n.as_slice() == name) {
             return Ok(i);
@@ -94,7 +140,8 @@ impl Ctype {
 
 /// Parse the statements of `LC_CTYPE`, loading `include`d transliteration files through `files`.
 pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
-    let mut c = Ctype { classes: TryVec::new(), maps: TryVec::new(), outdigits: None, translit: TryVec::new(), default_missing: None };
+    let mut c = Ctype { classes: TryVec::new(), maps: TryVec::new(), outdigits: None, translit: TryVec::new(), default_missing: None, pick: BTreeMap::new() };
+    let mut pick = Pick::default();
     for name in STANDARD_CLASSES {
         c.class_index(name)?;
     }
@@ -110,7 +157,7 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
             if kw == b"translit_end" {
                 in_translit = false;
             } else {
-                translit_stmt(&mut c, s, files, 0)?;
+                translit_stmt(&mut c, s, files, 0, &mut pick)?;
             }
             continue;
         }
@@ -169,6 +216,7 @@ pub fn parse(stmts: &[Stmt], files: &mut dyn Files) -> Result<Ctype> {
     both.union(&c.classes[alpha].1);
     both.union(&c.classes[digit].1);
     c.classes[alnum].1.union(&both);
+    c.pick = pick.finish();
     Ok(c)
 }
 
@@ -262,7 +310,7 @@ fn side(t: &Tok, esc: u8, no: u32) -> Result<TryVec<u32>> {
     }
 }
 
-fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> Result<()> {
+fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32, pick: &mut Pick) -> Result<()> {
     match s.keyword() {
         b"include" => {
             let Some(Tok::Str(raw)) = s.args().first() else { return Err(Error::syntax(s.no, "include needs a file name")) };
@@ -274,14 +322,16 @@ fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> 
             let mut other = source::parse(&text, files)?;
             let stmts = other.cats[0].take().ok_or(Error::syntax(s.no, "an included file has no LC_CTYPE"))?;
             let mut inside = false;
+            let mut sub = Pick::default();
             for t in stmts.iter() {
                 match t.keyword() {
                     b"translit_start" => inside = true,
                     b"translit_end" => inside = false,
-                    _ if inside => translit_stmt(c, t, files, depth + 1)?,
+                    _ if inside => translit_stmt(c, t, files, depth + 1, &mut sub)?,
                     _ => {}
                 }
             }
+            pick.incs.push(sub.finish())?;
             Ok(())
         }
         b"default_missing" => {
@@ -304,6 +354,9 @@ fn translit_stmt(c: &mut Ctype, s: &Stmt, files: &mut dyn Files, depth: u32) -> 
                     to.push(side(t, s.esc, s.no)?)?;
                     text.push(!matches!(t, Tok::Sym(_)))?;
                 }
+            }
+            if let [one] = from.as_slice() {
+                pick.own.insert(*one, c.translit.len());
             }
             c.translit.push(Translit { from, to, text })?;
             Ok(())

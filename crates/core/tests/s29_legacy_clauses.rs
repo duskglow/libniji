@@ -20,6 +20,7 @@ use core::ptr::{null, null_mut};
 use niji::error::Errno;
 use niji_boundary::errno;
 use niji_boundary::posix::s29_legacy as l;
+use niji_boundary::posix::s12_stdio as io;
 use spectest::clause;
 
 /// -1 with `errno` `e`.
@@ -230,21 +231,49 @@ fn s29_3_c_0() {
     assert!(fails(l::niji_compat_fdetach(null()), Errno::ENOSYS));
 }
 clause!(s29_4_c_0, "29.4", "Contract", r##"Each keeps the contract it had when it was removed. Most are aliases of current functions, or stubs that fail with `ENOSYS`. Three are special:"##);
+/// The tests that use streams and `__libc_freeres` run one at a time: a call on one test's thread
+/// releases every stream's buffer, so another test's stream would lose its buffer (and the block
+/// count of the thread that allocated it would never see the release) mid-check.
+static FREERES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// s29_4_c_1: `__libc_freeres()` releases libc's internal allocations so that leak checkers report
-/// cleanly. libniji's `__libc_freeres` is inert (coordinator ruling #1317, differences row
-/// `__libc_freeres`, compat flag COMPAT-11 registered): it releases nothing, so the call returns,
-/// may be repeated, and leaves the library working (no state is torn down that a later call could
-/// touch). A leak checker may report libniji's internal allocations as still reachable.
+/// cleanly. A stream's library-allocated buffer is released once its output is written; a stream
+/// with bytes read ahead keeps its buffer and loses none; a released stream allocates again on
+/// its next use; a block the program holds is untouched; errno is left alone; a second call is
+/// harmless.
 #[test]
 fn s29_4_c_1() {
+    let _one = FREERES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let fp = io::tmpfile();
+    assert!(!fp.is_null());
+    assert!(io::fputs(c"abc".as_ptr(), fp) >= 0);
+    assert_eq!(io::__fpending(fp), 3);
+    assert!(io::__fbufsize(fp) > 0, "the first write allocates the buffer");
+    m::__libc_freeres();
+    assert_eq!(io::__fpending(fp), 0, "pending output is written before the buffer goes");
+    assert_eq!(io::__fbufsize(fp), 0, "a writing stream's buffer is released");
+    assert!(io::fputs(c"def".as_ptr(), fp) >= 0);
+    assert!(io::__fbufsize(fp) > 0, "the next write allocates again");
+    io::rewind(fp);
+    assert_eq!(io::fgetc(fp), i32::from(b'a'));
+    m::__libc_freeres();
+    assert!(io::__fbufsize(fp) > 0, "a stream with bytes read ahead keeps its buffer");
+    for want in *b"bcdef" {
+        assert_eq!(io::fgetc(fp), i32::from(want), "no byte read ahead is lost");
+    }
+    assert_eq!(io::fgetc(fp), -1);
+    m::__libc_freeres();
+    assert_eq!(io::__fbufsize(fp), 0, "a stream with nothing read ahead gives its buffer back");
+    assert_eq!(io::ungetc(i32::from(b'x'), fp), i32::from(b'x'));
+    assert_eq!(io::fgetc(fp), i32::from(b'x'), "pushback works after the release");
+    assert_eq!(io::fclose(fp), 0);
     let live = m::malloc(48);
     assert!(!live.is_null());
     st::memset(live, 0x33, 48);
     errno::set_raw(12345);
     m::__libc_freeres();
     m::__libc_freeres();
-    assert_eq!(errno::get(), 12345, "an inert __libc_freeres leaves errno alone");
-    // a block live across the call is untouched: nothing is released
+    assert_eq!(errno::get(), 12345, "__libc_freeres leaves errno alone");
+    // a block the program holds across the call is untouched
     let want = [0x33u8; 48];
     assert_eq!(st::memcmp(live, want.as_ptr().cast::<c_void>(), 48), 0, "a live block survives __libc_freeres");
     let p = m::malloc(64);
@@ -256,6 +285,24 @@ fn s29_4_c_1() {
     let q = m::__libc_malloc(8);
     assert!(!q.is_null());
     m::__libc_free(q);
+}
+/// s29_4_c_1 (counted): after the library has allocated for a `getpwuid` result and a stream's
+/// buffer, `__libc_freeres` as the last call leaves none of the library's own blocks: this thread's
+/// count of blocks the library took from the C `malloc` family (`selftest::caller_blocks`; the
+/// program's own `malloc` calls and other threads never move it) is back where it started.
+#[test]
+fn s29_4_c_1_counted() {
+    let _one = FREERES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let before = niji_boundary::selftest::caller_blocks();
+    let fp = io::tmpfile();
+    assert!(!fp.is_null());
+    assert!(io::fputs(c"abc".as_ptr(), fp) >= 0);
+    assert!(!niji_boundary::posix::s17_users::getpwuid(0).is_null(), "uid 0 has an entry");
+    assert!(niji_boundary::selftest::caller_blocks() > before, "the library holds blocks of its own");
+    m::__libc_freeres();
+    assert_eq!(io::__fbufsize(fp), 0, "the stream's buffer is released");
+    assert_eq!(io::fclose(fp), 0);
+    assert_eq!(niji_boundary::selftest::caller_blocks(), before, "none of the library's blocks is left");
 }
 /// s29_4_c_2: `__libc_malloc` and friends are aliases of `malloc` (the same heap and contracts)
 /// that cannot be interposed: each is its own export that calls the heap directly, never through

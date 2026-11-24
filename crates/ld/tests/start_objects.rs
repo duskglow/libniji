@@ -165,13 +165,19 @@ fn start_objects_past_every_old_bound() {
 
 /// no spec clause (the loader's tables are allocated, so the only start-time limit is memory): under
 /// a sweep of address-space limits, from the first one at which the loader runs at all, the start
-/// either runs or ends with one `ld.so:` line and status 127; never a signal.
+/// either runs or ends with one `ld.so:` line and status 127; never a signal. Every limit refused is
+/// swept; the sweep ends once two runs in a row complete (a larger limit only adds room no growth
+/// path lacks; on the Zen 1 host the full sweep to 48 MiB ran 95 of its 189 limits above that point
+/// and none of them was refused).
 #[test]
 fn start_objects_out_of_memory_is_clean() {
     let Some((d, _, prog)) = corpus("oom") else { return };
-    let (mut ran, mut refused) = (0, 0);
+    let (mut ran, mut refused, mut in_row, mut first_ran) = (0, 0, 0, None);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (1024..=48 * 1024).step_by(256) {
+        if in_row == 2 {
+            break;
+        }
         let o = run(Command::new("sh").arg("-c").arg(format!("ulimit -v {kb}; exec \"$0\"")).arg(&prog));
         let err = String::from_utf8_lossy(&o.stderr).into_owned();
         let loader = err.starts_with("ld.so:") || err.contains("error while loading shared libraries");
@@ -180,14 +186,17 @@ fn start_objects_out_of_memory_is_clean() {
         }
         if o.status.success() {
             ran += 1;
+            in_row += 1;
+            first_ran.get_or_insert(kb);
             continue;
         }
+        in_row = 0;
         refused += 1;
         assert_eq!(o.status.code(), Some(127), "limit {kb} KiB: not the loader's clean failure: {:?}\n{err}", o.status);
         assert!(loader && err.lines().count() == 1, "limit {kb} KiB: one loader line expected:\n{err}");
         reasons.insert(err.split(": ").last().unwrap_or_default().trim().to_string());
     }
     assert!(ran > 0, "the program never ran within the sweep's largest limit");
-    eprintln!("start under limits: {refused} refused ({reasons:?}), {ran} ran");
+    eprintln!("start under limits: {refused} refused ({reasons:?}), {ran} ran, the first at {first_ran:?} KiB");
     std::fs::remove_dir_all(&d).ok();
 }

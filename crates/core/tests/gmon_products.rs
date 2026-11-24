@@ -13,28 +13,16 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 /// The program's own functions: arcs between them are compared.
 const OWN: [&str; 5] = ["main", "top", "mid", "leaf", "in_ctor"];
 
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/gmon_pg.c");
-    let mut cmd = Command::new("cc");
-    cmd.args(["-std=gnu17", "-O1", "-pg", "-static"]);
-    if niji {
-        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-gcrt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.arg(&src);
-    }
-    oracle::build(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/gmon_pg.c").flags(&["-pg"]).host_flags(&["-static"]).crt("niji-gcrt1.o").build(out, niji)
 }
 
 /// Runs `exe mode` in a fresh directory `dir` (with `GMON_OUT_PREFIX` when given); the files it
