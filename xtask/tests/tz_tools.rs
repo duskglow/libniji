@@ -14,8 +14,9 @@
 //!
 //! * tzselect: scripted sessions (every continent, junk answers, every probed TZ string, No then Yes, the coord
 //!   menu, a locale without UTF-8, narrow and wide terminals, options, missing tables) give the same exit status,
-//!   standard output and standard error as the reference, the two clock lines of the information block masked. Every
-//!   session ends on a confirmation or at a continent or country menu. `-c`: the reference's zones with every zone
+//!   standard output and standard error as the reference: the scripted sessions with the real-time clock stopped at
+//!   fixed times (a preloaded library built here), clock lines compared; the other sessions with the two clock lines
+//!   of the information block masked. Every session ends on a confirmation or at a continent or country menu. `-c`: the reference's zones with every zone
 //!   listed, in increasing great-circle distance (D-31.34), checked against a haversine computed here. End of input
 //!   at every prompt of a session: status 1 and no value (libniji only).
 //! * pldd: on a traceable process with dlopen'd objects and a second thread, the reference's listing; the errors
@@ -575,15 +576,81 @@ fn finish(mut child: Child, input: &str) -> Run {
 
 /// One tzselect session: `prog` with `args`, a small fixed environment plus `env`, `input` on standard input.
 fn session(prog: &Path, args: &[&str], env: &[(&str, &str)], input: &str) -> Run {
+    session_at(prog, args, env, input, None)
+}
+
+/// A preloaded library that stops the real-time clock at `NIJI_TEST_CLOCK` (seconds since the epoch) in every
+/// process of a session, the reference's helper programs included; the other clocks run.
+const CLOCK_PIN_C: &str = r#"#define _GNU_SOURCE
+#include <stdlib.h>
+#include <sys/syscall.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+static time_t pin(void) {
+    time_t v = 0;
+    for (const char *s = getenv("NIJI_TEST_CLOCK"); s && *s >= '0' && *s <= '9'; s++) v = v * 10 + (*s - '0');
+    return v;
+}
+time_t time(time_t *t) { time_t v = pin(); if (t) *t = v; return v; }
+int clock_gettime(clockid_t id, struct timespec *ts) {
+    if (id != CLOCK_REALTIME && id != CLOCK_REALTIME_COARSE) return (int)syscall(SYS_clock_gettime, id, ts);
+    ts->tv_sec = pin();
+    ts->tv_nsec = 0;
+    return 0;
+}
+int gettimeofday(struct timeval *restrict tv, void *restrict tz) {
+    (void)tz;
+    if (tv) { tv->tv_sec = pin(); tv->tv_usec = 0; }
+    return 0;
+}
+int timespec_get(struct timespec *ts, int base) {
+    if (base != TIME_UTC) return 0;
+    ts->tv_sec = pin();
+    ts->tv_nsec = 0;
+    return base;
+}
+"#;
+
+/// Builds the clock pin into `dir`; the C compiler is there whenever the test links are (they are built with it).
+/// It names no library it needs (`-nostdlib`): `getenv` and `syscall` bind to the C library the process already has,
+/// which a test link loads by path (no `libc.so.6` name for a dependency to match).
+fn clock_pin(dir: &Path) -> PathBuf {
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).expect("scratch directory");
+    let (src, so) = (dir.join("clock_pin.c"), dir.join("clock_pin.so"));
+    fs::write(&src, CLOCK_PIN_C).expect("write the clock pin");
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let o = Command::new(&cc).args(["-shared", "-fPIC", "-O2", "-nostdlib", "-o"]).arg(&so).arg(&src).output().expect("run the C compiler");
+    assert!(o.status.success(), "{cc}: the clock pin does not build: {}", String::from_utf8_lossy(&o.stderr));
+    so
+}
+
+/// A session with the real-time clock stopped at `clock` = (the pin library, seconds since the epoch): the clock lines
+/// are then the same in every run and are compared, not masked. Unpinned, the reference reads the clock more than
+/// once in a session and its choice to show the clock lines for an offset with seconds (EST5:30:59) changes when a
+/// second ends between the reads (probed: shown in about 1 run in 50, every time with the two lines' seconds equal).
+fn session_at(prog: &Path, args: &[&str], env: &[(&str, &str)], input: &str, clock: Option<(&Path, &str)>) -> Run {
     let mut c = Command::new(prog);
     // Messages name the program as it was run: the reference names its path.
     c.arg0(REF_TZSELECT).args(args).env_clear().env("PATH", "/usr/bin:/bin").env("HOME", "/tmp").env("LANG", "C.UTF-8");
     for (k, v) in env {
         c.env(k, v);
     }
+    if let Some((pin, secs)) = clock {
+        c.env("LD_PRELOAD", pin).env("NIJI_TEST_CLOCK", secs);
+    }
     let child = c.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("run tzselect");
     let mut r = finish(child, input);
-    // The two clock lines of the information block differ between any two runs.
+    if clock.is_none() {
+        // Unpinned, the two clock lines of the information block differ between any two runs.
+        mask_clock(&mut r);
+    }
+    r
+}
+
+/// Keeps only the heads of the two clock lines of the information block.
+fn mask_clock(r: &mut Run) {
     r.err = r
         .err
         .lines()
@@ -593,8 +660,12 @@ fn session(prog: &Path, args: &[&str], env: &[(&str, &str)], input: &str) -> Run
         })
         .collect::<Vec<_>>()
         .join("\n");
-    r
 }
+
+/// TZ strings whose clock lines are not compared, with why. "EST5EDT,365,0" (DST from zero-based day 365, in a
+/// common year the next year's January 1, to day 0): libniji's local time is in DST on 2026-11-24 and 2026-12-31,
+/// the reference's is not (a libniji defect in the rule's evaluation, reported for its own story).
+const CLOCK_UNCOMPARED: &[&str] = &["EST5EDT,365,0"];
 
 fn same(what: &str, ours: &Run, reference: &Run) -> Result<(), String> {
     if ours == reference {
@@ -637,11 +708,23 @@ const TZ_STRINGS: &[&str] = &[
     "EST5EDT4,M3.2.0/2,M11.1.0/2", "EST5EDT,J60,J300", "EST5EDT,60,300", "Europe/Paris",
 ];
 
-/// s31_11_c_1, s31_11_i_2, s31_11_g_1: the interactive sessions match the reference's.
+/// The clock times the sessions run at (seconds since the epoch) and the reference's UTC clock line at each: every
+/// session at the first (the instant of a CI run whose unpinned comparison differed on EST5:30:59), the TZ string
+/// sessions also at an hour boundary and at the last second of a year (zones east of UTC are already in the next).
+const PINS: &[(&str, &str)] = &[
+    ("1795543500", "Tue Nov 24 18:05:00 UTC 2026."),
+    ("1795546800", "Tue Nov 24 19:00:00 UTC 2026."),
+    ("1798761599", "Thu Dec 31 23:59:59 UTC 2026."),
+];
+
+/// s31_11_c_1, s31_11_i_2, s31_11_g_1: the interactive sessions match the reference's, clock lines included, at
+/// fixed clock times.
 #[test]
 fn tzselect_sessions_match_the_reference() {
     let Some(prog) = ours("tzselect", &[REF_TZSELECT, ZONEINFO]) else { return };
     let reference = Path::new(REF_TZSELECT);
+    let dir = std::env::temp_dir().join(format!("niji-tzselect-{}", std::process::id()));
+    let pin = clock_pin(&dir);
     let (coord, tz) = (entry(reference, "coord - "), entry(reference, "TZ - "));
     let continents = coord - 1;
     let mut cases: Vec<Case> = Vec::new();
@@ -665,17 +748,34 @@ fn tzselect_sessions_match_the_reference() {
     cases.push(("-c without its value".into(), vec!["-c"], vec![], String::new()));
     cases.push(("an operand".into(), vec!["extra"], vec![], String::new()));
     cases.push(("--".into(), vec!["--"], vec![], format!("1\n{ONES}")));
-    let (mut errors, mut finished) = (Vec::new(), 0);
-    for (what, args, env, input) in &cases {
-        let (a, b) = (session(&prog, args, env, input), session(reference, args, env, input));
-        if let Err(e) = same(what, &a, &b) {
-            errors.push(e);
+    let (mut errors, mut finished, mut runs) = (Vec::new(), 0, 0);
+    for (i, &(secs, utc)) in PINS.iter().enumerate() {
+        for (what, args, env, input) in &cases {
+            if i > 0 && !what.starts_with("TZ \"") {
+                continue;
+            }
+            let clock = Some((pin.as_path(), secs));
+            let (mut a, mut b) = (session_at(&prog, args, env, input, clock), session_at(reference, args, env, input, clock));
+            // The clock is stopped where it was asked to stop, in the reference's helper programs too.
+            let line = b.err.lines().find(|l| l.starts_with("Universal Time is now:"));
+            if line.is_some_and(|l| l != format!("Universal Time is now:\t{utc}")) {
+                errors.push(format!("{what} at {secs}: the reference's clock is not pinned: {line:?}"));
+            }
+            if CLOCK_UNCOMPARED.iter().any(|s| *what == format!("TZ {s:?}")) {
+                mask_clock(&mut a);
+                mask_clock(&mut b);
+            }
+            if let Err(e) = same(&format!("{what} at {secs}"), &a, &b) {
+                errors.push(e);
+            }
+            finished += usize::from(i == 0 && a.rc == 0 && !a.out.trim().is_empty());
+            runs += 1;
         }
-        finished += usize::from(a.rc == 0 && !a.out.trim().is_empty());
     }
+    let _ = fs::remove_dir_all(&dir);
     // A finished session prints the value; most of the cases above finish.
     assert!(finished > continents + TZ_STRINGS.len(), "only {finished} sessions printed a value");
-    assert!(errors.is_empty(), "{} of {} sessions differ:\n{}", errors.len(), cases.len(), errors.join("\n"));
+    assert!(errors.is_empty(), "{} of {runs} sessions differ:\n{}", errors.len(), errors.join("\n"));
 }
 
 /// s31_11_i_1: --help (processed before a later bad option) is the reference's text without its bug-report line;
