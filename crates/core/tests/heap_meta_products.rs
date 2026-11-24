@@ -213,56 +213,83 @@ fn the_heap_keeps_address_space_near_its_use() {
 
 /// GitHub issue #21's real workload: findutils' `find` over one directory of 200000 files, run by
 /// the products' dynamic loader and libc (the system's `find`), fixed layout, one node, in the
-/// `en_US.UTF-8` locale. The bound is on the least `ulimit -v` (KiB) the walk needs over the least
-/// `find` needs for 3 files (the issue's formula allows 35000). The walk fills several segments
+/// `en_US.UTF-8` locale. The issue's formula: the least `ulimit -v` (KiB) the walk needs over the
+/// least `find` needs for 3 files is at most 35000 ([`ISSUE_21_ALLOWANCE`]). The walk fills several segments
 /// of one shard; a segment after the first reservation's (metadata and 8 slabs, 2304 KiB) needs 9
 /// blockers to be placed aligned once the over-mapping does not fit under the limit. With 8
 /// (before HEAP-FIND-DEPTH-NEED, D-3.25) none was placed and the heap mapped per request: 37344
 /// KiB with snapshot 22.4 against 34784 with 22.3 (Zen 1 build host, find 4.9.0, tmpfs). The
 /// locale matters: its mappings take the aligned neighbours of a later segment; with an empty
 /// environment the same walk needed 30080 (22.4) and 31792 (22.3), and 8 blockers were enough.
-/// Fixed layout, so the need is the same run to run, but it depends on the layout's phase: the
-/// heap places segments on 16 MiB boundaries, so where the mappings before it end within 16 MiB
-/// decides which aligned slots are free. Over one 16 MiB period the need over 3 entries took
-/// values in bands 256 KiB apart, 33048 to 33576 KiB (Skylake-SP build host, page-exact; shifts
-/// 1 MiB apart over the period, 32 KiB apart over the highest band: 145 shifts, 33560 to 33576),
-/// and a change in any library's size moves the phase (a train composition read 48 KiB over the
-/// one-layout bound this replaced). In the highest band a later segment's aligned slot has room
-/// for one growth step before another mapping, so the walk places one more segment. The test
-/// samples [`FIND_PHASES`]; the bound is the highest band's measured level.
-const FIND_200K_OVER_3: u64 = 33576;
+/// The rule (HEAP-FIND-DEPTH-NEED-3): what the test protects is that under a limit the heap still
+/// places its later segments, so the walk needs about what it maps without a limit. Both are
+/// measured in the same run, layout and phase: the least `ulimit -v` the 200000-entry walk
+/// succeeds under, and the address space it leaves mapped at exit without a limit (the heap keeps
+/// its segments, and the over-mapping it aligns them with is returned on the way). Start-up, the
+/// library's own allocations and the walk's real use are in both and cancel; a KiB constant over
+/// the 3-entry need was moved past its bound by unrelated changes (start-up layout, the library's
+/// allocations routed through the heap, the 16 MiB alignment phase), three reds in three trains.
+/// The allowance: under a limit a later segment may go to an aligned slot where another mapping
+/// stops its growth after one step (the over-mapping finds room for growth instead), and the walk
+/// then places one more segment, its metadata 256 KiB each; two of them, plus one placement
+/// round's blocker pages held at the peak (9 pages). Measured (Haswell-EP build host, 8 phases,
+/// page-exact): 0 KiB over at 4 phases, 256 at 3, 264 at 1. With the cause put back (8 blockers,
+/// no later segment placed: the heap maps per request) the walk needed 34340 to 34852 KiB over 3
+/// entries against 33048 to 33576 (Skylake-SP build host).
+const FIND_PLACEMENT_SLACK: u64 = 2 * 256 + 9 * 4;
 
-/// Layout shifts (KiB) the find bound is taken at: one 16 MiB period, 2 MiB apart (the highest
-/// band is over 3 MiB wide).
+/// GitHub issue #21's formula: `find` over 200000 entries succeeds under a `ulimit -v` of the
+/// 3-entry need plus 35000 KiB.
+const ISSUE_21_ALLOWANCE: u64 = 35000;
+
+/// Layout shifts (KiB) the rule is checked at: one 16 MiB period (the heap's segment alignment),
+/// 2 MiB apart. Where the mappings before the heap end within 16 MiB decides which aligned slots
+/// are free; the need over 3 entries took values in bands 256 KiB apart over the period (33048 to
+/// 33576 KiB, Skylake-SP build host; 33232 to 33752, Haswell-EP with the preload), and a change in
+/// any library's size moves the phase.
 const FIND_PHASES: [u64; 8] = [0, 2048, 4096, 6144, 8192, 10240, 12288, 14336];
 
-/// Least `ulimit -v` (KiB, to the 4 KiB page) under which `find dir` succeeds with the products,
-/// the mappings shifted down by `phase` KiB. The bound is on a difference of two needs: on a
-/// coarser grid each is rounded up, and a fixed cost one page apart (another host's start-up)
-/// moved the difference by a whole step. The shift: a stack limit above 128 MiB moves the
-/// kernel's mmap base down by the excess (ADDR_NO_RANDOMIZE), page for page.
-fn find_need(find: &Path, dir: &Path, phase: u64) -> u64 {
+/// `find dir` run by the products (the loader's `--library-path`; LD_LIBRARY_PATH would reach the
+/// shell too) with `vm_size_at_exit.so` preloaded (in every run, so that every run has the same
+/// layout), the mappings shifted down by `phase` KiB, under `ulimit -v kib` if given. The shift:
+/// a stack limit above 128 MiB moves the kernel's mmap base down by the excess
+/// (ADDR_NO_RANDOMIZE), page for page.
+fn find_run(find: &Path, dir: &Path, preload: &Path, phase: u64, kib: Option<u64>) -> Output {
     let r = root().join("target/niji");
     let ld = ["ld-linux-x86-64.so.2", "ld.so"].iter().map(|n| r.join(n)).find(|p| p.exists()).expect("the products' dynamic loader");
     let stack = 131_072_u64.saturating_add(phase);
-    let run = |kib: u64| {
-        // The loader's own --library-path: LD_LIBRARY_PATH would reach the shell too.
-        let cmd = format!("ulimit -s {stack} || exit 99; ulimit -v {kib}; exec \"$0\" --library-path \"$1\" \"$2\" \"$3\" > /dev/null");
-        let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(&r).arg(find).arg(dir).env_clear().env("LANG", "en_US.UTF-8").stdin(Stdio::null()).output().unwrap();
-        assert_ne!(o.status.code(), Some(99), "ulimit -s {stack} refused: the stack hard limit was checked before the run");
-        o.status.success()
-    };
+    let limit = kib.map_or(String::new(), |k| format!("ulimit -v {k}; "));
+    let cmd = format!("ulimit -s {stack} || exit 99; {limit}exec \"$0\" --preload \"$1\" --library-path \"$2\" \"$3\" \"$4\" > /dev/null");
+    let o = Command::new("sh").arg("-c").arg(cmd).arg(&ld).arg(preload).arg(&r).arg(find).arg(dir).env_clear().env("LANG", "en_US.UTF-8").stdin(Stdio::null()).output().unwrap();
+    assert_ne!(o.status.code(), Some(99), "ulimit -s {stack} refused: the stack hard limit was checked before the run");
+    o
+}
+
+/// Least `ulimit -v` (KiB, to the 4 KiB page) under which [`find_run`] succeeds: on a coarser
+/// grid a need is rounded up, and a fixed cost one page apart moves it by a whole step.
+fn find_need(find: &Path, dir: &Path, preload: &Path, phase: u64) -> u64 {
+    let ok = |kib: u64| find_run(find, dir, preload, phase, Some(kib)).status.success();
     let (mut lo, mut hi) = (0, 1 << 17);
-    assert!(run(hi), "find {} fails under ulimit -v {hi} with the products", dir.display());
+    assert!(ok(hi), "find {} fails under ulimit -v {hi} with the products", dir.display());
     while hi.saturating_sub(lo) > 4 {
         let mid = lo.midpoint(hi);
-        if run(mid) {
+        if ok(mid) {
             hi = mid;
         } else {
             lo = mid;
         }
     }
     hi
+}
+
+/// The address space (KiB) `find dir` leaves mapped at exit without a limit: the `VmSize:` line
+/// `vm_size_at_exit.so` writes to standard error.
+fn find_mapped(find: &Path, dir: &Path, preload: &Path, phase: u64) -> u64 {
+    let o = find_run(find, dir, preload, phase, None);
+    assert!(o.status.success(), "find {} fails without a limit with the products: {:?}", dir.display(), o.status);
+    let err = String::from_utf8_lossy(&o.stderr);
+    let kib = err.lines().find_map(|l| l.strip_prefix("VmSize:")).and_then(|v| v.trim().strip_suffix("kB")).and_then(|v| v.trim().parse().ok());
+    kib.unwrap_or_else(|| panic!("no VmSize line from the preloaded vm_size_at_exit.so: {err}"))
 }
 
 /// A directory tree removed when dropped (also when the test fails).
@@ -303,6 +330,17 @@ fn find_over_200000_entries_bounds_its_address_space() {
         eprintln!("skipped: the stack hard limit is below {top} KiB, so the layout phase cannot be set");
         return;
     }
+    let oracles = r.join("target/test-oracles");
+    std::fs::create_dir_all(&oracles).unwrap();
+    let preload = oracles.join("vm_size_at_exit.so");
+    let st = Command::new("cc")
+        .args(["-O1", "-shared", "-fPIC", "-nostdlib", "-fno-builtin"])
+        .arg(r.join("crates/core/tests/oracle/vm_size_at_exit.c"))
+        .arg("-o")
+        .arg(&preload)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "vm_size_at_exit.c does not build");
     let base = Dirs(shm.join(format!("niji-find-entries-{}", std::process::id())));
     let (d3, d200k) = (base.0.join("d3"), base.0.join("d200k"));
     for (d, n) in [(&d3, 3), (&d200k, 200_000)] {
@@ -316,23 +354,32 @@ fn find_over_200000_entries_bounds_its_address_space() {
         [first, _, ..] => first,
         _ => &[],
     };
-    let mut needs = Vec::new();
+    let mut rows = Vec::new();
     with_cpus(node, || {
         with_fixed_layout(|| {
             for phase in FIND_PHASES {
-                let n3 = find_need(find, &d3, phase);
-                needs.push((phase, n3, find_need(find, &d200k, phase)));
+                let n3 = find_need(find, &d3, &preload, phase);
+                rows.push((phase, n3, find_need(find, &d200k, &preload, phase), find_mapped(find, &d200k, &preload, phase)));
             }
             Command::new("true").output().unwrap()
         })
     });
-    for &(phase, n3, n200k) in &needs {
-        eprintln!("phase {phase} KiB: find needs {n3} KiB for 3 entries, {n200k} for 200000: {} over", n200k.saturating_sub(n3));
+    for &(phase, n3, n200k, mapped) in &rows {
+        eprintln!(
+            "phase {phase} KiB: find over 200000 entries needs {n200k} KiB, maps {mapped} without a limit: {} over (allowance {FIND_PLACEMENT_SLACK}); {} over 3 entries ({n3}; issue #21 allows {ISSUE_21_ALLOWANCE})",
+            n200k.saturating_sub(mapped),
+            n200k.saturating_sub(n3)
+        );
     }
-    let (phase, n3, n200k) = needs.into_iter().max_by_key(|&(_, n3, n200k)| n200k.saturating_sub(n3)).expect("phases");
-    let over = n200k.saturating_sub(n3);
-    eprintln!("highest: {over} KiB over 3 entries at phase {phase} KiB (bound {FIND_200K_OVER_3})");
-    assert!(over <= FIND_200K_OVER_3, "find over 200000 entries needs {over} KiB over 3 entries at layout phase {phase} KiB > {FIND_200K_OVER_3}: a later heap segment not placed under the limit?");
+    for (phase, n3, n200k, mapped) in rows {
+        let over = n200k.saturating_sub(mapped);
+        assert!(
+            over <= FIND_PLACEMENT_SLACK,
+            "find over 200000 entries needs {over} KiB more under a limit than it maps without one at layout phase {phase} KiB (needs {n200k}, maps {mapped}) > {FIND_PLACEMENT_SLACK}: a later heap segment not placed under the limit?"
+        );
+        let over3 = n200k.saturating_sub(n3);
+        assert!(over3 <= ISSUE_21_ALLOWANCE, "find over 200000 entries needs {over3} KiB over 3 entries at layout phase {phase} KiB > issue #21's {ISSUE_21_ALLOWANCE}");
+    }
 }
 
 /// The migration case of [`AS_STEPS`] (ruling #7441): the program starts on the first node's
