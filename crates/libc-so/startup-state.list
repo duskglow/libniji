@@ -133,6 +133,12 @@ symbol stderr
 niji_legacy::global_locale::GLOBAL
 niji_legacy::global_locale::LOCK
 niji_legacy::global_locale::C
+# The permanent arena an interned locale's view, items and name go to (LOCALE-ADDRESS-SPACE): taken and moved by
+# the first setlocale of a non-C locale.
+niji_boundary::locale::PERM_LOCK
+niji_boundary::locale::PERM_NEXT
+niji_boundary::locale::PERM_END
+niji_boundary::locale::PERM_CHUNK
 niji_legacy::nscache::NSCACHE
 # First-call state (LAYOUT-STARTUP-STATE-LOCALE-3, ruling #4942): what the first setlocale, setenv, localtime_r,
 # mktime and catalog lookups touch, never a process that makes none of those calls. The zero-filled objects go to

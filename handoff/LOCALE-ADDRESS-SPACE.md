@@ -29,8 +29,34 @@ The least `ulimit -v` (3 ASLR runs and fixed, spread 0) barely moves: libniji C 
 installed on keke (only en_US.utf8, C.utf8). Left over: +596 KiB anon = dlopen loader state (528 KiB table map +
 44 + 4 KiB image views) + 16 KiB arena chunk: see the record (loader change, its own story).
 
+## Jobs so far (keke)
+
+* `locale-address-space-plants` (head 1f3dddf4b, code unchanged since): 2 plants, 2 CAUGHT (mutants +5632 KiB).
+* `locale-address-space-clippy-final` rc 0; `-static3` rc 0 (static, records check; affected = direct, 264 targets).
+* `locale-address-space-gate` (head 3b97f3f2b): two reds, both from this change:
+  1. `hot_text_products::init_startup_data_accesses_are_in_the_data1_cluster`: PERM_LOCK/NEXT/END touched at
+     start-up outside `.data1`. FIXED after the gate: declared in `crates/libc-so/startup-state.list` (with
+     PERM_CHUNK); not yet re-run.
+  2. `heap_meta_products::find_over_200000_entries_bounds_its_address_space` (heap_meta_products.rs:403, the
+     `FIND_PLACEMENT_SLACK` = 548 check), phase 4096 only shown: needs 45616 KiB, maps 44840 = 776 over. Base
+     (release-snapshot-1124c gate on keke, today, log `~/logs/release-snapshot-1124c-heapnode-1.log`) at phase 4096:
+     needs 46844, maps 46836. So the need FELL 1228 KiB, but the at-exit mapping fell 1996 (the en_US heap growth
+     step is gone), and under the limit the walk now places a later segment where it cannot grow (3 x 256 + 8).
+     Not investigated yet. Do NOT loosen the slack (ALWAYS FORWARD): find the cause (heap segment placement under a
+     limit with the arena chunk / without the early growth step; `trace.sh` with a limit at phase 4096), or bring
+     RULING NEEDED with all 8 phases' numbers, base vs branch.
+* The chain's `-xtest` and `-fullprofile` were never started (chain stopped).
+* At the refresh (17:25 UTC) the gate was still running (only those two reds so far, `test -p niji` and its
+  native run); `~/bin/jobwait locale-address-space-gate`, then read the rest of its FAIL lines.
+
 ## Next step
 
-Plants (`locale-address-space-plants`), then on the final head: static + records check, direct gate
-(`cargo xtask affected --run`), `cargo xtask test`, full-profile `hot_text_products`, precheck, report json,
-handback-check.
+1. Sync (role was busy with the gate), run only the failing tests on the new head:
+   `cargo test -p niji --test heap_meta_products find_over_200000 -- --nocapture` (prints all 8 phase rows) and
+   `NIJI_LAYOUT_TRACE` products + `hot_text_products init_startup_data_accesses` (via `cargo xtask affected --only`
+   or the gate) to confirm fix 1.
+2. Investigate red 2 as above (start: is the 16 KiB arena chunk the mapping that sits in the aligned slot? try
+   the run with the chunk mmap'd with a hint or the first chunk's size changed, compare phase rows).
+3. Then gate, `cargo xtask test`, full-profile hot_text_products, precheck, report json
+   (`handoff/reports/LOCALE-ADDRESS-SPACE.json`, draft placeholders HEAD_SHA, GATE_RESULT, IMPROVEMENT_LINE, jobs),
+   handback-check.
