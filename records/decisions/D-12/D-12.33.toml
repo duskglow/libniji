@@ -1,0 +1,11 @@
+id = "D-12.33"
+section = "s12"
+spec = "§12.6"
+ann = "—"
+status = "active"
+story = "PRINTF-NO-HEAP"
+date = "2026-11-23"
+tests = ["crates/boundary/tests/s12_stdio_symbols.rs"]
+body = '''
+**`swprintf` whose result does not fit its buffer fails with `E2BIG` (story PRINTF-NO-HEAP, finding #7726; black-box probe of the reference: `E2BIG` for `L"hello"` into 4 units and for `L"%100000d"` into 256 alike).** The specification requires a negative return and names no `errno` for this case; libniji sets the one the reference sets, at every size, instead of `EOVERFLOW` (which stays the error of a result past `INT_MAX`, §12.6 failure 1).
+'''

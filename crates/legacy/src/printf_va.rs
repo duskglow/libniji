@@ -10,7 +10,7 @@ use niji_abi::va::VaSource;
 /// The arguments `classes` describe, read from `src` in order. A registered type
 /// (`register_printf_type`, D-12.8) is read by `user` (its number and object size), which runs
 /// the type's own function on the same `va_list`.
-pub fn read(classes: &[Class], src: &mut dyn VaSource, user: &mut dyn FnMut(u32, usize) -> KResult<Arg>, args: &mut InlineVec<Arg, 16>) -> KResult<()> {
+pub fn read<const N: usize>(classes: &[Class], src: &mut dyn VaSource, user: &mut dyn FnMut(u32, usize) -> KResult<Arg>, args: &mut InlineVec<Arg, N>) -> KResult<()> {
     for c in classes {
         args.push(match *c {
             Class::Int => Arg::Int(src.int()),
