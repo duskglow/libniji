@@ -1,0 +1,90 @@
+country_ab2   checked 346, disagree   1
+country_ab3   checked 346, disagree   3
+country_num   checked 346, disagree   0
+country_name  checked 280, disagree  32
+lang_name     checked 281, disagree  23
+lang_term     checked 254, disagree   8
+lang_ab       checked 281, disagree   3
+lang_lib      checked  51, disagree   2
+int_prefix: territories with more than one value: {}
+int_prefix empty: []
+== country_ab2
+   as_IN: '  ' (name says IN)
+== country_ab3
+   as_IN: probe '   ', CLDR 'IND'
+   my_MM: probe '   ', CLDR 'MMR'
+   shn_MM: probe '   ', CLDR 'MMR'
+== country_name
+   az_IR: probe 'ایران', CLDR 'İran'
+   be_BY@latin: probe 'Biełaruś', CLDR 'Беларусь'
+   cs_CZ: probe 'Česká republika', CLDR 'Česko'
+   cv_RU: probe '', CLDR 'Раҫҫей'
+   eo_US: probe 'USA', CLDR 'Usono'
+   eu_FR: probe 'France', CLDR 'Frantzia'
+   eu_FR@euro: probe 'France', CLDR 'Frantzia'
+   ha_NG: probe 'Najeriya', CLDR 'Nijeriya'
+   ks_IN@devanagari: probe 'भारत', CLDR 'हिंदोस्तान'
+   ku_TR: probe 'Tirkiye', CLDR 'Türkiye'
+   ln_CD: probe 'Repibiki demokratiki ya Kongó', CLDR 'Republíki ya Kongó Demokratíki'
+   mk_MK: probe 'Македонија', CLDR 'Северна Македонија'
+   mni_IN: probe 'ভারত', CLDR 'ইন্দিয়া'
+   pa_PK: probe 'پکستان', CLDR 'پاکستان'
+   sa_IN: probe 'भारतम्', CLDR 'भारतः'
+   sat_IN: probe 'ᱥᱤᱧᱚᱛ', CLDR 'ᱤᱱᱰᱤᱭᱟ'
+   sd_IN: probe 'انڊيا', CLDR 'भारत'
+   sd_PK: probe '', CLDR 'پاڪستان'
+   shn_MM: probe 'မၢၼ်ႈ', CLDR 'မျၢၼ်ႇမႃႇ (မိူင်းမၢၼ်ႈ)'
+   so_KE: probe 'Kiiniya', CLDR 'Kenya'
+   sq_MK: probe 'Maqedoni', CLDR 'Maqedonia e Veriut'
+   sr_ME: probe 'Црна Гора', CLDR 'Crna Gora'
+   su_ID: probe 'Indonesia', CLDR 'Basa Indonesia'
+   tt_RU: probe 'Русия', CLDR 'Россия'
+   tt_RU@iqtelif: probe 'Urıs Patşahlıq', CLDR 'Россия'
+   xh_ZA: probe 'uMzantsi Afrika', CLDR 'EMzantsi Afrika'
+   yo_NG: probe 'Orilẹ̀-èdè Nàìjíríà', CLDR 'Nàìjíríà'
+   yue_HK: probe '中華人民共和國香港特別行政區', CLDR '中國香港特別行政區'
+   zgh_MA: probe 'ⵜⴰⴳⵍⴷⵉⵜ ⵏ ⵓⵎⵔⵔⵓⴽ', CLDR 'ⵍⵎⵖⵔⵉⴱ'
+   zh_CN: probe '中华人民共和国', CLDR '中国'
+   zh_HK: probe '', CLDR '中國香港特別行政區'
+   zh_TW: probe '中華民國', CLDR '台灣'
+== lang_name
+   az_IR: probe 'تۆرکجه', CLDR 'azərbaycan'
+   be_BY@latin: probe 'biełaruskaja', CLDR 'беларуская'
+   brx_IN: probe 'बड़ो', CLDR 'बर’'
+   cv_RU: probe 'Чӑвашла', CLDR 'чӑваш чӗлхи'
+   eu_FR: probe 'français', CLDR 'euskara'
+   eu_FR@euro: probe 'français', CLDR 'euskara'
+   fy_DE: probe 'West-Frysk', CLDR 'Frysk'
+   fy_NL: probe 'West-Frysk', CLDR 'Frysk'
+   ku_TR: probe 'kurdî', CLDR 'kurdî (kurmancî)'
+   lij_IT: probe 'Lìgure', CLDR 'ligure'
+   nn_NO: probe 'nynorsk', CLDR 'norsk nynorsk'
+   rw_RW: probe 'Kinyarwanda', CLDR 'Ikinyarwanda'
+   sa_IN: probe 'संस्कृतम्', CLDR 'संस्कृत भाषा'
+   sd_IN: probe 'سنڌي', CLDR 'सिन्धी'
+   sd_PK: probe '', CLDR 'سنڌي'
+   shn_MM: probe 'လိၵ်ႈတႆး', CLDR 'တႆး'
+   sr_ME: probe 'српски', CLDR 'srpski'
+   szl_PL: probe 'ślōnskŏ gŏdka', CLDR 'ślōnski'
+   tt_RU@iqtelif: probe 'tatar tele', CLDR 'татар'
+   uz_UZ@cyrillic: probe 'Ўзбекча', CLDR 'ўзбекча'
+   xh_ZA: probe 'isiXhosa', CLDR 'IsiXhosa'
+   zh_HK: probe '繁體中文', CLDR '中文'
+   zh_SG: probe '简体中文', CLDR '中文'
+== lang_term
+   az_IR: probe 'azb', CLDR 'aze'
+   bho_IN: probe 'bho', CLDR 'bih'
+   bho_NP: probe 'bho', CLDR 'bih'
+   eu_FR: probe 'fra', CLDR 'eus'
+   eu_FR@euro: probe 'fra', CLDR 'eus'
+   fil_PH: probe 'fil', CLDR 'tgl'
+   ro_RO: probe 'ron', CLDR 'mol'
+   sd_PK: probe '', CLDR 'snd'
+== lang_lib
+   eu_FR: probe 'fre', CLDR 'baq'
+   eu_FR@euro: probe 'fre', CLDR 'baq'
+== lang_ab
+   eu_FR: probe 'fr', name 'eu'
+   eu_FR@euro: probe 'fr', name 'eu'
+   sd_PK: probe '', name 'sd'
+== country_num

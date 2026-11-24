@@ -1,0 +1,58 @@
+{
+ "task": "LOCALE-PROBE-GEN-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Every generated locale takes the reference's probed values (#7890) and its exact LC_CTYPE differences (#7892); 349 names verified black box",
+ "branch": "task/locale-probe-gen-2",
+ "head": "63f69b1a3 (code; later commits are handoff/ records only)",
+ "gate": {
+  "affected": "direct tier: 7 of 8 steps ok; test -p niji 46 passed / 1 failed: hot_text_products init_data_clusters_hold_at_every_text_phase (cold 0x2000 59 faults, others 58), identical on origin/next 0495c4684 on the same host (LAYOUT-JITTER, #4347)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "localedef drops a character the target charmap lacks where the reference transliterates it (251 values in 81 of 182 legacy SUPPORTED entries: EUR, U+00A0, apostrophe)",
+   "recommendation": "a localedef story: transliterate through the locale's translit table at compile time, with translit data beyond decompositions; labelled as a gap in the Locale sources row meanwhile"
+  }
+ ],
+ "informational": [
+  "init_data_clusters_hold_at_every_text_phase fails deterministically on the Skylake-SP host for origin/next 0495c4684 too (cold 0x2000: 59 faults, others 58; job locale-probe-gen-2-nextht); this branch changes no libc or start-up code",
+  "collation fingerprints of all 349 generated names differ from the reference in most script groups (root order, tailorings): known, D-27/D-31.27 rows"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "values of LC_NUMERIC/MONETARY/TIME/MESSAGES/PAPER that differed from the reference in CLDR-generated locales (UTF-8 compile, 349 names) (before: LOCALE-PROBE-GEN's measured table; after: this run)",
+   "before": 5278,
+   "after": 13,
+   "unit": "differing values",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "generated names whose LC_CTYPE classes or case maps differ from the reference (fingerprints over all code points) (before: LOCALE-PROBE-GEN's fingerprints; after: this run)",
+   "before": 18,
+   "after": 0,
+   "unit": "locales",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the changed generator and probe reader: 13 of 13 CAUGHT (one after widening its msg); new reference test over 13 locales, unit tests rewritten/added",
+   "before": null,
+   "after": 13,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A per-code-point probe diff (locale_fingerprint --diff) turns a fingerprint mismatch into exact data the generator applies, replacing hard-coded tr/az rules; the full-scale compare scripts should become a tools/probe command so each locale story re-verifies all names in one job.",
+ "next_step": "localedef compile-time transliteration for characters a legacy charmap lacks (handoff/LOCALE-PROBE-GEN-2-diff.tsv); then the 12 collation tailorings",
+ "report_file": "handoff/LOCALE-PROBE-GEN.md",
+ "jobs": [
+  "mei:locale-probe-gen-2-gate",
+  "mei:locale-probe-gen-2-plants",
+  "mei:locale-probe-gen-2-plants2"
+ ]
+}
