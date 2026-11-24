@@ -1,7 +1,7 @@
 # HEADERS-GEN-SHARED plants (cargo xtask plants handoff/HEADERS-GEN-SHARED/plants.txt): id | path | pattern | cmd | msg
 # The typedef of an unnamed enumeration (enumerators.tsv `typedef NAME`), caught by the rows test.
-hgs-typedef-enum-value | xtask/src/headers/enums.rs | perl:s/(typedef enum \{.*?\{n\} = \{v\})/$1 + 1/s | mkdir -p target/hgs-rows && cargo xtask headers-gen --rows target/hgs-rows | msg:typedef (idtype_t|ACTION|VISIT)
-hgs-typedef-enum-opaque | xtask/src/headers/typedefs.rs | lit:.then(|| self.typedef_enum_body(name)).flatten() ==> .then(|| None::<Vec<String>>).flatten() | mkdir -p target/hgs-rows && cargo xtask headers-gen --rows target/hgs-rows | msg:(P_PID|preorder|FIND|idtype_t|VISIT|ACTION)
+hgs-typedef-enum-value | xtask/src/headers/enums.rs | perl:s/(typedef enum \{.*?\{n\} = \{v\})/$1 + 1/s | mkdir -p target/hgs-rows && cargo xtask headers-gen --rows "$PWD/target/hgs-rows" | msg:typedef (idtype_t|ACTION|VISIT)
+hgs-typedef-enum-opaque | xtask/src/headers/typedefs.rs | lit:.then(|| self.typedef_enum_body(name)).flatten() ==> .then(|| None::<Vec<String>>).flatten() | mkdir -p target/hgs-rows && cargo xtask headers-gen --rows "$PWD/target/hgs-rows" | msg:(P_PID|preorder|FIND|idtype_t|VISIT|ACTION)
 # The shared P1: a macro value in a header that shows the macro but does not own its macros.tsv row (owner arpa/nameser.h, p1 0).
 hgs-p1-borrowed-param | libc-include/sys/param.h | lit:#  define MAXSYMLINKS 20 ==> #  define MAXSYMLINKS 21 | python3 spec/tools/header_check.py | msg:FAIL.*P1 sys/param.h
 hgs-p1-borrowed-stdint | libc-include/stdint.h | lit:#  define INT16_WIDTH 16 ==> #  define INT16_WIDTH 17 | python3 spec/tools/header_check.py | msg:FAIL.*P1 (elf.h|inttypes.h|[a-z/]+\.h)

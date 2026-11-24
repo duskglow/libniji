@@ -1,0 +1,21 @@
+{"task": "HEADERS-GEN-SHARED", "model": "opus", "tokens": null,
+ "result": "typedefs of unnamed enumerations (idtype_t, ACTION, VISIT and six more) are tabled as enumerators.tsv `typedef NAME` and emitted as typedef enum; header_check's P1 asserts borrowed macro values in every slice",
+ "branch": "task/headers-gen-shared", "head": null,
+ "gate": {"affected": "bounded set (xtask unit tests, clippy, static); FULL: the train's", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "abi_extract.py --layouts-only on the reference system yields 19 layouts.tsv rows the committed table lacks (nested _st/_xmm members of struct _fpstate and struct _libc_fpstate)", "recommendation": "a table story regenerates layouts.tsv and reviews the abi-gen output"},
+   {"item": "with <linux/wait.h> included before <sys/wait.h>, both the reference's headers and libniji's fail to compile (the kernel's P_* macros in the idtype_t enumerator list)", "recommendation": "none: same as the reference"}
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "waitid (P_PID/P_PGID/P_ALL, ...) and hsearch (.., FIND/ENTER), twalk/twalk_r with VISIT compile in C and C++ with libniji's headers and run as with the reference's (P3's 2 unaccepted waitid rows)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "enumerators.tsv rows (nine typedefs of unnamed enumerations) checked by the rows test", "before": 310, "after": 396, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "header_check.py units over every slice (borrowed macro values asserted)", "before": 16777, "after": 17006, "unit": "units", "measured": true},
+   {"kind": "coverage", "what": "plants in handoff/HEADERS-GEN-SHARED/plants.txt", "before": 0, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "improvement": "abi_extract.py is the right place for table gaps found by a slice: the DWARF already had the answer, so the fix was one extractor rule and a regeneration, not hand-typed rows",
+ "next_step": "land via the CI train (FULL: the train's: generated headers and xtask)",
+ "report_file": "handoff/HEADERS-GEN-SHARED.md",
+ "jobs": ["shiki:headers-gen-shared-gate", "shiki:headers-gen-shared-plants", "shiki:headers-gen-shared-lint", "shiki:headers-gen-shared-hc", "shiki:headers-gen-shared-gen"]}
