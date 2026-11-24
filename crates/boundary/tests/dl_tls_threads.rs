@@ -218,3 +218,108 @@ fn threads_get_static_tls_of_every_initial_module() {
         assert_eq!(o.status.code(), Some(0), "on libniji ({how}): {} {}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     }
 }
+
+/// A `dlopen`ed library with initial-exec TLS (a static-surplus block, DL-16d).
+const LIB_STATIC: &str = "__attribute__((tls_model(\"initial-exec\"))) __thread long a_var[8];
+long *a_get(void) { return a_var; }
+";
+
+/// A `dlopen`ed library with global-dynamic TLS only (a block made at first access, DL-19).
+const LIB_ON_DEMAND: &str = "__thread long b_var[8] = { 0x4444, 0x4445, 0x4446, 0x4447, 0x4448, 0x4449, 0x444a, 0x444b };
+long *b_get(void) { return b_var; }
+";
+
+/// Threads mark the static library's block, end, and the library is closed; the on-demand library
+/// opened next takes its module ID (DL-17), and the threads created then (in the ended threads'
+/// mappings) must each see that library's own image. Exits 0, else a number naming the step.
+const PROG_REUSE: &str = "#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#define THREADS 4
+static long *(*get)(void);
+static void *touch(void *arg) {
+  long *v = get();
+  for (int i = 0; i < 8; i++) v[i] = (long)(intptr_t)arg;
+  return 0;
+}
+static void *check(void *arg) {
+  (void)arg;
+  long *v = get();
+  for (int i = 0; i < 8; i++) if (v[i] != 0x4444 + i) return (void *)(intptr_t)(1 + i);
+  return 0;
+}
+static int round_of(void *(*fn)(void *)) {
+  pthread_t t[THREADS];
+  for (int k = 0; k < THREADS; k++)
+    if (pthread_create(&t[k], 0, fn, (void *)(intptr_t)(0x5a5a0000L + k))) return 1;
+  for (int k = 0; k < THREADS; k++) {
+    void *r;
+    if (pthread_join(t[k], &r)) return 2;
+    if (r) { printf(\"thread %d: word %ld is not the image\\n\", k, (long)(intptr_t)r - 1); return 3; }
+  }
+  return 0;
+}
+int main(int argc, char **argv) {
+  if (argc != 3) return 9;
+  void *a = dlopen(argv[1], RTLD_NOW);
+  if (!a) { printf(\"dlopen: %s\\n\", dlerror()); return 10; }
+  size_t ida = 0, idb = 0;
+  if (dlinfo(a, RTLD_DI_TLS_MODID, &ida)) return 11;
+  get = (long *(*)(void))dlsym(a, \"a_get\");
+  if (!get || round_of(touch)) return 12;
+  if (dlclose(a)) return 13;
+  void *b = dlopen(argv[2], RTLD_NOW);
+  if (!b) { printf(\"dlopen: %s\\n\", dlerror()); return 14; }
+  if (dlinfo(b, RTLD_DI_TLS_MODID, &idb)) return 15;
+  get = (long *(*)(void))dlsym(b, \"b_get\");
+  if (!get) return 16;
+  int r = round_of(check);
+  if (r) return 20 + r;
+  printf(\"module ids: %zu %zu\\n\", ida, idb);
+  return 0;
+}
+";
+
+/// s27_3_c_0 (the block of a module loaded by `dlopen` is allocated on first access), s22_6_c_4
+/// (each thread its own instance): a module made per thread at first access (DL-19) that takes the
+/// ID of an unloaded static-surplus module (DL-17) gives threads created in ended threads' mappings
+/// its own image, not the old module's block (the reused mapping's area below the thread pointer
+/// is not cleared, D-22.25); on the reference and on libniji, where the ID is checked to be reused.
+#[test]
+fn a_reused_mapping_gets_its_own_block_of_a_module_on_a_reused_id() {
+    if skip_note::missing("cc") {
+        skip_note::skipped("skipped: no C compiler; on-demand TLS in reused thread mappings not checked");
+        return;
+    }
+    let build = |dir: &Path, lib_link: &[&str], prog_link: &[&str]| -> PathBuf {
+        for (name, src, model) in [("static", LIB_STATIC, "-ftls-model=initial-exec"), ("demand", LIB_ON_DEMAND, "-ftls-model=global-dynamic")] {
+            std::fs::write(dir.join(format!("{name}.c")), src).unwrap();
+            let (src, so) = (format!("{name}.c"), format!("lib{name}.so"));
+            let mut args = vec!["-O1", "-fPIC", "-shared", model, &src, "-o", &so];
+            args.extend(lib_link);
+            cc(dir, &args);
+        }
+        std::fs::write(dir.join("reuse.c"), PROG_REUSE).unwrap();
+        let mut args = vec!["-O1", "reuse.c", "-o", "reuse"];
+        args.extend(prog_link);
+        cc(dir, &args);
+        dir.join("reuse")
+    };
+    let host = Scratch::new("niji-tls-reuse-host");
+    let exe = build(&host.0, &[], &["-pthread", "-ldl"]);
+    let o = Command::new(&exe).arg(host.0.join("libstatic.so")).arg(host.0.join("libdemand.so")).output().unwrap();
+    assert_eq!(o.status.code(), Some(0), "on the reference: {}", String::from_utf8_lossy(&o.stdout));
+
+    let own = Scratch::new("niji-tls-reuse");
+    let (ld, libc) = products::niji_link_script(&own.0);
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let libc = libc.to_str().unwrap();
+    let exe = build(&own.0, &["-nodefaultlibs", libc, "-lgcc"], &["-nodefaultlibs", &interp, libc, "-lgcc"]);
+    let o = Command::new(&exe).arg(own.0.join("libstatic.so")).arg(own.0.join("libdemand.so")).output().unwrap();
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert_eq!(o.status.code(), Some(0), "on libniji: {out} {}", String::from_utf8_lossy(&o.stderr));
+    let ids: Vec<&str> = out.lines().find_map(|l| l.strip_prefix("module ids: ")).expect("the ids line").split(' ').collect();
+    assert_eq!(ids[0], ids[1], "the on-demand module did not take the closed module's ID: the case is not reached");
+}
