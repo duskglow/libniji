@@ -524,7 +524,7 @@ fn program_from_headers(fd: i32, len: usize, page: u64) -> Option<map::Loaded> {
     let head = read_headers(fd, len).ok().flatten()?;
     let loaded = elf::Elf::parse::<Native>(head).ok().and_then(|elf| {
         let plan = map::plan_headers::<Native>(&elf, page, u64::try_from(len).unwrap_or(u64::MAX)).ok()?;
-        map::map_planned(&mut StartMapper { fd }, &elf, &plan, head, page).ok()
+        map::map_planned(&mut ProgramMapper(StartMapper { fd }), &elf, &plan, head, page).ok()
     });
     arena_give_back(head);
     loaded
@@ -546,9 +546,9 @@ fn program_by_view(path: usize, fd32: i32, len: usize, page: u64, ld: &start::Ld
     if !file.starts_with(b"\x7fELF") {
         fail(b"invalid ELF header");
     }
-    let loaded = match map::load::<Native, _>(&mut StartMapper { fd: fd32 }, file, page) {
+    let loaded = match map::load::<Native, _>(&mut ProgramMapper(StartMapper { fd: fd32 }), file, page) {
         // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
-        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut StartMapper { fd: fd32 }, file, page),
+        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut ProgramMapper(StartMapper { fd: fd32 }), file, page),
         Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
         other => other,
     };
@@ -641,7 +641,8 @@ impl map::Mapper for SysMapper {
     }
 }
 
-/// [`SysMapper`] for the objects of the start (the program, its dependencies): never unmapped, so
+/// [`SysMapper`] for the objects of the start (its dependencies; the program `ld.so PROGRAM` maps
+/// goes through [`ProgramMapper`]): never unmapped, so
 /// an aligned reservation's slack stays reserved, inaccessible, rather than being trimmed by two
 /// `munmap`s ([`map::Mapper::keeps_slack`], DYN-START-RING).
 pub(super) struct StartMapper {
@@ -694,6 +695,51 @@ impl map::Mapper for StartMapper {
         let off = i64::try_from(offset).map_err(|_| ())?;
         let r = raw::mmap(0, word(len)?, prot, MAP_PRIVATE_I32, self.fd, off).map_err(|_| ())?;
         u64::try_from(r).map_err(|_| ())
+    }
+}
+
+/// [`StartMapper`] for the program `ld.so PROGRAM` maps (program mode only): an aligned
+/// reservation's slack is trimmed, not kept, so the program takes the address space it takes when
+/// the kernel maps it for an exec (LDSO-PROGRAM-MODE-SPACE, D-27.98: up to `p_align` minus a page
+/// more otherwise, 2 MiB for a 2 MiB-aligned program). The start's dependencies keep
+/// [`StartMapper`]'s rule in both modes.
+pub(super) struct ProgramMapper(pub(super) StartMapper);
+
+impl map::Mapper for ProgramMapper {
+    fn reserve(&mut self, at: Option<u64>, len: u64) -> Result<u64, ()> {
+        self.0.reserve(at, len)
+    }
+
+    fn map_file(&mut self, at: u64, len: u64, prot: i32, offset: u64) -> Result<(), ()> {
+        self.0.map_file(at, len, prot, offset)
+    }
+
+    fn map_zero(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
+        self.0.map_zero(at, len, prot)
+    }
+
+    fn store(&mut self, at: u64, len: u64, bytes: Option<&[u8]>) {
+        self.0.store(at, len, bytes);
+    }
+
+    fn store_file(&mut self, at: u64, len: u64, offset: u64) -> Result<(), ()> {
+        self.0.store_file(at, len, offset)
+    }
+
+    fn protect(&mut self, at: u64, len: u64, prot: i32) -> Result<(), ()> {
+        self.0.protect(at, len, prot)
+    }
+
+    fn unmap(&mut self, at: u64, len: u64) {
+        self.0.unmap(at, len);
+    }
+
+    fn maps_span(&self) -> bool {
+        self.0.maps_span()
+    }
+
+    fn map_span(&mut self, len: u64, prot: i32, offset: u64) -> Result<u64, ()> {
+        self.0.map_span(len, prot, offset)
     }
 }
 
