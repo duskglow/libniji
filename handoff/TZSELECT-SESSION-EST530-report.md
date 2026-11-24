@@ -4,22 +4,35 @@ Summary and cause: `handoff/TZSELECT-SESSION-EST530.md` (one page). This file: c
 
 ## Commits
 
-- b65109327 Pin the clock in tzselect's session comparison (xtask/tests/tzselect_pldd.rs, plants file).
+- b65109327 Pin the clock in tzselect's session comparison (then in xtask/tests/tzselect_pldd.rs; plants file).
+- 2a8d2fe2d, 08fc03563: handoff, report and record (leg 1).
+- 43bf35df3 Merge origin/next (d3e273eb5): XTASK-TESTS-TZSELECT-FOLD deleted tzselect_pldd.rs; its tests are in
+  `xtask/tests/tz_tools.rs`. The branch's diff applied there unchanged (5 hunks at new offsets, no name clashes);
+  the plants file names `tz_tools`.
 - Handoff and report commit on top (this file, the handoff page, `handoff/reports/TZSELECT-SESSION-EST530.json`).
 
-## Jobs (keke, role r2)
+## Jobs on the final code (43bf35df3; keke, role r2)
+
+- tzselect-session-est530-test4: `cargo xtask so`, `cargo test -p xtask --test tz_tools` 18 passed (32 s),
+  `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean, `cargo xtask static` ok; rc 0.
+- tzselect-session-est530-gate2: `cargo xtask affected --base origin/next --run` (direct tier: "xtask test code
+  only ... not FULL"): `affected: ok`, rc 0, 0 SKIPPED lines.
+- tzselect-session-est530-plants2: 3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG
+  (`/dev/shm/claude/tzselect-session-est530/plants-2`). WARN-DEV-SHM printed (the dir is under /dev/shm; no
+  test here mounts its own /dev/shm).
+- tzselect-session-est530-precheck2: `cargo xtask precheck` on the final head (result in the hand-back).
+
+## Superseded (leg 1, on b65109327 before the merge)
 
 - probes (diagnosis only, black-box reference runs): tzselect-session-est530-probe1, -sweep1 .. -sweep4.
-- tzselect-session-est530-test1: first try, preload linked against libc.so.6 did not load into the test link
-  (superseded). tzselect-session-est530-test2: the EST5EDT,365,0 clock-line difference (superseded).
-- tzselect-session-est530-test3 (b65109327): `cargo test -p xtask --test tzselect_pldd` 8 passed (7.8 s),
-  `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean, `cargo xtask static` ok; rc 0,
-  peak 1.7G.
-- tzselect-session-est530-gate: `cargo xtask affected --base origin/next --run` (direct tier: xtask test code
-  only, not FULL): `affected: ok`, rc 0, peak 1.9G, 0 SKIPPED lines.
-- tzselect-session-est530-plants: 3 plants: 3 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY, 0 WARN-NO-MSG
-  (`/dev/shm/claude/tzselect-session-est530/plants-1`). WARN-DEV-SHM printed (the dir is under /dev/shm; no
-  test here mounts its own /dev/shm).
+- test1 (preload linked against libc.so.6 did not load into the test link), test2 (the EST5EDT,365,0
+  clock-line difference), test3 (8 passed in tzselect_pldd), gate (ok), plants (3 CAUGHT, plants-1),
+  precheck (GREEN): all on the pre-merge file, superseded by the port.
+
+## Process note
+
+- Leg 2 changed one line of the plants file with `sed -i` (rules: Edit tool only); it was not refused, the result
+  was checked, noted here.
 
 ## INFORMATIONAL
 

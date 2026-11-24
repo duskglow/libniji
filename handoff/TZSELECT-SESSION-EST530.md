@@ -1,7 +1,9 @@
 # TZSELECT-SESSION-EST530: tzselect's custom-TZ session diverged from the reference in CI
 
-State: branch `task/tzselect-session-est530`, cut from origin/next c289b63c0 (nothing to merge: the tzselect tests
-are still in `xtask/tests/tzselect_pldd.rs`). Code commit b65109327 (test only; no library or utility change).
+State: branch `task/tzselect-session-est530`, cut from origin/next c289b63c0, origin/next d3e273eb5 merged in
+43bf35df3 (XTASK-TESTS-TZSELECT-FOLD moved the tzselect tests to `xtask/tests/tz_tools.rs`; this branch's change
+ported there). Code commit b65109327 (test only; no library or utility change). DONE: proven on the merged head
+(jobs below); nothing left but landing.
 
 ## Cause (black-box probes of the reference, keke = Zen 1 host, 60 vCPU)
 
@@ -47,20 +49,14 @@ clock-pin-dropped (test without LD_PRELOAD: "clock is not pinned"), seconds-offs
 the lines for EST5:30:59), clock-line-a-second-late (libniji's zone line one second off: caught only because the
 lines are now compared). Results in the report file.
 
-## Leg 1 end state (REFRESH at 19:40Z, 81 calls)
+## End state (leg 2)
 
-Proven on 2a8d2fe2d (code b65109327, base c289b63c0): keke jobs tzselect-session-est530-test3 (8 passed, clippy,
-static), -gate (direct tier ok), -plants (3 CAUGHT), -precheck (GREEN); handback-check ok. BUT origin/next
-d3e273eb5 landed XTASK-TESTS-TZSELECT-FOLD: `xtask/tests/tzselect_pldd.rs` is deleted on next, its tests are in
-`xtask/tests/tz_tools.rs` (modify/delete conflict). Those jobs are SUPERSEDED once ported.
+Leg 1 proved the change on the pre-merge file (jobs test3, gate, plants, precheck: SUPERSEDED by the port). Leg 2
+merged origin/next d3e273eb5 (43bf35df3), applied the diff to tz_tools.rs, and proved it on keke: test4
+(`cargo xtask so`, tz_tools 18 passed, clippy, static), gate2 (direct tier ok), plants2 (3 CAUGHT,
+`/dev/shm/claude/tzselect-session-est530/plants-2`), precheck2 on the final head.
 
-EXACT NEXT STEP: `git merge origin/next` (brief allows it); resolve by taking next's deletion of tzselect_pldd.rs
-(`git rm xtask/tests/tzselect_pldd.rs`) and re-applying this branch's diff (`git diff c289b63c0 b65109327 --
-xtask/tests/tzselect_pldd.rs`) into tz_tools.rs (CLOCK_PIN_C, clock_pin, session_at, mask_clock,
-CLOCK_UNCOMPARED, PINS, the pinned loop in tzselect_sessions_match_the_reference, the module-doc sentence; check
-for name clashes with tz_tools' own helpers). Change the plants file's path and `--test tzselect_pldd` to
-`tz_tools`. Then sync, test (`cargo test -p xtask --test tz_tools` + clippy + static in one job), gate, plants
-(new dir plants-2), precheck as a jobrun job (it takes ~8 min: remez checks), update report/json, handback-check.
+EXACT NEXT STEP: none on this branch (land it). Follow-up story: the EST5EDT,365,0 local-time defect above.
 
 ## Not to redo
 
