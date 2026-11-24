@@ -1024,6 +1024,108 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
     });
 }
 
+#[test]
+fn kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-FIND-DEPTH-NEED, D-3.25). A segment after the first reservation's maps its metadata
+    // and 8 slabs (`map_room(0, LATER, SEG, SEG)`, LATER = 2304 KiB, D-3.24). Under a limit that
+    // refuses the over-mapping, the kernel's first choice for LATER bytes is made a gap with no
+    // aligned range whose two aligned neighbours (the multiples of SEG below and above it) are
+    // taken too: blocking (down, up + LATER) a LATER apart takes ceil((SEG + LATER) / LATER) = 9
+    // pages, and the call must still return an aligned range from another gap. (find over 200000
+    // entries in en_US.UTF-8 hit this with snapshot 22.4: the heap mapped per request.)
+    isolated("kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_NORESERVE, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        const LATER: usize = 2304 << 10;
+        const PAD: usize = 2 << 20;
+        let pages = KernelPages;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let pin = |at: usize| -> Option<usize> {
+            let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
+            (got == at).then_some(got)
+        };
+        // Below `top`, the largest range of 4 * SEG, 2 * SEG, ... down to LATER bytes that is free
+        // (MAP_FIXED_NOREPLACE): a higher gap is covered in a few calls whatever its size (a page
+        // per split took 57 for the 64 MiB the loader leaves when the process is libniji's).
+        let cover = |top: usize| -> Option<(usize, usize)> {
+            let mut size = 4 * SEG;
+            loop {
+                if let Some(at) = top.checked_sub(size) {
+                    if let Ok(m) = CSys.mmap(at, size, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0) {
+                        if m.addr() == at {
+                            return Some((at, size));
+                        }
+                        KernelPages.unmap(m.addr(), size);
+                    }
+                }
+                if size == LATER {
+                    return None;
+                }
+                size = (size / 2).max(LATER);
+            }
+        };
+        let mut pins = [(0usize, 0usize); 64];
+        let mut held = 0;
+        let mut keep = |p: Option<(usize, usize)>| {
+            if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
+                *slot = p;
+                held += 1;
+            }
+        };
+        let pin = |at: usize| pin(at).map(|p| (p, PAGE));
+        let probe = |len: usize| -> usize {
+            let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
+            assert_ne!(p, 0, "a mapping before any limit");
+            KernelPages.unmap(p, len);
+            p
+        };
+        // In a free range of 3 * SEG: `down` the highest multiple of SEG at most 2 * SEG above its
+        // start (so `down + SEG` is in it or its upper end, and little of it lies above the
+        // gap), the gap [gap, gap + LATER + PAD) a quarter SEG above `down` (PAD: room for a
+        // huge-page aligned placement), pinned at each end, and a page pinned at `down` and at
+        // `down + SEG` (already taken when that is the range's end): the gap holds LATER bytes,
+        // no multiple of SEG fits LATER bytes in it, and both aligned candidates are taken.
+        let r = probe(3 * SEG);
+        let down = (r + 2 * SEG) & !(SEG - 1);
+        let gap = down + SEG / 4;
+        keep(pin(down));
+        keep(pin(down + SEG));
+        keep(pin(gap - PAGE));
+        keep(pin(gap + LATER + PAD));
+        // Higher gaps that fit LATER bytes are covered (from the probe's end down) until the gap
+        // is the kernel's first choice for LATER bytes.
+        let mut first = false;
+        for _ in 0..48 {
+            let q = probe(LATER);
+            if q >= gap && q < gap + LATER + PAD {
+                first = true;
+                break;
+            }
+            keep(cover(q + LATER).or_else(|| pin(q)));
+        }
+        assert!(first, "precondition: the gap is the kernel's first choice for LATER bytes within 48 covers");
+        // Room for LATER bytes, the call's page blockers and the whole gap, never for the
+        // over-mapping (SEG + LATER and more).
+        let limit = vm_size() + (LATER + PAD) as u64;
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        assert!(CSys.mmap(0, SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
+        let a = pages.map_room(0, LATER, SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map_room: an aligned later segment from another gap fits under the limit (blockers per round too few?)");
+        assert_eq!(a % SEG, 0, "map_room: aligned as asked");
+        assert!(a + LATER <= gap || a >= gap + LATER + PAD, "map_room: never inside the pinned gap");
+        fill(a as *mut c_void, 7, PAGE);
+        pages.unmap(a, LATER);
+        let back = CSys.mmap(gap, LATER + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr());
+        assert_eq!(back, Ok(gap), "map_room: the pinned gap is whole again (no blocker left in it)");
+        pages.unmap(gap, LATER + PAD);
+        for &(p, len) in pins.get(..held).unwrap_or(&[]) {
+            pages.unmap(p, len);
+        }
+    });
+}
+
 /// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
 /// while the request fits the block's class and is more than half the class below it, and moves
 /// the block otherwise. The export tests this before its general path (PERF-REALLOC-USABLE-2).

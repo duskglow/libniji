@@ -1,0 +1,5 @@
+# HEAP-FIND-DEPTH-NEED plants: map_aligned_exactly places a later heap segment (metadata and 8 slabs) under an address-space limit (9 blockers per round)
+# The find bound (find_over_200000_entries_bounds_its_address_space) does not catch this plant on next's current layout: with 8 its aligned slot is free and the mutant needs what the fix does (plants-1, plants-2: SURVIVED; 48592 KiB both); the layout test below takes both slots.
+blockers-8 | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken | msg:an aligned later segment from another gap fits under the limit
+# cargo xtask plants results (1 plants: 1 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# blockers-8: CAUGHT, caught by s03_memory_symbols kernel_pages_place_a_later_segment_when_both_aligned_slots_are_taken

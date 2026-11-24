@@ -1,0 +1,6 @@
+# HEAP-FIND-DEPTH-NEED-3 plants: the find workload test now gates on a same-run rule (the walk's need under a limit over
+# what it maps without one, allowance 548 KiB), not on a KiB constant over the 3-entry need.
+# blockers-8-find: the cause put back (a later segment's gap needs 9 blockers): measured 1188 to 1444 KiB over (Haswell-EP).
+# never-aligned-find: no aligned segment once the over-mapping is refused (the property broken outright).
+blockers-8-find | crates/boundary/src/heap.rs | lit:const EXACT_BLOCKERS: usize = 9; ==> const EXACT_BLOCKERS: usize = 8; | cargo test -p niji --test heap_meta_products find_over_200000_entries_bounds_its_address_space | msg:find over 200000 entries needs [0-9]+ KiB more under a limit than it maps without one
+never-aligned-find | crates/boundary/src/heap.rs | lit:let addr = found?; ==> let addr = found.filter(|_| false)?; | cargo test -p niji --test heap_meta_products find_over_200000_entries_bounds_its_address_space | msg:find over 200000 entries needs [0-9]+ KiB more under a limit than it maps without one
