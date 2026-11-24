@@ -32,19 +32,19 @@ as the compact no-rules table), D-5.4 (the built-in C.UTF-8 classes and maps).
   only by `locale -k` (6398 vs 4565 entries: the reference's own default translit; not chased); LC_COLLATE: the
   reference's compile is 7277334 bytes with 1 rule, its installed C.utf8 1406 bytes with none (as the
   LOCALEDEF-COLLATE-GAPS handoff found: the reference's own compile disagrees; noted, not chased).
-* Final jobs: see the report json (`locale-c-utf8-source-gate`, `locale-c-utf8-source-plants`).
+* `locale-c-utf8-source-gate` (code head 01a9a55b2, rc 0): clippy clean, static clean, `affected --run --base
+  origin/next`: FULL (xtask/src/locales.rs is the Xtask bounded set; FULL is the train's), direct suites 8 ok,
+  676 passed, 0 failed; both new tests PASS; generated `C` 2751 bytes; reference localedef WITHOUT -c on it: rc 0,
+  no output. Peak memory 2.2G.
+* Plants (handoff/LOCALE-C-UTF8-SOURCE.plants): `-plants` stopped at baseline (relative NIJI_PRODUCTS: cargo test runs
+  in the crate dir). `-plants2`: 2 CAUGHT + 2 WARN-NO-MSG; c-not-written's catch was spurious (locale-sources does not
+  clear its output dir, so the copy's previous plant's `C` was read) and c-no-ctype failed on a syntax error, not the
+  comparison. Fixed (rm -rf the products dir; c-no-ctype copies tr_TR's LC_CTYPE): `-plants3`: 4 CAUGHT, 0 SURVIVED,
+  0 WARN (each by its named message).
 
 ## Open / next step
 
-* **Exact next step (leg 2):** keke jobs `locale-c-utf8-source-gate` (t2.sh: clippy, static, so, `affected --run
-  --base origin/next`, then the reference localedef WITHOUT -c on the new source: expect rc 0 and no `[error]`) and
-  `locale-c-utf8-source-plants` (4 plants, handoff/LOCALE-C-UTF8-SOURCE.plants) were started on code head 01a9a55b2:
-  `~/bin/jobwait locale-c-utf8-source-gate locale-c-utf8-source-plants`, then read `~/logs/<label>.log` (grep, not
-  cat). The gate's tree had one stray untracked file `keke-dummy` (a copy of a probe script; removed locally since,
-  not in any commit): re-sync before precheck. `affected` says FULL (xtask/src/locales.rs is the Xtask bounded
-  set): hand back `FULL: the train's`. Then fill the proof here, write handoff/reports/LOCALE-C-UTF8-SOURCE.json
-  (jobs: gate, plants), push, sync, `cargo xtask precheck --jobs <labels> --head <sha>` on keke n3, and
-  `ops handback-check`. If a plant SURVIVES or warns, fix the plant or test and rerun plants as `-plants2`.
+* Done: hand-back JOBS locale-c-utf8-source-gate, locale-c-utf8-source-plants3; FULL is the train's.
 * Nothing else required. Possible follow-up: translit includes in `C` if the built-in C.UTF-8's iconv //TRANSLIT should
   match a compiled C.UTF-8 (not probed).
 

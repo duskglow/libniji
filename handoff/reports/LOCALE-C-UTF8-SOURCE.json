@@ -1,0 +1,21 @@
+{"task": "LOCALE-C-UTF8-SOURCE", "model": "claude-opus-5-5", "tokens": null,
+ "result": "cargo xtask locale-sources now writes the C (C.UTF-8) source; the locale tests compile it and check every code point's classes, maps and width against the built-in C.UTF-8 and its LC_COLLATE as the no-rules code point order",
+ "branch": "task/locale-c-utf8-source", "head": "01a9a55b2",
+ "gate": {"affected": "8 suites ok, 676 passed / 0 failed (direct tier; FULL: the train's, xtask/src/locales.rs is the Xtask bounded set)", "peak": "2.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Reference localedef (no -c) compiles the generated C source with rc 0 and no messages.",
+   "Compared with the reference's installed C.utf8: LC_TIME week-1stweek 4 (spec row) vs 7 shown by its locale -k; LC_CTYPE translit size differs (the reference's default translit); the reference's own LC_COLLATE compile disagrees with its installed C.utf8 (as LOCALEDEF-COLLATE-GAPS found). Not chased.",
+   "Possible follow-up: translit includes in C if iconv //TRANSLIT under a compiled C.UTF-8 should match the built-in (not probed)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "tests added (generated_c_source_compiles_to_the_builtin_c_utf8, c_source_orders_every_code_point_in_one_equal_width_run)", "before": 0, "after": 2, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants added, all CAUGHT (locale-c-utf8-source-plants3)", "before": 0, "after": 4, "unit": "plants", "measured": true},
+   {"kind": "correctness", "what": "SUPPORTED lists C.UTF-8 UTF-8 and the locales package ships usr/share/i18n/locales/C, so localedef -i C -f UTF-8 works on a libniji-only system", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "cargo xtask locale-sources does not clear its output dir, so a plants copy can judge a plant on the previous plant's files (plants2 gave a spurious catch); plant commands writing products should start from an empty dir, or the tool should clear it",
+ "next_step": "none: land with the train (FULL)",
+ "jobs": ["locale-c-utf8-source-gate", "locale-c-utf8-source-plants3"],
+ "report_file": "handoff/LOCALE-C-UTF8-SOURCE.md"}
