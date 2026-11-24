@@ -85,7 +85,8 @@ fn niji_cc_system_headers_and_nostdinc_add_no_libniji_directory() {
     let dir = scratch("sys");
     let cc = root().join("scripts/niji-cc");
     ok(&run(&cc, &dir, &[("NIJI_SYSTEM_HEADERS", "1")], &["-c", "s.c", "-o", "s.o"]), "NIJI_SYSTEM_HEADERS=1 niji-cc -c s.c");
-    let o = run(&cc, &dir, &[], &["-nostdinc", "-c", "s.c", "-o", "n.o"]);
+    // p.c compiles on libniji's headers only, so a driver that added them under -nostdinc compiles it.
+    let o = run(&cc, &dir, &[], &["-nostdinc", "-c", "p.c", "-o", "n.o"]);
     assert!(!o.status.success(), "niji-cc -nostdinc found <stdio.h>: the driver added a header directory");
     let o = run(&cc, &dir, &[], &["-c", "s.c", "-o", "d.o"]);
     assert!(!o.status.success(), "niji-cc -c s.c compiled without __NIJI__: not libniji's headers");

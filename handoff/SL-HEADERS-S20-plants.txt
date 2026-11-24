@@ -10,3 +10,6 @@ s20-gcc-optout | tools/deb/niji-gcc | perl:s/\[ -n "\$\{NIJI_SYSTEM_HEADERS:-\}"
 # Run 2 (SL-HEADERS-S20-2): the two names the C++ library needs from the C headers (D-X.169).
 s20-cxx-locale_t | libc-include/locale.h | perl:s/typedef struct __locale_struct \* __locale_t;\n// | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -x c\+\+ -c p.cc failed|niji-g\+\+ -c p.cc failed
 s20-cxx-cwchar | libc-include/wchar.h | perl:s/#  define __CORRECT_ISO_CPP_WCHAR_H_PROTO 1\n// | cargo test -p niji-boundary --test niji_cc_headers | msg:niji-cc -x c\+\+ -c p.cc failed|niji-g\+\+ -c p.cc failed
+# Leg 2: the unshipped-header list and P4's known/FAIL split (validation/headers_p4.py, its C++ part).
+s20-p4-list | validation/headers_unshipped.tsv | perl:s/^aio\.h\t.*\n//m | python3 validation/headers_p4.py --no-noexcept | msg:P4 FAIL <aio\.h>: named by spec/abi, not shipped and not in
+s20-p4-known | validation/headers_p4.py | perl:s/elif errs and gone <= listed and/elif False and/ | python3 validation/headers_p4.py --no-noexcept | msg:P4 FAIL c\+\+98 <complex\.h>
