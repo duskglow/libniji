@@ -3,3 +3,7 @@
 # views: its view and `Tables` (`Permanent::value`) leaked from the heap again.
 items | crates/boundary/src/locale.rs | perl:s/(fn slice<T: Copy \+ 'static>.*?)if heap::routed\(\)/${1}if !heap::routed()/s | cargo test -p niji --test heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references | msg:locale data back on the heap
 views | crates/boundary/src/locale.rs | perl:s/(fn value<T: 'static>.*?)if heap::routed\(\)/${1}if !heap::routed()/s | cargo test -p niji --test heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references | msg:locale data back on the heap
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# items: CAUGHT, caught by heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references
+# views: CAUGHT, caught by heap_meta_products a_utf8_locale_costs_no_more_address_space_than_the_references
+# Each mutant: en_US.UTF-8 +5632 KiB over C (allowed 3644; the arena: +3584).
