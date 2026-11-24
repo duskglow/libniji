@@ -10,6 +10,12 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
+/* linux/mount.h spells OPEN_TREE_CLOEXEC as O_CLOEXEC, which <fcntl.h> does not show at the strict levels
+   (visibility.tsv); there the definition is dropped and the emitted one (macros.tsv's value) takes its place. */
+#if defined OPEN_TREE_CLOEXEC && !defined O_CLOEXEC
+# undef OPEN_TREE_CLOEXEC
+#endif
+
 __NIJI_BEGIN_C
 
 #if 1

@@ -5768,6 +5768,11 @@ enum { TRAP_UNK = 5 };
 
 #if __NIJI_MISC || __NIJI_XSI >= 450
 # if __NIJI_DYNSTACK
+/* The expansion calls __sysconf, so it is declared here (reserved.tsv: emit): C++ needs a declaration in view. */
+#  ifndef __NIJI_D___sysconf
+#   define __NIJI_D___sysconf 1
+extern long int __sysconf (int) __NIJI_NOTHROW;
+#  endif
 #  define MINSIGSTKSZ __sysconf (249)
 #  define SIGSTKSZ __sysconf (250)
 # else
