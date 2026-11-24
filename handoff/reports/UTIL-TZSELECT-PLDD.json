@@ -1,22 +1,70 @@
-{"task": "UTIL-TZSELECT-PLDD", "model": "opus", "tokens": null,
+{
+ "task": "UTIL-TZSELECT-PLDD",
+ "model": "opus",
+ "tokens": null,
  "result": "tzselect and pldd (C front ends) and libc-bin's /usr/bin/ld.so link shipped in both package flavours; transcript tests vs the reference, packaged-root checks, 3/3 plants caught",
- "branch": "task/util-tzselect-pldd", "head": "bfe269a9a",
- "gate": {"affected": "direct tier: every step ok except one xtask bin test that raced the concurrent products build (so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint); the xtask bin suite rerun alone: 657 passed / 0 failed", "peak": "5.1G"},
+ "branch": "task/util-tzselect-pldd",
+ "head": "bfe269a9a",
+ "gate": {
+  "affected": "direct tier, gate2 on the final content: all steps ok (rc 0). The first gate (SUPERSEDED) failed one xtask bin test that raced the concurrent products build; that suite rerun alone (xtbin): 657 passed / 0 failed",
+  "peak": "4.8G"
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "tzselect -c lists zones by great-circle (haversine) distance; the reference's order follows no documented rule (differences row, D-31.34)", "recommendation": "keep great-circle order"}],
+ "rulings": [
+  {
+   "item": "tzselect -c lists zones by great-circle (haversine) distance; the reference's order follows no documented rule (differences row, D-31.34)",
+   "recommendation": "keep great-circle order"
+  }
+ ],
  "informational": [
-   "Gate race: the direct gate runs 'xtask tests that run no products' beside 'cargo xtask so', but so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint reads the real target/niji; it failed because target/niji/locale-sources was being rewritten (SUPPORTED mtime 14:48:16, libc.so.6 14:47:35, inside the test window). Passed when rerun alone. Suggest: mark it as using the products in the affected classification. Not changed here (outside this story).",
-   "COMPAT-43 reserved and unused: the three differences rows give no-compat reasons.",
-   "pldd's ELFCLASS32 path is NOT VERIFIED: the host has no 32-bit target.",
-   "Challenge to the brief: tzselect is a separate C front end beside zic and zdump, not an argv[0] command of niji-tz (the tz tools are already separate front ends).",
-   "t2, plants and rootsys1 ran on earlier heads (1fd1901ea, 33097e147); the later commits change only root-system.sh (rootsys1 ran it), the plants file and two clippy lints in the test file (no behaviour change)."],
+  "Gate race: the direct gate runs 'xtask tests that run no products' beside 'cargo xtask so', but so::tests::a_product_build_leaves_no_earlier_product_for_the_manifest_lint reads the real target/niji; it failed because target/niji/locale-sources was being rewritten (SUPPORTED mtime 14:48:16, libc.so.6 14:47:35, inside the test window). Passed when rerun alone and in gate2: intermittent. Suggest: mark it as using the products in the affected classification. Not changed here (outside this story).",
+  "COMPAT-43 reserved and unused: the three differences rows give no-compat reasons.",
+  "pldd's ELFCLASS32 path is NOT VERIFIED: the host has no 32-bit target.",
+  "Challenge to the brief: tzselect is a separate C front end beside zic and zdump, not an argv[0] command of niji-tz (the tz tools are already separate front ends).",
+  "SUPERSEDED: util-tzselect-pldd-gate (one racing test, see above), util-tzselect-pldd-plants, util-tzselect-pldd-rootsys1, util-tzselect-pldd-t2 (earlier content); rerun as gate2, plants2, rootsys2 on the final content; the gate covers tzselect_pldd."
+ ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "/usr/bin/tzselect, /usr/bin/pldd and /usr/bin/ld.so present in libc-bin (GitHub #14's remaining utilities)", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "tests in xtask/tests/tzselect_pldd.rs", "before": 0, "after": 8, "unit": "tests", "measured": true},
-   {"kind": "coverage", "what": "tools/deb/root-system.sh checks (ld.so --version, ld.so --library-path, tzselect -c, pldd)", "before": 21, "after": 25, "unit": "checks", "measured": true},
-   {"kind": "coverage", "what": "plants caught", "before": 0, "after": 3, "unit": "plants", "measured": true}],
+  {
+   "kind": "correctness",
+   "what": "/usr/bin/tzselect, /usr/bin/pldd and /usr/bin/ld.so present in libc-bin (GitHub #14's remaining utilities)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests in xtask/tests/tzselect_pldd.rs",
+   "before": 0,
+   "after": 8,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tools/deb/root-system.sh checks (ld.so --version, ld.so --library-path, tzselect -c, pldd)",
+   "before": 21,
+   "after": 25,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants caught",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
  "improvement": "The gate's 'xtask tests that run no products' step should not include tests that read target/niji (one raced the concurrent products build here); also probe scripts should record the exact argv they ran (a leg-1 summary of 'pldd -5' disagreed with a direct run).",
  "next_step": "Land; optionally fix the affected classification of the so.rs manifest-lint test.",
  "report_file": "handoff/UTIL-TZSELECT-PLDD.md",
- "jobs": ["util-tzselect-pldd-gate", "util-tzselect-pldd-xtbin", "util-tzselect-pldd-plants", "util-tzselect-pldd-rootsys1", "util-tzselect-pldd-t2"]}
+ "jobs": [
+  "util-tzselect-pldd-gate2",
+  "util-tzselect-pldd-plants2",
+  "util-tzselect-pldd-rootsys2",
+  "util-tzselect-pldd-xtbin"
+ ]
+}

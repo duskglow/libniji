@@ -33,6 +33,9 @@ no-compat reasons).
   reads the real target/niji and saw locale-sources being rewritten (SUPPORTED written 14:48:16, inside the test's
   window). `util-tzselect-pldd-xtbin` (`cargo test -p xtask --bin xtask`, alone, same tree): 657 passed / 0 failed.
   INFORMATIONAL: that test should be classed as using the products.
+* On the final content (precheck asked for reruns): `util-tzselect-pldd-gate2` all steps ok, rc 0, peak 4.8G (the
+  racing step passed: intermittent); `util-tzselect-pldd-rootsys2` `root: RESULT pass=25 fail=0`;
+  `util-tzselect-pldd-plants2` 3 plants, 3 CAUGHT, 0 WARN. gate, plants, rootsys1 and t2 are SUPERSEDED (earlier content).
 
 ## Probe-settled behaviour (leg 1 and 2 replays; reference = the installed tzselect/pldd)
 Prompts on stderr, the TZ value on stdout; "\n" on stdout at end of input at a menu; no try line after
