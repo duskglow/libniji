@@ -189,7 +189,8 @@ struct Tables {
     inits: BTreeMap<String, (String, String)>,
     /// fnmembers.tsv: (layouts.tsv type, member path) -> the member's declarator, `@` standing for its name.
     fnmembers: BTreeMap<(String, String), String>,
-    /// enumerators.tsv: an enumeration tag (`enum __pid_type`) -> its enumerators and values, in declaration order.
+    /// enumerators.tsv: an enumeration tag (`enum __pid_type`, or `typedef idtype_t` for an enumeration without a tag
+    /// that a typedef names) -> its enumerators and values, in declaration order.
     enums: BTreeMap<String, Vec<(String, String)>>,
     /// enumerators.tsv: an enumerator -> the tag of its enumeration.
     enum_of: BTreeMap<String, String>,
@@ -499,6 +500,16 @@ impl Gen<'_> {
                 }
                 continue;
             }
+            // An enumerator of an unnamed enumeration a typedef names (enumerators.tsv `typedef NAME`): that typedef,
+            // once (its typedef row, when this header has one).
+            if let Some(td) = (kind == "enumerator").then(|| self.typedef_enum(&name)).flatten() {
+                let td_row = self.t.vis_row(&self.header, &td, "typedef").is_some();
+                if !td_row && self.emitted.insert(format!("typedef {td}")) {
+                    let c = self.cond(&name, Some(&kind));
+                    items.push((3, c, td, "typedef".into()));
+                }
+                continue;
+            }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
             if rank == 9 {
                 self.errors.push(format!("{}: {name}: kind {kind} is not generated yet", self.header));
@@ -543,6 +554,11 @@ impl Gen<'_> {
                 // enumerators.tsv rows) is that enumeration's: the whole definition, once per translation unit.
                 if let Some(tag) = self.declared_enum(name) {
                     self.tag(&tag, "enum");
+                    return;
+                }
+                // An enumerator of an unnamed enumeration a typedef names: that typedef's whole definition, once.
+                if let Some(td) = self.typedef_enum(name) {
+                    self.typedef(&td);
                     return;
                 }
                 let v = self.value(name);

@@ -10,6 +10,27 @@ impl Gen<'_> {
         self.t.typedefs.contains_key(&("enum".to_string(), tag.to_string())).then(|| tag.to_string())
     }
 
+    /// The typedef (`idtype_t`) naming the unnamed enumeration `name` is an enumerator of: an enumerators.tsv tag
+    /// `typedef NAME` (ruling #7643) whose typedefs.tsv `typedef` row exists. Its enumerators are emitted only as
+    /// members of that typedef's definition.
+    pub(super) fn typedef_enum(&self, name: &str) -> Option<String> {
+        let td = self.t.enum_of.get(name)?.strip_prefix("typedef ")?;
+        self.t.typedefs.contains_key(&("typedef".to_string(), td.to_string())).then(|| td.to_string())
+    }
+
+    /// `typedef enum { ... } NAME;` for an enumerators.tsv tag `typedef NAME`: an enumeration without a tag, which C
+    /// and C++ name only through the typedef (C 6.7.8; C++ names it for linkage). Its enumerators are marked emitted.
+    pub(super) fn typedef_enum_body(&mut self, name: &str) -> Option<Vec<String>> {
+        let members = self.t.enums.get(&format!("typedef {name}"))?;
+        let mut body = vec!["typedef enum {".to_string()];
+        body.extend(members.iter().map(|(n, v)| format!("  {n} = {v},")));
+        body.push(format!("}} {name};"));
+        for (n, _) in members {
+            self.emitted.insert(format!("enumerator {n}"));
+        }
+        Some(body)
+    }
+
     /// `enum TAG { ... };` from enumerators.tsv (values as the reference's DWARF gives them). Its enumerators are
     /// marked emitted in this header; elsewhere an enumerator of it is never declared alone ([`Self::declared_enum`]
     /// routes it to this definition, under the tag's guard).

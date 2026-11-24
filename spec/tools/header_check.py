@@ -18,7 +18,8 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * levels  a unit that includes features.h and `#error`s unless each `__NIJI_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
 * P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
-* P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value, typedefs.tsv size and
+* P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value (in each header that
+          shows the macro, whichever header owns its row; reserved names only in the owner), typedefs.tsv size and
           alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
 * slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`); a module
           may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
@@ -31,6 +32,7 @@ import argparse
 import glob
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -45,8 +47,13 @@ CHECKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_checks
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 # Macros whose definition is not a constant expression in some configurations (limits.h.in: a sysconf call where the
-# minimum thread stack size is dynamic), so a static assertion on the value cannot be written for them.
-NOT_CONSTANT = {"PTHREAD_STACK_MIN"}
+# minimum thread stack size is dynamic; signal.h's MINSIGSTKSZ and SIGSTKSZ under `_DYNAMIC_STACK_SIZE_SOURCE` and
+# `_GNU_SOURCE`), so a static assertion on the value cannot be written for them.
+NOT_CONSTANT = {"PTHREAD_STACK_MIN", "MINSIGSTKSZ", "SIGSTKSZ"}
+# A reserved name (C 7.1.3: `_` and a capital or a second `_`) that a header shows but whose macros.tsv row another
+# header owns: emitted only where headers/reserved.tsv says, and `_POSIX_C_SOURCE` takes its value from the
+# configuration, so P1 asserts such a value only in the owning header.
+RESERVED = re.compile(r"_[A-Z_]")
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -112,8 +119,8 @@ def expand(configs, ids):
 
 def p1_units(ctx):
     """P1 (plan/headers.md section 3) of the headers whose slice row has `p1` 1: per (header, configuration) one unit
-    that includes the header and asserts, for what the header makes visible there, every macros.tsv integer value,
-    every typedef size and alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false
+    that includes the header and asserts, for what the header makes visible there, every macros.tsv integer value
+    (whichever header owns the row; a reserved name only in its owner), every typedef size and alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false
     condition is a negative array size, which every language mode rejects (C89 and C++98 have no static assertion)."""
     p1 = {r["header"] for r in ctx.slice_rows if r["p1"] == "1"}
     macros, typedefs, layouts = ctx.macros, ctx.typedefs, ctx.layouts
@@ -133,7 +140,11 @@ def p1_units(ctx):
                 v["header"] == h and v["name"] == "_IO_FILE" and v["kind"] == "struct" for v in ctx.vis):
             continue  # FILE named by a header that does not show struct _IO_FILE: the type stays incomplete there
         tests = []
-        if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
+        # A macro is asserted in every header that shows it, whichever header owns its macros.tsv row (the row's
+        # value is the one name's value everywhere): an owner with `p1` 0, or one no slice ships, would otherwise leave
+        # the value checked nowhere (HEADERS-GEN-SHARED). Reserved names only in their owner (RESERVED).
+        borrowed_ok = n in macros and (macros[n]["header"] == h or not RESERVED.match(n))
+        if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and borrowed_ok:
             m = macros[n]
             v = int(m["value"])
             sfx = INT_SUFFIX[m["type"]]
@@ -265,7 +276,7 @@ def main():
     p1s = p1_units(ctx)
     for name, mod in mods:
         problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
-        for cid, what, body in mod.units(ctx):
+        for cid, what, body in getattr(mod, "units", lambda _ctx: [])(ctx):
             p1s.setdefault(cid, []).append((what, body))
     fails, total = len(problems), len(problems)
     for p in problems:

@@ -60,6 +60,9 @@ impl Gen<'_> {
             // of that name, so the typedef names the tag.
             self.tag(name, kind);
             vec![format!("typedef {kind} {name} {name};")]
+        } else if let Some(body) = (cxx == name || cxx.is_empty()).then(|| self.typedef_enum_body(name)).flatten() {
+            // An enumeration without a tag (enumerators.tsv `typedef NAME`): `typedef enum { ... } NAME;`.
+            body
         } else if cxx == name || cxx.is_empty() {
             match self.aggregate(name) {
                 Some(a) => {

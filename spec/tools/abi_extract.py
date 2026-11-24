@@ -370,19 +370,39 @@ def resolve_base(dies, off, depth=0):
     return off
 
 def enumerators(dies):
-    """(tag, enumerator, value) of every named enumeration the headers define, enumerators in declaration order."""
-    rows, seen = [], set()
+    """(tag, enumerator, value) of every named enumeration the headers define, enumerators in declaration order.
+
+    An enumeration without a tag that a typedef names directly (`typedef enum { ... } NAME;`: the DWARF typedef's
+    type is the unnamed enumeration) gets the tag `typedef NAME` (HEADERS-GEN-SHARED, ruling #7643): no other row
+    could name it, and the generator emits it as that typedef of an unnamed enumeration.
+    """
+    named_by = {}
     for d in dies.values():
+        if d["tag"] == "DW_TAG_typedef" and d["attrs"].get("DW_AT_name"):
+            t = ref(d["attrs"].get("DW_AT_type"))
+            e = dies.get(t) if t is not None else None
+            if e is not None and e["tag"] == "DW_TAG_enumeration_type" and not e["attrs"].get("DW_AT_name"):
+                named_by.setdefault(t, set()).add(d["attrs"]["DW_AT_name"])
+    rows, seen = [], set()
+    for off, d in dies.items():
         nm = d["attrs"].get("DW_AT_name")
-        if d["tag"] != "DW_TAG_enumeration_type" or not nm or "DW_AT_declaration" in d["attrs"]:
+        if d["tag"] != "DW_TAG_enumeration_type" or "DW_AT_declaration" in d["attrs"]:
             continue
+        if not nm:
+            names = named_by.get(off, set())
+            if len(names) != 1:
+                # An enumeration no typedef names (its enumerators are plain constants), or one two typedefs name
+                # (no single tag): left to visibility.tsv and macros.tsv.
+                continue
+            nm = f"typedef {names.pop()}"
         if nm in seen:
             raise SystemExit(f"enumerators: enum {nm} is defined twice")
         seen.add(nm)
+        tag = nm if nm.startswith("typedef ") else f"enum {nm}"
         for c in d["children"]:
             e = dies[c]
             if e["tag"] == "DW_TAG_enumerator":
-                rows.append((f"enum {nm}", e["attrs"]["DW_AT_name"], num(e["attrs"].get("DW_AT_const_value"))))
+                rows.append((tag, e["attrs"]["DW_AT_name"], num(e["attrs"].get("DW_AT_const_value"))))
     return sorted(rows, key=lambda r: r[0])
 
 def members(dies, off, prefix="", base=0, out=None, depth=0):
