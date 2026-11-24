@@ -3,7 +3,6 @@ section = "s26-29"
 spec = "§27.1"
 ann = "—"
 status = "active"
-amends = []
 story = "SHSTK-OPT-IN-3"
 date = "2026-11-23"
 tests = ["crates/ld/tests/reloc.rs::reloc_image_reader_slices_only_unchanging_segments"]
