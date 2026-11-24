@@ -5,6 +5,7 @@ usage: keys.py <names file>... > keys              sorted
        keys.py --ordered <names file>... > keys    first occurrence order (files in argument order)
        keys.py --aliases <objdump -t output>       `<symbol key>\t<section key>` (see aliases())
        keys.py --sections <archive or object>      function names of the function sections (see sections())
+       keys.py --unlisted <objdump -t> <lib keys> <hit keys>   traced library functions whose section is unlisted
 The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
   1. drop the library's own prefix `__niji_libc_` (D-X.14 renames; the section keeps the C name);
   2. drop ThinLTO promotion suffixes `.llvm.<digits>`;
@@ -308,6 +309,33 @@ def aliases(path):
             print(f"{k}\t{next(iter(seen[k]))}")
 
 
+def unlisted(syms_path, lib_path, hit_path):
+    """--unlisted <objdump -t of libc.a> <lib.keys> <hit.keys>: the traced keys (hit.keys, first field) that
+    name a symbol in a function section of the archive whose section key is not in lib.keys (the names
+    --sections listed), one per line. GATE-HONEST-METRICS-3: a traced library function whose section the
+    listing missed (a name cut by the listing tool) was dropped from the list without a word; regen.sh now
+    fails on any key printed here. objdump -t prints the names whole, so it checks the listing."""
+    with open(lib_path) as f:
+        lib = {line.rstrip("\n") for line in f}
+    sec_of = {}
+    with open(syms_path) as f:
+        for line in f:
+            if "\t" not in line:
+                continue
+            left, right = line.rstrip("\n").split("\t", 1)
+            lf, rf = left.split(), right.split()
+            if len(lf) < 2 or len(rf) < 2:
+                continue
+            name = function_of(lf[-1])
+            if name is not None:
+                sec_of.setdefault(key(rf[-1]), set()).add(key(name))
+    with open(hit_path) as f:
+        for line in f:
+            k = line.rstrip("\n").split("\t", 1)[0]
+            if any(s not in lib for s in sec_of.get(k, ())):
+                print(k)
+
+
 def signatures(args):
     """--signatures <list> [--alias <file>] <mode>=<names file>...: `<key>\t<modes>` for every key of
     <list> (hot-text.list), in its order: the comma-separated, sorted modes whose names file holds the
@@ -355,6 +383,9 @@ def main():
         return
     if args[:1] == ["--sections"] and len(args) == 2:
         sections(args[1])
+        return
+    if args[:1] == ["--unlisted"] and len(args) == 4:
+        unlisted(args[1], args[2], args[3])
         return
     # --tagged <tier>=<names file>...: `<key>\t<tier>` in first-touch order, each key with the tier
     # of the first file that names it (HOTTEXT-STARTUP-COMPLETE).

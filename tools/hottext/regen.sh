@@ -232,6 +232,13 @@ python3 -B "$here/keys.py" "$work/sections" > "$work/lib.keys"
 # so a start-up key traced at such a label brings its section to the start-up head.
 objdump -t "$P/libc.a" > "$work/syms"
 python3 -B "$here/keys.py" --aliases "$work/syms" > "$work/alias.keys"
+# GATE-HONEST-METRICS-3: a traced function of libc.a whose section the listing above missed would drop out of the
+# list below without a word (the cut names did); objdump -t names every section whole, so it checks the listing.
+python3 -B "$here/keys.py" --unlisted "$work/syms" "$work/lib.keys" "$work/hit.keys" > "$work/unlisted"
+if [ -s "$work/unlisted" ]; then
+    echo "regen: traced library functions whose section is missing from the section listing: $(head -3 "$work/unlisted" | tr '\n' ' ')($(wc -l < "$work/unlisted") in all)" >&2
+    exit 1
+fi
 awk -F'\t' 'NR == FNR { lib[$1]; next } $1 in lib' "$work/lib.keys" "$work/hit.keys" > "$work/new.keys"  # keeps the touch order
 {
     echo "# Functions grouped as hot text in libc.a (PAGEFAULTS-2), in this order (HOT-ORDER: first touch): build-stable keys, see tools/hottext/keys.py."

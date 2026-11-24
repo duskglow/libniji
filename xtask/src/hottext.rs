@@ -1292,6 +1292,37 @@ mod tests {
     }
 
     #[test]
+    fn a_traced_function_with_an_unlisted_section_is_named() {
+        // GATE-HONEST-METRICS-3 (no spec clause: build tooling): regen.sh fails on every key `keys.py --unlisted`
+        // prints, a traced function of libc.a whose section the section listing missed (names cut at 256 bytes
+        // dropped such functions from the list without a word). Named: a traced symbol of a function section
+        // absent from lib.keys, also when traced at a label inside it. Not named: a listed section, its label,
+        // the program's own function (no symbol of the archive). Fictional names.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-unlisted-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let syms = "\nfixture.o:     file format elf64-x86-64\n\nSYMBOL TABLE:\n\
+            0000000000000000 g     F .text.fixture_listed\t0000000000000010 fixture_listed\n\
+            0000000000000008 g       .text.fixture_listed\t0000000000000000 fixture_listed_label\n\
+            0000000000000000 g     F .text.fixture_missed\t0000000000000010 fixture_missed\n\
+            0000000000000000 g     F .text.fixture_other\t0000000000000010 fixture_other\n\
+            0000000000000004 g       .text.fixture_other\t0000000000000000 fixture_other_label\n";
+        std::fs::write(tmp.join("syms"), syms).unwrap();
+        std::fs::write(tmp.join("lib.keys"), "fixture_listed\n").unwrap();
+        std::fs::write(tmp.join("hit.keys"), "fixture_listed\tstartup\nfixture_listed_label\tstartup\nfixture_missed\ttool\nfixture_other_label\tlocale\nfixture_program\tstartup\n").unwrap();
+        let o = std::process::Command::new("python3")
+            .arg("-I")
+            .arg(root.join("tools/hottext/keys.py"))
+            .arg("--unlisted")
+            .args(["syms", "lib.keys", "hit.keys"].map(|f| tmp.join(f)))
+            .output()
+            .expect("python3 runs tools/hottext/keys.py");
+        std::fs::remove_dir_all(&tmp).unwrap();
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        assert_eq!(String::from_utf8(o.stdout).unwrap(), "fixture_missed\nfixture_other_label\n", "keys.py --unlisted");
+    }
+
+    #[test]
     fn regen_always_traces_the_bounded_tool_and_locale_modes() {
         // LAYOUT-TEXT-PIN-9, ruling #4539 (no spec clause: build tooling): regen.sh traces
         // page_faults.c's `locale` and `tool` modes (the programs hot_text_products.rs bounds) on
