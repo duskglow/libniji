@@ -688,7 +688,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_o
         let dst = release.join(soname);
         let tmp = crate::so::tmp_name(&dst);
         crate::so::run(Command::new(cc)
-            .args(["-shared", "-nostdlib", "-fPIC", "-O2", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(["-shared", "-nostdlib", "-fPIC", "-O2", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
             .args(cdebug)
             .arg(format!("-Wl,-soname,{soname}"))
             .arg(format!("-Wl,--version-script={}", map.display()))

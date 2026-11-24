@@ -1,0 +1,4 @@
+# SHSTK-OPT-IN-2 (D-X.164): the build check reads the products the packages' manifest ships.
+manifest-every-kind | xtask/src/cetnote.rs | perl:s/if cols\[3\] == "file" \{/if !cols[3].is_empty() {/ | cargo test -p xtask --bin xtask cetnote | msg:the_check_reads_the_products_the_manifest_ships.*panicked|panicked.*the_check_reads_the_products_the_manifest_ships
+missing-product-ignored | xtask/src/cetnote.rs | perl:s/bad\.push\(format!\("\{rel\}: \{e\}"\)\);\n(\s*)continue;/continue;/ | cargo test -p xtask --bin xtask cetnote | msg:the_check_reads_the_products_the_manifest_ships.*panicked|panicked.*the_check_reads_the_products_the_manifest_ships
+listed-unmarked-passes | xtask/src/cetnote.rs | perl:s/(fn check_products.*?checked \+= 1;\n\s*)bad\.extend/$1let _ = /s | cargo test -p xtask --bin xtask cetnote | msg:the_check_reads_the_products_the_manifest_ships.*panicked|panicked.*the_check_reads_the_products_the_manifest_ships

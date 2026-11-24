@@ -78,6 +78,7 @@ mod forkalloc;
 mod fs_order;
 mod benchrows;
 mod startpair;
+mod cetnote;
 mod coldbss;
 mod compat;
 mod compatprobe;

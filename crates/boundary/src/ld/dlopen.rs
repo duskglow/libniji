@@ -44,7 +44,7 @@ use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::cache::Cache;
 use niji_ld::dlopen::{self as dl, Mode, Refusal};
-use niji_ld::elf::{dt, pt, Elf, STB_GNU_UNIQUE};
+use niji_ld::elf::{dt, pt, STB_GNU_UNIQUE};
 use niji_ld::reloc::{self, Obj, Objects, RelocError, VersionError};
 use niji_ld::search::{self, Ctx, PathBuf, Scope};
 use niji_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, UniqueRegistry, Want};
@@ -1250,8 +1250,7 @@ fn adopt_start(l: &mut Loader) -> bool {
         } else {
             let at = |v: u64| usize::try_from(v).unwrap_or(0);
             let prog = start::Program { phdr: at(w[0]), phnum: at(w[1]), entry: 0 };
-            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views, true);
-            let Ok(elf) = Elf::from_image::<Native>(head, view) else { return false };
+            let elf = image_view(&prog, at(w[2]), b"", &mut views, true);
             let Ok(Some(dynm)) = elf.dynamic() else { return false };
             // Its static block, so a `dlopen`ed object's TLS relocation against one of its
             // symbols finds the place (DL-16d).

@@ -1,0 +1,6 @@
+# SHSTK-OPT-IN-3 (D-27.97): an image-mode reader checked once, then given its spans.
+spans-dropped | crates/ld/src/elf.rs | perl:s/self\.spans\.map\(\|_\| Elf \{ spans: Some\(spans\), \.\.self \}\)/self.spans.map(|_| self)/ | cargo test -p niji-ld --test reloc reloc_image_reader_slices_only_unchanging_segments | msg:reloc_image_reader_slices_only_unchanging_segments.*panicked|panicked.*reloc_image_reader_slices_only_unchanging_segments
+file-reader-accepted | crates/ld/src/elf.rs | perl:s/self\.spans\.map\(\|_\| Elf \{ spans: Some\(spans\), \.\.self \}\)/Some(Elf { spans: Some(spans), ..self })/ | cargo test -p niji-ld --test reloc reloc_image_reader_slices_only_unchanging_segments | msg:a file reader does not become an image reader
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# spans-dropped: CAUGHT, caught by reloc reloc_image_reader_slices_only_unchanging_segments
+# file-reader-accepted: CAUGHT, caught by reloc reloc_image_reader_slices_only_unchanging_segments
