@@ -1,0 +1,17 @@
+{"task": "RELEASE-STEP-EXEC-FAIL-2", "model": "opus", "tokens": null,
+ "result": "Merged next (LOCALE-PER-DIR-LOAD) keeping call_dir (per-call dir, now 21 bytes as next's) and run_failure (stderr of a failed counted run); release pair green; 127/99 cause still not established",
+ "branch": "task/release-step-exec-fail-2", "head": null,
+ "gate": {"affected": "35 passed / 0 failed", "peak": "3.1G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The CI release pair (NIJI_FULL_PROFILE=1 so + cargo test hot_text_products) passed 35/35 on the merged head on the Skylake-SP host, with the probe locale archive in use (namespace path)."],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "hot_text_products counted runs: no shared per-call directory under cargo test (the % 10 race that gives exit 127/99), and a failed run prints its stderr", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "coverage", "what": "plants on the harness (call_dir, run_failure)", "before": 0, "after": 3, "unit": "plants caught", "measured": true},
+   {"kind": "unblock", "what": "CI merge conflict with next cleared (task/release-step-exec-fail can gate)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["mei:release-step-exec-fail-2-gate", "mei:release-step-exec-fail-2-release", "mei:release-step-exec-fail-2-plants"],
+ "improvement": "A merge that keeps a fixed-length name must match the length the bounds were measured with; a named length constant plus a plant on it made that a one-line check.",
+ "next_step": "Land the branch; if a release step fails a counted run again, read the stderr its panic now carries.",
+ "report_file": "handoff/RELEASE-STEP-EXEC-FAIL.md"}

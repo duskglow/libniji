@@ -1483,11 +1483,11 @@ fn s14_7_g_0() {
 fn s14_7_f_0() {
     use niji_boundary::posix::s14_search as s;
     use pat::*;
-    // Extended groups nested deeper than the parser allows: an error, never a wrong answer.
+    // Extended groups nest as deep as the pattern allows (no limit of the parser's own, HL-13;
+    // fnmatch_deep_nesting): only running out of memory is an error.
     let deep = "@(".repeat(100) + "a" + &")".repeat(100);
-    assert!(fm::fnmatch(deep.as_bytes(), b"a", fm::EXTMATCH, &c()).is_err());
-    let r = s::fnmatch(z(&deep).as_ptr(), z("a").as_ptr(), fm::EXTMATCH);
-    assert!(r != 0 && r != fm::NOMATCH, "an error value: {r}");
+    assert_eq!(fm::fnmatch(deep.as_bytes(), b"a", fm::EXTMATCH, &c()), Ok(true));
+    assert_eq!(s::fnmatch(z(&deep).as_ptr(), z("a").as_ptr(), fm::EXTMATCH), 0, "100 nested groups match");
     assert_eq!(s::fnmatch(core::ptr::null(), z("a").as_ptr(), 0), -1, "a NULL pattern is an error, not a crash");
     // Invalid multibyte text is not an error (it is matched byte by byte, s14_7_g_0).
     assert_eq!(fb(b"\xff", b"\xff", 0, &u()), 0);

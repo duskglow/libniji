@@ -24,7 +24,7 @@
 //!   `dlopen` releases it before its constructors (lock order at `CALL`). Lock-free readers are
 //!   DL-16c's (plan §4, `read_section`).
 
-use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Uniq, CALL, CAP, SHN_ABS, STATE};
+use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, Env, Loader, Uniq, CALL, CAP, SHN_ABS, STATE};
 use niji_ld::arch::Native;
 use niji_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
 use niji_ld::search::{self, PathBuf};
@@ -193,8 +193,8 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
                 dlerr::set(&[object_name(l, f.obj, &mut path), b": cannot find the thread-local block of symbol ", sym]);
                 return None;
             };
-            let off = isize::try_from(p.tp_offset).unwrap_or(0);
-            Some(Answer::At(tb::tp().wrapping_add_signed(off).wrapping_add(at(st.value))))
+            // An on-demand block (DL-19) is made for the calling thread now, as an access would.
+            Some(Answer::At(super::super::tls::thread_address(p, st.value, true)))
         }
         STT_GNU_IFUNC => Some(Answer::Resolve(at(o.bias.wrapping_add(st.value)))),
         _ if st.shndx == SHN_ABS => Some(Answer::At(at(st.value))),

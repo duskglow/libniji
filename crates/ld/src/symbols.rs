@@ -226,6 +226,84 @@ pub struct Def {
     pub hidden: bool,
 }
 
+/// The size of an `Elf64_Sym`.
+const SYM: usize = 24;
+
+/// What a relocation's reference accepts on the quick walk ([`Object::quick_lookup`],
+/// LD-SYMBOL-VALIDATE-ONCE): the definition with the lowest version index ([`Want::Oldest`]), or
+/// ([`Want::Reference`]) the version `name`, which definition `id` ([`quick_id`]) is known to have
+/// (0: none known yet, so a versioned definition's name is compared).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Quick<'n> {
+    /// As [`Want::Oldest`].
+    Oldest,
+    /// As [`Want::Reference`] of `name`.
+    Version {
+        /// The definition known to have the version, or 0.
+        id: u32,
+        /// The version's name.
+        name: &'n [u8],
+    },
+}
+
+/// The quick walk's answer in one object.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Probe {
+    /// No definition here: the walk goes on to the next object in scope.
+    Miss,
+    /// This definition.
+    Hit(Def),
+    /// Only the exact walk decides: a view that was not validated, an entry the validation does not
+    /// cover (a name's offset, a version index) that is out of range, a version whose name is missing,
+    /// a canonical PLT entry.
+    Slow,
+}
+
+/// One candidate's verdict in [`Object::quick_lookup`].
+enum Step {
+    Next,
+    Done(Def),
+    Slow,
+}
+
+/// The quick walk's key of version index `index` defined in object `obj` (its entry in the object
+/// list): `(obj + 1) << 16 | index`, never 0; `None` past the 65,534th object.
+#[must_use]
+#[inline]
+pub(crate) fn quick_id(obj: usize, index: u16) -> Option<u32> {
+    let o = u32::try_from(obj).ok().filter(|&o| o < 0xffff)?;
+    Some(o.wrapping_add(1).wrapping_shl(16) | u32::from(index))
+}
+
+/// Whether `a` and `b` hold the same bytes: eight at a time and the last eight overlapping, or two
+/// overlapping fours, so a symbol name is compared in a few loads, not a call
+/// (LD-SYMBOL-VALIDATE-ONCE).
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn same_bytes(a: &[u8], b: &[u8]) -> bool {
+    let n = a.len();
+    if n != b.len() {
+        return false;
+    }
+    let w8 = |s: &[u8], at: usize| s.get(at..).and_then(<[u8]>::first_chunk::<8>).map(|w| u64::from_ne_bytes(*w));
+    let w4 = |s: &[u8], at: usize| s.get(at..).and_then(<[u8]>::first_chunk::<4>).map(|w| u32::from_ne_bytes(*w));
+    if n >= 8 {
+        let last = n.wrapping_sub(8);
+        let mut at = 0;
+        while at < last {
+            if w8(a, at) != w8(b, at) {
+                return false;
+            }
+            at = at.wrapping_add(8);
+        }
+        return w8(a, last) == w8(b, last);
+    }
+    if n >= 4 {
+        return w4(a, 0) == w4(b, 0) && w4(a, n.wrapping_sub(4)) == w4(b, n.wrapping_sub(4));
+    }
+    a == b
+}
+
 /// The hash table an [`Object`] walks. The table's mark (`GnuHash::mark`, `SysvHash::mark`) says
 /// this is the program's view and the program has canonical PLT entries ([`Object::mark_program`]): it
 /// sits in the table's tail padding, so neither this enum nor [`Object`] grows (a fourth variant
@@ -318,7 +396,204 @@ impl<'a> Object<'a> {
             Some((v, vers)) => (Some(v), vers),
             None => (None, None),
         };
-        Ok(Object { dynm, symtab, hash, versym, vers })
+        let mut o = Object { dynm, symtab, hash, versym, vers };
+        o.validate(h);
+        Ok(o)
+    }
+
+    /// Validates, once at map time, every table the quick walk ([`Object::quick_lookup`]) then reads
+    /// without a check of its own (LD-SYMBOL-VALIDATE-ONCE; owner rule: loaded data is untrusted):
+    /// little-endian words; a GNU table whose Bloom word count is a power of two and whose chains all
+    /// end below a count no larger than the symbol count; every symbol below that count, and its
+    /// `versym` entry, in the mapped bytes; a string table that ends in a NUL. The answer is kept in the
+    /// GNU table's tail padding ([`GnuHash::set_quick`]); a view that fails keeps the exact walk
+    /// ([`Object::lookup`]) for every request, as before. Entries the validation cannot cover without
+    /// reading every symbol (a name's offset, a version index) stay checked per entry by the walk,
+    /// which leaves them to the exact walk.
+    #[cold]
+    #[inline(never)]
+    fn validate(&mut self, h: &Hashes<'a>) {
+        let ok = self.quick_valid(h);
+        if let Hash::Gnu(g) = &mut self.hash {
+            g.set_quick(ok);
+        }
+    }
+
+    /// The checks of [`Object::validate`].
+    fn quick_valid(&self, h: &Hashes<'a>) -> bool {
+        let Hash::Gnu(g) = &self.hash else { return false };
+        let (syms, be) = self.symtab.raw();
+        // A Bloom shift of 32 or more leaves the second bit at bit 0, which the quick walk's 32-bit
+        // shift does not give: such a table keeps the exact walk.
+        if be || g.big_endian() || self.dynm.big_endian() || !g.bloom_size().is_power_of_two() || g.bloom_shift() >= 32 {
+            return false;
+        }
+        let Some(count) = self.symtab.count() else { return false };
+        let Ok(n) = usize::try_from(count) else { return false };
+        if n.checked_mul(SYM).is_none_or(|b| b > syms.len()) {
+            return false;
+        }
+        if self.versym.is_some_and(|v| n.checked_mul(2).is_none_or(|b| b > v.raw().0.len())) {
+            return false;
+        }
+        if self.dynm.strtab().and_then(<[u8]>::last) != Some(&0) {
+            return false;
+        }
+        // The GNU table's own count is one past the end of the chain at its highest bucket; every
+        // other chain ends before it or runs into that chain, and `GnuHash::symbol_count` checked the
+        // buckets (none below `symoffset`) and that chain's words (mapped). Without a SysV table that
+        // count is the symbol count already (raised only when every bucket is empty: no chain).
+        let covered = if matches!(h.sysv, Ok(Some(_))) { g.symbol_count().ok() } else { Some(count) };
+        covered.is_some_and(|c| c <= count)
+    }
+
+    /// Symbol `i`, a relocation's reference, over the validated tables (LD-SYMBOL-VALIDATE-ONCE):
+    /// `None` (the exact path answers) when the view was not validated, or `i` is 0 or at or past the
+    /// symbol count.
+    #[inline]
+    pub(crate) fn quick_symbol(&self, i: u32) -> Option<Sym> {
+        let Hash::Gnu(g) = &self.hash else { return None };
+        if !g.quick() || i == 0 || i >= self.symtab.count()? {
+            return None;
+        }
+        let e = self.symtab.raw().0.get(usize::try_from(i).ok()?.wrapping_mul(SYM)..)?.first_chunk::<SYM>()?;
+        Some(Sym::decode(e, false))
+    }
+
+    /// The version index of symbol `i` of a validated view (below the symbol count,
+    /// [`Object::quick_symbol`]): 1 without `versym`; `None` (the exact path reports it) for an index
+    /// above the highest one the version tables give.
+    #[inline]
+    pub(crate) fn quick_version(&self, i: u32) -> Option<u16> {
+        let Some(vs) = self.versym else { return Some(VER_NDX_GLOBAL) };
+        let e = vs.raw().0.get(usize::try_from(i).ok()?.wrapping_mul(2)..)?.first_chunk::<2>()?;
+        let index = u16::from_le_bytes(*e) & !VERSYM_HIDDEN;
+        (index <= vs.max_index()).then_some(index)
+    }
+
+    /// [`Object::lookup`] of a relocation's reference over the tables [`Object::build`] validated
+    /// (LD-SYMBOL-VALIDATE-ONCE): `name` (without its NUL), whose GNU hash is `hash`, accepting `want`,
+    /// in this object, entry `me` of the object list. The exact walk's answer for the matching
+    /// [`Want`] ([`Want::Oldest`], [`Want::Reference`]), or [`Probe::Slow`] where only the exact walk
+    /// decides. The tables are read in place, little-endian: a read the validation vouches for is not
+    /// checked again (its bounds check, which cannot fail after the validation, reads as "no
+    /// candidate"); a name's offset and a version index are checked per candidate.
+    #[inline]
+    pub(crate) fn quick_lookup(&self, me: usize, name: &[u8], hash: u32, want: Quick<'_>) -> Probe {
+        let Hash::Gnu(g) = &self.hash else { return Probe::Slow };
+        if !g.quick() {
+            return Probe::Slow;
+        }
+        let (tab, chain_at) = g.raw();
+        let word = |at: usize| tab.get(at..).and_then(<[u8]>::first_chunk::<4>).map(|w| u32::from_le_bytes(*w));
+        // The Bloom word (their count is a power of two) must hold both of the hash's bits.
+        let wi = usize::try_from(hash.wrapping_shr(6)).unwrap_or(0) & g.bloom_size().wrapping_sub(1);
+        let Some(bloom) = tab.get(wi.wrapping_mul(8)..).and_then(<[u8]>::first_chunk::<8>).map(|w| u64::from_le_bytes(*w)) else { return Probe::Miss };
+        let bits = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(hash.wrapping_shr(g.bloom_shift()) & 63);
+        if bloom & bits != bits {
+            return Probe::Miss;
+        }
+        let Some(bucket) = hash.checked_rem(g.nbuckets()).and_then(|b| usize::try_from(b).ok()) else { return Probe::Miss };
+        let Some(mut sym) = word(g.bloom_size().wrapping_mul(8).wrapping_add(bucket.wrapping_mul(4))).filter(|&s| s != 0) else { return Probe::Miss };
+        let first = usize::try_from(sym.wrapping_sub(g.symoffset())).unwrap_or(usize::MAX);
+        let mut at = usize::try_from(chain_at).unwrap_or(usize::MAX).wrapping_add(first.wrapping_mul(4));
+        let mut best = None;
+        while let Some(w) = word(at) {
+            if w | 1 == hash | 1 {
+                match self.quick_candidate(me, sym, name, want, &mut best) {
+                    Step::Next => {}
+                    Step::Done(def) => return Probe::Hit(def),
+                    Step::Slow => return Probe::Slow,
+                }
+            }
+            if w & 1 != 0 {
+                break;
+            }
+            sym = sym.wrapping_add(1);
+            at = at.wrapping_add(4);
+        }
+        best.map_or(Probe::Miss, Probe::Hit)
+    }
+
+    /// Candidate `sym` of [`Object::quick_lookup`] (its chain word matched the hash), by the rules of
+    /// [`Object::lookup`].
+    #[inline]
+    fn quick_candidate(&self, me: usize, sym: u32, name: &[u8], want: Quick<'_>, best: &mut Option<Def>) -> Step {
+        let at = usize::try_from(sym).unwrap_or(usize::MAX);
+        let Some(e) = self.symtab.raw().0.get(at.wrapping_mul(SYM)..).and_then(<[u8]>::first_chunk::<SYM>) else { return Step::Next };
+        let st = Sym::decode(e, false);
+        if !exported(&st) {
+            return if self.canonical_entry(sym) { Step::Slow } else { Step::Next };
+        }
+        // The name in place: the string table ends in a NUL (validated), so a string that starts in
+        // it ends in it; one that starts past it is the exact walk's error.
+        let tab = self.dynm.strtab().unwrap_or(&[]);
+        let Some(rest) = usize::try_from(st.name).ok().and_then(|o| tab.get(o..)).filter(|r| !r.is_empty()) else { return Step::Slow };
+        match rest.get(..=name.len()) {
+            Some(s) if s.last() == Some(&0) && s.get(..name.len()).is_some_and(|s| same_bytes(s, name)) => {}
+            _ => return Step::Next,
+        }
+        let (version, hidden) = match self.versym {
+            None => (VER_NDX_GLOBAL, false),
+            Some(vs) => {
+                let Some(r) = vs.raw().0.get(at.wrapping_mul(2)..).and_then(<[u8]>::first_chunk::<2>) else { return Step::Next };
+                let raw = u16::from_le_bytes(*r);
+                if raw & !VERSYM_HIDDEN > vs.max_index() {
+                    return Step::Slow;
+                }
+                (raw & !VERSYM_HIDDEN, raw & VERSYM_HIDDEN != 0)
+            }
+        };
+        if version == VER_NDX_LOCAL {
+            return Step::Next;
+        }
+        let def = Def { sym, st, version, hidden };
+        match want {
+            Quick::Oldest => {
+                if best.is_none_or(|b| version < b.version) {
+                    *best = Some(def);
+                }
+                Step::Next
+            }
+            Quick::Version { id, name: wanted } => {
+                if self.versym.is_none() {
+                    return Step::Done(def);
+                }
+                if version > VER_NDX_GLOBAL {
+                    // The version by index: the definition the reference's version is known to be.
+                    if quick_id(me, version) == Some(id) {
+                        return Step::Done(def);
+                    }
+                    return self.quick_version_named(version, wanted, def);
+                }
+                if best.is_none() {
+                    *best = Some(def);
+                }
+                Step::Next
+            }
+        }
+    }
+
+    /// A versioned candidate of [`Object::quick_candidate`] whose definition is not the one the
+    /// reference's version is known to be: its version's name decides, as in the exact walk
+    /// ([`Want::Reference`]); an index whose name the tables do not give is the exact walk's error.
+    #[cold]
+    #[inline(never)]
+    fn quick_version_named(&self, version: u16, wanted: &[u8], def: Def) -> Step {
+        match self.def_version_name(version) {
+            Ok(Some(n)) if n == wanted => Step::Done(def),
+            Ok(Some(_)) => Step::Next,
+            Ok(None) | Err(_) => Step::Slow,
+        }
+    }
+
+    /// Whether the exact walk ([`lookup`]) finds the name of definition version `version` without an
+    /// error, as it does for an `STB_GNU_UNIQUE` definition's registry key: the quick walk leaves a
+    /// definition whose name is an error to it (LD-SYMBOL-VALIDATE-ONCE).
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn unique_version_ok(&self, version: u16) -> bool {
+        self.def_version_name(version).is_ok()
     }
 
     /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their
@@ -721,6 +996,12 @@ pub trait UniqueRegistry {
     /// A relocation of object `by` was bound to `found` (any binding, unique or not): `dlopen` keeps
     /// the definer loaded while `by` is (phase 14 DL-17, probe `== close` C-3). Nothing by default.
     fn bound(&mut self, _by: usize, _found: &Found) {}
+    /// Whether this registry answers every unique name by scope order alone ([`ScopeOrder`]): the first
+    /// definition in the scope is then the answer, so the quick walk of a relocation needs no table
+    /// (LD-SYMBOL-VALIDATE-ONCE). False by default: the exact walk consults the registry.
+    fn scope_ordered(&self) -> bool {
+        false
+    }
 }
 
 /// The registry of a load whose every lookup searches one scope in one order (the start: each
@@ -738,6 +1019,9 @@ impl UniqueRegistry for ScopeOrder {
     }
     fn record(&mut self, _: &[u8], _: &[u8], _: Found) -> Result<(), LookupError> {
         Ok(())
+    }
+    fn scope_ordered(&self) -> bool {
+        true
     }
 }
 

@@ -20,15 +20,11 @@ mod skip_note;
 
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 
 #[path = "support/timeout.rs"]
 mod timeout;
-use std::path::PathBuf;
 use std::process::Command;
-
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 /// The checks the program makes (each prints `ok NAME`); a check missing from the output fails.
 const CHECKS: &[&str] = &[

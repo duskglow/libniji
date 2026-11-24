@@ -5,14 +5,8 @@ libniji was called Liella until November 2026.
 Each section's known limitations are those of its own snapshot; later sections say what was fixed. The newest
 snapshot's list is in `snapshot-2026-11-22.3` below.
 
-## Unreleased (on `next`, for the next snapshot)
-
-- **`gencat` in `libc-dev-bin` (GitHub issue #12):** `/usr/bin/gencat` compiles message-catalog sources into the
-  catalogs `catopen` and `catgets` read. For the same source its catalog is byte-identical to glibc's `gencat`'s, so
-  catalogs built with either are interchangeable; the options, the `-H` header and the diagnostics match too
-  (`validation/transcripts/gencat/`).
-
-Every other change up to `snapshot-2026-11-22.3` is in the sections below.
+Changes on `next` since the newest snapshot are one file each in [release-notes.d/](release-notes.d/README.md);
+`cargo xtask release-notes` prints them assembled. This file holds released sections only.
 
 ## libniji: twenty-sixth pre-release, 2026-11-22 (`snapshot-2026-11-22.3`)
 

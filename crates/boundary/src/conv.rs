@@ -114,6 +114,20 @@ pub(crate) fn shared_words(addr: usize, n: usize) -> &'static [core::sync::atomi
     }
 }
 
+/// Wide characters as unsigned units, in place: a wide format read without a copy (a copy would
+/// need memory; PRINTF-NO-HEAP).
+pub(crate) fn wide_units(w: &[i32]) -> &[u32] {
+    let ptr = w.as_ptr().cast::<u32>();
+    // UNSAFE(slice): viewing one slice's elements as another type of the same layout needs
+    // `from_raw_parts`. Validity: `i32` and `u32` have the same size and alignment and every
+    // bit pattern is valid in both; the view borrows `w` for its lifetime and has its length.
+    #[allow(unsafe_code)]
+    // SAFETY: same size, alignment and validity; `ptr..ptr+len` is `w`, borrowed (see above).
+    unsafe {
+        core::slice::from_raw_parts(ptr, w.len())
+    }
+}
+
 /// The descriptor number a C caller passed (any value; the kernel judges it).
 #[allow(dead_code)] // used by the exports from phase 3
 pub(crate) fn fd(n: i32) -> Fd {

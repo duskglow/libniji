@@ -246,9 +246,9 @@ fn s8_4_c_1() {
 #[test]
 fn s8_4_c_2() {
     let mut out = [0u8; 16];
-    let c = nc::ecvt(nc::from_f64(-0.0123), 3, N, &mut out);
+    let c = nc::ecvt_digits(nc::from_f64(-0.0123), 3, N, &mut out);
     assert_eq!((&out[..3], c.decpt, c.neg), (&b"123"[..], -1, true), "digits only; point and sign apart");
-    let c = nc::fcvt(nc::from_f64(2.675), 2, N, &mut out);
+    let c = nc::fcvt_digits(nc::from_f64(2.675), 2, N, &mut out);
     assert_eq!((&out[..3], c.decpt), (&b"267"[..], 1), "ndigit digits after the point, from the exact binary value");
     // ndigit is reduced (by the C entry points) to the limit the precision gives: 17 for double,
     // 21 for long double
@@ -300,7 +300,7 @@ fn hash_g_carry_keeps_c_digits() {
 fn s8_4_c_4() {
     let x = Float::unpack(0x3FFF_C000_0000_0000_0000, Format::F80);
     let mut out = [0u8; 8];
-    let c = nc::ecvt(x, 2, N, &mut out);
+    let c = nc::ecvt_digits(x, 2, N, &mut out);
     assert_eq!((&out[..2], c.decpt), (&b"15"[..], 1), "long double: 1.5");
 }
 

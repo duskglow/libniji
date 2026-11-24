@@ -43,6 +43,11 @@
 #                                  line per helper), given in conformance/c/helpers (relative
 #                                  files resolve there) with -L at the helper directory
 #   /* LINK-EXPORT-DYNAMIC: yes */ dynamic-link mode: the program exports its symbols (-rdynamic)
+#   /* NIJI-HEADERS: yes */        always build this program against libniji's staged headers,
+#                                  as --niji-headers does (for a test of a header's own
+#                                  declarations); FAIL if `cargo xtask so` has not staged them
+#   /* OPT: -O2 */                 extra optimisation flags after the default -O1 (for a test whose
+#                                  defect shows only when the compiler optimises across a call)
 #   /* PENDING-NIJI: STORY */    dynamic-link mode: libniji's run is expected to fail until STORY
 #                                  lands. The reference must pass; libniji's run failing is reported
 #                                  PENDING and counted, and libniji's run passing is a FAIL (drop
@@ -77,8 +82,13 @@ fi
 # keeps each one word): the build host's headers plus libniji's `include/` (niji/native.h), or
 # in --niji-headers mode libniji's staged headers alone.
 inc1="-I$root/include"; inc2=""; inc3=""; inc4=""
+stage="$target/niji/include"; uapi="$target/niji/uapi"; gccinc=$("$cc" -print-file-name=include)
+# The staged headers' key part (computed once, only when a program needs it).
+lhash=""
+lh_hash() {
+    [ -n "$lhash" ] || lhash=lh-$(cd "$target/niji" && find include uapi -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
+}
 if [ -n "$lh" ]; then
-    stage="$target/niji/include"; uapi="$target/niji/uapi"; gccinc=$("$cc" -print-file-name=include)
     if [ ! -f "$stage/features.h" ] || [ ! -d "$uapi" ]; then
         echo "conformance: FAIL --niji-headers ($stage or $uapi is missing; run cargo xtask so)"
         exit 1
@@ -184,10 +194,12 @@ else
     printf '%s\n%s\n' "$pstat" "$phash" > "$pcache.$$" && mv -f "$pcache.$$" "$pcache"
 fi
 if [ -n "$lh" ]; then
-    ihash=lh-$(cd "$target/niji" && find include uapi -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
+    lh_hash; ihash=$lhash
 else
     ihash=$(cd "$root" && find include -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
 fi
+# The mode's header path and key part; a NIJI-HEADERS program replaces them for itself.
+g_inc1=$inc1; g_inc2=$inc2; g_inc3=$inc3; g_inc4=$inc4; g_ihash=$ihash
 pass=0; fail=0; pending=0; uncovered=0
 named=$#
 # A set-group-ID copy (RUN-SECURE) is removed even if the runner stops in the middle of a test.
@@ -219,6 +231,18 @@ for name in "$@"; do
             continue
         fi
     fi
+    inc1=$g_inc1; inc2=$g_inc2; inc3=$g_inc3; inc4=$g_inc4; ihash=$g_ihash
+    if [ -n "$(directive NIJI-HEADERS "$src")" ]; then
+        if [ ! -f "$stage/features.h" ] || [ ! -d "$uapi" ]; then
+            echo "conformance: FAIL $name (NIJI-HEADERS: $stage or $uapi is missing; run cargo xtask so)"
+            fail=$((fail + 1))
+            continue
+        fi
+        inc1="-nostdinc"; inc2="-isystem$stage"; inc3="-isystem$gccinc"; inc4="-isystem$uapi"
+        lh_hash; ihash=$lhash
+    fi
+    # OPT: extra optimisation flags, in every build of the program (they join the key via $flags).
+    opt=$(directive OPT "$src")
     # One run of a program at a time across processes (nextest runs tests that share a program
     # concurrently): its executable, logs and RUN-SECURE copy are per name. Opening fd 9 again
     # for the next name releases this one; the program itself does not inherit it.
@@ -252,6 +276,7 @@ for name in "$@"; do
         # The compiler's static-program begin/end objects (__dso_handle, which libstdc++ uses).
         cxxbegin=$("$comp" -print-file-name=crtbeginT.o); cxxend=$("$comp" -print-file-name=crtend.o)
     fi
+    [ -z "$opt" ] || flags="$flags $opt"
     # LINK-NOW: bind now, so the linker puts the whole GOT (with the IRELATIVE target words of the
     # program's own ifuncs) inside PT_GNU_RELRO; without it they sit in .got.plt, outside RELRO.
     if [ -n "$(directive LINK-NOW "$src")" ]; then
@@ -307,11 +332,11 @@ $ldir/lib$h.so"
             oldifs=$IFS; IFS='
 '
             # shellcheck disable=SC2086
-            if ! "$cc" -std=c17 -O1 $rdyn "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" -Wl,--no-as-needed $hlibs -o "$exe.$$" >>"$log" 2>&1 \
+            if ! "$cc" -std=c17 -O1 $opt $rdyn "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" -Wl,--no-as-needed $hlibs -o "$exe.$$" >>"$log" 2>&1 \
                   || ! mv -f "$exe.$$" "$exe"; then
                 rm -f "$exe.$$"; hbad="does not build"
             # shellcheck disable=SC2086
-            elif ! "$cc" -std=c17 -O1 $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" \
+            elif ! "$cc" -std=c17 -O1 $opt $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" \
                   -Wl,--no-as-needed $llibs "-L$target/niji" "$dynlibc" -lgcc -o "$exe-niji.$$" >>"$log" 2>&1 \
                   || ! mv -f "$exe-niji.$$" "$exe-niji"; then
                 rm -f "$exe-niji.$$"; hbad="does not build against libniji"

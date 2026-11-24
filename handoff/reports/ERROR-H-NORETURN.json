@@ -1,0 +1,52 @@
+{
+ "task": "ERROR-H-NORETURN",
+ "model": "opus",
+ "tokens": null,
+ "result": "error.h declares error/error_at_line noreturn only for a nonzero constant status (GCC wrapper); status-0 and run-time-status calls return; -O2 conformance test against libniji's headers; 3/3 plants caught",
+ "branch": "task/error-h-noreturn",
+ "head": "d57798fdf",
+ "gate": {
+  "affected": "716 passed / 0 failed (8 suites), conformance 148 passed",
+  "peak": "1.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "no clang on any build host (installing needs root, not attempted): the caller matrix is gcc 13.3 only; clang gets the plain returning declaration",
+  "attr_probe.py table diff not re-run this run (leg 1's job chained it after a git diff that fails in a non-git role dir)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "a program built against libniji's <error.h> that calls error(0, ...) or error_at_line(0, ...) no longer loses the code after the call at -O2",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "conformance test s02_error_returns + Rust test error_status_zero_returns; 3 plants, all caught",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "conformance/run.sh per-program directives NIJI-HEADERS and OPT",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "leg 1's job chained `git diff` in a non-git role dir with && and lost the rest; role dirs being rsync copies (no .git) should be stated in developer-flow.md",
+ "next_step": "land; optionally rerun attr_probe.py table diff and a clang matrix when a host has clang",
+ "report_file": "handoff/ERROR-H-NORETURN.md",
+ "jobs": [
+  "keke:error-h-noreturn-gate3",
+  "keke:error-h-noreturn-plants3"
+ ]
+}

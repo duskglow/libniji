@@ -29,26 +29,15 @@ mod skip_note;
 
 #[path = "support/oracle.rs"]
 mod oracle;
+use oracle::root;
 
 #[path = "support/timeout.rs"]
 mod timeout;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/mallocdbg_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build_quiet(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/mallocdbg_diff.c").quiet().build(out, niji)
 }
 
 const NO_THRESHOLD: &str = "D-3.4, D-3.10: every block above 64 KiB has a mapping of its own whatever M_MMAP_THRESHOLD or M_MMAP_MAX say (the heap has no program-break arena); the reference serves such blocks from its arena";

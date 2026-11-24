@@ -70,21 +70,76 @@ pub fn pass0_only(krate: &str, target: &str) -> bool {
     PASS0_ONLY.iter().any(|&(c, t)| c == krate && t == target)
 }
 
-/// Sharded products targets `(crate, target)` that run every shard in the first pass and only
-/// shard 0 with the exports interposed (GATE-PASS2-MATH-SHARD, owner ruling #3794, D-X.36). They
-/// build and run C programs against the products, so they are not `PASS0_ONLY`; but their cost is
-/// the oracle's multiple-precision check of each output line, which pass 1 already made. Every
-/// shard does the same harness work (build and run the programs, read and split their whole
-/// output, then check the lines `i % SHARDS == k`), so shard 0 calls the interposed allocator
-/// and string functions on the same paths; the other shards only add lines to the same checks.
-/// A suite runs in pass 2 only to the extent that it exercises the interposed functions.
-pub const PASS1_SHARD0: &[(&str, &str)] = &[
-    ("niji-math", "complex_ld_cr_products"),
-    ("niji-math", "complex_f128_products"),
-    ("niji-math", "special_ld_products"),
-    ("niji-math", "special_f128_products"),
-    ("niji-math", "complex_products"),
+/// The name ending of a products target: its tests build C programs against the products
+/// (`target/niji/libc.a`) and against the host library, run each as a child and compare them.
+pub const PRODUCTS_SUFFIX: &str = "_products";
+
+/// Products targets `(crate, target)` that also run in the second pass (PASS2-PRODUCTS-ONCE,
+/// D-X.161; it supersedes D-X.36's shard-0 rule). Every other `*_products` target runs in the
+/// first pass only: its subject is the child programs, which the second pass does not change (it
+/// rewrites the harness's interpreter only, sets nothing the children read, and most harnesses
+/// clear the children's environment), so a second run compares the same programs' output again
+/// and adds only the harness's own spawn and pipe reads on libniji, which every other second-pass
+/// test that starts a child also makes. Listed: the targets that have failed in the second pass
+/// only (TEST-REDUNDANCY-AUDIT H1: 608 CI gates and 90 developer gates since 2026-10-21).
+pub const PASS2_PRODUCTS: &[(&str, &str)] = &[("niji", "heap_meta_products"), ("niji", "hot_text_products"), ("niji", "timers_products")];
+
+/// Whether test target `target` of `krate` is a products target that runs in the first pass only
+/// (D-X.161): a `*_products` target not in [`PASS2_PRODUCTS`]. A new products target runs once
+/// unless it is listed there.
+pub fn products_once(krate: &str, target: &str) -> bool {
+    target.ends_with(PRODUCTS_SUFFIX) && !PASS2_PRODUCTS.contains(&(krate, target))
+}
+
+/// Whether test target `target` of `krate` runs in the first pass only: a pure-Rust sweep
+/// ([`PASS0_ONLY`]) or a products target not kept for the second pass ([`products_once`]).
+pub fn first_pass_only(krate: &str, target: &str) -> bool {
+    pass0_only(krate, target) || products_once(krate, target)
+}
+
+/// A sharded test family of which the second pass runs the first shard only (D-X.167):
+/// `(crate, target, family, first shard, later shards)`; a test's name is the family then the shard.
+pub type ShardFamily = (&'static str, &'static str, &'static str, &'static str, &'static [&'static str]);
+
+/// strstr_find's later needle-length shards (`M_SHARDS` there: 0..16 is the first).
+const STRSTR_LATER: &[&str] = &["m_16_to_31", "m_32_to_47", "m_48_to_70"];
+
+/// Sharded families of niji-boundary kernel sweeps that run every shard in the first pass and only
+/// the first in the second (PASS2-KERNEL-SHARD0, TEST-REDUNDANCY-AUDIT M1, D-X.167). The tests call
+/// niji-boundary's Rust functions in the test binary itself, the same code in both passes; what the
+/// second pass changes for that code is the thread block, the heap and the locale reached through
+/// the thread block, and a shard (a needle-length or size range) varies none of them, so the first
+/// shard meets them as every later one would. A shard added later runs in both passes until listed.
+pub const PASS2_SHARD0: &[ShardFamily] = &[
+    ("niji-boundary", "strstr_find", "strstr_matches_a_naive_search_at_every_length_position_and_alignment::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "strstr_find", "strcasestr_matches_a_naive_search_in_the_c_locale::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "strstr_find", "strcasestr_matches_a_naive_search_in_a_utf8_locale::", "m_0_to_15", STRSTR_LATER),
+    ("niji-boundary", "small_compare", "compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_", "0", &["1", "2", "3", "4"]),
 ];
+
+/// The filterset term of the later shards of the [`PASS2_SHARD0`] families whose `(crate,
+/// target)` `keep` accepts, one `binary_id(..) & (test(=..) | ..)` group per target in list order;
+/// `None` when it accepts none.
+fn later_shards_term(keep: impl Fn(&str, &str) -> bool) -> Option<String> {
+    let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+    for &(c, t, family, _, later) in PASS2_SHARD0.iter().filter(|f| keep(f.0, f.1)) {
+        let id = format!("{c}::{t}");
+        let tests = later.iter().map(|s| format!("test(={family}{s})"));
+        match groups.iter_mut().find(|(b, _)| *b == id) {
+            Some((_, v)) => v.extend(tests),
+            None => groups.push((id, tests.collect())),
+        }
+    }
+    let terms: Vec<String> = groups.iter().map(|(b, v)| format!("(binary_id({b}) & ({}))", v.join(" | "))).collect();
+    (!terms.is_empty()).then(|| terms.join(" | "))
+}
+
+/// The nextest arguments that leave the later [`PASS2_SHARD0`] shards out of a second (native)
+/// pass over crate `krate`'s targets `targets` (`affected`'s native pass); empty when none of
+/// them has a listed family.
+pub fn later_shards_filter(krate: &str, targets: &[&str]) -> Vec<String> {
+    later_shards_term(|c, t| c == krate && targets.contains(&t)).map(|e| vec!["-E".to_string(), format!("not ({e})")]).unwrap_or_default()
+}
 
 /// The features of the exports-interposed suite (D-4.13): libniji's C symbols defined in the test
 /// binary itself, so a process the host started runs libniji's heap and string functions on the
@@ -148,36 +203,28 @@ pub fn interposed_runs(root: &std::path::Path) -> Result<Vec<Vec<String>>, Strin
     Ok(runs)
 }
 
-/// The shard tests other than shard 0 (`<name>_s<k>`, `k >= 1`, the `shards!` macro's names in
-/// `crates/math/tests/support/shard.rs` users); a target's unsharded tests keep running.
-const LATER_SHARDS: &str = "test(/_s[1-9][0-9]*$/)";
-
-/// The filterset terms that leave out the `PASS1_SHARD0` targets' later shards, for the targets
-/// `keep` accepts.
-fn later_shard_terms(keep: impl Fn(&str, &str) -> bool) -> Vec<String> {
-    PASS1_SHARD0.iter().filter(|(c, t)| keep(c, t)).map(|(c, t)| format!("(binary_id({c}::{t}) & {LATER_SHARDS})")).collect()
+/// The filterset term of the products targets that run in the first pass only (D-X.161): every
+/// binary id (`<crate>::<target>`) ending in [`PRODUCTS_SUFFIX`] but those of [`PASS2_PRODUCTS`].
+fn products_once_term() -> String {
+    let kept: Vec<String> = PASS2_PRODUCTS.iter().map(|(c, t)| format!("binary_id({c}::{t})")).collect();
+    format!("(binary_id(/{PRODUCTS_SUFFIX}$/) & not ({}))", kept.join(" | "))
 }
 
-/// The nextest filter of the exports-interposed pass of `affected`, which runs the targets `ts` of
-/// crate `krate`: leave out the later shards of the `PASS1_SHARD0` targets among them. `None` when
-/// none is among them.
-pub fn pass1_shard_filter(krate: &str, ts: &[&str]) -> Option<Vec<String>> {
-    let terms = later_shard_terms(|c, t| c == krate && ts.contains(&t));
-    (!terms.is_empty()).then(|| vec!["-E".to_string(), format!("not ({})", terms.join(" | "))])
-}
-
-/// The nextest filter of the exports-interposed pass: every test but those of `PASS0_ONLY` and
-/// the later shards of `PASS1_SHARD0`.
+/// The nextest filter of the second pass: every test but those of the targets that run in the
+/// first pass only (`PASS0_ONLY`, the products targets of [`products_once`]) and the later shards
+/// of the [`PASS2_SHARD0`] families.
 /// `None` when `extra` brings its own filter expression (nextest ORs several `-E`s, so adding one
 /// would widen the caller's selection): the pass then runs as the caller asked.
-/// `once` adds the binary ids `unchanged_binaries` found (CI-GATE-DIET).
+/// `once` adds the binary ids `unchanged_binaries` found (CI-GATE-DIET); one already left out by
+/// the rules above is not repeated.
 pub fn pass1_filter(extra: &[String], once: &[String]) -> Option<Vec<String>> {
     if extra.iter().any(|a| a == "-E" || a.starts_with("--filter") || a.starts_with("-E")) {
         return None;
     }
     let mut ids: Vec<String> = PASS0_ONLY.iter().map(|(c, t)| format!("binary_id({c}::{t})")).collect();
-    ids.extend(once.iter().filter(|b| !PASS0_ONLY.iter().any(|(c, t)| **b == format!("{c}::{t}"))).map(|b| format!("binary_id({b})")));
-    ids.extend(later_shard_terms(|c, t| !once.iter().any(|b| *b == format!("{c}::{t}"))));
+    ids.push(products_once_term());
+    ids.extend(later_shards_term(|_, _| true));
+    ids.extend(once.iter().filter(|b| !b.split_once("::").is_some_and(|(c, t)| first_pass_only(c, t))).map(|b| format!("binary_id({b})")));
     Some(vec!["-E".to_string(), format!("not ({})", ids.join(" | "))])
 }
 
@@ -581,14 +628,72 @@ mod tests {
             assert!(why.is_empty(), "{c}::{t}: {why:?}: a target that touches C code or a C program runs in both passes");
         }
         assert!(pass0_only("niji-math", "special_cr") && !pass0_only("niji-math", "special_ld_products"));
-        let later = "(binary_id(niji-math::complex_ld_cr_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::complex_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::special_ld_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::special_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::complex_products) & test(/_s[1-9][0-9]*$/))";
-        assert_eq!(pass1_filter(&[], &[]).unwrap_or_default(), ["-E".to_string(), format!("not (binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | {later})")]);
+    }
+
+    #[test]
+    fn products_targets_run_in_the_second_pass_only_when_listed() {
+        // no spec clause: gate tooling (PASS2-PRODUCTS-ONCE, D-X.161), not libc behaviour.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        // A kept target that was renamed or removed would leave the list silently empty of it.
+        for &(c, t) in PASS2_PRODUCTS {
+            let dir = if c == "niji" { "core" } else { c.strip_prefix("niji-").unwrap_or(c) };
+            assert!(root.join(format!("crates/{dir}/tests/{t}.rs")).is_file(), "{c}::{t} is listed in PASS2_PRODUCTS but has no source");
+            assert!(t.ends_with(PRODUCTS_SUFFIX) && !products_once(c, t) && !first_pass_only(c, t), "{c}::{t} must stay in the second pass");
+        }
+        // Every other products target runs once, a new one included; the same name in another
+        // crate is another target.
+        for (c, t) in [("niji", "aio_products"), ("niji-math", "complex_products"), ("niji-math", "special_ld_products"), ("niji", "a_new_products"), ("niji-math", "hot_text_products")] {
+            assert!(products_once(c, t) && first_pass_only(c, t), "{c}::{t} must run in the first pass only");
+        }
+        for (c, t) in [("niji", "s03_memory_clauses"), ("niji", "products_table"), ("niji-boundary", "heap_threads")] {
+            assert!(!products_once(c, t) && !first_pass_only(c, t), "{c}::{t} is not a products target");
+        }
+        assert!(first_pass_only("niji-math", "special_cr") && !products_once("niji-math", "special_cr"));
+        let products = "binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | (binary_id(/_products$/) & not (binary_id(niji::heap_meta_products) | binary_id(niji::hot_text_products) | binary_id(niji::timers_products)))";
+        let base = format!("{products} | {}", later_shards_term(|_, _| true).unwrap_or_default());
+        assert_eq!(pass1_filter(&[], &[]).unwrap_or_default(), ["-E".to_string(), format!("not ({base})")]);
         assert_eq!(pass1_filter(&["-E".to_string(), "test(x)".to_string()], &[]), None);
-        let once = ["niji-math::special_cr".to_string(), "niji-math::fast64".to_string()];
-        assert_eq!(pass1_filter(&[], &once).unwrap_or_default()[1], format!("not (binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | binary_id(niji-math::fast64) | {later})"));
-        // A run-once products target is left out whole; its later-shard term would be redundant.
-        let once = ["niji-math::complex_products".to_string()];
-        assert!(!pass1_filter(&[], &once).unwrap_or_default()[1].contains("(binary_id(niji-math::complex_products) &"));
+        // A run-once binary already left out by a rule is not repeated; a kept products target is.
+        let once = ["niji-math::special_cr", "niji::aio_products", "niji-math::fast64", "niji::hot_text_products"].map(str::to_string);
+        assert_eq!(pass1_filter(&[], &once).unwrap_or_default()[1], format!("not ({base} | binary_id(niji-math::fast64) | binary_id(niji::hot_text_products))"));
+    }
+
+    #[test]
+    fn the_second_pass_runs_the_first_shard_only_of_the_listed_kernel_sweeps() {
+        // no spec clause: gate tooling (PASS2-KERNEL-SHARD0, D-X.167), not libc behaviour.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        // Every listed name is a test of its target, the first shard included (a renamed shard
+        // would leave the filter matching nothing), and the first shard is never left out.
+        for &(c, t, family, first, later) in PASS2_SHARD0 {
+            let dir = c.strip_prefix("niji-").unwrap_or(c);
+            let src = std::fs::read_to_string(root.join(format!("crates/{dir}/tests/{t}.rs"))).unwrap_or_default();
+            assert!(!later.is_empty() && !later.contains(&first), "{c}::{t} {family}: the first shard {first} must stay in the second pass");
+            for s in std::iter::once(&first).chain(later) {
+                let found = match family.strip_suffix("::") {
+                    Some(module) => src.contains(&format!("shards!({module},")) && src.contains(&format!("fn {s}()")),
+                    None => src.contains(&format!("fn {family}{s}()")),
+                };
+                assert!(found, "{c}::{t}: no test {family}{s}");
+            }
+        }
+        // The exact term: per target, its later shards by full name; the first shards are not in it.
+        let names = |f: &str, ss: &[&str]| ss.iter().map(|s| format!("test(={f}{s})")).collect::<Vec<_>>();
+        let mut strstr = Vec::new();
+        for f in ["strstr_matches_a_naive_search_at_every_length_position_and_alignment::", "strcasestr_matches_a_naive_search_in_the_c_locale::", "strcasestr_matches_a_naive_search_in_a_utf8_locale::"] {
+            strstr.extend(names(f, &["m_16_to_31", "m_32_to_47", "m_48_to_70"]));
+        }
+        let compare = names("compares_match_a_byte_loop_at_every_size_alignment_and_difference_in_each_build_", &["1", "2", "3", "4"]);
+        let strstr = format!("(binary_id(niji-boundary::strstr_find) & ({}))", strstr.join(" | "));
+        let compare = format!("(binary_id(niji-boundary::small_compare) & ({}))", compare.join(" | "));
+        assert_eq!(later_shards_term(|_, _| true), Some(format!("{strstr} | {compare}")));
+        let term = later_shards_term(|_, _| true).unwrap_or_default();
+        assert!(!term.contains("m_0_to_15") && !term.contains("difference_in_each_build_0)"), "{term}");
+        // The second pass's filter leaves them out; affected's native pass only for the selected targets.
+        assert!(pass1_filter(&[], &[]).unwrap_or_default()[1].contains(&format!(" | {strstr} | {compare})")));
+        assert_eq!(later_shards_filter("niji-boundary", &["small_compare", "heap_threads"]), ["-E".to_string(), format!("not ({compare})")]);
+        assert_eq!(later_shards_filter("niji-boundary", &["strstr_find", "small_compare"]), ["-E".to_string(), format!("not ({strstr} | {compare})")]);
+        assert!(later_shards_filter("niji-boundary", &["heap_threads"]).is_empty());
+        assert!(later_shards_filter("niji", &["strstr_find", "small_compare"]).is_empty());
     }
 
     #[test]
@@ -611,30 +716,6 @@ mod tests {
         assert!(why.iter().any(|w| w.contains("verdict_programs.rs") && w.contains("not in PASS0_INCLUDES")), "an unlisted include: {why:?}");
         let why = pass0_violations("unsafe extern \"C\" { fn f(); }\n", &with(pure));
         assert!(why.iter().any(|w| w.starts_with("the target uses `extern \"C\"`")), "a banned use in the target: {why:?}");
-    }
-
-    #[test]
-    fn pass2_runs_shard_0_of_the_heavy_products_targets() {
-        // no spec clause: gate tooling (GATE-PASS2-MATH-SHARD, owner ruling #3794), not libc behaviour.
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
-        for (c, t) in PASS1_SHARD0 {
-            assert!(!pass0_only(c, t), "{c}::{t} is in both lists");
-            let dir = c.strip_prefix("niji-").unwrap_or(c);
-            let src = std::fs::read_to_string(root.join(format!("crates/{dir}/tests/{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
-            // The shards are `<name>_s<k> = <k>;` lines of `shards!`; shard 0 must exist, and no
-            // other test name may end in `_s<digits>` (the filter would drop it from pass 2).
-            let shard_lines: Vec<&str> = src.lines().map(str::trim).filter(|l| l.contains("_s") && l.ends_with(';') && l.contains(" = ")).collect();
-            assert!(shard_lines.iter().any(|l| l.contains("_s0 = 0;")), "{c}::{t} has no shard 0");
-            assert!(shard_lines.len() >= 2, "{c}::{t} is not sharded");
-            for l in src.lines().map(str::trim).filter(|l| l.starts_with("fn ") || l.starts_with("pub fn ")) {
-                let name = l.split_once("fn ").map_or("", |(_, r)| r).split(['(', '<']).next().unwrap_or_default();
-                let tail = name.rsplit_once("_s").map_or("", |(_, d)| d);
-                assert!(tail.is_empty() || !tail.bytes().all(|b| b.is_ascii_digit()), "{c}::{t}: `{name}` looks like a shard test");
-            }
-        }
-        assert_eq!(pass1_shard_filter("niji-math", &["fast64"]), None);
-        assert_eq!(pass1_shard_filter("niji", &["complex_products"]), None);
-        assert_eq!(pass1_shard_filter("niji-math", &["fast64", "special_ld_products"]).unwrap_or_default(), ["-E", "not ((binary_id(niji-math::special_ld_products) & test(/_s[1-9][0-9]*$/)))"]);
     }
 
     #[test]

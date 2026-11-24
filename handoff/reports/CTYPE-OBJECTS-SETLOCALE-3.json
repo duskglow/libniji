@@ -1,0 +1,16 @@
+{"task": "CTYPE-OBJECTS-SETLOCALE-3", "model": "sonnet", "tokens": null,
+ "result": "merged next (LOCALE-PER-DIR-LOAD); the earlier locale-environment reds are gone: direct gate green, plants 2/2 CAUGHT",
+ "branch": "task/ctype-objects-setlocale-3", "head": "7da2fa033",
+ "gate": {"affected": "all suites ok, conformance 54 programs ok, 0 failed", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [{"item": "built-in C.UTF-8 has no 32-bit ctype tables, so __ctype32_* hold the C tables there (last residual of D-5.13)", "recommendation": "follow-up story: give C.UTF-8 its own 32-bit tables (about 3 KiB rodata)"}],
+ "informational": ["start-up instruction count head vs base was not measured"],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "__ctype_b/_tolower/_toupper and __ctype32_* follow setlocale(LC_CTYPE/LC_ALL) as the reference's do (D-5.13 shrunk to one residual)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "conformance s05_ctype_legacy_objects setlocale rows; 2 plants", "before": null, "after": 2, "unit": "plants", "measured": true}
+ ],
+ "improvement": "jobrun for plants refuses a --dir made beforehand; the dispatcher's example should say not to mkdir it",
+ "next_step": "land; follow-up story for C.UTF-8 32-bit tables",
+ "report_file": "handoff/ctype-objects-setlocale.md",
+ "jobs": ["keke:ctype-objects-setlocale-3-gate", "keke:ctype-objects-setlocale-3-plants2", "keke:ctype-objects-setlocale-3-checks"]}

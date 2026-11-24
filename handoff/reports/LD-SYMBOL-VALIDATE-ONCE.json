@@ -1,0 +1,23 @@
+{"task": "LD-SYMBOL-VALIDATE-ONCE", "model": "opus", "tokens": null,
+ "result": "Relocations bind through a quick walk over symbol/string/hash/version tables validated once at map time, versions by index (D-27.96): 1,525 -> 996 user instructions per imported symbol (reference 643; target 300 not reached, bound profiled); nine distribution binaries 8-19% fewer user instructions, outputs identical",
+ "branch": "task/ld-symbol-validate-once", "head": "0898cf520",
+ "gate": {"affected": "993 passed / 0 failed (11 suites, direct tier, 35 targets)", "peak": "2,052,055,040 B (jobs.tsv, gate job)"},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "Reaching 300 user instructions per imported symbol", "recommendation": "continue with three measured changes (walk without definition copies and re-checks, two-byte-step name hash, leaner relocation decode); a persistent resolution cache keyed by build ids (near zero per symbol) only through a planning story, as it adds an on-disk trust boundary"}],
+ "informational": ["about 196 of the probe's 996 per import grow with its ~25 distinct versions (check_versions 98, first name compare per version 77, version table 18), not with imports", "empty dynamic main within DYN_START_INSTR (fast 167,584 / 173,500; release 159,904 / 162,300): bounds unchanged", "release layout bins identical before and after", "plants rebuild the whole products per plant (~12 min each) although the planted tests need only niji-ld"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "loader user instructions per imported symbol (-z now, audit probe 5, Zen 1)", "before": 1525, "after": 996, "unit": "instr/import", "measured": true},
+  {"kind": "perf", "what": "ls under the loader, user instructions (reference 563,296)", "before": 820879, "after": 662068, "unit": "instr", "measured": true},
+  {"kind": "perf", "what": "sed under the loader, user instructions (reference 908,798)", "before": 1213814, "after": 1002301, "unit": "instr", "measured": true},
+  {"kind": "perf", "what": "sort under the loader, user instructions (reference 877,918)", "before": 1195464, "after": 1039596, "unit": "instr", "measured": true},
+  {"kind": "perf", "what": "grep under the loader, user instructions (reference 586,023)", "before": 650467, "after": 557371, "unit": "instr", "measured": true},
+  {"kind": "perf", "what": "true under the loader, user instructions (reference 129,073)", "before": 225888, "after": 207271, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "ls under the loader, page faults (reference 102)", "before": 142, "after": 135, "unit": "faults", "measured": true},
+  {"kind": "coverage", "what": "tests added (quick walk by version index; unterminated string table) and plants", "before": 0, "after": 2, "unit": "tests (+3 plants)", "measured": true},
+  {"kind": "unblock", "what": "subsumes LD-LOOKUP-RETHINK briefs D2 (versions by index) and D3 (flat path over a validated view)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "Plants on loader code rebuild the full products for every plant (~12 min each, 3 plants ~40 min) though their tests need only the niji-ld crate; a plants option to skip the product build when the plant's cmd names no product test would cut that to minutes.",
+ "next_step": "Continuation toward 300/symbol: the quick walk without definition copies and re-checks, a two-byte-step name hash, a leaner relocation decode; same probe (keke ~/work/ld-symbol-validate-once/mtag.sh).",
+ "report_file": "handoff/LD-SYMBOL-VALIDATE-ONCE-report.md",
+ "jobs": ["keke:ld-symbol-validate-once-gate", "keke:ld-symbol-validate-once-plants", "keke:ld-symbol-validate-once-lint", "keke:ld-symbol-validate-once-xtasktest", "keke:ld-symbol-validate-once-hot1", "keke:ld-symbol-validate-once-after"]}
