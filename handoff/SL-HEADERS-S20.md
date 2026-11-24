@@ -29,7 +29,12 @@ the slice-19 `__const__` rows should apply only where the reference treats the f
 deb_manifest's libmvec guard, P4 --no-noexcept), `sl-headers-s20-3-plants1` (3 plants,
 handoff/SL-HEADERS-S20-3-plants.txt, `--timeout 900`: each plant regenerates headers and rebuilds products).
 
-**Next step.** Land (train). Then: diagattrs `__const__` conditions (above), SL-HEADERS-P4-CALLSITES,
+**Results.** t1 green (niji_cc_headers 5 passed incl. the simd comparison; deb_manifest libmvec guard passed;
+P4 C++ part 0 FAIL, 2 known per c++98/03). plants1: 3 CAUGHT, 0 warnings. Precheck on 5cfb37efa: everything ok except
+`slice-contract` RED (a header slice changing the shared generator: RULING NEEDED, recommend A = accept here;
+B = split into a generator story first).
+
+**Next step.** On ruling A: land (train). On B: move headers.rs/functions.rs changes to a generator story. Then: diagattrs `__const__` conditions (above), SL-HEADERS-P4-CALLSITES,
 SL-HEADERS-COMPLEX-TGMATH, SL-HEADERS-UNSHIPPED-REST, P6/P7 with `--niji-headers`, a .deb with the new rows.
 
 **Plan rows to read.** plan/headers.md section 3 (P4), slice 20 row; D-X.168, D-X.169, D-X.170, D-10.125.

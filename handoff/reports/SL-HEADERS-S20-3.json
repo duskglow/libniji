@@ -1,9 +1,9 @@
 {"task": "SL-HEADERS-S20-3", "model": "opus", "tokens": null,
  "result": "math.h declares libmvec's 54 functions simd under __FAST_MATH__ (D-X.170): deb_manifest libmvec guard green, _ZGV* calls equal to the reference per function in 5 configurations, P4 C++ part 0 FAIL",
- "branch": "task/sl-headers-s20-3", "head": "16327811b",
+ "branch": "task/sl-headers-s20-3", "head": "16327811b (code); report on top",
  "gate": {"affected": "FULL (escalated: headers/*.h.in generator inputs; the train's). test job sl-headers-s20-3-t1: niji_cc_headers 5 passed, deb_manifest coexist_lm_brings_in_libmvec_only_for_a_vector_call passed, P4 C++ part 0 FAIL", "peak": null},
  "accepted_first_attempt": null,
- "rulings": [],
+ "rulings": [{"item": "precheck slice-contract RED: this header-slice story changes the shared generator (xtask/src/headers.rs: simd_scalars + Tables.simd; xtask/src/headers/functions.rs: ' __NIJI_SIMD' in extern_lines), as the brief asked ('through the generator tables')", "recommendation": "A: accept it in this story (a declaration attribute beside slice 19's diagattrs attributes, its set derived and validated from versions.tsv; a slice-only route would redeclare 54 prototypes, duplicating asm-label/noexcept/C++ forms, with more risk; S20 blocks Yohane stage 2). B: split the generator part into a generator story landed first (one more train cycle)."}],
  "informational": [
    "Pre-existing (slice 19, not caused here): diagattrs.tsv __const__ on sinf, cosf, tanf, atanf, tanhf, asinh, asinhf, cbrt, cbrtf, erf, erff applies in every configuration; in strict -std=c89/c++98/c++03 the reference does not treat them as const (CSE probe 2 calls vs 1; errno read after sinf folds to 0 on libniji under -std=c89). Visible here as 11 extra vector calls in strict modes without #pragma omp simd. Recommend a follow-up: condition the const attribute like the reference's behaviour.",
    "Only gcc 13 exists on the build host: older gcc and clang were not probed; __has_attribute (__simd__) decides there.",
