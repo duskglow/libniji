@@ -25,6 +25,12 @@ struct Disk<'s> {
     fs: SysFs<'s, CSys>,
     /// `I18NPATH`'s value, when the environment has it.
     i18npath: Option<&'static [u8]>,
+    /// `DEFAULTCHARSET`'s value, when the environment has it (`validlocale`).
+    defaultcharset: Option<&'static [u8]>,
+    /// `PATH`'s value, when the environment has it (`validlocale` names itself by it).
+    path: Option<&'static [u8]>,
+    /// The directories whose lock this process holds.
+    locked: TryVec<TryVec<u8>>,
 }
 
 impl Host for Disk<'_> {
@@ -57,12 +63,41 @@ impl Host for Disk<'_> {
     }
     fn lock(&mut self, dir: &[u8]) -> Result<(), i32> {
         let p = KPathBuf::new(dir).map_err(|e| e.get())?;
+        // A flock lock belongs to its open file description: locking the directory again through a second
+        // descriptor would wait for this process's own lock (locale-gen runs the localedef command once per
+        // locale in one process, D-31.36). A directory already locked is held already.
+        if self.locked.iter().any(|d| **d == *dir) {
+            return Ok(());
+        }
+        // The record is allocated before the lock is taken, so a lock this process holds is always recorded.
+        let held = TryVec::from_slice(dir).map_err(|e| e.get())?;
+        self.locked.reserve(1).map_err(|e| e.get())?;
         let fd = CSys.openat(Fd::CWD, p.as_kstr(), O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0).map_err(|e| e.get())?;
         // The descriptor stays open, and the lock held, until the program exits.
-        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())
+        CSys.flock(fd, LOCK_EX).map_err(|e| e.get())?;
+        // Room was reserved above, so this push cannot fail.
+        self.locked.push(held).map_err(|e| e.get())?;
+        Ok(())
     }
     fn i18npath(&self) -> Option<&[u8]> {
         self.i18npath
+    }
+    fn remove(&mut self, path: &[u8]) -> Result<(), i32> {
+        self.fs.remove(path)
+    }
+    fn exists(&mut self, path: &[u8]) -> bool {
+        self.fs.stat(path).is_ok()
+    }
+    fn env(&self, name: &[u8]) -> Option<&[u8]> {
+        match name {
+            b"DEFAULTCHARSET" => self.defaultcharset,
+            b"PATH" => self.path,
+            _ => None,
+        }
+    }
+    fn emit(&mut self, fd: u8, bytes: &[u8]) -> bool {
+        write_all(i64::from(fd), bytes);
+        true
     }
 
     fn error_text(&self, errno: i32) -> &'static [u8] {
@@ -96,6 +131,8 @@ pub extern "C" fn niji_localedef_start(sp: usize, ehdr: usize) -> ! {
     let rest = args.as_slice().get(1..).unwrap_or_default();
     // The environment follows argv's terminating null word; the last I18NPATH entry wins.
     let mut i18npath = None;
+    let mut defaultcharset = None;
+    let mut path = None;
     let mut at = sp.wrapping_add(16).wrapping_add(argc.wrapping_mul(8));
     loop {
         let p = usize::try_from(stack_word(at)).unwrap_or(0);
@@ -105,10 +142,21 @@ pub extern "C" fn niji_localedef_start(sp: usize, ehdr: usize) -> ! {
         if let Some(v) = c_string(p).strip_prefix(b"I18NPATH=") {
             i18npath = Some(v);
         }
+        if let Some(v) = c_string(p).strip_prefix(b"DEFAULTCHARSET=") {
+            defaultcharset = Some(v);
+        }
+        if let Some(v) = c_string(p).strip_prefix(b"PATH=") {
+            path = Some(v);
+        }
         at = at.wrapping_add(8);
     }
-    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath };
-    let r = prog::run(rest, &mut disk);
+    let mut disk = Disk { fs: SysFs::new(&CSys, None, niji::diag::description), i18npath, defaultcharset, path, locked: TryVec::new() };
+    // argv[0] chooses the command: locale-gen, update-locale and validlocale are this program (D-31.36).
+    let argv0 = args.as_slice().first().copied().unwrap_or_default();
+    let r = match niji_locale::cmds::by_name(argv0, rest, &mut disk) {
+        Some(r) => r,
+        None => prog::run(rest, &mut disk),
+    };
     drop(disk);
     write_all(1, r.out.as_slice());
     write_all(2, r.err.as_slice());

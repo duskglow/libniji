@@ -1,0 +1,111 @@
+#!/bin/sh
+# locales (libniji) postinst (UTIL-LOCALE-GEN, D-31.37). DPKG_ROOT is honoured, so dpkg --root
+# --force-script-chrootless can configure an empty root that has no shell of its own
+# (tools/deb/root-system.sh): the root's commands are static (localedef, whose links locale-gen and
+# update-locale are) and run in it through chroot.
+set -e
+
+gen="$DPKG_ROOT/etc/locale.gen"
+supported="$DPKG_ROOT/usr/share/i18n/SUPPORTED"
+conf="$DPKG_ROOT/etc/locale.conf"
+
+# in_root CMD...: run a command of the root.
+in_root() {
+    if [ -n "$DPKG_ROOT" ]; then
+        chroot "$DPKG_ROOT" "$@"
+    else
+        "$@"
+    fi
+}
+
+# entries FILE: the entries of a locale.gen-shaped FILE, selected or commented out, one
+# "<locale> <charset>" per line, sorted.
+entries() {
+    sed -n 's/^[[:blank:]#]*\([^[:blank:]#][^[:blank:]]*\)[[:blank:]]\{1,\}\([^[:blank:]#][^[:blank:]]*\).*/\1 \2/p' "$1" |
+        LC_ALL=C sort -u
+}
+
+# add_supported FILE: append every SUPPORTED entry FILE lacks, commented out.
+add_supported() {
+    entries "$1" > "$1.have"
+    sed -n 's/^\([^#[:blank:]][^[:blank:]]*\)[[:blank:]]\{1,\}\([^[:blank:]]*\).*/\1 \2/p' "$supported" |
+        LC_ALL=C sort -u | LC_ALL=C comm -23 - "$1.have" | sed 's/^/# /' >> "$1"
+    rm -f "$1.have"
+}
+
+# select_entries LIST: rewrite /etc/locale.gen so that exactly the entries of LIST (debconf's
+# "a A, b B" form) are selected: a selected entry's line, commented or not, becomes "<locale>
+# <charset>"; any other selected line is commented out ("# " before it); a selected entry the
+# file lacks is appended.
+select_entries() {
+    printf '%s\n' "$1" | sed 's/, */\
+/g' | sed '/^$/d' > "$gen.sel"
+    : > "$gen.sed"
+    while IFS=' ' read -r loc cs; do
+        l=$(printf '%s' "$loc" | sed 's/[].[\*^$/]/\\&/g')
+        c=$(printf '%s' "$cs" | sed 's/[].[\*^$/]/\\&/g')
+        printf '/^[[:blank:]#]*%s[[:blank:]]\\{1,\\}%s[[:blank:]]*$/{\ns/.*/%s %s/\nb\n}\n' "$l" "$c" "$loc" "$cs" >> "$gen.sed"
+    done < "$gen.sel"
+    echo '/^[[:blank:]]*[^#[:blank:]]/s/^/# /' >> "$gen.sed"
+    sed -f "$gen.sed" "$gen" > "$gen.new"
+    while IFS= read -r e; do
+        grep -qxF "$e" "$gen.new" || printf '%s\n' "$e" >> "$gen.new"
+    done < "$gen.sel"
+    add_supported "$gen.new"
+    chmod 0644 "$gen.new"
+    mv "$gen.new" "$gen"
+    rm -f "$gen.sel" "$gen.sed"
+}
+
+case "$1" in
+    configure)
+        # /etc/locale.gen is the administrator's list (locale.gen(5)), not a conffile: created
+        # once, every SUPPORTED entry commented out, and kept from then on.
+        if [ ! -e "$gen" ]; then
+            {
+                echo '# The locales locale-gen compiles into /usr/lib/locale/locale-archive, one'
+                echo '# "<locale> <charset>" line each (locale.gen(5)). Uncomment a line to select a'
+                echo '# locale, then run locale-gen. /usr/share/i18n/SUPPORTED lists every locale'
+                echo '# this system can compile.'
+                echo
+            } > "$gen.new"
+            add_supported "$gen.new"
+            chmod 0644 "$gen.new"
+            mv "$gen.new" "$gen"
+        fi
+        default=
+        if [ -z "$DPKG_ROOT" ] && [ -e /usr/share/debconf/confmodule ]; then
+            . /usr/share/debconf/confmodule
+            db_get locales/locales_to_be_generated && select_entries "$RET"
+            db_get locales/default_environment_locale && default=$RET
+            [ -n "$default" ] || default=None
+            # Standard output is debconf's channel until STOP (debconf-devel(7)); locale-gen's
+            # progress goes to the terminal after it.
+            db_stop
+        fi
+        in_root /usr/sbin/locale-gen
+        # /etc/locale.conf holds the system's locale variables (update-locale(8)); the
+        # /etc/default/locale link keeps the older name working.
+        if [ ! -e "$conf" ]; then
+            in_root /usr/sbin/update-locale --no-checks
+        fi
+        if [ ! -e "$DPKG_ROOT/etc/default/locale" ] && [ ! -L "$DPKG_ROOT/etc/default/locale" ]; then
+            mkdir -p "$DPKG_ROOT/etc/default"
+            ln -s ../locale.conf "$DPKG_ROOT/etc/default/locale"
+        fi
+        case $default in
+            "") ;;
+            None) in_root /usr/sbin/update-locale --no-checks LANG ;;
+            *)
+                # The default must be one of the locales just compiled; else LANG is unset.
+                if grep -qx "[[:blank:]]*$(printf '%s' "$default" | sed 's/[].[\*^$/]/\\&/g')[[:blank:]].*" "$gen"; then
+                    in_root /usr/sbin/update-locale "LANG=$default"
+                else
+                    in_root /usr/sbin/update-locale --no-checks LANG
+                fi
+                ;;
+        esac
+        ;;
+esac
+
+exit 0

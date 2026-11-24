@@ -1,5 +1,6 @@
 //! The `localedef` command (`niji_locale::prog`) over an in-memory file system: the options, the
-//! input search paths, the directory form and the messages and statuses (spec §31.8).
+//! input search paths, the directory form and the messages and statuses (spec §31.8); the `locales`
+//! package's commands `locale-gen`, `update-locale` and `validlocale` (`niji_locale::cmds`, §31.14).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
 use std::collections::BTreeMap;
@@ -18,6 +19,10 @@ struct Mem {
     /// The directories locked, in order.
     locked: Vec<Vec<u8>>,
     i18npath: Option<Vec<u8>>,
+    /// `DEFAULTCHARSET`'s value (`validlocale`).
+    defaultcharset: Option<Vec<u8>>,
+    /// `PATH`'s value (`validlocale`'s usage line).
+    path: Option<Vec<u8>>,
 }
 
 impl Host for Mem {
@@ -47,6 +52,19 @@ impl Host for Mem {
     }
     fn i18npath(&self) -> Option<&[u8]> {
         self.i18npath.as_deref()
+    }
+    fn remove(&mut self, path: &[u8]) -> Result<(), i32> {
+        self.files.remove(path).map(|_| ()).ok_or(2)
+    }
+    fn exists(&mut self, path: &[u8]) -> bool {
+        self.files.contains_key(path) || self.dirs.iter().any(|d| d == path)
+    }
+    fn env(&self, name: &[u8]) -> Option<&[u8]> {
+        match name {
+            b"DEFAULTCHARSET" => self.defaultcharset.as_deref(),
+            b"PATH" => self.path.as_deref(),
+            _ => None,
+        }
     }
     fn error_text(&self, errno: i32) -> &'static [u8] {
         match errno {
@@ -663,4 +681,148 @@ fn unencodable_strings_take_the_locales_transliteration() {
     assert_eq!((item(&m, "/out/tr/LC_NUMERIC", 0), item(&m, "/out/tr/LC_NUMERIC", 1)), ("1".into(), "3".into()));
     let msgs: Vec<String> = (0..4).map(|i| item(&m, "/out/tr/LC_MESSAGES/SYS_LC_MESSAGES", i)).collect();
     assert_eq!(msgs, ["^[yYEUR]", "", "%0B", ""]);
+}
+
+// ---- The `locales` package's commands (niji_locale::cmds; D-31.36, D-31.37) ----
+
+const ARCHIVE: &str = "/usr/lib/locale/locale-archive";
+
+/// `host()` with sources `b_B`, `c_C`, `d_D` and `e_E@mod` (copies of MINI) and `/etc/locale.gen` = `list`.
+fn gen_host(list: &str) -> Mem {
+    let mut m = host();
+    for name in ["b_B", "c_C", "d_D", "e_E@mod"] {
+        m.files.insert(format!("/usr/share/i18n/locales/{name}").into_bytes(), MINI.to_vec());
+    }
+    m.files.insert(b"/etc/locale.gen".to_vec(), list.as_bytes().to_vec());
+    m
+}
+
+fn cmd(m: &mut Mem, argv0: &str, args: &[&str]) -> Outcome {
+    let args: Vec<&[u8]> = args.iter().map(|a| a.as_bytes()).collect();
+    niji_locale::cmds::by_name(argv0.as_bytes(), &args, m).expect("a locales command")
+}
+
+/// The archive's names, sorted (`localedef --list-archive`).
+fn archived(m: &mut Mem) -> String {
+    text(&go(m, &["--list-archive"]).out)
+}
+
+/// s31_14_c_2: `locale-gen` compiles exactly the uncommented `/etc/locale.gen` lines (a `#` line, even after
+/// blanks, is not selected; leading blanks and a tab separator are), each `<locale> <charset>`: localedef `-i`
+/// the locale without its codeset (`e_E@mod`), `-f` the charset, stored under the locale as written (codeset
+/// normalized). Progress on standard output: the locale shown with the charset as codeset; a line without a charset is a `Bad entry`
+/// and is skipped; status 0. Without --keep-existing the archive is replaced whole.
+#[test]
+fn locale_gen_compiles_the_uncommented_lines() {
+    let mut m = gen_host("# comment\n#a_A.MINI MINI\n  # c_C MINI\n\n  b_B.MINI MINI\nc_C\tMINI\nd_D\ne_E.X@mod MINI\n");
+    m.files.insert(ARCHIVE.as_bytes().to_vec(), b"an old archive".to_vec());
+    let o = cmd(&mut m, "/usr/sbin/locale-gen", &[]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    assert_eq!(
+        text(&o.out),
+        "Generating locales (this might take a while)...\n  b_B.MINI... done\n  c_C.MINI... done\n\
+         error: Bad entry 'd_D '\n  e_E.MINI@mod... done\nGeneration complete.\n"
+    );
+    assert_eq!(archived(&mut m), "b_B.mini\nc_C\nc_C.mini\ne_E.x@mod\n");
+}
+
+/// s31_14_c_2: `--keep-existing` keeps the archive and compiles only the names it lacks (silently skipping the
+/// others); a missing `/etc/locale.gen` prints nothing, exits 0 and leaves the archive; any other argument is
+/// ignored.
+#[test]
+fn locale_gen_keep_existing_and_no_list() {
+    let mut m = gen_host("b_B.MINI MINI\n");
+    assert_eq!(cmd(&mut m, "locale-gen", &["--purge"]).status, 0);
+    m.files.insert(b"/etc/locale.gen".to_vec(), b"b_B.MINI MINI\nc_C.MINI MINI\n".to_vec());
+    let o = cmd(&mut m, "locale-gen", &["--keep-existing"]);
+    assert_eq!(text(&o.out), "Generating locales (this might take a while)...\n  c_C.MINI... done\nGeneration complete.\n");
+    assert_eq!(archived(&mut m), "b_B.mini\nc_C.mini\n");
+    m.files.remove(b"/etc/locale.gen".as_slice());
+    let o = cmd(&mut m, "locale-gen", &[]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (0, String::new(), String::new()));
+    assert_eq!(archived(&mut m), "b_B.mini\nc_C.mini\n");
+}
+
+fn conf(m: &Mem, path: &str) -> String {
+    text(m.files.get(path.as_bytes()).map(Vec::as_slice).unwrap_or(b"<none>"))
+}
+
+/// s31_14_c_2: `update-locale` writes `/etc/locale.conf` (a new file starts with its header line; nothing else
+/// is created); `--locale-file` names another file. `NAME=value` replaces the variable's line in place, active or
+/// commented, else is appended; a bare `NAME` comments it out; an empty line is written back as `#`; `export`
+/// lines are not variables; `--reset` comments every active variable the arguments do not name.
+#[test]
+fn update_locale_edits_the_locale_file() {
+    let mut m = host();
+    let o = cmd(&mut m, "update-locale", &["LANG=C"]);
+    assert_eq!((o.status, text(&o.err)), (0, String::new()));
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=C\n");
+    assert_eq!(m.files.len(), 3, "only /etc/locale.conf is written");
+    m.files.insert(b"/x/loc".to_vec(), b"  LC_PAPER=C\n\n#LANG=POSIX\nexport LC_TIME=C\nLC_NAME=C\n".to_vec());
+    let o = cmd(&mut m, "update-locale", &["--locale-file", "/x/loc", "LANG=C", "LC_PAPER", "LC_TIME=POSIX"]);
+    assert_eq!((o.status, text(&o.err)), (0, String::new()));
+    assert_eq!(conf(&m, "/x/loc"), "#  LC_PAPER=C\n#\nLANG=C\nexport LC_TIME=C\nLC_NAME=C\nLC_TIME=POSIX\n");
+    let o = cmd(&mut m, "update-locale", &["--locale-file=/x/loc", "--reset", "LC_TIME=C"]);
+    assert_eq!(o.status, 0);
+    assert_eq!(conf(&m, "/x/loc"), "#  LC_PAPER=C\n#\n#LANG=C\nexport LC_TIME=C\n#LC_NAME=C\nLC_TIME=C\n");
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=C\n");
+    let o = cmd(&mut m, "update-locale", &["--bogus", "--locale-file"]);
+    assert_eq!((o.status, text(&o.err)), (0, "Unknown option: bogus\nOption locale-file requires an argument\n".into()));
+}
+
+/// s31_14_c_2: a locale setting (`LANG`, `LC_*`) that is not available is refused: the settings on standard
+/// error, status 255, the file unchanged, before `LANGUAGE` is looked at. Then `LANGUAGE` whose first language
+/// is not `LC_ALL`'s (else `LANG`'s) is disabled with a warning on standard output, unless that locale is C or
+/// POSIX. `--no-checks` skips both checks.
+#[test]
+fn update_locale_checks_and_language() {
+    let mut m = host();
+    assert_eq!(cmd(&mut m, "update-locale", &["LANG=C", "LANGUAGE=fr:en"]).status, 0);
+    let o = cmd(&mut m, "update-locale", &["LC_TIME=xx_XX.UTF-8", "LANG=C.UTF-8"]);
+    assert_eq!(
+        (o.status, text(&o.out), text(&o.err)),
+        (255, String::new(), "*** update-locale: Error: invalid locale settings:  LANG=C.UTF-8 LANGUAGE=fr:en LC_TIME=xx_XX.UTF-8\n".into())
+    );
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=C\nLANGUAGE=fr:en\n");
+    let o = cmd(&mut m, "update-locale", &["--no-checks", "LANG=de_DE.UTF-8"]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (0, String::new(), String::new()));
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=de_DE.UTF-8\nLANGUAGE=fr:en\n");
+    let o = cmd(&mut m, "update-locale", &["LANG=C.UTF-8"]);
+    assert_eq!(
+        (o.status, text(&o.out)),
+        (0, "*** update-locale: Warning: LANGUAGE (fr:en) is not compatible with LANG (C.UTF-8). Disabling it.\n".into())
+    );
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=C.UTF-8\n#LANGUAGE=fr:en\n");
+    let o = cmd(&mut m, "update-locale", &["LANGUAGE=de:en", "LC_ALL=C.UTF-8"]);
+    assert!(text(&o.out).contains("with LC_ALL (C.UTF-8)"), "{}", text(&o.out));
+    let o = cmd(&mut m, "update-locale", &["LANGUAGE=de:en", "LC_ALL=C"]);
+    assert_eq!((o.status, text(&o.out)), (0, String::new()));
+    assert_eq!(conf(&m, "/etc/locale.conf"), "#  File generated by update-locale\nLANG=C.UTF-8\nLANGUAGE=de:en\nLC_ALL=C\n");
+}
+
+/// s31_14_c_2: `validlocale` accepts C, POSIX, C.UTF-8, the empty name and an archived locale (by any spelling
+/// of its codeset): standard error only, status 0. Else status 1 and the `/etc/locale.gen` line to add: its
+/// `SUPPORTED` line, or the charset `DEFAULTCHARSET` names, ISO-8859-1 without it. No operand: usage, status 1.
+#[test]
+fn validlocale_outputs() {
+    let mut m = gen_host("b_B.MINI MINI\n");
+    assert_eq!(cmd(&mut m, "locale-gen", &[]).status, 0);
+    m.files.insert(b"/usr/share/i18n/SUPPORTED".to_vec(), b"f_F.UTF-8 UTF-8\nf_F ISO-8859-15\n".to_vec());
+    for name in ["C", "POSIX", "C.UTF-8", "", "b_B.MINI", "b_B.mini"] {
+        let o = cmd(&mut m, "validlocale", &[name]);
+        assert_eq!((o.status, text(&o.out), text(&o.err)), (0, String::new(), format!("locale '{name}' valid and available\n")));
+    }
+    let o = cmd(&mut m, "validlocale", &["f_F", "ignored"]);
+    assert_eq!((o.status, text(&o.out), text(&o.err)), (1, "f_F ISO-8859-15\n".into(), "locale 'f_F' not available\n".into()));
+    assert_eq!(text(&cmd(&mut m, "validlocale", &["b_B"]).out), "b_B ISO-8859-1\n");
+    m.defaultcharset = Some(b"UTF-8".to_vec());
+    assert_eq!(text(&cmd(&mut m, "validlocale", &["g_G"]).out), "g_G UTF-8\n");
+    let o = cmd(&mut m, "/usr/sbin/validlocale", &[]);
+    assert_eq!((o.status, text(&o.out)), (1, "Usage: /usr/sbin/validlocale <locale>\n".into()));
+    // A bare argv[0] is named by the first PATH directory holding it, as a shell names a script.
+    assert_eq!(text(&cmd(&mut m, "validlocale", &[]).out), "Usage: validlocale <locale>\n");
+    m.files.insert(b"/usr/sbin/validlocale".to_vec(), Vec::new());
+    m.path = Some(b"/nowhere::/usr/sbin:/usr/bin".to_vec());
+    assert_eq!(text(&cmd(&mut m, "validlocale", &[]).out), "Usage: /usr/sbin/validlocale <locale>\n");
+    assert!(niji_locale::cmds::by_name(b"/usr/bin/localedef", &[], &mut m).is_none());
 }

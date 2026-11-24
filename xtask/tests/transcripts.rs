@@ -174,6 +174,27 @@ fn the_shipped_localedef_passes_the_transcripts() {
     }
 }
 
+#[test]
+fn the_shipped_locales_commands_pass_the_transcripts() {
+    // Trace: s31_14_c_2. update-locale and validlocale are the shipped localedef run under their names (D-31.36,
+    // D-31.37): the committed transcripts (edits of the locale file, --reset, LANGUAGE, options; validlocale's
+    // outputs). locale-gen has none: the hosts' reference locale-gen is a different interface from the Debian one
+    // libniji follows (its probes: handoff/UTIL-LOCALE-GEN-probe.txt); tests/prog.rs and tools/deb/root-system.sh
+    // cover it.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root");
+    let target = std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), std::path::PathBuf::from);
+    let program = target.join("niji/localedef");
+    if !program.exists() {
+        eprintln!("SKIP: {} not built (run cargo xtask so)", program.display());
+        return;
+    }
+    let (u, v) = (format!("update-locale={}", program.display()), format!("validlocale={}", program.display()));
+    let (code, text) = check(&["validation/transcripts/update-locale", "validation/transcripts/validlocale", "--niji", &u, "--niji", &v]);
+    println!("{text}");
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
+}
+
 /// The freestanding `ldconfig` (D-31.2), LDCONFIG-LIMITS (owner ruling: no artificial caps; running out of memory is
 /// a clean error): 5002 arguments, 4999 directories (old cap 4096, refused with `E2BIG`'s text) are all read, and a configuration that
 /// does not fit the address space an `RLIMIT_AS` allows ends in `out of memory`, exit 1, never a crash.

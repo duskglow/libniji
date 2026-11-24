@@ -1,0 +1,8 @@
+# UTIL-LOCALE-GEN plants (brief step 5): a commented /etc/locale.gen line treated as selected, and update-locale
+# writing the wrong file, must each fail the direct tests of crates/locale/src/cmds.rs.
+# Run: cargo xtask plants handoff/UTIL-LOCALE-GEN-plants.txt --dir <new RAM dir> --timeout 600
+gen-commented-selected | crates/locale/src/cmds.rs | lit:if l.is_empty() || l.first() == Some(&b'#') { ==> if l.is_empty() { | cargo test -p niji-locale --test prog | msg:locale_gen_compiles_the_uncommented_lines.*(FAILED|panicked)
+update-wrong-file | crates/locale/src/cmds.rs | lit:pub const LOCALE_CONF: &[u8] = b"/etc/locale.conf"; ==> pub const LOCALE_CONF: &[u8] = b"/etc/default/locale"; | cargo test -p niji-locale --test prog | msg:update_locale_edits_the_locale_file.*(FAILED|panicked)
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# gen-commented-selected: CAUGHT, caught by prog locale_gen_compiles_the_uncommented_lines
+# update-wrong-file: CAUGHT, caught by prog update_locale_checks_and_language

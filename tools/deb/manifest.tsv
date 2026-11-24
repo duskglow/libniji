@@ -162,6 +162,15 @@ system	libc6-dev	usr/lib/x86_64-linux-gnu/libc.so	text	system/libc-so.ld	0644	no
 system	libc6-dev	usr/lib/x86_64-linux-gnu/libm.so	text	system/libm-so.ld	0644	none	-lm: libm.so.6, and libmvec.so.1 AS_NEEDED (issue #28)
 system	libc6-dev	usr/share/doc/libc6-dev/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc6-dev	usr/share/doc/libc6-dev/copyright	text	copyright	0644	none	-
+system	locales	DEBIAN/config	text	system/locales.config	0755	none	debconf: asks which locales to compile and the default locale (D-31.37)
+system	locales	DEBIAN/postinst	text	system/locales.postinst	0755	none	creates /etc/locale.gen and /etc/locale.conf, applies the debconf answers, runs locale-gen (D-31.37)
+system	locales	DEBIAN/postrm	text	system/locales.postrm	0755	none	on purge removes what the postinst and locale-gen created (D-31.37)
+system	locales	DEBIAN/templates	text	system/locales.templates	0644	none	the debconf questions (D-31.37)
+system	locales	etc/locale.alias	text	system/locale.alias	0644	none	conffile; no aliases yet (D-31.37)
+system	locales	usr/lib/locale	dir	-	0755	none	where locale-gen writes the locale archive
+system	locales	usr/sbin/locale-gen	link	../bin/localedef	-	none	localedef run as locale-gen compiles the locales /etc/locale.gen selects (UTIL-LOCALE-GEN, D-31.36)
+system	locales	usr/sbin/update-locale	link	../bin/localedef	-	none	localedef run as update-locale edits /etc/locale.conf (UTIL-LOCALE-GEN, D-31.37)
+system	locales	usr/sbin/validlocale	link	../bin/localedef	-	none	localedef run as validlocale says whether a locale is available (UTIL-LOCALE-GEN, D-31.37)
 system	locales	usr/share/doc/locales/changelog.Debian.gz	changelog	-	0644	none	-
 system	locales	usr/share/doc/locales/copyright	text	copyright	0644	none	-
 system	locales	usr/share/i18n/SUPPORTED	file	locale-sources/SUPPORTED	0644	none	LOCALE-SOURCES-GEN: the names locale-gen accepts, generated from Unicode CLDR
@@ -531,3 +540,4 @@ system	locales	usr/share/i18n/locales/zh_HK	file	locale-sources/zh_HK	0644	none	
 system	locales	usr/share/i18n/locales/zh_SG	file	locale-sources/zh_SG	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/zh_TW	file	locale-sources/zh_TW	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/zu_ZA	file	locale-sources/zu_ZA	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
+system	locales	usr/share/locale/locale.alias	link	/etc/locale.alias	-	none	the path setlocale reads aliases from

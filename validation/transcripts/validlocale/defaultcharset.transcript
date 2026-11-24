@@ -1,0 +1,10 @@
+name: validlocale takes the suggested charset from DEFAULTCHARSET
+clause: s31_14_c_2
+command: validlocale
+env: DEFAULTCHARSET=UTF-8
+arg: xx_XX
+status: exit 1
+stdout:
+| xx_XX UTF-8
+stderr:
+| locale 'xx_XX' not available

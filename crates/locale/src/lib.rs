@@ -9,6 +9,7 @@
 //! * [`ctype`]: `LC_CTYPE` (D.1.3).
 //! * [`collate`]: `LC_COLLATE` (D.1.4).
 //! * [`defaults`]: the POSIX defaults of a category a source does not define.
+//! * [`cmds`]: the `locales` package's commands, `locale-gen`, `update-locale` and `validlocale`.
 //! * [`charset`]: the charmap a locale is compiled for (code point to bytes, widths).
 //! * [`prog`]: the `localedef` command over a [`prog::Host`] (options, search paths, the
 //!   directory form, messages).
@@ -26,6 +27,7 @@ pub mod archive;
 pub mod build;
 pub mod cats;
 pub mod charset;
+pub mod cmds;
 pub mod collate;
 pub mod ctype;
 pub mod defaults;

@@ -3,5 +3,7 @@ libniji C library: locale support
  This package holds the locale sources under /usr/share/i18n/locales (generated
  by libniji from Unicode CLDR data, with the C.UTF-8 source), the SUPPORTED
  list of the locales they define and a set of character maps under
- /usr/share/i18n/charmaps. The locale compiler (localedef) is in libc-bin:
- compile a locale with localedef -i <source> -f <charmap> <name>.
+ /usr/share/i18n/charmaps, with the commands that use them: locale-gen
+ compiles the locales /etc/locale.gen selects into /usr/lib/locale, update-locale
+ sets the system's locale variables in /etc/locale.conf and validlocale says
+ whether a locale is available (localedef, in libc-bin, run under those names).

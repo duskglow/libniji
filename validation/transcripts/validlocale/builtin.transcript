@@ -1,0 +1,8 @@
+name: validlocale accepts the built-in C locale
+clause: s31_14_c_2
+command: validlocale
+arg: C
+status: exit 0
+stdout:
+stderr:
+| locale 'C' valid and available
