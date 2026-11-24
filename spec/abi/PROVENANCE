@@ -69,3 +69,5 @@ rows, otherwise unchanged; prototypes.sha256 rewritten). visibility.tsv by heade
 thread_db.h,proc_service.h: the 900 committed rows of the two headers reproduced unchanged, 22 rows added; typedefs.tsv
 by type_probe.py --headers thread_db.h,proc_service.h: 22 rows added, the 70 it gave for names already in the table
 identical. macros.tsv unchanged (type_probe now calls TD_SIGNO_MASK `pointer` 0; the committed `null` row is kept).
+callsites.tsv and noexcept.tsv: the proc_service.h rows from callsite_probe.py --names <its 15 functions> (30 call-site
+rows, 15 noexcept rows), added in the tables' order; other rows unchanged.
