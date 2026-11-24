@@ -14,4 +14,6 @@
  "improvement": "A per-function instruction diff of a start-up (gdb single-step, ~4 min per build) found the cause in one job; the CI attribution named 13 stories. A start-up bound red could run such a diff automatically against the branch's base.",
  "next_step": "Land with the train; then the fix-forward (find and PT_LOAD filters from check_table's one pass) and SHSTK-ENABLE.",
  "report_file": "handoff/SHSTK-OPT-IN.md",
- "jobs": ["shstk-opt-in-3-lc1", "shstk-opt-in-3-plants1", "shstk-opt-in-3-test1", "shstk-opt-in-3-hottext1", "shstk-opt-in-3-lint2"]}
+ "jobs": ["shstk-opt-in-3-lc1", "shstk-opt-in-3-plants1", "shstk-opt-in-3-test1", "shstk-opt-in-3-hottext1", "shstk-opt-in-3-lint4"],
+ "superseded": ["shstk-opt-in-3-lint0 (inherited head)", "shstk-opt-in-3-lint2, shstk-opt-in-3-lint3 (records format, fixed in the next two commits)", "dyn-a, dyn-b, so-c, trace1, trace2 (diagnostics)"],
+ "code_head": "25297497e", "final_head_checked": "a02efb9cc"}
