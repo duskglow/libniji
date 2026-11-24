@@ -1,8 +1,7 @@
 //! The allocator introspection and debugging interfaces end to end (spec §3.2, §3.3; D-3.4,
 //! D-3.5): `tests/oracle/mallocdbg_diff.c` built against the host C library and statically
 //! against libniji's products, each run by `tests/oracle/mallocdbg_run.sh` in its plain mode (no
-//! `libc_malloc_debug.so`: the record's first part), libniji with the name-service cache on and
-//! off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
+//! `libc_malloc_debug.so`: the record's first part), libniji with the name-service cache on only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`). The outputs must be identical line by line, except the
 //! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints)
 //! and [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to:
 //! the scope of a line is its run (the last `#### ` line) and its section within the run (the
@@ -340,33 +339,33 @@ fn mallocdbg_equals_the_reference() {
     }
     let known: Vec<(&str, &str, &str)> = KNOWN.iter().chain(KNOWN_ENV.iter()).copied().collect();
     let dropped: Vec<(&str, &str, &str)> = DROPPED.iter().copied().chain(LOOKUPS.iter().map(|l| (MAIN_HOOKS, *l, STATIC))).chain(DROPPED_LATER.iter().copied()).collect();
-    for mode in ["on", "off"] {
-        eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("mallocdbg-niji-{mode}"), Some(mode));
-        let want = without(with_headers(&reference), &dropped, "the reference");
-        let got = without(with_headers(&got), &ADDED, "libniji");
-        let mut diffs = 0;
-        let mut seen = vec![false; known.len()];
-        for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
-            if let Some(i) = known.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
-                if w != g {
-                    seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].2);
-                }
-                continue;
-            }
+    // One mode (D-16.18): the program reaches no name-service cache lookup (tests/nscache_reach.rs).
+    let mode = "on";
+    eprintln!("name-service cache {mode}");
+    let got = run(&ours, &format!("mallocdbg-niji-{mode}"), Some(mode));
+    let want = without(with_headers(&reference), &dropped, "the reference");
+    let got = without(with_headers(&got), &ADDED, "libniji");
+    let mut diffs = 0;
+    let mut seen = vec![false; known.len()];
+    for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
+        if let Some(i) = known.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
             if w != g {
-                diffs += 1;
-                if diffs <= 40 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end().replace('\n', " | "));
-                }
+                seen[i] = true;
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].2);
+            }
+            continue;
+        }
+        if w != g {
+            diffs += 1;
+            if diffs <= 40 {
+                eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end().replace('\n', " | "));
             }
         }
-        let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
-        assert_eq!(diffs, 0, "lines that differ from the reference");
-        for (i, s) in seen.iter().enumerate() {
-            assert!(s, "recorded difference no longer seen: {:?}", known[i]);
-        }
+    }
+    let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+    assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
+    assert_eq!(diffs, 0, "lines that differ from the reference");
+    for (i, s) in seen.iter().enumerate() {
+        assert!(s, "recorded difference no longer seen: {:?}", known[i]);
     }
 }
