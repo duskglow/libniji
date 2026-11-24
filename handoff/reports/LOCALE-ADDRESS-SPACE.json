@@ -1,17 +1,20 @@
 {"task": "LOCALE-ADDRESS-SPACE", "model": "opus", "tokens": null,
- "result": "An interned locale's view, items, Tables and name go to a page arena: find's en_US.UTF-8 address space at exit -2032 KiB (+5616 -> +3584 over C; reference +2988); +596 KiB left is the dlopen loader state (recorded, own story)",
- "branch": "task/locale-address-space", "head": "HEAD_SHA",
- "gate": {"affected": "GATE_RESULT", "peak": null}, "accepted_first_attempt": null,
- "rulings": [{"item": "Loader state a non-C LC_CTYPE sets up (+576 KiB address space: dlopen Loader 528 KiB table map + image-view pages) through compat_ctype_objects' niji_dl_sym", "recommendation": "a story of its own: a growable or smaller loader table, or a lookup of the executable's own dynamic symbols without the dlopen state"}],
- "informational": ["The least ulimit -v of find over 3 files hardly moves (en_US 12416 -> 12408 KiB): under a limit the heap's 2 MiB growth step was not needed; the reference's need is 3736 in every locale because its setlocale fails under the limit and it runs in C", "C.UTF-8 now maps the 16 KiB first arena chunk (+16 KiB VmSize, RssAnon unchanged at 420 KiB)", "gettext's two records for a missing catalog (240 B, 46 B) stay on the heap (own lock and intl::Host)", "de_DE.UTF-8 is not installed on the Zen 1 build host; C.UTF-8 served as the second UTF-8 locale"],
+ "result": "INCOMPLETE: an interned locale's view, items, Tables and name go to a page arena (find en_US.UTF-8 VmSize at exit -2032 KiB, +5616 -> +3584 over C; reference +2988); find_over_200000's limit-vs-no-limit allowance is 776 > 548 at 2 of 8 phases, cause traced, needs a ruling",
+ "branch": "task/locale-address-space", "head": "f9abb46dd",
+ "gate": {"affected": "gate2 running; expected red on find_over_200000_entries_bounds_its_address_space only (ruling)", "peak": null}, "accepted_first_attempt": false,
+ "rulings": [
+  {"item": "find_over_200000_entries_bounds_its_address_space: 776 KiB over at phases 4096/6144 (520 at 5 others, 8 at 1) against FIND_PLACEMENT_SLACK 548; under the limit the locale archive lands above the first heap segment and the first segment's head stops the next segment's last step, so the walk places a third segment; without a limit it now fits in two (base's 2 MiB locale heap step hid this)", "recommendation": "accept 3 x 256 + 9 x 4 = 804 for this change with the trace evidence; brief a heap story so a segment's head does not take the last growth step of the aligned slot below it, then tighten the slack"},
+  {"item": "Loader state a non-C LC_CTYPE sets up (+576 KiB address space: dlopen Loader 528 KiB table map + image-view pages) through compat_ctype_objects' niji_dl_sym", "recommendation": "a story of its own: a growable or smaller loader table, or a lookup of the executable's own dynamic symbols without the dlopen state"}],
+ "informational": ["The least ulimit -v of find over 3 files hardly moves (en_US 12416 -> 12408 KiB)", "find over 200000 entries: least ulimit -v fell 1228 to 1484 KiB at 6 of 8 phases, rose 308 at 8192/10240 and 36 at 14336 (not explained yet); issue #21's bound holds (33008 to 33264 <= 35000)", "C.UTF-8 now maps the 16 KiB first arena chunk (+16 KiB VmSize, RssAnon unchanged)", "de_DE.UTF-8 is not installed on the Zen 1 build host; C.UTF-8 served as the second UTF-8 locale"],
  "refused": [],
  "impact": [
   {"kind": "size", "what": "find over 3 files, VmSize at exit, en_US.UTF-8 (Zen 1 build host)", "before": 18512, "after": 16480, "unit": "KiB", "measured": true},
   {"kind": "size", "what": "find over 3 files, VmSize at exit, C.UTF-8", "before": 13472, "after": 13488, "unit": "KiB", "measured": true},
-  {"kind": "size", "what": "find over 3 files, least ulimit -v, en_US.UTF-8", "before": 12416, "after": 12408, "unit": "KiB", "measured": true},
+  {"kind": "size", "what": "find over 200000 entries, least ulimit -v, phase 4096", "before": 46844, "after": 45616, "unit": "KiB", "measured": true},
+  {"kind": "cost", "what": "find over 200000 entries, least ulimit -v, phases 8192/10240 (fix-forward: explain, see handoff)", "before": 45052, "after": 45360, "unit": "KiB", "measured": true},
   {"kind": "coverage", "what": "tests added (a_utf8_locale_costs_no_more_address_space_than_the_references) and plants (items, views)", "before": 0, "after": 3, "unit": "count", "measured": true}
  ],
- "improvement": "IMPROVEMENT_LINE",
- "next_step": "Land; brief the loader-state story (+576 KiB per non-C LC_CTYPE)",
+ "improvement": "The gate's limit-vs-no-limit check compares two different layouts (the loader's 64 MiB reservation is refused only under the limit); a check of the need against a same-layout baseline would not flip when the no-limit run gets more compact",
+ "next_step": "Ruling on the find_over_200000 allowance; then re-run that test, precheck, handback-check",
  "report_file": "handoff/LOCALE-ADDRESS-SPACE.md",
- "jobs": []}
+ "jobs": ["keke:locale-address-space-clippy3", "keke:locale-address-space-gate2", "keke:locale-address-space-xtest", "keke:locale-address-space-fullprofile", "keke:locale-address-space-t2", "keke:locale-address-space-plants"]}

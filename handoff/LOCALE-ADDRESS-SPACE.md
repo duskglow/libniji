@@ -1,62 +1,71 @@
-# LOCALE-ADDRESS-SPACE: handoff (run 1, leg 2: fix, test and plants done)
+# LOCALE-ADDRESS-SPACE: handoff (run 1, leg 3: one red needs a ruling)
 
-State: branch `task/locale-address-space` (base origin/next `fb12f4d3e`), build role keke `~/w/r1` (Zen 1, 60 vCPU).
-Brief: `~/state/briefs/LOCALE-ADDRESS-SPACE.md`. Decision: pending record
-`records/pending/LOCALE-ADDRESS-SPACE-1.toml` (D-NEW, series D-7; CI assigns the id). Plants file:
-`handoff/LOCALE-ADDRESS-SPACE-plants.txt`. Scratch scripts: keke `~/work/locale-address-space/` (`measure.sh`,
-`smaps_sum.py`, `trace.sh`, `refill.sh`; outputs `m0` = base, `m1` = after).
+State: branch `task/locale-address-space` (base origin/next `fb12f4d3e`), code head `f9abb46dd` (later commits:
+this note and the report only), build role keke `~/w/r1` (Zen 1, 60 vCPU). Brief: `~/state/briefs/LOCALE-ADDRESS-SPACE.md`.
+Decision: pending record `records/pending/LOCALE-ADDRESS-SPACE-1.toml` (D-NEW, series D-7; CI assigns the id).
+Plants file: `handoff/LOCALE-ADDRESS-SPACE-plants.txt`. Scratch scripts: keke `~/work/locale-address-space/`
+(`measure.sh`, `trace.sh`, `trace2.sh` = strace of the 200000-entry walk with and without a limit; outputs of leg 3 in
+`/dev/shm/claude/las/t4096`).
 
-## What was done
+## What was done (legs 1 and 2; do not redo)
 
-* `niji::mem::Permanent` (default: the heap leak; `OnHeap`), `LocaleView::new_in`, `global_locale::Objects:
-  Permanent` (view, items, `Tables` and name go through it), and in `boundary/src/locale.rs` the products' arena
-  (`perm_place`: private page chunks, 16 KiB first, doubling to 1 MiB, own `RawMutex` taken only inside the interning
-  lock; with a replacement malloc the default heap path, D-X.156). The unsafe placement helpers are in `tb.rs`
-  (`uninit_slice_at`, `uninit_at`, `filled`; category `slice` is only permitted there).
-* Test `heap_meta_products::a_utf8_locale_costs_no_more_address_space_than_the_references` (same run: products vs the
-  system loader, en_US.UTF-8 minus C, allowance = reference's + products' C.UTF-8 cost + 64 KiB).
+* `niji::mem::Permanent`, `LocaleView::new_in`, `global_locale::Objects: Permanent`; in `boundary/src/locale.rs` the
+  products' page arena (`perm_place`, 16 KiB first chunk doubling to 1 MiB, own lock inside the interning lock; heap
+  path with a replacement malloc, D-X.156); unsafe helpers in `tb.rs`.
+* Test `heap_meta_products::a_utf8_locale_costs_no_more_address_space_than_the_references`; plants: 2 of 2 CAUGHT.
+* find over 3 files, VmSize at exit (KiB): en_US.UTF-8 18512 -> 16480 (+5616 -> +3584 over C; reference +2988);
+  C.UTF-8 13472 -> 13488. Left over +596 KiB = dlopen loader state (528 KiB table map): its own story (record).
 
-## Measured (keke, find 4.9.0, 3 files on tmpfs; VmSize at exit KiB, fixed layout)
+## Leg 3
 
-| | C | en_US.UTF-8 | C.UTF-8 |
-|---|---|---|---|
-| libniji before (m0) | 12896 | 18512 (+5616) | 13472 (+576) |
-| libniji after (m1) | 12896 | 16480 (+3584) | 13488 (+592) |
-| reference | 3736 | 6724 (+2988) | 7152 (+3416) |
+* Fix for gate red 1 (`startup-state.list` declares PERM_LOCK/NEXT/END/CHUNK): `init_startup_data_accesses_are_in_the_data1_cluster`
+  ok on `f9abb46dd` (job `locale-address-space-t2`).
+* Gate red 2, `find_over_200000_entries_bounds_its_address_space` (`FIND_PLACEMENT_SLACK` = 548): still red. All 8
+  phases (KiB; need = least `ulimit -v` of the 200000-entry walk, maps = VmSize at exit without a limit):
 
-The least `ulimit -v` (3 ASLR runs and fixed, spread 0) barely moves: libniji C 8716, en_US 12416 -> 12408, C.UTF-8
-9304 -> 9272; the reference 3736 for all (under the limit its setlocale fails and it runs in C). de_DE is not
-installed on keke (only en_US.utf8, C.utf8). Left over: +596 KiB anon = dlopen loader state (528 KiB table map +
-44 + 4 KiB image views) + 16 KiB arena chunk: see the record (loader change, its own story).
+| phase | base need | base maps | base over | branch need | branch maps | branch over |
+|---|---|---|---|---|---|---|
+| 0 | 46844 | 46836 | 8 | 45360 | 44840 | 520 |
+| 2048 | 46844 | 46836 | 8 | 45360 | 44840 | 520 |
+| 4096 | 46844 | 46836 | 8 | 45616 | 44840 | 776 |
+| 6144 | 46844 | 46836 | 8 | 45616 | 44840 | 776 |
+| 8192 | 45052 | 46836 | 0 | 45360 | 44840 | 520 |
+| 10240 | 45052 | 45044 | 8 | 45360 | 44840 | 520 |
+| 12288 | 45052 | 45044 | 8 | 45360 | 45352 | 8 |
+| 14336 | 45324 | 46836 | 0 | 45360 | 44840 | 520 |
 
-## Jobs so far (keke)
+  Base = release-snapshot-1124c's gate on the same host today. Issue #21's own bound (over 3 entries <= 35000) holds:
+  33008 to 33264.
+* Cause (strace at phase 4096, `trace2.sh`, limit 45616): under the limit the process ENDS with 45616 mapped (not a
+  transient peak). The loader's 64 MiB reservation is refused under the limit, so the libraries sit higher and the
+  kernel puts the 2.9 MiB locale archive at the top of the gap above the first heap segment: that segment's 5th 2 MiB
+  growth step fails (EEXIST). The first segment's 68 KiB head below its aligned address then stops the next
+  segment's last 1.75 MiB step, and the walk places a third segment (12.3 + 14.25 + 6.25 MiB against 16 + 16 without
+  a limit: 768 KiB more, plus two 4 KiB per-request maps). Without a limit the same walk fits in two segments.
+  Inferred, NOT VERIFIED (no base products on the host to trace): base hit the same placement under the limit, but
+  its at-exit mapping without a limit was also three segments (its locale objects took a 2 MiB heap step), so
+  the difference hid it. The branch makes the run without a limit more compact; need fell 1228 to 1484 KiB at 6
+  phases and rose 308 at 8192/10240 and 36 at 14336 (not explained yet).
+* Not changed: the slack (ALWAYS FORWARD). RULING NEEDED (below).
 
-* `locale-address-space-plants` (head 1f3dddf4b, code unchanged since): 2 plants, 2 CAUGHT (mutants +5632 KiB).
-* `locale-address-space-clippy-final` rc 0; `-static3` rc 0 (static, records check; affected = direct, 264 targets).
-* `locale-address-space-gate` (head 3b97f3f2b): two reds, both from this change:
-  1. `hot_text_products::init_startup_data_accesses_are_in_the_data1_cluster`: PERM_LOCK/NEXT/END touched at
-     start-up outside `.data1`. FIXED after the gate: declared in `crates/libc-so/startup-state.list` (with
-     PERM_CHUNK); not yet re-run.
-  2. `heap_meta_products::find_over_200000_entries_bounds_its_address_space` (heap_meta_products.rs:403, the
-     `FIND_PLACEMENT_SLACK` = 548 check), phase 4096 only shown: needs 45616 KiB, maps 44840 = 776 over. Base
-     (release-snapshot-1124c gate on keke, today, log `~/logs/release-snapshot-1124c-heapnode-1.log`) at phase 4096:
-     needs 46844, maps 46836. So the need FELL 1228 KiB, but the at-exit mapping fell 1996 (the en_US heap growth
-     step is gone), and under the limit the walk now places a later segment where it cannot grow (3 x 256 + 8).
-     Not investigated yet. Do NOT loosen the slack (ALWAYS FORWARD): find the cause (heap segment placement under a
-     limit with the arena chunk / without the early growth step; `trace.sh` with a limit at phase 4096), or bring
-     RULING NEEDED with all 8 phases' numbers, base vs branch.
-* The chain's `-xtest` and `-fullprofile` were never started (chain stopped).
-* At the refresh (17:25 UTC) the gate was still running (only those two reds so far, `test -p niji` and its
-  native run); `~/bin/jobwait locale-address-space-gate`, then read the rest of its FAIL lines.
+## RULING NEEDED
+
+The test's limit-vs-no-limit allowance (548 = 2 x 256 + 9 x 4) against this branch's 776 at 2 of 8 phases, caused
+by placement under the limit (locale archive above the first segment, the first segment's head in the slot below)
+that the base hid by mapping one more segment without a limit. Recommend: accept 3 x 256 + 9 x 4 = 804 for this
+change with the trace evidence, and brief a heap story to stop a segment's head from taking the last growth step of
+the aligned slot below it (worth 256 to 768 KiB under a limit in this walk), after which the slack tightens again.
+
+## Jobs (keke, code head f9abb46dd)
+
+* `locale-address-space-t2` (so + the two reds), `locale-address-space-clippy3` (xtask clippy + static: ok),
+  `locale-address-space-gate2`, `-xtest`, `-fullprofile` (chain `~/work/locale-address-space/chain2.sh`, started
+  17:41 UTC). The gate is expected red on find_over_200000 only; any other red is new.
+* Plants `locale-address-space-plants` (head 1f3dddf4b, arena code unchanged since): 2 of 2 CAUGHT.
+* Superseded: `locale-address-space-gate` (head 3b97f3f2b, stopped at 17:28 after the two reds).
 
 ## Next step
 
-1. Sync (role was busy with the gate), run only the failing tests on the new head:
-   `cargo test -p niji --test heap_meta_products find_over_200000 -- --nocapture` (prints all 8 phase rows) and
-   `NIJI_LAYOUT_TRACE` products + `hot_text_products init_startup_data_accesses` (via `cargo xtask affected --only`
-   or the gate) to confirm fix 1.
-2. Investigate red 2 as above (start: is the 16 KiB arena chunk the mapping that sits in the aligned slot? try
-   the run with the chunk mmap'd with a hint or the first chunk's size changed, compare phase rows).
-3. Then gate, `cargo xtask test`, full-profile hot_text_products, precheck, report json
-   (`handoff/reports/LOCALE-ADDRESS-SPACE.json`, draft placeholders HEAD_SHA, GATE_RESULT, IMPROVEMENT_LINE, jobs),
-   handback-check.
+On the ruling: if accepted, change `FIND_PLACEMENT_SLACK` and its comment (cause above), re-run that test, then
+`cargo xtask precheck --jobs <labels> --head <sha>` and handback-check. Also explain the +308 KiB need at phases
+8192/10240 (trace2.sh at phase 8192 with limits 45052 and 45360).
