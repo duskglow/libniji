@@ -99,6 +99,18 @@ typedef union pthread_attr_t pthread_attr_t;
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___res_init
+#  define __NIJI_D___res_init 1
+extern int __res_init (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___res_nclose
+#  define __NIJI_D___res_nclose 1
+extern void __res_nclose (res_state) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___res_ninit
+#  define __NIJI_D___res_ninit 1
+extern int __res_ninit (res_state) __NIJI_NOTHROW;
+# endif
 struct __res_state;
 # ifndef __NIJI_D___res_state
 #  define __NIJI_D___res_state 1
@@ -356,10 +368,11 @@ extern FILE *tmpfile64 (void) __attribute__ ((__malloc__, __warn_unused_result__
 # endif
 #endif
 
+/* res_init, res_ninit and res_nclose name the exported __res_* functions (declared above). */
 #if 1
-# define res_init res_init
-# define res_ninit res_ninit
-# define res_nclose res_nclose
+# define res_init __res_init
+# define res_ninit __res_ninit
+# define res_nclose __res_nclose
 # define _res (*__res_state ())
 #endif
 
