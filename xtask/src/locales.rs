@@ -460,7 +460,10 @@ pub fn c_source() -> String {
     writeln!(w, "END LC_MONETARY\n").ok();
     writeln!(w, "LC_MESSAGES\nyesexpr {}\nnoexpr  {}\nEND LC_MESSAGES\n", quote("^[yY]"), quote("^[nN]")).ok();
     writeln!(w, "LC_PAPER\nheight 297\nwidth  210\nEND LC_PAPER\n").ok();
-    writeln!(w, "LC_NAME\nEND LC_NAME\n\nLC_ADDRESS\nEND LC_ADDRESS\n\nLC_TELEPHONE\nEND LC_TELEPHONE\n").ok();
+    // The built-in C.UTF-8's formats (spec/abi/langinfo.tsv), which localedef requires.
+    writeln!(w, "LC_NAME\nname_fmt {}\nEND LC_NAME\n", quote("%p%t%g%t%m%t%f")).ok();
+    writeln!(w, "LC_ADDRESS\npostal_fmt {}\nEND LC_ADDRESS\n", quote("%a%N%f%N%d%N%b%N%s %h %e %r%N%C-%z %T%N%c%N")).ok();
+    writeln!(w, "LC_TELEPHONE\ntel_int_fmt {}\nEND LC_TELEPHONE\n", quote("+%c %a %l")).ok();
     writeln!(w, "LC_MEASUREMENT\nmeasurement 1\nEND LC_MEASUREMENT").ok();
     s
 }
