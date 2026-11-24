@@ -783,12 +783,17 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
 /// products' path reaches the traced program only). `None`, with the reason printed, where ptrace is
 /// not permitted.
 fn start_calls(lib: &Path, exe: &Path) -> Option<Vec<[u64; 4]>> {
+    start_calls_with(lib, exe, &[])
+}
+
+/// [`start_calls`] for `exe` run with the arguments `args` (none may hold `=`).
+fn start_calls_with(lib: &Path, exe: &Path, args: &[&Path]) -> Option<Vec<[u64; 4]>> {
     let tracer = lib.join("start_syscalls");
     if !tracer.exists() {
         let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
         assert!(st.success(), "oracle/start_syscalls.c does not build");
     }
-    let o = Command::new(&tracer).arg(exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
+    let o = Command::new(&tracer).arg(exe).args(args).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
     if o.status.code() == Some(121) || o.status.code() == Some(123) {
         eprintln!("SKIP: ptrace is not permitted here ({})", o.status);
         return None;
@@ -831,6 +836,29 @@ fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
     assert_eq!(count(&|c| c[0] == MMAP && c[3] & 0x20 != 0 && c[2] < 4096), 0, "an anonymous mapping under a page at start: the image views were not taken from the scratch arena");
     assert_eq!(count(&|c| c[0] == ARCH_PRCTL && c[1] == 0x1003), 0, "arch_prctl(ARCH_GET_FS) at start: __libc_start_main did not take the loader's early start first");
     assert_eq!(count(&|c| c[0] == RT_SIGACTION), 0, "rt_sigaction at start: the internal signal's handler was installed before any thread");
+}
+
+/// LD-START-MAPS-2 (D-27.92); no spec clause (cost of the products). The loader run as a command
+/// (`ld.so PROGRAM`) maps the program from its headers, read with one `pread`, as a start maps a
+/// dependency: no whole-file view of the program, whose release is a `munmap` of exactly the file's
+/// length (a view in its own reservation is also trimmed by two more), and the program still runs to
+/// its exit. Skipped, with the reason printed, where ptrace is not permitted.
+#[test]
+fn init_explicit_run_maps_the_program_without_a_whole_file_view() {
+    const PREAD64: u64 = 17;
+    const MUNMAP: u64 = 11;
+    let lib = dyn_stage("dyn-explicit");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let exe = lib.join("empty_dyn");
+    dyn_link(&lib, &src, &exe);
+    let len = std::fs::metadata(&exe).unwrap().len();
+    let calls = start_calls_with(&lib, &lib.join("ld-linux-x86-64.so.2"), &[&exe]);
+    let _ = std::fs::remove_dir_all(&lib);
+    let Some(calls) = calls else { return };
+    let count = |f: &dyn Fn(&[u64; 4]) -> bool| calls.iter().filter(|c| f(c)).count();
+    eprintln!("explicit run of an empty main: {} system calls, {} pread64, {} munmap", calls.len(), count(&|c| c[0] == PREAD64), count(&|c| c[0] == MUNMAP));
+    assert_eq!(count(&|c| c[0] == MUNMAP && c[2] == len), 0, "a munmap of the program file's length ({len} bytes): the program was read through a whole-file view");
 }
 
 /// DYN-START-RING; no spec clause (cost of the products). The number of system calls three dynamic starts

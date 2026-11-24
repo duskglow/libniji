@@ -502,10 +502,42 @@ pub(super) fn program_file(name: &'static [u8], env: &List<'_>) -> &'static [u8]
 
 /// Open, read and map the program file named by the NUL-terminated path at `path` (`ld.so PROGRAM`)
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left
-/// mapped on failure). The program and its load bias.
+/// mapped on failure). The program and its load bias. Read from its headers as a start dependency is
+/// ([`program_from_headers`], D-27.92): no whole-file view, so four mapping calls fewer; any file
+/// those headers do not settle goes through [`program_by_view`], which gives every refusal.
 pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::Program, usize) {
-    let fail = |msg: &[u8]| -> ! { fail_program(path, msg) };
     let (fd32, len) = open_program(path);
+    let loaded = match program_from_headers(fd32, len, page) {
+        Some(loaded) => loaded,
+        None => program_by_view(path, fd32, len, page, ld, secure),
+    };
+    let _ = crate::ffi_sys::niji_sys_close(i64::from(fd32));
+    let at = |v: u64| usize::try_from(v).unwrap_or(0);
+    (start::Program { phdr: at(loaded.phdr), phnum: usize::from(loaded.phnum), entry: at(loaded.entry) }, at(loaded.bias))
+}
+
+/// The program open at `fd` (`len` bytes) mapped from its first bytes, read with one `pread`
+/// ([`read_headers`], [`map::plan_headers`], [`map::map_planned`], the mapper and checks the whole
+/// file's [`map::load`] uses); the headers' bytes go back to the scratch arena. `None`, with nothing
+/// left mapped, for a file whose headers do not lie in the first bytes read, that they refuse, that
+/// asks for an executable stack, or that does not map: the caller reads it whole.
+#[inline(never)]
+fn program_from_headers(fd: i32, len: usize, page: u64) -> Option<map::Loaded> {
+    let head = read_headers(fd, len).ok().flatten()?;
+    let loaded = elf::Elf::parse::<Native>(head).ok().and_then(|elf| {
+        let plan = map::plan_headers::<Native>(&elf, page, u64::try_from(len).unwrap_or(u64::MAX)).ok()?;
+        map::map_planned(&mut StartMapper { fd }, &elf, &plan, head, page).ok()
+    });
+    arena_give_back(head);
+    loaded
+}
+
+/// [`load`] for a program [`program_from_headers`] does not map: the file read whole through a view,
+/// with every refusal and COMPAT-19's executable-stack acceptance. Ends the start on a refusal.
+#[cold]
+#[inline(never)]
+fn program_by_view(path: usize, fd32: i32, len: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> map::Loaded {
+    let fail = |msg: &[u8]| -> ! { fail_program(path, msg) };
     let fd = i64::from(fd32);
     let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
     // UNSAFE(slice): the program file, mapped read-only above.
@@ -523,10 +555,10 @@ pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) 
         other => other,
     };
     unmap_view(file_at, len);
-    let _ = crate::ffi_sys::niji_sys_close(fd);
-    let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
-    let at = |v: u64| usize::try_from(v).unwrap_or(0);
-    (start::Program { phdr: at(loaded.phdr), phnum: usize::from(loaded.phnum), entry: at(loaded.entry) }, at(loaded.bias))
+    loaded.unwrap_or_else(|e| {
+        let _ = crate::ffi_sys::niji_sys_close(fd);
+        fail(e.message())
+    })
 }
 
 /// End the start for the program file named at `path` (NUL-terminated): `PROGRAM: error while loading
@@ -1052,7 +1084,7 @@ pub(super) fn open_start(path: &[u8], page: u64, env: &List<'_>, checked: &mut O
     let size = file_size(fd, &st);
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
     let id = (st.dev, st.ino);
-    let head = match read_headers(fd32, len) {
+    let head: &'static [u8] = match read_headers(fd32, len) {
         Ok(Some(head)) => head,
         Ok(None) => return start_by_view(fd32, len, id, page, env, checked),
         Err(r) => return Err(refuse(r)),
@@ -1090,7 +1122,7 @@ pub(super) fn open_start(path: &[u8], page: u64, env: &List<'_>, checked: &mut O
 /// ELF header and that table, and checks the table's range against the bytes it is given (here a
 /// range past them is past the file). `Ok(None)` when the table ends past [`HEAD_READ`] or the arena
 /// is full: the caller reads the file whole.
-fn read_headers(fd: i32, len: usize) -> Result<Option<&'static [u8]>, Refusal> {
+fn read_headers(fd: i32, len: usize) -> Result<Option<&'static mut [u8]>, Refusal> {
     let first = len.min(HEAD_READ);
     let Some(at) = arena_take(first) else { return Ok(None) };
     // UNSAFE(slice): a range of the scratch arena, handed out once.
