@@ -212,6 +212,7 @@ fn child_reset() {
     let used = USED.load(Acquire);
     thread::after_fork_child();
     crate::stacks::after_fork_child();
+    crate::context::after_fork_child();
     crate::timer::after_fork_child();
     crate::mqueue::after_fork_child();
     crate::syslog::after_fork_child();
