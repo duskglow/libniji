@@ -195,6 +195,8 @@ void *niji_caller_malloc(size_t n);
 void *niji_caller_calloc(size_t k, size_t n);
 void *niji_caller_realloc(void *p, size_t n);
 void niji_caller_free(void *p);
+/* The library image's start and end (0 if none) and the addresses those four symbols resolve to. */
+void niji_link_alloc_family(volatile uintptr_t w[6]);
 /* The image's ELF header and a static executable's .eh_frame bounds (D-2.7), 0 where absent. */
 uintptr_t niji_link_ehdr(void);
 /* The run-time address of the image's ELF header, reached PC-relatively (`__ehdr_start`, hidden,

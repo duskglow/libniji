@@ -396,6 +396,10 @@ pub fn early_init(info: usize) {
     // SAFETY: `ld.so` passes the address of a live, aligned `StartInfo` on its stack for the call
     // (design §14); NULL is ignored.
     let Some(info) = (unsafe { core::ptr::with_exposed_provenance::<niji_rt::start::private::StartInfo>(info).as_ref() }) else { return };
+    // First, before the library's first allocation (ruling #7583): relocation is done, so a
+    // replacing `malloc` family is now reachable; every later allocation of the library's own
+    // goes through it.
+    crate::caller_alloc::decide_route();
     let auxv_words = count_auxv(info.auxv);
     process::AUXV_WORDS.store(auxv_words, Release);
     process::AUXV_ADDR.store(info.auxv, Release);
