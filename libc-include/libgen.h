@@ -8,13 +8,18 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D___xpg_basename
+#  define __NIJI_D___xpg_basename 1
+extern char *__xpg_basename (char *) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D_dirname
 #  define __NIJI_D_dirname 1
 extern char *dirname (char *) __NIJI_NOTHROW;
 # endif
 #endif
 
-/* basename(3): the XPG form is the one this header declares, under its exported name. */
+/* basename(3): the XPG form is the one this header declares, under its exported name (__xpg_basename, declared
+   above: reserved.tsv); <string.h> leaves out its GNU basename while this macro is defined. */
 #if 1
 # define basename __xpg_basename
 #endif

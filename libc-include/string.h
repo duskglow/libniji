@@ -478,17 +478,23 @@ extern char *strcasestr (const char *, const char *) __NIJI_NOTHROW __attribute_
 # endif
 #endif
 #if __NIJI_GNU
+/* The GNU basename is declared only while <libgen.h> has not made basename name __xpg_basename (its macro would
+   rename this declaration into a second, conflicting one of __xpg_basename); calls then reach the XPG form. */
 # ifdef __cplusplus
 extern "C++" {
+#  ifndef basename
 extern const char *basename (const char *) __NIJI_NOTHROW __asm__ ("basename") __attribute__ ((__nonnull__ (1)));
+inline __attribute__ ((__nonnull__ (1))) char *basename (char *__s) __NIJI_NOTHROW { return const_cast<char *> (basename (static_cast<const char *> (__s))); }
+#  endif
 extern const void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memrchr") __attribute__ ((__nonnull__ (1), __pure__));
 extern const void *rawmemchr (const void *, int) __NIJI_NOTHROW __asm__ ("rawmemchr") __attribute__ ((__nonnull__ (1), __pure__));
-inline __attribute__ ((__nonnull__ (1))) char *basename (char *__s) __NIJI_NOTHROW { return const_cast<char *> (basename (static_cast<const char *> (__s))); }
 inline __attribute__ ((__nonnull__ (1), __pure__)) void *memrchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memrchr (static_cast<const void *> (__s), __c, __n)); }
 inline __attribute__ ((__nonnull__ (1), __pure__)) void *rawmemchr (void *__s, int __c) __NIJI_NOTHROW { return const_cast<void *> (rawmemchr (static_cast<const void *> (__s), __c)); }
 }
 # else
+#  ifndef basename
 extern char *basename (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
+#  endif
 extern void *memrchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 extern void *rawmemchr (const void *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 # endif

@@ -10,7 +10,8 @@ __NIJI_BEGIN_C
 @@owns basename
 @@emit
 
-/* basename(3): the XPG form is the one this header declares, under its exported name. */
+/* basename(3): the XPG form is the one this header declares, under its exported name (__xpg_basename, declared
+   above: reserved.tsv); <string.h> leaves out its GNU basename while this macro is defined. */
 @@if basename
 # define basename __xpg_basename
 #endif
