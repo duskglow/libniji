@@ -8,14 +8,11 @@
 #include <stddef.h>
 #include <linux/mount.h>
 #include <fcntl.h>
-
-/* The terminal ioctl names and `struct winsize`, which <sys/ioctl.h> shows, are emitted below until libniji generates
-   <sys/ioctl.h> (slice 7's tail); this header includes it then. A <sys/ioctl.h> from outside libniji's tree is never
-   included: its definitions carry no __NIJI_D_ guard, so each would be defined a second time here. */
+#include <sys/ioctl.h>
 
 __NIJI_BEGIN_C
 
-@@owns NULL max_align_t mount_attr f_owner_ex TCSETS2 TTYDEF_CFLAG TTYDEF_IFLAG TTYDEF_LFLAG TTYDEF_OFLAG TTYDEF_SPEED
+@@owns NULL max_align_t mount_attr f_owner_ex
 @@emit
 
 @@if NULL

@@ -7,9 +7,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <sys/socket.h>
-#if __has_include(<sys/ioctl.h>)
-# include <sys/ioctl.h>
-#endif
+#include <sys/ioctl.h>
 
 __NIJI_BEGIN_C
 

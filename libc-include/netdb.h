@@ -8,7 +8,6 @@
 
 __NIJI_BEGIN_C
 
-#include <signal.h>
 #if 1
 # ifndef __NIJI_D_struct_hostent
 #  define __NIJI_D_struct_hostent 1
@@ -60,6 +59,45 @@ struct gaicb {
   int __glibc_reserved[5];
 };
 # endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D___sigval_t
+#  define __NIJI_D___sigval_t 1
+typedef union sigval __sigval_t;
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+# ifndef __NIJI_D_struct_sigevent
+#  define __NIJI_D_struct_sigevent 1
+struct sigevent {
+  __sigval_t sigev_value;
+  int sigev_signo;
+  int sigev_notify;
+  union {
+  int _pad[12];
+  int _tid;
+  struct { void (*_function)(union sigval); pthread_attr_t * _attribute; } _sigev_thread;
+  } _sigev_un;
+};
+# endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_struct_rpcent
@@ -85,6 +123,58 @@ struct addrinfo {
   char * ai_canonname;
   struct addrinfo * ai_next;
 };
+# endif
+#endif
+#if __NIJI_GNU
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D___sigval_t
+#  define __NIJI_D___sigval_t 1
+typedef union sigval __sigval_t;
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+# endif
+# ifndef __NIJI_D_struct_sigevent
+#  define __NIJI_D_struct_sigevent 1
+struct sigevent {
+  __sigval_t sigev_value;
+  int sigev_signo;
+  int sigev_notify;
+  union {
+  int _pad[12];
+  int _tid;
+  struct { void (*_function)(union sigval); pthread_attr_t * _attribute; } _sigev_thread;
+  } _sigev_un;
+};
+# endif
+# ifndef __NIJI_D_sigevent_t
+#  define __NIJI_D_sigevent_t 1
+typedef struct sigevent sigevent_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199506

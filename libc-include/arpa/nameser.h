@@ -7,12 +7,10 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <arpa/nameser_compat.h>
+#include <sys/param.h>
 
 __NIJI_BEGIN_C
 
-#if __has_include(<sys/param.h>)
-# include <sys/param.h>
-#endif
 #if 1
 # ifndef __NIJI_D_struct___ns_class
 #  define __NIJI_D_struct___ns_class 1

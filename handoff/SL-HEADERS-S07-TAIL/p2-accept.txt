@@ -1,0 +1,15 @@
+# probe_compare visibility --accept for SL-HEADERS-S07-TAIL (proof.sh appends handoff/SL-HEADERS-S15/p2-accept.txt for
+# sys/mount.h's MS_* rows, COMPAT-34). One printed row per line.
+# differences row 'siginfo_t and union sigval in <signal.h> ...' (D-X.129): sys/param.h includes <signal.h>, and
+# resolv.h and arpa/nameser.h include <sys/param.h> (ruling #6406)
+differs arpa/nameser.h siginfo_t typedef table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+differs resolv.h siginfo_t typedef table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+differs sys/param.h siginfo_t typedef table [!c89,c99,c11,c17,c2x,posix1,posix2,xopen,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,isoc99,isoc11,isoc2x,time64only]
+# differences row 'Reserved implementation names of the reference's headers' (D-X.118, ruling #6443): the reserved
+# typedefs in the strict-mode configurations of sys/wait.h and wait.h
+differs sys/wait.h __ino64_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]
+differs sys/wait.h __off_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]
+differs sys/wait.h __pid_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]
+differs wait.h __ino64_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]
+differs wait.h __off_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]
+differs wait.h __pid_t typedef table [!time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,isoc99,isoc11,isoc2x,time64only]

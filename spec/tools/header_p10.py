@@ -10,7 +10,9 @@ with the system's C library (the headers' ABI is what is under test). Both must 
 
 * FD_SET, FD_ISSET, FD_CLR, FD_ZERO over every descriptor 0..1023 (the words that change, and the answers);
 * major, minor and makedev over the edge values and 20000 pseudo-random 64-bit device numbers, and makedev (major, minor)
-  against the original.
+  against the original;
+* the <sys/wait.h> status macros (WIFEXITED, WEXITSTATUS, WIFSIGNALED, WTERMSIG, WIFSTOPPED, WSTOPSIG, WIFCONTINUED,
+  WCOREDUMP, WCOREFLAG) over every 16-bit status.
 
 And the program built on libniji's headers must bind to no `gnu_dev_*` symbol (a call is expanded in place) and must
 bind to `__fdelt_chk` (the descriptor range check). Prints one FAIL line per difference and `header_p10: N failed`;
@@ -28,6 +30,7 @@ PROGRAM = r"""
 #include <stdio.h>
 #include <sys/select.h>
 #include <sys/sysmacros.h>
+#include <sys/wait.h>
 
 int main (void)
 {
@@ -62,6 +65,9 @@ int main (void)
       unsigned int ma = major (d), mi = minor (d);
       printf ("dev %llx: %x %x %llx\n", d, ma, mi, (unsigned long long) makedev (ma, mi));
     }
+  for (int st = 0; st < 0x10000; st++)
+    printf ("wait %x: %d %d %d %d %d %d %d %d %d\n", st, WIFEXITED (st), WEXITSTATUS (st), WIFSIGNALED (st),
+            WTERMSIG (st), WIFSTOPPED (st), WSTOPSIG (st), WIFCONTINUED (st), WCOREDUMP (st) != 0, WCOREFLAG);
   return 0;
 }
 """

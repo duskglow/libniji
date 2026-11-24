@@ -8,7 +8,6 @@
 
 __NIJI_BEGIN_C
 
-@@needs signal.h
 @@owns-macro h_errno
 @@emit
 

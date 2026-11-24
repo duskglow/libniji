@@ -1,0 +1,17 @@
+@@generated
+/* sys/ioctl.h: ioctl(2), the terminal and socket request numbers (ioctl_tty(2)). The kernel's <asm/ioctls.h>
+   supplies the request encoding (TCSETS2 is spelled with it); the rest comes from the tables. */
+#ifndef __NIJI_H_sys_ioctl_h
+#define __NIJI_H_sys_ioctl_h 1
+
+#include <features.h>
+#include <asm/ioctls.h>
+
+__NIJI_BEGIN_C
+
+@@owns TCSETS2
+@@emit
+
+__NIJI_END_C
+
+#endif
