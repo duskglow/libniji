@@ -1,6 +1,6 @@
 {"task": "LD-START-MAPS-2", "model": "opus", "tokens": null,
  "result": "merged next (CI red gone: hot_text_products 37/37); `ld.so PROGRAM` maps the program from its headers too; held-pages krp vs next: kernel -113k empty, -113k true, -240k ls, -269k sed per start; total user+kernel -111k/-109k/-237k/-262k; still +87k/+127k/+422k/+545k over glibc 2.39 (target not reached)",
- "branch": "task/ld-start-maps-2", "head": null,
+ "branch": "task/ld-start-maps-2", "head": "9e0b3ed92",
  "gate": {"affected": "direct tier: all steps ok (ld-start-maps-2-gate); plants 16/16 CAUGHT, no WARN; cargo xtask test ok (7265 + 4850 + 129 + 46 passed); hot_text_products 37/37", "peak": "3.8G"},
  "accepted_first_attempt": null,
  "rulings": [],
