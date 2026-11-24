@@ -20,4 +20,5 @@
  "improvement": "Bounds on least-RLIMIT_AS differences should be page-exact and swept over the 16 MiB layout phase (stack-limit shift): one-layout zero-headroom bounds red unrelated stories whenever a library's size changes.",
  "next_step": "Coordinator: land (FULL gate on the train); route the mei locale-environment reds and HEAP-SEGMENT-GROWTH-ROOM.",
  "report_file": "handoff/HEAP-FIND-DEPTH-NEED.md",
- "jobs": ["mei:heap-find-depth-need-2-gate", "mei:heap-find-depth-need-2-plants2", "mei:heap-find-depth-need-2-startup", "mei:heap-find-depth-need-2-lint3"]}
+ "jobs": ["mei:heap-find-depth-need-2-gate", "mei:heap-find-depth-need-2-plants2", "mei:heap-find-depth-need-2-startup", "mei:heap-find-depth-need-2-fullprof", "mei:heap-find-depth-need-2-lint3"],
+ "job_results": {"gate": "rc 1: 10450 passed, the 4 host-locale tests failed (x2 passes)", "plants2": "2 of 2 CAUGHT", "startup": "rc 1: static ok; cargo xtask test 7153 passed, the same 4 host-locale tests failed", "fullprof": "rc 0: full-profile so + hot_text_products 33 passed", "lint3": "rc 0: clippy -D warnings, static, the find test (33572 <= 33576)"}}

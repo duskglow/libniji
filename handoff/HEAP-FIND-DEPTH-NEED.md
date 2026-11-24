@@ -51,7 +51,8 @@ On mei the test reads 33048 x4, 33304, 33572, 33560, 33304 (worst 33572 at 10240
   11-23 (06:32 / 18:10); `ctype-objects-setlocale-2-gate` (role s4, 18:44) failed the same 4; CI on mei passed
   them all evening, including the train with this code (ba4f67797). The only library change is EXACT_BLOCKERS.
   The find bound and s03 passed in it. `cargo xtask test` and the full-profile checks did not run in its `&&`
-  chain: they ran in `heap-find-depth-need-2-startup` (with static) on the final head; result in the report json.
+  chain: `heap-find-depth-need-2-startup` (static ok; `cargo xtask test` 7153 passed, the same 4 failed, nothing
+  else) and `heap-find-depth-need-2-fullprof` (full-profile `so` + hot_text_products: 33 passed, rc 0).
 - keke (Zen 1) NOT re-measured this leg (role is mei). Expected to pass: its 16 KiB-grid needs (d3 15296, d200k
   48592 at the default layout) put its exact over-d3 at <= 33312 at that phase, and its d3 is the larger one.
 
