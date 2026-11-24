@@ -3006,6 +3006,9 @@ pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 /// `/usr/sbin/zic`), `target/niji/zdump` (`/usr/bin/zdump`) and the test links under `target/niji-test`.
 pub(crate) const ZIC_TEST: &str = "target/niji-test/zic";
 pub(crate) const ZDUMP_TEST: &str = "target/niji-test/zdump";
+/// gencat (UTIL-14, spec §31.12): `csys/util/gencat.c` (the catalog source compiler and D.2.2 writer), linked as
+/// getent is: `target/niji/gencat` (libc-dev-bin's `/usr/bin/gencat`) and the test link `target/niji-test/gencat`.
+pub(crate) const GENCAT_TEST: &str = "target/niji-test/gencat";
 
 fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
@@ -3015,7 +3018,8 @@ fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
 fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)?;
     run_dynamic_util(root, cc, "zic", ZIC_TEST, cdebug)?;
-    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)
+    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "gencat", GENCAT_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
@@ -4123,7 +4127,7 @@ mod tests {
     use super::*;
 
     /// XTASK-STALE-PRODUCTS (no spec clause: the product build's tooling): a program an earlier build of another
-    /// tree left in the products directory (`gencat`) is gone once a build starts there, and the manifest lint passes
+    /// tree left in the products directory (`old-tool-not-a-product`) is gone once a build starts there, and the manifest lint passes
     /// on what the build then makes; the other commands' directories and their files stay.
     #[test]
     fn a_product_build_leaves_no_earlier_product_for_the_manifest_lint() {
@@ -4151,7 +4155,7 @@ mod tests {
         }
         // What an earlier build left: a program no step of this tree makes, a product this tree makes, a link,
         // a header, a charmap, the profile marker.
-        for (f, text) in [("gencat", "stale"), ("libc.so.6", "old"), ("include/sys/old.h", ""), ("charmaps/OLD-CHARMAP", ""), (".profile", "release\n")] {
+        for (f, text) in [("old-tool-not-a-product", "stale"), ("libc.so.6", "old"), ("include/sys/old.h", ""), ("charmaps/OLD-CHARMAP", ""), (".profile", "release\n")] {
             fs::write(dir.join(f), text).unwrap();
         }
         std::os::unix::fs::symlink("libc.so.6", dir.join("libold.so")).unwrap();
@@ -4169,7 +4173,7 @@ mod tests {
         let o = Command::new("python3").arg(root.join("tools/deb/manifest.py")).arg("lint").arg("--products").arg(&dir).output().unwrap();
         let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
         assert!(o.status.success() && out.starts_with("manifest: OK"), "manifest lint on the products after the build started:\n{out}");
-        assert_eq!(dropped_products(&dir, &cleared), ["gencat", "libold.so"], "cleared: {cleared:?}");
+        assert_eq!(dropped_products(&dir, &cleared), ["libold.so", "old-tool-not-a-product"], "cleared: {cleared:?}");
         let mut left: Vec<String> = fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         left.sort();
         let mut want: Vec<String> = OTHER_COMMANDS.iter().map(|d| d.to_string()).chain(made).collect();

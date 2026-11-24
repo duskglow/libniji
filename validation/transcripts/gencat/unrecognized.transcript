@@ -1,0 +1,11 @@
+name: an unknown long option: message and Try line, exit 64
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: --frob
+status: exit 64
+stdout:
+stderr:
+| gencat: unrecognized option '--frob'
+| Try `gencat --help' or `gencat --usage' for more information.

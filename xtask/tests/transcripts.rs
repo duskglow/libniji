@@ -71,6 +71,22 @@ fn the_committed_iconv_transcripts_hold() {
 }
 
 #[test]
+fn the_committed_gencat_transcripts_hold() {
+    // Trace: s31_12_c_1, s31_12_i_1, s31_12_g_1, s31_12_f_1, s31_1_c_2. libniji's gencat (the test link `cargo
+    // xtask so` builds, UTIL-14) against the reference where installed and the record: options, messages, statuses,
+    // the -H header and the written catalogs byte for byte.
+    let p = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root").join("target/niji-test/gencat");
+    if !p.is_file() {
+        println!("SKIPPED: target/niji-test/gencat is not built (run `cargo xtask so` first)");
+        return;
+    }
+    let (code, text) = check(&["validation/transcripts/gencat"]);
+    println!("{text}");
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
+}
+
+#[test]
 fn every_name_iconv_lists_converts() {
     // Trace: s31_6_g_3 (`-l`: exactly the names libniji can convert; this checks every listed name converts).
     let Some(iconv) = iconv_test_link() else { return };

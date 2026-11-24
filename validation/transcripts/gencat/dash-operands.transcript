@@ -1,0 +1,15 @@
+name: - as output and input
+clause: s31_12_i_1
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: -
+arg: -
+stdin:
+| $set 3
+| 7 seven
+status: exit 0
+stdout:
+|~ \xde\x08\x04\x96\x01\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x07\x00\x00\x00\x00seven\x00
+stderr:

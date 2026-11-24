@@ -1,0 +1,21 @@
+name: an octal escape stops before its value passes 0377; above 0177 it is invalid
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| 1 a\\400b
+| 2 c\\0401d
+| 3 e\\0777f
+| 4 g\\3770h
+| 5 i\\1774j
+| 6 k\\04012l
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:4: invalid escape sequence
+written-file: o.cat sha256 b96f3fd6b25225cb133a2a63492159f51cd83f931b2cc57ccff957c4a800719c size 186

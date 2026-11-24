@@ -61,6 +61,8 @@ fn niji_default(root: &Path, command: &str) -> Option<PathBuf> {
         "ldd" => Some(root.join(crate::so::LDD_TEST)).filter(|p| p.is_file()),
         // UTIL-12: the shipped localedef (static, no C library: the same program runs anywhere).
         "localedef" => Some(root.join("target/niji/localedef")).filter(|p| p.is_file()),
+        // UTIL-14: the test link of gencat, as getent's.
+        "gencat" => Some(root.join(crate::so::GENCAT_TEST)).filter(|p| p.is_file()),
         _ => None,
     }
 }

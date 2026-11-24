@@ -1,4 +1,4 @@
-libniji C library: development programs (placeholder)
+libniji C library: development programs
  libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
- The development program gencat is not part of this build yet; the
- package exists so that libc6-dev's dependency is met.
+ This package holds the programs $programs, which
+ compile message-catalog sources into the catalogs catopen and catgets read.
