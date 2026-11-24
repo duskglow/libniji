@@ -37,6 +37,10 @@
 //! alternatives), an item costs at most `n + 1` entry lookups and an `O(n)` union or complement
 //! each, and a pass that stops for a missing entry resumes once per entry computed: the work is
 //! `O(m n^3)` at worst, polynomial whatever the nesting.
+//!
+//! A pattern without groups (every pattern without `FNM_EXTMATCH`) has none of this: it compiles
+//! straight to its items, with no queue and no alternatives, and matches item by item, with no
+//! memo.
 
 #![allow(clippy::arithmetic_side_effects)] // positions and counts are bounded by the lengths of the pattern and the string
 
@@ -117,16 +121,16 @@ struct Prog {
     /// The pattern's own sequence first (`root` items), then the groups' alternatives.
     items: TryVec<Item>,
     root: usize,
-    /// Each alternative's items, a range of `items` (empty for a pattern without groups: no
-    /// allocation but the items).
-    seqs: TryVec<core::ops::Range<usize>>,
-    /// How many groups there are.
+    /// Each alternative's items, a range of `items`; `None` for a pattern without groups, which
+    /// then holds nothing but its items (nothing else to make or drop).
+    seqs: Option<TryVec<core::ops::Range<usize>>>,
+    /// How many groups there are: 0 matches without the memo ([`Matcher::run_prog`]).
     groups: usize,
 }
 
 impl Prog {
     fn seq(&self, k: usize) -> &[Item] {
-        self.seqs.as_slice().get(k).and_then(|r| self.items.as_slice().get(r.clone())).unwrap_or(&[])
+        self.seqs.as_ref().and_then(|s| s.as_slice().get(k)).and_then(|r| self.items.as_slice().get(r.clone())).unwrap_or(&[])
     }
 
     fn root(&self) -> &[Item] {
@@ -337,18 +341,24 @@ impl Parser<'_> {
     /// alternatives are queued (a list on the heap) and parsed after the sequence holding it, so
     /// each sequence's items lie together and nesting never recurses. A group's text is scanned
     /// once per group around it: the work is at most the pattern's length times its nesting depth.
+    /// Without `FNM_EXTMATCH` there are no groups: the items are parsed straight, with no queue.
     fn program(&self, to: usize) -> Result<Prog> {
         // At most one item per character.
-        let mut prog = Prog { items: TryVec::with_capacity(to)?, root: 0, seqs: TryVec::new(), groups: 0 };
+        let mut prog = Prog { items: TryVec::with_capacity(to)?, root: 0, seqs: None, groups: 0 };
+        if self.flags & EXTMATCH == 0 {
+            self.seq(0, to, &mut prog, None)?;
+            prog.root = prog.items.len();
+            return Ok(prog);
+        }
         // The queue and the alternatives' ranges allocate only once there is a group.
         let mut todo = Todo::new();
-        self.seq(0, to, &mut prog, &mut todo)?;
+        self.seq(0, to, &mut prog, Some(&mut todo))?;
         prog.root = prog.items.len();
         while let Some((k, from, to)) = todo.pop() {
             let start = prog.items.len();
-            self.seq(from, to, &mut prog, &mut todo)?;
+            self.seq(from, to, &mut prog, Some(&mut todo))?;
             let end = prog.items.len();
-            if let Some(r) = prog.seqs.as_mut_slice().get_mut(k) {
+            if let Some(r) = prog.seqs.as_mut().and_then(|s| s.as_mut_slice().get_mut(k)) {
                 *r = start..end;
             }
         }
@@ -358,10 +368,11 @@ impl Parser<'_> {
     /// Queue the alternatives of a group's text `i..close` (split at its top-level `|`) as new
     /// sequences: their indices in `prog.seqs`.
     fn alternatives(&self, i: usize, close: usize, prog: &mut Prog, todo: &mut Todo) -> Result<core::ops::Range<usize>> {
-        let first = prog.seqs.len();
+        let seqs = prog.seqs.get_or_insert_with(TryVec::new);
+        let first = seqs.len();
         let mut queue = |from: usize, to: usize| -> Result<()> {
-            todo.push((prog.seqs.len(), from, to))?;
-            prog.seqs.push(0..0)
+            todo.push((seqs.len(), from, to))?;
+            seqs.push(0..0)
         };
         let mut start = i;
         let mut level = 0usize;
@@ -384,11 +395,12 @@ impl Parser<'_> {
             j += 1;
         }
         queue(start, close)?;
-        Ok(first..prog.seqs.len())
+        Ok(first..seqs.len())
     }
 
-    /// Parse the sequence `from..to` onto `prog.items`, queueing its groups' alternatives.
-    fn seq(&self, from: usize, to: usize, prog: &mut Prog, todo: &mut Todo) -> Result<()> {
+    /// Parse the sequence `from..to` onto `prog.items`, queueing its groups' alternatives on
+    /// `todo` (`None`: the pattern has no groups).
+    fn seq(&self, from: usize, to: usize, prog: &mut Prog, mut todo: Option<&mut Todo>) -> Result<()> {
         // The items are pushed onto a local vector (held in registers, not reloaded through
         // `prog` after every push) and handed back at the end; on an error `prog` is dropped.
         let mut items = core::mem::replace(&mut prog.items, TryVec::new());
@@ -406,7 +418,7 @@ impl Parser<'_> {
                 i += 2;
                 continue;
             }
-            if self.flags & EXTMATCH != 0 && self.at(i + 1) == Some(ch(b'(')) && i + 1 < to {
+            if let Some(todo) = todo.as_deref_mut().filter(|_| self.at(i + 1) == Some(ch(b'(')) && i + 1 < to) {
                 let op = match u8::try_from(c) {
                     Ok(b'?') => Some(Op::Optional),
                     Ok(b'*') => Some(Op::Many),
@@ -716,8 +728,19 @@ impl Matcher<'_> {
         Ok(Some(cur))
     }
 
-    /// The positions the whole of `prog` reaches from `start` (with a memo for this match).
+    /// The positions the whole of `prog` reaches from `start`: item by item for a pattern
+    /// without groups, with a memo for this match otherwise.
     fn run_prog(&self, prog: &Prog, start: Bits) -> Result<Bits> {
+        if prog.groups == 0 {
+            let mut cur = start;
+            for it in prog.root() {
+                if !cur.any() {
+                    break;
+                }
+                cur = self.step(it, &cur)?;
+            }
+            return Ok(cur);
+        }
         self.run(prog, prog.root(), start, &mut Memo::new(), false)
     }
 
@@ -866,11 +889,19 @@ impl Matcher<'_> {
     /// per item costs the plain (group-free) match a frame and a copy of the result each.
     #[inline(always)]
     fn item(&self, prog: &Prog, it: &Item, from: &Bits, memo: &mut Memo, nested: bool) -> Result<Bits> {
-        let n = self.n();
-        self.count(n / 64 + 1);
         if let Item::Group { op, alts, .. } = it {
+            self.count(self.n() / 64 + 1);
             return if nested { self.nested(prog, it, from, memo) } else { self.group(prog, *op, alts, from, memo) };
         }
+        self.step(it, from)
+    }
+
+    /// A plain item's step (a group reaches nothing here: [`Matcher::item`] evaluates groups).
+    /// Inlined into [`Matcher::item`] and the group-free loop of [`Matcher::run_prog`].
+    #[inline(always)]
+    fn step(&self, it: &Item, from: &Bits) -> Result<Bits> {
+        let n = self.n();
+        self.count(n / 64 + 1);
         let mut out = Bits::new(n)?;
         match it {
             Item::Lit(x) => {
@@ -992,7 +1023,7 @@ impl Pattern {
         };
         let multi = if mode.multibyte() { compile(mode)? } else { None };
         // Every byte string is valid text byte by byte.
-        let bytes = compile(Mode::Bytes)?.unwrap_or_else(|| Prog { items: TryVec::new(), root: 0, seqs: TryVec::new(), groups: 0 });
+        let bytes = compile(Mode::Bytes)?.unwrap_or_else(|| Prog { items: TryVec::new(), root: 0, seqs: None, groups: 0 });
         Ok(self.compiled.get_or_init(|| Compiled { multi, bytes }))
     }
 
@@ -1494,6 +1525,72 @@ mod tests {
             }
         }
         assert!(decided > 100_000, "the direct matcher decides most cases ({decided})");
+    }
+
+    /// A pattern without `FNM_EXTMATCH` compiles with no group structures (no alternatives, no
+    /// groups, even when it holds group-like text), and its item-by-item match reaches, at every
+    /// string position, what the group machinery (with its memo) reaches: every pattern of up to
+    /// three tokens over every string of up to three characters of `a é . /`, in C.UTF-8 (the
+    /// text items) and C (the byte items), under the flags that change a step.
+    // no spec clause: speed-up of the general matcher (FNMATCH-GROUP-FREE-COMPILE); XCU 2.13 defines the results.
+    #[test]
+    fn a_group_free_pattern_matches_as_the_group_machinery_does() {
+        let toks: [&[u8]; 11] = [b"a", "é".as_bytes(), b"*", b"?", "[aé]".as_bytes(), b"[!a]", b"[[:alpha:]]", b"\\*", b".", b"/", b"*(a)"];
+        let alphabet: [&[u8]; 4] = [b"a", "é".as_bytes(), b".", b"/"];
+        let mut strings: Vec<Vec<u8>> = std::vec![Vec::new()];
+        let mut frontier = strings.clone();
+        for _ in 0..3 {
+            let mut next = Vec::new();
+            for s in &frontier {
+                for c in alphabet {
+                    let mut t = s.clone();
+                    t.extend_from_slice(c);
+                    next.push(t);
+                }
+            }
+            strings.extend(next.iter().cloned());
+            frontier = next;
+        }
+        let mut patterns: Vec<Vec<u8>> = std::vec![Vec::new()];
+        let mut level = patterns.clone();
+        for _ in 0..3 {
+            let mut next = Vec::new();
+            for pfx in &level {
+                for t in toks {
+                    let mut q = pfx.clone();
+                    q.extend_from_slice(t);
+                    next.push(q);
+                }
+            }
+            patterns.extend(next.iter().cloned());
+            level = next;
+        }
+        let mut compared = 0usize;
+        for loc in [Locale::C, Locale::c_utf8(b"C.UTF-8")] {
+            let mode = Mode::of(&loc);
+            for flags in [0, PATHNAME | PERIOD, CASEFOLD | NOESCAPE, LEADING_DIR | PERIOD] {
+                for pat in &patterns {
+                    let p = Pattern::new(pat, flags, &loc).unwrap();
+                    let c = p.items(&loc).unwrap();
+                    let prog = c.multi.as_ref().unwrap_or(&c.bytes);
+                    assert!(prog.seqs.is_none() && prog.groups == 0, "{:?}", std::string::String::from_utf8_lossy(pat));
+                    for s in &strings {
+                        let Some(u) = decode(mode, s, false).unwrap() else { continue };
+                        let mt = Matcher { s: &u.chars, flags, mode, loc: &loc, work: &p.work };
+                        let start = Bits::single(u.chars.len(), 0).unwrap();
+                        let plain = mt.run_prog(prog, start.try_clone().unwrap()).unwrap();
+                        let general = mt.run(prog, prog.root(), start, &mut Memo::new(), false).unwrap();
+                        assert!(plain.same(&general), "{:?} {:?} flags {flags}", std::string::String::from_utf8_lossy(pat), std::string::String::from_utf8_lossy(s));
+                        compared += 1;
+                    }
+                }
+            }
+        }
+        assert!(compared > 500_000, "{compared}");
+        // With `FNM_EXTMATCH` the same text is a group, matched through the memo.
+        let p = Pattern::new(b"a*(a)", EXTMATCH, &Locale::C).unwrap();
+        let c = p.items(&Locale::C).unwrap();
+        assert!(c.bytes.seqs.is_some() && c.bytes.groups == 1);
     }
 
     /// Every ASCII character has the same classes in `C.UTF-8` through the wide path (which
