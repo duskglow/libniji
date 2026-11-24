@@ -26,8 +26,6 @@ canon_prepare() { # the tree's data files for this run's traces, in $work/hostda
     o=$(bash "$here/canon_host.sh" "$work/hostdata") || exit 1
     printf '%s\n' "$o" | sed '$d'
     hot_redirect=$(printf '%s\n' "$o" | tail -1)
-    # GATE-HONEST-METRICS (#8134): the same files with the locale from its per-locale directory (no archive).
-    hot_redirect_perdir=$(cat "$work/hostdata/perdir.redirect")
 }
 
 trace_tagged() { # <tier> <env assignment>... -- <program> <args...>: run_traced into names.<n> (n: the

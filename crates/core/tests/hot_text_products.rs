@@ -1957,11 +1957,12 @@ const TRACED_STARTUP_MODES: [&str; 4] = ["true", "locale", "tool", "fork"];
 /// function of `libc.a` that `exe` (the probe linked with map text `map`) runs in [`TRACED_STARTUP_MODES`]
 /// lies inside the hot group's address range ([`hot_text_range`]); one line per function outside it, naming
 /// the function and its input section. Traced with the build's tracer (`tools/hottext/trace_gdb.py`, a
-/// one-shot breakpoint on every function) on the host's own CPU and the host's own data files (no
-/// redirection), with the environment the fault probes run with (`LANG=en_US.UTF-8`, stdin `/dev/null`);
-/// `locale` and `tool` again with the build's data files in both locale load forms, the archive and the
-/// per-locale directories (`canon_host.sh`'s two redirections), so neither form goes unchecked on a host whose
-/// own layout is the other one (GATE-HONEST-METRICS-2, #8200). Where a function lies does
+/// one-shot breakpoint on every function) on the host's own CPU, with the environment the fault probes run
+/// with (`LANG=en_US.UTF-8`, stdin `/dev/null`). One locale load form is checked, the locale-archive (the CI
+/// host's default, and the form the build traces): `true` and `fork`, which load no locale, run with the host's
+/// own data files (no redirection); `locale` and `tool` run with the build's data files in their archive form
+/// (`canon_host.sh`'s redirection), whatever form the host's own files take (GATE-HONEST-METRICS-4, owner
+/// ruling #8323: grouping the per-locale-directory load path is held until it is measured). Where a function lies does
 /// not depend on any pad: group membership is by section, so one link checks every text phase, and a
 /// function outside the group is named whether or not a pad happens to make it straddle a window (the count
 /// equality it replaces saw it only then). No spec clause (layout of the products).
@@ -1971,21 +1972,20 @@ fn startup_text_outside_the_hot_group(exe: &Path, map: &str) -> Vec<String> {
     let inputs = text_inputs(map);
     let dir = exe.parent().expect("probe directory");
     let tracer = root().join("tools/hottext/trace_gdb.py");
-    // GATE-HONEST-METRICS-2 (#8200): the host's own files run one locale load form only (a host gained a
-    // locale-archive and a plant dropping the per-directory trace from the build passed), so `locale` and `tool`
-    // are traced again in each form, with the build's data files (`canon_host.sh`): its archive redirection
-    // (last line) and its per-locale-directory one (`perdir.redirect`).
+    // GATE-HONEST-METRICS-4 (#8323): the locale load form is pinned to the archive. The host's own files run
+    // whichever form the host has (a host without locale-archive reads one directory per locale), so the modes
+    // that load a locale take the build's data files (`canon_host.sh`): its archive redirection (last line).
     let canon = dir.join("canon");
     let o = Command::new("bash").arg(root().join("tools/hottext/canon_host.sh")).arg(&canon).stdin(Stdio::null()).output().expect("bash");
     assert!(o.status.success(), "canon_host.sh failed ({}): {}", o.status, String::from_utf8_lossy(&o.stderr).trim());
     let archive = String::from_utf8_lossy(&o.stdout).lines().next_back().unwrap_or_default().to_string();
-    let perdir = std::fs::read_to_string(canon.join("perdir.redirect")).expect("canon_host.sh writes perdir.redirect").trim().to_string();
-    assert!(archive.contains("/usr/lib/locale/locale-archive=") && perdir.contains("/usr/lib/locale/="), "canon_host.sh redirections: {archive:?}, {perdir:?}");
-    let host = TRACED_STARTUP_MODES.iter().map(|&m| (m, "host files", ""));
-    let forms = [("archive", archive.as_str()), ("per-locale directory", perdir.as_str())];
-    let canon_runs = ["locale", "tool"].into_iter().flat_map(|m| forms.iter().map(move |&(f, r)| (m, f, r)));
+    assert!(archive.contains("/usr/lib/locale/locale-archive="), "canon_host.sh archive redirection: {archive:?}");
+    let runs = TRACED_STARTUP_MODES.iter().map(|&m| match m {
+        "locale" | "tool" => (m, "build files, locale-archive", archive.as_str()),
+        _ => (m, "host files", ""),
+    });
     let mut ran = std::collections::BTreeMap::new();
-    for (n, (mode, form, redirect)) in host.chain(canon_runs).enumerate() {
+    for (n, (mode, form, redirect)) in runs.enumerate() {
         let (names, addrs, log) = (dir.join(format!("names.{n}.{mode}")), dir.join(format!("addrs.{n}.{mode}")), dir.join(format!("gdb.{n}.{mode}.log")));
         let o = Command::new("gdb")
             .args(["-nx", "-batch", "-x"])
@@ -2036,7 +2036,7 @@ fn startup_text_outside_the_hot_group(exe: &Path, map: &str) -> Vec<String> {
             outside.push(format!("{mode}: {} at {a:#x} ({}, {}) runs outside the hot group {lo:#x}..{hi:#x}", names.get(&a).map_or("?".into(), |n| n.join("/")), s.0, s.3));
         }
     }
-    eprintln!("traced start-up text: {} functions ran ({library} of libc.a) in modes {TRACED_STARTUP_MODES:?} (host files; locale and tool also with each locale form); {} outside the hot group {lo:#x}..{hi:#x}", ran.len(), outside.len());
+    eprintln!("traced start-up text: {} functions ran ({library} of libc.a) in modes {TRACED_STARTUP_MODES:?} (true and fork with the host's files, locale and tool with the build's locale-archive); {} outside the hot group {lo:#x}..{hi:#x}", ran.len(), outside.len());
     outside
 }
 
