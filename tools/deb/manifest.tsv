@@ -497,6 +497,7 @@ system	locales	usr/share/i18n/locales/tr_CY	file	locale-sources/tr_CY	0644	none	
 system	locales	usr/share/i18n/locales/tr_TR	file	locale-sources/tr_TR	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/translit_combining	file	locale-sources/translit_combining	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/translit_compat	file	locale-sources/translit_compat	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
+system	locales	usr/share/i18n/locales/translit_shared	file	locale-sources/translit_shared	0644	none	LOCALE-TRANSLIT-TABLE: read by localedef -i, generated from the probed transliterations
 system	locales	usr/share/i18n/locales/ts_ZA	file	locale-sources/ts_ZA	0644	none	LOCALE-PROBE-GEN: read by localedef -i, generated from a black-box probe of the reference's locales
 system	locales	usr/share/i18n/locales/tt_RU	file	locale-sources/tt_RU	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/tt_RU@iqtelif	file	locale-sources/tt_RU@iqtelif	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR

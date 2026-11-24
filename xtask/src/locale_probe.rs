@@ -34,6 +34,12 @@ pub struct Probe {
     /// Per probed name, `ctype.<item>` -> where it differs from en_US.utf8's
     /// (`spec/locale-probe/ctype-diff.tsv`).
     ctype: BTreeMap<String, BTreeMap<String, CtypeDiff>>,
+    /// The transliteration table (`spec/locale-probe/translit.tsv`): code point -> its
+    /// alternatives in the order they are tried.
+    translit: BTreeMap<u32, Vec<Vec<u32>>>,
+    /// Per probed legacy-codeset name, its own entries for the code points its strings hold:
+    /// code point -> the result in its codeset, None for none.
+    own_translit: BTreeMap<String, Vec<(u32, Option<Vec<u32>>)>>,
 }
 
 /// One LC_CTYPE item of a probed name where it differs from en_US.utf8's: the code points it
@@ -136,7 +142,101 @@ impl Probe {
                 Some((name, f.filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.to_string())).collect()))
             })
             .collect();
-        Ok(Probe { locs, prints, ctype: BTreeMap::new() })
+        Ok(Probe { locs, prints, ctype: BTreeMap::new(), translit: BTreeMap::new(), own_translit: BTreeMap::new() })
+    }
+
+    /// Adds the transliteration table (`spec/locale-probe/translit.tsv`, tools/probe/translit_table.py):
+    /// `<cp>\t<alt>;<alt>...` (each alternative space-separated hex code points) and
+    /// `@<name>\t<cp>\t<result or ->`.
+    pub fn with_translit(mut self, text: &str) -> Result<Probe, String> {
+        for line in text.lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
+            let bad = || format!("locale-probe translit: bad row {line:?}");
+            let hex = |s: &str| u32::from_str_radix(s, 16).ok().filter(|&c| c <= 0x10_ffff && !(0xd800..0xe000).contains(&c));
+            let string = |s: &str| s.split(' ').map(hex).collect::<Option<Vec<u32>>>().filter(|v| !v.is_empty());
+            match line.split('\t').collect::<Vec<_>>()[..] {
+                [name, cp, res] if name.starts_with('@') => {
+                    let res = if res == "-" { None } else { Some(string(res).ok_or_else(bad)?) };
+                    self.own_translit.entry(name[1..].to_string()).or_default().push((hex(cp).ok_or_else(bad)?, res));
+                }
+                [cp, alts] => {
+                    let alts = alts.split(';').map(string).collect::<Option<Vec<_>>>().ok_or_else(bad)?;
+                    if self.translit.insert(hex(cp).ok_or_else(bad)?, alts).is_some() {
+                        return Err(format!("locale-probe translit: {cp} twice"));
+                    }
+                }
+                _ => return Err(bad()),
+            }
+        }
+        Ok(self)
+    }
+
+    /// The shared transliteration table, code point order.
+    pub fn translit(&self) -> &BTreeMap<u32, Vec<Vec<u32>>> {
+        &self.translit
+    }
+
+    /// The own transliteration entries of the source `src` (`ll_CC[@modifier]`): those of every
+    /// probed legacy-codeset name compiled from it (`ll_CC`, `ll_CC.<codeset>`, with the same
+    /// modifier), merged per code point: the results in name order, then the shared table's
+    /// alternatives; an empty list where the names give none (a code point the locale does not
+    /// transliterate). Err when one name gives none and another a result: no single entry says both.
+    pub fn own_translit(&self, src: &str) -> Result<BTreeMap<u32, Vec<Vec<u32>>>, String> {
+        let (base, m) = src.split_once('@').map_or((src, ""), |(b, m)| (b, m));
+        let mut out: BTreeMap<u32, (bool, Vec<Vec<u32>>)> = BTreeMap::new();
+        for (name, rows) in &self.own_translit {
+            let (nb, nm) = name.split_once('@').map_or((name.as_str(), ""), |(b, m)| (b, m));
+            if nm != m || nb.split('.').next() != Some(base) {
+                continue;
+            }
+            for (cp, res) in rows {
+                let e = out.entry(*cp).or_insert((res.is_none(), Vec::new()));
+                if e.0 != res.is_none() {
+                    return Err(format!("locale-probe translit: {src} U+{cp:04X}: one name gives none, another a result"));
+                }
+                if let Some(r) = res.as_ref().filter(|r| !e.1.contains(r)) {
+                    e.1.push(r.clone());
+                }
+            }
+        }
+        Ok(out
+            .into_iter()
+            .map(|(cp, (none, mut alts))| {
+                if !none {
+                    alts.extend(self.translit.get(&cp).into_iter().flatten().filter(|a| !alts.contains(a)).cloned().collect::<Vec<_>>());
+                }
+                (cp, alts)
+            })
+            .collect())
+    }
+
+    /// `text`, written in the single-byte `charmap` (one [`decode`] knows) through the
+    /// transliteration table as localedef does (probed, LOCALEDEF-TRANSLIT): a character the
+    /// codeset lacks takes `name`'s own entry, else the shared one: its first alternative the
+    /// codeset encodes whole; a character with none empties the whole string. None when the
+    /// codeset is not one [`decode`] knows.
+    fn in_codeset(&self, name: &str, text: &str, charmap: &str) -> Option<String> {
+        let table: BTreeMap<char, u8> = (0..=255u8).filter_map(|b| decode(&[b], charmap).ok().and_then(|s| s.chars().next()).map(|c| (c, b))).collect();
+        if table.len() < 256 {
+            return None;
+        }
+        let own: BTreeMap<u32, Option<&Vec<u32>>> = self.own_translit.get(name).into_iter().flatten().map(|(c, r)| (*c, r.as_ref())).collect();
+        let mut out = String::new();
+        for ch in text.chars() {
+            if table.contains_key(&ch) {
+                out.push(ch);
+                continue;
+            }
+            let alts: Vec<&Vec<u32>> = match own.get(&(ch as u32)) {
+                Some(r) => r.iter().copied().collect(),
+                None => self.translit.get(&(ch as u32)).into_iter().flatten().collect(),
+            };
+            let fit = alts.into_iter().find(|a| a.iter().all(|&c| char::from_u32(c).is_some_and(|c| table.contains_key(&c))));
+            match fit {
+                Some(a) => out.extend(a.iter().filter_map(|&c| char::from_u32(c))),
+                None => return Some(String::new()),
+            }
+        }
+        Some(out)
     }
 
     /// Adds the LC_CTYPE differences (`spec/locale-probe/ctype-diff.tsv`'s rows).
@@ -147,7 +247,9 @@ impl Probe {
 
     pub fn load(root: &Path) -> Result<Probe, String> {
         let rd = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
-        Probe::parse(&rd("spec/locale-probe/locales.tsv")?, &rd("spec/locale-probe/fingerprints.tsv")?)?.with_ctype_diff(&rd("spec/locale-probe/ctype-diff.tsv")?)
+        Probe::parse(&rd("spec/locale-probe/locales.tsv")?, &rd("spec/locale-probe/fingerprints.tsv")?)?
+            .with_ctype_diff(&rd("spec/locale-probe/ctype-diff.tsv")?)?
+            .with_translit(&rd("spec/locale-probe/translit.tsv")?)
     }
 
     /// Where the probed name's LC_CTYPE differs from en_US.utf8's, per item (`ctype.space`,
@@ -180,7 +282,18 @@ impl Probe {
         if raw.as_slice() == b"<absent>" {
             return Ok(None);
         }
-        let text = decode(raw, charmap).map_err(|e| format!("{name} {cat} {kw}: {e}"))?;
+        let mut text = decode(raw, charmap).map_err(|e| format!("{name} {cat} {kw}: {e}"))?;
+        // A legacy-codeset name's own value that is its UTF-8 sibling's written in the codeset
+        // through the transliteration table (U+202F as U+00A0 in ISO-8859-15) stands for the
+        // sibling's text: the source holds that, and the wide form keeps it.
+        if let Some(sib) = l.same_as.as_ref().and_then(|s| self.locs.get(s)).and_then(|o| o.rows.get(&key)).filter(|_| charmap != "UTF-8") {
+            let inner = |t: &str| t.strip_prefix('"').and_then(|t| t.strip_suffix('"')).map(str::to_string);
+            if let (Ok(sib), Some(own)) = (decode(sib, "UTF-8"), inner(&text)) {
+                if sib != text && inner(&sib).and_then(|s| self.in_codeset(name, &s, charmap)) == Some(own) {
+                    text = sib;
+                }
+            }
+        }
         Ok(Some(match text.strip_prefix('"').and_then(|t| t.strip_suffix('"')) {
             Some(s) if text.len() >= 2 => Val::Str(s.to_string()),
             _ => Val::Bare(text),
@@ -238,6 +351,45 @@ mod tests {
         assert!(p.ctype_diff("yy_ZZ").is_none());
         for bad in ["a\tctype.space\t0069>0130\n", "a\tctype.toupper\t+0069\n", "a\tctype.space\t\n", "a\tctype.space\t+110000\n", "a\tctype.space\n"] {
             assert!(Probe::parse(DUMP, PRINTS).unwrap().with_ctype_diff(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    /// A legacy name's own value that is its UTF-8 sibling's text through the table (U+202F as
+    /// U+00A0, `’` as `'`, a character without an entry emptying the string) reads as the
+    /// sibling's text; one the table does not give stays.
+    #[test]
+    fn a_legacy_value_the_table_explains_is_the_siblings_text() {
+        let dump = "# f\nxx_DE\t-\tcharmap\tISO-8859-15\nxx_DE\t-\tsame-as\txx_DE.utf8\n\
+            xx_DE\tLC_NUMERIC\tthousands_sep\t\"\\xa0\"\nxx_DE\tLC_TIME\td_fmt\t\"d'a\"\nxx_DE\tLC_TIME\tt_fmt\t\"\"\n\
+            xx_DE\tLC_ADDRESS\tcountry_name\t\"\\xa0\"\n\
+            xx_DE.utf8\t-\tcharmap\tUTF-8\nxx_DE.utf8\tLC_NUMERIC\tthousands_sep\t\"\\xe2\\x80\\xaf\"\n\
+            xx_DE.utf8\tLC_TIME\td_fmt\t\"d\\xe2\\x80\\x99a\"\nxx_DE.utf8\tLC_TIME\tt_fmt\t\"\\xe2\\x82\\xbd\"\n\
+            xx_DE.utf8\tLC_ADDRESS\tcountry_name\t\"\\xe2\\x80\\x99\"\n";
+        let p = Probe::parse(dump, PRINTS).unwrap();
+        assert_eq!(p.text("xx_DE", "LC_NUMERIC", "thousands_sep").unwrap(), "\u{a0}");
+        let p = p.with_translit("# t\n202F\t00A0;0020\n2019\t0027\n").unwrap();
+        assert_eq!(p.text("xx_DE", "LC_NUMERIC", "thousands_sep").unwrap(), "\u{202f}");
+        assert_eq!(p.text("xx_DE", "LC_TIME", "d_fmt").unwrap(), "d\u{2019}a");
+        assert_eq!(p.text("xx_DE", "LC_TIME", "t_fmt").unwrap(), "\u{20bd}");
+        assert_eq!(p.text("xx_DE", "LC_ADDRESS", "country_name").unwrap(), "\u{a0}");
+    }
+
+    /// A source's own entries merge those of its legacy names (same modifier) in name order, then
+    /// the shared alternatives; a name giving none where another gives a result is refused, as
+    /// is a malformed row.
+    #[test]
+    fn own_entries_merge_per_source_and_refuse_a_contradiction() {
+        let p = Probe::parse(DUMP, PRINTS)
+            .unwrap()
+            .with_translit("# t\n021B\t0074\n@ro_RO\t021B\t0163\n@ro_RO.iso88592\t021B\t0074\n@ro_RO@x\t2019\t-\n@uz_UZ\t02BB\t0027\n")
+            .unwrap();
+        assert_eq!(p.translit()[&0x21b], vec![vec![0x74]]);
+        assert_eq!(p.own_translit("ro_RO").unwrap(), BTreeMap::from([(0x21b, vec![vec![0x163], vec![0x74]])]));
+        assert_eq!(p.own_translit("ro_RO@x").unwrap(), BTreeMap::from([(0x2019, vec![])]));
+        assert!(p.own_translit("en_US").unwrap().is_empty());
+        assert!(p.with_translit("@ro_RO.koi8r\t021B\t-\n").unwrap().own_translit("ro_RO").is_err());
+        for bad in ["20AC\tzz\n", "20AC\n", "D800\t0041\n", "@x\t20AC\n", "20AC\t0041;\n", "20AC\t0041\n20AC\t0042\n", "@x\t20AC\t\n"] {
+            assert!(Probe::parse(DUMP, PRINTS).unwrap().with_translit(bad).is_err(), "{bad:?}");
         }
     }
 }
