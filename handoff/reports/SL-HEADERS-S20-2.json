@@ -1,0 +1,77 @@
+{
+ "task": "SL-HEADERS-S20-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Slice 20 switch ready: P4 C++ part 218 -> 0 FAIL (4 known: unshipped complex.h/tgmath.h); unshipped headers listed and documented (ruling #8419 B); callsite_probe --include fixed (host-header fallback, cxx98 -isystem); P4 part 2 rows routed to a follow-up (ruling #8420 A)",
+ "branch": "task/sl-headers-s20-2",
+ "head": "4b30fac10",
+ "gate": {
+  "affected": "FULL (escalated: generator inputs): the train's; test job sl-headers-s20-2-t6: niji_cc_headers 4 passed / 0 failed, P4 C++ part 0 FAIL (--no-noexcept per ruling #8420); sl-headers-s20-2-t5 (same head, with part 2): part 2 red, the follow-up's table",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "#8419 headers libniji does not ship (aio.h, complex.h, mqueue.h, proc_service.h, tgmath.h, thread_db.h, math-vector-fortran.h)",
+   "recommendation": "resolved B: known limitation, validation/headers_unshipped.tsv, release note; SL-HEADERS-COMPLEX-TGMATH briefed"
+  },
+  {
+   "item": "#8420 P4 part 2 (callsites/noexcept) differences",
+   "recommendation": "resolved A: tracked follow-up; table in handoff/SL-HEADERS-S20-report.md"
+  }
+ ],
+ "informational": [
+  "stdbit.h: 70 functions without the exception specification the reference gives them (C++17 noexcept is part of the function type): in the part 2 table for the follow-up",
+  "docs/RELEASE-NOTES.md released sections say the system flavour ships no C headers; the new note says what changes"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "C++ standard library headers x -std that fail to compile on libniji's headers (P4)",
+   "before": 218,
+   "after": 0,
+   "unit": "header x -std pairs (4 more known: unshipped C headers)",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane stage 2 (435-package build tier) on libniji's headers; SL-HEADERS-COMPLEX-TGMATH and the P4 part 2 follow-up start from the recorded lists",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "tooling",
+   "what": "callsite_probe --include runs to completion on libniji's headers (was: stopped at aio.h c89); cxx98 column readable (was: unknown for all)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on slice 20 (drivers, C++ names, P4 list and known split)",
+   "before": 9,
+   "after": 11,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "programs including aio.h, complex.h, mqueue.h, proc_service.h, tgmath.h or thread_db.h do not compile with niji-gcc by default (NIJI_SYSTEM_HEADERS=1 in the coexist flavour); fix-forward: SL-HEADERS-COMPLEX-TGMATH and follow-ups",
+   "before": null,
+   "after": 7,
+   "unit": "headers",
+   "measured": true
+  }
+ ],
+ "improvement": "A probe that stops at its first error hid P4 part 2's ~850 differing rows for runs; the probe now names skipped headers and runs to the end, so the whole table showed in one run",
+ "next_step": "Land through the train; the P4 part 2 follow-up (math.h __ names, stdbit.h exception specs), SL-HEADERS-COMPLEX-TGMATH, P6/P7 with --niji-headers",
+ "report_file": "handoff/SL-HEADERS-S20-report.md",
+ "jobs": [
+  "sl-headers-s20-2-t6",
+  "sl-headers-s20-2-plants3"
+ ]
+}
