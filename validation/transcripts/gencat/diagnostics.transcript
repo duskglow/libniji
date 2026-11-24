@@ -1,0 +1,42 @@
+name: malformed lines, duplicates and unknown directives: diagnostics, exit 1, catalog written
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 1
+| 1 first
+| 1 again
+| !bad
+| -1 neg
+| 0 zero
+| $foo bar
+| $
+| $set
+| $set A
+| M a
+| M b
+| $set A
+| 2 x
+| $delset 1
+| $set 0
+| 3 y
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:3: duplicated message number
+| i.msg:2: this is the first definition
+| i.msg:4: malformed line ignored
+| i.msg:5: malformed line ignored
+| i.msg:7: unknown directive `foo': line ignored
+| i.msg:8: unknown directive `': line ignored
+| i.msg:9: illegal set number
+| i.msg:12: duplicated message identifier
+| i.msg:11: this is the first definition
+| i.msg:13: duplicate set definition
+| i.msg:10: this is the first definition
+written-file: o.cat sha256 dfb1d44bb26a3893626d4fc60628ed91c0d14ccd504a5832089b0edcbba00e2c size 120

@@ -1,0 +1,29 @@
+name: the default set 1 is listed last in the pool and the header, whenever it is named
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+file: i.msg
+| $set 5
+| 1 a
+| $set 3
+| M b
+| $set 1
+| N c
+| $set A
+| O d
+arg: --new
+arg: -H
+arg: o.h
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 0
+stdout:
+stderr:
+written-file: o.cat sha256 9eddb64e89e84db6c6a947e090c7d8d3ee99cdde2cfc79563acabf986823b6b2 size 116
+written-file: o.h
+| #define ASet 0x6\t/* i.msg:7 */
+| #define AO 0x1\t/* i.msg:8 */
+| #define AutomaticSet4M 0x1\t/* i.msg:4 */
+| #define AutomaticSet2N 0x1\t/* i.msg:6 */

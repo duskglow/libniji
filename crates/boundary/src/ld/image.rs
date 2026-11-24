@@ -199,7 +199,7 @@ fn span_slots(bytes: &'static mut [u8], n: usize, name: &[u8]) -> &'static mut [
 /// header table and `PT_DYNAMIC` copied into one anonymous mapping, each `PT_LOAD` whose bytes cannot
 /// change during loading sliced in place, and each that can change and holds a table copied into a
 /// second one, all before the first relocation store. The span list lives in the first mapping, after
-/// the table. Returns the table and the spans; each buffer's (address, length to unmap: 0 when it
+/// the table. Returns the reader of the table (checked once) with the spans; each buffer's (address, length to unmap: 0 when it
 /// is in the scratch arena, [`scratch`]) is stored in `maps`. `published`:
 /// the object's dynamic array may already hold run-time addresses (DL-DYNAMIC-RELOC: `ld.so`'s own
 /// from its start, every start-time object's once `link` ended); the copies are turned back into
@@ -212,7 +212,7 @@ pub(super) fn image_view(
     name: &[u8],
     maps: &mut [(usize, usize)],
     published: bool,
-) -> (&'static [u8], &'static [niji_ld::elf::Span<'static>]) {
+) -> niji_ld::elf::Elf<'static> {
     use niji_ld::elf::{Span, PHDR_SIZE};
     let table = prog.phnum.saturating_mul(PHDR_SIZE);
     // Pass 1: the header table alone, to find PT_DYNAMIC and size the first mapping. One span per
@@ -228,14 +228,12 @@ pub(super) fn image_view(
     let spans = span_slots(tail, prog.phnum, name);
     maps[0] = (at, unmap);
     let (_, rest) = maps.split_at_mut(1);
-    match image_spans(None, head, spans, bias, name, rest, published) {
-        Ok(spans) => (head, spans),
-        Err(what) => fail_with(&[name, what], program::FAILURE),
-    }
+    image_spans(None, head, spans, bias, name, rest, published).unwrap_or_else(|what| fail_with(&[name, what], program::FAILURE))
 }
 
 /// [`image_view`]'s reading of a mapped object whose program header table `head` has been copied
-/// already: the spans, in `spans` (one slot per header), for load bias `bias`; the scratch
+/// already: the reader of `head` (its table checked once) over the spans, written to `spans` (one
+/// slot per header), for load bias `bias`; the scratch
 /// mappings of the dynamic array's copy and the segment copies go to `maps[0]` and `maps[1]`.
 /// `Err` is the message's text after the object's name: the headers do not describe a readable
 /// dynamic array in the mapped image. `file`: the descriptor the object was just mapped from
@@ -252,7 +250,7 @@ fn image_spans(
     name: &[u8],
     maps: &mut [(usize, usize)],
     published: bool,
-) -> Result<&'static [niji_ld::elf::Span<'static>], &'static [u8]> {
+) -> Result<niji_ld::elf::Elf<'static>, &'static [u8]> {
     use niji_ld::elf::{pt, Elf, Span, SpanKind};
     let probe = Elf::from_image::<Native>(head, &[]).map_err(|_| &b": malformed program headers\n"[..])?;
     let loads = || probe.program_headers().filter(|p| p.p_type == pt::LOAD);
@@ -350,7 +348,8 @@ fn image_spans(
         }
     }
     let spans: &'static [Span<'static>] = spans;
-    Ok(&spans[..k])
+    // The table was checked once, as `probe` (D-27.97).
+    probe.with_spans(&spans[..k]).ok_or(malformed)
 }
 
 /// A dependency's mapped `file` as the relocator sees it (load bias `bias`). Its `name` may come from
@@ -372,8 +371,7 @@ pub(super) fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> ni
     read_image(base, &mut header);
     let Some((phoff, phnum)) = boot::own_headers(&header) else { fail_with(&[name, b": malformed program headers\n"], program::FAILURE) };
     let me = start::Program { phdr: base.wrapping_add(usize::try_from(phoff).unwrap_or(usize::MAX)), phnum, entry: 0 };
-    let (head, view) = image_view(&me, base, name, maps, true);
-    let elf = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
+    let elf = image_view(&me, base, name, maps, true);
     let dynm = elf.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     niji_ld::reloc::Obj { elf, dynm, bias: u64::try_from(base).unwrap_or(0), name, tls: None }
 }
@@ -1183,8 +1181,7 @@ fn image_object(fd: i32, head: &'static [u8], elf: &elf::Elf<'static>, bias: u64
     maps[0] = (at, unmap);
     let spans = span_slots(slots, phnum, name);
     let (_, rest) = maps.split_at_mut(1);
-    let spans = image_spans(Some(fd), table, spans, usize::try_from(bias).unwrap_or(0), name, rest, false).map_err(|what| if what.starts_with(b": no valid dynamic") { Refusal::NoDynamic } else { Refusal::Malformed })?;
-    let img = elf::Elf::from_image::<Native>(table, spans).map_err(niji_ld::dlopen::of_elf_error)?;
+    let img = image_spans(Some(fd), table, spans, usize::try_from(bias).unwrap_or(0), name, rest, false).map_err(|what| if what.starts_with(b": no valid dynamic") { Refusal::NoDynamic } else { Refusal::Malformed })?;
     let dynm = niji_ld::dlopen::loadable_dynamic(&img)?;
     Ok((img, dynm))
 }

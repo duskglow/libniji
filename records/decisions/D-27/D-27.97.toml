@@ -1,0 +1,11 @@
+id = "D-27.97"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "SHSTK-OPT-IN-3"
+date = "2026-11-23"
+tests = ["crates/ld/tests/reloc.rs::reloc_image_reader_slices_only_unchanging_segments"]
+body = '''
+**The loader checks each image-mode program header table once (story SHSTK-OPT-IN-3).** `image_view` copies the program's (and `ld.so`'s own) program header table into a private scratch buffer and checks it there as a reader without spans; its callers then built a second reader of the same bytes with `Elf::from_image`, which checked every header again. `image_view` now returns the checked reader with its spans attached (`Elf::with_spans`, `None` for a file reader); the bytes cannot change between the two (the buffer is the loader's own copy) and the image-mode checks do not read the spans, so nothing that was checked goes unchecked. Why now: D-X.164's SHSTK marking adds two program headers (a second `PT_NOTE` and `PT_GNU_PROPERTY`) to `ld.so` and `libc.so.6`, and each header costs every walk and every table check. Measured on the Zen 1 host, fast profile, the dynamic empty main (hot_text_products): unmarked 170464, marked 170825 (+361), marked with this change 170580 (+116 over unmarked); a single-step split by function put +123 of the marking's cost in `Elf::check_table` and the rest in eight header walks (+12 to +48 each). Fix-forward for the remaining +116: the walks that look for one header type (`find`) or filter `PT_LOAD` could use what `check_table` already sees in its one pass (first index per type, last `PT_LOAD`).
+'''

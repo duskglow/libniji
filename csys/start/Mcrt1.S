@@ -7,4 +7,8 @@
  * file where a build looks for it, and an object that names it links as if it were absent.
  * The one section marks the stack non-executable: an object without it would make the link
  * editor give the program an executable stack. */
+/* No code, so IBT and SHSTK hold (notes.inc): without the note a program linked with this
+ * object would lose both (the link ANDs them, D-X.164). */
+#include "notes.inc"
+	NIJI_NOTE_PROPERTY
 	.section .note.GNU-stack,"",@progbits

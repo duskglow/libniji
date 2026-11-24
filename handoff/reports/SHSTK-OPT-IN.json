@@ -1,0 +1,26 @@
+{"task": "SHSTK-OPT-IN", "model": "opus", "tokens": null,
+ "result": "Part 1 (accepted scope #7946): every shipped object carries SHSTK with a build check; setjmp/longjmp, get/set/swapcontext, makecontext and vfork are shadow-stack-correct; N100 run passes with the shadow stack on, both negative controls SIGSEGV",
+ "branch": "task/shstk-opt-in", "head": "46b80c66a",
+ "gate": {"affected": "FULL: the train's (csys header, setjmp.S exported C ABI, xtask); cargo xtask test 7178 passed / 11 failed on 38b6aba58 (4 this branch's, fixed and re-run green in shstk-opt-in-fix1; 7 host locale archive or pre-existing in CI logs)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "On mei, cargo xtask test fails locale_data (2), s7_2_f_0, locale_products, printf_corpus_products and catalogs_products the same way in 4 other stories' xtask-test logs (host locale archive)",
+   "hot_text_products init_data_clusters_hold_at_every_text_phase (fault count 58 vs 59 at one text phase) also fails in two CI gate logs on other heads (ci-gate-a176ecda8, ci-gate-691c188e3)",
+   "thread_create_join is 36092 instructions per call in libniji vs 2266 for the reference (unchanged by this branch)",
+   "The plants tool's .S anchor rule needs a niji_machine_<fn>: label; vfork.S has none, so a vfork plant cannot be written"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "programs that enable the user shadow stack (N100 class) no longer fault in longjmp, swapcontext/makecontext or vfork: s21_shadow_stack passes; pre-change setjmp.S / vfork.S controls SIGSEGV", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "unblock", "what": "SHSTK-ENABLE (tunables, loader decision, dlopen policy, N100 scenarios): every shipped object now carries SHSTK (44 files and archives checked at build)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "cost", "what": "setjmp_longjmp per call, no shadow stack (rdssp test); fix-forward in SHSTK-ENABLE notes", "before": 103, "after": 110, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "getcontext per call, no shadow stack (reference 44); fix-forward: raw SSP, -2", "before": 40, "after": 45, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "swapcontext per call, no shadow stack (reference 62)", "before": 64, "after": 72, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "thread_create_join per call (unchanged)", "before": 36092.1, "after": 36092.1, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "tests: s21_shadow_stack conformance program, libc.a shadow-stack instruction check, cetnote unit tests; plants: 3 CAUGHT", "before": null, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "The plants tool could accept any global label defined in the .S file as an anchor (vfork.S cannot be planted today); and an xtask-test known-host-failures list for mei would save each story re-proving the locale failures are environmental",
+ "next_step": "Land part 1 through the train; brief SHSTK-ENABLE (tunables, loader, dlopen, scenarios and costs, signal-ucontext rule, clone3 shadow-stack size)",
+ "report_file": "handoff/SHSTK-OPT-IN.md",
+ "jobs": ["shstk-opt-in-fix1", "shstk-opt-in-hottext1", "shstk-opt-in-plants3", "shstk-opt-in-percall2", "nozomi:shstk-opt-in-n100"]}

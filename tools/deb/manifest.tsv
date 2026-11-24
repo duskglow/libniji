@@ -100,6 +100,7 @@ system	libc-bin	usr/sbin/zic	file	zic	0755	debug	dynamic, compiles time-zone sou
 system	libc-bin	usr/share/doc/libc-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-bin	usr/share/doc/libc-bin/copyright	text	copyright	0644	none	-
 system	libc-bin	usr/share/libc-bin/nsswitch.conf	text	system/nsswitch.conf	0644	none	the template the postinst installs when the root has no /etc/nsswitch.conf
+system	libc-dev-bin	usr/bin/gencat	file	gencat	0755	debug	dynamic, compiles message-catalog sources into D.2.2 catalogs (UTIL-14)
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-dev-bin	usr/share/doc/libc-dev-bin/copyright	text	copyright	0644	none	-
 system	libc-l10n	usr/share/doc/libc-l10n/changelog.Debian.gz	changelog	-	0644	none	-
@@ -170,6 +171,7 @@ system	locales	usr/share/i18n/charmaps/GBK.gz	file	locale-charmaps/GBK.gz	0644	n
 system	locales	usr/share/i18n/charmaps/ISO-8859-1.gz	file	locale-charmaps/ISO-8859-1.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
 system	locales	usr/share/i18n/charmaps/UTF-8.gz	file	locale-charmaps/UTF-8.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
 system	locales	usr/share/i18n/charmaps/WINDOWS-31J.gz	file	locale-charmaps/WINDOWS-31J.gz	0644	none	LOCALE-CHARMAPS-GEN: read by localedef -f, from the built-in codec
+system	locales	usr/share/i18n/locales/C	file	locale-sources/C	0644	none	LOCALE-C-UTF8-SOURCE: read by localedef -i C -f UTF-8 (C.UTF-8), generated from the built-in C.UTF-8
 system	locales	usr/share/i18n/locales/af_ZA	file	locale-sources/af_ZA	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/ak_GH	file	locale-sources/ak_GH	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR
 system	locales	usr/share/i18n/locales/am_ET	file	locale-sources/am_ET	0644	none	LOCALE-SOURCES-GEN: read by localedef -i, generated from Unicode CLDR

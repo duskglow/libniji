@@ -1,0 +1,45 @@
+{
+ "task": "UTIL-14-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "Merged origin/next, moved the gencat release note to docs/release-notes.d/UTIL-14-4.md, fixed the stale libc-dev-bin package description; direct gate and 7 gencat plants green",
+ "branch": "task/util-14-4",
+ "head": "289a04f51",
+ "gate": {
+  "affected": "util-14-4-gate2: green (direct tier, rc 0); util-14-4-gate (before the description fix): 2 failed, both deb_manifest description check",
+  "peak": "3.8G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Premise: UTIL-14-3 work is complete; only the RELEASE-NOTES.md conflict kept it red",
+  "The merge also conflicted in crates/core/tests/catalogs_products.rs (imports): next's imports kept, scratch module kept",
+  "Plants util-14-4-plants (older head) superseded by util-14-4-plants2 on the final head"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "UTIL-14 gencat can land: release-notes fragment replaces the conflicting Unreleased line",
+   "before": null,
+   "after": 1,
+   "unit": "story",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "gencat plants re-proved after the merge",
+   "before": null,
+   "after": 7,
+   "unit": "plants caught",
+   "measured": true
+  }
+ ],
+ "improvement": "Adding a program row to tools/deb/manifest.tsv should come with its package description update; deb_manifest only says so at the gate.",
+ "next_step": "land",
+ "report_file": "handoff/UTIL-14.md",
+ "jobs": [
+  "mei:util-14-4-gate2",
+  "mei:util-14-4-plants2"
+ ]
+}

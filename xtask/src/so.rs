@@ -116,8 +116,18 @@ pub(crate) fn tmp_name(path: &Path) -> std::path::PathBuf {
 }
 
 /// Rename the finished `tmp` over `dst`: a reader sees the old product or the new one, never a
-/// half-written file.
+/// half-written file. An archive the build made gets the shadow-stack property on each member first.
 pub(crate) fn publish(tmp: &Path, dst: &Path) -> Result<(), String> {
+    // D-X.164: every archive libniji ships has the shadow-stack property on each member.
+    if dst.extension().is_some_and(|e| e == "a") {
+        crate::cetnote::mark_archive(tmp)?;
+    }
+    publish_verbatim(tmp, dst)
+}
+
+/// [`publish`] without touching the bytes: for files copied from an earlier build (`import`),
+/// which must stay identical to the manifest they were checked against.
+pub(crate) fn publish_verbatim(tmp: &Path, dst: &Path) -> Result<(), String> {
     fs::rename(tmp, dst).map_err(|e| format!("rename {} -> {}: {e}", tmp.display(), dst.display()))
 }
 
@@ -2165,7 +2175,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     fs::write(&dyn_list, libc_dynamic_list()).map_err(|e| format!("{}: {e}", dyn_list.display()))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
-            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
             // LD-RELR-LOOP (ruling #7402): the relative relocations as DT_RELR words, applied an entry
             // at a time by the loader's RELR pass, instead of 24-byte RELA entries.
             .arg("-Wl,-z,pack-relative-relocs")
@@ -2346,6 +2356,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         r => r?,
     }
     phases.mark("layout");
+    // D-X.164: every shipped object (each ELF file, each archive member of a product named by a `file` row of
+    // tools/deb/manifest.tsv) has the SHSTK property.
+    let cet = crate::cetnote::check_release(root, &release)?;
+    println!("so: {cet} shipped ELF files and archives carry the SHSTK property (D-X.164, {})", crate::cetnote::SHIPPED_MANIFEST);
     // The marker last, so a set that was not finished has none.
     let marker = tmp_name(&release.join(".profile"));
     fs::write(&marker, format!("{}
@@ -2487,6 +2501,7 @@ impl LdLink {
         use niji_ld::arch::Arch as _;
         run(Command::new(cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
+            .arg(crate::cetnote::LINK_FLAG)
             .arg(format!("-Wl,-T,{}", self.span.display()))
             .arg(format!("-Wl,-T,{}", self.phase.display()))
             .arg(format!("-Wl,--version-script={}", self.map.display()))
@@ -2906,7 +2921,7 @@ fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Resu
     let out = release.join("getconf");
     let staged = tmp_name(&out);
     run(Command::new(cc)
-        .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"])
+        .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]).arg(crate::cetnote::LINK_FLAG)
         .args(cdebug)
         .arg("-I")
         .arg(&gen_dir)
@@ -2956,7 +2971,7 @@ fn run_freestanding(root: &Path, cc: &str, profile: Profile, build: &ProductBuil
     let out = release.join(name);
     let staged = tmp_name(&out);
     run(Command::new(cc)
-        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs"])
+        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs"]).arg(crate::cetnote::LINK_FLAG)
         .arg(format!("-Wl,-e,niji_machine_{name}_entry"))
         .arg(&entry)
         .arg(&archive)
@@ -2991,6 +3006,9 @@ pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 /// `/usr/sbin/zic`), `target/niji/zdump` (`/usr/bin/zdump`) and the test links under `target/niji-test`.
 pub(crate) const ZIC_TEST: &str = "target/niji-test/zic";
 pub(crate) const ZDUMP_TEST: &str = "target/niji-test/zdump";
+/// gencat (UTIL-14, spec §31.12): `csys/util/gencat.c` (the catalog source compiler and D.2.2 writer), linked as
+/// getent is: `target/niji/gencat` (libc-dev-bin's `/usr/bin/gencat`) and the test link `target/niji-test/gencat`.
+pub(crate) const GENCAT_TEST: &str = "target/niji-test/gencat";
 
 fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
@@ -3000,7 +3018,8 @@ fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
 fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)?;
     run_dynamic_util(root, cc, "zic", ZIC_TEST, cdebug)?;
-    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)
+    run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "gencat", GENCAT_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
@@ -3016,7 +3035,7 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str, cdebug: &[Str
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
         let mut c = Command::new(cc);
-        c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"])
+        c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"]).arg(crate::cetnote::LINK_FLAG)
             .arg(format!("-Wl,--dynamic-linker={}", interp.display()))
             .arg(release.join("niji-crt1.o"))
             .arg(release.join("niji-crti.o"))
@@ -3050,7 +3069,7 @@ fn run_ldd(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(
     let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
-        c.args(cdebug);
+        c.args(cdebug).arg(crate::cetnote::LINK_FLAG);
         if let Some(r) = rtld {
             c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
         }
@@ -4072,7 +4091,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     let so_final = release.join("libm.so.6");
     let so = tmp_name(&so_final);
     run(Command::new(cc)
-        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"]).arg(crate::cetnote::LINK_FLAG)
         .arg(format!("-Wl,--version-script={}", map.display()))
         .arg("-Wl,-soname,libm.so.6")
         .arg(&obj)
@@ -4108,7 +4127,7 @@ mod tests {
     use super::*;
 
     /// XTASK-STALE-PRODUCTS (no spec clause: the product build's tooling): a program an earlier build of another
-    /// tree left in the products directory (`gencat`) is gone once a build starts there, and the manifest lint passes
+    /// tree left in the products directory (`old-tool-not-a-product`) is gone once a build starts there, and the manifest lint passes
     /// on what the build then makes; the other commands' directories and their files stay.
     #[test]
     fn a_product_build_leaves_no_earlier_product_for_the_manifest_lint() {
@@ -4136,7 +4155,7 @@ mod tests {
         }
         // What an earlier build left: a program no step of this tree makes, a product this tree makes, a link,
         // a header, a charmap, the profile marker.
-        for (f, text) in [("gencat", "stale"), ("libc.so.6", "old"), ("include/sys/old.h", ""), ("charmaps/OLD-CHARMAP", ""), (".profile", "release\n")] {
+        for (f, text) in [("old-tool-not-a-product", "stale"), ("libc.so.6", "old"), ("include/sys/old.h", ""), ("charmaps/OLD-CHARMAP", ""), (".profile", "release\n")] {
             fs::write(dir.join(f), text).unwrap();
         }
         std::os::unix::fs::symlink("libc.so.6", dir.join("libold.so")).unwrap();
@@ -4154,7 +4173,7 @@ mod tests {
         let o = Command::new("python3").arg(root.join("tools/deb/manifest.py")).arg("lint").arg("--products").arg(&dir).output().unwrap();
         let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
         assert!(o.status.success() && out.starts_with("manifest: OK"), "manifest lint on the products after the build started:\n{out}");
-        assert_eq!(dropped_products(&dir, &cleared), ["gencat", "libold.so"], "cleared: {cleared:?}");
+        assert_eq!(dropped_products(&dir, &cleared), ["libold.so", "old-tool-not-a-product"], "cleared: {cleared:?}");
         let mut left: Vec<String> = fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         left.sort();
         let mut want: Vec<String> = OTHER_COMMANDS.iter().map(|d| d.to_string()).chain(made).collect();
@@ -5028,10 +5047,11 @@ mod tests {
         let dst = dir.0.join("libx.a");
         let tmp = tmp_name(&dst);
         assert_eq!(tmp.file_name().unwrap(), ".libx.a.tmp");
+        // An archive is marked before it is published (D-X.164): an empty one is left as it is.
         fs::write(&dst, "old").unwrap();
-        fs::write(&tmp, "new").unwrap();
+        fs::write(&tmp, "!<arch>\n").unwrap();
         publish(&tmp, &dst).unwrap();
-        assert_eq!(fs::read_to_string(&dst).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&dst).unwrap(), "!<arch>\n");
         assert!(!tmp.exists());
     }
 

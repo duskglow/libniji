@@ -95,13 +95,18 @@ fn words(line: &str) -> impl Iterator<Item = &str> {
 const ALLOCATOR_FILES: &[&str] = &["src/heap.rs", "src/selftest/failalloc.rs", "src/ld.rs", "src/ldconfig.rs"];
 const CATEGORIES: [&str; 8] = ["extern", "export", "slice", "allocator", "tb-field", "hot-kernel", "machine-register", "process-flag"];
 
-/// Category *process-flag* (owner ruling #4888, 2026-11-12, D-X.58): a non-atomic read of a word
-/// written only before the first thread starts, in this one file of niji-boundary and nowhere
-/// else (crate-relative path).
-const PROCESS_FLAG_FILE: &str = "src/thread.rs";
-/// The only body a *process-flag* block may have (whitespace removed): the read of the ownership
-/// word, so the category cannot grow into other reads or any write.
-const PROCESS_FLAG_READ: &str = "*OWNED_HERE.as_ptr()";
+/// Category *process-flag* (owner ruling #4888, 2026-11-12, D-X.58; extended by owner ruling
+/// #7708, 2026-11-22, D-X.156): a non-atomic read of a word written only before the first thread
+/// starts. Exactly these (crate-relative file, block body with whitespace removed) pairs and
+/// nothing else, so the category cannot grow into other reads, other files or any write: the
+/// ownership word in thread.rs, and heap.rs's internal-routing word (written at most twice, both
+/// before any other thread exists).
+const PROCESS_FLAG_READS: [(&str, &str); 2] = [
+    ("src/thread.rs", "*OWNED_HERE.as_ptr()"),
+    ("src/heap.rs", "*RESERVE_LAST.as_ptr()"),
+];
+/// The files of [`PROCESS_FLAG_READS`].
+const PROCESS_FLAG_FILES: [&str; 2] = ["src/thread.rs", "src/heap.rs"];
 
 /// The body of the (stripped) `unsafe {` block at `lines[n]`, whitespace removed, up to its first
 /// `}`: the category's one permitted read needs no nested braces.
@@ -430,12 +435,15 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                     // Owner ruling 2026-10-06 (plan S2): the one `%fs`-relative field load.
                     ("tb-field", &["src/tb.rs"])
                 } else if l.contains("unsafe {") && tag_above(&src_lines, n, 6).as_deref() == Some("process-flag") {
-                    // Owner ruling #4888 (D-X.58): the write-once ownership word, read without an
-                    // atomic so the gate folds into a memory operand; only in thread.rs and only that read.
-                    if block_body(&code_lines, n) != PROCESS_FLAG_READ {
-                        errors.push(format!("{}:{}: a `process-flag` block may only read `{PROCESS_FLAG_READ}` (D-X.58)", f.display(), n + 1));
+                    // Owner rulings #4888 (D-X.58) and #7708 (D-X.156): write-once words read
+                    // without an atomic so the test folds into a memory operand; only the listed
+                    // reads, each in its own file.
+                    let body = block_body(&code_lines, n);
+                    if !PROCESS_FLAG_READS.iter().any(|&(file, read)| file == rel && read == body) {
+                        let allowed: Vec<String> = PROCESS_FLAG_READS.iter().map(|(file, read)| format!("`{read}` in {file}")).collect();
+                        errors.push(format!("{}:{}: a `process-flag` block may only be one of {} (D-X.58, D-X.156)", f.display(), n + 1, allowed.join(", ")));
                     }
-                    ("process-flag", &[PROCESS_FLAG_FILE])
+                    ("process-flag", &PROCESS_FLAG_FILES)
                 } else if (l.contains("unsafe fn") || l.contains("unsafe {")) && rel.starts_with("src/hot/") {
                     // Owner ruling 2026-10-08 (plan S2, D-4.22): the small copy and fill kernels (the `hot`
                     // module, one directory since LIBM-HOT-PER-FAMILY).

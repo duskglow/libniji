@@ -1,0 +1,11 @@
+name: -o without its value
+clause: s31_12_i_1
+command: gencat
+namespace: none
+env: LC_ALL=C.UTF-8
+arg: -o
+status: exit 64
+stdout:
+stderr:
+| gencat: option requires an argument -- 'o'
+| Try `gencat --help' or `gencat --usage' for more information.

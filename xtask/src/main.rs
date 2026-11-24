@@ -58,6 +58,7 @@
 
 mod abbench;
 mod abi;
+mod abi_versions;
 mod affected;
 mod encodings;
 mod encodings_cjk;
@@ -77,6 +78,7 @@ mod forkalloc;
 mod fs_order;
 mod benchrows;
 mod startpair;
+mod cetnote;
 mod coldbss;
 mod compat;
 mod compatprobe;
@@ -184,6 +186,7 @@ fn main() -> ExitCode {
         "compat-ids" => compat_ids::check(&root),
         "visibility" => visibility::check(&root),
         "abi-types" => abi_types::check(&root),
+        "abi-versions" => abi_versions::check(&root),
         "callsites" => callsites::check(&root),
         "register" => register::check(&root),
         "records-gen" => records::gen_cmd(&root, args[1..].iter().any(|a| a == "--check"), records::in_place_env(&args[1..])),
@@ -297,8 +300,8 @@ fn static_checks(root: &Path) -> Result<(), String> {
 /// The checks of `cargo xtask static`, in order (`precheck` runs them by name too).
 pub(crate) type StaticCheck = fn(&Path) -> Result<(), String>;
 
-pub(crate) fn static_list() -> [(&'static str, StaticCheck); 42] {
-    [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("old-name", oldname::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check), ("test-coverage", coverage::check), ("harness-contain", harness_contain::check), ("release-notes", release_notes::check)]
+pub(crate) fn static_list() -> [(&'static str, StaticCheck); 43] {
+    [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("abi-versions", abi_versions::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("old-name", oldname::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check), ("test-coverage", coverage::check), ("harness-contain", harness_contain::check), ("release-notes", release_notes::check)]
 }
 
 /// `cargo xtask clippy`: clippy with exactly the flags the gate and `affected` use (the whole workspace, all targets,

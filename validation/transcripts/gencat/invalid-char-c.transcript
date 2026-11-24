@@ -1,0 +1,18 @@
+name: a byte above 0x7f in the C locale: message ignored
+clause: s31_12_g_1
+command: gencat
+namespace: none
+env: LC_ALL=C
+file: i.msg
+| 1 ok
+| 2 caf\xe9
+| 3 also ok
+arg: --new
+arg: -o
+arg: o.cat
+arg: i.msg
+status: exit 1
+stdout:
+stderr:
+| i.msg:2: invalid character: message ignored
+written-file: o.cat sha256 209dd2ba64ad572b93552f2f1fdec1378b710de4016aba9ed633573fb4d636db size 71

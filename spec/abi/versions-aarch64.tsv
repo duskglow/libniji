@@ -2533,8 +2533,6 @@ libc.so.6	opterr	GLIBC_2.17	default	OBJECT	GLOBAL	4
 libc.so.6	__xpg_sigpause	GLIBC_2.17	default	FUNC	WEAK	
 libc.so.6	__finitef	GLIBC_2.17	default	FUNC	GLOBAL	
 libc.so.6	sched_setscheduler	GLIBC_2.17	default	FUNC	WEAK	
-libc.so.6	sched_getattr	GLIBC_2.41	default	FUNC	GLOBAL	
-libc.so.6	sched_setattr	GLIBC_2.41	default	FUNC	GLOBAL	
 libc.so.6	__write	GLIBC_2.17	default	FUNC	WEAK	
 libc.so.6	__wuflow	GLIBC_2.17	default	FUNC	GLOBAL	
 libc.so.6	__nss_files_fopen	GLIBC_PRIVATE	default	FUNC	GLOBAL	
@@ -3028,6 +3026,8 @@ libc.so.6	__pread64	GLIBC_2.17	default	FUNC	WEAK
 libc.so.6	__twalk	GLIBC_PRIVATE	default	FUNC	GLOBAL	
 libc.so.6	longjmp	GLIBC_2.17	default	FUNC	WEAK	
 libc.so.6	stdc_first_leading_one_ui	GLIBC_2.39	default	FUNC	GLOBAL	
+libc.so.6	sched_getattr	GLIBC_2.41	default	FUNC	GLOBAL	
+libc.so.6	sched_setattr	GLIBC_2.41	default	FUNC	GLOBAL	
 libm.so.6	pow10l	GLIBC_2.17	compat	FUNC	GLOBAL	
 libm.so.6	cexp	GLIBC_2.17	default	FUNC	WEAK	
 libm.so.6	ccosf128	GLIBC_2.27	default	FUNC	WEAK	

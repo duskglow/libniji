@@ -174,6 +174,7 @@ int niji_machine_getcontext(void *uc);
 int niji_machine_setcontext(const void *uc);
 int niji_machine_swapcontext(void *save, const void *to);
 void niji_machine_start_context(void);
+uintptr_t niji_machine_ssp(void);
 /* Class adapter: va_arg accessor (src/adapter/variadic.c). */
 long niji_va_long(void *ap);
 double niji_va_double(void *ap);
@@ -195,6 +196,8 @@ void *niji_caller_malloc(size_t n);
 void *niji_caller_calloc(size_t k, size_t n);
 void *niji_caller_realloc(void *p, size_t n);
 void niji_caller_free(void *p);
+/* The library image's start and end (0 if none) and the addresses those four symbols resolve to. */
+void niji_link_alloc_family(volatile uintptr_t w[6]);
 /* The image's ELF header and a static executable's .eh_frame bounds (D-2.7), 0 where absent. */
 uintptr_t niji_link_ehdr(void);
 /* The run-time address of the image's ELF header, reached PC-relatively (`__ehdr_start`, hidden,

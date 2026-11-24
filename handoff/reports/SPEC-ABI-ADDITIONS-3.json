@@ -1,0 +1,54 @@
+{
+ "task": "SPEC-ABI-ADDITIONS-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Release start-up check passes on the branch merged with current next (36/36 incl. init_dynamic_startup_only); the branch's versions tables hold exactly next's rows (order only) and every product-side reader sorts, so the CI exec rc 127 is not this branch's; merge conflict in static_list resolved (abi-versions + release-notes)",
+ "branch": "task/spec-abi-additions-3",
+ "head": "82b7ae864",
+ "gate": {
+  "affected": "FULL (escalated: spec/abi tables): the train's. Instead: clippy+static green on the final head (lint1), cargo test -p xtask all passed (xtask), release-profile start-up check green (release1)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The 11-23 14:54Z train's exec rc 127 cannot be attributed from its log: the harness then printed only the status. RELEASE-STEP-EXEC-FAIL-2's harness now prints the relay's failed exec or the loader's stderr; a recurrence will name its cause.",
+  "Release libc.so.6 of the merged head: 44 version definitions, none duplicated, sched_getattr/sched_setattr@@GLIBC_2.41 exported."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "a full regeneration of versions.tsv / versions-aarch64.tsv keeps sched_getattr/sched_setattr@GLIBC_2.41 (abi-versions static check), now on current next",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the abi-versions check and extractor merge, rerun on the merged head",
+   "before": 0,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "SPEC-ABI-ADDITIONS can land",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "jobs": [
+  "mei:spec-abi-additions-3-release1",
+  "mei:spec-abi-additions-3-xtask",
+  "mei:spec-abi-additions-3-plants",
+  "mei:spec-abi-additions-3-lint1"
+ ],
+ "improvement": "A train red with several members goes to one branch by elimination; rerunning the failed step on the train's merged tree (before the co-members land) would attribute it directly instead of costing a story run.",
+ "next_step": "Land.",
+ "report_file": "handoff/SPEC-ABI-ADDITIONS.md"
+}

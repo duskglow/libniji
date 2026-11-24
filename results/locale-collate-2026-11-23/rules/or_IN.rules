@@ -1,0 +1,5 @@
+or_IN	n=122590	moved=3	relevel=1	rules=4
+&U+0B14 1 U+0B01
+&U+0B01 1 U+0B02
+&U+0B02 1 U+0B03
+=U+0B2F 2 U+0B5F (root 1)

@@ -4,7 +4,7 @@
 //! engine and on its worker engine (the run started under `tests/oracle/aio_noring.c`: a seccomp
 //! filter refusing `io_uring_setup` with `EPERM` or `ENOSYS`, as restricted systems refuse it, or
 //! one allowing everything; under any filter libniji takes the workers without trying io_uring,
-//! D-11.11), with the name-service cache on and off (`nscache_mode.sh`, D-16.10). The
+//! D-11.11), with the name-service cache off only (`nscache_mode.sh`, D-16.10; one mode, D-16.18: the program makes no lookup, `tests/nscache_reach.rs`). The
 //! outputs must be identical line by line, except the recorded differences: [`KNOWN`] (a line
 //! that differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). Every entry names the case it belongs to: the text of the last `== ` or `-- ` header
@@ -82,46 +82,24 @@ const DROPPED: [(&str, &str, &str); 0] = [];
 /// The header lines a recorded entry's case is matched against (`oracle::with_headers`).
 const HEADERS: &[&str] = &["== ", "-- "];
 
-// GATE-SPEED-3: one test per engine and name-service cache mode (they were one test of seven serial
-// runs, ~290 s). Each test has its own build outputs and scratch directories (named by `tag`) and
-// runs under its own private /dev/shm (nscache_mode.sh), so they can run side by side.
-#[test]
-fn aio_equals_the_reference_uring_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("uring-on", "io_uring", None, "on");
-}
+/// The libniji configurations compared with the one reference run: a tag (build outputs and
+/// scratch directories), the engine, the seccomp filter `aio_noring` puts the run under (none:
+/// io_uring) and the name-service cache mode. The cache runs in one mode (D-16.18): aio_diff.c
+/// makes no lookup, so an "on" run executes the same code as the "off" run (`tests/nscache_reach.rs`
+/// fails when the program starts making one).
+const CONFIGS: [(&str, &str, Option<&str>, &str); 4] = [
+    ("uring-off", "io_uring", None, "off"),
+    ("eperm-off", "workers (io_uring_setup refused with EPERM)", Some("EPERM"), "off"),
+    ("enosys-off", "workers (io_uring_setup refused with ENOSYS)", Some("ENOSYS"), "off"),
+    ("allow-off", "workers (a seccomp filter allowing every system call, D-11.11)", Some("ALLOW"), "off"),
+];
 
+// AIO-ONE-REFERENCE: one test builds aio_diff.c once for each side, runs the reference once and
+// compares every configuration of `CONFIGS` with it in turn (the four tests of GATE-SPEED-3 each
+// rebuilt both sides and reran the same reference, 55 % of each test, Skylake-SP host). A configuration
+// that fails is reported by its tag, engine and cache mode, and the others are still compared.
 #[test]
-fn aio_equals_the_reference_uring_off() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("uring-off", "io_uring", None, "off");
-}
-
-#[test]
-fn aio_equals_the_reference_eperm_on() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("eperm-on", "workers (io_uring_setup refused with EPERM)", Some("EPERM"), "on");
-}
-
-#[test]
-fn aio_equals_the_reference_eperm_off() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("eperm-off", "workers (io_uring_setup refused with EPERM)", Some("EPERM"), "off");
-}
-
-#[test]
-fn aio_equals_the_reference_enosys_off() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("enosys-off", "workers (io_uring_setup refused with ENOSYS)", Some("ENOSYS"), "off");
-}
-
-#[test]
-fn aio_equals_the_reference_allow_off() {
-    // no spec clause: a mode shard of the aio products check (GATE-SPEED-3), same checks as the unsharded test.
-    check("allow-off", "workers (a seccomp filter allowing every system call, D-11.11)", Some("ALLOW"), "off");
-}
-
-fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
+fn aio_equals_the_reference() {
     // Clauses: s11_11_c_0, s11_11_g_0, s11_11_f_0 (D-11.8, D-11.11, D-16.10).
     let r = root();
     assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
@@ -135,7 +113,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours, noring) = (dir.join(format!("aio_diff_host_{tag}")), dir.join(format!("aio_diff_niji_{tag}")), dir.join(format!("aio_noring_{tag}")));
+    let (host, ours, noring) = (dir.join("aio_diff_host"), dir.join("aio_diff_niji"), dir.join("aio_noring"));
     assert!(build(&host, false), "aio_diff.c does not build against the host C library");
     assert!(build(&ours, true), "aio_diff.c does not link against the products");
     let mut cc = Command::new("cc");
@@ -166,7 +144,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         assert!(o.status.success(), "{} failed: {:?}\n{}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
-    let reference = run(&host, &format!("aio-host-{tag}"), None, None);
+    let reference = run(&host, "aio-host", None, None);
     let record = std::fs::read_to_string(r.join("spec/behaviour/aio.glibc.txt")).unwrap();
     if reference == record {
         eprintln!("the reference equals the record");
@@ -174,15 +152,35 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         eprintln!("note: the reference differs from the record (timing under load: aio.md, \"Timing\")");
     }
     let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
-    eprintln!("engine: {engine}; name-service cache {mode}");
-    let got = run(&ours, &format!("aio-niji-{tag}-{mode}"), Some(mode), refuse);
+    let mut failed = Vec::new();
+    for (tag, engine, refuse, mode) in CONFIGS {
+        let name = format!("{tag} ({engine}; name-service cache {mode})");
+        eprintln!("== configuration {name}");
+        // A failing configuration's message goes to stderr (the panic hook) and the next one is
+        // still compared: every failure of the run is reported, each under its configuration.
+        let compared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let got = run(&ours, &format!("aio-niji-{tag}"), Some(mode), refuse);
+            compare(&reference, &want, &got, engine);
+        }));
+        if let Err(e) = compared {
+            let why = e.downcast_ref::<String>().map(String::as_str).or(e.downcast_ref::<&str>().copied()).unwrap_or("(no message)");
+            eprintln!("configuration {name} FAILED: {}", why.lines().next().unwrap_or(""));
+            failed.push(name);
+        }
+    }
+    assert!(failed.is_empty(), "{} of {} configurations failed: {}", failed.len(), CONFIGS.len(), failed.join(", "));
+}
+
+/// Compare one libniji run's output `got` with the reference (`want`: the reference without its
+/// recorded dropped lines); panics naming `engine` on a difference.
+fn compare(reference: &str, want: &[(String, String)], got: &str, engine: &str) {
     // A section killed by its own alarm on one side only is load, not a difference: say so before the line counts.
     let alarmed = |v: &[(String, String)]| -> Vec<String> {
         let mut a: Vec<String> = v.iter().filter(|(_, l)| l.starts_with("-- end ") && l.ends_with(": killed by SIGALRM")).map(|(_, l)| l.clone()).collect();
         a.sort();
         a
     };
-    let (aw, ag) = (alarmed(&with_headers(&reference, HEADERS)), alarmed(&with_headers(&got, HEADERS)));
+    let (aw, ag) = (alarmed(&with_headers(reference, HEADERS)), alarmed(&with_headers(got, HEADERS)));
     if aw != ag {
         let (side, line) = match aw.iter().find(|l| !ag.contains(l)) {
             Some(l) => ("the glibc reference", l),
@@ -190,7 +188,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         };
         panic!("section alarm: {side} ({engine}) has {line:?}: killed by its section alarm (load?) - rerun");
     }
-    let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
+    let got = without(with_headers(got, HEADERS), &ADDED, "libniji");
     let mut diffs = 0;
     let mut seen = vec![false; KNOWN.len()];
     for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
@@ -209,7 +207,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
         }
     }
     let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-    assert_eq!(want.len(), got.len(), "line counts differ ({engine}):\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
+    assert_eq!(want.len(), got.len(), "line counts differ ({engine}):\n--- glibc\n{}\n--- niji\n{}", text(want), text(&got));
     assert_eq!(diffs, 0, "lines that differ from the reference ({engine})");
     for (i, s) in seen.iter().enumerate() {
         assert!(s, "recorded difference no longer seen ({engine}): {:?}", KNOWN[i]);
