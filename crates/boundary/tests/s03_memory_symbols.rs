@@ -449,7 +449,7 @@ fn sym_malloc_info() {
 
 #[test]
 fn sym___libc_freeres() {
-    // inert (ruling #1317): errno is left alone
+    // errno is left alone (s29_4_c_1 covers what is released)
     errno::set_raw(12345);
     s::__libc_freeres();
     assert_eq!(errno::get(), 12345, "__libc_freeres leaves errno alone");

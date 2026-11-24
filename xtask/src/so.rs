@@ -228,8 +228,9 @@ pub fn start_object_errors(readelf: &str) -> Result<(), String> {
 }
 
 /// SL-CRT: the start files with no `_start`, each `csys/start/<name>.S` assembled alone into
-/// `target/niji/niji-<name>.o` (installed as `<name>.o`).
-const START_FILES: [&str; 3] = ["crti", "crtn", "Mcrt1"];
+/// `target/niji/niji-<name>.o` (installed as `<name>.o`), and niji-gcc's `niji-unwinder.o`
+/// (the program's own unwinder offered to the C library, D-22.24; installed under that name).
+const START_FILES: [&str; 4] = ["crti", "crtn", "Mcrt1", "unwinder"];
 
 /// The relocating start that `niji-rcrt1.o`'s `_start` calls (D-27.10).
 const STATIC_PIE_START: &str = "niji_start_main_static_pie";
@@ -452,7 +453,18 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_resolv_block", "__niji_resolv_pfcode", "__niji_stack_exec", "__niji_thread_walk"];
+/// `__niji_thread_db` is read by no part of libniji: a debugger's `libthread_db.so.1` finds it by
+/// name (spec §22.10, D-22.17).
+const LIBC_PRIVATE: &[&str] = &[
+    "__niji_build_tag",
+    "__niji_libc_early_init",
+    "__niji_owner_unload",
+    "__niji_resolv_block",
+    "__niji_resolv_pfcode",
+    "__niji_stack_exec",
+    "__niji_thread_db",
+    "__niji_thread_walk",
+];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources ([`tag_covers`]: `Cargo.lock`, `csys/`, `include/`, the product workspace's
@@ -2013,6 +2025,61 @@ fn group_end_align(readelf: &str) -> Option<u64> {
         .and_then(|l| l.split_whitespace().last()?.parse().ok())
 }
 
+/// XTASK-STALE-PRODUCTS: the top-level directories of `target/niji` that other commands write and a product build
+/// leaves alone: `bench/` (`cargo xtask bench`), `native/` (the link helpers of `cargo xtask native-examples`) and
+/// `rust/`, `rust-test/` (`cargo xtask rust-dylib`).
+pub(crate) const OTHER_COMMANDS: &[&str] = &["bench", "native", "rust", "rust-test"];
+
+/// XTASK-STALE-PRODUCTS: a product build owns `target/niji` except [`OTHER_COMMANDS`]. It starts by removing every
+/// other entry there (files, links and directories, the dot files included), so the set it ends with is exactly what
+/// this build made or imported: a product an earlier build of another tree left (a program no step of this tree
+/// makes) cannot be read as built by the manifest lint, the products manifest, an import or a test. No step skips a
+/// product it finds already there (each writes its products afresh on every build), so this rebuilds nothing.
+/// Returns the names removed, sorted; [`print_dropped`] names those the build did not make again.
+pub(crate) fn clear_products(release: &Path) -> Result<Vec<String>, String> {
+    let mut removed = Vec::new();
+    for e in fs::read_dir(release).map_err(|e| format!("{}: {e}", release.display()))? {
+        let e = e.map_err(|e| format!("{}: {e}", release.display()))?;
+        let name = e.file_name().to_string_lossy().into_owned();
+        if OTHER_COMMANDS.contains(&name.as_str()) {
+            continue;
+        }
+        let path = e.path();
+        let is_dir = e.file_type().map_err(|er| format!("{}: {er}", path.display()))?.is_dir();
+        let r = if is_dir { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
+        r.map_err(|er| format!("so: cannot remove the earlier product {}: {er}", path.display()))?;
+        removed.push(name);
+    }
+    removed.sort();
+    Ok(removed)
+}
+
+/// The names [`clear_products`] removed that the finished build did not make again: products of an earlier tree.
+pub(crate) fn dropped_products(release: &Path, cleared: &[String]) -> Vec<String> {
+    cleared.iter().filter(|n| release.join(n).symlink_metadata().is_err() && !n.starts_with('.')).cloned().collect()
+}
+
+/// The first step of a product build on `release` (`target/niji`): the set is unfinished (no profile marker, no
+/// layout marker, no manifest) until the build's last steps write them again, and it holds no product of an earlier
+/// build ([`clear_products`], whose names it returns).
+fn begin_products(release: &Path) -> Result<Vec<String>, String> {
+    fs::create_dir_all(release).map_err(|e| e.to_string())?;
+    let _ = fs::remove_file(release.join(".profile"));
+    // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
+    let _ = fs::remove_file(release.join(crate::hotlists::MARKER));
+    // CI-PRODUCTS-ONCE: the set is unfinished until its manifest is written again, at the end.
+    crate::import::remove_manifest(release);
+    // XTASK-STALE-PRODUCTS: the set this build ends with is only what it makes (or imports).
+    clear_products(release)
+}
+
+fn print_dropped(release: &Path, cleared: &[String]) {
+    let dropped = dropped_products(release, cleared);
+    if !dropped.is_empty() {
+        println!("so: removed {} earlier product(s) no step of this tree makes: {}", dropped.len(), dropped.join(", "));
+    }
+}
+
 pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
@@ -2021,18 +2088,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // PLANTS-BUILD-2: a `step: so/<phase> <seconds>s` line per phase (the `so/cargo-*` and `so/early-cargo-*` lines are
     // parts of the phases that hold them, or beside them), so a phase that grows shows in every plants and gate log.
     let (mut phases, run_started) = (Phases(std::time::Instant::now()), std::time::Instant::now());
-    fs::create_dir_all(&release).map_err(|e| e.to_string())?;
-    let _ = fs::remove_file(release.join(".profile"));
-    // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
-    let _ = fs::remove_file(release.join(crate::hotlists::MARKER));
-    // CI-PRODUCTS-ONCE: the set is unfinished until its manifest is written again, at the end.
-    crate::import::remove_manifest(&release);
+    let cleared = begin_products(&release)?;
     // LAYOUT-TRACE-DEFAULT: every product build traces its own layout unless the switch says otherwise.
     let layout = Layout::from_env()?;
     println!("so: profile {}", profile.name());
     // CI-PRODUCTS-ONCE: what this build is made from, compared by an import and written into the manifest.
     let built_from = crate::import::header(root, build_tag(root), &format!("{} {}", profile.name(), layout.name()));
     if crate::import::try_import(&release, &built_from)? {
+        print_dropped(&release, &cleared);
         println!("{}", phase_line("total", run_started.elapsed()));
         return Ok(());
     }
@@ -2103,6 +2166,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            // LD-RELR-LOOP (ruling #7402): the relative relocations as DT_RELR words, applied an entry
+            // at a time by the loader's RELR pass, instead of 24-byte RELA entries.
+            .arg("-Wl,-z,pack-relative-relocs")
             .arg(format!("-Wl,--dynamic-list={}", dyn_list.display()))
             .arg("-Wl,--dynamic-list-data")
             .arg(format!("-Wl,-T,{}", ro_first.display()))
@@ -2246,6 +2312,16 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // LOCALE-CHARMAPS-GEN: the charmaps of the built-in codecs, which `locales` ships for localedef.
     let n = crate::charmaps::write_generated(root, &release.join("locale-charmaps"))?;
     println!("so: target/niji/locale-charmaps ({n} charmaps read off the built-in codecs, gzipped)");
+    // LOCALE-SOURCES-GEN (D-31.27): the locale sources generated from Unicode CLDR, which
+    // `locales` ships in /usr/share/i18n/locales. Written afresh, so a name the generator no
+    // longer writes leaves no stale product behind.
+    let sources = release.join("locale-sources");
+    match std::fs::remove_dir_all(&sources) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", sources.display())),
+        _ => {}
+    }
+    let n = crate::locales::write(root, &sources)?;
+    println!("so: target/niji/locale-sources ({n} locale sources from Unicode CLDR {})", crate::locales::CLDR);
     check_placement(root, &release)?;
     phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
@@ -2261,7 +2337,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // cache hashes the products directory and so the lists' hashes in the marker).
     let lists = trace_lists_dir(&product, profile);
     let tmp = tmp_name(&release.join(crate::hotlists::MARKER));
-    fs::write(&tmp, crate::hotlists::marker_text(&lists)).map_err(|e| e.to_string())?;
+    fs::write(&tmp, crate::hotlists::marker_text(&release, &lists)).map_err(|e| e.to_string())?;
     publish(&tmp, &release.join(crate::hotlists::MARKER))?;
     match crate::layout::check_products(root, &release, Some(profile.name())) {
         // The explicit opt-out (ruling #5190): an ungrouped product is correct but misses the start-up contracts.
@@ -2278,6 +2354,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // CI-PRODUCTS-ONCE: the manifest after the marker, so only a finished set has one.
     crate::import::write_manifest(&release, &built_from)?;
     phases.mark("manifest");
+    print_dropped(&release, &cleared);
     println!("{}", phase_line("total", run_started.elapsed()));
     Ok(())
 }
@@ -2316,18 +2393,22 @@ const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 /// (measured per product: `.text` identical with and without it). `-fdebug-prefix-map` spells the
 /// workspace root `/niji` in the debug sections, as `--remap-path-prefix` does for the crates
 /// (PRODUCT-PATH-REMAP); `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, a
-/// loaded string.
+/// loaded string. Every spelling of the root is mapped ([`debug_prefix_flags`]), the logical one in `$PWD` too.
 pub(crate) fn release_debug_cflags(root: &Path, profile: Profile) -> Vec<String> {
     if profile != Profile::Release {
         return Vec::new();
     }
-    let mut flags = vec!["-g1".to_string(), format!("-fdebug-prefix-map={}={}", root.display(), crate::align::REMAP_ROOT)];
-    if let Ok(real) = root.canonicalize() {
-        if real != root {
-            flags.push(format!("-fdebug-prefix-map={}={}", real.display(), crate::align::REMAP_ROOT));
-        }
-    }
+    let pwd = std::env::var_os("PWD").map(std::path::PathBuf::from);
+    let mut flags = vec!["-g1".to_string()];
+    flags.extend(debug_prefix_flags(root, pwd.as_deref()));
     flags
+}
+
+/// BUILD-REPRODUCIBLE-PATHS: `-fdebug-prefix-map=<spelling>=/niji` for every spelling of `root`
+/// ([`crate::align::root_spellings`]; `pwd` is the build's `$PWD`, which the compiler records as the compile
+/// directory), so the debug sections are the same whatever directory, or symlink to it, the tree is built in.
+pub(crate) fn debug_prefix_flags(root: &Path, pwd: Option<&Path>) -> Vec<String> {
+    crate::align::root_spellings(root, pwd).iter().map(|r| format!("-fdebug-prefix-map={r}={}", crate::align::REMAP_ROOT)).collect()
 }
 
 /// SYS-DBG-DWARF: `objcopy --strip-unneeded` also removes the debug sections; the one-object
@@ -2637,21 +2718,34 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
         let f = format!("ldso.{m}.names");
         let want = fs::read_to_string(own.join(&f)).map_err(|e| format!("{}: {e} (products built without their trace? run `cargo xtask so`)", own.join(&f).display()))?;
         let got = fs::read_to_string(lists.join(&f)).map_err(|e| format!("{}: {e}", lists.join(&f).display()))?;
-        if got != want {
-            let (w, g): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
-            let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
-            return Err(format!(
-                "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
-                g.len(),
-                w.len(),
-                at + 1,
-                g.get(at),
-                w.get(at)
-            ));
+        if let Some(e) = trace_difference(m, prefix, &want, &got) {
+            return Err(e);
         }
         println!("ldso-trace: prefix {prefix}: {m}: {} names, the same as the products' own trace", got.lines().count());
     }
     Ok(())
+}
+
+/// LDSO-TRACE-PREFIX: why the `m` trace `got` of the interpreter compiled with `prefix` is not the products' own
+/// `want`, or `None` when both run the same functions in the same order. Names are compared without ThinLTO's
+/// `.llvm.<n>` suffix: `<n>` is a hash of the contents of the module the promoted function came from, and the prefix
+/// is compiled into niji_ld, so a niji_ld function that ThinLTO promotes carries another suffix in each flavour
+/// (`Object::lookup_in`, D-27.91). The hot list drops that suffix too ([`crate::hottext::key`]); every other byte of
+/// a name must match, and a difference is reported with the names as traced.
+fn trace_difference(m: &str, prefix: &str, want: &str, got: &str) -> Option<String> {
+    let (w, g): (Vec<String>, Vec<String>) = (want.lines().map(crate::hottext::strip_llvm).collect(), got.lines().map(crate::hottext::strip_llvm).collect());
+    if g == w {
+        return None;
+    }
+    let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
+    Some(format!(
+        "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
+        g.len(),
+        w.len(),
+        at + 1,
+        got.lines().nth(at),
+        want.lines().nth(at)
+    ))
 }
 
 /// ICONV-CJK-STARTUP-2: `Ok` when the C library at `libc` carries the build tag `tag` (`TAG_PREFIX` then the tag,
@@ -4013,6 +4107,65 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 mod tests {
     use super::*;
 
+    /// XTASK-STALE-PRODUCTS (no spec clause: the product build's tooling): a program an earlier build of another
+    /// tree left in the products directory (`gencat`) is gone once a build starts there, and the manifest lint passes
+    /// on what the build then makes; the other commands' directories and their files stay.
+    #[test]
+    fn a_product_build_leaves_no_earlier_product_for_the_manifest_lint() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root").to_path_buf();
+        if Command::new("python3").arg("-c").arg("pass").output().is_err() {
+            println!("SKIPPED: no python3 to run tools/deb/manifest.py lint");
+            return;
+        }
+        // What this tree's build makes: the products `cargo xtask so` wrote (the lint wants every shipped one).
+        let real = root.join("target/niji");
+        if !real.join("libc.so.6").is_file() {
+            println!("SKIPPED: {} has no products (run `cargo xtask so` first)", real.display());
+            return;
+        }
+        let mut made: Vec<String> = fs::read_dir(&real)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| !n.starts_with('.') && !OTHER_COMMANDS.contains(&n.as_str()))
+            .collect();
+        made.sort();
+        let dir = std::env::temp_dir().join(format!("xtask-stale-products-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        for d in ["include/sys", "charmaps"].iter().chain(OTHER_COMMANDS) {
+            fs::create_dir_all(dir.join(d)).unwrap();
+        }
+        // What an earlier build left: a program no step of this tree makes, a product this tree makes, a link,
+        // a header, a charmap, the profile marker.
+        for (f, text) in [("gencat", "stale"), ("libc.so.6", "old"), ("include/sys/old.h", ""), ("charmaps/OLD-CHARMAP", ""), (".profile", "release\n")] {
+            fs::write(dir.join(f), text).unwrap();
+        }
+        std::os::unix::fs::symlink("libc.so.6", dir.join("libold.so")).unwrap();
+        for d in OTHER_COMMANDS {
+            fs::write(dir.join(d).join("kept"), d).unwrap();
+        }
+        let cleared = begin_products(&dir).unwrap();
+        // The build makes its products again (linked from the real ones, as tests/deb_manifest.rs does).
+        for n in &made {
+            // Each step replaces what it writes (a product or a directory of them), as the real steps do.
+            let p = dir.join(n);
+            let _ = if p.is_dir() { fs::remove_dir_all(&p) } else { fs::remove_file(&p) };
+            std::os::unix::fs::symlink(real.join(n), &p).unwrap();
+        }
+        let o = Command::new("python3").arg(root.join("tools/deb/manifest.py")).arg("lint").arg("--products").arg(&dir).output().unwrap();
+        let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+        assert!(o.status.success() && out.starts_with("manifest: OK"), "manifest lint on the products after the build started:\n{out}");
+        assert_eq!(dropped_products(&dir, &cleared), ["gencat", "libold.so"], "cleared: {cleared:?}");
+        let mut left: Vec<String> = fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        let mut want: Vec<String> = OTHER_COMMANDS.iter().map(|d| d.to_string()).chain(made).collect();
+        want.sort();
+        assert_eq!(left, want, "only this build's products and the other commands' directories");
+        for d in OTHER_COMMANDS {
+            assert_eq!(fs::read_to_string(dir.join(d).join("kept")).unwrap(), *d, "{d}/ is another command's and stays");
+        }
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
     /// LIBC-SELF-BIND (no spec clause: the build of libc.so.6, D-27.76): `readelf -rW` and `--dyn-syms -W` rows
     /// of a linked library. References to the malloc family, to the object's data and to names it does not
     /// define pass; a reference to any other function it defines (FUNC or IFUNC) is reported by name, and a
@@ -4334,6 +4487,24 @@ mod tests {
         }
         assert_eq!(ldso_config_paths("/"), ["/etc/ld.so.preload", "/etc/ld.so.cache"]);
         assert_eq!(ldso_config_paths("/usr/lib/niji/"), ["/usr/lib/niji/etc/ld.so.preload", "/usr/lib/niji/etc/ld.so.cache"]);
+    }
+
+    /// No spec clause (product build tooling, LDSO-TRACE-PREFIX): the prefixed trace matches the products' own when
+    /// both run the same functions in the same order, whatever ThinLTO's `.llvm.<n>` suffix on a promoted function
+    /// (a hash of its module, which the compiled-in prefix changes). Another function, another order, a missing
+    /// name, another crate disambiguator or a `.llvm.` without digits is a difference, reported as traced.
+    #[test]
+    fn ldso_trace_compares_functions_not_thinlto_suffixes() {
+        let f = |name: &str| format!("_start\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9{name}\nexit\n");
+        let own = f("lookup_in.llvm.18142375468484170381");
+        assert_eq!(trace_difference("true", "/usr/lib/niji", &own, &f("lookup_in.llvm.2663032009440432103")), None);
+        let e = trace_difference("true", "/usr/lib/niji", &own, &f("lookup_at.llvm.2663032009440432103")).unwrap();
+        assert!(e.contains("first difference at line 2") && e.contains("lookup_at.llvm.2663032009440432103"), "{e}");
+        let swapped = "_start\nexit\n_RNvMs1_NtCs6LFamp2kJN_7niji_ld7symbolsNtB5_6Object9lookup_in.llvm.1\n";
+        assert!(trace_difference("true", "/p", &own, swapped).is_some(), "another order");
+        assert!(trace_difference("true", "/p", &own, "_start\n").is_some(), "missing names");
+        assert!(trace_difference("true", "/p", &own, &own.replace("Cs6LFamp2kJN_", "Cs7LFamp2kJN_")).is_some(), "another crate");
+        assert!(trace_difference("true", "/p", "f.llvm.x\n", "f.llvm.y\n").is_some(), "a `.llvm.` without digits is part of the name");
     }
 
     /// No spec clause (product build tooling, XTASK-SO-NOCHANGE-PROFILE): the product builds that share a cargo target

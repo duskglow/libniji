@@ -7,6 +7,8 @@
 //! program runs without address-space randomisation, so a build gives the same count every run.
 //! Faults are deterministic counters (WL gate rule), not timing.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
+#[path = "support/contain.rs"]
+mod contain;
 
 use std::path::{Path, PathBuf};
 use std::os::unix::process::CommandExt;
@@ -138,7 +140,14 @@ fn root() -> PathBuf {
 fn generated_list(name: &str) -> PathBuf {
     let m = std::fs::read_to_string(root().join("target/niji/.hot-lists"))
         .unwrap_or_else(|e| panic!("target/niji/.hot-lists: {e}: no start-up lists (every product build writes them from a trace of itself: run `cargo xtask so`)"));
-    PathBuf::from(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
+    hot_lists_dir(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
+}
+
+/// The lists' directory as the marker's first line names it: relative to `target/niji` (BUILD-REPRODUCIBLE-PATHS:
+/// the products name no tree path), or absolute in a marker an older build wrote.
+fn hot_lists_dir(line: &str) -> PathBuf {
+    let p = PathBuf::from(line);
+    if p.is_relative() { root().join("target/niji").join(p) } else { p }
 }
 
 /// LAYOUT-TRACE-DEFAULT (rulings #5190-#5194): a product build traces its own start-up layout by default, so the
@@ -153,7 +162,7 @@ fn init_products_are_grouped_from_a_trace_of_their_own_build() {
         panic!("TRACE-AT-BUILD: target/niji/.hot-lists: {e}: the products carry no lists of their own trace; a product build traces its own layout (run `cargo xtask so`)")
     });
     let mut lines = marker.lines();
-    let dir = PathBuf::from(lines.next().expect("TRACE-AT-BUILD: empty marker"));
+    let dir = hot_lists_dir(lines.next().expect("TRACE-AT-BUILD: empty marker"));
     let mut named = 0;
     for l in lines {
         let (name, want) = l.split_once(' ').unwrap_or_else(|| panic!("TRACE-AT-BUILD: marker line {l:?}"));
@@ -240,31 +249,201 @@ fn faults(exe: &Path, mode: &str) -> u64 {
     faults_env(exe, mode, &[])
 }
 
+/// The length of every [`call_dir`] path: the exec path (`<dir>/page_faults`) and so the start-up stack's
+/// strings keep one length whatever the call (HOTTEXT-FAULT-ENV above). It is the length of the name the
+/// bounds were measured with (`/tmp/nht-<pid:010>-<n>`, LOCALE-PER-DIR-LOAD), so the counts do not move.
+const CALL_DIR_LEN: usize = "/tmp/nht-0000000000-0".len();
+
+/// RELEASE-STEP-EXEC-FAIL: the private directory of one [`faults_env`] call, never another call's in this
+/// process. Each call removes its directory at its start and its end. Under `cargo test` (the CI release step),
+/// every test of this file runs in one process (one pid) on parallel threads, and the directory used to be
+/// `<pid>-<call % 10>`: a call that ten later calls outlived had its staged program removed under it. (Measured
+/// on the Skylake-SP host, release products, load up to 42: at most 5 later calls started during any call, so this
+/// was a latent race, not shown to have fired.) nextest runs each test in a process of its own. The number is the
+/// call's own count, at a fixed width, so the name keeps [`CALL_DIR_LEN`].
+fn call_dir() -> PathBuf {
+    static CALL: AtomicUsize = AtomicUsize::new(0);
+    let n = CALL.fetch_add(1, Ordering::Relaxed);
+    assert!(n < 10_000, "call_dir: {n} calls in one process; widen the number (and keep CALL_DIR_LEN)");
+    PathBuf::from(format!("/tmp/n{:010}-{n:04}", std::process::id()))
+}
+
+#[test]
+fn harness_fault_call_dirs_are_never_shared() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `call_dir`). More calls than the
+    // ten slots the directories used to rotate through: every call's directory differs, and all have
+    // one length (the count must not move with which call it was).
+    let dirs: Vec<PathBuf> = (0..32).map(|_| call_dir()).collect();
+    for d in &dirs {
+        assert_eq!(d.as_os_str().len(), CALL_DIR_LEN, "{} is not {CALL_DIR_LEN} bytes long", d.display());
+    }
+    let mut unique = dirs.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), dirs.len(), "two calls of call_dir share a directory: {dirs:?}");
+}
+
+/// RELEASE-STEP-EXEC-FAIL: `None` when the run `what` succeeded, else the failure with the run's stderr. Two
+/// CI release steps read only an exit status (127, 99) from a counted run, which left the failing step unnamed.
+/// STARTUP-RELAY-EXEC: the `page_faults` relay reports a failed exec as `errno <n>`; the failure adds
+/// that errno's name (`errno 2 (No such file or directory ...)`).
+fn run_failure(what: &str, o: &std::process::Output) -> Option<String> {
+    (!o.status.success()).then(|| {
+        let err = String::from_utf8_lossy(&o.stderr);
+        let mut why = format!("{what} failed: {}; stderr: {:?}", o.status, err.trim());
+        for n in err.split("errno ").skip(1).filter_map(|t| t.split(|c: char| !c.is_ascii_digit()).next()?.parse::<i32>().ok()) {
+            why.push_str(&format!("; errno {n}: {}", std::io::Error::from_raw_os_error(n)));
+        }
+        why
+    })
+}
+
+#[test]
+fn harness_failed_run_reports_its_stderr() {
+    // RELEASE-STEP-EXEC-FAIL: no spec clause (this file's harness, `run_failure`).
+    let o = Command::new("sh").args(["-c", "echo 'page_faults: not found' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains("127") && why.contains("page_faults: not found"), "the failure does not carry the status and stderr: {why}");
+    let ok = Command::new("sh").args(["-c", "echo minflt 1 >&2"]).stdin(Stdio::null()).output().expect("sh");
+    assert_eq!(run_failure("probe", &ok), None);
+    // STARTUP-RELAY-EXEC: the relay's `errno <n>` is named.
+    let o = Command::new("sh").args(["-c", "echo 'page_faults relay: execve /x/page_faults failed: errno 2' >&2; exit 127"]).stdin(Stdio::null()).output().expect("sh");
+    let why = run_failure("probe", &o).expect("a failed run must read as a failure");
+    assert!(why.contains(&format!("errno 2: {}", std::io::Error::from_raw_os_error(2))), "the relay's errno is not named: {why}");
+}
+
+#[test]
+fn harness_relay_names_a_failed_exec_and_its_errno() {
+    // STARTUP-RELAY-EXEC: no spec clause (this file's harness, `page_faults.c` relay). The relay's
+    // child execs the path the relay was exec'd by (AT_EXECFN). Exec'd as `/proc/self/fd/<n>` with <n>
+    // close-on-exec, the relay itself starts (the kernel opens the path before it closes the descriptor),
+    // and its child's exec of that path finds no descriptor <n>: the relay must name the path and the
+    // errno (ENOENT), not exit 127 alone.
+    use std::os::fd::AsRawFd;
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    if !Path::new("/proc/self/fd").is_dir() {
+        eprintln!("SKIP harness_relay_names_a_failed_exec_and_its_errno: no /proc/self/fd (proc is not mounted)");
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("page_faults_relay_exec");
+    build(&exe);
+    let file = std::fs::File::open(&exe).unwrap(); // std opens it close-on-exec
+    let via = format!("/proc/self/fd/{}", file.as_raw_fd());
+    let o = Command::new(&via).arg0("page_faults").args(["relay", "true"]).current_dir("/").env_clear().stdin(Stdio::null()).output().expect("the relay");
+    drop(file);
+    let why = run_failure("relay true", &o).expect("the relay's exec of a closed descriptor's path succeeded");
+    assert_eq!(o.status.code(), Some(127), "{why}");
+    let named = format!("execve {via} failed: errno {}", 2);
+    assert!(why.contains(&named) && why.contains(&std::io::Error::from_raw_os_error(2).to_string()), "the relay does not name its failed exec ({named}): {why}");
+}
+
+/// LOCALE-PER-DIR-LOAD (D-7.21): the locale data the probes count. Where `/usr/lib/locale` held a locale
+/// archive, `LANG=en_US.UTF-8` mapped one file; a host with per-locale directories instead (a Skylake-SP
+/// host after locales-all) maps about 13 (tool 58 and setlocale + printf 57 faults against 44 and 43, and the
+/// tool count read 58 or 59 by text pad, failing `init_data_clusters_hold_at_every_text_phase`). The
+/// probes therefore run with an archive of their own, holding only en_US.utf8 (host `localedef
+/// --prefix`), bind-mounted on `/usr/lib/locale` in a user and mount namespace (`unshare -r -m`): the
+/// counts then do not depend on the host's locale layout. Measured with one static probe: Skylake-SP host
+/// (directories) 10 / 43 / 44 (start-up, setlocale + printf, tool) with this archive, the Zen 1
+/// host 10 / 43 / 44 with its own archive and with this one. `Err` (no localedef, no user namespaces,
+/// or a `sh` that adds environment strings) names why the host's own layout is counted instead.
+fn probe_locale_archive() -> Result<&'static [u8], &'static str> {
+    static ARCHIVE: std::sync::OnceLock<Result<Vec<u8>, String>> = std::sync::OnceLock::new();
+    let built = ARCHIVE.get_or_init(|| {
+        let r = make_probe_locale_archive();
+        if let Err(why) = &r {
+            eprintln!("NOTE: the page-fault probes count the host's own locale layout: {why}");
+        }
+        r
+    });
+    built.as_ref().map(Vec::as_slice).map_err(String::as_str)
+}
+
+fn make_probe_locale_archive() -> Result<Vec<u8>, String> {
+    let root = std::env::temp_dir().join(format!("niji-hot-text-locale-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let dir = root.join("usr/lib/locale");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let made = Command::new("localedef")
+        .arg(format!("--prefix={}", root.display()))
+        .args(["-i", "en_US", "-f", "UTF-8", "en_US.UTF-8"])
+        .stdin(Stdio::null())
+        .output();
+    let archive = std::fs::read(dir.join("locale-archive"));
+    // The namespace runs the same script as `faults_env`, with `env` in place of the probe.
+    let ns = contain::user("unshare")
+        .args(["-r", "-m", "sh", "-c", r#"mount --bind "$1" /usr/lib/locale || exit 99; unset PWD; exec env"#, "sh"])
+        .arg(&dir)
+        .current_dir("/")
+        .env_clear()
+        .env("LANG", "en_US.UTF-8")
+        .stdin(Stdio::null())
+        .output();
+    let _ = std::fs::remove_dir_all(&root);
+    let archive = match (made, archive) {
+        (_, Ok(a)) if !a.is_empty() => a,
+        (Ok(o), _) => return Err(format!("localedef wrote no archive: {}", String::from_utf8_lossy(&o.stderr).trim())),
+        (Err(e), _) => return Err(format!("localedef cannot be run: {e}")),
+    };
+    match ns {
+        Ok(o) if o.status.success() && o.stdout == b"LANG=en_US.UTF-8\n" => Ok(archive),
+        Ok(o) if o.status.success() => Err(format!("sh adds to the environment: {:?}", String::from_utf8_lossy(&o.stdout))),
+        Ok(o) => Err(format!("unshare -r -m with a bind mount failed ({}): {}", o.status, String::from_utf8_lossy(&o.stderr).trim())),
+        Err(e) => Err(format!("unshare cannot be run: {e}")),
+    }
+}
+
 /// [`faults`] with `env` added to the program's fixed environment (a dynamic program's `LD_LIBRARY_PATH`).
 fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
-    // One directory per call (the tests run in parallel); the name always has the same length.
-    static CALL: AtomicUsize = AtomicUsize::new(0);
-    let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
-    let dir = PathBuf::from(format!("/tmp/niji-hot-text-{:010}-{n}", std::process::id()));
+    // One directory per call (the tests run in parallel); the name always has the same length, and the
+    // exec path `<dir>/page_faults` is as long as the earlier `/tmp/niji-hot-text-<pid>-<n>/p`.
+    let dir = call_dir();
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let run = dir.join("p");
+    let run = dir.join("page_faults");
     stage(exe, &run);
+    // With the probe archive, `sh` (in the namespace) mounts it and execs the probe found through an
+    // unexported PATH, so argv[0] is `page_faults` and the environment is LANG plus `env` only, as below.
+    let locale = probe_locale_archive().ok().map(|a| {
+        let l = dir.join("locale");
+        std::fs::create_dir_all(&l).unwrap();
+        std::fs::write(l.join("locale-archive"), a).unwrap();
+        l
+    });
     no_randomisation();
     let mut seen = Vec::with_capacity(RUNS + 1);
     for _ in 0..=RUNS {
-        let o = Command::new(&run)
-            .arg0("page_faults")
-            .arg("relay")
-            .arg(mode)
-            .current_dir("/")
-            .env_clear()
-            .env("LANG", "en_US.UTF-8")
-            .envs(env.iter().copied())
-            .stdin(Stdio::null())
-            .output()
-            .unwrap();
-        assert!(o.status.success(), "{} {mode} failed: {:?}", exe.display(), o.status);
+        let mut cmd = match &locale {
+            Some(l) => {
+                let mut c = contain::user("unshare");
+                c.env_clear()
+                    .env("LANG", "en_US.UTF-8")
+                    .args(["-r", "-m", "sh", "-c"])
+                    .arg(r#"mount --bind "$1" /usr/lib/locale || exit 99; unset PWD; PATH=$2; mode=$3; shift 3; for kv; do export "$kv"; done; exec page_faults relay "$mode""#)
+                    .arg("sh")
+                    .arg(l)
+                    .arg(&dir)
+                    .arg(mode)
+                    .args(env.iter().map(|(k, v)| format!("{k}={v}")));
+                c
+            }
+            None => {
+                let mut c = Command::new(&run);
+                c.arg0("page_faults").arg("relay").arg(mode).env_clear().env("LANG", "en_US.UTF-8").envs(env.iter().copied());
+                c
+            }
+        };
+        let first = cmd.get_program().to_owned();
+        let o = cmd.current_dir("/").stdin(Stdio::null()).output().unwrap_or_else(|e| panic!("{} cannot be run: {e}", Path::new(&first).display()));
+        // A failure of the namespace script (99: the bind mount; 127: `unshare`, `setpriv` or the probe could
+        // not be executed; the relay's own exec of the counted run) names itself on stderr: the run's status
+        // alone does not say which step failed.
+        if let Some(why) = run_failure(&format!("{} {mode}", exe.display()), &o) {
+            panic!("{why}");
+        }
         let err = String::from_utf8_lossy(&o.stderr);
         let n: u64 = err.trim().strip_prefix("minflt ").and_then(|v| v.parse().ok()).unwrap_or_else(|| panic!("unexpected output {err:?}"));
         seen.push(n);
@@ -279,7 +458,8 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
     // PAGEFAULTS-2: hot-text grouping of the startup, setlocale and printf paths.
     let r = root();
     assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
-    // The locale comes from the system archive, like the workloads the WL gate counts.
+    // The locale comes from an archive, as the workloads the WL gate counts had it when the bounds were
+    // measured: the probes' own (`probe_locale_archive`), or the host's where that cannot be made.
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
@@ -503,13 +683,23 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// Skylake-SP host was not run in this test: the STARTUP-REPROFILE kit's empty main on the same release
 /// products (median of 101) read 117 instructions more there than on the Zen 1 host (272,251 / 272,134;
 /// next 331,768 / 331,733), so its bounds are the Zen 1 levels plus 117, plus 2%.
+/// LD-RELR-LOOP (D-27.87, libc.so.6's relative relocations packed as DT_RELR and applied an entry at a
+/// time; ld.so's own the same way): this test on the Zen 1 host, fast 255,972 and release 243,825 (both
+/// more than 10% under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%.
+/// Skylake-SP host not run in this test: as for LD-PHDR-ONCE, the Zen 1 levels plus 117, plus 2%.
+/// LD-RELR-LOOP-2 (D-27.87, RELR bitmap words added in place, one add per word): this test on the Zen 1
+/// host, fast 248,446 and release 238,792; the bounds are those levels plus 2% (Skylake-SP as above).
 /// LD-OBJECT-ONCE (D-27.85, each object's view tables read in one pass, the version checks hash-first),
 /// on next fd973fc44: this test on the Zen 1 host, fast 219,145 and release 196,663 (both more than 10%
 /// under the old bounds, so they went red); the Zen 1 bounds are those levels plus 2%, the Skylake-SP
 /// host's (not run in this test) the Zen 1 levels plus 117 (as above), plus 2%.
+/// LD-RELR-LOOP-4 (D-27.87 merged with D-27.85, next 3e668ecce): this test on the Skylake-SP host, fast
+/// 170,176 and release 159,226 (both more than 10% under the LD-OBJECT-ONCE bounds, so they went red); the
+/// Skylake-SP bounds are those levels plus 2%. Zen 1 host not run in this test: its levels are taken as the
+/// Skylake-SP levels minus 117 (the reverse of the rule above), plus 2%.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [223_700, 200_800]),
-    ("AMD EPYC 7551 32-Core Processor", [223_600, 200_600]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [173_600, 162_500]),
+    ("AMD EPYC 7551 32-Core Processor", [173_500, 162_300]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.

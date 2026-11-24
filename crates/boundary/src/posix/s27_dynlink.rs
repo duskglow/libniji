@@ -157,23 +157,69 @@ pub extern "C" fn dl_iterate_phdr(cb: Callback, data: *mut c_void) -> c_int {
     0
 }}
 
+/// Which addresses [`find_in`] counts as an object's, and the range it reports for one.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Extent {
+    /// The `PT_LOAD` segment that holds the address (a static program).
+    Segment,
+    /// The run of segments that holds it, each touching the pages of the one before (an object
+    /// the kernel mapped: it leaves the pages between two runs unmapped, so they may hold another
+    /// object or mapping, and they are no part of this one: probe R-6 in
+    /// `spec/behaviour/dynlink.md`). The value: the page size. Only the loader's readers use it.
+    #[cfg_attr(not(feature = "ld"), allow(dead_code))]
+    Run(usize),
+    /// The whole range, lowest to highest `PT_LOAD` address, gaps between segments included (an
+    /// object the loader mapped in one reservation, which keeps its gaps: probe R-5).
+    Whole,
+}
+
 /// The range and `PT_GNU_EH_FRAME` address of the object (headers `phdr`, `phnum`, load bias
-/// `bias`) that holds `pc`: the `PT_LOAD` segment that holds it and that segment's range, or, when
-/// `whole`, the object's whole range (lowest to highest `PT_LOAD` address, gaps between segments
-/// included: probe R-5 in `spec/behaviour/dynlink.md`) when it holds `pc`.
-pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, whole: bool) -> Option<(usize, usize, usize)> {
+/// `bias`) that holds `pc`, its addresses and the range reported being `extent`'s.
+pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, extent: Extent) -> Option<(usize, usize, usize)> {
     // UNSAFE(slice): program headers the kernel mapped (⚑ KERN) and that stay mapped.
     #[allow(unsafe_code)]
     // SAFETY: `AT_PHDR`/`AT_PHNUM` (or the vDSO image's e_phoff/e_phnum) describe mapped headers.
     let w = unsafe { conv::words_at(phdr, phnum.saturating_mul(7)) };
     let ty = |h: &[u64]| u32::try_from(h.first().copied().unwrap_or(0) & 0xffff_ffff).unwrap_or(0);
     let loads = || w.chunks_exact(7).take(phnum).filter(|h| ty(h) == PT_LOAD).map(|h| (bias.wrapping_add(word(h, 2)), bias.wrapping_add(word(h, 2)).wrapping_add(word(h, 5))));
-    let (lo, hi) = if whole { (loads().map(|r| r.0).min()?, loads().map(|r| r.1).max()?) } else { loads().find(|&(lo, hi)| lo <= pc && pc < hi)? };
+    let (lo, hi) = match extent {
+        Extent::Whole => (loads().map(|r| r.0).min()?, loads().map(|r| r.1).max()?),
+        Extent::Segment => loads().find(|&(lo, hi)| lo <= pc && pc < hi)?,
+        Extent::Run(page) => run(loads, phnum, page, pc)?,
+    };
     if !(lo..hi).contains(&pc) {
         return None;
     }
     let eh = w.chunks_exact(7).take(phnum).find(|h| ty(h) == PT_GNU_EH_FRAME).map_or(0, |h| bias.wrapping_add(word(h, 2)));
     Some((lo, hi, eh))
+}
+
+/// The run of segments (`loads`: their ranges, in any order) whose pages hold `pc`: grown from a
+/// segment whose pages hold it by every segment whose pages touch the run's, lowest to highest
+/// segment address (the caller checks `pc` lies inside: the bytes between two segments of a run
+/// count, as the index's entries do, `crate::ld::index`); `None` when no segment's pages hold
+/// `pc`. At most `phnum` passes (each pass that grows the run adds a segment).
+#[cold]
+#[inline(never)]
+fn run<I: Iterator<Item = (usize, usize)>>(loads: impl Fn() -> I, phnum: usize, page: usize, pc: usize) -> Option<(usize, usize)> {
+    let mask = page.max(1).wrapping_sub(1);
+    let down = |a: usize| a & !mask;
+    let up = |a: usize| a.checked_add(mask).map_or(usize::MAX, |b| b & !mask);
+    let (mut lo, mut hi) = loads().find(|&(l, h)| l < h && down(l) <= pc && pc < up(h))?;
+    for _ in 0..phnum {
+        let mut grew = false;
+        let (top, bottom) = (up(hi), down(lo));
+        for (l, h) in loads().filter(|&(l, h)| l < h && down(l) <= top && bottom <= up(h)) {
+            if l < lo || h > hi {
+                (lo, hi) = (lo.min(l), hi.max(h));
+                grew = true;
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+    Some((lo, hi))
 }
 
 // `runtime`: it describes only a process libniji started (its startup auxv); interposed on a
@@ -193,11 +239,11 @@ pub extern "C" fn _dl_find_object(pc: *mut c_void, result: *mut struct_dl_find_o
     let (phdr, phnum, vdso) = (get(AT_PHDR), get(AT_PHNUM), get(AT_SYSINFO_EHDR));
     let mut found = None;
     if phdr != 0 {
-        found = find_in(phdr, phnum, scan(phdr, phnum, None).0, pc, false);
+        found = find_in(phdr, phnum, scan(phdr, phnum, None).0, pc, Extent::Segment);
     }
     if found.is_none() && vdso != 0 {
         let (vphdr, vphnum, bias) = vdso_headers(vdso);
-        found = find_in(vphdr, vphnum, bias, pc, true);
+        found = find_in(vphdr, vphnum, bias, pc, Extent::Whole);
     }
     let Some((lo, hi, eh)) = found else { return -1 };
     // UNSAFE(slice) SAFETY: result points to the caller's struct dl_find_object (§27.1).

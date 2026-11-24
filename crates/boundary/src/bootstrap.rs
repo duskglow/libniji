@@ -12,6 +12,13 @@ use niji_ld::boot::{self, BootError, Memory, Writer};
 use crate::conv;
 use crate::ffi;
 
+/// `__niji_thread_db` (`data.rs`, D-22.17) tells a debugger how many dtv
+/// words come before the first module slot; that must be the loader's layout. Checked here, in a
+/// module only the products compile and that already uses the loader crate: naming `niji_ld` in
+/// `data.rs` would make every test build of this crate (niji-math's `selftest` among them) depend
+/// on the loader, and a loader change would then select their suites.
+const _: () = assert!(niji_rt::thread::DEBUG_DTV_HEADER == niji_ld::tls::DTV_HEADER);
+
 /// What pass 2 needs: the bias, the program headers (for the writable segments) and the two RELA
 /// tables (run-time addresses).
 #[derive(Clone, Copy)]
@@ -54,6 +61,30 @@ impl Memory for Mapped {
         // bytes at `bias + vaddr`; the view lives for one store, the thread holds no other
         // reference into the segment meanwhile, and nothing else runs.
         unsafe { conv::bytes_at_mut(addr, len) }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn add_bits(&mut self, vaddr: u64, memsz: u64, off: u64, bits: u64, bias: u64) -> bool {
+        let (addr, _) = at(self.0, (vaddr, memsz));
+        let from = addr.wrapping_add(usize::try_from(off).unwrap_or(0));
+        let mut rest = bits;
+        while rest != 0 {
+            let w = core::ptr::with_exposed_provenance_mut::<u64>(from.wrapping_add(usize::try_from(rest.trailing_zeros()).unwrap_or(0).wrapping_mul(8)));
+            rest &= rest.wrapping_sub(1);
+            // UNSAFE(slice): one word of the image's own writable PT_LOAD segments, read.
+            #[allow(unsafe_code)]
+            // SAFETY: `boot::Writer` asks only after finding the lowest and highest words named in
+            // one writable `PT_LOAD` (so every word between is), mapped readable and writable at
+            // `bias + vaddr` (as for `segment`). RELR does not promise alignment: unaligned.
+            let v = unsafe { w.read_unaligned() };
+            // UNSAFE(slice): the same word, written back with the bias added.
+            #[allow(unsafe_code)]
+            // SAFETY: as for the read; the thread holds no reference into the segment meanwhile,
+            // and nothing else runs.
+            unsafe { w.write_unaligned(v.wrapping_add(bias)) };
+        }
+        true
     }
 }
 

@@ -24,23 +24,12 @@ mod skip_note;
 mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
-use std::path::{Path, PathBuf};
+use oracle::{root, with_headers, without};
+use std::path::Path;
 use std::process::Command;
 
-fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn build(out: &Path, niji: bool) -> bool {
-    let r = root();
-    let src = r.join("crates/core/tests/oracle/posixipc_diff.c");
-    let mut cmd = Command::new("cc");
-    if niji {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
-    } else {
-        cmd.args(["-std=gnu17", "-O1"]).arg(&src);
-    }
-    oracle::build_quiet(cmd, out)
+    oracle::build_pair("crates/core/tests/oracle/posixipc_diff.c").quiet().build(out, niji)
 }
 
 const OPEN_2: &str = "__mq_open_2 (the fortified call without mode and attributes) with O_CREAT fails with EINVAL and creates nothing";
@@ -72,38 +61,8 @@ const ADDED: [(&str, &str, &str); 1] = [(SHM_FLAGS, "shm_open of a FIFO, O_RDONL
 /// Lines only the reference prints: as [`ADDED`].
 const DROPPED: [(&str, &str, &str); 0] = [];
 
-/// Each line of `text` with the header line (`== `) it falls under.
-fn with_headers(text: &str) -> Vec<(String, String)> {
-    let mut header = String::new();
-    text.lines()
-        .map(|l| {
-            if l.starts_with("== ") {
-                header = format!("{l}\n");
-            }
-            (header.clone(), l.to_string())
-        })
-        .collect()
-}
-
-/// `lines` without the lines recorded in `list` (each entry is taken once, by the first line
-/// of its case that starts with its text and has not been taken).
-fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)], who: &str) -> Vec<(String, String)> {
-    let mut seen = vec![false; list.len()];
-    let mut out = Vec::new();
-    for (h, l) in lines {
-        match list.iter().enumerate().position(|(i, (case, needle, _))| !seen[i] && h.starts_with(case) && l.starts_with(needle)) {
-            Some(i) => {
-                seen[i] = true;
-                eprintln!("recorded line only {who} prints ({}):\n  {l}", list[i].2);
-            }
-            None => out.push((h, l)),
-        }
-    }
-    for (i, s) in seen.iter().enumerate() {
-        assert!(s, "recorded line no longer printed by {who}: {:?}", list[i]);
-    }
-    out
-}
+/// The header lines a recorded entry's case is matched against (`oracle::with_headers`).
+const HEADERS: &[&str] = &["== "];
 
 #[test]
 fn posixipc_equals_the_reference() {
@@ -147,8 +106,8 @@ fn posixipc_equals_the_reference() {
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
         let got = run(&ours, &format!("posixipc-niji-{mode}"), Some(mode));
-        let want = without(with_headers(&reference), &DROPPED, "the reference");
-        let got = without(with_headers(&got), &ADDED, "libniji");
+        let want = without(with_headers(&reference, HEADERS), &DROPPED, "the reference");
+        let got = without(with_headers(&got, HEADERS), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; KNOWN.len()];
         for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {

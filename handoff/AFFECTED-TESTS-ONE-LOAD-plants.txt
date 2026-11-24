@@ -1,0 +1,15 @@
+# AFFECTED-TESTS-ONE-LOAD plants: `Repo::load` (xtask/src/affected.rs, D-X.160). Run: cargo xtask plants handoff/AFFECTED-TESTS-ONE-LOAD-plants.txt --dir <dir>
+# A `use` tree cut off by the end of the text is taken as closed: a neighbour's tokens would end it.
+use-cut-closed | xtask/src/affected.rs | lit:cut |= !ended; ==> let _ = ended; | cargo test -p xtask --bin xtask closed_texts_join | msg:closed_texts_join_by_the_union_of_their_references.*(FAILED|panicked)|was taken as closed
+# A text starting with `::` is taken as closed: its first identifier would follow the previous text's last one.
+first-sep-closed | xtask/src/affected.rs | lit:toks.first() != Some(&Tok::Sep) ==> true | cargo test -p xtask --bin xtask closed_texts_join | msg:closed_texts_join_by_the_union_of_their_references.*(FAILED|panicked)|was taken as closed
+# A text ending with `::` is taken as closed: the next text's first identifier would be read as a path's tail.
+last-sep-closed | xtask/src/affected.rs | lit:toks.last() != Some(&Tok::Sep) ==> true | cargo test -p xtask --bin xtask closed_texts_join | msg:closed_texts_join_by_the_union_of_their_references.*(FAILED|panicked)|was taken as closed
+# A `mod` (or path) that skips past the end is taken as closed.
+overshoot-closed | xtask/src/affected.rs | lit:i == toks.len() ==> i >= toks.len() | cargo test -p xtask --bin xtask closed_texts_join | msg:closed_texts_join_by_the_union_of_their_references.*(FAILED|panicked)|was taken as closed
+# The support files' references are left out of a target's.
+support-refs-dropped | xtask/src/affected.rs | lit:refs.extend(r.iter().cloned()); ==> let _ = r; | cargo test -p xtask --bin xtask a_target_s_references | msg:a_target_s_references_are_those_of_its_whole_text.*(FAILED|panicked)|references differ from its whole text
+# A target with a part that is not closed keeps the union instead of reading its whole text.
+open-target-not-reread | xtask/src/affected.rs | lit:if !closed { ==> if false && !closed { | cargo test -p xtask --bin xtask a_small_tree_reads | msg:a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs.*(FAILED|panicked)|references are not those of its whole text
+# The hub counts read `(None, m)` as a module of no crate: `stdio`, `conv`, ... are no longer hubs, and the selection widens.
+hub-own-crate | xtask/src/affected.rs | lit:c.as_deref().unwrap_or(krate) ==> c.as_deref().unwrap_or("") | cargo test -p xtask --bin xtask a_small_tree_reads | msg:a_small_tree_reads_a_cut_off_support_file_whole_and_counts_hubs.*(FAILED|panicked)|hubs

@@ -23,6 +23,8 @@ so the program runs on libniji; the system's C library is not used.
 \fB\-static\fR links libniji's static library; \fB\-shared\fR builds a shared object
 against libniji.
 \fBniji-g++\fR links the C++ library and the unwinder statically.
+A dynamic program also links \fIniji-unwinder.o\fR, which offers that unwinder to the C
+library, so a thread that exits or is cancelled unwinds (C++ destructors and \fBcatch\fR handlers run).
 The loader's default library search is the sysroot only: a program that needs another
 system library names its directory with \fB\-Wl,\-rpath,\fR\fIdir\fR.
 \fB\-static\-pie\fR and \fB\-pg\fR are refused.

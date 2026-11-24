@@ -30,8 +30,8 @@
 
 use super::dlopen::{node_address, reader_entry, CAP};
 use super::index::Found;
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
-use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, START_PAGE, START_RUN_PATH, THREAD_MODS_LEN};
+use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers, Extent};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
@@ -256,7 +256,7 @@ impl View {
 }
 
 /// The vDSO's address from the start's auxiliary vector (0: none).
-fn vdso() -> usize {
+pub(super) fn vdso() -> usize {
     let v = VDSO.load(Relaxed);
     if v != usize::MAX {
         return v;
@@ -295,6 +295,38 @@ pub(super) fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u
         let w0 = h.first().copied().unwrap_or(0);
         (w0 & 0xffff_ffff, h.get(2).copied().unwrap_or(0), h.get(5).copied().unwrap_or(0), w0 >> 32)
     })
+}
+
+/// How the lookups that resolve an address to an object (`_dl_find_object`, `dladdr`, the index)
+/// match entry `i` (`super::index`). The kernel mapped the program it started and `ld.so` itself
+/// and left the pages between their segment runs unmapped, so another object or mapping may lie
+/// there (probe R-6, `spec/behaviour/dynlink.md`): those match by the run that holds the address.
+/// Every other object `map::load` mapped in one reservation that keeps its gaps: its whole range
+/// (probe R-5).
+pub(super) fn extent(i: usize) -> Extent {
+    let n = START_N.load(Relaxed);
+    let interp = START_INTERP.load(Relaxed);
+    let own = if interp < n { interp } else { n };
+    let kernel = n != 0 && ((i == 0 && START_RUN_PATH.load(Relaxed) == 0) || i == own);
+    if kernel {
+        Extent::Run(usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1))
+    } else {
+        Extent::Whole
+    }
+}
+
+/// Whether object `i`'s [`extent`] holds `a`, for a caller that found `a` inside its whole range
+/// (`super::dlopen::dladdr`): always for a whole-range object; else its run that holds `a`.
+pub(super) fn extent_holds(i: usize, a: usize) -> bool {
+    match extent(i) {
+        Extent::Whole => true,
+        // A segment that holds `a` (the common case, one pass), else the run's gaps.
+        e => live(i).is_some_and(|(bias, phdr, phnum)| {
+            let at = |v: u64| bias.wrapping_add(usize::try_from(v).unwrap_or(0));
+            headers(phdr, phnum).any(|h| h.0 == PT_LOAD && at(h.1) <= a && a < at(h.1).wrapping_add(usize::try_from(h.2).unwrap_or(0)))
+                || find_in(phdr, phnum, bias, a, e).is_some()
+        }),
+    }
 }
 
 /// The `DT_SONAME` of the object (`bias`, program headers at `phdr`) as a run-time address, from its
@@ -441,6 +473,12 @@ fn tls_module(e: &Entry) -> (u64, usize) {
     for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
+            if niji_ld::tls::dynamic_align(off).is_some() {
+                // An on-demand block (DL-19): the calling thread's, or null when it has none yet
+                // (dl_iterate_phdr(3): "if it has been allocated in the calling thread").
+                let p = niji_ld::tls::Placed { module, tp_offset: niji_ld::tls::NO_STATIC };
+                return (module, super::tls::thread_address(p, 0, false));
+            }
             let tp = u64::try_from(tb::tp()).unwrap_or(0);
             return (module, usize::try_from(tp.wrapping_add_signed(i64::from_ne_bytes(off.to_ne_bytes()))).unwrap_or(0));
         }
@@ -572,7 +610,7 @@ fn find_walk(v: &View, pc: usize) -> Option<(usize, usize, usize, usize)> {
     (0..n.min(CAP))
         .find_map(|i| {
             let e = v.entry(i)?;
-            find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+            find_in(e.phdr, e.phnum, e.bias, pc, extent(i)).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
         })
         .or_else(|| find_past(v, n, pc))
 }
@@ -583,7 +621,7 @@ fn find_walk(v: &View, pc: usize) -> Option<(usize, usize, usize, usize)> {
 fn find_past(v: &View, n: usize, pc: usize) -> Option<(usize, usize, usize, usize)> {
     (CAP..n).find_map(|i| {
         let e = v.entry_past(i)?;
-        find_in(e.phdr, e.phnum, e.bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
+        find_in(e.phdr, e.phnum, e.bias, pc, extent(i)).map(|(lo, hi, eh)| (lo, hi, eh, node_address(i)))
     })
 }
 
@@ -603,7 +641,7 @@ extern "C" fn find_object(pc: usize, result: usize) -> i64 {
             return None;
         }
         let (vphdr, vphnum, bias) = vdso_headers(vd);
-        find_in(vphdr, vphnum, bias, pc, true).map(|(lo, hi, eh)| (lo, hi, eh, 0))
+        find_in(vphdr, vphnum, bias, pc, Extent::Whole).map(|(lo, hi, eh)| (lo, hi, eh, 0))
     });
     let Some((lo, hi, eh, map)) = found else { return -1 };
     // UNSAFE(slice): the caller's `struct dl_find_object` (§27.1).

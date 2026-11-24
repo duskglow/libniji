@@ -122,7 +122,8 @@ def lint_errors(products=None):
         elif not re.fullmatch(r"0[0-7]{3}", mode):
             errs.append("%s: mode %s is not four octal digits" % (where, mode))
         if kind == "file":
-            if not re.fullmatch(r"[A-Za-z0-9_+-][A-Za-z0-9_.+-]*(/[A-Za-z0-9_+-][A-Za-z0-9_.+-]*)?", src):
+            # `@` inside a name: the locale sources' modifiers (ca_ES@valencia, LOCALE-SOURCES-GEN).
+            if not re.fullmatch(r"[A-Za-z0-9_+-][A-Za-z0-9_.+-]*(/[A-Za-z0-9_+-][A-Za-z0-9_.+@-]*)?", src):
                 errs.append("%s: a file row's source is a product name or <dir>/<name>, not %s" % (where, src))
             elif products is not None and not os.path.isfile(os.path.join(products, src)):
                 errs.append("%s: product %s is not in %s (cargo xtask so writes no such file)" % (where, src, products))

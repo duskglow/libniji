@@ -54,6 +54,56 @@ __NIJI_BEGIN_C
 # endif
 #endif
 
+/* Inline bodies when optimizing (features.h, __NIJI_INLINES): atof, atoi, atol and atoll are the strtod, strtol and
+   strtoll calls C 7.22.1.1-2 makes them equivalent to (so a caller sees errno as those set it, and the strtol family's
+   language-mode name); bsearch is libniji's own binary search (C 7.22.5.1), probing the elements in the order the
+   library's does. */
+#if __NIJI_INLINES
+@@when atof
+__NIJI_INLINE_FN double atof (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtod (__nptr, (char **) 0);
+}
+__NIJI_INLINE_FN int atoi (const char *__nptr) __NIJI_NOTHROW
+{
+  return (int) strtol (__nptr, (char **) 0, 10);
+}
+__NIJI_INLINE_FN long int atol (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtol (__nptr, (char **) 0, 10);
+}
+#endif
+@@when atoll
+__NIJI_INLINE_FN long long int atoll (const char *__nptr) __NIJI_NOTHROW
+{
+  return strtoll (__nptr, (char **) 0, 10);
+}
+#endif
+@@when bsearch
+__NIJI_INLINE_FN void *bsearch (const void *__key, const void *__base, size_t __nmemb, size_t __size,
+                                int (*__compar) (const void *, const void *))
+{
+  size_t __lo = 0, __n = __size != 0 ? __nmemb : 0;
+  while (__n > 0)
+    {
+      size_t __half = __n / 2;
+      const void *__p = (const char *) __base + (__lo + __half) * __size;
+      int __c = (*__compar) (__key, __p);
+      if (__c == 0)
+        return (void *) __p;
+      if (__c < 0)
+        __n = __half;
+      else
+        {
+          __lo += __half + 1;
+          __n -= __half + 1;
+        }
+    }
+  return (void *) 0;
+}
+#endif
+#endif
+
 __NIJI_END_C
 
 #endif

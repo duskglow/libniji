@@ -30,7 +30,7 @@ glib-rewrite/
 │   ├── legacy/   (niji-legacy)   quarantined historical semantics (26 modules)                        [forbid]
 │   ├── math/     (niji-math)     libm                                                                 [forbid]
 │   │   └── tests/s10_math_clauses.rs                                             56 pending
-│   ├── ld/, thread-db/            ld.so and libthread_db logic                                         [forbid]
+│   ├── ld/                        ld.so logic (libthread_db is C: libc-so/placeholders/libthread_db.c) [forbid]
 │   ├── spectest/                  pending-test macros                                                   [forbid]
 │   ├── boundary/ (niji-boundary) THE ONLY UNSAFE: ffi sys conv strz heap export data caller_alloc
 │   │   │                          va_source, and posix/ = ARTIFACT 4, the translation layer   [deny + 4 categories]

@@ -190,7 +190,7 @@ fn asc_fields(tm: &struct_tm) -> AscFields {
 
 /// `asctime_r`: the text and its NUL in `buf` (the caller's 26 bytes).
 pub fn asctime_into(tm: &struct_tm, buf: &mut [u8]) -> KResult<()> {
-    let (text, n) = tc::asctime(&asc_fields(tm))?;
+    let (text, n) = tc::asctime_text(&asc_fields(tm))?;
     // The text array holds zeros after the text, so `..=n` ends with the NUL.
     let src = text.get(..=n).ok_or(Errno::EOVERFLOW)?;
     buf.get_mut(..=n).ok_or(Errno::EFAULT)?.copy_from_slice(src);
@@ -199,7 +199,7 @@ pub fn asctime_into(tm: &struct_tm, buf: &mut [u8]) -> KResult<()> {
 
 /// `asctime`: the text in the buffer `asctime` and `ctime` share: its address.
 pub fn asctime_static(tm: &struct_tm) -> KResult<usize> {
-    let (text, n) = tc::asctime(&asc_fields(tm))?;
+    let (text, n) = tc::asctime_text(&asc_fields(tm))?;
     let buf = thread::result_slot(SLOT_ASCTIME).ok_or(Errno::ENOMEM)?;
     buf.store(text.get(..=n).unwrap_or(&[0]));
     Ok(buf.addr())

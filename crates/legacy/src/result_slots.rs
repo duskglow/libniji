@@ -37,6 +37,21 @@ impl<const N: usize> Buf<N> {
         }
     }
 
+    /// Copy `bytes` to the buffer from byte `at` (the bytes past the end are dropped).
+    pub fn store_at(&self, at: usize, bytes: &[u8]) {
+        for (slot, &b) in self.0.iter().skip(at).zip(bytes) {
+            slot.store(b, Ordering::Relaxed);
+        }
+    }
+
+    /// Copy `out.len()` bytes from byte `at` to `out` (the bytes past the end are left as
+    /// they are).
+    pub fn load_at(&self, at: usize, out: &mut [u8]) {
+        for (d, slot) in out.iter_mut().zip(self.0.iter().skip(at)) {
+            *d = slot.load(Ordering::Relaxed);
+        }
+    }
+
     /// The `i`th native word (8 bytes; 0 past the end): an address or size the owner stored.
     pub fn word(&self, i: usize) -> usize {
         let mut b = [0u8; 8];

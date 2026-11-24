@@ -168,8 +168,8 @@ const DEFINED: u64 = 0x1_0000;
 
 /// `wctype(name)` in `loc`: a standard class as its mask, a locale-defined class as
 /// `0x10000 + k`; 0 for an unknown name.
-pub fn wctype(name: &[u8], loc: &Locale) -> u64 {
-    match ctype::wctype(name, loc) {
+pub fn wctype_in(name: &[u8], loc: &Locale) -> u64 {
+    match ctype::wctype_class(name, loc) {
         Some(WClass::Standard(c)) => u64::from(c.0),
         Some(WClass::Defined(k)) => DEFINED.saturating_add(u64::try_from(k).unwrap_or(0)),
         None => 0,
@@ -178,7 +178,7 @@ pub fn wctype(name: &[u8], loc: &Locale) -> u64 {
 
 /// [`wctype`] of a converted name (the conversion's error passes through).
 pub fn wctype_of(name: niji::error::KResult<&[u8]>, loc: &Locale) -> niji::error::KResult<u64> {
-    name.map(|n| wctype(n, loc))
+    name.map(|n| wctype_in(n, loc))
 }
 
 /// [`wctrans`] of a converted name.

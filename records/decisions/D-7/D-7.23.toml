@@ -1,0 +1,11 @@
+id = "D-7.23"
+section = "s07"
+spec = "§7.7"
+ann = "—"
+status = "active"
+story = "CATALOG-REPLACED-FILE-RACE"
+date = "2026-11-23"
+tests = ["crates/core/tests/catalogs_products.rs::catalogs_equal_the_reference"]
+body = '''
+**The catalog comparison never sees the host's system locale directory** (CATALOG-REPLACED-FILE-RACE, 2026-11-23). `catalogs_equal_the_reference` runs the reference and libniji under `nscache_mode.sh --hide-system-locales`: a private mount namespace in which `/usr/lib/locale` is a tmpfs (mounted before the drop to the calling user) holding only `C.utf8`, bound back from the real directory: the C.UTF-8 locale installed with the C library, which the reference loads from there (libniji has it built in). `catalogs_run.sh` refuses to run the compared cases while that directory holds anything else. Reason: setlocale searches the default directory after the `LOCPATH` directories (setlocale(3); D-7.21), so the locales a host has installed there decide what a name missing from `LOCPATH` selects. Black-box probe on a Skylake-SP build host with per-locale directories installed: `setlocale(LC_ALL, "de_DE.UTF-8@euro")` with `LOCPATH` holding only `de_DE.UTF-8` returns NULL in the reference and in libniji (the installed `de_DE@euro` holds the categories, with another codeset); with the directory hidden both return the name (fallback to `LOCPATH`'s `de_DE.UTF-8`), which is what the record shows. Without the hide the test's result depended on which locales the host had installed and on whether the branch's libniji already searched the default directory: 28 failing runs in one day, each the `de_DE.UTF-8@euro` case. The failure message lists the differences nobody recorded first and marks runs of recorded ones `(recorded)`.
+'''

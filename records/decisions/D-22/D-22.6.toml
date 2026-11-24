@@ -4,5 +4,5 @@ spec = "§22.6"
 ann = "HIST"
 status = "active"
 body = '''
-The static TLS surplus for initial-exec `dlopen` objects is sized by tunable, with a generous default. Dynamic TLS never fails except for `ENOMEM`, which aborts, per the contract (§27.3).
+The static TLS surplus for initial-exec (`DF_STATIC_TLS`) `dlopen` objects is `glibc.rtld.optional_static_tls` plus 1200 bytes, 1712 bytes by default, as on the reference (D-27.94, story TLS-DYNAMIC-BLOCKS; corrected 2026-11-23: until then it was a fixed 64 KiB that the tunable did not change, and a thread stack taken from the cache zeroed all of it on every reuse). Objects without `DF_STATIC_TLS` take no surplus: their blocks are made per thread on first access (DL-19). Dynamic TLS never fails except for `ENOMEM`, which ends the process with status 127, per the contract (§27.3).
 '''

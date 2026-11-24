@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
             if b == b'[' && next == Some(b':') && self.has(s::CHAR_CLASSES) {
                 let (name_end, after) = self.bracket_item_end(self.i + 2, b':').ok_or(ReError::EBrack)?;
                 let name = self.p.get(self.i + 2..name_end).unwrap_or(&[]);
-                let w = ctype::wctype(name, self.loc).ok_or(ReError::ECtype)?;
+                let w = ctype::wctype_class(name, self.loc).ok_or(ReError::ECtype)?;
                 nomem(cs.classes.push(text::class_code(w)))?;
                 self.i = after;
                 if self.p.get(self.i) == Some(&b'-') && self.p.get(self.i + 1).is_some_and(|c| *c != b']') {

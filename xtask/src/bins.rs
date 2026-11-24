@@ -30,6 +30,10 @@
 //! HEAP-ADDRESS-SPACE-6: a group only measured phases count never joins the head bin, which can lie
 //! across two windows ([`head_may_take`]). A group that counts a measured phase besides other modes
 //! prefers a later bin to the head bin at equal cost ([`head_takes`], CRT-START-FILES-2), for the same reason.
+//! LAYOUT-HEAD-BIN-TAIL (D-X.162): when, in list order, a section a measured phase counts would be linked
+//! after the last head-bin section its warm-up runs, the sections measured phases count are linked ahead of
+//! the last member every such warm-up runs ([`head_order`]), so no split of the head bin leaves a measured
+//! phase's section alone in a window its warm-up did not fault, whichever function happens to sort last.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -115,7 +119,8 @@ pub struct Placement {
     pub filler: bool,
     /// Index into the items (a member) or the cold pool (a filler).
     pub index: usize,
-    /// The list position (a member) or the filler's order in its bin.
+    /// The list position (a member; past the previous place where the head bin is not in list order, [`head_order`]) or the
+    /// filler's order in its bin.
     pub place: usize,
     /// The alignment to give the section, 0 to keep its own.
     pub align: u64,
@@ -195,6 +200,59 @@ fn phases(items: &[Item]) -> BTreeSet<String> {
 fn head_may_take(sig: &BTreeSet<String>, phases: &BTreeSet<String>) -> bool {
     sig.is_empty() || !sig.is_subset(phases)
 }
+
+/// The extent of `idx` laid out in the given order from a [`BIN`] boundary ([`extent`] lays out in list order).
+fn ordered_extent(items: &[Item], idx: &[usize]) -> u64 {
+    idx.iter().fold(0, |off, &i| place(off, items[i].bytes, items[i].align))
+}
+
+/// The phase modes (of `phases`) that bin `b`'s members, in their link order, leave exposed: a member
+/// with bytes that the mode counts is linked after the last member with bytes its warm-up runs. Only the
+/// head bin can show it in the program ([`head_order`]); for another bin it is harmless.
+fn exposed(items: &[Item], b: &Bin, phases: &BTreeSet<String>) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for m in phases {
+        let pre = warm_up(m);
+        let ran = |i: usize| items[i].bytes > 0 && items[i].sig.contains(m.as_str());
+        if b.members.iter().rev().copied().find(|&i| ran(i) || (items[i].bytes > 0 && items[i].sig.contains(&pre))).is_some_and(|i| !items[i].sig.contains(&pre)) {
+            out.insert(m.clone());
+        }
+    }
+    out
+}
+
+/// LAYOUT-HEAD-BIN-TAIL: the head bin's link order, when list order leaves a phase mode exposed. The head
+/// bin is the one bin not on a window boundary ([`HEAD_ANCHOR`]): with more than [`HEAD_ROOM`] ahead of the
+/// group, a suffix of it lies in a second window, whose first byte can be anywhere in the bin. A phase
+/// mode's measured phase takes no fault there only if a section its warm-up runs is linked at or after its
+/// own last section in the bin ([`exposed`]). List order (first touch) puts the measured phases' own
+/// sections last, so whether that held depended on which warm-up function happened to sort after them
+/// (PRINTF-NO-HEAP-3: with printf's `pair_s` inlined, the strings phase faulted on `resolve_fold_slow` at
+/// a 0x2000 text pad). The **cover** is the last member with bytes that the warm-up of every phase mode
+/// the bin counts runs; every member after it that some phase mode counts is linked just ahead of it, in
+/// list order, so the cover is linked after all of them. The cover stays where it is otherwise: moving it
+/// to the end instead would stretch every mode that runs it (start-up, when the cover is a start-up
+/// function) over the whole bin. The bins, their modes and the planned windows stay. None when nothing is
+/// exposed (list order stays), when no member is a cover, or when the order's places would not fit the
+/// five digits of [`section`] or its alignment padding would overfill the bin.
+fn head_order(items: &[Item], b: &Bin, phases: &BTreeSet<String>) -> Option<Vec<usize>> {
+    if exposed(items, b, phases).is_empty() {
+        return None;
+    }
+    let need: BTreeSet<String> = phases.iter().filter(|m| b.members.iter().any(|&i| counted(&items[i].sig).contains(*m))).map(|m| warm_up(m)).collect();
+    let top = b.members.iter().map(|&i| items[i].pos).max()?;
+    if top + b.members.len() >= MAX_PLACE {
+        return None;
+    }
+    let at = b.members.iter().rposition(|&i| items[i].bytes > 0 && need.is_subset(&items[i].sig))?;
+    let measured = |i: usize| !counted(&items[i].sig).is_disjoint(phases);
+    let (moved, rest): (Vec<usize>, Vec<usize>) = b.members[at + 1..].iter().partition(|&&i| measured(i));
+    let order: Vec<usize> = [&b.members[..at], &moved, &[b.members[at]], &rest].concat();
+    (ordered_extent(items, &order) <= capacity(0)).then_some(order)
+}
+
+/// One past the highest place [`section`] can name (five digits).
+const MAX_PLACE: usize = 100_000;
 
 /// Whether bin `n` can take the sections `rest` besides its members.
 fn fits(items: &[Item], b: &Bin, n: usize, rest: &[usize]) -> bool {
@@ -285,6 +343,13 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
         b.used = extent(items, &b.members);
         b.end = b.used;
     }
+    if let Some(b) = bins.first_mut() {
+        if let Some(order) = head_order(items, b, &phases) {
+            b.members = order;
+            b.used = ordered_extent(items, &b.members);
+            b.end = b.used;
+        }
+    }
     // Fillers: best fit, largest first, into every gap, the last bin's included: the start file aligns
     // what follows the group to the next boundary ([`GROUP_END`]), so that gap is padding unless filled.
     let mut pool: Vec<usize> = (0..cold.len()).filter(|&c| cold[c].bytes > 0 && cold[c].align <= BIN).collect();
@@ -329,9 +394,17 @@ impl Plan {
         for (n, b) in self.bins.iter().enumerate() {
             let aligned = if n == 0 { anchor } else { self.bins[n - 1].gap };
             let head = if aligned { b.members.iter().copied().find(|&i| items[i].bytes > 0) } else { None };
+            let mut last: Option<(usize, usize)> = None;
             for &i in &b.members {
                 let align = if Some(i) == head && items[i].align < BIN { BIN } else { 0 };
-                out.push(Placement { bin: n, filler: false, index: i, place: items[i].pos, align });
+                // The list position, or one past the previous place where the head bin's order is not list
+                // order ([`head_order`]); a repeated position after an unmoved one keeps it, as before.
+                let place = match last {
+                    Some((p, q)) if items[i].pos < p || (items[i].pos == p && p != q) => p + 1,
+                    _ => items[i].pos,
+                };
+                last = Some((place, items[i].pos));
+                out.push(Placement { bin: n, filler: false, index: i, place, align });
             }
             for (k, &c) in b.fillers.iter().enumerate() {
                 out.push(Placement { bin: n, filler: true, index: c, place: k, align: 0 });
@@ -400,7 +473,28 @@ impl Plan {
             items.len(),
             text.join(" ")
         ));
+        if let Some(b) = self.bins.first() {
+            // The cover ([`head_order`]): the first member linked after one of a later list position.
+            let cover = b.members.windows(2).find(|w| items[w[1]].pos < items[w[0]].pos).map(|w| w[1]);
+            let order = cover.map_or("list order".to_string(), |c| {
+                let ahead = b.members.iter().take_while(|&&i| i != c).filter(|&&i| items[i].pos > items[c].pos).count();
+                format!("{ahead} measured-phase sections linked ahead of {}", items[c].name)
+            });
+            let left = self.head_exposed(items);
+            out.push(format!(
+                "so: head bin order: {order}; phase modes exposed: {}",
+                if left.is_empty() { "none".to_string() } else { left.into_iter().collect::<Vec<_>>().join(",") }
+            ));
+        }
         out
+    }
+
+    /// LAYOUT-HEAD-BIN-TAIL: the phase modes a section of the head bin, in link order, leaves exposed: one
+    /// the mode counts lies after the last section its warm-up runs, so a text pad ahead of the group that
+    /// puts it alone in a second window costs the measured phase a fault ([`head_order`]). Empty when every
+    /// phase mode is covered.
+    pub fn head_exposed(&self, items: &[Item]) -> BTreeSet<String> {
+        self.bins.first().map_or_else(BTreeSet::new, |b| exposed(items, b, &phases(items)))
     }
 }
 
@@ -600,8 +694,9 @@ mod tests {
         // own. Section `p`, which phase `s` and mode `c` count and which the head bin and bin 1 (where
         // `s.pre` runs `b`) would both take at no cost, goes to bin 1; `v` (`true` and `s`) and `q` (`e` and
         // `s`), which only the head bin takes at no cost, stay there: the tie-break never outweighs a mode
-        // (no mode's windows change). Read as whole-process traces (no warm-ups), `s` is no phase mode and
-        // `p` takes the first bin, the head bin.
+        // (no mode's windows change). LAYOUT-HEAD-BIN-TAIL (D-X.162): `q` would sort after every section the
+        // `s` warm-up runs there, so `v` and `q` are linked ahead of `t` (which it runs). Read as whole-process traces (no
+        // warm-ups), `s` is no phase mode and `p` takes the first bin, the head bin, in list order.
         let items = [
             item("t", 0x8000, 1, 0, &["true", "c", "e", "s", "s.pre"]),
             item("b", 0x9000, 1, 1, &["c", "d", "s", "s.pre"]),
@@ -610,7 +705,7 @@ mod tests {
             item("q", 0x100, 1, 4, &["e", "s"]),
         ];
         let p = plan(&items, &[]);
-        assert_eq!(names(&p, &items), [vec!["t", "v", "q"], vec!["b", "p"]]);
+        assert_eq!(names(&p, &items), [vec!["v", "q", "t"], vec!["b", "p"]]);
         let w = p.windows();
         assert_eq!((w["s"], w["c"], w["d"], w["e"], w["true"]), (0, 2, 1, 1, 1), "{w:?}");
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| !m.ends_with(".pre")).cloned().collect(), ..it.clone() }).collect();
@@ -636,9 +731,10 @@ mod tests {
         assert_eq!(names(&p, &items), [vec!["t", "w"], vec!["r", "p"]]);
         let w = p.windows();
         assert_eq!((w["s"], w["a"], w["true"]), (0, 1, 1), "{w:?}");
-        // A group a non-phase mode counts too still joins the head bin when it fits.
+        // A group a non-phase mode counts too still joins the head bin when it fits; `t`, which the `s`
+        // warm-up runs, is then linked after it (LAYOUT-HEAD-BIN-TAIL, D-X.162).
         let mixed: Vec<Item> = items.iter().map(|it| if it.name == "p" { item("p", 0x2000, 1, 2, &["s", "a"]) } else { it.clone() }).collect();
-        assert_eq!(names(&plan(&mixed, &[]), &mixed)[0], ["t", "p"]);
+        assert_eq!(names(&plan(&mixed, &[]), &mixed)[0], ["p", "t"]);
         assert!(!w.contains_key("s.pre"), "a warm-up mode is not charged");
         assert_eq!(Plan::bound(&items)["s"], 0);
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| *m != "s.pre").cloned().collect(), ..it.clone() }).collect();
@@ -675,6 +771,69 @@ mod tests {
         let w = p.windows();
         assert_eq!((w["f"], w["f2"], w["g"]), (1, 0, 1), "{w:?}");
         assert_eq!(super::counted(&items[4].sig), BTreeSet::new());
+    }
+
+    /// The (phase mode, split offset) pairs of `p`'s head bin, laid out in link order from offset 0, where a
+    /// second window starting at the split holds bytes of a section the mode's phase counts and none of a
+    /// section its warm-up runs: one fault the plan does not show. Every 16-byte split is tried.
+    fn head_split_faults(p: &Plan, items: &[Item], phases: &[&str]) -> Vec<(String, u64)> {
+        let mut spans = Vec::new();
+        let mut off = 0_u64;
+        for &i in &p.bins[0].members {
+            off = off.next_multiple_of(items[i].align.max(1));
+            spans.push((off, off + items[i].bytes, &items[i].sig));
+            off += items[i].bytes;
+        }
+        let mut out = Vec::new();
+        for m in phases {
+            let pre = format!("{m}.pre");
+            for x in (16..off).step_by(16) {
+                let after = |want: &dyn Fn(&BTreeSet<String>) -> bool| spans.iter().any(|(_, end, sig)| *end > x && want(sig));
+                if after(&|s| s.contains(*m) && !s.contains(&pre)) && !after(&|s| s.contains(&pre)) {
+                    out.push((m.to_string(), x));
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn a_head_bin_split_costs_no_phase_a_fault_whatever_is_inlined() {
+        // LAYOUT-HEAD-BIN-TAIL (no spec clause: build tooling, D-X.162), reduced from the release head bin
+        // (PRINTF-NO-HEAP-3): the head bin is not on a window boundary, so text ahead of the group beyond
+        // HEAD_ROOM puts a suffix of it in a second window, starting anywhere in the bin. `fold` (the
+        // strings phase `s` and mktime phase `k` count it; their warm-ups do not run it) sorts after
+        // `rusage`, which every warm-up runs. With `pair` (printf's, which the `s` warm-up runs) after it,
+        // every split leaves a warm-up section in the second window. Inlining `pair` away (an ordinary
+        // codegen change) must not leave `fold` alone there: the plan links `fold` ahead of `rusage`, the
+        // last member both warm-ups run, and leaves `equal` (no phase counts it) where it was.
+        let items = [
+            item("start", 0xc000, 16, 0, &["true", "a", "k", "k.pre", "s", "s.pre"]),
+            item("rusage", 0xc0, 16, 1, &["true", "a", "k", "k.pre", "s", "s.pre"]),
+            item("fold", 0x3a0, 16, 2, &["a", "k", "s"]),
+            item("pair", 0x90, 16, 3, &["a", "s", "s.pre"]),
+            item("equal", 0x470, 16, 4, &["a", "k", "k.pre"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["start", "rusage", "fold", "pair", "equal"]], "list order when no phase is exposed");
+        assert!(p.head_exposed(&items).is_empty());
+        assert_eq!(head_split_faults(&p, &items, &["s", "k"]), []);
+        let inlined: Vec<Item> = items.iter().filter(|it| it.name != "pair").cloned().collect();
+        let q = plan(&inlined, &[]);
+        assert_eq!(head_split_faults(&q, &inlined, &["s", "k"]), [], "a split after `fold` faults the `s` phase");
+        assert!(q.head_exposed(&inlined).is_empty(), "{:?}", q.head_exposed(&inlined));
+        assert_eq!(names(&q, &inlined), [vec!["start", "fold", "rusage", "equal"]]);
+        assert_eq!(q.windows(), p.windows(), "the tail moves inside the bin: no mode's planned windows change");
+        // The section names sort into exactly that link order (GNU ld's SORT), `rusage` after `fold`.
+        let mut named: Vec<(String, usize)> = q.placements(&inlined, false).iter().map(|x| (section(x.bin, x.filler, x.place, &inlined[x.index].name), x.index)).collect();
+        named.sort();
+        assert_eq!(named.iter().map(|(_, i)| inlined[*i].name.as_str()).collect::<Vec<_>>(), ["start", "fold", "rusage", "equal"]);
+        assert!(q.summary(&inlined, &[]).iter().any(|l| l == "so: head bin order: 1 measured-phase sections linked ahead of rusage; phase modes exposed: none"), "{:#?}", q.summary(&inlined, &[]));
+        // No member every exposed warm-up runs: the plan keeps list order and says which phase stays exposed.
+        let bare: Vec<Item> = inlined.iter().map(|it| if it.name == "fold" || it.name == "equal" { it.clone() } else { Item { sig: it.sig.iter().filter(|m| *m != "k.pre").cloned().collect(), ..it.clone() } }).collect();
+        let r = plan(&bare, &[]);
+        assert_eq!(names(&r, &bare)[0], ["start", "rusage", "fold", "equal"]);
+        assert_eq!(r.head_exposed(&bare), BTreeSet::from(["s".to_string()]));
     }
 
     #[test]

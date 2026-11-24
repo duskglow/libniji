@@ -43,11 +43,11 @@ fn is_ident(s: &str) -> bool {
     matches!(c.next(), Some(f) if f == '_' || f.is_ascii_alphabetic()) && c.all(|x| x == '_' || x.is_ascii_alphanumeric())
 }
 
-/// The probe's spelling of a floating value: `inf`, `nan` or a normalised hexadecimal constant `0x1.<hex>p<exp>`
+/// The probe's spelling of a floating value: `inf`, `nan` (quiet), `snan` (signaling) or a normalised hexadecimal constant `0x1.<hex>p<exp>`
 /// with no trailing zero digit (or `0x0p+0`), each optionally negative.
 fn is_hexfloat(v: &str) -> bool {
     let v = v.strip_prefix('-').unwrap_or(v);
-    if v == "inf" || v == "nan" || v == "0x0p+0" {
+    if v == "inf" || v == "nan" || v == "snan" || v == "0x0p+0" {
         return true;
     }
     let Some(rest) = v.strip_prefix("0x1") else { return false };
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn value_spellings() {
-        assert!(is_hexfloat("-inf") && is_hexfloat("nan") && is_hexfloat("0x1p-1074") && is_hexfloat("-0x0p+0"));
+        assert!(is_hexfloat("-inf") && is_hexfloat("nan") && is_hexfloat("snan") && is_hexfloat("0x1p-1074") && is_hexfloat("-0x0p+0"));
         assert!(!is_hexfloat("0x1.p+0") && !is_hexfloat("0x1.8p") && !is_hexfloat("0x1.8Ap+0") && !is_hexfloat("1.5"));
         assert_eq!(string_len("\"a\\\"b\\\\c\\012\""), Some(6));
         assert_eq!(string_len("\"\\01\""), None);

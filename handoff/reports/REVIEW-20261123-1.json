@@ -1,0 +1,20 @@
+{"task": "REVIEW-20261123-1", "model": "opus", "tokens": null,
+ "result": "COMPLETE: periodic review written; continue with named changes (no content rabbit hole; E4 gain test and E8 pacing need fixes)",
+ "branch": "task/review-20261123-1", "head": "5da2a5f70",
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Token governor off: no gov_week_usd setting (default 0 = off); owner paused dispatch by hand at 97% weekly usage on 11-22T20:41Z", "recommendation": "owner sets the weekly plan so the governor paces admission"},
+  {"item": "Small net-positive trade-offs reach the owner (#7759 +1 instr once per process vs -16 per allocation; #7708 close call)", "recommendation": "standing delegation: the coordinator decides trades with a one-time cost of a few instructions per process and a net gain on the workload gate, logged, owner reviews weekly"}],
+ "informational": [
+  "tripwire is_gain/best_gain: coverage 0->N plants is the headline for 225 of 290 chains with gains; 122 chains have only coverage/tooling/unblock; direction unchecked (TB-FOREIGN-WORDS-LOW 9->11 counted as gain); owed #32 past due since 11-20",
+  "crates/core/tests/hot_text_products.rs bound constants: 3 of 18 CI conflicts in 72 h; LD-RELR-LOOP-3 -> -4 continuation from one",
+  "owed: 154 opened / 81 paid in 72 h; 75 open, 72 past due; #132 (urgent) past due since 11-22T03:08",
+  "8 of 20 red CI trains have attribution basis none",
+  "16 snapshot stories in 72 h (23.1 agent-h, 0 reds); batching to ~2/day would save about half",
+  "10 of 35 verify reds are INCOMPLETE-by-design hand-backs with all jobs rc 0; raw red counts overstate failure"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "review document; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "make the frame check and tripwire rank gains by goal kind and direction, never by relative change from 0 (plants)",
+ "next_step": "coordinator routes the two rulings to the owner and pays owed #132 and #32",
+ "report_file": "plan/reviews/REVIEW-20261123-1.md",
+ "jobs": []}
