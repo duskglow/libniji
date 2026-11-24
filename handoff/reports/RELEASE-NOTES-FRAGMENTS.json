@@ -1,21 +1,53 @@
-{"task": "RELEASE-NOTES-FRAGMENTS", "model": "opus", "tokens": null,
+{
+ "task": "RELEASE-NOTES-FRAGMENTS",
+ "model": "opus",
+ "tokens": null,
  "result": "release notes are one fragment file per story (docs/release-notes.d/), assembled by cargo xtask release-notes [release --at <rev>], checked in static/precheck (D-X.166)",
- "branch": "task/release-notes-fragments", "head": null,
- "gate": {"affected": "release-notes-fragments-gate4 (xtask bounded set; FULL is the train's)", "peak": null},
+ "branch": "task/release-notes-fragments",
+ "head": "46ff2de2a",
+ "gate": {
+  "affected": "649 passed / 0 failed (6 suites: xtask bounded set incl. clippy, xtask unit tests, cargo xtask static; FULL is the train s)",
+  "peak": "2.1G"
+ },
  "accepted_first_attempt": null,
- "jobs": ["keke:release-notes-fragments-gate4", "keke:release-notes-fragments-plants3"],
+ "jobs": [
+  "keke:release-notes-fragments-gate4",
+  "keke:release-notes-fragments-plants3"
+ ],
  "rulings": [],
  "informational": [
-   "liella-ops SNAPSHOT-PROCEDURE.md step 3 should draft notes from `cargo xtask release-notes`, and step 8's story should run `cargo xtask release-notes release --heading <h> --at <tag> --intro F --outro F`",
-   "backlog/TEMPLATE.md has no release-notes sentence; proposed: 'A change users may notice adds docs/release-notes.d/<STORY-ID>.md (format: that directory's README.md); never edit docs/RELEASE-NOTES.md.'",
-   "xtask/tests/transcripts.rs guards on target/niji-test/iconv existing but not on the products it runs against; a role whose products build was interrupted fails it with ENOENT instead of SKIPPED (gate3 here, after I stopped a stale gate mid `cargo xtask so`)"
+  "liella-ops SNAPSHOT-PROCEDURE.md step 3 should draft notes from `cargo xtask release-notes`, and step 8's story should run `cargo xtask release-notes release --heading <h> --at <tag> --intro F --outro F`",
+  "backlog/TEMPLATE.md has no release-notes sentence; proposed: 'A change users may notice adds docs/release-notes.d/<STORY-ID>.md (format: that directory's README.md); never edit docs/RELEASE-NOTES.md.'",
+  "xtask/tests/transcripts.rs guards on target/niji-test/iconv existing but not on the products it runs against; a role whose products build was interrupted fails it with ENOENT instead of SKIPPED (gate3 here, after I stopped a stale gate mid `cargo xtask so`); gate4 rebuilt the products first and is green"
  ],
  "refused": [],
  "impact": [
-   {"kind": "unblock", "what": "release-note additions no longer edit a shared line: two notes merge in either order (scratch proof); the old layout conflicted on the same pair", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "xtask release_notes unit tests", "before": 0, "after": 8, "unit": "tests", "measured": true},
-   {"kind": "coverage", "what": "plants on the fragment check, assembly order, shared-doc rule, release rerun and --at", "before": 0, "after": 7, "unit": "plants", "measured": true}
+  {
+   "kind": "unblock",
+   "what": "release-note additions no longer edit a shared line: two notes merge in either order (scratch proof); the old layout conflicted on the same pair",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "xtask release_notes unit tests",
+   "before": 0,
+   "after": 8,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the fragment check, assembly order, shared-doc rule, release rerun and --at",
+   "before": 0,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  }
  ],
  "improvement": "sync_role.sh BUSY (rc 4) must gate the job start: I chained job starts after a sync in one command and two jobs ran on a stale tree; start jobs only after checking the sync rc",
  "next_step": "ops: update SNAPSHOT-PROCEDURE steps 3 and 8 and TEMPLATE.md to the fragment flow; in-flight stories that add an Unreleased line move it to a fragment",
- "report_file": "handoff/RELEASE-NOTES-FRAGMENTS.md"}
+ "report_file": "handoff/RELEASE-NOTES-FRAGMENTS.md"
+}

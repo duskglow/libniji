@@ -32,7 +32,12 @@ of it). Decision in force: **D-X.166** (records/decisions/D-X/D-X.166.toml). Rol
   shared-doc rules, release and rerun, `--at`, tree check).
 - Plants: handoff/RELEASE-NOTES-FRAGMENTS-plants.txt, 7 plants (unknown section in a fragment caught by the unit test
   and by `cargo xtask precheck --only static`; assembly without the sort; unknown section accepted; Unreleased allowed;
-  release rerun; `--at` ignored). Results: see the report json / hand-back.
+  release rerun; `--at` ignored). keke release-notes-fragments-plants3 (head e5f52eb1e): 7 CAUGHT, 0 SURVIVED,
+  0 WARN.
+- Gate: keke release-notes-fragments-gate4 (`cargo xtask so && cargo xtask affected --run`, xtask bounded set;
+  FULL is the train's): 6 suites, 649 passed, 0 failed, peak 2.1G. Superseded: gate1/2 and plants1/2 (stale heads,
+  stopped), gate3 (red: `xtask --test transcripts` ENOENT, because stopping gate1 mid `cargo xtask so` left
+  `target/niji-test/iconv` without the products it runs against).
 
 ## Open / next
 
