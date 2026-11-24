@@ -1,0 +1,20 @@
+{"task": "TZSELECT-SESSION-EST530", "model": "opus", "tokens": null,
+ "result": "CI flake explained (the reference shows the clock lines for a seconds offset when a second ends between its clock reads) and removed: the scripted tzselect sessions run with CLOCK_REALTIME pinned at three fixed times, clock lines now compared",
+ "branch": "task/tzselect-session-est530", "head": null,
+ "gate": {"affected": "direct tier ok (xtask test code only); tzselect_pldd 8 passed / 0 failed", "peak": "1.9G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "libniji defect: TZ=EST5EDT,365,0 local time is EDT on 2026-11-24 and 2026-12-31, the reference (and POSIX's day-365 reading) EST; clock lines masked for that row only (CLOCK_UNCOMPARED) until a follow-up story fixes the rule evaluation",
+  "a preload library with DT_NEEDED libc.so.6 does not load into the by-path test links (no SONAME on libc-by-path.so); test preloads must link -nostdlib"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "tzselect_sessions_match_the_reference no longer depends on when it runs (the reference flips the EST5:30:59 clock block in ~2% of unpinned runs)", "before": 2, "after": 0, "unit": "percent of unpinned reference runs that flip (probe)", "measured": true},
+  {"kind": "coverage", "what": "session rows compared with clock lines unmasked at pinned times (64 at the CI instant, 41 TZ strings at an hour and a year boundary); 3 plants", "before": 64, "after": 146, "unit": "session pairs", "measured": true},
+  {"kind": "unblock", "what": "the CI train failing on this test", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "a reference that runs helper programs can race the wall clock; comparisons with clock output should pin CLOCK_REALTIME (the test's -nostdlib preload is reusable) rather than mask",
+ "next_step": "follow-up story: fix libniji's local time for TZ=EST5EDT,365,0 (zero-based day 365 in a common year) and drop it from CLOCK_UNCOMPARED",
+ "report_file": "handoff/TZSELECT-SESSION-EST530-report.md",
+ "jobs": ["keke:tzselect-session-est530-test3", "keke:tzselect-session-est530-gate", "keke:tzselect-session-est530-plants"]}
