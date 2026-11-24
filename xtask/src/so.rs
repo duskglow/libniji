@@ -3010,6 +3010,12 @@ pub(crate) const ZDUMP_TEST: &str = "target/niji-test/zdump";
 /// gencat (UTIL-14, spec §31.12): `csys/util/gencat.c` (the catalog source compiler and D.2.2 writer), linked as
 /// getent is: `target/niji/gencat` (libc-dev-bin's `/usr/bin/gencat`) and the test link `target/niji-test/gencat`.
 pub(crate) const GENCAT_TEST: &str = "target/niji-test/gencat";
+/// tzselect and pldd (UTIL-TZSELECT-PLDD, spec §31.11, §31.13): `csys/util/tzselect.c` (the interactive zone
+/// chooser over the installed zone tables) and `csys/util/pldd.c` (the loaded-object lister, D-31.35), linked as
+/// getent is: `target/niji/tzselect` (libc-bin's `/usr/bin/tzselect`), `target/niji/pldd` (`/usr/bin/pldd`) and
+/// the test links under `target/niji-test`.
+pub(crate) const TZSELECT_TEST: &str = "target/niji-test/tzselect";
+pub(crate) const PLDD_TEST: &str = "target/niji-test/pldd";
 
 fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
@@ -3020,6 +3026,8 @@ fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
     run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)?;
     run_dynamic_util(root, cc, "zic", ZIC_TEST, cdebug)?;
     run_dynamic_util(root, cc, "zdump", ZDUMP_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "tzselect", TZSELECT_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "pldd", PLDD_TEST, cdebug)?;
     run_dynamic_util(root, cc, "gencat", GENCAT_TEST, cdebug)
 }
 
