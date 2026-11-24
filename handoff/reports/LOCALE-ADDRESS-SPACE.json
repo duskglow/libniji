@@ -17,4 +17,5 @@
  "improvement": "The gate's limit-vs-no-limit check compares two different layouts (the loader's 64 MiB reservation is refused only under the limit); a check of the need against a same-layout baseline would not flip when the no-limit run gets more compact",
  "next_step": "Ruling on the find_over_200000 allowance; then re-run that test, precheck, handback-check",
  "report_file": "handoff/LOCALE-ADDRESS-SPACE.md",
- "jobs": ["keke:locale-address-space-clippy3", "keke:locale-address-space-gate2", "keke:locale-address-space-xtest", "keke:locale-address-space-fullprofile", "keke:locale-address-space-t2", "keke:locale-address-space-plants"]}
+ "jobs": ["keke:locale-address-space-gate2", "keke:locale-address-space-xtest", "keke:locale-address-space-fullprofile", "keke:locale-address-space-t2"],
+ "superseded": ["locale-address-space-plants (2 of 2 CAUGHT, ran before the startup-state.list commit; arena code unchanged; rerun owed)", "locale-address-space-clippy3 (label also used by an earlier leg's job; the gate's clippy step covers the head)", "locale-address-space-gate (head 3b97f3f2b, stopped)"]}
